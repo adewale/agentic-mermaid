@@ -1,5 +1,5 @@
 import { unsupportedBunReason } from './bun-version.ts'
-import { runHttp, runStdio, type HttpMcpOptions } from './server.ts'
+import type { HttpMcpOptions } from './server.ts'
 
 export const MCP_CLI_HELP = `agentic-mermaid-mcp [--transport stdio|http] [--host 127.0.0.1] [--port 3000]
 
@@ -123,6 +123,11 @@ export function parseMcpCliOptions(argv: readonly string[]): { transport: 'stdio
 export async function runMcpCli(argv: readonly string[] = process.argv.slice(2), io: McpCliIo = {}): Promise<number> {
   const stdout = io.stdout ?? process.stdout
   const stderr = io.stderr ?? process.stderr
+  const fail = (err: unknown): number => {
+    stderr.write(`agentic-mermaid-mcp: ${err instanceof Error ? err.message : String(err)}\n`)
+    return 1
+  }
+  let options: ReturnType<typeof parseMcpCliOptions>
   try {
     if (argv.includes('--help') || argv.includes('-h')) {
       stdout.write(MCP_CLI_HELP)
@@ -130,7 +135,15 @@ export async function runMcpCli(argv: readonly string[] = process.argv.slice(2),
     }
     const unsupportedBun = unsupportedBunReason()
     if (unsupportedBun) throw new Error(unsupportedBun)
-    const { transport, httpOptions } = parseMcpCliOptions(argv)
+    options = parseMcpCliOptions(argv)
+  } catch (err) {
+    return fail(err)
+  }
+  // A dependency load failure belongs to the entrypoint's startup boundary,
+  // just as it did when the server was imported before CLI execution.
+  const { runHttp, runStdio } = await import('./server.ts')
+  const { transport, httpOptions } = options
+  try {
     if (transport === 'http') {
       await runHttp(httpOptions)
       return 0
@@ -145,7 +158,6 @@ export async function runMcpCli(argv: readonly string[] = process.argv.slice(2),
     })
     return 0
   } catch (err) {
-    stderr.write(`agentic-mermaid-mcp: ${err instanceof Error ? err.message : String(err)}\n`)
-    return 1
+    return fail(err)
   }
 }

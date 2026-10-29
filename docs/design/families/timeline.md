@@ -11,14 +11,14 @@ Pipeline:
 - `src/agent/timeline-body.ts` — structured `TimelineBody` (parse / serialize /
   mutate; structured-or-opaque fallback)
 - `src/timeline/layout.ts` — one placement walk for both orientations
-- `src/timeline/renderer.ts` — SceneGraph lowering + crisp SVG
+- `src/timeline/renderer.ts` — SceneGraph lowering (the scene writer draws its marks)
 - `src/ascii/timeline.ts` — chronological outline for terminals
 
 The renderer parser and agent body share `src/timeline/parse-core.ts` for
 header/content directives and event splitting. A colon starts a new event only
 when followed by whitespace, so `10:30` remains text on both surfaces.
 An event list with a zero-content segment (`A: : B`) or final colon is rejected
-rather than silently dropped or accepted when pinned Mermaid 11.16 rejects or
+rather than silently dropped or accepted when pinned Mermaid rejects or
 reinterprets it. Two narrow parser-level upstream forms remain diagnosed rather
 than modeled: `2020 : A:` at exact EOF with no newline (the pinned grammar
 accepts it, but Mermaid's public render API rejects it and our serializers
@@ -70,7 +70,7 @@ Agentic Mermaid matches that contract, with one deliberate tolerance:
 as `timeline EXTRA` are not direction tokens. The agent surface preserves the
 source verbatim as opaque and verification reports a specific unsupported
 header diagnostic; native rendering rejects the source rather than silently
-using horizontal LR geometry. Pinned Mermaid 11.16 treats a token such as
+using horizontal LR geometry. Pinned Mermaid treats a token such as
 `TB` as a bare period rather than a direction; this stricter local diagnosis
 is deliberate so callers cannot mistake the authored header for a supported
 orientation.

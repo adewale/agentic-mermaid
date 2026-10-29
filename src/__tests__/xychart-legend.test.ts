@@ -22,6 +22,7 @@ import { applyXYChartFrontmatterConfig, parseXYChart } from '../xychart/parser.t
 import { layoutXYChart } from '../xychart/layout.ts'
 import { estimateTextWidth } from '../styles.ts'
 import { resolveStyleStackWithFace } from '../scene/style-registry.ts'
+import { verifyMermaid } from '../agent/index.ts'
 
 function layout(text: string, style?: string) {
   const processed = preprocessMermaidSource(text)
@@ -113,7 +114,7 @@ config:
     legendFontSize: 21
 ---
 ${MULTI_NAMED}`)
-    expect(rendered).toMatch(/font-size="21"[^>]*class="xychart-legend-label"/)
+    expect(rendered).toMatch(/class="xychart-legend-label"[^>]*font-size="21"/)
   })
 
   it('themeVariables xyChart.legendTextColor colors the legend text', () => {
@@ -124,7 +125,9 @@ config:
       legendTextColor: "#123456"
 ---
 ${MULTI_NAMED}`)
-    expect(rendered).toContain('.xychart-legend-label { fill: #123456; }')
+    const labels = rendered.match(/<text [^>]*class="xychart-legend-label"[^>]*>/g) ?? []
+    expect(labels.length).toBeGreaterThan(0)
+    for (const label of labels) expect(label).toContain(' fill="#123456"')
   })
 
   it('legend swatches use the same per-series colors as the plot marks', () => {
@@ -134,8 +137,8 @@ ${MULTI_NAMED}`)
     // (either as the var() or as its inlined value).
     const color0 = rendered.match(/--xychart-color-0: ([^;]+);/)![1]!.trim()
     const color1 = rendered.match(/--xychart-color-1: ([^;]+);/)![1]!.trim()
-    const swatchFill = rendered.match(/class="xychart-legend-swatch" fill="([^"]+)"/)![1]!
-    const swatchStroke = rendered.match(/class="xychart-legend-swatch" stroke="([^"]+)"/)![1]!
+    const swatchFill = rendered.match(/<rect class="xychart-legend-swatch"[^>]* fill="([^"]+)"/)![1]!
+    const swatchStroke = rendered.match(/<line class="xychart-legend-swatch"[^>]* stroke="([^"]+)"/)![1]!
     expect([color0, 'var(--xychart-color-0)']).toContain(swatchFill)
     expect([color1, 'var(--xychart-color-1)']).toContain(swatchStroke)
   })
@@ -182,16 +185,20 @@ describe('xychart legend – layout containment (no clipping)', () => {
   })
 
   it('drops the legend deterministically rather than clip when it cannot fit', () => {
-    const chart = layout(`---
+    const source = `---
 config:
   xyChart:
     width: 120
+    showLegend: true
 ---
 xychart
   x-axis [a]
   bar An Extremely Long Series Name That Cannot Fit [1]
-  line Second Extremely Long Series Name [2]`)
+  line Second Extremely Long Series Name [2]`
+    const chart = layout(source)
     expect(chart.legend).toEqual([])
+    expect(chart.hiddenLegendLabels).toEqual(['An Extremely Long Series Name That Cannot Fit', 'Second Extremely Long Series Name'])
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'LABELS_HIDDEN', target: 'legend', labels: chart.hiddenLegendLabels }))
     // Chart itself still renders inside its box.
     expect(chart.plotArea.x + chart.plotArea.width).toBeLessThanOrEqual(chart.width)
   })

@@ -177,7 +177,7 @@ describeBrowser('website browser accessibility smoke', () => {
 
   test('public routes have named controls, valid ARIA references, and no mobile horizontal overflow', async () => {
     const page = await browser.newPage({ viewport: { width: 390, height: 900 } })
-    for (const route of ['/', '/examples/#gantt', '/examples/style-palette/', '/examples/corpus/', '/comparisons/', '/about/', '/docs/getting-started/', '/docs/', '/skills/agentic-mermaid-diagram-workflow/']) {
+    for (const route of ['/', '/examples/#gantt', '/examples/style-palette/', '/examples/corpus/', '/comparisons/', '/about/', '/docs/getting-started/', '/docs/api/', '/docs/api/advanced/', '/docs/', '/skills/agentic-mermaid-diagram-workflow/']) {
       await page.goto(baseUrl + route, { waitUntil: 'networkidle' })
       expect({ route, unnamed: await namedControls(page) }).toEqual({ route, unnamed: [] })
       expect({ route, broken: await brokenAriaControls(page) }).toEqual({ route, broken: [] })
@@ -267,6 +267,9 @@ describeBrowser('website browser accessibility smoke', () => {
     // Closing restores the grid to the page; Enter on the grid reopens it.
     await dialog.locator('.comparison-dialog-close').click()
     await page.waitForFunction(() => document.querySelector('.comparison-dialog[open]') === null)
+    // Native close removes [open] before its queued close event restores the
+    // grid. Observe that restoration before checking ownership and reopening.
+    await section.locator('.comparison-grid').waitFor({ state: 'attached' })
     expect(await section.locator('.comparison-grid').count()).toBe(1)
     await section.locator('[data-comparison-lightbox-panel]').evaluate((grid: HTMLElement) => {
       grid.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
@@ -330,8 +333,8 @@ describeBrowser('website browser accessibility smoke', () => {
         get() { return mermaidValue },
         set(value) {
           const original = value.renderMermaidSVGWithReceipt
-          value.renderMermaidSVGWithReceipt = function(source: string, options: unknown) {
-            const artifact = original(source, options)
+          value.renderMermaidSVGWithReceipt = async function(source: string, options: unknown) {
+            const artifact = await original(source, options)
             ;(window as any).__examplesEditorRender = { source, options, artifact }
             return artifact
           }

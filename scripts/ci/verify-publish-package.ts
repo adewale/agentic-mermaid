@@ -30,6 +30,15 @@ export function normalizePackagePath(path: string): string {
     /[A-Z0-9]/.test(hash) ? `-[hash]${extension}` : whole)
 }
 
+/** Lazy chunk topology belongs to the emitted compiler graph. A source change
+ * may merge or split chunks without changing the public package contract. */
+export function expectedFilesWithLazyBuild(files: readonly string[], outputs: readonly string[]): string[] {
+  const lazyChunk = (path: string) => path.startsWith('dist/browser-lazy/chunks/') && path.endsWith('.js')
+  const chunks = outputs.filter(lazyChunk)
+  if (chunks.length === 0) throw new Error('Lazy compiler graph contains no emitted chunks')
+  return [...files.filter(path => !lazyChunk(path)), ...chunks.map(normalizePackagePath)]
+}
+
 function countBy(paths: readonly string[]): Map<string, number> {
   const counts = new Map<string, number>()
   for (const path of paths) counts.set(path, (counts.get(path) ?? 0) + 1)
@@ -40,9 +49,10 @@ export function publishPackageProblems(
   packageJson: PackageJson,
   files: readonly string[],
   expectedFiles: readonly string[] = files.map(normalizePackagePath),
+  emittedFiles: readonly string[] = [],
 ): string[] {
   const present = new Set(files)
-  const required = new Set<string>(REQUIRED_PACKAGE_FILES)
+  const required = new Set<string>([...REQUIRED_PACKAGE_FILES, ...emittedFiles])
   for (const target of Object.values(packageJson.bin ?? {})) required.add(stripDotSlash(target))
   for (const entry of Object.values(packageJson.exports ?? {})) {
     if (typeof entry === 'string') required.add(stripDotSlash(entry))
@@ -84,6 +94,8 @@ if (import.meta.main) {
   const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as PackageJson
   const expected = JSON.parse(readFileSync(join(import.meta.dir, 'publish-package-files.json'), 'utf8')) as ExpectedManifest
   const writeManifest = process.argv.includes('--write-manifest')
+  const lazyBuild = JSON.parse(readFileSync(join(root, 'dist/metafile-esm.json'), 'utf8')) as { outputs: Record<string, unknown> }
+  const expectedFiles = expectedFilesWithLazyBuild(expected.files, Object.keys(lazyBuild.outputs))
   if (!writeManifest && (expected.schemaVersion !== 2 || !Array.isArray(expected.files) || expected.files.length === 0)) {
     throw new Error('publish-package-files.json must contain a non-empty schemaVersion 2 file manifest')
   }
@@ -113,11 +125,12 @@ if (import.meta.main) {
   const packResult = result[0]
   const files = packResult?.files?.map(file => file.path) ?? []
   if (writeManifest) {
-    const normalized = files.map(normalizePackagePath).sort((a, b) => a < b ? -1 : a > b ? 1 : 0)
+    const normalized = files.filter(path => !path.startsWith('dist/browser-lazy/chunks/')).map(normalizePackagePath).sort((a, b) => a < b ? -1 : a > b ? 1 : 0)
     writeFileSync(join(import.meta.dir, 'publish-package-files.json'), `${JSON.stringify({ schemaVersion: 2, files: normalized }, null, 2)}\n`)
     process.stdout.write(`wrote scripts/ci/publish-package-files.json (${normalized.length} files); review the diff\n`)
   }
-  const problems = publishPackageProblems(packageJson, files, writeManifest ? files.map(normalizePackagePath) : expected.files)
+  const emittedChunks = Object.keys(lazyBuild.outputs).filter(path => path.startsWith('dist/browser-lazy/chunks/') && path.endsWith('.js'))
+  const problems = publishPackageProblems(packageJson, files, writeManifest ? files.map(normalizePackagePath) : expectedFiles, emittedChunks)
   if (problems.length > 0) {
     process.stderr.write(problems.map(problem => `- ${problem}`).join('\n') + '\n')
     process.exit(1)

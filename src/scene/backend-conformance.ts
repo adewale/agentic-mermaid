@@ -38,7 +38,7 @@ import {
 import { hitTestConnector } from './hit-test.ts'
 import { serializeMarkerResource } from './marker-resources.ts'
 import { serializeLinearGradientResource } from './gradient-resources.ts'
-import { assertFinalSvgByteBudget } from './scene-validation.ts'
+import { assertFinalSvgByteBudget } from './scene-validation-core.ts'
 import {
   connector,
   definitions,
@@ -51,6 +51,8 @@ import {
 } from './marks.ts'
 import { sceneNodeSerialization } from './serialization.ts'
 import { deepFreeze } from '../shared/plain-data.ts'
+import { withTextMeasurementExecution } from '../text-measurement-profile.ts'
+import { admitBackendSceneDocument } from './external-data-snapshot.ts'
 
 export const BACKEND_CONFORMANCE_VERSION = 4 as const
 export const BACKEND_CONFORMANCE_FIXTURE_ID = 'backend-claim-matrix@4' as const
@@ -193,11 +195,12 @@ function createFixture(): ConformanceFixture {
     role: 'node',
     geometry: { kind: 'rect', x: 8, y: 16, width: 34, height: 24, rx: 3, ry: 3 },
     paint: { fill: '#f4efe6', stroke: '#334155', strokeWidth: '2' },
-  }, '<rect x="8" y="16" width="34" height="24" rx="3" ry="3" fill="#f4efe6" stroke="#334155" stroke-width="2" />')
+  })
   const container = group({
     id: 'backend-conformance-container',
     role: 'group',
-    open: '<g opacity="0.8" fill="#f4efe6">',
+    open: '<g>',
+    paint: { opacity: '0.8', fill: '#f4efe6' },
     close: '</g>',
     children: [{ node, indent: 2 }],
   })
@@ -207,7 +210,7 @@ function createFixture(): ConformanceFixture {
     geometry: { kind: 'rect', x: 92, y: 48, width: 16, height: 20 },
     paint: { fill: '#a33b20', stroke: '#334155', strokeWidth: '1' },
     channels: { value: 0.75, category: 'fixture' },
-  }, '<rect x="92" y="48" width="16" height="20" fill="#a33b20" stroke="#334155" stroke-width="1" />')
+  })
   const richConnector = connector({
     id: 'backend-conformance-relation',
     role: 'edge',
@@ -224,7 +227,7 @@ function createFixture(): ConformanceFixture {
       strokeWidth: '2',
       opacity: '0.65',
       strokeLinecap: 'square',
-      strokeLinejoin: 'miter',
+      strokeLinejoin: 'bevel',
       strokeMiterlimit: '7',
       strokeDasharray: '6 3',
       strokeDashoffset: '2',
@@ -245,7 +248,7 @@ function createFixture(): ConformanceFixture {
       opacity: 0.65,
       dash: { array: '6 3', offset: 2 },
       lineCap: 'square',
-      lineJoin: 'miter',
+      lineJoin: 'bevel',
       miterLimit: 7,
       pathLength: 77,
       paintOrder: 'stroke fill',
@@ -258,7 +261,7 @@ function createFixture(): ConformanceFixture {
       clearance: 2, halo: { color: '#ffffff', width: 3 }, paint: { fill: '#172033' },
       fontSize: 11, textAnchor: 'middle', visual: { kind: 'inline' },
     }],
-  }, '<path d="M 42 28 L 62 14 Q 66 12 70 14 L 90 28" fill="none" stroke="#334155" stroke-width="2" stroke-opacity="0.65" stroke-linecap="square" stroke-linejoin="miter" stroke-miterlimit="7" stroke-dasharray="6 3" stroke-dashoffset="2" pathLength="77" paint-order="stroke fill" vector-effect="non-scaling-stroke" style="mix-blend-mode:multiply" marker-start="url(#backend-conformance-arrow)" marker-mid="url(#backend-conformance-arrow)" marker-end="url(#backend-conformance-arrow)" />')
+  })
   const freehandConnector = connector({
     id: 'backend-conformance-freehand-relation',
     role: 'edge',
@@ -277,7 +280,7 @@ function createFixture(): ConformanceFixture {
     relationship: { kind: 'association', direction: 'forward' },
     stroke: { lineCap: 'square', lineJoin: 'miter', miterLimit: 7, nonScaling: true },
     transform: { kind: 'rotate', angle: 90, cx: 42, cy: 58 },
-  }, '<line x1="42" y1="58" x2="90" y2="58" fill="none" stroke="#334155" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter" stroke-miterlimit="7" vector-effect="non-scaling-stroke" />')
+  })
   const closedConnector = connector({
     id: 'backend-conformance-closed-relation',
     role: 'edge',
@@ -291,7 +294,7 @@ function createFixture(): ConformanceFixture {
     lineStyle: 'solid',
     paint: { fill: 'none', stroke: '#334155', strokeWidth: '2' },
     route: { ownership: 'authored', closed: true },
-  }, '<path d="M 10 65 L 25 50 L 40 65 Z" fill="none" stroke="#334155" stroke-width="2" />')
+  })
   const multiSubpathConnector = connector({
     id: 'backend-conformance-multi-relation',
     role: 'edge',
@@ -307,7 +310,7 @@ function createFixture(): ConformanceFixture {
     lineStyle: 'solid',
     paint: { fill: 'none', stroke: '#334155', strokeWidth: '2' },
     markers: { start: arrow, mid: [], end: arrow },
-  }, '<path d="M 8 72 L 28 72 M 52 72 L 72 72" fill="none" stroke="#334155" stroke-width="2" marker-start="url(#backend-conformance-arrow)" marker-end="url(#backend-conformance-arrow)" />')
+  })
   const label = text({
     id: 'backend-conformance-text',
     role: 'member',
@@ -317,7 +320,8 @@ function createFixture(): ConformanceFixture {
     fontSize: 12,
     anchor: 'middle',
     paint: { fill: '#172033' },
-  }, '<text x="25" y="31" text-anchor="middle" font-size="12" fill="#172033">Fixture label</text>')
+    baselineShift: 0,
+  })
 
   const doc: SceneDoc = {
     family: 'backend-conformance',
@@ -372,7 +376,26 @@ function createFixture(): ConformanceFixture {
   })
 }
 
-const FIXTURE = createFixture()
+// Fixture construction belongs to the first executable proof, not import.
+// Keep its measurements independent of the request that first needs it.
+let FIXTURE: ConformanceFixture
+
+/** The registry selects this adapter only for the unchanged frozen default
+ * implementation. Keep every executable witness and method receiver; reuse
+ * only admission's own immutable snapshot of our private fixture document. */
+export function backendWithAdmittedConformanceFixture(backend: StyleBackend): StyleBackend {
+  const { id, capabilities, drawNode, render } = backend
+  let admitted: SceneDoc | undefined
+  return {
+    id,
+    capabilities,
+    drawNode(node, context) { return drawNode.call(backend, node, context) },
+    render(doc, context) {
+      const input = doc === FIXTURE?.doc ? (admitted ??= admitBackendSceneDocument(doc)) : doc
+      return render.call(backend, input, context)
+    },
+  }
+}
 
 function fragmentDiagnostic(missing: readonly string[]): string | undefined {
   return missing.length === 0 ? undefined : `missing ${missing.join(', ')}`
@@ -686,7 +709,7 @@ const CLAIM_WITNESSES: Readonly<Record<string, ClaimWitness>> = Object.freeze({
   },
   'connector/stroke-opacity/render': (backend, claim) => connectorProjectedField(backend, claim, 'stroke-opacity', '0.65'),
   'connector/stroke-cap/render': (backend, claim) => connectorProjectedField(backend, claim, 'stroke-linecap', 'square'),
-  'connector/stroke-join/render': (backend, claim) => connectorProjectedField(backend, claim, 'stroke-linejoin', 'miter'),
+  'connector/stroke-join/render': (backend, claim) => connectorProjectedField(backend, claim, 'stroke-linejoin', 'bevel'),
   'connector/stroke-miter/render': (backend, claim) => connectorProjectedField(backend, claim, 'stroke-miterlimit', '7'),
   'connector/dash-array/render': (backend, claim) => connectorProjectedField(backend, claim, 'stroke-dasharray', '6 3'),
   'connector/dash-offset/render': (backend, claim) => connectorProjectedField(backend, claim, 'stroke-dashoffset', '2'),
@@ -972,6 +995,7 @@ export function runBackendConformance(
   backend: StyleBackend,
   canonicalId: string = backend.id,
 ): BackendConformanceReport {
+  FIXTURE ??= withTextMeasurementExecution(undefined, createFixture)
   const checks: BackendConformanceCheck[] = []
   const add = (id: BackendConformanceCheckId, passed: boolean, diagnostic?: string) => {
     checks.push(Object.freeze({ id, passed, ...(diagnostic ? { diagnostic } : {}) }))

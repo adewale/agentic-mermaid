@@ -11,13 +11,32 @@
 // ============================================================================
 
 import { describe, expect, it } from 'bun:test'
-import {
-  layoutCertificateProof, parseRegisteredMermaid as parseMermaid, layoutMermaid, layoutMermaidWithReceipt,
-  measureQuality, renderMermaidASCIIWithReceipt, renderMermaidSVGWithReceipt, verifyMermaid,
-} from '../agent/index.ts'
 import type { RenderedLayout } from '../agent/index.ts'
+import { layoutCertificateProof, layoutMermaid, layoutMermaidWithReceipt, measureQuality, parseRegisteredMermaid as parseMermaid, renderMermaidASCIIWithReceipt, renderMermaidSVGWithReceipt, verifyMermaid } from '../agent/index.ts'
 
 const EPS = 1
+
+describe('rounded chart projection boundaries', () => {
+  it.each([
+    ['gantt', 'gantt\n  dateFormat YYYY-MM-DD\n  section Delivery\n  Begin :a, 2024-01-01, 1d\n  Finish :b, 2024-01-12, 5d', ['a', 'b']],
+    ['xychart', 'xychart\n  x-axis 0 --> 1\n  line [1, 2]', ['line#0:pt#0', 'line#0:pt#1']],
+  ] as const)('%s retains contained geometry at fractional and canvas boundaries', (_family, source, nodeIds) => {
+    const { layout } = layoutMermaidWithReceipt(source)
+    expect(layout.nodes.map(node => node.id)).toEqual([...nodeIds])
+    expect(layout.groups).toHaveLength(1)
+    for (const node of layout.nodes) {
+      expect(node.x).toBeGreaterThanOrEqual(0)
+      expect(node.y).toBeGreaterThanOrEqual(0)
+      expect(node.x + node.w).toBeLessThanOrEqual(layout.bounds.w)
+      expect(node.y + node.h).toBeLessThanOrEqual(layout.bounds.h)
+    }
+    for (const group of layout.groups)
+      for (const id of group.members) {
+        const node = layout.nodes.find(value => value.id === id)!
+        expect(node.x + node.w).toBeLessThanOrEqual(group.x + group.w)
+      }
+  })
+})
 
 const SOURCES: Record<string, string> = {
   class: 'classDiagram\n  Animal <|-- Dog\n  Animal <|-- Cat\n  Animal : +String name\n  Animal : +eat()\n  class Dog {\n    +bark()\n  }\n  class Cat {\n    +meow()\n  }',
@@ -58,6 +77,8 @@ describe('QUAL-1 adapters: every renderable family is measured', () => {
       // 3. whitespaceBalance is a real ratio in (0, 1] — node area is present.
       expect(m.whitespaceBalance).toBeGreaterThan(0)
       expect(m.whitespaceBalance).toBeLessThanOrEqual(1)
+      expect(m.labelMeasurement.unmeasuredNodes).toBe(0)
+      expect(m.labelMeasurement.unmeasuredEdges).toBe(0)
       // 4. layout kind round-trips the family (not the flowchart fallback).
       expect(layout.kind).toBe(family as RenderedLayout['kind'])
     })
@@ -106,37 +127,43 @@ describe('QUAL-1 adapters: structured bodies do not reparse canonicalSource', ()
   const STRUCTURED = [
     {
       kind: 'xychart',
+      expectedNodes: [{id: 'bar#0:pt#0'}, {id: 'bar#0:pt#1'}, {id: 'bar#0:pt#2'}],
       source: 'xychart-beta\n  title Sales\n  x-axis [jan, feb, mar]\n  y-axis Revenue 0 --> 100\n  bar [30, 60, 90]',
       broken: 'xychart-beta\n  this would not produce chart nodes',
     },
     {
       kind: 'pie',
+      expectedNodes: [{id: 'slice#0:Dogs'}, {id: 'slice#1:Cats'}, {id: 'slice#2:Birds'}],
       source: SOURCES.pie!,
       broken: 'pie\n  this is not a slice',
     },
     {
       kind: 'quadrant',
+      expectedNodes: [{label: 'Point One'}, {label: 'Point Two'}],
       source: SOURCES.quadrant!,
       broken: 'quadrantChart\n  Broken: [2, 3]',
     },
     {
       kind: 'gantt',
+      expectedNodes: [{id: 'core', label: 'Core'}, {id: 'docs', label: 'Docs'}],
       source: 'gantt\n  section Build\n    Core :core, 2024-01-01, 2d\n    Docs :docs, after core, 1d',
       broken: 'gantt\n  Bad line without task metadata',
     },
     {
       kind: 'mindmap',
+      expectedNodes: [{label: 'Plan'}, {label: 'Build'}, {label: 'Ship'}],
       source: SOURCES.mindmap!,
       broken: 'mindmap\n  broken((different))',
     },
     {
       kind: 'gitgraph',
+      expectedNodes: [{id: 'start'}, {id: 'work'}],
       source: SOURCES.gitgraph!,
       broken: 'gitGraph\n  commit id:"different"',
     },
   ] as const
 
-  for (const { kind, source, broken } of STRUCTURED) {
+  for (const { kind, source, broken, expectedNodes } of STRUCTURED) {
     it(`${kind}: parsed body is enough to produce real geometry`, () => {
       const p = parseMermaid(source)
       expect(p.ok).toBe(true)
@@ -145,7 +172,8 @@ describe('QUAL-1 adapters: structured bodies do not reparse canonicalSource', ()
       const corrupted = { ...p.value, canonicalSource: broken }
       const layout = layoutMermaid(corrupted)
       expect(layout.kind).toBe(kind)
-      expect(layout.nodes.length).toBeGreaterThan(0)
+      expect(layout.nodes).toHaveLength(expectedNodes.length)
+      expect(layout.nodes).toEqual(expect.arrayContaining(expectedNodes.map(node => expect.objectContaining(node))))
       expect(layout.bounds.w).toBeGreaterThan(0)
       expect(layout.bounds.h).toBeGreaterThan(0)
     })
@@ -164,18 +192,13 @@ describe('ParsedDiagram render source authority', () => {
     const layout = layoutMermaidWithReceipt(staleBody)
     const svg = renderMermaidSVGWithReceipt(staleBody)
     const terminal = renderMermaidASCIIWithReceipt(staleBody, { colorMode: 'none' })
-    expect(new Set([
-      layout.receipt.sharedRequestDigest,
-      svg.receipt.sharedRequestDigest,
-      terminal.receipt.sharedRequestDigest,
-    ]).size).toBe(1)
+    expect(new Set([layout.receipt.sharedRequestDigest, svg.receipt.sharedRequestDigest, terminal.receipt.sharedRequestDigest]).size).toBe(1)
     // The digest covers the source text only; the geometry proves the stale RL
     // body was not rendered: every surface keeps the authored LR order.
     const layoutX = (id: string) => layout.layout.nodes.find(node => node.id === id)!.x
     const svgX = (id: string) => Number(svg.svg.match(new RegExp(`<g class="node" data-id="${id}"[\\s\\S]*?<rect[^>]* x="([\\d.]+)"`))![1])
     const labelRow = terminal.text.split('\n').find(row => row.includes(' A ') && row.includes(' B '))!
-    expect({ layout: layoutX('A') < layoutX('B'), svg: svgX('A') < svgX('B'), terminal: labelRow.indexOf(' A ') < labelRow.indexOf(' B ') })
-      .toEqual({ layout: true, svg: true, terminal: true })
+    expect({ layout: layoutX('A') < layoutX('B'), svg: svgX('A') < svgX('B'), terminal: labelRow.indexOf(' A ') < labelRow.indexOf(' B ') }).toEqual({ layout: true, svg: true, terminal: true })
   })
 })
 
@@ -201,8 +224,7 @@ describe('non-graph adapters: debug certificates stay family-specific (#26/#38)'
     const layout = layoutMermaid(p.value, { debug: true })
     expect(layout.edges.length).toBeGreaterThan(0)
     expect(layout.edges.every(e => e.route?.routeClass === 'family-layout' && 'family' in e.route && e.route.family === 'architecture' && e.route.invariant === 'side-anchored')).toBe(true)
-    expect(layout.edges.every(e => e.route && 'family' in e.route && e.route.family === 'architecture'
-      && e.route.placement === 'satisfied' && e.route.sourceFacesTarget && e.route.targetFacesSource && e.route.obstacleFree)).toBe(true)
+    expect(layout.edges.every(e => e.route && 'family' in e.route && e.route.family === 'architecture' && e.route.placement === 'satisfied' && e.route.sourceFacesTarget && e.route.targetFacesSource && e.route.obstacleFree)).toBe(true)
     expect(layout.edges.every(e => e.route && layoutCertificateProof(e.route) === 'edge-route')).toBe(true)
     const plain = layoutMermaid(p.value)
     expect(plain.edges.every(e => e.route === undefined)).toBe(true)
@@ -245,8 +267,7 @@ describe('non-graph adapters: debug certificates stay family-specific (#26/#38)'
     // Oracle: the x/y of the <text> element the SVG renderer draws for the message.
     const text = renderMermaidSVGWithReceipt(p.value).svg.match(/<text x="([\d.]+)" y="([\d.]+)"[^>]*>hello<\/text>/)
     expect(text).not.toBeNull()
-    expect({ text: edge.label?.text, x: Number(edge.label?.x), y: Number(edge.label?.y) })
-      .toEqual({ text: 'hello', x: Number(text![1]), y: Number(text![2]) })
+    expect({ text: edge.label?.text, x: Number(edge.label?.x), y: Number(edge.label?.y) }).toEqual({ text: 'hello', x: Number(text![1]), y: Number(text![2]) })
   })
 
   it('sequence self-message debug certificate uses the rendered loop geometry', () => {
@@ -257,9 +278,16 @@ describe('non-graph adapters: debug certificates stay family-specific (#26/#38)'
     expect(layout.edges).toHaveLength(1)
     const edge = layout.edges[0]!
     expect(edge.path).toHaveLength(4)
-    expect(edge.route).toEqual(expect.objectContaining({
-      routeClass: 'family-layout', family: 'sequence', invariant: 'self-message', bendCount: 2, selfMessage: true, horizontal: false,
-    }))
+    expect(edge.route).toEqual(
+      expect.objectContaining({
+        routeClass: 'family-layout',
+        family: 'sequence',
+        invariant: 'self-message',
+        bendCount: 2,
+        selfMessage: true,
+        horizontal: false,
+      }),
+    )
   })
 
   it('sequence opaque block content feeds real rendered-layout geometry', () => {
@@ -314,10 +342,12 @@ describe('QUAL-1: opaque family layout outcomes stay explicit', () => {
     expect(() => layoutMermaid(parsed.value)).toThrow(/Unrecognized pie chart line/)
     const verified = verifyMermaid(parsed.value)
     expect(verified.ok).toBe(false)
-    expect(verified.warnings).toContainEqual(expect.objectContaining({
-      code: 'RENDER_FAILED',
-      reason: expect.stringMatching(/pie.*layout hook failed.*Unrecognized pie chart line/i),
-    }))
+    expect(verified.warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'RENDER_FAILED',
+        reason: expect.stringMatching(/pie.*layout hook failed.*Unrecognized pie chart line/i),
+      }),
+    )
   })
 
   const RENDERABLE_OPAQUE = [
@@ -333,7 +363,9 @@ describe('QUAL-1: opaque family layout outcomes stay explicit', () => {
       if (!p.ok) return
       // layoutMermaid must produce a layout (possibly empty) with truthful kind.
       let layout: RenderedLayout | undefined
-      expect(() => { layout = layoutMermaid(p.value) }).not.toThrow()
+      expect(() => {
+        layout = layoutMermaid(p.value)
+      }).not.toThrow()
       expect(layout!.kind).toBe(p.value.kind)
       expect(Number.isFinite(layout!.bounds.w)).toBe(true)
       // verify must also survive.

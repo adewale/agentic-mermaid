@@ -5,7 +5,7 @@
 // boundary, and these layers are the defense-in-depth a wrapper breakout
 // must not defeat:
 //   1. the parenthesized wrap makes static import / statement injection a
-//      SyntaxError (so agent code cannot inject `import ... from
+//      syntax rejection (so agent code cannot inject `import ... from
 //      'cloudflare:sockets'` into top-level module scope);
 //   2. hardenIsolateGlobals() strips capability globals before user.js runs,
 //      so even a comma+IIFE breakout sees no fetch/caches/crypto.
@@ -23,7 +23,7 @@ async function importDefault(src: string): Promise<unknown> {
   return (m as { default: unknown }).default
 }
 
-describe('wrapper breakout: import / statement injection is a SyntaxError', () => {
+describe('wrapper breakout: import / statement injection is rejected by the parser', () => {
   // Each payload closes the harness function early and tries to inject
   // top-level module code. With the parenthesized wrap they must fail to
   // compile (rejected import), not run injected top-level code.
@@ -38,20 +38,29 @@ describe('wrapper breakout: import / statement injection is a SyntaxError', () =
     test(label, async () => {
       const { expr, stmt } = userModuleSources(code)
       // Both wrap forms must reject (fail to compile) — no injected code runs.
-      await expect(importDefault(expr)).rejects.toBeDefined()
-      await expect(importDefault(stmt)).rejects.toBeDefined()
+      for (const source of [expr, stmt]) {
+        const error = await importDefault(source).then(() => null, error => error)
+        const diagnostics = error instanceof AggregateError ? error.errors : [error]
+        expect(diagnostics.length).toBeGreaterThan(0)
+        for (const diagnostic of diagnostics) {
+          expect(diagnostic).toMatchObject({
+            name: 'BuildMessage', level: 'error',
+            message: expect.stringMatching(/^(?:Expected|Unexpected)\b/),
+          })
+        }
+      }
     })
   }
 
   test('legitimate code of every shape still compiles and runs', async () => {
-    const cases: Array<[string, boolean]> = [
-      ['1 + 1', true], ['{ answer: 42 }', true], ['const x = 2; return x * 21', false],
-      ["mermaid.parseRegisteredMermaid('flowchart LR\\n A --> B').ok", true],
+    const cases: Array<[string, boolean, unknown]> = [
+      ['1 + 1', true, 2], ['{ answer: 42 }', true, { answer: 42 }], ['const x = 2; return x * 21', false, 42],
+      ["mermaid.parseRegisteredMermaid('flowchart LR\\n A --> B').ok", true, true],
     ]
-    for (const [code, useExpr] of cases) {
+    for (const [code, useExpr, expected] of cases) {
       const w = userModuleSources(code)
       const fn = await importDefault(useExpr ? w.expr : w.stmt)
-      expect(typeof fn).toBe('function')
+      expect(runUserCode(fn)).toMatchObject({ ok: true, value: expected, logs: [] })
     }
   })
 })

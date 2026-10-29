@@ -8,12 +8,15 @@
  */
 
 let decodeHTML: ((reference: string) => string) | undefined
+let decodeHTMLStrict: ((reference: string) => string) | undefined
 
 async function loadHtmlEntityTable(): Promise<void> {
   const loaded = await import('entities/decode')
   // The lazy build aliases entities/decode to its CommonJS file, whose
   // dynamic import carries the exports as `default`.
-  decodeHTML ??= loaded.decodeHTML ?? (loaded as unknown as { default: typeof loaded }).default.decodeHTML
+  const table = (loaded as Partial<typeof loaded>).decodeHTML ? loaded : (loaded as unknown as { default: typeof loaded }).default
+  decodeHTML ??= table.decodeHTML
+  decodeHTMLStrict ??= table.decodeHTMLStrict
 }
 
 export class HtmlEntityTableNotLoadedError extends Error {
@@ -28,4 +31,10 @@ export class HtmlEntityTableNotLoadedError extends Error {
 export function decodeHtmlEntityReference(reference: string): string {
   if (!decodeHTML) throw new HtmlEntityTableNotLoadedError(reference, loadHtmlEntityTable)
   return decodeHTML(reference)
+}
+
+export function isHtmlEntityName(name: string): boolean {
+  const reference = `&${name};`
+  if (!decodeHTMLStrict) throw new HtmlEntityTableNotLoadedError(reference, loadHtmlEntityTable)
+  return decodeHTMLStrict(reference) !== reference
 }

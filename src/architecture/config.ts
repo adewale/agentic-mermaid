@@ -59,6 +59,9 @@ export interface ArchitectureVisualConfig {
 export type ArchitectureVisualOverrides = Partial<ArchitectureVisualConfig>
 
 export interface ArchitectureLayoutMetrics {
+  iconSize?: number
+  serviceIconSize?: number
+  junctionOuterRadius?: number
   groupFontSize: number
   groupFontWeight: number
   groupLetterSpacing: number
@@ -220,10 +223,12 @@ export function resolveArchitectureVisualConfig(
     junctionInnerRadius,
     groupSurface: style.groupFillColor ?? pickString(themeVariables, 'clusterBkg') ?? colors.surface,
     groupHeaderSurface: style.groupHeaderFillColor,
-    groupBorder: style.groupBorderColor ?? pickString(themeVariables, 'clusterBorder') ?? colors.border,
+    // Palette borders use the renderer's shared contrast-repaired fallback;
+    // only explicit family/role paint belongs in the architecture override.
+    groupBorder: style.groupBorderColor ?? pickString(themeVariables, 'clusterBorder'),
     groupText: style.groupTextColor,
     serviceSurface: style.nodeFillColor ?? pickString(themeVariables, 'mainBkg', 'secondaryColor') ?? colors.surface,
-    serviceBorder: style.nodeBorderColor ?? pickString(themeVariables, 'primaryBorderColor') ?? colors.border,
+    serviceBorder: style.nodeBorderColor ?? pickString(themeVariables, 'primaryBorderColor'),
     serviceText: style.nodeTextColor,
     edgeStroke: style.edgeStrokeColor,
     edgeText: style.edgeTextColor,
@@ -303,6 +308,9 @@ export function resolveArchitectureRenderOptions(
 
 export function architectureLayoutMetrics(visual: ArchitectureVisualConfig): ArchitectureLayoutMetrics {
   return {
+    iconSize: visual.iconSize,
+    serviceIconSize: visual.serviceIconSize,
+    junctionOuterRadius: visual.junctionOuterRadius,
     groupFontSize: visual.groupFontSize,
     groupFontWeight: visual.groupFontWeight,
     groupLetterSpacing: visual.groupLetterSpacing,

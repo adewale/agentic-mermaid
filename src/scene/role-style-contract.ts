@@ -67,9 +67,9 @@ export const EXACT_ROLE_STYLE_CONTRACT = Object.freeze({
   relationship: exactRoleStyle(EDGE_PROPERTIES, ['er']),
   'pie-slice': exactRoleStyle(PIE_SLICE_PROPERTIES, ['pie', 'radar']),
   legend: exactRoleStyle(LEGEND_PROPERTIES, ['radar']),
-  bar: exactRoleStyle(SHAPE_PAINT_PROPERTIES, ['xychart', 'sankey']),
+  bar: exactRoleStyle(SHAPE_PAINT_PROPERTIES, ['xychart', 'sankey', 'treemap']),
   series: exactRoleStyle(CONNECTOR_PAINT_PROPERTIES, ['xychart']),
-  point: exactRoleStyle(SHAPE_PAINT_PROPERTIES, ['radar']),
+  point: exactRoleStyle(SHAPE_PAINT_PROPERTIES, ['radar', 'xychart']),
   task: exactRoleStyle(CUED_SHAPE_PROPERTIES, ['gantt']),
   milestone: exactRoleStyle(CUED_SHAPE_PROPERTIES, ['gantt']),
 } as const satisfies Readonly<Partial<Record<BuiltinSceneRole, ExactRoleStyleContract>>>)

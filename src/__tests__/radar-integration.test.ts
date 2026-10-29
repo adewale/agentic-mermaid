@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { parseRadarChart } from '../radar/parser.ts'
 import { layoutRadarChart } from '../radar/layout.ts'
 import { resolveRadarScale } from '../radar/scale.ts'
-import { layoutMermaid, parseRegisteredMermaid as parseMermaid } from '../agent/index.ts'
+import { layoutMermaid, parseRegisteredMermaid as parseMermaid, renderMermaidSVG } from '../agent/index.ts'
 
 const lines = (src: string): string[] => src.split('\n').map(l => l.trim()).filter(Boolean)
 const layout = (src: string, visual = {}) => layoutRadarChart(parseRadarChart(lines(src)), {}, visual)
@@ -170,7 +170,7 @@ describe('radar layout — domain metaphor invariants', () => {
   })
 
   test('public tick boxes measure the fixed tick typography painted by SVG', () => {
-    const parsed = parseMermaid(`---
+    const source = `---
 config:
   radar:
     tickLabels: true
@@ -181,13 +181,17 @@ config:
 radar-beta
   axis a, b, c
   curve x{1,2,3}
-  max 5`)
+  max 5`
+    const parsed = parseMermaid(source)
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
     const tick = layoutMermaid(parsed.value).nodes.find(node => node.id === 'tick:0')!
-    // Public layout coordinates are integer-normalized, so the painted
-    // 9.5px tick face projects to the nearest-pixel 11px line box.
-    expect(Number(tick.h)).toBe(Math.round(9.5 * 1.2))
+    expect(tick).toMatchObject({ id: 'tick:0', label: '1' })
+    // The retained 9.5px tick uses the prepared 1.3em line box, independently
+    // of the 40px axis typography; its public extent rounds 12.35px to 12px.
+    expect(Number(tick.h)).toBe(12)
+    expect(Number(tick.labelBounds?.h)).toBeCloseTo(12.35)
+    expect(renderMermaidSVG(source)).toMatch(/<text [^>]*class="radar-tick-label"[^>]*font-size="9\.5"[^>]*>1<\/text>/)
   })
 
   test('layout is deterministic', () => {

@@ -27,7 +27,25 @@ describe('pinned XY Chart configuration dispositions (#248)', () => {
     expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'INEFFECTIVE_CONFIG')).toEqual([])
 
     const configuredSvg = renderMermaidSVG(source, { embedFontImport: false })
-    expect(configuredSvg).not.toBe(renderMermaidSVG(withConfig(WIRED.baseline), { embedFontImport: false }))
+    const baselineSvg = renderMermaidSVG(withConfig(WIRED.baseline), { embedFontImport: false })
+    const attribute = (tag: string, name: string) => Number(tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1])
+    const bars = [...configuredSvg.matchAll(/<rect\b[^>]*\bclass="xychart-bar xychart-color-\d+"[^>]*>/g)].map(([tag]) => ({
+      value: attribute(tag, 'data-value'), y: attribute(tag, 'y'), height: attribute(tag, 'height'),
+    }))
+    expect(bars.map(bar => bar.value)).toEqual([3, 7])
+    for (const [svg, outside] of [[configuredSvg, true], [baselineSvg, false]] as const) {
+      const labels = [...svg.matchAll(/<text\b([^>]*\bclass="xychart-data-label"[^>]*)>([\s\S]*?)<\/text>/g)]
+        .map(match => ({ value: Number(match[2]!.replace(/<[^>]*>/g, '')), y: attribute(match[1]!, 'y') }))
+      expect(labels.map(label => label.value)).toEqual([3, 7])
+      labels.forEach((label, index) => {
+        const bar = bars[index]!
+        if (outside) expect(label.y).toBeLessThan(bar.y)
+        else {
+          expect(label.y).toBeGreaterThanOrEqual(bar.y)
+          expect(label.y).toBeLessThanOrEqual(bar.y + bar.height)
+        }
+      })
+    }
 
     const explicitDiagnostics: Array<{ code: string; field: string; message: string }> = []
     const explicitSvg = renderMermaidSVG(CHART, {

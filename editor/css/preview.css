@@ -13,7 +13,14 @@
   pointer-events: auto;
 }
 
+.c4-navigation { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-right: auto; }
+.c4-navigation[hidden] { display: none; }
+.c4-navigation select { max-width: 200px; min-height: 32px; font: inherit; color: var(--fg); background: var(--control-bg); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.c4-navigation select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.preview-footer.has-c4-navigation { height: auto; min-height: 40px; gap: 8px; flex-wrap: wrap; }
+
 /* Section label */
+
 .preview-label {
   font-size: var(--t-label);
   font-weight: 600;

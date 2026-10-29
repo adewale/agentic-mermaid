@@ -2,7 +2,7 @@ import type { MermaidFrontmatterMap, MermaidThemeVariables } from './mermaid-sou
 import type { RenderOptions } from './types.ts'
 import type { ArchitectureVisualConfig } from './architecture/config.ts'
 import { CHANNEL_THEME_KEYS } from './color-resolver.ts'
-import { drawableAuthoredCssPaint, splitCssColorList } from './shared/css-color.ts'
+import { authoredCssPaintDescription, drawableAuthoredCssPaint, splitCssColorList } from './shared/css-color.ts'
 import { syntaxError } from './shared/syntax-error.ts'
 
 const SHARED_COLOR_KEYS = new Set<string>(Object.values(CHANNEL_THEME_KEYS).flat())
@@ -35,7 +35,7 @@ const ARCHITECTURE_COLOR_KEYS = new Set(['clusterBkg', 'clusterBorder'])
 const XYCHART_COLOR_KEYS = [
   'backgroundColor', 'titleColor', 'xAxisLabelColor', 'xAxisTickColor', 'xAxisLineColor',
   'xAxisTitleColor', 'yAxisLabelColor', 'yAxisTickColor', 'yAxisLineColor',
-  'yAxisTitleColor', 'legendTextColor',
+  'yAxisTitleColor', 'legendTextColor', 'dataLabelColor',
 ] as const
 const XYCHART_STROKE_KEYS = new Set<string>([
   'xAxisTickColor', 'xAxisLineColor', 'yAxisTickColor', 'yAxisLineColor',
@@ -49,6 +49,11 @@ const ARCHITECTURE_MIXED_CHANNELS = [
 // Timeline mixes both cScale fills and cScaleInv lines into derived
 // color-mix() paints; `none` invalidates those colors. Labels require ink.
 
+function colorDiagnosticValue(value: unknown, bounded = false): string {
+  const text = typeof value === 'string' ? value : JSON.stringify(value) ?? String(value)
+  return bounded && text.length > 256 ? `${text.slice(0, 256)}…` : text
+}
+
 /** A named failure at the shared request waist, before any output can silently
  * drop a configured color or paint a browser/resvg-specific fallback. */
 export class ThemeVariableColorError extends Error {
@@ -57,10 +62,10 @@ export class ThemeVariableColorError extends Error {
   readonly value: string
 
   constructor(key: string, value: string, allowNone: boolean) {
-    const reportedValue = value.length > 256 ? `${value.slice(0, 256)}…` : value
+    const reportedValue = colorDiagnosticValue(value, true)
     super(syntaxError({
       what: `themeVariables.${key}: ${JSON.stringify(reportedValue)} is not a CSS color`,
-      expectedForm: `a color name, #RGB, #RGBA, #RRGGBB, #RRGGBBAA, rgb(), rgba(), hsl(), hsla(), transparent, currentColor${allowNone ? ', none' : ''}, or var(--name)`,
+      expectedForm: authoredCssPaintDescription(allowNone),
       example: `themeVariables.${key}:#f96`,
     }).message)
     this.name = 'ThemeVariableColorError'
@@ -77,7 +82,7 @@ export class RenderOptionColorError extends Error {
   readonly value: string
 
   constructor(field: string, value: string) {
-    const reportedValue = value.length > 256 ? `${value.slice(0, 256)}…` : value
+    const reportedValue = colorDiagnosticValue(value, true)
     super(syntaxError({
       what: `render option "${field}": ${JSON.stringify(reportedValue)} is not a CSS color for Architecture derived paint`,
       expectedForm: 'a drawable CSS color or var(--name)',
@@ -124,18 +129,18 @@ export class FamilyConfigColorError extends Error {
   readonly path: string
   readonly value: string
 
-  constructor(path: string, value: unknown, allowNone: boolean, expectedArray = false) {
-    const serialized = typeof value === 'string' ? value : JSON.stringify(value) ?? String(value)
-    const reportedValue = serialized.length > 256 ? `${serialized.slice(0, 256)}…` : serialized
+  constructor(path: string, value: unknown, allowNone: boolean, collection?: 'array' | 'map') {
+    const reportedValue = colorDiagnosticValue(value, true)
+    const reportedPath = colorDiagnosticValue(path, true)
     super(syntaxError({
-      what: `${path}: ${JSON.stringify(reportedValue)} is not ${expectedArray ? 'an array of CSS colors' : 'a CSS color'}`,
-      expectedForm: expectedArray
-        ? 'an array of drawable CSS colors'
-        : `a color name, #RGB, #RGBA, #RRGGBB, #RRGGBBAA, rgb(), rgba(), hsl(), hsla(), transparent, currentColor${allowNone ? ', none' : ''}, or var(--name)`,
-      example: `${path}${expectedArray ? ': ["#f96"]' : ': #f96'}`,
+      what: `${reportedPath}: ${JSON.stringify(reportedValue)} is not ${collection === 'array' ? 'an array of CSS colors' : collection === 'map' ? 'a map of CSS colors' : 'a CSS color'}`,
+      expectedForm: collection
+        ? collection === 'array' ? 'an array of drawable CSS colors' : 'an object mapping node labels to drawable CSS colors'
+        : authoredCssPaintDescription(allowNone),
+      example: `${reportedPath}${collection === 'array' ? ': ["#f96"]' : collection === 'map' ? ': {"A":"#f96"}' : ': #f96'}`,
     }).message)
     this.name = 'FamilyConfigColorError'
-    this.path = path
+    this.path = reportedPath
     this.value = reportedValue
   }
 }
@@ -155,7 +160,7 @@ function selectedThemeColorKey(vars: MermaidThemeVariables, keys: readonly strin
 function checkConfigColor(config: Record<string, unknown>, path: string, key: string, allowNone: boolean): void {
   const value = config[key]
   if (value === undefined) return
-  if (typeof value !== 'string' || drawableAuthoredCssPaint(value, allowNone) === undefined) {
+  if (drawableAuthoredCssPaint(value, allowNone) === undefined) {
     throw new FamilyConfigColorError(`${path}.${key}`, value, allowNone)
   }
 }
@@ -163,10 +168,10 @@ function checkConfigColor(config: Record<string, unknown>, path: string, key: st
 function checkConfigColorList(config: Record<string, unknown>, path: string, key: string, allowNone: boolean): void {
   const value = config[key]
   if (value === undefined) return
-  if (!Array.isArray(value)) throw new FamilyConfigColorError(`${path}.${key}`, value, allowNone, true)
+  if (!Array.isArray(value)) throw new FamilyConfigColorError(`${path}.${key}`, value, allowNone, 'array')
   for (let index = 0; index < value.length; index++) {
     const color = value[index]
-    if (typeof color !== 'string' || drawableAuthoredCssPaint(color, allowNone) === undefined) {
+    if (drawableAuthoredCssPaint(color, allowNone) === undefined) {
       throw new FamilyConfigColorError(`${path}.${key}[${index}]`, color, allowNone)
     }
   }
@@ -175,9 +180,9 @@ function checkConfigColorList(config: Record<string, unknown>, path: string, key
 /** Check the raw merged frontmatter rather than normalized arrays: the latter
  * historically discard non-string entries, losing the authored value. */
 export function checkFamilyConfigColors(frontmatter: MermaidFrontmatterMap, familyId: string): void {
+  const config = configMap(frontmatter[familyId])
+  if (!config) return
   if (familyId === 'timeline') {
-    const config = configMap(frontmatter.timeline)
-    if (!config) return
     checkConfigColorList(config, 'timeline', 'sectionFills', false)
     checkConfigColorList(config, 'timeline', 'sectionColours', false)
     // The American spelling is a fallback only when the canonical list is
@@ -186,12 +191,31 @@ export function checkFamilyConfigColors(frontmatter: MermaidFrontmatterMap, fami
       checkConfigColorList(config, 'timeline', 'sectionColors', false)
     }
   } else if (familyId === 'journey') {
-    const config = configMap(frontmatter.journey)
-    if (!config) return
     checkConfigColorList(config, 'journey', 'actorColours', true)
     checkConfigColorList(config, 'journey', 'sectionFills', false)
     checkConfigColorList(config, 'journey', 'sectionColours', false)
     checkConfigColor(config, 'journey', 'titleColor', false)
+  } else if (familyId === 'requirement') {
+    checkConfigColor(config, 'requirement', 'rect_fill', true)
+    checkConfigColor(config, 'requirement', 'rect_border_color', true)
+    checkConfigColor(config, 'requirement', 'text_color', false)
+  } else if (familyId === 'sankey') {
+    const linkColor = config.linkColor
+    if (linkColor !== 'source' && linkColor !== 'target' && linkColor !== 'gradient') {
+      checkConfigColor(config, 'sankey', 'linkColor', true)
+    }
+    if (config.nodeColors === undefined) return
+    const nodeColors = configMap(config.nodeColors)
+    if (!nodeColors) throw new FamilyConfigColorError('sankey.nodeColors', config.nodeColors, false, 'map')
+    // The default gradient reuses node fills as stop-color; `none` is a
+    // direct SVG paint, but is not a color for gradient stops.
+    const allowNone = linkColor !== undefined && linkColor !== 'gradient'
+    for (const [label, value] of Object.entries(nodeColors)) {
+      if (drawableAuthoredCssPaint(value, allowNone) === undefined) {
+        const path = /^[\w-]+$/.test(label) ? `sankey.nodeColors.${label}` : `sankey.nodeColors[${JSON.stringify(label)}]`
+        throw new FamilyConfigColorError(path, value, allowNone)
+      }
+    }
   }
 }
 
@@ -226,7 +250,7 @@ export function checkThemeVariableColors(
     if (!Object.hasOwn(vars, key)) continue
     const raw = vars[key]
     if (raw === undefined) continue
-    const value = typeof raw === 'string' ? raw : JSON.stringify(raw) ?? String(raw)
+    const value = colorDiagnosticValue(raw)
     const disallowNone = SHARED_INK_KEYS.has(key) || PIE_INK_KEYS.has(key)
       || GITGRAPH_INK_KEYS.has(key) || (familyId === 'timeline' && TIMELINE_COLOR_KEYS.has(key))
       || (familyId === 'radar' && RADAR_COLOR_KEYS.has(key))
@@ -237,7 +261,7 @@ export function checkThemeVariableColors(
         )))
         || architectureMixedKeys?.has(key)
       ))
-    if (typeof raw !== 'string' || drawableAuthoredCssPaint(raw, !disallowNone) === undefined) {
+    if (drawableAuthoredCssPaint(raw, !disallowNone) === undefined) {
       throw new ThemeVariableColorError(key, value, !disallowNone)
     }
   }
@@ -248,8 +272,8 @@ export function checkThemeVariableColors(
       const raw = radar[key]
       if (raw === undefined) continue
       const allowNone = key === 'graticuleColor'
-      const value = typeof raw === 'string' ? raw : JSON.stringify(raw) ?? String(raw)
-      if (typeof raw !== 'string' || drawableAuthoredCssPaint(raw, allowNone) === undefined) {
+      const value = colorDiagnosticValue(raw)
+      if (drawableAuthoredCssPaint(raw, allowNone) === undefined) {
         throw new ThemeVariableColorError(`radar.${key}`, value, allowNone)
       }
     }
@@ -264,8 +288,8 @@ export function checkThemeVariableColors(
       const raw = chart[key]
       if (raw === undefined) continue
       const allowNone = XYCHART_STROKE_KEYS.has(key)
-      const value = typeof raw === 'string' ? raw : JSON.stringify(raw) ?? String(raw)
-      if (typeof raw !== 'string' || drawableAuthoredCssPaint(raw, allowNone) === undefined) {
+      const value = colorDiagnosticValue(raw)
+      if (drawableAuthoredCssPaint(raw, allowNone) === undefined) {
         throw new ThemeVariableColorError(`xyChart.${key}`, value, allowNone)
       }
     }
@@ -280,7 +304,7 @@ export function checkThemeVariableColors(
       }
       for (const [index, raw] of entries.entries()) {
         const value = typeof raw === 'string' ? raw.trim() : JSON.stringify(raw) ?? String(raw)
-        if (typeof raw !== 'string' || drawableAuthoredCssPaint(value) === undefined) {
+        if (drawableAuthoredCssPaint(raw) === undefined) {
           throw new ThemeVariableColorError(`xyChart.plotColorPalette[${index}]`, value, false)
         }
       }
@@ -289,8 +313,8 @@ export function checkThemeVariableColors(
   if (familyId === 'architecture' && (typeof vars.mainBkg !== 'string' || vars.mainBkg.length === 0)) {
     const raw = vars.secondaryColor
     if (raw !== undefined) {
-      const value = typeof raw === 'string' ? raw : JSON.stringify(raw) ?? String(raw)
-      if (typeof raw !== 'string' || drawableAuthoredCssPaint(raw, true) === undefined) {
+      const value = colorDiagnosticValue(raw)
+      if (drawableAuthoredCssPaint(raw, true) === undefined) {
         throw new ThemeVariableColorError('secondaryColor', value, true)
       }
     }

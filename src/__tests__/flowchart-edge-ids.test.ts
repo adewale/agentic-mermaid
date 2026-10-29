@@ -7,7 +7,8 @@
  *  - the agent parser stays STRUCTURED (edge IDs no longer force opaque) and
  *    the serializer re-emits `id@` verbatim before the arrow operator;
  *  - the SVG emits the authored ID as the edge's `data-id` (X4 identity
- *    contract — nodes/subgraphs already carry data-id);
+ *    contract — nodes/subgraphs already carry data-id, and keep it when an
+ *    edge ID repeats theirs);
  *  - ops (remove_edge, set_label) target edges by authored ID as well as by
  *    the endpoint form `A->B`/`A->B#k`;
  *  - the flowchart_edge_id UNSUPPORTED_SYNTAX lint is retired (modeled now);
@@ -22,6 +23,7 @@ import { renderMermaidSVG } from '../index.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { lowerGraphScene } from '../renderer.ts'
 import { asFlowchart, mutate, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const SOURCE = 'flowchart LR\n  A e1@--> B\n'
 
@@ -47,12 +49,86 @@ describe('flowchart edge IDs — parse', () => {
     expect(text.label).toBe('label')
   })
 
+  // Upstream's LINK_ID is any run of non-space, non-`"` characters before
+  // `@`; a metadata statement names it as a node id. Ours leaves out the
+  // region delimiters and `@` (`e[1`, `e1@x` stay rejected).
+  it.each(['e.1', 'e:1', 'e&1', 'e/1', 'é1'])('reads the edge id %s, its metadata and writes both back', id => {
+    const source = `flowchart LR\n  A ${id}@==x B\n  ${id}@{ animate: true }`
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    for (const graph of [parseGraph(source), parseGraph(serializeMermaid(parsed.value))]) {
+      expect([...graph.nodes.keys()]).toEqual(['A', 'B'])
+      expect(graph.edges).toEqual([expect.objectContaining({ id, source: 'A', target: 'B', endMarker: 'cross', animate: true })])
+    }
+  })
+
+  it('names one edge of a `&` product, as Mermaid does: the first from the last source to the first target', async () => {
+    const sources = ['flowchart LR\n  A & B e1@--> C & D', 'flowchart LR\n  A e1@-- t --> B & C', 'flowchart LR\n  A & A e1@==> C']
+    const upstream = startUpstreamMermaid()
+    try {
+      const named = (diagram: { db: { getEdges(): Array<{ start: string; end: string; id: string; isUserDefinedId?: boolean }> } }) => diagram.db.getEdges().map(edge => [edge.start, edge.end, edge.isUserDefinedId ? edge.id : ''])
+      const mermaid = await upstream.projectAll(sources, named)
+      expect(mermaid).toEqual([
+        [['A', 'C', ''], ['A', 'D', ''], ['B', 'C', 'e1'], ['B', 'D', '']],
+        [['A', 'B', 'e1'], ['A', 'C', '']],
+        [['A', 'C', 'e1'], ['A', 'C', '']],
+      ])
+      expect(sources.map(source => parseGraph(source).edges.map(edge => [edge.source, edge.target, edge.id ?? '']))).toEqual(mermaid)
+    } finally { upstream.close() }
+  })
+
+  // An edge id names one link. Mermaid's `addSingleLink` leaves an id an
+  // earlier link has off a later one, and ours does too, so the typed body
+  // holds no two edges with one id; verify reports each such link, and the
+  // writer leaves the id off it. Metadata names the first link, also where a
+  // node has the id. [source, the lines verify reports]
+  const REPEATED_IDS: ReadonlyArray<readonly [string, readonly number[]]> = [
+    ['flowchart LR\n  A e1@--> B\n  C e1@--> D', [3]],
+    ['flowchart LR\n  A e1@--> B e1@--> C\n  C e1@-- t --> A', [2, 3]],
+    ['flowchart LR\n  A e1@--> B\n  B & C e1@--> D', [3]],
+    ['flowchart LR\n  A e1@--> B\n  e1 --> C\n  C e1@==> D\n  e1@{ animate: true }', [4]],
+  ]
+  it.each(REPEATED_IDS)('names one link with an edge id an earlier link has, as Mermaid does: %s', async (source, lines) => {
+    const upstream = startUpstreamMermaid()
+    try {
+      const parsed = parseAgent(source)
+      const serialized = serializeMermaid(parsed)
+      const named = (diagram: { db: { getEdges(): Array<{ start: string; end: string; id: string; isUserDefinedId?: boolean; animate?: boolean }> } }) =>
+        diagram.db.getEdges().map(edge => [edge.start, edge.end, edge.isUserDefinedId ? edge.id : '', edge.animate ?? false])
+      const [mermaid, rewritten] = await upstream.projectAll([source, serialized], named)
+      expect(rewritten).toEqual(mermaid)
+      for (const graph of [asFlowchart(parsed)!.body.graph, parseGraph(serialized)]) {
+        expect(graph.edges.map(edge => [edge.source, edge.target, edge.id ?? '', edge.animate ?? false])).toEqual(mermaid!)
+      }
+      expect(verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : []))
+        .toEqual(lines.map(line => `flowchart_duplicate_edge_id@${line}`))
+    } finally { upstream.close() }
+  })
+
   it('edges without an authored ID carry none', () => {
     expect(parseGraph('flowchart LR\n  A --> B').edges[0]!.id).toBeUndefined()
   })
 })
 
 describe('flowchart edge IDs — round-trip', () => {
+  it('writes metadata declarations separately from named links without losing their identities', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const metadata of ["A@{ shape: 'rect' }", 'A@{ shape: diamond, label: "Question" }\nB@{ shape: rounded }']) {
+        const source = `flowchart LR\nA id1@-->B\n${metadata}`
+        const diagram = parseAgent(source)
+        const serialized = serializeMermaid(diagram)
+        expect(await upstream.accepts(source)).toBe(true)
+        expect(await upstream.accepts(serialized)).toBe(true)
+        const reparsed = asFlowchart(parseAgent(serialized))!
+        expect(reparsed.body.graph.nodes).toEqual(asFlowchart(diagram)!.body.graph.nodes)
+        expect(reparsed.body.graph.edges).toEqual(asFlowchart(diagram)!.body.graph.edges)
+        expect(serializeMermaid(reparsed)).toBe(serialized)
+        expect(renderMermaidSVG(serialized)).toContain('data-id="id1"')
+      }
+    } finally { upstream.close() }
+  })
+
   it('agent parse is structured and serialization is byte-identical', () => {
     const diagram = parseAgent(SOURCE)
     expect(diagram.body.kind).toBe('flowchart')
@@ -83,6 +159,24 @@ describe('flowchart edge IDs — SVG identity (X4)', () => {
     const svg = renderMermaidSVG('flowchart LR\n  A --> B')
     expect(svg).toMatch(/<polyline[^>]*data-id="edge:A-&gt;B#0"/)
     expect(svg).toMatch(/<polyline[^>]*data-role="edge"/)
+  })
+
+  // Mermaid accepts an edge id a node or subgraph also has (mermaid-js/mermaid#7033).
+  // The node or subgraph keeps that identity, and the edge its endpoint one.
+  it.each([
+    ['the node it leaves', 'flowchart LR\n  A A@--> B', 'A', 'node'],
+    ['a node a later link declares', 'flowchart LR\n  A e1@--> B\n  e1 --> C', 'e1', 'node'],
+    ['a subgraph', 'flowchart LR\n  subgraph S\n    X\n  end\n  A S@--> B', 'S', 'group'],
+  ])('an edge id naming %s leaves every data-id unique', (_case, source, id, role) => {
+    const marks = [...renderMermaidSVG(source).matchAll(/<[a-z]+\b[^>]*\sdata-id="[^"]*"[^>]*>/g)].map(([element]) => ({
+      id: element.match(/\sdata-id="([^"]*)"/)![1],
+      role: element.match(/\sdata-role="([^"]*)"/)?.[1],
+      from: element.match(/\sdata-from="([^"]*)"/)?.[1],
+      to: element.match(/\sdata-to="([^"]*)"/)?.[1],
+    }))
+    expect(new Set(marks.map(mark => mark.id)).size).toBe(marks.length)
+    expect(marks).toContainEqual({ id, role, from: undefined, to: undefined })
+    expect(marks).toContainEqual({ id: 'edge:A-&gt;B#0', role: 'edge', from: 'A', to: 'B' })
   })
 })
 
@@ -166,6 +260,15 @@ describe('flowchart edge IDs — op targeting', () => {
     if (!labeled.ok) throw new Error(labeled.error.message)
     expect(labeled.value.body.graph.edges[0]!.label).toBe('yes')
     expect(serializeMermaid(labeled.value)).toBe('flowchart LR\n  A e1@-->|yes| B\n')
+  })
+
+  it('set_label names the node an edge id also names, and the endpoint form that edge', () => {
+    const d = asFlowchart(parseAgent('flowchart LR\n  A A@--> B'))!
+    const node = mutate(d, { kind: 'set_label', target: 'A', label: 'Start' })
+    const edge = mutate(d, { kind: 'set_label', target: 'A->B', label: 'go' })
+    if (!node.ok || !edge.ok) throw new Error('set_label failed')
+    expect(serializeMermaid(node.value)).toBe('flowchart LR\n  A[Start] A@--> B\n')
+    expect(serializeMermaid(edge.value)).toBe('flowchart LR\n  A A@-->|go| B\n')
   })
 
   it('endpoint targeting still works alongside authored IDs', () => {

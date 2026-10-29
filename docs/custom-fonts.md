@@ -103,6 +103,56 @@ library stack.
 `validateStyleSpec` checks that `font` is a string. It cannot prove that the
 family is installed, present under `fontDirs`, or available to a browser.
 
+## Trusted font measurement profiles
+
+By default, graphical layout uses deterministic Inter-compatible width
+estimates and fits SVG advances to that geometry. To lay out using your own
+font metrics, bind an explicit profile to a trusted renderer:
+
+```ts
+import { createMermaidRenderer, type TextMeasurementProfile } from 'agentic-mermaid'
+
+const textMeasurement: TextMeasurementProfile = {
+  id: 'acme:bundled-fonts',
+  version: '1.0.0',
+  measure: input => fontEngine.width(input), // your preloaded font/shaping engine
+}
+const renderer = createMermaidRenderer({ textMeasurement })
+const { svg, receipt } = renderer.renderMermaidSVGWithReceipt(source, {
+  font: 'Acme Sans',
+})
+```
+
+The synchronous callback receives displayed text, the selected font family,
+size in pixels, weight, style (`normal` or `italic`), and a `monospace` flag.
+Monospace runs name JetBrains Mono, matching the graphical renderer's code-font
+preference. Return the natural horizontal advance before letter spacing:
+wrapping and tracking are applied by the library. Widths must be finite,
+non-negative, and at most 1,000,000 pixels. Line heights retain the existing
+prepared-text rules. The profile is used throughout family layout and SVG
+emission; it does not change terminal cell measurement.
+
+Pass the same profile to `createMermaidPNGRenderer` or
+`createMermaidBrowserPNGRenderer` to share graphical geometry and receipt
+identity across outputs. The fonts must also be available to the rasterizer
+through its normal font-loading mechanism. A measurement profile does not
+load or embed font files.
+
+Keep a profile's metrics and font resources stable for its `id` and `version`.
+Change the version when its metrics or fonts change. For reproducible output,
+measure from pinned font resources and a fixed shaping implementation. A host
+may explicitly choose browser measurement after fonts load, but that remains
+host-dependent; the library never selects Canvas implicitly. Profile fields
+and callback references are captured at renderer construction, while mutable
+state closed over by the callback remains the host's responsibility.
+
+The selected identity appears as `receipt.textMeasurement` and in the
+graphical execution decision; a custom identity participates in request
+digests. Callbacks stay outside serialized options, Mermaid/Style config,
+CLI/MCP data, and receipts. Omitting `textMeasurement` retains the deterministic
+default (`agentic-mermaid:inter-estimate`, version `4.0.0`, exported as
+`DEFAULT_TEXT_MEASUREMENT_PROFILE`) and leaves receipt shape unchanged.
+
 ## Resolution by output surface
 
 | Surface | Where the face comes from | Custom-font control |
@@ -221,18 +271,23 @@ check. If `Acme Sans` is missing but Inter covers every Latin character, the
 render can fall back without a coverage warning. Confirm custom-family output
 visually or with a font-specific render fixture.
 
-Diagram geometry uses the deterministic proportional measurement contract
-recorded in `TEXT_MEASUREMENT_CONTRACT`; it never reads ambient system-font
-state. Every continuous painted text advance—bundled, monospace, or custom—gets
-SVG `textLength` with `lengthAdjust="spacingAndGlyphs"`, because loading a font
-resource does not calibrate its metrics to the layout estimator. Independently
-positioned multiline tspans are fitted per line, while nested formatting
-contributes inherited size, weight, and tracking to that line's width. Explicit
-emitter-owned `textLength` remains authoritative. Native and browser PNG consume
-the same secured SVG, so a materially wider face cannot silently overflow its
-measured box. The tradeoff is explicit: unusually wide or narrow glyphs may be
-horizontally fitted rather than changing deterministic layout. Test long labels
-across target families for visual quality, especially for extreme proportions.
+By default, diagram geometry uses the deterministic proportional measurement
+contract recorded in `TEXT_MEASUREMENT_CONTRACT`; it never reads ambient
+system-font state. A trusted measurement profile can explicitly replace those
+widths as described above. Prepared ASCII text receives SVG `textLength`
+with `lengthAdjust="spacingAndGlyphs"`, because loading a font resource does not
+calibrate its metrics to the layout estimator. Plain lines are fitted as a
+whole. Mixed formatting retains each style run's position and width; tracked
+text retains each grapheme's allocation. The fitted span carries its own weight,
+style and decorations so native and browser PNG can consume the same secured
+SVG without relying on nested-span fitting behavior. Unusually wide or narrow
+glyphs may be horizontally fitted rather than changing deterministic layout.
+
+Non-ASCII text keeps native shaping for joining scripts and combining clusters.
+Its conservative measured band does not prove exact glyph pixels for arbitrary
+installed fonts or host CSS. Final certificates state their native Scene scope;
+they are not post-raster glyph checks. Test long and formatted labels across
+target families and output formats for visual quality.
 
 ## Troubleshooting
 

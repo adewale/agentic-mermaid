@@ -42,7 +42,7 @@ recognized outside that declaration content. Angle-bearing generic labels and
 backtick IDs still hit the existing Scene validation boundary even without an
 annotation; verification reports `RENDER_FAILED` until the broader #260 work.
 
-Pinned Mermaid 11.16 also permits multiple annotations on one class. The
+Pinned Mermaid also permits multiple annotations on one class. The
 current native class model has one annotation slot, so that case is explicitly
 diagnosed instead of rendering only the last annotation. Its agent body stays
 opaque and source-preserved, while separate executable inline and
@@ -52,7 +52,7 @@ tracked by #260.
 
 ## Markerless relationship fidelity (issue #248)
 
-Mermaid 11.16 treats `A -- B` and `A .. B` as distinct solid and dashed
+Pinned Mermaid treats `A -- B` and `A .. B` as distinct solid and dashed
 links with no endpoint marker. Both create endpoint classes, including when
 spaces around the operator are omitted. The native and agent parsers now share
 that distinction as `link-solid` / `link-dashed` with `markerAt: none`;
@@ -90,22 +90,38 @@ arrow bytes inside escaped IDs or quoted cardinalities with an operator.
 Upstream-reserved endpoint spellings (for example unescaped `o` and escaped
 `\`note\``) remain rejected rather than producing a plausible edge.
 Escaped IDs containing `~` remain diagnosed because Mermaid treats them as
-generic references with a different stable identity. Escaped two-ended and
-lollipop links also remain diagnosed: the current relationship model cannot
-preserve the dashed style of mixed two-ended markers or Mermaid's synthetic
-`interface0` endpoint for lollipop links. Backticks used only in an ordinary
-link's label or quoted cardinality do not trigger these restrictions.
+generic references with a different stable identity. Two-ended and lollipop
+links now share the bounded relationship scanner, including escaped endpoint
+IDs and cardinalities. Their shaft style is stored independently of endpoint
+marker kinds, so `o..*` and `()..()` retain their dashed shafts through
+structured edits, SVG/Scene and terminal output. Mixed lollipop markers such as
+`()-->` and `<--()` retain both authored endpoint identities. One-ended
+lollipops create independent interface occurrences with collision-safe public
+identities. Repeated labels do not share an occurrence, and an ordinary class
+with the same spelling remains separate. Generic interface spelling is retained
+through canonical writing. Use `add_interface` with `class`, `label` and optional
+`side`, `relationLabel` and `lineStyle` to create one explicitly. `add_relation`
+rejects operations that would silently turn an ordinary endpoint into an
+interface; parsed interface occurrences remain editable and removable.
 
-The official relationship section's aggregate capability is still only
-`diagnosed`, not `native`: upstream-valid unescaped hyphenated, dotted, and
-Unicode endpoint IDs remain opaque to the agent and fail loudly in native
-rendering. A separate executed receipt keeps that gap visible. The broader
-lossless statement authority and remaining identity/source-normalization
-work remain tracked by #260.
+Class relation facts include effective marker ownership, both endpoint kinds
+when present, and `line solid` / `line dashed`. Public `add_relation` operations
+can author those properties explicitly and reject combinations that would
+change meaning on reload. Member authoring refuses comment-form/blank text,
+accessibility directives and decoded line breaks; the source reader still
+handles comments as source metadata. Initial member arrays are copied so later caller changes do not
+alter the returned diagram. See `docs/api.md` for the complete-fact migration.
+
+Unescaped word-like Class names may contain hyphens, dots and Unicode letters
+or digits. Declarations, relationships, members and typed edits retain the same
+identity; canonical writing quotes a name when the statement requires it.
+Escaped names containing `~` still require generic-identity work and remain
+source-preserved rather than exposing a partial editable model. This does not
+claim support for every token combination Mermaid's Class lexer can assemble.
 
 ## Safe link hover text (issue #248)
 
-Pinned Mermaid 11.16 accepts both `link A "https://example.com" "Docs"` and
+Pinned Mermaid accepts both `link A "https://example.com" "Docs"` and
 `click A href "https://example.com" "Docs"`. The shared Class link grammar
 now preserves the optional tooltip with the safe URL. Structured agent state,
 serialization, mutation, the renderer-neutral action sidecar, and a native SVG
@@ -230,7 +246,7 @@ The typed `class` frontmatter section (`ClassRuntimeConfig` in
   `resolveClassRenderOptions` in `src/class/layout.ts`, applied on both the
   render path (`render-family-hooks.ts`) and the verify layout path
   (`family-layouts.ts`).
-- **Lint** (`INEFFECTIVE_CONFIG`, Tier-3): <!-- BEGIN GENERATED: noop-keys:class -->`arrowMarkerAbsolute`, `defaultRenderer`, `diagramPadding`, `dividerMargin`, `hideEmptyMembersBox`, `htmlLabels`, `padding`, `textHeight`, `titleTopMargin`<!-- END GENERATED: noop-keys:class --> —
+- **Lint** (`INEFFECTIVE_CONFIG`, Tier-3): <!-- BEGIN GENERATED: noop-keys:class -->`arrowMarkerAbsolute`, `defaultRenderer`, `diagramPadding`, `dividerMargin`, `hideEmptyMembersBox`, `htmlLabels`, `look`, `padding`, `textHeight`, `theme`, `titleTopMargin`<!-- END GENERATED: noop-keys:class --> —
   the lint reads the class descriptor's `config.noopKeys` in
   `src/agent/families.ts`.
 

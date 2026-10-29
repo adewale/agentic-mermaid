@@ -13,9 +13,9 @@
 //   align row|column <id> <id> ...   (upstream v11.16.0 — shared shape parser
 //     in src/architecture/align.ts; preserved and honored by layout)
 //
-// Structured-or-opaque: every renderer-supported declaration above plus
-// accTitle/accDescr and `{group}` endpoints is modeled. Any other non-blank,
-// non-comment syntax falls back losslessly to an opaque body.
+// Structured-or-opaque: renderer-supported declarations, accTitle/accDescr and
+// `{group}` endpoints are modeled when ids/icons have a portable spelling.
+// Other source falls back losslessly to an opaque body.
 // ============================================================================
 
 import { unknownOpMessage } from './mutation-ops.ts'
@@ -31,8 +31,9 @@ import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { resolveArchitectureIcon } from '../architecture/icons.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import {
-  readArchitectureStatements, architectureIconError, architectureIdError, architectureTerminalRejections, architectureTitleSource,
+  readArchitectureStatements, architectureIconError, architectureIdError, architectureStatementEnds, architectureTerminalRejections, architectureTitleSource, architectureIconTextSource,
 } from '../architecture/parser.ts'
+import { statementText } from '../shared/trailing-comment.ts'
 
 // ---- Parser -----------------------------------------------------------------
 // The statement shapes and Mermaid's id, icon and title terminals are the
@@ -44,16 +45,23 @@ function normalizeText(value: string): string {
   return value.split(/\r?\n/).map(part => part.trim()).filter(Boolean).join(' ')
 }
 
+/** A label read from source keeps the line breaks a quoted title runs across. */
+function sourceLabel(value: string): string {
+  return value.split(/\r?\n/).map(part => part.trim()).filter(Boolean).join('\n')
+}
+
 /**
  * Parse architecture body lines (header excluded). Returns a structured body
  * only if EVERY non-blank, non-comment line is a modeled group, service,
  * junction, or edge, AND the diagram is internally consistent (no duplicate
  * ids, every `in` parent and every edge endpoint resolves). Otherwise returns
- * null (opaque fallback).
+ * null (opaque fallback). Readable ids and icons without a portable spelling
+ * also stay source-preserved so typed edits cannot regenerate rejected source.
  */
 export function parseArchitectureBody(
   lines: string[],
   accessibility: import('./types.ts').Accessibility = {},
+  rawBodyLines: string[] = lines,
 ): ArchitectureBody | null {
   let title: string | undefined
   let accessibilityTitle = accessibility.title
@@ -67,7 +75,7 @@ export function parseArchitectureBody(
   const groupIds = new Set<string>()
   const endpointIds = new Set<string>() // services + junctions (valid edge endpoints)
 
-  for (const statement of readArchitectureStatements(lines)) {
+  for (const statement of readArchitectureStatements(rawBodyLines)) {
     if (statement.kind === 'invalid') return null
     if (statement.kind === 'blank' || statement.kind === 'comment') continue
     if (statement.kind === 'accessibility') {
@@ -85,27 +93,30 @@ export function parseArchitectureBody(
     if (statement.kind === 'group') {
       const declared = statement.declaration
       const { id, icon, parentId } = declared
+      if (architectureIdError(id) || (icon && architectureIconError(icon))) return null
       if (ids.has(id) || (parentId && !groupIds.has(parentId))) return null
       ids.add(id)
       groupIds.add(id)
-      const label = normalizeText(declared.title)
+      const label = sourceLabel(declared.title)
       groups.push({ id, label, icon, parentId })
       continue
     }
 
     if (statement.kind === 'service') {
       const declared = statement.declaration
-      const { id, icon, parentId } = declared
+      const { id, icon, iconText, parentId } = declared
+      if (architectureIdError(id) || (icon && architectureIconError(icon))) return null
       if (ids.has(id) || (parentId && !groupIds.has(parentId))) return null
       ids.add(id)
       endpointIds.add(id)
-      const label = normalizeText(declared.title)
-      services.push({ id, label, icon, parentId })
+      const label = sourceLabel(declared.title)
+      services.push({ id, label, icon, ...(iconText !== undefined ? { iconText } : {}), parentId })
       continue
     }
 
     if (statement.kind === 'junction') {
       const { id, parentId } = statement
+      if (architectureIdError(id)) return null
       if (ids.has(id) || (parentId && !groupIds.has(parentId))) return null
       ids.add(id)
       endpointIds.add(id)
@@ -128,7 +139,7 @@ export function parseArchitectureBody(
     if (statement.kind === 'edge') {
       const { edge } = statement
       if (!endpointIds.has(edge.source.id) || !endpointIds.has(edge.target.id)) return null
-      const label = edge.label === undefined ? undefined : normalizeText(edge.label)
+      const label = edge.label === undefined ? undefined : sourceLabel(edge.label)
       if (label && (label.includes('[') || label.includes(']'))) return null
       const endpoint = (value: typeof edge.source): ArchitectureEdge['source'] => ({ id: value.id, side: value.side, ...(value.boundary === 'group' ? { boundary: 'group' as const } : {}) })
       edges.push({ source: endpoint(edge.source), target: endpoint(edge.target), label, hasArrowStart: edge.hasArrowStart, hasArrowEnd: edge.hasArrowEnd })
@@ -172,8 +183,8 @@ export function parseArchitectureBody(
 
 // ---- Serializer -------------------------------------------------------------
 
-function renderNode(keyword: 'group' | 'service', id: string, label: string, icon?: string, parentId?: string): string {
-  const iconPart = icon ? `(${icon})` : ''
+function renderNode(keyword: 'group' | 'service', id: string, label: string, icon?: string, parentId?: string, iconText?: string): string {
+  const iconPart = iconText !== undefined ? ` ${architectureIconTextSource(iconText)} ` : icon ? `(${icon})` : ''
   const labelPart = `[${architectureTitleSource(label)}]`
   const inPart = parentId ? ` in ${parentId}` : ''
   return `  ${keyword} ${id}${iconPart}${labelPart}${inPart}`
@@ -194,7 +205,7 @@ export function renderArchitecture(body: ArchitectureBody): string {
   if (body.title !== undefined) lines.push(`  title ${body.title}`)
   appendAccessibilityLines(lines, body)
   for (const g of body.groups) lines.push(renderNode('group', g.id, g.label, g.icon, g.parentId))
-  for (const s of body.services) lines.push(renderNode('service', s.id, s.label, s.icon, s.parentId))
+  for (const s of body.services) lines.push(renderNode('service', s.id, s.label, s.icon, s.parentId, s.iconText))
   for (const j of body.junctions) {
     lines.push(`  junction ${j.id}${j.parentId ? ` in ${j.parentId}` : ''}`)
   }
@@ -260,7 +271,7 @@ function allIds(b: ArchitectureBody): Set<string> {
 function validId(value: unknown, field: string): Result<string, MutationError> {
   const error = typeof value === 'string' ? architectureIdError(value) : undefined
   if (typeof value !== 'string' || error) {
-    return err({ code: 'INVALID_OP', message: `Architecture ${field} must be letters, digits and _, with - only between them, got ${JSON.stringify(value)}` })
+    return err({ code: 'INVALID_OP', message: error?.message ?? `Architecture ${field} must be a string, got ${JSON.stringify(value)}` })
   }
   return ok(value)
 }
@@ -362,13 +373,16 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
       const validatedIcon = validIcon(op.icon, 'service icon')
       if (!validatedIcon.ok) return validatedIcon
       const icon = validatedIcon.value
+      if (op.iconText !== undefined && op.iconText !== null && typeof op.iconText !== 'string') return err({ code: 'INVALID_OP', message: 'Architecture iconText must be a string or null' })
+      const iconText = op.iconText ?? undefined
+      if (icon && iconText !== undefined) return err({ code: 'INVALID_OP', message: 'Choose an Architecture icon name or iconText, not both' })
       if (op.group !== undefined && op.group !== null) {
         const g = validId(op.group, 'group id')
         if (!g.ok) return g
         if (!next.groups.some(grp => grp.id === g.value)) return err({ code: 'GROUP_NOT_FOUND', message: `No group "${g.value}"` })
-        next.services.push({ id: id.value, label: label.value, icon, parentId: g.value })
+        next.services.push({ id: id.value, label: label.value, icon, ...(iconText !== undefined ? { iconText } : {}), parentId: g.value })
       } else {
-        next.services.push({ id: id.value, label: label.value, icon })
+        next.services.push({ id: id.value, label: label.value, icon, ...(iconText !== undefined ? { iconText } : {}) })
       }
       break
     }
@@ -412,11 +426,21 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
     case 'set_service_icon': {
       const svc = next.services.find(s => s.id === op.id)
       if (!svc) return err({ code: 'SERVICE_NOT_FOUND', message: `No service "${op.id}"` })
-      if (op.icon === null) { delete svc.icon; break }
+      if (op.icon === null) { delete svc.icon; delete svc.iconText; break }
       const icon = validIcon(op.icon, 'service icon')
       if (!icon.ok) return icon
       if (!icon.value) return err({ code: 'INVALID_OP', message: 'Architecture service icon must be non-empty (use null to clear)' })
       svc.icon = icon.value
+      delete svc.iconText
+      break
+    }
+    case 'set_service_icon_text': {
+      const svc = next.services.find(s => s.id === op.id)
+      if (!svc) return err({ code: 'SERVICE_NOT_FOUND', message: `No service "${op.id}"` })
+      if (op.text === null) { delete svc.iconText; break }
+      if (typeof op.text !== 'string') return err({ code: 'INVALID_OP', message: 'Architecture icon text must be a string or null' })
+      svc.iconText = op.text
+      delete svc.icon
       break
     }
     case 'move_service': {
@@ -626,12 +650,6 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
     }
   }
 
-  // Preserve the structured floor: visible title furniture or at least one
-  // node must remain, so canonical output always has renderable content.
-  if (next.groups.length === 0 && next.services.length === 0 && next.junctions.length === 0
-    && next.title === undefined && next.accessibilityTitle === undefined && next.accessibilityDescription === undefined) {
-    return err({ code: 'INVALID_OP', message: 'Architecture diagram must keep a title, accessibility directive, group, service, or junction' })
-  }
 
   return ok(next)
 }
@@ -647,12 +665,12 @@ function unknownArchitectureIcon(target: string, icon?: string): LayoutWarning |
 }
 
 const ARCHITECTURE_PORTABLE_FORM = {
-  id: 'start and end an id with a letter, digit or _, with - only between them',
+  id: 'avoid architecture keywords and prefixes L, R, T, B or title, and keep dashes only inside the id',
   icon: 'name an icon with letters, digits, _, - and : only',
   title: 'put the whole title in double quotes',
 } as const
 
-/** Architecture source ours reads where Mermaid 11.16 rejects it, each on its
+/** Architecture source ours reads where pinned Mermaid rejects it, each on its
  * canonical line: an id, (icon) or [title] outside Mermaid's lexer terminal is
  * read as written. */
 export function architectureUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
@@ -660,6 +678,7 @@ export function architectureUnsupportedSyntaxWarnings(canonicalSource: string): 
   const header = lines.findIndex(line => /^architecture(?:-beta)?\b/i.test(line.trim()))
   if (header < 0) return []
   const warnings: LayoutWarning[] = []
+  const ends = architectureStatementEnds(lines)
   for (let index = header + 1; index < lines.length; index++) {
     const directive = parseAccessibilityDirective(lines, index)
     if (directive === undefined) break
@@ -667,12 +686,14 @@ export function architectureUnsupportedSyntaxWarnings(canonicalSource: string): 
       index = directive.endIndex
       continue
     }
-    for (const { terminal, what } of architectureTerminalRejections(lines[index]!)) {
+    const start = index
+    index = ends[index]!
+    for (const { terminal, what } of architectureTerminalRejections(statementText(lines, start, index))) {
       warnings.push({
         code: 'UNSUPPORTED_SYNTAX',
         syntax: `architecture_${terminal}`,
-        line: index + 1,
-        message: `${what}. Mermaid 11.16 rejects this; ${ARCHITECTURE_PORTABLE_FORM[terminal]}.`,
+        line: start + 1,
+        message: `${what}. Pinned Mermaid rejects this; ${ARCHITECTURE_PORTABLE_FORM[terminal]}.`,
       })
     }
   }

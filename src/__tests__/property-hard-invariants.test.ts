@@ -26,6 +26,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseMermaid } from '../parser.ts'
@@ -48,6 +49,8 @@ function offences(id: string, source: string): string[] {
     return [`${id}: unparseable — ${error instanceof Error ? error.message : String(error)}`]
   }
   const positioned = layoutGraphSync(graph)
+  expect(positioned.nodes.map(node => node.id).sort(), `${id}: authored nodes`).toEqual([...graph.nodes.keys()].sort())
+  expect(positioned.edges.map(edge => JSON.stringify([edge.source, edge.target])).sort(), `${id}: authored edges`).toEqual(graph.edges.map(edge => JSON.stringify([edge.source, edge.target])).sort())
   return hardViolations(assessLayout(graph, positioned)).map(v => `${id}: ${v.metric} — ${v.detail}`)
 }
 
@@ -84,11 +87,9 @@ describe('hard invariants: independent oracle over corpus + fuzz (target 0)', ()
     }
   })
 
-  test('a deterministic flowchart fuzz sample is hard-clean', () => {
-    const samples = fc.sample(flowchartArb(), { numRuns: 200, seed: SEED })
-    const offenders = samples.flatMap((src, i) => offences(`fuzz/flowchart/${i}`, src))
-    if (offenders.length > 0) {
-      throw new Error(`hard-invariant violations in fuzzed flowcharts:\n  ${offenders.join('\n  ')}`)
-    }
+  test('generated flowcharts are hard-clean (with shrinking)', () => {
+    fc.assert(fc.property(flowchartArb(), source => {
+      expect(offences('generated flowchart', source)).toEqual([])
+    }), fcParameters({ numRuns: 200, seed: SEED }))
   })
 })

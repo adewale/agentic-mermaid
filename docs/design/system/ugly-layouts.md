@@ -30,10 +30,18 @@ layouts only when forced, and ranked below.
 | **Hitch / dogleg** | a short perpendicular jog on a run whose lane is clear | a segment much shorter than its collinear neighbours, perpendicular, with a clear straight alternative |
 | **Label off its route** | a label pill sitting away from the edge it names | label centroid far from its edge's polyline |
 
+The rendered hitch detector tests the two existing lanes and their midpoint.
+It requires valid endpoint attachment, orthogonal joins, clearance from node
+bodies, foreign label halos and occupied parallel lanes, and no added proper
+crossings. A short jog forced by a parallel relation's label is not a proven
+hitch. This conservative local search does not establish globally minimal bends.
+
 ### Soft ranking (good layouts minimize these, in this priority order)
 
-The operative priority, distilled from Purchase 1997/2002 and Ware 2002 and
-from the choices made across this project:
+This historical ranking is superseded by the current policy in
+[quality.md](../../quality.md#layout-priorities-and-their-limits), which places
+crossings ahead of continuity and distinguishes outline attachment from preferred
+canonical ports. The older ranking explains earlier implementation choices:
 
 1. **Straightness / continuity** — fewest bends; a multi-edge path reads as a
    line. (Beats everything below.)

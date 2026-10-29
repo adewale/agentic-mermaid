@@ -21,6 +21,15 @@ function loadCorpus(): CorpusEntry[] {
 
 const corpus = loadCorpus().filter(e => e.family === 'flowchart')
 
+test('raw route geometry counts actual turns, ignores zero segments and hidden routes across families', () => {
+  const f = toFinite
+  const layout: RenderedLayout = { version: 1, kind: 'class', nodes: [], groups: [], bounds: { w: f(100), h: f(50) }, edges: [
+    { id: 'visible', from: 'a', to: 'b', path: [[f(0), f(0)], [f(10), f(0)], [f(10), f(0)], [f(20), f(0)], [f(20), f(10)], [f(30), f(10)]] },
+    { id: 'hidden', from: 'a', to: 'b', visibility: 'hidden', path: [[f(0), f(0)], [f(50), f(0)], [f(50), f(50)]] },
+  ] }
+  expect(measureQuality(layout).routeGeometry).toEqual({ bends: 2, length: 40, area: 5000 })
+})
+
 const GENERATED_FLOWCHART_CORPUS = [
   { nodeCount: 20, layers: 5, rows: 4 },
   { nodeCount: 50, layers: 10, rows: 5 },
@@ -65,6 +74,29 @@ describe('quality metrics — deterministic', () => {
     expect(measured).toBeGreaterThan(10)
   })
 
+  test('XY quality measures painted point labels and chart chrome without adding semantic nodes', () => {
+    const source = '---\nconfig:\n xyChart:\n  showDataLabel: true\n---\nxychart-beta\n title Revenue\n x-axis Month [A,B]\n y-axis Amount 0 --> 10\n bar Sales [8,2]\n line Trend [10 "Top",0 "Bottom"]'
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error('XY fixture did not parse')
+    const layout = layoutMermaid(parsed.value)
+    expect(layout.nodes).toHaveLength(4)
+    const ids = new Set(layout.labels?.map(label => label.id))
+    for (const id of ['title', 'axis:x:title', 'axis:y:title', 'legend:label:0', 'legend:label:1', 'point-label:0:0', 'point-label:0:1', 'data-label:0']) expect(ids.has(id)).toBe(true)
+    const top = layout.labels!.find(label => label.text === 'Top')!
+    expect(top.bounds).toBeDefined()
+    const good = measureQuality(layout)
+    expect(good.labelLegibility).toBe(1)
+    expect(good.labelMeasurement.measuredLabels).toBe(layout.labels!.length)
+    expect(good.labelMeasurement.unmeasuredLabels).toBe(0)
+    const clipped = structuredClone(layout)
+    clipped.labels!.find(label => label.text === 'Top')!.bounds!.y = f(-20)
+    expect(measureQuality(clipped).labelLegibility).toBeLessThan(1)
+    const unmeasured = structuredClone(layout)
+    delete unmeasured.labels!.find(label => label.text === 'Top')!.bounds
+    expect(measureQuality(unmeasured).labelMeasurement.unmeasuredLabels).toBe(1)
+    expect(checkQuality(unmeasured).ranked.some(violation => violation.message.includes('unmeasured'))).toBe(true)
+  })
+
   test('repeated calls produce identical metrics (determinism)', () => {
     const p = parseMermaid('flowchart TD\n  A[Start] --> B{Check}\n  B -->|yes| C[Done]\n  B -->|no| A')
     expect(p.ok && p.value.kind).toBe('flowchart')
@@ -72,6 +104,16 @@ describe('quality metrics — deterministic', () => {
     const a = measureQuality(layoutMermaid(p.value))
     const b = measureQuality(layoutMermaid(p.value))
     expect(a).toEqual(b)
+  })
+
+  test('reports shared parallel and opposing ink separately from proper crossings', () => {
+    const forward: RenderedLayout['edges'][number] = { id: 'ab', from: 'a', to: 'b', path: [[f(0), f(0)], [f(100), f(0)]] }
+    const reverse: RenderedLayout['edges'][number] = { id: 'cd', from: 'c', to: 'd', path: [[f(90), f(0)], [f(10), f(0)]] }
+    const layout: RenderedLayout = { version: 1, kind: 'flowchart', nodes: [], groups: [], edges: [forward, reverse], bounds: { w: f(200), h: f(100) } }
+    expect(measureQuality(layout)).toMatchObject({ edgeCrossings: 0, routeOverlaps: { parallel: 0, opposing: 1 } })
+    expect(measureQuality({ ...layout, edges: [forward, { ...forward, id: 'ab2' }] }).routeOverlaps).toEqual({ parallel: 1, opposing: 0 })
+    expect(measureQuality({ ...layout, edges: [forward, { ...reverse, visibility: 'hidden' }] }).routeOverlaps).toEqual({ parallel: 0, opposing: 0 })
+    expect(measureQuality({ ...layout, edges: [forward, { ...reverse, path: [[f(200), f(0)], [f(100), f(0)]] }] }).routeOverlaps).toEqual({ parallel: 0, opposing: 0 })
   })
 
   test('crossings = 0 on a trivial linear graph', () => {
@@ -100,6 +142,30 @@ describe('quality metrics — deterministic', () => {
     expect(m.labelLegibility).toBe(1)
   })
 
+  test('measures multiline and styled labels from retained geometry', () => {
+    const p = parseMermaid('flowchart LR\nA["first line<br/>second line<br/>third line"] --> B[Done]')
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    const layout = layoutMermaid(p.value, { style: { roles: { node: { fontSize: 24, letterSpacing: 2 } } } })
+    const metrics = measureQuality(layout)
+    expect(metrics.labelLegibility).toBe(1)
+    expect(metrics.labelMeasurement).toEqual({ measuredNodes: 2, unmeasuredNodes: 0, hiddenNodes: 0, semanticNodes: 0, measuredEdges: 0, unmeasuredEdges: 0, measuredLabels: 0, unmeasuredLabels: 0, hiddenLabels: 0, semanticLabels: 0 })
+    expect(checkQuality(layout).ranked.map(item => item.metric)).not.toContain('labelLegibility')
+  })
+
+  test('reports missing label geometry instead of guessing a fit', () => {
+    const layout: RenderedLayout = {
+      version: 1, kind: 'flowchart', groups: [],
+      edges: [{ id: 'A->B', from: 'A', to: 'B', path: [[f(100), f(20)], [f(200), f(20)]], label: { x: f(150), y: f(20), text: 'short' } }],
+      nodes: [{ id: 'A', x: f(0), y: f(0), w: f(100), h: f(40), shape: 'rectangle', label: 'short' }],
+      bounds: { w: f(200), h: f(100) },
+    }
+    expect(measureQuality(layout).labelMeasurement.unmeasuredNodes).toBe(1)
+    expect(measureQuality(layout).labelMeasurement.unmeasuredEdges).toBe(1)
+    expect(checkQuality(layout).ranked.some(item => item.metric === 'labelLegibility' && item.message.includes('unmeasured'))).toBe(true)
+    expect(checkQuality(layout).ranked.some(item => item.metric === 'labelEdgeProximity' && item.message.includes('unmeasured'))).toBe(true)
+  })
+
   test('labelEdgeProximity includes label-to-label box overlap', () => {
     const layout: RenderedLayout = {
       version: 1,
@@ -107,8 +173,8 @@ describe('quality metrics — deterministic', () => {
       nodes: [],
       groups: [],
       edges: [
-        { id: 'A->B', from: 'A', to: 'B', path: [[f(0), f(0)], [f(100), f(0)]], label: { x: f(80), y: f(50), text: 'first' } },
-        { id: 'C->D', from: 'C', to: 'D', path: [[f(0), f(100)], [f(100), f(100)]], label: { x: f(80), y: f(50), text: 'second' } },
+        { id: 'A->B', from: 'A', to: 'B', path: [[f(0), f(0)], [f(100), f(0)]], label: { x: f(80), y: f(50), text: 'first', bounds: { x: f(50), y: f(40), w: f(60), h: f(20) } } },
+        { id: 'C->D', from: 'C', to: 'D', path: [[f(0), f(100)], [f(100), f(100)]], label: { x: f(80), y: f(50), text: 'second', bounds: { x: f(50), y: f(40), w: f(60), h: f(20) } } },
       ],
       bounds: { w: f(160), h: f(120) },
     }
@@ -126,8 +192,8 @@ describe('quality metrics — deterministic', () => {
       nodes: [],
       groups: [],
       edges: [
-        { id: 'A->B', from: 'A', to: 'B', path: [[f(0), f(50)], [f(100), f(50)]], label: { x: f(50), y: f(50), text: 'on route' } },
-        { id: 'C->D', from: 'C', to: 'D', path: [[f(50), f(0)], [f(50), f(100)]] },
+        { id: 'A->B', from: 'A', to: 'B', path: [[f(0), f(50)], [f(100), f(50)]], label: { x: f(50), y: f(50), text: 'i', bounds: { x: f(20), y: f(40), w: f(60), h: f(20) } } },
+        { id: 'C->D', from: 'C', to: 'D', path: [[f(75), f(0)], [f(75), f(100)]] },
       ],
       bounds: { w: f(120), h: f(120) },
     }
@@ -145,7 +211,7 @@ describe('quality metrics — deterministic', () => {
       nodes: [],
       groups: [],
       edges: [
-        { id: 'A->B', from: 'A', to: 'B', path: [[f(0), f(50)], [f(100), f(50)]], label: { x: f(50), y: f(50), text: 'own route' } },
+        { id: 'A->B', from: 'A', to: 'B', path: [[f(0), f(50)], [f(100), f(50)]], label: { x: f(50), y: f(50), text: 'own route', bounds: { x: f(20), y: f(40), w: f(60), h: f(20) } } },
       ],
       bounds: { w: f(120), h: f(120) },
     }
@@ -257,6 +323,19 @@ describe('quality metrics — deterministic', () => {
       .not.toContain('minimumNodeSpacing')
   })
 
+  test('treats coincident quadrant coordinates as data overlays while measuring distinct nearby points', () => {
+    const parsed = parseMermaid('quadrantChart\nA: [0.5, 0.5]\nB: [0.5, 0.5]\nC: [0.8, 0.8]')
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const layout = layoutMermaid(parsed.value)
+    expect(measureQuality(layout).minimumNodeSpacing).toBeGreaterThan(8)
+    expect(checkQuality(layout).ranked).toEqual([])
+    expect(checkQuality(layout, { whitespaceBand: [0.05, 0.55] }).ranked.some(item => item.metric === 'whitespaceBalance')).toBe(true)
+    expect(layout.nodes.map(node => node.dataPosition)).toEqual([{ x: f(0.5), y: f(0.5) }, { x: f(0.5), y: f(0.5) }, { x: f(0.8), y: f(0.8) }])
+    const nearby = { ...layout, nodes: layout.nodes.slice(0, 2).map((node, index) => ({ ...node, dataPosition: { x: f(0.5 + index * 0.0001), y: f(0.5) } })) }
+    expect(measureQuality(nearby).minimumNodeSpacing).toBe(0)
+  })
+
   test('measures XY cross-category and Radar near-but-distinct mark collisions', () => {
     const mark = (id: string, x: number): RenderedLayout['nodes'][number] => ({
       id, x: toFinite(x), y: toFinite(0), w: toFinite(10), h: toFinite(10),
@@ -276,7 +355,7 @@ describe('quality metrics — deterministic', () => {
     ])).minimumNodeSpacing).toBe(0)
   })
 
-  test('indexes large edge-free layouts without an all-pairs spacing scan', () => {
+  test('measures spacing correctly in a 10,000-node edge-free layout', () => {
     const nodes = Array.from({ length: 10_000 }, (_, index) => ({
       id: `N${index}`, x: f((index % 100) * 20), y: f(Math.floor(index / 100) * 20),
       w: f(10), h: f(10), shape: 'rectangle', label: '',

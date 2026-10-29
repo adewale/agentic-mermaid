@@ -1,46 +1,48 @@
-// Share-link encoding uses one canonical deflate-raw payload.
-var HASH_DEFLATE_PREFIX = 'deflate:';
-var EDITOR_SHARE_STATE_KEYS = Object.freeze(['source', 'palette', 'style', 'seed', 'config']);
-// These caps are deliberately expressed in UTF-8 bytes, not JavaScript string
-// length.  A share URL is already an unsuitable transport for diagrams this
-// large; the decoded cap also bounds compression bombs before they can occupy
-// an unbounded amount of browser memory.  The encoded allowance is large
-// enough for the base64 expansion of any accepted uncompressed payload.
-var MAX_SHARE_DECODED_BYTES = 256 * 1024;
-var MAX_SHARE_ENCODED_BYTES = 384 * 1024;
-var MAX_DRAFT_BYTES = 256 * 1024;
+import { ui } from './context.js';
+import { DEFAULT_EDITOR_PALETTE, editorPaletteInput, state } from './state.js';
+import { editor } from './elements.js';
+import { hasCurrentVerifiedSvgArtifact } from './rendering.js';
+import { showToast } from './toast.js';
+export var HASH_DEFLATE_PREFIX, EDITOR_SHARE_STATE_KEYS, MAX_SHARE_DECODED_BYTES, MAX_SHARE_ENCODED_BYTES, MAX_DRAFT_BYTES, hashDecodeFailure, DRAFT_STORAGE_KEY, draftSaveTimer, draftRestoreFailure, draftSaveLimitNotified;
+
 
 // Browser privacy settings and embedded contexts may expose Storage but throw
 // on every operation. Chrome preferences must never make the editor fail boot.
-function safeLocalStorageGet(key) {
+export function safeLocalStorageGet(key) {
   try { return localStorage.getItem(key); } catch (error) { return null; }
 }
 
-function safeLocalStorageSet(key, value) {
+
+export function safeLocalStorageSet(key, value) {
   try { localStorage.setItem(key, value); return true; } catch (error) { return false; }
 }
 
-function safeLocalStorageRemove(key) {
+
+export function safeLocalStorageRemove(key) {
   try { localStorage.removeItem(key); return true; } catch (error) { return false; }
 }
 
-function utf8ByteLength(value) {
+
+export function utf8ByteLength(value) {
   return new TextEncoder().encode(String(value)).byteLength;
 }
 
-function limitError(kind) {
+
+export function limitError(kind) {
   var error = new Error(kind + ' exceeds the editor size limit');
   error.code = 'too-large';
   return error;
 }
 
-function bytesToBase64Url(bytes) {
+
+export function bytesToBase64Url(bytes) {
   var bin = '';
   for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-function base64UrlToBytes(encoded) {
+
+export function base64UrlToBytes(encoded) {
   if (!encoded || !/^[A-Za-z0-9_-]+$/.test(encoded) || encoded.length % 4 === 1) {
     throw new Error('Invalid base64url payload');
   }
@@ -52,7 +54,8 @@ function base64UrlToBytes(encoded) {
   return bytes;
 }
 
-async function readUtf8StreamWithLimit(stream, byteLimit) {
+
+export async function readUtf8StreamWithLimit(stream, byteLimit) {
   var reader = stream.getReader();
   var decoder = new TextDecoder('utf-8', { fatal: true });
   var chunks = [];
@@ -75,7 +78,8 @@ async function readUtf8StreamWithLimit(stream, byteLimit) {
   }
 }
 
-async function encodeSourceCompressed(src) {
+
+export async function encodeSourceCompressed(src) {
   if (utf8ByteLength(src) > MAX_SHARE_DECODED_BYTES) {
     throw limitError('Share link source');
   }
@@ -96,15 +100,8 @@ async function encodeSourceCompressed(src) {
   }
 }
 
-// Why the last hash decode produced nothing: 'unsupported' (deflate: link in a
-// browser without DecompressionStream — never reinterpret the bytes through
-// another encoding, which could silently open the wrong content), 'corrupt' (truncated/damaged
-// link), 'too-large' (encoded or expanded payload exceeded a hard cap), or
-// null. init.js reads this to tell the recipient instead of
-// silently showing their draft or the default diagram.
-var hashDecodeFailure = null;
 
-async function decodeSource(encoded) {
+export async function decodeSource(encoded) {
   hashDecodeFailure = null;
   if (utf8ByteLength(encoded) > MAX_SHARE_ENCODED_BYTES) {
     hashDecodeFailure = 'too-large';
@@ -128,7 +125,8 @@ async function decodeSource(encoded) {
   return '';
 }
 
-function sanitizeEditorConfig(config) {
+
+export function sanitizeEditorConfig(config) {
   if (!config || typeof config !== 'object' || Array.isArray(config)) return {};
   // Share hashes and browser storage are untrusted inputs. Project the browser
   // API's canonical serializable field manifest instead of maintaining a
@@ -151,7 +149,8 @@ function sanitizeEditorConfig(config) {
   return safe;
 }
 
-function sanitizeEditorStyle(style) {
+
+export function sanitizeEditorStyle(style) {
   // The editor picker owns a named style, never an inline record. Full custom
   // style data may still travel through validated config.style.
   if (style === 'crisp') return style;
@@ -163,11 +162,13 @@ function sanitizeEditorStyle(style) {
   }) ? style : '';
 }
 
-function hasOwnConfig(config) {
+
+export function hasOwnConfig(config) {
   return !!config && typeof config === 'object' && !Array.isArray(config) && Object.keys(config).length > 0;
 }
 
-async function getHashSource() {
+
+export async function getHashSource() {
   var hash = window.location.hash.slice(1);
   if (!hash) return null;
   var decoded = await decodeSource(hash);
@@ -211,37 +212,43 @@ async function getHashSource() {
   return decoded || null;
 }
 
-function getQueryExampleId() {
+
+export function getQueryExampleId() {
   try { return new URLSearchParams(window.location.search).get('example') || ''; }
   catch(e) { return ''; }
 }
 
-var hashUpdateToken = 0;
 
-function updateHash() {
-  if (typeof hasCurrentVerifiedSvgArtifact !== 'function' || !hasCurrentVerifiedSvgArtifact()) {
-    if (typeof showToast === 'function') showToast('Render and verify this diagram before copying a share link.');
-    return Promise.resolve(false);
-  }
-  var source = editor.value;
+export function currentEditorShareState() {
   var obj = {
-    source: source,
+    source: editor.value,
     palette: state.palette || '',
     style: state.style || 'crisp',
     seed: typeof state.seed === 'number' && Number.isFinite(state.seed) ? state.seed : 0,
   };
   if (hasOwnConfig(state.config)) obj.config = state.config;
+  return obj;
+}
+
+
+export function updateHash() {
+  if (typeof hasCurrentVerifiedSvgArtifact !== 'function' || !hasCurrentVerifiedSvgArtifact()) {
+    if (typeof showToast === 'function') showToast('Render and verify this diagram before copying a share link.');
+    return Promise.resolve(false);
+  }
+  var source = editor.value;
+  var obj = currentEditorShareState();
   // Compression is async; the token drops stale writes when edits overlap.
-  var token = ++hashUpdateToken;
+  var token = ++ui.hashUpdateToken;
   return encodeSourceCompressed(JSON.stringify(obj)).then(function(encoded) {
-    if (token !== hashUpdateToken
+    if (token !== ui.hashUpdateToken
       || typeof hasCurrentVerifiedSvgArtifact !== 'function'
       || !hasCurrentVerifiedSvgArtifact()
       || editor.value !== source) return false;
     window.history.replaceState(null, '', window.location.pathname + '#' + encoded);
     return true;
   }).catch(function(error) {
-    if (token !== hashUpdateToken) return false;
+    if (token !== ui.hashUpdateToken) return false;
     // Never leave an older, valid hash in place for newer content it does not
     // represent.  A stale URL is more dangerous than no share URL at all.
     window.history.replaceState(null, '', window.location.pathname);
@@ -256,29 +263,19 @@ function updateHash() {
   });
 }
 
-// ── Draft autosave ────────────────────────────────────────────────────────────
-// Source + per-diagram config survive refresh within the current tab through
-// sessionStorage. The URL hash updates only after a successful render,
-// so autosave still protects a never-valid diagram. Restored in init.js only
-// when the URL carries no #source and no ?example= param.
-var DRAFT_STORAGE_KEY = 'bm-editor-draft';
-var draftSaveTimer = null;
-var draftRestoreFailure = null;
-var draftSaveLimitNotified = false;
 
-function draftStorage() {
+export function draftStorage() {
   try { return sessionStorage; }
   catch(e) { return null; }
 }
 
-function removeDraftFrom(storage) {
+
+export function removeDraftFrom(storage) {
   try { if (storage) storage.removeItem(DRAFT_STORAGE_KEY); } catch(e) {}
 }
 
-// Discard stale persistent drafts without reading or restoring them.
-safeLocalStorageRemove(DRAFT_STORAGE_KEY);
 
-function saveEditorDraft() {
+export function saveEditorDraft() {
   safeLocalStorageRemove(DRAFT_STORAGE_KEY);
   var storage = draftStorage();
   if (!storage) return;
@@ -312,12 +309,14 @@ function saveEditorDraft() {
   }
 }
 
-function scheduleDraftSave() {
+
+export function scheduleDraftSave() {
   if (draftSaveTimer) clearTimeout(draftSaveTimer);
   draftSaveTimer = setTimeout(saveEditorDraft, 400);
 }
 
-function readEditorDraft() {
+
+export function readEditorDraft() {
   draftRestoreFailure = null;
   var storage = draftStorage();
   if (!storage) return null;
@@ -340,9 +339,58 @@ function readEditorDraft() {
   return null;
 }
 
-function discardEditorDraft() {
+
+export function discardEditorDraft() {
   if (draftSaveTimer) clearTimeout(draftSaveTimer);
   draftSaveTimer = null;
   removeDraftFrom(draftStorage());
   safeLocalStorageRemove(DRAFT_STORAGE_KEY);
+}
+
+export function initialize() {
+// Share-link encoding uses one canonical deflate-raw payload.
+HASH_DEFLATE_PREFIX = 'deflate:';
+
+EDITOR_SHARE_STATE_KEYS = Object.freeze(['source', 'palette', 'style', 'seed', 'config']);
+
+// These caps are deliberately expressed in UTF-8 bytes, not JavaScript string
+// length.  A share URL is already an unsuitable transport for diagrams this
+// large; the decoded cap also bounds compression bombs before they can occupy
+// an unbounded amount of browser memory.  The encoded allowance is large
+// enough for the base64 expansion of any accepted uncompressed payload.
+MAX_SHARE_DECODED_BYTES = 256 * 1024;
+
+MAX_SHARE_ENCODED_BYTES = 384 * 1024;
+
+MAX_DRAFT_BYTES = 256 * 1024;
+
+
+// Why the last hash decode produced nothing: 'unsupported' (deflate: link in a
+// browser without DecompressionStream — never reinterpret the bytes through
+// another encoding, which could silently open the wrong content), 'corrupt' (truncated/damaged
+// link), 'too-large' (encoded or expanded payload exceeded a hard cap), or
+// null. init.js reads this to tell the recipient instead of
+// silently showing their draft or the default diagram.
+hashDecodeFailure = null;
+
+
+ui.hashUpdateToken = 0;
+
+
+// ── Draft autosave ────────────────────────────────────────────────────────────
+// Source + per-diagram config survive refresh within the current tab through
+// sessionStorage. The URL hash updates only after a successful render,
+// so autosave still protects a never-valid diagram. Restored in init.js only
+// when the URL carries no #source and no ?example= param.
+DRAFT_STORAGE_KEY = 'bm-editor-draft';
+
+draftSaveTimer = null;
+
+draftRestoreFailure = null;
+
+draftSaveLimitNotified = false;
+
+
+// Discard stale persistent drafts without reading or restoring them.
+safeLocalStorageRemove(DRAFT_STORAGE_KEY);
 }

@@ -9,7 +9,8 @@ import { describe, test, expect } from 'bun:test'
 import '../agent/families.ts'
 import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
-import { layoutGantt, resolveTicks, GANTT_MAX_TICKS } from '../gantt/layout.ts'
+import { layoutGantt, resolveTicks, GANTT_MAX_TICKS, packCompactLanes } from '../gantt/layout.ts'
+import type { EpochMs } from '../gantt/types.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { resolveRenderRequest, resolvedFamilyRenderContextOf } from '../render-contract.ts'
@@ -110,6 +111,23 @@ describe('gantt layout — vert markers consume no row (mermaid PR #7284)', () =
 })
 
 describe('gantt layout — compact mode (mermaid #7603)', () => {
+  test('large compact sections reuse the lowest eligible lane, including touching intervals', () => {
+    const intervals = [[0, 10], [0, 5], [10, 20], ...Array.from({ length: 30 }, (_, index) => [100 + index, 101 + index])]
+    const tasks = intervals.map(([start, end]) => ({ start: start as EpochMs, end: end as EpochMs }))
+    expect(packCompactLanes(tasks)).toEqual([0, 1, ...new Array(31).fill(0)])
+  })
+  test('dense sections retain first-fit lane order after growing and releasing lanes', () => {
+    for (const count of [33, 65, 129]) {
+      const intervals = [...Array.from({ length: count }, () => [0, 10]), [10, 20], [10, 15], [15, 25]]
+      const tasks = intervals.map(([start, end]) => ({ start: start as EpochMs, end: end as EpochMs }))
+      expect(packCompactLanes(tasks)).toEqual([...Array.from({ length: count }, (_, i) => i), 0, 1, 1])
+    }
+  })
+  test('future nonfinite intervals preserve comparison-based lane reuse', () => {
+    const intervals = [...Array.from({ length: 65 }, () => [0, 10]), [10, NaN], [Infinity, Infinity], [Infinity, Infinity]]
+    const tasks = intervals.map(([start, end]) => ({ start: start as EpochMs, end: end as EpochMs }))
+    expect(packCompactLanes(tasks)).toEqual([...Array.from({ length: 65 }, (_, i) => i), 0, 1, 1])
+  })
   // Three tasks where 1 and 3 do not overlap (sharable lane) but 2 overlaps
   // both — naive single-row packing would overlap bars.
   const DENSE = `---
@@ -169,8 +187,12 @@ describe('gantt layout — axes and markers', () => {
       .map(m => ({ top: Number(m[1]), bottom: Number(m[1]) + Number(m[2]) }))
     const barsTop = Math.min(...bars.map(b => b.top))
     const barsBottom = Math.max(...bars.map(b => b.bottom))
-    const labels = [...svg.matchAll(/<text class="gantt-axis-label"[^>]* y="([\d.]+)"[^>]* font-size="([\d.]+)"[^>]*>([^<]*)</g)]
-      .map(m => ({ text: m[3]!, top: Number(m[1]) - Number(m[2]) / 2, bottom: Number(m[1]) + Number(m[2]) / 2 }))
+    const labels = [...svg.matchAll(/<text\b([^>]*class="gantt-axis-label"[^>]*)>([\s\S]*?)<\/text>/g)]
+      .map(m => {
+        const y = Number(m[1]!.match(/(?:^|\s)y="([\d.]+)"/)![1])
+        const fontSize = Number(m[1]!.match(/font-size="([\d.]+)"/)![1])
+        return { text: m[2]!.replace(/<[^>]*>/g, ''), top: y - fontSize / 2, bottom: y + fontSize / 2 }
+      })
     const side = (l: (typeof labels)[number]) => l.bottom <= barsTop ? 'above' : l.top >= barsBottom ? 'below' : `overlaps bars: ${l.text}`
 
     expect(bars).toHaveLength(3)

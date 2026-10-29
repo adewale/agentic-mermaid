@@ -1,16 +1,12 @@
 import { describe, expect, test } from 'bun:test'
-import { BROWSER_EDITOR_ADAPTER } from '../browser.ts'
+import { renderWebsiteSVGWithReceipt } from '../../website/src/rendering.ts'
 import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
+import { BROWSER_EDITOR_ADAPTER } from '../browser.ts'
 import { renderSourceToFormatWithReceipt } from '../cli/index.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
-import {
-  handleHostedRequest,
-  type ExecuteResult,
-  type HostedMcpContext,
-} from '../mcp/hosted-server.ts'
+import { type ExecuteResult, type HostedMcpContext, handleHostedRequest } from '../mcp/hosted-server.ts'
 import type { JsonRpcRequest, JsonRpcResponse } from '../mcp/protocol.ts'
 import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
-import { renderWebsiteSVGWithReceipt } from '../../website/src/rendering.ts'
 import type { RenderOptions } from '../types.ts'
 
 const OPTIONS = Object.freeze({
@@ -23,7 +19,7 @@ const OPTIONS = Object.freeze({
 // A trimmed edge label, an unknown XYChart statement, and an unsupported family.
 const NATIVE_SOURCE = 'flowchart TD\n  A -->|" a "| B\n'
 const XYCHART_UNKNOWN_STATEMENT_SOURCE = 'xychart-beta\n  bar [1, 2]\n  frob official-data-lost\n'
-const UNSUPPORTED_FAMILY_SOURCE = 'block-beta\n  columns 1\n  A'
+const UNSUPPORTED_FAMILY_SOURCE = 'swimlane-beta\n  preserved experimental payload'
 const ALTERNATE_OPTIONS = Object.freeze({
   security: 'strict' as const,
   padding: 31,
@@ -68,10 +64,7 @@ function diagnosticFrom(callable: () => unknown): ReturnType<typeof projectRende
 }
 
 async function svgArtifacts(source: string, options: RenderOptions = OPTIONS): Promise<Record<string, { svg: string; receipt: unknown }>> {
-  const hosted = payloadOf(await handleHostedRequest(
-    call('render_svg', { source, options }),
-    hostedContext(),
-  ))
+  const hosted = payloadOf(await handleHostedRequest(call('render_svg', { source, options }), hostedContext()))
   return {
     library: renderMermaidSVGWithReceipt(source, options),
     cli: (() => {
@@ -103,8 +96,7 @@ describe('issue #248 fidelity route conformance', () => {
       const alternate = await svgArtifacts(source, ALTERNATE_OPTIONS)
       const firstAuthority = first.library!
       const alternateAuthority = alternate.library!
-      expect((firstAuthority.receipt as { sharedRequestDigest: string }).sharedRequestDigest, familyId)
-        .not.toBe((alternateAuthority.receipt as { sharedRequestDigest: string }).sharedRequestDigest)
+      expect((firstAuthority.receipt as { sharedRequestDigest: string }).sharedRequestDigest, familyId).not.toBe((alternateAuthority.receipt as { sharedRequestDigest: string }).sharedRequestDigest)
       for (const [label, artifacts, authority] of [
         ['standard', first, firstAuthority],
         ['alternate', alternate, alternateAuthority],
@@ -120,8 +112,7 @@ describe('issue #248 fidelity route conformance', () => {
   test('a changed source changes the request digest and reaches every adapter unchanged', async () => {
     const first = await svgArtifacts('flowchart LR\n  A[Alpha] --> B[Beta]')
     const second = await svgArtifacts('flowchart LR\n  A[Alpha] --> C[Gamma]')
-    expect((first.library!.receipt as { sharedRequestDigest: string }).sharedRequestDigest)
-      .not.toBe((second.library!.receipt as { sharedRequestDigest: string }).sharedRequestDigest)
+    expect((first.library!.receipt as { sharedRequestDigest: string }).sharedRequestDigest).not.toBe((second.library!.receipt as { sharedRequestDigest: string }).sharedRequestDigest)
     for (const artifacts of [first, second]) {
       for (const [surface, artifact] of Object.entries(artifacts)) {
         expect(artifact.svg, `${surface} svg`).toBe(artifacts.library!.svg)
@@ -172,10 +163,7 @@ describe('issue #248 fidelity route conformance', () => {
     }
     for (const [surface, diagnostic] of Object.entries(direct)) expect(diagnostic, surface).toEqual(authority)
 
-    const hosted = payloadOf(await handleHostedRequest(
-      call('render_svg', { source: XYCHART_UNKNOWN_STATEMENT_SOURCE, options: OPTIONS }),
-      hostedContext(),
-    ))
+    const hosted = payloadOf(await handleHostedRequest(call('render_svg', { source: XYCHART_UNKNOWN_STATEMENT_SOURCE, options: OPTIONS }), hostedContext()))
     expect(hosted).toMatchObject({ ok: false, isError: true, error: authority })
   })
 
@@ -189,10 +177,7 @@ describe('issue #248 fidelity route conformance', () => {
     }
     for (const [surface, diagnostic] of Object.entries(direct)) expect(diagnostic, surface).toEqual(authority)
 
-    const hosted = payloadOf(await handleHostedRequest(
-      call('render_svg', { source: UNSUPPORTED_FAMILY_SOURCE, options: OPTIONS }),
-      hostedContext(),
-    ))
+    const hosted = payloadOf(await handleHostedRequest(call('render_svg', { source: UNSUPPORTED_FAMILY_SOURCE, options: OPTIONS }), hostedContext()))
     expect(hosted).toMatchObject({ ok: false, isError: true, error: authority })
   })
 })

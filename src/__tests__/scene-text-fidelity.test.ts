@@ -1,12 +1,11 @@
 // ============================================================================
-// Scene-IR text geometry fidelity (plan §Quadrant item 3).
+// Scene-IR text marks and the writer that draws them.
 //
-// The fidelity oracle (src/scene/fidelity.ts) used to check only a text
-// mark's content and fontSize — it was blind to x/y/anchor, so a lowering
-// could claim one label position while the crisp SVG drew another (quadrant
-// point labels did exactly that: semantic always said "right of the point,
-// anchor start" while the drawn label used the collision-aware slot). The
-// oracle now checks text x, y, and text-anchor, generically for every family.
+// A text mark's position, anchor, typography and content are typed fields the
+// writer draws, so a lowering cannot claim one label position while the SVG
+// shows another (quadrant point labels once did exactly that). The fidelity
+// oracle (src/scene/fidelity.ts) re-reads the written SVG independently; these
+// tests run it over real lowerings and over the writer's harder text cases.
 // ============================================================================
 
 import { describe, it, expect } from 'bun:test'
@@ -17,136 +16,108 @@ import { parseQuadrantChart } from '../quadrant/parser.ts'
 import { layoutQuadrantChart } from '../quadrant/layout.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 import type { SceneDoc } from '../scene/ir.ts'
+import { sceneNodeSerialization } from '../scene/serialization.ts'
+import { pixelTextLine, preparePixelText } from '../shared/prepared-text.ts'
 
-function textMark(semantic: { x: number; y: number; anchor: 'start' | 'middle' | 'end' }, crisp: string) {
-  return marks.text(
-    { id: 't', role: 'label', text: 'Hi', fontSize: 12, paint: {}, ...semantic },
-    crisp,
-  )
+function textMark(semantic: { x: number; y: number; anchor: 'start' | 'middle' | 'end' }) {
+  return marks.text({ id: 't', role: 'label', text: 'Hi', fontSize: 12, paint: {}, ...semantic })
 }
 
-describe('fidelity oracle checks text x/y/anchor', () => {
-  it('flags a crisp x that disagrees with the semantic x', () => {
+describe('text marks', () => {
+  it('writes retained native line wrappers, RTL shaping, tracking, projected Gantt lines and painted runs faithfully', () => {
+    for (const [source, letterSpacing] of [['A B\nC D', 0], ['אב ג\nש ד', 0], ['界 é\n👩‍💻', 0], ['AB CD\nEF GH', -2], ['A B', 2], ['<i>Italic</i> <b>bold</b>', 0]] as const) {
+      const block = preparePixelText(source, { fontSize: 12, fontWeight: 400, letterSpacing })
+      for (const retained of [block, pixelTextLine(block, block.lines.length - 1)!]) {
+        const mark = marks.text({ id: 'line', role: 'label', text: retained.text, block: retained, x: 10, y: 20, fontSize: 12, anchor: 'middle', paint: {} })
+        const problems: string[] = []
+        nodeProblems(mark, 'p', problems)
+        expect({ source, letterSpacing, problems }).toEqual({ source, letterSpacing, problems: [] })
+      }
+    }
+    const block = preparePixelText('+ field: String', { display: 'literal', fontSize: 12, fontWeight: 400 })
+    const mark = marks.text({
+      id: 'member', role: 'member', text: block.text, block, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {},
+      spans: [{ text: '+ ', fill: '#777' }, { text: 'field', fill: '#111' }, { text: ': String', fill: '#777' }],
+    })
     const problems: string[] = []
-    nodeProblems(textMark({ x: 10, y: 20, anchor: 'start' },
-      '<text x="99" y="20" text-anchor="start" font-size="12">Hi</text>'), 'p', problems)
-    expect(problems.join('\n')).toContain('x')
-    expect(problems.length).toBeGreaterThan(0)
-  })
-
-  it('flags a crisp text-anchor that disagrees with the semantic anchor', () => {
-    const problems: string[] = []
-    nodeProblems(textMark({ x: 10, y: 20, anchor: 'start' },
-      '<text x="10" y="20" text-anchor="end" font-size="12">Hi</text>'), 'p', problems)
-    expect(problems.join('\n')).toContain('anchor')
-  })
-
-  it('flags a crisp y that disagrees with the semantic y', () => {
-    const problems: string[] = []
-    nodeProblems(textMark({ x: 10, y: 20, anchor: 'start' },
-      '<text x="10" y="220" text-anchor="start" font-size="12">Hi</text>'), 'p', problems)
-    expect(problems.join('\n')).toContain('y')
-  })
-
-  it('accepts a faithful mark (including dy baseline shifts and missing anchor = start)', () => {
-    const problems: string[] = []
-    nodeProblems(textMark({ x: 10, y: 20, anchor: 'start' },
-      '<text x="10" y="20" font-size="12" dy="4.2">Hi</text>'), 'p', problems)
+    nodeProblems(mark, 'p', problems)
     expect(problems).toEqual([])
   })
 
-  it('treats generic angle brackets as semantic text, not removable markup', () => {
-    const make = (crisp: string) => marks.text(
-      { id: 'generic', role: 'member', text: 'List<List<int>> data', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} },
-      crisp,
-    )
-    const faithful: string[] = []
-    nodeProblems(make('<text x="10" y="20" font-size="12">List&lt;List&lt;int&gt;&gt; data</text>'), 'p', faithful)
-    expect(faithful).toEqual([])
-
-    const missing: string[] = []
-    nodeProblems(make('<text x="10" y="20" font-size="12">List data</text>'), 'p', missing)
-    expect(missing.join('\n')).toContain('not found in crisp')
+  it('retains the family prepared block, source spans and font inputs', () => {
+    const block = preparePixelText('Straße <b>release</b> notes', {
+      display: 'formatted', transform: 'uppercase', fontSize: 14, fontWeight: 600,
+      letterSpacing: 0.3, maxWidth: 100, fontFamily: 'Inter',
+    })
+    const mark = marks.text({
+      id: 'caption', role: 'label', text: block.text, block,
+      x: 10, y: 20, fontSize: 14, anchor: 'start', paint: {},
+    })
+    expect(mark.block).toBe(block)
+    expect(mark.measurement).toBe('prepared')
+    expect(mark.block!.prepared.source).toBe('Straße <b>release</b> notes')
+    expect(mark.block!.prepared.transform).toBe('uppercase')
+    expect(mark.block!.lineBlocks.flatMap(line => line.runs).some(run => run.bold)).toBe(true)
+    expect(mark.block!.fontFamily).toBe('Inter')
+    expect(mark.block!.breaks.length).toBeGreaterThan(0)
+    // The measured face and transformed text are what the writer draws.
+    const svg = sceneNodeSerialization(mark)
+    expect(svg).toContain('font-family="Inter"')
+    expect(svg.replace(/<[^>]+>/g, '').replace(/\s+/g, '')).toContain('STRASSERELEASENOTES')
   })
 
-  it('normalizes authored break tags before checking the first visible word', () => {
-    const make = (crispText: string) => marks.text(
-      { id: 'note', role: 'label', text: 'Line1<br/>Line2', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} },
-      `<text x="10" y="20" font-size="12">${crispText}</text>`,
-    )
-    const faithful: string[] = []
-    nodeProblems(make('Line1&lt;br/&gt;Line2'), 'p', faithful)
-    expect(faithful).toEqual([])
-
-    const missingFirstWord: string[] = []
-    nodeProblems(make('Line2'), 'p', missingFirstWord)
-    expect(missingFirstWord.join('\n')).toContain('not found in crisp')
+  it('marks fallback preparation explicitly instead of claiming retained family measurement', () => {
+    const mark = textMark({ x: 10, y: 20, anchor: 'start' })
+    expect(mark.measurement).toBe('fallback')
+    expect(mark.prepared).toBeUndefined()
+    expect(mark.block?.prepared.source).toBe('Hi')
+    expect(mark.block?.width).toBe(mark.textLayout?.width)
   })
 
-  it('checks complete literal class member text, including tag-named and trailing generic parameters', () => {
-    for (const [semantic, crispText] of [
-      ['List<b> data', 'List data'],
-      ['Map<i> values', 'Map values'],
-      ['+id: List<int>', '+id: List'],
-    ] as const) {
+  it('inherits semantic group ownership without mutating reusable children or changing serialization', () => {
+    const child = textMark({ x: 10, y: 20, anchor: 'start' })
+    const inner = marks.group({ id: 'local-inner', role: 'node', open: '<g data-id="authored-inner">', close: '</g>', children: [{ node: child, indent: 2 }] })
+    const outer = marks.group({ id: 'outer', role: 'group', open: '<g>', close: '</g>', children: [{ node: inner, indent: 2 }] })
+    const sibling = marks.group({ id: 'sibling', role: 'node', open: '<g>', close: '</g>', children: [{ node: child, indent: 2 }] })
+    expect(child.owner).toBeUndefined()
+    expect(inner.children[0]!.node.owner).toEqual({ id: 'authored-inner', role: 'node' })
+    expect((outer.children[0]!.node as typeof inner).children[0]!.node.owner).toEqual({ id: 'authored-inner', role: 'node' })
+    expect(sibling.children[0]!.node.owner).toEqual({ id: 'sibling', role: 'node' })
+    expect(sceneNodeSerialization(sibling.children[0]!.node)).toBe(sceneNodeSerialization(child))
+  })
+
+  it('preserves explicitly supplied ownership inside a different wrapper', () => {
+    const child = marks.text({
+      id: 'caption', role: 'label', owner: { id: 'edge-1', role: 'edge' },
+      text: 'Hi', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {},
+    })
+    const wrapper = marks.group({ id: 'wrapper', role: 'group', open: '<g>', close: '</g>', children: [{ node: child, indent: 2 }] })
+    expect(wrapper.children[0]!.node.owner).toEqual({ id: 'edge-1', role: 'edge' })
+  })
+
+  it('keeps typed public text identity separate from its bounded mark ID', () => {
+    const mark = marks.text({
+      id: 'local-caption', role: 'title', identity: { id: 'title#2' },
+      text: 'Caption', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {},
+    })
+    expect(mark.id).toBe('local-caption')
+    expect(mark.identity).toEqual({ id: 'title#2', role: 'title' })
+    expect(sceneNodeSerialization(mark)).toContain('data-id="title#2" data-role="title"')
+  })
+
+  it('draws authored angle brackets as text, never as markup', () => {
+    const drawn = (text: string, display?: 'literal') => {
+      const mark = marks.text({ id: 'm', role: 'member', text, ...(display ? { display } : {}), x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} })
       const problems: string[] = []
-      nodeProblems(marks.text(
-        { id: 'generic', role: 'member', text: semantic, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} },
-        `<text x="10" y="20" font-size="12">${crispText}</text>`,
-      ), 'p', problems)
-      expect(problems.join('\n')).toContain('not found in crisp')
+      nodeProblems(mark, 'p', problems)
+      expect({ text, problems }).toEqual({ text, problems: [] })
+      return sceneNodeSerialization(mark)
     }
-  })
-
-  it('keeps entity-produced Pie title tags literal without hiding missing text', () => {
-    const make = (crispText: string) => marks.text(
-      { id: 'title', role: 'title', text: 'A<script>B', x: 10, y: 20, fontSize: 12, anchor: 'middle', paint: {} },
-      `<text x="10" y="20" text-anchor="middle" font-size="12" class="pie-title">${crispText}</text>`,
-    )
-    const faithful: string[] = []
-    nodeProblems(make('A&lt;script&gt;B'), 'p', faithful)
-    expect(faithful).toEqual([])
-    const missing: string[] = []
-    nodeProblems(make('A&lt;script&gt;'), 'p', missing)
-    expect(missing.join('\n')).toContain('not found in crisp')
-  })
-
-  it('compares complete escaped Timeline literals without mistaking them for markup', () => {
-    const make = (semantic: string, crispText: string) => marks.text(
-      { id: 'event', role: 'label', text: semantic, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} },
-      `<text x="10" y="20" font-size="12" class="timeline-event-text">${crispText}</text>`,
-    )
-    const faithful: string[] = []
-    nodeProblems(make('A<BR>B', 'A&lt;BR&gt;B'), 'p', faithful)
-    nodeProblems(make('A<b>B', 'A&lt;b&gt;B'), 'p', faithful)
-    expect(faithful).toEqual([])
-    const multiline: string[] = []
-    nodeProblems(make('A\nB', '<tspan x="10" dy="0">A</tspan><tspan x="10" dy="12">B</tspan>'), 'p', multiline)
-    expect(multiline).toEqual([])
-    for (const [semantic, crisp] of [
-      ['A<BR>B', 'A&lt;BR&gt;'],
-      ['A<BR>**B**', 'A&lt;BR&gt;B'],
-      ['A<BR>B', 'A&lt;BR&gt;B<script/>'],
-      ['A&lt;script&gt;B', 'A&amp;lt;script&amp;gt;B<script/>'],
-      ['A&lt;script&gt;B', 'A&amp;lt;script&amp;gt;B<tspan font-weight="bold"></tspan><script/>'],
-      ['A&lt;script&gt;B', 'A&amp;lt;script&amp;gt;B<tspan font-weight="bold"></tspan>'],
-      ['A**B**', 'AB'],
-      ['A<b>B', 'A<tspan font-weight="bold">B</tspan>'],
-      ['AB', 'A<tspan onclick="alert(1)"></tspan>B'],
-      ['AB', 'A<tspan style="filter:url(javascript:alert(1))"></tspan>B'],
-      ['AB', 'A</text><text x="10">B'],
-      ['A\nB', '<tspan x="10" dy="0">A</tspan><tspan x="10" dy="12" onclick="alert(1)">B</tspan>'],
-    ] as const) {
-      const problems: string[] = []
-      nodeProblems(make(semantic, crisp), 'p', problems)
-      expect(problems.join('\n')).toMatch(/literal text|unexpected markup|unexpected styled/)
-    }
-    const rootHandler: string[] = []
-    nodeProblems(marks.text(
-      { id: 'event', role: 'label', text: 'AB', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} },
-      '<text x="10" y="20" font-size="12" class="timeline-event-text" onclick="alert(1)">AB</text>',
-    ), 'p', rootHandler)
-    expect(rootHandler.join('\n')).toContain('unexpected markup')
+    expect(drawn('List<List<int>> data')).toContain('List&lt;List&lt;int&gt;&gt; data')
+    expect(drawn('A<script>B')).not.toContain('<script')
+    const literal = drawn('A<BR>B', 'literal')
+    expect(literal).toContain('A&lt;BR&gt;B')
+    expect(literal).not.toContain('<tspan')
   })
 })
 

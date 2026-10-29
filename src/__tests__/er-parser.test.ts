@@ -6,7 +6,9 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { parseErDiagram } from '../er/parser.ts'
+import type { ErDiagram } from '../er/types.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { asEr, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 
 /** Helper to parse — preprocesses text the same way index.ts does */
 function parse(text: string) {
@@ -131,6 +133,61 @@ describe('parseErDiagram – entity definitions', () => {
     expect(d.entities).toHaveLength(2)
     expect(d.entities.find(e => e.id === 'CUSTOMER')).toBeDefined()
     expect(d.entities.find(e => e.id === 'ORDER')).toBeDefined()
+  })
+})
+
+// Mermaid's ER lexer treats a line break as one more separator between
+// statements, and as plain space inside an attribute block (erDiagram.jison),
+// so braces, attributes and declarations may share a line, and an attribute
+// may run across lines. Each entity reads as `id[alias]:::class {attributes}`
+// and each attribute as `type name keys "comment"`.
+describe('parseErDiagram – statements sharing or spanning lines', () => {
+  const readingOf = (diagram: ErDiagram) => [
+    ...diagram.entities.map(entity => `${entity.id}${entity.label !== entity.id ? `[${entity.label}]` : ''}${entity.className ? `:::${entity.className}` : ''} {${
+      entity.attributes.map(a => [a.type, a.name, ...a.keys, ...(a.comment !== undefined ? [`"${a.comment}"`] : [])].join(' ')).join('; ')}}`),
+    ...diagram.relationships.map(relation => `${relation.entity1}->${relation.entity2} ${relation.label}`),
+  ]
+
+  it.each([
+    ['CUSTOMER ||--o{ ORDER : places\nZ { string id }', ['CUSTOMER {}', 'ORDER {}', 'Z {string id}', 'CUSTOMER->ORDER places']],
+    ['Z { }', ['Z {}']],
+    ['Z { string id PK "comment" }', ['Z {string id PK "comment"}']],
+    ['Z { string `geo.accuracy` PK "the comment" }', ['Z {string geo.accuracy PK "the comment"}']],
+    ['Z { `my.type` address }', ['Z {my.type address}']],
+    ['Z { `my.type`? `geo.accuracy` UK "literal `ticks`" }', ['Z {my.type? geo.accuracy UK "literal `ticks`"}']],
+    ['Z { string na`me }', ['Z {string na`me}']],
+    ['Z { string na`me "literal `ticks` }"\n int next }', ['Z {string na`me "literal `ticks` }"; int next}']],
+    ['Z { string `name "literal `ticks` }" }', ['Z {string `name "literal `ticks` }"}']],
+    ['Z { `my}type`? `geo{accuracy` UK "literal `ticks` }" int next PK } Y', ['Z {my}type? geo{accuracy UK "literal `ticks` }"; int next PK}', 'Y {}']],
+    ['Z { string id int age }', ['Z {string id; int age}']],
+    ['Z{string id PK, FK "a } b" int age UK}', ['Z {string id PK FK "a } b"; int age UK}']],
+    ['Z { string id\n  int age\n}', ['Z {string id; int age}']],
+    ['Z {\n  string id\n  int age }', ['Z {string id; int age}']],
+    // Mermaid reads one type from the first `~` to the last on the line.
+    ['Z["Zed"]:::hot { List~int~ ids List~string~ tags } Y', ['Z[Zed]:::hot {List~int~ ids; List~string~ tags}', 'Y {}']],
+    // An attribute's name, keys and comment may each start a new line.
+    ['Z { string\n  id }', ['Z {string id}']],
+    ['Z {\n  string id\n  PK "c"\n  int\n  age\n}', ['Z {string id PK "c"; int age}']],
+    // A generic type may hold spaces and nest.
+    ['Z {\n  Map~string, int~ counts\n  Map~string, List~int~~ m PK\n}', ['Z {Map~string, int~ counts; Map~string, List~int~~ m PK}']],
+    // A comment runs on to its closing quote, past a `}`; a blank line inside it is dropped.
+    ['Z {\n  int id "line1\n  line2"\n}', ['Z {int id "line1\nline2"}']],
+    ['Z { int id PK "a }\n  b" } Y', ['Z {int id PK "a }\nb"}', 'Y {}']],
+    ['Z {\n  int id "x\n\n  y"\n  string name\n}', ['Z {int id "x\ny"; string name}']],
+    // Declarations follow one another without a line break.
+    ['A["x"] B:::c C', ['A[x] {}', 'B:::c {}', 'C {}']],
+    ['A B ||--o{ C : x', ['A {}', 'B {}', 'C {}', 'B->C x']],
+    ['A B { int x } C', ['A {}', 'B {int x}', 'C {}']],
+    // A quoted relationship label ends at its closing quote; declarations follow.
+    ['A ||--o{ B : "x" y', ['A {}', 'B {}', 'y {}', 'A->B x']],
+    ['C A ||--o{ B : "x"y z { int id }', ['C {}', 'A {}', 'B {}', 'y {}', 'z {int id}', 'A->B x']],
+  ])('%j is read alike by the renderer, the typed body and its output', (body, expected) => {
+    const source = `erDiagram\n  ${body}`
+    expect(readingOf(parse(source))).toEqual(expected)
+    const parsed = parseRegisteredMermaid(source)
+    const typed = parsed.ok ? asEr(parsed.value) : null
+    expect(typed).not.toBeNull()
+    expect(readingOf(parse(serializeMermaid(typed!)))).toEqual(expected)
   })
 })
 

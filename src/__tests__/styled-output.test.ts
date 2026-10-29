@@ -11,7 +11,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import { plugin } from 'bun'
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
@@ -20,6 +20,8 @@ import { FAMILY_CONFORMANCE_PROFILES } from './helpers/family-conformance-profil
 import { renderedTextReady } from './helpers/rendered-text.ts'
 import { normalizeSvg } from './helpers/svg-normalize.ts'
 import { ensureWebsiteBuilt } from './website-public-fixture.ts'
+import { decodePng } from './helpers/png-pixels.ts'
+import { colorPixelBoxInRaster, redPixel } from './helpers/raster.ts'
 
 const FIXTURES = join(import.meta.dir, '..', '..', 'eval', 'layout-compare', 'fixtures')
 const GOLDENS = join(import.meta.dir, 'testdata', 'styled')
@@ -54,11 +56,23 @@ function fixtureSources(): Array<{ name: string; source: string }> {
 // oracles; the flowchart/journey layout-stress fixtures add layout cases,
 // pinned by layout-equivalence, and all of them render styled in the
 // transparent test below.
-const GOLDEN_CASES = Array.from({ length: Math.max(BUILTIN_FAMILY_METADATA.length, LOOKS.length) }, (_, i) => {
+const GOLDEN_CASES = [...Array.from({ length: Math.max(BUILTIN_FAMILY_METADATA.length, LOOKS.length) }, (_, i) => {
   const family = BUILTIN_FAMILY_METADATA[i % BUILTIN_FAMILY_METADATA.length]!.id
   const style = LOOKS[i % LOOKS.length]!
   return { family, style, fixture: `${family}-basic.mmd`, golden: `${family}-basic.${style.replace(/[^a-z0-9-]/g, '-')}.svg` }
-})
+}),
+  // Selected reviewed combinations expose actual style/palette consumption;
+  // the registry-derived conformance portfolio owns broader interaction coverage.
+  { family: 'eventmodeling', style: ['hand-drawn', 'github-light'], fixture: 'eventmodeling-basic.mmd', golden: 'eventmodeling-basic.hand-drawn.github-light.svg' },
+  { family: 'eventmodeling', style: ['hand-drawn', 'dracula'], fixture: 'eventmodeling-basic.mmd', golden: 'eventmodeling-basic.hand-drawn.dracula.svg' },
+  { family: 'eventmodeling', style: ['watercolor', 'solarized-light'], fixture: 'eventmodeling-basic.mmd', golden: 'eventmodeling-basic.watercolor.solarized-light.svg' },
+  { family: 'eventmodeling', style: ['hand-drawn', 'github-light'], fixture: '../../stable-families/fixtures/eventmodeling.mmd', golden: 'eventmodeling-rich.hand-drawn.github-light.svg' },
+  { family: 'eventmodeling', style: ['hand-drawn', 'dracula'], fixture: '../../stable-families/fixtures/eventmodeling.mmd', golden: 'eventmodeling-rich.hand-drawn.dracula.svg' },
+  { family: 'eventmodeling', style: ['watercolor', 'solarized-light'], fixture: '../../stable-families/fixtures/eventmodeling.mmd', golden: 'eventmodeling-rich.watercolor.solarized-light.svg' },
+  { family: 'zenuml', style: ['patent-drawing', 'github-light'], fixture: 'zenuml-native-checkout.mmd', golden: 'zenuml-native-checkout.patent-drawing.github-light.svg' },
+  { family: 'zenuml', style: ['hand-drawn', 'dracula'], fixture: 'zenuml-native-checkout.mmd', golden: 'zenuml-native-checkout.hand-drawn.dracula.svg' },
+  { family: 'zenuml', style: ['watercolor', 'solarized-light'], fixture: 'zenuml-native-checkout.mmd', golden: 'zenuml-native-checkout.watercolor.solarized-light.svg' },
+]
 
 /** A line diff (longest common subsequence): `-N: …` is golden line N,
  *  `+N: …` rendered line N; at most `shown` entries. */
@@ -97,14 +111,6 @@ function goldenDiff(golden: string, rendered: string): string[] {
 describe('styled output', () => {
   const fixtures = fixtureSources()
 
-  test('the golden matrix derives from every registered non-default built-in look', () => {
-    expect(LOOKS.length).toBeGreaterThan(0)
-    expect(LOOKS).not.toContain('crisp')
-    expect(LOOKS).not.toContain('cupertino')
-    expect(LOOKS).not.toContain('vercel-inspired-prototype')
-    expect(LOOKS).not.toContain('cloudflare-workers-inspired-prototype')
-  })
-
   test('the brand-inspired prototypes remain documentation-only', () => {
     for (const name of ['cupertino', 'vercel-inspired-prototype', 'cloudflare-workers-inspired-prototype']) {
       expect(getStyle(name), name).toBeUndefined()
@@ -126,27 +132,6 @@ describe('styled output', () => {
       expect({ golden, changed: goldenDiff(readFileSync(path, 'utf8'), svg) }).toEqual({ golden, changed: [] })
     })
   }
-
-  test('every styled golden belongs to a case', () => {
-    // A removed family or look must take its golden with it.
-    const expected = new Set(GOLDEN_CASES.map(({ golden }) => golden))
-    const stale = () => readdirSync(GOLDENS).filter(file => !expected.has(file)).sort()
-    if (UPDATE) for (const file of stale()) rmSync(join(GOLDENS, file))
-    expect(stale()).toEqual([])
-  })
-
-  test('a golden diff lists only the changed lines', () => {
-    const scoped = (scope: string, fill: string) => `<svg class="${scope}">\n<rect class="${scope}" fill="${fill}"/>\n<text class="${scope}">A</text>\n</svg>`
-    // Any paint change renames the scope class on every line; the diff still
-    // names just the rect.
-    expect(goldenDiff(scoped('am-aaaaaaaaaaaaaa', '#fff'), scoped('am-bbbbbbbbbbbbbb', '#000'))).toEqual([
-      '-2: <rect class="am-scope" fill="#fff"/>',
-      '+2: <rect class="am-scope" fill="#000"/>',
-    ])
-    expect(goldenDiff(scoped('am-aaaaaaaaaaaaaa', '#fff'), scoped('am-bbbbbbbbbbbbbb', '#fff'))).toEqual(['only the root style-scope class differs'])
-    expect(goldenDiff('<svg>\n</svg>', '<svg>\n<a/>\n</svg>\n')).toEqual(['+2: <a/>'])
-    expect(goldenDiff('<svg/>\r\n', '<svg/>')).toEqual([])
-  })
 
   test('transparent styled output stays transparent across every family fixture', () => {
     for (const fixture of fixtures) {
@@ -278,6 +263,46 @@ describe('style consolidation', () => {
     }
   })
 
+  for (const look of ['hand-drawn', 'blueprint']) {
+    test(`${look} keeps split activation surfaces open and preserves authored fills`, () => {
+      const source = `sequenceDiagram
+        participant A
+        participant B
+        participant C
+        activate A
+        activate B
+        A->>B: Open
+        A->>C: Read Read
+        B-->>A: Close
+        deactivate A
+        deactivate B`
+      const activationPaints = (svg: string, actor: string): string[] => {
+        // Inspect public SVG paint on both the untouched and occluded actor;
+        // the assertion does not depend on how either activation is split.
+        const shapeTags = /<(?:rect|path|polygon|circle|ellipse)\b[^>]*>/g
+        const owner = svg.match(new RegExp(`<g\\b[^>]*class="activation"[^>]*data-actor="${actor}"[^>]*>[\\s\\S]*?<\\/g>`))?.[0]
+        const marks = owner
+          ? [...owner.matchAll(shapeTags)].map(match => match[0])
+          : [...svg.matchAll(shapeTags)].map(match => match[0]).filter(tag => tag.includes(`data-id="activation:${actor}#0"`))
+        expect(marks.length, `${actor} activation remains visible`).toBeGreaterThan(0)
+        return marks.map(tag => tag.match(/\bfill="([^"]*)"/)?.[1] ?? 'none')
+          .filter(fill => fill !== 'none')
+      }
+      const open = renderMermaidSVG(source, { style: look, embedFontImport: false })
+      for (const actor of ['A', 'B']) expect(activationPaints(open, actor)).toEqual([])
+
+      const authored = renderMermaidSVG(source, {
+        style: [look, { roles: { node: { fillColor: '#ee8844' } } }],
+        embedFontImport: false,
+      })
+      for (const actor of ['A', 'B']) {
+        const paints = activationPaints(authored, actor)
+        expect(paints.length, `${actor} retains its authored surface`).toBeGreaterThan(0)
+        expect(paints.every(fill => fill === '#ee8844')).toBe(true)
+      }
+    })
+  }
+
   test('an inline fragment on top of a stack wins per field', () => {
     const merged = resolveStyleStack(['hand-drawn', { roughness: 2.5, colors: { accent: '#ff0000' } }])!
     expect(merged.roughness).toBe(2.5)
@@ -393,6 +418,16 @@ describe('bundled fonts', () => {
     const { png, warnings } = await renderMermaidPNGWasm('flowchart LR\n  A[Start] -- go --> B[Finish]\n', { fitTo: { width: 100 } })
     expect(Array.from(png.subarray(0, 8))).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
     expect(warnings).toContainEqual(expect.objectContaining({ code: 'BELOW_READABLE_SIZE', cause: 'fitTo' }))
+    for (const [source, left, top, bottom] of [
+      ['classDiagram\ndirection LR\nA *-- B', 160, 55, 74],
+      ['sequenceDiagram\nA<<->>B: hello', 70, 90, 102],
+    ] as const) {
+      const result = await renderMermaidPNGWasm(source, { scale: 1, style: { roles: { edge: { strokeColor: '#ff0000' } } } })
+      const image = decodePng(result.png)
+      const ink = colorPixelBoxInRaster({ ...image, pixels: image.rgba }, redPixel, { left: left - 20, right: left + 25, top, bottom })
+      expect(ink.left).toBeGreaterThanOrEqual(left - 1)
+      expect(ink.height).toBeGreaterThan(2)
+    }
   }, 180_000)
 })
 

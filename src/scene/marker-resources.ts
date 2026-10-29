@@ -9,6 +9,31 @@ export interface MarkerSerializationOptions {
   readonly indent?: number
 }
 
+/** For families whose triangular arrow tip must coincide with the route end.
+ * The endpoint determines geometry, reference and orientation together; callers
+ * cannot reverse the polygon and SVG orientation independently. Other marker
+ * meanings (cross centres, diamonds, free-axis offsets) retain their own rules. */
+export function tipAnchoredArrow(
+  id: string,
+  size: { width: number; height: number },
+  endpoint: 'start' | 'end',
+  paint: MarkPaint,
+  units?: MarkerDescriptor['units'],
+): RenderableMarkerDescriptor {
+  if (endpoint !== 'start' && endpoint !== 'end') throw new TypeError('Arrow endpoint must be start or end')
+  const { width, height } = size
+  const tipX = endpoint === 'start' ? 0 : width
+  const backX = endpoint === 'start' ? width : 0
+  const marker: RenderableMarkerDescriptor = {
+    id, shape: 'arrow', size: { width, height }, ref: { x: tipX, y: height / 2 },
+    ...(units ? { units } : {}), orient: 'auto',
+    geometry: { kind: 'polygon', points: [{ x: backX, y: 0 }, { x: tipX, y: height / 2 }, { x: backX, y: height }] },
+    paint,
+  }
+  assertRenderableMarker(marker)
+  return marker
+}
+
 function finite(value: number, field: string): number {
   if (!Number.isFinite(value)) throw new Error(`Marker ${field} must be finite`)
   return value

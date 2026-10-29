@@ -7,9 +7,12 @@ import { mutate } from '../agent/mutate.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { buildMermaid } from '../agent/create.ts'
 import { asTimeline } from '../agent/types.ts'
-import type { TimelineValidDiagram, TimelineMutationOp } from '../agent/types.ts'
+import type { TimelineBody, TimelineValidDiagram, TimelineMutationOp } from '../agent/types.ts'
 import { parseTimelineDiagram } from '../timeline/parser.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { renderMermaidSVG, renderMermaidASCII } from '../agent/core.ts'
+import { mutateTimeline, renderTimeline } from '../agent/timeline-body.ts'
 
 function parse(src: string) {
   const r = parseMermaid(src); if (!r.ok) throw new Error('parse: ' + JSON.stringify(r.error))
@@ -19,7 +22,153 @@ function timeline(src: string): TimelineValidDiagram {
   const t = asTimeline(parse(src)); if (!t) throw new Error('not timeline'); return t
 }
 
+// Occurrence IDs are local to a parse, so insertion/move tests compare the
+// semantic fields while retaining section, period and event order.
+function timelineMeaning(body: TimelineBody) {
+  return {
+    direction: body.direction, title: body.title,
+    accessibilityTitle: body.accessibilityTitle, accessibilityDescription: body.accessibilityDescription,
+    sections: body.sections.map(section => ({ label: section.label, periods: section.periods.map(period => ({
+      label: period.label, events: period.events.map(event => event.text),
+    })) })),
+  }
+}
+
 describe('timeline parsing — structured', () => {
+  test.each([
+    'timeline\nsection<br>A : event',
+    'timeline section<br>A',
+    '---\nconfig:\n  theme: forest\n---\ntimeline section<br>A : event\naccTitle: Milestones',
+  ])('escaped line breaks keep a section-like prefix inside a period: %s', async source => {
+    const parsed = timeline(source)
+    const native = parseTimelineDiagram(normalizeMermaidSource(source).lines)
+    expect(parsed.body.sections[0]!.periods[0]!.label).toBe('section\nA')
+    expect(native.sections[0]!.periods[0]!.label).toBe('section\nA')
+    const serialized = serializeMermaid(parsed)
+    const upstream = startUpstreamMermaid()
+    try { expect(await upstream.publicAccepts(serialized)).toBe(true) } finally { upstream.close() }
+    expect(timeline(serialized).body).toEqual(parsed.body)
+    expect(verifyMermaid(source).ok).toBe(true)
+    expect(verifyMermaid(parsed).ok).toBe(true)
+  })
+
+  test.each([
+    ['%% authored comment\ntimeline LR\naccTitle: History\nsection Plan\n#115;ection Phase : Launch\n: Follow up', true],
+    ['timeline\ntimeline release : Launch', false],
+    ['timeline\n2024 : Before\nsection Phase : Launch', true],
+    ['timeline\nsection Plan\ntitle\n2026 : Next', true],
+    ['timeline\nsection Plan\nsection\n2026 : Next', false],
+    ['timeline\nsection Phase %%{text\n2025 : Launch', false],
+    ['timeline\n2025 : %%{literal', false],
+    ['timeline\ntitle History %%{text\n2025 : Launch', true],
+    ['timeline\naccTitle: %%{text\n2025 : Launch', true],
+    ['timeline\naccDescr: %%{text\n2025 : Launch', true],
+    ['timeline\naccDescr {\n%%{text\n}\n2025 : Launch', false],
+  ] as const)('Timeline text stays editable with portable output and the same native drawing: %s', async (source, accepted) => {
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.publicAccepts(source)).toBe(accepted)
+      const parsed = timeline(source)
+      const written = serializeMermaid(parsed)
+      expect(await upstream.publicAccepts(written), written).toBe(true)
+      expect(timeline(written).body).toEqual(parsed.body)
+      expect(renderMermaidSVG(parsed)).toBe(renderMermaidSVG(source))
+      expect(renderMermaidASCII(parsed)).toBe(renderMermaidASCII(source))
+      for (const input of [source, parsed]) {
+        const verified = verifyMermaid(input)
+        expect(verified.ok).toBe(true)
+        expect(verified.warnings).not.toEqual(expect.arrayContaining([
+          expect.objectContaining({ syntax: 'timeline_header_direction' }),
+        ]))
+      }
+      const edit = mutate(parsed, { kind: 'set_title', title: 'Revised' })
+      expect(edit.ok).toBe(true)
+      if (edit.ok) expect(await upstream.publicAccepts(serializeMermaid(edit.value))).toBe(true)
+    } finally { upstream.close() }
+  })
+
+  test('Timeline recognizes entities before grammar and decodes labels after grammar', () => {
+    const source = 'timeline\nsection Plan\n#115;ection Phase : Launch\n: Follow up'
+    const parsed = timeline(source)
+    const written = serializeMermaid(parsed)
+    expect(written).toContain('#115;ection Phase')
+    const native = parseTimelineDiagram(normalizeMermaidSource(written).lines)
+    expect(native.sections[0]).toMatchObject({ label: 'Plan', periods: [{ label: 'section Phase', events: [{ text: 'Launch' }, { text: 'Follow up' }] }] })
+    expect(parseTimelineDiagram(['timeline', 's#101;ction Phase : Launch']).sections[0]!.periods[0]!.label).toBe('section Phase')
+    const quoted = parseTimelineDiagram(['timeline', '"section Phase" : Launch'])
+    expect(quoted.sections[0]!.periods[0]!.label).toBe('"section Phase"')
+  })
+
+  test('section tokens retain the latest period for same-line and following events', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const label of ['Phase', ' \t']) {
+        const source = `timeline\nsection Plan\n2024 : Before\nsection ${label} : Launch : Extra\n: Follow up`
+        const expected = {
+          sections: ['Plan', label.trim()],
+          tasks: [{ label: '2024', section: 'Plan', events: ['Before', 'Launch', 'Extra', 'Follow up'] }],
+        }
+        expect(await upstream.project(source, diagram => ({
+          sections: diagram.db.getSections().map((section: string) => section.trim()),
+          tasks: diagram.db.getTasks().map((task: { task: string; section: string; events: string[] }) => ({
+            label: task.task.trim(), section: task.section.trim(), events: task.events.map(event => event.trim()),
+          })),
+        }))).toEqual({ ok: true, value: expected })
+        const native = parseTimelineDiagram(normalizeMermaidSource(source).lines)
+        expect(native.sections.map(section => ({ label: section.label, periods: section.periods.map(period => ({ label: period.label, events: period.events.map(event => event.text) })) }))).toEqual([
+          { label: 'Plan', periods: [{ label: '2024', events: expected.tasks[0]!.events }] },
+          { label: label.trim(), periods: [] },
+        ])
+        const parsed = parse(source)
+        expect(parsed.body.kind).toBe('timeline')
+        expect(renderMermaidSVG(parsed)).toBe(renderMermaidSVG(source))
+        expect(renderMermaidASCII(parsed)).toBe(renderMermaidASCII(source))
+        const written = serializeMermaid(parsed)
+        expect(await upstream.accepts(written)).toBe(true)
+        expect<unknown>(timeline(written).body).toEqual(parsed.body)
+        const edited = mutate(parsed, { kind: 'set_title', title: 'Revised' })
+        if (!edited.ok) throw new Error(edited.error.message)
+        expect(timelineMeaning(timeline(serializeMermaid(edited.value)).body).sections).toEqual(timelineMeaning(timeline(source).body).sections)
+        expect(await upstream.accepts(serializeMermaid(edited.value))).toBe(true)
+      }
+    } finally { upstream.close() }
+  })
+
+  test.each(['', '2025 : After\n'])('empty section boundaries retain their periods through edits: %s', async tail => {
+    const source = `timeline\n2024 : Before\nsection  \n${tail}`
+    const expected = [
+      { label: undefined, periods: [{ label: '2024', events: ['Before'] }] },
+      { label: '', periods: tail ? [{ label: '2025', events: ['After'] }] : [] },
+    ]
+    const project = (body: TimelineBody) => timelineMeaning(body).sections
+    const reference = startUpstreamMermaid()
+    try {
+      const original = timeline(source)
+      expect(project(original.body)).toEqual(expected)
+      const edited = mutate(original, { kind: 'set_title', title: 'History' })
+      if (!edited.ok) throw new Error(edited.error.message)
+      const written = serializeMermaid(edited.value, { wrapper: 'canonical' })
+      expect(project(timeline(written).body)).toEqual(expected)
+      expect(await reference.publicAccepts(written)).toBe(true)
+      expect(await reference.project(written, diagram => ({
+        sections: diagram.db.getSections().map((section: string) => section.trim()),
+        tasks: diagram.db.getTasks().map((task: { task: string; section: string; events: string[] }) => ({
+          label: task.task.trim(), section: task.section.trim(), events: task.events.map(event => event.trim()),
+        })),
+      }))).toEqual({ ok: true, value: {
+        sections: [''],
+        tasks: [{ label: '2024', section: '', events: ['Before'] }, ...(tail ? [{ label: '2025', section: '', events: ['After'] }] : [])],
+      } })
+      expect(renderMermaidSVG(written)).toBe(renderMermaidSVG(`timeline\ntitle History\n2024 : Before\nsection  \n${tail}`))
+      expect(renderMermaidASCII(written)).toBe(renderMermaidASCII(`timeline\ntitle History\n2024 : Before\nsection  \n${tail}`))
+      const renamed = mutate(edited.value, { kind: 'set_section_label', index: 1, label: 'Next' })
+      if (!renamed.ok) throw new Error(renamed.error.message)
+      const cleared = mutate(renamed.value, { kind: 'set_section_label', index: 1, label: '' })
+      if (!cleared.ok) throw new Error(cleared.error.message)
+      expect(project(timeline(serializeMermaid(cleared.value)).body)).toEqual(expected)
+    } finally { reference.close() }
+  })
+
   test('normalizes node-label br tags while preserving raw title text like pinned Mermaid', () => {
     const source = 'timeline\n  title <br>Product<br>history<br>\n  section <br>Platform<br>work<br>\n  2024<br>Q1 : <br>Soft<br>launch<br>\n  : Follow<br>up\n  2025<br>Q2'
     const parsed = timeline(source)
@@ -112,9 +261,20 @@ describe('timeline fidelity fallback', () => {
   })
 
   test('header suffix falls back to opaque instead of being dropped', () => {
-    const d = parse('timeline EXTRA\n  2020 : A')
-    expect(d.body.kind).toBe('opaque')
-    expect(serializeMermaid(d)).toContain('timeline EXTRA')
+    for (const suffix of ['EXTRA', 'TB']) {
+      const source = `timeline ${suffix}\n  2020 : A`
+      const d = parse(source)
+      expect(d.body.kind).toBe('opaque')
+      expect(serializeMermaid(d)).toBe(`${source}\n`)
+      for (const input of [source, d]) {
+        const verified = verifyMermaid(input)
+        expect(verified.ok).toBe(false)
+        expect(verified.warnings).toEqual(expect.arrayContaining([
+          expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'timeline_header_direction' }),
+          expect.objectContaining({ code: 'RENDER_FAILED' }),
+        ]))
+      }
+    }
   })
 
   test('invalid or reinterpretation-prone event separators stay opaque and fail verification', () => {
@@ -159,7 +319,7 @@ describe('timeline fidelity fallback', () => {
     expect(verified.warnings.map(warning => warning.code)).toContain('RENDER_FAILED')
   })
 
-  test('valid colon-ending events keep their following separator on the same line', () => {
+  test('colon-ending events retain independent event ownership', () => {
     for (const { source, events } of [
       { source: 'timeline\n  2020 : A:: B\n  2021 : C', events: ['A:', 'B'] },
       { source: 'timeline\n  2020 : A:: B:: C', events: ['A:', 'B:', 'C'] },
@@ -168,7 +328,6 @@ describe('timeline fidelity fallback', () => {
       const parsed = timeline(source)
       expect(parsed.body.sections[0]!.periods[0]!.events.map(event => event.text)).toEqual(events)
       const canonical = serializeMermaid(parsed)
-      expect(canonical).toContain(`2020 : ${source.split('2020 : ')[1]!.split('\n')[0]}`)
       expect(timeline(canonical).body.sections[0]!.periods[0]!.events.map(event => event.text)).toEqual(events)
       expect(parseTimelineDiagram(normalizeMermaidSource(canonical).lines).sections[0]!.periods[0]!.events.map(event => event.text)).toEqual(events)
       expect(verifyMermaid(timeline(canonical)).ok).toBe(true)
@@ -354,7 +513,7 @@ describe('timeline mutate — all 10 ops', () => {
     expect(reparsed.body.sections[0]!.periods[0]!.events[0]!.text).toBe('A revised')
   })
 
-  test('rejects mutation text that would change timeline structure on reparse', () => {
+  test('separator-looking mutation text remains a single field', () => {
     const event = mutate(timeline(SRC), { kind: 'set_event_text', sectionIndex: 0, periodIndex: 0, eventIndex: 0, text: 'A: B' })
     const tabSeparator = mutate(timeline(SRC), { kind: 'add_event', sectionIndex: 0, periodIndex: 0, text: 'A:\tB' })
     // Pinned Mermaid 11.16.0 treats the newline after a trailing colon as a
@@ -366,14 +525,88 @@ describe('timeline mutate — all 10 ops', () => {
     ]
     const period = mutate(timeline(SRC), { kind: 'set_period_label', sectionIndex: 0, periodIndex: 0, label: '2020:Q1' })
     const title = mutate(timeline(SRC), { kind: 'set_title', title: '   ' })
-    expect(!event.ok && event.error.code).toBe('INVALID_OP')
-    expect(!tabSeparator.ok && tabSeparator.error.code).toBe('INVALID_OP')
+    for (const result of [event, tabSeparator]) {
+      expect(result.ok).toBe(true)
+      if (result.ok) expect(timelineMeaning(timeline(serializeMermaid(result.value)).body)).toEqual(timelineMeaning(result.value.body))
+    }
     for (const op of trailingColonOps) {
       const result = mutate(timeline(SRC), op)
-      expect(!result.ok && result.error.code, op.kind).toBe('INVALID_OP')
+      expect(result.ok, op.kind).toBe(true)
+      if (result.ok) expect(timelineMeaning(timeline(serializeMermaid(result.value)).body)).toEqual(timelineMeaning(result.value.body))
     }
-    expect(!period.ok && period.error.code).toBe('INVALID_OP')
+    expect(period.ok).toBe(true)
+    if (period.ok) expect(timeline(serializeMermaid(period.value)).body.sections[0]!.periods[0]!.label).toBe('2020:Q1')
     expect(!title.ok && title.error.code).toBe('INVALID_OP')
+  })
+
+
+  test('new Timeline text cannot become a directive, comment, or section/event separator', async () => {
+    const original = timeline('timeline\nsection Plan\n2025 : Launch')
+    const before = serializeMermaid(original)
+    const ops: TimelineMutationOp[] = [
+      ...['section Phase', 'timeline', 'TIMELINE!', 'title', 'title Launch', 'accTitle', 'accDescr', 'accDescr detail', '#comment', '%comment', 'A#B', '%%{text'].flatMap(label => [
+        { kind: 'set_period_label' as const, sectionIndex: 0, periodIndex: 0, label },
+        { kind: 'add_period' as const, sectionIndex: 0, label, events: ['New event'] },
+      ]),
+      ...['Phase: next', 'Phase:next', 'Phase %%{text'].flatMap(label => [
+        { kind: 'set_section_label' as const, index: 0, label },
+        { kind: 'add_section' as const, label },
+      ]),
+      { kind: 'set_event_text', sectionIndex: 0, periodIndex: 0, eventIndex: 0, text: '%%{event' },
+      { kind: 'add_event', sectionIndex: 0, periodIndex: 0, text: '%%{event' },
+      { kind: 'add_period', sectionIndex: 0, label: '2026', events: ['%%{event'] },
+      { kind: 'set_title', title: 'History %%{text' },
+    ]
+    for (const op of ops) {
+      const result = mutate(original, op)
+      expect(result.ok, JSON.stringify(op)).toBe(true)
+      if (result.ok) expect(timelineMeaning(timeline(serializeMermaid(result.value)).body)).toEqual(timelineMeaning(result.value.body))
+      expect(serializeMermaid(original)).toBe(before)
+    }
+  })
+
+  test('direct Timeline payloads use the same field writers as mutations', () => {
+    const body = { kind: 'timeline' as const, ...parseTimelineDiagram(['timeline', '#115;ection Phase : Launch']) }
+    expect(timeline(renderTimeline(body)).body).toEqual(body)
+    const result = mutateTimeline(body, { kind: 'remove_event', sectionIndex: 0, periodIndex: 0, eventIndex: 0 })
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(timeline(renderTimeline(result.value)).body).toEqual(result.value)
+  })
+
+  test('a bare title or section period cannot consume an inserted following statement', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const label of ['title', 'section']) {
+        const source = `timeline\nsection Plan\n${label}\n`
+        const original = timeline(source)
+        expect(original.body.sections[0]!.periods[0]).toMatchObject({ label, events: [] })
+        const exported = serializeMermaid(original)
+        expect(await upstream.publicAccepts(exported)).toBe(true)
+        const actual = await upstream.project(exported, diagram => diagram.db.getTasks().map((task: { task: string; events: string[] }) => ({ label: task.task.trim().replace(/ﬂ°°(\d+)¶ß/g, (_: string, code: string) => String.fromCodePoint(Number(code))), events: task.events })))
+        expect(actual).toEqual({ ok: true, value: [{ label, events: [] }] })
+        const result = mutate(original, { kind: 'add_period', sectionIndex: 0, label: '2026', events: ['Next'] })
+        expect(result.ok).toBe(true)
+        if (result.ok) expect(timelineMeaning(timeline(serializeMermaid(result.value)).body)).toEqual(timelineMeaning(result.value.body))
+      }
+      const result = mutate(timeline('timeline\nsection Plan\nsection : Launch\n2026 : Next'), { kind: 'remove_event', sectionIndex: 0, periodIndex: 0, eventIndex: 0 })
+      expect(result.ok).toBe(true)
+      if (result.ok) expect(timelineMeaning(timeline(serializeMermaid(result.value)).body)).toEqual(timelineMeaning(result.value.body))
+    } finally { upstream.close() }
+  })
+
+  test('neighboring Timeline words remain editable with exact text through both readers', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const label of ['timelines', 'timelineX', 'titles', 'section', 'sections', 'section!', 'accTitleX', 'LR', 'A;B', '%{literal']) {
+        const result = mutate(timeline('timeline\nsection Plan\n2025 : Launch'), { kind: 'set_period_label', sectionIndex: 0, periodIndex: 0, label })
+        expect(result.ok, label).toBe(true)
+        if (!result.ok) continue
+        const source = serializeMermaid(result.value)
+        expect(await upstream.publicAccepts(source), source).toBe(true)
+        expect(timeline(source).body).toEqual(result.value.body)
+        expect(parseTimelineDiagram(normalizeMermaidSource(source).lines).sections[0]!.periods[0]).toMatchObject({ label, events: [{ text: 'Launch' }] })
+      }
+    } finally { upstream.close() }
   })
 
   test('removing last period from an implicit section drops the unrenderable empty section', () => {
@@ -496,10 +729,11 @@ describe('timeline accessibility metadata (accTitle/accDescr)', () => {
     const cleared = mutate(r2.value, { kind: 'set_accessibility_title', title: null })
     expect(cleared.ok && cleared.value.body.accessibilityTitle).toBeUndefined()
   })
-  test('a11y text that could not survive reparse is rejected prescriptively', () => {
+  test('a11y text cannot terminate its own description block', () => {
     const t = timeline('timeline\n  2020 : A')
-    const bad = mutate(t, { kind: 'set_accessibility_description', description: 'has } brace' })
-    expect(!bad.ok && bad.error.code).toBe('INVALID_OP')
+    const edited = mutate(t, { kind: 'set_accessibility_description', description: 'has } brace\nand { another; %%{text' })
+    expect(edited.ok).toBe(true)
+    if (edited.ok) expect(timeline(serializeMermaid(edited.value)).body.accessibilityDescription).toBe('has } brace\nand { another; %%{text')
   })
 })
 
@@ -554,9 +788,52 @@ describe('timeline ops parity with the journey convention (move/insert)', () => 
     if (r.ok) return
     expect(r.error.message).toContain('(0..1)')
   })
-  test('move_section reorders sections', () => {
-    const r = mutate(timeline(SRC), { kind: 'move_section', from: 1, to: 0 })
-    expect(r.ok && r.value.body.sections.map(s => s.label)).toEqual(['P2', 'P1'])
+  test('move_section reorders named sections while preserving period ownership', () => {
+    const cases = [
+      {
+        source: SRC, from: 1, to: 0,
+        expected: [
+          { label: 'P2', periods: [{ label: '2022', events: ['C'] }] },
+          { label: 'P1', periods: [{ label: '2020', events: ['A'] }, { label: '2021', events: ['B'] }] },
+        ],
+      },
+      {
+        source: 'timeline\n  2019 : Intro\n  section P1\n  2020 : A\n  section P2\n  2021 : B', from: 2, to: 1,
+        expected: [
+          { label: undefined, periods: [{ label: '2019', events: ['Intro'] }] },
+          { label: 'P2', periods: [{ label: '2021', events: ['B'] }] },
+          { label: 'P1', periods: [{ label: '2020', events: ['A'] }] },
+        ],
+      },
+    ]
+    for (const { source, from, to, expected } of cases) {
+      const result = mutate(timeline(source), { kind: 'move_section', from, to })
+      expect(result.ok).toBe(true)
+      if (!result.ok) continue
+      expect(timelineMeaning(result.value.body).sections).toEqual(expected)
+      const written = serializeMermaid(result.value)
+      expect(timelineMeaning(timeline(written).body).sections).toEqual(expected)
+      expect(timelineMeaning({ kind: 'timeline', ...parseTimelineDiagram(normalizeMermaidSource(written).lines) }).sections).toEqual(expected)
+    }
+  })
+  test.each<TimelineMutationOp>([
+    { kind: 'move_section', from: 0, to: 1 },
+    { kind: 'move_section', from: 1, to: 0 },
+    { kind: 'add_section', label: 'Before', index: 0 },
+  ])('rejects section ordering that would reparent unnamed periods: %j', op => {
+    const input = timeline('timeline\n  2019 : Intro\n  section Named\n  2020 : Milestone')
+    const before = structuredClone(input.body)
+    const result = mutate(input, op)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.code).toBe('INVALID_OP')
+      expect(result.error.message).toContain('unnamed section must remain first')
+    }
+    expect(input.body).toEqual(before)
+    expect(timelineMeaning(input.body).sections).toEqual([
+      { label: undefined, periods: [{ label: '2019', events: ['Intro'] }] },
+      { label: 'Named', periods: [{ label: '2020', events: ['Milestone'] }] },
+    ])
   })
   test('move_section bad target names the valid range', () => {
     const r = mutate(timeline(SRC), { kind: 'move_section', from: 0, to: 4 })

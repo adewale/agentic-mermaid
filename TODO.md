@@ -8,8 +8,69 @@ surfaces. IDs are stable names, not ordering.
 
 Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
+Reconciliation updated on 2026-10-25 against merged code and current issue
+dispositions; [completed and retired entries](docs/project/archive/backlog-reconciliation-2026-10-25.md)
+retain their evidence. Candidate implementation does not establish merge,
+publication or deployment; a closed issue is not completion evidence when its
+acceptance conditions still fail. Plans supply design context, never additional
+queues. Retired IDs are not reused.
+CONS-43 is retired: `src/layout/passes/index.ts` contains only re-exports;
+cohesive implementations already live in their owning pass modules. Further
+route-contract extraction preserves the existing pipeline manifest and order.
+
 ## Release / owner decisions
 
+- [ ] **PERF-1 — Close the remaining measured performance gaps**
+  (`todo`, owner requested 2026-10-22). PRs #467 and #468 merged. Their
+  [campaign report](docs/project/archive/performance-campaign-2026-10-22.md),
+  [recommendation crosswalk](docs/project/archive/performance-campaign-2026-10-22-crosswalk.md)
+  and [follow-up report](docs/project/archive/performance-followup-2026-10-23.md)
+  retain their measured revisions, rejected trials and mixed timing/memory
+  results. Later performance work also landed in #433, #479, #480, #495 and
+  #496; those merges do not establish current release qualification or general
+  superiority over peers. Finish the current candidate's semantic, peer,
+  tail-latency and allocation comparisons, qualify the SVG-number conversion
+  follow-up to #505, and resolve #449's native coverage/quality/cost limits for
+  **0.6.0** before promoting that backend. The rejected native recorder rewrite and
+  blocked renderer-lifetime prototype are not shipped improvements. Production
+  SVG-only distribution remains unimplemented. Renderer-lifetime controls still
+  need qualification within the payload caps; broader geometry reuse requires
+  explicit geometry/proof ownership. Keep the
+  [campaign preservation contract](docs/design/system/performance-campaign.md).
+
+- [ ] **REL-1 — Qualify, publish and verify 0.5.3** (`todo`,
+  [#378](https://github.com/adewale/agentic-mermaid/issues/378)). The release
+  target and prepared source version are 0.5.3. npm 0.5.1 was verified on
+  29 October; its immutable package cannot include these later fixes. The
+  0.5.0 and 0.5.2 source tags are retained after their blocked publications.
+  The macOS release gate uses a standard Intel macOS 26 host after GitHub's
+  arm64 pool could not acquire the 0.5.2 job. Retain the
+  documented source-edit/export limits, update the release issue's automation
+  marker when the version change lands, and run
+  canonical CI, including its independent semantic and packed-consumer checks,
+  on the actual immutable release candidate. The publication workflow also
+  requires platform smoke tests and the verified package artifact. Following
+  #492, benchmarks run separately in explicit local sessions; they do not block
+  or authorize publication. Keep performance claims within their measured scope
+  under PERF-1. Follow `docs/contributing/releasing.md`,
+  publish the verified artifact, then verify npm/MCP Registry metadata and the
+  matching deployed site/MCP identity and a live capability.
+  #410's Class work, #418's ER/Journey/empty-edit/YAML repairs, #419's text
+  preservation and #416's config ownership are merged. #363, #367 and #372
+  are closed; they are no longer pending source integrations. Qualify release
+  claims with the [remaining export limits](docs/project/divergences.md#mermaid-input-decisions-363)
+  and output-specific projection limits. Green source CI alone does not prove
+  publication or hosted delivery; #477 and #478 remain delivery concerns.
+  The owner's 27 October decision defers #449's Native-layout qualification
+  to 0.6.0; it is not a 0.5 publication condition. ELK remains the default.
+  The owner's 29 October decision also moves AGENT-1, AGENT-2 and AGENT-3
+  to 0.6.0. Those improvements remain open and are not 0.5.3 release claims.
+- [ ] **DEC-6 — Decide the hosted `execute` boundary from usage evidence**
+  (`owner-decision`, [#204](https://github.com/adewale/agentic-mermaid/issues/204)).
+  Compare hosted direct tools, hosted Code Mode and local Code Mode for real
+  tasks, demand, cost and compatibility before deciding retain/gate/remove.
+  This does not authorize removing the tool. Keep SEC-4 relevant to every
+  compute-capable route retained publicly.
 - [ ] **DEC-1 — Get one real external consumer** (`todo`). Validate
   `agentic-mermaid/agent`, `am`, or `agentic-mermaid-mcp` in a real agent,
   TUI, CI gate, or editor integration outside this repo.
@@ -53,12 +114,40 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
 ## Ready build backlog
 
+- [ ] **AGENT-1 — Consolidate the agent starting guide** (`todo`, owner
+  requested 2026-10-27; deferred to 0.6.0 by the owner on 2026-10-29).
+  Make `/start.md` a short task/channel
+  router into one maintained operating guide and version-matched references.
+  Generate overlapping instructions for the CLI, installed drop-in and website
+  from that guide. Preserve useful channel entry points while removing repeated
+  rules and competing mini-tutorials. Validate with fresh-agent tasks that choose
+  a channel once and reach the relevant operation details without reconciling
+  multiple guides.
+- [ ] **AGENT-2 — Reduce library import decisions** (`todo`, owner requested
+  2026-10-27; deferred to 0.6.0 by the owner on 2026-10-29). Recommend one
+  portable agent entry for parsing,
+  typed editing, verification and rendering, including resolved-scene parity;
+  make native PNG an explicit runtime-specific addition. Preserve existing
+  import paths and aliases. Reuse the current entries rather than adding another
+  SDK layer, and verify shipped declarations/runtime behavior in Node, Bun,
+  browsers and Workers before changing the recommendation.
+- [ ] **AGENT-3 — Make resolved scenes discoverable and failures actionable**
+  (`todo`, owner requested 2026-10-27; deferred to 0.6.0 by the owner on
+  2026-10-29). Expose resolved-scene
+  support through existing agent discovery and the Code Mode SDK, with explicit
+  result-size/runtime limits. Give unsupported-artwork failures stable typed
+  fields such as `code`, `partId` and `feature`, preserving readable messages
+  and the prior artifact on failure. Test supported artwork and named unsupported
+  features such as gradients through installed library and agent boundaries.
+  Document released availability so agents can select a supported representation
+  or report the precise limitation without parsing English error messages.
+
 - [ ] **BUILD-27 — MCP Apps support** (`todo`). Expose an interactive
   in-agent diagram UI through MCP Apps: `ui://` resources, correct
   `text/html;profile=mcp-app` resource MIME type, tool `_meta.ui.resourceUri`
   wiring, resource CSP/domain metadata, and tests that the resources are
   reachable without leaking secrets. Start with a portable, read-only
-  preview/verify view before adding an editable surface; keep tool results useful
+  preview/verify view (proposed in PR #374, not yet merged) before adding an editable surface; keep tool results useful
   in MCP hosts that ignore the UI extension.
 - [ ] **BUILD-28 — Experimental page-local WebMCP support** (`todo`). The
   current Web Machine Learning Community Group report is not a W3C Standard or
@@ -81,20 +170,7 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   and privacy-policy URLs, screenshots, test prompts/responses, localization,
   and review notes. Submit through the plugin portal only when the live endpoint
   and UI are stable enough to preserve the reviewed metadata contract.
-- [ ] **BUILD-24 — Layout hints: rank/group pinning and edge-length
-  preferences** (`todo`). Direct agent feedback (2026-07): an agent deleted a
-  real edge because the auto-layout drew its feedback loop as a long,
-  confusing route — the only lever it had was removing information. Give
-  agents structural levers instead: per-node rank/layer pinning, "keep these
-  nodes adjacent" grouping hints, and a "keep this edge short" preference,
-  carried as typed metadata (not source hacks) and honored by the ELK
-  pipeline deterministically. This is not manual positioning and does not add
-  Agentic-only Mermaid syntax: the first contract is typed render/mutation
-  metadata, kept in the request digest and source-preservation receipt when an
-  agent workflow persists it. Design questions: interaction with
-  the determinism contract (hints must be explicit input, never ambient);
-  which ELK knobs (`org.eclipse.elk.layered.layering.*`, `priority`,
-  `desiredEdgeLength`) map cleanly. Scope the first slice to flowchart/state.
+
 - [ ] **BUILD-2 — `process --mode validate|canonicalize` triage** (`todo`).
   Current verbs are `verify` and `format`; do not add another command until it
   proves agent value. Needed: inventory overlap with `verify`, `format`,
@@ -111,32 +187,18 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   and define the parity outcome. Unpromoted issue lists are deliberately not
   retained in this backlog.
 - [ ] **BUILD-6 — Native upstream Mermaid family adoption** (`todo`). Select
-  work from the version-pinned upstream manifest and generated capability
-  report using current demand, maturity, syntax stability and semantic
-  leverage; do not copy their roster or pre-rank a shadow queue here. Each
+  work from the pinned upstream syntax references, current family descriptors
+  and `am capabilities --json`, using demand, maturity, syntax stability and
+  semantic leverage; the former upstream manifest/report was removed in #361.
+  Do not rebuild it or pre-rank a shadow queue here. Each
   promoted family passes the citizenship ratchet and the current source,
   primitive, backend, output, transport and extension contracts. Section A
-  already owns the recognition floor: official and unknown headers are
+  supplies the recognition floor: official and unknown headers are
   preserved or diagnosed and never fall through to Flowchart. Maturity comes
-  from manifest data rather than a `-beta` spelling heuristic.
-- [ ] **BUILD-34 — Measure peer colors as drawn (chart honesty H5)** (`todo`).
-  Palettes separate peers where colors are generated (`categoricalPalette`,
-  ΔE_OK ≥ 0.10), but a scene-keyed census of every family's honesty corpus in
-  every style found three cases where the drawn colors compress: the
-  watercolor wash glazes pie slices at 30% (ΔE_OK 0.03 between slices) while
-  their legend keys stay opaque; journey actor dots under watercolor (0.049);
-  and radar legend keys, drawn at the curve opacity with a neutral border
-  (0.06–0.09 between keys in most palettes — the curves themselves separate by
-  their opaque outlines). Build an as-drawn oracle keyed by legend categories
-  (keys distinguishable; each key matches the marks it names), then decide the
-  look policy for keyed marks. See
-  [`docs/design/system/chart-honesty.md`](docs/design/system/chart-honesty.md).
-- [ ] **BUILD-35 — Report radar scales that exclude zero (chart honesty H6)**
-  (`todo`). An authored radar `min` above zero draws radii proportional to
-  `value − min` (`radarValueRatio`), and values outside `[min, max]` are
-  clamped, so a curve can misstate its values with no report. XY charts report
-  the same distortion as `BAR_RANGE_EXCLUDES_ZERO`; give radar the equivalent
-  verify warning (or a shared scale-baseline code).
+  from reviewed upstream evidence rather than a `-beta` spelling heuristic.
+  Native C4 from [#387](https://github.com/adewale/agentic-mermaid/issues/387)
+  is implemented in source; see [its dispositions and validation](docs/design/families/c4.md).
+  Native admission does not imply a published package or deployed site update.
 - [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`). Track Mermaid PR
   <https://github.com/mermaid-js/mermaid/pull/7785> (`@{ view: collapsed }`
   metadata syntax) and stay syntax-compatible. Large, but a real readability
@@ -147,15 +209,21 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
 - [ ] **EVAL-3 — Eval the `agentic-mermaid-diagram-workflow` skill for
   helpfulness** (`todo`). The public skill
-  (`website/public/skills/agentic-mermaid-diagram-workflow/SKILL.md` +
+  (`skills/agentic-mermaid-diagram-workflow/SKILL.md` +
   `references/`) is the site's main agent call-to-action, now linked from the
   footer. Verify it actually improves outcomes: run agent-usage cases with vs.
   without the skill loaded and compare on task success, verify-before-return
   discipline, Code-Mode vs. prose answers, and source-level-vs-structured edit
   choice — reuse the existing `eval/agent-usage/` sandbox, task oracle, and
   trace linter.
-  Fold any skill gaps back into `SKILL.md`/`references/`; keep or cut the
-  footer link based on whether it demonstrably helps.
+  A two-task fresh-agent comparison on 2026-10-21 produced correct diagrams
+  in both conditions (2/2 each); skill-guided runs used the hosted typed edit
+  and verify path. This small sample supplies no efficacy or cost estimate.
+  The API runner now captures usage (including Anthropic cache tokens), actual
+  execution timing and paired skill/no-skill results, but model credentials
+  were unavailable and the existing Codex CLI could not initialize on its
+  read-only state directory. Finish a larger instrumented comparison, fold any
+  gaps into the skill, and make the footer decision from that evidence.
 
 
 ## Parked / evidence-required ideas
@@ -179,78 +247,43 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
 ## Testing architecture backlog
 
-- [ ] **TEST-3 — Complexity-aware, registry-derived test portfolio** (`todo`).
-  The executable migration in
-  [`docs/project/complexity-aware-test-portfolio-plan.md`](docs/project/complexity-aware-test-portfolio-plan.md)
-  is implemented: immutable before/candidate reports, exhaustive finite
-  authorities, automatic family enrollment, focused exact goldens,
-  independently verified variable-strength arrays, six mandatory complexity
-  strata, mixed outputs, fault probes, precise receipt dependency graphs,
-  platform release smoke, and plan-derived Cynefin contact sheets. The former
-  4,500-row matrix is removed. Structured human review remains available as
-  advisory evidence rather than a publication gate. Keep this item open only
-  for evidence that cannot be manufactured in the implementation turn: the
-  configured macOS/Windows release jobs must execute, and the after-report must
-  be revisited after 30 merges for CI p50/p95, flake/retry, human findings,
-  churn, and escaped defects.
+- [ ] **TEST-3 — Review observed test/release outcomes** (`todo`). The July
+  portfolio migration is complete and its
+  [measurement record](docs/project/archive/complexity-aware-test-portfolio-plan.md)
+  is historical. Inspect actual macOS/Windows release-job runs and compare CI
+  p50/p95, retries/flakes, human findings, churn and escaped defects over a
+  documented post-migration window of at least 30 merges. The window has
+  elapsed; the analysis has not been supplied. Account for #361 and later
+  runtime/suite changes rather than attributing every difference to July's
+  migration. Do not recreate removed reports, receipts or mandatory review gates.
   Upstream cost/covering-array research is tracked in
   [`testing-best-practices#21`](https://github.com/adewale/testing-best-practices/issues/21).
-- [ ] **TEST-4 — Correct and strengthen the Python MCP interop probe** (`todo`,
-  [#191](https://github.com/adewale/agentic-mermaid/issues/191)). Replace the
-  deprecated `streamablehttp_client` alias, record the Python client's actual
-  request path, and correct the verification plan: all three SDKs prove
-  sessionless initialize/version negotiation/tool calls, while only TypeScript
-  and Go currently prove `GET -> 405`. Keep pinned `mcp==1.28.1` and latest
-  canary coverage green.
-- [ ] **TEST-5 — Make route-verification policy executable and retire the stale
-  score target** (`todo`,
-  [#265](https://github.com/adewale/agentic-mermaid/issues/265); supersedes the historical framing in
-  [#35](https://github.com/adewale/agentic-mermaid/issues/35)). Treat 50.69% as
-  a historical diagnostic, not a quality gate. Resolve whether
-  `offOutlineEndpoints` is hard or cosmetic, enroll final rendered-endpoint
-  diagnostics in `audit:ugly` if that public command should own them (the
-  independent diagnostic is now enforced by `auditRouteContracts` and the
-  layout rubric), extract an independent certificate consistency audit, and
-  make production pipeline invariant checks explicit.
-  Use the canonical 2,800-case corpus, focused mutation lanes, and bounded route
-  sabotage to prove named behaviors; do not restore a broad percentage chase.
-- [ ] **TEST-6 — Audit cross-family endpoint-marker and geometry authority**
-  (`todo`, [#258](https://github.com/adewale/agentic-mermaid/issues/258)).
-  Derive the marker-producing family inventory from the registry, characterize
-  Architecture and Journey contact intent before changing them, and require
-  separate shaft/surface and visible-marker/surface evidence. Inventory every
-  final endpoint writer per affected family; share family-owned production
-  geometry while keeping final verification independently derived.
-- [ ] **TEST-7 — Characterize tangential rectangle arrivals** (`todo`,
-  [#259](https://github.com/adewale/agentic-mermaid/issues/259)). Add the
-  independent final-geometry incidence metric and report ordinary curated cases
-  separately from the 2,800-case pathological corpus. Keep it non-blocking and
-  make no route repair unless the issue's representative-witness and
-  non-regression decision gate passes.
-- [ ] **TEST-8 — Label-text census** (`todo`). For every case in the docs
-  corpus, the upstream bench and the official fences, record each label's text
-  on every surface (model, SVG, ASCII, meta, facts, metrics) and upstream's DB
-  text. Assert the surfaces agree and match upstream, replace the bench's
-  self-harvested `labelsContain` values with upstream-harvested ones, and post a
-  base-vs-head diff of changed label text on pull requests. It flags BUG-19 and
-  BUG-20 on existing corpus cases, and would have flagged the untrimmed labels
-  fixed in #359; image contact sheets would not, because most of these defects
-  render identically before and after a change.
-- [ ] **TEST-9 — Widen the upstream differentials** (`todo`). The flowchart and
-  sequence generators still omit characters and constructs where defects live:
-  entity codes other than `#quot;`, `\n`, markdown strings, `@{}`, `style` lines
-  and subgraph membership (flowchart); `* # \ < >`, `activate`, `box`,
-  `properties` and `links` (sequence). Add ER, class and state DBs to the upstream
-  worker, and compare what upstream displays (the Pie browser oracle's
-  approach), not only its DB.
-- [ ] **TEST-10 — Random-order, fresh-process finder lane** (`todo`). Two
-  order-dependent failures (resvg initialization, the Bun `node:vm` timer)
-  surfaced only by accident. Run the suite nightly in shuffled file order and
-  each file alone.
-- [ ] **TEST-11 — Run the CJK font tests in CI** (`todo`). The two CJK cases in
-  `png-fonts.test.ts` skip unless `fonts-wqy` is installed, and no workflow
-  installs it, so they never run. Install the font in the unit job and make the
-  skip fail when `CI=true`.
+- [ ] **TEST-8 — Complete identity-aware label correspondence** (`todo`).
+  The independent reference census now records raw labels and model, layout,
+  SVG, terminal metadata, ASCII, facts and describe surfaces for the docs,
+  official fences, upstream bench and authored witnesses; it supports paired
+  base/head reports. This is existential text-presence evidence, not a proof
+  of label identity, multiplicity or complete equality. Extend its scoped
+  projections to Class/ER member signatures, accessibility and Sequence
+  note/control text. Preserve explicit unavailable results and documented
+  display/configuration differences. Metrics expose aggregate counts rather
+  than per-label text. The bench's self-harvested `labelsContain` admission
+  hints still need independent replacement; do not treat them as the oracle.
+- [ ] **TEST-9 — Finish display-oriented grammar differentials** (`todo`).
+  The seeded grammar comparison mutates with fixed lexer-boundary fragments
+  (`eval/mermaid-modern-compat/grammar-fragments.ts`: entity codes, directives,
+  keyword and digit-led names, `@`, `||`, `:::`, Unicode blanks), reports silent
+  reads per family with reduced examples, and a nightly rolling-seed lane
+  records them in one issue. Flowchart properties cover additional entity
+  codes, literal `\n`, styles and nested membership; Sequence generates boxes,
+  properties, activation, metadata, aliases and punctuation. The reference
+  worker observes Class, ER and State DBs. Remaining work is broader Markdown
+  and `@{}` combinations plus browser-displayed text for families where DB
+  text differs from display. Source admission differences alone are not bugs.
+  Triage finder reports by real-world use before adding code (see the
+  likelihood paragraph in `docs/project/divergences.md`): most mutated
+  spellings occur in no real diagram.
+
 - [ ] **TEST-12 — Sweep for Bun's asymmetric-matcher write-back** (`todo`). In
   Bun 1.4.2, `toMatchObject`/`toEqual` with `expect.any`, `arrayContaining` or
   `closeTo` overwrite the checked field of the received object with the matcher,
@@ -259,98 +292,58 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
 ## Consolidation / dedup backlog
 
-- [ ] **CONS-26 — Finish State/Timeline statement ownership** (`todo`,
-  [#368](https://github.com/adewale/agentic-mermaid/issues/368)). Class, ER,
-  Sequence, Architecture and Gantt now project from shared lossless statement
-  readers; the other nine families use a renderer-owned AST or shared parse
-  authority. State and Timeline still duplicate statement dispatch/scope despite
-  sharing lexical helpers: a Timeline period starting with `Timeline` vanishes
-  only in rendering, and State rendering silently ignores unknown statements
-  that editable parsing preserves and diagnoses. Keep each projection's
-  invariants separate, with independent meaning and source-loss regressions.
-- [ ] **CONS-30 — `agent/body-utils.ts` extraction** (`todo`, mostly done). `src/agent/body-utils.ts` now owns optional fields (`setOptionalField`), insert positions (`resolveInsertIndex`), label-overflow collection and accessibility serialization for the non-flowchart bodies. What remains differs on purpose (per-family validators, move-target error codes, seeded hashes stored in ids and goldens); unifying the insert-position error wording across families needs an owner decision. Mechanically
-  deduplicate repeated LABEL_OVERFLOW, id-allocation, `set_title`, collection,
-  source-map, label-extraction, seeded-hash, and CSS-mix helpers. Characterize
-  semantics first and extract one proven cluster at a time.
-- [ ] **CONS-43 — Continue physical layout-pass extraction** (`todo`). Move
-  cohesive pass implementations out of `layout/passes/index.ts` one at a time
-  behind the checked manifest; preserve order, mutation declarations,
-  certificate reissue, layout bytes, and SVG bytes.
-- [ ] **CONS-44 — Finish config and residual adapter schema authority**
-  (`todo`). Family descriptors own config sections, keys and no-op declarations,
-  but built-in value rules and richer resolver diagnostics remain centralized in
-  `src/shared/family-config-diagnostics.ts`. Move those rules behind
-  descriptor-owned schemas or diagnostic hooks, then inventory repeated
-  transport schemas not already projected from the family, StyleSpec, or
-  RenderOptions descriptors. Generate only proven duplicates while retaining
-  transport-neutral `applyOps` and tool dispatch.
-- [ ] **CONS-46 — One text codec per grammar context** (`todo`, in progress). Most Known
-  defects were one codec re-implemented per stage (parse, serialize, render,
-  ASCII, meta, metrics, source map) and per family. Built so far: the shared
-  Mermaid entity layer (`src/shared/mermaid-entities.ts`, from Pie's), one YAML
-  reader for `@{}` metadata and frontmatter (`src/shared/mermaid-yaml.ts`, with
-  per-family block lexers), and one display rule for label text that SVG,
-  ASCII, meta and metrics all read (`displayText` in `src/multiline-utils.ts`).
-  What remains is adopting the entity layer and a `decode`/`encode` pair per
-  grammar context (flowchart bracket/pipe/title, sequence alias/message/note, ER
-  quoted text, class label), guarded by `decode(encode(x)) === x` and
-  "upstream reads `encode(x)` as `x`". Remaining members: BUG-19, 23, 30, 31, 32.
-- [ ] **CONS-47 — One flowchart tokenizer with source spans** (`todo`). At least
-  17 hand-written quote/bracket scanners lex the flowchart line (parser,
-  statement splitter, unsupported-syntax gate, analyze masks, source map), and a
-  rule change reaches only some of them (BUG-21, 22, 26). Emit tokens with spans
-  once; derive the source map from spans instead of re-lexing, and lint against
-  new ad-hoc quote scanners.
+- [ ] **CONS-30 — Decide residual body-helper consolidation** (`owner-decision`).
+  The `agent/body-utils.ts` extraction landed: optional fields, insert positions,
+  overflow collection and accessibility serialization are shared. Per-family
+  validators, move-target codes and seeded IDs differ intentionally. Decide
+  whether insert-position error wording should converge; promote any further
+  extraction only with a demonstrated repeated behavior and characterization.
+  Do not mechanically unify the intentionally different code.
 - [ ] **CONS-45 — Finish terminal-context convergence** (`todo`). Move remaining
   family-local cell writers and context argument lists onto shared grapheme-safe
-  canvas/context helpers without projecting pixel Scene geometry.
+  canvas/context helpers without projecting pixel Scene geometry. Build on the
+  shared terminal compositor delivered by #394 under
+  [#386](https://github.com/adewale/agentic-mermaid/issues/386), prepared text
+  landed in #395, shared identities/compound routes in #404, and marker and
+  State-note/atomic-route fixes in #401/#405. The old pre-merge reconciliation
+  is complete. Promote a remaining adapter extraction only with a concrete
+  repeated behavior; this is not a request to redo those delivered contracts.
+
 
 ## Contribution governance backlog
 
-- [ ] **GOV-1 — Enforce one primary contract boundary per PR** (`todo`,
-  [#263](https://github.com/adewale/agentic-mermaid/issues/263)). Require one of
-  grammar authority, mutation closure, rendered geometry, or an explicitly
-  justified coupled exception. Start with a ten-PR advisory period, measure
-  false positives and overrides, and only then make the least-privilege,
-  API-only metadata check blocking. Keep file-path inference advisory.
+- [ ] **GOV-2 — Require canonical CI on `main`** (`blocked`,
+  [#331](https://github.com/adewale/agentic-mermaid/issues/331)). Configure the
+  repository rule requiring `CI complete` on main. The owner has approved the
+  ruleset, but the integration cannot write repository rules (HTTP 403). Main
+  was still unprotected with no rulesets on 25 October. Apply the prepared
+  policy through a credential with repository-rules permission; no further
+  approval or additional CI implementation is needed.
 
 ## Source-preservation defects
 
 - [ ] **SRC-1 — Segment-preserving Class and Timeline bodies** (`todo`). Preserve typed mutation around unmodeled statements without violating byte-for-byte opaque fallback. Add parser/serializer closure and adversarial reorder tests before promotion.
-- [ ] **SRC-2 — Positional comments for Flowchart and State** (`todo`). Replace announced `COMMENT_DROPPED` loss with positionally anchored opaque segments that survive typed mutation.
 
-## Known defects
+## Documentation / issue triage
 
-Found by the property and model tests. Where a test pins the wrong behaviour
-or a generator steers around it, the entry names the test; remove the pin
-and the steering with the fix.
+TRIAGE-2 and CONS-46 are retired after merged #418/#419. The wholesale ER
+serializer WIP and Flowchart rejection proposal are superseded by the existing
+declaration planner and read-and-warn codecs. Publication remains under REL-1;
+terminal convergence remains under CONS-45.
 
-Only differences a user sees without comparing against Mermaid are listed
-here (see "Mermaid is our input language, not our spec" in `CLAUDE.md`).
-Differences that exist only against Mermaid, such as which subgraph wins a
-tie, participant creation order, sources only Mermaid rejects and display
-choices, are collected in
-[#363](https://github.com/adewale/agentic-mermaid/issues/363) for one
-investigation of the class rather than per-item fixes.
+## Export limits
 
-- [ ] **BUG-9 — ER `add_attribute` can move an entity ahead of others** (`todo`). It inserts the declaration before the first relation naming the entity, so re-parse creates it before that relation's other end; the serializer compensates unless that end belongs to a subgraph (`D ||--o{ B`, then `subgraph G` / `D ||--o{ B` / `end`, `add_attribute B` re-parses as B before D). Inserting after that relation keeps the order.
-- [ ] **BUG-10 — ER order a declaration in the entity's own subgraph cannot keep** (`todo`). A top-level entity whose body position falls between two entities of one subgraph (`D ||--o{ C : r0` / `subgraph G0` / `D` / `E` / `end`, remove `r0` → D, E, C), or a `style`-created entity inside a subgraph, re-parses in a different position. About 0.6% of fuzzed edits.
-- [ ] **BUG-19 — Entity codes stay literal in flowchart (other than `#quot;`), sequence and ER text** (`todo`). Upstream renders `#9829;` as ♥, `#35;` as `#` and `#amp;` as `&` in labels, aliases and messages; ours shows the code. Decoding `#lt;`/`#gt;` must not inject formatting tags. `src/pie/parser.ts` already implements upstream's full entity pipeline and has a browser oracle; reuse it.
-- [ ] **BUG-20 — Flowchart ellipse shape `A(-a-)` is unsupported** (`todo`). We read it as a rounded node labelled `-a-`.
-- [ ] **BUG-23 — Flowchart labels containing a literal backslash-n or `#quot;` don't round-trip** (`todo`). Upstream's DB keeps `\n` as two characters, but since 11.13 its renderer draws it as a line break in plain labels, as ours does. The display difference is in markdown strings, where upstream keeps `\n` literal and ours breaks the line. A typed label containing a literal backslash-n, or the text `#quot;`, re-parses differently; the serializer should write them with upstream's entities (`#92;n`, `#35;quot;`).
-- [ ] **BUG-26 — Flowchart source-map scanners still honour `\` escapes and `'` quotes** (`todo`). `flowchart-body.ts` and `source-map-spans.ts` disagree with the parser on those lines, so spans can be wrong.
-- [ ] **BUG-30 — ER quoted text accepts and writes `\"`** (`todo`). Upstream has no escapes in ER quoted strings and rejects `A["a\"b"]` and `A ||--o{ B : "l\"m"`; `src/er/parser.ts` unescapes them and `quoteErText` writes them, so serialized ER text containing `"` is source upstream can't read. Write `"` as `#quot;`, as flowchart does.
-- [ ] **BUG-31 — Sequence and ER aliases get markdown emphasis at parse time, and the serializer rewrites the source** (`todo`). Upstream stores `participant A as *x* y` and `A["p*q*"]` as written; ours stores `<i>x</i> y` and `p<i>q</i>`, so any typed edit writes `as <i>x</i> y` and `A["p<i>q</i>"]`.
-- [ ] **BUG-32 — Sequence message text differs between the renderer and the typed body** (`todo`). For `A->>B: m*a*n c\nd` the renderer draws `m<i>a</i>n` and a line break, while the typed body stores `m*a*n` and `c\nd`, as upstream's DB does.
-- [ ] **BUG-35 — Contact-sheet case AJ routes an edge label onto a shared trunk** (`todo`). `ROUTE_LABEL_ON_SHARED_TRUNK` on `D->E` is allow-listed in `heuristic-tracker.test.ts`.
-- [ ] **BUG-37 — Architecture router sends an edge through a card** (`todo`). The nightly finder's seed `AM_FC_SEED=1102132276` in `architecture-layout.test.ts` routes `s0_0:T --> T:s0_1` through `s0_2` (three services in one group, each linked left to a service in a second group). Pinned as a fast-check example in that file.
-- [ ] **BUG-42 — ELK throws on an edge between a nested subgraph's node and its enclosing subgraph** (`todo`). With `direction TB` overrides, `B --> Outer` or `Outer --> B` (B inside Inner inside Outer) raises `UnsupportedGraphException` and the render fails. Pinned in `subgraph-hierarchy-exhaustive.test.ts`.
-- [ ] **BUG-43 — Edges between a subgraph and its own contents break routing rules** (`todo`). Nine such pairs (for example `A --> Outer`, `Inner --> Outer`) render but leave an endpoint off the outline, route through a node, or misanchor on the container; `verify` reports them. Pinned in `subgraph-hierarchy-exhaustive.test.ts`.
-- [ ] **BUG-46 — SVG output carries unrounded floats** (`todo`). The default style emits `36.900000000000006` (state) and `4.199999999999999` (timeline, pie), and hand-drawn styles emit `stroke-width="2.0999999999999996"`. Round once where numbers become SVG text, shared by Scene and SVG; goldens that pin these values change with the fix.
-- [ ] **BUG-47 — A Journey title, section or task that is only `<br/>` is rejected** (`todo`). Mermaid draws `<br/>` as text there; ours reports "Invalid user journey line". Pinned `it.failing` in `property-svg-wellformedness.test.ts`.
-- [ ] **BUG-48 — Terminal width wrapping writes `<br/>` into labels that draw it as text** (`todo`). `wrapLabelsInSource` in `src/ascii/index.ts` inserts `<br/>` into bracketed labels, so XYChart categories and Timeline events at a `targetWidth` show `<br/>` literally.
-- [ ] **BUG-52 — Mutators keep "don't empty" floors that predate renderable empty charts** (`todo`). `set_title` on `createMermaid('pie')` is refused ("Pie must keep at least one slice"); the Architecture and Journey mutators keep similar floors.
-- [ ] **BUG-60 — A YAML string whose first line is only spaces does not round-trip through frontmatter** (`todo`). The `yaml` writer turns ` \n` into a block scalar that reads back as `\n`. Pinned `test.failing` in `metadata-yaml.test.ts`.
+The original BUG-20 ellipse and BUG-54/58 Quadrant witnesses are implemented
+and removed from the active backlog. The [completion record](docs/project/archive/backlog-reconciliation-2026-10-25.md)
+names the owning tests and distinguishes portable structured output from
+warning-bearing source preservation. Their historical decisions remain in
+[the #363 record](docs/project/divergences.md#mermaid-input-decisions-363).
+
+Unsupported Architecture IDs/icons remain subject to the explicit
+source-preservation and typed-authoring refusal boundary. An empty Class
+diagram has no accepted bare-header spelling; do not invent classes or replace
+identities to conceal these limits. BUG-57 is a documented reading divergence.
+A new defect needs a current reproduction at its owning boundary.
 
 ## Non-goals
 
@@ -358,3 +351,69 @@ investigation of the class rather than per-item fixes.
 - Do not fold `zhenhuaa/mdv` wholesale into this package; terminal Markdown viewing belongs in a separate tool or companion package.
 - Do not port old dagre-specific layout code directly; translate only ideas that still apply to the current ELK/layout-engine architecture.
 - Do not treat historical archives or process notes as backlog unless an item is promoted here with an ID.
+
+## Owned graph backend qualification (owner request, PR #449)
+
+**Release target: 0.6.0**, per the owner's 27 October decision. This section
+remains the sole backlog owner. The six acceptance contracts are in
+[Native layout: 0.6 qualification](docs/design/system/layout-0.6-qualification.md):
+repair coverage; establish broader held-out correctness; match or beat ELK
+aesthetics; match ELK performance; soundly verify the seven unverified diagrams;
+and compare correctness with public Mermaid and Pele artifacts. All six remain
+open. Checked historical work below is implementation/evaluation evidence at its
+named revision, not completion of these 0.6 contracts. Keep the feature draft and
+opt-in while qualifying it; this deferral does not change package versions,
+publish a release or authorize a default switch.
+
+Correctness implementation is the focus through Friday 30 October; performance
+experiments are paused during this work.
+
+- [x] Add independent Class development models over 8–24 cards and full public-SVG occurrence checks for six 8-card engine/wrapper arms. Repair the two new Native TB refusals by retrying a blocked content domain inside a known canonical host outline; retain rounded-corner, unknown-shape and cumulative-budget controls. These are development inputs, not held-out qualification or broad parity.
+- [x] Extend independent ER development coverage with 12-entity BT and 18-entity RL cases combining aliased display collisions, distinct Unicode identities, nested frames, long attributes and parallel/reciprocal/self relationships. Four strict-backend OFF SVG calls on `3344f753` preserve authored models and actual XML occurrences, with passing certificates and zero Native ELK calls. Independent physical review binds all 144 endpoint roles to their own carriers and intended painted borders, checks 420 glyph pieces, 72 relationship pills and 732 prepared-text bands; four proper crossings remain explicit. Two ELK endpoints meet the actual border band rather than the nominal face. This is finite development evidence, not held-out, cache/repeat/terminal, font-outline, aesthetic/performance or original-seven-U qualification.
+- [x] Investigate independently authored 12-state BT and 18-state RL development cases with nesting, concurrency, scoped initial/final roles, identity collisions, notes and parallel/reciprocal/self transitions. At `e8c84a44`, Native passes both; ELK passes one and honestly leaves three partly caption-masked arrowheads unverified. Repair unresolved marker-caption placement after the existing search with bounded single/joint label-only rescue and complete sufficient paint supports, retaining the same remaining work ledger and independent final certification. Four actual OFF SVGs at `9f8bd69e` now pass; three SVGs and full receipts remain exact, while ELK18 changes only four caption centers. Independent meaning and physical reviews retain all 116 carriers, 232 attachments, 40 contextual glyphs and 116 arrowheads. All 514 affected owners and both typechecks pass. These are development cases, not broad parity or promotion of the seven original U diagrams. Mermaid 12.2 rejects the original12 inline-note colon; preserve that observation, the portability warning and meaning-preserving block-note serialization.
+- [ ] Test full painted-caption reservations as a separate ELK input experiment. Actual State requests reserve text+8/+6 while width-one halos paint text+24/+24; two unsafe loop seats already exist in stock output. A third unsafe seat is introduced later, so changing ELK inputs cannot replace final clearance. Preserve all changed ranks/routes/ports/frames, loop allocation warnings and existing limits; the two retained loops still lack constructed allocation authority despite corrected caption paint.
+- [x] Bind the first paint lifetime foundation to the emitted occurrence: one inert captured leaf feeds one writer and inspection, with shared document/group rosters and immutable paint operands. Seven mutation/ownership/getter/viewport/roster counterexamples close; the 50,000-point immutable boundary remains certified under the unchanged 400,000-operation cap. Acquisition at `49ad0c99` preserves all 920 SVGs and terminal outputs in the 230-input development corpus; Native stays223P/7U and ELK218P/12U per cache policy. Only SVG receipt work counts and written viewport values change. This is not complete served-geometry or stylesheet authority.
+- [ ] Close the remaining paint-context and raw-to-served geometry gaps before promoting the seven original unverified diagrams. Private safety experiment `97de3245` makes demonstrated rounding unsafe passes and zero-dimension false failures honestly unverified, but is not adopted: six ordinary passes become unverified and valid large connectors exhaust the unchanged proof budget. Test sole-writer, occurrence-owned actual token receipts to avoid reparsing; require complete final emitted-token mapping, exact outward bounds before broadphase, actual stylesheet/palette/viewport applicability and independent full-ink witnesses before granting new passes.
+- [x] Preserve authored freestanding Class note order when the selected producer returns no graph extent. Seat notes inside the shared padding before final repair; keep the imported vertical-order assertion and cover default, strict ELK and strict Native at the existing namespace owner. The discovered notes-only integration regression remains recorded separately from the broader correctness qualification.
+- [x] Diagnose and repair the retained 24-class RL ELK-lane refusal at the `C2 -> C2` self-contact on `49ad0c99`. The solver's tiny coordinate drift became a written diagonal; construct a normal join only for known sharp, unmarked, unlabelled four-point self-loops, then prove fresh final support under the unchanged work ledger. Author commit `3d608c1d`, integrated as `52924301`: the actual retry renders with one ELK call, preserves all authored meaning, and changes only one bend coordinate. Independent checks cover all 25 carriers, 24 markers, 50 endpoint contacts, headers, notes, prepared-text halos and title. Preserve the old failed cell; this finite development case does not establish general correctness, font-outline visibility or aesthetic parity.
+- [x] Compute generated CSS scope identities after the one numeric-canonicalization pass. The styled Journey Native/Scene viewport-repair control fails before `4371bf45` and passes afterward; retain exact SVG equality, CSS isolation and the final security gate. Earlier output-preservation acquisitions keep their recorded revision.
+- [x] Qualify standalone browser/source parity through the same public render-and-verify operation and production configuration. Keep complete SVG and receipt equality, including work, viewport, issues and status. In the actual CI working directory, the old oracle fails and the corrected oracle passes with 457 assertions; root-directory preload controls pass both versions and are not counted as red-to-green evidence. This test-only fix does not close the retained editor delivery-size failures.
+- [ ] Integrate and acquire the separately developed Trident painted-attachment observer. Its local controls repair zero-area fill and unresolved-carrier omissions; local observer correctness does not establish Mermaid/Pele parity, whole-route continuity or whole-head visibility.
+
+- [x] Retain explicit ELK, checked native selection, typed fallback and immutable execution receipts.
+- [x] Native Flowchart/State measured placement and independent nested scopes; flat Requirement and Architecture adapters, Class cards and independent namespaces, plus ER frames and boundary relations.
+- [x] Close the retained seed228 crossing gap in the256-case development population (11 versus12 crossings;75 versus74 bends).
+- [x] Preserve the valid native straight contact that triggered seed319’s pass-contract error; do not loosen metric allowances.
+- [x] Close the retained seed296 crossing gap with bounded small-cut diversity (19 versus22 crossings,90 versus94 raw bends). All320 seeds remain development data, with all five ELK rejections retained.
+- [x] Execute the predeclared320–383 holdout on clean980a:64/64 render with both engines and no extra proper crossings; retain preference and paint uncertainty.
+- [x] Qualify independent counter-generated populations: initial0–63 exposes seed22 (16 versus15 crossings); bounded three-edge cuts reduce it to14. Fresh64–127 runs on clean53c17357:64 native/63 ELK successes, no added crossing/label/shared-ink metrics. All512 generated sources and six ELK rejections remain enrolled.
+- [x] Add bounded cross-scope leaf corridors without flattening frames: nine source/workload promotions including the96-node grouped workload,232/238 native; preserve explicit declines and ELK fallback.
+- [x] Extend frame terminals, empty scopes and grouped Architecture; repair nested endpoint obstacles. Frozen `e9db0dbe` renders246/246 source/workload occurrences and640/640 generated cases; preserve all six ELK generated rejections and all216 prior native SVGs unchanged. See [current qualification](docs/design/system/layout-qualification.md).
+- [x] Measure specialized label conflicts, all-family shared spans, bends/length/area, and declared edit sequences in both cache regimes; comparison reports expose support gains and adverse tradeoffs. This completes instrumentation, not quality parity.
+- [x] Compare the owned solver with community lineages and published artifacts, including Zombie simple; retain complete same-input SVG/A/A results and the corrected field-label gate. See [community comparison](docs/design/system/layout-community-comparison.md). This is evaluation progress, not a claim to have beaten all peers.
+- [x] Explore academic/community/industrial ideas, subtraction and native-family portfolios with five parallel investigations; run 20 isolated CPU/allocation profile workers with four repeats. See [exploration and experiment gates](docs/design/system/layout-exploration.md) and [follow-up experiments](docs/design/system/layout-experiment-results.md).
+- [x] Preserve ER label reservations through adapter changes and include foreign shafts in final placement; close the retained 16-conflict ER40 regression. Runtime23 removes all 16 conflicts with unchanged source crossing/bend/length/area/paint outcomes; drawing and projection share actual-style final labels. ELK output stays unchanged.
+- [x] Give Architecture an unfinished placement-only producer contract, preserving every relationship and merged actual-outline contacts. Runtime24 improves source case3 area by 60.5% and length by 64.1%; see [guidance results](docs/design/system/layout-guidance-results.md).
+- [x] Diagnose Architecture0/5 final port-constrained crossing witnesses and compare legal sibling slots using final family routes. Runtime26's bounded single-crossing cleanup removes their crossing and shortens routes922→596 with unchanged bends/area; the two occurrences share one source. Runtime25's extra Architecture4 improvement2→1 costs85.5% more uncached allocation than24 and is surrendered:26 restores its2-crossing ELK tie. Independent authored-side, obstacle, shared-ink and paint checks remain; see [follow-up results](docs/design/system/layout-followup-results.md).
+- [x] Specialize exact two-route crossing queries for Node/IIFE repair while retaining the general reference metric and compact lazy-browser path. Final cyclic18 off-cache allocation falls 13.1% at the paired median; noisy controls, worse pass-wide allocation and remaining ELK deficits are recorded in the [experiment results](docs/design/system/layout-experiment-results.md).
+- [x] Measure interval/spatial lane-blocker indexing separately. Reject the tested index: cyclic18 allocation rises 9.4% at paired median. Immediate private candidate-proof reuse also fails to earn inclusion; preserve independent final proof. The earlier own-label capacity guard remains rejected (160/54,327 probes, none on cyclic18).
+- [x] Instrument rank span, private-vertex expansion and repeated candidate normalization before choosing a sparse rewrite. Final 40-input diagnostic has zero outcome/counter mismatches; cyclic tails perform 17–27 normalizations and build 1,388–3,049 cumulative private vertices per call.
+- [x] Test lazy shifted-order construction separately before retaining another cyclic optimization. Reject it:0/6 required tails reach the predeclared3% allocation saving, whole27 allocation is0.9980× baseline and State allocation is1.0603×; cached qualification is incomplete and timing controls drift. The interrupted ray-array experiment remains unqualified. Preserve both in [follow-up results](docs/design/system/layout-followup-results.md).
+- [x] Reprofile the accepted runtime26 artifact and attribute repeated normalization with exact controls. All12CPU/heap workers complete. The40-input untimed diagnostic preserves every outcome and passes1207checks;160/174 exact-rank successes overwrite257greedy sweeps, while14declines retain fallback. Record245best-order snapshots without treating object/visit counts or overlapping sampled profile shares as measured savings.
+- [x] Test rank-first, detached band-snapshot reuse and ray views separately against accepted26. All three miss their primary target on all6required uncached tails, with18/16/18successful workers out of36 and no cached candidate results. Rank-first raises cyclic19allocation14.8%; band/ray whole27allocation is1.000648×/1.002351×. Keep these variants outside production, preserve missing controls/output comparisons and all failed deadlines; see [current cyclic experiments](docs/design/system/layout-followup-results.md#further-cyclic-attribution-on-frozen-runtime-26).
+- [x] Measure a separately predeclared combined ray-view/query-local-record prototype directly against accepted26 and current-artifactELK. All30memory workers and108exact fullSVG/receipt/certificate/layout/edit comparisons pass, but0/6uncached tails reach5%less allocation and whole27is0.998425×26, missing the0.98target. Reject the prototype; standalone/Architecture payload reserve would fall to306/108bytes. Keep accepted26 unchanged and preserve complete raw controls, failures, exact source patches and profile-premise correction in the [follow-up evidence](docs/design/system/layout-followup-results.md#combined-query-local-crossing-records-complete-negative-experiment).
+- [x] Test subtraction from Architecture refinement before retaining its cost. First-return preserves quality but misses its declared15% allocation target (14.7966% saving), so reject it. Complete single-crossing cleanup saves44.3% on source4 and4.5% on the whole13-input uncached pass versus25. Final direct26/24 whole13 allocation is1.001647×uncached/1.000278×cached, with healthy allocation controls: effectively flat, retaining0/5 repairs while surrendering4's costly partial improvement. The repaired0/5 occurrences themselves cost2.3%/4.7% more uncached allocation; drifting time controls establish no speedup.
+- [x] Freeze runtime26 artifacts and declare untouched Flowchart512–575 and Architecture0–63 cohorts before inspection, then qualify all enrolled outputs. Retain2418 known/new Flowchart observations with only the declared source4 rollback from25, seven unchanged ELK failures and234 unchanged original edits. The separately declared64 Architecture bases/edit/undo sequences produce1536 successful observations across24/25/26/ELK and both cache policies, with512 exact SVG/layout undos and no measured semantic discrepancies. Preserve every case and full proof evidence in [runtime26 quality](docs/design/system/layout-runtime26-quality.json.gz); this completes evaluation, not ELK parity.
+- [ ] Close the prospective Architecture quality and threshold-coverage gaps without hiding adverse data. Fresh64 native bases have21 crossing,6 bend,32 length,13 area and4 opposing-overlap losses versus ELK; aligned edit motion is worse on48/128 transitions. The one observed cleanup removes a crossing but adds84 route-length units. Only1 base/3 edits meet inferred single-cross guard admission, no direct1↔2 edit occurs, and25/26 outputs tie throughout this cohort. Preserve these64 as evaluated data; require a separately declared future cohort for any new holdout claim. See [final quality results](docs/design/system/layout-followup-results.md#prospective-architecture-quality-and-edit-stability).
+- [ ] Compare candidate selection under explicit bend/area budgets and retain the crossing/bend/area frontier rather than claim all-metric domination.
+- [ ] Reduce repeated cyclic candidate/normalization cost using the current artifact's attribution and exact operation counters. Rank-first, band reuse, lazy orders, lane indexing and immediate proof reuse have already failed their declared experiments; do not relist them as untouched recommendations. Preserve relationships, fallback, search bounds/budgets and independent final proofs, and measure a new owning mechanism directly before adoption.
+- [ ] Satisfy the [latest landing guidance](https://github.com/adewale/agentic-mermaid/pull/449#issuecomment-6358150200): resolve release/differential/churn failures or obtain owner review of a concrete [narrower shipping contract](docs/design/system/layout-shipping-options.md). Prefer #467 then #433 before this branch; current main87c9 is already an ancestor, so this is integration order rather than a missing dependency. No narrower contract is implemented/approved. After actual rebase, retain thin startup, backend-aware cache keys, fixed quotas/public isolation, native drawing/security precedence and State80/PNG controls; qualify the actual combined package without pooling historical percentages.
+- [ ] Qualify shared drawing/request/SVG subtraction and cache-specific factorial/churn arms with observed hits/evictions and immutable proof/input ownership.
+- [ ] Measure declared reduced-family policies and mixed-session request unions; retain explicit native admission/fallback counts and avoid source-name dispatch rules.
+- [ ] Improve targeted paint predicates, intent-aware edit/port/symmetry measurement and family-task readability evidence; retain unknown proof status and configured incremental ELK controls.
+- [ ] Recover deliberate browser/standalone payload reserve under existing caps; compare capability entrypoints and precompiled SVG workflows. Runtime26 keeps optional refinement out of the default ELK path and avoids a rubric dependency in its producer; all caps pass, but the canonical root build's Architecture reserve is356 Brotli bytes and standalone reserve457 raw bytes. Maintenance headroom remains inadequate. Corrected runtime24 prose subtraction and the rejected YAML-import experiment remain recorded separately.
+- [ ] Support remaining compound/cross-boundary geometry without changing authored endpoints or required child order.
+- [ ] Complete specialized-family quality dimensions and preserve all declines in comparison populations.
+- [ ] Qualify fully consumed cold, cached, edited and cache-churn workflows with healthy A/A controls, memory and emitted browser transfer evidence. Final26 dedicated release/differential fail uncached qualification: deadlines leave all candidate memory missing, and differential cyclic15 exceeds1.5×ELK. Normal reports and all Architecture supplement reports pass. Churn108/108memoryworkers pass, but both256source diagnoses time out and leave unlaunched rows. Required sourceCI is green; earlier3258 canary fallback fails cyclic15 at1.511118×ELK, and later f2af reporting-head canary fails all3uncached comparisons with strict/fallback1.515862×/1.512741×ELK and missing memory. Separate local whole27 memory completes30/30workers with lower RSS than ELK, effectively flat allocation against24 and six cyclic allocation losses. Preserve all runtime24/25/26 failures and controls; see [final follow-up results](docs/design/system/layout-followup-results.md) and [historical guidance](docs/design/system/layout-guidance-results.md).
+- [x] Restore complete three-browser CI provisioning without reducing engines, versions, signatures, tests or timeouts. Replace the observed stalled Azure archive/mirror-file indirection with official HTTPS Ubuntu archives; separate OS and browser installation logs. Actual26 sourceCI passes95browser tests including Firefox/WebKit; generated-layout advisory and failed performance qualifications remain explicit.
+- [ ] Confirm the serial-isolation workaround across further combined CI heads; the first rebased run passes all required lanes, but the prior parallel-shard stall root cause remains unidentified. Retain adverse runs.

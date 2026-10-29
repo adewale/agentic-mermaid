@@ -41,7 +41,7 @@ export async function runBatchedOperations<I, O>(
 /**
  * Synchronous variant for callers whose handler is guaranteed sync.
  * Identical semantics to runBatchedOperations sans the await — used by
- * cmdBatch in the CLI where the dispatcher returns a number, not a promise.
+ * cmdRenderMarkdown in the CLI, which returns a number rather than a promise.
  */
 export function collectBatched<I, O>(
   items: I[],

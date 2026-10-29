@@ -3,7 +3,7 @@
 This directory separates two different claims:
 
 - `src/__tests__/perceptual-palette-impact.test.ts` is the portable CI gate. It verifies deterministic work-count invariants from the real implementation: the `>24` path is engaged, performs no pairwise distance checks, and stays under a linear candidate-evaluation ceiling.
-- `bun run eval/palette-performance/run.ts --record` records warmed wall-clock observations for the built-in-theme × counts 7–24 matrix. The report includes the runtime, OS, architecture, CPU, protocol, recording commit, distributions, claim/warrant/backing/rebuttal, and explicit limitations.
+- `bun run bench --suites palette-performance` records warmed wall-clock observations for the built-in-theme × counts 7–24 matrix. The report includes the runtime, OS, architecture, CPU, protocol, recording commit, distributions, claim/warrant/backing/rebuttal, and explicit limitations.
 
 Record only from a clean committed worktree. The recorder refuses dirty inputs. After recording, inspect `report.json` (gitignored, not committed); its `sourceCommit` is informational.
 

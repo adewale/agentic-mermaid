@@ -1,3 +1,4 @@
+import { prepareDisplayText, type DisplayTextInput, type PreparedDisplayText } from './shared/display-text.ts'
 // ============================================================================
 // Font metrics — character width estimates for Inter at different sizes.
 // Used to approximate text bounding boxes without DOM measurement.
@@ -8,13 +9,13 @@
 // resolution, and the shared diagram-title band.
 // ============================================================================
 
-import { escapeAttr, renderMultilineText } from './multiline-utils.ts'
 import type { TextMark } from './scene/ir.ts'
 import * as marks from './scene/marks.ts'
 import { measureMonospaceTextWidth, measureMultilineText, measureTextWidth } from './text-metrics'
 import type { InternalStyleFace, StyleInput } from './scene/style-registry.ts'
 import type { TextTransform } from './types.ts'
 import { FORMAT_TAG_SOURCE } from './shared/inline-format.ts'
+import { preparePixelText, type PixelTextBlock } from './shared/prepared-text.ts'
 
 /** Average character width in px at the given font size and weight (proportional font) */
 export function estimateTextWidth(text: string, fontSize: number, fontWeight: number): number {
@@ -95,6 +96,7 @@ export const TEXT_BASELINE_SHIFT = '0.35em' as const
 export const ARROW_HEAD = {
   width: 8,
   height: 5,
+  strokeWidth: 0.75,
 } as const
 
 /** Flowchart dotted-edge stroke pattern; renderer emits stroke-dasharray="4 4". */
@@ -245,25 +247,21 @@ function textTransform(...values: Array<string | undefined>): TextTransform | un
   return undefined
 }
 
-const INLINE_FORMAT_TAG = new RegExp(`(${FORMAT_TAG_SOURCE})`, 'gi')
-const WHOLE_FORMAT_TAG = new RegExp(`^${FORMAT_TAG_SOURCE}$`, 'i')
-
-export function applyTextTransform(text: string, transform: TextTransform | undefined): string {
+/** Preserve authored formatting syntax while transforming the complete visible
+ * word. Source ranges keep tags from introducing false capitalization points. */
+export function applyTextTransform(text: string, transform: TextTransform | undefined): string
+export function applyTextTransform(text: PreparedDisplayText, transform: TextTransform | undefined): PreparedDisplayText
+export function applyTextTransform(text: DisplayTextInput, transform: TextTransform | undefined): DisplayTextInput
+export function applyTextTransform(text: DisplayTextInput, transform: TextTransform | undefined): DisplayTextInput {
+  if (typeof text !== 'string') return prepareDisplayText(text, text.display, transform)
   if (!transform) return text
-  const transformPlain = (chunk: string): string => {
-    switch (transform) {
-      case 'uppercase':
-        return chunk.toUpperCase()
-      case 'lowercase':
-        return chunk.toLowerCase()
-      case 'capitalize':
-        return chunk.replace(/\b\p{L}/gu, ch => ch.toUpperCase())
-    }
+  const prepared = prepareDisplayText(text, 'formatted', transform)
+  let cursor = 0, result = ''
+  for (const runs of prepared.lines) for (const run of runs) {
+    result += text.slice(cursor, run.sourceStart) + run.text
+    cursor = run.sourceEnd
   }
-  return text
-    .split(INLINE_FORMAT_TAG)
-    .map(part => WHOLE_FORMAT_TAG.test(part) ? part : transformPlain(part))
-    .join('')
+  return result + text.slice(cursor)
 }
 
 export function resolveRenderStyle(
@@ -338,6 +336,7 @@ export interface PositionedDiagramTitle {
   text: string
   x: number
   y: number
+  block?: PixelTextBlock
 }
 
 /** The band a title needs above the content: display text, width, and height
@@ -346,35 +345,40 @@ export interface DiagramTitleBand {
   text: string
   width: number
   height: number
+  block?: PixelTextBlock
 }
 
 export function diagramTitleBand(
-  title: string | undefined,
-  style: Pick<ResolvedRenderStyle, 'groupTextTransform' | 'groupLetterSpacing'>,
+  title: DisplayTextInput | undefined,
+  style: Pick<ResolvedRenderStyle, 'groupTextTransform' | 'groupLetterSpacing' | 'groupFont'>,
 ): DiagramTitleBand | undefined {
   if (title === undefined) return undefined
-  const text = applyTextTransform(title, style.groupTextTransform)
-  const metrics = measureMultilineText(text, DIAGRAM_TITLE_FONT_SIZE, DIAGRAM_TITLE_FONT_WEIGHT, style.groupLetterSpacing)
-  return { text, width: metrics.width, height: metrics.height + DIAGRAM_TITLE_GAP }
+  const block = preparePixelText(title, { display: 'formatted', transform: style.groupTextTransform, fontSize: DIAGRAM_TITLE_FONT_SIZE, fontWeight: DIAGRAM_TITLE_FONT_WEIGHT, letterSpacing: style.groupLetterSpacing, fontFamily: style.groupFont })
+  return { text: block.text, width: block.width, height: block.height + DIAGRAM_TITLE_GAP, block }
+}
+
+/** The canvas of a diagram with nothing but a title: the title alone, padded
+ * on every side, as the families whose title is their own furniture draw it.
+ * Without a title, a diagram with no content stays an empty canvas. */
+export function titleOnlyCanvas(band: DiagramTitleBand, padX: number, padY = padX): { width: number; height: number; title: PositionedDiagramTitle } {
+  const width = band.width + 2 * padX
+  return { width, height: band.height - DIAGRAM_TITLE_GAP + 2 * padY, title: positionDiagramTitle(band, width, padY) }
 }
 
 /** Where a band's title sits on a canvas `width` wide with `top` padding. */
 export function positionDiagramTitle(band: DiagramTitleBand, width: number, top: number): PositionedDiagramTitle {
-  return { text: band.text, x: width / 2, y: top + (band.height - DIAGRAM_TITLE_GAP) / 2 }
+  return { text: band.text, x: width / 2, y: top + (band.height - DIAGRAM_TITLE_GAP) / 2, ...(band.block ? { block: band.block } : {}) }
 }
 
 export function diagramTitleMark(title: PositionedDiagramTitle, style: ResolvedRenderStyle): TextMark {
+  return marks.text(diagramTitleFields(title, style))
+}
+
+export function diagramTitleFields(title: PositionedDiagramTitle, style: ResolvedRenderStyle): Parameters<typeof marks.text>[0] {
   const fill = style.groupTextColor ?? 'var(--_text)'
-  const font = style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''
-  const spacing = style.groupLetterSpacing !== 0 ? ` letter-spacing="${style.groupLetterSpacing}"` : ''
-  return marks.text(
-    { id: 'diagram-title', role: 'title', text: title.text, x: title.x, y: title.y, fontSize: DIAGRAM_TITLE_FONT_SIZE, anchor: 'middle', paint: { fill } },
-    renderMultilineText(
-      title.text,
-      title.x,
-      title.y,
-      DIAGRAM_TITLE_FONT_SIZE,
-      `class="diagram-title" text-anchor="middle" font-size="${DIAGRAM_TITLE_FONT_SIZE}" font-weight="${DIAGRAM_TITLE_FONT_WEIGHT}"${font}${spacing} fill="${escapeAttr(fill)}"`,
-    ),
-  )
+  return {
+    id: 'diagram-title', role: 'title', text: title.text, block: title.block, x: title.x, y: title.y,
+    fontSize: DIAGRAM_TITLE_FONT_SIZE, fontWeight: DIAGRAM_TITLE_FONT_WEIGHT, letterSpacing: style.groupLetterSpacing,
+    anchor: 'middle', paint: { fill }, attributes: { className: 'diagram-title' },
+  }
 }

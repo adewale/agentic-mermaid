@@ -8,7 +8,28 @@
  */
 
 import { describe, test, expect } from 'bun:test'
-import { renderMermaidASCII } from '../ascii/index.ts'
+import { renderMermaidASCII, renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
+import { terminalDocumentOf, type TerminalMarker } from '../ascii/terminal-document.ts'
+
+function drawnRelationships(source: string, expected: Array<[string, string]>, end: 'start' | 'end', marker: TerminalMarker['shape'], direction: TerminalMarker['direction'], dashed = false): string {
+  const result = renderMermaidASCIIWithReceipt(source, { colorMode: 'none' })
+  const document = terminalDocumentOf(result)!
+  const edges = document.regions().filter(region => region.kind === 'edge')
+  expect(edges.map(edge => [edge.from, edge.to]).sort()).toEqual([...expected].sort())
+  for (const id of new Set(expected.flat())) expect(result.text, id).toContain(id)
+  for (const edge of edges) {
+    expect(edge.ports, edge.id).toHaveLength(2)
+    const port = edge.ports!.find(port => port.end === end)!
+    const cell = document.cell(port.x, port.y)!
+    expect(cell.marker, edge.id).toMatchObject({ shape: marker, direction })
+    expect(cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id), edge.id).toBe(true)
+    expect(cell.glyph.trim(), edge.id).not.toBe('')
+    const shaft = [...document.entries()].filter(([, , cell]) => cell.stroke && cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id))
+    expect(shaft.length, edge.id).toBeGreaterThan(0)
+    expect(shaft.some(([, , cell]) => cell.stroke?.style === 'dashed'), edge.id).toBe(dashed)
+  }
+  return result.text
+}
 
 describe('Class Diagram Arrow Directions', () => {
 
@@ -38,7 +59,7 @@ describe('Class Diagram Arrow Directions', () => {
         Animal <|-- Dog
         Animal <|-- Cat
         Dog <|-- Puppy`
-      const result = renderMermaidASCII(diagram)
+      const result = drawnRelationships(diagram, [['Animal', 'Dog'], ['Animal', 'Cat'], ['Dog', 'Puppy']], 'start', 'open-arrow', 'T')
 
       // Animal should be at top, then Dog/Cat, then Puppy
       const lines = result.split('\n')
@@ -125,7 +146,7 @@ describe('Class Diagram Arrow Directions', () => {
       const diagram = `classDiagram
         Person --> Address
         Person --> Phone`
-      const result = renderMermaidASCII(diagram)
+      const result = drawnRelationships(diagram, [['Person', 'Address'], ['Person', 'Phone']], 'end', 'triangle', 'B')
 
       // Person should be above both targets
       const lines = result.split('\n')
@@ -189,7 +210,7 @@ describe('Class Diagram Arrow Directions', () => {
       const diagram = `classDiagram
         Client ..> Server
         Client ..> Database`
-      const result = renderMermaidASCII(diagram)
+      const result = drawnRelationships(diagram, [['Client', 'Server'], ['Client', 'Database']], 'end', 'triangle', 'B', true)
 
       const lines = result.split('\n')
       const clientLine = lines.findIndex(l => l.includes('Client'))
@@ -343,9 +364,11 @@ describe('Class Diagram Arrow Directions', () => {
       const hasUpArrow = result.includes('▲')
       const hasDownArrow = result.includes('▼')
       expect(hasUpArrow || hasDownArrow).toBe(true)
-      expect(result).toContain('│ A │')
-      expect(result).toContain('│ B │')
-      expect(result).toContain('│ C │')
+      // Reciprocal face demand can widen the cards; their complete labels
+      // remain inside their own borders.
+      expect(result).toMatch(/│ A +│/)
+      expect(result).toMatch(/│ B +│/)
+      expect(result).toMatch(/│ C +│/)
     })
   })
 
@@ -366,13 +389,14 @@ describe('Class Diagram Arrow Directions', () => {
       const unicodeLines = unicode.split('\n')
       const asciiLines = ascii.split('\n')
 
-      const uAnimal = unicodeLines.findIndex(l => l.includes('Animal'))
-      const uDog = unicodeLines.findIndex(l => l.includes('Dog'))
-      const aPerson = asciiLines.findIndex(l => l.includes('Person'))
-      const aAddress = asciiLines.findIndex(l => l.includes('Address'))
-
-      expect(uAnimal).toBeLessThan(uDog)
-      expect(aPerson).toBeLessThan(aAddress)
+      for (const lines of [unicodeLines, asciiLines]) {
+        const positions = ['Animal', 'Dog', 'Person', 'Address'].map(id => lines.findIndex(line => line.includes(id)))
+        for (const position of positions) expect(position).toBeGreaterThanOrEqual(0)
+        expect(positions[0]!).toBeLessThan(positions[1]!)
+        expect(positions[2]!).toBeLessThan(positions[3]!)
+      }
+      const order = (lines: string[]) => lines.flatMap(line => ['Animal', 'Dog', 'Person', 'Address'].filter(id => line.includes(id)))
+      expect(order(asciiLines)).toEqual(order(unicodeLines))
 
       // Unicode has △ and ▼, ASCII has ^ and v
       expect(unicode).toContain('△')

@@ -7,15 +7,16 @@
 // Bundled via `Bun.build({ target: 'browser' })` in scripts/site/editor.ts and website/build.ts.
 // ============================================================================
 
+import './scene/builtin-backends.ts'
+import { renderMermaidSVGWithReceipt } from './svg.ts'
 import {
-  renderMermaidSVGAsync,
-  renderMermaidSVGWithReceipt,
   SHARED_RENDER_OPTION_FIELDS,
   sharedRenderOptionsJsonSchema,
   validateSerializableRenderOptions,
-  verifyNoExternalRefs,
-} from './index.ts'
+} from './render-contract.ts'
+import { verifyNoExternalRefs } from './output-security.ts'
 import { verifyMermaid } from './agent/verify.ts'
+import { WARNING_SEVERITY, WARNING_TIER } from './agent/types.ts'
 import {
   renderMermaidASCII,
   renderMermaidASCIIWithReceipt,
@@ -36,6 +37,10 @@ function renderMermaidUnicodeWithReceipt(text: string, options: AsciiRenderOptio
   return renderMermaidASCIIWithReceipt(text, { ...options, useAscii: false })
 }
 
+async function renderMermaidSVGAsync(text: string, options = {}) {
+  return renderMermaidSVGWithReceipt(text, options).svg
+}
+
 /** Typed browser/editor boundary. The global bundle installs this exact object;
  * tests can exercise the adapter without inferring parity from bundle shape. */
 export const BROWSER_EDITOR_ADAPTER = {
@@ -47,6 +52,8 @@ export const BROWSER_EDITOR_ADAPTER = {
   validateSerializableRenderOptions,
   verifyNoExternalRefs,
   verifyMermaid,
+  WARNING_TIER: Object.freeze({ ...WARNING_TIER }),
+  WARNING_SEVERITY: Object.freeze({ ...WARNING_SEVERITY }),
   renderMermaidASCII,
   renderMermaidASCIIWithReceipt,
   renderMermaidUnicodeWithReceipt,

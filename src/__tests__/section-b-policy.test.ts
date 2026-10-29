@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import {
   BRAND_CONSTRAINT_DESCRIPTORS,
   renderMermaidSVG,
@@ -15,6 +16,7 @@ import { STYLE_OWNED_PAINT_VARIABLES } from '../scene/style-spec.ts'
 import { evaluateBrandConstraints } from '../scene/brand-constraints.ts'
 import { resolveRenderRequestForExecution } from '../render-contract.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
+import { getFamily } from '../agent/families.ts'
 
 const SLOT = { fillColor: '#ff00ff', borderColor: '#007700', lineWidth: 3 } as const
 const BINDING = { channel: 'category', value: 'Beta', slot: 'selected', role: 'pie-slice' } as const
@@ -92,7 +94,7 @@ describe('Section B semantic policy', () => {
       expect(once).toEqual(resolveStyleStack([resolveStyleStack(a)!, b]))
       expect(once?.semanticSlots?.selected?.fillColor).toBe(`#${hex}`)
       expect(once?.bindings).toEqual([BINDING])
-    }), { numRuns: 40 })
+    }), fcParameters({ numRuns: 40 }))
   })
 
   test('ordered category binding resolves beneath exact role defaults', () => {
@@ -115,11 +117,12 @@ describe('Section B semantic policy', () => {
     const baseline = renderMermaidSVG(source)
     const branded = renderMermaidSVG(source, { style: policyStyle() as any })
     const paths = (svg: string) => [...svg.matchAll(/class="pie-slice[^\"]*"[^>]*d="([^"]+)"/g)].map(match => match[1])
+    expect(paths(baseline)).toHaveLength(2)
     expect(paths(branded)).toEqual(paths(baseline))
     expect(branded).toContain('data-label="Beta"')
     expect(branded).toContain('fill="#ff00ff"')
     expect(branded.match(/data-highlighted="true"/g)).toHaveLength(1)
-    expect(branded).toContain('.pie-slice.highlighted { stroke: #27272A;')
+    expect(branded).toMatch(/<path class="pie-slice highlighted"[^>]* stroke="#27272A" /)
   })
 
   test('Pie binding projects a non-color cue to SVG and no-color terminal output', () => {
@@ -147,7 +150,8 @@ describe('Section B semantic policy', () => {
       roles: { label: { textColor: '#dddddd' } },
       constraints: [{ kind: 'contrast', action: 'warn', minimum: 4.5 }],
     } as any
-    const before = renderMermaidSVG(source, { style: low })
+    const before = renderMermaidSVG(source, { style: { roles: low.roles } })
+    expect(renderMermaidSVG(source, { style: low })).toBe(before)
     const warned = verifyMermaid(source, { renderOptions: { style: low } })
     expect(warned.warnings).toContainEqual(expect.objectContaining({
       code: 'BRAND_CONSTRAINT_WARNING', constraint: 'contrast', measurement: 'measurable', minimum: 4.5,
@@ -177,6 +181,30 @@ describe('Section B semantic policy', () => {
       background: '#111111',
       ratio: 1,
     }))
+  })
+
+  test('constraint diagnostics measure the repaired literal-CSS palette used by SVG', () => {
+    const source = 'flowchart TD\nsubgraph app[Application]\nA[Card]\nend'
+    for (const colors of [
+      { bg: 'white', fg: 'gainsboro' },
+      { bg: 'rgb(255 255 255)', fg: 'hsl(0 0% 86%)' },
+    ]) {
+      const options = { style: {
+        colors,
+        // Force a diagnostic even after repair so its measured ink is visible.
+        constraints: [{ kind: 'contrast', action: 'warn', role: 'group-header', minimum: 21 }],
+      } } as const
+      const svg = renderMermaidSVG(source, options)
+      const painted = svg.match(/<text\b[^>]*fill="([^"]+)"[^>]*>Application<\/text>/)?.[1]
+      expect(painted).toBeDefined()
+      const result = verifyMermaid(source, { renderOptions: options })
+      expect(result.warnings).toContainEqual(expect.objectContaining({
+        constraint: 'contrast', measurement: 'measurable', mark: 'group-label:app',
+        foreground: painted, ratio: expect.any(Number),
+      }))
+      const measured = result.warnings.find(item => item.code === 'BRAND_CONSTRAINT_WARNING' && item.constraint === 'contrast')
+      expect(measured && 'ratio' in measured ? measured.ratio : undefined).toBeGreaterThanOrEqual(4.5)
+    }
   })
 
   test('nested text inherits the nearest preceding containing surface for contrast', () => {
@@ -223,7 +251,8 @@ describe('Section B semantic policy', () => {
         { kind: 'mono-role', action: 'warn', role: 'edge' },
       ],
     } as any
-    const svg = renderMermaidSVG(source, { style })
+    const svg = renderMermaidSVG(source, { style: { colors: style.colors, roles: style.roles } })
+    expect(renderMermaidSVG(source, { style })).toBe(svg)
     const result = verifyMermaid(source, { renderOptions: { style } })
     expect(result.warnings).toContainEqual(expect.objectContaining({
       code: 'BRAND_CONSTRAINT_WARNING', constraint: 'accent-area', measurement: 'measurable',
@@ -232,6 +261,23 @@ describe('Section B semantic policy', () => {
       code: 'BRAND_CONSTRAINT_WARNING', constraint: 'mono-role', measurement: 'measurable', foreground: '#ff0000',
     }))
     expect(renderMermaidSVG(source, { style })).toBe(svg)
+  })
+
+  test.each(['packet', 'kanban', 'requirement', 'block', 'ishikawa'] as const)('%s primary filled surfaces contribute real accent-area and node paint evidence', family => {
+    const source = getFamily(family)!.example,
+      style = {
+        colors: { accent: '#ff0000' },
+        roles: { node: { fillColor: '#ff0000' }, group: { fillColor: '#ff0000' } },
+        constraints: [
+          { kind: 'accent-area', action: 'warn', maxFraction: 0 },
+          { kind: 'mono-role', action: 'warn', role: 'node' },
+        ],
+      } as const,
+      before = renderMermaidSVG(source, { style: { colors: style.colors, roles: style.roles } }),
+      result = verifyMermaid(source, { renderOptions: { style } })
+    expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'BRAND_CONSTRAINT_WARNING', constraint: 'accent-area', measurement: 'measurable', maximum: 0, actual: expect.any(Number) }))
+    expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'BRAND_CONSTRAINT_WARNING', constraint: 'mono-role', role: 'node', measurement: 'measurable', foreground: '#ff0000' }))
+    expect(renderMermaidSVG(source, { style })).toBe(before)
   })
 
   test('every admitted style-owned paint variable has an executable constraint projection', () => {

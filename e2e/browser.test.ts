@@ -13,13 +13,44 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { join } from 'path'
-import { deflateRawSync } from 'node:zlib'
+import { deflateRawSync, gzipSync } from 'node:zlib'
+import { deserialize } from 'node:v8'
 import { chromium, type Browser, type BrowserContext, type CDPSession, type Page } from 'playwright'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
-import { renderMermaidSVG } from '../src/index.ts'
+import { renderMermaidSVG, renderMermaidASCIIWithReceipt, knownStyleDescriptors, inferBackend, type RenderOptions } from '../src/index.ts'
+import type { PreviewArtifact } from '../src/browser-editor-protocol.ts'
+import { useTestChildren } from '../src/__tests__/helpers/test-child.ts'
 import { serveWithAvailablePort } from './test-port.ts'
+import { PIE_ENTITY_FIXTURES } from '../src/__tests__/helpers/pie-entity-fixtures.ts'
+import { resolveSvgScene } from '../src/scene/resolve-svg.ts'
 
 const ROOT = join(import.meta.dir, '..')
+const runSourceChild = useTestChildren(30_000)
+
+/** Match the preview operation in a fresh production realm. The test preload
+ * intentionally forces Scene assertions in this parent; changing its env now
+ * cannot undo assertion modules that have already been imported. */
+async function sourcePreviews(examples: readonly { source: string; options: RenderOptions }[]): Promise<Pick<PreviewArtifact, 'svg' | 'receipt' | 'verification'>[]> {
+  const child = await runSourceChild(process.execPath, ['--eval', `
+    const { serialize } = await import('node:v8')
+    await import('./src/index.ts')
+    const { renderAndVerifyMermaid } = await import('./src/agent/verify.ts')
+    const examples = JSON.parse(await Bun.stdin.text())
+    const results = examples.map(({ source, options }) => {
+      const result = renderAndVerifyMermaid(source, { ...options, security: 'strict', embedFontImport: false })
+      return { svg: result.svg, receipt: result.receipt, verification: {
+        ok: result.verification.ok, warnings: result.verification.warnings, checks: result.verification.checks,
+      } }
+    })
+    process.stdout.write(serialize(results).toString('base64'))
+  `], { cwd: ROOT, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' }, input: JSON.stringify(examples) })
+  expect(child.status, child.stderr).toBe(0)
+  expect(child.signal).toBeNull()
+  // Preserve optional undefined fields as well as every receipt value. JSON
+  // transport would silently discard those fields before the equality check.
+  return deserialize(Buffer.from(child.stdout, 'base64'))
+}
+
 const PREFERRED_PORT = 4567
 let BASE = ''
 const SCREENSHOT_DIR = join(ROOT, 'e2e', 'screenshots')
@@ -284,50 +315,267 @@ afterAll(async () => {
 // Tests
 // ---------------------------------------------------------------------------
 
+it('shipped sketch looks paint readable label ink against an opaque halo', async () => {
+  const labels = await browser.newPage()
+  await labels.route('**/*', route => route.abort())
+  try {
+    const looks = knownStyleDescriptors().filter(descriptor => descriptor.kind === 'look' && inferBackend(descriptor.spec) !== 'default')
+    expect(looks.length).toBeGreaterThan(0)
+    for (const style of looks) {
+      await labels.setContent(renderMermaidSVG('flowchart TD\n A["Readable label"]', { style: style.inputName, embedFontImport: false, seed: 7 }))
+      const paint = await labels.evaluate(() => {
+        const text = [...document.querySelectorAll('text')].find(node => node.textContent?.toLowerCase() === 'readable label')
+        if (!text) throw new Error('Shipped look did not paint the node label')
+        const computed = getComputedStyle(text)
+        // Canvas normalizes supported CSS colors without pinning hex spelling.
+        const canvas = document.createElement('canvas')
+        canvas.width = canvas.height = 1
+        const ctx = canvas.getContext('2d')!
+        const rgba = (color: string) => {
+          if (!CSS.supports('color', color)) return []
+          ctx.clearRect(0, 0, 1, 1)
+          ctx.fillStyle = color
+          ctx.fillRect(0, 0, 1, 1)
+          return [...ctx.getImageData(0, 0, 1, 1).data]
+        }
+        return {
+          fill: rgba(computed.fill), halo: rgba(computed.stroke),
+          width: parseFloat(computed.strokeWidth), order: computed.paintOrder.split(' ')[0],
+          opacity: [computed.opacity, computed.fillOpacity, computed.strokeOpacity].map(Number),
+          visibility: computed.visibility, display: computed.display,
+        }
+      })
+      expect(paint, style.inputName).toMatchObject({ order: 'stroke', opacity: [1, 1, 1], visibility: 'visible' })
+      expect(paint.display, style.inputName).not.toBe('none')
+      expect(paint.width, style.inputName).toBeGreaterThan(0)
+      expect(paint.fill[3], style.inputName).toBe(255)
+      expect(paint.halo[3], style.inputName).toBe(255)
+      // WCAG 2 relative luminance, independently of the production guardrail.
+      const luminance = (rgba: number[]) => rgba.slice(0, 3).reduce((sum, channel, i) => {
+        const c = channel / 255
+        return sum + [0.2126, 0.7152, 0.0722][i]! * (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+      }, 0)
+      const [light, dark] = [luminance(paint.fill), luminance(paint.halo)].sort((a, b) => b - a)
+      expect((light! + 0.05) / (dark! + 0.05), style.inputName).toBeGreaterThanOrEqual(4.5)
+    }
+  } finally {
+    await labels.close()
+  }
+})
+
+it('resolved circle and ellipse paths preserve the native stroke traversal for dashes', async () => {
+  const svg = '<svg width="200" height="120"><circle cx="60" cy="60" r="40" stroke="black" stroke-dasharray="7 3" /><ellipse cx="150" cy="60" rx="30" ry="20" stroke="black" stroke-dasharray="7 3" /></svg>'
+  const scene = resolveSvgScene(svg, { family: 'flowchart', width: 200, height: 120,
+    transparent: false, colors: { bg: '#ffffff', fg: '#000000' }, parts: [] }, [])
+  const paths = scene.frame.map(primitive => {
+    if (primitive.kind !== 'path') throw new Error('Expected path geometry')
+    expect(primitive.paint.dashArray).toEqual([7, 3])
+    return primitive.d
+  })
+  const probe = await browser.newPage()
+  try {
+    await probe.setContent(svg)
+    const pairs = await probe.evaluate(({ paths }) => {
+      const root = document.querySelector('svg')!
+      return [...root.querySelectorAll('circle,ellipse')].map((element, index) => {
+        const converted = document.createElementNS(root.namespaceURI, 'path') as SVGPathElement
+        converted.setAttribute('d', paths[index]!)
+        root.appendChild(converted)
+        return [0, 1].map(distance => {
+          const expected = (element as SVGGeometryElement).getPointAtLength(distance)
+          const actual = converted.getPointAtLength(distance)
+          return Math.hypot(actual.x - expected.x, actual.y - expected.y)
+        })
+      })
+    }, { paths })
+    for (const pair of pairs) {
+      expect(pair[0]).toBeLessThan(0.0001)
+      expect(pair[1]).toBeLessThan(0.05)
+    }
+  } finally { await probe.close() }
+})
+
+it('standalone editor stays within its single-renderer payload budget', async () => {
+  const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
+  // Large Class/ER certification and private route channels use 4,735,733 raw
+  // and 1,420,742 gzip bytes with current main. Keep the relative-growth gate.
+  expect(html.byteLength).toBeLessThanOrEqual(4_736_000)
+  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_421_000)
+  const runtime = new TextDecoder().decode(html).match(/<script type="module" id="editor-runtime">([\s\S]*?)<\/script>/)?.[1]
+  expect(runtime).toBeDefined()
+  // These literals belong to the page catalog, not its private renderer worker.
+  expect(runtime).not.toMatch(/(?:\beditor(?:DiagramType|Label|Description|ExampleId|Glyph|Example)|["']editor(?:DiagramType|Label|Description|ExampleId|Glyph|Example)["'])\s*:\s*["'`]/)
+})
+
+it('standalone editor renders and verifies with one persistent Blob worker', async () => {
+  const standalone = await browser.newPage()
+  try {
+    await standalone.goto(`${BASE}/editor?empty=1`, { waitUntil: 'networkidle' })
+    // The page still offers the complete public catalog while its worker omits
+    // the duplicated editor prose. Rendering and receipts below cover every hook.
+    expect(BUILTIN_FAMILY_METADATA.length).toBeGreaterThan(0)
+    const catalog = await standalone.locator('#examples-sidebar .example-dropdown-item').evaluateAll(items => items.map(item => ({
+      id: (item as HTMLElement).dataset.example,
+      diagramType: (item as HTMLElement).dataset.diagram,
+      description: item.querySelector('.example-item-description')?.textContent,
+      title: item.getAttribute('title'),
+    })))
+    for (const family of BUILTIN_FAMILY_METADATA) expect(catalog.find(item => item.id === family.editorExampleId)).toEqual({
+      id: family.editorExampleId, diagramType: family.editorDiagramType,
+      description: family.editorDescription, title: family.editorDescription,
+    })
+    const started = standalone.waitForEvent('worker')
+    await standalone.locator('#code-editor').fill('flowchart LR\nStandalone --> Verified')
+    const worker = await started
+    await standalone.waitForFunction(() => document.getElementById('status-text')?.textContent === 'OK')
+    expect(await standalone.locator('#preview-inner svg').textContent()).toContain('Standalone')
+    expect(worker.url()).toStartWith('blob:')
+    const preview = await standalone.evaluate(async () => {
+      const api = (globalThis as any).__mermaid
+      const source = 'flowchart LR\nStandalone --> Verified'
+      const artifact = await api.renderMermaidSVGWithReceipt(source)
+      const selections = []
+      for (const backend of ['elk', 'agentic']) {
+        const result = await api.renderMermaidSVGWithReceipt(source, { graphLayout: { backend } })
+        selections.push({ selected: result.receipt.layoutDecisions?.[0]?.selected, verified: result.verification.ok })
+      }
+      const compound = 'flowchart TB\nsubgraph One\n A --> B\nend\nsubgraph Two\n C --> D\nend\nOne --> C'
+      const promoted = await api.renderMermaidSVGWithReceipt(compound, { graphLayout: { backend: 'agentic' } })
+      // Use the unchanged private-rank limit as the fallback witness.
+      const fallbackSource = ['flowchart LR', 'subgraph One', ' A[Leaf]', ' B[Tail]', ' A ' + '-'.repeat(2049) + '> B', 'end'].join('\n')
+      const fallback = await api.renderMermaidSVGWithReceipt(fallbackSource, {
+        graphLayout: { backend: 'agentic', fallback: 'elk' },
+      })
+      return { checks: artifact.verification.checks, selections, promoted: promoted.receipt.layoutDecisions?.[0], fallback: fallback.receipt.layoutDecisions?.[0] }
+    })
+    expect(preview.checks).toEqual({ renderability: 'passed', sourceLoss: 'not-detected', taskCorrectness: 'not-checked' })
+    expect(preview.selections).toEqual([{ selected: 'elk', verified: true }, { selected: 'agentic', verified: true }])
+    expect(preview.promoted).toMatchObject({ requested: 'agentic', selected: 'agentic' })
+    expect(preview.fallback).toMatchObject({ requested: 'agentic', selected: 'elk', fallback: 'elk' })
+    // The self-contained module has its own compression path. Exercise every
+    // registered family through that emitted worker against the source renderer.
+    const styles = [undefined, 'hand-drawn', 'watercolor'] as const
+    const examples = BUILTIN_FAMILY_METADATA.flatMap(family => styles.map(style => ({
+      id: family.id, source: family.example, options: { security: 'strict' as const, embedFontImport: false, ...(style ? { style } : {}) },
+    })))
+    const parity = await standalone.evaluate(async examples => {
+      const results = []
+      for (const example of examples) {
+        const artifact = await (globalThis as any).__mermaid.renderMermaidSVGWithReceipt(example.source, example.options)
+        results.push({ id: example.id, style: example.options.style, svg: artifact.svg, receipt: artifact.receipt, verification: artifact.verification })
+      }
+      return results
+    }, examples)
+    // One family's styles fit the existing child's bounded output buffer.
+    // Every family remains enrolled; only process boundaries differ.
+    const expected: Awaited<ReturnType<typeof sourcePreviews>> = []
+    for (let offset = 0; offset < examples.length; offset += styles.length) expected.push(...await sourcePreviews(examples.slice(offset, offset + styles.length)))
+    expect(parity.map(result => [result.id, result.style])).toEqual(examples.map(example => [example.id, example.options.style]))
+    expect(parity).toHaveLength(expected.length)
+    for (let index = 0; index < expected.length; index++) {
+      const label = `${examples[index]!.id}, ${examples[index]!.options.style ?? 'default'}`
+      expect(parity[index]!.svg, label).toBe(expected[index]!.svg)
+      expect(parity[index]!.receipt, label).toEqual(expected[index]!.receipt)
+      expect(parity[index]!.verification, label).toEqual(expected[index]!.verification)
+    }
+    await standalone.locator('#code-editor').fill('flowchart LR\nSecond --> Verified')
+    await standalone.waitForFunction(() => document.getElementById('preview-inner')?.textContent?.includes('Second') && document.getElementById('status-text')?.textContent === 'OK')
+    expect(standalone.workers()).toEqual([worker])
+    expect(await standalone.locator('#render-time').textContent()).toContain('Rendered and verified')
+    // The first Blob URL has already been revoked. Recovery must create a
+    // fresh URL from the retained module, not reuse that dead URL.
+    const stopped = new Promise<void>(done => worker.once('close', () => done()))
+    await worker.evaluate(() => { setTimeout(() => { throw new Error('intentional worker crash') }, 0) })
+    await stopped
+    const restarted = standalone.waitForEvent('worker')
+    await standalone.locator('#code-editor').fill('flowchart LR\nRecovered --> Verified')
+    const replacement = await restarted
+    await standalone.waitForFunction(() => document.getElementById('preview-inner')?.textContent?.includes('Recovered') && document.getElementById('status-text')?.textContent === 'OK')
+    expect(replacement.url()).toStartWith('blob:')
+    expect(replacement.url()).not.toBe(worker.url())
+    expect(standalone.workers()).toEqual([replacement])
+
+    await replacement.evaluate(() => {
+      const host = globalThis as any, original = host.onmessage
+      host.__exportOperations = []
+      host.onmessage = (event: MessageEvent) => {
+        if (event.data.operation) host.__exportOperations.push(event.data.operation)
+        return original(event)
+      }
+    })
+    const text = await standalone.evaluate(async () => {
+      const api = (window as any).__mermaid
+      const source = 'flowchart LR\nRecovered --> Verified'
+      const [ascii, unicode] = await Promise.all([
+        api.renderMermaidASCIIWithReceipt(source, { colorMode: 'none', graphLayout: { backend: 'agentic' } }),
+        api.renderMermaidUnicodeWithReceipt(source, { colorMode: 'none', graphLayout: { backend: 'agentic' } }),
+      ])
+      return {
+        ascii: ascii.text,
+        unicode: unicode.text,
+        asciiDecisions: ascii.receipt.layoutDecisions,
+        unicodeDecisions: unicode.receipt.layoutDecisions,
+      }
+    })
+    expect(text.ascii).toContain('Recovered')
+    expect(text.unicode).toContain('Verified')
+    for (const decisions of [text.asciiDecisions, text.unicodeDecisions]) expect(decisions).toEqual([
+      expect.objectContaining({ selected: 'agentic', role: 'companion' }),
+    ])
+    // Exercise the real Canvas/font/export path, which remains on the main thread.
+    await standalone.locator('#export-chevron-btn').click()
+    const downloaded = standalone.waitForEvent('download')
+    await standalone.locator('#export-png-btn').click()
+    const png = new Uint8Array(await Bun.file((await (await downloaded).path())!).arrayBuffer())
+    expect([...png.slice(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
+    expect(await replacement.evaluate(() => (globalThis as any).__exportOperations)).toEqual(['ascii', 'unicode', 'png'])
+    // The single-file worker uses complete eager families rather than hosted
+    // loaders. Check graphical and terminal hooks through that actual worker.
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      const artifacts = await standalone.evaluate(async source => {
+        const api = (window as any).__mermaid
+        return {
+          svg: await api.renderMermaidSVGWithReceipt(source),
+          ascii: await api.renderMermaidASCIIWithReceipt(source, { colorMode: 'none' }),
+        }
+      }, family.example)
+      const [expected] = await sourcePreviews([{ source: family.example, options: { security: 'strict', embedFontImport: false } }])
+      expect(artifacts.svg.svg, family.id).toBe(expected!.svg)
+      expect(artifacts.svg.receipt, family.id).toEqual(expected!.receipt)
+      expect(artifacts.svg.verification, family.id).toEqual(expected!.verification)
+      const ascii = renderMermaidASCIIWithReceipt(family.example, { colorMode: 'none', useAscii: true })
+      expect(artifacts.ascii.text, family.id).toBe(ascii.text)
+      expect(artifacts.ascii.receipt, family.id).toEqual(ascii.receipt)
+    }
+  } finally { await standalone.close() }
+})
+
 describe('browser: live editor integration', () => {
-  it('matches pinned Mermaid 11.16 browser-visible Pie entity labels', async () => {
-    const oraclePage = await browser.newPage()
+  it('browser DOM retains independently authored Pie entity labels', async () => {
+    const labelPage = await browser.newPage()
     try {
-      await oraclePage.setContent('<div id="oracle"></div>')
-      await oraclePage.addScriptTag({ path: join(ROOT, 'node_modules', 'mermaid', 'dist', 'mermaid.min.js') })
-      const sources = [
-        ...['&#35;', '&#65;', '&#128;', '&#x23;', '&#amp;', '&amp;'].map(ref => `pie\n  "A${ref}B" : 1`),
-        'pie\n  "A#60;br#62;B" : 1',
-        'pie\n  "A#60;b#62;X#60;/b#62;B" : 1',
-        'pie\n  "A&#60;b>B" : 1',
-        'pie\n  "A#\\35;B" : 1',
-        'pie\n  "A#copy;B" : 1',
-        'pie\n  "A#nbsp;B" : 1',
-        'pie\n  "A#unknown;B" : 1',
-        'pie\n  "A#constructor;B" : 1',
-        'pie\n  "A#__proto__;B" : 1',
-        'pie\n  "A#92;nB" : 1',
-        'pie\n  "A#92;rB" : 1',
-        'pie\n  "A#92;#114;B" : 1',
-        'pie\n  "A#92;XB" : 1',
-        'pie\n  "styleX:#35;" : 1',
-        'pie\n  "classDefX:#35;" : 1',
+      await labelPage.setContent('<div id="labels"></div>')
+      const fixtures = [
+        ...PIE_ENTITY_FIXTURES,
+        { sourceLabel: 'A#60;br#62;B', display: 'A<br>B' },
+        { sourceLabel: 'A#60;b#62;X#60;/b#62;B', display: 'A<b>X</b>B' },
+        { sourceLabel: 'A&#60;b>B', display: 'A&<b>B' },
+        { sourceLabel: 'A#\\35;B', display: 'A#35;B' },
+        { sourceLabel: 'A#92;nB', display: 'A\\nB' },
+        { sourceLabel: 'A#92;#114;B', display: 'A\\rB' },
+        { sourceLabel: 'styleX:#35;', display: 'styleX:#35' },
+        { sourceLabel: 'classDefX:#35;', display: 'classDefX:#35' },
       ]
-      for (const [index, source] of sources.entries()) {
-        const upstream = await oraclePage.evaluate(async ({ source, id }) => {
-          const mermaid = (globalThis as typeof globalThis & {
-            mermaid: { initialize(config: object): void; render(id: string, source: string): Promise<{ svg: string }> }
-          }).mermaid
-          mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' })
-          const wrapper = document.createElement('div')
-          wrapper.innerHTML = (await mermaid.render(id, source)).svg
-          return [...wrapper.querySelectorAll('text')].at(-1)?.textContent
-        }, { source, id: `pie-entity-${index}` })
-        const agentic = await oraclePage.evaluate(svg => {
-          const wrapper = document.createElement('div')
+      for (const { sourceLabel, display } of fixtures) {
+        const actual = await labelPage.evaluate(svg => {
+          const wrapper = document.getElementById('labels')!
           wrapper.innerHTML = svg
           return wrapper.querySelector('.pie-legend-text')?.textContent
-        }, renderMermaidSVG(source))
-        if (upstream === undefined || upstream === null) throw new Error('Mermaid did not render a Pie legend')
-        expect(agentic?.startsWith(upstream)).toBe(true)
+        }, renderMermaidSVG(`pie\n  "${sourceLabel}" : 1\n`))
+        expect(actual, sourceLabel).toBe(`${display} (100.0%)`)
       }
     } finally {
-      await oraclePage.close()
+      await labelPage.close()
     }
   })
 
@@ -372,6 +620,7 @@ describe('browser: live editor integration', () => {
           remaining: viewBox.x + viewBox.width - box.x - box.width,
         }
       })
+      expect(await page.locator('.pie-legend-text').first().textContent()).toContain(label)
       expect(bounds.textRight).toBeLessThanOrEqual(bounds.canvasRight)
       expect(bounds.remaining).toBeGreaterThanOrEqual(1)
     }
@@ -698,7 +947,10 @@ pie showData
     await gotoApp(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
 
-    const cases = [
+    const cases: Array<
+      | { source: string; markers: string[] }
+      | { example: string; header: string; label: string; editedLabel: string; markers: string[] }
+    > = [
       {
         source: `architecture-beta
   group app(cloud)[Application]
@@ -731,10 +983,27 @@ pie showData
   line [120, 210, 200]`,
         markers: ['Editor Sales', 'xychart-bar', 'xychart-line'],
       },
+      { example: 'packet-basic', header: 'packet', label: 'Source port', editedLabel: 'AuditPort', markers: ['UDP datagram', 'Source port', 'data-field-id="field-0"'] },
+      { example: 'kanban-basic', header: 'kanban', label: 'Packet family', editedLabel: 'AuditPacket', markers: ['Packet family', 'In progress', 'data-parent="doing"'] },
+      { example: 'requirement-basic', header: 'requirementDiagram', label: 'Requests retain authored meaning', editedLabel: 'AuditMeaning', markers: ['data-id="reliable"', 'data-id="suite"', 'verifies'] },
+      { example: 'block-basic', header: 'block', label: 'Client', editedLabel: 'AuditClient', markers: ['Client', 'Primary', 'data-parent="data"'] },
+      { example: 'treemap-basic', header: 'treemap', label: 'Engineering', editedLabel: 'AuditEngineering', markers: ['Product investment', 'Engineering', 'Research'] },
+      { example: 'ishikawa-basic', header: 'ishikawa', label: 'Delayed release', editedLabel: 'AuditRelease', markers: ['Delayed release', 'Cold caches', 'Unstable test data'] },
     ]
 
     for (const testCase of cases) {
-      await page.fill('#code-editor', testCase.source)
+      if ('example' in testCase) {
+        // Start blank so selecting the next template cannot overwrite an
+        // authored draft or depend on a confirmation dialog from a prior case.
+        await page.fill('#code-editor', '')
+        await page.click('#examples-sidebar-btn')
+        await page.click(`#examples-sidebar .example-dropdown-item[data-example="${testCase.example}"]`)
+        const source = await page.inputValue('#code-editor')
+        expect(source).toStartWith(testCase.header)
+        expect(source).toContain(testCase.label)
+      } else {
+        await page.fill('#code-editor', testCase.source)
+      }
       await page.waitForFunction(
         (markers: string[]) => {
           const html = document.querySelector('#preview-inner svg')?.outerHTML ?? ''
@@ -750,10 +1019,32 @@ pie showData
         },
         testCase.markers,
       )).toBe(true)
+      if ('example' in testCase) {
+        await waitForEditorRender(60_000)
+        const digest = await page.locator('#preview-inner').getAttribute('data-shared-request-digest')
+        expect(digest).toBeTruthy()
+        await page.fill('#code-editor', (await page.inputValue('#code-editor')).replace(testCase.label, testCase.editedLabel))
+        await page.waitForFunction(({ digest, label }) => {
+          const preview = document.querySelector<HTMLElement>('#preview-inner')
+          return document.getElementById('status-text')?.textContent === 'OK'
+            && Boolean(preview?.dataset.sharedRequestDigest)
+            && preview?.dataset.sharedRequestDigest !== digest
+            && preview?.querySelector('svg')?.textContent?.includes(label)
+        }, { digest, label: testCase.editedLabel }, { timeout: 60_000 })
+        await page.click('#format-ascii')
+        await page.waitForFunction(label => {
+          const preview = document.querySelector<HTMLElement>('#preview-inner')
+          return document.getElementById('ascii-output')?.textContent?.includes(label)
+            && Boolean(preview?.dataset.asciiSharedRequestDigest)
+            && preview?.dataset.asciiSharedRequestDigest === preview?.dataset.sharedRequestDigest
+        }, testCase.editedLabel, { timeout: 60_000 })
+        await page.click('#format-diagram')
+      }
     }
   }, 120_000)
 
   it('uses local theme registry entries in the editor theme dropdown', async () => {
+    await page.evaluate(() => { localStorage.removeItem('bm-editor-palette') })
     await gotoApp(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
     await page.fill('#code-editor', 'graph TD\n  A[Theme] --> B[Render]')
@@ -765,6 +1056,7 @@ pie showData
     )
     expect(typeof salmonBg).toBe('string')
     if (typeof salmonBg !== 'string') throw new Error('salmon style must define a background colour')
+    expect(await page.locator('#preview-inner svg').getAttribute('style')).not.toContain('--bg: ' + salmonBg)
 
     await page.click('#theme-dropdown-btn')
     await page.click('.theme-dropdown-item[data-theme="salmon"]')
@@ -860,6 +1152,7 @@ pie showData
 
     const before = await page.locator('#dark-light-btn').boundingBox()
     const themeBefore = await page.locator('#theme-dropdown-btn').boundingBox()
+    const chromeBefore = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())
     await page.click('#dark-light-btn')
     const after = await page.locator('#dark-light-btn').boundingBox()
     const themeAfter = await page.locator('#theme-dropdown-btn').boundingBox()
@@ -872,6 +1165,7 @@ pie showData
     expect(after!.height).toBe(before!.height)
     expect(themeAfter!.width).toBe(themeBefore!.width)
     expect(themeAfter!.height).toBe(themeBefore!.height)
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).not.toBe(chromeBefore)
   }, 60_000)
 
   it('loads source/config examples without overriding the selected theme', async () => {

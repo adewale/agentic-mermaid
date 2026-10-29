@@ -8,6 +8,7 @@
 import {
   FAMILY_CAPABILITY_COLUMNS,
   FAMILY_CONFORMANCE_VERSION,
+  FamilyConformanceError,
   getFamilyConformanceReport,
   stageFamilyCandidateForConformance,
   type FamilyCapability,
@@ -186,7 +187,7 @@ function terminalWitness(descriptor: FamilyDescriptor): unknown {
 function verifyWitness(descriptor: FamilyDescriptor): unknown {
   const verified = verifyMermaid(descriptor.example, { renderOptions: WITNESS_RENDER_OPTIONS })
   if (!verified.ok) {
-    const diagnostics = verified.warnings.map(warning => warning.code === 'RENDER_FAILED'
+    const diagnostics = verified.warnings.map(warning => warning.code === 'RENDER_FAILED' || warning.code === 'INTERNAL_ERROR'
       ? `${warning.code}: ${warning.reason}`
       : warning.code)
     throw new Error(`canonical example failed verification: ${diagnostics.join(', ')}`)
@@ -262,19 +263,6 @@ function runFamilyConformance(descriptor: FamilyDescriptor): FamilyConformanceRe
   })
 }
 
-export class FamilyConformanceError extends Error {
-  readonly report: FamilyConformanceReport
-
-  constructor(report: FamilyConformanceReport) {
-    const failures = report.capabilities
-      .filter(result => result.status === 'failed')
-      .map(result => `${result.capability}: ${result.diagnostic}`)
-    super(`Family "${report.familyId}" failed executable registration conformance: ${failures.join('; ')}`)
-    this.name = 'FamilyConformanceError'
-    this.report = report
-  }
-}
-
 /** Register a namespaced extension only after its canonical example proves
  * every native declaration twice against the public execution contracts. */
 export function registerFamily(descriptor: FamilyDescriptor): () => void {
@@ -292,4 +280,4 @@ export function registerFamily(descriptor: FamilyDescriptor): () => void {
   }
 }
 
-export { getFamilyConformanceReport }
+export { FamilyConformanceError, getFamilyConformanceReport }

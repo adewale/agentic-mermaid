@@ -20,7 +20,7 @@ const EXCLUDED = [
 
 /** Repository-relative paths of every tracked, maintained Markdown file. */
 export function maintainedMarkdownFiles(): string[] {
-  const tracked = execFileSync('git', ['ls-files', '*.md'], { cwd: REPO_ROOT, encoding: 'utf8' })
+  const tracked = execFileSync('git', ['ls-files', '*.md'], { timeout: 20_000, killSignal: 'SIGKILL', cwd: REPO_ROOT, encoding: 'utf8' })
     .split('\n')
     .filter(Boolean)
   return tracked.filter(path => !EXCLUDED.some(pattern => pattern.test(path))).sort()

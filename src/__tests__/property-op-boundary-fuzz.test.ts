@@ -14,6 +14,7 @@
 // Seed is pinned globally (fc-seed.preload.ts).
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { validateOp, applyOps, mutateChecked, hasOpSchema, describeOps } from '../agent/core.ts'
 import { createMermaid } from '../agent/create.ts'
@@ -71,6 +72,7 @@ const valueForType = (type: string): fc.Arbitrary<unknown> => {
     case 'boolean | null': return fc.option(fc.boolean(), { nil: null })
     case 'string[]': return fc.array(fc.constantFrom(...ID_VOCAB), { maxLength: 2 })
     case 'number[]': return fc.array(fc.integer({ min: 0, max: 3 }), { maxLength: 2 })
+    case 'object[]': return fc.array(fc.dictionary(fc.constantFrom('id', 'label', 'value'), fc.constantFrom(...ID_VOCAB), { maxKeys: 3 }), { maxLength: 2 })
     case 'object | null': return fc.constant(null)
     default: throw new Error(`op-boundary fuzz: no generator for field type ${type}`)
   }
@@ -114,13 +116,13 @@ describe('op-boundary fuzz: validateOp', () => {
         // diagram. A shape rejection must never itself echo a bare "undefined".
         expect(r.message).not.toMatch(/\bclass undefined\b|\bnode undefined\b/)
       }
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 })
 
 describe('op-boundary fuzz: applyOps / mutateChecked', () => {
-  it('applyOps never throws, returns a well-formed envelope, and never silently mangles', () => {
-    // Vacuity counters: the success branch (the no-silent-mangle check) and the
+  it('applyOps is total, returns an envelope, and agrees with the shape validator', () => {
+    // Vacuity counters: the success branch (shape-gate agreement) and the
     // near-miss rejection must both actually run at the pinned seed.
     let appliedSeen = 0
     let shapeRejectedSeen = 0
@@ -140,7 +142,7 @@ describe('op-boundary fuzz: applyOps / mutateChecked', () => {
         expect(typeof env.error.message).toBe('string')
         expect(env.error.message.length).toBeGreaterThan(0)
       }
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
     expect(appliedSeen).toBeGreaterThan(0)
     expect(shapeRejectedSeen).toBeGreaterThan(0)
   })
@@ -151,13 +153,13 @@ describe('op-boundary fuzz: applyOps / mutateChecked', () => {
       const r = mutateChecked(d, op)
       expect(typeof r.ok).toBe('boolean')
       if (!r.ok) expect(typeof r.error.message).toBe('string')
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 
   it('applyOps is deterministic for identical input', () => {
     fc.assert(fc.property(familyArb, fc.array(opArb, { maxLength: 4 }), (family, ops) => {
       expect(applyOps({ family, ops })).toEqual(applyOps({ family, ops }))
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 })
 
@@ -259,6 +261,6 @@ describe('op-boundary fuzz: hosted mutate/build handlers', () => {
         expect(typeof err.code).toBe('number')
         expect(typeof err.message).toBe('string')
       }
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   }, 60_000)
 })

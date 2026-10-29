@@ -5,6 +5,11 @@ import { describe, it, expect } from 'bun:test'
 import { preprocessMermaidLines } from '../mermaid-source.ts'
 import { parseJourneyDiagram } from '../journey/parser.ts'
 import { layoutJourneyDiagram, resolveJourneyRequestAppearance } from '../journey/layout.ts'
+import { preparedDisplayTextValue } from '../shared/display-text.ts'
+import { lowerJourneyScene } from '../journey/renderer.ts'
+import { visitSceneNodes } from '../scene/walk.ts'
+import type { SceneNode } from '../scene/ir.ts'
+import { validateSceneDoc } from '../scene/scene-validation.ts'
 
 function layout(text: string) {
   const parsed = parseJourneyDiagram(preprocessMermaidLines(text))
@@ -12,6 +17,26 @@ function layout(text: string) {
 }
 
 describe('layoutJourneyDiagram', () => {
+  it('keeps literal encoded markup and formatted actor identities connected to their own legend entries', () => {
+    const source = 'journey\nFirst: 3: &lt;b&gt;Alice&lt;/b&gt;\nSecond: 4: <b>Alice</b>\nThird: 5: &lt;b&gt;Alice&lt;/b&gt;, <b>Alice</b>\nFourth: 3: &lt;b&gt;Alice&lt;/b&gt;, &lt;b&gt;Alice&lt;/b&gt;'
+    const parsed = parseJourneyDiagram(source.split('\n'))
+    const appearance = resolveJourneyRequestAppearance()
+    const diagram = layoutJourneyDiagram(parsed, appearance)
+    expect(diagram.actors.map(actor => preparedDisplayTextValue(actor.block!.prepared))).toEqual(['<b>Alice</b>', 'Alice'])
+    expect(diagram.sections[0]!.tasks.map(task => task.actorDots.map(dot => dot.colorIndex))).toEqual([[0], [1], [0, 1], [0, 0]])
+    const scene = lowerJourneyScene({ positioned: diagram, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {}, familyAppearance: { ...appearance } } })
+    const actors: SceneNode[] = []
+    const identities: string[] = []
+    visitSceneNodes(scene.parts, node => {
+      identities.push(node.id)
+      if (node.role === 'actor') actors.push(node)
+    })
+    expect(actors).toHaveLength(8)
+    expect(new Set(actors.map(actor => actor.channels?.category))).toEqual(new Set(['<b>Alice</b>']))
+    expect(new Set(identities).size).toBe(identities.length)
+    expect(validateSceneDoc(scene, { mode: 'internal' }).diagnostics.filter(diagnostic => diagnostic.code === 'SCENE_ID')).toEqual([])
+  })
+
   it('places named sections side by side without overlap', () => {
     const diagram = layout(`journey
       title My working day

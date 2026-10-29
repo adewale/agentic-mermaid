@@ -10,6 +10,8 @@
 
 import { CSS_NAMED_COLORS } from './css-named-colors.ts'
 
+const HEX_COLOR = /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
+
 export type RgbaColor = [red: number, green: number, blue: number, alpha: number]
 
 /**
@@ -47,14 +49,13 @@ export function toHex(r: number, g: number, b: number): string {
  * `color-mix(in srgb, fg pct%, bg)`.
  */
 export function mixHex(fg: string, bg: string, pct: number): string {
-  const [r1, g1, b1] = parseHex(fg)
-  const [r2, g2, b2] = parseHex(bg)
+  return toHex(...mixedChannels(parseHex(fg), parseHex(bg), pct))
+}
+
+function mixedChannels(fg: readonly number[], bg: readonly number[], pct: number, result: [number, number, number] = [0, 0, 0]): [number, number, number] {
   const p = pct / 100
-  return toHex(
-    r1 * p + r2 * (1 - p),
-    g1 * p + g2 * (1 - p),
-    b1 * p + b2 * (1 - p),
-  )
+  for (let index = 0; index < 3; index++) result[index] = Math.round(Math.max(0, Math.min(255, fg[index]! * p + bg[index]! * (1 - p))))
+  return result
 }
 
 /** sRGB channel (0..1) → linear light (the WCAG 2.x / CSS Color 4 transfer). */
@@ -109,9 +110,15 @@ export function ensureContrast(
     : blackRatio >= whiteRatio ? '#000000' : '#ffffff'
   if ((contrastRatio(fallback, background) ?? 0) < minimum) return candidate
 
+  const backgroundLuminance = relativeLuminance(background)!
+  const from = parseHex(fallback)
+  const to = parseHex(candidate)
+  const mixed: [number, number, number] = [0, 0, 0]
   for (let fallbackPart = 1; fallbackPart <= 1000; fallbackPart++) {
-    const mixed = mixHex(fallback, candidate, fallbackPart / 10)
-    if ((contrastRatio(mixed, background) ?? 0) >= minimum) return mixed
+    // Match mixHex's serialized channels before measuring contrast. Testing
+    // unrounded mixes would change the earliest passing trial and its color.
+    mixedChannels(from, to, fallbackPart / 10, mixed)
+    if (luminanceContrastRatio(srgbRelativeLuminance(mixed), backgroundLuminance) >= minimum) return toHex(...mixed)
   }
   return fallback
 }
@@ -133,7 +140,7 @@ export function legibleInk(preferred: string, surface: string, minimum: number =
 
 /** CSS hex form: #RGB, #RGBA, #RRGGBB, or #RRGGBBAA. */
 export function isHexColor(s: string): boolean {
-  return /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(s)
+  return HEX_COLOR.test(s)
 }
 
 /** Strict 6-digit hex form (#RRGGBB) — what the chart palettes require. */
@@ -159,7 +166,7 @@ export function tryParseCssColor(color: string): RgbaColor | null {
   }
   if (value === 'transparent') return [0, 0, 0, 0]
 
-  const hex = value.match(/^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i)?.[1]
+  const hex = isHexColor(value) ? value.slice(1) : undefined
   if (hex) {
     const expanded = hex.length <= 4 ? [...hex].map(char => char + char).join('') : hex
     return [

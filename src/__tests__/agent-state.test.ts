@@ -11,8 +11,11 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
+import { synthesizeFromGraph, renderMermaidASCII, layoutMermaidWithReceipt } from '../agent/core.ts'
+import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { mutate } from '../agent/mutate.ts'
 import { graphGeometryWarnings, verifyMermaid } from '../agent/verify.ts'
 import { positionFamilyArtifact } from '../agent/family-layouts.ts'
@@ -54,6 +57,19 @@ function expectErr(d: StateValidDiagram, op: StateMutationOp, code: MutationErro
 
 // ---------------------------------------------------------------------------
 describe('state structured parse', () => {
+  test('class assignment to a hyphenated identity stays source-only and typed assignment fails atomically', () => {
+    const source = 'stateDiagram-v2\n-:::-'
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value)).toBe(source + '\n')
+    expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'state_class_target' }))
+    const d = state('stateDiagram-v2\nstate "Working" as in-progress')
+    const before = structuredClone(d)
+    expectErr(d, { kind: 'set_state_class', id: 'in-progress', className: 'active' }, 'INVALID_OP')
+    expect(d).toEqual(before)
+  })
+
   test('models states, labels, transitions, and [*] pseudostates', () => {
     const d = state()
     expect(d.kind).toBe('state')
@@ -111,6 +127,38 @@ describe('state structured parse', () => {
     expect(state(serializeMermaid(d)).body).toEqual(d.body)
   })
 
+  test('a later composite definition retains its first referenced scope through editing and writing', () => {
+    let d = state('stateDiagram-v2\nstate Outer {\n A --> Inner\n}\nstate Inner {\n B --> C\n}')
+    const outer = d.body.states.find(node => node.id === 'Outer')!
+    expect(d.body.states.map(node => node.id)).toEqual(['Outer'])
+    expect(outer.states?.find(node => node.id === 'Inner')?.states?.map(node => node.id)).toEqual(['B', 'C'])
+    d = apply(d, { kind: 'set_direction', state: 'Inner', direction: 'LR' })
+    const written = serializeMermaid(d)
+    expect(state(written).body).toEqual(d.body)
+    const graph = parseLegacy(written)
+    expect(graph.subgraphs[0]?.children.map(group => group.id)).toEqual(['Inner'])
+  })
+
+  test('a cross-scope reference never creates a second editable identity', () => {
+    const d = state('stateDiagram-v2\nstate First { Shared --> A }\nstate Second { Shared --> B }')
+    const first = d.body.states.find(node => node.id === 'First')!
+    const second = d.body.states.find(node => node.id === 'Second')!
+    expect(first.states?.map(node => node.id)).toEqual(['Shared', 'A'])
+    expect(second.states?.map(node => node.id)).toEqual(['B'])
+    expect(second.transitions).toEqual([{ from: 'Shared', to: 'B' }])
+    expect(state(serializeMermaid(d)).body).toEqual(d.body)
+  })
+
+  test('self-containing composite identities are refused without dropping their source', () => {
+    const source = 'stateDiagram-v2\nstate A {\n state A { B }\n C\n}\n'
+    expect(() => parseLegacy(source)).toThrow('cannot contain itself')
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value)).toBe(source)
+  })
+
   test('top-level direction is modeled', () => {
     const d = state(`stateDiagram-v2
   direction LR
@@ -150,6 +198,52 @@ describe('state round-trip identity', () => {
       expect(s1.startsWith('stateDiagram-v2')).toBe(true)
     })
   }
+
+  // Layout follows the order a scope creates its states in, so the writer
+  // keeps that order, and `[*]` ids are numbered per composite so a block
+  // written elsewhere cannot renumber them.
+  test.each([
+    ['[*] in composites between top-level transitions', '[*] --> First\nstate First {\n[*] --> second\nsecond --> [*]\n}\n[*] --> Named\nstate "Another" as Named {\n[*] --> inner\ninner --> [*]\n}'],
+    ['a description after the transition that creates the state', '[*] --> A\nA --> B\nA --> C\nC: described later'],
+    ['standalone declaration before contextual start', 'state "Idle" as A\nstate "Other" as D\n[*] --> A\nA --> B'],
+    ['standalone declaration after contextual start', 'state "Idle" as A\n[*] --> A\nstate "Other" as D\nA --> B'],
+    ['nested declarations around contextual start', 'state P {\nstate "Idle" as A\nstate "Other" as D\n[*] --> A\nA --> B\n}'],
+    ['note-created state before contextual start', 'note right of D: Note\n[*] --> A\nA --> B'],
+    ['a bare declaration after transitions', 'A --> B\nC'],
+    ['a state a class shorthand declares after transitions', 'A --> B\nA --> D\nC:::hot\nclassDef hot fill:#f00'],
+    ['a composite block after its siblings', 'A --> B\nA --> C\nstate C {\nx --> y\n}'],
+    ['labels declared before use around one between', 'state "s" as S\nstate "x" as X\nstate "z" as Z\nS --> Z'],
+    ['a fork declared after use', 'A --> f\nstate f <<fork>>\nf --> B\nf --> C'],
+    ['[*] in concurrency regions', '[*] --> P\nstate P {\n[*] --> a\na --> [*]\n--\n[*] --> b\nb --> [*]\n}\nP --> [*]'],
+    ['cross-scope leaves after their frames', 'state One {\nA --> B\n}\nstate Two {\nC --> D\n}\nB --> C : handoff'],
+    ['a fresh root endpoint before its target frame', 'X --> A : enter\nstate Frame {\nA --> B\n}'],
+    ['a fresh root endpoint after its target frame', 'state Frame {\nA --> B\n}\nX --> A : enter'],
+    ['an existing root endpoint before its target frame', 'X --> Y\nY --> A\nstate Frame {\nA --> B\n}'],
+    ['an existing root endpoint after its target frame', 'X --> Y\nstate Frame {\nA --> B\n}\nY --> A'],
+  ])('%s: the parsed and the written diagram lay out as the source does', (_name, body) => {
+    const source = `stateDiagram-v2\n${body}`
+    const geometry = (input: Parameters<typeof layoutMermaidWithReceipt>[0]) => {
+      const { layout } = layoutMermaidWithReceipt(input)
+      const box = (item: { id: string; x: number; y: number; w: number; h: number }) => `${item.id} ${item.x} ${item.y} ${item.w} ${item.h}`
+      return {
+        bounds: layout.bounds,
+        nodes: layout.nodes.map(box).sort(),
+        edges: layout.edges.map(edge => `${edge.id} ${edge.path.join(' ')}`).sort(),
+        groups: layout.groups.map(box).sort(),
+      }
+    }
+    const parsed = state(source)
+    const drawn = geometry(source)
+    expect(geometry(parsed)).toEqual(drawn)
+    expect(geometry(serializeMermaid(parsed))).toEqual(drawn)
+    for (const backend of ['elk', 'agentic'] as const) {
+      const options = { graphLayout: { backend } }
+      const original = renderMermaidSVGWithReceipt(source, options)
+      const roundtrip = renderMermaidSVGWithReceipt(parsed, options)
+      expect(roundtrip.svg).toBe(original.svg)
+      expect(roundtrip.receipt.layoutCertification).toEqual(original.receipt.layoutCertification)
+    }
+  })
 
   test('standalone alias with label equal to id stays renderable', () => {
     const d = state(`stateDiagram-v2
@@ -260,8 +354,14 @@ describe('state mutation — happy paths', () => {
   test('set_state_label sets and clears', () => {
     let d = apply(state(), { kind: 'set_state_label', id: 'Idle', label: 'Waiting Room' })
     expect(d.body.states.find(s => s.id === 'Idle')?.label).toBe('Waiting Room')
+    const labeled = renderMermaidSVGWithReceipt(d)
+    expect(labeled.svg).toContain('Waiting Room')
+    expect(labeled.svg).toBe(renderMermaidSVGWithReceipt(serializeMermaid(d)).svg)
     d = apply(d, { kind: 'set_state_label', id: 'Idle', label: null })
     expect(d.body.states.find(s => s.id === 'Idle')?.label).toBeUndefined()
+    const cleared = renderMermaidSVGWithReceipt(d)
+    expect(cleared.svg).not.toContain('Waiting Room')
+    expect(cleared.svg).toBe(renderMermaidSVGWithReceipt(serializeMermaid(d)).svg)
   })
 
   test('remove_transition by from/to and by index', () => {
@@ -399,9 +499,12 @@ describe('state verify — geometric Tier 2 projection (parity with flowchart)',
     if (!r.ok) return
     const v = verifyMermaid(r.value)
     expect(v.layout.nodes.length).toBeGreaterThan(0)
-    const flat = JSON.stringify(v.layout)
-    expect(flat).not.toContain('NaN')
-    expect(flat).not.toContain('Infinity')
+    const pending: unknown[] = [v.layout]
+    while (pending.length) {
+      const value = pending.pop()
+      if (typeof value === 'number') expect(Number.isFinite(value)).toBe(true)
+      else if (value && typeof value === 'object') pending.push(...Object.values(value))
+    }
   })
 
   test('composite state ids are valid transition endpoints', () => {
@@ -430,7 +533,7 @@ describe('state verify — geometric Tier 2 projection (parity with flowchart)',
     // themselves are proven on a doctored state layout below.
     const body = '  [*] --> A\n  A --> B\n  A --> B\n  C --> D\n  D --> C'
     const expected: LayoutWarning[] = [
-      { code: 'DUPLICATE_EDGE', edge: 'A->B#2', duplicateOf: 'A->B#1', from: 'A', to: 'B' },
+      { code: 'DUPLICATE_EDGE', edge: 'A->B#1', duplicateOf: 'A->B#0', from: 'A', to: 'B' },
       { code: 'UNREACHABLE_NODE', node: 'C' },
       { code: 'UNREACHABLE_NODE', node: 'D' },
     ]
@@ -538,7 +641,7 @@ describe('state fast-check round-trip property', () => {
         states: states.map(id => ({ id, label: `${id} label`, children: null })),
         transitions: transitions.map((t, i) => ({ ...t, label: `step ${i}` })),
       })
-    }), { numRuns: 200 })
+    }), fcParameters({ numRuns: 200 }))
   })
 
   test('generated nested composites (depth ≤ 2) round-trip stably', () => {
@@ -567,7 +670,7 @@ describe('state fast-check round-trip property', () => {
         }],
         transitions: [],
       })
-    }), { numRuns: 100 })
+    }), fcParameters({ numRuns: 100 }))
   })
 })
 
@@ -591,7 +694,7 @@ describe('state describe (prose + AX tree)', () => {
     const tree = describeMermaidTree(state())
     expect({ kind: tree.kind, nodes: tree.nodes, edges: tree.edges }).toEqual({
       kind: 'state',
-      nodes: [{ id: 'Active', label: 'In Progress' }, { id: 'Idle', label: 'Idle' }],
+      nodes: [{ id: 'Idle', label: 'Idle' }, { id: 'Active', label: 'In Progress' }],
       edges: [
         { from: '[*]', to: 'Idle' },
         { from: 'Idle', to: 'Active', label: 'start' },
@@ -600,4 +703,46 @@ describe('state describe (prose + AX tree)', () => {
       ],
     })
   })
+})
+
+
+test('State declaration timing survives JSON, unrelated edits and scope schedule rebasing', () => {
+  const before = 'stateDiagram-v2\nstate "Idle" as A\nstate "Other" as D\n[*] --> A\nA --> B'
+  const after = 'stateDiagram-v2\nstate "Idle" as A\n[*] --> A\nstate "Other" as D\nA --> B'
+  const first = state(before), second = state(after)
+  expect(first.body.states.find(node => node.id === 'D')?.declarationBeforeTransition).toBe(0)
+  expect(second.body.states.find(node => node.id === 'D')?.declarationBeforeTransition).toBe(1)
+  expect(serializeMermaid(first)).not.toBe(serializeMermaid(second))
+  for (const [source, parsed] of [[before, first], [after, second]] as const) {
+    expect(renderMermaidASCII(parsed)).toBe(renderMermaidASCII(source))
+    const json = synthesizeFromGraph({ kind: 'state', body: JSON.parse(JSON.stringify(parsed.body)) })
+    if (!json.ok) throw new Error('Expected declaration provenance in JSON')
+    expect(serializeMermaid(json.value)).toBe(serializeMermaid(parsed))
+    const renamed = mutate(parsed, { kind: 'rename_state', from: 'B', to: 'C' })
+    if (!renamed.ok) throw new Error('Expected unrelated rename')
+    const written = serializeMermaid(renamed.value)
+    expect(renderMermaidASCII(renamed.value)).toBe(renderMermaidASCII(source.replace('A --> B', 'A --> C')))
+    expect([...parseLegacy(written).nodes.keys()]).toEqual([...parseLegacy(source.replace('A --> B', 'A --> C')).nodes.keys()])
+  }
+  const removed = mutate(second, { kind: 'remove_transition', index: 0 })
+  if (!removed.ok || removed.value.body.kind !== 'state') throw new Error('Expected transition removal')
+  expect(removed.value.body.states.find(node => node.id === 'D')?.declarationBeforeTransition).toBe(0)
+  const nested = state('stateDiagram-v2\nstate P {\n[*] --> A\nD\nA --> B\n}\n[*] --> X\nZ')
+  const dissolved = mutate(nested, { kind: 'dissolve_composite', id: 'P' })
+  if (!dissolved.ok || dissolved.value.body.kind !== 'state') throw new Error('Expected composite schedule hoist')
+  const text = serializeMermaid(dissolved.value)
+  expect(text.indexOf('[*] --> A')).toBeLessThan(text.indexOf('  D\n'))
+  expect(text.indexOf('  D\n')).toBeLessThan(text.indexOf('A --> B'))
+  expect(text.indexOf('A --> B')).toBeLessThan(text.indexOf('[*] --> X'))
+  expect(state(text).body).toEqual(dissolved.value.body)
+  const moved = mutate(nested, { kind: 'move_state', id: 'Z', parent: 'P' })
+  if (!moved.ok || moved.value.body.kind !== 'state') throw new Error('Expected scoped append')
+  expect(moved.value.body.states.find(node => node.id === 'P')?.states?.find(node => node.id === 'Z')?.declarationBeforeTransition).toBe(2)
+  const implicit = state('stateDiagram-v2\n[*] --> A\nA --> B')
+  const labeled = mutate(implicit, { kind: 'set_state_label', id: 'A', label: 'A' })
+  if (!labeled.ok) throw new Error('Expected implicit-state label edit')
+  expect([...parseLegacy(serializeMermaid(labeled.value)).nodes.keys()]).toEqual([...parseLegacy(serializeMermaid(implicit)).nodes.keys()])
+  const invalid = JSON.parse(JSON.stringify(first.body))
+  invalid.states[0].declarationBeforeTransition = 99
+  expect(synthesizeFromGraph({ kind: 'state', body: invalid }).ok).toBe(false)
 })

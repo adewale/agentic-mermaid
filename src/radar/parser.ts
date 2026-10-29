@@ -6,7 +6,8 @@ import {
   requireClosedAccessibility,
   scanAccessibilityDirectives,
 } from '../shared/accessibility-directives.ts'
-import { stripTrailingComment } from '../shared/trailing-comment.ts'
+import { joinQuotedTextLines, quotedTextEnds, stripTrailingComment, type QuotedTextRule } from '../shared/trailing-comment.ts'
+import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 
 // ============================================================================
 // Radar chart parser
@@ -24,7 +25,7 @@ export const MAX_RADAR_AXES = 256
 
 const HEADER_RE = /^radar-beta(?:[\t ]*:)?(?=$|\s)/i
 const TITLE_RE = /^title(?:[\t ]+(.*))?$/i
-const AXIS_RE = /^axis\s+(.+)$/i
+const AXIS_RE = /^axis\s+([\s\S]+)$/i
 const CURVE_RE = /^curve\s+([\s\S]+)$/i
 const OPTION_RE = /^(showLegend|ticks|max|min|graticule)\b(.*)$/i
 const NUMBER_RE = /^(?:0|[1-9]\d*|\d+\.\d+|0\.\d+)$/
@@ -33,6 +34,14 @@ const QUOTED_TOKEN = String.raw`(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')`
 const ID_LABEL_RE = new RegExp(String.raw`^(${ID_TOKEN})\s*(?:\[\s*(${QUOTED_TOKEN})\s*\])?$`)
 const CURVE_ITEM_RE = new RegExp(String.raw`^(${ID_TOKEN})\s*(?:\[\s*(${QUOTED_TOKEN})\s*\])?\s*\{([\s\S]*)\}$`)
 const KEYED_ENTRY_RE = new RegExp(String.raw`^(${ID_TOKEN})(?:\s*:\s*|\s+)(.+)$`)
+/** A "…" or '…' label runs to its closing quote across line breaks; a title
+ * or accessibility directive runs to the end of its line. */
+const RADAR_QUOTED_TEXT: QuotedTextRule = { spanning: `"'`, wholeLine: line => /^(?:title|accTitle|accDescr)(?=[\s:{]|$)/i.test(line) }
+
+/** For each line, the last line of the statement that starts there. */
+export function radarStatementEnds(lines: readonly string[]): number[] {
+  return quotedTextEnds(lines, RADAR_QUOTED_TEXT)
+}
 
 export interface RadarParseOptions {
   /** YAML frontmatter title. An in-body `title` statement wins when present. */
@@ -119,7 +128,7 @@ function statementKeywordAt(source: string, index: number): string | undefined {
  * ordinary statements, while a following top-level keyword also starts a new
  * statement on the same line (`axis A,B curve x{1,2}`). Title/accessibility
  * terminals deliberately consume the remainder of their line as free text. */
-function bodyStatements(source: string): string[] {
+function bodyStatements(source: string, baseOffset: number): string[] {
   const out: string[] = []
   let i = 0
   while (i < source.length) {
@@ -131,7 +140,10 @@ function bodyStatements(source: string): string[] {
     if (keyword && /^(?:title|accTitle)$/i.test(keyword)) {
       while (i < source.length && source[i] !== '\n' && source[i] !== '\r') i++
       const statement = source.slice(start, i).trim()
-      if (statement) out.push(statement)
+      if (statement) {
+        out.push(statement)
+        if (parserObservationActive('radar')) observeParserStatement('radar', keyword!, statement, { offset: start + baseOffset, endOffset: i + baseOffset, unit: 'normalized' })
+      }
       continue
     }
 
@@ -147,11 +159,15 @@ function bodyStatements(source: string): string[] {
         if (close < 0) throw new Error(`Radar statement is missing a closing "}": "${source.slice(start).trim()}"`)
         i = close + 1
         out.push(source.slice(start, i).trim())
+        if (parserObservationActive('radar')) observeParserStatement('radar', keyword, out[out.length - 1]!, { offset: start + baseOffset, endOffset: i + baseOffset, unit: 'normalized' })
         continue
       }
       while (i < source.length && source[i] !== '\n' && source[i] !== '\r') i++
       const statement = source.slice(start, i).trim()
-      if (statement) out.push(statement)
+      if (statement) {
+        out.push(statement)
+        if (parserObservationActive('radar')) observeParserStatement('radar', keyword, statement, { offset: start + baseOffset, endOffset: i + baseOffset, unit: 'normalized' })
+      }
       continue
     }
 
@@ -189,7 +205,10 @@ function bodyStatements(source: string): string[] {
       throw new Error(`Radar statement has unbalanced quotes or delimiters: "${source.slice(start, i).trim()}"`)
     }
     const statement = source.slice(start, i).trim()
-    if (statement) out.push(statement)
+    if (statement) {
+      out.push(statement)
+      if (parserObservationActive('radar')) observeParserStatement('radar', keyword ?? 'unrecognized', statement, { offset: start + baseOffset, endOffset: i + baseOffset, unit: 'normalized' })
+    }
   }
   return out
 }
@@ -265,11 +284,15 @@ function parseCurveItem(item: string, axes: RadarAxis[]): RadarCurve {
     const axisId = keyed[1]!
     const value = parseRadarNumber(keyed[2]!, `curve "${id}" entry for "${axisId}"`)
     // Mermaid resolves duplicate keyed entries with Array.find: first wins.
-    if (!byAxis.has(axisId)) byAxis.set(axisId, value)
+    if (!byAxis.has(axisId)) {
+      byAxis.set(axisId, value)
+      if (parserObservationActive('radar')) observeParserMutation('radar', 'setCurveAxisValue', { curve: id, axis: axisId, value })
+    }
   }
   const values = axes.map(axis => {
     const value = byAxis.get(axis.id)
     if (value === undefined) throw new Error(`Radar curve "${id}" is missing an entry for axis "${axis.id}".`)
+    if (parserObservationActive('radar')) observeParserMutation('radar', 'resolveCurveAxisValue', { curve: id, axis: axis.id, value })
     return value
   })
   return { id, label, values }
@@ -278,17 +301,22 @@ function parseCurveItem(item: string, axes: RadarAxis[]): RadarCurve {
 /** Parse Mermaid radar source after wrapper normalization/comment extraction. */
 export function parseRadarChart(lines: string[], options: RadarParseOptions = {}): RadarChart {
   // Mermaid's hidden SINGLE_LINE_COMMENT token applies after every statement,
-  // including title/accessibility free text and multiline curve blocks. Apply
-  // that family rule first, then let the universal scanner own accessibility.
-  const scanned = scanAccessibilityDirectives(lines.join('\n').split(/\r?\n/).map(stripTrailingComment))
+  // including title/accessibility free text and multiline curve blocks, but
+  // not inside a quoted label, which runs to its closing quote across line
+  // breaks. Apply that family rule first, then let the universal scanner own
+  // accessibility.
+  const physical = joinQuotedTextLines(lines.join('\n').split(/\r?\n/), RADAR_QUOTED_TEXT)
+  const scanned = scanAccessibilityDirectives(physical.map(stripTrailingComment))
   requireClosedAccessibility(scanned)
   const source = scanned.familyLines.join('\n').trimStart()
   if (!source) throw new Error('Radar chart is empty')
   const header = source.match(HEADER_RE)
   if (!header) throw new Error(`Radar chart must start with "radar-beta", got: "${source.split(/\r?\n/, 1)[0]}"`)
-  const statements = bodyStatements(source.slice(header[0].length))
+  if (parserObservationActive('radar')) observeParserStatement('radar', 'header', header[0], { offset: 0, endOffset: header[0].length, unit: 'normalized' })
+  const statements = bodyStatements(source.slice(header[0].length), header[0].length)
 
   let title = options.title
+  if (title !== undefined && parserObservationActive('radar')) observeParserMutation('radar', 'setFrontmatterTitle', title)
   const accessibility: NonNullable<RadarChart['accessibility']> = {
     ...(scanned.accessibility.title !== undefined ? { title: normalizeBrTags(scanned.accessibility.title) } : {}),
     ...(scanned.accessibility.descr !== undefined ? { description: normalizeBrTags(scanned.accessibility.descr) } : {}),
@@ -300,30 +328,50 @@ export function parseRadarChart(lines: string[], options: RadarParseOptions = {}
   let ticks = 5
   let graticule: 'circle' | 'polygon' = 'circle'
   let showLegend = true
+  const statementAccessibility: NonNullable<RadarChart['statementAccessibility']> = {}
 
   for (let i = 0; i < statements.length; i++) {
     const line = statements[i]!
     let match: RegExpMatchArray | null
 
-    const accessibilityDirective = parseAccessibilityDirective([line], 0)
+    // A block reads its lines as the envelope does.
+    const accessibilityDirective = parseAccessibilityDirective(line.split('\n'), 0)
     if (accessibilityDirective === undefined) throw new Error('Radar accDescr block is missing a closing "}"')
+    // Mermaid keeps whichever value is written last. The envelope has taken
+    // the directives on lines of their own out of order, so one of those
+    // wins, as in XYChart (verify reports radar_accessibility_order).
     if (accessibilityDirective !== null) {
-      if (accessibilityDirective.title) accessibility.title = normalizeBrTags(accessibilityDirective.value)
-      else accessibility.description = normalizeBrTags(accessibilityDirective.value)
+      const value = normalizeBrTags(accessibilityDirective.value)
+      if (accessibilityDirective.title) {
+        statementAccessibility.title = accessibilityDirective.value
+        if (scanned.accessibility.title === undefined) accessibility.title = value
+      } else {
+        statementAccessibility.descr = accessibilityDirective.value
+        if (scanned.accessibility.descr === undefined) accessibility.description = value
+      }
+      if (parserObservationActive('radar')) observeParserMutation('radar', accessibilityDirective.title ? 'setAccessibilityTitle' : 'setAccessibilityDescription', value)
       continue
     }
-    if ((match = line.match(TITLE_RE))) { title = normalizeBrTags((match[1] ?? '').trim()); continue }
+    if ((match = line.match(TITLE_RE))) {
+      title = normalizeBrTags((match[1] ?? '').trim())
+      if (parserObservationActive('radar')) observeParserMutation('radar', 'setTitle', title)
+      continue
+    }
     if ((match = line.match(AXIS_RE))) {
       for (const item of splitTopLevel(match[1]!, 'axis list')) {
         if (axes.length >= MAX_RADAR_AXES) {
           throw new Error(`Radar charts support at most ${MAX_RADAR_AXES} axes.`)
         }
         axes.push(parseAxisItem(item))
+        if (parserObservationActive('radar')) observeParserMutation('radar', 'appendAxis', axes[axes.length - 1])
       }
       continue
     }
     if ((match = line.match(CURVE_RE))) {
-      for (const item of splitTopLevel(match[1]!, 'curve list')) pendingCurves.push(item)
+      for (const item of splitTopLevel(match[1]!, 'curve list')) {
+        pendingCurves.push(item)
+        if (parserObservationActive('radar')) observeParserMutation('radar', 'appendPendingCurve', item)
+      }
       continue
     }
     if (OPTION_RE.test(line)) {
@@ -336,13 +384,24 @@ export function parseRadarChart(lines: string[], options: RadarParseOptions = {}
           case 'showlegend':
             if (!/^(true|false)$/i.test(value)) throw new Error(`Radar showLegend must be true or false, got "${value}".`)
             showLegend = value.toLowerCase() === 'true'
+            if (parserObservationActive('radar')) observeParserMutation('radar', 'setShowLegend', showLegend)
             break
-          case 'ticks': ticks = parseRadarTicks(value); break
-          case 'max': max = parseRadarNumber(value, 'max'); break
-          case 'min': min = parseRadarNumber(value, 'min'); break
+          case 'ticks':
+            ticks = parseRadarTicks(value)
+            if (parserObservationActive('radar')) observeParserMutation('radar', 'setTicks', ticks)
+            break
+          case 'max':
+            max = parseRadarNumber(value, 'max')
+            if (parserObservationActive('radar')) observeParserMutation('radar', 'setMax', max)
+            break
+          case 'min':
+            min = parseRadarNumber(value, 'min')
+            if (parserObservationActive('radar')) observeParserMutation('radar', 'setMin', min)
+            break
           case 'graticule':
             if (value !== 'circle' && value !== 'polygon') throw new Error(`Radar graticule must be circle or polygon, got "${value}".`)
             graticule = value
+            if (parserObservationActive('radar')) observeParserMutation('radar', 'setGraticule', graticule)
             break
         }
       }
@@ -355,12 +414,17 @@ export function parseRadarChart(lines: string[], options: RadarParseOptions = {}
     })
   }
 
-  const curves = pendingCurves.map(item => parseCurveItem(item, axes))
+  const curves = pendingCurves.map(item => {
+    const curve = parseCurveItem(item, axes)
+    if (parserObservationActive('radar')) observeParserMutation('radar', 'resolveCurve', curve)
+    return curve
+  })
   if (max !== undefined && max <= min) throw new Error(`Radar max (${max}) must be greater than min (${min}).`)
 
   return {
     title,
     ...(accessibility.title || accessibility.description ? { accessibility } : {}),
+    ...(Object.keys(statementAccessibility).length > 0 ? { statementAccessibility } : {}),
     axes,
     curves,
     min,

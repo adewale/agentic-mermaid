@@ -1,14 +1,17 @@
 import { createHash, type Hash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 /** Conservative source authority for the generated website. Directory entries
  * deliberately trade occasional extra rebuilds for never reusing stale output.
  * Generated website outputs and test-only sources are excluded below. */
-export const WEBSITE_BUILD_FINGERPRINT_PATHS = Object.freeze([
+const WEBSITE_BUILD_FINGERPRINT_PATHS = Object.freeze([
   'website',
   'public',
+  'docs/api.md',
+  'docs/api-advanced.md',
+  'CHANGELOG.md',
   'docs/schemas/style-spec.schema.json',
   'docs/assets/style-cookbook',
   'examples/styles',
@@ -26,7 +29,7 @@ export const WEBSITE_BUILD_FINGERPRINT_PATHS = Object.freeze([
   'bun.lock',
 ] as const)
 
-export const WEBSITE_BUILD_ENVIRONMENT_KEYS = Object.freeze([
+const WEBSITE_BUILD_ENVIRONMENT_KEYS = Object.freeze([
   'SITE_ORIGIN',
   'SITE_GIT_SHA',
   'SITE_BUILD_TIME',
@@ -41,14 +44,7 @@ const EXCLUDED_PATHS = Object.freeze([
   'src/__tests__',
 ] as const)
 
-export interface WebsiteBuildFingerprintOptions {
-  paths?: readonly string[]
-  /** Tests may inject stable provenance instead of consulting a Git checkout. */
-  provenance?: readonly string[]
-  environment?: Readonly<Record<string, string | undefined>>
-}
-
-export interface WebsiteBuildLockOptions {
+interface WebsiteBuildLockOptions {
   fingerprint(): string
   readSentinel(): string | null
   tryAcquire(): boolean
@@ -56,7 +52,7 @@ export interface WebsiteBuildLockOptions {
   maxAttempts?: number
 }
 
-export interface StableFingerprintBuildOptions {
+interface StableFingerprintBuildOptions {
   fingerprint(): string
   build(): void
   reset(): void
@@ -64,28 +60,32 @@ export interface StableFingerprintBuildOptions {
   maxAttempts?: number
 }
 
-export function isWebsiteBuildFingerprintInput(path: string): boolean {
-  const normalized = path.replaceAll('\\', '/').replace(/^\.\//, '').replace(/\/$/, '')
-  if (EXCLUDED_PATHS.some(excluded => normalized === excluded || normalized.startsWith(`${excluded}/`))) return false
-  return WEBSITE_BUILD_FINGERPRINT_PATHS.some(input => normalized === input || normalized.startsWith(`${input}/`))
-}
-
-export function computeWebsiteBuildFingerprint(root: string, options: WebsiteBuildFingerprintOptions = {}): string {
+export function computeWebsiteBuildFingerprint(root: string): string {
   const hash = createHash('sha256')
-  const provenance = options.provenance ?? gitProvenance(root)
-  for (const value of provenance) {
+  for (const value of gitProvenance(root)) {
     hash.update(value)
     hash.update('\0')
   }
-  const environment = options.environment ?? process.env
   for (const key of WEBSITE_BUILD_ENVIRONMENT_KEYS) {
     hash.update(key)
     hash.update('=')
-    hash.update(environment[key] ?? '<unset>')
+    hash.update(process.env[key] ?? '<unset>')
     hash.update('\0')
   }
-  for (const rel of options.paths ?? WEBSITE_BUILD_FINGERPRINT_PATHS) addPathToHash(hash, root, rel)
+  for (const rel of WEBSITE_BUILD_FINGERPRINT_PATHS) addPathToHash(hash, root, rel)
   return hash.digest('hex')
+}
+
+/** Atomic filesystem boundary for the website fixture's directory lock.
+ * Only an existing lock is contention; other errors must retain their cause. */
+export function tryAcquireWebsiteBuildDirectory(path: string): boolean {
+  try {
+    mkdirSync(path, { recursive: false })
+    return true
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') return false
+    throw error
+  }
 }
 
 /** Waits for the build lock while comparing any completed sentinel with a

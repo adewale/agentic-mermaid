@@ -101,17 +101,21 @@ radar-beta
   curve x{1,2,3}
   max 5`
     const svg = renderMermaidSVG(source)
-    expect(svg).toContain('.radar-axis-line { stroke: #111111; stroke-width: 2.5; }')
-    expect(svg).toContain('.radar-axis-label { fill: #111111; }')
-    expect(svg).toContain('.radar-ring { stroke: #222222; stroke-width: 1.5; stroke-opacity: 0.4;')
+    const spokes = svg.match(/<line class="radar-axis-line"[^>]*>/g) ?? []
+    expect(spokes).toHaveLength(3)
+    for (const spoke of spokes) expect(spoke).toMatch(/ stroke="#111111" stroke-width="2\.5" /)
+    expect(svg).toMatch(/class="radar-axis-label"[^>]* fill="#111111"/)
+    const rings = svg.match(/<circle class="radar-ring"[^>]*>/g) ?? []
+    expect(rings.length).toBeGreaterThan(0)
+    for (const ring of rings) expect(ring).toMatch(/ fill="none" stroke="#222222" stroke-opacity="0\.4" stroke-width="1\.5" /)
     // The emphasized outer ring is 1.4x the configured 1.5, printed as 2.1
     // (not the raw float product 2.0999999999999996).
-    expect(svg).toContain('.radar-ring-outer { stroke-width: 2.1; stroke-opacity: 0.4; }')
-    expect(svg).toContain('.radar-area { stroke-width: 3; fill-opacity: 0.3;')
+    expect(svg).toMatch(/<circle class="radar-ring radar-ring-outer"[^>]* stroke-opacity="0\.4" stroke-width="2\.1" /)
+    expect(svg).toMatch(/class="radar-area"[^>]* fill-opacity="0\.3"[^>]* stroke-width="3"/)
     expect(svg).toContain('font-size="14"')
     expect(svg).toContain('width="16" height="16"')
     expect(svg).toContain('fill="#ff0000"')
-    expect(svg).toContain('.radar-title { fill: #101010; }')
+    expect(svg).toMatch(/<text [^>]*class="radar-title"[^>]* fill="#101010"/)
 
     const hostileSource = `---
 config:
@@ -153,7 +157,7 @@ radar-beta
     expect(svg).toMatch(/class="radar-title"[^>]*font-size="80"/)
   })
 
-  test('curve opacity reaches legend and styled replacement geometry', () => {
+  test('curve opacity reaches areas and styled geometry while legend keys stay opaque', () => {
     const source = `---
 config:
   themeVariables:
@@ -165,9 +169,13 @@ radar-beta
   curve x{1,2,3}
   max 5`
     const crisp = renderMermaidSVG(source)
-    expect(crisp).toMatch(/class="radar-legend-swatch"[^>]*fill-opacity="0.2"/)
+    expect(crisp).toMatch(/class="radar-area"[^>]*fill-opacity="0.2"/)
+    expect(crisp).toMatch(/class="radar-legend-swatch"[^>]*fill-opacity="1"/)
     expect(renderMermaidSVG(source, { style: 'watercolor' })).toContain('fill-opacity="0.2"')
-    expect(renderMermaidSVG(source, { style: 'hand-drawn' })).toContain('stroke-opacity="0.2"')
+    // A sketched area keeps the crisp chart's paint: translucent fill, opaque outline.
+    const sketched = renderMermaidSVG(source, { style: 'hand-drawn' })
+    expect(sketched).toMatch(/class="radar-area"[^>]*fill-opacity="0\.2"/)
+    expect(sketched).not.toContain('stroke-opacity="0.2"')
   })
 
   test('curveTension 0 degenerates the smooth curve to straight edges', () => {

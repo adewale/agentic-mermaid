@@ -1,25 +1,26 @@
 {
   "schemaVersion": 1,
   "status": "approved",
-  "reviewedAt": "2026-09-24",
-  "reviewer": "Claude Code agent, while holding every family to the chart-honesty text contract",
-  "scope": "Native deterministic cookbook renders for all three documentation-only brand-inspired public StyleSpec prototypes after visible Flowchart arrow tips were aligned to their route endpoints; reviewed for clean marker contact, readable labels, contained geometry, visible semantic binding/cue effects, and consistency with the stated non-endorsement/non-equivalence boundaries. Re-reviewed 2026-09-23 after the peer-category palette gained its separation contract: the Vercel-inspired prototype changes in 98 pixels, all in the \"Line 1\" legend swatch (a sub-perceptual tint shift); the other two prototypes are byte-identical. Re-reviewed 2026-09-24 after layouts began measuring text with the style's font: the Vercel-inspired prototype's legend reserves 3 px more, so its plot is 3 px narrower and \"Line 1\" ends 7 px from the right edge instead of 4. 16,408 pixels differ, all antialiasing along the shifted bars, line, ticks, and labels; text ink is unchanged (#ededed on #0a0a0a). The other two prototypes are byte-identical.",
+  "reviewedAt": "2026-10-29",
+  "reviewer": "Codex agent, PR #571 adversarial audit fixes",
+  "scope": "Agent review of the regenerated Cupertino documentation capture with its catalog shadow option, at 900x186 (previously900x187). Inspected complete before/after: six cards, seven directed links, Core membership, labels and two distinct entries into the decision are retained. Styled marker strokes now have four pixels of straight shaft after corners before projection. The two Export arrowheads remain distinct. Vercel and Cloudflare bytes are unchanged. Transit and mid-century cookbook captures also reflect the styled-hook spacing and were inspected. This is agent review, not human approval or exhaustive rendering proof.",
   "artifacts": [
     {
       "id": "cupertino-prototype",
       "path": "docs/assets/style-cookbook/cupertino-prototype.png",
-      "sha256": "6441154b8206d989bbcbb6489fdc4d69cf444ff1a537bcf21d0516225b9c29c5"
+      "sha256": "7e50d010c627341c2dcf63fb30f0e364f3461027a49c78447272421c965305fd"
     },
     {
       "id": "vercel-inspired-prototype",
       "path": "docs/assets/style-cookbook/vercel-inspired-prototype.png",
-      "sha256": "7180d1fee99a69dd21ddcd602d25fc615884df7657f23224990573afda6c16f1"
+      "sha256": "7183bb0113aa968609459818cd682553f31662767921095da3dbe1bd2f71305e"
     },
     {
       "id": "cloudflare-workers-inspired-prototype",
       "path": "docs/assets/style-cookbook/cloudflare-workers-inspired-prototype.png",
-      "sha256": "fc49e606dbfa35a5021571902dbb17c2e3ef715073fa096e5f55d643f4a81342"
+      "sha256": "9f06cfbeb1b7b76ff6f0d1d0781431230b9f52a63edea015dae467fb5aa0d7cf"
     }
   ],
-  "limitations": "These are static documentation prototypes, not built-in Looks, BrandPacks, endorsements, proprietary-asset reproductions, or exhaustive design-system equivalence claims."
+  "limitations": "These are static documentation prototypes, not built-in Looks, BrandPacks, endorsements, proprietary-asset reproductions, or exhaustive design-system equivalence claims.",
+  "audit": "eval/style-prototype-evidence/rounded-axis-correctness-review.md"
 }

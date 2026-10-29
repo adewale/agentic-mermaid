@@ -2,6 +2,11 @@
 
 Agentic Mermaid can render Mermaid diagrams as terminal text. Unicode box drawing is the default; 7-bit ASCII is available for logs, email, CI output, and constrained terminals.
 
+Built-in terminal families use a [shared terminal compositor](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/terminal-composition.md)
+for owned cell geometry. ASCII/Unicode alphabet selection and plain, ANSI or
+terminal HTML encoding derive from that drawing. SVG/PNG retain separate pixel
+geometry; family placement and routing retain their own constraints.
+
 ## Quick start
 
 ```ts
@@ -65,7 +70,40 @@ import { renderMermaidASCIIWithMeta } from 'agentic-mermaid/agent'
 const { ascii, regions, actions, warnings, routeParity } = renderMermaidASCIIWithMeta(source)
 ```
 
-`regions` includes best-effort terminal spans for load-bearing node labels, edge labels where mapped, participant/task/chart labels, and semantic containers such as clusters, sequence fragments, class compartments, chart plots, and radar rings. It is suitable for click mapping, but is not a full cell-by-cell box/edge hit-test tree. `actions` contains inert action metadata only; a host must decide whether and how to handle it. `routeParity` is an explicit V1 contract: ASCII/Unicode does not consume SVG route certificates directly; the converter seeds edges with shared `classifyRoutes()` route intent and the grid router maps that intent into terminal placement/routing. `warnings` reports structured degradation such as `ASCII_EDGE_REGION_UNMAPPED` when edge cell spans are not instrumented even though route drawing still follows the parity mapping.
+For built-in native terminal output, `regions` comes from the drawing retained
+by that render. `canvasRow`, column bounds and `rowSpan` describe a primary text
+occurrence or an explicitly allocated container/route rectangle. That rectangle
+can include empty cells. Use `ownedCellSpans` for exact occupied cells, including
+authored spaces and wide-character continuations; `occludedCellSpans`, when
+present, describes relationship coverage hidden behind opaque marks. Repeated
+labels retain separate element identities, and parent references include
+`parentId` and `parentKind`. These fields support cell-based hit testing without
+searching the rendered label text.
+
+`projectedText` preserves deliberately empty rows of its primary logical text
+occurrence, including leading and trailing rows. Separate occurrences do not
+acquire newlines merely because they are far apart on the canvas. Empty rows
+retain provenance without inventing occupied cells.
+
+Family parsing retains authored identities and endpoints. Shared display
+preparation neutralizes C0/C1 controls before pixel or cell fitting, while typed
+IDs, connector references and action targets remain exact. XML attribute
+serialization separately preserves identity whitespace. Sankey's CSV parser
+receives physical authored rows, including blank rows inside quoted labels.
+
+`actions` contains inert action metadata only; a host decides whether and how to
+handle it. `routeParity` records route intent and projection limits; it does not
+certify identical SVG/terminal paths or guarantee that every family layout can
+fit. Terminal drawing does not consume SVG route certificates directly.
+
+Inspect `warnings` for refused geometry and feature-specific projection losses.
+An edge region with ports is not evidence that its label was painted: check its
+owned/projected text and any collision diagnostic. Compound graph placement
+keeps child containers atomic within their parent; parallel/reciprocal allocation
+reserves physical ports and complete labels before routing. Bounded allocation
+can still fail, and a diagnostic must not be treated as a successful route.
+String-only extension hooks report `TERMINAL_OWNERSHIP_UNAVAILABLE`; metadata
+does not invent regions from their text.
 
 ## Reversing simple flowcharts
 

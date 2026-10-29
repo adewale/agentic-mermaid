@@ -9,6 +9,7 @@ import { createTracingMermaid } from '../mcp/facade.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 import { createExtensionIdentity } from '../shared/extension-identity.ts'
+import { detectDiagramType, type NormalizedMermaidSource } from '../mermaid-source.ts'
 import { captureCli } from './helpers/cli-capture.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 
@@ -24,7 +25,7 @@ function extensionDescriptor(localId: string, header: string): FamilyDescriptor 
       id,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.4.0' },
+      compatibility: { core: '^0.5.0' },
       provenance: { owner: 'extension-public-api-test', source: 'test' },
     }),
     id,
@@ -84,7 +85,7 @@ describe('registered family public layout and verify APIs', () => {
           id,
           kind: 'family',
           version: '1.0.0',
-          compatibility: { core: '^0.4.0' },
+          compatibility: { core: '^0.5.0' },
           provenance: { owner: 'extension-public-api-test', source: 'test' },
         }),
       }
@@ -101,35 +102,35 @@ describe('registered family public layout and verify APIs', () => {
     expect(() =>
       registerFamily({
         ...alias,
-        aliases: ['kanban'],
-        detect: line => line === 'upstreamaliasdiagram' || line === 'kanban',
+        aliases: ['swimlane-beta'],
+        detect: line => line === 'upstreamaliasdiagram' || line === 'swimlane-beta',
       }),
-    ).toThrow(/alias "kanban" is an upstream public header/)
+    ).toThrow(/alias "swimlane-beta" is an upstream public header/)
 
     const hiddenStrict = extensionDescriptor('hidden-strict', 'hiddenStrictDiagram')
     const unregisterStrict = registerFamily({
       ...hiddenStrict,
-      detect: line => line === 'hiddenstrictdiagram' || line === 'kanban',
+      detect: line => line === 'hiddenstrictdiagram' || line === 'swimlane-beta',
     })
-    expect(detectRegisteredFamilyFromFirstLine('kanban')).toBeNull()
+    expect(detectRegisteredFamilyFromFirstLine('swimlane-beta')).toBeNull()
     unregisterStrict()
 
     const hiddenLoose = extensionDescriptor('hidden-loose', 'hiddenLooseDiagram')
     const unregisterLoose = registerFamily({
       ...hiddenLoose,
-      detectLoose: line => line === 'hiddenloosediagram' || line === 'requirementdiagram',
+      detectLoose: line => line === 'hiddenloosediagram' || line === 'swimlane-beta',
     })
-    expect(detectRegisteredFamilyFromFirstLine('requirementDiagram', 'loose')).toBeNull()
+    expect(detectRegisteredFamilyFromFirstLine('swimlane-beta', 'loose')).toBeNull()
     unregisterLoose()
 
-    const multiFamily = extensionDescriptor('multi-upstream', 'kanban')
+    const multiFamily = extensionDescriptor('multi-upstream', 'swimlane-beta')
     expect(() =>
       registerFamily({
         ...multiFamily,
-        headers: ['kanban', 'requirementDiagram'],
-        detect: line => line === 'kanban' || line === 'requirementdiagram',
+        headers: ['swimlane-beta', 'eventmodeling'],
+        detect: line => line === 'swimlane-beta' || line === 'eventmodeling',
       }),
-    ).toThrow(/cannot claim upstream headers from multiple Mermaid families/)
+    ).toThrow(/header "eventmodeling" is already owned/)
   })
 
   test('uses declared headers as the routing prefilter for broad or adversarial detectors', () => {
@@ -220,16 +221,14 @@ describe('registered family public layout and verify APIs', () => {
     const base = extensionDescriptor('lossy-parse', 'lossyParseDiagram')
     const descriptor: FamilyDescriptor = {
       ...base,
-      capabilityEvidence: base.capabilityEvidence.map(claim =>
-        claim.capability === 'source-preservation' || claim.capability === 'parse'
-          ? { ...claim, state: 'native' }
-          : claim),
-      parse: () => ok({
-        kind: 'extension',
-        family: base.id as ExternalFamilyId,
-        source: 'descriptor-owned lossy value',
-        data: { parsed: true },
-      }),
+      capabilityEvidence: base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' ? { ...claim, state: 'native' } : claim)),
+      parse: () =>
+        ok({
+          kind: 'extension',
+          family: base.id as ExternalFamilyId,
+          source: 'descriptor-owned lossy value',
+          data: { parsed: true },
+        }),
     }
     const source = wrapper + body
     const unregister = registerFamily(descriptor)
@@ -252,16 +251,14 @@ describe('registered family public layout and verify APIs', () => {
     const base = extensionDescriptor('shared-post-wrapper-init', 'sharedPostWrapperInitDiagram')
     const descriptor: FamilyDescriptor = {
       ...base,
-      capabilityEvidence: base.capabilityEvidence.map(claim =>
-        claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize'
-          ? { ...claim, state: 'native' }
-          : claim),
-      parse: context => ok({
-        kind: 'extension',
-        family: base.id as ExternalFamilyId,
-        source: context.opaqueSource,
-        data: { lines: [...context.lines] },
-      }),
+      capabilityEvidence: base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize' ? { ...claim, state: 'native' } : claim)),
+      parse: context =>
+        ok({
+          kind: 'extension',
+          family: base.id as ExternalFamilyId,
+          source: context.opaqueSource,
+          data: { lines: [...context.lines] },
+        }),
       serialize: body => `${(body.kind === 'extension' ? (body.data as { lines: string[] }).lines : []).join('\n')}\n`,
     }
     const unregister = registerFamily(descriptor)
@@ -289,17 +286,15 @@ describe('registered family public layout and verify APIs', () => {
     const base = extensionDescriptor('source-returning-init', 'sourceReturningInitDiagram')
     const descriptor: FamilyDescriptor = {
       ...base,
-      capabilityEvidence: base.capabilityEvidence.map(claim =>
-        claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize'
-          ? { ...claim, state: 'native' }
-          : claim),
-      parse: context => ok({
-        kind: 'extension',
-        family: base.id as ExternalFamilyId,
-        source: context.opaqueSource,
-        data: { parsed: true },
-      }),
-      serialize: body => body.kind === 'extension' ? body.source : '',
+      capabilityEvidence: base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize' ? { ...claim, state: 'native' } : claim)),
+      parse: context =>
+        ok({
+          kind: 'extension',
+          family: base.id as ExternalFamilyId,
+          source: context.opaqueSource,
+          data: { parsed: true },
+        }),
+      serialize: body => (body.kind === 'extension' ? body.source : ''),
     }
     const unregister = registerFamily(descriptor)
     try {
@@ -324,7 +319,11 @@ describe('registered family public layout and verify APIs', () => {
     {
       name: 'reindents',
       source: 'normalizingInitDiagram\n  %%{init:{"theme":"dark"}}%%\n  payload',
-      serialize: (source: string) => source.split('\n').map(line => line.trim()).join('\n'),
+      serialize: (source: string) =>
+        source
+          .split('\n')
+          .map(line => line.trim())
+          .join('\n'),
     },
     {
       name: 'respaces the directive payload',
@@ -334,10 +333,7 @@ describe('registered family public layout and verify APIs', () => {
     {
       name: 'reorders top-level and nested config keys',
       source: 'normalizingInitDiagram\n  %%{init:{"theme":"dark","flowchart":{"htmlLabels":true,"curve":"basis"}}}%%\n  payload',
-      serialize: (source: string) => source.replace(
-        '{"theme":"dark","flowchart":{"htmlLabels":true,"curve":"basis"}}',
-        '{"flowchart":{"curve":"basis","htmlLabels":true},"theme":"dark"}',
-      ),
+      serialize: (source: string) => source.replace('{"theme":"dark","flowchart":{"htmlLabels":true,"curve":"basis"}}', '{"flowchart":{"curve":"basis","htmlLabels":true},"theme":"dark"}'),
     },
   ])('a source-preserving serializer that $name still owns its post-header init config', ({ serialize, source }) => {
     // Ownership is a question about the directive, not about its bytes. A
@@ -346,17 +342,15 @@ describe('registered family public layout and verify APIs', () => {
     const base = extensionDescriptor('normalizing-init', 'normalizingInitDiagram')
     const descriptor: FamilyDescriptor = {
       ...base,
-      capabilityEvidence: base.capabilityEvidence.map(claim =>
-        claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize'
-          ? { ...claim, state: 'native' }
-          : claim),
-      parse: context => ok({
-        kind: 'extension',
-        family: base.id as ExternalFamilyId,
-        source: context.opaqueSource,
-        data: { parsed: true },
-      }),
-      serialize: body => body.kind === 'extension' ? serialize(body.source) : '',
+      capabilityEvidence: base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize' ? { ...claim, state: 'native' } : claim)),
+      parse: context =>
+        ok({
+          kind: 'extension',
+          family: base.id as ExternalFamilyId,
+          source: context.opaqueSource,
+          data: { parsed: true },
+        }),
+      serialize: body => (body.kind === 'extension' ? serialize(body.source) : ''),
     }
     const unregister = registerFamily(descriptor)
     try {
@@ -380,10 +374,7 @@ describe('registered family public layout and verify APIs', () => {
     let observed: { lines: readonly string[]; accessibility: unknown } | undefined
     const descriptor: FamilyDescriptor = {
       ...base,
-      capabilityEvidence: base.capabilityEvidence.map(claim =>
-        claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize'
-          ? { ...claim, state: 'native' }
-          : claim),
+      capabilityEvidence: base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize' ? { ...claim, state: 'native' } : claim)),
       parse: context => {
         observed = { lines: [...context.lines], accessibility: context.meta.accessibility }
         return ok({
@@ -470,13 +461,14 @@ family payload
     }
   })
 
-  test('returns a descriptor-contract error for non-JSON parse data on non-example sources', () => {
+  test('returns a descriptor-contract error for a throwing parse hook or non-JSON parse data on non-example sources', () => {
     const base = extensionDescriptor('parse-data-admission', 'parseDataAdmissionDiagram')
     const descriptor: FamilyDescriptor = {
       ...base,
       capabilityEvidence: base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' ? { ...claim, state: 'native' } : claim)),
       parse: context => {
         let data: unknown = { safe: true }
+        if (context.opaqueSource.includes('throws')) throw new Error('hook exploded')
         if (context.opaqueSource.includes('cycle')) {
           const cyclic: { self?: unknown } = {}
           cyclic.self = cyclic
@@ -495,10 +487,12 @@ family payload
     const unregister = registerFamily(descriptor)
     try {
       for (const [payload, problem] of [
+        ['throws', /parse hook threw: hook exploded/],
         ['cycle', /acyclic/i],
         ['non-plain', /plain JSON object/i],
       ] as const) {
-        const parsed = parseRegisteredMermaid(`parseDataAdmissionDiagram\n  ${payload}`)
+        const source = `parseDataAdmissionDiagram\n  ${payload}`
+        const parsed = parseRegisteredMermaid(source)
         expect(parsed.ok).toBe(false)
         if (parsed.ok) continue
         expect(parsed.error).toContainEqual(
@@ -507,6 +501,8 @@ family payload
             message: expect.stringMatching(problem),
           }),
         )
+        // A descriptor fault is the extension's configuration, not the source.
+        expect(verifyMermaid(source).warnings).toEqual([expect.objectContaining({ code: 'RENDER_FAILED', origin: 'config', reason: expect.stringMatching(problem) })])
       }
     } finally {
       unregister()
@@ -545,7 +541,7 @@ descriptorUpgradeDiagram
         id: v2Base.id,
         kind: 'family',
         version: '2.0.0',
-        compatibility: { core: '^0.4.0' },
+        compatibility: { core: '^0.5.0' },
         provenance: { owner: 'extension-public-api-test', source: 'test' },
       }),
       capabilityEvidence: v2Base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize' ? { ...claim, state: 'native' } : claim)),
@@ -611,7 +607,7 @@ descriptorUpgradeDiagram
         id: v2Base.id,
         kind: 'family',
         version: '2.0.0',
-        compatibility: { core: '^0.4.0' },
+        compatibility: { core: '^0.5.0' },
         provenance: { owner: 'extension-public-api-test', source: 'test' },
       }),
       capabilityEvidence: v2Base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' ? { ...claim, state: 'native' } : claim)),
@@ -647,26 +643,104 @@ descriptorUpgradeDiagram
     }
   })
 
-  test('captures the detected immutable descriptor even when detector code mutates the registry', () => {
+  test.each([
+    { name: 'plain source', source: 'detectorSnapshotDiagram\n  payload', scoped: false },
+    {
+      name: 'init and quoted accessibility-shaped payload',
+      source: '%%{init: {"themeVariables":{"primaryColor":"#c0ffee"}}}%%\ndetectorSnapshotDiagram\npayload {\naccTitle: Owned payload\n&amp;amp;\n%% agentic-mermaid accTitle: "Family &#10;payload"\n}\naccTitle: Visible title',
+      scoped: true,
+    },
+    {
+      name: 'leading native transport text and an encoded header',
+      source: `---\ntitle: Wrapper title\n---\n%%{init: {"themeVariables":{"primaryColor":"#c0ffee"}}}%%\n%% agentic-mermaid accDescr: ${JSON.stringify('  Exact&#10;accTitle: inside description  ')}\n&#100;etectorSnapshotDiagram\npayload {\naccTitle: Owned payload\n&amp;amp;\n}\naccTitle: Visible title`,
+      scoped: true,
+    },
+  ].flatMap(row => (row.scoped ? ['render', 'parse'] as const : ['render', 'parse', 'detect'] as const)
+    .map(route => ({ ...row, route }))))('captures the detected immutable descriptor even when detector code mutates the registry ($route: $name)', ({ source, scoped, route }) => {
     const base = extensionDescriptor('detector-snapshot', 'detectorSnapshotDiagram')
     let armed = false
     let unregister = () => {}
+    let detections = 0
+    const normalized: NormalizedMermaidSource[] = []
     const descriptor: FamilyDescriptor = {
       ...base,
+      capabilityEvidence: base.capabilityEvidence.map(claim => claim.capability === 'parse' || claim.capability === 'source-preservation' ? { ...claim, state: 'native' } : claim),
       detect: line => {
         const matched = line === 'detectorsnapshotdiagram'
-        if (matched && armed) unregister()
+        if (matched && armed) { detections++; unregister() }
         return matched
+      },
+      statementEnds: lines => lines.map((line, index) => line.trim() === 'payload {'
+        ? lines.findIndex((end, endIndex) => endIndex > index && end.trim() === '}')
+        : index),
+      normalizeRequest: context => { if (armed) normalized.push(context.source) },
+      parse: context => {
+        if (armed) normalized.push(context.source)
+        return ok({ kind: 'extension', family: base.id as ExternalFamilyId, source: context.opaqueSource })
       },
     }
     unregister = registerFamily(descriptor)
     armed = true
     try {
-      expect(renderMermaidSVG('detectorSnapshotDiagram\n  payload')).toContain('>Extension</text>')
+      if (route === 'detect') expect(detectDiagramType(source)).toBe(descriptor.id)
+      else if (route === 'render') expect(renderMermaidSVG(source)).toContain('>Extension</text>')
+      else {
+        const parsed = parseRegisteredMermaid(source)
+        expect(parsed.ok).toBe(true)
+        if (!parsed.ok) throw new Error('Expected the captured extension to parse')
+        expect(parsed.value.kind).toBe(descriptor.id)
+        if (scoped) {
+          expect(parsed.value.meta.accessibility?.title).toBe('Visible title')
+          const fields = parsed.value.source.spans!.preserved.accessibilityDirectives!
+            .map(span => source.slice(span.start.offset, span.end.offset).trimEnd())
+          expect(fields).toHaveLength(source.includes('%% agentic-mermaid accDescr:') ? 2 : 1)
+          expect(fields).toContain('accTitle: Visible title')
+          expect(fields).not.toContain('accTitle: Owned payload')
+          if (source.includes('&#100;')) {
+            const header = parsed.value.source.spans!.preserved.header
+            expect(source.slice(header.start.offset, header.end.offset)).toBe('&#100;etectorSnapshotDiagram')
+          }
+        }
+      }
       expect(getFamily(descriptor.id)).toBeUndefined()
+      expect(detections).toBe(1)
+      expect(normalized).toHaveLength(route === 'detect' ? 0 : 1)
+      if (route === 'detect') return
+      expect(normalized[0]!.originalText).toBe(source)
+      if (scoped) {
+        expect(normalized[0]!.config.themeVariables).toEqual({ primaryColor: '#c0ffee' })
+        expect(normalized[0]!.accessibility.title).toBe('Visible title')
+        expect(normalized[0]!.familyBody).toContain(`accTitle: Owned payload\n${route === 'render' ? '&amp;' : '&amp;amp;'}`)
+        if (route === 'render') expect(normalized[0]!.authoredFamilyBody).toContain('accTitle: Owned payload\n&amp;amp;')
+        expect(normalized[0]!.familyBody).not.toContain('accTitle: Visible title')
+        if (source.includes('Family &#10;payload')) {
+          expect(normalized[0]!.familyBody).toContain(route === 'render' ? '%% agentic-mermaid accTitle: "Family \npayload"' : '%% agentic-mermaid accTitle: "Family &#10;payload"')
+        }
+        if (source.includes('%% agentic-mermaid accDescr:')) {
+          expect(normalized[0]!.accessibility.descr).toBe(route === 'render' ? '  Exact\naccTitle: inside description  ' : '  Exact&#10;accTitle: inside description  ')
+          expect(normalized[0]!.wrapperSource).toStartWith('---\ntitle: Wrapper title\n---\n')
+          if (route === 'render') expect(normalized[0]!.authoredHeader).toBe('&#100;etectorSnapshotDiagram')
+        }
+      }
     } finally {
       unregister()
     }
+  })
+
+  test('capturing a parse owner neither decodes a header twice nor invents an inline statement separator', () => {
+    const unregister = registerFamily(extensionDescriptor('encoded-header', 'detectorSnapshotDiagram'))
+    try {
+      for (const source of ['&amp;#100;etectorSnapshotDiagram\n  payload', 'erDiagram&#32;A']) {
+        const parsed = parseRegisteredMermaid(source)
+        expect(parsed.ok).toBe(true)
+        if (!parsed.ok) throw new Error('Expected an unknown header to be preserved')
+        expect(parsed.value.kind).toBe('family:unknown')
+        expect(parsed.value.body).toMatchObject({ kind: 'preserved', source })
+        const span = parsed.value.source.spans!.preserved.source
+        expect(source.slice(span.start.offset, span.end.offset)).toBe(source)
+      }
+      expect(() => renderMermaidSVG('&amp;#100;etectorSnapshotDiagram\n  payload')).toThrow(/Unrecognized Mermaid header/)
+    } finally { unregister() }
   })
 
   test('rejects oversized family SVG before output transforms and security scanning', () => {
@@ -854,6 +928,50 @@ descriptorUpgradeDiagram
     expect(() => registerFamily(layoutFailure)).toThrow(/layout exploded/)
     expect(getFamily(verifyFailure.id)).toBeUndefined()
     expect(getFamily(layoutFailure.id)).toBeUndefined()
+  })
+
+  test('verify reports a registered hook defect as INTERNAL_ERROR with the ordinary render outcome', () => {
+    // Hooks that witness their example but raise a runtime error on other
+    // input: a defect in the family, not in the author's source.
+    const base = extensionDescriptor('runtime-defect', 'runtimeDefectDiagram')
+    const defective: FamilyDescriptor = {
+      ...base,
+      verify: body => {
+        if (body.kind === 'extension' && body.source.includes('verify-defect')) throw new TypeError('verify defect')
+        return []
+      },
+      layout: context => {
+        if (context.source.text.includes('layout-defect')) throw new TypeError('layout defect')
+        return { width: 120, height: 40, projectionDefect: context.source.text.includes('projection-defect') } as { width: number; height: number }
+      },
+      projectPositioned: context => {
+        if ((context.positioned as { projectionDefect?: boolean }).projectionDefect) throw new TypeError('projection defect')
+        return base.projectPositioned!(context)
+      },
+    }
+    const unregister = registerFamily(defective)
+    try {
+      for (const [payload, reason, defaultRender] of [
+        // Only verify runs the verify hook and projects the positioned view,
+        // so an ordinary render still draws what nothing has checked.
+        ['verify-defect', 'verify hook failed: verify defect', 'succeeds-unchecked'],
+        ['projection-defect', 'projectPositioned hook failed: projection defect', 'succeeds-unchecked'],
+        // Every render lays out.
+        ['layout-defect', 'layout hook failed: layout defect', 'fails'],
+      ] as const) {
+        const source = `runtimeDefectDiagram\n  ${payload}`
+        if (defaultRender === 'fails') expect(() => renderMermaidSVG(source), payload).toThrow()
+        else expect(renderMermaidSVG(source), payload).toContain('<svg')
+        const result = verifyMermaid(source)
+        expect(result.ok, payload).toBe(false)
+        expect(
+          result.warnings.filter(warning => warning.code === 'RENDER_FAILED' || warning.code === 'INTERNAL_ERROR'),
+          payload,
+        ).toEqual([{ code: 'INTERNAL_ERROR', reason: expect.stringContaining(reason), defaultRender }])
+      }
+    } finally {
+      unregister()
+    }
   })
 
   test('reports unavailable layout/verify capabilities and keeps extension mutation diagnosed', () => {

@@ -1,3 +1,4 @@
+import type { PixelTextBlock } from '../shared/prepared-text.ts'
 // ============================================================================
 // Timeline diagram types
 //
@@ -58,6 +59,7 @@ export interface PositionedTimelineDiagram extends PositionedDiagram {
 }
 
 export interface PositionedTimelineTitle {
+  block?: PixelTextBlock
   text: string
   x: number
   y: number
@@ -73,6 +75,7 @@ export interface TimelineRail {
 }
 
 export interface PositionedTimelineSection {
+  block?: PixelTextBlock
   id: string
   label?: string
   x: number
@@ -87,6 +90,7 @@ export interface PositionedTimelineSection {
 }
 
 export interface PositionedTimelinePeriod {
+  block?: PixelTextBlock
   id: string
   sectionId: string
   label: string
@@ -105,6 +109,8 @@ export interface PositionedTimelinePeriod {
 }
 
 export interface PositionedTimelineEvent {
+  block?: PixelTextBlock
+  labelX?: number
   id: string
   sectionId: string
   periodId: string

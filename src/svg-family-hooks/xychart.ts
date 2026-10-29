@@ -1,11 +1,14 @@
+import { diagnoseXyChartConfig } from '../xychart/config-diagnostics.ts'
+import { projectXyChartPositioned } from '../positioned-views/xychart.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'
-import { layoutResult, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
+import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { layoutXYChart } from '../xychart/layout.ts'
 import {
   applyResolvedXYChartConfig,
   parseXYChart,
   resolveXYChartConfig,
   resolveXYChartTheme,
+  xychartStatementEnds,
 } from '../xychart/parser.ts'
 import { lowerXYChartScene } from '../xychart/renderer.ts'
 import { withAccessibilityObject } from '../shared/accessibility-directives.ts'
@@ -13,6 +16,8 @@ import { withAccessibilityObject } from '../shared/accessibility-directives.ts'
 /** The xychart SVG hooks: one definition for the complete renderer
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const XYCHART_SVG_HOOKS = {
+  configDiagnostics: diagnoseXyChartConfig,
+  statementEnds: xychartStatementEnds,
   normalizeRequest: ctx => {
     const config = resolveXYChartConfig(ctx.source.frontmatter)
     const theme = resolveXYChartTheme(ctx.source.frontmatter)
@@ -36,5 +41,6 @@ export const XYCHART_SVG_HOOKS = {
     )
     return layoutResult(layoutXYChart(chart, ctx.renderOptions, ctx.styleFace), { injectAccessibility: false })
   },
+  projectPositioned: positionedView(projectXyChartPositioned),
   lowerScene: scene(lowerXYChartScene),
 } satisfies BrowserSvgFamilyHooks

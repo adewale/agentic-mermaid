@@ -1,0 +1,8 @@
+C4Context
+  title Shop context
+  Person(customer, "Customer", "Places orders")
+  System(shop, "Shop", "Processes orders")
+  System_Ext(payments, "Payments", "Authorizes purchases")
+  Rel(customer, shop, "Orders", "HTTPS")
+  Rel(shop, payments, "Authorizes", "HTTPS")
+  Rel(shop, payments, "Checks status", "HTTPS")

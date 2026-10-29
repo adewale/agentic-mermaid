@@ -1,3 +1,5 @@
+import type { TooltipLayout } from '../shared/tooltip-layout.ts'
+import type { PixelTextBlock } from '../shared/prepared-text.ts'
 // ============================================================================
 // XY Chart types
 //
@@ -198,8 +200,10 @@ export interface PositionedXYChart extends PositionedDiagram {
   accessibility?: XYChartAccessibility
   /** Whether this is a horizontal (rotated) chart */
   horizontal?: boolean
-  /** Title text and position (if present) */
+  /** Positioned paint text, already case-transformed and wrapped by layout. */
   title?: PositionedTitle
+  /** Authored title omitted because it exceeds the title-space budget. */
+  hiddenTitle?: string
   /** Positioned x-axis with tick marks and labels */
   xAxis: PositionedAxis
   /** Positioned y-axis with tick marks and labels */
@@ -214,6 +218,8 @@ export interface PositionedXYChart extends PositionedDiagram {
   gridLines: GridLine[]
   /** Legend items (shown when multiple series) */
   legend: LegendItem[]
+  /** Requested legend entries omitted because their measured column does not fit. */
+  hiddenLegendLabels: string[]
   /** Authored x-axis category names the fitted axis leaves undrawn */
   hiddenCategoryLabels: string[]
   /** Bar value labels, when `showDataLabel` is on */
@@ -227,6 +233,7 @@ export interface PositionedXYChart extends PositionedDiagram {
 }
 
 export interface LegendItem {
+  block?: PixelTextBlock
   /** Display label */
   label: string
   /** Position of the swatch/icon */
@@ -241,6 +248,7 @@ export interface LegendItem {
 }
 
 export interface PositionedTitle {
+  block?: PixelTextBlock
   text: string
   x: number
   y: number
@@ -248,7 +256,7 @@ export interface PositionedTitle {
 
 export interface PositionedAxis {
   /** Optional axis title text and position */
-  title?: { text: string; x: number; y: number; rotate?: number }
+  title?: { text: string; block?: PixelTextBlock; x: number; y: number; rotate?: number }
   /** Tick positions along the axis */
   ticks: AxisTick[]
   /** Axis line: start and end coordinates */
@@ -258,6 +266,7 @@ export interface PositionedAxis {
 }
 
 export interface AxisTick {
+  block?: PixelTextBlock
   /** Label text for this tick */
   label: string
   /** Position of the tick mark on the axis */
@@ -281,6 +290,7 @@ export interface PlotArea {
 }
 
 export interface PositionedDataLabel {
+  block?: PixelTextBlock
   bar: PositionedBar
   text: string
   x: number
@@ -293,6 +303,7 @@ export interface PositionedDataLabel {
 }
 
 export interface PositionedBar {
+  tooltip?: TooltipLayout
   /** Bar rectangle in SVG coordinates */
   x: number
   y: number
@@ -310,7 +321,17 @@ export interface PositionedBar {
 
 export interface PositionedLine {
   /** Polyline points */
-  points: Array<{ x: number; y: number; value: number; label?: string; textLabel?: string }>
+  points: Array<{
+    x: number
+    y: number
+    value: number
+    label?: string
+    textLabel?: string
+    textBlock?: PixelTextBlock
+    tooltip?: TooltipLayout
+    /** Renderer-owned text anchor; changing it never changes the sample. */
+    textPosition?: { x: number; y: number; anchor: 'start' | 'middle' | 'end'; placement: 'above' | 'below' | 'left' | 'right' }
+  }>
   /** Series index within line type (for layout grouping) */
   seriesIndex: number
   /** Global color index across all series */

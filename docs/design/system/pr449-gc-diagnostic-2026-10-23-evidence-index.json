@@ -1,0 +1,74 @@
+{
+  "protocol": "gc-diagnostic-selected-portable-publication-seal@1",
+  "status": "FIRST_ASSEMBLY_CAPS_AND_HASH_COUNT_VERIFICATION_PASS",
+  "files": {
+    "/workspace/pr449-frontier/gc-diagnostic-publication-packet/prepare.py": "353107c64c137e641e416cc3a9a033b9b9a3da68301a9bf562c6444144349709",
+    "/workspace/pr449-frontier/gc-diagnostic-publication-packet/EXCLUSIONS.json": "5f99eeb610784d0607ef620dbf4dcf30b507e6c05b302561957bbe1232fbe174",
+    "/workspace/pr449-frontier/gc-diagnostic-publication-packet/VERIFICATION.json": "4f83efbd35b9216af832f2e6aaae11522e95d437324013c8d7673c030e039918",
+    "/workspace/pr449-frontier/gc-diagnostic-publication-packet/README.md": "69d1e2e4e094b9e7c9c877bf1fa26cae2577ef61a4133a6a7218719c82abed12",
+    "/workspace/pr449-frontier/gc-diagnostic-publication-packet/SELECTION-PLAN.json": "172dfb8b2c1f0e1a75686e332e6d6599b137486c08656731a37cb4234a67b9f7",
+    "/workspace/pr449-frontier/gc-diagnostic-publication-packet/verify.py": "3b7e7cf7f77c040ac5033674dfcd95263580937f5eeecffe01803d0da83dae93",
+    "/workspace/pr449-frontier/gc-diagnostic-publication-packet/FIRST-ASSEMBLY.json": "74412b4a8d7f711aced8b98b6722453b311088ca9aecf2626e8ff904e88dc762",
+    "/workspace/pr449-frontier/gc-diagnostic-publication-packet/gc-diagnostic-evidence.json.gz": "cdbc4039be11245549e9fb20ca8432b02a106e520a9e2419b2386179937fcba7"
+  },
+  "archive": {
+    "path": "/workspace/pr449-frontier/gc-diagnostic-publication-packet/gc-diagnostic-evidence.json.gz",
+    "sha256": "cdbc4039be11245549e9fb20ca8432b02a106e520a9e2419b2386179937fcba7",
+    "bytes": 1435837
+  },
+  "summary": {
+    "actualRawFiles": 34,
+    "actualSlots": [
+      {
+        "calls": 75,
+        "consoleAnchorEndpoints": 150,
+        "slot": "native-off",
+        "snapshots": 152,
+        "trace": "/workspace/pr449-frontier/rss-per-input-gc-diagnostic/run-fixed-four/native-off/trace-134158-1.json"
+      },
+      {
+        "calls": 75,
+        "consoleAnchorEndpoints": 150,
+        "slot": "elk-off",
+        "snapshots": 152,
+        "trace": "/workspace/pr449-frontier/rss-per-input-gc-diagnostic/run-fixed-four/elk-off/trace-134177-1.json"
+      },
+      {
+        "calls": 75,
+        "consoleAnchorEndpoints": 150,
+        "slot": "elk-normal",
+        "snapshots": 152,
+        "trace": "/workspace/pr449-frontier/rss-per-input-gc-diagnostic/run-fixed-four/elk-normal/trace-134204-1.json"
+      },
+      {
+        "calls": 75,
+        "consoleAnchorEndpoints": 150,
+        "slot": "native-normal",
+        "snapshots": 152,
+        "trace": "/workspace/pr449-frontier/rss-per-input-gc-diagnostic/run-fixed-four/native-normal/trace-134222-1.json"
+      }
+    ],
+    "calls": 300,
+    "consoleAnchorEndpoints": 600,
+    "duplicatePaths": 68,
+    "memorySnapshots": 608,
+    "originalPaths": 232,
+    "selectedOriginalBytes": 11384757,
+    "uniqueDecodedBytes": 10933382,
+    "uniqueObjects": 164,
+    "workers": 4
+  },
+  "completeWholeRuntimeInventoryReferencedInForestArchive": true,
+  "allOwningIndependentReviewsAndFailuresIncluded": true,
+  "sourceCheckoutClean": true,
+  "noRepositoryWritesProductImportsReaderRunsBuildsOrMeasurements": true,
+  "scope": {
+    "RSSWinClaim": false,
+    "allocatorOrLeakClaim": false,
+    "causalAttribution": false,
+    "instrumentationOnly": true,
+    "performanceOrMemoryQualification": false,
+    "standaloneLiveReplay": false,
+    "timingClaim": false
+  }
+}

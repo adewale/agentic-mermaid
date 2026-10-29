@@ -364,8 +364,8 @@ describe('renderMermaidSVG – state diagrams', () => {
       })
     }
 
-    // There should be at least 3 edge label pills (start, pause, resume, stop)
-    expect(pills.length).toBeGreaterThanOrEqual(3)
+    expect([...svg.matchAll(/<g class="edge-label"[^>]*data-label="([^"]+)"/g)].map(match => match[1]).sort()).toEqual(['pause', 'resume', 'start', 'stop'])
+    expect(pills).toHaveLength(4)
 
     // Verify no pair of label pills overlap
     for (let i = 0; i < pills.length; i++) {
@@ -472,6 +472,11 @@ describe('renderMermaidSVG – edge cases', () => {
     expect(svg).toContain('>Empty Group</text>')
     expect(svg).toContain('>A</text>')
     expect(svg).toContain('>B</text>')
+    const edges = [...svg.matchAll(/<(?:path|polyline)\b[^>]*class="edge"[^>]*>/g)].map(([tag]) => {
+      expect(tag).toMatch(/(?:points|d)="[^"]+[0-9][^"]*"/)
+      return [tag.match(/data-from="([^"]+)"/)?.[1], tag.match(/data-to="([^"]+)"/)?.[1]]
+    })
+    expect(edges).toEqual([['A', 'S'], ['S', 'B']])
   })
 
   it('renders a single-node subgraph', () => {

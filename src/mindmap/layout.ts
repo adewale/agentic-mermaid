@@ -1,12 +1,14 @@
+import { resolveMindmapIcon } from './icons.ts'
+import { iconFallbackToken } from '../shared/icon-fallback.ts'
 import type { MindmapDiagram, MindmapNode, PositionedMindmapDiagram, PositionedMindmapEdge, PositionedMindmapNode } from './types.ts'
 import { diagramTitleBand, positionDiagramTitle } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import { mindmapHorizontalBoundaryX } from './geometry.ts'
-import { measureMultilineText } from '../text-metrics.ts'
-import { wrapLabelToWidth } from '../shared/label-wrap.ts'
+import { preparePixelText } from '../shared/prepared-text.ts'
 
 export interface MindmapLayoutOptions {
   padding?: number
+  textStyle?: Partial<Pick<ResolvedRenderStyle, 'nodeTextTransform' | 'nodeLetterSpacing' | 'nodeLabelFontSize' | 'nodeLabelFontWeight'>>
   maxNodeWidth?: number
   nodeGap?: number
   layerGap?: number
@@ -22,24 +24,27 @@ export function layoutMindmap(diagram: MindmapDiagram, options: MindmapLayoutOpt
   const maxNodeWidth = finite(options.maxNodeWidth, 180)
   const nodeGap = finite(options.nodeGap, 40)
   const layerGap = finite(options.layerGap, 20)
-  const entries = measureNodes(diagram.root, maxNodeWidth)
+  const entries = measureNodes(diagram.root, maxNodeWidth, options.textStyle)
 
   return options.layout === 'tidy-tree'
     ? layoutTidy(diagram, entries, padding, nodeGap, layerGap)
     : layoutBilateral(diagram, entries, padding, nodeGap, layerGap)
 }
 
-function measureNodes(root: MindmapNode, maxNodeWidth: number): Map<string, PositionedMindmapNode> {
+function measureNodes(root: MindmapNode, maxNodeWidth: number, style: MindmapLayoutOptions['textStyle']): Map<string, PositionedMindmapNode> {
   const entries = new Map<string, PositionedMindmapNode>()
   const measure = (node: MindmapNode, depth: number, parentId?: string): void => {
-    const label = wrapLabelToWidth(node.label, maxNodeWidth, FONT_SIZE, FONT_WEIGHT)
-    const metrics = measureMultilineText(label, FONT_SIZE, FONT_WEIGHT)
+    const labelBlock = preparePixelText(node.label, { fontSize: style?.nodeLabelFontSize ?? FONT_SIZE, fontWeight: style?.nodeLabelFontWeight ?? FONT_WEIGHT, letterSpacing: style?.nodeLetterSpacing, transform: style?.nodeTextTransform, maxWidth: maxNodeWidth })
+    const label = labelBlock.text
+    const metrics = labelBlock
     let width = Math.max(56, metrics.width + 24)
     let height = Math.max(34, metrics.height + 18 + (node.icon ? 14 : 0))
     if (node.shape === 'circle') width = height = Math.max(width, height, 54)
     if (node.shape === 'bang' || node.shape === 'cloud') { width += 18; height += 10 }
     entries.set(node.id, {
-      id: node.id, label, shape: node.shape, markdown: node.markdown, icon: node.icon, className: node.className,
+      id: node.id, label, labelBlock,
+      iconFallbackBlock: node.icon && !resolveMindmapIcon(node.icon) ? preparePixelText(iconFallbackToken(node.icon), { fontSize: 9, fontWeight: 400 }) : undefined,
+      shape: node.shape, markdown: node.markdown, icon: node.icon, className: node.className,
       ...(parentId ? { parentId } : {}), depth, side: depth === 0 ? 'root' : 'right', x: 0, y: 0, width, height,
     })
     for (const child of node.children) measure(child, depth + 1, node.id)

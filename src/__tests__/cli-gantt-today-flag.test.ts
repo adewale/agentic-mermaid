@@ -4,14 +4,15 @@
 // x.mmd --gantt-toady 2024-01-05` exited 0 with no marker and no complaint).
 
 import { describe, test, expect } from 'bun:test'
-import { writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { runCli, FLAG_SPECS } from '../cli/index.ts'
+import { runCli } from '../cli/index.ts'
+import { decodePng } from './helpers/png-pixels.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 
 const temp = useTempDirs()
 
-function capture(fn: () => number): { code: number; out: string; err: string } {
+function capture(fn: () => number | Promise<number>): { code: number; out: string; err: string } {
   const outChunks: string[] = []
   const errChunks: string[] = []
   const origOut = process.stdout.write.bind(process.stdout)
@@ -21,7 +22,11 @@ function capture(fn: () => number): { code: number; out: string; err: string } {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(process.stderr as any).write = (s: string) => { errChunks.push(s); return true }
   let code: number
-  try { code = fn() } finally {
+  try {
+    const result = fn()
+    if (typeof result !== 'number') throw new Error('Expected a synchronous command')
+    code = result
+  } finally {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(process.stdout as any).write = origOut
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -59,10 +64,6 @@ describe('am render --gantt-today', () => {
     expect(r.out).toContain('╎') // the unicode today column glyph
   })
 
-  test('the flag is registered (usage/spec sync)', () => {
-    expect(FLAG_SPECS['gantt-today']).toBeDefined()
-    expect(FLAG_SPECS['gantt-today']!.arg).toBe('DATE')
-  })
 })
 
 describe('unknown CLI flags error instead of being silently swallowed', () => {
@@ -107,11 +108,19 @@ describe('unknown CLI flags error instead of being silently swallowed', () => {
   })
 
   test('previously-undocumented but real flags (--scale, --bg, --o) stay accepted', () => {
-    // These were read by the PNG path but missing from FLAG_SPECS; the
-    // unknown-flag gate must not reject them.
-    for (const name of ['scale', 'bg', 'o', 'gantt-today']) {
-      expect({ name, known: name in FLAG_SPECS }).toEqual({ name, known: true })
+    const file = tmpFile(GANTT)
+    const basePath = join(temp.dir('am-gantt-png-'), 'base.png')
+    const scaledPath = join(temp.dir('am-gantt-png-'), 'scaled.png')
+    expect(capture(() => runCli(['render', file, '--format', 'png', '--o', basePath, '--scale', '1'])).code).toBe(0)
+    expect(capture(() => runCli(['render', file, '--format', 'png', '--o', scaledPath, '--scale', '2', '--bg', '#102030'])).code).toBe(0)
+    const base = decodePng(readFileSync(basePath))
+    const scaled = decodePng(readFileSync(scaledPath))
+    // Scaling happens before each output's independent integer rounding.
+    for (const [baseSize, scaledSize] of [[base.width, scaled.width], [base.height, scaled.height]] as const) {
+      expect(scaledSize).toBeGreaterThanOrEqual(baseSize * 2 - 1)
+      expect(scaledSize).toBeLessThanOrEqual(baseSize * 2)
     }
+    expect(Array.from(scaled.rgba.slice(0, 4))).toEqual([16, 32, 48, 255])
   })
 
   test('--help still works and known commands are unaffected', () => {

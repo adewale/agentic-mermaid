@@ -35,6 +35,12 @@ The snapshot tests still fail when current output differs from the committed
 goldens. A passing comparison establishes consistency with the baseline;
 reviewers decide whether an intentional baseline change is justified.
 
+Pair appearance baselines with authored semantic expectations at the same
+boundary: identities, labels, group membership, edge endpoints and containment.
+For example, `architecture-svg-snapshot.test.ts` checks the golden scenes'
+public layout and actual rasterized text independently of their saved SVGs.
+Updating a golden must not update away a missing label or a disconnected edge.
+
 ## Reviewer checklist
 
 1. Does the PR say which visual command was run?

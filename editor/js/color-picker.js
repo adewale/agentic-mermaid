@@ -1,10 +1,53 @@
-var colorPopup    = document.getElementById('color-popup');
-var colorNative   = document.getElementById('color-native-input');
-var colorHexInput = document.getElementById('color-hex-input');
-var activeColorKey = null;
-var activeColorAnchor = null;
+import { COLOR_PRESETS, cfgColors, readConfig, updateColorUI } from './config-panel.js';
+import { createPopupController, positionAnchoredPopup } from './helpers.js';
+import { closeFontPopup } from './font-picker.js';
+import { scheduleRender } from './rendering.js';
+export var colorPopup, colorNative, colorHexInput, activeColorKey, activeColorAnchor, paletteEl, colorPopupController;
 
-var paletteEl = document.getElementById('color-palette');
+
+export function openColorPopup(key, anchorEl) {
+  activeColorKey = key;
+  activeColorAnchor = anchorEl;
+  var labels = { bg:'Background', fg:'Foreground', accent:'Accent', line:'Line', muted:'Muted', surface:'Surface' };
+  document.getElementById('color-popup-title').textContent = labels[key] || key;
+
+  var val = cfgColors[key] || '#ffffff';
+  colorHexInput.value = cfgColors[key] || '';
+  if (/^#[0-9a-fA-F]{6}$/.test(val)) colorNative.value = val;
+
+  colorPopupController.open({ focusFirst: true });
+}
+
+
+export function setActiveColor(hex) {
+  if (!activeColorKey) return;
+  cfgColors[activeColorKey] = hex;
+  colorHexInput.value = hex;
+  if (/^#[0-9a-fA-F]{6}$/.test(hex)) colorNative.value = hex;
+  updateColorUI(activeColorKey);
+  readConfig();
+  scheduleRender(200);
+}
+
+
+export function closeColorPopup(restoreFocus) {
+  colorPopupController.close({ restoreFocus: !!restoreFocus });
+}
+
+export function initialize() {
+colorPopup = document.getElementById('color-popup');
+
+colorNative = document.getElementById('color-native-input');
+
+colorHexInput = document.getElementById('color-hex-input');
+
+activeColorKey = null;
+
+activeColorAnchor = null;
+
+
+paletteEl = document.getElementById('color-palette');
+
 COLOR_PRESETS.forEach(function(hex) {
   var btn = document.createElement('button');
   btn.className = 'color-swatch-btn';
@@ -17,7 +60,8 @@ COLOR_PRESETS.forEach(function(hex) {
   paletteEl.appendChild(btn);
 });
 
-var colorPopupController = createPopupController({
+
+colorPopupController = createPopupController({
   popup: colorPopup,
   trigger: function() { return activeColorAnchor; },
   closePeersOnOpen: false,
@@ -47,32 +91,6 @@ var colorPopupController = createPopupController({
   position: function() { positionAnchoredPopup(colorPopup, activeColorAnchor, { width: 240, height: 400 }); },
 });
 
-function openColorPopup(key, anchorEl) {
-  activeColorKey = key;
-  activeColorAnchor = anchorEl;
-  var labels = { bg:'Background', fg:'Foreground', accent:'Accent', line:'Line', muted:'Muted', surface:'Surface' };
-  document.getElementById('color-popup-title').textContent = labels[key] || key;
-
-  var val = cfgColors[key] || '#ffffff';
-  colorHexInput.value = cfgColors[key] || '';
-  if (/^#[0-9a-fA-F]{6}$/.test(val)) colorNative.value = val;
-
-  colorPopupController.open({ focusFirst: true });
-}
-
-function setActiveColor(hex) {
-  if (!activeColorKey) return;
-  cfgColors[activeColorKey] = hex;
-  colorHexInput.value = hex;
-  if (/^#[0-9a-fA-F]{6}$/.test(hex)) colorNative.value = hex;
-  updateColorUI(activeColorKey);
-  readConfig();
-  scheduleRender(200);
-}
-
-function closeColorPopup(restoreFocus) {
-  colorPopupController.close({ restoreFocus: !!restoreFocus });
-}
 
 document.querySelectorAll('.color-edit-btn').forEach(function(btn) {
   btn.addEventListener('click', function(e) {
@@ -85,7 +103,9 @@ document.querySelectorAll('.color-edit-btn').forEach(function(btn) {
   });
 });
 
+
 document.getElementById('color-popup-close').addEventListener('click', function() { closeColorPopup(true); });
+
 
 document.getElementById('color-clear-btn').addEventListener('click', function() {
   if (!activeColorKey) return;
@@ -96,9 +116,11 @@ document.getElementById('color-clear-btn').addEventListener('click', function() 
   scheduleRender(200);
 });
 
+
 colorNative.addEventListener('input', function() {
   setActiveColor(colorNative.value);
 });
+
 
 colorHexInput.addEventListener('input', function() {
   var val = colorHexInput.value.trim();
@@ -111,3 +133,4 @@ colorHexInput.addEventListener('input', function() {
     scheduleRender(400);
   }
 });
+}

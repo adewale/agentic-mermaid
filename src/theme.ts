@@ -1,3 +1,6 @@
+import { WeightedLru } from './experimental/weighted-lru.ts'
+import { formatSvgNumber, formatSvgNumericAttribute } from './shared/svg-number.ts'
+import { estimatedResidency } from './experimental/cache-residency.ts'
 // ============================================================================
 // Theme system — CSS custom property-based theming for mermaid SVG diagrams.
 //
@@ -15,7 +18,9 @@
 // Types
 // ============================================================================
 
-import { svgCssText, transformSvgCssValues } from './svg-structure.ts'
+import { decodeXML } from 'entities'
+import { escapeAttr } from './multiline-utils.ts'
+import { decodedSvgAttributeValue, scanSvgStartTags, projectSvgCss, transformSvgCssValues, type SvgCssProjection } from './svg-structure.ts'
 
 /**
  * Diagram color configuration.
@@ -25,9 +30,9 @@ import { svgCssText, transformSvgCssValues } from './svg-structure.ts'
  * from Shiki themes or custom palettes. Each falls back to a color-mix()
  * derivation from bg + fg if not set.
  */
-import { parseHex, toHex, mixHex, isHexColor, luma255, contrastRatio, ensureContrast, WCAG_AA_NON_TEXT_CONTRAST, WCAG_AA_TEXT_CONTRAST } from './shared/color-math.ts'
+import { parseHex, toHex, mixHex, isHexColor, luma255, contrastRatio, ensureContrast, tryParseCssColor, WCAG_AA_NON_TEXT_CONTRAST, WCAG_AA_TEXT_CONTRAST } from './shared/color-math.ts'
 import { requireSafeCssFontFamily } from './shared/css-font.ts'
-import { requireSafeCssPaint } from './shared/css-color.ts'
+import { requireSafeCssPaint, safeCssPaint } from './shared/css-color.ts'
 
 export interface DiagramColors {
   /** Background color → CSS variable --bg */
@@ -45,7 +50,7 @@ export interface DiagramColors {
   muted?: string
   /** Node/box fill tint → CSS variable --surface */
   surface?: string
-  /** Node/group stroke color → CSS variable --border */
+  /** Base node/group stroke color → --border; automatic outlines repair contrast. */
   border?: string
 
   // -- Optional visual effects --
@@ -339,14 +344,14 @@ export function buildStyleBlock(font: string, hasMonoFont: boolean, shadow?: boo
     ? '\n  .node, .class-node, .entity, .actor[data-type="participant"], .note, .block, .timeline-event, .journey-task, .sankey-node { filter: url(#bm-shadow); }'
     : ''
 
-  // CSS variable --font lets consumers swap the family post-render by mutating
-  // `style="--font:Roboto"` on the SVG root. The literal default family is the
-  // last-ditch fallback so SVGs viewed without the variable still render OK.
+  // Text inherits the default from the root so explicit role fonts and their
+  // descendants retain normal SVG cascade precedence. Consumers can retheme
+  // inheriting text with `style="--font:Roboto"` on that root.
   // Plain names are single-quoted (current wire format); var() references and
   // multi-family stacks pass through unquoted — quoting those would make the
   // fallback a bogus single family literally named e.g. "var(--brand-font)".
   const fontFallback = isPlainFontFamily(font) ? `'${font}'` : font
-  const fontFamilyDecl = `  text { font-family: var(--font, ${fontFallback}), system-ui, sans-serif; }`
+  const fontFamilyDecl = `  svg { font-family: var(--font, ${fontFallback}), system-ui, sans-serif; }`
 
   // Only emit @import lines when there are any (embedFontImport=false, or the
   // family import was suppressed for a non-plain font and no mono face is
@@ -385,7 +390,8 @@ export function svgOpenTag(
     attrs?: Record<string, string | undefined>
   },
 ): string {
-  if (colors.font !== undefined) requireSafeCssFontFamily(colors.font)
+  // The safe spelling is single-quoted, so it cannot close the style attribute.
+  const font = colors.font === undefined ? undefined : requireSafeCssFontFamily(colors.font)
   for (const field of ['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border'] as const) {
     const value = colors[field]
     if (value !== undefined) requireSafeCssPaint(value, field)
@@ -401,7 +407,7 @@ export function svgOpenTag(
     colors.muted   ? `--muted:${colors.muted}` : '',
     colors.surface ? `--surface:${colors.surface}` : '',
     colors.border  ? `--border:${colors.border}` : '',
-    colors.font    ? `--font:${colors.font}` : '',
+    font           ? `--font:${font}` : '',
   ].filter(Boolean).join(';')
 
   const bgStyle = transparent ? '' : ';background:var(--bg)'
@@ -415,8 +421,8 @@ export function svgOpenTag(
   const attrBlock = extraAttrs ? ` ${extraAttrs}` : ''
 
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" ` +
-    `width="${overrides?.width ?? width}" height="${overrides?.height ?? height}" style="${style}"${attrBlock}>`
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${formatSvgNumber(width)} ${formatSvgNumber(height)}" ` +
+    `width="${formatSvgNumericAttribute('width', String(overrides?.width ?? width))}" height="${formatSvgNumericAttribute('height', String(overrides?.height ?? height))}" style="${style}"${attrBlock}>`
   )
 }
 
@@ -452,21 +458,30 @@ export interface ResolvedColors {
 
 /** resolveColors is pure, and families ink text against its tones one label
  * at a time, so each palette's resolution is kept (a small, bounded cache). */
-const resolvedColorsCache = new Map<string, ResolvedColors>()
-const RESOLVED_COLORS_CACHE_LIMIT = 64
+const resolvedColorsCache = new WeightedLru<string, ResolvedColors>(64, 256 * 1024)
 
 /**
  * Resolve all derived colors from a DiagramColors to concrete hex values.
- * Implements the same logic as the CSS color-mix() derivations in buildStyleBlock().
+ * Starts from the CSS color-mix() derivations in buildStyleBlock(), then repairs
+ * concrete text, connector and outline tones against their known backgrounds.
  */
 export function resolveColors(colors: DiagramColors): ResolvedColors {
   const key = [colors.bg, colors.fg, colors.line, colors.accent, colors.muted, colors.surface, colors.border].join('\n')
   const cached = resolvedColorsCache.get(key)
   if (cached) return cached
-  const resolved = Object.freeze(deriveColors(colors))
-  if (resolvedColorsCache.size >= RESOLVED_COLORS_CACHE_LIMIT) resolvedColorsCache.delete(resolvedColorsCache.keys().next().value!)
-  resolvedColorsCache.set(key, resolved)
+  const resolved = Object.freeze(deriveColors(concretePalette(colors) ?? colors))
+  const weight = key.length * 2 + estimatedResidency(resolved, 256 * 1024)
+  resolvedColorsCache.set(key, resolved, weight)
   return resolved
+}
+
+/** Preserve the existing hex path (including alpha hex), and admit other
+ * opaque CSS literals without changing the caller's authored palette. */
+function concretePalette(colors: DiagramColors): DiagramColors | undefined {
+  if (isHexColor(colors.bg) && isHexColor(colors.fg)) return colors
+  const bg = tryParseCssColor(colors.bg), fg = tryParseCssColor(colors.fg)
+  if (!bg || !fg || bg[3] !== 1 || fg[3] !== 1) return undefined
+  return { ...colors, bg: toHex(bg[0], bg[1], bg[2]), fg: toHex(fg[0], fg[1], fg[2]) }
 }
 
 function deriveColors(colors: DiagramColors): ResolvedColors {
@@ -495,12 +510,25 @@ function deriveColors(colors: DiagramColors): ResolvedColors {
     line: ensureContrast(colors.line ?? mixHex(fg, bg, MIX.line), bg, 3, text),
     arrow: ensureContrast(colors.accent ?? mixHex(fg, bg, MIX.arrow), bg, 3, text),
     nodeFill,
-    nodeStroke: colors.border ?? mixHex(fg, bg, MIX.nodeStroke),
+    nodeStroke: legibleOutline(colors.border ?? mixHex(fg, bg, MIX.nodeStroke), bg, text),
     groupFill: bg,
     groupHdr,
     innerStroke: mixHex(fg, bg, MIX.innerStroke),
     keyBadge,
   }
+}
+
+/** Automatic outlines share the palette's opaque page as their known backdrop.
+ * Exact authored/role strokes bypass this token. Unknown CSS and alpha retain
+ * their values because their eventual compositing surface is not known here. */
+function legibleOutline(candidate: string, background: string, fallback: string): string {
+  const ink = tryParseCssColor(candidate), surface = tryParseCssColor(background)
+  if (!ink || !surface || ink[3] !== 1 || surface[3] !== 1) return candidate
+  const concreteInk = toHex(ink[0], ink[1], ink[2]), concreteSurface = toHex(surface[0], surface[1], surface[2])
+  if ((contrastRatio(concreteInk, concreteSurface) ?? Infinity) >= WCAG_AA_NON_TEXT_CONTRAST) return candidate
+  const preferred = tryParseCssColor(fallback)
+  return ensureContrast(concreteInk, concreteSurface, WCAG_AA_NON_TEXT_CONTRAST,
+    preferred?.[3] === 1 ? toHex(preferred[0], preferred[1], preferred[2]) : undefined)
 }
 
 /** The text tones repaired against `surfaces`, and whether every tone then
@@ -531,9 +559,9 @@ function legibleOnEvery(candidate: string, surfaces: readonly string[], fallback
 
 /** The concrete value of every diagram color variable (`--bg`, `--_text`, …),
  * keyed by name without the leading dashes, or undefined when the palette is
- * not concrete hex (live CSS theming cannot be resolved ahead of the host). */
+ * not concrete (live CSS theming cannot be resolved ahead of the host). */
 export function diagramColorVariables(colors: DiagramColors): Map<string, string> | undefined {
-  if (!isHexColor(colors.bg) || !isHexColor(colors.fg)) return undefined
+  if (!concretePalette(colors)) return undefined
   const rc = resolveColors(colors)
   const vars = new Map<string, string>()
   // User-facing variables
@@ -569,6 +597,21 @@ export function resolvedColorValue(value: string, colors: DiagramColors): string
   return diagramColorVariables(colors)?.get(reference[1]!) ?? reference[2]
 }
 
+/** Read each owned CSS context separately: a final root declaration need not
+ * end with a semicolon. Family aliases may contain exact non-hex paints or
+ * live references, including intentionally absent outlines. */
+function cssPaintDefinitions(projection: SvgCssProjection): Map<string, string> {
+  const definitions = new Map<string, string>()
+  for (const range of projection.styleContexts) {
+    const css = projection.source.slice(range.start, range.end)
+    for (const match of css.matchAll(/--([\w-]+)\s*:\s*([^;{}]+)/g)) {
+      const value = match[2]!.trim()
+      if (value === 'none' || value.toLowerCase() === 'currentcolor' || tryParseCssColor(value) || (value.startsWith('var(') && safeCssPaint(value))) definitions.set(match[1]!, value)
+    }
+  }
+  return definitions
+}
+
 /**
  * Resolve all CSS var() and color-mix() expressions in an SVG string to
  * concrete hex color values. This makes the SVG render correctly in
@@ -582,45 +625,84 @@ export function resolvedColorValue(value: string, colors: DiagramColors): string
  *   4. Extract CSS variable definitions from <style> and resolve remaining refs
  *   5. Repeat until stable
  *
- * When bg/fg are not hex colors (e.g. CSS variable strings for live theming),
- * the SVG is returned as-is since resolution isn't possible.
+ * When bg/fg cannot be resolved (e.g. CSS variables for live theming), the SVG
+ * is returned as-is since the eventual host supplies their values.
  */
 export function inlineResolvedColors(svg: string, colors: DiagramColors): string {
-  const palette = diagramColorVariables(colors)
-  if (!palette) return svg
-  const rc = resolveColors(colors)
+  const resolution = colorResolution(colors, svg)
+  return resolution ? resolveSvgColors(svg, resolution) : svg
+}
 
-  // Build mapping of CSS variable names → resolved hex values
-  const vars = new Map<string, string>()
-  for (const name of ['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border']) {
-    const value = palette.get(name)
-    if (value !== undefined) vars.set(name, value)
+/** Resolve one Scene paint with the same CSS and XML rules as an SVG fill.
+ * Keep the escaped attribute representation through substitution: an authored
+ * character reference or whitespace must not acquire a different fallback.
+ * No SVG context exists here, so there are no family variable definitions. */
+export function resolveInlineColorAttribute(value: string, colors: DiagramColors): string | undefined {
+  const escaped = escapeAttr(value)
+  const resolution = colorResolution(colors)
+  return resolvedInlineColorAttribute(escaped, resolution)
+}
+
+/** One consumer can reuse immutable palette preparation without retaining it
+ * across calls. Mutable, inherited and accessor colors still resolve afresh. */
+export function createInlineColorAttributeResolver(): typeof resolveInlineColorAttribute {
+  let palette: DiagramColors | undefined
+  let resolution: ReturnType<typeof colorResolution>
+  return (value, colors) => {
+    const escaped = escapeAttr(value)
+    if (colors !== palette) {
+      const fields = Object.isFrozen(colors) ? Object.getOwnPropertyDescriptors(colors) as Record<PropertyKey, PropertyDescriptor> : undefined
+      const reusable = fields && Reflect.ownKeys(fields).every(name => 'value' in fields[name]!)
+        && ['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border', 'font'].every(name => {
+          const field = fields[name]
+          return Object.hasOwn(fields, name) && (field!.value === undefined || typeof field!.value === 'string')
+        })
+      if (!reusable) return resolvedInlineColorAttribute(escaped, colorResolution(colors))
+      resolution = colorResolution(colors)
+      palette = colors
+    }
+    return resolvedInlineColorAttribute(escaped, resolution)
   }
+}
+
+function resolvedInlineColorAttribute(escaped: string, resolution: ReturnType<typeof colorResolution>): string | undefined {
+  const resolved = resolution ? resolution.resolveCss(escaped, resolution.vars, 10) : escaped
+  // Scene admission excludes context-breaking palette values. Preserve the
+  // full SVG path even for a direct caller that supplies such a substitution.
+  if (resolution && /[<"]/.test(resolved)) {
+    const svg = resolveSvgColors(`<rect fill="${escaped}"/>`, resolution)
+    return decodedSvgAttributeValue(scanSvgStartTags(svg)[0]!, 'fill')
+  }
+  return decodeXML(resolved)
+}
+
+function colorResolution(colors: DiagramColors, svg?: string) {
+  const palette = diagramColorVariables(colors)
+  if (!palette) return undefined
+  const rc = resolveColors(colors)
 
   // Some family renderers define concrete custom properties on the SVG root
   // before using them in style-block fallbacks. Learn those up front so
   // var(--family-token, fallback) prefers the authored token over fallback.
-  const cssDefRegex = /--([\w-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;?/g
-  let initialDefMatch
-  while ((initialDefMatch = cssDefRegex.exec(svgCssText(svg))) !== null) {
-    vars.set(initialDefMatch[1]!, initialDefMatch[2]!)
-  }
-
-  // Derived internal variables
-  for (const [name, value] of palette) if (name.startsWith('_')) vars.set(name, value)
+  const projection = svg === undefined ? undefined : projectSvgCss(svg)
+  const vars = projection ? cssPaintDefinitions(projection) : new Map<string, string>()
+  for (const [name, value] of palette) if (name.startsWith('_') || value !== undefined && !vars.has(name)) vars.set(name, value)
+  // Literal RGB/named pages were normalized for concrete color-mix math;
+  // their authored root tokens must not undo that internal normalization.
+  vars.set('bg', rc.bg)
+  vars.set('fg', rc.fg)
 
   // `--font` is intentionally left as a live CSS variable so consumers can
   // swap the family post-render. Skip it from the color-resolution phase
   // (which exists to make non-browser SVG renderers like resvg work; resvg
   // resolves CSS-variable font-families natively against the SVG root style).
   const SKIP_VARS = new Set(['font'])
-  // A var()-valued font (e.g. `--font:var(--brand-font, Georgia)`) must also
-  // stay a live reference for host pages — without this the generic fallback
-  // pass below would collapse it to its fallback literal. Only names that are
-  // not diagram color variables are protected, so a (pathological) font like
-  // 'var(--fg)' doesn't break color resolution.
-  if (colors.font) {
-    for (const m of colors.font.matchAll(/var\(\s*--([\w-]+)/g)) {
+  // Host-controlled font and palette references must stay live, including
+  // their fallbacks. Only unknown names are protected: known diagram/family
+  // variables still resolve through the concrete palette above.
+  for (const value of [colors.font, colors.line, colors.accent, colors.muted, colors.surface, colors.border]) {
+    if (!value) continue
+    for (const m of value.matchAll(/var\(\s*--([\w-]+)/g)) {
       if (!vars.has(m[1]!)) SKIP_VARS.add(m[1]!)
     }
   }
@@ -649,26 +731,47 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
     return text
   }
 
+  return { vars, SKIP_VARS, resolveCss, projection }
+}
+
+function resolveSvgColors(svg: string, resolution: NonNullable<ReturnType<typeof colorResolution>>): string {
+  const { vars, SKIP_VARS, resolveCss } = resolution
+  const projection = resolution.projection ?? projectSvgCss(svg)
   // Resolve only actual CSS-bearing contexts. Text/title/desc and ordinary
   // data attributes are authored content, even when they happen to contain a
   // string such as `var(--fg)` or `color-mix(...)`.
-  let text = transformSvgCssValues(svg, css => resolveCss(css, vars, 10))
+  const resolvedValues = new Map<string, string>()
+  let text = transformSvgCssValues(svg, css => {
+    const prior = resolvedValues.get(css)
+    if (prior !== undefined) return prior
+    const resolved = resolveCss(css, vars, 10)
+    resolvedValues.set(css, resolved)
+    return resolved
+  }, projection)
+
+  // Phase 2 rewrites only var() references it may resolve and color-mix()
+  // calls. When neither occurs anywhere in the document it would return the
+  // text unchanged, so skip its rescan of every tag. The lookahead examines
+  // every `var(`, including one inside a skipped name such as `--f_var(`.
+  let mayResolve = text.includes('color-mix(')
+  if (!mayResolve) {
+    for (const match of text.matchAll(/var\((?=\s*--([\w-]+))/g)) {
+      if (!SKIP_VARS.has(match[1]!)) { mayResolve = true; break }
+    }
+  }
+  if (!mayResolve) return text
 
   // Phase 2: Extract CSS variable definitions from <style> blocks and resolve
   // any remaining var() references (e.g. --xychart-color-0 defined in style)
-  const cssDefs = new Map<string, string>()
-  const defRegex = /--([\w-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;/g
-  const cssText = svgCssText(text)
-  let defMatch
-  while ((defMatch = defRegex.exec(cssText)) !== null) {
-    cssDefs.set(defMatch[1]!, defMatch[2]!)
-  }
+  let textProjection = projectSvgCss(text)
+  const cssDefs = cssPaintDefinitions(textProjection)
 
   if (cssDefs.size > 0) {
     for (let pass = 0; pass < 5; pass++) {
-      const resolved = transformSvgCssValues(text, css => resolveCss(css, cssDefs, 1))
+      const resolved = transformSvgCssValues(text, css => resolveCss(css, cssDefs, 1), textProjection)
       if (resolved === text) break
       text = resolved
+      textProjection = projectSvgCss(text)
     }
   }
 

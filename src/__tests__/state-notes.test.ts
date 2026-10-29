@@ -18,6 +18,7 @@ import { mutate } from '../agent/mutate.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { asState } from '../agent/types.ts'
 import type { StateValidDiagram, StateMutationOp, MutationError } from '../agent/types.ts'
+import { describeMermaid, describeMermaidFacts, renderMermaidASCII } from '../agent/core.ts'
 
 const SRC = `stateDiagram-v2
   [*] --> Active
@@ -48,6 +49,95 @@ function expectErr(d: StateValidDiagram, op: StateMutationOp, code: MutationErro
   expect(r.ok).toBe(false)
   if (!r.ok) expect(r.error.code).toBe(code)
 }
+
+describe('floating State notes', () => {
+  test('a floating note retains its own identity and text beside a state with the same name', () => {
+    const source = 'stateDiagram-v2\nN1\nnote "Floating #quot;note#quot;" as N1'
+    const d = state(source)
+    expect(d.body.states.map(node => node.id)).toEqual(['N1'])
+    expect(d.body.floatingNotes).toMatchObject([{ id: 'N1', text: 'Floating "note"' }])
+    expect(d.body.notes).toBeUndefined()
+    const written = serializeMermaid(d)
+    expect(state(written).body.floatingNotes).toEqual(d.body.floatingNotes)
+    const graph = parseLegacy(source)
+    expect(graph.nodes.get('N1')?.shape).toBe('rounded')
+    const note = graph.floatingStateNotes![0]!
+    expect(note.nodeId).not.toBe('N1')
+    expect(graph.nodes.get(note.nodeId)?.shape).toBe('state-note')
+    expect(renderMermaidSVG(source)).toContain('data-floating-note-id="N1"')
+    expect(renderMermaidASCII(source, { colorMode: 'none' })).toContain('Floating')
+    expect(describeMermaidFacts(d).some(fact => fact.includes('floating note N1'))).toBe(true)
+    expect(describeMermaid(d)).toContain('Floating "note"')
+  })
+
+  test('floating notes belong to concurrent regions and follow scope rename, dissolve and removal', () => {
+    const d = state('stateDiagram-v2\nstate Box {\nnote "First" as N1\n--\nnote "Second" as N2\n}')
+    expect(d.body.floatingNotes).toEqual([
+      { id: 'N1', text: 'First', scope: { parent: 'Box', region: 0 } },
+      { id: 'N2', text: 'Second', scope: { parent: 'Box', region: 1 } },
+    ])
+    const written = serializeMermaid(d)
+    expect(state(written).body).toEqual(d.body)
+    const graph = parseLegacy(written)
+    const positioned = layoutGraphSync(graph)
+    for (const [index, note] of graph.floatingStateNotes!.entries()) {
+      expect(graph.subgraphs[0]!.children[index]!.nodeIds).toContain(note.nodeId)
+      const node = positioned.nodes.find(node => node.id === note.nodeId)!
+      const region = positioned.groups[0]!.children[index]!
+      expect(node.x).toBeGreaterThanOrEqual(region.x)
+      expect(node.y).toBeGreaterThanOrEqual(region.y)
+      expect(node.x + node.width).toBeLessThanOrEqual(region.x + region.width)
+      expect(node.y + node.height).toBeLessThanOrEqual(region.y + region.height)
+    }
+    const renamed = apply(d, { kind: 'rename_state', from: 'Box', to: 'Renamed' })
+    expect(renamed.body.floatingNotes?.map(note => note.scope?.parent)).toEqual(['Renamed', 'Renamed'])
+    expect(d.body.floatingNotes?.[0]?.scope?.parent).toBe('Box')
+    const dissolved = apply(renamed, { kind: 'dissolve_composite', id: 'Renamed' })
+    expect(dissolved.body.floatingNotes?.map(note => note.scope)).toEqual([undefined, undefined])
+    expect(verifyMermaid(dissolved).ok).toBe(true)
+    expect(apply(d, { kind: 'remove_state', id: 'Box', recursive: true }).body.floatingNotes).toBeUndefined()
+  })
+
+  test('floating note operations preserve quoted syntax-like text and keep the note namespace separate', () => {
+    let d = state('stateDiagram-v2\nN1')
+    d = apply(d, { kind: 'add_floating_note', id: 'N1', text: 'end note\nHe said "hi"; %% #quot;' })
+    const written = serializeMermaid(d)
+    const reread = state(written)
+    expect(reread.body.floatingNotes?.[0]?.text).toBe('end note\nHe said "hi"; %% #quot;')
+    expect(serializeMermaid(reread)).toBe(written)
+    expectErr(d, { kind: 'add_floating_note', id: 'N1', text: 'duplicate' }, 'INVALID_OP')
+    d = apply(d, { kind: 'set_floating_note_text', id: 'N1', text: 'Changed' })
+    expect(d.body.floatingNotes?.[0]?.text).toBe('Changed')
+    d = apply(d, { kind: 'rename_state', from: 'N1', to: 'State2' })
+    expect(d.body.floatingNotes?.[0]?.id).toBe('N1')
+    d = apply(d, { kind: 'remove_floating_note', id: 'N1' })
+    expect(d.body.floatingNotes).toBeUndefined()
+    expectErr(d, { kind: 'remove_floating_note', id: 'missing' }, 'NOTE_NOT_FOUND')
+  })
+
+  test('adding scoped notes validates scope and preserves the independent state namespace', () => {
+    let d = state('stateDiagram-v2\nN1\nstate Outer {\nstate Inner { A }\n--\nB\n}')
+    d = apply(d, { kind: 'add_floating_note', id: 'N1', text: '审查', parent: 'Outer', region: 1 })
+    d = apply(d, { kind: 'add_floating_note', id: 'Nested', text: 'Nested annotation', parent: 'Inner' })
+    expect(state(serializeMermaid(d)).body.floatingNotes).toEqual([
+      { id: 'Nested', text: 'Nested annotation', scope: { parent: 'Inner' } },
+      { id: 'N1', text: '审查', scope: { parent: 'Outer', region: 1 } },
+    ])
+    expectErr(d, { kind: 'add_floating_note', id: 'Bad', text: 'x', parent: 'Missing' }, 'STATE_NOT_FOUND')
+    expectErr(d, { kind: 'add_floating_note', id: 'Bad', text: 'x', parent: 'Outer', region: 2 }, 'INVALID_OP')
+    expectErr(d, { kind: 'add_floating_note', id: 'Empty', text: '' }, 'INVALID_OP')
+    expectErr(d, { kind: 'set_floating_note_text', id: 'N1', text: '' }, 'INVALID_OP')
+    const blank = parseMermaid('stateDiagram-v2\nnote "" as Empty')
+    expect(blank.ok && blank.value.body.kind).toBe('opaque')
+    const removed = apply(d, { kind: 'remove_state', id: 'N1' })
+    expect(removed.body.floatingNotes?.[0]?.id).toBe('N1')
+    const dissolved = apply(d, { kind: 'dissolve_composite', id: 'Inner' })
+    expect(dissolved.body.floatingNotes?.find(note => note.id === 'Nested')?.scope).toEqual({ parent: 'Outer', region: 0 })
+    const corrupt = { ...d, body: { ...d.body, floatingNotes: [{ id: 'Bad', text: 'keep me', scope: { parent: 'Missing' } }] } }
+    expect(() => serializeMermaid(corrupt)).toThrow('Invalid scope')
+    expect(() => parseLegacy('stateDiagram-v2\nnote "First" as N\nnote "Second" as N')).toThrow('Duplicate floating')
+  })
+})
 
 // ---------------------------------------------------------------------------
 describe('state notes — render parser (no phantom states)', () => {
@@ -151,6 +241,23 @@ describe('state notes — SVG rendering', () => {
 
 // ---------------------------------------------------------------------------
 describe('state notes — structured agent body', () => {
+  test.each([
+    ['empty', 'note right of A\nend note'],
+    ['blank lines', 'note right of A\n  \n\t\nend note'],
+    ['nested target', 'state Outer {\nA\nnote right of A\nend note\n}'],
+  ])('%s block notes retain their annotation through verification and writing', (_name, body) => {
+    const d = state(`stateDiagram-v2\n${body}`)
+    expect(d.body.notes).toMatchObject([{ target: 'A', side: 'right', text: '' }])
+    expect(verifyMermaid(d).ok).toBe(true)
+    const written = serializeMermaid(d)
+    expect(written).toContain('note right of A\n')
+    expect(state(written).body).toEqual(d.body)
+    expect(parseLegacy(written).stateNotes).toMatchObject([{ target: 'A', side: 'right', text: '' }])
+    expect(renderMermaidSVG(written)).toContain('class="state-note"')
+    const edited = apply(d, { kind: 'set_note_text', index: 0, text: 'Review' })
+    expect(state(serializeMermaid(edited)).body.notes).toMatchObject([{ target: 'A', text: 'Review' }])
+  })
+
   test('notes parse structured (no opaque fallback), queryable on the body', () => {
     const d = state()
     expect(d.body.notes).toBeDefined()

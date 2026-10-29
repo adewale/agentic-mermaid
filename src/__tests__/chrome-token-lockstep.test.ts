@@ -1,3 +1,4 @@
+import { editorModuleScript } from './helpers/editor-module-harness.ts'
 /**
  * Chrome token lockstep — the editor app shell and the public site are meant to
  * share one brand system. Three source files each carry the values and, until
@@ -15,12 +16,13 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { BROWSER_EDITOR_ADAPTER } from '../browser.ts'
 import { evaluateBrowserScript } from './browser-script-harness.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const siteCss = readFileSync(join(REPO, 'website/source/assets/styles.css'), 'utf8')
 const editorCss = readFileSync(join(REPO, 'editor/css/variables.css'), 'utf8')
-const renderingJs = readFileSync(join(REPO, 'editor/js/rendering.js'), 'utf8')
+const renderingJs = await editorModuleScript('rendering.js')
 
 /** First `--name: <hex>` declaration in a block of CSS text. */
 function cssHex(css: string, name: string): string {
@@ -33,7 +35,7 @@ function cssHex(css: string, name: string): string {
 function chromeThemeColors(isDark: boolean): { bg: string; fg: string; accent: string } {
   const colors = evaluateBrowserScript<{ bg: string; fg: string; accent: string }>(
     renderingJs,
-    { isDark, verifyDetailsBtn: null },
+    { isDark, verifyDetailsBtn: null, window: { __mermaid: BROWSER_EDITOR_ADAPTER } },
     'chromeThemeColors()',
   )
   return { bg: colors.bg.toUpperCase(), fg: colors.fg.toUpperCase(), accent: colors.accent.toUpperCase() }
@@ -110,13 +112,21 @@ describe('editor and site chrome share one brand system', () => {
   test('shared scale tokens match: radii, motion, hairline mix', () => {
     for (const name of ['radius-sm', 'radius-md', 'radius-lg', 'radius-pill', 'dur-ui', 'dur-control', 'dur-press']) {
       const val = (css: string) => css.match(new RegExp(`--${name}:\\s*([^;]+);`))?.[1]?.trim()
-      expect(val(editorCss), `--${name}`).toBe(val(siteCss))
+      const editor = val(editorCss)
+      const site = val(siteCss)
+      expect(editor, `editor --${name}`).toMatch(/\S/)
+      expect(site, `site --${name}`).toMatch(/\S/)
+      expect(editor, `--${name}`).toBe(site)
     }
     // ease-out: same cubic-bezier both sides
     const ease = (css: string) => css.match(/--ease-out:\s*(cubic-bezier\([^)]*\))/)?.[1]
+    expect(ease(editorCss), 'editor --ease-out').toBeDefined()
+    expect(ease(siteCss), 'site --ease-out').toBeDefined()
     expect(ease(editorCss)).toBe(ease(siteCss))
     // hairline: editor --border and site --line use the same fg mix percentage
     const mixPct = (css: string, name: string) => css.match(new RegExp(`--${name}:\\s*color-mix\\(in srgb, var\\(--[a-z-]*fg\\) (\\d+)%`))?.[1]
+    expect(mixPct(editorCss, 'border'), 'editor hairline %').toBeDefined()
+    expect(mixPct(siteCss, 'line'), 'site hairline %').toBeDefined()
     expect(mixPct(editorCss, 'border'), 'editor hairline %').toBe(mixPct(siteCss, 'line'))
   })
 })

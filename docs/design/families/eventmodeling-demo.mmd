@@ -1,0 +1,11 @@
+eventmodeling
+title Cart information flow
+tf 01 ui Cart.UI
+tf 02 cmd Cart.AddItem { description: string }
+tf 03 evt Cart.ItemAdded
+tf 04 rmo Cart.Items
+tf 05 ui Cart.UI
+rf 06 evt Stock.InventoryChanged
+tf 07 pcr Stock.InventoryProcessor
+tf 08 cmd Cart.ChangeInventory
+tf 09 evt Cart.InventoryChanged

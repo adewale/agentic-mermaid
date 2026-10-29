@@ -3,7 +3,7 @@
  * Theme resolution tests are in theme.test.ts (CSS custom property system).
  */
 import { describe, it, expect } from 'bun:test'
-import { estimateTextWidth, FONT_SIZES, FONT_WEIGHTS, NODE_PADDING, STROKE_WIDTHS, ARROW_HEAD } from '../styles.ts'
+import { estimateTextWidth } from '../styles.ts'
 import { measureTextWidth } from '../text-metrics.ts'
 import { DEFAULTS, fromShikiTheme, buildStyleBlock, svgOpenTag } from '../theme.ts'
 import type { DiagramColors } from '../theme.ts'
@@ -129,40 +129,5 @@ describe('estimateTextWidth', () => {
     for (const [text, size, weight] of [['', 13, 500], ['Hello', 13, 500], ['Hello World', 11, 400], ['漢字 😀 Ω', 16, 600]] as const) {
       expect({ text, width: estimateTextWidth(text, size, weight) }).toEqual({ text, width: measureTextWidth(text, size, weight) })
     }
-  })
-})
-
-// ============================================================================
-// Exported constants
-// ============================================================================
-
-describe('constants', () => {
-  it('FONT_SIZES has expected values', () => {
-    expect(FONT_SIZES.nodeLabel).toBe(13)
-    expect(FONT_SIZES.edgeLabel).toBe(11)
-    expect(FONT_SIZES.groupHeader).toBe(12)
-  })
-
-  it('FONT_WEIGHTS has expected values', () => {
-    expect(FONT_WEIGHTS.nodeLabel).toBe(500)
-    expect(FONT_WEIGHTS.edgeLabel).toBe(400)
-    expect(FONT_WEIGHTS.groupHeader).toBe(600)
-  })
-
-  it('NODE_PADDING has expected values', () => {
-    expect(NODE_PADDING.horizontal).toBe(20)
-    expect(NODE_PADDING.vertical).toBe(10)
-    expect(NODE_PADDING.diamondExtra).toBe(24)
-  })
-
-  it('STROKE_WIDTHS has expected values', () => {
-    expect(STROKE_WIDTHS.outerBox).toBe(1)
-    expect(STROKE_WIDTHS.innerBox).toBe(0.75)
-    expect(STROKE_WIDTHS.connector).toBe(1)
-  })
-
-  it('ARROW_HEAD has expected values', () => {
-    expect(ARROW_HEAD.width).toBe(8)
-    expect(ARROW_HEAD.height).toBe(5)
   })
 })

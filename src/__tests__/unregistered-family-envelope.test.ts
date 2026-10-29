@@ -1,29 +1,19 @@
 import { describe, expect, test } from 'bun:test'
-import {
-  applyOps,
-  layoutMermaid,
-  layoutMermaidWithReceipt,
-  mutateChecked,
-  parseRegisteredMermaid,
-  renderMermaidASCII,
-  renderMermaidSVG,
-  serializeMermaid,
-  verifyMermaid,
-} from '../agent/core.ts'
+import { applyOps, layoutMermaid, layoutMermaidWithReceipt, mutateChecked, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/core.ts'
 import { UNREGISTERED_FAMILY_CAPABILITY_STATES } from '../agent/families.ts'
-import { MermaidFamilyDetectionError } from '../family-detection.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import { renderMermaidPNGInBrowserWithReceipt } from '../browser-png.ts'
+import { MermaidFamilyDetectionError } from '../family-detection.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 
 const CASES = [
   {
-    source: '---\ntitle: Deployment\n---\n%%{init: {"theme":"base"}}%%\n%% keep me\nC4Deployment\n  Deployment_Node(a, "A")\n',
+    source: '---\ntitle: Preserved Swimlane\n---\n%%{init: {"theme":"base"}}%%\n%% keep me\nswimlane-beta\n  opaque { bytes }\n',
     code: 'UNSUPPORTED_FAMILY',
-    classification: 'inventory-only',
+    classification: 'unsupported',
     representation: 'opaque',
-    header: 'C4Deployment',
-    family: 'c4',
+    header: 'swimlane-beta',
+    family: 'swimlane',
   },
   {
     source: '\uFEFF\n%% untouched\nfutureDiagram-v99\n  opaque { bytes }\n',
@@ -96,12 +86,7 @@ describe('forward-compatible unregistered family envelopes', () => {
       expect(diagnostic.preservation.spans?.body.start.offset).toBe(source.indexOf('  payload\n'))
     }
 
-    for (const render of [
-      () => renderMermaidSVG(source),
-      () => renderMermaidASCII(source, { colorMode: 'none' }),
-      () => layoutMermaidWithReceipt(source),
-      () => renderMermaidPNG(source),
-    ]) {
+    for (const render of [() => renderMermaidSVG(source), () => renderMermaidASCII(source, { colorMode: 'none' }), () => layoutMermaidWithReceipt(source), () => renderMermaidPNG(source)]) {
       try {
         render()
         throw new Error('unknown raw family unexpectedly rendered')
@@ -132,9 +117,9 @@ describe('forward-compatible unregistered family envelopes', () => {
         code: 'UNKNOWN_HEADER',
       },
       {
-        source: 'C4&#68;eployment\n  Deployment_Node(a, "A")\n',
-        authoredHeader: 'C4&#68;eployment',
-        semanticHeader: 'C4Deployment',
+        source: 'swimlane&#45;beta\n  opaque { bytes }\n',
+        authoredHeader: 'swimlane&#45;beta',
+        semanticHeader: 'swimlane-beta',
         code: 'UNSUPPORTED_FAMILY',
       },
     ] as const
@@ -157,12 +142,7 @@ describe('forward-compatible unregistered family envelopes', () => {
         const authored = diagnostic.preservation.spans!.header
         expect(fixture.source.slice(authored.start.offset, authored.end.offset)).toBe(fixture.authoredHeader)
       }
-      for (const render of [
-        () => renderMermaidSVG(fixture.source),
-        () => renderMermaidASCII(fixture.source, { colorMode: 'none' }),
-        () => layoutMermaidWithReceipt(fixture.source),
-        () => renderMermaidPNG(fixture.source),
-      ]) {
+      for (const render of [() => renderMermaidSVG(fixture.source), () => renderMermaidASCII(fixture.source, { colorMode: 'none' }), () => layoutMermaidWithReceipt(fixture.source), () => renderMermaidPNG(fixture.source)]) {
         try {
           render()
           throw new Error('entity-encoded unregistered family unexpectedly rendered')
@@ -179,14 +159,21 @@ describe('forward-compatible unregistered family envelopes', () => {
     }
   })
 
+  test('documented Event Modeling has native identities and public output support', () => {
+    const source = 'eventmodeling\ntf 01 ui CartUI\ntf 02 cmd AddItem\ntf 03 evt ItemAdded'
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed).toMatchObject({ ok: true, value: { kind: 'eventmodeling', body: { kind: 'eventmodeling', frames: [{ id: '01', entity: 'CartUI' }, { id: '02', entity: 'AddItem' }, { id: '03', entity: 'ItemAdded' }] } } })
+    expect(renderMermaidSVG(source)).toContain('ItemAdded')
+    expect(renderMermaidASCII(source)).toContain('AddItem')
+  })
+
   test('entity-encoded registered headers have parse, render, terminal, and layout parity', () => {
     const encoded = 'flowchart&#32;LR\n  A[Alpha] --> B[Beta]'
     const decoded = 'flowchart LR\n  A[Alpha] --> B[Beta]'
     const parsed = parseRegisteredMermaid(encoded)
     expect(parsed).toMatchObject({ ok: true, value: { kind: 'flowchart' } })
     expect(renderMermaidSVG(encoded)).toBe(renderMermaidSVG(decoded))
-    expect(renderMermaidASCII(encoded, { colorMode: 'none' }))
-      .toBe(renderMermaidASCII(decoded, { colorMode: 'none' }))
+    expect(renderMermaidASCII(encoded, { colorMode: 'none' })).toBe(renderMermaidASCII(decoded, { colorMode: 'none' }))
     expect(layoutMermaidWithReceipt(encoded).layout).toEqual(layoutMermaidWithReceipt(decoded).layout)
   })
 
@@ -215,19 +202,16 @@ describe('forward-compatible unregistered family envelopes', () => {
       diagnostic: { code: 'UNSUPPORTED_FAMILY' },
     })
     expect(serializeMermaid(parsed.value)).toBe(source)
-    for (const unavailable of [
-      () => renderMermaidSVG(parsed.value),
-      () => renderMermaidASCII(parsed.value, { colorMode: 'none' }),
-      () => layoutMermaid(parsed.value),
-    ]) {
+    for (const unavailable of [() => renderMermaidSVG(parsed.value), () => renderMermaidASCII(parsed.value, { colorMode: 'none' }), () => layoutMermaid(parsed.value)]) {
       expect(unavailable).toThrow(MermaidFamilyDetectionError)
     }
-    expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({
-      code: 'RENDER_FAILED',
-      reason: expect.stringContaining('UNSUPPORTED_FAMILY'),
-    }))
-    expect(mutateChecked(parsed.value, { kind: 'add_node', id: 'A', label: 'A' }))
-      .toMatchObject({ ok: false, error: { code: 'UNSUPPORTED_FAMILY' } })
+    expect(verifyMermaid(parsed.value).warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'RENDER_FAILED',
+        reason: expect.stringContaining('UNSUPPORTED_FAMILY'),
+      }),
+    )
+    expect(mutateChecked(parsed.value, { kind: 'add_node', id: 'A', label: 'A' })).toMatchObject({ ok: false, error: { code: 'UNSUPPORTED_FAMILY' } })
   })
 
   test('Code Mode exposes nested frozen preservation spans through a read-only membrane', async () => {
@@ -264,11 +248,7 @@ describe('forward-compatible unregistered family envelopes', () => {
       if (!result.ok) throw new Error('expected a preserved parsed envelope')
       const diagram = result.value
 
-      for (const render of [
-        () => renderMermaidSVG(diagram),
-        () => renderMermaidASCII(diagram, { colorMode: 'none' }),
-        () => layoutMermaid(diagram),
-      ]) {
+      for (const render of [() => renderMermaidSVG(diagram), () => renderMermaidASCII(diagram, { colorMode: 'none' }), () => layoutMermaid(diagram)]) {
         try {
           render()
           throw new Error('unregistered family unexpectedly rendered')
@@ -279,18 +259,20 @@ describe('forward-compatible unregistered family envelopes', () => {
         }
       }
 
-      expect(verifyMermaid(diagram).warnings).toContainEqual(expect.objectContaining({
-        code: 'RENDER_FAILED',
-        reason: expect.stringContaining(fixture.code),
-      }))
+      expect(verifyMermaid(diagram).warnings).toContainEqual(
+        expect.objectContaining({
+          code: 'RENDER_FAILED',
+          reason: expect.stringContaining(fixture.code),
+        }),
+      )
       const mutation = mutateChecked(diagram, { kind: 'add_node', id: 'A', label: 'A' })
       expect(mutation).toMatchObject({
         ok: false,
         error: { code: fixture.code === 'UNKNOWN_HEADER' ? 'UNKNOWN_HEADER' : 'UNSUPPORTED_FAMILY' },
       })
-      expect(applyOps({ source: fixture.source, ops: [] })).toMatchObject({
+      expect(applyOps({ source: fixture.source, ops: [{ kind: 'add_node', id: 'A', label: 'A' }] })).toMatchObject({
         ok: false,
-        error: { code: 'INVALID_OP' },
+        error: { code: 'INVALID_OP', message: expect.stringContaining('has no structured ops') },
       })
     }
   })

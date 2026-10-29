@@ -21,6 +21,23 @@ const svg = renderMermaidSVG(source, {
 
 From those colors the renderer derives contrast-aware node fills, labels, edges, and accents. This is the safest default for agents: pick readable foreground/background colors and let the renderer complete the palette.
 
+Automatic card and boundary outlines adjust the palette's `border` candidate
+to reach at least 3:1 contrast against a known opaque diagram background. This
+shared rule also applies when a look and palette are stacked. Authored strokes
+and `roles.node.borderColor` / `roles.group.borderColor` keep their exact paint,
+including intentionally hidden or zero-width outlines.
+
+Opaque literal background and foreground colors (hex, RGB, HSL and named
+colors) share concrete contrast resolution for outlines, text and connectors.
+Palette tokens and host-controlled CSS variable references remain authored.
+
+This background comparison does not certify contrast against nested custom
+fills or an arbitrary host behind a transparent SVG. Unresolved CSS colors and
+translucent outline/background colors retain their supplied values; choose and
+check those paints against the actual embedding surface.
+The ratio compares source paint colors. Check thin outlines at the intended
+PNG size, since antialiasing changes individual pixels.
+
 ## Enriched mode
 
 Use extra slots when your product already has semantic tokens:

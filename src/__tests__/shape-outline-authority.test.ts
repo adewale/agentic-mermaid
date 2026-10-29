@@ -4,7 +4,7 @@ import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { applyRouteContracts, auditRouteContracts, shapePorts } from '../route-contracts.ts'
 import { renderedEndpointContact } from '../rendered-endpoint-diagnostics.ts'
-import { clipEdgeToShape } from '../shape-clipping.ts'
+import { clipEdgeToShape, isOutwardShapeApproach, trimOccludedShapeEndpoint } from '../shape-clipping.ts'
 import { paintsNodeFill, pointOnShapeSide, shapeOutline, shapeRoutingProfile } from '../shape-outline.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import type { NodeShape, PositionedNode } from '../types.ts'
@@ -29,12 +29,30 @@ const ENVELOPE_SHAPES = new Set([
 
 // Every geometric shape; the Record makes a new NodeShape a type error here.
 const GEOMETRIC_SHAPES = Object.keys({
-  rectangle: 1, service: 1, rounded: 1, diamond: 1, stadium: 1, circle: 1, subroutine: 1, doublecircle: 1,
+  rectangle: 1, service: 1, rounded: 1, diamond: 1, stadium: 1, circle: 1, ellipse: 1, subroutine: 1, doublecircle: 1,
   hexagon: 1, cylinder: 1, asymmetric: 1, trapezoid: 1, 'trapezoid-alt': 1, 'lean-r': 1, 'lean-l': 1,
-  'state-start': 1, 'state-end': 1, 'state-fork': 1, 'state-join': 1, 'state-choice': 1, 'state-history': 1,
+  'state-start': 1, 'state-end': 1, 'state-fork': 1, 'state-join': 1, 'state-choice': 1, 'state-history': 1, 'state-note': 1,
 } satisfies Record<NodeShape, 1>) as NodeShape[]
 
 describe('canonical shape outline authority', () => {
+  test('ellipse paint and every routed endpoint share the same curved boundary', () => {
+    const ellipse = node('ellipse')
+    const expected = { kind: 'ellipse' as const, cx: 60, cy: 40, rx: 50, ry: 20 }
+    const outline = shapeOutline(ellipse, PAINT)
+    expect(outline.geometry).toEqual(expected)
+    expect(outline.routing).toEqual(expected)
+    for (const target of [{ x: 160, y: 40 }, { x: 160, y: 140 }, { x: 60, y: -60 }]) {
+      const point = clipEdgeToShape([{ x: 60, y: 40 }, target], ellipse, true)[0]!
+      expect(((point.x - 60) / 50) ** 2 + ((point.y - 40) / 20) ** 2).toBeCloseTo(1, 8)
+    }
+    for (const backend of ['elk', 'agentic'] as const) {
+      const positioned = layoutGraphSync(parseMermaid('flowchart LR\nA(-a wide ellipse label-) --> B[Done]'), { graphLayout: { backend } })
+      const source = positioned.nodes.find(candidate => candidate.id === 'A')!
+      expect(positioned.edges[0]!.points[0]).toEqual(shapePorts(source).E)
+      const text = source.labelBlock!
+      expect((text.width / source.width) ** 2 + (text.height / source.height) ** 2).toBeLessThan(1)
+    }
+  })
   // Node text is inked against the node's fill only where the outline paints
   // it (an open symbol leaves its label on the page), so the two must agree.
   test('paintsNodeFill says exactly which outlines paint the node fill', () => {
@@ -44,7 +62,8 @@ describe('canonical shape outline authority', () => {
       ...GEOMETRIC_SHAPES.map(shape => node(shape)),
     ]
     for (const positioned of nodes) {
-      const painted = shapeOutline(positioned, { ...PAINT, fill }).crisp.includes(`fill="${fill}"`)
+      const outline = shapeOutline(positioned, { ...PAINT, fill })
+      const painted = [outline.paint, ...outline.childPaints ?? []].some(paint => paint.fill === fill)
       expect(paintsNodeFill(positioned), positioned.semanticShape ?? positioned.shape).toBe(painted)
     }
   })
@@ -110,6 +129,88 @@ describe('canonical shape outline authority', () => {
       expect(clipEdgeToShape([{ x: 20, y: 10 }, { x: 30, y: 10 }], state, true)[0])
         .toEqual({ x: 18, y: 10 })
     }
+  })
+
+  test('polygon clipping preserves outward contacts and repairs contacts across the node', () => {
+    const hexagon = { ...node('hexagon'), x: 0, y: 0, width: 100, height: 60 }
+    for (const [contact, adjacent, expected] of [
+      [{ x: 100, y: 30 }, { x: 130, y: 10 }, { x: 100, y: 30 }],
+      [{ x: 0, y: 30 }, { x: -30, y: 10 }, { x: 0, y: 30 }],
+      [{ x: 0, y: 30 }, { x: 150, y: 30 }, { x: 100, y: 30 }],
+      [{ x: 100, y: 30 }, { x: -50, y: 30 }, { x: 0, y: 30 }],
+    ]) {
+      expect(clipEdgeToShape([contact!, adjacent!], hexagon, true)[0]).toEqual(expected)
+      expect(clipEdgeToShape([adjacent!, contact!], hexagon, false)[1]).toEqual(expected)
+    }
+  })
+
+  test.each(['rectangle', 'circle', 'ellipse', 'stadium', 'cylinder', 'hexagon'] as const)('late %s terminal clipping retains the existing exterior subpath', shape => {
+    const y = shape === 'circle' ? 50 : 30
+    const owner = { ...node(shape), x: 0, y: 0, width: 100, height: y * 2 }
+    // At this centerline every listed painted outline has extrema x=0/100.
+    const points = [{ x: 100, y }, { x: -40, y }, { x: -40, y: 100 }]
+    const expected = [{ x: 0, y }, { x: -40, y }, { x: -40, y: 100 }]
+    expect(trimOccludedShapeEndpoint(points, owner, true)).toEqual(expected)
+    expect(trimOccludedShapeEndpoint([...points].reverse(), owner, false)).toEqual([...expected].reverse())
+  })
+
+  test('outward contact distinguishes smooth tangency, sharp vertices and rectangular corners without a scale cutoff', () => {
+    const circle = { ...node('circle'), x: 0, y: 0, width: 100, height: 100 }
+    expect(isOutwardShapeApproach(circle, { x: 50, y: 0 }, { x: 150, y: 0 })).toBe(false)
+    const stadium = { ...node('stadium'), x: 0, y: 0, width: 200, height: 100 }
+    expect(isOutwardShapeApproach(stadium, { x: 150, y: 0 }, { x: 250, y: 0 })).toBe(false)
+    const diamond = { ...node('diamond'), x: 0, y: 0, width: 100, height: 100 }
+    expect(isOutwardShapeApproach(diamond, { x: 50, y: 0 }, { x: -50, y: 0 })).toBe(true)
+    const rectangle = { ...node('rectangle'), x: 0, y: 0, width: 100, height: 100 }
+    expect(isOutwardShapeApproach(rectangle, { x: 50, y: 0 }, { x: 100, y: 0 })).toBe(false)
+    expect(isOutwardShapeApproach(rectangle, { x: 100, y: 0 }, { x: 150, y: 0 })).toBe(true)
+    const large = { ...circle, width: 2e10, height: 2e10 }
+    expect(isOutwardShapeApproach(large, { x: 2e10, y: 1e10 }, { x: 3e10, y: 1e10 })).toBe(true)
+  })
+
+  test('terminal clipping preserves exterior stale prefixes, including concave gaps inside the layout box', () => {
+    const rectangle = { ...node('rectangle'), x: 0, y: 0, width: 100, height: 60 }
+    const outside = [{ x: 120, y: 30 }, { x: 50, y: 30 }, { x: -40, y: 30 }]
+    expect(trimOccludedShapeEndpoint(outside, rectangle, true)).toBe(outside)
+    const hourglass = { ...node('diamond', 'hourglass'), x: 0, y: 0, width: 100, height: 60 }
+    const gap = [{ x: 90, y: 30 }, { x: 50, y: 30 }, { x: 50, y: 100 }]
+    expect(trimOccludedShapeEndpoint(gap, hourglass, true)).toBe(gap)
+    const envelope = node('rectangle', 'cloud')
+    expect(trimOccludedShapeEndpoint(outside, envelope, true)).toBe(outside)
+    const circle = { ...node('circle'), x: 0, y: 0, width: 100, height: 100 }
+    const excursion = [{ x: 50, y: 0 }, { x: 150, y: 0 }, { x: 150, y: 100 }, { x: 50, y: 100 }, { x: 50, y: 150 }]
+    expect(trimOccludedShapeEndpoint(excursion, circle, true)).toBe(excursion)
+    const concaveExcursion = [{ x: 81, y: 10 }, { x: 81, y: 50 }, { x: 81, y: 100 }]
+    expect(trimOccludedShapeEndpoint(concaveExcursion, hourglass, true)).toBe(concaveExcursion)
+  })
+
+  test('polygon clipping repairs a contact whose shaft re-enters a concave outline', () => {
+    const hourglass = { ...node(FLOWCHART_V11_SHAPES.hourglass!.geometry, 'hourglass'), x: 0, y: 0, width: 100, height: 60 }
+    for (const [contact, adjacent, expected] of [
+      [{ x: 81, y: 15 }, { x: 81, y: 160 }, { x: 81, y: 60 }],
+      [{ x: 81, y: 45 }, { x: 81, y: -100 }, { x: 81, y: 0 }],
+      [{ x: 81, y: 15 }, { x: 90, y: 160 }, { x: 81, y: 60 }],
+    ]) {
+      expect(clipEdgeToShape([contact!, adjacent!], hourglass, true)[0]).toEqual(expected)
+      expect(clipEdgeToShape([adjacent!, contact!], hourglass, false)[1]).toEqual(expected)
+    }
+  })
+
+  test('a missed intersection recovers only an unambiguous box face', () => {
+    const diamond = { ...node('diamond'), x: 0, y: 0, width: 100, height: 100 }
+    for (const [endpoint, adjacent, expected] of [
+      [{ x: 25, y: -1e-12 }, { x: 24, y: -1e-12 }, { x: 25, y: 25 }],
+      [{ x: 25, y: 100 + 1e-12 }, { x: 24, y: 100 + 1e-12 }, { x: 25, y: 75 }],
+      [{ x: -1e-12, y: 25 }, { x: -1e-12, y: 24 }, { x: 25, y: 25 }],
+      [{ x: 100 + 1e-12, y: 25 }, { x: 100 + 1e-12, y: 24 }, { x: 75, y: 25 }],
+    ]) {
+      expect(clipEdgeToShape([endpoint!, adjacent!], diamond, true)[0]).toEqual(expected)
+      expect(clipEdgeToShape([adjacent!, endpoint!], diamond, false)[1]).toEqual(expected)
+    }
+    const corner = { x: -1e-12, y: -1e-12 }
+    expect(clipEdgeToShape([corner, { x: -1, y: corner.y }], diamond, true)[0]).toBe(corner)
+    const unknown = { x: 125, y: -1 }
+    expect(clipEdgeToShape([unknown, { x: 126, y: -1 }], diamond, true)[0]).toBe(unknown)
   })
 
   test('an explicit zero corner radius remains square on rounded nodes', () => {

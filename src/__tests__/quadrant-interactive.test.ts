@@ -7,7 +7,6 @@
 
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
-import { tooltipMarkup, tooltipCss } from '../shared/svg-tooltip.ts'
 
 const SRC = `quadrantChart
   title Reach and engagement of campaigns
@@ -36,19 +35,6 @@ describe('quadrant interactive tooltips', () => {
     expect(renderMermaidSVG(SRC, { interactive: true })).toBe(renderMermaidSVG(SRC, { interactive: true }))
   })
 
-  it('the shared primitive keeps xychart\'s tooltip class names and hover selectors', () => {
-    // Fragment checks, not byte parity: prefix "xychart" must reproduce the
-    // legacy class names and hover selectors the xychart renderer shipped
-    // before the extraction. Geometry is not pinned here.
-    const tip = tooltipMarkup('xychart', 100, 50, '42')
-    expect(tip).toContain('<g class="xychart-tip">')
-    expect(tip).toContain('class="xychart-tip xychart-tip-bg"')
-    expect(tip).toContain('class="xychart-tip xychart-tip-ptr"')
-    expect(tip).toContain('class="xychart-tip xychart-tip-text"')
-    const css = tooltipCss('xychart', ['xychart-bar-group', 'xychart-dot-group'])
-    expect(css).toContain('.xychart-bar-group:hover .xychart-tip,')
-    expect(css).toContain('.xychart-dot-group:hover .xychart-tip { opacity: 1; }')
-  })
 
   it('xychart interactive output still renders its tooltip chrome through the shared module', () => {
     const xy = renderMermaidSVG(

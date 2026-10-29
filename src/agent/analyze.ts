@@ -12,23 +12,18 @@ import type { DiagramActionRecord, DiagramAnalysis, ParseError, Result, ParsedDi
 import { err, ok } from './types.ts'
 import { classifyRoutes } from '../route-contracts.ts'
 import { parseMermaid as parseFlowchartLegacy, splitFlowchartStatements } from '../parser.ts'
-import { scanFlowchart } from '../flowchart-lexer.ts'
+import { coalesceFlowchartLines, scanFlowchart } from '../flowchart-lexer.ts'
 import { stateBodyToGraph } from './state-body.ts'
 import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
 import { normalizeMermaidSource, toMermaidLines } from '../mermaid-source.ts'
 import { decodeXML } from 'entities'
-import {
-  expandInlineNamespaceStatement,
-  parseClassDeclaration,
-  parseClassInteractionWithAuthored,
-  parseClassReference,
-  splitAuthoredClassLine,
-} from '../class/parser.ts'
+import { expandInlineNamespaceStatement, parseClassDeclaration, parseClassInteractionWithAuthored, parseClassReference, splitAuthoredClassLine } from '../class/parser.ts'
 import type { MermaidGraph } from '../types.ts'
 import { isSafeActionHref } from '../output-security.ts'
 import { parseActorLinks } from '../sequence/parser.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
+import { resolveKanbanConfig, kanbanTicketUrl } from '../kanban/config.ts'
 
 export function analyzeMermaid(d: ParsedDiagram): DiagramAnalysis {
   return {
@@ -49,14 +44,16 @@ function feedbackEdges(d: ParsedDiagram): DiagramAnalysis['feedbackEdges'] {
   if (d.body.kind === 'flowchart') graph = d.body.graph
   else if (d.body.kind === 'state') graph = stateBodyToGraph(d.body)
   else if (d.kind === 'flowchart' && d.body.kind === 'opaque') {
-    try { graph = parseFlowchartLegacy(d.canonicalSource) } catch { graph = null }
+    try {
+      graph = parseFlowchartLegacy(d.canonicalSource)
+    } catch {
+      graph = null
+    }
   }
   if (!graph) return []
 
   const classes = classifyRoutes(graph)
-  return graph.edges.flatMap((edge, edgeIndex) => classes[edgeIndex] === 'feedback'
-    ? [{ edgeIndex, from: edge.source, to: edge.target, label: edge.label, routeClass: 'feedback' as const }]
-    : [])
+  return graph.edges.flatMap((edge, edgeIndex) => (classes[edgeIndex] === 'feedback' ? [{ edgeIndex, from: edge.source, to: edge.target, label: edge.label, routeClass: 'feedback' as const }] : []))
 }
 
 function ganttAnalysis(d: ParsedDiagram): Pick<DiagramAnalysis, 'gantt'> {
@@ -65,28 +62,56 @@ function ganttAnalysis(d: ParsedDiagram): Pick<DiagramAnalysis, 'gantt'> {
     const normalized = normalizeMermaidSource(d.canonicalSource)
     const model = applyGanttFrontmatterConfig(parseGanttModel(normalized.lines), normalized.frontmatter)
     const schedule = resolveGanttSchedule(model)
-    return schedule.analysis ? { gantt: {
-      criticalPathTaskIds: [...schedule.analysis.criticalPathTaskIds],
-      slackByTaskId: { ...schedule.analysis.slackByTaskId },
-      projectStart: schedule.analysis.projectStart,
-      projectEnd: schedule.analysis.projectEnd,
-      entryTaskIds: [...schedule.analysis.entryTaskIds],
-      sinkTaskIds: [...schedule.analysis.sinkTaskIds],
-    } } : {}
+    return schedule.analysis
+      ? {
+          gantt: {
+            criticalPathTaskIds: [...schedule.analysis.criticalPathTaskIds],
+            slackByTaskId: { ...schedule.analysis.slackByTaskId },
+            projectStart: schedule.analysis.projectStart,
+            projectEnd: schedule.analysis.projectEnd,
+            entryTaskIds: [...schedule.analysis.entryTaskIds],
+            sinkTaskIds: [...schedule.analysis.sinkTaskIds],
+          },
+        }
+      : {}
   } catch {
     return {}
   }
 }
 
 export function collectActionRecords(d: ParsedDiagram): DiagramActionRecord[] {
-  const source = d.body.kind === 'opaque' || d.body.kind === 'extension' || d.body.kind === 'preserved'
-    ? d.body.source
-    : d.canonicalSource
+  const source = d.body.kind === 'opaque' || d.body.kind === 'extension' || d.body.kind === 'preserved' ? d.body.source : d.canonicalSource
   const records: DiagramActionRecord[] = []
   if (d.kind === 'flowchart') records.push(...collectFlowchartActions(source))
   if (d.kind === 'class') records.push(...collectClassActions(source))
   if (d.kind === 'sequence') records.push(...collectSequenceActions(source))
   if (d.body.kind === 'gantt') records.push(...collectGanttActions(d))
+  if (d.body.kind === 'kanban') {
+    const config = resolveKanbanConfig(d.meta.frontmatter)
+    for (const column of d.body.columns)
+      for (const task of column.tasks) {
+        const ticket = task.metadata.ticket
+        const href = typeof ticket === 'string' ? kanbanTicketUrl(config.ticketBaseUrl, ticket) : undefined
+        if (href) records.push(actionRecord('kanban', task.id, 'href', href, d.source.nodes.get(task.id)?.line, href))
+      }
+  }
+  if (d.body.kind === 'c4') {
+    const body = d.body
+    for (const [items, regions, prefix] of [
+      [body.elements, d.source.nodes, 'node'],
+      [body.boundaries, d.source.groups, 'group'],
+      [body.relationships, d.source.edges, 'edge'],
+    ] as const)
+      for (const item of items) {
+        const link = item.effectiveLink ?? item.link
+        if (link !== undefined)
+          records.push({
+            ...actionRecord('c4', item.id, 'href', link, regions.get(item.id)?.line, link),
+            regionId: `${prefix}:${item.id}`,
+          })
+      }
+  }
+
   const seen = new Map<string, number>()
   return records.map(record => {
     const key = `${record.family}:${record.target}`
@@ -104,8 +129,7 @@ function collectClassActions(source: string): DiagramActionRecord[] {
   // &#10; may introduce an entire interaction statement (or split one).
   // Retain the authored physical line for each decoded segment in sidecars.
   const physicalLines = source.split(/\r?\n/)
-  const authoredSegments = physicalLines.flatMap((line, index) =>
-    splitAuthoredClassLine(line).map(text => ({ text, line: index + 1 })))
+  const authoredSegments = physicalLines.flatMap((line, index) => splitAuthoredClassLine(line).map(text => ({ text, line: index + 1 })))
   for (const sourceLine of actionSourceLines(decodeXML(source))) {
     const authoredSegment = authoredSegments[sourceLine.line - 1]
     const authoredLine = authoredSegment?.line ?? sourceLine.line
@@ -121,8 +145,7 @@ function collectClassActions(source: string): DiagramActionRecord[] {
         inClassBody = true
         continue
       }
-      const authoredText = authoredStatements.length === semanticStatements.length
-        && decodeXML(authoredStatements[index]!) === text ? authoredStatements[index] : undefined
+      const authoredText = authoredStatements.length === semanticStatements.length && decodeXML(authoredStatements[index]!) === text ? authoredStatements[index] : undefined
       const embedded = authoredText === undefined ? null : parseClassInteractionWithAuthored(authoredText)
       if (embedded) {
         if (embedded.tooltip !== undefined) effectiveTooltips.set(embedded.id, embedded.tooltip)
@@ -156,13 +179,7 @@ function collectClassActions(source: string): DiagramActionRecord[] {
         out.push(actionRecord('class', ref.id, kind, explicit![2]!, authoredLine))
       } else {
         const raw = kind === 'href' ? explicit![2]! : rest
-        out.push(actionRecord(
-          'class',
-          ref.id,
-          match[1]!.toLowerCase() === 'link' || looksLikeHref(raw) ? 'href' : 'callback',
-          raw,
-          authoredLine,
-        ))
+        out.push(actionRecord('class', ref.id, match[1]!.toLowerCase() === 'link' || looksLikeHref(raw) ? 'href' : 'callback', raw, authoredLine))
       }
     }
   }
@@ -171,7 +188,11 @@ function collectClassActions(source: string): DiagramActionRecord[] {
 
 function collectFlowchartActions(source: string): DiagramActionRecord[] {
   const out: DiagramActionRecord[] = []
-  for (const sourceLine of actionSourceLines(source, true)) {
+  // A label, string or link may run on across lines: read statements as the
+  // parser does, so text inside one never becomes an action.
+  const sourceLines = actionSourceLines(source, true)
+  for (const group of coalesceFlowchartLines(sourceLines.map(sourceLine => sourceLine.text))) {
+    const sourceLine = { text: group.text, line: sourceLines[group.line]!.line }
     for (const text of splitFlowchartStatements(sourceLine.text)) {
       if (!text || text.startsWith('%%')) continue
       let m = text.match(/^href\s+(\S+)\s+(.+)$/i)
@@ -215,8 +236,7 @@ function actionSourceLines(source: string, maskMarkdownStrings = false): Array<{
   // family statement authored after the block's closing brace.
   let inMarkdownString = false
   for (const sourceLine of out) {
-    const preserveActionText = !inMarkdownString
-      && splitFlowchartStatements(sourceLine.text).some(statement => /^(?:click|href)\s+/i.test(statement.trim()))
+    const preserveActionText = !inMarkdownString && splitFlowchartStatements(sourceLine.text).some(statement => /^(?:click|href)\s+/i.test(statement.trim()))
     if (preserveActionText) continue
     const masked = maskMarkdownStringContent(sourceLine.text, inMarkdownString)
     inMarkdownString = masked.open
@@ -228,9 +248,7 @@ function actionSourceLines(source: string, maskMarkdownStrings = false): Array<{
 function collectSequenceActions(source: string): DiagramActionRecord[] {
   return actionSourceLines(source).flatMap(sourceLine => {
     const parsed = parseActorLinks(sourceLine.text)
-    return parsed ? Object.values(parsed.links).map(href =>
-      actionRecord('sequence', parsed.actorId, 'href', href, sourceLine.line),
-    ) : []
+    return parsed ? Object.values(parsed.links).map(href => actionRecord('sequence', parsed.actorId, 'href', href, sourceLine.line)) : []
   })
 }
 
@@ -262,15 +280,8 @@ function collectGanttActions(d: ParsedDiagram): DiagramActionRecord[] {
   }
 }
 
-function actionRecord(
-  family: DiagramActionRecord['family'],
-  target: string,
-  action: DiagramActionRecord['action'],
-  raw: string,
-  line?: number,
-  parsedHref?: string,
-): DiagramActionRecord {
-  const href = action === 'href' ? parsedHref ?? firstActionToken(raw) : undefined
+function actionRecord(family: DiagramActionRecord['family'], target: string, action: DiagramActionRecord['action'], raw: string, line?: number, parsedHref?: string): DiagramActionRecord {
+  const href = action === 'href' ? (parsedHref ?? firstActionToken(raw)) : undefined
   const unsafe = href !== undefined && !isSafeHref(href)
   return {
     family,
@@ -281,9 +292,7 @@ function actionRecord(
     href,
     executable: false,
     security: action === 'href' ? (unsafe ? 'unsafe' : 'safe') : 'source-only',
-    message: action === 'href'
-      ? (unsafe ? 'Unsafe href is source-only and must be stripped by strict renderers.' : 'Href is an action record; non-SVG renderers keep it as source-only metadata.')
-      : 'Callbacks/calls are recorded for analysis but are never executed.',
+    message: action === 'href' ? (unsafe ? 'Unsafe href is source-only and must be stripped by strict renderers.' : 'Href is an action record; non-SVG renderers keep it as source-only metadata.') : 'Callbacks/calls are recorded for analysis but are never executed.',
   }
 }
 

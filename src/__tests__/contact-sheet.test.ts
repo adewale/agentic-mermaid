@@ -4,7 +4,8 @@
 //   1. the rubric's HARD metrics must be zero (endpoints on outlines, no
 //      diagonals, no unexplained bends, no hitches, no overlaps, labels on
 //      their routes, no edge-through-node), and
-//   2. the full public layout geometry is pinned in a readable golden
+//   2. the public layout geometry, at its historical integer-pixel precision,
+//      is pinned in a readable golden
 //      (testdata/contact-sheet-geometry.json: one node, edge or group per
 //      line), so any change to these drawings fails CI with the lines that
 //      moved, and its review diff shows the same lines.
@@ -22,7 +23,7 @@ import { layoutGraphSync } from '../layout-engine.ts'
 import { assessLayout } from '../layout-rubric.ts'
 import { parseMermaid } from '../parser.ts'
 import { verifyMermaid } from '../agent/verify.ts'
-import type { RenderedLayout } from '../agent/types.ts'
+import { toFinite, type Finite, type RenderedLayout } from '../agent/types.ts'
 
 const GOLDEN = join(import.meta.dir, 'testdata', 'contact-sheet-geometry.json')
 const UPDATE = process.env.UPDATE_CONTACT_SHEET_GEOMETRY === '1'
@@ -37,7 +38,25 @@ type ScenarioGeometry = {
 
 function geometryOf(title: string, source: string): ScenarioGeometry {
   const { nodes, edges, groups, ...shell } = verifyMermaid(source).layout
-  return { title, shell, nodes, edges, groups }
+  // Retained text measurements are checked at their owning boundaries. Keep
+  // this golden focused on unchanged positions, routes and authored meaning.
+  // Public graph geometry retains subpixel evidence for quality; the contact
+  // sheet keeps its original integer-pixel sentinel without re-pinning it.
+  const coordinate = (value: Finite): Finite => toFinite(Math.round(value))
+  return {
+    title, shell: { ...shell, bounds: { w: coordinate(shell.bounds.w), h: coordinate(shell.bounds.h) } },
+    nodes: nodes.map(({ labelBounds: _bounds, labelContainer: _container, labelVisibility: _visibility, dataPosition: _data, ...node }) => ({
+      ...node, x: coordinate(node.x), y: coordinate(node.y), w: coordinate(node.w), h: coordinate(node.h),
+    })),
+    edges: edges.map(edge => {
+      const { visibility: _visibility, ...route } = edge
+      const path = route.path.map(([x, y]) => [coordinate(x), coordinate(y)] as [Finite, Finite])
+      if (!route.label) return { ...route, path }
+      const { bounds: _bounds, ...label } = route.label
+      return { ...route, path, label: { ...label, x: coordinate(label.x), y: coordinate(label.y) } }
+    }),
+    groups: groups.map(group => ({ ...group, x: coordinate(group.x), y: coordinate(group.y), w: coordinate(group.w), h: coordinate(group.h) })),
+  }
 }
 
 /** One block per scenario and one node, edge or group per line, so a moved

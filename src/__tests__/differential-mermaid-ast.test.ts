@@ -43,7 +43,8 @@ describe('differential: our counter ↔ mermaid-ast (independent parser)', () =>
       for (let k = fam.kRange[0]; k <= fam.kRange[1]; k++) {
         const src = fam.build(k, `q${k}`)
         const ours = parseMermaid(src)
-        if (!ours.ok) continue
+        expect(ours.ok, `${fam.family} k=${k}: generated source must parse`).toBe(true)
+        if (!ours.ok) throw new Error(`generated ${fam.family} source failed to parse`)
         const a = countStructuralElements(ours.value)
         const b = countViaMermaidAst(src)
         if (b === null) continue  // family mermaid-ast doesn't model → no cross-check

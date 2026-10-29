@@ -1,13 +1,13 @@
 {
   "schemaVersion": 2,
   "pin": {
-    "version": "11.16.0",
-    "commit": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+    "version": "12.2.0",
+    "commit": "1fb7869866dd619168d840291c9c54b4f129758b",
     "inputs": [
       "packages/mermaid/src/diagram-api/diagram-orchestration.ts",
       "packages/mermaid/src/diagram-api/detectType.ts",
       "packages/mermaid/src/diagrams/**/**Detector.ts",
-      "packages/mermaid/src/config.schema.yaml",
+      "packages/mermaid/src/schemas/config.schema.yaml",
       "https://mermaid.ai/open-source/syntax/",
       "skills/agentic-mermaid-diagram-workflow/references/upstream/*.md"
     ]
@@ -43,7 +43,9 @@
     "wardley": "wardley.md",
     "cynefin": "cynefin.md",
     "treeview": "treeView.md",
-    "railroad": "railroad.md"
+    "railroad": "railroad.md",
+    "agentflow": "agentflow.md",
+    "usecase": "usecase.md"
   },
   "families": [
     {
@@ -53,7 +55,6 @@
       "maturity": "stable",
       "upstreamDetectorIds": [
         "flowchart-v2",
-        "flowchart",
         "flowchart-elk"
       ],
       "headers": [
@@ -107,8 +108,7 @@
       "source": "core",
       "maturity": "stable",
       "upstreamDetectorIds": [
-        "classDiagram",
-        "class"
+        "classDiagram"
       ],
       "headers": [
         {
@@ -117,7 +117,7 @@
         },
         {
           "value": "classDiagram-v2",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -127,8 +127,7 @@
       "source": "core",
       "maturity": "stable",
       "upstreamDetectorIds": [
-        "stateDiagram",
-        "state"
+        "stateDiagram"
       ],
       "headers": [
         {
@@ -227,11 +226,11 @@
       "headers": [
         {
           "value": "requirementDiagram",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "requirement",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -261,23 +260,23 @@
       "headers": [
         {
           "value": "C4Context",
-          "agenticStatus": "inventory-only"
+          "agenticStatus": "native"
         },
         {
           "value": "C4Container",
-          "agenticStatus": "inventory-only"
+          "agenticStatus": "native"
         },
         {
           "value": "C4Component",
-          "agenticStatus": "inventory-only"
+          "agenticStatus": "native"
         },
         {
           "value": "C4Dynamic",
-          "agenticStatus": "inventory-only"
+          "agenticStatus": "native"
         },
         {
           "value": "C4Deployment",
-          "agenticStatus": "inventory-only"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -322,7 +321,7 @@
       "headers": [
         {
           "value": "zenuml",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -375,11 +374,11 @@
       "headers": [
         {
           "value": "block",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "block-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -394,11 +393,11 @@
       "headers": [
         {
           "value": "packet",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "packet-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -413,7 +412,7 @@
       "headers": [
         {
           "value": "kanban",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -462,7 +461,7 @@
       "headers": [
         {
           "value": "eventmodeling",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -477,11 +476,11 @@
       "headers": [
         {
           "value": "treemap",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "treemap-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -511,11 +510,11 @@
       "headers": [
         {
           "value": "ishikawa",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "ishikawa-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -590,6 +589,36 @@
         },
         {
           "value": "railroad-peg-beta",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "agentflow",
+      "label": "Agentflow",
+      "source": "core",
+      "maturity": "beta",
+      "upstreamDetectorIds": [
+        "agentflow"
+      ],
+      "headers": [
+        {
+          "value": "agentflow-beta",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "usecase",
+      "label": "Use Case",
+      "source": "core",
+      "maturity": "beta",
+      "upstreamDetectorIds": [
+        "usecase"
+      ],
+      "headers": [
+        {
+          "value": "usecase-beta",
           "agenticStatus": "unsupported"
         }
       ]

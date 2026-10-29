@@ -9,12 +9,14 @@ import type {
 } from './types.ts'
 import type { RenderOptions } from '../types.ts'
 import type { RadarVisualConfig } from './config.ts'
-import { measureTextWidth } from '../text-metrics.ts'
-import { wrapLabelToWidth } from '../shared/label-wrap.ts'
+import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
+import { layoutTextColumns } from '../shared/text-rows.ts'
+import { fitChartWidth } from '../shared/chart-width.ts'
 import { resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { radarValueRatio, resolveRadarScale } from './scale.ts'
+import { formatChartValue as formatTick } from '../shared/chart-value-format.ts'
 import { MAX_RADAR_AXES } from './parser.ts'
 
 // ============================================================================
@@ -66,6 +68,7 @@ const R = {
   legendSwatch: 14,
   legendGap: 30,
   legendRowGap: 9,
+  legendColumnGap: 16,
   legendSwatchToText: 8,
   ringLabelFontSize: 9.5,
   /** Padding inside a ring-value knockout box (x each side / y each side). */
@@ -143,6 +146,29 @@ export function layoutRadarChart(
   visual: RadarVisualConfig = {},
   styleFace?: InternalStyleFace,
 ): PositionedRadarChart {
+  const natural = placeRadarChart(chart, options, visual, styleFace)
+  const maxWidth = options.radar?.maxWidth
+  if (maxWidth === undefined) return natural
+  return fitChartWidth(natural, maxWidth, (attempt, previous) => {
+    if (attempt === 2 && (visual.width !== undefined || visual.height !== undefined)) return undefined
+    let radius: number | undefined
+    if (attempt === 2) {
+      const horizontalSpans = chart.axes.map((_axis, index) => Math.sin(axisAngle(index, chart.axes.length)))
+      const span = Math.max(0, ...horizontalSpans) - Math.min(0, ...horizontalSpans)
+      const labelSlope = Math.max(1, visual.axisScaleFactor ?? 1) + (visual.axisLabelFactor === undefined ? 0 : visual.axisLabelFactor - 1.05)
+      radius = Math.max(60, natural.radius - Math.max(0, previous.width - maxWidth) / Math.max(1, span * labelSlope))
+    }
+    const next = placeRadarChart(chart, options, visual, styleFace, {
+      maxWidth,
+      ...(radius === undefined ? {} : { radius }),
+    })
+    // A smaller plot must not trade away scale annotations that were visible
+    // at the natural radius. Keep the prior arrangement and report overflow.
+    return natural.tickLabels.some((tick, i) => next.tickLabels[i]?.text !== tick.text) ? previous : next
+  })
+}
+
+function placeRadarChart(chart: RadarChart, options: RenderOptions, visual: RadarVisualConfig, styleFace?: InternalStyleFace, fit?: { maxWidth: number; radius?: number }): PositionedRadarChart {
   const style = resolveRenderStyle(options, radarStyleDefaults(visual), styleFace)
   const n = chart.axes.length
   if (n > MAX_RADAR_AXES) throw new Error(`Radar charts support at most ${MAX_RADAR_AXES} axes.`)
@@ -154,6 +180,7 @@ export function layoutRadarChart(
     const h = visual.height ?? visual.width ?? R.radius * 2
     radius = clamp(Math.min(w, h) / 2 - 56, 40, 400)
   }
+  if (fit?.radius !== undefined) radius = fit.radius
   const axisScale = visual.axisScaleFactor ?? 1
   const labelFactor = visual.axisLabelFactor ?? 1.05
   const tension = visual.curveTension ?? 0.17
@@ -167,25 +194,26 @@ export function layoutRadarChart(
   const axisWeight = style.edgeLabelFontWeight
   const axisLineH = axisFont * 1.3
   const titleFont = style.groupHeaderFontSize
-  const titleWeight = style.groupHeaderFontWeight
+  const titleWeight = Math.max(style.groupHeaderFontWeight, 600)
 
   // --- Axis labels: budget-driven, lossless wrap compression ----------------
   // Wrap at the default cap, then (timeline discipline) shrink the cap in
   // bounded steps while the widest wrapped label still exceeds a budget derived
   // from the plot radius, so a couple of very long labels can't blow the gutter.
   const labelBudget = Math.max(R.axisLabelMinWidth, Math.min(R.axisLabelMaxWidth, radius * 1.05))
-  const wrapAt = (cap: number): string[][] =>
-    chart.axes.map(a => wrapLabelToWidth(a.label, cap, axisFont, axisWeight).split('\n'))
-  const widest = (wrapped: string[][]): number =>
-    Math.max(0, ...wrapped.flat().map(line => measureTextWidth(line, axisFont, axisWeight)))
+  const wrapAt = (cap: number): PixelTextBlock[] => chart.axes.map(a => preparePixelText(a.label, {
+    display: 'literal', transform: style.edgeTextTransform, fontSize: axisFont, fontWeight: axisWeight,
+    letterSpacing: style.edgeLetterSpacing, maxWidth: cap,
+  }))
   let wrapCap: number = R.axisLabelMaxWidth
-  let wrappedAxes = wrapAt(wrapCap)
-  for (let pass = 0; pass < 8 && widest(wrappedAxes) > labelBudget && wrapCap > R.axisLabelMinWidth; pass++) {
+  let axisBlocks = wrapAt(wrapCap)
+  for (let pass = 0; pass < 8 && Math.max(0, ...axisBlocks.map(block => block.width)) > labelBudget && wrapCap > R.axisLabelMinWidth; pass++) {
     wrapCap = Math.max(R.axisLabelMinWidth, wrapCap - 12)
-    wrappedAxes = wrapAt(wrapCap)
+    axisBlocks = wrapAt(wrapCap)
   }
-  const axisLabelW = wrappedAxes.map(lines => Math.max(0, ...lines.map(line => measureTextWidth(line, axisFont, axisWeight))))
-  const axisBlockH = wrappedAxes.map(lines => lines.length * axisLineH)
+  const wrappedAxes = axisBlocks.map(block => block.lines)
+  const axisLabelW = axisBlocks.map(block => block.width)
+  const axisBlockH = axisBlocks.map(block => block.height)
 
   // Outermost drawn data radius per axis — labels must clear the dot on it.
   const dataMaxR = new Array<number>(n).fill(0)
@@ -242,26 +270,8 @@ export function layoutRadarChart(
     admitted.push(i)
   }
 
-  // --- Legend: wrap labels to a budget, reserve per-row height (gantt) ------
-  const legendFont = style.nodeLabelFontSize
-  const legendWeight = style.nodeLabelFontWeight
-  const legendLineH = legendFont * 1.25
-  const wantLegend = chart.showLegend && chart.curves.length > 0
-  const legendSwatch = visual.legendBoxSize ?? R.legendSwatch
-  // Wrap budget scales with the legend type size, so a larger accessible font
-  // still expands the canvas (it wraps wider, not just taller).
-  const legendWrapWidth = legendFont * (R.legendLabelMaxWidth / R.legendFontSize)
-  const legendLines = wantLegend
-    ? chart.curves.map(c => wrapLabelToWidth(c.label, legendWrapWidth, legendFont, legendWeight).split('\n'))
-    : []
-  const legendRowHeights = legendLines.map(lines => Math.max(legendSwatch, lines.length * legendLineH))
-  const legendTextWidth = Math.max(0, ...legendLines.flat().map(line => measureTextWidth(line, legendFont, legendWeight)))
-  const legendWidth = wantLegend ? legendSwatch + R.legendSwatchToText + legendTextWidth : 0
-  const legendHeight = wantLegend
-    ? legendRowHeights.reduce((s, h) => s + h, 0) + Math.max(0, chart.curves.length - 1) * R.legendRowGap
-    : 0
-
-  // --- Canvas: grow to contain every final label box -----------------------
+  // The plot and axis labels set an unavoidable width before title/legend
+  // wrapping. Smaller budgets cannot buy space by splitting text further.
   const marginL = visual.marginLeft ?? R.margin
   const marginR = visual.marginRight ?? R.margin
   const marginT = visual.marginTop ?? R.margin
@@ -275,21 +285,58 @@ export function layoutRadarChart(
     extT = Math.max(extT, -box.top)
     extB = Math.max(extB, box.bottom)
   }
-  if (wantLegend) { extT = Math.max(extT, legendHeight / 2); extB = Math.max(extB, legendHeight / 2) }
-  // Respect a configured frame: a Mermaid `width`/`height` is reserved as real
-  // canvas (centered on the plot) rather than collapsed to the label-tight box.
   if (visual.width) { const half = visual.width / 2; extL = Math.max(extL, half); extR = Math.max(extR, half) }
   if (visual.height) { const half = visual.height / 2; extT = Math.max(extT, half); extB = Math.max(extB, half) }
+  const wrapWidth = fit ? Math.max(fit.maxWidth, marginL + extL + extR + marginR) : undefined
 
-  const titleHeight = chart.title ? titleFont + R.titleGap : 0
-  const legendColW = wantLegend ? R.legendGap + legendWidth : 0
-  const baseWidth = marginL + extL + extR + legendColW + marginR
-  const baseCx = marginL + extL
-  const titleWidth = chart.title ? measureTextWidth(chart.title, titleFont, titleWeight) : 0
+  // --- Legend: wrap labels to a budget, reserve per-row height (gantt) ------
+  const legendFont = style.nodeLabelFontSize
+  const legendWeight = style.nodeLabelFontWeight
+  const legendLineH = legendFont * 1.25
+  const wantLegend = chart.showLegend && chart.curves.length > 0
+  const legendSwatch = visual.legendBoxSize ?? R.legendSwatch
+  // The natural side column scales with type size. A bottom legend can use
+  // the full plot width; oversized authored swatches retain the natural cap.
+  const naturalLegendWrapWidth = legendFont * (R.legendLabelMaxWidth / R.legendFontSize)
+  const availableLegendWidth = wrapWidth === undefined ? 0 : wrapWidth - marginL - marginR - legendSwatch - R.legendSwatchToText
+  const legendWrapWidth = availableLegendWidth > 0 ? availableLegendWidth : naturalLegendWrapWidth
+  const legendBlocks = wantLegend ? chart.curves.map(c => {
+    const block = preparePixelText(c.label, {
+      display: 'literal', transform: style.nodeTextTransform, fontSize: legendFont, fontWeight: legendWeight,
+      letterSpacing: style.nodeLetterSpacing, maxWidth: legendWrapWidth,
+    })
+    return fit && block.width > legendWrapWidth + 0.01
+      ? preparePixelText(block.prepared, { ...block, maxWidth: naturalLegendWrapWidth })
+      : block
+  }) : []
+  const legendItems = legendBlocks.map(block => ({ block }))
+  const legendRowOptions = {
+    gap: R.legendRowGap, minRowHeight: legendSwatch,
+    leadingWidth: legendSwatch + R.legendSwatchToText, columnGap: R.legendColumnGap,
+    ...(wrapWidth === undefined ? {} : { maxWidth: wrapWidth - marginL - marginR }),
+  }
+  const legendRows = layoutTextColumns(legendItems, legendRowOptions)
+  const legendWidth = wantLegend ? legendRows.width : 0
+  const legendHeight = legendRows.height
+
+  // --- Canvas: grow to contain every final label box -----------------------
+  if (wantLegend && !fit) { extT = Math.max(extT, legendHeight / 2); extB = Math.max(extB, legendHeight / 2) }
+
+  let titleBlock = chart.title ? preparePixelText(chart.title, { display: 'literal', transform: style.groupTextTransform, fontSize: titleFont, fontWeight: titleWeight, letterSpacing: style.groupLetterSpacing, ...(wrapWidth === undefined ? {} : { maxWidth: Math.max(1, wrapWidth - marginL - marginR) }) }) : undefined
+  if (titleBlock && wrapWidth !== undefined && titleBlock.width > wrapWidth - marginL - marginR + 0.01) {
+    titleBlock = preparePixelText(titleBlock.prepared, titleBlock)
+  }
+  const titleBandHeight = titleBlock ? titleBlock.height : 0
+  const titleHeight = titleBlock ? titleBandHeight + R.titleGap : 0
+  const legendColW = wantLegend && !fit ? R.legendGap + legendWidth : 0
+  const plotWidth = marginL + extL + extR + legendColW + marginR
+  const baseWidth = fit && wantLegend ? Math.max(plotWidth, marginL + legendWidth + marginR) : plotWidth
+  const baseCx = marginL + extL + (baseWidth - plotWidth) / 2
+  const titleWidth = titleBlock?.width ?? 0
   const titleLeftExtra = Math.max(0, titleWidth / 2 - baseCx)
   const titleRightExtra = Math.max(0, baseCx + titleWidth / 2 - baseWidth)
   const width = baseWidth + titleLeftExtra + titleRightExtra
-  const height = marginT + titleHeight + extT + extB + marginB
+  const height = marginT + titleHeight + extT + extB + marginB + (fit && wantLegend ? R.legendGap + legendHeight : 0)
   const cx = baseCx + titleLeftExtra
   const cy = marginT + titleHeight + extT
 
@@ -297,11 +344,11 @@ export function layoutRadarChart(
   const rings: PositionedRadarRing[] = []
   for (let k = 1; n > 0 && k <= chart.ticks; k++) {
     const rr = (radius * k) / chart.ticks
-    const value = min + ((max - min) * k) / chart.ticks
+    const value = k === chart.ticks ? max : min + (max - min) * (k / chart.ticks)
     const points = chart.graticule === 'polygon'
       ? chart.axes.map((_a, i) => { const p = polar(cx, cy, rr, axisAngle(i, n)); return { x: round(p.x), y: round(p.y) } })
       : []
-    rings.push({ r: round(rr), value: round(value), points, emphasized: k === chart.ticks })
+    rings.push({ r: round(rr), value, points, emphasized: k === chart.ticks })
   }
 
   // Spokes + axis labels (absolute; offsets/leaders from the de-collision pass).
@@ -320,6 +367,7 @@ export function layoutRadarChart(
     return {
       id: axis.id,
       label: axis.label,
+      block: axisBlocks[i],
       x: round(spoke.x),
       y: round(spoke.y),
       labelX: round(label.x),
@@ -357,9 +405,10 @@ export function layoutRadarChart(
     for (const ring of [...rings].reverse()) {
       const p = polar(cx, cy, ring.r, gapAngle)
       const text = formatTick(ring.value)
-      const w = measureTextWidth(text, R.ringLabelFontSize, axisWeight) + R.tickBoxPadX * 2
+      const block = preparePixelText(text, { display: 'literal', fontSize: R.ringLabelFontSize, fontWeight: axisWeight, letterSpacing: style.edgeLetterSpacing })
+      const w = block.width + R.tickBoxPadX * 2
       const h = R.ringLabelFontSize + R.tickBoxPadY * 2
-      const candidate = { text, x: round(p.x), y: round(p.y), w: round(w), h: round(h) }
+      const candidate = { text, block, x: round(p.x), y: round(p.y), w: round(w), h: round(h) }
       const box: Box = { left: candidate.x - candidate.w / 2, right: candidate.x + candidate.w / 2, top: candidate.y - candidate.h / 2, bottom: candidate.y + candidate.h / 2 }
       const collides = tickLabels.some(t => boxesOverlap(box, {
         left: t.x - t.w / 2, right: t.x + t.w / 2,
@@ -373,21 +422,22 @@ export function layoutRadarChart(
   // per-row reserved height for wrapped labels.
   const legend: PositionedRadarLegendItem[] = []
   if (wantLegend) {
-    const legendX = titleLeftExtra + marginL + extL + extR + R.legendGap
-    let rowTop = cy - legendHeight / 2
+    const legendX = fit ? (width - legendWidth) / 2 : titleLeftExtra + marginL + extL + extR + R.legendGap
+    const legendTop = fit ? cy + extB + R.legendGap : cy - legendHeight / 2
+    const placedLegendRows = layoutTextColumns(legendItems, { ...legendRowOptions, top: legendTop })
     chart.curves.forEach((curve, index) => {
-      const rowH = legendRowHeights[index]!
+      const { item: { block }, x = 0, top, height: rowH, textY } = placedLegendRows.rows[index]!
       legend.push({
         label: curve.label,
-        lines: legendLines[index]!,
+        lines: block.lines,
+        block,
         colorIndex: index,
-        x: round(legendX),
-        y: round(rowTop + (rowH - legendSwatch) / 2),
+        x: round(legendX + x),
+        y: round(top + (rowH - legendSwatch) / 2),
         swatchSize: legendSwatch,
-        textX: round(legendX + legendSwatch + R.legendSwatchToText),
-        textY: round(rowTop + rowH / 2),
+        textX: round(legendX + x + legendSwatch + R.legendSwatchToText),
+        textY: round(textY),
       })
-      rowTop += rowH + R.legendRowGap
     })
   }
 
@@ -398,7 +448,7 @@ export function layoutRadarChart(
     cy: round(cy),
     radius: round(radius),
     title: chart.title
-      ? { text: chart.title, x: round(cx), y: round(marginT + titleFont / 2), fontSize: titleFont }
+      ? { text: titleBlock!.text, block: titleBlock, x: round(cx), y: round(marginT + titleBandHeight / 2), fontSize: titleFont }
       : undefined,
     accessibility: chart.accessibility ? { ...chart.accessibility } : undefined,
     rings,
@@ -419,10 +469,6 @@ export function layoutRadarChart(
     },
     visual,
   }
-}
-
-function formatTick(value: number): string {
-  return Number.isInteger(value) ? String(value) : String(Math.round(value * 100) / 100)
 }
 
 /** Historical layout constants (defaults; config overrides via

@@ -35,7 +35,23 @@ function positioned(src: string, config = {}) {
 }
 
 describe('SequenceRuntimeConfig type + resolution', () => {
-  test('the typed shape accepts the documented keys', () => {
+  test('global wrapping inherits configuration while an explicit nowrap overrides it', () => {
+    const text = 'A message with enough words to require several lines in a wrapped sequence diagram'
+    const source = `%%{wrap}%%\nsequenceDiagram\nA->>B: ${text}\nB->>A:nowrap: ${text}`
+    const normalized = normalizeMermaidSource(source)
+    const config = resolveSequenceConfig(normalized.frontmatter)
+    expect(config.wrap).toBe(true)
+    const parsed = parseSequenceDiagram(normalized.familyLines, config)
+    expect(parsed.messages.map(message => message.wrap)).toEqual([true, false])
+    const layout = layoutSequenceDiagram(parsed, {}, config)
+    expect(layout.messages[0]!.labelPosition.block!.lines.length).toBeGreaterThan(1)
+    expect(layout.messages[1]!.labelPosition.block!.lines).toEqual([text])
+    const overridden = normalizeMermaidSource(`%%{init: {"wrap": false, "sequence": {"wrap": true}}}%%\n${SRC}`)
+    expect(resolveSequenceConfig(overridden.frontmatter).wrap).toBe(false)
+    expect(renderMermaidASCII(source, { colorMode: 'none' })).not.toContain('nowrap:')
+  })
+
+  test('documented typed actor dimensions reach layout', () => {
     // Compile-time: this assignment fails tsc if the typed surface is missing.
     const config: SequenceRuntimeConfig = {
       actorMargin: 100, width: 150, height: 65,
@@ -43,7 +59,9 @@ describe('SequenceRuntimeConfig type + resolution', () => {
       messageMargin: 35, noteMargin: 10, activationWidth: 10,
       showSequenceNumbers: true, mirrorActors: true, wrap: false,
     }
-    expect(config.actorMargin).toBe(100)
+    const result = positioned(SRC, config)
+    expect(result.actors).toHaveLength(2)
+    for (const actor of result.actors) expect({ width: actor.width, height: actor.height }).toEqual({ width: 150, height: 65 })
   })
 
   test('resolveSequenceConfig reads frontmatter and init directives', () => {
@@ -146,7 +164,7 @@ describe('absent config is byte-inert', () => {
 })
 
 describe('wire-or-warn: unwired keys emit INEFFECTIVE_CONFIG', () => {
-  test('mirrorActors/wrap and friends are named; wired keys are not', () => {
+  test('mirrorActors and friends are named; wired wrapping is not', () => {
     const src = `---
 config:
   sequence:
@@ -159,7 +177,7 @@ ${SRC}`
     const v = verifyMermaid(src)
     const fields = v.warnings.filter(w => w.code === 'INEFFECTIVE_CONFIG').map(w => (w as { field: string }).field)
     expect(fields).toContain('sequence.mirrorActors')
-    expect(fields).toContain('sequence.wrap')
+    expect(fields).not.toContain('sequence.wrap')
     expect(fields).toContain('sequence.rightAngles')
     expect(fields).not.toContain('sequence.actorMargin')
   })

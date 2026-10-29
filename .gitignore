@@ -2,6 +2,7 @@
 node_modules/
 
 # Build output
+/llms.txt
 dist/
 /site/
 *.tsbuildinfo
@@ -92,3 +93,12 @@ eval/mermaid-family-portfolio/corpus.json
 eval/mermaid-family-portfolio/provenance.json
 eval/palette-harmony/report.json
 eval/palette-performance/report.json
+
+# Benchmark output written by Trident (eval/trident)
+bench-report/
+
+# Original upstream assertion-run evidence
+eval/mermaid-upstream-assertions/results/
+
+# Owned generated shared-library tool link (a symlink, not a directory).
+/eval/benchmark/node_modules

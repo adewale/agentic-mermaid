@@ -15,6 +15,7 @@ export const CLEAN_PAGE_ROUTES: readonly string[] = [
   'demo',
   'docs',
   'docs/api',
+  'docs/api/advanced',
   'docs/ascii',
   'docs/cli',
   'docs/custom-styles',
@@ -33,6 +34,16 @@ export const CLEAN_PAGE_ROUTES: readonly string[] = [
 ]
 
 export const CLEAN_ROUTE_PATHS = CLEAN_PAGE_ROUTES.map((route) => `/${route}`) as readonly string[]
+
+/** Only pages with a canonical Markdown counterpart participate in negotiation. */
+export function markdownAlternative(pathname: string): string | undefined {
+  if (pathname === '/') return '/index.md'
+  if (pathname === '/docs/api/' || pathname === '/docs/api/advanced/'
+    || /^\/(?:warnings|errors)\/[^/.]+\/$/.test(pathname)) {
+    return `${pathname}index.md`
+  }
+  return undefined
+}
 
 export const DYNAMIC_CLEAN_REDIRECT_LINES: readonly string[] = [
   '/warnings/:code /warnings/:code/ 308',

@@ -18,10 +18,11 @@
 // writeErRelationLabel, so reading what they write gives the text back.
 // ============================================================================
 
-import { normalizeBrTags } from '../multiline-utils.ts'
-import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
+import { breakLineTags, normalizeBrTags } from '../multiline-utils.ts'
+import { encodeMermaidEntities, encodeMermaidAuthoredEntities } from '../shared/mermaid-entities.ts'
 import { decodeMermaidEntities, type EntityRefusal } from '../shared/mermaid-entity-display.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
+import { prepareDisplayText, preparedDisplayTextValue, replaceDisplayTextTokens, resolveLabelContent, type LabelContent } from '../shared/display-text.ts'
 
 const ER_ENTITY_REFUSAL: EntityRefusal = { subject: 'ER text entity', example: 'A["I #9829; ER"]' }
 
@@ -79,19 +80,51 @@ export function decodeErText(text: string): string {
 /**
  * The text the renderer draws for ER text as written: `<br>` breaks the line
  * and markdown emphasis becomes the formatting tags, then entity codes are
- * read. A code that spells a formatting tag (`#lt;b#gt;`) still formats,
- * because the normalized label form has no spelling for a literal tag.
+ * read. Prepared runs retain literal entity-produced tags separately from
+ * genuine formatting; the public label keeps its compatible string value.
  */
-export function erDisplayText(text: string): string {
-  return decodeErText(normalizeBrTags(text)
+function normalizedErText(text: string): string {
+  return normalizeBrTags(text)
     .replace(/\*\*([\s\S]+?)\*\*/g, '<b>$1</b>')
     .replace(/_([^_\n]+)_/g, '<i>$1</i>')
-    .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<i>$1</i>'))
+    .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<i>$1</i>')
+}
+
+export function erDisplayText(text: string): string {
+  return decodeErText(normalizedErText(text))
+}
+
+/** Retain entity provenance only where the authored spelling has a second
+ * reading. Formatting is parsed before codes expand into literal runs. */
+export function erTextContent(authored: string, value: string, literal = false): LabelContent | undefined {
+  if (!/#\w+;/.test(authored)) return undefined
+  const normalized = literal ? normalizeBrTags(authored) : normalizedErText(authored)
+  const prepared = replaceDisplayTextTokens(prepareDisplayText(normalized, literal ? 'literal' : 'formatted'), /#\w+;/g, decodeErText)
+  return { value, prepared, authored }
+}
+
+export function erTextLabel(authored: string, display = false): { label: string; labelContent?: LabelContent } {
+  const label = display ? erDisplayText(authored) : decodeErText(authored)
+  const labelContent = erTextContent(authored, label)
+  return { label, ...(labelContent ? { labelContent } : {}) }
+}
+
+/** An attribute comment as drawn on its row: line breaks become spaces. */
+export function erCommentText(comment: string, content?: LabelContent): string {
+  const prepared = resolveLabelContent(comment, content)
+  if (typeof prepared !== 'string') return preparedDisplayTextValue(prepared).replace(/\s+/g, ' ').trim()
+  return breakLineTags(comment).replace(/\s+/g, ' ').trim()
+}
+
+function writeErText(text: string, reserved: string, content?: LabelContent): string {
+  return content?.value === text && content.authored !== undefined
+    ? encodeMermaidAuthoredEntities(content.authored, reserved)
+    : encodeMermaidEntities(text, reserved)
 }
 
 /** Write text as a quoted ER name (an alias). */
-export function writeErName(text: string): string {
-  return `"${encodeMermaidEntities(text, ER_NAME_RESERVED)}"`
+export function writeErName(text: string, content?: LabelContent): string {
+  return `"${writeErText(text, ER_NAME_RESERVED, content)}"`
 }
 
 // Tokens the ER lexer claims before an unquoted label can: a keyword matched
@@ -108,12 +141,12 @@ function isPlainErWord(word: string): boolean {
  * Write a relation label: bare when it is one plain word the lexer reads as
  * a label (`places`), else quoted. The empty label is `""`.
  */
-export function writeErRelationLabel(text: string): string {
-  return isPlainErWord(text) ? text : `"${encodeMermaidEntities(text, '"')}"`
+export function writeErRelationLabel(text: string, content?: LabelContent): string {
+  return isPlainErWord(text) ? text : `"${writeErText(text, '"', content)}"`
 }
 
 /** Write a subgraph title (`subgraph G [Title]`): plain words bare, anything
  * else as one quoted name. */
-export function writeErTitle(text: string): string {
-  return text.split(' ').every(isPlainErWord) ? text : writeErName(text)
+export function writeErTitle(text: string, content?: LabelContent): string {
+  return text.split(' ').every(isPlainErWord) ? text : writeErName(text, content)
 }

@@ -2,6 +2,16 @@
 
 This document describes **Agentic Mermaid**, the `adewale/agentic-mermaid` fork, relative to upstream `lukilabs/beautiful-mermaid`. It is intentionally product/documentation focused; upstreamable changes should still be split into small PRs.
 
+Scope checked on **2026-10-17**: Agentic source at
+[`3ef2fb8`](https://github.com/adewale/agentic-mermaid/tree/3ef2fb8beff21359fb6e3b798e025a3d69311539),
+Beautiful main at
+[`2ac8bbbb`](https://github.com/lukilabs/beautiful-mermaid/tree/2ac8bbbb060ca0a65a6a21f3200bd99b1587b488)
+and the package comparator `beautiful-mermaid@1.1.3`. Source capability is not
+deployment evidence: Agentic source declares 0.4.2, while npm and the public
+site/MCP still serve 0.4.1 at this check. See [#378](https://github.com/adewale/agentic-mermaid/issues/378).
+Open PRs are proposals, not upstream releases; the related Zombie/C4 comparison
+and historical-version qualifications are in [`comparison.md`](./comparison.md#zombie-mermaid-and-c4-bloodlines).
+
 ## Live site
 
 The canonical live site is **[agentic-mermaid.dev](https://agentic-mermaid.dev/)** — a Cloudflare Workers Static Assets deployment built from [`website/`](../website):
@@ -23,7 +33,7 @@ Every registered family is structured when narrowed; segment-preserving families
 
 ## New and expanded diagram support
 
-This fork renders a wider set of Mermaid families in both the gallery and editor:
+The checked source renders a wider set of Mermaid families in both the gallery and editor:
 
 <!-- complete: family-ids -->
 - Flowcharts and state diagrams
@@ -35,14 +45,14 @@ This fork renders a wider set of Mermaid families in both the gallery and editor
 - User Journey diagrams (`journey`)
 - XY charts (`xychart` and `xychart-beta`)
 - Pie charts (`pie`, with `showData`)
-- Quadrant charts (`quadrantChart`) — not yet rendered anywhere else in the beautiful-mermaid network
+- Quadrant charts (`quadrantChart`)
 - Gantt charts (`gantt`) with date axes, sections, dependencies, milestones, exclusions, and vertical markers
 - Mindmaps (`mindmap`) with indentation-sensitive hierarchy, shapes, icons, and classes
 - Git graphs (`gitGraph`) with deterministic replayed commits, branches, merges, and cherry-picks
 - Radar charts (`radar-beta`) — spider/star charts plotting multivariate profiles across equi-angular axes from a shared center
 - Sankey diagrams (`sankey`, `sankey-beta`) — CSV-style flows whose ribbon widths are conserved across stages (`FLOW_IMBALANCE` flags an unbalanced node)
 
-The live editor has registry-backed example coverage for every built-in family
+The source editor has registry-backed example coverage for every built-in family
 (`src/__tests__/editor-examples.test.ts`). Browser E2E still spot-checks several
 fork-added rendering paths: architecture, timeline, journey, and xychart.
 
@@ -88,9 +98,9 @@ three aliases fail at import too, which is the easy case.
 upstream theme names are all valid style names; `knownStyles()` lists every
 registered one.
 
-`src/__tests__/upstream-export-migration.test.ts` keeps this table honest: it
-reads upstream's own type declarations and fails if an upstream export is
-neither exported here nor documented above.
+The table above provides migration guidance. Installed package consumer tests
+check the shipped runtime exports and TypeScript declarations, including refusal
+of removed aliases.
 
 ## Mermaid config and source wrappers
 
@@ -117,18 +127,35 @@ Users can discover fork features through:
 ## Layout and quality work
 
 - A layout before/after comparison harness (`eval/layout-compare/`) and per-family `RenderedLayout` adapters so perceptual metrics gate layout changes with evidence. Debug JSON can also expose opt-in graph route certificates, family edge-route certificates, region-containment certificates, and region/action sidecars for tooling; default JSON stays compact.
-- Still different from the current upstream release (Beautiful Mermaid 1.1.3): decision-branch routing emits a diamond's branches from facet-mid ports as mirror-symmetric routes (the layout symmetry floor), and an edge to a subgraph attaches to its container with `direction` overrides honored inside it — a case upstream 1.1.3 still mis-routes (`mermaid-js/mermaid#2509` leaves it unsolved). Both are shown side by side on the [differences page](https://agentic-mermaid.dev/comparisons/).
-- Already upstreamed: fan-in grouping (upstream #68/#69) and labeled fan-out trunk sharing with box-start connector placement (#111/#112/#113, upstream PR #113) landed here first and now render identically in Beautiful Mermaid 1.1.3 — they are no longer fork-only.
+- The version-pinned Beautiful Mermaid 1.1.3 comparison records different decision-branch routing and subgraph-container attachment. Agentic uses facet-mid diamond ports and honors container direction overrides. Inspect the same-source [comparison page](https://agentic-mermaid.dev/comparisons/) for the deployed examples; selected similar or different renders do not establish general parity, merged ancestry or the status of an upstream issue.
+- Implemented here, with upstream proposals still open as of 2026-10-17:
+  fan-in grouping ([Beautiful Mermaid PR #69](https://github.com/lukilabs/beautiful-mermaid/pull/69))
+  and labeled fan-out trunk sharing with box-start connector placement
+  ([PR #113](https://github.com/lukilabs/beautiful-mermaid/pull/113)). Open proposals
+  are not evidence of upstream release inclusion or identical rendering.
 - ER cardinality parsing matches Mermaid's lexer exactly; malformed relationship lines error loudly instead of being silently dropped.
 
-## Parser and semantic divergences from Mermaid.js
+## Parser semantics and migration boundaries
 
-- **Subgraph membership is *first-defined-wins*.** A node belongs to the subgraph
-  where it is **first defined**, and a top-level reference counts as a definition —
-  so a node referenced at the top level and then listed inside a subgraph block
-  stays at the top level. Mermaid.js instead lets the subgraph *block* claim any
-  node it lists, regardless of a prior top-level reference. In the canonical Mermaid
-  docs example:
+**Membership has two stages: collect candidates, then resolve ownership.**
+Flowchart and ER use the shared **first-subgraph-to-close** rule for competing
+candidates: at each `end`, keep candidates not already owned by an earlier-closed
+subgraph, once each. An inner subgraph closes before its enclosing subgraph.
+Creation and membership are separate decisions:
+
+- Flowchart node statements and edge endpoints collect their identities in the
+  current subgraph, even when already known. A `style` statement that creates a
+  node does not collect it. References to a declared subgraph collect its group
+  identity, independently of whether its declaration precedes the reference.
+  Group references resolve after declarations close; the result is a tree, so
+  a reference cannot make a group contain itself or one of its ancestors.
+- ER collects entity declarations and entity endpoints of relations, even for
+  entities already named at top level. A prior top-level mention does not prevent
+  a later ER subgraph from keeping that entity. A style directive alone does not
+  collect an entity; a relation endpoint naming an already-opened group refers
+  to its boundary. A reference before that group's declaration creates an entity.
+
+For example:
 
   ```mermaid
   flowchart TB
@@ -144,22 +171,56 @@ Users can discover fork features through:
       end
   ```
 
-  Mermaid.js places `a2` inside `one` and `c1` inside `three`; this fork keeps `a2`
-  and `c1` at the top level (only `a1`/`c2` are inside those subgraphs). See it both
-  ways: [open in Mermaid Live](https://mermaid.live/edit#pako:eNp10DELwjAQBeC_Et7cDjpmcBBXJ50kyzW5NoU2V9KEIqX_XbSoRXB87z44eDOsOIZG3clkPcWkrkcTlFLK7sryQPs1jLlqIg1eSeC1oe2Zg_txaZK1qZ6u-u98ZN48tF-JAj3HnloHjdkgee7ZQBs4ril3yWBBAcpJLvdgoVPMXCBKbjx0Td3IBfLgKPGppSZS_yYDhZvIJ7Jrk8TzOsRrj-UBwvBYkQ)
-  · [open in the fork editor](https://agentic-mermaid.dev/editor/#deflate:q1Yqzi8tSk5VslJKy8kvT85ILCpRCHGKyVNQUFBINtTVtUs0gnCKS5PSixILMhTy81IhIonI0ql5KWjqSsrzISJJIHVJuNVlFKVCTQRbmIxQqVQLAA).
+Here `one` keeps `a1` and `a2`, and `three` keeps `c1` and `c2`. The earlier edge
+created `c1` and `a2` without assigning a group. When two subgraphs collect the
+same candidate, the one that closes first keeps it. A later cross-group link
+does not move an identity out of an already-closed owner. Serialization emits
+this resolved membership before links so the same rule applies on re-reading.
 
-  This is a deliberate divergence, not a bug: it gives deterministic
-  *definition-scope* membership with no surprising re-parenting when a node is
-  mentioned again inside a container, consistent with the fork's goal of
-  predictable, source-preserving behavior rather than Mermaid pixel/layout parity
-  (see [#38](https://github.com/adewale/agentic-mermaid/issues/38)). Mermaid's own
-  users report *its* behavior as a bug (`mermaid-js/mermaid#738`, `#2707`). The rule
-  is inherited from upstream Beautiful Mermaid (introduced in its v1.0.0 rewrite),
-  not fork-invented, and is guarded by `src/__tests__/parser.test.ts` — a node
-  genuinely defined inside one subgraph and later referenced inside another
-  likewise stays in its first subgraph (it is never re-parented by a mere
-  reference).
+The [Flowchart candidate collector](https://github.com/adewale/agentic-mermaid/blob/3ef2fb8beff21359fb6e3b798e025a3d69311539/src/parser.ts#L1276-L1321),
+[shared membership authority](https://github.com/adewale/agentic-mermaid/blob/3ef2fb8beff21359fb6e3b798e025a3d69311539/src/shared/subgraph-membership.ts)
+and [ER public-boundary regressions](https://github.com/adewale/agentic-mermaid/blob/3ef2fb8beff21359fb6e3b798e025a3d69311539/src/__tests__/er-subgraph-membership.test.ts)
+record this rule. Agreement on this grammar decision is not a promise of
+Mermaid pixel/layout parity. Current deliberate reader extensions and source
+preservation limits live in [`project/divergences.md`](./project/divergences.md).
+
+State resolves authored identities and scopes before building either the
+editable body or the render graph. A reference inside a composite can establish
+the scope of a later definition; a root reference alone establishes no parent.
+Each identity belongs to one scope, and a composite retains its first placement
+when reopened. Initial and final `[*]` endpoints each name one pseudostate per
+scope, with independent identities in concurrent regions. Generated region and
+endpoint names cannot alias authored names.
+The writer checks its emitted ownership against the typed body using that same
+resolver. An edit that cannot retain the requested scope returns an error;
+for example, moving a state to root while a transition inside its former
+composite would claim it again. Move or remove the conflicting transition first.
+
+Named floating notes (`note "text" as N`) retain their text and scope in
+`StateBody.floatingNotes`. Their identities are independent of state identities,
+so a state and a note may both be named `N`. The State operations
+`add_floating_note`, `set_floating_note_text` and `remove_floating_note` edit
+these annotations. Scope rename, removal and dissolution carry the annotations
+with their scope; serialization, SVG and terminal rendering preserve them.
+
+### ER parent endpoints
+
+ER's left endpoint can use `u` for the parent marker, independently of the four
+crow's-foot cardinalities. The native and typed models retain `parent`; SVG
+draws a hollow diamond and terminal output draws `◇` (`o` in plain ASCII). The
+writer and `add_relation` admit this marker only before the connector, where
+pinned Mermaid's lexer accepts it.
+
+### Sequence text controls
+
+Sequence `wrap:` and `nowrap:` are source controls, separated from text before
+entity decoding. Messages, notes, participant aliases, box titles and fragment
+captions retain the control; explicit controls override the diagram default.
+SVG measures wrapped text with a pixel budget; terminal output uses its own cell
+budget. An explicit `nowrap:` still preserves authored line breaks. Typed text
+edits retain the control, and typed strings beginning with control-like text are
+encoded as literal text. `set_message_wrap` and `set_fragment_message_wrap` accept
+`true`, `false`, or `null` to restore inheritance.
 
 ## What is intentionally not in this fork
 
@@ -169,3 +230,10 @@ Users can discover fork features through:
 ## Upstreaming strategy
 
 The fork should continue extracting small upstreamable PRs from broad fork work. This file is not the backlog: parked fork-port ideas live only under `PARK-3` in `TODO.md` until one is promoted to a focused issue.
+
+## Original upstream assertion runs
+
+The [original assertion runner](../eval/mermaid-upstream-assertions/README.md)
+executes pinned source test bodies rather than harvested input samples. Its
+family breakdown distinguishes native refusals, assertion mismatches, unmapped
+APIs, reference-control failures, skips and collection errors.

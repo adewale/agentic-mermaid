@@ -7,8 +7,7 @@
 // path reaches it. These tests fail if validateOp is removed from that core.
 
 import { describe, expect, test } from 'bun:test'
-import { applyOps, hasOpSchema, mutateChecked, opMenu, validateOp } from '../agent/core.ts'
-import { createMermaid } from '../agent/create.ts'
+import { applyOps, hasOpSchema, mutate, mutateChecked, opMenu, serializeMermaid } from '../agent/core.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import type { AnyMutationOp, MutableValidDiagram } from '../agent/types.ts'
@@ -100,22 +99,82 @@ describe('op-schema shape validation (§1–3, §5)', () => {
     if (r.ok) return
     expect((r.error as { code: string }).code).toBe('CLASS_NOT_FOUND')
   })
+
+  test('typed, checked, and declarative edits accept the same lollipop relation', () => {
+    const source = 'classDiagram\n  class Port\n  class Service'
+    const op = { kind: 'add_interface', class: 'Service', label: 'Port', side: 'from', relationLabel: 'provides' } as const
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+
+    const direct = mutate(parsed.value, op)
+    const checked = mutateChecked(parsed.value, op)
+    const declarative = applyOps({ source, ops: [op] })
+    expect({ direct: direct.ok, checked: checked.ok, declarative: declarative.ok }).toEqual({
+      direct: true,
+      checked: true,
+      declarative: true,
+    })
+    if (!direct.ok || !checked.ok || !declarative.ok) return
+
+    for (const result of [serializeMermaid(direct.value), serializeMermaid(checked.value), declarative.source]) {
+      expect(result).toBe('classDiagram\n  class Port\n  class Service\n  Port ()-- Service : provides\n')
+      const reparsed = parseMermaid(result)
+      expect(reparsed.ok).toBe(true)
+      if (!reparsed.ok || reparsed.value.body.kind !== 'class') throw new Error('Expected a structured class diagram')
+      expect(reparsed.value.body.relations).toEqual([{ from: 'interface0', to: 'Service', kind: 'lollipop', label: 'provides', markerAt: 'from' }])
+    }
+  })
+
+  test('class endpoint relation APIs reject an implicit interface conversion with the same actionable error', () => {
+    const source = 'classDiagram\nclass Port\nclass Service'
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error('expected class')
+    const op = { kind: 'add_relation', from: 'Port', to: 'Service', relKind: 'lollipop' } as const
+    const results = [mutate(parsed.value, op), mutateChecked(parsed.value, op), applyOps({ source, ops: [op] })]
+    for (const result of results) {
+      expect(result.ok).toBe(false)
+      if (!result.ok) expect(result.error).toMatchObject({ code: 'INVALID_OP', message: expect.stringContaining('use add_interface') })
+    }
+  })
+
+  test.each([
+    { metadata: { markerAt: 'both', toKind: 'aggregation', lineStyle: 'dashed' }, arrow: '()..o' },
+    { metadata: { markerAt: 'both', toKind: 'lollipop' }, arrow: '()--()' },
+    { metadata: { markerAt: 'to', lineStyle: 'dashed' }, arrow: '..()' },
+  ] as const)('direct, checked and declarative Class edits author $arrow with the same metadata', ({ metadata, arrow }) => {
+    const source = 'classDiagram\nclass Port\nclass Service'
+    const op = metadata.markerAt === 'to' ? ({ kind: 'add_interface', class: 'Port', label: 'Service', lineStyle: 'dashed' } as const) : ({ kind: 'add_relation', from: 'Port', to: 'Service', relKind: 'lollipop', ...metadata } as const)
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error('expected Class diagram')
+    const results = [mutate(parsed.value, op), mutateChecked(parsed.value, op)]
+    const declarative = applyOps({ source, ops: [op] })
+    expect(declarative.ok).toBe(true)
+    for (const result of results) {
+      if (!result.ok) throw new Error(JSON.stringify(result.error))
+      expect(serializeMermaid(result.value)).toContain(`Port ${arrow} Service`)
+    }
+    if (!declarative.ok) return
+    expect(declarative.source).toContain(`Port ${arrow} Service`)
+  })
 })
 
 describe('one shared choke point — byte-identical rejection (§6)', () => {
   const src = 'classDiagram\n  class Animal'
   const badOp = { kind: 'add_class', name: 'Duck' }
 
-  test('Code Mode mutateChecked and declarative applyOps(edit) reject identically', () => {
+  test('checked mutations and declarative applyOps(edit) reject identically', () => {
     const parsed = parseMermaid(src)
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
-    const codeMode = mutateChecked(parsed.value as MutableValidDiagram, badOp)
+    const checked = mutateChecked(parsed.value as MutableValidDiagram, badOp)
     const declarative = applyOps({ source: src, ops: [badOp] })
-    expect(codeMode.ok).toBe(false)
+    expect(checked.ok).toBe(false)
     expect(declarative.ok).toBe(false)
-    if (codeMode.ok || declarative.ok) return
-    expect(errMsg(codeMode.error)).toBe(errMsg(declarative.error))
+    if (checked.ok || declarative.ok) return
+    expect(checked.error).toMatchObject({ reason: 'unknown_field' })
+    expect(declarative.error).toMatchObject({ reason: 'unknown_field' })
+    expect(errMsg(checked.error)).toBe(errMsg(declarative.error))
   })
 
   test('the CLI --op/--ops path shares the choke point (no silent mangle)', () => {
@@ -126,19 +185,6 @@ describe('one shared choke point — byte-identical rejection (§6)', () => {
     if (r.ok) return
     expect(r.error.message).toContain('Unknown field "name"')
     expect(JSON.stringify(r)).not.toContain('class undefined')
-  })
-
-  test('validateOp is the single source of the rejection (removing it lets the bad op through)', () => {
-    // Guards the choke point: mutateChecked must go through validateOp. If a
-    // future edit routes an untyped op straight to mutate(), this bad op would
-    // reach the mutator and this assertion (reason==='unknown_field') breaks.
-    const d = createMermaid('class') as MutableValidDiagram
-    const r = mutateChecked(d, badOp)
-    expect(r.ok).toBe(false)
-    if (r.ok) return
-    expect((r.error as { reason?: string }).reason).toBe('unknown_field')
-    // And validateOp alone, called directly, agrees — same message.
-    expect(validateOp('class', badOp)?.message).toBe(errMsg(r.error))
   })
 })
 
@@ -213,6 +259,15 @@ describe('schema covers every mutable family (§11)', () => {
     gitgraph: { kind: 'append_commit', id: 'first' },
     radar: { kind: 'add_axis', id: 'a' },
     sankey: { kind: 'add_link', source: 'A', target: 'B', value: 1 },
+    c4: { kind: 'add_element', element: { id: 'service', label: 'Service', kind: 'system' } },
+    eventmodeling: { kind: 'insert_frame', frame: { id: '01', reset: false, type: 'ui', entity: 'Main', sources: [] } },
+    zenuml: { kind: 'upsert_participant', participant: { id: 'API', label: 'API', annotations: [] } },
+    packet: { kind: 'add_field', label: 'Byte', bits: 8 },
+    kanban: { kind: 'add_column', id: 'todo', label: 'To do' },
+    requirement: { kind: 'add_requirement', requirement: { name: 'response', text: 'Respond promptly' } },
+    treemap: { kind: 'add_node', label: 'Investment', value: 10 },
+    ishikawa: { kind: 'set_effect', label: 'Release delay' },
+    block: { kind: 'add_block', block: { id: 'service', label: 'Service', type: 'square' } },
   }
 
   test('every family in MUTATION_OPS_BY_FAMILY has a schema and builds a valid op', () => {

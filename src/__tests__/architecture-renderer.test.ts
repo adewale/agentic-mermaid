@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 import type { DiagramColors } from '../theme.ts'
-import { renderArchitectureSvg } from '../architecture/renderer.ts'
+import { lowerArchitectureScene, renderArchitectureSvg } from '../architecture/renderer.ts'
 import { DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
 import type { PositionedArchitectureDiagram } from '../architecture/types.ts'
+import { renderMermaidSVG } from '../index.ts'
+import { resolveRenderRequest } from '../render-contract.ts'
+import { positionResolvedFamily } from '../positioning.ts'
+import { colorPixelBox, redPixel } from './helpers/raster.ts'
 
 const lightColors: DiagramColors = { bg: '#FFFFFF', fg: '#27272A' }
 
@@ -72,6 +76,53 @@ function makeDiagram(overrides: Partial<PositionedArchitectureDiagram> = {}): Po
 }
 
 describe('renderArchitectureSvg', () => {
+  it('places the visible start and end tips at their service attachment points', () => {
+    const scene = lowerArchitectureScene({ positioned: makeDiagram(), colors: lightColors, resolved: { renderOptions: {} } })
+    const definitions = scene.parts.find(part => part.id === 'defs')
+    if (definitions?.kind !== 'document') throw new Error('missing architecture definitions')
+    const markers = definitions.markerResources
+    expect(markers?.map(marker => marker.id).sort()).toEqual(['architecture-arrow-end', 'architecture-arrow-start'])
+    for (const marker of markers!) {
+      if (marker.geometry?.kind !== 'polygon' || !marker.ref) throw new Error('missing arrow geometry')
+      const contactX = marker.id.endsWith('start')
+        ? Math.min(...marker.geometry.points.map(point => point.x))
+        : Math.max(...marker.geometry.points.map(point => point.x))
+      expect(marker.ref.x).toBe(contactX)
+      const atSource = marker.id.endsWith('start')
+      const rotation = atSource && marker.orient === 'auto-start-reverse' ? -1 : 1
+      const bodyX = marker.geometry.points.reduce((sum, point) => sum + point.x, 0) / marker.geometry.points.length
+      expect((bodyX - contactX) * rotation * (atSource ? 1 : -1)).toBeGreaterThan(0)
+    }
+  })
+
+  for (const [sourceSide, targetSide] of [['R', 'L'], ['L', 'R'], ['B', 'T'], ['T', 'B']] as const) {
+    for (const edgeLineWidth of [1, 2]) {
+      it(`keeps both arrowheads outside services for ${sourceSide}↔${targetSide} at ${edgeLineWidth}px`, () => {
+        const source = `architecture-beta\nservice api(server)[API]\nservice db(database)[Database]\napi:${sourceSide} <--> ${targetSide}:db`
+        const options = { architecture: { visual: { edgeStroke: '#ff0000', edgeLineWidth } } }
+        const request = resolveRenderRequest(source, options)
+        const positioned = positionResolvedFamily('architecture', request).positioned as PositionedArchitectureDiagram
+        const edge = positioned.edges[0]!
+        const svg = renderMermaidSVG(source, options)
+        for (const [side, point] of [[sourceSide, edge.points[0]!], [targetSide, edge.points.at(-1)!]] as const) {
+          const region = side === 'R'
+            ? { left: point.x + 2, right: point.x + 19, top: point.y - 13, bottom: point.y + 13 }
+            : side === 'L'
+              ? { left: point.x - 19, right: point.x - 2, top: point.y - 13, bottom: point.y + 13 }
+              : side === 'B'
+                ? { left: point.x - 13, right: point.x + 13, top: point.y + 2, bottom: point.y + 19 }
+                : { left: point.x - 13, right: point.x + 13, top: point.y - 19, bottom: point.y - 2 }
+          const pixels = colorPixelBox(svg, redPixel, {
+            left: Math.floor(region.left), right: Math.ceil(region.right),
+            top: Math.floor(region.top), bottom: Math.ceil(region.bottom),
+          })
+          const acrossShaft = side === 'R' || side === 'L' ? pixels.height : pixels.width
+          expect(acrossShaft).toBeGreaterThan(edgeLineWidth + 2)
+        }
+      })
+    }
+  }
+
   it('escapes labels and data attributes safely', () => {
     const svg = renderArchitectureSvg({ positioned: makeDiagram(), colors: lightColors, resolved: { renderOptions: {} } })
 
@@ -102,7 +153,7 @@ describe('renderArchitectureSvg', () => {
     expect(svg).toContain('id="architecture-arrow-end"')
     expect(svg).toContain('class="architecture-service"')
     expect(svg).toContain('class="architecture-edge"')
-    expect(svg).toContain('stroke: var(--arch-edge-stroke, var(--_line));')
+    expect(svg).toMatch(/<polyline class="architecture-edge"[^>]* stroke="var\(--arch-edge-stroke, var\(--_line\)\)"/)
     expect(svg).toContain('fill="var(--arch-edge-stroke, var(--_arrow))"')
   })
 

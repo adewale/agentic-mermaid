@@ -1,0 +1,7 @@
+[
+  {
+    "test": "should create unique edge ids for parallel relationships",
+    "reason": "implementation-owned-id-spelling",
+    "rationale": "Generated IDs are unique and deterministic in Agentic; Mermaid's exact src-dst-index spelling is not an authored semantic. Native parallel-relation regression covers uniqueness and correspondence."
+  }
+]

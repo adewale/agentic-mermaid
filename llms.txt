@@ -1,106 +1,12 @@
 # Agentic Mermaid
 
-> Agent-native Mermaid runtime: parse, verify, mutate, and round-trip
-> Mermaid diagrams with a typed IR. Deterministic render outputs. No
-> browser required. CLI + MCP + library.
+> Render Mermaid diagrams and make source-preserving typed edits with AI agents.
 
-Version: 0.4.2
+## Current capabilities
 
-## What it does
+- [Live discovery and agent workflow](https://agentic-mermaid.dev/llms.txt): current families, operations, output formats and examples.
+- [Agent instructions](Instructions_for_agents.md): parse, narrow, mutate, verify and serialize.
+- [Getting started](docs/getting-started.md): install and use the library, CLI or MCP server.
 
-A typed editing surface over Mermaid for AI agents. Parse a diagram to a
-ValidDiagram, mutate it with typed ops, verify structurally (no pixels),
-serialize back to canonical source. Layout is deterministic (verified
-cross-process and same-machine cross-runtime on x86_64/ARM64).
-
-## The agent loop
-
-New diagrams: author Mermaid source directly, then parse → verify → render or return it. `buildMermaid(kind, ops)` / `createMermaid(kind)` build a diagram from typed ops when you are generating one programmatically (for example, from data).
-Existing structured diagrams: parse → narrow → mutate → verify → serialize.
-Run verify at every commit point. Never serialize a diagram whose verify result
-you haven't inspected.
-
-## CLI verbs (`am <verb>`)
-
-- render --format svg, ascii, unicode, png, layout [--security strict] — render a diagram; PNG requires --output and does not support multi-input/watch
-- render --style <names|file.json> --seed N — styled graphical/terminal output; comma-separate to stack (--style hand-drawn,dracula)
-- styles [--json] — list registered styles (default + full looks + palette-only themes)
-- parse — diagram → ValidDiagram JSON
-- serialize — ValidDiagram JSON on stdin → canonical source (the inverse of parse)
-- verify — structural validation (exit 3 if invalid)
-- mutate --op '<json>' / --ops '<json array|file>' — apply typed mutation(s), verify, then emit source
-- preview [--output file.html] [--open] — standalone strict-mode HTML preview for user inspection
-- format — normalize / canonicalize source
-- describe [--format text|json|facts] — natural-language, AX-tree, or semantic facts summary
-- capabilities --json — machine-readable capability envelope incl. editPolicy + mutationOps
-- batch --jsonl — bulk render/verify/parse/serialize/mutate ops, one JSON envelope per line
-- render-markdown <file.md> [--ascii] — render fenced mermaid blocks, skip invalid ones
-- llms-txt — this document
-- init-agent [--dir .] [--force] — write AGENTS.md section, root skills/ bundle, and .mcp.json sample
-
-Exit codes: 0 ok, 2 arg error, 3 verify-failed, 4 internal.
-
-## MCP tools
-
-Local MCP exposes 4 tools: `execute`, `describe_sdk`, `render_png`, and `describe`.
-Hosted MCP exposes 9 tools: `execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, and `build`.
-`render_png` is offline on the local server. Hosted successful deterministic
-results may be reused by a private server-side compute cache for up to 24 hours;
-the HTTP response is always `cache-control: no-store` and reports compute reuse
-through `x-agentic-mermaid-compute-cache`.
-
-## Output formats
-
-Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. Full capability list: svg, ascii, unicode, png, layout. SVG strict mode (security: 'strict') emits zero external-fetch
-references — safe for untrusted/agent-generated diagrams. See SECURITY.md.
-
-## Diagram families
-
-All families parse, verify, render, round-trip: flowchart, state, sequence, timeline, class, er, journey, architecture, xychart, pie, quadrant, gantt, mindmap, gitgraph, radar, sankey.
-Structured mutation (structured-when-narrowed): flowchart, state, sequence, timeline, class, er, journey, architecture, xychart, pie, quadrant, gantt, mindmap, gitgraph, radar, sankey.
-Narrowers: asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, asMindmap, asGitGraph, asRadar, asSankey.
-State diagrams own a dedicated body (BUILD-19): narrow with asState; state-shaped ops apply (asFlowchart returns null on them).
-Source-level-only: none — every renderable family ships structured mutation.
-Opaque-fallback bodies (unmodeled syntax) round-trip losslessly via preserved source (never silently dropped) and stay source-level only.
-
-## Warning codes
-
-EMPTY_DIAGRAM (structural/error), UNRESOLVABLE_SCHEDULE (structural/error), RENDER_FAILED (structural/error), BRAND_CONSTRAINT_ERROR (lint/error), EDGE_MISANCHORED (structural/error), OFF_CANVAS (structural/error), GROUP_BREACH (structural/error), UNKNOWN_SHAPE (structural/warning), LABEL_OVERFLOW (structural/warning), NODE_OVERLAP (geometric/warning), ROUTE_SELF_CROSS (geometric/warning), ROUTE_HITCH (geometric/warning), ROUTE_UNEXPLAINED_BEND (geometric/warning), ROUTE_LABEL_ON_SHARED_TRUNK (geometric/warning), ROUTE_SELF_LOOP_OCCUPANCY (geometric/warning), ROUTE_CONTAINER_MISANCHOR (geometric/warning), ROUTE_SHAPE_MISANCHOR (geometric/warning), ROUTE_STALE_AFTER_NODE_MOVE (geometric/warning), DUPLICATE_EDGE (lint/warning), UNREACHABLE_NODE (lint/warning), DECISION_BRANCH_UNLABELED (lint/warning), FLOW_IMBALANCE (lint/warning), COMMENT_DROPPED (lint/warning), UNSUPPORTED_SYNTAX (lint/warning), CONTENT_DROPPED_ON_ROUNDTRIP (lint/warning), INEFFECTIVE_CONFIG (lint/warning), LOW_CONTRAST (lint/warning), LABELS_HIDDEN (lint/warning), BAR_RANGE_EXCLUDES_ZERO (lint/warning), VALUES_OUTSIDE_RANGE (lint/warning), BRAND_CONSTRAINT_WARNING (lint/warning)
-
-## Library
-
-`import { parseRegisteredMermaid, mutate, verifyMermaid, analyzeMermaid,
-analyzeMermaidSource, serializeMermaid, renderMermaidASCII,
-renderMermaidPNG, renderMermaidSVG, renderMermaidASCIIWithMeta,
-describeMermaid, asciiToMermaid, verifyNoExternalRefs,
-registerStyle, knownStyles, validateStyleSpec } from 'agentic-mermaid/agent'`
-
-## Styles
-
-Every render call accepts style: a registered look name ('crisp', 'hand-drawn', 'excalidraw', 'pen-and-ink', 'freehand', 'watercolor', 'blueprint', 'look:tufte', 'accessible-high-contrast', 'patent-drawing', 'status-dashboard', 'ops-schematic', 'chalkboard', 'risograph', 'architectural-plan', 'publication-figure'), any palette
-name, an inline JSON spec, or a stack
-merged left → right ({ style: ['hand-drawn', 'dracula'] }). seed re-rolls
-ink wobble, never layout — (source, style, seed) reproduces an image
-exactly. Custom styles are data: validateStyleSpec(json) checks untrusted
-records, registerStyle({ name, … }) makes them addressable by name.
-Authoring guide + quality rubric: docs/style-authoring.md.
-
-## Docs
-
-- docs/README.md — documentation index and structure
-- Instructions_for_agents.md — canonical agent-use guide
-- AGENT_NATIVE.md — architecture/spec rationale
-- docs/features.md — current capability inventory
-- docs/api.md — library/CLI/MCP API reference, including SVG/PNG/ASCII output
-- docs/diagram-families.md — family examples and edit policy
-- docs/theming.md — themes, CSS variables, and Shiki compatibility
-- docs/style-authoring.md — styles: the composable Look + Palette system (stack names/specs; author custom styles as data records with the quality rubric)
-- docs/quality.md — determinism + "good looking" rubric
-- TODO.md — only active backlog
-- SECURITY.md — threat model + strict-mode guarantee
-- docs/agent-mutation-policy.md — structured-vs-source-level policy
-- docs/agent-api-cookbook.md — copy-pasteable library/CLI/MCP recipes
-- docs/mcp-code-mode-rationale.md — MCP surface rationale
-- docs/agent-workflow-examples.md — runnable MCP/CLI + agent-improvement examples
-- skills/ — agent-agnostic SKILL.md bundles for diagram workflow and live-editor development
-- skill-evals/ — skill-eval-harness manifest, fixtures, and benchmark instructions
+For the installed version, run `am capabilities --json` or `am llms-txt`.
+Use `am --agent-instructions` for the workflow shipped with that installation.

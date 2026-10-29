@@ -59,7 +59,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        # Keep the macOS rendering gate on a standard Intel host. The arm64
+        # pool behind macos-latest could not acquire v0.5.2's release job.
+        os: [macos-26-intel, windows-latest]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Setup Bun
@@ -70,6 +72,8 @@ jobs:
       - name: Install frozen dependencies
         run: bun install --frozen-lockfile
       - name: Build the distributable
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: bun run build
       - name: Run registry-derived cross-platform rendering contracts
         run: bun test src/__tests__/render-conformance-plan.test.ts --timeout 120000
@@ -269,7 +273,8 @@ jobs:
           curl --fail --location --silent --show-error \
             --output mcp-publisher.tar.gz \
             https://github.com/modelcontextprotocol/registry/releases/download/v1.7.9/mcp-publisher_linux_amd64.tar.gz
-          echo "$MCP_PUBLISHER_SHA256  mcp-publisher.tar.gz" | sha256sum --check --strict
+          actual_sha="$(sha256sum mcp-publisher.tar.gz | cut -d ' ' -f 1)"
+          test "$actual_sha" = "$MCP_PUBLISHER_SHA256"
           tar --extract --gzip --file mcp-publisher.tar.gz mcp-publisher
 
       - name: Publish or recover the exact MCP Registry metadata

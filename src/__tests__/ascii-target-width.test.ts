@@ -17,6 +17,15 @@ const htmlDisplayWidth = (output: string): number =>
   )
 
 const LONG_FEASIBLE_SOURCE: Record<DiagramKind, string> = {
+  zenuml: 'zenuml\nA->B: A very descriptive message with several words',
+  eventmodeling: 'eventmodeling\ntf 01 ui CartUI { A very descriptive frame label with several words }',
+  packet: '---\nconfig:\n  packet:\n    bitsPerRow: 8\n---\npacket\n+8: "A very descriptive packet field label with several words"',
+  kanban: 'kanban\nTodo\n  task[A very descriptive Kanban task label with several words]',
+  requirement: 'requirementDiagram\nrequirement r {\ntext: "A very descriptive requirement label with several words"\n}',
+  treemap: 'treemap\n"A very descriptive treemap label with several words": 10',
+  ishikawa: 'ishikawa\n  A very descriptive outcome label with several words\n  Process\n    Cause',
+  block: 'block\nA["A very descriptive block label with several words"]',
+  c4: 'C4Context\n  System(api, "A very descriptive software system label with several words")',
   flowchart: 'flowchart TD\n  A["A very descriptive flowchart node label with several words"]',
   state: 'stateDiagram-v2\n  A\n  note right of A : A very descriptive state note with several words',
   sequence: 'sequenceDiagram\n  participant A as A very descriptive participant label\n  A->>A: a descriptive self message with several words',
@@ -42,6 +51,9 @@ describe('targetWidth hard terminal contract', () => {
     expect(outputWidth(output)).toBeLessThanOrEqual(32)
     expect(output).toContain('日本語')
     expect(output).toContain('👩‍💻')
+    const visible = output.replace(/[│\s-]/g, '')
+    expect(visible).toContain('descriptivelabelwithmanywords')
+    expect(output).toContain('Done')
   })
 
   test('every registered family shrinks a feasible long label below natural width', () => {
@@ -172,6 +184,7 @@ describe('targetWidth hard terminal contract', () => {
       targetWidth: 24,
     })
     expect(outputWidth(output)).toBeLessThanOrEqual(24)
+    for (const word of ['Code', 'Mode', 'long', 'label', ' B ']) expect(output).toContain(word)
     try {
       sdk.renderMermaidASCII('flowchart TD\n  A[🙂]', { targetWidth: 1 })
       throw new Error('expected width failure')

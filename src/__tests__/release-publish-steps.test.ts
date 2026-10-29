@@ -15,12 +15,13 @@ const temp = useTempDirs()
 
 const REPO = join(import.meta.dir, '..', '..')
 const workflow = parseYaml(readFileSync(join(REPO, '.github', 'workflows', 'publish.yml'), 'utf8'))
+const ciWorkflow = parseYaml(readFileSync(join(REPO, '.github', 'workflows', 'ci.yml'), 'utf8'))
 
 interface Step { name?: string; run?: string; env?: Record<string, string> }
 
-function step(job: string, name: string): Step & { run: string } {
-  const found = (workflow.jobs[job]?.steps as Step[] | undefined)?.find(candidate => candidate.name === name)
-  if (!found?.run) throw new Error(`publish.yml ${job} has no run step named "${name}"`)
+function step(job: string, name: string, source = workflow): Step & { run: string } {
+  const found = (source.jobs[job]?.steps as Step[] | undefined)?.find(candidate => candidate.name === name)
+  if (!found?.run) throw new Error(`${job} has no run step named "${name}"`)
   return found as Step & { run: string }
 }
 
@@ -41,7 +42,7 @@ function lines(path: string): string[] {
 
 /** GitHub runs `run:` with `bash --noprofile --norc -eo pipefail {0}`. */
 function execute(target: Step & { run: string }, dir: string, env: Record<string, string> = {}) {
-  const result = spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', target.run], {
+  const result = spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', target.run], { timeout: 20_000, killSignal: 'SIGKILL',
     cwd: dir,
     encoding: 'utf8',
     env: { ...process.env, ...target.env, ...env, MOCK_ROOT: dir, PATH: `${join(dir, 'bin')}:${process.env.PATH}` },
@@ -55,7 +56,7 @@ function tarball(dir: string, packageJson: Record<string, unknown>, extra: Recor
   writeFileSync(join(staging, 'package', 'package.json'), JSON.stringify(packageJson))
   for (const [file, content] of Object.entries(extra)) writeFileSync(join(staging, 'package', file), content)
   const out = join(dir, 'fixture.tgz')
-  const packed = spawnSync('tar', ['--create', '--gzip', '--file', out, '-C', staging, 'package'], { encoding: 'utf8' })
+  const packed = spawnSync('tar', ['--create', '--gzip', '--file', out, '-C', staging, 'package'], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' })
   if (packed.status !== 0) throw new Error(packed.stderr)
   rmSync(staging, { recursive: true, force: true })
   const bytes = readFileSync(out)
@@ -95,12 +96,12 @@ describe('release gate: exact-SHA canonical CI attestation', () => {
   })
 })
 
-// Both OIDC jobs re-verify the downloaded artifact before acting on it.
+// Every downloaded-artifact consumer checks the bytes before acting on them.
 describe.each([
-  ['publish', 'Verify the transferred tarball digest'],
-  ['publish-mcp', 'Verify the tarball and extract registry metadata'],
-])('%s job: transferred artifact verification', (job, name) => {
-  const verify = step(job, name)
+  ['publish', 'Verify the transferred tarball digest', workflow],
+  ['publish-mcp', 'Verify the tarball and extract registry metadata', workflow],
+])('%s job: transferred artifact verification', (job, name, source) => {
+  const verify = step(job, name, source)
 
   function artifact(tamper: (dir: string, bytes: Buffer) => void = () => {}) {
     const dir = tempDir()
@@ -123,6 +124,17 @@ describe.each([
     const { result } = artifact()
     expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' })
   })
+
+  if (job === 'benchmark') {
+    test('rejects a manifest with mismatched SHA-512 integrity', () => {
+      const { result } = artifact(dir => {
+        const path = join(dir, 'package-manifest.json')
+        const manifest = JSON.parse(readFileSync(path, 'utf8'))
+        writeFileSync(path, JSON.stringify({ ...manifest, integrity: sriSha512(Buffer.from('other bytes')) }))
+      })
+      expect(result.status).not.toBe(0)
+    })
+  }
 
   test.each([
     ['a tarball changed after packing', (dir: string, bytes: Buffer) => writeFileSync(join(dir, 'package.tgz'), Buffer.concat([bytes, Buffer.from('x')]))],
@@ -242,7 +254,7 @@ describe('publish-mcp job: pinned publisher binary', () => {
     mkdirSync(staging)
     writeFileSync(join(staging, 'mcp-publisher'), '#!/bin/sh\n')
     const archive = join(dir, 'served.tar.gz')
-    expect(spawnSync('tar', ['--create', '--gzip', '--file', archive, '-C', staging, 'mcp-publisher']).status).toBe(0)
+    expect(spawnSync('tar', ['--create', '--gzip', '--file', archive, '-C', staging, 'mcp-publisher'], { timeout: 20_000, killSignal: 'SIGKILL' }).status).toBe(0)
     servedArchive = readFileSync(archive)
     return servedArchive
   }
@@ -280,8 +292,8 @@ cp "$MOCK_ROOT/served.tar.gz" "$output"
     expect(urls[0]).toMatch(/^https:\/\/github\.com\/modelcontextprotocol\/registry\/releases\/download\/v\d+\.\d+\.\d+\//)
   })
 
-  test('refuses to extract a download whose digest differs from the pin', () => {
-    const tampered = installWith(undefined)
+  test.each([undefined, '', '0'.repeat(64), 'not-a-digest'])('refuses to extract a download with a mismatched or malformed pin (%s)', pin => {
+    const tampered = installWith(pin)
     expect({ status: tampered.status === 0, extracted: tampered.extracted }).toEqual({ status: false, extracted: false })
   })
 
@@ -289,5 +301,23 @@ cp "$MOCK_ROOT/served.tar.gz" "$output"
     const served = installWith(undefined).servedDigest
     const matched = installWith(served)
     expect({ status: matched.status, extracted: matched.extracted }).toEqual({ status: 0, extracted: true })
+  })
+})
+
+// Release attests the entire canonical run, including independent semantics.
+describe('canonical CI: semantic conformance is required for release approval', () => {
+  const complete = step('ci-complete', 'Require every CI lane to pass', ciWorkflow)
+  const passing = { SEMANTIC_RESULT: 'success', CONSUMER_RESULT: 'success', TEST_RESULT: 'success', E2E_RESULT: 'success', RED_GREEN_RESULT: 'skipped', EXPIRE_RESULT: 'skipped' }
+
+  test('accepts the completed lanes and expected non-PR skips', () => {
+    expect(execute(complete, tempDir(), passing).status).toBe(0)
+  })
+
+  test.each(['failure', 'cancelled', 'skipped', ''])('refuses release approval when independent semantics is %s', result => {
+    expect(execute(complete, tempDir(), { ...passing, SEMANTIC_RESULT: result }).status).not.toBe(0)
+  })
+
+  test.each(['failure', 'cancelled', 'skipped', ''])('refuses release approval when installed quickstarts is %s', result => {
+    expect(execute(complete, tempDir(), { ...passing, CONSUMER_RESULT: result }).status).not.toBe(0)
   })
 })

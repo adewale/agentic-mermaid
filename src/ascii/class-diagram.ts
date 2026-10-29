@@ -1,826 +1,447 @@
-// ============================================================================
-// ASCII renderer — class diagrams
-//
-// Renders classDiagram text to ASCII/Unicode art.
-// Each class is a multi-compartment box (header | attributes | methods).
-// Relationships are drawn as lines between classes with UML markers.
-//
-// Layout: level-based top-down. "From" classes are placed above "to" classes
-// for all relationship types, matching ELK/mermaid.com behavior.
-// Relationship lines use simple Manhattan routing (vertical + horizontal).
-// ============================================================================
-
-import { parseClassDiagram } from '../class/parser.ts'
-import type { ClassDiagram, ClassNode, ClassMember, ClassNamespace, ClassRelationship, RelationshipType } from '../class/types.ts'
-import type { Canvas, AsciiConfig, RoleCanvas, CharRole, AsciiTheme, ColorMode } from './types.ts'
-import { mkCanvas, mkRoleCanvas, canvasToString, increaseSize, increaseRoleCanvasSize, setRole, drawText } from './canvas.ts'
+import { prepareClassConstruction, compactClassRoutesDecision, classLinkFooterText, type ClassConstruction } from './class-constructive-layout.ts'
+// Class layout keeps integer cards, endpoint demand and label rectangles
+// authoritative before emitting owned terminal primitives.
+import { classRelationshipLineStyle, parseClassDiagram } from '../class/parser.ts'
+import { memberToString } from '../class/text.ts'
+import type { ClassNamespace, ClassNode, RelationshipType } from '../class/types.ts'
+import { displayText, normalizeBrTags } from '../multiline-utils.ts'
+import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import { type DisplayTextInput, resolveLabelContent } from '../shared/display-text.ts'
+import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
+import { allocateBoxRoutes, allocateConstructiveClassRoutes, TerminalBoxRouteUnavailable, type BoxRoute, BOX_ROUTE_APPROACH_DISTANCE, type BoxRelation, type BoxSide, boxFaceDemands, boxFaceSizes, classLikePaint, paintBoxRoute, paintBoxText, reverseBoxes, type TerminalBox } from './class-like-layout.ts'
 import { drawMultiBox } from './draw.ts'
+import { terminalIds } from './identity.ts'
+import { serializeTerminalArtifact, type TerminalArtifact, terminalArtifact } from './terminal-artifact.ts'
+import { TerminalDocument, type TerminalMarker, type TerminalOwner } from './terminal-document.ts'
+import { faceSize, paintTerminalFrame } from './terminal-geometry.ts'
+import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
-import { splitLines } from './multiline-utils.ts'
-import { displayText } from '../multiline-utils.ts'
-import { compareCodePointStrings } from '../shared/deterministic-order.ts'
-import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
 
-/** Classify a character from a box drawing as 'border' or 'text'. */
-function classifyBoxChar(ch: string): CharRole {
-  if (/^[┌┐└┘├┤┬┴┼│─╭╮╰╯+\-|]$/.test(ch)) return 'border'
-  return 'text'
-}
-
-// ============================================================================
-// Class member formatting
-// ============================================================================
-
-/** Format a class member as a display string: visibility + name + optional type */
-function formatMember(m: ClassMember): string {
-  const vis = m.visibility || ''
-  const signature = m.isMethod ? `${m.name}(${m.params ?? ''})` : m.name
-  const type = m.type ? `: ${m.type}` : ''
-  return `${vis}${signature}${type}`
-}
-
-/** Build the text sections for a class box: [header], [attributes], [methods] */
-function buildClassSections(cls: ClassNode, maxTextWidth?: number): string[][] {
-  // Header section: optional annotation + class name (may be multi-line)
-  const header: string[] = []
-  if (cls.annotation) header.push(`<<${cls.annotation}>>`)
-  // Support multi-line class names. Labels draw their display text (the
-  // formatting tags style the SVG runs); members stay literal source text.
-  const nameLines = splitLines(displayText(cls.label))
-  header.push(...nameLines)
-
-  const wrap = (lines: string[]): string[] => maxTextWidth
-    ? lines.flatMap(line => wrapText(line, maxTextWidth))
-    : lines
-  // Attributes section
-  const attrs = wrap(cls.attributes.map(formatMember))
-
-  // Methods section
-  const methods = wrap(cls.methods.map(formatMember))
-
-  // If no attrs and no methods, just return header (1-section box)
-  if (attrs.length === 0 && methods.length === 0) return [header]
-  // If no methods, return header + attrs (2-section box)
-  if (methods.length === 0) return [header, attrs]
-  // Full 3-section box
-  return [header, attrs, methods]
-}
-
-// ============================================================================
-// Relationship marker characters
-// ============================================================================
-
-interface RelMarker {
-  /** Relationship type (determines marker shape) */
-  type: RelationshipType
-  /** Which end the marker is placed at */
-  markerAt: 'from' | 'to' | 'none'
-  /** Whether the line is dashed */
-  dashed: boolean
-}
-
-/**
- * Build the marker metadata for a relationship.
- * The actual marker character will be determined at placement time based on line direction.
- */
-function getRelMarker(type: RelationshipType, markerAt: 'from' | 'to' | 'both' | 'none'): RelMarker {
-  const dashed = type === 'dependency' || type === 'realization' || type === 'link-dashed'
-  return { type, markerAt: markerAt === 'both' ? 'from' : markerAt, dashed }
-}
-
-/**
- * Get the UML marker shape character for a relationship type.
- * For directional arrows (association/dependency), the direction parameter
- * specifies which way the arrow should point.
- */
-function getMarkerShape(
-  type: RelationshipType,
-  useAscii: boolean,
-  direction?: 'up' | 'down' | 'left' | 'right'
-): string {
-  switch (type) {
-    case 'inheritance':
-    case 'realization':
-      // Hollow triangle - rotate based on line direction
-      // Triangle points TOWARD the parent class
-      if (direction === 'down') {
-        // Line goes down (parent above, child below) - triangle points UP
-        return useAscii ? '^' : '△'
-      } else if (direction === 'up') {
-        // Line goes up (parent below, child above) - triangle points DOWN
-        return useAscii ? 'v' : '▽'
-      } else if (direction === 'left') {
-        // Line goes left - triangle points LEFT
-        return useAscii ? '>' : '◁'
-      } else {
-        // Default: line goes right - triangle points RIGHT
-        return useAscii ? '<' : '▷'
-      }
-    case 'composition':
-      // Filled diamond - omnidirectional shape
-      return useAscii ? '*' : '◆'
-    case 'aggregation':
-      // Hollow diamond - omnidirectional shape
-      return useAscii ? 'o' : '◇'
-    case 'lollipop':
-      return useAscii ? 'O' : '○'
-    case 'association':
-    case 'dependency':
-      // Directional arrow - rotate based on line direction
-      if (direction === 'down') {
-        return useAscii ? 'v' : '▼'
-      } else if (direction === 'up') {
-        return useAscii ? '^' : '▲'
-      } else if (direction === 'left') {
-        return useAscii ? '<' : '◀'
-      } else {
-        // Default to right (or when direction not specified)
-        return useAscii ? '>' : '▶'
-      }
-    case 'link-solid':
-    case 'link-dashed':
-      return ''
-  }
-}
-
-// ============================================================================
-// Layout and rendering
-// ============================================================================
-
-/** Positioned class node on the canvas */
-interface PlacedClass {
+interface PlacedClass extends TerminalBox {
   cls: ClassNode
   sections: string[][]
-  x: number
-  y: number
-  width: number
-  height: number
 }
-
-interface PlacedNamespace {
-  id: string
-  label: string
+interface PlacedNamespace extends TerminalBox {
+  labelLines: string[]
   parentId?: string
+  members: string[]
   depth: number
-  x: number
-  y: number
-  width: number
-  height: number
 }
 
-/**
- * Render a Mermaid class diagram to ASCII/Unicode text.
- *
- * Pipeline: parse → build boxes → level-based layout → draw boxes → draw relationships → string.
- */
-export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, targetWidth?: number, authoredText?: string): string {
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
-  const authoredLines = authoredText?.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
-  const diagram = parseClassDiagram(lines, authoredLines)
+function classSections(cls: ClassNode, width?: number): string[][] {
+  const header = [...(cls.annotation === undefined ? [] : wrapText(`<<${cls.annotation}>>`, width)), ...wrapText(displayText(resolveLabelContent(cls.label, cls.labelContent)), width)]
+  const attrs = cls.attributes.flatMap(member => wrapText(memberToString(member), width))
+  const methods = cls.methods.flatMap(member => wrapText(memberToString(member), width))
+  return methods.length ? [header, attrs, methods] : attrs.length ? [header, attrs] : [header]
+}
+
+function classMarker(type: RelationshipType, side: BoxSide, ascii: boolean): TerminalMarker | undefined {
+  if (type === 'link-solid' || type === 'link-dashed') return undefined
+  const shape = type === 'inheritance' || type === 'realization' ? 'open-arrow' : type === 'composition' ? 'filled-diamond' : type === 'aggregation' ? 'hollow-diamond' : type === 'lollipop' ? 'lollipop' : 'triangle'
+  return { shape, direction: ({ T: 'B', B: 'T', L: 'R', R: 'L' } as const)[side], ascii }
+}
+
+export function renderClassTerminal(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, targetWidth?: number, authoredText?: string): TerminalArtifact {
+  targetWidth ??= config.targetWidth ?? config.maxWidth
+  const lines = (value: string) =>
+    value
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line && !line.startsWith('%%'))
+  const diagram = parseClassDiagram(lines(text), authoredText === undefined ? undefined : lines(authoredText))
+  diagram.title ??= config.title
   checkAllClassLikeAuthoredStyles(diagram.classDefs, diagram.classes)
-
-  if (diagram.classes.length === 0) return ''
-
-  const useAscii = config.useAscii
-  const hGap = 4  // horizontal gap between class boxes
-  const vGap = 3  // vertical gap between levels (enough for relationship lines)
-
-  // --- Build box dimensions for each class ---
-  const classSections = new Map<string, string[][]>()
-  const classBoxW = new Map<string, number>()
-  const classBoxH = new Map<string, number>()
-
-  for (const cls of diagram.classes) {
-    const sections = buildClassSections(cls, targetWidth ? Math.max(1, targetWidth - 4) : undefined)
-    classSections.set(cls.id, sections)
-
-    // Compute box dimensions from drawMultiBox logic
-    let maxTextW = 0
-    for (const section of sections) {
-      for (const line of section) maxTextW = Math.max(maxTextW, visualWidth(line))
-    }
-    const boxW = maxTextW + 4 // 2 border + 2 padding
-
-    let totalLines = 0
-    for (const section of sections) totalLines += Math.max(section.length, 1)
-    const boxH = totalLines + (sections.length - 1) + 2 // section lines + dividers + top/bottom border
-
-    classBoxW.set(cls.id, boxW)
-    classBoxH.set(cls.id, boxH)
+  if (!diagram.classes.length && !diagram.namespaces.length && !diagram.notes.length) {
+    const lines = diagram.title ? wrapText(displayText(normalizeBrTags(diagram.title)), targetWidth) : []
+    const empty = new TerminalDocument(Math.max(0, ...lines.map(visualWidth)), lines.length)
+    empty.scope({ id: 'title', kind: 'label' }, () => lines.forEach((line, row) => empty.text(0, row, line)))
+    return terminalArtifact(empty, { colorMode, theme })
   }
-
-  // --- Assign levels: topological sort based on directed relationships ---
-  // All relationship types place "from" above "to" in the layout, matching
-  // ELK's layered algorithm and the official mermaid.com renderer behavior.
-  // For "Animal <|-- Dog": from="Animal", to="Dog" → Animal above Dog.
-  //
-  // Every relationship type (including association and dependency) forces nodes
-  // to different levels. Same-row routing for mixed diagrams causes collisions:
-  // detour lines overlap with cross-level routing, and labels overwrite box borders.
-
-  const classById = new Map<string, ClassNode>()
-  for (const cls of diagram.classes) classById.set(cls.id, cls)
-
-  const parents = new Map<string, Set<string>>()  // child → set of parent IDs
-  const children = new Map<string, Set<string>>() // parent → set of child IDs
-
+  const namespaceIds = (items: ClassNamespace[], parent = ''): string[] =>
+    items.flatMap(item => {
+      const id = parent ? `${parent}.${item.name}` : item.name
+      return [id, ...namespaceIds(item.children, id)]
+    })
+  const generated = terminalIds([...diagram.classes.map(cls => cls.id), ...namespaceIds(diagram.namespaces)])
+  const direction = diagram.direction ?? 'TB',
+    horizontal = direction === 'LR' || direction === 'RL'
+  const prepared = (value: DisplayTextInput) => wrapText(displayText(value), targetWidth ? Math.max(1, Math.floor(targetWidth / 3)) : undefined)
+  const relations: BoxRelation[] = diagram.relationships.map((rel, index) => ({
+    id: generated(`relationship:${index}`),
+    from: rel.from,
+    to: rel.to,
+    ...(rel.label ? { lines: prepared(resolveLabelContent(rel.label, rel.labelContent)) } : {}),
+    ...(rel.fromCardinality ? { fromLines: prepared(resolveLabelContent(rel.fromCardinality, rel.fromCardinalityContent)) } : {}),
+    ...(rel.toCardinality ? { toLines: prepared(resolveLabelContent(rel.toCardinality, rel.toCardinalityContent)) } : {}),
+  }))
+  const relationshipById = new Map<string, (typeof diagram.relationships)[number]>()
+  relations.forEach((relation, index) => {
+    if (!relationshipById.has(relation.id)) relationshipById.set(relation.id, diagram.relationships[index]!)
+  })
+  const notePlans = diagram.notes.map((note, index) => ({ id: generated(`note:${index}`), targetId: note.for, lines: wrapText(displayText(resolveLabelContent(note.text, note.textContent)), targetWidth ? Math.max(1, targetWidth - 8) : undefined) }))
+  const noteRelations: BoxRelation[] = notePlans.flatMap(note => (note.targetId ? [{ id: generated(`${note.id}:connector`), from: note.targetId, to: note.id }] : []))
+  const faceSizes = boxFaceSizes([...relations, ...noteRelations], direction)
+  const sections = new Map(diagram.classes.map(cls => [cls.id, classSections(cls, targetWidth ? Math.max(1, targetWidth - 8) : undefined)]))
+  const sizes = new Map(
+    diagram.classes.map(cls => {
+      const content = sections.get(cls.id)!,
+        demand = faceSizes.get(cls.id)
+      return [
+        cls.id,
+        {
+          width: Math.max(4 + Math.max(0, ...content.flat().map(visualWidth)), demand?.width ?? 0),
+          height: Math.max(content.reduce((count, section) => count + Math.max(1, section.length), 0) + content.length + 1, demand?.height ?? 0),
+        },
+      ]
+    }),
+  )
+  const children = new Map<string, Set<string>>(),
+    parents = new Map<string, Set<string>>()
   for (const rel of diagram.relationships) {
-    // For inheritance/realization, the marker (hollow triangle) points to the parent.
-    // - `Animal <|-- Dog` (markerAt='from'): Animal is parent, Dog is child
-    // - `Bird ..|> Flyable` (markerAt='to'): Flyable is parent, Bird is child
-    // For other relationships, use the default from→to direction.
-    const isHierarchical = rel.type === 'inheritance' || rel.type === 'realization'
-    const parentId = isHierarchical && rel.markerAt === 'to' ? rel.to : rel.from
-    const childId = isHierarchical && rel.markerAt === 'to' ? rel.from : rel.to
-
-    if (!parents.has(childId)) parents.set(childId, new Set())
-    parents.get(childId)!.add(parentId)
-    if (!children.has(parentId)) children.set(parentId, new Set())
-    children.get(parentId)!.add(childId)
+    if (rel.from === rel.to) continue
+    const inherited = rel.type === 'inheritance' || rel.type === 'realization'
+    const parent = inherited && rel.markerAt === 'to' ? rel.to : rel.from
+    const child = inherited && rel.markerAt === 'to' ? rel.from : rel.to
+    const outgoing = children.get(parent) ?? new Set<string>()
+    outgoing.add(child)
+    children.set(parent, outgoing)
+    const incoming = parents.get(child) ?? new Set<string>()
+    incoming.add(parent)
+    parents.set(child, incoming)
   }
-
-  // BFS from roots (classes that have no parents) to assign levels.
-  // Cap at classes.length - 1 to prevent infinite loops on cyclic graphs
-  // (e.g. View --> Model and Model ..> View would otherwise push levels
-  // upward forever). In a DAG the longest path has at most N-1 edges.
-  const level = new Map<string, number>()
-  const roots = diagram.classes.filter(c => !parents.has(c.id) || parents.get(c.id)!.size === 0)
-  const queue: string[] = roots.map(c => c.id)
-  for (const id of queue) level.set(id, 0)
-
-  const levelCap = diagram.classes.length - 1
-  let qi = 0
-  while (qi < queue.length) {
-    const id = queue[qi++]!
-    const childSet = children.get(id)
-    if (!childSet) continue
-    for (const childId of childSet) {
-      const newLevel = (level.get(id) ?? 0) + 1
-      if (newLevel > levelCap) continue // cycle detected — skip to prevent infinite loop
-      if (!level.has(childId) || level.get(childId)! < newLevel) {
-        level.set(childId, newLevel)
-        queue.push(childId)
+  const level = new Map<string, number>(),
+    queue = diagram.classes.filter(cls => !parents.has(cls.id)).map(cls => cls.id)
+  queue.forEach(id => level.set(id, 0))
+  for (let index = 0; index < queue.length; index++) {
+    const id = queue[index]!
+    for (const child of children.get(id) ?? []) {
+      const next = level.get(id)! + 1
+      if (next >= diagram.classes.length || (level.get(child) ?? -1) >= next) continue
+      level.set(child, next)
+      queue.push(child)
+    }
+  }
+  let cycleLevel = Math.max(-1, ...level.values()) + 1
+  for (const cls of diagram.classes) if (!level.has(cls.id)) level.set(cls.id, cycleLevel++)
+  const placed = new Map<string, PlacedClass>()
+  // Each exterior approach occupies distance+1 blank cells. Opposing faces
+  // need one additional free row/column between those protected approaches.
+  const minimumRoutingGap = 2 * (BOX_ROUTE_APPROACH_DISTANCE + 1) + 1
+  let routingGapPromoted = false
+  const allocateCards = () => {
+    placed.clear()
+    let axis = 4
+    const mainGap = Math.max(8, routingGapPromoted ? minimumRoutingGap : 0, ...relations.flatMap(rel => [rel.lines?.length ?? 0, rel.fromLines?.length ?? 0, rel.toLines?.length ?? 0]).map(count => count + 6))
+    for (let index = 0; index <= Math.max(0, ...level.values()); index++) {
+      let cross = 4,
+        extent = 0
+      for (const cls of diagram.classes.filter(item => (level.get(item.id) ?? 0) === index)) {
+        const size = sizes.get(cls.id)!
+        placed.set(cls.id, { id: cls.id, cls, sections: sections.get(cls.id)!, x: horizontal ? axis : cross, y: horizontal ? cross : axis, ...size })
+        cross += (horizontal ? size.height : size.width) + (routingGapPromoted ? minimumRoutingGap : 6)
+        extent = Math.max(extent, horizontal ? size.width : size.height)
+      }
+      axis += extent + mainGap
+    }
+    reverseBoxes(placed.values(), direction)
+  }
+  allocateCards()
+  // Inheritance and feedback links may run against source direction. Recount
+  // the physical faces after allocation, then grow/reflow only where needed.
+  for (let pass = 0; pass < (relations.length + noteRelations.length) * 2 + 2; pass++) {
+    let noteY = Math.max(0, ...[...placed.values()].map(box => box.y + box.height)) + 8
+    const notes = notePlans.map(note => {
+      const target = note.targetId ? placed.get(note.targetId) : undefined
+      const box = { id: note.id, x: target?.x ?? 4, y: noteY, width: Math.max(6, ...note.lines.map(line => visualWidth(line) + 4)), height: note.lines.length + 2 }
+      noteY += box.height + 4
+      return box
+    })
+    const demand = boxFaceSizes([...relations, ...noteRelations], direction, [...placed.values(), ...notes])
+    let changed = false
+    for (const [id, size] of demand) {
+      const previous = faceSizes.get(id) ?? { width: 0, height: 0 }
+      faceSizes.set(id, { width: Math.max(previous.width, size.width), height: Math.max(previous.height, size.height) })
+      const card = sizes.get(id)
+      if (card && (card.width < size.width || card.height < size.height)) {
+        card.width = Math.max(card.width, size.width)
+        card.height = Math.max(card.height, size.height)
+        changed = true
       }
     }
+    if (!changed) break
+    allocateCards()
   }
-
-  // Assign remaining (unconnected) classes to level 0
-  for (const cls of diagram.classes) {
-    if (!level.has(cls.id)) level.set(cls.id, 0)
-  }
-
-  // --- Position classes by level ---
-  // Group classes by level
-  const maxLevel = Math.max(...[...level.values()], 0)
-  const levelGroups: string[][] = Array.from({ length: maxLevel + 1 }, () => [])
-  for (const cls of diagram.classes) {
-    levelGroups[level.get(cls.id)!]!.push(cls.id)
-  }
-
-  // Compute positions: each level is a row, classes in a row are spaced horizontally
-  const placed = new Map<string, PlacedClass>()
-  let currentY = 0
-
-  for (let lv = 0; lv <= maxLevel; lv++) {
-    const group = levelGroups[lv]!
-    if (group.length === 0) continue
-
-    let currentX = 0
-    let maxH = 0
-
-    for (const id of group) {
-      const cls = classById.get(id)!
-      const w = classBoxW.get(id)!
-      const h = classBoxH.get(id)!
-      placed.set(id, {
-        cls,
-        sections: classSections.get(id)!,
-        x: currentX,
-        y: currentY,
-        width: w,
-        height: h,
-      })
-      currentX += w + hGap
-      maxH = Math.max(maxH, h)
-    }
-
-    currentY += maxH + vGap
-  }
-
-  // Namespace frames are derived from the already deterministic class
-  // placement. A uniform inset leaves room for nested headers while preserving
-  // all relationship geometry relative to the member cards.
-  const namespaceFrames: PlacedNamespace[] = []
-  if (diagram.namespaces.length > 0) {
-    const depthOf = (items: ClassNamespace[], depth = 1): number => Math.max(depth, ...items.map(item => depthOf(item.children, depth + 1)))
-    const inset = depthOf(diagram.namespaces) * 2 + 1
-    for (const item of placed.values()) { item.x += inset; item.y += inset }
-
-    const placeNamespace = (namespace: ClassNamespace, parentId?: string, depth = 1): PlacedNamespace | undefined => {
-      const id = parentId ? `${parentId}.${namespace.name}` : namespace.name
-      const children = namespace.children
-        .map(child => placeNamespace(child, id, depth + 1))
-        .filter((child): child is PlacedNamespace => child !== undefined)
-      const members = namespace.classIds.map(classId => placed.get(classId)).filter((item): item is PlacedClass => item !== undefined)
-      const bounds = [
-        ...members.map(item => ({ x1: item.x, y1: item.y, x2: item.x + item.width - 1, y2: item.y + item.height - 1 })),
-        ...children.map(item => ({ x1: item.x, y1: item.y, x2: item.x + item.width - 1, y2: item.y + item.height - 1 })),
-      ]
-      if (bounds.length === 0) return undefined
-      const label = displayText(namespace.label ?? namespace.name)
-      const x = Math.min(...bounds.map(bound => bound.x1)) - 2
-      const y = Math.min(...bounds.map(bound => bound.y1)) - 2
-      const right = Math.max(Math.max(...bounds.map(bound => bound.x2)) + 2, x + visualWidth(label) + 3)
-      const bottom = Math.max(...bounds.map(bound => bound.y2)) + 2
-      const frame = { id, label, parentId, depth, x, y, width: right - x + 1, height: bottom - y + 1 }
-      namespaceFrames.push(frame)
-      return frame
-    }
-    for (const namespace of diagram.namespaces) placeNamespace(namespace)
-  }
-
-  // --- Create canvas ---
-  let totalW = 0
-  let totalH = 0
-  for (const p of placed.values()) {
-    totalW = Math.max(totalW, p.x + p.width)
-    totalH = Math.max(totalH, p.y + p.height)
-  }
-  for (const frame of namespaceFrames) {
-    totalW = Math.max(totalW, frame.x + frame.width)
-    totalH = Math.max(totalH, frame.y + frame.height)
-  }
-
-  // Extra space for relationship lines that may go below/beside
-  totalW += 4
-  totalH += 2
-
-  const canvas = mkCanvas(totalW - 1, totalH - 1)
-  const rc = mkRoleCanvas(totalW - 1, totalH - 1)
-
-  /** Set a character on the canvas and track its role. */
-  function setC(x: number, y: number, ch: string, role: CharRole): void {
-    if (x >= 0 && x < canvas.length && y >= 0 && y < (canvas[0]?.length ?? 0)) {
-      canvas[x]![y] = ch
-      setRole(rc, x, y, role)
-    }
-  }
-
-  // Namespace frames are the background layer. Parents precede nested frames;
-  // class cards and routes remain foreground geometry.
-  for (const frame of [...namespaceFrames].sort((a, b) => a.depth - b.depth || compareCodePointStrings(a.id, b.id))) {
-    const left = frame.x
-    const right = frame.x + frame.width - 1
-    const top = frame.y
-    const bottom = frame.y + frame.height - 1
-    const h = useAscii ? '-' : '─'
-    const v = useAscii ? '|' : '│'
-    for (let x = left + 1; x < right; x++) { setC(x, top, h, 'border'); setC(x, bottom, h, 'border') }
-    for (let y = top + 1; y < bottom; y++) { setC(left, y, v, 'border'); setC(right, y, v, 'border') }
-    setC(left, top, useAscii ? '+' : '┌', 'border')
-    setC(right, top, useAscii ? '+' : '┐', 'border')
-    setC(left, bottom, useAscii ? '+' : '└', 'border')
-    setC(right, bottom, useAscii ? '+' : '┘', 'border')
-    const header = ` ${frame.label} `
-    const headerX = left + Math.max(1, Math.floor((frame.width - visualWidth(header)) / 2))
-    drawText(canvas, { x: headerX, y: top }, header, true)
-    for (let x = headerX; x < headerX + visualWidth(header); x++) setRole(rc, x, top, 'text')
-  }
-
-  // --- Draw class boxes ---
-  for (const p of placed.values()) {
-    const boxCanvas = drawMultiBox(p.sections, useAscii)
-    // Copy box onto main canvas at (p.x, p.y) with role tracking
-    for (let bx = 0; bx < boxCanvas.length; bx++) {
-      for (let by = 0; by < boxCanvas[0]!.length; by++) {
-        const ch = boxCanvas[bx]![by]!
-        if (ch !== ' ') {
-          const cx = p.x + bx
-          const cy = p.y + by
-          if (cx < totalW && cy < totalH) {
-            setC(cx, cy, ch, classifyBoxChar(ch))
-          }
+  const namespaceByClass = new Map<string, string>(),
+    namespaces: PlacedNamespace[] = []
+  const allocateNamespaces = (): void => {
+    namespaceByClass.clear()
+    namespaces.length = 0
+    if (diagram.namespaces.length) {
+      const header = (ns: ClassNamespace) => prepared(ns.labelContent?.value === (ns.label ?? ns.name) ? ns.labelContent.prepared : normalizeBrTags(ns.label ?? ns.name))
+      // Keep normal port approaches and a free routing row inside each frame.
+      const frameClearance = 4
+      const depthOf = (items: ClassNamespace[], depth = 1): number => Math.max(depth, ...items.map(ns => depthOf(ns.children, depth + 1)))
+      const headerHeight = (items: ClassNamespace[]): number => Math.max(1, ...items.flatMap(ns => [header(ns).length, headerHeight(ns.children)]))
+      const inset = depthOf(diagram.namespaces) * (headerHeight(diagram.namespaces) + frameClearance)
+      for (const box of placed.values()) {
+        box.x += inset
+        box.y += inset
+      }
+      let emptyY = Math.max(4, ...[...placed.values()].map(box => box.y + box.height + 4))
+      const visit = (ns: ClassNamespace, parentId?: string, depth = 1): PlacedNamespace | undefined => {
+        const id = parentId ? `${parentId}.${ns.name}` : ns.name
+        ns.classIds.forEach(member => namespaceByClass.set(member, id))
+        const children = ns.children.map(child => visit(child, id, depth + 1)).filter((child): child is PlacedNamespace => child !== undefined)
+        const members = ns.classIds.map(member => placed.get(member)).filter((member): member is PlacedClass => member !== undefined)
+        const bounds = [...children, ...members]
+        const labelLines = header(ns)
+        if (!bounds.length) {
+          const empty: PlacedNamespace = { id, parentId, depth, members: [], labelLines, x: 4, y: emptyY, width: Math.max(6, ...labelLines.map(line => visualWidth(line) + 4)), height: labelLines.length + 3 }
+          emptyY += empty.height + 4
+          namespaces.push(empty)
+          return empty
+        }
+        const x = Math.min(...bounds.map(box => box.x)) - frameClearance,
+          y = Math.min(...bounds.map(box => box.y)) - labelLines.length - frameClearance
+        const right = Math.max(...bounds.map(box => box.x + box.width + frameClearance - 1), x + Math.max(...labelLines.map(visualWidth)) + 4)
+        const bottom = Math.max(...bounds.map(box => box.y + box.height + frameClearance - 1))
+        const frame: PlacedNamespace = { id, parentId, depth, members: [...ns.classIds, ...children.map(child => child.id)], labelLines, x, y, width: right - x + 1, height: bottom - y + 1 }
+        namespaces.push(frame)
+        return frame
+      }
+      diagram.namespaces.forEach(ns => visit(ns))
+      // Header growth can make independently placed sibling namespaces overlap.
+      // Settle their complete envelopes, moving each contained subtree together.
+      const move = (box: PlacedClass | PlacedNamespace, dy: number): void => {
+        box.y += dy
+        if ('members' in box) {
+          namespaces.filter(child => child.parentId === box.id).forEach(child => move(child, dy))
+          for (const child of placed.values()) if (namespaceByClass.get(child.id) === box.id) move(child, dy)
         }
       }
+      const settle = (parentId?: string): void => {
+        const children = [...namespaces.filter(box => box.parentId === parentId), ...[...placed.values()].filter(box => namespaceByClass.get(box.id) === parentId)]
+        for (const child of children) if ('members' in child) settle(child.id)
+        const allocated: Array<PlacedClass | PlacedNamespace> = []
+        for (const child of children.sort((a, b) => a.y - b.y || a.x - b.x || compareCodePointStrings(a.id, b.id))) {
+          const separation = (other: PlacedClass | PlacedNamespace) => (routingGapPromoted && !('members' in child) && !('members' in other) ? Math.max(frameClearance, minimumRoutingGap) : frameClearance)
+          for (;;) {
+            const blockers = allocated.filter(other => child.x < other.x + other.width + separation(other) && other.x < child.x + child.width + separation(other) && child.y < other.y + other.height + separation(other) && other.y < child.y + child.height + separation(other))
+            if (!blockers.length) break
+            move(child, Math.max(...blockers.map(other => other.y + other.height + separation(other))) - child.y)
+          }
+          allocated.push(child)
+        }
+        const parent = namespaces.find(box => box.id === parentId)
+        if (parent && children.length) {
+          parent.x = Math.min(...children.map(box => box.x)) - frameClearance
+          parent.y = Math.min(...children.map(box => box.y)) - parent.labelLines.length - frameClearance
+          parent.width = Math.max(...children.map(box => box.x + box.width + frameClearance), parent.x + Math.max(...parent.labelLines.map(visualWidth)) + 4) - parent.x
+          parent.height = Math.max(...children.map(box => box.y + box.height + frameClearance)) - parent.y
+        }
+      }
+      settle()
+      // Empty nested frames can extend above or left of the first allocated
+      // child. Translate the complete layout before terminal coordinates/routing.
+      const boxes = [...placed.values(), ...namespaces]
+      const dx = Math.max(0, -Math.min(0, ...boxes.map(box => box.x)))
+      const dy = Math.max(0, -Math.min(0, ...boxes.map(box => box.y)))
+      if (dx || dy)
+        for (const box of boxes) {
+          box.x += dx
+          box.y += dy
+        }
     }
   }
-
-  // --- Build occupancy map for collision avoidance ---
-  // Track which x positions are occupied at each y level (to avoid routing through boxes)
-  const boxOccupancy: { x1: number; x2: number; y1: number; y2: number }[] = []
-  for (const p of placed.values()) {
-    boxOccupancy.push({
-      x1: p.x,
-      x2: p.x + p.width - 1,
-      y1: p.y,
-      y2: p.y + p.height - 1,
+  const allocateNotes = () => {
+    let noteY = Math.max(0, ...[...placed.values()].map(box => box.y + box.height), ...namespaces.map(box => box.y + box.height)) + Math.max(8, routingGapPromoted ? minimumRoutingGap : 0)
+    return notePlans.map(note => {
+      const size = faceSizes.get(note.id),
+        target = note.targetId ? placed.get(note.targetId) : undefined
+      const box = { ...note, x: target?.x ?? 2, y: noteY, width: Math.max(6, ...note.lines.map(line => visualWidth(line) + 4), size?.width ?? 0), height: Math.max(note.lines.length + 2, size?.height ?? 0) }
+      noteY += box.height + (routingGapPromoted ? minimumRoutingGap : 4)
+      return box
     })
   }
-
-  /** Check if a point (x, y) is inside any class box */
-  function isInsideBox(x: number, y: number, excludeIds?: Set<string>): boolean {
-    for (const [id, p] of placed.entries()) {
-      if (excludeIds?.has(id)) continue
-      if (x >= p.x && x <= p.x + p.width - 1 && y >= p.y && y <= p.y + p.height - 1) {
-        return true
+  let noteBoxes: ReturnType<typeof allocateNotes> = []
+  // Namespace packing can change a relation's physical faces after the first
+  // rank allocation. Recount those settled faces, including actual note sizes.
+  // Every growth reaches a new 3*k+2 threshold, k <= endpoint incident degree.
+  // Two dimensions and two endpoints per relation permit at most 4R growths,
+  // followed by at most one promotion of the render's routing separation.
+  const maximumGrowths = (relations.length + noteRelations.length) * 4 + 1
+  for (let pass = 0; pass <= maximumGrowths; pass++) {
+    allocateNamespaces()
+    noteBoxes = allocateNotes()
+    const boxes = [...placed.values(), ...noteBoxes]
+    const byId = new Map(boxes.map(box => [box.id, box]))
+    const demand = boxFaceDemands([...relations, ...noteRelations], direction, byId)
+    let changed = false
+    for (const [id, count] of demand) {
+      const size = faceSize(count)
+      const previous = faceSizes.get(id) ?? { width: 0, height: 0 }
+      faceSizes.set(id, { width: Math.max(previous.width, size.width), height: Math.max(previous.height, size.height) })
+      const box = byId.get(id)
+      if (!box || (box.width >= size.width && box.height >= size.height)) continue
+      const card = sizes.get(id)
+      if (card) {
+        card.width = Math.max(card.width, size.width)
+        card.height = Math.max(card.height, size.height)
       }
+      changed = true
     }
-    return false
-  }
-
-  /** Find a clear vertical column for routing that doesn't pass through any boxes */
-  function findClearColumn(startX: number, y1: number, y2: number, excludeIds: Set<string>): number {
-    // Try the original column first
-    let clear = true
-    for (let y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) {
-      if (isInsideBox(startX, y, excludeIds)) {
-        clear = false
-        break
+    if (!changed && !routingGapPromoted) {
+      const deficient = (a: TerminalBox, b: TerminalBox): boolean => {
+        const first = demand.get(a.id),
+          second = demand.get(b.id)
+        if (!first || !second) return false
+        const verticalGap = b.y - a.y - a.height,
+          horizontalGap = b.x - a.x - a.width
+        return (first.B > 0 && second.T > 0 && verticalGap >= 0 && verticalGap < minimumRoutingGap && a.x < b.x + b.width && b.x < a.x + a.width) || (first.R > 0 && second.L > 0 && horizontalGap >= 0 && horizontalGap < minimumRoutingGap && a.y < b.y + b.height && b.y < a.y + a.height)
       }
-    }
-    if (clear) return startX
-
-    // Try columns to the left and right, alternating
-    for (let offset = 1; offset < totalW + 10; offset++) {
-      // Try right
-      const rightX = startX + offset
-      clear = true
-      for (let y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) {
-        if (isInsideBox(rightX, y, excludeIds)) {
-          clear = false
+      for (let first = 0; first < boxes.length && !routingGapPromoted; first++)
+        for (let second = first + 1; second < boxes.length; second++) {
+          if (!deficient(boxes[first]!, boxes[second]!) && !deficient(boxes[second]!, boxes[first]!)) continue
+          routingGapPromoted = true
+          changed = true
           break
         }
-      }
-      if (clear) return rightX
-
-      // Try left
-      const leftX = startX - offset
-      if (leftX >= 0) {
-        clear = true
-        for (let y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) {
-          if (isInsideBox(leftX, y, excludeIds)) {
-            clear = false
-            break
-          }
-        }
-        if (clear) return leftX
-      }
     }
-
-    // Fallback to right edge of canvas + some extra space
-    return totalW + 2
+    if (!changed) break
+    if (pass === maximumGrowths) throw new Error('Terminal face capacity did not stabilize within its incident demand')
+    // Rebuild from rank coordinates; retaining translated namespace members
+    // would accumulate offsets and leave frame/header/note geometry stale.
+    allocateCards()
   }
-
-  // --- Draw relationship lines ---
-  const H = useAscii ? '-' : '─'
-  const V = useAscii ? '|' : '│'
-  const dashH = useAscii ? '.' : '╌'
-  const dashV = useAscii ? ':' : '┊'
-
-  for (const rel of diagram.relationships) {
-    const fromP = placed.get(rel.from)
-    const toP = placed.get(rel.to)
-    if (!fromP || !toP) continue
-
-    const marker = getRelMarker(rel.type, rel.markerAt)
-    const lineH = marker.dashed ? dashH : H
-    const lineV = marker.dashed ? dashV : V
-
-    // Exclude source and target boxes from collision detection
-    const excludeIds = new Set([rel.from, rel.to])
-
-    // Connection points: center-bottom of source → center-top of target
-    const fromCX = fromP.x + Math.floor(fromP.width / 2)
-    const fromBY = fromP.y + fromP.height - 1
-    const toCX = toP.x + Math.floor(toP.width / 2)
-    const toTY = toP.y
-
-    // Route: Manhattan routing with collision avoidance
-    // If target is below source: vertical down from source, horizontal if needed, vertical down to target
-    // If same row: horizontal line with a small vertical detour above or below
-    if (fromBY < toTY) {
-      // Target is below source — routing with collision avoidance
-      // Find a clear vertical column for the ENTIRE path from source to target
-      const routeX = findClearColumn(fromCX, fromBY + 1, toTY - 1, excludeIds)
-      const needsDetour = routeX !== fromCX
-
-      // Expand canvas if needed to accommodate routing column
-      if (routeX >= totalW) {
-        increaseSize(canvas, routeX + 2, totalH)
-      }
-
-      if (needsDetour) {
-        // COLLISION CASE: Route around intermediate boxes
-        // Path: source center → horizontal to routeX → vertical to entry → horizontal to target center
-
-        const exitY = fromBY + 1
-        const entryY = toTY - 1
-
-        // 1. Horizontal from source center to route column
-        const lx1 = Math.min(fromCX, routeX)
-        const rx1 = Math.max(fromCX, routeX)
-        for (let x = lx1; x <= rx1; x++) {
-          setC(x, exitY, lineH, 'line')
-        }
-        if (!useAscii && exitY < (canvas[0]?.length ?? 0)) {
-          if (fromCX < routeX) {
-            setC(fromCX, exitY, '└', 'corner')
-            setC(routeX, exitY, '┐', 'corner')
-          } else {
-            setC(fromCX, exitY, '┘', 'corner')
-            setC(routeX, exitY, '┌', 'corner')
-          }
-        }
-
-        // 2. Vertical at routeX from exit to entry
-        for (let y = exitY + 1; y <= entryY; y++) {
-          setC(routeX, y, lineV, 'line')
-        }
-
-        // 3. Horizontal from routeX to target center at entry
-        if (routeX !== toCX) {
-          const lx2 = Math.min(routeX, toCX)
-          const rx2 = Math.max(routeX, toCX)
-          for (let x = lx2; x <= rx2; x++) {
-            setC(x, entryY, lineH, 'line')
-          }
-          if (!useAscii && entryY < (canvas[0]?.length ?? 0)) {
-            if (routeX < toCX) {
-              setC(routeX, entryY, '└', 'corner')
-              setC(toCX, entryY, '┐', 'corner')
-            } else {
-              setC(routeX, entryY, '┘', 'corner')
-              setC(toCX, entryY, '┌', 'corner')
-            }
-          }
-        }
-
-        // Markers for detour case
-        if (marker.markerAt === 'to') {
-          const markerChar = getMarkerShape(marker.type, useAscii, 'down')
-          setC(toCX, entryY, markerChar, 'arrow')
-        }
-        if (marker.markerAt === 'from') {
-          const markerChar = getMarkerShape(marker.type, useAscii, 'down')
-          setC(fromCX, fromBY + 1, markerChar, 'arrow')
-        }
-      } else {
-        // NO COLLISION CASE: Use original midpoint-based routing
-        // Path: source center → vertical to midY → horizontal at midY → vertical to target
-
-        const midY = fromBY + Math.floor((toTY - fromBY) / 2)
-
-        // 1. Vertical from source bottom to midY
-        for (let y = fromBY + 1; y <= midY; y++) {
-          setC(fromCX, y, lineV, 'line')
-        }
-
-        // 2. Horizontal from fromCX to toCX at midY (if needed)
-        if (fromCX !== toCX && midY < (canvas[0]?.length ?? 0)) {
-          const lx = Math.min(fromCX, toCX)
-          const rx = Math.max(fromCX, toCX)
-          for (let x = lx; x <= rx; x++) {
-            setC(x, midY, lineH, 'line')
-          }
-          if (!useAscii) {
-            setC(fromCX, midY, fromCX < toCX ? '└' : '┘', 'corner')
-            setC(toCX, midY, fromCX < toCX ? '┐' : '┌', 'corner')
-          }
-        }
-
-        // 3. Vertical from midY to target top
-        for (let y = midY + 1; y < toTY; y++) {
-          setC(toCX, y, lineV, 'line')
-        }
-
-        // Markers for no-collision case
-        if (marker.markerAt === 'to') {
-          setC(toCX, toTY - 1, getMarkerShape(marker.type, useAscii, 'down'), 'arrow')
-        }
-        if (marker.markerAt === 'from') {
-          setC(fromCX, fromBY + 1, getMarkerShape(marker.type, useAscii, 'down'), 'arrow')
-        }
-      }
-    } else if (toP.y + toP.height - 1 < fromP.y) {
-      // Target is ABOVE source — draw upward from source top to target bottom
-      const fromTY = fromP.y
-      const toBY = toP.y + toP.height - 1
-      const midY = toBY + Math.floor((fromTY - toBY) / 2)
-
-      for (let y = fromTY - 1; y >= midY; y--) {
-        setC(fromCX, y, lineV, 'line')
-      }
-
-      if (fromCX !== toCX) {
-        const lx = Math.min(fromCX, toCX)
-        const rx = Math.max(fromCX, toCX)
-        for (let x = lx; x <= rx; x++) {
-          setC(x, midY, lineH, 'line')
-        }
-        if (!useAscii && midY >= 0 && midY < totalH) {
-          setC(fromCX, midY, fromCX < toCX ? '┌' : '┐', 'corner')
-          setC(toCX, midY, fromCX < toCX ? '┘' : '└', 'corner')
-        }
-      }
-
-      for (let y = midY - 1; y > toBY; y--) {
-        setC(toCX, y, lineV, 'line')
-      }
-
-      // Draw markers - arrows point in the direction of the vertical segment (upward)
-      if (marker.markerAt === 'from') {
-        const markerChar = getMarkerShape(marker.type, useAscii, 'up')
-        const my = fromTY - 1
-        for (let i = 0; i < markerChar.length; i++) {
-          setC(fromCX - Math.floor(markerChar.length / 2) + i, my, markerChar[i]!, 'arrow')
-        }
-      }
-      if (marker.markerAt === 'to') {
-        const isHierarchical = marker.type === 'inheritance' || marker.type === 'realization'
-        const markerDir = isHierarchical ? 'down' : 'up'
-        const markerChar = getMarkerShape(marker.type, useAscii, markerDir)
-        const my = toBY + 1
-        for (let i = 0; i < markerChar.length; i++) {
-          setC(toCX - Math.floor(markerChar.length / 2) + i, my, markerChar[i]!, 'arrow')
-        }
-      }
-    } else {
-      // Same level — draw horizontal line with a detour below both boxes
-      const detourY = Math.max(fromBY, toP.y + toP.height - 1) + 2
-      increaseSize(canvas, totalW, detourY + 1)
-      increaseRoleCanvasSize(rc, totalW, detourY + 1)
-
-      // Vertical down from source
-      for (let y = fromBY + 1; y <= detourY; y++) {
-        setC(fromCX, y, lineV, 'line')
-      }
-      // Horizontal
-      const lx = Math.min(fromCX, toCX)
-      const rx = Math.max(fromCX, toCX)
-      for (let x = lx; x <= rx; x++) {
-        setC(x, detourY, lineH, 'line')
-      }
-      // Vertical up to target
-      for (let y = detourY - 1; y >= toP.y + toP.height; y--) {
-        setC(toCX, y, lineV, 'line')
-      }
-
-      // Draw markers - same-level routing uses vertical segments at both ends
-      if (marker.markerAt === 'from') {
-        const markerChar = getMarkerShape(marker.type, useAscii, 'down')
-        const my = fromBY + 1
-        for (let i = 0; i < markerChar.length; i++) {
-          setC(fromCX - Math.floor(markerChar.length / 2) + i, my, markerChar[i]!, 'arrow')
-        }
-      }
-      if (marker.markerAt === 'to') {
-        const markerChar = getMarkerShape(marker.type, useAscii, 'up')
-        const my = toP.y + toP.height
-        for (let i = 0; i < markerChar.length; i++) {
-          setC(toCX - Math.floor(markerChar.length / 2) + i, my, markerChar[i]!, 'arrow')
-        }
-      }
-    }
-
-    // Draw relationship label at midpoint if present (supports multi-line)
-    // Add padding around the label for readability
-    if (rel.label) {
-      const lines = splitLines(displayText(rel.label))
-      const maxLabelWidth = Math.max(...lines.map(visualWidth)) + 2 // +2 for padding
-
-      // Calculate ideal label position based on routing direction
-      let baseMidY: number
-      let idealMidX: number
-
-      if (fromBY < toTY) {
-        // Target below source: place in gap between source bottom and target top
-        baseMidY = Math.floor((fromBY + 1 + toTY - 1) / 2)
-        idealMidX = Math.floor((fromCX + toCX) / 2)
-      } else if (toP.y + toP.height - 1 < fromP.y) {
-        // Target above source: place in gap between target bottom and source top
-        const toBY = toP.y + toP.height - 1
-        baseMidY = Math.floor((toBY + 1 + fromP.y - 1) / 2)
-        idealMidX = Math.floor((fromCX + toCX) / 2)
-      } else {
-        // Same level: place label at midpoint of the detour line
-        baseMidY = Math.max(fromBY, toP.y + toP.height - 1) + 2
-        idealMidX = Math.floor((fromCX + toCX) / 2)
-      }
-
-      // Find a clear vertical position for the label (not inside any box)
-      let labelY = baseMidY
-      const halfHeight = Math.floor(lines.length / 2)
-
-      // Check if any label line would be inside a box
-      let labelInBox = false
-      for (let i = 0; i < lines.length; i++) {
-        const y = labelY - halfHeight + i
-        const idealLabelStart = idealMidX - Math.floor(maxLabelWidth / 2)
-        const labelStart = Math.max(0, idealLabelStart)
-        // Check if this line overlaps any box
-        for (let x = labelStart; x < labelStart + maxLabelWidth; x++) {
-          if (isInsideBox(x, y, excludeIds)) {
-            labelInBox = true
-            break
-          }
-        }
-        if (labelInBox) break
-      }
-
-      // If label is inside a box, find the gap between boxes
-      if (labelInBox) {
-        // Find the gap between source and target boxes
-        const gapTop = fromBY + 1
-        const gapBottom = toTY - 1
-
-        // Place label in the middle of the gap, outside any intermediate box
-        for (let y = gapTop; y <= gapBottom; y++) {
-          let clearRow = true
-          const idealLabelStart = idealMidX - Math.floor(maxLabelWidth / 2)
-          const labelStart = Math.max(0, idealLabelStart)
-          for (let x = labelStart; x < labelStart + maxLabelWidth; x++) {
-            if (isInsideBox(x, y, excludeIds)) {
-              clearRow = false
-              break
-            }
-          }
-          if (clearRow) {
-            labelY = y
-            break
-          }
-        }
-      }
-
-      // Center lines vertically around labelY
-      const startY = labelY - halfHeight
-
-      for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-        const paddedLine = ` ${lines[lineIdx]!} `  // Add space padding on both sides
-        // Calculate label start, but ensure it doesn't go negative
-        const paddedWidth = visualWidth(paddedLine)
-        const idealLabelStart = idealMidX - Math.floor(paddedWidth / 2)
-        const labelStart = Math.max(0, idealLabelStart)
-        const y = startY + lineIdx
-        // Ensure canvas is wide enough for the label
-        const labelEnd = labelStart + paddedWidth
-        if (labelEnd > 0 && y >= 0) {
-          increaseSize(canvas, Math.max(labelEnd, 1), Math.max(y + 1, 1))
-          increaseRoleCanvasSize(rc, Math.max(labelEnd, 1), Math.max(y + 1, 1))
-        }
-        // Clear the area first (overwrite line characters) then draw the padded label
-        for (let i = 0; i < paddedWidth; i++) {
-          const lx = labelStart + i
-          if (lx >= 0 && y >= 0) setC(lx, y, ' ', 'text')
-        }
-        if (y >= 0) drawText(canvas, { x: labelStart, y }, paddedLine, true)
-      }
-    }
+  // Select one complete layout before painting. An invalid compact route is
+  // not published and never consumes/restarts a certification budget.
+  let routes: BoxRoute[] = [],
+    construction: ClassConstruction | undefined
+  const allRelations = [...relations, ...noteRelations],
+    boxes = [...placed.values(), ...noteBoxes]
+  let compactIssue: string | undefined
+  try {
+    routes = allocateBoxRoutes(
+      boxes,
+      allRelations,
+      direction,
+      namespaces.map(box => ({ ...box, container: true, headerHeight: box.labelLines.length })),
+    )
+    const decision = compactClassRoutesDecision(routes, boxes, namespaces, namespaceByClass)
+    // UNKNOWN preserves the original compact drawing for the one final certifier.
+    if (decision.status === 'invalid') compactIssue = decision.reason
+  } catch (error) {
+    if (!(error instanceof TerminalBoxRouteUnavailable)) throw error
+    compactIssue = error.message
   }
-
-  // Notes are terminal geometry, not a prose appendix: place deterministic
-  // boxes below the class graph and connect attached notes to their class.
-  let noteY = (canvas[0]?.length ?? 0) + 1
-  for (const note of diagram.notes) {
-    const noteLines = displayText(note.text).split(/\r?\n/)
-    const noteWidth = Math.max(10, ...noteLines.map(line => visualWidth(line) + 4))
-    const noteHeight = noteLines.length + 2
-    const target = note.for ? placed.get(note.for) : undefined
-    const noteX = target ? target.x : 0
-    increaseSize(canvas, noteX + noteWidth + 1, noteY + noteHeight + 1)
-    increaseRoleCanvasSize(rc, noteX + noteWidth + 1, noteY + noteHeight + 1)
-    if (target) {
-      const connectorX = Math.max(noteX + 1, Math.min(noteX + noteWidth - 2, target.x + Math.floor(target.width / 2)))
-      for (let y = target.y + target.height; y < noteY; y++) setC(connectorX, y, useAscii ? '|' : '│', 'line')
-    }
-    for (let x = noteX + 1; x < noteX + noteWidth - 1; x++) {
-      setC(x, noteY, useAscii ? '-' : '─', 'border')
-      setC(x, noteY + noteHeight - 1, useAscii ? '-' : '─', 'border')
-    }
-    for (let y = noteY + 1; y < noteY + noteHeight - 1; y++) {
-      setC(noteX, y, useAscii ? '|' : '│', 'border')
-      setC(noteX + noteWidth - 1, y, useAscii ? '|' : '│', 'border')
-    }
-    setC(noteX, noteY, useAscii ? '+' : '┌', 'border'); setC(noteX + noteWidth - 1, noteY, useAscii ? '+' : '┐', 'border')
-    setC(noteX, noteY + noteHeight - 1, useAscii ? '+' : '└', 'border'); setC(noteX + noteWidth - 1, noteY + noteHeight - 1, useAscii ? '+' : '┘', 'border')
-    noteLines.forEach((line, index) => drawText(canvas, { x: noteX + 2, y: noteY + 1 + index }, line, true))
-    noteY += noteHeight + 1
+  if (compactIssue) {
+    const titleLines = diagram.title ? wrapText(displayText(normalizeBrTags(diagram.title)), targetWidth) : []
+    construction = prepareClassConstruction(placed, namespaces, noteBoxes, namespaceByClass, allRelations, direction, titleLines, targetWidth, relations.length)
+    routes = allocateConstructiveClassRoutes(construction)
   }
-
-  const rendered = canvasToString(canvas, { roleCanvas: rc, colorMode, theme })
-  const semanticLines: string[] = []
-  for (const rel of diagram.relationships) {
-    if (rel.markerAt === 'both') semanticLines.push(`${rel.from} ${classEndpointToken(rel.fromType ?? rel.type, true)}--${classEndpointToken(rel.toType ?? rel.type, false)} ${rel.to}`)
-    else if (rel.type === 'lollipop') semanticLines.push(`${rel.from} ${rel.markerAt === 'from' ? '()--' : '--()'} ${rel.to}`)
+  const doc = new TerminalDocument()
+  if (construction) doc.reserveTerminalPathWitnessWork(construction.report.planningWork)
+  const ascii = config.useAscii
+  const frame = (box: TerminalBox, owner: TerminalOwner, opaque = false) => paintTerminalFrame(doc, box, owner, ascii, opaque)
+  for (const box of namespaces.sort((a, b) => a.depth - b.depth || compareCodePointStrings(a.id, b.id))) {
+    const owner = doc.element({ id: box.id, kind: 'cluster', parent: box.parentId === undefined ? undefined : { id: box.parentId, kind: 'cluster' }, members: box.members })
+    frame(box, owner)
+    doc.scope(owner, () => box.labelLines.forEach((line, row) => doc.text(box.x + Math.max(1, Math.floor((box.width - visualWidth(line) - 2) / 2)), box.y + row, ` ${line} `)))
   }
-  for (const cls of diagram.classes) if (cls.href) semanticLines.push(`link ${cls.id}: ${cls.href}`)
-  return semanticLines.length ? `${rendered}\n${semanticLines.join('\n')}` : rendered
+  for (const route of routes) {
+    const rel = relationshipById.get(route.relation.id)
+    if (!rel) {
+      const owner = { id: route.relation.id, kind: 'edge' as const, route: 'connected' as const, from: route.relation.from, to: route.relation.to }
+      paintBoxRoute(doc, route, owner, ascii)
+      doc.expectMarkers(owner, 'start', [])
+      doc.expectMarkers(owner, 'end', [])
+      continue
+    }
+    const owner = doc.element({ id: route.relation.id, kind: 'edge', route: 'connected', from: rel.from, to: rel.to })
+    paintBoxRoute(doc, route, owner, ascii, classRelationshipLineStyle(rel) === 'dashed')
+    for (const [end, port, type, enabled] of [
+      ['start', route.source, rel.fromType ?? rel.type, rel.markerAt === 'from' || rel.markerAt === 'both'],
+      ['end', route.target, rel.toType ?? rel.type, rel.markerAt === 'to' || rel.markerAt === 'both'],
+    ] as const) {
+      const marker = enabled ? classMarker(type, port.side, ascii) : undefined
+      doc.expectMarkers(owner, end, marker ? [marker] : [])
+      if (marker) doc.marker(port.x, port.y, marker, { owner, role: 'arrow' })
+    }
+    paintBoxText(doc, route.label, owner)
+    paintBoxText(doc, route.fromLabel, { id: generated(`${owner.id}:from-cardinality`), kind: 'label', parent: { id: owner.id, kind: 'edge' } })
+    paintBoxText(doc, route.toLabel, { id: generated(`${owner.id}:to-cardinality`), kind: 'label', parent: { id: owner.id, kind: 'edge' } })
+  }
+  for (const box of placed.values()) {
+    const owner = doc.element({ id: box.id, kind: 'node', parent: namespaceByClass.has(box.id) ? { id: namespaceByClass.get(box.id)!, kind: 'cluster' } : undefined })
+    if (box.cls.isInterface) {
+      doc.resize(box.x + box.width, box.y + box.height) // Preserve the caption's allocated canvas, independently of its physical surface.
+      // An unboxed interface's visible surface is its lollipop, not the
+      // invisible rectangle used to pack its caption. Keep that caption and
+      // every authored endpoint unchanged, and attribute only admitted ink.
+      const route = routes.find(route => route.relation.from === box.id || route.relation.to === box.id)
+      const relation = route && relationshipById.get(route.relation.id)
+      const start = route?.relation.from === box.id
+      const port = route && (start ? route.source : route.target)
+      const enabled = relation && (relation.markerAt === 'both' || relation.markerAt === (start ? 'from' : 'to'))
+      const expected = relation && port && enabled ? classMarker((start ? relation.fromType : relation.toType) ?? relation.type, port.side, ascii) : undefined
+      const cell = port && doc.cell(port.x, port.y)
+      if (
+        route &&
+        port &&
+        expected?.shape === 'lollipop' &&
+        cell?.kind === 'marker' &&
+        cell.head === port.x &&
+        cell.marker?.shape === expected.shape &&
+        cell.marker.direction === expected.direction &&
+        cell.owners.some(candidate => candidate.kind === 'edge' && candidate.id === route.relation.id) &&
+        cell.owners.every(candidate => candidate.kind !== 'edge' || candidate.id === route.relation.id)
+      ) {
+        const surface = { x: port.x, y: port.y, width: cell.width, height: 1 }
+        doc.region(owner, surface)
+        doc.attributeWithin(owner, surface)
+      } else doc.region(owner, { x: box.x, y: box.y, width: box.width, height: box.height }) // Missing ink still fails the unchanged final checks.
+      const lines = box.sections[0] ?? []
+      const top = box.y + Math.floor((box.height - lines.length) / 2)
+      lines.forEach((line, index) => doc.text(box.x + Math.floor((box.width - visualWidth(line)) / 2), top + index, line, { owner }))
+      continue
+    }
+    doc.region(owner, { x: box.x, y: box.y, width: box.width, height: box.height })
+    doc.fill(box.x, box.y, box.width, box.height, { owner, kind: 'surface' })
+    const card = drawMultiBox(box.sections, ascii, 1, { width: box.width, height: box.height })
+    const style = Object.assign({}, diagram.classDefs.get('default'), ...(box.cls.className ?? '').split(/\s+/).map(name => diagram.classDefs.get(name)), box.cls.inlineStyle)
+    const paint = classLikePaint(doc, 'class', box.id, style)
+    for (const [, , cell] of card.entries()) {
+      const color = cell.kind === 'text' ? paint.text : paint.stroke
+      if (color) cell.color = color
+    }
+    let y = 1
+    box.sections.forEach((section, index) => {
+      const bounds = { x: 1, y, width: box.width - 2, height: Math.max(1, section.length) },
+        compartment: TerminalOwner = { id: generated(`${box.id}:compartment:${index}`), kind: 'compartment', parent: { id: box.id, kind: 'node' } }
+      card.attributeWithin(compartment, bounds)
+      card.region(compartment, bounds)
+      y += bounds.height + 1
+    })
+    doc.scope(owner, () => doc.overlay(card, box.x, box.y))
+  }
+  for (const box of noteBoxes) {
+    const owner = doc.element({ id: box.id, kind: 'node', annotationTarget: box.targetId === undefined ? undefined : { id: box.targetId, kind: 'node' } })
+    frame(box, owner, true)
+    doc.textBlock(box.x + 2, box.y + 1, box.lines, { owner })
+  }
+  for (const cls of diagram.classes) if (cls.href) doc.text(0, doc.height + 1, classLinkFooterText(cls.id, cls.href), { owner: { id: cls.id, kind: 'node' }, role: 'text' })
+  if (diagram.title) {
+    const lines = wrapText(displayText(normalizeBrTags(diagram.title)), targetWidth),
+      titled = new TerminalDocument(Math.max(doc.width, ...lines.map(visualWidth)), doc.height + lines.length + 1)
+    titled.scope({ id: 'title', kind: 'label' }, () => lines.forEach((line, row) => titled.text(Math.floor((titled.width - visualWidth(line)) / 2), row, line)))
+    titled.overlay(doc, 0, lines.length + 1)
+    return terminalArtifact(titled, { colorMode, theme, ...(construction ? { trimEnd: true } : {}) })
+  }
+  return terminalArtifact(doc, { colorMode, theme, ...(construction ? { trimEnd: true } : {}) })
 }
 
-function classEndpointToken(type: RelationshipType, left: boolean): string {
-  if (type === 'inheritance' || type === 'realization') return left ? '<|' : '|>'
-  if (type === 'composition') return '*'
-  if (type === 'aggregation') return 'o'
-  if (type === 'lollipop') return '()'
-  return left ? '<' : '>'
+/** Compatibility string entry point; native dispatch retains the drawing. */
+export function renderClassAscii(...args: Parameters<typeof renderClassTerminal>): string {
+  return serializeTerminalArtifact(renderClassTerminal(...args))
 }

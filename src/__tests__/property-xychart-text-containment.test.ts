@@ -9,6 +9,7 @@
 // category label's descenders crossed it.
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { Resvg } from '@resvg/resvg-js'
 import { join } from 'node:path'
 
@@ -27,7 +28,7 @@ const nameArb = fc.stringMatching(/^[A-Za-z][A-Za-z0-9 ]{0,17}[A-Za-z0-9]$/)
 
 const chartArb = fc.integer({ min: 1, max: 12 }).chain(count => fc.record({
   horizontal: fc.boolean(),
-  title: fc.option(nameArb, { nil: undefined }),
+  title: fc.option(fc.oneof(nameArb, fc.stringMatching(/^[A-Za-z][A-Za-z0-9 ]{60,120}$/)), { nil: undefined }),
   // Descenders (g, p, q, y) are what cross a bottom edge first.
   xTitle: fc.option(fc.constantFrom('Quarterly spending', 'Typography', 'gypsy query', 'Q'), { nil: undefined }),
   yTitle: fc.option(fc.constantFrom('Revenue', 'Throughput (qps)', 'y'), { nil: undefined }),
@@ -46,6 +47,18 @@ const chartArb = fc.integer({ min: 1, max: 12 }).chain(count => fc.record({
 }))
 
 describe('xychart text stays on the canvas', () => {
+  it.each(['', ' horizontal'])('keeps point-label glyphs inside the viewport%s', orientation => {
+    const source = `xychart-beta${orientation}\n x-axis [A,B]\n y-axis 0 --> 10\n line [10 "Top",0 "${'Wide '.repeat(20)}"]`
+    const svg = renderMermaidSVG(source)
+    const [, , width, height] = svg.match(/viewBox="([^"]+)"/)![1]!.split(' ').map(Number)
+    const box = new Resvg(textOnly(svg), { font: { loadSystemFonts: false, fontDirs: [FONT_DIR], defaultFontFamily: 'Inter' } }).getBBox()
+    expect(box).toBeDefined()
+    expect(box!.x).toBeGreaterThanOrEqual(-TOLERANCE)
+    expect(box!.y).toBeGreaterThanOrEqual(-TOLERANCE)
+    expect(box!.x + box!.width).toBeLessThanOrEqual(width! + TOLERANCE)
+    expect(box!.y + box!.height).toBeLessThanOrEqual(height! + TOLERANCE)
+  })
+
   it('keeps every rendered glyph and bar inside the viewBox', () => {
     fc.assert(
       fc.property(chartArb, chart => {
@@ -69,8 +82,8 @@ describe('xychart text stays on the canvas', () => {
         const [, , width, height] = svg.match(/viewBox="([^"]+)"/)![1]!.split(' ').map(Number)
         // Bars clamp both ends into the axis range, so a value beyond an
         // authored range cannot push its bar (or its label) off the canvas.
-        for (const match of svg.matchAll(/<rect x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)" class="xychart-bar/g)) {
-          const [x, y, w, h] = match.slice(1, 5).map(Number) as [number, number, number, number]
+        for (const [tag] of svg.matchAll(/<rect\b[^>]*\sclass="xychart-bar[^>]*>/g)) {
+          const [x, y, w, h] = ['x', 'y', 'width', 'height'].map(name => Number(tag.match(new RegExp(`\\s${name}="([^"]+)"`))?.[1])) as [number, number, number, number]
           expect({ bar: [x, y, w, h], inside: x >= 0 && y >= 0 && x + w <= width! + 0.01 && y + h <= height! + 0.01 }).toEqual({ bar: [x, y, w, h], inside: true })
         }
         const box = new Resvg(textOnly(svg), { font: { loadSystemFonts: false, fontDirs: [FONT_DIR], defaultFontFamily: 'Inter' } }).getBBox()
@@ -81,7 +94,7 @@ describe('xychart text stays on the canvas', () => {
         expect({ left: box.x >= -TOLERANCE, top: box.y >= -TOLERANCE, right: box.x + box.width <= width! + TOLERANCE, bottom: box.y + box.height <= height! + TOLERANCE })
           .toEqual({ left: true, top: true, right: true, bottom: true })
       }),
-      { numRuns: 150 },
+      fcParameters({ numRuns: 150 }),
     )
   })
 })

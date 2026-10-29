@@ -1,31 +1,13 @@
 import { describe, expect, test } from 'bun:test'
-import {
-  layoutMermaid,
-  layoutMermaidWithReceipt,
-  measureQuality,
-  parseRegisteredMermaid as parseMermaid,
-  renderMermaidSVGWithReceipt,
-  parseRegisteredMermaid,
-  registerFamily,
-  verifyMermaid,
-  type ExternalFamilyId,
-  type FamilyDescriptor,
-} from '../agent/index.ts'
-import {
-  BUILTIN_FAMILY_METADATA,
-  getFamily,
-  replaceFamilyForTest,
-} from '../agent/families.ts'
+import { BUILTIN_FAMILY_METADATA, getFamily, replaceFamilyForTest } from '../agent/families.ts'
+import { type ExternalFamilyId, type FamilyDescriptor, layoutMermaid, layoutMermaidWithReceipt, measureQuality, parseRegisteredMermaid as parseMermaid, parseRegisteredMermaid, registerFamily, renderMermaidSVGWithReceipt, verifyMermaid } from '../agent/index.ts'
 import { toFinite } from '../agent/types.ts'
+import { LayoutCertificationError } from '../layout/certification.ts'
 import { createExtensionIdentity } from '../shared/extension-identity.ts'
 
 const EVIDENCE = 'src/__tests__/positioned-artifact-convergence.test.ts'
 
-function extensionDescriptor(
-  localId: string,
-  header: string,
-  hooks: Pick<FamilyDescriptor, 'layout' | 'renderSvg'>,
-): FamilyDescriptor {
+function extensionDescriptor(localId: string, header: string, hooks: Pick<FamilyDescriptor, 'layout' | 'renderSvg'>): FamilyDescriptor {
   const id = `family:test/${localId}` as ExternalFamilyId
   return {
     contractVersion: 2,
@@ -33,7 +15,7 @@ function extensionDescriptor(
       id,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.4.0' },
+      compatibility: { core: '^0.5.0' },
       provenance: { owner: 'positioned-artifact-test', source: 'test' },
     }),
     id,
@@ -63,11 +45,17 @@ function extensionDescriptor(
     ...hooks,
     projectPositioned: () => ({
       version: 1,
-      nodes: [{
-        id: 'extension-node',
-        x: toFinite(8), y: toFinite(8), w: toFinite(104), h: toFinite(24),
-        shape: 'rectangle', label: 'Extension',
-      }],
+      nodes: [
+        {
+          id: 'extension-node',
+          x: toFinite(8),
+          y: toFinite(8),
+          w: toFinite(104),
+          h: toFinite(24),
+          shape: 'rectangle',
+          label: 'Extension',
+        },
+      ],
       edges: [],
       groups: [],
       bounds: { w: toFinite(120), h: toFinite(40) },
@@ -76,6 +64,32 @@ function extensionDescriptor(
 }
 
 describe('canonical positioned-artifact protocol', () => {
+  test('native final geometry is certified before a public SVG can succeed', () => {
+    const descriptor = getFamily('timeline')!
+    let layoutCalls = 0
+    let loweringCalls = 0
+    const restore = replaceFamilyForTest('timeline', {
+      ...descriptor,
+      layout: context => {
+        layoutCalls++
+        const result = descriptor.layout!(context)
+        const positioned = 'positioned' in result ? result.positioned : result
+        return { positioned: { ...positioned, width: 1, height: 1 } }
+      },
+      lowerScene: context => {
+        loweringCalls++
+        return descriptor.lowerScene!(context)
+      },
+    })
+    try {
+      expect(() => renderMermaidSVGWithReceipt('timeline\n2026 : Launch')).toThrow(LayoutCertificationError)
+      expect(layoutCalls).toBe(1)
+      expect(loweringCalls).toBe(0)
+    } finally {
+      restore()
+    }
+  })
+
   test('keeps positioned graphical execution behind internal module boundaries', async () => {
     const publicRenderer = await import('../index.ts')
     expect('renderGraphicalSvgWithReceipt' in publicRenderer).toBe(false)
@@ -92,14 +106,12 @@ describe('canonical positioned-artifact protocol', () => {
     const options = { nodeSpacing: 200, layerSpacing: 200 }
     const layout = layoutMermaidWithReceipt(source, options)
     const svg = renderMermaidSVGWithReceipt(source, options)
-    const viewBox = /viewBox="([^"]+)"/.exec(svg.svg)?.[1]
-      ?.split(/\s+/).map(Number)
+    const viewBox = /viewBox="([^"]+)"/.exec(svg.svg)?.[1]?.split(/\s+/).map(Number)
 
-    expect(layout.layout.nodes.find(node => node.id === 'B')?.y)
-      .toBeGreaterThan(baseline.nodes.find(node => node.id === 'B')!.y)
+    expect(layout.layout.nodes.find(node => node.id === 'B')?.y).toBeGreaterThan(baseline.nodes.find(node => node.id === 'B')!.y)
     expect(viewBox).toHaveLength(4)
-    expect(Math.round(viewBox![2]!)).toBe(layout.layout.bounds.w)
-    expect(Math.round(viewBox![3]!)).toBe(layout.layout.bounds.h)
+    expect(viewBox![2]!).toBeCloseTo(layout.layout.bounds.w, 3)
+    expect(viewBox![3]!).toBeCloseTo(layout.layout.bounds.h, 3)
     expect(svg.receipt.sharedRequestDigest).toBe(layout.receipt.sharedRequestDigest)
   })
 

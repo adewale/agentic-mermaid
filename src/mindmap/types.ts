@@ -1,3 +1,4 @@
+import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import type { PositionedDiagram } from '../types.ts'
 import type { PositionedDiagramTitle } from '../styles.ts'
 
@@ -24,6 +25,8 @@ export interface MindmapDiagram {
 }
 
 export interface PositionedMindmapNode {
+  labelBlock?: PixelTextBlock
+  iconFallbackBlock?: PixelTextBlock
   id: string
   label: string
   shape: MindmapShape

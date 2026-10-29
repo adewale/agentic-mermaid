@@ -8,6 +8,8 @@ Current scope covers:
 
 - `group`, `service`, and `junction`
 - side-anchored edges (`L`, `R`, `T`, `B`)
+- compact or spaced edges (`api:R-->L:db` and `api:R --> L:db`), retaining
+  side and `{group}` boundary semantics through canonical writing
 - `{group}` boundary routing for services inside groups
 - visible `title ...` header furniture, including title-only diagrams
 - `align row|column` directives (upstream v11.16.0) — parsed, modeled,
@@ -71,6 +73,21 @@ item 2, option (b)):
   freeze, so containment and side anchors reflect the aligned geometry. Verify
   no longer emits `architecture_align`; geometry tests pin shared centers and
   sibling non-overlap.
+
+Overlapping directives compose through complete fixed-axis components. Member
+order remains in the source model for round-tripping; alignment itself requests
+one shared center coordinate, not additional before/after constraints on the
+free axis. Whole-component gap repair keeps every member visible without
+breaking an intersecting row or column. Requests that force two distinct items
+to share both centers fail explicitly instead of silently losing an alignment.
+
+Backend selection includes the complete Architecture family geometry and its
+final alignment/header admission. Only an explicitly requested ELK fallback can
+replace a known Native candidate refusal; unexpected provider defects propagate.
+The terminal adapter preserves the same fixed-axis components within half a cell
+of integer-box parity. If text or marker clearance requires more room, bounded
+spacing reprojection happens before its single paint/certification pass. Existing
+width, allocation, certification and output limits still apply.
 
 ## Runtime config (wire-or-warn, plan §Architecture item 3 / X7)
 
@@ -141,6 +158,15 @@ Executable gates: `architecture-layout.test.ts`,
 `architecture-icons.test.ts`, and `architecture-ascii.test.ts`.
 
 ## Compatibility Notes
+
+- A service may use a literal STRING icon: `service api "API" [Backend]`.
+  `iconText` stores that text separately from the label and an icon-pack name.
+  STRING escapes survive parsing and serialization; SVG/PNG paint literal
+  escaped text with its full measured footprint, and terminal output retains
+  it above the label. `add_service` accepts `iconText`, and
+  `set_service_icon_text {id, text}` changes or clears it. Setting a named icon
+  replaces text; authoring both forms together is refused. The pinned grammar
+  permits text icons on services only.
 
 - Both `architecture-beta` (Mermaid's current public header) and `architecture` are accepted — the family descriptor's `headers` in `src/agent/families.ts` and `parseArchitectureDiagram()` agree; structured serialization emits `architecture-beta`.
 - Ids, icons and unquoted titles follow Mermaid's lexer terminals: an unquoted title allows only ASCII letters, digits, `_` and spaces, an icon only word characters, `-` and `:`, and an id may contain `-` only in the middle. Anything else (`[Public<br/>API]`, `[Edge-Layer]`, `[Café]`) must be quoted, and an unquoted form is rejected, as in Mermaid. The typed body stores Mermaid's reading of a title (`["API"]` is `API`) and writes it quoted when needed.

@@ -1,3 +1,6 @@
+import { projectZenUMLSequence } from '../zenuml/native-sequence.ts'
+import { eventRelations, eventLanes } from '../eventmodeling/parser.ts'
+import { stableFamilyCount } from './stable-family-source-hooks.ts'
 // ============================================================================
 // countStructuralElements — a family-agnostic faithfulness oracle.
 //
@@ -134,6 +137,8 @@ export function countStructuralElements(d: ParsedDiagram): StructuralCount | nul
     case 'radar':
       // Vertices (curves × axes) are the marks; axes are the reference groups.
       return { nodes: body.curves.reduce((sum, c) => sum + c.values.length, 0), edges: 0, groups: body.axes.length }
+    case 'c4':
+      return { nodes: body.elements.length, edges: body.relationships.length, groups: body.boundaries.length }
     case 'sankey': {
       // Distinct labels are the nodes; each CSV row is one edge.
       const labels = new Set<string>()
@@ -143,6 +148,18 @@ export function countStructuralElements(d: ParsedDiagram): StructuralCount | nul
       }
       return { nodes: labels.size, edges: body.links.length, groups: 0 }
     }
+    case 'zenuml': {
+      const model = projectZenUMLSequence(body)
+      return { nodes: model.actors.filter(actor => !actor.external).length, edges: model.messages.length, groups: model.blocks.length }
+    }
+    case 'eventmodeling': return { nodes: body.frames.length, edges: eventRelations(body).length, groups: eventLanes(body).length }
+    case 'packet':
+    case 'kanban':
+    case 'requirement':
+    case 'block':
+    case 'treemap':
+    case 'ishikawa':
+      return stableFamilyCount(body)
     case 'opaque':
     case 'extension':
     case 'preserved':

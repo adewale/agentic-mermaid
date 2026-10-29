@@ -3,9 +3,9 @@
 A diagram is considered **good looking** when it satisfies, in order:
 
 1. **All Tier 1 structural checks pass.** None of
-   <!-- BEGIN GENERATED: warning-codes:structural -->`EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW`, `UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`<!-- END GENERATED: warning-codes:structural -->
+   <!-- BEGIN GENERATED: warning-codes:structural -->`EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW`, `UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`, `INTERNAL_ERROR`<!-- END GENERATED: warning-codes:structural -->
    fires (`LABEL_OVERFLOW` default cap: 40 chars).
-   This is non-negotiable — fix the source before judging visuals.
+   Resolve the reported structural or rendering failure before judging aesthetics.
 
 2. **Tier 2 geometric checks are within bounds.** `NODE_OVERLAP` count
    and `ROUTE_SELF_CROSS` count are advisory but not catastrophic. A
@@ -22,18 +22,22 @@ A diagram is considered **good looking** when it satisfies, in order:
 
    | metric | meaning | default |
    |---|---|---|
-   | `edgeCrossings` | pairs of edge segments that visually intersect | ≤ 5% of edge pairs |
-   | `labelLegibility` | fraction of node labels whose rendered length fits the node width | ≥ 85% |
+   | `edgeCrossings` | visible proper crossing incidences per logical edge pair and location | ≤ 5% of visible edge pairs |
+   | `labelLegibility` | fraction of measured visible labels whose retained text bounds fit their actual containing region | ≥ 85% |
    | `whitespaceBalance` | node area ÷ canvas area | 5%–55% (too sparse AND too dense lose) |
    | `labelEdgeProximity` | min pixel distance between any edge-label box and a non-attached node, another edge-label box, or another edge path (graph families; cross-family label/box occlusion is gated by `eval/overlap-audit` + `label-overlap-gate.test.ts`) | ≥ 4 px |
-   | `minimumNodeSpacing` | nearest gap between semantically distinct node/mark boxes; XY and Radar same-coordinate series adjacency/overlays are excluded | ≥ 8 px |
+   | `labelConflicts` | counts of padded graph label pills intersecting another label, a node, or another visible route; reported for Flowchart and State | minimize after crossings in candidate selection; no default quality bound |
+   | `routeOverlaps` | Flowchart/State edge pairs sharing opposing-direction ink or same-endpoint parallel ink (parallel excludes self-loops) | reported separately from crossings; no default quality bound |
+   | `minimumNodeSpacing` | nearest gap between semantically distinct node/mark boxes; authored coincident Quadrant points and XY/Radar data overlays are excluded | ≥ 8 px |
    | `elementDensity` | nodes + edges per 10,000 canvas pixels | 0.02–6 |
    | `minimumTextContrast` | WCAG contrast ratio between foreground and supplied background/surface colors; `null` when a requested paint cannot be resolved | ≥ 4.5:1 |
    | `aspectRatio` | canvas w/h | 0.2–5.0 |
 
-   These are computed by `measureQuality(layout)` and gated by
-   `checkQuality(layout)`. They are **deterministic** and cheap — they
-   run on every PR.
+   These are computed by `measureQuality(layout)`; `checkQuality(layout)` applies
+   the configured bounds. `labelConflicts` is reported without a quality-bound
+   threshold, as is `routeOverlaps`. A low crossing count cannot establish
+   readability when routes instead share ambiguous collinear ink. These
+   measurements are **deterministic** and run on every PR.
 
 4. **LLM-as-judge median ≥ 4.0** on the configured stratified sample of the
    Mermaid-docs corpus across three axes. Since QUAL-1, perceptual metrics and
@@ -45,6 +49,123 @@ A diagram is considered **good looking** when it satisfies, in order:
    This is **periodic**, not per-PR (model spend + nondeterminism). It
    supports pre-release sign-off when explicitly run. See
    `eval/llm-judge/judge.ts`.
+
+## Layout priorities and their limits
+
+Authored meaning and deterministic execution constrain every aesthetic choice:
+identities, endpoint markers, membership, labels and operation order must survive.
+An authored data coordinate is meaning, so separating coincident chart points to
+improve a spacing score is wrong. Resource admission also happens before layout;
+a work-limit refusal is not a poor aesthetic score.
+
+For automatic graph layout, apply the following order:
+
+1. **Feasibility and readable ownership:** finite in-bounds geometry, containment,
+   non-overlapping graph nodes, endpoints on the rendered outline, routes that
+   avoid unrelated nodes, and labels associated with their own route. Among
+   feasible candidates, prefer readable group titles.
+2. **Crossings, then soft label conflicts:** reduce crossings within the feasible
+   set. When crossing counts tie, prefer fewer padded label-conflict pairs.
+   These counts keep distinguishing layouts after minimum clearance reaches zero,
+   but reducing a soft overlap count cannot buy additional crossings. Hard
+   node-avoidance and own-label-association requirements still apply first.
+3. **Continuity and unnecessary bends:** prefer clear direct lanes; distinguish
+   unexplained detours from declared symmetric convergence.
+4. **Canonical ports:** prefer side midpoints or declared slots. An endpoint on
+   the correct outline is mandatory; the preferred point on that outline is a
+   softer choice and can yield to a simpler safe route.
+5. **Symmetry and alignment:** improve balance without silently trading away
+   higher-priority constraints. Bundle-owned convergence is an explicit route
+   policy, with justified bends excluded from the avoidable-bend metric.
+6. **Compactness, fill and aspect ratio:** use these as family-aware heuristics.
+   A data plot with sparse authored coordinates must not fail a graph box-fill
+   default; explicit caller bounds still apply.
+
+This is a policy order, not a claim that the current heuristic pipeline solves a
+global lexicographic optimum. Several older contracts pull in different
+directions:
+
+- Verification treats some overlap warnings as advisory, while the graph rubric
+  treats node overlap as hard. Graph final certification uses the stricter graph
+  contract; specialized plots need semantic overlap rules rather than a blanket
+  node-box rule.
+- Cosmetic straightening and tightening must preserve crossings. Repairs of hard
+  node avoidance or own-label association may need a crossing; their conditional
+  pass budgets require a measured higher-priority repair. A padded label-conflict
+  count is a separate soft preference, not an additional hard feasibility gate.
+- Symmetric fan-in can add geometric bends. The route classifier explains those
+  bends as convergence. This is a declared exception, not evidence that raw bend
+  count always decreases.
+- Equalizing node dimensions can temporarily move centers before alignment
+  passes. Its old per-pass promise to improve symmetry was false and has been
+  removed. Preparation and final aesthetic claims are different obligations.
+- A character-count `LABEL_OVERFLOW` guard does not measure rendered fit. Retained
+  prepared text and final containing bounds supply that evidence; missing
+  measurements produce an explicit quality warning.
+
+The pass runner enforces declared before/after metric budgets in production,
+including conditional allowances. Ordering, budgets and post-freeze contracts
+always apply; there is no audit flag that disables them. A duplicate-lane proposal may introduce at
+most one crossing per actual shared duplicate route pair it separates; unrelated
+bucket improvements cannot pay for that proposal. Preferred endpoint spacing or
+fewer bends alone cannot buy a crossing. Canonical ports may yield when the
+certifying route owner measurably repairs hard geometry, reduces crossings or
+removes bends.
+The graph engine independently certifies the
+final candidate before returning it, with at most four deterministic placement candidates
+and an explicit `LAYOUT_CERTIFICATION_FAILED` error on exhaustion. This certifies
+hard graph geometry, not minimum crossings or universal aesthetic quality.
+Within 64 nodes/groups and 128 edges, a certified graph with crossings or label
+conflicts may try one additional distinct strategy. Feasible candidates compare
+readable group titles, crossings, label-conflict pairs, avoidable bends,
+canonical endpoints, symmetry and area in that order.
+
+The engine first chooses a certified bundled placement using those existing
+strategies. Only the selected placement may then compare one completed generic
+unbundled route proposal, using the same ELK result and the same preference
+order. The decision to try this proposal reuses the selected placement's existing
+certification score, including the final comparison: unchanged selected geometry
+is not certified a second time. It does not explore an unbundled version of
+every placement strategy.
+Symmetric fan-in/fan-out routing remains enabled.
+Graphs containing parallel edges keep their specialized route owners and skip
+the generic unbundled proposal. A smaller proper-crossing count alone does not
+prove that duplicate endpoint lanes remain visibly distinct.
+
+The receipt's `preference.compared` entries retain the certified bundled
+placement scores. `preference.selectedScore` describes the actual final routes,
+and `preference.routing` records the selected placement's bundled/unbundled
+comparison, scores and deciding criterion.
+The receipt's `attempts` counts placement productions; the optional final route
+comparison is recorded separately.
+Clean graphs, equivalent strategies and larger inputs skip these comparisons;
+the upper bound is four placement pipelines plus one unbundled route pipeline,
+with the existing maximum of 16 ELK attempts. The unbundled proposal reuses the
+selected placement's ELK result. Search decisions use graph
+work counts, never elapsed time, so machine speed cannot change the drawing.
+These route comparisons apply to Flowchart and State, which retain the scored
+routes. Architecture uses the graph engine for placement and keeps its existing
+feasibility/title fallback before independently routing authored endpoint sides.
+The common positioning boundary also checks the final projection of every
+native family against the family rubric's hard geometry rules. Specialized
+layouters get one attempt and fail explicitly; their identical layout is not
+repeated as a pretend fallback. Verification and quality reuse that retained
+projection rather than positioning or projecting the artifact again.
+
+Route proposals, final ranking, pass budgets and public quality share the crossing predicate in
+`src/shared/edge-crossings.ts`. It excludes invisible shafts, endpoint contacts,
+tangencies and shared collinear ink. It counts each crossing location once per
+logical edge pair, including crossings far from a shared graph endpoint; route
+subdivision does not change the count. Endpoint tolerance is 0.01 physical
+pixels, independent of segment length. Public graph nodes, groups, paths, label
+anchors and canvas bounds retain subpixel coordinates so projection cannot erase
+this evidence or introduce a containment error.
+Invisible links may still have visible labels: those pills remain obstacles.
+Label-conflict counts share one implementation and the renderer's eight-pixel
+pill padding. A bundle certificate or matching text does not authorize two
+distinct labels to occupy the same space.
+Label/node conflicts use conservative node bounding rectangles; hard route/node
+avoidance retains its separate shape-aware contract.
 
 ## The rubric (used by both the LLM judge and the perceptual checker)
 
@@ -114,7 +235,7 @@ geometry assertions, screenshot/PNG review, or human inspection.
   (not bytes-only) for each. The adapters parse `d.canonicalSource` via the
   legacy per-family parser + layouter — the same geometry the SVG renderer draws
   — so an opaque-but-renderable body is still measured; an invalid opaque body
-  degrades to an empty layout instead of throwing. What `nodes` / `edges` /
+  fails explicitly with `FamilyLayoutError`; verification reports the failure. What `nodes` / `edges` /
   `groups` mean per family:
 
   <!-- complete: family-ids -->
@@ -139,9 +260,15 @@ geometry assertions, screenshot/PNG review, or human inspection.
 
   Families with no structural relations (pie/quadrant/xychart/journey/gantt/radar) carry an
   honestly-empty `edges` array. Bounds is the family layout's canvas size.
-- **No font-substitution check.** Different OSes render different
-  default fonts. Our `labelLegibility` heuristic uses a 7 px-per-char
-  approximation; under condensed fonts it under-estimates fit.
+- **No font-substitution check.** Quality checks consume retained prepared pixel
+  text and renderer anchors; they do not guess width from character count.
+  `labelMeasurement` reports measured, unmeasured, hidden and semantic-only
+  labels, and missing visible-label evidence makes `checkQuality` warn. Painted
+  text in `layout.labels` participates without changing semantic node counts;
+  XYChart retains its point text and chart chrome there. Final canvas and
+  readability checks consume those retained bounds. A trusted
+  host measurement profile can improve pixel metrics, but neither that profile
+  nor a prepared block proves which font the display ultimately substituted.
 - **Contrast needs resolved paints.** `measureQuality(layout)` scores the crisp
   default palette. For a custom style, pass `{ foreground, background,
   surfaces }` as its second argument, or pass the actual rendered text/surface

@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { verifyMermaid } from '../agent/index.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
@@ -26,7 +27,7 @@ function expectRefusal(input: string, key: string, value: string): void {
   expect(() => renderMermaidSVG(input), input).toThrow(reason)
   expect(() => renderMermaidASCII(input, { useAscii: true }), input).toThrow(reason)
   expect(() => renderMermaidASCII(input, { useAscii: false }), input).toThrow(reason)
-  expect(verifyMermaid(input).warnings, input).toContainEqual({ code: 'RENDER_FAILED', reason: expect.stringContaining(reason) })
+  expect(verifyMermaid(input).warnings, input).toContainEqual({ code: 'RENDER_FAILED', reason: expect.stringContaining(reason), origin: 'config' })
 }
 
 describe('XY Chart authored color admission (#303)', () => {
@@ -43,14 +44,14 @@ describe('XY Chart authored color admission (#303)', () => {
         expectRefusal(source({ plotColorPalette: `${value}, #00ff00` }), 'plotColorPalette[0]', value)
         expectRefusal(source({ plotColorPalette: ['#00ff00', value] }), 'plotColorPalette[1]', value)
       }
-    }), { numRuns: 5 })
+    }), fcParameters({ numRuns: 5 }))
   })
 
   test('a non-string palette entry cannot disappear during normalization', () => {
     const input = source({ plotColorPalette: ['#f96', 42] })
     expect(() => renderMermaidSVG(input)).toThrow('themeVariables.xyChart.plotColorPalette[1]')
     expect(verifyMermaid(input).warnings).toContainEqual({
-      code: 'RENDER_FAILED', reason: expect.stringContaining('themeVariables.xyChart.plotColorPalette[1]'),
+      code: 'RENDER_FAILED', reason: expect.stringContaining('themeVariables.xyChart.plotColorPalette[1]'), origin: 'config',
     })
     expect(() => renderMermaidSVG(source({ plotColorPalette: '#f96,,#00ff00' })))
       .toThrow('themeVariables.xyChart.plotColorPalette[1]: "" is not a CSS color')
@@ -91,7 +92,6 @@ describe('XY Chart authored color admission (#303)', () => {
   test('an explicit render background shadows xyChart.backgroundColor', () => {
     const shadowedBackground = source({ backgroundColor: 'notacolor' })
     expect(() => renderMermaidSVG(shadowedBackground, { bg: '#ffffff' })).not.toThrow()
-    expect(verifyMermaid(shadowedBackground, { renderOptions: { bg: '#ffffff' } }).warnings)
-      .not.toContainEqual({ code: 'RENDER_FAILED', reason: expect.any(String) })
+    expect(verifyMermaid(shadowedBackground, { renderOptions: { bg: '#ffffff' } }).warnings.filter(w => w.code === 'RENDER_FAILED' || w.code === 'INTERNAL_ERROR')).toEqual([])
   })
 })

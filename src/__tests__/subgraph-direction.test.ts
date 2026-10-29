@@ -8,9 +8,10 @@
 
 import { describe, test, expect } from 'bun:test'
 import { parseRegisteredMermaid as parseMermaid, layoutMermaid } from '../agent/index.ts'
-import { renderMermaidASCII } from '../index.ts'
+import { renderMermaidASCII, renderMermaidASCIIWithReceipt } from '../index.ts'
+import { terminalDocumentOf } from '../ascii/terminal-document.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
-import { assessLayout, hardViolations } from '../layout-rubric.ts'
+import { assessLayout, hardViolations, onShapeOutline } from '../layout-rubric.ts'
 import { parseMermaid as parseGraph } from '../parser.ts'
 
 function layoutOf(source: string) {
@@ -79,6 +80,11 @@ X --> A
 C --> Y
 Y`)
     const positioned = layoutGraphSync(graph)
+    expect(positioned.edges.map(edge => [edge.source, edge.target]).sort()).toEqual([['B', 'C'], ['A', 'B'], ['X', 'A'], ['C', 'Y']].sort())
+    for (const edge of positioned.edges) {
+      expect(onShapeOutline(positioned.nodes.find(node => node.id === edge.source)!, edge.points[0]!)).toBe(true)
+      expect(onShapeOutline(positioned.nodes.find(node => node.id === edge.target)!, edge.points.at(-1)!)).toBe(true)
+    }
     expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
     if (!withOverride) {
       const a = positioned.nodes.find(n => n.id === 'A')!
@@ -120,19 +126,13 @@ describe('subgraph direction override (ASCII grid layout)', () => {
     expect(row.indexOf('Transform')).toBeLessThan(row.indexOf('Store'))
   })
 
-  test('edges to a subgraph id attach to the container instead of creating a phantom node box', () => {
-    const out = renderMermaidASCII(LR_INSIDE_TD)
-    const lines = out.split('\n')
-    expect(lines.filter(l => l.includes('Pipeline')).length).toBe(1)
-    expect(out).toContain('Done')
-  })
-
-  test('subgraph-id container edges work in 7-bit ASCII mode too', () => {
+  test('container heading and member labels remain visible in 7-bit ASCII', () => {
     const out = renderMermaidASCII(LR_INSIDE_TD, { useAscii: true })
     expect(out.split('\n').filter(l => l.includes('Pipeline')).length).toBe(1)
     expect(out).toContain('Fetch')
     expect(out).toContain('Done')
     expect(out).toContain('+')
+    expect(out).toMatch(/^[\x00-\x7f]*$/)
   })
 
   test('nested edges to a child subgraph id still do not create a phantom node box', () => {
@@ -157,15 +157,31 @@ describe('subgraph direction override (ASCII grid layout)', () => {
     In --> Work --> Out
   end
   Cluster ==> Done`
-    const unicode = renderMermaidASCII(src, { paddingX: 12 })
-    expect(unicode).toContain('┄┄┄load┄┄►')
-    expect(unicode).toContain('━━━━━━━━━►')
-    expect(unicode.split('\n').filter(l => l.includes('Cluster')).length).toBe(1)
-
-    const ascii = renderMermaidASCII(src, { useAscii: true, paddingX: 12 })
-    expect(ascii).toContain('...load..>')
-    expect(ascii).toContain('=========>')
-    expect(ascii.split('\n').filter(l => l.includes('Cluster')).length).toBe(1)
+    for (const useAscii of [false, true]) {
+      const rendered = renderMermaidASCIIWithReceipt(src, { useAscii, paddingX: 12, colorMode: 'none' })
+      const document = terminalDocumentOf(rendered)!, regions = document.regions()
+      expect(rendered.text.split('\n').filter(line => line.includes('Cluster'))).toHaveLength(1)
+      const frame = regions.find(region => region.kind === 'subgraph' && region.id === 'Cluster')!
+      const incoming = regions.find(region => region.kind === 'edge' && region.from === 'A')!
+      const outgoing = regions.find(region => region.kind === 'edge' && region.to === 'Done')!
+      expect(incoming.to).toBe('Cluster'); expect(outgoing.from).toBe('Cluster')
+      expect(incoming.projectedText).toBe('load')
+      expect(incoming.authoredTextCells!.map(cell => cell.glyph).join('')).toBe('load')
+      for (const cell of incoming.authoredTextCells!) expect(document.cell(cell.column, cell.row)?.glyph).toBe(cell.glyph)
+      expect(incoming.ports!.find(port => port.end === 'end')).toMatchObject({ nodeId: 'Cluster', side: 'L', x: frame.canvasColStart })
+      expect(outgoing.ports!.find(port => port.end === 'start')).toMatchObject({ nodeId: 'Cluster', side: 'R', x: frame.canvasColEnd - 1 })
+      for (const [edge, style] of [[incoming, 'dotted'], [outgoing, 'heavy']] as const) {
+        const owned = [...document.entries()].filter(([, , cell]) => cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id))
+        const shafts = owned.filter(([, , cell]) => cell.kind === 'stroke' && (cell.stroke?.mask === 10 || cell.stroke?.mask === 5))
+        expect(shafts.length).toBeGreaterThan(0)
+        for (const [, , cell] of shafts) expect(cell.stroke?.style).toBe(style)
+        const end = edge.ports!.find(port => port.end === 'end')!
+        const marker = document.cell(end.x - (end.markerOffset ?? 1), end.y)!
+        expect(marker.kind).toBe('marker'); expect(marker.glyph).toBe(useAscii ? '>' : '►')
+        expect(marker.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id)).toBe(true)
+      }
+      expect(document.diagnostics).toEqual([])
+    }
   })
 
   test('multiple inbound and outbound subgraph-id edges share the container without duplicate boxes', () => {

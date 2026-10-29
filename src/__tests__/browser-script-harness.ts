@@ -1,8 +1,7 @@
 /**
- * In-process harness for the shipped classic browser scripts (editor/js/*.js,
- * shared/browser/*.js, website assets). The scripts are evaluated with
- * `new Function`, exactly as editor-popup.test.ts and the sharing.js harness
- * do, against a deliberately small DOM double. Tests drive the scripts through
+ * In-process harness for shipped browser scripts and bundled editor modules.
+ * Evaluation uses an isolated VM global object with explicit browser APIs
+ * and a deliberately small DOM double. Tests drive the scripts through
  * their real entry points (functions, listeners) and assert observable effects
  * — attributes, text, listener outcomes — never the scripts' source text.
  *
@@ -350,14 +349,19 @@ export function manualTimers() {
 }
 
 /**
- * Evaluate a classic script with explicit globals and return whatever the
- * `exports` expression (evaluated in the script's scope) produces. Top-level
+ * Evaluate browser code with explicit globals and return whatever the
+ * `exports` expression (evaluated in that isolated context) produces. Top-level
  * `var`/function declarations are visible to that expression, so getters can
  * observe later reassignments.
  */
 export function evaluateBrowserScript<T>(source: string, globals: Record<string, unknown>, exports: string): T {
-  const names = Object.keys(globals)
-  return new Function(...names, `${source}\nreturn (${exports});`)(...names.map(name => globals[name])) as T
+  const context = createContext({
+    JSON, Object, Array, console, setTimeout, clearTimeout, setInterval, clearInterval, performance,
+    TextEncoder, TextDecoder, Uint8Array, ArrayBuffer, Blob, Response, Request, Headers,
+    CompressionStream, DecompressionStream, URL, URLSearchParams, btoa, atob, structuredClone,
+    ...globals,
+  })
+  return runInContext(`${source}\n;(${exports})`, context) as T
 }
 
 /**

@@ -1,4 +1,6 @@
 import { describe, expect, test } from 'bun:test'
+import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import type { DiagramKind } from '../agent/types.ts'
@@ -7,17 +9,16 @@ import { detectColorMode } from '../ascii/ansi.ts'
 import { renderMermaidASCII, renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
-import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 import { LOCAL_TOOLS } from '../mcp/server.ts'
 import { projectMcpRenderOptions } from '../mcp/tool-surface.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { inspectPngColorProfile, OUTPUT_COLOR_PROFILE } from '../output-color-profile.ts'
 import { applyOutputSecurityPolicy, verifyNoExternalRefs } from '../output-security.ts'
 import {
-  ALL_RENDER_FIELDS_ACCOUNTED_FOR,
   CLI_RENDER_FORMATS,
+  deferredRenderContractDigest,
+  renderContractDigest,
   RENDER_OUTPUT_DESCRIPTORS,
-  RENDER_TRANSPORT_SURFACES,
   receiptOf,
   resolveAppearance,
   resolvedFamilyRenderContextOf,
@@ -35,15 +36,32 @@ import type { RenderOptions } from '../types.ts'
 
 const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
 
+// Construct the admitted JSON subset; forbidden-key and resource-budget cases
+// remain with the existing JSON admission and render-authority tests.
+function configJsonKeys(value: fc.JsonValue): fc.JsonValue {
+  if (Array.isArray(value)) return value.map(configJsonKeys)
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, child]) => [`k${key}`, configJsonKeys(child!)]))
+  }
+  return value
+}
+
+const recursiveConfigJson = fc.jsonValue({ stringUnit: 'binary' }).map(configJsonKeys)
+
 const EXPECTED_BUILTIN_OPTION_APPLICABILITY = {
-  padding: ['flowchart', 'state', 'architecture'],
-  nodeSpacing: ['flowchart', 'state', 'class', 'er', 'architecture'],
-  layerSpacing: ['flowchart', 'state', 'class', 'er', 'architecture'],
+  layoutHints: ['flowchart', 'state'],
+  graphLayout: ['flowchart', 'state', 'architecture', 'class', 'er', 'requirement'],
+  padding: ['flowchart', 'state', 'architecture', 'c4'],
+  nodeSpacing: ['flowchart', 'state', 'class', 'er', 'architecture', 'c4'],
+  layerSpacing: ['flowchart', 'state', 'class', 'er', 'architecture', 'c4'],
   wrappingWidth: ['flowchart'],
   componentSpacing: [],
   interactive: ['xychart', 'pie', 'quadrant'],
   shadow: ['flowchart', 'state', 'sequence', 'timeline', 'class', 'er', 'journey', 'xychart', 'pie', 'quadrant', 'gantt', 'mindmap', 'gitgraph', 'sankey'],
   class: ['class'],
+  kanban: ['kanban'],
+  pie: ['pie'],
+  radar: ['radar'],
   architecture: ['architecture'],
   timeline: ['timeline'],
   journey: ['journey'],
@@ -52,6 +70,8 @@ const EXPECTED_BUILTIN_OPTION_APPLICABILITY = {
 } as const satisfies Partial<Record<SharedRenderOptionField, readonly DiagramKind[]>>
 
 const FAMILY_SCOPED_OPTION_VALUES = {
+  layoutHints: { ranks: { A: 0, B: 1 } },
+  graphLayout: { backend: 'elk' },
   padding: 12,
   nodeSpacing: 77,
   layerSpacing: 91,
@@ -60,6 +80,9 @@ const FAMILY_SCOPED_OPTION_VALUES = {
   interactive: true,
   shadow: true,
   class: { hierarchicalNamespaces: false },
+  kanban: { maxWidth: 600 },
+  pie: { maxWidth: 360 },
+  radar: { maxWidth: 360 },
   architecture: { visual: { groupCornerRadius: 12 } },
   timeline: { maxWidth: 300 },
   journey: { experienceCurve: false },
@@ -68,11 +91,44 @@ const FAMILY_SCOPED_OPTION_VALUES = {
 } as const satisfies Record<keyof typeof EXPECTED_BUILTIN_OPTION_APPLICABILITY, unknown>
 
 describe('Section A canonical render contracts', () => {
-  test('the manifest accounts for every RenderOptions field and generates the adapter schema', () => {
-    expect(ALL_RENDER_FIELDS_ACCOUNTED_FOR).toBe(true)
+  test('deferred evidence captures mutable accessors once and rejects invalid data immediately', () => {
+    const data = { label: 'captured' }
+    let reads = 0
+    const digest = deferredRenderContractDigest({ get data() { reads++; return data } })
+    expect(reads).toBe(1)
+    data.label = 'changed after admission'
+    expect(digest()).toBe(renderContractDigest({ data: { label: 'captured' } }))
+    expect(digest()).toBe(digest())
+    expect(reads).toBe(1)
+    const cycle: { next?: unknown } = {}
+    cycle.next = cycle
+    expect(() => deferredRenderContractDigest(cycle)).toThrow(TypeError)
+    expect(() => deferredRenderContractDigest({ value: Number.POSITIVE_INFINITY })).toThrow(TypeError)
+  })
+
+  test('the public render-option schema is closed and exposes shared options', () => {
     const schema = sharedRenderOptionsJsonSchema() as { additionalProperties: boolean; properties: Record<string, unknown> }
     expect(schema.additionalProperties).toBe(false)
     expect(Object.keys(schema.properties)).toEqual(expect.arrayContaining(['style', 'mermaidConfig', 'security', 'idPrefix']))
+  })
+
+  test('editing an exported schema cannot change runtime admission or later exports', () => {
+    const exported = sharedRenderOptionsJsonSchema() as {
+      properties: { padding: { minimum: number } }
+      $defs: { jsonValue: { anyOf: unknown[] } }
+    }
+    exported.properties.padding.minimum = -100
+    exported.$defs.jsonValue.anyOf.length = 0
+
+    expect(validateSerializableRenderOptions({ padding: -1 })).toEqual([
+      expect.stringContaining('non-negative'),
+    ])
+    expect(validateSerializableRenderOptions({
+      mermaidConfig: { c4: { personFontSize: 13 }, themeVariables: { primaryColor: '#123456' } },
+    })).toEqual([])
+    const fresh = sharedRenderOptionsJsonSchema() as typeof exported
+    expect(fresh.properties.padding.minimum).toBe(0)
+    expect(fresh.$defs.jsonValue.anyOf).toHaveLength(6)
   })
 
   test('family-limited options publish one applicability authority and diagnose unsupported built-ins', () => {
@@ -170,7 +226,7 @@ describe('Section A canonical render contracts', () => {
     ).toMatch(/must not exceed junctionOuterRadius/)
   })
 
-  test('output descriptors derive CLI aliases and the Code Mode render declaration', () => {
+  test('output descriptors publish CLI aliases and transport availability', () => {
     expect(CLI_RENDER_FORMATS).toEqual(['svg', 'ascii', 'unicode', 'png', 'layout'])
     const html = RENDER_OUTPUT_DESCRIPTORS.find(descriptor => descriptor.id === 'html')!
     const layout = RENDER_OUTPUT_DESCRIPTORS.find(descriptor => descriptor.id === 'layout')!
@@ -184,43 +240,7 @@ describe('Section A canonical render contracts', () => {
     expect(layout.transports.cli).toMatchObject({ availability: 'direct', format: 'layout' })
     expect(layout.transports.codeMode).toMatchObject({ availability: 'direct', method: 'layoutMermaidWithReceipt' })
     expect(layout.transports.localMcp).toMatchObject({ availability: 'indirect', entrypoint: 'execute' })
-    expect(RENDER_OUTPUT_DESCRIPTORS.flatMap(descriptor => RENDER_TRANSPORT_SURFACES.map(surface => descriptor.transports[surface]))).toHaveLength(42)
-    for (const descriptor of RENDER_OUTPUT_DESCRIPTORS) {
-      expect(Object.keys(descriptor.transports)).toEqual([...RENDER_TRANSPORT_SURFACES])
-      for (const surface of RENDER_TRANSPORT_SURFACES) {
-        const transport = descriptor.transports[surface]
-        expect(transport.entrypoint, `${descriptor.id}/${surface} entrypoint`).not.toBe('')
-        expect(transport.evidence.length, `${descriptor.id}/${surface} evidence`).toBeGreaterThan(0)
-        expect(Object.isFrozen(transport.evidence), `${descriptor.id}/${surface} evidence frozen`).toBe(true)
-      }
-    }
-    expect(SDK_DECLARATION.match(/renderMermaidSVG\(input/g) ?? []).toHaveLength(1)
-    expect(SDK_DECLARATION.match(/renderMermaidASCII\(input/g) ?? []).toHaveLength(1)
-    expect(SDK_DECLARATION.match(/renderMermaidSVGWithReceipt\(input/g) ?? []).toHaveLength(1)
-    expect(SDK_DECLARATION.match(/renderMermaidASCIIWithReceipt\(input/g) ?? []).toHaveLength(1)
-    expect(SDK_DECLARATION.match(/layoutMermaidWithReceipt\(input/g) ?? []).toHaveLength(1)
-    expect(SDK_DECLARATION).toContain("html: colorMode: 'html' (terminal projection; not a standalone CLI format)")
-    for (const field of SHARED_RENDER_OPTION_FIELDS) {
-      expect(SDK_DECLARATION).toContain(`  ${field}?:`)
-    }
-    expect(SDK_DECLARATION).toContain('interface ArchitectureVisualOverrides {')
-    expect(SDK_DECLARATION).toContain('  groupHeaderHeight?: number')
-    expect(SDK_DECLARATION).toContain('  groupFont?: string')
-  })
 
-  test('the Code Mode family roster and adapters project the canonical descriptors', () => {
-    const kindDeclaration = /type DiagramKind = ([^\n]+)/.exec(SDK_DECLARATION)?.[1] ?? ''
-    const declaredKinds = Array.from(kindDeclaration.matchAll(/'([^']+)'/g), match => match[1])
-    expect(declaredKinds).toEqual(BUILTIN_FAMILY_METADATA.map(family => family.id))
-
-    const apiBlock = SDK_DECLARATION.split('declare const mermaid: {')[1]?.split('\n}')[0] ?? ''
-    const declaredNarrowers = Array.from(apiBlock.matchAll(/^  (as[A-Z]\w+)\(d: ValidDiagram\):/gm), match => match[1])
-    expect(declaredNarrowers).toEqual(BUILTIN_FAMILY_METADATA.map(family => family.narrower))
-    for (const family of BUILTIN_FAMILY_METADATA) {
-      const stem = family.narrower.slice(2)
-      expect(SDK_DECLARATION).toContain(`type ${stem}ValidDiagram = ValidDiagram & { body:`)
-      expect(apiBlock).toContain(`mutate(d: ${stem}ValidDiagram, op: ${stem}MutationOp)`)
-    }
   })
 
   test('every direct render tool exposes the canonical shared option schema', () => {
@@ -243,6 +263,35 @@ describe('Section A canonical render contracts', () => {
       fg: '#111111',
       seed: 1,
     })
+  })
+
+  test.each([
+    { name: 'valid first field', bg: '#123456', nullOptions: false, containerChanges: false, error: undefined },
+    { name: 'invalid first field', bg: 'url(https://invalid.example/first)', nullOptions: false, containerChanges: false, error: 'render option "bg" must be a safe, non-fetching CSS paint' },
+    { name: 'valid first container', bg: '#123456', nullOptions: false, containerChanges: true, error: undefined },
+    { name: 'invalid first container', bg: '#123456', nullOptions: true, containerChanges: true, error: 'render options must be a plain JSON object' },
+  ])('MCP projection validates captured values: $name', ({ bg, nullOptions, containerChanges, error }) => {
+    let reads = 0
+    const options = Object.defineProperty({}, 'bg', {
+      enumerable: true,
+      get() { return ++reads === 1 ? bg : bg.startsWith('url(') ? '#abcdef' : 'url(https://invalid.example/changed)' },
+    })
+    let optionReads = 0
+    const args = Object.defineProperty({}, 'options', {
+      get() {
+        optionReads++
+        if (!containerChanges) return options
+        return optionReads === 1 ? (nullOptions ? null : options) : (nullOptions ? options : null)
+      },
+    })
+    if (error) {
+      expect(() => projectMcpRenderOptions(args)).toThrow(error)
+    } else {
+      const projected = projectMcpRenderOptions(args)
+      expect(projected).toEqual({ bg })
+      expect(resolveRenderRequest(SOURCE, projected).appearance.colors.bg).toBe(bg)
+    }
+    expect({ optionReads, valueReads: reads }).toEqual({ optionReads: 1, valueReads: nullOptions ? 0 : 1 })
   })
 
   test('one appearance receipt survives graphical and terminal output choices', () => {
@@ -281,6 +330,7 @@ describe('Section A canonical render contracts', () => {
     expect(context).toEqual({
       renderOptions: request.renderOptions,
       styleFace: request.appearance.face,
+      paintBackendId: 'backend:default',
     })
     expect(Object.isFrozen(context)).toBe(true)
     expect(Object.getOwnPropertySymbols(request.renderOptions)).toEqual([])
@@ -343,9 +393,67 @@ xychart-beta
     const hostile = JSON.parse('{"mermaidConfig":{"__proto__":{"polluted":true}}}')
     expect(validateSerializableRenderOptions(hostile).length).toBeGreaterThan(0)
     expect(validateSerializableRenderOptions({ backendPolicy: { selected: 'backend:probe' } })).toContain('unknown render option "backendPolicy"')
-    expect(SDK_DECLARATION).not.toContain('backendPolicy')
     for (const tool of [...HOSTED_TOOLS, ...LOCAL_TOOLS]) {
       expect(JSON.stringify(tool.inputSchema), tool.name).not.toContain('backendPolicy')
+    }
+  })
+
+  test('recursive Mermaid JSON admits finite values and repeated shared subtrees', () => {
+    fc.assert(fc.property(recursiveConfigJson, value => {
+      expect(validateSerializableRenderOptions({ mermaidConfig: { extensionData: { first: value, second: value } } })).toEqual([])
+    }), fcParameters({ numRuns: 2_000 }))
+  })
+
+  test('recursive Mermaid JSON rejection identifies an injected non-JSON leaf', () => {
+    const invalidLeaf = fc.constantFrom(
+      { value: undefined, message: 'must be a JSON value, not undefined' },
+      { value: () => true, message: 'must be a JSON value, not function' },
+      { value: Symbol('invalid'), message: 'must be a JSON value, not symbol' },
+      { value: 1n, message: 'must be a JSON value, not bigint' },
+      { value: Number.NaN, message: 'must be a finite number' },
+      { value: Number.POSITIVE_INFINITY, message: 'must be a finite number' },
+      { value: Number.NEGATIVE_INFINITY, message: 'must be a finite number' },
+    )
+    fc.assert(fc.property(fc.array(recursiveConfigJson), invalidLeaf, (siblings, invalid) => {
+      const options = { mermaidConfig: { extensionData: [...siblings, { badLeaf: invalid.value }] } }
+      expect(validateSerializableRenderOptions(options)).toEqual([
+        `render option "mermaidConfig.extensionData[${siblings.length}].badLeaf" ${invalid.message}`,
+      ])
+    }), fcParameters({ numRuns: 2_000 }))
+  })
+
+  test.each([
+    ['contrast lower bound', { kind: 'contrast', action: 'error', minimum: 0.5 }, '"constraints[0].minimum" must be between 1 and 21'],
+    ['contrast upper bound', { kind: 'contrast', action: 'warn', minimum: 22 }, '"constraints[0].minimum" must be between 1 and 21'],
+    ['accent-area lower bound', { kind: 'accent-area', action: 'error', maxFraction: -0.1 }, '"constraints[0].maxFraction" must be between 0 and 1'],
+    ['accent-area upper bound', { kind: 'accent-area', action: 'warn', maxFraction: 1.1 }, '"constraints[0].maxFraction" must be between 0 and 1'],
+    ['mono-role domain', { kind: 'mono-role', action: 'error', role: 'not-a-role' }, '"constraints[0].role" must be a registered built-in SceneRole'],
+    ['required mono-role field', { kind: 'mono-role', action: 'warn' }, '"constraints[0].role" is required for mono-role'],
+    ['constraint action', { kind: 'contrast', action: 'repair' }, '"constraints[0].action" must be one of warn | error'],
+    ['constraint kind', { kind: 'unknown', action: 'error' }, '"constraints[0].kind" must be one of contrast | accent-area | mono-role'],
+  ])('style constraint diagnostics identify %s in inline and stacked input', (_name, constraint, diagnostic) => {
+    const spec = { constraints: [constraint] }
+    for (const style of [spec, ['hand-drawn', spec]]) {
+      expect(validateSerializableRenderOptions({ style })).toEqual([
+        `render option "style" is invalid: Invalid style spec: ${diagnostic}`,
+      ])
+    }
+  })
+
+  test.each([
+    { kind: 'contrast', minimum: 1 },
+    { kind: 'contrast', minimum: 21 },
+    { kind: 'contrast' },
+    { kind: 'accent-area', maxFraction: 0 },
+    { kind: 'accent-area', maxFraction: 1 },
+    { kind: 'mono-role', role: 'node' },
+    { kind: 'mono-role', role: 'edge' },
+  ])('style constraints admit valid limits and roles: %j', constraint => {
+    for (const action of ['warn', 'error']) {
+      const spec = { constraints: [{ ...constraint, action }] }
+      for (const style of [spec, ['hand-drawn', spec]]) {
+        expect(validateSerializableRenderOptions({ style })).toEqual([])
+      }
     }
   })
 

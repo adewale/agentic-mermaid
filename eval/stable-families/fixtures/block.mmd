@@ -1,0 +1,34 @@
+---
+title: Event gateway service grid
+---
+block
+  columns 3
+  block:clients["Clients"]
+    columns 1
+    browser["Browser"]
+    sdk["SDK"]
+    space
+  end
+  block:services["Gateway plane"]:2
+    columns 2
+    block:delivery["Delivery"]
+      columns 1
+      ingress["Ingress"]
+      queue[("Queue")]
+      worker["Worker"]
+    end
+    block:persistence["Persistence"]
+      columns 1
+      store[("Event store")]
+      audit["Audit log"]
+      space
+    end
+  end
+  browser -- "HTTPS" --> ingress
+  sdk -- "Batch" --> ingress
+  ingress -- "Enqueue" --> queue
+  queue -- "Dispatch" --> worker
+  worker -- "Persist" --> store
+  worker -- "Record" --> audit
+  classDef durable fill:#e0f2fe,stroke:#0369a1
+  class queue,store durable

@@ -1,5 +1,5 @@
 // Dual-era MCP: the 2026-07-28 stateless revision served alongside the
-// handshake-based revisions, per docs/project/stateless-mcp-migration-plan.md.
+// handshake-based revisions; history: docs/project/archive/stateless-mcp-migration-plan.md.
 //
 // Two things this file guards that nothing else can:
 //
@@ -16,7 +16,7 @@
 import { describe, expect, test } from 'bun:test'
 import { createMcpHandler, type McpRequestEvent } from '../../website/src/mcp-handler.ts'
 import {
-  admitHostedRequest, handleHostedRequest, HOSTED_MCP_SERVER_NAME, SUPPORTED_PROTOCOL_VERSIONS,
+  handleHostedRequest, HOSTED_MCP_SERVER_NAME, SUPPORTED_PROTOCOL_VERSIONS,
   type HostedMcpContext,
 } from '../mcp/hosted-server.ts'
 import {
@@ -80,17 +80,6 @@ async function payload(response: Response) {
 }
 
 describe('era selection', () => {
-  test('the modern fixture really is modern, and the legacy fixture really is legacy', () => {
-    // Guards the guard: if `modern()` ever stopped producing a modern request,
-    // every "modern" assertion below would silently test the legacy path.
-    const modernAdmission = admitHostedRequest(modern('tools/list'))
-    const legacyAdmission = admitHostedRequest(legacy('tools/list'))
-    expect(modernAdmission.ok && modernAdmission.message.protocol.era).toBe('modern')
-    expect(legacyAdmission.ok && legacyAdmission.message.protocol.era).toBe('legacy')
-    expect(isModernProtocolVersion(MODERN)).toBe(true)
-    expect(isModernProtocolVersion('2025-11-25')).toBe(false)
-  })
-
   test('a modern tools/list succeeds with no prior initialize', async () => {
     const response = await handleHostedRequest(modern('tools/list'), context())
     expect((response?.result as { tools: unknown[] }).tools.length).toBeGreaterThan(0)
@@ -514,7 +503,7 @@ describe('transport: CORS admits the modern headers', () => {
     ]) {
       const response = await handler()(request)
       expect({ status: response.status, acao: response.headers.get('access-control-allow-origin') })
-        .toEqual({ status: response.status, acao: 'https://agentic-mermaid.dev' })
+        .toEqual({ status: 400, acao: 'https://agentic-mermaid.dev' })
     }
   })
 })

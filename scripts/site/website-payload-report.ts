@@ -16,6 +16,8 @@ import { WEBSITE_PAYLOAD_BUDGETS } from './website-payload-budgets.ts'
 //   --check                 build, capture every route, and verify the budgets
 //   --report <path>         also write the measured report (the PR payload delta)
 //   --root <checkout>       build and measure another checkout (the PR's base)
+//   --public-root <path>    capture an existing build without rebuilding/deleting it
+//   --executable <path>     select an installed Chromium executable
 // Byte ceilings have headroom; per-PR growth is judged by scripts/ci/payload-delta.ts
 // against the base branch built on the same runner, not by a committed baseline.
 const argValue = (flag: string): string | undefined => {
@@ -24,23 +26,24 @@ const argValue = (flag: string): string | undefined => {
 }
 const ROOT = argValue('--root') ? resolve(argValue('--root')!) : join(import.meta.dir, '..', '..')
 const REPORT_OUT = argValue('--report')
-const PUBLIC = mkdtempSync(join(tmpdir(), 'agentic-mermaid-website-payload-'))
+const PREBUILT = argValue('--public-root')
+const PUBLIC = PREBUILT ? resolve(PREBUILT) : mkdtempSync(join(tmpdir(), 'agentic-mermaid-website-payload-'))
 let cleaned = false
 function cleanup() {
   if (cleaned) return
   cleaned = true
-  rmSync(PUBLIC, { recursive: true, force: true })
+  if (!PREBUILT) rmSync(PUBLIC, { recursive: true, force: true })
 }
 process.on('exit', cleanup)
 if (!process.argv.includes('--check') && !REPORT_OUT) throw new Error('Usage: bun run scripts/site/website-payload-report.ts --check [--report <path>] [--root <checkout>]')
 
-const build = Bun.spawnSync(['bun', 'run', 'website/build.ts', '--public-only'], {
+const build = !PREBUILT && Bun.spawnSync(['bun', 'run', 'website/build.ts', '--public-only'], {
   cwd: ROOT,
   env: { ...process.env, AM_WEBSITE_PUBLIC_DIR: PUBLIC },
   stdout: 'inherit',
   stderr: 'inherit',
 })
-if (build.exitCode !== 0) throw new Error(`website build failed with exit ${build.exitCode}`)
+if (build && build.exitCode !== 0) throw new Error(`website build failed with exit ${build.exitCode}`)
 
 const mime: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -71,7 +74,7 @@ const server = Bun.serve({
 })
 
 const origin = `http://127.0.0.1:${server.port}`
-const browser = await chromium.launch({ headless: true })
+const browser = await chromium.launch({ headless: true, ...(argValue('--executable') ? { executablePath: argValue('--executable') } : {}) })
 const chromiumVersion = browser.version()
 const captured: Record<string, string[]> = {}
 try {

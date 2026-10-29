@@ -1,3 +1,4 @@
+import { layoutTooltip } from '../shared/tooltip-layout.ts'
 import type {
   QuadrantChart,
   PositionedQuadrantChart,
@@ -8,10 +9,9 @@ import type {
 } from './types.ts'
 import type { RenderOptions } from '../types.ts'
 import type { QuadrantVisualConfig } from './config.ts'
-import { LINE_HEIGHT_RATIO, measureTextWidth } from '../text-metrics.ts'
-import { wrapLabelToWidth } from '../shared/label-wrap.ts'
-import { graphemes } from '../shared/graphemes.ts'
-import { applyTextTransform, resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
+import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
+import { LINE_HEIGHT_RATIO } from '../text-metrics.ts'
+import { resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { resolvePointVisual } from './point-style.ts'
@@ -76,23 +76,9 @@ function round(n: number): number {
   return Math.round(n * 100) / 100
 }
 
-function ellipsizeToWidth(text: string, maxWidth: number, fontSize: number, fontWeight: number): string {
-  if (measureTextWidth(text, fontSize, fontWeight) <= maxWidth) return text
-  const suffix = '…'
-  let result = ''
-  for (const cluster of graphemes(text)) {
-    if (measureTextWidth(result + cluster + suffix, fontSize, fontWeight) > maxWidth) break
-    result += cluster
-  }
-  return result + suffix
-}
-
-/** At most two measured lines per half-axis. The typed chart retains the full
- * label; only the paint string is ellipsized when two lines cannot contain it. */
-function budgetAxisLabel(text: string, maxWidth: number, fontSize: number, fontWeight: number): string {
-  const lines = wrapLabelToWidth(text, maxWidth, fontSize, fontWeight).split('\n')
-  if (lines.length <= 2) return lines.join('\n')
-  return `${lines[0]}\n${ellipsizeToWidth(lines.slice(1).join(' '), maxWidth, fontSize, fontWeight)}`
+/** Half-axis labels retain every prepared line; the gutter grows to fit. */
+function budgetAxisLabel(text: string, maxWidth: number, fontSize: number, fontWeight: number, letterSpacing: number, transform: import('../types.ts').TextTransform | undefined): PixelTextBlock {
+  return preparePixelText(text, { display: 'formatted', transform, maxWidth, fontSize, fontWeight, letterSpacing })
 }
 
 /** Density-scaled default plot side: 380px up to 8 points, then +20px per
@@ -103,6 +89,49 @@ function densityPlotSize(pointCount: number): number {
 }
 
 interface Box { x0: number; y0: number; x1: number; y1: number }
+
+/** Request-local broad phase; exact family predicates remain authoritative. */
+class CollisionIndex<T> {
+  private cells = new Map<string, number[]>()
+  private values: T[] = []
+  private wide: number[] = []
+  private visited: number[] = []
+  private query = 0
+  private cellsOf(box: Box): [number, number, number, number] | undefined {
+    const x0 = Math.floor(box.x0 / 64), x1 = Math.floor(box.x1 / 64)
+    const y0 = Math.floor(box.y0 / 64), y1 = Math.floor(box.y1 / 64)
+    if (![x0, x1, y0, y1].every(Number.isSafeInteger) || x1 < x0 || y1 < y0 || (x1 - x0 + 1) * (y1 - y0 + 1) > 256) return undefined
+    return [x0, x1, y0, y1]
+  }
+  add(box: Box, value: T): void {
+    const id = this.values.length
+    this.values.push(value)
+    const cells = this.cellsOf(box)
+    if (!cells) { this.wide.push(id); return }
+    const [x0, x1, y0, y1] = cells
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const key = `${x},${y}`, ids = this.cells.get(key)
+      if (ids) ids.push(id)
+      else this.cells.set(key, [id])
+    }
+  }
+  some(box: Box, predicate: (value: T) => boolean): boolean {
+    const cells = this.cellsOf(box)
+    if (!cells) return this.values.some(predicate)
+    const query = ++this.query
+    const hit = (id: number): boolean => {
+      if (this.visited[id] === query) return false
+      this.visited[id] = query
+      return predicate(this.values[id]!)
+    }
+    for (const id of this.wide) if (hit(id)) return true
+    const [x0, x1, y0, y1] = cells
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      for (const id of this.cells.get(`${x},${y}`) ?? []) if (hit(id)) return true
+    }
+    return false
+  }
+}
 
 const intersects = (a: Box, b: Box): boolean =>
   Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.5 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.5
@@ -128,6 +157,10 @@ const SPIRAL_ANGLES: readonly number[] = [
   (-5 * Math.PI) / 8, (5 * Math.PI) / 8, (-7 * Math.PI) / 8, (7 * Math.PI) / 8,
 ]
 const SPIRAL_RINGS = 10
+const SPIRAL_DIRECTIONS = SPIRAL_ANGLES.map(angle => {
+  const cos = Math.cos(angle)
+  return { cos, sin: Math.sin(angle), anchor: (cos > 0.38 ? 'start' : cos < -0.38 ? 'end' : 'middle') as Anchor }
+})
 
 /**
  * Candidate label slots for one point, in deterministic preference order.
@@ -135,29 +168,23 @@ const SPIRAL_RINGS = 10
  * sparse charts do not move; the outward spiral only engages when a chart is
  * dense enough that no near slot clears.
  */
-function labelCandidates(cx: number, cy: number, gap: number, w: number, h: number): LabelCandidate[] {
-  const near: LabelCandidate[] = [
-    { x: cx + gap, y: cy, anchor: 'start', far: false, box: { x0: cx + gap, y0: cy - h / 2, x1: cx + gap + w, y1: cy + h / 2 } },
-    { x: cx - gap, y: cy, anchor: 'end', far: false, box: { x0: cx - gap - w, y0: cy - h / 2, x1: cx - gap, y1: cy + h / 2 } },
-    { x: cx, y: cy + gap + h / 2, anchor: 'middle', far: false, box: { x0: cx - w / 2, y0: cy + gap, x1: cx + w / 2, y1: cy + gap + h } },
-    { x: cx, y: cy - gap - h / 2, anchor: 'middle', far: false, box: { x0: cx - w / 2, y0: cy - gap - h, x1: cx + w / 2, y1: cy - gap } },
-  ]
-  const spiral: LabelCandidate[] = []
+function* labelCandidates(cx: number, cy: number, gap: number, w: number, h: number): Generator<LabelCandidate> {
+  yield { x: cx + gap, y: cy, anchor: 'start', far: false, box: { x0: cx + gap, y0: cy - h / 2, x1: cx + gap + w, y1: cy + h / 2 } }
+  yield { x: cx - gap, y: cy, anchor: 'end', far: false, box: { x0: cx - gap - w, y0: cy - h / 2, x1: cx - gap, y1: cy + h / 2 } }
+  yield { x: cx, y: cy + gap + h / 2, anchor: 'middle', far: false, box: { x0: cx - w / 2, y0: cy + gap, x1: cx + w / 2, y1: cy + gap + h } }
+  yield { x: cx, y: cy - gap - h / 2, anchor: 'middle', far: false, box: { x0: cx - w / 2, y0: cy - gap - h, x1: cx + w / 2, y1: cy - gap } }
   for (let ring = 1; ring <= SPIRAL_RINGS; ring++) {
     const dist = gap + ring * (h + 6)
-    for (const angle of SPIRAL_ANGLES) {
-      const px = cx + Math.cos(angle) * dist
-      const py = cy + Math.sin(angle) * dist
-      const cos = Math.cos(angle)
-      const anchor: Anchor = cos > 0.38 ? 'start' : cos < -0.38 ? 'end' : 'middle'
+    for (const { cos, sin, anchor } of SPIRAL_DIRECTIONS) {
+      const px = cx + cos * dist
+      const py = cy + sin * dist
       const x0 = anchor === 'start' ? px : anchor === 'end' ? px - w : px - w / 2
-      spiral.push({
+      yield {
         x: px, y: py, anchor, far: true,
         box: { x0, y0: py - h / 2, x1: x0 + w, y1: py + h / 2 },
-      })
+      }
     }
   }
-  return [...near, ...spiral]
 }
 
 /** Leader line from the circle edge to the label edge for a far slot. */
@@ -242,7 +269,8 @@ export function layoutQuadrantChart(
   const titleWeight = Math.max(style.groupHeaderFontWeight, 600)
   // The title is centered over the plot, so it wraps to the plot's width
   // rather than running past the canvas edges (a configured chartWidth stays).
-  let titleText = chart.title
+  let titleBlock = chart.title ? preparePixelText(chart.title, { display: 'formatted', transform: style.groupTextTransform, fontSize: titleFontSize, fontWeight: titleWeight, letterSpacing: style.groupLetterSpacing }) : undefined
+  let titleText = titleBlock?.text
   let titleHeight = chart.title ? titleFontSize + titleGap : 0
 
   // Per-axis text metrics (wired config wins per axis; the shared edge-label
@@ -251,7 +279,7 @@ export function layoutQuadrantChart(
   const axisFontY = visual.yAxisLabelFontSize ?? style.edgeLabelFontSize
   const axisPadX = visual.xAxisLabelPadding ?? Q.axisLabelPadding
   const axisPadY = visual.yAxisLabelPadding ?? Q.axisLabelPadding
-  // Axis labels own one half-plot each. Compute measured two-line paint labels
+  // Axis labels own one half-plot each. Compute their complete prepared blocks
   // and enlarge only the appropriate gutter; sparse/default labels therefore
   // keep their historical bytes. Explicit canvas dimensions are solved twice
   // because a wrapped gutter slightly reduces the available square plot.
@@ -260,8 +288,8 @@ export function layoutQuadrantChart(
   let xAxisGutter = baseXAxisGutter
   let yAxisGutter = baseYAxisGutter
   let size = densityPlotSize(chart.points.length)
-  let budgetedX: { near: string; far?: string } | undefined
-  let budgetedY: { near: string; far?: string } | undefined
+  let budgetedX: { near: PixelTextBlock; far?: PixelTextBlock } | undefined
+  let budgetedY: { near: PixelTextBlock; far?: PixelTextBlock } | undefined
   for (let pass = 0; pass < 2; pass++) {
     if (visual.chartWidth !== undefined || visual.chartHeight !== undefined) {
       const chromeW = paddingX * 2 + yAxisGutter
@@ -272,21 +300,22 @@ export function layoutQuadrantChart(
     }
     const halfBudget = Math.max(24, size / 2 - 12)
     budgetedX = chart.xAxis ? {
-      near: budgetAxisLabel(chart.xAxis.near, halfBudget, axisFontX, style.edgeLabelFontWeight),
-      ...(chart.xAxis.far ? { far: budgetAxisLabel(chart.xAxis.far, halfBudget, axisFontX, style.edgeLabelFontWeight) } : {}),
+      near: budgetAxisLabel(chart.xAxis.near, halfBudget, axisFontX, style.edgeLabelFontWeight, style.edgeLetterSpacing, style.edgeTextTransform),
+      ...(chart.xAxis.far ? { far: budgetAxisLabel(chart.xAxis.far, halfBudget, axisFontX, style.edgeLabelFontWeight, style.edgeLetterSpacing, style.edgeTextTransform) } : {}),
     } : undefined
     budgetedY = chart.yAxis ? {
-      near: budgetAxisLabel(chart.yAxis.near, halfBudget, axisFontY, style.edgeLabelFontWeight),
-      ...(chart.yAxis.far ? { far: budgetAxisLabel(chart.yAxis.far, halfBudget, axisFontY, style.edgeLabelFontWeight) } : {}),
+      near: budgetAxisLabel(chart.yAxis.near, halfBudget, axisFontY, style.edgeLabelFontWeight, style.edgeLetterSpacing, style.edgeTextTransform),
+      ...(chart.yAxis.far ? { far: budgetAxisLabel(chart.yAxis.far, halfBudget, axisFontY, style.edgeLabelFontWeight, style.edgeLetterSpacing, style.edgeTextTransform) } : {}),
     } : undefined
     if (chart.title) {
-      titleText = wrapLabelToWidth(applyTextTransform(chart.title, style.groupTextTransform), size, titleFontSize, titleWeight, style.groupLetterSpacing)
-      titleHeight = titleFontSize * (1 + (titleText.split('\n').length - 1) * LINE_HEIGHT_RATIO) + titleGap
+      titleBlock = preparePixelText(chart.title, { display: 'formatted', transform: style.groupTextTransform, fontSize: titleFontSize, fontWeight: titleWeight, letterSpacing: style.groupLetterSpacing, maxWidth: size })
+      titleText = titleBlock.text
+      titleHeight = titleBlock.height - (titleBlock.lineHeight - titleBlock.fontSize) + titleGap
     }
-    const xLines = Math.max(1, ...(budgetedX ? [budgetedX.near, budgetedX.far ?? ''].map(text => text.split('\n').length) : [1]))
-    const yLines = Math.max(1, ...(budgetedY ? [budgetedY.near, budgetedY.far ?? ''].map(text => text.split('\n').length) : [1]))
-    xAxisGutter = baseXAxisGutter + (xLines - 1) * axisFontX * 1.1
-    yAxisGutter = baseYAxisGutter + (yLines - 1) * axisFontY * 1.1
+    const xHeight = Math.max(axisFontX * LINE_HEIGHT_RATIO, ...[budgetedX?.near, budgetedX?.far].map(block => block?.height ?? 0))
+    const yHeight = Math.max(axisFontY * LINE_HEIGHT_RATIO, ...[budgetedY?.near, budgetedY?.far].map(block => block?.height ?? 0))
+    xAxisGutter = baseXAxisGutter + xHeight - axisFontX * LINE_HEIGHT_RATIO
+    yAxisGutter = baseYAxisGutter + yHeight - axisFontY * LINE_HEIGHT_RATIO
   }
 
   const plotX = paddingX + yAxisGutter
@@ -310,6 +339,7 @@ export function layoutQuadrantChart(
     return {
       number,
       label: chart.quadrants[number - 1],
+      labelBlock: chart.quadrants[number - 1] === undefined ? undefined : preparePixelText(chart.quadrants[number - 1]!, { display: 'formatted', transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing }),
       x: round(x),
       y: round(y),
       width: round(half),
@@ -338,8 +368,8 @@ export function layoutQuadrantChart(
   const placedBoxes: Box[] = regions
     .filter(r => r.label)
     .map(r => {
-      const w = measureTextWidth(applyTextTransform(r.label!, style.groupTextTransform), style.groupHeaderFontSize, style.groupHeaderFontWeight)
-      return { x0: r.labelX - w / 2, y0: r.labelY - style.groupHeaderFontSize * 0.75, x1: r.labelX + w / 2, y1: r.labelY + style.groupHeaderFontSize * 0.75 }
+      const w = r.labelBlock!.width
+      return { x0: r.labelX - w / 2, y0: r.labelY - r.labelBlock!.height / 2, x1: r.labelX + w / 2, y1: r.labelY + r.labelBlock!.height / 2 }
     })
   const defaultRadius = visual.pointRadius ?? Q.pointRadius
   const resolved = chart.points.map(p => resolvePointVisual(p, chart.classDefs, { radius: defaultRadius }))
@@ -349,36 +379,56 @@ export function layoutQuadrantChart(
   })
   const canvas: Box = { x0: 2, y0: 2, x1: width - 2, y1: height - 2 }
   const routedLeaders: LeaderSegment[] = []
+  const indexed = chart.points.length >= 128
+  const labelIndex = indexed ? new CollisionIndex<Box>() : undefined
+  const pointIndex = indexed ? new CollisionIndex<Box>() : undefined
+  const leaderIndex = indexed ? new CollisionIndex<LeaderSegment>() : undefined
+  if (labelIndex && pointIndex) {
+    for (const box of placedBoxes) labelIndex.add(box, box)
+    for (const box of pointBoxes) pointIndex.add(box, box)
+  }
   const points: PositionedQuadrantPoint[] = chart.points.map((p, i) => {
     const vis = resolved[i]!
     const cx = round(plotX + p.x * size)
     const cy = round(plotY + (1 - p.y) * size)
-    const label = applyTextTransform(p.label, style.nodeTextTransform)
-    const w = measureTextWidth(label, fs, fw)
-    const h = fs * 1.1
+    const labelBlock = preparePixelText(p.label, { display: 'formatted', transform: style.nodeTextTransform, fontSize: fs, fontWeight: fw, letterSpacing: style.nodeLetterSpacing })
+    const label = labelBlock.text
+    const w = labelBlock.width
+    const h = labelBlock.height
     const gap = vis.radius + lineGap
     const clear = (candidate: LabelCandidate): boolean => {
       const b = candidate.box
       if (!(b.x0 >= canvas.x0 && b.y0 >= canvas.y0 && b.x1 <= canvas.x1 && b.y1 <= canvas.y1) ||
-          placedBoxes.some(o => intersects(b, o)) || pointBoxes.some(o => intersects(b, o))) return false
+          (labelIndex ? labelIndex.some(b, o => intersects(b, o)) : placedBoxes.some(o => intersects(b, o))) ||
+          (pointIndex ? pointIndex.some(b, o => intersects(b, o)) : pointBoxes.some(o => intersects(b, o)))) return false
       if (!candidate.far) return true
       const leader = leaderFor(cx, cy, vis.radius, candidate)
-      return !placedBoxes.some(box => leaderCrossesBox(leader, box)) && !routedLeaders.some(existing => segmentsConflict(leader, existing))
+      if (!labelIndex || !leaderIndex) return !placedBoxes.some(box => leaderCrossesBox(leader, box)) && !routedLeaders.some(existing => segmentsConflict(leader, existing))
+      const bounds = { x0: Math.min(leader.x1, leader.x2), y0: Math.min(leader.y1, leader.y2), x1: Math.max(leader.x1, leader.x2), y1: Math.max(leader.y1, leader.y2) }
+      const labelQuery = { x0: bounds.x0 - 2, y0: bounds.y0 - 2, x1: bounds.x1 + 2, y1: bounds.y1 + 2 }
+      const leaderQuery = { x0: bounds.x0 - 3, y0: bounds.y0 - 3, x1: bounds.x1 + 3, y1: bounds.y1 + 3 }
+      return !labelIndex.some(labelQuery, box => leaderCrossesBox(leader, box)) && !leaderIndex.some(leaderQuery, existing => segmentsConflict(leader, existing))
     }
-    const candidates = labelCandidates(cx, cy, gap, w, h)
-    const chosen = candidates.find(clear)
+    let first: LabelCandidate | undefined
+    let chosen: LabelCandidate | undefined
+    for (const candidate of labelCandidates(cx, cy, gap, w, h)) {
+      first ??= candidate
+      if (clear(candidate)) { chosen = candidate; break }
+    }
 
     const positioned: PositionedQuadrantPoint = {
       label,
+      labelBlock,
       nx: p.x,
       ny: p.y,
       cx,
       cy,
       radius: vis.radius,
-      labelX: round((chosen ?? candidates[0]!).x),
-      labelY: round((chosen ?? candidates[0]!).y),
-      labelAnchor: (chosen ?? candidates[0]!).anchor,
+      labelX: round((chosen ?? first!).x),
+      labelY: round((chosen ?? first!).y),
+      labelAnchor: (chosen ?? first!).anchor,
     }
+    positioned.tooltip = layoutTooltip(cx, cy - vis.radius, `${label}: [${p.x}, ${p.y}]`)
     if (vis.fill !== undefined) positioned.fill = vis.fill
     if (vis.stroke !== undefined) positioned.stroke = vis.stroke
     if (vis.strokeWidth !== undefined) positioned.strokeWidth = vis.strokeWidth
@@ -386,6 +436,7 @@ export function layoutQuadrantChart(
 
     if (chosen) {
       placedBoxes.push(chosen.box)
+      labelIndex?.add(chosen.box, chosen.box)
       const labelBox: QuadrantLabelBox = {
         x0: round(chosen.box.x0), y0: round(chosen.box.y0),
         x1: round(chosen.box.x1), y1: round(chosen.box.y1),
@@ -394,6 +445,8 @@ export function layoutQuadrantChart(
       if (chosen.far) {
         positioned.leader = leaderFor(cx, cy, vis.radius, chosen)
         routedLeaders.push(positioned.leader)
+        const line = positioned.leader
+        leaderIndex?.add({ x0: Math.min(line.x1, line.x2), y0: Math.min(line.y1, line.y2), x1: Math.max(line.x1, line.x2), y1: Math.max(line.y1, line.y2) }, line)
       }
     } else {
       // Priority-based hiding: source order wins; the hidden label stays on
@@ -405,20 +458,20 @@ export function layoutQuadrantChart(
 
   // Axis labels.
   const axisLabels: PositionedQuadrantAxisLabel[] = []
-  const axisBaseline = plotY + size + axisFontX + axisPadX
+  const axisBaseline = (block: PixelTextBlock): number => plotY + size + Math.max(axisFontX, block.lineHeight / 2) + axisPadX
   if (budgetedX) {
     // Left label under the left half; right label under the right half.
-    axisLabels.push({ text: budgetedX.near, x: round(plotX + 4), y: round(axisBaseline), anchor: 'start', fontSize: axisFontX })
+    axisLabels.push({ text: budgetedX.near.text, block: budgetedX.near, x: round(plotX + 4), y: round(axisBaseline(budgetedX.near)), anchor: 'start', fontSize: axisFontX })
     if (budgetedX.far) {
-      axisLabels.push({ text: budgetedX.far, x: round(plotX + size - 4), y: round(axisBaseline), anchor: 'end', fontSize: axisFontX })
+      axisLabels.push({ text: budgetedX.far.text, block: budgetedX.far, x: round(plotX + size - 4), y: round(axisBaseline(budgetedX.far)), anchor: 'end', fontSize: axisFontX })
     }
   }
   if (budgetedY) {
     // Rotated labels along the left gutter: bottom label low, top label high.
-    const yAxisX = paddingX + axisFontY
-    axisLabels.push({ text: budgetedY.near, x: round(yAxisX), y: round(plotY + size - 4), anchor: 'start', fontSize: axisFontY })
+    const yAxisX = (block: PixelTextBlock): number => paddingX + Math.max(axisFontY, block.lineHeight / 2)
+    axisLabels.push({ text: budgetedY.near.text, block: budgetedY.near, x: round(yAxisX(budgetedY.near)), y: round(plotY + size - 4), anchor: 'start', fontSize: axisFontY })
     if (budgetedY.far) {
-      axisLabels.push({ text: budgetedY.far, x: round(yAxisX), y: round(plotY + 4), anchor: 'end', fontSize: axisFontY })
+      axisLabels.push({ text: budgetedY.far.text, block: budgetedY.far, x: round(yAxisX(budgetedY.far)), y: round(plotY + 4), anchor: 'end', fontSize: axisFontY })
     }
   }
 
@@ -426,7 +479,7 @@ export function layoutQuadrantChart(
     width: round(width),
     height: round(height),
     title: titleText !== undefined
-      ? { text: titleText, x: round(plotX + size / 2), y: round(paddingY + (titleHeight - titleGap) / 2), fontSize: titleFontSize }
+      ? { text: titleText, block: titleBlock, x: round(plotX + size / 2), y: round(paddingY + (titleHeight - titleGap) / 2), fontSize: titleFontSize }
       : undefined,
     accessibility: chart.accessibility ? { ...chart.accessibility } : undefined,
     plot: { x: round(plotX), y: round(plotY), size: round(size) },

@@ -47,7 +47,8 @@ export function barBaselineValue(range: { min: number; max: number }): number {
 /** Display text for a bar's value, shared by data labels and tooltips. */
 export function formatBarValue(value: number): string {
   if (Number.isInteger(value)) return String(value)
-  return value.toFixed(Math.abs(value) < 10 ? 1 : 0)
+  const rounded = value.toFixed(Math.abs(value) < 10 ? 1 : 0)
+  return Number(rounded) === 0 && value !== 0 ? String(value) : rounded
 }
 
 export function linearTicks(min: number, max: number, count = 10): number[] {
@@ -81,11 +82,8 @@ export function formatTickValue(value: number): string {
   if (!Number.isFinite(value)) return String(value)
   if (Number.isInteger(value)) return String(value)
 
-  const abs = Math.abs(value)
-  if (abs >= 1000 || abs === 0) return roundTick(value).toString()
-
-  const precision = abs < 1 ? 2 : abs < 10 ? 1 : 0
-  return stripTrailingZeros(value.toFixed(precision))
+  // Preserve distinct fractional ticks, including domains below one hundredth.
+  return Number(value.toPrecision(12)).toString()
 }
 
 function tickSpec(start: number, stop: number, count: number): [number, number, number] {
@@ -124,6 +122,3 @@ function roundTick(value: number): number {
   return Math.round(value * 1e12) / 1e12
 }
 
-function stripTrailingZeros(value: string): string {
-  return value.replace(/\.0+$|(\.\d*?[1-9])0+$/, '$1')
-}

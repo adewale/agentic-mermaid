@@ -1,6 +1,6 @@
 # Sankey family
 
-Headers `sankey` / `sankey-beta` (Mermaid v10.3.0+, pinned upstream 11.16.0).
+Headers `sankey` / `sankey-beta` (Mermaid v10.3.0+, pinned upstream 12.2.0).
 A sankey diagram shows conserved flows between layered stages: nodes are
 implied by the labels in the CSV body, and each row is one value-weighted
 ribbon from source to target.
@@ -46,7 +46,7 @@ Pumped heat,"Heating and cooling, ""commercial""",70.672
 
 - Exactly three columns per logical row. Quoted fields may span physical lines
   and contain commas; `""` is a literal quote. Every decoded field is trimmed
-  before it becomes a node identity, matching Mermaid 11.16.
+  before it becomes a node identity, matching pinned Mermaid.
 - Empty lines and `%%` comments are allowed.
 - Values are non-negative finite numbers, including exponent (`1e3`) and
   trailing-decimal (`1.`) forms; malformed rows error loudly with the starting
@@ -57,10 +57,10 @@ Pumped heat,"Heating and cooling, ""commercial""",70.672
 ## Layout
 
 `src/sankey/layout.ts` uses `d3-sankey` 0.12.3 directly—the same geometric
-engine pinned by Mermaid 11.16—for layering, all four `nodeAlignment` policies
+engine used by pinned Mermaid—for layering, all four `nodeAlignment` policies
 (justify default), barycenter relaxation, collision resolution, and ribbon
 stacking. Agentic Mermaid owns the typed projection around that engine:
-deterministic mark IDs, measured label/canvas bounds, typed connector routes,
+deterministic part IDs, measured label/canvas bounds, typed connector routes,
 and explicit visibility floors. An all-zero graph uses equal surrogate weights
 only to obtain finite d3 ordering/positions; authored node/link values and link
 widths remain zero. If the requested `width` cannot fit `nodeWidth` across the

@@ -1,65 +1,80 @@
-var renderTimer = null;
-var renderSpinnerTimer = null;
-var renderRequestVersion = 0;
-var lastSuccessfulRenderMs = null;
-var autoFitPending = true;
-// Exact canonical artifact inserted into the preview. Export adapters derive
-// from this record/source, never from a host-mutated preview DOM.
-var lastRenderedSvgArtifact = null;
-var lastRenderedSvgSource = null;
-// Text views and their copy/export action retain the same receipt-bearing
-// artifacts as SVG/PNG instead of reducing them to strings at render time.
-var lastRenderedTextArtifacts = { unicode: null, ascii: null };
+import { ui } from './context.js';
+import { asciiOutput, editor, previewBody, previewInner, renderTime, runtimeRecovery, spinner, statusDot, statusText, unicodeOutput, verifyDetails, verifyDetailsBtn, verifyDetailsList, verifyGeometric, verifyLint, verifyStructural, verifySummary, verifyTierGeometric, verifyTierLint, verifyTierStructural } from './elements.js';
+import { updateExportAvailability } from './export.js';
+import { refreshC4Navigation } from './c4-navigation.js';
+import { refreshDiagramTools } from './diagram-tools.js';
+import { EditorMotion } from './motion.js';
+import { isDark } from './dark-mode.js';
+import { editorPaletteColors, editorPaletteInput, renderMermaidAsciiWithReceipt, renderMermaidUnicodeWithReceipt, renderMermaidWithReceipt, state, verifyMermaid, verifyNoExternalRefs } from './state.js';
+import { currentCanvasFormat } from './buttons.js';
+import { emptyPreviewHtml, escAttr, escHtml, extractErrorLocation, formatRenderErrorHtml, setEditorErrorLine } from './helpers.js';
+import { cancelPreviewMotion } from './pan.js';
+import { applyZoom, fitToView } from './zoom.js';
+import { updateHash } from './sharing.js';
+export var renderTimer, renderSpinnerTimer, renderRequestVersion, lastSuccessfulUiMs, autoFitPending, lastRenderedSvgSource, lastRenderedTextArtifacts, textOutputCacheKey, VERIFY_TIER_BY_CODE, VERIFY_SEVERITY_BY_CODE, lastVerifyTierCounts, TEXT_RENDER_MAX_LINES;
+var paneWidthObserver, lastPaneWidth, lastPaneFitKey, paneFitPresentationPending;
 
-function currentEditorSource() {
+
+export function currentEditorSource() {
   return editor.value.trim();
 }
 
-function isCurrentRender(version, source) {
+
+export function isCurrentRender(version, source) {
   return version === renderRequestVersion && currentEditorSource() === source;
 }
 
-function hasCurrentVerifiedSvgArtifact() {
-  return !!lastRenderedSvgArtifact
+
+export function hasCurrentVerifiedSvgArtifact() {
+  return !!ui.lastRenderedSvgArtifact
     && lastRenderedSvgSource === currentEditorSource()
     && previewInner.querySelector('svg') !== null
-    && previewInner.dataset.sharedRequestDigest === lastRenderedSvgArtifact.receipt.sharedRequestDigest;
+    && previewInner.dataset.sharedRequestDigest === ui.lastRenderedSvgArtifact.receipt.sharedRequestDigest
+    && (!state.fitLabelsToPane || !ui.lastRenderedSvgOptions || JSON.stringify(ui.lastRenderedSvgOptions) === JSON.stringify(buildOptions()));
 }
 
-function clearRenderSpinner() {
+
+export function clearRenderSpinner() {
   if (renderSpinnerTimer) clearTimeout(renderSpinnerTimer);
   renderSpinnerTimer = null;
   spinner.classList.remove("visible");
 }
 
-function invalidateRenderedArtifacts() {
-  lastRenderedSvgArtifact = null;
+
+export function invalidateRenderedArtifacts() {
+  ui.lastRenderedSvgArtifact = null;
+  ui.lastRenderedSvgOptions = null;
   lastRenderedSvgSource = null;
   markTextOutputsDirty();
   delete previewInner.dataset.sharedRequestDigest;
   delete previewInner.dataset.renderRequestDigest;
   delete previewInner.dataset.appearanceDigest;
-  if (typeof lastRenderedPngArtifact !== "undefined") lastRenderedPngArtifact = null;
-  if (typeof lastRenderedSvgExportProjection !== "undefined") lastRenderedSvgExportProjection = null;
   if (typeof updateExportAvailability === "function") updateExportAvailability();
+  if (typeof refreshC4Navigation === "function") refreshC4Navigation();
+  if (typeof refreshDiagramTools === "function") refreshDiagramTools();
 }
 
-function scheduleRender(delay) {
+
+export function scheduleRender(delay) {
   var version = ++renderRequestVersion;
+  if (typeof window.__mermaid.cancelPendingRender === 'function') window.__mermaid.cancelPendingRender();
   if (renderTimer) clearTimeout(renderTimer);
+  if (!state.fitLabelsToPane) paneFitPresentationPending = true;
+  lastPaneFitKey = state.fitLabelsToPane ? paneFitKey() : null;
   // Keep the old picture visible until its replacement is ready, but revoke
   // its authority immediately. Source, Style, theme, or config changes must
   // never leave stale export buttons or receipts live during the debounce.
   invalidateRenderedArtifacts();
   clearRenderSpinner();
-  var nextDelay = delay == null ? EditorMotion.adaptiveRenderDelay(lastSuccessfulRenderMs) : delay;
+  var nextDelay = delay == null ? EditorMotion.adaptiveRenderDelay(lastSuccessfulUiMs) : delay;
   renderTimer = setTimeout(function() {
     renderTimer = null;
     doRender(version);
   }, nextDelay);
 }
 
-function hexToRgb(hex) {
+
+export function hexToRgb(hex) {
   if (!hex || typeof hex !== "string") return null;
   var v = hex.trim();
   if (v[0] === "#") v = v.slice(1);
@@ -70,7 +85,8 @@ function hexToRgb(hex) {
   return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
 }
 
-function chromeThemeColors() {
+
+export function chromeThemeColors() {
   // App-shell chrome: the Kiln brand — a warm-neutral Stone (light) / Charcoal
   // (dark) ground with the independent Pine accent, NOT the terracotta of the
   // "paper" diagram theme. Both triplets live in editor/css/variables.css
@@ -83,7 +99,8 @@ function chromeThemeColors() {
     : { bg: "#F8F4F0", fg: "#26201B", accent: "#1B6E52" };
 }
 
-function applyThemeToPage(themeKey) {
+
+export function applyThemeToPage(themeKey) {
   var root = document.documentElement;
   var chrome = chromeThemeColors();
   root.style.setProperty("--t-bg", chrome.bg);
@@ -131,18 +148,47 @@ function applyThemeToPage(themeKey) {
   }
 }
 
-function buildOptions() {
+
+export function buildOptions() {
   // Share hashes are attacker-controlled. Resolve them through the same pure
   // production boundary imported by build/tests, then keep strict SVG parsing
   // at the insertion sink below as the second line of defence.
-  return window.__mermaid.resolveEditorRenderOptions(state, {
+  return window.__mermaid.resolveEditorRenderOptions(Object.assign({}, state, {
+    source: currentEditorSource(),
+    paneWidth: state.fitLabelsToPane ? availablePaneWidth() : undefined,
+  }), {
     allowedFields: window.__mermaid.SHARED_RENDER_OPTION_FIELDS || [],
     validate: window.__mermaid.validateSerializableRenderOptions,
     resolvePaletteInput: editorPaletteInput,
   });
 }
 
-function insertStrictRenderedSvg(svg) {
+
+export function availablePaneWidth() {
+  if (typeof previewBody === 'undefined' || !previewBody || !previewBody.clientWidth) return lastPaneWidth;
+  var style = getComputedStyle(previewBody);
+  var width = Math.floor(previewBody.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0));
+  if (width > 0) lastPaneWidth = width;
+  return lastPaneWidth;
+}
+
+
+function paneFitKey() {
+  try {
+    var options = buildOptions();
+    return JSON.stringify([options.pie && options.pie.maxWidth, options.radar && options.radar.maxWidth]);
+  } catch (error) { return null; } // Ordinary rendering owns invalid-config diagnostics.
+}
+
+
+export function refreshPaneFitting() {
+  if (!state.fitLabelsToPane) return;
+  var key = paneFitKey();
+  if (key !== lastPaneFitKey) scheduleRender();
+}
+
+
+export function insertStrictRenderedSvg(svg) {
   if (window.__mermaid && typeof window.__mermaid.verifyNoExternalRefs === "function") {
     var verification = window.__mermaid.verifyNoExternalRefs(svg);
     if (!verification.ok) throw new Error("Unsafe SVG output: " + verification.refs.join(", "));
@@ -154,7 +200,8 @@ function insertStrictRenderedSvg(svg) {
   previewInner.replaceChildren(document.importNode(parsed.documentElement, true));
 }
 
-function setTextOutputs(unicode, ascii) {
+
+export function setTextOutputs(unicode, ascii) {
   if (unicodeOutput) {
     unicodeOutput.style.fontSize = '';
     unicodeOutput.textContent = unicode || "Select Unicode to render text output.";
@@ -162,9 +209,8 @@ function setTextOutputs(unicode, ascii) {
   if (asciiOutput) asciiOutput.textContent = ascii || "Select ASCII to render text output.";
 }
 
-var textOutputCacheKey = "";
 
-function clearTextOutputReceipts() {
+export function clearTextOutputReceipts() {
   lastRenderedTextArtifacts.unicode = null;
   lastRenderedTextArtifacts.ascii = null;
   ["unicode", "ascii"].forEach(function(format) {
@@ -174,16 +220,17 @@ function clearTextOutputReceipts() {
   });
 }
 
-function retainTextOutputArtifact(format, artifact) {
+
+export function retainTextOutputArtifact(format, artifact) {
   if (!artifact || !artifact.receipt) throw new Error(format + " renderer returned no receipt");
   if (artifact.receipt.output !== format) throw new Error(format + " renderer returned a " + artifact.receipt.output + " receipt");
   if (!hasCurrentVerifiedSvgArtifact()) {
     throw new Error(format + " output requires a current verified SVG preview");
   }
-  if (artifact.receipt.sharedRequestDigest !== lastRenderedSvgArtifact.receipt.sharedRequestDigest) {
+  if (artifact.receipt.sharedRequestDigest !== ui.lastRenderedSvgArtifact.receipt.sharedRequestDigest) {
     throw new Error(format + " output and SVG preview do not describe the same render request");
   }
-  if (artifact.receipt.appearanceDigest !== lastRenderedSvgArtifact.receipt.appearanceDigest) {
+  if (artifact.receipt.appearanceDigest !== ui.lastRenderedSvgArtifact.receipt.appearanceDigest) {
     throw new Error(format + " output and SVG preview do not describe the same appearance");
   }
   lastRenderedTextArtifacts[format] = artifact;
@@ -192,60 +239,32 @@ function retainTextOutputArtifact(format, artifact) {
   previewInner.dataset[format + "AppearanceDigest"] = artifact.receipt.appearanceDigest;
 }
 
-function textOutputKey(source) {
-  return source + "\n" + JSON.stringify(buildOptions());
+
+export function textOutputKey(source) {
+  return source + "\n" + JSON.stringify(ui.lastRenderedSvgOptions || buildOptions());
 }
 
-function activeCanvasFormat() {
+
+export function activeCanvasFormat() {
   return typeof currentCanvasFormat === "string" ? currentCanvasFormat : "diagram";
 }
 
-function markTextOutputsDirty() {
+
+export function markTextOutputsDirty() {
   textOutputCacheKey = "";
   clearTextOutputReceipts();
 }
 
-var VERIFY_TIER_BY_CODE = {
-  RENDER_FAILED: "structural",
-  EMPTY_DIAGRAM: "structural",
-  EDGE_MISANCHORED: "structural",
-  OFF_CANVAS: "structural",
-  GROUP_BREACH: "structural",
-  UNKNOWN_SHAPE: "structural",
-  LABEL_OVERFLOW: "structural",
-  UNRESOLVABLE_SCHEDULE: "structural",
-  NODE_OVERLAP: "geometric",
-  ROUTE_SELF_CROSS: "geometric",
-  ROUTE_HITCH: "geometric",
-  ROUTE_UNEXPLAINED_BEND: "geometric",
-  ROUTE_LABEL_ON_SHARED_TRUNK: "geometric",
-  ROUTE_SELF_LOOP_OCCUPANCY: "geometric",
-  ROUTE_CONTAINER_MISANCHOR: "geometric",
-  ROUTE_SHAPE_MISANCHOR: "geometric",
-  ROUTE_STALE_AFTER_NODE_MOVE: "geometric",
-  DUPLICATE_EDGE: "lint",
-  UNREACHABLE_NODE: "lint",
-  DECISION_BRANCH_UNLABELED: "lint",
-  INEFFECTIVE_CONFIG: "lint",
-  COMMENT_DROPPED: "lint",
-  UNSUPPORTED_SYNTAX: "lint",
-  CONTENT_DROPPED_ON_ROUNDTRIP: "lint",
-};
 
-function setVerifyTier(el, labelEl, stateName, text) {
+export function setVerifyTier(el, labelEl, stateName, text) {
   if (!el || !labelEl) return;
   el.classList.remove("ok", "warn", "err", "idle");
   el.classList.add(stateName);
   labelEl.textContent = text;
 }
 
-// Verify-clear moment: when a tier goes from carrying warnings to Clear after
-// an edit, pulse a `tier-cleared` class on the chip for ~1s so CSS can animate
-// the transition. Counts of -1 mean "unknown" (initial load / reset), which
-// never pulses.
-var lastVerifyTierCounts = { structural: -1, geometric: -1, lint: -1 };
 
-function markTierCleared(el, tier, count) {
+export function markTierCleared(el, tier, count) {
   var prev = lastVerifyTierCounts[tier];
   lastVerifyTierCounts[tier] = count;
   if (!el || count !== 0 || prev <= 0) return;
@@ -255,13 +274,15 @@ function markTierCleared(el, tier, count) {
   setTimeout(function() { el.classList.remove("tier-cleared"); }, 1000);
 }
 
-function resetVerifyTierCounts() {
+
+export function resetVerifyTierCounts() {
   lastVerifyTierCounts.structural = -1;
   lastVerifyTierCounts.geometric = -1;
   lastVerifyTierCounts.lint = -1;
 }
 
-function resetVerifyPanel(summary) {
+
+export function resetVerifyPanel(summary) {
   if (verifySummary) verifySummary.textContent = summary || "Waiting for source";
   setVerifyTier(verifyTierStructural, verifyStructural, "idle", "Not run");
   setVerifyTier(verifyTierGeometric, verifyGeometric, "idle", "Not run");
@@ -270,10 +291,11 @@ function resetVerifyPanel(summary) {
   updateVerifyDetails([]);
 }
 
+
 // Each verify warning is a typed object ({ code, ...fields }); render the
 // non-code fields as "key value" prose so the disclosure stays honest to the
 // structured payload without hardcoding per-code copy.
-function describeVerifyWarning(w) {
+export function describeVerifyWarning(w) {
   if (!w || typeof w !== "object") return "";
   if (w.message) return String(w.message);
   var parts = [];
@@ -289,7 +311,8 @@ function describeVerifyWarning(w) {
   return parts.join(", ");
 }
 
-function verifyWarningLocation(w) {
+
+export function verifyWarningLocation(w) {
   if (!w) return "";
   if (typeof w.line === "number") return "line " + w.line;
   if (Array.isArray(w.lines) && w.lines.length) {
@@ -298,15 +321,17 @@ function verifyWarningLocation(w) {
   return "";
 }
 
-function setVerifyDetailsOpen(open) {
+
+export function setVerifyDetailsOpen(open) {
   if (!verifyDetailsBtn || !verifyDetails) return;
   verifyDetails.hidden = !open;
   verifyDetailsBtn.setAttribute("aria-expanded", open ? "true" : "false");
 }
 
+
 // The disclosure lists each warning's stable code (linked to its docs page),
 // prose, and source location. The collapsed tier counts stay the default view.
-function updateVerifyDetails(warnings) {
+export function updateVerifyDetails(warnings) {
   if (!verifyDetailsBtn || !verifyDetailsList) return;
   if (!warnings.length) {
     verifyDetailsBtn.hidden = true;
@@ -329,37 +354,34 @@ function updateVerifyDetails(warnings) {
   }).join("");
 }
 
-if (verifyDetailsBtn) {
-  verifyDetailsBtn.addEventListener("click", function() {
-    setVerifyDetailsOpen(verifyDetails.hidden);
-  });
-}
 
-function updateVerifyPanel(source, renderOptions) {
-  if (!verifyMermaid) {
+export function updateVerifyPanel(source, renderOptions, providedResult) {
+  if (!verifyMermaid && !providedResult) {
     resetVerifyPanel("Verify unavailable in this build");
     return null;
   }
   try {
-    var result = verifyMermaid(source, { renderOptions: renderOptions });
+    var result = providedResult || verifyMermaid(source, { renderOptions: renderOptions });
     var warnings = result && Array.isArray(result.warnings) ? result.warnings : [];
     var counts = { structural: 0, geometric: 0, lint: 0 };
+    var errors = { structural: 0, geometric: 0, lint: 0 };
     warnings.forEach(function(w) {
       var tier = VERIFY_TIER_BY_CODE[w && w.code] || "lint";
       counts[tier]++;
+      if (VERIFY_SEVERITY_BY_CODE[w && w.code] === "error") errors[tier]++;
     });
     updateVerifyDetails(warnings);
-    var structuralState = counts.structural ? (result.ok ? "warn" : "err") : "ok";
+    var structuralState = counts.structural ? (errors.structural ? "err" : "warn") : "ok";
     setVerifyTier(verifyTierStructural, verifyStructural, structuralState, counts.structural ? counts.structural + " warning" + (counts.structural === 1 ? "" : "s") : "Clear");
-    setVerifyTier(verifyTierGeometric, verifyGeometric, counts.geometric ? "warn" : "ok", counts.geometric ? counts.geometric + " advisory" + (counts.geometric === 1 ? "" : " warnings") : "Clear");
-    setVerifyTier(verifyTierLint, verifyLint, counts.lint ? "warn" : "ok", counts.lint ? counts.lint + " note" + (counts.lint === 1 ? "" : "s") : "Clear");
+    setVerifyTier(verifyTierGeometric, verifyGeometric, counts.geometric ? (errors.geometric ? "err" : "warn") : "ok", errors.geometric ? errors.geometric + " error" + (errors.geometric === 1 ? "" : "s") : counts.geometric ? counts.geometric + " advisory" + (counts.geometric === 1 ? "" : " warnings") : "Clear");
+    setVerifyTier(verifyTierLint, verifyLint, counts.lint ? (errors.lint ? "err" : "warn") : "ok", errors.lint ? errors.lint + " error" + (errors.lint === 1 ? "" : "s") : counts.lint ? counts.lint + " note" + (counts.lint === 1 ? "" : "s") : "Clear");
     markTierCleared(verifyTierStructural, "structural", counts.structural);
     markTierCleared(verifyTierGeometric, "geometric", counts.geometric);
     markTierCleared(verifyTierLint, "lint", counts.lint);
     if (verifySummary) {
-      if (result.ok && warnings.length === 0) verifySummary.textContent = "Verified: no warnings";
+      if (result.ok && warnings.length === 0) verifySummary.textContent = "Render checks passed: no warnings";
       else if (result.ok) verifySummary.textContent = "Verified with review notes";
-      else verifySummary.textContent = "Fix structural warnings before export";
+      else verifySummary.textContent = "Fix verification errors before export";
     }
     return result;
   } catch (err) {
@@ -372,7 +394,8 @@ function updateVerifyPanel(source, renderOptions) {
   }
 }
 
-function fitUnicodeOutput() {
+
+export function fitUnicodeOutput() {
   if (!unicodeOutput) return;
   var wrap = document.getElementById('unicode-output-wrap');
   if (!wrap) return;
@@ -391,21 +414,16 @@ function fitUnicodeOutput() {
   });
 }
 
-// Text outputs render lazily: doRender only marks them dirty, and they render
-// when a text canvas view is actually active (doRender's activeCanvasFormat
-// check, or buttons.js calling ensureTextOutputs on view switch). Past the
-// line cap the pane shows a structured too-large message instead of running
-// the receipt-bearing terminal renderer synchronously on a huge diagram.
-var TEXT_RENDER_MAX_LINES = 300;
 
-function countSourceLines(source) {
+export function countSourceLines(source) {
   var lines = String(source || "").split("\n");
   var n = 0;
   for (var i = 0; i < lines.length; i++) if (lines[i].trim()) n++;
   return n;
 }
 
-function renderTextOutputs(source) {
+
+export async function renderTextOutputs(source) {
   if (!renderMermaidAsciiWithReceipt || !renderMermaidUnicodeWithReceipt) return;
   if (!hasCurrentVerifiedSvgArtifact()) {
     markTextOutputsDirty();
@@ -413,6 +431,7 @@ function renderTextOutputs(source) {
     return;
   }
   var key = textOutputKey(source);
+  var svgArtifactAtStart = ui.lastRenderedSvgArtifact;
   if (textOutputCacheKey === key) {
     if (activeCanvasFormat() === "unicode") fitUnicodeOutput();
     return;
@@ -427,9 +446,14 @@ function renderTextOutputs(source) {
     return;
   }
   try {
-    var opts = Object.assign({}, buildOptions(), { colorMode: "none" });
-    var unicodeArtifact = renderMermaidUnicodeWithReceipt(source, opts);
-    var asciiArtifact = renderMermaidAsciiWithReceipt(source, Object.assign({}, opts, { useAscii: true }));
+    var opts = Object.assign({}, ui.lastRenderedSvgOptions || buildOptions(), { colorMode: "none" });
+    var artifacts = await Promise.all([
+      renderMermaidUnicodeWithReceipt(source, opts),
+      renderMermaidAsciiWithReceipt(source, Object.assign({}, opts, { useAscii: true }))
+    ]);
+    if (source !== currentEditorSource() || ui.lastRenderedSvgArtifact !== svgArtifactAtStart) return;
+    var unicodeArtifact = artifacts[0];
+    var asciiArtifact = artifacts[1];
     retainTextOutputArtifact("unicode", unicodeArtifact);
     retainTextOutputArtifact("ascii", asciiArtifact);
     setTextOutputs(
@@ -439,13 +463,15 @@ function renderTextOutputs(source) {
     textOutputCacheKey = key;
     if (activeCanvasFormat() === "unicode") fitUnicodeOutput();
   } catch (err) {
+    if (source !== currentEditorSource() || ui.lastRenderedSvgArtifact !== svgArtifactAtStart) return;
     textOutputCacheKey = "";
     clearTextOutputReceipts();
     setTextOutputs("Text output failed: " + String(err || "unknown error"), "Text output failed: " + String(err || "unknown error"));
   }
 }
 
-function ensureTextOutputs(source) {
+
+export function ensureTextOutputs(source) {
   source = source || editor.value.trim();
   if (!source || !hasCurrentVerifiedSvgArtifact()) {
     markTextOutputsDirty();
@@ -458,12 +484,15 @@ function ensureTextOutputs(source) {
   renderTextOutputs(source);
 }
 
-async function doRender(version) {
+
+export async function doRender(version) {
   if (typeof version !== "number") version = ++renderRequestVersion;
   if (typeof cancelPreviewMotion === 'function') cancelPreviewMotion();
   clearRenderSpinner();
   var source = currentEditorSource();
   if (!source) {
+    paneFitPresentationPending = true;
+    if (runtimeRecovery) runtimeRecovery.hidden = true;
     if (!isCurrentRender(version, source)) return;
     previewInner.innerHTML = emptyPreviewHtml();
     markTextOutputsDirty();
@@ -475,9 +504,11 @@ async function doRender(version) {
     delete previewInner.dataset.sharedRequestDigest;
     delete previewInner.dataset.renderRequestDigest;
     delete previewInner.dataset.appearanceDigest;
-    lastRenderedSvgArtifact = null;
+    ui.lastRenderedSvgArtifact = null;
     resetVerifyPanel("Waiting for source");
     if (typeof updateExportAvailability === "function") updateExportAvailability();
+    if (typeof refreshC4Navigation === "function") refreshC4Navigation();
+  if (typeof refreshDiagramTools === "function") refreshDiagramTools();
     return;
   }
 
@@ -487,24 +518,40 @@ async function doRender(version) {
   }, 250);
 
   try {
+    if (state.fitLabelsToPane && typeof window.__mermaid.prepareEditorRenderOptions === 'function') {
+      await window.__mermaid.prepareEditorRenderOptions(state);
+      if (!isCurrentRender(version, source)) return;
+    }
     var renderOptions = buildOptions();
+    lastPaneFitKey = state.fitLabelsToPane ? paneFitKey() : null;
     var rendered = await Promise.resolve(renderMermaidWithReceipt(source, renderOptions));
+    var commitStarted = performance.now();
     var svg = rendered.svg;
-    if (!isCurrentRender(version, source)) return;
+    if (!isCurrentRender(version, source) || JSON.stringify(renderOptions) !== JSON.stringify(buildOptions())) return;
     var svgSafety = verifyNoExternalRefs(svg);
     if (!svgSafety.ok) throw new Error("Unsafe SVG output blocked: " + svgSafety.refs.join(", "));
-    var renderMs = performance.now() - t0;
-    var ms = renderMs.toFixed(0);
-    lastSuccessfulRenderMs = renderMs;
     insertStrictRenderedSvg(svg);
+    var familyId = rendered.receipt.executionDecision && rendered.receipt.executionDecision.family.id;
+    var fittingPane = state.fitLabelsToPane && (familyId === 'family:pie' || familyId === 'family:radar');
+    if (!fittingPane) paneFitPresentationPending = true;
+    else if (paneFitPresentationPending) {
+      state.zoom = 1;
+      autoFitPending = false;
+      paneFitPresentationPending = false;
+    }
     applyZoom(state.zoom);
     if (autoFitPending && typeof fitToView === 'function') { fitToView(); autoFitPending = false; }
     setEditorErrorLine(0);
-    renderTime.textContent = "Rendered in " + ms + "ms";
-    var verification = updateVerifyPanel(source, renderOptions);
+    var verification = updateVerifyPanel(source, renderOptions, rendered.verification);
+    var renderMs = performance.now() - t0;
+    // Worker, queue and startup time do not block input. The bounded worker
+    // queue limits background work; debounce follows the remaining UI cost.
+    lastSuccessfulUiMs = Number.isFinite(rendered.computeMs) ? performance.now() - commitStarted : renderMs;
+    renderTime.textContent = "Rendered and verified in " + renderMs.toFixed(0) + "ms";
     markTextOutputsDirty();
     if (verification && verification.ok) {
-      lastRenderedSvgArtifact = rendered;
+      ui.lastRenderedSvgArtifact = rendered;
+      ui.lastRenderedSvgOptions = renderOptions;
       lastRenderedSvgSource = source;
       previewInner.dataset.sharedRequestDigest = rendered.receipt.sharedRequestDigest;
       previewInner.dataset.renderRequestDigest = rendered.receipt.requestDigest;
@@ -514,7 +561,7 @@ async function doRender(version) {
       statusDot.className = "status-dot ok";
       if (activeCanvasFormat() !== "diagram") renderTextOutputs(source);
     } else {
-      lastRenderedSvgArtifact = null;
+      ui.lastRenderedSvgArtifact = null;
       lastRenderedSvgSource = null;
       delete previewInner.dataset.sharedRequestDigest;
       delete previewInner.dataset.renderRequestDigest;
@@ -525,6 +572,8 @@ async function doRender(version) {
       statusDot.className = "status-dot err";
     }
     if (typeof updateExportAvailability === "function") updateExportAvailability();
+    if (typeof refreshC4Navigation === "function") refreshC4Navigation(true);
+    if (typeof refreshDiagramTools === "function") refreshDiagramTools();
     if (verification && verification.ok) updateHash();
   } catch (err) {
     if (!isCurrentRender(version, source)) return;
@@ -533,7 +582,7 @@ async function doRender(version) {
     delete previewInner.dataset.sharedRequestDigest;
     delete previewInner.dataset.renderRequestDigest;
     delete previewInner.dataset.appearanceDigest;
-    lastRenderedSvgArtifact = null;
+    ui.lastRenderedSvgArtifact = null;
     lastRenderedSvgSource = null;
     var errorLoc = extractErrorLocation(String(err || ""));
     setEditorErrorLine(errorLoc ? errorLoc.line : 0);
@@ -542,11 +591,81 @@ async function doRender(version) {
     statusDot.className = "status-dot err";
     renderTime.textContent = "Failed in " + ms + "ms";
     markTextOutputsDirty();
-    resetVerifyPanel("Parse or render failed");
-    setVerifyTier(verifyTierStructural, verifyStructural, "err", "Fix source first");
-    setTextOutputs("Fix the render error to see Unicode output.", "Fix the render error to see ASCII output.");
+    if (err && err.name === 'PreviewRuntimeLoadError') {
+      resetVerifyPanel("Editor code unavailable; verification not run");
+      setTextOutputs("Retry or reload the editor to see Unicode output.", "Retry or reload the editor to see ASCII output.");
+    } else {
+      resetVerifyPanel("Parse or render failed");
+      setVerifyTier(verifyTierStructural, verifyStructural, "err", "Fix source first");
+      setTextOutputs("Fix the render error to see Unicode output.", "Fix the render error to see ASCII output.");
+    }
     if (typeof updateExportAvailability === "function") updateExportAvailability();
+    if (typeof refreshC4Navigation === "function") refreshC4Navigation();
+  if (typeof refreshDiagramTools === "function") refreshDiagramTools();
   } finally {
     if (version === renderRequestVersion) clearRenderSpinner();
   }
+}
+
+export function initialize() {
+renderTimer = null;
+
+renderSpinnerTimer = null;
+
+renderRequestVersion = 0;
+
+lastSuccessfulUiMs = null;
+
+autoFitPending = true;
+
+// Exact canonical artifact inserted into the preview. Export adapters derive
+// from this record/source, never from a host-mutated preview DOM.
+ui.lastRenderedSvgArtifact = null;
+ui.lastRenderedSvgOptions = null;
+lastPaneWidth = undefined;
+lastPaneFitKey = null;
+paneFitPresentationPending = true;
+if (paneWidthObserver) paneWidthObserver.disconnect();
+if (typeof previewBody !== 'undefined' && previewBody && typeof ResizeObserver !== 'undefined') {
+  paneWidthObserver = new ResizeObserver(refreshPaneFitting);
+  paneWidthObserver.observe(previewBody);
+} else if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('resize', refreshPaneFitting);
+}
+
+lastRenderedSvgSource = null;
+
+// Text views and their copy/export action retain the same receipt-bearing
+// artifacts as SVG/PNG instead of reducing them to strings at render time.
+lastRenderedTextArtifacts = { unicode: null, ascii: null };
+
+
+textOutputCacheKey = "";
+
+
+VERIFY_TIER_BY_CODE = (window.__mermaid && window.__mermaid.WARNING_TIER) || {};
+
+VERIFY_SEVERITY_BY_CODE = (window.__mermaid && window.__mermaid.WARNING_SEVERITY) || {};
+
+
+// Verify-clear moment: when a tier goes from carrying warnings to Clear after
+// an edit, pulse a `tier-cleared` class on the chip for ~1s so CSS can animate
+// the transition. Counts of -1 mean "unknown" (initial load / reset), which
+// never pulses.
+lastVerifyTierCounts = { structural: -1, geometric: -1, lint: -1 };
+
+
+if (verifyDetailsBtn) {
+  verifyDetailsBtn.addEventListener("click", function() {
+    setVerifyDetailsOpen(verifyDetails.hidden);
+  });
+}
+
+
+// Text outputs render lazily: doRender only marks them dirty, and they render
+// when a text canvas view is actually active (doRender's activeCanvasFormat
+// check, or buttons.js calling ensureTextOutputs on view switch). Past the
+// line cap the pane shows a structured too-large message instead of running
+// the receipt-bearing terminal renderer synchronously on a huge diagram.
+TEXT_RENDER_MAX_LINES = 300;
 }

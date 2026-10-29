@@ -1,3 +1,4 @@
+import { renderedPaintCertification } from '../scene/paint-certification.ts'
 // ============================================================================
 // Perceptual quality metrics for rendered diagrams.
 //
@@ -6,10 +7,10 @@
 // (which is itself deterministic, see AGENT_NATIVE.md § determinism).
 //
 // What's measured:
-//   - edgeCrossings: number of pairwise edge-segment intersections (excluding
-//     shared endpoints). Lower is better.
-//   - labelLegibility: fraction of node labels whose rendered length fits the
-//     node's width at a 12px font baseline.
+//   - edgeCrossings: visible proper crossing incidences per edge pair/location
+//     (excluding endpoint contacts and shared collinear ink). Lower is better.
+//   - labelLegibility: fraction of measured visible node labels that fit their
+//     retained available region. Missing evidence is reported separately.
 //   - whitespaceBalance: ratio of node-occupied area to total canvas area
 //     (0..1). Targets a band — too dense AND too sparse both lose points.
 //   - labelEdgeProximity: min pixel distance between any edge-label bbox and
@@ -22,16 +23,39 @@
 // ============================================================================
 
 import type { RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge } from './types.ts'
-import { measureMultilineText } from '../text-metrics.ts'
-import { FONT_SIZES, FONT_WEIGHTS } from '../styles.ts'
 import { luminanceContrastRatio, srgbRelativeLuminance, tryParseCssColor } from '../shared/color-math.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import { countPolylineCrossings } from '../shared/edge-crossings.ts'
+import { measureRenderedLabelConflicts, type LabelConflictCounts } from '../layout/label-conflicts.ts'
+import { countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
 
 export interface QualityMetrics {
+  /** Evidence from the actual native paint projection, when this layout retains it. */
+  paintCertification?: import('../scene/paint-certification.ts').PaintLayoutCertification
   edgeCrossings: number
   labelLegibility: number  // 0..1 — fraction of labels that fit
+  labelMeasurement: {
+    measuredNodes: number
+    unmeasuredNodes: number
+    hiddenNodes: number
+    semanticNodes: number
+    measuredEdges: number
+    unmeasuredEdges: number
+    measuredLabels: number
+    unmeasuredLabels: number
+    hiddenLabels: number
+    semanticLabels: number
+  }
   whitespaceBalance: number  // 0..1 — fill ratio
   labelEdgeProximity: number  // pixels; Infinity if no edge labels
+  /** Padded label-pill conflicts for graph families with retained pill geometry. */
+  labelConflicts?: LabelConflictCounts
+  /** Visible graph edge pairs sharing collinear ink. These remain distinct
+   * from proper crossings; hiding a crossing in shared ink is not a win.
+   * Parallel excludes self-loops, matching the existing route rubric. */
+  routeOverlaps?: { parallel: number; opposing: number }
+  /** Raw visible polyline geometry, without subjective bundle/bend exemptions. */
+  routeGeometry?: { bends: number; length: number; area: number }
   minimumNodeSpacing: number  // pixels; Infinity when fewer than two nodes
   elementDensity: number  // nodes + edges per 10,000 canvas pixels
   minimumTextContrast: number | null  // WCAG ratio; null when requested paints cannot be resolved
@@ -41,7 +65,7 @@ export interface QualityMetrics {
 }
 
 export interface QualityBounds {
-  /** Max edge crossings per (edge × edge) pair. Default 0.05 = 5%. */
+  /** Max proper crossing incidences per visible edge pair. Default 0.05 = 5%. */
   maxCrossingsRatio?: number
   /** Min label legibility. Default 0.85 = 85% of labels fit. */
   minLabelLegibility?: number
@@ -114,17 +138,21 @@ export interface BoundProvenance {
 
 /** Per-metric provenance. Keyed by the QualityMetrics field each bound gates. */
 export const BOUND_PROVENANCE: Record<
-  'edgeCrossings' | 'labelLegibility' | 'whitespaceBalance' | 'labelEdgeProximity' |
+  'paintCertification' | 'edgeCrossings' | 'labelLegibility' | 'whitespaceBalance' | 'labelEdgeProximity' |
   'minimumNodeSpacing' | 'elementDensity' | 'minimumTextContrast' | 'aspectRatio',
   BoundProvenance
 > = {
+  paintCertification: {
+    basis: 'derived', severity: 'primary',
+    note: 'Final native paint evidence reports visibility and bounded inspection separately from label fit.',
+  },
   edgeCrossings: {
     basis: 'evidence', severity: 'primary',
     note: 'Crossings are the single aesthetic with the strongest human-subject evidence (Purchase 1997/2002). Weight this violation highest.',
   },
   labelLegibility: {
     basis: 'derived', severity: 'secondary',
-    note: 'Labels that exceed node width are mechanically unreadable; the 7px/char model under-estimates fit under condensed fonts.',
+    note: 'Prepared text must fit its retained available region. Labels without retained geometry are reported as unmeasured.',
   },
   labelEdgeProximity: {
     basis: 'chosen', severity: 'secondary',
@@ -168,19 +196,52 @@ export const BOUND_PROVENANCE: Record<
 // counts as justified, while an off-lane jog with a clear straight lane (hitches)
 // or a bend on a 'straight'-certified edge (unexplainedBends) stays a violation.
 
-const CHAR_PX = 7  // approx character width at 12px font
-const EDGE_LABEL_BOX_PADDING = 8
 const GEOM_EPS = 1e-9
 
 export function measureQuality(
   layout: RenderedLayout,
   options: QualityMeasurementOptions = {},
 ): QualityMetrics {
+  const labelConflicts = measureRenderedLabelConflicts(layout)
+  const graphEdges = layout.edges.map(edge => ({
+    source: edge.from, target: edge.to, style: edge.visibility === 'hidden' ? 'invisible' as const : 'solid' as const,
+    points: edge.path.map(([x, y]) => ({ x, y })),
+  }))
+  let bends = 0, length = 0
+  for (const edge of layout.edges) {
+    if (edge.visibility === 'hidden') continue
+    let previous: readonly [number, number] | undefined
+    for (let i = 1; i < edge.path.length; i++) {
+      const a = edge.path[i - 1]!, b = edge.path[i]!
+      const dx = b[0] - a[0], dy = b[1] - a[1], span = Math.hypot(dx, dy)
+      if (span <= GEOM_EPS) continue
+      const ray = [dx / span, dy / span] as const
+      if (previous && (Math.abs(previous[0] * ray[1] - previous[1] * ray[0]) > GEOM_EPS || previous[0] * ray[0] + previous[1] * ray[1] < 0)) bends++
+      previous = ray
+      length += span
+    }
+  }
   return {
+    ...(renderedPaintCertification(layout) ? { paintCertification: renderedPaintCertification(layout) } : {}),
     edgeCrossings: countEdgeCrossings(layout.edges),
-    labelLegibility: measureLabelLegibility(layout.nodes),
+    labelLegibility: measureLabelLegibility(layout),
+    labelMeasurement: {
+      measuredNodes: layout.nodes.filter(node => node.label && node.labelVisibility !== 'hidden' && node.labelVisibility !== 'semantic' && node.labelBounds).length,
+      unmeasuredNodes: layout.nodes.filter(node => node.label && node.labelVisibility !== 'hidden' && node.labelVisibility !== 'semantic' && !node.labelBounds).length,
+      hiddenNodes: layout.nodes.filter(node => node.label && node.labelVisibility === 'hidden').length,
+      semanticNodes: layout.nodes.filter(node => node.label && node.labelVisibility === 'semantic').length,
+      measuredEdges: layout.edges.filter(edge => edge.label?.bounds).length,
+      unmeasuredEdges: layout.edges.filter(edge => edge.label && !edge.label.bounds).length,
+      measuredLabels: (layout.labels ?? []).filter(label => label.text && label.visibility !== 'hidden' && label.visibility !== 'semantic' && label.bounds).length,
+      unmeasuredLabels: (layout.labels ?? []).filter(label => label.text && label.visibility !== 'hidden' && label.visibility !== 'semantic' && !label.bounds).length,
+      hiddenLabels: (layout.labels ?? []).filter(label => label.text && label.visibility === 'hidden').length,
+      semanticLabels: (layout.labels ?? []).filter(label => label.text && label.visibility === 'semantic').length,
+    },
     whitespaceBalance: measureWhitespaceBalance(layout),
     labelEdgeProximity: measureLabelEdgeProximity(layout),
+    ...(labelConflicts ? { labelConflicts } : {}),
+    routeOverlaps: { parallel: countParallelRouteOverlaps(graphEdges), opposing: countOpposingRouteOverlaps(graphEdges) },
+    routeGeometry: { bends, length, area: layout.bounds.w * layout.bounds.h },
     minimumNodeSpacing: measureMinimumNodeSpacing(layout),
     elementDensity: measureElementDensity(layout),
     minimumTextContrast: measureMinimumTextContrast(options),
@@ -217,14 +278,29 @@ export function checkQuality(
   const ranked: RankedViolation[] = []
   const flag = (metric: keyof typeof BOUND_PROVENANCE, message: string) =>
     ranked.push({ metric, severity: BOUND_PROVENANCE[metric].severity, message })
-  const pairs = Math.max(1, m.edgeCount * (m.edgeCount - 1) / 2)
+  if (m.paintCertification && m.paintCertification.status !== 'passed') flag('paintCertification', `paint layout ${m.paintCertification.status}: ${m.paintCertification.issues.map(issue => issue.message).join('; ')}`)
+  const visibleEdges = layout.edges.reduce((count, edge) => count + (edge.visibility === 'hidden' ? 0 : 1), 0)
+  const pairs = Math.max(1, visibleEdges * (visibleEdges - 1) / 2)
   if (m.edgeCrossings / pairs > b.maxCrossingsRatio) {
     flag('edgeCrossings', `edge crossings ${m.edgeCrossings}/${pairs} (${(m.edgeCrossings / pairs * 100).toFixed(1)}%) > cap ${(b.maxCrossingsRatio * 100).toFixed(1)}%`)
   }
   if (m.labelLegibility < b.minLabelLegibility) {
     flag('labelLegibility', `label legibility ${(m.labelLegibility * 100).toFixed(0)}% < min ${(b.minLabelLegibility * 100).toFixed(0)}%`)
   }
-  if (m.whitespaceBalance < b.whitespaceBand[0] || m.whitespaceBalance > b.whitespaceBand[1]) {
+  if (m.labelMeasurement.unmeasuredNodes > 0) {
+    flag('labelLegibility', `label fit unmeasured for ${m.labelMeasurement.unmeasuredNodes} visible labels`)
+  }
+  if (m.labelMeasurement.unmeasuredEdges > 0) {
+    flag('labelEdgeProximity', `edge-label clearance unmeasured for ${m.labelMeasurement.unmeasuredEdges} labels`)
+  }
+  if (m.labelMeasurement.unmeasuredLabels > 0) {
+    flag('labelLegibility', `label fit unmeasured for ${m.labelMeasurement.unmeasuredLabels} painted labels`)
+  }
+  // Data plots preserve authored positions inside a fixed plot. Occupied mark
+  // area is diagnostic; enlarging/moving marks to hit a box-fill band corrupts
+  // their meaning. Box-based diagrams retain the existing density gate.
+  const fixedDataPlot = layout.kind === 'quadrant' || layout.kind === 'xychart' || layout.kind === 'radar'
+  if ((!fixedDataPlot || bounds.whitespaceBand !== undefined) && (m.whitespaceBalance < b.whitespaceBand[0] || m.whitespaceBalance > b.whitespaceBand[1])) {
     flag('whitespaceBalance', `whitespace balance ${(m.whitespaceBalance * 100).toFixed(1)}% outside band [${b.whitespaceBand[0] * 100}–${b.whitespaceBand[1] * 100}]%`)
   }
   if (m.labelEdgeProximity < b.minLabelEdgeProximity) {
@@ -295,6 +371,8 @@ function radarMarkIdentity(node: RenderedLayoutNode): RadarMarkIdentity | undefi
 }
 
 function spacingComparable(kind: RenderedLayout['kind'], a: RenderedLayoutNode, b: RenderedLayoutNode): boolean {
+  if (kind === 'quadrant' && a.dataPosition && b.dataPosition &&
+      a.dataPosition.x === b.dataPosition.x && a.dataPosition.y === b.dataPosition.y) return false
   if (kind === 'xychart') {
     const left = xyMarkIdentity(a)
     const right = xyMarkIdentity(b)
@@ -426,43 +504,29 @@ function measureMinimumTextContrast(options: QualityMeasurementOptions): number 
 // ---- crossings -----------------------------------------------------------
 
 function countEdgeCrossings(edges: RenderedLayoutEdge[]): number {
-  let count = 0
-  for (let i = 0; i < edges.length; i++) {
-    for (let j = i + 1; j < edges.length; j++) {
-      const a = edges[i]!, b = edges[j]!
-      // Shared endpoints — not a "crossing" in the visual sense.
-      const shared = a.from === b.from || a.from === b.to || a.to === b.from || a.to === b.to
-      const ap = a.path, bp = b.path
-      for (let ai = 0; ai < ap.length - 1; ai++) {
-        for (let bi = 0; bi < bp.length - 1; bi++) {
-          if (shared && (ai === 0 || ai === ap.length - 2) && (bi === 0 || bi === bp.length - 2)) continue
-          if (segmentsCross(ap[ai]!, ap[ai + 1]!, bp[bi]!, bp[bi + 1]!)) count++
-        }
-      }
-    }
-  }
-  return count
-}
-
-function segmentsCross(p1: [number, number], p2: [number, number], p3: [number, number], p4: [number, number]): boolean {
-  const d = (a: [number, number], b: [number, number], c: [number, number]): number =>
-    (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
-  const d1 = d(p3, p4, p1), d2 = d(p3, p4, p2)
-  const d3 = d(p1, p2, p3), d4 = d(p1, p2, p4)
-  return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))
+  return countPolylineCrossings(edges.map(edge => ({
+    points: edge.path.map(([x, y]) => ({ x, y })), visible: edge.visibility !== 'hidden',
+  })))
 }
 
 // ---- label legibility -----------------------------------------------------
 
-function measureLabelLegibility(nodes: RenderedLayoutNode[]): number {
-  if (nodes.length === 0) return 1
+function measureLabelLegibility(layout: RenderedLayout): number {
+  const canvas = { x: 0, y: 0, w: layout.bounds.w, h: layout.bounds.h }
+  const labels = [
+    ...layout.nodes.map(node => ({ text: node.label, bounds: node.labelBounds, container: node.labelContainer ?? nodeBox(node), visibility: node.labelVisibility })),
+    ...(layout.labels ?? []).map(label => ({ ...label, container: label.container ?? canvas })),
+  ]
+  const measured = labels.filter(label => label.text && label.visibility !== 'hidden' && label.visibility !== 'semantic' && label.bounds)
+  if (measured.length === 0) return 1
   let fits = 0
-  for (const n of nodes) {
-    if (!n.label) { fits++; continue }
-    const renderedWidth = n.label.length * CHAR_PX
-    if (renderedWidth <= n.w) fits++
+  for (const n of measured) {
+    const text = n.bounds!
+    const region = n.container
+    if (text.x >= region.x - GEOM_EPS && text.y >= region.y - GEOM_EPS &&
+        text.x + text.w <= region.x + region.w + GEOM_EPS && text.y + text.h <= region.y + region.h + GEOM_EPS) fits++
   }
-  return fits / nodes.length
+  return fits / measured.length
 }
 
 // ---- whitespace balance --------------------------------------------------
@@ -482,13 +546,6 @@ type Point = [number, number]
 
 function nodeBox(n: RenderedLayoutNode): Rect {
   return { x: n.x, y: n.y, w: n.w, h: n.h }
-}
-
-function edgeLabelBox(label: NonNullable<RenderedLayoutEdge['label']>): Rect {
-  const metrics = measureMultilineText(label.text, FONT_SIZES.edgeLabel, FONT_WEIGHTS.edgeLabel)
-  const w = metrics.width + EDGE_LABEL_BOX_PADDING * 2
-  const h = metrics.height + EDGE_LABEL_BOX_PADDING * 2
-  return { x: label.x - w / 2, y: label.y - h / 2, w, h }
 }
 
 function rectDistance(a: Rect, b: Rect): number {
@@ -569,8 +626,8 @@ function rectToSegmentDistance(r: Rect, a: Point, b: Point): number {
 function measureLabelEdgeProximity(layout: RenderedLayout): number {
   let min = Infinity
   const labels = layout.edges
-    .filter((e): e is RenderedLayoutEdge & { label: NonNullable<RenderedLayoutEdge['label']> } => e.label !== undefined)
-    .map(e => ({ edge: e, box: edgeLabelBox(e.label) }))
+    .filter((e): e is RenderedLayoutEdge & { label: NonNullable<RenderedLayoutEdge['label']> & { bounds: Rect } } => e.label?.bounds !== undefined)
+    .map(e => ({ edge: e, box: e.label.bounds }))
 
   for (const { edge, box } of labels) {
     for (const n of layout.nodes) {
@@ -587,7 +644,7 @@ function measureLabelEdgeProximity(layout: RenderedLayout): number {
   }
   for (const { edge, box } of labels) {
     for (const other of layout.edges) {
-      if (other === edge) continue
+      if (other === edge || other.visibility === 'hidden') continue
       for (let i = 0; i < other.path.length - 1; i++) {
         const d = rectToSegmentDistance(box, other.path[i]!, other.path[i + 1]!)
         if (d < min) min = d

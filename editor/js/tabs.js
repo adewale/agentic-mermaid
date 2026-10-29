@@ -1,13 +1,16 @@
-var currentLeftPanel = 'code';
-var currentMobilePanel = 'code';
+import { configView, editorView } from './elements.js';
+import { refreshAllColorUIs } from './config-panel.js';
+export var currentLeftPanel, currentMobilePanel;
 
-function setMobilePanel(panel) {
+
+export function setMobilePanel(panel) {
   currentMobilePanel = panel;
   document.body.dataset.mobilePanel = panel;
   syncModeButtons();
 }
 
-function setLeftPanelMode(panel) {
+
+export function setLeftPanelMode(panel) {
   currentLeftPanel = panel === 'config' ? 'config' : 'code';
   if (currentLeftPanel === 'code') {
     editorView.hidden = false;
@@ -28,7 +31,8 @@ function setLeftPanelMode(panel) {
   syncModeButtons();
 }
 
-function syncModeButtons() {
+
+export function syncModeButtons() {
   document.querySelectorAll('[data-left-panel]').forEach(function(btn) {
     var active = btn.dataset.leftPanel === currentLeftPanel;
     btn.classList.toggle('is-active', active);
@@ -41,7 +45,8 @@ function syncModeButtons() {
   });
 }
 
-function activateModeButton(button, focusButton) {
+
+export function activateModeButton(button, focusButton) {
   // Source/Style carry data-left-panel (+ data-mobile-panel); Preview carries
   // only data-mobile-panel. One handler drives both the desktop left-panel tab
   // and the mobile whole-view switch from the same adaptive control.
@@ -53,7 +58,8 @@ function activateModeButton(button, focusButton) {
   if (focusButton) button.focus();
 }
 
-function visibleSegmentButtons(group) {
+
+export function visibleSegmentButtons(group) {
   // offsetParent is null for display:none buttons (e.g. Preview on desktop),
   // so arrow-key nav only cycles the options actually on screen.
   return Array.prototype.slice.call(group.querySelectorAll('.mode-option')).filter(function(b) {
@@ -61,7 +67,8 @@ function visibleSegmentButtons(group) {
   });
 }
 
-function moveWithinSegmentedControl(button, direction) {
+
+export function moveWithinSegmentedControl(button, direction) {
   var group = button.closest('[data-segmented-control]');
   if (!group) return;
   var buttons = visibleSegmentButtons(group);
@@ -75,6 +82,12 @@ function moveWithinSegmentedControl(button, direction) {
   if (next) activateModeButton(next, true);
 }
 
+export function initialize() {
+currentLeftPanel = 'code';
+
+currentMobilePanel = 'code';
+
+
 document.querySelectorAll('[data-segmented-control] .mode-option').forEach(function(button) {
   button.addEventListener('click', function() { activateModeButton(button, false); });
   button.addEventListener('keydown', function(e) {
@@ -84,7 +97,9 @@ document.querySelectorAll('[data-segmented-control] .mode-option').forEach(funct
   });
 });
 
+
 setLeftPanelMode('code');
+
 // Mobile first-run leads with the rendered diagram and the verify bar — the
 // product's proof — instead of the source pane. init.js switches back to
 // Source when it restores an autosaved draft, so returning editors land
@@ -94,3 +109,4 @@ setMobilePanel(
     ? 'preview'
     : 'code'
 );
+}

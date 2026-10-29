@@ -1,13 +1,15 @@
 // Grammar-based differential test: flowchart sources generated from a
-// recursive grammar are parsed by the pinned upstream Mermaid (11.16.0,
+// recursive grammar are parsed by the pinned upstream Mermaid (12.2.0,
 // devDependency) and by our public parser, and the two must agree.
 //
 //   (i)   upstream accepts every generated source — validates the generator;
 //   (ii)  parseRegisteredMermaid accepts it as a structured flowchart;
 //   (iii) vertices, edges (endpoints, stroke, arrowheads, label) and subgraphs
-//         agree with upstream's flowchart DB;
+//         agree with the real upstream grammar builder operands before sanitization;
 //   (iv)  parse → serialize → re-parse preserves all of the above;
-//   (v)   upstream reads the serialized source as the same diagram.
+//   (v)   upstream accepts the export and retains those authored operands.
+// This is a grammar contract, not equality with HTML sanitized by DOMPurify;
+// the live builder wrappers observe inputs and always call the real methods.
 //
 // Upstream runs in a child process (helpers/upstream-mermaid.ts), so the async
 // property keeps shrinking against it: a disagreement is reported as a minimal
@@ -15,11 +17,12 @@
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
-import { asFlowchart, type FlowchartMutationOp, mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
+import { asFlowchart, type FlowchartMutationOp, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { countStructuralElements } from '../agent/structural-count.ts'
 import type { MermaidEdge, MermaidGraph, MermaidSubgraph } from '../types.ts'
 import { breakLineTags } from '../multiline-utils.ts'
-import { FORMAT_TAG_SOURCE } from '../shared/inline-format.ts'
 import { toEntityMarkers } from '../shared/mermaid-entities.ts'
 import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 import { startUpstreamMermaid, type UpstreamMermaid, type UpstreamParse } from './helpers/upstream-mermaid.ts'
@@ -66,15 +69,6 @@ const QUOTED_CHARS = [
   ...'abcXYZ019 ()[]{}<>:,.!?-_/&=+\'*~;\\@`'.split(''),
   '#quot;', '@{', '#9829;', '#35;', '#amp;', '#lt;', '#gt;', '#92;', '\\n',
 ]
-const FORMAT_TAGS = new RegExp(FORMAT_TAG_SOURCE, 'gi')
-
-/** Entity codes that spell a formatting tag (`#lt;b#gt;`): upstream shows the
- *  tag's text, but the label model holds no literal formatting tag, so our
- *  label keeps those codes (BUG-19's recorded limit, pinned below). */
-function spellsTagWithEntities(text: string): boolean {
-  const tags = (value: string) => value.match(FORMAT_TAGS)?.length ?? 0
-  return tags(projectEntityMarkers(toEntityMarkers(text))) > tags(text)
-}
 // Edge operators with a fixed spelling; labelled forms are built below.
 const ARROWS = ['-->', '---', '-.->', '==>', '-.-', '===', '--o', '--x', '<-->']
 
@@ -88,7 +82,7 @@ const labelArb: fc.Arbitrary<Label> = fc.oneof(
     // generate (typed bodies keep them opaque). `&#35;` is an HTML character
     // reference, which the render path decodes before any grammar and our
     // parser keeps as written; upstream reads its `#35;` as an entity code.
-    .filter(label => !label.text.startsWith('`') && !spellsTagWithEntities(label.text) && !/&#\d+;/.test(label.text)),
+    .filter(label => !label.text.startsWith('`') && !/&#\d+;/.test(label.text)),
 )
 const nodeRefArb: fc.Arbitrary<NodeRef> = fc.oneof(
   fc.constantFrom(...NODE_IDS).map(id => ({ id })),
@@ -256,71 +250,102 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
   })
   afterAll(() => upstream.close())
 
-  test('the generator covers every required construct', () => {
-    const sources = fc.sample(sourceArb, 200).join('\n')
-    const constructs: Record<string, RegExp> = {
-      'flowchart header': /^flowchart (?:TB|TD|BT|RL|LR)$/m,
-      'graph header': /^graph (?:TB|TD|BT|RL|LR)$/m,
-      'rectangle []': /\w\[[^[(]/,
-      'rounded ()': /\w\([^(]/,
-      'diamond {}': /\w\{[^{]/,
-      'circle (( ))': /\w\(\(/,
-      'asymmetric >]': /\w>[^\]]*\]/,
-      'subroutine [[ ]]': /\w\[\[/,
-      'cylinder [( )]': /\w\[\(/,
-      'hexagon {{ }}': /\w\{\{/,
-      'quoted label': /[[({>]"/,
-      'quoted label with `*` or `~`': /"[^"\n]*[*~][^"\n]*"/,
-      'quoted label with `;`': /"[^"\n]*;[^"\n]*"/,
-      'quoted label with `\\`': /"[^"\n]*\\[^"\n]*"/,
-      'quoted label with `#quot;`': /"[^"\n]*#quot;[^"\n]*"/,
-      'quoted label with `@{`': /"[^"\n]*@\{[^"\n]*"/,
-      'quoted label with an entity code': /"[^"\n]*#(?:9829|35|amp|lt|gt|92);[^"\n]*"/,
-      'quoted label with `\\n`': /"[^"\n]*\\n[^"\n]*"/,
-      'label with a backtick': /[[(>|][^\n]*`/,
-      'asymmetric label with bare `;`': /\w>[^"\]\n]*;[^\]\n]*\]/,
-      'quoted label with boundary whitespace': /"(?: [^"\n]*|[^"\n]* )"/,
-      'unquoted label': /\w\[[a-zA-Z]/,
-      '-->': / --> /,
-      '---': / --- /,
-      '-.->': / -\.-> /,
-      '==>': / ==> /,
-      '-- text -->': / -- \w[\w ]* --> /,
-      '-->|text|': / -->\|[^|]+\| /,
-      'chain (two links in one statement)': /(?:-->|---|-\.->|==>|-\.-|===|--o|--x|<-->)[^\n]*(?:-->|---|-\.->|==>|-\.-|===|--o|--x|<-->)/,
-      'subgraph with title': /^\s+subgraph S\d+ \[/m,
-      'subgraph direction': /^\s+direction (?:TB|TD|BT|RL|LR)$/m,
-      'nested subgraph': /^ {4,}subgraph /m,
-      'style statement': /^\s+style \S+ fill:#f00$/m,
-    }
-    const missing = Object.entries(constructs).filter(([, pattern]) => !pattern.test(sources)).map(([name]) => name)
-    expect(missing).toEqual([])
+  test('the #372 preprocessing witness stays readable and exports portably with a precise warning', async () => {
+    const source = 'flowchart TD\nA -->|"<a="| B["b"] --> C'
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok || !asFlowchart(parsed.value)) throw new Error('structured flowchart required')
+    expect(ours(parseOurs(source))).toEqual({
+      vertices: ['A rectangle : A', 'B rectangle : b', 'C rectangle : C'],
+      edges: ['A B normal arrow_point : <a=', 'B C normal arrow_point : '],
+      subgraphs: [],
+    })
+    const verified = verifyMermaid(parsed.value)
+    expect(verified.warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'mermaid_cleanup', line: 2 }))
+    expect(verified.warnings.some(warning => warning.code === 'RENDER_FAILED')).toBe(false)
+    expect((await upstream.parse(source)).ok).toBe(false)
+    const written = serializeMermaid(parsed.value)
+    expect(written).toContain('#lt;a=')
+    const upstreamWritten = await upstream.parse(written)
+    expect(upstreamWritten.ok).toBe(true)
+    if (!upstreamWritten.ok) throw new Error('portable export rejected')
+    expect(theirs(upstreamWritten)).toEqual(ours(parseOurs(source)))
+    expect(ours(parseOurs(written))).toEqual(ours(parseOurs(source)))
+    expect(renderMermaidASCII(written)).toBe(renderMermaidASCII(source))
+    expect(renderMermaidSVG(source)).toContain('&lt;a=')
+    const reread = parseRegisteredMermaid(written)
+    if (!reread.ok) throw new Error('export rejected')
+    expect(verifyMermaid(reread.value).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'mermaid_cleanup')).toBe(false)
+
+    // A dashed final edge leaves the preceding <a= label outside an HTML
+    // tag, so both parsers read the same literal label without repair.
+    const untouched = 'flowchart TB\n  subgraph S0\n    A -->|"<a="| A["a"] --- A\n  end'
+    expect(await upstream.accepts(untouched)).toBe(true)
+    expect(parseOurs(untouched).edges.map(edge => edge.label ?? '')).toEqual(['<a=', ''])
   })
 
-  test('the generator never emits a source that upstream preprocessing rewrites', async () => {
-    // A random-seed run found this: `<a="| A["` lies inside a `<a …>` "tag"
-    // that the `>` of the second arrow closes, so upstream rejects it.
-    const rewritten = 'flowchart TB\n  subgraph S0\n    A -->|"<a="| A["a"] --> A\n  end'
-    expect(rewrittenByUpstreamPreprocess(rewritten)).toBe(true)
-    expect((await upstream.parse(rewritten)).ok).toBe(false)
-    // With no `>` after it there is no tag, and upstream parses the labels.
-    const untouched = rewritten.replace('] --> A', '] --- A')
-    expect(rewrittenByUpstreamPreprocess(untouched)).toBe(false)
-    expect((await upstream.parse(untouched)).ok).toBe(true)
-    // The seed reproduces such sources from the unfiltered grammar.
-    expect(fc.sample(sourceArb, { numRuns: 5000, seed: 7 }).filter(rewrittenByUpstreamPreprocess)).toEqual([])
+  test('a preprocessing quote rewrite that breaks metadata YAML is diagnosed and exports portably', async () => {
+    const source = 'flowchart TD\nA@{label: \'<a href="x">ok</a>\'} --> B'
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok || !asFlowchart(parsed.value)) throw new Error('structured flowchart required')
+    expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'mermaid_cleanup', line: 2 }))
+    expect(await upstream.accepts(source)).toBe(false)
+    const written = serializeMermaid(parsed.value)
+    const upstreamWritten = await upstream.parse(written)
+    if (!upstreamWritten.ok) throw new Error('portable export rejected')
+    expect(theirs(upstreamWritten)).toEqual(ours(parseOurs(source)))
+    expect(ours(parseOurs(written))).toEqual(ours(parseOurs(source)))
+    expect(renderMermaidASCII(written)).toBe(renderMermaidASCII(source))
+    expect(renderMermaidSVG(source)).toContain('&lt;a href=&quot;x&quot;&gt;ok&lt;/a&gt;')
+    expect(verifyMermaid(written).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'mermaid_cleanup')).toBe(false)
   })
+
+  // Observe label operands at the real builder boundary while still calling
+  // every original method, including DOMPurify. Grammar parity concerns the
+  // author's tokens; sanitized DB text is deliberately lossy for e.g. `<a`.
+  async function grammarParse(source: string): Promise<UpstreamParse> {
+    const result = await upstream.project(source, async diagram => {
+      const db = diagram.db
+      const vertices = new Map<string, string>(), edges: string[] = [], groups = new Map<string, string>()
+      const vertex = db.addVertex, link = db.addSingleLink, group = db.addSubGraph
+      db.clear()
+      db.addVertex = function (...args: any[]) {
+        if (args[1] !== undefined) vertices.set(args[0], args[1].text.trim())
+        return vertex.apply(db, args)
+      }
+      db.addSingleLink = function (...args: any[]) {
+        edges.push((args[2].text?.text ?? '').trim().replace(/^"([\s\S]*)"$/, '$1'))
+        return link.apply(db, args)
+      }
+      db.addSubGraph = function (...args: any[]) {
+        const id = group.apply(db, args)
+        if (!groups.has(id)) groups.set(id, args[2].text.trim())
+        return id
+      }
+      try {
+        await diagram.parser.parse(diagram.text)
+        return {
+          type: diagram.type,
+          flowchart: {
+            vertices: [...db.getVertices().values()].map((node: any) => ({ id: node.id, type: node.type, text: vertices.get(node.id) ?? node.text })),
+            edges: db.getEdges().map((edge: any, index: number) => ({ start: edge.start, end: edge.end, type: edge.type, stroke: edge.stroke, text: edges[index] ?? edge.text })),
+            subgraphs: db.getSubGraphs().map((node: any) => ({ id: node.id, title: groups.get(node.id) ?? node.title, nodes: node.nodes })),
+          },
+        }
+      } finally { db.addVertex = vertex; db.addSingleLink = link; db.addSubGraph = group }
+    })
+    return result.ok ? { ok: true, ...result.value } : result
+  }
 
   test('(i)–(v) upstream and our parser agree on every generated flowchart', async () => {
     await fc.assert(
       fc.asyncProperty(sourceArb, async source => {
-        const upstreamParse = await upstream.parse(source)
-        // (i) the generator only produces Mermaid 11.16 flowcharts.
+        const upstreamParse = await grammarParse(source)
+        // (i) the generator only produces Mermaid 12.2.0 flowcharts.
         expect({ source, upstream: upstreamParse.ok ? 'accepted' : upstreamParse.error }).toEqual({ source, upstream: 'accepted' })
         if (!upstreamParse.ok) return
         // (ii) our public parser accepts it as a structured flowchart.
         const graph = parseOurs(source)
-        // (iii) the same vertices, edges and subgraphs as upstream's DB, and
+        // (iii) the same authored vertices, edges and subgraphs as upstream's live builder calls, and
         // the faithfulness counter reports upstream's counts.
         const expected = theirs(upstreamParse)
         expect({ source, ...ours(graph) }).toEqual({ source, ...expected })
@@ -336,12 +361,12 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
         expect({ serialized, ...ours(parseOurs(serialized)) }).toEqual({ serialized, ...expected })
         const reparsed = parseRegisteredMermaid(serialized)
         expect(reparsed.ok && countStructuralElements(reparsed.value)).toEqual(countStructuralElements(parsed.value))
-        // (v) the serialized source is Mermaid that upstream reads the same way.
-        const upstreamReparse = await upstream.parse(serialized)
+        // (v) the real parser accepts the export and retains the authored builder operands.
+        const upstreamReparse = await grammarParse(serialized)
         expect({ serialized, upstream: upstreamReparse.ok ? theirs(upstreamReparse) : upstreamReparse.error })
           .toEqual({ serialized, upstream: expected })
       }),
-      { numRuns: 100 },
+      fcParameters({ numRuns: 100, examples: [['flowchart TB\n  A[alpha] -->|"<a"| A']] }),
     )
   }, 20_000)
 
@@ -473,10 +498,15 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
   })
 
   test('a text-arrow label closes with any link of its stroke, as upstream\'s edge-text states close', async () => {
-    await agreesWithUpstream('flowchart TB\n  A-.b-.->B\n  B -. c .- C\n  E -- f --o F\n  F -. g ..-> G\n  G == h ===> H', {
+    // A dotted link may leave out its leading `-`, so one may follow a label
+    // that `.-` closes. A thick or dotted closer may end in a cross or a
+    // circle, and an `x` or `o` opener starts a label that one so ends.
+    await agreesWithUpstream('flowchart TB\n  A-.b-.->B\n  B -. c .- C\n  E -- f --o F\n  F -. g ..-> G\n  G == h ===> H\n  H -. i .- I .-> J\n  J -. k .-x K\n  K == l ==o L\n  L x== m ==x M', {
       edges: [
         'A B dotted arrow_point : b', 'B C dotted arrow_open : c', 'E F normal arrow_circle : f',
         'F G dotted arrow_point : g', 'G H thick arrow_point : h',
+        'H I dotted arrow_open : i', 'I J dotted arrow_point : ',
+        'J K dotted arrow_cross : k', 'K L thick arrow_circle : l', 'L M thick double_arrow_cross : m',
       ],
     })
   })
@@ -510,12 +540,48 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
       .toEqual({ label: 'Map&#x3C;K,V&#x3E; &#60;', reparsed: 'Map&#x3C;K,V&#x3E; &#60;' })
   })
 
-  test('BUG-19 limit: entity codes that would spell a tag stay codes, never markup', () => {
-    // Upstream shows `<b>x` here; our label model holds no literal tag, so the
-    // label keeps its codes rather than turning text into bold markup. A
-    // regression guard for the chosen limit, not an upstream match.
-    const graph = parseOurs('flowchart TB\n  A["#lt;b#gt;x"] --> B["y#lt;/i#gt;z"] --> C["#lt;br#gt;"]')
-    expect([...graph.nodes.values()].map(node => node.label)).toEqual(['#lt;b#gt;x', 'y#lt;/i#gt;z', '<br>'])
+  test('literal entity-produced tags survive editing in node, pipe and subgraph labels', async () => {
+    const source = 'flowchart TB\n  subgraph G["#lt;u#gt;group#lt;/u#gt;"]\n  A["#lt;b#gt;box#lt;/b#gt;"] -->|"#lt;i#gt;edge#lt;/i#gt;"| B\n  end'
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('fixture rejected')
+    const edited = mutate(parsed.value, { kind: 'add_node', id: 'C', label: 'C' })
+    if (!edited.ok) throw new Error('edit refused')
+    const written = serializeMermaid(edited.value)
+    expect(await upstream.accepts(written)).toBe(true)
+    for (const candidate of [source, written]) {
+      const graph = parseOurs(candidate)
+      expect(graph.nodes.get('A')?.label).toBe('<b>box</b>')
+      expect(graph.edges[0]?.label).toBe('<i>edge</i>')
+      expect(graph.subgraphs[0]?.label).toBe('<u>group</u>')
+      const svg = renderMermaidSVG(candidate)
+      const terminal = renderMermaidASCII(candidate)
+      for (const text of ['<b>box</b>', '<i>edge</i>', '<u>group</u>']) {
+        expect(svg).toContain(text.replaceAll('<', '&lt;').replaceAll('>', '&gt;'))
+        expect(terminal).toContain(text)
+      }
+    }
+  })
+
+  test('real formatting and literal tags retain separate meanings through same-value and changed labels', async () => {
+    const source = 'flowchart TB\n A["<b>real</b> #lt;b#gt;literal#lt;/b#gt;"]'
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('fixture rejected')
+    const label = asFlowchart(parsed.value)?.body.graph.nodes.get('A')?.label
+    if (!label) throw new Error('missing label')
+    const same = mutate(parsed.value, { kind: 'set_label', target: 'A', label })
+    if (!same.ok) throw new Error('same-value edit refused')
+    const written = serializeMermaid(same.value)
+    expect(await upstream.accepts(written)).toBe(true)
+    expect(renderMermaidSVG(written)).toContain('&lt;b&gt;literal&lt;/b&gt;')
+    expect(renderMermaidASCII(written)).toContain('real <b>literal</b>')
+    expect(verifyMermaid(same.value, { labelCharCap: 12 }).warnings.some(warning => warning.code === 'LABEL_OVERFLOW')).toBe(true)
+    const changed = mutate(same.value, { kind: 'set_label', target: 'A', label: '<b>changed</b> literal #quot;' })
+    if (!changed.ok) throw new Error('changed-label edit refused')
+    const changedSource = serializeMermaid(changed.value)
+    expect(await upstream.accepts(changedSource)).toBe(true)
+    expect(parseOurs(changedSource).nodes.get('A')?.label).toBe('<b>changed</b> literal #quot;')
+    expect(renderMermaidASCII(changedSource)).toContain('changed literal #quot;')
+    expect(renderMermaidSVG(changedSource)).toMatch(/<tspan\b[^>]*\bfont-weight="(?:bold|700)"[^>]*>changed<\/tspan>/)
   })
 
   test('quoted labels have no escapes: `\\` stays literal and `"` is written `#quot;`', async () => {

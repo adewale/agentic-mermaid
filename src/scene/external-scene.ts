@@ -23,12 +23,7 @@ import type {
   SceneRole,
   SemanticChannels,
 } from './ir.ts'
-import {
-  assertExternalConnectorTopology,
-  externalConnectorSvg,
-  externalShapeSvg,
-  externalTextSvg,
-} from './external-projection.ts'
+import { assertExternalConnectorTopology } from './external-projection.ts'
 import * as marks from './marks.ts'
 import { connectorInlineLabelVisualBounds } from './bounds.ts'
 import { assertRenderableMarker, serializeMarkerResources } from './marker-resources.ts'
@@ -115,7 +110,8 @@ export interface ExternalSceneConnector extends ExternalSceneNodeBase {
   readonly labels?: readonly ExternalSceneConnectorLabel[]
 }
 
-export type ExternalSceneConnectorLabel = Omit<ConnectorLabelDescriptor, 'visual'>
+export type ExternalSceneConnectorLabel = Pick<ConnectorLabelDescriptor,
+  'id' | 'text' | 'anchor' | 'bounds' | 'halo' | 'clearance' | 'paint' | 'fontSize' | 'textAnchor'>
 
 export type ExternalSceneNode =
   | ExternalSceneShape
@@ -178,7 +174,7 @@ const EXTERNAL_SCENE_V1_ALLOWED_KEYS = Object.freeze({
     compound: { kind: true, children: true } satisfies ExactKeyMap<MarkerGeometryOf<'compound'>>,
   },
   point: { x: true, y: true } satisfies ExactKeyMap<{ x: number; y: number }>,
-  paint: { fill: true, stroke: true, strokeWidth: true, strokeDasharray: true, strokeDashoffset: true, strokeLinecap: true, strokeLinejoin: true, strokeMiterlimit: true, vectorEffect: true, paintOrder: true, opacity: true } satisfies ExactKeyMap<MarkPaint>,
+  paint: { fill: true, stroke: true, strokeWidth: true, strokeDasharray: true, strokeDashoffset: true, strokeLinecap: true, strokeLinejoin: true, strokeMiterlimit: true, vectorEffect: true, paintOrder: true, opacity: true } satisfies ExactKeyMap<Omit<MarkPaint, 'fillOpacity' | 'strokeOpacity'>>,
   channels: { importance: true, value: true, category: true, status: true, progress: true, route: true, emphasis: true } satisfies ExactKeyMap<SemanticChannels>,
   marker: { id: true, shape: true, geometry: true, size: true, viewBox: true, ref: true, bounds: true, units: true, orient: true, overflow: true, paint: true, scale: true } satisfies ExactKeyMap<ExternalSceneMarker>,
   markerSize: { width: true, height: true } satisfies ExactKeyMap<NonNullable<ExternalSceneMarker['size']>>,
@@ -473,12 +469,11 @@ function compileNode(
           : input.channels
         return channels ? { channels } : {}
       })(),
-    }, externalShapeSvg(input.geometry, paint)), state)]
+    }), state)]
   }
   if (input.kind === 'text') {
     const anchor = input.anchor ?? 'start'
     const paint: MarkPaint = { fill: 'var(--_text)', ...(input.paint ?? {}) }
-    const crisp = externalTextSvg({ ...input, anchor, paint })
     return [accountCompiledNode(marks.text({
       id: input.id,
       role: input.role,
@@ -486,10 +481,13 @@ function compileNode(
       x: input.x,
       y: input.y,
       fontSize: input.fontSize,
+      fontWeight: 400,
+      display: 'literal',
       anchor,
+      baselineShift: 0,
       paint,
       ...(input.channels ? { channels: input.channels } : {}),
-    }, crisp), state)]
+    }), state)]
   }
   if (input.kind === 'container') {
     return [accountCompiledNode(marks.group({
@@ -557,11 +555,7 @@ function compileNode(
     markers: { ...(startMarker ? { start: startMarker } : {}), mid: midMarker ? [midMarker] : [], ...(endMarker ? { end: endMarker } : {}) },
     labels,
     ...(input.channels ? { channels: input.channels } : {}),
-  }, externalConnectorSvg({
-    geometry: input.geometry,
-    lineStyle: input.lineStyle ?? 'solid',
-    paint,
-  }, startMarker, midMarker, endMarker)), state)
+  }), state)
 
   return [connectorNode]
 }

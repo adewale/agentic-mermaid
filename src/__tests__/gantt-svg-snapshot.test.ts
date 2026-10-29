@@ -56,11 +56,12 @@ describe('renderMermaidSVG — gantt', () => {
     for (const fg of ['#27272A', '#FAFAFA'] as const) {
       const bg = fg === '#FAFAFA' ? '#18181B' : '#FFFFFF'
       const svg = renderMermaidSVG(REPRESENTATIVE, { bg, fg })
-      for (const m of svg.matchAll(/class="gantt-(?:task|section)-label"[^>]*x="(\d+(?:\.\d+)?)"/g)) {
-        expect(Number(m[1])).toBeLessThan(60) // label column, not plot area
+      const labels = [...svg.matchAll(/<text\b[^>]*\bclass="gantt-(?:task|section)-label"[^>]*>/g)].map(([tag]) => tag)
+      expect(labels).toHaveLength(7)
+      for (const label of labels) {
+        expect(Number(/ x="([^"]*)"/.exec(label)![1])).toBeLessThan(60) // label column, not plot area
+        expect(label).toContain(` fill="${fg}"`)
       }
-      expect(svg).toContain(`.gantt-task-label { fill: ${fg}; }`)
-      expect(svg).toContain(`.gantt-section-label { fill: ${fg}; }`)
     }
   })
 
@@ -81,20 +82,15 @@ describe('renderMermaidSVG — gantt', () => {
     const src = 'gantt\n  dateFormat YYYY-MM-DD\n  todayMarker stroke-width:5px,stroke:#0f0,opacity:0.5\n  A :a, 2024-01-01, 10d'
     const svg = renderMermaidSVG(src, { ganttToday: '2024-01-05' })
     const line = svg.match(/<line class="gantt-today-marker"[^>]*>/)![0]
-    expect(line).toContain('style="stroke-width:5px;stroke:#0f0;opacity:0.5"')
+    for (const paint of ['stroke="#0f0"', 'stroke-width="5px"', 'opacity="0.5"']) expect(line).toContain(paint)
     // Without a clock the marker (and its style) never draws.
     expect(renderMermaidSVG(src)).not.toContain('<line class="gantt-today-marker"')
   })
 
   it('rejects style-attr injection in the todayMarker payload', () => {
     const src = 'gantt\n  dateFormat YYYY-MM-DD\n  todayMarker stroke:#0f0"onload="alert(1),opacity:0.5\n  A :a, 2024-01-01, 10d'
-    const svg = renderMermaidSVG(src, { ganttToday: '2024-01-05' })
-    expect(svg).not.toContain('onload')
-    expect(svg).not.toContain('alert(')
-    // The safe property still applies; the poisoned one is dropped whole.
-    const line = svg.match(/<line class="gantt-today-marker"[^>]*>/)![0]
-    expect(line).toContain('opacity:0.5')
-    expect(line).not.toContain('#0f0')
+    expect(() => renderMermaidSVG(src, { ganttToday: '2024-01-05' }))
+      .toThrow('todayMarker: stroke "#0f0\\"onload=\\"alert(1)" is not a CSS color')
   })
 
   it('a plain todayMarker line stays byte-identical (no style attr)', () => {
@@ -130,9 +126,11 @@ describe('renderMermaidSVG — gantt', () => {
     expect(svg).toContain('<path class="gantt-milestone gantt-milestone-done"')
     expect(svg).toContain('<path class="gantt-milestone gantt-milestone-active"')
     expect(svg).toContain('<path class="gantt-milestone gantt-milestone-crit"')
-    expect(svg).toContain('<path class="gantt-milestone" d=')
-    expect(svg).toContain('.gantt-milestone-done {')
-    expect(svg).toContain('.gantt-milestone-active {')
+    expect(svg).toContain('<path class="gantt-milestone" data-task="m4"')
+    // Done and active milestones are painted like done and active bars.
+    const milestone = (task: string) => svg.match(new RegExp(`<path class="gantt-milestone[^"]*" data-task="${task}"[^>]*>`))![0]
+    expect(milestone('m1')).toContain('opacity="0.55"')
+    expect(milestone('m2')).toContain('stroke-width="1.5" opacity="1"')
     // Charts without done/active milestones carry no dead CSS for them.
     const bare = renderMermaidSVG('gantt\n  dateFormat YYYY-MM-DD\n  A :a, 2024-01-01, 5d\n  M :milestone, m, 2024-01-03, 0d')
     expect(bare).not.toContain('gantt-milestone-done')
@@ -169,7 +167,7 @@ describe('renderMermaidSVG — gantt', () => {
 
   it('renders topAxis labels above and below the plot', () => {
     const svg = renderMermaidSVG('gantt\n  dateFormat YYYY-MM-DD\n  topAxis\n  A :a, 2024-01-01, 14d')
-    const labels = [...svg.matchAll(/class="gantt-axis-label"[^>]*y="(\d+(?:\.\d+)?)"/g)].map(m => Number(m[1]))
+    const labels = [...svg.matchAll(/<text\b([^>]*class="gantt-axis-label"[^>]*)>/g)].map(m => Number(m[1]!.match(/(?:^|\s)y="([\d.]+)"/)![1]))
     const plotTop = Math.min(...labels)
     const plotBottom = Math.max(...labels)
     expect(plotTop).toBeLessThan(60)

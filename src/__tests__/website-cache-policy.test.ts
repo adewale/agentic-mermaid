@@ -19,6 +19,8 @@ describe('website static asset cache authority', () => {
       ['/editor/editor-abcdef123456.js', 'text/javascript'],
       ['/editor/editor-app-abcdef123456.js', 'application/javascript'],
       ['/editor/editor-renderer-abcdef123456.js', 'text/javascript'],
+      ['/editor/runtime/browser-hosted-ABCD1234.js', 'text/javascript'],
+      ['/editor/runtime/chunk-ABCD1234.js', 'application/javascript'],
       ['/vendor/mermaid-abcdef123456.min.js', 'text/javascript'],
       ['/examples/fragments/style-palette-abcdef123456', 'text/html; charset=utf-8'],
       ['/examples/fragments/corpus-abcdef123456', 'text/html'],
@@ -58,6 +60,7 @@ describe('website static asset cache authority', () => {
   test('never promotes malformed or stable-name assets to immutable', () => {
     expect(classify({ pathname: '/editor/editor-short.js' })).toBe('public, max-age=3600')
     expect(classify({ pathname: '/editor/editor-abcdef12345g.js' })).toBe('public, max-age=3600')
+    expect(classify({ pathname: '/editor/runtime/chunk-short.js' })).toBe('public, max-age=3600')
     expect(classify({ pathname: '/fonts/Inter-Regular.subset.woff2', contentType: 'font/woff2' })).toBe('public, max-age=3600')
     expect(classify({ pathname: '/examples/fragments/corpus-abcdef123456.html', contentType: 'text/html' })).toBe('no-cache')
     expect(classify({ pathname: '/styles.css', contentType: 'text/css' })).toBe('public, max-age=3600')

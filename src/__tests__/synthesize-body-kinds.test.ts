@@ -19,6 +19,17 @@ function toWirePayload(diagram: { kind: string; body: unknown }): ValidDiagramPa
 }
 
 describe('synthesizeFromGraph accepts every declared body kind', () => {
+  it('serializes the edited body instead of stale canonical source retained in a JSON payload', () => {
+    const result = synthesizeFromGraph({
+      kind: 'pie',
+      body: { kind: 'pie', title: 'Budget', showData: false, slices: [{ id: 'slice0', label: 'Authored', value: 7 }] },
+      canonicalSource: 'pie\n  "Stale" : 999\n',
+    })
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw new Error(JSON.stringify(result.error))
+    expect(serializeMermaid(result.value)).toBe('pie\n  title Budget\n  "Authored" : 7\n')
+  })
+
   it('publicly types the registered structured radar payload without a cast', () => {
     const payload = {
       kind: 'radar',

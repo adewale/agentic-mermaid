@@ -94,8 +94,8 @@ describe('canonical website Inter subsets', () => {
       expect(budget.forbidden, `${id} full TTF`).toContain('^/fonts/Inter-.*\\.ttf$')
     }
     const editorBudget = WEBSITE_PAYLOAD_BUDGETS['editor-empty']!
-    expect(editorBudget.maxRequests).toBe(2)
-    expect(editorBudget.required).toEqual(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$'])
+    expect(editorBudget.maxRequests).toBe(3)
+    expect(editorBudget.required).toEqual(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$', '^/editor/runtime/browser-hosted-[a-z0-9]{8}\\.js$'])
   })
 
   test('rejects source, content-address, coverage, and byte-ceiling sabotage', () => {

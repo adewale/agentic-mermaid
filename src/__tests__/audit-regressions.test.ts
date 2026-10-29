@@ -80,6 +80,17 @@ describe('reported contract regressions', () => {
     const cases = [
       ['flowchart TD\n  A[Start]\n  A -->', 'flowchart_dangling_edge'],
       ['flowchart TD\n  A[Start] -->|go|', 'flowchart_dangling_edge'],
+      // Dotted links without their leading `-`, and cross or circle ends.
+      ['flowchart TD\n  A[Start]\n  A .->', 'flowchart_dangling_edge'],
+      ['flowchart TD\n  A[Start] ==x|go|', 'flowchart_dangling_edge'],
+      ['flowchart TD\n  Server[Server]\n  Client .-> Sevrer', 'flowchart_implicit_endpoint'],
+      ['flowchart TD\n  Server[Server]\n  Client -.-x Sevrer', 'flowchart_implicit_endpoint'],
+      ['flowchart TD\n  A e1@.-> B\n  e1@{ label: "calls" }', 'flowchart_edge_metadata'],
+      ['flowchart TD\n  A e.1@--> B\n  e.1@{ label: "calls" }', 'flowchart_edge_metadata'],
+      ['flowchart TD\n  A,B --> C', 'flowchart_comma_id'],
+      ['flowchart TD\n  A --> ,B', 'flowchart_comma_id'],
+      ['flowchart TD\n  subgraph\n    A\n  end', 'flowchart_untitled_subgraph'],
+      ['flowchart TD\n  A x-- a --> B', 'flowchart_link_markers'],
       ['flowchart TD\n  Server[Server]\n  Client[Client] --> Sevrer', 'flowchart_implicit_endpoint'],
       ['flowchart TD\n  Server\n  Client --> Sevrer', 'flowchart_implicit_endpoint'],
       ['flowchart TD\n  Server@{ shape: rect, label: "Server" }\n  Client --> Sevrer', 'flowchart_implicit_endpoint'],
@@ -95,6 +106,11 @@ describe('reported contract regressions', () => {
     }
     expect(verifyMermaid('flowchart LR\n  Customer[Customer]\n  Custome[Custome]\n  A[Start] --> Custome').warnings)
       .not.toContainEqual(expect.objectContaining({ syntax: 'flowchart_implicit_endpoint' }))
+    // A chain of dotted and marker-ended links, and an id holding `.-`, are
+    // complete statements.
+    expect(verifyMermaid('flowchart LR\n  A .-> B .- C\n  C -. x .- D .-> E ==x F\n  F -.-x G\n  G o==o H .-o I\n  B.-').warnings).toEqual([])
+    // A `,` in a label, an edge id or a `class` list is no comma id.
+    expect(verifyMermaid('flowchart LR\n  A["a,b"] -->|c,d| B\n  B e,1@--> C\n  class A,B c').warnings).toEqual([])
     const metadata = parseMermaid('flowchart LR\n  A e1@--> B\n  e1@{ label: "calls" }')
     expect(metadata.ok).toBe(true)
     if (metadata.ok) {
@@ -120,15 +136,20 @@ describe('reported contract regressions', () => {
   })
 
   test('local and hosted describe cannot report ok when verify reports RENDER_FAILED', async () => {
-    const source = 'quadrantChart\n  title T\n  x-axis L --> R\n  y-axis B --> T2\n  Company A: 0.8, 0.75'
-    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED' }))
-    const responses = [
-      await handleLocalRequest(toolCall('describe', { source }) as any),
-      await handleHostedRequest(toolCall('describe', { source }), { execute: async () => ({ ok: true, value: null, logs: [] }) }),
-    ]
-    for (const response of responses) {
-      expect((response?.result as any).isError).toBe(true)
-      expect(payload(response)).toEqual(expect.objectContaining({ ok: false, warnings: expect.arrayContaining([expect.objectContaining({ code: 'RENDER_FAILED' })]) }))
+    // Text is the default format; a source that does not parse is a failure too.
+    for (const [source, failure] of [
+      ['quadrantChart\n  title T\n  x-axis L --> R\n  y-axis B --> T2\n  Company A: 0.8, 0.75', { warnings: expect.arrayContaining([expect.objectContaining({ code: 'RENDER_FAILED' })]) }],
+      ['---\ntitle: [unclosed\n---\nflowchart LR\n  A --> B', { errors: [expect.objectContaining({ code: 'INVALID_FRONTMATTER' })] }],
+    ] as const) {
+      expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED' }))
+      const responses = [
+        await handleLocalRequest(toolCall('describe', { source }) as any),
+        await handleHostedRequest(toolCall('describe', { source }), { execute: async () => ({ ok: true, value: null, logs: [] }) }),
+      ]
+      for (const response of responses) {
+        expect((response?.result as any).isError).toBe(true)
+        expect(payload(response)).toEqual(expect.objectContaining({ ok: false, ...failure }))
+      }
     }
   })
 

@@ -2,6 +2,11 @@
 
 Status: complete for every family in the checked registry. Audited: 2026-07-10.
 
+This ledger records the Mermaid 11.16 audit at that date. The current syntax
+target and source revision live in
+[`upstream-mermaid-policy.json`](../project/upstream-mermaid-policy.json);
+upgrading that pin does not re-audit this historical evidence.
+
 This document is a human-reviewed visual-metaphor and fidelity evidence ledger,
 not a routing, capability, status, or roadmap authority. Machine capability
 states come from the `FamilyDescriptor` registry (`am capabilities --json`), and

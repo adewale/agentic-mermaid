@@ -3,8 +3,7 @@
 // Renders the same fixture multiple times in one process and asserts byte-
 // identical output via SHA-256. Critic 5 mandate: do a warm-up render
 // FIRST (don't include in the comparison set) to factor out resvg/napi
-// init differences. Also assert length-stable to defend against partial-
-// buffer truncation masquerading as hash collision.
+// init differences.
 //
 // Cross-runtime determinism (bun vs node) is in agent-determinism.test.ts.
 
@@ -33,12 +32,9 @@ describe('PNG in-process determinism', () => {
       renders.push(await renderMermaidPNG(FIXTURE))
     }
     const hashes = renders.map(sha256)
-    const lengths = renders.map(r => r.length)
 
     // All 5 hashes identical via Set size === 1
     expect(new Set(hashes).size).toBe(1)
-    // Length-stable defends against partial-buffer truncation
-    expect(new Set(lengths).size).toBe(1)
   })
 
   test('determinism holds across different fixtures (no cross-talk)', async () => {
@@ -64,7 +60,6 @@ describe('styled PNG', () => {
     const a = await renderMermaidPNG(FIXTURE, { style: 'hand-drawn', seed: 1 })
     const b = await renderMermaidPNG(FIXTURE, { style: 'hand-drawn', seed: 1 })
     expect(sha256(a)).toBe(sha256(b))
-    expect(a.length).toBe(b.length)
     // A different seed re-rolls the ink; crisp differs from styled entirely.
     const reseeded = await renderMermaidPNG(FIXTURE, { style: 'hand-drawn', seed: 2 })
     expect(sha256(a)).not.toBe(sha256(reseeded))

@@ -1,7 +1,14 @@
 // Phase C: structured ER diagram support.
 
 import { describe, test, expect } from 'bun:test'
-import { parseRegisteredMermaid as parseMermaid, asEr, mutate, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, asEr, mutate, serializeMermaid, verifyMermaid, synthesizeFromGraph, renderMermaidSVG as renderDiagramSVG, renderMermaidASCII as renderDiagramASCII } from '../agent/index.ts'
+import { decodeXML } from 'entities'
+import { parseErDiagram } from '../er/parser.ts'
+import { erAttributeBlocks } from '../er/layout.ts'
+import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
+import { escapeXml } from '../multiline-utils.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const parse = (s: string) => {
   const r = parseMermaid(s)
@@ -10,6 +17,124 @@ const parse = (s: string) => {
 }
 
 describe('ER — parse', () => {
+  test('quotes entity 1 before another declaration without changing numeric identities or group ownership', async () => {
+    const source = 'erDiagram\nsubgraph "Some Title"\nArDiagram\n1\nB\nend'
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(false)
+      const diagram = asEr(parse(source))!
+      const renamed = mutate(diagram, { kind: 'rename_entity', from: 'B', to: '2' })
+      expect(renamed.ok).toBe(true)
+      if (!renamed.ok) return
+      for (const candidate of [diagram, renamed.value]) {
+        const written = serializeMermaid(candidate)
+        expect(await upstream.accepts(written)).toBe(true)
+        expect(asEr(parse(written))!.body).toEqual(candidate.body)
+        expect(serializeMermaid(parse(written))).toBe(written)
+      }
+      expect(await upstream.project(serializeMermaid(renamed.value), value => ({
+        ids: [...value.db.getEntities().values()].map((entity: { label: string }) => entity.label),
+        groups: value.db.getSubGraphs().map((group: { id: string; nodes: string[] }) => ({ id: group.id, nodes: group.nodes })),
+      }))).toEqual({ ok: true, value: { ids: ['ArDiagram', '1', '2'], groups: [{ id: 'Some Title', nodes: ['ArDiagram', '1', '2'] }] } })
+      expect(renderMermaidSVG(serializeMermaid(diagram))).toBe(renderMermaidSVG(source))
+      expect(renderMermaidASCII(serializeMermaid(diagram))).toBe(renderMermaidASCII(source))
+      for (const id of ['1', '2', '1.0', '1A', 'Some Name']) {
+        const base = asEr(parse(`erDiagram\n"${id}"\nB\n"${id}" ||--|| B : owns`))!
+        const styled = mutate(base, { kind: 'set_entity_class', entity: id, className: 'accent' })
+        expect(styled.ok).toBe(true)
+        if (!styled.ok) continue
+        const written = serializeMermaid(styled.value)
+        expect(await upstream.accepts(written)).toBe(true)
+        expect(asEr(parse(written))!.body).toEqual(styled.value.body)
+        expect(await upstream.project(written, value => [...value.db.getEntities().values()].map((entity: { label: string; cssClasses: string }) => ({ id: entity.label, classes: entity.cssClasses }))))
+          .toEqual({ ok: true, value: [{ id, classes: 'default accent' }, { id: 'B', classes: 'default' }] })
+      }
+    } finally { upstream.close() }
+  })
+
+  test('quotes numeric group identities through nested ownership, editing and reload', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const source of ['erDiagram\nsubgraph 1\nend', 'erDiagram subgraph 1\nsubgraph 3\nN{}  end\n end']) {
+        expect(await upstream.accepts(source)).toBe(false)
+        const diagram = asEr(parse(source))!
+        const output = serializeMermaid(diagram)
+        expect(await upstream.accepts(output)).toBe(true)
+        expect(asEr(parse(output))!.body).toEqual(diagram.body)
+        expect(renderMermaidSVG(output)).toBe(renderMermaidSVG(source))
+        expect(renderMermaidASCII(output)).toBe(renderMermaidASCII(source))
+        if (diagram.body.entities.length) {
+          const edited = mutate(diagram, { kind: 'rename_entity', from: 'N', to: 'Child' })
+          expect(edited.ok).toBe(true)
+          if (!edited.ok) continue
+          const written = serializeMermaid(edited.value)
+          expect(asEr(parse(written))!.body).toEqual(edited.value.body)
+          expect(edited.value.body.groups).toEqual([{ id: '1', label: '1' }, { id: '3', label: '3', parentId: '1' }])
+          expect(edited.value.body.entities).toEqual([{ id: 'Child', attributes: [], groupId: '3' }])
+          expect(await upstream.project(written, value => value.db.getSubGraphs().map((group: { id: string; nodes: string[] }) => ({ id: group.id, nodes: group.nodes }))))
+            .toEqual({ ok: true, value: [{ id: '3', nodes: ['Child'] }, { id: '1', nodes: ['3'] }] })
+        }
+      }
+    } finally { upstream.close() }
+  })
+
+  test.each([
+    ['erDiagram E:::end', 'er_class_name'],
+    ['erDiagram\nA ||--|| B:::1 : owns\nclassDef 1 fill:#fff', 'er_class_name'],
+  ])('keeps unspellable typed content as source with unchanged native output: %s', async (source, syntax) => {
+    const upstream = startUpstreamMermaid()
+    try { expect(await upstream.accepts(source)).toBe(false) }
+    finally { upstream.close() }
+    const diagram = parse(source)
+    expect(diagram.body.kind).toBe('opaque')
+    expect(serializeMermaid(diagram).trimEnd()).toBe(source)
+    expect(renderDiagramSVG(diagram)).toBe(renderMermaidSVG(source))
+    expect(renderDiagramASCII(diagram)).toBe(renderMermaidASCII(source))
+    expect(verifyMermaid(diagram).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax }))
+    expect(mutate(diagram, { kind: 'add_entity', id: 'Another' }).ok).toBe(false)
+  })
+
+  test.each(['erDiagram\nR{}classDef t |:s', 'erDiagram C{}classDef o |:0', 'erDiagram C{}classDef r |:#', 'erDiagram style 2 y:|'])('constructs formerly refused style punctuation without changing the native output: %s', async source => {
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(false)
+      const parsed = parse(source)
+      expect(parsed.body.kind).toBe('er')
+      const diagram = asEr(parsed)!
+      const written = serializeMermaid(diagram)
+      expect(await upstream.accepts(written)).toBe(true)
+      expect(asEr(parse(written))!.body).toEqual(diagram.body)
+      expect(renderMermaidSVG(written)).toBe(renderMermaidSVG(source))
+      expect(renderMermaidASCII(written)).toBe(renderMermaidASCII(source))
+    } finally { upstream.close() }
+  })
+
+  test('strict mutations and payloads refuse unspellable classes and style characters without a lossless SVG spelling', async () => {
+    const diagram = asEr(parse('erDiagram\nA'))!
+    for (const className of ['end', 'End', '1', '1a']) {
+      expect(mutate(diagram, { kind: 'set_entity_class', entity: 'A', className }).ok).toBe(false)
+      expect(synthesizeFromGraph({ kind: 'er', body: { ...diagram.body, entities: [{ id: 'A', attributes: [], className }] } }).ok).toBe(false)
+    }
+    for (const style of ['content:A\u0000B', 'font-family:A\ud800B']) {
+      expect(mutate(diagram, { kind: 'set_entity_style', entity: 'A', style }).ok).toBe(false)
+      expect(mutate(diagram, { kind: 'define_class', name: 'bad', style }).ok).toBe(false)
+    }
+    expect(synthesizeFromGraph({ kind: 'er', body: { ...diagram.body, classDefs: { bad: { content: '\u0000' } } } }).ok).toBe(false)
+    expect(synthesizeFromGraph({ kind: 'er', body: { ...diagram.body, entities: [{ id: 'A', attributes: [], style: { content: '\ud800' } }] } }).ok).toBe(false)
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const className of ['endless', 'a1']) {
+        const changed = mutate(diagram, { kind: 'set_entity_class', entity: 'A', className })
+        expect(changed.ok).toBe(true)
+        if (changed.ok) {
+          const written = serializeMermaid(changed.value)
+          expect(await upstream.accepts(written)).toBe(true)
+          expect(asEr(parse(written))!.body).toEqual(changed.value.body)
+        }
+      }
+    } finally { upstream.close() }
+  })
+
   test('header-only source remains a structured blank canvas for typed authoring', () => {
     const d = parse('erDiagram\n')
     expect(asEr(d)).not.toBeNull()
@@ -130,7 +255,9 @@ describe('ER — mutate', () => {
       leftCard: 'one-only', rightCard: 'zero-or-many', label: 'has',
     })
     if (!r.ok) throw new Error()
-    expect(r.value.body.relations[0]!.label).toBe('has')
+    expect(r.value.body.relations).toEqual([{
+      from: 'A', to: 'B', leftCard: 'one-only', rightCard: 'zero-or-many', dashed: false, label: 'has',
+    }])
   })
 
   test('errors', () => {
@@ -162,10 +289,35 @@ describe('ER — round-trip', () => {
 })
 
 describe('ER — verify', () => {
-  test('long attribute → LABEL_OVERFLOW', () => {
-    const long = 'X'.repeat(80)
-    const d = parse(`erDiagram\n  CUSTOMER {\n    string ${long}\n  }`)
-    const v = verifyMermaid(d)
-    expect(v.warnings.filter(w => w.code === 'LABEL_OVERFLOW').length).toBeGreaterThan(0)
+  test.each([
+    ['entity codes and grammar padding', 'string value PK, FK, UK "_word_ #lt;b#gt;literal#lt;/b#gt;"', ['string', 'value', 'PK,FK,UK', '_word_ <b>literal</b>'], 21],
+    ['comment whitespace and breaks', 't n "  a<br/>  b   c  "', ['t', 'n', '', 'a b c'], 5],
+    ['long type', `${'T'.repeat(37)} n`, ['T'.repeat(37), 'n', '', ''], 37],
+    ['long name', `t ${'N'.repeat(38)}`, ['t', 'N'.repeat(38), '', ''], 38],
+    ['long literal comment', `t n "_${'x'.repeat(37)}_"`, ['t', 'n', '', `_${'x'.repeat(37)}_`], 39],
+    ['keys', 't n PK, FK, UK', ['t', 'n', 'PK,FK,UK', ''], 8],
+    ['XML-encoded literal comment', 't n "&#95;word&#95; &lt;i&gt;tag&lt;/i&gt;"', ['t', 'n', '', '_word_ <i>tag</i>'], 17],
+    ['entity-produced backslash n', 't n "#92;n"', ['t', 'n', '', String.raw`\n`], 2],
+  ] as const)('%s measures the widest drawn column through source, edit and reload', (_name, attribute, columns, charCount) => {
+    const source = `erDiagram\n  A {\n    ${attribute}\n  }`
+    const parsed = parse(source)
+    const edited = mutate(asEr(parse('erDiagram\n  A'))!, { kind: 'add_attribute', entity: 'A', text: attribute })
+    if (!edited.ok) throw new Error('attribute edit refused')
+    const written = serializeMermaid(edited.value)
+    const reloaded = parse(written)
+    expect(serializeMermaid(reloaded)).toBe(written)
+    for (const input of [source, parsed, edited.value, written, reloaded]) {
+      const warningsAt = (labelCharCap: number) => verifyMermaid(input, { labelCharCap }).warnings.filter(warning => warning.code === 'LABEL_OVERFLOW')
+      expect(warningsAt(36)).toEqual(charCount > 36 ? [{ code: 'LABEL_OVERFLOW', target: 'A#a0', charCount, limit: 36 }] : [])
+      expect(warningsAt(charCount)).toEqual([])
+      expect(warningsAt(charCount - 1)).toEqual([{ code: 'LABEL_OVERFLOW', target: 'A#a0', charCount, limit: charCount - 1 }])
+    }
+    for (const candidate of [source, written]) {
+      const attr = parseErDiagram(normalizeMermaidSource(decodeXML(candidate)).familyLines).entities[0]!.attributes[0]!
+      const blocks = erAttributeBlocks(attr)
+      expect([blocks.type.text, blocks.name.text, blocks.keys.text, blocks.comment?.text ?? '']).toEqual([...columns])
+      const svg = renderMermaidSVG(candidate)
+      for (const column of columns.filter(Boolean)) expect(svg).toContain(`>${escapeXml(column)}</text>`)
+    }
   })
 })

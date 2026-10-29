@@ -1,13 +1,10 @@
-# Getting started (library)
+# Getting started
 
-A 5-minute guide for using `agentic-mermaid` as a plain rendering library: turn a
-Mermaid string into **SVG**, **PNG**, or **ASCII/Unicode**. The server examples
-below run synchronously in Node or Bun; browser clients use the asynchronous ESM
-entry shown later.
+Render Mermaid source to SVG, PNG or terminal text. The examples below use
+`agentic-mermaid/agent`, one entry for rendering and typed editing in Node 22+
+or Bun 1.4.0+. Browser rendering has a separate asynchronous entry, shown below.
 
-> Editing diagrams with the typed parse → mutate → verify → serialize API is a
-> separate surface — see the [agent API cookbook](./agent-api-cookbook.md). You do
-> not need any of that just to render.
+For editing operations, continue with the [editing cookbook](agent-api-cookbook.md).
 
 ## Install
 
@@ -15,6 +12,8 @@ entry shown later.
 npm install agentic-mermaid
 # or: bun add agentic-mermaid / pnpm add agentic-mermaid
 ```
+
+### Repository development
 
 For repository development, install from source:
 
@@ -30,21 +29,13 @@ It supports every registered diagram family (including flowchart, sequence,
 class, ER, state, Gantt, Mindmap, and GitGraph) — just pass the source.
 
 ```ts
-import { renderMermaidSVG } from 'agentic-mermaid'
+import { writeFileSync } from 'node:fs'
+import { renderMermaidSVG } from 'agentic-mermaid/agent'
 
 const svg = renderMermaidSVG(`flowchart TD
   Start --> Stop`)
 
-console.log(svg) // "<svg ...>...</svg>"
-```
-
-Write it to a file in Node/Bun:
-
-```ts
-import { writeFileSync } from 'node:fs'
-import { renderMermaidSVG } from 'agentic-mermaid'
-
-writeFileSync('diagram.svg', renderMermaidSVG('flowchart LR\n  A --> B --> C'))
+writeFileSync('diagram.svg', svg)
 ```
 
 ## Render to PNG
@@ -79,7 +70,7 @@ Great for terminals, code reviews, and plain-text logs. Unicode box-drawing is t
 default; pass `{ useAscii: true }` for pure ASCII.
 
 ```ts
-import { renderMermaidASCII } from 'agentic-mermaid'
+import { renderMermaidASCII } from 'agentic-mermaid/agent'
 
 const unicode = renderMermaidASCII('flowchart LR\n  A --> B')
 const ascii = renderMermaidASCII('flowchart LR\n  A --> B', { useAscii: true })
@@ -96,7 +87,7 @@ Build a palette from two colors, or select one discovered through
 as CSS variables, so the SVG stays self-contained.
 
 ```ts
-import { renderMermaidSVG } from 'agentic-mermaid'
+import { renderMermaidSVG } from 'agentic-mermaid/agent'
 
 // Two-color palette
 const dark = renderMermaidSVG('flowchart TD\n  A --> B', {
@@ -121,12 +112,13 @@ Common `RenderOptions`: `bg`, `fg`, `font`, `transparent`, and `security`. See
 ### Untrusted input
 
 If the Mermaid source is not yours, render with `security: 'strict'`. It disables
-the web-font `@import` and strips any external-fetch references from the output, so
-the SVG cannot phone home.
+the web-font `@import` and rejects output with external-fetch references. See
+[the security boundary](../SECURITY.md) for the guarantees and limits.
 
 ```ts
-import { renderMermaidSVG } from 'agentic-mermaid'
+import { renderMermaidSVG } from 'agentic-mermaid/agent'
 
+const userProvidedSource = 'flowchart TD\n  A --> B' // replace with input from your application
 const safe = renderMermaidSVG(userProvidedSource, { security: 'strict' })
 ```
 
@@ -135,62 +127,48 @@ const safe = renderMermaidSVG(userProvidedSource, { security: 'strict' })
 Use the browser ESM entry in client components. It avoids the Node/native entry
 and loads only the selected diagram family:
 
-```tsx
-import { useEffect, useState } from 'react'
+```ts
 import { renderMermaidSVGAsync } from 'agentic-mermaid/browser/lazy'
 
-function Diagram({ code }: { code: string }) {
-  const [svg, setSvg] = useState('')
-  const [error, setError] = useState('')
-  useEffect(() => {
-    let current = true
-    setSvg('')
-    setError('')
-    renderMermaidSVGAsync(code, { security: 'strict' }).then(
-      result => {
-        if (current) setSvg(result)
-      },
-      cause => {
-        if (current) setError(cause instanceof Error ? cause.message : String(cause))
-      },
-    )
-    return () => { current = false }
-  }, [code])
-  if (error) return <pre role="alert">{error}</pre>
-  if (!svg) return <div aria-busy="true" />
-  return <div dangerouslySetInnerHTML={{ __html: svg }} />
-}
+const svg = await renderMermaidSVGAsync('flowchart LR\n  A --> B', {
+  security: 'strict',
+  idPrefix: 'example-diagram', // use a unique prefix per inline diagram
+})
 ```
 
-See [`react.md`](./react.md) for error handling and live theme switching. For a
+The returned string is not a DOM-insertion API. Follow [`browser.md`](./browser.md)
+for parsed-XML insertion and CSP policy, or the complete [`React component`](./react.md)
+for cancellation, unique IDs, error handling and live theme switching. For a
 server component or build step, the synchronous `agentic-mermaid` entry remains
 the simpler choice.
 
-## Which import path?
+## Other runtimes and advanced imports
 
-| You want | Import from |
-|---|---|
-| SVG (Node/Bun, server, or build step) | `agentic-mermaid` |
-| SVG (browser client bundle) | `agentic-mermaid/browser/lazy` |
-| ASCII / Unicode | `agentic-mermaid` |
-| PNG (native rasterizer) | `agentic-mermaid/agent` |
-| Palettes (`knownStyleDescriptors`, `fromShikiTheme`) | `agentic-mermaid` |
-| Editing plus SVG/PNG/ASCII rendering in one path (Node/Bun) | `agentic-mermaid/agent` |
-| Typed editing (Node/Bun) | `agentic-mermaid/agent` |
-| Typed editing (browser/workerd) | `agentic-mermaid/agent/core` |
+| Runtime or task | Entry |
+| --- | --- |
+| Node/Bun rendering and typed editing, including native PNG | `agentic-mermaid/agent` |
+| Browser rendering with deferred family loading | `agentic-mermaid/browser/lazy` |
+| Typed editing in a browser or Worker, without native PNG | `agentic-mermaid/agent/core` |
+| Style utilities such as `fromShikiTheme`, or renderer host adapters | `agentic-mermaid` |
 
-`agentic-mermaid/agent` re-exports the synchronous renderers too, so Node/Bun
-applications can use it as one import path for SVG, PNG, ASCII/Unicode, and
-layout output. It is not a superset of `agentic-mermaid`: `fromShikiTheme`,
-`renderMermaidSVGAsync`, `createMermaidRenderer`, and the browser PNG adapters
-are imported from the root entry. Browser and workerd code should use
-`agentic-mermaid/agent/core`, which excludes the native PNG implementation.
+The root entry remains supported. The agent entry re-exports the synchronous
+renderers but does not include every root utility. See the
+[API reference](api.md) for the full exports and the [browser guide](browser.md)
+for runtime-specific integration.
 
 ## Prefer the command line?
 
 The same renderers ship as the `am` CLI — no code required. After the local
-install above, use the package runner so the command resolves without a global
-install:
+install above, create a source file:
+
+```bash
+cat > diagram.mmd <<'MMD'
+flowchart LR
+  A --> B --> C
+MMD
+```
+
+Use the package runner so the command resolves without a global install:
 
 ```bash
 npx --no-install agentic-mermaid render diagram.mmd --format svg
@@ -206,4 +184,4 @@ an npm script, the shorter `am …` binary name is available automatically.
 - [`diagram-families.md`](./diagram-families.md) — every supported family with examples.
 - [`theming.md`](./theming.md) — custom themes and Shiki import.
 - [`api.md`](./api.md) — the full option and function reference.
-- [`agent-api-cookbook.md`](./agent-api-cookbook.md) — typed editing (parse → mutate → verify → serialize).
+- [`agent-api-cookbook.md`](./agent-api-cookbook.md) — typed editing (parse → narrow → mutate → verify → serialize).

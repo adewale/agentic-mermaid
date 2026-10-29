@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import fc from 'fast-check'
 import { layoutCertificateProof } from '../agent/certificates.ts'
 import type { FamilyDescriptor, FamilyLayoutResult } from '../agent/families.ts'
@@ -13,8 +12,12 @@ import { normalizeFamilyLayoutResult, positionResolvedFamily } from '../position
 import { resolvedRenderExecutionPlanOf, resolveRenderRequest } from '../render-contract.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { DEFAULTS } from '../theme.ts'
-import type { EdgeRouteCertificate, FamilyEdgeRouteCertificate, PositionedDiagram, RegionContainmentCertificate, RenderContext, RenderOptions, RouteCertificate } from '../types.ts'
+import type { PositionedDiagram, RenderContext, RenderOptions } from '../types.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { type FamilyMetamorphic, METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 const RUNS = 24
 const TAG = fc.integer({ min: 0, max: 1_000_000 }).map(n => `p${n.toString(36)}`)
@@ -56,6 +59,20 @@ function sceneContext(
 
 function headerFor(kind: DiagramKind): string {
   switch (kind) {
+    case 'packet':
+      return 'packet'
+    case 'kanban':
+      return 'kanban'
+    case 'requirement':
+      return 'requirementDiagram'
+    case 'treemap':
+      return 'treemap'
+    case 'ishikawa':
+      return 'ishikawa'
+    case 'block':
+      return 'block'
+    case 'c4':
+      return 'C4'
     case 'flowchart':
       return 'flowchart'
     case 'state':
@@ -86,6 +103,8 @@ function headerFor(kind: DiagramKind): string {
       return 'gitGraph'
     case 'radar':
       return 'radar-beta'
+    case 'zenuml': return 'zenuml'
+    case 'eventmodeling': return 'eventmodeling'
     case 'sankey':
       return 'sankey-beta'
     default: {
@@ -128,9 +147,9 @@ function widenPositioned(result: FamilyLayoutResult | PositionedDiagram, by: num
   return { ...rest, positioned: { ...positioned, width: positioned.width + by } }
 }
 
-function viewBoxWidth(svg: string): number {
-  const match = /<svg\b[^>]*\bviewBox="[-\d.]+ [-\d.]+ ([\d.]+) [\d.]+"/.exec(svg)
-  if (!match) throw new Error('rendered SVG has no numeric viewBox')
+function intrinsicWidth(svg: string): number {
+  const match = /<svg\b[^>]*\bwidth="([\d.]+)"/.exec(svg) ?? /<svg\b[^>]*\bmax-width:([\d.]+)px/.exec(svg)
+  if (!match) throw new Error('rendered SVG has no numeric display width')
   return Number(match[1])
 }
 
@@ -148,8 +167,7 @@ describe('property: FamilyDescriptor render waist', () => {
         expect(original?.layout).toBeDefined()
         expect(original?.lowerScene).toBeDefined()
         expect(original?.renderAscii).toBeDefined()
-        expect(original?.normalizeRequest).toBeDefined()
-        if (!original?.layout || !original.lowerScene || !original.renderAscii || !original.normalizeRequest) return
+        if (!original?.layout || !original.lowerScene || !original.renderAscii) return
         const { layout, renderAscii, normalizeRequest } = original
         const renderSvg = () => renderMermaidSVG(source, { embedFontImport: false })
         const renderAsciiReceipt = () => renderMermaidASCIIWithReceipt(source, { colorMode: 'none' })
@@ -166,24 +184,28 @@ describe('property: FamilyDescriptor render waist', () => {
 
         // normalizeRequest: the frozen request context is the contract; a
         // palette patch it returns reaches both the SVG and the terminal theme.
-        withFamilyHooks(publicKind, {
-          ...original,
-          normalizeRequest: ctx => {
-            expect(Object.isFrozen(ctx)).toBe(true)
-            expect(Object.isFrozen(ctx.source)).toBe(true)
-            expect(Object.isFrozen(ctx.renderOptions)).toBe(true)
-            expect(Object.isFrozen(ctx.colors)).toBe(true)
-            const result = normalizeRequest(ctx) ?? {}
-            return { ...result, appearance: { ...result.appearance, colors: { ...result.appearance?.colors, fg: PERTURBED_FG } } }
+        withFamilyHooks(
+          publicKind,
+          {
+            ...original,
+            normalizeRequest: ctx => {
+              expect(Object.isFrozen(ctx)).toBe(true)
+              expect(Object.isFrozen(ctx.source)).toBe(true)
+              expect(Object.isFrozen(ctx.renderOptions)).toBe(true)
+              expect(Object.isFrozen(ctx.colors)).toBe(true)
+              const result = normalizeRequest?.(ctx) ?? {}
+              return { ...result, appearance: { ...result.appearance, colors: { ...result.appearance?.colors, fg: PERTURBED_FG } } }
+            },
           },
-        }, () => {
-          expect(renderSvg()).toContain(PERTURBED_FG)
-          expect(renderAsciiReceipt().terminalStyle.theme.fg).toBe(PERTURBED_FG)
-        })
+          () => {
+            expect(renderSvg()).toContain(PERTURBED_FG)
+            expect(renderAsciiReceipt().terminalStyle.theme.fg).toBe(PERTURBED_FG)
+          },
+        )
 
         // layout: a widened positioned artifact widens the SVG canvas.
         withFamilyHooks(publicKind, { ...original, layout: ctx => widenPositioned(layout(ctx), PERTURBED_WIDTH) }, () => {
-          expect(viewBoxWidth(renderSvg())).toBeCloseTo(viewBoxWidth(svg) + PERTURBED_WIDTH, 6)
+          expect(intrinsicWidth(renderSvg())).toBeCloseTo(intrinsicWidth(svg) + PERTURBED_WIDTH, 6)
         })
 
         // layout and lowerScene: SVG rendering surfaces a failing hook. The
@@ -192,12 +214,21 @@ describe('property: FamilyDescriptor render waist', () => {
         // evidence while the text stays byte-identical.
         for (const hook of ['layout', 'lowerScene'] as const) {
           const failure = `perturbed ${hook} hook`
-          withFamilyHooks(publicKind, { ...original, [hook]: () => { throw new Error(failure) } }, () => {
-            expect(renderSvg).toThrow(failure)
-            const perturbed = renderAsciiReceipt()
-            expect(perturbed.text).toBe(ascii.text)
-            expect(perturbed.terminalStyle.connectorProjection.evidence).toBe('unavailable')
-          })
+          withFamilyHooks(
+            publicKind,
+            {
+              ...original,
+              [hook]: () => {
+                throw new Error(failure)
+              },
+            },
+            () => {
+              expect(renderSvg).toThrow(failure)
+              const perturbed = renderAsciiReceipt()
+              expect(perturbed.text).toBe(ascii.text)
+              expect(perturbed.terminalStyle.connectorProjection.evidence).toBe('unavailable')
+            },
+          )
         }
 
         // renderAscii: the terminal text is the registered hook's output, and
@@ -207,9 +238,9 @@ describe('property: FamilyDescriptor render waist', () => {
           expect(renderSvg()).toBe(svg)
         })
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
-  })
+  }, 30_000)
 
   test('request normalizers cannot smuggle mutable, executable, or second appearance authorities below the waist', () => {
     const original = getFamily('flowchart')!
@@ -223,6 +254,10 @@ describe('property: FamilyDescriptor render waist', () => {
     }
 
     reject(() => ({ appearance: { family: { callback: () => true } as never } }), 'invalid appearance data')
+    for (const value of [NaN, Infinity, -Infinity, 1n, Symbol('invalid'), () => true]) {
+      reject(() => ({ familyConfig: { value } }), 'invalid config data')
+    }
+    reject(() => ({ familyConfig: JSON.parse('{"nested":{"constructor":true}}') }), 'uses a forbidden prototype key')
     reject(ctx => ({ appearance: { colors: { ...ctx.colors, font: 'A Different Font' } } }), 'may not rewrite appearance field "font"')
     reject(() => ({ legacyOptions: {} }) as never, 'unknown field "legacyOptions"')
 
@@ -238,6 +273,13 @@ describe('property: FamilyDescriptor render waist', () => {
 
     let resultReads = 0
     let nestedOptionReads = 0
+    let familyReads = 0
+    const familyValue = { label: 'captured' }
+    const arrayValue = { label: 'captured array child' }
+    const frozenFamily = Object.freeze({
+      get value() { familyReads++; return familyValue },
+      values: Object.freeze([arrayValue]),
+    })
     const restoreAccessorResult = replaceFamilyForTest('flowchart', {
       ...original,
       normalizeRequest: ctx => {
@@ -257,6 +299,7 @@ describe('property: FamilyDescriptor render waist', () => {
             return resultReads === 1 ? { ...ctx.renderOptions, class: classOptions } : { ...ctx.renderOptions, class: { hierarchicalNamespaces: 'changed after validation' } }
           },
         })
+        result.familyConfig = frozenFamily
         return result as never
       },
     })
@@ -266,6 +309,15 @@ describe('property: FamilyDescriptor render waist', () => {
       expect(nestedOptionReads).toBe(1)
       expect(request.renderOptions.class).toEqual({ hierarchicalNamespaces: false })
       expect(Object.isFrozen(request.renderOptions.class)).toBe(true)
+      familyValue.label = 'changed after capture'
+      arrayValue.label = 'changed array child'
+      expect(familyReads).toBe(1)
+      expect(request.familyConfig).toEqual({
+        value: { label: 'captured' }, values: [{ label: 'captured array child' }],
+      })
+      expect(Object.isFrozen(request.familyConfig?.value)).toBe(true)
+      expect(Object.isFrozen(request.familyConfig?.values)).toBe(true)
+      expect(Object.isFrozen((request.familyConfig?.values as readonly unknown[])[0])).toBe(true)
     } finally {
       restoreAccessorResult()
     }
@@ -345,11 +397,11 @@ describe('property: FamilyDescriptor render waist', () => {
         expect(second).toBe(first)
         expect(after).toBe(before)
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
   })
 
-  test('external plugins sort after metadata-ordered built-ins in an isolated registry process', () => {
+  test('external plugins sort after metadata-ordered built-ins in an isolated registry process', async () => {
     const script = String.raw`
       import fc from 'fast-check'
       import { BUILTIN_FAMILY_METADATA, getFamily, knownFamilies } from './src/agent/families.ts'
@@ -377,7 +429,7 @@ describe('property: FamilyDescriptor render waist', () => {
           seen.add(familyId)
           registerFamily({
             contractVersion: 2,
-            identity: { id: familyId, kind: 'family', version: '1.0.0', compatibility: { core: '^0.4.0' }, provenance: { owner: 'property-test', source: 'test' } },
+            identity: { id: familyId, kind: 'family', version: '1.0.0', compatibility: { core: '^0.5.0' }, provenance: { owner: 'property-test', source: 'test' } },
             id: familyId,
             label: familyId,
             example: 'test-' + id + '\n  example payload',
@@ -414,11 +466,7 @@ describe('property: FamilyDescriptor render waist', () => {
         }
       }), { numRuns: 25 })
     `
-    const result = spawnSync('bun', ['-e', script], {
-      cwd: process.cwd(),
-      encoding: 'utf8',
-      maxBuffer: 1024 * 1024,
-    })
+    const result = await runChild('bun', ['-e', script], { cwd: process.cwd() })
     expect(result.status, result.stderr || result.stdout).toBe(0)
   })
 })
@@ -444,7 +492,7 @@ describe('property: color-resolution waist', () => {
         expect(colors.line).toBe(line)
         expect(colors.font).toBe('TestFont')
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
   })
 
@@ -470,7 +518,7 @@ describe('property: color-resolution waist', () => {
         expect(colors.line).toBe(defaultLink)
         expect(colors.surface).toBe(primaryColor)
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
   })
 
@@ -490,100 +538,54 @@ describe('property: color-resolution waist', () => {
         expect(colors.bg).toBe(bg ?? DEFAULTS.bg)
         expect(colors.fg).toBe(fg ?? DEFAULTS.fg)
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
   })
 })
 
-describe('property: layout certificate proof waist', () => {
-  const flowchartCert = fc
-    .record({
-      edgeIndex: fc.nat(100),
-      routeClass: fc.constantFrom<RouteCertificate['routeClass']>('primary-forward', 'feedback', 'self-loop', 'container', 'cross-hierarchy'),
-      invariant: fc.constantFrom<RouteCertificate['invariant']>('straight', 'explained-detour', 'bundle', 'outer-feedback', 'feedback-detour', 'self-loop', 'container-attach', 'unverified-shape'),
-      bendCount: fc.nat(8),
-    })
-    .map(cert => cert as RouteCertificate)
-
-  const familyEdgeCert: fc.Arbitrary<FamilyEdgeRouteCertificate> = fc.oneof(
-    fc.record({
-      family: fc.constantFrom<'class' | 'er'>('class', 'er'),
-      edgeIndex: fc.nat(100),
-      routeClass: fc.constant<'family-layout'>('family-layout'),
-      invariant: fc.constantFrom<'orthogonal-box' | 'unverified-family-route'>('orthogonal-box', 'unverified-family-route'),
-      bendCount: fc.nat(8),
-      orthogonal: fc.boolean(),
-      sourceBoundary: fc.boolean(),
-      targetBoundary: fc.boolean(),
-    }),
-    fc.record({
-      family: fc.constant<'architecture'>('architecture'),
-      edgeIndex: fc.nat(100),
-      routeClass: fc.constant<'family-layout'>('family-layout'),
-      invariant: fc.constantFrom<'side-anchored' | 'unverified-family-route'>('side-anchored', 'unverified-family-route'),
-      bendCount: fc.nat(8),
-      orthogonal: fc.boolean(),
-      sourceSide: fc.constantFrom('L', 'R', 'T', 'B'),
-      targetSide: fc.constantFrom('L', 'R', 'T', 'B'),
-      sourceBoundary: fc.constantFrom('item', 'group'),
-      targetBoundary: fc.constantFrom('item', 'group'),
-      sourceAnchored: fc.boolean(),
-      targetAnchored: fc.boolean(),
-      placement: fc.constantFrom<'satisfied' | 'conflicted'>('satisfied', 'conflicted'),
-      sourceFacesTarget: fc.boolean(),
-      targetFacesSource: fc.boolean(),
-      obstacleFree: fc.boolean(),
-    }),
-    fc.record({
-      family: fc.constant<'sequence'>('sequence'),
-      edgeIndex: fc.nat(100),
-      routeClass: fc.constant<'family-layout'>('family-layout'),
-      invariant: fc.constantFrom<'lifeline-message' | 'self-message' | 'unverified-family-route'>('lifeline-message', 'self-message', 'unverified-family-route'),
-      bendCount: fc.nat(8),
-      horizontal: fc.boolean(),
-      sourceLifeline: fc.boolean(),
-      targetLifeline: fc.boolean(),
-      selfMessage: fc.boolean(),
-    }),
-  )
-
-  const regionCert: fc.Arbitrary<RegionContainmentCertificate> = fc.record({
-    family: fc.constantFrom('timeline', 'xychart', 'pie', 'quadrant', 'gantt'),
-    elementId: TAG,
-    routeClass: fc.constant<'family-layout'>('family-layout'),
-    invariant: fc.constantFrom('timeline-interval', 'plot-contained', 'legend-contained', 'section-contained', 'unverified-family-layout'),
-    bounds: fc.record({
-      x: fc.integer({ min: -100, max: 100 }),
-      y: fc.integer({ min: -100, max: 100 }),
-      w: fc.integer({ min: 1, max: 500 }),
-      h: fc.integer({ min: 1, max: 500 }),
-    }),
-    center: fc.record({
-      x: fc.integer({ min: -100, max: 600 }),
-      y: fc.integer({ min: -100, max: 600 }),
-    }),
-    containment: fc.constantFrom('bounds', 'center'),
-    withinBounds: fc.boolean(),
-    groupId: fc.option(TAG, { nil: undefined }),
-    withinGroup: fc.option(fc.boolean(), { nil: undefined }),
+describe('layout certificate proof classification', () => {
+  test('edge certificates retain route classification even when geometric checks fail', () => {
+    for (const invariant of ['straight', 'explained-detour', 'bundle', 'outer-feedback', 'feedback-detour', 'self-loop', 'container-attach', 'unverified-shape'] as const) {
+      expect(layoutCertificateProof({ edgeIndex: 0, routeClass: 'primary-forward', bendCount: 0, invariant })).toBe('edge-route')
+    }
+    for (const family of ['class', 'er'] as const) {
+      for (const invariant of ['orthogonal-box', 'unverified-family-route'] as const) {
+        expect(layoutCertificateProof({ family, edgeIndex: 1, routeClass: 'family-layout', invariant, bendCount: 0, orthogonal: true, sourceBoundary: true, targetBoundary: true })).toBe('edge-route')
+      }
+      for (const [orthogonal, sourceBoundary, targetBoundary] of [[false, true, true], [true, false, true], [true, true, false]] as const) {
+        expect(layoutCertificateProof({ family, edgeIndex: 0, routeClass: 'family-layout', invariant: 'unverified-family-route', bendCount: 1,
+          orthogonal, sourceBoundary, targetBoundary,
+        })).toBe('edge-route')
+      }
+    }
+    for (const invariant of ['side-anchored', 'unverified-family-route'] as const) {
+      expect(layoutCertificateProof({ family: 'architecture', edgeIndex: 0, routeClass: 'family-layout', invariant,
+        bendCount: 0, orthogonal: true, sourceSide: 'R', targetSide: 'L', sourceBoundary: 'item', targetBoundary: 'item',
+        sourceAnchored: true, targetAnchored: true, placement: 'satisfied', sourceFacesTarget: true, targetFacesSource: true, obstacleFree: true,
+      })).toBe('edge-route')
+    }
+    expect(layoutCertificateProof({ family: 'architecture', edgeIndex: 0, routeClass: 'family-layout', invariant: 'unverified-family-route',
+      bendCount: 2, orthogonal: false, sourceSide: 'R', targetSide: 'L', sourceBoundary: 'item', targetBoundary: 'group',
+      sourceAnchored: false, targetAnchored: false, placement: 'conflicted', sourceFacesTarget: false, targetFacesSource: false, obstacleFree: false,
+    })).toBe('edge-route')
+    for (const invariant of ['lifeline-message', 'self-message', 'unverified-family-route'] as const) {
+      expect(layoutCertificateProof({ family: 'sequence', edgeIndex: 0, routeClass: 'family-layout', invariant,
+        bendCount: 0, horizontal: true, sourceLifeline: true, targetLifeline: true, selfMessage: false,
+      })).toBe('edge-route')
+    }
   })
 
-  test('edge-indexed certificates always classify as edge-route proofs', () => {
-    fc.assert(
-      fc.property(fc.oneof(flowchartCert, familyEdgeCert), cert => {
-        expect(layoutCertificateProof(cert)).toBe('edge-route')
-      }),
-      { numRuns: RUNS },
-    )
-  })
-
-  test('element-indexed certificates always classify as region-containment proofs', () => {
-    fc.assert(
-      fc.property(regionCert, cert => {
-        expect(layoutCertificateProof(cert)).toBe('region-containment')
-      }),
-      { numRuns: RUNS },
-    )
+  test('valid element certificates retain region-containment classification', () => {
+    expect(layoutCertificateProof({ family: 'pie', elementId: 'failed-legend', routeClass: 'family-layout', invariant: 'unverified-family-layout',
+      bounds: { x: 0, y: 0, w: 40, h: 20 }, center: { x: 100, y: 100 }, containment: 'center', withinBounds: false, groupId: 'legend', withinGroup: false,
+    })).toBe('region-containment')
+    for (const family of ['timeline', 'xychart', 'pie', 'quadrant', 'gantt'] as const) {
+      for (const invariant of ['timeline-interval', 'plot-contained', 'legend-contained', 'section-contained', 'unverified-family-layout'] as const) {
+        expect(layoutCertificateProof({ family, elementId: 'authored-element', routeClass: 'family-layout', invariant,
+          bounds: { x: 0, y: 0, w: 40, h: 20 }, center: { x: 20, y: 10 }, containment: 'bounds', withinBounds: true,
+        })).toBe('region-containment')
+      }
+    }
   })
 })
 
@@ -614,7 +616,7 @@ describe('property: source-context layout hooks preserve structured-body layout 
         expect(layout.bounds.w).toBeGreaterThan(0)
         expect(layout.bounds.h).toBeGreaterThan(0)
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
   })
 })

@@ -24,6 +24,16 @@ function render(text: string, interactive: boolean = false) {
 }
 
 describe('renderXYChartSvg – structure', () => {
+  it.each(['crisp', 'jittered'] as const)('capitalizes wrapped titles once with %s strokes', stroke => {
+    for (const horizontal of [false, true]) {
+      const source = `---\nconfig:\n  xyChart:\n    width: 200\n    height: 500\n---\nxychart${horizontal ? ' horizontal' : ''}\ntitle antidisestablishmentarianism\nx-axis [a, b]\nbar [1, 2]`
+      const svg = renderMermaidSVG(source, { style: { stroke, roles: { group: { textTransform: 'capitalize' } } } })
+      const title = svg.match(/<text\b[^>]*class="xychart-title"[^>]*>([\s\S]*?)<\/text>/)?.[1]
+      expect(title).toContain('<tspan')
+      expect(title!.replace(/<[^>]+>/g, '').replace(/-/g, '')).toBe('Antidisestablishmentarianism')
+    }
+  })
+
   it('emits semantic grid, axis, tick, bar, and line classes', () => {
     const svg = render(`xychart
       x-axis [Q1, Q2, Q3]
@@ -78,8 +88,10 @@ xychart
 
     expect(svg).toContain('--xychart-color-0: #ff0000;')
     expect(svg).toContain('--xychart-color-1: #00ff00;')
-    expect(svg).toContain('.xychart-x-axis-line { stroke: #112233; }')
-    expect(svg).toContain('.xychart-y-tick { stroke: #445566; }')
+    expect(svg).toMatch(/<line class="xychart-axis-line xychart-x-axis-line"[^>]* stroke="#112233" /)
+    const yTicks = svg.match(/<line class="xychart-tick xychart-y-tick"[^>]*>/g) ?? []
+    expect(yTicks.length).toBeGreaterThan(0)
+    for (const tick of yTicks) expect(tick).toContain(' stroke="#445566" ')
     expect(svg.match(/class="xychart-data-label"/g)?.length ?? 0).toBe(3)
   })
 
@@ -124,20 +136,20 @@ xychart
     expect(svg).toContain('max-width:640px')
     expect(svg).toContain('--xychart-color-0: #ff0000;')
     expect(svg).toContain('--xychart-color-1: #00ff00;')
-    expect(svg).toContain('.xychart-title { fill: #102030; }')
-    expect(svg).toContain('.xychart-y-label { fill: #304050; }')
-    expect(svg).toContain('.xychart-y-tick { stroke: #506070; }')
-    expect(svg).toContain('.xychart-y-axis-line { stroke: #708090; }')
-    expect(svg).toContain('.xychart-y-axis-title { fill: #90a0b0; }')
+    expect(svg).toMatch(/<text [^>]*class="xychart-title"[^>]* fill="#102030"/)
+    expect(svg).toMatch(/<text [^>]*class="xychart-label xychart-y-label"[^>]* fill="#304050"/)
+    expect(svg).toMatch(/<text [^>]*class="xychart-axis-title xychart-y-axis-title"[^>]* fill="#90a0b0"/)
     expect(svg).not.toContain('class="xychart-label xychart-x-label"')
     expect(svg).not.toContain('class="xychart-axis-title xychart-x-axis-title"')
     expect(svg).not.toContain('class="xychart-tick xychart-x-tick"')
     expect(svg).not.toContain('class="xychart-axis-line xychart-x-axis-line"')
-    expect(svg).toContain('class="xychart-tick xychart-y-tick" stroke-width="5"')
-    expect(svg).toContain('class="xychart-axis-line xychart-y-axis-line" stroke-width="4"')
+    expect(svg).toMatch(/<line class="xychart-tick xychart-y-tick"[^>]* stroke="#506070" stroke-width="5" /)
+    expect(svg).toMatch(/<line class="xychart-axis-line xychart-y-axis-line"[^>]* stroke="#708090" stroke-width="4" /)
     expect(svg).toContain('dominant-baseline="middle"')
     expect(svg).toContain('font-size="13" font-weight="400"')
-    expect(svg).toMatch(/font-size="17" font-weight="400" dy="0.35em" class="xychart-axis-title xychart-y-axis-title"[^>]*>Users<\/text>/)
+    expect(svg).toMatch(/class="xychart-axis-title xychart-y-axis-title"[^>]*font-size="17" font-weight="400"[^>]*>Users<\/text>/)
+    const yTitle = svg.match(/<text\b[^>]*class="xychart-axis-title xychart-y-axis-title"[^>]*>/)?.[0]
+    expect(yTitle).toMatch(/transform="rotate\(-90 [-\d.]+ [-\d.]+\)"/)
   })
 
   it('adapts text contrast to backgroundColor and carries the authored background and series palette into PNG', () => {
@@ -156,7 +168,7 @@ xychart
   line [8, 4]`
     const svg = renderMermaidSVG(source, { embedFontImport: false })
     expect(svg).toContain('background:#101820')
-    const textColor = svg.match(/\.xychart-label \{ fill: (#[0-9a-f]{6});/)?.[1]
+    const textColor = svg.match(/class="xychart-label xychart-x-label"[^>]* fill="(#[0-9a-f]{6})"/)?.[1]
     expect(textColor).toBeDefined()
     expect(contrastRatio(textColor!, '#101820')).toBeGreaterThanOrEqual(4.5)
 

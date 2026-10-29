@@ -11,6 +11,7 @@
 // Seed pinned globally (fc-seed.preload.ts); AM_FC_SEED=random hunts fresh counterexamples.
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import {
   describeMermaidSource, describeMermaidFactsSource, analyzeMermaidSource, checkMermaidSource,
@@ -68,7 +69,7 @@ describe('read-surface fuzz: source readers are total and deterministic', () => 
   it('describeMermaidSource', () => {
     fc.assert(fc.property(sourceArb, src => {
       assertTotalAndDeterministic(() => describeMermaidSource(src), v => expect(typeof v).toBe('string'))
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 
   it('describeMermaidFactsSource', () => {
@@ -77,13 +78,13 @@ describe('read-surface fuzz: source readers are total and deterministic', () => 
         expect(typeof v.ok).toBe('boolean')
         if (v.ok) expect(Array.isArray(v.value)).toBe(true)
       })
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 
   it('analyzeMermaidSource', () => {
     fc.assert(fc.property(sourceArb, src => {
       assertTotalAndDeterministic(() => analyzeMermaidSource(src), v => expect(typeof v.ok).toBe('boolean'))
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 
   it('checkMermaidSource tolerates an arbitrary spec', () => {
@@ -92,13 +93,13 @@ describe('read-surface fuzz: source readers are total and deterministic', () => 
         expect(typeof v.ok).toBe('boolean')
         if (v.ok) expect(typeof v.value.ok).toBe('boolean')
       })
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 
   it('asciiToMermaid', () => {
     fc.assert(fc.property(fc.oneof(fc.string({ maxLength: 200 }), specialStringArb), ascii => {
       assertTotalAndDeterministic(() => asciiToMermaid(ascii), v => expect(typeof v.ok).toBe('boolean'))
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 })
 
@@ -132,6 +133,6 @@ describe('read-surface fuzz: typed readers deterministic over the family corpus'
       expect(describeMermaidFacts(valid)).toEqual(describeMermaidFacts(valid))
       expect(JSON.stringify(analyzeMermaid(valid))).toBe(JSON.stringify(analyzeMermaid(valid)))
       expect(JSON.stringify(checkMermaid(valid, spec as never))).toBe(JSON.stringify(checkMermaid(valid, spec as never)))
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 })

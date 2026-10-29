@@ -1,3 +1,4 @@
+import { PACKAGE_VERSION } from '../version.ts'
 /**
  * Stable role vocabulary shared by every Scene backend.  Built-in roles keep
  * their existing rendering policy, while extensions must use a namespace
@@ -9,7 +10,11 @@ import {
   EXACT_ROLE_STYLE_CONTRACT,
   type ExactRoleStyleContract,
   type RoleStyleSpec,
+  type RoleStyles,
 } from './role-style-contract.ts'
+import type { SemanticChannels } from './ir.ts'
+import type { SemanticBinding } from './style-spec.ts'
+import type { InternalStyleFace } from './style-registry.ts'
 
 export type CoreSceneRole =
   | 'node' | 'edge' | 'edge-label' | 'group' | 'group-header' | 'label'
@@ -67,8 +72,6 @@ const SHAPE_TEXT_OR_GROUP: readonly SceneMarkKind[] = ['shape', 'text', 'group']
 const CONNECTOR_OR_GROUP: readonly SceneMarkKind[] = ['connector', 'group']
 const DOCUMENT: readonly SceneMarkKind[] = ['document']
 const TEXT_OR_GROUP: readonly SceneMarkKind[] = ['text', 'group']
-const TEXT_OR_DOCUMENT: readonly SceneMarkKind[] = ['text', 'document']
-const SHAPE_TEXT_OR_DOCUMENT: readonly SceneMarkKind[] = ['shape', 'text', 'document']
 const PRELUDE: readonly SceneMarkKind[] = ['document']
 
 type BehavioralTraitOptions = Partial<Pick<SceneRoleTraits,
@@ -107,8 +110,8 @@ export const BUILTIN_SCENE_ROLE_TRAITS: Readonly<Record<BuiltinSceneRole, SceneR
   'group-header': traits('group-header', ANY_MARK, 'group', { sketch: 'shape', textHalo: true }),
   label: traits('label', TEXT, 'label', { textHalo: true }),
   actor: traits('actor', SHAPE_OR_GROUP, 'node', { domIdentity: true, sketch: 'shape' }),
-  lifeline: traits('lifeline', CONNECTOR, 'edge', { sketch: 'connector' }),
-  activation: traits('activation', SHAPE, 'node', { domIdentity: true, sketch: 'shape' }),
+  lifeline: traits('lifeline', CONNECTOR_OR_GROUP, 'edge', { sketch: 'connector' }),
+  activation: traits('activation', SHAPE_OR_GROUP, 'node', { domIdentity: true, sketch: 'shape' }),
   message: traits('message', CONNECTOR_OR_GROUP, 'edge', { domIdentity: true, relation: true, sketch: 'connector' }),
   block: traits('block', ANY_MARK, 'group', { domIdentity: true, sketch: 'shape' }),
   note: traits('note', SHAPE_OR_GROUP, 'group', { domIdentity: true, sketch: 'shape' }),
@@ -141,7 +144,7 @@ export const BUILTIN_SCENE_ROLE_TRAITS: Readonly<Record<BuiltinSceneRole, SceneR
   junction: traits('junction', SHAPE_OR_GROUP, 'node', { domIdentity: true }),
   // Text glyphs a sketch look draws always sit on its page halo; icons and
   // titles can be text too.
-  icon: traits('icon', SHAPE_TEXT_OR_DOCUMENT, 'node', { textHalo: true }),
+  icon: traits('icon', ['shape', 'text', 'group', 'document'], 'node', { textHalo: true }),
   title: traits('title', ANY_MARK, 'label', { domIdentity: true, textHalo: true }),
   defs: traits('defs', DOCUMENT, 'label'),
   prelude: traits('prelude', PRELUDE, 'label'),
@@ -185,7 +188,7 @@ export const SCENE_ROLE_DESCRIPTORS: readonly SceneRoleDescriptor[] = Object.fre
       id: `role:${role}`,
       kind: 'role',
       version: '1.0.0',
-      compatibility: { core: '^0.4.0', scene: '^2.0.0' },
+      compatibility: { core: PACKAGE_VERSION, scene: '^2.0.0' },
       provenance: { owner: 'agentic-mermaid', source: 'built-in', reference: 'src/scene/roles.ts' },
     }),
     role: role as BuiltinSceneRole,
@@ -214,4 +217,45 @@ export function resolveSceneRoleTraits(role: SceneRole): ResolvedSceneRoleTraits
 
 export function sceneRoleTraits(role: SceneRole): SceneRoleTraits {
   return resolveSceneRoleTraits(role).traits
+}
+
+type InternalRoleStyleLookup = Partial<Record<BuiltinSceneRole, Readonly<RoleStyleSpec>>>
+
+function roleStyleLookup(roles: RoleStyles | undefined): InternalRoleStyleLookup | undefined {
+  return roles as InternalRoleStyleLookup | undefined
+}
+
+export type SemanticBindingContext = Readonly<SemanticChannels>
+
+function bindingMatches(binding: SemanticBinding, context: SemanticBindingContext): boolean {
+  const candidate = context[binding.channel]
+  return Array.isArray(candidate) ? candidate.includes(binding.value) : String(candidate ?? '') === binding.value
+}
+
+/** Shared pre-serialization resolver. Exact role leaves and ordered semantic
+ * slots refine the deterministic fallback; family-authored values are applied
+ * afterwards by the lowering and therefore remain authoritative. */
+export function resolveRoleStyle(
+  face: Readonly<InternalStyleFace> | undefined,
+  role: BuiltinSceneRole,
+  context: SemanticBindingContext = {},
+  options: { readonly includeFallback?: boolean } = {},
+): Readonly<RoleStyleSpec> | undefined {
+  const descriptor = SCENE_ROLE_DESCRIPTORS.find(candidate => candidate.role === role)
+  const roles = roleStyleLookup(face?.roles)
+  const fallback = options.includeFallback === false
+    ? undefined
+    : descriptor ? roles?.[descriptor.style.fallbackRole] : undefined
+  const exact = roles?.[role]
+  let merged: RoleStyleSpec | undefined = fallback || exact ? { ...fallback, ...exact } : undefined
+  const applicable: ReadonlySet<string> = new Set(descriptor?.style.applicableProperties ?? [])
+  for (const binding of face?.bindings ?? []) {
+    if (binding.role !== undefined && binding.role !== role) continue
+    if (!bindingMatches(binding, context)) continue
+    const slot = face?.semanticSlots?.[binding.slot]
+    if (!slot) continue // final-stack admission makes this unreachable
+    const projected = Object.fromEntries(Object.entries(slot).filter(([property]) => applicable.has(property))) as RoleStyleSpec
+    merged = { ...merged, ...projected }
+  }
+  return merged ? Object.freeze(merged) : undefined
 }

@@ -42,7 +42,7 @@ architecture-beta
     expect(resolved.visual.groupBorder).toBe('#38bdf8')
   })
 
-  it('falls back to DiagramColors when no theme variables present', () => {
+  it('inherits palette surfaces while leaving automatic borders to the shared renderer fallback', () => {
     const resolved = resolve(`architecture-beta
   service api(server)[API]`, {
       bg: '#fafaf9',
@@ -52,20 +52,24 @@ architecture-beta
     })
 
     expect(resolved.visual.groupSurface).toBe('#e7e5e4')
-    expect(resolved.visual.groupBorder).toBe('#a8a29e')
     expect(resolved.visual.serviceSurface).toBe('#e7e5e4')
-    expect(resolved.visual.serviceBorder).toBe('#a8a29e')
+    // A global palette border is a candidate for shared contrast repair, not
+    // an explicit Architecture paint override.
+    expect(resolved.visual.groupBorder).toBeUndefined()
+    expect(resolved.visual.serviceBorder).toBeUndefined()
   })
 
   it('merges sparse public visual overrides into complete layout and Scene paint', () => {
     const visual = {
       serviceCornerRadius: 17,
       serviceSurface: '#AABBCC',
+      junctionOuterRadius: 20,
     }
     const resolved = resolveArchitectureVisualConfig({}, { bg: '#fff', fg: '#111' }, { architecture: { visual } })
     expect(resolved.visual.serviceCornerRadius).toBe(17)
     expect(resolved.layout.serviceCornerRadius).toBe(17)
     expect(resolved.visual.serviceSurface).toBe('#AABBCC')
+    expect(resolved.layout.junctionOuterRadius).toBe(20)
 
     const svg = renderMermaidSVG('architecture-beta\n  service api(server)[API]', { architecture: { visual } })
     expect(svg).toContain('rx="17" ry="17"')

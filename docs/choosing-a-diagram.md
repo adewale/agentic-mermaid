@@ -16,19 +16,26 @@ renders and what mutates is `am capabilities --json`, not this page.
 | Follow steps and decisions to an outcome | Flowchart | The subject reacts to events rather than proceeding through steps: state |
 | See how a system moves between modes | State | The path is a linear procedure: flowchart |
 | Read who sends what to whom, in order | Sequence | Only dependency matters, not order: flowchart |
+| Read how protocol fields occupy bit addresses and word rows | Packet | Message order between actors matters: sequence |
 | Compare dated work with durations and dependencies | Gantt | There are no dates, only eras: timeline |
+| Track work by workflow stage, assignee, ticket, and priority | Kanban | Dates, durations, and dependencies matter: gantt |
 | Scan periods and what happened in each | Timeline | The story is one person's scored experience: journey; the history is commits and branches: gitGraph |
 | Judge how a process felt to the person in it | Journey | No actors or sentiment scores exist: timeline |
 | Trace where quantities go from stage to stage | Sankey | The amounts don't need to balance: flowchart with labeled edges |
 | Judge parts of one whole at one moment | Pie | Slices are many or nearly equal, or values change over time: xychart |
+| Compare value proportions within a hierarchy | Treemap | There is no hierarchy: pie; precise comparisons matter more than area: xychart |
 | Compare measured values across categories or time | XY chart | The values are shares of a single whole: pie |
 | Place options on two independent axes | Quadrant | Each option is scored on three or more criteria: radar |
 | Compare profiles across three or more shared criteria | Radar | There are exactly two criteria: quadrant |
 | See stored data and how records relate | ER | Behavior and methods matter, not storage: class |
 | See code structure, types, and inheritance | Class | Only the persistence shape matters: er |
+| Trace requirements to supporting elements and verification evidence | Requirement | The subject is software types and inheritance: class |
 | See services, their grouping, and physical links | Architecture | The flow is logical rather than deployed: flowchart |
+| Read a deliberately arranged grid of components and nested groups | Block | Connectivity should choose placement: flowchart; infrastructure ports matter: architecture |
+| Explain people, software responsibilities and nested system or deployment boundaries | C4 | The reader needs infrastructure ports and physical links: architecture; protocol timing: sequence |
 | Follow commits, branches, and merges | GitGraph | — |
 | Explore ideas radiating from one center | Mindmap | Branches share children (the structure is a graph, not a tree): flowchart |
+| Investigate contributing causes of one effect | Ishikawa | The branches are ideas without a cause-and-effect claim: mindmap |
 
 ## Check the source shape first
 
@@ -64,6 +71,22 @@ Know which constraints apply before you author:
 - **Terminal delivery is real delivery.** Every registered family renders
   ASCII. A width the diagram cannot honestly meet throws `AsciiWidthError`
   with the required width instead of squeezing the layout.
+- **C4 interactions have occurrence identity.** Repeated endpoint pairs are
+  separate interactions. Dynamic order and explicit indices survive, while
+  generated interaction selectors can change after structural edits; read the
+  successful result before the next edit. See [C4](https://github.com/adewale/agentic-mermaid/blob/0f05d39858d0061b79a0c99ef03a5c10d537ddaa/docs/design/families/c4.md).
+- **Bit addresses and grid cells carry meaning.** Packet ranges are inclusive;
+  descending bit numbering mirrors the display without changing field addresses.
+  Block source order, columns, spans, and spaces determine placement; connectors
+  do not rearrange that grid.
+- **Membership is authored data.** Kanban indentation places cards in columns;
+  Ishikawa starts with the effect and uses indentation for contributing causes;
+  Treemap parentage and numeric leaf values determine containment and area.
+  Use the family's typed movement operations to change membership deliberately.
+- **Requirement relations are typed traceability.** Containment, satisfaction,
+  verification, and the other relation kinds retain their own meaning and
+  endpoint orientation. Discover the family schema instead of borrowing
+  flowchart edge syntax.
 
 ## Prefer the smallest structure that carries the meaning
 
@@ -79,8 +102,9 @@ Know which constraints apply before you author:
    the Style + Palette render options, not to the source.
 
 If the construct you want is not modeled, check whether another family owns
-that metaphor before bending this one. Unmodeled syntax still parses, renders,
-and round-trips as an opaque body; what stops is structured mutation.
+that metaphor before bending this one. Source preservation does not establish
+render support: C4 refuses a partial drawing when a retained statement has no
+native interpretation. Check the family's documented disposition.
 
 ## Defaults that mislead
 
@@ -107,7 +131,7 @@ and round-trips as an opaque body; what stops is structured mutation.
 Choosing well is checkable. After authoring or editing, run `verifyMermaid`
 (or `am verify`):
 
-- **Tier 1 — structural:** <!-- BEGIN GENERATED: warning-codes:structural -->`EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW`, `UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`<!-- END GENERATED: warning-codes:structural -->
+- **Tier 1 — structural:** <!-- BEGIN GENERATED: warning-codes:structural -->`EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW`, `UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`, `INTERNAL_ERROR`<!-- END GENERATED: warning-codes:structural -->
   must be empty before committing; they mean the source or render contract is
   broken, not merely ugly.
 - **Tier 2 — geometric:** `NODE_OVERLAP` and route warnings flag layouts

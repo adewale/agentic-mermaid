@@ -1,3 +1,4 @@
+import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ============================================================================
 // ASCII renderer — journey diagrams
 //
@@ -7,47 +8,27 @@
 
 import { parseJourneyDiagram } from '../journey/parser.ts'
 import type { JourneyDiagram } from '../journey/types.ts'
-import { preprocessMermaidLines } from '../mermaid-source.ts'
+import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { displayText } from '../multiline-utils.ts'
-import { colorizeLine, DEFAULT_ASCII_THEME } from './ansi.ts'
-import type { AsciiConfig, AsciiTheme, CharRole, ColorMode } from './types.ts'
+import { resolveLabelContent } from '../shared/display-text.ts'
+import { DEFAULT_ASCII_THEME } from './ansi.ts'
+import { TerminalDocument, type TerminalOwner, type TerminalRun } from './terminal-document.ts'
+import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
 
-interface StyledSegment {
-  text: string
-  role: CharRole | null
-}
-
-function renderStyledLine(
-  segments: StyledSegment[],
-  colorMode: ColorMode,
-  theme: AsciiTheme,
-): string {
-  const chars: string[] = []
-  const roles: (CharRole | null)[] = []
-
-  for (const segment of segments) {
-    for (const char of segment.text) {
-      chars.push(char)
-      roles.push(segment.role)
-    }
-  }
-
-  return colorizeLine(chars, roles, theme, colorMode)
-}
+type StyledSegment = TerminalRun
 
 function renderScoreSegments(score: number, useAscii: boolean): StyledSegment[] {
   const filled = useAscii ? '#' : '●'
   const empty = useAscii ? '.' : '○'
   const whole = Math.floor(score)
   const hasFraction = !Number.isInteger(score)
-
   const segments: StyledSegment[] = [
-    { text: filled.repeat(whole), role: 'arrow' },
-    ...(hasFraction ? [{ text: useAscii ? '+' : '◐', role: 'arrow' as const }] : []),
-    { text: empty.repeat(5 - whole - Number(hasFraction)), role: 'border' },
+    { text: filled.repeat(whole), role: 'arrow', kind: 'mark' },
+    ...(hasFraction ? [{ text: useAscii ? '+' : '◐', role: 'arrow' as const, kind: 'mark' as const }] : []),
+    { text: empty.repeat(5 - whole - Number(hasFraction)), role: 'border', kind: 'mark' },
   ]
   return segments.filter(segment => segment.text.length > 0)
 }
@@ -78,24 +59,31 @@ function renderScoreStrip(diagram: JourneyDiagram, useAscii: boolean): string {
 /**
  * Render a Mermaid journey diagram to ASCII/Unicode text.
  */
-export function renderJourneyAscii(
+export function renderJourneyTerminal(
   text: string,
   config: AsciiConfig,
   colorMode: ColorMode = 'none',
   theme: AsciiTheme = DEFAULT_ASCII_THEME,
   maxWidth?: number,
   styleFace?: InternalStyleFace,
-): string {
-  const lines = preprocessMermaidLines(text)
-  const diagram = parseJourneyDiagram(lines)
+): TerminalArtifact {
+  maxWidth ??= config.maxWidth
+  const source = normalizeMermaidSource(text)
+  const diagram = parseJourneyDiagram(source.familyLines, source.accessibility)
   const useAscii = config.useAscii
-  const out: string[] = []
+  const document = new TerminalDocument()
+  if (diagram.sections.some(section => section.tasks.length)) document.report({
+    code: 'TERMINAL_FAMILY_PROJECTION', feature: 'journey.axis',
+    message: 'Journey uses ordered scored task lists and a score strip rather than a geometric axis arrow; task order, actors and exact scores are retained.',
+  })
+  let owner: TerminalOwner | undefined
   const pushLine = (segments: StyledSegment[] = []): void => {
-    out.push(segments.length === 0 ? '' : renderStyledLine(segments, colorMode, theme))
+    document.line(segments, { owner })
   }
 
   if (diagram.title) {
-    for (const line of wrapText(displayText(diagram.title), maxWidth)) {
+    owner = { id: 'title', kind: 'label' }
+    for (const line of wrapText(displayText(resolveLabelContent(diagram.title, diagram.titleContent)), maxWidth)) {
       pushLine([{ text: line, role: 'text' }])
     }
     pushLine()
@@ -103,14 +91,15 @@ export function renderJourneyAscii(
 
   const scoreStrip = renderScoreStrip(diagram, useAscii)
   if (scoreStrip) {
+    owner = { id: 'score-strip', kind: 'label' }
     const stripPrefix = 'scores: '
     const stripLines = wrapText(scoreStrip, maxWidth ? Math.max(1, maxWidth - stripPrefix.length) : undefined, { hyphenate: false })
     stripLines.forEach((line, index) => {
       pushLine([
         index === 0
-          ? { text: stripPrefix, role: 'border' }
+          ? { text: stripPrefix, role: 'border', kind: 'text' }
           : { text: ' '.repeat(stripPrefix.length), role: null },
-        { text: line, role: 'arrow' },
+        { text: line, role: 'arrow', kind: 'mark' },
       ])
     })
     pushLine()
@@ -118,6 +107,9 @@ export function renderJourneyAscii(
 
   for (let sectionIndex = 0; sectionIndex < diagram.sections.length; sectionIndex++) {
     const section = diagram.sections[sectionIndex]!
+    const sectionStart = document.height
+    const sectionOwner: TerminalOwner = { id: section.id, kind: 'band', members: section.tasks.map(task => task.id) }
+    owner = sectionOwner
 
     if (section.label) {
       // Bracket only the first line of a wrapped label — bracketing every
@@ -129,7 +121,7 @@ export function renderJourneyAscii(
         : cue === 'double-line' ? (useAscii ? '= ' : '║ ')
         : cue === 'pattern' ? (useAscii ? '# ' : '░ ')
         : ''
-      const labelLines = wrapText(displayText(section.label).replace(/\n/g, ' / '), maxWidth ? Math.max(1, maxWidth - 2 - cueMarker.length) : undefined)
+      const labelLines = wrapText(displayText(resolveLabelContent(section.label, section.labelContent)).replace(/\n/g, ' / '), maxWidth ? Math.max(1, maxWidth - 2 - cueMarker.length) : undefined)
       labelLines.forEach((line, index) => {
         const segments: StyledSegment[] = [
           { text: index === 0 ? cueMarker : ' '.repeat(cueMarker.length), role: cueMarker ? 'arrow' : null },
@@ -145,11 +137,12 @@ export function renderJourneyAscii(
 
     for (let taskIndex = 0; taskIndex < section.tasks.length; taskIndex++) {
       const task = section.tasks[taskIndex]!
+      owner = { id: task.id, kind: 'node', parent: { id: section.id, kind: 'band' } }
       const scoreSegments = renderScoreSegments(task.score, useAscii)
       const scoreWidth = 5
       const taskPrefixWidth = scoreWidth + 1
       const exactScore = Number.isInteger(task.score) ? '' : ` (score ${task.score})`
-      const taskLines = wrapText(displayText(task.text) + exactScore, maxWidth ? Math.max(1, maxWidth - taskPrefixWidth) : undefined)
+      const taskLines = wrapText(displayText(resolveLabelContent(task.text, task.textContent)) + exactScore, maxWidth ? Math.max(1, maxWidth - taskPrefixWidth) : undefined)
 
       pushLine([
         ...scoreSegments,
@@ -164,13 +157,14 @@ export function renderJourneyAscii(
       }
 
       if (task.actors.length > 0) {
+        owner = { id: `${task.id}:actors`, kind: 'label', parent: { id: task.id, kind: 'node' } }
         const actorPrefix = '  by '
-        const actorLines = wrapText(task.actors.map(label => displayText(label)).join(', '), maxWidth ? Math.max(1, maxWidth - visualWidth(actorPrefix)) : undefined)
+        const actorLines = wrapText(task.actors.map((label, index) => displayText(resolveLabelContent(label, task.actorContents?.[index]))).join(', '), maxWidth ? Math.max(1, maxWidth - visualWidth(actorPrefix)) : undefined)
         actorLines.forEach((line, index) => {
           pushLine([
             { text: index === 0 ? '  ' : ' '.repeat(visualWidth(actorPrefix)), role: null },
             ...(index === 0 ? [
-              { text: 'by', role: 'border' as const },
+              { text: 'by', role: 'border' as const, kind: 'text' as const },
               { text: ' ', role: null },
             ] : []),
             { text: line, role: 'text' },
@@ -182,7 +176,15 @@ export function renderJourneyAscii(
       const moreSections = sectionIndex < diagram.sections.length - 1
       if (moreTasks || moreSections) pushLine()
     }
+    if (document.height > sectionStart) document.region(sectionOwner, {
+      x: 0, y: sectionStart, width: document.width, height: document.height - sectionStart,
+    })
   }
 
-  return out.join('\n').trimEnd()
+  return terminalArtifact(document, { colorMode, theme, trimEnd: true })
+}
+
+/** Compatibility string entry point; native dispatch retains the drawing. */
+export function renderJourneyAscii(...args: Parameters<typeof renderJourneyTerminal>): string {
+  return serializeTerminalArtifact(renderJourneyTerminal(...args))
 }

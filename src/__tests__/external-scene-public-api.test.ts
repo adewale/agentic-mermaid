@@ -1,4 +1,7 @@
 import { describe, expect, test } from 'bun:test'
+import * as mainEntry from '../index.ts'
+import { admitSceneDocument as admitBrowserScene } from '../scene/external-data-snapshot.browser.ts'
+import { admitSceneDocument } from '../scene/external-data-snapshot.ts'
 
 // Intentionally import every extension-facing dependency from the published
 // agent entry. A synthetic family must not reach into marks.ts or any built-in
@@ -128,7 +131,7 @@ function descriptor(
       id,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.4.0', scene: '^2.0.0' },
+      compatibility: { core: '^0.5.0', scene: '^2.0.0' },
       provenance: { owner: 'external-scene-public-api-test', source: 'test', reference: EVIDENCE },
     }),
     id,
@@ -164,6 +167,18 @@ function descriptor(
 }
 
 describe('public external Scene construction and admission', () => {
+  test('source-only browser admission refuses fresh and already-admitted external Scenes', () => {
+    const scene = buildExternalScene(sceneInput('family:test/browser-domain', { bg: '#ffffff', fg: '#172033' }))
+    expect(validateSceneDoc(scene).valid).toBe(true)
+    expect(DefaultBackend.render(scene, { seed: 0 })).toContain('<svg')
+    // Public construction records the admitted immutable snapshot. The private
+    // browser domain must still refuse it before the shared cache fast path.
+    const internallyAdmitted = admitSceneDocument(scene, 'internal', false)
+    for (const value of [scene, structuredClone(scene), internallyAdmitted]) {
+      expect(() => admitBrowserScene(value)).toThrow('requires a built-in family')
+      expect(() => admitBrowserScene(value, 'internal')).toThrow('requires a built-in family')
+    }
+  })
   test('requires an explicit Scene range for an external family with lowerScene', () => {
     const base = descriptor(
       'missing-scene-range',
@@ -177,7 +192,7 @@ describe('public external Scene construction and admission', () => {
         id: base.identity.id,
         kind: 'family',
         version: base.identity.version,
-        compatibility: { core: '^0.4.0' },
+        compatibility: { core: '^0.5.0' },
         provenance: base.identity.provenance,
       }),
     }
@@ -210,6 +225,20 @@ describe('public external Scene construction and admission', () => {
     const unregister = registerFamily(family)
     try {
       const source = 'safeScene\n  opaque extension payload'
+      expect(mainEntry).toHaveProperty('renderResolvedScene', expect.any(Function))
+      for (const style of [undefined, 'hand-drawn', 'excalidraw']) {
+        const options = style ? { style } : {}
+        const resolved = mainEntry.renderResolvedScene(source, options)
+        expect(resolved.family).toBe('family:test/safe-scene')
+        expect(resolved.svg).toBe(renderMermaidSVG(source, options))
+        expect(resolved).toEqual(JSON.parse(JSON.stringify(resolved)))
+        const container = resolved.parts.find(part => part.id === 'left-group')!
+        expect(container.node.kind).toBe('group')
+        expect(container.primitives.length).toBeGreaterThan(0)
+        expect(resolved.parts.some(part => part.id === 'left-node')).toBe(false)
+        const edge = resolved.parts.find(part => part.id === 'external-edge')!
+        expect(edge.primitives.some(primitive => primitive.kind === 'path' && primitive.marker)).toBe(true)
+      }
       const precise = renderMermaidSVG(source)
       const rough = renderMermaidSVG(source, { style: { stroke: 'jittered', roughness: 0.9 } })
       const hybrid = renderMermaidSVG(source, { style: { stroke: 'freehand', strokeWidth: 1.4 } })
@@ -239,6 +268,27 @@ describe('public external Scene construction and admission', () => {
     } finally {
       unregister()
     }
+  })
+
+  test('resolved dimensions follow the final repaired SVG viewport', () => {
+    const family = descriptor('resolved-viewport', 'resolvedViewport', ROLES.filter(row => ['prelude', 'chrome', 'defs', 'node'].includes(row.role)), ctx => buildExternalScene({
+      ...sceneInput('family:test/resolved-viewport', ctx.colors),
+      parts: [{ id: 'overhang', kind: 'shape', role: 'node',
+        geometry: { kind: 'rect', x: 0, y: 0, width: 220, height: 120 },
+        paint: { fill: '#abcdef', stroke: '#000000', strokeWidth: '4' } }],
+    }))
+    const unregister = registerFamily(family)
+    try {
+      expect(mainEntry).toHaveProperty('renderResolvedScene', expect.any(Function))
+      const resolved = mainEntry.renderResolvedScene('resolvedViewport')
+      const viewport = resolved.svg.match(/viewBox="([^"]+)"/)![1]!.split(/\s+/).map(Number)
+      expect(viewport[2]!).toBeGreaterThan(220)
+      expect(viewport[3]!).toBeGreaterThan(120)
+      expect(resolved.width).toBeGreaterThan(220)
+      expect(resolved.height).toBeGreaterThan(120)
+      expect(resolved.width).toBeCloseTo(viewport[2]!, 8)
+      expect(resolved.height).toBeCloseTo(viewport[3]!, 8)
+    } finally { unregister() }
   })
 
   test('escapes text and rejects fetching paint and non-canonical document CSS', () => {
@@ -516,6 +566,10 @@ describe('public external Scene construction and admission', () => {
       [{ ...base, parts: [container, { ...data, channels: { ...data.channels, hue: 'red' } }, edge] } as unknown as ExternalSceneInput, /input\.parts\[1\]\.channels\.hue/],
       [{ ...base, parts: [container, data, { ...edge, relationship: { kind: 'dependency', typo: true } }] } as unknown as ExternalSceneInput, /input\.parts\[2\]\.relationship\.typo/],
       [{ ...base, parts: [container, data, { ...edge, labels: [{ text: 'label', visual: { kind: 'inline' } }] }] } as unknown as ExternalSceneInput, /input\.parts\[2\]\.labels\[0\]\.visual/],
+      [{ ...base, parts: [container, data, { ...edge, labels: [{ text: 'label', fontWeight: 800 }] }] } as unknown as ExternalSceneInput, /input\.parts\[2\]\.labels\[0\]\.fontWeight/],
+      [{ ...base, parts: [container, data, { ...edge, labels: [{ text: 'label', letterSpacing: 2 }] }] } as unknown as ExternalSceneInput, /input\.parts\[2\]\.labels\[0\]\.letterSpacing/],
+      [{ ...base, parts: [container, data, { ...edge, labels: [{ text: 'label', display: 'formatted' }] }] } as unknown as ExternalSceneInput, /input\.parts\[2\]\.labels\[0\]\.display/],
+      [{ ...base, parts: [container, data, { ...edge, labels: [{ text: 'label', block: {} }] }] } as unknown as ExternalSceneInput, /input\.parts\[2\]\.labels\[0\]\.block/],
     ]
     for (const [candidate, path] of candidates) {
       expect(() => buildExternalScene(candidate)).toThrow(path)
@@ -803,6 +857,45 @@ describe('public external Scene construction and admission', () => {
       message: expect.stringContaining('Scene points exceed the aggregate'),
     }))
 
+  })
+
+  test('a shared point array keeps each primitive minimum independent of traversal order', () => {
+    const base: ExternalSceneInput = {
+      version: EXTERNAL_SCENE_API_VERSION,
+      family: 'family:test/shared-primitive-points',
+      width: 80,
+      height: 60,
+      colors: { bg: '#fff', fg: '#111' },
+      metadata: { title: 'Shared primitive vertices' },
+      parts: [],
+    }
+    for (const kinds of [['polyline', 'polygon'], ['polygon', 'polyline']] as const) {
+      const two = [{ x: 10, y: 10 }, { x: 30, y: 10 }]
+      const make = (shared: boolean): ExternalSceneInput => ({
+        ...base,
+        parts: kinds.map(kind => ({
+          kind: 'shape', id: kind, role: 'node',
+          geometry: { kind, points: shared ? two : two.map(point => ({ ...point })) },
+        })),
+      })
+      // Aliasing does not add the missing third polygon vertex. Both the
+      // shared graph and its equal-value unaliased form must be rejected.
+      expect(() => buildExternalScene(make(false))).toThrow(/must contain at least 3 points/)
+      expect(() => buildExternalScene(make(true))).toThrow(/must contain at least 3 points/)
+    }
+    const triangle = [{ x: 10, y: 10 }, { x: 30, y: 10 }, { x: 20, y: 30 }]
+    const admitted = buildExternalScene({
+      ...base,
+      parts: [
+        { kind: 'shape', id: 'outline', role: 'node', geometry: { kind: 'polyline', points: triangle } },
+        { kind: 'shape', id: 'face', role: 'node', geometry: { kind: 'polygon', points: triangle } },
+      ],
+    })
+    const svg = DefaultBackend.render(admitted, { seed: 0 })
+    expect(svg).toContain('<polyline points="10,10 30,10 20,30"')
+    expect(svg).toContain('<polygon points="10,10 30,10 20,30"')
+    expect(Object.isFrozen(triangle)).toBe(false)
+    expect(Object.isFrozen(triangle[0])).toBe(false)
   })
 
   test('applies the point limit to typed point collections rather than x/y-bearing shapes', () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { toMermaidLines } from '../mermaid-source.ts'
 import { parseArchitectureDiagram } from '../architecture/parser.ts'
@@ -206,7 +207,7 @@ const journeyDiagramArb = fc
 // ============================================================================
 
 describe('property-based architecture layout bounds', () => {
-  it('all services and junctions have finite, non-negative coordinates', () => {
+  it('all authored services have finite, non-negative coordinates', () => {
     fc.assert(
       fc.property(archDiagramArb, ({ serviceNames, edges }) => {
         const serviceLines = serviceNames.map(name => `service ${name}[${name}]`)
@@ -227,6 +228,8 @@ describe('property-based architecture layout bounds', () => {
 
         const diagram = parseArchitectureDiagram(lines)
         const positioned = layoutArchitectureDiagram(diagram)
+        expect(positioned.services.map(service => service.id).sort()).toEqual([...serviceNames].sort())
+        expect(positioned.edges).toHaveLength(edgeLines.length)
 
         expect(positioned.width > 0).toBe(true)
         expect(positioned.height > 0).toBe(true)
@@ -254,7 +257,7 @@ describe('property-based architecture layout bounds', () => {
           }
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -293,7 +296,7 @@ describe('property-based architecture layout bounds', () => {
           }
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -312,6 +315,7 @@ describe('property-based architecture layout bounds', () => {
 
         const diagram = parseArchitectureDiagram(lines)
         const positioned = layoutArchitectureDiagram(diagram)
+        expect(positioned.edges).toHaveLength(1)
 
         for (const edge of positioned.edges) {
           expect(edge.points.length).toBeGreaterThanOrEqual(2)
@@ -321,7 +325,7 @@ describe('property-based architecture layout bounds', () => {
           }
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 })
@@ -351,6 +355,8 @@ describe('property-based sequence layout bounds', () => {
 
         const diagram = parseSequenceDiagram(lines)
         const positioned = layoutSequenceDiagram(diagram)
+        expect(positioned.actors.map(actor => actor.id)).toEqual(actorIds)
+        expect(positioned.messages).toHaveLength(messages.length)
 
         expect(positioned.width > 0).toBe(true)
         expect(positioned.height > 0).toBe(true)
@@ -377,7 +383,7 @@ describe('property-based sequence layout bounds', () => {
           expect(lifeline.bottomY >= lifeline.topY).toBe(true)
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -409,7 +415,11 @@ describe('property-based sequence layout bounds', () => {
 
         const diagram = parseSequenceDiagram(lines)
         const positioned = layoutSequenceDiagram(diagram)
+        expect(positioned.actors.map(actor => actor.id)).toEqual(actorIds)
+        expect(positioned.messages).toHaveLength(messages.length)
 
+        expect(positioned.blocks).toHaveLength(1)
+        expect(positioned.notes).toHaveLength(1)
         for (const block of positioned.blocks) {
           expectFiniteRect(block, `block(${block.type})`)
           expect(block.width > 0).toBe(true)
@@ -425,7 +435,7 @@ describe('property-based sequence layout bounds', () => {
           expect(note.height > 0).toBe(true)
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -448,6 +458,8 @@ describe('property-based sequence layout bounds', () => {
 
         const diagram = parseSequenceDiagram(lines)
         const positioned = layoutSequenceDiagram(diagram)
+        expect(positioned.actors.map(actor => actor.id)).toEqual([a, b])
+        expect(positioned.messages).toHaveLength(2)
 
         // The +/- pair opens and closes exactly one activation on the target.
         expect(positioned.activations).toHaveLength(1)
@@ -460,7 +472,7 @@ describe('property-based sequence layout bounds', () => {
           expect(activation.bottomY >= activation.topY).toBe(true)
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 })
@@ -490,6 +502,8 @@ describe('property-based timeline layout bounds', () => {
 
         const diagram = parseTimelineDiagram(lines)
         const positioned = layoutTimelineDiagram(diagram)
+        expect(positioned.title?.text).toBe(hasTitle ? title : undefined)
+        expect(positioned.sections.map(section => ({ label: section.label, periods: section.periods.map(period => ({ label: period.label, events: period.events.map(event => event.text) })) }))).toEqual(sections)
 
         expect(positioned.width > 0).toBe(true)
         expect(positioned.height > 0).toBe(true)
@@ -543,7 +557,7 @@ describe('property-based timeline layout bounds', () => {
           }
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -567,6 +581,8 @@ describe('property-based timeline layout bounds', () => {
 
         const diagram = parseTimelineDiagram(lines)
         const positioned = layoutTimelineDiagram(diagram)
+        expect(positioned.title?.text).toBe(hasTitle ? title : undefined)
+        expect(positioned.sections.map(section => ({ label: section.label, periods: section.periods.map(period => ({ label: period.label, events: period.events.map(event => event.text) })) }))).toEqual(sections)
 
         for (const section of positioned.sections) {
           expect(section.width > 0).toBe(true)
@@ -583,7 +599,7 @@ describe('property-based timeline layout bounds', () => {
           }
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 })
@@ -613,6 +629,9 @@ describe('property-based journey layout bounds', () => {
 
         const diagram = parseJourneyDiagram(lines)
         const positioned = layoutJourneyDiagram(diagram, resolveJourneyRequestAppearance())
+        expect(positioned.title?.text).toBe(hasTitle ? title : undefined)
+        expect(positioned.sections.map(section => ({ label: section.label, tasks: section.tasks.map(task => ({ text: task.text, score: task.score, actors: task.actors })) }))).toEqual(sections)
+        for (const section of positioned.sections) for (const task of section.tasks) expect(task.actorDots.map(dot => dot.label)).toEqual(task.actors)
 
         expect(positioned.width > 0).toBe(true)
         expect(positioned.height > 0).toBe(true)
@@ -669,7 +688,7 @@ describe('property-based journey layout bounds', () => {
           }
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -693,6 +712,9 @@ describe('property-based journey layout bounds', () => {
 
         const diagram = parseJourneyDiagram(lines)
         const positioned = layoutJourneyDiagram(diagram, resolveJourneyRequestAppearance())
+        expect(positioned.title?.text).toBe(hasTitle ? title : undefined)
+        expect(positioned.sections.map(section => ({ label: section.label, tasks: section.tasks.map(task => ({ text: task.text, score: task.score, actors: task.actors })) }))).toEqual(sections)
+        for (const section of positioned.sections) for (const task of section.tasks) expect(task.actorDots.map(dot => dot.label)).toEqual(task.actors)
 
         for (const section of positioned.sections) {
           expect(section.width > 0).toBe(true)
@@ -706,7 +728,7 @@ describe('property-based journey layout bounds', () => {
           }
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 })

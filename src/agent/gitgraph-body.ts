@@ -1,17 +1,18 @@
-import type {
-  GitGraphBody, GitGraphMutationOp, LayoutWarning, MutationError, Result, VerifyOptions,
-} from './types.ts'
-import { err, ok } from './types.ts'
+import { GitGraphParseError, parseGitGraph, quoteGitGraphString as quote, serializeGitGraph } from '../gitgraph/parser.ts'
 import type { GitGraphCommit } from '../gitgraph/types.ts'
-import { GitGraphParseError, parseGitGraph, serializeGitGraph } from '../gitgraph/parser.ts'
+import { gitGraphCommitLabel } from '../gitgraph/types.ts'
 import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
+import type { GitGraphBody, GitGraphMutationOp, LayoutWarning, MutationError, Result, VerifyOptions } from './types.ts'
+import { err, ok } from './types.ts'
 
 export function parseGitGraphBody(source: string, options: import('../gitgraph/parser.ts').GitGraphParseOptions = {}): GitGraphBody {
   return { kind: 'gitgraph', ...parseGitGraph(source, options) }
 }
 
-export function renderGitGraphBody(body: GitGraphBody): string { return serializeGitGraph(body) }
+export function renderGitGraphBody(body: GitGraphBody): string {
+  return serializeGitGraph(body)
+}
 
 function cloneBody(body: GitGraphBody): GitGraphBody {
   return {
@@ -22,12 +23,11 @@ function cloneBody(body: GitGraphBody): GitGraphBody {
   }
 }
 
-function quote(value: string): string { return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"` }
-
 function appendStatement(body: GitGraphBody, statement: string): Result<GitGraphBody, MutationError> {
   try {
-    const parsed = parseGitGraph(renderGitGraphBody(body).trimEnd() + `\n  ${statement}\n`, { mainBranchName: body.mainBranchName })
-    return ok({ kind: 'gitgraph', ...parsed })
+    const parsed = parseGitGraph(renderGitGraphBody(body).trimEnd() + `\n  ${statement}\n`, { mainBranchName: body.mainBranchName, mainBranchOrder: body.branches.find(branch => branch.name === body.mainBranchName)?.order, title: body.title })
+    const next: GitGraphBody = { kind: 'gitgraph', ...parsed }
+    return ok(next)
   } catch (error) {
     return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) })
   }
@@ -52,23 +52,43 @@ export function mutateGitGraph(body: GitGraphBody, op: GitGraphMutationOp): Resu
   const commit = (id: string): GitGraphCommit | undefined => next.commits.find(item => item.id === id)
   switch (op.kind) {
     case 'append_commit':
+      if (op.id !== undefined && next.commits.some(item => item.id === op.id || item.sourceId === op.id)) return err({ code: 'DUPLICATE_NODE', message: `gitGraph commit '${op.id}' already exists; typed append requires an unused ID` })
       return appendStatement(next, `commit${commitAttrs(op)}`)
     case 'create_branch': {
-      const name = validName(op.name, 'branch name'); if (!name.ok) return name
+      const name = validName(op.name, 'branch name')
+      if (!name.ok) return name
       return appendStatement(next, `branch ${quote(name.value)}${op.order !== undefined ? ` order:${op.order}` : ''}`)
     }
     case 'checkout_branch': {
-      const name = validName(op.name, 'branch name'); if (!name.ok) return name
+      const name = validName(op.name, 'branch name')
+      if (!name.ok) return name
       return appendStatement(next, `checkout ${quote(name.value)}`)
     }
     case 'merge_branch': {
-      const name = validName(op.name, 'branch name'); if (!name.ok) return name
+      if (op.id !== undefined && next.commits.some(item => item.id === op.id || item.sourceId === op.id)) return err({ code: 'DUPLICATE_NODE', message: `gitGraph commit '${op.id}' already exists; typed merge requires an unused ID` })
+      const name = validName(op.name, 'branch name')
+      if (!name.ok) return name
       return appendStatement(next, `merge ${quote(name.value)}${commitAttrs(op)}`)
     }
     case 'cherry_pick': {
-      const id = validName(op.id, 'cherry-pick id'); if (!id.ok) return id
-      const attrs = [`id:${quote(id.value)}`]
-      if (op.parent) attrs.push(`parent:${quote(op.parent)}`)
+      const id = validName(op.id, 'cherry-pick id')
+      if (!id.ok) return id
+      const target = commit(id.value)
+      const sourceId = target?.sourceId ?? id.value
+      // A source alias denotes its most recent occurrence. Do not silently
+      // turn a typed reference to an earlier occurrence into a different pick.
+      if (target && next.commits.findLast(item => (item.sourceId ?? item.id) === sourceId)?.id !== target.id) {
+        return err({ code: 'INVALID_OP', message: `Commit '${id.value}' is shadowed by a later authored ID '${sourceId}'; pinned cherry-pick syntax cannot address that earlier occurrence` })
+      }
+      const attrs = [`id:${quote(sourceId)}`]
+      if (op.parent) {
+        const parent = commit(op.parent)
+        const sourceParent = parent?.sourceId ?? op.parent
+        if (parent && next.commits.findLast(item => (item.sourceId ?? item.id) === sourceParent)?.id !== parent.id) {
+          return err({ code: 'INVALID_OP', message: `Parent '${op.parent}' is shadowed by a later authored ID '${sourceParent}'; pinned cherry-pick syntax cannot address that earlier occurrence` })
+        }
+        attrs.push(`parent:${quote(sourceParent)}`)
+      }
       for (const tag of op.tags ?? []) attrs.push(`tag:${quote(tag)}`)
       return appendStatement(next, `cherry-pick ${attrs.join(' ')}`)
     }
@@ -77,7 +97,11 @@ export function mutateGitGraph(body: GitGraphBody, op: GitGraphMutationOp): Resu
       if (!target) return err({ code: 'NODE_NOT_FOUND', message: `gitGraph commit '${op.id}' not found` })
       if (target.source !== 'commit') return err({ code: 'INVALID_OP', message: `Commit '${op.id}' is produced by ${target.source}; its generated message cannot be replaced` })
       if (op.message === null) delete target.message
-      else { const message = validName(op.message, 'commit message'); if (!message.ok) return message; target.message = message.value }
+      else {
+        const message = validName(op.message, 'commit message')
+        if (!message.ok) return message
+        target.message = message.value
+      }
       return ok(next)
     }
     case 'set_commit_type': {
@@ -90,7 +114,10 @@ export function mutateGitGraph(body: GitGraphBody, op: GitGraphMutationOp): Resu
     case 'set_commit_tags': {
       const target = commit(op.id)
       if (!target) return err({ code: 'NODE_NOT_FOUND', message: `gitGraph commit '${op.id}' not found` })
-      for (const tag of op.tags) { const value = validName(tag, 'tag'); if (!value.ok) return value }
+      for (const tag of op.tags) {
+        const value = validName(tag, 'tag')
+        if (!value.ok) return value
+      }
       target.tags = [...op.tags]
       delete target.syntheticCherryTag
       return ok(next)
@@ -99,7 +126,8 @@ export function mutateGitGraph(body: GitGraphBody, op: GitGraphMutationOp): Resu
       if (op.from === next.mainBranchName) return err({ code: 'INVALID_OP', message: 'Renaming the configured main branch requires gitGraph.mainBranchName config; source syntax cannot express it' })
       const target = next.branches.find(branch => branch.name === op.from)
       if (!target) return err({ code: 'NODE_NOT_FOUND', message: `gitGraph branch '${op.from}' not found` })
-      const to = validName(op.to, 'branch name'); if (!to.ok) return to
+      const to = validName(op.to, 'branch name')
+      if (!to.ok) return to
       if (next.branches.some(branch => branch.name === to.value)) return err({ code: 'DUPLICATE_NODE', message: `gitGraph branch '${to.value}' already exists` })
       target.name = to.value
       for (const item of next.commits) {
@@ -136,7 +164,7 @@ export function verifyGitGraph(body: GitGraphBody, opts: VerifyOptions): LayoutW
   // measured literally.
   const overflow = labelOverflowCollector(warnings, opts, undefined, 'literal')
   for (const commit of body.commits) {
-    overflow(commit.id, commit.message || commit.id)
+    overflow(commit.id, gitGraphCommitLabel(commit))
     for (const parent of commit.parents) if (!ids.has(parent)) warnings.push({ code: 'EDGE_MISANCHORED', edge: `${parent}->${commit.id}`, to: commit.id })
   }
   return warnings

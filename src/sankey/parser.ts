@@ -1,6 +1,7 @@
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import type { SankeyDiagram, SankeyLink } from './types.ts'
+import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 
 // ============================================================================
 // Sankey diagram parser
@@ -26,6 +27,7 @@ import type { SankeyDiagram, SankeyLink } from './types.ts'
 
 /** Mermaid Sankey numeric tokens, including exponent and trailing-dot forms. */
 const NUMBER_RE = /^\+?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/
+export const isSankeyHeader = (line: string): boolean => /^sankey(?:-beta)?\s*$/i.test(line.trim())
 
 export interface SankeyParseOptions {
   /** Frontmatter `title:` — sankey has no in-body title statement. */
@@ -33,43 +35,53 @@ export interface SankeyParseOptions {
 }
 
 /**
- * Parse a Mermaid sankey diagram from raw lines. The first line is expected
- * to be the `sankey` / `sankey-beta` header.
+ * Parse a Mermaid sankey diagram from physical lines. Leading blank/comment
+ * lines may precede the `sankey` / `sankey-beta` header; quoted CSV contents
+ * retain their interior physical rows and whitespace.
  *
  * Throws on malformed input:
  *   - a header that isn't `sankey` / `sankey-beta`
  *   - a row without exactly three columns
- *   - an unterminated quoted field, or text between a closing quote and the
- *     next comma
+ *   - an unterminated quoted field, text between a closing quote and the
+ *     next comma, or a quote inside an unquoted field
  *   - a value that is not a non-negative number
  *   - a self-loop (`A,A,1`) or a cycle — the layered layout requires a DAG,
  *     which upstream enforces with d3-sankey's "circular link" throw
  *   - a diagram with no data rows
  */
 export function parseSankeyDiagram(lines: string[], options: SankeyParseOptions = {}): SankeyDiagram {
-  if (lines.length === 0) {
+  const headerIndex = lines.findIndex(line => line.trim().length > 0 && !line.trim().startsWith('%%'))
+  if (headerIndex < 0) {
     throw new Error('Sankey diagram is empty')
   }
 
-  const header = lines[0]!.trim()
-  if (!/^sankey(?:-beta)?\s*$/i.test(header)) {
+  const header = lines[headerIndex]!.trim()
+  if (!isSankeyHeader(header)) {
     throw new Error(`Sankey diagram must start with "sankey" or "sankey-beta", got: "${header}"`)
   }
+  if (parserObservationActive('sankey')) observeParserStatement('sankey', 'header', header, { line: headerIndex + 1, unit: 'physical' })
 
   const nodes: string[] = []
   const seen = new Set<string>()
   const links: SankeyLink[] = []
-  const addNode = (label: string) => {
+  const addNode = (label: string, rowNumber: number) => {
     if (!seen.has(label)) {
       seen.add(label)
       nodes.push(label)
+      if (parserObservationActive('sankey')) observeParserMutation('sankey', 'appendNode', label, { line: rowNumber, unit: 'physical' })
     }
   }
 
-  for (let i = 1; i < lines.length; i++) {
+  for (let i = headerIndex + 1; i < lines.length; i++) {
     let row = lines[i]!.replace(/\r$/, '')
     const rowNumber = i + 1
     const trimmedPhysicalLine = row.trim()
+    // A standalone repeated header is a diagnosed reader extension, not a
+    // CSV record. Quoted records are assembled below before this loop resumes.
+    if (isSankeyHeader(trimmedPhysicalLine)) {
+      if (parserObservationActive('sankey')) observeParserStatement('sankey', 'header', row, { line: rowNumber, unit: 'physical' })
+      continue
+    }
     // Empty lines are explicitly allowed by the upstream syntax page.
     if (trimmedPhysicalLine.length === 0 || trimmedPhysicalLine.startsWith('%%')) continue
 
@@ -77,6 +89,7 @@ export function parseSankeyDiagram(lines: string[], options: SankeyParseOptions 
     // render pipeline projects them into the SVG title/desc).
     const acc = parseAccessibilityDirective(lines, i)
     if (acc) {
+      if (parserObservationActive('sankey')) observeParserStatement('sankey', acc.title ? 'accTitle' : 'accDescr', lines.slice(i, acc.endIndex + 1).join('\n'), { line: rowNumber, unit: 'physical' })
       i = acc.endIndex
       continue
     }
@@ -89,6 +102,7 @@ export function parseSankeyDiagram(lines: string[], options: SankeyParseOptions 
       row += `\n${lines[i]!.replace(/\r$/, '')}`
     }
     const trimmed = row.trim()
+    if (parserObservationActive('sankey')) observeParserStatement('sankey', 'csvRecord', row, { line: rowNumber, unit: 'physical' })
     const fields = parseCsvRow(row, rowNumber)
     if (fields.length !== 3) {
       throw syntaxError({
@@ -113,9 +127,10 @@ export function parseSankeyDiagram(lines: string[], options: SankeyParseOptions 
       throw new Error(`Sankey flow "${source}" -> "${target}" is a self-loop. ` + 'Sankey diagrams must be acyclic (upstream rejects circular links).')
     }
 
-    addNode(source)
-    addNode(target)
+    addNode(source, rowNumber)
+    addNode(target, rowNumber)
     links.push({ source, target, value })
+    if (parserObservationActive('sankey')) observeParserMutation('sankey', 'appendLink', links[links.length - 1], { line: rowNumber, unit: 'physical' })
   }
 
   if (links.length === 0) {
@@ -123,18 +138,23 @@ export function parseSankeyDiagram(lines: string[], options: SankeyParseOptions 
   }
 
   const cycle = findSankeyCycle(links)
+  if (parserObservationActive('sankey')) observeParserMutation('sankey', 'resolveCycle', cycle)
   if (cycle) {
     throw new Error(`Sankey diagram contains a cycle: ${cycle.map(label => `"${label}"`).join(' -> ')}. ` + 'Sankey diagrams must be acyclic (upstream rejects circular links).')
   }
 
-  return { ...(options.title !== undefined ? { title: options.title } : {}), nodes, links }
+  const diagram = { ...(options.title !== undefined ? { title: options.title } : {}), nodes, links }
+  if (options.title !== undefined && parserObservationActive('sankey')) observeParserMutation('sankey', 'setFrontmatterTitle', diagram.title)
+  return diagram
 }
 
 /**
  * Split one logical CSV record into fields (RFC 4180 subset). Every field is
  * trimmed before identity assignment, and `""` inside a quoted field decodes
  * to a literal quote. Whitespace may surround a quoted field, but any other
- * text between the closing quote and the next comma errors loudly.
+ * text between the closing quote and the next comma errors loudly, as does a
+ * quote inside an unquoted field: whether it was meant literally or to open a
+ * quoted field is unclear, and Mermaid rejects both.
  */
 function parseCsvRow(line: string, lineNumber: number): string[] {
   const fields: string[] = []
@@ -176,7 +196,11 @@ function parseCsvRow(line: string, lineNumber: number): string[] {
     } else {
       let comma = line.indexOf(',', start)
       if (comma === -1) comma = line.length
-      fields.push(line.slice(index, comma).trim())
+      const field = line.slice(index, comma).trim()
+      if (field.includes('"')) {
+        throw new Error(`Sankey row ${lineNumber} has a quote inside the unquoted field "${field}": "${line.trim()}". ` + 'Quote the whole field and double each quote inside it ("").')
+      }
+      fields.push(field)
       index = comma
     }
     if (index >= line.length) break
@@ -193,7 +217,7 @@ function parseCsvRow(line: string, lineNumber: number): string[] {
 
 /** True when a logical CSV record ends inside a quoted field. Doubled quotes
  * are one escaped data character and therefore do not change quote state. */
-function csvQuotedFieldIsOpen(record: string): boolean {
+export function csvQuotedFieldIsOpen(record: string): boolean {
   let open = false
   for (let index = 0; index < record.length; index++) {
     if (record[index] !== '"') continue

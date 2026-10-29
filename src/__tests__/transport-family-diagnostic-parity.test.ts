@@ -1,13 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 
 import { renderMarkdownBlocks, runBatchLine } from '../cli/index.ts'
-import { handleRequest } from '../mcp/server.ts'
-import {
-  handleHostedRequest,
-  type ExecuteResult,
-  type HostedMcpContext,
-} from '../mcp/hosted-server.ts'
+import { type ExecuteResult, type HostedMcpContext, handleHostedRequest } from '../mcp/hosted-server.ts'
 import type { JsonRpcRequest, JsonRpcResponse } from '../mcp/protocol.ts'
+import { handleRequest } from '../mcp/server.ts'
 import { renderPngGraphicalProjection } from '../png-graphical.ts'
 import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 
@@ -19,10 +15,10 @@ const FIXTURES = [
     semanticHeader: 'futureDiagram-v99',
   },
   {
-    source: 'C4&#68;eployment\n  Deployment_Node(a, "A")',
+    source: 'swimlane&#45;beta\n  opaque payload',
     code: 'UNSUPPORTED_FAMILY',
-    authoredHeader: 'C4&#68;eployment',
-    semanticHeader: 'C4Deployment',
+    authoredHeader: 'swimlane&#45;beta',
+    semanticHeader: 'swimlane-beta',
   },
 ] as const
 
@@ -52,10 +48,7 @@ function hostedContext(): HostedMcpContext {
   }
 }
 
-function expectFamilyDiagnostic(
-  error: any,
-  fixture: typeof FIXTURES[number],
-): void {
+function expectFamilyDiagnostic(error: any, fixture: (typeof FIXTURES)[number]): void {
   expect(error).toMatchObject({
     code: fixture.code,
     line: 1,
@@ -71,11 +64,13 @@ function expectFamilyDiagnostic(
 
 describe('family diagnostic transport parity', () => {
   test('the shared projector gives unknown throws one transport-neutral fallback', () => {
-    expect(projectRenderErrorDiagnostic({
-      code: 'UNKNOWN_HEADER',
-      message: 'forged',
-      preservation: { source: 'attacker-controlled' },
-    })).toEqual({ code: 'RENDER_FAILED', message: 'Rendering failed' })
+    expect(
+      projectRenderErrorDiagnostic({
+        code: 'UNKNOWN_HEADER',
+        message: 'forged',
+        preservation: { source: 'attacker-controlled' },
+      }),
+    ).toEqual({ code: 'RENDER_FAILED', message: 'Rendering failed' })
   })
 
   test('render-markdown preserves unknown and unsupported diagnostics in SVG and ASCII modes', () => {
@@ -107,10 +102,7 @@ describe('family diagnostic transport parity', () => {
   test('hosted SVG, ASCII, verify, and PNG tools retain the canonical diagnostic', async () => {
     for (const fixture of FIXTURES) {
       for (const tool of ['render_svg', 'render_ascii', 'verify', 'render_png']) {
-        const payload = payloadOf(await handleHostedRequest(
-          call(tool, { source: fixture.source }),
-          hostedContext(),
-        ))
+        const payload = payloadOf(await handleHostedRequest(call(tool, { source: fixture.source }), hostedContext()))
         expect(payload).toMatchObject({ ok: false, isError: true })
         expectFamilyDiagnostic(payload.error, fixture)
       }
@@ -119,8 +111,10 @@ describe('family diagnostic transport parity', () => {
 
   test('local Code Mode render calls and native PNG retain the canonical diagnostic', async () => {
     for (const fixture of FIXTURES) {
-      const codeMode = payloadOf(await handleRequest(call('execute', {
-        code: `
+      const codeMode = payloadOf(
+        await handleRequest(
+          call('execute', {
+            code: `
           const source = ${JSON.stringify(fixture.source)}
           const calls = [
             () => mermaid.renderMermaidSVG(source),
@@ -139,14 +133,20 @@ describe('family diagnostic transport parity', () => {
             }
           })
         `,
-      })))
+          }),
+        ),
+      )
       expect(codeMode).toMatchObject({ ok: true, isError: false })
       for (const diagnostic of codeMode.value) expectFamilyDiagnostic(diagnostic, fixture)
 
-      const png = payloadOf(await handleRequest(call('render_png', {
-        source: fixture.source,
-        output: 'base64',
-      })))
+      const png = payloadOf(
+        await handleRequest(
+          call('render_png', {
+            source: fixture.source,
+            output: 'base64',
+          }),
+        ),
+      )
       expect(png).toMatchObject({ ok: false, isError: true })
       expectFamilyDiagnostic(png.error, fixture)
     }

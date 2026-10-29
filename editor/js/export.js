@@ -1,24 +1,21 @@
-// The generator projects PNG_DEFAULT_SCALE into this canonical data attribute.
-var pngScaleControls = document.getElementById('size-pills');
-var exportScale = Number(pngScaleControls.dataset.defaultScale);
-if (!Number.isFinite(exportScale) || exportScale <= 0) throw new Error('Invalid canonical PNG default scale');
-var lastRenderedPngArtifact = null;
-var lastRenderedSvgExportProjection = null;
-var exportDropdown = document.getElementById('export-dropdown');
-var exportMainBtn = document.getElementById('export-main-btn');
-var exportChevronBtn = document.getElementById('export-chevron-btn');
-var exportRequiresSvgButtons = [
-  exportMainBtn,
-  document.getElementById('export-png-btn'),
-  document.getElementById('export-svg-btn'),
-  document.getElementById('copy-png-btn'),
-].filter(Boolean);
+import { setCopyFeedback } from './copy-feedback.js';
+import { ui } from './context.js';
+import { buildOptions, currentEditorSource, hasCurrentVerifiedSvgArtifact, renderRequestVersion } from './rendering.js';
+import { createPopupController } from './helpers.js';
+import { renderMermaidPngInBrowserWithReceipt } from './state.js';
+import { editor, previewInner } from './elements.js';
+import { showToast } from './toast.js';
+import { updateHash } from './sharing.js';
+import { writeClipboardText } from './buttons.js';
+export var pngScaleControls, exportScale, exportDropdown, exportMainBtn, exportChevronBtn, exportRequiresSvgButtons, exportPopup, pngFitMode, pngFitValue, pngBackgroundMode, pngBackgroundColor, fontDataUriCache, copyPngBtn, copyLinkBtn, exportSourceBtn;
 
-function hasRenderedSvg() {
+
+export function hasRenderedSvg() {
   return typeof hasCurrentVerifiedSvgArtifact === 'function' && hasCurrentVerifiedSvgArtifact();
 }
 
-function updateExportAvailability() {
+
+export function updateExportAvailability() {
   var enabled = hasRenderedSvg();
   exportRequiresSvgButtons.forEach(function(btn) {
     btn.disabled = !enabled;
@@ -26,51 +23,19 @@ function updateExportAvailability() {
   });
 }
 
-var exportPopup = createPopupController({
-  popup: exportDropdown,
-  trigger: exportChevronBtn,
-  visibility: { toggleTriggerClass: false },
-  visualClose: true,
-  beforeOpen: updateExportAvailability,
-  afterOpen: function(meta) {
-    if (meta && meta.focusFirst) {
-      var first = exportDropdown.querySelector('button:not(:disabled)');
-      if (first) first.focus();
-    }
-  },
-  contains: function(target) { return !!target.closest('#export-wrap'); },
-});
 
-function setExportDropdownOpen(open, focusFirst) {
+export function setExportDropdownOpen(open, focusFirst) {
   exportPopup.setOpen(open, { focusFirst: !!focusFirst });
 }
 
-exportMainBtn.addEventListener('click', function() {
-  exportPNG();
-});
 
-pngScaleControls.addEventListener('click', function(e) {
-  var pill = e.target.closest('.size-pill');
-  if (!pill) return;
-  exportScale = parseInt(pill.dataset.scale, 10);
-  document.querySelectorAll('.size-pill').forEach(function(p) {
-    var on = p === pill;
-    p.classList.toggle('active', on);
-    p.setAttribute('aria-pressed', on ? 'true' : 'false');
-  });
-});
-
-var pngFitMode = document.getElementById('png-fit-mode');
-var pngFitValue = document.getElementById('png-fit-value');
-var pngBackgroundMode = document.getElementById('png-background-mode');
-var pngBackgroundColor = document.getElementById('png-background-color');
-
-function syncPngExportControls() {
+export function syncPngExportControls() {
   pngFitValue.disabled = pngFitMode.value === 'scale';
   pngBackgroundColor.disabled = pngBackgroundMode.value !== 'explicit';
 }
 
-function currentPngOutputOptions() {
+
+export function currentPngOutputOptions() {
   var output = { scale: exportScale };
   if (pngFitMode.value !== 'scale') {
     var pixels = Number(pngFitValue.value);
@@ -83,21 +48,8 @@ function currentPngOutputOptions() {
   return output;
 }
 
-pngFitMode.addEventListener('change', syncPngExportControls);
-pngBackgroundMode.addEventListener('change', syncPngExportControls);
-syncPngExportControls();
 
-// ── Export font embedding ─────────────────────────────────────────────────────
-// The preview loads the self-hosted faces (Caveat, DejaVu Sans, …) through the
-// page's @font-face rules, but a downloaded SVG opened elsewhere — and the
-// <img> that rasterizes it for PNG export, which loads no external resources
-// at all — cannot reach /fonts/. serializeSvg therefore inlines every hosted
-// face the diagram actually uses as a data: URI @font-face inside the SVG, so
-// SVG and PNG exports keep the preview's fonts. (The 'Inter' default ships no
-// font file; preview and export both use the system fallback stack for it.)
-var fontDataUriCache = {};
-
-function svgFontFamilies(svgEl) {
+export function svgFontFamilies(svgEl) {
   var families = {};
   function add(list) {
     // Unwrap var(--font, 'Fallback') before splitting the family stack.
@@ -116,7 +68,8 @@ function svgFontFamilies(svgEl) {
   return families;
 }
 
-function pageFontFaceRules() {
+
+export function pageFontFaceRules() {
   var rules = [];
   for (var i = 0; i < document.styleSheets.length; i++) {
     var cssRules;
@@ -128,7 +81,8 @@ function pageFontFaceRules() {
   return rules;
 }
 
-function fetchFontDataUri(url) {
+
+export function fetchFontDataUri(url) {
   if (!fontDataUriCache[url]) {
     var mime = /\.woff2(\?|$)/i.test(url) ? 'font/woff2'
       : /\.woff(\?|$)/i.test(url) ? 'font/woff'
@@ -155,7 +109,8 @@ function fetchFontDataUri(url) {
   return fontDataUriCache[url];
 }
 
-function fontFaceRuleToDataUriCss(rule) {
+
+export function fontFaceRuleToDataUriCss(rule) {
   var cssText = rule.cssText;
   var m = cssText.match(/url\((['"]?)([^'")]+)\1\)/);
   if (!m) return Promise.resolve({ css: '', diagnostics: [] });
@@ -175,7 +130,8 @@ function fontFaceRuleToDataUriCss(rule) {
   });
 }
 
-function embeddedFontCss(svgEl) {
+
+export function embeddedFontCss(svgEl) {
   var used = svgFontFamilies(svgEl);
   var matching = pageFontFaceRules().filter(function(rule) {
     var family = String(rule.style.getPropertyValue('font-family') || '').trim().replace(/^['"]|['"]$/g, '');
@@ -198,7 +154,8 @@ function embeddedFontCss(svgEl) {
   });
 }
 
-function serializeSvgArtifact(svgEl) {
+
+export function serializeSvgArtifact(svgEl) {
   return embeddedFontCss(svgEl).then(function(fontCss) {
     var clone = svgEl.cloneNode(true);
     if (fontCss.css) {
@@ -214,7 +171,8 @@ function serializeSvgArtifact(svgEl) {
   });
 }
 
-function parseCanonicalExportSvg(svg) {
+
+export function parseCanonicalExportSvg(svg) {
   if (window.__mermaid && typeof window.__mermaid.verifyNoExternalRefs === 'function') {
     var verification = window.__mermaid.verifyNoExternalRefs(svg);
     if (!verification.ok) throw new Error('Unsafe SVG export: ' + verification.refs.join(', '));
@@ -226,11 +184,13 @@ function parseCanonicalExportSvg(svg) {
   return document.importNode(parsed.documentElement, true);
 }
 
-function serializeCanonicalSvg(svg) {
+
+export function serializeCanonicalSvg(svg) {
   return serializeSvgArtifact(parseCanonicalExportSvg(svg));
 }
 
-function rasterizeCanonicalSvg(svg, context) {
+
+export function rasterizeCanonicalSvg(svg, context) {
   var svgEl = parseCanonicalExportSvg(svg);
   return serializeSvgArtifact(svgEl).then(function(serialized) {
     return new Promise(function(resolve, reject) {
@@ -274,34 +234,36 @@ function rasterizeCanonicalSvg(svg, context) {
   });
 }
 
-function canonicalBrowserPng(outputOptions) {
+
+export function canonicalBrowserPng(outputOptions) {
   if (typeof renderMermaidPngInBrowserWithReceipt !== 'function') {
     return Promise.reject(new Error('Canonical browser PNG adapter is unavailable'));
   }
   var source = currentEditorSource();
   var requestVersion = renderRequestVersion;
   var previewDigest = previewInner.dataset.sharedRequestDigest;
-  var options = buildOptions();
+  var options = ui.lastRenderedSvgOptions || buildOptions();
   return renderMermaidPngInBrowserWithReceipt(source, options, outputOptions, rasterizeCanonicalSvg).then(function(artifact) {
-    if (renderRequestVersion !== requestVersion || currentEditorSource() !== source) {
+    if (renderRequestVersion !== requestVersion || currentEditorSource() !== source || !hasRenderedSvg()) {
       throw new Error('Diagram changed while PNG export was rendering; try again.');
     }
     if (artifact.receipt.output !== 'png') throw new Error('PNG export returned a non-PNG receipt');
     if (!previewDigest || previewInner.dataset.sharedRequestDigest !== previewDigest || artifact.receipt.sharedRequestDigest !== previewDigest) {
       throw new Error('PNG bytes and preview receipt do not describe the same render request');
     }
-    lastRenderedPngArtifact = artifact;
     return artifact;
   });
 }
 
-function reportExportDiagnostics(diagnostics, action) {
+
+export function reportExportDiagnostics(diagnostics, action) {
   if (!diagnostics || diagnostics.length === 0) return false;
   showToast(action + ' with ' + diagnostics.length + ' PNG warning' + (diagnostics.length === 1 ? '' : 's') + ': ' + diagnostics[0].message);
   return true;
 }
 
-function exportPNG() {
+
+export function exportPNG() {
   if (!hasRenderedSvg()) return;
   var outputOptions;
   try { outputOptions = currentPngOutputOptions(); }
@@ -322,18 +284,18 @@ function exportPNG() {
   });
 }
 
-function exportSVG() {
+
+export function exportSVG() {
   if (!hasRenderedSvg()) return;
-  var artifact = lastRenderedSvgArtifact;
+  var artifact = ui.lastRenderedSvgArtifact;
   var requestVersion = renderRequestVersion;
   var previewDigest = previewInner.dataset.sharedRequestDigest;
   serializeCanonicalSvg(artifact.svg).then(function(projected) {
-    if (renderRequestVersion !== requestVersion || lastRenderedSvgArtifact !== artifact
+    if (renderRequestVersion !== requestVersion || ui.lastRenderedSvgArtifact !== artifact || !hasRenderedSvg()
         || !previewDigest || previewInner.dataset.sharedRequestDigest !== previewDigest
         || artifact.receipt.sharedRequestDigest !== previewDigest) {
       throw new Error('SVG bytes and preview receipt no longer match');
     }
-    lastRenderedSvgExportProjection = { svg: projected.svg, receipt: artifact.receipt, diagnostics: projected.diagnostics };
     var blob = new Blob([projected.svg], { type: 'image/svg+xml;charset=utf-8' });
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
@@ -346,11 +308,8 @@ function exportSVG() {
   });
 }
 
-// Copy PNG hands the clipboard a promise immediately so the write stays
-// inside the user-activation window while the PNG encodes off-thread.
-var copyPngBtn = document.getElementById('copy-png-btn');
 
-function copyPNG() {
+export function copyPNG() {
   if (!hasRenderedSvg()) return;
   if (typeof ClipboardItem === 'undefined' || !navigator.clipboard || !navigator.clipboard.write) {
     setCopyFeedback(copyPngBtn, 'err');
@@ -379,7 +338,8 @@ function copyPNG() {
   });
 }
 
-function copyURL(sourceBtn) {
+
+export function copyURL(sourceBtn) {
   // updateHash compresses asynchronously; wait so the copied URL is current.
   Promise.resolve(updateHash()).then(function(updated) {
     if (!updated) {
@@ -390,13 +350,121 @@ function copyURL(sourceBtn) {
   });
 }
 
-var copyLinkBtn = document.getElementById('copy-link-btn');
+export function initialize() {
+// The generator projects PNG_DEFAULT_SCALE into this canonical data attribute.
+pngScaleControls = document.getElementById('size-pills');
+
+exportScale = Number(pngScaleControls.dataset.defaultScale);
+
+if (!Number.isFinite(exportScale) || exportScale <= 0) throw new Error('Invalid canonical PNG default scale');
+
+
+
+exportDropdown = document.getElementById('export-dropdown');
+
+exportMainBtn = document.getElementById('export-main-btn');
+
+exportChevronBtn = document.getElementById('export-chevron-btn');
+
+exportRequiresSvgButtons = [
+  exportMainBtn,
+  document.getElementById('export-png-btn'),
+  document.getElementById('export-svg-btn'),
+  document.getElementById('copy-png-btn'),
+].filter(Boolean);
+
+
+exportPopup = createPopupController({
+  popup: exportDropdown,
+  trigger: exportChevronBtn,
+  visibility: { toggleTriggerClass: false },
+  visualClose: true,
+  beforeOpen: updateExportAvailability,
+  afterOpen: function(meta) {
+    if (meta && meta.focusFirst) {
+      var first = exportDropdown.querySelector('button:not(:disabled)');
+      if (first) first.focus();
+    }
+  },
+  contains: function(target) { return !!target.closest('#export-wrap'); },
+});
+
+
+exportMainBtn.addEventListener('click', function() {
+  exportPNG();
+});
+
+
+pngScaleControls.addEventListener('click', function(e) {
+  var pill = e.target.closest('.size-pill');
+  if (!pill) return;
+  exportScale = parseInt(pill.dataset.scale, 10);
+  document.querySelectorAll('.size-pill').forEach(function(p) {
+    var on = p === pill;
+    p.classList.toggle('active', on);
+    p.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+});
+
+
+pngFitMode = document.getElementById('png-fit-mode');
+
+pngFitValue = document.getElementById('png-fit-value');
+
+pngBackgroundMode = document.getElementById('png-background-mode');
+
+pngBackgroundColor = document.getElementById('png-background-color');
+
+
+pngFitMode.addEventListener('change', syncPngExportControls);
+
+pngBackgroundMode.addEventListener('change', syncPngExportControls);
+
+syncPngExportControls();
+
+
+// ── Export font embedding ─────────────────────────────────────────────────────
+// The preview loads the self-hosted faces (Caveat, DejaVu Sans, …) through the
+// page's @font-face rules, but a downloaded SVG opened elsewhere — and the
+// <img> that rasterizes it for PNG export, which loads no external resources
+// at all — cannot reach /fonts/. serializeSvg therefore inlines every hosted
+// face the diagram actually uses as a data: URI @font-face inside the SVG, so
+// SVG and PNG exports keep the preview's fonts. (The 'Inter' default ships no
+// font file; preview and export both use the system fallback stack for it.)
+fontDataUriCache = {};
+
+
+// Copy PNG hands the clipboard a promise immediately so the write stays
+// inside the user-activation window while the PNG encodes off-thread.
+copyPngBtn = document.getElementById('copy-png-btn');
+
+
+copyLinkBtn = document.getElementById('copy-link-btn');
+
 
 document.getElementById('export-png-btn').addEventListener('click', exportPNG);
+
 document.getElementById('export-svg-btn').addEventListener('click', exportSVG);
+
+exportSourceBtn = document.getElementById('export-source-btn');
+
+if (exportSourceBtn) exportSourceBtn.addEventListener('click', function() {
+  var url = URL.createObjectURL(new Blob([editor.value], { type: 'text/plain;charset=utf-8' }));
+  var link = document.createElement('a');
+  link.href = url;
+  link.download = 'diagram.mmd';
+  link.click();
+  URL.revokeObjectURL(url);
+  setExportDropdownOpen(false, false);
+  showToast('Mermaid source saved.');
+});
+
 if (copyPngBtn) copyPngBtn.addEventListener('click', copyPNG);
+
 copyLinkBtn.addEventListener('click', function() { copyURL(copyLinkBtn); });
+
 updateExportAvailability();
+
 
 document.addEventListener('keydown', function(e) {
   // Fires even while focus is in the source textarea — where users spend most
@@ -406,3 +474,4 @@ document.addEventListener('keydown', function(e) {
   if (e.shiftKey) exportSVG();
   else exportPNG();
 });
+}

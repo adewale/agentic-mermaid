@@ -8,19 +8,8 @@ import { BUILTIN_FAMILY_METADATA, knownFamilies, getFamily, replaceFamilyForTest
 import { registerFamily } from '../agent/family-registration.ts'
 
 describe('family registry', () => {
-  test('every metadata-backed built-in family registers', () => {
-    expect(new Set(knownFamilies())).toEqual(new Set(BUILTIN_FAMILY_METADATA.map(family => family.id)))
-  })
-
   test('knownFamilies returns built-ins in metadata order', () => {
     expect(knownFamilies()).toEqual(BUILTIN_FAMILY_METADATA.map(f => f.id))
-  })
-
-  test('each built-in has an extractLabels function', () => {
-    for (const id of knownFamilies()) {
-      const p = getFamily(id)
-      expect(p?.extractLabels).toBeDefined()
-    }
   })
 
   test('direct registry import exposes only complete built-in descriptors', () => {
@@ -33,6 +22,8 @@ describe('family registry', () => {
       expect(descriptor.projectPositioned, `${id} positioned projection`).toBeDefined()
       expect(descriptor.lowerScene, `${id} Scene lowering`).toBeDefined()
       expect(descriptor.renderAscii, `${id} terminal renderer`).toBeDefined()
+      expect(typeof descriptor.extractLabels, `${id} label extractor`).toBe('function')
+      if (id === 'class' || id === 'er') expect(typeof descriptor.verify, `${id} verifier`).toBe('function')
     }
   })
 
@@ -158,59 +149,6 @@ describe('FamilyDescriptor.verify dispatcher', () => {
     expect(() => replaceFamilyForTest('xychart', { ...original!, parse: undefined }))
       .toThrow(/capability "source-preservation" claims "native" but its hooks require "source-preserved"/)
     expect(getFamily('xychart')).toBe(original)
-  })
-
-  test('Loop 8 A1: built-in class plugin registers a verify hook that fires through the dispatcher', () => {
-    // Audit Item A1 — before Loop 8, the class plugin had no `verify` hook so
-    // the dispatcher branch in verify.ts was unreachable for class diagrams
-    // (only the per-body verifyClass branch ran). With the hook now wired,
-    // overriding the plugin with a sentinel warning must surface through
-    // verifyMermaid's result — proving the dispatcher path is non-vestigial.
-    const original = getFamily('class')
-    expect(original).toBeDefined()
-    expect(original!.verify).toBeDefined()  // confirms M4 wired it
-
-    const sentinel = { code: 'UNKNOWN_SHAPE' as const, node: 'A1-sentinel', shape: 'class-plugin-verify' }
-    const restore = replaceFamilyForTest('class', {
-      ...original!,
-      verify: () => [sentinel],
-    })
-
-    try {
-      const src = 'classDiagram\n  class Foo {\n    +bar()\n  }'
-      const p = parseMermaid(src)
-      expect(p.ok).toBe(true)
-      if (!p.ok) return
-      const v = verifyMermaid(p.value)
-      const hit = v.warnings.find(w => w.code === 'UNKNOWN_SHAPE' && (w as { node?: string }).node === 'A1-sentinel')
-      expect(hit).toBeDefined()
-    } finally {
-      restore()
-    }
-  })
-
-  test('Loop 8 A1: built-in ER plugin registers a verify hook that fires through the dispatcher', () => {
-    const original = getFamily('er')
-    expect(original).toBeDefined()
-    expect(original!.verify).toBeDefined()  // confirms M4 wired it
-
-    const sentinel = { code: 'UNKNOWN_SHAPE' as const, node: 'A1-er-sentinel', shape: 'er-plugin-verify' }
-    const restore = replaceFamilyForTest('er', {
-      ...original!,
-      verify: () => [sentinel],
-    })
-
-    try {
-      const src = 'erDiagram\n  CUSTOMER ||--o{ ORDER : places'
-      const p = parseMermaid(src)
-      expect(p.ok).toBe(true)
-      if (!p.ok) return
-      const v = verifyMermaid(p.value)
-      const hit = v.warnings.find(w => w.code === 'UNKNOWN_SHAPE' && (w as { node?: string }).node === 'A1-er-sentinel')
-      expect(hit).toBeDefined()
-    } finally {
-      restore()
-    }
   })
 
   test('a faulty descriptor verify hook is isolated as an error instead of silently dropped', () => {

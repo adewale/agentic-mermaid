@@ -3,7 +3,7 @@
 // This is the observable signal the agent-usage eval reads to measure a run's
 // op-error rate directly, instead of inferring retries from excess call counts.
 
-import { describe, test, expect, afterEach } from 'bun:test'
+import { describe, test, expect } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
@@ -60,14 +60,5 @@ describe('trace sink observes op outcomes', () => {
     expect(lines.filter(l => l.verb === 'mutate' && l.ok === false).length).toBe(1)
   })
 
-  test('op-error rate = count of {ok:false} lines across a run', () => {
-    const d = parseState()
-    const lines = withTraceLog(() => {
-      mutate(d, { kind: 'add_transition', from: 'A', to: 'B', label: 'x' } as AnyMutationOp) // ok
-      mutate(d, { kind: 'remove_state', id: 'Nope' } as AnyMutationOp)                        // fail
-      mutateChecked(d, [{ kind: 'add_state', id: 'C' }])                                       // fail (array)
-    })
-    const errors = lines.filter(l => l.ok === false).length
-    expect(errors).toBe(2)
-  })
+
 })

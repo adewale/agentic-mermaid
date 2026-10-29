@@ -33,17 +33,27 @@ Supported Mermaid constructs:
 - Mermaid comments, frontmatter, and init directives before the header
 
 Agentic Mermaid also retains `;`-separated Journey statements as an extension:
-`A: 5: Me; B: 3: Me` becomes two tasks locally, but pinned Mermaid 11.16
+`A: 5: Me; B: 3: Me` becomes two tasks locally, but pinned Mermaid
 rejects that source. `verifyMermaid` emits
 `UNSUPPORTED_SYNTAX` / `journey_semicolon_statement_extension` with the
 authored line number. Write one statement per line for portable Mermaid.
-HTML entities like `&amp;` retain their semicolons as literal label text in
-Agentic Mermaid. Semicolons in inline `accTitle`/`accDescr` values are also
-literal accessibility text, not statement separators.
+Entity references are protected while classifying statements and splitting
+task fields, then decoded once as display text. For example, `&amp;` displays
+as `&`, and `A&#44;B` names one actor, `A,B`. Unknown references stay literal.
+The writer escapes label punctuation so it cannot become statement syntax.
+Encoded markup remains literal text rather than becoming formatting.
+Semicolons in inline `accTitle`/`accDescr` values are literal accessibility
+text, not statement separators.
 
 Quoted labels are normalized the same way other Agentic Mermaid diagram
 parsers normalize Mermaid labels. `<br>` is converted to multi-line text for
 titles, section labels, tasks, actor labels, and accessibility metadata.
+
+The typed body retains an optional display snapshot when decoded literal text
+could otherwise be read as markup. Unrelated edits and setting a field to its
+current value preserve that reading. Actor replacements retain existing
+occurrences when reordered; adding a copy is rejected if the same public actor
+string has multiple existing readings and no matching occurrence remains.
 
 ## Layout Strategy
 

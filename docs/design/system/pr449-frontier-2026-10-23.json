@@ -1,0 +1,1600 @@
+{
+  "schemaVersion": 1,
+  "protocol": "pr449-curated-frontier-final-report@1",
+  "generatedAtUtc": "2026-10-23T12:01:46.874361+00:00",
+  "status": "SEALED_SELECTED_PRIMARY_EVIDENCE_SNAPSHOT",
+  "intendedRepositoryDestinations": [
+    "docs/design/system/pr449-frontier-2026-10-23.md",
+    "docs/design/system/pr449-frontier-2026-10-23.json"
+  ],
+  "markdownSha256": "59f3c334d248d14a7e07ff0a57f2c038a174c5ecfa6b9456814a5c9cc3d0b907",
+  "summary": {
+    "allELKAspectsMatchedOrBeaten": false,
+    "frontierExhausted": false,
+    "postRebaseCostQualified": false,
+    "ELKRemainsDefault": true,
+    "nativeOwnedFamilies": [
+      "flowchart",
+      "class",
+      "state",
+      "er",
+      "requirement",
+      "architecture"
+    ],
+    "currentDeliveryCapsPassed": true,
+    "currentNode24PreservationPassed": true,
+    "currentBrowserContractsPassed": true,
+    "failedQualityOrCostPrototypePromoted": false,
+    "exactDeliveryCombinationIntegrated": true
+  },
+  "sources": {
+    "accepted26": {
+      "revision": "3258d80ce165457a1dd4695bb2bc12171f492006",
+      "role": "historical accepted baseline",
+      "nativeImplementation": "agentic-layered@26",
+      "status": "accepted_historically_on_named_populations"
+    },
+    "reportingBase": {
+      "revision": "adb8e7e9fd20a7c909115e4deac6e71d08521ad9",
+      "role": "historical frozen reporting and experiment base"
+    },
+    "main861": {
+      "revision": "861375d33807a668a0dd3674257840d027ea299e",
+      "role": "main after merged PR467 and PR468"
+    },
+    "rebased449": {
+      "revision": "968b85564ec0745613abed1b114e5f729d67ca84",
+      "base": "861375d33807a668a0dd3674257840d027ea299e",
+      "status": "canonical_build_types_lint_browser_caps_node_preservation_passed_cost_unqualified",
+      "postRebaseCostQualified": false
+    },
+    "phase": {
+      "revision": "3db3c19464d0efadf338f58a2b2825c0e502484d",
+      "base": "reportingBase",
+      "status": "rejected_cost_incomplete"
+    },
+    "utf8": {
+      "revision": "c88417c4360eb8d2c743fa61879f3cf9534865e5",
+      "base": "reportingBase",
+      "status": "correctness_ready_micro_unqualified_product_unlaunched"
+    },
+    "architectureLabelDev2": {
+      "revision": "1269594267981da6590ea2d0d82233c8e91f2fe2",
+      "base": "reportingBase",
+      "status": "development_only_golden_failure_prospective_unlaunched"
+    },
+    "initialRebase": {
+      "revision": "e039bc9ae0bc19763ae4952a47702c2461120b33",
+      "base": "main861",
+      "status": "integration_checks_passed_delivery_blocked_not_fully_qualified",
+      "postRebaseCostQualified": false
+    }
+  },
+  "populations": {
+    "source249": {
+      "count": 249,
+      "kind": "saved source occurrences",
+      "sourceRef": "accepted26"
+    },
+    "known1209": {
+      "count": 1209,
+      "kind": "249 saved sources plus retained/generated/frozen prospective Flowcharts",
+      "nativeSuccesses": 1209,
+      "elkSuccesses": 1202,
+      "elkRetainedPaintFailures": 7
+    },
+    "architecture64": {
+      "count": 64,
+      "kind": "prospective Architecture bases",
+      "predeterminedOneEdgeEdits": 64,
+      "motionTransitionsPerBackend": 128,
+      "allBackendsBothPoliciesObservations": 1536,
+      "undoSvgChecks": 512,
+      "undoLayoutChecks": 512
+    },
+    "H27": {
+      "count": 27,
+      "kind": "historical corpus/scaling/edit mixed session",
+      "originalWrapperSha256": "ab615e3a286d2eab2ba3fb49ee875785a145753b9dc9012e20627a174c7ddbb9",
+      "keyedParityWrapperSha256": "078c56e84b826a504d5e9c642321a8779cdfd571e4eba056a7beeb3108438c30"
+    },
+    "D48": {
+      "count": 48,
+      "kind": "prospectively generated DAG supplement",
+      "sizes": [
+        12,
+        24,
+        48,
+        96
+      ],
+      "topologies": [
+        "diamond-chain",
+        "complete-2wide-layers",
+        "ordered-chords"
+      ],
+      "labelledControls": 24,
+      "directions": [
+        "TB",
+        "LR"
+      ],
+      "inputsSha256": "c1834ca08dee728280a018f1465f6b4ec5551deca368d617701afa4f464d4d61",
+      "noRegenerationOrFailureFilter": true
+    },
+    "M12": {
+      "count": 12,
+      "kind": "OWN-product Multilingual12, not Mermaid version12",
+      "scripts": [
+        "CJK",
+        "astral"
+      ],
+      "sizes": [
+        2,
+        16,
+        64
+      ],
+      "directions": [
+        "TB",
+        "LR"
+      ],
+      "status": "correctness_qualified_historically_supplementary_cost_unlaunched"
+    },
+    "H27_D48_75": {
+      "count": 75,
+      "strata": [
+        "H27",
+        "D48"
+      ],
+      "enrollmentSha256": "636c39dc787ce860ade86061b704c6a5e7db9f858f02991871112ff0fd6842f0"
+    },
+    "H27_D48_M12_87": {
+      "count": 87,
+      "inputsSha256": "5fc912c4e950df7431f60f3b473934074d88e8bcd0cb2e75bbbdd39097a6c27c"
+    },
+    "architectureDevelopment2": {
+      "count": 2,
+      "seeds": [
+        4163,
+        4164
+      ],
+      "states": [
+        "base",
+        "add",
+        "undo"
+      ],
+      "backends": [
+        "agentic",
+        "elk"
+      ],
+      "policies": [
+        "off",
+        "normal"
+      ],
+      "observations": 24
+    },
+    "architectureFresh128": {
+      "count": 128,
+      "seedRange": [
+        8192,
+        8319
+      ],
+      "status": "not_generated_not_run"
+    }
+  },
+  "ELKComparisons": [
+    {
+      "aspect": "source crossings",
+      "sourceRef": "accepted26",
+      "population": "source249",
+      "native": 531,
+      "elk": 877,
+      "nativeBetterEqualWorse": [
+        22,
+        227,
+        0
+      ],
+      "verdict": "native_advantage_named_population"
+    },
+    {
+      "aspect": "source label conflicts",
+      "sourceRef": "accepted26",
+      "population": "source249",
+      "native": 0,
+      "elk": 38,
+      "verdict": "native_advantage_named_population"
+    },
+    {
+      "aspect": "source shared ink",
+      "sourceRef": "accepted26",
+      "population": "source249",
+      "nativeParallelOpposing": [
+        0,
+        0
+      ],
+      "elkParallelOpposing": [
+        18,
+        9
+      ],
+      "verdict": "native_advantage_named_population"
+    },
+    {
+      "aspect": "source bends",
+      "sourceRef": "accepted26",
+      "population": "source249",
+      "native": 3190,
+      "elk": 2673,
+      "nativeCaseLosses": 25,
+      "verdict": "not_matched"
+    },
+    {
+      "aspect": "source route length",
+      "sourceRef": "accepted26",
+      "population": "source249",
+      "nativeCaseLossesAbsoluteEpsilon1eMinus6": 17,
+      "verdict": "not_matched"
+    },
+    {
+      "aspect": "source canvas area",
+      "sourceRef": "accepted26",
+      "population": "source249",
+      "nativeCaseLosses": 33,
+      "verdict": "not_matched_every_case"
+    },
+    {
+      "aspect": "source spacing",
+      "sourceRef": "accepted26",
+      "population": "source249",
+      "minimumGapCaseLosses": 40,
+      "gapComparisonsUnavailable": 88,
+      "verdict": "not_matched_or_incomplete"
+    },
+    {
+      "aspect": "source paint certificates",
+      "sourceRef": "accepted26",
+      "population": "source249",
+      "nativePassedUnverified": [
+        222,
+        27
+      ],
+      "elkPassedUnverified": [
+        220,
+        29
+      ],
+      "verdict": "scoped_producer_evidence_not_universal_proof"
+    },
+    {
+      "aspect": "Architecture crossings",
+      "sourceRef": "accepted26",
+      "population": "architecture64",
+      "native": 239,
+      "elk": 226,
+      "nativeBetterEqualWorse": [
+        18,
+        25,
+        21
+      ],
+      "verdict": "native_total_and_case_losses"
+    },
+    {
+      "aspect": "Architecture bends",
+      "sourceRef": "accepted26",
+      "population": "architecture64",
+      "native": 800,
+      "elk": 806,
+      "nativeBetterEqualWorse": [
+        12,
+        46,
+        6
+      ],
+      "verdict": "mixed"
+    },
+    {
+      "aspect": "Architecture route length",
+      "sourceRef": "accepted26",
+      "population": "architecture64",
+      "native": 168100,
+      "elk": 167502,
+      "nativeBetterEqualWorse": [
+        24,
+        8,
+        32
+      ],
+      "verdict": "not_matched"
+    },
+    {
+      "aspect": "Architecture area",
+      "sourceRef": "accepted26",
+      "population": "architecture64",
+      "native": 32577130,
+      "elk": 32802173,
+      "nativeBetterEqualWorse": [
+        23,
+        28,
+        13
+      ],
+      "verdict": "mixed"
+    },
+    {
+      "aspect": "Architecture edit motion",
+      "sourceRef": "accepted26",
+      "population": "architecture64",
+      "nativeBetterEqualWorse": [
+        70,
+        10,
+        48
+      ],
+      "verdict": "not_matched_every_transition"
+    },
+    {
+      "aspect": "H27 memory",
+      "sourceRef": "accepted26",
+      "population": "H27",
+      "metricStatistic": "median of 3 same-round native/reference ratios",
+      "displayPrecisionDecimalPlaces": 6,
+      "reference": "ELK from the original declared artifact; full binding remains in historical report",
+      "off": {
+        "allocation": 0.954487,
+        "observedPeakHeap": 0.758468,
+        "workerPeakRss": 0.873106
+      },
+      "normal": {
+        "allocation": 0.994505,
+        "observedPeakHeap": 0.927916,
+        "workerPeakRss": 0.883955
+      },
+      "verdict": "aggregate_advantage_not_per_input_win"
+    },
+    {
+      "aspect": "cyclic tail allocation",
+      "sourceRef": "accepted26",
+      "population": "H27",
+      "requiredTailCount": 6,
+      "uncachedNativeElkRatioApproxRange": [
+        1.26,
+        1.86
+      ],
+      "nativeLosses": 6,
+      "verdict": "native_loses_all_six"
+    },
+    {
+      "aspect": "D48 memory",
+      "sourceRef": "accepted26",
+      "population": "D48",
+      "metricStatistic": "median of 3 same-round native/reference ratios",
+      "displayPrecisionDecimalPlaces": 6,
+      "reference": "ELK reference arm in the frozen DAG campaign; not assumed same artifact as baseline native",
+      "off": {
+        "allocation": 0.542102,
+        "observedPeakHeap": 0.501204,
+        "workerPeakRss": 0.734373,
+        "allocationCaseLosses": 3
+      },
+      "normal": {
+        "allocation": 0.520562,
+        "observedPeakHeap": 0.500309,
+        "workerPeakRss": 0.704784,
+        "allocationCaseLosses": 0
+      },
+      "localAaAnomalyRetained": true,
+      "verdict": "aggregate_advantage_with_named_exceptions"
+    },
+    {
+      "aspect": "warm time/cold start/churn",
+      "sourceRef": "accepted26",
+      "verdict": "no_qualified_general_win",
+      "uncachedReleaseDifferentialChurn": "failed",
+      "oneRetainedCyclic15NativeElkTimeApprox": 1.516,
+      "normalAndArchitectureSupplementPassingCeilings": "not evidence of universal ELK dominance"
+    },
+    {
+      "aspect": "browser closure",
+      "sourceRef": "accepted26",
+      "selectedNativeHistoricalReductionPercentRange": [
+        56,
+        62
+      ],
+      "verdict": "selected_closure_advantage_not_total_package_or_fallback"
+    },
+    {
+      "aspect": "rebased delivery",
+      "sourceRef": "rebased449",
+      "architectureBrotliObservedBytes": 573975,
+      "unchangedCapBytes": 574000,
+      "excessBytes": 0,
+      "verdict": "all23unchangedcaps_passed",
+      "marginBytes": 25,
+      "initialFailedArchitectureBrotliBytes": 574137,
+      "initialRequests": 4,
+      "initialBrotliBytes": 4932,
+      "selectedStructuralClosures": [
+        {
+          "family": "flowchart",
+          "nativeBrotliBytes": 253520,
+          "defaultElkBrotliBytes": 576593,
+          "nativeRequests": 34,
+          "defaultElkRequests": 34,
+          "selectedClosureReductionPercent": 56.03137741873384
+        },
+        {
+          "family": "class",
+          "nativeBrotliBytes": 205761,
+          "defaultElkBrotliBytes": 527634,
+          "nativeRequests": 35,
+          "defaultElkRequests": 34,
+          "selectedClosureReductionPercent": 61.00308168162021
+        },
+        {
+          "family": "state",
+          "nativeBrotliBytes": 253406,
+          "defaultElkBrotliBytes": 576479,
+          "nativeRequests": 33,
+          "defaultElkRequests": 33,
+          "selectedClosureReductionPercent": 56.04245774781042
+        },
+        {
+          "family": "er",
+          "nativeBrotliBytes": 241172,
+          "defaultElkBrotliBytes": 564245,
+          "nativeRequests": 38,
+          "defaultElkRequests": 38,
+          "selectedClosureReductionPercent": 57.25757428067595
+        },
+        {
+          "family": "requirement",
+          "nativeBrotliBytes": 194275,
+          "defaultElkBrotliBytes": 516148,
+          "nativeRequests": 30,
+          "defaultElkRequests": 29,
+          "selectedClosureReductionPercent": 62.360601997876586
+        },
+        {
+          "family": "architecture",
+          "nativeBrotliBytes": 250902,
+          "defaultElkBrotliBytes": 573975,
+          "nativeRequests": 34,
+          "defaultElkRequests": 34,
+          "selectedClosureReductionPercent": 56.28694629557036
+        }
+      ]
+    }
+  ],
+  "experiments": [
+    {
+      "id": "architecture_first_return",
+      "status": "rejected_primary",
+      "sourceRefOrPrefix": "historical first-improvement variant",
+      "metrics": {
+        "targetedAllocationRatio": 0.8520336516714112,
+        "maximum": 0.85,
+        "workersCompleted": 36
+      },
+      "decisionReason": "Do not round actual ratio to target",
+      "originalEvidenceRecordName": "first-improvement-assessment.json"
+    },
+    {
+      "id": "lazy_optional_shifted_preparation",
+      "status": "rejected",
+      "sourceRefOrPrefix": "historical lazy-order variant",
+      "decisionReason": "0/6 required cyclic target hits; near-flat whole result and State regression",
+      "originalEvidenceRecordName": "lazy-native-assessment.json"
+    },
+    {
+      "id": "rank_first",
+      "status": "rejected_incomplete",
+      "sourceRefOrPrefix": "3bef32257ef9043c8de0ca0bdc19086b16da26dc",
+      "populationRef": "H27",
+      "metrics": {
+        "requiredTailHits": 0,
+        "requiredTails": 6,
+        "workersCompleted": 18,
+        "workersPlanned": 36
+      },
+      "originalEvidenceRecordName": "cyclic-assessment-corrected/rank-first-assessment.json"
+    },
+    {
+      "id": "best_band_snapshot_reuse",
+      "status": "rejected_incomplete",
+      "sourceRefOrPrefix": "historical isolated band-snapshot",
+      "populationRef": "H27",
+      "metrics": {
+        "requiredTailHits": 0,
+        "workersCompleted": 16,
+        "workersPlanned": 36,
+        "offWholeAllocationRatio": 1.000648
+      },
+      "originalEvidenceRecordName": "cyclic-assessment-corrected/band-snapshot-assessment.json"
+    },
+    {
+      "id": "query_local_ray_views",
+      "status": "rejected_incomplete",
+      "sourceRefOrPrefix": "historical isolated ray-view",
+      "populationRef": "H27",
+      "metrics": {
+        "requiredTailHits": 0,
+        "workersCompleted": 18,
+        "workersPlanned": 36
+      },
+      "originalEvidenceRecordName": "cyclic-assessment-corrected/ray-view-assessment.json"
+    },
+    {
+      "id": "joint_query_records_and_ray_views",
+      "status": "rejected_primary",
+      "sourceRefOrPrefix": "historical isolated joint candidate",
+      "populationRef": "H27",
+      "metrics": {
+        "workersCompleted": 30,
+        "workersPlanned": 30,
+        "offWholeAllocationRatio": 0.998425,
+        "wholeMaximum": 0.98,
+        "tailHitsAtMaximum95Percent": 0
+      },
+      "originalEvidenceRecordName": "joint-memory26-review/assessment-final.json"
+    },
+    {
+      "id": "pair_specific_crossing_query",
+      "status": "rejected_primary",
+      "sourceRefOrPrefix": "f89da706",
+      "populationRef": "H27",
+      "metrics": {
+        "workersCompleted": 30,
+        "offWholeAllocationRatio": 0.994018,
+        "normalWholeAllocationRatio": 1.000121,
+        "tailHitsAt97Percent": 1,
+        "tailHitsRequired": 3,
+        "tailRegressionsRetained": true
+      },
+      "originalEvidenceRecordName": "shortening-pair-assessment-final.json"
+    },
+    {
+      "id": "selector_preparation_reuse",
+      "status": "rejected_primary",
+      "sourceRefOrPrefix": "821716a5",
+      "populationRef": "H27",
+      "metrics": {
+        "workersCompleted": 30,
+        "offWholeAllocationRatio": 0.997803,
+        "normalWholeAllocationRatio": 0.999852,
+        "offMaximum": 0.98
+      },
+      "originalEvidenceRecordName": "preparation-reuse-assessment-final.json"
+    },
+    {
+      "id": "conditional_pair_preparation_combination",
+      "status": "unlaunched",
+      "decisionReason": "Declared prerequisites failed; never built or measured"
+    },
+    {
+      "id": "route_shortening_totals",
+      "status": "rejected_primary",
+      "sourceRefOrPrefix": "68af654e",
+      "populationRef": "H27",
+      "metrics": {
+        "workersCompleted": 30,
+        "offWholeAllocationRatio": 0.993678,
+        "normalWholeAllocationRatio": 1.000107,
+        "offMaximum": 0.99,
+        "tailHitsAt97Percent": 0,
+        "tailHitsRequired": 3
+      }
+    },
+    {
+      "id": "zero_score_stop",
+      "status": "rejected_primary_and_timing_health",
+      "sourceRefOrPrefix": "f01b4a39",
+      "populationRef": "D48",
+      "metrics": {
+        "offAllocationRatio": 1.013625,
+        "normalAllocationRatio": 0.997678,
+        "offMaximum": 0.95,
+        "cyclicActivation": 0
+      },
+      "decisionReason": "Timing completion/A-A failure retained; no qualified speed claim"
+    },
+    {
+      "id": "no_movement_fixed_pair",
+      "status": "rejected_structural",
+      "sourceRefOrPrefix": "5d5a2f7d",
+      "metrics": {
+        "cyclicStructuralHits": 0,
+        "required": 3,
+        "total": 6
+      }
+    },
+    {
+      "id": "full_pair_recurrence",
+      "status": "rejected_structural",
+      "sourceRefOrPrefix": "9b11b7da",
+      "metrics": {
+        "cyclicStructuralHits": 1,
+        "required": 3,
+        "total": 6
+      }
+    },
+    {
+      "id": "same_stage_recurrence",
+      "status": "rejected_cost_incomplete",
+      "sourceRefOrPrefix": "phase",
+      "populationRef": "H27_D48_75",
+      "metrics": {
+        "narrowBarycenterStructuralHits": 5,
+        "broaderCoreCallHitsAt80Percent": 0,
+        "workersCompleted": 24,
+        "workersPlanned": 30,
+        "timeouts": 2,
+        "unlaunched": 4,
+        "perPolicy": {
+          "off": {
+            "completed": 12,
+            "timeout": 1,
+            "unlaunched": 2
+          },
+          "normal": {
+            "completed": 12,
+            "timeout": 1,
+            "unlaunched": 2
+          }
+        },
+        "fullNativeBaselineThreeRoundMedian": null
+      },
+      "decisionReason": "No successful-subset/2-round substitute; @1 deadline failures stay failed",
+      "originalEvidenceRecordName": "phase-recurrence-cost/assessment.initial.json"
+    },
+    {
+      "id": "score_only_best_order",
+      "status": "rejected_structural",
+      "sourceRefOrPrefix": "4aceefdd6cbdb8b2ac214dcd2b7987f184bc7902",
+      "populationRef": "H27",
+      "metrics": {
+        "coreScorerArcRatios": [
+          0.91817,
+          0.92531,
+          0.96319,
+          0.91687,
+          0.93365,
+          0.83379
+        ],
+        "maximum": 0.8,
+        "hits": 0,
+        "total": 6,
+        "qualityExact": true,
+        "costRuns": 0
+      },
+      "originalEvidenceRecordName": "score-only-best-evidence/ASSESSMENT.md"
+    },
+    {
+      "id": "empty_label_pass_guards",
+      "status": "rejected_primary_and_input_guards",
+      "sourceRefOrPrefix": "fa6d44ab",
+      "populationRef": "D48",
+      "metrics": {
+        "workersCompleted": 30,
+        "offAllocationRatio": 0.990319,
+        "offMaximum": 0.98,
+        "normalAllocationRatio": 0.981567,
+        "offInputLossesBeyond5Percent": 5,
+        "normalInputLossesBeyond5Percent": 7,
+        "exactCompiledPairedRows": 300,
+        "H27Followup": "unlaunched"
+      }
+    },
+    {
+      "id": "weighted_parallel_rank_constraints",
+      "status": "rejected_quality",
+      "sourceRefOrPrefix": "d35f184e",
+      "populationRef": "known1209",
+      "metrics": {
+        "observations": 9672,
+        "nativeChangedCasesPerPolicy": 5,
+        "failedCasesPerPolicy": 3,
+        "failedGuardsPerPolicy": 5,
+        "case47Crossings": [
+          20,
+          21
+        ],
+        "case410": "area and 2 route-verification downgrades, not proven actual intersection",
+        "case502": "area loss",
+        "future64": "not_generated",
+        "costRuns": 0
+      },
+      "originalEvidenceRecordName": "weighted-ranking-evidence/FINAL-ASSESSMENT.md"
+    },
+    {
+      "id": "canonical_orientation_S1",
+      "status": "rejected_quality",
+      "sourceRefOrPrefix": "b3028533",
+      "populationRef": "H27",
+      "metrics": {
+        "observations": 216,
+        "failedInputsPerPolicy": 6,
+        "failedGuardsPerPolicy": 23,
+        "nativeExactPerPolicy": 21,
+        "costRuns": 0,
+        "broadFuture": "unlaunched"
+      },
+      "originalEvidenceRecordName": "canonical-cut-s1-evidence/ASSESSMENT.md"
+    },
+    {
+      "id": "ELK_options_E1_E2_E3",
+      "status": "rejected_quality",
+      "sourceRefOrPrefix": "three frozen historical variants",
+      "metrics": {
+        "offInputs": 1284,
+        "arms": 5,
+        "normal": "unlaunched",
+        "variantsRejected": 3,
+        "oneVariantLostSuccessfulRenders": 6,
+        "oneVariantLostVerifiedRouteChecks": 74,
+        "oneVariantLostSemanticsChecks": 1,
+        "costRuns": 0
+      }
+    },
+    {
+      "id": "architecture_corridor_order",
+      "status": "rejected_strict_qualification",
+      "sourceRefOrPrefix": "2317bbf8",
+      "metrics": {
+        "inheritedAbsoluteUndoSvgFailures": 4,
+        "costRuns": 0
+      }
+    },
+    {
+      "id": "architecture_lazy_contexts",
+      "status": "correctness_ready_inherits_unqualified_parent",
+      "sourceRefOrPrefix": "0ea7a336",
+      "metrics": {
+        "exactPairedRows": 300,
+        "parentUndoFailuresRemain": true,
+        "costRuns": 0,
+        "broadRuns": 0
+      }
+    },
+    {
+      "id": "architecture_label_space_dev1",
+      "status": "rejected_quality",
+      "sourceRefOrPrefix": "49f90263",
+      "populationRef": "architectureDevelopment2",
+      "metrics": {
+        "ELK4164AddCrossings": [
+          3,
+          4
+        ]
+      }
+    },
+    {
+      "id": "architecture_label_space_dev2",
+      "status": "development_only_golden_blocked",
+      "sourceRefOrPrefix": "architectureLabelDev2",
+      "populationRef": "architectureDevelopment2",
+      "metrics": {
+        "previousHardPaintFailuresRepaired": 16,
+        "passedPaint": 22,
+        "inheritedUnverifiedPaint": 2,
+        "lengthMaximumRatio": 1.1112755253033442,
+        "areaMaximumRatio": 1.132674967797338,
+        "motionMaximumIncrease": 0.09235076752466465,
+        "failingUntouchedSvgGoldens": 1,
+        "fresh128": "not_generated",
+        "costRuns": 0
+      }
+    },
+    {
+      "id": "DAG_authored_alternative",
+      "status": "correctness_ready_cost_unlaunched",
+      "sourceRefOrPrefix": "240f73d6",
+      "populationRef": "D48",
+      "metrics": {
+        "exactPairedRows": 300,
+        "activeInputs": 4,
+        "total": 48,
+        "placements": [
+          56,
+          52
+        ]
+      }
+    },
+    {
+      "id": "retained_text_preparation_once",
+      "status": "correctness_ready_cost_unlaunched",
+      "sourceRefOrPrefix": "0e446541",
+      "populationRef": "H27",
+      "metrics": {
+        "exactPairedRows": 108,
+        "statefulCustomOracles": 16
+      }
+    },
+    {
+      "id": "class_cardinality_once",
+      "status": "source_oracles_ready_compiled_cost_unlaunched",
+      "sourceRefOrPrefix": "3e899915",
+      "metrics": {
+        "sourceOracles": 51,
+        "cardinalitySearches": [
+          155,
+          125
+        ]
+      }
+    },
+    {
+      "id": "UTF8_fast_count",
+      "status": "micro_unqualified_product_unlaunched",
+      "sourceRefOrPrefix": "utf8",
+      "populationRef": "H27_D48_M12_87",
+      "metrics": {
+        "oldExactPairedNodeRows": 348,
+        "oldSuccessfulArtifactOutcomes": 696,
+        "microWorkersValid": 9,
+        "microWorkersPlanned": 9,
+        "middleAsciiAaRatio": 1.1097947972,
+        "microAaMaximum": 1.05,
+        "freshActualNode75OracleRows": 450,
+        "freshNativePairedRowsExact": 150,
+        "timingRuns": 0,
+        "originalProductContract": "unmet and unlaunched",
+        "futureV2Method": "prospective unapproved/unfrozen; no @1 substitution",
+        "freshOraclePaintCountsEachPolicy": {
+          "native": {
+            "passed": 65,
+            "unverified": 10
+          },
+          "ELK": {
+            "passed": 59,
+            "unverified": 16
+          }
+        },
+        "producerCertificatesAreNotIndependentGeometricReproof": true,
+        "contemporaneousLauncherEnvironment": {
+          "NODE_OPTIONS": "present and empty",
+          "AGENTIC_MERMAID_SCENE_ASSERTIONS": "absent"
+        }
+      },
+      "originalEvidenceRecordName": "utf8-fast-count-evidence/product-svg75/readiness.json"
+    },
+    {
+      "id": "earlier_broad_memo_packed_private_chain_obstacle_index_proof_reuse",
+      "status": "rejected_or_withdrawn",
+      "decisionReason": "Retained historical negatives; no new benefit credit or revival"
+    },
+    {
+      "id": "delivery_shared_LRU",
+      "status": "rejected_delivery",
+      "metrics": {
+        "additionalRequests": 1
+      },
+      "decisionReason": "Request cap unchanged"
+    },
+    {
+      "id": "delivery_private_fields_standalone",
+      "status": "rejected_delivery",
+      "metrics": {
+        "architectureBrotliBytes": 574078,
+        "unchangedCap": 574000,
+        "excessBytes": 78,
+        "savedBytesVersusInitialRebase": 59,
+        "additionalRequests": 0,
+        "initialRebaseBaselineBytes": 574137,
+        "baselineDeltaBytes": -59
+      }
+    },
+    {
+      "id": "delivery_object_extents_standalone",
+      "status": "rejected_delivery",
+      "metrics": {
+        "architectureBrotliBytes": 574168,
+        "initialRebaseBaselineBytes": 574137,
+        "baselineDeltaBytes": 31,
+        "unchangedCap": 574000,
+        "excessBytes": 168
+      },
+      "decisionReason": "Standalone result adds bytes versus initial rebase and exceeds unchanged cap"
+    },
+    {
+      "id": "delivery_tuple_extents_standalone",
+      "status": "rejected_delivery",
+      "metrics": {
+        "architectureBrotliBytes": 574149,
+        "initialRebaseBaselineBytes": 574137,
+        "baselineDeltaBytes": 12,
+        "unchangedCap": 574000,
+        "excessBytes": 149
+      },
+      "decisionReason": "Standalone result adds bytes versus initial rebase and exceeds unchanged cap"
+    },
+    {
+      "id": "delivery_union_find_standalone",
+      "status": "rejected_delivery",
+      "metrics": {
+        "architectureBrotliBytes": 574166,
+        "initialRebaseBaselineBytes": 574137,
+        "baselineDeltaBytes": 29,
+        "unchangedCap": 574000,
+        "excessBytes": 166
+      },
+      "decisionReason": "Standalone result adds bytes versus initial rebase and exceeds unchanged cap"
+    },
+    {
+      "id": "ELK_layered_registration",
+      "status": "correctness_ready_delivery_failed_cost_unlaunched",
+      "sourceRefOrPrefix": "3f8c2df5b45c1d55ef68d1a6de2fe8a48362c80d",
+      "metrics": {
+        "constructorAlgorithms": [
+          "layered"
+        ],
+        "owningTestsPassed": 53,
+        "owningAssertions": 1498,
+        "coreTypes": "passed",
+        "ESM": "built",
+        "DTS": "passed",
+        "all23FamilyFullPayloadParity": "1152/1152 full public-value pairs exact",
+        "browserDelivery": "failed Architecture byte cap",
+        "costRuns": 0,
+        "prospectiveScopeSha256": "1de33a7e88b3796527e91cc209e6b4aeb0ca77f18d2e4bd1f9919af2711707aa",
+        "freshBaselineRegisteredAlgorithms": 12,
+        "candidateRegisteredAlgorithms": 4,
+        "freshBaselineRegisteredOptions": 238,
+        "candidateRegisteredOptions": 182,
+        "APIObservationsSucceeded": 2304,
+        "inputOccurrences": 121,
+        "pairedFullPayloadChecksPassed": 1152,
+        "paintPerPolicyAndArm": {
+          "passed": 386,
+          "unverified": 190
+        },
+        "architectureBrotliBytes": 574173,
+        "initialRebaseBaselineBytes": 574137,
+        "baselineDeltaBytes": 36,
+        "unchangedCap": 574000,
+        "excessBytes": 173,
+        "additionalRequests": 0,
+        "IIFE": "built",
+        "lazy": "built"
+      },
+      "decisionReason": "Full public-value parity passed; unchanged delivery byte cap failed. No cost trial or promotion.",
+      "baseSourceRef": "rebased449",
+      "candidateRevision": "3f8c2df5b45c1d55ef68d1a6de2fe8a48362c80d",
+      "sourceStatus": "committed isolated candidate; complete qualification pending",
+      "artifactQualified": false
+    },
+    {
+      "id": "delivery_tuple_four_consumers_standalone",
+      "status": "rejected_delivery",
+      "metrics": {
+        "architectureBrotliBytes": 574167,
+        "initialRebaseBaselineBytes": 574137,
+        "baselineDeltaBytes": 30,
+        "unchangedCap": 574000,
+        "excessBytes": 167
+      },
+      "sourceRefOrPrefix": "a648783a"
+    },
+    {
+      "id": "delivery_five_map_reuse_standalone",
+      "status": "rejected_delivery",
+      "metrics": {
+        "architectureBrotliBytes": 574099,
+        "initialRebaseBaselineBytes": 574137,
+        "baselineDeltaBytes": -38,
+        "unchangedCap": 574000,
+        "excessBytes": 99
+      },
+      "sourceRefOrPrefix": "20416ac6"
+    },
+    {
+      "id": "duplicate_block_fraction_baseline_histogram",
+      "status": "rejected_structural_admission_no_production_prototype",
+      "sourceRefOrPrefix": "e039bc9ae0bc19763ae4952a47702c2461120b33",
+      "metrics": {
+        "tailsMeetingAdmission": 0,
+        "requiredTailPopulation": 6,
+        "prospectiveMaximumPotentialAllCoreScoreArcRatio": 0.8,
+        "minimumTailCountEachPolicy": 3,
+        "retainedInputs": "H27+DAG48 both policies",
+        "performanceRun": false,
+        "sourceUntouched": true
+      },
+      "decisionReason": "Potential omitted duplicate/no-op fraction scorer arc visits fail admission; added comparison work and all later scoring retained."
+    },
+    {
+      "id": "dirty_bilayer_historical_and_current_port",
+      "status": "historical_structural_admission5of6_current968port450proofcomplete_no_cost",
+      "sourceRefOrPrefix": "e039/5b; separate968portd269d99e",
+      "metrics": {
+        "sourceBase": "e039bc9a",
+        "sourceComparisons": 300,
+        "nodeCaptures": 450,
+        "tailsMeeting20PercentArcVisitReduction": 5,
+        "requiredTails": 6,
+        "fiveTailReductionPercentRange": [
+          21.3,
+          27.5
+        ],
+        "sixthReductionPercent": 12.7,
+        "scoreCallsUnchanged": true,
+        "sourceCounterCannotBeRelabelled968": true,
+        "performanceRun": false
+      }
+    },
+    {
+      "id": "empty_array_guards_standalone",
+      "sourceRefOrPrefix": "f00d9",
+      "status": "rejected_delivery_no_cost",
+      "metrics": {
+        "owningTests": 93,
+        "architectureBrotliBytes": 574101,
+        "unchangedCapBytes": 574000
+      }
+    },
+    {
+      "id": "architecture_lookup_private_fields_combination",
+      "sourceRefOrPrefix": "968b85564ec0745613abed1b114e5f729d67ca84",
+      "status": "integrated_exact_delivery_repair_no_cost_claim",
+      "metrics": {
+        "architectureBrotliBytes": 573975,
+        "unchangedCapBytes": 574000,
+        "marginBytes": 25,
+        "allFamilyCapsPassed": 23
+      }
+    },
+    {
+      "id": "constructor_cold_eligibility",
+      "sourceRefOrPrefix": "3f8c2df5b45c1d55ef68d1a6de2fe8a48362c80d",
+      "baseline": "e039bc9ae0bc19763ae4952a47702c2461120b33",
+      "status": "untimed28complete_cost_not_declared",
+      "metrics": {
+        "initialInputsRetained": 7,
+        "alternatesSelected": 0,
+        "freshProcesses": 28,
+        "passedPaint": 24,
+        "unverifiedPaint": 4,
+        "defaultReceiptLayoutDecisionsAbsent": 28,
+        "costObservations": 0
+      },
+      "remaining": "independentcostprotocolreview; candidatedeliveryfailstillblocks shipping"
+    }
+  ],
+  "counterScopeCorrection": {
+    "sourceRef": "phase",
+    "narrowField": "orderingScoreCalls = 1 + rememberOrder score entries per core invocation",
+    "broaderField": "allInversionScoreCalls = every entry into core crossingScore",
+    "narrowBarycenterStructuralHits": 5,
+    "broaderHitsAt20PercentReduction": 0,
+    "broaderExclusions": [
+      "direct adjacent-swap pair reductions",
+      "chain-insertion DP costs",
+      "route scoring and other solver scoring"
+    ],
+    "countsAreNotTimeOrAllocation": true,
+    "rows": [
+      {
+        "tail": "11",
+        "normalInitialPlusBarycenterCalls": [
+          243,
+          154
+        ],
+        "normalAllCoreCrossingScoreCalls": [
+          951,
+          862
+        ],
+        "narrowRatio": 0.6337448559670782,
+        "broaderRatio": 0.9064143007360673,
+        "laterCoreCallsUnchanged": 708,
+        "offCounts": "exactly2x NORMAL; same ratios"
+      },
+      {
+        "tail": "15",
+        "normalInitialPlusBarycenterCalls": [
+          243,
+          138
+        ],
+        "normalAllCoreCrossingScoreCalls": [
+          1051,
+          946
+        ],
+        "narrowRatio": 0.5679012345679012,
+        "broaderRatio": 0.9000951474785919,
+        "laterCoreCallsUnchanged": 808,
+        "offCounts": "exactly2x NORMAL; same ratios"
+      },
+      {
+        "tail": "19",
+        "normalInitialPlusBarycenterCalls": [
+          153,
+          138
+        ],
+        "normalAllCoreCrossingScoreCalls": [
+          436,
+          421
+        ],
+        "narrowRatio": 0.9019607843137255,
+        "broaderRatio": 0.9655963302752294,
+        "laterCoreCallsUnchanged": 283,
+        "offCounts": "exactly2x NORMAL; same ratios"
+      },
+      {
+        "tail": "9",
+        "normalInitialPlusBarycenterCalls": [
+          243,
+          151
+        ],
+        "normalAllCoreCrossingScoreCalls": [
+          881,
+          789
+        ],
+        "narrowRatio": 0.6213991769547325,
+        "broaderRatio": 0.8955732122587968,
+        "laterCoreCallsUnchanged": 638,
+        "offCounts": "exactly2x NORMAL; same ratios"
+      },
+      {
+        "tail": "13",
+        "normalInitialPlusBarycenterCalls": [
+          243,
+          143
+        ],
+        "normalAllCoreCrossingScoreCalls": [
+          1146,
+          1046
+        ],
+        "narrowRatio": 0.588477366255144,
+        "broaderRatio": 0.912739965095986,
+        "laterCoreCallsUnchanged": 903,
+        "offCounts": "exactly2x NORMAL; same ratios"
+      },
+      {
+        "tail": "18-cuts",
+        "normalInitialPlusBarycenterCalls": [
+          153,
+          85
+        ],
+        "normalAllCoreCrossingScoreCalls": [
+          356,
+          288
+        ],
+        "narrowRatio": 0.5555555555555556,
+        "broaderRatio": 0.8089887640449438,
+        "laterCoreCallsUnchanged": 203,
+        "offCounts": "exactly2x NORMAL; same ratios"
+      }
+    ],
+    "originalFrozenEvidenceEdited": false
+  },
+  "rebasedIntegration": {
+    "sourceRef": "rebased449",
+    "mainPRsMerged": [
+      467,
+      468
+    ],
+    "PR433": "draft, not merged by this work",
+    "existingFocusedTestsPassed": 130,
+    "newIntegrationTestsPassed": 3,
+    "adverseMutantsDetected": 4,
+    "testRuntime": "Bun/JSC including source child processes; node:assert is only assertion API",
+    "coreTypes": "passed",
+    "repositoryTypesAfterNewTests": "passed",
+    "scopedLint": "passed",
+    "standardBuilds": [
+      "Node ESM",
+      "DTS",
+      "IIFE",
+      "lazy"
+    ],
+    "actualCompiledNode24Parity": "passed348strictpairs696successfulcaptures8freshworkers87inputs",
+    "realBrowserCheck": {
+      "passed": 55,
+      "failed": 0,
+      "assertions": 1035,
+      "includes": "Chromium contracts and Firefox/WebKit global/lazy ESM smoke"
+    },
+    "deliveryCap": "all23passedArchitecture573975cap574000margin25",
+    "freshPostRebaseQualityAndCost": "exact87preservation_passed_no_new_performance_qualification",
+    "canonicalSource": "968b85564ec0745613abed1b114e5f729d67ca84",
+    "compiledCacheSmoke": {
+      "protocol": "compiled-node24-cache-smoke-lossless-envelope@2",
+      "complete": true,
+      "passed": true,
+      "originalSmokeStillFailed": true,
+      "planSha256": "db6ce3313151b1f98ec0dc808d34f8474e98afb48082cb5fde260694723a1597",
+      "envelopeDeclarationSha256": "c726bbf9ec09b622d28663fd68095b0484cd956ce09862222be8a9bbd76447f7",
+      "nodeVersion": "v24.19.0",
+      "v8": "13.6.233.17-node.51",
+      "execPath": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "execArgv": [
+        "--no-warnings"
+      ],
+      "rawSha256": "3a819c3386cba26bdb78a35ec29f6693357055bc4041cc5944e51dbd18ae9386",
+      "rawBytes": 149306,
+      "nullPrototypeObjects": 34,
+      "bindingsUnchanged": true,
+      "scope": "Same original actual compiled public cache assertions; exact original value roundtrip using explicit V8+null-prototype graph sidecar. Original V8-only smoke failure remains retained. No normalization of original values."
+    },
+    "compiledCacheSmokeLimitations": "Untimed actual compiled Node24 exact preservation across rebase; no speed/memory benefit or superiority over ELK claim. Public-value equality uses isDeepStrictEqual, not property-descriptor/getter-function identity. Whole87 V8-only persistence exact; ASCII smoke needs explicitly declared null-prototype sidecar. Public smoke does not expose direct private cache counters; source seam tests separately established actual hits.",
+    "actualNode87SceneAssertions": "0",
+    "actualNode87Comparison": "deepStrictEqual plus offline own-enumerable-key-order check; zero actual Map/Set instances, no collection-order claim",
+    "diagnosticAdmissionSceneAssertions": "UNSET",
+    "builtInSceneAssertionsBranch": "enabled only by literal1; actual0andUNSETtake same branch",
+    "exactDeliveryOwnerTests": 84,
+    "rootCacheTests": 74,
+    "rootElkSequenceTests": 11,
+    "rootProbeOwnershipTests": 9,
+    "testGroupCountsNotUniqueTotal": true,
+    "remoteRequiredCIForFinalSource": "not_asserted_by_this_local_report",
+    "offlineOrderSupplement": {
+      "pairs": 348,
+      "objectPairsVisited": 300624,
+      "enumerableKeyOrderDifferencePairs": 0,
+      "actualMapsVisited": 0,
+      "actualSetsVisited": 0,
+      "collectionOrderCoverage": "vacuous; no ordered-Map claim",
+      "rawHashEqualPairs": 232,
+      "rawHashUnequalPairs": 116,
+      "rawHashInequalityCause": "residual binaryencoding/aliasrepresentation undiagnosed; not itself classifiedproduct-value defect",
+      "assessmentSha256": "d5f58aa22ca31861c0849fa622c2a27eefbbd78d3be45193f791d4b3f22af615"
+    }
+  },
+  "architectureDevelopment": {
+    "sourceRef": "architectureLabelDev2",
+    "population": "architectureDevelopment2",
+    "actualPassedPaint": 22,
+    "actualInheritedUnverifiedPaint": 2,
+    "previousHardFailedObservationsRepaired": 16,
+    "exactSvgUndos": 8,
+    "exactLayoutUndos": 8,
+    "routeLengthAndAreaGrowthObservations": 22,
+    "observations": 24,
+    "motionLossTransitions": 16,
+    "motionTransitions": 16,
+    "lengthMaximumRatio": 1.1112755253033442,
+    "areaMaximumRatio": 1.132674967797338,
+    "alignedNormalizedMotionMaxIncrease": 0.09235076752466465,
+    "prospectiveConcessions": {
+      "lengthMaximumRatio": 3,
+      "areaMaximumRatio": 2.5,
+      "motionMaximumIncrease": 0.5
+    },
+    "golden": {
+      "state": "failing_untouched",
+      "heightBeforeAfter": [
+        280,
+        294.55
+      ]
+    },
+    "testsPassed": 180,
+    "fresh128": "not_generated",
+    "retained64And80Campaigns": "not_run_for_dev2",
+    "performance": "not_run",
+    "isStrictParetoImprovement": false
+  },
+  "profiling": {
+    "newMainCaptureStatus": "final968snapshot_and_four_source_observers_admitted1200exact_no_cost_CPU_heap_or_cache_history_capture",
+    "baselineHistogram": "e039duplicateblockfraction_complete_negative",
+    "sourceAnchors": "exact source-bound observers required; final968public-valueadmission in progress",
+    "syntheticToolsReady": true,
+    "historical26Profiles": {
+      "sourceRef": "accepted26",
+      "cases": [
+        "11",
+        "15",
+        "18-cuts"
+      ],
+      "workers": 12,
+      "sceneAssertions": "explicit0; not default public workload",
+      "status": "diagnostic_only_not_performance_comparison"
+    },
+    "methodLimits": [
+      "GC-boundary heap delta is not independent allocated traffic",
+      "collected-object samples perturb execution and are not exact traffic",
+      "function-entry source attribution does not identify exact allocating line",
+      "profiled timings do not qualify uninstrumented product costs",
+      "inclusive rows overlap and cannot be added",
+      "cache75history cannot be assumed thrashing without observed hits/weights/evictions"
+    ],
+    "sourceBoundBlockFractionHistogram": {
+      "status": "complete_negative_structural_admission",
+      "source": "e039bc9ae0bc19763ae4952a47702c2461120b33",
+      "tailsMeetingAdmission": 0,
+      "performanceRun": false
+    },
+    "historicalDirtyBilayer": {
+      "sourceBase": "e039bc9a",
+      "sourceComparisons": 300,
+      "nodeCaptures": 450,
+      "tailsMeeting20PercentArcVisitReduction": 5,
+      "requiredTails": 6,
+      "fiveTailReductionPercentRange": [
+        21.3,
+        27.5
+      ],
+      "sixthReductionPercent": 12.7,
+      "scoreCallsUnchanged": true,
+      "sourceCounterCannotBeRelabelled968": true,
+      "performanceRun": false
+    },
+    "dirtyBilayer968Port": {
+      "source": "d269d99e3fbcfd9abdc7801967aedfd97b762694",
+      "baseline": "968b85564ec0745613abed1b114e5f729d67ca84",
+      "owningTestsPassed": 61,
+      "assertions": 5591,
+      "typesLintNodeDts": "passed",
+      "finalNodeProof": {
+        "passed": true,
+        "captures": 450,
+        "nativeComparisons": 150,
+        "fullPayloadByteComparisons": 600,
+        "readinessSha256": "67244639a7e5b5c80ee3eb8e87a2bb31cdd69efa772d90d305679d82d3194d16",
+        "paintPerNativeRolePolicy": {
+          "passed": 65,
+          "unverified": 10
+        },
+        "paintElkRolePolicy": {
+          "passed": 59,
+          "unverified": 16
+        }
+      },
+      "performanceRun": false
+    }
+  },
+  "communityAndLiterature": {
+    "catalogEntries": 83,
+    "entriesAreNotIndependentAlgorithms": true,
+    "Pele": "historical runtime22 peer timings and inspected source versions/workloads/proof contracts differ; no current26 equivalence claim",
+    "transferredIdeas": [
+      "layered objective separation",
+      "exact lower-bound stopping",
+      "best-state scoring guards",
+      "canonical normalization retaining search diversity",
+      "corridor and label-space ownership",
+      "explicit incremental/model-order objectives"
+    ],
+    "fewerFamilies": "Flowchart-only retains six costly cyclic tails; acyclic-only changes admission and leaves cyclic goal open; shared closures defeat proportional per-adapter byte assumptions",
+    "noFamilyScopeChangeApproved": true,
+    "discussionAudit": {
+      "frozenReadTimeUtc": "2026-10-23T06:53Z",
+      "openIssues": 10,
+      "openPRs": 7,
+      "returnedEntries": 42,
+      "scope": "all frozen retrievable17 discussions only; no closed/global exhaustive claim",
+      "laterMergedPRs": [
+        467,
+        468
+      ]
+    }
+  },
+  "untriedOrPending": [
+    "freshpostrebasecostqualification",
+    "actualCPUheapandcachehistories_after_final968sourceobserveradmission",
+    "dirtybilayer968portprospectivecost_and_delivery_ifqualified",
+    "constructorcoldcostprotocolreviewanddeclaration; capfailed",
+    "Architecturedev2reviewportandprospective128qualification",
+    "prospectivepublicSVG@2methodfreeze_before_anynewcost; oldphasezerofailuresunchanged"
+  ],
+  "durableEvidenceFiles": [
+    "layout-qualification.md",
+    "layout-community-comparison.md",
+    "layout-runtime26-quality.json.gz",
+    "layout-runtime26-benchmarks.json.gz",
+    "layout-runtime26-cyclic-experiments.json.gz"
+  ],
+  "publicationRequirements": [
+    "seal complete packet including final current968evidence and originalfailures",
+    "copy packet and both reports to intended repository destinations",
+    "check exact relative links and Markdown hash",
+    "no workspace URL substituted for durable evidence",
+    "do not relabel historicalcostas968cost"
+  ],
+  "measurementRules": [
+    "median of same-round ratios; no ratio of medians",
+    "whole measured pass cannot be sum of per-input medians",
+    "A/A is a health control, never a correction divisor",
+    "no deadline extension, retry, successful-subset selection or post-observation target relaxation",
+    "actual unverified producer certificates do not become passed proof",
+    "no claim of universal ELK/community dominance or exhausted frontier"
+  ],
+  "numericPrecision": "Public-facing ratio summaries are rounded as displayed in the source reports; original complete same-round vectors and nulls remain authoritative. Exact integer counts and explicitly full-precision ratios are retained. No target decision is made by rounding.",
+  "constructorRegistration": {
+    "source": "3f8c2df5b45c1d55ef68d1a6de2fe8a48362c80d",
+    "baseline": "e039bc9ae0bc19763ae4952a47702c2461120b33",
+    "freshRegistryAlgorithmCount": {
+      "baseline": 12,
+      "candidate": 4
+    },
+    "freshRegistryOptionCount": {
+      "baseline": 238,
+      "candidate": 182
+    },
+    "allFamilyExactPublicPairs": 1152,
+    "architectureBrotliBytes": 574173,
+    "unchangedCapBytes": 574000,
+    "requestsChanged": false,
+    "costMeasured": false,
+    "startupRetentionWarmSolverBenefitEstablished": false
+  },
+  "prospectiveSvgMethod": {
+    "protocol": "@2",
+    "status": "implemented_independentreview_pending_finalfreeze_declaration_no_cost",
+    "population": 75,
+    "prewarmCalls": 75,
+    "timedPasses": 2,
+    "timedCallsPerWorker": 150,
+    "totalCallsPerWorker": 225,
+    "originalMethod": "@1materializedreceiptJSONinsidewindowbutUTF8bufferoutside; @2bothinside",
+    "precision": "two samples/input/round; no strong p95/tail guarantee",
+    "forbiddenRetrySources": [
+      "3db3c19464d0efadf338f58a2b2825c0e502484d",
+      "f01b4a39f8af7ce58ebe4366e2066bd2578ca93a"
+    ],
+    "originalUtf8Contract": "unmet; prospectiveamendmentrequired beforedata"
+  },
+  "finalClaimEvidenceBindings": [
+    {
+      "packetEntry": "originals/pr449-frontier/PUBLIC-REPORT-DRAFT.md",
+      "sourcePath": "/workspace/pr449-frontier/PUBLIC-REPORT-DRAFT.md",
+      "sha256": "40c6b3cf1bb97c80bb0492ada518a29f46a52d62ea58e0e8678fcb8aac360c1d"
+    },
+    {
+      "packetEntry": "originals/pr449-frontier/PUBLIC-REPORT-DRAFT.json",
+      "sourcePath": "/workspace/pr449-frontier/PUBLIC-REPORT-DRAFT.json",
+      "sha256": "af3b29c15cc9b2683ab92fc58392ac62d2c65051eeebb494ce26ad8e11674c3a"
+    },
+    {
+      "packetEntry": "originals/pr449-frontier/rebase-main861-evidence/build.reuse-private.log",
+      "sourcePath": "/workspace/pr449-frontier/rebase-main861-evidence/build.reuse-private.log",
+      "sha256": "20fe67ab4d2ae02d0b98658d7e25cfd2a9262e90197ed6852cecb9ee19a30603"
+    },
+    {
+      "packetEntry": "originals/pr449-frontier/rebase-main861-evidence/types.reuse-private.log",
+      "sourcePath": "/workspace/pr449-frontier/rebase-main861-evidence/types.reuse-private.log",
+      "sha256": "c177d7c77ee98f714422ae410327a4cdfdbaba56314d6dcb0e0ffcb46456aaf3"
+    },
+    {
+      "packetEntry": "originals/pr449-frontier/rebase-main861-evidence/lint.reuse-private.log",
+      "sourcePath": "/workspace/pr449-frontier/rebase-main861-evidence/lint.reuse-private.log",
+      "sha256": "f173e7b08513ec3ce2d0fbe2a9e81a196a05b049a8892efdc24dba4fd49425ec"
+    },
+    {
+      "packetEntry": "originals/pr449-frontier/rebase-main861-evidence/browser-bundle.reuse-private.log",
+      "sourcePath": "/workspace/pr449-frontier/rebase-main861-evidence/browser-bundle.reuse-private.log",
+      "sha256": "85741e218904037650654e695e6feff1d9826b0c7fe6faa43c605d06da417d05"
+    },
+    {
+      "packetEntry": "originals/pr449-frontier/rebase-main861-evidence/browser-lazy-report.reuse-private.json",
+      "sourcePath": "/workspace/pr449-frontier/rebase-main861-evidence/browser-lazy-report.reuse-private.json",
+      "sha256": "ed3b861d968cb097f90d5d267b7b974c0217065959af08eb8402d1040b2eef96"
+    },
+    {
+      "packetEntry": "originals/pr449-frontier/architecture-extents-evidence/FINAL-MANIFEST.json",
+      "sourcePath": "/workspace/pr449-frontier/architecture-extents-evidence/FINAL-MANIFEST.json",
+      "sha256": "f3afa66747f2a0e6a46d0ad61859c85147c21bdbc0cb832971be7cf8cec50a63"
+    },
+    {
+      "packetEntry": "originals/pr449-frontier/architecture-extents-evidence/FINAL-REVIEW.md",
+      "sourcePath": "/workspace/pr449-frontier/architecture-extents-evidence/FINAL-REVIEW.md",
+      "sha256": "3ad02076999a86d2b0aee1215e33e2a7d992f8dd7442aa158725a4b875fe5a7d"
+    },
+    {
+      "packetEntry": "originals/pr449-frontier/rebase-node24-evidence/SUMMARY.json",
+      "sourcePath": "/workspace/pr449-frontier/rebase-node24-evidence/SUMMARY.json",
+      "sha256": "71d4b972370e9a1d66d263b6a6610739beae542bfbc8296992c91536e5a17477"
+    },
+    {
+      "packetEntry": "originals/pr449-frontier/rebase-node24-evidence/comparison.json",
+      "sourcePath": "/workspace/pr449-frontier/rebase-node24-evidence/comparison.json",
+      "sha256": "a6308a9a53aa083f93d5856aec416ab55a62f32c31afa8218fb633914dfa191c"
+    },
+    {
+      "packetEntry": "originals/pr449-frontier/rebase-node24-evidence/compiled-smoke-envelope-v2.json",
+      "sourcePath": "/workspace/pr449-frontier/rebase-node24-evidence/compiled-smoke-envelope-v2.json",
+      "sha256": "d4349f5a4397c9de7d399ba03716b2db58eeb68481bb3ce0c441e8fffd3fba3a"
+    },
+    {
+      "packetEntry": "originals/pr449-frontier/rebase-node24-evidence/order-assessment.json",
+      "sourcePath": "/workspace/pr449-frontier/rebase-node24-evidence/order-assessment.json",
+      "sha256": "d5f58aa22ca31861c0849fa622c2a27eefbbd78d3be45193f791d4b3f22af615"
+    },
+    {
+      "packetEntry": "originals/pr449-frontier/rebase-node24-evidence/order-assessment.md",
+      "sourcePath": "/workspace/pr449-frontier/rebase-node24-evidence/order-assessment.md",
+      "sha256": "0fb9a0ca7b87b3ddb463b167de319a31457c9005c4ad215e0287e44f92ea717d"
+    },
+    {
+      "packetEntry": "originals/pr449-frontier/rebase-node24-evidence/order-supplement-manifest.json",
+      "sourcePath": "/workspace/pr449-frontier/rebase-node24-evidence/order-supplement-manifest.json",
+      "sha256": "6b124f7c31d96156062e3dbb0b99dc4c53cc8ce57a0ad3ea68d02c5d873fbd2d"
+    },
+    {
+      "packetEntry": "originals/pr449-frontier/elk-layered-registration-cold/proof-readiness.json",
+      "sourcePath": "/workspace/pr449-frontier/elk-layered-registration-cold/proof-readiness.json",
+      "sha256": "77672d92dc07f591d6f74e861ebd5ae04363ace71e0cc65b3b5317fe9cfb4655"
+    },
+    {
+      "packetEntry": "originals/pr449-frontier/elk-layered-registration-cold/proof/report.json",
+      "sourcePath": "/workspace/pr449-frontier/elk-layered-registration-cold/proof/report.json",
+      "sha256": "43f2480d44e222de6a72f79443e5ebbf0e3063c51c97895bf80ac65654c13017"
+    },
+    {
+      "packetEntry": "originals/pr449-frontier/elk-layered-registration-evidence/index.json",
+      "sourcePath": "/workspace/pr449-frontier/elk-layered-registration-evidence/index.json",
+      "sha256": "1834c94002eaa2408ca46e241de31e9d849cf6a5f573cb7e679aa0a6a0da6922"
+    },
+    {
+      "packetEntry": "originals/pr449-frontier/dirty-bilayer-evidence/producer/FINAL-HISTORICAL-ASSESSMENT.json",
+      "sourcePath": "/workspace/pr449-frontier/dirty-bilayer-evidence/producer/FINAL-HISTORICAL-ASSESSMENT.json",
+      "sha256": "ff15eb374ccb76f4412e47a457f32428cd854569d406c741ae93198114c416e8"
+    },
+    {
+      "packetEntry": "originals/pr449-frontier/dirty-bilayer-968-evidence/readiness.json",
+      "sourcePath": "/workspace/pr449-frontier/dirty-bilayer-968-evidence/readiness.json",
+      "sha256": "67244639a7e5b5c80ee3eb8e87a2bb31cdd69efa772d90d305679d82d3194d16"
+    },
+    {
+      "packetEntry": "originals/pr449-frontier/dirty-bilayer-968-evidence/ASSESSMENT.md",
+      "sourcePath": "/workspace/pr449-frontier/dirty-bilayer-968-evidence/ASSESSMENT.md",
+      "sha256": "c5f19113705c02a04160fe312bb4d0a3c6a605b214da76cabc3ee215c4c4b399"
+    },
+    {
+      "packetEntry": "originals/pr449-frontier/diagnostics/public-proof-968b/execution.json",
+      "sourcePath": "/workspace/pr449-frontier/diagnostics/public-proof-968b/execution.json",
+      "sha256": "0d74673feb5a7c3400698d4310ba53685729692b0b89f1f59db9639e7c149c08"
+    },
+    {
+      "packetEntry": "originals/pr449-frontier/discussions/coverage-ledger.json",
+      "sourcePath": "/workspace/pr449-frontier/discussions/coverage-ledger.json",
+      "sha256": "4ac95801c4c896e302028896813effeb15fcbd4733f04878d3bb448872d5df8e"
+    }
+  ],
+  "durableDocumentLinkTargets": [
+    {
+      "relativeHref": "layout-community-comparison.md",
+      "repositoryTarget": "docs/design/system/layout-community-comparison.md",
+      "presentInRepositoryNow": true,
+      "mustBePresentBeforePublication": true
+    },
+    {
+      "relativeHref": "layout-qualification.md",
+      "repositoryTarget": "docs/design/system/layout-qualification.md",
+      "presentInRepositoryNow": true,
+      "mustBePresentBeforePublication": true
+    },
+    {
+      "relativeHref": "layout-runtime26-benchmarks.json.gz",
+      "repositoryTarget": "docs/design/system/layout-runtime26-benchmarks.json.gz",
+      "presentInRepositoryNow": true,
+      "mustBePresentBeforePublication": true
+    },
+    {
+      "relativeHref": "layout-runtime26-cyclic-experiments.json.gz",
+      "repositoryTarget": "docs/design/system/layout-runtime26-cyclic-experiments.json.gz",
+      "presentInRepositoryNow": true,
+      "mustBePresentBeforePublication": true
+    },
+    {
+      "relativeHref": "layout-runtime26-quality.json.gz",
+      "repositoryTarget": "docs/design/system/layout-runtime26-quality.json.gz",
+      "presentInRepositoryNow": true,
+      "mustBePresentBeforePublication": true
+    },
+    {
+      "relativeHref": "pr449-frontier-2026-10-23-evidence.json.gz",
+      "repositoryTarget": "docs/design/system/pr449-frontier-2026-10-23-evidence.json.gz",
+      "presentInRepositoryNow": false,
+      "mustBePresentBeforePublication": true
+    },
+    {
+      "relativeHref": "pr449-frontier-2026-10-23.json",
+      "repositoryTarget": "docs/design/system/pr449-frontier-2026-10-23.json",
+      "presentInRepositoryNow": false,
+      "mustBePresentBeforePublication": true
+    }
+  ],
+  "derivedFromDrafts": {
+    "markdownSha256": "40c6b3cf1bb97c80bb0492ada518a29f46a52d62ea58e0e8678fcb8aac360c1d",
+    "jsonSha256": "af3b29c15cc9b2683ab92fc58392ac62d2c65051eeebb494ce26ad8e11674c3a",
+    "originalDraftsModified": false
+  },
+  "sealedPublication": {
+    "packet": "pr449-frontier-2026-10-23-evidence.json.gz",
+    "packetSha256": "90fb06e420d5b25c24affb80a6f2c95f772a4499abf14a26fae29e04be4cb2ae",
+    "packetBytes": 3202470,
+    "entryCount": 326,
+    "requiredClaimEntryCount": 23,
+    "reviewedCompanionSha256": "0ca95058eaa02ebf21ca7b8520afd989a51ae3da06c74afc84926097b8ad3ae3",
+    "scope": "Selected primary evidence; full raw workers and runtime artifacts generally excluded. Original hashes and provenance retained."
+  }
+}

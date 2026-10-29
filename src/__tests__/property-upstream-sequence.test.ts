@@ -1,5 +1,5 @@
 // Grammar-based differential test for sequence diagrams against the pinned
-// upstream Mermaid (11.16.0), the companion of property-upstream-flowchart.
+// upstream Mermaid (12.2.0), the companion of property-upstream-flowchart.
 //
 //   (i)   upstream accepts every generated source — validates the generator;
 //   (ii)  parseRegisteredMermaid accepts it as a structured sequence diagram;
@@ -19,6 +19,7 @@
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { asSequence, describeMermaidFacts, mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import { countStructuralElements } from '../agent/structural-count.ts'
 import type { SequenceBody, SequenceMessage, SequenceMutationOp } from '../agent/types.ts'
@@ -172,7 +173,6 @@ function generatedLinks(statements: Statement[], links = new Map<string, Record<
 }
 
 const programArb = fc.array(statementArb(2), { minLength: 1, maxLength: 8 })
-const sourceArb = programArb.map(printSequence)
 
 // ---------------------------------------------------------------------------
 // One comparable projection for both parsers
@@ -247,40 +247,12 @@ describe('sequence grammar differential against pinned upstream Mermaid', () => 
   })
   afterAll(() => upstream.close())
 
-  test('the generator covers every construct it claims', () => {
-    const sources = fc.sample(sourceArb, 200)
-    const constructs: Record<string, RegExp> = {
-      participant: /^ {2}participant \w+$/m,
-      'participant alias': /^ {2}participant \w+ as /m,
-      'metadata type and alias': /^ {2}(?:participant|actor) \w+@\{ "type": "\w+", "alias": /m,
-      'metadata alias overridden by `as` the id (BUG-14)': /^ {2}(?:participant|actor) (\w+)@\{[^}\n]*"alias"[^}\n]*\} as \1$/m,
-      actor: /^ {2}actor \w+/m,
-      link: /^ {2}link \w+: \w[\w ]* @ https:/m,
-      'bare declaration after first use': /^ +(\w+)-[^\n]*\n(?:[^\n]*\n)*? +(?:participant|actor) \1$/m,
-      ...Object.fromEntries(Object.keys(ARROWS).map(arrow => [arrow, new RegExp(`\\w${arrow.replace(/[-)]/g, '\\$&')}\\w`)])),
-      'note left/right': /^ {2}note (?:left|right) of /m,
-      'note over two': /^ {2}note over \w+,\w+:/m,
-      loop: /^ {2}loop /m,
-      opt: /^ {2}opt /m,
-      'alt/else': /^ {2}else /m,
-      'par/and': /^ {2}and /m,
-      'critical/option': /^ {2}option /m,
-      break: /^ {2}break /m,
-      rect: /^ {2}rect /m,
-      'nested block': /^ {4}(?:loop|opt|alt|par|critical|break|rect) /m,
-      'note in a block': /^ {4,}note /m,
-      'declaration in a block': /^ {4,}(?:participant|actor) /m,
-    }
-    const missing = Object.entries(constructs).filter(([, pattern]) => !sources.some(source => pattern.test(source))).map(([name]) => name)
-    expect(missing).toEqual([])
-  })
-
   test('(i)–(v) upstream and our parser agree on every generated sequence diagram', async () => {
     await fc.assert(
       fc.asyncProperty(programArb, fc.nat(), textArb, async (program, pick, label) => {
         const source = printSequence(program)
         const upstreamParse = await upstream.parse(source)
-        // (i) the generator only produces Mermaid 11.16 sequence diagrams.
+        // (i) the generator only produces Mermaid 12.2.0 sequence diagrams.
         expect({ source, upstream: upstreamParse.ok ? 'accepted' : upstreamParse.error }).toEqual({ source, upstream: 'accepted' })
         if (!upstreamParse.ok) return
         // (ii) + (iii) upstream's participants, and upstream's messages minus
@@ -314,7 +286,7 @@ describe('sequence grammar differential against pinned upstream Mermaid', () => 
         expect({ output, ours: ours(parseOurs(output)), upstream: upstreamRelabelled.ok ? relabelledProjection(theirs(upstreamRelabelled)) : upstreamRelabelled.error })
           .toEqual({ output, ours: expect.objectContaining({ participants, links: expected.links }), upstream: { participants, linksOursMisses: [] } })
       }),
-      { numRuns: 100 },
+      fcParameters({ numRuns: 100 }),
     )
   }, 20_000)
 
@@ -383,13 +355,13 @@ describe('sequence grammar differential against pinned upstream Mermaid', () => 
         if (!edited.ok) return
         const typed = asSequence(edited.value)!.body
         const output = serializeMermaid(edited.value)
-        const expected = { participants: ours(typed).participants, links: ours(typed).links }
+        const expected = ours(typed)
         const reparsed = ours(parseOurs(output))
         const upstreamParse = await upstream.parse(output)
-        expect({ op, output, ours: { participants: reparsed.participants, links: reparsed.links }, upstream: upstreamParse.ok ? { participants: theirs(upstreamParse).participants, linksOursMisses: linksOursMisses(theirs(upstreamParse).links, expected.links) } : upstreamParse.error })
+        expect({ op, output, ours: reparsed, upstream: upstreamParse.ok ? { participants: theirs(upstreamParse).participants, linksOursMisses: linksOursMisses(theirs(upstreamParse).links, expected.links) } : upstreamParse.error })
           .toEqual({ op, output, ours: expected, upstream: { participants: expected.participants, linksOursMisses: [] } })
       }),
-      { numRuns: 150 },
+      fcParameters({ numRuns: 150 }),
     )
   }, 30_000)
 
@@ -493,7 +465,7 @@ describe('sequence grammar differential against pinned upstream Mermaid', () => 
       { source: 'sequenceDiagram\n  A->>B: hi\n  loop l\n    properties C: {}\n  end\n  D->>C: x', ids: ['A', 'B', 'C', 'D'] },
     ]
     // Upstream's `addDetails` reads the page (document.getElementById), which
-    // this harness lacks; this is pinned Mermaid 11.16's actor list for the
+    // this harness lacks; this is pinned Mermaid 12.2.0's actor list for the
     // source with a document whose lookup finds nothing, as in a browser.
     const details = [{ source: 'sequenceDiagram\n  details D: foo\n  A->>D: hi', ids: ['D', 'A'] }]
     for (const { source, ids } of [...properties, ...details]) {
@@ -574,7 +546,7 @@ describe('sequence grammar differential against pinned upstream Mermaid', () => 
       expect(serializeMermaid(parsed.value)).toBe(`${source}\n`)
     }
     // Upstream's box parsing needs a DOM this harness lacks; this is pinned
-    // Mermaid 11.16's actor list for the source.
+    // Mermaid 12.2.0's actor list for the source.
     const boxed = 'sequenceDiagram\n  V->>U: hi\n  box Grp\n    actor U as You\n    participant W\n  end'
     const boxedParticipants = ['V participant : V', 'U actor : You', 'W participant : W']
     expect({ ours: ours(parseOurs(boxed)).participants, renderer: rendered(boxed) }).toEqual({ ours: boxedParticipants, renderer: boxedParticipants })

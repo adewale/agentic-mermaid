@@ -98,6 +98,19 @@ not-applicable evidence; they never repaint or relayout. Transparent output has
 no known host backdrop, so contrast reports unmeasurable rather than inventing
 a ratio.
 
+Treemap retains explicit Scene text ink when deriving automatic category fills. Its
+shared palette chooses readable, page-visible and distinguishable colors
+together, before brand constraints inspect the Scene. Sketch labels that already
+read on the selected backend's page-colored halo do not constrain the cell fill.
+The actual graphical backend includes host overrides; layout models its nominal
+Style backend. Authored fills stay exact.
+The shared sketch backend still applies its existing page-halo readability
+policy to ink that does not read on that page.
+If bounded search cannot satisfy concrete ink/page choices, choose another text
+color or an explicit readable fill; the renderer reports that configuration
+limit. Unresolved and translucent inks retain their authored values without a
+contrast guarantee.
+
 ### Export and edit a built-in
 
 Built-ins dogfood this same record format. Export one with `getStyle`, validate
@@ -130,8 +143,8 @@ BrandPack registry is deliberately **not promoted**. Render-time semver ranges,
 dependency solving, ambient resource loading, and a second inheritance system
 remain absent.
 
-The [all-family evidence sheet](./design/families/section-b-brand-evidence.png)
-shows one deliberately distinctive sentinel plus three holdout styles; its receipt
+The [reviewed all-family rendering golden](../src/__tests__/testdata/section-b-brand-evidence.png)
+shows one deliberately distinctive sentinel plus three holdout styles; its review record
 and honest hard-error baseline live in `eval/section-b-brand-evidence/`.
 
 Every field is optional in a reusable fragment, but the resolved final stack
@@ -159,7 +172,7 @@ accepted as a Style name.
   sets via `RenderOptions` colors or Mermaid `themeVariables` wins. The full
   precedence is one line: `defaults < style stack (left→right) <
   themeVariables < explicit color options`.
-- **Determinism.** All stochastic marks are seeded
+- **Determinism.** All stochastic artwork is seeded
   `hash(options.seed, stableNodeId, substream)`. Source, resolved options,
   frozen registry/capability/resource snapshots, runtime contract and seed fix
   the bytes. `seed` re-rolls wobble without moving layout. Opt-in caller or
@@ -238,12 +251,14 @@ layout-aware dialect) justifies code. Trusted hosts can implement and register
 a namespaced `StyleBackend`; selection is an in-process `HostBackendPolicy`,
 not serializable Style data or a CLI/MCP/editor field. Keep the determinism rule
 (seed in, bytes out). Backends never dispatch on diagram family — they see
-semantic scene marks and paint channels. A registered backend also declares
+semantic Scene parts and paint channels. Existing `SceneNode` and `*Mark` type
+names refer to those parts; see the [shared vocabulary](./api.md#vocabulary).
+A registered backend also declares
 feature/operation-level `PrimitiveCapabilityClaim`s for every core Scene
 primitive; registration rejects empty, duplicate, or cross-target claims so an
 extension cannot imply support it has not described. Registration then executes
 a frozen document fixture plus one exact witness for each declared first-party
-core primitive/feature/operation claim. It rejects a backend that varies
+core Scene primitive/feature/operation claim. It rejects a backend that varies
 identical `drawNode`/`render` calls, emits unsafe or malformed SVG, drops the
 document sentinels, or fails any claim-keyed witness. Namespaced extension claims
 with no core witness remain explicitly `unverified-extension`.
@@ -257,7 +272,7 @@ contract explicitly; no built-in compatibility default is borrowed by
 ```ts
 registerBackend(backend, {
   version: '1.0.0',
-  compatibility: { core: '^0.4.0', scene: '^2.0.0' },
+  compatibility: { core: '^0.5.0', scene: '^2.0.0' },
   provenance: { owner: 'acme-diagrams', source: 'application-startup' },
 })
 ```
@@ -327,7 +342,7 @@ bun test src/__tests__/styled-output.test.ts --timeout 30000   # determinism + g
 bun test src/__tests__/scene-fidelity.test.ts  # semantic/backend agreement
 ```
 
-Then render your style across every registered diagram type and *look at it small*
-— the poster/contact-sheet harness in `scripts/sketch-prototype/` is the
+Then render your style across every registered diagram family and *look at it small*
+— the optional research poster/contact-sheet harness in `scripts/sketch-prototype/` is the
 visual-review surface. A style ships when it is distinctive at a glance,
 legible at cell size, and honest to its intent.

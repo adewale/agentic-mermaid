@@ -1,3 +1,4 @@
+import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ============================================================================
 // ASCII renderer — timeline diagrams
 //
@@ -7,44 +8,26 @@
 // ============================================================================
 
 import { parseTimelineDiagram } from '../timeline/parser.ts'
-import { colorizeLine, DEFAULT_ASCII_THEME } from './ansi.ts'
-import type { AsciiConfig, AsciiTheme, CharRole, ColorMode } from './types.ts'
+import { DEFAULT_ASCII_THEME } from './ansi.ts'
+import { TerminalDocument, type TerminalOwner, type TerminalRun } from './terminal-document.ts'
+import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { wrapText } from './wrap.ts'
 
-interface StyledSegment {
-  text: string
-  role: CharRole | null
-}
-
-function renderStyledLine(
-  segments: StyledSegment[],
-  colorMode: ColorMode,
-  theme: AsciiTheme,
-): string {
-  const chars: string[] = []
-  const roles: (CharRole | null)[] = []
-
-  for (const segment of segments) {
-    for (const char of segment.text) {
-      chars.push(char)
-      roles.push(segment.role)
-    }
-  }
-
-  return colorizeLine(chars, roles, theme, colorMode)
-}
+type StyledSegment = TerminalRun
 
 /**
  * Render a Mermaid timeline diagram to ASCII/Unicode text.
  */
-export function renderTimelineAscii(
+export function renderTimelineTerminal(
   lines: string[],
   config: AsciiConfig,
   colorMode: ColorMode = 'none',
   theme: AsciiTheme = DEFAULT_ASCII_THEME,
   maxWidth?: number,
-): string {
+): TerminalArtifact {
+  maxWidth ??= config.maxWidth
   const diagram = parseTimelineDiagram(lines)
+  diagram.title ??= config.title
   const useAscii = config.useAscii
 
   const marker = useAscii ? 'o' : '○'
@@ -54,12 +37,18 @@ export function renderTimelineAscii(
   const horizontal = useAscii ? '-' : '─'
   const periodContinuation = '  '
 
-  const out: string[] = []
+  const document = new TerminalDocument()
+  if (diagram.direction !== undefined) document.report({
+    code: 'TERMINAL_FAMILY_PROJECTION', feature: 'timeline.direction',
+    message: `timeline ${diagram.direction} is represented by a chronological vertical outline; period order, events and section containment are retained rather than the graphical rail orientation.`,
+  })
+  let owner: TerminalOwner | undefined
   const pushLine = (segments: StyledSegment[] = []): void => {
-    out.push(segments.length === 0 ? '' : renderStyledLine(segments, colorMode, theme))
+    document.line(segments, { owner })
   }
 
   if (diagram.title) {
+    owner = { id: 'title', kind: 'label' }
     for (const line of wrapText(diagram.title, maxWidth)) {
       pushLine([{ text: line, role: 'text' }])
     }
@@ -68,6 +57,9 @@ export function renderTimelineAscii(
 
   for (let sectionIndex = 0; sectionIndex < diagram.sections.length; sectionIndex++) {
     const section = diagram.sections[sectionIndex]!
+    const sectionStart = document.height
+    const sectionOwner: TerminalOwner = { id: section.id, kind: 'band', members: section.periods.map(period => period.id) }
+    owner = sectionOwner
 
     if (section.label) {
       // Bracket only the first line of a wrapped label — bracketing every
@@ -88,6 +80,7 @@ export function renderTimelineAscii(
 
     for (let periodIndex = 0; periodIndex < section.periods.length; periodIndex++) {
       const period = section.periods[periodIndex]!
+      owner = { id: period.id, kind: 'node', parent: { id: section.id, kind: 'band' } }
       // Continuation lines carry the wider 3-cell prefix, so wrap to that.
       const periodLines = wrapText(period.label, maxWidth ? Math.max(1, maxWidth - 3) : undefined)
 
@@ -105,6 +98,7 @@ export function renderTimelineAscii(
 
       for (let eventIndex = 0; eventIndex < period.events.length; eventIndex++) {
         const event = period.events[eventIndex]!
+        owner = { id: event.id, kind: 'node', parent: { id: period.id, kind: 'node' } }
         // First-line prefix ('│  ├─ ') is 6 cells wide.
         const eventLines = wrapText(event.text, maxWidth ? Math.max(1, maxWidth - 6) : undefined)
         const junction = eventIndex === period.events.length - 1 ? lastBranch : branch
@@ -135,7 +129,15 @@ export function renderTimelineAscii(
       const moreSections = sectionIndex < diagram.sections.length - 1
       if (morePeriods || moreSections) pushLine()
     }
+    if (document.height > sectionStart) document.region(sectionOwner, {
+      x: 0, y: sectionStart, width: document.width, height: document.height - sectionStart,
+    })
   }
 
-  return out.join('\n').trimEnd()
+  return terminalArtifact(document, { colorMode, theme, trimEnd: true })
+}
+
+/** Compatibility string entry point; native dispatch retains the drawing. */
+export function renderTimelineAscii(...args: Parameters<typeof renderTimelineTerminal>): string {
+  return serializeTerminalArtifact(renderTimelineTerminal(...args))
 }

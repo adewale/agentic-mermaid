@@ -1,6 +1,6 @@
 import { HOSTED_FONT_RESOURCES } from './font-manifest.ts'
-import { PNG_OUTPUT_POLICY_VERSION } from './output-policy-versions.ts'
-export { PNG_OUTPUT_POLICY_VERSION } from './output-policy-versions.ts'
+import { PNG_OUTPUT_POLICY_VERSION, PNG_DEFAULT_SCALE } from './output-policy-versions.ts'
+export { PNG_OUTPUT_POLICY_VERSION, PNG_DEFAULT_SCALE } from './output-policy-versions.ts'
 import { tryParseCssColor } from './shared/color-math.ts'
 import {
   decodedSvgAttributeValue,
@@ -12,7 +12,6 @@ import {
 } from './svg-structure.ts'
 import { deepFreeze, isPlainRecord } from './shared/plain-data.ts'
 /** Logical PNG projection policy shared by every first-party raster adapter. */
-export const PNG_DEFAULT_SCALE = 2 as const
 export const PNG_DEFAULT_FONT_FAMILY = 'Inter' as const
 /** ~16.7 megapixels / ~64 MiB of raw RGBA before encoder overhead. */
 export const MAX_PNG_PIXELS = 16_777_216 as const
@@ -62,16 +61,6 @@ export interface PngOutputOptionFieldDescriptor {
   readonly runtimeValidator?: 'portablePngBackground'
 }
 
-const POSITIVE_NUMBER_SCHEMA = {
-  type: 'number',
-  exclusiveMinimum: 0,
-} as const
-
-const POSITIVE_INTEGER_SCHEMA = {
-  type: 'integer',
-  minimum: 1,
-} as const
-
 const PORTABLE_PNG_COLOR_KEYWORDS = Object.freeze({
   transparent: '#00000000',
   black: '#000000', silver: '#c0c0c0', gray: '#808080', grey: '#808080', white: '#ffffff',
@@ -80,80 +69,108 @@ const PORTABLE_PNG_COLOR_KEYWORDS = Object.freeze({
   teal: '#008080', aqua: '#00ffff', orange: '#ffa500',
 } as const)
 
-function caseInsensitiveKeywordPattern(keyword: string): string {
-  return [...keyword].map(character => `[${character.toLowerCase()}${character.toUpperCase()}]`).join('')
-}
-
-const PORTABLE_PNG_BACKGROUND_PATTERN = `^\\s*(?:#[0-9A-Fa-f]{3,4}|#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|${Object.keys(PORTABLE_PNG_COLOR_KEYWORDS).map(caseInsensitiveKeywordPattern).join('|')})\\s*$`
-
-const FIT_TO_SCHEMA = {
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    width: { ...POSITIVE_INTEGER_SCHEMA, description: 'Exact output width in integer pixels.' },
-    height: { ...POSITIVE_INTEGER_SCHEMA, description: 'Exact output height in integer pixels.' },
-  },
-  oneOf: [
-    { required: ['width'] },
-    { required: ['height'] },
-  ],
-  description: 'Exactly one positive output width or height.',
-} as const
-
 /**
  * The single authority for every PNG output-specific option. Serializable
  * policy fields participate in the PNG request receipt; the native warning
  * callback is deliberately admitted by the native adapter but excluded from
  * both policy and receipt identity.
  */
-export const PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS = deepFreeze({
-  scale: {
-    scope: 'portable', input: 'serializable', policy: 'included', receipt: 'included',
-    typeScript: 'number',
-    description: 'Positive output scale used when no fitTo constraint is supplied.',
-    schema: { ...POSITIVE_NUMBER_SCHEMA, default: PNG_DEFAULT_SCALE },
-  },
-  background: {
-    scope: 'portable', input: 'serializable', policy: 'included', receipt: 'included',
-    typeScript: 'string',
-    description: 'Portable basic color or hex color painted behind the raster artifact.',
-    schema: { type: 'string', minLength: 1, pattern: PORTABLE_PNG_BACKGROUND_PATTERN },
-    runtimeValidator: 'portablePngBackground',
-  },
-  fitTo: {
-    scope: 'portable', input: 'serializable', policy: 'included', receipt: 'included',
-    typeScript: '{ width: number; height?: never } | { width?: never; height: number }',
-    description: 'Exactly one output width or height constraint.',
-    schema: FIT_TO_SCHEMA,
-  },
-  minLabelPx: {
-    scope: 'portable', input: 'serializable', policy: 'included', receipt: 'included',
-    typeScript: 'number',
-    description: 'Legibility floor in effective px: the render warns (BELOW_READABLE_SIZE) when fitTo/scale rasterizes the smallest configured text below it. 0 disables.',
-    schema: { type: 'number', minimum: 0, default: PNG_DEFAULT_MIN_LABEL_PX },
-  },
-  fontDirs: {
-    scope: 'native-host-only', input: 'serializable', policy: 'included', receipt: 'included',
-    typeScript: 'readonly string[]',
-    description: 'Trusted native host directories searched for additional fonts.',
-    schema: {
-      type: 'array',
-      maxItems: MAX_PNG_FONT_DIRECTORIES,
-      items: { type: 'string', minLength: 1, maxLength: MAX_PNG_FONT_DIRECTORY_LENGTH, pattern: '\\S' },
+const PORTABLE_PNG_FIELD = { scope: 'portable', input: 'serializable', policy: 'included', receipt: 'included' } as const
+const NATIVE_PNG_POLICY_FIELD = { ...PORTABLE_PNG_FIELD, scope: 'native-host-only' } as const
+const PNG_OUTPUT_OPTION_FIELD_ROLES = {
+  scale: PORTABLE_PNG_FIELD,
+  background: PORTABLE_PNG_FIELD,
+  fitTo: PORTABLE_PNG_FIELD,
+  minLabelPx: PORTABLE_PNG_FIELD,
+  fontDirs: NATIVE_PNG_POLICY_FIELD,
+  loadSystemFonts: NATIVE_PNG_POLICY_FIELD,
+  onWarning: { scope: 'native-host-only', input: 'callback', policy: 'excluded', receipt: 'excluded' },
+} as const satisfies Readonly<Record<keyof PngOutputPolicyInput | 'onWarning', Pick<PngOutputOptionFieldDescriptor, 'scope' | 'input' | 'policy' | 'receipt'>>>
+
+function createPngOutputOptionFieldDescriptors() {
+  const POSITIVE_NUMBER_SCHEMA = {
+    type: 'number',
+    exclusiveMinimum: 0,
+  } as const
+
+  const POSITIVE_INTEGER_SCHEMA = {
+    type: 'integer',
+    minimum: 1,
+  } as const
+
+  function caseInsensitiveKeywordPattern(keyword: string): string {
+    return [...keyword].map(character => `[${character.toLowerCase()}${character.toUpperCase()}]`).join('')
+  }
+
+  const PORTABLE_PNG_BACKGROUND_PATTERN = `^\\s*(?:#[0-9A-Fa-f]{3,4}|#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|${Object.keys(PORTABLE_PNG_COLOR_KEYWORDS).map(caseInsensitiveKeywordPattern).join('|')})\\s*$`
+
+  const FIT_TO_SCHEMA = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      width: { ...POSITIVE_INTEGER_SCHEMA, description: 'Exact output width in integer pixels.' },
+      height: { ...POSITIVE_INTEGER_SCHEMA, description: 'Exact output height in integer pixels.' },
     },
-  },
-  loadSystemFonts: {
-    scope: 'native-host-only', input: 'serializable', policy: 'included', receipt: 'included',
-    typeScript: 'boolean',
-    description: 'Allow the native rasterizer to load machine-dependent system fonts.',
-    schema: { type: 'boolean', default: false },
-  },
-  onWarning: {
-    scope: 'native-host-only', input: 'callback', policy: 'excluded', receipt: 'excluded',
-    typeScript: '(warning: PngRasterWarning) => void',
-    description: 'Native host callback for glyph-coverage and raster-legibility warnings; never serialized or receipted.',
-  },
-} as const satisfies Readonly<Record<keyof PngOutputPolicyInput | 'onWarning', PngOutputOptionFieldDescriptor>>)
+    oneOf: [
+      { required: ['width'] },
+      { required: ['height'] },
+    ],
+    description: 'Exactly one positive output width or height.',
+  } as const
+
+  return deepFreeze({
+    scale: {
+      ...PNG_OUTPUT_OPTION_FIELD_ROLES.scale,
+      typeScript: 'number',
+      description: 'Positive output scale used when no fitTo constraint is supplied.',
+      schema: { ...POSITIVE_NUMBER_SCHEMA, default: PNG_DEFAULT_SCALE },
+    },
+    background: {
+      ...PNG_OUTPUT_OPTION_FIELD_ROLES.background,
+      typeScript: 'string',
+      description: 'Portable basic color or hex color painted behind the raster artifact.',
+      schema: { type: 'string', minLength: 1, pattern: PORTABLE_PNG_BACKGROUND_PATTERN },
+      runtimeValidator: 'portablePngBackground',
+    },
+    fitTo: {
+      ...PNG_OUTPUT_OPTION_FIELD_ROLES.fitTo,
+      typeScript: '{ width: number; height?: never } | { width?: never; height: number }',
+      description: 'Exactly one output width or height constraint.',
+      schema: FIT_TO_SCHEMA,
+    },
+    minLabelPx: {
+      ...PNG_OUTPUT_OPTION_FIELD_ROLES.minLabelPx,
+      typeScript: 'number',
+      description: 'Legibility floor in effective px: the render warns (BELOW_READABLE_SIZE) when fitTo/scale rasterizes the smallest configured text below it. 0 disables.',
+      schema: { type: 'number', minimum: 0, default: PNG_DEFAULT_MIN_LABEL_PX },
+    },
+    fontDirs: {
+      ...PNG_OUTPUT_OPTION_FIELD_ROLES.fontDirs,
+      typeScript: 'readonly string[]',
+      description: 'Trusted native host directories searched for additional fonts.',
+      schema: {
+        type: 'array',
+        maxItems: MAX_PNG_FONT_DIRECTORIES,
+        items: { type: 'string', minLength: 1, maxLength: MAX_PNG_FONT_DIRECTORY_LENGTH, pattern: '\\S' },
+      },
+    },
+    loadSystemFonts: {
+      ...PNG_OUTPUT_OPTION_FIELD_ROLES.loadSystemFonts,
+      typeScript: 'boolean',
+      description: 'Allow the native rasterizer to load machine-dependent system fonts.',
+      schema: { type: 'boolean', default: false },
+    },
+    onWarning: {
+      ...PNG_OUTPUT_OPTION_FIELD_ROLES.onWarning,
+      typeScript: '(warning: PngRasterWarning) => void',
+      description: 'Native host callback for glyph-coverage and raster-legibility warnings; never serialized or receipted.',
+    },
+  } as const satisfies Readonly<Record<keyof PngOutputPolicyInput | 'onWarning', PngOutputOptionFieldDescriptor>>)
+}
+
+// Runtime admission uses the small role table; unused schema and SDK metadata
+// can be removed from renderer bundles without changing this frozen public record.
+export const PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS = /* @__PURE__ */ createPngOutputOptionFieldDescriptors()
 
 export type PngOutputOptionField = keyof typeof PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS
 export type PortablePngOutputOptionField = keyof PortablePngOutputOptions
@@ -161,21 +178,21 @@ export type NativePngOutputPolicyField = keyof PngOutputPolicyInput
 export type NativePngHostOnlyOptionField = Exclude<PngOutputOptionField, PortablePngOutputOptionField>
 
 export const PNG_OUTPUT_OPTION_FIELDS: readonly PngOutputOptionField[] = Object.freeze(
-  Object.keys(PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS) as PngOutputOptionField[],
+  Object.keys(PNG_OUTPUT_OPTION_FIELD_ROLES) as PngOutputOptionField[],
 )
 
 export const PORTABLE_PNG_OUTPUT_OPTION_FIELDS: readonly PortablePngOutputOptionField[] = Object.freeze(
-  PNG_OUTPUT_OPTION_FIELDS.filter(field => PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS[field].scope === 'portable') as PortablePngOutputOptionField[],
+  PNG_OUTPUT_OPTION_FIELDS.filter(field => PNG_OUTPUT_OPTION_FIELD_ROLES[field].scope === 'portable') as PortablePngOutputOptionField[],
 )
 
 /** Serializable fields accepted by the native output-policy resolver. */
 export const NATIVE_PNG_OUTPUT_POLICY_FIELDS: readonly NativePngOutputPolicyField[] = Object.freeze(
-  PNG_OUTPUT_OPTION_FIELDS.filter(field => PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS[field].policy === 'included') as NativePngOutputPolicyField[],
+  PNG_OUTPUT_OPTION_FIELDS.filter(field => PNG_OUTPUT_OPTION_FIELD_ROLES[field].policy === 'included') as NativePngOutputPolicyField[],
 )
 
 /** Native-only font inputs plus the non-serializable warning callback. */
 export const NATIVE_PNG_HOST_ONLY_OPTION_FIELDS: readonly NativePngHostOnlyOptionField[] = Object.freeze(
-  PNG_OUTPUT_OPTION_FIELDS.filter(field => PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS[field].scope === 'native-host-only') as NativePngHostOnlyOptionField[],
+  PNG_OUTPUT_OPTION_FIELDS.filter(field => PNG_OUTPUT_OPTION_FIELD_ROLES[field].scope === 'native-host-only') as NativePngHostOnlyOptionField[],
 )
 
 function cloneJson<T>(value: T): T {

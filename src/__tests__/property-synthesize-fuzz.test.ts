@@ -7,6 +7,7 @@
 // (fc-seed.preload.ts); AM_FC_SEED=random hunts fresh counterexamples.
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { synthesizeFromGraph, serializeMermaid, parseRegisteredMermaid as parseMermaid, createMermaid } from '../agent/index.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
@@ -64,13 +65,13 @@ describe('synthesize fuzz: synthesizeFromGraph is total and deterministic', () =
         expect(r.error.length).toBeGreaterThan(0)
         expect(typeof r.error[0]!.message).toBe('string')
       }
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 
   it('is deterministic for identical input', () => {
     fc.assert(fc.property(payloadArb, payload => {
       expect(JSON.stringify(synthesizeFromGraph(payload as never))).toBe(JSON.stringify(synthesizeFromGraph(payload as never)))
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 })
 
@@ -85,6 +86,8 @@ describe('synthesize fuzz: real payloads round-trip', () => {
       { kind: 'flowchart', body: { kind: 'flowchart', graph: { nodes: {} } } },
       { kind: 'flowchart', body: { kind: 'opaque', family: 'pie', source: 'pie\n  "A" : 1\n' } },
       { kind: 'constructor', body: { kind: 'opaque', family: 'pie', source: 'pie\n  "A" : 1\n' } },
+      { kind: { toString: '' }, body: { kind: 'flowchart' } },
+      { kind: 'flowchart', body: { kind: 'opaque', family: { toString: '' } } },
       { kind: 'pie', body: { kind: 'pie', title: '', showData: false, slices: [{ label: 'A', value: 'oops' }] } },
     ]) {
       expect(synthesizeFromGraph(payload as never)).toMatchObject({ ok: false })
@@ -100,7 +103,7 @@ describe('synthesize fuzz: real payloads round-trip', () => {
     if (result.ok) expect(Array.isArray(result.value.meta.comments)).toBe(true)
   })
 
-  it('every family\'s created diagram survives JSON -> synthesizeFromGraph -> serialize -> parse unchanged', () => {
+  it('empty creation scaffolds survive JSON rehydration except radar, which requires axes', () => {
     // A deterministic loop, not constantFrom sampling: every family is visited.
     for (const { family, payload } of REAL_PAYLOADS) {
       const r = synthesizeFromGraph(payload as never)

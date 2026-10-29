@@ -83,16 +83,10 @@ describe('PNG raster font matches the metrics font', () => {
 const CJK_SRC = 'flowchart LR\n  A[日本語のラベル] --> B[漢字]'
 const EMOJI_SRC = 'flowchart LR\n  A[🚀 Launch] --> B[Done]'
 
-/** A CJK-capable font directory available on many Linux CI images; the
- *  escape-hatch tests skip (with the plumbing still covered by the warning
- *  tests) when it is absent. */
-// Host-dependent: the two fontDirs tests below need a CJK-capable font and
-// SKIP where WenQuanYi (Debian/Ubuntu `fonts-wqy-*`) is not installed. No CI
-// workflow installs it today, so CI does not run them. They come back in CI
-// once a workflow installs the package (or a CJK subset font is vendored as a
-// fixture); until then they run only on hosts that have it.
-const CJK_FONT_DIR = '/usr/share/fonts/truetype/wqy'
+// CI installs WenQuanYi; local hosts may select another CJK-capable font directory.
+const CJK_FONT_DIR = process.env.AM_CJK_FONT_DIR ?? '/usr/share/fonts/truetype/wqy'
 const HAS_CJK_FONT = existsSync(CJK_FONT_DIR)
+if (process.env.CI === 'true' && !HAS_CJK_FONT) throw new Error('CI requires a CJK font: install fonts-wqy-zenhei or set AM_CJK_FONT_DIR')
 
 function collectWarnings(source: string, opts: Parameters<typeof renderMermaidPNG>[1] = {}): { png: Uint8Array; warnings: PngFontWarning[] } {
   const warnings: PngFontWarning[] = []
@@ -167,7 +161,11 @@ function captureCli(argv: string[]): { code: number; out: string; err: string } 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(process.stderr as any).write = (s: unknown) => { errChunks.push(String(s)); return true }
   let code: number
-  try { code = runCli(argv) } finally {
+  try {
+    const result = runCli(argv)
+    if (typeof result !== 'number') throw new Error('Expected a synchronous command')
+    code = result
+  } finally {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(process.stdout as any).write = origOut
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

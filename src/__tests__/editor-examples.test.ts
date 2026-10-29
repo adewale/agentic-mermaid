@@ -1,12 +1,11 @@
+import { editorModuleScript } from './helpers/editor-module-harness.ts'
 import { describe, expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { runInNewContext } from 'node:vm'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { parseRegisteredMermaid as parseMermaid, renderMermaidSVG } from '../agent/index.ts'
 import { BUILTIN_FAMILY_METADATA, knownFamilies } from '../agent/families.ts'
 
-const REPO = join(import.meta.dir, '..', '..')
+const examplesModule = await editorModuleScript('examples.js')
 
 interface EditorExample {
   id: string
@@ -20,7 +19,7 @@ interface EditorExample {
 }
 
 function loadEditorExamples(): { examples: EditorExample[]; exampleGlyph: (example: { diagramType?: string; glyph?: string }) => string } {
-  const source = readFileSync(join(REPO, 'editor/js/examples.js'), 'utf8')
+  const source = examplesModule
   const context: {
     EDITOR_EXAMPLES: EditorExample[]
     exampleGlyph?: (example: { diagramType?: string; glyph?: string }) => string

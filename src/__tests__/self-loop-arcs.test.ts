@@ -14,9 +14,12 @@ import { parseMermaid as parseLegacy } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
 import { verifyMermaid } from '../agent/verify.ts'
+import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
+import { createSelfLoopRouter } from '../layout/route-self-loops.ts'
+import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { resolveRenderStyle } from '../styles.ts'
-import type { PositionedEdge, PositionedNode, Point } from '../types.ts'
+import type { PositionedEdge, PositionedGroup, PositionedNode, Point } from '../types.ts'
 
 const STATE_SRC = `stateDiagram-v2
   [*] --> Idle
@@ -66,6 +69,20 @@ function clearance(p: Point, n: PositionedNode): number {
   const dx = Math.max(n.x - p.x, 0, p.x - (n.x + n.width))
   const dy = Math.max(n.y - p.y, 0, p.y - (n.y + n.height))
   return Math.hypot(dx, dy)
+}
+
+function expectSeparatedMarkers(edges: PositionedEdge[]): void {
+  const style = resolveRenderStyle({})
+  const markers = edges.flatMap(edge => graphEdgeMarkerPaintRegions(edge, style))
+  for (let i = 0; i < markers.length; i++) {
+    const a = markers[i]!.bounds
+    expect(a).toBeDefined()
+    for (let j = i + 1; j < markers.length; j++) {
+      const b = markers[j]!.bounds
+      expect(b).toBeDefined()
+      expect(a!.x1 <= b!.x0 || b!.x1 <= a!.x0 || a!.y1 <= b!.y0 || b!.y1 <= a!.y0).toBe(true)
+    }
+  }
 }
 
 describe('self-loops are real arcs (typed route class, not a stub)', () => {
@@ -185,6 +202,16 @@ describe('self-loops are real arcs (typed route class, not a stub)', () => {
     expect(loops.length).toBe(2)
     expect(JSON.stringify(loops[0]!.points)).not.toBe(JSON.stringify(loops[1]!.points))
     expect(loops[0]!.labelPosition).not.toEqual(loops[1]!.labelPosition)
+    expectSeparatedMarkers(positioned.edges)
+    expect(auditRouteContracts(positioned, graph)).toEqual([])
+  })
+
+  test.each(['TD', 'BT', 'LR', 'RL'])('reserves loop shafts across different owners in %s', direction => {
+    const source = `flowchart ${direction}\nN2 --> N2\nN2 --> N2\nN3 --> N3`
+    const graph = parseLegacy(source), positioned = layoutGraphSync(graph)
+    expect(positioned.edges.map(edge => [edge.source, edge.target])).toEqual([['N2', 'N2'], ['N2', 'N2'], ['N3', 'N3']])
+    expect(positioned.edges.every(edge => edge.routeCertificate?.invariant === 'self-loop')).toBe(true)
+    expectSeparatedMarkers(positioned.edges)
     expect(auditRouteContracts(positioned, graph)).toEqual([])
   })
 
@@ -195,6 +222,7 @@ describe('self-loops are real arcs (typed route class, not a stub)', () => {
     const loops = positioned.edges.filter(edge => edge.source === 'B' && edge.target === 'B')
     const node = positioned.nodes.find(candidate => candidate.id === 'B')!
     expect(loops).toHaveLength(8)
+    expectSeparatedMarkers(positioned.edges)
     expect(new Set(loops.map(edge => JSON.stringify(edge.points))).size).toBe(8)
     expect(new Set(loops.map(edge => `${edge.labelPosition?.x},${edge.labelPosition?.y}`)).size).toBe(8)
     const style = resolveRenderStyle({})
@@ -221,6 +249,27 @@ describe('self-loops are real arcs (typed route class, not a stub)', () => {
     expect(JSON.stringify(layoutGraphSync(parseLegacy(source)).edges)).toBe(JSON.stringify(positioned.edges))
   })
 
+  test('all blocked existing loop sides preserve live routes and report marker owners', () => {
+    const node: PositionedNode = { id: 'B', label: 'B', shape: 'rectangle', x: 0, y: 0, width: 80, height: 80 }
+    const loop: PositionedEdge = { source: 'B', target: 'B', points: [{ x: 0, y: 20 }, { x: -10, y: 20 }, { x: -10, y: 40 }, { x: 0, y: 40 }], style: 'solid', hasArrowStart: false, hasArrowEnd: true }
+    const contacts = [
+      [{ x: -10, y: 50 }, { x: 0, y: 50 }],
+      [{ x: 90, y: 50 }, { x: 80, y: 50 }],
+      [{ x: 50, y: -10 }, { x: 50, y: 0 }],
+      [{ x: 50, y: 90 }, { x: 50, y: 80 }],
+    ]
+    const peers: PositionedEdge[] = contacts.map((points, index) => ({ source: `source${index}`, target: `foreign${index}`, points, style: 'solid', hasArrowStart: false, hasArrowEnd: true }))
+    const edges = [loop, ...peers]
+    const before = JSON.stringify(edges)
+    const blockers: import('../types.ts').RouteBlocker[] = []
+    const route = createSelfLoopRouter(new Map([['B', node]]), new Map(), { nodes: [node], edges, style: resolveRenderStyle({}) }, blockers)
+    expect(route(loop)).toBeNull()
+    expect(route(loop)).toBeNull()
+    expect(JSON.stringify(edges)).toBe(before)
+    expect(blockers.length).toBeGreaterThanOrEqual(4)
+    expect(blockers.every(blocker => blocker.kind === 'port' && blocker.id?.startsWith('peer-marker:'))).toBe(true)
+  })
+
   test('self-loop layout is deterministic', () => {
     const a = JSON.stringify(layoutGraphSync(parseLegacy(FLOW_TD)).edges)
     const b = JSON.stringify(layoutGraphSync(parseLegacy(FLOW_TD)).edges)
@@ -234,4 +283,85 @@ describe('self-loops are real arcs (typed route class, not a stub)', () => {
       expect(v.warnings.filter(w => w.code.startsWith('ROUTE_'))).toEqual([])
     }
   })
+})
+
+
+test('a marker-safe nested state loop also keeps its prepared label clear of foreign states', () => {
+  const source = `stateDiagram-v2
+  direction TB
+  [*] --> S0
+  S3 --> S6: warnings
+  S4 --> S4: retry
+  S2 --> S5: process the request
+  S3 --> S3: fan out
+  S4 --> S4: a longer label goes here
+  S2 --> S5: reads profiles
+  S3 --> S3: x
+  S4 --> S4: q
+  S1 --> [*]`
+  const result = renderMermaidSVGWithReceipt(source)
+  expect(result.receipt.layoutCertification?.status).toBe('passed')
+  for (const label of ['retry', 'a longer label goes here', 'fan out', 'q']) expect(result.svg).toContain(label)
+})
+
+
+for (const side of ['E', 'W', 'N', 'S'] as const) for (const obstacle of ['card', 'header', 'label', 'marker'] as const) {
+  test(`a ${side} self-loop admits its complete pill before choosing a side (${obstacle})`, () => {
+    const point = (x: number, y: number): Point => side === 'E' ? { x, y } : side === 'W' ? { x: 80 - x, y } : side === 'N' ? { x: y, y: 80 - x } : { x: y, y: x }
+    const rect = (x: number, y: number, w: number, h: number) => {
+      const corners = [point(x, y), point(x + w, y + h)]
+      return { x: Math.min(...corners.map(p => p.x)), y: Math.min(...corners.map(p => p.y)), width: Math.abs(corners[0]!.x - corners[1]!.x), height: Math.abs(corners[0]!.y - corners[1]!.y) }
+    }
+    const node: PositionedNode = { id: 'B', label: 'B', shape: 'rectangle', x: 0, y: 0, width: 80, height: 80 }
+    const loop: PositionedEdge = { source: 'B', target: 'B', label: 'loop', points: [point(80, 30), point(90, 30), point(90, 50), point(80, 50)], style: 'solid', hasArrowStart: false, hasArrowEnd: true }
+    const nodes = [node]
+    const groups: PositionedGroup[] = []
+    const edges = [loop]
+    if (obstacle === 'card') nodes.push({ id: 'foreign', label: 'foreign', shape: 'rectangle', ...rect(140, 30, 20, 20) })
+    if (obstacle === 'header') {
+      const box = rect(140, 10, 40, 60)
+      groups.push({ id: 'foreign-group', label: 'heading', ...box, headerHeight: box.height, children: [] })
+    }
+    if (obstacle === 'label') edges.push({ source: 'C', target: 'D', label: 'foreign label', labelPosition: point(155, 40), points: [], style: 'solid', hasArrowStart: false, hasArrowEnd: false })
+    if (obstacle === 'marker') edges.push({ source: 'C', target: 'D', points: [point(135, 20), point(135, 40)], style: 'solid', hasArrowStart: false, hasArrowEnd: true })
+    const route = createSelfLoopRouter(new Map(nodes.map(n => [n.id, n])), new Map(groups.map(g => [g.id, g])), { nodes, edges, style: resolveRenderStyle({}) })
+    const selected = route(loop)
+    expect(selected).not.toBeNull()
+    expect(selected).not.toBe(side)
+    expect(loop.labelPosition).toBeDefined()
+  })
+}
+
+test('a rejected nested loop leaves every earlier label seat and route unchanged', () => {
+  const node: PositionedNode = { id: 'B', label: 'B', shape: 'rectangle', x: 0, y: 0, width: 80, height: 80 }
+  const nodes: PositionedNode[] = [node,
+    { id: 'west', label: '', shape: 'rectangle', x: -100, y: 0, width: 99, height: 80 },
+    { id: 'north', label: '', shape: 'rectangle', x: -1, y: -100, width: 82, height: 99 },
+    { id: 'south', label: '', shape: 'rectangle', x: -1, y: 81, width: 82, height: 99 },
+    { id: 'shifted-label-blocker', label: '', shape: 'rectangle', x: 112, y: -5, width: 45, height: 20 },
+  ]
+  const loop = (): PositionedEdge => ({ source: 'B', target: 'B', label: 'loop', points: [{ x: 80, y: 30 }, { x: 90, y: 30 }, { x: 90, y: 50 }, { x: 80, y: 50 }], style: 'solid', hasArrowStart: false, hasArrowEnd: false })
+  const first = loop(), second = loop(), edges = [first, second]
+  const route = createSelfLoopRouter(new Map(nodes.map(n => [n.id, n])), new Map(), { nodes, edges, style: resolveRenderStyle({}) })
+  expect(route(first)).toBe('E')
+  const before = JSON.stringify(edges)
+  expect(route(second)).toBeNull()
+  expect(JSON.stringify(edges)).toBe(before)
+})
+
+
+test('a wider nested label cannot detach an earlier short label from its own arc', () => {
+  const node: PositionedNode = { id: 'B', label: 'B', shape: 'rectangle', x: 0, y: 0, width: 80, height: 80 }
+  const nodes: PositionedNode[] = [node,
+    { id: 'west', label: '', shape: 'rectangle', x: -100, y: -1, width: 99, height: 82 },
+    { id: 'east', label: '', shape: 'rectangle', x: 81, y: -1, width: 99, height: 82 },
+    { id: 'south', label: '', shape: 'rectangle', x: 0, y: 81, width: 80, height: 99 },
+  ]
+  const loop = (label: string): PositionedEdge => ({ source: 'B', target: 'B', label, points: [{ x: 30, y: 0 }, { x: 30, y: -10 }, { x: 50, y: -10 }, { x: 50, y: 0 }], style: 'solid', hasArrowStart: false, hasArrowEnd: false })
+  const first = loop('short'), second = loop('a much wider later label whose seat would detach the earlier short label'), edges = [first, second]
+  const route = createSelfLoopRouter(new Map(nodes.map(n => [n.id, n])), new Map(), { nodes, edges, style: resolveRenderStyle({}) })
+  expect(route(first)).toBe('N')
+  const before = JSON.stringify(edges)
+  expect(route(second)).toBeNull()
+  expect(JSON.stringify(edges)).toBe(before)
 })

@@ -1,0 +1,13 @@
+flowchart LR
+  User([User]) --> Login[Sign in]
+  Login --> Credentials{Valid?}
+  Credentials -->|no| Login
+  Credentials -->|yes| MFA{MFA passed?}
+  MFA -->|no| Login
+  MFA -->|yes| Session[Create session]
+  Session --> Dashboard([Dashboard])
+
+  classDef challenge fill:#ebcb8b,stroke:#5e81ac,color:#2e3440
+  classDef success fill:#a3be8c,stroke:#4c566a,color:#2e3440
+  class MFA challenge
+  class Session,Dashboard success

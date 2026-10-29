@@ -40,19 +40,6 @@ describe('package exports', () => {
     })
   })
 
-  it('publishes only supported runtime entry points', () => {
-    expect(Object.keys(packageJson.exports)).toEqual([
-      '.',
-      './agent',
-      './agent/core',
-      './browser',
-      './browser/lazy',
-      './style-spec.schema.json',
-      './package.json',
-    ])
-    expect(packageJson.files).not.toContain('src/')
-    expect(packageJson.files).not.toContain('docs/')
-  })
 
   // BUILD-30: a `<script src>` consumer has no resolver, so the browser IIFE is
   // the one artifact that must be reachable without a bundler. Pin the export

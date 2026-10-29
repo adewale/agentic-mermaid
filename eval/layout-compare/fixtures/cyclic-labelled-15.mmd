@@ -1,0 +1,47 @@
+flowchart LR
+n0{Node 85-0}
+n1(Node 85-1)
+n2((Node 85-2))
+n3[[Node 85-3]]
+n4[(Node 85-4)]
+n5[Node 85-5]
+n6{Node 85-6}
+n7(Node 85-7)
+n8((Node 85-8))
+n9[[Node 85-9]]
+n10[(Node 85-10)]
+n11[Node 85-11]
+n12{Node 85-12}
+n13(Node 85-13)
+n14((Node 85-14))
+n8 -->|edge 0 xxx| n9
+n0 --> n13
+n6 --> n4
+n9 --> n10
+n10 -->|edge 4 xxxxxxx| n13
+n4 --> n5
+n12 --> n13
+n12 --> n10
+n8 -->|edge 8 xxxxxxxxxxx| n4
+n0 --> n3
+n3 --> n4
+n6 --> n11
+n13 -->|edge 12 xxxxxxxxxxxxxxx| n11
+n8 --> n13
+n14 --> n4
+n9 --> n1
+n9 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n7
+n4 --> n11
+n12 --> n2
+n14 --> n8
+n9 -->|edge 20 xxxxxx| n10
+n2 --> n0
+n5 --> n6
+n10 --> n13
+n12 -->|edge 24 xxxxxxxxxx| n10
+n2 --> n0
+n8 --> n4
+n1 --> n12
+n4 -->|edge 28 xxxxxxxxxxxxxx| n9
+n11 --> n5
+n8 --> n0

@@ -1,3 +1,4 @@
+import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 import type { JourneyDiagram, JourneySection, JourneyTask } from './types.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import { walkJourneyLines, type JourneyParseIssue } from './parse-core.ts'
@@ -32,6 +33,10 @@ export function parseJourneyDiagram(
   accessibility: MermaidSourceAccessibility = {},
 ): JourneyDiagram {
   const diagram: JourneyDiagram = { sections: [], ...accessibilityFields(accessibility) }
+  if (parserObservationActive('journey')) {
+    observeParserStatement('journey', 'header', lines[0] ?? '', { line: 1, unit: 'normalized' })
+    observeParserMutation('journey', 'initialize', diagram)
+  }
 
   let currentSection: JourneySection | undefined
   let sectionIndex = 0
@@ -44,31 +49,58 @@ export function parseJourneyDiagram(
       tasks: [],
     }
     diagram.sections.push(currentSection)
+    if (parserObservationActive('journey')) observeParserMutation('journey', 'addImplicitSection', currentSection)
     return currentSection
   }
 
+  // Walker callbacks retain normalized statement contents and the supplied
+  // line index, including multiple statements on one semicolon-joined line.
   walkJourneyLines(lines, 1, {
-    title: text => { diagram.title = text },
-    accTitle: text => { diagram.accessibilityTitle = text },
-    accDescr: text => { diagram.accessibilityDescription = text },
-    section: label => {
+    title: (text, lineIndex, content) => {
+      if (parserObservationActive('journey')) observeParserStatement('journey', 'title', text, { line: lineIndex + 1, unit: 'normalized' })
+      diagram.title = text
+      if (content) diagram.titleContent = content
+      else delete diagram.titleContent
+      if (parserObservationActive('journey')) observeParserMutation('journey', 'setTitle', text, { line: lineIndex + 1, unit: 'normalized' })
+    },
+    accTitle: (text, lineIndex) => {
+      if (parserObservationActive('journey')) observeParserStatement('journey', 'accTitle', text, { line: lineIndex + 1, unit: 'normalized' })
+      diagram.accessibilityTitle = text
+      if (parserObservationActive('journey')) observeParserMutation('journey', 'setAccessibilityTitle', text, { line: lineIndex + 1, unit: 'normalized' })
+    },
+    accDescr: (text, lineIndex) => {
+      if (parserObservationActive('journey')) observeParserStatement('journey', 'accDescr', text, { line: lineIndex + 1, unit: 'normalized' })
+      diagram.accessibilityDescription = text
+      if (parserObservationActive('journey')) observeParserMutation('journey', 'setAccessibilityDescription', text, { line: lineIndex + 1, unit: 'normalized' })
+    },
+    section: (label, lineIndex, content) => {
+      if (parserObservationActive('journey')) observeParserStatement('journey', 'section', label, { line: lineIndex + 1, unit: 'normalized' })
       currentSection = {
         id: `section-${sectionIndex++}`,
         label,
+        ...(content ? { labelContent: content } : {}),
         tasks: [],
       }
       diagram.sections.push(currentSection)
+      if (parserObservationActive('journey')) observeParserMutation('journey', 'addSection', currentSection, { line: lineIndex + 1, unit: 'normalized' })
     },
-    task: (text, score, actors) => {
+    task: (text, score, actors, lineIndex, content, actorContents) => {
+      if (parserObservationActive('journey')) observeParserStatement('journey', 'task', text, { line: lineIndex + 1, unit: 'normalized' })
       const task: JourneyTask = {
         id: `task-${taskIndex++}`,
         text,
+        ...(content ? { textContent: content } : {}),
         score,
         actors,
+        ...(actorContents ? { actorContents } : {}),
       }
       ensureSection().tasks.push(task)
+      if (parserObservationActive('journey')) observeParserMutation('journey', 'addTask', { ...task, sectionId: currentSection!.id }, { line: lineIndex + 1, unit: 'normalized' })
     },
-    issue: issue => { throw journeyIssueError(issue) },
+    issue: issue => {
+      if (parserObservationActive('journey')) observeParserStatement('journey', `invalid:${issue.code}`, issue.statement, { line: issue.lineIndex + 1, unit: 'normalized' })
+      throw journeyIssueError(issue)
+    },
   })
 
   return diagram

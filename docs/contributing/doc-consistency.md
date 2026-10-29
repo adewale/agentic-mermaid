@@ -26,8 +26,9 @@ takes a family id (`noop-keys:sequence`), and `warning-table` and
 descriptions in `src/agent/warning-catalog.ts`, which also feeds the
 per-code pages on the website. `src/__tests__/doc-blocks.test.ts`
 fails when a block is stale or names an unknown renderer. Code-generated
-surfaces (`llms.txt`, the `init-agent` bundle, the Code Mode SDK declaration,
-`am verify --help`) import the same constants instead.
+surfaces (`am llms-txt`, the `init-agent` bundle, the Code Mode SDK declaration,
+`am verify --help`) import the same constants instead. The discovery digest is
+emitted on demand; no generated copy is committed.
 
 Leave a list hand-written when each item carries its own annotation, and
 mark it (see Registry lists); a deliberate subset needs neither.
@@ -60,7 +61,7 @@ it, or point at the registry instead.
 
 `src/__tests__/doc-cli-commands.test.ts` extracts every `am …`,
 `agentic-mermaid-mcp …`, and package-runner invocation from shell fences and
-inline code in the maintained docs, `llms.txt`, the `init-agent` bundle, and
+inline code in the maintained docs, `am llms-txt` output, the `init-agent` bundle, and
 the CLI's own help text. Each verb, flag, and `--format` value must be one
 the CLI accepts (`COMMAND_FLAGS`, `CLI_RENDER_FORMATS`, `MCP_FLAG_SPECS`).
 
@@ -87,7 +88,7 @@ enforce. Look for:
    tools"), an exit code, a limit, or a behaviour. Confirm each one by reading
    the code it describes.
 2. Two docs that contradict each other, including the agent guidance in
-   `Instructions_for_agents.md`, `AGENT_NATIVE.md`, `llms.txt`, and the skills.
+   `Instructions_for_agents.md`, `AGENT_NATIVE.md`, `am llms-txt` output, and the skills.
 3. Stale status: "not yet published", "planned", "experimental", a version
    number, or a TODO item that the code or `CHANGELOG.md` shows is done.
 4. A list marked `<!-- complete: … -->` that misses a registry member, or an

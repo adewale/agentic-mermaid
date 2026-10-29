@@ -231,6 +231,8 @@ export function projectConnectorPath(
 }
 
 export interface RoundedConnectorPathOptions {
+  /** Protected straight lengths at marked endpoints, already in route units. */
+  readonly terminalClearance?: { readonly start?: number; readonly end?: number }
   /** Mermaid's flowchart router measures arbitrary segments geometrically;
    * the orthogonal architecture/class/ER routers retain Manhattan radii. */
   readonly metric?: 'euclidean' | 'manhattan'
@@ -274,6 +276,17 @@ function pointToward(
   }
 }
 
+/** Index of the first non-collinear turn from one endpoint. */
+function terminalTurn(points: readonly ScenePoint[], start: boolean): number {
+  for (let offset = 1; offset < points.length - 1; offset++) {
+    const index = start ? offset : points.length - 1 - offset
+    const a = points[index - 1]!, b = points[index]!, c = points[index + 1]!
+    const x = b.x - a.x, y = b.y - a.y, dx = c.x - b.x, dy = c.y - b.y
+    if (x * dy !== y * dx || x * dx + y * dy < 0) return index
+  }
+  return -1
+}
+
 /**
  * Central compatibility serializer and semantic projection for Mermaid's
  * rounded routed connectors. It intentionally supports both historical
@@ -291,6 +304,9 @@ export function projectRoundedConnectorPath(
     throw new TypeError('Rounded connector radius must be finite')
   }
   const metric = options.metric ?? 'euclidean'
+  const clearance = options.terminalClearance
+  if (clearance && (!Number.isFinite(clearance.start ?? 0) || (clearance.start ?? 0) < 0
+    || !Number.isFinite(clearance.end ?? 0) || (clearance.end ?? 0) < 0)) throw new TypeError('Terminal clearance must be finite and non-negative')
   const first = points[0]!
   const segments: ConnectorPathProjectionSegment[] = []
 
@@ -302,6 +318,9 @@ export function projectRoundedConnectorPath(
     return projectConnectorPath(d, first, segments, options.tolerance)
   }
 
+  // Collinear waypoints do not interrupt a protected straight terminal.
+  const startTurn = clearance?.start ? terminalTurn(points, true) : -1
+  const endTurn = clearance?.end ? terminalTurn(points, false) : -1
   const parts: string[] = [`M${first.x},${first.y}`]
   for (let index = 1; index < points.length - 1; index++) {
     const previous = points[index - 1]!
@@ -309,7 +328,9 @@ export function projectRoundedConnectorPath(
     const next = points[index + 1]!
     const previousLength = routeDistance(previous, current, metric)
     const nextLength = routeDistance(current, next, metric)
-    const cornerRadius = Math.min(radius, previousLength / 2, nextLength / 2)
+    const cornerRadius = Math.max(0, Math.min(radius, previousLength / 2, nextLength / 2,
+      index === startTurn ? routeDistance(first, current, metric) - clearance!.start! : Infinity,
+      index === endTurn ? routeDistance(points.at(-1)!, current, metric) - clearance!.end! : Infinity))
     if (cornerRadius <= 0) {
       parts.push(`L${current.x},${current.y}`)
       segments.push({ kind: 'line', end: current })
@@ -356,29 +377,32 @@ export function connectorContourSemantics(
   geometry: ConnectorGeometry,
   compatibilityClosed = false,
 ): ConnectorContourSemantics[] {
-  const subpaths = connectorSubpaths(geometry, compatibilityClosed)
-  const segments = connectorSegments(geometry, compatibilityClosed)
-  return subpaths.flatMap((subpath, subpathIndex) => {
+  const contours: ConnectorContourSemantics[] = []
+  for (const subpath of connectorSubpaths(geometry, compatibilityClosed)) {
     const start = subpath.points[0]
     const last = subpath.points.at(-1)
-    if (!start || !last) return []
-    const contourSegments = segments.filter(segment => segment.subpathIndex === subpathIndex)
+    if (!start || !last) continue
     let startTangent: ScenePoint | undefined
-    for (let index = 0; index < contourSegments.length && !startTangent; index++) {
-      startTangent = connectorUnitTangent(contourSegments[index]!.start, contourSegments[index]!.end)
+    for (let index = 1; index < subpath.points.length && !startTangent; index++) {
+      startTangent = connectorUnitTangent(subpath.points[index - 1]!, subpath.points[index]!)
     }
-    let endTangent: ScenePoint | undefined
-    for (let index = contourSegments.length - 1; index >= 0 && !endTangent; index--) {
-      endTangent = connectorUnitTangent(contourSegments[index]!.start, contourSegments[index]!.end)
+    const closing = subpath.closed && !sameConnectorPoint(start, last)
+    if (!startTangent && closing) startTangent = connectorUnitTangent(last, start)
+    let endTangent = closing ? connectorUnitTangent(last, start) : undefined
+    for (let index = subpath.points.length - 1; index > 0 && !endTangent; index--) {
+      endTangent = connectorUnitTangent(subpath.points[index - 1]!, subpath.points[index]!)
     }
-    return [{
-      start: { ...start },
-      end: { ...(subpath.closed ? start : last) },
+    // Scalar-line points were created here, so transfer them. Authored point
+    // arrays still receive independent endpoint copies, including closed ends.
+    contours.push({
+      start: geometry.kind === 'line' ? start : { ...start },
+      end: geometry.kind === 'line' ? last : { ...(subpath.closed ? start : last) },
       closed: subpath.closed,
       ...(startTangent ? { startTangent } : {}),
       ...(endTangent ? { endTangent } : {}),
-    }]
-  })
+    })
+  }
+  return contours
 }
 
 export interface ConnectorSegment {

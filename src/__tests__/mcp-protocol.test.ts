@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { isJsonContentType, preserveExactJsonRpcIds, stringifyJsonRpc } from '../mcp/protocol.ts'
 
 const unsafeInteger = fc.oneof(
@@ -24,7 +25,7 @@ describe('exact JSON-RPC numeric id codec', () => {
       const output = stringifyJsonRpc({ jsonrpc: '2.0', id: request.id, result: { id: request.params.id } }, protectedRequest.ids)
       expect(output).toContain(`"id":${token}`)
       expect(output).toContain('"result":{"id":9007199254740996}')
-    }), { numRuns: 300 })
+    }), fcParameters({ numRuns: 300 }))
   })
 
   test('property: direct batch item ids are restored independently', () => {
@@ -34,7 +35,7 @@ describe('exact JSON-RPC numeric id codec', () => {
       const requests = JSON.parse(protectedRequest.body) as Array<{ id: string }>
       const output = stringifyJsonRpc(requests.map(request => ({ jsonrpc: '2.0', id: request.id, result: {} })), protectedRequest.ids)
       for (const token of tokens) expect(output).toContain(`"id":${token}`)
-    }), { numRuns: 100 })
+    }), fcParameters({ numRuns: 100 }))
   })
 
   test('safe integer ids stay numeric and sentinel-shaped result strings are untouched', () => {
@@ -58,7 +59,7 @@ describe('exact JSON-RPC numeric id codec', () => {
   test('property: malformed transport text never crashes the protector', () => {
     fc.assert(fc.property(fc.string(), raw => {
       expect(() => preserveExactJsonRpcIds(raw)).not.toThrow()
-    }), { numRuns: 500 })
+    }), fcParameters({ numRuns: 500 }))
   })
 })
 

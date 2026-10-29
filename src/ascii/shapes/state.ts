@@ -44,38 +44,38 @@ export const stateStartRenderer: ShapeRenderer = {
 
     if (!options.useAscii) {
       // Unicode rounded box with filled circle: ╭───╮ │ ● │ ╰───╯
-      canvas[0]![0] = '╭'
-      canvas[1]![0] = '─'
-      canvas[2]![0] = '─'
-      canvas[3]![0] = '─'
-      canvas[4]![0] = '╮'
+      canvas.put(0, 0, '╭')
+      canvas.put(1, 0, '─')
+      canvas.put(2, 0, '─')
+      canvas.put(3, 0, '─')
+      canvas.put(4, 0, '╮')
 
-      canvas[0]![1] = '│'
-      canvas[centerX]![1] = '●'
-      canvas[4]![1] = '│'
+      canvas.put(0, 1, '│')
+      canvas.put(centerX, 1, '●')
+      canvas.put(4, 1, '│')
 
-      canvas[0]![2] = '╰'
-      canvas[1]![2] = '─'
-      canvas[2]![2] = '─'
-      canvas[3]![2] = '─'
-      canvas[4]![2] = '╯'
+      canvas.put(0, 2, '╰')
+      canvas.put(1, 2, '─')
+      canvas.put(2, 2, '─')
+      canvas.put(3, 2, '─')
+      canvas.put(4, 2, '╯')
     } else {
       // ASCII rounded box: .---. | * | '---'
-      canvas[0]![0] = '.'
-      canvas[1]![0] = '-'
-      canvas[2]![0] = '-'
-      canvas[3]![0] = '-'
-      canvas[4]![0] = '.'
+      canvas.put(0, 0, '.')
+      canvas.put(1, 0, '-')
+      canvas.put(2, 0, '-')
+      canvas.put(3, 0, '-')
+      canvas.put(4, 0, '.')
 
-      canvas[0]![1] = '|'
-      canvas[centerX]![1] = '*'
-      canvas[4]![1] = '|'
+      canvas.put(0, 1, '|')
+      canvas.put(centerX, 1, '*')
+      canvas.put(4, 1, '|')
 
-      canvas[0]![2] = '\''
-      canvas[1]![2] = '-'
-      canvas[2]![2] = '-'
-      canvas[3]![2] = '-'
-      canvas[4]![2] = '\''
+      canvas.put(0, 2, '\'')
+      canvas.put(1, 2, '-')
+      canvas.put(2, 2, '-')
+      canvas.put(3, 2, '-')
+      canvas.put(4, 2, '\'')
     }
 
     return canvas
@@ -136,38 +136,38 @@ export const stateEndRenderer: ShapeRenderer = {
 
     if (!options.useAscii) {
       // Unicode double-bordered box with bullseye: ╔═══╗ ║ ◎ ║ ╚═══╝
-      canvas[0]![0] = '╔'
-      canvas[1]![0] = '═'
-      canvas[2]![0] = '═'
-      canvas[3]![0] = '═'
-      canvas[4]![0] = '╗'
+      canvas.put(0, 0, '╔')
+      canvas.put(1, 0, '═')
+      canvas.put(2, 0, '═')
+      canvas.put(3, 0, '═')
+      canvas.put(4, 0, '╗')
 
-      canvas[0]![1] = '║'
-      canvas[centerX]![1] = '◎'
-      canvas[4]![1] = '║'
+      canvas.put(0, 1, '║')
+      canvas.put(centerX, 1, '◎')
+      canvas.put(4, 1, '║')
 
-      canvas[0]![2] = '╚'
-      canvas[1]![2] = '═'
-      canvas[2]![2] = '═'
-      canvas[3]![2] = '═'
-      canvas[4]![2] = '╝'
+      canvas.put(0, 2, '╚')
+      canvas.put(1, 2, '═')
+      canvas.put(2, 2, '═')
+      canvas.put(3, 2, '═')
+      canvas.put(4, 2, '╝')
     } else {
       // ASCII double-bordered box: #===# # * # #===#
-      canvas[0]![0] = '#'
-      canvas[1]![0] = '='
-      canvas[2]![0] = '='
-      canvas[3]![0] = '='
-      canvas[4]![0] = '#'
+      canvas.put(0, 0, '#')
+      canvas.put(1, 0, '=')
+      canvas.put(2, 0, '=')
+      canvas.put(3, 0, '=')
+      canvas.put(4, 0, '#')
 
-      canvas[0]![1] = '#'
-      canvas[centerX]![1] = '*'
-      canvas[4]![1] = '#'
+      canvas.put(0, 1, '#')
+      canvas.put(centerX, 1, '*')
+      canvas.put(4, 1, '#')
 
-      canvas[0]![2] = '#'
-      canvas[1]![2] = '='
-      canvas[2]![2] = '='
-      canvas[3]![2] = '='
-      canvas[4]![2] = '#'
+      canvas.put(0, 2, '#')
+      canvas.put(1, 2, '=')
+      canvas.put(2, 2, '=')
+      canvas.put(3, 2, '=')
+      canvas.put(4, 2, '#')
     }
 
     return canvas

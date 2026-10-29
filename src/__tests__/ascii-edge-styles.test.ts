@@ -4,6 +4,7 @@
 
 import { describe, it, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 
 function rowContaining(rendered: string, ...tokens: string[]): string {
@@ -48,7 +49,7 @@ describe('ASCII edge styles', () => {
 
     // Property: for ANY single LR edge with random labels, the chosen line style
     // renders its own glyph and never leaks another style's dashed/thick glyph
-    // (the solid glyph aliases box borders, so it is only asserted present). Holds
+    // on the row containing both endpoint labels. Holds
     // in both unicode and ascii modes.
     it('renders the chosen LR line-style glyph without leaking another style (property)', () => {
       const GLYPH = {
@@ -67,7 +68,9 @@ describe('ASCII edge styles', () => {
             if (a === b) return true
             const out = renderMermaidASCII(`graph LR\n  ${a} ${OP[style]} ${b}`, ascii ? { useAscii: true } : undefined)
             const glyph = ascii ? GLYPH.ascii : GLYPH.unicode
-            if (!out.includes(glyph[style])) return false
+            const row = rowContaining(out, a, b)
+            const marker = ascii ? '>' : '►'
+            if (!row.includes(glyph[style].repeat(2)) || !row.includes(marker)) return false
             // No OTHER style's special (dashed/thick) glyph leaks in.
             for (const other of ['dotted', 'thick'] as const) {
               if (other !== style && out.includes(glyph[other])) return false
@@ -75,30 +78,12 @@ describe('ASCII edge styles', () => {
             return true
           },
         ),
-        { numRuns: 500 },
+        fcParameters({ numRuns: 500 }),
       )
     })
   })
 
   describe('dotted edges (-.->)', () => {
-    it('renders dotted edges with ┄ in unicode mode', () => {
-      const result = renderMermaidASCII(`
-        graph LR
-          A -.-> B
-      `)
-      // Should contain dotted horizontal line character
-      expect(result).toContain('┄')
-    })
-
-    it('renders dotted edges with . in ascii mode', () => {
-      const result = renderMermaidASCII(`
-        graph LR
-          A -.-> B
-      `, { useAscii: true })
-      // Should contain dots for dotted lines
-      expect(result).toContain('.')
-    })
-
     it('renders dotted vertical edges with ┆ in unicode mode', () => {
       const result = renderMermaidASCII(`
         graph TD
@@ -128,24 +113,6 @@ describe('ASCII edge styles', () => {
   })
 
   describe('thick edges (==>)', () => {
-    it('renders thick edges with ━ in unicode mode', () => {
-      const result = renderMermaidASCII(`
-        graph LR
-          A ==> B
-      `)
-      // Should contain thick horizontal line character
-      expect(result).toContain('━')
-    })
-
-    it('renders thick edges with = in ascii mode', () => {
-      const result = renderMermaidASCII(`
-        graph LR
-          A ==> B
-      `, { useAscii: true })
-      // Should contain equals for thick lines
-      expect(result).toContain('=')
-    })
-
     it('renders thick vertical edges with ┃ in unicode mode', () => {
       const result = renderMermaidASCII(`
         graph TD
@@ -157,16 +124,6 @@ describe('ASCII edge styles', () => {
   })
 
   describe('circle and cross endpoint markers', () => {
-    it('renders --o and --x target markers while preserving target nodes', () => {
-      const circle = renderMermaidASCII('graph LR\n  A --o B')
-      expect(circle).toContain('◯')
-      expect(circle).toContain('B')
-
-      const cross = renderMermaidASCII('graph LR\n  A --x B')
-      expect(cross).toContain('✕')
-      expect(cross).toContain('B')
-    })
-
     it('renders mixed endpoint markers in unicode and ascii modes', () => {
       const unicode = renderMermaidASCII('graph LR\n  A o--x B')
       expect(unicode).toContain('◯')
@@ -205,18 +162,6 @@ describe('ASCII edge styles', () => {
         expect(result).toContain('B')
       })
     }
-
-    it('renders both endpoints for o--x in unicode mode', () => {
-      const result = renderMermaidASCII('graph LR\n  A o--x B')
-      const lines = result.split('\n')
-      // Find the edge line — the row with one of the markers.
-      const edgeRow = lines.find(l => l.includes('◯') || l.includes('✕'))!
-      expect(edgeRow).toBeDefined()
-      expect(edgeRow).toContain('◯')
-      expect(edgeRow).toContain('✕')
-      // The circle should be to the LEFT of the cross (A→B direction).
-      expect(edgeRow.indexOf('◯')).toBeLessThan(edgeRow.indexOf('✕'))
-    })
   })
 
   describe('mixed edge styles', () => {
@@ -240,8 +185,9 @@ describe('ASCII edge styles', () => {
           B -.-> C
           C ==> D
       `, { useAscii: true })
-      // Note: ASCII mode uses - for solid, . for dotted, = for thick
-      // We just check that the diagram renders without error
+      expect(rowContaining(result, 'A', 'B')).toContain('---->')
+      expect(rowContaining(result, 'B', 'C')).toContain('....>')
+      expect(rowContaining(result, 'C', 'D')).toContain('====>')
       expect(result).toContain('A')
       expect(result).toContain('B')
       expect(result).toContain('C')

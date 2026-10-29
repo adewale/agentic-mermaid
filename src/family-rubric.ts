@@ -145,7 +145,7 @@ const GROUP_CONTAINMENT_AXES: Partial<Record<DiagramKind, 'both' | 'x' | 'center
  * layout-rubric.ts, not this module. Architecture groups, class namespaces,
  * ER groups, and timeline sections are ownership frames in RenderedLayout.
  */
-const REGION_OWNERSHIP_KINDS = new Set<DiagramKind>(['architecture', 'class', 'er', 'timeline'])
+const REGION_OWNERSHIP_KINDS = /* @__PURE__ */ new Set<DiagramKind>(['architecture', 'class', 'er', 'timeline'])
 
 function isBox(node: RenderedLayoutNode): boolean {
   return node.role ? node.role === 'box' : BOX_SHAPES.has(node.shape)
@@ -165,8 +165,10 @@ function rectOverlap(a: { x: number; y: number; w: number; h: number }, b: { x: 
   return ox > TOL && oy > TOL
 }
 
-function rectContains(outer: RenderedLayoutGroup, inner: RenderedLayoutGroup): boolean {
-  return inner.x >= outer.x - TOL && inner.y >= outer.y - TOL && inner.x + inner.w <= outer.x + outer.w + TOL && inner.y + inner.h <= outer.y + outer.h + TOL
+function rectContains(outer: { x: number; y: number; w: number; h: number }, inner: { x: number; y: number; w: number; h: number }, axes: 'both' | 'x' | 'center' = 'both'): boolean {
+  const xOk = axes === 'center' ? inner.x + inner.w / 2 >= outer.x - TOL && inner.x + inner.w / 2 <= outer.x + outer.w + TOL : inner.x >= outer.x - TOL && inner.x + inner.w <= outer.x + outer.w + TOL
+  const yOk = axes === 'x' || (axes === 'center' ? inner.y + inner.h / 2 >= outer.y - TOL && inner.y + inner.h / 2 <= outer.y + outer.h + TOL : inner.y >= outer.y - TOL && inner.y + inner.h <= outer.y + outer.h + TOL)
+  return xOk && yOk
 }
 
 /** Whether `ancestor` is on `group`'s parentId chain (flattened group trees). */
@@ -201,90 +203,87 @@ function groupOccupants(group: RenderedLayoutGroup, groups: RenderedLayoutGroup[
  * deterministic: identical input produces identical metrics and score.
  */
 export function assessRenderedLayout(layout: RenderedLayout): FamilyRubricResult {
+  return finishFamilyLayout(layout, assessFamilyLayout(layout))
+}
+
+/** Final positioning needs hard failures, not the discarded quality score. */
+export function assessRenderedLayoutHardViolations(layout: RenderedLayout): FamilyRubricViolation[] {
+  return assessFamilyLayout(layout).violations
+}
+
+interface FamilyLayoutAssessment {
+  readonly violations: FamilyRubricViolation[]
+  readonly groupById: Map<string, RenderedLayoutGroup>
+}
+
+/** Shared hard checks have no metric-counting or soft-scoring dependency. */
+function assessFamilyLayout(layout: RenderedLayout): FamilyLayoutAssessment {
   const violations: FamilyRubricViolation[] = []
 
-  let nonFinite = 0
-  let offCanvas = 0
-
   if (!finiteRect(0, 0, layout.bounds.w, layout.bounds.h)) {
-    nonFinite++
     violations.push({ metric: 'nonFiniteGeometry', detail: `bounds ${layout.bounds.w}×${layout.bounds.h}` })
   }
 
-  for (const n of layout.nodes) {
-    if (!finiteRect(n.x, n.y, n.w, n.h)) {
-      nonFinite++
-      violations.push({ metric: 'nonFiniteGeometry', detail: `node ${n.id}` })
-      continue
+  const checkRect = (kind: 'node' | 'label' | 'group', id: string, bounds: { x: number; y: number; w: number; h: number } | undefined): void => {
+    if (!bounds) return
+    if (!finiteRect(bounds.x, bounds.y, bounds.w, bounds.h)) {
+      violations.push({ metric: 'nonFiniteGeometry', detail: `${kind} ${id}` })
+    } else if (bounds.x < -TOL || bounds.y < -TOL || bounds.x + bounds.w > layout.bounds.w + TOL || bounds.y + bounds.h > layout.bounds.h + TOL) {
+      violations.push({ metric: 'offCanvas', detail: kind === 'node' ? `node ${id} at (${bounds.x},${bounds.y}) ${bounds.w}×${bounds.h}` : `${kind} ${id}` })
     }
-    if (n.x < -TOL || n.y < -TOL || n.x + n.w > layout.bounds.w + TOL || n.y + n.h > layout.bounds.h + TOL) {
-      offCanvas++
-      violations.push({ metric: 'offCanvas', detail: `node ${n.id} at (${n.x},${n.y}) ${n.w}×${n.h}` })
-    }
+  }
+  for (const node of layout.nodes) checkRect('node', node.id, node)
+  for (const node of layout.nodes) {
+    if (node.labelVisibility !== 'hidden' && node.labelVisibility !== 'semantic') checkRect('label', node.id, node.labelBounds)
+  }
+  for (const edge of layout.edges) checkRect('label', edge.id, edge.label?.bounds)
+  for (const label of layout.labels ?? []) {
+    if (label.visibility !== 'hidden' && label.visibility !== 'semantic') checkRect('label', label.id, label.bounds)
   }
   for (const e of layout.edges) {
     let flagged = false
     for (const [x, y] of e.path) {
       if (!Number.isFinite(x) || !Number.isFinite(y)) {
-        nonFinite++
         violations.push({ metric: 'nonFiniteGeometry', detail: `edge ${e.id} path` })
         flagged = true
         break
       }
       if (!flagged && (x < -TOL || y < -TOL || x > layout.bounds.w + TOL || y > layout.bounds.h + TOL)) {
-        offCanvas++
         violations.push({ metric: 'offCanvas', detail: `edge ${e.id} point (${x},${y})` })
         flagged = true
       }
     }
   }
-  for (const g of layout.groups) {
-    if (!finiteRect(g.x, g.y, g.w, g.h)) {
-      nonFinite++
-      violations.push({ metric: 'nonFiniteGeometry', detail: `group ${g.id}` })
-      continue
-    }
-    if (g.x < -TOL || g.y < -TOL || g.x + g.w > layout.bounds.w + TOL || g.y + g.h > layout.bounds.h + TOL) {
-      offCanvas++
-      violations.push({ metric: 'offCanvas', detail: `group ${g.id}` })
-    }
-  }
+  for (const group of layout.groups) checkRect('group', group.id, group)
 
-  // Node-node overlap: HARD for box-box pairs, SOFT rate for pairs involving a
-  // mark (marks may legitimately coincide — a line point on a bar, two
-  // quadrant points at one coordinate).
-  let nodeOverlaps = 0
-  let markOverlaps = 0
-  let pairs = 0
-  for (let i = 0; i < layout.nodes.length; i++) {
-    for (let j = i + 1; j < layout.nodes.length; j++) {
-      const a = layout.nodes[i]!,
-        b = layout.nodes[j]!
+  // Only text-bearing box pairs can be hard overlap violations.
+  const pairNodes = layout.nodes.filter(isBox)
+  for (let i = 0; i < pairNodes.length; i++) {
+    for (let j = i + 1; j < pairNodes.length; j++) {
+      const a = pairNodes[i]!,
+        b = pairNodes[j]!
       if (!finiteRect(a.x, a.y, a.w, a.h) || !finiteRect(b.x, b.y, b.w, b.h)) continue
-      pairs++
       if (!rectOverlap(a, b)) continue
-      if (isBox(a) && isBox(b)) {
-        nodeOverlaps++
-        violations.push({ metric: 'nodeOverlaps', detail: `${a.id} overlaps ${b.id}` })
-      } else {
-        markOverlaps++
-      }
+      violations.push({ metric: 'nodeOverlaps', detail: `${a.id} overlaps ${b.id}` })
     }
   }
 
   // Group containment, honouring each family's guaranteed axes.
   const axes = GROUP_CONTAINMENT_AXES[layout.kind as DiagramKind] ?? 'both'
-  let groupBreaches = 0
+  const groupById = new Map(layout.groups.map(g => [g.id, g]))
   if (axes !== 'none') {
     const nodeById = new Map(layout.nodes.map(n => [n.id, n]))
     for (const g of layout.groups) {
+      const parent = g.parentId ? groupById.get(g.parentId) : undefined
+      if (parent && finiteRect(g.x, g.y, g.w, g.h) && finiteRect(parent.x, parent.y, parent.w, parent.h)) {
+        if (!rectContains(parent, g, axes)) {
+          violations.push({ metric: 'groupBreaches', detail: `${g.id} outside parent ${parent.id}` })
+        }
+      }
       for (const memberId of g.members) {
         const n = nodeById.get(memberId)
         if (!n || !finiteRect(n.x, n.y, n.w, n.h)) continue
-        const xOk = axes === 'center' ? n.x + n.w / 2 >= g.x - TOL && n.x + n.w / 2 <= g.x + g.w + TOL : n.x >= g.x - TOL && n.x + n.w <= g.x + g.w + TOL
-        const yOk = axes === 'x' || (axes === 'center' ? n.y + n.h / 2 >= g.y - TOL && n.y + n.h / 2 <= g.y + g.h + TOL : n.y >= g.y - TOL && n.y + n.h <= g.y + g.h + TOL)
-        if (!xOk || !yOk) {
-          groupBreaches++
+        if (!rectContains(g, n, axes)) {
           violations.push({ metric: 'groupBreaches', detail: `${memberId} outside ${g.id}` })
         }
       }
@@ -294,8 +293,6 @@ export function assessRenderedLayout(layout: RenderedLayout): FamilyRubricResult
   // Group tiling: sibling groups must nest fully or stay disjoint. Ancestry is
   // checked both via parentId (architecture's flattened tree) and geometric
   // containment (sequence blocks nest without parentId).
-  let groupOverlaps = 0
-  const groupById = new Map(layout.groups.map(g => [g.id, g]))
   for (let i = 0; i < layout.groups.length; i++) {
     for (let j = i + 1; j < layout.groups.length; j++) {
       const a = layout.groups[i]!,
@@ -304,10 +301,31 @@ export function assessRenderedLayout(layout: RenderedLayout): FamilyRubricResult
       if (!rectOverlap(a, b)) continue
       if (rectContains(a, b) || rectContains(b, a)) continue
       if (isAncestor(a, b, groupById) || isAncestor(b, a, groupById)) continue
-      groupOverlaps++
       violations.push({ metric: 'groupOverlaps', detail: `${a.id} partially overlaps ${b.id}` })
     }
   }
+
+  return { violations, groupById }
+}
+
+function finishFamilyLayout(layout: RenderedLayout, assessment: FamilyLayoutAssessment): FamilyRubricResult {
+  const { violations, groupById } = assessment
+  const hardMetrics = { nonFiniteGeometry: 0, offCanvas: 0, nodeOverlaps: 0, groupBreaches: 0, groupOverlaps: 0 }
+  for (const violation of violations) hardMetrics[violation.metric as keyof typeof hardMetrics]++
+
+  // The hard pass already checked box-box pairs. Count only the remaining
+  // finite pairs here; overlap order cannot affect this scalar soft metric.
+  const boxNodes: RenderedLayoutNode[] = [], markNodes: RenderedLayoutNode[] = []
+  for (const node of layout.nodes) {
+    if (finiteRect(node.x, node.y, node.w, node.h)) (isBox(node) ? boxNodes : markNodes).push(node)
+  }
+  let markOverlaps = 0
+  for (let i = 0; i < markNodes.length; i++) {
+    for (let j = i + 1; j < markNodes.length; j++) if (rectOverlap(markNodes[i]!, markNodes[j]!)) markOverlaps++
+    for (const box of boxNodes) if (rectOverlap(markNodes[i]!, box)) markOverlaps++
+  }
+  const finiteNodes = boxNodes.length + markNodes.length
+  const pairs = finiteNodes * (finiteNodes - 1) / 2
 
   // Region-intrusion purity (the dual of groupBreaches): a foreign node whose
   // CENTRE sits strictly inside a group's rect while it is not a member of that
@@ -343,11 +361,7 @@ export function assessRenderedLayout(layout: RenderedLayout): FamilyRubricResult
   const metrics: FamilyRubricMetrics = {
     nodes: layout.nodes.length,
     groups: layout.groups.length,
-    nonFiniteGeometry: nonFinite,
-    offCanvas,
-    nodeOverlaps,
-    groupBreaches,
-    groupOverlaps,
+    ...hardMetrics,
     regionIntrusions,
     markOverlapRate: pairs === 0 ? 0 : markOverlaps / pairs,
     labelledBoxRate: boxes.length === 0 ? 1 : labelledBoxes.length / boxes.length,

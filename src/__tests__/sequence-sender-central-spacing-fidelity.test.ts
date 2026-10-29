@@ -2,7 +2,7 @@ import { afterAll, expect, test } from 'bun:test'
 import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseSequenceDiagram, parseSequenceMessageLine } from '../sequence/parser.ts'
-import { costRelativeToLinearScan } from './helpers/complexity.ts'
+import { LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/complexity.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const upstream = startUpstreamMermaid()
@@ -21,7 +21,7 @@ function texts(svg: string): string[] {
     .filter(Boolean)
 }
 
-test('pinned Mermaid 11.16 treats sender-spaced central markers as messages', async () => {
+test('pinned Mermaid treats sender-spaced central markers as messages', async () => {
   expect(await upstream.project(source, diagram => diagram.db.getMessages()
     .filter((message: any) => message.to)
     .map((message: any) => ({ from: message.from, to: message.to, text: message.message, central: Boolean(message.centralConnection) })))).toEqual({ ok: true, value: [
@@ -54,12 +54,18 @@ test('native and agent retain sender-spaced central messages and exactly two act
 })
 
 test('spaced central-start parsing stays bounded on malformed long tails', () => {
-  const line = `Alice ${' '.repeat(64_000)}() ${' '.repeat(64_000)}:missing`
-  expect(parseSequenceMessageLine(line)).toBeNull()
-  // Linear rejection costs a few plain scans of the line (3.5-7.5x measured,
-  // idle and under load); backtracking over either space run costs tens of
-  // thousands.
-  expect(costRelativeToLinearScan(line, () => parseSequenceMessageLine(line))).toBeLessThan(100)
+  // Keep the original 128K-character rejection witness as the small input.
+  // Long actor tokens can switch the regex engine's execution strategy; a
+  // constant-factor comparison with a plain scan then rejects linear work.
+  // Compare two long inputs in that same regime: quadratic backtracking grows
+  // by 256x at this helper's 16x factor, beyond its existing 64x ceiling.
+  const growth = measureGrowth(size => {
+    const line = `Alice ${' '.repeat(size)}() ${' '.repeat(size)}:missing`
+    const parsed = parseSequenceMessageLine(line)
+    expect(parsed).toBeNull()
+    return parsed
+  }, 64_000)
+  expect(growth.ratio).toBeLessThan(LINEAR_GROWTH_CEILING)
 })
 
 test('sender-spaced central fallback does not accept forms Mermaid rejects', async () => {
@@ -74,7 +80,6 @@ test('sender-spaced central fallback does not accept forms Mermaid rejects', asy
     'participant ()->> Bob: Invalid directive sender',
     'Note ()->> Bob: Invalid note sender',
     'over ()->> Bob: Invalid reserved sender',
-    'properties ()->> Bob: Invalid reserved sender',
     '1 ()->> Bob: Invalid numeric sender',
     '1.1 ()->> Bob: Invalid decimal sender',
     'Alice ()->> B+B: Invalid plus in receiver',
@@ -87,6 +92,22 @@ test('sender-spaced central fallback does not accept forms Mermaid rejects', asy
   expect(await Promise.all(rejected.map(line => upstream.accepts(`sequenceDiagram\n  participant Alice\n  participant Bob\n  ${line}`))))
     .toEqual(rejected.map(() => false))
   for (const line of rejected) expect(parseSequenceMessageLine(line)).toBeNull()
+})
+
+test.each(['properties', 'details'])('pinned Mermaid accepts %s central endpoints that remain source-preserved here', async id => {
+  for (const [from, to] of [[id, 'Bob'], ['Alice', id]]) {
+    const source = `sequenceDiagram\n  ${from} ()->> ${to}: message`
+    expect(await upstream.project(source, diagram => diagram.db.getMessages()
+      .filter((message: any) => message.to)
+      .map((message: any) => ({ from: message.from, to: message.to, central: Boolean(message.centralConnection) }))))
+      .toEqual({ ok: true, value: [{ from, to, central: true }] })
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(serializeMermaid(parsed.value).trimEnd()).toBe(source)
+    expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_statement', line: 2,
+    }))
+  }
 })
 
 test('a title-like line is not promoted to a central message', async () => {
@@ -104,7 +125,7 @@ const centralMessages = (senders: readonly string[]) => upstream.projectAll(send
 test('ambiguous punctuation senders do not gain a false central-connection claim', async () => {
   const senders = ['A-B', 'A/B', 'A(B)']
   expect(await centralMessages(senders)).toEqual(senders.map(from => ({ from: `${from} ()`, central: false })))
-  for (const sender of senders) expect(parseSequenceMessageLine(`${sender} ()->> Bob: x`)).toBeNull()
+  for (const sender of senders) expect(parseSequenceMessageLine(`${sender} ()->> Bob: x`)).toMatchObject({ from: `${sender} ()`, centralStart: false })
 })
 
 test('non-numeric punctuation and alphanumeric senders retain upstream central meaning', async () => {

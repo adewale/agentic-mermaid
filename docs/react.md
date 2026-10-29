@@ -9,40 +9,62 @@ entry into a client bundle.
 ```tsx
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { renderMermaidSVGAsync } from 'agentic-mermaid/browser/lazy'
 
 export function MermaidDiagram({ source }: { source: string }) {
-  const [svg, setSvg] = useState('')
+  const output = useRef<HTMLDivElement>(null)
+  const idPrefix = `diagram-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
     let current = true
-    setSvg('')
+    const host = output.current
+    if (!host) return
+    host.replaceChildren()
+    setLoading(true)
     setError('')
-    renderMermaidSVGAsync(source, { security: 'strict' }).then(
+    renderMermaidSVGAsync(source, { security: 'strict', idPrefix }).then(
       result => {
         if (!current) return
-        setSvg(result)
+        const parsed = new DOMParser().parseFromString(result, 'image/svg+xml')
+        if (parsed.querySelector('parsererror') || parsed.documentElement.localName !== 'svg') {
+          setError('Renderer returned invalid SVG')
+          setLoading(false)
+          return
+        }
+        host.replaceChildren(document.importNode(parsed.documentElement, true))
+        setLoading(false)
         setError('')
       },
-      cause => {
-        if (!current) return
-        setError(cause instanceof Error ? cause.message : String(cause))
-      },
-    )
+    ).catch(cause => {
+      if (!current) return
+      setError(cause instanceof Error ? cause.message : String(cause))
+      setLoading(false)
+    })
     return () => { current = false }
-  }, [source])
+  }, [source, idPrefix])
 
-  if (error) return <pre role="alert">{error}</pre>
-  if (!svg) return <div className="diagram diagram-surface" aria-busy="true" />
-  return <div className="diagram diagram-surface" dangerouslySetInnerHTML={{ __html: svg }} />
+  return <>
+    {error && <pre role="alert">{error}</pre>}
+    <div ref={output} className="diagram diagram-surface" aria-busy={loading} />
+  </>
 }
 ```
 
 `security: 'strict'` removes external-fetch references and is the safest default
 for user- or agent-generated diagrams. The cancellation guard prevents an older
-render from replacing a newer source after it resolves.
+render from replacing a newer source after it resolves. The per-component
+`idPrefix` prevents collisions between SVG definitions in multiple diagrams.
+Insert only this renderer's strict output, not arbitrary SVG: XML parsing is
+not sanitization. Rendering policy and the host's DOM/CSP policy remain separate.
+
+This basic recipe assumes the host does not enforce Trusted Types. With
+`require-trusted-types-for 'script'`, `DOMParser.parseFromString` is also a
+protected sink: adapt insertion through the application's reviewed,
+narrowly scoped TrustedHTML policy. Do not add a permissive default policy or
+disable CSP to make the example work. See [`browser.md`](./browser.md).
 
 ## Theme from CSS variables
 
@@ -96,7 +118,7 @@ options, output, rasterize)` or the reusable
 with the library: the host supplies `rasterize(securedSvg, context)` (for
 example with Canvas/OffscreenCanvas), which must resolve to `{ png }` bytes at
 exactly `context.rasterDimensions` on `context.rasterBackground`, and may report
-`fontSources` and `diagnostics`. See [`api.md`](./api.md#png). Otherwise, post
+`fontSources` and `diagnostics`. See [browser PNG details](./api-advanced.md#png-fonts-portability-and-rasterization). Otherwise, post
 the source to a server endpoint.
 
 ## Error handling

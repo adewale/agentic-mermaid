@@ -28,9 +28,9 @@ export interface PayloadDeltaLimits {
 
 export const DEFAULT_PAYLOAD_DELTA_LIMITS: PayloadDeltaLimits = Object.freeze({ maxGzipGrowthRatio: 0.02, minGzipGrowthBytes: 1024 })
 
-export function lazySizes(report: { initial: PayloadSize; families: Record<string, PayloadSize> }): PayloadSizes {
+export function lazySizes(report: { initial: PayloadSize; families: Record<string, PayloadSize>; budgetedFamilies?: Record<string, PayloadSize> }): PayloadSizes {
   const sizes: PayloadSizes = { 'lazy:initial': pick(report.initial) }
-  for (const [id, size] of Object.entries(report.families)) sizes[`lazy:${id}`] = pick(size)
+  for (const [id, size] of Object.entries(report.budgetedFamilies ?? report.families)) sizes[`lazy:${id}`] = pick(size)
   return sizes
 }
 

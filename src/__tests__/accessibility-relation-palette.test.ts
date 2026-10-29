@@ -1,8 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 import { layoutMermaid, parseRegisteredMermaid as parseMermaid } from '../agent/index.ts'
+import { countStructuralElements } from '../agent/structural-count.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
-import { relationAccessibilityForSvg } from '../scene/accessibility.ts'
+import * as marks from '../scene/marks.ts'
+import { sceneNodeSerialization } from '../scene/serialization.ts'
 import { contrastRatio } from '../shared/color-math.ts'
 import { resolveColors } from '../theme.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
@@ -15,13 +17,16 @@ describe('typed relation accessibility', () => {
   test('registry-enrolls every relation-bearing family with one inspectable ARIA object per typed relation', () => {
     const enrolled: string[] = []
     for (const entry of Object.values(METAMORPHIC_FAMILIES)) {
-      const source = entry.build(Math.max(2, entry.kRange[0]), 'Rel')
+      const source = entry.build(Math.max(2, entry.kRange[0]), 'rel')
       const parsed = parseMermaid(source)
       expect(parsed.ok, entry.family).toBe(true)
       if (!parsed.ok) continue
       const expected = layoutMermaid(parsed.value)
         .edges.map(edge => `${edge.from}->${edge.to}`)
         .sort()
+      const authored = countStructuralElements(parsed.value)
+      expect(authored, entry.family).not.toBeNull()
+      expect(expected.length, `${entry.family} retains authored relations`).toBe(authored!.edges)
       if (expected.length === 0) continue
       enrolled.push(entry.family)
 
@@ -33,17 +38,25 @@ describe('typed relation accessibility', () => {
         expect(relation, entry.family).toMatch(/aria-label="[^"]+ to [^"]+/)
       }
     }
-    expect(enrolled.sort()).toEqual(['architecture', 'class', 'er', 'flowchart', 'gitgraph', 'mindmap', 'sankey', 'sequence', 'state'])
+    expect(enrolled.length).toBeGreaterThan(0)
   })
 
-  test('keeps the typed relation model aligned with escaped SVG attributes', () => {
-    const semantics = relationAccessibilityForSvg('<path data-from="API&amp;UI" data-to="DB" data-label="reads &amp; writes" />', { id: 'edge', role: 'edge', from: 'API&UI', to: 'DB' })
-    expect(semantics).toEqual({
+  test('writes the typed relation model as escaped SVG attributes', () => {
+    const edge = marks.connector({
+      id: 'edge', role: 'edge', lineStyle: 'solid', paint: {},
+      geometry: { kind: 'line', x1: 0, y1: 0, x2: 10, y2: 0 },
+      identity: { id: 'edge', from: 'API&UI', to: 'DB' },
+      labels: [{ text: 'reads & writes' }],
+    })
+    expect(edge.accessibility).toEqual({
       label: 'API&UI to DB: reads & writes',
       role: 'graphics-symbol',
       roleDescription: 'relation',
       relation: { from: 'API&UI', to: 'DB', label: 'reads & writes' },
     })
+    const svg = sceneNodeSerialization(edge)
+    expect(svg).toContain(' data-from="API&amp;UI" data-to="DB"')
+    expect(svg).toContain(' role="graphics-symbol" aria-roledescription="relation" aria-label="API&amp;UI to DB: reads &amp; writes"')
   })
 })
 

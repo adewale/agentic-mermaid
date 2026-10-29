@@ -1,3 +1,4 @@
+import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import type { PositionedDiagram } from '../types.ts'
 
 export type GitGraphDirection = 'LR' | 'TB' | 'BT'
@@ -5,6 +6,8 @@ export type GitGraphCommitType = 'NORMAL' | 'REVERSE' | 'HIGHLIGHT' | 'MERGE' | 
 
 export interface GitGraphCommit {
   id: string
+  /** Authored duplicate ID when the stable occurrence identity differs. */
+  sourceId?: string
   message?: string
   type: GitGraphCommitType
   /** Visual override authored on a semantic merge commit. */
@@ -31,12 +34,7 @@ export interface GitGraphBranch {
   head?: string
 }
 
-export type GitGraphStatement =
-  | { kind: 'commit'; ref: string }
-  | { kind: 'branch'; name: string; order?: number }
-  | { kind: 'checkout'; branch: string; keyword: 'checkout' | 'switch' }
-  | { kind: 'merge'; ref: string; branch: string }
-  | { kind: 'cherry-pick'; ref: string; source: string; parent?: string }
+export type GitGraphStatement = { kind: 'commit'; ref: string } | { kind: 'branch'; name: string; order?: number } | { kind: 'checkout'; branch: string; keyword: 'checkout' | 'switch' } | { kind: 'merge'; ref: string; branch: string } | { kind: 'cherry-pick'; ref: string; source: string; parent?: string }
 
 export interface GitGraphDiagram {
   direction: GitGraphDirection
@@ -51,12 +49,15 @@ export interface GitGraphDiagram {
 }
 
 export interface PositionedGitGraphCommit extends GitGraphCommit {
+  labelBlock?: PixelTextBlock
+  tagBlocks?: PixelTextBlock[]
   x: number
   y: number
   lane: number
 }
 
 export interface PositionedGitGraphBranch extends GitGraphBranch {
+  labelBlock?: PixelTextBlock
   lane: number
   x1: number
   y1: number
@@ -72,6 +73,7 @@ export interface PositionedGitGraphEdge {
 }
 
 export interface PositionedGitGraphDiagram extends PositionedDiagram {
+  titleBlock?: PixelTextBlock
   direction: GitGraphDirection
   title?: string
   commits: PositionedGitGraphCommit[]
@@ -82,4 +84,10 @@ export interface PositionedGitGraphDiagram extends PositionedDiagram {
   showBranches: boolean
   showCommitLabel: boolean
   rotateCommitLabel: boolean
+}
+
+/** Keep source labels independent of collision-free typed occurrence IDs. */
+export function gitGraphCommitLabel(commit: Pick<GitGraphCommit, 'id' | 'sourceId' | 'message' | 'source' | 'customId'>): string {
+  if (commit.source === 'merge' && commit.customId) return commit.sourceId || commit.id
+  return commit.message || commit.sourceId || commit.id
 }

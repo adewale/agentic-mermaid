@@ -9,10 +9,10 @@
 
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { asEr, parseRegisteredMermaid } from '../agent/index.ts'
 import { parseErDiagram } from '../er/parser.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
-import { resolveSubgraphMembership } from '../shared/subgraph-membership.ts'
 
 interface Placement {
   /** Entities in creation order, each with the subgraph that keeps it. */
@@ -121,8 +121,17 @@ function compile(program: Item[]): { source: string; expected: Placement } {
     return [id]
   })
   emit(program, 1)
-  const kept = new Map(resolveSubgraphMembership(closeOrder).map(group => [group.id, group.members]))
-  const owner = new Map([...kept].flatMap(([group, members]) => members.map(member => [member, group] as const)))
+  // Independent model: the earliest closed group to name an identity keeps it.
+  const owner = new Map<string, string>()
+  const kept = new Map<string, string[]>()
+  for (const group of closeOrder) {
+    const members: string[] = []
+    for (const id of group.members) if (!owner.has(id)) {
+      owner.set(id, group.id)
+      members.push(id)
+    }
+    kept.set(group.id, members)
+  }
   return {
     source: lines.join('\n'),
     expected: {
@@ -139,7 +148,7 @@ describe('property: both ER parsers place entities by the first subgraph to clos
       const { source, expected } = compile(program)
       if (source.includes('subgraph')) withSubgraphs++
       expect({ source, ...placements(source) }).toEqual({ source, renderer: expected, typed: expected })
-    }), { numRuns: 300 })
+    }), fcParameters({ numRuns: 300 }))
     expect(withSubgraphs).toBeGreaterThan(0)
   })
 })

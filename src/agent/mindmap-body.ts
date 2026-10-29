@@ -1,15 +1,41 @@
+import { nativeAccessibilityText } from './accessibility-envelope.ts'
 import type {
   LayoutWarning, MindmapBody, MindmapMutationOp, MutationError, Result, VerifyOptions,
 } from './types.ts'
 import { err, ok } from './types.ts'
 import type { MindmapNode, MindmapShape } from '../mindmap/types.ts'
-import { parseMindmap, serializeMindmap } from '../mindmap/parser.ts'
+import { mindmapNestedShapeLines, mindmapNonportableTextLines, mindmapSerializationProblem, mindmapStatementEnds, parseMindmap, serializeMindmap } from '../mindmap/parser.ts'
+import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 
-export function parseMindmapBody(source: string): MindmapBody {
+export { mindmapSerializationProblem } from '../mindmap/parser.ts'
+
+/** Parsed bodies whose authored header pinned Mermaid rejects for the space
+ * after it. The canonical source keeps no blank line or trailing whitespace,
+ * so parsing records it for verify. */
+const spaceAfterHeader = new WeakSet<MindmapBody>()
+
+/** `authored` is the authored source from the header on. */
+export function parseMindmapBody(source: string, authored?: string): MindmapBody {
   const diagram = parseMindmap(source)
-  return { kind: 'mindmap', ...diagram }
+  const body: MindmapBody = { kind: 'mindmap', ...diagram }
+  if (authored !== undefined && mermaidRejectsSpaceAfterHeader(authored)) spaceAfterHeader.add(body)
+  return body
+}
+
+/** Mermaid's mindmap lexer takes whitespace at the end of the header line, or
+ * a blank line after it, together with the line break, as one SPACELINE
+ * token, which its grammar accepts after the header only before another line
+ * break. It first removes each directive, leaving its line, and each `%%`
+ * line together with the blank lines before it. */
+function mermaidRejectsSpaceAfterHeader(authored: string): boolean {
+  const text = authored.replace(/\r\n?/g, '\n')
+    .replace(/%%\{[\s\S]*?\}%%/g, '')
+    .replace(/^\s*%%(?!\{)[^\n]+\n?/gm, '')
+    .replace(/^\s*mindmap/i, '')
+  const space = /^\s*/.exec(text)![0]
+  return space.lastIndexOf('\n') > 0 && space.length < text.length
 }
 
 export function renderMindmapBody(body: MindmapBody): string {
@@ -23,8 +49,8 @@ function cloneNode(node: MindmapNode): MindmapNode {
 function cloneBody(body: MindmapBody): MindmapBody {
   return {
     kind: 'mindmap', root: cloneNode(body.root),
-    ...(body.accessibilityTitle ? { accessibilityTitle: body.accessibilityTitle } : {}),
-    ...(body.accessibilityDescription ? { accessibilityDescription: body.accessibilityDescription } : {}),
+    ...(body.accessibilityTitle !== undefined ? { accessibilityTitle: body.accessibilityTitle } : {}),
+    ...(body.accessibilityDescription !== undefined ? { accessibilityDescription: body.accessibilityDescription } : {}),
   }
 }
 
@@ -38,6 +64,11 @@ function locate(root: MindmapNode, id: string, parent?: MindmapNode): Located | 
   return undefined
 }
 
+function validAccessibility(value: string, field: string): Result<string, MutationError> {
+  try { return ok(nativeAccessibilityText(value)) }
+  catch { return err({ code: 'INVALID_OP', message: `Mindmap accessibility ${field} must be non-empty text` }) }
+}
+
 function validText(value: unknown, field: string): Result<string, MutationError> {
   if (typeof value !== 'string' || !value.trim() || /[\r\n]/.test(value)) return err({ code: 'INVALID_OP', message: `Mindmap ${field} must be a non-empty single-line string` })
   return ok(value.trim())
@@ -45,9 +76,9 @@ function validText(value: unknown, field: string): Result<string, MutationError>
 
 const SHAPES: MindmapShape[] = ['default', 'rect', 'rounded', 'circle', 'cloud', 'bang', 'hexagon']
 
-function stableNodeSyntax(id: string, label: string, shape: MindmapShape): boolean {
+function stableNodeSyntax(id: string, label: string, shape: MindmapShape, markdown?: true): boolean {
   try {
-    const reparsed = parseMindmap(serializeMindmap({ root: { id, label, shape, children: [] } })).root
+    const reparsed = parseMindmap(serializeMindmap({ root: { id, label, shape, ...(markdown ? { markdown } : {}), children: [] } })).root
     return reparsed.id === id && reparsed.label === label && reparsed.shape === shape
   } catch {
     return false
@@ -84,6 +115,8 @@ function unstableDecorationError(field: 'icon' | 'class', value: string): Result
 }
 
 export function mutateMindmap(body: MindmapBody, op: MindmapMutationOp): Result<MindmapBody, MutationError> {
+  const problem = mindmapSerializationProblem(body)
+  if (problem) return err({ code: 'INVALID_OP', message: problem })
   const next = cloneBody(body)
   const allIds = (): Set<string> => {
     const ids = new Set<string>()
@@ -122,7 +155,7 @@ export function mutateMindmap(body: MindmapBody, op: MindmapMutationOp): Result<
       if (allIds().has(to.value)) return err({ code: 'DUPLICATE_NODE', message: `Mindmap node '${to.value}' already exists` })
       // Valid default-shape nodes use their label as identity by construction.
       const nextLabel = found.node.shape === 'default' ? to.value : found.node.label
-      if (!stableNodeSyntax(to.value, nextLabel, found.node.shape)) return unstableNodeError(to.value, nextLabel, found.node.shape)
+      if (!stableNodeSyntax(to.value, nextLabel, found.node.shape, found.node.markdown)) return unstableNodeError(to.value, nextLabel, found.node.shape)
       found.node.label = nextLabel
       found.node.id = to.value
       return ok(next)
@@ -133,7 +166,7 @@ export function mutateMindmap(body: MindmapBody, op: MindmapMutationOp): Result<
       const label = validText(op.label, 'label'); if (!label.ok) return label
       const nextId = found.node.shape === 'default' ? label.value : found.node.id
       if (found.node.shape === 'default' && label.value !== found.node.id && allIds().has(label.value)) return err({ code: 'DUPLICATE_NODE', message: `Mindmap node '${label.value}' already exists` })
-      if (!stableNodeSyntax(nextId, label.value, found.node.shape)) return unstableNodeError(nextId, label.value, found.node.shape)
+      if (!stableNodeSyntax(nextId, label.value, found.node.shape, found.node.markdown)) return unstableNodeError(nextId, label.value, found.node.shape)
       found.node.id = nextId
       found.node.label = label.value
       return ok(next)
@@ -156,7 +189,7 @@ export function mutateMindmap(body: MindmapBody, op: MindmapMutationOp): Result<
       if (!found) return err({ code: 'NODE_NOT_FOUND', message: `Mindmap node '${op.id}' not found` })
       if (!SHAPES.includes(op.shape)) return err({ code: 'INVALID_OP', message: `Mindmap shape must be one of: ${SHAPES.join(', ')}` })
       if (op.shape === 'default' && found.node.id !== found.node.label) return err({ code: 'INVALID_OP', message: 'Default mindmap shape requires id and label to match' })
-      if (!stableNodeSyntax(found.node.id, found.node.label, op.shape)) return unstableNodeError(found.node.id, found.node.label, op.shape)
+      if (!stableNodeSyntax(found.node.id, found.node.label, op.shape, found.node.markdown)) return unstableNodeError(found.node.id, found.node.label, op.shape)
       found.node.shape = op.shape
       return ok(next)
     }
@@ -183,13 +216,13 @@ export function mutateMindmap(body: MindmapBody, op: MindmapMutationOp): Result<
       return ok(next)
     }
     case 'set_accessibility_title': {
-      const title = setOptionalField(next, 'accessibilityTitle', op.title, value => validText(value, 'accessibility title'))
+      const title = setOptionalField(next, 'accessibilityTitle', op.title, value => validAccessibility(value, 'title'))
       if (!title.ok) return title
       if (next.accessibilityTitle !== undefined && !stableBodySyntax(next)) return err({ code: 'INVALID_OP', message: `Mindmap accessibility title '${next.accessibilityTitle}' is not serialization-stable` })
       return ok(next)
     }
     case 'set_accessibility_description': {
-      const description = setOptionalField(next, 'accessibilityDescription', op.description, value => validText(value, 'accessibility description'))
+      const description = setOptionalField(next, 'accessibilityDescription', op.description, value => validAccessibility(value, 'description'))
       if (!description.ok) return description
       if (next.accessibilityDescription !== undefined && !stableBodySyntax(next)) return err({ code: 'INVALID_OP', message: `Mindmap accessibility description '${next.accessibilityDescription}' is not serialization-stable` })
       return ok(next)
@@ -197,6 +230,42 @@ export function mutateMindmap(body: MindmapBody, op: MindmapMutationOp): Result<
     default:
       return err({ code: 'INVALID_OP', message: unknownOpMessage('mindmap', op) })
   }
+}
+
+/** Mindmap source ours reads where pinned Mermaid reads it otherwise, each
+ * on its canonical line: shape text holding its own delimiters in pairs, and
+ * an accessibility directive, which Mermaid's mindmap grammar does not have. */
+export function mindmapUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
+  const warnings: Array<LayoutWarning & { line: number }> = mindmapNestedShapeLines(canonicalSource).map(line => ({
+    code: 'UNSUPPORTED_SYNTAX',
+    syntax: 'mindmap_nested_shape_delimiters',
+    line,
+    message: 'Shape text holding delimiters of its own in pairs, as `root((a (b) c))`, is read whole. Pinned Mermaid ends the shape at the first closing delimiter and rejects the rest; put the whole text in double quotes.',
+  }))
+  const lines = canonicalSource.split(/\r?\n/)
+  const header = lines.findIndex(line => /^\s*mindmap\s*$/i.test(line))
+  // A line inside a shape's text is no directive (mindmapStatementEnds).
+  const ends = mindmapStatementEnds(lines)
+  for (let index = header + 1; header >= 0 && index < lines.length;) {
+    const directive = parseAccessibilityDirective(lines, index)
+    if (directive === undefined) break
+    if (directive === null) {
+      index = ends[index]! + 1
+      continue
+    }
+    warnings.push({
+      code: 'UNSUPPORTED_SYNTAX',
+      syntax: 'mindmap_accessibility',
+      line: index + 1,
+      message: 'Mindmap accessibility metadata is carried in native comments on export. External Mermaid ignores this metadata; diagram topology is preserved.',
+    })
+    index = directive.endIndex + 1
+  }
+  for (const problem of mindmapNonportableTextLines(canonicalSource)) warnings.push({
+    code: 'UNSUPPORTED_SYNTAX', syntax: 'mindmap_nonportable_text', line: problem.line,
+    message: `${problem.message}. The source is preserved; change this text to unlock typed Mindmap edits.`,
+  })
+  return warnings.sort((left, right) => left.line - right.line)
 }
 
 export function verifyMindmap(body: MindmapBody, opts: VerifyOptions): LayoutWarning[] {
@@ -207,5 +276,14 @@ export function verifyMindmap(body: MindmapBody, opts: VerifyOptions): LayoutWar
     node.children.forEach(visit)
   }
   visit(body.root)
+  if (spaceAfterHeader.has(body)) {
+    warnings.push({
+      code: 'UNSUPPORTED_SYNTAX',
+      syntax: 'mindmap_space_after_header',
+      // The header's line in the body.
+      line: 1,
+      message: 'Whitespace at the end of the mindmap header line, or a blank line right after it, is ignored. Pinned Mermaid rejects the diagram; remove it, as the writer does.',
+    })
+  }
   return warnings
 }

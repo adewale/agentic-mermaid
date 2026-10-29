@@ -1,32 +1,35 @@
+import { decodeXML } from 'entities'
 // ============================================================================
 // Scene fidelity checker — asserts a mark's semantic fields agree with its
-// crisp serialization, so styled backends can trust the geometry they redraw.
+// written serialization, so styled backends can trust the geometry they redraw.
 //
-// Test-only oracle (driven by scene-fidelity.test.ts across the corpus): it
-// parses the crisp strings we ourselves emit — a stable, owned format — and
-// returns human-readable problems instead of throwing, so one run reports
-// every divergence in a lowering.
+// The writer (svg-writer.ts) draws every shape, text and connector from its
+// fields, so no render path runs this check. It is the tests' independent
+// oracle for the writer over the cross-family corpus: it parses the SVG we
+// ourselves emit — a stable, owned format — and returns human-readable problems
+// instead of throwing, so one run reports every divergence in a lowering.
 // ============================================================================
 
-import type { Geometry, SceneDoc, SceneNode, SceneTransform } from './ir.ts'
+import type { Geometry, SceneDoc, SceneNode, SceneOwner, TextMark } from './ir.ts'
 import { hasDomSvgIdentityRole } from './identity.ts'
 import { sceneNodeSerialization } from './serialization.ts'
 import { breakLineTags, displayText } from '../multiline-utils.ts'
+import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
+import { hasMarkerCss } from '../output-security.ts'
+import { parseSvgTransform, transformMatrix } from './transforms.ts'
 
 /** Parse the top-level SVG elements out of a crisp chunk (self-closed or
  *  paired), ignoring nested content. Good enough for our own emitters. */
 export function topLevelElements(crisp: string): Array<{ tag: string; attrs: Map<string, string> }> {
   const out: Array<{ tag: string; attrs: Map<string, string> }> = []
-  const re = /<([a-zA-Z][a-zA-Z0-9-]*)((?:\s+[a-zA-Z_:][\w:.-]*="[^"]*")*)\s*\/?>/g
   let depth = 0
   let m: RegExpExecArray | null
   const closeRe = /<\/([a-zA-Z][a-zA-Z0-9-]*)>/g
   // Walk open/self-close/close tags in order, tracking depth.
   const tokens: Array<{ index: number; kind: 'open' | 'self' | 'close'; tag: string; attrs?: Map<string, string> }> = []
-  while ((m = re.exec(crisp)) !== null) {
-    const attrs = new Map<string, string>()
-    for (const am of m[2]!.matchAll(/([a-zA-Z_:][\w:.-]*)="([^"]*)"/g)) attrs.set(am[1]!, am[2]!)
-    tokens.push({ index: m.index, kind: m[0]!.endsWith('/>') ? 'self' : 'open', tag: m[1]!, attrs })
+  for (const tag of scanSvgStartTags(crisp)) {
+    const attrs = new Map(tag.attributes.map(attribute => [attribute.name, attribute.value]))
+    tokens.push({ index: tag.start, kind: tag.selfClosing ? 'self' : 'open', tag: tag.name, attrs })
   }
   while ((m = closeRe.exec(crisp)) !== null) tokens.push({ index: m.index, kind: 'close', tag: m[1]! })
   tokens.sort((a, b) => a.index - b.index)
@@ -49,6 +52,20 @@ function num(s: string | undefined): number | undefined {
   return Number.isFinite(n) ? n : undefined
 }
 
+// The SVG writer retains twelve significant digits. Compare geometry values
+// independently of their spelling, keeping command order and token counts.
+function near(a: number, b: number): boolean {
+  return Number.isFinite(a) && Number.isFinite(b)
+    && Math.abs(a - b) <= 5e-12 * Math.max(Math.abs(a), Math.abs(b), Number.MIN_VALUE)
+}
+
+function sameNumericPayload(a: string, b: string): boolean {
+  const number = /[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/g
+  const left = a.match(number) ?? [], right = b.match(number) ?? []
+  return a.replace(number, '#').replace(/[\s,]/g, '') === b.replace(number, '#').replace(/[\s,]/g, '')
+    && left.length === right.length && left.every((value, index) => near(Number(value), Number(right[index])))
+}
+
 function geometryProblems(geom: Geometry, els: Array<{ tag: string; attrs: Map<string, string> }>, path: string, problems: string[]): number {
   // Returns how many elements this geometry consumed.
   const el = els[0]
@@ -62,7 +79,7 @@ function geometryProblems(geom: Geometry, els: Array<{ tag: string; attrs: Map<s
     const parsed = num(attr)
     const numericallyEquivalent = typeof semantic === 'number'
       && parsed !== undefined
-      && Math.abs(parsed - semantic) <= Number.EPSILON * 8 * Math.max(1, Math.abs(parsed), Math.abs(semantic))
+      && near(parsed, semantic)
     if (String(semantic) !== attr && !numericallyEquivalent) {
       problems.push(`${path}.${field}: semantic ${semantic} != crisp ${attr}`)
     }
@@ -96,14 +113,14 @@ function geometryProblems(geom: Geometry, els: Array<{ tag: string; attrs: Map<s
     case 'polyline': {
       const e = want(geom.kind); if (!e) return 1
       const expected = geom.points.map(p => `${p.x},${p.y}`).join(' ')
-      if (e.attrs.get('points') !== expected) {
+      if (!sameNumericPayload(expected, e.attrs.get('points') ?? '')) {
         problems.push(`${path}.points: semantic "${expected.slice(0, 60)}" != crisp "${(e.attrs.get('points') ?? '').slice(0, 60)}"`)
       }
       return 1
     }
     case 'path': {
       const e = want('path'); if (!e) return 1
-      if (e.attrs.get('d') !== geom.d) {
+      if (!sameNumericPayload(geom.d, e.attrs.get('d') ?? '')) {
         problems.push(`${path}.d: semantic "${geom.d.slice(0, 60)}" != crisp "${(e.attrs.get('d') ?? '').slice(0, 60)}"`)
       }
       return 1
@@ -119,7 +136,7 @@ function geometryProblems(geom: Geometry, els: Array<{ tag: string; attrs: Map<s
 }
 
 function unescapeXml(s: string): string {
-  return s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+  return decodeXML(s)
 }
 
 /** Parse only the wrappers emitted by Timeline's literal-text renderer. This
@@ -127,56 +144,197 @@ function unescapeXml(s: string): string {
 function timelineLiteralText(serialized: string): string | undefined {
   const outer = /^<text\b([^<>]*)>([\s\S]*)<\/text>$/.exec(serialized)
   if (!outer) return undefined
-  if (!/^(?:\s+(?:x|y|class|text-anchor|font-size|font-weight|data-literal-text|font-family|letter-spacing|dy|data-id|data-role|aria-label|role)="[^"<>]*")+$/.test(outer[1]!)) return undefined
-  const inner = outer[2]!
-  if (!inner.includes('<')) return inner.includes('>') ? undefined : unescapeXml(inner)
-  const spans = /<tspan x="([^"]+)" dy="([^"]+)">([^<>]*)<\/tspan>/g
-  const lines: string[] = []
+  const attributes = /^(?:\s+(?:x|y|class|text-anchor|dominant-baseline|font-size|font-weight|font-style|text-decoration|font-family|letter-spacing|dy|fill|fill-opacity|stroke|stroke-opacity|stroke-width|stroke-linejoin|paint-order|opacity|data-[a-z-]+|aria-label|aria-hidden|role|textLength|lengthAdjust|xml:space)="[^"<>]*")*\s*$/
+  if (!attributes.test(outer[1]!)) return undefined
+  let result = ''
   let cursor = 0
-  for (const match of inner.matchAll(spans)) {
-    if (match.index !== cursor || !Number.isFinite(Number(match[1])) || !Number.isFinite(Number(match[2]))) return undefined
-    lines.push(unescapeXml(match[3]!))
-    cursor += match[0].length
+  let depth = 0
+  let line = 0
+  const inner = outer[2]!
+  for (const tag of inner.matchAll(/<[^>]*>/g)) {
+    result += unescapeXml(inner.slice(cursor, tag.index))
+    if (tag[0] === '</tspan>') {
+      if (--depth < 0) return undefined
+    } else {
+      const span = /^<tspan\b([^<>]*)>$/.exec(tag[0])
+      if (!span || !attributes.test(span[1]!)) return undefined
+      if (/\b(?:font-weight|font-style|font-size|font-family|text-decoration)=/.test(span[1]!)) return undefined
+      if (/\bdy=/.test(span[1]!) && !/data-text-fragment=/.test(span[1]!)) {
+        if (line++ > 0) result += '\n'
+      }
+      depth++
+    }
+    cursor = tag.index! + tag[0].length
   }
-  return cursor === inner.length && lines.length > 0 ? lines.join('\n') : undefined
-}
-
-function parsedTransform(value: string | undefined): SceneTransform | undefined {
-  if (!value) return undefined
-  const match = /^rotate\(\s*([-+\d.eE]+)[,\s]+([-+\d.eE]+)[,\s]+([-+\d.eE]+)\s*\)$/.exec(value)
-  if (!match) return undefined
-  const [angle, cx, cy] = match.slice(1).map(Number)
-  if (![angle, cx, cy].every(Number.isFinite)) return undefined
-  return { kind: 'rotate', angle: angle!, cx: cx!, cy: cy! }
+  result += unescapeXml(inner.slice(cursor))
+  return depth === 0 ? result : undefined
 }
 
 function transformProblems(node: SceneNode, attrs: Map<string, string> | undefined, path: string, problems: string[]): void {
   const raw = attrs?.get('transform')
-  const crisp = parsedTransform(raw)
+  const crisp = raw ? parseSvgTransform(raw) : undefined
   if (raw && !crisp) {
     problems.push(`${path}(${node.kind}:${node.id}).transform: unsupported crisp transform ${raw}`)
     return
   }
-  if (!node.transform && crisp) {
-    problems.push(`${path}(${node.kind}:${node.id}).transform: crisp rotation is missing from semantic fields`)
+  if (!!node.transform !== !!crisp) {
+    problems.push(`${path}(${node.kind}:${node.id}).transform: typed transform and SVG transform disagree`)
     return
   }
-  if (node.transform && !crisp) {
-    problems.push(`${path}(${node.kind}:${node.id}).transform: semantic rotation is missing from crisp SVG`)
-    return
-  }
-  if (node.transform && crisp && (node.transform.kind !== crisp.kind || node.transform.angle !== crisp.angle || node.transform.cx !== crisp.cx || node.transform.cy !== crisp.cy)) {
-    problems.push(`${path}(${node.kind}:${node.id}).transform: semantic ${JSON.stringify(node.transform)} != crisp ${JSON.stringify(crisp)}`)
+  if (node.transform && crisp) {
+    const semantic = transformMatrix(node.transform)
+    if (semantic.some((value, index) => Math.abs(value - crisp[index]!) > 1e-9 * Math.max(1, Math.abs(value), Math.abs(crisp[index]!)))) {
+      problems.push(`${path}(${node.kind}:${node.id}).transform: semantic ${JSON.stringify(node.transform)} != crisp ${raw}`)
+    }
   }
 }
 
-export function nodeProblems(node: SceneNode, path: string, problems: string[]): void {
+/** The owned text format has line wrappers, positioned shaping fragments and
+ * style-only descendants. Bind each to the retained lines, without measuring
+ * again or interpreting the authored display source a second time. */
+function preparedTextPlacementProblems(node: TextMark, serialized: string, path: string, problems: string[]): void {
+  const block = node.block
+  if (!block || node.measurement !== 'prepared') return
+  const fail = (message: string) => problems.push(`${path}(text:${node.id}).placement: ${message}`)
+  const textTags = scanSvgStartTags(serialized).filter(tag => tag.name === 'text')
+  const textEnd = textTags[0] && serialized.indexOf('</text>', textTags[0].end)
+  if (textTags.length !== 1 || textEnd === undefined || textEnd < 0) { fail('prepared text must have one complete text wrapper'); return }
+  // Some legacy label chunks retain their pill background beside the text.
+  serialized = serialized.slice(textTags[0]!.start, textEnd + '</text>'.length)
+  const close = (a: number, b: number) => Math.abs(a - b) <= 0.5
+  const length = (value: string | undefined, fallback = 0): number => {
+    if (value === undefined) return fallback
+    const match = /^([-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)(px|em)?$/.exec(value)
+    return match ? Number(match[1]) * (match[2] === 'em' ? block.fontSize : 1) : Number.NaN
+  }
+  const expected = block.lineBlocks.map(line => line.runs.map(run => run.text).join(''))
+  // textLayout.offsetY places the first line's centre; the written position is
+  // its alphabetic baseline, or its centre or top under a middle, central or
+  // hanging dominant baseline.
+  const firstLineCentre = node.dominantBaseline === 'hanging' ? block.lineHeight / 2
+    : node.dominantBaseline === 'middle' || node.dominantBaseline === 'central' ? 0
+      : -block.fontSize * 0.35
+  const firstBaseline = node.y + (node.textLayout?.offsetY ?? 0) - (expected.length - 1) * block.lineHeight / 2 - firstLineCentre
+  const baseline = (line: number) => firstBaseline + line * block.lineHeight
+  type Frame = { tag: string; line: number; fragment: boolean; text: string; x?: number; width?: number; anchor?: string; weight: number; italic: boolean }
+  const stack: Frame[] = []
+  const spanAttributes = new Set(['x', 'y', 'dx', 'dy', 'text-anchor', 'textLength', 'lengthAdjust', 'font-size', 'font-family', 'font-weight', 'font-style', 'text-decoration', 'letter-spacing', 'fill', 'data-text-fragment', 'data-font-metrics', 'xml:space'])
+  const lines = expected.map(() => '')
+  const fragments = expected.map(() => 0)
+  const runs = expected.map(() => ({ index: 0, offset: 0 }))
+  let wrappers = 0, directText = false, y = node.y, cursor = 0
+  const starts = scanSvgStartTags(serialized)
+  const tokens = [
+    ...starts.map(tag => ({ start: tag.start, end: tag.end, tag })),
+    ...[...serialized.matchAll(/<\/(text|tspan)\s*>/g)].map(match => ({ start: match.index!, end: match.index! + match[0].length, tag: undefined })),
+  ].sort((a, b) => a.start - b.start)
+  const append = (end: number) => {
+    const text = unescapeXml(serialized.slice(cursor, end))
+    const frame = stack.at(-1)
+    if (!frame) { if (text.trim()) fail('text occurs outside its owned wrapper'); return }
+    if (frame.line >= lines.length) return
+    if (text.length && !close(y, baseline(frame.line))) fail(`line ${frame.line} has a different baseline from its retained block`)
+    const position = runs[frame.line]!
+    let remaining = text.length
+    while (remaining > 0) {
+      const run = block.lineBlocks[frame.line]!.runs[position.index]
+      if (!run) break
+      if (frame.weight !== (run.bold ? 700 : block.fontWeight) && frame.weight !== (run.bold ? Math.max(700, block.fontWeight) : block.fontWeight)) fail('a descendant changes the retained run weight')
+      if (frame.italic !== run.italic) fail('a descendant changes the retained run font style')
+      const take = Math.min(remaining, run.text.length - position.offset)
+      position.offset += take; remaining -= take
+      if (position.offset === run.text.length) { position.index++; position.offset = 0 }
+    }
+    lines[frame.line] += text
+    for (const ancestor of stack) if (ancestor.fragment) ancestor.text += text
+    if (stack.length === 1 && text.length) directText = true
+  }
+  for (const token of tokens) {
+    append(token.start)
+    cursor = token.end
+    if (!token.tag) {
+      const frame = stack.pop()
+      if (frame?.fragment && frame.line < expected.length) {
+        const line = block.lineBlocks[frame.line]!
+        const width = frame.width ?? (frame.text === expected[frame.line] ? line.width : Number.NaN)
+        const x = frame.x! - (frame.anchor === 'middle' ? width / 2 : frame.anchor === 'end' ? width : 0)
+        const start = node.x - (node.anchor === 'middle' ? line.width / 2 : node.anchor === 'end' ? line.width : 0)
+        if (!Number.isFinite(x) || !Number.isFinite(width) || width < 0 || frame.text.trim() && width <= Number.EPSILON * Math.max(1, line.width) || x < start - 0.5 || x + width > start + line.width + 0.5) fail('a positioned fragment escapes its retained line band')
+        if (line.fragments) {
+          const retained = line.fragments[fragments[frame.line]!]
+          if (!retained || frame.text !== retained.text || frame.anchor !== 'start' ||
+            Math.abs(frame.x! - (start + line.originX + retained.x)) > 1e-6 ||
+            frame.width === undefined || Math.abs(frame.width - Math.max(0, retained.width)) > 1e-6) fail('a positioned fragment differs from its retained ordered allocation')
+          fragments[frame.line] = fragments[frame.line]! + 1
+        }
+      }
+      continue
+    }
+    const tag = token.tag
+    if (tag.name !== 'text' && tag.name !== 'tspan') { fail(`unsupported <${tag.name}> inside prepared text`); continue }
+    const attrs = new Map(tag.attributes.map(attribute => [attribute.name, unescapeXml(attribute.value)]))
+    if (['writing-mode', 'word-spacing', 'text-orientation', 'baseline-shift', 'rotate'].some(name => attrs.has(name))) fail('unsupported text placement override')
+    const parent = stack.at(-1)
+    const fragment = attrs.has('data-text-fragment')
+    const positioned = ['x', 'y', 'dx', 'dy'].some(name => attrs.has(name))
+    const wrapper = tag.name === 'tspan' && !fragment && stack.length === 1 && attrs.has('x') && (attrs.has('y') || attrs.has('dy'))
+    const line = wrapper ? wrappers++ : parent?.line ?? 0
+    const lineBlock = block.lineBlocks[line]
+    if (attrs.has('y')) y = length(attrs.get('y'))
+    y += length(attrs.get('dy'))
+    const anchor = attrs.get('text-anchor') ?? (fragment ? parent?.anchor : undefined) ?? node.anchor
+    const x = length(attrs.get('x'), node.x) + length(attrs.get('dx'))
+    if (tag.name === 'text') {
+      if (stack.length || !close(x, node.x) || !close(length(attrs.get('y'), node.y), node.y) || length(attrs.get('dx')) !== 0) fail('outer coordinates differ from the retained text anchor')
+    } else {
+      if ([...attrs.keys()].some(name => !spanAttributes.has(name))) fail('a descendant introduces unsupported text placement')
+      if (attrs.has('font-size') && length(attrs.get('font-size')) !== block.fontSize) fail('a descendant changes the retained font size')
+      if (attrs.has('font-family') && attrs.get('font-family') !== block.fontFamily) fail('a descendant changes the retained font family')
+      if (fragment) {
+        if (attrs.get('data-text-fragment') !== 'true' || !attrs.has('x') || !['start', 'middle', 'end'].includes(anchor)) fail('a shaping fragment has unsupported positioning')
+        if (length(attrs.get('dy')) !== 0 || parent?.fragment) fail('a shaping fragment introduces an unsupported baseline advance')
+        if (attrs.has('letter-spacing') && length(attrs.get('letter-spacing')) !== (attrs.has('textLength') ? 0 : block.letterSpacing)) fail('a shaping fragment changes its retained tracking')
+      } else if (parent?.fragment && parent.width !== undefined) fail('a fitted fragment contains a descendant that bypasses its retained fitting')
+      else if (wrapper) {
+        if (!close(x, node.x) || anchor !== node.anchor || attrs.has('dx')) fail('a line wrapper changes its retained x or anchor')
+      } else if (positioned || attrs.has('text-anchor') || attrs.has('textLength') || attrs.has('lengthAdjust')) fail('a style span introduces unchecked placement')
+    }
+    if ((wrapper || fragment) && lineBlock && !close(y, baseline(line))) fail(`line ${line} has a different baseline from its retained block`)
+    if (attrs.has('textLength')) {
+      const width = length(attrs.get('textLength'))
+      if (!Number.isFinite(width) || width < 0 || !lineBlock || width > lineBlock.width + 0.5 || (tag.name === 'text' && expected.length !== 1)) fail('textLength exceeds its retained line')
+      if (attrs.get('lengthAdjust') !== 'spacingAndGlyphs') fail('textLength has no bounded glyph fitting policy')
+      if (!fragment && lineBlock && Math.abs(width - lineBlock.width) > 1e-6 * Math.max(1, lineBlock.width)) fail('textLength differs from its retained line width')
+      const allocation = lineBlock?.fragments?.[fragments[line] ?? 0]
+      if (fragment && (!allocation || allocation.text.trim() && width <= Number.EPSILON * Math.max(1, lineBlock?.width ?? 1))) fail('a fitted fragment has no retained allocation')
+    }
+    if (attrs.has('lengthAdjust') && !attrs.has('textLength')) fail('lengthAdjust has no retained fitted width')
+    if (!fragment && attrs.has('letter-spacing') && length(attrs.get('letter-spacing')) !== block.letterSpacing) fail('a descendant changes retained tracking')
+    const rawWeight = attrs.get('font-weight')
+    const weight = rawWeight === undefined ? parent?.weight ?? block.fontWeight : rawWeight === 'bold' ? 700 : rawWeight === 'normal' ? 400 : length(rawWeight)
+    const fontStyle = attrs.get('font-style')
+    if (fontStyle !== undefined && fontStyle !== 'normal' && fontStyle !== 'italic') fail('unsupported retained font style')
+    const italic = fontStyle === undefined ? parent?.italic ?? false : fontStyle === 'italic'
+    const frame: Frame = { tag: tag.name, line, fragment, text: '', x, anchor, weight, italic, ...(attrs.has('textLength') ? { width: length(attrs.get('textLength')) } : {}) }
+    if (!tag.selfClosing) stack.push(frame)
+  }
+  append(serialized.length)
+  if (stack.length) fail('prepared text wrappers are incomplete')
+  if ((wrappers || 1) !== expected.length || wrappers && directText) fail('emitted line wrappers differ from the retained line count')
+  for (let line = 0; line < expected.length; line++) if (lines[line] !== expected[line]) fail(`line ${line} differs from its retained displayed text`)
+  block.lineBlocks.forEach((line, index) => {
+    if (line.fragments && fragments[index] !== line.fragments.length) fail(`line ${index} differs from its retained fragment count`)
+  })
+}
+
+export function nodeProblems(node: SceneNode, path: string, problems: string[], enclosing?: SceneOwner): void {
   const serialized = sceneNodeSerialization(node)
   if (node.kind !== 'document') {
     const first = topLevelElements(node.kind === 'group' ? node.open : serialized)[0]
     transformProblems(node, first?.attrs, path, problems)
     if (serialized !== '' && hasDomSvgIdentityRole(node.role)) {
-      if (!node.identity) problems.push(`${path}(${node.kind}:${node.id}): missing typed identity`)
+      const ownedSurface = node.kind === 'shape' && node.owner !== undefined && enclosing !== undefined && node.role === enclosing.role && node.owner.id === enclosing.id && node.owner.role === enclosing.role
+      if (!node.identity && !ownedSurface) problems.push(`${path}(${node.kind}:${node.id}): missing typed identity`)
       if (!first) problems.push(`${path}(${node.kind}:${node.id}): no SVG element for identity`)
       if (first && node.identity) {
         const domId = first.attrs.get('data-id') === undefined ? undefined : unescapeXml(first.attrs.get('data-id')!)
@@ -198,6 +356,32 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
       return
     }
     case 'connector': {
+      if (node.lineStyle === 'invisible' && serialized === '') return
+      const carriers = topLevelElements(serialized).filter(element => ['line', 'polyline', 'path'].includes(element.tag))
+      if (carriers.length !== 1) {
+        problems.push(`${path}(connector:${node.id}): expected one SVG marker carrier`)
+        return
+      }
+      const attrs = carriers[0]!.attrs
+      geometryProblems(node.route.geometry, carriers, `${path}(connector:${node.id})`, problems)
+      const tags = scanSvgStartTags(serialized)
+      for (const position of ['start', 'mid', 'end'] as const) {
+        const marker = position === 'mid' ? node.markers.mid[0] : node.markers[position]
+        const expected = marker ? `url(#${marker.id})` : undefined
+        const raw = attrs.get(`marker-${position}`)
+        const actual = raw === undefined ? undefined : unescapeXml(raw)
+        const references = tags.flatMap(tag => tag.attributes.filter(attribute => attribute.name === `marker-${position}`))
+        if (actual !== expected || references.length !== (marker ? 1 : 0)) {
+          problems.push(`${path}(connector:${node.id}).marker-${position}: typed ${expected} != SVG ${actual} (${references.length} references)`)
+        }
+      }
+      for (const tag of tags) {
+        for (const attribute of tag.attributes) {
+          if (attribute.name === 'marker' || (attribute.name === 'style' && hasMarkerCss(decodedSvgAttributeValue(tag, 'style') ?? ''))) {
+            problems.push(`${path}(connector:${node.id}): SVG shorthand/CSS bypasses typed markers`)
+          }
+        }
+      }
       return
     }
     case 'text': {
@@ -206,8 +390,18 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
       const el = els.find(e => e.tag === 'text')
       if (!el) { problems.push(`${path}(text:${node.id}): crisp has no <text>`); return }
       const fs = el.attrs.get('font-size')
-      if (fs !== undefined && num(fs) !== node.fontSize) {
+      if (fs !== undefined && !near(num(fs) ?? Number.NaN, node.fontSize)) {
         problems.push(`${path}(text:${node.id}).fontSize: semantic ${node.fontSize} != crisp ${fs}`)
+      }
+      for (const [attribute, field] of [['font-weight', 'fontWeight'], ['letter-spacing', 'letterSpacing']] as const) {
+        const actual = el.attrs.get(attribute)
+        const expected = node.block?.[field] ?? node[field]
+        if (actual !== undefined && expected !== undefined) {
+          const numeric = attribute === 'font-weight'
+            ? actual === 'normal' ? 400 : actual === 'bold' ? 700 : num(actual)
+            : actual === 'normal' ? 0 : num(actual.replace(/px$/, ''))
+          if (!near(numeric ?? Number.NaN, expected)) problems.push(`${path}(text:${node.id}).${field}: retained ${expected} != crisp ${actual}`)
+        }
       }
       // Text geometry: semantic x/y/anchor must match the drawn attributes.
       // Every emitter anchors <text> at the semantic point and applies
@@ -251,7 +445,18 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
       // Crisp markup is the emitter's own SVG elements; authored text in it is
       // entity-escaped, so dropping the elements leaves exactly the drawn text.
       const drawn = (svg: string) => shown(unescapeXml(svg.replace(/<[^>]+>/g, '')))
-      if (node.role === 'member') {
+      preparedTextPlacementProblems(node, serialized, path, problems)
+      if (node.block) {
+        const actualBlockText = unescapeXml(serialized.replace(/<tspan\b(?![^>]*\bdata-text-fragment=)[^>]*\s(?:x|dy)="[^"]*"[^>]*>/g, '\n').replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()
+        if (node.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join(' ').replace(/\s+/g, ' ').trim() !== actualBlockText) problems.push(`${path}(text:${node.id}).block: retained prepared text differs from actual SVG`)
+      }
+      if (node.prepared) {
+        const expected = (node.preparedLines ? node.preparedLines.map(line => line.map(run => run.text).join('')).join('\n') : displayText(node.text, node.display)).replace(/\s+/g, ' ').trim()
+        const actual = unescapeXml(serialized
+          .replace(/<tspan\b(?![^>]*\bdata-text-fragment=)[^>]*\s(?:x|dy)="[^"]*"[^>]*>/g, '\n')
+          .replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()
+        if (actual !== expected) problems.push(`${path}(text:${node.id}): prepared text "${expected.slice(0, 40)}" differs from crisp "${actual.slice(0, 40)}"`)
+      } else if (node.role === 'member') {
         // Class members are literal source text, not emphasis markup. Compare
         // their entire visible string so a lost type argument (including
         // <b>/<i>/<u>/<s>) cannot be hidden by the first-token check.
@@ -280,7 +485,8 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
     case 'group': {
       if (!serialized.startsWith(node.open)) problems.push(`${path}(group:${node.id}): crisp does not start with open tag`)
       if (!serialized.endsWith(node.close)) problems.push(`${path}(group:${node.id}): crisp does not end with close tag`)
-      node.children.forEach((child, i) => nodeProblems(child.node, `${path}/${i}`, problems))
+      const subject = hasDomSvgIdentityRole(node.role) ? node.identity?.role === node.role ? { id: node.identity.id, role: node.role } : undefined : enclosing
+      node.children.forEach((child, i) => nodeProblems(child.node, `${path}/${i}`, problems, subject))
       return
     }
     case 'document': {

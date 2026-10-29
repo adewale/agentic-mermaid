@@ -49,6 +49,14 @@ export interface FinalizeSubagentPromptEvalOptions {
   runDir: string
 }
 
+/** Runner-observed counters at the first successful diagram operation, excluding discovery calls. */
+export interface DiscoveryObservation {
+  turnsBeforeFirstProductiveCall: number
+  inputTokensBeforeFirstProductiveCall: number
+  outputTokensBeforeFirstProductiveCall: number
+  elapsedMsToFirstProductiveCall: number
+}
+
 export interface SubagentPromptEvalSummary {
   schemaVersion: 2
   /** Completeness + correctness gate: every request was captured and every
@@ -88,6 +96,7 @@ export interface SubagentPromptEvalSummary {
   structuredPathRate: number | null
   breakdown: Record<'create' | 'mutate', SubagentPromptEvalBreakdown>
   transcripts: string[]
+  discovery: { observedCases: number; unavailableCases: number; observations: Array<{ caseId: string; metrics: DiscoveryObservation }> }
 }
 
 export interface SubagentPromptEvalBreakdown {
@@ -307,6 +316,7 @@ export function prepareSubagentPromptEval(opts: PrepareSubagentPromptEvalOptions
   // appends the verbs it actually ran here, and finalize grades traceOk from
   // those ground-truth calls instead of the Trace prose (see RUNBOOK).
   mkdirSync(join(outDir, 'traces'), { recursive: true })
+  mkdirSync(join(outDir, 'observations'), { recursive: true })
 
   const cases = selectedCases(opts.caseIds)
   const requests: SubagentPromptEvalRequest[] = []
@@ -650,7 +660,18 @@ export async function finalizeSubagentPromptEval(opts: FinalizeSubagentPromptEva
       passed: rows.filter(({ result }) => result.ok).length,
     }
   }
+  const observations: SubagentPromptEvalSummary['discovery']['observations'] = []
+  for (const req of manifest.requests) {
+    const path = join(runDir, 'observations', `${req.caseId}.json`)
+    if (!existsSync(path)) continue
+    const metrics = JSON.parse(readFileSync(path, 'utf8')) as DiscoveryObservation
+    for (const key of ['turnsBeforeFirstProductiveCall', 'inputTokensBeforeFirstProductiveCall', 'outputTokensBeforeFirstProductiveCall', 'elapsedMsToFirstProductiveCall'] as const) {
+      if (!Number.isFinite(metrics[key]) || metrics[key] < 0 || (key !== 'elapsedMsToFirstProductiveCall' && !Number.isSafeInteger(metrics[key]))) throw new Error(`Invalid discovery observation ${req.caseId}: ${key}`)
+    }
+    observations.push({ caseId: req.caseId, metrics })
+  }
   const summary: SubagentPromptEvalSummary = {
+    discovery: { observedCases: observations.length, unavailableCases: manifest.requests.length - observations.length, observations },
     schemaVersion: 2,
     // Correctness gate — formatting and narration misses remain separate, while
     // incomplete capture still prevents an apparently green run.

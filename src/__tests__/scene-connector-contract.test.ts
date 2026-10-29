@@ -3,7 +3,7 @@ import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { RoughBackend } from '../scene/rough-backend.ts'
 import { HybridBackend } from '../scene/hybrid-backend.ts'
-import { nodeWorldBounds } from '../scene/bounds.ts'
+import { nodeWorldBounds, nodePaintBounds } from '../scene/bounds.ts'
 import { resolveSceneRoleTraits, sceneRoleTraits } from '../scene/roles.ts'
 import { validatePrimitiveCapabilities } from '../scene/capabilities.ts'
 import { hitTestConnector, hitTestSceneConnectors } from '../scene/hit-test.ts'
@@ -11,8 +11,54 @@ import { serializeMarkerResource } from '../scene/marker-resources.ts'
 import { validateSceneDoc } from '../scene/scene-validation.ts'
 import { lowerGraphScene } from '../renderer.ts'
 import { sceneNodeSerialization } from '../scene/serialization.ts'
+import { admitFamilyScene } from '../scene/admission.ts'
+import { getFamily } from '../agent/families.ts'
+import type { SceneDoc } from '../scene/ir.ts'
 
 describe('typed Scene connector contract', () => {
+  test('typed endpoint owners survive admission and terminal projection without mutable aliases', () => {
+    const p = marks.shape({ id: 'p', role: 'entity', geometry: { kind: 'rect', x: 1, y: 1, width: 2, height: 2 }, paint: { fill: '#fff' } })
+    const q = marks.shape({ id: 'q', role: 'group', geometry: { kind: 'rect', x: 5, y: 5, width: 90, height: 70 }, paint: { fill: 'none', stroke: '#111' } })
+    const owner = { id: 'q', role: 'group' as 'group' | 'entity' }
+    const edge = marks.connector({ id: 'relation', role: 'relationship', geometry: { kind: 'line', x1: 10, y1: 30, x2: 90, y2: 30 }, lineStyle: 'solid', paint: { stroke: '#111' }, endpoints: { from: 'p', to: 'q', start: { owner: { id: 'p', role: 'entity' } }, end: { owner } } })
+    const colors = { bg: '#fff', fg: '#111' }
+    const open = marks.documentOpen({ id: 'prelude', width: 100, height: 80, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80" viewBox="0 0 100 80">')
+    const close = marks.documentClose()
+    const doc: SceneDoc = { family: 'er', width: 100, height: 80, colors, transparent: false, parts: [open, p, q, edge, close] }
+    expect(validateSceneDoc(doc).diagnostics).toEqual([])
+    const admitted = admitFamilyScene(getFamily('er')!, doc)
+    const retained = admitted.parts[3]!
+    if (retained.kind !== 'connector') throw new Error('Expected admitted relationship')
+    owner.role = 'entity'
+    expect(retained.endpoints.end?.owner).toEqual({ id: 'q', role: 'group' })
+    expect(retained.terminalProjection.endpoints.end?.owner).toEqual({ id: 'q', role: 'group' })
+    expect(edge.terminalProjection.endpoints.end?.owner).toEqual({ id: 'q', role: 'group' })
+    expect(Object.isFrozen(retained.endpoints.end?.owner)).toBe(true)
+    const forged = marks.connector({ id: 'forged', role: 'relationship', geometry: edge.route.geometry, lineStyle: 'solid', paint: { stroke: '#111' }, endpoints: { from: 'p', to: 'q', end: { owner: { id: 'q', role: 'actor' } } } })
+    expect(validateSceneDoc({ ...doc, parts: [open, p, q, forged, close] }).diagnostics).toContainEqual(expect.objectContaining({ code: 'SCENE_REFERENCE', path: 'scene.parts[3].endpoints.end.owner' }))
+    const changedIdentity = marks.connector({ id: 'changed', role: 'relationship', geometry: edge.route.geometry, lineStyle: 'solid', paint: { stroke: '#111' }, endpoints: { from: 'p', to: 'q', end: { owner: { id: 'p', role: 'entity' } } } })
+    expect(validateSceneDoc({ ...doc, parts: [open, p, q, changedIdentity, close] }).diagnostics).toContainEqual(expect.objectContaining({ code: 'SCENE_FIDELITY', path: 'scene.parts[3].endpoints.end.owner' }))
+  })
+  test('hit testing composes group transforms and preserves scaled stroke regions', () => {
+    const edge = marks.connector({ id: 'scaled', role: 'edge', geometry: { kind: 'line', x1: 0, y1: 0, x2: 10, y2: 0 }, lineStyle: 'solid', paint: { stroke: '#111', strokeWidth: '2' }, hit: { strokeWidth: 4 }, transform: { kind: 'matrix', a: 2, b: 0, c: 0, d: 3, e: 0, f: 0 } })
+    expect(hitTestConnector(edge, { x: 10, y: 5.5 })).toBe(true)
+    expect(hitTestConnector(edge, { x: 10, y: 6.5 })).toBe(false)
+    const group = marks.group({ id: 'translated', role: 'group', open: '<g transform="translate(50 20)">', close: '</g>', transform: { kind: 'matrix', a: 1, b: 0, c: 0, d: 1, e: 50, f: 20 }, children: [{ node: edge, indent: 0 }] })
+    const scene = { family: 'flowchart', width: 100, height: 100, colors: { bg: '#fff', fg: '#111' }, transparent: false, parts: [group] }
+    expect(hitTestSceneConnectors(scene, { x: 60, y: 25.5 }).map(hit => hit.id)).toEqual(['scaled'])
+    expect(hitTestSceneConnectors(scene, { x: 10, y: 5.5 })).toEqual([])
+  })
+  test('tolerance stays in world units and singular transforms have no painted or interactive stroke', () => {
+    const edge = marks.connector({ id: 'hit', role: 'edge', geometry: { kind: 'line', x1: 0, y1: 0, x2: 10, y2: 0 }, lineStyle: 'solid', paint: { stroke: '#111', strokeWidth: '2' }, hit: { strokeWidth: 4 } })
+    expect(hitTestConnector(edge, { x: 5, y: 2.9 }, 1)).toBe(true)
+    expect(hitTestConnector(edge, { x: 5, y: 3.2 }, 1)).toBe(false)
+    const singular = marks.connector({ id: 'singular', role: 'edge', geometry: edge.route.geometry, lineStyle: 'solid', paint: { stroke: '#111', strokeWidth: '2' }, stroke: { nonScaling: true }, transform: { kind: 'matrix', a: 0, b: 0, c: 0, d: 0, e: 20, f: 20 } })
+    expect(hitTestConnector(singular, { x: 20, y: 20 })).toBe(false)
+    expect(nodePaintBounds(singular)).toBeUndefined()
+    const group = marks.group({ id: 'singular-parent', role: 'group', open: '<g transform="matrix(0 0 0 0 20 20)">', close: '</g>', transform: { kind: 'matrix', a: 0, b: 0, c: 0, d: 0, e: 20, f: 20 }, children: [{ node: edge, indent: 0 }] })
+    expect(nodePaintBounds(group)).toBeUndefined()
+    expect(hitTestSceneConnectors({ family: 'flowchart', width: 100, height: 100, colors: { bg: '#fff', fg: '#111' }, transparent: false, parts: [group] }, { x: 20, y: 20 })).toEqual([])
+  })
   const crisp = '<line data-id="typed-id" data-role="edge" data-from="typed-a" data-to="typed-b" x1="0" y1="2" x2="10" y2="2" stroke="#00aa55" stroke-width="4" stroke-opacity="0" stroke-dasharray="9 2" stroke-dashoffset="0" stroke-linecap="square" stroke-linejoin="bevel" stroke-miterlimit="7" pathLength="40" paint-order="stroke fill" vector-effect="non-scaling-stroke" marker-end="url(#typed-arrow)" />'
   const connector = marks.connector({
     id: 'typed-id',
@@ -38,7 +84,7 @@ describe('typed Scene connector contract', () => {
       id: 'typed-arrow', shape: 'arrow', bounds: { x0: -2, y0: -4, x1: 4, y1: 4 },
       units: 'userSpaceOnUse', scale: 2,
     } },
-  }, crisp)
+  })
 
   test('semantic fields are authoritative and complete without crisp parsing', () => {
     expect(connector.identity).toEqual({ id: 'typed-id', role: 'edge', from: 'typed-a', to: 'typed-b' })
@@ -94,7 +140,7 @@ describe('typed Scene connector contract', () => {
         end: marker('end', 'arrow'),
       },
       labels: [{ id: 'label', text: 'relates' }],
-    }, '<polyline points="0,0 5,2 10,0" />')
+    })
     expect(projected.terminalProjection).toMatchObject({
       direction: 'bidirectional',
       relationship: 'edge',
@@ -112,6 +158,18 @@ describe('typed Scene connector contract', () => {
       expect(output, backend.id).toContain('marker-mid="url(#middle)"')
       expect(output, backend.id).toContain('marker-end="url(#end)"')
     }
+  })
+
+  test('rejects unknown constructor fields even when supplied through object spreads', () => {
+    const fields = {
+      id: 'closed-marker-fields', role: 'edge' as const,
+      geometry: { kind: 'line' as const, x1: 0, y1: 0, x2: 10, y2: 0 },
+      lineStyle: 'solid' as const, paint: {},
+    }
+    for (const name of ['startMarker', 'endMarker', 'markres']) {
+      expect(() => marks.connector({ ...fields, ...{ [name]: { id: 'arrow', shape: 'arrow' } } })).toThrow(/unknown connector field/)
+    }
+    expect(() => marks.connector({ ...fields, markers: { mid: [], ...{ stat: { id: 'arrow', shape: 'arrow' } } } })).toThrow(/unknown marker field/)
   })
 
   test('a built-in flowchart connector associates its separately emitted visual label', () => {
@@ -230,11 +288,11 @@ describe('typed Scene connector contract', () => {
     expect(() => marks.connector({
       ...base,
       markers: { mid: [{ id: 'one', shape: 'circle' }, { id: 'two', shape: 'cross' }] },
-    }, '<polyline points="0,0 5,2 8,2 10,0" />')).toThrow('distinct mid markers')
+    })).toThrow('distinct mid markers')
     expect(() => marks.connector({
       ...base,
       markers: { mid: [{ id: 'one', shape: 'circle' }, { id: 'one', shape: 'circle' }, { id: 'one', shape: 'circle' }] },
-    }, '<polyline points="0,0 5,2 8,2 10,0" />')).toThrow('one repeated descriptor or one descriptor per interior route point')
+    })).toThrow('one repeated descriptor or one descriptor per interior route point')
   })
 
   test('default preserves the canonical semantic carrier while rough and hybrid consume typed stroke', () => {
@@ -280,7 +338,7 @@ describe('typed Scene connector contract', () => {
       geometry: { kind: 'line', x1: 0, y1: 0, x2: 10, y2: 0 },
       lineStyle: 'solid', paint: { stroke: '#111', strokeWidth: '2' },
       markers: { end: sizedPathMarker },
-    }, '<line x1="0" y1="0" x2="10" y2="0" stroke="#111" stroke-width="2" />')
+    })
     // The 0..8 viewport is radius 8 around refX=8, then scales by width 2.
     expect(nodeWorldBounds(node)).toEqual({ x0: -6, y0: -16, x1: 26, y1: 16 })
     expect(() => marks.connector({
@@ -288,7 +346,7 @@ describe('typed Scene connector contract', () => {
       geometry: { kind: 'line', x1: 0, y1: 0, x2: 10, y2: 0 },
       lineStyle: 'solid', paint: { stroke: '#111', strokeWidth: '2' },
       markers: { end: { id: 'unbounded', shape: 'arrow', geometry: { kind: 'path', d: 'M0 0 L8 3 L0 6 Z' } } },
-    }, '<line x1="0" y1="0" x2="10" y2="0" stroke="#111" stroke-width="2" />')).toThrow(/requires bounds, viewBox, or size/)
+    })).toThrow(/requires bounds, viewBox, or size/)
   })
 
   test('inline connector label halo defaults to the canonical page background variable', () => {
@@ -300,7 +358,7 @@ describe('typed Scene connector contract', () => {
         text: 'label', anchor: { x: 5, y: 0 }, paint: { fill: '#111' },
         fontSize: 10, textAnchor: 'middle', halo: { width: 3 }, visual: { kind: 'inline' },
       }],
-    }, '<line x1="0" y1="0" x2="10" y2="0" stroke="#111" stroke-width="1" />')
+    })
     expect(sceneNodeSerialization(node)).toContain('stroke="var(--bg)"')
     expect(sceneNodeSerialization(node)).not.toContain('var(--_bg)')
   })
@@ -317,7 +375,7 @@ describe('typed Scene connector contract', () => {
       lineStyle: 'solid',
       paint: { stroke: '#111', strokeWidth: '2' },
       markers: { mid: [{ id: 'mid', shape: 'circle' }] },
-    }, '<path d="M0,0 Q5,10 10,0" stroke="#111" stroke-width="2" />')).toThrow('no typed interior route points')
+    })).toThrow('no typed interior route points')
 
     const path = marks.connector({
       id: 'typed-path',
@@ -333,7 +391,7 @@ describe('typed Scene connector contract', () => {
       markers: {
         mid: [{ id: 'mid', shape: 'circle', bounds: { x0: -10, y0: -10, x1: 10, y1: 10 } }],
       },
-    }, '<path d="M0,0 Q5,10 10,0 L15,5" stroke="#111" stroke-width="2" />')
+    })
     expect(path.route.startTangent).toEqual({ x: 0.4472135954999579, y: 0.8944271909999159 })
     expect(path.route.endTangent).toEqual({ x: 0.7071067811865475, y: 0.7071067811865475 })
     expect(path.terminalProjection.markerPlacements.mid).toEqual([
@@ -424,7 +482,7 @@ describe('role traits and primitive capabilities', () => {
     const claims = (backend: typeof RoughBackend) => new Map(
       backend.capabilities
         .filter(claim => claim.primitive === 'connector' && claim.operation === 'render')
-        .map(claim => [claim.feature, claim]),
+        .map(claim => [claim.feature, { ...claim }]),
     )
     const rough = claims(RoughBackend)
     const hybrid = claims(HybridBackend)

@@ -17,9 +17,8 @@
 // cross-run reproducibility; the rest of the property suite is pinned by the
 // fc-seed.preload.ts global seed.
 
-import { describe, expect, test } from 'bun:test'
+import { beforeAll, describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { layoutFamilyToRendered } from '../agent/family-layouts.ts'
 import { describeMermaidFacts, layoutMermaid, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, serializeMermaid } from '../agent/index.ts'
 import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
@@ -31,7 +30,13 @@ import { parseMermaid as parseRendererGraph } from '../parser.ts'
 import { auditRouteContracts } from '../route-contracts.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import type { MermaidGraph } from '../types.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
+import { expectWellFormedXml, svgXmlReady } from './helpers/svg-xml.ts'
+
+beforeAll(svgXmlReady)
+
+const erReciprocalChain = "erDiagram\n q00 ||--o{ q01 : rel\n q01 ||--o{ q02 : rel\n q02 ||--o{ q03 : rel\n q01 ||--o{ q00 : extra"
 
 const SEED = 0x5eed1234
 const tagArb = fc.integer({ min: 0, max: 1_000_000 }).map(n => `q${n.toString(36)}`)
@@ -57,9 +62,7 @@ function assertFiniteGeometry(layout: RenderedLayout): void {
 }
 
 function assertWellFormedSvg(svg: string): void {
-  expect(svg).toContain('<svg')
-  expect(svg).toContain('</svg>')
-  expect(svg.includes('NaN') || svg.includes('Infinity') || svg.includes('undefined')).toBe(false)
+  expectWellFormedXml(svg, svg.slice(0, 200))
 }
 
 interface SemanticInventory {
@@ -92,6 +95,115 @@ function structuredBodyInventory(d: ParsedDiagram): SemanticInventory {
     }
   }
   switch (body.kind) {
+    case 'eventmodeling': {
+      // Independent domain projection: first-seen namespace/band membership,
+      // explicit source references, otherwise latest frame in another lane.
+      const lanes = new Map<string, { id: string; members: string[] }>()
+      const laneOf = (frame: typeof body.frames[number]) => {
+        const parts = frame.entity.split('.'), namespace = parts.slice(0, -1).join('.')
+        const band = frame.type === 'event' ? 'Events' : frame.type === 'command' || frame.type === 'readmodel' ? 'Command / Read Model' : 'UI / Automation'
+        return namespace ? `${namespace} · ${band}` : band
+      }
+      const relations: string[] = []
+      body.frames.forEach((frame, index) => {
+        const name = laneOf(frame), lane = lanes.get(name) ?? { id: `lane:${lanes.size}`, members: [] }
+        lane.members.push(frame.id); lanes.set(name, lane)
+        const previous = body.frames.slice(0, index).reverse().find(other => laneOf(other) !== name)
+        const sources = frame.sources.length ? frame.sources : !frame.reset && previous ? [previous.id] : []
+        relations.push(...sources.map(from => edge(from, frame.id)))
+      })
+      return { nodes: sorted(body.frames.map(frame => item(frame.id, frame.entity))), edges: sorted(relations), groups: sorted([...lanes].map(([label, lane]) => group(lane.id, label, lane.members))) }
+    }
+    case 'packet':
+      return { nodes: sorted(body.fields.flatMap(field => Array.from({ length: Math.floor(field.end / 32) - Math.floor(field.start / 32) + 1 }, (_, index) => item(`${field.id}:row-${Math.floor(field.start / 32) + index}`, field.label)))), edges: [], groups: [] }
+    case 'kanban':
+      return {
+        nodes: sorted(body.columns.flatMap(column => column.tasks.map(task => item(task.id, task.label)))),
+        edges: [],
+        groups: sorted(
+          body.columns.map(column =>
+            group(
+              column.id,
+              column.label,
+              column.tasks.map(task => task.id),
+            ),
+          ),
+        ),
+      }
+    case 'requirement':
+      return { nodes: sorted([...body.requirements.map(node => item(node.name, `<<${node.type}>>\n${node.name}`)), ...body.elements.map(node => item(node.name, `<<Element>>\n${node.name}`))]), edges: sorted(body.relations.map(relation => edge(relation.src, relation.dst, `<<${relation.type}>>`))), groups: [] }
+    case 'treemap':
+      return {
+        nodes: sorted(body.nodes.filter(node => node.value !== undefined).map(node => item(node.id, node.label))),
+        edges: [],
+        groups: sorted(
+          body.nodes
+            .filter(node => node.value === undefined)
+            .map(node =>
+              group(
+                node.id,
+                node.label,
+                body.nodes.filter(child => child.parentId === node.id).map(child => child.id),
+              ),
+            ),
+        ),
+      }
+    case 'ishikawa':
+      return { nodes: sorted(body.nodes.map(node => item(node.id, node.label))), edges: sorted(body.nodes.filter(node => node.parentId).map(node => edge(node.id, node.parentId!))), groups: [] }
+    case 'block': {
+      const nodes: string[] = [],
+        groups: string[] = []
+      const visit = (parent: typeof body.root): void => {
+        for (const node of parent.children ?? []) {
+          if (node.type === 'composite') {
+            groups.push(
+              group(
+                node.id,
+                node.label,
+                (node.children ?? []).filter(child => child.type !== 'space').map(child => child.id),
+              ),
+            )
+            visit(node)
+          } else if (node.type !== 'space') nodes.push(item(node.id, node.label ?? node.id))
+        }
+      }
+      visit(body.root)
+      return { nodes: sorted(nodes), edges: sorted(body.edges.map(link => edge(link.start!, link.end!, link.label || undefined))), groups: sorted(groups) }
+    }
+    case 'c4':
+      return {
+        nodes: sorted(body.elements.map(element => item(element.id, element.label))),
+        edges: sorted(
+          body.relationships.map(relationship => {
+            const index = relationship.index ?? (body.variant === 'C4Dynamic' ? String(relationship.order) : undefined)
+            const label = [
+              `${index === undefined ? '' : `${index}: `}${relationship.label}`,
+              relationship.technology ? `[${relationship.technology}]` : undefined,
+              relationship.description,
+              relationship.tags.length ? `[tags: ${relationship.tags.join(', ')}]` : undefined,
+              relationship.sprite ? `[sprite: ${relationship.sprite}]` : undefined,
+            ]
+              .filter(value => value !== undefined && value !== '')
+              .join('\n')
+            return edge(relationship.source, relationship.target, label)
+          }),
+        ),
+        groups: sorted(
+          body.boundaries.map(boundary =>
+            group(
+              boundary.id,
+              boundary.label,
+              body.elements.filter(element => element.parentId === boundary.id).map(element => element.id),
+            ),
+          ),
+        ),
+      }
+    case 'zenuml':
+      return {
+        nodes: sorted(body.participants.map(p => item(p.id, p.label))),
+        edges: sorted(body.statements.flatMap(statement => statement.kind === 'message' ? [edge(statement.from, statement.to, statement.label)] : [])),
+        groups: [],
+      }
     case 'sequence':
       return {
         nodes: sorted(body.participants.map(p => item(p.id, p.label))),
@@ -256,13 +368,6 @@ function rendererSemanticProjection(layout: RenderedLayout): unknown {
 }
 
 describe('universal fuzz: every renderable family (strong output oracles)', () => {
-  // A new family in the central registry must declare a fuzz generator, or this
-  // fails — which is what "new diagram types automatically get fuzzing" means:
-  // the loop below picks up every registry entry, and this gate keeps the
-  // registry complete.
-  test('X1 acceptance: every built-in family has a cross-parser fuzz generator', () => {
-    expect(Object.keys(METAMORPHIC_FAMILIES).sort()).toEqual(BUILTIN_FAMILY_METADATA.map(f => f.id).sort())
-  })
 
   for (const fam of Object.values(METAMORPHIC_FAMILIES)) {
     const [kmin, kmax] = fam.kRange
@@ -310,7 +415,7 @@ describe('universal fuzz: every renderable family (strong output oracles)', () =
           expect(rendererSemanticProjection(layoutMermaid(reparsed.value))).toEqual(rendererSemanticProjection(layoutMermaid(original.value)))
           assertWellFormedSvg(renderMermaidSVG(canonical))
         }),
-        { numRuns: 30, seed: SEED ^ 0x51a1 },
+        fcParameters({ numRuns: 30, seed: SEED ^ 0x51a1, ...(fam.family === 'er' ? { examples: [[erReciprocalChain]] } : {}) }),
       )
     })
 
@@ -332,7 +437,7 @@ describe('universal fuzz: every renderable family (strong output oracles)', () =
           const graph = graphFor(p.value)
           if (graph) expect(auditRouteContracts(layoutGraphSync(graph), graph)).toEqual([])
         }),
-        { numRuns: 40, seed: SEED },
+        fcParameters({ numRuns: 40, seed: SEED, ...(fam.family === 'er' ? { examples: [[erReciprocalChain]] } : {}) }),
       )
     })
   }

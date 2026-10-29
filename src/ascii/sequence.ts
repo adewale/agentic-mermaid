@@ -1,526 +1,454 @@
-// ============================================================================
-// ASCII renderer — sequence diagrams
-//
-// Renders sequenceDiagram text to ASCII/Unicode art using a column-based layout.
-// Each actor occupies a column with a vertical lifeline; messages are horizontal
-// arrows between lifelines. Blocks (loop/alt/opt/par) wrap around message groups.
-//
-// Layout is fundamentally different from flowcharts — no grid or A* pathfinding.
-// Instead: actors → columns, messages → rows, all positioned linearly.
-// ============================================================================
-
-import { parseSequenceDiagram, displayMessageLabel } from '../sequence/parser.ts'
-import type { SequenceDiagram, Block, SequenceMessageHead } from '../sequence/types.ts'
+import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
+// Terminal sequence layout owns cell bounds before painting. Lexical fragment
+// boundaries distinguish notes and empty sections sharing a message cursor.
+import { parseSequenceDiagram, displayMessageContent, getSequenceBlockBoundaries } from '../sequence/parser.ts'
+import { resolveSequenceBlockScopes } from '../sequence/geometry.ts'
+import type { SequenceDiagram, SequenceMessageHead } from '../sequence/types.ts'
 import type { ResolvedSequenceConfig } from '../sequence/config.ts'
-import type { Canvas, AsciiConfig, RoleCanvas, CharRole, AsciiTheme, ColorMode } from './types.ts'
-import { mkCanvas, mkRoleCanvas, canvasToString, increaseSize, increaseRoleCanvasSize, setRole, drawText } from './canvas.ts'
-import { splitLines, maxLineWidth, lineCount } from './multiline-utils.ts'
-import { visualWidth, truncateToVisualWidth, WIDE_CHAR_CONTINUATION } from './width.ts'
-import { graphemes } from '../shared/graphemes.ts'
+import type { AsciiConfig, AsciiTheme, ColorMode, CharRole } from './types.ts'
+import { TerminalDocument, type TerminalMarker, type TerminalOwner } from './terminal-document.ts'
+import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
-import { displayText } from '../multiline-utils.ts'
+import { normalizeBrTags } from '../multiline-utils.ts'
+import { terminalIds } from './identity.ts'
+import { paintTerminalFrame } from './terminal-geometry.ts'
+import { concatDisplayText, prepareDisplayText, resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 
-/** Classify a box-drawing character as 'border' or 'text'. */
-function classifyBoxChar(ch: string): CharRole {
-  if (/^[┌┐└┘├┤┬┴┼│─╭╮╰╯+\-|]$/.test(ch)) return 'border'
-  return 'text'
+interface CellBounds { x: number; y: number; width: number; height: number }
+interface PositionedText extends CellBounds { lines: string[]; index: number; parentId?: string }
+interface PositionedMessage extends PositionedText { arrowY: number; fromX: number; toX: number }
+interface SequenceFrame extends CellBounds { index: number; header: string[]; dividers: Array<{ x?: number; y: number; lines: string[] }> ; parentId?: string }
+
+function messageLabelX(message: PositionedMessage, line: string): number {
+  return message.fromX === message.toX ? message.x : Math.min(message.fromX, message.toX) + Math.floor((Math.abs(message.toX - message.fromX) - visualWidth(line)) / 2)
 }
 
-/**
- * Render a Mermaid sequence diagram to ASCII/Unicode text.
- *
- * Pipeline: parse → layout (columns + rows) → draw onto canvas → string.
- * `seqConfig` carries the wired sequence runtime config; the ASCII surface
- * honors showSequenceNumbers (numbering must not depend on the output
- * format) — the pixel-geometry knobs have no cell-grid meaning here.
- */
-export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, seqConfig: ResolvedSequenceConfig = {}, targetWidth?: number): string {
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
-  const diagram = parseSequenceDiagram(lines, seqConfig)
+export function renderSequenceTerminal(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, seqConfig: ResolvedSequenceConfig = {}, targetWidth?: number, authoredLine?: (index: number) => number | undefined): TerminalArtifact {
+  const diagram = parseSequenceDiagram(text.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('%%')), { ...seqConfig, ...(authoredLine ? { authoredLine } : {}) })
+  return renderSequenceDiagramTerminal(diagram, config, colorMode, theme, seqConfig, targetWidth)
+}
 
-  if (diagram.actors.length === 0) return ''
-
-  const useAscii = config.useAscii
-
-  const labelBudget = targetWidth ? Math.max(1, Math.floor(targetWidth / 3)) : undefined
-  // Labels draw their display text: formatting tags style the SVG runs and
-  // are not characters, so the cells show what the SVG shows.
-  const wrapDisplay = (value: string): string => wrapText(displayText(value), labelBudget).join('\n')
-  const actorLabels = diagram.actors.map(actor => wrapDisplay(
-    actor.type === 'participant' || actor.type === 'actor' ? actor.label : `«${actor.type}»\n${actor.label}`,
-  ))
-  // Display labels: the autonumber prefix ("1. label") is composed by the
-  // same helper the SVG layout uses, so the two surfaces cannot drift.
-  const msgLabels = diagram.messages.map(message => wrapDisplay(displayMessageLabel(message)))
-
-  // Box-drawing characters
-  const H = useAscii ? '-' : '─'
-  const V = useAscii ? '|' : '│'
-  const TL = useAscii ? '+' : '┌'
-  const TR = useAscii ? '+' : '┐'
-  const BL = useAscii ? '+' : '└'
-  const BR = useAscii ? '+' : '┘'
-  const JT = useAscii ? '+' : '┬' // top junction on lifeline
-  const JB = useAscii ? '+' : '┴' // bottom junction on lifeline
-  const JL = useAscii ? '+' : '├' // left junction
-  const JR = useAscii ? '+' : '┤' // right junction
-
-  // ---- LAYOUT: compute lifeline X positions ----
-
-  const actorIdx = new Map<string, number>()
-  diagram.actors.forEach((a, i) => actorIdx.set(a.id, i))
-
-  const boxPad = 1
-  // Use max line width for multi-line actor labels
-  const actorBoxWidths = actorLabels.map(label => maxLineWidth(label) + 2 * boxPad + 2)
-  const halfBox = actorBoxWidths.map(w => Math.ceil(w / 2))
-  // Calculate actor box heights based on number of lines in label
-  const actorBoxHeights = actorLabels.map(label => lineCount(label) + 2) // lines + top/bottom border
-  const actorBoxH = Math.max(...actorBoxHeights, 3) // Use max height for consistent lifeline positioning
-
-  // Compute minimum gap between adjacent lifelines based on message labels.
-  // For messages spanning multiple actors, distribute the required width across gaps.
-  const adjMaxWidth: number[] = new Array(Math.max(diagram.actors.length - 1, 0)).fill(0)
-
-  for (let mi = 0; mi < diagram.messages.length; mi++) {
-    const msg = diagram.messages[mi]!
-    const fi = actorIdx.get(msg.from)!
-    const ti = actorIdx.get(msg.to)!
-    if (fi === ti) continue // self-messages don't affect spacing
-    const lo = Math.min(fi, ti)
-    const hi = Math.max(fi, ti)
-    // Required gap per span = (max line width + arrow decorations) / number of gaps
-    const needed = maxLineWidth(msgLabels[mi]!) + 4
-    const numGaps = hi - lo
-    const perGap = Math.ceil(needed / numGaps)
-    for (let g = lo; g < hi; g++) {
-      adjMaxWidth[g] = Math.max(adjMaxWidth[g]!, perGap)
+/** Native sequence-language adapters share cell layout without a text roundtrip. */
+export function renderSequenceDiagramTerminal(input: SequenceDiagram, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, seqConfig: ResolvedSequenceConfig = {}, targetWidth?: number): TerminalArtifact {
+  targetWidth ??= config.targetWidth ?? config.maxWidth
+  const diagram = input.title === undefined && config.title !== undefined ? { ...input, title: normalizeBrTags(config.title) } : input
+  if (!diagram.actors.length && !diagram.blocks.length) {
+    const empty = new TerminalDocument()
+    if (diagram.title) for (const line of wrapText(prepareDisplayText(resolveLabelContent(diagram.title, diagram.titleContent)), targetWidth)) empty.line([{ text: line, owner: { id: 'title', kind: 'label' }, role: 'text' }])
+    return terminalArtifact(empty, { colorMode, theme, trimEnd: true })
+  }
+  const generated = terminalIds([...diagram.actors.map(actor => actor.id), ...[...diagram.messages, ...diagram.blocks, ...diagram.notes].flatMap(item => item.id === undefined ? [] : [item.id])])
+  const blockId = (index: number) => diagram.blocks[index]!.id ?? generated(`block:${index}`)
+  const ascii = config.useAscii
+  const actorIndex = new Map(diagram.actors.map((actor, index) => [actor.id, index]))
+  const budget = targetWidth === undefined ? undefined : Math.max(1, Math.floor(targetWidth / 3))
+  const prepared = (value: DisplayTextInput, wrap?: boolean) => wrapText(prepareDisplayText(value), wrap === false ? undefined : wrap ? Math.min(budget ?? 40, 40) : budget)
+  const actorLines = diagram.actors.map(actor => {
+    const label = prepareDisplayText(resolveLabelContent(actor.label, actor.labelContent))
+    return prepared(actor.type === 'participant' || actor.type === 'actor' ? label : concatDisplayText([`«${actor.type}»\n`, label]), actor.wrap)
+  })
+  const messageLines = diagram.messages.map(message => prepared(displayMessageContent(message), message.wrap))
+  const noteLines = diagram.notes.map(note => prepared(resolveLabelContent(note.text, note.textContent), note.wrap))
+  const headerLines = diagram.blocks.map(block => prepared(block.label ? concatDisplayText([`${block.type} [`, prepareDisplayText(resolveLabelContent(block.label, block.labelContent)), ']']) : block.type, block.wrap))
+  const dividerLines = diagram.blocks.map(block => block.dividers.map(divider => divider.label ? prepared(concatDisplayText(['[', prepareDisplayText(resolveLabelContent(divider.label, divider.labelContent)), ']']), divider.wrap) : ['']))
+  const actorWidths = actorLines.map(lines => Math.max(0, ...lines.map(visualWidth)) + 4)
+  const boxHeaders = (diagram.boxes ?? []).map(box => box.label ? prepared(resolveLabelContent(box.label, box.labelContent), box.wrap) : [])
+  diagram.boxes?.forEach((box, index) => {
+    const members = diagram.actors.flatMap((actor, ai) => actor.box === index ? [ai] : [])
+    if (members.length !== 1) return
+    const actor = members[0]!
+    actorWidths[actor] = Math.max(actorWidths[actor]!, ...boxHeaders[index]!.map(line => visualWidth(line) + 2))
+  })
+  const participantTop = diagram.boxes?.length ? Math.max(1, ...boxHeaders.map(lines => lines.length)) + 1 : 0
+  const halfBox = actorWidths.map(width => Math.ceil(width / 2))
+  const actorBoxH = diagram.actors.length ? Math.max(3, ...actorLines.map(lines => lines.length + 2)) : 0
+  const gaps = new Array<number>(Math.max(0, diagram.actors.length - 1)).fill(0)
+  diagram.messages.forEach((message, index) => {
+    const from = actorIndex.get(message.from)!, to = actorIndex.get(message.to)!
+    const width = Math.max(0, ...messageLines[index]!.map(visualWidth))
+    if (from === to) {
+      if (from < gaps.length) gaps[from] = Math.max(gaps[from]!, width + 5)
+    } else {
+      for (let gap = Math.min(from, to); gap < Math.max(from, to); gap++) gaps[gap] = Math.max(gaps[gap]!, Math.ceil((width + 4) / Math.abs(to - from)))
     }
-  }
-
-  // Compute lifeline x-positions (greedy left-to-right)
-  const llX: number[] = [halfBox[0]!]
-  for (let i = 1; i < diagram.actors.length; i++) {
-    const gap = Math.max(
-      halfBox[i - 1]! + halfBox[i]! + 2,
-      adjMaxWidth[i - 1]! + 2,
-      10,
-    )
-    llX[i] = llX[i - 1]! + gap
-  }
-
-  // ---- LAYOUT: compute vertical positions for messages ----
-
-  // For each message index, track the y where its arrow is drawn.
-  // Also track block start/end y positions and divider y positions.
-  const msgArrowY: number[] = []
-  const msgLabelY: number[] = []
-  const blockStartY = new Map<number, number>()
-  const blockEndY = new Map<number, number>()
-  const divYMap = new Map<string, number>() // "blockIdx:divIdx" → y
-  const notePositions: Array<{ x: number; y: number; width: number; height: number; lines: string[] }> = []
-
-  let curY = actorBoxH // start right below header boxes
-
-  const positionNote = (note: SequenceDiagram['notes'][number], y: number) => {
-    const nLines = wrapText(displayText(note.text), labelBudget)
-    const nWidth = Math.max(...nLines.map(line => maxLineWidth(line)), 0) + 4
-    const nHeight = nLines.length + 2
-    const aIdx = actorIdx.get(note.actorIds[0]!) ?? 0
-    let nx: number
+  })
+  diagram.boxes?.forEach((_, index) => {
+    const members = diagram.actors.flatMap((actor, ai) => actor.box === index ? [ai] : [])
+    if (members.length < 2) return
+    const first = Math.min(...members), last = Math.max(...members)
+    const width = Math.max(0, ...boxHeaders[index]!.map(visualWidth))
+    for (let gap = first; gap < last; gap++) gaps[gap] = Math.max(gaps[gap]!, Math.ceil((width + 4) / (last - first)))
+  })
+  let leftMargin = halfBox[0] ?? 4
+  diagram.notes.forEach((note, index) => {
+    const first = actorIndex.get(note.actorIds[0]!) ?? 0
+    const last = actorIndex.get(note.actorIds.at(-1)!) ?? first
+    const width = Math.max(0, ...noteLines[index]!.map(visualWidth)) + 4
     if (note.position === 'left') {
-      nx = llX[aIdx]! - nWidth - 1
+      if (first === 0) leftMargin = Math.max(leftMargin, width + 1)
+      else gaps[first - 1] = Math.max(gaps[first - 1]!, width + 1)
     } else if (note.position === 'right') {
-      nx = llX[aIdx]! + 2
-    } else if (note.actorIds.length >= 2) {
-      const aIdx2 = actorIdx.get(note.actorIds[note.actorIds.length - 1]!) ?? aIdx
-      nx = Math.floor((llX[aIdx]! + llX[aIdx2]!) / 2) - Math.floor(nWidth / 2)
-    } else {
-      nx = llX[aIdx]! - Math.floor(nWidth / 2)
-    }
-    return { x: Math.max(0, nx), y, width: nWidth, height: nHeight, lines: nLines }
+      if (first < gaps.length) gaps[first] = Math.max(gaps[first]!, width + 2)
+    } else if (first !== last) {
+      for (let gap = Math.min(first, last); gap < Math.max(first, last); gap++) gaps[gap] = Math.max(gaps[gap]!, Math.ceil((width + 2) / Math.abs(first - last)))
+    } else if (first === 0) leftMargin = Math.max(leftMargin, Math.floor(width / 2))
+  })
+  const scopes = resolveSequenceBlockScopes(diagram)
+  const parents = new Map<number, number>()
+  scopes.forEach((scope, parent) => scope.childBlockIndices.forEach(child => parents.set(child, parent)))
+  const depth = (index: number): number => parents.has(index) ? 1 + depth(parents.get(index)!) : 1
+  const maxDepth = Math.max(0, ...diagram.blocks.map((_, index) => depth(index)))
+  // Reserve nested frame margins before placing the first actor or left note.
+  if (maxDepth) leftMargin += maxDepth * 4
+  const llX = [leftMargin]
+  for (let index = 1; index < diagram.actors.length; index++) llX[index] = llX[index - 1]! + Math.max(halfBox[index - 1]! + halfBox[index]! + (diagram.actors[index - 1]!.box !== diagram.actors[index]!.box ? 4 : 2), gaps[index - 1]! + 2, 10)
+  const messageSpans = diagram.messages.map((message, index) => {
+    const from = llX[actorIndex.get(message.from)!]!, to = llX[actorIndex.get(message.to)!]!
+    const width = Math.max(0, ...messageLines[index]!.map(visualWidth))
+    const labelX = from === to ? from + 6 : Math.min(from, to) + Math.floor((Math.abs(to - from) - width) / 2)
+    const x = Math.min(from, to, labelX)
+    return { x, width: Math.max(from, to, labelX + width - 1) - x + 1 }
+  })
+  const noteSpans = diagram.notes.map((note, index) => {
+    const width = Math.max(0, ...noteLines[index]!.map(visualWidth)) + 4
+    const first = llX[actorIndex.get(note.actorIds[0]!) ?? 0]!, last = llX[actorIndex.get(note.actorIds.at(-1)!) ?? 0]!
+    const x = note.position === 'left' ? first - width - 1 : note.position === 'right' ? first + 2 : Math.floor((first + last) / 2) - Math.floor(width / 2)
+    return { x: Math.max(0, x), width }
+  })
+  const frameSpans = new Map<number, { x: number; width: number }>()
+  const frameSpan = (index: number): { x: number; width: number } => {
+    const cached = frameSpans.get(index)
+    if (cached) return cached
+    const scope = scopes[index]!, block = diagram.blocks[index]!
+    const contents = [...messageSpans.slice(block.startIndex, scope.endMessageExclusive), ...scope.noteIndices.map(ni => noteSpans[ni]!), ...scope.childBlockIndices.map(frameSpan)]
+    const x = Math.max(0, (contents.length ? Math.min(...contents.map(item => item.x)) : llX[0]!) - 4)
+    const right = contents.length ? Math.max(...contents.map(item => item.x + item.width)) : llX.at(-1)!
+    const labelWidth = Math.max(0, ...headerLines[index]!.map(visualWidth), ...dividerLines[index]!.flatMap(lines => lines.map(visualWidth)))
+    const span = { x, width: Math.max(right + 4 - x, labelWidth + 2) + (block.type === 'par_over' ? labelWidth : 0) }
+    frameSpans.set(index, span)
+    return span
   }
-
-  for (const note of diagram.notes) {
-    if (note.afterIndex !== -1) continue
-    curY += 1
-    const positioned = positionNote(note, curY)
-    notePositions.push(positioned)
-    curY += positioned.height
-  }
-
-  for (let m = 0; m < diagram.messages.length; m++) {
-    // Block openings at this message
-    for (let b = 0; b < diagram.blocks.length; b++) {
-      if (diagram.blocks[b]!.startIndex === m) {
-        curY += 2 // 1 blank + 1 header row
-        blockStartY.set(b, curY - 1)
-      }
+  const messages: PositionedMessage[] = []
+  const notes: PositionedText[] = []
+  const frames = new Map<number, SequenceFrame>()
+  const closedFrames: SequenceFrame[] = []
+  const activeFrames: number[] = []
+  const actorTop = new Map<number, number>()
+  const currentParent = () => activeFrames.length ? blockId(activeFrames.at(-1)!) : undefined
+  let cursor = participantTop + actorBoxH
+  const ownedBounds = new Map<number, CellBounds[]>()
+  const overlays = new Map<number, { start: number; bottom: number; prior: CellBounds[]; pending?: number }>()
+  const clearOverlay = (bounds: CellBounds): number => {
+    let shift = 0
+    const obstacles = [...overlays.values()].flatMap(state => state.prior)
+    for (let pass = 0; pass <= obstacles.length; pass++) {
+      const hit = obstacles.find(other => bounds.x < other.x + other.width + 1 && bounds.x + bounds.width + 1 > other.x
+        && bounds.y + shift < other.y + other.height + 1 && bounds.y + bounds.height + shift + 1 > other.y)
+      if (!hit) break
+      shift = hit.y + hit.height + 1 - bounds.y
     }
-
-    // Dividers at this message index
-    for (let b = 0; b < diagram.blocks.length; b++) {
-      for (let d = 0; d < diagram.blocks[b]!.dividers.length; d++) {
-        if (diagram.blocks[b]!.dividers[d]!.index === m) {
-          curY += 1
-          divYMap.set(`${b}:${d}`, curY)
-          curY += 1
+    return shift
+  }
+  const overlayContent = (bounds: CellBounds): number => {
+    let candidate = { ...bounds }
+    for (const [index, state] of overlays) {
+      if (state.pending === undefined) continue
+      const tag = frames.get(index)!.dividers[state.pending]!
+      const extra = tag.lines.length ? tag.lines.length + 1 : 0
+      candidate = { x: candidate.x, y: candidate.y - extra, width: Math.max(candidate.width, ...tag.lines.map(visualWidth)), height: candidate.height + extra }
+    }
+    const shift = clearOverlay(candidate)
+    for (const [index, state] of overlays) {
+      if (state.pending === undefined) continue
+      const tag = frames.get(index)!.dividers[state.pending]!
+      tag.x = bounds.x; tag.y = bounds.y + shift - tag.lines.length - 1
+      if (tag.lines.length) own({ x: tag.x, y: tag.y, width: Math.max(...tag.lines.map(visualWidth)), height: tag.lines.length })
+      delete state.pending
+    }
+    return shift
+  }
+  const own = (bounds: CellBounds) => {
+    // Every ancestor owns its full contents; frame completion adds its margins.
+    for (const index of activeFrames) {
+      const list = ownedBounds.get(index) ?? []
+      list.push(bounds); ownedBounds.set(index, list)
+    }
+  }
+  const finishEmptyOverlayLabel = (index: number): void => {
+    const state = overlays.get(index)
+    if (state?.pending === undefined) return
+    const tag = frames.get(index)!.dividers[state.pending]!
+    tag.x = llX[0]!; tag.y = Math.max(cursor, state.bottom) + 1
+    if (tag.lines.some(Boolean)) {
+      own({ x: tag.x, y: tag.y, width: Math.max(...tag.lines.map(visualWidth)), height: tag.lines.length })
+      cursor = tag.y + tag.lines.length
+      state.bottom = Math.max(state.bottom, cursor)
+    }
+    delete state.pending
+  }
+  let messageCursor = 0, noteCursor = 0, boundaryCursor = 0
+  const boundaries = getSequenceBlockBoundaries(input) ?? []
+  const consumeBoundaries = () => {
+    while (boundaryCursor < boundaries.length) {
+      const event = boundaries[boundaryCursor]!
+      if (event.messageIndex > messageCursor || event.noteIndex > noteCursor) break
+      const index = event.blockIndex
+      if (event.kind === 'open') {
+        if (overlays.size) {
+          const span = frameSpan(index)
+          for (const [overlayIndex, state] of overlays) {
+            const tagRows = state.pending === undefined ? 0 : frames.get(overlayIndex)!.dividers[state.pending]!.lines.length + 1
+            for (const ink of state.prior) {
+              if (span.x < ink.x + ink.width + 1 && span.x + span.width + 1 > ink.x) cursor = Math.max(cursor, ink.y + ink.height + tagRows + 1)
+            }
+          }
+          cursor += overlayContent({ ...span, y: cursor + 1, height: 1 })
         }
-      }
-    }
-
-    curY += 1 // blank row before message
-
-    const msg = diagram.messages[m]!
-    const isSelf = msg.from === msg.to
-
-    // Calculate height needed for multi-line message labels
-    const msgLineCount = lineCount(msgLabels[m]!)
-
-    if (isSelf) {
-      // Self-message occupies 3+ rows: top-arm, label-col(s), bottom-arm
-      msgLabelY[m] = curY + 1
-      msgArrowY[m] = curY
-      curY += 2 + msgLineCount // top-arm + label lines + bottom-arm
-    } else {
-      // Normal message: label row(s) then arrow row
-      msgLabelY[m] = curY
-      msgArrowY[m] = curY + msgLineCount  // arrow goes after all label lines
-      curY += msgLineCount + 1  // label lines + arrow row
-    }
-
-    // Notes after this message
-    for (let n = 0; n < diagram.notes.length; n++) {
-      if (diagram.notes[n]!.afterIndex === m) {
-        curY += 1
-        const note = diagram.notes[n]!
-        const positioned = positionNote(note, curY)
-        notePositions.push(positioned)
-        curY += positioned.height
-      }
-    }
-
-    // Block closings after this message
-    for (let b = 0; b < diagram.blocks.length; b++) {
-      if (diagram.blocks[b]!.endIndex === m) {
-        curY += 1
-        blockEndY.set(b, curY)
-        curY += 1
-      }
-    }
-  }
-
-  curY += 1 // gap before footer
-  const footerY = curY
-  const totalH = footerY + actorBoxH
-
-  // Total canvas width
-  const lastLL = llX[llX.length - 1] ?? 0
-  const lastHalf = halfBox[halfBox.length - 1] ?? 0
-  let totalW = lastLL + lastHalf + 2
-
-  // Ensure canvas is wide enough for self-message labels and notes.
-  // Use maxLineWidth so multi-line self labels (e.g. "hello<br/>world") get
-  // sized by the longest line rather than the raw concatenated string length.
-  for (let m = 0; m < diagram.messages.length; m++) {
-    const msg = diagram.messages[m]!
-    if (msg.from === msg.to) {
-      const fi = actorIdx.get(msg.from)!
-      const selfRight = llX[fi]! + 6 + 2 + maxLineWidth(msgLabels[m]!)
-      totalW = Math.max(totalW, selfRight + 1)
-    }
-  }
-  for (const np of notePositions) {
-    totalW = Math.max(totalW, np.x + np.width + 1)
-  }
-
-  const canvas = mkCanvas(totalW, totalH - 1)
-  const rc = mkRoleCanvas(totalW, totalH - 1)
-
-  /** Set a character on the canvas and track its role. */
-  function setC(x: number, y: number, ch: string, role: CharRole): void {
-    if (x >= 0 && x < canvas.length && y >= 0 && y < (canvas[0]?.length ?? 0)) {
-      canvas[x]![y] = ch
-      setRole(rc, x, y, role)
-    }
-  }
-
-  function writeDisplayText(x: number, y: number, text: string): void {
-    let cursor = x
-    for (const cluster of graphemes(text)) {
-      const width = visualWidth(cluster)
-      if (width === 0) continue
-      setC(cursor, y, cluster, 'text')
-      for (let offset = 1; offset < width; offset++) setC(cursor + offset, y, WIDE_CHAR_CONTINUATION, 'text')
-      cursor += width
-    }
-  }
-
-  // ---- DRAW: helper to place a bordered actor box (supports multi-line labels) ----
-
-  function drawActorBox(cx: number, topY: number, label: string): void {
-    const lines = splitLines(label)
-    const maxW = maxLineWidth(label)
-    const w = maxW + 2 * boxPad + 2
-    const h = lines.length + 2  // lines + top/bottom border
-    const left = cx - Math.floor(w / 2)
-
-    // Top border
-    setC(left, topY, TL, 'border')
-    for (let x = 1; x < w - 1; x++) setC(left + x, topY, H, 'border')
-    setC(left + w - 1, topY, TR, 'border')
-
-    // Content lines (centered horizontally within the box).
-    // Use terminal-column width so CJK / emoji labels sit symmetric in the
-    // box, and iterate codepoints (not UTF-16 units) so a single emoji
-    // surrogate pair counts as one glyph.
-    for (let i = 0; i < lines.length; i++) {
-      const row = topY + 1 + i
-      setC(left, row, V, 'border')
-      setC(left + w - 1, row, V, 'border')
-      const line = lines[i]!
-      const lineW = visualWidth(line)
-      const ls = left + 1 + boxPad + Math.floor((maxW - lineW) / 2)
-      writeDisplayText(ls, row, line)
-    }
-
-    // Bottom border
-    const bottomY = topY + h - 1
-    setC(left, bottomY, BL, 'border')
-    for (let x = 1; x < w - 1; x++) setC(left + x, bottomY, H, 'border')
-    setC(left + w - 1, bottomY, BR, 'border')
-  }
-
-  // ---- DRAW: lifelines ----
-
-  for (let i = 0; i < diagram.actors.length; i++) {
-    const x = llX[i]!
-    for (let y = actorBoxH; y <= footerY; y++) {
-      setC(x, y, V, 'line')
-    }
-  }
-
-  // ---- DRAW: actor header + footer boxes (drawn over lifelines) ----
-
-  for (let i = 0; i < diagram.actors.length; i++) {
-    const actor = diagram.actors[i]!
-    drawActorBox(llX[i]!, 0, actorLabels[i]!)
-    drawActorBox(llX[i]!, footerY, actorLabels[i]!)
-
-    // Lifeline junctions on box borders (Unicode only)
-    if (!useAscii) {
-      setC(llX[i]!, actorBoxH - 1, JT, 'junction')
-      setC(llX[i]!, footerY, JB, 'junction')
-    }
-  }
-
-  // ---- DRAW: messages ----
-
-  for (let m = 0; m < diagram.messages.length; m++) {
-    const msg = diagram.messages[m]!
-    const fi = actorIdx.get(msg.from)!
-    const ti = actorIdx.get(msg.to)!
-    const fromX = llX[fi]!
-    const toX = llX[ti]!
-    const isSelf = fi === ti
-    const isDashed = msg.lineStyle === 'dashed'
-    const isFilled = msg.endHead === 'filled' || msg.endHead === 'cross'
-
-    // Arrow line character (solid vs dashed)
-    const lineChar = isDashed ? (useAscii ? '.' : '╌') : H
-
-    if (isSelf) {
-      // Self-message: an N+2 row loop to the right of the lifeline. For a
-      // single-line label that's the classic 3-row form:
-      //   ├──┐           (row 0 = msgArrowY)
-      //   │  │ Label     (row 1)
-      //   │◄─┘           (row 2)
-      // For an N-line label the middle row repeats N times so each line gets
-      // its own row with a continuing right-side wall.
-      const y0 = msgArrowY[m]!
-      const loopW = 4
-      const selfLines = splitLines(msgLabels[m]!)
-
-      // Row 0: start junction + horizontal + top-right corner
-      setC(fromX, y0, JL, 'junction')
-      for (let x = fromX + 1; x < fromX + loopW; x++) setC(x, y0, lineChar, 'line')
-      setC(fromX + loopW, y0, useAscii ? '+' : '┐', 'corner')
-
-      // Middle rows: vertical wall on the right + the label line for each row.
-      const labelX = fromX + loopW + 2
-      for (let lineIdx = 0; lineIdx < selfLines.length; lineIdx++) {
-        const row = y0 + 1 + lineIdx
-        // Lifeline wall on the source side (kept by lifeline pass, but make
-        // sure the right-hand wall is continuous so multi-line labels look
-        // contained).
-        setC(fromX + loopW, row, V, 'line')
-        const line = selfLines[lineIdx]!
-        // Use codepoint+stride pattern (same as actor box at lines 256-257) so
-        // CJK / emoji / surrogate-pair labels render with correct column width.
-        writeDisplayText(labelX, row, line)
-      }
-
-      // Row N+1: arrow-back + horizontal + bottom-right corner.
-      const arrowChar = isFilled ? (useAscii ? '<' : '◀') : (useAscii ? '<' : '◁')
-      const bottomRow = y0 + 1 + selfLines.length
-      setC(fromX, bottomRow, arrowChar, 'arrow')
-      for (let x = fromX + 1; x < fromX + loopW; x++) setC(x, bottomRow, lineChar, 'line')
-      setC(fromX + loopW, bottomRow, useAscii ? '+' : '┘', 'corner')
-    } else {
-      // Normal message: label on row above, arrow on row below
-      const labelY = msgLabelY[m]!
-      const arrowY = msgArrowY[m]!
-      const leftToRight = fromX < toX
-
-      // Draw label centered between the two lifelines (supports multi-line).
-      // Center by terminal column width so CJK / emoji labels sit symmetric
-      // on the arrow and so left-pad rounding follows box parity, not line
-      // parity. Iterate codepoints (not UTF-16 code units) so emoji surrogate
-      // pairs render as one glyph.
-      const boxWidth = Math.abs(toX - fromX)
-      const msgLines = splitLines(msgLabels[m]!)
-
-      for (let lineIdx = 0; lineIdx < msgLines.length; lineIdx++) {
-        const line = msgLines[lineIdx]!
-        const lineCells = visualWidth(line)
-        const labelStart = Math.min(fromX, toX) + Math.floor((boxWidth - lineCells) / 2)
-        const y = labelY + lineIdx
-        writeDisplayText(labelStart, y, line)
-      }
-
-      // Draw arrow line and exact endpoint semantics.
-      if (leftToRight) {
-        for (let x = fromX + 1; x < toX; x++) setC(x, arrowY, lineChar, 'line')
-      } else {
-        for (let x = toX + 1; x < fromX; x++) setC(x, arrowY, lineChar, 'line')
-      }
-      const startHead = msg.startHead ?? 'none'
-      const endHead = msg.endHead ?? (isFilled ? 'filled' : 'open')
-      if (startHead !== 'none') setC(fromX, arrowY, sequenceHeadGlyph(startHead, !leftToRight, useAscii), 'arrow')
-      if (endHead !== 'none') setC(toX, arrowY, sequenceHeadGlyph(endHead, leftToRight, useAscii), 'arrow')
-      if (msg.centralStart) setC(fromX, arrowY, useAscii ? 'o' : '○', 'arrow')
-      if (msg.centralEnd) setC(toX, arrowY, useAscii ? 'o' : '○', 'arrow')
-    }
-  }
-
-  // ---- DRAW: blocks (loop, alt, opt, par, etc.) ----
-
-  for (let b = 0; b < diagram.blocks.length; b++) {
-    const block = diagram.blocks[b]!
-    const topY = blockStartY.get(b)
-    const botY = blockEndY.get(b)
-    if (topY === undefined || botY === undefined) continue
-
-    // Find the leftmost/rightmost lifelines involved in this block's messages.
-    // For self-messages the visible extent runs PAST the lifeline column —
-    // it's `llX[f] + loopW + 2 + max-label-line-width`. Treat that as the
-    // right edge for self-arrows so the block frame doesn't clip the label.
-    let minLX = totalW
-    let maxLX = 0
-    for (let m = block.startIndex; m <= block.endIndex; m++) {
-      if (m >= diagram.messages.length) break
-      const msg = diagram.messages[m]!
-      const f = actorIdx.get(msg.from) ?? 0
-      const t = actorIdx.get(msg.to) ?? 0
-      minLX = Math.min(minLX, llX[Math.min(f, t)]!)
-      if (f === t) {
-        // Self-arrow: the label sits at llX[f] + 4 + 2 = llX[f] + 6 with the
-        // longest line determining the extra width. Match the totalW math
-        // (llX[f] + 6 + maxLineWidth(label)) and add a 2-cell breathing room
-        // so the right border doesn't sit immediately on the last glyph.
-        const selfRight = llX[f]! + 6 + maxLineWidth(msgLabels[m]!) + 2
-        maxLX = Math.max(maxLX, selfRight)
-      } else {
-        maxLX = Math.max(maxLX, llX[Math.max(f, t)]!)
-      }
-    }
-
-    const bLeft = Math.max(0, minLX - 4)
-    const bRight = Math.min(totalW - 1, maxLX + 4)
-
-    // Top border with block type label
-    setC(bLeft, topY, TL, 'border')
-    for (let x = bLeft + 1; x < bRight; x++) setC(x, topY, H, 'border')
-    setC(bRight, topY, TR, 'border')
-    // Write block header label over the top border (supports multi-line)
-    const hdrLabel = block.label ? `${block.type} [${displayText(block.label)}]` : block.type
-    const hdrLines = splitLines(hdrLabel)
-
-    for (let lineIdx = 0; lineIdx < hdrLines.length && topY + lineIdx < botY; lineIdx++) {
-      const line = truncateToVisualWidth(hdrLines[lineIdx]!, Math.max(0, bRight - bLeft - 1))
-      const y = topY + lineIdx
-      drawText(canvas, { x: bLeft + 1, y }, line, true)
-      for (let i = 0; i < visualWidth(line); i++) setRole(rc, bLeft + 1 + i, y, 'text')
-    }
-
-    // Bottom border
-    setC(bLeft, botY, BL, 'border')
-    for (let x = bLeft + 1; x < bRight; x++) setC(x, botY, H, 'border')
-    setC(bRight, botY, BR, 'border')
-
-    // Side borders
-    for (let y = topY + 1; y < botY; y++) {
-      setC(bLeft, y, V, 'border')
-      setC(bRight, y, V, 'border')
-    }
-
-    // Dividers
-    for (let d = 0; d < block.dividers.length; d++) {
-      const dY = divYMap.get(`${b}:${d}`)
-      if (dY === undefined) continue
-      const dashChar = isDashedH()
-      setC(bLeft, dY, JL, 'junction')
-      for (let x = bLeft + 1; x < bRight; x++) setC(x, dY, dashChar, 'line')
-      setC(bRight, dY, JR, 'junction')
-      // Divider label
-      const dLabel = block.dividers[d]!.label
-      if (dLabel) {
-        const dStr = `[${displayText(dLabel)}]`
-        for (let i = 0; i < dStr.length && bLeft + 1 + i < bRight; i++) {
-          setC(bLeft + 1 + i, dY, dStr[i]!, 'text')
+        cursor++
+        frames.set(index, { index, x: 0, y: cursor, width: 0, height: 0, header: headerLines[index]!, dividers: [], parentId: diagram.blocks[index]!.parentId ?? currentParent() })
+        activeFrames.push(index)
+        cursor += Math.max(1, headerLines[index]!.length)
+        if (diagram.blocks[index]!.type === 'par_over') {
+          cursor += Math.max(0, ...dividerLines[index]!.map(lines => lines.length ? lines.length + 1 : 0))
+          overlays.set(index, { start: cursor, bottom: cursor, prior: [] })
         }
+      } else if (event.kind === 'divider') {
+        const overlay = overlays.get(index)
+        if (overlay) {
+          finishEmptyOverlayLabel(index)
+          overlay.bottom = Math.max(overlay.bottom, cursor)
+          overlay.prior = [...ownedBounds.get(index) ?? []]
+          cursor = overlay.start
+          const frame = frames.get(index)!
+          frame.dividers.push({ y: cursor, lines: dividerLines[index]![event.dividerIndex!]! })
+          overlay.pending = frame.dividers.length - 1
+          boundaryCursor++
+          continue
+        }
+        cursor++
+        const lines = dividerLines[index]![event.dividerIndex!]!
+        frames.get(index)!.dividers.push({ y: cursor, lines })
+        cursor += Math.max(1, lines.length)
+      } else {
+        const overlay = overlays.get(index)
+        if (overlay) { finishEmptyOverlayLabel(index); cursor = Math.max(cursor, overlay.bottom); overlays.delete(index) }
+        cursor++
+        const frame = frames.get(index)!
+        const contents = ownedBounds.get(index) ?? []
+        const minX = contents.length ? Math.min(...contents.map(item => item.x)) : llX[0]!
+        const maxX = contents.length ? Math.max(...contents.map(item => item.x + item.width - 1)) : llX.at(-1)!
+        frame.x = Math.max(0, minX - 4)
+        const labelWidth = Math.max(0, ...frame.header.map(visualWidth), ...frame.dividers.flatMap(divider => divider.lines.map(visualWidth)))
+        frame.width = Math.max(maxX + 4 - frame.x + 1, labelWidth + 2)
+        frame.height = cursor - frame.y + 1
+        const stackIndex = activeFrames.lastIndexOf(index)
+        if (stackIndex >= 0) activeFrames.splice(stackIndex, 1)
+        own(frame)
+        closedFrames.push(frame)
+        cursor++
       }
+      boundaryCursor++
     }
   }
-
-  // ---- DRAW: notes ----
-
-  for (const np of notePositions) {
-    // Ensure canvas is big enough
-    increaseSize(canvas, np.x + np.width, np.y + np.height)
-    increaseRoleCanvasSize(rc, np.x + np.width, np.y + np.height)
-    // Top border
-    setC(np.x, np.y, TL, 'border')
-    for (let x = 1; x < np.width - 1; x++) setC(np.x + x, np.y, H, 'border')
-    setC(np.x + np.width - 1, np.y, TR, 'border')
-    // Content rows
-    for (let l = 0; l < np.lines.length; l++) {
-      const ly = np.y + 1 + l
-      setC(np.x, ly, V, 'border')
-      setC(np.x + np.width - 1, ly, V, 'border')
-      for (let i = 0; i < np.lines[l]!.length; i++) {
-        setC(np.x + 2 + i, ly, np.lines[l]![i]!, 'text')
-      }
+  while (messageCursor < diagram.messages.length || noteCursor < diagram.notes.length || boundaryCursor < boundaries.length) {
+    consumeBoundaries()
+    const note = diagram.notes[noteCursor]
+    if (note && note.afterIndex < messageCursor) {
+      cursor++
+      const lines = noteLines[noteCursor]!
+      const positioned = { index: noteCursor, ...noteSpans[noteCursor]!, y: cursor, height: lines.length + 2, lines, parentId: diagram.notes[noteCursor]!.parentId ?? currentParent() }
+      const shift = overlayContent(positioned)
+      cursor += shift; positioned.y += shift
+      notes.push(positioned); own(positioned); cursor += positioned.height; noteCursor++
+    } else if (messageCursor < diagram.messages.length) {
+      const message = diagram.messages[messageCursor]!
+      // A created actor's complete header precedes its creation message.
+      diagram.actors.forEach((actor, index) => {
+        if (actor.createMessageIndex !== messageCursor) return
+        cursor++; actorTop.set(index, cursor); cursor += actorBoxH
+        own({ x: llX[index]! - Math.floor(actorWidths[index]! / 2), y: actorTop.get(index)!, width: actorWidths[index]!, height: actorBoxH })
+      })
+      cursor++
+      const lines = messageLines[messageCursor]!
+      const fromX = llX[actorIndex.get(message.from)!]!, toX = llX[actorIndex.get(message.to)!]!
+      const self = fromX === toX
+      const width = Math.max(0, ...lines.map(visualWidth))
+      const positioned = { index: messageCursor, x: self ? fromX + 6 : Math.min(fromX, toX) + Math.floor((Math.abs(toX - fromX) - width) / 2), y: self ? cursor + 1 : cursor, width, height: lines.length, lines, arrowY: self ? cursor : cursor + lines.length, fromX, toX, parentId: message.parentId ?? currentParent() }
+      const shift = overlayContent({ x: Math.min(fromX, toX, positioned.x), y: cursor, width: Math.max(fromX, toX, positioned.x + width - 1) - Math.min(fromX, toX, positioned.x) + 1, height: lines.length + (self ? 2 : 1) })
+      cursor += shift; positioned.y += shift; positioned.arrowY += shift
+      messages.push(positioned)
+      own({ x: Math.min(fromX, toX, positioned.x), y: cursor, width: Math.max(fromX, toX, positioned.x + width - 1) - Math.min(fromX, toX, positioned.x) + 1, height: lines.length + (self ? 2 : 1) })
+      cursor += lines.length + (self ? 2 : 1); messageCursor++
+    } else if (note) {
+      // A parser-owned note is always reachable at the current final cursor.
+      messageCursor = Math.max(messageCursor, note.afterIndex + 1)
+    } else if (boundaryCursor < boundaries.length) {
+      // Defensive fail-closed guard against malformed private side data.
+      throw new Error('Sequence terminal boundary is beyond the parsed content')
     }
-    // Bottom border
-    const by = np.y + np.height - 1
-    setC(np.x, by, BL, 'border')
-    for (let x = 1; x < np.width - 1; x++) setC(np.x + x, by, H, 'border')
-    setC(np.x + np.width - 1, by, BR, 'border')
   }
-
-  return canvasToString(canvas, { roleCanvas: rc, colorMode, theme })
-
-  // ---- Helper: dashed horizontal character ----
-  function isDashedH(): string {
-    return useAscii ? '-' : '╌'
+  const footerY = cursor + 1
+  const participantGroups = (diagram.boxes ?? []).flatMap((box, index) => {
+    const indices = diagram.actors.flatMap((actor, ai) => actor.box === index ? [ai] : [])
+    if (!indices.length) return []
+    const x = Math.max(0, Math.min(...indices.map(ai => llX[ai]! - halfBox[ai]!)) - 1)
+    const right = Math.max(...indices.map(ai => llX[ai]! + halfBox[ai]!)) + 1
+    return [{ index, x, width: Math.max(right - x + 1, ...boxHeaders[index]!.map(line => visualWidth(line) + 2)), lines: boxHeaders[index]!, members: indices.map(ai => diagram.actors[ai]!.id) }]
+  })
+  const totalW = Math.max(...participantGroups.map(group => group.x + group.width),llX.at(-1)! + (halfBox.at(-1) ?? 0) + 2, ...messages.map(item => item.x + item.width + 2), ...notes.map(item => item.x + item.width + 1), ...closedFrames.map(item => item.x + item.width))
+  const doc = new TerminalDocument(totalW + 1, footerY + actorBoxH + (participantGroups.length ? 1 : 0))
+  for (const actor of diagram.actors) if (actor.type !== 'participant') doc.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature: `sequence.${actor.id}.glyph`, message: `The authored ${actor.type} participant uses a terminal card${actor.type === 'actor' ? '' : ' with a type stereotype'} in place of its graphical silhouette.` })
+  diagram.boxes?.forEach((box, index) => {
+    if (box.color && box.color.toLowerCase() !== 'transparent') doc.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature: `sequence.${generated(`box:${index}`)}.background`, message: 'The authored participant-box background color is represented by an owned terminal frame; terminal output uses foreground ink without a background fill.' })
+  })
+  diagram.blocks.forEach((block, index) => {
+    if (block.color && block.color.toLowerCase() !== 'transparent') doc.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature: `sequence.${generated(`block:${index}`)}.background`, message: 'The authored rect background color is represented by an owned terminal frame; terminal output uses foreground ink without a background fill.' })
+  })
+  const owner = (id: string, kind: TerminalOwner['kind'] = 'node', parent?: TerminalOwner['parent']): TerminalOwner => doc.element({ id, kind, ...(parent ? { parent } : {}) })
+  const stroke = (x: number, y: number, mask: number, role: CharRole, element: TerminalOwner, style: 'solid' | 'dashed' = 'solid') => doc.stroke(x, y, mask, { owner: element, role, ascii, style })
+  const marker = (x: number, y: number, glyph: string, element: TerminalOwner) => doc.put(x, y, glyph, { owner: element, role: 'arrow', kind: 'marker' })
+  const frame = (bounds: CellBounds, element: TerminalOwner, opaque = false) => paintTerminalFrame(doc, bounds, element, ascii, opaque)
+  // Foreground text and opaque cards intentionally interrupt lifelines and
+  // activation bars. Allocate those gaps before either background pass;
+  // foreground routes and labels still meet the ordinary collision checks.
+  const foreground = closedFrames.flatMap(frame => [
+    { x: frame.x + 1, y: frame.y, width: Math.max(0, ...frame.header.map(visualWidth)), height: frame.header.length },
+    ...frame.dividers.map(divider => ({ x: divider.x ?? frame.x + 1, y: divider.y, width: Math.max(0, ...divider.lines.map(visualWidth)), height: divider.lines.length })),
+  ])
+  foreground.push(...notes)
+  messages.forEach(message => message.lines.forEach((line, row) => foreground.push({ x: messageLabelX(message, line), y: message.y + row, width: visualWidth(line), height: 1 })))
+  diagram.actors.forEach((actor, index) => {
+    if (actor.external) return
+    const card = { x: llX[index]! - Math.floor(actorWidths[index]! / 2), y: actorTop.get(index) ?? participantTop, width: actorWidths[index]!, height: actorBoxH }
+    foreground.push(card)
+    if (actor.destroyMessageIndex === undefined) foreground.push({ ...card, y: footerY })
+  })
+  const backgroundGaps = new Map<number, Array<{ start: number; end: number }>>()
+  for (const bounds of foreground) for (let row = bounds.y; row < bounds.y + bounds.height; row++) {
+    const spans = backgroundGaps.get(row) ?? []
+    spans.push({ start: bounds.x, end: bounds.x + bounds.width }); backgroundGaps.set(row, spans)
   }
+  const reservedForeground = (x: number, y: number) => backgroundGaps.get(y)?.some(span => x >= span.start && x < span.end) ?? false
+  // Participant-group frames are background geometry with distinct ownership.
+  participantGroups.forEach(group => {
+    const element = doc.element({ id: generated(`box:${group.index}`), kind: 'group', members: group.members })
+    paintTerminalFrame(doc, { x: group.x, y: 0, width: group.width, height: footerY + actorBoxH + 1 }, element, ascii, false, reservedForeground)
+    doc.scope(element, () => group.lines.forEach((line, y) => doc.text(group.x + 1, y, line, { role: 'text', kind: 'text' })))
+  })
+  diagram.actors.forEach((actor, index) => {
+    if (actor.external) { owner(actor.id); return }
+    const element = owner(actor.id, 'node', actor.box === undefined ? undefined : { id: generated(`box:${actor.box}`), kind: 'group' })
+    const start = actorTop.has(index) ? actorTop.get(index)! + actorBoxH : participantTop + actorBoxH
+    const end = actor.destroyMessageIndex === undefined ? footerY : messages[actor.destroyMessageIndex]?.arrowY ?? footerY
+    for (let y = start; y <= end; y++) if (!reservedForeground(llX[index]!, y)) stroke(llX[index]!, y, 5, 'line', element)
+  })
+  // Activations are owned spans, drawn behind opaque labels and notes.
+  const activationStacks = new Map<string, Array<{ y: number; id: number }>>()
+  let activationIndex = 0
+  const activation = (id: string, y: number, enable: boolean) => {
+    const stack = activationStacks.get(id) ?? []
+    if (enable) stack.push({ y, id: activationIndex++ })
+    else if (stack.length) {
+      const opened = stack.pop()!, start = opened.y, ai = actorIndex.get(id)!, x = llX[ai]! + stack.length
+      const element = owner(generated(`activation:${opened.id}`), 'band', { id, kind: 'node' })
+      doc.region(element, { x: x - 1, y: start, width: 3, height: Math.max(1, y - start + 1) })
+      for (let row = start; row <= y; row++) for (const column of [x - 1, x + 1]) if (!reservedForeground(column, row)) stroke(column, row, 5, 'line', element)
+    }
+    activationStacks.set(id, stack)
+  }
+  diagram.messages.forEach((message, index) => {
+    const y = messages[index]!.arrowY
+    for (const event of diagram.activationEvents ?? []) if (event.messageIndex === index) activation(event.actorId, messages[index]!.y, event.kind === 'activate')
+    if (message.activate) activation(message.to, y, true)
+    if (message.deactivate) activation(message.from, y, false)
+  })
+  for (const event of diagram.activationEvents ?? []) if (event.messageIndex >= diagram.messages.length) activation(event.actorId, footerY - 1, event.kind === 'activate')
+  for (const [id, stack] of activationStacks) while (stack.length) activation(id, footerY, false)
+  diagram.actors.forEach((actor, index) => {
+    if (actor.external) return
+    const element = owner(actor.id, 'node', actor.box === undefined ? undefined : { id: generated(`box:${actor.box}`), kind: 'group' })
+    const drawActor = (top: number) => {
+      const width = actorWidths[index]!, lines = actorLines[index]!, x = llX[index]! - Math.floor(width / 2)
+      frame({ x, y: top, width, height: actorBoxH }, element, true)
+      doc.scope(element, () => lines.forEach((line, row) => doc.text(x + 2 + Math.floor((width - 4 - visualWidth(line)) / 2), top + 1 + row, line, { owner: element, role: 'text', kind: 'text' })))
+    }
+    drawActor(actorTop.get(index) ?? participantTop)
+    if (actor.destroyMessageIndex === undefined) drawActor(footerY)
+    else marker(llX[index]!, messages[actor.destroyMessageIndex]?.arrowY ?? footerY, 'X', element)
+    if (!ascii) {
+      if (actor.createMessageIndex === undefined) stroke(llX[index]!, participantTop + actorBoxH - 1, 14, 'junction', element)
+      if (actor.destroyMessageIndex === undefined) stroke(llX[index]!, footerY, 11, 'junction', element)
+    }
+  })
+  for (const positioned of messages) {
+    const message = diagram.messages[positioned.index]!, self = message.from === message.to
+    const element = doc.element({ id: message.id ?? generated(`message:${positioned.index}`), kind: 'edge', parent: positioned.parentId === undefined ? undefined : { id: positioned.parentId, kind: 'compartment' }, from: message.from, to: message.to })
+    const style = message.lineStyle === 'dashed' ? 'dashed' : 'solid'
+    const y = positioned.arrowY, from = positioned.fromX, to = positioned.toX
+    const endpoint = (x: number, row: number, start: boolean, right: boolean): void => {
+      const semantic = sequenceMarker(start ? message.startHead : message.endHead, right, ascii, start ? message.centralStart : message.centralEnd)
+      if (semantic) doc.marker(x, row, semantic, { owner: element, role: 'arrow' })
+    }
+    doc.port(element, { nodeId: message.from, x: from, y, side: self || from < to ? 'R' : 'L', end: 'start', surface: 'lifeline' })
+    doc.port(element, { nodeId: message.to, x: to, y: self ? y + positioned.lines.length + 1 : y, side: self || from > to ? 'R' : 'L', end: 'end', surface: 'lifeline' })
+    const startMarker = sequenceMarker(message.startHead, !self && from > to, ascii, message.centralStart)
+    const endMarker = sequenceMarker(message.endHead, !self && from < to, ascii, message.centralEnd)
+    doc.expectMarkers(element, 'start', startMarker ? [startMarker] : [])
+    doc.expectMarkers(element, 'end', endMarker ? [endMarker] : [])
+    if (self) {
+      stroke(from, y, 7, 'junction', element)
+      for (let x = from + 1; x < from + 4; x++) stroke(x, y, 10, 'line', element, style)
+      stroke(from + 4, y, 12, 'corner', element)
+      for (let row = y + 1; row <= y + positioned.lines.length; row++) stroke(from + 4, row, 5, 'line', element)
+      const bottom = y + positioned.lines.length + 1
+      for (let x = from + 1; x < from + 4; x++) stroke(x, bottom, 10, 'line', element, style)
+      stroke(from + 4, bottom, 9, 'corner', element)
+      endpoint(from, bottom, false, false)
+      endpoint(from, y, true, false)
+    } else {
+      for (let x = Math.min(from, to) + 1; x < Math.max(from, to); x++) stroke(x, y, 10, 'line', element, style)
+      endpoint(from, y, true, from > to)
+      endpoint(to, y, false, from < to)
+    }
+    doc.scope(element, () => positioned.lines.forEach((line, index) => {
+      doc.text(messageLabelX(positioned, line), positioned.y + index, line, { owner: element, role: 'text', kind: 'text' })
+    }))
+  }
+  // Frames use measured owned bounds, including complete conditions and notes.
+  for (const positioned of [...closedFrames].reverse()) {
+    const element = owner(blockId(positioned.index), 'compartment', positioned.parentId === undefined ? undefined : { id: positioned.parentId, kind: 'compartment' })
+    frame(positioned, element)
+    doc.textBlock(positioned.x + 1, positioned.y, positioned.header, { owner: element, role: 'text', kind: 'text' })
+    positioned.dividers.forEach(divider => {
+      if (diagram.blocks[positioned.index]!.type !== 'par_over') {
+        for (let x = positioned.x; x < positioned.x + positioned.width; x++) stroke(x, divider.y, 10, 'line', element, ascii ? 'solid' : 'dashed')
+      }
+      doc.textBlock(divider.x ?? positioned.x + 1, divider.y, divider.lines, { owner: element, role: 'text', kind: 'text' })
+    })
+  }
+  for (const positioned of notes) {
+    const element = owner(diagram.notes[positioned.index]!.id ?? generated(`note:${positioned.index}`), 'node', positioned.parentId === undefined ? undefined : { id: positioned.parentId, kind: 'compartment' })
+    frame(positioned, element, true)
+    doc.textBlock(positioned.x + 2, positioned.y + 1, positioned.lines, { owner: element, role: 'text', kind: 'text' })
+  }
+  if (diagram.title) {
+    const lines = wrapText(prepareDisplayText(resolveLabelContent(diagram.title, diagram.titleContent)), targetWidth)
+    const titled = new TerminalDocument(Math.max(doc.width, ...lines.map(visualWidth)), doc.height + lines.length + 1)
+    const element = owner('title', 'label')
+    titled.scope(element, () => lines.forEach((line, y) => titled.text(Math.floor((titled.width - visualWidth(line)) / 2), y, line, { role: 'text', kind: 'text' })))
+    titled.overlay(doc, 0, lines.length + 1)
+    return terminalArtifact(titled, { colorMode, theme })
+  }
+  return terminalArtifact(doc, { colorMode, theme })
 }
 
-function sequenceHeadGlyph(head: SequenceMessageHead, right: boolean, useAscii: boolean): string {
-  if (head === 'cross') return 'X'
-  if (head === 'half-top') return right ? (useAscii ? '/' : '◜') : (useAscii ? '\\' : '◝')
-  if (head === 'half-bottom') return right ? (useAscii ? '\\' : '◟') : (useAscii ? '/' : '◞')
-  if (head === 'filled') return right ? (useAscii ? '>' : '▶') : (useAscii ? '<' : '◀')
-  return right ? (useAscii ? '>' : '▷') : (useAscii ? '<' : '◁')
+function sequenceMarker(head: SequenceMessageHead, right: boolean, ascii: boolean, central?: boolean): TerminalMarker | undefined {
+  if (central) return { shape: 'circle', ascii }
+  if (head === 'none') return undefined
+  return { shape: head === 'filled' ? 'triangle' : head === 'open' ? 'open-arrow' : head === 'cross' ? 'sequence-cross' : head, direction: right ? 'R' : 'L', ascii }
+}
+
+/** Compatibility string entry point; native dispatch retains the drawing. */
+export function renderSequenceAscii(...args: Parameters<typeof renderSequenceTerminal>): string {
+  return serializeTerminalArtifact(renderSequenceTerminal(...args))
 }

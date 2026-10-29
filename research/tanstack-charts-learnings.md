@@ -79,7 +79,7 @@ not something to change.
    contract.
 6. **A compiler-gated example corpus.** "All examples compile under strict
    TypeScript" makes the docs a tested artifact. The analogue here is the
-   [dogfooded docs pipeline](../docs/project/dogfooding-docs-strategy.md) and
+   [historical dogfooded docs strategy](../docs/project/archive/dogfooding-docs-strategy.md) and
    the website examples corpus rendered by our own renderer; the stated
    contract worth keeping sharp is "every published example parses, renders,
    and verifies."

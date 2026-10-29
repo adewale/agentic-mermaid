@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -34,8 +33,11 @@ import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
 import { SCENE_ROLE_DESCRIPTORS } from '../scene/roles.ts'
 import { BUILTIN_FAMILY_METADATA, getFamily } from '../agent/families.ts'
 import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
+import { useTestChildren } from './helpers/test-child.ts'
 
-const BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.4.0', scene: '^2.0.0' })
+const runChild = useTestChildren(20_000)
+
+const BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.5.0', scene: '^2.0.0' })
 const BACKEND_REGISTRATION_OPTIONS = Object.freeze({ compatibility: BACKEND_COMPATIBILITY })
 const PACKAGE_VERSION = JSON.parse(readFileSync(join(import.meta.dir, '..', '..', 'package.json'), 'utf8')).version as string
 const ESCAPED_PACKAGE_VERSION = PACKAGE_VERSION.replaceAll('.', '\\.')
@@ -43,6 +45,54 @@ const registerBackendFromJs = registerBackend as unknown as (
   backend: Parameters<typeof registerBackend>[0],
   options?: { readonly compatibility?: Readonly<Record<string, string>> },
 ) => () => void
+
+test('Sequence geometry captured by a replaced native producer cannot poison later original rendering', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { renderMermaidSVGWithReceipt } from './src/index.ts'
+    import { getFamily, replaceFamilyForTest } from './src/agent/families.ts'
+    import { sceneLowering, nativeDrawingOf, inheritNativeDrawing } from './src/scene/drawing.ts'
+    import { withRenderStageObserver } from './src/render-stages.ts'
+    const original = getFamily('sequence'), lower = original.lowerScene
+    const producer = nativeDrawingOf(lower), originalSource = sceneLowering(producer)
+    const options = { embedFontImport: false }
+    for (const late of [false, true]) for (const warm of [0, 1, 3]) {
+      const source = 'sequenceDiagram\\nProducer' + late + warm + 'A->>Producer' + late + warm + 'B: isolated'
+      const restoreFamily = replaceFamilyForTest('sequence', { ...original })
+      let expected
+      try { expected = renderMermaidSVGWithReceipt(source, options) } finally { restoreFamily() }
+      for (let index = 0; index < warm; index++) assert.deepEqual(renderMermaidSVGWithReceipt(source, options), expected)
+      let captured, calls = 0
+      const custom = sceneLowering((factory, context) => {
+        calls++
+        captured = context.positioned
+        return producer(factory, context)
+      })
+      if (!late) inheritNativeDrawing(custom, lower)
+      try {
+        const actual = withRenderStageObserver(sample => {
+          if (late && sample.stage === 'layout') inheritNativeDrawing(custom, lower)
+        }, () => renderMermaidSVGWithReceipt(source, options))
+        assert.deepEqual(actual, expected)
+      }
+      finally { inheritNativeDrawing(originalSource, lower) }
+      assert.equal(calls, 1)
+      const reads = []
+      Object.defineProperty(captured.messages[0].points[0], 'x', { enumerable: true, get() {
+        reads.push('escaped coordinate')
+        throw new Error('escaped caller geometry')
+      } })
+      let restored
+      assert.doesNotThrow(() => { restored = renderMermaidSVGWithReceipt(source, options) })
+      assert.deepEqual(restored, expected)
+      const { layoutMermaidWithReceipt } = await import('./src/agent/index.ts')
+      assert.equal(layoutMermaidWithReceipt(source, options).layout.kind, 'sequence')
+      assert.deepEqual(reads, [])
+    }
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
 
 describe('shared extension identity', () => {
   test('requires kind-qualified IDs and rejects replacement with owner evidence', () => {
@@ -81,21 +131,21 @@ describe('shared extension identity', () => {
       id: 'family:test/previous-core-line',
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.1.1' },
+      compatibility: { core: '^0.4.0' },
       provenance: { owner: 'test', source: 'test' },
-    })).toThrow(new RegExp(`core.*\\^0\\.1\\.1.*host version ${ESCAPED_PACKAGE_VERSION}`, 'i'))
+    })).toThrow(new RegExp(`core.*\\^0\\.4\\.0.*host version ${ESCAPED_PACKAGE_VERSION}`, 'i'))
 
     const forwardCompatible = createExtensionIdentity({
       id: 'look:test/future-contract',
       kind: 'look',
       version: '1.0.0',
-      compatibility: { core: '^0.4.0', 'acme:future-scene': '^99.0.0' },
+      compatibility: { core: '^0.5.0', 'acme:future-scene': '^99.0.0' },
       provenance: { owner: 'test', source: 'test' },
     })
     expect(evaluateExtensionCompatibility(forwardCompatible)).toEqual({
       accepted: true,
       resolutions: [
-        { contract: 'core', range: '^0.4.0', status: 'compatible', version: PACKAGE_VERSION },
+        { contract: 'core', range: '^0.5.0', status: 'compatible', version: PACKAGE_VERSION },
         { contract: 'acme:future-scene', range: '^99.0.0', status: 'deferred' },
       ],
     })
@@ -108,7 +158,7 @@ describe('shared extension identity', () => {
       enumerable: true,
       get() {
         reads.core++
-        return reads.core === 1 ? '^0.4.0' : '^99.0.0'
+        return reads.core === 1 ? '^0.5.0' : '^99.0.0'
       },
     })
     const provenance: Record<string, unknown> = { source: 'test' }
@@ -157,7 +207,7 @@ describe('shared extension identity', () => {
       id: 'look:test/identity-snapshot',
       kind: 'look',
       version: '1.2.3',
-      compatibility: { core: '^0.4.0' },
+      compatibility: { core: '^0.5.0' },
       provenance: { owner: 'snapshot-owner', source: 'test' },
     })
   })
@@ -352,7 +402,7 @@ describe('canonical style identities', () => {
     try {
       expect(knownStyleDescriptors()
         .find(descriptor => descriptor.identity.id === 'palette:test/core-default')
-        ?.identity.compatibility).toMatchObject({ core: '^0.4.0' })
+        ?.identity.compatibility).toMatchObject({ core: PACKAGE_VERSION })
     } finally {
       unregister()
     }
@@ -416,7 +466,7 @@ describe('canonical style identities', () => {
       enumerable: true,
       get() {
         reads.core++
-        return reads.core === 1 ? '^0.4.0' : '^99.0.0'
+        return reads.core === 1 ? '^0.5.0' : '^99.0.0'
       },
     })
     const provenance: Record<string, unknown> = { source: 'test' }
@@ -476,7 +526,7 @@ describe('canonical style identities', () => {
       const descriptor = knownStyleDescriptors().find(candidate => candidate.identity.id === id)!
       expect(descriptor.identity).toMatchObject({
         version: '1.2.3',
-        compatibility: { core: '^0.4.0' },
+        compatibility: { core: '^0.5.0' },
         provenance: { owner: 'style-snapshot-test', source: 'test' },
       })
       expect(Object.isFrozen(descriptor.spec)).toBe(true)
@@ -616,10 +666,10 @@ describe('canonical style identities', () => {
 })
 
 describe('backend registration and host policy', () => {
-  test('first-party backend implementations are inert and have one enrollment authority', () => {
+  test('first-party backend implementations are inert and have one enrollment authority', async () => {
     // A fresh process observes import side effects that this file's own
     // import of builtin-backends.ts has already applied.
-    const probe = spawnSync(process.execPath, ['--eval', `
+    const probe = await runChild(process.execPath, ['--eval', `
       const { knownBackendDescriptors } = await import('./src/scene/backend.ts')
       const ids = () => knownBackendDescriptors().map(entry => entry.identity.id)
       const initial = ids()
@@ -628,7 +678,7 @@ describe('backend registration and host policy', () => {
       const afterImplementations = ids()
       const { BUILTIN_BACKENDS } = await import('./src/scene/builtin-backends.ts')
       console.log(JSON.stringify({ initial, afterImplementations, enrolled: ids(), builtins: BUILTIN_BACKENDS.map(backend => backend.id) }))
-    `], { cwd: join(import.meta.dir, '..', '..'), encoding: 'utf8' })
+    `], { cwd: join(import.meta.dir, '..', '..') })
     expect({ status: probe.status, stderr: probe.stderr }).toEqual({ status: 0, stderr: '' })
     const observed = JSON.parse(probe.stdout) as Record<'initial' | 'afterImplementations' | 'enrolled' | 'builtins', string[]>
     expect(observed.builtins).toEqual(BUILTIN_BACKENDS.map(backend => backend.id))
@@ -698,7 +748,7 @@ describe('backend registration and host policy', () => {
         incompatibleWitnessCalls++
         return DefaultBackend.render(document, context)
       },
-    }, { compatibility: { core: '^0.4.0', scene: '^99.0.0' } }))
+    }, { compatibility: { core: '^0.5.0', scene: '^99.0.0' } }))
       .toThrow(/scene.*\^99\.0\.0.*host version 2\.0\.0/i)
     expect(incompatibleWitnessCalls).toBe(0)
     expect(() => registerBackendFromJs({
@@ -708,7 +758,7 @@ describe('backend registration and host policy', () => {
         ...claim,
         target: 'backend:test/scene-v1',
       })),
-    }, { compatibility: { core: '^0.4.0', scene: '^1.0.0' } }))
+    }, { compatibility: { core: '^0.5.0', scene: '^1.0.0' } }))
       .toThrow(/scene.*\^1\.0\.0.*host version 2\.0\.0/i)
   })
 
@@ -727,7 +777,7 @@ describe('backend registration and host policy', () => {
         witnessCalls++
         return DefaultBackend.render(document, context)
       },
-    }, { compatibility: { core: '^0.4.0' } }))
+    }, { compatibility: { core: '^0.5.0' } }))
       .toThrow(/must declare an explicit compatible "scene" range/i)
     expect(witnessCalls).toBe(0)
     expect(getBackend(id)).toBeUndefined()
@@ -943,11 +993,13 @@ describe('backend registration and host policy', () => {
 
   test('snapshots backend identity, methods, and capabilities at registration', () => {
     const id = 'backend:test/immutable-snapshot'
+    const documents: unknown[] = []
     const backend = {
       ...DefaultBackend,
       id,
       capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: id })),
       render(doc: Parameters<typeof DefaultBackend.render>[0], context: Parameters<typeof DefaultBackend.render>[1]) {
+        documents.push(doc)
         return DefaultBackend.render(doc, context).replace('<svg ', `<svg data-snapshot-id="${this.id}" `)
       },
     }
@@ -957,6 +1009,9 @@ describe('backend registration and host policy', () => {
       provenance: { owner: 'immutable-backend-test', source: 'test' },
     })
     try {
+      expect(documents.length).toBeGreaterThan(1)
+      expect(new Set(documents).size).toBe(documents.length)
+      expect(documents.every(Object.isFrozen)).toBe(true)
       backend.id = 'backend:test/tampered'
       backend.render = () => '<svg data-mutated="true" />'
       backend.capabilities.splice(0, backend.capabilities.length)
@@ -1063,20 +1118,10 @@ describe('backend registration and host policy', () => {
     expect(getBackend(id)).toBeUndefined()
   })
 
-  // Release guard. Built-in registrations declare `core: '^X.Y.0'`, and for 0.x
-  // a caret range is minor-bounded: '^0.2.0' means '<0.3.0'. So bumping
-  // PACKAGE_VERSION to a new minor without updating these literals makes every
-  // built-in registration incompatible, the registries never finish
-  // initializing, and the failure surfaces as
-  // `ReferenceError: Cannot access 'REGISTRY' before initialization` across
-  // thousands of unrelated tests. That happened on the 0.2.0 -> 0.3.0 bump.
-  // Reading the registered identities fails here in that case too; a pin that
-  // is still accepted but no longer `^X.Y.0` fails with its id. The pins live in
-  // src/scene/roles.ts, src/scene/style-registry.ts, src/scene/backend.ts,
-  // src/agent/families.ts and src/font-manifest.ts: update them together.
+  // Bundled identities ship with this core. External requirements still use
+  // independently declared ranges, including rejection of the previous minor.
   test('built-in core compatibility pins track the current package version', () => {
-    const [major, minor] = PACKAGE_VERSION.split('.')
-    const expected = `^${major}.${minor}.0`
+    const expected = PACKAGE_VERSION
     const builtins = [
       ...SCENE_ROLE_DESCRIPTORS.map(descriptor => descriptor.identity),
       ...knownStyleDescriptors().map(descriptor => descriptor.identity),
@@ -1090,5 +1135,55 @@ describe('backend registration and host policy', () => {
       .filter(identity => identity.compatibility.core !== expected || !evaluateExtensionCompatibility(identity).accepted)
       .map(identity => `${identity.id}: core ${identity.compatibility.core}`)
     expect(stale).toEqual([])
+  })
+})
+
+describe('built-in backend conformance', () => {
+  test('refuses a non-conforming built-in at its first render instead of at registration', async () => {
+    // A fresh process: a built-in cannot be unregistered, and a failing one
+    // left in this process would break every later test of the built-in set.
+    const probe = await runChild(process.execPath, ['--eval', `
+      const { DefaultBackend, knownBackendDescriptors, registerBackend, registerBuiltInBackend } = await import('./src/scene/backend.ts')
+      const builtIn = (inputName, render) => ({
+        ...DefaultBackend,
+        id: inputName,
+        capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: 'backend:' + inputName })),
+        render,
+      })
+      const attempt = call => { try { call(); return 'returned' } catch (error) { return error.message } }
+      let calls = 0
+      const inputName = 'test-nondeterministic-built-in'
+      const id = 'backend:' + inputName
+      const backend = builtIn(inputName, (doc, context) => DefaultBackend.render(doc, context).replace('<svg ', '<svg data-conformance-call="' + ++calls + '" '))
+      registerBuiltInBackend(backend)
+      const callsAtRegistration = calls
+      const first = attempt(() => backend.render(undefined, { seed: 0 }))
+      const callsAfterFirst = calls
+      const second = attempt(() => backend.render(undefined, { seed: 0 }))
+      const passed = knownBackendDescriptors().find(entry => entry.identity.id === id)?.conformance.passed
+      // A first drawNode proves conformance just as a first render does.
+      let drawCalls = 0
+      const drawer = builtIn('test-nondeterministic-drawer', (doc, context) => DefaultBackend.render(doc, context).replace('<svg ', '<svg data-conformance-call="' + ++drawCalls + '" '))
+      registerBuiltInBackend(drawer)
+      const firstDraw = attempt(() => drawer.drawNode(undefined, undefined))
+      // The lazy run holds the registry closed, as a registration's run does.
+      let mutation
+      const mutator = builtIn('test-mutating-built-in', (doc, context) => {
+        mutation ??= attempt(() => registerBackend(undefined, undefined))
+        return DefaultBackend.render(doc, context)
+      })
+      registerBuiltInBackend(mutator)
+      attempt(() => mutator.render(undefined, { seed: 0 }))
+      console.log(JSON.stringify({ callsAtRegistration, first, second, reran: calls !== callsAfterFirst, passed, firstDraw, mutation }))
+    `], { cwd: join(import.meta.dir, '..', '..') })
+    expect({ status: probe.status, stderr: probe.stderr }).toEqual({ status: 0, stderr: '' })
+    const observed = JSON.parse(probe.stdout) as { callsAtRegistration: number; first: string; second: string; reran: boolean; passed: boolean; firstDraw: string; mutation: string }
+    expect(observed.callsAtRegistration).toBe(0)
+    expect(observed.first).toMatch(/^Built-in backend "test-nondeterministic-built-in" failed SVG conformance:.*document-determinism/)
+    expect(observed.second).toMatch(/failed SVG conformance/)
+    expect(observed.reran).toBe(false)
+    expect(observed.passed).toBe(false)
+    expect(observed.firstDraw).toMatch(/^Built-in backend "test-nondeterministic-drawer" failed SVG conformance:/)
+    expect(observed.mutation).toMatch(/mutation is forbidden while candidate "backend:test-mutating-built-in"/)
   })
 })

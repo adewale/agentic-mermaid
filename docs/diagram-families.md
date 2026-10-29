@@ -2,6 +2,10 @@
 
 Agentic Mermaid supports Mermaid's common diagram families through a split pipeline: parse source, layout typed structures, render SVG/PNG/ASCII, and verify structural warnings.
 
+A **family** is a Mermaid diagram type, such as Flowchart or Sequence. Its
+source nodes, edges and other objects are distinct from Scene parts and painted
+resolved primitives. See the [shared vocabulary](./api.md#vocabulary).
+
 ## Capability authority
 
 The roster and per-family capability states come from the `FamilyDescriptor` registry. Agents can discover the live roster and operation shapes through `am capabilities --json`. Library and Code Mode callers can use `describeOps(family)` for the exact mutation schema. This guide keeps examples and family-specific caveats, not a second inventory.
@@ -74,6 +78,11 @@ classDiagram
 ```
 
 Structured ops cover classes, members, relations, notes, and renames.
+One-ended lollipops are independent interface occurrences, even when labels
+repeat or match an ordinary class name. Use `add_interface` with `class` and
+`label` (and optional `side`, `relationLabel`, `lineStyle`) to create one;
+`add_relation` cannot silently turn an ordinary class into an interface.
+The interface label and its relationship label remain distinct.
 
 Removing or moving the last class out of an unlabeled namespace removes that
 empty group, including empty ancestors. An explicit namespace label is authored
@@ -122,7 +131,7 @@ xychart-beta
   line [50, 180, 420]
 ```
 
-The modeled title, axes, orientation, and bar/line series are structurally mutable through `asXyChart`; use `describeOps('xychart')` for the exact schema. Unknown statements fall back losslessly at the agent layer, but verification and rendering reject them instead of silently dropping them. Direct library errors name the statement; CLI and hosted routes project a generic render diagnostic. See [`design/families/xychart.md`](./design/families/xychart.md) for compatibility details and layout notes.
+The modeled title, axes, orientation, and bar/line series are structurally mutable through `asXyChart`; use `describeOps('xychart')` for the exact schema. Unknown statements fall back losslessly at the agent layer, but verification and rendering reject them instead of silently dropping them. Direct library errors name the statement; CLI and hosted routes project a generic render diagnostic. See [`design/families/xychart.md`](https://github.com/adewale/agentic-mermaid/blob/0f05d39858d0061b79a0c99ef03a5c10d537ddaa/docs/design/families/xychart.md) for compatibility details and layout notes.
 
 ## Pie
 
@@ -181,7 +190,9 @@ gantt
     another task    :24d
 ```
 
-Gantt charts accept the `gantt` header, `title`, calendar directives (`dateFormat`, `axisFormat`, `tickInterval`, `inclusiveEndDates`, `topAxis`, multiple `excludes`/`includes` lines, `weekend friday|saturday`, `weekday <day>`, `todayMarker`), `section` lines, and task lines `Label :[tags,] [id,] [start,] end` where tags are `active`/`done`/`crit`/`milestone`/`vert`, start is a date or `after id…`, and end is a date, a duration token (`ms s m h d w M y`, decimals allowed), or `until id…`. Dependencies resolve in a pure scheduler ([design/families/gantt.md](./design/families/gantt.md)): `after` starts at the latest referenced end, `until` ends at the earliest referenced start, working durations extend over excluded days, `includes` overrides `excludes`, and dependency cycles / unknown references / invalid dates are named structured errors (`GANTT_*`), never wall-clock fallbacks. Rendering is deterministic: the `todayMarker` draws only when the caller passes `ganttToday` (a date in the diagram's `dateFormat`), and `todayMarker off` always wins. `displayMode: compact` (frontmatter or `config.gantt`) packs non-overlapping tasks of a section into shared rows; `vert` markers draw a full-height line without consuming a task row. `click … href` is sanitized under strict security and `click … call` is parsed but never executed. Gantt is structured when narrowed and segment-preserving: `asGantt` edits title/sections/tasks while calendar directives, click lines, and comments ride along verbatim as opaque segments; duplicate task ids or an unclosed `accDescr` block fall back to a lossless whole-opaque body.
+An empty Gantt plan renders its authored title/sections and **No tasks scheduled**, without inventing task bars or date ticks. Verification retains the existing `EMPTY_DIAGRAM` diagnostic.
+
+Gantt charts accept the `gantt` header, `title`, calendar directives (`dateFormat`, `axisFormat`, `tickInterval`, `inclusiveEndDates`, `topAxis`, multiple `excludes`/`includes` lines, `weekend friday|saturday`, `weekday <day>`, `todayMarker`), `section` lines, and task lines `Label :[tags,] [id,] [start,] end` where tags are `active`/`done`/`crit`/`milestone`/`vert`, start is a date or `after id…`, and end is a date, a duration token (`ms s m h d w M y`, decimals allowed), or `until id…`. Dependencies resolve in a pure scheduler ([design/families/gantt.md](https://github.com/adewale/agentic-mermaid/blob/8af19b86f53e0ad2683388b01e3c5cef083a4653/docs/design/families/gantt.md)): `after` starts at the latest referenced end, `until` ends at the earliest referenced start, working durations extend over excluded days, `includes` overrides `excludes`, and dependency cycles / unknown references / invalid dates are named structured errors (`GANTT_*`), never wall-clock fallbacks. Rendering is deterministic: the `todayMarker` draws only when the caller passes `ganttToday` (a date in the diagram's `dateFormat`), and `todayMarker off` always wins. `displayMode: compact` (frontmatter or `config.gantt`) packs non-overlapping tasks of a section into shared rows; `vert` markers draw a full-height line without consuming a task row. `click … href` is sanitized under strict security and `click … call` is parsed but never executed. Gantt is structured when narrowed and segment-preserving: `asGantt` edits title/sections/tasks while calendar directives, click lines, and comments ride along verbatim as opaque segments; duplicate task ids or an unclosed `accDescr` block fall back to a lossless whole-opaque body.
 
 ## Mindmap
 
@@ -193,7 +204,7 @@ mindmap
     Delivery
 ```
 
-Mindmap uses indentation for parentage and supports Mermaid node shapes, `::icon(...)`, `:::class`, accessibility directives, deterministic tree layout, and structured mutation through `asMindmap`. Duplicate semantic ids are rejected. Use `describeOps('mindmap')` for the exact operation schema; see [`design/families/mindmap.md`](./design/families/mindmap.md).
+Mindmap uses indentation for parentage and supports Mermaid node shapes, `::icon(...)`, `:::class`, accessibility directives, deterministic tree layout, and structured mutation through `asMindmap`. Duplicate semantic ids are rejected. Use `describeOps('mindmap')` for the exact operation schema; see [`design/families/mindmap.md`](https://github.com/adewale/agentic-mermaid/blob/0f05d39858d0061b79a0c99ef03a5c10d537ddaa/docs/design/families/mindmap.md).
 
 ## GitGraph
 
@@ -206,7 +217,7 @@ gitGraph
   merge feature id:"merge"
 ```
 
-GitGraph replays commits and branch movement in source order and exposes structured mutation through `asGitGraph`. Generated ids are deterministic `c<N>` values and duplicate custom ids are rejected. Use `describeOps('gitgraph')` for the exact operation schema; see [`design/families/gitgraph.md`](./design/families/gitgraph.md).
+GitGraph replays commits and branch movement in source order and exposes structured mutation through `asGitGraph`. Generated ids are deterministic `c<N>` values. Repeated authored commit IDs retain separate, collision-free occurrence IDs while rendering and canonical export retain their authored labels; later occurrences expose `sourceId`. Typed edits use public occurrence IDs. Explicit duplicate merge IDs remain invalid. Use `describeOps('gitgraph')` for the exact operation schema; see [`design/families/gitgraph.md`](https://github.com/adewale/agentic-mermaid/blob/8af19b86f53e0ad2683388b01e3c5cef083a4653/docs/design/families/gitgraph.md).
 
 ## Architecture
 
@@ -218,7 +229,7 @@ architecture-beta
   web:R --> L:db
 ```
 
-See [`design/families/architecture-beta.md`](./design/families/architecture-beta.md) for parser/layout/render notes.
+See [`design/families/architecture-beta.md`](https://github.com/adewale/agentic-mermaid/blob/0f05d39858d0061b79a0c99ef03a5c10d537ddaa/docs/design/families/architecture-beta.md) for parser/layout/render notes.
 
 ## Sankey
 
@@ -229,11 +240,116 @@ sankey-beta
   Electricity grid,Losses,56.69
 ```
 
-Sankey diagrams accept the `sankey` or `sankey-beta` header followed by one `source,target,value` CSV row per link (an RFC 4180 subset: quoted fields may contain commas, `""` is a literal quote, and blank lines and `%%` comments are allowed). Nodes are implied by the labels, values are non-negative numbers, and self-loops or cycles are rejected. Malformed rows fall back to a lossless opaque body that verification reports (`UNSUPPORTED_SYNTAX`, `RENDER_FAILED`) rather than rendering a partial diagram. Verify also emits the `FLOW_IMBALANCE` lint when an intermediate node receives a different total than it emits. Sankey is structured when narrowed through `asSankey`; use `describeOps('sankey')` for the exact link and rename operation schema. See [`design/families/sankey.md`](./design/families/sankey.md) for layout, config, and terminal notes.
+Sankey diagrams accept the `sankey` or `sankey-beta` header followed by one `source,target,value` CSV row per link (an RFC 4180 subset: quoted fields may contain commas, `""` is a literal quote, and blank lines and `%%` comments are allowed). Nodes are implied by the labels, values are non-negative numbers, and self-loops or cycles are rejected. Malformed rows fall back to a lossless opaque body that verification reports (`UNSUPPORTED_SYNTAX`, `RENDER_FAILED`) rather than rendering a partial diagram. Verify also emits the `FLOW_IMBALANCE` lint when an intermediate node receives a different total than it emits. Sankey is structured when narrowed through `asSankey`; use `describeOps('sankey')` for the exact link and rename operation schema. See [`design/families/sankey.md`](https://github.com/adewale/agentic-mermaid/blob/0f05d39858d0061b79a0c99ef03a5c10d537ddaa/docs/design/families/sankey.md) for layout, config, and terminal notes.
+
+## C4
+
+```mermaid
+C4Container
+  Person(customer, "Customer")
+  System_Boundary(shop, "Online shop") {
+    Container(api, "API", "TypeScript", "Accepts orders")
+    ContainerDb(db, "Orders", "PostgreSQL")
+  }
+  Rel(customer, api, "Places order", "HTTPS")
+  Rel(api, db, "Stores order", "SQL")
+```
+
+All five legacy headers (`C4Context`, `C4Container`, `C4Component`,
+`C4Dynamic`, `C4Deployment`) use the typed `C4Body`. Narrow with `asC4` and
+discover edits with `describeOps('c4')`. Elements, recursive boundaries,
+deployment nodes and individual repeated interactions retain source identity
+across graphical and terminal projections. Unknown statements are preserved,
+diagnosed and block partial rendering. See [C4 semantics and output
+dispositions](https://github.com/adewale/agentic-mermaid/blob/0f05d39858d0061b79a0c99ef03a5c10d537ddaa/docs/design/families/c4.md) for editing, config and portability.
+
+## Requirement
+
+```mermaid
+requirementDiagram
+  requirement reliable {
+    id: R1
+    text: Preserve authored meaning
+    risk: high
+    verifymethod: test
+  }
+  element suite {
+    type: conformance suite
+  }
+  suite - verifies -> reliable
+```
+
+Requirements remain compartmented boxes with ID, text, risk and verification fields, joined by typed traceability relations. Narrow with `asRequirement` and discover typed edits with `describeOps('requirement')`. See [Requirement semantics and output](https://github.com/adewale/agentic-mermaid/blob/0f05d39858d0061b79a0c99ef03a5c10d537ddaa/docs/design/families/requirement.md) for placement, portability and pin evidence.
+
+## Block
+
+```mermaid
+block
+  columns 2
+  A["API"] B[("Database")]
+  A --> B
+```
+
+Blocks occupy authored grid cells, with explicit column spans, empty cells and nested composites; connectors do not reorder the grid. Narrow with `asBlock` and discover typed edits with `describeOps('block')`. See [Block semantics and output](https://github.com/adewale/agentic-mermaid/blob/0f05d39858d0061b79a0c99ef03a5c10d537ddaa/docs/design/families/block.md) for placement, portability and pin evidence.
+
+## Packet
+
+```mermaid
+packet
+0-15: "Source port"
+16-31: "Destination port"
++16: "Length"
++16: "Checksum"
+```
+
+A packet displays bit-addressed fields with proportional widths and explicit word rows. The Editor supports keyboard field selection, highlighting all fragments and displaying bit ranges and zero-based byte offsets; this preview inspection leaves canonical exports intact. Narrow with `asPacket` and discover typed edits with `describeOps('packet')`. See [Packet semantics and output](https://github.com/adewale/agentic-mermaid/blob/8af19b86f53e0ad2683388b01e3c5cef083a4653/docs/design/families/packet.md) for placement, portability and pin evidence.
+
+## Kanban
+
+```mermaid
+kanban
+  column1[Column Title]
+    task1[Task Description]
+```
+
+A Kanban board preserves ordered workflow columns containing ordered task cards. Opt into whole-column graphical wrapping with render options `kanban: { maxWidth: 720 }`, or use the Editor’s **Wrap board to preview width** control. Columns retain readable fonts and a 160px minimum; the requested width is best-effort. Terminal output uses its separate `targetWidth`. Metadata key/value source spans are available through optional `SourceMap.spans.metadata`. Narrow with `asKanban` and discover typed edits with `describeOps('kanban')`. See [Kanban semantics and output](https://github.com/adewale/agentic-mermaid/blob/8af19b86f53e0ad2683388b01e3c5cef083a4653/docs/design/families/kanban.md) for placement, portability and pin evidence.
+
+## Treemap
+
+```mermaid
+treemap-beta
+"Category A"
+    "Item A1": 10
+    "Item A2": 20
+"Category B"
+    "Item B1": 15
+    "Item B2": 25
+```
+
+Nested rectangles encode hierarchical containment and value-proportional leaf area. Narrow with `asTreemap` and discover typed edits with `describeOps('treemap')`. See [Treemap semantics and output](https://github.com/adewale/agentic-mermaid/blob/0f05d39858d0061b79a0c99ef03a5c10d537ddaa/docs/design/families/treemap.md) for placement, portability and pin evidence.
+
+## Ishikawa
+
+```mermaid
+ishikawa
+  Delayed release
+  Process
+    Manual approval
+  Tooling
+    Slow builds
+```
+
+A fishbone diagram has a causal spine ending in one effect, with alternating category bones and nested contributing causes. Narrow with `asIshikawa` and discover typed edits with `describeOps('ishikawa')`. See [Ishikawa semantics and output](https://github.com/adewale/agentic-mermaid/blob/0f05d39858d0061b79a0c99ef03a5c10d537ddaa/docs/design/families/ishikawa.md) for placement, portability and pin evidence.
 
 ## Output formats
 
-All families use the same public output paths:
+All built-in renderable families use the same public output paths:
+
+Terminal output uses the [shared terminal compositor](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/terminal-composition.md)
+for owned cell geometry and encoding. SVG/PNG use their graphical pipeline.
+Shared entry points do not imply identical geometry, feature projections or
+layout feasibility. C4 has native connected terminal geometry. String-only
+extension output does not supply native terminal ownership.
 
 ```ts
 import { renderMermaidSVG, renderMermaidPNG, renderMermaidASCII } from 'agentic-mermaid/agent'

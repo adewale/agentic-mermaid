@@ -3,7 +3,11 @@
 
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
-import { mutate } from '../agent/mutate.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
+import { mutate, mutatePreservingSource } from '../agent/mutate.ts'
+import { parseMermaid as parseNativeFlowchart } from '../parser.ts'
+import { normalizeMermaidSource, normalizeMermaidRenderSource } from '../mermaid-source.ts'
+import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 import type { FlowchartMutationOp, FlowchartValidDiagram, SequenceValidDiagram } from '../agent/types.ts'
@@ -27,6 +31,164 @@ function sequence(src: string): SequenceValidDiagram {
   if (!s) throw new Error('not sequence')
   return s
 }
+
+describe('explicit source-preserving Flowchart labels', () => {
+  const style = 'classDef exClass background:#bbb,border:1px s:::colid red;'
+  const retained = `graph TD\n   \n      A[ h ] -- hello --> B[" test "]:::exClass & C --> D;\n      ${style}`
+  test('edits a native node while retaining the exact unsupported classDef and original bytes', () => {
+    const diagram = parse(retained)
+    expect(diagram.body.kind).toBe('opaque')
+    expect(mutate(diagram, { kind: 'set_label', target: 'A', label: 'Changed' }).ok).toBe(false)
+    const edited = mutatePreservingSource(diagram, { kind: 'set_label', target: 'A', label: 'Changed' })
+    expect(edited.ok).toBe(true)
+    if (!edited.ok) throw new Error(edited.error.message)
+    expect(edited.value.source.startsWith(retained)).toBe(true)
+    expect(edited.value.source).toContain(style)
+    expect(edited.value.diagram.body.kind).toBe('opaque')
+    expect(edited.value.diagram.source.spans?.preserved.source.end.offset).toBe(edited.value.source.length)
+    expect(verifyMermaid(edited.value.diagram).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_style_value' }))
+    const graph = parseNativeFlowchart(normalizeMermaidSource(edited.value.source).familyBody)
+    expect(graph.nodes.get('A')?.label).toBe('Changed')
+    expect(graph.classDefs.get('exClass')).toEqual({ background: '#bbb', border: '1px s:::colid red' })
+    const svg = renderMermaidSVG(edited.value.diagram, { embedFontImport: false })
+    const paintedText = [...svg.matchAll(/<text\b[^>]*>(.*?)<\/text>/gs)].map(match => match[1]!.replace(/<[^>]*>/g, ''))
+    expect(paintedText).toContain('Changed')
+    expect(paintedText).not.toContain('h')
+    expect(paintedText).toContain('hello')
+    const ascii = renderMermaidASCII(edited.value.diagram, { colorMode: 'none' })
+    expect(ascii).toContain('Changed')
+    expect(ascii).toContain('hello')
+    expect(ascii).toContain('test')
+  })
+  test('retains both complete native graph frames through nested shape, style and link label edits', () => {
+    const source = ['---', 'title: Keep wrapper', '---', 'flowchart LR', 'subgraph S[Group]', '  A{Old}:::exClass --> B@{ shape: delay, label: Wait }', 'end', 'style A color:red', 'linkStyle 0 stroke:blue', 'click A href "https://example.com"', style, ''].join('\r\n')
+    let diagram = parse(source), previous = source
+    for (const label of ['Changed', 'Second']) {
+      const result = mutatePreservingSource(diagram, { kind: 'set_label', target: 'A', label })
+      if (!result.ok) throw new Error(result.error.message)
+      expect(result.value.source.startsWith(previous)).toBe(true)
+      expect(result.value.source.slice(0, source.length)).toBe(source)
+      expect(result.value.source).toContain(style + '\r\n')
+      expect(result.value.diagram.meta.wrapperSource).toBe('---\r\ntitle: Keep wrapper\r\n---\r\n')
+      for (const normalize of [normalizeMermaidSource, normalizeMermaidRenderSource]) {
+        const before = parseNativeFlowchart(normalize(previous).familyBody)
+        const after = parseNativeFlowchart(normalize(result.value.source).familyBody)
+        expect(after.nodes.get('A')).toEqual({ ...before.nodes.get('A')!, label })
+        expect(after.nodes.get('A')?.shape).toBe('diamond')
+        expect(after.nodes.get('A')?.href).toBe('https://example.com')
+        expect(after.subgraphs[0]?.nodeIds).toEqual(['A', 'B'])
+        expect(after.nodes.get('B')).toMatchObject({ shape: 'rounded', semanticShape: 'delay', authoredShape: 'delay' })
+        after.nodes.set('A', before.nodes.get('A')!)
+        expect(after).toEqual(before)
+      }
+      diagram = result.value.diagram
+      previous = result.value.source
+    }
+  })
+  test('returns exact bytes for no-op labels and refuses edge or unsupported operations atomically', () => {
+    const diagram = parse(retained)
+    const noop = mutatePreservingSource(diagram, { kind: 'set_label', target: 'A', label: ' h ' })
+    if (!noop.ok) throw new Error(noop.error.message)
+    expect(noop.value.source).toBe(retained)
+    expect(noop.value.diagram.body).toEqual(diagram.body)
+    for (const op of [
+      { kind: 'set_label', target: 'A->B', label: 'Edge edit' },
+      { kind: 'set_label', target: 'Missing', label: 'Missing node' },
+      { kind: 'add_edge', from: 'A', to: 'C' },
+      { kind: 'define_class', name: 'other', style: 'fill:red' },
+      { kind: 'unknown_operation' },
+      { kind: 'set_label', target: 'A', label: 123 },
+      { kind: 'set_label', target: 'A', label: '`**literal**`' },
+    ]) {
+      expect(mutatePreservingSource(diagram, op).ok).toBe(false)
+      expect(diagram.body).toEqual(noop.value.diagram.body)
+      if (diagram.body.kind !== 'opaque') throw new Error('Expected retained opaque body')
+      expect((diagram.meta.wrapperSource ?? '') + diagram.body.source).toBe(retained)
+    }
+  })
+  test('writes directive-looking label payloads as text without changing universal metadata or connectivity', () => {
+    const diagram = parse(retained), label = '%%{init: {"theme":"dark"}}%%\nZ-->Q; A@{shape:circle}'
+    const result = mutatePreservingSource(diagram, { kind: 'set_label', target: 'A', label })
+    if (!result.ok) throw new Error(result.error.message)
+    expect(result.value.source.startsWith(retained)).toBe(true)
+    expect(result.value.diagram.meta).toEqual(diagram.meta)
+    for (const normalize of [normalizeMermaidSource, normalizeMermaidRenderSource]) {
+      const before = parseNativeFlowchart(normalize(retained).familyBody), after = parseNativeFlowchart(normalize(result.value.source).familyBody)
+      expect(after.nodes.get('A')).toEqual({ ...before.nodes.get('A')!, label })
+      after.nodes.set('A', before.nodes.get('A')!)
+      expect(after).toEqual(before)
+    }
+  })
+  test('does not treat equality in only the authored interpretation as a source no-op', () => {
+    const source = `flowchart LR\nA["A&amp; B"]-->B\n${style}`, diagram = parse(source)
+    const result = mutatePreservingSource(diagram, { kind: 'set_label', target: 'A', label: 'A&amp; B' })
+    expect(result.ok).toBe(false)
+    if (diagram.body.kind !== 'opaque') throw new Error('Expected retained opaque body')
+    expect(diagram.body.source).toBe(source)
+  })
+  test.each(['R&amp;D', '&#65;', 'keep &quot;quote&quot;'])('checks newly divergent render text when editing previously identical source views: %s', label => {
+    const source = `flowchart TD\nA[Old] --> B\n${style}`, diagram = parse(source), unchanged = JSON.stringify(diagram)
+    expect(normalizeMermaidSource(source).familyBody).toBe(normalizeMermaidRenderSource(source).familyBody)
+    expect(mutatePreservingSource(diagram, { kind: 'set_label', target: 'A', label }).ok).toBe(false)
+    expect(JSON.stringify(diagram)).toBe(unchanged)
+  })
+  test('retains distinct authored and rendered text on another node through repeated source edits', () => {
+    const source = `flowchart TD\nA[Old] --> B["R&amp;D"]\n${style}`
+    let diagram = parse(source)
+    for (const label of ['Reviewed', 'Second']) {
+      const result = mutatePreservingSource(diagram, { kind: 'set_label', target: 'A', label })
+      if (!result.ok) throw new Error(result.error.message)
+      expect(result.value.source.startsWith(source)).toBe(true)
+      const authored = parseNativeFlowchart(normalizeMermaidSource(result.value.source).familyBody)
+      const rendered = parseNativeFlowchart(normalizeMermaidRenderSource(result.value.source).familyBody)
+      expect(authored.nodes.get('A')?.label).toBe(label)
+      expect(rendered.nodes.get('A')?.label).toBe(label)
+      expect(authored.nodes.get('B')?.label).toBe('R&amp;D')
+      expect(rendered.nodes.get('B')?.label).toBe('R&D')
+      diagram = result.value.diagram
+    }
+  })
+
+  test('renames owned node references while preserving source text, node order, labels and dependent edge/group identities', () => {
+    const source = `---\ntitle: Keep A\n---\nflowchart LR\naccTitle: A stays text\n%% A stays a comment\nsubgraph S[Group A]\nA[Label A] -->|Edge A| B:::exClass\nC --> A\nA --> A\nend\n${style}`
+    const original = parse(source)
+    const renamed = mutatePreservingSource(original, { kind: 'rename_node', from: 'A', to: 'Start' })
+    if (!renamed.ok) throw new Error(renamed.error.message)
+    expect(renamed.value.source).toBe(source.replace('A[Label A]', 'Start[Label A]').replace('C --> A', 'C --> Start').replace('A --> A', 'Start --> Start'))
+    for (const normalize of [normalizeMermaidSource, normalizeMermaidRenderSource]) {
+      const before = parseNativeFlowchart(normalize(source).familyBody), after = parseNativeFlowchart(normalize(renamed.value.source).familyBody)
+      const rename = (id: string) => id === 'A' ? 'Start' : id
+      expect([...after.nodes.keys()]).toEqual([...before.nodes.keys()].map(rename))
+      expect(after.nodes.get('Start')).toEqual({ ...before.nodes.get('A')!, id: 'Start' })
+      expect(after.edges).toEqual(before.edges.map(edge => ({ ...edge, source: rename(edge.source), target: rename(edge.target) })))
+      expect(after.subgraphs[0]?.nodeIds).toEqual(before.subgraphs[0]!.nodeIds.map(rename))
+      expect(after.classDefs).toEqual(before.classDefs)
+    }
+    const noop = mutatePreservingSource(renamed.value.diagram, { kind: 'rename_node', from: 'Start', to: 'Start' })
+    if (!noop.ok) throw new Error(noop.error.message)
+    expect(noop.value.source).toBe(renamed.value.source)
+    expect(renderMermaidSVG(renamed.value.diagram)).toBe(renderMermaidSVG(renamed.value.source))
+    expect(renderMermaidASCII(renamed.value.diagram)).toBe(renderMermaidASCII(renamed.value.source))
+  })
+
+  test.each(['style A fill:red', 'class A hot', 'click A callback', 'click A href "https://example.com"', 'subgraph A[Group]\nC\nend'])('refuses node rename while reference ownership is unsupported: %s', extra => {
+    const source = `flowchart LR\nA[Label] --> B\n${extra}\n${style}`, original = parse(source), unchanged = JSON.stringify(original)
+    expect(mutatePreservingSource(original, { kind: 'rename_node', from: 'A', to: 'Start' }).ok).toBe(false)
+    expect(JSON.stringify(original)).toBe(unchanged)
+  })
+  test.each(['o', 'x'])('renames the node %s without rewriting an arrow marker with the same spelling', id => {
+    const source = `flowchart LR\nA o--x B\n${id}[Keep ${id}]\n${id} --> A\n${style}`, original = parse(source)
+    const renamed = mutatePreservingSource(original, { kind: 'rename_node', from: id, to: 'Port' })
+    if (!renamed.ok) throw new Error(renamed.error.message)
+    expect(renamed.value.source).toBe(source.replace(`\n${id}[Keep ${id}]`, `\nPort[Keep ${id}]`).replace(`\n${id} --> A`, '\nPort --> A'))
+    expect(parseNativeFlowchart(normalizeMermaidRenderSource(renamed.value.source).familyBody).nodes.get('Port')?.label).toBe(`Keep ${id}`)
+  })
+  test('refuses rename collisions and structural ID injection without changing the retained input', () => {
+    const original = parse(retained), unchanged = JSON.stringify(original)
+    for (const [from, to] of [['Missing', 'Start'], ['A', 'B'], ['A', 'end'], ['A', 'Start\nX-->Z'], ['A', 'Start["Injected"]']]) expect(mutatePreservingSource(original, { kind: 'rename_node', from, to }).ok).toBe(false)
+    expect(JSON.stringify(original)).toBe(unchanged)
+  })
+})
 describe('parseRegisteredMermaid', () => {
   test('flowchart', () => {
     expect(parse('flowchart TD\n  A --> B').body.kind).toBe('flowchart')
@@ -173,7 +335,7 @@ describe('BUILD-18 segment-preserving sequence — fast-check properties', () =>
         // Idempotent: re-parse → same serialize.
         expect(serializeMermaid(parse(out))).toBe(serializeMermaid(d))
       }),
-      { numRuns: 200 },
+      fcParameters({ numRuns: 200 }),
     )
   })
 
@@ -207,7 +369,7 @@ describe('BUILD-18 segment-preserving sequence — fast-check properties', () =>
         const expected = nonBlank(['sequenceDiagram', ...segs.filter(x => x !== removed).map(x => x.text)].join('\n'))
         expect(nonBlank(serializeMermaid(r.value))).toEqual(expected)
       }),
-      { numRuns: 200 },
+      fcParameters({ numRuns: 200 }),
     )
   })
 
@@ -236,7 +398,7 @@ describe('BUILD-18 segment-preserving sequence — fast-check properties', () =>
         // Round-trip stable.
         expect(serializeMermaid(parse(out))).toBe(serializeMermaid(d))
       }),
-      { numRuns: 300 },
+      fcParameters({ numRuns: 300 }),
     )
   })
 })
@@ -345,7 +507,9 @@ describe('flowchart mutate — six ops', () => {
   })
   test('remove_edge', () => {
     const r = mutate(flowchart('flowchart TD\n  A --> B\n  B --> C'), { kind: 'remove_edge', id: 'A->B' })
-    expect(r.ok && r.value.body.graph.edges.length).toBe(1)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.body.graph.edges.map(edge => [edge.source, edge.target])).toEqual([['B', 'C']])
   })
   test('edge and node removals remap numeric linkStyle targets to surviving edge indices', () => {
     const source = 'flowchart TD\n  A --> B\n  B --> C\n  C --> D\n  linkStyle 0 stroke:#111\n  linkStyle 1 stroke:#f00\n  linkStyle 2 stroke:#0f0\n  linkStyle default stroke:#888'
@@ -377,7 +541,10 @@ describe('flowchart mutate — six ops', () => {
   test('input not mutated', () => {
     const f = flowchart('flowchart TD\n  A --> B')
     const before = [...f.body.graph.nodes.keys()].sort()
-    mutate(f, { kind: 'add_node', id: 'C', label: 'C' })
+    const edited = mutate(f, { kind: 'add_node', id: 'C', label: 'C' })
+    expect(edited.ok).toBe(true)
+    if (!edited.ok) return
+    expect(edited.value.body.graph.nodes.get('C')).toMatchObject({ id: 'C', label: 'C' })
     expect([...f.body.graph.nodes.keys()].sort()).toEqual(before)
   })
 })
@@ -401,7 +568,10 @@ describe('sequence mutate — five ops', () => {
   })
   test('add_message implicit participants', () => {
     const r = mutate(sequence('sequenceDiagram\n  A->>B: Hi'), { kind: 'add_message', from: 'C', to: 'D', text: 'New' })
-    expect(r.ok && r.value.body.participants.map(p => p.id).includes('C')).toBe(true)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.body.participants.map(p => p.id)).toEqual(expect.arrayContaining(['C', 'D']))
+    expect(r.value.body.messages).toContainEqual(expect.objectContaining({ from: 'C', to: 'D', text: 'New' }))
   })
   test('remove_message by index', () => {
     const r = mutate(sequence('sequenceDiagram\n  A->>B: First\n  B-->>A: Second'), { kind: 'remove_message', index: 0 })
@@ -642,7 +812,7 @@ describe('round-trip stability', () => {
           }), commands)
         },
       ),
-      { numRuns: 100 },
+      fcParameters({ numRuns: 100 }),
     )
   })
 })
@@ -716,6 +886,9 @@ describe('synthesizeFromGraph', () => {
       },
     })
     expect(r.ok).toBe(true)
+    if (!r.ok || r.value.body.kind !== 'flowchart') throw new Error('Expected Flowchart')
+    expect([...r.value.body.graph.nodes.keys()]).toEqual(['A'])
+    expect(r.value.body.graph.edges).toEqual([])
   })
 
   test('synthesizeFromGraph: invalid body.kind returns error', () => {
@@ -890,7 +1063,7 @@ describe('synthesizeFromGraph', () => {
     expect(r.value.body.graph.subgraphs[0]!.nodeIds).toEqual([])
   })
 
-  test('synthesizeFromGraph: linkStyles accept Map, Array, plain object, and `default` key', () => {
+  test('synthesizeFromGraph: style maps accept Map, Array and object wire representations', () => {
     // Plain object with numeric + 'default' keys
     const r1 = synthesizeFromGraph({
       kind: 'flowchart',
@@ -1070,9 +1243,11 @@ describe('verify', () => {
     expect(codes({ suppress: ['DUPLICATE_EDGE', 'UNREACHABLE_NODE'] })).toEqual([])
   })
   test('finite coordinates only', () => {
-    const flat = JSON.stringify(verifyMermaid('flowchart TD\n  A --> B\n  B --> C').layout)
-    expect(flat).not.toContain('NaN')
-    expect(flat).not.toContain('Infinity')
+    const layout = verifyMermaid('flowchart TD\n  A --> B\n  B --> C').layout
+    expect(layout.nodes.map(node => node.id).sort()).toEqual(['A', 'B', 'C'])
+    expect(layout.edges).toHaveLength(2)
+    const coordinates = [layout.bounds.w, layout.bounds.h, ...layout.nodes.flatMap(node => [node.x, node.y, node.w, node.h]), ...layout.edges.flatMap(edge => edge.path.flat())]
+    for (const coordinate of coordinates) expect(Number.isFinite(coordinate)).toBe(true)
   })
   test('no seed field on layout', () => {
     expect('seed' in verifyMermaid('flowchart TD\n  A --> B').layout).toBe(false)
@@ -1128,7 +1303,7 @@ describe('asFlowchart / asSequence return null on the wrong family', () => {
   test('asFlowchart returns null for sequence body', () => {
     expect(asFlowchart(parse('sequenceDiagram\n  A->>B: Hi'))).toBeNull()
   })
-  test('asFlowchart returns null for opaque body (class)', () => {
+  test('asFlowchart returns null for structured Class body', () => {
     expect(asFlowchart(parse('classDiagram\n  A <|-- B'))).toBeNull()
   })
   test('asSequence returns null for flowchart body', () => {

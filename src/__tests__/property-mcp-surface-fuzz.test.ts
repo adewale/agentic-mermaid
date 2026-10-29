@@ -7,6 +7,7 @@
 // globally (fc-seed.preload.ts).
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { handleRequest } from '../mcp/server.ts'
 import type { JsonRpcRequest } from '../mcp/server.ts'
@@ -107,7 +108,7 @@ describe('mcp-surface fuzz: handleRequest', () => {
         const response = await handleRequest(req as JsonRpcRequest)
         assertWellFormedResponse(response, req as JsonRpcRequest)
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   }, LONG_TIMEOUT_MS)
 
@@ -129,7 +130,7 @@ describe('mcp-surface fuzz: handleRequest', () => {
         expect(Array.isArray(result!.content)).toBe(true)
         expect(typeof result!.isError).toBe('boolean')
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   }, LONG_TIMEOUT_MS)
 })
@@ -150,7 +151,7 @@ describe('mcp-surface fuzz: executeInSandbox', () => {
           expect(typeof result.error).toBe('string')
         }
       }),
-      { numRuns: SANDBOX_RUNS },
+      fcParameters({ numRuns: SANDBOX_RUNS }),
     )
   }, LONG_TIMEOUT_MS)
 })

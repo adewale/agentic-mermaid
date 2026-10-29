@@ -57,6 +57,8 @@
     <pre class="text-canvas" id="ascii-output-wrap" data-canvas-view="ascii" aria-label="ASCII output" hidden><code id="ascii-output">Render a valid diagram to see ASCII output.</code></pre>
   </div>
 
+{{RUNTIME_RECOVERY}}
+
   <div class="verify-bar" id="verify-bar" role="status" aria-live="polite" aria-atomic="true" aria-label="Verification status">
     <span class="verify-verdict" id="verify-summary">Waiting for source</span>
     <div class="verify-tiers" role="list" aria-label="Warning tiers">
@@ -73,6 +75,11 @@
   </div>
 
   <div class="preview-footer">
+    <div class="c4-navigation" id="c4-navigation" hidden>
+      <label for="c4-boundary-view">Boundary</label>
+      <select id="c4-boundary-view" aria-describedby="c4-export-scope"><option value="">Whole diagram</option></select>
+      <span id="c4-export-scope">Exports include the whole diagram.</span>
+    </div>
     <span id="render-time"></span>
   </div>
 </section>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { parseMermaid } from '../parser.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
@@ -77,7 +78,7 @@ describe('crash-freedom: parseMermaid', () => {
       fc.property(fc.string({ maxLength: 200 }), (text) => {
         assertNoUndefinedCrash(() => parseMermaid(text))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -86,7 +87,7 @@ describe('crash-freedom: parseMermaid', () => {
       fc.property(specialCharStringArb, (text) => {
         assertNoUndefinedCrash(() => parseMermaid(text))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -99,7 +100,7 @@ describe('crash-freedom: parseMermaid', () => {
           assertNoUndefinedCrash(() => parseMermaid(`${header}\n${body}`))
         },
       ),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -112,7 +113,7 @@ describe('crash-freedom: parseMermaid', () => {
           assertNoUndefinedCrash(() => parseMermaid(`${header}\n${body}`))
         },
       ),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })
@@ -127,7 +128,7 @@ describe('crash-freedom: parseSequenceDiagram', () => {
       fc.property(randomLinesArb, (lines) => {
         assertNoUndefinedCrash(() => parseSequenceDiagram(lines))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -136,7 +137,7 @@ describe('crash-freedom: parseSequenceDiagram', () => {
       fc.property(specialLinesArb, (lines) => {
         assertNoUndefinedCrash(() => parseSequenceDiagram(lines))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -145,7 +146,7 @@ describe('crash-freedom: parseSequenceDiagram', () => {
       fc.property(randomLinesArb, (bodyLines) => {
         assertNoUndefinedCrash(() => parseSequenceDiagram(['sequenceDiagram', ...bodyLines]))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })
@@ -160,7 +161,7 @@ describe('crash-freedom: parseClassDiagram', () => {
       fc.property(randomLinesArb, (lines) => {
         assertNoUndefinedCrash(() => parseClassDiagram(lines))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -169,7 +170,7 @@ describe('crash-freedom: parseClassDiagram', () => {
       fc.property(specialLinesArb, (lines) => {
         assertNoUndefinedCrash(() => parseClassDiagram(lines))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -178,7 +179,7 @@ describe('crash-freedom: parseClassDiagram', () => {
       fc.property(randomLinesArb, (bodyLines) => {
         assertNoUndefinedCrash(() => parseClassDiagram(['classDiagram', ...bodyLines]))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })
@@ -193,7 +194,7 @@ describe('crash-freedom: parseErDiagram', () => {
       fc.property(randomLinesArb, (lines) => {
         assertNoUndefinedCrash(() => parseErDiagram(lines))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -202,7 +203,7 @@ describe('crash-freedom: parseErDiagram', () => {
       fc.property(specialLinesArb, (lines) => {
         assertNoUndefinedCrash(() => parseErDiagram(lines))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -211,7 +212,7 @@ describe('crash-freedom: parseErDiagram', () => {
       fc.property(randomLinesArb, (bodyLines) => {
         assertNoUndefinedCrash(() => parseErDiagram(['erDiagram', ...bodyLines]))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })
@@ -226,7 +227,7 @@ describe('crash-freedom: parseTimelineDiagram', () => {
       fc.property(randomLinesArb, (lines) => {
         assertNoUndefinedCrash(() => parseTimelineDiagram(lines))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -235,7 +236,7 @@ describe('crash-freedom: parseTimelineDiagram', () => {
       fc.property(specialLinesArb, (lines) => {
         assertNoUndefinedCrash(() => parseTimelineDiagram(lines))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -244,7 +245,7 @@ describe('crash-freedom: parseTimelineDiagram', () => {
       fc.property(randomLinesArb, (bodyLines) => {
         assertNoUndefinedCrash(() => parseTimelineDiagram(['timeline', ...bodyLines]))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })
@@ -259,7 +260,7 @@ describe('crash-freedom: parseJourneyDiagram', () => {
       fc.property(randomLinesArb, (lines) => {
         assertNoUndefinedCrash(() => parseJourneyDiagram(lines))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -268,7 +269,7 @@ describe('crash-freedom: parseJourneyDiagram', () => {
       fc.property(specialLinesArb, (lines) => {
         assertNoUndefinedCrash(() => parseJourneyDiagram(lines))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -277,7 +278,7 @@ describe('crash-freedom: parseJourneyDiagram', () => {
       fc.property(randomLinesArb, (bodyLines) => {
         assertNoUndefinedCrash(() => parseJourneyDiagram(['journey', ...bodyLines]))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })
@@ -292,7 +293,7 @@ describe('crash-freedom: parseArchitectureDiagram', () => {
       fc.property(randomLinesArb, (lines) => {
         assertNoUndefinedCrash(() => parseArchitectureDiagram(lines))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -301,7 +302,7 @@ describe('crash-freedom: parseArchitectureDiagram', () => {
       fc.property(specialLinesArb, (lines) => {
         assertNoUndefinedCrash(() => parseArchitectureDiagram(lines))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -310,7 +311,7 @@ describe('crash-freedom: parseArchitectureDiagram', () => {
       fc.property(randomLinesArb, (bodyLines) => {
         assertNoUndefinedCrash(() => parseArchitectureDiagram(['architecture-beta', ...bodyLines]))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })
@@ -325,7 +326,7 @@ describe('crash-freedom: parseXYChart', () => {
       fc.property(randomLinesArb, (lines) => {
         assertNoUndefinedCrash(() => parseXYChart(lines))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -334,7 +335,7 @@ describe('crash-freedom: parseXYChart', () => {
       fc.property(specialLinesArb, (lines) => {
         assertNoUndefinedCrash(() => parseXYChart(lines))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -343,7 +344,7 @@ describe('crash-freedom: parseXYChart', () => {
       fc.property(randomLinesArb, (bodyLines) => {
         assertNoUndefinedCrash(() => parseXYChart(['xychart-beta', ...bodyLines]))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -357,7 +358,7 @@ describe('crash-freedom: parseXYChart', () => {
       fc.property(randomLinesArb, frontmatterArb, (bodyLines, frontmatter) => {
         assertNoUndefinedCrash(() => applyXYChartFrontmatterConfig(parseXYChart(['xychart-beta', ...bodyLines]), frontmatter))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })
@@ -372,7 +373,7 @@ describe('crash-freedom: normalizeMermaidSource', () => {
       fc.property(fc.string({ maxLength: 200 }), (text) => {
         assertNoUndefinedCrash(() => normalizeMermaidSource(text))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -381,7 +382,7 @@ describe('crash-freedom: normalizeMermaidSource', () => {
       fc.property(specialCharStringArb, (text) => {
         assertNoUndefinedCrash(() => normalizeMermaidSource(text))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -391,7 +392,7 @@ describe('crash-freedom: normalizeMermaidSource', () => {
         const text = `---\ntheme: dark\n---\n${body}`
         assertNoUndefinedCrash(() => normalizeMermaidSource(text))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })
@@ -406,7 +407,7 @@ describe('crash-freedom: preprocessMermaidSource', () => {
       fc.property(fc.string({ maxLength: 200 }), (text) => {
         assertNoUndefinedCrash(() => preprocessMermaidSource(text))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -415,7 +416,7 @@ describe('crash-freedom: preprocessMermaidSource', () => {
       fc.property(specialCharStringArb, (text) => {
         assertNoUndefinedCrash(() => preprocessMermaidSource(text))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -425,7 +426,7 @@ describe('crash-freedom: preprocessMermaidSource', () => {
         const text = `---\nconfig:\n  theme: forest\n---\n${body}`
         assertNoUndefinedCrash(() => preprocessMermaidSource(text))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })

@@ -134,8 +134,10 @@ check 'execute: user errors use the structured envelope' '\"error\":{\"code\":\"
 check 'execute: isolate has no fetch' '\"value\":\"undefined\"' \
   "$(j '{"jsonrpc":"2.0","id":12,"method":"tools/call","params":{"name":"execute","arguments":{"code":"return typeof fetch"}}}')"
 
-check 'execute: double syntax error reports cleanly' 'Unexpected token' \
-  "$(j '{"jsonrpc":"2.0","id":13,"method":"tools/call","params":{"name":"execute","arguments":{"code":"return ) === ("}}}')"
+# Shared Code Mode screening rejects malformed syntax before either isolate wrapper runs.
+check_http_jq 'execute: invalid syntax returns the structured screening error' '200' \
+  '.jsonrpc == "2.0" and .id == 13 and .result.isError == true and (.result.content[0] | .type == "text" and (.text | fromjson | .ok == false and .error == {"code":"EXECUTE_FAILED","message":"Code Mode syntax must be a strict JavaScript expression or function body"}))' \
+  -X POST "$MCP" -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":13,"method":"tools/call","params":{"name":"execute","arguments":{"code":"return ) === ("}}}'
 
 check 'async code is screened before any isolate' 'Code Mode is synchronous' \
   "$(j '{"jsonrpc":"2.0","id":14,"method":"tools/call","params":{"name":"execute","arguments":{"code":"await fetch(\"https://x\")"}}}')"

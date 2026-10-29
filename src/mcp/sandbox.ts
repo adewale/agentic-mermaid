@@ -14,7 +14,13 @@ import {
 import type { ExecutionTraceCall } from './facade.ts'
 export type { ExecutionTraceCall } from './facade.ts'
 
-export interface ExecuteOptions { timeoutMs?: number; trace?: boolean; outputLimits?: Readonly<ExecuteOutputLimits> }
+export interface ExecuteOptions {
+  timeoutMs?: number
+  trace?: boolean
+  outputLimits?: Readonly<ExecuteOutputLimits>
+  /** Trusted host instrumentation; never exposed to agent code. */
+  onTraceCall?: (call: ExecutionTraceCall) => void
+}
 export interface ExecuteResult { ok: boolean; value?: unknown; logs?: string[]; error?: string; trace?: ExecutionTraceCall[] }
 
 const MIN_BUN_SDK_TIMEOUT_MS = 1_000
@@ -189,6 +195,7 @@ function runInSandbox(code: string, opts: ExecuteOptions = {}): ExecuteResult {
         ? `Code Mode SDK calls under Bun require at least ${MIN_BUN_SDK_TIMEOUT_MS}ms of remaining timeout budget (timeoutMs >= ${MIN_BUN_SDK_TIMEOUT_MS})`
         : undefined
     },
+    opts.onTraceCall,
   )
   const readLogs = (): string[] => {
     try {

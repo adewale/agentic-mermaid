@@ -1,7 +1,10 @@
+import { OccupancyMap } from '../ascii/occupancy.ts'
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { renderMermaidASCII } from '../ascii/index.ts'
+import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { convertToAsciiGraph } from '../ascii/converter.ts'
 import { determineLabelLine } from '../ascii/edge-routing.ts'
 import { getPath, mergePath } from '../ascii/pathfinder.ts'
@@ -18,6 +21,7 @@ import {
   gridKey,
 } from '../ascii/types.ts'
 import { assertNoDiagonals } from '../ascii/validate.ts'
+import { TerminalDocument } from '../ascii/terminal-document.ts'
 import type { MermaidGraph, MermaidNode } from '../types.ts'
 
 const PROPERTY_RUNS = 50
@@ -78,9 +82,8 @@ function makeGraph(direction: 'TD' | 'LR' = 'TD'): AsciiGraph {
   return {
     nodes: [],
     edges: [],
-    canvas: [[]],
-    roleCanvas: [[]],
-    grid: new Map(),
+    canvas: new TerminalDocument(1, 0),
+    grid: new OccupancyMap(),
     columnWidth: new Map(),
     rowHeight: new Map(),
     subgraphs: [],
@@ -89,15 +92,6 @@ function makeGraph(direction: 'TD' | 'LR' = 'TD'): AsciiGraph {
     offsetY: 0,
     bundles: [],
     trunkJunctions: [],
-  }
-}
-
-function occupyNode(graph: AsciiGraph, node: AsciiNode): void {
-  const gridCoord = node.gridCoord!
-  for (let dx = 0; dx < 3; dx++) {
-    for (let dy = 0; dy < 3; dy++) {
-      graph.grid.set(gridKey({ x: gridCoord.x + dx, y: gridCoord.y + dy }), node)
-    }
   }
 }
 
@@ -180,7 +174,7 @@ describe('property-based ASCII pathfinding', () => {
           expect(isOrthogonalStep(path!, index)).toBe(true)
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -234,7 +228,7 @@ describe('property-based ASCII pathfinding', () => {
           expect(point.y).toBeLessThanOrEqual(bound.y)
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -273,7 +267,7 @@ describe('property-based ASCII pathfinding', () => {
           expect(grid.has(gridKey(point))).toBe(false)
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -312,7 +306,7 @@ describe('property-based ASCII pathfinding', () => {
         expect(mergePath(merged)).toEqual(merged)
         expect(merged.length <= path.length).toBe(true)
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 })
@@ -410,7 +404,7 @@ describe('property-based ASCII routing helpers', () => {
           + Math.floor(Math.abs(edge.labelLine[0]!.x - edge.labelLine[1]!.x) / 2)
         expect((graph.columnWidth.get(middleX) ?? 0) >= label.length + 2).toBe(true)
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -464,7 +458,7 @@ describe('property-based ASCII routing helpers', () => {
           expect(node.styleClass.styles.fill).toBe(assignedClass === 'hot' ? '#f00' : '#00f')
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 })
@@ -477,7 +471,7 @@ describe('property-based renderMermaidASCII', () => {
   CUSTOMER ||--o{ ORDER : ${label}`, { colorMode: 'none', useAscii })
         expect(ascii).toContain(label)
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -517,10 +511,20 @@ describe('property-based renderMermaidASCII', () => {
           ...edges.map((edge) => `${edge.from} -->${edge.label ? `|${edge.label}|` : ''} ${edge.to}`),
         ].join('\n')
 
-        const ascii = renderMermaidASCII(source, { colorMode: 'none', useAscii: false })
-        assertNoDiagonals(ascii)
+        const rendered = renderMermaidASCIIWithMeta(source, { colorMode: 'none', useAscii: false })
+        for (const node of nodes) expect(rendered.ascii).toContain(node.label)
+        expect(rendered.regions.filter(region => region.kind === 'node').map(region => region.id).sort()).toEqual(nodes.map(node => node.id).sort())
+        expect(rendered.regions.filter(region => region.kind === 'edge').map(edge => [edge.from, edge.to]).sort()).toEqual(edges.map(edge => [edge.from, edge.to]).sort())
+        assertNoDiagonals(rendered.ascii)
       }),
-      { numRuns: 30 },
+      fcParameters({ numRuns: 30, examples: [[{
+        nodes: [
+          { id: 'Bbln', label: 'xfaxnvgbwf', shape: 'rectangle' as const },
+          { id: 'Mu', label: 'sbfhsccrx', shape: 'diamond' as const },
+          { id: 'Bs5br', label: 'kuwimkckkj', shape: 'rounded' as const },
+        ],
+        edges: [{ from: 'Bs5br', to: 'Bbln', label: undefined }, { from: 'Bs5br', to: 'Bbln', label: 'a' }, { from: 'Mu', to: 'Bbln', label: undefined }],
+      }]] }),
     )
   })
 })

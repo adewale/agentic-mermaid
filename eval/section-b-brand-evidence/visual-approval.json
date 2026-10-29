@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "status": "approved",
-  "artifact": "docs/design/families/section-b-brand-evidence.png",
-  "artifactSha256": "bacf986e3aa8a4364e037eb0b23fce71e8b26701f6b4ec6ee938eb8a94329c53",
-  "reviewedAt": "2026-09-27",
-  "reviewer": "Claude Code agent, while rebasing the chart-honesty branch onto main's PR #306",
-  "scope": "The 1560×9464 sheet, all 64 family-by-variant cells, was compared with this branch's previous approved sheet at native size through a per-pixel difference mask: 715 of 14,763,840 pixels differ, all in the Class column (x=720–765) across the four style variants (y=589–7693). They are main's PR #306 Class member text (\"+id: string\" in authored order instead of \"+ string: id:\"), drawn with this branch's text tones. Every other cell is identical at the pixel level; geometry, containment, endpoints, peer-category paint, and authored emphasis are unchanged.",
-  "audit": "eval/section-b-brand-evidence/production-comparison.md"
+  "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
+  "artifactSha256": "fb51685fcc73631b270046a22dcb8f895ea739d54e1723cb757c4fc7c5d06319",
+  "reviewedAt": "2026-10-29",
+  "reviewer": "Codex agent, PR #585 arrowhead clearance review",
+  "scope": "Agent review of all 13 changed cells at native size in the 1560x14024 sheet: Class, Architecture and Block across four variants, plus Event Modeling sentinel. Side-by-side old/current crops preserve cards, relationships, group membership, labels and marker meanings; extra lead/grid space separates corners from marker ink. All other cells are pixel-identical. This finite review is not human approval, deployed-site parity or exhaustive geometry proof.",
+  "audit": "eval/section-b-brand-evidence/arrowhead-clearance-review.md"
 }

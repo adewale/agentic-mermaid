@@ -4,14 +4,13 @@ import type { FamilyDescriptor } from '../agent/families.ts'
 import { sceneNodePrimitives } from './capabilities.ts'
 import type { SceneDoc, SceneNode, SemanticChannelName } from './ir.ts'
 import {
-  EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS,
-  snapshotBoundedExternalData,
+  admitSceneDocument,
 } from './external-data-snapshot.ts'
+import { sceneAssertionsEnabled } from './assertions.ts'
 import {
   SceneValidationError,
-  assertValidSceneDoc,
   type SceneValidationDiagnostic,
-} from './scene-validation.ts'
+} from './scene-validation-core.ts'
 
 function visit(nodes: readonly SceneNode[], callback: (node: SceneNode, path: string) => void, prefix = 'scene.parts'): void {
   nodes.forEach((node, index) => {
@@ -26,15 +25,13 @@ function visit(nodes: readonly SceneNode[], callback: (node: SceneNode, path: st
  * descriptor's complete role x primitive ledger. Every family returns the
  * bounded immutable snapshot that every backend must serialize.
  */
-export function admitFamilyScene(descriptor: FamilyDescriptor, value: unknown): SceneDoc {
+export function admitFamilyScene(descriptor: FamilyDescriptor, value: unknown, crossChecks = sceneAssertionsEnabled()): SceneDoc {
   const external = descriptor.id.startsWith('family:')
-  const admitted = snapshotBoundedExternalData(
-    value,
-    EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS,
-    'scene',
-  )
-  assertValidSceneDoc(admitted, { mode: external ? 'external' : 'internal' })
-  const scene = admitted as SceneDoc
+  const scene = admitSceneDocument(value, external ? 'external' : 'internal', crossChecks)
+  // Native declarations are exercised by strict/verify/test admission. An
+  // ordinary owned lowering cannot change the registered role ledger; external
+  // producers always reconcile their emitted primitives against that ledger.
+  if (!external && !crossChecks) return scene
   const diagnostics: SceneValidationDiagnostic[] = []
 
   if (external && scene.family !== descriptor.id) {

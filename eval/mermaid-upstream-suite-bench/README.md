@@ -1,113 +1,95 @@
-# Mermaid upstream parser/DB bench
+# Historical Mermaid parser/DB fixtures
 
-BUILD-20 ratchet for source-level cases and accounted exclusions harvested
-from Mermaid's parser/DB suites across every current Agentic Mermaid renderable
-family.
+The checked-in cases are a dated collection of source regression fixtures. They
+are not an execution of Mermaid's original assertions and their count is not a
+count of passing upstream tests. Keep their existing regression assertions when fixing
+product behavior; do not regenerate expected geometry from our renderer.
 
-## Provenance
+## Reconcile provenance
 
-- Upstream repo: [`mermaid-js/mermaid`](https://github.com/mermaid-js/mermaid). The cross-family harvest is pinned to `a2d9686451df7c4644a3eeca20535bbd4c5776b0`; Mindmap/GitGraph compatibility is separately pinned to `f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc`.
-- Upstream license: MIT.
-- Harvest dates: seed pass 2026-06-03; full cross-family harvest 2026-06-18; Mindmap/GitGraph block accounting 2026-07-10.
-- Companion benches: `eval/mermaid-gantt-bench/` holds the deeper Gantt fixtures. `mindmap-gitgraph-f3dea583.json` accounts for all 26 Mindmap and 69 GitGraph spec blocks, including executable negative/divergence cases, and `src/__tests__/mindmap-gitgraph-upstream-oracle.test.ts` runs the 89 portable/error cases. The manifest summarizes both companions so BUILD-20 has one table.
-- Repeatable command: `MERMAID_UPSTREAM_DIR=../upstream-mermaid bun run harvest:upstream`.
-- Refresh check: `MERMAID_UPSTREAM_DIR=../upstream-mermaid bun run harvest:upstream:refresh-check` fetches `origin/develop` and fails if newer upstream commits touch the harvested diagram spec scope.
-- Pinned companion verification: the exact upstream specs and MIT license are vendored under `upstream-f3dea583/`. The oracle test hashes them, extracts every direct `it(...)` title/source in order with the TypeScript AST, and compares all one-to-one classifications. Independently, clone Mermaid at `f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc` and hash the same two paths; expected SHA-256 values remain `98f31bd…269494` and `15284d1a…a0834`.
+`harvest.ts` now produces a read-only provenance report. It does not parse or
+render through Agentic Mermaid, execute upstream code, classify unrecovered
+source as private API, or rewrite cases, expectations, exclusions, manifests or
+ratchets.
 
-## Files
+```sh
+# Use a clean checkout at a2d9686451df7c4644a3eeca20535bbd4c5776b0.
+MERMAID_UPSTREAM_DIR=../upstream-mermaid bun run harvest:upstream
 
-- `harvest.ts` — regenerates the main-revision manifest, cases, exclusions, and ratchet from the pinned upstream checkout and current public behavior, while incorporating the separately pinned Mindmap/GitGraph companion accounting. It refuses to run if the main upstream checkout is not at its pinned revision.
-- `refresh-check.ts` — fetches upstream `develop` and reports whether any newer commits changed the harvested diagram spec files.
-- `manifest.json` — pinned upstream revision plus family-by-family parser/DB files considered, upstream block counts, imported case counts, imported block counts, excluded block counts, and deferred block counts.
-- `cases.json` — portable source-level parser/DB cases. Each case records upstream files/blocks, source text, and public-surface assertions (`parseRegisteredMermaid`, family narrower where structured, `verifyMermaid`, `serializeMermaid`, `layoutMermaid`).
-- `exclusions.json` — accounted non-portable or local-gap upstream behavior. Reason codes are validated by `src/__tests__/mermaid-upstream-suite-bench.test.ts`; entries with an `ours` expectation are executable.
-- `mindmap-gitgraph-f3dea583.json` — verbatim source cases, normalized upstream expectations, exact 26/69 block inventory, five source-inexpressible config-accessor exclusions, plus executable duplicate-id and already-reachable-cherry-pick divergences. The two source spec SHA-256 values bind the inventory to the pinned commit.
-- `ratchet.json` — imported coverage floors plus local-gap budgets. The harvester may tighten these budgets when gaps shrink, but the test runner fails if local gaps grow or imported coverage falls.
+# Registration definitions only, printed to stdout.
+MERMAID_UPSTREAM_DIR=../upstream-mermaid \
+  bun eval/mermaid-upstream-suite-bench/harvest.ts --inventory-only
 
-## Case schema
-
-```ts
-interface Case {
-  id: string
-  family: string
-  source: string
-  upstream: { repo: string; files: string[]; blocks: string[] }
-  assertions: {
-    expectStructured?: boolean // default true; false means lossless opaque source
-    renderError?: string // an explicit failure that preserves the source instead of drawing part of it
-    nodeCount?: number
-    edgeCount?: number
-    groupCount?: number
-    minNodes?: number
-    minEdges?: number
-    minGroups?: number
-    labelsContain?: string[]
-  }
-}
+# Keep the report in another local directory.
+MERMAID_UPSTREAM_DIR=../upstream-mermaid \
+  MERMAID_HARVEST_OUTPUT_DIR=/tmp/mermaid-provenance \
+  bun run harvest:upstream
 ```
 
-Local compatibility exclusions carry BUILD-20 ownership so they cannot become
-anonymous backlog:
+The default report is `bench-report/historical-harvest/reconciliation.json`, an
+ignored build output. It records registration offsets, recovered argument
+values, unresolved bindings, historical fixture citations and companion
+origins. Output must be outside the historical fixture directory; filesystem
+identity checks reject aliases and replacement is atomic.
 
-```ts
-interface GapTracking {
-  issue: string
-  owner: 'BUILD-20'
-  lane: string
-  priority: 'P0' | 'P1' | 'P2' | 'P3'
-  target: 'convert-to-case'
-}
-```
+TypeScript owns registration, callback and lexical binding boundaries,
+including JavaScript specs. `it.each` is one registration definition; its
+runtime rows are not guessed. Imported test aliases and global test APIs are
+distinguished from locally shadowed functions. Values come from actual candidate
+source-call arguments, including `Diagram.fromText` and renderer `draw` calls.
+Local callee bindings take precedence over those API spellings; reassigned
+helpers and bound member implementations which are not modeled stay unknown.
+Closed string constants and never-written `let` bindings can be recovered.
+Mutable/hoisted `var` bindings and implicit coercions remain unknown. Values are
+deduplicated within each registration, not counted as call occurrences. A local
+helper substitutes parameters only along a transparent return/call path; other
+helper parameters, mutations, tags, external values and transforms remain
+unknown. Literal inputs to an unknown transform are recorded separately from
+its unknown result. A registration can retain known witnesses while also
+reporting an unresolved argument.
 
-Non-local exclusions are explicit WONTFIX entries. They are not imported into
-the public source ratchet and do not carry local executable `source`/`ours`
-expectations; their `upstream.repo`, `upstream.files`, and `upstream.blocks`
-fields are the Mermaid.js pointers for audit/revisit work.
+Fixture comparison trims boundary whitespace only, as the historical capture
+did. Equal titles do not establish equal registrations: each definition has a
+file/offset identity. The report separates unique matches, duplicate titles,
+changed titles with a same-file source witness, documentation fences,
+transformed inputs and unresolved citations. None establishes that an upstream
+assertion ran or passed. An extraction limit is not a missing product feature.
 
-`manifest.json` records the broader BUILD-20 accounting:
+## Historical accounting
 
-```ts
-interface ManifestFamily {
-  family: string
-  status: 'full-harvest-accounted' | 'dedicated-full-family-bench-existing'
-  consideredBlocks: number
-  importedCases: number
-  importedBlocks: number
-  excludedBlocks: number
-  deferredBlocks: number
-  files: Array<{ path: string; testBlocks: number }>
-  companionBench?: string
-  compatibilityRevision?: string
-}
-```
+The old manifest and ratchet retain their original units and values for
+archaeology. Their 742-case floor combines 586 main fixtures, 68 dated Gantt
+companion fixtures and 88 separately pinned Mindmap/GitGraph positive fixtures.
+Their block totals also mixed registration definitions with companion cases.
+The old regex additionally counted test-shaped text in comments and string
+payloads. Two retained State fixtures cite commented-out tests; they remain
+local regression inputs, not passing upstream registrations.
 
-## Exclusion reason codes
+The former generator selected a renderable source per block and manufactured
+expected node/edge/group counts and labels from the current implementation.
+It could both lose valid fixtures through extraction limits and turn current
+behavior into its own oracle. The retained count/label expectations are regression
+guards; their existence does not establish independent upstream assertion parity. Reconciliation removes that write path. No floor
+is lowered and no new expectation or fixture is generated. Existing fixture
+execution remains in `src/__tests__/mermaid-upstream-suite-bench.test.ts`.
 
-- `api-internal` — upstream tests exercise DB reset helpers, renderer DOM details, browser integration, or theme/security internals rather than portable Mermaid source semantics.
-- `upstream-negative` — upstream intentionally asserts that an input throws or is rejected; these are accounted in the ledger instead of imported as positive cases.
-- `local-parse-gap` — upstream positive parser coverage is rejected by `parseRegisteredMermaid`.
-- `local-verify-gap` — upstream positive parser coverage parses locally, but `verifyMermaid` returns warnings or throws.
-- `local-layout-gap` — upstream positive parser coverage parses/verifies locally, but `layoutMermaid` throws.
-- `local-roundtrip-gap` — upstream positive parser coverage parses/verifies/lays out locally, but `serialize`/`parse`/`serialize` is not stable.
-- `unsupported-header` — upstream uses a header alias or neighboring-family syntax not routed to the expected Agentic Mermaid family.
-- `unsupported-syntax` — upstream syntax is real, but deliberately tracked by another implementation issue rather than BUILD-20.
-- `unsupported-structured-syntax` — the source parses/verifies/renders through the structured-or-opaque contract, but the family narrower does not yet expose that construct as structured data.
-- `unextracted-dynamic-source` — the pinned upstream count includes table-driven or dynamically built blocks that do not expose one portable source literal to the harvester.
+Gantt's companion has its own fetch-date provenance, with Mermaid and two
+other projects as distinct origins. Its README declares no exact Mermaid
+commit; do not assign it the cross-family pin or count non-Mermaid fixtures as
+Mermaid registrations. Mindmap/GitGraph retain their separate commit and
+accounting. Current syntax authority remains Mermaid 12.2.0; it does not rewrite
+these historical origins.
 
-## Definition of done enforced by the runner
+## Sources and retained files
 
-- Every current built-in renderable family has a manifest row and at least one upstream parser/DB-derived case here or a dedicated family upstream bench.
-- Every considered upstream block is imported or excluded: `importedBlocks + excludedBlocks + deferredBlocks === consideredBlocks`, with `deferredBlocks === 0`.
-- Positive cases parse, verify, lay out, round-trip stably, and meet their exact structural assertions through public APIs. Cases carrying `renderError` preserve their exact source, fail verification with `RENDER_FAILED`, and reject layout with the named reason.
-- Every structured case succeeds through its advertised family narrower; explicitly opaque-compatible cases set `assertions.expectStructured: false`.
-- Every case records upstream provenance.
-- Every exclusion uses a documented reason code.
-- Every non-local exclusion is marked `disposition: 'WONTFIX'`, carries Mermaid.js file/block provenance, and omits local executable expectations.
-- Every local compatibility exclusion records a BUILD-20 tracking owner, issue lane, priority, and `convert-to-case` target.
-- Imported coverage must stay above the ratchet floor, and local-gap budgets may only hold steady or decrease.
-- Upstream refreshes are explicit: the harvester checks the pinned checkout revision, and the refresh check fails when newer upstream commits change the harvested diagram spec files.
+- Main source pin: [`a2d9686451df7c4644a3eeca20535bbd4c5776b0`](https://github.com/mermaid-js/mermaid/tree/a2d9686451df7c4644a3eeca20535bbd4c5776b0), MIT; cross-family capture dated 2026-06-18.
+- `cases.json`: retained source inputs and existing public-surface regression assertions.
+- `exclusions.json`: historical classifications, not fresh private-API or capability findings.
+- `manifest.json` and `ratchet.json`: frozen historical accounting; no longer harvester outputs.
+- `mindmap-gitgraph-f3dea583.json`: separately pinned [`f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc`](https://github.com/mermaid-js/mermaid/tree/f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc) source expectations and executable divergences, with vendored source under `upstream-f3dea583/`.
+- `eval/mermaid-gantt-bench/`: independent scheduling/semantic fixtures and declared origins.
+- `refresh-check.ts`: reports upstream changes to this historical scope; newer commits do not silently change its pin.
 
-Current BUILD-20 accounting: **1,265** considered upstream parser/DB blocks,
-**746** imported blocks, **519** excluded/accounted blocks, and **0** deferred
-blocks. The executable case count is **736**, including the 68-case Gantt and
-89-case Mindmap/GitGraph companion benches.
+New compatibility assertions must come from reviewed upstream assertions and
+retain explicit native divergences. A generated provenance report supplies
+review pointers; it cannot supply the expected behavior.

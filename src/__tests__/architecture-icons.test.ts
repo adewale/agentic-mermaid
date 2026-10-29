@@ -27,12 +27,12 @@ describe('deterministic offline Architecture Iconify registry (B11/A5)', () => {
     expect(svg).toContain('data-icon="mdi:api"')
     expect(svg).toContain('data-icon-source="@iconify-json/mdi@1.2.3"')
     expect(svg).toContain('data-icon-license="Apache-2.0"')
-    expect(svg).toMatch(/<path class="architecture-icon-glyph" d="[^"]+" transform="translate\([^<]+" \/>/)
+    expect(svg).toMatch(/<path class="architecture-icon-glyph" d="[^"<]+" fill="[^"<]+" transform="matrix\([^"<]+\)" \/>/)
     expect(svg).not.toContain('<script')
     expect(renderMermaidSVG(sourceFor('mdi:api'))).toBe(svg)
   })
 
-  test('does not call fetch or consult ambient files for curated or unknown icons', () => {
+  test('does not call fetch for curated or unknown icons', () => {
     const originalFetch = globalThis.fetch
     let calls = 0
     globalThis.fetch = (() => { calls++; throw new Error('network forbidden') }) as unknown as typeof fetch

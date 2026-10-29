@@ -44,6 +44,58 @@ const range = (k: number) => Array.from({ length: k }, (_, i) => i)
 const lines = (...xs: string[]) => xs.join('\n')
 
 export const METAMORPHIC_FAMILIES: Record<DiagramKind, FamilyMetamorphic> = {
+  zenuml: { family: 'zenuml', build: (k, tag) => lines('zenuml', ...range(k).map(i => `${tag}${i}`)), kRange: [1, 6], addPrimary: { snippet: (k, tag) => `\n${tag}${k}`, nodeDelta: 1 }, addRelation: (k, tag) => `\n${tag}0->${tag}${k - 1}: request` },
+  eventmodeling: { family: 'eventmodeling', build: (k, tag) => `eventmodeling\n${Array.from({length: k}, (_, i) => `rf ${i} evt E${i} {${tag}}`).join('\n')}`, kRange: [1, 8], addPrimary: { snippet: (k, tag) => `\nrf ${k} evt Extra {${tag}}`, nodeDelta: 1 }, addRelation: null },
+  packet: {
+    family: 'packet',
+    build: (k, tag) => lines('packet', ...range(k).map(i => `+8: "${tag} field ${i}"`)),
+    kRange: [1, 6],
+    addPrimary: { snippet: (_k, tag) => `\n+8: "${tag} extra"`, nodeDelta: 1 },
+    addRelation: null,
+  },
+  kanban: {
+    family: 'kanban',
+    build: (k, tag) => lines('kanban', `  ${tag}todo[To do]`, ...range(k).map(i => `    ${tag}${i}[Task ${i}]@{assigned: "Owner ${i % 2}"}`)),
+    kRange: [1, 6],
+    addPrimary: { snippet: (_k, tag) => `\n    ${tag}extra[Extra task]`, nodeDelta: 1 },
+    addRelation: null,
+  },
+  requirement: {
+    family: 'requirement',
+    build: (k, tag) => lines('requirementDiagram', ...range(k).map(i => `  requirement ${tag}${i} {\n    id: R${i}\n    text: "Requirement ${i}"\n    risk: medium\n    verifymethod: test\n  }`), ...range(k - 1).map(i => `  ${tag}${i} - traces -> ${tag}${i + 1}`)),
+    kRange: [2, 5],
+    addPrimary: { snippet: (_k, tag) => `\n  element ${tag}extra {\n    type: "test"\n  }`, nodeDelta: 1 },
+    addRelation: (_k, tag) => `\n  ${tag}1 - refines -> ${tag}0`,
+  },
+  treemap: {
+    family: 'treemap',
+    build: (k, tag) => lines('treemap', `"${tag} Portfolio"`, ...range(k).map(i => `  "${tag} Investment ${i}": ${(i + 1) * 10}`)),
+    kRange: [2, 6],
+    addPrimary: { snippet: (_k, tag) => `\n"${tag} Extra": 7`, nodeDelta: 1 },
+    addRelation: null,
+  },
+  ishikawa: {
+    family: 'ishikawa',
+    build: (k, tag) => lines('ishikawa', `  ${tag} Outcome`, `  ${tag} Process`, ...range(k).map(i => `    ${tag} Cause ${i}`)),
+    kRange: [1, 6],
+    addPrimary: null,
+    addRelation: null,
+  },
+  block: {
+    family: 'block',
+    build: (k, tag) => lines('block', '  columns 3', ...range(k).map(i => `  ${tag}${i}["Step ${i}"]`), ...range(k - 1).map(i => `  ${tag}${i} --> ${tag}${i + 1}`)),
+    kRange: [2, 6],
+    addPrimary: { snippet: (_k, tag) => `\n  ${tag}extra["Extra"]`, nodeDelta: 1 },
+    addRelation: (_k, tag) => `\n  ${tag}1 --> ${tag}0`,
+  },
+  c4: {
+    family: 'c4',
+    build: (k, t) => lines('C4Container', `  System_Boundary(${t}g, "Platform") {`, ...range(k).map(i => `    Container(${t}${i}, "Service ${i}", "HTTP")`), '  }', ...range(k - 1).map(i => `  Rel(${t}${i}, ${t}${i + 1}, "Call ${i}")`)),
+    kRange: [2, 5],
+    addPrimary: { snippet: (_k, t) => `\n  System_Ext(${t}x, "Partner")`, nodeDelta: 1 },
+    // A second interaction between an existing pair must remain a new edge.
+    addRelation: (_k, t) => `\n  Rel(${t}0, ${t}1, "Retry")`,
+  },
   flowchart: {
     family: 'flowchart',
     build: (k, t) => lines('flowchart TD', ...range(k).map(i => `  ${t}${i}["N${i}"]`), ...range(k - 1).map(i => `  ${t}${i} --> ${t}${i + 1}`)),

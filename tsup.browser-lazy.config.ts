@@ -1,6 +1,9 @@
 import { defineConfig } from 'tsup'
+import { runtimeRenderContractPlugin } from './scripts/build/runtime-render-contract.ts'
+import { compactBrowserModulesPlugin } from './scripts/build/compact-browser-modules.ts'
 import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
+import { readFile } from 'node:fs/promises'
 
 const require = createRequire(import.meta.url)
 
@@ -24,16 +27,34 @@ export default defineConfig({
   metafile: true,
   noExternal: [/.*/],
   external: [],
-  // The HTML5 entity table loads on demand here: every import of
-  // src/shared/html-entity-table.ts gets its lazy twin, which fetches the
-  // table only when renderMermaidSVGAsync sees a named code beyond XML's five.
-  esbuildPlugins: [{
-    name: 'lazy-html-entity-table',
+  // ELK, YAML and the HTML5 entity table load only when a diagram needs them.
+  // Build-only facade twins preserve the synchronous source/Node APIs.
+  esbuildPlugins: [runtimeRenderContractPlugin({ schemaDocumentation: false, terminalAdapter: false, conformanceObservations: false, coalesceRuntimePrimitives: true, sourceOnlySceneAdmission: true }), {
+    name: 'lazy-browser-dependencies',
     setup(build) {
+      // The lazy SVG API exposes rendering and receipts, not the Node option
+      // and pass/shape inspectors. Omit their literal documentation prose while
+      // retaining validation, shape aliases/geometry and executable contracts.
+      // The SVG graph excludes agent verification, which uses shape prose in
+      // substitution warnings; Node/IIFE keep that public documentation.
+      build.onLoad({ filter: /\/(?:layout-engine|render-contract|flowchart-shapes)\.ts$/ }, async args => ({
+        contents: (await readFile(args.path, 'utf8')).replace(/\b(doc|description): '(?:\\.|[^'\\])*'/g, "$1: ''"),
+        loader: 'ts',
+      }))
       build.onResolve({ filter: /\/html-entity-table\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
+      build.onResolve({ filter: /\/mermaid-yaml\.ts$/ }, args =>
+        ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
+      build.onResolve({ filter: /\/elk-constructor\.ts$/ }, args =>
+        ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
+      build.onResolve({ filter: /\/edge-crossing-pair\.ts$/ }, args =>
+        ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
+      build.onResolve({ filter: /\/indexed-forest\.ts$/ }, args =>
+        ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
+      build.onResolve({ filter: /\/agentic-layered\.ts$/ }, args =>
+        args.kind === 'dynamic-import' ? undefined : { path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) })
     },
-  }],
+  }, compactBrowserModulesPlugin()],
   esbuildOptions(options) {
     options.chunkNames = 'browser-lazy/chunks/[name]-[hash]'
     options.assetNames = 'browser-lazy/assets/[name]-[hash]'

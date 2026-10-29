@@ -16,8 +16,9 @@ import { COMMAND_FLAGS } from '../../src/cli/index.ts'
 import { SUPPORTED_PROTOCOL_VERSIONS } from '../../src/mcp/hosted-server.ts'
 import { HTTP_SSE_PROTOCOL_VERSIONS, STDIO_PROTOCOL_VERSIONS } from '../../src/mcp/server.ts'
 import { HOSTED_MCP_TOOL_NAMES, inlineToolList, LOCAL_MCP_TOOL_NAMES } from '../../src/mcp/tool-names.ts'
-import { CLI_RENDER_FORMATS } from '../../src/render-contract.ts'
-import { EXISTING_DIAGRAM_WORKFLOW, NEW_DIAGRAM_POLICY } from '../../src/shared/agent-workflow.ts'
+import { CLI_RENDER_FORMATS, SHARED_RENDER_OPTION_FIELD_DESCRIPTORS } from '../../src/render-contract.ts'
+import { DIAGRAM_TERMINOLOGY, EXISTING_DIAGRAM_WORKFLOW, FAMILY_NARROWING_NOTE, NEW_DIAGRAM_POLICY } from '../../src/shared/agent-workflow.ts'
+import { PACKAGE_VERSION } from '../../src/version.ts'
 
 const ticked = (values: readonly string[]): string => values.map(value => `\`${value}\``).join(', ')
 
@@ -49,11 +50,33 @@ const noopKeys = (family: string): string => {
   return ticked(keys)
 }
 
+const renderOptionsTable = (): string => [
+  '| Option | Type | Default | Meaning and applicability |',
+  '|---|---|---|---|',
+  ...Object.entries(SHARED_RENDER_OPTION_FIELD_DESCRIPTORS).map(([name, field]) => {
+    const families = 'applicableBuiltinFamilies' in field ? field.applicableBuiltinFamilies : undefined
+    const applies = families ? ` Built-in families: ${families.length ? families.join(', ') : 'none; extension-defined'}.` : ''
+    const terminal = field.terminal === 'not-applicable' ? ' Not consumed by terminal output.' : ''
+    return `| \`${name}\` | \`${field.typeScript.replace(/\|/g, '\\|')}\` | ${field.defaultLabel} | ${field.description}${applies}${terminal} |`
+  }),
+].join('\n')
+
+const apiVersions = (): string => {
+  const changelog = readFileSync(new URL('../../CHANGELOG.md', import.meta.url), 'utf8')
+  const release = /^## (\d+\.\d+\.\d+) — (\d{4}-\d{2}-\d{2})$/m.exec(changelog)
+  if (!release) throw new Error('CHANGELOG.md has no released version')
+  return `This reference describes source version **${PACKAGE_VERSION}**. The latest release recorded in the [changelog](../CHANGELOG.md) is **${release[1]}** (${release[2]}). [Read that version's reference](https://github.com/adewale/agentic-mermaid/blob/v${release[1]}/docs/api.md). Changes under **Unreleased**, including new exports, are not part of that recorded release.`
+}
+
 /**
  * Renderer for each block id; `noop-keys:<family>` takes the family id, and
  * `warning-summaries:<tier>` / `warning-table:<tier>` take a warning tier.
  */
 export const DOC_BLOCKS: Readonly<Record<string, (argument?: string) => string>> = {
+  'diagram-terminology': () => DIAGRAM_TERMINOLOGY,
+  'family-narrowing': () => FAMILY_NARROWING_NOTE,
+  'api-versions': apiVersions,
+  'render-options': renderOptionsTable,
   'agent-workflow': () => `${NEW_DIAGRAM_POLICY} ${EXISTING_DIAGRAM_WORKFLOW}`,
   'new-diagram-policy': () => NEW_DIAGRAM_POLICY,
   'hosted-mcp-tools': () => inlineToolList(HOSTED_MCP_TOOL_NAMES),

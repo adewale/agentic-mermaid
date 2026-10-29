@@ -12,7 +12,7 @@ afterAll(() => upstream.close())
 const source = 'journey\n  section Work\n  First: 3: Me\n  Review: 3.5: Me\n  Last: 4: Me'
 
 describe('Journey fractional score fidelity', () => {
-  test('pinned Mermaid 11.16 assigns exact fractional task scores', async () => {
+  test('pinned Mermaid assigns exact fractional task scores', async () => {
     expect(await upstream.projectAll([source], diagram => diagram.db.getTasks().map((task: any) => task.score))).toEqual([[3, 3.5, 4]])
   })
 

@@ -1,13 +1,8 @@
-var knownStyleDescriptors = window.__mermaid.knownStyleDescriptors;
-var renderMermaidWithReceipt = window.__mermaid.renderMermaidSVGWithReceipt;
-var verifyNoExternalRefs = window.__mermaid.verifyNoExternalRefs;
-var verifyMermaid = window.__mermaid.verifyMermaid;
-var renderMermaidAsciiWithReceipt = window.__mermaid.renderMermaidASCIIWithReceipt;
-var renderMermaidUnicodeWithReceipt = window.__mermaid.renderMermaidUnicodeWithReceipt;
-var renderMermaidPngInBrowserWithReceipt = window.__mermaid.renderMermaidPNGInBrowserWithReceipt;
+export var knownStyleDescriptors, renderMermaidWithReceipt, verifyNoExternalRefs, verifyMermaid, renderMermaidAsciiWithReceipt, renderMermaidUnicodeWithReceipt, renderMermaidPngInBrowserWithReceipt, DEFAULT_EDITOR_PALETTE, state;
+
 
 // Palette state stores the registry's stable input name.
-function editorPaletteDescriptor(key) {
+export function editorPaletteDescriptor(key) {
   if (!key || typeof knownStyleDescriptors !== "function") return null;
   var descriptors = knownStyleDescriptors();
   for (var i = 0; i < descriptors.length; i++) {
@@ -19,24 +14,45 @@ function editorPaletteDescriptor(key) {
   return null;
 }
 
-function editorPaletteInput(key) {
+
+export function editorPaletteInput(key) {
   var descriptor = editorPaletteDescriptor(key);
   return descriptor ? descriptor.inputName : "";
 }
 
-function editorPaletteColors(key) {
+
+export function editorPaletteColors(key) {
   var descriptor = editorPaletteDescriptor(key);
   return descriptor && descriptor.spec && descriptor.spec.colors
     ? descriptor.spec.colors
     : null;
 }
 
-var DEFAULT_EDITOR_PALETTE = "paper";
+export function initialize() {
+knownStyleDescriptors = window.__mermaid.knownStyleDescriptors;
 
-var state = {
+renderMermaidWithReceipt = window.__mermaid.renderMermaidSVGWithReceipt;
+
+verifyNoExternalRefs = window.__mermaid.verifyNoExternalRefs;
+
+verifyMermaid = window.__mermaid.verifyMermaid;
+
+renderMermaidAsciiWithReceipt = window.__mermaid.renderMermaidASCIIWithReceipt;
+
+renderMermaidUnicodeWithReceipt = window.__mermaid.renderMermaidUnicodeWithReceipt;
+
+renderMermaidPngInBrowserWithReceipt = window.__mermaid.renderMermaidPNGInBrowserWithReceipt;
+
+
+DEFAULT_EDITOR_PALETTE = "paper";
+
+
+state = {
   palette: DEFAULT_EDITOR_PALETTE,
   style: "crisp",
   seed: 0,
   zoom: 1,
   config: {},
+  fitLabelsToPane: false,
 };
+}

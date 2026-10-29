@@ -4,7 +4,385 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+## 0.5.3 — 2026-10-29
+
+Includes the 0.5.2 changes below. Its registry publication was blocked when
+GitHub could not allocate a macOS arm64 runner; its source tag is retained.
+
 ### Fixed
+
+- Keep styled arrowheads clear of connector bends in Flowchart, Architecture,
+  Block, Class, Requirement, C4, Event Modeling and Gantt dependencies by
+  reserving the painted marker depth plus 4 px of straight shaft through
+  routing and rounding.
+- Run the required macOS release build and rendering contracts on a standard
+  Intel macOS 26 runner. Windows coverage, the rendering suite, build heap
+  allowance and verified-artifact publication gates are unchanged.
+
+## 0.5.2 — 2026-10-29
+
+### Fixed
+
+- Parse long same-line Flowchart chains without rescanning the remaining
+  chain for each node's edge-ID diagnostic. Preserve the existing syntax
+  warnings and source-map spans.
+- Align ELK routes whose straight runs differ only by floating-point roundoff
+  as they are read back, so wide Class diagrams with padded cards keep their
+  card contacts instead of refusing to render, and Flowchart, State, ER and
+  Requirement routes start exactly orthogonal.
+- Render Class diagrams with rounded relationship corners, such as the
+  `publication-figure` style, when a relationship must bypass a namespace
+  header, including nested namespaces.
+- Render publication-styled Flowcharts with compound long links when joined
+  route sections differ only by floating-point roundoff, retaining their
+  endpoint contacts and existing route-safety checks.
+- Keep Flowchart relationship ends readable: clear endpoint labels and styled
+  arrowheads, symmetric grouped fan-outs with safe caption seats, and distinct
+  terminals for differently painted or separately captioned relationships.
+- Reject shared buses that imply invisible or differently painted relationships,
+  including replacements that introduce a new misleading overlap without
+  increasing the overlap count.
+
+## 0.5.1 — 2026-10-29
+
+Includes the 0.5.0 changes below. That version's npm and MCP Registry
+publication was blocked by the macOS declaration build; its GitHub source tag
+is retained.
+
+### Fixed
+
+- Give release-platform builds a 4 GiB Node old-space limit so tsup's declaration
+  worker can finish on macOS runners. The limit applies only to the build step;
+  rendering smoke tests and verified-artifact publication retain their checks.
+
+## 0.5.0 — 2026-10-28
+
+Changes since 0.4.1, including the unpublished 0.4.2 development cycle.
+
+### Added
+
+- Explicit source-preserving edits for opaque Class and Flowchart diagrams
+  across library, CLI, MCP and editor-worker workflows. Class supports adding
+  members and removing owned whole-line members; Flowchart supports label
+  overrides and owned node renames. Edits retain other source bytes and require
+  complete native-model read-back; ambiguous ownership, dependencies and
+  semantic changes outside the requested edit are refused atomically.
+
+- Serve existing Markdown directly from the canonical API, warning and error
+  page URLs when GET/HEAD requests prefer `text/markdown`, with page-specific
+  discovery, `Content-Location` and cache-safe `Vary: Accept` headers.
+
+- Generate the website's library reference and Markdown download from the
+  canonical API documentation, with task-first examples, runtime-derived option
+  defaults, source/release version information and a separate advanced reference.
+
+- Export synchronous `renderResolvedScene` and `RESOLVED_SCENE_VERSION = 2`
+  from the main entry. Resolved parts retain their Scene nodes and expose
+  backend-painted paths, text runs, concrete paint, transforms and expanded
+  markers without a browser. The returned SVG matches `renderMermaidSVG`;
+  unsupported artwork fails with its owning part instead of being dropped.
+
+### Performance
+
+- Source-preserving edits avoid duplicate Flowchart parsing when authored and
+  rendered parser inputs are identical, and avoid redundant Class quote-provenance
+  work when the authored grammar is unchanged. Distinct text interpretations
+  retain independent read-back. Local edit-kernel measurements do not establish
+  an end-to-end CLI, MCP or browser speedup.
+- Published Node bundles compact whitespace without rewriting syntax or renaming
+  callable exports. The package keeps its existing exports, resources and lazy ELK
+  boundary.
+- Benchmarks retain verified packed inputs, dependency locks, complete peer
+  observations and explicit cache/assertion policy. Scoped findings and remaining
+  competitor gaps are in the benchmark report linked from the documentation hub.
+
+### Known limitations
+
+- The #363 decision record distinguishes generous reads from portable
+  structured output. Quadrant text/style exports, unsupported Architecture
+  IDs/icons and empty Class output retain named limitations; Class, Quadrant
+  and Architecture also have accepted-source reader gaps. The decisions are
+  complete, but those runtime follow-ups remain in `TODO.md`.
+- These source changes do not establish publication or deployment. Default
+  verbatim wrapper preservation is distinct from canonical rewriting;
+  successful structural verification alone is not a general lossless-editing
+  guarantee.
+
+### Fixed
+
+- GitGraph string exports preserve authored values through Mermaid reload;
+  Class namespace admission and Kanban authored-source provenance retain their
+  respective identity and text contracts. Marker certification checks the
+  serialized marker paint and placement used by the shipped SVG (#572).
+
+- Preserve Class direction-like label text in portable exports, refuse lossy
+  empty Class and unrepresentable Quadrant labels, and share Ishikawa/Sankey
+  header handling between direct rendering and typed reads (#548–#552).
+
+- Canonical writes preserve empty accessibility descriptions using native
+  metadata comments, protect directive-looking Kanban labels and metadata,
+  and move C4 global metadata out of nested boundaries. Sequence message IDs
+  that collide with keyword prefixes stay diagnosed and source-only rather
+  than entering a typed body with no portable spelling.
+
+- Resolved scenes report the input diagram's registered family. Both State
+  headers return `state` instead of their shared `flowchart` rendering family.
+  Resolved Scene version 2 records this metadata change; SVG artwork and part
+  ownership are unchanged.
+
+- Use one vocabulary for diagram families, source objects, Scene parts,
+  resolved primitives and typed-family narrowing across reference docs,
+  website guidance, CLI help and agent discovery, retaining existing API names.
+
+- Sequence terminal output retains fragment headers and dividers inside wide
+  participant boxes, including combined `box`/`alt`/note cases, in both ASCII
+  and Unicode. The historical witness remains pinned in the test suite.
+- Architecture layouts separate expanded aligned group frames and reconcile
+  cross-group alignment after child reordering, preserving complete group contents
+  and routing from the final endpoint positions.
+- XY charts wrap rotated axis titles into the authored canvas height and reserve
+  their complete multiline gutter, preserving fixed chart dimensions and text.
+
+- Kanban edits retain keyword-like column and task IDs such as `kanban` and
+  `kanban-board` in Mermaid-readable source, preserving labels and membership.
+- Mixed labelled and unlabelled parallel edges can use a clear target-side
+  corridor when a feedback loop blocks the source-side jog. Placement reserves
+  the full painted label halo and retains prior routing when the label cannot
+  fit the proposed lanes.
+- A copied or stale `bundle` route certificate can no longer hide a hitch.
+  Exemptions remain bound to the routes constructed by the shared-trunk,
+  symmetric-convergence and parallel-lane producers.
+- Losing cosmetic centering proposals retain the previous feasible geometry.
+  Straight-route repairs retain canonical ports unless higher-priority conflicts
+  improve. Four generated valid-flowchart failures now render.
+- Wildcard HTTP listeners advertise a connectable loopback URL while retaining
+  their configured bind address and bearer-token policy.
+- Lazy browser SVG loading fetches ELK only when placement needs it, and keeps
+  one admitted request across deferred dependencies. Ordinary native rendering
+  avoids declaration-ledger reconciliation and full text inspection evidence;
+  strict, verify, extension admission and final paint/security checks remain.
+- An inexpensive Scene admission cannot bypass a later strict cross-check.
+- Class layouts preserve authored `ns:` IDs, actual namespace ancestry, empty
+  namespace frames and freestanding notes. Notes-only terminal output retains
+  its content too.
+
+### Maintenance
+
+- Retire copied discovery/API inventories, the empty-divergence pin and
+  exclusions-ledger hygiene gates. Keep live generated discovery, executable
+  divergence behavior and shipped/external artifact integrity checks.
+- Family portfolio selects four distinct inputs for all 23 native families.
+  Degenerate-route failures always retain their complete diagnostic report.
+
+### Earlier fixes
+
+- `verify` on a source string checks the request `render` makes from that
+  string, including its `%%{init}%%` and frontmatter config. It used to check
+  a canonical copy that drops that config, so it measured a different layout
+  (for example ignoring `flowchart.rankSpacing`) and passed sources `render`
+  refuses: raw `themeCSS`, an unsafe `themeVariables.fontFamily`, or spacing
+  so large the canvas exceeds its cap. These are now `RENDER_FAILED`.
+- Refused config no longer makes `parseMermaid` and `verify` throw: config
+  the admission refuses (a reserved key such as `__proto__`, nesting or size
+  past its bounds) is a new `CONFIG_REJECTED` parse error, which `verify`
+  reports as `RENDER_FAILED` with origin `config`. `verify` reports any
+  non-empty source that fails to parse (a syntax error, frontmatter that is
+  not valid YAML, a diagram over a work limit) as `RENDER_FAILED` with the
+  parser's message, not `EMPTY_DIAGRAM`, and suppressing that finding no
+  longer makes such a source verify `ok`. A work limit only the render path
+  enforces (state nesting) no longer escapes `verify` as an exception.
+- `verify` on a Flowchart or State diagram whose render fails (refused config
+  such as raw `themeCSS`, or a layout past the canvas cap) still reports the
+  findings it reads from the diagram itself (`LABEL_OVERFLOW`,
+  `EDGE_MISANCHORED`, `UNKNOWN_SHAPE` and the advisory lints) beside
+  `RENDER_FAILED`, so fixing the config does not surface them one at a time.
+  A refused color is still the whole finding.
+- A registered family whose parse hook throws no longer makes `parseMermaid`
+  and `verify` throw: the throw is a `FAMILY_DESCRIPTOR_CONTRACT` parse error,
+  which `verify` reports as `RENDER_FAILED` with origin `config`.
+- A State transition to a state that another composite or concurrency region
+  already holds (`state B { y }` then `state A { x --> y }`) draws the
+  transition across to it. Each mention used to add the state to every
+  composite, which the layout refused as a duplicate (`INTERNAL_ERROR`). The
+  first composite to mention a state owns it; Mermaid moves it into the last,
+  a difference recorded in `docs/project/divergences.md`.
+- A parsed State diagram, and the source `serializeMermaid` writes for it,
+  lay out as its source does. The writer put every declared state and
+  composite block ahead of the transitions, so a state described or declared
+  after the transitions that introduce its siblings (including one a
+  `C:::hot` shorthand declares) moved in the layout, and `[*]` nodes were
+  renumbered. The writer now keeps each scope's states in the order the source
+  creates them, the typed body lists them in that order (it used to list
+  declared states first), and a `[*]` inside composite `X` is `X_start`,
+  `X_start2`, … (`X_end`, …), numbered within `X` rather than across the
+  diagram. Top-level ids stay `_start`, `_start2`, ….
+- A State diagram that names a state `_start` or `_end` (or `_start2`, …)
+  keeps its `[*]` start and end nodes. The generated pseudostate took the
+  author's id, so the start node vanished into the authored state and
+  `verify` still reported `ok`; a generated id now skips any an author wrote.
+- A Flowchart, State, Sequence, Class or ER diagram with a frontmatter title
+  and nothing else draws its title, as every other family does and as its
+  terminal output already did. Flowchart and State used to fail the render
+  (`LayoutCertificationError`: the title fell outside a 0×0 canvas); Sequence,
+  Class and ER drew an empty canvas without it. `verify` still reports
+  `EMPTY_DIAGRAM`.
+- A `theme` config value that is not a string (`%%{init: {"theme": 5}}%%`)
+  no longer crashes every render and makes `verify` report `INTERNAL_ERROR`.
+  Like an unknown theme name, it names no theme and the default colors apply.
+- The MCP `describe` tool no longer reports success for a source that does
+  not parse in its default text format. Every format returns `ok: false`
+  with the parser's errors (text also keeps its prose line), as JSON and
+  facts did and as `am describe` exits non-zero.
+- A parsed diagram drawn from its canonical body (Flowchart, Timeline, Class,
+  ER, Journey, Architecture, any source-preserved body, and extension families
+  that render canonically) renders, lays out and verifies under its authored
+  config wrapper (frontmatter title and config, `%%{init}%%` directives), as
+  its source and its serialized output do (an edited diagram already did).
+  `renderMermaidSVG(parsed)`, `layoutMermaid(parsed)` and
+  `verifyMermaid(parsed)` used to drop that wrapper for a freshly parsed
+  diagram, losing the title, theme and spacing the saved source would draw.
+  `renderMermaidWithActions` takes its target regions from that layout, so
+  under a frontmatter title they sat a title band above the targets the
+  output draws, for a source string too; they now cover them.
+- A state diagram that reopens a composite state (a second `state A { … }`
+  block, one-line or not) draws one state A holding both blocks' states, as
+  Mermaid does. Each block used to add its own container with the same id,
+  which the layout engine could not resolve, so the render failed. A stays
+  where its first block is, a block reopening a `--`-split composite
+  continues its last region, and the first block's `direction` holds. A
+  later block's label labels A, joined with any other label or description
+  as one composite's are (`state_composite_description` where Mermaid
+  rejects them). The readings that differ from Mermaid's are recorded in
+  `docs/project/divergences.md`.
+- Sankey and XYChart SVGs draw the canvas that `layoutMermaid`, `verify` and
+  `renderMermaidWithActions` regions describe. The final paint check
+  over-measured their ink (half a line width past the butt-capped ends of
+  XYChart axis and grid lines, which end on the canvas edge; far past the ends
+  of thick Sankey ribbons, and twice their width in every direction once a
+  ribbon's control point had been rounded), so the SVG widened its `viewBox`
+  beyond the layout's bounds (an XYChart's 700×500 became 701×500.71, a
+  Sankey's 648×448 became 672×464.59 or as much as 1728×1194.67) and drew the
+  whole diagram scaled down inside the same width and height. A Sankey ribbon
+  thicker than its bend, which folds past the node it meets, now widens the
+  canvas to hold that ink.
+- A diagram whose ink touches the canvas edge only by floating-point noise
+  keeps its canvas. A Journey actor legend title whose top came out at
+  -3.6e-15 made the SVG floor its `viewBox` to `0 -1 409.43 373` against the
+  layout's 408×372; the final paint check now treats ink within 1e-6 of the
+  edge as on the canvas.
+- An XYChart line series clamps a value past the axis range to the plot edge,
+  as a bar already does, and keeps its value (`verify` still reports
+  `VALUES_OUTSIDE_RANGE`). The line used to run off the plot, and the SVG
+  widened its `viewBox` to hold it (`0 -457 1622.6 1159` for one out-of-range
+  value), drawing the chart at under half size. Where the plot meets the
+  canvas edge, it now leaves room for the marks centered on that edge: a line
+  point's cap or dot at a linear x-axis end, the last tick there, and the end
+  grid lines and ticks of a chart with no title or value labels beside them.
+  Each of these widened the `viewBox` by a pixel or two. A line point's
+  measurement footprint is the part of it inside the plot.
+- Font families may be double-quoted, as Mermaid's own default
+  `"trebuchet ms", verdana, arial, sans-serif` is: the font option,
+  `fontFamily` config, theme variables, Journey font config, style-role fonts
+  and Architecture group fonts accept them. A font written into a style
+  attribute or stylesheet is written single-quoted; a `font-family`
+  attribute escapes the quotes. A quote that does not close, a name holding
+  the other quote character, and whitespace other than space and tab stay
+  refused.
+- Paint inspection applies enclosing group opacity to inline connector labels,
+  including hidden labels, consistently with the SVG writer.
+
+- Journey `taskFontFamily` and `titleFontFamily` config values are written
+  into CSS only when they are safe font-family lists; an unsafe value (one
+  that closes the rule or fetches with `url()`) is ignored with an
+  `INEFFECTIVE_CONFIG` warning instead of restyling the whole diagram.
+- C4 relationships between facing cards of different heights run straight.
+  Ports spaced evenly along each face sat a few pixels apart, which drew a
+  small dogleg on each such relationship.
+- Drawings that disagreed with their certified paint now draw it: a Pie
+  slice's role or semantic-slot border and its highlight emphasis, which
+  stylesheet rules overrode; abstract, static and non-ASCII Class members,
+  which painted in SVG's default black instead of the member ink; a Journey
+  `titleFontSize` in `em`/`ex`, which drew squashed. (A Journey title's letter
+  spacing is now on its `<text>` too, but its per-glyph spans already drew it.)
+  Sketch styles now draw Radar areas with the translucent fill and opaque
+  outline the default style draws, XYChart series lines with round caps and
+  joins, and a done Gantt bar's border. Under a sketch look stacked with a dark palette
+  (for example `watercolor` with `dusk`), Architecture labels, Journey task
+  text and Timeline event text take the sketch's legible ink instead of a
+  family stylesheet's dark ink.
+- Context codecs preserve entity-derived tags, emphasis and backslash-n as
+  literal text beside authored formatting in Flowchart, ER, Sequence and Class.
+  Parsed aliases and labels retain their meaning through edits and reload;
+  typed entity-looking strings remain literal without caller pre-escaping.
+- Sequence aliases, messages and notes share prepared display text with their
+  graphical and terminal projections. Physical message line breaks serialize
+  as Mermaid break markup. Class members and annotations share their display
+  formatter with layout and label metrics (CONS-46).
+- Sequence text holding a character reference is text on every surface. The
+  renderer decodes references before reading statements, so `&#35;hash` hid
+  the rest of a message as a comment, `&#59;` split it and failed the render,
+  and `&nbsp;`, which that decode leaves as written, split it too. The typed
+  body read the undecoded source, so `A->>B: a &amp; b` became two statements
+  there and `verify` reported `RENDER_FAILED`. The SVG and terminal renderers,
+  the typed body and its lints now read one Sequence text: XML references
+  decode to their characters, except that `#` and `;` read as `#35;` and
+  `#59;`, and an HTML name such as `&nbsp;` reads as `#nbsp;`, so each draws its
+  character (`&amp;nbsp;` still draws `&nbsp;`, and `R&D;`, which names no
+  character, still ends its statement). Parsed diagrams and their
+  serialization draw what the source draws, and serialization writes text
+  Mermaid reads (`a & b`, `#35;`), escaping an `&` that would read back as a
+  reference. `verify` reports `UNSUPPORTED_SYNTAX` with
+  `sequence_named_reference_semicolon` where pinned Mermaid ends the statement
+  at a named reference's `;`.
+- Class namespace labels use the same break and formatting rules in native and
+  typed rendering. ER attribute diagnostics measure rendered columns rather
+  than entity spellings or grammar delimiters. C4 relationship receipts retain
+  literal tags and untransformed text under graphical casing and tracking.
+- Flowchart labels affected by upstream's quote preprocessor remain readable
+  and receive `UNSUPPORTED_SYNTAX` with `flowchart_preprocessor_quote_rewrite`;
+  canonical output uses a portable entity spelling (#372).
+- State descriptions, aliases, transition labels and notes retain literal `%%`
+  in text contexts. Mindmap labels, icons and class payloads retain that text
+  too; actual comments still follow their grammar context. State block-note
+  lines beginning with `%%` intentionally remain note content (#372).
+- ER edits retain entity order and group ownership through export and reload,
+  including removing the entity or relationship that first introduced them
+  (#372). The old BUG-10 estimate of about 0.6% of fuzzed edits is historical,
+  rather than a measurement of this candidate.
+- Journey admits title, section and task labels made entirely of line breaks.
+  Intentional empty Pie, Architecture, Journey and XY edits succeed when their
+  emitted source renders; standalone verification still reports emptiness
+  (#367).
+- Canonical YAML output preserves whitespace-only scalar lines and trailing
+  newlines. Frontmatter boundaries retain supported footer indentation without
+  consuming block-scalar content (#367).
+- Class relationship markers keep their authored endpoint through unrelated
+  edits, serialization and reload (#406). Semantic facts now include marker
+  ownership, both-ended marker kinds and shaft style; existing fact strings
+  remain, but callers using `checkMermaid` with `exact: true` must include the
+  new facts. `docs/api.md` gives a complete-set migration example.
+- Class dashed diamond relationships retain their shaft style independently
+  of endpoint markers. Native parsing, edits, serialization, SVG/Scene and
+  terminal output support two-ended and mixed lollipop relationships, including
+  escaped endpoint identities. Public relation operations accept endpoint and
+  shaft metadata and refuse contradictory combinations. Exports keep required
+  backticks on reserved endpoint identities, including attached notes and links,
+  and write relationship label/cardinality line breaks as Mermaid markup.
+  Both Code Mode SDK declarations accept parse → narrow → edit workflows;
+  the full declaration exposes the new relation fields.
+- Checked and declarative Class edits accept the supported `lollipop`
+  relationship kind, matching direct typed mutation (#407).
+- Class `add_member` and initial `add_class.members` reject LF/CRLF that
+  would split a member on reload; bare CR is also rejected under the
+  single-line member policy (#408). Literal backslash-n and ordinary
+  single-line member text remain supported. Blank/comment-form members,
+  accessibility directives and decoded line breaks are refused too; initial
+  member arrays are copied so a caller cannot change the returned diagram
+  through the supplied array.
+- XY-chart titles wrap to the configured canvas width and reserve space above
+  the plot, keeping long titles visible in vertical and horizontal charts.
+  Verification names titles that cannot fit the configured title-space budget
+  with `LABELS_HIDDEN`, rather than omitting them silently.
 - Timeline periods whose names begin with `Timeline` retain their labels and
   events in SVG, terminal output and verified layout.
 - State rendering rejects unknown statements with a named `RENDER_FAILED`
@@ -62,9 +440,12 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   a trailing `%%`, or `\"`, `\`, `%` or an empty name, in ER quoted text; a
   `linkStyle` index past the links above it; `A @{…}` spacing and mixed-stroke
   text arrows (`A -- b ==> B`); a participant declared in a second `box`.
-  Serializers write only what Mermaid reads, except a blank class diagram,
-  which has no Mermaid spelling. A flowchart node id holding `--` or `-.` is
-  still rejected, because its meaning is unclear.
+  This records the original 11.16 compatibility pass. The current 12.2 grammar
+  accepts the previously rejected Architecture title punctuation. Remaining
+  writer limits and source-preserved extensions are distinguished in the #363
+  decision record; serialization does not repair every such extension. A
+  flowchart node id holding `--` or `-.` is still rejected when its meaning is
+  unclear.
 - Flowchart: a `;` inside an asymmetric label (`A>x;y]`) is label text, and
   `@{` inside a quoted label no longer turns the diagram opaque.
 - ER relations written without spaces (`id1||--||id2 : label`) parse and draw.
@@ -77,8 +458,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   tie-break: `activate` creates no participant; `properties` and `details`
   lines create theirs; a box does not list an actor created before it (the
   frame still draws it); `style X` creates node X where it stands, so a
-  style-only node is drawn; a node or ER entity listed by two subgraphs belongs
-  to the first to close and is drawn once. Issue #363 reviews these choices.
+  style-only node is drawn. Repeated node/entity mentions have one deterministic
+  subgraph owner and are drawn once; the mention-specific tie-break and other
+  decisions are documented in the #363 record.
 - `examples/index.json` lists the 16 Style × Palette example cards as
   `stylePaletteExamples`; they were the only rendered cards missing.
 - `am batch --help` documents `--jsonl`.
@@ -151,6 +533,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   loading, cancellation, and visible error handling.
 
 ### Added
+
+- Prepared-text reuse, certified forest layout and bounded positioned-result
+  reuse are enabled by default, with startup opt-outs. Their limits and selection are
+  documented in `docs/project/flagged-performance-experiments.md`.
 - Added a `BELOW_READABLE_SIZE` raster-legibility warning: when `fitTo` or an
   explicit `scale` rasterizes the smallest configured text below the new
   portable `minLabelPx` floor (provisional product default 9px; `0` disables;
@@ -165,6 +551,35 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   website, and full and lazy browser bundles.
 
 ### Changed
+- Extension core compatibility now follows the 0.5 release line. External
+  extensions declaring only `^0.4.0` must explicitly declare support for 0.5;
+  the Scene contract remains version 2. Bundled descriptors bind to their
+  shipped core version.
+- Every built-in family's shapes, text and connectors are now written by one
+  SVG writer from the typed fields paint certification reads, so a render's
+  certificate describes the drawing it ships. Families no longer attach their
+  own SVG strings, and family stylesheets no longer paint marks (paint is
+  written on each element; hover and tooltip rules remain). SVG bytes change:
+  attribute order, inline paint and omitted SVG defaults. Default-style
+  rasters of the 562-input corpus are unchanged apart from Sankey link
+  opacity (at most 3/255 per channel) and the anti-aliasing of the Sequence
+  actor link-menu glyph. `verify` no longer compares each mark with its SVG,
+  which the writer makes hold by construction.
+- `verify` no longer blames the diagram for a defect in Agentic Mermaid. A
+  render-path failure raised by one of the engine's own consistency checks or
+  by a runtime error such as a `TypeError` is the new Tier 1 error
+  `INTERNAL_ERROR`; its `defaultRender` says whether an ordinary render still
+  produces output (`succeeds-unchecked`, unchecked) or throws (`fails`).
+  `RENDER_FAILED` now covers faults in the source or its configuration only,
+  and its new `origin` field says which. `am verify`, `am mutate` and
+  `am describe` exit 4 when every error is `INTERNAL_ERROR`; a typed edit is
+  accepted when its only errors are the same `INTERNAL_ERROR` defects the
+  diagram already had; `am capabilities --json` lists each code's possible
+  `origins`. Authored values that reach the Scene's range, extent and
+  identity checks (a negative stroke width, an oversized canvas, a reused id)
+  stay `RENDER_FAILED`. Invalid render options, Style inputs and theme fonts,
+  and sources too long for the request receipt (with their configuration),
+  are now typed refusals rather than plain runtime errors.
 - The npm package no longer ships `docs/mutation-testing.md`; mutation testing
   and its CI jobs are gone. The repository no longer commits generated reports,
   receipts, upstream-corpus hashes or eval evidence, and `CLAUDE.md` records

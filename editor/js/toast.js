@@ -1,16 +1,14 @@
-var toastTimer = null;
-var toastReplacementTimer = null;
-var toastRemaining = 0;
-var toastStartedAt = 0;
-var toastPaused = false;
-var TOAST_DURATION = 2500;
+import { toast } from './elements.js';
+export var toastTimer, toastReplacementTimer, toastRemaining, toastStartedAt, toastPaused, TOAST_DURATION;
 
-function clearToastTimer() {
+
+export function clearToastTimer() {
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = null;
 }
 
-function hideToast() {
+
+export function hideToast() {
   clearToastTimer();
   toast.classList.remove('show');
   toast.classList.remove('replacing');
@@ -19,27 +17,31 @@ function hideToast() {
   toastRemaining = 0;
 }
 
-function scheduleToastDismissal() {
+
+export function scheduleToastDismissal() {
   clearToastTimer();
   if (toastPaused || toastRemaining <= 0) return;
   toastStartedAt = performance.now();
   toastTimer = setTimeout(hideToast, toastRemaining);
 }
 
-function pauseToast() {
+
+export function pauseToast() {
   if (!toast.classList.contains('show') || toastPaused) return;
   toastRemaining = Math.max(0, toastRemaining - (performance.now() - toastStartedAt));
   toastPaused = true;
   clearToastTimer();
 }
 
-function resumeToast() {
+
+export function resumeToast() {
   if (!toast.classList.contains('show') || !toastPaused) return;
   toastPaused = false;
   scheduleToastDismissal();
 }
 
-function presentToast(message) {
+
+export function presentToast(message) {
   // Replacing text must preserve a reader's active hover/focus pause; the
   // replacement itself does not emit a new pointerenter/focusin event.
   var remainsPaused = toast.matches(':hover, :focus-within');
@@ -52,7 +54,8 @@ function presentToast(message) {
   if (!toastPaused) scheduleToastDismissal();
 }
 
-function showToast(message) {
+
+export function showToast(message) {
   if (toastReplacementTimer) clearTimeout(toastReplacementTimer);
   if (toast.classList.contains('show')) {
     clearToastTimer();
@@ -66,9 +69,27 @@ function showToast(message) {
   presentToast(message);
 }
 
+export function initialize() {
+toastTimer = null;
+
+toastReplacementTimer = null;
+
+toastRemaining = 0;
+
+toastStartedAt = 0;
+
+toastPaused = false;
+
+TOAST_DURATION = 2500;
+
+
 toast.addEventListener('pointerenter', pauseToast);
+
 toast.addEventListener('pointerleave', resumeToast);
+
 toast.addEventListener('focusin', pauseToast);
+
 toast.addEventListener('focusout', function(event) {
   if (!toast.contains(event.relatedTarget)) resumeToast();
 });
+}

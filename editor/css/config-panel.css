@@ -63,6 +63,10 @@
   margin-bottom: 0.625rem;
 }
 
+.pane-fit-field { display: flex; align-items: center; gap: 8px; min-height: 40px; font-size: var(--t-label); color: var(--fg); cursor: pointer; }
+.pane-fit-field input { accent-color: var(--accent); }
+.pane-fit-help { font-size: var(--t-sm); line-height: 1.5; color: var(--fg2); margin: 0 0 12px; }
+
 .color-field {
   display: flex;
   align-items: center;

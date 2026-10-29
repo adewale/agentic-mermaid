@@ -1,3 +1,5 @@
+import type { PixelTextBlock } from '../shared/prepared-text.ts'
+import type { LabelContent } from '../shared/display-text.ts'
 // ============================================================================
 // Sequence diagram types
 //
@@ -12,6 +14,7 @@ import type { PositionedDiagram } from '../types.ts'
 export interface SequenceDiagram {
   /** The diagram's title (`title` statement, or frontmatter `title:`). */
   title?: string
+  titleContent?: LabelContent
   /** Optional accessibility title (Mermaid accTitle) */
   accessibilityTitle?: string
   /** Optional accessibility description (Mermaid accDescr) */
@@ -36,8 +39,12 @@ export type SequenceActorType = 'participant' | 'actor' | 'boundary' | 'control'
 export type SequenceMessageHead = 'none' | 'filled' | 'open' | 'cross' | 'half-top' | 'half-bottom' | 'stick-top' | 'stick-bottom'
 
 export interface Actor {
+  /** An incoming endpoint outside the authored participants; no header/lifeline. */
+  external?: true
+  wrap?: boolean
   id: string
   label: string
+  labelContent?: LabelContent
   /** Closed official participant-glyph vocabulary. */
   type: SequenceActorType
   /** Safe actor-menu links; callbacks and unsafe schemes are rejected. */
@@ -56,8 +63,10 @@ export interface Actor {
 
 /** A `box … end` group of participants. */
 export interface SequenceBoxGroup {
+  wrap?: boolean
   /** Title text drawn at the top of the box (may be absent). */
   label?: string
+  labelContent?: LabelContent
   /** Explicit CSS color from the source (named color, #hex, rgb()/rgba(),
    *  hsl()/hsla(), or 'transparent'). Absent = theme-derived fill. */
   color?: string
@@ -75,9 +84,15 @@ export interface SequenceActivationEvent {
 }
 
 export interface Message {
+  /** Identity and lexical fragment supplied by another native sequence language. */
+  id?: string
+  parentId?: string
+  /** Effective soft-wrap control; absent retains the renderer's default. */
+  wrap?: boolean
   from: string
   to: string
   label: string
+  labelContent?: LabelContent
   /** Arrow style: solid line or dashed line */
   lineStyle: 'solid' | 'dashed'
   /** Exact source and target endpoint semantics. */
@@ -95,10 +110,14 @@ export interface Message {
 }
 
 export interface Block {
+  id?: string
+  parentId?: string
+  wrap?: boolean
   /** Block type keyword */
-  type: 'loop' | 'alt' | 'opt' | 'par' | 'critical' | 'break' | 'rect'
+  type: 'loop' | 'alt' | 'opt' | 'par' | 'par_over' | 'critical' | 'break' | 'rect'
   /** Label for the block header */
   label: string
+  labelContent?: LabelContent
   /** Source-controlled background paint for a `rect` block. */
   color?: string
   /** Index of the first message inside this block */
@@ -106,14 +125,18 @@ export interface Block {
   /** Index of the last message inside this block (inclusive) */
   endIndex: number
   /** For alt/par blocks: indices where "else"/"and" dividers appear (message indices) */
-  dividers: Array<{ index: number; label: string }>
+  dividers: Array<{ index: number; label: string; labelContent?: LabelContent; wrap?: boolean }>
 }
 
 export interface Note {
+  id?: string
+  parentId?: string
+  wrap?: boolean
   /** Which actor(s) the note is attached to */
   actorIds: string[]
   /** Note text content */
   text: string
+  textContent?: LabelContent
   /** Position relative to the actor(s) */
   position: 'left' | 'right' | 'over'
   /** Message index after which this note appears */
@@ -145,6 +168,8 @@ export interface PositionedSequenceDiagram extends PositionedDiagram {
 
 /** Positioned `box … end` background frame (drawn behind everything). */
 export interface PositionedBoxGroup {
+  block?: PixelTextBlock
+  labelY?: number
   label?: string
   /** Explicit CSS color from the source; absent = theme-derived fill. */
   color?: string
@@ -161,7 +186,39 @@ export interface LifelineCross {
   y: number
 }
 
+/** Axis-aligned painted bounding box in sequence canvas coordinates. */
+export interface SequenceBounds {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/** Positioned text label with its anchor and full painted bounding box. */
+export interface PositionedSequenceLabel {
+  block?: PixelTextBlock
+  text: string
+  x: number
+  y: number
+  anchor: 'start' | 'middle' | 'end'
+  fontSize: number
+  fontWeight: number
+  letterSpacing: number
+  bounds: SequenceBounds
+}
+
+/** Positioned fragment header tab and label (`loop`, `alt`, `opt`, `par`, `critical`, `break`). */
+export interface PositionedBlockHeader {
+  x: number
+  y: number
+  width: number
+  height: number
+  label: PositionedSequenceLabel
+}
+
 export interface PositionedActor {
+  external?: true
+  menuBlock?: PixelTextBlock
   id: string
   label: string
   type: SequenceActorType
@@ -172,6 +229,10 @@ export interface PositionedActor {
   y: number
   width: number
   height: number
+  /** Complete painted header bounds (box or icon glyph + below-icon multiline label). */
+  bounds: SequenceBounds
+  /** Positioned label anchor and painted bounds. */
+  labelPosition: PositionedSequenceLabel
 }
 
 /** Vertical dashed line from actor to bottom of diagram */
@@ -183,9 +244,13 @@ export interface Lifeline {
 }
 
 export interface PositionedMessage {
+  id?: string
+  parentId?: string
   from: string
   to: string
   label: string
+  /** Untransformed message display meaning, including the autonumber prefix. */
+  labelContent?: LabelContent
   lineStyle: 'solid' | 'dashed'
   startHead: SequenceMessageHead
   endHead: SequenceMessageHead
@@ -199,6 +264,12 @@ export interface PositionedMessage {
   y: number
   /** Whether this is a self-message (same actor) */
   isSelf: boolean
+  /** Routed connector polyline points (2 points for horizontal messages, 4 points for self-loops). */
+  points: Array<{ x: number; y: number }>
+  /** Positioned label anchor and painted bounds. */
+  labelPosition: PositionedSequenceLabel
+  /** Complete painted bounds covering the shaft/loop, arrowheads, and label. */
+  bounds: SequenceBounds
 }
 
 /** Narrow rectangle on a lifeline showing active processing */
@@ -210,7 +281,15 @@ export interface Activation {
   width: number
 }
 
+export interface PositionedBlockDivider {
+  y: number
+  label: string
+  labelPosition?: PositionedSequenceLabel
+}
+
 export interface PositionedBlock {
+  id?: string
+  parentId?: string
   type: Block['type']
   label: string
   color?: string
@@ -219,10 +298,17 @@ export interface PositionedBlock {
   width: number
   height: number
   /** Divider lines within the block (for alt/par) */
-  dividers: Array<{ y: number; label: string }>
+  dividers: PositionedBlockDivider[]
+  /** Positioned fragment header tab and label (`undefined` for `rect` blocks). */
+  header?: PositionedBlockHeader
+  /** Complete painted bounds covering the fragment frame, header tab, dividers, notes, and child blocks. */
+  bounds: SequenceBounds
 }
 
 export interface PositionedNote {
+  id?: string
+  parentId?: string
+  block?: PixelTextBlock
   text: string
   x: number
   y: number

@@ -1,14 +1,18 @@
+import { diagnoseQuadrantConfig } from '../quadrant/config-diagnostics.ts'
+import { projectQuadrantPositioned } from '../positioned-views/quadrant.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'
-import { layoutResult, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
+import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { resolveQuadrantVisualConfig } from '../quadrant/config.ts'
 import { layoutQuadrantChart } from '../quadrant/layout.ts'
-import { parseQuadrantChart } from '../quadrant/parser.ts'
+import { parseQuadrantChart, quadrantStatementEnds } from '../quadrant/parser.ts'
 import { lowerQuadrantScene } from '../quadrant/renderer.ts'
 import { withAccessibilityObject } from '../shared/accessibility-directives.ts'
 
 /** The quadrant SVG hooks: one definition for the complete renderer
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const QUADRANT_SVG_HOOKS = {
+  configDiagnostics: diagnoseQuadrantConfig,
+  statementEnds: quadrantStatementEnds,
   normalizeRequest: ctx => ({
     familyConfig: { visual: resolveQuadrantVisualConfig(ctx.source.frontmatter) },
   }),
@@ -19,5 +23,6 @@ export const QUADRANT_SVG_HOOKS = {
       ?? resolveQuadrantVisualConfig(),
     ctx.styleFace,
   )),
+  projectPositioned: positionedView(projectQuadrantPositioned),
   lowerScene: scene(lowerQuadrantScene),
 } satisfies BrowserSvgFamilyHooks

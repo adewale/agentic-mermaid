@@ -1,11 +1,18 @@
-function escHtml(s) {
+import { ui } from './context.js';
+import { EditorMotion } from './motion.js';
+import { updateLineNumbers } from './editor-helpers.js';
+import { runtimeRecovery } from './elements.js';
+export var popupControllers, editorErrorLine;
+export function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-function escAttr(s) {
+
+export function escAttr(s) {
   return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-function setDescendantTabStops(container, enabled) {
+
+export function setDescendantTabStops(container, enabled) {
   if (!container) return;
   container.querySelectorAll('button, [href], input, select, textarea, [tabindex]').forEach(function(el) {
     if (enabled) {
@@ -23,14 +30,16 @@ function setDescendantTabStops(container, enabled) {
   });
 }
 
-function clearPopupClosing(popup) {
+
+export function clearPopupClosing(popup) {
   if (!popup) return;
   if (popup._closingTimer) clearTimeout(popup._closingTimer);
   popup._closingTimer = null;
   popup.classList.remove('closing');
 }
 
-function startPopupClosing(popup, opts) {
+
+export function startPopupClosing(popup, opts) {
   if (!popup || !opts.visualClose || (typeof EditorMotion !== 'undefined' && EditorMotion.reduced())) return;
   clearPopupClosing(popup);
   popup.classList.add('closing');
@@ -40,7 +49,8 @@ function startPopupClosing(popup, opts) {
   }, opts.closeDuration || 90);
 }
 
-function setPopupVisibility(popup, trigger, open, opts) {
+
+export function setPopupVisibility(popup, trigger, open, opts) {
   if (!popup) return;
   opts = opts || {};
   var className = opts.className || 'open';
@@ -61,13 +71,13 @@ function setPopupVisibility(popup, trigger, open, opts) {
   }
 }
 
-var popupControllers = [];
 
-function popupTrigger(opts) {
+export function popupTrigger(opts) {
   return typeof opts.trigger === 'function' ? opts.trigger() : opts.trigger;
 }
 
-function createPopupController(opts) {
+
+export function createPopupController(opts) {
   opts = opts || {};
   var popup = opts.popup;
   var className = opts.className || 'open';
@@ -143,7 +153,8 @@ function createPopupController(opts) {
   return controller;
 }
 
-function createListboxPopupController(opts) {
+
+export function createListboxPopupController(opts) {
   opts = opts || {};
   var popup = opts.popup;
   var trigger = popupTrigger(opts);
@@ -216,7 +227,8 @@ function createListboxPopupController(opts) {
   return controller;
 }
 
-function positionAnchoredPopup(popup, anchor, opts) {
+
+export function positionAnchoredPopup(popup, anchor, opts) {
   if (!popup || !anchor) return;
   opts = opts || {};
   var width = opts.width || popup.offsetWidth || 220;
@@ -232,7 +244,8 @@ function positionAnchoredPopup(popup, anchor, opts) {
   popup.style.top = Math.round(top) + 'px';
 }
 
-function emptyPreviewHtml() {
+
+export function emptyPreviewHtml() {
   return '<div class="preview-placeholder" id="preview-placeholder">'
     + '<span class="placeholder-kicker">Blank canvas</span>'
     + '<strong class="placeholder-title">No diagram yet</strong>'
@@ -246,41 +259,48 @@ function emptyPreviewHtml() {
     + '</div>';
 }
 
+
 // Parse errors and render errors name a source position in prose ("line 4" or
 // "4:2"); extract it once so both the error card and the gutter highlight
 // agree on the location.
-function extractErrorLocation(detail) {
+export function extractErrorLocation(detail) {
   var text = String(detail || '');
   var m = text.match(/line\s+(\d+)(?:[^\d]+(?:col|column)\s+(\d+))?/i) || text.match(/(\d+):(\d+)/);
   if (!m) return null;
   return { line: parseInt(m[1], 10), column: m[2] ? parseInt(m[2], 10) : 0 };
 }
 
-// The gutter paints this line red until the next successful render or edit
-// clears it (updateLineNumbers reads it on every rebuild).
-var editorErrorLine = 0;
 
-function setEditorErrorLine(line) {
+export function setEditorErrorLine(line) {
   var next = line > 0 ? line : 0;
   if (next === editorErrorLine) return;
   editorErrorLine = next;
   if (typeof updateLineNumbers === 'function') updateLineNumbers();
 }
 
-function unsupportedFamilyFromError(detail) {
+
+export function unsupportedFamilyFromError(detail) {
   var text = String(detail || '');
   var m = text.match(/Unsupported Mermaid family "([^"]+)"/i)
     || text.match(/Mermaid [^\n"]+ family "([^"]+)" is (?:unsupported|inventory-only) in Agentic Mermaid/i);
   return m ? m[1] : null;
 }
 
-function formatRenderErrorHtml(err) {
+
+export function formatRenderErrorHtml(err) {
   var detail = String(err || 'Unknown render error');
+  if (err && err.name === 'PreviewRuntimeLoadError') {
+    return '<div class="preview-error preview-runtime-error" role="alert">'
+      + '<strong class="preview-error-title">The editor could not finish loading.</strong>'
+      + '<span class="preview-error-copy">Check your connection and try again, or ' + (runtimeRecovery ? 'use Reload editor below.' : 'reload the page.') + '</span>'
+      + '<code class="preview-error-detail">' + escHtml(err.message || detail) + '</code>'
+      + '</div>';
+  }
   var family = unsupportedFamilyFromError(detail);
   if (family) {
     return '<div class="preview-error" role="alert">'
       + '<strong class="preview-error-title">' + escHtml(family) + ' is valid Mermaid, but this editor does not support it.</strong>'
-      + '<span class="preview-error-copy">Supported families: ' + escHtml(SUPPORTED_FAMILY_LIST) + '.</span>'
+      + '<span class="preview-error-copy">Supported families: ' + escHtml(ui.SUPPORTED_FAMILY_LIST) + '.</span>'
       + '</div>';
   }
   var loc = extractErrorLocation(detail);
@@ -292,4 +312,15 @@ function formatRenderErrorHtml(err) {
     + '<span class="preview-error-copy">Check the diagram type, indentation, arrows, and labels.' + escHtml(location) + '</span>'
     + '<code class="preview-error-detail">' + escHtml(detail) + '</code>'
     + '</div>';
+}
+
+export function initialize() {
+
+
+popupControllers = [];
+
+
+// The gutter paints this line red until the next successful render or edit
+// clears it (updateLineNumbers reads it on every rebuild).
+editorErrorLine = 0;
 }

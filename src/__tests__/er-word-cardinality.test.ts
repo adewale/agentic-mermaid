@@ -181,6 +181,8 @@ describe('ER word-form relationship aliases (Mermaid 11.16.0)', () => {
     const svg = renderMermaidSVG('erDiagram\nCAR 1 to zero or more DRIVER : allows\n')
     const relations = svg.match(/<polyline class="er-relationship"[^>]*>/g) ?? []
     expect(relations).toHaveLength(1)
-    expect(relations[0]).toContain('data-from="CAR" data-to="DRIVER" data-cardinality1="one" data-cardinality2="zero-many" data-identifying="true"')
+    for (const attribute of ['data-from="CAR"', 'data-to="DRIVER"', 'data-cardinality1="one"', 'data-cardinality2="zero-many"', 'data-identifying="true"']) {
+      expect(relations[0]).toContain(attribute)
+    }
   })
 })

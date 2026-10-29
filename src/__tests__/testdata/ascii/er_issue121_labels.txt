@@ -9,9 +9,9 @@ erDiagram
   }
   CUSTOMER ||--o{ ORDER : places labeled orders
 ---
-+-------------------------+                       +------------------------------+
-| CUSTOMER                |                       | ORDER                        |
-+-------------------------+                       +------------------------------+
-| PK string email_address ||--------------------o<|    string external_reference |
-|    string display_name  | places labeled orders |    int total_cents           |
-+-------------------------+                       +------------------------------+
+    +-------------------------+  places labeled orders  +-------------------------------+
+    | CUSTOMER                |                         | ORDER                         |
+    +-------------------------+|----------------------o<+-------------------------------+
+    | PK string email_address |                         |     string external_reference |
+    |     string display_name |                         |     int total_cents           |
+    +-------------------------+                         +-------------------------------+

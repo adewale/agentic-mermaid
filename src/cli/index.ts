@@ -1,3 +1,11 @@
+import { flagEnabled, flagValue, PNG_RENDER_FLAGS, type ParsedArgs, type ValueFlagName } from './args.ts'
+import { PNG_DEFAULT_SCALE } from '../output-policy-versions.ts'
+import { GLOBAL_USAGE } from './help.ts'
+import { preflightCli, type PreparedCli } from './preflight.ts'
+export * from './args.ts'
+export { GLOBAL_USAGE, COMMAND_HELP } from './help.ts'
+import { applyMutationBatch } from '../agent/mutate.ts'
+import { applyOps, type VerifySummary } from '../agent/apply.ts'
 // ============================================================================
 // am — agentic-mermaid CLI (v4).
 // ============================================================================
@@ -6,33 +14,34 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, statSync, watch, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
-import { DESCRIBE_FORMATS, describeMermaid, isDescribeFormat } from '../agent/describe.ts'
+import { DESCRIBE_FORMATS, describeMermaid, describeMermaidTree, isDescribeFormat } from '../agent/describe.ts'
+import { describeMermaidFacts } from '../agent/facts.ts'
 import type { BuiltinFamilyId, FamilyConformanceReport } from '../agent/families.ts'
 import { BUILTIN_FAMILY_METADATA, builtinFamilyMetadata, getFamily, getFamilyConformanceReport, isBuiltinFamilyId, knownFamilies } from '../agent/families.ts'
 import { layoutMermaidWithReceipt, renderMermaidASCII, renderMermaidASCIIWithReceipt, renderMermaidPNG, renderMermaidPNGWithReceipt, renderMermaidSVG, renderMermaidSVGWithReceipt } from '../agent/index.ts'
+import { verifyMutationResult } from '../agent/apply.ts'
 import { mutateChecked } from '../agent/mutate.ts'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import type { PngOptions, PngRasterWarning } from '../agent/png.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 import { logToolInvocation } from '../agent/trace-log.ts'
-import type { AnyMutationOp, LayoutWarning, MutableValidDiagram, MutationError, ParsedDiagram, ParseError, Result, ValidDiagram, WarningCode, WarningSeverity } from '../agent/types.ts'
+import type { AnyMutationOp, LayoutWarning, MutableValidDiagram, MutationError, ParsedDiagram, ParseError, Result, ValidDiagram, WarningCode, WarningOrigin, WarningSeverity } from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import { configWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
+import { WARNING_CATALOG } from '../agent/warning-catalog.ts'
 import { familyDetectionDiagnosticFromPreservedBody, MermaidFamilyDetectionError } from '../family-detection.ts'
-import { PNG_DEFAULT_SCALE, type PngOutputOptionField } from '../png-contract.ts'
 import type { CliRenderFormat, RenderRequestReceipt } from '../render-contract.ts'
-import { CLI_RENDER_FORMATS, cliRenderFormatHelpLines, DEFAULT_CLI_RENDER_FORMAT, isCliRenderFormat, renderOutputForCliFormat, validateSerializableRenderOptions } from '../render-contract.ts'
+import { CLI_RENDER_FORMATS, DEFAULT_CLI_RENDER_FORMAT, isCliRenderFormat, renderOutputForCliFormat, validateSerializableRenderOptions } from '../render-contract.ts'
 import { projectRenderErrorDiagnostic, type RenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 import type { StyleInput, StyleSpec } from '../scene/style-registry.ts'
 import { inferBackend, knownStyleDescriptors, resolveStyleStack, validateStyleSpec } from '../scene/style-registry.ts'
 import { collectBatched } from '../shared/batched.ts'
 import type { RenderOptions } from '../types.ts'
 import { PACKAGE_VERSION } from '../version.ts'
-import { AGENT_INSTRUCTIONS } from './agent-instructions.ts'
 import { EXIT_ARG_ERROR, EXIT_INTERNAL, EXIT_OK, EXIT_VERIFY_FAILED } from './exit-codes.ts'
 import { initAgentFiles } from './init-agent.ts'
 import { HOSTED_MCP_TOOL_NAMES, inlineToolList, LOCAL_MCP_TOOL_NAMES } from '../mcp/tool-names.ts'
-import { EXISTING_DIAGRAM_WORKFLOW, NEW_DIAGRAM_POLICY } from '../shared/agent-workflow.ts'
+import { EXISTING_DIAGRAM_WORKFLOW, FAMILY_NARROWING_NOTE, NEW_DIAGRAM_POLICY } from '../shared/agent-workflow.ts'
 
 /**
  * Loop 12 M1: build a structured CLI error envelope. Keeps `message` a short
@@ -76,180 +85,6 @@ function preflightCliRenderableSource(source: string): ParsedDiagram {
   return parsed.value
 }
 
-export interface ParsedArgs {
-  command?: string
-  positional: string[]
-  flags: Record<string, string | boolean>
-  errors: string[]
-}
-
-// Single source of truth for CLI flags. A flag with no `arg` is a boolean;
-// `arg` is the usage placeholder shown in `[--flag <arg>]`. BOOLEAN_FLAGS is
-// DERIVED from this, so the parser's boolean classification cannot drift from
-// the documented usage.
-const FLAG_SPEC_TABLE = {
-  // booleans
-  'agent-instructions': {},
-  ascii: {},
-  certificates: {},
-  help: {},
-  json: {},
-  jsonl: {},
-  watch: {},
-  open: {},
-  force: {},
-  'canonical-wrapper': {},
-  'system-fonts': {},
-  // value flags (placeholder = what the usage shows after the flag)
-  suppress: { arg: 'CODES' },
-  'label-cap': { arg: 'N' },
-  op: { arg: 'JSON' },
-  style: { arg: 'NAMES|file' },
-  seed: { arg: 'N' },
-  options: { arg: 'JSON|file' },
-  ops: { arg: 'JSON|file' },
-  output: { arg: 'FILE' },
-  format: { arg: 'fmt' },
-  security: { arg: 'mode' },
-  dir: { arg: 'DIR' },
-  'font-dirs': { arg: 'DIRS' },
-  'gantt-today': { arg: 'DATE' },
-  'target-width': { arg: 'CELLS' },
-  // PNG raster knobs (read by cmdRender's png path since v4; registered so
-  // the unknown-flag gate cannot reject them).
-  scale: { arg: 'N' },
-  bg: { arg: 'COLOR' },
-  'fit-width': { arg: 'PX' },
-  'fit-height': { arg: 'PX' },
-  'min-label-px': { arg: 'PX' },
-  o: { arg: 'FILE' },
-} as const satisfies Record<string, { readonly arg?: string }>
-
-export const FLAG_SPECS: Readonly<Record<string, { readonly arg?: string }>> = FLAG_SPEC_TABLE
-
-export const BOOLEAN_FLAGS = new Set(Object.keys(FLAG_SPECS).filter(name => !FLAG_SPECS[name]!.arg))
-
-type FlagName = keyof typeof FLAG_SPEC_TABLE
-/** A flag that takes no value, so the parser never lets it consume the next argument. */
-export type BooleanFlagName = { [Name in FlagName]: (typeof FLAG_SPEC_TABLE)[Name] extends { readonly arg: string } ? never : Name }[FlagName]
-/** A flag whose value is the next argument (or follows `=`). */
-export type ValueFlagName = Exclude<FlagName, BooleanFlagName>
-
-/**
- * Whether switch `name` was given. Every CLI read of a switch goes through
- * here: the name type admits only arg-less FLAG_SPECS entries, so the code can
- * never treat as a switch a flag the parser lets swallow the next positional
- * (the `--canonical-wrapper` bug), and the runtime check holds the same line
- * for untyped callers.
- */
-export function flagEnabled(args: ParsedArgs, name: BooleanFlagName): boolean {
-  if (!BOOLEAN_FLAGS.has(name)) throw new Error(`--${name} is not a boolean flag`)
-  return Boolean(args.flags[name])
-}
-
-/** The value given for value flag `name`, if any. runCli rejects a value
- * flag given without a value before any command reads it. */
-export function flagValue(args: ParsedArgs, name: ValueFlagName): string | undefined {
-  if (!(name in FLAG_SPECS) || BOOLEAN_FLAGS.has(name)) throw new Error(`--${name} is not a value flag`)
-  const value = args.flags[name]
-  return typeof value === 'string' ? value : undefined
-}
-
-/**
- * Explicit projection from the canonical PNG option authority to CLI syntax.
- * Empty means the field is adapter-owned rather than caller-supplied: the CLI
- * installs `onWarning` itself so warnings can be emitted safely on stderr.
- */
-export const PNG_CLI_FLAG_BINDINGS = Object.freeze({
-  scale: Object.freeze(['scale']),
-  background: Object.freeze(['bg']),
-  fitTo: Object.freeze(['fit-width', 'fit-height']),
-  minLabelPx: Object.freeze(['min-label-px']),
-  fontDirs: Object.freeze(['font-dirs']),
-  loadSystemFonts: Object.freeze(['system-fonts']),
-  onWarning: Object.freeze([]),
-} as const satisfies Readonly<Record<PngOutputOptionField, readonly string[]>>)
-
-const PNG_RENDER_FLAGS = Object.freeze(Object.values(PNG_CLI_FLAG_BINDINGS).flat())
-
-// Command ownership is the second half of the flag contract: recognizing a
-// name globally is not permission to ignore it on an unrelated command.
-export const COMMAND_FLAGS = {
-  render: ['help', 'json', 'certificates', 'watch', 'style', 'seed', 'options', 'output', 'format', 'security', 'gantt-today', 'target-width', ...PNG_RENDER_FLAGS, 'o'],
-  verify: ['help', 'json', 'suppress', 'label-cap', 'style'],
-  parse: ['help', 'json'],
-  serialize: ['help'],
-  mutate: ['help', 'json', 'op', 'ops'],
-  preview: ['help', 'json', 'output', 'open', 'security'],
-  format: ['help', 'canonical-wrapper'],
-  describe: ['help', 'json', 'format'],
-  capabilities: ['help', 'json'],
-  styles: ['help', 'json'],
-  'llms-txt': ['help'],
-  'init-agent': ['help', 'json', 'dir', 'force'],
-  batch: ['help', 'jsonl'],
-  'render-markdown': ['help', 'ascii'],
-} as const satisfies Record<string, readonly string[]>
-
-/** Closed positional contract. Zero source arguments means piped stdin; only
- * render intentionally accepts multiple files. */
-export const COMMAND_POSITIONALS = Object.freeze({
-  render: { min: 0, max: Number.POSITIVE_INFINITY },
-  verify: { min: 0, max: 1 },
-  parse: { min: 0, max: 1 },
-  serialize: { min: 0, max: 0 },
-  mutate: { min: 0, max: 1 },
-  preview: { min: 0, max: 1 },
-  format: { min: 0, max: 1 },
-  describe: { min: 0, max: 1 },
-  capabilities: { min: 0, max: 0 },
-  styles: { min: 0, max: 0 },
-  'llms-txt': { min: 0, max: 0 },
-  'init-agent': { min: 0, max: 0 },
-  batch: { min: 0, max: 0 },
-  'render-markdown': { min: 0, max: 1 },
-} as const satisfies Record<keyof typeof COMMAND_FLAGS, { readonly min: number; readonly max: number }>)
-
-export function parseArgs(argv: string[]): ParsedArgs {
-  const out: ParsedArgs = { positional: [], flags: {}, errors: [] }
-  const record = (name: string, value: string | boolean) => {
-    if (Object.prototype.hasOwnProperty.call(out.flags, name)) {
-      out.errors.push(`Flag --${name} may be supplied only once.`)
-      return
-    }
-    out.flags[name] = value
-  }
-  let i = 0
-  while (i < argv.length) {
-    const arg = argv[i]!
-    if (arg === '--') {
-      for (const positional of argv.slice(i + 1)) {
-        if (!out.command) out.command = positional
-        else out.positional.push(positional)
-      }
-      break
-    }
-    if (arg.startsWith('--')) {
-      const eq = arg.indexOf('=')
-      const name = arg.slice(2, eq === -1 ? undefined : eq)
-      if (eq !== -1) {
-        if (BOOLEAN_FLAGS.has(name)) out.errors.push(`Flag --${name} does not accept a value.`)
-        record(name, arg.slice(eq + 1))
-      } else {
-        const next = argv[i + 1]
-        if (BOOLEAN_FLAGS.has(name) || next === undefined || next.startsWith('--')) record(name, true)
-        else {
-          record(name, next)
-          i++
-        }
-      }
-    } else if (!out.command) out.command = arg
-    else out.positional.push(arg)
-    i++
-  }
-  return out
-}
-
 function readSourceArg(arg: string | undefined): string {
   if (!arg || arg === '-') {
     // Loop 9 M5: TTY-stdin guard. When stdin is an interactive TTY (no
@@ -270,218 +105,13 @@ function replacer(_k: string, v: unknown): unknown {
   return v instanceof Map ? Object.fromEntries(v) : v
 }
 
-export const GLOBAL_USAGE = `Usage: am <command> [options] [file|-]
-
-Commands:
-  render <file|->        Render through a registered output adapter
-  verify <file|->        Verify; emits structured JSON warnings
-  parse <file|->         Parse; emits ValidDiagram JSON
-  serialize              Read ValidDiagram JSON from stdin; emit canonical source
-  mutate <file|-> --op '<JSON>'  Apply MutationOp(s); verify + emit source
-  preview <file|->       Write standalone HTML preview; optionally --open
-  format <file|->        Idempotent reformat
-  describe <file|->      Prose summary or AX-tree JSON
-  capabilities           Emit JSON describing families + warning codes + mutation ops
-  batch                  Read JSONL ops from stdin; emit one JSON envelope per line
-  render-markdown <file> Render fenced mermaid blocks in Markdown (SVG or --ascii)
-  styles                 List registered styles (looks + themes); see also render --style
-  llms-txt               Emit the agent discovery digest
-  init-agent             Write a repo-local agent drop-in (AGENTS section, skill, MCP config)
-
-Flags:
-  --json                 Structured JSON output
-  --ascii                For render-markdown: ASCII instead of SVG
-  --op <JSON>            For mutate: one MutationOp
-  --ops <JSON|file>      For mutate: JSON array of MutationOps
-  --output <FILE>        Write render/preview output to FILE instead of stdout
-  --open                 For preview: open generated HTML in browser
-  --force                For init-agent: refresh generated skill/MCP files
-  --style <NAMES|file>   Style stack — comma-separated names and/or .json spec files
-  --options <JSON|file>  Shared advanced render options across output adapters
-  --seed <N>             Re-roll ink wobble of styled looks (never layout)
-  --font-dirs <DIRS>     For render png: extra font directories, comma-separated (CJK/emoji coverage)
-  --system-fonts         For render png: also load OS fonts (coverage warnings then skipped)
-  --suppress <CODES>     For verify: comma-separated WarningCodes to suppress
-  --label-cap <N>        For verify: LABEL_OVERFLOW char cap (default 40)
-  --certificates         For render --format layout: include route/family certificates
-  --gantt-today <DATE>   For render: draw the gantt today marker at DATE (rendering never reads the wall clock)
-  --target-width <CELLS> Hard terminal-cell bound for ASCII/Unicode output
-  --agent-instructions   Print the canonical agent-use guide
-  --help                 Show this message (or per-command help: am <cmd> --help)
-
-Exit codes:
-  0  ok
-  2  arg / parse error (bad flag, missing file, malformed JSON)
-  3  verify reported errors (severity 'error')
-  4  uncaught internal failure
-`
-
-/** Warning codes of one severity, comma-separated and wrapped for help text. */
-function codesWithSeverity(severity: WarningSeverity): string {
-  const codes = (Object.keys(WARNING_SEVERITY) as WarningCode[]).filter(code => WARNING_SEVERITY[code] === severity)
-  const lines: string[] = []
-  for (const code of codes) {
-    const last = lines.at(-1)
-    if (last !== undefined && last.length + code.length + 2 <= 100) lines[lines.length - 1] = `${last}, ${code}`
-    else lines.push(code)
-  }
-  return lines.join(',\n')
+export function runCli(argv: string[]): number | Promise<number> {
+  const prepared = preflightCli(argv)
+  return 'exitCode' in prepared ? prepared.exitCode : runPreparedCli(prepared)
 }
 
-export const COMMAND_HELP: Record<string, string> = {
-  render: `am render <file|-> [--format ${CLI_RENDER_FORMATS.join('|')}] [--json]
-Render a diagram. Default is ${DEFAULT_CLI_RENDER_FORMAT.toUpperCase()}.
-${cliRenderFormatHelpLines()}
-  --certificates     With --format layout, include route/family certificates
-  --style <S>       Style stack: comma-separated names and/or .json spec files,
-                    merged left → right (e.g. --style hand-drawn,dracula or
-                    --style ./brand.json). Applies to graphical and terminal
-                    projection. See: am styles
-  --options <JSON|file> Shared advanced RenderOptions object; convenience
-                    flags override its fields
-  --seed <N>        Re-roll ink wobble of styled looks; never moves layout
-  --font-dirs <DIRS> PNG only: extra font directories (comma-separated) for
-                    scripts the bundled Inter/DejaVu fonts don't cover (CJK,
-                    emoji); uncovered characters warn on stderr
-  --system-fonts    PNG only: also load OS-installed fonts (trades cross-machine
-                    determinism for coverage; skips coverage warnings)
-  --security strict Enforce the strict SVG output-security policy
-  --gantt-today <DATE> Gantt only: draw the today marker at DATE (in the
-                    diagram's dateFormat or ISO YYYY-MM-DD); rendering never
-                    reads the wall clock, so without this the marker is absent
-  --target-width <CELLS> ASCII/Unicode only: hard output bound in display cells;
-                    impossible geometry fails with ASCII_TARGET_WIDTH_IMPOSSIBLE
-  --scale <N>       PNG only: output scale multiplier (default ${PNG_DEFAULT_SCALE})
-  --bg <COLOR>      PNG only: override the diagram background (white fallback)
-  --fit-width <PX>  PNG only: fit output to this pixel width
-  --fit-height <PX> PNG only: fit output to this pixel height (mutually exclusive with --fit-width)
-  --min-label-px <PX> PNG only: warn below this effective text size
-                    (provisional default 9; 0 disables)
-  --watch           Re-render one input file on change (non-PNG only)
-Multiple inputs emit a JSON results array for non-PNG formats.
-With --json, textual forms wrap output as {"<format>": "..."}.`,
-  styles: `am styles [--json]
-List every registered style. A style is a partial description of how diagrams
-look; a colors-only style is a palette, a full look sets stroke/fill/typography
-too. Stack them with render --style (e.g. --style hand-drawn,dracula) and
-re-roll ink with --seed. Custom styles are JSON records (docs/style-authoring.md);
-pass a .json file path anywhere a name is accepted.
-With --json: [{ name, canonicalId, kind: look|palette, isDefault, backend, intent?, blurb }].`,
-  verify: `am verify <file|-> [--suppress A,B] [--label-cap N] [--style NAMES|file]
-Always emits JSON: {ok, warnings[], layout}.
-  --style <S>       Resolve the same named/file-backed Style used by render so
-                    inspect-only Brand constraints evaluate the styled Scene.
-Error codes flip ok=false:
-${codesWithSeverity('error')}.
-RENDER_FAILED: the strict render parser, layout, or theme colors reject the source.
-BRAND_CONSTRAINT_ERROR: only when a Style constraint explicitly selects action=error.
-Warning codes:
-${codesWithSeverity('warning')}.
-LABEL_OVERFLOW counts characters against --label-cap.
-Brand constraints inspect without repainting or relayout; other Tier-3 lint is advisory.
-Exit 0 if ok, 3 if verify reports severity='error'.`,
-  parse: `am parse <file|->
-Emits ValidDiagram JSON (Maps serialized to objects). Exit 2 on parse error.
-Pipe to 'am serialize' to round-trip.`,
-  serialize: `am serialize  (reads ValidDiagram JSON on stdin)
-Emits canonical Mermaid source. Accepts the JSON shape that 'am parse' emits;
-rebuilds the diagram via synthesizeFromGraph without re-parsing source.`,
-  mutate: `am mutate <file|-> (--op '<JSON>' | --ops '<JSON array|file.json>') [--json]
-Applies one or more MutationOps, verifies the final diagram, then emits source.
-Registered families with mutationOps have typed mutation; discover the live roster,
-narrowers, and op names with 'am capabilities --json'. Opaque-fallback diagrams
-(unmodeled syntax) return a structured UNSUPPORTED_FAMILY error (exit 2). Verify failures
-exit 3 and omit source.`,
-  preview: `am preview <file|-> [--output preview.html] [--open] [--json] [--security strict]
-Writes a standalone HTML preview containing strict-mode rendered SVG. Without
---output, emits HTML to stdout unless --open is set, in which case a temp HTML
-file is written and opened. With --json, emits {ok,path,opened,bytes} for file output.`,
-  format: `am format <file|-> [--canonical-wrapper]
-Parse then re-serialize. Idempotent. The leading source wrapper (frontmatter,
-%%{init}%% directives, comments before the header) is preserved byte-verbatim
-by default; --canonical-wrapper instead synthesizes Mermaid's documented shape
-(title/displayMode top-level, everything else under config:, directives folded).`,
-  describe: `am describe <file|-> [--format text|json|facts] [--json]
-Summarize a Mermaid diagram. Text format emits prose by default; --json wraps
-it as {ok,text}. --format json emits the structured AX tree
-{kind,nodes,edges,entryPoints,sinks}; with --json it wraps as {ok,tree}.
---format facts emits deterministic semantic fact lines; with --json it wraps as {ok,facts}.`,
-  capabilities: `am capabilities [--json]
-Emits a single JSON object describing the SDK's capability surface:
-  { sdkVersion, families: [{ id, hasMutate, hasExtractLabels, mutationOps, editPolicy, example }],
-    warningCodes: [{ code, tier, severity }],
-    outputFormats: ${JSON.stringify(CLI_RENDER_FORMATS)} }
-editPolicy is "structured-when-narrowed" or "source-level-only". Use this to
-introspect what the CLI can do without running every command.`,
-  batch: `am batch [--jsonl]  (reads JSONL from stdin; --jsonl names that mode)
-Each line: { op: "render"|"verify"|"parse"|"serialize"|"mutate", source: string,
-options?: {}, mutation?: MutationOp, mutations?: MutationOp[] }. Emits one JSON
-envelope per line: { ok, op, data?, error? }. Malformed JSON or unknown ops
-surface as ok:false; the batch continues and exits 0 even if lines errored.`,
-  'render-markdown': `am render-markdown <file.md> [--ascii]
-Render fenced \`\`\`mermaid blocks. Bad diagrams yield ok:false entries and do
-not abort the rest of the Markdown file.`,
-  'llms-txt': `am llms-txt
-Emit the committed agent-discovery digest generated from current capabilities.`,
-  'init-agent': `am init-agent [--dir <path>] [--force] [--json]
-Write a repo-local, agent-agnostic drop-in so coding agents discover the
-parse → narrow → mutate → verify → serialize contract automatically. Creates
-without clobbering by default:
-  - AGENTS.md marked section pointing agents at the workflow + hosted docs
-  - skills/agentic-mermaid-diagram-workflow/SKILL.md generic skill bundle
-  - .mcp.json sample agentic-mermaid MCP server config
---dir defaults to the current directory. --force overwrites skill/MCP files;
-the AGENTS.md section is always appended only once, guarded by a marker.`,
-}
-
-export function runCli(argv: string[]): number {
-  const args = parseArgs(argv)
-  const json = flagEnabled(args, 'json')
-  const argError = (message: string): number => {
-    if (json) process.stdout.write(JSON.stringify({ ok: false, error: { code: 'ARG', message } }) + '\n')
-    process.stderr.write(`${message}\n`)
-    return EXIT_ARG_ERROR
-  }
-  if (args.errors.length > 0) return argError(args.errors.join(' '))
-  if (flagEnabled(args, 'agent-instructions')) {
-    process.stdout.write(AGENT_INSTRUCTIONS)
-    return EXIT_OK
-  }
-  if (flagEnabled(args, 'help') && !args.command) {
-    process.stdout.write(GLOBAL_USAGE)
-    return EXIT_OK
-  }
-  if (!args.command) {
-    process.stdout.write(GLOBAL_USAGE)
-    return EXIT_ARG_ERROR
-  }
-  if (flagEnabled(args, 'help')) {
-    process.stdout.write((COMMAND_HELP[args.command] ?? GLOBAL_USAGE) + '\n')
-    return EXIT_OK
-  }
-  // Unknown flags are ERRORS, not silently-swallowed no-ops (probe-confirmed
-  // bug class: `--gantt-toady 2024-01-05` used to exit 0 with no marker and no
-  // complaint). FLAG_SPECS is the single source of truth for what exists.
-  const unknownFlags = Object.keys(args.flags).filter(name => !(name in FLAG_SPECS))
-  if (unknownFlags.length > 0) {
-    const message = `Unknown flag${unknownFlags.length > 1 ? 's' : ''}: ${unknownFlags.map(f => `--${f}`).join(', ')}. Run \`am --help\` or \`am ${args.command} --help\` for the flag list.`
-    return argError(message)
-  }
-  const missingValues = Object.entries(args.flags)
-    .filter(([name, value]) => FLAG_SPECS[name]?.arg && (typeof value !== 'string' || value.length === 0))
-    .map(([name]) => name)
-  if (missingValues.length > 0) {
-    return argError(`Flag${missingValues.length > 1 ? 's' : ''} ${missingValues.map(name => `--${name}`).join(', ')} require${missingValues.length === 1 ? 's' : ''} a value.`)
-  }
-  const allowed = new Set(COMMAND_FLAGS[args.command as keyof typeof COMMAND_FLAGS] ?? ['help'])
-  const inapplicable = Object.keys(args.flags).filter(name => !allowed.has(name))
-  if (inapplicable.length > 0) {
-    return argError(`Flag${inapplicable.length > 1 ? 's' : ''} ${inapplicable.map(name => `--${name}`).join(', ')} ${inapplicable.length > 1 ? 'are' : 'is'} not valid for am ${args.command}.`)
-  }
-  const positionalContract = COMMAND_POSITIONALS[args.command as keyof typeof COMMAND_POSITIONALS]
-  if (positionalContract && (args.positional.length < positionalContract.min || args.positional.length > positionalContract.max)) {
-    return argError(`am ${args.command} accepts ${positionalContract.max === 0 ? 'no positional arguments' : `at most ${positionalContract.max} positional input${positionalContract.max === 1 ? '' : 's'}`}; received ${args.positional.length}.`)
-  }
+/** Argument/help preflight and ordinary commands stay synchronous; batch streams. */
+export function runPreparedCli({ args, json }: PreparedCli): number | Promise<number> {
   // Opt-in invocation logging: when AM_TRACE_LOG names a file, append one JSON
   // line per real command run. Shares the sink with the library and hosted MCP
   // (src/agent/trace-log.ts) so the agent-usage eval can grade traceOk from
@@ -515,7 +145,7 @@ export function runCli(argv: string[]): number {
       case 'init-agent':
         return cmdInitAgent(args, json)
       case 'batch':
-        return cmdBatch()
+        return cmdBatch().catch(e => reportCliFailure(args, json, e))
       case 'render-markdown':
         return cmdRenderMarkdown(args)
       default:
@@ -523,25 +153,28 @@ export function runCli(argv: string[]): number {
         return EXIT_ARG_ERROR
     }
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
-    // Argument and file-shape failures are not renderer failures even when
-    // they occur under the render command.
-    const isArgError = /^needs a file argument|^File not found:/.test(msg)
-    const structured = isArgError ? undefined : args.command === 'render' || args.command === 'preview' || isCliStructuredFailure(e) ? cliStructuredRenderFailure(e) : undefined
-    if (structured) {
-      if (json) process.stdout.write(JSON.stringify(structured) + '\n')
-      else process.stderr.write(`Error: ${structured.error.code}: ${structured.error.message}\n`)
-      return EXIT_ARG_ERROR
-    }
-    // Loop 9 M5: argument-shape errors (missing file, TTY stdin, etc.) get
-    // exit 2 per the documented contract. Heuristic: messages thrown from
-    // readSourceArg / arg parsing are advisory rather than internal bugs.
-    if (json) process.stdout.write(JSON.stringify({ ok: false, error: { code: isArgError ? 'ARG' : 'INTERNAL', message: msg } }) + '\n')
-    else process.stderr.write(`Error: ${msg}\n`)
-    return isArgError ? EXIT_ARG_ERROR : EXIT_INTERNAL
+    return reportCliFailure(args, json, e)
   }
 }
 
+function reportCliFailure(args: ParsedArgs, json: boolean, e: unknown): number {
+  const msg = e instanceof Error ? e.message : String(e)
+  // Argument and file-shape failures are not renderer failures even when
+  // they occur under the render command.
+  const isArgError = /^needs a file argument|^File not found:/.test(msg)
+  const structured = isArgError ? undefined : args.command === 'render' || args.command === 'preview' || isCliStructuredFailure(e) ? cliStructuredRenderFailure(e) : undefined
+  if (structured) {
+    if (json) process.stdout.write(JSON.stringify(structured) + '\n')
+    else process.stderr.write(`Error: ${structured.error.code}: ${structured.error.message}\n`)
+    return EXIT_ARG_ERROR
+  }
+  // Loop 9 M5: argument-shape errors (missing file, TTY stdin, etc.) get
+  // exit 2 per the documented contract. Heuristic: messages thrown from
+  // readSourceArg / arg parsing are advisory rather than internal bugs.
+  if (json) process.stdout.write(JSON.stringify({ ok: false, error: { code: isArgError ? 'ARG' : 'INTERNAL', message: msg } }) + '\n')
+  else process.stderr.write(`Error: ${msg}\n`)
+  return isArgError ? EXIT_ARG_ERROR : EXIT_INTERNAL
+}
 function cmdRender(args: ParsedArgs, json: boolean): number {
   const numeric = (name: ValueFlagName): number | undefined => {
     const value = flagValue(args, name)
@@ -571,6 +204,21 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
       process.stderr.write(`am render --options: ${error instanceof Error ? error.message : String(error)}\n`)
       return EXIT_ARG_ERROR
     }
+  }
+  const graphLayout = flagValue(args, 'graph-layout')
+  const graphLayoutFallback = flagValue(args, 'graph-layout-fallback')
+  if (graphLayout !== undefined || graphLayoutFallback !== undefined) {
+    const candidate = {
+      backend: graphLayout ?? advancedOptions.graphLayout?.backend ?? 'elk',
+      ...(graphLayoutFallback !== undefined || advancedOptions.graphLayout?.fallback !== undefined
+        ? { fallback: graphLayoutFallback ?? advancedOptions.graphLayout?.fallback } : {}),
+    }
+    const problems = validateSerializableRenderOptions({ graphLayout: candidate })
+    if (problems.length) {
+      process.stderr.write(`am render: ${problems.join('; ')}\n`)
+      return EXIT_ARG_ERROR
+    }
+    advancedOptions = { ...advancedOptions, graphLayout: candidate as NonNullable<RenderOptions['graphLayout']> }
   }
   if (targetWidth !== undefined && (!Number.isInteger(targetWidth) || targetWidth <= 0)) {
     process.stderr.write('am render --target-width expects a positive integer number of terminal cells\n')
@@ -907,6 +555,8 @@ function renderPngSync(source: string, opts: PngOptions, outFile: string, json: 
     if (json) process.stdout.write(JSON.stringify({ ok: true, path: outFile, bytes: png.length, receipt: rendered.receipt, runtime: rendered.runtime, warnings }) + '\n')
     return EXIT_OK
   } catch (e) {
+    // Named render refusals use the common CLI JSON/plain-text envelope.
+    if (projectRenderErrorDiagnostic(e).code !== 'RENDER_FAILED') throw e
     const msg = e instanceof Error ? e.message : String(e)
     process.stderr.write(`am render --format png: ${msg}\n`)
     return EXIT_INTERNAL
@@ -959,7 +609,14 @@ function cmdVerify(args: ParsedArgs): number {
     ...(style ? { renderOptions: { style } } : {}),
   })
   process.stdout.write(JSON.stringify(r, replacer) + '\n')
-  return r.ok ? EXIT_OK : EXIT_VERIFY_FAILED
+  return r.ok ? EXIT_OK : verifyFailureExit(r.warnings)
+}
+
+/** A verify failure whose every error is INTERNAL_ERROR is an engine defect,
+ * not the diagram's, so it exits with the internal status. */
+function verifyFailureExit(warnings: readonly LayoutWarning[]): number {
+  const errors = warnings.filter(warning => WARNING_SEVERITY[warning.code] === 'error')
+  return errors.length > 0 && errors.every(warning => warning.code === 'INTERNAL_ERROR') ? EXIT_INTERNAL : EXIT_VERIFY_FAILED
 }
 
 function cmdParse(args: ParsedArgs): number {
@@ -997,9 +654,9 @@ function cmdSerialize(): number {
   return EXIT_OK
 }
 
-type CliMutationError = MutationError | { code: 'UNSUPPORTED_FAMILY' | 'VERIFY_FAILED' | 'PARSE_FAILED' | 'INVALID_OP'; message: string; details?: unknown }
+type CliMutationError = MutationError | { code: string; message: string; details?: unknown }
 
-type MutationRunResult = { ok: true; source: string; verify: ReturnType<typeof verifyMermaid> } | { ok: false; error: CliMutationError; verify?: ReturnType<typeof verifyMermaid> }
+type MutationRunResult = { ok: true; source: string; verify: VerifySummary; mode?: 'source-preserving' } | { ok: false; error: CliMutationError; verify?: VerifySummary }
 
 function parseMutationOpsFlag(args: ParsedArgs): Result<AnyMutationOp[], CliMutationError> {
   const opStr = flagValue(args, 'op') ?? ''
@@ -1018,43 +675,29 @@ function parseMutationOpsFlag(args: ParsedArgs): Result<AnyMutationOp[], CliMuta
   }
 }
 
-function mutateAny(d: ParsedDiagram, op: AnyMutationOp): Result<MutableValidDiagram, CliMutationError> {
-  // mutate() dispatches to the family's registered mutator by diagram kind,
-  // so the CLI only rules out what the registry cannot handle: opaque bodies
-  // (source-preserved syntax has no structured ops) and families without a
-  // mutate hook. The per-family narrowing cascade this replaces re-encoded
-  // the family list a 13th time.
-  const plugin = getFamily(d.kind)
-  if (d.body.kind !== 'opaque' && d.body.kind !== 'extension' && d.body.kind !== 'preserved' && plugin?.mutate && plugin.serialize) {
-    // `--op`/`--ops` arrive as untyped JSON, so the CLI funnels through the same
-    // mutateChecked choke point the MCP paths use: shape is validated (a wrong/
-    // missing/mistyped field is a prescriptive INVALID_OP) before the mutator.
-    return mutateChecked(d as MutableValidDiagram, op)
-  }
-  return {
-    ok: false,
-    error: { code: 'UNSUPPORTED_FAMILY', message: `mutate supports ${knownFamilies().join(', ')} diagrams; got ${d.kind}${d.body.kind === 'opaque' ? ' (source-level/opaque body — structured mutation is not exposed for this family or syntax)' : ''}` },
-  }
-}
 
-export function mutateSource(source: string, ops: AnyMutationOp[]): MutationRunResult {
+export function mutateSource(source: string, ops: AnyMutationOp[], preserveSource = false): MutationRunResult {
+  if (preserveSource) {
+    const result = applyOps({ source, ops, mode: 'source-preserving' })
+    if (!result.ok) return { ok: false, error: { ...result.error, ...(result.opIndex !== undefined ? { details: { index: result.opIndex, op: ops[result.opIndex] } } : {}) } }
+    return { ok: true, source: result.source, verify: result.verify, mode: 'source-preserving' }
+  }
   const r0 = parseRegisteredMermaid(source)
   if (!r0.ok) {
     const env = parseErrorEnvelope(r0.error)
     return { ok: false, error: { code: 'PARSE_FAILED', message: env.error.message, details: env.error.details } }
   }
-  let current: ParsedDiagram = r0.value
-  for (let index = 0; index < ops.length; index++) {
-    const op = ops[index]!
-    const next = mutateAny(current, op)
-    if (!next.ok) {
-      const details = (next.error as { details?: unknown }).details
-      return { ok: false, error: { ...next.error, details: { index, op, ...(typeof details === 'object' && details ? (details as Record<string, unknown>) : {}) } } }
-    }
-    current = next.value
+  if (r0.value.body.kind === 'opaque' || r0.value.body.kind === 'preserved' || r0.value.body.kind === 'extension' || !getFamily(r0.value.kind)?.mutate) {
+    return { ok: false, error: { code: 'UNSUPPORTED_FAMILY', message: `No structured mutation contract for ${r0.value.kind}` } }
   }
-  const verify = verifyMermaid(current)
-  if (!verify.ok) {
+  const batch = applyMutationBatch(r0.value, ops)
+  if (!batch.ok) {
+    const { opIndex, ...error } = batch.error
+    return { ok: false, error: { ...error, details: { index: opIndex, op: ops[opIndex] } } }
+  }
+  const current = batch.value
+  const { accepted, verification: verify } = verifyMutationResult(current, r0.value)
+  if (!accepted) {
     return {
       ok: false,
       error: { code: 'VERIFY_FAILED', message: 'mutated diagram failed verify; source was not emitted', details: verify.warnings },
@@ -1071,15 +714,15 @@ function cmdMutate(args: ParsedArgs, json: boolean): number {
     process.stderr.write(`mutate: ${ops.error.message}\n`)
     return EXIT_ARG_ERROR
   }
-  return emitMutationRun(mutateSource(source, ops.value), json)
+  return emitMutationRun(mutateSource(source, ops.value, args.flags['preserve-source'] === true), json)
 }
 
 function emitMutationRun(r: MutationRunResult, json: boolean): number {
   if (!r.ok) {
     process.stdout.write(JSON.stringify({ ok: false, error: r.error, verify: r.verify }, replacer) + '\n')
-    return r.error.code === 'VERIFY_FAILED' ? EXIT_VERIFY_FAILED : EXIT_ARG_ERROR
+    return r.error.code === 'VERIFY_FAILED' ? verifyFailureExit(r.verify?.warnings ?? []) : EXIT_ARG_ERROR
   }
-  process.stdout.write(json ? JSON.stringify({ ok: true, source: r.source, verify: r.verify }, replacer) + '\n' : r.source)
+  process.stdout.write(json ? JSON.stringify({ ok: true, source: r.source, verify: r.verify, ...(r.mode ? { mode: r.mode } : {}) }, replacer) + '\n' : r.source)
   return EXIT_OK
 }
 
@@ -1210,19 +853,19 @@ function cmdDescribe(args: ParsedArgs, json: boolean): number {
     }
     if (json || format === 'json') process.stdout.write(JSON.stringify(env, replacer) + '\n')
     else process.stderr.write(`describe: verify failed: ${verification.warnings.map(warning => warning.code).join(', ')}\n`)
-    return EXIT_VERIFY_FAILED
+    return verifyFailureExit(verification.warnings)
   }
-  const described = describeMermaid(parsed.value, { format })
   if (format === 'json') {
-    const tree = JSON.parse(described)
+    const tree = describeMermaidTree(parsed.value)
     process.stdout.write(JSON.stringify(json ? { ok: true, tree } : tree) + '\n')
     return EXIT_OK
   }
   if (format === 'facts') {
-    const facts = described.split('\n').filter(Boolean)
+    const facts = describeMermaidFacts(parsed.value)
     process.stdout.write(json ? JSON.stringify({ ok: true, facts }) + '\n' : facts.join('\n') + '\n')
     return EXIT_OK
   }
+  const described = describeMermaid(parsed.value)
   process.stdout.write(json ? JSON.stringify({ ok: true, text: described }) + '\n' : described + '\n')
   return EXIT_OK
 }
@@ -1268,6 +911,8 @@ interface WarningCodeCapability {
   code: WarningCode
   tier: string
   severity: string
+  /** Who can cause this code: the source, its configuration, or the engine. */
+  origins: readonly WarningOrigin[]
 }
 
 interface CapabilitiesEnvelope {
@@ -1343,6 +988,7 @@ export function buildCapabilities(): CapabilitiesEnvelope {
     code,
     tier: WARNING_TIER[code],
     severity: WARNING_SEVERITY[code],
+    origins: WARNING_CATALOG[code].origins,
   }))
   return {
     sdkVersion,
@@ -1442,7 +1088,7 @@ Version: ${cap.sdkVersion}
 ## What it does
 
 A typed editing surface over Mermaid for AI agents. Parse a diagram to a
-ValidDiagram, mutate it with typed ops, verify structurally (no pixels),
+ValidDiagram, mutate it with typed ops, verify source and renderability,
 serialize back to canonical source. Layout is deterministic (verified
 cross-process and same-machine cross-runtime on x86_64/ARM64).
 
@@ -1460,7 +1106,7 @@ you haven't inspected.
 - styles [--json] — list registered styles (default + full looks + palette-only themes)
 - parse — diagram → ValidDiagram JSON
 - serialize — ValidDiagram JSON on stdin → canonical source (the inverse of parse)
-- verify — structural validation (exit 3 if invalid)
+- verify — structural validation (exit 3 if invalid, 4 if only INTERNAL_ERROR)
 - mutate --op '<json>' / --ops '<json array|file>' — apply typed mutation(s), verify, then emit source
 - preview [--output file.html] [--open] — standalone strict-mode HTML preview for user inspection
 - format — normalize / canonicalize source
@@ -1471,7 +1117,7 @@ you haven't inspected.
 - llms-txt — this document
 - init-agent [--dir .] [--force] — write AGENTS.md section, root skills/ bundle, and .mcp.json sample
 
-Exit codes: 0 ok, 2 arg error, 3 verify-failed, 4 internal.
+Exit codes: 0 ok, 2 arg error, 3 verify-failed, 4 internal (including a verify whose errors are all INTERNAL_ERROR).
 
 ## MCP tools
 
@@ -1492,6 +1138,7 @@ references — safe for untrusted/agent-generated diagrams. See SECURITY.md.
 All families parse, verify, render, round-trip: ${families}.
 Structured mutation (${cap.families.find(f => f.hasMutate)?.editPolicy}): ${structured.join(', ')}.
 Narrowers: ${narrowers}.
+${FAMILY_NARROWING_NOTE}
 State diagrams own a dedicated body (BUILD-19): narrow with asState; state-shaped ops apply (asFlowchart returns null on them).
 Source-level-only: ${
     cap.families
@@ -1625,6 +1272,7 @@ interface BatchLine {
   options?: Record<string, unknown>
   mutation?: AnyMutationOp
   mutations?: AnyMutationOp[]
+  preserveSource?: boolean
 }
 
 export interface BatchRenderOptions extends Record<string, unknown> {
@@ -1775,7 +1423,8 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
         }
         const ops = (hasMutations ? parsed.mutations : [parsed.mutation]) as Parameters<typeof mutateSource>[1]
         if (ops.length === 0) return { ok: false, op, error: { code: 'INVALID_OP', message: 'mutate batch line mutations must be a non-empty array' } }
-        const r = mutateSource(parsed.source, ops)
+        if (parsed.preserveSource !== undefined && typeof parsed.preserveSource !== 'boolean') return { ok: false, op, error: { code: 'INVALID_OP', message: 'preserveSource must be boolean' } }
+        const r = mutateSource(parsed.source, ops, parsed.preserveSource === true)
         if (!r.ok)
           return {
             ok: false,
@@ -1787,7 +1436,7 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
             },
             ...(r.verify ? { verify: JSON.parse(JSON.stringify(r.verify, replacer)) } : {}),
           }
-        return { ok: true, op, data: { source: r.source, verify: JSON.parse(JSON.stringify(r.verify, replacer)) } }
+        return { ok: true, op, data: { source: r.source, verify: JSON.parse(JSON.stringify(r.verify, replacer)), ...(r.mode ? { mode: r.mode } : {}) } }
       }
       default:
         return { ok: false, op, error: { code: 'UNKNOWN_OP', message: `unknown op: ${op}` } }
@@ -1808,17 +1457,11 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
   }
 }
 
-function cmdBatch(): number {
-  const stdin = readSourceArg('-')
-  const lines = stdin.split('\n').filter(l => l.trim() !== '')
-  // Loop 9 M8: shared per-item iteration via collectBatched. Same scaffold
-  // as runWithJudge — see src/shared/batched.ts.
-  const results = collectBatched(lines, (line, i) => runBatchLine(line, i), 'BATCH_HANDLER_ERROR')
-  for (const r of results) {
-    if (r.ok) process.stdout.write(JSON.stringify(r.value) + '\n')
-    else process.stdout.write(JSON.stringify({ ok: false, error: r.error }) + '\n')
-  }
-  // Per-line errors don't abort the batch; the process always exits OK.
+async function cmdBatch(): Promise<number> {
+  if (process.stdin.isTTY) throw new Error('needs a file argument or piped stdin')
+  const { streamJsonlBatch } = await import('./jsonl.ts')
+  await streamJsonlBatch(process.stdin, process.stdout, runBatchLine)
+  // Per-line failures don't abort; input/output transport failures do.
   return EXIT_OK
 }
 

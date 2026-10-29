@@ -15,11 +15,14 @@
  *           INEFFECTIVE_CONFIG Tier-3 lint (journey/class/er pattern).
  */
 import { describe, it, expect } from 'bun:test'
+import { decodeXML } from 'entities'
 
 import { parseMermaid as parseGraph } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
-import { renderMermaidSVG } from '../index.ts'
-import { getFamily, verifyMermaid } from '../agent/index.ts'
+import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
+import { resolveLabelContent, preparedDisplayTextValue } from '../shared/display-text.ts'
+import { resolveRenderRequest } from '../render-contract.ts'
+import { verifyMermaid } from '../agent/index.ts'
 import {
   applyFlowchartLabelWrapping,
   resolveFlowchartRenderOptions,
@@ -74,10 +77,6 @@ describe('flowchart INEFFECTIVE_CONFIG lint (fix stage, P4)', () => {
     expect(verifyMermaid(AB).warnings.filter(w => w.code === 'INEFFECTIVE_CONFIG')).toEqual([])
   })
 
-  it('the registry noopKeys and the wired keys partition the documented schema', () => {
-    const config = getFamily('flowchart')!.config!
-    expect(['nodeSpacing', 'rankSpacing', 'wrappingWidth', ...config.noopKeys!].sort()).toEqual([...config.keys].sort())
-  })
 })
 
 describe('flowchart nodeSpacing/rankSpacing wiring (feature stage)', () => {
@@ -136,6 +135,36 @@ describe('flowchart nodeSpacing/rankSpacing wiring (feature stage)', () => {
 describe('flowchart wrappingWidth (feature stage)', () => {
   const LONG = 'flowchart TD\n  A{Does the incoming request carry a valid session token for this tenant?} --> B\n'
 
+  it('fits literal entity runs and real formatting without rewriting their source or repeating casing', () => {
+    const payload = '#lt;b#gt;x#lt;/b#gt; <b>y</b> ta\u001bil'
+    const source = `flowchart LR\nA["${payload}"]`
+    const options = { wrappingWidth: 40, style: { roles: { node: { textTransform: 'uppercase' as const, fontSize: 16, letterSpacing: 1 } } } }
+    const graph = parseGraph(source)
+    const original = graph.nodes.get('A')!.label
+    const styleFace = resolveRenderRequest(source, options, 'svg').appearance.face
+    applyFlowchartLabelWrapping(graph, options, styleFace)
+    const positioned = layoutGraphSync(graph, { ...options, styleFace }).nodes[0]!
+    const block = positioned.labelBlock!
+    expect(graph.nodes.get('A')!.label).toBe(original)
+    expect(block.prepared.source).toBe(payload)
+    expect(block.prepared.transform).toBe('uppercase')
+    expect(block.letterSpacing).toBe(1)
+    expect(block.lineBlocks.length).toBeGreaterThan(1)
+    expect(block.lineBlocks.every(line => line.width <= 40)).toBe(true)
+    expect(block.lineBlocks.flatMap(line => line.runs).filter(run => run.bold).map(run => run.text).join('')).toBe('Y')
+    expect(block.prepared.lines[0]![0]!.clusters![0]).toEqual({ text: '<', sourceStart: 0, sourceEnd: 4 })
+    expect(block.breaks.some(point => point.kind === 'wrap')).toBe(true)
+    expect(block.breaks.every(point => point.sourceOffset >= 0 && point.sourceOffset <= payload.length)).toBe(true)
+    const svg = renderMermaidSVG(source, options)
+    const visible = [...svg.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)].map(match => decodeXML(match[1]!.replace(/<[^>]+>/g, ''))).join('')
+    expect(visible.replace(/[\s-]/g, '')).toBe('<B>X</B>YTA?IL')
+    expect(svg).toMatch(/<tspan\b[^>]*\bfont-weight="bold"[^>]*>Y<\/tspan>/)
+    const content = resolveLabelContent(graph.nodes.get('A')!.label, graph.nodes.get('A')!.labelContent)
+    expect(typeof content).not.toBe('string')
+    if (typeof content !== 'string') expect(preparedDisplayTextValue(content)).toBe('<b>x</b> y ta?il')
+    expect(renderMermaidASCII(source)).toContain('<b>x</b> y ta?il')
+  })
+
   it('an explicit wrappingWidth wraps a sentence-length diamond label under the width budget', () => {
     const options = resolveFlowchartRenderOptions(frontmatterOf(`---\nconfig:\n  flowchart:\n    wrappingWidth: 180\n---\n${LONG}`), {})
     const unwrapped = layoutGraphSync(parseGraph(LONG), {})
@@ -145,9 +174,9 @@ describe('flowchart wrappingWidth (feature stage)', () => {
     const before = unwrapped.nodes.find(n => n.id === 'A')!
     const after = wrapped.nodes.find(n => n.id === 'A')!
     expect(after.width).toBeLessThan(before.width)
-    expect(after.label).toContain('\n')
+    expect(after.labelBlock!.lines.length).toBeGreaterThan(1)
     // Every wrapped line fits the measured budget; the diamond may still pad.
-    for (const line of after.label.split('\n')) expect(line.length).toBeLessThan(before.label.length)
+    for (const line of after.labelBlock!.lines) expect(line.length).toBeLessThan(before.label.length)
   })
 
   it('the public render path wraps node labels into tspans when configured', () => {

@@ -10,6 +10,29 @@ const temp = useTempDirs('am-cli-err-')
 const tmp = (content: string): string => temp.file('input.mmd', content)
 
 describe('M1 CLI structured error envelope', () => {
+  test('named color refusals keep the same JSON envelope in every render format', () => {
+    for (const [source, errorCode, named] of [
+      ['flowchart TD\nA-->B\nstyle A fill:notacolor', 'INVALID_STYLE_COLOR', 'style A: fill "notacolor"'],
+      ['%%{init: {"themeVariables":{"primaryColor":"notacolor"}}}%%\nflowchart TD\nA-->B', 'INVALID_THEME_COLOR', 'themeVariables.primaryColor: "notacolor"'],
+      ['%%{init: {"sankey":{"linkColor":"notacolor"}}}%%\nsankey-beta\nA,B,1', 'INVALID_CONFIG_COLOR', 'sankey.linkColor: "notacolor"'],
+    ] as const) {
+      const input = tmp(source)
+      for (const format of ['svg', 'png', 'ascii', 'unicode']) {
+        const args = ['render', input, '--format', format, '--json']
+        if (format === 'png') args.push('--output', `${input}.png`)
+        const result = capture(() => runCli(args))
+        expect(result.code, format).toBe(2)
+        expect(result.out, format).not.toBe('')
+        expect(JSON.parse(result.out), format).toMatchObject({
+          ok: false, error: { code: errorCode, message: expect.stringContaining(named), value: 'notacolor' },
+        })
+      }
+      const plain = capture(() => runCli(['render', input, '--format', 'png', '--output', `${input}.png`]))
+      expect(plain.code).toBe(2)
+      expect(plain.err).toContain(`Error: ${errorCode}: ${named}`)
+    }
+  })
+
   test('am parse error: message is a human string, details is the ParseError[]', () => {
     const { code, out } = capture(() => runCli(['parse', tmp('flowchart XX\n  A --> B')]))
     expect(code).toBe(2)

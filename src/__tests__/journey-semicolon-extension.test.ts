@@ -2,6 +2,8 @@ import { afterAll, describe, expect, test } from 'bun:test'
 import { asJourney, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { parseJourneyDiagram } from '../journey/parser.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidASCII } from '../ascii/index.ts'
 
 const source = 'journey\n  A: 5: Me; B: 3: Me'
 
@@ -10,7 +12,151 @@ const upstream = startUpstreamMermaid()
 afterAll(() => upstream.close())
 
 describe('Journey semicolon statements are a diagnosed Agentic extension', () => {
-  test('pinned Mermaid 11.16 rejects a joined task line that both local parsers retain', async () => {
+  test.each([
+    { authored: '&#37;&#37;Task', text: '%%Task', actor: 'Alice', expectedActor: 'Alice' },
+    { authored: '&#116;itle T', text: 'title T', actor: 'Actor', expectedActor: 'Actor' },
+    { authored: 'Task', text: 'Task', actor: 'A&#44;B', expectedActor: 'A,B' },
+    { authored: 'A&#58;B', text: 'A:B', actor: 'A&#58;B', expectedActor: 'A:B' },
+    { authored: 'A&#42;B&#42;C', text: 'A*B*C', actor: '&lt;b&gt;Alice&lt;/b&gt;', expectedActor: '<b>Alice</b>' },
+    { authored: '&amp;lt;b&amp;gt;A&amp;lt;/b&amp;gt;', text: '&lt;b&gt;A&lt;/b&gt;', actor: '&amp;#44;', expectedActor: '&#44;' },
+    { authored: '&#64258;°°35&#182;ß', text: 'ﬂ°°35¶ß', actor: 'Alice', expectedActor: 'Alice' },
+    { authored: '#116;itle #58;#32;', text: 'title : ', actor: 'A#44;B', expectedActor: 'A,B' },
+    { authored: 'A&#92;nB', text: 'A\\nB', actor: '&#32;Alice&#32;', expectedActor: ' Alice ' },
+    { authored: '&lt;br&gt;', text: '<br>', actor: '&#42;X&#42;', expectedActor: '*X*' },
+  ])('entity-produced syntax remains literal: $authored / $actor', async ({ authored, text, actor, expectedActor }) => {
+    const input = `journey\n${authored}: 3: ${actor}`
+    const parsed = parseRegisteredMermaid(input)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.body).toMatchObject({ kind: 'journey', sections: [{ tasks: [{ text, score: 3, actors: [expectedActor] }] }] })
+    expect(parsed.value.body).not.toHaveProperty('title')
+    const written = serializeMermaid(parsed.value)
+    const sameText = mutate(parsed.value, { kind: 'set_task_text', sectionIndex: 0, taskIndex: 0, text })
+    expect(sameText.ok).toBe(true)
+    if (!sameText.ok) return
+    const sameActor = mutate(sameText.value, { kind: 'set_task_actors', sectionIndex: 0, taskIndex: 0, actors: [expectedActor] })
+    expect(sameActor.ok).toBe(true)
+    if (!sameActor.ok) return
+    expect(serializeMermaid(sameActor.value)).toBe(written)
+    const renamed = mutate(sameActor.value, { kind: 'rename_actor', from: expectedActor, to: expectedActor })
+    expect(renamed.ok).toBe(true)
+    if (!renamed.ok) return
+    expect(serializeMermaid(renamed.value)).toBe(written)
+    expect((await upstream.parse(written)).ok).toBe(true)
+    const again = parseRegisteredMermaid(written)
+    expect(again.ok && again.value.body).toMatchObject({ kind: 'journey', sections: [{ tasks: [{ text, score: 3, actors: [expectedActor] }] }] })
+    const ascii = renderMermaidASCII(input)
+    expect(ascii).toContain(text.trimEnd())
+    expect(ascii).toContain(`by ${expectedActor.trimEnd()}`)
+    expect(renderMermaidASCII(written)).toBe(ascii)
+    expect(renderMermaidSVG(written)).toBe(renderMermaidSVG(input))
+  })
+
+  test('typed literal delimiters and keyword prefixes are escaped by the writer', async () => {
+    const parsed = parseRegisteredMermaid('journey\nTask: 3: Alice')
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const diagram = asJourney(parsed.value)
+    expect(diagram).toBeDefined()
+    if (!diagram) return
+    const task = diagram.body.sections[0]!.tasks[0]!
+    task.text = 'title Pick: one; two'
+    task.actors = ['A,B', 'style A:#']
+    const written = serializeMermaid(diagram)
+    expect((await upstream.parse(written)).ok).toBe(true)
+    const again = parseRegisteredMermaid(written)
+    expect(again.ok && again.value.body).toMatchObject({ kind: 'journey', sections: [{ tasks: [{ text: 'title Pick: one; two', actors: ['A,B', 'style A:#'] }] }] })
+  })
+
+  test('literal encoded tags remain distinct from real formatting through an unrelated edit', async () => {
+    const input = 'journey\nsection A&#58;B\n&lt;b&gt;literal&lt;/b&gt; and **bold**: 3: &lt;b&gt;Alice&lt;/b&gt;'
+    const parsed = parseRegisteredMermaid(input)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.body).toMatchObject({ kind: 'journey', sections: [{ label: 'A:B', tasks: [{ text: '<b>literal</b> and <b>bold</b>', actors: ['<b>Alice</b>'] }] }] })
+    const edited = mutate(parsed.value, { kind: 'set_task_score', sectionIndex: 0, taskIndex: 0, score: 4 })
+    expect(edited.ok).toBe(true)
+    if (!edited.ok) return
+    const written = serializeMermaid(edited.value)
+    expect(serializeMermaid(JSON.parse(JSON.stringify(edited.value)))).toBe(written)
+    const restatedText = mutate(edited.value, { kind: 'set_task_text', sectionIndex: 0, taskIndex: 0, text: '<b>literal</b> and <b>bold</b>' })
+    expect(restatedText.ok).toBe(true)
+    if (!restatedText.ok) return
+    const restatedActors = mutate(restatedText.value, { kind: 'set_task_actors', sectionIndex: 0, taskIndex: 0, actors: ['<b>Alice</b>'] })
+    expect(restatedActors.ok).toBe(true)
+    if (!restatedActors.ok) return
+    expect(serializeMermaid(restatedActors.value)).toBe(written)
+    expect((await upstream.parse(written)).ok).toBe(true)
+    const ascii = renderMermaidASCII(written)
+    expect(ascii).toContain('<b>literal</b> and bold')
+    expect(ascii).toContain('by <b>Alice</b>')
+    const svg = renderMermaidSVG(written)
+    expect(svg).toContain('&lt;b&gt;literal&lt;/b&gt;')
+    expect(svg).toContain('&lt;b&gt;Alice&lt;/b&gt;')
+  })
+
+  test.each([
+    { authored: '&mp;', text: '&mp;' },
+    { authored: 'Me&amp;', text: 'Me&' },
+    { authored: '&amp;amp;', text: '&amp;' },
+    { authored: '&amp;amp;amp;', text: '&amp;amp;' },
+    { authored: '&#59;', text: ';' },
+    { authored: '&#35;', text: '#' },
+  ])('entity text $authored preserves its meaning through portable writing', async ({ authored, text }) => {
+    const source = `journey\n  title ${authored}\n  section ${authored}\n  ${authored}: 3: ${authored}`
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const canonical = serializeMermaid(parsed.value)
+    expect((await upstream.parse(canonical)).ok).toBe(true)
+    const expected = {
+      title: text, section: text, task: text, actors: [text],
+    }
+    for (const value of [source, canonical]) {
+      const native = parseJourneyDiagram(value.trimEnd().split('\n'))
+      expect({ title: native.title, section: native.sections[0]!.label, task: native.sections[0]!.tasks[0]!.text, actors: native.sections[0]!.tasks[0]!.actors }).toEqual(expected)
+    }
+    const reparsed = parseRegisteredMermaid(canonical)
+    expect(reparsed.ok && reparsed.value.body).toEqual(parsed.value.body)
+    expect(renderMermaidSVG(canonical)).toBe(renderMermaidSVG(source))
+    const terminal = renderMermaidASCII(source)
+    expect(terminal).toContain(`by ${text}`)
+    expect(renderMermaidASCII(canonical)).toBe(terminal)
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'journey_entity_semicolon', line: 4,
+    }))
+    expect(verifyMermaid(canonical).warnings).not.toContainEqual(expect.objectContaining({ syntax: 'journey_entity_semicolon' }))
+  })
+
+  test('Mermaid entity semicolons remain text beside real statement separators', async () => {
+    const input = 'journey\n  #59;: 3: #amp;mp#59;; Next: 4: Me'
+    const native = parseJourneyDiagram(input.split('\n'))
+    expect(native.sections[0]!.tasks.map(task => ({ text: task.text, actors: task.actors }))).toEqual([
+      { text: ';', actors: ['&mp;'] }, { text: 'Next', actors: ['Me'] },
+    ])
+    const parsed = parseRegisteredMermaid(input)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect((await upstream.parse(serializeMermaid(parsed.value))).ok).toBe(true)
+  })
+
+  test('entity normalization leaves wrapped titles, configuration and accessibility intact', () => {
+    const source = '---\ntitle: "Wrapped &amp;amp;"\nconfig:\n  journey:\n    titleColor: "#123456"\n---\n%%{init: {"journey":{"taskFontFamily":"A&amp;B"}}}%%\njourney\naccTitle: Accessible &amp;amp;\nTask: 3: Me&amp;'
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const canonical = serializeMermaid(parsed.value)
+    expect(canonical).toContain('title: "Wrapped &amp;amp;"')
+    expect(canonical).toContain('"taskFontFamily":"A&amp;B"')
+    const svg = renderMermaidSVG(source)
+    expect(svg).toContain('Wrapped &amp;amp;</text>')
+    expect(svg).toContain('Accessible &amp;amp;</title>')
+    expect(svg).toMatch(/class="journey-title"[^>]*fill="#123456"/)
+    expect(renderMermaidSVG(canonical)).toBe(svg)
+    expect(renderMermaidASCII(canonical)).toBe(renderMermaidASCII(source))
+  })
+
+  test('pinned Mermaid rejects a joined task line that both local parsers retain', async () => {
     const verdict = await upstream.parse(source)
     expect({ ok: verdict.ok, error: verdict.ok ? '' : verdict.error }).toEqual({ ok: false, error: expect.stringContaining('Parse error') })
 

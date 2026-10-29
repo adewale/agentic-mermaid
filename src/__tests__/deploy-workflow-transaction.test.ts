@@ -119,7 +119,7 @@ function runStep(name: string, options: {
   const summaryFile = join(root, 'github-summary')
   writeFileSync(outputFile, '')
   writeFileSync(summaryFile, '')
-  const result = spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', target.run], {
+  const result = spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', target.run], { timeout: 20_000, killSignal: 'SIGKILL',
     cwd: target['working-directory'] ? join(root, target['working-directory']) : root,
     encoding: 'utf8',
     env: {
@@ -163,6 +163,34 @@ const deployments = (...versions: Array<[string, number]>) => JSON.stringify([
   { created_on: '2026-01-01T00:00:00Z', versions: [{ version_id: 'ancient', percentage: 100 }] },
   { created_on: '2026-09-01T00:00:00Z', versions: versions.map(([version_id, percentage]) => ({ version_id, percentage })) },
 ])
+
+describe('candidate upload transaction', () => {
+  const versionId = '556b9e5c-895c-4b19-958b-964a90322a1d'
+  const event = JSON.stringify({ type: 'version-upload', version: 1, worker_name: 'agentic-mermaid-website', worker_tag: 'opaque-cloudflare-worker-id', version_id: versionId })
+
+  test.each([
+    { name: 'one uploaded candidate', output: event, succeeds: true },
+    { name: 'ambiguous upload events', output: `${event}\n${event}`, succeeds: false },
+  ])('resolves $name without serving it', ({ output, succeeds }) => {
+    const result = runStep('Upload the candidate without serving it', {
+      files: { 'upload.ndjson': output },
+      wrangler: `case "$1 $2" in
+        "versions upload") cat "$MOCK_ROOT/upload.ndjson" > "$WRANGLER_OUTPUT_FILE_PATH" ;;
+        "versions list") printf '%s\\n' '${JSON.stringify([{ id: versionId, annotations: { 'workers/tag': SHA } }])}' ;;
+        *) exit 64 ;;
+      esac`,
+      setup(root) {
+        const parser = 'scripts/ci/resolve-wrangler-version-upload.ts'
+        mkdirSync(dirname(join(root, parser)), { recursive: true })
+        copyFileSync(join(REPO, parser), join(root, parser))
+      },
+    })
+    expect(result.status === 0).toBe(succeeds)
+    expect(result.outputs).toEqual(succeeds ? { candidate_id: versionId } : {})
+    expect(result.calls[0]).toBe(`wrangler versions upload --strict --tag ${SHA} --message GitHub Actions run 4242 for ${SHA}`)
+    expect(result.calls.some(call => /wrangler (?:versions deploy|rollback)/.test(call))).toBe(false)
+  })
+})
 
 describe('deploy workflow shape', () => {
   test('a started transaction is never cancelled, and its token reads the repository and writes only issues', () => {

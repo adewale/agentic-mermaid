@@ -5,6 +5,7 @@
 // xychart, gantt, mindmap, and gitgraph were reported as possible misspellings.
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { getInstalledFamilyDescriptor } from '../agent/family-router.ts'
@@ -59,7 +60,7 @@ describe('config diagnostics for official Mermaid keys', () => {
         const diagnostics = familyConfigDiagnostics(kind, [{ [spec.section]: { [key]: true } }], spec)
         expect(diagnostics.some(diagnostic => diagnostic.field === `${spec.section}.${key}` && MISSPELLING.test(diagnostic.message))).toBe(true)
       }),
-      { numRuns: 200 },
+      fcParameters({ numRuns: 200 }),
     )
   })
 })

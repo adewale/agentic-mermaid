@@ -481,6 +481,11 @@
     order: 1;
     margin-left: 0;
   }
+  /* The wrapping toolbar places Export at the left edge on mobile. */
+  .export-wrap .export-dropdown {
+    left: 0;
+    right: auto;
+  }
   #export-chevron-btn {
     width: var(--control-h);
     min-width: var(--control-h);

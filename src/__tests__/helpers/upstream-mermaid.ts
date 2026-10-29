@@ -1,12 +1,11 @@
 // A long-lived child process that parses sources with the pinned upstream
-// Mermaid (devDependency, 11.16.0) for grammar and differential oracles.
+// Mermaid (devDependency, 12.2.0) for grammar and differential oracles.
 //
-// Upstream's flowchart/class DBs call DOMPurify, which has no DOM under Bun.
-// An identity sanitizer shim is isolated in a child process so the test
-// process's module state never changes; this probes grammar/DB semantics,
-// never output safety. One process serves many parses over a line protocol,
-// so async fast-check properties can keep shrinking against upstream without
-// a spawn per run, and a fidelity test never waits on a synchronous spawn.
+// Run the public Mermaid implementation in Node with an isolated DOM. The
+// worker owns real DOMPurify state; no sanitizer hooks or identity shim enter
+// either the test process or the independent reference process. ZenUML calls
+// the pinned registered addon plus its real core parser; the shim alone is not
+// counted as syntax acceptance.
 
 import { join } from 'node:path'
 
@@ -79,6 +78,8 @@ export interface UpstreamMermaid {
   parse(source: string): Promise<UpstreamParse>
   /** Whether upstream parses `source` without error. */
   accepts(source: string): Promise<boolean>
+  /** Public parser acceptance, including wrapper/directive preprocessing. */
+  publicAccepts(source: string): Promise<boolean>
   /** What `projection` returns for the parsed diagram (it may be async), or
    * the rejection. The projection runs in the worker: it is sent as source
    * text, so it may use only its argument and globals, never a test's
@@ -103,11 +104,18 @@ const REPO = join(import.meta.dir, '..', '..', '..')
 const REPLY = '\u0001am-upstream\u0001'
 
 const WORKER = `
-import DOMPurify from 'dompurify'
-DOMPurify.addHook = () => {}
-DOMPurify.sanitize = text => text
+import { JSDOM } from 'jsdom'
+const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost/' })
+for (const key of ['window', 'document', 'navigator', 'HTMLElement', 'SVGElement', 'Element', 'Node', 'Option', 'location', 'localStorage']) {
+  Object.defineProperty(globalThis, key, { configurable: true, value: dom.window[key] })
+}
 const { default: mermaid } = await import('mermaid')
 mermaid.initialize({ startOnLoad: false })
+const { createZenUMLReference } = await import(${JSON.stringify(new URL('../../../eval/mermaid-modern-compat/zenuml-reference.mjs', import.meta.url).href)})
+const { readFileSync } = await import('node:fs')
+const mermaidVersion = JSON.parse(readFileSync(new URL('../package.json', import.meta.resolve('mermaid')), 'utf8')).version
+const zen = createZenUMLReference(mermaid, mermaidVersion)
+const referenceDiagram = source => zen.diagram(source)
 const REPLY = ${JSON.stringify(REPLY)}
 function flowchart(db) {
   if (typeof db?.getVertices !== 'function' || typeof db?.getEdges !== 'function') return undefined
@@ -128,18 +136,18 @@ const DB_GETTERS = ['getDiagramTitle', 'getAccTitle', 'getAccDescription', 'getS
   'getDateFormat', 'getAxisFormat', 'getTickInterval', 'getTodayMarker', 'topAxisEnabled', 'getDisplayMode', 'getIncludes',
   'getExcludes', 'getWeekday', 'getXYChartData', 'getQuadrantData', 'getAxes', 'getCurves', 'getOptions', 'getServices',
   'getGroups', 'getJunctions', 'getEdges', 'getCommits', 'getBranches', 'getDirection', 'getEntities', 'getRelationships']
-function plain(value, depth = 0) {
-  if (depth > 8) return '...'
-  if (value instanceof Map) return [...value].map(([key, entry]) => [key, plain(entry, depth + 1)])
-  if (value instanceof Set) return [...value].map(entry => plain(entry, depth + 1))
+function plain(value, seen = new Map(), path = '$') {
+  if (typeof value === 'function' || typeof value === 'undefined') return undefined
+  if (!value || typeof value !== 'object') return value
   if (value instanceof Date) return value.toISOString()
-  if (Array.isArray(value)) return value.map(entry => plain(entry, depth + 1))
-  if (value && typeof value === 'object') {
-    const out = {}
-    for (const [key, entry] of Object.entries(value)) if (typeof entry !== 'function' && key !== 'domId' && key !== 'parent') out[key] = plain(entry, depth + 1)
-    return out
-  }
-  return value
+  if (seen.has(value)) return { $ref: seen.get(value) }
+  seen.set(value, path)
+  if (value instanceof Map) return [...value].map(([key, entry], index) => [key, plain(entry, seen, path + '[' + index + '][1]')])
+  if (value instanceof Set) return [...value].map((entry, index) => plain(entry, seen, path + '[' + index + ']'))
+  if (Array.isArray(value)) return value.map((entry, index) => plain(entry, seen, path + '[' + index + ']'))
+  const out = {}
+  for (const [key, entry] of Object.entries(value)) if (typeof entry !== 'function' && key !== 'domId') out[key] = plain(entry, seen, path + '.' + key)
+  return out
 }
 function database(db) {
   const out = {}
@@ -154,7 +162,7 @@ async function project(sources, projection) {
   const results = []
   for (const source of sources) {
     try {
-      results.push({ ok: true, value: await projection(await mermaid.mermaidAPI.getDiagramFromText(source)) })
+      results.push({ ok: true, value: await projection(await referenceDiagram(source)) })
     } catch (error) {
       results.push(failure(error))
     }
@@ -163,7 +171,7 @@ async function project(sources, projection) {
 }
 const decoder = new TextDecoder()
 let buffered = ''
-for await (const chunk of Bun.stdin.stream()) {
+for await (const chunk of process.stdin) {
   buffered += decoder.decode(chunk, { stream: true })
   for (let nl = buffered.indexOf('\\n'); nl >= 0; nl = buffered.indexOf('\\n')) {
     const line = buffered.slice(0, nl)
@@ -175,10 +183,14 @@ for await (const chunk of Bun.stdin.stream()) {
         reply = { ok: true, results: await project(request.sources, (0, eval)('(' + request.projection + ')')) }
       } else {
         const source = typeof request === 'string' ? request : request.source
-        const diagram = await mermaid.mermaidAPI.getDiagramFromText(source)
-        reply = typeof request === 'string'
-          ? { ok: true, type: diagram.type, flowchart: flowchart(diagram.db), sequence: sequence(diagram.db) }
-          : { ok: true, type: diagram.type, database: database(diagram.db) }
+        if (request?.publicParse) {
+          reply = { ok: !!await referenceDiagram(source) }
+        } else {
+          const diagram = await referenceDiagram(source)
+          reply = typeof request === 'string'
+            ? { ok: true, type: diagram.type, flowchart: flowchart(diagram.db), sequence: sequence(diagram.db) }
+            : { ok: true, type: diagram.type, database: database(diagram.db) }
+        }
       }
     } catch (error) {
       reply = failure(error)
@@ -192,7 +204,7 @@ type UpstreamReply = UpstreamParse & { database?: string; results?: Array<Upstre
 
 export function startUpstreamMermaid(): UpstreamMermaid {
   const child = Bun.spawn({
-    cmd: [process.execPath, '-e', WORKER],
+    cmd: ['node', '--input-type=module', '-e', WORKER],
     cwd: REPO,
     stdin: 'pipe',
     stdout: 'pipe',
@@ -241,6 +253,9 @@ export function startUpstreamMermaid(): UpstreamMermaid {
     },
     async accepts(source: string): Promise<boolean> {
       return (await request(source)).ok
+    },
+    async publicAccepts(source: string): Promise<boolean> {
+      return (await request({ source, publicParse: true })).ok
     },
     async project<T>(source: string, projection: (diagram: UpstreamDiagram) => T | Promise<T>): Promise<UpstreamProjection<T>> {
       return (await projectEach([source], projection))[0]!

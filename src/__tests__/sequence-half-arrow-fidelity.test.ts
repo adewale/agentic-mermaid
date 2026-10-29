@@ -5,6 +5,10 @@ import { asSequence } from '../agent/types.ts'
 import { mutate } from '../agent/mutate.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseSequenceDiagram, parseSequenceMessageLine } from '../sequence/parser.ts'
+import { resolveRenderRequest } from '../render-contract.ts'
+import { positionResolvedFamily } from '../positioning.ts'
+import { lowerPositionedFamilyScene } from '../graphical-render.ts'
+import type { ConnectorMark, SceneNode } from '../scene/ir.ts'
 
 // Pinned Mermaid 11.16 sequenceDiagram.jison has eight solid and eight dotted
 // half-arrow tokens. A shorter prefix must never become part of the recipient.
@@ -28,6 +32,30 @@ const CASES = [
 ] as const
 
 describe('Sequence half-arrow lexical fidelity', () => {
+  test('final Scene retains message arrowheads and their marker placements', () => {
+    const source = 'sequenceDiagram\nA->>B: Request\nB-->>A: Reply\nA->>A: Retry\nA<<->>B: Exchange'
+    for (const color of [undefined, '#123456', '#7a3b91', '#123456']) {
+      const request = resolveRenderRequest(source, color ? { style: { roles: { edge: { strokeColor: color } } } } : {})
+      const scene = lowerPositionedFamilyScene(request, positionResolvedFamily('sequence', request))
+      const messages: ConnectorMark[] = []
+      const visit = (node: SceneNode): void => {
+        if (node.kind === 'connector' && node.role === 'message') messages.push(node)
+        if (node.kind === 'group') for (const child of node.children) visit(child.node)
+      }
+      scene.parts.forEach(visit)
+      expect(messages).toHaveLength(4)
+      for (const message of messages) {
+        expect(message.markers.end?.shape).toBe('arrow')
+        expect(message.terminalProjection.markerPlacements.end).toHaveLength(1)
+        expect(message.terminalProjection.markerPlacements.end[0]?.point).toEqual(message.endpoints.end?.point)
+        if (color) expect(message.markers.end?.paint).toEqual({ fill: color })
+      }
+      expect(messages[3]!.markers.start?.shape).toBe('arrow')
+      expect(messages[3]!.terminalProjection.markerPlacements.start).toHaveLength(1)
+      if (color) expect(messages[3]!.markers.start?.paint).toEqual({ fill: color })
+    }
+  })
+
   for (const { arrow, head, side, dashed } of CASES) {
     test(`${JSON.stringify(arrow)} keeps exact identities and paint implication`, () => {
       const line = `A${arrow}B: witness`
@@ -88,18 +116,62 @@ describe('Sequence half-arrow lexical fidelity', () => {
     }
   })
 
-  test('solid half heads are filled polygons while stick heads are strokes', () => {
-    const svg = renderMermaidSVG('sequenceDiagram\n  A-|/B: filled\n  A-//B: stick')
-    for (const head of ['half-top', 'half-bottom']) {
-      const marker = svg.match(new RegExp(`<marker id="seq-arrow-${head}"[\\s\\S]*?<\\/marker>`))?.[0]
-      expect(marker).toContain('<polygon ')
-      expect(marker).not.toContain('stroke-width=')
-    }
-    for (const head of ['stick-top', 'stick-bottom']) {
-      const marker = svg.match(new RegExp(`<marker id="seq-arrow-${head}"[\\s\\S]*?<\\/marker>`))?.[0]
-      expect(marker).toContain('<path ')
-      expect(marker).toContain('fill="none"')
-      expect(marker).toContain('stroke-width=')
+  test('mixed heads resolve their own geometry and current request paint', () => {
+    const source = String.raw`sequenceDiagram
+      A->>B: filled
+      B--)A: open
+      A-xB: cross
+      A-|\B: half top
+      A-|/B: half bottom
+      A-\\B: stick top
+      A-//B: stick bottom
+      A->B: no head
+      A<<->>B: exchange` + '\n      B->>B: 自分'
+    const definitions = [
+      ['seq-arrow', '<polygon points="0 0, 8 2.5, 0 5"', 'filled'],
+      ['seq-arrow-open', '<polyline points="0 0, 8 2.5, 0 5"', 'open'],
+      ['seq-arrow-cross', '<path d="M1 1 L7 4 M1 4 L7 1"', 'cross'],
+      ['seq-arrow-half-top', '<polygon points="0 0, 8 2.5, 0 2.5"', 'filled'],
+      ['seq-arrow-half-bottom', '<polygon points="0 2.5, 8 2.5, 0 5"', 'filled'],
+      ['seq-arrow-stick-top', '<path d="M0 0 L8 2.5"', 'stick'],
+      ['seq-arrow-stick-bottom', '<path d="M0 5 L8 2.5"', 'stick'],
+    ] as const
+    // Revisit the first style after another request: resources belong to this
+    // render, including when the message order uses all seven marker shapes.
+    for (const color of ['#123456', '#7a3b91', '#123456']) {
+      const svg = renderMermaidSVG(source, { style: { roles: { edge: { strokeColor: color } } } })
+      expect([...svg.matchAll(/<marker\b/g)]).toHaveLength(7)
+      for (const [id, geometry, kind] of definitions) {
+        const marker = svg.match(new RegExp(`<marker id="${id}"[\\s\\S]*?<\\/marker>`))?.[0]
+        expect(marker).toBeDefined()
+        expect(marker).toContain('markerWidth="8" markerHeight="5"')
+        expect(marker).toContain(`refX="${kind === 'cross' ? '4' : '8'}" refY="2.5"`)
+        expect(marker).toContain(`orient="${kind === 'cross' ? 'auto' : 'auto-start-reverse'}"`)
+        expect(marker).toContain(geometry)
+        if (kind === 'filled') {
+          expect(marker).toContain(`fill="${color}"`)
+          expect(marker).not.toContain('stroke-width=')
+        } else {
+          expect(marker).toContain(`fill="none" stroke="${color}" stroke-width="${kind === 'open' ? '1' : '1.5'}"`)
+        }
+      }
+      const messages = [...svg.matchAll(/<g class="message"[^>]*>[\s\S]*?<\/g>/g)].map(match => match[0])
+      expect(messages).toHaveLength(10)
+      const endIds = [...definitions.map(([id]) => id), undefined, 'seq-arrow', 'seq-arrow']
+      const labels = ['filled', 'open', 'cross', 'half top', 'half bottom', 'stick top', 'stick bottom', 'no head', 'exchange', '自分']
+      for (const [index, message] of messages.entries()) {
+        const line = message.match(/<(?:line|polyline)\b[^>]*>/)?.[0]
+        expect(line).toBeDefined()
+        expect(line).toContain(`stroke="${color}"`)
+        expect(line).toContain(`data-from="${index === 1 || index === 9 ? 'B' : 'A'}" data-to="${index === 1 ? 'A' : 'B'}"`)
+        expect(message).toMatch(new RegExp(`>${labels[index]}</(?:text|tspan)>`))
+        if (endIds[index]) expect(line).toContain(`marker-end="url(#${endIds[index]})"`)
+        else expect(line).not.toContain('marker-end=')
+        if (index === 8) expect(line).toContain('marker-start="url(#seq-arrow)"')
+        else expect(line).not.toContain('marker-start=')
+      }
+      expect(messages[1]).toContain('stroke-dasharray="6 4"')
+      expect(messages[9]).toContain('data-self="true"')
     }
   })
 })

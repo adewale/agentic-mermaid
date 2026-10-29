@@ -1,11 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { colorizeText } from '../ascii/ansi.ts'
-import {
-  SHARED_RENDER_OPTION_FIELD_DESCRIPTORS,
-  resolveRenderRequest,
-  type SharedRenderOptionField,
-} from '../render-contract.ts'
+import { DeferredDependencyError } from '../layout/certification-error.ts'
+import { resolveRenderRequest } from '../render-contract.ts'
 import { getStyle, knownStyles, validateStyleSpec } from '../scene/style-registry.ts'
 import {
   primitiveCapabilityClaimKey,
@@ -13,7 +10,7 @@ import {
   type SceneFeature,
 } from '../scene/capabilities.ts'
 import * as marks from '../scene/marks.ts'
-import { projectTerminalStyle } from '../terminal-style.ts'
+import { projectTerminalStyle, type TerminalProjectionDiagnostic } from '../terminal-style.ts'
 import type { RenderOptions } from '../types.ts'
 import {
   getFamily,
@@ -93,6 +90,45 @@ describe('terminal projection color security', () => {
 })
 
 describe('canonical terminal field applicability', () => {
+  test.each(['receipt', 'terminalStyle', 'diagnostic callback'] as const)('preserves provider suspension while collecting %s', access => {
+    const descriptor = getFamily('flowchart')!
+    const deferred = new DeferredDependencyError('Layout provider', async () => {})
+    const restore = replaceFamilyForTest('flowchart', { ...descriptor, layout() { throw new Error('Layout wrapper', { cause: deferred }) } })
+    try {
+      expect(() => {
+        const rendered = renderMermaidASCIIWithReceipt(SOURCE, {
+          colorMode: 'none', ...(access === 'diagnostic callback' ? { onProjectionDiagnostic() {} } : {}),
+        })
+        if (access !== 'diagnostic callback') void rendered[access]
+      }).toThrow(deferred)
+    } finally { restore() }
+  })
+
+  test('deferred connector evidence preserves eager diagnostics and the complete style digest', () => {
+    const descriptor = getFamily('flowchart')!
+    for (const projection of ['scene', 'failed'] as const) {
+      const restore = replaceFamilyForTest('flowchart', {
+        ...descriptor,
+        ...(projection === 'failed' ? { lowerScene() { throw new Error('optional evidence unavailable') } } : {}),
+      })
+      try {
+        const source = 'flowchart LR\n A["Start\u001b"] --> B[Finish]'
+        const options = { colorMode: 'html' as const, style: 'hand-drawn' as const, theme: { fg: '#123456' } }
+        const deferred = renderMermaidASCIIWithReceipt(source, options)
+        const callbacks: TerminalProjectionDiagnostic[] = []
+        const eager = renderMermaidASCIIWithReceipt(source, { ...options, onProjectionDiagnostic(diagnostic) { callbacks.push(diagnostic) } })
+        expect(deferred.text).toBe(eager.text)
+        expect(deferred.terminalStyle).toEqual(eager.terminalStyle)
+        expect(deferred.receipt).toEqual(eager.receipt)
+        expect(callbacks).toEqual([...eager.terminalStyle.diagnostics])
+        expect(deferred.terminalStyle.connectorProjection.evidence).toBe(projection === 'scene' ? 'scene' : 'unavailable')
+        expect(deferred.terminalStyle.diagnostics.filter(diagnostic => diagnostic.code === 'TERMINAL_CONTROL_CHARACTERS_REPLACED')).toHaveLength(1)
+        expect(JSON.stringify(deferred.terminalStyle.connectorProjection)).not.toContain('\\u001b')
+        assertInertHtml(deferred.text)
+      } finally { restore() }
+    }
+  })
+
   test('consumes connector terminalProjection from the family Scene descriptor', () => {
     const rendered = renderMermaidASCIIWithReceipt(SOURCE, { colorMode: 'none' })
     expect(rendered.terminalStyle.connectorProjection.evidence).toBe('scene')
@@ -203,7 +239,7 @@ describe('canonical terminal field applicability', () => {
         paint: { fill: '#111' }, fontSize: 10, textAnchor: 'middle', visual: { kind: 'inline' },
       }],
       transform: { kind: 'rotate', angle: 90, cx: 0, cy: 0 },
-    }, '<path d="M 0 0 L 5 0 L 10 0 M 20 0 L 25 0 L 30 0" fill="none" stroke="#123456" stroke-width="3" stroke-opacity="0.5" stroke-dasharray="7 3" stroke-dashoffset="2" stroke-linecap="square" stroke-linejoin="miter" stroke-miterlimit="8" pathLength="40" paint-order="stroke fill" vector-effect="non-scaling-stroke" marker-start="url(#terminal-witness-marker)" marker-mid="url(#terminal-witness-marker)" marker-end="url(#terminal-witness-marker)" />')
+    })
     const request = resolveRenderRequest(SOURCE, {}, 'ascii')
     const receipt = projectTerminalStyle(request, 'none', {}, {
       family: 'test', width: 40, height: 40, colors: { bg: '#fff', fg: '#111' }, transparent: true, parts: [connector],
@@ -224,7 +260,7 @@ describe('canonical terminal field applicability', () => {
       interaction: projected.hit.pointerEvents === 'stroke',
       'hit-geometry': projected.hit.geometry.kind === 'path' && projected.hit.strokeWidth === 6,
       stroke: projected.stroke.color === '#123456' && projected.stroke.width === '3',
-      transform: projected.transform?.angle === 90,
+      transform: projected.transform?.kind === 'rotate' && projected.transform.angle === 90,
       'stroke-opacity': projected.stroke.opacity === 0.5,
       'stroke-cap': projected.stroke.lineCap === 'square',
       'stroke-join': projected.stroke.lineJoin === 'miter',
@@ -299,7 +335,8 @@ describe('canonical terminal field applicability', () => {
       },
     })
     try {
-      renderMermaidASCIIWithReceipt(SOURCE, { colorMode: 'none', style: 'status-dashboard' })
+      const rendered = renderMermaidASCIIWithReceipt(SOURCE, { colorMode: 'none', style: 'status-dashboard' })
+      expect(rendered.terminalStyle.connectorProjection.evidence).toBe('scene')
       expect(terminalFace).toBe(sceneFace)
       expect(terminalFace).toBeDefined()
       expect(Object.isFrozen(terminalFace)).toBe(true)
@@ -321,11 +358,31 @@ describe('canonical terminal field applicability', () => {
       embedFontImport: false, compact: true, idPrefix: 'terminal-', security: 'strict', seed: 7,
     }
     const rendered = renderMermaidASCIIWithReceipt(SOURCE, { ...options, colorMode: 'none' })
-    const features = new Set(rendered.terminalStyle.diagnostics.map(diagnostic => diagnostic.feature))
-    for (const [field, descriptor] of Object.entries(SHARED_RENDER_OPTION_FIELD_DESCRIPTORS) as Array<[SharedRenderOptionField, (typeof SHARED_RENDER_OPTION_FIELD_DESCRIPTORS)[SharedRenderOptionField]]>) {
-      if (options[field] === undefined) continue
-      if (descriptor.terminal === 'consumed') expect(features.has(`render-option:${field}`)).toBe(false)
-      else expect(features.has(`render-option:${field}`), field).toBe(true)
+    for (const [code, fields] of [
+      ['TERMINAL_RENDER_OPTION_PROJECTED', ['muted', 'surface', 'font', 'transparent', 'interactive', 'shadow']],
+      ['TERMINAL_RENDER_OPTION_NOT_APPLICABLE', ['padding', 'nodeSpacing', 'layerSpacing', 'wrappingWidth', 'componentSpacing', 'class', 'architecture', 'timeline', 'journey', 'gantt', 'embedFontImport', 'compact', 'idPrefix', 'security', 'seed']],
+    ] as const) {
+      for (const field of fields) expect(rendered.terminalStyle.diagnostics).toContainEqual(expect.objectContaining({ code, feature: `render-option:${field}` }))
     }
   })
+})
+
+
+test('connector receipts retain exact references while projecting inert display labels', () => {
+  const source = 'classDiagram\nclass `A\tB`\nclass `A B`\nclass X\nclass Y\n`A\tB` --> X : first\u001b<br><br>last\n`A B` --> Y : second'
+  for (const colorMode of ['none', 'ansi16', 'html'] as const) {
+    const rendered = renderMermaidASCIIWithReceipt(source, { colorMode })
+    const projection = rendered.terminalStyle.connectorProjection
+    expect(projection.evidence).toBe('scene')
+    expect(projection.connectors.map(connector => ({ id: connector.id, from: connector.endpoints.from, to: connector.endpoints.to }))).toEqual([
+      { id: 'rel:A\tB->X#0', from: 'A\tB', to: 'X' },
+      { id: 'rel:A B->Y#0', from: 'A B', to: 'Y' },
+    ])
+    expect(projection.connectors[0]!.labels.map(label => label.text)).toEqual(['first?\n\nlast'])
+    expect(projection.connectors[1]!.labels.map(label => label.text)).toEqual(['second'])
+    for (const connector of projection.connectors) for (const label of connector.labels) {
+      expect(label.text).not.toContain('\u001b')
+      if (label.visual?.kind === 'companion') expect(label.visual.markId).toContain(connector.endpoints.from!)
+    }
+  }
 })

@@ -1,3 +1,8 @@
+import { projectZenUMLSequence, type ZenUMLMessageContext, type ZenUMLNoteContext } from '../zenuml/native-sequence.ts'
+import type { Actor } from '../sequence/types.ts'
+import { eventLanes, eventRelations } from '../eventmodeling/parser.ts'
+import { isStableFamilyBody, stableFamilyCount, stableFamilyTree } from './stable-family-source-hooks.ts'
+
 // ============================================================================
 // describeMermaid — natural-language summary of a diagram.
 //
@@ -10,9 +15,15 @@
 // only have a string.
 // ============================================================================
 
+import { effectiveC4Shape } from '../c4/config.ts'
+import { c4BoundaryText, c4ElementText, c4RelationshipText } from '../c4/projection.ts'
+import type { C4Boundary, C4Element, C4Relationship, C4Shape } from '../c4/types.ts'
 import { parseGanttModel } from '../gantt/parser.ts'
 import { formatGanttInstant, resolveGanttSchedule } from '../gantt/schedule.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
+import { journeyActorKey } from '../journey/parse-core.ts'
+import { displayText } from '../multiline-utils.ts'
+import { resolveLabelContent } from '../shared/display-text.ts'
 import { describeMermaidFacts } from './facts.ts'
 import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
@@ -35,12 +46,33 @@ export interface DescribeOptions {
 /** Structured accessibility tree (#7349): the graph as a list of nodes + edges. */
 export interface DescribeTree {
   kind: string
-  nodes: Array<{ id: string; label: string }>
+  /** Visible document title, when retained by this family's readback. */
+  title?: string
+  nodes: Array<{
+    id: string
+    label: string
+    parentId?: string
+    value?: number
+    /** Renderer-owned endpoint, not an authored participant. */
+    external?: true
+    zenuml?: { kind: 'participant'; type: Actor['type'] } | (Pick<ZenUMLNoteContext, 'sourceId' | 'callAncestors' | 'scopes'> & {
+      kind: 'note'
+      actorIds: readonly string[]
+      position: ZenUMLNoteContext['note']['position']
+      afterIndex: number
+    })
+    c4?: ({ category: 'element'; effectiveShape: C4Shape } & Pick<C4Element, 'kind' | 'external' | 'shape' | 'parentId'>) | ({ category: 'boundary' } & Pick<C4Boundary, 'kind' | 'parentId'>)
+  }>
   edges: Array<{
     from: string
     to: string
     label?: string
     sequence?: { fragmentIndex: number; branchIndex: number; fragmentKind: string; branchLabel?: string }
+    zenuml?: Pick<ZenUMLMessageContext, 'kind' | 'sourceId' | 'callAncestors' | 'scopes'> & { id: string }
+    c4?: Pick<C4Relationship, 'id' | 'order' | 'index' | 'macro' | 'direction' | 'bidirectional' | 'reversed'> & {
+      authoredFrom: string
+      authoredTo: string
+    }
   }>
   entryPoints: string[]
   sinks: string[]
@@ -82,6 +114,7 @@ export function describeMermaid(d: ParsedDiagram, opts: DescribeOptions = {}): s
     const title = d.body.title ? `"${d.body.title}" ` : ''
     return `A radar chart ${title}comparing ${d.body.curves.length} curve(s)${curves ? ` (${curves})` : ''} across ${d.body.axes.length} axis/axes${axes ? ` (${axes})` : ''}.`
   }
+  if (d.body.kind === 'c4') return `A ${d.body.variant} architecture diagram${d.body.title ? ` \"${d.body.title}\"` : ''} with ${d.body.elements.length} element(s), ${d.body.boundaries.length} boundary/boundaries and ${d.body.relationships.length} interaction(s).`
   if (d.body.kind === 'sankey') {
     const nodes = new Set<string>()
     for (const link of d.body.links) {
@@ -90,6 +123,15 @@ export function describeMermaid(d: ParsedDiagram, opts: DescribeOptions = {}): s
     }
     const total = d.body.links.reduce((sum, link) => sum + link.value, 0)
     return `A sankey diagram flowing ${total} across ${d.body.links.length} link(s) between ${nodes.size} node(s).`
+  }
+  if (d.body.kind === 'zenuml') {
+    const model = projectZenUMLSequence(d.body)
+    return `A ZenUML interaction${model.title === undefined ? '' : ` titled ${JSON.stringify(model.title)}`} with ${model.actors.filter(actor => !actor.external).length} participants, ${model.messages.length} messages and ${model.blocks.length} control scopes.`
+  }
+  if (d.body.kind === 'eventmodeling') return `An Event Modeling diagram with ${d.body.frames.length} frames and ${eventRelations(d.body).length} relations.`
+  if (isStableFamilyBody(d.body)) {
+    const count = stableFamilyCount(d.body)
+    return `A ${d.kind} diagram with ${count.nodes} item(s), ${count.groups} group(s) and ${count.edges} relationship(s).`
   }
   if (d.body.kind === 'opaque') return describeOpaque(d.kind, d.body.source)
   if (d.body.kind === 'extension') return describeOpaque(d.kind, d.body.source)
@@ -160,8 +202,8 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
     // reading the tree can find the pain points without re-parsing source.
     for (const s of d.body.sections)
       for (const t of s.tasks) {
-        const actors = t.actors.length ? `; ${t.actors.join(', ')}` : ''
-        tree.nodes.push({ id: t.id, label: `${t.text} (score ${t.score}${actors})` })
+        const actors = t.actors.length ? `; ${t.actors.map((actor, index) => displayText(resolveLabelContent(actor, t.actorContents?.[index]))).join(', ')}` : ''
+        tree.nodes.push({ id: t.id, label: `${displayText(resolveLabelContent(t.text, t.textContent))} (score ${t.score}${actors})` })
       }
   } else if (d.body.kind === 'architecture') {
     for (const g of d.body.groups) tree.nodes.push({ id: g.id, label: g.label || g.id })
@@ -208,13 +250,35 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
     visit(d.body.root)
   } else if (d.body.kind === 'gitgraph') {
     for (const commit of d.body.commits) {
-      tree.nodes.push({ id: commit.id, label: commit.message || commit.id })
+      tree.nodes.push({ id: commit.id, label: commit.message || commit.sourceId || commit.id })
       commit.parents.forEach(parent => tree.edges.push({ from: parent, to: commit.id, label: commit.source === 'commit' ? undefined : commit.source }))
     }
   } else if (d.body.kind === 'radar') {
     // Axes and curves are the nodes of a radar AX tree; charts have no edges.
     d.body.axes.forEach((a, i) => tree.nodes.push({ id: `axis-${i}`, label: a.label }))
     d.body.curves.forEach((c, i) => tree.nodes.push({ id: `curve-${i}`, label: c.label }))
+  } else if (d.body.kind === 'c4') {
+    for (const boundary of d.body.boundaries)
+      tree.nodes.push({
+        id: boundary.id,
+        label: c4BoundaryText(boundary),
+        c4: { category: 'boundary', kind: boundary.kind, ...(boundary.parentId === undefined ? {} : { parentId: boundary.parentId }) },
+      })
+    for (const element of d.body.elements)
+      tree.nodes.push({
+        id: element.id,
+        label: c4ElementText(element),
+        c4: { category: 'element', kind: element.kind, external: element.external, shape: element.shape, effectiveShape: effectiveC4Shape(element), ...(element.parentId === undefined ? {} : { parentId: element.parentId }) },
+      })
+    for (const relationship of d.body.relationships) {
+      const { id, order, index, macro, direction, bidirectional, reversed } = relationship
+      tree.edges.push({
+        from: relationship.source,
+        to: relationship.target,
+        label: c4RelationshipText(d.body, relationship),
+        c4: { id, order, macro, bidirectional, reversed, authoredFrom: relationship.from, authoredTo: relationship.to, ...(index === undefined ? {} : { index }), ...(direction === undefined ? {} : { direction }) },
+      })
+    }
   } else if (d.body.kind === 'sankey') {
     // Flow nodes are the AX nodes; each CSV row is a directed edge, so the
     // generic entry/sink pass below reports sources and terminal sinks.
@@ -227,6 +291,27 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
       }
       tree.edges.push({ from: link.source, to: link.target, label: String(link.value) })
     }
+  } else if (d.body.kind === 'zenuml') {
+    const notes: DescribeTree['nodes'] = []
+    const model = projectZenUMLSequence(d.body, {
+      message: ({ message, kind, sourceId, callAncestors, scopes }) => {
+        tree.edges.push({ from: message.from, to: message.to, label: message.label, zenuml: { id: message.id!, kind, sourceId, callAncestors, scopes } })
+      },
+      note: ({ note, sourceId, callAncestors, scopes }) => {
+        notes.push({ id: note.id!, label: displayText(resolveLabelContent(note.text, note.textContent)), ...(note.parentId ? { parentId: note.parentId } : {}), zenuml: { kind: 'note', sourceId, actorIds: note.actorIds, position: note.position, afterIndex: note.afterIndex, callAncestors, scopes } })
+      },
+    })
+    if (model.title !== undefined) tree.title = model.title
+    tree.nodes.push(...model.actors.map(actor => ({ id: actor.id, label: actor.external ? 'External caller' : actor.label, ...(actor.external ? { external: true as const } : { zenuml: { kind: 'participant' as const, type: actor.type } }) })), ...notes)
+  } else if (d.body.kind === 'eventmodeling') {
+    const lanes = eventLanes(d.body)
+    tree.nodes.push(...lanes.map(lane => ({ id: lane.id, label: lane.label })))
+    tree.nodes.push(...d.body.frames.map(frame => ({ id: frame.id, label: frame.entity, parentId: lanes.find(lane => lane.members.includes(frame.id))!.id })))
+    tree.edges.push(...eventRelations(d.body))
+  } else if (isStableFamilyBody(d.body)) {
+    const semantics = stableFamilyTree(d.body)
+    tree.nodes.push(...semantics.nodes)
+    tree.edges.push(...semantics.edges)
   } else if (d.body.kind === 'opaque') {
     const plugin = getFamily(d.kind)
     const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(d.body.source)
@@ -246,6 +331,11 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
   // Entry points (no incoming) and sinks (no outgoing) from the edge list.
   const incoming = new Set(tree.edges.map(e => e.to))
   const outgoing = new Set(tree.edges.map(e => e.from))
+  for (const edge of tree.edges)
+    if (edge.c4?.bidirectional) {
+      incoming.add(edge.from)
+      outgoing.add(edge.to)
+    }
   for (const n of tree.nodes) {
     if (!incoming.has(n.id) && outgoing.has(n.id)) tree.entryPoints.push(n.id)
     if (!outgoing.has(n.id) && incoming.has(n.id)) tree.sinks.push(n.id)
@@ -328,6 +418,7 @@ function describeState(body: import('./types.ts').StateBody): string {
   if ((body.notes ?? []).length > 0) {
     s += ` Notes: ${body.notes!.map(note => `${note.side} of ${note.target}: ${note.text}`).join('; ')}.`
   }
+  if (body.floatingNotes?.length) s += ` Floating notes: ${body.floatingNotes.map(note => `${note.id}${note.scope ? ` in ${note.scope.parent}${note.scope.region !== undefined ? ` region ${note.scope.region}` : ''}` : ''}: ${note.text}`).join('; ')}.`
   if (transStr.length > 0) s += ` Transitions: ${transStr.join('; ')}.`
   if (starts.length > 0) s += ` Initial: ${starts.join(', ')}.`
   return s
@@ -372,13 +463,13 @@ function describeTimeline(d: TimelineValidDiagram): string {
 function describeJourney(body: import('./types.ts').JourneyBody): string {
   const sections = body.sections
   const taskCount = sections.reduce((n, s) => n + s.tasks.length, 0)
-  const actors = [...new Set(sections.flatMap(s => s.tasks.flatMap(t => t.actors)))]
-  let s = `A user journey${body.title ? ` titled "${body.title}"` : ''} with ${sections.length} sections and ${taskCount} tasks.`
-  const sectionLabels = sections.map(sec => sec.label).filter((l): l is string => l !== undefined)
+  const actors = new Map(sections.flatMap(s => s.tasks.flatMap(t => t.actors.map((actor, index) => [journeyActorKey(actor, t.actorContents?.[index]), displayText(resolveLabelContent(actor, t.actorContents?.[index]))] as const))))
+  let s = `A user journey${body.title ? ` titled "${displayText(resolveLabelContent(body.title, body.titleContent))}"` : ''} with ${sections.length} sections and ${taskCount} tasks.`
+  const sectionLabels = sections.flatMap(sec => sec.label === undefined ? [] : [displayText(resolveLabelContent(sec.label, sec.labelContent))])
   if (sectionLabels.length > 0) s += ` Sections: ${sectionLabels.join(', ')}.`
-  const taskStr = sections.flatMap(sec => sec.tasks.map(t => `${t.text} (${t.score})`))
+  const taskStr = sections.flatMap(sec => sec.tasks.map(t => `${displayText(resolveLabelContent(t.text, t.textContent))} (${t.score})`))
   if (taskStr.length > 0) s += ` Tasks: ${taskStr.join(', ')}.`
-  if (actors.length > 0) s += ` Actors: ${actors.join(', ')}.`
+  if (actors.size > 0) s += ` Actors: ${[...actors.values()].join(', ')}.`
   return s
 }
 
@@ -434,12 +525,14 @@ function describeQuadrant(body: import('./types.ts').QuadrantBody): string {
 }
 
 function describeClass(d: ClassValidDiagram): string {
-  const classes = d.body.classes
+  const classes = d.body.classes.filter(node => !node.isInterface)
+  const interfaces = d.body.classes.filter(node => node.isInterface)
   const relations = d.body.relations
   const names = classes.map(c => (c.generic ? `${c.id}<${c.generic}>` : c.id))
   const relStr = relations.map(r => `${r.from} ${r.kind} ${r.to}`)
   let s = `A class diagram with ${classes.length} classes.`
   if (names.length > 0) s += ` Classes: ${names.join(', ')}.`
+  if (interfaces.length > 0) s += ` Interfaces: ${interfaces.map(node => node.label ?? node.id).join(', ')}.`
   // Namespace membership (repo #118): name each namespace with its members.
   const namespaces = d.body.namespaces ?? []
   if (namespaces.length > 0) {
@@ -476,8 +569,10 @@ function describeGantt(d: ValidDiagram & { body: import('./types.ts').GanttBody 
   // the fallback when the source needs context this body cannot see.
   try {
     const schedule = resolveGanttSchedule(parseGanttModel(toMermaidLines(d.canonicalSource)))
-    const fmt = schedule.dateOnly ? '%Y-%m-%d' : '%Y-%m-%d %H:%M'
-    s += ` Schedule: ${formatGanttInstant(schedule.timeMin, fmt)} to ${formatGanttInstant(schedule.timeMax, fmt)}.`
+    if (schedule.tasks.length > 0) {
+      const fmt = schedule.dateOnly ? '%Y-%m-%d' : '%Y-%m-%d %H:%M'
+      s += ` Schedule: ${formatGanttInstant(schedule.timeMin, fmt)} to ${formatGanttInstant(schedule.timeMax, fmt)}.`
+    } else s += ' No tasks scheduled.'
     if (schedule.analysis && schedule.analysis.criticalPathTaskIds.length > 0) {
       s += ` Critical path: ${schedule.analysis.criticalPathTaskIds.join(' -> ')}.`
     }

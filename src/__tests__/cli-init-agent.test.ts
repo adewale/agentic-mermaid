@@ -3,9 +3,11 @@
 import { describe, test, expect } from 'bun:test'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { spawnSync } from 'node:child_process'
 import { initAgentFiles, AGENTS_MARKER, MCP_CONFIG_SAMPLE } from '../cli/init-agent.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 const temp = useTempDirs()
 
@@ -78,9 +80,9 @@ describe('initAgentFiles', () => {
 })
 
 describe('am init-agent', () => {
-  test('--json reports created paths and exits 0', () => {
+  test('--json reports created paths and exits 0', async () => {
     const dir = tmp()
-    const r = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), 'init-agent', '--dir', dir, '--json'], { encoding: 'utf8' })
+    const r = await runChild('bun', ['run', join(REPO, 'bin/am.ts'), 'init-agent', '--dir', dir, '--json'])
     expect({ status: r.status, stderr: r.stderr }).toEqual({ status: 0, stderr: '' })
     const payload = JSON.parse(r.stdout)
     expect(payload.ok).toBe(true)

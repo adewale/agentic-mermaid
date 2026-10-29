@@ -1,11 +1,14 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import mermaid from 'mermaid'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { asXyChart } from '../agent/types.ts'
 import { parseXYChart } from '../xychart/parser.ts'
+import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 function structured(source: string) {
   const parsed = parseRegisteredMermaid(source)
@@ -26,6 +29,38 @@ function expectClosed(source: string): void {
 }
 
 describe('XYChart shared grammar authority', () => {
+  test('serialized text preserves spaced, punctuated and reserved chart labels in Mermaid', async () => {
+    // A quote or backslash comes in as our escape or as Mermaid's entity code.
+    // Mermaid's strings have no escapes, so it goes out as an entity code.
+    const source = String.raw`xychart-beta
+ title "Revenue for 2026, \"net\""
+ x-axis "Dap50te C:\\" ["Research & Development", "EU/UK", "bar", "#quot;Q4#quot;"]
+ y-axis "Revenue (USD)" 0 --> 100
+ bar "Plan \"A\"" [1, 2, 3, 4]
+ line Trend [1 "up \\ #quot;", 2, 3, 4]`
+    const canonical = serializeMermaid(structured(source))
+    const reference = startUpstreamMermaid()
+    try {
+      expect(await reference.accepts(canonical)).toBe(true)
+      const actual = await reference.project(canonical, diagram => ({
+        title: diagram.db.getDiagramTitle(), data: diagram.db.getXYChartData(),
+      }))
+      // Mermaid's database holds entity markers; the browser shows their characters.
+      const shown = (value: unknown): unknown => typeof value === 'string' ? projectEntityMarkers(value)
+        : Array.isArray(value) ? value.map(shown)
+          : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, shown(entry)])) : value
+      expect(shown(actual)).toMatchObject({ ok: true, value: {
+        title: 'Revenue for 2026, "net"',
+        data: {
+          xAxis: { title: 'Dap50te C:\\', categories: ['Research & Development', 'EU/UK', 'bar', '"Q4"'] },
+          yAxis: { title: 'Revenue (USD)' },
+          plots: [{ title: 'Plan "A"' }, { title: 'Trend', pointLabels: ['up \\ "', '', '', ''] }],
+        },
+      } })
+    } finally { reference.close() }
+    expectClosed(source)
+  })
+
   test('an unknown nonblank statement fails native rendering instead of losing authored data', async () => {
     const validSource = 'xychart-beta\n  bar [1, 2]\n'
     const source = `${validSource}  frob official-data-lost\n`
@@ -97,11 +132,14 @@ describe('XYChart shared grammar authority', () => {
   })
 
   test('adversarial quoted text is closed under parse and serialization', () => {
+    // An entity code naming a C0, DEL or C1 control character is refused.
+    const namesControl = (value: string): boolean => /#(?:Tab|NewLine);/.test(value)
+      || [...value.matchAll(/#\+?(\d+);/g)].some(([, code]) => Number(code) < 32 || (Number(code) >= 127 && Number(code) < 160))
     const text = fc.string({ minLength: 1, maxLength: 20 })
-      .filter(value => !/[\r\n\0]/.test(value) && value.trim().length > 0)
+      .filter(value => !/[\r\n\0]/.test(value) && value.trim().length > 0 && !namesControl(value))
     fc.assert(fc.property(text, value => {
       const escaped = value.replace(/(["\\])/g, '\\$1')
       expectClosed(`xychart-beta\n  title "${escaped}"\n  bar "${escaped}" [1 "${escaped}"]`)
-    }), { numRuns: 100 })
+    }), fcParameters({ numRuns: 100 }))
   })
 })

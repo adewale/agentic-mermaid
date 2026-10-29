@@ -205,9 +205,10 @@ describe('scene effective-paint contract (translucent connectors)', () => {
         } as RenderOptions)
         const marks = translucentConnectors(scene)
         expect(marks.length).toBeGreaterThanOrEqual(4)
-        for (const mark of marks) {
-          expectCompositedVisible(mark, bg, `sankey ${inputName} linkColor=${mode}`)
-        }
+        const samplesPerMark = mode === 'gradient' ? 5 : 1
+        expect(marks.every(mark => mark.colors.length === samplesPerMark)).toBe(true)
+        const evaluated = marks.reduce((sum, mark) => sum + expectCompositedVisible(mark, bg, `sankey ${inputName} linkColor=${mode}`), 0)
+        expect(evaluated).toBe(marks.length * samplesPerMark)
       }
     }
   })

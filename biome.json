@@ -10,6 +10,7 @@
     "includes": [
       "**/*.ts",
       "**/*.tsx",
+      "editor/**/*.js",
       "**/*.json",
       "**/*.jsonc",
       "!eval/agent-usage/transcripts/**",

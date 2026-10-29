@@ -1,15 +1,20 @@
+import { diagnoseStateConfig } from '../state/config-diagnostics.ts'
+import { projectGraphPositioned } from '../positioned-views/graph.ts'
 import type { ResolvedStateVisualConfig } from '../state/config.ts'
-import { layoutResult, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
+import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { lowerGraphScene } from '../renderer.ts'
 import { frontmatterTitle } from '../mermaid-source.ts'
 import { resolveStateRenderOptions } from '../state/config.ts'
+import { stateStatementEnds } from '../state/parse-core.ts'
 import { checkAllGraphAuthoredStyles } from '../shared/style-props.ts'
 
 /** The state SVG hooks: one definition for the complete renderer
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const STATE_SVG_HOOKS = {
+  configDiagnostics: diagnoseStateConfig,
+  statementEnds: stateStatementEnds,
   normalizeRequest: ctx => {
     const resolved = resolveStateRenderOptions(ctx.source.frontmatter, ctx.renderOptions)
     const { stateVisual, ...renderOptions } = resolved
@@ -30,5 +35,6 @@ export const STATE_SVG_HOOKS = {
       ...(diagramTitle ? { diagramTitle } : {}),
     }))
   },
+  projectPositioned: positionedView(projectGraphPositioned),
   lowerScene: scene(lowerGraphScene),
 } satisfies BrowserSvgFamilyHooks

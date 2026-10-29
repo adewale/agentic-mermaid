@@ -109,7 +109,7 @@ export function buildPairwiseAssignments(domains: FactorDomains, seeds: readonly
 
 export function registeredLooks(): string[] {
   return knownStyleDescriptors()
-    .filter(descriptor => descriptor.kind === 'look' && !descriptor.isDefault)
+    .filter(descriptor => descriptor.kind === 'look')
     .map(descriptor => descriptor.inputName)
     .sort(compareCodePointStrings)
 }
@@ -187,11 +187,7 @@ function assignmentKey(row: FactorAssignment): string {
 }
 
 function ensureDerivedRows(rows: FactorAssignment[]): FactorAssignment[] {
-  const looksByBackend = new Map<BackendClass, string>()
-  for (const look of registeredLooks()) {
-    const backend = backendClassForLook(look)
-    if (!looksByBackend.has(backend)) looksByBackend.set(backend, look)
-  }
+  const looksByBackend = new Map(Object.entries(representativeLookByBackend()) as Array<[BackendClass, string]>)
   const palettesByPolarity = new Map<'dark' | 'light', string>()
   for (const palette of registeredPalettes()) {
     const polarity = palettePolarity(palette)
@@ -206,11 +202,13 @@ function ensureDerivedRows(rows: FactorAssignment[]): FactorAssignment[] {
   for (const { id: family } of BUILTIN_FAMILY_METADATA) {
     for (const backend of ['default', 'hybrid', 'rough'] as const) {
       for (const complexity of COMPLEXITY_STRATA) {
-        if (has(row => row.family === family && backendClassForLook(row.look!) === backend && row.complexity === complexity)) continue
+        // Keep an automatic-outline witness as well as the general pairwise
+        // coverage: a look's exact border roles deliberately bypass repair.
+        if (has(row => row.family === family && row.look === looksByBackend.get(backend) && row.complexity === complexity && row.background !== 'transparent')) continue
         add({
           family, look: looksByBackend.get(backend)!, complexity,
           palette: registeredPalettes()[ordinal % registeredPalettes().length]!,
-          background: BACKGROUND_POLARITIES[ordinal % BACKGROUND_POLARITIES.length]!,
+          background: ordinal % 2 === 0 ? 'opaque-dark' : 'opaque-light',
           security: SECURITY_MODES[ordinal % SECURITY_MODES.length]!,
         })
         ordinal++
@@ -401,9 +399,11 @@ export interface MixedFormatConformanceRow {
 
 export function representativeLookByBackend(): Record<BackendClass, string> {
   const result = {} as Record<BackendClass, string>
-  for (const look of registeredLooks()) {
-    const backend = backendClassForLook(look)
-    result[backend] ??= look
+  const descriptors = [...knownStyleDescriptors()].sort((a, b) => Number(b.isDefault) - Number(a.isDefault))
+  for (const descriptor of descriptors) {
+    if (descriptor.kind !== 'look' || Object.values(descriptor.spec.roles ?? {}).some(role => role && 'borderColor' in role && role.borderColor !== undefined)) continue
+    const backend = inferBackend(descriptor.spec)
+    result[backend] ??= descriptor.inputName
   }
   for (const backend of ['default', 'hybrid', 'rough'] as const) {
     if (!result[backend]) throw new Error(`No registered Look exercises backend ${backend}`)

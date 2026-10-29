@@ -1,6 +1,9 @@
+export var EditorMotion;
+
+export function initialize() {
 /* Shared, dependency-free motion primitives for the editor. The API is kept
  * DOM-free so timers and geometry can be tested with fake rAF/performance. */
-var EditorMotion = (function() {
+EditorMotion = (function() {
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
   }
@@ -127,3 +130,4 @@ var EditorMotion = (function() {
     springTo: springTo,
   };
 })();
+}

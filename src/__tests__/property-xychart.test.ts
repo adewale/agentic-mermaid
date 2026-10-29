@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { preprocessMermaidSource, toMermaidLines } from '../mermaid-source.ts'
 import { layoutXYChart } from '../xychart/layout.ts'
@@ -70,7 +71,7 @@ describe('property-based xychart parsing', () => {
         expect(chart.series[0]!.data).toEqual(barValues)
         expect(chart.series[1]!.data).toEqual(lineValues)
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -103,7 +104,7 @@ describe('property-based xychart parsing', () => {
         expect(chart.yAxis.range!.min).toBeLessThanOrEqual(Math.min(...allValues))
         expect(chart.yAxis.range!.max).toBeGreaterThanOrEqual(Math.max(...allValues))
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -145,7 +146,7 @@ describe('property-based xychart parsing', () => {
         expect(chart.theme.backgroundColor).toBe(backgroundColor)
         expect(chart.horizontal).toBe(orientation === 'horizontal')
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 })
@@ -199,7 +200,7 @@ describe('property-based xychart layout', () => {
           expect(Number.isFinite(tick.labelY)).toBe(true)
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 })

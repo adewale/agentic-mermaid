@@ -1,19 +1,16 @@
 /**
- * Canonical SVG projection for the declarative external Scene surface.
+ * Canonical marks for the declarative external Scene surface.
  *
  * Both construction and admission use these functions. External families may
- * supply semantic values, but they never supply an independent SVG/CSS
- * projection authority.
+ * supply semantic values, but they never supply SVG/CSS: the backend's writer
+ * projects the marks rebuilt here.
  */
 
-import { escapeAttr, escapeXml } from '../multiline-utils.ts'
 import type {
   ConnectorGeometry,
   ConnectorMark,
-  Geometry,
   GroupMark,
   MarkPaint,
-  MarkerDescriptor,
   SceneNode,
   ScenePoint,
   ShapeMark,
@@ -21,72 +18,6 @@ import type {
 } from './ir.ts'
 import { pathMoveCount } from './connector-geometry.ts'
 import * as marks from './marks.ts'
-
-function number(value: number): string {
-  return String(value)
-}
-
-function pointList(points: readonly ScenePoint[]): string {
-  return points.map(point => `${number(point.x)},${number(point.y)}`).join(' ')
-}
-
-/** Serialize every MarkPaint field as an escaped attribute value. Runtime
- * admission separately validates the field grammar before a backend can see
- * the result; escaping keeps construction inert even before that check. */
-export function externalPaintAttributes(paint: MarkPaint): string {
-  const attributes: string[] = []
-  const add = (name: string, value: string | undefined) => {
-    if (value !== undefined) attributes.push(`${name}="${escapeAttr(String(value))}"`)
-  }
-  add('fill', paint.fill)
-  add('stroke', paint.stroke)
-  add('stroke-width', paint.strokeWidth)
-  add('stroke-dasharray', paint.strokeDasharray)
-  add('stroke-dashoffset', paint.strokeDashoffset)
-  add('stroke-linecap', paint.strokeLinecap)
-  add('stroke-linejoin', paint.strokeLinejoin)
-  add('stroke-miterlimit', paint.strokeMiterlimit)
-  add('vector-effect', paint.vectorEffect)
-  add('paint-order', paint.paintOrder)
-  add('opacity', paint.opacity)
-  return attributes.length > 0 ? ` ${attributes.join(' ')}` : ''
-}
-
-export function externalShapeSvg(geometry: Geometry, paint: MarkPaint): string {
-  const attributes = externalPaintAttributes(paint)
-  switch (geometry.kind) {
-    case 'rect':
-      return `<rect x="${number(geometry.x)}" y="${number(geometry.y)}" width="${number(geometry.width)}" height="${number(geometry.height)}"${geometry.rx === undefined ? '' : ` rx="${number(geometry.rx)}"`}${geometry.ry === undefined ? '' : ` ry="${number(geometry.ry)}"`}${attributes} />`
-    case 'circle':
-      return `<circle cx="${number(geometry.cx)}" cy="${number(geometry.cy)}" r="${number(geometry.r)}"${attributes} />`
-    case 'ellipse':
-      return `<ellipse cx="${number(geometry.cx)}" cy="${number(geometry.cy)}" rx="${number(geometry.rx)}" ry="${number(geometry.ry)}"${attributes} />`
-    case 'line':
-      return `<line x1="${number(geometry.x1)}" y1="${number(geometry.y1)}" x2="${number(geometry.x2)}" y2="${number(geometry.y2)}"${attributes} />`
-    case 'polygon':
-      return `<polygon points="${escapeAttr(pointList(geometry.points))}"${attributes} />`
-    case 'polyline':
-      return `<polyline points="${escapeAttr(pointList(geometry.points))}"${attributes} />`
-    case 'path':
-    case 'compound':
-      throw new Error(`External shapes cannot project ${geometry.kind} geometry`)
-  }
-}
-
-export function externalTextSvg(fields: Pick<TextMark, 'text' | 'x' | 'y' | 'fontSize' | 'anchor' | 'paint'>): string {
-  return `<text x="${number(fields.x)}" y="${number(fields.y)}" text-anchor="${escapeAttr(fields.anchor)}" font-size="${number(fields.fontSize)}"${externalPaintAttributes(fields.paint)}>${escapeXml(fields.text)}</text>`
-}
-
-function connectorGeometryAttributes(geometry: ConnectorGeometry): string {
-  switch (geometry.kind) {
-    case 'line':
-      return `x1="${number(geometry.x1)}" y1="${number(geometry.y1)}" x2="${number(geometry.x2)}" y2="${number(geometry.y2)}"`
-    case 'polyline':
-      return `points="${escapeAttr(pointList(geometry.points))}"`
-    case 'path':
-      return `d="${escapeAttr(geometry.d)}"`
-  }
-}
 
 /** External Scene v1 has one path-contour authority. Keep this check shared by
  * construction and admission so a hand-built SceneDoc cannot claim topology
@@ -157,21 +88,6 @@ function assertExternalPathPointAgreement(
   }
 }
 
-export function externalConnectorSvg(
-  fields: { geometry: ConnectorGeometry; lineStyle: ConnectorMark['lineStyle']; paint: MarkPaint },
-  startMarker: MarkerDescriptor | undefined,
-  midMarker: MarkerDescriptor | undefined,
-  endMarker: MarkerDescriptor | undefined,
-): string {
-  if (fields.lineStyle === 'invisible') return ''
-  const markerAttributes = [
-    ...(startMarker ? [`marker-start="url(#${escapeAttr(startMarker.id)})"`] : []),
-    ...(midMarker ? [`marker-mid="url(#${escapeAttr(midMarker.id)})"`] : []),
-    ...(endMarker ? [`marker-end="url(#${escapeAttr(endMarker.id)})"`] : []),
-  ]
-  return `<${fields.geometry.kind} ${connectorGeometryAttributes(fields.geometry)}${externalPaintAttributes(fields.paint)}${markerAttributes.length ? ` ${markerAttributes.join(' ')}` : ''} />`
-}
-
 /** Rebuild one structured external mark using only fields exposed by the
  * declarative builder. Admission compares the result with the supplied mark. */
 export function canonicalExternalNode(node: ShapeMark | TextMark | GroupMark | ConnectorMark): SceneNode {
@@ -183,7 +99,7 @@ export function canonicalExternalNode(node: ShapeMark | TextMark | GroupMark | C
         geometry: node.geometry,
         paint: node.paint,
         ...(node.channels ? { channels: node.channels } : {}),
-      }, externalShapeSvg(node.geometry, node.paint))
+      })
     case 'text':
       return marks.text({
         id: node.id,
@@ -192,10 +108,13 @@ export function canonicalExternalNode(node: ShapeMark | TextMark | GroupMark | C
         x: node.x,
         y: node.y,
         fontSize: node.fontSize,
+        fontWeight: 400,
+        display: 'literal',
         anchor: node.anchor,
+        baselineShift: 0,
         paint: node.paint,
         ...(node.channels ? { channels: node.channels } : {}),
-      }, externalTextSvg(node))
+      })
     case 'group':
       return marks.group({
         id: node.id,
@@ -235,13 +154,15 @@ export function canonicalExternalNode(node: ShapeMark | TextMark | GroupMark | C
         endpoints: {
           ...(node.endpoints.from === undefined ? {} : { from: node.endpoints.from }),
           ...(node.endpoints.to === undefined ? {} : { to: node.endpoints.to }),
+          ...(node.endpoints.start?.owner ? { start: { owner: { ...node.endpoints.start.owner } } } : {}),
+          ...(node.endpoints.end?.owner ? { end: { owner: { ...node.endpoints.end.owner } } } : {}),
         },
         relationship: node.relationship,
         route: { closed: node.route.closed },
         markers: { ...(start ? { start } : {}), mid: mid ? [mid] : [], ...(end ? { end } : {}) },
         labels: node.labels,
         ...(node.channels ? { channels: node.channels } : {}),
-      }, externalConnectorSvg({ geometry, lineStyle: node.lineStyle, paint }, start, mid, end))
+      })
     }
   }
 }

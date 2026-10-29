@@ -2,7 +2,7 @@
  * Sample definitions for the Agentic Mermaid visual test suite.
  *
  * Shared by:
- *   - eval/benchmark/sample-bench.ts — runs performance benchmarks in Bun
+ *   - Trident's sample-bench.ts (`bun run bench:samples`) — runs performance benchmarks in Bun
  *   - eval/overlap-audit/ and eval/ugly-detector/ — layout / aesthetic audits
  *
  * Every supported feature, shape, edge type, block construct, and theme
@@ -40,7 +40,6 @@ function promotedCorpusSource(relativePath: string) {
 }
 
 export const samples: Sample[] = [
-
   // ══════════════════════════════════════════════════════════════════════════
   //  HERO — Showcase diagram
   // ══════════════════════════════════════════════════════════════════════════
@@ -1153,7 +1152,7 @@ export const samples: Sample[] = [
   {
     title: 'ER: Exactly One to Zero-or-Many (||--o{)',
     category: 'ER',
-    description: 'Classic one-to-many optional relationship (crow\'s foot).',
+    description: "Classic one-to-many optional relationship (crow's foot).",
     source: `erDiagram
   CUSTOMER ||--o{ ORDER : places`,
   },
@@ -1938,5 +1937,52 @@ gantt
   curve qa["QA"]{3, 5, 4, 4, 3, 4}
   curve docs["Docs"]{3, 4, 3, 3, 5, 5}
   max 5`,
+  },
+  {
+    title: 'C4: Checkout system context',
+    category: 'C4',
+    description: 'A customer, nested system boundary, database, queue and external payment system retain distinct interactions.',
+    source: readFileSync(new URL('../../docs/design/families/c4-context-demo.mmd', import.meta.url), 'utf8').trimEnd(),
+  },
+  {
+    title: 'Requirement: Official Mermaid example',
+    category: 'Requirement',
+    description: 'Compartmented requirements and evidence elements preserve typed traceability relationships.',
+    source: readFileSync(new URL('../../docs/design/families/requirement-demo.mmd', import.meta.url), 'utf8').trimEnd(),
+  },
+
+  {
+    title: 'Block: Official Mermaid example',
+    category: 'Block',
+    description: 'Authored grid cells preserve column spans, empty cells and nested composites.',
+    source: readFileSync(new URL('../../docs/design/families/block-demo.mmd', import.meta.url), 'utf8').trimEnd(),
+  },
+
+  {
+    title: 'Packet: Official Mermaid example',
+    category: 'Packet',
+    description: 'Bit-addressed packet fields retain their word rows and proportional widths.',
+    source: readFileSync(new URL('../../docs/design/families/packet-demo.mmd', import.meta.url), 'utf8').trimEnd(),
+  },
+
+  {
+    title: 'Kanban: Official Mermaid example',
+    category: 'Kanban',
+    description: 'Ordered workflow columns contain ordered cards with task metadata.',
+    source: readFileSync(new URL('../../docs/design/families/kanban-demo.mmd', import.meta.url), 'utf8').trimEnd(),
+  },
+
+  {
+    title: 'Treemap: Official Mermaid example',
+    category: 'Treemap',
+    description: 'Nested rectangles retain hierarchy and value-proportional area.',
+    source: readFileSync(new URL('../../docs/design/families/treemap-demo.mmd', import.meta.url), 'utf8').trimEnd(),
+  },
+
+  {
+    title: 'Ishikawa: Official Mermaid example',
+    category: 'Ishikawa',
+    description: 'Cause categories and nested causes converge along a fishbone spine into one effect.',
+    source: readFileSync(new URL('../../docs/design/families/ishikawa-demo.mmd', import.meta.url), 'utf8').trimEnd(),
   },
 ]

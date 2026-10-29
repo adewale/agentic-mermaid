@@ -1,3 +1,7 @@
+import { projectZenUMLSequence } from '../zenuml/native-sequence.ts'
+import { eventRelations } from '../eventmodeling/parser.ts'
+import { stableFamilyFacts } from './stable-family-source-hooks.ts'
+
 // ============================================================================
 // Mermaid semantic facts/checks.
 //
@@ -7,9 +11,15 @@
 // renderable while these facts prove it still says the requested thing.
 // ============================================================================
 
+import { classRelationLineStyle, classRelationMarkers } from './class-body.ts'
 import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
 import { sequenceMessageContexts } from './sequence-body.ts'
+import { readSequenceStatements } from '../sequence/parser.ts'
+import { readSequenceText } from '../sequence/text.ts'
+import { journeyActorKey } from '../journey/parse-core.ts'
+import { displayText } from '../multiline-utils.ts'
+import { resolveLabelContent, type LabelContent } from '../shared/display-text.ts'
 import type { ArchitectureBody, ClassBody, ErBody, GanttBody, GitGraphBody, JourneyBody, MindmapBody, PieBody, QuadrantBody, SequenceBody, StateBody, TimelineBody, XyChartBody } from './types.ts'
 import { err, ok, type ParsedDiagram, type ParseError, type Result } from './types.ts'
 
@@ -122,10 +132,98 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
       add(out, `scale ${d.body.min}..${d.body.max ?? 'auto'} ticks ${d.body.ticks} graticule ${d.body.graticule}`)
       break
     }
+    case 'c4': {
+      const body = d.body
+      // Alias whitespace is identity, even when display whitespace is folded.
+      const identity = (value: string): string => (/^[A-Za-z_][A-Za-z_0-9-]*$/.test(value) ? value : JSON.stringify(value))
+      add(out, `variant ${body.variant}`)
+      if (body.title !== undefined) add(out, `title ${clean(body.title)}`)
+      for (const boundary of body.boundaries) {
+        add(out, `boundary ${identity(boundary.id)} ${boundary.kind} : ${clean(boundary.label)}`)
+        if (boundary.parentId !== undefined) add(out, `boundary ${identity(boundary.id)} parent ${identity(boundary.parentId)}`)
+        if (boundary.type !== undefined) add(out, `boundary ${identity(boundary.id)} type ${clean(boundary.type)}`)
+        if (boundary.description !== undefined) add(out, `boundary ${identity(boundary.id)} description ${clean(boundary.description)}`)
+      }
+      for (const element of body.elements) {
+        add(out, `element ${identity(element.id)} ${element.kind} ${element.external ? 'external' : 'internal'} ${element.shape} : ${clean(element.label)}`)
+        if (element.parentId !== undefined) add(out, `element ${identity(element.id)} parent ${identity(element.parentId)}`)
+        if (element.technology !== undefined) add(out, `element ${identity(element.id)} technology ${clean(element.technology)}`)
+        if (element.description !== undefined) add(out, `element ${identity(element.id)} description ${clean(element.description)}`)
+      }
+      for (const relation of body.relationships) {
+        add(out, `interaction#${relation.order} ${identity(relation.id)} ${identity(relation.source)} ${relation.bidirectional ? '<->' : '->'} ${identity(relation.target)} : ${clean(relation.label)}`)
+        add(out, `interaction#${relation.order} macro ${relation.macro} authored ${identity(relation.from)} -> ${identity(relation.to)}`)
+        if (relation.index !== undefined) add(out, `interaction#${relation.order} index ${clean(relation.index)}`)
+        if (relation.technology !== undefined) add(out, `interaction#${relation.order} technology ${clean(relation.technology)}`)
+        if (relation.description !== undefined) add(out, `interaction#${relation.order} description ${clean(relation.description)}`)
+        if (relation.direction !== undefined) add(out, `interaction#${relation.order} direction ${relation.direction}`)
+      }
+      for (const record of [...body.elements, ...body.boundaries, ...body.relationships]) {
+        if (record.tags.length) add(out, `c4 ${identity(record.id)} tags ${record.tags.map(identity).join(',')}`)
+        if (record.link !== undefined) add(out, `c4 ${identity(record.id)} link ${JSON.stringify(record.link)}`)
+        if (record.effectiveLink !== undefined) add(out, `c4 ${identity(record.id)} effective link ${JSON.stringify(record.effectiveLink)}`)
+        if (record.sprite !== undefined) add(out, `c4 ${identity(record.id)} sprite ${JSON.stringify(record.sprite)}`)
+        for (const key of Object.keys(record.style).sort()) add(out, `c4 ${identity(record.id)} style ${key} ${JSON.stringify(record.style[key])}`)
+      }
+      break
+    }
     case 'sankey': {
       d.body.links.forEach((link, i) => add(out, `link#${i} ${clean(link.source)} -> ${clean(link.target)} : ${link.value}`))
       break
     }
+    case 'zenuml': {
+      if (d.body.title !== undefined) add(out, `title ${JSON.stringify(d.body.title)}`)
+      const model = projectZenUMLSequence(d.body, {
+        message: ({ message, kind, callAncestors, scopes }) => {
+          add(out, `message#${clean(message.id!)} kind ${kind}`)
+          if (callAncestors.length) add(out, `message#${clean(message.id!)} call-parent ${clean(callAncestors.at(-1)!)}`)
+          for (const scope of scopes) add(out, `message#${clean(message.id!)} fragment#${clean(scope.fragmentId)} branch#${scope.branchIndex}`)
+        },
+        note: ({ note, callAncestors, scopes }) => {
+          add(out, `note#${clean(note.id!)} ${note.position} ${note.actorIds.map(id => JSON.stringify(id)).join(',')} after-index ${note.afterIndex} : ${clean(displayText(resolveLabelContent(note.text, note.textContent)))}`)
+          if (callAncestors.length) add(out, `note#${clean(note.id!)} call-parent ${clean(callAncestors.at(-1)!)}`)
+          for (const scope of scopes) add(out, `note#${clean(note.id!)} fragment#${clean(scope.fragmentId)} branch#${scope.branchIndex}`)
+        },
+        fragment: ({ fragment, branches, callAncestors, scopes }) => {
+          add(out, `fragment#${clean(fragment.id)} kind ${fragment.type}`)
+          if (callAncestors.length) add(out, `fragment#${clean(fragment.id)} call-parent ${clean(callAncestors.at(-1)!)}`)
+          const parent = scopes.at(-1)
+          if (parent) add(out, `fragment#${clean(fragment.id)} parent ${clean(parent.fragmentId)} branch#${parent.branchIndex}`)
+          branches.forEach((branch, index) => {
+            const condition = index === 0 ? fragment.condition : branch.condition
+            add(out, `fragment#${clean(fragment.id)} branch#${index} ${branch.kind}${condition === undefined ? '' : ` : ${clean(condition)}`}`)
+          })
+        },
+      })
+      for (const actor of model.actors) if (!actor.external) {
+        add(out, `participant ${clean(actor.id)} : ${clean(actor.label)}`)
+        add(out, `participant ${clean(actor.id)} type ${actor.type}`)
+      }
+      for (const actor of model.actors) if (actor.external) add(out, `external-endpoint ${clean(actor.id)}`)
+      for (const message of model.messages) {
+        add(out, `message ${clean(message.from)} -> ${clean(message.to)} : ${clean(message.label)}`)
+        add(out, `message#${clean(message.id!)} ${clean(message.from)} -> ${clean(message.to)} : ${clean(message.label)}${message.lineStyle === 'dashed' ? ' reply' : ''}`)
+        if (message.parentId) add(out, `message#${clean(message.id!)} parent ${clean(message.parentId)}`)
+      }
+      for (const block of model.blocks) add(out, `fragment ${clean(block.id!)} ${block.type} : ${clean(block.label)}`)
+      break
+    }
+    case 'eventmodeling':
+      if (d.body.title !== undefined) add(out, `title ${JSON.stringify(d.body.title)}`)
+      d.body.frames.forEach((frame, index) => add(out, `frame#${index} ${JSON.stringify(frame)}`))
+      eventRelations(d.body).forEach(edge => add(out, `relation ${edge.from} -> ${edge.to} ${edge.explicit ? 'explicit' : 'inferred'}`))
+      Object.entries(d.body.data).forEach(([id, data]) => add(out, `data ${id} ${JSON.stringify(data)}`))
+      d.body.notes.forEach(note => add(out, `note ${JSON.stringify(note)}`))
+      d.body.specifications.forEach(spec => add(out, `specification ${JSON.stringify(spec)}`))
+      break
+    case 'packet':
+    case 'kanban':
+    case 'requirement':
+    case 'block':
+    case 'treemap':
+    case 'ishikawa':
+      out.push(...stableFamilyFacts(d.body))
+      break
     case 'opaque': {
       add(out, `opaque ${d.body.family}`)
       const plugin = getFamily(d.kind)
@@ -204,26 +302,47 @@ function factsState(out: string[], body: StateBody): void {
   for (const [index, note] of (body.notes ?? []).entries()) {
     add(out, `note#${index} ${note.side} of ${clean(note.target)} : ${clean(note.text)}`)
   }
+  for (const note of body.floatingNotes ?? []) {
+    add(out, `floating note ${clean(note.id)}${note.scope ? ` in ${clean(note.scope.parent)}${note.scope.region !== undefined ? ` region ${note.scope.region}` : ''}` : ''} : ${clean(note.text)}`)
+  }
 }
 
 function factsSequence(out: string[], body: SequenceBody): void {
   body.participants.forEach((p, i) => {
     add(out, `${p.kind} ${clean(p.id)} : ${clean(p.label || p.id)}`)
     add(out, `participant#${i} ${clean(p.id)} : ${clean(p.label || p.id)}`)
+    if (p.wrap !== undefined) add(out, `participant#${i} wrap ${p.wrap}`)
   })
   sequenceMessageContexts(body).forEach((context, i) => {
     const m = context.message
     add(out, `message ${clean(m.from)} -> ${clean(m.to)} : ${clean(m.text)}`)
     add(out, `message#${i} ${context.scope === 'top-level' ? 'top-level' : `fragment#${context.fragmentIndex} branch#${context.branchIndex}`} ${clean(m.from)} -> ${clean(m.to)} : ${clean(m.text)}`)
     if (m.style !== 'sync') add(out, `message#${i} style ${m.style}`)
+    if (m.wrap !== undefined) add(out, `message#${i} wrap ${m.wrap}`)
+  })
+  body.statements.forEach((statement, segment) => {
+    if (statement.kind !== 'opaque-block') return
+    readSequenceStatements(statement.lines).statements.forEach((entry, index) => {
+      const syntax = entry.syntax
+      if (syntax?.kind === 'message') {
+        const m = syntax.message
+        const text = clean(readSequenceText(m.label).value)
+        add(out, `message ${clean(m.from)} -> ${clean(m.to)} : ${text}`)
+        // Preserved statements are observable without becoming typed edit
+        // indexes. Keep the existing message# indexes stable for callers.
+        add(out, `preserved-message#${segment}.${index} ${clean(m.from)} -> ${clean(m.to)} : ${text}`)
+      } else if (syntax?.kind === 'title') add(out, `title ${clean(readSequenceText(syntax.text).value)}`)
+    })
   })
   const fragments = body.statements.filter(statement => statement.kind === 'fragment')
   fragments.forEach((statement, index) => {
     if (statement.kind !== 'fragment') return
     add(out, `fragment#${index} ${statement.fragment.fragmentKind}`)
+    if (statement.fragment.wrap !== undefined) add(out, `fragment#${index} wrap ${statement.fragment.wrap}`)
     statement.fragment.branches.forEach((branch, branchIndex) => {
       const label = branch.label ?? (branchIndex === 0 ? statement.fragment.label : undefined)
       add(out, `fragment#${index} branch#${branchIndex}${label ? ` : ${clean(label)}` : ''}`)
+      if (branch.wrap !== undefined) add(out, `fragment#${index} branch#${branchIndex} wrap ${branch.wrap}`)
     })
   })
 }
@@ -251,6 +370,10 @@ function factsClass(out: string[], body: ClassBody): void {
     add(out, `namespace ${clean(ns.name)}${ns.label ? ` : ${clean(ns.label)}` : ''}`)
   }
   for (const c of body.classes) {
+    if (c.isInterface) {
+      add(out, `interface ${clean(c.id)} : ${clean(c.label ?? c.id)}`)
+      continue
+    }
     add(out, `class ${clean(c.id)}`)
     if (c.generic) add(out, `class ${clean(c.id)} generic ${clean(c.generic)}`)
     if (c.label) add(out, `class ${clean(c.id)} : ${clean(c.label)}`)
@@ -261,6 +384,13 @@ function factsClass(out: string[], body: ClassBody): void {
     const cards = `${r.fromCardinality ? ` ${clean(r.fromCardinality)}` : ''}${r.toCardinality ? ` ${clean(r.toCardinality)}` : ''}`
     add(out, `relation ${clean(r.from)} ${r.kind} ${clean(r.to)}${r.label ? ` : ${clean(r.label)}` : ''}`)
     add(out, `relation#${i} ${clean(r.from)} ${r.kind} ${clean(r.to)}${cards}${r.label ? ` : ${clean(r.label)}` : ''}`)
+    const markers = classRelationMarkers(r)
+    add(out, `relation#${i} ${clean(r.from)} ${r.kind} ${clean(r.to)} marker ${markers.at}`)
+    add(out, `relation#${i} ${clean(r.from)} ${r.kind} ${clean(r.to)} line ${classRelationLineStyle(r)}`)
+    if (markers.at === 'both') {
+      add(out, `relation#${i} from marker ${markers.from}`)
+      add(out, `relation#${i} to marker ${markers.to}`)
+    }
   })
   body.notes.forEach((n, i) => add(out, `note#${i}${n.for ? ` ${clean(n.for)}` : ''} : ${clean(n.text)}`))
 }
@@ -282,14 +412,15 @@ function factsEr(out: string[], body: ErBody): void {
 }
 
 function factsJourney(out: string[], body: JourneyBody): void {
-  if (body.title) add(out, `title ${clean(body.title)}`)
+  const text = (value: string, content?: LabelContent): string => clean(displayText(resolveLabelContent(value, content)))
+  if (body.title) add(out, `title ${text(body.title, body.titleContent)}`)
   body.sections.forEach((s, si) => {
-    if (s.label) add(out, `section ${clean(s.label)}`)
+    if (s.label) add(out, `section ${text(s.label, s.labelContent)}`)
     s.tasks.forEach((t, ti) => {
-      const actors = t.actors.length ? ` actors ${t.actors.map(clean).join(', ')}` : ''
-      add(out, `journey task ${clean(t.text)} score ${String(t.score)}${actors}`)
-      add(out, `journey task#${si}.${ti} ${clean(t.text)} score ${String(t.score)}${actors}`)
-      if (s.label) add(out, `journey task ${clean(t.text)} section ${clean(s.label)}`)
+      const actors = t.actors.length ? ` actors ${t.actors.map((actor, index) => text(actor, t.actorContents?.[index])).join(', ')}` : ''
+      add(out, `journey task ${text(t.text, t.textContent)} score ${String(t.score)}${actors}`)
+      add(out, `journey task#${si}.${ti} ${text(t.text, t.textContent)} score ${String(t.score)}${actors}`)
+      if (s.label) add(out, `journey task ${text(t.text, t.textContent)} section ${text(s.label, s.labelContent)}`)
     })
   })
 
@@ -299,8 +430,11 @@ function factsJourney(out: string[], body: JourneyBody): void {
   const tasks = body.sections.flatMap(s => s.tasks)
   add(out, `journey sections ${body.sections.length}`)
   add(out, `journey tasks ${tasks.length}`)
-  const participation = new Map<string, number>()
-  for (const t of tasks) for (const a of t.actors) participation.set(a, (participation.get(a) ?? 0) + 1)
+  const participation = new Map<string, { actor: string; count: number }>()
+  for (const t of tasks) for (const [index, actor] of t.actors.entries()) {
+    const key = journeyActorKey(actor, t.actorContents?.[index])
+    participation.set(key, { actor: text(actor, t.actorContents?.[index]), count: (participation.get(key)?.count ?? 0) + 1 })
+  }
   add(out, `journey actors ${participation.size}`)
   if (tasks.length > 0) {
     const scores = tasks.map(t => t.score)
@@ -310,11 +444,11 @@ function factsJourney(out: string[], body: JourneyBody): void {
     add(out, `journey score range ${min}..${max}`)
     add(out, `journey average score ${num(average)}`)
     for (const t of tasks) {
-      if (t.score === min) add(out, `journey lowest task ${clean(t.text)} score ${String(t.score)}`)
-      if (t.score === max) add(out, `journey highest task ${clean(t.text)} score ${String(t.score)}`)
+      if (t.score === min) add(out, `journey lowest task ${text(t.text, t.textContent)} score ${String(t.score)}`)
+      if (t.score === max) add(out, `journey highest task ${text(t.text, t.textContent)} score ${String(t.score)}`)
     }
   }
-  for (const [actor, count] of participation) add(out, `journey actor ${clean(actor)} tasks ${count}`)
+  for (const { actor, count } of participation.values()) add(out, `journey actor ${actor} tasks ${count}`)
 }
 
 function factsArchitecture(out: string[], body: ArchitectureBody): void {
@@ -353,6 +487,9 @@ function factsXyChart(out: string[], body: XyChartBody): void {
     const name = s.name ? clean(dequote(s.name)) : `series#${i}`
     add(out, `series ${name} ${s.kind} [${s.values.map(num).join(',')}]`)
     add(out, `series#${i} ${s.kind} ${name} [${s.values.map(num).join(',')}]`)
+    s.pointLabels?.forEach((label, pointIndex) => {
+      if (label !== undefined) add(out, `series#${i} point#${pointIndex} : ${clean(label)}`)
+    })
   })
 }
 
@@ -415,6 +552,7 @@ function factsGitGraph(out: string[], body: GitGraphBody): void {
   for (const commit of body.commits) {
     add(out, `commit ${clean(commit.id)} branch ${clean(commit.branch)}`)
     add(out, `commit ${clean(commit.id)} type ${commit.type}`)
+    if (commit.sourceId) add(out, `commit ${clean(commit.id)} source-id ${clean(commit.sourceId)}`)
     if (commit.message) add(out, `commit ${clean(commit.id)} message ${clean(commit.message)}`)
     commit.tags.forEach(tag => add(out, `commit ${clean(commit.id)} tag ${clean(tag)}`))
     commit.parents.forEach(parent => add(out, edgeFact(parent, commit.id, commit.source === 'commit' ? undefined : commit.source)))

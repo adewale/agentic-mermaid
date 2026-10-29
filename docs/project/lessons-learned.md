@@ -48,17 +48,16 @@ family docs, and `TODO.md`.
 10. **Configuration is wire-or-warn.** A recognized value must affect output or
     produce a deterministic, fully qualified diagnostic. Unknown, invalid, and
     no-op values need the same policy across wrappers and explicit options.
-11. **Generated freshness is delivery evidence, not semantic truth.** Receipts
-    must hash complete inputs and deterministic ordering, while independent tests
-    validate the generated artifact’s meaning. Local↔production byte equality
-    proves deployment parity, not current provenance. Every deployable file needs
-    an owner—authored input, generated output with a freshness oracle, or versioned
-    external asset—and blind copies of unowned renderer snapshots are forbidden.
-    Gitignored deploy builds are not committed product inputs.
-12. **Citizenship is default-by-default.** A family is not shipped until library,
-    CLI, MCP, editor, website, terminal, accessibility, security, configuration,
-    eval, package, and documentation surfaces derive from the same registry with
-    no silent exceptions.
+11. **Generate derived views at their delivery boundary.** Keep authored input
+    once; generate discovery, documentation and build artifacts from it. Use
+    behavioral checks for the output contract rather than a committed copy and
+    its freshness test. Hash bytes fetched or shipped when integrity requires
+    it; do not add hashes of our own inputs or receipt-maintenance gates.
+12. **Advertise capabilities independently.** A native family shares meaning
+    across its implemented outputs and editing surfaces. A read-only renderer
+    may support SVG without native mutation, layout, terminal geometry or paint
+    certification. Make those limits explicit rather than requiring every new
+    rendered family to implement the full product surface first.
 13. **Safe static rendering stays non-executable.** Escape attributes, sanitize
     links, reject external fetches under strict mode, keep icon assets offline and
     bounded, and do not expose unrestricted SVG attribute bags.
@@ -129,11 +128,11 @@ family docs, and `TODO.md`.
     proposals through production schemas/cores where possible, calibrate
     semantic judges separately, and report both all-graded-assertions success
     and partial assertion scores, with deferred semantic rows counted explicitly.
-    A receipt must hash the full model input and workspace contents—not merely
-    path-shaped metadata—and each downstream receipt must bind the exact tasks,
-    runner command, traces, outputs, and reports it claims. Grade the complete
-    final answer from immutable traces, not a bounded event summary; preserve
-    and hash any deterministic evidence materialization. Verify that the
+    Record the tasks, runner command, revision and raw traces needed to reproduce
+    the comparison. Use existing revision identities and preserve immutable
+    outputs; do not add a chain of input hashes or receipt-only completion work.
+    Grade the complete final answer from those traces rather than a bounded
+    event summary. Verify that the
     declared runner version matches the installed package behind the bound
     binary, and treat an aggregate exit code as insufficient until every
     expected provider result, trace, and output is complete. Reserve
@@ -206,7 +205,7 @@ family docs, and `TODO.md`.
     review dimensions.** Prefer one dimension per PR so its failure mode,
     rollback boundary, and evidence remain legible. Combine dimensions only
     when a named dependency makes every smaller sequence invalid; record that
-    dependency, give each dimension its own red test and receipt, and keep the
+    dependency, protect each changed behavior at its owning boundary, and keep the
     implementation in separable commits.
 36. **Computational aesthetics should name a bounded perceptual failure, not
     claim a universal beauty score.** Put each threshold in explicit policy,
@@ -259,7 +258,7 @@ family docs, and `TODO.md`.
 - **A combinatorial estimate must respect its mathematical lower bound.** The planned 350–600-row Style portfolio could never satisfy the declared Look × Palette × three-background obligation: that triple alone requires 900 rows. Keep the obligation and report the miss; never tune a covering-array budget by silently dropping the tuple that made it valuable.
 - **Complexity is a vector and a registration obligation, not one score.** Entity count cannot stand in for nesting, reciprocal/parallel routes, cycles, Unicode classes, authored text volume, configuration, or family-risk syntax. Every family now supplies minimal, representative, dense, text-stress, risk, and real-corpus-outlier sources; adding a family without those witnesses fails closure rather than reducing its test depth invisibly.
 - **Contact sheets are Cynefin probes, not visual proof.** A diversity-selected overview lets a reviewer sense repeated patterns and surprising outliers in a complex aesthetic space, while native-size cells answer readability questions. Bind the selection, source, dimensions, and HTML bytes in a manifest; keep model sanity separate from independent human approval, and leave optional review evidence pending rather than inventing reviewer identity or minutes.
-- **Receipt dependencies should follow the build graph, not the repository tree.** Hashing every `src/**/*.ts` file invalidated four visual receipts after unrelated test-only edits while every output byte stayed unchanged; merge-ref CI then found three more broad visual authorities after a script-only package change. A fail-closed transitive local-import graph reduced the seven input sets by 59.9–98.5%, still invalidates true renderer dependencies, and turns receipt churn into causal evidence instead of source-tree noise. *Superseded by #357, which removed input-hash receipts: the current rule is that a generated artifact's unit test compares it against current code, not against recorded input hashes.*
+- **Receipt dependencies should follow the build graph, not the repository tree.** Hashing every `src/**/*.ts` file invalidated four visual receipts after unrelated test-only edits while every output byte stayed unchanged; merge-ref CI then found three more broad visual authorities after a script-only package change. A fail-closed transitive local-import graph reduced the seven input sets by 59.9–98.5%, still invalidates true renderer dependencies, and turns receipt churn into causal evidence instead of source-tree noise. *Superseded by #357, which removed input-hash receipts: generate derived views at delivery, and retain committed runtime modules or deliberately reviewed behavior goldens only. Do not replace input-hash receipts with blanket snapshot-freshness tests.*
 - **Run generators after the final source/test edit and final rebase.**
   Dependency-complete receipts correctly became stale after late test changes and
   again when a moving base changed the merge-ref input tree. The reliable order is
@@ -267,8 +266,9 @@ family docs, and `TODO.md`.
   freshness gates → merge-ref CI. Receipts should include package and lock inputs,
   but still disclose environmental fonts, browser binaries, and rasterizers they
   cannot pin. *The receipt half is superseded by #357 (there are no input-hash
-  receipts); the current rule is to regenerate with `bun run generate` after the
-  final edit and rebase, and let the stale-output unit tests catch drift.*
+  receipts); generate runtime inputs when their sources change, run behavior
+  checks at the owning boundary, and produce review images on demand. A source
+  edit does not require a new receipt or a committed copy of a derived view.*
 - **Conditional skips are capability gaps, not passes.** A skipped positive-path
   integration test must name the missing external capability, retain adjacent
   deterministic coverage for behavior available everywhere, and be reported
@@ -278,8 +278,8 @@ family docs, and `TODO.md`.
   package surfaces were sound while separate reviewers found backend fidelity,
   terminal atomicity, locale ordering, dependency direction, archive integrity,
   and evidence-coordinate defects. Partition reviews by failure domain, require
-  exact reproductions, remediate all Blocker/P1/P2 findings, then rerun freshness
-  and resulting-head gates instead of treating an earlier acceptance as durable.
+  exact reproductions, remediate all Blocker/P1/P2 findings, then rerun affected
+  behavior checks and resulting-head gates instead of treating an earlier acceptance as durable.
 - **Boundary configuration is part of the contract.** Loopback-origin tests
   proved the local MCP server rejected an attacker, but never exercised the
   configured reverse-proxy origin. Test both halves of an allow-list: known-bad
@@ -368,9 +368,9 @@ family docs, and `TODO.md`.
 
 - Start with the smallest failing characterization or invariant test.
 - Make one behavior-preserving change at a time; keep one writer per worktree.
-- Run the focused test red→green, then adjacent suites, typecheck, generated
-  freshness gates, full unit/E2E gates, and quality trackers appropriate to the
-  touched surface.
+- Run the focused test red→green, then adjacent suites, typecheck, full
+  unit/E2E gates, and quality trackers appropriate to the touched surface.
+  Regenerate imported runtime modules when their inputs change.
 - For visual changes, provide captioned generated evidence and state honestly
   when the baseline hard-failed rather than fabricating a “before” render.
 - Before a pull request, use the repository’s `good-pr` skill and report residual

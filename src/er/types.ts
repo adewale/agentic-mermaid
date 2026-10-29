@@ -1,3 +1,5 @@
+import type { LabelContent } from '../shared/display-text.ts'
+import type { PixelTextBlock } from '../shared/prepared-text.ts'
 // ============================================================================
 // ER diagram types
 //
@@ -28,13 +30,14 @@ export interface ErDiagram {
   classDefs: Map<string, Record<string, string>>
   /** Relationships between entities or subgraph boundaries. */
   relationships: ErRelationship[]
-  /** Nested ER subgraphs (upstream 11.17; pinned 11.16 has none). */
+  /** Nested ER frames and their authored membership. */
   groups: ErGroup[]
 }
 
 export interface ErGroup {
   id: string
   label: string
+  labelContent?: LabelContent
   parentId?: string
   direction?: Direction
   entityIds: string[]
@@ -44,6 +47,7 @@ export interface ErEntity {
   id: string
   /** Display name (same as id unless aliased) */
   label: string
+  labelContent?: LabelContent
   /** Entity attributes (columns) */
   attributes: ErAttribute[]
   /** Applied CSS class names in source order, separated by spaces. */
@@ -61,6 +65,7 @@ export interface ErAttribute {
   keys: Array<'PK' | 'FK' | 'UK'>
   /** Optional comment */
   comment?: string
+  commentContent?: LabelContent
 }
 
 /**
@@ -70,7 +75,7 @@ export interface ErAttribute {
  *   'many'      }|  one or more
  *   'zero-many' o{  zero or more
  */
-export type Cardinality = 'one' | 'zero-one' | 'many' | 'zero-many'
+export type Cardinality = 'one' | 'zero-one' | 'many' | 'zero-many' | 'parent'
 
 export interface ErRelationship {
   entity1: string
@@ -81,6 +86,7 @@ export interface ErRelationship {
   cardinality2: Cardinality
   /** Relationship verb/label (e.g., "places", "contains") */
   label: string
+  labelContent?: LabelContent
   /** Whether the relationship is identifying (solid line) or non-identifying (dashed) */
   identifying: boolean
 }
@@ -99,11 +105,15 @@ export interface PositionedErDiagram extends PositionedDiagram {
   entities: PositionedErEntity[]
   relationships: PositionedErRelationship[]
   groups: PositionedErGroup[]
+  /** @internal Selected native producer's label policy; absent for ELK and fallback results. */
+  labelPlacement?: 'shaft-aware'
 }
 
 export interface PositionedErGroup {
+  labelBlock?: PixelTextBlock
   id: string
   label: string
+  labelContent?: LabelContent
   parentId?: string
   x: number
   y: number
@@ -113,8 +123,12 @@ export interface PositionedErGroup {
 }
 
 export interface PositionedErEntity {
+  labelBlock?: PixelTextBlock
+  emptyAttributeBlock?: PixelTextBlock
+  attributeBlocks?: { type: PixelTextBlock; name: PixelTextBlock; keys: PixelTextBlock; comment?: PixelTextBlock }[]
   id: string
   label: string
+  labelContent?: LabelContent
   attributes: ErAttribute[]
   x: number
   y: number
@@ -130,11 +144,17 @@ export interface PositionedErEntity {
 }
 
 export interface PositionedErRelationship {
+  labelBlock?: PixelTextBlock
+  /** Producer's preferred label center; final label layout checks the current route and obstacles. */
+  labelPosition?: { x: number; y: number }
+  /** Final native label center, owned by the complete positioned artifact and its resolved request. */
+  finalLabelPosition?: { x: number; y: number }
   entity1: string
   entity2: string
   cardinality1: Cardinality
   cardinality2: Cardinality
   label: string
+  labelContent?: LabelContent
   identifying: boolean
   /** Path points from entity1 to entity2 */
   points: Array<{ x: number; y: number }>

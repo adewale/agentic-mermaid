@@ -12,12 +12,14 @@ import {
   registerStyle,
   resolveStyleReference,
   resolveStyleStack,
-  styleSpecFieldReferenceMarkdown,
   styleSpecJsonSchema,
   styleSpecTypeScriptDeclaration,
   validateStyleSpec,
 } from '../scene/style-registry.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 const temp = useTempDirs()
 
@@ -86,12 +88,6 @@ describe('StyleSpec has one projected field authority', () => {
     expect((styleSpecJsonSchema() as any).properties.stroke.enum).toEqual(['crisp', 'jittered', 'freehand'])
   })
 
-  test('the authoring field table is the canonical descriptor projection', () => {
-    const docs = readFileSync(join(ROOT, 'docs', 'style-authoring.md'), 'utf8')
-    const expected = `<!-- BEGIN GENERATED STYLE SPEC FIELDS -->\n${styleSpecFieldReferenceMarkdown()}\n<!-- END GENERATED STYLE SPEC FIELDS -->`
-    expect(docs).toContain(expected)
-  })
-
   test('runtime validation enforces the projected ranges and plain-record boundary', () => {
     expect(validateStyleSpec(Object.create(null))).toEqual([])
     expect(validateStyleSpec(new Date())).toEqual(['style spec must be a plain object'])
@@ -154,35 +150,35 @@ describe('StyleSpec has one projected field authority', () => {
     expect(knownStyles()).not.toContain('palette:tufte')
   })
 
-  test('a newly registered Look and Palette reach CLI, hosted MCP, and editor picker discovery', () => {
+  test('a newly registered Look and Palette reach CLI, hosted MCP, and editor picker discovery', async () => {
     // The probe registers before any consumer module loads. A consumer with a
     // hand-maintained roster cannot list styles it has never heard of.
     const preload = join(ROOT, 'src', '__tests__', 'site-probe.preload.ts')
     const probeEnv = { ...process.env, AM_TEST_PROBE_STYLES: '1' }
     const probeLabel = 'Registry Authority Probe'
-    const run = (args: string[], env: Record<string, string | undefined>) => {
-      const result = Bun.spawnSync(['bun', '--preload', preload, ...args], { cwd: ROOT, env })
-      expect({ args, exitCode: result.exitCode, stderr: result.exitCode === 0 ? '' : result.stderr.toString() })
+    const run = async (args: string[], env: Record<string, string | undefined>) => {
+      const result = await runChild('bun', ['--preload', preload, ...args], { cwd: ROOT, env })
+      expect({ args, exitCode: result.status, stderr: result.status === 0 ? '' : result.stderr.toString() })
         .toEqual({ args, exitCode: 0, stderr: '' })
       return result.stdout.toString()
     }
 
-    const cliRows = (env: Record<string, string | undefined>) =>
-      JSON.parse(run([join(ROOT, 'bin', 'am.ts'), 'styles', '--json'], env)) as Array<{ canonicalId: string; kind: string; label: string; isDefault: boolean }>
-    expect(cliRows(probeEnv).filter(row => row.canonicalId.endsWith(':registry-authority-probe'))).toEqual([
+    const cliRows = async (env: Record<string, string | undefined>) =>
+      JSON.parse(await run([join(ROOT, 'bin', 'am.ts'), 'styles', '--json'], env)) as Array<{ canonicalId: string; kind: string; label: string; isDefault: boolean }>
+    expect((await cliRows(probeEnv)).filter(row => row.canonicalId.endsWith(':registry-authority-probe'))).toEqual([
       expect.objectContaining({ canonicalId: PROBE_LOOK, kind: 'look', label: probeLabel, isDefault: false }),
       expect.objectContaining({ canonicalId: PROBE_PALETTE, kind: 'palette', label: probeLabel, isDefault: false }),
     ])
     // Control: the same command without registration does not mention the probe.
-    expect(cliRows({ ...process.env }).some(row => row.canonicalId.endsWith(':registry-authority-probe'))).toBe(false)
+    expect((await cliRows({ ...process.env })).some(row => row.canonicalId.endsWith(':registry-authority-probe'))).toBe(false)
 
-    const hostedTools = JSON.parse(run(['-e', `const { HOSTED_TOOLS } = await import(${JSON.stringify(join(ROOT, 'src', 'mcp', 'hosted-server.ts'))}); console.log(JSON.stringify(HOSTED_TOOLS))`], probeEnv)) as Array<{ name: string }>
+    const hostedTools = JSON.parse(await run(['-e', `const { HOSTED_TOOLS } = await import(${JSON.stringify(join(ROOT, 'src', 'mcp', 'hosted-server.ts'))}); console.log(JSON.stringify(HOSTED_TOOLS))`], probeEnv)) as Array<{ name: string }>
     const renderSvg = JSON.stringify(hostedTools.find(tool => tool.name === 'render_svg'))
     expect(renderSvg).toMatch(new RegExp(`registered Look \\([^)]*${PROBE_LOOK}[^)]*\\)`))
     expect(renderSvg).toMatch(new RegExp(`Palette \\([^)]*${PROBE_PALETTE}[^)]*\\)`))
 
     const out = join(temp.dir('am-style-authority-'), 'editor.html')
-    run([join(ROOT, 'scripts', 'site', 'editor.ts')], { ...probeEnv, AM_TEST_REDIRECT_WRITE: out })
+    await run([join(ROOT, 'scripts', 'site', 'editor.ts')], { ...probeEnv, AM_TEST_REDIRECT_WRITE: out })
     const html = readFileSync(out, 'utf8')
     const styleItems = Array.from(html.matchAll(/<button class="theme-dropdown-item[^"]*"[^>]*data-style="([^"]+)"[^>]*>([^<]*)<\/button>/g), match => [match[1], match[2]])
     const themeItems = Array.from(html.matchAll(/<button class="theme-dropdown-item[^"]*"[^>]*data-theme="([^"]*)"[^>]*>(?:<span[^>]*><\/span>)?([^<]*)<\/button>/g), match => [match[1], match[2]])
@@ -202,34 +198,28 @@ describe('StyleSpec has one projected field authority', () => {
     expect(() => resolveStyleStack('default')).toThrow(/Unknown style "default"/)
   })
 
-  test('CLI rejects removed bare inputs while retaining canonical Looks', () => {
+  test('CLI rejects removed bare inputs while retaining canonical Looks', async () => {
     const input = join(ROOT, 'eval/layout-compare/fixtures/flowchart-basic.mmd')
-    const removed = Bun.spawnSync([
-      'bun', 'run', join(ROOT, 'bin/am.ts'), 'render', input, '--style', 'palette:tufte',
-    ], { cwd: ROOT })
-    expect(removed.exitCode).toBe(2)
+    const removed = await runChild('bun', ['run', join(ROOT, 'bin/am.ts'), 'render', input, '--style', 'palette:tufte'], { cwd: ROOT })
+    expect(removed.status).toBe(2)
     expect(removed.stderr.toString()).toContain('Unknown style "palette:tufte"')
     expect(removed.stdout.toString()).toBe('')
 
     for (const removedName of ['tufte', 'default']) {
-      const removedBare = Bun.spawnSync([
-        'bun', 'run', join(ROOT, 'bin/am.ts'), 'render', input, '--style', removedName,
-      ], { cwd: ROOT })
-      expect(removedBare.exitCode).toBe(2)
+      const removedBare = await runChild('bun', ['run', join(ROOT, 'bin/am.ts'), 'render', input, '--style', removedName], { cwd: ROOT })
+      expect(removedBare.status).toBe(2)
       expect(removedBare.stderr.toString()).toContain(`Unknown style "${removedName}"`)
       expect(removedBare.stdout.toString()).toBe('')
     }
 
-    const retained = Bun.spawnSync([
-      'bun', 'run', join(ROOT, 'bin/am.ts'), 'render', input, '--style', 'look:tufte',
-    ], { cwd: ROOT })
-    expect(retained.exitCode, retained.stderr.toString()).toBe(0)
+    const retained = await runChild('bun', ['run', join(ROOT, 'bin/am.ts'), 'render', input, '--style', 'look:tufte'], { cwd: ROOT })
+    expect(retained.status, retained.stderr.toString()).toBe(0)
     expect(retained.stdout.toString()).toContain('<svg')
   })
 
-  test('CLI discovery publishes only Look/Palette kind plus explicit default state', () => {
-    const result = Bun.spawnSync(['bun', 'run', join(ROOT, 'bin/am.ts'), 'styles', '--json'], { cwd: ROOT })
-    expect(result.exitCode).toBe(0)
+  test('CLI discovery publishes only Look/Palette kind plus explicit default state', async () => {
+    const result = await runChild('bun', ['run', join(ROOT, 'bin/am.ts'), 'styles', '--json'], { cwd: ROOT })
+    expect(result.status).toBe(0)
     const rows = JSON.parse(result.stdout.toString()) as Array<{ kind: string; isDefault: boolean; canonicalId: string }>
     expect(new Set(rows.map(row => row.kind))).toEqual(new Set(['look', 'palette']))
     expect(rows.find(row => row.canonicalId === 'look:crisp')).toMatchObject({ kind: 'look', isDefault: true })

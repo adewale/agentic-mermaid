@@ -37,7 +37,7 @@ describe('renderMermaidASCIIWithMeta', () => {
   test('flowchart: col ranges actually match rendered characters', () => {
     const src = 'flowchart LR\n  Alpha --> Beta\n'
     const { ascii, regions } = renderMermaidASCIIWithMeta(src)
-    expect(regions.map(r => ({ id: r.id, text: regionText(ascii, r) }))).toEqual([
+    expect(regions.filter(r => r.kind === 'node').map(r => ({ id: r.id, text: regionText(ascii, r) }))).toEqual([
       { id: 'Alpha', text: 'Alpha' },
       { id: 'Beta', text: 'Beta' },
     ])
@@ -83,14 +83,15 @@ describe('renderMermaidASCIIWithMeta', () => {
     for (const [id, text] of [['A', '*a* and ~~s~~'], ['B', '**b**'], ['S', '*t*']] as const) {
       const region = rendered.regions.find(candidate => candidate.id === id)!
       expect({ id, projectedText: region.projectedText }).toEqual({ id, projectedText: text })
-      expect(lines[region.canvasRow]!.slice(region.canvasColStart, region.canvasColEnd)).toBe(text)
+      expect(region.authoredTextCells!.map(cell => cell.glyph).join('')).toBe(text)
+      for (const cell of region.authoredTextCells!) expect(cellSlice(lines[cell.row]!, cell.column, cell.column + visualWidth(cell.glyph))).toBe(cell.glyph)
     }
     // A wrapped label maps through its projected tokens, markers included.
     const wrapped = renderMermaidASCIIWithMeta(
       'flowchart RL\n  A[*alpha* beta gamma delta ~~eps~~ zeta eta] --> B[Alpha]',
       { colorMode: 'none', targetWidth: 30 },
     ).regions.find(candidate => candidate.id === 'A')!
-    expect(wrapped.authoredTextCells!.map(cell => cell.glyph).join('')).toBe('*alpha*betagammadelta~~eps~~zetaeta')
+    expect(wrapped.authoredTextCells!.map(cell => cell.glyph).join('').replaceAll(' ', '')).toBe('*alpha*betagammadelta~~eps~~zetaeta')
     // Families that render markdown-lite emphasis still project without markers.
     const mindmap = renderMermaidASCIIWithMeta('mindmap\n  root((*Root* ~~x~~))', { colorMode: 'none' })
     const root = mindmap.regions.find(candidate => candidate.id === 'root')!
@@ -244,7 +245,10 @@ describe('renderMermaidASCIIWithMeta', () => {
       for (const r of regions) {
         const line = lines[r.canvasRow]
         expect({ family, id: r.id, rowInBounds: Boolean(line) }).toEqual({ family, id: r.id, rowInBounds: true })
-        expect(line!.slice(r.canvasColStart, r.canvasColEnd).trim().length).toBeGreaterThan(0)
+        expect(r.canvasColStart).toBeGreaterThanOrEqual(0)
+        expect(r.canvasColEnd).toBeLessThanOrEqual(Math.max(...lines.map(visualWidth)))
+        expect(r.canvasRow + (r.rowSpan ?? 1)).toBeLessThanOrEqual(lines.length)
+        for (const cell of r.authoredTextCells ?? []) expect(cellSlice(lines[cell.row]!, cell.column, cell.column + visualWidth(cell.glyph))).toBe(cell.glyph)
       }
     })
   }
@@ -262,11 +266,27 @@ describe('renderMermaidASCIIWithMeta', () => {
     expect(gantt.regions).toContainEqual(expect.objectContaining({ id: 'section#0', kind: 'band' }))
   })
 
-  test('route parity contract is explicit and edge-region gaps are structured warnings', () => {
+  test('route parity contract and owned edge cells describe the emitted relationship', () => {
     const result = renderMermaidASCIIWithMeta('flowchart LR\n  A --> B\n')
     expect(result.routeParity).toBe(ASCII_ROUTE_PARITY_CONTRACT)
     expect(result.routeParity.routeIntent).toBe('shared-route-classes')
-    expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'ASCII_EDGE_REGION_UNMAPPED', severity: 'degraded' }))
+    expect(result.warnings.some(warning => warning.code === 'ASCII_EDGE_REGION_UNMAPPED')).toBe(false)
+    const edge = result.regions.find(region => region.kind === 'edge')!
+    expect(edge.id).toBe('edge#0:A->B')
+    const ink = edge.ownedCellSpans!.flatMap(span => [...cellSlice(result.ascii.split('\n')[span.row]!, span.start, span.end)]).join('')
+    expect(ink).toContain('─')
+    expect(ink).toContain('►')
+  })
+
+  test('terminal action sidecar preserves container parents and disjoint owned occurrences', () => {
+    const result = renderMermaidWithActions('flowchart TD\n subgraph S[Group]\n A[Same]\n B[Same]\n A --> B\n end\n click A href https://example.com\n click B href https://example.com/b', { format: 'unicode', options: { colorMode: 'none' } })
+    const a = result.actionSurface.regions.find(region => region.id === 'node:A')!
+    const b = result.actionSurface.regions.find(region => region.id === 'node:B')!
+    expect(a.parentId).toBe('group:S')
+    expect(a.cellSpans?.length).toBeGreaterThan(1)
+    const occupied = new Set(a.cellSpans!.flatMap(span => Array.from({ length: span.end - span.start }, (_, offset) => `${span.row}:${span.start + offset}`)))
+    for (const span of b.cellSpans!) for (let x = span.start; x < span.end; x++) expect(occupied.has(`${span.row}:${x}`)).toBe(false)
+    expect(result.actionSurface.actions[0]?.region?.cellSpans).toEqual(a.cellSpans)
   })
 
   test('stable: same input → same regions (deterministic)', () => {
@@ -292,4 +312,48 @@ describe('renderMermaidASCIIWithMeta', () => {
     const { regions } = renderMermaidASCIIWithMeta('not a diagram')
     expect(regions).toEqual([])
   })
+})
+
+
+test('terminal actions retain distinct authored targets and their actual owned regions', () => {
+  const source = 'classDiagram\nclass `A\tB`\nclass `A B`\nclick `A\tB` href "https://example.com/tab"\nclick `A B` href "https://example.com/space"'
+  for (const format of ['ascii', 'unicode'] as const) for (const colorMode of ['none', 'ansi16', 'html'] as const) {
+    const meta = renderMermaidASCIIWithMeta(source, { useAscii: format === 'ascii', colorMode })
+    expect(meta.actions.map(({ id, regionId, target }) => ({ id, regionId, target }))).toEqual([
+      { id: 'action:class:A\tB:0', regionId: 'node:A\tB', target: 'A\tB' },
+      { id: 'action:class:A B:0', regionId: 'node:A B', target: 'A B' },
+    ])
+    const output = renderMermaidWithActions(source, { format, options: { colorMode } })
+    for (const [index, target] of ['A\tB', 'A B'].entries()) {
+      const action = output.actionSurface.actions[index]!
+      const region = meta.regions.find(region => region.id === target && region.kind === 'node')!
+      expect(action).toMatchObject({ id: `action:class:${target}:0`, target, regionId: `node:${target}`, region: { id: `node:${target}`, elementId: target, cellSpans: region.ownedCellSpans } })
+      expect(region.ownedCellSpans!.length).toBeGreaterThan(0)
+      expect(region.projectedText).toBe('A B')
+      expect(regionText(renderMermaidASCIIWithMeta(source, { useAscii: format === 'ascii', colorMode: 'none' }).ascii, region)).toContain('A B')
+    }
+    expect(output.actionSurface.actions[0]!.region!.cellSpans).not.toEqual(output.actionSurface.actions[1]!.region!.cellSpans)
+  }
+})
+
+test('public metadata preserves authored blank rows in node, edge and timeline text', () => {
+  const fixtures = [
+    { source: 'flowchart LR\nA -->|long label<br><br>x| B', kind: 'edge', id: 'edge#0:A->B', text: 'long label\n\nx' },
+    { source: 'flowchart TD\nA["first<br><br>last"]', kind: 'node', id: 'A', text: 'first\n\nlast' },
+    { source: 'sequenceDiagram\nparticipant A\nparticipant B\nA->>B: first<br><br>last', kind: 'edge', id: 'message:0', text: 'first\n\nlast' },
+    { source: 'timeline\nfirst<br><br>last : Event', kind: 'node', id: 'period-0', text: 'first\n\nlast' },
+    { source: 'sankey-beta\n"first\n\nlast",Sink,1', kind: 'node', id: 'first\n\nlast', text: 'first\n\nlast' },
+  ]
+  for (const fixture of fixtures) for (const useAscii of [true, false]) {
+    const result = renderMermaidASCIIWithMeta(fixture.source, { useAscii, colorMode: 'none' })
+    const region = result.regions.find(region => region.kind === fixture.kind && region.id === fixture.id)!
+    expect(region.projectedText).toBe(fixture.text)
+    const rows = [...new Set(region.authoredTextCells!.map(cell => cell.row))]
+    expect(rows).toHaveLength(2)
+    expect(rows[1]! - rows[0]!).toBe(2)
+    const lines = result.ascii.split('\n')
+    for (const cell of region.authoredTextCells!) expect(cellSlice(lines[cell.row]!, cell.column, cell.column + visualWidth(cell.glyph))).toBe(cell.glyph)
+    expect(region.authoredTextCells!.some(cell => cell.row === rows[0]! + 1)).toBe(false)
+    expect(result.warnings).not.toContainEqual(expect.objectContaining({ code: 'ASCII_RENDER_FAILED' }))
+  }
 })

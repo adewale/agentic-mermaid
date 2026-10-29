@@ -862,7 +862,23 @@
       "assertions": {
         "commits": 5,
         "currentBranch": "main",
-        "customIds": []
+        "customIds": [],
+        "parentsByCommit": [
+          [],
+          [
+            0
+          ],
+          [
+            1
+          ],
+          [
+            0
+          ],
+          [
+            3,
+            2
+          ]
+        ]
       }
     },
     {
@@ -2287,10 +2303,11 @@
       },
       "classification": "divergence",
       "reason": "duplicate-id-policy",
-      "summary": "Upstream logs and keeps replaying after a duplicate commit id; Agentic Mermaid rejects ambiguous identity deterministically.",
+      "summary": "Upstream logs and keeps replaying after a duplicate commit id; Agentic Mermaid retains every occurrence with deterministic, collision-free identity.",
       "source": "gitGraph\n     commit id:\"initial commit\"\n     commit id:\"work on first release\"\n     commit id:\"design freeze from here\"\n     branch v1-rc\n     checkout v1-rc\n     commit id:\"bugfix 1\"\n     commit id:\"bigfix 2\" tag:\"v1.0.1\"\n     branch FORK-v1.0-MDR\n     checkout FORK-v1.0-MDR\n     commit id:\"working on MDR\"\n     checkout v1-rc\n     commit id:\"minor design changes for MDR\" tag:\"v1.0.2\"\n     checkout FORK-v1.0-MDR\n     merge v1-rc\n     checkout main\n     commit id:\"new feature for v1.1\u2026\"\n     checkout FORK-v1.0-MDR\n     commit id:\"working on MDR\"\n     commit id:\"finishing MDR\"\n     branch v1.0-MDR\n     checkout v1.0-MDR\n     commit id:\"brush up release\" tag:\"v1.0.2-MDR\"\n     checkout v1-rc\n     commit id:\"bugfix without MDR\"\n     checkout main\n     commit id:\"work on v1.1\"\n  ",
       "assertions": {
-        "errorCode": "GITGRAPH_DUPLICATE_COMMIT_ID"
+        "commits": 14,
+        "duplicateSourceId": "working on MDR"
       }
     },
     {
@@ -2373,8 +2390,8 @@
       "family": "gitgraph",
       "topic": "duplicate custom commit identity",
       "upstream": "Logs a warning and continues after a duplicate custom id.",
-      "local": "Rejects the duplicate with GITGRAPH_DUPLICATE_COMMIT_ID before rendering.",
-      "reason": "History replay must never silently overwrite an existing commit."
+      "local": "Retains all authored commits and labels with collision-free occurrence IDs; source references use the latest preceding authored occurrence.",
+      "reason": "History replay must never silently overwrite an existing commit. Typed references to shadowed occurrences are rejected when pinned source syntax cannot express them."
     },
     {
       "family": "gitgraph",

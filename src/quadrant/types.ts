@@ -1,3 +1,4 @@
+import type { TooltipLayout } from '../shared/tooltip-layout.ts'
 // ============================================================================
 // Quadrant chart types
 //
@@ -85,6 +86,7 @@ export interface PositionedQuadrantRegion {
   number: 1 | 2 | 3 | 4
   /** Optional region label. */
   label?: string
+  labelBlock?: import('../shared/prepared-text.ts').PixelTextBlock
   /** Background rectangle. */
   x: number
   y: number
@@ -104,7 +106,9 @@ export interface QuadrantLabelBox {
 }
 
 export interface PositionedQuadrantPoint {
+  tooltip?: TooltipLayout
   label: string
+  labelBlock?: import('../shared/prepared-text.ts').PixelTextBlock
   /** Original normalized coordinates. */
   nx: number
   ny: number
@@ -136,6 +140,7 @@ export interface PositionedQuadrantPoint {
 
 export interface PositionedQuadrantAxisLabel {
   text: string
+  block?: import('../shared/prepared-text.ts').PixelTextBlock
   x: number
   y: number
   /** SVG text-anchor for this label. */
@@ -147,7 +152,7 @@ export interface PositionedQuadrantAxisLabel {
 export interface PositionedQuadrantChart extends PositionedDiagram {
   width: number
   height: number
-  title?: { text: string; x: number; y: number; fontSize: number }
+  title?: { text: string; x: number; y: number; fontSize: number; block?: import('../shared/prepared-text.ts').PixelTextBlock }
   accessibility?: { title?: string; description?: string }
   /** Square plot area bounds. */
   plot: { x: number; y: number; size: number }

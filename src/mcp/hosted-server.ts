@@ -3,20 +3,17 @@
 // `execute` and `render_png` are injected by the host (the Worker backs them
 // with a Dynamic Worker isolate and resvg-wasm; tests back them with fakes).
 //
-// This surface deliberately differs from the local Code Mode server
-// (docs/mcp-code-mode-rationale.md): locally, `execute` is free and stays the
-// single entry point. Hosted, every `execute` spins a billable isolate, so the
-// common render/verify paths get direct pure tools that cost one ordinary
+// Both surfaces share declarative edit tools. Hosted `execute` spins a
+// billable isolate, so common render/verify paths get direct pure tools that cost one ordinary
 // Worker invocation and are eligible for the private compute cache.
 
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { configWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
-import { applyOps } from '../agent/apply.ts'
-import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
+import { EDIT_TOOLS, handleEditTool } from './edit-tools.ts'
 import { knownStyleDescriptors } from '../scene/style-registry.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt } from '../agent/core.ts'
-import { verifyNoExternalRefs } from '../index.ts'
+import { verifyNoExternalRefs } from '../output-security.ts'
 import { unsupportedCodeReason } from './facade.ts'
 import { rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import {
@@ -55,6 +52,7 @@ import {
 import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { DEFAULT_EXECUTE_TIMEOUT_MS } from './execute-limits.ts'
+import { terminalOutputOptionSchema } from '../terminal-contract.ts'
 import {
   admitMcpMessage,
   type AdmittedMcpMessage,
@@ -115,6 +113,7 @@ const BUILTIN_PALETTE_NAMES = knownStyleDescriptors()
   .filter(descriptor => descriptor.kind === 'palette')
   .map(descriptor => descriptor.inputName)
 
+
 export const HOSTED_TOOLS = [
   createExecuteTool({ sdkDeclaration: SDK_CORE_DECLARATION, hosted: true }),
   withClosedMcpInputSchema(createDescribeSdkTool()),
@@ -148,8 +147,8 @@ targetWidth sets a hard terminal display-cell bound; impossible bounds return a 
       additionalProperties: false,
       properties: {
         source: { type: 'string', description: 'Mermaid source.' },
-        useAscii: { type: 'boolean', description: 'true = ASCII characters, false = Unicode (default).' },
-        targetWidth: { type: 'integer', minimum: 1, description: 'Hard maximum line width in terminal display cells.' },
+        useAscii: { ...terminalOutputOptionSchema('useAscii'), description: 'true = ASCII characters, false = Unicode (default).' },
+        targetWidth: { ...terminalOutputOptionSchema('targetWidth'), description: 'Hard maximum line width in terminal display cells.' },
         ...mcpRenderOptionSchemaProperties('Shared advanced RenderOptions object, including style/palette/config/security.'),
       },
       required: ['source'],
@@ -160,7 +159,7 @@ targetWidth sets a hard terminal display-cell bound; impossible bounds return a 
   {
     name: 'verify',
     title: 'Verify Mermaid diagram',
-    description: `Parse and verify a Mermaid diagram without rendering it. Returns
+    description: `Parse and verify source, structure, and renderability. This runs the graphical pipeline. Returns
 { ok, family, summary, warnings, layout: { bounds, nodes, edges } } for valid
 diagrams and { ok: false, errors } for parse failures. \`family\` is the detected
 diagram family and \`summary\` a one-line description — check them: ok:true only
@@ -177,51 +176,7 @@ Warnings use the layout-rubric codes.`,
     annotations: PURE_COMPUTE_ANNOTATIONS,
   },
   createDescribeTool(),
-  {
-    name: 'mutate',
-    title: 'Edit Mermaid diagram',
-    description: `Apply a list of structured edit ops to an existing Mermaid \`source\` and
-return the edited diagram. This is the declarative counterpart to \`execute\`:
-plain JSON in, plain JSON out, no sandbox. Prefer it for straightforward edits;
-reserve \`execute\` for logic the ops don't express.
-Returns { ok, family, source, verify:{ ok, warnings } } on success, or
-{ ok:false, family, opIndex, error } — where \`error\` names the offending field
-and lists the valid ones — when an op is malformed or cannot apply. Ops apply in
-order and are all-or-nothing: the first failing op stops the batch (its position
-is \`opIndex\`) and the input is left untouched.
-Each op is { "kind": <op>, …fields }. Call \`describe_sdk\` for the detected
-family before authoring unfamiliar ops; it returns compact signatures or exact
-field types, enum values, defaults, and constraints.`,
-    inputSchema: {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        source: { type: 'string', description: 'Mermaid source to edit.' },
-        ops: { type: 'array', minItems: 1, items: { type: 'object' }, description: 'Non-empty ordered list of edit ops; each is { kind, ...fields }.' },
-      },
-      required: ['source', 'ops'],
-    },
-    annotations: PURE_COMPUTE_ANNOTATIONS,
-  },
-  {
-    name: 'build',
-    title: 'Build Mermaid diagram',
-    description: `Author a new Mermaid diagram from blank by folding a list of structured ops
-over an empty diagram of \`family\`. The declarative counterpart to hand-writing
-source. Returns the same envelope as \`mutate\`:
-{ ok, family, source, verify } or { ok:false, family, opIndex, error }.
-Call \`describe_sdk\` for the family before authoring unfamiliar ops.`,
-    inputSchema: {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        family: { type: 'string', description: `Diagram family to author (one of: ${Object.keys(MUTATION_OPS_BY_FAMILY).join(', ')}).` },
-        ops: { type: 'array', minItems: 1, items: { type: 'object' }, description: 'Non-empty ordered list of ops; each is { kind, ...fields }.' },
-      },
-      required: ['family', 'ops'],
-    },
-    annotations: PURE_COMPUTE_ANNOTATIONS,
-  },
+  ...EDIT_TOOLS,
 ]
 
 const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; execute, mutate, and build bypass it. HTTP /mcp responses themselves are cache-control: no-store, so clients must not infer response freshness from CDN headers. The x-agentic-mermaid-compute-cache response header reports hit, miss, mixed, bypass, or disabled. There is no layout seed — the library's optional style seed only re-rolls ink of styled looks. describe_sdk progressively discloses one family's version-matched mutation schema. Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/).`
@@ -333,11 +288,11 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
       // architecture diagram and reads `family:"flowchart"` here sees the
       // mismatch in the same result it was already going to read, without
       // having to know to call `describe` separately.
-      return { ok: v.ok, family: parsed.value.kind, summary, warnings: v.warnings, layout: { bounds: v.layout.bounds, nodes: v.layout.nodes.length, edges: v.layout.edges.length } }
+      return { ok: v.ok, family: parsed.value.kind, summary, warnings: v.warnings, checks: v.checks, layout: { bounds: v.layout.bounds, nodes: v.layout.nodes.length, edges: v.layout.edges.length } }
     })
     case 'describe': return sourceTool(id, args, source => mcpDescribePayload(source, args))
-    case 'mutate': return handleApplyOps(id, args, 'source')
-    case 'build': return handleApplyOps(id, args, 'family')
+    case 'mutate': return handleEditTool(id, args, 'source', MAX_SOURCE_BYTES, TOO_LARGE_HINT)
+    case 'build': return handleEditTool(id, args, 'family', MAX_SOURCE_BYTES, TOO_LARGE_HINT)
     default: return rpcError(id, -32602, `Unknown tool: ${name ?? '<none>'}`)
   }
 }
@@ -471,31 +426,6 @@ export function cacheKeyFor(name: string | undefined, args: Record<string, unkno
     default:
       return null
   }
-}
-
-/** Declarative structured-edit tools (`mutate`, `build`): validate the required
- *  argument + the ops array, cap payload size, then hand off to the ONE checked
- *  core (applyOps) that the Code Mode facade also funnels through. The canonical
- *  OpEnvelope is returned verbatim; `isError` mirrors `!envelope.ok`. */
-function handleApplyOps(id: number | string | null, args: Record<string, unknown>, mode: 'source' | 'family'): JsonRpcResponse {
-  const ops = args.ops
-  if (!Array.isArray(ops)) return rpcError(id, -32602, `${mode === 'source' ? 'mutate' : 'build'} requires \`ops\` (array)`)
-  if (ops.length === 0) return rpcError(id, -32602, `${mode === 'source' ? 'mutate' : 'build'} requires at least one op`)
-  if (mode === 'source') {
-    if (typeof args.source !== 'string') return rpcError(id, -32602, 'mutate requires `source` (string)')
-    if (boundedUtf8ByteLength(args.source, MAX_SOURCE_BYTES) > MAX_SOURCE_BYTES) {
-      return toolResult(id, { ok: false as const, family: null, error: { code: 'SOURCE_TOO_LARGE', message: TOO_LARGE_HINT } }, true)
-    }
-  } else if (typeof args.family !== 'string') {
-    return rpcError(id, -32602, 'build requires `family` (string)')
-  }
-  if (boundedUtf8ByteLength(JSON.stringify(ops), MAX_SOURCE_BYTES) > MAX_SOURCE_BYTES) {
-    return toolResult(id, { ok: false as const, family: null, error: { code: 'OPS_TOO_LARGE', message: TOO_LARGE_HINT } }, true)
-  }
-  const envelope = mode === 'source'
-    ? applyOps({ source: args.source as string, ops })
-    : applyOps({ family: args.family as string, ops })
-  return toolResult(id, envelope, !envelope.ok)
 }
 
 /** Shared shape for the pure source→payload tools: validate, cap, run, wrap errors. */

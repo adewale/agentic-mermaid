@@ -49,10 +49,7 @@ describe('heuristic-tracker ratchet', () => {
   // This is a no-increase ratchet: the corpus may currently carry the known
   // offenders below; any NEW unexplained-bend/label-overlap finding fails, and
   // fixing a known one fails too (so the baseline only ever shrinks).
-  const KNOWN_ROUTE_CONTRACT_OFFENDERS = [
-    // Known-bug pin BUG-35 (TODO.md): the D->E label sits on a shared trunk.
-    'contact-sheet/AJ: ROUTE_LABEL_ON_SHARED_TRUNK D->E',
-  ]
+  const KNOWN_ROUTE_CONTRACT_OFFENDERS: string[] = []
 
   test('no NEW unexplained-bend or label-overlap findings across the tracked corpus (criterion 7)', () => {
     const offenders: string[] = []

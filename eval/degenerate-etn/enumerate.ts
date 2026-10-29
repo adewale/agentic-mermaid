@@ -13,7 +13,7 @@ import { performance } from 'node:perf_hooks'
 import { assessLayout, hardViolations } from '../../src/layout-rubric.ts'
 import { layoutGraphSync } from '../../src/layout-engine.ts'
 import { parseMermaid } from '../../src/parser.ts'
-import { auditRouteContracts, findRouteHitches } from '../../src/route-contracts.ts'
+import { auditRouteContracts, findRouteHitches, hasBundleRouteExemption } from '../../src/route-contracts.ts'
 import type { Point, PositionedEdge } from '../../src/types.ts'
 import { DEGENERATE_ROUTE_GENERATORS } from './generators.ts'
 
@@ -64,6 +64,7 @@ function certificateFindings(edge: PositionedEdge): string[] {
   const certificate = edge.routeCertificate
   if (!certificate) return ['missing-certificate']
   const findings: string[] = []
+  if (certificate.invariant === 'bundle' && !hasBundleRouteExemption(edge)) findings.push('stale-bundle-exemption')
   if (edge.edgeIndex !== certificate.edgeIndex) findings.push('edge-index-mismatch')
   if (certificate.bendCount !== geometricBendCount(edge.points)) findings.push('bend-count-mismatch')
   if (certificate.sourcePortAssignment?.port !== certificate.sourcePort &&
@@ -166,15 +167,14 @@ outer: for (const generator of DEGENERATE_ROUTE_GENERATORS) {
 }
 
 metrics.timingsMs.total = performance.now() - started
-if (fullRun && (metrics.cases !== EXPECTED_CASES || metrics.layouts !== EXPECTED_CASES)) {
-  throw new Error(`corpus traversal drift: expected ${EXPECTED_CASES} cases/layouts, saw ${metrics.cases}/${metrics.layouts}`)
-}
+const traversalComplete = !fullRun || (metrics.cases === EXPECTED_CASES && metrics.layouts + metrics.errors === EXPECTED_CASES)
 
 const receipt = {
   schemaVersion: 1,
   corpus: DEGENERATE_ROUTE_GENERATORS.map(({ name, cases }) => ({ name, cases })),
   expectedCases: EXPECTED_CASES,
   fullRun,
+  traversalComplete,
   metrics,
   counterexamples,
   routeFindingExamples,
@@ -187,5 +187,5 @@ console.log(JSON.stringify(receipt, null, 2))
 // into new issue-88 policy. Internal certificate consistency remains a gate
 // over existing metadata.
 const failed = metrics.hitches > 0 || (metrics.hardViolationsByMetric.edgeThroughNode ?? 0) > 0 ||
-  metrics.certificates.findings > 0 || metrics.errors > 0
+  metrics.certificates.findings > 0 || metrics.errors > 0 || !traversalComplete
 if (failed) process.exitCode = 1

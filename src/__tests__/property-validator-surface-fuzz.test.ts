@@ -10,6 +10,7 @@
 // Seed pinned globally (fc-seed.preload.ts); AM_FC_SEED=random hunts fresh counterexamples.
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import {
   validateStyleSpec, validateSerializableRenderOptions, validateSceneDoc,
@@ -33,19 +34,19 @@ describe('validator fuzz: total and deterministic over arbitrary input', () => {
   it('validateStyleSpec', () => {
     fc.assert(fc.property(fc.anything(), v => {
       totalDeterministic(() => validateStyleSpec(v as never), r => expect(Array.isArray(r)).toBe(true))
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 
   it('validateSerializableRenderOptions', () => {
     fc.assert(fc.property(fc.anything(), v => {
       totalDeterministic(() => validateSerializableRenderOptions(v), r => expect(Array.isArray(r)).toBe(true))
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 
   it('validateSceneDoc', () => {
     fc.assert(fc.property(fc.anything(), v => {
       totalDeterministic(() => validateSceneDoc(v), r => expect(typeof r.valid).toBe('boolean'))
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 
   it('parseSemVer / semVerSatisfies', () => {
@@ -57,7 +58,7 @@ describe('validator fuzz: total and deterministic over arbitrary input', () => {
     fc.assert(fc.property(verishArb, verishArb, (v, range) => {
       totalDeterministic(() => parseSemVer(v), r => expect(r === undefined || typeof r === 'object').toBe(true))
       totalDeterministic(() => semVerSatisfies(v, range), r => expect(typeof r).toBe('boolean'))
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 })
 
@@ -117,7 +118,7 @@ describe('validator fuzz: validateSerializableRenderOptions does not lie', () =>
         // The validator green-lit these options; the renderer MUST accept them.
         expect(() => renderMermaidSVG(SRC, opts as never)).not.toThrow()
       }
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
     // Guard against a vacuous property: the arbitraries must produce clean options sometimes.
     expect(cleanSeen).toBeGreaterThan(0)
   })
@@ -156,7 +157,7 @@ describe('validator fuzz: validateStyleSpec does not lie', () => {
         cleanSeen++
         expect(() => renderMermaidSVG(SRC, { style: spec as never })).not.toThrow()
       }
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
     expect(cleanSeen).toBeGreaterThan(0)
   })
 })

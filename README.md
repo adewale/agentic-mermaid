@@ -4,21 +4,30 @@
 
 **Beautiful diagrams, made with your agent.**
 
-Agentic Mermaid is an open-source Mermaid toolkit for people who want AI agents to create diagrams that look finished: SVG and PNG renders, ASCII and Unicode for review, deterministic layout, and Style + Palette controls for brand colors, typography, strokes, fills, and backdrops.
+Agentic Mermaid helps coding agents create styled diagrams from Mermaid source and edit existing diagrams through typed operations. Export SVG or PNG for documents, and ASCII or Unicode for terminal review.
 
-It is forked from [`lukilabs/beautiful-mermaid`](https://github.com/lukilabs/beautiful-mermaid). Published on npm as `agentic-mermaid`; the GitHub repository is `adewale/agentic-mermaid`; the canonical live site is [`agentic-mermaid.dev`](https://agentic-mermaid.dev/), a Cloudflare Workers deployment.
+It is forked from [`lukilabs/beautiful-mermaid`](https://github.com/lukilabs/beautiful-mermaid). Published on npm as `agentic-mermaid`; the GitHub repository is `adewale/agentic-mermaid`; the live site is [`agentic-mermaid.dev`](https://agentic-mermaid.dev/).
 
-![Agentic Mermaid: Mermaid source plus typed edit ops on the left, the verified SVG render in the middle, and the same diagram as ASCII on the right](assets/hero.png)
+![A login flow with credential validation, an MFA decision, two retry paths, session creation and a dashboard, rendered in the hand-drawn style](assets/hero.png)
+
+A login flow with MFA, rendered directly by Agentic Mermaid.
+[Mermaid source](examples/styles/readme-hero.mmd) · [Style and reproduction command](examples/styles/readme-hero.md)
 
 [Live Demo & Samples](https://agentic-mermaid.dev/) · [Live Editor](https://agentic-mermaid.dev/editor)
 
-Docs: [docs index](./docs/) · [getting started](./docs/getting-started.md) · [agent guide](./Instructions_for_agents.md) · [agent API cookbook](./docs/agent-api-cookbook.md) · [design system](https://github.com/adewale/agentic-mermaid/blob/main/DESIGN.md) · [skills](./skills/) · [fork differences](./docs/fork-differences.md) · [vs Mermaid & Beautiful Mermaid](./docs/comparison.md) · [changelog](./CHANGELOG.md)
-
 </div>
+
+**Ask your coding agent:**
+
+> Read `Instructions_for_agents.md` in this repository, or https://agentic-mermaid.dev/llms.txt if you don't have a checkout. Draw Browser → API → Database using the hand-drawn style and nord-light palette. Verify it, then return the Mermaid source and an SVG.
+
+[Agent setup and skills](#agent-quick-start) · [Try the same diagram in JavaScript](#svg)
+
+Docs: [docs index](./docs/) · [getting started](./docs/getting-started.md) · [agent guide](./Instructions_for_agents.md) · [agent API cookbook](./docs/agent-api-cookbook.md) · [design system](https://github.com/adewale/agentic-mermaid/blob/main/DESIGN.md) · [skills](./skills/) · [fork differences](./docs/fork-differences.md) · [vs Mermaid & Beautiful Mermaid](./docs/comparison.md) · [changelog](./CHANGELOG.md)
 
 ## Why Agentic Mermaid
 
-Use it when you want to describe a diagram in plain language and get back something you can publish without a design cleanup pass.
+Choose a built-in style, or keep your diagram's colors and fonts in a JSON style file. Inspect the rendered result before publishing.
 
 | You want | Agentic Mermaid gives you |
 |---|---|
@@ -32,41 +41,27 @@ The agent workflow is the guardrail behind the polish: agents should not guess f
 
 ## Highlights
 
-- **Descriptor-registered diagram families** — built-ins and namespaced extensions share one discovery and capability contract.
-- **SVG, PNG, ASCII, Unicode, JSON** — one resolved request with explicit graphical, terminal, and positioned-layout projections.
-- **Synchronous, zero-DOM SVG renderer** — no Puppeteer, no browser flash.
-- **Composable styles** — `{ style: ['hand-drawn', 'dracula'] }` stacks a look over a palette; discoverable full looks cover sketch, watercolor, blueprint, accessibility, print, operational, physical-media, architecture, and editorial/report use cases. Custom styles are plain JSON records any agent can author (`docs/style-authoring.md`). `seed` re-rolls the ink, never the layout.
-- **Discoverable palettes + Shiki compatibility** — a theme is a palette-only style: discover the canonical catalog at runtime, theme from two colors, or adapt a VS Code theme.
-- **Agent-native editing** — typed mutation for every registered renderable family; source-level round-trip only for opaque fallbacks containing unmodeled syntax.
-- **CLI + MCP + library** — `am`, `agentic-mermaid-mcp`, `agentic-mermaid`, `agentic-mermaid/agent`, and the browser/workerd-safe `agentic-mermaid/agent/core`. Audit reports and trusted host-resource helpers remain repository tooling instead of published runtime entry points.
+- **Discover supported diagrams and edits** — `am capabilities --json` reports what the installed version supports, including registered extensions.
+- **SVG, PNG, ASCII, Unicode, JSON** — export images, review diagrams in the terminal, or inspect positions as JSON layout.
+- **Render SVG without a browser** — the synchronous JavaScript API runs without a DOM or Puppeteer.
+- **Composable styles** — `{ style: ['hand-drawn', 'dracula'] }` combines a look with a palette. Set colors, fonts, strokes, fills and backdrops in a [JSON style](./docs/style-authoring.md). `seed` re-rolls the ink, never the layout.
+- **Match your editor's colors** — choose a built-in palette, theme from two colors, or adapt a VS Code theme with Shiki.
+- **Agent-native editing** — use typed operations for modeled syntax. Inputs with unmodeled syntax retain their source; [source-preserving edits](./docs/agent-mutation-policy.md) cover selected Class and Flowchart operations.
+- **CLI + MCP + library** — use `am`, connect `agentic-mermaid-mcp`, or import `agentic-mermaid/agent` for rendering and editing. See the [API reference](./docs/api.md) for the other library and browser entry points.
 
 ## Installation
+
+Requires **Node.js 22 or later**, or **Bun 1.4.0 or later**. The package is ESM-only; use `import`, or dynamic `import()` from CommonJS.
 
 ```bash
 npm install agentic-mermaid       # or: bun add agentic-mermaid / pnpm add agentic-mermaid
 npx --no-install agentic-mermaid --help
-npx --no-install agentic-mermaid mcp
 ```
 
-For repository development, install from source and run the Bun entrypoints
-(Bun 1.4.0 or later; `bun upgrade` if `bun --version` is older):
-
-```bash
-git clone https://github.com/adewale/agentic-mermaid
-cd agentic-mermaid
-bun install
-bun run build
-bun run bin/am.ts --help
-bun run bin/agentic-mermaid-mcp.ts   # MCP stdio server
-```
-
-> **ESM-only.** `agentic-mermaid` ships ES modules (there is no CommonJS build);
-> `require()` consumers should use dynamic `import()` instead. Requires Node ≥ 22.
->
-> The `am …` examples below name the published bin. After a project-local npm
-> install, invoke it from a shell as `npx --no-install agentic-mermaid …` (or
-> from an npm script as `am …`). From a source checkout, use
-> `bun run bin/am.ts …` instead.
+The `am …` examples below name the published bin. After a project-local npm
+install, invoke it from a shell as `npx --no-install agentic-mermaid …` (or
+from an npm script as `am …`). From a source checkout, use
+`bun run bin/am.ts …` instead.
 
 ## Output quick starts
 
@@ -74,12 +69,26 @@ Use `agentic-mermaid/agent` when you want one import path for styled renders, ou
 
 ### SVG
 
-```ts
+Save this as `diagram.mjs`:
+
+```js
+import { writeFileSync } from 'node:fs'
 import { renderMermaidSVG } from 'agentic-mermaid/agent'
 
-const svg = renderMermaidSVG(`flowchart TD
-  Start --> Done`, { security: 'strict' })
+const svg = renderMermaidSVG(`flowchart LR
+  Browser --> API --> Database`, {
+  style: ['hand-drawn', 'nord-light'],
+  security: 'strict',
+})
+
+writeFileSync('diagram.svg', svg)
 ```
+
+```bash
+node diagram.mjs
+```
+
+Open `diagram.svg` to see **Browser → API → Database** in the hand-drawn style with the `nord-light` palette.
 
 ### PNG
 
@@ -126,28 +135,32 @@ If it only has shell access:
 am --agent-instructions
 am capabilities --json
 am preview diagram.mmd --security strict --open
-am mutate diagram.mmd --op '{"kind":"add_node","id":"Cache","label":"Cache"}' --json
+am mutate diagram.mmd --op '{"kind":"set_label","target":"API","label":"API gateway"}' --json
 ```
 
-Zero-install prompt for a coding agent: read `https://agentic-mermaid.dev/llms.txt` and follow the parse → narrow → mutate → verify → serialize workflow. To wire Agentic Mermaid into another repo, run `npx agentic-mermaid init-agent` (or `bun run bin/am.ts init-agent` from a source checkout); it writes a non-clobbering `AGENTS.md` section, root `skills/` bundle, and `.mcp.json` sample.
+For an existing diagram, follow parse → narrow → mutate → verify → serialize. For a new diagram, author Mermaid source, then parse and verify it. To wire Agentic Mermaid into another repo, run `npx agentic-mermaid init-agent` (or `bun run bin/am.ts init-agent` from a source checkout); it writes a non-clobbering `AGENTS.md` section, root `skills/` bundle, and `.mcp.json` sample.
 
 Use strict `preview` for human inspection and `mutate --op/--ops` for verified one-shot or batched edits.
 
-For multi-step MCP edits, connect `agentic-mermaid-mcp` and use Code Mode `execute(code)` with the same `mermaid.*` SDK names. Stdio is the default transport; `agentic-mermaid-mcp --transport http` starts HTTP/SSE and managed PNG file/URL artifacts. See the [agent API cookbook](./docs/agent-api-cookbook.md) for copy-pasteable library, CLI, and MCP recipes.
+For multi-step MCP edits, use Code Mode `execute(code)` with the same `mermaid.*` SDK names. See the [agent API cookbook](./docs/agent-api-cookbook.md) for library, CLI and MCP recipes.
 
 ## MCP server
 
 Agentic Mermaid ships a Model Context Protocol server so MCP-capable agents can render and safely edit diagrams without shelling out.
 
-<!-- complete: local-mcp-tools -->
-- **Self-hosted (default).** `agentic-mermaid-mcp` runs a stdio server exposing `execute` (Code Mode sandbox), `describe_sdk` (one family's mutation schema on demand), `render_png`, and `describe`. Package runners can use `npx -y agentic-mermaid mcp`; the `mcp` argument routes the package-name binary to the same stdio server. Add `--transport http` for HTTP/SSE with managed PNG file/URL artifacts. See [`docs/mcp-http-transport.md`](./docs/mcp-http-transport.md) and [`docs/mcp-code-mode-rationale.md`](./docs/mcp-code-mode-rationale.md).
-- **Hosted.** A stateless Streamable HTTP endpoint is available at `https://agentic-mermaid.dev/mcp` (tools: <!-- BEGIN GENERATED: hosted-mcp-tools -->`execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, and `build`<!-- END GENERATED: hosted-mcp-tools -->; 64 KB input caps). Call `describe_sdk` for compact signatures or exact fields before authoring unfamiliar ops. It is MCP JSON-RPC only, not a REST render API. Hosted `execute` runs the same `mermaid.*` facade in a Cloudflare Dynamic Worker isolate with no network; hosted PNG returns base64 only.
+After installation, start the local stdio server:
 
-Local-first is the default posture: prefer the library, CLI, or a self-hosted MCP for anything sensitive, offline, larger than the hosted caps, or needing local PNG file/URL artifacts. The hosted endpoint is a public, unauthenticated convenience for zero-install render/verify/describe and bounded structured edits.
+```bash
+npx --no-install agentic-mermaid mcp
+```
 
-Directory maintainers can use the canonical [MCP listing record](./docs/MCP-DIRECTORY-LISTINGS.md). Hosted data handling is described in the [MCP privacy notice](./docs/MCP-PRIVACY.md).
+Use the library, CLI or local MCP for private diagrams, offline work, larger inputs or local PNG files. The [MCP transport guide](./docs/mcp-http-transport.md) covers HTTP/SSE and file/URL artifacts; [agent setup](#agent-quick-start) shows how to generate a sample client configuration. The [tool reference and Code Mode guide](./docs/mcp-code-mode-rationale.md) explains the available tools and multi-step edits.
+
+An optional public, unauthenticated MCP endpoint runs at `https://agentic-mermaid.dev/mcp`. It accepts MCP JSON-RPC rather than REST render requests, caps inputs at 64 KB and returns PNG as base64. Hosted calls send your source or code to the server; see the [privacy notice](./docs/MCP-PRIVACY.md). Directory maintainers can use the [MCP listing record](./docs/MCP-DIRECTORY-LISTINGS.md).
 
 ## Structured edit example
+
+Change the API node's displayed label while keeping its connection to DB:
 
 ```ts
 import { parseRegisteredMermaid, asFlowchart, mutate, verifyMermaid, serializeMermaid } from 'agentic-mermaid/agent'
@@ -158,14 +171,24 @@ if (!parsed.ok) throw new Error('parse failed')
 const flow = asFlowchart(parsed.value)
 if (!flow) throw new Error(`not a structured flowchart: ${parsed.value.kind}`)
 
-const next = mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
+const next = mutate(flow, { kind: 'set_label', target: 'API', label: 'API gateway' })
 if (!next.ok) throw new Error(next.error.message)
 
 const verify = verifyMermaid(next.value)
 if (!verify.ok) throw new Error(JSON.stringify(verify.warnings, null, 2))
 
 const source = serializeMermaid(next.value)
+console.log(source)
 ```
+
+Output:
+
+```text
+flowchart TD
+  API[API gateway] --> DB
+```
+
+The node ID is still `API`; its displayed label is now `API gateway`, and the `API → DB` connection remains. Verification checks for structural and geometry problems; review the rendered result and confirm it expresses your intent before saving.
 
 Rules:
 
@@ -173,18 +196,19 @@ Rules:
 - Mutation ops use `kind`, not `type`.
 - Run `verifyMermaid` before every commit point.
 - Do not call `mutate` on opaque fallback bodies; the narrower returns `null` for unmodeled syntax.
+- For opaque Class/Flowchart inputs, bounded [source-preserving edits](./docs/agent-mutation-policy.md) support Class `add_member`/`remove_member` and Flowchart `set_label`/`rename_node`. Use `mutatePreservingSource`, `applyOps` with `mode: 'source-preserving'`, or CLI `--preserve-source`; MCP and the editor worker expose the same explicit mode. Save exact source and inspect the retained portability diagnostics; ambiguous ownership and unsupported dependencies refuse atomically.
 
 ## Supported diagram families
 
-Family support is projected from the `FamilyDescriptor` registry; run
-`am capabilities --json` for the live roster. (The Section A capability report
-is no longer published.) See [diagram families](./docs/diagram-families.md) for syntax examples and
-compatibility notes.
+Run `am capabilities --json` for the supported families and edit operations in
+your installed version. See [diagram families](./docs/diagram-families.md) for
+syntax examples and compatibility notes.
 
 ## More documentation
 
-- [System architecture](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/README.md) — **start here** for the rendered resolved-request, family-descriptor, positioned-artifact, and output-security overview (dogfooded, drift-proof).
+- [System architecture](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/README.md) — how Mermaid source becomes a diagram, from parsing to layout and output.
 - [API reference](./docs/api.md) — renderers, agent API, options, CLI/MCP pointers.
+- [Vocabulary](./docs/api.md#vocabulary) — families, source objects, Scene parts, resolved primitives and typed-family narrowing.
 - [Agent API cookbook](./docs/agent-api-cookbook.md) — practical recipes for agents.
 - [Theming](./docs/theming.md) — two-color themes, built-ins, Shiki compatibility.
 - [Custom style cookbook](./docs/custom-style-cookbook.md) — JSON style files, screenshots, schema usage, and CLI commands.
@@ -203,6 +227,21 @@ compatibility notes.
 - [`examples/mcp-vs-cli-complex-diagrams.ts`](https://github.com/adewale/agentic-mermaid/blob/main/examples/mcp-vs-cli-complex-diagrams.ts)
 - [`examples/agent-improve-auth-flow.ts`](https://github.com/adewale/agentic-mermaid/blob/main/examples/agent-improve-auth-flow.ts)
 
+## Contributing and reporting bugs
+
+[Report a bug](https://github.com/adewale/agentic-mermaid/issues) with the Mermaid source, render options and the result you expected. For changes to the project, read the [contributor instructions](https://github.com/adewale/agentic-mermaid/blob/main/CLAUDE.md) for implementation and testing rules.
+
+To work from a source checkout, use Bun 1.4.0 or later:
+
+```bash
+git clone https://github.com/adewale/agentic-mermaid
+cd agentic-mermaid
+bun install
+bun run build
+bun run bin/am.ts --help
+bun run bin/agentic-mermaid-mcp.ts   # MCP stdio server
+```
+
 ## Attribution
 
 Agentic Mermaid is a fork of Beautiful Mermaid by [Luki Labs](https://github.com/lukilabs/beautiful-mermaid). The ASCII rendering engine is based on [`mermaid-ascii`](https://github.com/AlexanderGrooff/mermaid-ascii) by Alexander Grooff and extended for Agentic Mermaid.
@@ -210,3 +249,6 @@ Agentic Mermaid is a fork of Beautiful Mermaid by [Luki Labs](https://github.com
 ## License
 
 MIT
+
+Native Event Modeling and ZenUML authoring and rendering have documented
+[capability and runtime contracts](docs/eventmodeling-and-zenuml.md).

@@ -1,0 +1,55 @@
+---
+title: Gateway acceptance evidence
+---
+requirementDiagram
+  direction TB
+  requirement delivery {
+    id: "G-1"
+    text: Deliver accepted events
+    risk: high
+    verifymethod: test
+  }
+  performanceRequirement latency {
+    id: "G-2"
+    text: Publish within 200 ms
+    risk: medium
+    verifymethod: analysis
+  }
+  functionalRequirement replay {
+    id: "G-3"
+    text: Reject duplicate events
+    risk: high
+    verifymethod: test
+  }
+  interfaceRequirement contract {
+    id: "G-4"
+    text: Keep wire compatibility
+    risk: medium
+    verifymethod: inspection
+  }
+  interfaceRequirement legacy {
+    id: "G-0"
+    text: Version 1 framing
+    risk: low
+    verifymethod: inspection
+  }
+  element gateway {
+    type: gateway service
+    docref: release v2
+  }
+  element replay_suite {
+    type: "test suite"
+    docref: replay tests
+  }
+  element latency_bench {
+    type: benchmark
+    docref: p95 under load
+  }
+  delivery - contains -> replay
+  replay - derives -> delivery
+  latency - refines -> delivery
+  contract - traces -> delivery
+  contract - copies -> legacy
+  gateway - satisfies -> delivery
+  replay_suite - verifies -> replay
+  latency_bench - verifies -> latency

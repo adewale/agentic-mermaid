@@ -6,7 +6,8 @@
 // fg mixed at 40% and scored ~2.4:1 on the default themes (below AA, below
 // even the 3:1 floor). This test fails if MIX.textMuted (or textSec) regresses.
 import { describe, it, expect } from 'bun:test'
-import { resolveColors, DEFAULTS } from '../theme.ts'
+import { resolveColors, diagramColorVariables, DEFAULTS } from '../theme.ts'
+import { knownStyleDescriptors, resolveStyleStack } from '../index.ts'
 import { layoutMermaid, measureQuality, parseRegisteredMermaid, renderMermaidSVG } from '../agent/index.ts'
 import { renderedTextPairs } from '../../scripts/characterization/visual-quality.ts'
 
@@ -59,6 +60,58 @@ describe('diagram text contrast (WCAG AA)', () => {
     expect(cPrimary).toBeGreaterThan(cSec)
     expect(cSec).toBeGreaterThan(cMuted)
     expect(cMuted).toBeGreaterThan(cFaint)
+  })
+})
+
+describe('derived structural outline contrast', () => {
+  it('default outlines clear 3:1 against the palette page', () => {
+    const colors = resolveColors(DEFAULTS)
+    expect(contrast(colors.nodeStroke, colors.bg)).toBeGreaterThanOrEqual(3)
+  })
+
+  it('every built-in look × palette keeps derived outlines legible on its page', () => {
+    const descriptors = knownStyleDescriptors().filter(style => style.identity.provenance.source === 'built-in')
+    const looks = descriptors.filter(style => style.kind === 'look')
+    const palettes = descriptors.filter(style => style.kind === 'palette')
+    expect(looks.length).toBeGreaterThan(0)
+    expect(palettes.length).toBeGreaterThan(0)
+    const failures: string[] = []
+    for (const look of looks) {
+      for (const palette of palettes) {
+        const colors = resolveColors({ ...DEFAULTS, ...resolveStyleStack([look.inputName, palette.inputName])!.colors })
+        const ratio = contrast(colors.nodeStroke, colors.bg)
+        if (!(ratio >= 3)) failures.push(`${look.inputName} × ${palette.inputName}: ${ratio}`)
+      }
+    }
+    expect(failures).toEqual([])
+  })
+
+  it('repairs a global border candidate without changing its authored palette token', () => {
+    const palette = { bg: '#282a36', fg: '#f8f8f2', border: '#26262b' }
+    const colors = resolveColors(palette)
+    expect(contrast(colors.nodeStroke, palette.bg)).toBeGreaterThanOrEqual(3)
+    expect(diagramColorVariables(palette)!.get('border')).toBe('#26262b')
+    expect(resolveColors({ ...palette, border: '#f8f8f2' }).nodeStroke).toBe('#f8f8f2')
+    // Alternating the same page/foreground with another border must not make
+    // the cache reuse that border's repaired paint.
+    expect(resolveColors(palette)).toEqual(colors)
+    for (const border of ['black', 'rgb(38,38,43)', 'hsl(240,6%,16%)', '#26262bff']) {
+      const repaired = resolveColors({ ...palette, border }).nodeStroke
+      expect(contrast(repaired, palette.bg), border).toBeGreaterThanOrEqual(3)
+    }
+    expect(resolveColors({ ...palette, border: 'white' }).nodeStroke).toBe('white')
+    const cssPalette = resolveColors({ bg: 'rgb(40,42,54)', fg: 'white', border: 'hsl(240,6%,16%)' })
+    expect(Object.values(cssPalette).join(' ')).not.toContain('NaN')
+    expect(contrast(cssPalette.nodeStroke, palette.bg)).toBeGreaterThanOrEqual(3)
+  })
+
+  it('does not invent a contrast result for unresolved or translucent paints', () => {
+    for (const border of ['var(--host-border)', 'currentColor', 'transparent', '#282a3680', 'rgba(40,42,54,0.5)']) {
+      expect(resolveColors({ bg: '#282a36', fg: '#f8f8f2', border }).nodeStroke).toBe(border)
+    }
+    for (const bg of ['var(--host-page)', '#282a3680', 'rgba(40,42,54,0.5)']) {
+      expect(resolveColors({ bg, fg: '#f8f8f2', border: '#26262b' }).nodeStroke).toBe('#26262b')
+    }
   })
 })
 

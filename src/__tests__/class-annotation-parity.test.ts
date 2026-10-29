@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test'
+import { decodeXML } from 'entities'
 import { asClass, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { parseClassAnnotationStatement, parseClassDiagram } from '../class/parser.ts'
@@ -19,14 +20,19 @@ const sources = [
   'classDiagram\n  class Shape["Thing"] <<interface>>\n  class Other\n  Shape --> Other',
   'classDiagram\n  class Shape << interface >>\n  class Other\n  Shape --> Other',
   'classDiagram\n  class Shape\n  << interface >>Shape\n  class Other\n  Shape --> Other',
+  // Mermaid 11.14: an inline annotation may be followed by the class body.
+  'classDiagram\n  class Shape <<interface>> {\n    +area() double\n  }\n  class Other\n  Shape --> Other',
+  'classDiagram\n  class Shape <<interface>> {+area() double}\n  class Other\n  Shape --> Other',
+  'classDiagram\n  class Shape <<interface>> {}\n  class Other\n  Shape --> Other',
 ]
 
 describe('Class official annotation forms', () => {
-  test('pinned Mermaid 11.16 DB distinguishes one annotation from two', async () => {
+  test('pinned Mermaid DB distinguishes one annotation from two', async () => {
     const annotations = await upstream.projectAll([...sources, 'classDiagram\n  class Shape <<interface>>\n  <<abstract>> Shape'],
       diagram => diagram.db.getClasses().get('Shape').annotations)
     expect(annotations).toEqual([
-      ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface', 'abstract'],
+      ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface'],
+      ['interface'], ['interface'], ['interface'], ['interface', 'abstract'],
     ])
   })
 
@@ -35,6 +41,7 @@ describe('Class official annotation forms', () => {
       const native = parseClassDiagram(source.split('\n').map(line => line.trim()))
       expect(native.classes.find(node => node.id === 'Shape')?.annotation).toBe('interface')
       if (source.includes('["Thing"]')) expect(native.classes.find(node => node.id === 'Shape')?.label).toBe('Thing')
+      expect(native.classes.find(node => node.id === 'Shape')?.methods.map(member => member.name)).toEqual(source.includes('+area()') ? ['area'] : [])
       expect(native.relationships.map(relation => [relation.from, relation.to])).toEqual([['Shape', 'Other']])
       const svg = renderMermaidSVG(source)
       expect(svg).toContain('data-annotation="interface"')
@@ -44,7 +51,7 @@ describe('Class official annotation forms', () => {
       expect(parsed.ok).toBe(true)
       if (!parsed.ok) continue
       const body = asClass(parsed.value)?.body
-      expect(body?.classes.find(node => node.id === 'Shape')?.members).toContain('<<interface>>')
+      expect(body?.classes.find(node => node.id === 'Shape')?.members).toEqual(source.includes('+area()') ? ['<<interface>>', '+area() double'] : ['<<interface>>'])
       if (source.includes('["Thing"]')) expect(body?.classes.find(node => node.id === 'Shape')?.label).toBe('Thing')
       expect(verifyMermaid(parsed.value).ok).toBe(true)
 
@@ -94,6 +101,26 @@ describe('Class official annotation forms', () => {
     }
   })
 
+  // Pinned Mermaid takes `:::hot` before a class body, not before an inline
+  // annotation. Ours keeps the style class in both places and verify reports
+  // the form Mermaid rejects.
+  test.each([
+    ['class Shape:::hot { <<interface>> }', []],
+    ['class Shape:::hot <<interface>>', ['class_style_before_annotation']],
+    ['class Shape:::hot <<interface>> {}', ['class_style_before_annotation']],
+    ['class Shape:::hot <<interface>> {\n+area() double\n}', ['class_style_before_annotation']],
+  ] as const)('a style class beside an annotation styles its class: %j', async (body, syntax) => {
+    const source = `classDiagram\n${body}\nclassDef hot fill:#f00`
+    const native = parseClassDiagram(source.split('\n').map(line => line.trim()))
+    expect(native.classes.map(({ id, className, annotation }) => ({ id, className, annotation }))).toEqual([{ id: 'Shape', className: 'hot', annotation: 'interface' }])
+    expect(renderMermaidSVG(source)).toMatch(/data-id="Shape"[^>]*data-annotation="interface"[^>]*data-class="hot"/)
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(asClass(parsed.value)?.body.classes).toEqual([expect.objectContaining({ id: 'Shape', className: 'hot' })])
+    expect(verifyMermaid(parsed.value).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX').map(warning => warning.syntax)).toEqual([...syntax])
+    expect(await upstream.accepts(source)).toBe(syntax.length === 0)
+  })
+
   test('pinned Mermaid rejects unsupported tokens and separate annotation before a class exists', async () => {
     const sources = [
       'classDiagram\n<<interface>> Shape',
@@ -103,7 +130,7 @@ describe('Class official annotation forms', () => {
     expect(await Promise.all(sources.map(upstream.accepts))).toEqual([false, false, false])
   })
 
-  test('body annotations retain Mermaid 11.16 broad raw tokens, including empty and nested delimiters', async () => {
+  test('body annotations retain authored tokens when pinned DOM sanitization drops tag-like annotation text', async () => {
     const cases = [
       ['class Shape { << interface >> }', ' interface '],
       ['class Shape {\n<< interface >>\n}', ' interface '],
@@ -113,7 +140,7 @@ describe('Class official annotation forms', () => {
       ['class Shape {\n<<foo>>bar>>\n}', 'foo>>bar'],
     ] as const
     expect(await upstream.projectAll(cases.map(([body]) => `classDiagram\n${body}`), diagram => diagram.db.getClasses().get('Shape').annotations))
-      .toEqual(cases.map(([, annotation]) => [annotation]))
+      .toEqual([[' interface '], [' interface '], ['interface-name'], [''], [''], ['foo>>bar']])
 
     for (const [body, annotation] of cases) {
       const source = `classDiagram\n${body}`
@@ -146,9 +173,11 @@ describe('Class official annotation forms', () => {
     expect(await upstream.projectAll(cases.map(entry => entry.source), diagram => {
       const [id, cls] = [...diagram.db.getClasses()][0]
       return { id, label: cls.label, annotations: cls.annotations }
-    })).toEqual(cases.map(entry => ({
-      id: entry.id, label: entry.label, annotations: ['interface'],
-    })))
+    })).toEqual([
+      { id: 'Shape', label: '&lt;&gt;', annotations: ['interface'] },
+      { id: 'Box', label: 'Box', annotations: ['interface'] },
+      { id: 'A&lt;<b>&gt;</b>', label: 'A&lt;<b>&gt;</b>', annotations: ['interface'] },
+    ])
 
     for (const { source, id } of cases) {
       const native = parseClassDiagram(source.split('\n'))
@@ -174,7 +203,9 @@ describe('Class official annotation forms', () => {
     if (!parsed.ok) return
     expect(verifyMermaid(parsed.value).warnings).toEqual([])
     const name = renderMermaidSVG(source).match(/<text\b[^>]*font-weight="700"[^>]*>(.*?)<\/text>/)?.[1]
-    expect(name).toBe('A&lt;<tspan font-weight="bold">&gt;</tspan>')
+    expect(name).toBeDefined()
+    expect(decodeXML(name!.replace(/<[^>]*>/g, ''))).toBe('A<>')
+    expect(name).toMatch(/<tspan\b[^>]*\bfont-weight="(?:bold|700)"[^>]*>&gt;<\/tspan>/)
   })
 
   test('direct parser ignores annotation text in full-line comments', () => {

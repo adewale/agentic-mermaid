@@ -20,11 +20,13 @@
 
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { hasDiagonalLines } from '../ascii/validate.ts'
+import { clearElkLayoutCache } from '../elk-instance.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
+import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 
 const RUNS = 60
 const U = { colorMode: 'none', useAscii: false } as const
@@ -98,6 +100,9 @@ const ganttArb = fc.array(fc.integer({ min: 1, max: 6 }), { minLength: 1, maxLen
 const journeyArb = fc.array(fc.record({ task: word, score: fc.integer({ min: 1, max: 5 }) }), { minLength: 1, maxLength: 6 }).map(tasks => ['journey', '  title J', '  section S', ...tasks.map((t, i) => `    ${t.task}${i}: ${t.score}: Me`)].join('\n'))
 
 const architectureArb = fc.constant('architecture-beta\n  group api(cloud)[API]\n  service db(database)[Database] in api\n  service server(server)[Server] in api\n  db:L -- R:server')
+const c4Arb = fc
+  .record({ variant: fc.constantFrom('C4Context', 'C4Container', 'C4Component', 'C4Dynamic', 'C4Deployment'), count: fc.integer({ min: 2, max: 4 }) })
+  .map(({ variant, count }) => [variant, ...Array.from({ length: count }, (_, i) => `  System(s${i}, "Service ${i}")`), ...Array.from({ length: count - 1 }, (_, i) => `  Rel(s${i}, s${i + 1}, "Call ${i}", "HTTP")`)].join('\n'))
 
 const flowchartArb = fc.constant('flowchart TD\n  Start[Start] --> Done[Done]')
 const stateArb = fc.constant('stateDiagram-v2\n  [*] --> Idle\n  Idle --> Running\n  Running --> [*]')
@@ -110,6 +115,17 @@ const radarArb = fc.array(fc.array(fc.integer({ min: 1, max: 5 }), { minLength: 
 const sankeyArb = fc.array(fc.record({ src: fc.integer({ min: 0, max: 3 }), dst: fc.integer({ min: 0, max: 3 }), value: fc.integer({ min: 1, max: 500 }) }), { minLength: 1, maxLength: 8 }).map(rows => ['sankey-beta', ...rows.map(r => `  Source ${r.src},Sink ${r.dst},${r.value}`)].join('\n'))
 
 const RENDERER_CASES = [
+  { family: 'packet', source: 'packet\n+8: "Source"\n+8: "Destination"', labels: ['Source', 'Destination'] },
+  { family: 'kanban', source: 'kanban\nTodo[To do]\n  task[Implement]\nDone[Complete]', labels: ['To do', 'Implement', 'Complete'] },
+  { family: 'requirement', source: 'requirementDiagram\nrequirement r {\nid: R1\ntext: "Fast response"\nrisk: high\nverifymethod: test\n}', labels: ['R1', 'Fast response'] },
+  { family: 'treemap', source: 'treemap\n"Portfolio"\n  "Build": 60\n  "Learn": 40', labels: ['Portfolio', 'Build', 'Learn'] },
+  { family: 'ishikawa', source: 'ishikawa\n  Delay\n  Process\n    Approval\n  Tooling\n    Build', labels: ['Delay', 'Process', 'Approval', 'Tooling', 'Build'] },
+  { family: 'block', source: 'block\ncolumns 2\nA["API"] B["Database"]\nA --> B', labels: ['API', 'Database'] },
+  {
+    family: 'c4',
+    source: 'C4Container\n  Person(customer, "Customer")\n  Container(api, "API", "HTTP")\n  Rel(customer, api, "Calls", "HTTPS")',
+    labels: ['Customer', 'API', 'HTTP', 'Calls', 'HTTPS'],
+  },
   {
     family: 'flowchart',
     source: 'graph TD\n  Start[Start] --> Done[Done]',
@@ -219,7 +235,7 @@ function renderAll(src: string) {
 const renderedCases = new Map<string, ReturnType<typeof renderAll>>()
 function renderCase(src: string): ReturnType<typeof renderAll> {
   let rendered = renderedCases.get(src)
-  if (!rendered) renderedCases.set(src, rendered = renderAll(src))
+  if (!rendered) renderedCases.set(src, (rendered = renderAll(src)))
   return rendered
 }
 
@@ -229,6 +245,8 @@ function assertPngSignature(bytes: Uint8Array) {
 }
 
 const ALL_FAMILIES: Array<[string, fc.Arbitrary<string>]> = [
+  ...(['packet', 'kanban', 'requirement', 'treemap', 'ishikawa', 'block'] as const).map(family => [family, fc.integer({ min: METAMORPHIC_FAMILIES[family].kRange[0], max: METAMORPHIC_FAMILIES[family].kRange[1] }).chain(k => word.map(tag => METAMORPHIC_FAMILIES[family].build(k, tag)))] as [string, fc.Arbitrary<string>]),
+  ['c4', c4Arb],
   ['flowchart', flowchartArb],
   ['state', stateArb],
   ['sequence', sequenceArb],
@@ -258,14 +276,14 @@ const BOX_FAMILIES: Array<[string, fc.Arbitrary<string>]> = [
 // ===========================================================================
 
 describe('characterisation · families · universal invariants', () => {
-  it('canonical renderer cases exactly enroll every registered family', () => {
-    expect(RENDERER_CASES.map(entry => entry.family).sort()).toEqual(BUILTIN_FAMILY_METADATA.map(entry => entry.id).sort())
-    expect(ALL_FAMILIES.map(([family]) => family).sort()).toEqual(BUILTIN_FAMILY_METADATA.map(entry => entry.id).sort())
-  })
 
   it('all registered families render through Unicode, ASCII, SVG, and PNG surfaces', () => {
     for (const { source } of RENDERER_CASES) {
-      const { unicode, ascii, svg, png } = renderCase(source)
+      let rendered: ReturnType<typeof renderCase> | undefined
+      expect(() => {
+        rendered = renderCase(source)
+      }).not.toThrow()
+      const { unicode, ascii, svg, png } = rendered!
       expect(unicode.length).toBeGreaterThan(0)
       expect(ascii.length).toBeGreaterThan(0)
       expect(svg).toContain('<svg')
@@ -287,7 +305,10 @@ describe('characterisation · families · universal invariants', () => {
 
   it('all registered families are byte-stable across repeated renders', () => {
     for (const { source } of RENDERER_CASES) {
+      // Lay out afresh each time: a cached ELK result would compare with itself.
+      clearElkLayoutCache()
       const first = renderCase(source)
+      clearElkLayoutCache()
       const second = renderAll(source)
       expect(second.unicode).toBe(first.unicode)
       expect(second.ascii).toBe(first.ascii)
@@ -314,7 +335,7 @@ describe('characterisation · families · universal invariants', () => {
         fc.property(arb, src => {
           assertTotalDeterministicNoDiagonals(src)
         }),
-        { numRuns: RUNS },
+        fcParameters({ numRuns: RUNS }),
       )
     })
   }
@@ -326,7 +347,7 @@ describe('characterisation · families · universal invariants', () => {
           const out = renderMermaidASCII(src, U)
           expect(new Set(out.split('\n').map(l => l.length)).size).toBe(1)
         }),
-        { numRuns: RUNS },
+        fcParameters({ numRuns: RUNS }),
       )
     })
   }

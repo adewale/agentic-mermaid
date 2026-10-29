@@ -56,3 +56,26 @@ describe('CONTENT_DROPPED_ON_ROUNDTRIP verify lint', () => {
     expect(drops).toEqual([])
   })
 })
+
+
+test('verification reports its scope rather than certifying the requested task', () => {
+  expect(verifyMermaid('flowchart TD\n A --> B').checks).toEqual({ renderability: 'passed', sourceLoss: 'not-detected', taskCorrectness: 'not-checked' })
+  expect(verifyMermaid('flowchart TD\n A --> B', { suppress: ['INTERNAL_ERROR'] }).checks?.renderability).toBe('not-checked')
+})
+
+
+test('retained Pie comments are not reported as lost, including when rendering fails', () => {
+  const source = 'pie\n "Dogs": 3 %% rationale'
+  const parsed = parseMermaid(source)
+  expect(parsed.ok).toBe(true)
+  if (!parsed.ok) return
+  for (const input of [source, parsed.value]) {
+    for (const background of ['white', 'notacolor()']) {
+      const result = verifyMermaid(input, {
+        renderOptions: { mermaidConfig: { themeVariables: { background } } },
+      })
+      expect(result.warnings.some(warning => warning.code === 'COMMENT_DROPPED')).toBe(false)
+      expect(result.checks).toEqual({ renderability: background === 'white' ? 'passed' : 'failed', sourceLoss: 'not-detected', taskCorrectness: 'not-checked' })
+    }
+  }
+})

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { mergeMermaidConfigs, normalizeMermaidSource, type MermaidRuntimeConfig } from '../mermaid-source.ts'
 import { parseMermaid } from '../parser.ts'
@@ -161,7 +162,7 @@ describe('property-based mermaid source normalization', () => {
           mergeMermaidConfigs(baseConfig, frontmatterConfig, directiveConfig),
         )
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 })
@@ -206,7 +207,7 @@ describe('property-based parseMermaid', () => {
           normalizeGraph(parseMermaid(source)),
         )
       }),
-      { numRuns: PROPERTY_RUNS, seed: PARSER_PROPERTY_SEED },
+      fcParameters({ numRuns: PROPERTY_RUNS, seed: PARSER_PROPERTY_SEED }),
     )
   })
 
@@ -238,7 +239,7 @@ describe('property-based parseMermaid', () => {
           }
         }
       }),
-      { numRuns: PROPERTY_RUNS, seed: PARSER_PROPERTY_SEED },
+      fcParameters({ numRuns: PROPERTY_RUNS, seed: PARSER_PROPERTY_SEED }),
     )
   })
 
@@ -283,7 +284,7 @@ describe('property-based parseMermaid', () => {
         const expectedNodes = new Set([...declared.map(node => node.id), ...edges.flatMap(edge => [edge.from, edge.to])])
         expect([...graph.nodes.keys()].sort()).toEqual([...expectedNodes].sort())
       }),
-      { numRuns: PROPERTY_RUNS, seed: PARSER_PROPERTY_SEED },
+      fcParameters({ numRuns: PROPERTY_RUNS, seed: PARSER_PROPERTY_SEED }),
     )
   })
 })

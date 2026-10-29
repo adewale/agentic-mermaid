@@ -15,6 +15,18 @@ This doc is the *map*. The route-engine details live in
 [`route-contracts.md`](./route-contracts.md); the quality metrics in
 [`layout-rubric.md`](./layout-rubric.md).
 
+Implemented boundary: the Flowchart/State graph engine certifies final retained
+geometry and hard rubric invariants over at most four deterministic strategy
+candidates, then returns a receipt or explicit failure. Per-pass metric budgets
+are enforced in production, alongside pass order and frozen-geometry contracts.
+This does not implement every construction or exact-predicate proposal below. Every native family's final
+projection also passes the family rubric's hard geometry checks at the common
+positioning boundary; specialized layouters have one attempt and fail explicitly.
+They do not inherit the graph route certificate. See
+[`quality.md`](../../quality.md#layout-priorities-and-their-limits) for priority
+conflicts and the distinction between mandatory outline attachment and preferred
+canonical ports.
+
 ## TL;DR
 
 The field partitions drawing properties into two kinds, and we must treat them
@@ -117,11 +129,13 @@ adds curvature/ambiguity.** Bundling an already-crossing-free fan is all cost, n
 benefit (our observed defect: `bundleEdgePaths` on shared-hub fans, +bends, 0
 crossings removed). Bundling is irreducibly a heuristic — never a 100% guarantee.
 
-**Verdict: add a net-benefit gate** (the hyperedge-routing cost view): only keep a
-bundle when it does not increase total bends without removing a crossing; never
-bundle a crossing-free fan. The `simplifyPolyline` bend count + a member-vs-member
-crossing count make a heuristic *safe* ("bundling never worsens crossings or
-bends"), which itself *is* a 100%-guaranteeable property.
+**Design verdict: gate unjustified bundling by net benefit** (the
+hyperedge-routing cost view). Do not add unjustified bends without removing a
+crossing. Symmetric convergence is an explicit exception, described below;
+a crossing-free fan may still justify its convergence bends. The implemented
+pass budget excludes owned bundle bends, so it does not promise that the raw
+bend count can never increase. A stricter net-benefit gate remains a design
+proposal, not a current total guarantee.
 
 ### 3a. The justified / symmetric bend — not every bend is a defect
 
@@ -133,6 +147,19 @@ converge (N spokes cannot merge into one node without a turn), and the symmetry 
 buys offsets the small bend cost — the idiom every reference layered drawer uses,
 and the one our own fan-out emitter (`applySymmetricFanoutEmissions`) already
 relies on. Only *unjustified / lone* bends cost.
+
+The fan-out policy is one rule whatever the caption lengths (#566). A source
+whose two or three forward edges reach same-rank leaf peers is drawn as a
+symmetric fork: `alignPortLanes` never slides that source over one child, and
+the emitter mirrors the emissions, shares one elbow and seats the captions
+level. Inside a group the targets keep ELK's placement, since moving a member
+would need its group refitted; the fork is still emitted symmetrically unless
+the straightener's own lanes already mirror about the source, which then stay
+straight. Route and caption seats are admitted together against painted ink,
+including sibling shafts and the containing group border. Nearby captions may
+use bounded lateral seats with their own shafts still inside the pills. When no
+complete set of clear seats exists, the prior grouped geometry stands; necessary
+asymmetry is preferable to hiding a relationship.
 
 The rubric encodes this exactly: a bend on a `bundle`-certified edge is excluded
 from `totalBends`/`maxBendsPerEdge` — the **same** edges `findRouteHitches` skips
@@ -180,17 +207,20 @@ upstream already owns:
   min-cost-flow bend-minimization is poly + deterministic but only for a *fixed*
   embedding (a full Topology-Shape-Metrics rewrite).
 
-## Per-invariant verdict table
+## Per-invariant design verdicts
+
+This table distinguishes current mechanisms from constructions we could add.
+The implemented boundary above defines the present certification scope.
 
 | Invariant | Status | Mechanism |
 | --- | --- | --- |
-| Determinism | **Guaranteed by construction** | pure functions, fixed orderings, integer predicates |
+| Determinism | **Implemented and regression-tested** | fixed iteration/order and tested floating-point geometry; exact integer predicates remain a proposal |
 | Port-exactness | **Guaranteeable by construction** (currently optimize-and-certify) | emit endpoints from `shapePorts`/`diamondFacetPorts` + grid-snap; FIXED_POS ports |
 | Axis-alignment / no diagonals | **Guaranteed by construction** | emit only axis-aligned segments |
 | No edge-through-node / no hitch | **Optimize-and-certify** (feasible ⇒ achievable) | straighten then independent checker; on reject keep the ELK route |
 | No node overlap | **Guaranteeable by construction** | separation constraints (VPSC) — when satisfiable |
-| No-label-occlusion | **Optimize-and-certify** (NP-hard) | maximize placed; veto-and-fallback (never draw occluding) |
-| No-label-on-shared-trunk | **Optimize-and-certify** (NP-hard) | duplicate-lane construction + veto-and-fallback |
+| No-label-occlusion | **Target: optimize-and-certify** (NP-hard) | maximize placed, then veto/fallback; current final hard checks do not certify every label occlusion |
+| No-label-on-shared-trunk | **Target: optimize-and-certify** (NP-hard) | duplicate-lane construction plus a future total veto; current final checks do not prove this for every native family |
 | Min crossings / bends / area | **Provably impossible to guarantee** | NP-hard; certify "no worse than input, count = N", never "minimum" |
 
 ## Candidate sequence (not scheduled)

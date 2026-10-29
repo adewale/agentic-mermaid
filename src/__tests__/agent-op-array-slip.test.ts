@@ -1,3 +1,4 @@
+import { executeInSandbox } from '../mcp/sandbox.ts'
 // Passing an op ARRAY where one op is expected is the most common shape slip
 // across every model tier in the agent-usage eval (mutate() applies ONE op, but
 // "apply these ops" reads as a list). The error must name the rule AND the batch
@@ -50,4 +51,12 @@ describe('op-array slip is prescriptive, not a dumped array', () => {
     expect(pie).toContain('valid pie ops:')
     expect(state).not.toBe(pie)
   })
+})
+
+
+test('Code Mode array recovery names an available tool rather than an absent SDK method', async () => {
+  const result = await executeInSandbox(`const d = mermaid.parseRegisteredMermaid('flowchart TD\\n A --> B').value; const r = mermaid.mutate(d, [{ kind: 'add_node', id: 'C', label: 'Cache' }]); return r.error.message`)
+  expect(result.ok).toBe(true)
+  expect(result.value).toContain('declarative mutate tool')
+  expect(result.value).not.toContain('applyOps')
 })

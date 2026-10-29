@@ -16,11 +16,15 @@ editing surface. Source lives in `src/`; the layout pipeline is in
   cloud sessions the SessionStart hook (`scripts/ci/session-start.sh`) upgrades an
   older Bun and runs `bun install` for you, in the background: if `bun --version`
   is still below 1.4.0 right after a session starts, wait a few seconds.
-- `bun run test` — run the full covered unit suite with the canonical timeout (the CI gate). fast-check
+- `bun run test` — run the full unit suite with the canonical timeout (the CI gate).
+  `bun run test:coverage` adds the weekly/on-demand coverage diagnostic. fast-check
   seeds are pinned by a preload; `AM_FC_SEED=<int>` reproduces a roll,
   `AM_FC_SEED=random` is finder mode (see `docs/testing-strategy.md` §4).
 - `bun run typecheck` — canonical typecheck across core and repository surfaces.
 - `bun run track` — heuristic layout-quality tracker (improvements/regressions vs baseline).
+- `bun run reference:mermaid` — clone the pinned Mermaid source to `../mermaid` and install
+  the matching reference in `../mermaid-reference` (idempotent); `bun run test:mermaid-modern`
+  needs both.
 - `bun run bin/am.ts render <file> --format png --output out.png` — render a diagram.
 - `bun run website` — build the Cloudflare Workers site into `website/public/`, a
   **gitignored build artifact** (rebuilt at deploy by `deploy-cloudflare.yml`, and
@@ -43,10 +47,10 @@ into tiny near-identical steps, each paying the full integration cost.
 
 Write strictly, read generously, warn.
 
-1. What we **write** (serializers, `createMermaid`) must be valid Mermaid 11.16.
+1. What we **write** (serializers, `createMermaid`) must be valid Mermaid 12.2.0.
 2. What we **read** may be more generous than Mermaid. If the author's meaning
    is clear, parse and draw it, and have `verify` report `UNSUPPORTED_SYNTAX`
-   saying Mermaid rejects it (see `journeySemicolonExtensionWarnings`). Reject
+   saying Mermaid rejects it (see `journeyUnsupportedSyntaxWarnings`). Reject
    only when we cannot tell what was meant.
 3. For source Mermaid accepts, keep the author's meaning. Where Mermaid's
    behaviour is a quirk (it drops information, or orders things by accident),
@@ -57,6 +61,12 @@ Write strictly, read generously, warn.
    Mermaid: lost or garbled content, a crash, a wrong drawing, our own surfaces
    (renderer, typed body, serializer, ASCII) disagreeing, or output Mermaid
    cannot read. Otherwise it is a divergence, not a backlog item.
+
+The current syntax/reference pin is Mermaid 12.2.0, source commit
+`1fb7869866dd619168d840291c9c54b4f129758b`, recorded in
+`docs/project/upstream-mermaid-policy.json`. Imported test corpora and dated
+comparisons retain their own source revisions; upgrading the current pin does
+not rewrite historical provenance or imply native support for every family.
 
 ### Tests protect behaviour, not other tests
 
@@ -70,6 +80,11 @@ already catch it. Then:
   staleness checks, no tests of test helpers.
 - No copied inventories, manifests or export lists, no source greps, and no
   expected values produced by the code under test.
+- For property tests, apply the Hegel guidance in `docs/testing-strategy.md`
+  while keeping fast-check. Wrap explicit runner options with `fcParameters`
+  so finder/replay controls override local pins and raise case counts. Check
+  generated values against independent expectations, choose string domains
+  explicitly, and keep reduced counterexamples as `examples`.
 
 ### Don't commit derived artifacts
 
@@ -83,14 +98,58 @@ and files production code imports at runtime.
 ### Change shape
 
 - Work comes from issues filed by the owner or users. A PR closes an issue or
-  delivers a stated contract; findings made along the way are filed as issues,
-  not fixed unasked in the same PR.
+  delivers a stated contract. Report additional findings in the conversation;
+  create new issues only when the user explicitly asks. Do not expand the fix
+  to unrelated findings without authorization.
 - One coherent change per commit, at the owning boundary: all the sites of one
   rule together, not one commit per bug.
 - Locally run typecheck, lint and the tests that exercise what you changed. The
   full suite runs in CI (3 shards, about 4 minutes); don't run it locally per
   commit.
 - Parallel agents only on disjoint files, at most 2–3 at a time.
+
+### Contracts before implementation and review
+
+- Before a cross-surface change, state the observable contract, its owning
+  producer and consumers, the distinctions it must preserve, and evidence that
+  would disprove it. Use the PR description; a separate plan is unnecessary.
+  Keep independently shippable research, tooling and runtime work separate.
+  If scope expands, state the added contracts and verification cost before
+  implementing them; do not silently inherit a broader readiness claim.
+- When fixing a finding, review the failed assumption through the whole path
+  before choosing the regression case. Record whether the defect was already
+  present or introduced by a fix. Resolve the demonstrated failure class or
+  state the remaining gap; passing the reported example alone does not close it.
+- Follow [contract review and completion](docs/testing-strategy.md#contract-review-and-completion).
+  When multiple reviewers are requested, assign hypotheses and interacting
+  boundaries explicitly. A reviewer may report no finding. Audit count and
+  passing-test count are not completion criteria.
+- Before reporting a PR ready, follow CI for the exact final head through
+  completion, investigate failures, and recheck the current base and PR head.
+  A new push invalidates the previous readiness result. A base update requires
+  checking the combined candidate again; requalify affected evidence after
+  code or dependency changes.
+
+### Shared meaning and output-specific geometry
+
+- Share authored identities, typed parent/endpoint references and display
+  interpretation before projection. Keep pixel and terminal-cell layout rules
+  in their owning adapters; a common semantic helper does not prove geometry.
+- Test correspondence and connectivity alongside appearance. Inspect public
+  identities, parents, endpoints and actual owned ink; raster checks cannot
+  detect duplicate IDs or prove that stored ownership/ports describe a real path.
+- Exercise bounded, purposeful combinations: nested containers with reciprocal
+  or parallel edges, wide graphemes beside protected markers, and authored names
+  that resemble generated IDs. Choose cases that challenge interacting rules,
+  rather than duplicating isolated examples or creating another coverage roster.
+- Bind review to the combined candidate and its final dependency revision.
+  After a dependency update, rerun the affected contracts and recheck integration
+  before declaring the candidate audited. An earlier review is evidence only
+  for its recorded revision.
+- Measure execution and download cost separately. Lazy evaluation can avoid
+  computation while retaining code in the initial bundle. Check the actual
+  module/request graph and compressed startup/lazy payloads before claiming a
+  download reduction; report fully consumed receipts as well as text-only work.
 
 ## Pull requests — use the `good-pr` skill
 

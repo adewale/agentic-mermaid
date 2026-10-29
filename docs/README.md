@@ -1,108 +1,61 @@
 # Agentic Mermaid documentation
 
-This directory holds the long-form documentation. The root README is intentionally short and routes readers here. Consumer guides are included in the npm package; repository-only links use canonical GitHub URLs so this hub also works from an installed tarball.
+Start with [Getting started](getting-started.md) to render a diagram. For an
+agent editing an existing diagram, use the
+[operating guide](../Instructions_for_agents.md), then the
+[editing cookbook](agent-api-cookbook.md).
 
-## User docs
+## Choose a task
 
-| Doc | Purpose |
-|---|---|
-| [`getting-started.md`](./getting-started.md) | Plain library use: render a Mermaid string to SVG/PNG/ASCII in 5 minutes. |
-| [`api.md`](./api.md) | Library, agent API, output functions, options, CLI/MCP pointers. |
-| [`diagram-families.md`](./diagram-families.md) | Supported Mermaid families, examples, and edit policy. |
-| [`choosing-a-diagram.md`](./choosing-a-diagram.md) | Task-first router: pick the family from the reader's task, with per-choice anti-patterns and verify checks. |
-| [`theming.md`](./theming.md) | Two-color themes, built-in themes, custom themes, Shiki import. |
-| [`style-authoring.md`](./style-authoring.md) | Style model, stack semantics, field reference, rubric, and validation commands. |
-| [`custom-style-cookbook.md`](./custom-style-cookbook.md) | Complete custom style JSON files, screenshots, schema usage, CLI commands, and the documentation-only Cupertino-, Vercel-, and Cloudflare Workers-inspired prototypes. |
-| `design/families/style-switch-contact-sheet.html` | Self-contained interactive contact sheet for every registered family and every built-in Look/Palette Style resource; no longer committed, generate it with `bun run gallery:style-switch`. |
-| [`custom-fonts.md`](./custom-fonts.md) | How custom Styles select and resolve fonts across SVG, PNG, browser, and MCP surfaces. |
-| [`react.md`](./react.md) | Browser-safe React rendering with CSS variables. |
-| [`browser.md`](./browser.md) | Framework-neutral pre-rendering, Alpine and plain-JS adapters, the classic `<script src>` bundle, and the shipped lazy all-family browser renderer. |
-| [`ascii.md`](./ascii.md) | Terminal output, ASCII vs Unicode, color modes, XY charts. |
-| [`config.md`](./config.md) | `mermaidConfig`, YAML frontmatter, and init directives. |
-| [`features.md`](./features.md) | Capability inventory. |
-| [`quality.md`](./quality.md) | Determinism, quality metrics, and visual-review guidance. |
-| [`testing-strategy.md`](./testing-strategy.md) | What we test, how, and why: oracle types, the proof-gate map, and honest gaps. |
-| [`fork-differences.md`](./fork-differences.md) | How Agentic Mermaid differs from upstream Beautiful Mermaid. |
-| [`comparison.md`](./comparison.md) | Functionality differences between Mermaid, Beautiful Mermaid, and Agentic Mermaid — and when to use each. |
+| Task | Guide |
+| --- | --- |
+| Render SVG, PNG or terminal text | [Getting started](getting-started.md) |
+| Choose a diagram type | [Family examples](diagram-families.md) · [Choosing a diagram](choosing-a-diagram.md) |
+| Edit a diagram through the API | [Editing cookbook](agent-api-cookbook.md) |
+| Connect an MCP client | [MCP setup and transports](mcp-http-transport.md) |
+| Render in a browser or React app | [Browser](browser.md) · [React](react.md) |
+| Set colors, typography or drawing style | [Theming](theming.md) · [Style authoring](style-authoring.md) · [Visual cookbook](custom-style-cookbook.md) |
+| Supply fonts | [Custom fonts](custom-fonts.md) |
+| Use ASCII or Unicode | [Terminal output](ascii.md) |
+| Configure Mermaid frontmatter or directives | [Configuration](config.md) |
+| Understand a warning or failed render | [Quality](quality.md) · [Warning reference](https://agentic-mermaid.dev/warnings/) · [Error reference](https://agentic-mermaid.dev/errors/) |
 
-## Agent docs
+## API and behavior
 
-| Doc | Purpose |
-|---|---|
-| [`../Instructions_for_agents.md`](../Instructions_for_agents.md) | Canonical short guide; byte-identical to `am --agent-instructions`. |
-| [`../AGENT_NATIVE.md`](../AGENT_NATIVE.md) | Architecture/spec rationale for the agent-native surface. |
-| [`agent-api-cookbook.md`](./agent-api-cookbook.md) | Copy-pasteable library/CLI/MCP recipes. |
-| [`agent-mutation-policy.md`](./agent-mutation-policy.md) | Structured-vs-source-level edit policy. |
-| [`mcp-code-mode-rationale.md`](./mcp-code-mode-rationale.md) | Why MCP is Code Mode first. |
-| [`code-mode-impact.md`](./code-mode-impact.md) | Measured client/server impact, comparison with Cloudflare and Anthropic, and operational costs. |
-| [`mcp-http-transport.md`](./mcp-http-transport.md) | Local HTTP/SSE MCP quickstart plus hosted `/mcp` call-shape notes. |
-| [`agent-workflow-examples.md`](./agent-workflow-examples.md) | Runnable MCP/CLI and improvement-loop examples. |
-| [`../skills/`](../skills/) | Agent-agnostic skill bundles. |
-| [`../skill-evals/`](https://github.com/adewale/agentic-mermaid/tree/main/skill-evals) | Skill eval manifest, fixtures, and benchmark instructions. |
+- [API reference](api.md): functions, options, results and shared vocabulary.
+- [Editing limits](agent-mutation-policy.md): typed and source-preserving edits.
+- [Agent architecture](../AGENT_NATIVE.md): preservation, determinism and verification.
+- [Security](../SECURITY.md): strict output, offline rendering and server boundaries.
+- [Features](features.md) and [fork differences](fork-differences.md).
+- [Comparison](comparison.md): dated measurements and differences from other tools.
+- [Skills](../skills/): instructions for diagram authoring and editor work.
 
-## Contributor / project docs
+Run `am capabilities --json` for the families and operations in your installed
+version. Use `am styles` to discover its styles. These commands are the current
+inventories; dated reports describe only the revisions they measured.
 
-The design docs split into two tiers — **system** (how the engine works, cross-cutting) and
-**per-family** (how one diagram type works).
+## Contribute
 
-### System design — how the engine works
+Repository-only documentation uses GitHub links so this index also works from
+an installed npm package.
 
-| Doc | Purpose |
-|---|---|
-| [`project/brand-primitives-plan.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/brand-primitives-plan.md) | Normative appearance/family-contract decision and A/B dependency/acceptance plan; live status is owned by root `TODO.md`. |
-| [`design/system/`](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/README.md) | **Start here.** Current resolved-request, family-descriptor, positioned-artifact, and output-security architecture overview (dogfooded, drift-proof). |
-| [`design/system/route-contracts.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/route-contracts.md) | Route contracts: edge classification, direct-lane proofs, certifying straightener (issue #25). |
-| [`design/system/layout-rubric.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/layout-rubric.md) | Deterministic layout-quality rubric: metrics, CI gates, and property oracles. |
-| [`design/system/chart-honesty.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/chart-honesty.md) | Chart-honesty contract for every family: text legible, on the canvas, drawn or reported, and style-invariant, measured on the raster; peer and proportion rules; tracked gaps. |
-| [`design/system/source-preservation-ladder.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/source-preservation-ladder.md) | The structured\|opaque family-adoption contract (levels L0–L4). |
-| [`design/mermaid-family-fidelity-audit.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/mermaid-family-fidelity-audit.md) | Mermaid 11.16 syntax accounting and Mermaid/Wikipedia visual-metaphor audit for every registered family. |
-| [`design/style-palette-compatibility.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/style-palette-compatibility.md) | Registry-derived exhaustive algebra plus complexity-aware variable-strength Style/Palette/family compatibility receipt. |
-| [`design/system/ugly-layouts.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/ugly-layouts.md) | Ugly-layout detector: catalogued failure shapes and heuristics. |
+| Work | Start here |
+| --- | --- |
+| Understand the renderer | [System architecture](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/README.md) |
+| Work on one diagram family | [Family implementation notes](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/families/README.md) |
+| Add a family | [Adding diagram types](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/adding-diagram-types.md) |
+| Change layout or rendering | [Route contracts](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/route-contracts.md) · [Visual review](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/visual-review-evidence.md) |
+| Select validation | [Testing strategy](testing-strategy.md) |
+| Update documentation | [Doc consistency](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/doc-consistency.md) |
+| Prepare a release | [Release procedure](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/releasing.md) |
 
-### Per-family design notes
+## Project records
 
-| Doc | Purpose |
-|---|---|
-| [`design/families/`](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/families/README.md) | Per-family hub: which families have a design note, and where each family's other surfaces live. |
-| [`design/families/architecture-beta.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/families/architecture-beta.md) | `architecture-beta` diagram-type implementation notes. |
-| [`design/families/gantt.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/families/gantt.md) | Gantt support specification and compatibility boundaries. |
-| [`design/families/gantt-research.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/families/gantt-research.md) | Gantt literature review and commercial UX survey. |
-| [`design/families/journey.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/families/journey.md) | Journey diagram implementation notes. |
-| [`design/families/xychart.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/families/xychart.md) | XY chart implementation notes. |
-| [`design/families/flowchart-parser-conformance.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/families/flowchart-parser-conformance.md) | Flowchart syntax conformance catalogue and unsupported-syntax warning policy (issue #36). |
+[TODO.md](https://github.com/adewale/agentic-mermaid/blob/main/TODO.md) is the
+active backlog. The [project index](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/README.md)
+separates current plans from completed and superseded work. Historical research
+and benchmark receipts are context for those decisions, not additional release gates.
 
-> All per-family notes live in `design/families/` and all cross-cutting notes in `design/system/`.
-
-### Project & process
-
-| Doc | Purpose |
-|---|---|
-| [`contributing/adding-diagram-types.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/adding-diagram-types.md) | How to add a Mermaid-supported diagram family. |
-| [`contributing/visual-review-evidence.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/visual-review-evidence.md) | Which reproducible visual artifacts are required for layout/rendering changes. |
-| [`contributing/diagram-family-citizenship.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/diagram-family-citizenship.md) | Enforced good-citizen checklist and matrix for family/surface drift (issue #41). |
-| [`contributing/doc-consistency.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/doc-consistency.md) | How docs stay consistent with the code: generated blocks, the doc checks, and the audit prompt. |
-| [`contributing/harvesting-upstream-tests.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/harvesting-upstream-tests.md) | How to vendor upstream/fork test suites into an executable compatibility bench. |
-| [`contributing/releasing.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/releasing.md) | How to cut an npm release (GitHub Release → provenance publish) and flip the "published" copy. |
-| [`layout-characterization/README.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/layout-characterization/README.md) | Layout and visual testing approach: properties, contact sheets, raster contracts, and approval artifacts. |
-| [`svg-semantic-contract.md`](./svg-semantic-contract.md) | Typed Scene identity, geometry, references, and accessibility contract. |
-| [`project/divergences.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/divergences.md) | Deliberate divergences and guardrails. |
-| [`project/lessons-learned.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/lessons-learned.md) | Evergreen engineering lessons distilled from the archived fork narrative. |
-| [`research/tanstack-charts-learnings.md`](https://github.com/adewale/agentic-mermaid/blob/main/research/tanstack-charts-learnings.md) | External survey: what TanStack Charts v0 validates about the agent-native bet, what is worth adopting, and where we deliberately diverge. |
-| [`project/agent-interface-contract-audit-2026-07.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/agent-interface-contract-audit-2026-07.md) | PR #162 defect provenance, review of PRs #157/#160, testing root causes, and recurrence controls. |
-| [`project/complexity-aware-test-portfolio-plan.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/complexity-aware-test-portfolio-plan.md) | Implemented measured migration from overlapping family/style matrices to automatic complexity-aware conformance, variable-strength interaction coverage, and periodic contact-sheet review. |
-| [`contributing/lessons-learned.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/lessons-learned.md) | Dated contributor process lessons (newest first). |
-| [`project/dogfooding-docs-strategy.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/dogfooding-docs-strategy.md) | How we render and pin our own docs with our own tools. |
-| [`project/archive/`](https://github.com/adewale/agentic-mermaid/tree/main/docs/project/archive) | Status-marked landing/completion evidence and frozen historical records; never live backlog authority. |
-| [`issue-derived-test-cases.md`](./issue-derived-test-cases.md) | Issue-derived regression coverage map. |
-| [`mermaid-layout-complaints.md`](./mermaid-layout-complaints.md) | Mermaid layout complaint catalog, root causes, and coverage scorecard. |
-
-## Root docs kept intentionally
-
-- [`../README.md`](../README.md) — landing page and quick starts.
-- [`../CHANGELOG.md`](../CHANGELOG.md) — release notes.
-- [`../SECURITY.md`](../SECURITY.md) — conventional security entrypoint.
-- [`../TODO.md`](https://github.com/adewale/agentic-mermaid/blob/main/TODO.md) — only active backlog with unchecked boxes.
-- [`../Instructions_for_agents.md`](../Instructions_for_agents.md) — canonical agent guide emitted by CLI.
-- [`../AGENT_NATIVE.md`](../AGENT_NATIVE.md) — agent-native architecture/spec entrypoint.
-- [`../PRODUCT.md`](https://github.com/adewale/agentic-mermaid/blob/main/PRODUCT.md) — canonical product brief (brand register).
-- [`../DESIGN.md`](https://github.com/adewale/agentic-mermaid/blob/main/DESIGN.md) — canonical website design system.
+See the [changelog](../CHANGELOG.md) for release notes and
+[Trident results](https://github.com/adewale/trident/blob/main/RESULTS.md) for
+performance measurements and their scope.

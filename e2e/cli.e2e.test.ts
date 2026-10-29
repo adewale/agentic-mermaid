@@ -134,8 +134,12 @@ describe('am render multi-input', () => {
       expect(r.status).toBe(0)
       const payload = JSON.parse(r.stdout)
       expect(payload.files.length).toBe(2)
-      expect(payload.files[0].output.kind).toBe('flowchart')
-      expect(Array.isArray(payload.files[0].output.nodes)).toBe(true)
+      expect(payload.files.map((result: { file: string; ok: boolean; output: { kind: string; nodes: { id: string }[] } }) => ({
+        file: result.file, ok: result.ok, kind: result.output.kind, nodes: result.output.nodes.map(node => node.id).sort(),
+      }))).toEqual([
+        { file: a, ok: true, kind: 'flowchart', nodes: ['A', 'B'] },
+        { file: b, ok: true, kind: 'flowchart', nodes: ['C', 'D'] },
+      ])
     } finally {
       if (existsSync(a)) unlinkSync(a)
       if (existsSync(b)) unlinkSync(b)
@@ -227,6 +231,7 @@ describe('am exit codes', () => {
     expect(r.status).toBe(3)
     const payload = JSON.parse(r.stdout)
     expect(payload.ok).toBe(false)
+    expect(payload.warnings).toContainEqual(expect.objectContaining({ code: 'EMPTY_DIAGRAM' }))
   })
 
   test('verify on a clean diagram exits 0', () => {
@@ -237,16 +242,20 @@ describe('am exit codes', () => {
   })
 
   test('mutate with a missing --op flag exits 2', () => {
-    const r = runAm(['mutate', '-'], 'flowchart LR\n  A --> B\n')
+    const r = runAm(['mutate', '-', '--json'], 'flowchart LR\n  A --> B\n')
     expect(r.status).toBe(2)
+    expect(r.stderr).toBe('mutate: mutate requires --op <JSON> or --ops <JSON array|file.json>\n')
+    expect(r.stdout).toBe('')
   })
 
   test('mutate with malformed --op JSON exits 2', () => {
-    const r = runAm(['mutate', '-', '--op', '{bad'], 'flowchart LR\n  A --> B\n')
+    const r = runAm(['mutate', '-', '--op', '{bad', '--json'], 'flowchart LR\n  A --> B\n')
     expect(r.status).toBe(2)
+    expect(r.stderr).toStartWith('mutate: invalid mutation JSON:')
+    expect(r.stdout).toBe('')
   })
 
-  test('mutate accepts a batch of ops and verifies once before emitting source', () => {
+  test('mutate accepts a batch of ops and emits the edited source with its verification', () => {
     const ops = JSON.stringify([
       { kind: 'add_node', id: 'C', label: 'Cache' },
       { kind: 'add_edge', from: 'B', to: 'C' },
@@ -272,13 +281,23 @@ describe('am exit codes', () => {
     }
   })
 
-  test('mutate verifies before emitting invalid output', () => {
-    const r = runAm(['mutate', '-', '--op', '{"kind":"remove_node","id":"A"}', '--json'], 'flowchart LR\n  A[Only]\n')
-    expect(r.status).toBe(3)
+  test.each([
+    { name: 'renderable empty Flowchart', source: 'flowchart LR\n  A[Only]\n', op: { kind: 'remove_node', id: 'A' }, expectedSource: 'flowchart LR\n' },
+    { name: 'unrenderable empty Sankey', source: 'sankey-beta\nA,B,1\n', op: { kind: 'remove_link', source: 'A', target: 'B' }, expectedSource: undefined },
+  ])('mutate verifies $name before emitting output', ({ source, op, expectedSource }) => {
+    const r = runAm(['mutate', '-', '--op', JSON.stringify(op), '--json'], source)
+    expect(r.status).toBe(expectedSource === undefined ? 3 : 0)
     const payload = JSON.parse(r.stdout)
-    expect(payload.ok).toBe(false)
-    expect(payload.error.code).toBe('VERIFY_FAILED')
-    expect(payload.source).toBeUndefined()
+    if (expectedSource === undefined) {
+      expect(payload.ok).toBe(false)
+      expect(payload.error.code).toBe('VERIFY_FAILED')
+      expect(payload.source).toBeUndefined()
+    } else {
+      expect(payload.ok).toBe(true)
+      expect(payload.source).toBe(expectedSource)
+      expect(payload.verify.ok).toBe(false)
+      expect(payload.verify.warnings).toContainEqual(expect.objectContaining({ code: 'EMPTY_DIAGRAM' }))
+    }
   })
 
   test('Loop 8 P: render --format png writes a valid PNG to --output file', () => {
@@ -307,6 +326,8 @@ describe('am exit codes', () => {
     try {
       const r = runAm(['render', '--format', 'png', tmpSrc])
       expect(r.status).toBe(2)
+      expect(r.stderr).toContain('requires --output')
+      expect(r.stdout).toBe('')
     } finally {
       if (existsSync(tmpSrc)) unlinkSync(tmpSrc)
     }

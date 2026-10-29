@@ -370,19 +370,17 @@ describe('hosted declarative mutate/build tools', () => {
     expect(p.source).toContain('class Dog')
   })
 
-  test('mutate and build never publish source rejected by canonical verify', async () => {
+  test('mutate and build publish intentional empty results with truthful diagnostics', async () => {
     const mutated = payloadOf(await handleHostedRequest(call('mutate', {
       source: 'flowchart TD\n  A[Only]\n',
       ops: [{ kind: 'remove_node', id: 'A' }],
     }), makeContext()))
     expect(mutated).toMatchObject({
-      ok: false,
-      isError: true,
+      ok: true,
       family: 'flowchart',
-      error: { code: 'VERIFY_FAILED' },
+      source: 'flowchart TD\n',
+      verify: { ok: false, warnings: [{ code: 'EMPTY_DIAGRAM' }] },
     })
-    expect(mutated.error.details.map((warning: { code: string }) => warning.code)).toContain('EMPTY_DIAGRAM')
-    expect(mutated.source).toBeUndefined()
 
     const built = payloadOf(await handleHostedRequest(call('build', {
       family: 'flowchart',
@@ -391,8 +389,7 @@ describe('hosted declarative mutate/build tools', () => {
         { kind: 'remove_node', id: 'A' },
       ],
     }), makeContext()))
-    expect(built).toMatchObject({ ok: false, isError: true, error: { code: 'VERIFY_FAILED' } })
-    expect(built.source).toBeUndefined()
+    expect(built).toMatchObject({ ok: true, source: 'flowchart TD\n', verify: { ok: false, warnings: [{ code: 'EMPTY_DIAGRAM' }] } })
   })
 
   test('Architecture junction, boundary-edge, accessibility, and in-place edge ops cross the hosted boundary', async () => {
@@ -446,8 +443,9 @@ describe('hosted declarative mutate/build tools', () => {
     const mutate = HOSTED_TOOLS.find(t => t.name === 'mutate')!
     const build = HOSTED_TOOLS.find(t => t.name === 'build')!
     // The compact declaration now includes the strict semantic StyleSpec
-    // contract as well as DiagramKind/narrowers; keep a bounded 15KB ceiling.
-    expect(new TextEncoder().encode(execute.description).length).toBeLessThan(15_000)
+    // contract and native Event/Zen narrowers (15,102 bytes); allow 48 bytes
+    // of headroom without embedding per-family edit schemas here.
+    expect(new TextEncoder().encode(execute.description).length).toBeLessThan(15_150)
     expect(mutate.description).toContain('describe_sdk')
     expect(build.description).toContain('describe_sdk')
     expect(mutate.description).not.toContain('add_class(id, label?, generic?, members?, namespace?)')

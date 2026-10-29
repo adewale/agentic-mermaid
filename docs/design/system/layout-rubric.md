@@ -3,6 +3,20 @@
 Status: implemented — `src/layout-rubric.ts` (metrics), `eval/visual-rubric/` (harness + fixtures), `src/__tests__/layout-rubric.test.ts` (CI gates + property oracles).
 Companion to `docs/design/system/route-contracts.md`.
 
+Checks consume retained prepared text and final geometry. `assessLayout` accepts
+the resolved render style as a third argument for older positioned artifacts
+without retained blocks; custom text must not silently use default font sizes.
+The policy order and its explicit conflicts are described in
+[`quality.md`](../../quality.md#layout-priorities-and-their-limits).
+
+The Flowchart/State graph engine now runs this independent hard checker before
+returning a layout. It tries at most four deterministic placement candidates and
+returns a certification receipt or `LAYOUT_CERTIFICATION_FAILED`. The common
+positioning boundary additionally checks every native family's final projection
+against the family rubric's hard rules. Specialized layouters have one
+deterministic attempt and fail explicitly. This does not certify soft aesthetics
+or family-specific obligations absent from those checkers.
+
 ## Why a deterministic rubric
 
 The competitive analysis (appendix B) found that no tool in this space gates
@@ -44,6 +58,7 @@ fixture battery and over randomized diagrams (property tests):
 | Metric | Definition | Grounding |
 |---|---|---|
 | `offOutlineEndpoints` | endpoint not on the rendered shape outline (per-shape closed-form oracle, independent of the clipping code) | yFiles strong port constraints; shape fidelity |
+| `endpointApproaches` | an exact-outline endpoint has an inward or tangent terminal shaft; envelopes and unenclosed text make no exact approach claim | visible attachment and marker direction |
 | `diagonalSegments` | non-axis-aligned segment under orthogonal routing | Tamassia orthogonal tradition |
 | `unexplainedBends` | bends on an edge certified `straight` | Purchase bends; route contracts |
 | `hitches` | edge bends while a clear direct lane exists (re-proved on final geometry) | Ware continuity; issue #25 |
@@ -57,14 +72,41 @@ and ≤ 2 bends/edge for the whole simple battery):
 
 | Metric | Definition | Grounding |
 |---|---|---|
-| `edgeCrossings` | proper polyline∩polyline intersections (collinear port-merges excluded) | Purchase 1997 (strongest factor) |
-| `totalBends`, `maxBendsPerEdge` | interior vertices | Purchase 1997 |
+| `edgeCrossings` | visible proper incidences per logical edge pair/location; subdivision, shared nodes and hidden shafts use the shared production predicate | Purchase 1997 (strongest factor) |
+| `labelConflicts` | padded label/label, label/node and label/visible-route conflict pairs | Kakoulis–Tollis readability; breaks crossing ties before bend and port preferences |
+| `totalBends`, `maxBendsPerEdge` | visible interior vertices excluding declared bundle-owned convergence | Purchase 1997 |
 | `portEndpointRate` | fraction of edge ends exactly on a canonical port | yFiles port candidates |
 | `portAnchoredEdgeRate` | fraction of edges with ≥ 1 port end | static-glue policy |
 
-Additionally enforced upstream of the rubric (route contracts): repairs may
-never increase crossings; feedback never shares the forward lane; flow
-consistency is the classifier's definition of `feedback` itself.
+Crossing measurement is shared by route proposals, final ranking, intermediate pass budgets and
+public quality; the independent outline oracle remains separate from clipping.
+Approach measurement shares the production boundary predicate with clipping;
+analytic rectangle, curve and polygon controls independently test that rule.
+It checks the first nonzero terminal shaft, not later re-entry into an incident
+node. Sharp polygon tips and rectangular corner exits may depart into exterior
+space; a run along a flat border or tangent to a smooth curve is not an outward
+contact.
+Label-conflict counts likewise share their geometry predicates and rendered pill
+padding with public Flowchart/State quality reports. Missing retained label
+measurements remain explicit in public measurement metadata.
+The label/node count uses bounding rectangles rather than exact painted shapes.
+
+Upstream route contracts enforce declared crossing budgets, including bounded
+allowances for hard occlusion and duplicate-lane repairs. Feedback must not share
+the forward lane; flow consistency is the classifier's definition of `feedback`
+itself. Soft label-conflict counts do not replace hard own-route association or
+node-avoidance checks and cannot buy additional crossings during final selection.
+Generic bundling is a bounded proposal: the engine first chooses a certified
+bundled placement, then may compare one completed unbundled route proposal from
+that selected placement's same ELK result. Its existing certification score and
+successful checks are reused; only the new proposal is certified. The total
+bound is four placement pipelines plus one unbundled route
+pipeline, with at most 16 ELK attempts; routing alternatives are not multiplied
+across placement strategies. The receipt retains bundled placement scores in
+`preference.compared`, the actual final route score in `preference.selectedScore`,
+and the selected placement's route comparison in `preference.routing`.
+Parallel-edge graphs retain their specialized route owners and skip this generic
+proposal: endpoint contacts and lane ambiguity are not proper crossings.
 
 ## 3. Harness
 
@@ -107,7 +149,9 @@ diamonds) — which forced shape-aware clipping for the entire catalog
   enter at the top"). Ours: ELK feedbackEdges + loop tightening exits the
   exact S/N port and enters the target's side midpoint.
 - **Fan-in merges** — bar: ELK layered convergence. Ours: same-target edges
-  may converge exactly collinearly at the shared port (single arrowhead).
+  may converge exactly collinearly at the shared port (single arrowhead)
+  when they paint identically and at most one is labelled; distinguishable
+  relationships keep separate arrowheads (#566).
 
 ## Appendix B: competitive findings (condensed)
 

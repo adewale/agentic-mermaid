@@ -1,9 +1,19 @@
-// Theme dropdown logic
-var themeBtnLabel = document.getElementById("theme-btn-label");
-var themeBtnSwatch = document.getElementById("theme-btn-swatch");
-var themeDropdownBtn = document.getElementById("theme-dropdown-btn");
+import { ui } from './context.js';
+import { DEFAULT_EDITOR_PALETTE, editorPaletteColors, editorPaletteInput, state } from './state.js';
+import { editor, themeMenu } from './elements.js';
+import { discardEditorDraft, draftRestoreFailure, getHashSource, getQueryExampleId, hasOwnConfig, hashDecodeFailure, readEditorDraft, safeLocalStorageGet, safeLocalStorageRemove, safeLocalStorageSet, sanitizeEditorConfig, sanitizeEditorStyle } from './sharing.js';
+import { applyThemeToPage, scheduleRender } from './rendering.js';
+import { hydrateConfigControls, refreshAllColorUIs } from './config-panel.js';
+import { createListboxPopupController, setEditorErrorLine } from './helpers.js';
+import { applyColorMode, isDark } from './dark-mode.js';
+import { updateCursorPos, updateLineNumbers } from './editor-helpers.js';
+import { showToast } from './toast.js';
+import { findEditorExample, loadEditorExample } from './examples.js';
+import { setMobilePanel } from './tabs.js';
+export var themeBtnLabel, themeBtnSwatch, themeDropdownBtn, themeMenuPopup, savedPaletteInput, savedPalette, styleBtnLabel, styleDropdownBtn, styleMenu, styleMenuPopup, savedStyle, DEFAULT_SOURCE, draftNotice, draftDiscardBtn, draftNoticeTimer;
 
-function updateThemeButton() {
+
+export function updateThemeButton() {
   var key = state.palette;
   var colors = editorPaletteColors(key);
   if (key && colors) {
@@ -27,9 +37,10 @@ function updateThemeButton() {
   });
 }
 
-function setTheme(key) {
+
+export function setTheme(key) {
   state.palette = key ? editorPaletteInput(key) : "";
-  diagramThemeIsAuto = false;
+  ui.diagramThemeIsAuto = false;
   if (key) {
     safeLocalStorageSet("bm-editor-palette", state.palette);
   } else {
@@ -41,53 +52,13 @@ function setTheme(key) {
   scheduleRender(0);
 }
 
-var themeMenuPopup = createListboxPopupController({
-  popup: themeMenu,
-  trigger: themeDropdownBtn,
-  itemSelector: '.theme-dropdown-item',
-  activeSelector: '.theme-dropdown-item.active',
-  visualClose: true,
-  contains: function(target) { return !!target.closest("#theme-dropdown-wrap"); },
-  onSelect: function(item) { setTheme(item.dataset.theme || ""); },
-});
 
-function setThemeMenuOpen(open, focusActive) {
+export function setThemeMenuOpen(open, focusActive) {
   themeMenuPopup.setOpen(open, { focusFirst: !!focusActive });
 }
 
-// Store label data for lookup
-themeMenu.querySelectorAll(".theme-dropdown-item").forEach(function (item) {
-  var key = item.dataset.theme || "";
-  themeDropdownBtn.setAttribute("data-label-" + key, item.textContent.trim());
-});
 
-// Apply initial dark/light mode (must happen after all DOM refs + functions are ready)
-applyColorMode(isDark);
-
-// Restore saved theme, otherwise start on the brand Paper theme so the editor
-// opens with the same diagram palette the public site renders.
-var savedPaletteInput = safeLocalStorageGet("bm-editor-palette") || "";
-var savedPalette = editorPaletteInput(savedPaletteInput);
-if (savedPalette) {
-  state.palette = savedPalette;
-  safeLocalStorageSet("bm-editor-palette", savedPalette);
-  diagramThemeIsAuto = false;
-} else if (!editorPaletteInput(state.palette)) {
-  state.palette = DEFAULT_EDITOR_PALETTE;
-  diagramThemeIsAuto = true;
-}
-applyThemeToPage(state.palette);
-updateThemeButton();
-setThemeMenuOpen(false, false);
-
-// ── Style dropdown (renderer treatment — hand-drawn, watercolor, …) ─────────
-// Mirrors the Palette dropdown: style picks mark treatment, palette picks
-// colors; buildOptions stacks them (palette colors win by render precedence).
-var styleBtnLabel = document.getElementById("style-btn-label");
-var styleDropdownBtn = document.getElementById("style-dropdown-btn");
-var styleMenu = document.getElementById("style-dropdown-menu");
-
-function updateStyleButton() {
+export function updateStyleButton() {
   var key = state.style || "crisp";
   styleBtnLabel.textContent =
     styleDropdownBtn.getAttribute("data-label-" + key) || key;
@@ -99,7 +70,8 @@ function updateStyleButton() {
   });
 }
 
-function setStyle(key) {
+
+export function setStyle(key) {
   state.style = key || "crisp";
   if (state.style !== "crisp") {
     safeLocalStorageSet("bm-editor-style", state.style);
@@ -110,62 +82,28 @@ function setStyle(key) {
   scheduleRender(0);
 }
 
-var styleMenuPopup = createListboxPopupController({
-  popup: styleMenu,
-  trigger: styleDropdownBtn,
-  itemSelector: '.theme-dropdown-item',
-  activeSelector: '.theme-dropdown-item.active',
-  visualClose: true,
-  contains: function(target) { return !!target.closest("#style-dropdown-wrap"); },
-  onSelect: function(item) { setStyle(item.dataset.style || "crisp"); },
-});
 
-function setStyleMenuOpen(open, focusActive) {
+export function setStyleMenuOpen(open, focusActive) {
   styleMenuPopup.setOpen(open, { focusFirst: !!focusActive });
 }
 
-styleMenu.querySelectorAll(".theme-dropdown-item").forEach(function (item) {
-  var key = item.dataset.style || "crisp";
-  styleDropdownBtn.setAttribute("data-label-" + key, item.textContent.trim());
-});
 
-var savedStyle = sanitizeEditorStyle(safeLocalStorageGet("bm-editor-style") || "");
-if (savedStyle) state.style = savedStyle;
-updateStyleButton();
-setStyleMenuOpen(false, false);
-
-// Load from URL hash or start on an on-brand default so the editor opens with
-// the loop already working (a rendered diagram, verify results, and on-demand
-// text outputs) instead of five empty states. The default is the product's own
-// parse -> verify -> serialize loop.
-var DEFAULT_SOURCE = [
-  "flowchart TD",
-  "  A[Parse source] --> B[Narrow intent]",
-  "  B --> C[Mutate one node]",
-  "  C --> D{Verify}",
-  "  D -- ok --> E[Serialize]",
-  "  D -- warnings --> B",
-].join("\n");
-
-// Draft restore notice: polite, transient, with an explicit way to discard.
-var draftNotice = document.getElementById("draft-notice");
-var draftDiscardBtn = document.getElementById("draft-discard-btn");
-var draftNoticeTimer = null;
-
-function hideDraftNotice() {
+export function hideDraftNotice() {
   if (draftNoticeTimer) clearTimeout(draftNoticeTimer);
   draftNoticeTimer = null;
   if (draftNotice) draftNotice.hidden = true;
 }
 
-function showDraftRestoredNotice() {
+
+export function showDraftRestoredNotice() {
   if (!draftNotice) return;
   draftNotice.hidden = false;
   if (draftNoticeTimer) clearTimeout(draftNoticeTimer);
   draftNoticeTimer = setTimeout(hideDraftNotice, 8000);
 }
 
-function discardRestoredDraft() {
+
+export function discardRestoredDraft() {
   if (typeof discardEditorDraft === "function") discardEditorDraft();
   hideDraftNotice();
   editor.value = DEFAULT_SOURCE;
@@ -178,14 +116,127 @@ function discardRestoredDraft() {
   showToast("Draft discarded.");
 }
 
-if (draftDiscardBtn) draftDiscardBtn.addEventListener("click", discardRestoredDraft);
 
-function shouldOpenEmptyEditor() {
+export function shouldOpenEmptyEditor() {
   try {
     var value = new URLSearchParams(window.location.search).get('empty');
     return value === '1' || value === 'true';
   } catch(e) { return false; }
 }
+
+export function initialize() {
+// Theme dropdown logic
+themeBtnLabel = document.getElementById("theme-btn-label");
+
+themeBtnSwatch = document.getElementById("theme-btn-swatch");
+
+themeDropdownBtn = document.getElementById("theme-dropdown-btn");
+
+
+themeMenuPopup = createListboxPopupController({
+  popup: themeMenu,
+  trigger: themeDropdownBtn,
+  itemSelector: '.theme-dropdown-item',
+  activeSelector: '.theme-dropdown-item.active',
+  visualClose: true,
+  contains: function(target) { return !!target.closest("#theme-dropdown-wrap"); },
+  onSelect: function(item) { setTheme(item.dataset.theme || ""); },
+});
+
+
+// Store label data for lookup
+themeMenu.querySelectorAll(".theme-dropdown-item").forEach(function (item) {
+  var key = item.dataset.theme || "";
+  themeDropdownBtn.setAttribute("data-label-" + key, item.textContent.trim());
+});
+
+
+// Apply initial dark/light mode (must happen after all DOM refs + functions are ready)
+applyColorMode(isDark);
+
+
+// Restore saved theme, otherwise start on the brand Paper theme so the editor
+// opens with the same diagram palette the public site renders.
+savedPaletteInput = safeLocalStorageGet("bm-editor-palette") || "";
+
+savedPalette = editorPaletteInput(savedPaletteInput);
+
+if (savedPalette) {
+  state.palette = savedPalette;
+  safeLocalStorageSet("bm-editor-palette", savedPalette);
+  ui.diagramThemeIsAuto = false;
+} else if (!editorPaletteInput(state.palette)) {
+  state.palette = DEFAULT_EDITOR_PALETTE;
+  ui.diagramThemeIsAuto = true;
+}
+
+applyThemeToPage(state.palette);
+
+updateThemeButton();
+
+setThemeMenuOpen(false, false);
+
+
+// ── Style dropdown (renderer treatment — hand-drawn, watercolor, …) ─────────
+// Mirrors the Palette dropdown: style picks mark treatment, palette picks
+// colors; buildOptions stacks them (palette colors win by render precedence).
+styleBtnLabel = document.getElementById("style-btn-label");
+
+styleDropdownBtn = document.getElementById("style-dropdown-btn");
+
+styleMenu = document.getElementById("style-dropdown-menu");
+
+
+styleMenuPopup = createListboxPopupController({
+  popup: styleMenu,
+  trigger: styleDropdownBtn,
+  itemSelector: '.theme-dropdown-item',
+  activeSelector: '.theme-dropdown-item.active',
+  visualClose: true,
+  contains: function(target) { return !!target.closest("#style-dropdown-wrap"); },
+  onSelect: function(item) { setStyle(item.dataset.style || "crisp"); },
+});
+
+
+styleMenu.querySelectorAll(".theme-dropdown-item").forEach(function (item) {
+  var key = item.dataset.style || "crisp";
+  styleDropdownBtn.setAttribute("data-label-" + key, item.textContent.trim());
+});
+
+
+savedStyle = sanitizeEditorStyle(safeLocalStorageGet("bm-editor-style") || "");
+
+if (savedStyle) state.style = savedStyle;
+
+updateStyleButton();
+
+setStyleMenuOpen(false, false);
+
+
+// Load from URL hash or start on an on-brand default so the editor opens with
+// the loop already working (a rendered diagram, verify results, and on-demand
+// text outputs) instead of five empty states. The default is the product's own
+// parse -> verify -> serialize loop.
+DEFAULT_SOURCE = [
+  "flowchart TD",
+  "  A[Parse source] --> B[Narrow intent]",
+  "  B --> C[Mutate one node]",
+  "  C --> D{Verify}",
+  "  D -- ok --> E[Serialize]",
+  "  D -- warnings --> B",
+].join("\n");
+
+
+// Draft restore notice: polite, transient, with an explicit way to discard.
+draftNotice = document.getElementById("draft-notice");
+
+draftDiscardBtn = document.getElementById("draft-discard-btn");
+
+draftNoticeTimer = null;
+
+
+if (draftDiscardBtn) draftDiscardBtn.addEventListener("click", discardRestoredDraft);
+
 
 // getHashSource decodes compressed share links asynchronously, so the initial
 // source pick runs in an async IIFE; nothing below in this file depends on it.
@@ -261,3 +312,4 @@ function shouldOpenEmptyEditor() {
     scheduleRender(0);
   }
 })();
+}

@@ -36,12 +36,14 @@ describe('parseArchitectureDiagram', () => {
     })
   })
 
-  it('parses service group-boundary endpoints', () => {
-    const diagram = parseArchitectureDiagram(prep(`architecture-beta
+  it.each(['db{group}:R -[replicates]-> L:cache', 'db{group}:R-[replicates]->L:cache'])('parses service group-boundary endpoints: %s', edge => {
+    const lines = prep(`architecture-beta
       group storage(cloud)[Storage]
       service db(database)[Database] in storage
       service cache(disk)[Cache]
-      db{group}:R -[replicates]-> L:cache`))
+      ${edge}`)
+    expect(() => parseArchitectureDiagram(lines)).not.toThrow()
+    const diagram = parseArchitectureDiagram(lines)
 
     expect(diagram.edges[0]!.source.boundary).toBe('group')
     expect(diagram.edges[0]!.source.id).toBe('db')
@@ -74,6 +76,27 @@ config:
     expect(diagram.groups[0]!.label).toBe('Edge\nLayer')
     expect(diagram.services[0]!.label).toBe('Public\nAPI')
     expect(diagram.edges[0]!.label).toBe('reads\nwrites')
+
+    // A quoted title runs to its closing quote across lines: the line break
+    // is kept, not the indentation.
+    const authored = parseArchitectureDiagram(prep(`architecture-beta
+      group edge(cloud)["Edge
+        Layer"]
+      service api(server)['Public
+        API'] in edge
+      service db(database)[Primary DB]
+      api:R -["reads
+        writes"]-> L:db`))
+    expect(authored.groups.map(group => group.label)).toEqual(['Edge\nLayer'])
+    expect(authored.services.map(service => [service.label, service.parentId])).toEqual([['Public\nAPI', 'edge'], ['Primary DB', undefined]])
+    expect(authored.edges.map(edge => edge.label)).toEqual(['reads\nwrites'])
+
+    // A quote inside an unquoted title is text: it opens no string.
+    const unquoted = parseArchitectureDiagram(prep(`architecture-beta
+      service a(server)[Rock 'n roll]
+      service b(server)[say "hi]
+      service c(server)[Bob's x"]`))
+    expect(unquoted.services.map(service => service.label)).toEqual(["Rock 'n roll", 'say "hi', 'Bob\'s x"'])
   })
 
   it('rejects group-boundary syntax on root services', () => {

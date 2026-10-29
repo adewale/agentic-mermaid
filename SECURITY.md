@@ -63,6 +63,15 @@ gate or an agent self-check after rendering.
   application/json`; cross-origin browser posts are rejected; request bodies,
   artifact bytes, and sandbox timeouts are capped.
 
+### Graph work budgets
+
+Graph parsing bounds expanded edges and nodes at 5,000 each. Cartesian edge
+statements such as `A & B --> C & D` are checked before allocating their
+expanded edges. Graph layout also counts container nodes and rejects nesting
+deeper than 64 levels before recursive conversion or ELK execution. These host
+budgets apply in every security mode; diagram configuration cannot raise them.
+Exceeding a budget throws `DIAGRAM_WORK_LIMIT` without drawing a partial graph.
+
 ## What we do NOT guarantee
 
 - **`node:vm` is not an OS/container security boundary.** Code Mode containment

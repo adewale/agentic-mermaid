@@ -222,6 +222,20 @@ function extractRelationshipPolylines(svg: string): Map<string, Array<{ x: numbe
   return polylines
 }
 
+function labelPill(svg: string, label: string) {
+  const anchor = extractLabelPositions(svg).get(label)
+  expect(anchor, label).toBeDefined()
+  // Chrome marks intentionally have no public data-id. Locate the actual
+  // painted background that encloses this authored label's anchor.
+  const boxes = (svg.match(/<rect\b[^>]*>/g) ?? []).map(tag => {
+    const number = (name: string) => Number(tag.match(new RegExp(`\\b${name}="([^"]+)"`))?.[1])
+    const x = number('x'), y = number('y'), width = number('width'), height = number('height')
+    return { left: x, right: x + width, top: y, bottom: y + height, x: x + width / 2, y: y + height / 2, width, height }
+  }).filter(box => [box.left, box.top, box.width, box.height].every(Number.isFinite) && box.width > 0 && box.height > 0 && box.left <= anchor!.x && box.right >= anchor!.x && box.top <= anchor!.y && box.bottom >= anchor!.y)
+  expect(boxes, `one painted background for ${label}`).toHaveLength(1)
+  return boxes[0]!
+}
+
 /**
  * For each relationship label, whether it sits within 2px of ITS OWN
  * relationship polyline (paired by label text), so a label that drifts onto a
@@ -256,23 +270,20 @@ describe('renderMermaidSVG – ER label positioning (straight lines)', () => {
     expect(label.x).toBeLessThan(rightEdge)
   })
 
-  it('label has minimum clearance from entity box edges', () => {
+  it('the complete label background clears both entity boxes', () => {
     const svg = renderMermaidSVG(`erDiagram
       A ||--o{ B : links`)
 
     const boxes = extractEntityBoxes(svg)
-    const labels = extractLabelPositions(svg)
-
     const boxA = boxes.get('A')!
     const boxB = boxes.get('B')!
-    const label = labels.get('links')!
+    const pill = labelPill(svg, 'links')
 
-    const minClearance = 10
     const leftBox = boxA.x < boxB.x ? boxA : boxB
     const rightBox = boxA.x < boxB.x ? boxB : boxA
 
-    expect(label.x - leftBox.rightEdge).toBeGreaterThanOrEqual(minClearance)
-    expect(rightBox.x - label.x).toBeGreaterThanOrEqual(minClearance)
+    expect(pill.left).toBeGreaterThan(leftBox.rightEdge)
+    expect(pill.right).toBeLessThan(rightBox.x)
   })
 
   it('label is approximately at the horizontal midpoint of the gap', () => {
@@ -340,6 +351,7 @@ describe('renderMermaidSVG – ER label positioning (multi-segment paths)', () =
     const labels = extractLabelPositions(svg)
     const polylines = extractPolylines(svg)
     const label = labels.get('links')!
+    expect(polylines).toHaveLength(1)
 
     for (const pl of polylines) {
       const start = pl[0]!
@@ -358,6 +370,7 @@ describe('renderMermaidSVG – ER label positioning (multi-segment paths)', () =
       PRODUCT ||--o{ LINE_ITEM : includes`)
 
     const labels = extractLabelPositions(svg)
+    expect([...labels.keys()].sort()).toEqual(['contains', 'includes', 'places'])
     const positions = [...labels.values()]
 
     // Each label should have a unique position (no two labels at same x,y)
@@ -375,24 +388,7 @@ describe('renderMermaidSVG – ER label positioning (multi-segment paths)', () =
     const svg = renderMermaidSVG(`erDiagram
       A ||--o{ B : test`)
 
-    const labels = extractLabelPositions(svg)
-    const label = labels.get('test')!
-
-    // Find the background pill rect (rx="2" ry="2" near the label position)
-    const pillPattern = /<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)" rx="2" ry="2"/g
-    let pillMatch
-    let foundPill = false
-    while ((pillMatch = pillPattern.exec(svg)) !== null) {
-      const px = parseFloat(pillMatch[1]!)
-      const pw = parseFloat(pillMatch[3]!)
-      const pillCenter = px + pw / 2
-      // Check if this pill is for our label (center within 1px of label x)
-      if (Math.abs(pillCenter - label.x) < 1) {
-        foundPill = true
-        // Pill center should also be on the relationship's own polyline
-        expect(labelsOnOwnPolyline(svg, new Map([['test', { x: pillCenter, y: label.y }]]))).toEqual({ test: true })
-      }
-    }
-    expect(foundPill).toBe(true)
+    const pill = labelPill(svg, 'test')
+    expect(labelsOnOwnPolyline(svg, new Map([['test', { x: pill.x, y: pill.y }]]))).toEqual({ test: true })
   })
 })

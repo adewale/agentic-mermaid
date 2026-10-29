@@ -15,6 +15,7 @@
 
 import { describe, it, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseQuadrantChart } from '../quadrant/parser.ts'
 import { layoutQuadrantChart } from '../quadrant/layout.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
@@ -99,6 +100,31 @@ describe('quadrant parser — happy paths', () => {
     const chart = parse('quadrantChart\n  C: [0.1,0.1]\n  A: [0.2,0.2]\n  B: [0.3,0.3]')
     expect(chart.points.map(p => p.label)).toEqual(['C', 'A', 'B'])
   })
+
+  // Mermaid's quadrant lexer reads a "…" string (without escapes) and a
+  // point's [x, y] across line breaks; a title runs to the end of its line.
+  it('reads quoted text and a point across lines, keeping the break, not the indentation', () => {
+    const chart = parse(`quadrantChart
+  title "Risk
+  x-axis "Low
+    reach" --> High
+  quadrant-1 "Expand
+    now"
+  quadrant-2 "C:\\"
+  "Point
+    A": [0.3,
+    0.6]
+  B: [
+    0.1, 0.2
+  ] radius: 4`)
+    expect(chart.title).toBe('"Risk')
+    expect(chart.xAxis).toEqual({ near: 'Low\nreach', far: 'High' })
+    expect(chart.quadrants.slice(0, 2)).toEqual(['Expand\nnow', 'C:\\'])
+    expect(chart.points).toEqual([
+      { label: 'Point\nA', x: 0.3, y: 0.6 },
+      { label: 'B', x: 0.1, y: 0.2, style: { radius: 4 } },
+    ])
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -112,12 +138,13 @@ describe('quadrant parser — sad paths error loudly', () => {
     { name: 'non-numeric coord', src: 'quadrantChart\n  A: [foo, 0.5]', match: /non-numeric/i },
     { name: 'missing brackets', src: 'quadrantChart\n  A: 0.5, 0.5', match: /Invalid quadrant point/i },
     { name: 'unclosed bracket', src: 'quadrantChart\n  A: [0.5, 0.5', match: /Invalid quadrant point/i },
+    { name: 'a bracket the next statement does not close', src: 'quadrantChart\n  A: [0.5,\n  B: [0.1, 0.2]', match: /Invalid quadrant point: "A: \[0\.5,"/i },
     { name: 'wrong header', src: 'notquadrant\n  A: [0.5, 0.5]', match: /must start with "quadrant" or "quadrantChart"/i },
     { name: 'unknown statement', src: 'quadrantChart\n  banana split', match: /Unrecognized quadrant chart line/i },
     // Unknown keys with SAFE values are upstream-legal (preserved verbatim,
     // inert in render — see quadrant-style.test.ts); only unsafe values err.
     { name: 'unknown point style metadata with unsafe value', src: 'quadrantChart\n  A: [0.5, 0.5] banana: "spl;it"', match: /style/i },
-    { name: 'x-axis arrow but no far label', src: 'quadrantChart\n  x-axis Left -->', match: /no far label/i },
+    { name: 'x-axis arrow but no near label', src: 'quadrantChart\n  x-axis --> Right', match: /missing its left label/i },
   ]
 
   for (const b of bad) {
@@ -220,9 +247,9 @@ describe('quadrant geometry', () => {
     const budget = chart.plot.size / 2 - 12
     expect(chart.axisLabels).toHaveLength(4)
     expect(chart.axisLabels.some(axis => axis.text.includes('\n'))).toBe(true)
-    for (const axis of chart.axisLabels) {
+    for (const [index, axis] of chart.axisLabels.entries()) {
       const lines = axis.text.split('\n')
-      expect(lines.length).toBeLessThanOrEqual(2)
+      expect(axis.text.replace(/[\s-]/g, '')).toBe([nearX, farX, nearY, farY][index]!.replace(/[\s-]/g, ''))
       const width = Math.max(...lines.map(line => measureTextWidth(line, axis.fontSize, 500)))
       expect(width).toBeLessThanOrEqual(budget + 0.01)
       if (axis.x >= chart.plot.x) {
@@ -308,7 +335,7 @@ describe('quadrant property tests', () => {
   const pointArb = fc.tuple(labelArb, coordArb, coordArb)
   const pointsArb = fc.array(pointArb, { minLength: 1, maxLength: 8 })
 
-  it('every label appears once; rendered coords are in plot bounds; quadrant assignment matches math', () => {
+  it('every point is retained; visible labels appear once; quadrant assignment matches authored coordinates', () => {
     fc.assert(
       fc.property(pointsArb, (points) => {
         // De-dupe labels (parser rejects duplicates).
@@ -321,7 +348,7 @@ describe('quadrant property tests', () => {
         const midX = plot.x + plot.size / 2
         const midY = plot.y + plot.size / 2
 
-        expect(positioned.points).toHaveLength(unique.length)
+        expect(positioned.points.map(p => [p.label, p.nx, p.ny])).toEqual(unique)
 
         for (const pp of positioned.points) {
           // within plot bounds (small epsilon for rounding)
@@ -342,11 +369,11 @@ describe('quadrant property tests', () => {
         }
 
         const svg = renderMermaidSVG(src)
-        for (const [label] of unique) {
-          expect(svg).toContain(label)
-        }
+        const visibleLabels = [...svg.matchAll(/<text\b[^>]*\bclass="quadrant-point-label"[^>]*>([\s\S]*?)<\/text>/g)]
+          .map(match => match[1]!.replace(/<[^>]*>/g, ''))
+        expect(visibleLabels.sort()).toEqual(positioned.points.filter(point => !point.labelHidden).map(point => point.label).sort())
       }),
-      { numRuns: 60 },
+      fcParameters({ numRuns: 60 }),
     )
   })
 })

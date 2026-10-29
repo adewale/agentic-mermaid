@@ -9,6 +9,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
 import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
@@ -219,20 +220,23 @@ describe('gantt dependency routing — layout invariants', () => {
       sectionBreaks: fc.array(fc.boolean(), { minLength: n, maxLength: n }),
     }).map(({ starts, durs, afters, milestones, sectionBreaks }) => {
       const lines = ['gantt', '  dateFormat YYYY-MM-DD']
+      const expectedDependencies: string[] = []
       for (let i = 0; i < starts.length; i++) {
         if (sectionBreaks[i] || i === 0) lines.push(`  section S${i}`)
         const tag = milestones[i] && i > 0 ? 'milestone, ' : ''
         const start = i > 0 && afters[i] !== undefined
           ? `after t${afters[i]! % i}`
           : `2024-01-${String(starts[i]).padStart(2, '0')}`
+        if (i > 0 && afters[i] !== undefined) expectedDependencies.push(`${afters[i]! % i}->${i}:after`)
         lines.push(`  Task ${i} :${tag}t${i}, ${start}, ${durs[i]}d`)
       }
-      return lines.join('\n') + '\n'
+      return { source: lines.join('\n') + '\n', expectedDependencies }
     }))
-    fc.assert(fc.property(arb, src => {
-      const { layout } = layoutOf(src)
+    fc.assert(fc.property(arb, ({ source, expectedDependencies }) => {
+      const { layout } = layoutOf(source)
+      expect(layout.dependencies.map(dependency => `${dependency.fromTaskIndex}->${dependency.toTaskIndex}:${dependency.kind}`).sort()).toEqual(expectedDependencies.sort())
       assertConnectorInvariants(layout)
-    }), { numRuns: 50 })
+    }), fcParameters({ numRuns: 50 }))
   })
 })
 
@@ -263,6 +267,14 @@ describe('gantt dependency overlay — SVG render option', () => {
     expect(svg).toContain('data-from="prep" data-to="freeze"')
     // Rendering is deterministic.
     expect(renderMermaidSVG(DEPS, { gantt: { dependencyArrows: true } })).toBe(svg)
+    // Each arrow fades as one layer, so the line never shows through its own
+    // arrowhead: the opacity is on a wrapping group, not on line and head apart.
+    for (const [, open, carrier] of svg.matchAll(/(<g\b[^>]*>)\s*(<path class="gantt-dep-arrow[^>]*>)/g)) {
+      expect(open).toContain(' opacity="0.6"')
+      expect(carrier).not.toContain('opacity=')
+    }
+    expect(svg.match(/<g\b[^>]*>\s*<path class="gantt-dep-arrow/g)).toHaveLength(4)
+    expect(svg).not.toMatch(/<marker[^>]*dep-arrow[^>]*>[^<]*<path[^>]*opacity=/)
   })
 
   test('critical-path emphasis matches analyze()\'s criticalPathTaskIds exactly', () => {

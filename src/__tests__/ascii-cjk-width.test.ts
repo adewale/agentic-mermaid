@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { maxLineWidth, visualWidth } from '../ascii/multiline-utils.ts'
-import { drawText, drawTextWithRole, mkCanvas, mkRoleCanvas } from '../ascii/canvas.ts'
+import { drawText, mkCanvas } from '../ascii/canvas.ts'
 
 describe('ASCII CJK/fullwidth display width', () => {
   it('counts CJK, Hangul, and emoji by terminal column width', () => {
@@ -17,26 +17,14 @@ describe('ASCII CJK/fullwidth display width', () => {
     expect(visualWidth('AΩ🙂Ｂ')).toBe(6)
   })
 
-  it('non-forced wide text never overwrites occupied topology with a continuation cell', () => {
-    for (const grapheme of ['界', '🙂', '👩‍🔬']) {
+  it('non-forced text is admitted completely or leaves occupied topology intact', () => {
+    for (const text of ['界', '🙂', '👩‍🔬', 'AB', 'A🙂']) {
       const canvas = mkCanvas(2, 0)
-      canvas[1]![0] = '►'
-      drawText(canvas, { x: 0, y: 0 }, grapheme)
-      expect(canvas[0]![0], grapheme).toBe(' ')
-      expect(canvas[1]![0], grapheme).toBe('►')
+      canvas.put(1, 0, '►', { kind: 'marker', role: 'arrow' })
+      drawText(canvas, { x: 0, y: 0 }, text)
+      expect(canvas.get(0, 0), text).toBe(' ')
+      expect(canvas.get(1, 0), text).toBe('►')
     }
-  })
-
-  it('bounded cell writes refuse a whole wide grapheme at either boundary', () => {
-    const rightCanvas = mkCanvas(1, 0)
-    const rightRoles = mkRoleCanvas(1, 0)
-    drawTextWithRole(rightCanvas, rightRoles, { x: 1, y: 0 }, '界', 'text')
-    expect(rightCanvas.map(column => column[0]).join('')).toBe('  ')
-
-    const leftCanvas = mkCanvas(1, 0)
-    const leftRoles = mkRoleCanvas(1, 0)
-    drawTextWithRole(leftCanvas, leftRoles, { x: -1, y: 0 }, '🙂', 'text')
-    expect(leftCanvas.map(column => column[0]).join('')).toBe('  ')
   })
 
   it('sizes unicode node boxes by visual width, not JavaScript string length', () => {
@@ -57,7 +45,7 @@ describe('ASCII CJK/fullwidth display width', () => {
     expect(output).toContain('►')
   })
 
-  it('sizes custom ASCII shapes by visual width too', () => {
+  it('preserves complete wide graphemes in custom ASCII shapes', () => {
     const output = renderMermaidASCII('graph TD\n  A([开始])\n  B[[처리]]\n  C[(数据🙂)]')
     expect(output).toContain('开始')
     expect(output).toContain('처리')

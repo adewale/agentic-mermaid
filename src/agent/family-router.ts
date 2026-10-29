@@ -5,9 +5,13 @@
 // the render contract instead, so source normalization and the common SVG core
 // do not need to import every family hook merely to identify a header.
 
+import { detectsFlowchartFamily, detectsStateFamily, detectsStateFamilyLoose } from '../shared/builtin-family-detection.ts'
+export { detectsFlowchartFamily, detectsStateFamily, detectsStateFamilyLoose } from '../shared/builtin-family-detection.ts'
 import type { FamilyDescriptor } from './families.ts'
 import type { FamilyId } from './types.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import { normalizeFamilyDetectionLine } from '../mermaid-source-wrapper.ts'
+export { normalizeFamilyDetectionLine } from '../mermaid-source-wrapper.ts'
 
 export type RegisteredFamilyResolver = (
   firstLine: string,
@@ -20,29 +24,6 @@ let registeredFamilyByIdResolver: RegisteredFamilyByIdResolver | undefined
 const loadedFamilyDescriptors = new Map<FamilyId, FamilyDescriptor>()
 
 export type CompatibilityGraphFamilyId = 'flowchart' | 'state'
-
-export function normalizeFamilyDetectionLine(firstLine: string): string {
-  return (firstLine.split(';')[0] ?? '').trim().toLowerCase()
-}
-
-/** Lightweight compatibility-parser ownership, deliberately independent of
- * the complete family registry so direct graph-parser imports remain usable. */
-export function detectsFlowchartFamily(firstLine: string): boolean {
-  // Keep this detector self-contained: the browser catalog generator embeds
-  // descriptor detectors via Function#toString at build time.
-  const line = (firstLine.split(';')[0] ?? '').trim().toLowerCase()
-  return /^(?:flowchart|graph|swimlane)(?:\s|$)/.test(line)
-}
-
-export function detectsStateFamily(firstLine: string): boolean {
-  const line = (firstLine.split(';')[0] ?? '').trim().toLowerCase()
-  return /^statediagram(?:-v2)?\s*$/.test(line)
-}
-
-export function detectsStateFamilyLoose(firstLine: string): boolean {
-  const line = (firstLine.split(';')[0] ?? '').trim().toLowerCase()
-  return /^statediagram(?:-v2)?(?:\s|$)/.test(line)
-}
 
 export function detectCompatibilityGraphFamilyFromFirstLine(
   firstLine: string,
@@ -86,6 +67,15 @@ export function detectInstalledFamilyDescriptorFromFirstLine(
     mode === 'loose'
       ? (descriptor.detectLoose ?? descriptor.detect)(line)
       : descriptor.detect(line)) ?? null
+}
+
+/** For each of `lines`, the last line of the statement that starts there, by
+ * the rule of the installed family `firstLine` names (statementEnds), when
+ * the lines hold an accessibility directive a statement's text could hide. */
+export function installedFamilyStatementEnds(firstLine: string, lines: readonly string[], capturedFamily?: FamilyDescriptor | null): readonly number[] | undefined {
+  if (!lines.some(line => /acc(?:Title|Descr)/i.test(line))) return undefined
+  const family = capturedFamily === undefined ? detectInstalledFamilyDescriptorFromFirstLine(firstLine, 'loose') : capturedFamily
+  return family?.statementEnds?.(lines)
 }
 
 export function detectInstalledFamilyFromFirstLine(

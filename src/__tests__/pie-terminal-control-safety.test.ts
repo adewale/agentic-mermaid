@@ -1,3 +1,4 @@
+import { terminalText, withoutTerminalColor } from './helpers/terminal-text.ts'
 import { expect, test } from 'bun:test'
 import { parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
@@ -19,14 +20,14 @@ test('Pie terminal output replaces controls produced by authored escapes after s
 
     for (const colorMode of ['none', 'ansi16', 'ansi256', 'truecolor', 'html'] as const) {
       const result = renderMermaidASCIIWithReceipt(source, { colorMode })
-      expect(result.text).toStartWith(`${visible}  `)
+      expect(terminalText(result.text, colorMode)).toStartWith(`${visible}  `)
       const withoutAnsi = result.text.replace(/\u001b\[[0-9;]*m/g, '')
       expect(withoutAnsi).not.toMatch(/[\u0000-\u000d\u000e-\u001f\u007f-\u009f]/)
       expect(result.terminalStyle.diagnostics.map(item => item.code)).toContain(diagnostic)
       const meta = renderMermaidASCIIWithMeta(source, { colorMode })
       expect(meta.ascii).toBe(result.text)
       expect(meta.warnings.map(item => item.code)).toContain(diagnostic)
-      expect(meta.regions.map(region => [region.id, region.projectedText, region.canvasRow, region.canvasColStart, region.canvasColEnd]))
+      expect(meta.regions.filter(region => region.kind === 'node' || region.id === 'title').map(region => [region.id, region.projectedText, region.canvasRow, region.canvasColStart, region.canvasColEnd]))
         .toEqual([['slice-0', visible, 0, 0, 3]])
     }
     const bounded = renderMermaidASCIIWithReceipt(source, { colorMode: 'none', targetWidth: 45 })
@@ -61,7 +62,7 @@ test('Pie escaped newline keeps source identity but paints one SVG and terminal 
   expect(svg).toContain('A\\nB (66.7%)')
   expect(svg).not.toContain('>A</tspan>')
   const meta = renderMermaidASCIIWithMeta(source, { colorMode: 'none' })
-  expect(meta.regions.filter(region => region.id.startsWith('slice-')).map(region => region.projectedText))
+  expect(meta.regions.filter(region => region.kind === 'node').map(region => region.projectedText))
     .toEqual(['A B', 'A\\nB'])
   expect(meta.ascii).toStartWith('A B  ')
   expect(meta.ascii).not.toContain('A\nB')
@@ -104,21 +105,23 @@ test('Pie escaped newline paint normalization stays bounded after a long whitesp
   expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING)
 })
 
-test('all-zero Pie output does not claim a control replacement that never rendered', () => {
+test('zero-value Pie labels remain visible and their controls are diagnosed', () => {
   const source = 'pie\n  "A\\rB" : 0\n'
   const result = renderMermaidASCIIWithReceipt(source, { colorMode: 'none' })
-  expect(result.text).toBe('')
-  expect(result.terminalStyle.diagnostics.map(item => item.code)).not.toContain(diagnostic)
+  expect(result.text).toStartWith('A?B')
+  expect(result.text).toContain('0.0%')
+  expect(result.text).not.toContain('█')
+  expect(result.terminalStyle.diagnostics.map(item => item.code)).toContain(diagnostic)
   const meta = renderMermaidASCIIWithMeta(source, { colorMode: 'none' })
-  expect(meta.regions).toEqual([])
-  expect(meta.warnings.map(item => item.code)).not.toContain(diagnostic)
+  expect(meta.regions.find(region => region.id === 'slice-0')?.projectedText).toBe('A?B')
+  expect(meta.warnings.map(item => item.code)).toContain(diagnostic)
 })
 
 test('metadata keeps the Pie title and safe slice hit region when the agent body is opaque', () => {
   const source = 'pie\n  title Safe chart\n  "A\\rB" : 1\n'
   for (const colorMode of ['none', 'ansi16', 'ansi256', 'truecolor', 'html'] as const) {
     const meta = renderMermaidASCIIWithMeta(source, { colorMode })
-    expect(meta.regions.map(region => [region.id, region.projectedText, region.canvasRow, region.canvasColStart, region.canvasColEnd]))
+    expect(meta.regions.filter(region => region.kind === 'node' || region.id === 'title').map(region => [region.id, region.projectedText, region.canvasRow, region.canvasColStart, region.canvasColEnd]))
       .toEqual([
         ['title', 'Safe chart', 0, 0, 10],
         ['slice-0', 'A?B', 1, 0, 3],

@@ -60,6 +60,10 @@ describe('variable-length links preserve style and direction', () => {
     ['A -..-> B', 'dotted', true],
     ['A -...-> B', 'dotted', true],
     ['A -.- B', 'dotted', false],
+    // Upstream's dotted link may leave out its leading `-`.
+    ['A .-> B', 'dotted', true],
+    ['A ..-> B', 'dotted', true],
+    ['A .- B', 'dotted', false],
     ['A ==> B', 'thick', true],
     ['A ====> B', 'thick', true],
     ['A === B', 'thick', false],
@@ -74,6 +78,48 @@ describe('variable-length links preserve style and direction', () => {
     expect(e[0]!.hasArrowEnd).toBe(arrow)
     expect(e[0]!.source).toBe('A')
     expect(e[0]!.target).toBe('B')
+  })
+
+  // Upstream's node string runs on through a `.` right after an id: `A.-B`
+  // is the one node `A.-B`, and `A.->B` is the id `A.` before `->`, which
+  // no link spells.
+  it('reads A.-B as one node, as upstream does', () => {
+    expect(nodeIds('flowchart LR\n  A.-B')).toEqual(['A.-B'])
+  })
+  it.each(['A.->B', 'A:::c.-> B'])('%s does not read as a dotted link', statement => {
+    expect(() => parseMermaid(`flowchart LR\n  ${statement}`)).toThrow()
+  })
+})
+
+// Upstream's dotted and thick links end in a cross or a circle as its solid
+// ones do (`-?\.+-[xo>]?`, `==+[=xo>]`), and start with one where they end in
+// it; a pipe label or a text-arrow label leaves the markers as they are.
+describe('cross and circle ends on dotted and thick links', () => {
+  it.each([
+    ['A -.-x B', 'dotted', undefined, 'cross', 1],
+    ['A .-o B', 'dotted', undefined, 'circle', 1],
+    ['A -..-x B', 'dotted', undefined, 'cross', 2],
+    ['A-.-xB', 'dotted', undefined, 'cross', 1],
+    ['A x-.-x B', 'dotted', 'cross', 'cross', 1],
+    ['A ==x B', 'thick', undefined, 'cross', 1],
+    ['A ===o B', 'thick', undefined, 'circle', 2],
+    ['A o==o B', 'thick', 'circle', 'circle', 1],
+    ['A -.-x|lbl| B', 'dotted', undefined, 'cross', 1],
+    ['A -. lbl .-o B', 'dotted', undefined, 'circle', 1],
+    ['A == lbl ===x B', 'thick', undefined, 'cross', 2],
+    ['A x-- lbl --x B', 'solid', 'cross', 'cross', 1],
+    ['A o== lbl ==o B', 'thick', 'circle', 'circle', 1],
+  ] as const)('%s reads, and writes back, as upstream reads it', (link, style, startMarker, endMarker, length) => {
+    for (const src of [`flowchart LR\n  ${link}`, serialized(`flowchart LR\n  ${link}`)]) {
+      expect(nodeIds(src)).toEqual(['A', 'B'])
+      expect(edges(src)).toEqual([expect.objectContaining({ source: 'A', target: 'B', style, startMarker, endMarker, ...(length > 1 ? { length } : {}) })])
+    }
+  })
+
+  // Upstream reads an `x` or `o` opener only before a closer that ends the
+  // same way, and rejects the link otherwise.
+  it.each(['A x-- a --> B', 'A o-. a .-x B'])('%s is rejected, as upstream rejects it', link => {
+    expect(() => parseMermaid(`flowchart LR\n  ${link}`)).toThrow()
   })
 })
 
@@ -326,7 +372,8 @@ describe('link length is honored across subgraph boundaries', () => {
     for (const dir of ['LR', 'RL', 'TD', 'BT'] as const) {
       const base = verifyMermaid(tpl(dir, '-->'))
       const long = verifyMermaid(tpl(dir, '---->'))
-      expect(long.ok).toBe(true)
+      expect(base.ok, dir).toBe(true)
+      expect(long.ok, dir).toBe(true)
       expect(long.warnings.filter(w => w.code.startsWith('ROUTE_'))).toEqual([])
       expect(long.warnings.filter(w => w.code === 'OFF_CANVAS')).toEqual([])
       expect(mainGap(long, dir, 'A', 'B')).toBeGreaterThan(mainGap(base, dir, 'A', 'B') + 40)

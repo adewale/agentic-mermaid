@@ -2,19 +2,24 @@
 
 The package is published by [`.github/workflows/publish.yml`](../../.github/workflows/publish.yml),
 which triggers on a **published GitHub Release**. The workflow requires a
-successful canonical `ci.yml` run for the exact release commit. CI owns tests,
+successful canonical `ci.yml` run for the exact release commit. Its required
+independent semantic lane checks the pinned Mermaid parser/DB; failure, cancellation
+or non-execution blocks `CI complete` and publication. CI owns tests,
 dependency/palette/sketch/whole-corpus quality, TypeScript and Biome checks,
-browser contracts, route sabotage, `hero:check`, `website:check`, golden drift,
-mutation, and packed-consumer fuzzing under Node 24 and the minimum supported
+browser contracts, `hero:check`, `website:check`, golden drift,
+and packed-consumer fuzzing under Node 24 and the minimum supported
 Node 22. `bun run lint:package` runs publint and attw on the packed tarball, so
 every export resolves and carries types for Node ESM and bundlers. attw uses its
 `esm-only` profile because the package ships ESM only, and it skips `./browser`
 because that is the classic `<script>` bundle that sets a global, not an import.
-The release workflow retains the registry-derived macOS/Windows smoke,
-then owns only the publish boundary: an unprivileged job builds once, creates a
-real tarball with the pinned publishing npm, compares its contents with the
+The release workflow runs the registry-derived rendering contracts on standard
+Intel macOS 26 (`macos-26-intel`) and Windows (`windows-latest`). Its macOS
+smoke covers x64, without a fresh ARM64 result. The workflow owns the publish
+boundary: an unprivileged job builds once, creates a real
+tarball with the pinned publishing npm, compares its contents with the
 reviewed fail-closed manifest, records its integrity and SHA-256 digest, and
-uploads that immutable artifact under a fixed filename. A minimal OIDC job
+uploads that immutable artifact under a fixed filename. Performance comparisons
+run separately as [local benchmarks](#local-release-benchmarks). A minimal OIDC job
 requires the closed three-file artifact set, binds the manifest to the checksum
 and tarball bytes, then publishes that exact `.tgz` with lifecycle scripts disabled.
 There is no manual `npm publish` step. After npm succeeds, a separate minimal
@@ -90,15 +95,19 @@ client-side exact-identity check.
 2. **Bump the package and MCP server versions together.** Update `version` in
    `package.json`, `PACKAGE_VERSION` in `src/version.ts`, the top-level `version` in `server.json`, and
    `packages[0].version` in `server.json`. The readiness tests require an exact
-   match. Generated surfaces such as `llms.txt` and `am capabilities` read the
-   runtime-safe `PACKAGE_VERSION`, so no additional generated-file edit is needed.
+   match. Run `bun run generate:browser-families` and commit the runtime browser
+   descriptors so their `identity.compatibility.core` matches the new version.
+   CLI surfaces such as `am llms-txt` and `am capabilities` read the runtime-safe
+   `PACKAGE_VERSION` directly.
 3. **Roll the changelog.** Retitle `## Unreleased` in
    [`CHANGELOG.md`](../../CHANGELOG.md) to `## <version> — <YYYY-MM-DD>` and open a
-   fresh empty `## Unreleased` above it.
+   fresh empty `## Unreleased` above it. Run `bun run doc-blocks` to refresh the
+   API reference's source/release version paragraph.
 4. **Flip the "published" copy** (see below), commit via PR, and merge to `main`.
 5. **Create the GitHub Release** on the merge commit (tag `v<version>`). Its
-   publication fires `publish.yml`, which gates, builds, publishes to npm, and
-   then publishes the matching server metadata to the MCP Registry. You do not
+   publication fires `publish.yml`, which checks canonical CI, builds and
+   verifies the package, publishes to npm, and then publishes matching server
+   metadata to the MCP Registry. Benchmarks run separately. You do not
    need to remember this step: once the merge's CI passes, the deploy finds the
    version missing from npm and opens a **release to-do** issue that
    @mentions you, labelled `release-todo`, titled
@@ -167,6 +176,41 @@ than three days. If the pending version is not on npm, publish it (steps 5 and
 6); the publish run triggers the deploy. If that version is already on npm, the
 deploy itself is failing: read the latest "Deploy website to Cloudflare" run.
 The check never deploys or publishes.
+
+### Local release benchmarks
+
+Benchmarks run only in an explicit local measurement session. They are excluded
+from pull-request CI, scheduled workflows, release publication and hosted manual
+Actions. Publication still requires the exact release commit's canonical CI,
+platform smoke tests and verified publication artifact. A benchmark result does
+not block or authorize registry publication.
+
+After building and packing the candidate, retain its verified tarball and the
+resolved baseline identity, then run the relevant local commands:
+
+```bash
+bun run bench:release --baseline-npm 0.4.1 --out /tmp/release-comparison
+bun run bench:release:browser --candidate-tarball release-artifact/package.tgz --candidate-sha256 VERIFIED_HEX --baseline-lock /tmp/release-comparison/baseline.json --out /tmp/release-browser
+```
+
+The Node comparison covers distinct official syntax examples, generated scaling
+inputs and an agent edit workflow. It preserves per-round observations, render
+failures, determinism, label checks and its configured time/memory budgets. The
+browser comparison retains every reviewed fence occurrence, paired successful
+SVG timings, actual complete/lazy payloads and pinned competitor identities.
+Neither SVG acceptance nor visible-label checks prove arbitrary visual fidelity.
+Inspect raw failures and measurement scope before interpreting a ratio.
+
+Both local runners verify packed candidate bytes and persist the selected npm
+baseline version/integrity. A reused output directory retains that baseline;
+use a new directory when intentionally advancing it. The previous hosted
+benchmark workflow has been removed, including its publication dependency.
+
+For the full suite catalog, project-level incremental updates, invocation
+coverage and report generation, see the
+[Trident runner](https://github.com/adewale/trident/blob/main/unified/README.md). The
+[Trident README](https://github.com/adewale/trident/blob/main/README.md) documents local checks and the Agentic Mermaid
+adapters, and [`eval/trident`](../../eval/trident/README.md) documents the pinned launcher.
 
 ### Optional visual review
 

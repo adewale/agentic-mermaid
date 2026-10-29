@@ -5,6 +5,7 @@ import { DEFAULTS, resolvedColorValue } from './theme.ts'
 import type { MermaidRuntimeConfig, MermaidThemeVariables } from './mermaid-source.ts'
 import { safeCssPaint } from './shared/css-color.ts'
 import { checkedAuthoredStyle } from './shared/style-props.ts'
+import { graphClassNames } from './shared/graph-classes.ts'
 
 const MERMAID_THEME_COLORS: Record<string, DiagramColors> = {
   default: { bg: DEFAULTS.bg, fg: DEFAULTS.fg },
@@ -61,8 +62,10 @@ export function resolveDiagramColors(
   }
 }
 
-export function resolveThemeColors(themeName: string | undefined): DiagramColors | undefined {
-  if (!themeName) return undefined
+/** A theme name that is not one of Mermaid's, or not a string at all (config
+ * is untyped JSON), names no theme and leaves the default colors. */
+export function resolveThemeColors(themeName: unknown): DiagramColors | undefined {
+  if (typeof themeName !== 'string' || !themeName) return undefined
   return MERMAID_THEME_COLORS[themeName.toLowerCase()]
 }
 
@@ -87,15 +90,27 @@ export function resolveNodeInlineStyle(
 ): Record<string, string> | undefined {
   let result: Record<string, string> | undefined
 
-  const className = graph.classAssignments.get(nodeId)
-  if (className) {
+  for (const className of graphClassNames(graph.classAssignments.get(nodeId))) {
     const classDef = checkedAuthoredStyle(graph.classDefs.get(className), `classDef ${className}`)
-    if (classDef) result = { ...classDef }
+    if (classDef) result = { ...result, ...classDef }
   }
 
   const nodeStyle = checkedAuthoredStyle(graph.nodeStyles.get(nodeId), `style ${nodeId}`)
   if (nodeStyle) result = result ? { ...result, ...nodeStyle } : { ...nodeStyle }
 
+  return result
+}
+
+/**
+ * Resolve the classDef paint of the classes assigned to `id`, without its
+ * `style` paint: what Mermaid draws on a State composite's body.
+ */
+export function resolveClassInlineStyle(id: string, graph: MermaidGraph): Record<string, string> | undefined {
+  let result: Record<string, string> | undefined
+  for (const className of graphClassNames(graph.classAssignments.get(id))) {
+    const classDef = checkedAuthoredStyle(graph.classDefs.get(className), `classDef ${className}`)
+    if (classDef) result = { ...result, ...classDef }
+  }
   return result
 }
 
@@ -110,9 +125,10 @@ export function resolveEdgeInlineStyle(
   let result: Record<string, string> | undefined
 
   const edgeId = graph.edges[edgeIndex]?.id
-  const className = edgeId ? graph.classAssignments.get(edgeId) : undefined
-  const classDef = className ? checkedAuthoredStyle(graph.classDefs.get(className), `classDef ${className}`) : undefined
-  if (classDef) result = { ...classDef }
+  for (const className of graphClassNames(edgeId ? graph.classAssignments.get(edgeId) : undefined)) {
+    const classDef = checkedAuthoredStyle(graph.classDefs.get(className), `classDef ${className}`)
+    if (classDef) result = { ...result, ...classDef }
+  }
 
   const defaultStyle = checkedAuthoredStyle(graph.linkStyles.get('default'), 'linkStyle default')
   if (defaultStyle) result = result ? { ...result, ...defaultStyle } : { ...defaultStyle }
@@ -209,5 +225,23 @@ export function inkOnNodeFill(
   return tone => {
     const resolved = resolvedColorValue(tone, colors)
     return resolved ? legibleInk(resolved, fill) : contrastTextColor(fill) ?? tone
+  }
+}
+
+/** Reuse resolved ink within one lowering request. Theme resolution is costly;
+ * repeated categorical/card fills need not recompute it for every mark. The
+ * two policies remain distinct: authored fills adapt any resolvable ink,
+ * while ordinary fills adapt only the theme's own text tones. */
+export function createFillInkResolver(colors: DiagramColors): (tone: string, fill: string, authoredFill?: boolean) => string {
+  const themed = new Map<string, Map<string, string>>(), authored = new Map<string, Map<string, string>>()
+  return (tone, fill, authoredFill = false) => {
+    const cache = authoredFill ? authored : themed
+    let inks = cache.get(fill)
+    const retained = inks?.get(tone)
+    if (retained !== undefined) return retained
+    const ink = authoredFill ? inkOnNodeFill({ fill }, colors, fill)(tone) : toneOnFill(tone, fill, colors)
+    if (!inks) cache.set(fill, inks = new Map())
+    inks.set(tone, ink)
+    return ink
   }
 }

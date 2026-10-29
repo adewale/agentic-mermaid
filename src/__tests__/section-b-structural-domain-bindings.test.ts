@@ -41,7 +41,7 @@ describe('Section B structural/domain semantic bindings', () => {
     const journey = 'journey\n  section MeasuredTracking\n    x: 3: U'
     const journeyBaseline = renderMermaidSVG(journey)
     const journeyTracked = renderMermaidSVG(journey, { style: { roles: { 'group-header': { letterSpacing: 4 } } } })
-    const sectionWidth = (svg: string) => Number(svg.match(/journey-section-bg[^>]+width="([^"]+)/)?.[1])
+    const sectionWidth = (svg: string) => Number(svg.match(/journey-section-bg[^>]+?\swidth="([^"]+)/)?.[1])
     expect(sectionWidth(journeyTracked)).toBeGreaterThan(sectionWidth(journeyBaseline))
     expect(journeyTracked).toContain('letter-spacing="4"')
 

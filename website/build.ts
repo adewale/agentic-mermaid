@@ -1,6 +1,12 @@
+import { createSiteMetadata } from './build/metadata.ts'
+import { createPageShell } from './build/page-shell.ts'
+import { documentationPage } from './build/documentation.ts'
+import { renderDocBlocks } from '../scripts/docs/doc-blocks.ts'
+import { escapeHtml, escapeAttr, makePreFocusable } from './build/html.ts'
+import { buildWorkerArtifacts } from './build/worker-artifacts.ts'
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
-import { mkdir, readdir, rm, unlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, rm, unlink, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve, sep } from 'node:path'
@@ -18,29 +24,20 @@ import { NodeResourceResolver } from '../src/node-resource-resolver.ts'
 import { namespaceSvgIds } from '../src/renderer.ts'
 import { HOSTED_MCP_SERVER_NAME, HOSTED_TOOLS, SUPPORTED_PROTOCOL_VERSIONS } from '../src/mcp/hosted-server.ts'
 import { MCP_SERVER_VERSION } from '../src/mcp/tool-surface.ts'
-import { computeDeployVersion } from './src/deploy-hash.ts'
 import { resolveBuildGitSha } from './build-provenance.ts'
 import { AI_CATALOG_RESOURCES } from './agent-resource-inventory.ts'
-import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, staticRedirectLines } from './src/site-routes.ts'
+import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, markdownAlternative, staticRedirectLines } from './src/site-routes.ts'
 import { HOMEPAGE_AGENT_POINTER } from '../eval/agent-usage/homepage-prompt.ts'
 import { EDITOR_EXAMPLES } from '../editor/examples.ts'
 import { samples as RICH_EXAMPLES } from '../scripts/site/samples-data.ts'
 import { CUSTOM_STYLE_CATALOG } from '../scripts/docs/custom-style-catalog.ts'
 import { editorStateHref } from '../scripts/site/editor-state-url.ts'
-import {
-  createExampleRenderState,
-  createStyledExampleRenderState,
-  WEBSITE_EXAMPLE_THEME,
-} from '../scripts/site/example-render-state.ts'
+import { createExampleRenderState, createStyledExampleRenderState, WEBSITE_EXAMPLE_THEME } from '../scripts/site/example-render-state.ts'
 import { sharedRenderOptionsJsonSchema } from '../src/render-contract.ts'
 import { LEGACY_RICH_EXAMPLE_ALIASES } from '../scripts/site/website-example-legacy-aliases.ts'
 import interSubsetManifestJson from './source/assets/fonts/inter/manifest.json'
-import {
-  WEBSITE_INTER_SUBSET_DIRECTORY,
-  WEBSITE_INTER_UNICODE_RANGES,
-  validateWebsiteInterSubsetManifest,
-  type WebsiteInterSubsetManifest,
-} from '../scripts/site/website-font-subsets.ts'
+import { buildDocsEditDemo } from './docs-edit-demo.ts'
+import { WEBSITE_INTER_SUBSET_DIRECTORY, WEBSITE_INTER_UNICODE_RANGES, validateWebsiteInterSubsetManifest, type WebsiteInterSubsetManifest } from '../scripts/site/website-font-subsets.ts'
 
 const ROOT = join(import.meta.dir, '..')
 const SOURCE = join(import.meta.dir, 'source')
@@ -59,10 +56,7 @@ const INTER_SUBSET_MANIFEST = interSubsetManifestJson as unknown as WebsiteInter
 const INTER_SUBSET_MANIFEST_PROBLEMS = validateWebsiteInterSubsetManifest(INTER_SUBSET_MANIFEST)
 if (INTER_SUBSET_MANIFEST_PROBLEMS.length) throw new Error(`Invalid Inter subset manifest: ${INTER_SUBSET_MANIFEST_PROBLEMS.join(', ')}`)
 const INTER_SUBSET_BY_SOURCE = new Map(INTER_SUBSET_MANIFEST.outputs.map(output => [output.source, output] as const))
-const VERIFIED_FONT_BY_ID = new Map(
-  new NodeResourceResolver(ROOT, RESOURCE_MANIFEST).verifyInstalled().resources
-    .map(resource => [resource.entry.identity.id, resource] as const),
-)
+const VERIFIED_FONT_BY_ID = new Map(new NodeResourceResolver(ROOT, RESOURCE_MANIFEST).verifyInstalled().resources.map(resource => [resource.entry.identity.id, resource] as const))
 
 type FileContent = string | Buffer
 const generated = new Map<string, FileContent>()
@@ -76,7 +70,6 @@ const routeMap: Record<string, string> = {
   'agent-instructions.md': '/agent-instructions.md',
   'capabilities.json': '/capabilities.json',
   'start.md': '/start.md',
-
 }
 
 const pageOutputs: Array<[source: string, target: string]> = [
@@ -85,11 +78,7 @@ const pageOutputs: Array<[source: string, target: string]> = [
   ['skill-workflow.html', 'skills/agentic-mermaid-diagram-workflow/index.html'],
 ]
 
-const rootAssets = new Set([
-  'favicon.svg', 'favicon.ico', 'apple-touch-icon.png', 'og-image.png',
-  'styles.css', 'theme.js', 'shader-mark.js', 'llms.txt', 'agent-instructions.md',
-  'capabilities.json',
-])
+const rootAssets = new Set(['favicon.svg', 'favicon.ico', 'apple-touch-icon.png', 'og-image.png', 'styles.css', 'theme.js', 'shader-mark.js', 'llms.txt', 'agent-instructions.md', 'capabilities.json'])
 
 const EDITOR_ROUTE = '/editor/'
 const GENERIC_EDITOR_HREF = '/editor/?empty=1'
@@ -112,15 +101,19 @@ function rewriteUrl(value: string): string {
   return value
 }
 
-const agentDiscoveryLinks = [
-  '<link rel="alternate" type="text/markdown" href="/index.md">',
-  '<link rel="alternate" type="text/plain" href="/llms.txt">',
-  '<link rel="alternate" type="application/json" href="/capabilities.json">',
-  '<link rel="alternate" type="text/markdown" href="/agent-instructions.md">',
-  '<link rel="alternate" type="application/json" href="/.well-known/mcp.json">',
+const relatedAgentLinks = [
+  '<link rel="describedby" type="text/plain" href="/llms.txt">',
+  '<link rel="describedby" type="application/json" href="/capabilities.json">',
+  '<link rel="describedby" type="text/markdown" href="/agent-instructions.md">',
+  '<link rel="service-desc" type="application/json" href="/.well-known/mcp.json">',
   '<link rel="mcp-server" type="application/mcp-server-card+json" href="/.well-known/mcp/server-card.json">',
   '<link rel="ai-catalog" type="application/json" href="/.well-known/ai-catalog.json">',
 ].join('\n')
+
+function agentDiscoveryLinks(route: string): string {
+  const markdownPath = markdownAlternative(route)
+  return (markdownPath ? `<link rel="alternate" type="text/markdown" href="${markdownPath}">\n` : '') + relatedAgentLinks
+}
 
 function addHeadDescription(html: string) {
   if (html.includes('name="description"')) return html
@@ -129,192 +122,13 @@ function addHeadDescription(html: string) {
   return html.replace(/<meta name="viewport"[^>]*>/, '$&\n<meta name="description" content="Agentic Mermaid renders, verifies, and edits Mermaid diagrams locally, with compact agent instructions for CLI, library, and MCP use.">')
 }
 
-// Social/canonical metadata. Keep the canonical public origin as the default so
-// local builds and production both ship complete entity-resolution metadata.
-const siteOrigin = process.env.SITE_ORIGIN ?? 'https://agentic-mermaid.dev'
-// titleAttr/descriptionAttr must already be attribute-escaped by the caller.
-function socialMetaTags(titleAttr: string, descriptionAttr: string, route = '') {
-  const tags = [
-    `<meta property="og:title" content="${titleAttr}">`,
-    `<meta property="og:description" content="${descriptionAttr}">`,
-    '<meta property="og:type" content="website">',
-    '<meta name="twitter:card" content="summary_large_image">',
-  ]
-  if (siteOrigin && route) {
-    tags.push(
-      `<link rel="canonical" href="${escapeAttr(siteOrigin + route)}">`,
-      `<meta property="og:url" content="${escapeAttr(siteOrigin + route)}">`,
-      `<meta property="og:image" content="${escapeAttr(siteOrigin + '/og-image.png')}">`,
-    )
-  }
-  return tags.join('\n')
-}
-
-// Head-injection step for mockup-derived pages (and the editor): reuse the
-// page's own <title> and meta description so the social card never drifts
-// from the visible page. Both are lifted from markup, so they are already
-// entity-escaped; only stray quotes need re-escaping for the attribute.
-function addSocialMeta(html: string, route = '') {
-  if (html.includes('property="og:title"')) return html
-  const title = (html.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? 'Agentic Mermaid').trim().replace(/"/g, '&quot;')
-  const description = html.match(/<meta name="description" content="([^"]*)"/)?.[1] ?? ''
-  return html.replace('</head>', socialMetaTags(title, description, route) + '\n</head>')
-}
-
-function jsonLdScript(data: unknown) {
-  return `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>`
-}
-
-function decodeHtmlLite(s: string) {
-  return s
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-}
-
-function structuredDataTags(title = 'Agentic Mermaid', description = packageJson.description, route = '/') {
-  const pageUrl = siteOrigin + (route || '/')
-  const homeUrl = `${siteOrigin}/`
-  const logoUrl = `${siteOrigin}/og-image.png`
-  return jsonLdScript({
-    '@context': 'https://schema.org',
-    '@graph': [
-      {
-        '@type': 'Organization',
-        '@id': `${homeUrl}#organization`,
-        name: 'Agentic Mermaid',
-        url: homeUrl,
-        logo: logoUrl,
-        description: 'Open-source Mermaid rendering, verification, and structured editing for coding agents.',
-        sameAs: ['https://github.com/adewale/agentic-mermaid'],
-        contactPoint: {
-          '@type': 'ContactPoint',
-          contactType: 'technical support',
-          url: 'https://github.com/adewale/agentic-mermaid/issues',
-        },
-        address: {
-          '@type': 'PostalAddress',
-          addressCountry: 'US',
-        },
-      },
-      {
-        '@type': 'WebSite',
-        '@id': `${homeUrl}#website`,
-        name: 'Agentic Mermaid',
-        url: homeUrl,
-        description: packageJson.description,
-        publisher: { '@id': `${homeUrl}#organization` },
-      },
-      {
-        '@type': 'SoftwareApplication',
-        '@id': `${homeUrl}#software`,
-        name: 'Agentic Mermaid',
-        url: homeUrl,
-        description: packageJson.description,
-        applicationCategory: 'DeveloperApplication',
-        applicationSubCategory: 'Diagramming, MCP server, CLI, and library',
-        operatingSystem: 'Cross-platform',
-        softwareVersion: packageJson.version,
-        codeRepository: 'https://github.com/adewale/agentic-mermaid',
-        programmingLanguage: ['TypeScript', 'JavaScript'],
-        runtimePlatform: ['Node.js', 'Bun', 'Cloudflare Workers'],
-        isAccessibleForFree: true,
-        offers: {
-          '@type': 'Offer',
-          price: '0',
-          priceCurrency: 'USD',
-        },
-        featureList: [
-          'Parse, verify, mutate, serialize, and render Mermaid diagrams',
-          'Deterministic SVG, PNG, ASCII, Unicode, and JSON layout output',
-          'Hosted and self-hosted MCP tools for agent workflows',
-          'Structured mutation operations for supported Mermaid families',
-        ],
-        provider: { '@id': `${homeUrl}#organization` },
-        sameAs: ['https://github.com/adewale/agentic-mermaid'],
-      },
-      {
-        '@type': 'Service',
-        '@id': `${homeUrl}#hosted-mcp`,
-        name: 'Agentic Mermaid hosted MCP',
-        serviceType: 'Model Context Protocol server',
-        url: `${siteOrigin}/mcp`,
-        description: 'Stateless Streamable HTTP MCP endpoint for rendering, verifying, describing, mutating, and building Mermaid diagrams.',
-        provider: { '@id': `${homeUrl}#organization` },
-        isRelatedTo: { '@id': `${homeUrl}#software` },
-        offers: {
-          '@type': 'Offer',
-          price: '0',
-          priceCurrency: 'USD',
-        },
-      },
-      {
-        '@type': 'WebPage',
-        '@id': `${pageUrl}#webpage`,
-        url: pageUrl,
-        name: title,
-        description,
-        isPartOf: { '@id': `${homeUrl}#website` },
-        primaryImageOfPage: logoUrl,
-        about: { '@id': `${homeUrl}#software` },
-        speakable: {
-          '@type': 'SpeakableSpecification',
-          cssSelector: ['h1', '.lead', '.agent-entrypoints'],
-        },
-      },
-      // FAQPage markup is scoped to /about/ (the page whose visible FAQ section
-      // it describes): Google's guideline requires the Q&A to be visible on the
-      // page carrying the markup, and stamping it site-wide risks it being
-      // ignored as duplicate structured data.
-      ...(route === '/about/' ? [{
-        '@type': 'FAQPage',
-        '@id': `${homeUrl}#faq`,
-        mainEntity: [
-          {
-            '@type': 'Question',
-            name: 'What is Agentic Mermaid?',
-            acceptedAnswer: {
-              '@type': 'Answer',
-              text: 'Agentic Mermaid is an open-source Mermaid runtime for agents. It parses, verifies, mutates, serializes, and renders diagrams without a browser.',
-            },
-          },
-          {
-            '@type': 'Question',
-            name: 'How should an agent use Agentic Mermaid?',
-            acceptedAnswer: {
-              '@type': 'Answer',
-              text: 'Use the local library, CLI, or MCP server. Parse source first, narrow to the diagram family, apply structured mutations when available, verify, then serialize or render.',
-            },
-          },
-          {
-            '@type': 'Question',
-            name: 'Where is the hosted MCP endpoint?',
-            acceptedAnswer: {
-              '@type': 'Answer',
-              text: 'The hosted stateless Streamable HTTP MCP endpoint is https://agentic-mermaid.dev/mcp, with a standard discovery alias at https://agentic-mermaid.dev/.well-known/mcp.',
-            },
-          },
-        ],
-      }] : []),
-    ],
-  })
-}
-
-function addStructuredData(html: string, route = '') {
-  if (html.includes('"@id":"https://agentic-mermaid.dev/#software"')) return html
-  const title = decodeHtmlLite((html.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? 'Agentic Mermaid').trim())
-  const description = decodeHtmlLite(html.match(/<meta name="description" content="([^"]*)"/)?.[1] ?? packageJson.description)
-  return html.replace('</head>', structuredDataTags(title, description, route || '/') + '\n</head>')
-}
-
-function addAgentDiscoveryLinks(html: string) {
-  if (html.includes('rel="alternate" type="application/json" href="/capabilities.json"')) return html
+function addAgentDiscoveryLinks(html: string, route: string) {
+  if (html.includes('rel="describedby" type="application/json" href="/capabilities.json"')) return html
+  const links = agentDiscoveryLinks(route)
   if (/<link rel="stylesheet" href="([^\"]+)"\s*>/.test(html)) {
-    return html.replace(/<link rel="stylesheet" href="([^\"]+)"\s*>/, '<link rel="stylesheet" href="$1">\n' + agentDiscoveryLinks)
+    return html.replace(/<link rel="stylesheet" href="([^\"]+)"\s*>/, '<link rel="stylesheet" href="$1">\n' + links)
   }
-  return html.replace('</head>', agentDiscoveryLinks + '\n</head>')
+  return html.replace('</head>', links + '\n</head>')
 }
 
 function addSkipLink(html: string, target = 'main') {
@@ -328,10 +142,6 @@ function ensureMainId(html: string) {
 
 // Code blocks scroll horizontally on narrow screens; a scrollable region must
 // be keyboard-focusable (WCAG 2.1.1 / axe scrollable-region-focusable).
-function makePreFocusable(html: string) {
-  return html.replace(/<pre(?![^>]*\btabindex)((?:\s[^>]*)?)>/g, '<pre tabindex="0"$1>')
-}
-
 function rewriteAttrs(html: string) {
   return html.replace(/\b(href|src)="([^"]+)"/g, (_m, attr, value) => `${attr}="${rewriteUrl(value)}"`)
 }
@@ -358,7 +168,7 @@ function setNavCurrent(html: string, currentHref = '') {
 }
 
 function transformHtml(html: string, currentHref = '', route = ''): string {
-  const transformed = setNavCurrent(ensureMainId(addSkipLink(addFooter(addAgentDiscoveryLinks(addStructuredData(addSocialMeta(addHeadDescription(rewriteAttrs(html)), route), route))))), currentHref)
+  const transformed = setNavCurrent(ensureMainId(addSkipLink(addFooter(addAgentDiscoveryLinks(addStructuredData(addSocialMeta(addHeadDescription(rewriteAttrs(html)), route), route), route)))), currentHref)
   return makePreFocusable(transformed)
 }
 
@@ -372,7 +182,7 @@ function transformEditorHtml(html: string): string {
   out = out.replace(/href="\/beautiful-mermaid\/"/g, 'href="/"')
   out = addHeadDescription(out)
   out = addSocialMeta(out, '/editor/')
-  out = addAgentDiscoveryLinks(out)
+  out = addAgentDiscoveryLinks(out, EDITOR_ROUTE)
   out = addSkipLink(out, 'editor-main')
   return out
 }
@@ -418,25 +228,17 @@ async function emitStylesheet() {
     const fullSource = `src: url('/fonts/${source}') format('truetype');`
     const fullFace = fontFace.split('\n').find(face => face.includes(fullSource))
     if (!fullFace) throw new Error(`Missing full public font face for ${source}`)
-    const subsetFace = fullFace
-      .replace(fullSource, `src: url('/fonts/${output.file}') format('woff2');`)
-      .replace('font-display: swap; }', `font-display: swap; unicode-range: ${WEBSITE_INTER_UNICODE_RANGES.join(', ')}; }`)
+    const subsetFace = fullFace.replace(fullSource, `src: url('/fonts/${output.file}') format('woff2');`).replace('font-display: swap; }', `font-display: swap; unicode-range: ${WEBSITE_INTER_UNICODE_RANGES.join(', ')}; }`)
     fontFace = fontFace.replace(fullFace, `${fullFace}\n${subsetFace}`)
   }
   for (const name of DISPLAY_SUBSET_FONT_STEMS) {
-    fontFace = fontFace.replace(
-      `src: url('/fonts/${name}.ttf') format('truetype');`,
-      `src: url('/fonts/${name}.subset.woff2') format('woff2'), url('/fonts/${name}.ttf') format('truetype');`,
-    )
+    fontFace = fontFace.replace(`src: url('/fonts/${name}.ttf') format('truetype');`, `src: url('/fonts/${name}.subset.woff2') format('woff2'), url('/fonts/${name}.ttf') format('truetype');`)
   }
   await emit('styles.css', fontFace + '\n' + css)
 }
 
 async function emitThemeScript() {
-  const [copyFeedback, theme] = await Promise.all([
-    Bun.file(join(ROOT, 'shared', 'browser', 'copy-feedback.js')).text(),
-    Bun.file(join(SOURCE_ASSETS, 'theme.js')).text(),
-  ])
+  const [copyFeedback, theme] = await Promise.all([Bun.file(join(ROOT, 'shared', 'browser', 'copy-feedback.js')).text(), Bun.file(join(SOURCE_ASSETS, 'theme.js')).text()])
   await emit('theme.js', copyFeedback + '\n' + theme)
 }
 
@@ -462,16 +264,25 @@ const EXAMPLES_STYLE_SOURCE = await Bun.file(join(SOURCE_ASSETS, 'examples.css')
 const EXAMPLES_STYLE_REL = `examples-${sha256(EXAMPLES_STYLE_SOURCE).slice(0, 12)}.css`
 
 async function generateEditorHtml() {
+  const runtimeDirectory = await mkdtemp(join(tmpdir(), 'am-editor-runtime-'))
   const result = Bun.spawnSync(['bun', 'run', 'scripts/site/editor.ts'], {
     cwd: ROOT,
-    env: { ...process.env, AM_EDITOR_FONT_PREFIX: '/fonts/' },
+    env: { ...process.env, AM_EDITOR_FONT_PREFIX: '/fonts/', AM_EDITOR_RUNTIME_DIR: runtimeDirectory },
   })
   if (result.exitCode !== 0) {
+    await rm(runtimeDirectory, { recursive: true, force: true })
     throw new Error(`scripts/site/editor.ts failed:\n${result.stderr.toString()}`)
+  }
+  try {
+    await copyDir(runtimeDirectory, 'editor/runtime')
+  } finally {
+    await rm(runtimeDirectory, { recursive: true, force: true })
   }
   const path = join(ROOT, 'editor.html')
   const html = await Bun.file(path).text()
-  try { await unlink(path) } catch {}
+  try {
+    await unlink(path)
+  } catch {}
   let transformed = transformEditorHtml(html)
   const scriptMatch = transformed.match(/\n<script type="module">\n([\s\S]*?)\n<\/script>\s*\n<\/body>/)
   if (!scriptMatch) throw new Error('editor bundle script not found')
@@ -482,82 +293,14 @@ async function generateEditorHtml() {
   // Authoring comments are useful in the source fragments but have no runtime
   // semantics; do not ship them in the production editor document.
   transformed = transformed.replace(/<!--[\s\S]*?-->/g, '')
-  transformed = transformed.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, block =>
-    block.replace(/\/\*[\s\S]*?\*\//g, ''))
+  transformed = transformed.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, block => block.replace(/\/\*[\s\S]*?\*\//g, ''))
+  // Drop authoring indentation while retaining whitespace between inline tags.
+  // Preserve whitespace-sensitive elements verbatim.
+  transformed = transformed.replace(/<(pre|textarea|style)\b[^>]*>[\s\S]*?<\/\1>|^[ \t]+(?=<)/gim, block => block.startsWith('<') ? block : '')
   // The bundle is the editor's whole app; let the preload scanner fetch it
   // before the parser reaches the end-of-body script tag.
   transformed = transformed.replace('</head>', `<link rel="modulepreload" href="/${scriptRel}">\n</head>`)
   return transformed
-}
-
-function mastheadHtml(currentHref = '') {
-  const links = [
-    ['/about/', 'About', ''],
-    ['/examples/', 'Examples', ''],
-    ['/comparisons/', 'Comparisons', ''],
-    ['/docs/', 'Docs', ''],
-    ['https://github.com/adewale/agentic-mermaid', 'GitHub', ''],
-    [GENERIC_EDITOR_HREF, 'Open editor', 'link-editor'],
-  ] as const
-  const nav = links.map(([href, label, cls]) => {
-    const attrs = [cls ? `class="${cls}"` : '', currentHref === href ? 'aria-current="page"' : ''].filter(Boolean).join(' ')
-    return `<a ${attrs ? attrs + ' ' : ''}href="${href}">${label}</a>`
-  }).join('')
-  return `<header class="masthead"><div class="bar"><a class="brand" href="/"><span class="mark"></span> Agentic&nbsp;Mermaid</a><nav class="links desktop-links" aria-label="Primary navigation">${nav}</nav><details class="nav-menu"><summary class="nav-toggle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Menu</span></summary><nav id="site-navigation" class="links" aria-label="Primary navigation">${nav}</nav></details></div><hr></header>`
-}
-
-// One quiet footer on every document page: the trust signals an evaluating
-// engineer looks for (version, license, where to report a problem) plus the
-// pages that otherwise have no inbound link (design language). The editor is
-// app chrome and carries its own report-issue affordance instead.
-function siteFooterHtml() {
-  return `<footer class="site-footer"><hr><div class="bar"><p>Agentic Mermaid v${packageJson.version} · <a href="https://github.com/adewale/agentic-mermaid/blob/main/LICENSE">MIT</a> · <a href="https://github.com/adewale/agentic-mermaid">GitHub</a> · <a href="https://github.com/adewale/agentic-mermaid/issues">Report an issue</a> · <a href="https://github.com/adewale/agentic-mermaid/blob/main/CHANGELOG.md">Changelog</a> · <a href="/about/design/">Design language</a> · <a href="/llms.txt">llms.txt</a></p></div></footer>`
-}
-
-function addFooter(html: string) {
-  if (html.includes('class="site-footer"')) return html
-  return html.replace('</main>', '</main>\n' + siteFooterHtml())
-}
-
-// Single page header contract: h1 + lead, then an optional meta row
-// (e.g. "Updated · source · read time") and actions row. The public site is
-// deliberately document-first with no breadcrumb chrome (see the website
-// contract test — masthead nav is the only wayfinding the shell ships).
-function pageShell(title: string, lead: string, body: string, currentHref = '', meta = '', actions = '', route = '') {
-  // Titles that already carry the brand (e.g. "About Agentic Mermaid") do not
-  // get the suffix a second time.
-  const fullTitle = title.includes('Agentic Mermaid') ? title : `${title} – Agentic Mermaid`
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light">
-<meta name="description" content="${escapeAttr(lead)}">
-<title>${escapeHtml(fullTitle)}</title>
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="icon" href="/favicon.ico" type="image/x-icon">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="stylesheet" href="/styles.css">
-${agentDiscoveryLinks}
-${socialMetaTags(escapeAttr(fullTitle), escapeAttr(lead), route)}
-${structuredDataTags(fullTitle, lead, route || '/')}
-</head>
-<body>
-<a class="skip-link" href="#main">Skip to content</a>
-${mastheadHtml(currentHref)}
-<main id="main" class="doc">
-<section class="page-header">
-<h1>${escapeHtml(title)}</h1>
-<p class="lead">${escapeHtml(lead)}</p>
-${meta ? `<p class="page-meta">${meta}</p>\n` : ''}${actions ? `<div class="page-actions">${actions}</div>\n` : ''}</section>
-${makePreFocusable(body)}
-</main>
-${siteFooterHtml()}
-<script src="/shader-mark.js"></script>
-<script src="/theme.js"></script>
-</body>
-</html>`
 }
 
 // pageShell + emit with the page's own route wired through, so canonical/og:url
@@ -583,12 +326,6 @@ async function emitShell(rel: string, title: string, lead: string, body: string,
   await emit(rel, await externalizeExecutableInlineScripts(html))
 }
 
-function escapeHtml(s: string) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
-function escapeAttr(s: string) {
-  return escapeHtml(s).replace(/"/g, '&quot;')
-}
 // The warning catalog's page prose is authored as inline HTML (<code> spans,
 // entities); render it as plain Markdown for the .md siblings. Decode
 // &amp; last so pre-encoded entities like &amp;#160; survive as literal text.
@@ -596,12 +333,18 @@ function inlineHtmlToMarkdown(s: string) {
   return s
     .replace(/<a href="([^"]+)">(.*?)<\/a>/g, '[$2]($1)')
     .replace(/<code>(.*?)<\/code>/g, '`$1`')
-    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
     .replace(/&amp;/g, '&')
 }
 
 const packageJson = JSON.parse(await Bun.file(join(ROOT, 'package.json')).text())
+const siteOrigin = process.env.SITE_ORIGIN ?? 'https://agentic-mermaid.dev'
+const metadata = createSiteMetadata(packageJson, siteOrigin)
+const { addSocialMeta, addStructuredData } = metadata
+const { mastheadHtml, addFooter, pageShell } = createPageShell(packageJson.version, agentDiscoveryLinks, GENERIC_EDITOR_HREF, metadata)
 const rawCapabilities = buildCapabilities()
 function checkoutGitValue(args: string[]): string | undefined {
   try {
@@ -625,18 +368,12 @@ const generatedFrom = {
   // the actual bundle build time explicitly.
   buildTime: process.env.SITE_BUILD_TIME ?? checkoutGitValue(['show', '-s', '--format=%cI', 'HEAD']) ?? 'development',
 }
-const npmPublished = process.env.SITE_NPM_STATUS === 'source'
-  ? false
-  : process.env.SITE_NPM_STATUS === 'published' || process.env.SITE_NPM_PUBLISHED !== '0'
-const installCommand = npmPublished
-  ? 'npm i agentic-mermaid'
-  : 'git clone https://github.com/adewale/agentic-mermaid && cd agentic-mermaid && bun install && bun run build'
-const installNotice = npmPublished
-  ? 'Install the published npm package.'
-  : 'The npm package is not yet published; install from source.'
+const npmPublished = process.env.SITE_NPM_STATUS === 'source' ? false : process.env.SITE_NPM_STATUS === 'published' || process.env.SITE_NPM_PUBLISHED !== '0'
+const installCommand = npmPublished ? 'npm i agentic-mermaid' : 'git clone https://github.com/adewale/agentic-mermaid && cd agentic-mermaid && bun install && bun run build'
+const installNotice = npmPublished ? 'Install the published npm package.' : 'The npm package is not yet published; install from source.'
 
-const familyByExampleId = new Map<string, BuiltinFamilyMetadata>(BUILTIN_FAMILY_METADATA.map((f) => [f.editorExampleId, f]))
-const familyByDiagramType = new Map(BUILTIN_FAMILY_METADATA.map((family) => [family.editorDiagramType, family]))
+const familyByExampleId = new Map<string, BuiltinFamilyMetadata>(BUILTIN_FAMILY_METADATA.map(f => [f.editorExampleId, f]))
+const familyByDiagramType = new Map(BUILTIN_FAMILY_METADATA.map(family => [family.editorDiagramType, family]))
 function familyForExample(example: any) {
   return familyByExampleId.get(example.id) ?? familyByDiagramType.get(example.diagramType)
 }
@@ -644,8 +381,11 @@ function addSvgAccessibleName(svg: string, idBase: string, title: string, desc: 
   const safeId = idBase.replace(/[^a-z0-9_-]+/gi, '-')
   const titleId = `${safeId}-svg-title`
   const descId = `${safeId}-svg-desc`
-  return svg.replace(/^<svg\b([^>]*)>/, (_full, attrs: string) => {
-    const cleanAttrs = attrs.replace(/\saria-labelledby="[^"]*"/g, '')
+  // The website owns the card's root name. Replace the renderer's immediate
+  // root title/description as well as its references, keeping descendant names.
+  const unnamed = svg.replace(/^(<svg\b[^>]*>)(?:\s*<(title|desc)\b[^>]*>[\s\S]*?<\/\2>)+/, '$1')
+  return unnamed.replace(/^<svg\b([^>]*)>/, (_full, attrs: string) => {
+    const cleanAttrs = attrs.replace(/\saria-(?:label|labelledby|describedby)="[^"]*"/g, '')
     const role = /\brole=/.test(cleanAttrs) ? '' : ' role="img"'
     return `<svg${cleanAttrs}${role} aria-labelledby="${titleId} ${descId}"><title id="${titleId}">${escapeHtml(title)}</title><desc id="${descId}">${escapeHtml(desc)}</desc>`
   })
@@ -667,16 +407,14 @@ function renderExampleSvg(example: any, request = editorExampleRenderState(examp
     embedFontImport: false,
     idPrefix: `example-${example.id}-`,
   }).replace(/[ \t]+$/gm, '')
-  return addSvgAccessibleName(
-    svg,
-    `example-${example.id}`,
-    `${example.label} diagram`,
-    `Build-time render of the ${example.diagramType ?? 'Mermaid'} example loaded by the editor.`,
-  )
+  return addSvgAccessibleName(svg, `example-${example.id}`, `${example.label} diagram`, `Build-time render of the ${example.diagramType ?? 'Mermaid'} example loaded by the editor.`)
 }
 
 function exampleSlug(s: string) {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
 }
 
 function richExampleId(sample: { title: string; anchor?: string }) {
@@ -685,10 +423,7 @@ function richExampleId(sample: { title: string; anchor?: string }) {
 
 function richExampleRenderState(sample: any) {
   const options = { ...(sample.options ?? {}) }
-  if (sample.category === 'Style + Palette'
-    && Array.isArray(options.style)
-    && typeof options.style[0] === 'string'
-    && typeof options.style[1] === 'string') {
+  if (sample.category === 'Style + Palette' && Array.isArray(options.style) && typeof options.style[0] === 'string' && typeof options.style[1] === 'string') {
     const [style, palette] = options.style
     const seed = typeof options.seed === 'number' ? options.seed : 0
     delete options.style
@@ -705,12 +440,7 @@ function renderRichExampleSvg(sample: any, id: string, request = richExampleRend
     embedFontImport: false,
     idPrefix: `example-${id}-`,
   }).replace(/[ \t]+$/gm, '')
-  return addSvgAccessibleName(
-    svg,
-    `example-${id}`,
-    `${sample.title} diagram`,
-    `Build-time render of the shared ${sample.category ?? 'Mermaid'} corpus example.`,
-  )
+  return addSvgAccessibleName(svg, `example-${id}`, `${sample.title} diagram`, `Build-time render of the shared ${sample.category ?? 'Mermaid'} corpus example.`)
 }
 
 // Per-family agent task: a plausible prompt and the trace an agent runs before
@@ -718,22 +448,31 @@ function renderRichExampleSvg(sample: any, id: string, request = richExampleRend
 // Examples page carries the agentic narrative — prompt, trace, render, deep
 // link — rather than a bare source dump. Keyed by family id.
 const FAMILY_AGENT_TASK: Record<BuiltinFamilyId, { prompt: string; trace: string }> = {
-  flowchart:    { prompt: 'Add a labeled failure branch and verify that every decision exit is named.', trace: 'asFlowchart · mutate(add_edge/set_label) · verify' },
-  state:        { prompt: 'Add a retry transition from Failed back to Idle, then verify before returning source.', trace: 'asState · mutate(add_transition) · verify' },
-  sequence:     { prompt: 'Insert the verification call before export and keep participant order stable.', trace: 'asSequence · mutate(add_message) · verify' },
-  timeline:     { prompt: 'Add a Review period with one approval event without rewriting other periods.', trace: 'asTimeline · mutate(add_period) · verify' },
-  class:        { prompt: 'Add a repository class and connect it to the service with a typed relationship.', trace: 'asClass · mutate(add_class/add_relation) · verify' },
-  er:           { prompt: 'Add an order line-item relationship and verify cardinalities before serialize.', trace: 'asEr · mutate(add_relation) · verify' },
-  journey:      { prompt: 'Add an agent verification task and preserve existing scores.', trace: 'asJourney · mutate(add_task) · verify' },
+  flowchart: { prompt: 'Add a labeled failure branch and verify that every decision exit is named.', trace: 'asFlowchart · mutate(add_edge/set_label) · verify' },
+  zenuml: { prompt: 'Model nested checkout calls with a stock decision and explicit replies.', trace: 'asZenUML · mutate(rename_participant/insert_statement) · verify' },
+  eventmodeling: { prompt: 'Insert an event frame and keep explicit source references attached to their authored IDs.', trace: 'asEventModeling · mutate(insert_frame/set_frame) · verify' },
+  state: { prompt: 'Add a retry transition from Failed back to Idle, then verify before returning source.', trace: 'asState · mutate(add_transition) · verify' },
+  sequence: { prompt: 'Insert the verification call before export and keep participant order stable.', trace: 'asSequence · mutate(add_message) · verify' },
+  timeline: { prompt: 'Add a Review period with one approval event without rewriting other periods.', trace: 'asTimeline · mutate(add_period) · verify' },
+  class: { prompt: 'Add a repository class and connect it to the service with a typed relationship.', trace: 'asClass · mutate(add_class/add_relation) · verify' },
+  er: { prompt: 'Add an order line-item relationship and verify cardinalities before serialize.', trace: 'asEr · mutate(add_relation) · verify' },
+  journey: { prompt: 'Add an agent verification task and preserve existing scores.', trace: 'asJourney · mutate(add_task) · verify' },
   architecture: { prompt: 'Insert a cache service between the app and database and verify boundaries.', trace: 'asArchitecture · mutate(add_service/add_edge) · verify' },
-  xychart:      { prompt: 'Add a forecast series and verify the axes still render cleanly.', trace: 'asXyChart · mutate(add_series) · verify' },
-  pie:          { prompt: 'Add a Documentation slice and keep labels readable.', trace: 'asPie · mutate(add_slice) · verify' },
-  quadrant:     { prompt: 'Move one point into the high-impact quadrant and verify coordinates.', trace: 'asQuadrant · mutate(move_point) · verify' },
-  gantt:        { prompt: 'Add a verification milestone before release and resolve the schedule.', trace: 'asGantt · mutate(add_task) · verify' },
-  mindmap:      { prompt: 'Add an Evidence child under Research and verify the hierarchy before returning source.', trace: 'asMindmap · mutate(add_node) · verify' },
-  gitgraph:     { prompt: 'Add a release branch and merge it back with a tagged commit.', trace: 'asGitGraph · mutate(create_branch/merge_branch) · verify' },
-  radar:        { prompt: 'Add a Reliability axis (filling existing curves) and a target curve, then verify.', trace: 'asRadar · mutate(add_axis/add_curve) · verify' },
-  sankey:       { prompt: 'Add a Losses flow out of Electricity generation and keep every existing row.', trace: 'asSankey · mutate(add_link) · verify' },
+  xychart: { prompt: 'Add a forecast series and verify the axes still render cleanly.', trace: 'asXyChart · mutate(add_series) · verify' },
+  pie: { prompt: 'Add a Documentation slice and keep labels readable.', trace: 'asPie · mutate(add_slice) · verify' },
+  quadrant: { prompt: 'Move one point into the high-impact quadrant and verify coordinates.', trace: 'asQuadrant · mutate(move_point) · verify' },
+  gantt: { prompt: 'Add a verification milestone before release and resolve the schedule.', trace: 'asGantt · mutate(add_task) · verify' },
+  mindmap: { prompt: 'Add an Evidence child under Research and verify the hierarchy before returning source.', trace: 'asMindmap · mutate(add_node) · verify' },
+  gitgraph: { prompt: 'Add a release branch and merge it back with a tagged commit.', trace: 'asGitGraph · mutate(create_branch/merge_branch) · verify' },
+  radar: { prompt: 'Add a Reliability axis (filling existing curves) and a target curve, then verify.', trace: 'asRadar · mutate(add_axis/add_curve) · verify' },
+  sankey: { prompt: 'Add a Losses flow out of Electricity generation and keep every existing row.', trace: 'asSankey · mutate(add_link) · verify' },
+  c4: { prompt: 'Add a database inside the system boundary and connect one distinct interaction without changing its peers.', trace: 'asC4 · mutate(add_element/add_relationship) · verify' },
+  packet: { prompt: 'Append a checksum field while retaining contiguous bit ranges and cross-row field identity.', trace: 'asPacket · mutate(add_field) · verify · serialize' },
+  kanban: { prompt: 'Move the parser task into Done without losing its assignee, priority or ticket.', trace: 'asKanban · mutate(move_task) · verify · serialize' },
+  requirement: { prompt: 'Rename the evidence element while preserving every verification and trace relationship.', trace: 'asRequirement · mutate(rename_node) · verify · serialize' },
+  block: { prompt: 'Rename a service inside its composite while preserving authored cells, gaps and connections.', trace: 'asBlock · mutate(rename_block) · verify · serialize' },
+  treemap: { prompt: 'Update a leaf quantity without changing its category or other authored values.', trace: 'asTreemap · mutate(set_value) · verify · serialize' },
+  ishikawa: { prompt: 'Add a cold-cache cause beneath Tooling while preserving the effect and existing causal hierarchy.', trace: 'asIshikawa · mutate(add_cause) · verify · serialize' },
 }
 // One-per-family supported examples are the canonical render for their family, so
 // anchor them by family id — old /gallery/#<family> deep links resolve here after
@@ -754,6 +493,8 @@ function exampleFamilyDescription(familyId: string, fallback: string) {
 
 const STYLE_THEME_PAIR_BY_FAMILY: Record<BuiltinFamilyId, { look: string; theme: string; seed: number }> = {
   flowchart: { look: 'watercolor', theme: 'paper', seed: 4 },
+  zenuml: { look: 'hand-drawn', theme: 'dracula', seed: 17 },
+  eventmodeling: { look: 'publication-figure', theme: 'github-light', seed: 0 },
   state: { look: 'chalkboard', theme: 'dusk', seed: 2 },
   architecture: { look: 'blueprint', theme: 'nord', seed: 1 },
   sequence: { look: 'publication-figure', theme: 'github-light', seed: 0 },
@@ -769,6 +510,13 @@ const STYLE_THEME_PAIR_BY_FAMILY: Record<BuiltinFamilyId, { look: string; theme:
   gitgraph: { look: 'ops-schematic', theme: 'github-light', seed: 11 },
   radar: { look: 'watercolor', theme: 'catppuccin-latte', seed: 12 },
   sankey: { look: 'hand-drawn', theme: 'solarized-light', seed: 13 },
+  c4: { look: 'architectural-plan', theme: 'paper', seed: 14 },
+  requirement: { look: 'patent-drawing', theme: 'paper', seed: 15 },
+  block: { look: 'blueprint', theme: 'nord-light', seed: 16 },
+  packet: { look: 'ops-schematic', theme: 'github-light', seed: 17 },
+  kanban: { look: 'status-dashboard', theme: 'catppuccin-latte', seed: 18 },
+  treemap: { look: 'publication-figure', theme: 'github-light', seed: 19 },
+  ishikawa: { look: 'architectural-plan', theme: 'paper', seed: 20 },
 }
 
 function displayStyleName(name: string) {
@@ -781,7 +529,7 @@ function styleThemeExamples(editorExamples: any[]) {
     const family = familyForExample(example)
     if (example.category === 'Supported diagrams' && family) byFamily.set(family.id, example)
   }
-  return BUILTIN_FAMILY_METADATA.map((family) => {
+  return BUILTIN_FAMILY_METADATA.map(family => {
     const example = byFamily.get(family.id)
     const pair = STYLE_THEME_PAIR_BY_FAMILY[family.id]
     if (!example || !pair) throw new Error(`missing style/theme example wiring for ${family.id}`)
@@ -800,22 +548,21 @@ function renderStyleThemeSvg(combo: ReturnType<typeof styleThemeExamples>[number
     embedFontImport: false,
     idPrefix: `example-${combo.id}-`,
   }).replace(/[ \t]+$/gm, '')
-  return addSvgAccessibleName(
-    svg,
-    `example-${combo.id}`,
-    `${combo.family.editorDiagramType} ${displayStyleName(combo.look)} ${displayStyleName(combo.theme)} diagram`,
-    `Build-time render of ${combo.family.editorDiagramType} with ${combo.look} style and ${combo.theme} palette.`,
-  )
+  return addSvgAccessibleName(svg, `example-${combo.id}`, `${combo.family.editorDiagramType} ${displayStyleName(combo.look)} ${displayStyleName(combo.theme)} diagram`, `Build-time render of ${combo.family.editorDiagramType} with ${combo.look} style and ${combo.theme} palette.`)
 }
 
 function styleThemeExampleRenderState(combo: ReturnType<typeof styleThemeExamples>[number]) {
-  return createStyledExampleRenderState(combo.example.source, {
-    style: combo.look,
-    palette: combo.theme,
-    seed: combo.seed,
-  }, {
-    interactive: Boolean(combo.example.options?.interactive),
-  })
+  return createStyledExampleRenderState(
+    combo.example.source,
+    {
+      style: combo.look,
+      palette: combo.theme,
+      seed: combo.seed,
+    },
+    {
+      interactive: Boolean(combo.example.options?.interactive),
+    },
+  )
 }
 // Examples is now the family-discovery surface: jump cards replace the removed
 // Diagram families page and the old search box.
@@ -826,26 +573,39 @@ function examplesJumpHtml(groups: Map<string, any[]>, styleThemeCombos: ReturnTy
   const sections: string[] = []
   const familyExamples = groups.get('Supported diagrams') ?? []
   if (familyExamples.length) {
-    const cards = familyExamples.map((example) => {
-      const family = familyForExample(example)
-      const description = family ? exampleFamilyDescription(family.id, example.description ?? example.label) : (example.description ?? example.label)
-      return exampleJumpCard(example, description)
-    }).join('')
+    const cards = familyExamples
+      .map(example => {
+        const family = familyForExample(example)
+        const description = family ? exampleFamilyDescription(family.id, example.description ?? example.label) : (example.description ?? example.label)
+        return exampleJumpCard(example, description)
+      })
+      .join('')
     sections.push(`<section class="example-jump-section" aria-labelledby="example-jump-families"><p class="example-jump-title" id="example-jump-families">Jump to a diagram family</p><div class="example-jump-grid">${cards}</div></section>`)
   }
   for (const [category, examples] of groups) {
     if (category === 'Supported diagrams') continue
-    const cards = examples.map((example) => exampleJumpCard(example, example.description ?? example.label)).join('')
+    const cards = examples.map(example => exampleJumpCard(example, example.description ?? example.label)).join('')
     sections.push(`<section class="example-jump-section" aria-labelledby="${escapeAttr(exampleCategoryId(category))}-jump"><p class="example-jump-title" id="${escapeAttr(exampleCategoryId(category))}-jump">${escapeHtml(exampleCategoryLabel(category))}</p><div class="example-jump-grid">${cards}</div></section>`)
   }
-  const styleThemeCards = styleThemeCombos.map((combo) => `<a class="example-jump-card" data-example-deferred="style-palette" href="/examples/style-palette/#${escapeAttr(combo.id)}"><strong>${escapeHtml(combo.family.editorDiagramType)}</strong><span>${escapeHtml(`${displayStyleName(combo.look)} × ${displayStyleName(combo.theme)}`)}</span></a>`).join('')
+  const styleThemeCards = styleThemeCombos
+    .map(combo => `<a class="example-jump-card" data-example-deferred="style-palette" href="/examples/style-palette/#${escapeAttr(combo.id)}"><strong>${escapeHtml(combo.family.editorDiagramType)}</strong><span>${escapeHtml(`${displayStyleName(combo.look)} × ${displayStyleName(combo.theme)}`)}</span></a>`)
+    .join('')
   sections.push(`<section class="example-jump-section" aria-labelledby="examples-style-palette-combinations-jump"><p class="example-jump-title" id="examples-style-palette-combinations-jump">Style × palette combinations</p><div class="example-jump-grid">${styleThemeCards}</div></section>`)
-  const richCategories = Array.from(new Set(richExamples.map((sample) => sample.category ?? 'Examples')))
-  const richCards = richCategories.map((category) => `<a class="example-jump-card" data-example-deferred="corpus" href="/examples/corpus/#rich-${escapeAttr(exampleSlug(category))}"><strong>${escapeHtml(category)}</strong><span>${escapeHtml(String(richExamples.filter((sample) => (sample.category ?? 'Examples') === category).length))} shared examples</span></a>`).join('')
+  const richCategories = Array.from(new Set(richExamples.map(sample => sample.category ?? 'Examples')))
+  const richCards = richCategories
+    .map(
+      category =>
+        `<a class="example-jump-card" data-example-deferred="corpus" href="/examples/corpus/#rich-${escapeAttr(exampleSlug(category))}"><strong>${escapeHtml(category)}</strong><span>${escapeHtml(String(richExamples.filter(sample => (sample.category ?? 'Examples') === category).length))} shared examples</span></a>`,
+    )
+    .join('')
   sections.push(`<section class="example-jump-section" aria-labelledby="examples-rich-gallery-jump"><p class="example-jump-title" id="examples-rich-gallery-jump">Rich shared example gallery</p><div class="example-jump-grid">${richCards}</div></section>`)
-  const paletteProofCards = richExamples.flatMap((sample) => sample.palettePeers
-    ? [`<a class="example-jump-card" data-example-deferred="corpus" href="/examples/corpus/#${escapeAttr(richExampleId(sample))}"><strong>${escapeHtml(sample.category ?? 'Example')}</strong><span>${escapeHtml(`${sample.palettePeers.count} ${sample.palettePeers.kind} · ${sample.title}`)}</span></a>`]
-    : []).join('')
+  const paletteProofCards = richExamples
+    .flatMap(sample =>
+      sample.palettePeers
+        ? [`<a class="example-jump-card" data-example-deferred="corpus" href="/examples/corpus/#${escapeAttr(richExampleId(sample))}"><strong>${escapeHtml(sample.category ?? 'Example')}</strong><span>${escapeHtml(`${sample.palettePeers.count} ${sample.palettePeers.kind} · ${sample.title}`)}</span></a>`]
+        : [],
+    )
+    .join('')
   if (paletteProofCards) {
     sections.push(`<section class="example-jump-section" aria-labelledby="examples-high-cardinality-palettes-jump"><p class="example-jump-title" id="examples-high-cardinality-palettes-jump">High-cardinality peer palettes</p><div class="example-jump-grid">${paletteProofCards}</div></section>`)
   }
@@ -854,7 +614,7 @@ function examplesJumpHtml(groups: Map<string, any[]>, styleThemeCombos: ReturnTy
 
 function richExamplesHtml(richExamples = RICH_EXAMPLES) {
   const groups = new Map<string, Array<{ sample: any; id: string }>>()
-  richExamples.forEach((sample) => {
+  richExamples.forEach(sample => {
     const category = sample.category ?? 'Examples'
     if (!groups.has(category)) groups.set(category, [])
     groups.get(category)!.push({ sample, id: richExampleId(sample) })
@@ -862,12 +622,15 @@ function richExamplesHtml(richExamples = RICH_EXAMPLES) {
   return `<section class="example-group" data-example-fragment-root="corpus" aria-labelledby="examples-rich-gallery">
 <h2 id="examples-rich-gallery">Rich shared example gallery</h2>
 <p class="muted">These examples are reused by benchmark and layout-evaluation tooling, then rendered here at build time. They cover feature syntax, larger real-world shapes, and Style + Palette combinations beyond the small editor starters.</p>
-${Array.from(groups, ([category, entries]) => `
+${Array.from(
+  groups,
+  ([category, entries]) => `
 <section class="example-rich-group" aria-labelledby="rich-${escapeAttr(exampleSlug(category))}">
 <h3 id="rich-${escapeAttr(exampleSlug(category))}">${escapeHtml(category)}</h3>
-${entries.map(({ sample, id }) => {
-  const request = richExampleRenderState(sample)
-  return `
+${entries
+  .map(({ sample, id }) => {
+    const request = richExampleRenderState(sample)
+    return `
 <article class="example-sample${sample.palettePeers ? ' example-sample-palette' : ''}" id="${escapeAttr(id)}"${sample.palettePeers ? ` data-palette-peers="${sample.palettePeers.count}"` : ''}>
   <header class="example-sample-head">
     <div>
@@ -883,8 +646,10 @@ ${entries.map(({ sample, id }) => {
     <figure class="example-render${sample.palettePeers ? ' example-render-palette' : ''}"><div class="example-svg"${sample.palettePeers ? ` tabindex="0" aria-label="${escapeAttr(`${sample.title} diagram. Scroll horizontally to inspect every peer.`)}"` : ''}>${renderRichExampleSvg(sample, id, request)}</div><figcaption>${sample.palettePeers ? 'High-cardinality proof at intrinsic size; scroll to inspect every peer.' : 'Build-time proof from the shared examples corpus.'}</figcaption></figure>
   </div>
 </article>`
-}).join('')}
-</section>`).join('')}
+  })
+  .join('')}
+</section>`,
+).join('')}
 </section>`
 }
 
@@ -892,12 +657,13 @@ function styleThemeExamplesHtml(combos: ReturnType<typeof styleThemeExamples>) {
   return `<section class="example-group" data-example-fragment-root="style-palette" aria-labelledby="examples-style-palette-combinations">
 <h2 id="examples-style-palette-combinations">Style × palette combinations</h2>
 <p class="muted">Each card uses one supported family, one named style, and one palette. Agents pass this as render options; they do not edit Mermaid source just to change appearance.</p>
-${combos.map((combo) => {
-  const look = displayStyleName(combo.look)
-  const theme = displayStyleName(combo.theme)
-  const styleCode = `style: ['${combo.look}', '${combo.theme}'], seed: ${combo.seed}`
-  const request = styleThemeExampleRenderState(combo)
-  return `
+${combos
+  .map(combo => {
+    const look = displayStyleName(combo.look)
+    const theme = displayStyleName(combo.theme)
+    const styleCode = `style: ['${combo.look}', '${combo.theme}'], seed: ${combo.seed}`
+    const request = styleThemeExampleRenderState(combo)
+    return `
 <article class="example-sample" id="${escapeAttr(combo.id)}">
   <header class="example-sample-head">
     <div>
@@ -913,7 +679,8 @@ ${combos.map((combo) => {
     <figure class="example-render"><div class="example-svg">${renderStyleThemeSvg(combo)}</div><figcaption>Build-time proof: same source, render options <code>${escapeHtml(styleCode)}</code>.</figcaption></figure>
   </div>
 </article>`
-}).join('')}
+  })
+  .join('')}
 </section>`
 }
 
@@ -922,8 +689,8 @@ interface ExamplesDeliveryProjection {
   main: string
   styleStandalone: string
   corpusStandalone: string
-  styleFragment: { rel: string, html: string }
-  corpusFragment: { rel: string, html: string }
+  styleFragment: { rel: string; html: string }
+  corpusFragment: { rel: string; html: string }
 }
 let examplesDeliveryProjectionCache: ExamplesDeliveryProjection | undefined
 
@@ -941,18 +708,23 @@ function examplesDeliveryProjection(): ExamplesDeliveryProjection {
     groups.get(category)!.push(example)
   }
   const combos = STYLE_THEME_COMBOS
-  const familySections = Array.from(groups, ([category, examples]) => `
+  const familySections = Array.from(
+    groups,
+    ([category, examples]) => `
 <section class="example-group" aria-labelledby="${escapeAttr(exampleCategoryId(category))}">
 <h2 id="${escapeAttr(exampleCategoryId(category))}">${escapeHtml(exampleCategoryLabel(category))}</h2>
 <p class="muted">One proof per diagram family: the exact editor source, an agent task, the trace before return, and a build-time render from that same source.</p>
-${examples.map((example) => {
-  const family = familyForExample(example)
-  const task = category === 'Supported diagrams' && family ? FAMILY_AGENT_TASK[family.id] : undefined
-  const request = editorExampleRenderState(example)
-  const taskHtml = task ? `
+${examples
+  .map(example => {
+    const family = familyForExample(example)
+    const task = category === 'Supported diagrams' && family ? FAMILY_AGENT_TASK[family.id] : undefined
+    const request = editorExampleRenderState(example)
+    const taskHtml = task
+      ? `
       <p class="example-prompt"><span>Prompt</span> ${escapeHtml(task.prompt)}</p>
-      <p class="example-trace"><span>Trace</span> <code>${escapeHtml(task.trace)}</code></p>` : ''
-  return `
+      <p class="example-trace"><span>Trace</span> <code>${escapeHtml(task.trace)}</code></p>`
+      : ''
+    return `
 <article class="example-sample" id="${escapeAttr(exampleAnchor(example))}">
   <header class="example-sample-head">
     <div>
@@ -967,25 +739,23 @@ ${examples.map((example) => {
     <figure class="example-render"><div class="example-svg">${renderExampleSvg(example, request)}</div><figcaption>Build-time proof: rendered from the same source and options the editor loads.</figcaption></figure>
   </div>
 </article>`
-}).join('')}
-</section>`).join('\n')
+  })
+  .join('')}
+</section>`,
+  ).join('\n')
 
   const styleHtml = makePreFocusable(styleThemeExamplesHtml(combos))
   const corpusHtml = makePreFocusable(richExamplesHtml(RICH_EXAMPLES))
   const styleFragment = { rel: `examples/fragments/style-palette-${sha256(styleHtml).slice(0, 12)}.html`, html: styleHtml }
   const corpusFragment = { rel: `examples/fragments/corpus-${sha256(corpusHtml).slice(0, 12)}.html`, html: corpusHtml }
-  const styleAliases = [
-    ['examples-style-palette-combinations', 'examples-style-palette-combinations'],
-    ...combos.map(combo => [combo.id, combo.id]),
-  ].map(([id, canonical]) => exampleAliasTarget(id!, 'style-palette', canonical!, '/examples/style-palette/')).join('\n')
+  const styleAliases = [['examples-style-palette-combinations', 'examples-style-palette-combinations'], ...combos.map(combo => [combo.id, combo.id])].map(([id, canonical]) => exampleAliasTarget(id!, 'style-palette', canonical!, '/examples/style-palette/')).join('\n')
   const richCategories = Array.from(new Set(RICH_EXAMPLES.map(sample => sample.category ?? 'Examples')))
-  const corpusCurrentAliases = [
-    ['examples-rich-gallery', 'examples-rich-gallery'],
-    ...richCategories.map(category => [`rich-${exampleSlug(category)}`, `rich-${exampleSlug(category)}`]),
-    ...RICH_EXAMPLES.map(sample => [richExampleId(sample), richExampleId(sample)]),
-  ].map(([id, canonical]) => exampleAliasTarget(id!, 'corpus', canonical!, '/examples/corpus/')).join('\n')
+  const corpusCurrentAliases = [['examples-rich-gallery', 'examples-rich-gallery'], ...richCategories.map(category => [`rich-${exampleSlug(category)}`, `rich-${exampleSlug(category)}`]), ...RICH_EXAMPLES.map(sample => [richExampleId(sample), richExampleId(sample)])]
+    .map(([id, canonical]) => exampleAliasTarget(id!, 'corpus', canonical!, '/examples/corpus/'))
+    .join('\n')
   const corpusLegacyAliases = Object.entries(LEGACY_RICH_EXAMPLE_ALIASES)
-    .map(([id, canonical]) => exampleAliasTarget(id, 'corpus', canonical, '/examples/corpus/')).join('\n')
+    .map(([id, canonical]) => exampleAliasTarget(id, 'corpus', canonical, '/examples/corpus/'))
+    .join('\n')
   const script = `<script src="/${EXAMPLES_LOADER_REL}" defer></script>`
   const deferred = `${styleAliases}\n${corpusCurrentAliases}\n${corpusLegacyAliases}
 <section class="example-deferred" data-example-kind="style-palette" data-example-fragment="/${styleFragment.rel.replace(/\.html$/, '')}" data-example-state="idle" aria-labelledby="examples-style-palette-deferred-title">
@@ -1025,8 +795,7 @@ const COMPARISON_CASES: ComparisonCase[] = BUILTIN_FAMILY_METADATA.map(family =>
 
 function comparisonSvg(svg: string, id: string, engine: string, family: string) {
   const localSvg = svg.replace(/^\s*@import\s+url\([^)]*\);\n?/gm, '')
-  const namespaced = namespaceSvgIds(localSvg.replace(/[ \t]+$/gm, ''), `${id}-`)
-    .replace(/(<svg\b[^>]*?)\saria-labelledby="[^"]*"/, '$1')
+  const namespaced = namespaceSvgIds(localSvg.replace(/[ \t]+$/gm, ''), `${id}-`).replace(/(<svg\b[^>]*?)\saria-labelledby="[^"]*"/, '$1')
   return addSvgAccessibleName(namespaced, id, `${engine} ${family}`, `${family} rendered by ${engine}.`)
 }
 function comparisonAgenticRenderState(c: ComparisonCase) {
@@ -1070,18 +839,40 @@ const COMPARISON_STYLE_ROWS = [
     tool: 'Agentic Mermaid',
     surface: 'Composable style stack',
     visible: 'The same render call can stack renderer treatment, palette, custom JSON roles, and seed after the agent verifies source.',
-    handoff: 'Typed edit → verify → render with style: [\'watercolor\', \'paper\'], seed: 4.',
+    handoff: "Typed edit → verify → render with style: ['watercolor', 'paper'], seed: 4.",
   },
 ] as const
 function comparisonStyleBeautifulSvg() {
-  return comparisonSvg(renderBeautifulMermaidSVG(COMPARISON_STYLE_DEMO_SOURCE, {
-    bg: '#F8FAF8', fg: '#16382B', accent: '#1A7351', line: '#8B9791', surface: '#FFFFFF', border: '#C7D5CE', font: 'Avenir Next', embedFontImport: false,
-  } as any), 'comparison-style-beautiful', 'Beautiful Mermaid', 'Style palette demo')
+  return comparisonSvg(
+    renderBeautifulMermaidSVG(COMPARISON_STYLE_DEMO_SOURCE, {
+      bg: '#F8FAF8',
+      fg: '#16382B',
+      accent: '#1A7351',
+      line: '#8B9791',
+      surface: '#FFFFFF',
+      border: '#C7D5CE',
+      font: 'Avenir Next',
+      embedFontImport: false,
+    } as any),
+    'comparison-style-beautiful',
+    'Beautiful Mermaid',
+    'Style palette demo',
+  )
 }
 function comparisonStyleAgenticSvg() {
-  return comparisonSvg(renderMermaidSVG(COMPARISON_STYLE_DEMO_SOURCE, {
-    style: ['watercolor', 'paper'], seed: 4, compact: true, security: 'strict', embedFontImport: false, idPrefix: 'comparison-style-agentic-',
-  }), 'comparison-style-agentic', 'Agentic Mermaid', 'Style palette demo')
+  return comparisonSvg(
+    renderMermaidSVG(COMPARISON_STYLE_DEMO_SOURCE, {
+      style: ['watercolor', 'paper'],
+      seed: 4,
+      compact: true,
+      security: 'strict',
+      embedFontImport: false,
+      idPrefix: 'comparison-style-agentic-',
+    }),
+    'comparison-style-agentic',
+    'Agentic Mermaid',
+    'Style palette demo',
+  )
 }
 function comparisonStyleSupportHtml() {
   const mermaidConfig = `mermaid.initialize({\n  theme: 'base',\n  themeVariables: {\n    primaryColor: '#f8faf8',\n    primaryTextColor: '#16382b'\n  }\n})`
@@ -1113,14 +904,14 @@ function comparisonStyleSupportHtml() {
 <div class="table-scroll"><table class="comparison-style-table">
 <thead><tr><th>Tool</th><th>Where controls live</th><th>What changes visually</th><th>Agent handoff</th></tr></thead>
 <tbody>
-${COMPARISON_STYLE_ROWS.map((row) => `<tr><th scope="row">${escapeHtml(row.tool)}</th><td>${escapeHtml(row.surface)}</td><td>${escapeHtml(row.visible)}</td><td>${escapeHtml(row.handoff)}</td></tr>`).join('\n')}
+${COMPARISON_STYLE_ROWS.map(row => `<tr><th scope="row">${escapeHtml(row.tool)}</th><td>${escapeHtml(row.surface)}</td><td>${escapeHtml(row.visible)}</td><td>${escapeHtml(row.handoff)}</td></tr>`).join('\n')}
 </tbody>
 </table></div>
 <p class="muted">Summary: Mermaid leaves appearance with the host renderer, Beautiful Mermaid accepts render-call palettes for supported families, and Agentic Mermaid keeps the safe sequence together: edit typed source, verify it, then pass style and palette render options.</p>
 </section>`
 }
 function comparisonsHtml() {
-  const sections = COMPARISON_CASES.map((c) => {
+  const sections = COMPARISON_CASES.map(c => {
     const beautiful = comparisonBeautifulRender(c)
     const agenticRequest = comparisonAgenticRenderState(c)
     const takeaway = `${c.reviewFocus} Compare deterministic local rendering against the browser/runtime render.`
@@ -1128,7 +919,9 @@ function comparisonsHtml() {
       comparisonPanel('mermaid', 'Mermaid', `<pre class="mermaid comparison-mermaid" id="comparison-mermaid-${escapeAttr(c.id)}">${escapeHtml(c.source)}</pre>`),
       beautiful.supported ? comparisonPanel('beautiful', 'Beautiful Mermaid', beautiful.html) : '',
       comparisonPanel('agentic', 'Agentic Mermaid', comparisonAgenticSvg(c, agenticRequest)),
-    ].filter(Boolean).join('\n    ')
+    ]
+      .filter(Boolean)
+      .join('\n    ')
     const note = beautiful.supported ? '' : '\n  <p class="comparison-note">Beautiful Mermaid does not render this family; only Mermaid and Agentic Mermaid are shown.</p>'
     return `
 <section class="comparison-case${beautiful.supported ? '' : ' comparison-case-omits-beautiful'}" id="${escapeAttr(c.id)}" aria-labelledby="comparison-${escapeAttr(c.id)}-title" data-comparison-editor-href="${escapeAttr(comparisonEditorHref(agenticRequest))}">
@@ -1658,7 +1451,7 @@ await emit(mermaidRuntimeRel, mermaidRuntimeBytes)
 // the manual keeps the lower-level typed-edit sequence in sync from here.
 const LOOP_STEPS = [
   { label: 'Parse', short: 'Read the source into a typed model; unmodeled syntax round-trips as preserved source.' },
-  { label: 'Narrow', short: 'Resolve the one node or edge the edit touches via the matching family surface (<code>asFlowchart</code>, <code>asSequence</code>, …).' },
+  { label: 'Narrow', short: 'Select the diagram family with its typed surface (<code>asFlowchart</code>, <code>asSequence</code>, …).' },
   { label: 'Mutate', short: 'Change the requested node, edge, task, relation, or event while preserving unmodeled syntax.' },
   { label: 'Verify', short: 'Read structural, geometric, and lint warnings before serializing or rendering artifacts.' },
   { label: 'Serialize', short: 'Write the typed model back to Mermaid source, then render only when an artifact is needed.' },
@@ -1670,7 +1463,8 @@ function injectLoopHeadings(html: string) {
 // with a leading rule) and the docs article gets it injected at build time —
 // same single-source pattern as the loop rail — so the source page's
 // hand-baked list can never drift from the pages that actually ship.
-const docsIndexBody = '<h2>Docs index</h2><ul class="doc-index doc-index-grouped"><li><strong>Start</strong><ul><li><a href="/docs/getting-started/">Getting started</a></li><li><a href="/examples/">Examples</a></li></ul></li><li><strong>Use locally</strong><ul><li><a href="/docs/api/">Library API</a></li><li><a href="/docs/cli/">CLI</a></li><li><a href="/docs/mcp/">MCP</a></li></ul></li><li><strong>Debug</strong><ul><li><a href="/warnings/">Warnings</a></li><li><a href="/errors/">Errors</a></li><li><a href="/docs/quality/">Quality</a></li></ul></li><li><strong>Reference</strong><ul><li><a href="/docs/ascii/">ASCII and Unicode</a></li><li><a href="/docs/theming/">Styles and palettes</a></li><li><a href="/docs/custom-styles/">Custom styles</a></li><li><a href="/docs/fork-differences/">Fork differences</a></li></ul></li></ul>'
+const docsIndexBody =
+  '<h2>Docs index</h2><ul class="doc-index doc-index-grouped"><li><strong>Start</strong><ul><li><a href="/docs/getting-started/">Getting started</a></li><li><a href="/examples/">Examples</a></li></ul></li><li><strong>Use locally</strong><ul><li><a href="/docs/api/">Library API</a></li><li><a href="/docs/cli/">CLI</a></li><li><a href="/docs/mcp/">MCP</a></li></ul></li><li><strong>Debug</strong><ul><li><a href="/warnings/">Warnings</a></li><li><a href="/errors/">Errors</a></li><li><a href="/docs/quality/">Quality</a></li></ul></li><li><strong>Reference</strong><ul><li><a href="/docs/ascii/">ASCII and Unicode</a></li><li><a href="/docs/theming/">Styles and palettes</a></li><li><a href="/docs/custom-styles/">Custom styles</a></li><li><a href="/docs/fork-differences/">Fork differences</a></li></ul></li></ul>'
 const docsIndex = '<hr>' + docsIndexBody
 function injectDocsIndex(html: string) {
   return html.replace(/<h2>Docs index<\/h2>\s*<ul class="doc-index">[\s\S]*?<\/ul>/, docsIndexBody)
@@ -1689,8 +1483,7 @@ function addWorkflowSvgA11y(svg: string) {
 // re-themed with it, violating the design contract ("diagram themes colour the
 // artwork, never this shell"). Bake the terracotta diagram ink while using the
 // shell ground for transparent label halos.
-const workflowPaperSvg = addWorkflowSvgA11y(renderMermaidSVG(workflowSource,
-  { bg: '#F8F4F0', fg: '#221E16', accent: '#9A4A24', transparent: true, security: 'strict', embedFontImport: false }))
+const workflowPaperSvg = addWorkflowSvgA11y(renderMermaidSVG(workflowSource, { bg: '#F8F4F0', fg: '#221E16', accent: '#9A4A24', transparent: true, security: 'strict', embedFontImport: false }))
 // Hero: the headline claim is "beautiful diagrams", so the first thing on the
 // page is a realistic diagram rendered beautifully — one source, three style
 // stacks, switchable chips (theme.js initTabs provides the tab behavior; the
@@ -1734,8 +1527,8 @@ function heroGallerySlides() {
     ...stack,
   }))
   const showcases = styleThemeExamples(EDITOR_EXAMPLES)
-    .filter((combo) => (HERO_GALLERY_FAMILIES as readonly string[]).includes(combo.family.id))
-    .map((combo) => ({
+    .filter(combo => (HERO_GALLERY_FAMILIES as readonly string[]).includes(combo.family.id))
+    .map(combo => ({
       key: `family-${combo.family.id}`,
       source: String(combo.example.source),
       subject: `${combo.family.editorDiagramType} — ${String(combo.example.label ?? combo.example.id)}`,
@@ -1748,27 +1541,31 @@ function heroGallerySlides() {
 }
 function heroStyleFigureHtml() {
   const slides = heroGallerySlides()
-  const panels = slides.map((slide, i) => {
-    const request = createStyledExampleRenderState(slide.source, {
-      style: slide.look,
-      palette: slide.theme,
-      seed: slide.seed,
-    })
-    const svg = addSvgAccessibleName(
-      renderMermaidSVG(slide.source, {
-        ...request.renderOptions,
-        security: 'strict', embedFontImport: false, idPrefix: `hero-${slide.key}-`,
-      }).replace(/[ \t]+$/gm, ''),
-      `hero-${slide.key}`,
-      `${slide.subjectShort} in ${displayStyleName(slide.look)} and ${displayStyleName(slide.theme)}`,
-      `Build-time render: ${slide.subject}, style ${slide.look}, palette ${slide.theme}, seed ${slide.seed}.`,
-    )
-    const label = `${slide.look} · ${slide.theme}`
-    return `<div class="gallery-panel hero-style-panel" data-gallery-panel data-gallery-label="${escapeAttr(`${label} — ${slide.subjectShort}`)}" data-gallery-editor="${escapeAttr(editorStateHref(request.editorState))}"${i === 0 ? '' : ' hidden'}>
+  const panels = slides
+    .map((slide, i) => {
+      const request = createStyledExampleRenderState(slide.source, {
+        style: slide.look,
+        palette: slide.theme,
+        seed: slide.seed,
+      })
+      const svg = addSvgAccessibleName(
+        renderMermaidSVG(slide.source, {
+          ...request.renderOptions,
+          security: 'strict',
+          embedFontImport: false,
+          idPrefix: `hero-${slide.key}-`,
+        }).replace(/[ \t]+$/gm, ''),
+        `hero-${slide.key}`,
+        `${slide.subjectShort} in ${displayStyleName(slide.look)} and ${displayStyleName(slide.theme)}`,
+        `Build-time render: ${slide.subject}, style ${slide.look}, palette ${slide.theme}, seed ${slide.seed}.`,
+      )
+      const label = `${slide.look} · ${slide.theme}`
+      return `<div class="gallery-panel hero-style-panel" data-gallery-panel data-gallery-label="${escapeAttr(`${label} — ${slide.subjectShort}`)}" data-gallery-editor="${escapeAttr(editorStateHref(request.editorState))}"${i === 0 ? '' : ' hidden'}>
       <p class="meta-label gallery-panel-label">${escapeHtml(`${label} — ${slide.subjectShort}`)}</p>
       <div class="plate dia-plate hero-plate">${svg}</div>
     </div>`
-  }).join('\n')
+    })
+    .join('\n')
   const firstLabel = `${slides[0]!.look} · ${slides[0]!.theme} — ${slides[0]!.subjectShort}`
   const firstRequest = createStyledExampleRenderState(slides[0]!.source, {
     style: slides[0]!.look,
@@ -1812,11 +1609,7 @@ function themingReferenceHtml() {
 <ul class="palette-list">${paletteCells}</ul>`
 }
 function injectFactStrip(html: string) {
-  return html
-    .replaceAll('{{FACT_FAMILIES}}', String(BUILTIN_FAMILY_METADATA.length))
-    .replaceAll('{{FACT_STYLES}}', String(STYLE_LOOK_COUNT))
-    .replaceAll('{{FACT_PALETTES}}', String(STYLE_PALETTE_COUNT))
-    .replaceAll('{{FACT_OUTPUTS}}', String(rawCapabilities.outputFormats.length))
+  return html.replaceAll('{{FACT_FAMILIES}}', String(BUILTIN_FAMILY_METADATA.length)).replaceAll('{{FACT_STYLES}}', String(STYLE_LOOK_COUNT)).replaceAll('{{FACT_PALETTES}}', String(STYLE_PALETTE_COUNT)).replaceAll('{{FACT_OUTPUTS}}', String(rawCapabilities.outputFormats.length))
 }
 // Quick-start figure: the shell-palette edit-loop diagram, small, where the
 // loop is being explained (formerly the hero).
@@ -1852,16 +1645,11 @@ function renderHomeStyleShowcaseSvg(combo: (typeof HOME_STYLE_SHOWCASE_COMBOS)[n
     embedFontImport: false,
     idPrefix: `home-style-${combo.look}-`,
   }).replace(/[ \t]+$/gm, '')
-  return addSvgAccessibleName(
-    svg,
-    `home-style-${combo.look}`,
-    `${combo.label} diagram in ${displayStyleName(combo.look)} and ${displayStyleName(combo.theme)}`,
-    `The same Mermaid source rendered with ${combo.look}, ${combo.theme}, and seed ${combo.seed}.`,
-  )
+  return addSvgAccessibleName(svg, `home-style-${combo.look}`, `${combo.label} diagram in ${displayStyleName(combo.look)} and ${displayStyleName(combo.theme)}`, `The same Mermaid source rendered with ${combo.look}, ${combo.theme}, and seed ${combo.seed}.`)
 }
 function homeStyleShowcaseHtml() {
   return `<div class="home-style-showcase-grid">
-${HOME_STYLE_SHOWCASE_COMBOS.map((combo) => {
+${HOME_STYLE_SHOWCASE_COMBOS.map(combo => {
   const request = homeStyleShowcaseRenderState(combo)
   return `<article class="home-style-card">
   <div class="home-style-render">${renderHomeStyleShowcaseSvg(combo, request)}</div>
@@ -1883,14 +1671,15 @@ function injectHomeStyleShowcase(html: string) {
   return html.replace('{{HOME_STYLE_SHOWCASE}}', homeStyleShowcaseHtml())
 }
 function injectWorkflowSvg(html: string) {
-  return html.replace(/<div class="plate dia-plate">[\s\S]*?<\/div>|<div class="plate"><div class="dia-wrap">[\s\S]*?<\/div><\/div>/,
-    `<div class="plate dia-plate">\n      ${workflowPaperSvg}\n    </div>`)
+  return html.replace(/<div class="plate dia-plate">[\s\S]*?<\/div>|<div class="plate"><div class="dia-wrap">[\s\S]*?<\/div><\/div>/, `<div class="plate dia-plate">\n      ${workflowPaperSvg}\n    </div>`)
 }
 function injectWorkflowUnicode(html: string) {
   const unicode = renderMermaidASCII(workflowSource, { useAscii: false })
-    .split('\n').map((line) => line.replace(/\s+$/, '')).join('\n').replace(/\n+$/, '')
-  return html.replace(/(The same diagram as Unicode text:<\/p>\s*<pre><code>)[\s\S]*?(<\/code><\/pre>)/,
-    '$1' + escapeHtml(unicode) + '$2')
+    .split('\n')
+    .map(line => line.replace(/\s+$/, ''))
+    .join('\n')
+    .replace(/\n+$/, '')
+  return html.replace(/(The same diagram as Unicode text:<\/p>\s*<pre><code>)[\s\S]*?(<\/code><\/pre>)/, '$1' + escapeHtml(unicode) + '$2')
 }
 for (const [source, target] of pageOutputs) {
   const currentHref = topNavHrefForRoute(routeMap[source])
@@ -1917,7 +1706,13 @@ for (const [source, target] of pageOutputs) {
     html = injectHomeStyleShowcase(html)
     html = injectWorkflowUnicode(html)
   }
-  if (source === 'docs-article.html') html = injectDocsIndex(injectLoopHeadings(html))
+  if (source === 'docs-article.html') {
+    html = injectDocsIndex(injectLoopHeadings(html)).replace('{{EDIT_DEMO}}', buildDocsEditDemo().html)
+    const script = await Bun.file(join(SOURCE_ASSETS, 'docs-edit-demo.js')).text()
+    const scriptRel = `docs-edit-demo-${sha256(script).slice(0, 12)}.js`
+    await emit(scriptRel, script)
+    html = html.replace('</body>', `<script src="/${scriptRel}" defer></script>\n</body>`)
+  }
   await emit(target, html)
 }
 await emit('editor/index.html', await generateEditorHtml())
@@ -2035,13 +1830,7 @@ import { renderMermaidSVGAsync } from '/${scriptRel}'
 }
 </script>`
 
-  await emitShell(
-    'demo/index.html',
-    'Lazy browser demo',
-    'One family at a time, no bundler: Agentic Mermaid rendering a diagram live in your browser.',
-    body,
-    '/demo/',
-  )
+  await emitShell('demo/index.html', 'Lazy browser demo', 'One family at a time, no bundler: Agentic Mermaid rendering a diagram live in your browser.', body, '/demo/')
 }
 await emitLazyBrowserDemo()
 
@@ -2072,9 +1861,7 @@ await copyDir(join(ROOT, 'examples', 'styles'), 'examples/styles')
 // Standalone var()-token demo of the live-theming feature (set --bg/--fg/--accent
 // on a parent to re-theme it). This is the one place a var-driven render belongs;
 // the home hero deliberately stopped using it (see workflowPaperSvg above).
-await emit('diagrams/workflow-themeable.svg', addWorkflowSvgA11y(renderMermaidSVG(workflowSource,
-  { bg: 'var(--bg)', fg: 'var(--fg)', accent: 'var(--accent)', transparent: true, embedFontImport: false })
-  .replace('--bg:var(--bg);--fg:var(--fg);--accent:var(--accent);', '')))
+await emit('diagrams/workflow-themeable.svg', addWorkflowSvgA11y(renderMermaidSVG(workflowSource, { bg: 'var(--bg)', fg: 'var(--fg)', accent: 'var(--accent)', transparent: true, embedFontImport: false }).replace('--bg:var(--bg);--fg:var(--fg);--accent:var(--accent);', '')))
 
 const capabilities = { ...rawCapabilities, generatedFrom }
 // capabilities.json is emitted later, once each warningCodes entry is enriched
@@ -2083,7 +1870,7 @@ const capabilities = { ...rawCapabilities, generatedFrom }
 
 const examples = {
   generatedFrom,
-  examples: EDITOR_EXAMPLES.map((example) => {
+  examples: EDITOR_EXAMPLES.map(example => {
     const family = familyForExample(example)
     if (!family) throw new Error(`Editor example ${example.id} does not map to a supported family`)
     const request = editorExampleRenderState(example)
@@ -2100,7 +1887,7 @@ const examples = {
       docs: `/examples/#${family.id}`,
     }
   }),
-  richExamples: RICH_EXAMPLES.map((sample) => ({
+  richExamples: RICH_EXAMPLES.map(sample => ({
     id: richExampleId(sample),
     category: sample.category ?? 'Examples',
     title: sample.title,
@@ -2113,7 +1900,7 @@ const examples = {
   })),
   // The per-family Style × Palette cards: the same combinations the
   // /examples/style-palette/ page renders.
-  stylePaletteExamples: STYLE_THEME_COMBOS.map((combo) => ({
+  stylePaletteExamples: STYLE_THEME_COMBOS.map(combo => ({
     id: combo.id,
     family: combo.family.id,
     exampleId: combo.example.id,
@@ -2134,17 +1921,12 @@ function compactToolDescription(description: string) {
 }
 
 function parametersFromSchema(schema: Record<string, unknown>) {
-  const properties = schema.properties && typeof schema.properties === 'object'
-    ? schema.properties as Record<string, Record<string, unknown>>
-    : {}
+  const properties = schema.properties && typeof schema.properties === 'object' ? (schema.properties as Record<string, Record<string, unknown>>) : {}
   const required = new Set(Array.isArray(schema.required) ? schema.required.map(String) : [])
-  return Object.fromEntries(Object.entries(properties).map(([name, shape]) => [
-    name,
-    { ...shape, required: required.has(name) },
-  ]))
+  return Object.fromEntries(Object.entries(properties).map(([name, shape]) => [name, { ...shape, required: required.has(name) }]))
 }
 
-const hostedToolCards = HOSTED_TOOLS.map((tool) => ({
+const hostedToolCards = HOSTED_TOOLS.map(tool => ({
   name: tool.name,
   title: tool.title,
   description: compactToolDescription(tool.description),
@@ -2215,12 +1997,7 @@ const aiCatalog = {
       description: mcpServerCard.description,
       tags: ['mermaid', 'diagramming', 'mcp', 'rendering', 'verification', 'agents'],
       capabilities: hostedToolCards.map(tool => tool.name),
-      representativeQueries: [
-        'verify this Mermaid diagram',
-        'render this diagram to SVG',
-        'add an edge to this flowchart and verify it',
-        'build a Mermaid sequence diagram from structured operations',
-      ],
+      representativeQueries: ['verify this Mermaid diagram', 'render this diagram to SVG', 'add an edge to this flowchart and verify it', 'build a Mermaid sequence diagram from structured operations'],
       trustManifest: {
         identity: 'did:web:agentic-mermaid.dev',
         identityType: 'did',
@@ -2253,46 +2030,67 @@ const aiCatalog = {
       },
     },
     {
-      identifier: 'urn:air:agentic-mermaid.dev:capabilities', displayName: 'Agentic Mermaid capabilities',
-      type: 'application/json', url: `${siteOrigin}/capabilities.json`,
+      identifier: 'urn:air:agentic-mermaid.dev:capabilities',
+      displayName: 'Agentic Mermaid capabilities',
+      type: 'application/json',
+      url: `${siteOrigin}/capabilities.json`,
       description: 'Machine-readable families, mutation operations, warning contracts, and examples.',
-      tags: ['capabilities', 'mutation', 'warnings'], representativeQueries: ['what diagram families and typed edits are supported'],
+      tags: ['capabilities', 'mutation', 'warnings'],
+      representativeQueries: ['what diagram families and typed edits are supported'],
     },
     {
-      identifier: 'urn:air:agentic-mermaid.dev:examples', displayName: 'Agentic Mermaid examples index',
-      type: 'application/json', url: `${siteOrigin}/examples/index.json`,
+      identifier: 'urn:air:agentic-mermaid.dev:examples',
+      displayName: 'Agentic Mermaid examples index',
+      type: 'application/json',
+      url: `${siteOrigin}/examples/index.json`,
       description: 'Indexed canonical examples for every supported diagram family.',
-      tags: ['examples', 'mermaid'], representativeQueries: ['show valid syntax for this Mermaid family'],
+      tags: ['examples', 'mermaid'],
+      representativeQueries: ['show valid syntax for this Mermaid family'],
     },
     {
-      identifier: 'urn:air:agentic-mermaid.dev:start', displayName: 'Agentic Mermaid agent start guide',
-      type: 'text/markdown', url: `${siteOrigin}/start.md`,
+      identifier: 'urn:air:agentic-mermaid.dev:start',
+      displayName: 'Agentic Mermaid agent start guide',
+      type: 'text/markdown',
+      url: `${siteOrigin}/start.md`,
       description: 'Shortest safe path for an agent beginning an Agentic Mermaid task.',
-      tags: ['agent-docs', 'quickstart'], representativeQueries: ['how do I start using Agentic Mermaid safely'],
+      tags: ['agent-docs', 'quickstart'],
+      representativeQueries: ['how do I start using Agentic Mermaid safely'],
     },
     {
-      identifier: 'urn:air:agentic-mermaid.dev:instructions', displayName: 'Agentic Mermaid agent instructions',
-      type: 'text/markdown', url: `${siteOrigin}/agent-instructions.md`,
+      identifier: 'urn:air:agentic-mermaid.dev:instructions',
+      displayName: 'Agentic Mermaid agent instructions',
+      type: 'text/markdown',
+      url: `${siteOrigin}/agent-instructions.md`,
       description: 'Complete verify-before-commit and mutation workflow instructions.',
-      tags: ['agent-docs', 'instructions'], representativeQueries: ['how should an agent edit and verify a Mermaid diagram'],
+      tags: ['agent-docs', 'instructions'],
+      representativeQueries: ['how should an agent edit and verify a Mermaid diagram'],
     },
     {
-      identifier: 'urn:air:agentic-mermaid.dev:mcp:manifest', displayName: 'Agentic Mermaid MCP manifest',
-      type: 'application/json', url: `${siteOrigin}/.well-known/mcp.json`,
+      identifier: 'urn:air:agentic-mermaid.dev:mcp:manifest',
+      displayName: 'Agentic Mermaid MCP manifest',
+      type: 'application/json',
+      url: `${siteOrigin}/.well-known/mcp.json`,
       description: 'Hosted MCP transport and tool discovery manifest.',
-      tags: ['mcp', 'discovery'], representativeQueries: ['connect to the hosted Agentic Mermaid MCP server'],
+      tags: ['mcp', 'discovery'],
+      representativeQueries: ['connect to the hosted Agentic Mermaid MCP server'],
     },
     {
-      identifier: 'urn:air:agentic-mermaid.dev:warnings', displayName: 'Agentic Mermaid warnings index',
-      type: 'text/markdown', url: `${siteOrigin}/warning-codes.md`,
+      identifier: 'urn:air:agentic-mermaid.dev:warnings',
+      displayName: 'Agentic Mermaid warnings index',
+      type: 'text/markdown',
+      url: `${siteOrigin}/warning-codes.md`,
       description: 'Machine-oriented index of structural, geometric, and lint warning codes.',
-      tags: ['warnings', 'verification'], representativeQueries: ['what does this verify warning mean'],
+      tags: ['warnings', 'verification'],
+      representativeQueries: ['what does this verify warning mean'],
     },
     {
-      identifier: 'urn:air:agentic-mermaid.dev:style-schema', displayName: 'Agentic Mermaid style schema',
-      type: 'application/schema+json', url: `${siteOrigin}/schemas/style-spec.schema.json`,
+      identifier: 'urn:air:agentic-mermaid.dev:style-schema',
+      displayName: 'Agentic Mermaid style schema',
+      type: 'application/schema+json',
+      url: `${siteOrigin}/schemas/style-spec.schema.json`,
       description: 'JSON Schema for data-only diagram style specifications.',
-      tags: ['schema', 'styles'], representativeQueries: ['validate a custom Agentic Mermaid style'],
+      tags: ['schema', 'styles'],
+      representativeQueries: ['validate a custom Agentic Mermaid style'],
     },
   ],
   generatedFrom,
@@ -2306,8 +2104,7 @@ const actualAiCatalogResources = aiCatalog.entries.map(entry => ({
 if (JSON.stringify(actualAiCatalogResources) !== JSON.stringify(AI_CATALOG_RESOURCES)) {
   throw new Error(`AI catalog resource inventory drifted from its canonical contract:\n${JSON.stringify(actualAiCatalogResources, null, 2)}`)
 }
-if (new Set(aiCatalog.entries.map(entry => entry.identifier)).size !== aiCatalog.entries.length
-  || new Set(aiCatalog.entries.map(entry => entry.url)).size !== aiCatalog.entries.length) {
+if (new Set(aiCatalog.entries.map(entry => entry.identifier)).size !== aiCatalog.entries.length || new Set(aiCatalog.entries.map(entry => entry.url)).size !== aiCatalog.entries.length) {
   throw new Error('AI catalog identifiers and URLs must be unique')
 }
 
@@ -2321,9 +2118,7 @@ const skillFiles = ['SKILL.md', 'references/cli.md', 'references/code-mode.md', 
 // served copy — an agent following a served 404 wastes a turn.
 const SKILL_REPO_BLOB = 'https://github.com/adewale/agentic-mermaid/blob/main'
 function rewriteServedSkillRefs(text: string) {
-  return text
-    .replaceAll(/`(docs\/[^`]+)`/g, (_, path: string) => `[${path}](${SKILL_REPO_BLOB}/${path})`)
-    .replaceAll(/`(references\/upstream\/[^`]*)`/g, (_, path: string) => `[${path}](${SKILL_REPO_BLOB}/skills/agentic-mermaid-diagram-workflow/${path})`)
+  return text.replaceAll(/`(docs\/[^`]+)`/g, (_, path: string) => `[${path}](${SKILL_REPO_BLOB}/${path})`).replaceAll(/`(references\/upstream\/[^`]*)`/g, (_, path: string) => `[${path}](${SKILL_REPO_BLOB}/skills/agentic-mermaid-diagram-workflow/${path})`)
 }
 for (const file of skillFiles) {
   const text = await Bun.file(join(ROOT, 'skills/agentic-mermaid-diagram-workflow', file)).text()
@@ -2367,7 +2162,7 @@ Styling: every render accepts style (a renderer treatment like hand-drawn, water
 - [Documentation](https://agentic-mermaid.dev/docs/): human-readable docs for install, CLI, MCP, diagram families, and styling.
 - [Editor](https://agentic-mermaid.dev/editor/?empty=1): browser-local editor for interactive diagram authoring.
 - [GitHub repository](https://github.com/adewale/agentic-mermaid): source code, issues, and release history.
-`;
+`
 await emit('llms.txt', publicLlms)
 await emit('llms.md', publicLlms)
 await emit('.well-known/llms.txt', publicLlms)
@@ -2457,9 +2252,7 @@ const FAMILY_DESCRIPTION: Partial<Record<BuiltinFamilyId, string>> = {
 }
 // Labels and ordering come from the descriptor projection. The keyed prose map
 // is exhaustive, so a new built-in cannot silently disappear from the website.
-const FAMILY_REFERENCE: Array<[id: BuiltinFamilyId, label: string, draws: string | undefined]> = BUILTIN_FAMILY_METADATA.map(
-  family => [family.id, family.label, FAMILY_DESCRIPTION[family.id]],
-)
+const FAMILY_REFERENCE: Array<[id: BuiltinFamilyId, label: string, draws: string | undefined]> = BUILTIN_FAMILY_METADATA.map(family => [family.id, family.label, FAMILY_DESCRIPTION[family.id]])
 const examplesLead = `${BUILTIN_FAMILY_METADATA.length} diagram families with agent tasks, Style + Palette combinations, and the richer shared examples corpus used by project tooling.`
 // The MCP config copy-card, same widget contract as the homepage prompt card
 // (data-copy-widget + data-copy-target + copy-prompt-btn, wired by theme.js).
@@ -2557,20 +2350,20 @@ ${vocabularyGroups.map(group => `<h3>${escapeHtml(group.heading)}</h3><dl class=
 
 const gettingStartedBody = `<p>Use this page to install the tool and render once yourself. When you hand work to an agent, do not copy a long prompt from this page. Give it three things: your task, the Mermaid source, and one bootstrap line that tells it to fetch the maintained instructions.</p>
 <ol class="start-rail">
-<li><strong>Install Agentic Mermaid.</strong><p>${escapeHtml(installNotice)}</p><pre><code>${escapeHtml(installCommand)}</code></pre></li>
-<li><strong>Create a diagram.</strong><p>This first pass uses source directly. Add <code>--style watercolor</code>, <code>--style blueprint</code>, or a JSON style file when you render.</p><pre><code>cat > diagram.mmd &lt;&lt;'MMD'
+<li><strong>Install Agentic Mermaid.</strong><p>${escapeHtml(installNotice)}</p><pre><code class="language-bash">${escapeHtml(installCommand)}</code></pre></li>
+<li><strong>Create a diagram.</strong><p>This first pass uses source directly. Add <code>--style watercolor</code>, <code>--style blueprint</code>, or a JSON style file when you render.</p><pre><code class="language-bash">cat > diagram.mmd &lt;&lt;'MMD'
 flowchart LR
   Idea[Idea] --&gt; Draft[Draft]
   Draft --&gt; Review{Review}
   Review --&gt;|ok| Ship[Ship]
 MMD</code></pre></li>
-<li><strong>Verify, then render.</strong><pre><code>npx --no-install agentic-mermaid verify diagram.mmd --json
+<li><strong>Verify, then render.</strong><pre><code class="language-bash">npx --no-install agentic-mermaid verify diagram.mmd --json
 npx --no-install agentic-mermaid render diagram.mmd --format svg --style publication-figure --output diagram.svg
 npx --no-install agentic-mermaid render diagram.mmd --format unicode</code></pre></li>
 <li><strong>Hand the edit to an agent.</strong><p>Paste the task, paste the Mermaid source, then add this line:</p><pre><code>${escapeHtml(HOMEPAGE_AGENT_POINTER)}</code></pre><p>That line is the only prompt to copy from this page. The fetched file tells the agent how to choose library, CLI, or MCP and verify before returning, so this page does not duplicate the protocol.</p><a class="go" href="/">Copy this line on the homepage</a></li>
 <li><strong>Optional: wire MCP.</strong><p>Self-hosting over stdio is the default path; a hosted MCP endpoint is also available at <code>https://agentic-mermaid.dev/mcp</code> (streamable HTTP).</p>
 ${mcpConfigCardHtml('getting-started')}
-<pre><code>npx --no-install agentic-mermaid mcp</code></pre><p>Use the installed package over stdio, use the version-pinned config above, or point an MCP client at the hosted endpoint.</p></li>
+<pre><code class="language-bash">npx --no-install agentic-mermaid mcp</code></pre><p>Use the installed package over stdio, use the version-pinned config above, or point an MCP client at the hosted endpoint.</p></li>
 </ol>
 <h2>Agent style/palette recipe</h2>
 <p>Keep appearance out of the Mermaid source. Ask the agent to edit structure with typed ops, verify the result, and pass style and palette as render options.</p>
@@ -2580,7 +2373,7 @@ renderMermaidSVG(source, {
   seed: 0,
   security: 'strict'
 })</code></pre>
-<pre><code># CLI
+<pre><code class="language-bash"># CLI
 npx --no-install agentic-mermaid styles --json
 npx --no-install agentic-mermaid render diagram.mmd --format svg --style ops-schematic,nord-light --output diagram.svg</code></pre>
 <pre><code>// Hosted MCP render_svg arguments
@@ -2684,9 +2477,9 @@ const designBody = `
 
 const cupertinoPrototype = CUSTOM_STYLE_CATALOG.examples.find(entry => entry.id === 'cupertino-prototype')
 if (!cupertinoPrototype) throw new Error('custom-style catalog is missing the Cupertino documentation prototype')
-const customStyleFigures = CUSTOM_STYLE_CATALOG.examples.map(entry =>
-  `<figure><div class="plate"><img src="/docs/assets/style-cookbook/${escapeAttr(entry.screenshot)}" alt="${escapeAttr(entry.alt)}"></div><figcaption><a href="/examples/styles/${escapeAttr(entry.style)}"><code>${escapeHtml(entry.style)}</code></a> ${escapeHtml(entry.summary)}</figcaption></figure>`,
-).join('\n')
+const customStyleFigures = CUSTOM_STYLE_CATALOG.examples
+  .map(entry => `<figure><div class="plate"><img src="/docs/assets/style-cookbook/${escapeAttr(entry.screenshot)}" alt="${escapeAttr(entry.alt)}"></div><figcaption><a href="/examples/styles/${escapeAttr(entry.style)}"><code>${escapeHtml(entry.style)}</code></a> ${escapeHtml(entry.summary)}</figcaption></figure>`)
+  .join('\n')
 
 const customStylesBody = [
   '<p>Custom styles are plain JSON files passed to <code>--style</code>. Keep them in source control, add a <code>seed</code> when the style uses sketch variation, and validate the file before using it from an untrusted source.</p>',
@@ -2703,16 +2496,15 @@ const customStylesBody = [
   `<p><a href="/examples/styles/${escapeAttr(cupertinoPrototype.style)}"><code>${escapeHtml(cupertinoPrototype.style)}</code></a> is documentation-only: it is not registered or advertised as a built-in Style. Load the file explicitly and pass <code>--options '${escapeHtml(JSON.stringify(cupertinoPrototype.renderOptions ?? {}))}'</code> to exercise its palette, weight-based role typography, surface-first border policy, concentric corner radii, 16-unit connector bends, and the shared <code>shadow</code> render option. It remains intentionally incomplete: bundled Inter stands in for SF Pro, and the static renderer does not claim Apple's motion/spring language or a designed dark companion.</p>`,
   customStyleFigures,
   '<h2>Custom fonts</h2>',
-  '<p>A Style\'s <code>font</code> field names a CSS family or stack; it does not load a font file. SVG declares the family, while local PNG rendering resolves bundled faces plus caller-provided directories. Use <code>--security strict</code> for an SVG with no external font request, or pass <code>--font-dirs</code> when rendering an unbundled family to PNG.</p>',
+  "<p>A Style's <code>font</code> field names a CSS family or stack; it does not load a font file. SVG declares the family, while local PNG rendering resolves bundled faces plus caller-provided directories. Use <code>--security strict</code> for an SVG with no external font request, or pass <code>--font-dirs</code> when rendering an unbundled family to PNG.</p>",
   '<pre><code>am render diagram.mmd --format svg --style brand.style.json --security strict --output diagram.svg\nam render diagram.mmd --format png --style brand.style.json --font-dirs ./fonts --output diagram.png</code></pre>',
-  '<p>Library callers use <code>renderMermaidPNG(source, { style, fontDirs: [\'./fonts\'] })</code>; <code>loadSystemFonts: true</code> opts into OS-installed faces at the cost of machine-dependent output. Local MCP <code>render_png</code> accepts <code>fontDirs</code> and <code>loadSystemFonts</code>. Hosted MCP has no filesystem font input, so use a local surface when a custom face is required.</p>',
+  "<p>Library callers use <code>renderMermaidPNG(source, { style, fontDirs: ['./fonts'] })</code>; <code>loadSystemFonts: true</code> opts into OS-installed faces at the cost of machine-dependent output. Local MCP <code>render_png</code> accepts <code>fontDirs</code> and <code>loadSystemFonts</code>. Hosted MCP has no filesystem font input, so use a local surface when a custom face is required.</p>",
   '<h2>Validation</h2>',
   '<p>The schema catches file shape in editors. Runtime code should still call <code>validateStyleSpec(json)</code>; the CLI does this for <code>.json</code> files passed through <code>--style</code>.</p>',
 ].join('\n')
 
 const BEAUTIFUL_MERMAID_ORIGINAL_FAMILY_IDS = new Set(['flowchart', 'state', 'sequence', 'class', 'er', 'xychart'])
-const forkAddedFamilyList = BUILTIN_FAMILY_METADATA
-  .filter(family => !BEAUTIFUL_MERMAID_ORIGINAL_FAMILY_IDS.has(family.id))
+const forkAddedFamilyList = BUILTIN_FAMILY_METADATA.filter(family => !BEAUTIFUL_MERMAID_ORIGINAL_FAMILY_IDS.has(family.id))
   .map(family => family.label)
   .join(', ')
 
@@ -2722,19 +2514,68 @@ await emit(EXAMPLES_STYLE_REL, EXAMPLES_STYLE_SOURCE)
 await emit(EXAMPLES_DELIVERY.styleFragment.rel, EXAMPLES_DELIVERY.styleFragment.html)
 await emit(EXAMPLES_DELIVERY.corpusFragment.rel, EXAMPLES_DELIVERY.corpusFragment.html)
 
+const referencePages = await Promise.all(['docs/api.md', 'docs/api-advanced.md'].map(async file => {
+  const source = await Bun.file(join(ROOT, file)).text()
+  const rendered = renderDocBlocks(file, source)
+  if (rendered.problems.some(problem => problem.problem === 'unknown')) throw new Error(`Unknown documentation block in ${file}`)
+  const page = documentationPage(rendered.text, file)
+  await emit(`${page.destination.slice(1)}index.md`, page.markdown)
+  return page
+}))
+
 type DocPage = readonly [rel: string, title: string, lead: string, body: string, currentHref?: string]
 const docPages: DocPage[] = [
   ['about/index.html', 'About Agentic Mermaid', aboutLead, aboutBody, '/about/'],
   ['about/design/index.html', 'Design language', designLead, designBody, '/about/'],
   ['docs/getting-started/index.html', 'Getting started', 'From a prompt and style choice to a verified local render, then to an agent-safe edit loop.', gettingStartedBody, '/docs/'],
-  ['docs/api/index.html', 'Library API', 'Use agentic-mermaid and agentic-mermaid/agent from local JS or TS.', '<p>Import rendering helpers from <code>agentic-mermaid</code> and typed parse/mutate/verify helpers from <code>agentic-mermaid/agent</code>. Everything runs locally with no network.</p>\n<pre><code>import { renderMermaidSVG, renderMermaidASCII } from \'agentic-mermaid\'\nimport { parseRegisteredMermaid, verifyMermaid } from \'agentic-mermaid/agent\'\n\nconst src = \'flowchart LR\\n  A[Idea] --&gt; B[Ship]\'\nconst svg = renderMermaidSVG(src)           // also renderMermaidASCII / unicode\nconst parsed = parseRegisteredMermaid(src)\nif (!parsed.ok) throw new Error(parsed.error.message)\nconst { ok, warnings } = verifyMermaid(parsed.value) // structured, tiered warnings</code></pre>\n<p>Render helpers return strings (SVG, ASCII, Unicode); the agent surface returns typed diagrams plus structured verify warnings. <strong>In React</strong>, call the same helpers in your component and inject the SVG — private diagrams never leave the browser or your own infrastructure. <strong>Config:</strong> supported Mermaid frontmatter and <code>init</code> directives are normalized before rendering; unsupported syntax is preserved or reported, never silently dropped.</p>' + docsIndex],
-  ['docs/cli/index.html', 'CLI', 'Use the am CLI for local rendering, verification, batch checks, and Markdown rendering.', '<p>The <code>am</code> CLI wraps the library for local rendering, verification, and batch checks. In the cloned repo, <code>am</code> is <code>bun run bin/am.ts</code>.</p>\n<pre><code>am verify diagram.mmd                # structural + geometric + lint warnings\nam verify diagram.mmd --json         # machine-readable for agents\nam render diagram.mmd --format svg --output diagram.svg\nam render diagram.mmd --format png --output diagram.png\nam render diagram.mmd --format ascii # or --format unicode</code></pre>\n<p>Prefer <code>--json</code> in agent loops so you can branch on <code>verify.ok</code> and the stable warning codes instead of parsing prose.</p>' + docsIndex],
-  ['docs/mcp/index.html', 'MCP', 'Hosted MCP at /mcp, plus a local stdio server.', '<p>The hosted MCP endpoint is <code>https://agentic-mermaid.dev/mcp</code>: stateless streamable HTTP (JSON-RPC over POST, no sessions). Hosted tools: <code>execute</code>, <code>describe_sdk</code>, <code>render_svg</code>, <code>render_ascii</code>, <code>render_png</code>, <code>verify</code>, <code>describe</code>, <code>mutate</code>, and <code>build</code>. Call <code>describe_sdk</code> for one family\'s compact signatures or exact mutation fields; pass <code>format: &quot;facts&quot;</code> to <code>describe</code> for deterministic semantic read-back. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; <code>execute</code>, <code>mutate</code>, and <code>build</code> bypass it. The JSON-RPC response itself is always <code>cache-control: no-store</code>, and <code>x-agentic-mermaid-compute-cache</code> reports reuse. Inputs are capped at 64KB, and Code Mode <code>execute</code> runs in an isolated on-demand Worker with network access disabled and a CPU budget.</p><p>The local MCP tools are <code>execute</code>, <code>describe_sdk</code>, <code>render_png</code>, and <code>describe</code>. Multi-step parse/narrow/mutate/verify workflows run inside <code>execute(code)</code>; local <code>describe_sdk</code> returns version-matched mutation schemas and <code>describe</code> supports <code>format: &quot;facts&quot;</code>. For file/URL PNG artifacts, diagrams beyond the hosted caps, or offline use, run the installed package locally: <code>npx --no-install agentic-mermaid mcp</code>.</p><p><strong>Privacy:</strong> every hosted tool call sends your diagram source (or Code Mode code) to this site\u2019s server. For diagrams that must not leave your machine, use the library, the CLI, or the local stdio server \u2014 the pipeline is fully local and needs no network.</p><p><strong>Response framing:</strong> the hosted <code>/mcp</code> endpoint always replies with plain <code>application/json</code> \u2014 no SSE <code>data:</code> framing \u2014 so scripts can parse the body directly. The local HTTP transport\u2019s <code>/sse</code> + <code>/message</code> pair delivers responses as SSE events on the open stream; script writers who want unframed JSON should POST to its <code>/rpc</code> endpoint instead.</p>' + docsIndex],
-  ['docs/ascii/index.html', 'ASCII and Unicode', 'Text output is first-class for terminals, PR comments, and agent review.', '<p>Text output is first-class, not a fallback: ASCII (portable 7-bit) and Unicode (box-drawing) renders drop straight into terminals, PR comments, commit messages, and agent transcripts where an SVG cannot go.</p>\n<pre><code>am render diagram.mmd --format ascii    # portable, 7-bit\nam render diagram.mmd --format unicode  # sharper box-drawing glyphs</code></pre>\n<p>The text path is deterministic like the SVG path, so the same source always yields the same characters — reviewable in a plain diff. The ASCII engine is ported from mermaid-ascii; see <a href="/about/">About</a> for the lineage.</p>' + docsIndex],
-  ['docs/theming/index.html', 'Styles and palettes', 'A style describes diagram rendering; a colors-only style is a palette.', '<p>One primitive covers visual rendering: a <strong>style</strong> is a partial, composable description of palette, typography, stroke character, and fills. A style that only sets colours is a palette. Styles such as <code>hand-drawn</code>, <code>watercolor</code>, and <code>blueprint</code> also change renderer treatment. Styles stack left \u2192 right (<code>{ style: [\'hand-drawn\', \'dracula\'] }</code> gives hand-drawn geometry with the dracula palette), the optional <code>seed</code> re-rolls styled ink without moving layout, and custom styles are plain JSON records. Use <a href="/docs/custom-styles/">Custom styles</a> for schema, complete JSON examples, and screenshots. The browser editor exposes both pickers: Style chooses renderer treatment; Palette chooses colors. SVG output can also inherit CSS variables for live palette swaps.</p>' + themingReferenceHtml() + docsIndex],
+  ...referencePages.map(page => [
+    `${page.destination.slice(1)}index.html`, page.title, page.lead,
+    `<p><a href="${page.destination}index.md">Read as Markdown</a></p>${page.html}${docsIndex}`,
+  ] as const),
+  [
+    'docs/cli/index.html',
+    'CLI',
+    'Use the am CLI for local rendering, verification, batch checks, and Markdown rendering.',
+    '<p>The <code>am</code> CLI wraps the library for local rendering, verification, and batch checks. In the cloned repo, <code>am</code> is <code>bun run bin/am.ts</code>.</p>\n<pre><code>am verify diagram.mmd                # structural + geometric + lint warnings\nam verify diagram.mmd --json         # machine-readable for agents\nam render diagram.mmd --format svg --output diagram.svg\nam render diagram.mmd --format png --output diagram.png\nam render diagram.mmd --format ascii # or --format unicode</code></pre>\n<p>Prefer <code>--json</code> in agent loops so you can branch on <code>verify.ok</code> and the stable warning codes instead of parsing prose.</p>' +
+      docsIndex,
+  ],
+  [
+    'docs/mcp/index.html',
+    'MCP',
+    'Hosted MCP at /mcp, plus a local stdio server.',
+    "<p>The hosted MCP endpoint is <code>https://agentic-mermaid.dev/mcp</code>: stateless streamable HTTP (JSON-RPC over POST, no sessions). Hosted tools: <code>execute</code>, <code>describe_sdk</code>, <code>render_svg</code>, <code>render_ascii</code>, <code>render_png</code>, <code>verify</code>, <code>describe</code>, <code>mutate</code>, and <code>build</code>. Call <code>describe_sdk</code> for one family's compact signatures or exact mutation fields; pass <code>format: &quot;facts&quot;</code> to <code>describe</code> for deterministic semantic read-back. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; <code>execute</code>, <code>mutate</code>, and <code>build</code> bypass it. The JSON-RPC response itself is always <code>cache-control: no-store</code>, and <code>x-agentic-mermaid-compute-cache</code> reports reuse. Inputs are capped at 64KB, and Code Mode <code>execute</code> runs in an isolated on-demand Worker with network access disabled and a CPU budget.</p><p>The local MCP tools are <code>execute</code>, <code>describe_sdk</code>, <code>render_png</code>, and <code>describe</code>. Multi-step parse/narrow/mutate/verify workflows run inside <code>execute(code)</code>; local <code>describe_sdk</code> returns version-matched mutation schemas and <code>describe</code> supports <code>format: &quot;facts&quot;</code>. For file/URL PNG artifacts, diagrams beyond the hosted caps, or offline use, run the installed package locally: <code>npx --no-install agentic-mermaid mcp</code>.</p><p><strong>Privacy:</strong> every hosted tool call sends your diagram source (or Code Mode code) to this site\u2019s server. For diagrams that must not leave your machine, use the library, the CLI, or the local stdio server \u2014 the pipeline is fully local and needs no network.</p><p><strong>Response framing:</strong> the hosted <code>/mcp</code> endpoint always replies with plain <code>application/json</code> \u2014 no SSE <code>data:</code> framing \u2014 so scripts can parse the body directly. The local HTTP transport\u2019s <code>/sse</code> + <code>/message</code> pair delivers responses as SSE events on the open stream; script writers who want unframed JSON should POST to its <code>/rpc</code> endpoint instead.</p>" +
+      docsIndex,
+  ],
+  [
+    'docs/ascii/index.html',
+    'ASCII and Unicode',
+    'Text output is first-class for terminals, PR comments, and agent review.',
+    '<p>Text output is first-class, not a fallback: ASCII (portable 7-bit) and Unicode (box-drawing) renders drop straight into terminals, PR comments, commit messages, and agent transcripts where an SVG cannot go.</p>\n<pre><code>am render diagram.mmd --format ascii    # portable, 7-bit\nam render diagram.mmd --format unicode  # sharper box-drawing glyphs</code></pre>\n<p>The text path is deterministic like the SVG path, so the same source always yields the same characters — reviewable in a plain diff. The ASCII engine is ported from mermaid-ascii; see <a href="/about/">About</a> for the lineage.</p>' +
+      docsIndex,
+  ],
+  [
+    'docs/theming/index.html',
+    'Styles and palettes',
+    'A style describes diagram rendering; a colors-only style is a palette.',
+    "<p>One primitive covers visual rendering: a <strong>style</strong> is a partial, composable description of palette, typography, stroke character, and fills. A style that only sets colours is a palette. Styles such as <code>hand-drawn</code>, <code>watercolor</code>, and <code>blueprint</code> also change renderer treatment. Styles stack left \u2192 right (<code>{ style: ['hand-drawn', 'dracula'] }</code> gives hand-drawn geometry with the dracula palette), the optional <code>seed</code> re-rolls styled ink without moving layout, and custom styles are plain JSON records. Use <a href=\"/docs/custom-styles/\">Custom styles</a> for schema, complete JSON examples, and screenshots. The browser editor exposes both pickers: Style chooses renderer treatment; Palette chooses colors. SVG output can also inherit CSS variables for live palette swaps.</p>" +
+      themingReferenceHtml() +
+      docsIndex,
+  ],
   ['docs/custom-styles/index.html', 'Custom styles', 'Author JSON style files, validate them with the schema, and compare cookbook screenshots.', customStylesBody + docsIndex],
-  ['docs/quality/index.html', 'Quality', 'Determinism, verify warnings, and layout metrics make diagram edits reviewable.', '<p><code>verify.ok</code> is a gate, not a promise of visual perfection. Include SVG/PNG/ASCII artifacts for human review when the change is visual.</p>\n<p><strong>Warnings are tiered</strong> so an agent knows how to react: <em>structural</em> problems can block a safe return and should be fixed first; <em>geometric</em> warnings ask for visual review; <em>lint</em> warnings mean a smaller or cleaner edit. Every code has a page under <a href="/warnings/">warnings</a> with what triggers it and how to clear it.</p>\n<p><strong>Evidence is curated, not raw private prompts:</strong> rely on CI, deterministic layout metrics, and generated artifacts to review a change. Private eval prompts and holdbacks are not public site content.</p>' + docsIndex],
-  ['docs/fork-differences/index.html', 'Fork differences', 'Agentic Mermaid adds styled rendering, typed editing, deterministic verification, CLI, MCP, and more families.', `<p>Agentic Mermaid (<code>agentic-mermaid</code>) forks <a href="https://github.com/lukilabs/beautiful-mermaid">beautiful-mermaid</a> for a job the render-only original did not have: agents creating polished, branded diagrams that stay editable as Mermaid source.</p>\n<ul>\n<li><strong>Typed agent surface.</strong> A render-only library forces an agent to regenerate a whole diagram to change one node. Here new diagrams are authored as source then parsed/verified/rendered, and existing diagrams go parse → narrow → mutate → verify → serialize via <code>agentic-mermaid/agent</code>. Every registered built-in family is structured when narrowed; unmodeled syntax still round-trips losslessly as opaque fallback.</li>\n<li><strong>Deterministic, verifiable layout.</strong> Layout is byte-identical across processes, and <code>verifyMermaid</code> returns structured warnings in three tiers (structural, geometric, lint) plus perceptual quality metrics.</li>\n<li><strong>More families.</strong> Adds ${forkAddedFamilyList} beyond the original Beautiful Mermaid family set; that list is generated from the same descriptor projection that drives examples and capabilities.</li>\n<li><strong>Tools.</strong> An <code>am</code> CLI, an <code>agentic-mermaid-mcp</code> Code Mode MCP server (stdio + opt-in HTTP/SSE), and a hosted MCP endpoint at <code>/mcp</code>. There is no REST render API.</li>\n<li><strong>Style + Palette rendering.</strong> Named looks and palette stacks keep appearance outside Mermaid source while preserving deterministic geometry.</li>\n</ul>\n<p>See <a href="/examples/">examples</a> for the generated family list and rendered source, and <a href="/about/">About</a> for the lineage.</p>` + docsIndex],
+  [
+    'docs/quality/index.html',
+    'Quality',
+    'Determinism, verify warnings, and layout metrics make diagram edits reviewable.',
+    '<p><code>verify.ok</code> is a gate, not a promise of visual perfection. Include SVG/PNG/ASCII artifacts for human review when the change is visual.</p>\n<p><strong>Warnings are tiered</strong> so an agent knows how to react: <em>structural</em> problems can block a safe return and should be fixed first; <em>geometric</em> warnings ask for visual review; <em>lint</em> warnings mean a smaller or cleaner edit. Every code has a page under <a href="/warnings/">warnings</a> with what triggers it and how to clear it.</p>\n<p><strong>Evidence is curated, not raw private prompts:</strong> rely on CI, deterministic layout metrics, and generated artifacts to review a change. Private eval prompts and holdbacks are not public site content.</p>' +
+      docsIndex,
+  ],
+  [
+    'docs/fork-differences/index.html',
+    'Fork differences',
+    'Agentic Mermaid adds styled rendering, typed editing, deterministic verification, CLI, MCP, and more families.',
+    `<p>Agentic Mermaid (<code>agentic-mermaid</code>) forks <a href="https://github.com/lukilabs/beautiful-mermaid">beautiful-mermaid</a> for a job the render-only original did not have: agents creating polished, branded diagrams that stay editable as Mermaid source.</p>\n<ul>\n<li><strong>Typed agent surface.</strong> A render-only library forces an agent to regenerate a whole diagram to change one node. Here new diagrams are authored as source then parsed/verified/rendered, and existing diagrams go parse → narrow → mutate → verify → serialize via <code>agentic-mermaid/agent</code>. Every registered built-in family is structured when narrowed; unmodeled syntax still round-trips losslessly as opaque fallback.</li>\n<li><strong>Deterministic, verifiable layout.</strong> Layout is byte-identical across processes, and <code>verifyMermaid</code> returns structured warnings in three tiers (structural, geometric, lint) plus perceptual quality metrics.</li>\n<li><strong>More families.</strong> Adds ${forkAddedFamilyList} beyond the original Beautiful Mermaid family set; that list is generated from the same descriptor projection that drives examples and capabilities.</li>\n<li><strong>Tools.</strong> An <code>am</code> CLI, an <code>agentic-mermaid-mcp</code> Code Mode MCP server (stdio + opt-in HTTP/SSE), and a hosted MCP endpoint at <code>/mcp</code>. There is no REST render API.</li>\n<li><strong>Style + Palette rendering.</strong> Named looks and palette stacks keep appearance outside Mermaid source while preserving deterministic geometry.</li>\n</ul>\n<p>See <a href="/examples/">examples</a> for the generated family list and rendered source, and <a href="/about/">About</a> for the lineage.</p>` +
+      docsIndex,
+  ],
   ['examples/index.html', 'Examples', examplesLead, EXAMPLES_DELIVERY.main, '/examples/'],
   ['examples/style-palette/index.html', 'Style × Palette examples', 'Every supported family rendered with a named style and palette.', EXAMPLES_DELIVERY.styleStandalone, '/examples/'],
   ['examples/corpus/index.html', 'Rich example corpus', 'The complete shared project corpus with stable links and Editor handoffs.', EXAMPLES_DELIVERY.corpusStandalone, '/examples/'],
@@ -2778,15 +2619,21 @@ function warningDemoHtml(code: string, example: string): string {
   const request = createExampleRenderState(example)
   let fired = false
   try {
-    fired = verifyMermaid(example, { renderOptions: request.renderOptions }).warnings
-      .some((w: any) => w.code === code)
-  } catch { fired = false }
+    fired = verifyMermaid(example, { renderOptions: request.renderOptions }).warnings.some((w: any) => w.code === code)
+  } catch {
+    fired = false
+  }
   if (!fired) throw new Error(`warning example for ${code} does not fire its advertised code`)
   return `\n<h2>Minimal reproducer</h2>\n<p>This source triggers <code>${code}</code> — checked at build time against the same engine the editor runs.</p>\n<pre><code>${escapeHtml(example)}</code></pre>\n<p><a class="go" href="${escapeAttr(editorStateHref(request.editorState))}">Open this reproducer in the editor</a></p>`
 }
 
 function warningsIndexHtml() {
-  const rows = capabilities.warningCodes.map((w: any) => `<tr data-warning-row data-code="${escapeAttr(w.code)}" data-tier="${escapeAttr(w.tier)}" data-severity="${escapeAttr(w.severity)}"><td data-label="Code"><a href="/warnings/${w.code}/"><code>${w.code}</code></a></td><td data-label="Tier"><span class="tier-badge tier-${w.tier}">${w.tier}</span></td><td data-label="Severity"><span class="sev-badge sev-${w.severity}">${w.severity}</span></td></tr>`).join('')
+  const rows = capabilities.warningCodes
+    .map(
+      (w: any) =>
+        `<tr data-warning-row data-code="${escapeAttr(w.code)}" data-tier="${escapeAttr(w.tier)}" data-severity="${escapeAttr(w.severity)}"><td data-label="Code"><a href="/warnings/${w.code}/"><code>${w.code}</code></a></td><td data-label="Tier"><span class="tier-badge tier-${w.tier}">${w.tier}</span></td><td data-label="Severity"><span class="sev-badge sev-${w.severity}">${w.severity}</span></td></tr>`,
+    )
+    .join('')
   return `<div class="warning-guide" aria-label="Warning triage guide">
   <p><strong>Fix structural first.</strong> Structural errors can block safe return. Geometric warnings ask for visual review. Lint warnings usually mean an agent should make a smaller or cleaner edit.</p>
   <p><a class="go" href="/docs/quality/">Read the quality gate</a></p>
@@ -2824,20 +2671,27 @@ for (const w of capabilities.warningCodes) {
   const demo = detail.example ? warningDemoHtml(w.code, detail.example) : ''
   if (demo) firingDemos++
   const detailHtml = `<p><strong>What triggers it.</strong> ${detail.triggers}</p>\n<p><strong>How to fix it.</strong> ${detail.fix}</p>`
-  await emitShell(`warnings/${w.code}/index.html`, w.code, lead, `${detailHtml}${demo}
-<p>Run <code>am verify diagram.mmd --json</code>, inspect this code, and apply the smallest source or typed mutation that clears it. If it persists after two mechanical attempts, return the warning and ask for human review.</p>
+  // A code only the engine causes is not the diagram's to clear by editing.
+  const triage = detail.origins.every(origin => origin === 'engine')
+    ? 'Run <code>am verify diagram.mmd --json</code> and inspect this code. Agentic Mermaid causes it, not the diagram: follow the fix above and report the source.'
+    : 'Run <code>am verify diagram.mmd --json</code>, inspect this code, and apply the smallest source or typed mutation that clears it. If it persists after two mechanical attempts, return the warning and ask for human review.'
+  await emitShell(
+    `warnings/${w.code}/index.html`,
+    w.code,
+    lead,
+    `${detailHtml}${demo}
+<p>${triage}</p>
 <p class="muted">In the cloned repo, <code>am</code> is <code>bun run bin/am.ts</code>.</p>
 <p class="muted">Machine-readable: <a href="/warnings/${w.code}/index.md">this page as Markdown</a>.</p>
-<p class="muted">Back to <a href="/warnings/">all warning codes</a>, or <a href="${GENERIC_EDITOR_HREF}">open a blank editor</a> to try a fix.</p>`)
+<p class="muted">Back to <a href="/warnings/">all warning codes</a>, or <a href="${GENERIC_EDITOR_HREF}">open a blank editor</a> to try a fix.</p>`,
+  )
   // Markdown sibling: the same triage prose an agent gets from verify, without
   // scraping HTML. Discoverable via the link above and served as text/markdown.
-  const md = [`# ${w.code}`, '', `> ${inlineHtmlToMarkdown(lead)}`, '',
-    `- **Tier:** ${w.tier}`, `- **Severity:** ${w.severity}`, '']
+  const md = [`# ${w.code}`, '', `> ${inlineHtmlToMarkdown(lead)}`, '', `- **Tier:** ${w.tier}`, `- **Severity:** ${w.severity}`, `- **Origins:** ${detail.origins.join(', ')}`, '']
   md.push('## What triggers it', '', inlineHtmlToMarkdown(detail.triggers), '')
   md.push('## How to fix it', '', inlineHtmlToMarkdown(detail.fix), '')
   if (detail.example) md.push('## Example', '', '```mermaid', detail.example, '```', '')
-  md.push('Run `am verify diagram.mmd --json`, inspect this code, and apply the smallest source or typed mutation that clears it. If it persists after two mechanical attempts, return the warning and ask for human review.', '',
-    `Full page: https://agentic-mermaid.dev/warnings/${w.code}/`, '')
+  md.push(inlineHtmlToMarkdown(triage), '', `Full page: https://agentic-mermaid.dev/warnings/${w.code}/`, '')
   await emit(`warnings/${w.code}/index.md`, md.join('\n'))
 }
 console.log(`website/build: ${firingDemos}/${capabilities.warningCodes.length} warning pages carry a build-time-verified firing demo`)
@@ -2846,42 +2700,50 @@ console.log(`website/build: ${firingDemos}/${capabilities.warningCodes.length} w
 // `related` links the verify code(s) that surface the same failure.
 const errors: Array<{ id: string; title: string; desc: string; recover: string; related?: string }> = [
   {
-    id: 'parse-error', title: 'Parse error',
+    id: 'parse-error',
+    title: 'Parse error',
     desc: 'The source could not be parsed. Preserve the source and point to the line/column when available.',
     recover: 'The source is not valid Mermaid for any known family, so it never became a diagram. Preserve the original text and surface the parser’s line/column; fix the offending line, or return the failure untouched rather than guessing a rewrite that changes intent.',
     related: 'Often pairs with <a href="/warnings/UNSUPPORTED_SYNTAX/">UNSUPPORTED_SYNTAX</a> when syntax parses in mermaid.js but not the structured model.',
   },
   {
-    id: 'mutation-error', title: 'Mutation error',
+    id: 'mutation-error',
+    title: 'Mutation error',
     desc: 'A typed mutation was invalid for the narrowed family or target.',
-    recover: 'A typed edit was rejected because it does not apply to the narrowed family or its target does not exist (e.g. <code>set_label</code> on a missing node id). Re-narrow the parsed diagram, confirm the target id against the current model, and fall back to editing the preserved source directly when the construct is not structurally modeled (opaque fallback).',
+    recover:
+      'A typed edit was rejected because it does not apply to the narrowed family or its target does not exist (e.g. <code>set_label</code> on a missing node id). Re-narrow the parsed diagram, confirm the target id against the current model, and fall back to editing the preserved source directly when the construct is not structurally modeled (opaque fallback).',
     related: 'See the <a href="/docs/api/">library API</a> for the typed parse → narrow → mutate → verify surface.',
   },
   {
-    id: 'render-error', title: 'Render error',
+    id: 'render-error',
+    title: 'Render error',
     desc: 'Rendering failed after parse. Return the error and source; do not fabricate an artifact.',
     recover: 'The diagram parsed but rendering to SVG/PNG/text threw before an artifact existed. Return the error and the source — never a fabricated image; simplify or split the diagram, or retry a lighter format (SVG or ASCII before PNG).',
-    related: 'Surfaces as the <a href="/warnings/RENDER_FAILED/">RENDER_FAILED</a> verify code.',
+    related: 'Surfaces as the <a href="/warnings/RENDER_FAILED/">RENDER_FAILED</a> verify code, or as <a href="/warnings/INTERNAL_ERROR/">INTERNAL_ERROR</a> when a defect in Agentic Mermaid, not the source, caused it.',
   },
   {
-    id: 'verify-failed', title: 'Verify failed',
+    id: 'verify-failed',
+    title: 'Verify failed',
     desc: 'The diagram parsed but verification returned blocking structural warnings.',
     recover: 'The diagram parsed and rendered, but <code>verify.ok</code> is false because a structural-tier warning is blocking. Inspect <code>verify.warnings</code>, fix the structural codes first, then re-verify before trusting the artifact.',
     related: 'Every code is documented under <a href="/warnings/">warnings</a>; start with the structural tier.',
   },
 ]
-await emitShell('errors/index.html', 'Errors', 'Error pages explain recovery paths for local CLI, library, and MCP use.', `<ul>${errors.map((e) => `<li><a href="/errors/${e.id}/">${e.title}</a> – ${e.desc}</li>`).join('')}</ul>`)
+await emitShell('errors/index.html', 'Errors', 'Error pages explain recovery paths for local CLI, library, and MCP use.', `<ul>${errors.map(e => `<li><a href="/errors/${e.id}/">${e.title}</a> – ${e.desc}</li>`).join('')}</ul>`)
 for (const e of errors) {
-  await emitShell(`errors/${e.id}/index.html`, e.title, e.desc, `<p>${e.recover}</p>
+  await emitShell(
+    `errors/${e.id}/index.html`,
+    e.title,
+    e.desc,
+    `<p>${e.recover}</p>
 ${e.related ? `<p>${e.related}</p>\n` : ''}<pre><code>am verify diagram.mmd --json</code></pre><p>Return the structured error to the caller when a safe automatic fix is not obvious.</p>
 <p class="muted">Machine-readable: <a href="/errors/${e.id}/index.md">this page as Markdown</a>.</p>
-<p class="muted">Back to <a href="/errors/">all errors</a>, or <a href="${GENERIC_EDITOR_HREF}">open a blank editor</a> to test a source file.</p>`)
+<p class="muted">Back to <a href="/errors/">all errors</a>, or <a href="${GENERIC_EDITOR_HREF}">open a blank editor</a> to test a source file.</p>`,
+  )
   // Markdown sibling (item 7): same recovery guidance without scraping HTML.
-  const md = [`# ${e.title}`, '', `> ${inlineHtmlToMarkdown(e.desc)}`, '',
-    '## How to recover', '', inlineHtmlToMarkdown(e.recover), '']
+  const md = [`# ${e.title}`, '', `> ${inlineHtmlToMarkdown(e.desc)}`, '', '## How to recover', '', inlineHtmlToMarkdown(e.recover), '']
   if (e.related) md.push('## Related', '', inlineHtmlToMarkdown(e.related), '')
-  md.push('```', 'am verify diagram.mmd --json', '```', '',
-    `Full page: https://agentic-mermaid.dev/errors/${e.id}/`, '')
+  md.push('```', 'am verify diagram.mmd --json', '```', '', `Full page: https://agentic-mermaid.dev/errors/${e.id}/`, '')
   await emit(`errors/${e.id}/index.md`, md.join('\n'))
 }
 
@@ -2911,12 +2773,23 @@ await emit('_headers', securityHeaders)
 // (index.html-only) automatically excludes; noindex belts-and-braces on top.
 const notFoundDiagram = addSvgAccessibleName(
   renderMermaidSVG('flowchart LR\n  You[You] --> Nf{404}\n  Nf -- home --> Home[Homepage]\n  Nf -- browse --> Ex[Examples]\n  Nf -- read --> Docs[Docs]', {
-    style: ['watercolor', 'paper'], seed: 4, security: 'strict', compact: true, embedFontImport: false, idPrefix: 'notfound-',
+    style: ['watercolor', 'paper'],
+    seed: 4,
+    security: 'strict',
+    compact: true,
+    embedFontImport: false,
+    idPrefix: 'notfound-',
   }).replace(/[ \t]+$/gm, ''),
-  'notfound', 'Page not found', 'A small flowchart routing you from 404 back to the homepage, examples, or docs.')
-await emit('404.html', pageShell(
-  'Page not found', 'This path does not exist — the diagram below knows the way out.',
-  `<figure><div class="plate dia-plate">${notFoundDiagram}</div></figure>
+  'notfound',
+  'Page not found',
+  'A small flowchart routing you from 404 back to the homepage, examples, or docs.',
+)
+await emit(
+  '404.html',
+  pageShell(
+    'Page not found',
+    'This path does not exist — the diagram below knows the way out.',
+    `<figure><div class="plate dia-plate">${notFoundDiagram}</div></figure>
 <ul>
 <li><a href="/">Homepage</a> — what Agentic Mermaid is and how agents use it.</li>
 <li><a href="/examples/">Examples</a> — every diagram family, styled and plain.</li>
@@ -2924,7 +2797,8 @@ await emit('404.html', pageShell(
 <li><a href="${GENERIC_EDITOR_HREF}">Editor</a> — try a diagram in the browser.</li>
 </ul>
 <p class="muted">If a link on this site brought you here, <a href="https://github.com/adewale/agentic-mermaid/issues">report it</a> — broken links are bugs.</p>`,
-).replace('<meta name="description"', '<meta name="robots" content="noindex">\n<meta name="description"'))
+  ).replace('<meta name="description"', '<meta name="robots" content="noindex">\n<meta name="description"'),
+)
 
 // Shared route manifest: the Worker and the generated _redirects file use the
 // same clean-route list. Assert the manifest only names pages that this build
@@ -2932,11 +2806,7 @@ await emit('404.html', pageShell(
 for (const route of CLEAN_PAGE_ROUTES) {
   if (!generated.has(`${route}/index.html`)) throw new Error(`route manifest names missing page: ${route}/index.html`)
 }
-const redirectLines = [
-  ...staticRedirectLines(),
-  ...DYNAMIC_CLEAN_REDIRECT_LINES,
-  '',
-].join('\n')
+const redirectLines = [...staticRedirectLines(), ...DYNAMIC_CLEAN_REDIRECT_LINES, ''].join('\n')
 await emit('_redirects', redirectLines)
 
 // ---- sitemap.xml -----------------------------------------------------------
@@ -2945,16 +2815,10 @@ await emit('_redirects', redirectLines)
 // hand-kept list so new pages are picked up automatically. No <lastmod>: deploy
 // build timestamps are provenance, not page-level content modification dates.
 const sitemapUrls = [...generated.keys()]
-  .filter((rel) => rel === 'index.html' || rel.endsWith('/index.html'))
-  .map((rel) => siteOrigin + '/' + rel.replace(/index\.html$/, ''))
+  .filter(rel => rel === 'index.html' || rel.endsWith('/index.html'))
+  .map(rel => siteOrigin + '/' + rel.replace(/index\.html$/, ''))
   .sort()
-const sitemapXml = [
-  '<?xml version="1.0" encoding="UTF-8"?>',
-  '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-  ...sitemapUrls.map((loc) => `  <url><loc>${loc}</loc></url>`),
-  '</urlset>',
-  '',
-].join('\n')
+const sitemapXml = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">', ...sitemapUrls.map(loc => `  <url><loc>${loc}</loc></url>`), '</urlset>', ''].join('\n')
 await emit('sitemap.xml', sitemapXml)
 
 // No repo robots.txt: production serves Cloudflare's managed content-signals
@@ -2968,88 +2832,10 @@ await emit('sitemap.xml', sitemapXml)
 // The directory is gitignored and rebuilt by website checks, tests that need
 // Worker artifacts, and deploy. worker-env.d.ts owns the stable import types so
 // repository typecheck remains read-only and works from a fresh checkout.
-const SRC_GENERATED = join(import.meta.dir, 'src', 'generated')
-const workerGenerated = new Map<string, Buffer>()
-
-async function emitWorkerArtifact(rel: string, content: Buffer) {
-  workerGenerated.set(rel, content)
-  if (CHECK) return
-  const dest = join(SRC_GENERATED, rel)
-  await mkdir(dirname(dest), { recursive: true })
-  await writeFile(dest, content)
-}
-
-if (!PUBLIC_ONLY) {
-  const harnessBuild = await Bun.build({
-    entrypoints: [join(ROOT, 'src', 'mcp', 'dynamic-harness.ts')],
-    target: 'browser',
-    format: 'esm',
-    minify: true,
-    // The agent-code module exists only inside the Worker Loader's
-    // per-isolate module registry; the import must survive bundling.
-    external: ['*user.js'],
-  })
-  if (!harnessBuild.success || harnessBuild.outputs.length !== 1) {
-    throw new Error(`execute-harness bundle failed: ${harnessBuild.logs.join('\n')}`)
-  }
-  const harness = Buffer.from((await harnessBuild.outputs[0]!.text()).replace(/[ \t]+$/gm, ''))
-  if (!harness.includes('import("./user.js")')) throw new Error('execute-harness bundle lost the ./user.js import')
-  const resvgWasm = Buffer.from(await Bun.file(join(ROOT, 'node_modules', '@resvg', 'resvg-wasm', 'index_bg.wasm')).arrayBuffer())
-  const hostedFonts = HOSTED_FONT_RESOURCES.map(resource => {
-    const verified = VERIFIED_FONT_BY_ID.get(resource.identity.id)
-    if (!verified) throw new Error(`Required font was not verified: ${resource.identity.id}`)
-    return { name: resource.file, bytes: Buffer.from(verified.readBytes()) }
-  })
-  await emitWorkerArtifact('execute-harness.js.txt', harness)
-  await emitWorkerArtifact('resvg.wasm', resvgWasm)
-  for (const font of hostedFonts) await emitWorkerArtifact(font.name, font.bytes)
-
-  // Full-deploy version for the /mcp response cache. Bundle the worker's own
-  // JS closure (transport, hosted-server, PNG path, raster budget, SDK) and
-  // hash it together with the harness + wasm + fonts. Unlike the harness-only
-  // hash used for Worker Loader isolate IDs, this changes when ANY hosted tool
-  // implementation, transport, or asset changes — so a deploy that touches
-  // hosted-server.ts / mcp-handler.ts / png-wasm.ts without moving the harness
-  // still invalidates cached render_svg/verify/describe/render_png results.
-  const workerBuild = await Bun.build({
-    entrypoints: [join(import.meta.dir, 'src', 'worker.ts')],
-    target: 'browser',
-    format: 'esm',
-    minify: true,
-    // Assets + the generated version constant stay external: the constant is
-    // what we are computing, so it must not feed its own hash. (Glob form —
-    // bun resolves bare relative specifiers, so a literal path would not match.)
-    external: ['*.wasm', '*.ttf', '*.js.txt', '*deploy-version.ts'],
-  })
-  if (!workerBuild.success || workerBuild.outputs.length < 1) {
-    throw new Error(`worker bundle failed: ${workerBuild.logs.join('\n')}`)
-  }
-  const workerJs = Buffer.from(await workerBuild.outputs[0]!.text())
-  if (!workerJs.includes('render_svg') || !workerJs.includes('RENDER_FAILED')) {
-    throw new Error('worker bundle is missing the hosted MCP surface; deploy hash would be blind to it')
-  }
-  // The main worker's compatibility_date is a deploy-controlled runtime input
-  // that lives in config, not in any bundled artifact — the one output-relevant
-  // setting the worker JS hash cannot see. Fold it in so a compat-date bump
-  // (which can shift workerd JS semantics) also invalidates cached results.
-  const wranglerText = await Bun.file(join(import.meta.dir, 'wrangler.jsonc')).text()
-  const compatDate = wranglerText.match(/"compatibility_date"\s*:\s*"([^"]+)"/)?.[1] ?? ''
-  const deployVersion = computeDeployVersion(packageJson.version, [
-    workerJs,
-    harness,
-    resvgWasm,
-    ...hostedFonts.map(font => font.bytes),
-    new TextEncoder().encode(compatDate),
-  ])
-  await emitWorkerArtifact('deploy-version.ts', Buffer.from(
-    '// Generated by website/build.ts — do not edit.\n' +
-    '// Full-deploy content hash (worker JS closure + harness + wasm + fonts +\n' +
-    '// main-worker compatibility_date). Used as the /mcp response-cache version\n' +
-    '// so any change to the hosted tool surface, transport, PNG path, SDK, or\n' +
-    '// worker runtime semantics invalidates cached tool results.\n' +
-    `export const DEPLOY_VERSION = '${deployVersion}'\n`,
-  ))
-}
+const workerGenerated = PUBLIC_ONLY ? new Map<string, Buffer>() : await buildWorkerArtifacts({
+  root: ROOT, websiteDirectory: import.meta.dir, packageVersion: packageJson.version,
+  verifiedFontById: VERIFIED_FONT_BY_ID, check: CHECK,
+})
 
 function assertNoPlaceholders() {
   const offenders: string[] = []

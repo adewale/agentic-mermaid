@@ -97,7 +97,7 @@ export interface EssentialScenePrimitiveCapability {
  * checking that any claim exists for a primitive/operation pair: geometry
  * support alone must not silently discard paint, identity, markers, relation,
  * accessibility, or hit semantics. */
-export const ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES: readonly EssentialScenePrimitiveCapability[] = Object.freeze([
+export const ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES: readonly EssentialScenePrimitiveCapability[] = Object.freeze(([
   { primitive: 'document', feature: 'identity', operation: 'serialize' },
   { primitive: 'document', feature: 'resources', operation: 'serialize' },
   { primitive: 'document', feature: 'interaction', operation: 'accessibility' },
@@ -146,7 +146,7 @@ export const ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES: readonly EssentialScenePrim
   { primitive: 'data-mark', feature: 'geometry', operation: 'render' },
   { primitive: 'data-mark', feature: 'paint', operation: 'render' },
   { primitive: 'data-mark', feature: 'identity', operation: 'serialize' },
-] as const satisfies readonly EssentialScenePrimitiveCapability[])
+] as const satisfies readonly EssentialScenePrimitiveCapability[]).map(requirement => Object.freeze(requirement)))
 
 export const PRIMITIVE_REALIZATIONS = [
   'native',

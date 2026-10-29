@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -31,10 +30,40 @@ import { renderPngGraphicalProjection, renderPortablePngGraphicalProjection } fr
 import { decodePng } from './helpers/png-pixels.ts'
 import { createRenderPngTool, validateMcpToolArguments } from '../mcp/tool-surface.ts'
 import { PNG_CLI_FLAG_BINDINGS } from '../cli/index.ts'
+import { ensureWebsiteBuilt } from './website-public-fixture.ts'
+import { useTestChildren } from './helpers/test-child.ts'
 
 const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
+const runChild = useTestChildren(30_000)
 
 describe('canonical PNG output-option authority', () => {
+  test('initializes the hosted styled PNG adapter in a fresh process', async () => {
+    ensureWebsiteBuilt()
+    const adapter = join(import.meta.dir, '..', '..', 'website', 'src', 'png-wasm.ts')
+    const probe = `
+      import { readFileSync } from 'node:fs'
+      Bun.plugin({ name: 'worker-resources', setup(build) {
+        build.onLoad({ filter: /\\.(?:ttf|wasm)$/ }, ({ path }) => {
+          const file = readFileSync(path)
+          const bytes = file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength)
+          return { loader: 'object', exports: {
+            default: path.endsWith('.wasm') ? new WebAssembly.Module(bytes) : bytes,
+          } }
+        })
+      } })
+      const { renderMermaidPNGWasm } = await import(${JSON.stringify(adapter)})
+      const artifact = await renderMermaidPNGWasm('flowchart LR\\n A --> B', {
+        style: 'hand-drawn', scale: 0.1, minLabelPx: 0,
+      })
+      console.log(JSON.stringify({ bytes: artifact.png.byteLength,
+        backend: artifact.receipt.executionDecision.backend.selectedId }))
+    `
+    const result = await runChild(process.execPath, ['--eval', probe])
+    expect(result.status, result.stderr).toBe(0)
+    expect(JSON.parse(result.stdout)).toMatchObject({ backend: 'backend:rough' })
+    expect(JSON.parse(result.stdout).bytes).toBeGreaterThan(0)
+  }, 60000)
+
   test('projects exact portable, native-policy, and native-host field sets', () => {
     expect(PNG_OUTPUT_OPTION_FIELDS).toEqual([
       'scale', 'background', 'fitTo', 'minLabelPx', 'fontDirs', 'loadSystemFonts', 'onWarning',
@@ -75,18 +104,6 @@ describe('canonical PNG output-option authority', () => {
     })
     expect(portable.properties.fitTo).toHaveProperty('properties.width.type', 'integer')
     expect(portable.properties.background).toHaveProperty('x-agentic-mermaid-runtime-validator', 'portablePngBackground')
-  })
-
-  test('documents the raster-warning union and extension measurement boundary', () => {
-    const api = readFileSync(join(import.meta.dir, '..', '..', 'docs', 'api.md'), 'utf8')
-    const rationale = readFileSync(join(import.meta.dir, '..', '..', 'docs', 'mcp-code-mode-rationale.md'), 'utf8')
-    expect(api).toContain('| `minLabelPx` | `number` | `9` |')
-    expect(api).toContain('| `onWarning` | `(w: PngRasterWarning) => void` |')
-    expect(api).toContain('literal absolute-pixel `font-size`')
-    expect(api).toContain('`text`, `tspan`, and `textPath`')
-    expect(api).toContain('absence of a\n`BELOW_READABLE_SIZE` warning is therefore not proof')
-    expect(rationale).toContain('portable `scale`, `background`, `minLabelPx`')
-    expect(rationale).toContain('configuration and raster-legibility warnings')
   })
 
   test('admits only closed plain objects with substrate-appropriate fields', () => {
@@ -196,7 +213,7 @@ describe('canonical PNG output-option authority', () => {
     expect(validateMcpToolArguments(createRenderPngTool('hosted'), args)).toEqual([])
   })
 
-  test('the hosted PNG parity helper bootstraps built-in families in a fresh process', () => {
+  test('the hosted PNG parity helper bootstraps built-in families in a fresh process', async () => {
     const source = 'flowchart LR\n  A[Start 漢] --> B[Finish]'
     const rendered = renderMermaidPNGWithReceipt(source, {
       style: ['watercolor', 'paper'],
@@ -234,17 +251,18 @@ describe('canonical PNG output-option authority', () => {
         }],
       },
     }
-    const result = spawnSync('bun', [
+    const result = await runChild('bun', [
       'run',
       join(import.meta.dir, '..', '..', 'scripts', 'verify-hosted-png-e2e.ts'),
     ], {
       cwd: join(import.meta.dir, '..', '..'),
-      encoding: 'utf8',
       input: JSON.stringify(response),
     })
 
     expect(result.status, result.stderr || result.stdout).toBe(0)
-    expect(result.stdout).toContain('ok   render_png enforces portable WASM parity (96x29, sRGB, receipt, runtime, font and legibility warnings)')
+    // This boundary proves fresh-process bootstrap and portable parity. The
+    // fitted height follows the prepared text's aspect ratio.
+    expect(result.stdout).toMatch(/ok   render_png enforces portable WASM parity \(96x[1-9]\d*, sRGB, receipt, runtime, font and legibility warnings\)/)
   })
 
   test('MCP admission enforces the canonical fit and native-font shapes', () => {

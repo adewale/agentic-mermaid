@@ -1,0 +1,51 @@
+[
+  {
+    "id": "directionless-graph",
+    "family": "flowchart",
+    "source": "graph\nA --> B",
+    "upstream": "packages/mermaid/src/diagrams/flowchart/parser/flow.jison (graphConfig default direction)"
+  },
+  {
+    "id": "repeated-class-assignment",
+    "family": "flowchart",
+    "source": "flowchart TD\nA\nclassDef foo fill:red\nclassDef bar stroke:blue\nclass A foo\nclass A bar",
+    "upstream": "packages/mermaid/src/diagrams/flowchart/flowDb.ts (setClass accumulates assignments)"
+  },
+  {
+    "id": "duplicate-subgraph-content",
+    "family": "flowchart",
+    "source": "flowchart TD\nsubgraph a[One]\nA\nend\nsubgraph a[Two]\nB\nend",
+    "upstream": "packages/mermaid/src/diagrams/flowchart/flowDb.spec.ts:403 (repeated subgraph IDs merge node membership)",
+    "expectedSvgLabels": ["A", "B"]
+  },
+  {
+    "id": "sequence-par-over-and",
+    "family": "sequence",
+    "source": "sequenceDiagram\npar_over Safe overlay\nA->>B: first\nand Other\nB->>A: second\nend",
+    "upstream": "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js:1429 (par_over statements)"
+  },
+  {
+    "id": "sequence-spaced-ids",
+    "family": "sequence",
+    "source": "sequenceDiagram\nAlice Smith->>Bob Jones: first",
+    "upstream": "packages/mermaid/src/diagrams/sequence/parser/sequenceDiagram.jison (actor token)"
+  },
+  {
+    "id": "architecture-text-icon",
+    "family": "architecture",
+    "source": "architecture-beta\nservice a \"txt\" [A]",
+    "upstream": "packages/parser/src/language/architecture/architecture.langium (text icons)"
+  },
+  {
+    "id": "architecture-edge-no-spaces",
+    "family": "architecture",
+    "source": "architecture-beta\nservice a\nservice b\na:R-->L:b",
+    "upstream": "packages/parser/src/language/architecture/architecture.langium (edge whitespace)"
+  },
+  {
+    "id": "architecture-inline-title",
+    "family": "architecture",
+    "source": "architecture-beta title Hello\nservice a(server)[A]",
+    "upstream": "packages/mermaid/src/diagrams/architecture/architecture.spec.ts:29 (title on first line)"
+  }
+]

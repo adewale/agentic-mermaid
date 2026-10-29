@@ -1,22 +1,22 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
-
-import {
-  GitGraphDuplicateCommitError, GitGraphParseError, MindmapDuplicateIdError,
-  parseGitGraph, parseMindmap, renderMermaidASCII, renderMermaidSVG,
-  serializeGitGraph, serializeMindmap, verifyNoExternalRefs,
-} from '../index.ts'
-import {
-  asGitGraph, asMindmap, layoutMermaid, mutate, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid,
-} from '../agent/index.ts'
+import { describeMermaidFacts } from '../agent/facts.ts'
+import { asGitGraph, asMindmap, layoutMermaid, mutate, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { visualWidth } from '../ascii/width.ts'
+import { assessRenderedLayout, familyHardViolations } from '../family-rubric.ts'
+import { layoutGitGraph } from '../gitgraph/layout.ts'
+import { GitGraphParseError, MindmapDuplicateIdError, parseGitGraph, parseMindmap, renderMermaidASCII, renderMermaidSVG, serializeGitGraph, serializeMindmap, verifyNoExternalRefs } from '../index.ts'
 import { layoutMindmap } from '../mindmap/layout.ts'
 import { lowerMindmapScene } from '../mindmap/renderer.ts'
-import { layoutGitGraph } from '../gitgraph/layout.ts'
-import { visualWidth } from '../ascii/width.ts'
+import { DefaultBackend, getFamily } from '../agent/core.ts'
+import type { PositionedGitGraphCommit, PositionedGitGraphDiagram } from '../gitgraph/types.ts'
 import { contrastRatio } from '../shared/color-math.ts'
 import { DEFAULTS } from '../theme.ts'
+import { scanSvgStartTags } from '../svg-structure.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
 import { connectorUnitTangent } from '../scene/connector-geometry.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const MINDMAP = `mindmap
   accTitle: Product map
@@ -46,13 +46,69 @@ const GITGRAPH = `gitGraph LR:
   cherry-pick id:"patch" tag:"backport"
 `
 
+test.each(['LR', 'TB', 'BT'] as const)('GitGraph %s branch extents retain empty lanes and their own farthest commits', direction => {
+  const diagram = parseGitGraph(`gitGraph ${direction}:\ncommit id:"base"\nbranch late order:3\ncommit id:"late"\ncheckout main\ncommit id:"main"\nbranch empty order:1\ncheckout main`)
+  for (const parallelCommits of [false, true]) {
+    const positioned = layoutGitGraph(diagram, { parallelCommits })
+    expect(positioned.branches.map(branch => branch.name)).toEqual(['main', 'empty', 'late'])
+    for (const branch of positioned.branches) {
+      const own = positioned.commits.filter(commit => commit.branch === branch.name)
+      const start = direction === 'LR' ? branch.x1 : branch.y1
+      const end = direction === 'LR' ? branch.x2 : branch.y2
+      expect(end, branch.name).toBeGreaterThan(start)
+      for (const commit of own) {
+        const coordinate = direction === 'LR' ? commit.x : commit.y
+        expect(coordinate, `${branch.name} contains ${commit.id}`).toBeGreaterThanOrEqual(start)
+        expect(coordinate, `${branch.name} contains ${commit.id}`).toBeLessThanOrEqual(end)
+      }
+    }
+  }
+})
+
+test('fractional GitGraph branch extents contain their rounded commit boxes', () => {
+  const source = `gitGraph
+commit id: "1"
+commit id: "2"
+branch nice_feature
+checkout nice_feature
+commit id: "3"
+checkout main
+commit id: "4"
+checkout nice_feature
+branch very_nice_feature
+checkout very_nice_feature
+commit id: "5"
+checkout main
+commit id: "6"
+checkout nice_feature
+commit id: "7"
+checkout main
+merge nice_feature id: "customID" tag: "customTag" type: REVERSE
+checkout very_nice_feature
+commit id: "8"
+checkout main
+commit id: "9"`
+  const parsed = parseMermaid(source)
+  expect(parsed.ok).toBe(true)
+  if (!parsed.ok) return
+  const view = layoutMermaid(parsed.value)
+  expect(familyHardViolations(assessRenderedLayout(view))).toEqual([])
+  for (const group of view.groups)
+    for (const id of group.members) {
+      const node = view.nodes.find(node => node.id === id)!
+      expect(node.x + node.w).toBeLessThanOrEqual(group.x + group.w)
+      expect(node.y + node.h).toBeLessThanOrEqual(group.y + group.h)
+    }
+})
+
 describe('Mindmap full-family citizenship', () => {
   test('preserves indentation semantics, shapes, icons, classes, and accessibility on stable round-trip', () => {
     const parsed = parseMindmap(MINDMAP)
     expect(parsed.accessibilityTitle).toBe('Product map')
     expect(parsed.root.children.map(node => node.id)).toEqual(['Research', 'Delivery'])
     expect(parsed.root.children[0]!.children.map(node => [node.id, node.shape])).toEqual([
-      ['interviews', 'rect'], ['evidence', 'hexagon'],
+      ['interviews', 'rect'],
+      ['evidence', 'hexagon'],
     ])
     expect(parsed.root.children[0]!.children[0]!.className).toBe('research')
     expect(parsed.root.children[0]!.children[1]!.icon).toBe('mdi:lightbulb')
@@ -66,14 +122,70 @@ describe('Mindmap full-family citizenship', () => {
     expect(parseMindmap('mindmap\n  root["100%% ready"]').root.label).toBe('100%% ready')
   })
 
+  test('literal percent pairs survive node text, decorations, typed edits and trailing comments', async () => {
+    const source = `mindmap
+  root[100%% ready] %% root comment
+    a %% b
+    quoted["quoted%% label"]
+    cloud)cloud%% label( %% cloud comment
+      ::icon(mdi:foo%%bar) %% icon comment
+      :::hot%%class
+    %% real comment
+    final(Final)`
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const diagram = asMindmap(parsed.value)!
+    expect(diagram.body.root.label).toBe('100%% ready')
+    expect(diagram.body.root.children.map(node => [node.id, node.label])).toEqual([
+      ['a %% b', 'a %% b'],
+      ['quoted', 'quoted%% label'],
+      ['cloud', 'cloud%% label'],
+      ['final', 'Final'],
+    ])
+    expect(diagram.body.root.children[2]).toMatchObject({ icon: 'mdi:foo%%bar', className: 'hot%%class' })
+    expect(verifyMermaid(diagram).warnings.filter(warning => warning.code === 'COMMENT_DROPPED')).toEqual([])
+    const changed = mutate(diagram, { kind: 'add_node', id: 'added', label: 'more%%text', shape: 'rect', parent: 'root' })
+    if (!changed.ok) throw new Error(changed.error.message)
+    const written = serializeMermaid(changed.value)
+    for (const text of ['root comment', 'cloud comment', 'icon comment', 'real comment']) expect(written.split(`%% ${text}`)).toHaveLength(2)
+    const reloaded = parseMermaid(written)
+    if (!reloaded.ok) throw new Error(JSON.stringify(reloaded.error))
+    expect(describeMermaidFacts(reloaded.value)).toEqual(describeMermaidFacts(changed.value))
+    const upstream = startUpstreamMermaid()
+    try {
+      const meaning = await upstream.project(written, diagram => {
+        const root = diagram.db.getMindmap()
+        return { label: root.descr, children: root.children.map((node: any) => ({ id: node.nodeId, label: node.descr, ...(node.icon ? { icon: node.icon } : {}), ...(node.class ? { className: node.class } : {}) })) }
+      })
+      expect(meaning).toEqual({
+        ok: true,
+        value: {
+          label: '100%% ready',
+          children: [
+            { id: 'a %% b', label: 'a %% b' },
+            { id: 'quoted', label: 'quoted%% label' },
+            { id: 'cloud', label: 'cloud%% label', icon: 'mdi:foo%%bar', className: 'hot%%class' },
+            { id: 'final', label: 'Final' },
+            { id: 'added', label: 'more%%text' },
+          ],
+        },
+      })
+    } finally {
+      upstream.close()
+    }
+    for (const label of ['100%% ready', 'a %% b', 'quoted%% label', 'cloud%% label', 'more%%text']) {
+      expect(renderMermaidSVG(written)).toContain(label)
+      expect(renderMermaidASCII(written)).toContain(label)
+    }
+  })
+
   test('rejects duplicate semantic identities instead of silently overwriting a node', () => {
     expect(() => parseMindmap('mindmap\n  root\n    dup[First]\n    dup[Second]')).toThrow(MindmapDuplicateIdError)
   })
 
   test('rejects empty icon decorations instead of dropping them on round-trip', () => {
     for (const decoration of ['::icon()', '::icon(   )']) {
-      expect(() => parseMindmap(`mindmap\n  Root\n    ${decoration}`), decoration)
-        .toThrow('Mindmap icon decoration must contain a non-empty value')
+      expect(() => parseMindmap(`mindmap\n  Root\n    ${decoration}`), decoration).toThrow('Mindmap icon decoration must contain a non-empty value')
     }
   })
 
@@ -101,8 +213,7 @@ describe('Mindmap full-family citizenship', () => {
     expect(connectors).toHaveLength(first.edges.length)
     first.edges.forEach((edge, index) => {
       const connector = connectors[index]!
-      expect({ index, kind: connector.kind, geometry: connector.kind === 'connector' ? connector.route.geometry.kind : null })
-        .toEqual({ index, kind: 'connector', geometry: 'path' })
+      expect({ index, kind: connector.kind, geometry: connector.kind === 'connector' ? connector.route.geometry.kind : null }).toEqual({ index, kind: 'connector', geometry: 'path' })
       if (connector.kind !== 'connector' || connector.route.geometry.kind !== 'path') return
       const [start, control1, control2, end] = edge.points
       expect(connector.route.geometry.points).not.toEqual(edge.points)
@@ -171,18 +282,62 @@ describe('Mindmap full-family citizenship', () => {
   })
 
   test('keeps deterministic tree invariants under generated sibling labels', () => {
-    fc.assert(fc.property(fc.uniqueArray(fc.stringMatching(/^[A-Za-z][A-Za-z0-9]{0,8}$/), { minLength: 1, maxLength: 8 }), labels => {
-      const source = ['mindmap', '  Root', ...labels.map(label => `    ${label}`)].join('\n')
-      const parsed = parseMindmap(source)
-      const layout = layoutMindmap(parsed)
-      expect(layout.nodes).toHaveLength(labels.length + 1)
-      expect(layout.edges).toHaveLength(labels.length)
-      expect(serializeMindmap(parseMindmap(serializeMindmap(parsed)))).toBe(serializeMindmap(parsed))
-    }), { numRuns: 30, seed: 1501 })
+    fc.assert(
+      fc.property(fc.uniqueArray(fc.stringMatching(/^[A-Za-z][A-Za-z0-9]{0,8}$/), { minLength: 1, maxLength: 8 }), labels => {
+        const source = ['mindmap', '  Root', ...labels.map(label => `    ${label}`)].join('\n')
+        const parsed = parseMindmap(source)
+        const layout = layoutMindmap(parsed)
+        expect(layout.nodes).toHaveLength(labels.length + 1)
+        expect(layout.edges).toHaveLength(labels.length)
+        expect(serializeMindmap(parseMindmap(serializeMindmap(parsed)))).toBe(serializeMindmap(parsed))
+      }),
+      fcParameters({ numRuns: 30, seed: 1501 }),
+    )
   })
 })
 
+function publicGitGraphCommit(id: string, sequence: number): PositionedGitGraphCommit {
+  return { id, sequence, type: 'NORMAL', customType: 'NORMAL', tags: [], branch: 'main',
+    parents: [], source: 'commit', customId: true, x: 60 + sequence * 60, y: 80, lane: 0 }
+}
+
+function publicGitGraphScene(commits: PositionedGitGraphCommit[]) {
+  const lower = getFamily('gitgraph')?.lowerScene
+  if (!lower) throw new Error('public GitGraph family lowering is unavailable')
+  const positioned: PositionedGitGraphDiagram = {
+    width: 260, height: 160, direction: 'LR', commits, edges: [],
+    branches: [{ name: 'main', order: 0, sequence: 0, lane: 0, x1: 40, y1: 80, x2: 220, y2: 80 }],
+    showBranches: false, showCommitLabel: false, rotateCommitLabel: false,
+  }
+  return lower({ positioned, colors: { bg: '#ffffff', fg: '#111111' },
+    resolved: { renderOptions: {}, familyAppearance: { themeVariables: {} } } })
+}
+
 describe('GitGraph full-family citizenship', () => {
+
+  test('single-commit requests preserve every semantic and visual type pairing and current identity', () => {
+    const presentations = [
+      ['NORMAL', 'git-commit type-normal'],
+      ['REVERSE', 'git-commit type-reverse'],
+      ['HIGHLIGHT', 'git-commit type-highlight'],
+      ['MERGE', 'git-commit type-merge'],
+      ['CHERRY_PICK', 'git-commit type-cherry_pick'],
+    ] as const
+    // Repeat in reverse order with new identities: independently authored type
+    // and class literals must remain current across separate one-commit requests.
+    for (const [round, order] of [presentations, [...presentations].reverse()].entries()) {
+      for (const [semantic] of order) for (const [visual, className] of order) {
+        const id = `request-${round}-${semantic}-${visual}`
+        // Deliberately exercise extension visuals beyond the parsed customType
+        // union at the actual public positioned-input boundary.
+        const commit = { ...publicGitGraphCommit(id, 0), type: semantic, customType: visual } as unknown as PositionedGitGraphCommit
+        const svg = DefaultBackend.render(publicGitGraphScene([commit]), { seed: 0 })
+        expect(svg).toContain(`<g class="${className}" data-id="${id}" data-branch="main" data-commit-type="${semantic}"${semantic === visual ? '' : ` data-visual-type="${visual}"`} data-role="node">`)
+        expect(Object.isFrozen(commit)).toBe(false)
+      }
+    }
+  })
+
   test('replays branch, merge, and cherry-pick semantics with deterministic generated IDs', () => {
     const parsed = parseGitGraph(GITGRAPH)
     expect(parsed.commits.map(commit => commit.id)).toEqual(['base', 'work', 'release', 'patch', 'merge', 'c5'])
@@ -202,8 +357,8 @@ describe('GitGraph full-family citizenship', () => {
     expect(parseGitGraph(serializeGitGraph(multilineA11y))).toEqual(multilineA11y)
   })
 
-  test('names duplicate identities and invalid replay state instead of overwriting history', () => {
-    expect(() => parseGitGraph('gitGraph\n  commit id:"same"\n  commit id:"same"')).toThrow(GitGraphDuplicateCommitError)
+  test('retains duplicate identities and diagnoses invalid replay instead of overwriting history', () => {
+    expect(parseGitGraph('gitGraph\n  commit id:"same"\n  commit id:"same"').commits.map(c => c.id)).toEqual(['same', 'same#1'])
     expect(() => parseGitGraph('gitGraph\n  checkout missing')).toThrow(GitGraphParseError)
     expect(() => parseGitGraph('gitGraph\n  branch one\n  branch one')).toThrow(GitGraphParseError)
   })
@@ -222,13 +377,14 @@ describe('GitGraph full-family citizenship', () => {
     if (!parsed.ok) return
     const rendered = layoutMermaid(parsed.value)
     const nodes = new Map(rendered.nodes.map(node => [node.id, node]))
-    for (const group of rendered.groups) for (const member of group.members) {
-      const node = nodes.get(member)!
-      expect(node.x, `${group.id} contains ${member} left`).toBeGreaterThanOrEqual(group.x)
-      expect(node.y, `${group.id} contains ${member} top`).toBeGreaterThanOrEqual(group.y)
-      expect(node.x + node.w, `${group.id} contains ${member} right`).toBeLessThanOrEqual(group.x + group.w)
-      expect(node.y + node.h, `${group.id} contains ${member} bottom`).toBeLessThanOrEqual(group.y + group.h)
-    }
+    for (const group of rendered.groups)
+      for (const member of group.members) {
+        const node = nodes.get(member)!
+        expect(node.x, `${group.id} contains ${member} left`).toBeGreaterThanOrEqual(group.x)
+        expect(node.y, `${group.id} contains ${member} top`).toBeGreaterThanOrEqual(group.y)
+        expect(node.x + node.w, `${group.id} contains ${member} right`).toBeLessThanOrEqual(group.x + group.w)
+        expect(node.y + node.h, `${group.id} contains ${member} bottom`).toBeLessThanOrEqual(group.y + group.h)
+      }
   })
 
   test('keeps implicit branch order monotone beyond nine branches', () => {
@@ -247,23 +403,29 @@ describe('GitGraph full-family citizenship', () => {
       // alignment, font size, rotation, and fitted textLength, and the canvas.
       const svg = renderMermaidSVG(`gitGraph ${direction}:\n  commit id:"x" msg:"${message}"`)
       const [, canvasW, canvasH] = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/)!.map(Number)
-      const tag = svg.match(/<text class="git-commit-label"[^>]*>/)![0]
+      const tag = svg.match(/<text[^>]*class="git-commit-label"[^>]*>/)![0]
       const attr = (name: string) => tag.match(new RegExp(` ${name}="([^"]+)"`))?.[1]
       const [x, y, size, width] = ['x', 'y', 'font-size', 'textLength'].map(name => Number(attr(name)))
       const angle = Number(attr('transform')?.match(/rotate\(([-\d.]+)/)?.[1] ?? 0)
       const left = attr('text-anchor') === 'middle' ? -width! / 2 : 0
       // The glyph box: textLength wide, 1em above the baseline, 0.3em below it.
-      const radians = angle * Math.PI / 180
-      const corners = [[left, -size!], [left + width!, -size!], [left, 0.3 * size!], [left + width!, 0.3 * size!]].map(([dx, dy]) => ({
+      const radians = (angle * Math.PI) / 180
+      const corners = [
+        [left, -size!],
+        [left + width!, -size!],
+        [left, 0.3 * size!],
+        [left + width!, 0.3 * size!],
+      ].map(([dx, dy]) => ({
         x: x! + dx! * Math.cos(radians) - dy! * Math.sin(radians),
         y: y! + dx! * Math.sin(radians) + dy! * Math.cos(radians),
       }))
       const box = {
-        minX: Math.min(...corners.map(point => point.x)), minY: Math.min(...corners.map(point => point.y)),
-        maxX: Math.max(...corners.map(point => point.x)), maxY: Math.max(...corners.map(point => point.y)),
+        minX: Math.min(...corners.map(point => point.x)),
+        minY: Math.min(...corners.map(point => point.y)),
+        maxX: Math.max(...corners.map(point => point.x)),
+        maxY: Math.max(...corners.map(point => point.y)),
       }
-      expect({ direction, rotated: angle !== 0, inside: box.minX >= 0 && box.minY >= 0 && box.maxX <= canvasW! && box.maxY <= canvasH! })
-        .toEqual({ direction, rotated: direction === 'LR', inside: true })
+      expect({ direction, rotated: angle !== 0, inside: box.minX >= 0 && box.minY >= 0 && box.maxX <= canvasW! && box.maxY <= canvasH! }).toEqual({ direction, rotated: direction === 'LR', inside: true })
     }
   })
 
@@ -300,7 +462,7 @@ describe('GitGraph full-family citizenship', () => {
     expect(text).toContain('main')
     expect(text).toContain('feature')
     expect(text).toContain('[Foundation]')
-    expect(text).toContain('[merged branch feature into main]')
+    expect(text).toContain('[merge]')
 
     const equalOrder = renderMermaidASCII(`gitGraph
   commit id:"base"
@@ -315,17 +477,90 @@ describe('GitGraph full-family citizenship', () => {
     if (parsed.ok) expect(layoutMermaid(parsed.value, { regions: true }).regions!.filter(region => region.kind === 'node')).toHaveLength(6)
   })
 
+  test('keeps semantic and visual commit types separate across repeated profiles and fresh request paints', () => {
+    const source = `${GITGRAPH}
+  branch integrated order:4
+  commit id:"continued"
+  checkout main
+  merge integrated id:"normal-merge" type:NORMAL
+  branch undo order:5
+  commit id:"undo-work"
+  checkout main
+  merge undo id:"reverse-merge" type:REVERSE
+  branch finished order:6
+  commit id:"finished-work"
+  checkout main
+  merge finished id:"default-merge"
+  commit id:"late" msg:"Late Ω & repeats"`
+    // Repeated NORMAL and MERGE profiles deliberately have different identities,
+    // branches and visual overrides. Expected attributes come from authored intent.
+    const commits = [
+      ['base', 'main', 'NORMAL', 'NORMAL', 'circle', '8'],
+      ['work', 'feature', 'HIGHLIGHT', 'HIGHLIGHT', 'rect', undefined],
+      ['release', 'main', 'REVERSE', 'REVERSE', 'circle', '8'],
+      ['patch', 'patchline', 'NORMAL', 'NORMAL', 'circle', '8'],
+      ['merge', 'main', 'MERGE', 'HIGHLIGHT', 'rect', undefined],
+      ['c5', 'main', 'CHERRY_PICK', 'CHERRY_PICK', 'polygon', undefined],
+      ['normal-merge', 'main', 'MERGE', 'NORMAL', 'circle', '8'],
+      ['reverse-merge', 'main', 'MERGE', 'REVERSE', 'circle', '8'],
+      ['default-merge', 'main', 'MERGE', 'MERGE', 'circle', '10'],
+      ['late', 'main', 'NORMAL', 'NORMAL', 'circle', '8'],
+    ] as const
+    for (const [main, feature] of [['#224466', '#6688aa'], ['#884422', '#aa8866']] as const) {
+      const svg = renderMermaidSVG(source, {
+        security: 'strict', embedFontImport: false,
+        mermaidConfig: { themeVariables: { git0: main, git1: feature } },
+      })
+      for (const [id, branch, semantic, visual, element, radius] of commits) {
+        const attrs = `class="git-commit type-${visual.toLowerCase()}" data-id="${id}" data-branch="${branch}" data-commit-type="${semantic}"${semantic !== visual ? ` data-visual-type="${visual}"` : ''} data-role="node"`
+        expect(svg).toContain(`<g ${attrs}>`)
+        const body = svg.match(new RegExp(`<g ${attrs}>([\\s\\S]*?)<\\/g>`))?.[1]
+        expect(body, id).toBeDefined()
+        expect(body, id).toContain(`<${element} `)
+        if (radius) expect(body, id).toContain(` r="${radius}"`)
+        if (element === 'rect') expect(body, id).toContain('width="18" height="18"')
+        if (branch === 'main') expect(body, id).toContain(`stroke="${main}"`)
+        if (branch === 'feature') expect(body, id).toContain(`stroke="${feature}"`)
+      }
+      const relations = scanSvgStartTags(svg).map(tag => new Map(tag.attributes.map(attribute => [attribute.name, attribute.value])))
+      for (const [kind, from, to] of [['parent', 'base', 'work'], ['merge', 'work', 'merge'], ['cherry-pick', 'patch', 'c5']]) {
+        expect(relations.some(attributes => attributes.get('class') === `git-edge git-edge-${kind}`
+          && attributes.get('data-from') === from && attributes.get('data-to') === to)).toBe(true)
+      }
+      expect(svg).toContain('Late Ω &amp; repeats')
+      expect(verifyNoExternalRefs(svg)).toEqual({ ok: true, refs: [] })
+
+    }
+  })
+
+  test('authored merge IDs remain visible while explicit commit messages and automatic merge labels retain their precedence', () => {
+    for (const [merge, label] of [['merge feature id:"release-merge"', 'release-merge'], ['merge feature', 'merged branch feature into main']]) {
+      const source = `gitGraph\n commit id:"base" msg:"Foundation"\n branch feature\n commit id:"work"\n checkout main\n ${merge}`
+      const parsed = parseMermaid(source)
+      if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+      const serialized = serializeMermaid(parsed.value)
+      expect(serialized).toContain(merge!)
+      expect(serialized).not.toContain('msg:"merged branch')
+      for (const input of [source, serialized]) {
+        expect(renderMermaidSVG(input)).toContain(`>${label}<`)
+        const text = renderMermaidASCII(input)
+        expect(text).toContain(`[${label}]`)
+        expect(text).toContain('[Foundation]')
+      }
+    }
+  })
+
   test('branch and tag text remains WCAG AA against its badge in every built-in palette', () => {
     for (const { inputName: name, colors: theme } of BUILTIN_PALETTE_DEFINITIONS) {
       const svg = renderMermaidSVG(GITGRAPH, { ...theme, embedFontImport: false })
       const pairs = [
         ...[...svg.matchAll(/<g class="git-branch"[^>]*>([\s\S]*?)<\/g>/g)].map(match => ({
           background: match[1]!.match(/<rect class="git-branch-label-background"[^>]*\sfill="([^"]+)"/)?.[1],
-          text: match[1]!.match(/<text class="git-branch-label"[^>]*\sfill="([^"]+)"/)?.[1],
+          text: match[1]!.match(/<text[^>]*class="git-branch-label"[^>]*\sfill="([^"]+)"/)?.[1],
         })),
         ...[...svg.matchAll(/<g class="git-commit[^>]*>([\s\S]*?)<\/g>/g)].flatMap(match => {
           const backgrounds = [...match[1]!.matchAll(/<rect class="git-tag-background"[^>]*\sfill="([^"]+)"/g)].map(item => item[1]!)
-          const texts = [...match[1]!.matchAll(/<text class="git-tag"[^>]*\sfill="([^"]+)"/g)].map(item => item[1]!)
+          const texts = [...match[1]!.matchAll(/<text[^>]*class="git-tag"[^>]*\sfill="([^"]+)"/g)].map(item => item[1]!)
           return texts.map((text, index) => ({ text, background: backgrounds[index] }))
         }),
       ]
@@ -357,13 +592,16 @@ describe('GitGraph full-family citizenship', () => {
   })
 
   test('preserves deterministic commit and parent counts under generated linear histories', () => {
-    fc.assert(fc.property(fc.integer({ min: 1, max: 20 }), length => {
-      const source = ['gitGraph', ...Array.from({ length }, () => '  commit')].join('\n')
-      const first = parseGitGraph(source)
-      const second = parseGitGraph(source)
-      expect(second).toEqual(first)
-      expect(first.commits.map(commit => commit.id)).toEqual(Array.from({ length }, (_, index) => `c${index}`))
-      expect(first.commits.reduce((sum, commit) => sum + commit.parents.length, 0)).toBe(length - 1)
-    }), { numRuns: 30, seed: 1601 })
+    fc.assert(
+      fc.property(fc.integer({ min: 1, max: 20 }), length => {
+        const source = ['gitGraph', ...Array.from({ length }, () => '  commit')].join('\n')
+        const first = parseGitGraph(source)
+        const second = parseGitGraph(source)
+        expect(second).toEqual(first)
+        expect(first.commits.map(commit => commit.id)).toEqual(Array.from({ length }, (_, index) => `c${index}`))
+        expect(first.commits.reduce((sum, commit) => sum + commit.parents.length, 0)).toBe(length - 1)
+      }),
+      fcParameters({ numRuns: 30, seed: 1601 }),
+    )
   })
 })

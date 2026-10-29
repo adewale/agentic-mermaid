@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { rotateBoxBounds, rotatePoint } from '../shared/transformed-bounds.ts'
 
 const close = (a: number, b: number): void => expect(Math.abs(a - b)).toBeLessThan(1e-9)
@@ -44,7 +45,7 @@ describe('transformed bounds geometry kernel', () => {
           expect({ side, withinTolerance: Math.abs(bounds[side] - expected[side]) < 1e-6 }).toEqual({ side, withinTolerance: true })
         }
       },
-    ), { numRuns: 200 })
+    ), fcParameters({ numRuns: 200 }))
   })
 
   test('rotatePoint agrees with the textbook rotation', () => {

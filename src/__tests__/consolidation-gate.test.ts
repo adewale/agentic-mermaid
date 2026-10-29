@@ -9,7 +9,7 @@
  * every family (label escaping, measured-vs-drawn boxes; the SVG root
  * accessibility wiring is svg-a11y-conformance.test.ts).
  */
-import { describe, it, expect } from 'bun:test'
+import { describe, expect, it } from 'bun:test'
 import { decodeXML } from 'entities'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { mutate, parseRegisteredMermaid, renderMermaidSVG } from '../agent/index.ts'
@@ -18,6 +18,15 @@ import * as agentTypes from '../agent/types.ts'
 
 /** A label-carrying edit each family accepts; `text` is the label under test. */
 const LABEL_EDIT_BY_FAMILY: Record<DiagramKind, (text: string) => Record<string, unknown>> = {
+  zenuml: text => ({ kind: 'insert_statement', statement: { kind: 'message', id: 'added', from: 'Zebra', to: 'Other', label: text, reply: false } }),
+  eventmodeling: text => ({ kind: 'insert_frame', frame: { id: '99', reset: true, type: 'event', entity: 'Zebra', sources: [], data: { text } } }),
+  packet: text => ({ kind: 'add_field', label: text, bits: 8 }),
+  kanban: text => ({ kind: 'add_column', id: 'Zebra', label: text }),
+  requirement: text => ({ kind: 'add_requirement', requirement: { name: 'Zebra', text } }),
+  treemap: text => ({ kind: 'add_node', label: text, value: 1000 }),
+  ishikawa: text => ({ kind: 'add_cause', label: text }),
+  block: text => ({ kind: 'add_block', block: { id: 'Zebra', label: text } }),
+  c4: text => ({ kind: 'add_element', element: { id: 'Zebra', label: text, kind: 'system' } }),
   flowchart: text => ({ kind: 'add_node', id: 'Zebra', label: text }),
   state: text => ({ kind: 'add_state', id: 'Zebra', label: text }),
   sequence: text => ({ kind: 'add_message', from: 'U', to: 'S', text }),
@@ -54,8 +63,7 @@ describe('consolidation gate — shared primitives stay single-sourced', () => {
     for (const family of BUILTIN_FAMILY_METADATA) {
       const label = family.id === 'xychart' ? 'Q2&Q3' : "Q1'Q2&Q3"
       const svg = renderWithLabel(family, label)
-      expect({ family: family.id, raw: ["Q1'Q2", 'Q2&Q3'].filter(fragment => svg.includes(fragment)), decoded: decodeXML(svg).includes(label) })
-        .toEqual({ family: family.id, raw: [], decoded: true })
+      expect({ family: family.id, raw: ["Q1'Q2", 'Q2&Q3'].filter(fragment => svg.includes(fragment)), decoded: decodeXML(svg).includes(label) }).toEqual({ family: family.id, raw: [], decoded: true })
     }
   })
 
@@ -65,10 +73,7 @@ describe('consolidation gate — shared primitives stay single-sourced', () => {
     // box edge (the measured-vs-drawn divergence that undersized class/er
     // title boxes). Drawn text is fitted to its textLength, so its horizontal
     // extent is exact.
-    const sources = [
-      'classDiagram\n  class VeryLongAccountNameForTesting {\n    +identifierWithALongName: string\n    +close() void\n  }',
-      'erDiagram\n  VERY_LONG_CUSTOMER_ENTITY_NAME {\n    string identifier_with_a_long_name\n  }',
-    ]
+    const sources = ['classDiagram\n  class VeryLongAccountNameForTesting {\n    +identifierWithALongName: string\n    +close() void\n  }', 'erDiagram\n  VERY_LONG_CUSTOMER_ENTITY_NAME {\n    string identifier_with_a_long_name\n  }']
     const attr = (tag: string, name: string) => new RegExp(`\\s${name}="([^"]*)"`).exec(tag)?.[1]
     let lines = 0
     for (const source of sources) {
@@ -82,8 +87,7 @@ describe('consolidation gate — shared primitives stay single-sourced', () => {
           const length = Number(attr(text, 'textLength'))
           const anchor = attr(text, 'text-anchor') ?? 'start'
           const start = anchor === 'middle' ? x - length / 2 : anchor === 'end' ? x - length : x
-          expect({ line: attr(text, 'data-id') ?? 'title', inside: start >= left - 0.01 && start + length <= right + 0.01 })
-            .toEqual({ line: attr(text, 'data-id') ?? 'title', inside: true })
+          expect({ line: attr(text, 'data-id') ?? 'title', inside: start >= left - 0.01 && start + length <= right + 0.01 }).toEqual({ line: attr(text, 'data-id') ?? 'title', inside: true })
           lines++
         }
       }

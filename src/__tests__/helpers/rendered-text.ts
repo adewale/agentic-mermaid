@@ -88,7 +88,7 @@ export function requiredContrast(text: Pick<RenderedText, 'large'>): number {
 interface TextElement { start: number; end: number; open: string; content: string }
 
 /** A tspan that sets its own x or dy starts a new line of the same text. */
-const LINE_TSPAN = /<tspan\b[^>]*\s(?:x|dy)="[^"]*"[^>]*>/g
+const LINE_TSPAN = /<tspan\b(?![^>]*\bdata-text-fragment=)[^>]*\s(?:x|dy)="[^"]*"[^>]*>/g
 
 function textElements(svg: string): TextElement[] {
   return [...svg.matchAll(/<text\b[^>]*>[\s\S]*?<\/text>/g)].map(match => ({
@@ -216,6 +216,7 @@ export function measureRenderedText(svg: string): RenderedTextCensus {
   const box = viewBoxOf(svg)
   const page = pageColorOf(svg)
   const full = raster(enlarged(svg, box), { background: page })
+  const solid = raster(enlarged(svg, box), { background: page, aliased: true })
   const ids = raster(enlarged(idVariant(svg, elements), box), { aliased: true })
   const { width, height } = full
   const size = width * height
@@ -279,15 +280,17 @@ export function measureRenderedText(svg: string): RenderedTextCensus {
         : {}),
     }
     if (pixels.length === 0) return text
-    // Fully covered glyph pixels all carry the exact ink, so it is the mode.
+    // Sample ink without antialiasing. For a short, thin label the most
+    // frequent antialiased pixel can be a fringe gray rather than its paint.
+    // Surround and clipping still use the actual antialiased drawing.
     const inks = new Map<string, number>()
     for (const pixel of pixels) {
-      const ink = hexAt(full.data, pixel * 4)
+      const ink = hexAt(solid.data, pixel * 4)
       inks.set(ink, (inks.get(ink) ?? 0) + 1)
     }
     const ink = [...inks.entries()].reduce((best, entry) => (entry[1] > best[1] ? entry : best))[0]
-    const inkPixel = pixels.find(pixel => hexAt(full.data, pixel * 4) === ink)!
-    const inkLuminance = luminance(full.data, inkPixel * 4)
+    const inkPixel = pixels.find(pixel => hexAt(solid.data, pixel * 4) === ink)!
+    const inkLuminance = luminance(solid.data, inkPixel * 4)
 
     const surround: Array<{ ratio: number; pixel: number }> = []
     const generation = index + 1

@@ -20,7 +20,6 @@ const BACKENDS = [DefaultBackend, RoughBackend, HybridBackend] as const
 function connector(
   id: string,
   fields: Pick<ConnectorFields, 'geometry'> & Partial<Omit<ConnectorFields, 'id' | 'role' | 'geometry' | 'lineStyle' | 'paint'>>,
-  crisp: string,
 ) {
   return marks.connector({
     id,
@@ -28,7 +27,7 @@ function connector(
     lineStyle: 'solid',
     paint: { fill: 'none', stroke: '#243447', strokeWidth: '2' },
     ...fields,
-  }, crisp)
+  })
 }
 
 function draw(node: ReturnType<typeof connector>, backend: (typeof BACKENDS)[number]): string {
@@ -50,7 +49,7 @@ describe('connector named edge-case conformance', () => {
     const node = connector('cubic-route', {
       geometry: { kind: 'path', d: 'M 0 0 C 100 0 100 100 200 100', points },
       route: { contours: [{ start, end, closed: false, startTangent, endTangent }] },
-    }, '<path d="M 0 0 C 100 0 100 100 200 100" fill="none" stroke="#243447" stroke-width="2" />')
+    })
 
     expect(points.length).toBeGreaterThan(4)
     expect(points[0]).toEqual(start)
@@ -64,7 +63,7 @@ describe('connector named edge-case conformance', () => {
 
     const controlPolygon = connector('cubic-route', {
       geometry: { kind: 'polyline', points: [start, control1, control2, end] },
-    }, '<polyline points="0,0 100,0 100,100 200,100" fill="none" stroke="#243447" stroke-width="2" />')
+    })
     const visibleSketch = (svg: string) => svg.split('\n').filter(line => !line.includes('stroke-opacity="0"')).join('\n')
     expect(visibleSketch(draw(node, RoughBackend))).not.toBe(visibleSketch(draw(controlPolygon, RoughBackend)))
   })
@@ -73,19 +72,19 @@ describe('connector named edge-case conformance', () => {
     expect(() => connector('invalid-route-tangent', {
       geometry: { kind: 'line', x1: 0, y1: 0, x2: 10, y2: 0 },
       route: { startTangent: { x: 2, y: 0 }, endTangent: { x: 0, y: 9 } },
-    }, '<line x1="0" y1="0" x2="10" y2="0" />')).toThrow(/route tangents must be finite unit vectors/)
+    })).toThrow(/route tangents must be finite unit vectors/)
   })
 
   test('rejects duplicate endpoint and tangent fields that contradict route geometry', () => {
     expect(() => connector('contradictory-endpoint', {
       geometry: { kind: 'line', x1: 0, y1: 0, x2: 10, y2: 0 },
       endpoints: { start: { point: { x: 1, y: 0 } } },
-    }, '<line x1="0" y1="0" x2="10" y2="0" />')).toThrow(/endpoints\.start\.point disagrees/)
+    })).toThrow(/endpoints\.start\.point disagrees/)
 
     expect(() => connector('contradictory-tangent', {
       geometry: { kind: 'line', x1: 0, y1: 0, x2: 10, y2: 0 },
       route: { startTangent: { x: -1, y: 0 } },
-    }, '<line x1="0" y1="0" x2="10" y2="0" />')).toThrow(/startTangent disagrees with its contour tangent authority/)
+    })).toThrow(/startTangent disagrees with its contour tangent authority/)
 
     expect(() => connector('contradictory-contour-tangent', {
       geometry: { kind: 'line', x1: 0, y1: 0, x2: 10, y2: 0 },
@@ -98,7 +97,7 @@ describe('connector named edge-case conformance', () => {
           endTangent: { x: 0, y: 1 },
         }],
       },
-    }, '<line x1="0" y1="0" x2="10" y2="0" />')).toThrow(/contours\[0\]\.startTangent disagrees with linear route geometry/)
+    })).toThrow(/contours\[0\]\.startTangent disagrees with linear route geometry/)
 
     expect(() => connector('contradictory-linear-path-tangent', {
       geometry: {
@@ -114,7 +113,7 @@ describe('connector named edge-case conformance', () => {
           startTangent: { x: 0, y: -1 },
         }],
       },
-    }, '<path d="M 0 0 L 10 0" />')).toThrow(/contours\[0\]\.startTangent disagrees with linear route geometry/)
+    })).toThrow(/contours\[0\]\.startTangent disagrees with linear route geometry/)
   })
 
   test('multiple typed subpaths never gain a synthetic bridge', () => {
@@ -134,7 +133,7 @@ describe('connector named edge-case conformance', () => {
         ],
       },
       markers: { start: endpointMarker, mid: [], end: endpointMarker },
-    }, '<path d="M 10 20 L 50 20 M 90 20 L 130 20" fill="none" stroke="#243447" stroke-width="2" />')
+    })
 
     expect(connectorEndpointAnchors(node.route.geometry)).toEqual({
       starts: [{ x: 10, y: 20 }, { x: 90, y: 20 }],
@@ -169,7 +168,7 @@ describe('connector named edge-case conformance', () => {
         kind: 'path', d: 'M 0 0 L 10 0 M 20 0 L 30 0',
         points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 20, y: 0 }, { x: 30, y: 0 }],
       },
-    }, '<path d="M 0 0 L 10 0 M 20 0 L 30 0" />')).toThrow('no typed subpaths')
+    })).toThrow('no typed subpaths')
   })
 
   test('Z closure and an explicit final L remain distinct but equally hittable', () => {
@@ -179,14 +178,14 @@ describe('connector named edge-case conformance', () => {
         points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }],
       },
       route: { closed: true },
-    }, '<path d="M 0 0 L 10 0 L 10 10 Z" fill="none" stroke="#243447" stroke-width="2" />')
+    })
     const explicitLine = connector('explicit-final-line', {
       geometry: {
         kind: 'path', d: 'M 0 0 L 10 0 L 10 10 L 0 0',
         points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 0 }],
       },
       route: { closed: false },
-    }, '<path d="M 0 0 L 10 0 L 10 10 L 0 0" fill="none" stroke="#243447" stroke-width="2" />')
+    })
 
     expect(zClosed.route.closed).toBe(true)
     expect(explicitLine.route.closed).toBe(false)
@@ -197,19 +196,19 @@ describe('connector named edge-case conformance', () => {
     expect(() => connector('false-closure', {
       geometry: { kind: 'path', d: 'M 0 0 L 10 0 Z', points: [{ x: 0, y: 0 }, { x: 10, y: 0 }] },
       route: { closed: false },
-    }, '<path d="M 0 0 L 10 0 Z" />')).toThrow('close commands disagree')
+    })).toThrow('close commands disagree')
   })
 
   test('closed topology has one path-only invariant across SVG, sketch, hit, endpoints, and markers', () => {
     expect(() => connector('closed-polyline', {
       geometry: { kind: 'polyline', points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }] },
       route: { closed: true },
-    }, '<polyline points="0,0 10,0 10,10" />')).toThrow(/closed route topology requires path geometry/)
+    })).toThrow(/closed route topology requires path geometry/)
     expect(() => connector('divergent-hit-closure', {
       geometry: { kind: 'path', d: 'M 0 0 L 10 0 Z', points: [{ x: 0, y: 0 }, { x: 10, y: 0 }] },
       route: { closed: true },
       hit: { closed: false },
-    }, '<path d="M 0 0 L 10 0 Z" />')).toThrow(/hit.closed must match route.closed/)
+    })).toThrow(/hit.closed must match route.closed/)
 
     const marker = {
       id: 'closed-end', shape: 'circle' as const,
@@ -223,7 +222,7 @@ describe('connector named edge-case conformance', () => {
       },
       route: { closed: true },
       markers: { end: marker },
-    }, '<path d="M 2 3 L 12 3 L 12 13 Z" fill="none" stroke="#243447" stroke-width="2" />')
+    })
 
     expect(node.endpoints.end?.point).toEqual({ x: 2, y: 3 })
     expect(node.route.contours[0]).toMatchObject({ start: { x: 2, y: 3 }, end: { x: 2, y: 3 }, closed: true })
@@ -238,9 +237,13 @@ describe('connector named edge-case conformance', () => {
   test('zero-length paths remain finite and do not crash a backend', () => {
     const node = connector('zero-length', {
       geometry: { kind: 'path', d: 'M 25 25 L 25 25', points: [{ x: 25, y: 25 }, { x: 25, y: 25 }] },
-    }, '<path d="M 25 25 L 25 25" fill="none" stroke="#243447" stroke-width="2" />')
+    })
     expect(hitTestConnector(node, { x: 25, y: 25 })).toBe(true)
-    for (const backend of BACKENDS) expect(() => draw(node, backend), backend.id).not.toThrow()
+    for (const backend of BACKENDS) {
+      const output = draw(node, backend)
+      expect(output, backend.id).not.toMatch(/NaN|[+-]?Infinity/)
+      expect(output, backend.id).toMatch(/<(?:path|line|polyline)\b/)
+    }
   })
 
   test('odd/even dash arrays and offsets survive every graphical backend', () => {
@@ -251,7 +254,7 @@ describe('connector named edge-case conformance', () => {
       const node = connector(id, {
         geometry: { kind: 'line', x1: 10, y1: 20, x2: 130, y2: 20 },
         stroke: { dash: { array: dash, offset } },
-      }, `<line x1="10" y1="20" x2="130" y2="20" fill="none" stroke="#243447" stroke-width="2" stroke-dasharray="${dash.join(' ')}" stroke-dashoffset="${offset}" />`)
+      })
       for (const backend of BACKENDS) {
         const output = draw(node, backend)
         expect(output, `${backend.id}/${id}`).toContain(`stroke-dasharray="${dash.join(' ')}"`)
@@ -274,7 +277,7 @@ describe('connector named edge-case conformance', () => {
       stroke: { width: 4, lineJoin: 'miter', miterLimit: 10, nonScaling: true },
       markers: { end: marker },
       transform: { kind: 'rotate', angle: 90, cx: 0, cy: 0 },
-    }, '<polyline points="0,0 10,0 10.1,10" fill="none" stroke="#243447" stroke-width="4" stroke-linejoin="miter" stroke-miterlimit="10" vector-effect="non-scaling-stroke" />')
+    })
 
     const bounds = nodeWorldBounds(node)!
     expect(bounds.x0).toBeLessThanOrEqual(-30)
@@ -300,7 +303,7 @@ describe('connector named edge-case conformance', () => {
           { points: [{ x: 90, y: 20 }, { x: 130, y: 20 }], closed: false },
         ],
       },
-    }, '<path d="M 10 20 L 50 20 M 90 20 L 130 20" fill="none" stroke="#243447" stroke-width="2" />')
+    })
 
     for (const backend of BACKENDS) {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="140" height="40" viewBox="0 0 140 40">${draw(node, backend)}</svg>`

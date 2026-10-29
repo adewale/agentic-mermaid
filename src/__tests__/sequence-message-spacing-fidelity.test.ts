@@ -32,7 +32,7 @@ function svgTexts(svg: string): string[] {
 }
 const drawnTexts = (source: string): string[] => svgTexts(renderMermaidSVG(source))
 
-test('pinned Mermaid 11.16 accepts spaced activation and central-connection messages', async () => {
+test('pinned Mermaid accepts spaced activation and central-connection messages', async () => {
   const messages = (source: string) => upstream.project(source, diagram => diagram.db.getMessages()
     .filter((message: any) => message.to)
     .map((message: any) => ({ from: message.from, to: message.to, text: message.message, central: Boolean(message.centralConnection) })))

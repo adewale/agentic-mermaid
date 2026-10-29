@@ -1,3 +1,5 @@
+import { editorModuleScript } from './helpers/editor-module-harness.ts'
+import { evaluateBrowserScript } from './browser-script-harness.ts'
 // Property fuzz for the browser Editor's untrusted-input codec (editor/js/sharing.js).
 // Share links and localStorage/sessionStorage drafts are attacker-controllable: a
 // recipient opens a URL someone else authored. The codec's contract is that ANY input
@@ -7,14 +9,12 @@
 // covers example-based limits; this closes the generated-input gap. Seed pinned globally
 // (fc-seed.preload.ts); run AM_FC_SEED=random to hunt fresh counterexamples.
 import { describe, expect, it } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { SHARED_RENDER_OPTION_FIELDS } from '../render-contract.ts'
 
-const ROOT = join(import.meta.dir, '..', '..')
-const sharingSource = readFileSync(join(ROOT, 'editor/js/sharing.js'), 'utf8')
+const sharingSource = await editorModuleScript('sharing.js')
 
 const NUM_RUNS = 300
 const EDITOR_OWNED = new Set(['embedFontImport', 'security'])
@@ -48,33 +48,20 @@ function sharingHarness() {
       knownStyleDescriptors: () => [{ kind: 'look', inputName: 'hand-drawn' }],
     },
   }
-  // editorPaletteInput is a cross-file global in the real editor; stub it so getHashSource's
+  // editorPaletteInput is an imported palette resolver; stub it so getHashSource's
   // palette-import branch is exercised without a ReferenceError.
   const editorPaletteInput = (value: unknown) => (typeof value === 'string' && value ? value : null)
-  const factory = new Function(
-    'window', 'localStorage', 'sessionStorage', 'editor', 'state', 'document', 'showToast',
-    'editorPaletteInput',
-    'CompressionStream', 'DecompressionStream', 'Blob', 'Response', 'TextEncoder', 'TextDecoder',
-    'Uint8Array', 'URLSearchParams', 'btoa', 'atob', 'setTimeout', 'clearTimeout',
-    'hasCurrentVerifiedSvgArtifact', 'DEFAULT_EDITOR_PALETTE',
-    `${sharingSource}\nreturn {
-      decodeSource, encodeSourceCompressed, updateHash, getHashSource,
-      sanitizeEditorConfig, readEditorDraft, saveEditorDraft, discardEditorDraft,
-      get hashDecodeFailure() { return hashDecodeFailure; },
-      MAX_SHARE_DECODED_BYTES, MAX_SHARE_ENCODED_BYTES, DRAFT_STORAGE_KEY,
-    };`,
-  )
-  const api = factory(
+  const api = evaluateBrowserScript<any>(sharingSource, {
     window, localStorage, sessionStorage, editor, state,
-    { getElementById() { return null } },
-    (m: string) => toasts.push(m),
-    editorPaletteInput,
-    globalThis.CompressionStream, globalThis.DecompressionStream, globalThis.Blob, globalThis.Response,
-    globalThis.TextEncoder, globalThis.TextDecoder, globalThis.Uint8Array, globalThis.URLSearchParams,
-    globalThis.btoa, globalThis.atob, globalThis.setTimeout, globalThis.clearTimeout,
-    () => true,
-    'paper',
-  )
+    document: { getElementById() { return null } },
+    showToast: (message: string) => toasts.push(message),
+    editorPaletteInput, hasCurrentVerifiedSvgArtifact: () => true, DEFAULT_EDITOR_PALETTE: 'paper',
+  }, `{
+    decodeSource, encodeSourceCompressed, updateHash, getHashSource,
+    sanitizeEditorConfig, readEditorDraft, saveEditorDraft, discardEditorDraft,
+    get hashDecodeFailure() { return hashDecodeFailure; },
+    MAX_SHARE_DECODED_BYTES, MAX_SHARE_ENCODED_BYTES, DRAFT_STORAGE_KEY,
+  }`)
   return { api, localStorage, sessionStorage, editor, state, toasts, replacedUrls, window }
 }
 
@@ -113,7 +100,7 @@ describe('editor-codec fuzz: decodeSource is total', () => {
       } else {
         expect(api.hashDecodeFailure).toBeNull()
       }
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   }, 60_000)
 })
 
@@ -126,7 +113,7 @@ describe('editor-codec fuzz: encode -> decode round-trip', () => {
       const decoded = await api.decodeSource(encoded)
       expect(decoded).toBe(src)
       expect(api.hashDecodeFailure).toBeNull()
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   }, 60_000)
 
   it('full share-hash JSON round-trips source, and getHashSource never throws', async () => {
@@ -137,7 +124,7 @@ describe('editor-codec fuzz: encode -> decode round-trip', () => {
       ;(window.location as { hash: string }).hash = '#' + encoded
       const recovered = await api.getHashSource()
       expect(recovered).toBe(src)
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   }, 60_000)
 })
 
@@ -169,7 +156,7 @@ describe('editor-codec fuzz: sanitizeEditorConfig allowlist', () => {
         // ...and must never be an editor-host-owned policy field (SEC-1).
         expect(EDITOR_OWNED.has(key)).toBe(false)
       }
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 
   it('share appearance is a complete snapshot and cannot inherit recipient state', async () => {
@@ -188,14 +175,14 @@ describe('editor-codec fuzz: sanitizeEditorConfig allowlist', () => {
     expect(await api.getHashSource()).toContain('flowchart TD')
     expect(state).toEqual({ palette: '', style: 'crisp', seed: 0, config: {} })
 
-    const hostileSeed = btoa(unescape(encodeURIComponent(
+    const hostileSeed = await api.encodeSourceCompressed(
       '{"source":"flowchart TD\\n A --> B","seed":1e309}',
-    )))
+    )
     ;(window.location as { hash: string }).hash = '#' + hostileSeed
     state.seed = 23
-    expect(await api.getHashSource()).toBeNull()
-    expect(api.hashDecodeFailure).toBe('corrupt')
-    expect(state.seed).toBe(23)
+    expect(await api.getHashSource()).toBe('flowchart TD\n A --> B')
+    expect(api.hashDecodeFailure).toBeNull()
+    expect(state.seed).toBe(0)
 
     const fractionalSeed = await api.encodeSourceCompressed(JSON.stringify({
       source: 'flowchart TD\n  A --> B',
@@ -229,6 +216,6 @@ describe('editor-codec fuzz: draft persistence round-trip', () => {
       // Inputs are short and never blank, so every draft is within the cap and
       // must restore.
       expect(draft?.source).toBe(editor.value)
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 })

@@ -1,5 +1,7 @@
 import { familyDetectionDiagnosticFromPreservedBody, MermaidFamilyDetectionError } from '../family-detection.ts'
-import { serializeMermaid } from './serialize.ts'
+import { getFamily } from './families.ts'
+import { sameExtensionIdentity } from '../shared/extension-identity.ts'
+import { serializeMermaid, wrapperPrefix } from './serialize.ts'
 import type { FamilyId, ParsedDiagram } from './types.ts'
 
 /**
@@ -16,20 +18,24 @@ export interface PreparedRenderInput {
   readonly expectedFamilyId?: FamilyId
 }
 
-const BODY_OWNED_RENDER_FAMILIES: ReadonlySet<FamilyId> = new Set(['state', 'sequence', 'quadrant', 'xychart', 'pie', 'gantt', 'mindmap', 'gitgraph', 'radar', 'sankey'])
-
-/** One source authority for every ParsedDiagram render transport. Flowcharts
- * and source-order-sensitive families retain canonical authored order; typed
- * body-owned families serialize so caller-created stale source cannot win. */
+/** Every render transport consults the owning descriptor once. Source-sensitive
+ * families preserve canonical order; body-owned families publish typed edits.
+ * Opaque whitespace/wrapper exceptions live with their family operations. */
 export function renderSourceForParsedDiagram(input: ParsedDiagram): string {
-  const bodyOwned = input.body.kind === 'extension' || BODY_OWNED_RENDER_FAMILIES.has(input.kind)
-  // A diagnosed opaque GitGraph body still needs its authored wrapper:
-  // canonicalSource omits frontmatter, including mainBranchName. Without it,
-  // verification can report a false checkout error before the real duplicate.
-  if (input.body.kind === 'opaque' && input.kind === 'gitgraph' && input.body.diagnostic?.code === 'GITGRAPH_DUPLICATE_COMMIT_ID') {
-    return serializeMermaid(input)
-  }
-  return input.body.kind !== 'opaque' && bodyOwned ? serializeMermaid(input) : input.canonicalSource
+  const family = getFamily(input.kind)
+  // A replaced registration must not inspect data owned by its predecessor.
+  const current = input.body.kind !== 'extension' || ('descriptorIdentity' in input && sameExtensionIdentity(input.descriptorIdentity, family?.identity))
+  const policy = current ? family?.renderSource : undefined
+  const source = policy ? policy(input.body) : (input.body.kind === 'extension' ? 'serialized' : 'canonical')
+  if (source !== 'canonical' && source !== 'serialized') throw new TypeError(`Family ${input.kind} returned an invalid render source policy`)
+  if (source === 'serialized') return serializeMermaid(input)
+  // A parsed body has no config envelope; a mutated one is serialized with
+  // it. Render either under the wrapper serialization emits (frontmatter title
+  // and config, init directives), so a parsed diagram draws what its saved
+  // source draws.
+  const body = input.canonicalSource
+  const wrapper = wrapperPrefix(input.meta, 'verbatim', body, input.kind)
+  return body.startsWith(wrapper) ? body : wrapper + body
 }
 
 export function prepareRenderInput(input: ParsedDiagram | string): PreparedRenderInput {

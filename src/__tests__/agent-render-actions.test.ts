@@ -38,7 +38,7 @@ describe('renderer-neutral action surface', () => {
     expect(pngRegion.bounds.h / svgRegion.bounds.h).toBeCloseTo(2, 1)
   })
 
-  test('callback actions remain metadata-only on every surface', () => {
+  test('callback actions remain metadata-only in SVG output', () => {
     const call = renderMermaidWithActions('flowchart LR\n  A\n  click A call doThing()', { format: 'svg' })
     expect(call.actionSurface.actions).toContainEqual(expect.objectContaining({
       action: 'call', disposition: 'sidecar-only', executable: false,
@@ -117,6 +117,14 @@ describe('renderer-neutral action surface', () => {
     expect(meta.regions).toContainEqual(expect.objectContaining({ id: 'Outer.Inner', kind: 'cluster' }))
   })
 
+  test('a target region covers its drawn target under a frontmatter title', () => {
+    const rendered = renderMermaidWithActions(`---\ntitle: Docs flow\n---\n${SOURCE}`, { format: 'svg' })
+    if (rendered.format !== 'svg') throw new Error('expected SVG artifact')
+    const drawn = /<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"[^>]*data-id="node-shape:A"/.exec(rendered.output)!.slice(1).map(Number)
+    const { x, y, w, h } = rendered.actionSurface.actions[0]!.region!.bounds
+    for (const [index, value] of [x, y, w, h].entries()) expect(Math.abs(value - drawn[index]!)).toBeLessThan(1)
+  })
+
   test('SVG disposition requires actual embedded metadata and a rendered target', () => {
     const missing = renderMermaidWithActions('flowchart LR\n  A\n  click Missing href "https://example.com"', { format: 'svg' })
     expect(missing.actionSurface.actions[0]).toEqual(expect.objectContaining({
@@ -165,53 +173,50 @@ describe('renderer-neutral action surface', () => {
     }))
   })
 
-  test('duplicate terminal labels retain distinct hit regions', () => {
+  test.each([
+    { direction: 'LR', axis: 'x' as const, sign: 1 },
+    { direction: 'RL', axis: 'x' as const, sign: -1 },
+    { direction: 'TD', axis: 'y' as const, sign: 1 },
+    { direction: 'BT', axis: 'y' as const, sign: -1 },
+  ])('duplicate terminal labels retain distinct hit regions in $direction', ({ direction, axis, sign }) => {
     const rendered = renderMermaidWithActions(
-      'flowchart LR\n  A[Same] --> B[Same]\n  click B href "https://example.com"',
+      `flowchart ${direction}\n A[Same] --> B[Same]\n click A href "https://example.com/a"\n click B href "https://example.com/b"`,
       { format: 'unicode', options: { colorMode: 'none' } },
     )
-    expect(rendered.format).toBe('unicode')
     if (rendered.format !== 'unicode') throw new Error('expected Unicode artifact')
-    const actionRegion = rendered.actionSurface.actions[0]!.region!
-    expect(actionRegion.id).toBe('node:B')
-    const labelRow = rendered.output.split('\n').find(line => line.includes('Same'))!
-    expect(actionRegion.bounds.x).toBeGreaterThan(labelRow.indexOf('Same'))
-  })
-
-  test('duplicate flowchart labels follow final BT and normalized RL terminal placement', () => {
-    const bt = renderMermaidWithActions(
-      'flowchart BT\n  A[Same] --> B[Same]\n  click B href "https://example.com"',
-      { format: 'unicode', options: { colorMode: 'none' } },
-    )
-    expect(Number(bt.actionSurface.actions[0]!.region?.bounds.y)).toBe(2)
-
-    const rl = renderMermaidWithActions(
-      'flowchart RL\n  A[Same] --> B[Same]\n  click B href "https://example.com"',
-      { format: 'unicode', options: { colorMode: 'none' } },
-    )
-    if (rl.format !== 'unicode') throw new Error('expected Unicode artifact')
-    const row = rl.output.split('\n').find(line => line.includes('Same'))!
-    expect(rl.actionSurface.actions[0]!.region?.bounds.x).toBeGreaterThan(row.indexOf('Same'))
+    const a = rendered.actionSurface.actions.find(action => action.target === 'A')!.region!
+    const b = rendered.actionSurface.actions.find(action => action.target === 'B')!.region!
+    expect([a.id, b.id]).toEqual(['node:A', 'node:B'])
+    expect((b.bounds[axis] - a.bounds[axis]) * sign).toBeGreaterThan(0)
+    for (const region of [a, b]) {
+      expect(region.cellSpans!.map(span => rendered.output.split('\n')[span.row]!.slice(span.start, span.end)).join('\n')).toContain('Same')
+    }
+    const aCells = new Set(a.cellSpans!.flatMap(span => Array.from({ length: span.end - span.start }, (_, offset) => `${span.row}:${span.start + offset}`)))
+    expect(b.cellSpans!.some(span => Array.from({ length: span.end - span.start }, (_, offset) => aCells.has(`${span.row}:${span.start + offset}`)).some(Boolean))).toBe(false)
   })
 
   test('duplicate Class and State labels follow terminal topology', () => {
     const cls = renderMermaidWithActions(
-      'classDiagram\n class A["Same"]\n class B["Same"]\n B <|-- A\n click B href "https://example.com"',
+      'classDiagram\n class A["Same"]\n class B["Same"]\n B <|-- A\n click A href "https://example.com/a"\n click B href "https://example.com/b"',
       { format: 'unicode', options: { colorMode: 'none' } },
     )
     expect(cls.format).toBe('unicode')
     if (cls.format === 'unicode') {
-      expect(cls.actionSurface.actions[0]!.region).toEqual(expect.objectContaining({
-        id: 'node:B', bounds: expect.objectContaining({ y: 1 }),
-      }))
+      const parent = cls.actionSurface.actions.find(action => action.target === 'B')!.region!
+      const child = cls.actionSurface.actions.find(action => action.target === 'A')!.region!
+      expect(parent.id).toBe('node:B')
+      expect(parent.bounds.y + parent.bounds.h).toBeLessThan(child.bounds.y)
+      expect(parent.cellSpans!.map(span => cls.output.split('\n')[span.row]!.slice(span.start, span.end)).join('\n')).toContain('Same')
     }
 
     const state = renderMermaidASCIIWithMeta(
       'stateDiagram-v2\n direction BT\n state "Same" as A\n state "Same" as B\n A --> B',
       { colorMode: 'none' },
     )
-    const region = state.regions.find(candidate => candidate.id === 'B')
-    expect(region).toEqual(expect.objectContaining({ canvasRow: 2 }))
+    const a = state.regions.find(candidate => candidate.id === 'A')!
+    const b = state.regions.find(candidate => candidate.id === 'B')!
+    expect(b.canvasRow).toBeLessThan(a.canvasRow)
+    for (const region of [a, b]) expect(region.authoredTextCells!.map(cell => state.ascii.split('\n')[cell.row]![cell.column]).join('')).toBe('Same')
   })
 
   test('duplicate node/container text reserves container headers before action nodes', () => {
@@ -228,23 +233,35 @@ describe('renderer-neutral action surface', () => {
         .map((line, row) => line.includes('Same') ? row : -1)
         .filter(row => row >= 0)
       expect(rows.length).toBeGreaterThanOrEqual(2)
-      expect(Number(action.region?.bounds.y)).toBe(rows.at(-1)!)
+      const region = action.region!
+      const nodeLabelRow = rows.at(-1)!
+      expect(region.bounds.y).toBeLessThanOrEqual(nodeLabelRow)
+      expect(region.bounds.y + region.bounds.h).toBeGreaterThan(nodeLabelRow)
+      expect(region.cellSpans!.some(span => span.row === nodeLabelRow && rendered.output.split('\n')[span.row]!.slice(span.start, span.end).includes('Same'))).toBe(true)
+      expect(region.cellSpans!.some(span => span.row === rows[0])).toBe(false)
     }
   })
 
-  test('class and namespace sharing an id retain separate terminal identities', () => {
-    const source = 'classDiagram\n namespace A["A"] {\n class A["A"]\n }\n click A href "https://example.com"'
+  test.each([
+    { id: 'A', parent: 'A', source: 'classDiagram\n namespace A["A"] {\n class A["A"]\n }\n click A href "https://example.com"' },
+    { id: 'Outer.Inner', parent: 'Outer.Inner', source: 'classDiagram\n namespace Outer {\n namespace Inner {\n class `Outer.Inner`["Target"]\n }\n }\n click `Outer.Inner` href "https://example.com"' },
+    { id: 'A', parent: 'Outer.Inner', source: 'classDiagram\n namespace Outer {\n namespace Inner {\n class A["Target"]\n }\n }\n click A href "https://example.com"' },
+  ])('class $id and namespace $parent retain typed terminal parent identities', ({ id, parent, source }) => {
     const meta = renderMermaidASCIIWithMeta(source, { colorMode: 'none' })
-    const namespace = meta.regions.find(region => region.id === 'A' && region.kind === 'cluster')
-    const cls = meta.regions.find(region => region.id === 'A' && region.kind === 'node')
+    const namespace = meta.regions.find(region => region.id === parent && region.kind === 'cluster')
+    const cls = meta.regions.find(region => region.id === id && region.kind === 'node')
     expect(namespace).toBeDefined()
     expect(cls).toBeDefined()
     expect(cls!.canvasRow).toBeGreaterThan(namespace!.canvasRow)
-
-    const rendered = renderMermaidWithActions(source, { format: 'unicode', options: { colorMode: 'none' } })
-    expect(rendered.actionSurface.actions[0]!.region).toEqual(expect.objectContaining({
-      id: 'node:A', bounds: expect.objectContaining({ y: cls!.canvasRow }),
-    }))
+    expect(cls!.parentId).toBe(parent)
+    for (const format of ['ascii', 'unicode'] as const) {
+      const rendered = renderMermaidWithActions(source, { format, options: { colorMode: 'none' } })
+      const region = rendered.actionSurface.actions[0]!.region!
+      expect(region).toEqual(expect.objectContaining({
+        id: `node:${id}`, parentId: `group:${parent}`, bounds: expect.objectContaining({ y: cls!.canvasRow }),
+      }))
+      expect(region.parentId).not.toBe(region.id)
+    }
   })
 
   test('terminal failures throw instead of returning an unmarked empty artifact', () => {

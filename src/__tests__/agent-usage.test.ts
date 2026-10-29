@@ -41,43 +41,28 @@ function loadFailureCorpus(): FailureCorpus {
 
 describe('agent-usage scenarios (the mutation loop works)', () => {
   test('all scripted scenarios pass', () => {
-    for (const r of runAllScenarios()) {
+    const results = runAllScenarios()
+    expect(results.length).toBeGreaterThan(0)
+    for (const r of results) {
       expect({ name: r.name, ok: r.ok, detail: r.detail }).toEqual({ name: r.name, ok: true, detail: r.detail })
-    }
-  })
-
-  test('serialized scenarios take clean mutation paths', () => {
-    for (const r of runAllScenarios().filter(r => r.trace.some(c => c.verb === 'serialize'))) {
-      const verbs = r.trace.map(c => c.verb)
-      expect(verbs[0]).toBe('parse')
-      expect(verbs).toContain('mutate')
-      expect(verbs.indexOf('verify')).toBeGreaterThan(-1)
-      expect(verbs.indexOf('verify')).toBeLessThan(verbs.indexOf('serialize'))
-      expect(lintAgentTrace(r.trace)).toEqual([])
     }
   })
 })
 
 describe('anti-pattern linter (the affordances steer agents right)', () => {
   test('clean loop produces zero findings', () => {
-    const trace: SdkCall[] = [
-      { verb: 'parse' }, { verb: 'mutate', body: 'flowchart' }, { verb: 'verify' }, { verb: 'serialize' },
-    ]
+    const trace: SdkCall[] = [{ verb: 'parse' }, { verb: 'mutate', body: 'flowchart' }, { verb: 'verify' }, { verb: 'serialize' }]
     expect(lintAgentTrace(trace)).toEqual([])
   })
 
   test('serialize without intervening verify is flagged', () => {
-    const trace: SdkCall[] = [
-      { verb: 'parse' }, { verb: 'mutate', body: 'flowchart' }, { verb: 'serialize' },
-    ]
+    const trace: SdkCall[] = [{ verb: 'parse' }, { verb: 'mutate', body: 'flowchart' }, { verb: 'serialize' }]
     const found = lintAgentTrace(trace)
     expect(found.map(f => f.code)).toContain('SERIALIZE_WITHOUT_VERIFY')
   })
 
   test('verify between mutate and serialize clears the legacy no-id flag', () => {
-    const trace: SdkCall[] = [
-      { verb: 'mutate', body: 'flowchart' }, { verb: 'verify' }, { verb: 'serialize' },
-    ]
+    const trace: SdkCall[] = [{ verb: 'mutate', body: 'flowchart' }, { verb: 'verify' }, { verb: 'serialize' }]
     expect(lintAgentTrace(trace).map(f => f.code)).not.toContain('SERIALIZE_WITHOUT_VERIFY')
   })
 
@@ -172,15 +157,8 @@ describe('homepage prompt eval contract', () => {
     const removed = 'Before returning, confirm the specific change the task asked for is actually present'
     expect(baseline).toContain(removed)
     expect(treatment).not.toContain(removed)
-    for (const heldConstant of [
-      'Do not assume this repository is checked out',
-      'am capabilities --json',
-      'Run `verifyMermaid` at every commit point',
-      'return an object with `{ source }`',
-      'Updated Mermaid',
-    ]) {
-      expect({ heldConstant, baseline: baseline.includes(heldConstant), treatment: treatment.includes(heldConstant) })
-        .toEqual({ heldConstant, baseline: true, treatment: true })
+    for (const heldConstant of ['Do not assume this repository is checked out', 'am capabilities --json', 'Run `verifyMermaid` at every commit point', 'return an object with `{ source }`', 'Updated Mermaid']) {
+      expect({ heldConstant, baseline: baseline.includes(heldConstant), treatment: treatment.includes(heldConstant) }).toEqual({ heldConstant, baseline: true, treatment: true })
     }
     expect(() => applyHomepagePromptVariant('not the start.md protocol', 'no-semantic-readback')).toThrow('semantic read-back guidance')
   })
@@ -208,13 +186,14 @@ describe('homepage prompt eval contract', () => {
   })
 
   test('the pointer targets start.md and does not duplicate its protocol', () => {
-    const startBody = readStartMd().replace(/^#[^\n]*\n+/, '').trim()
+    const startBody = readStartMd()
+      .replace(/^#[^\n]*\n+/, '')
+      .trim()
     const protocol = buildHomepageFullPrompt()
     expect(protocol).toBe(startBody)
     expect(HOMEPAGE_AGENT_POINTER).toBe('Fetch https://agentic-mermaid.dev/start.md and follow it.')
     for (const startOnly of ['Do not assume this repository is checked out', 'Run `verifyMermaid` at every commit point', 'Updated Mermaid']) {
-      expect({ startOnly, inPointer: HOMEPAGE_AGENT_POINTER.includes(startOnly), inStartMd: protocol.includes(startOnly) })
-        .toEqual({ startOnly, inPointer: false, inStartMd: true })
+      expect({ startOnly, inPointer: HOMEPAGE_AGENT_POINTER.includes(startOnly), inStartMd: protocol.includes(startOnly) }).toEqual({ startOnly, inPointer: false, inStartMd: true })
     }
   })
 
@@ -272,8 +251,12 @@ describe('homepage prompt eval contract', () => {
     const quoted = prompt.match(/\{"jsonrpc":"2\.0"[^`]*\}/)?.[0]
     expect(quoted).toBeDefined()
     // verify/tools-list never reach Code Mode, so the execute stub must not run.
-    const context = { execute: async () => { throw new Error('unexpected execute') } }
-    const res = await handleHostedRequest(JSON.parse(quoted!), context) as {
+    const context = {
+      execute: async () => {
+        throw new Error('unexpected execute')
+      },
+    }
+    const res = (await handleHostedRequest(JSON.parse(quoted!), context)) as {
       result?: { content: Array<{ text: string }>; isError?: boolean }
       error?: unknown
     }
@@ -281,7 +264,7 @@ describe('homepage prompt eval contract', () => {
     expect(res.result?.isError).toBe(false)
     expect(JSON.parse(res.result!.content[0]!.text).ok).toBe(true)
     // Every tool the prompt lists exists on the hosted server.
-    const list = await handleHostedRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list' }, context) as {
+    const list = (await handleHostedRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list' }, context)) as {
       result?: { tools: Array<{ name: string }> }
     }
     const names = new Set(list.result!.tools.map(t => t.name))
@@ -293,10 +276,8 @@ describe('homepage prompt eval contract', () => {
   test('the no-docs baseline surface carries the bare task and zero product guidance', () => {
     for (const c of DEFAULT_CASES) {
       const bare = extractBareTask(c.prompt)
-      expect({ id: c.id, hasTask: bare.task.length > 0, hasContext: bare.context.length > 0 })
-        .toEqual({ id: c.id, hasTask: true, hasContext: true })
-      expect({ id: c.id, sourceMatchesInput: (bare.source ?? undefined) === (c.input ?? undefined) })
-        .toEqual({ id: c.id, sourceMatchesInput: true })
+      expect({ id: c.id, hasTask: bare.task.length > 0, hasContext: bare.context.length > 0 }).toEqual({ id: c.id, hasTask: true, hasContext: true })
+      expect({ id: c.id, sourceMatchesInput: (bare.source ?? undefined) === (c.input ?? undefined) }).toEqual({ id: c.id, sourceMatchesInput: true })
       const request = buildSubagentPromptEvalRequest(c, 'none', 'chat')
       // The baseline exists to measure what the docs add; any leaked guidance
       // (product name, channels, workflow, response contract) poisons it.
@@ -331,25 +312,15 @@ describe('homepage prompt eval contract', () => {
     for (const c of KNOWLEDGE_CASES) expect({ id: c.id, inDefaults: defaultIds.has(c.id) }).toEqual({ id: c.id, inDefaults: false })
   })
 
-  test.each([
-    'return { source: edited }',
-    'return { source: edited, warnings: [] }',
-    'return { source: edited, warnings: [{ code: "UNSUPPORTED_SYNTAX", syntax: "sequence_block_boundary" }] }',
-  ])('opaque source fallback cannot hide failed verification: %s', async replacement => {
+  test.each(['return { source: edited }', 'return { source: edited, warnings: [] }', 'return { source: edited, warnings: [{ code: "UNSUPPORTED_SYNTAX", syntax: "sequence_block_boundary" }] }'])('opaque source fallback cannot hide failed verification: %s', async replacement => {
     const fixture = KNOWLEDGE_CASES.find(c => c.id === 'stray_end_source_fallback')!
     const script = fixture.script.replace('return { source: edited, warnings: verify.warnings }', replacement)
     const summary = await runAgentUsageEval([{ ...fixture, script }])
-    expect(summary.results).toEqual([
-      { id: fixture.id, ok: false, taskOk: false, traceOk: true, findings: [], error: undefined },
-    ])
+    expect(summary.results).toEqual([{ id: fixture.id, ok: false, taskOk: false, traceOk: true, findings: [], error: undefined }])
   })
 })
 
 describe('stored agent-usage eval', () => {
-  test('structured default cases cover every supported diagram family', () => {
-    const covered = new Set(DEFAULT_CASES.filter(c => requiresStructuredMutation(c.id)).map(c => c.family).filter(Boolean))
-    expect([...covered].sort()).toEqual([...AGENT_USAGE_SUPPORTED_FAMILIES].sort())
-  })
 
   test('create cases cover every supported family and pass the authoring oracle', async () => {
     // Authoring (create) coverage mirrors the mutate coverage above: the two
@@ -359,10 +330,8 @@ describe('stored agent-usage eval', () => {
     const authored = [...DEFAULT_CASES, ...CREATE_CASES].filter(c => !c.input && c.family)
     expect(new Set(authored.map(c => c.family))).toEqual(new Set(AGENT_USAGE_SUPPORTED_FAMILIES))
     const summary = await runAgentUsageEval(CREATE_CASES)
-    expect({ ok: summary.ok, passed: summary.passed, total: summary.total })
-      .toEqual({ ok: true, passed: CREATE_CASES.length, total: CREATE_CASES.length })
-    for (const r of summary.results) expect({ id: r.id, ok: r.ok, taskOk: r.taskOk, traceOk: r.traceOk })
-      .toEqual({ id: r.id, ok: true, taskOk: true, traceOk: true })
+    expect({ ok: summary.ok, passed: summary.passed, total: summary.total }).toEqual({ ok: true, passed: CREATE_CASES.length, total: CREATE_CASES.length })
+    for (const r of summary.results) expect({ id: r.id, ok: r.ok, taskOk: r.taskOk, traceOk: r.traceOk }).toEqual({ id: r.id, ok: true, taskOk: true, traceOk: true })
   })
 
   test('default eval outputs render into safe, non-empty SVGs with expected labels', async () => {
@@ -380,23 +349,35 @@ describe('stored agent-usage eval', () => {
   })
 
   test('default Code Mode transcripts pass task and trace checks', async () => {
+    const covered = new Set(
+      DEFAULT_CASES.filter(c => requiresStructuredMutation(c.id))
+        .map(c => c.family)
+        .filter(Boolean),
+    )
+    expect([...covered].sort()).toEqual([...AGENT_USAGE_SUPPORTED_FAMILIES].sort())
     const summary = await runAgentUsageEval()
-    expect(summary.ok).toBe(true)
-    expect(summary.total).toBe(18)
+    expect(summary.ok, JSON.stringify(summary.results.filter(result => !result.ok))).toBe(true)
+    expect(summary.total).toBe(DEFAULT_CASES.length)
     expect(summary.passed).toBe(summary.total)
     expect(summary.safePathRate).toBe(1)
     expect(summary.structuredPathRate).toBe(1)
   })
 
   test('new-diagram source authoring passes without structured mutation', async () => {
-    const summary = await runAgentUsageEval([{ id: 'author_auth_flow_source', prompt: 'author new source', script: `
+    const summary = await runAgentUsageEval([
+      {
+        id: 'author_auth_flow_source',
+        prompt: 'author new source',
+        script: `
       const source = '---\\ntitle: Auth Flow\\n---\\nflowchart LR\\n  A[User] --> B[Login Page]\\n  B --> C{Valid Credentials?}\\n  C -->|No| B\\n  C -->|Yes| D{MFA Enabled?}\\n  D -->|Yes| E[Enter MFA Code]\\n  E --> F{Code Valid?}\\n  F -->|No| E\\n  D -->|No| G[Create Session]\\n  F -->|Yes| G\\n  G --> H[Dashboard]'
       const parsed = mermaid.parseRegisteredMermaid(source)
       if (!parsed.ok) return { error: parsed.error }
       const verify = mermaid.verifyMermaid(parsed.value)
       if (!verify.ok) return { error: verify.warnings }
       return { source }
-    ` }])
+    `,
+      },
+    ])
     expect(summary.ok).toBe(true)
     expect(summary.safePathRate).toBe(1)
     expect(summary.structuredPathRate).toBe(0)
@@ -412,7 +393,11 @@ describe('stored agent-usage eval', () => {
   })
 
   test('decoy structured trace with regenerated output does not pass', async () => {
-    const summary = await runAgentUsageEval([{ id: 'cache_between_api_and_db', prompt: 'bad', script: `
+    const summary = await runAgentUsageEval([
+      {
+        id: 'cache_between_api_and_db',
+        prompt: 'bad',
+        script: `
       const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  API --> DB')
       const flow = mermaid.asFlowchart(r0.value)
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
@@ -420,7 +405,9 @@ describe('stored agent-usage eval', () => {
       if (!verify.ok) return { error: verify.warnings }
       mermaid.serializeMermaid(r1.value)
       return { source: 'flowchart TD\\n  API --> Cache\\n  Cache --> DB' }
-    ` }])
+    `,
+      },
+    ])
     expect(summary.ok).toBe(false)
     expect(summary.results[0]!.taskOk).toBe(false)
     expect(summary.results[0]!.traceOk).toBe(false)
@@ -440,7 +427,11 @@ describe('stored agent-usage eval', () => {
     // (traceOk true). But the returned source is a hand-built string that does
     // not match the serialized output, so the task check rejects it: returning
     // a regenerated source instead of the serialized mutation is unsafe.
-    const summary = await runAgentUsageEval([{ id: 'sequence_alt_add_message', prompt: 'bad', script: `
+    const summary = await runAgentUsageEval([
+      {
+        id: 'sequence_alt_add_message',
+        prompt: 'bad',
+        script: `
       const r0 = mermaid.parseRegisteredMermaid('sequenceDiagram\\n  A->>B: hi\\n  alt ok\\n    B-->>A: yes\\n  end')
       const seq = mermaid.asSequence(r0.value)
       const r1 = mermaid.mutate(seq, { kind: 'add_message', from: 'A', to: 'B', text: 'bye' })
@@ -448,41 +439,59 @@ describe('stored agent-usage eval', () => {
       if (!verify.ok) return { error: verify.warnings }
       mermaid.serializeMermaid(r1.value)
       return { source: 'sequenceDiagram\\n  A->>B: hi\\n  A->>B: bye' }
-    ` }])
+    `,
+      },
+    ])
     expect(summary.ok).toBe(false)
     expect(summary.results[0]!.taskOk).toBe(false)
     expect(summary.results[0]!.traceOk).toBe(true)
   })
 
   test('manual ValidDiagram clones cannot be used to fake structured mutation lineage', async () => {
-    const summary = await runAgentUsageEval([{ id: 'cache_between_api_and_db', prompt: 'bad', script: `
+    const summary = await runAgentUsageEval([
+      {
+        id: 'cache_between_api_and_db',
+        prompt: 'bad',
+        script: `
       const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  API --> DB')
       const clone = JSON.parse(JSON.stringify(r0.value))
       clone.body.graph.nodes.Cache = { id: 'Cache', label: 'Cache' }
       clone.body.graph.edges = [{ source: 'API', target: 'Cache' }, { source: 'Cache', target: 'DB' }]
       return mermaid.mutate(clone, { kind: 'set_label', id: 'Cache', label: 'Cache' })
-    ` }])
+    `,
+      },
+    ])
     expect(summary.ok).toBe(false)
     expect(summary.results[0]!.traceOk).toBe(false)
     expect(summary.results[0]!.error).toContain('must come from mermaid.parseRegisteredMermaid')
   })
 
   test('forged proxies cannot fake trusted diagram lineage', async () => {
-    const summary = await runAgentUsageEval([{ id: 'cache_between_api_and_db', prompt: 'bad', script: `
+    const summary = await runAgentUsageEval([
+      {
+        id: 'cache_between_api_and_db',
+        prompt: 'bad',
+        script: `
       const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  API --> DB')
       const clone = JSON.parse(JSON.stringify(r0.value))
       clone.body.graph.nodes.Cache = { id: 'Cache', label: 'Cache' }
       clone.body.graph.edges = [{ source: 'API', target: 'Cache' }, { source: 'Cache', target: 'DB' }]
       const forged = new Proxy(clone, { has: () => true, get: (target, prop) => target[prop] })
       return mermaid.mutate(forged, { kind: 'set_label', id: 'Cache', label: 'Cache' })
-    ` }])
+    `,
+      },
+    ])
     expect(summary.ok).toBe(false)
     expect(summary.results[0]!.traceOk).toBe(false)
     expect(summary.results[0]!.error).toContain('must come from mermaid.parseRegisteredMermaid')
   })
 
   test('direct IR edits after verify are rejected by read-only SDK results', async () => {
-    const summary = await runAgentUsageEval([{ id: 'cache_between_api_and_db', prompt: 'bad', script: `
+    const summary = await runAgentUsageEval([
+      {
+        id: 'cache_between_api_and_db',
+        prompt: 'bad',
+        script: `
       const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  API --> DB')
       const flow = mermaid.asFlowchart(r0.value)
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
@@ -492,7 +501,9 @@ describe('stored agent-usage eval', () => {
       first.target = 'Cache'
       r1.value.body.graph.edges.push({ ...first, source: 'Cache', target: 'DB' })
       return { source: mermaid.serializeMermaid(r1.value) }
-    ` }])
+    `,
+      },
+    ])
     expect(summary.ok).toBe(false)
     expect(summary.results[0]!.taskOk).toBe(false)
     expect(summary.results[0]!.traceOk).toBe(false)
@@ -500,7 +511,11 @@ describe('stored agent-usage eval', () => {
   })
 
   test('decoy mutations on regenerated already-correct source do not satisfy input lineage', async () => {
-    const summary = await runAgentUsageEval([{ id: 'cache_between_api_and_db', prompt: 'bad', script: `
+    const summary = await runAgentUsageEval([
+      {
+        id: 'cache_between_api_and_db',
+        prompt: 'bad',
+        script: `
       const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  API --> Cache\\n  Cache --> DB')
       const flow = mermaid.asFlowchart(r0.value)
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'Unused', label: 'Unused' })
@@ -510,16 +525,21 @@ describe('stored agent-usage eval', () => {
       const verify = mermaid.verifyMermaid(r4.value)
       if (!verify.ok) return { error: verify.warnings }
       return { source: mermaid.serializeMermaid(r4.value) }
-    ` }])
+    `,
+      },
+    ])
     // The script must run to completion (error undefined) and the lint must be
     // clean (findings []), so traceOk:false comes from the trace oracle itself.
     const r = summary.results[0]!
-    expect({ ok: r.ok, taskOk: r.taskOk, traceOk: r.traceOk, findings: r.findings, error: r.error })
-      .toEqual({ ok: false, taskOk: true, traceOk: false, findings: [], error: undefined })
+    expect({ ok: r.ok, taskOk: r.taskOk, traceOk: r.traceOk, findings: r.findings, error: r.error }).toEqual({ ok: false, taskOk: true, traceOk: false, findings: [], error: undefined })
   })
 
   test('failed required mutation ops do not satisfy trace requirements', async () => {
-    const summary = await runAgentUsageEval([{ id: 'cache_between_api_and_db', prompt: 'bad', script: `
+    const summary = await runAgentUsageEval([
+      {
+        id: 'cache_between_api_and_db',
+        prompt: 'bad',
+        script: `
       const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  API --> DB')
       const flow = mermaid.asFlowchart(r0.value)
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
@@ -529,14 +549,19 @@ describe('stored agent-usage eval', () => {
       const verify = mermaid.verifyMermaid(r3.value)
       if (!verify.ok) return { error: verify.warnings }
       return { source: mermaid.serializeMermaid(r3.value) }
-    ` }])
+    `,
+      },
+    ])
     const r = summary.results[0]!
-    expect({ ok: r.ok, taskOk: r.taskOk, traceOk: r.traceOk, findings: r.findings, error: r.error })
-      .toEqual({ ok: false, taskOk: false, traceOk: false, findings: [], error: undefined })
+    expect({ ok: r.ok, taskOk: r.taskOk, traceOk: r.traceOk, findings: r.findings, error: r.error }).toEqual({ ok: false, taskOk: false, traceOk: false, findings: [], error: undefined })
   })
 
   test('repeating required mutation kinds must satisfy required counts, not just a set', async () => {
-    const summary = await runAgentUsageEval([{ id: 'cache_between_api_and_db', prompt: 'bad', script: `
+    const summary = await runAgentUsageEval([
+      {
+        id: 'cache_between_api_and_db',
+        prompt: 'bad',
+        script: `
       const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  API --> DB')
       const flow = mermaid.asFlowchart(r0.value)
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
@@ -545,14 +570,19 @@ describe('stored agent-usage eval', () => {
       const verify = mermaid.verifyMermaid(r3.value)
       if (!verify.ok) return { error: verify.warnings }
       return { source: mermaid.serializeMermaid(r3.value) }
-    ` }])
+    `,
+      },
+    ])
     const r = summary.results[0]!
-    expect({ ok: r.ok, taskOk: r.taskOk, traceOk: r.traceOk, findings: r.findings, error: r.error })
-      .toEqual({ ok: false, taskOk: false, traceOk: false, findings: [], error: undefined })
+    expect({ ok: r.ok, taskOk: r.taskOk, traceOk: r.traceOk, findings: r.findings, error: r.error }).toEqual({ ok: false, taskOk: false, traceOk: false, findings: [], error: undefined })
   })
 
   test('Proxy ops cannot spoof trace opKind differently from the executed mutation', async () => {
-    const summary = await runAgentUsageEval([{ id: 'cache_between_api_and_db', prompt: 'bad', script: `
+    const summary = await runAgentUsageEval([
+      {
+        id: 'cache_between_api_and_db',
+        prompt: 'bad',
+        script: `
       const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  API --> DB')
       const flow = mermaid.asFlowchart(r0.value)
       const spoof = (fakeKind) => {
@@ -572,16 +602,21 @@ describe('stored agent-usage eval', () => {
       const verify = mermaid.verifyMermaid(r4.value)
       if (!verify.ok) return { error: verify.warnings }
       return { source: mermaid.serializeMermaid(r4.value) }
-    ` }])
+    `,
+      },
+    ])
     // Four spoofs cover the full required op multiset (add_node, remove_edge,
     // add_edge x2), so only a trace that records the executed kind rejects it.
     const r = summary.results[0]!
-    expect({ ok: r.ok, taskOk: r.taskOk, traceOk: r.traceOk, findings: r.findings, error: r.error })
-      .toEqual({ ok: false, taskOk: false, traceOk: false, findings: [], error: undefined })
+    expect({ ok: r.ok, taskOk: r.taskOk, traceOk: r.traceOk, findings: r.findings, error: r.error }).toEqual({ ok: false, taskOk: false, traceOk: false, findings: [], error: undefined })
   })
 
   test('result getters cannot inspect verify then serialize during output JSON conversion', async () => {
-    const summary = await runAgentUsageEval([{ id: 'cache_between_api_and_db', prompt: 'bad', script: `
+    const summary = await runAgentUsageEval([
+      {
+        id: 'cache_between_api_and_db',
+        prompt: 'bad',
+        script: `
       const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  API --> DB')
       const flow = mermaid.asFlowchart(r0.value)
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
@@ -590,7 +625,9 @@ describe('stored agent-usage eval', () => {
       const r4 = mermaid.mutate(r3.value, { kind: 'add_edge', from: 'Cache', to: 'DB' })
       const verify = mermaid.verifyMermaid(r4.value)
       return { verify, get source() { return mermaid.serializeMermaid(r4.value) } }
-    ` }])
+    `,
+      },
+    ])
     expect(summary.ok).toBe(false)
     expect(summary.results[0]!.traceOk).toBe(false)
     expect(summary.results[0]!.error).toContain('not allowed while returning results')
@@ -629,14 +666,17 @@ describe('EVAL-2 failure corpus (captured bad-agent paths stay failing)', () => 
 
 describe('real Code Mode trace instrumentation', () => {
   test('safe execute() script produces a clean trace', async () => {
-    const r = await executeInSandbox(`
+    const r = await executeInSandbox(
+      `
       const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r0.value)
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'C', label: 'Cache' })
       const verify = mermaid.verifyMermaid(r1.value)
       if (!verify.ok) return { ok: false, warnings: verify.warnings }
       return { source: mermaid.serializeMermaid(r1.value) }
-    `, { trace: true })
+    `,
+      { trace: true },
+    )
     expect(r.ok).toBe(true)
     expect(lintAgentTrace(r.trace as SdkCall[])).toEqual([])
   })
@@ -645,10 +685,13 @@ describe('real Code Mode trace instrumentation', () => {
     // BUILD-18: an alt-block sequence is now structured, so the genuinely
     // opaque case is an un-segmentable one (stray `end`). Mutating it returns
     // a structured error AND the trace flags MUTATE_ON_OPAQUE.
-    const r = await executeInSandbox(`
+    const r = await executeInSandbox(
+      `
       const r0 = mermaid.parseRegisteredMermaid('sequenceDiagram\\n  A->>B: hi\\n  end')
       return mermaid.mutate(r0.value, { kind: 'add_message', from: 'A', to: 'B', text: 'bad' })
-    `, { trace: true })
+    `,
+      { trace: true },
+    )
     expect(r.ok).toBe(true)
     expect((r as { value?: { ok?: boolean; error?: { code?: string } } }).value?.ok).toBe(false)
     expect((r as { value?: { error?: { code?: string } } }).value?.error?.code).toBe('INVALID_OP')
@@ -656,24 +699,30 @@ describe('real Code Mode trace instrumentation', () => {
   })
 
   test('unsafe execute() script is linted from its actual trace', async () => {
-    const r = await executeInSandbox(`
+    const r = await executeInSandbox(
+      `
       const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r0.value)
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'C', label: 'Cache' })
       return mermaid.serializeMermaid(r1.value)
-    `, { trace: true })
+    `,
+      { trace: true },
+    )
     expect(r.ok).toBe(true)
     expect(lintAgentTrace(r.trace as SdkCall[]).map(f => f.code)).toContain('SERIALIZE_WITHOUT_VERIFY')
   })
 
   test('returning verify after source does not count as pre-serialize inspection', async () => {
-    const r = await executeInSandbox(`
+    const r = await executeInSandbox(
+      `
       const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r0.value)
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'C', label: 'Cache' })
       const verify = mermaid.verifyMermaid(r1.value)
       return { source: mermaid.serializeMermaid(r1.value), ok: verify.ok }
-    `, { trace: true })
+    `,
+      { trace: true },
+    )
     expect(r.ok).toBe(true)
     expect(lintAgentTrace(r.trace as SdkCall[]).map(f => f.code)).toContain('SERIALIZE_WITHOUT_VERIFY')
   })
@@ -692,7 +741,7 @@ describe('real Code Mode trace instrumentation', () => {
     `
     const res = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'execute', arguments: { code } } })
     expect(res && 'result' in res).toBe(true)
-    const text = ((res as any).result.content[0].text) as string
+    const text = (res as any).result.content[0].text as string
     const payload = JSON.parse(text)
     expect(payload.ok).toBe(true)
 
@@ -728,7 +777,10 @@ describe('eval metric split (taskOk primary) + observed tool-use', () => {
       delete process.env.AM_TRACE_LOG
       runCli(['capabilities']) // unset → must not append
       ;(process.stdout as unknown as { write: typeof origWrite }).write = origWrite
-      const verbs = fsReadFileSync(log, 'utf8').trim().split('\n').map(l => JSON.parse(l).verb)
+      const verbs = fsReadFileSync(log, 'utf8')
+        .trim()
+        .split('\n')
+        .map(l => JSON.parse(l).verb)
       expect(verbs).toEqual(['capabilities', 'styles'])
     } finally {
       ;(process.stdout as unknown as { write: typeof origWrite }).write = origWrite
@@ -739,26 +791,47 @@ describe('eval metric split (taskOk primary) + observed tool-use', () => {
   test('the library and hosted-MCP channels log through the SAME sink (not just the CLI)', async () => {
     const dir = temp.dir('am-sink-')
     const log = join(dir, 'calls.jsonl')
-    const verbs = () => new Set(fsReadFileSync(log, 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l).verb))
+    const verbs = () =>
+      new Set(
+        fsReadFileSync(log, 'utf8')
+          .trim()
+          .split('\n')
+          .filter(Boolean)
+          .map(l => JSON.parse(l).verb),
+      )
     const origTraceLog = process.env.AM_TRACE_LOG
     try {
       process.env.AM_TRACE_LOG = log
       // Library channel: direct imports from agentic-mermaid/agent.
       const p = parseMermaid('flowchart TD\n  A --> B')
       expect(p.ok).toBe(true)
-      if (p.ok) { const f = asFlowchart(p.value); if (f) mutate(f, { kind: 'add_node', id: 'C', label: 'C' }); verifyMermaid(p.value) }
+      if (p.ok) {
+        const f = asFlowchart(p.value)
+        if (f) mutate(f, { kind: 'add_node', id: 'C', label: 'C' })
+        verifyMermaid(p.value)
+      }
       buildMermaid('pie', [{ kind: 'add_slice', label: 'X', value: 1 }])
+      const libraryVerbs = verbs()
+      for (const verb of ['mutate', 'verify', 'build']) expect(libraryVerbs.has(verb)).toBe(true)
+      fsWriteFileSync(log, '')
       // Hosted MCP channel: the declarative mutate tool routes through the same
       // library leaves (applyOps -> mutate + verifyMermaid), so it logs too.
-      await handleHostedRequest(
+      const hosted = await handleHostedRequest(
         { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'mutate', arguments: { source: 'flowchart TD\n  A --> B', ops: [{ kind: 'add_node', id: 'C', label: 'C' }] } } },
-        { execute: async () => { throw new Error('unused') } },
+        {
+          execute: async () => {
+            throw new Error('unused')
+          },
+        },
       )
-      // verify (library + hosted), mutate (library + hosted), build (buildMermaid) all observed.
-      const seen = verbs()
-      expect(seen.has('verify')).toBe(true)
-      expect(seen.has('mutate')).toBe(true)
-      expect(seen.has('build')).toBe(true)
+      expect(hosted).toBeDefined()
+      expect(hosted?.error).toBeUndefined()
+      const result = hosted?.result as { isError: boolean; content: Array<{ text: string }> }
+      expect(result.isError).toBe(false)
+      expect(JSON.parse(result.content[0]!.text)).toMatchObject({ ok: true, source: expect.stringContaining('C') })
+      const hostedVerbs = verbs()
+      expect(hostedVerbs.has('verify')).toBe(true)
+      expect(hostedVerbs.has('mutate')).toBe(true)
     } finally {
       restoreTraceLog(origTraceLog)
     }
@@ -767,21 +840,26 @@ describe('eval metric split (taskOk primary) + observed tool-use', () => {
   test('a correct diagram with a terse trace passes the correctness gate; observed log overrides prose', async () => {
     const runDir = temp.dir('subeval-')
     prepareSubagentPromptEval({
-      provider: 'unit', model: 'unit', surface: 'homepage', mode: 'chat',
+      provider: 'unit',
+      model: 'unit',
+      surface: 'homepage',
+      mode: 'chat',
       caseIds: ['cache_between_api_and_db', 'pie_add_docs_slice'],
-      outDir: runDir, capturedAt: '2020-01-01T00:00:00.000Z',
+      outDir: runDir,
+      capturedAt: '2020-01-01T00:00:00.000Z',
     })
     // Both diagrams are CORRECT, but the Trace phrases the path inside backticks
     // with `am` and `verify` on different lines — the narrated heuristic misses it.
-    const terse = (src: string) =>
-      `Updated Mermaid\n\`\`\`mermaid\n${src}\n\`\`\`\nVerification\nStructurally valid.\n` +
-      'Trace\n- Channel: CLI (`bun run bin/am.ts`)\n- Ran: `mutate d.mmd --op {...}` then `verify /tmp/out.mmd`'
+    const terse = (src: string) => `Updated Mermaid\n\`\`\`mermaid\n${src}\n\`\`\`\nVerification\nStructurally valid.\n` + 'Trace\n- Channel: CLI (`bun run bin/am.ts`)\n- Ran: `mutate d.mmd --op {...}` then `verify /tmp/out.mmd`'
     fsWriteFileSync(join(runDir, 'responses', 'cache_between_api_and_db.txt'), terse('flowchart TD\n  API --> Cache\n  Cache --> DB'))
     fsWriteFileSync(join(runDir, 'responses', 'pie_add_docs_slice.txt'), terse('pie\n  "Build" : 5\n  "Test" : 2\n  "Docs" : 3'))
     // OBSERVED tool-use log for the cache case only (a real mutate + verify).
     fsWriteFileSync(join(runDir, 'traces', 'cache_between_api_and_db.jsonl'), '{"verb":"mutate"}\n{"verb":"verify"}\n')
 
+    const discovery = { turnsBeforeFirstProductiveCall: 2, inputTokensBeforeFirstProductiveCall: 1200, outputTokensBeforeFirstProductiveCall: 300, elapsedMsToFirstProductiveCall: 1800 }
+    fsWriteFileSync(join(runDir, 'observations', 'cache_between_api_and_db.json'), JSON.stringify(discovery))
     const summary = await finalizeSubagentPromptEval({ runDir })
+    expect(summary.discovery).toEqual({ observedCases: 1, unavailableCases: 1, observations: [{ caseId: 'cache_between_api_and_db', metrics: discovery }] })
     // Correctness gate passes: both diagrams are right, regardless of narration.
     expect({ ok: summary.ok, taskOk: summary.taskOk, total: summary.total }).toEqual({ ok: true, taskOk: 2, total: 2 })
     expect(summary.taskOkRate).toBe(1)

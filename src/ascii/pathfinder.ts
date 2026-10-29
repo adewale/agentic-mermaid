@@ -6,8 +6,9 @@
 // paths between nodes on the grid. Prefers straight lines over zigzags.
 // ============================================================================
 
-import type { GridCoord, AsciiNode, Direction } from './types.ts'
+import type { GridCoord, Direction } from './types.ts'
 import { gridKey, gridCoordEquals } from './types.ts'
+import { pathOccupancy, type PathOccupancy } from './occupancy.ts'
 
 // ============================================================================
 // Priority queue (min-heap) for A* open set
@@ -160,9 +161,24 @@ function buildMoveDirs(preferredDir?: Direction): GridCoord[] {
 }
 
 /** Check if a grid cell is unoccupied and has non-negative coordinates. */
-function isFreeInGrid(grid: Map<string, AsciiNode>, c: GridCoord): boolean {
+function isFreeInGrid(grid: PathOccupancy, c: GridCoord): boolean {
   if (c.x < 0 || c.y < 0) return false
   return !grid.has(gridKey(c))
+}
+
+/** The clear axis segment is the unique shortest four-neighbour path. This
+ * narrow shortcut is used only where the caller has no extra canStep policy.
+ * Leave longer paths to the ordinary bounded search: 10,000 popped cells is
+ * its minimum work cap, including both endpoints. Occupied endpoints retain
+ * getPath's semantics; only the segment's interior must be free. */
+export function getClearAxisPath(grid: PathOccupancy, from: GridCoord, to: GridCoord): GridCoord[] | null {
+  if (![from.x, from.y, to.x, to.y].every(value => Number.isSafeInteger(value) && value >= 0)) return null
+  if (from.x !== to.x && from.y !== to.y) return null
+  const distance = Math.abs(to.x - from.x) + Math.abs(to.y - from.y)
+  if (distance >= 10_000) return null
+  const dx = Math.sign(to.x - from.x), dy = Math.sign(to.y - from.y)
+  for (let step = 1; step < distance; step++) if (grid.has(`${from.x + dx * step},${from.y + dy * step}`)) return null
+  return Array.from({ length: distance + 1 }, (_, step) => ({ x: from.x + dx * step, y: from.y + dy * step }))
 }
 
 
@@ -175,25 +191,20 @@ function isFreeInGrid(grid: Map<string, AsciiNode>, c: GridCoord): boolean {
  *   a tested capability and exercised by ascii-pathfinder-determinism.test.ts.
  */
 export function getPath(
-  grid: Map<string, AsciiNode>,
+  cells: PathOccupancy | ReadonlyMap<string, unknown>,
   from: GridCoord,
   to: GridCoord,
   preferredDir?: Direction,
+  canStep?: (from: GridCoord, to: GridCoord) => boolean,
 ): GridCoord[] | null {
   // #66 (ktrysmt): bound the search. `isFreeInGrid` only guards x/y < 0, so an
   // unreachable target (walled off) would let A* explore +x/+y unboundedly →
   // OOM/hang. Derive an upper bound from the grid extent + the from/to coords,
   // plus a hard iteration cap. On exhaustion we return null and the caller
   // falls back to a direct route, rather than exhausting memory.
-  let maxX = Math.max(from.x, to.x)
-  let maxY = Math.max(from.y, to.y)
-  for (const key of grid.keys()) {
-    const comma = key.indexOf(',')
-    const kx = Number(key.slice(0, comma))
-    const ky = Number(key.slice(comma + 1))
-    if (kx > maxX) maxX = kx
-    if (ky > maxY) maxY = ky
-  }
+  const grid = pathOccupancy(cells)
+  const maxX = Math.max(from.x, to.x, grid.extent.maxX)
+  const maxY = Math.max(from.y, to.y, grid.extent.maxY)
   // Margin lets routes detour slightly around obstacles past the extent.
   const boundX = maxX + 4
   const boundY = maxY + 4
@@ -222,10 +233,10 @@ export function getPath(
       const path: GridCoord[] = []
       let c: GridCoord | null = current
       while (c !== null) {
-        path.unshift(c)
+        path.push(c)
         c = cameFrom.get(gridKey(c)) ?? null
       }
-      return path
+      return path.reverse()
     }
 
     const currentCost = costSoFar.get(gridKey(current))!
@@ -236,6 +247,7 @@ export function getPath(
       // #66 guard: never expand past the bounded extent. Without this, an
       // unreachable target lets the search wander the unbounded +x/+y plane.
       if (next.x > boundX || next.y > boundY) continue
+      if (canStep && !canStep(current, next)) continue
 
       // Allow moving to the destination even if it's occupied (it's a node boundary)
       if (!isFreeInGrid(grid, next) && !gridCoordEquals(next, to)) {

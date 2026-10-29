@@ -13,7 +13,8 @@
 // column/row; all internal nodes still render inside the container.
 
 import { describe, test, expect } from 'bun:test'
-import { renderMermaidASCII } from '../index.ts'
+import { renderMermaidASCII, renderMermaidASCIIWithReceipt } from '../index.ts'
+import { terminalDocumentOf } from '../ascii/terminal-document.ts'
 
 /** Count non-overlapping occurrences of a substring. */
 function count(haystack: string, needle: string): number {
@@ -134,6 +135,7 @@ describe('BUILD-14: edge endpoint is a subgraph id (ASCII)', () => {
 
   test('TD: Start and Done remain outside the container in the outer TD flow', () => {
     const out = renderMermaidASCII(LR_INSIDE_TD)
+    for (const label of ['Start', 'Done', 'Pipeline', 'Store']) expect(rowOf(out, label)).toBeGreaterThanOrEqual(0)
     // Start is above the container; Done is below it.
     expect(rowOf(out, 'Start')).toBeLessThan(rowOf(out, 'Pipeline'))
     expect(rowOf(out, 'Done')).toBeGreaterThan(rowOf(out, 'Store'))
@@ -141,31 +143,39 @@ describe('BUILD-14: edge endpoint is a subgraph id (ASCII)', () => {
     expect(count(out, 'Done')).toBe(1)
   })
 
-  test('mermaid#2509-shaped: LR outside --> subgraph attaches to the container', () => {
-    const out = renderMermaidASCII(`flowchart LR
+  test.each([false, true])('mermaid#2509-shaped: LR outside --> subgraph attaches to the container (ASCII=%p)', useAscii => {
+    const rendered = renderMermaidASCIIWithReceipt(`flowchart LR
   outside --> subgraph1
   subgraph subgraph1
     inner1 --> inner2
   end
-`)
+`, { useAscii, colorMode: 'none' })
+    const out = rendered.text, document = terminalDocumentOf(rendered)!, regions = document.regions()
 
     // Single container title; phantom "subgraph1" box gone.
     expect(count(out, 'subgraph1')).toBe(1)
     // Internal nodes still inside.
     expect(out).toContain('inner1')
     expect(out).toContain('inner2')
-    // outside renders once, to the left of the container contents.
+    // Physical container contacts can occupy a different row from its cards.
+    // The exterior card and both inner cards retain their actual membership.
     expect(count(out, 'outside')).toBe(1)
-    expect(rowOf(out, 'inner1')).toBe(rowOf(out, 'outside'))
-
-    // The edge attaches at the container's left border: on the outside/inner1
-    // row, a right-pointing arrowhead lands on/just outside the container's
-    // left vertical border.
-    const row = out.split('\n')[rowOf(out, 'inner1')]!
-    expect(row).toContain('►')
-    // The arrowhead must sit to the LEFT of inner1 (edge enters the container,
-    // not exits it).
-    expect(row.indexOf('►')).toBeLessThan(row.indexOf('inner1'))
+    expect(regions.filter(region => region.kind === 'node').map(region => region.id).sort()).toEqual(['inner1', 'inner2', 'outside'])
+    for (const id of ['inner1', 'inner2']) expect(regions.find(region => region.id === id)?.parentId).toBe('subgraph1')
+    const frame = regions.find(region => region.kind === 'subgraph' && region.id === 'subgraph1')!
+    const outside = regions.find(region => region.kind === 'node' && region.id === 'outside')!
+    expect(outside.canvasColEnd).toBeLessThan(frame.canvasColStart)
+    const edge = regions.find(region => region.kind === 'edge' && region.from === 'outside')!
+    expect(edge.to).toBe('subgraph1')
+    const end = edge.ports!.find(port => port.end === 'end')!
+    expect(end).toMatchObject({ nodeId: 'subgraph1', side: 'L', x: frame.canvasColStart })
+    expect(end.y).toBeGreaterThan(frame.canvasRow)
+    expect(end.y).toBeLessThan(frame.canvasRow + frame.rowSpan! - 1)
+    const marker = document.cell(end.x - (end.markerOffset ?? 1), end.y)!
+    expect(marker.kind).toBe('marker')
+    expect(marker.glyph).toBe(useAscii ? '>' : '►')
+    expect(marker.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id)).toBe(true)
+    expect(document.diagnostics).toEqual([])
   })
 
   test('LR target container stays disjoint from an unconnected sibling frame', () => {
@@ -194,6 +204,8 @@ describe('BUILD-14: edge endpoint is a subgraph id (ASCII)', () => {
     const secondFrameTop = lines.findLastIndex(
       (line, index) => index < secondRow && line.includes('┌') && line.includes('┐'),
     )
+    expect(firstFrameBottom).toBeGreaterThanOrEqual(0)
+    expect(secondFrameTop).toBeGreaterThanOrEqual(0)
     expect(firstFrameBottom).toBeLessThan(secondFrameTop)
   })
 
@@ -268,6 +280,8 @@ describe('BUILD-14: edge endpoint is a subgraph id (ASCII)', () => {
 
     // The container title "P" appears once; the ignored "Real Node" label
     // produces no phantom box.
+    expect(count(out, ' P ')).toBe(1)
+    expect(rowOf(out, 'Start')).toBeGreaterThanOrEqual(0)
     expect(out).not.toContain('Real Node')
     expect(count(out, 'Done')).toBe(1)
     // Internal nodes render inside the container.

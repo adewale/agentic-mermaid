@@ -1,3 +1,6 @@
+import { serializeTransform } from './transforms.ts'
+import { capturedPart } from './part-capture.ts'
+import { formatSvgNumber } from '../shared/svg-number.ts'
 // ============================================================================
 // RoughBackend (SPEC §3.2/§11 phase 3) — rough.js-backed sketch serialization
 // of the SceneGraph. Headless (RoughGenerator + opsToPath, no DOM), version-
@@ -25,7 +28,7 @@
 // ============================================================================
 
 import { RoughGenerator } from 'roughjs/bin/generator'
-import type { Geometry, SceneDoc, SceneNode, SceneTransform, ShapeMark, ConnectorMark, TextMark } from './ir.ts'
+import type { Geometry, MarkPaint, SceneDoc, SceneNode, SceneTransform, ShapeMark, ConnectorMark, TextMark } from './ir.ts'
 import { connectorSubpaths } from './connector-geometry.ts'
 import type { StyleBackend, StyleBackendContext } from './backend.ts'
 import { composeGroup, pageRectFor } from './backend.ts'
@@ -70,6 +73,23 @@ export interface SketchStrokeProjection {
   nonScaling?: boolean
 }
 
+/** Semantic opacity of a replacement geometry's fill and of its stroke: a
+ * mark's whole opacity times its fill- or stroke-opacity. */
+export interface SketchOpacity {
+  fill?: string | number
+  stroke?: string | number
+}
+
+/** The opacities an element of a shape's serialization paints with. */
+function elementOpacity(attrs: ReadonlyMap<string, string>, paint: MarkPaint): SketchOpacity | undefined {
+  const whole = attrs.get('opacity') ?? paint.opacity
+  const fill = attrs.get('fill-opacity') ?? paint.fillOpacity
+  const stroke = attrs.get('stroke-opacity') ?? paint.strokeOpacity
+  if (whole === undefined && fill === undefined && stroke === undefined) return undefined
+  const combine = (part: string | undefined) => part === undefined ? whole : whole === undefined ? part : Number(whole) * Number(part)
+  return { fill: combine(fill), stroke: combine(stroke) }
+}
+
 /** A pluggable geometry renderer: return null to fall back to rough.js.
  *  HybridBackend supplies perfect-freehand ribbons and watercolor washes;
  *  RoughBackend uses pure rough.js. */
@@ -84,8 +104,8 @@ export type GeometrySketcher = (
     style: StyleSpec | undefined
     dash: string | undefined
     strokeProjection: SketchStrokeProjection | undefined
-    /** Semantic MarkPaint.opacity for shape replacement geometry. */
-    opacity: string | number | undefined
+    /** Semantic opacity for shape replacement geometry. */
+    opacity: SketchOpacity | undefined
   },
 ) => string | null
 
@@ -149,7 +169,7 @@ function opsToSvg(
   fill: string | undefined,
   p: RoughParams,
   projection: SketchStrokeProjection = {},
-  opacity?: string | number,
+  opacity?: SketchOpacity,
 ): string {
   const out: string[] = []
   const strokeAttrs = projectedStrokeAttributes(projection)
@@ -157,16 +177,17 @@ function opsToSvg(
   // the missing separator when projected attributes and semantic opacity
   // are both present.
   const projectedAttrs = strokeAttrs ? ` ${strokeAttrs}` : ' '
-  const opacityAttr = opacity === undefined ? '' : ` stroke-opacity="${escapeAttr(String(opacity))}"`
+  const opacityAttr = opacity?.stroke === undefined ? '' : ` stroke-opacity="${escapeAttr(String(opacity.stroke))}"`
+  const fillSketchOpacityAttr = opacity?.fill === undefined ? '' : ` stroke-opacity="${escapeAttr(String(opacity.fill))}"`
   for (const set of sets) {
     const d = gen.opsToPath(set as Parameters<typeof gen.opsToPath>[0], 2)
     if (!d) continue
     if (set.type === 'path') {
-      out.push(`<path d="${d}" fill="none" stroke="${stroke}" stroke-width="${strokeWidth}"${projectedAttrs}${opacityAttr} />`)
+      out.push(`<path d="${d}" fill="none" stroke="${stroke}" stroke-width="${formatSvgNumber(strokeWidth)}"${projectedAttrs}${opacityAttr} />`)
     } else if (set.type === 'fillPath') {
-      out.push(`<path d="${d}" fill="${fill}" fill-opacity="${escapeAttr(String(opacity ?? 0.92))}" stroke="none" />`)
+      out.push(`<path d="${d}" fill="${fill}" fill-opacity="${escapeAttr(String(opacity?.fill ?? 0.92))}" stroke="none" />`)
     } else if (set.type === 'fillSketch') {
-      out.push(`<path d="${d}" fill="none" stroke="${fill}" stroke-width="${p.fillWeight}"${opacityAttr} />`)
+      out.push(`<path d="${d}" fill="none" stroke="${fill}" stroke-width="${formatSvgNumber(p.fillWeight)}"${fillSketchOpacityAttr} />`)
     }
   }
   return out.join('\n')
@@ -188,7 +209,7 @@ export function sketchGeometryRough(
   p: RoughParams,
   dash?: string,
   strokeProjection?: SketchStrokeProjection,
-  opacity?: string | number,
+  opacity?: SketchOpacity,
 ): string {
   return sketchGeometry(geom, seed, stroke, strokeWidth, fill, p, dash, strokeProjection, opacity)
 }
@@ -203,7 +224,7 @@ function sketchGeometry(
   p: RoughParams,
   dash?: string,
   strokeProjection?: SketchStrokeProjection,
-  opacity?: string | number,
+  opacity?: SketchOpacity,
 ): string {
   const projection = { ...strokeProjection, ...(dash !== undefined ? { dashArray: dash } : {}) }
   const opts = roughOptions(p, seed, stroke, strokeWidth, fill)
@@ -245,7 +266,7 @@ function sketchGeometryVia(
   fill: string | undefined,
   dash?: string,
   strokeProjection?: SketchStrokeProjection,
-  opacity?: string | number,
+  opacity?: SketchOpacity,
 ): string {
   if (walk.sketcher) {
     const out = walk.sketcher(geom, { seed, stroke, width, fill, p: walk.p, style: walk.ctx.style, dash, strokeProjection, opacity })
@@ -289,8 +310,7 @@ function suppressStroke(element: string, tag: string): string {
 
 function transformedStyledGeometry(svg: string, transform: SceneTransform | undefined): string {
   if (!transform || svg === '') return svg
-  if (transform.kind === 'rotate') return `<g transform="rotate(${transform.angle} ${transform.cx} ${transform.cy})">${svg}</g>`
-  return svg
+  return `<g transform="${serializeTransform(transform)}">${svg}</g>`
 }
 
 function sketchShape(node: ShapeMark, walk: Walk): string {
@@ -317,11 +337,20 @@ function sketchShape(node: ShapeMark, walk: Walk): string {
     // solid-crisp (fill:'none' style keeps the region honest via the crisp
     // element) or re-rendered as hachure/solid sketch fill.
     const wantFill = hasFill && p.fill !== 'none' ? fill : undefined
+    const opacity = elementOpacity(el.attrs, node.paint) ?? {}
+    // Keyed data and legend marks must retain the same categorical paint.
+    // Explicit authored opacity still wins over this decorative-style default.
+    if (p.fill === 'wash' && node.channels?.category !== undefined && ['pie-slice', 'actor', 'legend', 'point', 'bar'].includes(node.role)) opacity.fill ??= '1'
+
     if (!hasStroke) {
+      // Decomposing an outlined surface must not turn its fill-only pieces
+      // into semantic color plates. Open-box looks still suppress the default
+      // surface, while authored concrete colors retain their existing policy.
+      if (node.surfaceFragment && hasFill && p.fill === 'none' && isBoxFill(fill!)) continue
       // Stroke-less element (gantt bands, halo chips, state-start dots,
       // width-0 borders): never synthesize an outline (Phase 0 lesson b).
       if (wantFill) {
-        const sketchedFill = sketchGeometryVia(walk, geoms[i]!, seed, 'none', 0, wantFill, dash, undefined, node.paint.opacity)
+        const sketchedFill = sketchGeometryVia(walk, geoms[i]!, seed, 'none', 0, wantFill, dash, undefined, opacity)
         if (sketchedFill) {
           out.push(transformedStyledGeometry(sketchedFill, node.transform))
           continue
@@ -331,7 +360,7 @@ function sketchShape(node: ShapeMark, walk: Walk): string {
       continue
     }
     const width = Math.max(0.6, Math.min(p.strokeWidth * widthRatio, p.strokeWidth * 4))
-    const sketched = sketchGeometryVia(walk, geoms[i]!, seed, stroke!, width, wantFill, dash, undefined, node.paint.opacity)
+    const sketched = sketchGeometryVia(walk, geoms[i]!, seed, stroke!, width, wantFill, dash, undefined, opacity)
     if (!sketched) { out.push(crispElementOf(i)); continue }
     // Value-colored solid fills stay: when the style suppresses sketch fills
     // but the element carries a non-default fill, under-paint it crisply so
@@ -525,7 +554,7 @@ export function createSketchBackend(id: string, sketcher?: GeometrySketcher): St
       const out: string[] = []
       for (let i = 0; i < admitted.parts.length; i++) {
         const part = admitted.parts[i]!
-        out.push(drawNodeStyled(part, walk))
+        out.push(capturedPart(ctx, part, drawNodeStyled(part, walk)))
         if (i === 0 && part.kind === 'document' && part.element === 'open') {
           const pageRect = pageRectFor(admitted, ctx)
           if (pageRect) out.push(pageRect)

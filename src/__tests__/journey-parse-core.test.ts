@@ -35,9 +35,8 @@ describe('renderer/agent parser convergence', () => {
     expect(diagram.sections[0]!.tasks.map(t => t.text)).toEqual(['journey review', 'Other task'])
 
     const d = agentBody('journey\n  section S\n  journey review: 4: Me')
-    const j = asJourney(d)
-    expect(j).not.toBeNull()
-    expect(j!.body.sections[0]!.tasks[0]!.text).toBe('journey review')
+    expect(d.body.kind).toBe('journey')
+    expect(rendererParse(serializeMermaid(d)).sections[0]!.tasks[0]!.text).toBe('journey review')
   })
 
   test('<br> with surrounding spaces normalizes identically on both surfaces', () => {
@@ -71,9 +70,9 @@ describe('semicolon statement separation (diagnosed Agentic extension)', () => {
     expect(serializeMermaid(d)).toBe('journey\n  section S\n    Make tea: 5: Me\n    Go upstairs: 3: Me\n')
   })
 
-  test('HTML entities keep their semicolons through statement splitting', () => {
+  test('XML entities decode as text while real semicolons split statements', () => {
     const diagram = rendererParse('journey\n  Task A &amp; B: 3: Me; Task C: 4: Me')
-    expect(diagram.sections[0]!.tasks.map(t => t.text)).toEqual(['Task A &amp; B', 'Task C'])
+    expect(diagram.sections[0]!.tasks.map(t => t.text)).toEqual(['Task A & B', 'Task C'])
   })
 
   test('trailing semicolon is a statement terminator, not part of the actor', () => {
@@ -100,11 +99,12 @@ describe('semicolon statement separation (diagnosed Agentic extension)', () => {
     expect(hasJourneyStatementDelimiter(`Review &${'a'.repeat(33)};`)).toBe(true)
     const parsed = rendererParse('journey\n  A &amp; B &#59; C &#x3B; D: 3: Me; Next: 4: You')
     expect(parsed.sections[0]!.tasks.map(task => task.text)).toEqual([
-      'A &amp; B &#59; C &#x3B; D',
+      'A & B ; C ; D',
       'Next',
     ])
-    const agent = asJourney(agentBody('journey\n  A &amp; B &#59; C &#x3B; D: 3: Me; Next: 4: You'))
-    expect(agent?.body.sections[0]!.tasks.map(task => task.text)).toEqual(parsed.sections[0]!.tasks.map(task => task.text))
+    const agent = agentBody('journey\n  A &amp; B &#59; C &#x3B; D: 3: Me; Next: 4: You')
+    expect(agent.body.kind).toBe('journey')
+    expect(rendererParse(serializeMermaid(agent)).sections[0]!.tasks.map(task => task.text)).toEqual(parsed.sections[0]!.tasks.map(task => task.text))
   })
 })
 
@@ -132,7 +132,6 @@ describe('accessibility block suffix and colon grammar', () => {
 describe('typed opaque outcomes → targeted verify diagnostics', () => {
   const cases: Array<[string, string, string, number]> = [
     // [name, source, expected syntax tag, expected 1-based line]
-    ['section label with colon', 'journey\n  section A:B\n  Task: 3: Me', 'journey_section_colon', 2],
     ['unclosed accDescr block', 'journey\n  accDescr {\n    Accessible\n  Wake: 3: Me', 'journey_unclosed_accdescr', 2],
     ['unrecognized body line', 'journey\n  section S\n  nonsense\n  Task: 3: Me', 'journey_unrecognized_line', 3],
     ['out-of-range score', 'journey\n  Wake: 9: Me', 'journey_invalid_score', 2],

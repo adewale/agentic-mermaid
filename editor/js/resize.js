@@ -1,19 +1,21 @@
-var isResizing = false;
-var resizeStartX = 0;
-var resizeStartW = 0;
+import { panelLeft, resizeHandle } from './elements.js';
+export var isResizing, resizeStartX, resizeStartW;
 
-function isNarrowViewport() {
+
+export function isNarrowViewport() {
   return window.matchMedia && window.matchMedia('(max-width: 760px)').matches;
 }
 
-function resizeBounds() {
+
+export function resizeBounds() {
   return {
     min: 280,
     max: Math.max(280, window.innerWidth * 0.75),
   };
 }
 
-function setPanelWidth(px) {
+
+export function setPanelWidth(px) {
   if (isNarrowViewport()) {
     panelLeft.style.width = '';
     if (resizeHandle) resizeHandle.setAttribute('aria-disabled', 'true');
@@ -31,7 +33,8 @@ function setPanelWidth(px) {
   }
 }
 
-function startResize(e) {
+
+export function startResize(e) {
   isResizing = true;
   resizeStartX = e.clientX;
   resizeStartW = panelLeft.getBoundingClientRect().width;
@@ -41,13 +44,15 @@ function startResize(e) {
   if (resizeHandle.setPointerCapture && e.pointerId != null) resizeHandle.setPointerCapture(e.pointerId);
 }
 
-function moveResize(e) {
+
+export function moveResize(e) {
   if (!isResizing) return;
   var dx = e.clientX - resizeStartX;
   setPanelWidth(resizeStartW + dx);
 }
 
-function endResize(e) {
+
+export function endResize(e) {
   if (!isResizing) return;
   isResizing = false;
   resizeHandle.classList.remove('dragging');
@@ -56,15 +61,37 @@ function endResize(e) {
   if (resizeHandle.releasePointerCapture && e && e.pointerId != null) resizeHandle.releasePointerCapture(e.pointerId);
 }
 
+
+export function syncResponsivePanelWidth() {
+  if (isNarrowViewport()) {
+    panelLeft.style.width = '';
+    if (resizeHandle) resizeHandle.setAttribute('aria-disabled', 'true');
+  } else {
+    setPanelWidth(panelLeft.getBoundingClientRect().width || 420);
+  }
+}
+
+export function initialize() {
+isResizing = false;
+
+resizeStartX = 0;
+
+resizeStartW = 0;
+
+
 resizeHandle.addEventListener('pointerdown', function(e) {
   if (isNarrowViewport()) return;
   e.preventDefault();
   startResize(e);
 });
 
+
 document.addEventListener('pointermove', moveResize);
+
 document.addEventListener('pointerup', endResize);
+
 document.addEventListener('pointercancel', endResize);
+
 
 resizeHandle.addEventListener('keydown', function(e) {
   if (isNarrowViewport()) return;
@@ -80,14 +107,8 @@ resizeHandle.addEventListener('keydown', function(e) {
   setPanelWidth(next);
 });
 
-function syncResponsivePanelWidth() {
-  if (isNarrowViewport()) {
-    panelLeft.style.width = '';
-    if (resizeHandle) resizeHandle.setAttribute('aria-disabled', 'true');
-  } else {
-    setPanelWidth(panelLeft.getBoundingClientRect().width || 420);
-  }
-}
 
 if (typeof window !== 'undefined') window.addEventListener('resize', syncResponsivePanelWidth);
+
 syncResponsivePanelWidth();
+}

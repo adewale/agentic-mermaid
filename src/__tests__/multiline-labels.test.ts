@@ -10,6 +10,7 @@
  */
 import { describe, it, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseMermaid } from '../parser.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { parseClassDiagram } from '../class/parser.ts'
@@ -594,7 +595,7 @@ describe('renderMermaidSVGAsync – inline formatting', () => {
   it('does not include raw tag text in rendered text', async () => {
     const svg = await renderMermaidSVGAsync('graph TD\n  A[<b>bold</b>]')
     // Tags should not appear as escaped text content inside <text> elements
-    expect(svg).toMatch(/<tspan font-weight="bold"[^>]*>bold<\/tspan>/)
+    expect(svg).toMatch(/<tspan\b[^>]*\bfont-weight="bold"[^>]*>bold<\/tspan>/)
     expect(svg).not.toMatch(/<text[^>]*>&lt;b&gt;/)
   })
 
@@ -835,12 +836,18 @@ describe('renderMermaidSVGAsync – markdown markers in plain flowchart labels',
 
 function extractFirstRectHeight(svg: string): number {
   const match = svg.match(/<rect[^>]*height="(\d+(?:\.\d+)?)"/)
-  return match ? parseFloat(match[1]!) : 0
+  if (!match) throw new Error('Expected a rendered rectangle with positive height')
+  const value = Number(match[1])
+  expect(Number.isFinite(value) && value > 0).toBe(true)
+  return value
 }
 
 function extractFirstRectWidth(svg: string): number {
   const match = svg.match(/<rect[^>]*width="(\d+(?:\.\d+)?)"/)
-  return match ? parseFloat(match[1]!) : 0
+  if (!match) throw new Error('Expected a rendered rectangle with positive width')
+  const value = Number(match[1])
+  expect(Number.isFinite(value) && value > 0).toBe(true)
+  return value
 }
 
 // Properties over random multi-line labels. The metrics are a pure function of
@@ -865,7 +872,7 @@ describe('measureMultilineText – properties over random labels', () => {
         if (Math.abs(m.width - widest) > 1e-6) return false
         return Number.isFinite(m.width) && Number.isFinite(m.height) && m.width >= 0 && m.height >= 0
       }),
-      { numRuns: 400 },
+      fcParameters({ numRuns: 400 }),
     )
   })
 
@@ -877,7 +884,7 @@ describe('measureMultilineText – properties over random labels', () => {
         if (Math.abs(after.height - before.height - fontSize * LINE_HEIGHT_RATIO) > 1e-6) return false
         return after.width >= before.width - 1e-6
       }),
-      { numRuns: 400 },
+      fcParameters({ numRuns: 400 }),
     )
   })
 })

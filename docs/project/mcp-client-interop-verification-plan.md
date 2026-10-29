@@ -1,15 +1,20 @@
-# MCP client interop verification: plan
+# MCP client interop — coverage and verification record
 
-> **Status: implemented** (`src/__tests__/mcp-client-interop.test.ts`, SDK `1.29.0`
-> pinned as a devDependency; see the red→green record below). This document specifies
+> **Status: TypeScript lane and Python follow-up implemented (2026-10-17).**
+> The completed **TEST-4** work from
+> [#191](https://github.com/adewale/agentic-mermaid/issues/191) uses the current
+> transport API and records actual HTTP requests; pinned/latest Python results
+> and their coverage limits are recorded below. Client probes remain manual.
+> (`src/__tests__/mcp-client-interop.test.ts`; the original lane used SDK `1.29.0`,
+> current devDependency `1.32.1`; see the historical red→green record below). This document specifies
 > a test lane that drives both MCP servers in this repo with the **reference MCP client
 > SDK** (`@modelcontextprotocol/sdk`), so compatibility is *observed against a real
 > client* rather than *asserted from our own reading of the spec*. It supplies
 > motivation, design, decisions, and acceptance detail; `TODO.md` remains the
-> authoritative backlog. Related: the 2026-07-28 spec-adoption issue (#186), which
-> this lane de-risks.
+> authoritative backlog. The original lane supported the now-landed #186
+> migration; the historical design below is not a second implementation queue.
 
-## Problem: every MCP signal we have is self-generated
+## Original problem (before this lane landed)
 
 We ship two MCP servers:
 
@@ -22,7 +27,7 @@ We ship two MCP servers:
   stdio). Accepts <!-- BEGIN GENERATED: stdio-protocol-versions -->`2024-11-05`, `2025-06-18`, `2025-11-25`, and `2026-07-28`<!-- END GENERATED: stdio-protocol-versions --> over stdio and
   <!-- BEGIN GENERATED: http-sse-protocol-versions -->`2024-11-05`<!-- END GENERATED: http-sse-protocol-versions --> over HTTP+SSE. 4 tools.
 
-Every existing verification of these servers shares one weakness: **the tests and the
+The original verification of these servers shared one weakness: **the tests and the
 server embody the same interpretation of the MCP spec.**
 
 | Layer | File | What it does | Why it is not a real client |
@@ -38,10 +43,10 @@ everything passes; a real client built from the *correct* reading is what trips 
 `docs/testing-strategy.md` §"Honest gaps" already names this as the deepest structural
 gap: *"every quality signal here is self-generated… it cannot substitute for a real
 external consumer."* The MCP transport is the one boundary where a canonical external
-consumer exists off the shelf — the reference SDK — and we do not use it. `@modelcontextprotocol/sdk`
-appears nowhere in the repo, not even as a devDependency.
+consumer exists off the shelf — the reference SDK. This motivated the implemented
+TypeScript lane and manual Python/Go probes below; the SDK is now a devDependency.
 
-## Goals
+## Original implementation goals
 
 1. Drive the **hosted** handler with the SDK's `StreamableHTTPClientTransport` through the
    real lifecycle: `initialize` → `tools/list` → `tools/call` → notification, over a real
@@ -62,13 +67,17 @@ appears nowhere in the repo, not even as a devDependency.
   per-clause matrix (force `2024-11-05`, prove the `2025-06-18` no-batch rule, 413/415/CORS
   edges) stays in `hosted-mcp-http.test.ts`. The two suites are complementary: hand-rolled
   proves we implement each clause; SDK proves a real client is happy with the default path.
-- **Not** multi-language client coverage. The reference *TypeScript* SDK is one
-  implementation (the one Claude Code uses). This is a large step up from self-only, but
-  Python/other SDKs may differ; see Trust below.
+- **Not exhaustive** client/language coverage. TypeScript runs in the automated
+  lane; Python and Go have manual probes with different request paths and
+  therefore different evidence. See the coverage table below.
 - **No** new runtime dependency. The SDK is dev-only and must never enter the shipped
   `dependencies` — the MCP servers keep their zero-runtime-dep posture.
 
-## Design
+## Implemented lane design (original plan)
+
+The design and red/green predictions below preserve the implementation rationale.
+Use the current owning tests for exact behavior and the multi-client coverage
+section for evidence limits; imperative wording here is not unfinished work.
 
 ### Dependency
 
@@ -146,18 +155,18 @@ Two candidate targets, matching the two things we care about:
 **Recommendation:** source-under-Bun in the unit lane (default `bun run test`), and add the
 shipped-artifact-under-Node variant to the e2e lane where `dist/` is already built.
 
-Assertions: `initialize` negotiates `2024-11-05` (the local pin — assert exactly, and note
-that a future SDK dropping `2024-11-05` from its supported window would fail here, which is
-the signal that motivates the #186 follow-up to modernize the local server's version);
-`tools/list` returns the 4 local tools; a `render_svg`/`describe` call round-trips. Reap
-the subprocess in `finally` (`transport.close()` / `client.close()`).
+The original local lane asserted `2024-11-05` exactly. After #186, current checks
+require membership in `STDIO_PROTOCOL_VERSIONS` instead; do not copy the old local
+pin into a client probe. `tools/list` returns the 4 local tools, and a real tool
+call round-trips. Reap the subprocess in `finally` (`transport.close()` /
+`client.close()`).
 
 ## Key decisions and risks
 
 | # | Decision / risk | Recommendation |
 |---|---|---|
 | 1 | Handler is a function, not a server | Bind with `Bun.serve({ port: 0 })`; ephemeral port avoids collisions; `server.stop(true)` in `finally` |
-| 2 | Assert negotiated version | Membership in `SUPPORTED_PROTOCOL_VERSIONS` (hosted) / `=== '2024-11-05'` (local) — never a hardcoded SDK default, which drifts across SDK releases |
+| 2 | Assert negotiated version | Membership in `SUPPORTED_PROTOCOL_VERSIONS` (hosted) / `STDIO_PROTOCOL_VERSIONS` (local); the original exact local pin is superseded |
 | 3 | stdio target | Source-under-Bun in unit lane; shipped-artifact-under-Node in e2e lane |
 | 4 | Flake surface (socket + subprocess) | Ephemeral port; deterministic teardown in `finally`; per-test timeout within the 30 s suite budget; no wall-clock assertions |
 | 5 | Dev dependency footprint | Dev-only; assert it never reaches `dist/`/`files[]`; verify transitive deps resolve under Bun |
@@ -203,35 +212,84 @@ cd scripts/interop/probe-go && go run . <url>
 The Python command above is the reproducible baseline used for the recorded result.
 To detect compatibility drift in the newest published Python client, run the same probe
 as an explicitly unpinned canary with
-`uv run --with mcp scripts/interop/probe-python.py <url>`. The Python and Go probes
+`uv run --refresh-package mcp --with mcp scripts/interop/probe-python.py <url>`. The Python and Go probes
 both bound the combined hosted-plus-stdio lifecycle to 120 seconds.
 
-Each probe drives the hosted endpoint (initialize → downgrade negotiation →
-`tools/list` → real `render_svg`) and the stdio bin (spawn → `2024-11-05` negotiation →
+Each probe drives the hosted endpoint (initialize → version negotiation →
+`tools/list` → real `render_svg`) and the stdio bin (spawn → negotiation →
 exact 4-tool surface → real vm-sandbox `execute`), printing PASS/FAIL per check and
 exiting nonzero on failure. Both tool-list checks compare the exact sorted names, not
 only the expected cardinality.
 
-**Observed results (2026-07-17):**
+**Historical observed results (2026-07-17; not a fresh canary run):**
 
 | Client | Version | Hosted | stdio | Notes |
 |---|---|---|---|---|
 | TypeScript `@modelcontextprotocol/sdk` | 1.29.0 | ✅ | ✅ | Unit lane (`mcp-client-interop.test.ts`); offered `2025-11-25`, accepted `2025-03-26` |
-| Python `mcp` | 1.28.1 | ✅ 6/6 | ✅ 4/4 | Same downgrade path; `get_session_id()` stays `None` (sessionless accepted) |
+| Python `mcp` | 1.28.1 | ✅ 6/6 | ✅ 4/4 | Sessionless accepted; `get_session_id()` stays `None`, so this transport path does not start an SSE GET |
 | Go `go-sdk` | v1.6.1 | ✅ 6/6 | ✅ 4/4 | **Default config with the standalone SSE GET stream enabled** — its retry machinery treats the stateless 405 as benign; supports back to `2024-11-05` |
 
-All three SDKs independently exercised the same two load-bearing stateless behaviors:
-accepting a server that never issues `Mcp-Session-Id`, and tolerating GET → 405. All
-three negotiated `2025-03-26` on hosted (each offered `2025-11-25`, two releases newer
-than our ceiling) and `2024-11-05` on stdio — live confirmation that the ecosystem's
-backwards-compatibility mechanism is downgrade negotiation, and that the #186 version
-cliff bites only clients that pin a version header without negotiating (the 2026-07-28
-no-`initialize` flow), not today's SDK population.
+The recorded runs establish sessionless initialization, version negotiation, tool
+discovery and real tool calls for all three SDKs. They do **not** establish the
+same HTTP behavior:
 
-## Promotion-checklist addition (dashboard-side, manual)
+| Behavior | TypeScript | Python 1.28.1 | Go 1.6.1 |
+|---|---|---|---|
+| Sessionless hosted lifecycle and tool call | Observed | Observed | Observed |
+| Optional SSE GET receives 405 and client continues | Observed, asserted in served-request log | **Not exercised** | Observed in the recorded default-config probe |
+| Automated repeat coverage | Unit lane | Manual probe | Manual probe |
 
-The hosted promotion checklist in `website/README.md` verifies the `LOADER` binding with a
-live `execute` call but has **no "connect a real client" step**. Add one:
+HTTP 405 here means the server declines the optional server-to-client SSE
+stream; POST tool requests still work. Python 1.28.1's `handle_get_stream()`
+returns without issuing GET when no session ID exists. A successful Python
+connection therefore says nothing about how it handles a 405 response.
+The early return and old deprecated wrapper are visible in the
+[pinned Python SDK source](https://github.com/modelcontextprotocol/python-sdk/blob/v1.28.1/src/mcp/client/streamable_http.py).
+
+The July runs recorded hosted `2025-03-26` and stdio `2024-11-05` negotiation.
+Those are historical observations, not the current server ceiling or a promise
+about every client's offered version.
+
+### Python follow-up verification — 2026-10-17
+
+The repaired probe uses `streamable_http_client` with the SDK's own HTTP-client
+factory, preserving its timeout/redirect policy and HTTP dependency (httpx in
+SDK 1, httpx2 in SDK 2). It consumes the read/write streams in both SDK versions
+and reads initialization fields through their wire aliases. It no longer uses
+the deprecated alias or assumes the v1-only session-ID callback exists.
+
+Supported hosted and stdio revisions are loaded from the servers' canonical
+TypeScript exports using Bun; there is no copied Python version list and no
+fixed `2024-11-05` stdio expectation. The hosted check additionally requires
+successful exchanges for both `tools/list` and `tools/call` to carry the negotiated
+revision and receive HTTP 200. Intermediate followed redirects remain visible in
+the trace without being mistaken for failed tool acceptance.
+
+Both the pinned **mcp 1.28.1** and freshly resolved latest **mcp 2.3.0** passed
+all **10 checks** on macOS arm64, Python 3.14.4 and Bun 1.4.2. Each offered
+`2025-11-25`, negotiated it for hosted and stdio, and produced this observed
+hosted sequence: initialize POST → 200, initialized-notification POST → 202,
+tools/list POST → 200, render tool-call POST → 200. Neither sent a GET or
+received a session ID. The probe explicitly prints that GET→405 client handling
+was **not exercised**, rather than treating a successful connection as evidence.
+
+`WIRE` JSON lines record method, JSON-RPC method, offered/negotiated version,
+response status and session-header presence only. They exclude endpoint URLs,
+source/tool arguments, credentials and session-ID values. The summary reports
+the actual GET count and observed GET→405 exchanges without requiring future
+SDKs to keep today's request path.
+
+Before the repair, the pinned baseline passed 8/10: the obsolete hosted tuple
+and stdio pin falsely rejected `2025-11-25`, despite successful tool calls.
+These are source/loopback client results, not production-edge validation or a
+new Go canary result. TEST-4 is removed from the unfinished backlog; later SDK
+drift should be reproduced and tracked as new work rather than hidden by the
+historical July result.
+
+## Promotion check (dashboard-side, manual)
+
+The hosted promotion checklist in `website/README.md` includes the real-client
+smoke alongside the live `execute` check of the `LOADER` binding:
 
 - Before promoting, run the reference client against the live URL — either
   `npx @modelcontextprotocol/inspector` or
@@ -240,18 +298,23 @@ live `execute` call but has **no "connect a real client" step**. Add one:
   production (where real isolates, real Cache API, and the CDN edge differ from the
   in-process test seams).
 
-## Relationship to #186 (2026-07-28 adoption)
+## Original relationship to #186 (2026-07-28 adoption)
 
-This lane is the substrate that de-risks #186. When the SDKs adopt the `2026-07-28`
-revision, bumping the devDependency turns this same harness into the first *real* exercise
-of the new revision's core flow — a client that **never sends `initialize`** and carries
-metadata in per-request `_meta`. A hand-rolled `2026-07-28` matrix test would inherit
-exactly the self-referential blind spot described above; the SDK-driven lane does not. Land
-this before, or alongside, the #186 `SUPPORTED_PROTOCOL_VERSIONS` change.
+The server-side migration has landed; its [design record](archive/stateless-mcp-migration-plan.md)
+is archived. The original rationale was to exercise the new no-`initialize`
+flow with an external SDK, not only hand-written protocol frames. The recorded
+SDK runs above exercise the legacy handshake. They are not evidence that an
+SDK's modern per-request `_meta` path has been exercised. Verify the actual
+SDK revision and request trace before making that additional claim; do not
+treat the already-landed server version-list change as unfinished work.
 
-## Acceptance criteria
+## Original lane acceptance record
 
-- [x] `@modelcontextprotocol/sdk` added to `devDependencies` (pinned `1.29.0`); confirmed
+These checked boxes record the July implementation, not a fresh rerun of its
+original version pins or the full suite. Current protocol membership rules and
+the October Python verification are described above.
+
+- [x] `@modelcontextprotocol/sdk` added to `devDependencies` (then pinned `1.29.0`); confirmed
       out of `dist/` (no SDK code or import specifiers bundled — the one string match is
       the devDependencies line of the pre-existing inlined `package.json` metadata) and out
       of `files[]` (tests are excluded by `!src/**/__tests__/**`).
@@ -271,9 +334,9 @@ this before, or alongside, the #186 `SUPPORTED_PROTOCOL_VERSIONS` change.
 
 ## Trust / honest limitations
 
-- Reference-SDK interop validates against the **three official reference implementations**
+- Recorded reference-SDK interop covers **three official reference implementations**
   (TypeScript in the CI lane; Python and Go via the manual `scripts/interop/` probes).
-  That transitively covers the dominant client base, but it is still not "every MCP
+  This is not proof about clients that merely share an SDK, nor "every MCP
   client" — hand-rolled clients and other-language SDKs remain untested, and the Python/Go
   probes are manual, so they can rot between runs.
 - In-process `Bun.serve` + fake `execute`/Cache seams are not the production edge; the

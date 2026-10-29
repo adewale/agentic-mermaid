@@ -13,18 +13,19 @@
 
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { asEr, describeMermaidFacts, mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import type { ErCardinality, ErMutationOp, ErValidDiagram, ParsedDiagram } from '../agent/types.ts'
 
 type ModelEntity = { label?: string; attributes: string[]; group?: string; className?: string; styled?: true }
-type ModelRelation = { from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed: boolean; label?: string }
+type ModelRelation = { from: string; to: string; leftCard: ErCardinality; rightCard: Exclude<ErCardinality, 'parent'>; dashed: boolean; label?: string }
 /** Entities in body order; no op adds, removes or moves a subgraph. */
 type Model = { entities: Map<string, ModelEntity>; relations: ModelRelation[] }
 type Real = { diagram: ErValidDiagram }
 
 /** The facts describeMermaidFacts must report for a model (facts.ts factsEr). */
 function modelFacts(model: Model): string[] {
-  const facts = new Set(['family er', 'er group G label G'])
+  const facts = new Set(['family er', 'er group G label G', 'er group H label H', 'er group I label I parent H'])
   for (const [id, entity] of model.entities) {
     facts.add(`entity ${id}${entity.label ? ` label ${entity.label}` : ''}${entity.group ? ` group ${entity.group}` : ''}`)
     if (entity.className) facts.add(`entity ${id} class ${entity.className}`)
@@ -69,6 +70,7 @@ function assertConforms(model: Model, real: Real): void {
   if (!reparsed.ok) return
   expect({ source, facts: describeMermaidFacts(reparsed.value) }).toEqual({ source, facts: modelFacts(model) })
   expect({ source, body: bodyAsModel(reparsed.value) }).toEqual({ source, body: modelShape(model) })
+  expect(asEr(reparsed.value)?.body.entities).toEqual(real.diagram.body.entities)
   expect(serializeMermaid(reparsed.value)).toBe(source)
 }
 
@@ -173,7 +175,7 @@ class ErCommand implements fc.Command<Model, Real> {
   }
 }
 
-const ids = fc.constantFrom('CUSTOMER', 'ORDER', 'LINE-ITEM', 'Product', 'b2')
+const ids = fc.constantFrom('CUSTOMER', 'ORDER', 'LINE-ITEM', 'Product', 'b2', 'SHIPMENT')
 const words = fc.array(fc.constantFrom('Buyer', 'order', 'Line', 'item', 'Big', 'x7'), { minLength: 1, maxLength: 3 }).map(parts => parts.join(' '))
 const attribute = fc
   .tuple(
@@ -183,7 +185,7 @@ const attribute = fc
     fc.constantFrom('', ' "note"', ' "a longer comment"'),
   )
   .map(([type, name, keys, comment]) => `${type} ${name}${keys}${comment}`)
-const cardinality = fc.constantFrom<ErCardinality>('one-only', 'zero-or-one', 'zero-or-many', 'one-or-many')
+const cardinality = fc.constantFrom<Exclude<ErCardinality, 'parent'>>('one-only', 'zero-or-one', 'zero-or-many', 'one-or-many')
 const index = fc.nat({ max: 4 })
 
 const commands = [
@@ -194,7 +196,7 @@ const commands = [
   fc.tuple(ids, fc.option(words, { nil: null })).map(([entity, label]) => new ErCommand({ kind: 'set_entity_label', entity, label })),
   fc.tuple(ids, attribute).map(([entity, text]) => new ErCommand({ kind: 'add_attribute', entity, text })),
   fc.tuple(ids, index).map(([entity, at]) => new ErCommand({ kind: 'remove_attribute', entity, index: at })),
-  fc.record({ from: ids, to: ids, leftCard: cardinality, rightCard: cardinality, dashed: fc.boolean(), label: fc.option(words, { nil: undefined }) })
+  fc.record({ from: ids, to: ids, leftCard: fc.oneof(cardinality, fc.constant('parent' as const)), rightCard: cardinality, dashed: fc.boolean(), label: fc.option(words, { nil: undefined }) })
     .map(({ label, ...relation }) => new ErCommand({ kind: 'add_relation', ...relation, ...(label ? { label } : {}) })),
   index.map(at => new ErCommand({ kind: 'remove_relation', index: at })),
   fc.tuple(ids, fc.option(fc.constantFrom('hot', 'cold-1'), { nil: null })).map(([entity, className]) => new ErCommand({ kind: 'set_entity_class', entity, className })),
@@ -205,7 +207,8 @@ const commands = [
 // level, and CUSTOMER, which it created inside G, only in the top-level
 // `bills` (as removing ORDER does). Removing `ships` leaves b2, created before
 // G's entities, with no statement. LINE-ITEM is declared only by `bills`, and
-// Product only by its `style` line. Each must keep its subgraph and position.
+// Product only by its `style` line. I closes before H and keeps SHIPMENT and
+// b2, which was created before G. Each must keep its subgraph and position.
 const INITIAL = [
   'erDiagram',
   '  ORDER {',
@@ -216,7 +219,13 @@ const INITIAL = [
   '  CUSTOMER ||--o{ ORDER : places',
   '  end',
   '  LINE-ITEM }|--|| CUSTOMER : bills',
-  '  style Product fill:#f00',
+  '  subgraph H',
+  '  SHIPMENT',
+  '  subgraph I',
+  '  b2 ||--o{ SHIPMENT : carries',
+  '  end',
+  '  end',
+  '  style Product fill:#f00;',
   '',
 ].join('\n')
 
@@ -229,7 +238,7 @@ describe('ER typed editing API against a shadow model', () => {
       { source: 'erDiagram\n  A ||--o{ B : x\n  C ||--o{ D : y', op: { kind: 'remove_relation', index: 0 }, serialized: 'erDiagram\n  A\n  B\n  C ||--o{ D : y\n' },
       { source: 'erDiagram\n  subgraph G\n    A["Alpha"] ||--o{ B : x\n  end', op: { kind: 'remove_relation', index: 0 }, serialized: 'erDiagram\n  subgraph G\n  A["Alpha"]\n  B\n  end\n' },
       // A `style` line re-creates A, but not its label.
-      { source: 'erDiagram\n  A["Alpha"] ||--o{ B : x\n  style A fill:#f00', op: { kind: 'remove_relation', index: 0 }, serialized: 'erDiagram\n  A["Alpha"]\n  B\n  style A fill:#f00\n' },
+      { source: 'erDiagram\n  A["Alpha"] ||--o{ B : x\n  style A fill:#f00', op: { kind: 'remove_relation', index: 0 }, serialized: 'erDiagram\n  A["Alpha"]\n  B\n  style A fill:#f00;\n' },
     ] as const
     for (const { source, op, serialized } of cases) {
       const parsed = parseRegisteredMermaid(source)
@@ -244,7 +253,7 @@ describe('ER typed editing API against a shadow model', () => {
     }
     // An entity that only a `style` line creates round-trips untouched as before.
     const styled = parseRegisteredMermaid('erDiagram\n  style A fill:#f00')
-    expect(styled.ok && serializeMermaid(styled.value)).toBe('erDiagram\n  style A fill:#f00\n')
+    expect(styled.ok && serializeMermaid(styled.value)).toBe('erDiagram\n  style A fill:#f00;\n')
   })
 
   test('an entity keeps its subgraph and position when the relation that placed it goes', () => {
@@ -283,17 +292,47 @@ describe('ER typed editing API against a shadow model', () => {
     )
   })
 
+  test.each([
+    {
+      name: 'a surviving relation creates an earlier entity only in a later subgraph (#372)',
+      source: 'erDiagram\n  A ||--o{ X : r\n  subgraph G\n  B\n  end\n  subgraph I\n  A ||--o{ C : s\n  end',
+      ops: [{ kind: 'remove_entity', id: 'X' }],
+      entities: ['A in I', 'B in G', 'C in I'],
+    },
+    {
+      name: 'a top-level entity lies between entities in one subgraph (BUG-10)',
+      source: 'erDiagram\n  D ||--o{ C : r0\n  subgraph G0\n  D\n  E\n  end',
+      ops: [{ kind: 'remove_relation', index: 0 }],
+      entities: ['D in G0', 'C', 'E in G0'],
+    },
+    {
+      name: 'a style creates a top-level entity inside a subgraph',
+      source: 'erDiagram\n  subgraph G\n  A\n  style B fill:#f00\n  C\n  end',
+      ops: [{ kind: 'add_entity', id: 'D' }],
+      entities: ['A in G', 'B', 'C in G', 'D'],
+    },
+  ] satisfies Array<{ name: string; source: string; ops: ErMutationOp[]; entities: string[] }>)('$name preserves order, ownership and a serialization fixed point', ({ source, ops, entities }) => {
+    expectRoundTrip(source, ops, undefined, entities)
+  })
+
+  test('order repair leaves opaque segments anchored around their subgraphs', () => {
+    const source = 'erDiagram\n  A ||--o{ X : r\n  vendor: before\n  subgraph G\n  %% inside G\n  B\n  end\n  vendor: between\n  subgraph I\n  A ||--o{ C : s\n  end\n  %% after I'
+    const written = expectRoundTrip(source, [{ kind: 'remove_entity', id: 'X' }], undefined, ['A in I', 'B in G', 'C in I'])
+    const anchored = written.split('\n').map(line => line.trim()).filter(line => /^(?:vendor: |%% |subgraph |end$)/.test(line))
+    expect(anchored).toEqual(['vendor: before', 'subgraph G', '%% inside G', 'end', 'vendor: between', 'subgraph I', 'end', '%% after I'])
+  })
+
   test('a class on an entity that only its style line creates survives serialization', () => {
     // `class` applies only to an entity that already exists, so it follows the `style` line.
-    expectRoundTrip('erDiagram\n  style A fill:#f00\n  class A hot', [], 'erDiagram\n  style A fill:#f00\n  class A hot\n', ['A'])
+    expectRoundTrip('erDiagram\n  style A fill:#f00\n  class A hot', [], 'erDiagram\n  style A fill:#f00;\n  class A hot\n', ['A'])
     expectRoundTrip(
       'erDiagram\n  B ||--o{ A : x\n  style A fill:#f00',
       [{ kind: 'set_entity_class', entity: 'A', className: 'hot' }, { kind: 'remove_relation', index: 0 }],
-      'erDiagram\n  B\n  style A fill:#f00\n  class A hot\n',
+      'erDiagram\n  B\n  style A fill:#f00;\n  class A hot\n',
       ['B', 'A'],
     )
     // A declared entity keeps `class` before `style`.
-    expectRoundTrip('erDiagram\n  A\n  class A hot\n  style A fill:#f00', [], 'erDiagram\n  A\n  class A hot\n  style A fill:#f00\n', ['A'])
+    expectRoundTrip('erDiagram\n  A\n  class A hot\n  style A fill:#f00', [], 'erDiagram\n  A\n  class A hot\n  style A fill:#f00;\n', ['A'])
   })
 
   test('the initial diagram matches its model and serializes to its own source', () => {
@@ -307,14 +346,14 @@ describe('ER typed editing API against a shadow model', () => {
       fc.property(fc.commands(commands, { maxCommands: 20, size: 'max' }), sequence => {
         fc.modelRun(() => ({ model: initialModel(), real: { diagram: initialDiagram() } }), sequence)
       }),
-      { numRuns: 100 },
+      fcParameters({ numRuns: 100 }),
     )
   })
 })
 
 /** Apply `ops` to `source` and pin the serialized text; re-parsing it must give
  * back the same entities (order and subgraphs included), facts and bytes. */
-function expectRoundTrip(source: string, ops: ErMutationOp[], serialized: string, entities: string[]): void {
+function expectRoundTrip(source: string, ops: ErMutationOp[], serialized: string | undefined, entities: string[]): string {
   const parsed = parseRegisteredMermaid(source)
   if (!parsed.ok) throw new Error(`rejected:\n${source}`)
   let diagram: ParsedDiagram = parsed.value
@@ -323,14 +362,16 @@ function expectRoundTrip(source: string, ops: ErMutationOp[], serialized: string
     if (!result.ok) throw new Error(`${op.kind} refused on:\n${source}`)
     diagram = result.value
   }
-  expect({ source, ops, serialized: serializeMermaid(diagram) }).toEqual({ source, ops, serialized })
-  const reparsed = parseRegisteredMermaid(serialized)
-  if (!reparsed.ok) throw new Error(`serialized source rejected:\n${serialized}`)
+  const written = serializeMermaid(diagram)
+  if (serialized !== undefined) expect({ source, ops, serialized: written }).toEqual({ source, ops, serialized })
+  const reparsed = parseRegisteredMermaid(written)
+  if (!reparsed.ok) throw new Error(`serialized source rejected:\n${written}`)
   const body = asEr(reparsed.value)?.body
   expect({ source, entities: body?.entities.map(entity => entity.groupId ? `${entity.id} in ${entity.groupId}` : entity.id) }).toEqual({ source, entities })
   expect(body?.entities).toEqual(asEr(diagram)?.body.entities)
   expect(describeMermaidFacts(reparsed.value)).toEqual(describeMermaidFacts(diagram))
-  expect(serializeMermaid(reparsed.value)).toBe(serialized)
+  expect(serializeMermaid(reparsed.value)).toBe(written)
+  return written
 }
 
 function initialDiagram(): ErValidDiagram {
@@ -345,15 +386,17 @@ function initialModel(): Model {
   return {
     entities: new Map<string, ModelEntity>([
       ['ORDER', { attributes: ['int id PK'], group: 'G' }],
-      ['b2', { attributes: [] }],
+      ['b2', { attributes: [], group: 'I' }],
       ['CUSTOMER', { attributes: [], group: 'G' }],
       ['LINE-ITEM', { attributes: [] }],
+      ['SHIPMENT', { attributes: [], group: 'I' }],
       ['Product', { attributes: [], styled: true }],
     ]),
     relations: [
       { from: 'b2', to: 'ORDER', leftCard: 'one-only', rightCard: 'zero-or-many', dashed: false, label: 'ships' },
       { from: 'CUSTOMER', to: 'ORDER', leftCard: 'one-only', rightCard: 'zero-or-many', dashed: false, label: 'places' },
       { from: 'LINE-ITEM', to: 'CUSTOMER', leftCard: 'one-or-many', rightCard: 'one-only', dashed: false, label: 'bills' },
+      { from: 'b2', to: 'SHIPMENT', leftCard: 'one-only', rightCard: 'zero-or-many', dashed: false, label: 'carries' },
     ],
   }
 }

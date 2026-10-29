@@ -42,6 +42,11 @@ each direct official block in source order, stores source-file hashes, executes
 portable/error cases, and keeps API-internal blocks and intentional divergences
 in the same mechanically counted ledger.
 
+The historical cross-family harvester now produces a local provenance report;
+it does not generate fixture expectations or count upstream assertion passes.
+Its retained geometry/count assertions are regression guards. New parity
+expectations must come from the upstream assertions, never our current output.
+
 ## Where the upstream tests live
 
 | Source | Path | What to take |

@@ -2,10 +2,67 @@
 // agent-generated diagram output.
 
 import { describe, test, expect } from 'bun:test'
+import { spawnSync } from 'node:child_process'
+import { join } from 'node:path'
 import { applyOutputSecurityPolicy, renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
 
 const svgDocument = (body: string, attributes = '') =>
   `<svg xmlns="http://www.w3.org/2000/svg"${attributes}>${body}</svg>`
+
+describe('public SVG emission defaults', () => {
+  test.each(['cold', 'warm'] as const)('%s rendering ignores inherited presentation defaults', phase => {
+    const program = `
+      const { renderMermaidSVGWithReceipt, applyOutputSecurityPolicy } = await import('./src/index.ts')
+      const { sceneAssertionsEnabled } = await import('./src/scene/assertions.ts')
+      const expected = process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS
+      if (!['0', '1'].includes(expected) || sceneAssertionsEnabled() !== (expected === '1')) throw new Error('actual child Scene mode differs')
+      console.log('SVG_DEFAULT_MODE ' + JSON.stringify({ actual: sceneAssertionsEnabled(), expected }))
+      const source = 'sequenceDiagram\\n  A->>B: Hello 🚀 é'
+      const render = () => renderMermaidSVGWithReceipt(source, { embedFontImport: false })
+      const phase = process.env.SVG_DEFAULT_PHASE
+      if (phase === 'warm') render()
+      const prior = Object.getOwnPropertyDescriptor(Object.prototype, 'fallback')
+      if (prior) throw new Error('preexisting fallback in isolated child')
+      let artifact
+      try {
+        if (phase !== 'control') Object.defineProperty(Object.prototype, 'fallback', { value: 'inherited', configurable: true, writable: true })
+        artifact = render()
+      } finally { delete Object.prototype.fallback }
+      if (Object.getOwnPropertyDescriptor(Object.prototype, 'fallback')) throw new Error('prototype not restored')
+      const secured = applyOutputSecurityPolicy(artifact.svg, 'strict')
+      if (secured.svg !== artifact.svg || secured.diagnostics.length) throw new Error('secured output differs')
+      // Standard FNV-1a over JSON's UTF-16 code units, independently of the
+      // production two-lane implementation and including an astral label.
+      const text = JSON.stringify(artifact.svg)
+      let hash = 0xcbf29ce484222325n
+      for (let index = 0; index < text.length; index++) hash = BigInt.asUintN(64, (hash ^ BigInt(text.charCodeAt(index))) * 0x100000001b3n)
+      if (artifact.receipt.graphicalProjectionDigest !== 'fnv1a64:' + hash.toString(16).padStart(16, '0')) throw new Error('receipt does not bind secured output')
+      console.log('SVG_DEFAULT_ARTIFACT ' + JSON.stringify(artifact))
+    `
+    const observe = (selected: string) => {
+      const child = spawnSync(process.execPath, ['--eval', program], {
+        cwd: join(import.meta.dir, '../..'), env: { ...process.env, SVG_DEFAULT_PHASE: selected }, encoding: 'utf8', timeout: 30_000,
+      })
+      console.log('SVG_DEFAULT_CHILD ' + JSON.stringify({ phase: selected, status: child.status, signal: child.signal,
+        error: child.error ? { name: child.error.name, message: child.error.message } : null, stdout: child.stdout, stderr: child.stderr }))
+      expect(child.error).toBeUndefined()
+      expect(child.status).toBe(0)
+      const modes = child.stdout.split('\n').filter(line => line.startsWith('SVG_DEFAULT_MODE '))
+      expect(modes).toHaveLength(1)
+      expect(JSON.parse(modes[0]!.slice('SVG_DEFAULT_MODE '.length))).toEqual({
+        actual: process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS === '1', expected: process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS,
+      })
+      const rows = child.stdout.split('\n').filter(line => line.startsWith('SVG_DEFAULT_ARTIFACT '))
+      expect(rows).toHaveLength(1)
+      return JSON.parse(rows[0]!.slice('SVG_DEFAULT_ARTIFACT '.length)) as { svg: string; receipt: unknown }
+    }
+    const pristine = observe('control')
+    const observed = observe(phase)
+    expect(observed.svg).toContain('Hello 🚀 é')
+    expect(observed.svg).not.toMatch(/\s(?:stroke|stroke-width|stroke-linejoin|paint-order)="inherited"/)
+    expect(observed).toEqual(pristine)
+  })
+})
 
 describe('#7645/#7695 strict security mode', () => {
   test('strict mode SVG has zero external-fetch references', () => {
@@ -226,5 +283,35 @@ xychart
 
   test('a clean inline SVG passes', () => {
     expect(verifyNoExternalRefs('<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>')).toEqual({ ok: true, refs: [] })
+  })
+
+  test('final inspection preserves raw attribute decoding and reference diagnostic order', () => {
+    const encoded = 'javascript&amp;amp;amp;amp;#x3a;alert(1)'
+    const svg = svgDocument(`<a href="${encoded}"/><rect fill="url(//paint/x)"/><image href="//image/x"/><style>@import url(//css/x);</style>`, ' xml:base="//base/x"')
+    const refs = ['xml:base=//base/x', encoded, 'fill=url(//paint/x)', '//image/x', '@import', 'url(//css/x)', '<image>']
+    expect(verifyNoExternalRefs(svg)).toEqual({ ok: false, refs })
+    expect(applyOutputSecurityPolicy(svg).diagnostics).toEqual(refs.map(reference => ({ code: 'EXTERNAL_REFERENCE', reference })))
+    expect(() => applyOutputSecurityPolicy(svg, 'strict')).toThrow(`OutputSecurityPolicy strict verification failed: ${refs.join(', ')}`)
+  })
+
+  test('retains distinct attribute and stylesheet handling when escaped CSS reveals a comment', () => {
+    for (const paint of [
+      String.raw`u\2f\2a x\2a\2f rl(https://example.invalid/fill.svg)`,
+      String.raw`\26 #117;rl(relative.svg)`,
+    ]) {
+      const attribute = svgDocument(`<rect fill="${paint}"/>`)
+      expect(applyOutputSecurityPolicy(attribute)).toEqual({
+        svg: attribute,
+        diagnostics: [{ code: 'EXTERNAL_REFERENCE', reference: `fill=${paint}` }],
+      })
+      expect(() => applyOutputSecurityPolicy(attribute, 'strict')).toThrow('strict verification failed')
+
+      // The existing attribute policy applies its reference normalization twice;
+      // stylesheet policy applies it once. Neither decoding step is idempotent.
+      const stylesheet = svgDocument(`<style>rect{fill:${paint}}</style>`)
+      expect(applyOutputSecurityPolicy(stylesheet, 'strict')).toEqual({ svg: stylesheet, diagnostics: [] })
+    }
+    expect(() => applyOutputSecurityPolicy(svgDocument(String.raw`<rect fill="\110000"/>`)))
+      .toThrow(RangeError)
   })
 })

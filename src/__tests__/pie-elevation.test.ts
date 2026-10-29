@@ -25,6 +25,7 @@
 
 import { describe, it, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parsePieChart } from '../pie/parser.ts'
 import {
   layoutPieChart,
@@ -45,6 +46,15 @@ import { toMermaidLines } from '../mermaid-source.ts'
 
 const LEGEND_FONT = { size: 13, weight: 500 }
 const LEGEND_LINE_HEIGHT = LEGEND_FONT.size * 1.3
+
+it('fractional legend typography preserves the accumulated absolute row origin', () => {
+  const svg = renderMermaidSVG('---\nconfig:\n  pie:\n    legendPosition: bottom\n  themeVariables:\n    pieLegendTextSize: 13.05\n    pieTitleTextSize: 13.15\n---\npie title Title\n"A": 1\n"B": 2\n"C": 3')
+  const swatches = [...svg.matchAll(/<rect\b[^>]*\bclass="pie-legend-swatch"[^>]*>/g)]
+  expect(swatches).toHaveLength(3)
+  // Reviewed pre-refactor geometry: adding a relative stack offset changes
+  // this rounding boundary to 325.03 despite identical text and row heights.
+  expect(swatches[2]![0].match(/\by="([^"]*)"/)?.[1]).toBe('325.02')
+})
 
 function layout(src: string, visual?: Partial<PieVisualConfig>): PositionedPieChart {
   return layoutPieChart(
@@ -93,6 +103,7 @@ describe('pie percent formatting', () => {
   it('a nonzero tiny slice renders "(0.1%)" in the SVG legend, not "(0.0%)"', () => {
     const svg = renderMermaidSVG('pie\n  "Big" : 2500\n  "Tiny" : 1')
     expect(svg).toContain('(0.1%)')
+    expect(svg).toMatch(/data-label="Tiny"[^>]*data-percent="0\.1%"/)
     expect(svg).not.toContain('(0.0%)')
   })
 })
@@ -197,7 +208,7 @@ describe('pie on-slice percentage labels', () => {
           }
         },
       ),
-      { numRuns: 80 },
+      fcParameters({ numRuns: 80 }),
     )
   })
 })
@@ -232,7 +243,7 @@ describe('pie donut mode', () => {
 
   it('honors donutHole from an init directive end to end', () => {
     const svg = renderMermaidSVG('%%{init: {"pie": {"donutHole": 0.6}}}%%\npie\n  "A" : 2\n  "B" : 1')
-    const paths = [...svg.matchAll(/<path class="pie-slice" d="([^"]+)"/g)].map(m => m[1]!)
+    const paths = [...svg.matchAll(/<path class="pie-slice"[^>]*\sd="([^"]+)"/g)].map(m => m[1]!)
     expect(paths.length).toBe(2)
     for (const d of paths) expect((d.match(/A /g) ?? []).length).toBe(2)
   })
@@ -319,8 +330,8 @@ describe('pie legend position', () => {
   it('honors legendPosition from frontmatter end to end', () => {
     const src = '---\nconfig:\n  pie:\n    legendPosition: left\n---\npie\n  "A" : 1\n  "B" : 1'
     const svg = renderMermaidSVG(src)
-    const swatchX = Number(/<rect class="pie-legend-swatch" x="([\d.]+)"/.exec(svg)![1])
-    const sliceD = /<path class="pie-slice" d="M ([\d.]+)/.exec(svg)!
+    const swatchX = Number(/<rect class="pie-legend-swatch"[^>]*\sx="([\d.]+)"/.exec(svg)![1])
+    const sliceD = /<path class="pie-slice"[^>]*\sd="M ([\d.]+)/.exec(svg)!
     expect(swatchX).toBeLessThan(Number(sliceD[1]))
   })
 })
@@ -372,7 +383,7 @@ pie showData
   "Iron" : 5`
 
   const slicePaths = (svg: string): string[] =>
-    [...svg.matchAll(/<path class="pie-slice[^"]*" d="([^"]*)"/g)].map(m => m[1]!)
+    [...svg.matchAll(/<path class="pie-slice[^"]*"[^>]*\sd="([^"]*)"/g)].map(m => m[1]!)
 
   it('leaves every slice path byte-identical whether or not a slice is highlighted', () => {
     const plain = renderMermaidSVG(donut(null), { embedFontImport: false })
@@ -393,7 +404,7 @@ pie showData
     const svg = renderMermaidSVG(donut('Potassium'), { embedFontImport: false })
     // heavier foreground border on the highlighted slice (shape cue, not colour-only);
     // the `var(--fg)` origin is resolved to a concrete theme colour at render time.
-    expect(svg).toMatch(/\.pie-slice\.highlighted \{ stroke: [^;]+; stroke-width: 2\.5; opacity: 1; \}/)
+    expect(svg).toMatch(/<path class="pie-slice highlighted"[^>]* stroke="[^"]+" stroke-width="2\.5" opacity="1" /)
     // a dim tier applied to the non-highlighted slices
     expect(svg).toMatch(/class="pie-slice pie-dim"/)
     // the highlighted legend row is bold; only non-text swatches are dimmed.
@@ -405,8 +416,8 @@ pie showData
 
   it('keeps meaningful text at full contrast while graphical siblings dim', () => {
     const svg = renderMermaidSVG(donut('Potassium'), { embedFontImport: false })
-    // The legend ink the stylesheet actually paints, against the page it sits on.
-    const legendInk = svg.match(/\.pie-legend-text \{ fill: (#[0-9A-Fa-f]{3,8}); \}/)?.[1]
+    // The legend ink each row is painted with, against the page it sits on.
+    const legendInk = svg.match(/<text [^>]*class="pie-legend-text"[^>]* fill="(#[0-9A-Fa-f]{3,8})"/)?.[1]
     const page = svg.match(/<svg [^>]*style="[^"]*background:(#[0-9A-Fa-f]{3,8})/)?.[1]
     if (legendInk === undefined || page === undefined) throw new Error('fixture must expose the legend ink and page background')
     expect(wcagCssContrastRatio(legendInk, page)).toBeGreaterThanOrEqual(4.5)
@@ -429,10 +440,13 @@ pie showData
       'pieOuterStrokeWidth: "5px"\n    pieOpacity: 0.5',
     )
     const svg = renderMermaidSVG(src, { embedFontImport: false })
-    expect(svg).toContain('.pie-slice.highlighted')
-    expect(svg).toContain('stroke-width: 2.5; opacity: 1;')
-    expect(svg).toContain('.pie-slice.pie-dim { opacity: 0.2; }')
-    expect(svg).toContain('.pie-legend-swatch.pie-dim { opacity: 0.4; }')
+    expect(svg).toMatch(/<path class="pie-slice highlighted"[^>]* stroke-width="2\.5" opacity="1" /)
+    const dimmedSlices = svg.match(/<path class="pie-slice pie-dim"[^>]*>/g) ?? []
+    expect(dimmedSlices).toHaveLength(3)
+    for (const slice of dimmedSlices) expect(slice).toContain(' opacity="0.2" ')
+    const dimmedSwatches = svg.match(/<rect class="pie-legend-swatch pie-dim"[^>]*>/g) ?? []
+    expect(dimmedSwatches).toHaveLength(3)
+    for (const swatch of dimmedSwatches) expect(swatch).toContain(' opacity="0.4" ')
   })
 
   it('preserves the semantic highlight border in styled backends', () => {
@@ -478,9 +492,10 @@ pie showData
       embedFontImport: false,
     })
     const width = Number(svg.match(/viewBox="0 0 ([\d.]+)/)?.[1])
-    const legendText = [...svg.matchAll(/<text ([^>]*class="pie-legend-text"[^>]*)>([^<]+)<\/text>/g)]
+    const legendText = [...svg.matchAll(/<text ([^>]*class="pie-legend-text"[^>]*)>([\s\S]*?)<\/text>/g)]
     expect(legendText).toHaveLength(3)
-    for (const [, attributes, text] of legendText) {
+    for (const [, attributes, markup] of legendText) {
+      const text = markup!.replace(/<[^>]*>/g, '')
       const x = Number(attributes!.match(/\bx="([\d.]+)"/)?.[1])
       const fontSize = Number(attributes!.match(/font-size="([\d.]+)"/)?.[1])
       const fontWeight = Number(attributes!.match(/font-weight="([\d.]+)"/)?.[1])
@@ -632,15 +647,15 @@ describe('pie1..pie12 theme variables', () => {
 describe('pie stroke and opacity theme variables', () => {
   it('applies pieStrokeColor / pieStrokeWidth / pieOpacity to slices', () => {
     const svg = renderMermaidSVG('%%{init: {"themeVariables": {"pieStrokeColor": "#123456", "pieStrokeWidth": "3px", "pieOpacity": 0.7}}}%%\npie\n  "A" : 1\n  "B" : 2')
-    const rule = /\.pie-slice \{[^}]*\}/.exec(svg)?.[0] ?? ''
-    expect(rule).toContain('stroke: #123456')
-    expect(rule).toContain('stroke-width: 3')
-    expect(rule).toContain('opacity: 0.7')
+    const slices = svg.match(/<path class="pie-slice"[^>]*>/g) ?? []
+    expect(slices).toHaveLength(2)
+    for (const slice of slices) expect(slice).toMatch(/ stroke="#123456" stroke-width="3" opacity="0\.7" /)
   })
 
   it('slices carry no opacity unless pieOpacity is set (crisp default keeps goldens)', () => {
-    const rule = /\.pie-slice \{[^}]*\}/.exec(renderMermaidSVG('pie\n  "A" : 1'))?.[0] ?? ''
-    expect(rule).not.toContain('opacity')
+    const slices = renderMermaidSVG('pie\n  "A" : 1\n  "B" : 2').match(/<path class="pie-slice"[^>]*>/g) ?? []
+    expect(slices).toHaveLength(2)
+    for (const slice of slices) expect(slice).not.toContain('opacity')
   })
 
   it('draws the outer circle only when pieOuterStroke* is configured', () => {
@@ -763,9 +778,11 @@ describe('pie high-count palette', () => {
   it('the ASCII renderer shares the same palette (cross-format consistency)', () => {
     const entries = Array.from({ length: 15 }, (_u, i) => `  "slice ${i}" : ${i + 1}`).join('\n')
     const out = renderMermaidASCII(`pie\n${entries}`, { useAscii: true, colorMode: 'truecolor' })
-    const seen = [...out.matchAll(/\x1b\[38;2;(\d+);(\d+);(\d+)m/g)]
+    const seen = [...out.matchAll(/\x1b\[38;2;(\d+);(\d+);(\d+)m#+\x1b\[0m/g)]
       .map(m => '#' + [m[1], m[2], m[3]].map(v => Number(v).toString(16).padStart(2, '0')).join(''))
     const uniq = [...new Set(seen)]
+    const svgColors = [...renderMermaidSVG(`pie\n${entries}`).matchAll(/<path class="pie-slice"[^>]*fill="([^"]+)"/g)].map(match => match[1]!)
+    expect(seen).toEqual(svgColors)
     expect(uniq.length).toBe(15)
     for (let i = 0; i < uniq.length; i++) {
       for (let j = i + 1; j < uniq.length; j++) {

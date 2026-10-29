@@ -1,69 +1,24 @@
+import { SDK_COMMON_CORE_DECLARATIONS } from './generated/sdk-types.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { describeOps, opSignatures, type OpFamily } from '../agent/op-schema.ts'
-import { CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS } from './sdk-decl.ts'
+import { CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS, CODE_MODE_LAYOUT_SUMMARY_DECLARATION, compactSdkDeclaration } from './sdk-decl.ts'
 import { PURE_COMPUTE_ANNOTATIONS, type McpToolDefinition } from './tool-surface.ts'
 
 export const SDK_FAMILIES = BUILTIN_FAMILY_METADATA.map(family => family.id)
 const SDK_FAMILY_SET = new Set<string>(SDK_FAMILIES)
 const DIAGRAM_KIND = SDK_FAMILIES.map(family => `'${family}'`).join(' | ')
-const NARROWERS = BUILTIN_FAMILY_METADATA
-  .map(family => `  ${family.narrower}(diagram: ValidDiagram): ValidDiagram | null`)
-  .join('\n')
+const NARROWERS = BUILTIN_FAMILY_METADATA.map(family => `${family.narrower}:Narrow`).join('\n')
 
 /**
  * The declaration sent with tools/list. Family IR and mutation unions stay out
  * of initial model context; describe_sdk returns the one family schema needed
  * by the task. SDK_DECLARATION remains the full reference used by docs/evals.
  */
-export const SDK_CORE_DECLARATION = `type DiagramKind = ${DIAGRAM_KIND}
+export const SDK_CORE_DECLARATION = compactSdkDeclaration(`type DiagramKind = ${DIAGRAM_KIND.replaceAll(' | ', '|')}
 type MutationOp = { kind: string; [field: string]: unknown }
 type Result<T, E = { code: string; message: string }> = { ok: true; value: T } | { ok: false; error: E }
-interface SourceLocation { readonly line: number; readonly col: number }
-interface SourceMapSpans { readonly preserved: PreservedSourceSpans; readonly nodes: ReadonlyMap<string, SourceSpan>; readonly edges: ReadonlyMap<string, SourceSpan>; readonly groups: ReadonlyMap<string, SourceSpan>; readonly labels: ReadonlyMap<string, SourceSpan> }
-interface SourceMap { readonly nodes: ReadonlyMap<string, SourceLocation>; readonly edges: ReadonlyMap<string, SourceLocation>; readonly groups: ReadonlyMap<string, SourceLocation>; readonly labels: ReadonlyMap<string, SourceLocation>; readonly spans?: SourceMapSpans }
+${SDK_COMMON_CORE_DECLARATIONS}
 interface ValidDiagram { readonly kind: DiagramKind; readonly source: SourceMap }
-type ExternalFamilyId = \`family:\${string}\`
-interface ExtensionCompatibility {
-  readonly [contract: string]: string | undefined
-  readonly core?: string
-  readonly scene?: string
-}
-interface ExtensionProvenance { readonly owner: string; readonly source: string; readonly reference?: string }
-interface ExtensionIdentity<Kind extends string = string> {
-  readonly id: \`\${Kind}:\${string}\`
-  readonly kind: Kind
-  readonly version: string
-  readonly compatibility: ExtensionCompatibility
-  readonly provenance: ExtensionProvenance
-}
-interface SourceSpanPoint { readonly offset: number; readonly line: number; readonly col: number }
-interface SourceSpan { readonly start: SourceSpanPoint; readonly end: SourceSpanPoint }
-interface PreservedSourceSpans {
-  readonly source: SourceSpan
-  readonly wrapper?: SourceSpan
-  readonly frontmatter?: SourceSpan
-  readonly initDirectives?: readonly SourceSpan[]
-  readonly accessibilityDirectives?: readonly SourceSpan[]
-  readonly header: SourceSpan
-  readonly body: SourceSpan
-}
-interface SourcePreservationReceipt {
-  readonly version: 1
-  readonly classification: 'unsupported' | 'inventory-only' | 'unknown'
-  readonly source: string
-  readonly header: string
-  readonly upstreamFamilyId?: string
-  readonly mermaidVersion: string
-  readonly spans?: PreservedSourceSpans
-}
-interface ParseError {
-  readonly code: string
-  readonly message: string
-  readonly line?: number
-  readonly col?: number
-  readonly preservation?: SourcePreservationReceipt
-  readonly help?: string
-}
 interface ExtensionValidDiagram {
   readonly kind: ExternalFamilyId
   readonly descriptorIdentity: ExtensionIdentity<'family'>
@@ -86,26 +41,23 @@ interface PreservedValidDiagram {
   }
 }
 type ParsedDiagram = ValidDiagram | ExtensionValidDiagram | PreservedValidDiagram
-type RenderedRegionKind='node'|'edge'|'label'|'canvas'|'group'|'cluster'|'lane'|'band'|'compartment'|'plot'|'ring'
-type DiagramActionSecurity='safe'|'unsafe'|'source-only'|'unsupported'
-interface RenderedRegion { id:string;kind:RenderedRegionKind;elementId?:string;parentId?:string;bounds:{x:number;y:number;w:number;h:number};sourceLine?:number }
-interface DiagramActionRecord { id?:string;regionId?:string;family:DiagramKind;target:string;action:'href'|'call'|'callback';raw:string;line?:number;href?:string;tooltip?:string;security:DiagramActionSecurity;executable:false;message?:string }
-interface RenderedLayout { version: 1; kind: DiagramKind | ExternalFamilyId; bounds: { w: number; h: number }; nodes: unknown[]; edges: unknown[]; groups: unknown[]; regions?: RenderedRegion[]; actions?: DiagramActionRecord[] }
-interface VerifyResult { ok: boolean; warnings: unknown[]; layout: RenderedLayout }
-type CheckMermaidSpec = string[] | { include?: string[]; exclude?: string[]; exact?: boolean }
-interface CheckMermaidResult { ok: boolean; missing: string[]; unexpected: string[]; facts: string[] }
-type MermaidConfigScalar = string | number | boolean | null
-type MermaidConfigValue = MermaidConfigScalar | MermaidConfigValue[] | { [key: string]: MermaidConfigValue | undefined }
+type Narrow = (d: ParsedDiagram) => ValidDiagram | null
+${CODE_MODE_LAYOUT_SUMMARY_DECLARATION}
+interface VerifyResult{ok:boolean;warnings:unknown[];layout:RenderedLayout;checks?:{renderability:'passed'|'failed'|'not-checked';sourceLoss:'detected'|'not-detected';taskCorrectness:'not-checked'}}
+type MermaidConfigScalar=string|number|boolean|null
+type MermaidConfigValue=MermaidConfigScalar|MermaidConfigValue[]|{[key:string]:MermaidConfigValue|undefined}
 type MermaidRuntimeConfig = { [key: string]: MermaidConfigValue | undefined }
 
 ${CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS}
 
 declare const mermaid: {
   parseRegisteredMermaid(source: string): Result<ParsedDiagram, ParseError[]>
-  createMermaid(kind: DiagramKind, opts?: { direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }): ValidDiagram
-  buildMermaid(kind: DiagramKind, ops: MutationOp[], opts?: { direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }): Result<ValidDiagram, { code: string; message: string; opIndex: number }>
+  createMermaid(kind: DiagramKind, opts?: CreateMermaidOptions): ValidDiagram
+  buildMermaid(kind: DiagramKind, ops: MutationOp[], opts?: CreateMermaidOptions): Result<ValidDiagram, { code: string; message: string; opIndex: number }>
 ${NARROWERS}
   mutate(diagram: ValidDiagram, op: MutationOp): Result<ValidDiagram>
+  // Opaque Class:add_member/remove_member;Flowchart:set_label/rename_node. Save source;warnings remain.
+  mutatePreservingSource(d: ParsedDiagram, op: MutationOp): Result<{source:string;diagram:ParsedDiagram}>
   verifyMermaid(input: ParsedDiagram | string, opts?: { suppress?: string[]; labelCharCap?: number; renderOptions?: SharedRenderOptions }): VerifyResult
   analyzeMermaid(diagram: ValidDiagram): Record<string, unknown>
   analyzeMermaidSource(source: string): Result<Record<string, unknown>>
@@ -121,7 +73,7 @@ ${NARROWERS}
   layoutMermaidWithReceipt(input: ParsedDiagram | string, opts?: LayoutRenderOptions): RenderedLayoutArtifact
   describeOps(family: DiagramKind): Record<string, { name: string; required: boolean; type: string; note?: string }[]>
   opSignatures(family: DiagramKind): string[]
-}`
+}`.replace(/^[ \t]+/gm, '').replace(/; +/g, ';').replace(/: +/g, ':'))
 
 export type DescribeSdkDetail = 'signatures' | 'fields'
 

@@ -1,3 +1,4 @@
+import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import type {
   TimelineDiagram,
   PositionedTimelineDiagram,
@@ -6,9 +7,7 @@ import type {
   PositionedTimelineEvent,
 } from './types.ts'
 import type { RenderOptions } from '../types.ts'
-import { LINE_HEIGHT_RATIO, measureTextWidth } from '../text-metrics.ts'
-import type { MultilineMetrics } from '../text-metrics.ts'
-import { STROKE_WIDTHS, applyTextTransform, resolveRenderStyle } from '../styles.ts'
+import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 
@@ -92,16 +91,18 @@ export const TIMELINE_STYLE_DEFAULTS: RenderStyleDefaults = {
 }
 
 interface PeriodMetric {
+  block: PixelTextBlock
   label: string
   pillWidth: number
   pillHeight: number
   /** Main-axis extent of the period column/row: max of the pill and event
    *  main-axis sizes (width in LR, height in TD). */
   mainExtent: number
-  events: Array<{ text: string; width: number; height: number }>
+  events: Array<{ text: string; block: PixelTextBlock; width: number; height: number }>
 }
 
 interface SectionMetric {
+  block?: PixelTextBlock
   label?: string
   headerWidth: number
   /** Main-axis extent of the period run (columns in LR, rows in TD). */
@@ -147,15 +148,11 @@ export function layoutTimelineDiagram(
 
   const hasNamedSections = diagram.sections.some(section => !!section.label)
   const showSectionFrames = diagram.sections.length > 1 || hasNamedSections
-  const sectionHeaderHeight = hasNamedSections ? Math.max(TL.sectionHeaderHeight, style.groupHeaderFontSize + style.groupPaddingY) : 0
+  let sectionHeaderHeight = hasNamedSections ? Math.max(TL.sectionHeaderHeight, style.groupHeaderFontSize + style.groupPaddingY) : 0
   const sectionPadX = showSectionFrames ? style.groupPaddingX : 0
-  const titleText = diagram.title
-    ? wrapTimelineText(applyTextTransform(diagram.title, style.groupTextTransform), TL.titleWrapWidth, TL.titleFontSize, TL.titleFontWeight)
-    : undefined
-
-  const titleMetrics = titleText
-    ? measureTimelineText(titleText, TL.titleFontSize, TL.titleFontWeight)
-    : undefined
+  const titleBlock = diagram.title ? preparePixelText(diagram.title, { display: 'literal', transform: style.groupTextTransform, fontSize: TL.titleFontSize, fontWeight: TL.titleFontWeight, letterSpacing: style.groupLetterSpacing, maxWidth: TL.titleWrapWidth }) : undefined
+  const titleText = titleBlock?.text
+  const titleMetrics = titleBlock
 
   let metrics = computeSectionMetrics(diagram, style, DEFAULT_WRAP_CAPS, vertical)
 
@@ -184,6 +181,7 @@ export function layoutTimelineDiagram(
     }
   }
 
+  sectionHeaderHeight = Math.max(sectionHeaderHeight, ...metrics.map(metric => metric.block ? metric.block.height + style.groupPaddingY : 0))
   const maxPillCross = Math.max(
     0,
     ...metrics.flatMap(section => section.periods.map(period => crossOf(period.pillWidth, period.pillHeight))),
@@ -235,6 +233,7 @@ export function layoutTimelineDiagram(
           periodId: period.id,
           periodLabel: periodMetric.label,
           text: eventMetric.text,
+          block: eventMetric.block,
           x: vertical ? eventCross : eventMain,
           y: vertical ? eventMain : eventCross,
           width: eventMetric.width,
@@ -252,6 +251,7 @@ export function layoutTimelineDiagram(
         id: period.id,
         sectionId: section.id,
         label: periodMetric.label,
+        block: periodMetric.block,
         centerX: vertical ? pillBandCross + periodMetric.pillWidth / 2 : centerMain,
         markerX: vertical ? railCross : centerMain,
         markerY: vertical ? centerMain : railCross,
@@ -279,6 +279,7 @@ export function layoutTimelineDiagram(
     sections.push({
       id: section.id,
       label: metric.label,
+      block: metric.block,
       x: vertical ? crossBase : sectionMainStart,
       y: vertical ? sectionMainStart : crossBase,
       width: vertical ? sectionCrossEnd - crossBase : sectionMainExtent,
@@ -310,12 +311,17 @@ export function layoutTimelineDiagram(
   const railMain1 = firstCenter === lastCenter ? firstCenter - 42 : firstCenter
   const railMain2 = firstCenter === lastCenter ? lastCenter + 42 : lastCenter
 
+  for (const section of sections) for (const period of section.periods) for (const event of period.events) {
+    event.labelX = event.x + style.nodePaddingX
+  }
+
   return {
     width,
     height,
     title: titleText
       ? {
           text: titleText,
+          block: titleBlock,
           x: width / 2,
           y: TL.paddingY + titleMetrics!.height / 2,
         }
@@ -339,20 +345,20 @@ function computeSectionMetrics(
 ): SectionMetric[] {
   const mainOf = (width: number, height: number): number => (vertical ? height : width)
   return diagram.sections.map(section => {
-    const wrappedSectionLabel = section.label
-      ? wrapTimelineText(applyTextTransform(section.label, style.groupTextTransform), TL.sectionWrapWidth, style.groupHeaderFontSize, style.groupHeaderFontWeight)
-      : undefined
+    const block = section.label ? preparePixelText(section.label, { display: 'literal', transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, fontFamily: style.groupFont, maxWidth: TL.sectionWrapWidth }) : undefined
+    const wrappedSectionLabel = block?.text
     const periodMetrics: PeriodMetric[] = section.periods.map(period => {
-      const wrappedPeriodLabel = wrapTimelineText(applyTextTransform(period.label, style.edgeTextTransform), caps.pill, style.edgeLabelFontSize, style.edgeLabelFontWeight)
-      const pillText = measureTimelineText(wrappedPeriodLabel, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      const pillText = preparePixelText(period.label, { display: 'literal', transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing, maxWidth: caps.pill })
+      const wrappedPeriodLabel = pillText.text
       const pillWidth = Math.max(caps.pillMinWidth, pillText.width + style.nodePaddingX * 2)
       const pillHeight = pillText.height + style.nodePaddingY * 2
 
       const eventMetrics = period.events.map(event => {
-        const wrappedEventText = wrapTimelineText(applyTextTransform(event.text, style.nodeTextTransform), caps.event, style.nodeLabelFontSize, style.nodeLabelFontWeight)
-        const text = measureTimelineText(wrappedEventText, style.nodeLabelFontSize, style.nodeLabelFontWeight)
+        const text = preparePixelText(event.text, { display: 'literal', transform: style.nodeTextTransform, fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, maxWidth: caps.event })
+        const wrappedEventText = text.text
         return {
           text: wrappedEventText,
+          block: text,
           width: Math.max(caps.eventMinWidth, text.width + style.nodePaddingX * 2),
           height: text.height + style.nodePaddingY * 2,
         }
@@ -365,6 +371,7 @@ function computeSectionMetrics(
 
       return {
         label: wrappedPeriodLabel,
+        block: pillText,
         pillWidth,
         pillHeight,
         mainExtent,
@@ -378,7 +385,7 @@ function computeSectionMetrics(
     }, 0)
 
     const headerWidth = wrappedSectionLabel
-      ? measureTimelineText(wrappedSectionLabel, style.groupHeaderFontSize, style.groupHeaderFontWeight).width + style.groupLabelPaddingX * 2
+      ? block!.width + style.groupLabelPaddingX * 2
       : 0
 
     // In LR the header text rides the main axis, so it can widen the frame
@@ -387,6 +394,7 @@ function computeSectionMetrics(
 
     return {
       label: wrappedSectionLabel,
+      block,
       headerWidth,
       runMain,
       innerMain,
@@ -404,98 +412,4 @@ function projectedMainEnd(metrics: SectionMetric[], sectionPadX: number, showSec
     if (index < metrics.length - 1) cursor += showSectionFrames ? TL.sectionGap : TL.columnGap
   }
   return cursor + TL.paddingX
-}
-
-/** Timeline's authored text is literal except exact <br> (already a newline).
- * Generic formatted-text metrics would strip visible <b>/<i> characters. */
-function measureTimelineText(text: string, fontSize: number, fontWeight: number): MultilineMetrics {
-  const lines = text.split('\n')
-  const lineHeight = fontSize * LINE_HEIGHT_RATIO
-  let width = 0
-  for (const line of lines) width = Math.max(width, measureTextWidth(line, fontSize, fontWeight))
-  return {
-    width,
-    height: lines.length * lineHeight,
-    lines,
-    lineHeight,
-  }
-}
-
-function wrapTimelineText(
-  text: string,
-  maxWidth: number,
-  fontSize: number,
-  fontWeight: number,
-): string {
-  return text
-    .split('\n')
-    .flatMap(line => wrapTimelineLine(line, maxWidth, fontSize, fontWeight))
-    .join('\n')
-}
-
-function wrapTimelineLine(
-  line: string,
-  maxWidth: number,
-  fontSize: number,
-  fontWeight: number,
-): string[] {
-  if (measureTextWidth(line, fontSize, fontWeight) <= maxWidth) {
-    return [line]
-  }
-
-  const words = line.trim().split(/\s+/)
-  if (words.length <= 1) {
-    return breakLongToken(line, maxWidth, fontSize, fontWeight)
-  }
-
-  const wrapped: string[] = []
-  let current = ''
-
-  for (const word of words) {
-    const candidate = current ? `${current} ${word}` : word
-    const candidateWidth = measureTextWidth(candidate, fontSize, fontWeight)
-
-    if (candidateWidth <= maxWidth) {
-      current = candidate
-      continue
-    }
-
-    if (current) {
-      wrapped.push(current)
-      current = ''
-    }
-
-    if (measureTextWidth(word, fontSize, fontWeight) > maxWidth) {
-      wrapped.push(...breakLongToken(word, maxWidth, fontSize, fontWeight))
-    } else {
-      current = word
-    }
-  }
-
-  if (current) wrapped.push(current)
-  return wrapped
-}
-
-function breakLongToken(
-  token: string,
-  maxWidth: number,
-  fontSize: number,
-  fontWeight: number,
-): string[] {
-  const chunks: string[] = []
-  let current = ''
-
-  for (const char of token) {
-    const candidate = current + char
-    if (current && measureTextWidth(candidate, fontSize, fontWeight) > maxWidth) {
-      chunks.push(current)
-      current = char
-      continue
-    }
-
-    current = candidate
-  }
-
-  if (current) chunks.push(current)
-  return chunks
 }

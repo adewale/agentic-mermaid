@@ -68,7 +68,7 @@ export function terminalOutputLineWidth(line: string, colorMode: ColorMode): num
   return visualWidth(terminalOutputPlainText(line, colorMode))
 }
 
-function terminalOutputPlainText(value: string, colorMode: ColorMode): string {
+export function terminalOutputPlainText(value: string, colorMode: ColorMode): string {
   if (colorMode === 'none') return value
   if (colorMode !== 'html') return withoutAllowedSgr(value, colorMode)
   return value
@@ -133,24 +133,7 @@ export function admitExternalTerminalOutput(value: unknown, colorMode: ColorMode
   return output
 }
 
-/**
- * Replace untrusted terminal controls with a visible, single-cell ASCII glyph.
- * Structural source lines may retain CR/LF until parsing; rendered text may not.
- */
-export function sanitizeTerminalText(
-  value: string,
-  preserveLineBreaks = false,
-): string {
-  let result = ''
-  for (const character of value) {
-    const code = character.codePointAt(0)!
-    const control = code <= 0x1f || (code >= 0x7f && code <= 0x9f)
-    if (character === '\t') result += ' '
-    else if (!control || (preserveLineBreaks && (character === '\n' || character === '\r'))) result += character
-    else result += '?'
-  }
-  return result
-}
+export { sanitizeTextControls as sanitizeTerminalText } from './shared/text-controls.ts'
 
 /** Escape untrusted text for an HTML data context. Quotes do not create markup
  * there, while escaping ampersands first preserves authored entity text. */

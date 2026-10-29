@@ -118,6 +118,7 @@ describe('ASCII gap: multi-level direction override', () => {
   test('outer flow is vertical, inner chain is horizontal', () => {
     const out = renderMermaidASCII(MIXED)
 
+    for (const label of ['Start', 'End', 'G1', ' X ', ' Y ', ' Z ']) expect(rowOf(out, label)).toBeGreaterThanOrEqual(0)
     // Outer TD: Start above the container, End below it.
     expect(rowOf(out, 'Start')).toBeLessThan(rowOf(out, 'G1'))
     expect(rowOf(out, 'End')).toBeGreaterThan(rowOf(out, 'G1'))
@@ -166,6 +167,7 @@ describe('ASCII gap: unlabeled fan-out trunk junction sharing', () => {
     const out = renderMermaidASCII(FANOUT)
 
     // One source, three targets, all on the same row below the trunk.
+    for (const label of [' A ', ' B ', ' C ', ' D ']) expect(rowOf(out, label)).toBeGreaterThanOrEqual(0)
     const bRow = rowOf(out, ' B ')
     expect(rowOf(out, ' C ')).toBe(bRow)
     expect(rowOf(out, ' D ')).toBe(bRow)

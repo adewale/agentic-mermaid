@@ -1,4 +1,17 @@
-function writeClipboardText(value, success, failure, sourceBtn) {
+import { setCopyFeedback } from './copy-feedback.js';
+import { ui } from './context.js';
+import { showToast } from './toast.js';
+import { setExportDropdownOpen, updateExportAvailability } from './export.js';
+import { copyTextOutputBtn, editor, previewInner, renderTime, statusText } from './elements.js';
+import { editorHasUnsavedWork, markActiveExample, setExamplesSidebarOpen } from './examples.js';
+import { clearPopupClosing, createPopupController, emptyPreviewHtml, setEditorErrorLine } from './helpers.js';
+import { discardEditorDraft } from './sharing.js';
+import { updateCursorPos, updateLineNumbers } from './editor-helpers.js';
+import { ensureTextOutputs, fitUnicodeOutput, hasCurrentVerifiedSvgArtifact, lastRenderedTextArtifacts, markTextOutputsDirty, resetVerifyPanel, setTextOutputs } from './rendering.js';
+import { refreshC4Navigation } from './c4-navigation.js';
+import { EditorMotion } from './motion.js';
+export var copySourceBtn, currentCanvasFormat, CANVAS_FORMATS, shortcutsDialog, shortcutsDialogClose, shortcutsReturnFocus, shortcutsInertSiblings, shortcutsHomeParent, shortcutsHomeNextSibling, shortcutsExitTail, shortcutsExitTimer, shortcutsPopup;
+export function writeClipboardText(value, success, failure, sourceBtn) {
   if (!navigator.clipboard || !navigator.clipboard.writeText) {
     setCopyFeedback(sourceBtn, 'err');
     showToast(failure || 'Copy is not supported in this browser.');
@@ -14,11 +27,13 @@ function writeClipboardText(value, success, failure, sourceBtn) {
   });
 }
 
-function copySource() {
+
+export function copySource() {
   writeClipboardText(editor.value, 'Source copied.', 'Copy source failed.', copySourceBtn);
 }
 
-function clearEditor() {
+
+export function clearEditor() {
   // Same guard as loadEditorExample: clearing discards the autosaved draft too.
   if (typeof editorHasUnsavedWork === 'function' && editorHasUnsavedWork()
       && !window.confirm('Start a blank diagram? Your current edits (and the autosaved draft) will be discarded.')) {
@@ -33,7 +48,7 @@ function clearEditor() {
   delete previewInner.dataset.sharedRequestDigest;
   delete previewInner.dataset.renderRequestDigest;
   delete previewInner.dataset.appearanceDigest;
-  lastRenderedSvgArtifact = null;
+  ui.lastRenderedSvgArtifact = null;
   if (typeof markTextOutputsDirty === 'function') markTextOutputsDirty();
   if (typeof setTextOutputs === 'function') setTextOutputs('', '');
   statusText.textContent = 'Ready';
@@ -41,20 +56,17 @@ function clearEditor() {
   renderTime.textContent = '';
   if (typeof resetVerifyPanel === 'function') resetVerifyPanel('Waiting for source');
   if (typeof updateExportAvailability === 'function') updateExportAvailability();
+  if (typeof refreshC4Navigation === 'function') refreshC4Navigation();
   if (typeof markActiveExample === 'function') markActiveExample('');
   window.history.replaceState(null, '', window.location.pathname);
   showToast('Started a blank diagram.');
 }
 
-var copySourceBtn = document.getElementById('copy-source-btn');
-if (copySourceBtn) copySourceBtn.addEventListener('click', copySource);
-var currentCanvasFormat = 'diagram';
-var CANVAS_FORMATS = ['diagram', 'unicode', 'ascii'];
 
 // The preview shows one representation of the source at a time. Switching format
 // swaps the canvas view, gates the zoom controls to the diagram, and retargets
 // the copy button — so the same diagram is never on screen twice.
-function selectCanvasFormat(fmt) {
+export function selectCanvasFormat(fmt) {
   if (CANVAS_FORMATS.indexOf(fmt) < 0) fmt = 'diagram';
   currentCanvasFormat = fmt;
   document.querySelectorAll('[data-canvas-view]').forEach(function(el) {
@@ -67,6 +79,7 @@ function selectCanvasFormat(fmt) {
   });
   var zoomControls = document.getElementById('zoom-controls');
   if (zoomControls) zoomControls.hidden = fmt !== 'diagram';
+  if (typeof refreshC4Navigation === 'function') refreshC4Navigation();
   if (copyTextOutputBtn) {
     var label = fmt === 'diagram'
       ? 'Copy SVG markup'
@@ -77,6 +90,107 @@ function selectCanvasFormat(fmt) {
   if (fmt !== 'diagram' && typeof ensureTextOutputs === 'function') ensureTextOutputs();
   if (fmt === 'unicode' && typeof fitUnicodeOutput === 'function') fitUnicodeOutput();
 }
+
+
+export function portalShortcutsDialog() {
+  if (shortcutsDialog && shortcutsDialog.parentNode !== document.body) document.body.appendChild(shortcutsDialog);
+}
+
+
+export function restoreShortcutsDialog() {
+  if (!shortcutsDialog || !shortcutsHomeParent || shortcutsDialog.parentNode === shortcutsHomeParent) return;
+  shortcutsHomeParent.insertBefore(shortcutsDialog, shortcutsHomeNextSibling);
+}
+
+
+export function clearShortcutsExitTail() {
+  if (shortcutsExitTimer) clearTimeout(shortcutsExitTimer);
+  shortcutsExitTimer = null;
+  if (shortcutsExitTail && shortcutsExitTail.parentNode) shortcutsExitTail.parentNode.removeChild(shortcutsExitTail);
+  shortcutsExitTail = null;
+}
+
+
+export function createShortcutsExitTail() {
+  if (!shortcutsDialog || (typeof EditorMotion !== 'undefined' && EditorMotion.reduced())) return;
+  clearShortcutsExitTail();
+  var tail = shortcutsDialog.cloneNode(true);
+  tail.removeAttribute('id');
+  tail.removeAttribute('aria-modal');
+  tail.removeAttribute('aria-labelledby');
+  tail.setAttribute('aria-hidden', 'true');
+  tail.inert = true;
+  tail.querySelectorAll('[id]').forEach(function(node) { node.removeAttribute('id'); });
+  tail.style.pointerEvents = 'none';
+  document.body.appendChild(tail);
+  shortcutsExitTail = tail;
+  shortcutsExitTimer = setTimeout(clearShortcutsExitTail, 90);
+}
+
+
+export function shortcutsReturnTarget(target) {
+  var fallback = null;
+  for (var node = target; node && node !== document.body; node = node.parentElement) {
+    if (!node.id) continue;
+    var trigger = document.querySelector('[aria-controls="' + node.id + '"]');
+    if (trigger && !trigger.closest('[inert]')) fallback = trigger;
+  }
+  return fallback || target;
+}
+
+
+export function setShortcutsBackgroundInert(open) {
+  if (!shortcutsDialog) return;
+  if (open) {
+    shortcutsInertSiblings = [];
+    Array.prototype.forEach.call(document.body.children, function(child) {
+      if (child === shortcutsDialog) return;
+      shortcutsInertSiblings.push({ element: child, inert: child.inert });
+      child.inert = true;
+    });
+    return;
+  }
+  shortcutsInertSiblings.forEach(function(entry) { entry.element.inert = entry.inert; });
+  shortcutsInertSiblings = [];
+}
+
+
+export function shortcutsFocusable() {
+  if (!shortcutsDialog) return [];
+  return Array.prototype.slice.call(shortcutsDialog.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+    .filter(function(el) { return !el.disabled && el.offsetParent !== null; });
+}
+
+
+export function trapShortcutsFocus(e) {
+  if (!shortcutsPopup || !shortcutsPopup.isOpen() || e.key !== 'Tab') return;
+  var focusable = shortcutsFocusable();
+  if (!focusable.length) return;
+  var first = focusable[0];
+  var last = focusable[focusable.length - 1];
+  if (!shortcutsDialog.contains(document.activeElement)) {
+    e.preventDefault();
+    first.focus();
+  } else if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault();
+    first.focus();
+  }
+}
+
+export function initialize() {
+
+
+copySourceBtn = document.getElementById('copy-source-btn');
+
+if (copySourceBtn) copySourceBtn.addEventListener('click', copySource);
+
+currentCanvasFormat = 'diagram';
+
+CANVAS_FORMATS = ['diagram', 'unicode', 'ascii'];
+
 
 document.querySelectorAll('[data-canvas-format]').forEach(function(btn) {
   btn.addEventListener('click', function() { selectCanvasFormat(btn.dataset.canvasFormat); });
@@ -92,6 +206,7 @@ document.querySelectorAll('[data-canvas-format]').forEach(function(btn) {
   });
 });
 
+
 if (copyTextOutputBtn) copyTextOutputBtn.addEventListener('click', function() {
   if (currentCanvasFormat === 'diagram') {
     // Copy the canonical receipt-bearing artifact, never a DOM serialization
@@ -101,7 +216,7 @@ if (copyTextOutputBtn) copyTextOutputBtn.addEventListener('click', function() {
       showToast('Render and verify a diagram before copying its SVG.');
       return;
     }
-    writeClipboardText(lastRenderedSvgArtifact.svg, 'SVG markup copied.', 'Copy SVG failed.', copyTextOutputBtn);
+    writeClipboardText(ui.lastRenderedSvgArtifact.svg, 'SVG markup copied.', 'Copy SVG failed.', copyTextOutputBtn);
     return;
   }
   var name = currentCanvasFormat === 'ascii' ? 'ASCII' : 'Unicode';
@@ -124,6 +239,7 @@ if (copyTextOutputBtn) copyTextOutputBtn.addEventListener('click', function() {
   writeClipboardText(artifact.text, name + ' output copied.', 'Copy ' + name + ' failed.', copyTextOutputBtn);
 });
 
+
 document.addEventListener('click', function(e) {
   var clearBtn = e.target.closest('[data-action="clear-editor"]');
   if (!clearBtn) return;
@@ -131,101 +247,29 @@ document.addEventListener('click', function(e) {
   if (typeof setExamplesSidebarOpen === 'function') setExamplesSidebarOpen(false);
 });
 
+
 // Keyboard-shortcut cheat sheet — reachable only via the "?" key (there is no
 // topbar button). Same popup contract as the other popovers: inert +
 // aria-hidden when closed, Escape or a scrim click closes, focus returns to
 // wherever it was when "?" was pressed.
-var shortcutsDialog = document.getElementById('shortcuts-dialog');
-var shortcutsDialogClose = document.getElementById('shortcuts-dialog-close');
-var shortcutsReturnFocus = null;
-var shortcutsInertSiblings = [];
-var shortcutsHomeParent = shortcutsDialog && shortcutsDialog.parentNode;
-var shortcutsHomeNextSibling = shortcutsDialog && shortcutsDialog.nextSibling;
-var shortcutsExitTail = null;
-var shortcutsExitTimer = null;
+shortcutsDialog = document.getElementById('shortcuts-dialog');
 
-function portalShortcutsDialog() {
-  if (shortcutsDialog && shortcutsDialog.parentNode !== document.body) document.body.appendChild(shortcutsDialog);
-}
+shortcutsDialogClose = document.getElementById('shortcuts-dialog-close');
 
-function restoreShortcutsDialog() {
-  if (!shortcutsDialog || !shortcutsHomeParent || shortcutsDialog.parentNode === shortcutsHomeParent) return;
-  shortcutsHomeParent.insertBefore(shortcutsDialog, shortcutsHomeNextSibling);
-}
+shortcutsReturnFocus = null;
 
-function clearShortcutsExitTail() {
-  if (shortcutsExitTimer) clearTimeout(shortcutsExitTimer);
-  shortcutsExitTimer = null;
-  if (shortcutsExitTail && shortcutsExitTail.parentNode) shortcutsExitTail.parentNode.removeChild(shortcutsExitTail);
-  shortcutsExitTail = null;
-}
+shortcutsInertSiblings = [];
 
-function createShortcutsExitTail() {
-  if (!shortcutsDialog || (typeof EditorMotion !== 'undefined' && EditorMotion.reduced())) return;
-  clearShortcutsExitTail();
-  var tail = shortcutsDialog.cloneNode(true);
-  tail.removeAttribute('id');
-  tail.removeAttribute('aria-modal');
-  tail.removeAttribute('aria-labelledby');
-  tail.setAttribute('aria-hidden', 'true');
-  tail.inert = true;
-  tail.querySelectorAll('[id]').forEach(function(node) { node.removeAttribute('id'); });
-  tail.style.pointerEvents = 'none';
-  document.body.appendChild(tail);
-  shortcutsExitTail = tail;
-  shortcutsExitTimer = setTimeout(clearShortcutsExitTail, 90);
-}
+shortcutsHomeParent = shortcutsDialog && shortcutsDialog.parentNode;
 
-function shortcutsReturnTarget(target) {
-  var fallback = null;
-  for (var node = target; node && node !== document.body; node = node.parentElement) {
-    if (!node.id) continue;
-    var trigger = document.querySelector('[aria-controls="' + node.id + '"]');
-    if (trigger && !trigger.closest('[inert]')) fallback = trigger;
-  }
-  return fallback || target;
-}
+shortcutsHomeNextSibling = shortcutsDialog && shortcutsDialog.nextSibling;
 
-function setShortcutsBackgroundInert(open) {
-  if (!shortcutsDialog) return;
-  if (open) {
-    shortcutsInertSiblings = [];
-    Array.prototype.forEach.call(document.body.children, function(child) {
-      if (child === shortcutsDialog) return;
-      shortcutsInertSiblings.push({ element: child, inert: child.inert });
-      child.inert = true;
-    });
-    return;
-  }
-  shortcutsInertSiblings.forEach(function(entry) { entry.element.inert = entry.inert; });
-  shortcutsInertSiblings = [];
-}
+shortcutsExitTail = null;
 
-function shortcutsFocusable() {
-  if (!shortcutsDialog) return [];
-  return Array.prototype.slice.call(shortcutsDialog.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
-    .filter(function(el) { return !el.disabled && el.offsetParent !== null; });
-}
+shortcutsExitTimer = null;
 
-function trapShortcutsFocus(e) {
-  if (!shortcutsPopup || !shortcutsPopup.isOpen() || e.key !== 'Tab') return;
-  var focusable = shortcutsFocusable();
-  if (!focusable.length) return;
-  var first = focusable[0];
-  var last = focusable[focusable.length - 1];
-  if (!shortcutsDialog.contains(document.activeElement)) {
-    e.preventDefault();
-    first.focus();
-  } else if (e.shiftKey && document.activeElement === first) {
-    e.preventDefault();
-    last.focus();
-  } else if (!e.shiftKey && document.activeElement === last) {
-    e.preventDefault();
-    first.focus();
-  }
-}
 
-var shortcutsPopup = (shortcutsDialog && typeof createPopupController === 'function')
+shortcutsPopup = (shortcutsDialog && typeof createPopupController === 'function')
   ? createPopupController({
       popup: shortcutsDialog,
       visualClose: true,
@@ -249,14 +293,17 @@ var shortcutsPopup = (shortcutsDialog && typeof createPopupController === 'funct
     })
   : null;
 
+
 if (shortcutsDialogClose) shortcutsDialogClose.addEventListener('click', function() {
   if (shortcutsPopup) shortcutsPopup.close({ source: 'close-button' });
 });
+
 
 // Click on the scrim (outside the panel) closes, like a modal backdrop.
 if (shortcutsDialog) shortcutsDialog.addEventListener('click', function(e) {
   if (e.target === shortcutsDialog && shortcutsPopup) shortcutsPopup.close({ source: 'backdrop' });
 });
+
 
 document.addEventListener('keydown', function(e) {
   if (e.key !== '?' || e.metaKey || e.ctrlKey || e.altKey || !shortcutsPopup) return;
@@ -269,3 +316,4 @@ document.addEventListener('keydown', function(e) {
   shortcutsReturnFocus = shortcutsReturnTarget(document.activeElement);
   shortcutsPopup.open({ source: 'keyboard' });
 });
+}

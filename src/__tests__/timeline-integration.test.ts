@@ -2,10 +2,14 @@
  * Integration tests for timeline diagrams — end-to-end parse → layout → render.
  */
 import { describe, it, expect } from 'bun:test'
-import { renderMermaidSVG } from '../index.ts'
+import { applyOutputSecurityPolicy, renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
 import type { RenderOptions } from '../types.ts'
 import { measureTextWidth } from '../text-metrics.ts'
-import { parseRegisteredMermaid, asTimeline, serializeMermaid, verifyMermaid, renderMermaidASCII } from '../agent/index.ts'
+import { parseRegisteredMermaid, serializeMermaid, verifyMermaid, renderMermaidASCII } from '../agent/index.ts'
+import { DefaultBackend, getFamily } from '../agent/core.ts'
+import type { PositionedTimelineDiagram } from '../timeline/types.ts'
+import type { TimelineFamilyPalette } from '../timeline/renderer.ts'
+import { scanSvgStartTags } from '../svg-structure.ts'
 
 function render(text: string, options: RenderOptions = {}): string {
   return renderMermaidSVG(text, options)
@@ -18,14 +22,36 @@ const MERMAID_DOCS_SOCIAL_TIMELINE = `timeline
   2005 : YouTube
   2006 : Twitter`
 
+describe('tracked Unicode timeline titles', () => {
+  for (const style of ['crisp', 'excalidraw', 'watercolor'] as const) {
+    it.each(['é Ω ⋯ 😀', 'hello<br>世界'])(`${style} retains authored tracking on the native glyph run: %s`, title => {
+      const svg = render(`timeline\ntitle ${title}\n2024 : Release`, {
+        embedFontImport: false,
+        style: [style, { roles: { label: { letterSpacing: 1.5, fontWeight: 600 } } }],
+      })
+      const text = svg.match(/<text\b[^>]*class="timeline-title"[^>]*>[\s\S]*?<\/text>/)?.[0]
+      expect(text).toBeDefined()
+      const tags = scanSvgStartTags(text!)
+      const outer = new Map(tags[0]!.attributes.map(attribute => [attribute.name, attribute.value]))
+      expect(outer.get('letter-spacing')).toBe('1.5')
+      expect(outer.get('data-prepared-text')).toBe('true')
+      expect(tags.map(tag => tag.name)).toEqual(['text', 'tspan'])
+      const glyph = new Map(tags[1]!.attributes.map(attribute => [attribute.name, attribute.value]))
+      expect(glyph.get('data-text-fragment')).toBe('true')
+      expect(glyph.get('x')).toBe(outer.get('x'))
+      expect(text).not.toContain('textLength=')
+    })
+  }
+})
+
 describe('renderMermaidSVG – timeline diagrams', () => {
-  it.each(['Timeline redesign', 'timeline', 'TIMELINE release'])('keeps a period named %s through parse, export and rendering', label => {
+  it.each(['Timeline redesign', 'timeline', 'TIMELINE release', 'section', 'SECTION'])('keeps a period named %s through parse, export and rendering', label => {
     const source = `timeline\n2020 : A\n${label} : Ship`
     const parsed = parseRegisteredMermaid(source)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
-    const diagram = asTimeline(parsed.value)!
-    expect(diagram.body.sections[0]!.periods.map(period => period.label)).toEqual(['2020', label])
-    const serialized = serializeMermaid(diagram)
+    expect(parsed.value.body.kind).toBe('timeline')
+    const serialized = serializeMermaid(parsed.value)
+    expect(renderMermaidSVG(parsed.value)).toBe(renderMermaidSVG(source))
     for (const input of [source, serialized]) {
       const svg = render(input)
       expect(svg).toContain(`>${label}</text>`)
@@ -38,7 +64,8 @@ describe('renderMermaidSVG – timeline diagrams', () => {
     }
     const reparsed = parseRegisteredMermaid(serialized)
     if (!reparsed.ok) throw new Error(JSON.stringify(reparsed.error))
-    expect(asTimeline(reparsed.value)!.body).toEqual(diagram.body)
+    expect(reparsed.value.body.kind).toBe('timeline')
+    expect(serializeMermaid(reparsed.value)).toBe(serialized)
   })
 
   it('renders a basic timeline to valid SVG', () => {
@@ -139,12 +166,12 @@ describe('renderMermaidSVG – timeline diagrams', () => {
         const svg = render(source)
         expect(svg, source).toContain(escaped)
         expect(svg, source).not.toContain('NaN')
-        expect(svg, source).not.toContain('<tspan font-weight="bold">')
+        expect(svg, source).not.toMatch(/<tspan\b[^>]*\b(?:font-weight="(?:bold|700)"|font-style="italic"|text-decoration=")/)
       }
     }
     const complete = render('timeline\n  2024 : A<b>Bold</b>Z')
     expect(complete).toContain('A&lt;b&gt;Bold&lt;/b&gt;Z')
-    expect(complete).not.toContain('<tspan font-weight="bold">')
+    expect(complete).not.toMatch(/<tspan\b[^>]*\b(?:font-weight="(?:bold|700)"|font-style="italic"|text-decoration=")/)
   })
 
   it('measures markup-looking Timeline text literally in all four slots', () => {
@@ -275,4 +302,120 @@ describe('renderMermaidSVG – timeline diagrams', () => {
     expect(svg).toContain('This is a deliberately long')
     expect(svg).toContain('match Mermaid timeline')
   })
+})
+
+const PALETTE_A: TimelineFamilyPalette = { accent: '#112233', fill: '#445566', label: '#fefefe', line: '#778899' }
+const PALETTE_B: TimelineFamilyPalette = { accent: '#224466', fill: '#6688aa', label: '#eeeeee', line: '#99bbdd' }
+const STYLE_A = '--tl-accent:#112233;--tl-fill:#445566;--tl-label:#fefefe;--tl-line:#778899;--tl-section-bg:color-mix(in srgb, #445566 6%, var(--bg));--tl-section-band:color-mix(in srgb, #445566 12%, var(--bg));--tl-pill-fill:color-mix(in srgb, #445566 11%, var(--bg));--tl-pill-stroke:color-mix(in srgb, #445566 36%, #778899);--tl-event-fill:color-mix(in srgb, #445566 16%, var(--_node-fill))'
+
+function positionedPaletteTimeline(periodCount: number): PositionedTimelineDiagram {
+  return {
+    width: 80 * periodCount + 40, height: 200,
+    rail: { x1: 20, y1: 80, x2: 80 * periodCount + 20, y2: 80 },
+    sections: [{ id: 'S', x: 10, y: 10, width: 80 * periodCount + 20, height: 180, framed: false, headerHeight: 0,
+      periods: Array.from({ length: periodCount }, (_, index) => ({
+        id: `P${index}`, sectionId: 'S', label: `P${index}界`, centerX: 50 + 80 * index,
+        markerX: 50 + 80 * index, markerY: 80,
+        pillX: 20 + 80 * index, pillY: 20, pillWidth: 60, pillHeight: 30,
+        stem: { x1: 50 + 80 * index, y1: 50, x2: 50 + 80 * index, y2: 80 }, events: [],
+      })),
+    }],
+  }
+}
+
+function publicPaletteScene(palettes: readonly TimelineFamilyPalette[], positioned = positionedPaletteTimeline(3)) {
+  const lower = getFamily('timeline')?.lowerScene
+  if (!lower) throw new Error('public Timeline lowering unavailable')
+  return lower({ positioned, colors: { bg: '#ffffff', fg: '#111111' },
+    resolved: { renderOptions: {}, familyAppearance: { timelineConfig: {}, familyPalettes: palettes } } })
+}
+
+function periodTags(svg: string): string[] {
+  return svg.match(/<g class="timeline-period"[^>]*>/g) ?? []
+}
+
+describe('public Timeline palette output and request isolation', () => {
+  it('projects typed palettes without freezing caller data and snapshots each request', () => {
+    const caller = { ...PALETTE_A }
+    const palettes = [caller]
+    const positioned = positionedPaletteTimeline(3)
+    const first = publicPaletteScene(palettes, positioned)
+    const svg = DefaultBackend.render(first, { seed: 0 })
+    const tags = periodTags(svg)
+    expect(tags).toHaveLength(3)
+    for (const [index, tag] of tags.entries()) {
+      expect(tag).toContain(`data-id="P${index}" data-label="P${index}界" data-family="0"`)
+      expect(tag).toContain(`style="${STYLE_A}"`)
+    }
+    expect(svg).toContain('<line class="timeline-stem" x1="50" y1="50" x2="50" y2="80"')
+    expect(Object.isFrozen(caller)).toBe(false)
+    expect(Object.isFrozen(palettes)).toBe(false)
+    expect(Object.isFrozen(positioned)).toBe(false)
+    caller.fill = PALETTE_B.fill
+    const changed = DefaultBackend.render(publicPaletteScene(palettes, positioned), { seed: 0 })
+    expect(periodTags(changed)[0]).toContain('--tl-fill:#6688aa')
+    expect(periodTags(changed)[0]).toContain('--tl-pill-stroke:color-mix(in srgb, #6688aa 36%, #778899)')
+    expect(periodTags(svg)[0]).toContain('--tl-fill:#445566')
+    expect(DefaultBackend.render(first, { seed: 0 })).toBe(svg)
+  })
+
+  it.each(['accent', 'fill', 'label', 'line'] as const)('keeps current %s after a tuple change and an early repeat', field => {
+    const changed = { ...PALETTE_A, [field]: PALETTE_B[field] }
+    const tags = periodTags(DefaultBackend.render(publicPaletteScene([PALETTE_A, changed, PALETTE_A, PALETTE_A], positionedPaletteTimeline(4)), { seed: 0 }))
+    expect(tags).toHaveLength(4)
+    expect(tags[0]).toContain(`style="${STYLE_A}"`)
+    expect(tags[1]).toContain(`--tl-${field}:${PALETTE_B[field]}`)
+    expect(tags[2]).toContain(`style="${STYLE_A}"`)
+    expect(tags[3]).toContain(`style="${STYLE_A}"`)
+    if (field === 'fill') expect(tags[1]).toContain('--tl-section-bg:color-mix(in srgb, #6688aa 6%, var(--bg))')
+    if (field === 'line') expect(tags[1]).toContain('--tl-pill-stroke:color-mix(in srgb, #445566 36%, #99bbdd)')
+  })
+
+  it('keeps nested public lowering from a palette getter isolated from its enclosing request', () => {
+    let nested = ''
+    const caller = { ...PALETTE_A }
+    const palette = Object.defineProperty(caller, 'line', { enumerable: true, configurable: true, get() {
+      if (!nested) nested = DefaultBackend.render(publicPaletteScene([PALETTE_B], positionedPaletteTimeline(1)), { seed: 0 })
+      return PALETTE_A.line
+    } })
+    const outer = DefaultBackend.render(publicPaletteScene([palette]), { seed: 0 })
+    expect(periodTags(nested)[0]).toContain('--tl-accent:#224466;--tl-fill:#6688aa;--tl-label:#eeeeee;--tl-line:#99bbdd')
+    expect(periodTags(outer)).toHaveLength(3)
+    for (const tag of periodTags(outer)) expect(tag).toContain(`style="${STYLE_A}"`)
+    expect(Object.isFrozen(caller)).toBe(false)
+  })
+
+  it('preserves finite family numbers across 129 palettes and later repeats', () => {
+    const palettes = Array.from({ length: 129 }, (_, index) => ({ ...PALETTE_A,
+      accent: index === 128 ? PALETTE_B.accent : PALETTE_A.accent }))
+    const tags = periodTags(DefaultBackend.render(publicPaletteScene(palettes, positionedPaletteTimeline(258)), { seed: 0 }))
+    expect(tags).toHaveLength(258)
+    for (let index = 0; index < 258; index++) {
+      const family = index % 129
+      expect(tags[index]).toContain(`data-id="P${index}" data-label="P${index}界" data-family="${family}"`)
+      expect(tags[index]).toContain(`--tl-accent:${family === 128 ? '#224466' : '#112233'}`)
+      expect(tags[index]).toContain('--tl-pill-stroke:color-mix(in srgb, #445566 36%, #778899)')
+    }
+  })
+
+  it('keeps direct-backend lexical references, final strict refusal and attribute escaping', () => {
+    const palettes = [PALETTE_A, { ...PALETTE_A, fill: 'url(https://example.test/paint)' }, PALETTE_A]
+    const svg = DefaultBackend.render(publicPaletteScene(palettes), { seed: 0 })
+    expect(periodTags(svg)[1]).toContain('--tl-fill:url(https://example.test/paint)')
+    expect(applyOutputSecurityPolicy(svg, 'default').diagnostics).toContainEqual({
+      code: 'EXTERNAL_REFERENCE', reference: expect.stringContaining('https://example.test/paint'),
+    })
+    expect(() => applyOutputSecurityPolicy(svg, 'strict')).toThrow('OutputSecurityPolicy strict verification failed')
+    const escaped = DefaultBackend.render(publicPaletteScene([{ ...PALETTE_A, fill: 'red" onload="alert(1)' }]), { seed: 0 })
+    expect(escaped).toContain('--tl-fill:red&quot; onload=&quot;alert(1)')
+    expect(verifyNoExternalRefs(escaped)).toEqual({ ok: true, refs: [] })
+    expect(periodTags(DefaultBackend.render(publicPaletteScene([PALETTE_A]), { seed: 0 }))[0]).toContain(`style="${STYLE_A}"`)
+  })
+
+  it.each(['expression(alert(1))', 'url(javascript:alert(1))', 'red;fill:url(data:text/plain,active)', 'url(\\6a avascript:alert(1))'])(
+    'rejects active CSS at construction or backend admission: %s', fill => {
+      expect(() => DefaultBackend.render(publicPaletteScene([{ ...PALETTE_A, fill }], positionedPaletteTimeline(1)), { seed: 0 }))
+        .toThrow(/active content|style may only set custom properties/)
+    },
+  )
 })

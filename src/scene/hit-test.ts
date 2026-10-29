@@ -1,5 +1,6 @@
 import type { ConnectorMark, SceneDoc, SceneNode, ScenePoint } from './ir.ts'
 import { connectorSegments } from './connector-geometry.ts'
+import { composeMatrices, IDENTITY_MATRIX, inverseMatrix, transformMatrix, transformPoint, type AffineMatrix } from './transforms.ts'
 
 export interface SceneConnectorHit {
   readonly id: string
@@ -17,47 +18,53 @@ function distanceToSegment(point: ScenePoint, start: ScenePoint, end: ScenePoint
   return Math.hypot(point.x - (start.x + t * dx), point.y - (start.y + t * dy))
 }
 
-function localPoint(connector: ConnectorMark, point: ScenePoint): ScenePoint {
-  if (!connector.transform) return point
-  const radians = -connector.transform.angle * Math.PI / 180
-  const dx = point.x - connector.transform.cx
-  const dy = point.y - connector.transform.cy
-  return {
-    x: connector.transform.cx + dx * Math.cos(radians) - dy * Math.sin(radians),
-    y: connector.transform.cy + dx * Math.sin(radians) + dy * Math.cos(radians),
-  }
-}
 
 /** Distance from a world-space point to the connector's typed hit route.
  * Returns undefined for deliberately non-interactive connectors or for a path
  * that failed to provide the point projection required by the Scene contract. */
-export function connectorHitDistance(connector: ConnectorMark, point: ScenePoint): number | undefined {
+function transformedHitDistance(connector: ConnectorMark, point: ScenePoint, parent: AffineMatrix): number | undefined {
   if (connector.hit.pointerEvents === 'none') return undefined
   const segments = connectorSegments(connector.hit.geometry, connector.hit.closed)
   if (segments.length === 0) return undefined
-  const local = localPoint(connector, point)
+  const matrix = composeMatrices(parent, transformMatrix(connector.transform))
   let distance = Number.POSITIVE_INFINITY
   for (const segment of segments) {
-    distance = Math.min(distance, distanceToSegment(local, segment.start, segment.end))
+    distance = Math.min(distance, distanceToSegment(point, transformPoint(segment.start, matrix), transformPoint(segment.end, matrix)))
   }
   return distance
 }
 
-export function hitTestConnector(
-  connector: ConnectorMark,
-  point: ScenePoint,
-  tolerance = 0,
-): boolean {
-  const distance = connectorHitDistance(connector, point)
-  return distance !== undefined && distance <= connector.hit.strokeWidth / 2 + Math.max(0, tolerance)
+export function connectorHitDistance(connector: ConnectorMark, point: ScenePoint): number | undefined {
+  return transformedHitDistance(connector, point, IDENTITY_MATRIX)
 }
 
-function visitConnectors(nodes: readonly SceneNode[], visit: (connector: ConnectorMark) => void): void {
+function hitsTransformed(connector: ConnectorMark, point: ScenePoint, tolerance: number, parent: AffineMatrix): boolean {
+  if (connector.hit.pointerEvents === 'none') return false
+  const matrix = composeMatrices(parent, transformMatrix(connector.transform))
+  const inverse = inverseMatrix(matrix)
+  if (!inverse) return false
+  if (connector.stroke.nonScaling) {
+    const distance = transformedHitDistance(connector, point, parent)
+    return distance !== undefined && distance <= connector.hit.strokeWidth / 2 + Math.max(0, tolerance)
+  }
+  const local = transformPoint(point, inverse)
+  // A world-space tolerance expands conservatively under an affine inverse;
+  // the declared local hit stroke itself is tested exactly, including scale.
+  const inverseExtent = (Math.hypot(inverse[0] + inverse[3], inverse[1] - inverse[2]) + Math.hypot(inverse[0] - inverse[3], inverse[1] + inverse[2])) / 2
+  const threshold = connector.hit.strokeWidth / 2 + (tolerance > 0 ? tolerance * inverseExtent : 0)
+  return connectorSegments(connector.hit.geometry, connector.hit.closed).some(segment => distanceToSegment(local, segment.start, segment.end) <= threshold)
+}
+
+export function hitTestConnector(connector: ConnectorMark, point: ScenePoint, tolerance = 0): boolean {
+  return hitsTransformed(connector, point, tolerance, IDENTITY_MATRIX)
+}
+
+function visitConnectors(nodes: readonly SceneNode[], parent: AffineMatrix, visit: (connector: ConnectorMark, parent: AffineMatrix) => void): void {
   // Reverse paint order: the visually topmost connector wins ties.
   for (let index = nodes.length - 1; index >= 0; index--) {
     const node = nodes[index]!
-    if (node.kind === 'connector') visit(node)
-    else if (node.kind === 'group') visitConnectors(node.children.map(child => child.node), visit)
+    if (node.kind === 'connector') visit(node, parent)
+    else if (node.kind === 'group') visitConnectors(node.children.map(child => child.node), composeMatrices(parent, transformMatrix(node.transform)), visit)
   }
 }
 
@@ -68,9 +75,9 @@ export function hitTestSceneConnectors(
   tolerance = 0,
 ): readonly SceneConnectorHit[] {
   const hits: SceneConnectorHit[] = []
-  visitConnectors(scene.parts, connector => {
-    const distance = connectorHitDistance(connector, point)
-    if (distance !== undefined && distance <= connector.hit.strokeWidth / 2 + Math.max(0, tolerance)) {
+  visitConnectors(scene.parts, IDENTITY_MATRIX, (connector, parent) => {
+    const distance = transformedHitDistance(connector, point, parent)
+    if (distance !== undefined && hitsTransformed(connector, point, tolerance, parent)) {
       hits.push(Object.freeze({ id: connector.id, role: connector.role, connector, distance }))
     }
   })

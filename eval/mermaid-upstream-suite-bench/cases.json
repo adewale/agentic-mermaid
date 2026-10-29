@@ -1568,15 +1568,14 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 3,
+      "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0,
-      "minNodes": 3,
+      "groupCount": 1,
+      "minNodes": 2,
       "labelsContain": [
         "A",
         "B",
-        "end"
+        "WithRL"
       ]
     }
   },
@@ -2634,8 +2633,15 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "renderError": "ER_UNSUPPORTED_STATEMENT"
+      "expectStructured": true,
+      "nodeCount": 2,
+      "edgeCount": 1,
+      "groupCount": 0,
+      "labelsContain": [
+        "PROJECT",
+        "TEAM_MEMBER",
+        "parent"
+      ]
     }
   },
   {
@@ -9245,7 +9251,7 @@
         "Alice",
         "Bob",
         "Bob thinks",
-        "wrap: Hello Bob, how are you? If you are not available right now, I can leave you a message. Please get back to me as soon as you can!",
+        "Hello Bob, how are you? If you are not available right now, I can leave you a message. Please get back to me as soon as you can!",
         "Fine!"
       ]
     }
@@ -10381,8 +10387,8 @@
         "2",
         "3",
         "4",
-        "wrap: single-line text",
-        "wrap: multiline\ntext"
+        "single-line text",
+        "multiline\ntext"
       ]
     }
   },
@@ -10412,9 +10418,7 @@
         "3",
         "4",
         "single-line text",
-        "nowrap: single-line text",
-        "multiline\ntext",
-        "nowrap: multiline\ntext"
+        "multiline\ntext"
       ]
     }
   },
@@ -12461,7 +12465,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 5,
+      "nodeCount": 4,
       "edgeCount": 4,
       "groupCount": 0
     }
@@ -12481,7 +12485,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 5,
+      "nodeCount": 4,
       "edgeCount": 4,
       "groupCount": 0
     }
@@ -12550,7 +12554,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 5,
+      "nodeCount": 4,
       "edgeCount": 4,
       "groupCount": 0
     }
@@ -12570,7 +12574,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 5,
+      "nodeCount": 4,
       "edgeCount": 4,
       "groupCount": 0
     }
@@ -12896,8 +12900,14 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"note \"This is a floating note\" as N1\""
+      "expectStructured": true,
+      "nodeCount": 2,
+      "edgeCount": 0,
+      "groupCount": 0,
+      "labelsContain": [
+        "bar",
+        "This is a floating note"
+      ]
     }
   },
   {
@@ -12914,8 +12924,14 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"note \"This is a floating note\" as N1\""
+      "expectStructured": true,
+      "nodeCount": 2,
+      "edgeCount": 0,
+      "groupCount": 0,
+      "labelsContain": [
+        "foo",
+        "This is a floating note"
+      ]
     }
   },
   {
@@ -12932,8 +12948,14 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"note \"This is a floating note\" as N1\""
+      "expectStructured": true,
+      "nodeCount": 2,
+      "edgeCount": 0,
+      "groupCount": 0,
+      "labelsContain": [
+        "bar",
+        "This is a floating note"
+      ]
     }
   },
   {
@@ -12950,8 +12972,14 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"note \"This is a floating note\" as N1\""
+      "expectStructured": true,
+      "nodeCount": 2,
+      "edgeCount": 0,
+      "groupCount": 0,
+      "labelsContain": [
+        "foo",
+        "This is a floating note"
+      ]
     }
   },
   {
@@ -13287,10 +13315,10 @@
     },
     "assertions": {
       "expectStructured": true,
-      "nodeCount": 5,
+      "nodeCount": 4,
       "edgeCount": 4,
       "groupCount": 0,
-      "minNodes": 5,
+      "minNodes": 4,
       "minEdges": 4,
       "labelsContain": [
         "this is a string",
@@ -13313,10 +13341,10 @@
     },
     "assertions": {
       "expectStructured": true,
-      "nodeCount": 5,
+      "nodeCount": 4,
       "edgeCount": 4,
       "groupCount": 0,
-      "minNodes": 5,
+      "minNodes": 4,
       "minEdges": 4,
       "labelsContain": [
         "this is a string",
@@ -13558,8 +13586,14 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"state valid { X }\""
+      "expectStructured": true,
+      "nodeCount": 1,
+      "edgeCount": 0,
+      "groupCount": 1,
+      "labelsContain": [
+        "valid",
+        "X"
+      ]
     }
   },
   {
@@ -13577,7 +13611,11 @@
     },
     "assertions": {
       "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"state \"Accumulate Enough Data\""
+      "labelsContain": [
+        "Accumulate Enough Data",
+        "Long State Name",
+        "Just a test"
+      ]
     }
   },
   {
@@ -13595,7 +13633,11 @@
     },
     "assertions": {
       "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"state \"Accumulate Enough Data\""
+      "labelsContain": [
+        "Accumulate Enough Data",
+        "Long State Name",
+        "Just a test"
+      ]
     }
   },
   {

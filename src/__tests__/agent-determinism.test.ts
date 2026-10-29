@@ -9,12 +9,17 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { verifyMermaid } from '../agent/verify.ts'
+import type { RenderedLayout } from '../agent/types.ts'
+import { clearElkLayoutCache } from '../elk-instance.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 function findNodeBinary(): string | null {
   const candidates = [process.env.NODE_BINARY, 'node', '/opt/node22/bin/node'].filter((x): x is string => Boolean(x))
   for (const candidate of candidates) {
-    try { if (spawnSync(candidate, ['--version'], { encoding: 'utf8' }).status === 0) return candidate } catch {}
+    try { if (spawnSync(candidate, ['--version'], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' }).status === 0) return candidate } catch {}
   }
   return null
 }
@@ -75,12 +80,14 @@ function expectRelativeAxisOrder(before: Map<string, { x: number; y: number }>, 
 // behind (memo or cache pollution). Byte-level cross-process and cross-runtime
 // determinism is gated below and by layout-equivalence.test.ts, so one size per
 // direction and density is enough here; the full 120-case grid added nothing.
+// Each call clears the ELK result cache, so both calls run ELK.
 describe('determinism grid (in-process, repeat call)', () => {
   const n = NODE_COUNTS[NODE_COUNTS.length - 1]!
   for (const dir of DIRECTIONS) for (const density of DENSITY) {
     test(`${dir} ${n} ${density}`, () => {
       const src = makeDiagram(dir, n, density)
-      expect(JSON.stringify(verifyMermaid(src).layout)).toEqual(JSON.stringify(verifyMermaid(src).layout))
+      const layout = () => { clearElkLayoutCache(); return JSON.stringify(verifyMermaid(src).layout) }
+      expect(layout()).toEqual(layout())
     })
   }
 })
@@ -176,7 +183,7 @@ describe('determinism — locale-independent ordering authority', () => {
       expect(built.outputs).toHaveLength(1)
       const moduleUrl = pathToFileURL(built.outputs[0]!.path).href
       const script = `import { canonicalizeSceneNodeSerialization as canonicalize } from ${JSON.stringify(moduleUrl)}; process.stdout.write(canonicalize('<svg data-z="1" data-ä="2"></svg>'))`
-      const run = (lang: string) => spawnSync(NODE!, ['--input-type=module', '-e', script], {
+      const run = (lang: string) => spawnSync(NODE!, ['--input-type=module', '-e', script], { timeout: 20_000, killSignal: 'SIGKILL',
         encoding: 'utf8',
         env: { ...process.env, LANG: lang, LC_ALL: lang },
       })
@@ -198,14 +205,34 @@ describe('determinism — REAL cross-process (the test I claimed but never wrote
   // reproducible-across-invocations.
   const RUNNER = join(import.meta.dir, 'helpers', 'layout-runner.ts')
   const samples = [
-    'flowchart LR\n  A --> B\n  A --> C\n  B --> D\n  C --> D\n  D --> E\n  E --> A',
-    'flowchart TD\n  ' + Array.from({ length: 10 }, (_, i) => `N${i} --> N${(i + 1) % 10}`).join('\n  '),
-  ]
-  for (const src of samples) {
-    test(`identical across 3 child processes: ${src.slice(0, 24).replace(/\n/g, ' ')}…`, () => {
-      const run = () => spawnSync('bun', ['run', RUNNER, src], { encoding: 'utf8' }).stdout
-      const a = run(), b = run(), c = run()
-      expect(a.length).toBeGreaterThan(2)
+    {
+      source: 'flowchart LR\n  A --> B\n  A --> C\n  B --> D\n  C --> D\n  D --> E\n  E --> A',
+      nodeIds: ['A', 'B', 'C', 'D', 'E'],
+    },
+    {
+      source: 'flowchart TD\n  ' + Array.from({ length: 10 }, (_, i) => `N${i} --> N${(i + 1) % 10}`).join('\n  '),
+      nodeIds: ['N0', 'N1', 'N2', 'N3', 'N4', 'N5', 'N6', 'N7', 'N8', 'N9'],
+    },
+  ] as const
+  for (const { source: src, nodeIds } of samples) {
+    test(`identical across 3 child processes: ${src.slice(0, 24).replace(/\n/g, ' ')}…`, async () => {
+      const run = async () => {
+        const result = await runChild('bun', ['run', RUNNER, src])
+        expect(result.status, result.stderr).toBe(0)
+        const layout = JSON.parse(result.stdout) as RenderedLayout
+        expect(layout).toMatchObject({ version: 1, kind: 'flowchart' })
+        expect(layout.nodes.map(node => node.id).sort()).toEqual([...nodeIds])
+        expect(Array.isArray(layout.edges)).toBe(true)
+        expect(Array.isArray(layout.groups)).toBe(true)
+        expect([layout.bounds.w, layout.bounds.h].every(value => Number.isFinite(value) && value > 0)).toBe(true)
+        for (const node of layout.nodes) {
+          expect([node.x, node.y, node.w, node.h].every(Number.isFinite)).toBe(true)
+          expect(node.w).toBeGreaterThan(0)
+          expect(node.h).toBeGreaterThan(0)
+        }
+        return result.stdout
+      }
+      const a = await run(), b = await run(), c = await run()
       expect(b).toEqual(a)
       expect(c).toEqual(a)
     })
@@ -220,7 +247,7 @@ describe('determinism — cross-runtime (bun vs node)', () => {
   const NODE = findNodeBinary()
   const DIST = join(import.meta.dir, '..', '..', 'dist', 'agent.js')
   const haveNode = (() => {
-    try { return NODE !== null && spawnSync(NODE, ['--version'], { encoding: 'utf8' }).status === 0 } catch { return false }
+    try { return NODE !== null && spawnSync(NODE, ['--version'], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' }).status === 0 } catch { return false }
   })()
   const haveDist = (() => { try { return require('node:fs').existsSync(DIST) } catch { return false } })()
 
@@ -235,7 +262,7 @@ describe('determinism — cross-runtime (bun vs node)', () => {
       const nodeOut = spawnSync(NODE!, ['-e', `
         const { verifyMermaid } = require('${DIST}')
         process.stdout.write(JSON.stringify(verifyMermaid(${JSON.stringify(src)}).layout))
-      `], { encoding: 'utf8' })
+      `], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' })
       expect(nodeOut.status).toBe(0)
       // Compare structurally (parsed JSON), immune to whitespace differences.
       const nodeLayout = JSON.parse(nodeOut.stdout)
@@ -257,7 +284,7 @@ describe('determinism — cross-runtime PNG (Loop 8)', () => {
   const NODE = findNodeBinary()
   const DIST = join(import.meta.dir, '..', '..', 'dist', 'agent.js')
   const haveNode = (() => {
-    try { return NODE !== null && spawnSync(NODE, ['--version'], { encoding: 'utf8' }).status === 0 } catch { return false }
+    try { return NODE !== null && spawnSync(NODE, ['--version'], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' }).status === 0 } catch { return false }
   })()
   const haveDist = (() => { try { return require('node:fs').existsSync(DIST) } catch { return false } })()
   const haveResvg = (() => {
@@ -283,7 +310,7 @@ describe('determinism — cross-runtime PNG (Loop 8)', () => {
       const png = m.renderMermaidPNG(${JSON.stringify(src)});
       process.stdout.write(require('node:crypto').createHash('sha256').update(png).digest('hex'))
     `
-    const r = spawnSync(NODE!, ['-e', script], { encoding: 'utf8' })
+    const r = spawnSync(NODE!, ['-e', script], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' })
     expect(r.status).toBe(0)
     const nodeHash = r.stdout.trim()
 
@@ -300,7 +327,7 @@ describe('determinism — cross-runtime ASCII (Loop 9 M7)', () => {
   const NODE = findNodeBinary()
   const DIST = join(import.meta.dir, '..', '..', 'dist', 'agent.js')
   const haveNode = (() => {
-    try { return NODE !== null && spawnSync(NODE, ['--version'], { encoding: 'utf8' }).status === 0 } catch { return false }
+    try { return NODE !== null && spawnSync(NODE, ['--version'], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' }).status === 0 } catch { return false }
   })()
   const haveDist = (() => { try { return require('node:fs').existsSync(DIST) } catch { return false } })()
 
@@ -321,8 +348,8 @@ describe('determinism — cross-runtime ASCII (Loop 9 M7)', () => {
         const ascii = m.renderMermaidASCII(${JSON.stringify(src)});
         process.stdout.write(require('node:crypto').createHash('sha256').update(ascii).digest('hex'))
       `
-      const r = spawnSync(NODE!, ['-e', script], { encoding: 'utf8' })
-      expect(r.status).toBe(0)
+      const r = spawnSync(NODE!, ['-e', script], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' })
+      expect(r.status, JSON.stringify({ stderr: r.stderr, error: r.error?.message, signal: r.signal })).toBe(0)
       const nodeHash = r.stdout.trim()
       // Honest comparison. Any divergence fails — convert to test.todo +
       // document in DIVERGENCES if it does.

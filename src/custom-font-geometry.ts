@@ -48,6 +48,8 @@ interface InheritedTextMetrics {
   readonly weight: number
   readonly letterSpacing: number
   readonly mono: boolean
+  readonly fontStyle: 'normal' | 'italic'
+  readonly fontFamily?: string
 }
 
 interface XmlTextNode {
@@ -134,11 +136,15 @@ function childElements(element: XmlElement): XmlElement[] {
 
 function resolveMetrics(parent: InheritedTextMetrics, element: XmlElement): InheritedTextMetrics {
   const namedBold = element.name === 'b' || element.name === 'strong'
+  const mono = parent.mono || hasMonoClass(element.attrs)
   return {
     size: numericAttribute(element.attrs, 'font-size', parent.size),
     weight: namedBold ? Math.max(700, fontWeightAttribute(element.attrs, parent.weight)) : fontWeightAttribute(element.attrs, parent.weight),
     letterSpacing: numericAttribute(element.attrs, 'letter-spacing', parent.letterSpacing),
-    mono: parent.mono || hasMonoClass(element.attrs),
+    mono,
+    fontFamily: attribute(element.attrs, 'font-family') ?? (mono && !parent.mono ? undefined : parent.fontFamily),
+    fontStyle: element.name === 'i' || element.name === 'em' || attribute(element.attrs, 'font-style') === 'italic'
+      ? 'italic' : attribute(element.attrs, 'font-style') === 'normal' ? 'normal' : parent.fontStyle,
   }
 }
 
@@ -191,11 +197,11 @@ function measuredAdvance(runs: readonly MeasuredRun[], literalText = false): num
     const clusters = graphemes(run.text).length
     if (previousClusters > 0 && clusters > 0) width += previousSpacing
     width += run.metrics.mono
-      ? measureMonospaceTextWidth(run.text, run.metrics.size, run.metrics.letterSpacing)
+      ? measureMonospaceTextWidth(run.text, run.metrics.size, run.metrics.letterSpacing, run.metrics.weight, run.metrics.fontStyle, run.metrics.fontFamily)
       : literalText
-        ? measureTextWidth(run.text, run.metrics.size, run.metrics.weight) +
+        ? measureTextWidth(run.text, run.metrics.size, run.metrics.weight, run.metrics.fontStyle, run.metrics.fontFamily) +
           Math.max(0, clusters - 1) * run.metrics.letterSpacing
-        : measureFormattedTextWidth(run.text, run.metrics.size, run.metrics.weight, run.metrics.letterSpacing)
+        : measureFormattedTextWidth(run.text, run.metrics.size, run.metrics.weight, run.metrics.letterSpacing, run.metrics.fontStyle, run.metrics.fontFamily)
     previousClusters = clusters
     previousSpacing = run.metrics.letterSpacing
   }
@@ -213,13 +219,15 @@ interface SourceEdit { readonly offset: number; readonly text: string }
  * `fontStack` is retained for compatibility with the former unknown-font-only
  * postpass; projection is deliberately family-independent.
  */
-export function fitUncalibratedSvgText(svg: string, _fontStack: string): string {
+export function fitUncalibratedSvgText(svg: string, fontStack: string): string {
   const roots = scanXml(svg)
   if (!roots) return svg
   const edits: SourceEdit[] = []
-  const base: InheritedTextMetrics = { size: 0, weight: 400, letterSpacing: 0, mono: false }
+  const base: InheritedTextMetrics = { size: 0, weight: 400, letterSpacing: 0, mono: false, fontStyle: 'normal', fontFamily: fontStack }
 
   const visitTextTree = (element: XmlElement, inherited: InheritedTextMetrics, insideText: boolean, inheritedLiteral = false) => {
+    // Prepared emission already owns every run's advance and placement.
+    if (hasAttribute(element.attrs, 'data-prepared-text')) return
     const metrics = resolveMetrics(inherited, element)
     const literalText = inheritedLiteral || hasAttribute(element.attrs, 'data-literal-text')
     const isTextRoot = element.name === 'text' && !insideText

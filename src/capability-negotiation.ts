@@ -86,7 +86,7 @@ export function isSupportedSemVerRange(range: unknown): boolean {
 /** Deliberately small public range language: exact, ^, ~, >=, major.x, or *. */
 export function semVerSatisfies(version: string, range: string): boolean {
   const actual = parseSemVer(version)
-  if (!actual || !isSupportedSemVerRange(range)) return false
+  if (!actual || typeof range !== 'string') return false
   const trimmed = range.trim()
   if (trimmed === '*') return actual.prerelease === undefined
   const wildcard = trimmed.match(/^(0|[1-9]\d*)\.(?:x|\*)$/i)

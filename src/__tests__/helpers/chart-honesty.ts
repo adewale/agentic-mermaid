@@ -25,6 +25,64 @@ export interface HonestySample {
 const titled = (title: string, body: string): string => `---\ntitle: ${title}\n---\n${body}`
 
 export const HONESTY_SAMPLES: Record<DiagramKind, readonly HonestySample[]> = {
+  zenuml: [{ name: 'nested calls and branch returns', source: 'zenuml\nBuyer->API.checkout() {\n  Store.reserve() {\n    return confirmation\n  }\n}\nAPI->Buyer: accepted', expectText: ['Buyer', 'checkout()', 'reserve()', 'confirmation', 'accepted'] }],
+  eventmodeling: [{ name: 'namespace return and full inline data', source: 'eventmodeling\ntf 01 ui Cart.UI\ntf 02 cmd Cart.AddItem { description: string }\ntf 03 evt Stock.Changed\ntf 04 evt Cart.ItemAdded', expectText: ['Cart.UI', 'description: string', 'Cart.ItemAdded'] }],
+  packet: [
+    {
+      name: 'word wrapping, narrow bit labels and long title',
+      source: titled('A packet title that remains visible across every look', 'packet\n+1: "Enable"\n+7: "Operation"\n+24: "A field label with several explanatory words"\n+48: "Payload"'),
+      expectText: ['A packet title that remains visible across every look', 'Enable', 'Operation', 'A field label with several explanatory words', 'Payload'],
+    },
+  ],
+  kanban: [
+    {
+      name: 'long column heading, metadata and frontmatter title',
+      source: titled('Delivery with every task accounted for', 'kanban\nTodo[A column heading that wraps across several lines without hiding any words]\n  task[A task that needs a longer explanation]@{assigned: Alice, ticket: ID-42, priority: High}\nDone[Completed work]'),
+      expectText: ['Delivery with every task accounted for', 'A column heading that wraps across several lines without hiding any words', 'A task that needs a longer explanation', 'Alice', 'ID-42', 'High', 'Completed work'],
+    },
+  ],
+  requirement: [
+    {
+      name: 'long requirement text, evidence and frontmatter title',
+      source: titled('Traceable acceptance criteria', 'requirementDiagram\nrequirement r {\nid: R1\ntext: "The service must retain every authored requirement and its relationship to evidence"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: conformance suite\n}\nsuite - verifies -> r'),
+      expectText: ['Traceable acceptance criteria', 'R1', 'The service must retain every authored requirement and its relationship to evidence', 'suite'],
+    },
+  ],
+  treemap: [
+    {
+      name: 'hierarchical headings, values and title',
+      source: titled('Investment across product work', 'treemap\n"A portfolio heading that names the entire investment"\n  "Engineering and ongoing maintenance": 60\n  "Design and discovery": 40'),
+      expectText: ['Investment across product work', 'A portfolio heading that names the entire investment', 'Engineering and ongoing maintenance', 'Design and discovery'],
+    },
+  ],
+  ishikawa: [
+    {
+      name: 'long effect, nested causes and title',
+      source: titled('Release delay investigation', 'ishikawa\n  A delayed release with several interacting contributing causes\n  Process and coordination\n    Manual acceptance checks\n  Tooling and infrastructure\n    Slow builds\n      Cold dependency caches'),
+      expectText: ['Release delay investigation', 'A delayed release with several interacting contributing causes', 'Process and coordination', 'Manual acceptance checks', 'Tooling and infrastructure', 'Slow builds', 'Cold dependency caches'],
+    },
+  ],
+  block: [
+    {
+      name: 'nested authored grid with label and title',
+      source: titled('A system with explicit placement', 'block\ncolumns 2\nblock:domain:2\nA["An API label with a longer explanation"] B["Persistent store"]\nend\nA --> B'),
+      expectText: ['A system with explicit placement', 'An API label with a longer explanation', 'Persistent store'],
+    },
+  ],
+  c4: [
+    {
+      name: 'nested architecture title, boundary and relationship detail',
+      source:
+        'C4Container\n  title Payments across the customer and platform boundary\n  Person(customer, "Customer", "Places an order")\n  System_Boundary(platform, "The payment platform that owns the checkout service") {\n    Container(api, "Checkout API", "TypeScript", "Validates the order before charging")\n  }\n  Rel(customer, api, "Submits order", "HTTPS", "Includes the basket and payment token")',
+      expectText: ['Payments across the customer and platform boundary', 'Customer', 'Places an order', 'The payment platform that owns the checkout service', 'Checkout API', 'TypeScript', 'Validates the order before charging', 'Submits order', 'HTTPS', 'Includes the basket and payment token'],
+    },
+    {
+      name: 'authored colors and repeated dynamic interactions',
+      source:
+        'C4Dynamic\n  System(a, "Client")\n  SystemDb_Ext(b, "Store")\n  Rel(a, b, "First request", "HTTP")\n  Rel(a, b, "Second request", "HTTP")\n  UpdateElementStyle(a, $bgColor="#0f172a", $fontColor="#ffffff")\n  UpdateElementStyle(b, $bgColor="#fef9c3", $fontColor="#111827")\n  UpdateRelStyle(a, b, $lineColor="#334155")',
+      expectText: ['Client', 'Store', 'First request', 'Second request', 'HTTP'],
+    },
+  ],
   flowchart: [
     {
       name: 'late label and long group title',
@@ -138,6 +196,11 @@ export const HONESTY_SAMPLES: Record<DiagramKind, readonly HonestySample[]> = {
   ],
   xychart: [
     {
+      name: 'horizontal wrapped literal title',
+      source: 'xychart-beta horizontal\n  title "Worldwide <b>quarterly revenue by region and channel for the North American market forecast</b>"\n  x-axis [Jan, Feb, Mar]\n  y-axis 0 --> 100\n  bar [10, 20, 30]',
+      expectText: ['Worldwide <b>quarterly revenue by region and channel for the North American market forecast</b>'],
+    },
+    {
       name: 'legend and labels',
       source: 'xychart-beta\n  title Quarterly revenue by channel\n  x-axis [January, February, March, April]\n  y-axis "Revenue (k$)" 0 --> 120\n  bar "Online store" [30, 55, 80, 100]\n  line "Retail forecast" [25, 60, 75, 110]',
       expectText: ['Quarterly revenue by channel', 'January', 'February', 'March', 'April', 'Revenue (k$)', 'Online store', 'Retail forecast'],
@@ -163,7 +226,8 @@ export const HONESTY_SAMPLES: Record<DiagramKind, readonly HonestySample[]> = {
   quadrant: [
     {
       name: 'crowded points and long axis labels',
-      source: 'quadrantChart\n  title A quadrant title that is longer than the chart is wide at the default size\n  x-axis A very long low-effort axis label --> A very long high-effort axis label\n  y-axis Low --> High\n  quadrant-1 Invest\n  quadrant-2 Plan\n  quadrant-3 Defer\n  quadrant-4 Drop\n  Alpha: [0.30, 0.60]\n  Beta: [0.31, 0.61]\n  Referrals: [0.32, 0.62]',
+      source:
+        'quadrantChart\n  title A quadrant title that is longer than the chart is wide at the default size\n  x-axis A very long low-effort axis label --> A very long high-effort axis label\n  y-axis Low --> High\n  quadrant-1 Invest\n  quadrant-2 Plan\n  quadrant-3 Defer\n  quadrant-4 Drop\n  Alpha: [0.30, 0.60]\n  Beta: [0.31, 0.61]\n  Referrals: [0.32, 0.62]',
       expectText: ['A quadrant title that is longer than the chart is wide at the default size', 'Invest', 'Plan', 'Defer', 'Drop', 'Alpha', 'Beta', 'Referrals'],
     },
     {
@@ -280,7 +344,7 @@ export function textHonestyViolations(sample: HonestySample, styles: ReadonlyArr
     }
     // Presence is checked once, in the first style (the default in a census).
     if (style === styles[0] && sample.expectText) {
-      const reported = new Set(verifyMermaid(sample.source, style ? { renderOptions: { style } } : {}).warnings.flatMap(warning => warning.code === 'LABELS_HIDDEN' ? warning.labels : []))
+      const reported = new Set(verifyMermaid(sample.source, style ? { renderOptions: { style } } : {}).warnings.flatMap(warning => (warning.code === 'LABELS_HIDDEN' ? warning.labels : [])))
       for (const expected of sample.expectText) {
         if (!read.includes(reading(expected)) && !reported.has(expected)) {
           violations.push({ principle: 'drawn', style: name, text: expected, detail: 'is authored but neither drawn nor reported by verify (LABELS_HIDDEN)' })

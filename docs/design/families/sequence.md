@@ -16,6 +16,21 @@ spec — the layout/renderer live in `src/sequence/`, the agent body in
   `src/agent/op-schema.ts` sequence section and
   `src/__tests__/agent-sequence-ops.test.ts`.
 
+## Parallel overlays
+
+`par_over Label … and Other … end` retains a distinct block and typed fragment
+kind. Each branch starts from the same timeline origin; independent actor
+spans can share a row. Ink that conflicts with an earlier branch moves down
+for clearance. The following statement joins below the longest branch,
+including notes, self messages and nested frames. Branch labels stay near
+their first content, without a horizontal divider through concurrent work.
+SVG/PNG and terminal output implement this rule in their own geometry units.
+
+Message-only overlays support the existing fragment/branch/message mutation
+ops. Notes, comments and nested content retain the same lossless source-block
+policy as other fragment kinds. Mermaid 12.2.0 supplies the syntax and event
+identity oracle; its renderer does not define our branch geometry contract.
+
 ## SequenceRuntimeConfig (item 6, config half — 2026-07)
 
 Typed `sequence` config section (`SequenceRuntimeConfig` in
@@ -41,7 +56,7 @@ knob overrides only its documented layout field.
 
 ### Unwired keys → INEFFECTIVE_CONFIG
 
-Everything else documented on upstream's `SequenceDiagramConfig` — <!-- BEGIN GENERATED: noop-keys:sequence -->`actorFont`, `actorFontFamily`, `actorFontSize`, `actorFontWeight`, `arrowMarkerAbsolute`, `bottomMarginAdj`, `boxMargin`, `boxTextMargin`, `forceMenus`, `hideUnusedParticipants`, `labelBoxHeight`, `labelBoxWidth`, `messageAlign`, `messageFont`, `messageFontFamily`, `messageFontSize`, `messageFontWeight`, `mirrorActors`, `noteAlign`, `noteFont`, `noteFontFamily`, `noteFontSize`, `noteFontWeight`, `rightAngles`, `useMaxWidth`, `useWidth`, `wrap`, `wrapPadding`<!-- END GENERATED: noop-keys:sequence --> — is accepted for config-shape compatibility
+Everything else documented on upstream's `SequenceDiagramConfig` — <!-- BEGIN GENERATED: noop-keys:sequence -->`actorFont`, `actorFontFamily`, `actorFontSize`, `actorFontWeight`, `arrowMarkerAbsolute`, `bottomMarginAdj`, `boxMargin`, `boxTextMargin`, `forceMenus`, `hideUnusedParticipants`, `labelBoxHeight`, `labelBoxWidth`, `look`, `messageAlign`, `messageFont`, `messageFontFamily`, `messageFontSize`, `messageFontWeight`, `mirrorActors`, `noteAlign`, `noteFont`, `noteFontFamily`, `noteFontSize`, `noteFontWeight`, `rightAngles`, `theme`, `useMaxWidth`, `useWidth`, `wrapPadding`<!-- END GENERATED: noop-keys:sequence --> — is accepted for config-shape compatibility
 and named per key by verify's Tier-3 `INEFFECTIVE_CONFIG` lint (the exact
 list is the sequence descriptor's `config.noopKeys` in
 `src/agent/families.ts`). Font keys stay unwired deliberately:

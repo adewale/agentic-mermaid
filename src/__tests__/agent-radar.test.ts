@@ -1,11 +1,17 @@
-import { describe, expect, test } from 'bun:test'
+import { afterAll, describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
-import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid, mutate, mutateChecked, asRadar, createMermaid, buildMermaid, synthesizeFromGraph } from '../agent/index.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
+import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid, mutate, mutateChecked, asRadar, createMermaid, buildMermaid, synthesizeFromGraph, renderMermaidSVG as renderDiagramSVG, renderMermaidASCII as renderDiagramASCII } from '../agent/index.ts'
 import { parseRadarChart } from '../radar/parser.ts'
+import { layoutRadarChart } from '../radar/layout.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import type { RadarBody, RadarMutationOp, RadarValidDiagram, SankeyValidDiagram } from '../agent/index.ts'
 import type { RadarRuntimeConfig } from '../index.ts'
-import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+
+const upstream = startUpstreamMermaid()
+afterAll(() => upstream.close())
 
 const BASIC = 'radar-beta\n  title Skills\n  axis speed["Speed"], power["Power"], range["Range"]\n  curve now["Current"]{4, 3, 5}\n  curve goal["Target"]{5, 5, 4}\n  max 5'
 
@@ -19,6 +25,20 @@ function radar(src: string): RadarValidDiagram {
 }
 
 describe('radar agent surface', () => {
+  test('a repeated Radar header stays source-only and reports its raw rendering failure', () => {
+    for (const source of ['radar-beta radar-beta\naxis A["A"],B', 'radar-beta\nradar-beta\naxis A["A"],B']) {
+      const parsed = parseMermaid(source)
+      if (!parsed.ok) throw Error('Radar source must be preserved')
+      expect(parsed.value.body.kind).toBe('opaque')
+      expect(serializeMermaid(parsed.value).trimEnd()).toBe(source)
+      expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED' }))
+      expect(() => renderMermaidSVG(source)).toThrow('radar-beta')
+      expect(mutate(parsed.value, { kind: 'set_title', title: 'Changed' }).ok).toBe(false)
+    }
+    const control = radar('radar-beta\naxis A["A"],B')
+    expect(control.body.axes.map(axis => axis.id)).toEqual(['A', 'B'])
+    expect(() => renderMermaidSVG(serializeMermaid(control))).not.toThrow()
+  })
   test('parses to a structured radar body and narrows via asRadar', () => {
     const d = radar(BASIC)
     expect(d.body.kind).toBe('radar')
@@ -82,6 +102,38 @@ describe('radar agent surface', () => {
     expect(asRadar(opaque.value)).toBeNull()
   })
 
+  test('an accessibility directive after a statement on its line joins the envelope, as authored', () => {
+    const cases: Array<[string, { title?: string; descr?: string }]> = [
+      ['radar-beta\n  axis a, b accTitle: x\n  curve c{1, 2}', { title: 'x' }],
+      ['radar-beta\n  axis a, b accDescr: x\n  curve c{1, 2}', { descr: 'x' }],
+      ['radar-beta\n  curve c{1, 2} accTitle: a<br>b\n  axis a, b', { title: 'a<br>b' }],
+      ['radar-beta\n  accTitle: x\n  axis a, b accTitle: x\n  curve c{1, 2}', { title: 'x' }],
+      ['radar-beta\n  axis a, b accDescr { x\n    y }\n  curve c{1, 2}', { descr: 'x\ny' }],
+    ]
+    const named = (svg: string) => [svg.match(/<title\b[^>]*>([^<]*)<\/title>/)?.[1], svg.match(/<desc\b[^>]*>([^<]*)<\/desc>/)?.[1]]
+    for (const [source, accessibility] of cases) {
+      const d = radar(source)
+      expect(d.meta.accessibility, source).toEqual(accessibility)
+      expect(d.body.axes.map(axis => axis.id), source).toEqual(['a', 'b'])
+      const output = serializeMermaid(d)
+      const reparsed = radar(output)
+      expect(reparsed.meta.accessibility, source).toEqual(accessibility)
+      expect(reparsed.body, source).toEqual(d.body)
+      // The output's drawing names the chart as the source's does.
+      expect(named(renderMermaidSVG(output)), source).toEqual(named(renderMermaidSVG(source)))
+    }
+    // Beside another value on a line of its own, Mermaid keeps the one written
+    // last, which the envelope cannot order: the source is kept, the one on
+    // its own line is drawn whichever comes first, as in XYChart, and said so.
+    for (const source of ['radar-beta\n  axis a, b accTitle: x\n  accTitle: y\n  curve c{1, 2}\n', 'radar-beta\n  accTitle: y\n  axis a, b accTitle: x\n  curve c{1, 2}\n']) {
+      const parsed = parseMermaid(source)
+      expect(parsed.ok && parsed.value.body.kind).toBe('opaque')
+      if (parsed.ok) expect(serializeMermaid(parsed.value)).toBe(source)
+      expect(named(renderMermaidSVG(source))[0], source).toBe('y')
+      expect(verifyMermaid(source).warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX').map(w => w.syntax), source).toEqual(['radar_accessibility_order'])
+    }
+  })
+
   test('model-gap guard: mismatched or duplicate identities cannot enter the typed radar body', () => {
     for (const src of [
       'radar-beta\n  axis a, b, c\n  curve x{1,2}\n  max 5',
@@ -92,6 +144,39 @@ describe('radar agent surface', () => {
       expect(parsed.ok).toBe(true)
       if (parsed.ok) expect(asRadar(parsed.value)).toBeNull()
     }
+  })
+
+  test.each([
+    ['a numeric axis', 'axis 0, A\ncurve sample{1, 2}', '0', 'axis'],
+    ['a numeric curve prefix', 'axis A, B\ncurve 2a["Series"]{1, 2}', '2a', 'curve'],
+    ['an option keyword axis', 'axis ticks, A\ncurve sample{1, 2}', 'ticks', 'axis'],
+    ['a boolean token prefix in a keyed axis', 'axis false1["First"], A\ncurve sample{A: 2, false1: 1}', 'false1', 'axis'],
+    ['a graticule token prefix as a curve', 'axis A, B\ncurve polygonal{1, 2}', 'polygonal', 'curve'],
+    ['a title token prefix as an axis', 'axis titleWorker, A\ncurve sample{1, 2}', 'titleWorker', 'axis'],
+  ])('%s stays readable and source-preserved when its identity has no portable spelling', async (_name, body, id, role) => {
+    const source = `%% keep this source\nradar-beta\n${body}\n`
+    expect(await upstream.accepts(source)).toBe(false)
+    const native = parseRadarChart(normalizeMermaidSource(source).lines)
+    expect(role === 'axis' ? native.axes[0]?.id : native.curves[0]?.id).toBe(id)
+    expect(native.curves[0]?.values).toEqual([1, 2])
+    const parsed = expectOk(parseMermaid(source))
+    expect(parsed.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed)).toBe(source)
+    expect(renderDiagramSVG(parsed)).toBe(renderMermaidSVG(source))
+    expect(renderDiagramASCII(parsed)).toBe(renderMermaidASCII(source))
+    for (const input of [source, parsed]) expect(verifyMermaid(input).warnings).toContainEqual(expect.objectContaining({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'radar_id', node: id,
+    }))
+    expect(mutate(parsed, { kind: 'set_title', title: 'Changed' }).ok).toBe(false)
+  })
+
+  test('portable ID neighbours keep structured identity through editing and pinned reload', async () => {
+    const diagram = radar('radar-beta\naxis a1, _1, axis1, ticks1, Title, True\ncurve sample{1, 2, 3, 4, 5, 6}')
+    const changed = expectOk(mutate(diagram, { kind: 'rename_curve', from: 'sample', to: 'Curve1' }))
+    const serialized = serializeMermaid(changed)
+    expect(await upstream.accepts(serialized)).toBe(true)
+    expect(radar(serialized).body).toEqual(changed.body)
+    expect(verifyMermaid(changed).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
   })
 
   test('synthesizeFromGraph rejects malformed typed radar payloads before constructing ValidDiagram', () => {
@@ -108,6 +193,15 @@ describe('radar agent surface', () => {
     const result = synthesizeFromGraph({ kind: 'radar', body: malformed })
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.error[0]).toEqual(expect.objectContaining({ code: 'INVALID_PAYLOAD', message: expect.stringContaining('exactly 1 value') }))
+  })
+
+  test.each(['axis', 'curve'] as const)('synthesizeFromGraph refuses a nonportable %s identity', role => {
+    const body = structuredClone(radar(BASIC).body)
+    if (role === 'axis') body.axes[0]!.id = '0'
+    else body.curves[0]!.id = 'polygon'
+    const result = synthesizeFromGraph({ kind: 'radar', body })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error[0]?.code).toBe('INVALID_PAYLOAD')
   })
 
   // Type precision is a compile-time contract: `bun run typecheck` fails if an
@@ -128,11 +222,18 @@ describe('radar agent surface', () => {
   }
   void compileTimeRadarContract
 
-  test('the Code Mode SDK declaration exposes the radar config block', () => {
-    expect(SDK_DECLARATION).toContain('radar?: {')
-  })
-
   describe('mutation', () => {
+    test.each([
+      { kind: 'add_axis', id: '0' },
+      { kind: 'rename_axis', from: 'speed', to: 'false1' },
+      { kind: 'add_curve', id: 'polygonal', values: [1, 2, 3] },
+      { kind: 'rename_curve', from: 'now', to: 'curve' },
+    ] satisfies RadarMutationOp[])('refuses a nonportable id in $kind', op => {
+      const result = mutate(radar(BASIC), op)
+      expect(result.ok).toBe(false)
+      if (!result.ok) expect(result.error.code).toBe('INVALID_OP')
+    })
+
     test('set_title / set_curve_value / set_config', () => {
       let d = radar(BASIC)
       d = expectOk(mutate(d, { kind: 'set_title', title: 'Renamed' }))
@@ -213,7 +314,7 @@ describe('radar agent surface', () => {
   })
 
   test('property: generated axes and every curve value survive parse and canonical round-trip', () => {
-    const axisId = fc.stringMatching(/^[a-z][a-z0-9]{0,4}$/)
+    const axisId = fc.stringMatching(/^axis_[a-z0-9]{1,5}$/)
     fc.assert(fc.property(
       fc.uniqueArray(axisId, { minLength: 2, maxLength: 5 }),
       fc.array(fc.array(fc.integer({ min: 0, max: 100 }), { minLength: 2, maxLength: 5 }), { minLength: 1, maxLength: 3 }),
@@ -245,7 +346,7 @@ describe('radar agent surface', () => {
         expect({ axes: secondBody.axes, curves: secondBody.curves }).toEqual(expected)
         expect(serializeMermaid(reparsed)).toBe(s1)
       },
-    ), { numRuns: 60 })
+    ), fcParameters({ numRuns: 60 }))
   })
 })
 
@@ -254,3 +355,44 @@ function expectOk<T>(r: { ok: true; value: T } | { ok: false; error: unknown }):
   if (!r.ok) throw new Error(`mutation failed: ${JSON.stringify(r.error)}`)
   return r.value
 }
+
+
+test('reports truncated radar baselines and clipped authored values', () => {
+  const source = 'radar-beta\n axis a["A"], b["B"], c["C"]\n curve sample["Sample"]{85, 95, 150}\n min 90\n max 100'
+  const result = verifyMermaid(source)
+  expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'VALUES_OUTSIDE_RANGE', series: 'sample', values: [85, 150], range: { min: 90, max: 100 } }))
+  expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'SCALE_RANGE_EXCLUDES_ZERO', range: { min: 90, max: 100 } }))
+})
+
+test('radar baseline warnings use the rendered auto-range below one', () => {
+  const source = 'radar-beta\n axis a,b,c\n curve sample{0.2,0.4,0.6}\n min 0.1'
+  expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({
+    code: 'SCALE_RANGE_EXCLUDES_ZERO', range: { min: 0.1, max: 0.6 },
+  }))
+})
+
+test('generated radar scale boundaries agree with independent radial and diagnostic expectations', () => {
+  fc.assert(fc.property(
+    fc.integer({ min: -3, max: 3 }), fc.integer({ min: 0, max: 5 }), fc.integer({ min: 1, max: 10 }), fc.boolean(),
+    (exponent, lower, span, explicitMax) => {
+      const unit = 10 ** exponent
+      const min = lower * unit / 10
+      const max = (lower + span) * unit / 10
+      const values = [min / 2, min, (min + max) / 2, max, explicitMax ? max * 1.5 : max]
+      const source = `radar-beta\naxis a,b,c,d,e\ncurve sample{${values.join(',')}}\nmin ${min}${explicitMax ? `\nmax ${max}` : ''}`
+      const result = verifyMermaid(source)
+      const outside = values.filter(value => value < min || value > max)
+      const clipped = result.warnings.filter(warning => warning.code === 'VALUES_OUTSIDE_RANGE')
+      expect(clipped.map(({ series, values, range }) => ({ series, values, range }))).toEqual(outside.length ? [{ series: 'sample', values: outside, range: { min, max } }] : [])
+      expect(result.warnings.flatMap(warning => warning.code === 'SCALE_RANGE_EXCLUDES_ZERO' ? [warning.range] : [])).toEqual(min > 0 ? [{ min, max }] : [])
+      const positioned = layoutRadarChart(parseRadarChart(normalizeMermaidSource(source).lines))
+      for (const [index, vertex] of positioned.curves[0]!.vertices.entries()) {
+        const ratio = values[index]! < min ? 0 : values[index]! > max ? 1 : (values[index]! - min) / (max - min)
+        // Pixel coordinates are rounded to two decimals at the layout boundary.
+        expect(Math.abs(Math.hypot(vertex.x - positioned.cx, vertex.y - positioned.cy) - ratio * positioned.radius)).toBeLessThanOrEqual(0.015)
+      }
+      expect(positioned.rings.at(-1)!.value).toBeCloseTo(max, 9)
+      expect(renderMermaidASCII(source)).toContain(`scale: ${min} .. ${max}`)
+    },
+  ), fcParameters({ numRuns: 150, examples: [[0, 1, 5, false]] }))
+}, 30000)

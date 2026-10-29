@@ -7,20 +7,28 @@
 // (EMPTY_DIAGRAM / LABEL_OVERFLOW / EDGE_MISANCHORED); capabilities and a
 // differential check against the renderer-grade parser.
 
-import { describe, test, expect } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { analyzeMermaid } from '../agent/analyze.ts'
+import { describeMermaid } from '../agent/describe.ts'
+import { ganttGeometryWarnings } from '../agent/family-layouts.ts'
+import { layoutMermaid, renderMermaidASCIIWithMeta, renderMermaidSVG } from '../agent/index.ts'
+import { mutate } from '../agent/mutate.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
-import { mutate } from '../agent/mutate.ts'
-import { verifyMermaid } from '../agent/verify.ts'
-import { describeMermaid } from '../agent/describe.ts'
+import type { GanttBodyTaskTag, GanttMutationOp, GanttValidDiagram } from '../agent/types.ts'
 import { asGantt } from '../agent/types.ts'
-import type { GanttValidDiagram, GanttMutationOp, GanttBodyTaskTag } from '../agent/types.ts'
+import { verifyMermaid } from '../agent/verify.ts'
 import { parseGanttModel } from '../gantt/parser.ts'
-import { normalizeMermaidSource } from '../mermaid-source.ts'
-import { layoutMermaid, renderMermaidASCIIWithMeta, renderMermaidSVG } from '../agent/index.ts'
-import { ganttGeometryWarnings } from '../agent/family-layouts.ts'
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
+import { renderMermaidASCII as renderSourceASCII, renderMermaidSVG as renderSourceSVG } from '../index.ts'
+import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 const SRC = `gantt
   title Release plan
@@ -33,6 +41,21 @@ const SRC = `gantt
     Release :milestone, rel, after pol, 0d
   click core href "https://example.com/core"
 `
+
+test('task metadata beginning with percent retains a lexical separator after the colon', async () => {
+  const source = 'gantt\n  Task : %H:%M'
+  const parsed = gantt(source)
+  expect(parsed.body.sections[0]!.tasks[0]!.end).toBe('%H:%M')
+  const canonical = serializeMermaid(parsed)
+  const upstream = startUpstreamMermaid()
+  try {
+    expect(await upstream.accepts(source)).toBe(true)
+    expect(await upstream.accepts(canonical)).toBe(true)
+  } finally {
+    upstream.close()
+  }
+  expect(gantt(canonical).body).toEqual(parsed.body)
+})
 
 function gantt(src: string = SRC): GanttValidDiagram {
   const r = parseMermaid(src)
@@ -63,6 +86,58 @@ function shape(d: GanttValidDiagram) {
 }
 
 describe('gantt structured parse', () => {
+  test('literal directive words retain task meaning, dependencies, and dates through portable export and typed edits', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const label of ['call', 'Call', 'title', 'section', 'accDescription', 'ganttish', '2014-01-01a', 'call-me', 'href', 'accDescription #']) {
+        const source = `gantt\n  ${label}:a, 2024-01-01, 2d\n  Ship :ship, after a, 1d\n`
+        const diagram = gantt(source)
+        const exported = serializeMermaid(diagram)
+        expect(gantt(exported).body, label).toEqual(diagram.body)
+        const reference = await upstream.project(exported, d => d.db.getTasks().map((task: any) => ({
+          label: task.task.trim(), id: task.id, start: task.startTime.toISOString(), end: task.endTime.toISOString(),
+        })))
+        if (!reference.ok) throw new Error('Expected pinned Gantt tasks')
+        expect(reference.value.map((task: { label: string }) => ({ ...task, label: projectEntityMarkers(task.label) })), label).toEqual([
+          { label, id: 'a', start: '2024-01-01T00:00:00.000Z', end: '2024-01-03T00:00:00.000Z' },
+          { label: 'Ship', id: 'ship', start: '2024-01-03T00:00:00.000Z', end: '2024-01-04T00:00:00.000Z' },
+        ])
+        expect(renderSourceSVG(exported), label).toBe(renderSourceSVG(source))
+        expect(renderSourceASCII(exported), label).toBe(renderSourceASCII(source))
+        const edited = apply(gantt('gantt\n  Build :a, 2024-01-01, 2d\n  Ship :ship, after a, 1d\n'), { kind: 'rename_task', sectionIndex: 0, taskIndex: 0, label })
+        const reloaded = gantt(serializeMermaid(edited))
+        expect(reloaded.body.sections[0]!.tasks.map(task => [task.label, task.taskId, task.start, task.end])).toEqual([
+          [label, 'a', '2024-01-01', '2d'], ['Ship', 'ship', 'after a', '1d'],
+        ])
+        const schedule = resolveGanttSchedule(parseGanttModel(normalizeMermaidSource(serializeMermaid(reloaded)).lines))
+        expect(schedule.tasks.map(task => [task.start, task.end])).toEqual([
+          [Date.UTC(2024, 0, 1), Date.UTC(2024, 0, 3)], [Date.UTC(2024, 0, 3), Date.UTC(2024, 0, 4)],
+        ])
+      }
+    } finally {
+      upstream.close()
+    }
+  })
+
+  test('directive-like task text remains editable with its native schedule', async () => {
+    const source = 'gantt\n  Build :build, 2024-01-01, 2d\n  ki%%{wi :ship, after build, 1d\n'
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
+    if (parsed.value.body.kind !== 'gantt') throw new Error('Expected editable Gantt')
+    expect(parsed.value.body.kind).toBe('gantt')
+    const written = serializeMermaid(parsed.value)
+    expect(gantt(written).body).toEqual(parsed.value.body)
+    expect(renderMermaidSVG(parsed.value)).toBe(renderSourceSVG(source))
+    expect(renderSourceASCII(source)).toContain('ki%%{wi')
+    for (const op of [{ kind: 'set_title', title: '%%{literal' }, { kind: 'rename_section', index: 0, label: '%%{literal' }] as const) expect(mutate(gantt(), op).ok).toBe(false)
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.publicAccepts(source)).toBe(false)
+      expect(await upstream.publicAccepts(written)).toBe(true)
+    } finally { upstream.close() }
+  })
+
   test.each(['alien content', 'topAxis :2024-01-01, 2d'])('preserves unsupported %s during an edit without drawing it as a task', unsupported => {
     const source = `gantt\n  Build :build, 2024-01-01, 2d\n  %% keep this note\n  ${unsupported}\n  Ship :ship, after build, 1d\n`
     const diagram = gantt(source)
@@ -74,9 +149,12 @@ describe('gantt structured parse', () => {
     expect(() => renderMermaidSVG(canonical)).toThrow(`Unrecognized gantt line "${unsupported}"`)
     const verified = verifyMermaid(edited)
     expect(verified.ok).toBe(false)
-    expect(verified.warnings).toContainEqual(expect.objectContaining({
-      code: 'UNRESOLVABLE_SCHEDULE', reason: expect.stringContaining(`Unrecognized gantt line "${unsupported}"`),
-    }))
+    expect(verified.warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'UNRESOLVABLE_SCHEDULE',
+        reason: expect.stringContaining(`Unrecognized gantt line "${unsupported}"`),
+      }),
+    )
   })
 
   test.each([
@@ -115,9 +193,13 @@ describe('gantt structured parse', () => {
     ])
     const model = parseGanttModel(normalizeMermaidSource(source).lines)
     expect(model.tasks[0]!.end).toEqual({ kind: 'duration', raw: '2d' })
-    expect(verifyMermaid(d).warnings).toContainEqual(expect.objectContaining({
-      code: 'UNSUPPORTED_SYNTAX', syntax: 'gantt_inline_task_comment', line: 2,
-    }))
+    expect(verifyMermaid(d).warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'UNSUPPORTED_SYNTAX',
+        syntax: 'gantt_inline_task_comment',
+        line: 2,
+      }),
+    )
     const schedule = resolveGanttSchedule(model)
     expect(schedule.tasks.map(task => task.end - task.start)).toEqual([2 * 86_400_000, 86_400_000])
     const edited = apply(d, { kind: 'rename_task', sectionIndex: 0, taskIndex: 1, label: 'Release' })
@@ -142,7 +224,7 @@ describe('gantt structured parse', () => {
 
   test('directives, click lines, and comments ride along as verbatim opaque segments', () => {
     const d = gantt()
-    const opaque = d.body.statements!.filter(s => s.kind === 'opaque-block').flatMap(s => s.kind === 'opaque-block' ? s.lines : [])
+    const opaque = d.body.statements!.filter(s => s.kind === 'opaque-block').flatMap(s => (s.kind === 'opaque-block' ? s.lines : []))
     expect(opaque).toContain('  dateFormat YYYY-MM-DD')
     expect(opaque).toContain('  excludes weekends')
     expect(opaque).toContain('  click core href "https://example.com/core"')
@@ -152,6 +234,61 @@ describe('gantt structured parse', () => {
     expect(out).toContain('  excludes weekends\n')
     expect(out).toContain('  click core href "https://example.com/core"\n')
     expect(out.indexOf('dateFormat')).toBeLessThan(out.indexOf('section Build'))
+  })
+
+  // Mermaid reads the href only on the line after the task id; ours also
+  // reads it after blank or comment lines, which the renderer never sees.
+  test.each([
+    ['the next line', ['  click a1', '    href "https://x.y"']],
+    ['a line after a blank line', ['  click a1', '', '    href "https://x.y"']],
+    ['a line after a comment', ['  click a1', '  %% note', '    href "https://x.y"']],
+  ])('a click whose href starts %s renders and rides along as one statement', (_where, click) => {
+    const source = `gantt\n  dateFormat YYYY-MM-DD\n  section S\n  Task :a1, 2024-01-01, 3d\n${click.join('\n')}\n  Next :a2, after a1, 1d\n`
+    const d = gantt(source)
+    expect(d.body.sections[0]!.tasks.map(task => task.label)).toEqual(['Task', 'Next'])
+    expect(d.body.statements!.filter(s => s.kind === 'opaque-block').at(-1)).toEqual({ kind: 'opaque-block', lines: click })
+    expect(serializeMermaid(d)).toContain(`${click.join('\n')}\n`)
+    expect(verifyMermaid(d).warnings).toEqual([])
+  })
+
+  // Mermaid ends a task's data, and a date or format value, at `;` and reads
+  // what follows into the next task's label; ours reads the next statement,
+  // reports the `;`, and writes each statement on its own line. Each task's
+  // spans cover its own statement and label.
+  test.each([
+    ['Task :a1, 2024-01-01, 3d; Task2 :a2, after a1, 2d', ['Task', 'Task2'], ['Task :a1, 2024-01-01, 3d', 'Task2 :a2, after a1, 2d'], undefined],
+    ['Task :a1, 2024-01-01, 3d;', ['Task'], ['Task :a1, 2024-01-01, 3d'], undefined],
+    ['dateFormat YYYY-MM-DD; title T\n  Task :a1, 2024-01-01, 3d', ['Task'], ['Task :a1, 2024-01-01, 3d'], 'T'],
+    ['dateFormat YYYY-MM-DD; Task :a1, 2024-01-01, 3d', ['Task'], ['Task :a1, 2024-01-01, 3d'], undefined],
+  ])('%j reads each `;`-separated statement and reports the `;`', async (body, labels, statements, title) => {
+    const source = `gantt\n  dateFormat YYYY-MM-DD\n  ${body}\n`
+    const d = gantt(source)
+    expect(parseGanttModel(normalizeMermaidSource(source).lines).tasks.map(task => task.label)).toEqual(labels)
+    const tasks = d.body.sections.flatMap(section => section.tasks)
+    expect(tasks.map(task => task.label)).toEqual(labels)
+    const text = (span: { start: { offset: number }; end: { offset: number } } | undefined) => span && source.slice(span.start.offset, span.end.offset)
+    expect(tasks.map(task => text(d.source.spans?.labels.get(`gantt:task:${task.taskId}`)))).toEqual(labels)
+    expect(tasks.map(task => text(d.source.spans?.nodes.get(task.taskId!)))).toEqual(statements)
+    expect(d.body.title).toBe(title)
+    expect(
+      verifyMermaid(d)
+        .warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX')
+        .map(w => (w as { syntax: string }).syntax),
+    ).toEqual(['gantt_semicolon_separator'])
+    const out = serializeMermaid(d)
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(out), out).toBe(true)
+    } finally {
+      upstream.close()
+    }
+    expect(gantt(out).body).toEqual(d.body)
+  })
+
+  test('a todayMarker keeps the `;` of its CSS', () => {
+    const d = gantt('gantt\n  dateFormat YYYY-MM-DD\n  todayMarker stroke:#f00;stroke-width:2px\n  Task :a1, 2024-01-01, 3d\n')
+    expect(serializeMermaid(d)).toContain('  todayMarker stroke:#f00;stroke-width:2px\n')
+    expect(verifyMermaid(d).warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
   })
 
   test('serialize is idempotent and bodies are equal across cycles', () => {
@@ -170,7 +307,44 @@ describe('gantt structured parse', () => {
   })
 })
 
-describe('gantt whole-opaque fallback (structure-level failures)', () => {
+describe('gantt lexical text and structure-level failures', () => {
+  test('keyword-like task labels remain editable without changing scheduling or drawing', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const label of ['gantt', 'gantt-plan', 'ki%%{wi', '2014-01-01', '2014-01-01 later', 'href "', 'call worker', 'accDescription text']) {
+        const source = `gantt\n  Build :a, 2024-01-01, 2d\n  ${label}:b, after a, 1d\n  Ship :ship, after b, 1d\n`
+        expect(await upstream.accepts(source), label).toBe(false)
+        const parsed = parseMermaid(source)
+        if (!parsed.ok) throw new Error('Expected source-preserved Gantt')
+        if (parsed.value.body.kind !== 'gantt') throw new Error('Expected editable Gantt')
+        expect(parsed.value.body.kind, label).toBe('gantt')
+        const written = serializeMermaid(parsed.value)
+        expect(await upstream.accepts(written), written).toBe(true)
+        expect(gantt(written).body, label).toEqual(parsed.value.body)
+        const schedule = resolveGanttSchedule(parseGanttModel(normalizeMermaidSource(source).lines))
+        expect(schedule.tasks.map(task => [task.label, task.id, task.start, task.end]), label).toEqual([
+          ['Build', 'a', Date.UTC(2024, 0, 1), Date.UTC(2024, 0, 3)],
+          [label, 'b', Date.UTC(2024, 0, 3), Date.UTC(2024, 0, 4)],
+          ['Ship', 'ship', Date.UTC(2024, 0, 4), Date.UTC(2024, 0, 5)],
+        ])
+        expect(renderMermaidSVG(parsed.value), label).toBe(renderSourceSVG(source))
+        expect(renderMermaidASCIIWithMeta(parsed.value, { useAscii: true, colorMode: 'none' }).ascii, label).toBe(renderSourceASCII(source, { useAscii: true, colorMode: 'none' }))
+        expect(verifyMermaid(parsed.value).warnings, label).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'gantt_task_label', line: 3 }))
+        expect(mutate(parsed.value, { kind: 'set_title', title: 'Changed' }).ok, label).toBe(true)
+        for (const op of [
+          { kind: 'rename_task', sectionIndex: 0, taskIndex: 0, label },
+          { kind: 'add_task', sectionIndex: 0, label, start: '2024-01-01', end: '1d' },
+        ] as const) {
+          const edited = mutate(gantt(), op)
+          expect(edited.ok, label).toBe(true)
+          if (edited.ok) expect(await upstream.accepts(serializeMermaid(edited.value)), label).toBe(true)
+        }
+      }
+    } finally {
+      upstream.close()
+    }
+  })
+
   const opaqueCases: Array<[string, string]> = [
     ['header suffix', 'gantt LR\n  Task :t1, 2024-01-01, 1d'],
     ['duplicate task ids', 'gantt\n  A :x, 2024-01-01, 1d\n  B :x, 2024-01-02, 1d'],
@@ -258,12 +432,10 @@ describe('gantt mutation ops (every declared op round-trips)', () => {
       [{ kind: 'remove_task', sectionIndex: 0, taskIndex: 9 }, 'TASK_NOT_FOUND'],
       [{ kind: 'add_task', sectionIndex: 9, label: 'X', end: '1d' }, 'SECTION_NOT_FOUND'],
       [{ kind: 'add_task', sectionIndex: 0, label: 'X', taskId: 'core', end: '1d' }, 'DUPLICATE_TASK'],
-      [{ kind: 'add_task', sectionIndex: 0, label: 'Has : colon', end: '1d' }, 'INVALID_OP'],
+      [{ kind: 'add_task', sectionIndex: 0, label: 'Has\nnewline', end: '1d' }, 'INVALID_OP'],
       [{ kind: 'add_task', sectionIndex: 0, label: 'X', end: 'has, comma' }, 'INVALID_OP'],
       [{ kind: 'add_task', sectionIndex: 0, label: 'X', taskId: 'bad id', end: '1d' }, 'INVALID_OP'],
       [{ kind: 'add_task', sectionIndex: 0, label: 'X', end: '' }, 'INVALID_OP'],
-      [{ kind: 'add_task', sectionIndex: 0, label: 'section trap', end: '1d' }, 'INVALID_OP'],
-      [{ kind: 'rename_task', sectionIndex: 0, taskIndex: 0, label: 'title trap' }, 'INVALID_OP'],
       [{ kind: 'set_title', title: '' }, 'INVALID_OP'],
       [{ kind: 'add_section', label: 'with : colon' }, 'INVALID_OP'],
     ]
@@ -546,8 +718,7 @@ describe('gantt describe', () => {
 })
 
 describe('gantt round-trip property (generated diagrams)', () => {
-  const labelArb = fc.stringMatching(/^[A-Za-z][A-Za-z0-9 _-]{0,16}[A-Za-z0-9]$/)
-    .filter(l => !/^(section|title|dateFormat|axisFormat|excludes|includes|click|gantt|todayMarker|weekday|weekend|tickInterval|inclusiveEndDates|topAxis|accTitle|accDescr)\b/i.test(l))
+  const labelArb = fc.stringMatching(/^[A-Za-z][A-Za-z0-9 _-]{0,16}[A-Za-z0-9]$/).filter(l => !/^(section|title|dateFormat|axisFormat|excludes|includes|click|gantt|todayMarker|weekday|weekend|tickInterval|inclusiveEndDates|topAxis|accTitle|accDescr)\b/i.test(l))
   const idArb = fc.stringMatching(/^[a-z][a-z0-9_-]{0,8}$/)
   const tagArb = fc.subarray(['active', 'done', 'crit', 'milestone'] as const, { minLength: 0, maxLength: 2 })
   const dayArb = fc.integer({ min: 1, max: 28 })
@@ -556,34 +727,41 @@ describe('gantt round-trip property (generated diagrams)', () => {
     fc.integer({ min: 1, max: 8 }).map(n => `${n}w`),
   )
 
-  const diagramArb = fc.record({
-    title: fc.option(labelArb, { nil: undefined }),
-    sections: fc.array(fc.record({
-      label: labelArb,
-      tasks: fc.uniqueArray(fc.record({ label: labelArb, id: idArb, tags: tagArb, day: dayArb, dur: durArb }), {
-        minLength: 1, maxLength: 4, selector: t => t.id,
-      }),
-    }), { minLength: 1, maxLength: 3 }),
-  }).map(({ title, sections }) => {
-    const lines = ['gantt']
-    if (title) lines.push(`  title ${title}`)
-    lines.push('  dateFormat YYYY-MM-DD')
-    const seen = new Set<string>()
-    const expectedSections = sections.map(s => {
-      lines.push(`  section ${s.label}`)
-      const tasks: Array<{ label: string; taskId: string; tags: GanttBodyTaskTag[]; start: string; end: string }> = []
-      for (const t of s.tasks) {
-        if (seen.has(t.id)) continue
-        seen.add(t.id)
-        const start = `2024-01-${String(t.day).padStart(2, '0')}`
-        const tags = t.tags.length ? `${t.tags.join(', ')}, ` : ''
-        lines.push(`  ${t.label} :${tags}${t.id}, ${start}, ${t.dur}`)
-        tasks.push({ label: t.label, taskId: t.id, tags: [...t.tags], start, end: t.dur })
-      }
-      return { label: s.label, tasks }
+  const diagramArb = fc
+    .record({
+      title: fc.option(labelArb, { nil: undefined }),
+      sections: fc.array(
+        fc.record({
+          label: labelArb,
+          tasks: fc.uniqueArray(fc.record({ label: labelArb, id: idArb, tags: tagArb, day: dayArb, dur: durArb }), {
+            minLength: 1,
+            maxLength: 4,
+            selector: t => t.id,
+          }),
+        }),
+        { minLength: 1, maxLength: 3 },
+      ),
     })
-    return { source: lines.join('\n') + '\n', expected: { title, sections: expectedSections } }
-  })
+    .map(({ title, sections }) => {
+      const lines = ['gantt']
+      if (title) lines.push(`  title ${title}`)
+      lines.push('  dateFormat YYYY-MM-DD')
+      const seen = new Set<string>()
+      const expectedSections = sections.map(s => {
+        lines.push(`  section ${s.label}`)
+        const tasks: Array<{ label: string; taskId: string; tags: GanttBodyTaskTag[]; start: string; end: string }> = []
+        for (const t of s.tasks) {
+          if (seen.has(t.id)) continue
+          seen.add(t.id)
+          const start = `2024-01-${String(t.day).padStart(2, '0')}`
+          const tags = t.tags.length ? `${t.tags.join(', ')}, ` : ''
+          lines.push(`  ${t.label} :${tags}${t.id}, ${start}, ${t.dur}`)
+          tasks.push({ label: t.label, taskId: t.id, tags: [...t.tags], start, end: t.dur })
+        }
+        return { label: s.label, tasks }
+      })
+      return { source: lines.join('\n') + '\n', expected: { title, sections: expectedSections } }
+    })
 
   test('parse and serialized read-back preserve independently generated task meaning', () => {
     const meaning = (diagram: GanttValidDiagram) => ({
@@ -593,14 +771,17 @@ describe('gantt round-trip property (generated diagrams)', () => {
         tasks: section.tasks.map(({ label, taskId, tags, start, end }) => ({ label, taskId, tags, start, end })),
       })),
     })
-    fc.assert(fc.property(diagramArb, ({ source, expected }) => {
-      const diagram = gantt(source)
-      expect(meaning(diagram)).toEqual(expected)
-      const serialized = serializeMermaid(diagram)
-      const reloaded = gantt(serialized)
-      expect(meaning(reloaded)).toEqual(expected)
-      expect(serializeMermaid(reloaded)).toBe(serialized)
-    }), { numRuns: 60 })
+    fc.assert(
+      fc.property(diagramArb, ({ source, expected }) => {
+        const diagram = gantt(source)
+        expect(meaning(diagram)).toEqual(expected)
+        const serialized = serializeMermaid(diagram)
+        const reloaded = gantt(serialized)
+        expect(meaning(reloaded)).toEqual(expected)
+        expect(serializeMermaid(reloaded)).toBe(serialized)
+      }),
+      fcParameters({ numRuns: 60 }),
+    )
   })
 })
 
@@ -629,12 +810,42 @@ describe('gantt UNRESOLVABLE_SCHEDULE (closes the verify-ok/render-throws seam)'
     expect(v.warnings.map(w => w.code)).toEqual(['EMPTY_DIAGRAM'])
   })
 
+  test('empty Gantt renders an honest reusable template without fabricated dates or tasks', () => {
+    for (const source of ['gantt', 'gantt\n  title Release planning\n  tickInterval 1week\n  weekday monday', 'gantt\n  title Release planning\n  section Delivery']) {
+      const parsed = parseMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) throw Error('empty Gantt did not parse')
+      const serialized = serializeMermaid(parsed.value)
+      expect(verifyMermaid(parsed.value).warnings.map(w => w.code)).toContain('EMPTY_DIAGRAM')
+      const svg = renderMermaidSVG(parsed.value)
+      expect(svg).toContain('No tasks scheduled')
+      expect(svg).not.toContain('gantt-axis-label')
+      expect(svg).not.toContain('1970')
+      const terminal = renderMermaidASCIIWithMeta(serialized, { useAscii: true, colorMode: 'none' })
+      expect(terminal.ascii).toContain('No tasks scheduled')
+      expect(terminal.ascii).not.toContain('1970')
+      expect(terminal.warnings.some(warning => warning.code === 'ASCII_RENDER_FAILED')).toBe(false)
+      expect(layoutMermaid(parsed.value).nodes).toEqual([])
+      expect(describeMermaid(parsed.value)).toContain('No tasks scheduled')
+      expect(describeMermaid(parsed.value)).not.toContain('1970')
+      expect(analyzeMermaid(parsed.value).gantt).toBeUndefined()
+      if (source.includes('Release planning')) {
+        expect(svg).toContain('Release planning')
+        expect(terminal.ascii).toContain('Release planning')
+      }
+      if (source.includes('Delivery')) {
+        expect(svg).toContain('Delivery')
+        expect(terminal.ascii).toContain('Delivery')
+      }
+      const reloaded = parseMermaid(serialized)
+      expect(reloaded.ok).toBe(true)
+      if (reloaded.ok) expect(serializeMermaid(reloaded.value)).toBe(serialized)
+    }
+  })
+
   test('healthy diagrams and the suppress knob behave', () => {
     expect(verifyMermaid(gantt()).warnings.map(w => w.code)).not.toContain('UNRESOLVABLE_SCHEDULE')
-    const suppressed = verifyMermaid(
-      gantt('gantt\n  excludes weekdays\n  A :a, 2019-02-04, 3d'),
-      { suppress: ['UNRESOLVABLE_SCHEDULE'] },
-    )
+    const suppressed = verifyMermaid(gantt('gantt\n  excludes weekdays\n  A :a, 2019-02-04, 3d'), { suppress: ['UNRESOLVABLE_SCHEDULE'] })
     expect(suppressed.ok).toBe(true)
     expect(suppressed.warnings).toEqual([])
   })
@@ -653,7 +864,7 @@ describe('gantt geometric tripwires (issue #26 WS11)', () => {
     const layout = layoutMermaid(gantt())
     const doctored = {
       ...layout,
-      nodes: layout.nodes.map((n, i) => i === 0 ? { ...n, x: (layout.bounds.w + 10) as typeof n.x, y: -50 as typeof n.y } : n),
+      nodes: layout.nodes.map((n, i) => (i === 0 ? { ...n, x: (layout.bounds.w + 10) as typeof n.x, y: -50 as typeof n.y } : n)),
     }
     const codes = ganttGeometryWarnings(doctored)
     expect(codes).toContainEqual({ code: 'OFF_CANVAS', target: 'core', axis: 'x' })
@@ -665,7 +876,7 @@ describe('gantt geometric tripwires (issue #26 WS11)', () => {
     const band = layout.groups[0]!
     const doctored = {
       ...layout,
-      nodes: layout.nodes.map(n => n.id === 'core' ? { ...n, y: (band.y + band.h + 100) as typeof n.y } : n),
+      nodes: layout.nodes.map(n => (n.id === 'core' ? { ...n, y: (band.y + band.h + 100) as typeof n.y } : n)),
     }
     const warnings = ganttGeometryWarnings(doctored)
     expect(warnings).toContainEqual({ code: 'GROUP_BREACH', group: 'section#0', member: 'core' })
@@ -682,8 +893,7 @@ describe('gantt ASCII regions (issue #26 WS10)', () => {
       expect({ id, found: Boolean(region) }).toEqual({ id, found: true })
       // The region points at the label text in the rendered grid.
       const line = ascii.split('\n')[region!.canvasRow]!
-      expect(line.slice(region!.canvasColStart, region!.canvasColEnd)).toBe(
-        id === 'core' ? 'Core engine' : id === 'pol' ? 'Polish' : 'Release')
+      expect(line.slice(region!.canvasColStart, region!.canvasColEnd)).toBe(id === 'core' ? 'Core engine' : id === 'pol' ? 'Polish' : 'Release')
     }
     expect(regions.some(r => byId.get('core') === r && r.kind === 'node')).toBe(true)
   })
@@ -693,8 +903,7 @@ describe('gantt CLI mutate dispatch', () => {
   // Regression: mutateAny in src/cli/index.ts keeps its own narrower chain;
   // a new family that misses it returns UNSUPPORTED_FAMILY from `am mutate`
   // even though the library mutate works.
-  test('am mutate applies a gantt op end-to-end', () => {
-    const { spawnSync } = require('node:child_process') as typeof import('node:child_process')
+  test('am mutate applies a gantt op end-to-end', async () => {
     const { writeFileSync, mkdtempSync, rmSync } = require('node:fs') as typeof import('node:fs')
     const { join } = require('node:path') as typeof import('node:path')
     const { tmpdir } = require('node:os') as typeof import('node:os')
@@ -702,8 +911,7 @@ describe('gantt CLI mutate dispatch', () => {
     try {
       const file = join(dir, 'g.mmd')
       writeFileSync(file, 'gantt\n  dateFormat YYYY-MM-DD\n  section Build\n    Core :core, 2024-01-01, 10d\n')
-      const r = spawnSync('bun', ['run', join(import.meta.dir, '..', '..', 'bin', 'am.ts'), 'mutate', file,
-        '--op', '{"kind":"add_task","sectionIndex":0,"label":"Ship","taskId":"ship","start":"after core","end":"2d"}'], { encoding: 'utf8' })
+      const r = await runChild('bun', ['run', join(import.meta.dir, '..', '..', 'bin', 'am.ts'), 'mutate', file, '--op', '{"kind":"add_task","sectionIndex":0,"label":"Ship","taskId":"ship","start":"after core","end":"2d"}'])
       expect({ status: r.status, stderr: r.stderr }).toEqual({ status: 0, stderr: '' })
       expect(r.stdout).toContain('Ship :ship, after core, 2d')
       expect(r.stdout).toContain('dateFormat YYYY-MM-DD')
@@ -719,8 +927,7 @@ describe('gantt differential vs renderer-grade parser', () => {
     const out = serializeMermaid(d)
     const model = parseGanttModel(normalizeMermaidSource(out).lines)
     expect(model.title).toBe(d.body.title)
-    expect(model.sections.filter(s => s.label !== undefined).map(s => s.label))
-      .toEqual(d.body.sections.filter(s => s.label !== undefined).map(s => s.label))
+    expect(model.sections.filter(s => s.label !== undefined).map(s => s.label)).toEqual(d.body.sections.filter(s => s.label !== undefined).map(s => s.label))
     expect(model.tasks.map(t => t.label)).toEqual(d.body.sections.flatMap(s => s.tasks.map(t => t.label)))
     expect(model.tasks.map(t => t.id)).toEqual(d.body.sections.flatMap(s => s.tasks.map(t => t.taskId)))
   })

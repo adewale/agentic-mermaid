@@ -1,4 +1,16 @@
-# Brand primitives and forward-compatible family support — plan
+# Brand primitives and forward-compatible family support — design record
+
+Status note, 2026-10-17: the rollout below is completed design history, not a
+delivery queue. PR #361 removed the upstream manifest, generated capability
+reports and receipt infrastructure described in the original acceptance tables.
+Those tables do not require restoring removed artifacts. Current extension,
+request and output contracts live in [`../design/system/README.md`](../design/system/README.md)
+and their owning code/tests; unfinished work lives only in `TODO.md`.
+
+Vocabulary note: this historical record uses *mark* for what current
+[documentation calls a Scene part](../api.md#vocabulary). Its Scene primitives
+describe the pre-paint drawing contract, distinct from resolved path/text
+primitives returned by `renderResolvedScene`. Existing API type names are retained.
 
 Status: Section A landed on `main` in PR #163 (`4f9d376a`), and `radar-beta`
 joined the registered family set in PR #161 (`dfaa48e2`). Mandatory Section B
@@ -9,8 +21,9 @@ entry. Section A evidence lives in its
 [landing record](./archive/section-a-rendering-contract-2026-07.md); the
 generated capability report that projected it is no longer published. The
 upstream compatibility baseline is the version-pinned
-[`upstream-mermaid-policy.json`](./upstream-mermaid-policy.json) and the family
-index generated from it, never a count or roster copied into prose.
+[`upstream-mermaid-policy.json`](./upstream-mermaid-policy.json) and reviewed
+syntax references. Current native capability comes from the family descriptors
+and `am capabilities --json`, not a removed manifest/report or copied roster.
 
 ## Decision
 

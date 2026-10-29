@@ -9,7 +9,7 @@
 // fully successful build across a stable input snapshot.
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { acquireWebsiteBuildLock, computeWebsiteBuildFingerprint, runStableFingerprintBuild } from '../../scripts/site/website-build-fingerprint.ts'
+import { acquireWebsiteBuildLock, computeWebsiteBuildFingerprint, runStableFingerprintBuild, tryAcquireWebsiteBuildDirectory } from '../../scripts/site/website-build-fingerprint.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const OUT = join(ROOT, 'website', 'public')
@@ -43,10 +43,7 @@ export function ensureWebsiteBuilt(): void {
   const acquired = acquireWebsiteBuildLock({
     fingerprint: buildFingerprint,
     readSentinel,
-    tryAcquire() {
-      try { mkdirSync(LOCK, { recursive: false }); return true }
-      catch { return false }
-    },
+    tryAcquire: () => tryAcquireWebsiteBuildDirectory(LOCK),
     sleep: () => sleepSync(100),
   })
   if (!acquired) return
@@ -56,8 +53,8 @@ export function ensureWebsiteBuilt(): void {
     runStableFingerprintBuild({
       fingerprint: buildFingerprint,
       build() {
-        const result = Bun.spawnSync(['bun', 'run', 'website/build.ts'], { cwd: ROOT, stdout: 'inherit', stderr: 'inherit' })
-        if (result.exitCode !== 0) throw new Error('website and Worker artifact fixture build failed')
+        const result = Bun.spawnSync(['bun', 'run', 'website/build.ts'], { cwd: ROOT, stdout: 'inherit', stderr: 'inherit', timeout: 60_000, killSignal: 'SIGKILL' })
+        if (result.exitCode !== 0) throw new Error(`website and Worker artifact fixture build failed: exit=${result.exitCode}, signal=${result.signalCode}`)
       },
       reset() {
         rmSync(OUT, { recursive: true, force: true })

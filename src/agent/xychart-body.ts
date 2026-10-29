@@ -20,7 +20,8 @@
 // null. Quoted text and quote-aware semicolon-separated statements are part of
 // the shared renderer grammar and therefore remain structured.
 // Universal accTitle/accDescr directives are removed and preserved by the
-// source envelope before this family grammar runs.
+// source envelope before this family grammar runs; one written after a
+// statement on its line is read by this grammar and adopted by the envelope.
 // Other unmodeled syntax falls back to a lossless opaque body. Mutations retain
 // a deliberately narrower bare-text input contract, but already-authored
 // quoted values are parsed and serialized by the shared lossless authority.
@@ -33,8 +34,9 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { indexedIdAllocator, labelOverflowCollector, setOptionalField } from './body-utils.ts'
-import { appendAccessibilityLines } from './accessibility-envelope.ts'
-import { parseXYChart, renderXYChartText } from '../xychart/parser.ts'
+import { appendAccessibilityLines, statementAccessibilityConflicts } from './accessibility-envelope.ts'
+import { parseXYChart, renderXYChartText, xychartTextRejections } from '../xychart/parser.ts'
+import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { barBaselineValue } from '../xychart/axis-utils.ts'
 
 // ---- Number format ----------------------------------------------------------
@@ -94,7 +96,7 @@ export function parseXyChartBody(lines: readonly string[]): XyChartBody | null {
       ...(axis.categories !== undefined ? { categories: [...axis.categories] } : {}),
       ...(axis.rangeAuthored && axis.range !== undefined ? { range: { ...axis.range } } : {}),
     })
-    return {
+    const body: XyChartBody = {
       kind: 'xychart',
       ...(chart.title !== undefined ? { title: chart.title } : {}),
       ...(chart.accessibility?.title !== undefined ? { accessibilityTitle: chart.accessibility.title } : {}),
@@ -110,6 +112,8 @@ export function parseXyChartBody(lines: readonly string[]): XyChartBody | null {
         ...(series.pointLabels !== undefined ? { pointLabels: [...series.pointLabels] } : {}),
       })),
     }
+    renderXyChart(body)
+    return body
   } catch {
     return null
   }
@@ -332,18 +336,44 @@ export function mutateXyChart(body: XyChartBody, op: XyChartMutationOp): Result<
     }
   }
 
-  // Preserve the structured floor: an xychart must keep at least one series so
-  // it always renders. Only mutations that EMPTY a non-empty chart are refused;
-  // a body that starts empty (createMermaid/buildMermaid) may stay empty while
-  // ops build it up — title/axes first, series after.
-  if (body.series.length > 0 && next.series.length === 0) {
-    return err({ code: 'INVALID_OP', message: 'XY chart must keep at least one series' })
-  }
 
   return ok(next)
 }
 
 // ---- Verifier (FamilyDescriptor.verify hook) --------------------------------
+
+/** XYChart source ours reads otherwise than Mermaid, each named once: an
+ * accessibility directive after a statement on its line beside another
+ * value for it on a line of its own (the parse hook keeps that source), and,
+ * on its canonical line, unquoted text Mermaid's lexer rejects or ends early. */
+export function xychartUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
+  return [...accessibilityOrderWarnings(canonicalSource), ...unquotedTextWarnings(canonicalSource)]
+}
+
+function unquotedTextWarnings(canonicalSource: string): LayoutWarning[] {
+  const lines = canonicalSource.split(/\r?\n/)
+  const header = lines.findIndex(line => /^xychart(?:-beta)?(?:[\s;]|$)/i.test(line.trim()))
+  if (header < 0) return []
+  return xychartTextRejections(lines.slice(header)).map(({ index, syntax, what }) => ({
+    code: 'UNSUPPORTED_SYNTAX',
+    syntax,
+    line: header + index + 1,
+    message: `${what}. Ours reads it as written; put the whole text in double quotes.`,
+  }))
+}
+
+function accessibilityOrderWarnings(canonicalSource: string): LayoutWarning[] {
+  if (!/acc(?:Title|Descr)/i.test(canonicalSource)) return []
+  const source = normalizeMermaidSource(canonicalSource)
+  if (source.accessibility.title === undefined && source.accessibility.descr === undefined) return []
+  let read: ReturnType<typeof parseXYChart>['accessibility']
+  try { read = parseXYChart(source.familyLines).accessibility } catch { return [] }
+  return statementAccessibilityConflicts({ title: read?.title, descr: read?.description }, source.accessibility).map(directive => ({
+    code: 'UNSUPPORTED_SYNTAX',
+    syntax: 'xychart_accessibility_order',
+    message: `XY chart has an ${directive} after a statement on its line and another on a line of its own. Mermaid keeps the one written last; this reader cannot tell which that is, so the source is kept as written and the one on its own line is drawn. Keep one ${directive}, on a line of its own.`,
+  }))
+}
 
 export function verifyXyChart(body: XyChartBody, opts: VerifyOptions): LayoutWarning[] {
   const warnings: LayoutWarning[] = []

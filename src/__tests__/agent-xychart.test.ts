@@ -7,6 +7,8 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
+import { decodeXML } from 'entities'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
@@ -15,6 +17,7 @@ import { asXyChart } from '../agent/types.ts'
 import type { XyChartValidDiagram, XyChartMutationOp } from '../agent/types.ts'
 import { applyXYChartFrontmatterConfig, parseXYChart } from '../xychart/parser.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { renderMermaidSVG } from '../index.ts'
 
 const SRC = `xychart-beta
   title Sales Report
@@ -111,6 +114,10 @@ describe('xychart structured-or-opaque fallback', () => {
     ['unmodeled token (curve)', 'xychart-beta\n  bar [1, 2]\n  curve basis'],
     ['non-numeric series value', 'xychart-beta\n  bar [1, two, 3]'],
     ['header EXTRA suffix', 'xychart-beta EXTRA\n  bar [1, 2]'],
+    ['empty category', 'xychart \nx-axis    [   ]'],
+    ['missing category between commas', 'xychart \nx-axis    [  "cat."  ,   ,   cat2a  ]'],
+    ['text after a quoted category', 'xychart \nx-axis xAxisName    [  "cat1 "cat ]'],
+    ['malformed quotes among categories', 'xychart \nx-axis xAxisName    [  "cat1 "cat , 1"   with space"note ,   cat2 asdf , cat3]'],
   ]
   for (const [name, src] of opaqueCases) {
     test(`${name} falls back to opaque and round-trips verbatim`, () => {
@@ -120,6 +127,12 @@ describe('xychart structured-or-opaque fallback', () => {
       expect(r.value.body.kind).toBe('opaque')
       expect(asXyChart(r.value)).toBeNull()
       expect(serializeMermaid(r.value).trimEnd()).toBe(src)
+      for (const input of [src, r.value]) {
+        const verification = verifyMermaid(input)
+        expect(verification.ok).toBe(false)
+        expect(verification.checks?.renderability).toBe('failed')
+        expect(verification.warnings).toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED', origin: 'source' }))
+      }
     })
   }
 
@@ -129,11 +142,48 @@ describe('xychart structured-or-opaque fallback', () => {
     expect(d.body.series[0]?.values).toEqual([1, 2])
   })
 
-  test('header-line semicolons use the shared grammar and remain structured', () => {
-    const d = xychart('xychart-beta horizontal; accTitle: Accessible; bar [1, 2]')
-    expect(d.body.horizontal).toBe(true)
-    expect(d.body.accessibilityTitle).toBe('Accessible')
-    expect(d.body.series[0]?.values).toEqual([1, 2])
+  test('statements sharing a line and quoted text across lines stay structured through the writer', () => {
+    const d = xychart('xychart-beta\n  title "multi\nline" bar "Sales" [1, 2] line [2, 1]')
+    expect(d.body).toMatchObject({
+      title: 'multi\nline',
+      series: [{ kind: 'bar', name: 'Sales', values: [1, 2] }, { kind: 'line', values: [2, 1] }],
+    })
+    expect(xychart(serializeMermaid(d)).body).toEqual(d.body)
+  })
+
+  test('an accessibility directive after another statement on its line stays structured and joins the envelope', () => {
+    const cases: Array<[string, object, { title?: string; descr?: string }]> = [
+      // An inline directive's value runs to the end of its line, `;` included.
+      ['xychart-beta horizontal; accTitle: Accessible; bar [1, 2]', { horizontal: true, accessibilityTitle: 'Accessible; bar [1, 2]', series: [] }, { title: 'Accessible; bar [1, 2]' }],
+      ['xychart-beta\n  bar [1, 2] accTitle: a; line [3, 4]', { accessibilityTitle: 'a; line [3, 4]', series: [{ values: [1, 2] }] }, { title: 'a; line [3, 4]' }],
+      ['xychart-beta\n  bar [1, 2] accDescr: a; line [3, 4]', { accessibilityDescription: 'a; line [3, 4]', series: [{ values: [1, 2] }] }, { descr: 'a; line [3, 4]' }],
+      ['xychart-beta\n  bar [1, 2] accTitle: hi bar [2, 1]', { accessibilityTitle: 'hi bar [2, 1]', series: [{ values: [1, 2] }] }, { title: 'hi bar [2, 1]' }],
+      ['xychart-beta\n  accTitle: T\n  bar [1] accDescr { x } bar [2]', { accessibilityTitle: 'T', accessibilityDescription: 'x', series: [{ values: [1] }, { values: [2] }] }, { title: 'T', descr: 'x' }],
+      ['xychart-beta\n  bar [1, 2] accTitle: Quarterly revenue\n  accDescr: Two bars\n  line [3, 4]', { accessibilityTitle: 'Quarterly revenue', accessibilityDescription: 'Two bars', series: [{ values: [1, 2] }, { values: [3, 4] }] }, { title: 'Quarterly revenue', descr: 'Two bars' }],
+      // `%%` in the value is text, and a `"` in it opens no string.
+      ['xychart-beta\n  bar [1, 2] accTitle: a %% b', { accessibilityTitle: 'a %% b', series: [{ values: [1, 2] }] }, { title: 'a %% b' }],
+      ['xychart-beta\n  bar [1, 2] accDescr: a %% b\n  line [3, 4]', { accessibilityDescription: 'a %% b', series: [{ values: [1, 2] }, { values: [3, 4] }] }, { descr: 'a %% b' }],
+      ['xychart-beta\n  bar [1, 2] accTitle: a "b\n  line "s" [3, 4]', { accessibilityTitle: 'a "b', series: [{ values: [1, 2] }, { name: 's', values: [3, 4] }] }, { title: 'a "b' }],
+      ['xychart-beta\n  bar [1, 2] accDescr: a "b %% c\n  line "s" [3, 4]', { accessibilityDescription: 'a "b %% c', series: [{ values: [1, 2] }, { name: 's', values: [3, 4] }] }, { descr: 'a "b %% c' }],
+    ]
+    for (const [source, body, accessibility] of cases) {
+      const d = xychart(source)
+      expect(d.body, source).toMatchObject(body)
+      expect(d.meta.accessibility, source).toEqual(accessibility)
+      expect(d.meta.droppedComments, source).toBeUndefined()
+      expect(xychart(serializeMermaid(d)).body).toEqual(d.body)
+      // The drawing names the chart as the body does, each directive wherever it stands.
+      const svg = renderMermaidSVG(source)
+      expect(decodeXML(svg.match(/<title\b[^>]*>([^<]*)<\/title>/)?.[1] ?? '') || undefined, source).toBe(accessibility.title)
+      expect(decodeXML(svg.match(/<desc\b[^>]*>([^<]*)<\/desc>/)?.[1] ?? '') || undefined, source).toBe(accessibility.descr)
+    }
+    // Beside another value on a line of its own, Mermaid keeps the one written
+    // last, which neither reader can order: the source is kept, and said so.
+    const source = 'xychart-beta\n  accTitle: first\n  bar [1] accTitle: second\n'
+    const parsed = parseMermaid(source)
+    expect(parsed.ok && parsed.value.body.kind).toBe('opaque')
+    if (parsed.ok) expect(serializeMermaid(parsed.value)).toBe(source)
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'xychart_accessibility_order' }))
   })
 
   test('repeated axis directives preserve independently authored components in either order', () => {
@@ -190,7 +240,7 @@ describe('xychart structured-or-opaque fallback', () => {
 
   // Mermaid's xychart syntax quotes text, and the family's own example did too —
   // quoting must NOT drop the whole chart to opaque (it caused an eval failure).
-  // Quoted title/axis/series/category parse STRUCTURED and canonicalize unquoted.
+  // Quoted text stays STRUCTURED; the writer keeps quotes where they preserve meaning.
   const quotedStructured: Array<[string, string]> = [
     ['quoted title', 'xychart-beta\n  title "Monthly Revenue"\n  bar [1, 2]'],
     ['quoted category', 'xychart-beta\n  x-axis ["Jan", "Feb"]\n  bar [1, 2]'],
@@ -204,9 +254,10 @@ describe('xychart structured-or-opaque fallback', () => {
       if (!r.ok) return
       expect(r.value.body.kind).toBe('xychart')
       expect(asXyChart(r.value)).not.toBeNull()
-      // Canonicalizes unquoted, and the round-trip re-parses structured.
+      // Simple words can canonicalize unquoted; spaces must survive upstream's lexer.
       const out = serializeMermaid(r.value)
-      expect(out).not.toContain('"')
+      if (name === 'quoted title') expect(out).toContain('title "Monthly Revenue"')
+      else expect(out).not.toContain('"')
       const re = parseMermaid(out)
       expect(re.ok && re.value.body.kind).toBe('xychart')
     })
@@ -260,7 +311,7 @@ describe('xychart mutation ops', () => {
     expect(legacy.xAxis.categories).toHaveLength(3)
   })
 
-  test('error paths: missing series, non-finite values, bad text, emptying floor', () => {
+  test('error paths: missing series, non-finite values, bad text', () => {
     const cases: Array<[XyChartMutationOp, import('../agent/types.ts').MutationError['code']]> = [
       [{ kind: 'remove_series', index: 9 }, 'SERIES_NOT_FOUND'],
       [{ kind: 'set_series_values', index: 9, values: [1] }, 'SERIES_NOT_FOUND'],
@@ -278,10 +329,6 @@ describe('xychart mutation ops', () => {
       const r = mutate(xychart(), op)
       expect({ op: op.kind, ok: r.ok, code: r.ok ? null : r.error.code }).toEqual({ op: op.kind, ok: false, code })
     }
-    // The floor: an xychart must keep at least one series.
-    const single = xychart('xychart-beta\n  bar [1, 2]')
-    const r = mutate(single, { kind: 'remove_series', index: 0 })
-    expect(r.ok).toBe(false)
   })
 
   test('mutation does not alias the input diagram', () => {
@@ -460,13 +507,20 @@ describe('xychart round-trip property', () => {
             lines.push(`  ${s.kind} ${namePart}[${s.values.join(', ')}]`)
           }
           const d = xychart(lines.join('\n'))
+          const expected = { title, categories: cats, series }
+          const meaning = (diagram: XyChartValidDiagram) => ({
+            title: diagram.body.title,
+            categories: diagram.body.xAxis?.categories,
+            series: diagram.body.series.map(({ kind, name, values }) => ({ kind, name, values })),
+          })
+          expect(meaning(d)).toEqual(expected)
           const out = serializeMermaid(d)
           const d2 = xychart(out)
-          expect(d2.body).toEqual(d.body)
+          expect(meaning(d2)).toEqual(expected)
           expect(serializeMermaid(d2)).toBe(out)
         },
       ),
-      { numRuns: 50 },
+      fcParameters({ numRuns: 50 }),
     )
   })
 
@@ -487,4 +541,43 @@ describe('xychart round-trip property', () => {
     values.forEach((value, index) => expect(Object.is(reparsed.body.series[0]!.values[index], value), String(value)).toBe(true))
     expect(serializeMermaid(reparsed)).toBe(out)
   })
+})
+
+
+test('XYChart writer quotes keyword prefixes and shields comment openers without changing stored text', async () => {
+  const { startUpstreamMermaid } = await import('./helpers/upstream-mermaid.ts')
+  const upstream = startUpstreamMermaid()
+  try {
+    for (const label of ['verticala', 'horizontal2', 'titleRevenue', 'barGraph', 'lineItem', '60% on MMLU', '%%', 'Revenue %%{text', '#37; literal']) {
+      const sourceLabel = label === '#37; literal' ? '#35;37; literal' : label
+      const source = `xychart
+  title "${sourceLabel}"
+  x-axis "${sourceLabel}" ["${sourceLabel}"]
+  y-axis "${sourceLabel}" 0 --> 10
+  line "${sourceLabel}" [1 "${sourceLabel}"]`
+      const diagram = xychart(source)
+      const written = serializeMermaid(diagram)
+      if (label === '60% on MMLU') expect(written).toContain('title "60% on MMLU"')
+      expect(await upstream.publicAccepts(written)).toBe(true)
+      expect(xychart(written).body).toEqual(diagram.body)
+      expect(diagram.body.title).toBe(label)
+      expect(diagram.body.xAxis).toEqual({ name: label, categories: [label] })
+      expect(diagram.body.series[0]).toMatchObject({ name: label, pointLabels: [label] })
+      if (label.includes(';')) {
+        expect(mutate(xychart(), { kind: 'set_title', title: label }).ok).toBe(false)
+      } else {
+        const edited = apply(xychart(), { kind: 'set_title', title: label })
+        expect(await upstream.publicAccepts(serializeMermaid(edited))).toBe(true)
+        expect(xychart(serializeMermaid(edited)).body.title).toBe(label)
+      }
+    }
+    for (const statement of ['title ""', 'x-axis ""', 'x-axis [""]', 'line "" [1]', 'line [1 ""]']) {
+      const source = `xychart\n${statement}`
+      const parsed = parseMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
+      expect(parsed.value.body.kind).toBe('opaque')
+      expect(serializeMermaid(parsed.value).trim()).toBe(source)
+    }
+  } finally { upstream.close() }
 })

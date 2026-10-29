@@ -2,7 +2,8 @@
 # Determinism: pin the fast-check global seed for every property suite
 # (AM_FC_SEED=random rolls fresh seeds; see docs/testing-strategy.md).
 preload = ["./src/__tests__/fc-seed.preload.ts"]
-coverage = true
+# Coverage is opt-in via `bun run test:coverage` (weekly/manual CI).
+# Omit coverage here: an explicit false overrides Bun's --coverage flag.
 # lcov only: the text reporter's giant padded table intermittently kills
 # bun's stdout writer (`error: An internal error occurred (WriteFailed)`,
 # exit 1 with zero test failures) — reproduced twice on CI's piped output

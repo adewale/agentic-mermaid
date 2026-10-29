@@ -1,3 +1,4 @@
+import type { DrawingFactory } from '../scene/drawing.ts'
 // ============================================================================
 // Shared SVG hover-tooltip primitive.
 //
@@ -13,45 +14,20 @@
 // callout above the anchor; clamps to the canvas top.
 // ============================================================================
 
-import { TEXT_BASELINE_SHIFT, estimateTextWidth } from '../styles.ts'
+import { TEXT_BASELINE_SHIFT } from '../styles.ts'
 import { escapeXml } from '../multiline-utils.ts'
-
-export const TIP = {
-  fontSize: 15,
-  fontWeight: 500,
-  height: 32,
-  padX: 14,
-  offsetY: 12,
-  rx: 8,
-  minY: 4,
-  pointerSize: 6,
-} as const
+import { layoutTooltip, TIP, type TooltipLayout } from './tooltip-layout.ts'
+export { TIP } from './tooltip-layout.ts'
+import type { GroupMark, SceneOwner } from '../scene/ir.ts'
+import * as marks from '../scene/marks.ts'
 
 function r(value: number): string {
   return (Math.round(value * 100) / 100).toString()
 }
 
-/**
- * Tooltip markup centered above (cx, topY): background pill + pointer + text,
- * classed `{prefix}-tip` so the matching CSS (tooltipCss) can reveal it.
- */
+/** Direct string consumers own their own text/layout preparation. */
 export function tooltipMarkup(prefix: string, cx: number, topY: number, text: string): string {
-  const textW = estimateTextWidth(text, TIP.fontSize, TIP.fontWeight)
-  const bgW = textW + TIP.padX * 2
-  const bgX = cx - bgW / 2
-  let bgY = topY - TIP.offsetY - TIP.height
-  let ptrY = bgY + TIP.height
-
-  if (bgY < TIP.minY) {
-    bgY = TIP.minY
-    ptrY = bgY + TIP.height
-  }
-
-  const textX = cx
-  const textY = bgY + TIP.height / 2
-  const p = TIP.pointerSize
-  const ptrPath = `M${r(cx - p)},${r(ptrY)} L${r(cx + p)},${r(ptrY)} L${r(cx)},${r(ptrY + p)} Z`
-
+  const { bgW, bgX, bgY, textX, textY, ptrPath } = layoutTooltip(cx, topY, text)
   return (
     `<g class="${prefix}-tip">` +
     `<rect x="${r(bgX)}" y="${r(bgY)}" width="${r(bgW)}" height="${TIP.height}" rx="${TIP.rx}" class="${prefix}-tip ${prefix}-tip-bg"/>` +
@@ -59,6 +35,34 @@ export function tooltipMarkup(prefix: string, cx: number, topY: number, text: st
     `<text x="${r(textX)}" y="${r(textY)}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" class="${prefix}-tip ${prefix}-tip-text">${escapeXml(text)}</text>` +
     `</g>`
   )
+}
+
+/** The same owned tooltip geometry, retained as paint rather than opaque SVG. */
+export function tooltipArtwork(prefix: string, plan: TooltipLayout | undefined, id: string, owner: SceneOwner): GroupMark {
+  return drawTooltipArtwork(marks, prefix, plan, id, owner) as GroupMark
+}
+
+export function drawTooltipArtwork<T>(marks: DrawingFactory<T>, prefix: string, plan: TooltipLayout | undefined, id: string, owner: SceneOwner): T {
+  if (!plan) throw new TypeError(`Missing retained tooltip layout for ${id}`)
+  const { block, bgW, bgX, bgY, textX, textY, ptrPath } = plan
+  const n = (value: number) => Number(r(value))
+  return marks.group({ id, role: 'chrome', owner, visibility: 'conditional',
+    open: `<g class="${prefix}-tip">`, close: '</g>', join: '',
+    children: [
+      { indent: 0, node: marks.shape({ id: `${id}:background`, role: 'chrome', owner,
+        geometry: { kind: 'rect', x: n(bgX), y: n(bgY), width: n(bgW), height: TIP.height, rx: TIP.rx }, paint: { fill: 'var(--_text)' },
+        attributes: { className: `${prefix}-tip ${prefix}-tip-bg` },
+      }) },
+      { indent: 0, node: marks.shape({ id: `${id}:pointer`, role: 'chrome', owner,
+        geometry: { kind: 'path', d: ptrPath }, paint: { fill: 'var(--_text)' },
+        attributes: { className: `${prefix}-tip ${prefix}-tip-ptr` },
+      }) },
+      { indent: 0, node: marks.text({ id: `${id}:text`, role: 'label', owner,
+        text: block.text, block, x: n(textX), y: n(textY), fontSize: TIP.fontSize, fontWeight: TIP.fontWeight, anchor: 'middle', paint: { fill: 'var(--bg)' },
+        attributes: { className: `${prefix}-tip ${prefix}-tip-text` },
+      }) },
+    ],
+  })
 }
 
 /**

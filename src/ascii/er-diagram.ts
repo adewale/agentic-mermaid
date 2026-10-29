@@ -1,451 +1,186 @@
-// ============================================================================
-// ASCII renderer — ER diagrams
-//
-// Renders erDiagram text to ASCII/Unicode art.
-// Each entity is a 2-section box (header | attributes).
-// Relationships are drawn as lines with crow's foot notation at endpoints.
-//
-// Layout: entities are placed in a grid pattern (multiple rows if needed).
-// Relationship lines use Manhattan routing between entity boxes.
-// ============================================================================
-
+import { resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
+import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
+// ER cards and relationship ports are allocated in integer terminal cells.
+// Source semantics, complete labels and family cardinalities stay distinct.
 import { parseErDiagram } from '../er/parser.ts'
-import type { ErDiagram, ErEntity, ErAttribute, Cardinality } from '../er/types.ts'
-import type { Canvas, AsciiConfig, RoleCanvas, CharRole, AsciiTheme, ColorMode } from './types.ts'
-import { mkCanvas, mkRoleCanvas, canvasToString, increaseSize, increaseRoleCanvasSize, setRole, drawText } from './canvas.ts'
+import type { ErEntity, ErAttribute, Cardinality } from '../er/types.ts'
+import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
+import { TerminalDocument, type TerminalMarker, type TerminalOwner } from './terminal-document.ts'
 import { drawMultiBox } from './draw.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
-import { splitLines } from './multiline-utils.ts'
-import { displayText } from '../multiline-utils.ts'
+import { displayText, normalizeBrTags } from '../multiline-utils.ts'
 import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
+import { terminalIds } from './identity.ts'
+import { paintTerminalFrame } from './terminal-geometry.ts'
+import { allocateBoxRoutes, boxFaceSizes, classLikePaint, paintBoxRoute, paintBoxText, reverseBoxes, type BoxPort, type BoxRelation, type TerminalBox } from './class-like-layout.ts'
 
-/** Classify a character from a box drawing as 'border' or 'text'. */
-function classifyBoxChar(ch: string): CharRole {
-  if (/^[┌┐└┘├┤┬┴┼│─╭╮╰╯+\-|]$/.test(ch)) return 'border'
-  return 'text'
+interface PlacedEntity extends TerminalBox { entity: ErEntity; sections: string[][] }
+const attributeText = (attr: ErAttribute) => `${attr.keys.length ? attr.keys.join(',') : '   '} ${attr.type} ${attr.name}${attr.comment ? ` # ${attr.comment}` : ''}`
+
+/** Family-owned crow's-foot projection, measured along the port's normal. */
+function cardinalityMarkers(card: Cardinality, port: BoxPort, ascii: boolean): TerminalMarker[] {
+  if (card === 'parent') return [{ shape: 'hollow-diamond', direction: port.side, ascii }]
+  const marker: TerminalMarker = { shape: card === 'one' || card === 'zero-one' ? 'cardinality-one' : 'cardinality-many', direction: port.side, ascii }
+  return card === 'zero-one' || card === 'zero-many' ? [marker, { shape: 'circle', ascii }] : [marker]
 }
 
-// ============================================================================
-// Entity box content
-// ============================================================================
-
-/** Format an attribute line: "PK type name" or "FK type name" etc. */
-function formatAttribute(attr: ErAttribute): string {
-  const keyStr = attr.keys.length > 0 ? attr.keys.join(',') + ' ' : '   '
-  return `${keyStr}${attr.type} ${attr.name}${attr.comment ? ` # ${attr.comment}` : ''}`
-}
-
-/** Build sections for an entity box: [header], [attributes] */
-function buildEntitySections(entity: ErEntity, maxTextWidth?: number): string[][] {
-  // Support multi-line entity names
-  const header = splitLines(displayText(entity.label))
-  const attrs = entity.attributes.flatMap(attr => wrapText(formatAttribute(attr), maxTextWidth))
-  if (attrs.length === 0) return [header]
-  return [header, attrs]
-}
-
-// ============================================================================
-// Crow's foot notation
-// ============================================================================
-
-/**
- * Returns the ASCII/Unicode characters for a crow's foot cardinality marker.
- * Markers are drawn adjacent to entity boxes at relationship endpoints.
- *
- * Standard ER notation:
- *   one:       ─┤├─   perpendicular line (exactly one)
- *   zero-one:  ─○┤─   circle + perpendicular (zero or one)
- *   many:      ─<>─   crow's foot (one or more)
- *   zero-many: ─○<─   circle + crow's foot (zero or more)
- *
- * @param card - The cardinality type
- * @param useAscii - Use ASCII-only characters
- * @param isRight - True if this marker is on the right side of the relationship
- */
-function getCrowsFootChars(card: Cardinality, useAscii: boolean, isRight = false): string {
-  if (useAscii) {
-    switch (card) {
-      case 'one':       return '|'
-      case 'zero-one':  return 'o|'
-      case 'many':      return isRight ? '<' : '>'
-      case 'zero-many': return isRight ? 'o<' : '>o'
-    }
-  } else {
-    // Use cleaner Unicode characters
-    switch (card) {
-      case 'one':       return '│'
-      case 'zero-one':  return '○│'
-      case 'many':      return isRight ? '╟' : '╢'
-      case 'zero-many': return isRight ? '○╟' : '╢○'
-    }
+export function renderErTerminal(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, targetWidth?: number): TerminalArtifact {
+  targetWidth ??= config.targetWidth ?? config.maxWidth
+  const diagram = parseErDiagram(text.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('%%')))
+  diagram.title ??= config.title === undefined ? undefined : normalizeBrTags(config.title)
+  const finish = (doc: TerminalDocument): TerminalArtifact => {
+    if (!diagram.title) return terminalArtifact(doc, { colorMode, theme })
+    const lines = wrapText(displayText(diagram.title), targetWidth)
+    const titled = new TerminalDocument(Math.max(doc.width, ...lines.map(visualWidth)), doc.height ? doc.height + lines.length + 1 : lines.length)
+    titled.scope({ id: 'title', kind: 'label' }, () => lines.forEach((line, row) => titled.text(Math.floor((titled.width - visualWidth(line)) / 2), row, line)))
+    if (doc.height) titled.overlay(doc, 0, lines.length + 1)
+    return terminalArtifact(titled, { colorMode, theme })
   }
-}
-
-// ============================================================================
-// Positioned entity
-// ============================================================================
-
-interface PlacedEntity {
-  entity: ErEntity
-  sections: string[][]
-  x: number
-  y: number
-  width: number
-  height: number
-}
-
-// ============================================================================
-// Connected Component Detection
-// ============================================================================
-
-/**
- * Find connected components in the ER diagram using DFS.
- * Treats relationships as undirected edges for connectivity.
- *
- * Returns an array of entity ID sets, one per connected component.
- */
-function findConnectedComponents(diagram: ErDiagram): Set<string>[] {
-  const visited = new Set<string>()
-  const components: Set<string>[] = []
-
-  // Build undirected adjacency list from relationships
-  const neighbors = new Map<string, Set<string>>()
-  for (const ent of diagram.entities) {
-    neighbors.set(ent.id, new Set())
-  }
-  for (const rel of diagram.relationships) {
-    neighbors.get(rel.entity1)?.add(rel.entity2)
-    neighbors.get(rel.entity2)?.add(rel.entity1)
-  }
-
-  // DFS to find each component
-  function dfs(startId: string, component: Set<string>): void {
-    const stack = [startId]
-    while (stack.length > 0) {
-      const nodeId = stack.pop()!
-      if (visited.has(nodeId)) continue
-
-      visited.add(nodeId)
-      component.add(nodeId)
-
-      for (const neighbor of neighbors.get(nodeId) ?? []) {
-        if (!visited.has(neighbor)) {
-          stack.push(neighbor)
-        }
-      }
-    }
-  }
-
-  // Find all components
-  for (const ent of diagram.entities) {
-    if (!visited.has(ent.id)) {
-      const component = new Set<string>()
-      dfs(ent.id, component)
-      if (component.size > 0) {
-        components.push(component)
-      }
-    }
-  }
-
-  return components
-}
-
-// ============================================================================
-// Layout and rendering
-// ============================================================================
-
-/**
- * Render a Mermaid ER diagram to ASCII/Unicode text.
- *
- * Pipeline: parse → build boxes → component-aware layout → draw boxes → draw relationships → string.
- */
-export function renderErAscii(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, targetWidth?: number): string {
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
-  const diagram = parseErDiagram(lines)
   checkAllClassLikeAuthoredStyles(diagram.classDefs, diagram.entities)
-
-  if (diagram.entities.length === 0) return ''
-
-  const useAscii = config.useAscii
-  const maxRelationshipLabelWidth = Math.max(
-    0,
-    ...diagram.relationships.flatMap(rel => rel.label ? splitLines(displayText(rel.label)).map(visualWidth) : [0]),
-  )
-  const hGap = Math.max(6, maxRelationshipLabelWidth + 2)  // horizontal gap between entity boxes, wide enough for labels
-  const maxRelationshipLabelLines = Math.max(
-    0,
-    ...diagram.relationships.map(rel => rel.label ? splitLines(displayText(rel.label)).length : 0),
-  )
-  const vGap = Math.max(4, maxRelationshipLabelLines + 3) // detours + labels stay between rows
-  const componentGap = 6  // vertical gap between disconnected components
-
-  // --- Build entity box dimensions ---
-  const entitySections = new Map<string, string[][]>()
-  const entityBoxW = new Map<string, number>()
-  const entityBoxH = new Map<string, number>()
-  const entityById = new Map<string, ErEntity>()
-
-  for (const ent of diagram.entities) {
-    entityById.set(ent.id, ent)
-    const sections = buildEntitySections(ent, targetWidth ? Math.max(1, targetWidth - 4) : undefined)
-    entitySections.set(ent.id, sections)
-
-    let maxTextW = 0
-    for (const section of sections) {
-      for (const line of section) maxTextW = Math.max(maxTextW, visualWidth(line))
-    }
-    const boxW = maxTextW + 4 // 2 border + 2 padding
-
-    let totalLines = 0
-    for (const section of sections) totalLines += Math.max(section.length, 1)
-    const boxH = totalLines + (sections.length - 1) + 2
-
-    entityBoxW.set(ent.id, boxW)
-    entityBoxH.set(ent.id, boxH)
+  if (!diagram.entities.length && !diagram.groups.length) return finish(new TerminalDocument())
+  const generated = terminalIds([...diagram.entities.map(entity => entity.id), ...diagram.groups.map(group => group.id)])
+  const direction = diagram.direction ?? 'LR', horizontal = direction === 'LR' || direction === 'RL'
+  const prepared = (value: DisplayTextInput) => wrapText(displayText(value), targetWidth ? Math.max(1, Math.floor(targetWidth / 3)) : undefined)
+  const relations: BoxRelation[] = diagram.relationships.map((rel, index) => ({ id: generated(`relationship:${index}`), from: rel.entity1, to: rel.entity2, ...(rel.label ? { lines: prepared(resolveLabelContent(rel.label, rel.labelContent)) } : {}) }))
+  const relationshipById = new Map<string, (typeof diagram.relationships)[number]>()
+  relations.forEach((relation, index) => {
+    if (!relationshipById.has(relation.id)) relationshipById.set(relation.id, diagram.relationships[index]!)
+  })
+  const faceSizes = boxFaceSizes(relations, direction)
+  const sections = new Map(diagram.entities.map(entity => {
+    const header = wrapText(displayText(resolveLabelContent(entity.label, entity.labelContent)), targetWidth ? Math.max(1, targetWidth - 8) : undefined)
+    const attributes = entity.attributes.flatMap(attr => wrapText(attributeText(attr), targetWidth ? Math.max(1, targetWidth - 8) : undefined))
+    return [entity.id, attributes.length ? [header, attributes] : [header]]
+  }))
+  const sizes = new Map(diagram.entities.map(entity => {
+    const content = sections.get(entity.id)!, demand = faceSizes.get(entity.id)
+    return [entity.id, { width: Math.max(4 + Math.max(0, ...content.flat().map(visualWidth)), demand?.width ?? 0), height: Math.max(content.reduce((count, section) => count + Math.max(1, section.length), 0) + content.length + 1, demand?.height ?? 0) }]
+  }))
+  // Preserve source order and disconnected components. The logical row/column
+  // allocation changes with direction; card text and compartments never rotate.
+  const adjacency = new Map(diagram.entities.map(entity => [entity.id, new Set<string>()]))
+  for (const rel of relations) { adjacency.get(rel.from)?.add(rel.to); adjacency.get(rel.to)?.add(rel.from) }
+  const seen = new Set<string>(), components: string[][] = []
+  for (const entity of diagram.entities) {
+    if (seen.has(entity.id)) continue
+    const queue = [entity.id]; seen.add(entity.id)
+    for (let index = 0; index < queue.length; index++) for (const next of adjacency.get(queue[index]!) ?? []) if (!seen.has(next)) { seen.add(next); queue.push(next) }
+    const members = new Set(queue); components.push(diagram.entities.filter(item => members.has(item.id)).map(item => item.id))
   }
-
-  // --- Find connected components ---
-  const components = findConnectedComponents(diagram)
-
-  // --- Layout: place each component, then stack components vertically ---
-  const placed = new Map<string, PlacedEntity>()
-  let currentY = 0
-
+  const placed = new Map<string, PlacedEntity>(), byId = new Map(diagram.entities.map(entity => [entity.id, entity]))
+  const labelWidth = Math.max(0, ...relations.flatMap(rel => rel.lines ?? []).map(visualWidth)), labelHeight = Math.max(0, ...relations.map(rel => rel.lines?.length ?? 0))
+  const horizontalGap = Math.max(8, labelWidth + 4), verticalGap = Math.max(8, labelHeight + 6)
+  interface GroupFrame extends TerminalBox { children: Array<PlacedEntity | GroupFrame>; labelLines: string[]; parentId?: string; members: string[] }
+  let groupFrames: GroupFrame[] = []
+  const allocateEntities = () => {
+  placed.clear()
+  let componentCross = 4
   for (const component of components) {
-    // Get entities in this component (preserve original order for consistency)
-    const componentEntities = diagram.entities.filter(e => component.has(e.id))
-
-    // Layout entities within this component horizontally
-    // Use sqrt-based row limit for larger components
-    const maxPerRow = Math.max(2, Math.ceil(Math.sqrt(componentEntities.length)))
-
-    let currentX = 0
-    let maxRowH = 0
-    let colCount = 0
-    const componentStartY = currentY
-
-    for (const ent of componentEntities) {
-      const w = entityBoxW.get(ent.id)!
-      const h = entityBoxH.get(ent.id)!
-
-      if (colCount >= maxPerRow) {
-        // Wrap to next row within this component
-        currentY += maxRowH + vGap
-        currentX = 0
-        maxRowH = 0
-        colCount = 0
-      }
-
-      placed.set(ent.id, {
-        entity: ent,
-        sections: entitySections.get(ent.id)!,
-        x: currentX,
-        y: currentY,
-        width: w,
-        height: h,
-      })
-
-      currentX += w + hGap
-      maxRowH = Math.max(maxRowH, h)
-      colCount++
+    const perRow = Math.max(2, Math.ceil(Math.sqrt(component.length)))
+    let axis = 4, cross = componentCross, rowCount = 0, rowExtent = 0, componentEnd = componentCross
+    for (const id of component) {
+      const entity = byId.get(id)!, size = sizes.get(id)!
+      if (rowCount >= perRow) { cross += rowExtent + (horizontal ? verticalGap : horizontalGap); axis = 4; rowCount = 0; rowExtent = 0 }
+      placed.set(id, { id, entity, sections: sections.get(id)!, ...size, x: horizontal ? axis : cross, y: horizontal ? cross : axis })
+      axis += (horizontal ? size.width : size.height) + (horizontal ? horizontalGap : verticalGap)
+      rowExtent = Math.max(rowExtent, horizontal ? size.height : size.width)
+      componentEnd = Math.max(componentEnd, cross + rowExtent); rowCount++
     }
-
-    // Move to next component row (add gap between components)
-    currentY += maxRowH + componentGap
+    componentCross = componentEnd + (horizontal ? verticalGap : horizontalGap)
   }
-
-  // --- Create canvas ---
-  let totalW = 0
-  let totalH = 0
-  for (const p of placed.values()) {
-    totalW = Math.max(totalW, p.x + p.width)
-    totalH = Math.max(totalH, p.y + p.height)
-  }
-  totalW += 4
-  totalH += 2
-
-  const canvas = mkCanvas(totalW - 1, totalH - 1)
-  const rc = mkRoleCanvas(totalW - 1, totalH - 1)
-
-  /** Set a character on the canvas and track its role. */
-  function setC(x: number, y: number, ch: string, role: CharRole): void {
-    if (x >= 0 && x < canvas.length && y >= 0 && y < (canvas[0]?.length ?? 0)) {
-      canvas[x]![y] = ch
-      setRole(rc, x, y, role)
+  reverseBoxes(placed.values(), direction)
+  groupFrames = []
+  if (diagram.groups.length) {
+    const move = (box: PlacedEntity | GroupFrame, dx: number, dy: number): void => {
+      box.x += dx; box.y += dy
+      if ('children' in box) box.children.forEach(child => move(child, dx, dy))
+    }
+    const build = (id: string): GroupFrame => {
+      const group = diagram.groups.find(item => item.id === id)!, labelLines = prepared(resolveLabelContent(group.label, group.labelContent))
+      const frameClearance = 4, headerHeight = labelLines.length + 1
+      const children: Array<PlacedEntity | GroupFrame> = [
+        ...diagram.entities.filter(entity => entity.groupId === id).map(entity => placed.get(entity.id)!),
+        ...diagram.groups.filter(item => item.parentId === id).map(item => build(item.id)),
+      ]
+      const localDirection = group.direction ?? direction, alongX = localDirection === 'LR' || localDirection === 'RL'
+      const ordered = localDirection === 'RL' || localDirection === 'BT' ? [...children].reverse() : children
+      let axis = alongX ? frameClearance : headerHeight + frameClearance
+      for (const child of ordered) {
+        const x = alongX ? axis : frameClearance, y = alongX ? headerHeight + frameClearance : axis
+        move(child, x - child.x, y - child.y)
+        axis += (alongX ? child.width : child.height) + 8
+      }
+      const size = faceSizes.get(id)
+      const frame: GroupFrame = {
+        id, parentId: group.parentId, children, labelLines, members: [...group.entityIds, ...children.filter(child => 'children' in child).map(child => child.id)],
+        container: true, headerHeight,
+        x: 0, y: 0, width: Math.max(8, ...labelLines.map(line => visualWidth(line) + 4), ...children.map(child => child.x + child.width + frameClearance), size?.width ?? 0),
+        height: Math.max(labelLines.length + 4, ...children.map(child => child.y + child.height + frameClearance), size?.height ?? 0),
+      }
+      groupFrames.push(frame); return frame
+    }
+    const roots: Array<PlacedEntity | GroupFrame> = [
+      ...diagram.groups.filter(group => !group.parentId).map(group => build(group.id)),
+      ...diagram.entities.filter(entity => !entity.groupId).map(entity => placed.get(entity.id)!),
+    ]
+    const ordered = direction === 'RL' || direction === 'BT' ? [...roots].reverse() : roots
+    let axis = 4
+    for (const item of ordered) {
+      const x = horizontal ? axis : 4, y = horizontal ? 4 : axis
+      move(item, x - item.x, y - item.y); axis += (horizontal ? item.width : item.height) + 8
     }
   }
-
-  // --- Draw entity boxes ---
-  for (const p of placed.values()) {
-    const boxCanvas = drawMultiBox(p.sections, useAscii)
-    for (let bx = 0; bx < boxCanvas.length; bx++) {
-      for (let by = 0; by < boxCanvas[0]!.length; by++) {
-        const ch = boxCanvas[bx]![by]!
-        if (ch !== ' ') {
-          const cx = p.x + bx
-          const cy = p.y + by
-          if (cx < totalW && cy < totalH) {
-            setC(cx, cy, ch, classifyBoxChar(ch))
-          }
-        }
-      }
-    }
   }
-
-  // --- Draw relationships ---
-  const H = useAscii ? '-' : '─'
-  const V = useAscii ? '|' : '│'
-  const dashH = useAscii ? '.' : '╌'
-  const dashV = useAscii ? ':' : '┊'
-
-  for (const rel of diagram.relationships) {
-    const e1 = placed.get(rel.entity1)
-    const e2 = placed.get(rel.entity2)
-    if (!e1 || !e2) continue
-
-    const lineH = rel.identifying ? H : dashH
-    const lineV = rel.identifying ? V : dashV
-
-    // Determine connection direction based on relative position.
-    // Connect from right side of left entity to left side of right entity (horizontal),
-    // or from bottom of upper entity to top of lower entity (vertical).
-    const e1CX = e1.x + Math.floor(e1.width / 2)
-    const e1CY = e1.y + Math.floor(e1.height / 2)
-    const e2CX = e2.x + Math.floor(e2.width / 2)
-    const e2CY = e2.y + Math.floor(e2.height / 2)
-
-    // Check if entities are on the same row (horizontal connection)
-    const sameRow = Math.abs(e1CY - e2CY) < Math.max(e1.height, e2.height)
-
-    if (sameRow) {
-      // Horizontal connection: right side of left entity → left side of right entity
-      const [left, right] = e1CX < e2CX ? [e1, e2] : [e2, e1]
-      const [leftCard, rightCard] = e1CX < e2CX
-        ? [rel.cardinality1, rel.cardinality2]
-        : [rel.cardinality2, rel.cardinality1]
-
-      const startX = left.x + left.width
-      const endX = right.x - 1
-      const lineY = left.y + Math.floor(left.height / 2)
-
-      // A non-adjacent relationship must not tunnel through a foreign card.
-      // Detour in the reserved row gap while keeping endpoint cardinalities on
-      // the authored entities. Adjacent pairs keep the direct route.
-      const blockers = [...placed.values()].filter(candidate =>
-        candidate !== left && candidate !== right
-        && candidate.x <= endX && candidate.x + candidate.width - 1 >= startX
-        && lineY >= candidate.y && lineY < candidate.y + candidate.height,
-      )
-      const detourY = blockers.length > 0
-        ? Math.max(left.y + left.height - 1, right.y + right.height - 1, ...blockers.map(item => item.y + item.height - 1)) + 2
-        : lineY
-      if (detourY === lineY) {
-        for (let x = startX; x <= endX; x++) setC(x, lineY, lineH, 'line')
-      } else {
-        for (let y = lineY; y <= detourY; y++) {
-          setC(startX, y, lineV, 'line')
-          setC(endX, y, lineV, 'line')
-        }
-        for (let x = startX; x <= endX; x++) setC(x, detourY, lineH, 'line')
-        setC(startX, detourY, useAscii ? '+' : '└', 'corner')
-        setC(endX, detourY, useAscii ? '+' : '┘', 'corner')
-      }
-
-      const leftChars = getCrowsFootChars(leftCard, useAscii, false)
-      for (let i = 0; i < leftChars.length; i++) setC(startX + i, lineY, leftChars[i]!, 'arrow')
-      const rightChars = getCrowsFootChars(rightCard, useAscii, true)
-      for (let i = 0; i < rightChars.length; i++) setC(endX - rightChars.length + 1 + i, lineY, rightChars[i]!, 'arrow')
-
-      if (rel.label) {
-        const lines = splitLines(displayText(rel.label))
-        const gapMid = Math.floor((startX + endX) / 2)
-        for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-          const line = lines[lineIdx]!
-          const lineWidth = visualWidth(line)
-          const labelStart = Math.max(startX, gapMid - Math.floor(lineWidth / 2))
-          const labelY = detourY + 1 + lineIdx
-          increaseSize(canvas, Math.max(labelStart + lineWidth, 1), Math.max(labelY + 1, 1))
-          increaseRoleCanvasSize(rc, Math.max(labelStart + lineWidth, 1), Math.max(labelY + 1, 1))
-          const clippedWidth = Math.max(0, Math.min(lineWidth, endX - labelStart + 1))
-          for (let i = 0; i < clippedWidth; i++) setC(labelStart + i, labelY, ' ', 'text')
-          drawText(canvas, { x: labelStart, y: labelY }, line, true)
-          for (let i = 0; i < lineWidth; i++) setRole(rc, labelStart + i, labelY, 'text')
-        }
-      }
-    } else {
-      // Vertical connection: bottom of upper entity → top of lower entity
-      const [upper, lower] = e1CY < e2CY ? [e1, e2] : [e2, e1]
-      const [upperCard, lowerCard] = e1CY < e2CY
-        ? [rel.cardinality1, rel.cardinality2]
-        : [rel.cardinality2, rel.cardinality1]
-
-      const startY = upper.y + upper.height
-      const endY = lower.y - 1
-      const lineX = upper.x + Math.floor(upper.width / 2)
-
-      // Vertical line
-      for (let y = startY; y <= endY; y++) {
-        setC(lineX, y, lineV, 'line')
-      }
-
-      // If horizontal offset needed, add a horizontal segment
-      const lowerCX = lower.x + Math.floor(lower.width / 2)
-      if (lineX !== lowerCX) {
-        const midY = Math.floor((startY + endY) / 2)
-        // Horizontal segment at midY
-        const lx = Math.min(lineX, lowerCX)
-        const rx = Math.max(lineX, lowerCX)
-        for (let x = lx; x <= rx; x++) {
-          setC(x, midY, lineH, 'line')
-        }
-        // Vertical from midY to lower entity
-        for (let y = midY + 1; y <= endY; y++) {
-          setC(lowerCX, y, lineV, 'line')
-        }
-      }
-
-      // Crow's foot markers (vertical direction)
-      // Upper marker (at upper entity's bottom edge) - treat as source side (isRight=false)
-      const upperChars = getCrowsFootChars(upperCard, useAscii, false)
-      for (let i = 0; i < upperChars.length; i++) {
-        setC(lineX - Math.floor(upperChars.length / 2) + i, startY, upperChars[i]!, 'arrow')
-      }
-
-      // Lower marker (at lower entity's top edge) - treat as target side (isRight=true)
-      const targetX = lineX !== lowerCX ? lowerCX : lineX
-      const lowerChars = getCrowsFootChars(lowerCard, useAscii, true)
-      for (let i = 0; i < lowerChars.length; i++) {
-        setC(targetX - Math.floor(lowerChars.length / 2) + i, endY, lowerChars[i]!, 'arrow')
-      }
-
-      // Relationship label — placed to the right of the vertical line at the midpoint.
-      // We expand the canvas as needed since labels can extend beyond the initial bounds.
-      // Supports multi-line labels.
-      if (rel.label) {
-        const lines = splitLines(displayText(rel.label))
-        const midY = Math.floor((startY + endY) / 2)
-        // Center lines vertically around midY
-        const startLabelY = midY - Math.floor((lines.length - 1) / 2)
-
-        for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-          const line = lines[lineIdx]!
-          const labelX = lineX + 2
-          const y = startLabelY + lineIdx
-          if (y >= 0) {
-            const lineWidth = visualWidth(line)
-            increaseSize(canvas, labelX + lineWidth, y + 1)
-            increaseRoleCanvasSize(rc, labelX + lineWidth, y + 1)
-            drawText(canvas, { x: labelX, y }, line, true)
-            for (let i = 0; i < lineWidth; i++) setRole(rc, labelX + i, y, 'text')
-          }
-        }
-      }
+  allocateEntities()
+  for (let pass = 0; pass < relations.length * 2 + 2; pass++) {
+    const demand = boxFaceSizes(relations, direction, [...placed.values(), ...groupFrames])
+    let changed = false
+    for (const [id, size] of demand) {
+      const previous = faceSizes.get(id) ?? { width: 0, height: 0 }
+      if (previous.width < size.width || previous.height < size.height) { faceSizes.set(id, { width: Math.max(previous.width, size.width), height: Math.max(previous.height, size.height) }); changed = true }
+      const card = sizes.get(id)
+      if (card && (card.width < size.width || card.height < size.height)) { card.width = Math.max(card.width, size.width); card.height = Math.max(card.height, size.height); changed = true }
     }
+    if (!changed) break
+    allocateEntities()
   }
+  const routes = allocateBoxRoutes([...placed.values(), ...groupFrames], relations, direction), doc = new TerminalDocument()
+  for (const group of [...groupFrames].reverse()) {
+    const owner = doc.element({ id: group.id, kind: 'cluster', parent: group.parentId === undefined ? undefined : { id: group.parentId, kind: 'cluster' }, members: group.members })
+    paintTerminalFrame(doc, group, owner, config.useAscii)
+    doc.scope(owner, () => group.labelLines.forEach((line, row) => doc.text(group.x + 2, group.y + row, line)))
+  }
+  for (const route of routes) {
+    const rel = relationshipById.get(route.relation.id)!
+    const owner = doc.element({ id: route.relation.id, kind: 'edge', from: rel.entity1, to: rel.entity2 })
+    paintBoxRoute(doc, route, owner, config.useAscii, !rel.identifying)
+    for (const [end, port, card] of [['start', route.source, rel.cardinality1], ['end', route.target, rel.cardinality2]] as const) {
+      const dx = port.side === 'L' ? -1 : port.side === 'R' ? 1 : 0, dy = port.side === 'T' ? -1 : port.side === 'B' ? 1 : 0
+      const markers = cardinalityMarkers(card, port, config.useAscii)
+      doc.expectMarkers(owner, end, markers)
+      markers.forEach((marker, index) => doc.marker(port.x + dx * index, port.y + dy * index, marker, { owner, role: 'arrow' }))
+    }
+    paintBoxText(doc, route.label, owner)
+  }
+  for (const box of placed.values()) {
+    const owner = doc.element({ id: box.id, kind: 'node', parent: box.entity.groupId === undefined ? undefined : { id: box.entity.groupId, kind: 'cluster' } })
+    doc.region(owner, { x: box.x, y: box.y, width: box.width, height: box.height }); doc.fill(box.x, box.y, box.width, box.height, { owner, kind: 'surface' })
+    const card = drawMultiBox(box.sections, config.useAscii, 1, { width: box.width, height: box.height })
+    const style = Object.assign({}, diagram.classDefs.get('default'), ...(box.entity.className ?? '').split(/\s+/).map(name => diagram.classDefs.get(name)), box.entity.inlineStyle)
+    const paint = classLikePaint(doc, 'er', box.id, style)
+    for (const [, , cell] of card.entries()) { const color = cell.kind === 'text' ? paint.text : paint.stroke; if (color) cell.color = color }
+    let y = 1
+    box.sections.forEach((section, index) => {
+      const bounds = { x: 1, y, width: box.width - 2, height: Math.max(1, section.length) }, compartment: TerminalOwner = { id: generated(`${box.id}:compartment:${index}`), kind: 'compartment', parent: { id: box.id, kind: 'node' } }
+      card.attributeWithin(compartment, bounds); card.region(compartment, bounds); y += bounds.height + 1
+    })
+    doc.scope(owner, () => doc.overlay(card, box.x, box.y))
+  }
+  return finish(doc)
+}
 
-  const rendered = canvasToString(canvas, { roleCanvas: rc, colorMode, theme })
-  if (diagram.groups.length === 0) return rendered
-  const groupLines = diagram.groups.map(group => `${group.parentId ? '  ' : ''}[${displayText(group.label)}] (${group.entityIds.join(', ')})`)
-  return `${groupLines.join('\n')}\n${rendered}`
+/** Compatibility string entry point; native dispatch retains the drawing. */
+export function renderErAscii(...args: Parameters<typeof renderErTerminal>): string {
+  return serializeTerminalArtifact(renderErTerminal(...args))
 }

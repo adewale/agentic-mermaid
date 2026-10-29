@@ -1,11 +1,7 @@
 import { syntaxError } from '../shared/syntax-error.ts'
 
 /** Shared Timeline line grammar consumed by the renderer and agent parsers. */
-export function normalizeTimelineBreaks(value: string): string {
-  // Pinned Mermaid Timeline forces a line break only for this exact spelling.
-  // Other tags, literal backslash-n, quotes, and Markdown remain authored text.
-  return value.replace(/<br>/g, '\n')
-}
+export { normalizeTimelineBreaks } from './text.ts'
 
 export type TimelineHeader =
   | { readonly kind: 'supported'; readonly direction?: 'LR' | 'TD'; readonly hasInlineComment: boolean }
@@ -36,8 +32,16 @@ export function unsupportedTimelineHeaderError(suffix: string): Error {
   })
 }
 export const TIMELINE_TITLE_RE = /^title\s+(.+)$/i
-export const TIMELINE_SECTION_RE = /^section\s+([^:]+)$/i
 export const TIMELINE_CONTINUATION_RE = /^:\s+(.+)$/
+
+/** The SECTION token stops before a colon. Its following EVENT tokens still
+ * target the latest period, even when that period belongs to an older section.
+ * Require one whitespace character and at least one non-colon character after
+ * it, matching the pinned lexer rather than guessing from the trimmed label. */
+export function readTimelineSection(line: string): { label: string; eventSource: string } | null {
+  const match = /^section\s([^:\n]+)/i.exec(line)
+  return match ? { label: match[1]!, eventSource: line.slice(match[0].length) } : null
+}
 
 /** Mermaid Timeline ignores full-line `%`/`%%` and `#` comments, not inline text.
  * `%{` is reserved for a directive-like token and is not a Timeline comment. */

@@ -4,11 +4,14 @@
  * Covers: participants, actors, messages (solid/dashed, filled/open arrows),
  * activation/deactivation, blocks (loop/alt/opt/par), notes, auto-created actors.
  */
-import { describe, it, expect } from 'bun:test'
-import { parseSequenceDiagram } from '../sequence/parser.ts'
+import { afterAll, beforeAll, describe, it, expect } from 'bun:test'
+import { parseSequenceDiagram, readSequenceStatements } from '../sequence/parser.ts'
+import { parseSequenceBody, renderSequence, sequenceUnsupportedSyntaxWarnings } from '../agent/sequence-body.ts'
 import { parseRegisteredMermaid, asSequence, mutate, serializeMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { verifyMermaid } from '../agent/verify.ts'
+import { layoutSequenceDiagram } from '../sequence/layout.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 /** Helper to parse — preprocesses text the same way index.ts does */
 function parse(text: string) {
@@ -16,11 +19,231 @@ function parse(text: string) {
   return parseSequenceDiagram(lines)
 }
 
+describe('Sequence text wrapping controls', () => {
+  it('separates controls from source text before decoding literal entities', () => {
+    const diagram = parse('sequenceDiagram\nA->>B:wrap: Wrapped\nA->>B:nowrap: Unwrapped\nA->>B: #119;rap#58; Literal\nNote over A: :wrap: Note text')
+    expect(diagram.messages.map(message => [message.label, message.wrap])).toEqual([
+      ['Wrapped', true], ['Unwrapped', false], ['wrap: Literal', undefined],
+    ])
+    expect(diagram.notes[0]).toMatchObject({ text: 'Note text', wrap: true })
+    for (const [payload, text, wrap] of [['wrap:nowrap: text', 'nowrap: text', true], ['WRAP: text', 'WRAP: text', undefined], [':nowrap: text', 'text', false]] as const) {
+      const message = parse(`sequenceDiagram\nA->>B: ${payload}`).messages[0]!
+      expect([message.label, message.wrap]).toEqual([text, wrap])
+    }
+  })
+
+  it('preserves control fields through edits and protects directive-like literal typed text', () => {
+    const parsed = parseRegisteredMermaid('sequenceDiagram\nA->>B:wrap: Original\nB->>A: Other')
+    if (!parsed.ok) throw new Error('parse failed')
+    const edited = mutate(parsed.value, { kind: 'set_message_text', index: 0, text: 'nowrap: literal payload' })
+    if (!edited.ok) throw new Error('edit failed')
+    const literal = mutate(edited.value, { kind: 'set_message_text', index: 1, text: ':wrap: literal payload' })
+    if (!literal.ok) throw new Error('edit failed')
+    const written = serializeMermaid(literal.value)
+    expect(parse(written).messages.map(message => [message.label, message.wrap])).toEqual([
+      ['nowrap: literal payload', true], [':wrap: literal payload', undefined],
+    ])
+    const unwrapped = mutate(literal.value, { kind: 'set_message_wrap', index: 0, wrap: false })
+    if (!unwrapped.ok) throw new Error('wrap edit failed')
+    expect(parse(serializeMermaid(unwrapped.value)).messages[0]).toMatchObject({ label: 'nowrap: literal payload', wrap: false })
+    expect(parseRegisteredMermaid(written)).toMatchObject({ ok: true, value: { body: { messages: [{ text: 'nowrap: literal payload', wrap: true }, { text: ':wrap: literal payload' }] } } })
+  })
+
+  it('uses wrap and nowrap in measured message and note geometry without altering payloads', () => {
+    const text = 'The reviewer needs enough detail to understand this complete message and its context'
+    const wrapped = layoutSequenceDiagram(parse(`sequenceDiagram\nA->>B:wrap: ${text}\nNote over B:wrap: ${text}`))
+    const unwrapped = layoutSequenceDiagram(parse(`sequenceDiagram\nA->>B:nowrap: ${text}\nNote over B:nowrap: ${text}`))
+    expect(wrapped.messages[0]!.labelPosition.block!.lines.length).toBeGreaterThan(1)
+    expect(unwrapped.messages[0]!.labelPosition.block!.lines).toEqual([text])
+    expect(wrapped.notes[0]!.block!.lines.length).toBeGreaterThan(1)
+    expect(unwrapped.notes[0]!.block!.lines).toEqual([text])
+    expect(wrapped.messages[0]!.label).toBe(text)
+    expect(wrapped.notes[0]!.text).toBe(text)
+  })
+
+  it('edits fragment message wrapping independently of literal text', () => {
+    const parsed = parseRegisteredMermaid('sequenceDiagram\nloop Work\nA->>B:wrap: Original\nend')
+    if (!parsed.ok) throw new Error('parse failed')
+    const unwrapped = mutate(parsed.value, { kind: 'set_fragment_message_wrap', fragmentIndex: 0, index: 0, wrap: false })
+    if (!unwrapped.ok) throw new Error('wrap edit failed')
+    const edited = mutate(unwrapped.value, { kind: 'set_fragment_message_text', fragmentIndex: 0, index: 0, text: 'wrap: literal' })
+    if (!edited.ok) throw new Error('text edit failed')
+    expect(parse(serializeMermaid(edited.value)).messages[0]).toMatchObject({ label: 'wrap: literal', wrap: false })
+    const inherited = mutate(edited.value, { kind: 'set_fragment_message_wrap', fragmentIndex: 0, index: 0, wrap: null })
+    if (!inherited.ok) throw new Error('wrap reset failed')
+    const message = parse(serializeMermaid(inherited.value)).messages[0]!
+    expect([message.label, message.wrap]).toEqual(['wrap: literal', undefined])
+  })
+
+  it('keeps controls on aliases, boxes and fragment captions through edits and layout', () => {
+    const text = 'A long caption that explains the complete interaction and the people who take part in it'
+    const source = `sequenceDiagram\nbox transparent wrap: ${text}\nparticipant A as wrap: ${text}\nend\nparticipant B as nowrap: ${text}\nalt wrap: ${text}\nA->>B: work\nelse nowrap: ${text}\nB->>A: done\nend`
+    const native = parse(source)
+    expect(native.actors.map(actor => [actor.label, actor.wrap])).toEqual([[text, true], [text, false]])
+    expect(native.boxes?.[0]).toMatchObject({ label: text, wrap: true })
+    expect(parse('sequenceDiagram\nrect wrap: rgb(240, 240, 240)\nA->>B: work\nend').blocks[0]).toMatchObject({ type: 'rect', color: 'rgb(240, 240, 240)' })
+    expect(native.blocks[0]).toMatchObject({ label: text, wrap: true, dividers: [{ label: text, wrap: false }] })
+    const positioned = layoutSequenceDiagram(native)
+    expect(positioned.actors[0]!.labelPosition.block!.lines.length).toBeGreaterThan(1)
+    expect(positioned.actors[1]!.labelPosition.block!.lines).toEqual([text])
+    expect(positioned.boxes[0]!.block!.lines.length).toBeGreaterThan(1)
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('parse failed')
+    const alias = mutate(parsed.value, { kind: 'set_participant_label', id: 'A', label: 'nowrap: literal alias' })
+    if (!alias.ok) throw new Error('alias edit failed')
+    const caption = mutate(alias.value, { kind: 'set_fragment_label', index: 0, label: 'nowrap: literal caption' })
+    if (!caption.ok) throw new Error('caption edit failed')
+    const reread = parse(serializeMermaid(caption.value))
+    expect(reread.actors[0]).toMatchObject({ label: 'nowrap: literal alias', wrap: true })
+    expect(reread.blocks[0]).toMatchObject({ label: 'nowrap: literal caption', wrap: true, dividers: [{ label: text, wrap: false }] })
+  })
+})
+
 // ============================================================================
 // Actor / Participant declarations
 // ============================================================================
 
 describe('parseSequenceDiagram – actors', () => {
+  let upstream: ReturnType<typeof startUpstreamMermaid>
+  beforeAll(() => { upstream = startUpstreamMermaid() })
+  afterAll(() => upstream.close())
+  it.each(['participant :@', 'participant A@', 'participant A,B@{ "type": "database" }', 'create participant :@'])('refuses damaged declaration identities without inventing a participant: %s', declaration => {
+    const source = `sequenceDiagram\n${declaration}`
+    expect(() => parse(source)).toThrow('Sequence participant ID')
+    expect(readSequenceStatements([declaration]).issues).toContainEqual({ syntax: 'sequence_participant_id', line: 0, message: expect.stringContaining('Sequence participant ID') })
+    expect(() => parseSequenceBody([declaration])).toThrow('Sequence participant ID')
+    expect(() => renderSequence({ kind: 'sequence', participants: [], messages: [], statements: [{ kind: 'opaque-block', lines: [declaration] }] })).toThrow('Sequence participant ID')
+  })
+
+  it.each([
+    ['participant note:0 as Authored', 'note:0', 'Authored', 'participant'],
+    ['actor B:start as Named', 'B:start', 'Named', 'actor'],
+    ['participant title:C@{ "type": "control", "alias": "Control" }', 'title:C', 'Control', 'control'],
+    ['create participant item:0 as Created', 'item:0', 'Created', 'participant'],
+  ] as const)('preserves clear native colon IDs but refuses a typed body that cannot write them: %s', (declaration, id, label, type) => {
+    const source = `sequenceDiagram\n${declaration}\nparticipant A as Before\nA->>B: Unchanged`
+    expect(parse(source).actors[0]).toEqual({ id, label, type })
+    expect(sequenceUnsupportedSyntaxWarnings(source)).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_participant_id_extension', line: 2 }))
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(false)
+    if (!parsed.ok) expect(parsed.error).toContainEqual(expect.objectContaining({ code: 'PARSE_FAILED', message: expect.stringContaining('rename this ID and its references') }))
+    expect(() => parseSequenceBody([declaration])).toThrow('Typed editing and serialization require a portable ID')
+    expect(() => renderSequence({ kind: 'sequence', participants: [], messages: [], statements: [{ kind: 'opaque-block', lines: [declaration] }] })).toThrow('Typed editing and serialization require a portable ID')
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED', origin: 'source', reason: expect.stringContaining('Typed editing and serialization require a portable ID') }))
+  })
+
+  it.each(['A+B', 'A/B', 'A\\B', 'A(B)', 'create)', '$', '資料'])('keeps valid punctuation and Unicode declaration IDs: %s', id => {
+    const source = `sequenceDiagram\nparticipant ${id} as Label :@`
+    expect(parse(source).actors).toEqual([{ id, label: 'Label :@', type: 'participant' }])
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parse(serializeMermaid(parsed.value)).actors).toEqual([{ id, label: 'Label :@', type: 'participant' }])
+  })
+
+  it.each([['create)', true], ['destroy)', true], ['actor)', true], ['loop)', false], ['end)', true], ['right of)', true]] as const)('keeps keyword-prefixed message ID %s source-only', async (id, sender) => {
+    // A leading loop) is already a block opener, not a native message.
+    for (const [from, to] of sender ? [['A', id], [id, 'A']] : [['A', id]]) {
+      const source = `sequenceDiagram\n${from}<<->>${to}: Message`
+      expect(await upstream.publicAccepts(source)).toBe(false)
+      expect(parse(source).messages).toMatchObject([{ from, to, label: 'Message' }])
+      const parsed = parseRegisteredMermaid(source)
+      if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+      expect(parsed.value.body.kind).toBe('opaque')
+      expect(serializeMermaid(parsed.value)).toBe(source + '\n')
+      expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_message_id_extension' }))
+      expect(mutate(parsed.value, { kind: 'add_participant', id: 'Other' }).ok).toBe(false)
+    }
+    const control = `sequenceDiagram\nA->>created): Message`
+    expect(await upstream.publicAccepts(control)).toBe(true)
+    expect(parseRegisteredMermaid(control).ok).toBe(true)
+  })
+
+  it.each([
+    ['#35;', 'ﬂ°°35¶ß'], ['A#58;B', 'Aﬂ°°58¶ßB'],
+    ['A#64;B', 'Aﬂ°°64¶ßB'], ['A#59;B', 'Aﬂ°°59¶ßB'],
+  ])('keeps entity-coded IDs and their message endpoints when relabeling: %s', async (id, referenceId) => {
+    const source = `sequenceDiagram\nparticipant ${id} as wrap: Original\n${id}->>B: Message`
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const sequence = asSequence(parsed.value)!
+    expect(sequence.body.participants.map(participant => participant.id)).toEqual([id, 'B'])
+    expect(sequence.body.messages).toMatchObject([{ from: id, to: 'B', text: 'Message' }])
+    const edited = mutate(sequence, { kind: 'set_participant_label', id, label: 'Updated' })
+    if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+    const written = serializeMermaid(edited.value)
+    const rendered = parse(written)
+    expect(rendered.actors).toEqual([{ id, label: 'Updated', type: 'participant', wrap: true }, { id: 'B', label: 'B', type: 'participant' }])
+    expect(rendered.messages).toMatchObject([{ from: id, to: 'B', label: 'Message' }])
+    for (const [candidate, label] of [[source, 'Original'], [written, 'Updated']]) {
+      const reference = await upstream.parse(candidate!)
+      expect(reference.ok).toBe(true)
+      if (!reference.ok || !reference.sequence) throw new Error('Pinned Sequence reference rejected entity-coded identity')
+      expect(reference.sequence.actors.map(actor => actor.name)).toEqual([referenceId, 'B'])
+      expect(reference.sequence.actors[0]!.description).toBe(label!)
+      expect(reference.sequence.messages).toMatchObject([{ from: referenceId, to: 'B', message: 'Message' }])
+      const wrapping = await upstream.project(candidate!, diagram => [...diagram.db.getActors().values()].map(actor => actor.wrap))
+      expect(wrapping).toEqual({ ok: true, value: [true, false] })
+    }
+  })
+
+  it('keeps entity-bearing multiword ACTOR tokens and explicit message wrapping through edits', async () => {
+    const source = 'sequenceDiagram\nFirst #35; Person->>Second Person: nowrap: before'
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok || parsed.value.body.kind !== 'sequence') throw new Error('Expected structured Sequence')
+    expect(parsed.value.body.participants.map(actor => actor.id)).toEqual(['First #35; Person', 'Second Person'])
+    expect(parsed.value.body.messages).toMatchObject([{ from: 'First #35; Person', to: 'Second Person', text: 'before', wrap: false }])
+    const edited = mutate(parsed.value, { kind: 'set_message_text', index: 0, text: 'wrap: literal' })
+    if (!edited.ok) throw new Error(edited.error.message)
+    const written = serializeMermaid(edited.value)
+    const reference = await upstream.parse(written)
+    expect(reference.ok).toBe(true)
+    if (!reference.ok || !reference.sequence) throw new Error('Pinned reference rejected complete ACTOR tokens')
+    expect(reference.sequence.actors.map(actor => actor.name)).toEqual(['First ﬂ°°35¶ß Person', 'Second Person'])
+    expect(reference.sequence.messages).toMatchObject([{ from: 'First ﬂ°°35¶ß Person', to: 'Second Person', message: 'wrap: literal' }])
+    const wrapping = await upstream.project(written, diagram => diagram.db.getMessages().find((message: any) => message.from).wrap)
+    expect(wrapping).toEqual({ ok: true, value: false })
+    const added = mutate(edited.value, { kind: 'add_participant', id: 'New #35; Person' })
+    if (!added.ok || added.value.body.kind !== 'sequence') throw new Error('Expected a bare identity-preserving declaration')
+    expect(added.value.body.participants.at(-1)).toMatchObject({ id: 'New #35; Person', label: 'New # Person' })
+    const addedSource = serializeMermaid(added.value)
+    const addedReference = await upstream.parse(addedSource)
+    if (!addedReference.ok || !addedReference.sequence) throw new Error('Pinned reference rejected the bare declaration')
+    expect(addedReference.sequence.actors.map(actor => actor.name)).toEqual(['First ﬂ°°35¶ß Person', 'Second Person', 'New ﬂ°°35¶ß Person'])
+    const reloaded = parseRegisteredMermaid(addedSource)
+    expect(reloaded.ok && reloaded.value.body).toEqual(added.value.body)
+    const before = serializeMermaid(edited.value)
+    expect(mutate(edited.value, { kind: 'set_participant_label', id: 'Second Person', label: 'Lost alias' }).ok).toBe(false)
+    expect(serializeMermaid(edited.value)).toBe(before)
+    expect(await upstream.publicAccepts('sequenceDiagram\nControl->>Other: valid')).toBe(true)
+  })
+
+  it.each([':@', '#hash', 'A#B', 'note:0'])('typed participant additions refuse declaration delimiters before creating identity %s', id => {
+    const parsed = parseRegisteredMermaid('sequenceDiagram\nparticipant A')
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const sequence = asSequence(parsed.value)!
+    expect(mutate(sequence, { kind: 'add_participant', id })).toMatchObject({ ok: false, error: { code: 'INVALID_OP', message: expect.stringContaining('Sequence participant ID') } })
+    const draft = structuredClone(sequence)
+    draft.body.participants[0]!.id = id
+    expect(() => serializeMermaid(draft)).toThrow('Sequence participant ID')
+  })
+
+  it('refuses to relabel a message-only ID that cannot be declared, without changing the message', () => {
+    const parsed = parseRegisteredMermaid('sequenceDiagram\nA@->>B: Hello')
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const sequence = asSequence(parsed.value)!
+    expect(mutate(sequence, { kind: 'set_participant_label', id: 'A@', label: 'Alias' })).toMatchObject({ ok: false, error: { code: 'INVALID_OP', message: expect.stringContaining('Sequence participant ID') } })
+    expect(sequence.body.messages).toMatchObject([{ from: 'A@', to: 'B', text: 'Hello' }])
+  })
+
+  it.each(['', ' ', '\t'])('reads participant metadata after separator %j', separator => {
+    const source = `sequenceDiagram\nparticipant Harry${separator}@{ "type": "database", "alias": "Orders" }\nHarry->>Harry: Save`
+    expect(() => parse(source)).not.toThrow()
+    const diagram = parse(source)
+    expect(diagram.actors).toEqual([expect.objectContaining({ id: 'Harry', label: 'Orders', type: 'database' })])
+    expect(diagram.messages).toEqual([expect.objectContaining({ from: 'Harry', to: 'Harry', label: 'Save' })])
+  })
+
   it('parses participant declarations', () => {
     const d = parse(`sequenceDiagram
       participant A as Alice

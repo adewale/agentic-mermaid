@@ -183,7 +183,7 @@ describeBrowser('editor theme switcher re-themes the diagram, never the chrome',
 
     const validHash = await page.evaluate(() => location.hash)
     await page.fill('#code-editor', 'flowchart TD')
-    await page.waitForFunction(() => document.getElementById('verify-summary')?.textContent?.includes('Fix structural'))
+    await page.waitForFunction(() => document.getElementById('verify-summary')?.textContent === 'Fix verification errors before export')
     expect(await page.locator('#preview-inner svg').count()).toBe(1)
     expect(await page.locator('#export-svg-btn').isDisabled()).toBe(true)
     expect(await page.locator('#preview-inner').getAttribute('data-shared-request-digest')).toBeNull()

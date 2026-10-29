@@ -30,9 +30,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   }),
   examples: Object.freeze({
     maxRequests: 6,
-    maxRawBytes: 412_000,
-    maxGzipBytes: 72_500,
-    maxBrotliBytes: 57_500,
+    // The six new stable-family examples add build-time SVG/HTML. The 23-family
+    // gallery measures 481,905 raw / 80,386 gzip / 63,351 Brotli, with 5% headroom.
+    maxRawBytes: 507_000,
+    maxGzipBytes: 84_500,
+    maxBrotliBytes: 66_600,
     required: Object.freeze([
       '^/examples/$',
       '^/styles\\.css$',
@@ -45,10 +47,16 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     ]),
   }),
   demo: Object.freeze({
-    maxRequests: 29,
-    maxRawBytes: 783_000,
-    maxGzipBytes: 293_000,
-    maxBrotliBytes: 267_500,
+    // Recorded native layout delivery used 38 requests; allow one more.
+    maxRequests: 39,
+    // Optional sketch code stays out of the default Timeline delivery graph.
+    // Includes the shared native drawing writer, bounded admission and flat paint evidence.
+    // Rebased edit contracts measure 787,643 raw / 302,191 gzip bytes.
+    maxRawBytes: 788_000,
+    maxGzipBytes: 302_500,
+    // Shared cleanup provenance adds about 2.5 KB gzip; the per-PR delta
+    // remains below 2%. Retain the same request graph and growth gate.
+    maxBrotliBytes: 276_000,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -62,13 +70,17 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     ]),
   }),
   'editor-empty': Object.freeze({
-    maxRequests: 2,
-    maxRawBytes: 3_579_000,
-    maxGzipBytes: 1_065_000,
-    maxBrotliBytes: 840_000,
+    maxRequests: 3,
+    // App plus schema/bootstrap; engines and feature modules wait for work.
+    // Measured on macOS/Bun 1.4.2: 712,841 raw / 215,362 gzip / 185,090 Brotli.
+    // Shared source provenance adds about 7.7 KB raw / 2.8 KB gzip.
+    maxRawBytes: 715_000,
+    maxGzipBytes: 217_000,
+    maxBrotliBytes: 187_000,
     required: Object.freeze([
       '^/editor/$',
       '^/editor/editor-[a-f0-9]{12}\\.js$',
+      '^/editor/runtime/browser-hosted-[a-z0-9]{8}\\.js$',
     ]),
     forbidden: Object.freeze([]),
   }),

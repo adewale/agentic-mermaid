@@ -1,9 +1,11 @@
 import type { PieChart, PieEntry } from './types.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
-import { stripTrailingComment } from '../shared/trailing-comment.ts'
+import { joinQuotedTextLines, quotedTextEnds, stripTrailingComment } from '../shared/trailing-comment.ts'
+import { PIE_QUOTED_TEXT } from './source-title.ts'
 import { mermaidEntityPrepass, TERMINAL_CONTROL_RE, toEntityMarkers } from '../shared/mermaid-entities.ts'
 import { projectEntityMarkers, type EntityRefusal } from '../shared/mermaid-entity-display.ts'
+import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 
 // ============================================================================
 // Pie chart parser
@@ -28,6 +30,11 @@ const NUMBER_RE = /^\+?(?:\d+(?:\.\d+)?|\.\d+)$/
 /** These decoded characters cannot be represented in XML/Scene text or IDs. */
 const XML_DISALLOWED_CONTROL_RE = /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/
 
+/** For each line, the last line of the statement that starts there. */
+export function pieStatementEnds(lines: readonly string[]): number[] {
+  return quotedTextEnds(lines, PIE_QUOTED_TEXT)
+}
+
 /**
  * Parse a Mermaid pie chart from preprocessed lines (trimmed, comment-stripped).
  * The first line is expected to be the `pie [showData]` header.
@@ -39,8 +46,9 @@ const XML_DISALLOWED_CONTROL_RE = /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/
  *   - an unquoted label
  */
 export function parsePieChart(lines: string[]): PieChart {
-  // Mermaid's Pie grammar ends every statement at a `%%` comment.
-  lines = scanAccessibilityDirectives(lines).familyLines.map(stripTrailingComment)
+  // Mermaid's Pie grammar ends every statement at a `%%` comment, outside a
+  // label that runs onto later lines.
+  lines = joinQuotedTextLines(scanAccessibilityDirectives(lines, pieStatementEnds(lines)).familyLines, PIE_QUOTED_TEXT).map(stripTrailingComment)
   if (lines.length === 0) {
     throw new Error('Pie chart is empty')
   }
@@ -50,6 +58,7 @@ export function parsePieChart(lines: string[]): PieChart {
   if (!headerMatch) {
     throw new Error(`Pie chart must start with "pie", got: "${header}"`)
   }
+  if (parserObservationActive('pie')) observeParserStatement('pie', 'header', header, { line: 1, unit: 'normalized' })
 
   // Header tail may carry `showData` and/or an inline `title <text>`.
   let showData = false
@@ -59,13 +68,16 @@ export function parsePieChart(lines: string[]): PieChart {
   const showDataMatch = tail.match(/^showData\b\s*(.*)$/i)
   if (showDataMatch) {
     showData = true
+    if (parserObservationActive('pie')) observeParserMutation('pie', 'setShowData', showData, { line: 1, unit: 'normalized' })
     tail = showDataMatch[1]!.trim()
   }
   const inlineTitle = tail.match(/^title\s+(.+)$/i)
   if (inlineTitle) {
     const authoredTitle = inlineTitle[1]!.trim()
     title = authoredTitle
+    if (parserObservationActive('pie')) observeParserMutation('pie', 'setTitle', title, { line: 1, unit: 'normalized' })
     displayTitle = projectPieTitleDisplay(authoredTitle)
+    if (parserObservationActive('pie')) observeParserMutation('pie', 'resolveTitleDisplay', displayTitle, { line: 1, unit: 'normalized' })
   } else if (tail.length > 0) {
     throw new Error(`Unexpected text after pie header: "${tail}"`)
   }
@@ -81,22 +93,32 @@ export function parsePieChart(lines: string[]): PieChart {
 
     // showData may also appear as a standalone directive on its own line.
     if (/^showData\s*$/i.test(line)) {
+      if (parserObservationActive('pie')) observeParserStatement('pie', 'showData', line, { line: i + 1, unit: 'normalized' })
       showData = true
+      if (parserObservationActive('pie')) observeParserMutation('pie', 'setShowData', showData, { line: i + 1, unit: 'normalized' })
       continue
     }
 
     const titleMatch = line.match(/^title\s+(.+)$/i)
     if (titleMatch) {
+      if (parserObservationActive('pie')) observeParserStatement('pie', 'title', line, { line: i + 1, unit: 'normalized' })
       const authoredTitle = titleMatch[1]!.trim()
       title = authoredTitle
+      if (parserObservationActive('pie')) observeParserMutation('pie', 'setTitle', title, { line: i + 1, unit: 'normalized' })
       displayTitle = projectPieTitleDisplay(authoredTitle)
+      if (parserObservationActive('pie')) observeParserMutation('pie', 'resolveTitleDisplay', displayTitle, { line: i + 1, unit: 'normalized' })
       continue
     }
 
     const entryMatch = line.match(ENTRY_RE)
     if (entryMatch) {
+      if (parserObservationActive('pie')) observeParserStatement('pie', 'entry', line, { line: i + 1, unit: 'normalized' })
       const sourceLabel = decodeEscapes(entryMatch[1]!)
-      if (/[\u0000-\u001f]/.test(sourceLabel)) hasEscapedControlLabels = true
+      // A line break the label runs across is source text a typed label keeps.
+      if (/[\u0000-\u001f]/.test(decodeEscapes(entryMatch[1]!.replace(/\n/g, '')))) {
+        hasEscapedControlLabels = true
+        if (parserObservationActive('pie')) observeParserMutation('pie', 'setHasEscapedControlLabels', true, { line: i + 1, unit: 'normalized' })
+      }
       const label = sourceLabel
       const rawValue = entryMatch[2]!.trim()
       if (!NUMBER_RE.test(rawValue)) {
@@ -136,6 +158,7 @@ export function parsePieChart(lines: string[]): PieChart {
       // still opaque tokens. Expand those markers only afterward: a backslash
       // produced by #92; is visible text, not a new source escape.
       const projectedLabel = projectEntityMarkers(sourceKey, PIE_ENTITY_REFUSAL)
+      if (parserObservationActive('pie')) observeParserMutation('pie', 'resolveEntryDisplay', { sourceKey, label: projectedLabel }, { line: i + 1, unit: 'normalized' })
       if (hasNewTerminalControl(label, projectedLabel)) {
         throw syntaxError({
           what: 'Pie entity projection creates a terminal control character after escape decoding',
@@ -156,10 +179,15 @@ export function parsePieChart(lines: string[]): PieChart {
       // Do this after checking entity-produced controls above: an entity must
       // not gain a route around the terminal-control safety boundary.
       const displayLabel = collapsePieEscapedNewlines(projectedLabel)
-      if (seenSourceLabels.has(sourceKey)) hasDuplicateSourceLabels = true
+      if (seenSourceLabels.has(sourceKey)) {
+        hasDuplicateSourceLabels = true
+        if (parserObservationActive('pie')) observeParserMutation('pie', 'setHasDuplicateSourceLabels', true, { line: i + 1, unit: 'normalized' })
+      }
       else {
         seenSourceLabels.add(sourceKey)
+        if (parserObservationActive('pie')) observeParserMutation('pie', 'addSourceLabel', sourceKey, { line: i + 1, unit: 'normalized' })
         entries.push({ label, value, ...(displayLabel === label && !needsPieLiteralText(label) ? {} : { displayLabel }) })
+        if (parserObservationActive('pie')) observeParserMutation('pie', 'appendEntry', entries[entries.length - 1], { line: i + 1, unit: 'normalized' })
       }
       continue
     }
@@ -167,12 +195,14 @@ export function parsePieChart(lines: string[]): PieChart {
     // A line that has a `:` looks like a data entry but didn't match the
     // strict shape — surface it loudly instead of dropping it.
     if (line.includes(':')) {
+      if (parserObservationActive('pie')) observeParserStatement('pie', 'invalidEntry', line, { line: i + 1, unit: 'normalized' })
       throw new Error(
         `Invalid pie entry: "${line}". Expected: "label" : positiveNumber`,
       )
     }
 
     // Anything else is unrecognized syntax for the pie family.
+    if (parserObservationActive('pie')) observeParserStatement('pie', 'unrecognized', line, { line: i + 1, unit: 'normalized' })
     throw syntaxError({
       what: `Unrecognized pie chart line: "${line}"`,
       expectedForm: 'a title, showData, or a slice ("Label" : number)',

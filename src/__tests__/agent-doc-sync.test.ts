@@ -3,28 +3,33 @@
 // declaration matches the runtime registries and sandbox.
 
 import { describe, expect, test } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { build as buildWithEsbuild } from 'esbuild'
 import ts from 'typescript'
 import { lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/core.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import type { AnyMutationOp, DiagramKind, MutableValidDiagram, ParsedDiagram } from '../agent/types.ts'
 import * as agentTypes from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import { AGENT_INSTRUCTIONS } from '../cli/agent-instructions.ts'
-import { buildCapabilities, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
+import { buildCapabilities, buildLlmsTxt, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
 import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 const REPO = join(import.meta.dir, '..', '..')
 
 /** One declared, representative edit per built-in family; each introduces "zebra". */
-const TYPED_EDIT_BY_FAMILY: Partial<Record<DiagramKind, { kind: string } & Record<string, unknown>>> = {
+const TYPED_EDIT_BY_FAMILY: Record<DiagramKind, { kind: string } & Record<string, unknown>> = {
+  zenuml: { kind: 'upsert_participant', participant: { id: 'Zebra', label: 'Zebra', annotations: [] } },
+  eventmodeling: { kind: 'insert_frame', frame: { id: '99', reset: true, type: 'event', entity: 'Zebra', sources: [] } },
+  c4: { kind: 'add_element', element: { id: 'Zebra', label: 'Zebra', kind: 'system' } },
   flowchart: { kind: 'add_node', id: 'Zebra', label: 'Zebra' },
   state: { kind: 'add_state', id: 'Zebra' },
   sequence: { kind: 'add_participant', id: 'Zebra' },
@@ -41,17 +46,22 @@ const TYPED_EDIT_BY_FAMILY: Partial<Record<DiagramKind, { kind: string } & Recor
   gitgraph: { kind: 'create_branch', name: 'zebra' },
   radar: { kind: 'add_axis', id: 'zebra', label: 'Zebra' },
   sankey: { kind: 'add_link', source: 'Zebra', target: 'Industry', value: 1 },
+  packet: { kind: 'add_field', label: 'Zebra', bits: 8 },
+  kanban: { kind: 'add_task', column: 'todo', id: 'zebra', label: 'Zebra' },
+  requirement: { kind: 'add_requirement', requirement: { name: 'zebra', text: 'Zebra retains evidence' } },
+  treemap: { kind: 'add_node', label: 'Zebra', value: 5 },
+  ishikawa: { kind: 'set_effect', label: 'Zebra' },
+  block: { kind: 'add_block', block: { id: 'Zebra', label: 'Zebra' } },
 }
 
 const SDK_AST = ts.createSourceFile('code-mode-sdk.d.ts', SDK_DECLARATION, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
 
 /** String-literal members of a `type Name = 'A' | 'B'` alias in the SDK declaration. */
 function sdkStringUnion(name: string): string[] {
-  const alias = SDK_AST.statements.find((statement): statement is ts.TypeAliasDeclaration =>
-    ts.isTypeAliasDeclaration(statement) && statement.name.text === name)
+  const alias = SDK_AST.statements.find((statement): statement is ts.TypeAliasDeclaration => ts.isTypeAliasDeclaration(statement) && statement.name.text === name)
   if (!alias) return []
   const members = ts.isUnionTypeNode(alias.type) ? alias.type.types : [alias.type]
-  return members.flatMap(member => ts.isLiteralTypeNode(member) && ts.isStringLiteral(member.literal) ? [member.literal.text] : [])
+  return members.flatMap(member => (ts.isLiteralTypeNode(member) && ts.isStringLiteral(member.literal) ? [member.literal.text] : []))
 }
 
 /** Method names declared on the SDK's `declare const mermaid: { ... }` global. */
@@ -60,25 +70,24 @@ function sdkMermaidMethodNames(): string[] {
     if (!ts.isVariableStatement(statement)) continue
     for (const declaration of statement.declarationList.declarations) {
       if (!ts.isIdentifier(declaration.name) || declaration.name.text !== 'mermaid' || !declaration.type || !ts.isTypeLiteralNode(declaration.type)) continue
-      return declaration.type.members.flatMap(member => ts.isMethodSignature(member) && ts.isIdentifier(member.name) ? [member.name.text] : [])
+      return declaration.type.members.flatMap(member => (ts.isMethodSignature(member) && ts.isIdentifier(member.name) ? [member.name.text] : []))
     }
   }
   return []
 }
 
-/** Type-check the SDK declaration on its own, as an agent's editor would see it. */
-function sdkDeclarationTypeErrors(): string[] {
+/** Type-check the shipped declaration and a consumer, as an agent's editor would. */
+function sdkDeclarationTypeErrors(consumer: string): string[] {
   const fileName = join(tmpdir(), 'agentic-mermaid-code-mode-sdk.d.ts')
+  const consumerName = join(tmpdir(), 'agentic-mermaid-code-mode-consumer.ts')
+  const sources = new Map([[fileName, SDK_DECLARATION], [consumerName, consumer]])
   const options: ts.CompilerOptions = { noEmit: true, strict: true, target: ts.ScriptTarget.ES2022, lib: ['lib.es2022.d.ts'], types: [] }
   const host = ts.createCompilerHost(options)
   const readSourceFile = host.getSourceFile.bind(host)
   const fileExists = host.fileExists.bind(host)
-  host.getSourceFile = (name, languageVersion, ...rest) => name === fileName
-    ? ts.createSourceFile(name, SDK_DECLARATION, languageVersion, true, ts.ScriptKind.TS)
-    : readSourceFile(name, languageVersion, ...rest)
-  host.fileExists = name => name === fileName || fileExists(name)
-  return ts.getPreEmitDiagnostics(ts.createProgram([fileName], options, host))
-    .map(diagnostic => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'))
+  host.getSourceFile = (name, languageVersion, ...rest) => (sources.has(name) ? ts.createSourceFile(name, sources.get(name)!, languageVersion, true, ts.ScriptKind.TS) : readSourceFile(name, languageVersion, ...rest))
+  host.fileExists = name => sources.has(name) || fileExists(name)
+  return ts.getPreEmitDiagnostics(ts.createProgram([...sources.keys()], options, host)).map(diagnostic => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'))
 }
 
 describe('Instructions_for_agents.md', () => {
@@ -89,6 +98,7 @@ describe('Instructions_for_agents.md', () => {
   test('quick-start Code Mode snippets execute and lint clean', async () => {
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
     const snippets = Array.from(guide.matchAll(/```ts\n([\s\S]*?)\n```/g)).map(m => m[1]!)
+    expect(snippets.length).toBeGreaterThan(0)
     for (const snippet of snippets) {
       const r = await executeInSandbox(snippet, { trace: true })
       expect({ ok: r.ok, error: r.error }).toEqual({ ok: true, error: undefined })
@@ -174,10 +184,11 @@ describe('agent-facing runnable docs', () => {
   // to a var the prose calls a string); those need human review. Skipped:
   // continuation fragments (no import), module/handler fragments (top-level
   // export/return), and React/JSX blocks.
-  test('public-API doc snippets execute', () => {
+  test('public-API doc snippets execute', async () => {
     const AGENT = JSON.stringify(join(REPO, 'src/agent/index.ts'))
     const CORE = JSON.stringify(join(REPO, 'src/index.ts'))
-    const docs = ['README.md', 'docs/getting-started.md', 'docs/api.md', 'docs/ascii.md', 'docs/config.md', 'docs/theming.md', 'docs/diagram-families.md']
+    const BROWSER = JSON.stringify(join(REPO, 'src/browser-lazy.ts'))
+    const docs = ['README.md', 'docs/getting-started.md', 'docs/api.md', 'docs/api-advanced.md', 'docs/ascii.md', 'docs/config.md', 'docs/theming.md', 'docs/diagram-families.md']
     // Reader-supplied placeholders the docs reference but expect you to provide.
     const placeholders = (block: string): string => {
       const declared = (id: string) => new RegExp(`(?:const|let|var)\\s+${id}\\b`).test(block) || new RegExp(`(?:const|let|var)\\s*\\{[^}]*\\b${id}\\b[^}]*\\}`).test(block)
@@ -199,10 +210,10 @@ describe('agent-facing runnable docs', () => {
           if (!runnable) continue
           // Point published specifiers at in-repo source; a temp cwd keeps any
           // written artifacts (diagram.svg/png) out of the repo.
-          const wired = block.replaceAll("'agentic-mermaid/agent'", AGENT).replaceAll("'agentic-mermaid'", CORE)
+          const wired = block.replaceAll("'agentic-mermaid/agent/core'", JSON.stringify(join(REPO, 'src/agent/core.ts'))).replaceAll("'agentic-mermaid/agent'", AGENT).replaceAll("'agentic-mermaid/browser/lazy'", BROWSER).replaceAll("'agentic-mermaid'", CORE)
           const file = join(dir, `${doc.replace(/[/.]/g, '_')}__${i}.ts`)
           writeFileSync(file, placeholders(block) + '\n' + wired)
-          const r = spawnSync('bun', ['run', file], { cwd: dir, encoding: 'utf8' })
+          const r = await runChild('bun', ['run', file], { cwd: dir })
           expect({ doc, block: i, status: r.status, stderr: r.stderr }).toEqual({ doc, block: i, status: 0, stderr: '' })
           ran++
         }
@@ -239,7 +250,47 @@ describe('Code Mode SDK declaration matches the runtime', () => {
       expect({ family: family.id, narrower: methods.has(family.narrower) }).toEqual({ family: family.id, narrower: true })
     }
     expect(methods.has('mutate')).toBe(true)
-    expect(sdkDeclarationTypeErrors()).toEqual([])
+    expect(sdkDeclarationTypeErrors(`
+const radar = mermaid.asRadar(mermaid.createMermaid('radar'));
+if (radar) {
+  const body: RadarBody = radar.body;
+  mermaid.mutate(radar, { kind: 'add_axis', id: 'quality' });
+  // @ts-expect-error add_axis requires an axis id.
+  mermaid.mutate(radar, { kind: 'add_axis' });
+  // @ts-expect-error a radar body cannot be used as a sankey body.
+  const wrong: SankeyBody = body;
+}
+const sankey = mermaid.asSankey(mermaid.createMermaid('sankey'));
+if (sankey) {
+  const links: Array<{ source: string; target: string; value: number }> = sankey.body.links;
+  mermaid.mutate(sankey, { kind: 'add_link', source: 'A', target: 'B', value: 3 });
+  // @ts-expect-error link values are numeric.
+  mermaid.mutate(sankey, { kind: 'add_link', source: 'A', target: 'B', value: '3' });
+}
+declare const parsed: ParsedDiagram;
+declare const extension: ExtensionValidDiagram;
+declare const preserved: PreservedValidDiagram;
+const svg: string = mermaid.renderMermaidSVG(parsed, { architecture: { visual: { groupHeaderHeight: 22, groupFont: 'sans-serif' } } });
+const text: string = mermaid.renderMermaidASCII(extension, { colorMode: 'html' });
+mermaid.renderMermaidSVGWithReceipt(preserved, { security: 'strict' });
+mermaid.renderMermaidASCIIWithReceipt(parsed, { useAscii: true });
+mermaid.layoutMermaidWithReceipt(extension, { padding: 12 });
+// @ts-expect-error structured built-in mutations cannot accept an extension envelope.
+mermaid.mutate(extension, { kind: 'set_title', title: 'Closed mutation boundary' });
+// @ts-expect-error backend routing is private and absent from consumer options.
+const privateBackend: SharedRenderOptions = { backendPolicy: { selected: 'backend:probe' } };
+// @ts-expect-error architecture header height is numeric.
+const badHeader: SharedRenderOptions = { architecture: { visual: { groupHeaderHeight: '22' } } };
+const options: SharedRenderOptions = {
+  mermaidConfig: { radar: { tickLabels: true }, sankey: { nodeAlignment: 'left', nodeWidth: 12 } }
+};
+// @ts-expect-error tickLabels is a boolean switch.
+const badRadar: SharedRenderOptions = { mermaidConfig: { radar: { tickLabels: 'yes' } } };
+// @ts-expect-error nodeAlignment is a closed union.
+const badAlignment: SharedRenderOptions = { mermaidConfig: { sankey: { nodeAlignment: 'diagonal' } } };
+// @ts-expect-error nodeWidth is numeric.
+const badWidth: SharedRenderOptions = { mermaidConfig: { sankey: { nodeWidth: '12' } } };
+`)).toEqual([])
   })
 
   test('every narrower advertised by the SDK declaration is callable in the Code Mode sandbox', async () => {
@@ -249,6 +300,7 @@ describe('Code Mode SDK declaration matches the runtime', () => {
     const advertised = [...new Set(Array.from(SDK_DECLARATION.matchAll(/\bas[A-Z]\w+/g), m => m[0]))]
     expect(advertised.length).toBeGreaterThanOrEqual(9)
     const SOURCES: Record<string, string> = {
+      asC4: 'C4Context\\n  System(a, "A")',
       asFlowchart: 'flowchart TD\\n  A --> B',
       asState: 'stateDiagram-v2\\n  [*] --> A',
       asSequence: 'sequenceDiagram\\n  A->>B: hi',
@@ -265,6 +317,14 @@ describe('Code Mode SDK declaration matches the runtime', () => {
       asGitGraph: 'gitGraph\\n  commit',
       asRadar: 'radar-beta\\n  axis a, b, c\\n  curve x{1, 2, 3}',
       asSankey: 'sankey-beta\\n  Coal,Electricity,127.93',
+      asPacket: 'packet\\n+8: "Byte"',
+      asKanban: 'kanban\\nTodo\\n  task[Write documentation]',
+      asRequirement: 'requirementDiagram\\nrequirement evidence {\\nid: R1\\ntext: "Retain evidence"\\nrisk: high\\nverifymethod: test\\n}',
+      asTreemap: 'treemap\\n"Build"\\n  "Engineering": 60',
+      asZenUML: 'zenuml\\nA->B: hello',
+      asEventModeling: 'eventmodeling\\ntf 01 ui CartUI',
+      asIshikawa: 'ishikawa\\nEffect\\nCause',
+      asBlock: 'block\\ncolumns 2\\nA B\\nA --> B',
     }
     for (const narrower of advertised) {
       const source = SOURCES[narrower]
@@ -289,26 +349,22 @@ describe('Code Mode SDK declaration matches the runtime', () => {
       const kind = family.id
       const edit = TYPED_EDIT_BY_FAMILY[kind]
       expect({ kind, hasEditFixture: edit !== undefined, msg: FAIL }).toEqual({ kind, hasEditFixture: true, msg: FAIL })
-      expect({ kind, opDeclared: (MUTATION_OPS_BY_FAMILY[kind] as readonly string[]).includes(edit!.kind), msg: FAIL })
-        .toEqual({ kind, opDeclared: true, msg: FAIL })
+      expect({ kind, opDeclared: (MUTATION_OPS_BY_FAMILY[kind] as readonly string[]).includes(edit!.kind), msg: FAIL }).toEqual({ kind, opDeclared: true, msg: FAIL })
 
       const parsed = parseRegisteredMermaid(family.example)
       if (!parsed.ok) throw new Error(`${kind} example does not parse`)
       for (const other of BUILTIN_FAMILY_METADATA) {
         const narrowed = typeof narrowers[other.narrower] === 'function' ? narrowers[other.narrower]!(parsed.value) : undefined
-        expect({ kind, narrower: other.narrower, accepts: narrowed !== null && narrowed !== undefined })
-          .toEqual({ kind, narrower: other.narrower, accepts: other.id === kind })
+        expect({ kind, narrower: other.narrower, accepts: narrowed !== null && narrowed !== undefined }).toEqual({ kind, narrower: other.narrower, accepts: other.id === kind })
       }
       const typed = narrowers[family.narrower]!(parsed.value) as MutableValidDiagram
       const mutated = mutate(typed, edit as AnyMutationOp)
       expect({ kind, mutated: mutated.ok ? true : mutated.error, msg: FAIL }).toEqual({ kind, mutated: true, msg: FAIL })
       if (!mutated.ok) continue
       const source = serializeMermaid(mutated.value)
-      expect({ kind, before: /zebra/i.test(serializeMermaid(parsed.value)), after: /zebra/i.test(source) })
-        .toEqual({ kind, before: false, after: true })
+      expect({ kind, before: /zebra/i.test(serializeMermaid(parsed.value)), after: /zebra/i.test(source) }).toEqual({ kind, before: false, after: true })
       const reparsed = parseRegisteredMermaid(source)
-      expect({ kind, reparsedKind: reparsed.ok ? reparsed.value.kind : reparsed.error })
-        .toEqual({ kind, reparsedKind: kind })
+      expect({ kind, reparsedKind: reparsed.ok ? reparsed.value.kind : reparsed.error }).toEqual({ kind, reparsedKind: kind })
       if (reparsed.ok) expect({ kind, stable: serializeMermaid(reparsed.value) === source }).toEqual({ kind, stable: true })
     }
   })
@@ -352,7 +408,7 @@ describe('start.md bootstrap claims stay true', () => {
 })
 
 describe('documented package usage works', () => {
-  test('React client recipes bundle through the browser ESM entry', async () => {
+  test('browser client recipes bundle through the browser ESM entry', async () => {
     for (const file of ['docs/react.md', 'docs/getting-started.md']) {
       const text = readFileSync(join(REPO, file), 'utf8')
       if (file === 'docs/react.md') {
@@ -360,9 +416,11 @@ describe('documented package usage works', () => {
         expect(text).toContain('.diagram-surface {')
         expect(text).toContain('.dark .diagram-surface {')
       }
-      const clientBlocks = Array.from(text.matchAll(/```tsx\n([\s\S]*?)\n```/g))
+      // Getting Started demonstrates the browser API; the complete React
+      // adapter lives in react.md rather than a second copy to keep in sync.
+      const clientBlocks = Array.from(text.matchAll(/```tsx?\n([\s\S]*?)\n```/g))
         .map(match => match[1]!)
-        .filter(block => /from ['"]react['"]/.test(block))
+        .filter(block => /from ['"]agentic-mermaid\/browser\/lazy['"]/.test(block))
       expect(clientBlocks.length, file).toBeGreaterThan(0)
       for (const block of clientBlocks) {
         expect({ file, block }).toMatchObject({ block: expect.stringContaining("from 'agentic-mermaid/browser/lazy'") })
@@ -382,14 +440,16 @@ describe('documented package usage works', () => {
           write: false,
           metafile: true,
           logLevel: 'silent',
-          plugins: [{
-            name: 'agentic-mermaid-browser-entry',
-            setup(build) {
-              build.onResolve({ filter: /^agentic-mermaid\/browser\/lazy$/ }, () => ({
-                path: join(REPO, 'src/browser-lazy.ts'),
-              }))
+          plugins: [
+            {
+              name: 'agentic-mermaid-browser-entry',
+              setup(build) {
+                build.onResolve({ filter: /^agentic-mermaid\/browser\/lazy$/ }, () => ({
+                  path: join(REPO, 'src/browser-lazy.ts'),
+                }))
+              },
             },
-          }],
+          ],
         })
         expect(bundled.outputFiles.length).toBeGreaterThan(0)
         const inputs = Object.keys(bundled.metafile.inputs)
@@ -398,17 +458,25 @@ describe('documented package usage works', () => {
     }
   })
 
-  test('package-runner quickstarts install the published package and run a real subcommand', () => {
+  test('package-runner quickstarts install the published package and run a real subcommand', async () => {
     // `npx <pkg> <sub>` resolves the bin named after the package, so every
     // documented invocation must name this package, that bin must exist, and
     // the subcommand must be one `am` accepts.
     const pkg = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8')) as { name: string; bin: Record<string, string> }
     expect(pkg.bin[pkg.name]).toBe(pkg.bin.am)
-    const docs = ['README.md', 'AGENT_NATIVE.md', 'Instructions_for_agents.md', 'llms.txt', 'website/source/start.md',
-      ...readdirSync(join(REPO, 'docs')).filter(file => file.endsWith('.md')).map(file => `docs/${file}`)]
+    const docs = [
+      'README.md',
+      'AGENT_NATIVE.md',
+      'Instructions_for_agents.md',
+      'website/source/start.md',
+      ...readdirSync(join(REPO, 'docs'))
+        .filter(file => file.endsWith('.md'))
+        .map(file => `docs/${file}`),
+    ]
     const invocations: Array<{ file: string; pkg: string; sub: string }> = []
-    for (const file of docs) {
-      const text = readFileSync(join(REPO, file), 'utf8')
+    const sources = docs.map(file => ({ file, text: readFileSync(join(REPO, file), 'utf8') }))
+    sources.push({ file: 'am llms-txt', text: buildLlmsTxt() })
+    for (const { file, text } of sources) {
       for (const match of text.matchAll(/\bnpx\s+(?:-y\s+)?(agentic-mermaid[\w-]*)(?:\s+([a-z][\w-]*))?/g)) {
         invocations.push({ file, pkg: match[1]!, sub: match[2] ?? '' })
       }
@@ -424,7 +492,7 @@ describe('documented package usage works', () => {
     }
     expect(subcommands.has('mcp')).toBe(true)
     for (const sub of subcommands) {
-      const help = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), sub, '--help'], { cwd: REPO, encoding: 'utf8' })
+      const help = await runChild('bun', ['run', join(REPO, 'bin/am.ts'), sub, '--help'], { cwd: REPO })
       expect({ sub, status: help.status }).toEqual({ sub, status: 0 })
     }
   }, 60_000)

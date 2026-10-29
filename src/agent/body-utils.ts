@@ -1,4 +1,5 @@
 import { labelOverflowWarning, type LabelEmphasis } from './label-metrics.ts'
+import type { DisplayTextInput } from '../shared/display-text.ts'
 import { DEFAULT_LABEL_CHAR_CAP, err, ok, type LayoutWarning, type MutationError, type Result, type VerifyOptions } from './types.ts'
 
 /** Deterministic lowest-free `${prefix}-${n}` allocation shared by bodies. */
@@ -22,7 +23,7 @@ export function labelOverflowCollector(
   opts: VerifyOptions,
   cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP,
   emphasis?: LabelEmphasis,
-): (target: string, text: string) => void {
+): (target: string, text: DisplayTextInput) => void {
   return (target, text) => {
     const warning = labelOverflowWarning(target, text, cap, emphasis)
     if (warning) warnings.push(warning)

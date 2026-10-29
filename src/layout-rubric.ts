@@ -1,3 +1,5 @@
+import { countOpposingRouteOverlaps } from './shared/edge-overlaps.ts'
+export { countOpposingRouteOverlaps } from './shared/edge-overlaps.ts'
 /**
  * Deterministic layout-quality rubric (docs/design/system/layout-rubric.md).
  *
@@ -15,10 +17,16 @@
  */
 
 import type { MermaidGraph, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from './types.ts'
-import { diamondFacetPorts, findRouteHitches, PORT_EXACT, shapePorts } from './route-contracts.ts'
+import { diamondFacetPorts, findRouteHitches, hasBundleRouteExemption, invalidEndpointApproaches, PORT_EXACT, shapePorts } from './route-contracts.ts'
 import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
-import { measureMultilineText } from './text-metrics.ts'
+import { graphTextBlock } from './graph-text.ts'
 import { resolveRenderStyle } from './styles.ts'
+import type { ResolvedRenderStyle } from './styles.ts'
+import type { PassMetrics, RubricMetric } from './layout/pass.ts'
+import { measureLabelConflicts } from './layout/label-conflicts.ts'
+import { countPolylineCrossings } from './shared/edge-crossings.ts'
+import { graphReachability } from './layout/geometry.ts'
+import { hasConstructedBundleRoute } from './layout/bundle-routes.ts'
 
 /**
  * Evidence-based impact rank for a violation, mirroring the QualityBounds
@@ -49,6 +57,7 @@ const RUBRIC_SEVERITY: Record<string, RubricSeverity> = {
   unexplainedBends: 'secondary',
   hitches: 'secondary',
   offOutlineEndpoints: 'cosmetic',
+  endpointApproaches: 'primary',
   labelOffRoute: 'cosmetic',
 }
 
@@ -69,6 +78,8 @@ export interface RubricMetrics {
   edges: number
   /** HARD (0): edge endpoints must lie on the rendered shape outline. */
   offOutlineEndpoints: number
+  /** HARD (0): exact endpoints must carry an outward, non-tangent shaft. */
+  endpointApproaches: number
   /** HARD (0): orthogonal routing must not emit diagonal segments. */
   diagonalSegments: number
   /** HARD (0): an edge certified 'straight' may not have bends. */
@@ -81,6 +92,8 @@ export interface RubricMetrics {
   labelOffRoute: number
   /** HARD (0): edge segments through a non-incident node's interior. */
   edgeThroughNode: number
+  /** Padded label/label, label/node and label/visible-route conflict pairs. */
+  labelConflicts: number
   /** Purchase's strongest validated aesthetic — minimize. */
   edgeCrossings: number
   /** Purchase-validated — minimize. Excludes justified symmetric-convergence
@@ -150,7 +163,8 @@ function slantedPolygonVertices(node: PositionedNode): Point[] {
 /**
  * Whether an axis-aligned segment passes through a node's rendered footprint
  * (not merely its bbox — a route grazing the empty corner outside a circle's
- * disk or a diamond's facet is legal). Half-pixel tolerance throughout.
+ * disk or a diamond's facet is legal). Plain and explicitly decorated full
+ * rectangles use their open interior; curved shapes retain the tolerance.
  */
 export function segmentThroughShape(a: Point, b: Point, node: PositionedNode): boolean {
   const cx = node.x + node.width / 2
@@ -159,8 +173,18 @@ export function segmentThroughShape(a: Point, b: Point, node: PositionedNode): b
   const hh = node.height / 2
   const xLo = Math.min(a.x, b.x), xHi = Math.max(a.x, b.x)
   const yLo = Math.min(a.y, b.y), yHi = Math.max(a.y, b.y)
-  const inBbox = xHi > node.x + 0.5 && xLo < node.x + node.width - 0.5 &&
-    yHi > node.y + 0.5 && yLo < node.y + node.height - 0.5
+  // Independently restate the renderer's classic cylinder core (cap ry = 7).
+  // Its curved caps keep the existing graze policy; their empty corners do
+  // not justify a tolerance inside the core's straight, fully painted sides.
+  if (node.shape === 'cylinder' && (node.semanticShape === undefined || node.semanticShape === 'cyl')
+    && node.height > 14 && xHi > node.x && xLo < node.x + node.width
+    && yHi > node.y + 7 && yLo < node.y + node.height - 7) return true
+  const rectangularBody = (node.shape === 'rectangle' || node.shape === 'subroutine')
+    && (node.semanticShape === undefined || node.semanticShape === 'rect' || node.semanticShape === 'fr-rect'
+      || node.semanticShape === 'lin-rect' || node.semanticShape === 'div-rect' || node.semanticShape === 'win-pane')
+  const inset = rectangularBody ? 0 : 0.5
+  const inBbox = xHi > node.x + inset && xLo < node.x + node.width - inset &&
+    yHi > node.y + inset && yLo < node.y + node.height - inset
   if (!inBbox) return false
 
   // For curved/pointed shapes, occlusion means penetrating DEEPER than the
@@ -170,6 +194,7 @@ export function segmentThroughShape(a: Point, b: Point, node: PositionedNode): b
   // incursion is visible against a straight side.
   const GRAZE = 2.5
   switch (node.shape) {
+    case 'ellipse':
     case 'circle':
     case 'doublecircle':
     case 'state-start':
@@ -246,6 +271,55 @@ function segmentsIntersect(a: Point, b: Point, c: Point, d: Point): boolean {
   const t = ((c.x - a.x) * (d.y - c.y) - (c.y - a.y) * (d.x - c.x)) / det
   const u = ((c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x)) / det
   return t > 0.001 && t < 0.999 && u > 0.001 && u < 0.999
+}
+
+/** Shared visible-route predicate, also used by public quality measurement. */
+export function countEdgeCrossings(edges: readonly PositionedEdge[], involved?: ReadonlySet<number>): number {
+  return countPolylineCrossings(edges.map(edge => ({ points: edge.points, visible: edge.style !== 'invisible' })), involved)
+}
+
+/** Same-endpoint parallel routes sharing visible collinear ink cannot be
+ * distinguished along that span. Endpoint distance alone does not prove this. */
+type InkEdge = Pick<PositionedEdge, 'source' | 'target' | 'style' | 'points'>
+
+export function countParallelRouteOverlaps(edges: readonly InkEdge[], involved?: ReadonlySet<number>): number {
+  const pairs = new Map<string, Array<{ edge: InkEdge; index: number }>>()
+  edges.forEach((edge, index) => {
+    if (edge.style === 'invisible' || edge.source === edge.target) return
+    const key = JSON.stringify([edge.source, edge.target])
+    const group = pairs.get(key) ?? []
+    group.push({ edge, index }); pairs.set(key, group)
+  })
+  const sharesSpan = (a: InkEdge, b: InkEdge): boolean => {
+    for (let i = 1; i < a.points.length; i++) for (let j = 1; j < b.points.length; j++) {
+      const p = a.points[i - 1]!, q = a.points[i]!, r = b.points[j - 1]!, s = b.points[j]!
+      if (Math.abs(p.x - q.x) <= 0.01 && Math.abs(r.x - s.x) <= 0.01 && Math.abs(p.x - r.x) <= 0.5 && Math.min(Math.max(p.y, q.y), Math.max(r.y, s.y)) - Math.max(Math.min(p.y, q.y), Math.min(r.y, s.y)) > 1) return true
+      if (Math.abs(p.y - q.y) <= 0.01 && Math.abs(r.y - s.y) <= 0.01 && Math.abs(p.y - r.y) <= 0.5 && Math.min(Math.max(p.x, q.x), Math.max(r.x, s.x)) - Math.max(Math.min(p.x, q.x), Math.min(r.x, s.x)) > 1) return true
+    }
+    return false
+  }
+  let overlaps = 0
+  for (const group of pairs.values()) for (let i = 0; i < group.length; i++) for (let j = i + 1; j < group.length; j++) {
+    const a = group[i]!, b = group[j]!
+    if ((!involved || involved.has(a.index) || involved.has(b.index)) && sharesSpan(a.edge, b.edge)) overlaps++
+  }
+  return overlaps
+}
+
+
+export function portEndpointRate(positioned: Pick<PositionedGraph, 'nodes' | 'edges'>, visibleOnly = false): number {
+  const nodes = new Map(positioned.nodes.map(node => [node.id, node]))
+  let measured = 0, attached = 0
+  for (const edge of positioned.edges) {
+    if (visibleOnly && edge.style === 'invisible') continue
+    for (const [id, point] of [[edge.source, edge.points[0]], [edge.target, edge.points.at(-1)]] as const) {
+      const node = nodes.get(id)
+      if (!node) continue
+      measured++
+      if (point && onDesignatedPort(node, point)) attached++
+    }
+  }
+  return measured === 0 ? 1 : attached / measured
 }
 
 function pointToSegmentDistance(p: Point, a: Point, b: Point): number {
@@ -356,23 +430,6 @@ function nodeInsideGroups(node: PositionedNode, groups: PositionedGroup[]): bool
   return visit(groups)
 }
 
-function logicalGraphReaches(graph: MermaidGraph, from: string, to: string): boolean {
-  const outgoing = new Map<string, string[]>()
-  for (const edge of graph.edges) {
-    if (!outgoing.has(edge.source)) outgoing.set(edge.source, [])
-    outgoing.get(edge.source)!.push(edge.target)
-  }
-  const seen = new Set<string>()
-  const stack = [from]
-  while (stack.length > 0) {
-    const id = stack.pop()!
-    if (id === to) return true
-    if (seen.has(id)) continue
-    seen.add(id)
-    for (const next of outgoing.get(id) ?? []) stack.push(next)
-  }
-  return false
-}
 
 // The sym metric: largest cross-axis offset between a PORT_EXACT peer hub and
 // its peer barycenter — directly the fan-in/fan-out symmetry the centering
@@ -390,6 +447,7 @@ function logicalGraphReaches(graph: MermaidGraph, from: string, to: string): boo
 // (Still requires distinct, mutually-unreachable peers on one flow layer.)
 const SYM_PEER_LAYER_TOL = 28
 function peerBarycenterDelta(positioned: PositionedGraph, graph: MermaidGraph): number {
+  const reaches = graphReachability(graph.edges)
   const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
   const bySource = new Map<string, PositionedNode[]>()
   const byTarget = new Map<string, PositionedNode[]>()
@@ -414,7 +472,7 @@ function peerBarycenterDelta(positioned: PositionedGraph, graph: MermaidGraph): 
     if (!peers.every(peer => peerShapeOk(peer) && !nodeInsideGroups(peer, positioned.groups))) return
     if (new Set(peers.map(peer => peer.id)).size !== peers.length) return
     for (let i = 0; i < peers.length; i++) for (let j = 0; j < peers.length; j++) {
-      if (i !== j && logicalGraphReaches(graph, peers[i]!.id, peers[j]!.id)) return
+      if (i !== j && reaches(peers[i]!.id, peers[j]!.id)) return
     }
     const barycenter = peers.reduce((sum, peer) => sum + nodeCrossCenter(peer, graph.direction), 0) / peers.length
     worst = Math.max(worst, Math.abs(nodeCrossCenter(hub, graph.direction) - barycenter))
@@ -428,26 +486,35 @@ function peerBarycenterDelta(positioned: PositionedGraph, graph: MermaidGraph): 
  * Score a positioned layout against the rubric. Pure and deterministic:
  * identical input produces identical metrics.
  */
-export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph): RubricResult {
-  const style = resolveRenderStyle({})
+export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph, style: ResolvedRenderStyle = resolveRenderStyle({})): RubricResult {
+  return assessLayoutGeometry(graph, positioned, style, true)
+}
+
+function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, style: ResolvedRenderStyle, withSoftMetrics: boolean): RubricResult {
   // Built without severity, then enriched + sorted by impact at the return.
   const violations: Array<Omit<RubricViolation, 'severity'>> = []
   const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
 
   let offOutline = 0
+  let endpointApproaches = 0
   let diagonal = 0
   let unexplainedBends = 0
   let labelOffRoute = 0
   let totalBends = 0
   let maxBends = 0
-  let portEnds = 0
   let portAnchoredEdges = 0
-  let measuredEnds = 0
   let worstLabelOffset = 0
 
   for (const e of positioned.edges) {
     const id = `${e.source}->${e.target}`
     const bends = Math.max(0, e.points.length - 2)
+    if (e.style !== 'invisible') {
+      const approaches = invalidEndpointApproaches(e, nodeMap.get(e.source), nodeMap.get(e.target))
+      if (approaches) {
+        endpointApproaches += approaches
+        violations.push({ metric: 'endpointApproaches', detail: `${id}: ${approaches} inward or tangent exact endpoint shaft(s)` })
+      }
+    }
     // Justified-bend exemption: a bend that is part of a SYMMETRIC convergence
     // (a fan-out/fan-in bundle, or a co-ranked mixed-label fan-in's dogleg) is
     // "as good as straight" — the bend is structurally necessary to converge and
@@ -458,8 +525,8 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph): 
     // penalty and the HARD hitch-invariant AGREE on what is justified. This does
     // NOT touch unexplainedBends (which fires only on 'straight'-certified edges,
     // and a bundle edge is never 'straight') or hitches (HARD, unchanged).
-    const justifiedConvergenceBend = e.routeCertificate?.invariant === 'bundle'
-    if (!justifiedConvergenceBend) {
+    const justifiedConvergenceBend = hasBundleRouteExemption(e)
+    if (e.style !== 'invisible' && !justifiedConvergenceBend) {
       totalBends += bends
       maxBends = Math.max(maxBends, bends)
     }
@@ -483,20 +550,20 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph): 
     ] as const) {
       const node = nodeMap.get(nodeId)
       if (!node) continue
-      measuredEnds++
-      if (!onShapeOutline(node, pt)) {
+      if (!pt || !onShapeOutline(node, pt)) {
         offOutline++
-        violations.push({ metric: 'offOutlineEndpoints', detail: `${id} ${label} on ${nodeId}(${node.shape}) at (${pt.x.toFixed(1)},${pt.y.toFixed(1)})` })
+        violations.push({ metric: 'offOutlineEndpoints', detail: pt ? `${id} ${label} on ${nodeId}(${node.shape}) at (${pt.x.toFixed(1)},${pt.y.toFixed(1)})` : `${id} missing ${label} endpoint on ${nodeId}` })
       }
-      if (onDesignatedPort(node, pt)) portEnds++
     }
     const srcNode = nodeMap.get(e.source)
     const tgtNode = nodeMap.get(e.target)
-    const onPort = (node: PositionedNode | undefined, pt: Point) => node ? onDesignatedPort(node, pt) : false
+    const onPort = (node: PositionedNode | undefined, pt: Point | undefined) => node && pt ? onDesignatedPort(node, pt) : false
     if (onPort(srcNode, e.points[0]!) || onPort(tgtNode, e.points[e.points.length - 1]!)) portAnchoredEdges++
 
     if (e.label && e.labelPosition && e.points.length >= 2) {
-      const m = measureMultilineText(e.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      // Layout retains the text the renderer actually draws. The explicit
+      // style fallback admits callers constructing older unprepared artifacts.
+      const m = e.labelBlock ?? graphTextBlock(e.label, style, 'edge')
       const allow = (m.height + 16) / 2 + 4
       // A self-loop's label legitimately sits BESIDE the small loop stub (ELK's
       // native placement), so its CENTRE is a pill-width from the stub while its
@@ -514,7 +581,7 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph): 
         violations.push({ metric: 'labelOffRoute', detail: `${id} label ${best.toFixed(1)}px from its route (allowed ${allow.toFixed(1)})` })
       }
       // SOFT label-CENTRING aggregate: track the worst (most off-centre) label.
-      worstLabelOffset = Math.max(worstLabelOffset, labelMidpointOffset(e))
+      if (withSoftMetrics) worstLabelOffset = Math.max(worstLabelOffset, labelMidpointOffset(e))
     }
   }
 
@@ -532,17 +599,7 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph): 
     }
   }
 
-  let crossings = 0
-  for (let i = 0; i < positioned.edges.length; i++) {
-    for (let j = i + 1; j < positioned.edges.length; j++) {
-      const e1 = positioned.edges[i]!, e2 = positioned.edges[j]!
-      for (let s = 1; s < e1.points.length; s++) {
-        for (let q = 1; q < e2.points.length; q++) {
-          if (segmentsIntersect(e1.points[s - 1]!, e1.points[s]!, e2.points[q - 1]!, e2.points[q]!)) crossings++
-        }
-      }
-    }
-  }
+  const crossings = withSoftMetrics ? countEdgeCrossings(positioned.edges) : 0
 
   let nodeOverlaps = 0
   for (let i = 0; i < positioned.nodes.length; i++) {
@@ -557,25 +614,27 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph): 
     }
   }
 
-  const hitchList = findRouteHitches(positioned, graph)
+  const hitchList = findRouteHitches(positioned, graph, style)
   for (const h of hitchList) violations.push({ metric: 'hitches', detail: `${h.edge} deviates ${h.deviationPx}px with a clear lane` })
 
   return {
     metrics: {
       edges: positioned.edges.length,
       offOutlineEndpoints: offOutline,
+      endpointApproaches,
       diagonalSegments: diagonal,
       unexplainedBends,
       hitches: hitchList.length,
       nodeOverlaps,
       labelOffRoute,
       edgeThroughNode,
+      labelConflicts: withSoftMetrics ? measureLabelConflicts(positioned, style).total : 0,
       edgeCrossings: crossings,
       totalBends,
       maxBendsPerEdge: maxBends,
-      portEndpointRate: measuredEnds === 0 ? 1 : portEnds / measuredEnds,
+      portEndpointRate: portEndpointRate(positioned),
       portAnchoredEdgeRate: positioned.edges.length === 0 ? 1 : portAnchoredEdges / positioned.edges.length,
-      peerBarycenterDelta: peerBarycenterDelta(positioned, graph),
+      peerBarycenterDelta: withSoftMetrics ? peerBarycenterDelta(positioned, graph) : 0,
       worstLabelOffset,
     },
     violations: violations
@@ -584,9 +643,39 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph): 
   }
 }
 
+/** Requested pass-budget metrics share the final rubric's predicates without
+ * running unrelated hard checks, collision pairs or label/hitch searches. */
+export function measureRubricMetrics(
+  graph: MermaidGraph,
+  positioned: PositionedGraph,
+  requested: readonly RubricMetric[],
+  style: ResolvedRenderStyle,
+  bundled: ReadonlySet<PositionedEdge> = new Set(),
+): PassMetrics {
+  const result: PassMetrics = {}
+  for (const metric of requested) {
+    switch (metric) {
+      case 'hard': result.hard = hardViolations(assessLayoutGeometry(graph, positioned, style, false)).length; break
+      case 'crossings': result.crossings = countEdgeCrossings(positioned.edges); break
+      case 'portRate': result.portRate = portEndpointRate(positioned, true); break
+      case 'symErr': result.symErr = peerBarycenterDelta(positioned, graph); break
+      case 'parallelOverlaps': result.parallelOverlaps = countParallelRouteOverlaps(positioned.edges); break
+      case 'opposingOverlaps': result.opposingOverlaps = countOpposingRouteOverlaps(positioned.edges); break
+      case 'endpointApproaches': {
+        const nodes = new Map(positioned.nodes.map(node => [node.id, node]))
+        result.endpointApproaches = positioned.edges.reduce((sum, edge) => sum + (edge.style === 'invisible' ? 0 : invalidEndpointApproaches(edge, nodes.get(edge.source), nodes.get(edge.target))), 0)
+        break
+      }
+      case 'bends': result.bends = positioned.edges.reduce((sum, edge) => sum + (edge.style === 'invisible' || (edge.routeCertificate ? hasBundleRouteExemption(edge) : bundled.has(edge) && hasConstructedBundleRoute(edge)) ? 0 : Math.max(0, edge.points.length - 2)), 0); break
+      case 'straight': result.straight = positioned.edges.filter(edge => edge.style !== 'invisible' && edge.points.length === 2).length; break
+    }
+  }
+  return result
+}
+
 /** The hard rubric metrics — must be zero for every diagram, always. */
 export const HARD_METRICS = [
-  'offOutlineEndpoints', 'diagonalSegments', 'unexplainedBends',
+  'offOutlineEndpoints', 'endpointApproaches', 'diagonalSegments', 'unexplainedBends',
   'hitches', 'nodeOverlaps', 'labelOffRoute', 'edgeThroughNode',
 ] as const
 

@@ -1,0 +1,11 @@
+architecture-beta
+service src1(server)[Source 1]
+service src2(server)[Source 2]
+service src3(server)[Source 3]
+service proc(server)[Processor]
+junction dispatch
+src1:B --> T:dispatch
+src2:B --> T:dispatch
+src3:B --> T:dispatch
+dispatch:B --> T:proc
+align row src1 src2 src3

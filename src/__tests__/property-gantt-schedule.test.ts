@@ -6,6 +6,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseGanttModel } from '../gantt/parser.ts'
 import { resolveGanttSchedule, DAY_MS } from '../gantt/schedule.ts'
 import { layoutGantt, resolveTicks, packCompactLanes, GANTT_MAX_TICKS } from '../gantt/layout.ts'
@@ -77,7 +78,7 @@ describe('gantt scheduler properties (generated DAGs)', () => {
         expect(t.start).toBeGreaterThanOrEqual(s.timeMin)
         expect(t.end).toBeLessThanOrEqual(s.timeMax)
       }
-    }), { numRuns: 80 })
+    }), fcParameters({ numRuns: 80 }))
   })
 
   test('a task with after refs starts at (not before) the latest referenced end', () => {
@@ -88,7 +89,7 @@ describe('gantt scheduler properties (generated DAGs)', () => {
         const latestRefEnd = Math.max(...t.afterRefs.map(r => s.tasks[r]!.end))
         expect(s.tasks[i]!.start).toBe(latestRefEnd)
       })
-    }), { numRuns: 80 })
+    }), fcParameters({ numRuns: 80 }))
   })
 
   test('excluding weekends never makes any task end EARLIER (monotone extension)', () => {
@@ -98,7 +99,7 @@ describe('gantt scheduler properties (generated DAGs)', () => {
       for (let i = 0; i < tasks.length; i++) {
         expect(excluded.tasks[i]!.end).toBeGreaterThanOrEqual(plain.tasks[i]!.end)
       }
-    }), { numRuns: 60 })
+    }), fcParameters({ numRuns: 60 }))
   })
 
   // Weekend days re-included by `includes`: offsets of Saturdays and Sundays
@@ -126,7 +127,7 @@ describe('gantt scheduler properties (generated DAGs)', () => {
         }
         expect({ i, working }).toEqual({ i, working: t.durationDays })
       })
-    }), { numRuns: 60 })
+    }), fcParameters({ numRuns: 60 }))
   })
 
   test('renderEnd (the drawn bar end) always sits inside [start, end]', () => {
@@ -139,7 +140,7 @@ describe('gantt scheduler properties (generated DAGs)', () => {
       // Without excludes the two never split.
       const plain = scheduleOf(toSource(tasks))
       for (const t of plain.tasks) expect(t.renderEnd).toBe(t.end)
-    }), { numRuns: 60 })
+    }), fcParameters({ numRuns: 60 }))
   })
 
   test('changing axisFormat never changes task geometry', () => {
@@ -150,7 +151,7 @@ describe('gantt scheduler properties (generated DAGs)', () => {
       const la = layoutGantt(parseGanttModel(normalizeMermaidSource(toSource(tasks)).lines), a)
       const lb = layoutGantt(parseGanttModel(normalizeMermaidSource(toSource(tasks, { axisFormat: '%d/%m/%Y' })).lines), b)
       expect(lb.bars.map(bar => [bar.x, bar.w])).toEqual(la.bars.map(bar => [bar.x, bar.w]))
-    }), { numRuns: 40 })
+    }), fcParameters({ numRuns: 40 }))
   })
 
   test('changing barHeight changes row metrics but never resolved dates', () => {
@@ -162,7 +163,7 @@ describe('gantt scheduler properties (generated DAGs)', () => {
       const tall = layoutGantt(model, s, { barHeight })
       expect(tall.bars.map(b => [b.start, b.end])).toEqual(base.bars.map(b => [b.start, b.end]))
       expect(tall.barHeight).toBe(barHeight)
-    }), { numRuns: 40 })
+    }), fcParameters({ numRuns: 40 }))
   })
 
   test('tick generation stays under the fixed cap for any span and tickInterval', () => {
@@ -182,7 +183,7 @@ describe('gantt scheduler properties (generated DAGs)', () => {
         expect(ticks.length).toBeLessThanOrEqual(GANTT_MAX_TICKS + 1)
         expect(ticks.length).toBeGreaterThan(0)
       },
-    ), { numRuns: 60 })
+    ), fcParameters({ numRuns: 60 }))
   })
 
   test('layout invariants: bars inside the plot; milestones zero/positive width; verts rowless', () => {
@@ -199,7 +200,7 @@ describe('gantt scheduler properties (generated DAGs)', () => {
           expect(bar.w).toBeGreaterThan(0)
         }
       }
-    }), { numRuns: 60 })
+    }), fcParameters({ numRuns: 60 }))
   })
 
   test('determinism: resolving and laying out twice is deep-equal', () => {
@@ -211,7 +212,7 @@ describe('gantt scheduler properties (generated DAGs)', () => {
       const s2 = resolveGanttSchedule(model2)
       expect(s2.tasks).toEqual(s1.tasks)
       expect(layoutGantt(model2, s2)).toEqual(layoutGantt(model1, s1))
-    }), { numRuns: 40 })
+    }), fcParameters({ numRuns: 40 }))
   })
 
   test('critical-path/slack analysis matches a small backward-pass shadow model', () => {
@@ -264,7 +265,7 @@ describe('gantt scheduler properties (generated DAGs)', () => {
       expect(analysis.criticalPathTaskIds).toEqual(expectedCritical)
       expect(analysis.entryTaskIds).toEqual(tasks.map((_, i) => i).filter(i => !hasAfterDep.has(i)).map(i => `t${i}`))
       expect(analysis.sinkTaskIds).toEqual(tasks.map((_, i) => i).filter(i => !referenced.has(i)).map(i => `t${i}`))
-    }), { numRuns: 80 })
+    }), fcParameters({ numRuns: 80 }))
   })
 })
 
@@ -295,6 +296,6 @@ describe('compact lane packing properties', () => {
         expect({ i, lane, lowerLanesBusy: lowerLanesBusy.every(Boolean) }).toEqual({ i, lane, lowerLanesBusy: true })
         latestEnd.set(lane, iv.end)
       })
-    }), { numRuns: 120 })
+    }), fcParameters({ numRuns: 120 }))
   })
 })

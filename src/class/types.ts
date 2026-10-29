@@ -1,3 +1,5 @@
+import type { LabelContent } from '../shared/display-text.ts'
+import type { PixelTextBlock } from '../shared/prepared-text.ts'
 // ============================================================================
 // Class diagram types
 //
@@ -6,7 +8,7 @@
 // ============================================================================
 
 import type { PositionedDiagramTitle } from '../styles.ts'
-import type { PositionedDiagram, Direction } from '../types.ts'
+import type { Direction, PositionedDiagram } from '../types.ts'
 
 /** Parsed class diagram — logical structure from mermaid text */
 export interface ClassDiagram {
@@ -31,9 +33,12 @@ export interface ClassDiagram {
 }
 
 export interface ClassNode {
+  /** Independent named lollipop endpoint, with no class compartments. */
+  isInterface?: boolean
   /** Stable bare identity; Mermaid `~T~` parameters are stored separately. */
   id: string
   label: string
+  labelContent?: LabelContent
   /** Generic type parameter text from `ClassName~T~`. */
   generic?: string
   /** Annotation like <<interface>>, <<abstract>>, <<service>>, <<enumeration>> */
@@ -74,24 +79,27 @@ export interface ClassMember {
 /** Relationship types following UML conventions */
 export interface ClassNote {
   text: string
+  textContent?: LabelContent
   for?: string
 }
 
 export type RelationshipType =
-  | 'inheritance'   // A <|-- B   (solid line, hollow triangle)
-  | 'composition'   // A *-- B    (solid line, filled diamond)
-  | 'aggregation'   // A o-- B    (solid line, hollow diamond)
-  | 'association'   // A --> B    (solid line, open arrow)
-  | 'dependency'    // A ..> B    (dashed line, open arrow)
-  | 'realization'   // A ..|> B   (dashed line, hollow triangle)
-  | 'link-solid'    // A -- B    (solid line, no marker)
-  | 'link-dashed'   // A .. B    (dashed line, no marker)
-  | 'lollipop'      // Interface ()-- Class
+  | 'inheritance' // A <|-- B   (solid line, hollow triangle)
+  | 'composition' // A *-- B    (solid line, filled diamond)
+  | 'aggregation' // A o-- B    (solid line, hollow diamond)
+  | 'association' // A --> B    (solid line, open arrow)
+  | 'dependency' // A ..> B    (dashed line, open arrow)
+  | 'realization' // A ..|> B   (dashed line, hollow triangle)
+  | 'link-solid' // A -- B    (solid line, no marker)
+  | 'link-dashed' // A .. B    (dashed line, no marker)
+  | 'lollipop' // Interface ()-- Class
 
 export interface ClassRelationship {
   from: string
   to: string
   type: RelationshipType
+  /** Explicit shaft style when endpoint kinds alone do not describe it. */
+  lineStyle?: 'solid' | 'dashed'
   /**
    * Which end of the relationship line has the UML marker (triangle, diamond, arrow).
    * Determined by the arrow syntax direction:
@@ -104,10 +112,13 @@ export interface ClassRelationship {
   toType?: RelationshipType
   /** Label on the relationship line */
   label?: string
+  labelContent?: LabelContent
   /** Cardinality at the "from" end (e.g., "1", "*", "0..1") */
   fromCardinality?: string
+  fromCardinalityContent?: LabelContent
   /** Cardinality at the "to" end */
   toCardinality?: string
+  toCardinalityContent?: LabelContent
 }
 
 /**
@@ -120,6 +131,7 @@ export interface ClassNamespace {
   name: string
   /** Optional display label from `namespace X["Label"]` (upstream v11.15+). */
   label?: string
+  labelContent?: LabelContent
   /** Ids of classes declared directly in this namespace. */
   classIds: string[]
   /** Nested child namespaces. */
@@ -146,12 +158,14 @@ export interface PositionedClassDiagram extends PositionedDiagram {
 
 /** A laid-out namespace box (ELK compound node), absolute coordinates. */
 export interface PositionedClassNamespace {
+  labelBlock?: PixelTextBlock
   /** Full dot path (unique id), e.g. 'Company.Engineering.Backend'. */
   id: string
   /** Segment name (last path element). */
   name: string
   /** Display label to draw in the header (label ?? name). */
   label: string
+  labelContent?: LabelContent
   /** Parent namespace's full path (undefined = top-level). */
   parentId?: string
   /** Ids of classes declared directly in this namespace. */
@@ -168,8 +182,16 @@ export interface PositionedClassNamespace {
 }
 
 export interface PositionedClassNode {
+  isInterface?: boolean
+  /** Circle geometry from the actual endpoint marker, excluding its stroke. */
+  interfaceBox?: { x: number; y: number; width: number; height: number }
+  labelBlock?: PixelTextBlock
+  annotationBlock?: PixelTextBlock
+  attributeBlocks?: PixelTextBlock[]
+  methodBlocks?: PixelTextBlock[]
   id: string
   label: string
+  labelContent?: LabelContent
   annotation?: string
   attributes: ClassMember[]
   methods: ClassMember[]
@@ -190,7 +212,9 @@ export interface PositionedClassNode {
 }
 
 export interface PositionedClassNote {
+  textBlock?: PixelTextBlock
   text: string
+  textContent?: LabelContent
   for?: string
   x: number
   y: number
@@ -203,16 +227,23 @@ export interface PositionedClassNote {
 }
 
 export interface PositionedClassRelationship {
+  labelBlock?: PixelTextBlock
+  fromCardinalityBlock?: PixelTextBlock
+  toCardinalityBlock?: PixelTextBlock
   from: string
   to: string
   type: RelationshipType
+  lineStyle?: 'solid' | 'dashed'
   /** Which end of the line has the UML marker — propagated from ClassRelationship */
   markerAt: 'from' | 'to' | 'both' | 'none'
   fromType?: RelationshipType
   toType?: RelationshipType
   label?: string
+  labelContent?: LabelContent
   fromCardinality?: string
+  fromCardinalityContent?: LabelContent
   toCardinality?: string
+  toCardinalityContent?: LabelContent
   /** Path points from source to target */
   points: Array<{ x: number; y: number }>
   /** Dagre-computed label center position (avoids overlaps between nearby edges) */

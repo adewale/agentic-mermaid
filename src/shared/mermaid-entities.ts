@@ -50,6 +50,17 @@ export function mermaidEntityPrepass(line: string): string {
     stripEntityPrepassSemicolon(stripEntityPrepassSemicolon(segment, 'style'), 'classDef'))
 }
 
+/** Build a complete statement before deciding which text needs protection.
+ * The global prepass can start in one field and reach an entity in another.
+ * Producers own their grammar punctuation and reserve colons only in text. */
+export function protectMermaidEntityPrepass(produce: (reserved: string) => string): string {
+  const written = produce('')
+  if (mermaidEntityPrepass(written) === written) return written
+  const protectedText = produce(':')
+  if (mermaidEntityPrepass(protectedText) !== protectedText) throw new Error('Mermaid statement cannot protect its text from the global entity prepass')
+  return protectedText
+}
+
 function stripEntityPrepassSemicolon(line: string, keyword: string): string {
   const lastSemicolon = line.lastIndexOf(';')
   if (lastSemicolon < 0 || !line.includes(keyword)) return line
@@ -141,4 +152,11 @@ export function encodeMermaidEntities(text: string, reserved = ''): string {
     else out += character
   }
   return out
+}
+
+/** Re-emit a parsed text payload without turning its entity tokens into
+ * literal codes. Grammar-reserved characters between tokens still need the
+ * strict writer. Callers must validate the authored-value snapshot first. */
+export function encodeMermaidAuthoredEntities(text: string, reserved = ''): string {
+  return text.split(/(#\w+;)/g).map((part, index) => index % 2 ? part : encodeMermaidEntities(part, reserved)).join('')
 }

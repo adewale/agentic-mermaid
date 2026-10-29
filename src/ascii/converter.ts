@@ -1,3 +1,6 @@
+import { resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
+import { assertMermaidGraphWork } from '../shared/diagram-limits.ts'
+import { OccupancyMap } from './occupancy.ts'
 // ============================================================================
 // ASCII renderer — MermaidGraph → AsciiGraph converter
 //
@@ -11,9 +14,11 @@ import type {
   AsciiGraph, AsciiNode, AsciiEdge, AsciiSubgraph, AsciiConfig,
 } from './types.ts'
 import { EMPTY_STYLE } from './types.ts'
-import { mkCanvas, mkRoleCanvas } from './canvas.ts'
+import { mkCanvas } from './canvas.ts'
 import { classifyRoutes } from '../route-contracts.ts'
 import { displayText } from '../multiline-utils.ts'
+import { wrapText } from './wrap.ts'
+import { resolveNodeInlineStyle, resolveEdgeInlineStyle } from '../color-resolver.ts'
 
 /**
  * Convert a parsed MermaidGraph into an AsciiGraph ready for grid layout.
@@ -24,7 +29,10 @@ import { displayText } from '../multiline-utils.ts'
  * - MermaidGraph.subgraphs → AsciiSubgraph[] with parent/child tree
  * - Node labels are used as display names (not raw IDs)
  */
-export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig): AsciiGraph {
+export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig, containerKind: 'subgraph' | 'cluster' = 'subgraph'): AsciiGraph {
+  assertMermaidGraphWork(parsed)
+  const width = config.maxWidth === undefined ? undefined : Math.max(config.targetWidth === undefined ? 8 : 1, Math.floor(config.maxWidth / 3))
+  const label = (text: DisplayTextInput): string => wrapText(displayText(text), width).join('\n')
   const subgraphIds = collectSubgraphIds(parsed.subgraphs)
 
   // Build node list preserving Map insertion order. A parsed node whose id is
@@ -43,7 +51,7 @@ export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig): 
       // The label's display text is drawn inside the box: formatting tags
       // style the SVG runs and are not characters, so the cells show what
       // the SVG shows.
-      displayLabel: displayText(mNode.label),
+      displayLabel: label(resolveLabelContent(mNode.label, mNode.labelContent)),
       // Preserve shape from parser for shape-aware rendering
       shape: mNode.shape,
       index,
@@ -63,12 +71,29 @@ export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig): 
   for (const mSg of parsed.subgraphs) {
     convertSubgraph(mSg, null, nodeMap, subgraphs)
   }
+  for (const group of subgraphs) group.name = wrapText(group.name, width).join('\n')
 
   // Deduplicate subgraph node membership to match Go parser behavior.
   // In Go, a node belongs only to the subgraph where it was FIRST DEFINED.
   // The TS parser adds referenced nodes to all subgraphs they appear in,
   // which causes incorrect bounding boxes when nodes span subgraph boundaries.
-  deduplicateSubgraphNodes(parsed.subgraphs, subgraphs, nodeMap, parsed)
+  deduplicateSubgraphNodes(parsed.subgraphs, subgraphs)
+
+  // Empty containers still need a placeable cell envelope and real ports.
+  // Their private anchors participate in allocation only; they never paint or
+  // become semantic members/regions.
+  for (const group of [...subgraphs].reverse()) {
+    if (group.nodes.length) continue
+    let name = `__container:${group.id}`
+    while (nodeMap.has(name)) name += ':'
+    const anchor: AsciiNode = {
+      name, displayLabel: '', shape: 'rectangle', index: index++,
+      gridCoord: null, drawingCoord: null, drawing: null, drawn: true,
+      styleClassName: '', styleClass: EMPTY_STYLE, containerAnchor: true,
+    }
+    nodeMap.set(name, anchor)
+    for (let parent: AsciiSubgraph | null = group; parent; parent = parent.parent) parent.nodes.push(anchor)
+  }
 
   const subgraphById = new Map(subgraphs.map(sg => [sg.id, sg] as const))
   const routeClasses = classifyRoutes(parsed)
@@ -88,11 +113,14 @@ export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig): 
     if (!routeClass) throw new Error(`ASCII route classification missing for edge ${edgeIndex}`)
 
     edges.push({
+      id: mEdge.id ?? `edge#${edgeIndex}:${mEdge.source}->${mEdge.target}`,
+      sourceIndex: edgeIndex,
+      inlineStyle: resolveEdgeInlineStyle(edgeIndex, parsed),
       from,
       to,
       fromSubgraph,
       toSubgraph,
-      text: displayText(mEdge.label ?? ''),
+      text: label(resolveLabelContent(mEdge.label ?? '', mEdge.labelContent)),
       path: [],
       labelLine: [],
       startDir: { x: 0, y: 0 },
@@ -108,41 +136,27 @@ export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig): 
 
   const nodes = [...nodeMap.values()]
 
-  // BUILD-14: resolve edges whose endpoint is a subgraph id (a "phantom" node).
-  // The parser auto-creates a node for every edge endpoint, so an edge like
-  // `Start --> Pipeline` (where Pipeline is a subgraph) yields a node named
-  // "Pipeline" in addition to the container. The ELK/SVG path filters this and
-  // attaches the edge to the container via hierarchical ports; the ASCII path
-  // historically drew a phantom box. Here we drop the phantom node, retarget the
-  // edge onto a representative member of the container for routing, and flag the
-  // edge so it is visually clipped to the container border.
-  const phantomNodeNames = resolveSubgraphEdges(parsed, edges, subgraphs)
+  for (const node of nodes) {
+    node.styleClassName = parsed.classAssignments.get(node.name) ?? ''
+    node.styleClass = { name: node.styleClassName, styles: resolveNodeInlineStyle(node.name, parsed) ?? {} }
+  }
 
-  // Apply class definitions
-  for (const [nodeId, className] of parsed.classAssignments) {
-    const node = nodeMap.get(nodeId)
-    const classDef = parsed.classDefs.get(className)
-    if (node && classDef) {
-      node.styleClassName = className
-      node.styleClass = { name: className, styles: classDef }
+  const canvas = mkCanvas(0, 0)
+  for (const [id, node] of parsed.nodes) {
+    for (const field of ['icon', 'image', 'semanticShape'] as const) if (node[field] !== undefined) {
+      canvas.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature: `node:${id}:${field}`, message: `Node ${id} retains its ${field} metadata in source; terminal output uses its label and a shape cue instead of graphical ${field} geometry.` })
     }
   }
-
-  // Drop phantom subgraph-id nodes so they are not placed as standalone boxes.
-  // Reindex afterwards: grid layout addresses nodes by their array index
-  // (graph.nodes[node.index]), so indices must stay contiguous after filtering.
-  let renderedNodes = nodes
-  if (phantomNodeNames.size > 0) {
-    renderedNodes = nodes.filter(n => !phantomNodeNames.has(n.name))
-    renderedNodes.forEach((n, i) => { n.index = i })
+  for (const node of nodes) for (const property of Object.keys(node.styleClass.styles)) {
+    if (property === 'color' || property === 'stroke') continue
+    canvas.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature: `node:${node.name}:style:${property}`, message: `Node ${node.name} style ${property} projects to a terminal card with text and border ink; its graphical fill, typography and dimensions remain source data.` })
   }
-
   return {
-    nodes: renderedNodes,
+    containerKind,
+    nodes,
     edges,
-    canvas: mkCanvas(0, 0),
-    roleCanvas: mkRoleCanvas(0, 0),
-    grid: new Map(),
+    canvas,
+    grid: new OccupancyMap(),
     columnWidth: new Map(),
     rowHeight: new Map(),
     subgraphs,
@@ -209,7 +223,7 @@ function convertSubgraph(
 
   const sg: AsciiSubgraph = {
     id: mSg.id,
-    name: displayText(mSg.label),
+    name: displayText(resolveLabelContent(mSg.label, mSg.labelContent)),
     nodes: [],
     parent,
     children: [],
@@ -259,8 +273,6 @@ function convertSubgraph(
 function deduplicateSubgraphNodes(
   mermaidSubgraphs: MermaidSubgraph[],
   asciiSubgraphs: AsciiSubgraph[],
-  nodeMap: Map<string, AsciiNode>,
-  parsed: MermaidGraph,
 ): void {
   // Build a map from MermaidSubgraph to its corresponding AsciiSubgraph.
   // The ordering matches since we convert them in the same order.
@@ -303,11 +315,7 @@ function deduplicateSubgraphNodes(
   // A node should remain in: its owner subgraph + all ancestors of the owner.
   for (const asciiSg of asciiSubgraphs) {
     asciiSg.nodes = asciiSg.nodes.filter(node => {
-      // Find this node's ID in the nodeMap
-      let nodeId: string | undefined
-      for (const [id, n] of nodeMap) {
-        if (n === node) { nodeId = id; break }
-      }
+      const nodeId = node.name
       if (!nodeId) return false
 
       const owner = nodeOwner.get(nodeId)
@@ -317,134 +325,6 @@ function deduplicateSubgraphNodes(
       return isAncestorOrSelf(asciiSg, owner)
     })
   }
-}
-
-/**
- * BUILD-14: Resolve edges whose endpoint id is a subgraph id.
- *
- * The TS parser auto-creates a leaf node for every edge endpoint, so an edge
- * to/from a subgraph id (e.g. `Start --> Pipeline` where `Pipeline` is a
- * subgraph) produces a redundant "phantom" node sharing the subgraph's id.
- * The SVG/ELK path filters these and attaches such edges to the container via
- * hierarchical ports; the ASCII path used to render the phantom as a real box.
- *
- * This function detects phantom nodes (a node whose id matches a subgraph id and
- * which is not itself a member of any subgraph) and, for each edge touching one:
- *   1. retargets the edge onto a representative member of the container so the
- *      grid layout routes it toward the container, and
- *   2. records the container on the edge (attachFromSubgraph / attachToSubgraph)
- *      so the renderer clips the visible edge to the container border.
- *
- * Returns the set of phantom node ids that should be removed from the node list.
- * Edge semantics are preserved: the visible terminal is the container border,
- * not an arbitrary inner node.
- */
-function resolveSubgraphEdges(
-  parsed: MermaidGraph,
-  edges: AsciiEdge[],
-  asciiSubgraphs: AsciiSubgraph[],
-): Set<string> {
-  const phantoms = new Set<string>()
-  if (asciiSubgraphs.length === 0) return phantoms
-
-  // Map subgraph id → AsciiSubgraph.
-  const sgById = new Map<string, AsciiSubgraph>()
-  for (const sg of asciiSubgraphs) sgById.set(sg.id, sg)
-  if (sgById.size === 0) return phantoms
-
-  // A node id is a member of some subgraph if it appears in any subgraph's
-  // nodeIds in the parser graph (these are genuine inner nodes, never phantoms).
-  const memberIds = new Set<string>()
-  const collectMembers = (sg: MermaidSubgraph): void => {
-    for (const id of sg.nodeIds) memberIds.add(id)
-    for (const child of sg.children) collectMembers(child)
-  }
-  for (const sg of parsed.subgraphs) collectMembers(sg)
-
-  // A phantom is a node whose id matches a subgraph id, is NOT a genuine member
-  // node, and was auto-created (its label equals its id — no explicit label).
-  // The label guard pins the id-collision edge case: if the author explicitly
-  // gave the id a distinct label, treat it as a real node, not a container ref.
-  const isPhantom = (id: string): boolean => {
-    if (!sgById.has(id) || memberIds.has(id)) return false
-    const mNode = parsed.nodes.get(id)
-    return !mNode || mNode.label === id
-  }
-
-  for (const edge of edges) {
-    const fromSg = isPhantom(edge.from.name) ? sgById.get(edge.from.name) : undefined
-    const toSg = isPhantom(edge.to.name) ? sgById.get(edge.to.name) : undefined
-
-    if (toSg) {
-      const anchor = pickContainerAnchor(toSg, parsed, 'entry')
-      if (anchor && anchor !== edge.from) {
-        phantoms.add(edge.to.name)
-        edge.to = anchor
-        edge.attachToSubgraph = toSg
-      }
-    }
-    if (fromSg) {
-      const anchor = pickContainerAnchor(fromSg, parsed, 'exit')
-      if (anchor && anchor !== edge.to) {
-        phantoms.add(edge.from.name)
-        edge.from = anchor
-        edge.attachFromSubgraph = fromSg
-      }
-    }
-  }
-
-  // Only remove phantom nodes that are no longer referenced by any edge as a
-  // real endpoint (every touching edge was successfully retargeted).
-  for (const id of [...phantoms]) {
-    const stillUsed = edges.some(e => e.from.name === id || e.to.name === id)
-    if (stillUsed) phantoms.delete(id)
-  }
-
-  return phantoms
-}
-
-/**
- * Choose a representative member node of a container to anchor a container edge.
- * For an incoming edge we prefer an "entry" node (no incoming edge from another
- * member); for an outgoing edge an "exit" node (no outgoing edge to another
- * member). Falls back to the first member. Returns null if the container has no
- * placeable members (e.g. an empty subgraph).
- */
-function pickContainerAnchor(
-  sg: AsciiSubgraph,
-  parsed: MermaidGraph,
-  role: 'entry' | 'exit',
-): AsciiNode | null {
-  const members = collectContainerMembers(sg)
-  if (members.length === 0) return null
-  const memberSet = new Set(members.map(n => n.name))
-
-  for (const node of members) {
-    let isBoundary = true
-    for (const edge of parsed.edges) {
-      if (role === 'entry' && edge.target === node.name && memberSet.has(edge.source)) {
-        isBoundary = false
-        break
-      }
-      if (role === 'exit' && edge.source === node.name && memberSet.has(edge.target)) {
-        isBoundary = false
-        break
-      }
-    }
-    if (isBoundary) return node
-  }
-  return members[0]!
-}
-
-/** Collect all member nodes of a container, including nested children. */
-function collectContainerMembers(sg: AsciiSubgraph): AsciiNode[] {
-  const out: AsciiNode[] = [...sg.nodes]
-  for (const child of sg.children) {
-    for (const n of collectContainerMembers(child)) {
-      if (!out.includes(n)) out.push(n)
-    }
-  }
-  return out
 }
 
 /** Check if `candidate` is the same as or an ancestor of `target`. */

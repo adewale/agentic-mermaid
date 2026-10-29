@@ -1,1350 +1,170 @@
-// ============================================================================
-// Built-in family agent-operation definitions.
-//
-// Defines all built-in structured operations. The registry combines these
-// hooks with each family's render hooks and metadata, validates the complete
-// descriptor, and only then makes it discoverable. Structured families own
-// their parse/serialize/mutate here (BUILD-3 consolidation): parseRegisteredMermaid,
-// serializeMermaid, and mutate dispatch through these hooks, so adding a
-// family means one registration plus a body module — no core edits.
-//
-// Flowchart registers through `flowchartFamilyHooks('flowchart')` over the
-// legacy MermaidGraph body (error semantics, contributes a SourceMap).
-//
-// State registers through `structuredFamilyHooks('state', …)` over the
-// dedicated StateBody IR (BUILD-19): structured-or-opaque parse, state-shaped
-// ops, an `asState` narrower, and a verify hook that runs body-level Tier 1
-// checks (verify.ts adds the geometric Tier 2 pass via the graph projection).
-// ============================================================================
+import { ZENUML_SOURCE_HOOKS } from './zenuml-body.ts'
+import { EVENTMODELING_SOURCE_HOOKS } from './eventmodeling-body.ts'
+import { mutateZenUML } from '../zenuml/native-body.ts'
+import type { ZenUMLMutationOp } from '../zenuml/native-types.ts'
+import { mutateEventModeling } from '../eventmodeling/body.ts'
+// Complete SDK hooks compose the shared source operations with mutation.
+// Private source-only workers import families-source-hooks.ts directly.
+import type { FamilyOperations } from './family-registry.ts'
+import type { DiagramBody, DiagramKind, MutationError, Result } from './types.ts'
+import { err } from './types.ts'
+import { STABLE_FAMILY_AGENT_HOOKS } from './stable-family-adapters.ts'
+import { FLOWCHART_SOURCE_HOOKS, STATE_SOURCE_HOOKS, SEQUENCE_SOURCE_HOOKS, TIMELINE_SOURCE_HOOKS, CLASS_SOURCE_HOOKS, ER_SOURCE_HOOKS, JOURNEY_SOURCE_HOOKS, XYCHART_SOURCE_HOOKS, PIE_SOURCE_HOOKS, QUADRANT_SOURCE_HOOKS, GANTT_SOURCE_HOOKS, ARCHITECTURE_SOURCE_HOOKS, MINDMAP_SOURCE_HOOKS, GITGRAPH_SOURCE_HOOKS, RADAR_SOURCE_HOOKS, SANKEY_SOURCE_HOOKS, C4_SOURCE_HOOKS } from './families-source-hooks.ts'
+import { mutateC4 } from './c4-body.ts'
+import { withMutationDraft } from './mutation-draft.ts'
+import { mutateArchitecture } from './architecture-body.ts'
+import { mutateClass, mutateClassSource } from './class-body.ts'
+import { mutateEr } from './er-body.ts'
+import { createFlowchartMutationDraft, mutateFlowchart, mutateFlowchartSource } from './flowchart-body.ts'
+import { mutateGantt } from './gantt-body.ts'
+import { mutateGitGraph } from './gitgraph-body.ts'
+import { mutateJourney } from './journey-body.ts'
+import { mutateMindmap } from './mindmap-body.ts'
+import { mutatePie } from './pie-body.ts'
+import { mutateQuadrant } from './quadrant-body.ts'
+import { mutateRadar } from './radar-body.ts'
+import { mutateSankey } from './sankey-body.ts'
+import { createSequenceMutationDraft, mutateSequence } from './sequence-body.ts'
+import { mutateState } from './state-body.ts'
+import { mutateTimeline } from './timeline-body.ts'
+import { mutateXyChart } from './xychart-body.ts'
 
-import { decodeXML } from 'entities'
-import { readClassStatements, type ClassStatementNode } from '../class/parser.ts'
-import { readErStatements, type ParsedErRelationshipSyntax } from '../er/parser.ts'
-import { GitGraphDuplicateCommitError } from '../gitgraph/parser.ts'
-import { type JourneyParseIssue, walkJourneyLines } from '../journey/parse-core.ts'
-import { splitPointClassSuffix } from '../quadrant/point-style.ts'
-import { parseDirectionStatement } from '../shared/direction-statement.ts'
-import { splitAuthoredPieTitleLine } from '../pie/source-title.ts'
-import { stripTrailingComment } from '../shared/trailing-comment.ts'
-import { isTimelineCommentLine, parseTimelineHeader } from '../timeline/parse-core.ts'
-import { mutateArchitecture, parseArchitectureBody, renderArchitecture, verifyArchitecture, verifyOpaqueArchitectureIcons } from './architecture-body.ts'
-import { readArchitectureStatements } from '../architecture/parser.ts'
-import { readGanttStatements } from '../gantt/parser.ts'
-import { mutateClass, parseClassBody, renderClass, verifyClass } from './class-body.ts'
-import { mutateEr, parseErBody, renderEr, verifyErBody } from './er-body.ts'
-import type { ExtractedLabel, FamilyOperations } from './families.ts'
-import { extractLabelsGeneric } from './family-labels.ts'
-import { buildFlowchartSourceMap, type FlowchartBody, mutateFlowchart, parseFlowchartBody, renderFlowchart } from './flowchart-body.ts'
-import { containsFlowchartOpaqueSyntax } from './flowchart-unsupported.ts'
-import { mutateGantt, parseGanttBody, renderGantt, verifyGantt } from './gantt-body.ts'
-import { mutateGitGraph, parseGitGraphBody, renderGitGraphBody, verifyGitGraph } from './gitgraph-body.ts'
-import { mutateJourney, parseJourneyBody, renderJourney, verifyJourney } from './journey-body.ts'
-import { mutateMindmap, parseMindmapBody, renderMindmapBody, verifyMindmap } from './mindmap-body.ts'
-import { mutatePie, parsePieBody, renderPie, verifyPie } from './pie-body.ts'
-import { mutateQuadrant, parseQuadrantBody, renderQuadrant, verifyQuadrant } from './quadrant-body.ts'
-import { mutateRadar, parseRadarBody, renderRadar, verifyRadar } from './radar-body.ts'
-import { mutateSankey, parseSankeyBody, renderSankey, verifySankey } from './sankey-body.ts'
-import { mutateSequence, parseSequenceBody, renderSequence } from './sequence-body.ts'
-import { splitSequenceStatementLines } from '../sequence/statements.ts'
-import { mutateState, parseStateBody, renderState, verifyState, verifyOpaqueState } from './state-body.ts'
-import { mutateTimeline, parseTimelineBody, renderTimeline } from './timeline-body.ts'
-import type { AnyMutationOp, ClassBody, DiagramBody, DiagramKind, ErBody, FamilyParsedBody, GanttBody, LayoutWarning, MutationError, PieBody, QuadrantBody, RadarBody, Result, SankeyBody, SourceMap, XyChartBody } from './types.ts'
-import { err, ok } from './types.ts'
-import { mutateXyChart, parseXyChartBody, renderXyChart, verifyXyChart } from './xychart-body.ts'
-
-// Build the structured-or-opaque hook set shared by every structured family
-// that is not flowchart/state. `headerOk` gates structured parsing: families
-// with meaningful header suffixes (timeline, journey) stay opaque when the
-// header carries one, so the suffix round-trips verbatim.
-function structuredFamilyHooks<K extends DiagramBody['kind'] & DiagramKind>(
-  kind: K,
-  opts: {
-    headerOk?: (header: string) => boolean
-    parseBody: (lines: string[], accessibility: import('./types.ts').Accessibility, rawBodyLines: string[]) => Extract<DiagramBody, { kind: K }> | null
-    serialize: (body: Extract<DiagramBody, { kind: K }>) => string
-    mutate: (body: Extract<DiagramBody, { kind: K }>, op: never) => Result<Extract<DiagramBody, { kind: K }>, MutationError>
-  },
-): Pick<FamilyOperations, 'parse' | 'serialize' | 'mutate'> {
-  return {
-    parse: ctx => {
-      const lines = ctx.lines
-      const { opaqueSource } = ctx
-      const headerOk = opts.headerOk?.(lines[0]?.trim() ?? '') ?? true
-      const raw = ctx.source.familyBody.split(/\r?\n/)
-      const headerAt = raw.findIndex(line => line.trim() === lines[0]?.trim())
-      const body = headerOk ? opts.parseBody(lines.slice(1), ctx.meta.accessibility, raw.slice(headerAt + 1)) : null
-      return ok(body ?? { kind: 'opaque', family: kind, source: opaqueSource })
-    },
-    serialize: body => {
-      if (body.kind !== kind) throw new Error(`${kind} serializer received body kind ${body.kind}`)
-      return opts.serialize(body as Extract<DiagramBody, { kind: K }>)
-    },
-    mutate: (body: DiagramBody, op: AnyMutationOp) => {
-      if (body.kind !== kind) return err<MutationError>({ code: 'INVALID_OP', message: `${kind} mutator received body kind ${body.kind}` })
-      return opts.mutate(body as Extract<DiagramBody, { kind: K }>, op as never)
-    },
+function structuredMutation<K extends DiagramBody['kind'] & DiagramKind>(kind: K, mutate: (body: Extract<DiagramBody, { kind: K }>, op: never) => Result<Extract<DiagramBody, { kind: K }>, MutationError>): NonNullable<FamilyOperations['mutate']> {
+  return (body, op) => {
+    if (body.kind !== kind) return err<MutationError>({ code: 'INVALID_OP', message: `${kind} mutator received body kind ${body.kind}` })
+    return mutate(body as Extract<DiagramBody, { kind: K }>, op as never)
   }
 }
 
-// ---- Flowchart ------------------------------------------------------------
-// Flowchart-specific label extraction:
-//   - `A["text"]`, `A(text)`, `A([text])`, `A{text}`, `A{{text}}`, etc.
-//   - `A -- text --> B`, `A -->|text| B`
-const FLOWCHART_LABEL_RE = /(?:\["((?:[^"\\]|\\.)*)"\]|\[(["'`]?)([^\]\n]+?)\2\]|\(\(([^)\n]+?)\)\)|\(([^)\n]+?)\)|\{([^}\n]+?)\}|\|([^|\n]+?)\||\>([^\]\n]+?)\])/g
-
-function extractFlowchartLabels(source: string): ExtractedLabel[] {
-  const out: ExtractedLabel[] = []
-  const lines = source.split(/\r?\n/)
-  for (let i = 0; i < lines.length; i++) {
-    const raw = lines[i]!.trim()
-    if (!raw || raw.startsWith('%%')) continue
-    const idMatch = raw.match(/^([A-Za-z_][\w-]*)/)
-    const target = idMatch ? idMatch[1]! : `line${i + 1}`
-    for (const m of raw.matchAll(FLOWCHART_LABEL_RE)) {
-      const text = (m[1] ?? m[3] ?? m[4] ?? m[5] ?? m[6] ?? m[7] ?? m[8] ?? '').trim()
-      if (text) out.push({ text, target })
-    }
-  }
-  return out
-}
-
-// Flowchart owns the legacy MermaidGraph body: the diagram kind selects the
-// descriptor, which binds the flowchart header.
-function flowchartFamilyHooks(): Pick<FamilyOperations, 'parse' | 'buildSourceMap' | 'serialize' | 'mutate'> {
-  return {
-    parse: ({ source, opaqueSource }) => {
-      if (containsFlowchartOpaqueSyntax(source.familyText)) return ok<DiagramBody>({ kind: 'opaque', family: 'flowchart', source: opaqueSource })
-      return parseFlowchartBody(source.familyText)
-    },
-    buildSourceMap: (body, canonicalSource) => (body.kind === 'flowchart' ? buildFlowchartSourceMap(body as FlowchartBody, canonicalSource) : { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }),
-    serialize: body => {
-      if (body.kind !== 'flowchart') throw new Error(`flowchart serializer received body kind ${body.kind}`)
-      return renderFlowchart(body.graph, 'flowchart')
-    },
-    mutate: (body, op) => {
-      if (body.kind !== 'flowchart') return err<MutationError>({ code: 'INVALID_OP', message: `flowchart mutator received body kind ${body.kind}` })
-      return mutateFlowchart(body, op as never)
-    },
-  }
-}
-
-const FLOWCHART_AGENT_HOOKS = {
-  extractLabels: extractFlowchartLabels,
-  ...flowchartFamilyHooks(),
-} satisfies FamilyOperations
-
-// ---- State ----------------------------------------------------------------
-// BUILD-19: state owns a dedicated StateBody IR (no longer the flowchart body).
-// State label extraction for opaque fallbacks: `state "Label" as id`,
-// `id : Description`, and transition labels `from --> to : label`.
-function extractStateLabels(source: string): ExtractedLabel[] {
-  const out: ExtractedLabel[] = []
-  const lines = source.split(/\r?\n/)
-  for (let i = 0; i < lines.length; i++) {
-    const raw = lines[i]!.trim()
-    if (!raw || raw.startsWith('%%')) continue
-    const target = `line${i + 1}`
-    let m
-    if ((m = raw.match(/^state\s+"([^"]+)"\s+as\s+/i))) {
-      out.push({ text: m[1]!.trim(), target })
-    } else if (raw.includes('-->') && raw.includes(':')) {
-      const colon = raw.indexOf(':')
-      out.push({ text: raw.slice(colon + 1).trim(), target })
-    } else if ((m = raw.match(/^[\w\p{L}-]+\s*:\s*(.+)$/u))) {
-      out.push({ text: m[1]!.trim(), target })
-    } else if ((m = raw.match(/^note\s+(?:left of|right of)\s+\S+\s*:\s*(.+)$/i))) {
-      out.push({ text: m[1]!.trim(), target })
-    }
-  }
-  return out
-}
-
-const STATE_AGENT_HOOKS = {
-  extractLabels: extractStateLabels,
-  // The verify hook covers body-level structural Tier 1 (EMPTY/MISANCHORED/
-  // LABEL_OVERFLOW); verify.ts adds geometric Tier 2 via the graph projection.
-  verify: (body, opts) => (body.kind === 'state' ? verifyState(body, opts) : body.kind === 'opaque' ? verifyOpaqueState(body.source) : []),
-  ...structuredFamilyHooks('state', {
-    headerOk: h => /^statediagram(?:-v2)?\s*$/i.test(h),
-    parseBody: parseStateBody,
-    serialize: renderState,
-    mutate: mutateState,
+export const FLOWCHART_AGENT_HOOKS = {
+  ...FLOWCHART_SOURCE_HOOKS,
+  mutateSource: (source, op) => mutateFlowchartSource(source, op as never),
+  mutate: withMutationDraft((body, op) => {
+    if (body.kind !== 'flowchart') return err<MutationError>({ code: 'INVALID_OP', message: `flowchart mutator received body kind ${body.kind}` })
+    return mutateFlowchart(body, op as never)
+  }, body => {
+    if (body.kind !== 'flowchart') return undefined
+    const apply = createFlowchartMutationDraft(body)
+    return op => apply(op as never)
   }),
 } satisfies FamilyOperations
 
-// ---- Sequence -------------------------------------------------------------
-// Sequence labels: messages (`A->>B: text`), participants (`participant X as Label`,
-// `actor X as Label`), notes (`Note over A: text`, `Note left of A: text`),
-// block headers (`loop label`, `alt label`, `else label`, `opt label`, `par label`).
-function extractSequenceLabels(source: string): ExtractedLabel[] {
-  const out: ExtractedLabel[] = []
-  const lines = source.split(/\r?\n/)
-  for (let i = 0; i < lines.length; i++) {
-    const raw = lines[i]!.trim()
-    if (!raw || raw.startsWith('%%')) continue
-    let m
-    if ((m = raw.match(/^(?:participant|actor)\s+\S+\s+as\s+(.+)$/i))) {
-      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
-    } else if ((m = raw.match(/^Note\s+(?:over|left of|right of)\s+[\w,\s]+?:\s*(.+)$/i))) {
-      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
-    } else if ((m = raw.match(/->>?|-->>?|->|-->|-x|--x/)) && raw.includes(':')) {
-      const colon = raw.indexOf(':')
-      out.push({ text: raw.slice(colon + 1).trim(), target: `line${i + 1}` })
-    } else if ((m = raw.match(/^(?:loop|alt|else|opt|par|and|critical|break|rect)\s+(.+)$/i))) {
-      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
-    } else if ((m = raw.match(/^title\s+(.+)$/i))) {
-      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
-    }
-  }
-  return out
-}
-
-// Sequence parse needs the RAW (indentation-preserving) body lines so
-// opaque-block segments round-trip verbatim. `opaqueSource` is the normalized
-// body INCLUDING the header line, with original indentation/blank lines/
-// comments intact — drop its header and pass alongside the trimmed lines.
-const SEQUENCE_AGENT_HOOKS = {
-  extractLabels: extractSequenceLabels,
-  parse: ({ source, lines, opaqueSource }) => {
-    const expandedLines = splitSequenceStatementLines(lines).map(line => line.trim()).filter(Boolean)
-    const rawBodyLines = sequenceRawBodyLines(source.familyBody, expandedLines)
-    const body = parseSequenceBody(expandedLines.slice(1), rawBodyLines)
-    return ok(body ?? { kind: 'opaque', family: 'sequence', source: opaqueSource })
-  },
-  serialize: body => {
-    if (body.kind !== 'sequence') throw new Error(`sequence serializer received body kind ${body.kind}`)
-    return renderSequence(body)
-  },
-  mutate: (body, op) => {
-    if (body.kind !== 'sequence') return err<MutationError>({ code: 'INVALID_OP', message: `sequence mutator received body kind ${body.kind}` })
-    return mutateSequence(body, op as never)
-  },
+export const STATE_AGENT_HOOKS = {
+  ...STATE_SOURCE_HOOKS,
+  mutate: /* @__PURE__ */ structuredMutation('state', mutateState),
 } satisfies FamilyOperations
 
-function sequenceRawBodyLines(opaqueSource: string, expandedLines: string[]): string[] {
-  const raw = opaqueSource.split(/\r?\n/)
-  const headerAt = raw.findIndex(l => /^sequenceDiagram\b/i.test(l.trim()))
-  return headerAt >= 0
-    ? splitSequenceStatementLines(raw.slice(headerAt)).slice(1)
-    : expandedLines.slice(1)
-}
+export const SEQUENCE_AGENT_HOOKS = {
+  ...SEQUENCE_SOURCE_HOOKS,
+  mutate: withMutationDraft((body, op) => {
+    if (body.kind !== 'sequence') return err<MutationError>({ code: 'INVALID_OP', message: `sequence mutator received body kind ${body.kind}` })
+    return mutateSequence(body, op as never)
+  }, body => {
+    if (body.kind !== 'sequence') return undefined
+    const apply = createSequenceMutationDraft(body)
+    return op => apply(op as never)
+  }),
+} satisfies FamilyOperations
 
-// ---- Timeline -------------------------------------------------------------
-function extractTimelineLabels(source: string): ExtractedLabel[] {
-  const out: ExtractedLabel[] = []
-  const lines = source.split(/\r?\n/)
-  for (let i = 0; i < lines.length; i++) {
-    const raw = lines[i]!.trim()
-    if (!raw || isTimelineCommentLine(raw)) continue
-    let m
-    if ((m = raw.match(/^title\s+(.+)$/i))) {
-      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
-    } else if ((m = raw.match(/^section\s+(.+)$/i))) {
-      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
-    } else if (raw.includes(':')) {
-      // `<period> : <event> [: <event>...]` or continuation `: <event>`
-      const parts = raw
-        .split(':')
-        .map(p => p.trim())
-        .filter(Boolean)
-      for (const p of parts) out.push({ text: p, target: `line${i + 1}` })
-    }
-  }
-  return out
-}
-
-// Any non-LR/TD header suffix stays opaque so it round-trips verbatim, but its
-// render path must reject it instead of silently projecting LR geometry.
-function verifyOpaqueTimeline(body: FamilyParsedBody): LayoutWarning[] {
-  if (body.kind !== 'opaque' || body.family !== 'timeline') return []
-  const lines = body.source.split(/\r?\n/)
-  const header = lines.map(line => parseTimelineHeader(decodeXML(line))).find(candidate => candidate !== null)
-  if (header?.kind !== 'unsupported') return []
-  return [{
-    code: 'UNSUPPORTED_SYNTAX',
-    // The opaque body excludes the authored wrapper, so its relative line
-    // cannot truthfully be reported as an authored-document location.
-    syntax: 'timeline_header_direction',
-    message: `Unsupported timeline header suffix "${header.suffix}"; only LR and TD are direction tokens. The source is preserved, but rendering is rejected instead of silently using LR.`,
-  }]
-}
-
-const TIMELINE_AGENT_HOOKS = {
-  extractLabels: extractTimelineLabels,
-  verify: body => verifyOpaqueTimeline(body),
-  parse: ({ lines, opaqueSource, meta }) => {
-    const header = parseTimelineHeader(lines[0] ?? '')
-    // Native rendering accepts inline header comments, but the structured
-    // serializer does not retain them. Preserve authored source instead.
-    const body = header?.kind === 'supported' && !header.hasInlineComment
-      ? parseTimelineBody(lines.slice(1), meta.accessibility)
-      : null
-    if (body && header?.kind === 'supported' && header.direction) body.direction = header.direction
-    return ok(body ?? { kind: 'opaque', family: 'timeline', source: opaqueSource })
-  },
-  serialize: body => {
-    if (body.kind !== 'timeline') throw new Error(`timeline serializer received body kind ${body.kind}`)
-    return renderTimeline(body)
-  },
+export const TIMELINE_AGENT_HOOKS = {
+  ...TIMELINE_SOURCE_HOOKS,
   mutate: (body, op) => {
     if (body.kind !== 'timeline') return err<MutationError>({ code: 'INVALID_OP', message: `timeline mutator received body kind ${body.kind}` })
     return mutateTimeline(body, op as never)
   },
 } satisfies FamilyOperations
 
-// ---- Class ---------------------------------------------------------------
-// class Name { +member ... }, Class : +member, class A as "Display Label"
-function emptySourceMap(): SourceMap {
-  return { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
-}
-function loc(line: number, col: number): { line: number; col: number } {
-  return { line, col: Math.max(1, col) }
-}
-function firstIndex(line: string, text: string): number {
-  const i = line.indexOf(text)
-  return i >= 0 ? i + 1 : 1
-}
-
-function nextOccurrence(counts: Map<string, number>, key: string): number {
-  const occurrence = counts.get(key) ?? 0
-  counts.set(key, occurrence + 1)
-  return occurrence
-}
-
-function xyValueTokenOffsets(valueSlice: string): number[] {
-  const offsets: number[] = []
-  let segmentStart = 0
-  let quote: string | undefined
-  let escaped = false
-  const visit = (end: number): void => {
-    const segment = valueSlice.slice(segmentStart, end)
-    const match = segment.match(/^\s*[+-]?(?:\d+(?:\.\d+)?|\.\d+)/)
-    if (match) offsets.push(segmentStart + (match[0].length - match[0].trimStart().length))
-    segmentStart = end + 1
-  }
-  for (let index = 0; index < valueSlice.length; index++) {
-    const char = valueSlice[index]!
-    if (quote) {
-      if (escaped) escaped = false
-      else if (char === '\\') escaped = true
-      else if (char === quote) quote = undefined
-      continue
-    }
-    if (char === '"' || char === "'") {
-      quote = char
-      continue
-    }
-    if (char === ',') visit(index)
-  }
-  visit(valueSlice.length)
-  return offsets
-}
-
-function xySeriesNameLocation(line: string, lineIndex: number, name: string, valueStart: number): { line: number; col: number } | undefined {
-  const kind = line.match(/^\s*(?:bar|line)\b/i)
-  if (!kind) return undefined
-  const start = kind[0].length
-  const prefix = line.slice(start, valueStart >= 0 ? valueStart : line.length)
-  const quoted = prefix.match(/(["'])([^"']*)\1/)
-  if (quoted?.[2]?.trim() === name && quoted.index !== undefined) {
-    const contentStart = start + quoted.index + 1 + (quoted[2]!.length - quoted[2]!.trimStart().length)
-    return loc(lineIndex + 1, contentStart + 1)
-  }
-  const column = line.indexOf(name, start)
-  return column >= 0 && (valueStart < 0 || column < valueStart) ? loc(lineIndex + 1, column + 1) : undefined
-}
-
-interface LocatedSourceLine {
-  line: string
-  trimmed: string
-  lineIndex: number
-  start: number
-}
-
-function locatedSourceLines(lines: readonly string[]): LocatedSourceLine[] {
-  return lines.map((line, lineIndex) => ({
-    line,
-    trimmed: line.trim(),
-    lineIndex,
-    start: line.length - line.trimStart().length,
-  }))
-}
-
-function pieSliceSourceLocations(lines: readonly string[]): Array<{ label: string; location: { line: number; col: number } }> {
-  return lines.flatMap((line, lineIndex) => {
-    const match = line.match(/^\s*"((?:[^"\\]|\\.)*)"\s*:/)
-    if (match?.[1] === undefined || match.index === undefined) return []
-    const quote = line.indexOf('"', match.index)
-    return [
-      {
-        label: match[1].replace(/\\(["\\])/g, '$1'),
-        location: loc(lineIndex + 1, quote + 2),
-      },
-    ]
-  })
-}
-
-function classArrowIndex(line: string): number {
-  return line.search(/<\|--\|>|\(\)--|--\(\)|<\|--|--\|>|\.\.\|>|\*--|--\*|o--|--o|-->|<--|\.\.>|<\.\.?|--|\.\./)
-}
-
-function quotedContentLocations(line: string): Array<{ text: string; start: number; end: number }> {
-  return [...line.matchAll(/"((?:\\.|[^"\\])*)"/g)].flatMap(match => (match.index === undefined ? [] : [{ text: match[1]!.replace(/\\(["\\])/g, '$1'), start: match.index + 1, end: match.index + match[0].length - 1 }]))
-}
-
-function buildClassSourceMap(body: DiagramBody, canonicalSource: string): SourceMap {
-  const map = emptySourceMap()
-  if (body.kind !== 'class') return map
-  const b = body as ClassBody
-  const lines = canonicalSource.split(/\r?\n/)
-  const tree = readClassStatements(lines)
-  const nodeDeclarations = new Map<string, { line: number; col: number }>()
-  const memberSources = new Map<string, Array<{ line: number; col: number }>>()
-  const relationSources: LocatedSourceLine[] = []
-  const cursors = new Map<number, number>()
-  const locate = (node: ClassStatementNode): LocatedSourceLine => {
-    const lineIndex = node.source.line - 1
-    const line = lines[lineIndex]!
-    const index = line.indexOf(node.text, cursors.get(lineIndex) ?? 0)
-    const start = index >= 0 ? index : line.length - line.trimStart().length
-    cursors.set(lineIndex, start + node.text.length)
-    return { line, lineIndex, start, trimmed: node.text }
-  }
-  const addMember = (id: string, text: string, source: LocatedSourceLine): void => {
-    const key = `${id}\u0000${text}`
-    const entries = memberSources.get(key) ?? []
-    const index = source.line.indexOf(text, source.start)
-    entries.push(loc(source.lineIndex + 1, (index >= 0 ? index : source.start) + 1))
-    memberSources.set(key, entries)
-  }
-  const declare = (id: string, source: LocatedSourceLine): void => {
-    const index = source.line.indexOf(id, source.start)
-    nodeDeclarations.set(id, loc(source.lineIndex + 1, (index >= 0 ? index : source.start) + 1))
-  }
-  const visit = (nodes: ClassStatementNode[], owner?: string): void => {
-    const frames = [{ nodes, owner, index: 0 }]
-    while (frames.length) {
-      const frame = frames.at(-1)!
-      if (frame.index === frame.nodes.length) { frames.pop(); continue }
-      const node = frame.nodes[frame.index++]!
-      const { owner } = frame
-      const source = locate(node)
-      const value = node.value
-      if (value.kind === 'class') {
-        declare(value.declaration.id, source)
-        if (node.children) frames.push({ nodes: node.children, owner: value.declaration.id, index: 0 })
-      } else if (value.kind === 'namespace') frames.push({ nodes: node.children!, owner: undefined, index: 0 })
-      else if (value.kind === 'relationship') relationSources.push(source)
-      else if (value.kind === 'member') {
-        const id = value.reference?.id ?? owner!
-        addMember(id, value.text, source)
-        if (value.reference && !nodeDeclarations.has(id)) declare(id, source)
-      } else if (value.kind === 'body-annotation') addMember(owner!, node.text, source)
-      else if (value.kind === 'annotation') {
-        if (!nodeDeclarations.has(value.annotation.id)) declare(value.annotation.id, source)
-        addMember(value.annotation.id, `<<${value.annotation.annotation}>>`, source)
-      } else if (value.kind === 'interaction' || value.kind === 'note') {
-        const id = value.kind === 'interaction' ? value.interaction.id : value.reference?.id
-        if (id && !nodeDeclarations.has(id)) declare(id, source)
-      } else if (value.kind === 'style' || value.kind === 'assignment') {
-        for (const reference of value.references) if (!nodeDeclarations.has(reference.id)) declare(reference.id, source)
-      }
-    }
-  }
-  visit(tree.statements)
-
-  for (const c of b.classes) {
-    const declared = nodeDeclarations.get(c.id)
-    if (declared) map.nodes.set(c.id, declared)
-    const memberOccurrences = new Map<string, number>()
-    c.members.forEach((member, index) => {
-      const occurrence = nextOccurrence(memberOccurrences, member)
-      const found = memberSources.get(`${c.id}\u0000${member}`)?.[occurrence]
-      if (found) map.labels.set(`class:${c.id}:member#${index}`, found)
-    })
-  }
-
-  b.relations.forEach((r, index) => {
-    const locatedRelation = relationSources[index]
-    if (!locatedRelation) return
-    const source = locatedRelation
-    const key = `rel#${index}:${r.from}->${r.to}`
-    const relationLocation = loc(source.lineIndex + 1, source.start + 1)
-    map.edges.set(key, relationLocation)
-    if (!map.nodes.has(r.from)) map.nodes.set(r.from, relationLocation)
-    if (!map.nodes.has(r.to)) map.nodes.set(r.to, relationLocation)
-    const arrow = classArrowIndex(source.trimmed)
-    const colon = arrow >= 0 ? source.trimmed.indexOf(':', arrow) : -1
-    if (r.label && colon >= 0) {
-      const labelCol = source.trimmed.indexOf(r.label, colon + 1)
-      if (labelCol >= 0) map.labels.set(key, loc(source.lineIndex + 1, source.start + labelCol + 1))
-    }
-    const quoted = quotedContentLocations(source.trimmed)
-    if (r.fromCardinality && arrow >= 0) {
-      const cardinality = quoted.filter(entry => entry.start < arrow).at(-1)
-      if (cardinality) map.labels.set(`${key}:fromCardinality`, loc(source.lineIndex + 1, source.start + cardinality.start + 1))
-    }
-    if (r.toCardinality && arrow >= 0) {
-      const cardinality = quoted.find(entry => entry.start > arrow && (colon < 0 || entry.start < colon))
-      if (cardinality) map.labels.set(`${key}:toCardinality`, loc(source.lineIndex + 1, source.start + cardinality.start + 1))
-    }
-  })
-  return map
-}
-
-function buildErSourceMap(body: DiagramBody, canonicalSource: string): SourceMap {
-  const map = emptySourceMap()
-  if (body.kind !== 'er') return map
-  const b = body as ErBody
-  const lines = canonicalSource.split(/\r?\n/)
-  const nodeDeclarations = new Map<string, { line: number; col: number }>()
-  const attributeSources = new Map<string, Array<{ line: number; col: number }>>()
-  const relationSources: Array<{ source: LocatedSourceLine; relation: ParsedErRelationshipSyntax }> = []
-  const headerAt = lines.findIndex(line => /^erDiagram\s*$/i.test(line.trim()))
-  const tree = readErStatements(lines.slice(headerAt + 1))
-  for (const entry of tree.statements) {
-    const source: LocatedSourceLine = {
-      line: entry.raw, trimmed: entry.raw.trim(), lineIndex: headerAt + entry.line + 1,
-      start: entry.raw.length - entry.raw.trimStart().length,
-    }
-    const syntax = entry.syntax
-    if (syntax.kind === 'attribute') {
-      const key = `${entry.entityId}\u0000${syntax.text}`
-      const entries = attributeSources.get(key) ?? []
-      entries.push(loc(source.lineIndex + 1, source.start + 1))
-      attributeSources.set(key, entries)
-    } else if (syntax.kind === 'relation') {
-      relationSources.push({ source, relation: syntax.relation })
-    } else if (syntax.kind === 'entity' || syntax.kind === 'block-open') {
-      nodeDeclarations.set(syntax.reference.id, loc(source.lineIndex + 1, source.start + 1))
-    }
-  }
-
-  for (const e of b.entities) {
-    const declared = nodeDeclarations.get(e.id)
-    if (declared) map.nodes.set(e.id, declared)
-    const attributeOccurrences = new Map<string, number>()
-    e.attributes.forEach((attr, index) => {
-      const occurrence = nextOccurrence(attributeOccurrences, attr.text)
-      const found = attributeSources.get(`${e.id}\u0000${attr.text}`)?.[occurrence]
-      if (found) map.labels.set(`er:${e.id}:attr#${index}`, found)
-    })
-  }
-
-  b.relations.forEach((r, index) => {
-    const locatedRelation = relationSources[index]
-    if (!locatedRelation) return
-    const { source, relation } = locatedRelation
-    const key = `rel#${index}:${r.from}->${r.to}`
-    const relationLocation = loc(source.lineIndex + 1, source.start + 1)
-    map.edges.set(key, relationLocation)
-    if (!map.nodes.has(r.from)) map.nodes.set(r.from, relationLocation)
-    if (!map.nodes.has(r.to)) map.nodes.set(r.to, relationLocation)
-    const link = relation.identifying ? '--' : '..'
-    const operator = `${relation.leftToken}${link}${relation.rightToken}`
-    const operatorStart = source.line.indexOf(operator, source.start)
-    if (operatorStart >= 0) {
-      map.labels.set(`${key}:leftCardinality`, loc(source.lineIndex + 1, operatorStart + 1))
-      map.labels.set(`${key}:rightCardinality`, loc(source.lineIndex + 1, operatorStart + relation.leftToken.length + link.length + 1))
-    }
-    if (r.label) {
-      const colon = source.line.indexOf(':', Math.max(source.start, operatorStart))
-      const labelCol = colon >= 0 ? source.line.indexOf(r.label, colon + 1) : -1
-      if (labelCol >= 0) map.labels.set(key, loc(source.lineIndex + 1, labelCol + 1))
-    }
-  })
-  return map
-}
-
-function buildChartSourceMap(body: DiagramBody, canonicalSource: string): SourceMap {
-  const map = emptySourceMap()
-  const lines = canonicalSource.split(/\r?\n/)
-  if (body.kind === 'xychart') {
-    const b = body as XyChartBody
-    const seriesLines = lines.map((line, index) => ({ line, index })).filter(({ line }) => /^\s*(?:bar|line)\b/i.test(line))
-    b.series.forEach((series, si) => {
-      const candidate = seriesLines[si]
-      if (!candidate || !new RegExp(`^\\s*${series.kind}\\b`, 'i').test(candidate.line)) return
-      const lineIndex = candidate.index
-      const line = candidate.line
-      const valueStart = line.indexOf('[')
-      const valueEnd = line.lastIndexOf(']')
-      if (series.name) {
-        const nameLocation = xySeriesNameLocation(line, lineIndex, series.name, valueStart)
-        if (nameLocation) map.labels.set(`xychart:${series.id}:name`, nameLocation)
-      }
-      const valueSlice = valueStart >= 0 && valueEnd > valueStart ? line.slice(valueStart + 1, valueEnd) : ''
-      const numericOffsets = xyValueTokenOffsets(valueSlice)
-      series.values.forEach((_value, vi) => {
-        const tokenOffset = numericOffsets[vi]
-        if (tokenOffset !== undefined) map.labels.set(`xychart:${series.id}:point#${vi}`, loc(lineIndex + 1, valueStart + 2 + tokenOffset))
-      })
-    })
-  } else if (body.kind === 'pie') {
-    const sliceSources = pieSliceSourceLocations(lines)
-    ;(body as PieBody).slices.forEach((slice, index) => {
-      const found = sliceSources[index]
-      if (found?.label === slice.label) map.labels.set(`pie:slice#${index}`, found.location)
-    })
-  } else if (body.kind === 'quadrant') {
-    const pointLines = locatedSourceLines(lines).flatMap(source => {
-      const match = source.trimmed.match(/^(.+?)\s*:\s*\[\s*[+-]?(?:\d+(?:\.\d+)?|\.\d+)\s*,\s*[+-]?(?:\d+(?:\.\d+)?|\.\d+)\s*\]/)
-      if (!match) return []
-      const label = splitPointClassSuffix(match[1]!.trim()).label
-      const labelStart = source.line.indexOf(label, source.start)
-      return labelStart < 0 ? [] : [{ label, location: loc(source.lineIndex + 1, labelStart + 1) }]
-    })
-    ;(body as QuadrantBody).points.forEach((point, index) => {
-      const found = pointLines[index]
-      if (found?.label === point.label) map.labels.set(`quadrant:point#${index}`, found.location)
-    })
-  } else if (body.kind === 'sankey') {
-    // Canonical form: header line, then one CSV row per link in order.
-    const rowLines = lines
-      .map((line, index) => ({ line, index }))
-      .filter(({ line }) => {
-        const trimmed = line.trim()
-        return trimmed.length > 0 && !trimmed.startsWith('%%') && !/^sankey(?:-beta)?\s*:?\s*$/i.test(trimmed)
-      })
-    ;(body as SankeyBody).links.forEach((link, index) => {
-      const candidate = rowLines[index]
-      if (!candidate) return
-      const start = candidate.line.length - candidate.line.trimStart().length
-      map.labels.set(`sankey:link#${index}`, loc(candidate.index + 1, start + 1))
-    })
-  } else if (body.kind === 'radar') {
-    const b = body as RadarBody
-    b.axes.forEach((axis, index) => {
-      const token = new RegExp(`(?:^\\s*axis\\s+|,\\s*)(${escapeSourceMapRegex(axis.id)})(?=\\s*(?:\\[|,|$))`, 'i')
-      for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-        const match = lines[lineIndex]!.match(token)
-        if (!match?.[1] || match.index === undefined) continue
-        map.labels.set(`radar:axis#${index}`, loc(lineIndex + 1, match.index + match[0].lastIndexOf(match[1]) + 1))
-        break
-      }
-    })
-    b.curves.forEach((curve, index) => {
-      const token = new RegExp(`^\\s*curve\\s+(${escapeSourceMapRegex(curve.id)})(?=\\s*(?:\\[|\\{))`, 'i')
-      for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-        const match = lines[lineIndex]!.match(token)
-        if (!match?.[1] || match.index === undefined) continue
-        map.labels.set(`radar:curve#${index}`, loc(lineIndex + 1, match.index + match[0].lastIndexOf(match[1]) + 1))
-        break
-      }
-    })
-  }
-  return map
-}
-
-function buildGanttSourceMap(body: DiagramBody, canonicalSource: string): SourceMap {
-  const map = emptySourceMap()
-  if (body.kind !== 'gantt') return map
-  const b = body as GanttBody
-  const lines = canonicalSource.split(/\r?\n/)
-  const statements = readGanttStatements(lines)
-  const taskOccurrences = new Map<string, number>()
-  const sectionOccurrences = new Map<string, number>()
-  for (const section of b.sections) {
-    if (section.label) {
-      const wanted = nextOccurrence(sectionOccurrences, section.label)
-      let seen = 0
-      for (const statement of statements) {
-        if (statement.kind !== 'section' || statement.value !== section.label || seen++ !== wanted) continue
-        const location = loc(statement.startLine, statement.valueColumn!)
-        map.groups.set(section.id, location)
-        map.labels.set(`gantt:${section.id}:label`, location)
-        break
-      }
-    }
-    for (const task of section.tasks) {
-      const stableId = task.taskId ?? task.id
-      const signature = `${task.label}\u0000${task.end}`
-      const wanted = nextOccurrence(taskOccurrences, signature)
-      let seen = 0
-      for (const statement of statements) {
-        if (statement.kind !== 'task' || statement.label !== task.label) continue
-        const end = statement.meta.end.kind === 'until' ? `until ${statement.meta.end.refs.join(' ')}` : statement.meta.end.raw
-        if (end !== task.end) continue
-        if (seen++ !== wanted) continue
-        const location = loc(statement.startLine, firstIndex(statement.raw[0]!, task.label))
-        map.nodes.set(stableId, location)
-        map.labels.set(`gantt:task:${stableId}`, location)
-        break
-      }
-    }
-  }
-  return map
-}
-
-function escapeSourceMapRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-function extractClassLabels(source: string): ExtractedLabel[] {
-  const out: ExtractedLabel[] = []
-  const lines = source.split(/\r?\n/)
-  for (let i = 0; i < lines.length; i++) {
-    const raw = lines[i]!.trim()
-    if (!raw || raw.startsWith('%%')) continue
-    let m
-    if ((m = raw.match(/^class\s+\S+\s+as\s+"([^"]+)"/i))) {
-      out.push({ text: m[1]!, target: `line${i + 1}` })
-    } else if ((m = raw.match(/^\S+\s*:\s*(.+)$/))) {
-      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
-    } else if ((m = raw.match(/^[+\-#~]\s*(.+)$/))) {
-      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
-    } else if ((m = raw.match(/^note\s+(?:for\s+\S+\s+)?"([^"]+)"/i))) {
-      out.push({ text: m[1]!, target: `line${i + 1}` })
-    }
-  }
-  return out
-}
-
-const CLASS_AGENT_HOOKS = {
-  extractLabels: extractClassLabels,
-  // Loop 8 A1: the structured class verifier IS the verify path — verifyMermaid
-  // routes class diagrams through this descriptor hook (Loop 9 M2 removed the
-  // duplicate per-body branch). Single source of truth.
-  verify: (body, opts) => (body.kind === 'class' ? verifyClass(body, opts) : []),
-  buildSourceMap: buildClassSourceMap,
-  ...structuredFamilyHooks('class', { parseBody: parseClassBody, serialize: renderClass, mutate: mutateClass }),
+export const CLASS_AGENT_HOOKS = {
+  ...CLASS_SOURCE_HOOKS,
+  mutate: /* @__PURE__ */ structuredMutation('class', mutateClass),
+  mutateSource: (source, op) => mutateClassSource(source, op as never),
 } satisfies FamilyOperations
 
-// ---- ER -------------------------------------------------------------------
-// CUSTOMER ||--o{ ORDER : places, attributes inside braces.
-function extractErLabels(source: string): ExtractedLabel[] {
-  const out: ExtractedLabel[] = []
-  const lines = source.split(/\r?\n/)
-  for (let i = 0; i < lines.length; i++) {
-    const raw = lines[i]!.trim()
-    if (!raw || raw.startsWith('%%')) continue
-    let m
-    if ((m = raw.match(/:\s*"?([^"]+?)"?$/))) {
-      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
-    }
-    // Attribute lines inside `{ ... }` blocks
-    if (raw.match(/^\s*\w+\s+\w+/) && !raw.match(/[<>|}]/)) {
-      out.push({ text: raw, target: `line${i + 1}` })
-    }
-  }
-  return out
-}
-
-const ER_AGENT_HOOKS = {
-  extractLabels: extractErLabels,
-  // Loop 8 A1: same as class — this hook is the verify path for ER (Loop 9 M2
-  // removed the duplicate per-body branch in verify.ts).
-  verify: (body, opts) => (body.kind === 'er' ? verifyErBody(body, opts) : []),
-  buildSourceMap: buildErSourceMap,
-  ...structuredFamilyHooks('er', {
-    // A header-riding subgraph clause (`erDiagram subgraph X`, repo #103) is
-    // tolerated by the renderer but unmodeled here: keep the body opaque so
-    // the clause round-trips verbatim instead of being dropped on serialize.
-    headerOk: h => /^erdiagram\s*$/i.test(h),
-    parseBody: (lines, _accessibility, rawBodyLines) => parseErBody(lines, rawBodyLines),
-    serialize: renderEr,
-    mutate: mutateEr,
-  }),
+export const ER_AGENT_HOOKS = {
+  ...ER_SOURCE_HOOKS,
+  mutate: /* @__PURE__ */ structuredMutation('er', mutateEr),
 } satisfies FamilyOperations
 
-// ---- Journey --------------------------------------------------------------
-// title T, section S, task: 3: Me — label extraction rides the shared parse
-// core walker (scan mode: issues are skipped, labels still flow), so opaque
-// journey sources get overflow checks from the same grammar the parsers use.
-function extractJourneyLabels(source: string): ExtractedLabel[] {
-  const out: ExtractedLabel[] = []
-  const lines = source.split(/\r?\n/)
-  const headerIndex = lines.findIndex(line => /^\s*journey\b/i.test(line))
-  const push = (text: string, lineIndex: number): void => {
-    for (const part of text.split('\n')) {
-      if (part) out.push({ text: part, target: `line${lineIndex + 1}` })
-    }
-  }
-  walkJourneyLines(lines, headerIndex + 1, {
-    title: push,
-    accTitle: push,
-    accDescr: push,
-    section: push,
-    task: (text, _score, actors, lineIndex) => {
-      push(text, lineIndex)
-      for (const actor of actors) push(actor, lineIndex)
-    },
-  })
-  return out
-}
-
-// Opaque-journey diagnostics re-derive the blocking issue from source with the
-// SAME shared grammar the parsers use (src/journey/parse-core.ts), so the
-// reported reason cannot drift from what the parser actually rejected — and
-// comments / accDescr block interiors are never mistaken for bad task lines.
-function verifyOpaqueJourney(body: DiagramBody): LayoutWarning[] {
-  if (body.kind !== 'opaque' || body.family !== 'journey') return []
-  const warnings: LayoutWarning[] = []
-  const lines = body.source.split(/\r?\n/)
-  // Skip the header line wherever it sits (leading blanks/comments preserved
-  // in opaque source keep their positions, so line numbers stay truthful).
-  const headerIndex = lines.findIndex(line => /^\s*journey\b/i.test(line))
-  let blocking: JourneyParseIssue | undefined
-  walkJourneyLines(lines, headerIndex + 1, {
-    issue: issue => {
-      if (issue.code === 'invalid_score') {
-        warnings.push({
-          code: 'UNSUPPORTED_SYNTAX',
-          line: issue.lineIndex + 1,
-          syntax: 'journey_invalid_score',
-          message: `${issue.detail}.`,
-        })
-        return
-      }
-      blocking ??= issue
-    },
-  })
-  if (blocking) {
-    warnings.push({
-      code: 'UNSUPPORTED_SYNTAX',
-      line: blocking.lineIndex + 1,
-      syntax: `journey_${blocking.code}`,
-      message: `${blocking.detail}. The diagram is preserved verbatim as source; fix this line to unlock typed journey mutation.`,
-    })
-  }
-  return warnings
-}
-
-const JOURNEY_AGENT_HOOKS = {
-  extractLabels: extractJourneyLabels,
-  // BUILD-15: journey is structured-when-narrowed. The verify hook covers the
-  // structured body; opaque fallbacks keep the universal label-extraction path.
-  verify: (body, opts) => (body.kind === 'journey' ? verifyJourney(body, opts) : body.kind === 'opaque' ? verifyOpaqueJourney(body) : []),
-  ...structuredFamilyHooks('journey', {
-    headerOk: h => /^journey\s*$/i.test(h),
-    parseBody: (lines, accessibility) => {
-      const outcome = parseJourneyBody(lines, accessibility)
-      return outcome.ok ? outcome.body : null
-    },
-    serialize: renderJourney,
-    mutate: mutateJourney,
-  }),
+export const JOURNEY_AGENT_HOOKS = {
+  ...JOURNEY_SOURCE_HOOKS,
+  mutate: /* @__PURE__ */ structuredMutation('journey', mutateJourney),
 } satisfies FamilyOperations
 
-// ---- XY chart -------------------------------------------------------------
-// title "T", x-axis [a,b,c], y-axis "label"
-function extractXyChartLabels(source: string): ExtractedLabel[] {
-  const out: ExtractedLabel[] = []
-  const lines = source.split(/\r?\n/)
-  for (let i = 0; i < lines.length; i++) {
-    const rawLine = lines[i]!.trim()
-    if (!rawLine || rawLine.startsWith('%%')) continue
-    const statements = splitXyLabelStatements(rawLine)
-    for (const raw of statements) {
-      const target = `line${i + 1}`
-      let m
-      if ((m = raw.match(/^accDescr\s*:?\s*\{\s*(.*)$/i))) {
-        const first = m[1]!
-        const end = first.indexOf('}')
-        if (end >= 0) {
-          const text = first.slice(0, end).trim()
-          if (text) out.push({ text, target })
-        } else {
-          const text = first.trim()
-          if (text) out.push({ text, target })
-          for (i += 1; i < lines.length; i++) {
-            const line = lines[i]!.trim()
-            const close = line.indexOf('}')
-            const text = (close >= 0 ? line.slice(0, close) : line).trim()
-            if (text) out.push({ text, target: `line${i + 1}` })
-            if (close >= 0) break
-          }
-        }
-        continue
-      }
-      if ((m = raw.match(/^accTitle\s*:?\s*(.+)$/i))) out.push({ text: m[1]!.trim(), target })
-      else if ((m = raw.match(/^accDescr\s*:?\s*(.+)$/i))) out.push({ text: m[1]!.trim(), target })
-      // All quoted strings, including escaped quote/backslash pairs.
-      for (const q of quotedLabelMatches(raw)) out.push({ text: q, target })
-      const title = raw.match(/^title\s+(.+)$/i)
-      if (title && !/^['"]/.test(title[1]!.trim())) out.push({ text: title[1]!.trim(), target })
-      const axisTitleWithCategories = raw.match(/^[xy]-axis\s+(.+?)\s*\[[^\]]+\]\s*$/i)
-      const axisTitleWithRange = raw.match(/^[xy]-axis\s+(\S+)\s+[+-]?(?:(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?)\s*-->/i)
-      const axisTitle = axisTitleWithCategories ?? axisTitleWithRange ?? raw.match(/^[xy]-axis\s+([^\[\d.+-][^\[]*?)\s*(?:\[|[+-]?\d|$)/i)
-      if (axisTitle && !/^['"]/.test(axisTitle[1]!.trim())) out.push({ text: axisTitle[1]!.trim(), target })
-      const seriesLabel = raw.match(/^(?:bar|line)\s+(.+?)\s+\[[^\]]+\]\s*$/i)
-      if (seriesLabel && !/^['"]/.test(seriesLabel[1]!.trim())) out.push({ text: seriesLabel[1]!.trim(), target })
-      // x-axis [a, b, c] — extract individual entries
-      const ax = raw.match(/^[xy]-axis\b.*\[([^\]]+)\]/i)
-      if (ax) {
-        for (const entry of ax[1]!.split(',')) {
-          const t = entry.trim().replace(/^["']|["']$/g, '')
-          if (t) out.push({ text: t, target })
-        }
-      }
-    }
-  }
-  return out
-}
-
-function quotedLabelMatches(raw: string): string[] {
-  const labels: string[] = []
-  for (const quote of ['"', "'"] as const) {
-    const pattern = quote === '"' ? /"((?:\\.|[^"\\])+)"/g : /'((?:\\.|[^'\\])*)'/g
-    for (const m of raw.matchAll(pattern)) labels.push(m[1]!.replace(/\\"/g, '"').replace(/\\'/g, "'").replace(/\\\\/g, '\\'))
-  }
-  return labels
-}
-
-function splitXyLabelStatements(line: string): string[] {
-  const statements: string[] = []
-  let current = ''
-  let quote: '"' | "'" | null = null
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i]!
-    if (quote) {
-      current += char
-      if (char === '\\') {
-        current += line[++i] ?? ''
-        continue
-      }
-      if (char === quote) quote = null
-      continue
-    }
-    if (char === '"' || char === "'") {
-      quote = char
-      current += char
-      continue
-    }
-    if (char === ';') {
-      const trimmed = current.trim()
-      if (trimmed) statements.push(trimmed)
-      current = ''
-      continue
-    }
-    current += char
-  }
-  const trimmed = current.trim()
-  if (trimmed) statements.push(trimmed)
-  return statements
-}
-
-const XYCHART_AGENT_HOOKS = {
-  extractLabels: extractXyChartLabels,
-  // BUILD-16: xychart is structured-when-narrowed. The verify hook covers the
-  // structured body; opaque fallbacks (accTitle/accDescr, quoted text,
-  // multi-statement `;` lines, unmodeled tokens like `curve basis`) keep the
-  // universal label-extraction path. headerOk requires `xychart`/`xychart-beta`
-  // with at most a `horizontal`/`vertical` orientation suffix — any other
-  // trailing token (e.g. `EXTRA`) stays opaque so it round-trips verbatim.
-  verify: (body, opts) => (body.kind === 'xychart' ? verifyXyChart(body, opts) : []),
-  buildSourceMap: buildChartSourceMap,
-  // Pass the complete family source to the shared XY grammar. Header spelling,
-  // orientation, and same-line semicolon statements therefore have one parser
-  // authority instead of a second regex in the agent projection.
-  parse: ({ lines, opaqueSource }) => {
-    const body = parseXyChartBody(lines)
-    return ok(body ?? { kind: 'opaque', family: 'xychart', source: opaqueSource })
-  },
-  serialize: body => {
-    if (body.kind !== 'xychart') throw new Error(`xychart serializer received body kind ${body.kind}`)
-    return renderXyChart(body)
-  },
+export const XYCHART_AGENT_HOOKS = {
+  ...XYCHART_SOURCE_HOOKS,
   mutate: (body, op) => {
     if (body.kind !== 'xychart') return err<MutationError>({ code: 'INVALID_OP', message: `xychart mutator received body kind ${body.kind}` })
     return mutateXyChart(body, op as never)
   },
 } satisfies FamilyOperations
 
-// ---- Pie ------------------------------------------------------------------
-// pie [showData] [title T], optional `title T`, `"label" : number` entries.
-// Pie is structured-when-narrowed: the body parses to a PieBody (title,
-// showData, slices) or falls back to opaque when any line is unmodeled.
-// Labels are the quoted slice labels plus the optional title text.
-function extractPieLabels(source: string): ExtractedLabel[] {
-  const out: ExtractedLabel[] = []
-  const lines = source.split(/\r?\n/)
-  for (let i = 0; i < lines.length; i++) {
-    const raw = lines[i]!.trim()
-    if (!raw || raw.startsWith('%%')) continue
-    const target = `line${i + 1}`
-    // Header may carry an inline title: `pie title Pets` / `pie showData title Pets`.
-    let m
-    if ((m = raw.match(/^pie\b\s*(?:showData\b\s*)?title\s+(.+)$/i))) {
-      out.push({ text: m[1]!.trim(), target })
-      continue
-    }
-    if (/^pie\b/i.test(raw)) continue
-    if ((m = raw.match(/^title\s+(.+)$/i))) {
-      out.push({ text: m[1]!.trim(), target })
-      continue
-    }
-    // Entry line: `"label" : value` — extract the quoted label.
-    if ((m = raw.match(/^"((?:[^"\\]|\\.)*)"\s*:/))) {
-      const text = m[1]!.replace(/\\"/g, '"').replace(/\\\\/g, '\\').trim()
-      if (text) out.push({ text, target })
-    }
-  }
-  return out
-}
-
-// Parse the `pie [showData] [title <text>]` header tail. Returns null when the
-// tail carries unmodeled tokens, so the whole body falls back to opaque.
-function parsePieHeader(header: string): { showData: boolean; title?: string } | null {
-  const m = header.match(/^pie\b(.*)$/i)
-  if (!m) return null
-  let tail = m[1]!.trim()
-  let showData = false
-  const sd = tail.match(/^showData\b\s*(.*)$/i)
-  if (sd) {
-    showData = true
-    tail = sd[1]!.trim()
-  }
-  const inlineTitle = tail.match(/^title\s+(.+)$/i)
-  if (inlineTitle) return { showData, title: inlineTitle[1]!.trim() }
-  if (tail.length > 0) return null // unexpected text after the header → opaque
-  return { showData }
-}
-
-const PIE_AGENT_HOOKS = {
-  extractLabels: extractPieLabels,
-  // Pie is structured-when-narrowed. The verify hook covers the structured
-  // body; opaque fallbacks keep the universal label-extraction path. The header
-  // carries showData / inline title, so pie uses a tailored parse hook (like
-  // xychart) — serialize/mutate stay identical to every other structured family.
-  verify: (body, opts) => (body.kind === 'pie' ? verifyPie(body, opts) : []),
-  buildSourceMap: buildChartSourceMap,
-  parse: ({ lines, opaqueSource }) => {
-    const header = parsePieHeader(stripTrailingComment(lines[0]?.trim() ?? ''))
-    const bodyLines = lines.slice(1).map(line => {
-      const title = splitAuthoredPieTitleLine(line, 'body')
-      return title ? title.decodedPrefix + title.authoredTitle : line
-    })
-    const body = header ? parsePieBody(bodyLines, header) : null
-    return ok(body ?? { kind: 'opaque', family: 'pie', source: opaqueSource })
-  },
-  serialize: body => {
-    if (body.kind !== 'pie') throw new Error(`pie serializer received body kind ${body.kind}`)
-    return renderPie(body)
-  },
+export const PIE_AGENT_HOOKS = {
+  ...PIE_SOURCE_HOOKS,
   mutate: (body, op) => {
     if (body.kind !== 'pie') return err<MutationError>({ code: 'INVALID_OP', message: `pie mutator received body kind ${body.kind}` })
     return mutatePie(body, op as never)
   },
 } satisfies FamilyOperations
 
-// ---- Quadrant -------------------------------------------------------------
-// quadrantChart header; `title T`; `x-axis a --> b`; `y-axis a --> b`;
-// `quadrant-1..4 label`; `Label: [x, y]`. Quadrant is structured-when-narrowed:
-// the body parses to a QuadrantBody (title, axes, quadrant labels, points) or
-// falls back to opaque when any line is unmodeled (styling, malformed coords,
-// duplicate point labels). Labels are the title, both axis label sides, the
-// four quadrant region labels, and the point labels.
-function extractQuadrantLabels(source: string): ExtractedLabel[] {
-  const out: ExtractedLabel[] = []
-  const lines = source.split(/\r?\n/)
-  for (let i = 0; i < lines.length; i++) {
-    const raw = lines[i]!.trim()
-    if (!raw || raw.startsWith('%%')) continue
-    const target = `line${i + 1}`
-    if (/^quadrant(?:chart)?\b/i.test(raw)) continue
-    let m
-    if ((m = raw.match(/^title\s+(.+)$/i))) {
-      out.push({ text: m[1]!.trim(), target })
-      continue
-    }
-    // x-axis / y-axis: `<near> [--> <far>]` — extract both sides.
-    if ((m = raw.match(/^[xy]-axis\s+(.+)$/i))) {
-      const tail = m[1]!.trim()
-      const arrow = tail.indexOf('-->')
-      if (arrow >= 0) {
-        const near = tail.slice(0, arrow).trim()
-        const far = tail.slice(arrow + 3).trim()
-        if (near) out.push({ text: near, target })
-        if (far) out.push({ text: far, target })
-      } else if (tail) {
-        out.push({ text: tail, target })
-      }
-      continue
-    }
-    if ((m = raw.match(/^quadrant-[1-4]\s+(.+)$/i))) {
-      out.push({ text: m[1]!.trim(), target })
-      continue
-    }
-    // Point line: `Label[:::class]: [x, y] [style metadata]` — extract the
-    // display label, not the optional class/style adornments.
-    if ((m = raw.match(/^(.+?)\s*:\s*\[[^\]]*\]\s*(?:.*)?$/))) {
-      const text = m[1]!.replace(/\s*:::\s*[A-Za-z_][\w-]*\s*$/, '').trim()
-      if (text) out.push({ text, target })
-    }
-  }
-  return out
-}
-
-function verifyOpaqueQuadrant(body: DiagramBody): LayoutWarning[] {
-  if (body.kind !== 'opaque' || body.family !== 'quadrant') return []
-  const warnings: LayoutWarning[] = []
-  // Unrenderable opaque sources are the universal render-parity gate's job
-  // (Tier-1 RENDER_FAILED in verifyMermaid) — this hook's remaining value is
-  // the style-metadata lint, which scans raw lines and needs no parse.
-  // Well-formed styles/classDefs parse STRUCTURED now (upstream #5173 is
-  // modeled end to end), so these warnings only fire when style-looking
-  // metadata rides on an OPAQUE body: either the metadata itself is malformed
-  // (the renderer errors loudly on it) or another line forced the fallback.
-
-  let sawPointStyle = false
-  let sawClassDef = false
-  for (const rawLine of body.source.split(/\r?\n/)) {
-    const raw = rawLine.trim()
-    if (!raw || raw.startsWith('%%')) continue
-    if (/^classDef\b/i.test(raw)) sawClassDef = true
-    const point = raw.match(/^(.+?)\s*:\s*\[[^\]]*\]\s*(.*)$/)
-    if (point && (point[1]!.includes(':::') || point[2]!.trim().length > 0)) sawPointStyle = true
-  }
-  if (sawPointStyle) {
-    warnings.push({
-      code: 'UNSUPPORTED_SYNTAX',
-      syntax: 'quadrant_point_style_metadata',
-      message: 'Quadrant point style/class metadata is present but this diagram fell back to an opaque body (malformed style metadata or other unmodeled syntax), so typed mutation cannot see the styles. Well-formed radius/color/stroke styling parses structured and renders.',
-    })
-  }
-  if (sawClassDef) {
-    warnings.push({
-      code: 'UNSUPPORTED_SYNTAX',
-      syntax: 'quadrant_classDef_metadata',
-      message: 'Quadrant classDef metadata is present but this diagram fell back to an opaque body (malformed classDef or other unmodeled syntax), so typed mutation cannot see the classes. Well-formed classDefs parse structured and render.',
-    })
-  }
-  return warnings
-}
-
-const QUADRANT_AGENT_HOOKS = {
-  extractLabels: extractQuadrantLabels,
-  // Quadrant is structured-when-narrowed. The verify hook covers the structured
-  // body; opaque fallbacks keep the universal label-extraction path and warn
-  // when style-looking metadata is preserved on an opaque body.
-  verify: (body, opts) => (body.kind === 'quadrant' ? verifyQuadrant(body, opts) : body.kind === 'opaque' ? verifyOpaqueQuadrant(body) : []),
-  buildSourceMap: buildChartSourceMap,
-  ...structuredFamilyHooks('quadrant', {
-    headerOk: h => /^quadrant(?:chart)?\s*$/i.test(stripTrailingComment(h)),
-    parseBody: parseQuadrantBody,
-    serialize: renderQuadrant,
-    mutate: mutateQuadrant,
-  }),
+export const QUADRANT_AGENT_HOOKS = {
+  ...QUADRANT_SOURCE_HOOKS,
+  mutate: /* @__PURE__ */ structuredMutation('quadrant', mutateQuadrant),
 } satisfies FamilyOperations
 
-// ---- Gantt ------------------------------------------------------------------
-// title T, section S, task lines `Label : meta`, plus directive labels that
-// matter for LABEL_OVERFLOW on opaque bodies (accTitle/accDescr, todayMarker
-// excluded — they are styling/config, not display labels).
-function extractGanttLabels(source: string): ExtractedLabel[] {
-  const out: ExtractedLabel[] = []
-  const lines = source.split(/\r?\n/)
-  for (const statement of readGanttStatements(lines)) {
-    const target = `line${statement.startLine}`
-    if (statement.kind === 'title' || statement.kind === 'section') out.push({ text: statement.value, target })
-    else if (statement.kind === 'task') out.push({ text: statement.label, target })
-    else if (statement.kind === 'accessibility') out.push({ text: statement.directive.value, target })
-  }
-  return out
-}
-
-// Gantt parse needs the RAW (indentation-preserving) body lines so opaque
-// segments (directives, click lines, comments) round-trip verbatim — the
-// same wiring as sequence, except the header is located rather than assumed
-// to be raw line 0 (leading blank lines must not duplicate the header).
-function ganttRawBodyLines(opaqueSource: string): string[] {
-  const raw = opaqueSource.split(/\r?\n/)
-  const headerAt = raw.findIndex(l => /^gantt\b/i.test(l.trim()))
-  return headerAt >= 0 ? raw.slice(headerAt + 1) : raw.slice(1)
-}
-
-const GANTT_AGENT_HOOKS = {
-  extractLabels: extractGanttLabels,
-  // Source-level structural checks (EMPTY/LABEL_OVERFLOW/EDGE_MISANCHORED on
-  // after/until refs); see docs/design/families/gantt.md §Verification.
-  verify: (body, opts) => (body.kind === 'gantt' ? verifyGantt(body, opts) : []),
-  buildSourceMap: buildGanttSourceMap,
-  parse: ({ source, lines, opaqueSource }) => {
-    const headerOk = /^gantt\s*$/i.test(stripTrailingComment(lines[0]?.trim() ?? ''))
-    const body = headerOk ? parseGanttBody(lines.slice(1), ganttRawBodyLines(source.familyBody)) : null
-    return ok(body ?? { kind: 'opaque', family: 'gantt', source: opaqueSource })
-  },
-  serialize: body => {
-    if (body.kind !== 'gantt') throw new Error(`gantt serializer received body kind ${body.kind}`)
-    return renderGantt(body)
-  },
+export const GANTT_AGENT_HOOKS = {
+  ...GANTT_SOURCE_HOOKS,
   mutate: (body, op) => {
     if (body.kind !== 'gantt') return err<MutationError>({ code: 'INVALID_OP', message: `gantt mutator received body kind ${body.kind}` })
     return mutateGantt(body, op as never)
   },
 } satisfies FamilyOperations
 
-// ---- Architecture ---------------------------------------------------------
-// group api(cloud)[API], service db(database)[DB] in api
-function extractArchitectureLabels(source: string): ExtractedLabel[] {
-  const out: ExtractedLabel[] = []
-  const lines = source.split(/\r?\n/)
-  for (const statement of readArchitectureStatements(lines)) {
-    if (statement.kind === 'title') out.push({ text: statement.value, target: 'title' })
-    else if (statement.kind === 'group' || statement.kind === 'service') out.push({ text: statement.declaration.title, target: `line${statement.startLine}` })
-    else if (statement.kind === 'edge' && statement.edge.label !== undefined) out.push({ text: statement.edge.label, target: `line${statement.startLine}` })
-  }
-  return out
-}
-
-const ARCHITECTURE_AGENT_HOOKS = {
-  extractLabels: extractArchitectureLabels,
-  // BUILD-17: architecture is structured-when-narrowed. The verify hook covers
-  // the structured body; opaque fallbacks (accTitle/accDescr, {group} boundary
-  // edges, unmodeled syntax) keep the universal label-extraction path.
-  verify: (body, opts) => (body.kind === 'architecture' ? verifyArchitecture(body, opts) : body.kind === 'opaque' ? verifyOpaqueArchitectureIcons(body.source) : []),
-  ...structuredFamilyHooks('architecture', {
-    headerOk: h => /^architecture(?:-beta)?\s*$/i.test(stripTrailingComment(h)),
-    parseBody: parseArchitectureBody,
-    serialize: renderArchitecture,
-    mutate: mutateArchitecture,
-  }),
+export const ARCHITECTURE_AGENT_HOOKS = {
+  ...ARCHITECTURE_SOURCE_HOOKS,
+  mutate: /* @__PURE__ */ structuredMutation('architecture', mutateArchitecture),
 } satisfies FamilyOperations
 
-// ---- Mindmap ---------------------------------------------------------------
-const MINDMAP_AGENT_HOOKS = {
-  extractLabels: extractLabelsGeneric,
-  parse: ({ source }) => {
-    try {
-      return ok(parseMindmapBody(source.familyBody))
-    } catch (error) {
-      return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }])
-    }
-  },
-  serialize: body => {
-    if (body.kind !== 'mindmap') throw new Error(`mindmap serializer received body kind ${body.kind}`)
-    return renderMindmapBody(body)
-  },
+export const MINDMAP_AGENT_HOOKS = {
+  ...MINDMAP_SOURCE_HOOKS,
   mutate: (body, op) => (body.kind === 'mindmap' ? mutateMindmap(body, op as never) : err({ code: 'INVALID_OP', message: `mindmap mutator received body kind ${body.kind}` })),
-  verify: (body, opts) => (body.kind === 'mindmap' ? verifyMindmap(body, opts) : []),
 } satisfies FamilyOperations
 
-// ---- GitGraph --------------------------------------------------------------
-const GITGRAPH_AGENT_HOOKS = {
-  extractLabels: extractLabelsGeneric,
-  parse: ({ source, meta, opaqueSource }) => {
-    try {
-      const merged: Record<string, unknown> = {
-        ...(meta.frontmatter?.gitGraph && typeof meta.frontmatter.gitGraph === 'object' ? meta.frontmatter.gitGraph : {}),
-      }
-      for (const directive of meta.initDirectives) {
-        const section = directive.parsed?.gitGraph
-        if (section && typeof section === 'object') Object.assign(merged, section)
-      }
-      return ok(
-        parseGitGraphBody(source.familyBody, {
-          mainBranchName: typeof merged.mainBranchName === 'string' ? merged.mainBranchName : undefined,
-          mainBranchOrder: typeof merged.mainBranchOrder === 'number' ? merged.mainBranchOrder : undefined,
-          title: typeof meta.frontmatter?.title === 'string' ? meta.frontmatter.title : undefined,
-        }),
-      )
-    } catch (error) {
-      // Mermaid 11.16 accepts duplicate custom IDs with a warning, but our
-      // deterministic identity model cannot safely mutate the ambiguous graph.
-      // Keep the authored source losslessly while native rendering rejects it.
-      if (error instanceof GitGraphDuplicateCommitError) {
-        return ok({ kind: 'opaque', family: 'gitgraph', source: opaqueSource,
-          diagnostic: { code: error.code, id: error.id } })
-      }
-      return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }])
-    }
-  },
-  serialize: body => {
-    if (body.kind !== 'gitgraph') throw new Error(`gitgraph serializer received body kind ${body.kind}`)
-    return renderGitGraphBody(body)
-  },
+export const GITGRAPH_AGENT_HOOKS = {
+  ...GITGRAPH_SOURCE_HOOKS,
   mutate: (body, op) => (body.kind === 'gitgraph' ? mutateGitGraph(body, op as never) : err({ code: 'INVALID_OP', message: `gitgraph mutator received body kind ${body.kind}` })),
-  verify: (body, opts): LayoutWarning[] => {
-    if (body.kind === 'gitgraph') return verifyGitGraph(body, opts)
-    if (body.kind === 'opaque' && body.diagnostic?.code === 'GITGRAPH_DUPLICATE_COMMIT_ID') {
-      return [{
-        code: 'UNSUPPORTED_SYNTAX',
-        syntax: 'gitgraph_duplicate_commit_id',
-        message: 'Mermaid 11.16 warns and continues on duplicate GitGraph commit IDs, but Agentic Mermaid requires unique IDs for deterministic identity. The source is preserved; native rendering and typed mutation are unavailable. Rename one duplicate ID to render or mutate it.',
-      }]
-    }
-    return []
+} satisfies FamilyOperations
+
+export const RADAR_AGENT_HOOKS = {
+  ...RADAR_SOURCE_HOOKS,
+  mutate: (body, op) => {
+    if (body.kind !== 'radar') return err<MutationError>({ code: 'INVALID_OP', message: `radar mutator received body kind ${body.kind}` })
+    return mutateRadar(body, op as never)
   },
 } satisfies FamilyOperations
 
-// ---- Radar -----------------------------------------------------------------
-// radar-beta header; `title`; `axis id["Label"], …`; `curve id["Label"]{…}`;
-// `min/max/ticks/graticule/showLegend`. Radar is structured-when-narrowed: the
-// body parses to a RadarBody or falls back to opaque (accTitle/accDescr,
-// malformed lines, curves without axes). Labels are the title, axis labels, and curve
-// labels.
-function extractRadarLabels(source: string): ExtractedLabel[] {
-  const out: ExtractedLabel[] = []
-  const lines = source.split(/\r?\n/)
-  for (let i = 0; i < lines.length; i++) {
-    const raw = lines[i]!.trim()
-    if (!raw || raw.startsWith('%%')) continue
-    const target = `line${i + 1}`
-    let m
-    if ((m = raw.match(/^title\s+(.+)$/i))) {
-      out.push({ text: m[1]!.trim(), target })
-      continue
-    }
-    if (/^radar-beta\b/i.test(raw)) continue
-    // axis / curve quoted labels: id["Label"] …
-    for (const q of raw.matchAll(/\[\s*["']([^"'\]]+)["']\s*\]/g)) out.push({ text: q[1]!, target })
-  }
-  return out
-}
-
-const RADAR_AGENT_HOOKS = {
-  extractLabels: extractRadarLabels,
-  // Radar is structured-when-narrowed. The verify hook covers the structured
-  // body; opaque fallbacks keep the universal label-extraction path.
-  verify: (body, opts) => (body.kind === 'radar' ? verifyRadar(body, opts) : []),
-  buildSourceMap: buildChartSourceMap,
-  ...structuredFamilyHooks('radar', {
-    headerOk: h => /^radar-beta\s*:?\s*$/i.test(stripTrailingComment(h)),
-    parseBody: parseRadarBody,
-    serialize: renderRadar,
-    mutate: mutateRadar,
-  }),
+export const SANKEY_AGENT_HOOKS = {
+  ...SANKEY_SOURCE_HOOKS,
+  mutate: /* @__PURE__ */ structuredMutation('sankey', mutateSankey),
 } satisfies FamilyOperations
 
-// ---- Sankey ----------------------------------------------------------------
-// sankey / sankey-beta header; CSV rows of `source,target,value` (RFC 4180
-// subset). Sankey is structured-when-narrowed: the body parses to a
-// SankeyBody or falls back to opaque (accTitle/accDescr, malformed rows,
-// zero links). Labels are the node labels from the first two CSV columns.
-const SANKEY_CSV_FIELD_RE = /"((?:[^"]|"")*)"|([^,]+)/g
-
-function extractSankeyLabels(source: string): ExtractedLabel[] {
-  const out: ExtractedLabel[] = []
-  const lines = source.split(/\r?\n/)
-  for (let i = 0; i < lines.length; i++) {
-    const raw = lines[i]!.trim()
-    if (!raw || raw.startsWith('%%') || /^sankey(?:-beta)?\b/i.test(raw)) continue
-    const target = `line${i + 1}`
-    const fields: string[] = []
-    for (const m of raw.matchAll(SANKEY_CSV_FIELD_RE)) {
-      fields.push(m[1] !== undefined ? m[1].replace(/""/g, '"') : (m[2] ?? '').trim())
-    }
-    for (const text of fields.slice(0, 2)) if (text) out.push({ text, target })
-  }
-  return out
-}
-
-const SANKEY_AGENT_HOOKS = {
-  extractLabels: extractSankeyLabels,
-  // Sankey is structured-when-narrowed. The verify hook covers the structured
-  // body; opaque fallbacks keep the universal label-extraction path.
-  verify: (body, opts) => (body.kind === 'sankey' ? verifySankey(body, opts) : []),
-  buildSourceMap: buildChartSourceMap,
-  ...structuredFamilyHooks('sankey', {
-    headerOk: h => /^sankey(?:-beta)?\s*$/i.test(h),
-    parseBody: parseSankeyBody,
-    serialize: renderSankey,
-    mutate: mutateSankey,
-  }),
+export const C4_AGENT_HOOKS = {
+  ...C4_SOURCE_HOOKS,
+  mutate: (body, op) => (body.kind === 'c4' ? mutateC4(body, op as never) : err<MutationError>({ code: 'UNSUPPORTED_FAMILY', message: 'C4 source contains unmodeled syntax; preserve it verbatim or edit source explicitly.' })),
 } satisfies FamilyOperations
 
-export const BUILTIN_AGENT_HOOKS = Object.freeze({
+export const EVENTMODELING_AGENT_HOOKS: FamilyOperations = {
+  ...EVENTMODELING_SOURCE_HOOKS,
+  mutate: (body, op) => (body.kind === 'eventmodeling' ? mutateEventModeling(body, op as never) : err({ code: 'UNSUPPORTED_FAMILY', message: 'Unmodeled Event Modeling source remains preserved' })),
+}
+
+export const ZENUML_AGENT_HOOKS: FamilyOperations = {
+  ...ZENUML_SOURCE_HOOKS,
+  mutate: (body, op) => body.kind === 'zenuml'
+    ? mutateZenUML(body, op as ZenUMLMutationOp)
+    : err({ code: 'UNSUPPORTED_FAMILY', message: 'Unmodeled ZenUML source remains preserved.' }),
+}
+
+export const BUILTIN_AGENT_HOOKS = /* @__PURE__ */ Object.freeze({
   flowchart: FLOWCHART_AGENT_HOOKS,
   state: STATE_AGENT_HOOKS,
   sequence: SEQUENCE_AGENT_HOOKS,
@@ -1361,4 +181,8 @@ export const BUILTIN_AGENT_HOOKS = Object.freeze({
   gitgraph: GITGRAPH_AGENT_HOOKS,
   radar: RADAR_AGENT_HOOKS,
   sankey: SANKEY_AGENT_HOOKS,
+  c4: C4_AGENT_HOOKS,
+  zenuml: ZENUML_AGENT_HOOKS,
+  eventmodeling: EVENTMODELING_AGENT_HOOKS,
+  ...STABLE_FAMILY_AGENT_HOOKS,
 }) satisfies Readonly<Record<DiagramKind, FamilyOperations>>

@@ -13,6 +13,7 @@
 //     points drawn past the plot.
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { verifyMermaid } from '../agent/index.ts'
 import type { LayoutWarning } from '../agent/types.ts'
@@ -36,6 +37,24 @@ function drawnTexts(svg: string, className: string): string[] {
 const categoryArb = fc.uniqueArray(fc.stringMatching(/^[a-z][a-z0-9]{0,15}$/), { minLength: 1, maxLength: 30 })
 
 describe('xychart verify lints match the rendered chart', () => {
+  it('reports a title that cannot fit, but not a title deliberately disabled', () => {
+    const title = Array(14).fill('Quarterly').join(' ')
+    for (const horizontal of [false, true]) {
+      const source = (width: number, height: number, showTitle: boolean) => [
+        '---', 'config:', '  xyChart:', `    width: ${width}`, `    height: ${height}`, `    showTitle: ${showTitle}`, '---',
+        horizontal ? 'xychart-beta horizontal' : 'xychart-beta',
+        `  title ${title}`, '  x-axis [a, b, c]', '  bar [1, 2, 3]',
+      ].join('\n')
+      const crowded = source(300, 160, true)
+      expect(renderMermaidSVG(crowded)).not.toContain('class="xychart-title"')
+      expect(hidden(crowded, 'title')).toEqual([title])
+      const roomy = source(700, 500, true)
+      expect(renderMermaidSVG(roomy)).toContain('class="xychart-title"')
+      expect(hidden(roomy, 'title')).toEqual([])
+      expect(hidden(source(300, 160, false), 'title')).toEqual([])
+    }
+  })
+
   it('reports exactly the authored categories the x-axis does not draw', () => {
     fc.assert(
       fc.property(categoryArb, fc.boolean(), fc.integer({ min: 200, max: 900 }), (categories, horizontal, width) => {
@@ -52,7 +71,7 @@ describe('xychart verify lints match the rendered chart', () => {
         const drawn = new Set(drawnTexts(renderMermaidSVG(source), 'xychart-x-label'))
         expect(hidden(source, 'x-axis')).toEqual(categories.filter(category => !drawn.has(category)))
       }),
-      { numRuns: 120 },
+      fcParameters({ numRuns: 120 }),
     )
   })
 
@@ -84,7 +103,7 @@ describe('xychart verify lints match the rendered chart', () => {
         const expected = values.flatMap((value, index) => drawn.has(String(value)) ? [] : [`c${index} = ${value}`])
         expect(hidden(source, 'data-labels')).toEqual(expected)
       }),
-      { numRuns: 120 },
+      fcParameters({ numRuns: 120 }),
     )
   })
 
@@ -107,11 +126,11 @@ describe('xychart verify lints match the rendered chart', () => {
         const nearestToZero = Math.min(Math.max(min, max), Math.max(Math.min(min, max), 0))
         expect(warnings.map(warning => warning.baseline)).toEqual(kinds.includes('bar') && excludesZero ? [nearestToZero] : [])
       }),
-      { numRuns: 200 },
+      fcParameters({ numRuns: 200 }),
     )
   })
 
-  it('names a value past an authored range, where the chart draws it clipped or off the plot', () => {
+  it('names a value past an authored range, where the chart clamps it to the plot edge', () => {
     const bars = 'xychart-beta\n  x-axis [a, b]\n  y-axis 0 --> 10\n  bar [5, 20]'
     const drawn = layoutXYChart(parseXYChart(bars.split('\n').map(line => line.trim())))
     // 20 is drawn at the height of 10: the bars read 1:2 where the values are 1:4.
@@ -120,9 +139,8 @@ describe('xychart verify lints match the rendered chart', () => {
 
     const line = 'xychart-beta\n  x-axis [a, b, c]\n  y-axis 0 --> 10\n  line [5, 20, -5]'
     const { plotArea, lines } = layoutXYChart(parseXYChart(line.split('\n').map(text => text.trim())))
-    const offPlot = lines[0]!.points.filter(point => point.y < plotArea.y || point.y > plotArea.y + plotArea.height).map(point => point.value)
-    expect(offPlot).toEqual([20, -5])
-    // OFF_CANVAS already reports the points that leave the canvas; this names the cause.
+    // A line point clamps as a bar end does: 20 and -5 sit on the plot's edges.
+    expect(lines[0]!.points.map(point => [point.value, point.y])).toEqual([[5, plotArea.y + plotArea.height / 2], [20, plotArea.y], [-5, plotArea.y + plotArea.height]])
     expect(verifyMermaid(line).warnings.filter(warning => warning.code === 'VALUES_OUTSIDE_RANGE'))
       .toEqual([expect.objectContaining({ series: 'series-0', values: [20, -5] })])
   })
@@ -150,7 +168,7 @@ describe('xychart verify lints match the rendered chart', () => {
         })
         expect(reported).toEqual(expected)
       }),
-      { numRuns: 200 },
+      fcParameters({ numRuns: 200 }),
     )
   })
 })

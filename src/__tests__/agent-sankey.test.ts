@@ -1,10 +1,152 @@
 import { describe, expect, test } from 'bun:test'
+import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
+import { decodeXML } from 'entities'
 import type { SankeyBody, SankeyMutationOp, SankeyValidDiagram } from '../agent/index.ts'
-import { asSankey, buildMermaid, createMermaid, mutate, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { asSankey, buildMermaid, createMermaid, mutate, parseRegisteredMermaid as parseMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import type { SankeyRuntimeConfig } from '../index.ts'
-import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 
 const BASIC = 'sankey-beta\n  Coal,Electricity,127.93\n  Gas,Electricity,80\n  Electricity,Homes,120'
+
+test('Sankey repeated headers share one direct and typed CSV reading', async () => {
+  const { renderMermaidSVG: directSVG, renderMermaidASCII: directASCII } = await import('../index.ts')
+  const { startUpstreamMermaid } = await import('./helpers/upstream-mermaid.ts')
+  const upstream = startUpstreamMermaid()
+  try {
+    const source = 'sankey\nsankey-beta\nA,B,2\nsankey\n"sankey",B,3'
+    expect(() => directSVG(source)).not.toThrow()
+    const parsed = sankey(source)
+    expect(parsed.body.links).toEqual([{ source: 'A', target: 'B', value: 2 }, { source: 'sankey', target: 'B', value: 3 }])
+    expect(directSVG(source)).toBe(renderMermaidSVG(parsed))
+    expect(directASCII(source)).toBe(renderMermaidASCII(parsed))
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_repeated_header' }))
+    const written = serializeMermaid(parsed)
+    expect(await upstream.publicAccepts(written)).toBe(true)
+    expect(sankey(written).body.links).toEqual(parsed.body.links)
+    const { parseSankeyDiagram } = await import('../sankey/parser.ts')
+    const quoted = 'sankey\n"North\nsankey\nAmerica",B,1'
+    expect(parseSankeyDiagram(quoted.split('\n')).nodes).toContain('North\nsankey\nAmerica')
+    expect(verifyMermaid(quoted).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'sankey_repeated_header')).toBe(false)
+  } finally { upstream.close() }
+})
+
+test('Sankey restored empty comments remain portable beside CSV and accessibility metadata', async () => {
+  const { startUpstreamMermaid } = await import('./helpers/upstream-mermaid.ts')
+  const upstream = startUpstreamMermaid()
+  try {
+    for (const source of [
+      'sankey\n%%\nn,o,2',
+      'sankey\n%%\nBio-corsion,Losses,26.862\n\nBio-conversion,Solid,280.322\n\nBio-conversion,Gas,81.144',
+      'sankey-beta\n%%\nA,_,0',
+      'sankey-beta\naccTitle: Flows\n%%\nA,B,1\n%% detail\nB,C,1\n%%',
+    ]) {
+      const parsed = sankey(source)
+      const written = serializeMermaid(parsed)
+      expect(await upstream.publicAccepts(written), written).toBe(true)
+      const reloaded = sankey(written)
+      expect(reloaded.body).toEqual(parsed.body)
+      expect(reloaded.meta.accessibility).toEqual(parsed.meta.accessibility)
+      expect(reloaded.meta.bodyComments?.map(comment => comment.raw.trimEnd())).toEqual(parsed.meta.bodyComments?.map(comment => comment.raw.trimEnd()))
+      expect(serializeMermaid(reloaded)).toBe(written)
+      expect(renderMermaidSVG(written)).toBe(renderMermaidSVG(source))
+      const edited = mutate(parsed, { kind: 'set_link_value', source: parsed.body.links[0]!.source, target: parsed.body.links[0]!.target, value: 3 })
+      if (!edited.ok) throw new Error(edited.error.message)
+      expect(await upstream.publicAccepts(serializeMermaid(edited.value))).toBe(true)
+    }
+  } finally { upstream.close() }
+})
+
+test('Sankey directive-like identities remain source-preserved extensions', async () => {
+  const { startUpstreamMermaid } = await import('./helpers/upstream-mermaid.ts')
+  const upstream = startUpstreamMermaid()
+  try {
+    for (const [body, syntax] of [
+      ['source,%%{target,1', 'sankey_directive_text'],
+      ['source%%{name,target,1', 'sankey_directive_text'],
+    ]) {
+      const source = `sankey-beta\n${body}\n`
+      expect(await upstream.accepts(source)).toBe(false)
+      const parsed = parseMermaid(source)
+      if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
+      expect(parsed.value.body.kind).toBe('opaque')
+      expect(serializeMermaid(parsed.value)).toBe(source)
+      expect(renderMermaidSVG(parsed.value)).toBe(renderMermaidSVG(source))
+      expect(renderMermaidASCII(parsed.value)).toBe(renderMermaidASCII(source))
+      expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax }))
+      expect(mutate(parsed.value, { kind: 'rename_node', from: 'source', to: 'changed' }).ok).toBe(false)
+    }
+    for (const op of [
+      { kind: 'add_link', source: '%%{new', target: 'Homes', value: 1 },
+      { kind: 'rename_node', from: 'Coal', to: '%%{renamed' },
+    ] satisfies SankeyMutationOp[]) expect(mutate(sankey(BASIC), op).ok).toBe(false)
+    const portable = sankey('sankey-beta\nsource,%target,1')
+    expect(await upstream.accepts(serializeMermaid(portable))).toBe(true)
+  } finally { upstream.close() }
+})
+
+// Quoting is independent of the production serializer. Distinct prefixes
+// construct acyclic inputs without filtering punctuation or Unicode.
+const csv = (text: string): string => `"${text.replaceAll('"', '""')}"`
+const csvTextArb = fc.oneof(
+  fc.string({ unit: 'grapheme', maxLength: 32 }),
+  fc.array(fc.constantFrom(',', '"', ' ', ';', '#', '&', '<b>literal</b>', '東京', '👩‍💻', 'é'), { maxLength: 12 }).map(parts => parts.join('')),
+)
+
+describe('sankey generated CSV and mutation contracts', () => {
+  test('quoted labels and parallel row values survive parse and canonical serialization', () => {
+    fc.assert(fc.property(csvTextArb, csvTextArb, fc.double({ min: 0, noNaN: true, noDefaultInfinity: true }), (a, b, value) => {
+      const sourceLabel = `left ${a}`.trim()
+      const targetLabel = `right ${b}`.trim()
+      const expected = [
+        { source: sourceLabel, target: targetLabel, value },
+        { source: sourceLabel, target: targetLabel, value: 2 },
+      ]
+      const source = `sankey-beta\n${csv(`  ${sourceLabel}  `)},${csv(`  ${targetLabel}  `)},${value}\n${csv(sourceLabel)},${csv(targetLabel)},2`
+      const parsed = sankey(source)
+      expect(parsed.body.links).toEqual(expected)
+      const canonical = serializeMermaid(parsed)
+      expect(sankey(canonical).body.links).toEqual(expected)
+      expect(serializeMermaid(sankey(canonical))).toBe(canonical)
+    }), fcParameters({ numRuns: 1000 }))
+  })
+
+  test('malformed numeric rows stay lossless and are rejected by rendering', () => {
+    const invalidValue = fc.oneof(
+      fc.integer({ min: -2147483648, max: -1 }).map(String),
+      fc.constantFrom('NaN', 'Infinity', '-Infinity', '1junk', '', '1e999'),
+    )
+    fc.assert(fc.property(csvTextArb, invalidValue, (label, value) => {
+      const source = `sankey-beta\n${csv(`left ${label}`)},right,${value}`
+      const parsed = parseMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+      expect(parsed.value.body.kind).toBe('opaque')
+      expect(serializeMermaid(parsed.value)).toBe(`${source}\n`)
+      expect(() => renderMermaidSVG(parsed.value)).toThrow(/invalid value/)
+    }), fcParameters({ numRuns: 1000 }))
+  })
+
+  test('rendering an edited parsed diagram paints the new identity without changing its input', () => {
+    const paintedLabels = (svg: string): string[] => [...svg.matchAll(/<text\b[^>]*\bclass="sankey-node-label"[^>]*>([\s\S]*?)<\/text>/g)]
+      .map(match => decodeXML(match[1]!.replace(/<[^>]+>/g, '')))
+    fc.assert(fc.property(csvTextArb, suffix => {
+      const oldLabel = `old-label ${suffix}`.trim()
+      const newLabel = `new-label ${suffix}`.trim()
+      const original = sankey(`sankey-beta\n${csv(oldLabel)},sink,1`)
+      const before = paintedLabels(renderMermaidSVG(original))
+      expect(before).toHaveLength(2)
+      expect(before.filter(label => label.startsWith('old-label'))).toHaveLength(1)
+      const edited = mutate(original, { kind: 'rename_node', from: oldLabel, to: newLabel })
+      expect(edited.ok).toBe(true)
+      if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+      expect(edited.value.body.links).toEqual([{ source: newLabel, target: 'sink', value: 1 }])
+      expect(original.body.links).toEqual([{ source: oldLabel, target: 'sink', value: 1 }])
+      // Only the plain prefix changes. Preserve the entire displayed suffix,
+      // including formatting/entities, without reimplementing display parsing.
+      expect(paintedLabels(renderMermaidSVG(edited.value))).toEqual(before.map(label => label.replace(/^old-label/, 'new-label')))
+    }), fcParameters({ numRuns: 100, examples: [['old-label'], ['<b>old-label</b>'], ['#111;ld-label'], ['東京👩‍💻é']] }))
+  })
+})
 
 function sankey(src: string): SankeyValidDiagram {
   const p = parseMermaid(src)
@@ -40,13 +182,13 @@ describe('sankey agent surface · parse and narrow', () => {
     expect(serializeMermaid(d)).toBe('sankey-beta\n  Pumped heat,"Heating, ""homes""",193.026\n')
   })
 
-  test('accessibility directives ride in meta and survive serialization (structured body)', () => {
+  test('accessibility directives stay editable through native metadata comments', () => {
     const p = parseMermaid('sankey-beta\naccTitle: T\nA,B,1')
     expect(p.ok).toBe(true)
     if (p.ok) {
       expect(p.value.body.kind).toBe('sankey')
       expect(p.value.meta.accessibility).toEqual({ title: 'T' })
-      expect(serializeMermaid(p.value)).toContain('accTitle: T')
+      expect(serializeMermaid(p.value)).toBe('sankey-beta\n  %% agentic-mermaid accTitle: "T"\n  A,B,1\n')
     }
   })
 
@@ -153,13 +295,6 @@ describe('sankey agent surface · blank-slate authoring and SDK projection', () 
     void [config, badAlignment, badWidth]
   }
   void compileTimeSankeyConfig
-
-  test('the Code Mode SDK declaration exposes precise sankey types', () => {
-    expect(SDK_DECLARATION).toContain("interface SankeyBody { kind: 'sankey'; links: SankeyBodyLink[] }")
-    expect(SDK_DECLARATION).toContain('type SankeyMutationOp =')
-    expect(SDK_DECLARATION).toContain('asSankey(d: ValidDiagram): SankeyValidDiagram | null')
-    expect(SDK_DECLARATION).toContain('sankey?: {')
-  })
 
   test('source map anchors every link row (sankey:link#i)', () => {
     // canonicalSource is the trimmed authored text, so rows anchor at col 1.

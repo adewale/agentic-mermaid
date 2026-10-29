@@ -59,26 +59,26 @@ export const subroutineRenderer: ShapeRenderer = {
     const vChar = options.useAscii ? '|' : '│'
 
     // Top border
-    canvas[0]![0] = options.useAscii ? '+' : '┌'
-    canvas[1]![0] = options.useAscii ? '+' : '┬'
-    for (let x = 2; x < width - 2; x++) canvas[x]![0] = hChar
-    canvas[width - 2]![0] = options.useAscii ? '+' : '┬'
-    canvas[width - 1]![0] = options.useAscii ? '+' : '┐'
+    canvas.put(0, 0, options.useAscii ? '+' : '┌')
+    canvas.put(1, 0, options.useAscii ? '+' : '┬')
+    for (let x = 2; x < width - 2; x++) canvas.put(x, 0, hChar)
+    canvas.put(width - 2, 0, options.useAscii ? '+' : '┬')
+    canvas.put(width - 1, 0, options.useAscii ? '+' : '┐')
 
     // Sides with double border
     for (let y = 1; y < height - 1; y++) {
-      canvas[0]![y] = vChar
-      canvas[1]![y] = vChar
-      canvas[width - 2]![y] = vChar
-      canvas[width - 1]![y] = vChar
+      canvas.put(0, y, vChar)
+      canvas.put(1, y, vChar)
+      canvas.put(width - 2, y, vChar)
+      canvas.put(width - 1, y, vChar)
     }
 
     // Bottom border
-    canvas[0]![height - 1] = options.useAscii ? '+' : '└'
-    canvas[1]![height - 1] = options.useAscii ? '+' : '┴'
-    for (let x = 2; x < width - 2; x++) canvas[x]![height - 1] = hChar
-    canvas[width - 2]![height - 1] = options.useAscii ? '+' : '┴'
-    canvas[width - 1]![height - 1] = options.useAscii ? '+' : '┘'
+    canvas.put(0, height - 1, options.useAscii ? '+' : '└')
+    canvas.put(1, height - 1, options.useAscii ? '+' : '┴')
+    for (let x = 2; x < width - 2; x++) canvas.put(x, height - 1, hChar)
+    canvas.put(width - 2, height - 1, options.useAscii ? '+' : '┴')
+    canvas.put(width - 1, height - 1, options.useAscii ? '+' : '┘')
 
     // Center the label
     const lines = splitLines(label)
@@ -170,30 +170,30 @@ export const cylinderRenderer: ShapeRenderer = {
     const vChar = options.useAscii ? '|' : '│'
 
     // Top ellipse
-    canvas[0]![0] = options.useAscii ? '.' : '╭'
-    for (let x = 1; x < width - 1; x++) canvas[x]![0] = hChar
-    canvas[width - 1]![0] = options.useAscii ? '.' : '╮'
+    canvas.put(0, 0, options.useAscii ? '.' : '╭')
+    for (let x = 1; x < width - 1; x++) canvas.put(x, 0, hChar)
+    canvas.put(width - 1, 0, options.useAscii ? '.' : '╮')
 
     // Second row - bottom of top ellipse
-    canvas[0]![1] = vChar
-    for (let x = 1; x < width - 1; x++) canvas[x]![1] = hChar
-    canvas[width - 1]![1] = vChar
+    canvas.put(0, 1, vChar)
+    for (let x = 1; x < width - 1; x++) canvas.put(x, 1, hChar)
+    canvas.put(width - 1, 1, vChar)
 
     // Middle section
     for (let y = 2; y < height - 2; y++) {
-      canvas[0]![y] = vChar
-      canvas[width - 1]![y] = vChar
+      canvas.put(0, y, vChar)
+      canvas.put(width - 1, y, vChar)
     }
 
     // Second to last row - top of bottom ellipse
-    canvas[0]![height - 2] = vChar
-    for (let x = 1; x < width - 1; x++) canvas[x]![height - 2] = hChar
-    canvas[width - 1]![height - 2] = vChar
+    canvas.put(0, height - 2, vChar)
+    for (let x = 1; x < width - 1; x++) canvas.put(x, height - 2, hChar)
+    canvas.put(width - 1, height - 2, vChar)
 
     // Bottom ellipse
-    canvas[0]![height - 1] = options.useAscii ? '\'' : '╰'
-    for (let x = 1; x < width - 1; x++) canvas[x]![height - 1] = hChar
-    canvas[width - 1]![height - 1] = options.useAscii ? '\'' : '╯'
+    canvas.put(0, height - 1, options.useAscii ? '\'' : '╰')
+    for (let x = 1; x < width - 1; x++) canvas.put(x, height - 1, hChar)
+    canvas.put(width - 1, height - 1, options.useAscii ? '\'' : '╯')
 
     // Center the label
     const lines = splitLines(label)

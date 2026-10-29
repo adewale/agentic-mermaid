@@ -25,7 +25,7 @@
 
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterMap } from '../mermaid-source.ts'
-import { safeCssColor } from '../shared/css-color.ts'
+import { drawableAuthoredCssPaint } from '../shared/css-color.ts'
 
 export type SankeyNodeAlignment = 'justify' | 'center' | 'left' | 'right'
 export type SankeyLabelStyle = 'legacy' | 'outlined'
@@ -56,6 +56,11 @@ export interface SankeyVisualConfig {
   nodeColors: Readonly<Record<string, string>>
 }
 
+/** Labels are authored names, so inherited object members are never colors. */
+export function authoredSankeyNodeColor(config: SankeyVisualConfig, label: string): string | undefined {
+  return Object.hasOwn(config.nodeColors, label) ? config.nodeColors[label] : undefined
+}
+
 export const DEFAULT_SANKEY_VISUAL_CONFIG: SankeyVisualConfig = {
   width: 600,
   height: 400,
@@ -74,7 +79,7 @@ const NODE_ALIGNMENTS: readonly SankeyNodeAlignment[] = ['justify', 'center', 'l
 const LABEL_STYLES: readonly SankeyLabelStyle[] = ['legacy', 'outlined']
 const LINK_COLOR_MODES = ['source', 'target', 'gradient'] as const
 
-/** Domain bounds mirrored by family-config-diagnostics and boundary-tested. */
+/** Domain bounds shared by config resolution and diagnostics. */
 export const SANKEY_CONFIG_LIMITS = Object.freeze({
   width: { min: 1, max: 10000 },
   height: { min: 1, max: 10000 },
@@ -118,7 +123,7 @@ export function resolveSankeyVisualConfig(frontmatter: MermaidFrontmatterMap = {
     if ((LINK_COLOR_MODES as readonly string[]).includes(linkColor)) {
       config.linkColor = { mode: linkColor as 'source' | 'target' | 'gradient' }
     } else {
-      const color = safeCssColor(linkColor)
+      const color = drawableAuthoredCssPaint(linkColor, true)
       if (color !== undefined) config.linkColor = { mode: 'static', color }
     }
   }
@@ -127,7 +132,7 @@ export function resolveSankeyVisualConfig(frontmatter: MermaidFrontmatterMap = {
   if (nodeColors) {
     const resolved: Record<string, string> = {}
     for (const [label, value] of Object.entries(nodeColors)) {
-      const color = safeCssColor(value)
+      const color = drawableAuthoredCssPaint(value, config.linkColor.mode !== 'gradient')
       if (color !== undefined) resolved[label] = color
     }
     if (Object.keys(resolved).length > 0) config.nodeColors = Object.freeze(resolved)

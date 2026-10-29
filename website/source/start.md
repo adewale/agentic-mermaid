@@ -10,7 +10,7 @@ Do not assume this repository is checked out. Use one channel available to you �
 2. **CLI:** `am …` or `npx agentic-mermaid …`.
 3. **the hosted MCP at `https://agentic-mermaid.dev/mcp`** — stateless streamable HTTP JSON-RPC, no initialize handshake. Tools: `execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, `build` (64 KB input cap; the whole POST body is capped at 128 KB). `describe_sdk` returns compact signatures or exact fields for one family. `mutate` (edit a `source`) and `build` (author from a `family`) apply a JSON op list declaratively and return `{ ok, family, source, verify }` — prefer them for structured edits and reserve `execute` for logic the ops don't express. Call shape: `POST /mcp` with `content-type: application/json` and body `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"verify","arguments":{"source":"flowchart TD\n  A --> B"}}}`.
 
-Chat-only with no shell or sandbox: use the hosted MCP over HTTP. The website exposes no REST render API — `/mcp` speaks MCP only. Note the nine tools above are the **hosted** endpoint's; the **local** stdio server (`agentic-mermaid-mcp`, e.g. from `am init-agent`'s `.mcp.json`) exposes only `execute`, `describe_sdk`, `render_png`, and `describe` — for `verify`/`mutate`/`build`/`render_svg`/`render_ascii` locally, call the SDK inside `execute` or use the library/CLI.
+Chat-only with no shell or sandbox: use the hosted MCP over HTTP. The website exposes no REST render API — `/mcp` speaks MCP only. Note the nine tools above are the **hosted** endpoint's; the **local** stdio server (`agentic-mermaid-mcp`, e.g. from `am init-agent`'s `.mcp.json`) exposes `execute`, `describe_sdk`, `render_png`, `describe`, `mutate`, and `build` — for direct `verify`/`render_svg`/`render_ascii` locally, call the SDK inside `execute` or use the library/CLI.
 
 **Confidentiality:** the hosted MCP, and any `npx`/`npm` install traffic, leave the machine. If Task or Context holds private, internal, or proprietary material, prefer a local channel and treat the hosted MCP as opt-in.
 
@@ -22,6 +22,13 @@ Chat-only with no shell or sandbox: use the hosted MCP over HTTP. The website ex
 Flowchart essentials: quote any label carrying punctuation (`id["HTTPS /api/sessions*"]`); `\n` inside a quoted label is a line break and canonicalizes to `<br>` on serialize; `subgraph id["Title"] … end` groups nodes; edges are `A -- "label" --> B`, `A -.-> B`, and `A -. "label" .-> B`. Discover the current family roster and each family's exact syntax through `am capabilities --json` or `capabilities.json`; do not rely on a copied list.
 
 ## Step 3 — Do the task (the one safe loop)
+
+<!-- BEGIN GENERATED: family-narrowing -->
+Narrowing selects a structured, typed family with an as* helper. It does not select one element or freeze layout coordinates.
+<!-- END GENERATED: family-narrowing -->
+
+For drawing APIs, use the [library vocabulary](/docs/api/#vocabulary): source
+objects, Scene parts and resolved primitives describe different layers.
 
 - **For a new diagram, author Mermaid source directly** from the Context — or build it with `buildMermaid(kind, ops)` — then parse it. No mutation ceremony. Match the family to the request and open with that family's own header keyword (from `capabilities.json` `families[].headers`, e.g. `architecture-beta`, `classDiagram`, `stateDiagram-v2`) — do not default to `flowchart`/`graph`. For the family's exact edge/relationship syntax, read its `example` in `capabilities.json` (only flowchart's is spelled out below); e.g. class inheritance is `Base <|-- Derived`, ER cardinality is `A ||--o{ B : label`, architecture edges are `api:R --> L:db`.
 - **For an existing diagram, parse it,** narrow with the matching `as*` helper (`asFlowchart`, `asSequence`, `asGantt`, …), and prefer the smallest `mutate(...)` operation over rewriting source. Inside `execute`, call `mutate(...)` once per op on the parsed diagram — do not hand-assemble a new source string, even for a trivial-looking edit. State diagrams narrow via `asState` (not `asFlowchart`). Mutation ops use a `kind` discriminator (for example `{ kind: "add_edge", from, to, label }`). An op array handed to `mutate` is rejected. Library callers can batch with `applyOps({ source, ops })`; hosted MCP callers can use the declarative `mutate` tool. Code Mode intentionally exposes neither of those batch wrappers, so repeat `mermaid.mutate(d, op)` there.

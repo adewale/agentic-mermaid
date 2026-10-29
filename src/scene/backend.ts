@@ -1,3 +1,6 @@
+import { PACKAGE_VERSION } from '../version.ts'
+import { observeCache } from '../performance-observations.ts'
+import { formatSvgNumber } from '../shared/svg-number.ts'
 // ============================================================================
 // StyleBackend interface + DefaultBackend + backend registry (SPEC §3.2).
 //
@@ -11,7 +14,7 @@
 import type { SceneDoc, SceneNode } from './ir.ts'
 import { indentLines } from './marks.ts'
 import type { StyleSpec } from './style-registry.ts'
-import { runBackendConformance } from './backend-conformance.ts'
+import { backendWithAdmittedConformanceFixture, runBackendConformance } from './backend-conformance.ts'
 import type { BackendConformanceReport } from './backend-conformance.ts'
 import {
   ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES,
@@ -21,6 +24,7 @@ import {
 import type { PrimitiveCapabilityClaim } from './capabilities.ts'
 import { admitBackendSceneDocument } from './external-data-snapshot.ts'
 import { sceneNodeSerialization } from './serialization.ts'
+import { capturedPart } from './part-capture.ts'
 import {
   canonicalExtensionId,
   createExtensionIdentity,
@@ -66,7 +70,8 @@ export interface BackendDescriptor {
   readonly backend: StyleBackend
   /** Stable preferred input for first-party backends. */
   readonly inputName: string
-  /** Claim-keyed executable SVG conformance captured at registration. */
+  /** Claim-keyed executable SVG conformance: run at registration for a host
+   * backend, and at first use (draw, render or this read) for a built-in. */
   readonly conformance: BackendConformanceReport
 }
 
@@ -125,9 +130,9 @@ export function composeGroup(
 /** Styled documents carry an explicit page rect after the prelude — resvg
  *  does not paint the root style="background:…" CSS (SPEC §10). Emitted by
  *  every backend when a style is active and the document isn't transparent. */
-export function pageRectFor(doc: SceneDoc, ctx: StyleBackendContext): string {
+export function pageRectFor(doc: Pick<SceneDoc, 'width' | 'height' | 'transparent'>, ctx: StyleBackendContext): string {
   if (!ctx.style || doc.transparent) return ''
-  return `<rect width="${doc.width}" height="${doc.height}" fill="var(--bg)" data-backdrop="page" />`
+  return `<rect width="${formatSvgNumber(doc.width)}" height="${formatSvgNumber(doc.height)}" fill="var(--bg)" data-backdrop="page" />`
 }
 
 export const DefaultBackend: StyleBackend = {
@@ -139,15 +144,40 @@ export const DefaultBackend: StyleBackend = {
   render(doc: SceneDoc, ctx: StyleBackendContext): string {
     const admitted = admitBackendSceneDocument(doc)
     const pageRect = pageRectFor(admitted, ctx)
-    if (!pageRect) return admitted.parts.map(sceneNodeSerialization).join('\n')
-    return admitted.parts
-      .map((part, i) => (i === 0 ? `${sceneNodeSerialization(part)}\n${pageRect}` : sceneNodeSerialization(part)))
-      .join('\n')
+    return admitted.parts.map((part, i) => {
+      const svg = capturedPart(ctx, part, sceneNodeSerialization(part))
+      return pageRect && i === 0 ? `${svg}\n${pageRect}` : svg
+    }).join('\n')
   },
 }
 
+const OWNED_DEFAULT_RENDERERS = new WeakSet<StyleBackend['render']>([DefaultBackend.render])
+const ORIGINAL_DEFAULT_FIELDS = Object.getOwnPropertyDescriptors(DefaultBackend)
+let enrolledOriginalDefault: StyleBackend | undefined
+
+/** Only our unchanged own-data implementation may reuse the private fixture.
+ * Check identity first so custom backends and Proxies observe no new reads. */
+function hasOriginalDefaultImplementation(backend: StyleBackend): boolean {
+  if (backend !== DefaultBackend) return false
+  for (const field of ['id', 'capabilities', 'drawNode', 'render'] as const) {
+    const descriptor = Object.getOwnPropertyDescriptor(backend, field)
+    if (!descriptor || !('value' in descriptor) || descriptor.value !== ORIGINAL_DEFAULT_FIELDS[field]!.value) return false
+  }
+  return true
+}
+
+/** A replacement method must use the checked backend path. */
+export function isBuiltinDefaultBackend(backend: StyleBackend): boolean {
+  return backend === DefaultBackend && OWNED_DEFAULT_RENDERERS.has(backend.render)
+}
+
+/** Match the original implementation after enrollment wrapped and froze it. */
+export function isOriginalEnrolledDefaultBackend(backend: unknown): boolean {
+  return enrolledOriginalDefault !== undefined && backend === enrolledOriginalDefault
+}
+
 const CORE_BACKEND_VERSION = '1.0.0'
-const CORE_BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.4.0', scene: '^2.0.0' })
+const CORE_BACKEND_COMPATIBILITY = Object.freeze({ core: PACKAGE_VERSION, scene: '^2.0.0' })
 const CORE_BACKEND_PROVENANCE = Object.freeze({
   owner: 'agentic-mermaid',
   source: 'built-in',
@@ -157,12 +187,81 @@ const HOST_BACKEND_PROVENANCE = Object.freeze({ owner: 'host', source: 'in-proce
 
 const BACKENDS = new Map<string, ExtensionRegistration<StyleBackend, 'backend'>>()
 const BACKEND_INPUT_NAMES = new Map<string, string>()
-const BACKEND_CONFORMANCE = new Map<string, BackendConformanceReport>()
+const BACKEND_CONFORMANCE = new Map<string, () => BackendConformanceReport>()
+// Internal selection reuses one immutable registry snapshot until publication
+// changes. Public discovery still returns its ordinary fresh descriptor array.
+let selectionSnapshot: readonly BackendDescriptor[] | undefined
 
 /** Registration executes caller-owned methods. Keep every registry mutation
  * outside that executable window so a callback cannot install/uninstall a
  * sibling backend or observe a half-committed candidate. */
 let backendConformanceCandidate: string | null = null
+
+interface BuiltInConformance {
+  readonly report: () => BackendConformanceReport
+  readonly running: () => boolean
+}
+
+/** Running every built-in backend's executable SVG conformance at import cost
+ * each process tens to hundreds of milliseconds, mostly for sketch backends a
+ * render may never use. A built-in's report is computed once, on its first
+ * draw or render or the first read of its descriptor, inside the same
+ * mutation guard as a registration. */
+function lazyBuiltInConformance(backend: StyleBackend, id: string, originalDefault: boolean): BuiltInConformance {
+  let report: BackendConformanceReport | undefined
+  let running = false
+  return {
+    running: () => running,
+    report: () => {
+      if (report) return report
+      const outer = backendConformanceCandidate
+      backendConformanceCandidate = id
+      running = true
+      try {
+        report = runBackendConformance(originalDefault ? backendWithAdmittedConformanceFixture(backend) : backend, id)
+      } finally {
+        running = false
+        backendConformanceCandidate = outer
+      }
+      return report
+    },
+  }
+}
+
+/** A built-in proves its conformance before it first draws or renders, as a
+ * host backend does before it registers, so a built-in that fails in this
+ * runtime never produces output. Direct calls on a registered built-in, such
+ * as `DefaultBackend.render`, are covered too. Calls made while its
+ * conformance runs pass through: that run executes only the conformance
+ * fixtures and never calls host code, so no caller sees unproven output. */
+export function assertBackendConformance(report: BackendConformanceReport, inputName: string): void {
+  if (report.passed) return
+  const failures = report.checks.filter(check => !check.passed)
+    .map(check => `${check.id}${check.diagnostic ? `: ${check.diagnostic}` : ''}`)
+  throw new Error(`Built-in backend "${inputName}" failed SVG conformance: ${failures.join('; ')}`)
+}
+
+function refuseUntilConforming(backend: StyleBackend, inputName: string, conformance: BuiltInConformance): StyleBackend {
+  const methods = backend as { drawNode: StyleBackend['drawNode']; render: StyleBackend['render'] }
+  const { drawNode, render } = backend
+  let proven = false
+  const prove = (): void => {
+    if (proven || conformance.running()) return
+    const report = conformance.report()
+    assertBackendConformance(report, inputName)
+    proven = true
+  }
+  methods.drawNode = (node, ctx) => {
+    prove()
+    return drawNode.call(backend, node, ctx)
+  }
+  methods.render = (doc, ctx) => {
+    prove()
+    return render.call(backend, doc, ctx)
+  }
+  if (backend === DefaultBackend && OWNED_DEFAULT_RENDERERS.has(render)) OWNED_DEFAULT_RENDERERS.add(methods.render)
+  return backend
+}
 
 function assertBackendRegistryMutationAllowed(): void {
   if (backendConformanceCandidate !== null) {
@@ -323,7 +422,8 @@ export function registerBackend(backend: StyleBackend, options: BackendRegistrat
     // No caller-owned code runs after this point. Publish the immutable value
     // and its proof together during the same synchronous mutation window.
     registerExtension(BACKENDS, { identity, value: snapshot })
-    BACKEND_CONFORMANCE.set(id, conformance)
+    BACKEND_CONFORMANCE.set(id, () => conformance)
+    selectionSnapshot = undefined
     const registration = BACKENDS.get(id)!
     return () => {
       assertBackendRegistryMutationAllowed()
@@ -332,6 +432,7 @@ export function registerBackend(backend: StyleBackend, options: BackendRegistrat
       if (BACKENDS.get(id) !== registration) return
       BACKENDS.delete(id)
       BACKEND_CONFORMANCE.delete(id)
+      selectionSnapshot = undefined
     }
   } finally {
     backendConformanceCandidate = null
@@ -349,15 +450,10 @@ export function registerBuiltInBackend(backend: StyleBackend): void {
     backendConformanceCandidate = id
     const existingInput = BACKEND_INPUT_NAMES.get(inputName)
     if (existingInput !== undefined) throw new Error(`Backend input name "${inputName}" already selects "${existingInput}"`)
+    const originalDefault = hasOriginalDefaultImplementation(backend)
     validateBackendCapabilities(backend, id)
-    const frozen = freezeBuiltInBackend(backend)
-    const conformance = runBackendConformance(frozen, id)
-    if (!conformance.passed) {
-      const failures = conformance.checks
-        .filter(check => !check.passed)
-        .map(check => `${check.id}${check.diagnostic ? `: ${check.diagnostic}` : ''}`)
-      throw new Error(`Built-in backend "${inputName}" failed registration SVG conformance: ${failures.join('; ')}`)
-    }
+    const conformance = lazyBuiltInConformance(backend, id, originalDefault)
+    const frozen = freezeBuiltInBackend(refuseUntilConforming(backend, inputName, conformance))
     registerExtension(BACKENDS, {
       identity: backendIdentity(id, {
         version: CORE_BACKEND_VERSION,
@@ -366,20 +462,27 @@ export function registerBuiltInBackend(backend: StyleBackend): void {
       }),
       value: frozen,
     })
-    BACKEND_CONFORMANCE.set(id, conformance)
+    BACKEND_CONFORMANCE.set(id, conformance.report)
     BACKEND_INPUT_NAMES.set(inputName, id)
+    if (originalDefault) enrolledOriginalDefault = frozen
+    selectionSnapshot = undefined
   } finally {
     backendConformanceCandidate = null
   }
 }
 
 export function knownBackendDescriptors(): readonly BackendDescriptor[] {
-  return Object.freeze(Array.from(BACKENDS.values(), ({ identity, value }) => Object.freeze({
-    identity,
-    backend: value,
-    inputName: Array.from(BACKEND_INPUT_NAMES.entries()).find(([, target]) => target === identity.id)?.[0] ?? identity.id,
-    conformance: BACKEND_CONFORMANCE.get(identity.id)!,
-  })))
+  return Object.freeze(Array.from(BACKENDS.values(), ({ identity, value }) => {
+    const conformance = BACKEND_CONFORMANCE.get(identity.id)!
+    return Object.freeze({
+      identity,
+      backend: value,
+      inputName: Array.from(BACKEND_INPUT_NAMES.entries()).find(([, target]) => target === identity.id)?.[0] ?? identity.id,
+      get conformance() {
+        return conformance()
+      },
+    })
+  }))
 }
 
 function backendDescriptorFromSnapshot(
@@ -403,7 +506,8 @@ export function getBackendDescriptor(
   id: string,
   policy?: HostBackendPolicy,
 ): BackendDescriptor | undefined {
-  const registered = knownBackendDescriptors()
+  observeCache('backend-registry', policy ? 'bypass' : selectionSnapshot ? 'hit' : 'miss')
+  const registered = policy ? knownBackendDescriptors() : (selectionSnapshot ??= knownBackendDescriptors())
   const requested = backendDescriptorFromSnapshot(registered, id)
   if (!policy) return requested
 

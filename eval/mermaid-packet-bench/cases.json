@@ -1,0 +1,1218 @@
+[
+  {
+    "id": "packet-spec-1",
+    "origin": "packages/mermaid/src/diagrams/packet/packet.spec.ts",
+    "line": 14,
+    "upstreamTest": "should handle a packet-beta definition",
+    "source": "packet-beta",
+    "assertions": "async () => {\n    const str = `packet-beta`;\n    await expect(parser.parse(str)).resolves.not.toThrow();\n    expect(db.getPacket()).toMatchInlineSnapshot('[]');\n  }",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "",
+          "getPacket": []
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-spec-2",
+    "origin": "packages/mermaid/src/diagrams/packet/packet.spec.ts",
+    "line": 20,
+    "upstreamTest": "should handle a packet definition",
+    "source": "packet",
+    "assertions": "async () => {\n    const str = `packet`;\n    await expect(parser.parse(str)).resolves.not.toThrow();\n    expect(db.getPacket()).toMatchInlineSnapshot('[]');\n  }",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "",
+          "getPacket": []
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-spec-3",
+    "origin": "packages/mermaid/src/diagrams/packet/packet.spec.ts",
+    "line": 26,
+    "upstreamTest": "should handle diagram with data and title",
+    "source": "packet\n    title Packet diagram\n    accTitle: Packet accTitle\n    accDescr: Packet accDescription\n    0-10: \"test\"\n    ",
+    "assertions": "async () => {\n    const str = `packet\n    title Packet diagram\n    accTitle: Packet accTitle\n    accDescr: Packet accDescription\n    0-10: \"test\"\n    `;\n    await expect(parser.parse(str)).resolves.not.toThrow();\n    expect(db.getDiagramTitle()).toMatchInlineSnapshot('\"Packet diagram\"');\n    expect(db.getAccTitle()).toMatchInlineSnapshot('\"Packet accTitle\"');\n    expect(db.getAccDescription()).toMatchInlineSnapshot('\"Packet accDescription\"');\n    expect(db.getPacket()).toMatchInlineSnapshot(`\n      [\n        [\n          {\n            \"bits\": 11,\n            \"end\": 10,\n            \"label\": \"test\",\n            \"start\": 0,\n          },\n        ],\n      ]\n    `);\n  }",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "Packet accDescription",
+          "getAccTitle": "Packet accTitle",
+          "getDiagramTitle": "Packet diagram",
+          "getPacket": [
+            [
+              {
+                "bits": 11,
+                "end": 10,
+                "label": "test",
+                "start": 0
+              }
+            ]
+          ]
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-spec-4",
+    "origin": "packages/mermaid/src/diagrams/packet/packet.spec.ts",
+    "line": 51,
+    "upstreamTest": "should handle single bits",
+    "source": "packet\n    0-10: \"test\"\n    11: \"single\"\n    ",
+    "assertions": "async () => {\n    const str = `packet\n    0-10: \"test\"\n    11: \"single\"\n    `;\n    await expect(parser.parse(str)).resolves.not.toThrow();\n    expect(db.getPacket()).toMatchInlineSnapshot(`\n      [\n        [\n          {\n            \"bits\": 11,\n            \"end\": 10,\n            \"label\": \"test\",\n            \"start\": 0,\n          },\n          {\n            \"bits\": 1,\n            \"end\": 11,\n            \"label\": \"single\",\n            \"start\": 11,\n          },\n        ],\n      ]\n    `);\n  }",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "",
+          "getPacket": [
+            [
+              {
+                "bits": 11,
+                "end": 10,
+                "label": "test",
+                "start": 0
+              },
+              {
+                "bits": 1,
+                "end": 11,
+                "label": "single",
+                "start": 11
+              }
+            ]
+          ]
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-spec-5",
+    "origin": "packages/mermaid/src/diagrams/packet/packet.spec.ts",
+    "line": 77,
+    "upstreamTest": "should handle bit counts",
+    "source": "packet\n    +8: \"byte\"\n    +16: \"word\"\n    ",
+    "assertions": "async () => {\n    const str = `packet\n    +8: \"byte\"\n    +16: \"word\"\n    `;\n    await expect(parser.parse(str)).resolves.not.toThrow();\n    expect(db.getPacket()).toMatchInlineSnapshot(`\n      [\n        [\n          {\n            \"bits\": 8,\n            \"end\": 7,\n            \"label\": \"byte\",\n            \"start\": 0,\n          },\n          {\n            \"bits\": 16,\n            \"end\": 23,\n            \"label\": \"word\",\n            \"start\": 8,\n          },\n        ],\n      ]\n    `);\n  }",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "",
+          "getPacket": [
+            [
+              {
+                "bits": 8,
+                "end": 7,
+                "label": "byte",
+                "start": 0
+              },
+              {
+                "bits": 16,
+                "end": 23,
+                "label": "word",
+                "start": 8
+              }
+            ]
+          ]
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-spec-6",
+    "origin": "packages/mermaid/src/diagrams/packet/packet.spec.ts",
+    "line": 103,
+    "upstreamTest": "should handle bit counts with bit or bits",
+    "source": "packet\n    +8: \"byte\"\n    +16: \"word\"\n    ",
+    "assertions": "async () => {\n    const str = `packet\n    +8: \"byte\"\n    +16: \"word\"\n    `;\n    await expect(parser.parse(str)).resolves.not.toThrow();\n    expect(db.getPacket()).toMatchInlineSnapshot(`\n      [\n        [\n          {\n            \"bits\": 8,\n            \"end\": 7,\n            \"label\": \"byte\",\n            \"start\": 0,\n          },\n          {\n            \"bits\": 16,\n            \"end\": 23,\n            \"label\": \"word\",\n            \"start\": 8,\n          },\n        ],\n      ]\n    `);\n  }",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "",
+          "getPacket": [
+            [
+              {
+                "bits": 8,
+                "end": 7,
+                "label": "byte",
+                "start": 0
+              },
+              {
+                "bits": 16,
+                "end": 23,
+                "label": "word",
+                "start": 8
+              }
+            ]
+          ]
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-spec-7",
+    "origin": "packages/mermaid/src/diagrams/packet/packet.spec.ts",
+    "line": 129,
+    "upstreamTest": "should split into multiple rows",
+    "source": "packet\n    0-10: \"test\"\n    11-90: \"multiple\"\n    ",
+    "assertions": "async () => {\n    const str = `packet\n    0-10: \"test\"\n    11-90: \"multiple\"\n    `;\n    await expect(parser.parse(str)).resolves.not.toThrow();\n    expect(db.getPacket()).toMatchInlineSnapshot(`\n      [\n        [\n          {\n            \"bits\": 11,\n            \"end\": 10,\n            \"label\": \"test\",\n            \"start\": 0,\n          },\n          {\n            \"bits\": 20,\n            \"end\": 31,\n            \"label\": \"multiple\",\n            \"start\": 11,\n          },\n        ],\n        [\n          {\n            \"bits\": 31,\n            \"end\": 63,\n            \"label\": \"multiple\",\n            \"start\": 32,\n          },\n        ],\n        [\n          {\n            \"bits\": 26,\n            \"end\": 90,\n            \"label\": \"multiple\",\n            \"start\": 64,\n          },\n        ],\n      ]\n    `);\n  }",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "",
+          "getPacket": [
+            [
+              {
+                "bits": 11,
+                "end": 10,
+                "label": "test",
+                "start": 0
+              },
+              {
+                "bits": 20,
+                "end": 31,
+                "label": "multiple",
+                "start": 11
+              }
+            ],
+            [
+              {
+                "bits": 31,
+                "end": 63,
+                "label": "multiple",
+                "start": 32
+              }
+            ],
+            [
+              {
+                "bits": 26,
+                "end": 90,
+                "label": "multiple",
+                "start": 64
+              }
+            ]
+          ]
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-spec-8",
+    "origin": "packages/mermaid/src/diagrams/packet/packet.spec.ts",
+    "line": 171,
+    "upstreamTest": "should split into multiple rows when cut at exact length",
+    "source": "packet\n    0-16: \"test\"\n    17-63: \"multiple\"\n    ",
+    "assertions": "async () => {\n    const str = `packet\n    0-16: \"test\"\n    17-63: \"multiple\"\n    `;\n    await expect(parser.parse(str)).resolves.not.toThrow();\n    expect(db.getPacket()).toMatchInlineSnapshot(`\n      [\n        [\n          {\n            \"bits\": 17,\n            \"end\": 16,\n            \"label\": \"test\",\n            \"start\": 0,\n          },\n          {\n            \"bits\": 14,\n            \"end\": 31,\n            \"label\": \"multiple\",\n            \"start\": 17,\n          },\n        ],\n        [\n          {\n            \"bits\": 31,\n            \"end\": 63,\n            \"label\": \"multiple\",\n            \"start\": 32,\n          },\n        ],\n      ]\n    `);\n  }",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "",
+          "getPacket": [
+            [
+              {
+                "bits": 17,
+                "end": 16,
+                "label": "test",
+                "start": 0
+              },
+              {
+                "bits": 14,
+                "end": 31,
+                "label": "multiple",
+                "start": 17
+              }
+            ],
+            [
+              {
+                "bits": 31,
+                "end": 63,
+                "label": "multiple",
+                "start": 32
+              }
+            ]
+          ]
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-spec-9",
+    "origin": "packages/mermaid/src/diagrams/packet/packet.spec.ts",
+    "line": 205,
+    "upstreamTest": "should throw error if numbers are not continuous",
+    "source": "packet\n    0-16: \"test\"\n    18-20: \"error\"\n    ",
+    "assertions": "async () => {\n    const str = `packet\n    0-16: \"test\"\n    18-20: \"error\"\n    `;\n    await expect(parser.parse(str)).rejects.toThrowErrorMatchingInlineSnapshot(\n      `[Error: Packet block 18 - 20 is not contiguous. It should start from 17.]`\n    );\n  }",
+    "reference": {
+      "ok": false,
+      "error": "Packet block 18 - 20 is not contiguous. It should start from 17."
+    }
+  },
+  {
+    "id": "packet-spec-10",
+    "origin": "packages/mermaid/src/diagrams/packet/packet.spec.ts",
+    "line": 215,
+    "upstreamTest": "should throw error if numbers are not continuous with bit counts",
+    "source": "packet\n    +16: \"test\"\n    18-20: \"error\"\n    ",
+    "assertions": "async () => {\n    const str = `packet\n    +16: \"test\"\n    18-20: \"error\"\n    `;\n    await expect(parser.parse(str)).rejects.toThrowErrorMatchingInlineSnapshot(\n      `[Error: Packet block 18 - 20 is not contiguous. It should start from 16.]`\n    );\n  }",
+    "reference": {
+      "ok": false,
+      "error": "Packet block 18 - 20 is not contiguous. It should start from 16."
+    }
+  },
+  {
+    "id": "packet-spec-11",
+    "origin": "packages/mermaid/src/diagrams/packet/packet.spec.ts",
+    "line": 225,
+    "upstreamTest": "should throw error if numbers are not continuous for single packets",
+    "source": "packet\n    0-16: \"test\"\n    18: \"error\"\n    ",
+    "assertions": "async () => {\n    const str = `packet\n    0-16: \"test\"\n    18: \"error\"\n    `;\n    await expect(parser.parse(str)).rejects.toThrowErrorMatchingInlineSnapshot(\n      `[Error: Packet block 18 - 18 is not contiguous. It should start from 17.]`\n    );\n  }",
+    "reference": {
+      "ok": false,
+      "error": "Packet block 18 - 18 is not contiguous. It should start from 17."
+    }
+  },
+  {
+    "id": "packet-spec-12",
+    "origin": "packages/mermaid/src/diagrams/packet/packet.spec.ts",
+    "line": 235,
+    "upstreamTest": "should throw error if numbers are not continuous for single packets with bit counts",
+    "source": "packet\n    +16: \"test\"\n    18: \"error\"\n    ",
+    "assertions": "async () => {\n    const str = `packet\n    +16: \"test\"\n    18: \"error\"\n    `;\n    await expect(parser.parse(str)).rejects.toThrowErrorMatchingInlineSnapshot(\n      `[Error: Packet block 18 - 18 is not contiguous. It should start from 16.]`\n    );\n  }",
+    "reference": {
+      "ok": false,
+      "error": "Packet block 18 - 18 is not contiguous. It should start from 16."
+    }
+  },
+  {
+    "id": "packet-spec-13",
+    "origin": "packages/mermaid/src/diagrams/packet/packet.spec.ts",
+    "line": 245,
+    "upstreamTest": "should throw error if numbers are not continuous for single packets - 2",
+    "source": "packet\n    0-16: \"test\"\n    17: \"good\"\n    19: \"error\"\n    ",
+    "assertions": "async () => {\n    const str = `packet\n    0-16: \"test\"\n    17: \"good\"\n    19: \"error\"\n    `;\n    await expect(parser.parse(str)).rejects.toThrowErrorMatchingInlineSnapshot(\n      `[Error: Packet block 19 - 19 is not contiguous. It should start from 18.]`\n    );\n  }",
+    "reference": {
+      "ok": false,
+      "error": "Packet block 19 - 19 is not contiguous. It should start from 18."
+    }
+  },
+  {
+    "id": "packet-spec-14",
+    "origin": "packages/mermaid/src/diagrams/packet/packet.spec.ts",
+    "line": 256,
+    "upstreamTest": "should throw error if end is less than start",
+    "source": "packet\n    0-16: \"test\"\n    25-20: \"error\"\n    ",
+    "assertions": "async () => {\n    const str = `packet\n    0-16: \"test\"\n    25-20: \"error\"\n    `;\n    await expect(parser.parse(str)).rejects.toThrowErrorMatchingInlineSnapshot(\n      `[Error: Packet block 25 - 20 is invalid. End must be greater than start.]`\n    );\n  }",
+    "reference": {
+      "ok": false,
+      "error": "Packet block 25 - 20 is invalid. End must be greater than start."
+    }
+  },
+  {
+    "id": "packet-spec-15",
+    "origin": "packages/mermaid/src/diagrams/packet/packet.spec.ts",
+    "line": 266,
+    "upstreamTest": "should throw error if bit count is 0",
+    "source": "packet\n    +0: \"test\"\n    ",
+    "assertions": "async () => {\n    const str = `packet\n    +0: \"test\"\n    `;\n    await expect(parser.parse(str)).rejects.toThrowErrorMatchingInlineSnapshot(\n      `[Error: Packet block 0 is invalid. Cannot have a zero bit field.]`\n    );\n  }",
+    "reference": {
+      "ok": false,
+      "error": "Packet block 0 is invalid. Cannot have a zero bit field."
+    }
+  },
+  {
+    "id": "packet-header-0",
+    "origin": "packages/parser/tests/packet.test.ts",
+    "upstreamTest": "should handle regular packet",
+    "source": "packet-beta",
+    "assertions": "expectNoErrorsOrAlternatives(result); expect(result.value.$type).toBe(Packet.$type)",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "",
+          "getPacket": []
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-header-1",
+    "origin": "packages/parser/tests/packet.test.ts",
+    "upstreamTest": "should handle regular packet",
+    "source": "  packet-beta  ",
+    "assertions": "expectNoErrorsOrAlternatives(result); expect(result.value.$type).toBe(Packet.$type)",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "",
+          "getPacket": []
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-header-2",
+    "origin": "packages/parser/tests/packet.test.ts",
+    "upstreamTest": "should handle regular packet",
+    "source": "\tpacket-beta\t",
+    "assertions": "expectNoErrorsOrAlternatives(result); expect(result.value.$type).toBe(Packet.$type)",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "",
+          "getPacket": []
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-header-3",
+    "origin": "packages/parser/tests/packet.test.ts",
+    "upstreamTest": "should handle regular packet",
+    "source": "\n    \tpacket-beta\n    ",
+    "assertions": "expectNoErrorsOrAlternatives(result); expect(result.value.$type).toBe(Packet.$type)",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "",
+          "getPacket": []
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-header-4",
+    "origin": "packages/parser/tests/packet.test.ts",
+    "upstreamTest": "should handle regular packet",
+    "source": "packet",
+    "assertions": "expectNoErrorsOrAlternatives(result); expect(result.value.$type).toBe(Packet.$type)",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "",
+          "getPacket": []
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-header-5",
+    "origin": "packages/parser/tests/packet.test.ts",
+    "upstreamTest": "should handle regular packet",
+    "source": "  packet  ",
+    "assertions": "expectNoErrorsOrAlternatives(result); expect(result.value.$type).toBe(Packet.$type)",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "",
+          "getPacket": []
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-header-6",
+    "origin": "packages/parser/tests/packet.test.ts",
+    "upstreamTest": "should handle regular packet",
+    "source": "\tpacket\t",
+    "assertions": "expectNoErrorsOrAlternatives(result); expect(result.value.$type).toBe(Packet.$type)",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "",
+          "getPacket": []
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-header-7",
+    "origin": "packages/parser/tests/packet.test.ts",
+    "upstreamTest": "should handle regular packet",
+    "source": "\n    \tpacket\n    ",
+    "assertions": "expectNoErrorsOrAlternatives(result); expect(result.value.$type).toBe(Packet.$type)",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "",
+          "getPacket": []
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-render-1",
+    "origin": "e2e/diagrams/packet/pr-check/should-render-a-complex-packet-diagram-with-showbits-false.mmd",
+    "upstreamTest": "should-render-a-complex-packet-diagram-with-showbits-false.mmd",
+    "source": "---\ndescription: >-\n  Complex packet diagram modeling a TCP-like header (source/destination\n  port, sequence/ack numbers, flag bits, window, checksum, options, data)\n  with `showBits: false` in config, so per-bit position numbers are\n  hidden — the same field layout as the sibling fixture without this\n  override.\ntitle: \"Packet Diagram\"\nconfig:\n  packet:\n    showBits: false\n---\npacket\n  0-15: \"Source Port\"\n  16-31: \"Destination Port\"\n  32-63: \"Sequence Number\"\n  64-95: \"Acknowledgment Number\"\n  96-99: \"Data Offset\"\n  100-105: \"Reserved\"\n  106: \"URG\"\n  107: \"ACK\"\n  108: \"PSH\"\n  109: \"RST\"\n  110: \"SYN\"\n  111: \"FIN\"\n  112-127: \"Window\"\n  128-143: \"Checksum\"\n  144-159: \"Urgent Pointer\"\n  160-191: \"(Options and Padding)\"\n  192-223: \"data\"\n",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "",
+          "getPacket": [
+            [
+              {
+                "bits": 16,
+                "end": 15,
+                "label": "Source Port",
+                "start": 0
+              },
+              {
+                "bits": 16,
+                "end": 31,
+                "label": "Destination Port",
+                "start": 16
+              }
+            ],
+            [
+              {
+                "bits": 32,
+                "end": 63,
+                "label": "Sequence Number",
+                "start": 32
+              }
+            ],
+            [
+              {
+                "bits": 32,
+                "end": 95,
+                "label": "Acknowledgment Number",
+                "start": 64
+              }
+            ],
+            [
+              {
+                "bits": 4,
+                "end": 99,
+                "label": "Data Offset",
+                "start": 96
+              },
+              {
+                "bits": 6,
+                "end": 105,
+                "label": "Reserved",
+                "start": 100
+              },
+              {
+                "bits": 1,
+                "end": 106,
+                "label": "URG",
+                "start": 106
+              },
+              {
+                "bits": 1,
+                "end": 107,
+                "label": "ACK",
+                "start": 107
+              },
+              {
+                "bits": 1,
+                "end": 108,
+                "label": "PSH",
+                "start": 108
+              },
+              {
+                "bits": 1,
+                "end": 109,
+                "label": "RST",
+                "start": 109
+              },
+              {
+                "bits": 1,
+                "end": 110,
+                "label": "SYN",
+                "start": 110
+              },
+              {
+                "bits": 1,
+                "end": 111,
+                "label": "FIN",
+                "start": 111
+              },
+              {
+                "bits": 16,
+                "end": 127,
+                "label": "Window",
+                "start": 112
+              }
+            ],
+            [
+              {
+                "bits": 16,
+                "end": 143,
+                "label": "Checksum",
+                "start": 128
+              },
+              {
+                "bits": 16,
+                "end": 159,
+                "label": "Urgent Pointer",
+                "start": 144
+              }
+            ],
+            [
+              {
+                "bits": 32,
+                "end": 191,
+                "label": "(Options and Padding)",
+                "start": 160
+              }
+            ],
+            [
+              {
+                "bits": 32,
+                "end": 223,
+                "label": "data",
+                "start": 192
+              }
+            ]
+          ]
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-render-2",
+    "origin": "e2e/diagrams/packet/pr-check/should-render-a-complex-packet-diagram.mmd",
+    "upstreamTest": "should-render-a-complex-packet-diagram.mmd",
+    "source": "---\ndescription: >-\n  Complex packet diagram modeling a TCP-like header with many fields\n  (ports, sequence/ack numbers, flag bits, window, checksum, options,\n  data) rendered with default settings, so bit-position numbers are\n  shown — same field layout as the `showbits-false` sibling but without\n  that config override.\n---\npacket\n  0-15: \"Source Port\"\n  16-31: \"Destination Port\"\n  32-63: \"Sequence Number\"\n  64-95: \"Acknowledgment Number\"\n  96-99: \"Data Offset\"\n  100-105: \"Reserved\"\n  106: \"URG\"\n  107: \"ACK\"\n  108: \"PSH\"\n  109: \"RST\"\n  110: \"SYN\"\n  111: \"FIN\"\n  112-127: \"Window\"\n  128-143: \"Checksum\"\n  144-159: \"Urgent Pointer\"\n  160-191: \"(Options and Padding)\"\n  192-223: \"data\"\n",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "",
+          "getPacket": [
+            [
+              {
+                "bits": 16,
+                "end": 15,
+                "label": "Source Port",
+                "start": 0
+              },
+              {
+                "bits": 16,
+                "end": 31,
+                "label": "Destination Port",
+                "start": 16
+              }
+            ],
+            [
+              {
+                "bits": 32,
+                "end": 63,
+                "label": "Sequence Number",
+                "start": 32
+              }
+            ],
+            [
+              {
+                "bits": 32,
+                "end": 95,
+                "label": "Acknowledgment Number",
+                "start": 64
+              }
+            ],
+            [
+              {
+                "bits": 4,
+                "end": 99,
+                "label": "Data Offset",
+                "start": 96
+              },
+              {
+                "bits": 6,
+                "end": 105,
+                "label": "Reserved",
+                "start": 100
+              },
+              {
+                "bits": 1,
+                "end": 106,
+                "label": "URG",
+                "start": 106
+              },
+              {
+                "bits": 1,
+                "end": 107,
+                "label": "ACK",
+                "start": 107
+              },
+              {
+                "bits": 1,
+                "end": 108,
+                "label": "PSH",
+                "start": 108
+              },
+              {
+                "bits": 1,
+                "end": 109,
+                "label": "RST",
+                "start": 109
+              },
+              {
+                "bits": 1,
+                "end": 110,
+                "label": "SYN",
+                "start": 110
+              },
+              {
+                "bits": 1,
+                "end": 111,
+                "label": "FIN",
+                "start": 111
+              },
+              {
+                "bits": 16,
+                "end": 127,
+                "label": "Window",
+                "start": 112
+              }
+            ],
+            [
+              {
+                "bits": 16,
+                "end": 143,
+                "label": "Checksum",
+                "start": 128
+              },
+              {
+                "bits": 16,
+                "end": 159,
+                "label": "Urgent Pointer",
+                "start": 144
+              }
+            ],
+            [
+              {
+                "bits": 32,
+                "end": 191,
+                "label": "(Options and Padding)",
+                "start": 160
+              }
+            ],
+            [
+              {
+                "bits": 32,
+                "end": 223,
+                "label": "data",
+                "start": 192
+              }
+            ]
+          ]
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-render-3",
+    "origin": "e2e/diagrams/packet/pr-check/should-render-a-packet-diagram-with-descending-bit-order.mmd",
+    "upstreamTest": "should-render-a-packet-diagram-with-descending-bit-order.mmd",
+    "source": "---\ndescription: >-\n  Packet diagram of a small 16-bit status register (DATA/TYPE/EN/RESERVED\n  fields), configured with `bitOrder: descending` and `bitsPerRow: 16`,\n  testing the descending bit-numbering layout option.\ntitle: \"Status Register\"\nconfig:\n  packet:\n    showBits: true\n    bitOrder: descending\n    bitsPerRow: 16\n---\npacket\n  0-7: \"DATA\"\n  8-11: \"TYPE\"\n  12: \"EN\"\n  13-15: \"RESERVED\"\n",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "",
+          "getPacket": [
+            [
+              {
+                "bits": 8,
+                "end": 7,
+                "label": "DATA",
+                "start": 0
+              },
+              {
+                "bits": 4,
+                "end": 11,
+                "label": "TYPE",
+                "start": 8
+              },
+              {
+                "bits": 1,
+                "end": 12,
+                "label": "EN",
+                "start": 12
+              },
+              {
+                "bits": 3,
+                "end": 15,
+                "label": "RESERVED",
+                "start": 13
+              }
+            ]
+          ]
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-render-4",
+    "origin": "e2e/diagrams/packet/pr-check/should-render-a-simple-packet-beta-diagram.mmd",
+    "upstreamTest": "should-render-a-simple-packet-beta-diagram.mmd",
+    "source": "---\ndescription: >-\n  Minimal packet diagram using the `packet-beta` diagram keyword (the\n  original/aliased name) instead of `packet`, with a title and a single\n  11-bit ranged field, verifying the beta-named alias still parses and\n  renders.\n---\npacket-beta\n  title Hello world\n  0-10: \"hello\"\n",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "Hello world",
+          "getPacket": [
+            [
+              {
+                "bits": 11,
+                "end": 10,
+                "label": "hello",
+                "start": 0
+              }
+            ]
+          ]
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-render-5",
+    "origin": "e2e/diagrams/packet/pr-check/should-render-a-simple-packet-diagram-without-ranges.mmd",
+    "upstreamTest": "should-render-a-simple-packet-diagram-without-ranges.mmd",
+    "source": "---\ndescription: >-\n  Minimal packet diagram with two single-bit fields (\"h\" at bit 0 and \"i\"\n  at bit 1) specified as individual bit positions rather than ranges,\n  verifying single-bit field syntax.\n---\npacket\n  0: \"h\"\n  1: \"i\"\n",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "",
+          "getPacket": [
+            [
+              {
+                "bits": 1,
+                "end": 0,
+                "label": "h",
+                "start": 0
+              },
+              {
+                "bits": 1,
+                "end": 1,
+                "label": "i",
+                "start": 1
+              }
+            ]
+          ]
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-render-6",
+    "origin": "e2e/diagrams/packet/pr-check/should-render-a-simple-packet-diagram.mmd",
+    "upstreamTest": "should-render-a-simple-packet-diagram.mmd",
+    "source": "---\ndescription: >-\n  Baseline packet diagram smoke test using the `packet` keyword, with a\n  title and a single 11-bit ranged field.\n---\npacket\n  title Hello world\n  0-10: \"hello\"\n",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "Hello world",
+          "getPacket": [
+            [
+              {
+                "bits": 11,
+                "end": 10,
+                "label": "hello",
+                "start": 0
+              }
+            ]
+          ]
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-docs-1",
+    "origin": "packages/mermaid/src/docs/syntax/packet.md",
+    "upstreamTest": "fence 1",
+    "source": "---\ntitle: \"TCP Packet\"\n---\npacket\n0-15: \"Source Port\"\n16-31: \"Destination Port\"\n32-63: \"Sequence Number\"\n64-95: \"Acknowledgment Number\"\n96-99: \"Data Offset\"\n100-105: \"Reserved\"\n106: \"URG\"\n107: \"ACK\"\n108: \"PSH\"\n109: \"RST\"\n110: \"SYN\"\n111: \"FIN\"\n112-127: \"Window\"\n128-143: \"Checksum\"\n144-159: \"Urgent Pointer\"\n160-191: \"(Options and Padding)\"\n192-255: \"Data (variable length)\"\n",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "",
+          "getPacket": [
+            [
+              {
+                "bits": 16,
+                "end": 15,
+                "label": "Source Port",
+                "start": 0
+              },
+              {
+                "bits": 16,
+                "end": 31,
+                "label": "Destination Port",
+                "start": 16
+              }
+            ],
+            [
+              {
+                "bits": 32,
+                "end": 63,
+                "label": "Sequence Number",
+                "start": 32
+              }
+            ],
+            [
+              {
+                "bits": 32,
+                "end": 95,
+                "label": "Acknowledgment Number",
+                "start": 64
+              }
+            ],
+            [
+              {
+                "bits": 4,
+                "end": 99,
+                "label": "Data Offset",
+                "start": 96
+              },
+              {
+                "bits": 6,
+                "end": 105,
+                "label": "Reserved",
+                "start": 100
+              },
+              {
+                "bits": 1,
+                "end": 106,
+                "label": "URG",
+                "start": 106
+              },
+              {
+                "bits": 1,
+                "end": 107,
+                "label": "ACK",
+                "start": 107
+              },
+              {
+                "bits": 1,
+                "end": 108,
+                "label": "PSH",
+                "start": 108
+              },
+              {
+                "bits": 1,
+                "end": 109,
+                "label": "RST",
+                "start": 109
+              },
+              {
+                "bits": 1,
+                "end": 110,
+                "label": "SYN",
+                "start": 110
+              },
+              {
+                "bits": 1,
+                "end": 111,
+                "label": "FIN",
+                "start": 111
+              },
+              {
+                "bits": 16,
+                "end": 127,
+                "label": "Window",
+                "start": 112
+              }
+            ],
+            [
+              {
+                "bits": 16,
+                "end": 143,
+                "label": "Checksum",
+                "start": 128
+              },
+              {
+                "bits": 16,
+                "end": 159,
+                "label": "Urgent Pointer",
+                "start": 144
+              }
+            ],
+            [
+              {
+                "bits": 32,
+                "end": 191,
+                "label": "(Options and Padding)",
+                "start": 160
+              }
+            ],
+            [
+              {
+                "bits": 31,
+                "end": 223,
+                "label": "Data (variable length)",
+                "start": 192
+              }
+            ],
+            [
+              {
+                "bits": 31,
+                "end": 255,
+                "label": "Data (variable length)",
+                "start": 224
+              }
+            ]
+          ]
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-docs-2",
+    "origin": "packages/mermaid/src/docs/syntax/packet.md",
+    "upstreamTest": "fence 2",
+    "source": "packet\ntitle UDP Packet\n+16: \"Source Port\"\n+16: \"Destination Port\"\n32-47: \"Length\"\n48-63: \"Checksum\"\n64-95: \"Data (variable length)\"\n",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "UDP Packet",
+          "getPacket": [
+            [
+              {
+                "bits": 16,
+                "end": 15,
+                "label": "Source Port",
+                "start": 0
+              },
+              {
+                "bits": 16,
+                "end": 31,
+                "label": "Destination Port",
+                "start": 16
+              }
+            ],
+            [
+              {
+                "bits": 16,
+                "end": 47,
+                "label": "Length",
+                "start": 32
+              },
+              {
+                "bits": 16,
+                "end": 63,
+                "label": "Checksum",
+                "start": 48
+              }
+            ],
+            [
+              {
+                "bits": 32,
+                "end": 95,
+                "label": "Data (variable length)",
+                "start": 64
+              }
+            ]
+          ]
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-docs-3",
+    "origin": "packages/mermaid/src/docs/syntax/packet.md",
+    "upstreamTest": "fence 3",
+    "source": "---\nconfig:\n  packet:\n    showBits: true\n    bitOrder: descending\n    bitsPerRow: 16\n---\npacket\n0-7: \"DATA\"\n8-11: \"TYPE\"\n12: \"EN\"\n13-15: \"RESERVED\"\n",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "",
+          "getPacket": [
+            [
+              {
+                "bits": 8,
+                "end": 7,
+                "label": "DATA",
+                "start": 0
+              },
+              {
+                "bits": 4,
+                "end": 11,
+                "label": "TYPE",
+                "start": 8
+              },
+              {
+                "bits": 1,
+                "end": 12,
+                "label": "EN",
+                "start": 12
+              },
+              {
+                "bits": 3,
+                "end": 15,
+                "label": "RESERVED",
+                "start": 13
+              }
+            ]
+          ]
+        },
+        "errors": {}
+      }
+    }
+  },
+  {
+    "id": "packet-docs-4",
+    "origin": "packages/mermaid/src/docs/syntax/packet.md",
+    "upstreamTest": "fence 4",
+    "source": "---\nconfig:\n  packet:\n    showBits: true\n  themeVariables:\n    packet:\n      startByteColor: red\n---\npacket\n0-15: \"Source Port\"\n16-31: \"Destination Port\"\n32-63: \"Sequence Number\"\n",
+    "reference": {
+      "ok": true,
+      "type": "packet",
+      "snapshot": {
+        "data": {
+          "getAccDescription": "",
+          "getAccTitle": "",
+          "getDiagramTitle": "",
+          "getPacket": [
+            [
+              {
+                "bits": 16,
+                "end": 15,
+                "label": "Source Port",
+                "start": 0
+              },
+              {
+                "bits": 16,
+                "end": 31,
+                "label": "Destination Port",
+                "start": 16
+              }
+            ],
+            [
+              {
+                "bits": 32,
+                "end": 63,
+                "label": "Sequence Number",
+                "start": 32
+              }
+            ]
+          ]
+        },
+        "errors": {}
+      }
+    }
+  }
+]

@@ -1,4 +1,4 @@
-import { runCli } from './index.ts'
+import { preflightCli } from './preflight.ts'
 
 /** Route the package-name binary's registry command to the existing MCP CLI. */
 export async function runAmCli(argv: string[]): Promise<number> {
@@ -6,5 +6,8 @@ export async function runAmCli(argv: string[]): Promise<number> {
     const { runMcpCli } = await import('../mcp/mcp-cli.ts')
     return runMcpCli(argv.slice(1))
   }
-  return runCli(argv)
+  const prepared = preflightCli(argv)
+  if ('exitCode' in prepared) return prepared.exitCode
+  const { runPreparedCli } = await import('./index.ts')
+  return runPreparedCli(prepared)
 }

@@ -1,3 +1,5 @@
+import type { RenderOptions } from '../types.ts'
+import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { layoutGitGraph } from './layout.ts'
 import type { GitGraphDiagram, PositionedGitGraphDiagram } from './types.ts'
 
@@ -32,6 +34,6 @@ export function resolveGitGraphPositionConfig(raw: unknown, themeVariables?: unk
   return resolved
 }
 
-export function positionGitGraph(body: GitGraphDiagram, config: GitGraphPositionConfig): PositionedGitGraphDiagram {
-  return layoutGitGraph(body, config)
+export function positionGitGraph(body: GitGraphDiagram, config: GitGraphPositionConfig, renderOptions: RenderOptions = {}, styleFace?: Readonly<InternalStyleFace>): PositionedGitGraphDiagram {
+  return layoutGitGraph(body, { ...config, renderOptions, styleFace })
 }

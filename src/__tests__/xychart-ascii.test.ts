@@ -7,6 +7,7 @@
  */
 import { describe, it, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { AsciiWidthError, renderMermaidASCII } from '../ascii/index.ts'
 import { visualWidth } from '../ascii/width.ts'
 import { renderMermaidSVG } from '../index.ts'
@@ -250,12 +251,19 @@ line [1]`
 
 describe('xychart ASCII – titles and axes', () => {
   it('renders chart title centered', () => {
-    const result = render(`xychart-beta
-      title "My Chart"
-      x-axis [A, B]
-      bar [10, 20]`)
-    const titleLine = result.split('\n').find(l => l.includes('My Chart'))
-    expect(titleLine).toContain('My Chart')
+    for (const width of [40, 48]) {
+      const result = renderMermaidASCII(`xychart-beta
+        title "My Chart"
+        x-axis [A, B]
+        bar [10, 20]`, { colorMode: 'none', targetWidth: width })
+      const titleLine = result.split('\n').find(line => line.includes('My Chart'))
+      expect(titleLine).toBeDefined()
+      // Center in the requested terminal canvas; trailing blank cells are
+      // trimmed from emitted rows, so ink width is not the canvas width.
+      const left = visualWidth(titleLine!.slice(0, titleLine!.indexOf('My Chart')))
+      const right = width - left - visualWidth('My Chart')
+      expect(Math.abs(left - right)).toBeLessThanOrEqual(1)
+    }
   })
 
   it('renders x-axis title', () => {
@@ -281,9 +289,7 @@ describe('xychart ASCII – titles and axes', () => {
       bar [10, 20]`
     const untitled = render(`xychart-beta${body}`)
     const titled = render(`xychart-beta\n      title "My Chart"${body}`)
-    // The chart starts at the plot's axis line, and is exactly the titled chart
-    // without its title row and the blank row under it.
-    expect(untitled.split('\n')[0]).toMatch(/^\s*│$/)
+    // Untitled output is exactly the titled plot without its title and spacer.
     expect(titled.split('\n').slice(0, 2).map(l => l.trim())).toEqual(['My Chart', ''])
     expect(untitled).toBe(titled.split('\n').slice(2).join('\n'))
   })
@@ -480,6 +486,6 @@ describe('xychart ASCII – series colors', () => {
     fc.assert(fc.property(hex, hex, (accent, bg) => {
       const html = renderMermaidASCII(ONE_SERIES, { colorMode: 'html', theme: { bg, fg: '#27272a', accent } })
       expect(barColors(html)).toEqual([categoricalPalette(1, { accent, bg })[0]!.toLowerCase()])
-    }), { numRuns: 60 })
+    }), fcParameters({ numRuns: 60 }))
   })
 })

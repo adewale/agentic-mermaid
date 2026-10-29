@@ -9,6 +9,21 @@ import { parseSankeyDiagram } from '../sankey/parser.ts'
 const BASIC = 'sankey-beta\n  Coal,Electricity,127.93\n  Gas,Electricity,80\n  Electricity,Homes,120\n  Electricity,Industry,87.93'
 
 describe('sankey integration · parse → verify → layout → render seam', () => {
+  test.each(['width', 'height', 'nodeWidth'] as const)('diagnoses %s below the resolver minimum through source and explicit options', field => {
+    const config = { [field]: 0.5 }
+    const source = `%%{init: ${JSON.stringify({ sankey: config })}}%%\n${BASIC}`
+    expect(resolveSankeyVisualConfig({ sankey: config })[field]).toBe(resolveSankeyVisualConfig()[field])
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({
+      code: 'INEFFECTIVE_CONFIG', field: `sankey.${field}`,
+    }))
+    const fields: string[] = []
+    expect(renderMermaidSVG(BASIC, {
+      mermaidConfig: { sankey: config }, onConfigDiagnostic: diagnostic => fields.push(diagnostic.field),
+    })).toBe(renderMermaidSVG(BASIC))
+    expect(fields).toEqual([`sankey.${field}`])
+    expect(resolveSankeyVisualConfig({ sankey: { [field]: 1 } })[field]).toBe(1)
+  })
+
   test('the public seam is green end to end', () => {
     const parsed = parseMermaid(BASIC)
     expect(parsed.ok).toBe(true)
@@ -47,12 +62,12 @@ describe('sankey integration · parse → verify → layout → render seam', ()
     expect(() => renderMermaidSVG('sankey-beta:\n  A,B,1')).toThrow()
   })
 
-  test('accessibility directives stay structured and project into the SVG ARIA slots', () => {
+  test('accessibility directives retain editable links and project into the SVG ARIA slots', () => {
     const source = `sankey-beta\naccTitle: Energy flows\naccDescr: Where the energy goes\nA,B,10`
     const parsed = parseMermaid(source)
     expect(parsed.ok).toBe(true)
     if (parsed.ok) {
-      expect(parsed.value.body.kind).toBe('sankey')
+      expect(parsed.value.body).toEqual({ kind: 'sankey', links: [{ source: 'A', target: 'B', value: 10 }] })
       expect(parsed.value.meta.accessibility).toEqual({ title: 'Energy flows', descr: 'Where the energy goes' })
     }
     const svg = renderMermaidSVG(source)
@@ -164,6 +179,8 @@ describe('sankey integration · deterministic layout invariants', () => {
     const source = 'sankey-beta\n  A,B,0\n  A,C,0'
     const chart = layout(source)
     expect(chart.total).toBe(0)
+    expect(chart.nodes.map(node => node.label)).toEqual(['A', 'B', 'C'])
+    expect(chart.links.map(link => [link.source, link.target, link.value])).toEqual([['A', 'B', 0], ['A', 'C', 0]])
     expect(chart.nodes.every(node => node.value === 0 && node.y1 - node.y0 >= 1)).toBe(true)
     expect(chart.links.every(link => link.value === 0 && link.width === 0)).toBe(true)
     const svg = renderMermaidSVG(source)

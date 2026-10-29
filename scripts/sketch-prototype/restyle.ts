@@ -194,14 +194,16 @@ function closedShape(poly: Point[], stroke: string | undefined, fill: string | u
   return shadow + fillStr + (stroke === 'none' ? '' : strokeClosed(poly, sc, st, seed))
 }
 
-// A closed-shape element with NO stroke attribute keeps SVG's default
-// stroke:none — synthesizing an outline gave gantt bands / quadrant plates /
-// xychart bars phantom borders (audit A1). Class-styled and fill-only shapes
-// pass through untouched; the edge-label halo knockout is preserved verbatim
-// so labels keep their page-coloured ground (audit C1).
+// A closed-shape element with no stroke (no attribute, SVG's default, or an
+// explicit stroke="none") must not gain one — synthesizing an outline gave
+// gantt bands / quadrant plates / xychart bars phantom borders (audit A1).
+// Class-styled and fill-only shapes pass through untouched; the edge-label
+// halo knockout is preserved verbatim so labels keep their page-coloured
+// ground (audit C1).
 function passThrough(t: string): boolean {
   if ((attr(t, 'class') ?? '').includes('edge-label-halo')) return true
-  return attr(t, 'stroke') === undefined
+  const stroke = attr(t, 'stroke')
+  return stroke === undefined || stroke === 'none'
 }
 
 export function restyle(svg: string, st: Style, opts: { backdrop?: boolean } = {}): string {

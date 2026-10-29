@@ -10,10 +10,9 @@
  *   - entity: Mermaid's `#…;` codes (shared/mermaid-entity-display.ts), which
  *     upstream reads before any grammar and shows after all of it. They are
  *     decoded last, in the text between formatting tags, so an entity never
- *     spells markup: `#lt;br#gt;` is the text `<br>`, and codes that would
- *     spell a formatting tag (`#lt;b#gt;`) keep their spelling, since the
- *     label model has no way to hold a literal formatting tag (upstream shows
- *     the tag's text). An HTML numeric character reference (`&#60;`,
+ *     spells markup: `#lt;br#gt;` is the text `<br>`, and formatting-tag
+ *     text such as `#lt;b#gt;` retains literal runs beside genuine formatting.
+ *     An HTML numeric character reference (`&#60;`,
  *     `&#x3C;`) is not read as an entity code: it belongs to the HTML layer
  *     the render path decodes before any grammar (render-contract.ts), and
  *     this parser keeps it as written. (Upstream reads its `#…;` as a code,
@@ -22,14 +21,16 @@
  * writeFlowchartLabelText(x) back as x, and upstream shows it as x.
  */
 
-import { normalizeBrTags, normalizePlainLabel } from './multiline-utils.ts'
-import { encodeMermaidEntities } from './shared/mermaid-entities.ts'
+import { normalizeBrTags, normalizePlainLabel, displayText } from './multiline-utils.ts'
+import { encodeMermaidEntities, encodeMermaidAuthoredEntities } from './shared/mermaid-entities.ts'
 import { decodeMermaidEntities, type EntityRefusal } from './shared/mermaid-entity-display.ts'
 import { FORMAT_TAG_SOURCE } from './shared/inline-format.ts'
+import { prepareDisplayText, preparedDisplayTextValue, replaceDisplayTextTokens, type LabelContent } from './shared/display-text.ts'
 
 export interface ParsedFlowchartLabel {
   text: string
   markdown: boolean
+  labelContent?: LabelContent
 }
 
 const ENTITY_REFUSAL: EntityRefusal = { subject: 'Flowchart label entity', example: 'A["#35;"]' }
@@ -38,36 +39,13 @@ const ENTITY_REFUSAL: EntityRefusal = { subject: 'Flowchart label entity', examp
 const FORMAT_TAG_SPLIT = new RegExp(`(${FORMAT_TAG_SOURCE})`, 'i')
 /** HTML numeric character references split out of a text run. */
 const CHARACTER_REFERENCE_SPLIT = /(&#(?:\d+|[xX][0-9a-fA-F]+);)/
-/** Markup a decoded entity must not spell: the formatting tags. (A decoded
- * `<br>` is text: the label's line breaks are already `\n` by then.) */
-const LABEL_MARKUP = new RegExp(FORMAT_TAG_SOURCE, 'gi')
-
-function markupCount(text: string): number {
-  return text.match(LABEL_MARKUP)?.length ?? 0
-}
-
-const ENTITY_CODE = /#\w+;/g
-
-/** Decode the entity codes of one text run (no formatting tags in it). Codes
- * that would spell a formatting tag keep their spelling: first those showing
- * `<` or `>`, and, if a tag still forms, all of them. */
-function decodeTextRun(run: string): string {
-  const decoded = decodeMermaidEntities(run, ENTITY_REFUSAL)
-  if (markupCount(decoded) === 0) return decoded
-  const angles = run.replace(ENTITY_CODE, code => {
-    const shown = decodeMermaidEntities(code, ENTITY_REFUSAL)
-    return shown === '<' || shown === '>' ? code : shown
-  })
-  return markupCount(angles) === 0 ? angles : run
-}
-
 /** Entity decoding for a label whose display layer has already run: codes
  * decode in the text runs between formatting tags and character references,
  * never into new markup. */
 function decodeLabelEntities(text: string): string {
   return text.split(FORMAT_TAG_SPLIT)
     .map((part, index) => index % 2 === 1 ? part : part.split(CHARACTER_REFERENCE_SPLIT)
-      .map((run, runIndex) => runIndex % 2 === 1 ? run : decodeTextRun(run))
+      .map((run, runIndex) => runIndex % 2 === 1 ? run : decodeMermaidEntities(run, ENTITY_REFUSAL))
       .join(''))
     .join('')
 }
@@ -87,14 +65,32 @@ function decodeLabelEntities(text: string): string {
  * double quotes (a quoted shape, `@{ label }`).
  */
 export function parseFlowchartLabel(raw: string, alreadyUnquoted = false): ParsedFlowchartLabel {
-  const unquoted = !alreadyUnquoted && raw.length >= 2 && raw.startsWith('"') && raw.endsWith('"')
-    ? raw.slice(1, -1)
-    : raw
+  const unquoted = alreadyUnquoted ? raw : unquoteFlowchartLabel(raw)
   const quoteConsumed = alreadyUnquoted || unquoted !== raw
-  if (quoteConsumed && unquoted.length >= 2 && unquoted.startsWith('`') && unquoted.endsWith('`')) {
-    return { text: decodeLabelEntities(normalizeBrTags(unquoted.slice(1, -1).trim(), false)), markdown: true }
-  }
-  return { text: decodeLabelEntities(normalizePlainLabel(unquoted.trim())), markdown: false }
+  const markdown = quoteConsumed && unquoted.length >= 2 && unquoted.startsWith('`') && unquoted.endsWith('`')
+  const authored = markdown ? `\`${unquoted.slice(1, -1).trim()}\`` : unquoted.trim()
+  const normalized = markdown ? normalizeBrTags(unquoted.slice(1, -1).trim(), false) : normalizePlainLabel(authored)
+  // Only entity decoding can make the public string need a distinct display
+  // reading. Ordinary labels have no sidecar to retain or compare here.
+  if (!normalized.includes('#') && !normalized.includes('ﬂ°')) return { text: normalized, markdown }
+  const text = decodeLabelEntities(normalized)
+  const prepared = replaceDisplayTextTokens(prepareDisplayText(normalized), /&#(?:\d+|[xX][0-9a-fA-F]+);|#\w+;/g,
+    token => token.startsWith('&') ? token : decodeMermaidEntities(token, ENTITY_REFUSAL))
+  // Ordinary labels keep their compact string representation. Only a literal
+  // entity-produced formatting tag needs runs to distinguish it from markup.
+  const labelContent = preparedDisplayTextValue(prepared) === displayText(text) ? undefined : { value: text, prepared, authored }
+  return { text, markdown, ...(labelContent ? { labelContent } : {}) }
+}
+
+/** Label text as authored, without the quotes of a string: the whole text
+ * quoted (`"a"`), or a string upstream's text joins to the text after it
+ * (`"a" b` is `a b` there), when that text holds no `"`. A markdown string
+ * keeps its quotes unless it is the whole text. */
+export function unquoteFlowchartLabel(raw: string): string {
+  if (raw.length < 2 || !raw.startsWith('"')) return raw
+  if (raw.endsWith('"')) return raw.slice(1, -1)
+  const close = raw.indexOf('"', 1)
+  return close > 0 && !raw.startsWith('"`') && !raw.includes('"', close + 1) ? raw.slice(1, close) + raw.slice(close + 1) : raw
 }
 
 /** Characters no label text holds literally: `"` would close a quoted label
@@ -123,7 +119,11 @@ function writeText(text: string): string {
  * not read back as itself as a Mermaid entity code (`#quot;`, `#lt;`,
  * `#35;` before entity-shaped text, `#92;n`, boundary whitespace).
  */
-export function writeFlowchartLabelText(label: string): string {
+export function writeFlowchartLabelText(label: string, content?: LabelContent): string {
+  if (content?.value === label && content.authored !== undefined) {
+    const tags = new RegExp(`(${FORMAT_TAG_SOURCE}|<br\\s*\\/?>)`, 'gi')
+    return content.authored.split(tags).map((part, index) => index % 2 ? part : encodeMermaidAuthoredEntities(part, RESERVED)).join('')
+  }
   const lines = label.split(/\r?\n/).map(line =>
     line.split(FORMAT_TAG_SPLIT).map((part, index) => index % 2 === 1 ? part : writeText(part)).join(''))
   const text = lines.join('<br>')

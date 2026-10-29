@@ -26,6 +26,7 @@
 
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { convertToAsciiGraph } from '../ascii/converter.ts'
 import { createMapping } from '../ascii/grid.ts'
@@ -111,16 +112,18 @@ function detectBoxes(ascii: string) {
       for (let xx = x + 1; xx < row.length; xx++) {
         const c = row[xx]
         if (c === '┐') { x1 = xx; break }
-        if (c !== '─') break
+        if (!'─┬┴┼'.includes(c!)) break
       }
       if (x1 < 0) continue
       let y1 = -1
       for (let yy = y + 1; yy < rows.length; yy++) {
         const c = rows[yy]?.[x]
         if (c === '└') { y1 = yy; break }
-        if (c !== '│') break
+        if (!c || !'│├┤┼'.includes(c)) break
       }
-      if (y1 < 0) continue
+      if (y1 < 0 || rows[y1]?.[x1] !== '┘') continue
+      if (![...rows[y1]!.slice(x + 1, x1)].every(c => '─┬┴┼'.includes(c))) continue
+      if (rows.slice(y + 1, y1).some(row => !'│├┤┼'.includes(row[x1] ?? ''))) continue
       let label = ''
       for (let yy = y + 1; yy < y1; yy++) {
         const seg = (rows[yy] ?? '').slice(x + 1, x1).replace(/[│]/g, ' ').trim()
@@ -184,14 +187,14 @@ describe('characterisation · Tier A · universal invariants', () => {
         const out = renderMermaidASCII(src, U)
         expect(out.length).toBeGreaterThan(0)
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
   })
 
   // P2 (determinism) is observed on output: ascii-determinism.test.ts
-  // re-renders the docs corpus and the tie-break fixtures. A reordered (but
-  // still deterministic) tie-break is P2-invisible;
-  // ascii-pathfinder-determinism pins the FIFO route exactly.
+  // re-renders the docs corpus and the tie-break fixtures. The pathfinder unit
+  // tests allow any repeatable shortest route; reviewed ASCII goldens notice
+  // changes to its rendered appearance.
 
   // P3. Orthogonality. No diagonal connector glyphs: every edge is Manhattan
   // (90° bends only). This is the defining invariant of the A* router. Kills
@@ -201,7 +204,7 @@ describe('characterisation · Tier A · universal invariants', () => {
       fc.property(generalGraphArb, ({ src }) => {
         expect(hasDiagonalLines(renderMermaidASCII(src, U))).toBe(false)
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
   })
 
@@ -214,7 +217,7 @@ describe('characterisation · Tier A · universal invariants', () => {
         const widths = new Set(renderMermaidASCII(src, U).split('\n').map((l) => l.length))
         expect(widths.size).toBe(1)
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
   })
 })
@@ -233,7 +236,7 @@ describe('characterisation · Tier B · structural (trees & chains)', () => {
           const out = renderMermaidASCII(src, U)
           for (const id of ns) expect(out).toContain(id)
         }),
-        { numRuns: 40 },
+        fcParameters({ numRuns: 40 }),
       )
     })
   }
@@ -243,8 +246,9 @@ describe('characterisation · Tier B · structural (trees & chains)', () => {
   // guarantee it here. (Dense/cyclic graphs can overlap — a known limit.)
   it('P6 box non-overlap — tree node boxes are pairwise disjoint', () => {
     fc.assert(
-      fc.property(outTreeArb('TD'), ({ src }) => {
+      fc.property(outTreeArb('TD'), ({ src, ns }) => {
         const b = detectBoxes(renderMermaidASCII(src, U))
+        expect(b.map(box => box.label).sort()).toEqual([...ns].sort())
         for (let i = 0; i < b.length; i++) {
           for (let j = i + 1; j < b.length; j++) {
             const a = b[i]!, c = b[j]!
@@ -253,7 +257,7 @@ describe('characterisation · Tier B · structural (trees & chains)', () => {
           }
         }
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
   })
 
@@ -275,7 +279,7 @@ describe('characterisation · Tier B · structural (trees & chains)', () => {
           if (su && sv) { edgesChecked++; expect(sv.top).toBeGreaterThan(su.top) }
         }
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
     expect(edgesChecked).toBeGreaterThanOrEqual(0.95 * edgesSeen)
   })
@@ -291,7 +295,7 @@ describe('characterisation · Tier B · structural (trees & chains)', () => {
           if (su && sv) { edgesChecked++; expect(sv.left).toBeGreaterThan(su.left) }
         }
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
     expect(edgesChecked).toBeGreaterThanOrEqual(0.95 * edgesSeen)
   })
@@ -315,7 +319,7 @@ describe('characterisation · Tier B · structural (trees & chains)', () => {
         expect(nodeLines).toBe(n)
         expect(edgeLines).toBe(n - 1)
       }),
-      { numRuns: 30 },
+      fcParameters({ numRuns: 30 }),
     )
   })
 })
@@ -338,7 +342,7 @@ describe('characterisation · Tier C · metamorphic & topology regressions', () 
         const bt = renderMermaidASCII(['graph BT', ...decls, ...links].join('\n'), A)
         expect(flipVertically(td)).toBe(bt)
       }),
-      { numRuns: 20 },
+      fcParameters({ numRuns: 20 }),
     )
   })
 
@@ -353,7 +357,7 @@ describe('characterisation · Tier C · metamorphic & topology regressions', () 
         for (const [parent, child] of edges) expect(labelColumn(rl, child)).toBeLessThan(labelColumn(rl, parent))
         expect(rl).not.toBe(lr)
       }),
-      { numRuns: 40 },
+      fcParameters({ numRuns: 40 }),
     )
   })
 
@@ -367,7 +371,7 @@ describe('characterisation · Tier C · metamorphic & topology regressions', () 
         const rl = renderMermaidASCII(['graph RL', ...declarations, ...links].join('\n'), A)
         expect(rl).toBe(flipHorizontally(lr))
       }),
-      { numRuns: 20 },
+      fcParameters({ numRuns: 20 }),
     )
   })
 
@@ -382,6 +386,7 @@ describe('characterisation · Tier C · metamorphic & topology regressions', () 
     }
     const graph = convertToAsciiGraph(parseMermaid('graph RL\n  A --> B\n  A --> C'), config)
     createMapping(graph)
+    expect(graph.nodes.map(node => node.name).sort()).toEqual(['A', 'B', 'C'])
     for (const node of graph.nodes) {
       expect(node.gridCoord).not.toBeNull()
       for (let dx = 0; dx < 3; dx++) {
@@ -413,7 +418,7 @@ describe('characterisation · Tier C · metamorphic & topology regressions', () 
         const b = renderMermaidASCII(src.replace(/N(\d)/g, 'Z$1'), U)
         expect(skeleton(b)).toBe(skeleton(a))
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
   })
 

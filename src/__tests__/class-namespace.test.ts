@@ -16,7 +16,7 @@ import { describe, it, expect } from 'bun:test'
 import { parseClassDiagram } from '../class/parser.ts'
 import { layoutClassDiagram } from '../class/layout.ts'
 import { renderMermaidSVG } from '../index.ts'
-import { layoutMermaid, parseRegisteredMermaid as parseMermaid, verifyMermaid } from '../agent/index.ts'
+import { layoutMermaid, mutate, parseRegisteredMermaid as parseMermaid, renderMermaidSVG as renderParsedSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 
 const parse = (src: string) => parseClassDiagram(toMermaidLines(src))
@@ -112,6 +112,83 @@ describe('class namespaces — render parser', () => {
 })
 
 describe('class namespaces — compound layout invariants', () => {
+  it.each(['ns:Domain', 'ns:Domain#1'])('keeps the authored namespace-looking ID %s as a class through rendering and edits', id => {
+    const source = `classDiagram\nclass \`${id}\`["Authored card"]\nnote for \`${id}\` "Owned note"`
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind).toBe('class')
+    for (const text of [source, serializeMermaid(parsed.value)]) {
+      const positioned = layoutClassDiagram(parse(text))
+      expect(positioned.classes.map(node => node.id)).toEqual([id])
+      expect(positioned.namespaces).toEqual([])
+      expect(positioned.notes[0]).toMatchObject({ for: id, text: 'Owned note' })
+      expect(positioned.notes[0]!.targetX).toBeDefined()
+      expect(renderMermaidSVG(text)).toContain(`class="class-node" data-id="${id}"`)
+    }
+    expect(layoutMermaid(parsed.value).groups).toEqual([])
+    expect(renderParsedSVG(parsed.value)).toBe(renderMermaidSVG(source))
+    const renamed = mutate(parsed.value, { kind: 'rename_class', from: id, to: 'ns:Renamed' })
+    if (!renamed.ok) throw new Error(JSON.stringify(renamed.error))
+    expect(renderParsedSVG(renamed.value)).toContain('class="class-node" data-id="ns:Renamed"')
+  })
+
+  it('reserves authored IDs and generated-looking suffixes before allocating a namespace compound', () => {
+    const source = 'classDiagram\nnamespace Domain {\nclass `ns:Domain`["First card"]\nclass Peer\n}\nclass `ns:Domain#1`["Suffix card"]\n`ns:Domain` --> Peer : inside relation'
+    const positioned = layoutClassDiagram(parse(source))
+    expect(positioned.classes.map(node => node.id).sort()).toEqual(['Peer', 'ns:Domain', 'ns:Domain#1'])
+    expect(positioned.namespaces.map(group => group.id)).toEqual(['Domain'])
+    const group = positioned.namespaces[0]!
+    expect(group.classIds).toEqual(['ns:Domain', 'Peer'])
+    for (const id of group.classIds) expect(inside(positioned.classes.find(node => node.id === id)!, group)).toBe(true)
+    expect(inside(positioned.classes.find(node => node.id === 'ns:Domain#1')!, group)).toBe(false)
+    expect(positioned.relationships[0]).toMatchObject({ from: 'ns:Domain', to: 'Peer', label: 'inside relation' })
+    expect(positioned.relationships[0]!.points.length).toBeGreaterThanOrEqual(2)
+    const svg = renderMermaidSVG(source)
+    expect(svg).toContain('>First card</text>')
+    expect(svg).toContain('>Suffix card</text>')
+    expect(svg).toContain('>inside relation</text>')
+  })
+
+  it.each([true, false])('hosts parallel relationships on actual namespace ancestry (hierarchical=%s)', hierarchicalNamespaces => {
+    const source = 'classDiagram\nnamespace `Root.Left` {\nclass Left\n}\nnamespace `Root.Right` {\nclass Right\n}\nLeft --> Right : crossing\nLeft --> Right : parallel'
+    const positioned = layoutClassDiagram(parse(source), { class: { hierarchicalNamespaces } })
+    expect(positioned.classes.map(node => node.id).sort()).toEqual(['Left', 'Right'])
+    const left = positioned.namespaces.find(group => group.id === 'Root.Left')!
+    const right = positioned.namespaces.find(group => group.id === 'Root.Right')!
+    expect(left.parentId).toBeUndefined()
+    expect(right.parentId).toBeUndefined()
+    expect(inside(positioned.classes.find(node => node.id === 'Left')!, left)).toBe(true)
+    expect(inside(positioned.classes.find(node => node.id === 'Right')!, right)).toBe(true)
+    expect(positioned.relationships.map(edge => [edge.from, edge.to, edge.label])).toEqual([['Left', 'Right', 'crossing'], ['Left', 'Right', 'parallel']])
+    for (const edge of positioned.relationships) expect(edge.points.length).toBeGreaterThanOrEqual(2)
+    expect(positioned.relationships[0]!.points).not.toEqual(positioned.relationships[1]!.points)
+  })
+
+  it.each([undefined, 'elk', 'agentic'] as const)('places freestanding notes when there are no classes or namespaces (backend=%s)', backend => {
+    const source = 'classDiagram\nnote "First freestanding note"\nnote "Second freestanding note"'
+    const options = backend ? { graphLayout: { backend, fallback: 'none' as const } } : {}
+    const positioned = layoutClassDiagram(parse(source), options)
+    expect(positioned.classes).toEqual([])
+    expect(positioned.namespaces).toEqual([])
+    expect(positioned.notes.map(note => note.text)).toEqual(['First freestanding note', 'Second freestanding note'])
+    const [first, second] = positioned.notes
+    expect(second!.y).toBeGreaterThanOrEqual(first!.y + first!.height)
+    for (const note of positioned.notes) {
+      expect([note.x, note.y, note.width, note.height].every(Number.isFinite)).toBe(true)
+      expect(note.width).toBeGreaterThan(0)
+      expect(note.height).toBeGreaterThan(0)
+      expect(note.x).toBeGreaterThanOrEqual(0)
+      expect(note.y).toBeGreaterThanOrEqual(0)
+      expect(note.x + note.width).toBeLessThanOrEqual(positioned.width)
+      expect(note.y + note.height).toBeLessThanOrEqual(positioned.height)
+    }
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const svg = renderParsedSVG(parsed.value, options)
+    expect(svg).toBe(renderMermaidSVG(source, options))
+    for (const note of positioned.notes) expect(svg).toContain(`>${note.text}</text>`)
+  })
+
   it('every member class box lies inside its namespace box', () => {
     const pos = layoutClassDiagram(parse(NS_BASIC))
     const shapes = pos.namespaces.find(n => n.name === 'Shapes')

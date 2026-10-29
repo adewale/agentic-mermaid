@@ -1,3 +1,5 @@
+export { PaintLayoutCertificationError, type PaintLayoutCertification } from '../scene/paint-certification.ts'
+import { renderedPaintCertification, retainRenderedPaintCertification } from '../scene/paint-certification.ts'
 // ============================================================================
 // agentic-mermaid — runtime-neutral agent surface (v4).
 // Everything here is pure JS/TS (elkjs bundled build included) and safe to
@@ -8,6 +10,7 @@
 // nothing (ELK is deterministic on its own). See AGENT_NATIVE.md § (1).
 // ============================================================================
 
+export type { LabelContent, PreparedDisplayText, DisplayRun } from '../shared/display-text.ts'
 export type { AsciiRenderOptions, AsciiWidthErrorReason, RenderedAscii } from '../ascii/index.ts'
 export { AsciiWidthError } from '../ascii/index.ts'
 export type { AsciiRegion, AsciiWarning, AsciiWarningCode, AsciiWithMeta, RegionKind } from '../ascii/meta.ts'
@@ -73,7 +76,8 @@ export {
 } from './families.ts'
 export { projectPositionedView } from './family-layouts.ts'
 export { FamilyConformanceError, registerFamily } from './family-registration.ts'
-export { edgeIdOf, mutate, mutateChecked } from './mutate.ts'
+export { edgeIdOf, mutate, mutateChecked, mutatePreservingSource } from './mutate.ts'
+export type { SourceMutationResult } from './mutate.ts'
 export type { OpFamily, OpFieldDoc, OpValidationError } from './op-schema.ts'
 export { describeOps, hasOpSchema, opMenu, opSignatures, validateOp } from './op-schema.ts'
 export { parseRegisteredMermaid } from './parse.ts'
@@ -171,6 +175,8 @@ export type {
   RenderedLayout,
   RenderedLayoutEdge,
   RenderedLayoutGroup,
+  RenderedLayoutLabel,
+  RenderedLabelBounds,
   RenderedLayoutNode,
   RenderedRegion,
   RenderedRegionKind,
@@ -193,6 +199,7 @@ export type {
   SourceSpan,
   SourceSpanPoint,
   StateBody,
+  StateFloatingNote,
   StateMutationOp,
   StateNode,
   StateTransition,
@@ -220,7 +227,7 @@ export type {
   XyChartSeries,
   XyChartValidDiagram,
 } from './types.ts'
-export { asArchitecture, asClass, asEr, asFlowchart, asGantt, asGitGraph, asJourney, asMindmap, asPie, asQuadrant, asRadar, asSankey, asSequence, asState, asTimeline, asXyChart, DEFAULT_LABEL_CHAR_CAP, err, ok, toFinite, WARNING_SEVERITY, WARNING_TIER } from './types.ts'
+export { asC4, asArchitecture, asClass, asEr, asFlowchart, asGantt, asGitGraph, asJourney, asMindmap, asPie, asQuadrant, asRadar, asSankey, asSequence, asState, asTimeline, asXyChart, DEFAULT_LABEL_CHAR_CAP, err, ok, toFinite, WARNING_SEVERITY, WARNING_TIER } from './types.ts'
 export { verifyMermaid } from './verify.ts'
 
 import { renderMermaidSVG as _svg, renderMermaidSVGWithReceipt as _svgWithReceipt } from '../index.ts'
@@ -475,7 +482,7 @@ export function layoutMermaidWithReceipt(input: ParsedDiagram | string, opts: La
   if (!familyLayout) throw new Error(`No public layout projection registered for Mermaid family "${diagram.kind}"`)
   return {
     layout: enrichRenderedLayout(diagram, familyLayout, layoutOptions),
-    receipt: _receiptOf(request),
+    receipt: { ..._receiptOf(request), ...(renderedPaintCertification(familyLayout) ? { layoutCertification: renderedPaintCertification(familyLayout) } : {}) },
   }
 }
 
@@ -495,9 +502,11 @@ function enrichRenderedLayout(d: ParsedDiagram, layout: RenderedLayout, opts: La
   const next: RenderedLayout = { ...layout }
   if (wantRegions) next.regions = buildRenderedRegions(d, layout)
   if (wantActions) {
-    const nodeIds = new Set<string>(layout.nodes.map(n => n.id))
-    next.actions = (d.body.kind === 'extension' || d.body.kind === 'preserved' ? [] : collectRenderedActionRecords(d as ValidDiagram)).filter(a => nodeIds.has(a.target)).map(a => ({ ...a, regionId: a.regionId ?? `node:${a.target}` }))
+    const renderedIds = new Set<string>([...layout.nodes, ...layout.groups, ...layout.edges].map(element => element.id))
+    next.actions = (d.body.kind === 'extension' || d.body.kind === 'preserved' ? [] : collectRenderedActionRecords(d as ValidDiagram)).filter(a => renderedIds.has(a.target)).map(a => ({ ...a, regionId: a.regionId ?? `node:${a.target}` }))
   }
+  const certification = renderedPaintCertification(layout)
+  if (certification) retainRenderedPaintCertification(next, certification)
   return next
 }
 
@@ -527,7 +536,7 @@ function buildRenderedRegions(d: ParsedDiagram, layout: RenderedLayout): Rendere
       id: `node:${node.id}`,
       kind: 'node',
       elementId: node.id,
-      parentId: groupByMember.has(node.id) ? `group:${groupByMember.get(node.id)!}` : 'canvas',
+      parentId: node.parentId !== undefined ? `group:${node.parentId}` : groupByMember.has(node.id) ? `group:${groupByMember.get(node.id)!}` : 'canvas',
       bounds: { x: node.x, y: node.y, w: node.w, h: node.h },
       sourceLine: d.source.nodes.get(node.id)?.line ?? sourceLines.nodes.get(node.id),
     })
@@ -610,3 +619,24 @@ function sourceLineHints(d: ParsedDiagram): { nodes: Map<string, number>; groups
   }
   return { nodes, groups }
 }
+
+export type { C4Body, C4MutationOp, C4ValidDiagram } from './types.ts'
+export type { C4Element, C4Boundary, C4Relationship, C4Variant, C4ElementInput, C4BoundaryInput, C4RelationshipInput, C4Style, C4Argument, C4ArgumentInput, C4Directive, C4Statement, C4Diagnostic, C4Direction, C4ElementKind, C4BoundaryKind, C4Shape } from '../c4/types.ts'
+
+export { asPacket } from './types.ts'
+export type { PacketBody, PacketMutationOp, PacketValidDiagram } from './types.ts'
+export { asKanban } from './types.ts'
+export type { KanbanBody, KanbanMutationOp, KanbanValidDiagram } from './types.ts'
+export { asRequirement } from './types.ts'
+export type { RequirementBody, RequirementMutationOp, RequirementValidDiagram } from './types.ts'
+export { asTreemap } from './types.ts'
+export type { TreemapBody, TreemapMutationOp, TreemapValidDiagram } from './types.ts'
+export { asIshikawa } from './types.ts'
+export type { IshikawaBody, IshikawaMutationOp, IshikawaValidDiagram } from './types.ts'
+export { asBlock } from './types.ts'
+export type { BlockBody, BlockMutationOp, BlockValidDiagram } from './types.ts'
+
+export { asZenUML } from './types.ts'
+export type { ZenUMLBody, ZenUMLMutationOp, ZenUMLValidDiagram, ZenUMLParticipant, ZenUMLStatement, ZenUMLBranch } from './types.ts'
+export { asEventModeling } from './types.ts'
+export type { EventModelingBody, EventModelingMutationOp, EventModelingValidDiagram, EventFrame, EventFrameType, EventData, EventSpecification } from './types.ts'

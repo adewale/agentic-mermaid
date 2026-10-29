@@ -4,9 +4,10 @@
 import { randomUUID } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { URL } from 'node:url'
+import { EDIT_TOOLS, handleEditTool } from './edit-tools.ts'
 import { executeInSandbox } from './sandbox.ts'
 import { DEFAULT_EXECUTE_TIMEOUT_MS } from './execute-limits.ts'
-import { isJsonContentType, preserveExactJsonRpcIds, reply, rpcError as error, stringifyJsonRpc, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
+import { isJsonContentType, preserveExactJsonRpcIds, rpcError as error, stringifyJsonRpc, toolResult, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import {
   EXECUTE_TIMEOUT_ERROR,
   createDescribeTool,
@@ -14,6 +15,8 @@ import {
   createRenderPngTool,
   dispatchAdmittedMcpRequest,
   isValidExecuteTimeout,
+  isMcpPngOutputMode,
+  MCP_PNG_OUTPUT_MODES,
   projectMcpRenderOptions,
   surfaceSupportedVersions,
   withClosedMcpInputSchema,
@@ -108,13 +111,14 @@ export const LOCAL_TOOLS = [
   withClosedMcpInputSchema(createDescribeSdkTool()),
   createRenderPngTool('local'),
   createDescribeTool(),
+  ...EDIT_TOOLS,
 ]
 
 let defaultArtifactStore: ArtifactStore | undefined
 let defaultArtifactStoreExitHook = false
 const MCP_NARROWERS = BUILTIN_FAMILY_METADATA.map(f => f.narrower).join('/')
 
-const LOCAL_INSTRUCTIONS = `agentic-mermaid Code Mode server. Primary tool execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. describe_sdk progressively discloses one family's version-matched mutation schema; call it before authoring unfamiliar ops. render_png and describe are narrow helpers. render_png can return base64, managed file paths, or managed URLs when the transport config provides an artifact store. There is no mutate tool on this server: structured edits go through the SDK's mermaid.mutate(...) inside execute; narrow via ${MCP_NARROWERS}. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry).`
+const LOCAL_INSTRUCTIONS = `agentic-mermaid editing server. Prefer mutate/build for ordinary edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. describe_sdk progressively discloses one family's version-matched mutation schema; call it before authoring unfamiliar ops. render_png and describe are narrow helpers. render_png can return base64, managed file paths, or managed URLs when the transport config provides an artifact store. Prefer declarative mutate/build for structured edits; they accept ordered JSON ops and verify before emitting source. Reserve execute for custom logic; narrow via ${MCP_NARROWERS}. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry).`
 
 const LOCAL_SURFACE: McpServerSurface<McpRequestContext> = {
   protocolVersion: PROTOCOL_VERSION,
@@ -147,7 +151,7 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
   if (name === 'describe_sdk') {
     try {
       const payload = describeSdkPayload(args)
-      return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: false })
+      return toolResult(id, payload, false)
     } catch (e) {
       return error(id, -32602, e instanceof Error ? e.message : String(e))
     }
@@ -164,19 +168,21 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
     )
     if (typeof code !== 'string') return error(id, -32602, 'execute requires `code` (string)')
     const r = await executeInSandbox(code, { timeoutMs })
-    return reply(id, { content: [{ type: 'text', text: JSON.stringify(r) }], isError: !r.ok })
+    return toolResult(id, r, !r.ok)
   }
+  if (name === 'mutate') return handleEditTool(id, args, 'source')
+  if (name === 'build') return handleEditTool(id, args, 'family')
   if (name === 'render_png') return handleRenderPng(id, args, context)
   if (name === 'describe') {
     const source = (args as { source?: string }).source
     if (typeof source !== 'string') return error(id, -32602, 'describe requires `source` (string)')
     try {
       const payload = mcpDescribePayload(source, args)
-      return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: !payload.ok })
+      return toolResult(id, payload, !payload.ok)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       const payload = { ok: false as const, error: { code: 'DESCRIBE_FAILED', message: msg } }
-      return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: true })
+      return toolResult(id, payload, true)
     }
   }
   return error(id, -32602, `Unknown tool: ${name ?? '<none>'}`)
@@ -184,9 +190,9 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
 
 function handleRenderPng(id: number | string | null, args: Record<string, unknown>, context: McpRequestContext): JsonRpcResponse {
   const source = (args as { source?: string }).source
-  const output = (args.output ?? 'base64') as 'base64' | 'file' | 'url'
+  const output = args.output ?? 'base64'
   if (typeof source !== 'string') return error(id, -32602, 'render_png requires `source` (string)')
-  if (!['base64', 'file', 'url'].includes(output)) return error(id, -32602, 'render_png output must be one of: base64, file, url')
+  if (!isMcpPngOutputMode(output)) return error(id, -32602, `render_png output must be one of: ${MCP_PNG_OUTPUT_MODES.join(', ')}`)
   try {
     const fontWarnings: Array<Record<string, unknown>> = []
     const pngOutput = projectNativePngOutputPolicyInput(args)
@@ -200,19 +206,19 @@ function handleRenderPng(id: number | string | null, args: Record<string, unknow
     if (output === 'base64') {
       const png_base64 = Buffer.from(rendered.png).toString('base64')
       const payload = { ok: true as const, png_base64, receipt: rendered.receipt, runtime: rendered.runtime, warnings }
-      return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: false })
+      return toolResult(id, payload, false)
     }
     const store = context.artifactStore ?? getDefaultArtifactStore()
     if (output === 'url' && !store.hasBaseUrl()) return error(id, -32602, 'render_png output=url requires an HTTP/SSE artifact base URL')
     const artifact = store.write(rendered.png, { extension: '.png', mimeType: 'image/png' })
     const payload = { ok: true as const, artifact: artifactPayload(artifact, output as 'file' | 'url'), receipt: rendered.receipt, runtime: rendered.runtime, warnings }
-    return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: false })
+    return toolResult(id, payload, false)
   } catch (e) {
     const payload = {
       ok: false as const,
       error: projectRenderErrorDiagnostic(e),
     }
-    return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: true })
+    return toolResult(id, payload, true)
   }
 }
 
@@ -542,7 +548,8 @@ function canonicalIpv6Hostname(host: string): string | undefined {
 
 function httpServerOrigin(host: string, port: number): string {
   const ipv6 = canonicalIpv6Hostname(host)
-  const urlHost = ipv6 ? `[${ipv6}]` : host
+  // Wildcard addresses select listening interfaces; they are not destinations.
+  const urlHost = ipv6 ? `[${ipv6 === '::' ? '::1' : ipv6}]` : host === '0.0.0.0' ? '127.0.0.1' : host
   return `http://${urlHost}:${port}`
 }
 

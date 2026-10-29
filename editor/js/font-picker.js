@@ -1,19 +1,12 @@
-var PRESET_FONTS = (typeof EDITOR_PRESET_FONTS !== 'undefined' && Array.isArray(EDITOR_PRESET_FONTS))
-  ? EDITOR_PRESET_FONTS
-  : [
-    { name: 'System UI', value: 'system-ui', group: 'System' },
-    { name: 'Arial', value: 'Arial', group: 'System' },
-    { name: 'Georgia', value: 'Georgia', group: 'System' },
-    { name: 'Courier New', value: 'Courier New', group: 'System' },
-  ];
+import { ui } from './context.js';
+import { readConfig } from './config-panel.js';
+import { scheduleRender } from './rendering.js';
+import { createPopupController, positionAnchoredPopup } from './helpers.js';
+import { closeColorPopup } from './color-picker.js';
+export var PRESET_FONTS, fontPopup, fontSearch, fontList, fontSelectBtn, fontSelectLabel, fontPopupController, paddingNum, paddingSlider;
 
-var fontPopup     = document.getElementById('font-popup');
-var fontSearch    = document.getElementById('font-search');
-var fontList      = document.getElementById('font-list');
-var fontSelectBtn = document.getElementById('font-select-btn');
-var fontSelectLabel = document.getElementById('font-select-label');
 
-function buildFontList(query) {
+export function buildFontList(query) {
   var q = (query || '').toLowerCase();
   var filtered = PRESET_FONTS.filter(function(f) {
     return !q || f.name.toLowerCase().includes(q) || f.value.toLowerCase().includes(q);
@@ -55,12 +48,13 @@ function buildFontList(query) {
   }
 }
 
-function appendFontItem(name, value) {
+
+export function appendFontItem(name, value) {
   var item = document.createElement('button');
   item.type = 'button';
   item.setAttribute('role', 'option');
-  item.setAttribute('aria-selected', cfgFont === value ? 'true' : 'false');
-  item.className = 'font-item' + (cfgFont === value ? ' active' : '');
+  item.setAttribute('aria-selected', ui.cfgFont === value ? 'true' : 'false');
+  item.className = 'font-item' + (ui.cfgFont === value ? ' active' : '');
   var previewSpan = document.createElement('span');
   previewSpan.className = 'font-item-preview';
   previewSpan.style.fontFamily = value + ', sans-serif';
@@ -71,7 +65,7 @@ function appendFontItem(name, value) {
   item.appendChild(previewSpan);
   item.appendChild(nameSpan);
   item.addEventListener('click', function() {
-    cfgFont = value;
+    ui.cfgFont = value;
     fontSelectLabel.textContent = name;
     closeFontPopup();
     readConfig();
@@ -81,7 +75,42 @@ function appendFontItem(name, value) {
   fontList.appendChild(item);
 }
 
-var fontPopupController = createPopupController({
+
+export function openFontPopup() {
+  fontPopupController.open({ focusFirst: true });
+}
+
+
+export function closeFontPopup(restoreFocus) {
+  fontPopupController.close({ restoreFocus: !!restoreFocus });
+}
+
+
+export function setPadding(val) {
+  val = Math.max(0, Math.min(120, parseInt(val, 10) || 0));
+  ui.cfgPadding = val;
+  paddingNum.value    = val;
+  paddingSlider.value = val;
+  readConfig();
+  scheduleRender(200);
+}
+
+export function initialize() {
+PRESET_FONTS = ui.EDITOR_PRESET_FONTS;
+
+
+fontPopup = document.getElementById('font-popup');
+
+fontSearch = document.getElementById('font-search');
+
+fontList = document.getElementById('font-list');
+
+fontSelectBtn = document.getElementById('font-select-btn');
+
+fontSelectLabel = document.getElementById('font-select-label');
+
+
+fontPopupController = createPopupController({
   popup: fontPopup,
   trigger: fontSelectBtn,
   closePeersOnOpen: false,
@@ -104,29 +133,18 @@ var fontPopupController = createPopupController({
   position: function() { positionAnchoredPopup(fontPopup, fontSelectBtn, { width: 220, height: 320 }); },
 });
 
-function openFontPopup() {
-  fontPopupController.open({ focusFirst: true });
-}
-
-function closeFontPopup(restoreFocus) {
-  fontPopupController.close({ restoreFocus: !!restoreFocus });
-}
 
 fontSearch.addEventListener('input', function() {
   buildFontList(fontSearch.value);
 });
 
-var paddingNum    = document.getElementById('cfg-padding');
-var paddingSlider = document.getElementById('cfg-padding-slider');
 
-function setPadding(val) {
-  val = Math.max(0, Math.min(120, parseInt(val, 10) || 0));
-  cfgPadding = val;
-  paddingNum.value    = val;
-  paddingSlider.value = val;
-  readConfig();
-  scheduleRender(200);
-}
+paddingNum = document.getElementById('cfg-padding');
+
+paddingSlider = document.getElementById('cfg-padding-slider');
+
 
 paddingNum.addEventListener('input', function() { setPadding(paddingNum.value); });
+
 paddingSlider.addEventListener('input', function() { setPadding(paddingSlider.value); });
+}

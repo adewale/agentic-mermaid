@@ -5,8 +5,10 @@
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { createSubgraphMembership, resolveSubgraphMembership } from '../shared/subgraph-membership.ts'
 import { startUpstreamMermaid, type UpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { parseMermaid } from '../parser.ts'
 
 describe('resolveSubgraphMembership', () => {
   test('the first subgraph to close keeps a node; later ones drop it; each lists it once', () => {
@@ -80,9 +82,20 @@ describe('pinned upstream Mermaid assigns subgraph members by the same rule', ()
       const parsed = await upstream.parse(source)
       const theirs: unknown = parsed.ok ? parsed.flowchart?.subgraphs.map(({ id, nodes }) => ({ id, members: nodes })) : parsed.error
       expect({ source, members: resolveSubgraphMembership(closeOrder) as unknown }).toEqual({ source, members: theirs })
+      const actual: Array<{ id: string; members: string[] }> = []
+      const visit = (groups: ReturnType<typeof parseMermaid>['subgraphs']): void => {
+        for (const group of groups) {
+          actual.push({ id: group.id, members: [...group.nodeIds, ...group.children.map(child => child.id)].sort() })
+          visit(group.children)
+        }
+      }
+      visit(parseMermaid(source).subgraphs)
+      expect(actual.sort((a, b) => a.id.localeCompare(b.id))).toEqual(
+        (theirs as Array<{ id: string; members: string[] }>).map(group => ({ ...group, members: [...group.members].sort() })).sort((a, b) => a.id.localeCompare(b.id)),
+      )
       const mentioned = closeOrder.flatMap(subgraph => subgraph.members)
       if (new Set(mentioned).size < mentioned.length) contested++
-    }), { numRuns: 150 })
+    }), fcParameters({ numRuns: 150 }))
     // Non-vacuity: some programs mention one id in two subgraphs (or twice).
     expect(contested).toBeGreaterThan(0)
   }, 30_000)

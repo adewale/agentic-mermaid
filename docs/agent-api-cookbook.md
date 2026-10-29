@@ -23,7 +23,11 @@ Agentic Mermaid is not just a renderer. It is a structured edit loop:
 | Hosted MCP | No local install is available, or a client wants bounded HTTP tools | `https://agentic-mermaid.dev/mcp` tools: `execute`, render/verify/describe, `mutate`, `build` |
 | CLI | Shell-only verification, rendering, preview, or one-shot mutation | `am ...` |
 
-All channels expose the same core contract: parse, optionally narrow, mutate, verify, serialize/render. Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout.
+All channels expose the same core contract: parse, select the typed family when
+editing, mutate, verify, serialize/render. Selecting the family is called
+**narrowing**, not selecting one source object or fixing its coordinates. See
+the [shared vocabulary](./api.md#vocabulary). Agentic Mermaid outputs SVG, PNG,
+ASCII, Unicode, and JSON layout.
 
 ## Recipe: author a new diagram
 
@@ -292,12 +296,13 @@ Tier 1 warnings are reliable structural/source checks. Do not suppress Tier 1 er
 | `UNKNOWN_SHAPE` | warning | Shape name unrecognized; default used |
 | `LABEL_OVERFLOW` | warning | A label's longest rendered line exceeds the character cap (default 40, `labelCharCap`): `<br>` and `\n` split lines, XML entities count as one character, and formatting tags are stripped. Families that draw text literally (Pie, Timeline, Gantt, XYChart, GitGraph, Radar) count `<br>` and tags as characters, as drawn. Payload includes `charCount` and `limit`. Character-based, no font-table dependency. |
 | `UNRESOLVABLE_SCHEDULE` | error | The diagram parses and round-trips but its semantics cannot resolve, so rendering will fail loudly. Emitted for structured gantt bodies whose scheduler raises a named `GANTT_*` error (unknown task reference, bad calendar date, dependency cycle, everything-excluded calendar); the payload's `reason` carries that error. |
-| `RENDER_FAILED` | error | Any family: the source parses but the strict render parser, layout, or theme colors reject it, so rendering would fail. Generalizes `UNRESOLVABLE_SCHEDULE`'s seam-closing — a clean verify proves the diagram actually renders; the payload's `reason` carries the renderer error. |
+| `RENDER_FAILED` | error | Any family: the parser, the strict render parser, layout, or theme colors reject the source or its configuration, so rendering would fail; `origin` says which (`source` or `config`). Generalizes `UNRESOLVABLE_SCHEDULE`'s seam-closing — a clean verify proves the diagram actually renders; the payload's `reason` carries the renderer error. A defect in Agentic Mermaid itself is `INTERNAL_ERROR` instead. |
+| `INTERNAL_ERROR` | error | Agentic Mermaid hit an internal defect while drawing this source; it is not caused by the source. `defaultRender` says whether an ordinary render still produces output: `succeeds-unchecked` — it does, but the extra consistency checks verify runs failed, so its layout evidence cannot be trusted; `fails` — rendering throws. The payload's `reason` carries the internal error. Do not rewrite the diagram to work around it; report it with the source. |
 <!-- END GENERATED: warning-table:structural -->
 
-Tier 2 warnings are advisory geometric checks — route tripwires for flowchart/state, plus boundary-anchor/overlap checks on class/ER entity boxes: <!-- BEGIN GENERATED: warning-codes:geometric -->`NODE_OVERLAP`, `ROUTE_SELF_CROSS`, `ROUTE_HITCH`, `ROUTE_UNEXPLAINED_BEND`, `ROUTE_LABEL_ON_SHARED_TRUNK`, `ROUTE_SELF_LOOP_OCCUPANCY`, `ROUTE_CONTAINER_MISANCHOR`, `ROUTE_SHAPE_MISANCHOR`, `ROUTE_STALE_AFTER_NODE_MOVE`<!-- END GENERATED: warning-codes:geometric -->.
+Tier 2 contains geometric checks. Measured `CONTENT_OCCLUDED` is an error; width-limit and route/overlap warnings are advisory: <!-- BEGIN GENERATED: warning-codes:geometric -->`NODE_OVERLAP`, `CONTENT_OCCLUDED`, `LAYOUT_LIMIT_EXCEEDED`, `ROUTE_SELF_CROSS`, `ROUTE_HITCH`, `ROUTE_UNEXPLAINED_BEND`, `ROUTE_LABEL_ON_SHARED_TRUNK`, `ROUTE_SELF_LOOP_OCCUPANCY`, `ROUTE_CONTAINER_MISANCHOR`, `ROUTE_SHAPE_MISANCHOR`, `ROUTE_STALE_AFTER_NODE_MOVE`<!-- END GENERATED: warning-codes:geometric -->.
 
-Tier 3 covers advisory lint plus caller-selected inspect-only Brand policy: <!-- BEGIN GENERATED: warning-codes:lint -->`DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_UNLABELED`, `FLOW_IMBALANCE`, `COMMENT_DROPPED`, `UNSUPPORTED_SYNTAX`, `CONTENT_DROPPED_ON_ROUNDTRIP`, `INEFFECTIVE_CONFIG`, `LOW_CONTRAST`, `LABELS_HIDDEN`, `BAR_RANGE_EXCLUDES_ZERO`, `VALUES_OUTSIDE_RANGE`, `BRAND_CONSTRAINT_WARNING`, `BRAND_CONSTRAINT_ERROR`<!-- END GENERATED: warning-codes:lint -->. Advisory findings do not flip `verify.ok`; `BRAND_CONSTRAINT_ERROR` does only because the caller explicitly selected `action: "error"`.
+Tier 3 covers advisory lint plus caller-selected inspect-only Brand policy: <!-- BEGIN GENERATED: warning-codes:lint -->`DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_UNLABELED`, `FLOW_IMBALANCE`, `COMMENT_DROPPED`, `UNSUPPORTED_SYNTAX`, `CONTENT_DROPPED_ON_ROUNDTRIP`, `EVENT_SOURCE_TYPE`, `INEFFECTIVE_CONFIG`, `LOW_CONTRAST`, `LABELS_HIDDEN`, `SCALE_RANGE_EXCLUDES_ZERO`, `BAR_RANGE_EXCLUDES_ZERO`, `VALUES_OUTSIDE_RANGE`, `BRAND_CONSTRAINT_WARNING`, `BRAND_CONSTRAINT_ERROR`<!-- END GENERATED: warning-codes:lint -->. Advisory findings do not flip `verify.ok`; `BRAND_CONSTRAINT_ERROR` does only because the caller explicitly selected `action: "error"`.
 
 Each code's page under <https://agentic-mermaid.dev/warnings/> says what triggers it and how to clear it, and the tier tables in [`AGENT_NATIVE.md`](../AGENT_NATIVE.md#2-verifiable-rendering) describe every code; both are generated from `src/agent/warning-catalog.ts`.
 

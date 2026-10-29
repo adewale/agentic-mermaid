@@ -1,3 +1,5 @@
+import type { PixelTextBlock } from '../shared/prepared-text.ts'
+import type { LabelContent } from '../shared/display-text.ts'
 // ============================================================================
 // Journey diagram types
 //
@@ -11,6 +13,7 @@ import type { PositionedDiagram } from '../types.ts'
 export interface JourneyDiagram {
   /** Optional diagram title */
   title?: string
+  titleContent?: LabelContent
   /** Optional accessibility title from Mermaid accTitle */
   accessibilityTitle?: string
   /** Optional accessibility description from Mermaid accDescr */
@@ -23,16 +26,19 @@ export interface JourneySection {
   id: string
   /** Optional section label. Undefined means an implicit / ungrouped section. */
   label?: string
+  labelContent?: LabelContent
   tasks: JourneyTask[]
 }
 
 export interface JourneyTask {
   id: string
   text: string
+  textContent?: LabelContent
   /** Finite satisfaction score on a 1..5 scale, including fractions. */
   score: number
   /** Optional actors attached to the task */
   actors: string[]
+  actorContents?: Array<LabelContent | undefined>
 }
 
 // ============================================================================
@@ -40,6 +46,7 @@ export interface JourneyTask {
 // ============================================================================
 
 export interface PositionedJourneyDiagram extends PositionedDiagram {
+  actorLegendTitle?: PixelTextBlock
   width: number
   height: number
   title?: PositionedJourneyTitle
@@ -51,12 +58,14 @@ export interface PositionedJourneyDiagram extends PositionedDiagram {
 }
 
 export interface PositionedJourneyTitle {
+  block?: PixelTextBlock
   text: string
   x: number
   y: number
 }
 
 export interface PositionedJourneySection {
+  block?: PixelTextBlock
   id: string
   /** Unwrapped semantic category used by Style bindings. */
   category: string
@@ -75,6 +84,11 @@ export interface PositionedJourneySection {
 }
 
 export interface PositionedJourneyActor {
+  block?: PixelTextBlock
+  /** Semantic identity; separate from the authored Style category. */
+  key?: string
+  /** Authored actor identity, independent of the displayed label's casing. */
+  category: string
   label: string
   x: number
   y: number
@@ -91,6 +105,7 @@ export interface PositionedJourneyScoreGuide {
 }
 
 export interface PositionedJourneyScoreTick {
+  block?: PixelTextBlock
   score: number
   x1: number
   x2: number
@@ -107,6 +122,7 @@ export interface PositionedJourneyBaseline {
 }
 
 export interface PositionedJourneyTask {
+  block?: PixelTextBlock
   id: string
   sectionId: string
   text: string
@@ -139,6 +155,7 @@ export interface PositionedJourneyScoreMarker {
 
 export interface PositionedJourneyActorDot {
   label: string
+  key?: string
   colorIndex: number
   x: number
   y: number

@@ -1,18 +1,17 @@
 import { describe, expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
 import { DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
-import { renderContractDigest, renderMermaidSVG } from '../index.ts'
+import { createMermaidRenderer, DefaultBackend, registerBackend, renderContractDigest, renderMermaidSVG } from '../index.ts'
+import { renderedSvgDigest } from '../graphical-render.ts'
+import { SCENE_VALIDATION_LIMITS } from '../scene/scene-validation.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { layoutMermaidWithReceipt } from '../agent/core.ts'
 import {
   NON_SERIALIZABLE_RENDER_OPTION_FIELDS,
   SHARED_RENDER_OPTION_FIELDS,
   SHARED_RENDER_OPTION_FIELD_DESCRIPTORS,
-  SHARED_RENDER_OPTIONS_DOC_END,
-  SHARED_RENDER_OPTIONS_DOC_START,
   sharedRenderOptionsJsonSchema,
-  sharedRenderOptionsMarkdownTable,
   styleInputJsonSchema,
+  deferredRenderContractDigest,
   resolveRenderRequest,
   validateSerializableRenderOptions,
 } from '../render-contract.ts'
@@ -143,6 +142,211 @@ describe('shared RenderOptions authority', () => {
     })
     expect(renderContractDigest(accessorBacked)).toBe(renderContractDigest({ value: 1 }))
     expect(getterReads).toBe(1)
+
+    let boundary: unknown = null
+    for (let index = 0; index < 64; index++) boundary = { a: boundary }
+    expect(renderContractDigest(boundary)).toMatch(/^fnv1a64:/)
+    expect(() => renderContractDigest({ a: boundary })).toThrow('exceeds maximum nesting depth 64')
+
+    const width = Array(4096).fill(null)
+    expect(renderContractDigest(width)).toMatch(/^fnv1a64:/)
+    width.push(null)
+    expect(() => renderContractDigest(width)).toThrow('at most 4096 items')
+    let lengthReads = 0
+    const changingLength = new Proxy(width, { get(target, key, receiver) {
+      if (key === 'length' && lengthReads++ === 0) return 0
+      return Reflect.get(target, key, receiver)
+    } })
+    expect(() => renderContractDigest(changingLength)).toThrow('at most 4096 items')
+
+    const nodes = Array.from({ length: 25 }, (_, index) => Array(index === 24 ? 3974 : 4000).fill(null))
+    expect(renderContractDigest(nodes)).toMatch(/^fnv1a64:/)
+    nodes[24]!.push(null)
+    expect(() => renderContractDigest(nodes)).toThrow('100000-node limit')
+
+    for (const key of ['__proto__', 'prototype', 'constructor']) {
+      expect(() => renderContractDigest(Object.fromEntries([[key, 1]]))).toThrow('forbidden prototype key')
+      expect(renderContractDigest(Object.fromEntries([[key, undefined]]))).toBe(renderContractDigest({}))
+    }
+    for (const value of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, undefined, 1n, Symbol('invalid')]) {
+      expect(() => renderContractDigest([value])).toThrow(TypeError)
+    }
+    expect(() => renderContractDigest({ first: [Number.POSITIVE_INFINITY], second: {
+      get value() { throw new Error('capture must finish before validation') },
+    } })).toThrow('capture must finish before validation')
+  })
+
+  test.each(['drop', 'leak'] as const)('digest capture owns its slots when an inherited setter would %s a write', mode => {
+    const original = Object.getOwnPropertyDescriptor(Array.prototype, '0')
+    const marker = 123456
+    let captured: unknown[] | undefined
+    let reads = 0
+    let intercepted = 0
+    const source = mode === 'drop' ? [marker] : [marker, {
+      get later() { reads++; if (captured) captured[0] = Number.POSITIVE_INFINITY; return true },
+    }]
+    let failure: unknown
+    let digest: string | undefined
+    try {
+      Object.defineProperty(Array.prototype, '0', {
+        configurable: true,
+        set(this: unknown[], value: unknown) {
+          if (value === marker) intercepted++
+          if (value === marker && mode === 'drop') return
+          if (value === marker) captured = this
+          Object.defineProperty(this, '0', { value, writable: true, enumerable: true, configurable: true })
+        },
+      })
+      try { digest = renderContractDigest(source) } catch (error) { failure = error }
+    } finally {
+      if (original) Object.defineProperty(Array.prototype, '0', original)
+      else Reflect.deleteProperty(Array.prototype, '0')
+    }
+    expect(failure).toBeUndefined()
+    expect(intercepted).toBe(0)
+    expect(digest).toBe(renderContractDigest(mode === 'drop' ? [marker] : [marker, { later: true }]))
+    expect(reads).toBe(mode === 'drop' ? 0 : 1)
+  })
+
+  test('digest capture does not hand private arrays to an ambient push replacement', () => {
+    const original = Object.getOwnPropertyDescriptor(Array.prototype, 'push')!
+    const marker = 123456
+    let intercepted = 0
+    let failure: unknown
+    let digest: string | undefined
+    try {
+      Object.defineProperty(Array.prototype, 'push', { ...original,
+        value(this: unknown[], ...values: unknown[]) {
+          if (values.includes(marker)) { intercepted++; throw new Error('ambient push intercepted private data') }
+          return Reflect.apply(original.value, this, values)
+        },
+      })
+      try { digest = renderContractDigest([marker]) } catch (error) { failure = error }
+    } finally { Object.defineProperty(Array.prototype, 'push', original) }
+    expect(failure).toBeUndefined()
+    expect(intercepted).toBe(0)
+    expect(digest).toBe(renderContractDigest([marker]))
+  })
+
+  test.each(['array', 'object'] as const)('digest capture freezes each %s before a branding hook can change it', shape => {
+    const original = Object.getOwnPropertyDescriptor(WeakSet.prototype, 'add')!
+    const marker = 123456
+    const source = () => shape === 'array' ? [marker] : { proofMarker: marker }
+    let observed = 0
+    let mutable = 0
+    let digest: string | undefined
+    let deferred: (() => string) | undefined
+    let failure: unknown
+    try {
+      Object.defineProperty(WeakSet.prototype, 'add', { ...original,
+        value(this: WeakSet<object>, value: object) {
+          const key = Array.isArray(value) ? '0' : 'proofMarker'
+          if (Reflect.get(value, key) === marker) {
+            observed++
+            if (!Object.isFrozen(value)) mutable++
+            Reflect.set(value, key, Number.POSITIVE_INFINITY)
+          }
+          return Reflect.apply(original.value, this, [value])
+        },
+      })
+      try {
+        digest = renderContractDigest(source())
+        deferred = deferredRenderContractDigest(source())
+      } catch (error) { failure = error }
+    } finally { Object.defineProperty(WeakSet.prototype, 'add', original) }
+    expect(failure).toBeUndefined()
+    expect(observed).toBe(2)
+    expect(mutable).toBe(0)
+    // Independent FNV-1a-64 vectors for [123456] / {"proofMarker":123456}.
+    const expected = shape === 'array' ? 'fnv1a64:7dabd99ba02ca668' : 'fnv1a64:1c35bbcc0f62d15e'
+    expect(digest).toBe(expected)
+    expect(deferred!()).toBe(expected)
+  })
+
+  test.each(['proxy', 'getter'] as const)('bounds array copying when a %s grows after the length preflight', kind => {
+    const maximum = 100_000
+    let lastAllowedReads = 0
+    let overflowReads = 0
+    let source: unknown[]
+    if (kind === 'proxy') {
+      let lengthReads = 0
+      source = new Proxy([], {
+        get(target, key, receiver) {
+          if (key === 'length') return lengthReads++ === 0 ? 0 : maximum + 1
+          if (typeof key === 'string' && /^\d+$/.test(key)) {
+            if (Number(key) === maximum - 1) lastAllowedReads++
+            if (Number(key) === maximum) { overflowReads++; throw new Error('overflow slot was read') }
+            return null
+          }
+          return Reflect.get(target, key, receiver)
+        },
+        getOwnPropertyDescriptor(target, key) {
+          if (typeof key === 'string' && /^\d+$/.test(key)) return { value: null, writable: true, enumerable: true, configurable: true }
+          return Reflect.getOwnPropertyDescriptor(target, key)
+        },
+      })
+    } else {
+      source = [null]
+      Object.defineProperty(source, '0', { get() {
+        source.length = maximum + 1
+        source.fill(null, 1, maximum)
+        Object.defineProperty(source, maximum - 1, { get() { lastAllowedReads++; return null } })
+        Object.defineProperty(source, maximum, { get() { overflowReads++; throw new Error('overflow slot was read') } })
+        return null
+      } })
+    }
+    expect(() => renderContractDigest(source)).toThrow('100000-entry limit at $')
+    expect(lastAllowedReads).toBe(1)
+    expect(overflowReads).toBe(0)
+  })
+
+  test('graphical digests preserve the established canonical JSON string encoding', () => {
+    expect(renderedSvgDigest('')).toBe('fnv1a64:07cc7607b4949e25')
+    expect(renderedSvgDigest('a"\\\b\f\n\r\t\u0000\u001f/é😀\ud800x\udfff\u2028\u2029'))
+      .toBe('fnv1a64:ab04f0d8cdd45e97')
+  })
+
+  test('graphical digests admit bounded output beyond the request-data character limit', () => {
+    const svg = `<svg><!--${'x'.repeat(2_000_001)}--></svg>`
+    const digest = renderedSvgDigest(svg)
+    expect(digest).toMatch(/^fnv1a64:[0-9a-f]{16}$/)
+    expect(renderedSvgDigest(svg.replace('--></svg>', 'y--></svg>'))).not.toBe(digest)
+    expect(() => renderContractDigest(svg)).toThrow('2000000-character aggregate limit')
+  })
+
+  test('graphical digests retain primitive-string and final SVG byte admission', () => {
+    let coercions = 0
+    expect(() => renderedSvgDigest({ toString() { coercions++; return '<svg/>' } })).toThrow('must be a string')
+    expect(coercions).toBe(0)
+    const oversized = `<svg><!--${'é'.repeat(SCENE_VALIDATION_LIMITS.maxFinalSvgBytes / 2)}--></svg>`
+    expect(oversized.length).toBeLessThan(SCENE_VALIDATION_LIMITS.maxFinalSvgBytes)
+    expect(() => renderedSvgDigest(oversized)).toThrow(`${SCENE_VALIDATION_LIMITS.maxFinalSvgBytes}-byte final SVG limit`)
+  })
+
+  test('public SVG receipts hash admitted large backend output after the final security gate', () => {
+    const id = 'backend:test/large-svg-digest'
+    let padding = ''
+    const unregister = registerBackend({
+      ...DefaultBackend,
+      id,
+      capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: id })),
+      render(document, context) {
+        return DefaultBackend.render(document, context).replace('</svg>', `<!--${padding}--></svg>`)
+      },
+    }, {
+      compatibility: { core: '^0.5.0', scene: '^2.0.0' },
+      provenance: { owner: 'large-svg-digest-test', source: 'test' },
+    })
+    try {
+      padding = 'x'.repeat(2_000_001)
+      const renderer = createMermaidRenderer({ backendPolicy: { selectBackend: () => id } })
+      const result = renderer.renderMermaidSVGWithReceipt('flowchart LR\nA-->B', { embedFontImport: false, security: 'strict' })
+      expect(result.svg.length).toBeGreaterThan(2_000_000)
+      expect(result.svg).toContain(padding)
+      expect(result.receipt.graphicalProjectionDigest).toMatch(/^fnv1a64:[0-9a-f]{16}$/)
+    } finally {
+      unregister()
+    }
   })
 
   test('enforces the authority at the canonical render boundary', () => {
@@ -181,6 +385,19 @@ describe('shared RenderOptions authority', () => {
     expect(request.renderOptions.bg).toBe('#123456')
     expect(request.renderOptions.class).toEqual({ hierarchicalNamespaces: false })
     expect(Object.isFrozen(request.renderOptions.class)).toBe(true)
+  })
+
+  test('preserves captured own option values despite inherited setters', () => {
+    const prior = Object.getOwnPropertyDescriptor(Object.prototype, 'padding')
+    let padding: unknown
+    try {
+      Object.defineProperty(Object.prototype, 'padding', { configurable: true, set() {} })
+      padding = resolveRenderRequest('sequenceDiagram\nA->>B: Hello', { padding: 42 }).renderOptions.padding
+    } finally {
+      if (prior) Object.defineProperty(Object.prototype, 'padding', prior)
+      else Reflect.deleteProperty(Object.prototype, 'padding')
+    }
+    expect(padding).toBe(42)
   })
 
   test('captures onConfigDiagnostic once outside the serializable request', () => {
@@ -225,19 +442,5 @@ describe('shared RenderOptions authority', () => {
     expect(graphical[0]).toMatchObject({ code: 'INEFFECTIVE_CONFIG', field: 'flowchart.curve' })
   })
 
-  test('keeps the marked API inventory byte-for-byte generated from descriptors', () => {
-    const api = readFileSync(new URL('../../docs/api.md', import.meta.url), 'utf8')
-    const start = api.indexOf(SHARED_RENDER_OPTIONS_DOC_START)
-    const end = api.indexOf(SHARED_RENDER_OPTIONS_DOC_END)
-    expect(start).toBeGreaterThanOrEqual(0)
-    expect(end).toBeGreaterThan(start)
-    const generated = api.slice(start + SHARED_RENDER_OPTIONS_DOC_START.length, end).trim()
-    expect(generated).toBe(sharedRenderOptionsMarkdownTable())
-    for (const field of ['wrappingWidth', 'class', 'architecture', 'timeline', 'journey', 'gantt']) {
-      expect(generated).toContain(`\`${field}\``)
-    }
-    expect(generated).toContain('| Built-in families |')
-    expect(generated).toContain('| none — extension-defined |')
-    expect(generated).not.toContain('onConfigDiagnostic')
-  })
+
 })

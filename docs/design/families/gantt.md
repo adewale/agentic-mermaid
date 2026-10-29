@@ -401,3 +401,7 @@ requires a stable owner in root `TODO.md`.
 The retained architectural direction is a clean internal dependency/calendar
 model rather than new syntax; any expansion of `describe`, overlays, row
 compaction, or editor details must first be promoted to root `TODO.md`.
+
+## Empty plans
+
+A syntactically valid plan with no tasks renders an explicit `No tasks scheduled` state in SVG and terminal output. Authored titles and section labels remain visible; no date ticks or task bars are invented. Verification retains its `EMPTY_DIAGRAM` diagnostic. The scheduler's zero extent is an empty sentinel, and layouts do not display it as a calendar date. Raw `themeCSS` remains rejected by strict security; use the declarative Style interface for supported appearance changes.

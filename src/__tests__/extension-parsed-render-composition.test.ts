@@ -14,7 +14,6 @@ import {
   type ParsedDiagram,
 } from '../agent/index.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
-import { SDK_CORE_DECLARATION } from '../mcp/sdk-discovery.ts'
 import {
   renderMermaidASCIIWithReceipt as renderRootASCIIWithReceipt,
   renderMermaidSVGWithReceipt as renderRootSVGWithReceipt,
@@ -33,7 +32,7 @@ function descriptor(): FamilyDescriptor {
       id: FAMILY_ID,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.4.0' },
+      compatibility: { core: '^0.5.0' },
       provenance: { owner: 'parsed-render-composition-test', source: 'test' },
     }),
     id: FAMILY_ID,
@@ -88,6 +87,59 @@ function parsedExtension(): ParsedDiagram {
 }
 
 describe('open parsed-diagram render composition', () => {
+  test.each([undefined, null, 'invalid'])('rejects an invalid source policy result %s at registration', result => {
+    expect(() => registerFamily({
+      ...descriptor(),
+      renderSource: (() => result) as unknown as NonNullable<FamilyDescriptor['renderSource']>,
+    })).toThrow(/invalid render source policy/)
+  })
+
+  test.each(['canonical', 'serialized'] as const)('all render transports use the registered %s source authority', authority => {
+    const original = descriptor()
+    let observed = ''
+    const unregister = registerFamily({
+      ...original,
+      renderSource: () => authority,
+      layout: context => { observed = context.source.familyText.trimEnd(); return original.layout!(context) },
+      renderAscii: context => { observed = context.source.familyText.trimEnd(); return original.renderAscii!(context) },
+    })
+    try {
+      const parsed = parsedExtension()
+      if (parsed.body.kind !== 'extension') throw new Error('Expected the source-preserved extension envelope')
+      const bodySource = 'parsedRenderCompositionDiagram\n  body-owned payload'
+      parsed.body.source = bodySource
+      const expected = authority === 'serialized' ? 'parsedRenderCompositionDiagram\nbody-owned payload' : 'parsedRenderCompositionDiagram\nfuture payload'
+      const options = { security: 'strict' as const, embedFontImport: false }
+      observed = ''
+      renderMermaidSVGWithReceipt(parsed, options)
+      expect(observed).toBe(expected)
+      observed = ''
+      renderMermaidASCIIWithReceipt(parsed, { ...options, colorMode: 'none' })
+      expect(observed).toBe(expected)
+      observed = ''
+      layoutMermaidWithReceipt(parsed, options)
+      expect(observed).toBe(expected)
+    } finally { unregister() }
+  })
+
+  test("an upgraded source policy cannot consume its predecessor's parsed data", () => {
+    const removeOriginal = registerFamily(descriptor())
+    const parsed = parsedExtension()
+    removeOriginal()
+    const upgraded = descriptor()
+    let calls = 0
+    const removeUpgraded = registerFamily({
+      ...upgraded,
+      identity: createExtensionIdentity({ ...upgraded.identity, version: '1.1.0' }),
+      renderSource: () => { calls++; return 'canonical' },
+    })
+    try {
+      calls = 0
+      renderMermaidSVGWithReceipt(parsed, { security: 'strict', embedFontImport: false })
+      expect(calls).toBe(0)
+    } finally { removeUpgraded() }
+  })
+
   test('entity-encoded headers compose through parse and every renderer', async () => {
     const authored = 'flowchart&#32;TD\n  A --> B'
     const decoded = 'flowchart TD\n  A --> B'
@@ -193,15 +245,7 @@ describe('open parsed-diagram render composition', () => {
     }
   })
 
-  test('advertises the open parser/render envelope while keeping built-in ops closed', async () => {
-    expect(SDK_CORE_DECLARATION).toContain('type ParsedDiagram = ValidDiagram | ExtensionValidDiagram | PreservedValidDiagram')
-    expect(SDK_CORE_DECLARATION).toContain('parseRegisteredMermaid(source: string): Result<ParsedDiagram')
-    expect(SDK_CORE_DECLARATION).toContain('renderMermaidSVGWithReceipt(input: ParsedDiagram | string')
-    expect(SDK_CORE_DECLARATION).toContain('renderMermaidASCIIWithReceipt(input: ParsedDiagram | string')
-    expect(SDK_CORE_DECLARATION).toContain('layoutMermaidWithReceipt(input: ParsedDiagram | string')
-    expect(SDK_CORE_DECLARATION).toContain('mutate(diagram: ValidDiagram, op: MutationOp)')
-    expect(SDK_CORE_DECLARATION).not.toContain('mutate(diagram: ParsedDiagram')
-
+  test('executes open parsed inputs across graphical, terminal and layout Code Mode outputs', async () => {
     const unregister = registerFamily(descriptor())
     try {
       const executed = await executeInSandbox(`
