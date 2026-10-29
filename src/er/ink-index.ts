@@ -2,8 +2,10 @@ export type ErInkBounds = { x0: number; y0: number; x1: number; y1: number }
 
 /** Immutable broad phase for one retained geometry snapshot. Queries keep the
  * original strict intersection predicate; construction and visits share the
- * caller's existing work allowance. Rebuild after any route changes. */
-export function erInkIndex<T>(items: readonly T[], bounds: (item: T) => ErInkBounds, charge: (count?: number) => void): (box: ErInkBounds) => T[] {
+ * caller's existing work allowance. Sparse batches stay linear: sorting a huge
+ * isolated roster for a handful of contacts costs more than those scans.
+ * Rebuild after any route changes. */
+export function erInkIndex<T>(items: readonly T[], bounds: (item: T) => ErInkBounds, charge: (count?: number) => void, expectedQueries: number): (box: ErInkBounds) => T[] {
   type Branch = { box: ErInkBounds; children?: readonly [Branch, Branch]; items?: readonly T[] }
   const build = (rows: T[]): Branch => {
     charge(rows.length + 1)
@@ -19,7 +21,11 @@ export function erInkIndex<T>(items: readonly T[], bounds: (item: T) => ErInkBou
     const middle = Math.floor(rows.length / 2)
     return { box, children: [build(rows.slice(0, middle)), build(rows.slice(middle))] }
   }
-  const root = build([...items])
+  let root: Branch | undefined
+  // Each level scans and sorts its rows. Only pay that construction cost for
+  // batches with enough planned queries to recover the squared-depth work.
+  const depth = Math.ceil(Math.log2(Math.max(2, items.length)))
+  const useIndex = items.length > 8 && expectedQueries > depth * depth
   return box => {
     const found: T[] = []
     const overlaps = (b: ErInkBounds): boolean => {
@@ -30,6 +36,13 @@ export function erInkIndex<T>(items: readonly T[], bounds: (item: T) => ErInkBou
       if (!overlaps(branch.box)) return
       if (branch.children) { visit(branch.children[0]); visit(branch.children[1]) }
       else for (const item of branch.items!) if (overlaps(bounds(item))) found.push(item)
+    }
+    if (!root) {
+      if (!useIndex) {
+        for (const item of items) if (overlaps(bounds(item))) found.push(item)
+        return found
+      }
+      root = build([...items])
     }
     visit(root)
     return found

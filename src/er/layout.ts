@@ -1313,11 +1313,11 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     charge(glyph.pieces.length)
     return { x0: Math.min(...glyph.pieces.map(p => p.x0)), y0: Math.min(...glyph.pieces.map(p => p.y0)), x1: Math.max(...glyph.pieces.map(p => p.x1)), y1: Math.max(...glyph.pieces.map(p => p.y1)) }
   }
-  const obstacleQuery = erInkIndex(obstacles, o => o.box, charge)
+  const obstacleQuery = erInkIndex(obstacles, o => o.box, charge, relationships.length * 8)
   const snapshot = () => {
     const currentGlyphs = glyphs(), currentShafts = shafts()
     const bounds = new Map(currentGlyphs.map(g => [g, glyphBox(g)]))
-    return { currentGlyphs, glyphQuery: erInkIndex(currentGlyphs, g => bounds.get(g)!, charge), shaftQuery: erInkIndex(currentShafts, s => s.box, charge) }
+    return { currentGlyphs, glyphQuery: erInkIndex(currentGlyphs, g => bounds.get(g)!, charge, currentGlyphs.length), shaftQuery: erInkIndex(currentShafts, s => s.box, charge, currentGlyphs.length) }
   }
   let retained = snapshot()
   let changed = false
@@ -1528,9 +1528,9 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     charge(glyph.pieces.length * 4 + 1)
     return [glyph, { x0: Math.min(...glyph.pieces.map(p => p.x0)), y0: Math.min(...glyph.pieces.map(p => p.y0)), x1: Math.max(...glyph.pieces.map(p => p.x1)), y1: Math.max(...glyph.pieces.map(p => p.y1)) }] as const
   }))
-  const glyphQuery = erInkIndex(allGlyphs, glyph => glyphBounds.get(glyph)!, charge)
-  const shaftQuery = erInkIndex(allShafts, shaft => shaft.box, charge)
-  const labelQuery = erInkIndex(allLabels, label => label.box, charge)
+  const glyphQuery = erInkIndex(allGlyphs, glyph => glyphBounds.get(glyph)!, charge, allGlyphs.length + allLabels.length)
+  const shaftQuery = erInkIndex(allShafts, shaft => shaft.box, charge, allGlyphs.length * 4 + allLabels.length)
+  const labelQuery = erInkIndex(allLabels, label => label.box, charge, allLabels.length)
   for (const glyph of allGlyphs) for (const other of glyphQuery(glyphBounds.get(glyph)!)) {
     charge()
     if (other.index * 2 + other.end <= glyph.index * 2 + glyph.end) continue

@@ -77,7 +77,9 @@ function placeRelationshipLabels(diagram: PositionedErDiagram, style: ResolvedRe
   interface Box { x0: number; y0: number; x1: number; y1: number }
   const out = new Map<PositionedErRelationship, { x: number; y: number }>()
   const charge = (count = 1) => { work.operations += count; if (work.operations > 400_000) throw new ErLabelWorkLimitError() }
-  if (!diagram.relationships.some(rel => rel.label && rel.points.length > 1)) return out
+  charge(diagram.relationships.length)
+  const labelled = diagram.relationships.filter(rel => rel.label && rel.points.length > 1).length
+  if (!labelled) return out
   const intersects = (a: Box, b: Box): boolean =>
     Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.5 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.5
   const entityBoxes: Box[] = [
@@ -143,7 +145,7 @@ function placeRelationshipLabels(diagram: PositionedErDiagram, style: ResolvedRe
     ...entityBoxes.map(box => ({ box, owner: undefined as PositionedErRelationship | undefined })),
     ...endpointBoxes.map(box => ({ box, owner: undefined as PositionedErRelationship | undefined })),
     ...shafts,
-  ], item => item.box, charge)
+  ], item => item.box, charge, labelled * 2)
   for (const rel of diagram.relationships) {
     if (!rel.label || rel.points.length < 2) continue
     const m = rel.labelBlock ?? erRelationshipBlock(rel, style, styleFace)

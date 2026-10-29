@@ -24,9 +24,7 @@ describe('Class layout backends', () => {
     const source = `classDiagram\ndirection ${direction}\n` + Array.from({ length: 127 }, (_, i) => `N${i} --> N${i + 1}`).join('\n')
     let rendered!: ReturnType<typeof renderMermaidSVGWithReceipt>
     expect(() => { rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'none' } }) }).not.toThrow()
-    // The independent Scene occlusion audit can exhaust its separate budget
-    // here; the Class family's contact proof must still complete and render.
-    expect(rendered.receipt.layoutCertification?.issues.filter(issue => issue.code !== 'CHECK_BUDGET')).toEqual([])
+    expect(rendered.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
     expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', fallback: 'none' })])
     expect(rendered.svg.match(/class="class-node"/g)).toHaveLength(128)
     expect(rendered.svg.match(/class="class-relationship"/g)).toHaveLength(127)

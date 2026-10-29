@@ -20,6 +20,21 @@ const compoundFixture = readFileSync(new URL('../../eval/layout-compare/fixtures
 const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/er-backends.mmd', import.meta.url), 'utf8')
 
 describe('ER layout backends', () => {
+  test.each([1, 4])('keeps %s relationships among thousands of isolated entities within its geometry allowance', count => {
+    const source = 'erDiagram\n' + Array.from({ length: count }, (_, i) => `N${i * 2} ||--|| N${i * 2 + 1} : owns`).join('\n')
+      + '\n' + Array.from({ length: 4096 }, (_, i) => `N${i}`).join('\n')
+    const options = { graphLayout: { backend: 'elk' as const, fallback: 'none' as const } }
+    let rendered!: ReturnType<typeof renderMermaidSVGWithReceipt>
+    expect(() => { rendered = renderMermaidSVGWithReceipt(source, options) }).not.toThrow()
+    const ids = [...rendered.svg.matchAll(/<g class="entity" data-id="([^"]+)"/g)].map(match => match[1]!)
+    expect(new Set(ids).size).toBe(4096)
+    expect(ids.toSorted()).toEqual(Array.from({ length: 4096 }, (_, i) => `N${i}`).toSorted())
+    expect(rendered.svg.match(/class="er-relationship"/g)).toHaveLength(count)
+    for (let i = 0; i < count; i++) expect(rendered.svg).toContain(`data-from="N${i * 2}" data-to="N${i * 2 + 1}"`)
+    expect(rendered.svg).toContain('data-label="owns"')
+    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk', fallback: 'none', attempts: [{ backend: 'elk', outcome: 'selected' }] })])
+  })
+
   test.each(['elk', 'agentic'].flatMap(backend => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ backend, direction }))))('finishes a 128-entity chain within the shared geometry allowance with $backend in $direction', ({ backend, direction }) => {
     const source = `erDiagram\ndirection ${direction}\n` + Array.from({ length: 127 }, (_, i) => `N${i} ||--o{ N${i + 1} : owns`).join('\n')
     const options = { graphLayout: { backend: backend as 'elk' | 'agentic', fallback: 'none' as const } }

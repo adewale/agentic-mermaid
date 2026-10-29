@@ -54,11 +54,14 @@ const box = (r: { x: number; y: number; w: number; h: number }): AxisAlignedBox 
 const viewportBox = (v: PaintViewport): AxisAlignedBox => ({ x0: v.x, y0: v.y, x1: v.x + v.width, y1: v.y + v.height })
 
 interface Surface { primitive: ScenePaintPrimitive; bounds: AxisAlignedBox; interiors?: readonly AxisAlignedBox[]; strokeInteriors?: readonly AxisAlignedBox[]; borderWidth?: number; partBorderWidths?: readonly number[]; partOwnBorderWidths?: readonly number[]; partFilled?: readonly boolean[]; partBounds?: readonly (AxisAlignedBox | undefined)[] }
-interface Tree { bounds: AxisAlignedBox; leaves?: readonly Surface[]; left?: Tree; right?: Tree }
-function tree(items: Surface[]): Tree | undefined {
+interface PaintTreeItem { bounds: AxisAlignedBox; primitive: { readonly order: number } }
+interface Tree<T extends PaintTreeItem = Surface> { bounds: AxisAlignedBox; leaves?: readonly T[]; left?: Tree<T>; right?: Tree<T> }
+const PAINT_TREE_WORK_LIMIT = Symbol('paint tree work limit')
+function tree<T extends PaintTreeItem>(items: T[], work?: () => boolean): Tree<T> | undefined {
   if (!items.length) return undefined
   const bounds = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }
   for (const surface of items) {
+    if (work && !work()) throw PAINT_TREE_WORK_LIMIT
     bounds.x0 = Math.min(bounds.x0, surface.bounds.x0)
     bounds.y0 = Math.min(bounds.y0, surface.bounds.y0)
     bounds.x1 = Math.max(bounds.x1, surface.bounds.x1)
@@ -68,9 +71,39 @@ function tree(items: Surface[]): Tree | undefined {
   const axis = bounds.x1 - bounds.x0 >= bounds.y1 - bounds.y0 ? 'x0' : 'y0'
   // These arrays belong to this tree: the root comes from solidInteriors,
   // and child ranges are fresh slices. Keep the same split and tie order.
-  items.sort((a, b) => a.bounds[axis] - b.bounds[axis] || a.primitive.order - b.primitive.order)
+  items.sort((a, b) => {
+    if (work && !work()) throw PAINT_TREE_WORK_LIMIT
+    return a.bounds[axis] - b.bounds[axis] || a.primitive.order - b.primitive.order
+  })
   const middle = Math.floor(items.length / 2)
-  return { bounds, left: tree(items.slice(0, middle)), right: tree(items.slice(middle)) }
+  return { bounds, left: tree(items.slice(0, middle), work), right: tree(items.slice(middle), work) }
+}
+
+/** These snapshots belong to one final certification call. Debit construction,
+ * traversal and candidate ordering to the same allowance as exact ink checks. */
+function chargedPaintTree<T extends PaintTreeItem>(items: T[], work: () => boolean): Tree<T> | undefined {
+  try { return tree(items, work) }
+  catch (error) { if (error !== PAINT_TREE_WORK_LIMIT) throw error; return undefined }
+}
+function paintCandidates<T extends PaintTreeItem & { index: number }>(root: Tree<T> | undefined, bounds: AxisAlignedBox, work: () => boolean): T[] {
+  const found: T[] = []
+  const visit = (branch: Tree<T> | undefined): void => {
+    if (!branch) return
+    if (!work()) throw PAINT_TREE_WORK_LIMIT
+    if (!overlaps(branch.bounds, bounds)) return
+    if (!branch.leaves) { visit(branch.left); visit(branch.right); return }
+    for (const item of branch.leaves) {
+      if (!work()) throw PAINT_TREE_WORK_LIMIT
+      if (overlaps(item.bounds, bounds)) found.push(item)
+    }
+  }
+  try {
+    visit(root)
+    // Preserve the original paint-occurrence priority when several candidates
+    // overlap. Spatial ordering must not choose a different first issue.
+    found.sort((a, b) => { if (!work()) throw PAINT_TREE_WORK_LIMIT; return a.index - b.index })
+    return found
+  } catch (error) { if (error !== PAINT_TREE_WORK_LIMIT) throw error; return [] }
 }
 
 /** A straight orthogonal stroke is contained by its half-width body and
@@ -1153,6 +1186,29 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
   }
   const markerTargets = Array.from(lastMarkers.values())
   for (let index = 0; index < markerTargets.length; index++) markerCheck(surfaces, markerTargets[index]!)
+  // A few marker queries keep the original linear walk: building an index
+  // cannot amortize amid a large unrelated primitive roster.
+  let semanticMarkers = 0, textQueries = 0
+  for (const target of markerTargets) {
+    if (!work()) break
+    if (!target.semantic || target.primitive.visibility === 'conditional') continue
+    semanticMarkers++
+    if (!(target.strokeProof?.fill === 'absent' && target.strokeProof.stroke === 'absent')) textQueries++
+  }
+  const indexedText = textQueries > Math.ceil(Math.log2(inspection.primitives.length + 1)) ** 2
+  const indexedMarkers = semanticMarkers > Math.ceil(Math.log2(semanticMarkers + 1)) ** 2
+  const textItems: Array<{ primitive: ScenePaintPrimitive; bounds: AxisAlignedBox; index: number }> = []
+  if (indexedText) for (const [index, primitive] of inspection.primitives.entries()) {
+    if (!work()) break
+    if (primitive.kind === 'text' && primitive.coverage === 'measured' && primitive.visibility !== 'conditional' && primitive.bounds) textItems.push({ primitive, bounds: primitive.bounds, index })
+  }
+  const textTree = indexedText ? chargedPaintTree(textItems, work) : undefined
+  const markerItems: Array<{ primitive: ScenePaintPrimitive; bounds: AxisAlignedBox; target: MarkerTarget; index: number }> = []
+  if (indexedMarkers) for (const [index, target] of markerTargets.entries()) {
+    if (!work()) break
+    if (target.semantic && target.primitive.visibility !== 'conditional') markerItems.push({ primitive: target.primitive, bounds: target.bounds, target, index })
+  }
+  const markerTree = indexedMarkers ? chargedPaintTree(markerItems, work) : undefined
   // Prepared text and endpoint markers can hide each other in either paint
   // order. Text bounds already include the actual halo stroke; neither
   // a same owner/color nor a bounds overlap proves glyph-ink separation.
@@ -1161,9 +1217,8 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     if (!work()) break
     if (!target.semantic || target.primitive.visibility === 'conditional'
       || target.strokeProof?.fill === 'absent' && target.strokeProof.stroke === 'absent') continue
-    const primitives = inspection.primitives
-    for (let primitiveIndex = 0; primitiveIndex < primitives.length; primitiveIndex++) {
-      const primitive = primitives[primitiveIndex]!
+    const texts = indexedText ? paintCandidates(textTree, target.bounds, work).map(item => item.primitive) : inspection.primitives
+    for (const primitive of texts) {
       if (!work()) break
       if (primitive.kind !== 'text' || primitive.coverage !== 'measured' || primitive.visibility === 'conditional'
         || !primitive.bounds || !overlaps(primitive.bounds, target.bounds)) continue
@@ -1176,8 +1231,8 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     const earlier = markerTargets[earlierIndex]!
     if (exhausted) break
     if (!earlier.semantic || earlier.primitive.visibility === 'conditional') continue
-    for (let laterIndex = 0; laterIndex < markerTargets.length; laterIndex++) {
-      const later = markerTargets[laterIndex]!
+    const laterMarkers = indexedMarkers ? paintCandidates(markerTree, earlier.bounds, work).map(item => item.target) : markerTargets
+    for (const later of laterMarkers) {
       if (!work()) break
       const earlierRepaint = earlier.strokeProof?.repaint, laterRepaint = later.strokeProof?.repaint
       const samePaint = earlier.paintIdentity !== undefined && earlier.paintIdentity === later.paintIdentity
