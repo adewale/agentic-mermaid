@@ -1,0 +1,796 @@
+{
+  "version": 1,
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "id": "Mermaid",
+      "x": 374.77333333333337,
+      "y": 93,
+      "w": 148.66000000000003,
+      "h": 51.400000000000006,
+      "shape": "rectangle",
+      "label": "Mermaid.js",
+      "labelBounds": {
+        "x": 400.77333333333337,
+        "y": 107,
+        "w": 96.66000000000001,
+        "h": 23.400000000000002
+      },
+      "labelContainer": {
+        "x": 374.77333333333337,
+        "y": 93,
+        "w": 148.66000000000003,
+        "h": 51.400000000000006
+      }
+    },
+    {
+      "id": "Dart",
+      "x": 406.91333333333336,
+      "y": 265.175,
+      "w": 169.18,
+      "h": 51.400000000000006,
+      "shape": "rectangle",
+      "label": "Mermaid Dart",
+      "labelBounds": {
+        "x": 432.9133333333333,
+        "y": 279.175,
+        "w": 117.18,
+        "h": 23.400000000000002
+      },
+      "labelContainer": {
+        "x": 406.91333333333336,
+        "y": 265.175,
+        "w": 169.18,
+        "h": 51.400000000000006
+      }
+    },
+    {
+      "id": "ASCII",
+      "x": 121.62,
+      "y": 93,
+      "w": 179.98,
+      "h": 51.400000000000006,
+      "shape": "rectangle",
+      "label": "Mermaid ASCII",
+      "labelBounds": {
+        "x": 147.62,
+        "y": 107,
+        "w": 127.97999999999999,
+        "h": 23.400000000000002
+      },
+      "labelContainer": {
+        "x": 121.62,
+        "y": 93,
+        "w": 179.98,
+        "h": 51.400000000000006
+      }
+    },
+    {
+      "id": "Beautiful",
+      "x": 171.77,
+      "y": 265.175,
+      "w": 205.9,
+      "h": 51.400000000000006,
+      "shape": "rectangle",
+      "label": "Beautiful Mermaid",
+      "labelBounds": {
+        "x": 197.77000000000004,
+        "y": 279.175,
+        "w": 153.9,
+        "h": 23.400000000000002
+      },
+      "labelContainer": {
+        "x": 171.77,
+        "y": 265.175,
+        "w": 205.9,
+        "h": 51.400000000000006
+      }
+    },
+    {
+      "id": "Agentic",
+      "x": 64,
+      "y": 437.0625,
+      "w": 197.26,
+      "h": 51.400000000000006,
+      "shape": "rectangle",
+      "label": "Agentic Mermaid",
+      "labelBounds": {
+        "x": 90,
+        "y": 451.0625,
+        "w": 145.26,
+        "h": 23.400000000000002
+      },
+      "labelContainer": {
+        "x": 64,
+        "y": 437.0625,
+        "w": 197.26,
+        "h": 51.400000000000006
+      }
+    },
+    {
+      "id": "Zombie",
+      "x": 289.26,
+      "y": 437.0625,
+      "w": 195.1,
+      "h": 51.400000000000006,
+      "shape": "rectangle",
+      "label": "Zombie Mermaid",
+      "labelBounds": {
+        "x": 315.26,
+        "y": 451.0625,
+        "w": 143.1,
+        "h": 23.400000000000002
+      },
+      "labelContainer": {
+        "x": 289.26,
+        "y": 437.0625,
+        "w": 195.1,
+        "h": 51.400000000000006
+      }
+    },
+    {
+      "id": "Pele",
+      "x": 731.7833333333333,
+      "y": 93,
+      "w": 93.58,
+      "h": 51.400000000000006,
+      "shape": "rectangle",
+      "label": "Pele",
+      "labelBounds": {
+        "x": 757.7833333333333,
+        "y": 107,
+        "w": 41.58,
+        "h": 23.400000000000002
+      },
+      "labelContainer": {
+        "x": 731.7833333333333,
+        "y": 93,
+        "w": 93.58,
+        "h": 51.400000000000006
+      }
+    },
+    {
+      "id": "Ondine",
+      "x": 652.0933333333334,
+      "y": 264.8875,
+      "w": 115.18,
+      "h": 51.400000000000006,
+      "shape": "rectangle",
+      "label": "Ondine",
+      "labelBounds": {
+        "x": 678.0933333333334,
+        "y": 278.8875,
+        "w": 63.18,
+        "h": 23.400000000000002
+      },
+      "labelContainer": {
+        "x": 652.0933333333334,
+        "y": 264.8875,
+        "w": 115.18,
+        "h": 51.400000000000006
+      }
+    },
+    {
+      "id": "Bezel",
+      "x": 795.2733333333333,
+      "y": 264.8875,
+      "w": 104.38000000000001,
+      "h": 51.400000000000006,
+      "shape": "rectangle",
+      "label": "Bezel",
+      "labelBounds": {
+        "x": 821.2733333333333,
+        "y": 278.8875,
+        "w": 52.38000000000001,
+        "h": 23.400000000000002
+      },
+      "labelContainer": {
+        "x": 795.2733333333333,
+        "y": 264.8875,
+        "w": 104.38000000000001,
+        "h": 51.400000000000006
+      }
+    },
+    {
+      "id": "Franken",
+      "x": 853.3633333333333,
+      "y": 93,
+      "w": 201.57999999999998,
+      "h": 51.400000000000006,
+      "shape": "rectangle",
+      "label": "Frankenmermaid",
+      "labelBounds": {
+        "x": 879.3633333333333,
+        "y": 107,
+        "w": 149.57999999999998,
+        "h": 23.400000000000002
+      },
+      "labelContainer": {
+        "x": 853.3633333333333,
+        "y": 93,
+        "w": 201.57999999999998,
+        "h": 51.400000000000006
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "Mermaid->Beautiful",
+      "from": "Mermaid",
+      "to": "Beautiful",
+      "path": [
+        [
+          402.90333333333336,
+          144.4
+        ],
+        [
+          402.90333333333336,
+          241.03125
+        ],
+        [
+          274.72,
+          241.03125
+        ],
+        [
+          274.72,
+          265.175
+        ]
+      ],
+      "label": {
+        "x": 402.90333333333336,
+        "y": 192.715625,
+        "text": "derivative",
+        "bounds": {
+          "x": 368.2533333333334,
+          "y": 183.615625,
+          "w": 69.3,
+          "h": 18.2
+        }
+      }
+    },
+    {
+      "id": "Mermaid->Dart",
+      "from": "Mermaid",
+      "to": "Dart",
+      "path": [
+        [
+          491.50333333333333,
+          144.4
+        ],
+        [
+          491.50333333333333,
+          265.175
+        ]
+      ],
+      "label": {
+        "x": 491.50333333333333,
+        "y": 204.78750000000002,
+        "text": "Dart port",
+        "bounds": {
+          "x": 461.47333333333336,
+          "y": 195.68750000000003,
+          "w": 60.059999999999995,
+          "h": 18.2
+        }
+      }
+    },
+    {
+      "id": "Beautiful->Agentic",
+      "from": "Beautiful",
+      "to": "Agentic",
+      "path": [
+        [
+          240.40333333333334,
+          316.57500000000005
+        ],
+        [
+          240.40333333333334,
+          437.0625
+        ]
+      ],
+      "label": {
+        "x": 240.40333333333334,
+        "y": 376.81875,
+        "text": "fork",
+        "bounds": {
+          "x": 225.91333333333333,
+          "y": 367.71875,
+          "w": 28.980000000000004,
+          "h": 18.2
+        }
+      }
+    },
+    {
+      "id": "Beautiful->Zombie",
+      "from": "Beautiful",
+      "to": "Zombie",
+      "path": [
+        [
+          309.0366666666667,
+          316.57500000000005
+        ],
+        [
+          309.0366666666667,
+          437.0625
+        ]
+      ],
+      "label": {
+        "x": 309.0366666666667,
+        "y": 376.81875,
+        "text": "fork",
+        "bounds": {
+          "x": 294.5466666666667,
+          "y": 367.71875,
+          "w": 28.980000000000004,
+          "h": 18.2
+        }
+      }
+    },
+    {
+      "id": "ASCII->Beautiful",
+      "from": "ASCII",
+      "to": "Beautiful",
+      "path": [
+        [
+          211.61,
+          144.4
+        ],
+        [
+          211.61,
+          265.175
+        ]
+      ],
+      "label": {
+        "x": 211.61,
+        "y": 204.78750000000002,
+        "text": "ASCII component port",
+        "bounds": {
+          "x": 140.00000000000003,
+          "y": 195.68750000000003,
+          "w": 143.21999999999997,
+          "h": 18.2
+        }
+      }
+    },
+    {
+      "id": "Pele->Ondine",
+      "from": "Pele",
+      "to": "Ondine",
+      "path": [
+        [
+          762.9766666666667,
+          144.4
+        ],
+        [
+          762.9766666666667,
+          166.8875
+        ],
+        [
+          709.6833333333334,
+          166.8875
+        ],
+        [
+          709.6833333333334,
+          264.8875
+        ]
+      ],
+      "label": {
+        "x": 709.5533333333334,
+        "y": 204.7875,
+        "text": "Rust port",
+        "bounds": {
+          "x": 678.6833333333334,
+          "y": 195.6875,
+          "w": 61.74,
+          "h": 18.2
+        }
+      }
+    },
+    {
+      "id": "Pele->Bezel",
+      "from": "Pele",
+      "to": "Bezel",
+      "path": [
+        [
+          794.17,
+          144.4
+        ],
+        [
+          794.17,
+          166.8875
+        ],
+        [
+          847.4633333333334,
+          166.8875
+        ],
+        [
+          847.4633333333334,
+          264.8875
+        ]
+      ],
+      "label": {
+        "x": 847.4533333333334,
+        "y": 204.7875,
+        "text": "port",
+        "bounds": {
+          "x": 832.9633333333334,
+          "y": 195.6875,
+          "w": 28.98,
+          "h": 18.2
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "id": "MermaidFamily",
+      "x": 40,
+      "y": 40,
+      "w": 560.0933333333334,
+      "h": 470.4625,
+      "members": [
+        "Mermaid",
+        "Dart",
+        "ASCII",
+        "Beautiful",
+        "Agentic",
+        "Zombie"
+      ],
+      "label": "Mermaid lineage"
+    },
+    {
+      "id": "OtherEngines",
+      "x": 628.0933333333334,
+      "y": 40,
+      "w": 450.85,
+      "h": 298.2875,
+      "members": [
+        "Pele",
+        "Ondine",
+        "Bezel",
+        "Franken"
+      ],
+      "label": "Other implementation lineages"
+    }
+  ],
+  "bounds": {
+    "w": 1118.9433333333334,
+    "h": 550.4625
+  },
+  "regions": [
+    {
+      "id": "canvas",
+      "kind": "canvas",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "w": 1118.9433333333334,
+        "h": 550.4625
+      }
+    },
+    {
+      "id": "group:MermaidFamily",
+      "kind": "cluster",
+      "elementId": "MermaidFamily",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 40,
+        "y": 40,
+        "w": 560.0933333333334,
+        "h": 470.4625
+      },
+      "sourceLine": 2
+    },
+    {
+      "id": "group:OtherEngines",
+      "kind": "cluster",
+      "elementId": "OtherEngines",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 628.0933333333334,
+        "y": 40,
+        "w": 450.85,
+        "h": 298.2875
+      },
+      "sourceLine": 15
+    },
+    {
+      "id": "node:Mermaid",
+      "kind": "node",
+      "elementId": "Mermaid",
+      "parentId": "group:MermaidFamily",
+      "bounds": {
+        "x": 374.77333333333337,
+        "y": 93,
+        "w": 148.66000000000003,
+        "h": 51.400000000000006
+      },
+      "sourceLine": 3
+    },
+    {
+      "id": "node:Dart",
+      "kind": "node",
+      "elementId": "Dart",
+      "parentId": "group:MermaidFamily",
+      "bounds": {
+        "x": 406.91333333333336,
+        "y": 265.175,
+        "w": 169.18,
+        "h": 51.400000000000006
+      },
+      "sourceLine": 5
+    },
+    {
+      "id": "node:ASCII",
+      "kind": "node",
+      "elementId": "ASCII",
+      "parentId": "group:MermaidFamily",
+      "bounds": {
+        "x": 121.62,
+        "y": 93,
+        "w": 179.98,
+        "h": 51.400000000000006
+      },
+      "sourceLine": 8
+    },
+    {
+      "id": "node:Beautiful",
+      "kind": "node",
+      "elementId": "Beautiful",
+      "parentId": "group:MermaidFamily",
+      "bounds": {
+        "x": 171.77,
+        "y": 265.175,
+        "w": 205.9,
+        "h": 51.400000000000006
+      },
+      "sourceLine": 4
+    },
+    {
+      "id": "node:Agentic",
+      "kind": "node",
+      "elementId": "Agentic",
+      "parentId": "group:MermaidFamily",
+      "bounds": {
+        "x": 64,
+        "y": 437.0625,
+        "w": 197.26,
+        "h": 51.400000000000006
+      },
+      "sourceLine": 6
+    },
+    {
+      "id": "node:Zombie",
+      "kind": "node",
+      "elementId": "Zombie",
+      "parentId": "group:MermaidFamily",
+      "bounds": {
+        "x": 289.26,
+        "y": 437.0625,
+        "w": 195.1,
+        "h": 51.400000000000006
+      },
+      "sourceLine": 7
+    },
+    {
+      "id": "node:Pele",
+      "kind": "node",
+      "elementId": "Pele",
+      "parentId": "group:OtherEngines",
+      "bounds": {
+        "x": 731.7833333333333,
+        "y": 93,
+        "w": 93.58,
+        "h": 51.400000000000006
+      },
+      "sourceLine": 16
+    },
+    {
+      "id": "node:Ondine",
+      "kind": "node",
+      "elementId": "Ondine",
+      "parentId": "group:OtherEngines",
+      "bounds": {
+        "x": 652.0933333333334,
+        "y": 264.8875,
+        "w": 115.18,
+        "h": 51.400000000000006
+      },
+      "sourceLine": 17
+    },
+    {
+      "id": "node:Bezel",
+      "kind": "node",
+      "elementId": "Bezel",
+      "parentId": "group:OtherEngines",
+      "bounds": {
+        "x": 795.2733333333333,
+        "y": 264.8875,
+        "w": 104.38000000000001,
+        "h": 51.400000000000006
+      },
+      "sourceLine": 18
+    },
+    {
+      "id": "node:Franken",
+      "kind": "node",
+      "elementId": "Franken",
+      "parentId": "group:OtherEngines",
+      "bounds": {
+        "x": 853.3633333333333,
+        "y": 93,
+        "w": 201.57999999999998,
+        "h": 51.400000000000006
+      },
+      "sourceLine": 19
+    },
+    {
+      "id": "edge:Mermaid->Beautiful",
+      "kind": "edge",
+      "elementId": "Mermaid->Beautiful",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 274.72,
+        "y": 144.4,
+        "w": 128.18333333333334,
+        "h": 120.775
+      }
+    },
+    {
+      "id": "label:Mermaid->Beautiful",
+      "kind": "label",
+      "elementId": "Mermaid->Beautiful",
+      "parentId": "edge:Mermaid->Beautiful",
+      "bounds": {
+        "x": 367.90333333333336,
+        "y": 185.715625,
+        "w": 70,
+        "h": 14
+      }
+    },
+    {
+      "id": "edge:Mermaid->Dart",
+      "kind": "edge",
+      "elementId": "Mermaid->Dart",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 491.50333333333333,
+        "y": 144.4,
+        "w": 1,
+        "h": 120.775
+      }
+    },
+    {
+      "id": "label:Mermaid->Dart",
+      "kind": "label",
+      "elementId": "Mermaid->Dart",
+      "parentId": "edge:Mermaid->Dart",
+      "bounds": {
+        "x": 460.00333333333333,
+        "y": 197.78750000000002,
+        "w": 63,
+        "h": 14
+      }
+    },
+    {
+      "id": "edge:Beautiful->Agentic",
+      "kind": "edge",
+      "elementId": "Beautiful->Agentic",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 240.40333333333334,
+        "y": 316.57500000000005,
+        "w": 1,
+        "h": 120.48749999999995
+      }
+    },
+    {
+      "id": "label:Beautiful->Agentic",
+      "kind": "label",
+      "elementId": "Beautiful->Agentic",
+      "parentId": "edge:Beautiful->Agentic",
+      "bounds": {
+        "x": 226.40333333333334,
+        "y": 369.81875,
+        "w": 28,
+        "h": 14
+      }
+    },
+    {
+      "id": "edge:Beautiful->Zombie",
+      "kind": "edge",
+      "elementId": "Beautiful->Zombie",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 309.0366666666667,
+        "y": 316.57500000000005,
+        "w": 1,
+        "h": 120.48749999999995
+      }
+    },
+    {
+      "id": "label:Beautiful->Zombie",
+      "kind": "label",
+      "elementId": "Beautiful->Zombie",
+      "parentId": "edge:Beautiful->Zombie",
+      "bounds": {
+        "x": 295.0366666666667,
+        "y": 369.81875,
+        "w": 28,
+        "h": 14
+      }
+    },
+    {
+      "id": "edge:ASCII->Beautiful",
+      "kind": "edge",
+      "elementId": "ASCII->Beautiful",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 211.61,
+        "y": 144.4,
+        "w": 1,
+        "h": 120.775
+      }
+    },
+    {
+      "id": "label:ASCII->Beautiful",
+      "kind": "label",
+      "elementId": "ASCII->Beautiful",
+      "parentId": "edge:ASCII->Beautiful",
+      "bounds": {
+        "x": 141.61,
+        "y": 197.78750000000002,
+        "w": 140,
+        "h": 14
+      }
+    },
+    {
+      "id": "edge:Pele->Ondine",
+      "kind": "edge",
+      "elementId": "Pele->Ondine",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 709.6833333333334,
+        "y": 144.4,
+        "w": 53.293333333333294,
+        "h": 120.48749999999998
+      }
+    },
+    {
+      "id": "label:Pele->Ondine",
+      "kind": "label",
+      "elementId": "Pele->Ondine",
+      "parentId": "edge:Pele->Ondine",
+      "bounds": {
+        "x": 678.0533333333334,
+        "y": 197.7875,
+        "w": 63,
+        "h": 14
+      }
+    },
+    {
+      "id": "edge:Pele->Bezel",
+      "kind": "edge",
+      "elementId": "Pele->Bezel",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 794.17,
+        "y": 144.4,
+        "w": 53.29333333333341,
+        "h": 120.48749999999998
+      }
+    },
+    {
+      "id": "label:Pele->Bezel",
+      "kind": "label",
+      "elementId": "Pele->Bezel",
+      "parentId": "edge:Pele->Bezel",
+      "bounds": {
+        "x": 833.4533333333334,
+        "y": 197.7875,
+        "w": 28,
+        "h": 14
+      }
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+[
+  {
+    "fixture": "flowchart-lineage-default",
+    "phase": "before",
+    "exact_node_identities": true,
+    "exact_relationships_and_labels": true,
+    "exact_group_identities": true
+  },
+  {
+    "fixture": "flowchart-lineage-default",
+    "phase": "after",
+    "exact_node_identities": true,
+    "exact_relationships_and_labels": true,
+    "exact_group_identities": true
+  },
+  {
+    "fixture": "flowchart-lineage-publication",
+    "phase": "before",
+    "exact_node_identities": true,
+    "exact_relationships_and_labels": true,
+    "exact_group_identities": true
+  },
+  {
+    "fixture": "flowchart-lineage-publication",
+    "phase": "after",
+    "exact_node_identities": true,
+    "exact_relationships_and_labels": true,
+    "exact_group_identities": true
+  }
+]

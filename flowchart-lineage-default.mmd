@@ -1,0 +1,22 @@
+flowchart TD
+  subgraph MermaidFamily[Mermaid lineage]
+    Mermaid[Mermaid.js]
+    Beautiful[Beautiful Mermaid]
+    Dart[Mermaid Dart]
+    Agentic[Agentic Mermaid]
+    Zombie[Zombie Mermaid]
+    ASCII[Mermaid ASCII]
+    Mermaid -->|derivative| Beautiful
+    Mermaid -->|Dart port| Dart
+    Beautiful -->|fork| Agentic
+    Beautiful -->|fork| Zombie
+    ASCII -.->|ASCII component port| Beautiful
+  end
+  subgraph OtherEngines[Other implementation lineages]
+    Pele[Pele]
+    Ondine[Ondine]
+    Bezel[Bezel]
+    Franken[Frankenmermaid]
+    Pele -->|Rust port| Ondine
+    Pele -->|port| Bezel
+  end

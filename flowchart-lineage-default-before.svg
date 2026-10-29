@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="851.225333333" height="483.3" viewBox="0 0 851.225333333 483.3" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-10iqkwh0083kac">
+<style>
+  svg.am-10iqkwh0083kac { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-10iqkwh0083kac {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="subgraph" data-id="MermaidFamily" data-region="subgraph" data-label="Mermaid lineage" data-role="group">
+  <rect x="40" y="40" width="410.592833333" height="403.3" rx="0" ry="0" fill="#FFFFFF" stroke="#949495" stroke-width="1" data-id="group-rect:MermaidFamily" data-role="group" />
+  <path d="M40,40 H450.592833333 V68 H40 Z" fill="#f4f4f4" stroke="#949495" stroke-width="1" />
+  <text x="52" y="54" text-anchor="start" font-size="12" font-weight="600" fill="#575759" data-prepared-text="true" dy="4.2" textLength="95.4" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Mermaid lineage</text>
+</g>
+<g class="subgraph" data-id="OtherEngines" data-region="subgraph" data-label="Other implementation lineages" data-role="group">
+  <rect x="478.592833333" y="40" width="332.6325" height="250.1" rx="0" ry="0" fill="#FFFFFF" stroke="#949495" stroke-width="1" data-id="group-rect:OtherEngines" data-role="group" />
+  <path d="M478.592833333,40 H811.225333333 V68 H478.592833333 Z" fill="#f4f4f4" stroke="#949495" stroke-width="1" />
+  <text x="490.592833333" y="54" text-anchor="start" font-size="12" font-weight="600" fill="#575759" data-prepared-text="true" dy="4.2" textLength="168.84" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Other implementation lineages</text>
+</g>
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="derivative" points="323.773666667,120.9 323.773666667,225.2 209.3915,225.2 209.3915,237.2" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:Mermaid-&gt;Beautiful#0" data-role="edge" data-from="Mermaid" data-to="Beautiful" role="graphics-symbol" aria-roledescription="relation" aria-label="Mermaid to Beautiful: derivative" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="Dart port" points="374.344833333,120.9 374.344833333,237.2" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:Mermaid-&gt;Dart#0" data-role="edge" data-from="Mermaid" data-to="Dart" role="graphics-symbol" aria-roledescription="relation" aria-label="Mermaid to Dart: Dart port" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="fork" points="185.109833333,274.1 185.109833333,390.4" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:Beautiful-&gt;Agentic#0" data-role="edge" data-from="Beautiful" data-to="Agentic" role="graphics-symbol" aria-roledescription="relation" aria-label="Beautiful to Agentic: fork" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="fork" points="233.673166667,274.1 233.673166667,390.4" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:Beautiful-&gt;Zombie#0" data-role="edge" data-from="Beautiful" data-to="Zombie" role="graphics-symbol" aria-roledescription="relation" aria-label="Beautiful to Zombie: fork" />
+<polyline class="edge" data-style="dotted" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="ASCII component port" points="209.3915,120.9 209.3915,237.2" fill="none" stroke="#939395" stroke-width="1" stroke-dasharray="4 4" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:ASCII-&gt;Beautiful#0" data-role="edge" data-from="ASCII" data-to="Beautiful" role="graphics-symbol" aria-roledescription="relation" aria-label="ASCII to Beautiful: ASCII component port" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="Rust port" points="566.956083333,120.9 566.956083333,237.2" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:Pele-&gt;Ondine#0" data-role="edge" data-from="Pele" data-to="Ondine" role="graphics-symbol" aria-roledescription="relation" aria-label="Pele to Ondine: Rust port" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="port" points="615.269083333,120.9 615.269083333,237.2" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:Pele-&gt;Bezel#0" data-role="edge" data-from="Pele" data-to="Bezel" role="graphics-symbol" aria-roledescription="relation" aria-label="Pele to Bezel: port" />
+<g class="edge-label" data-from="Mermaid" data-to="Beautiful" data-label="derivative">
+  <rect class="edge-label-halo" x="287.188666667" y="119.133333333" width="73.17" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="291.188666667" y="123.133333333" width="65.17" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="323.773666667" y="138.283333333" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="49.17" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">derivative</text>
+</g>
+<g class="edge-label" data-from="Mermaid" data-to="Dart" data-label="Dart port">
+  <rect class="edge-label-halo" x="341.026833333" y="159.9" width="66.636" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="345.026833333" y="163.9" width="58.636" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="374.344833333" y="179.05" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="42.636" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Dart port</text>
+</g>
+<g class="edge-label" data-from="Beautiful" data-to="Agentic" data-label="fork">
+  <rect class="edge-label-halo" x="162.780833333" y="313.1" width="44.658" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="166.780833333" y="317.1" width="36.658" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="185.109833333" y="332.25" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="20.658" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">fork</text>
+</g>
+<g class="edge-label" data-from="Beautiful" data-to="Zombie" data-label="fork">
+  <rect class="edge-label-halo" x="211.344166667" y="313.1" width="44.658" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="215.344166667" y="317.1" width="36.658" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="233.673166667" y="332.25" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="20.658" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">fork</text>
+</g>
+<g class="edge-label" data-from="ASCII" data-to="Beautiful" data-label="ASCII component port">
+  <rect class="edge-label-halo" x="146.6705" y="159.9" width="125.442" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="150.6705" y="163.9" width="117.442" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="209.3915" y="179.05" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="101.442" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">ASCII component port</text>
+</g>
+<g class="edge-label" data-from="Pele" data-to="Ondine" data-label="Rust port">
+  <rect class="edge-label-halo" x="533.044083333" y="159.9" width="67.824" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="537.044083333" y="163.9" width="59.824" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="566.956083333" y="179.05" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="43.824" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Rust port</text>
+</g>
+<g class="edge-label" data-from="Pele" data-to="Bezel" data-label="port">
+  <rect class="edge-label-halo" x="592.940083333" y="121.133333333" width="44.658" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="596.940083333" y="125.133333333" width="36.658" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="615.269083333" y="140.283333333" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="20.658" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">port</text>
+</g>
+<g class="node" data-id="Mermaid" data-label="Mermaid.js" data-shape="rectangle" data-role="node">
+  <rect x="288.301333333" y="84" width="106.417" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:Mermaid" data-role="node" />
+  <text x="341.509833333" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="66.417" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Mermaid.js</text>
+</g>
+<g class="node" data-id="Dart" data-label="Mermaid Dart" data-shape="rectangle" data-role="node">
+  <rect x="314.096833333" y="237.2" width="120.496" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:Dart" data-role="node" />
+  <text x="374.344833333" y="255.65" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="80.496" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Mermaid Dart</text>
+</g>
+<g class="node" data-id="ASCII" data-label="Mermaid ASCII" data-shape="rectangle" data-role="node">
+  <rect x="97.7175" y="84" width="127.906" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:ASCII" data-role="node" />
+  <text x="161.6705" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="87.906" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Mermaid ASCII</text>
+</g>
+<g class="node" data-id="Beautiful" data-label="Beautiful Mermaid" data-shape="rectangle" data-role="node">
+  <rect x="136.5465" y="237.2" width="145.69" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:Beautiful" data-role="node" />
+  <text x="209.3915" y="255.65" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="105.69" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Beautiful Mermaid</text>
+</g>
+<g class="node" data-id="Agentic" data-label="Agentic Mermaid" data-shape="rectangle" data-role="node">
+  <rect x="56" y="390.4" width="139.762" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:Agentic" data-role="node" />
+  <text x="125.881" y="408.85" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="99.762" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Agentic Mermaid</text>
+</g>
+<g class="node" data-id="Zombie" data-label="Zombie Mermaid" data-shape="rectangle" data-role="node">
+  <rect x="223.762" y="390.4" width="138.28" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:Zombie" data-role="node" />
+  <text x="292.902" y="408.85" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="98.28" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Zombie Mermaid</text>
+</g>
+<g class="node" data-id="Pele" data-label="Pele" data-shape="rectangle" data-role="node">
+  <rect x="555.873333333" y="84" width="68.626" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:Pele" data-role="node" />
+  <text x="590.186333333" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="28.626" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Pele</text>
+</g>
+<g class="node" data-id="Ondine" data-label="Ondine" data-shape="rectangle" data-role="node">
+  <rect x="494.592833333" y="237.2" width="83.446" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:Ondine" data-role="node" />
+  <text x="536.315833333" y="255.65" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="43.446" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Ondine</text>
+</g>
+<g class="node" data-id="Bezel" data-label="Bezel" data-shape="rectangle" data-role="node">
+  <rect x="606.038833333" y="237.2" width="76.036" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:Bezel" data-role="node" />
+  <text x="644.056833333" y="255.65" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="36.036" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Bezel</text>
+</g>
+<g class="node" data-id="Franken" data-label="Frankenmermaid" data-shape="rectangle" data-role="node">
+  <rect x="652.499333333" y="84" width="142.726" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:Franken" data-role="node" />
+  <text x="723.862333333" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="102.726" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Frankenmermaid</text>
+</g>
+</svg>

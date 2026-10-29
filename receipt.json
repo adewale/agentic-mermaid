@@ -1,0 +1,108 @@
+{
+  "base": "c4a8eeb8a3c472fd73e6654c0efa151b8f19a7f5",
+  "head": "8b3927102b62d2fd8675939453e499bfdce937b4",
+  "bun": "1.4.2",
+  "fixtures": [
+    "flowchart-lineage-default",
+    "flowchart-lineage-publication"
+  ],
+  "sources": {
+    "flowchart-lineage-default": "flowchart TD\n  subgraph MermaidFamily[Mermaid lineage]\n    Mermaid[Mermaid.js]\n    Beautiful[Beautiful Mermaid]\n    Dart[Mermaid Dart]\n    Agentic[Agentic Mermaid]\n    Zombie[Zombie Mermaid]\n    ASCII[Mermaid ASCII]\n    Mermaid -->|derivative| Beautiful\n    Mermaid -->|Dart port| Dart\n    Beautiful -->|fork| Agentic\n    Beautiful -->|fork| Zombie\n    ASCII -.->|ASCII component port| Beautiful\n  end\n  subgraph OtherEngines[Other implementation lineages]\n    Pele[Pele]\n    Ondine[Ondine]\n    Bezel[Bezel]\n    Franken[Frankenmermaid]\n    Pele -->|Rust port| Ondine\n    Pele -->|port| Bezel\n  end",
+    "flowchart-lineage-publication": "flowchart TD\n  subgraph MermaidFamily[Mermaid lineage]\n    Mermaid[Mermaid.js]\n    Beautiful[Beautiful Mermaid]\n    Dart[Mermaid Dart]\n    Agentic[Agentic Mermaid]\n    Zombie[Zombie Mermaid]\n    ASCII[Mermaid ASCII]\n    Mermaid -->|derivative| Beautiful\n    Mermaid -->|Dart port| Dart\n    Beautiful -->|fork| Agentic\n    Beautiful -->|fork| Zombie\n    ASCII -.->|ASCII component port| Beautiful\n  end\n  subgraph OtherEngines[Other implementation lineages]\n    Pele[Pele]\n    Ondine[Ondine]\n    Bezel[Bezel]\n    Franken[Frankenmermaid]\n    Pele -->|Rust port| Ondine\n    Pele -->|port| Bezel\n  end"
+  },
+  "terminalFixtures": [],
+  "terminalOptions": {
+    "ascii": {
+      "colorMode": "none",
+      "useAscii": true
+    },
+    "unicode": {
+      "colorMode": "html",
+      "useAscii": false
+    }
+  },
+  "options": {
+    "security": "strict",
+    "style": "default unless fixtureOptions overrides it",
+    "fonts": "bundled"
+  },
+  "fixtureOptions": {
+    "flowchart-lineage-default": {
+      "svg": {
+        "security": "strict"
+      },
+      "png": {
+        "security": "strict",
+        "background": "#ffffff",
+        "fitTo": {
+          "width": 1800
+        }
+      }
+    },
+    "flowchart-lineage-publication": {
+      "svg": {
+        "security": "strict",
+        "style": [
+          "publication-figure",
+          "nord-light",
+          {
+            "font": "Inter",
+            "roles": {
+              "node": {
+                "fontSize": 18,
+                "fontWeight": 600,
+                "fillColor": "#fffdf8",
+                "borderColor": "#7891a6",
+                "textColor": "#233448"
+              },
+              "edge": {
+                "fontSize": 14,
+                "strokeColor": "#5e81ac",
+                "textColor": "#456079"
+              },
+              "group": {
+                "fontSize": 15,
+                "fontWeight": 700,
+                "borderColor": "#a3b4c3"
+              }
+            }
+          }
+        ]
+      },
+      "png": {
+        "security": "strict",
+        "style": [
+          "publication-figure",
+          "nord-light",
+          {
+            "font": "Inter",
+            "roles": {
+              "node": {
+                "fontSize": 18,
+                "fontWeight": 600,
+                "fillColor": "#fffdf8",
+                "borderColor": "#7891a6",
+                "textColor": "#233448"
+              },
+              "edge": {
+                "fontSize": 14,
+                "strokeColor": "#5e81ac",
+                "textColor": "#456079"
+              },
+              "group": {
+                "fontSize": 15,
+                "fontWeight": 700,
+                "borderColor": "#a3b4c3"
+              }
+            }
+          }
+        ],
+        "background": "#ffffff",
+        "fitTo": {
+          "width": 1800
+        }
+      }
+    }
+  },
+  "baselineOptionRefusals": {}
+}
