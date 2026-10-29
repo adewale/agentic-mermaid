@@ -27,6 +27,7 @@ interface Fixture {
   source: string
   cue: string
   renderOptions?: RenderOptions
+  baselineRenderOptions?: RenderOptions
   pngWidth?: number
   pngScale?: number
   previewMaxWidth?: number
@@ -127,6 +128,7 @@ const fixtures: Fixture[] = [
   ...([undefined, 'excalidraw'] as const).flatMap(style => chartFittingFixtures.map(fixture => ({
     ...fixture, id: fixture.id + '-' + (style ?? 'default'),
     renderOptions: { style, [fixture.family]: { maxWidth: 360 } },
+    baselineRenderOptions: { style },
     captureLayout: true as const, pngScale: 1, previewMaxWidth: 360,
   }))),
   {
@@ -1252,6 +1254,10 @@ const fixtureOptions = Object.fromEntries(
       {
         svg,
         png: { ...svg, background: svg.transparent ? '#00000000' : '#ffffff', ...(fixture.pngWidth ? { fitTo: { width: fixture.pngWidth } } : {}), ...(fixture.pngScale !== undefined ? { scale: fixture.pngScale } : {}) },
+        ...(fixture.baselineRenderOptions ? { baseline: {
+          svg: { security: 'strict' as const, ...fixture.baselineRenderOptions },
+          png: { security: 'strict' as const, ...fixture.baselineRenderOptions, background: fixture.baselineRenderOptions.transparent ? '#00000000' : '#ffffff', ...(fixture.pngWidth ? { fitTo: { width: fixture.pngWidth } } : {}), ...(fixture.pngScale !== undefined ? { scale: fixture.pngScale } : {}) },
+        } } : {}),
         ...(fixture.measurementProfile ? { measurementProfile: { kind: fixture.measurementProfile, ...measurementProfiles[fixture.measurementProfile] } } : {}),
       },
     ]
@@ -1264,6 +1270,7 @@ interface Evidence {
   source?: string
   edit?: unknown
   error?: string
+  requestedOptionsError?: string
 }
 interface TerminalEvidence {
   ascii?: string
@@ -1291,7 +1298,8 @@ function renderRevision(sha: string): RevisionEvidence {
       import { createMermaidRenderer } from './src/index.ts'
       import { renderMermaidASCIIWithMeta } from './src/ascii/meta.ts'
       const fixtures = ${JSON.stringify(fixtures)}
-      const fixtureOptions = ${JSON.stringify(fixtureOptions)}
+      const requestedFixtureOptions = ${JSON.stringify(fixtureOptions)}
+      const fixtureOptions = Object.fromEntries(Object.entries(requestedFixtureOptions).map(([id, options]) => [id, ${JSON.stringify(sha === base)} && options.baseline ? options.baseline : options]))
       const renders = {}
       const terminals = {}
       for (const fixture of fixtures) {
@@ -1326,6 +1334,11 @@ function renderRevision(sha: string): RevisionEvidence {
               ...(reloaded.value.body.kind === 'er' ? { reloadedEntityOrder: reloaded.value.body.entities.map(entity => entity.id) } : {}),
             }
           }
+          let requestedOptionsError
+          if (${JSON.stringify(sha === base)} && fixture.baselineRenderOptions) {
+            try { renderMermaidSVG(input, requestedFixtureOptions[fixture.id].svg) }
+            catch (error) { requestedOptionsError = String(error) }
+          }
           const measurement = fixtureOptions[fixture.id].measurementProfile
           const host = measurement ? { textMeasurement: {
             id: measurement.id, version: measurement.version,
@@ -1334,6 +1347,7 @@ function renderRevision(sha: string): RevisionEvidence {
           renders[fixture.id] = {
             svg: host ? createMermaidRenderer(host).renderMermaidSVG(input, fixtureOptions[fixture.id].svg) : renderMermaidSVG(input, fixtureOptions[fixture.id].svg),
             png: Buffer.from(host ? createMermaidPNGRenderer(host).renderMermaidPNG(input, fixtureOptions[fixture.id].png) : renderMermaidPNG(input, fixtureOptions[fixture.id].png)).toString('base64'),
+            ...(requestedOptionsError ? { requestedOptionsError } : {}),
             ...(fixture.classMutation || fixture.mutation ? { source: input } : {}),
             ...(edit ? { edit } : {}),
             ...(fixture.captureLayout ? { layout: layoutMermaidWithReceipt(input, { ...fixtureOptions[fixture.id].svg, regions: true }).layout } : {}),
@@ -1389,15 +1403,16 @@ const rows = fixtures
         if (result.source) writeFileSync(join(out, `${fixture.id}-${phase}-export.mmd`), result.source)
         if (result.edit) writeFileSync(join(out, `${fixture.id}-${phase}-edit.json`), JSON.stringify(result.edit, null, 2))
         const semanticSidecar = result.layout ? `<p><a href="${fixture.id}-${phase}-layout.json">${phase} public layout identities and regions</a></p>` : ''
+        const unsupportedBaseline = result.requestedOptionsError ? `<p>The new option is unsupported at this baseline: <code>${esc(result.requestedOptionsError)}</code>. The image is its natural-layout control using the baseline options below.</p>` : ''
         const editSidecar = result.edit ? `<p><a href="${fixture.id}-${phase}-edit.json">${phase} typed and reloaded edit facts/order</a></p><pre>${esc(JSON.stringify(result.edit, null, 2))}</pre>` : ''
         const exportedSource = result.source ? `<p><a href="${fixture.id}-${phase}-export.mmd">${phase} exported Mermaid source</a></p><pre>${esc(result.source)}</pre>` : ''
         return `<figure${fixture.renderOptions?.transparent ? ' class="transparent"' : ''}><figcaption>${phase}</figcaption>${
           result.png ? `<img${fixture.previewMaxWidth ? ` style="width:auto;max-width:min(100%,${fixture.previewMaxWidth}px)"` : ''} alt="${phase}: ${esc(fixture.title)}" src="data:image/png;base64,${result.png}">` : `<pre>${esc(result.error ?? 'No render')}</pre>`
-        }${semanticSidecar}${editSidecar}${exportedSource}</figure>`
+        }${unsupportedBaseline}${semanticSidecar}${editSidecar}${exportedSource}</figure>`
       })
       .join('')
     const optionsCaption =
-      (fixture.renderOptions ? `<p>Render options at both revisions: <code>${esc(JSON.stringify(fixture.renderOptions))}</code>.</p>` : '') +
+      (fixture.baselineRenderOptions ? `<p>Baseline control options: <code>${esc(JSON.stringify(fixture.baselineRenderOptions))}</code>. Current options: <code>${esc(JSON.stringify(fixture.renderOptions))}</code>. The authored source and Look are unchanged; the baseline has no width-fitting capability.</p>` : fixture.renderOptions ? `<p>Render options at both revisions: <code>${esc(JSON.stringify(fixture.renderOptions))}</code>.</p>` : '') +
       (fixture.pngWidth ? `<p>PNG previews are scaled to ${fixture.pngWidth}px wide at both revisions; SVG and layout sidecars retain native geometry.</p>` : '') +
       (fixture.pngScale !== undefined ? `<p>PNG scale at both revisions: ${fixture.pngScale}.</p>` : '') +
       (fixture.previewMaxWidth ? `<p>Review host: ${fixture.previewMaxWidth}px; smaller diagrams retain natural size and wider diagrams scale down.</p>` : '') +
@@ -1424,7 +1439,7 @@ const terminalRows = terminalFixtures
 for (const phase of ['before', 'after'] as const) writeFileSync(join(out, `class-export-${phase}.mmd`), revisions[phase].classExport)
 writeFileSync(
   join(out, 'review.html'),
-  `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Diagram meaning: before and after</title><style>body{font:16px/1.5 system-ui;margin:40px auto;padding:0 24px;max-width:1100px;color:#222;background:white}.pair{display:grid;grid-template-columns:1fr 1fr;gap:24px}section{border-top:1px solid #ddd;margin-top:32px}figure{margin:0}figcaption{font-weight:bold}img{display:block;width:100%;height:auto}figure.transparent img{background-color:white;background-image:conic-gradient(#ddd 25%,transparent 0 50%,#ddd 0 75%,transparent 0);background-size:16px 16px}pre{white-space:pre-wrap;background:#f6f6f6;padding:16px}@media(max-width:700px){.pair{grid-template-columns:1fr}}</style><h1>Diagram meaning: before and after</h1><p>Baseline SHA: <code>${base}</code><br>Head SHA: <code>${head}</code></p><p>Same sources and render options at both revisions, with strict security and bundled PNG fonts. Default style and opaque PNGs use a white background unless a fixture states otherwise; explicit options are shown beside that fixture and recorded in receipt.json. Captions identify repair witnesses, host-measurement stress profiles and artwork-preservation controls. Historical fixtures and the final Class export may already be fixed at this baseline; only the displayed outputs establish a difference between these revisions. Focused witnesses do not prove all-layout or cross-platform visual parity.</p>${rows}<section><h2>Class export after deleting A</h2><p>Compare the serialized result after deleting A: class B should remain and the empty namespace should be omitted.</p><div class="pair"><pre>${esc(revisions.before.classExport)}</pre><pre>${esc(revisions.after.classExport)}</pre></div></section></html>`,
+  `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Diagram meaning: before and after</title><style>body{font:16px/1.5 system-ui;margin:40px auto;padding:0 24px;max-width:1100px;color:#222;background:white}.pair{display:grid;grid-template-columns:1fr 1fr;gap:24px}section{border-top:1px solid #ddd;margin-top:32px}figure{margin:0}figcaption{font-weight:bold}img{display:block;width:100%;height:auto}figure.transparent img{background-color:white;background-image:conic-gradient(#ddd 25%,transparent 0 50%,#ddd 0 75%,transparent 0);background-size:16px 16px}pre{white-space:pre-wrap;background:#f6f6f6;padding:16px}@media(max-width:700px){.pair{grid-template-columns:1fr}}</style><h1>Diagram meaning: before and after</h1><p>Baseline SHA: <code>${base}</code><br>Head SHA: <code>${head}</code></p><p>Same sources, with strict security and bundled PNG fonts. Per-revision render options are shown explicitly; a new unsupported option may use a natural-layout baseline control beside its real option error. Default style and opaque PNGs use a white background unless a fixture states otherwise; explicit options are shown beside that fixture and recorded in receipt.json. Captions identify repair witnesses, host-measurement stress profiles and artwork-preservation controls. Historical fixtures and the final Class export may already be fixed at this baseline; only the displayed outputs establish a difference between these revisions. Focused witnesses do not prove all-layout or cross-platform visual parity.</p>${rows}<section><h2>Class export after deleting A</h2><p>Compare the serialized result after deleting A: class B should remain and the empty namespace should be omitted.</p><div class="pair"><pre>${esc(revisions.before.classExport)}</pre><pre>${esc(revisions.after.classExport)}</pre></div></section></html>`,
 )
 writeFileSync(
   join(out, 'terminal-review.html'),
