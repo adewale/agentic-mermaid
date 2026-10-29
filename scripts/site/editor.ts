@@ -19,6 +19,7 @@
 
 import { runtimeRenderContractPlugin } from '../build/runtime-render-contract.ts'
 import { minifyBrowserRuntime } from '../build/runtime-minify.ts'
+import { browserOptimizerRecipe, compactBunBrowserModules } from '../build/compact-browser-modules.ts'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
@@ -232,11 +233,13 @@ async function generateEditorHtml(): Promise<string> {
       entrypoints: [fileURLToPath(new URL('../../src/browser-hosted.ts', import.meta.url))],
       plugins: runtimePlugins,
       target: 'browser', format: 'esm', minify: true,
+      banner: `/* browser optimizer recipe ${browserOptimizerRecipe()} */`,
       define: { AM_PREVIEW_WORKER_URL: JSON.stringify(workerUrl) },
       splitting: true, outdir: runtimeDirectory,
       naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
     })
     if (!buildResult.success) throw new AggregateError(buildResult.logs, 'Hosted editor runtime build failed')
+    await compactBunBrowserModules(buildResult.outputs)
     // Bun materializes outputs when outdir is set. Writing a file-backed
     // BuildArtifact onto its own path would truncate the emitted module.
     const entry = buildResult.outputs.find(output => output.kind === 'entry-point')

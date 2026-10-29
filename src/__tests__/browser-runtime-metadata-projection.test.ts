@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { build, transformSync } from 'esbuild'
 import ts from 'typescript'
 import { runtimeRenderContractPlugin } from '../../scripts/build/runtime-render-contract.ts'
-import { compactBrowserModulesPlugin } from '../../scripts/build/compact-browser-modules.ts'
+import { browserOptimizerRecipe, compactBrowserModulesPlugin, compactBunBrowserModules } from '../../scripts/build/compact-browser-modules.ts'
 import { validateJsonSchema } from '../shared/schema-validation.ts'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { editorExamplesDataJs } from '../../scripts/site/editor-example-data.ts'
@@ -297,4 +297,35 @@ test('compacted ESM preserves live bindings, observable getters, arity and recip
   }
   expect(chunkNames[0]!.length).toBeGreaterThan(0)
   expect(chunkNames[1]).not.toEqual(chunkNames[0])
+})
+
+test('Bun-hosted compaction keeps lazy imports, module identity and recipe-addressed files', async () => {
+  const shared = fixture('bun-hosted/shared.ts', `
+    export let count = 0; export function step() { count++; }
+    export class OwnedError extends Error {}
+    export function arity(first, second) { return first; }
+    export function observe() { let reads = 0; const value = { get field() { reads++; return 9; } }; value.field; return reads; }
+  `)
+  const entry = fixture('bun-hosted/entry.ts', "export { count, step, arity, observe, OwnedError } from './shared.ts'; export const peer = () => import('./peer.ts');")
+  fixture('bun-hosted/peer.ts', "import { count, step, OwnedError } from './shared.ts'; export function advance() { step(); return [count, new OwnedError('owned')]; }")
+  const names: string[][] = []
+  for (const generation of ['first', 'changed']) {
+    const result = await Bun.build({
+      entrypoints: [entry, shared], target: 'browser', format: 'esm', minify: true, splitting: true,
+      outdir: join(temporary, 'bun-hosted/output'), naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
+      banner: `/* browser optimizer recipe ${browserOptimizerRecipe()} ${generation} */`,
+    })
+    expect(result.success).toBe(true)
+    await compactBunBrowserModules(result.outputs)
+    const entryOutput = result.outputs.find(output => output.kind === 'entry-point' && basename(output.path).startsWith('entry-'))!
+    const consumed = Bun.spawnSync([process.execPath, '--eval', `
+      const module = await import(${JSON.stringify(pathToFileURL(entryOutput.path).href)});
+      const initial = module.count; module.step(); const [peer,error] = (await module.peer()).advance();
+      console.log(JSON.stringify({initial,peer,count:module.count,owned:error instanceof module.OwnedError,arity:module.arity.length,value:module.arity(7,8),reads:module.observe()}));
+    `], { stdout: 'pipe', stderr: 'pipe' })
+    expect({ status: consumed.exitCode, error: new TextDecoder().decode(consumed.stderr) }).toEqual({ status: 0, error: '' })
+    expect(JSON.parse(new TextDecoder().decode(consumed.stdout))).toEqual({ initial: 0, peer: 2, count: 2, owned: true, arity: 2, value: 7, reads: 1 })
+    names.push(result.outputs.map(output => basename(output.path)).sort())
+  }
+  expect(names[1]!.filter(name => names[0]!.includes(name))).toEqual([])
 })

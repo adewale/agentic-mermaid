@@ -11,7 +11,7 @@ const swcVersion = (require('@swc/core/package.json') as { version: string }).ve
 /** esbuild computes chunk names before onEnd. Put the complete optimizer
  * recipe in its input banner so an optimizer change also changes those names.
  * The ordinary non-license comment is removed by the following compressor. */
-function optimizerRecipe(): string {
+export function browserOptimizerRecipe(): string {
   const recipe = createHash('sha256').update(swcVersion)
   for (const name of ['compact-browser-modules.ts', 'runtime-minify.ts']) {
     recipe.update(name).update('\0').update(readFileSync(new URL(name, import.meta.url)))
@@ -20,7 +20,7 @@ function optimizerRecipe(): string {
 }
 
 export function compactBrowserModulesPlugin(): Plugin {
-  const recipe = optimizerRecipe()
+  const recipe = browserOptimizerRecipe()
   return {
     name: 'compact-browser-modules',
     setup(build) {
@@ -60,4 +60,14 @@ export function compactBrowserModulesPlugin(): Plugin {
       })
     },
   }
+}
+
+/** Bun has already written these file-backed artifacts. Read each complete
+ * module before replacing its file; rewriting an artifact onto itself truncates
+ * it. Callers bind browserOptimizerRecipe into Bun's banner before name hashing. */
+export async function compactBunBrowserModules(outputs: readonly { path: string; text(): Promise<string> }[]): Promise<void> {
+  const modules = await Promise.all(outputs.filter(output => /\.m?js$/.test(output.path)).map(async output => ({
+    path: output.path, code: await minifyBrowserRuntime(await output.text()),
+  })))
+  await Promise.all(modules.map(module => Bun.write(module.path, module.code)))
 }
