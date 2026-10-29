@@ -4,7 +4,18 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+## 0.5.0 — 2026-10-28
+
+Changes since 0.4.1, including the unpublished 0.4.2 development cycle.
+
 ### Added
+
+- Explicit source-preserving edits for opaque Class and Flowchart diagrams
+  across library, CLI, MCP and editor-worker workflows. Class supports adding
+  members and removing owned whole-line members; Flowchart supports label
+  overrides and owned node renames. Edits retain other source bytes and require
+  complete native-model read-back; ambiguous ownership, dependencies and
+  semantic changes outside the requested edit are refused atomically.
 
 - Serve existing Markdown directly from the canonical API, warning and error
   page URLs when GET/HEAD requests prefer `text/markdown`, with page-specific
@@ -22,6 +33,11 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Performance
 
+- Source-preserving edits avoid duplicate Flowchart parsing when authored and
+  rendered parser inputs are identical, and avoid redundant Class quote-provenance
+  work when the authored grammar is unchanged. Distinct text interpretations
+  retain independent read-back. Local edit-kernel measurements do not establish
+  an end-to-end CLI, MCP or browser speedup.
 - Published Node bundles compact whitespace without rewriting syntax or renaming
   callable exports. The package keeps its existing exports, resources and lazy ELK
   boundary.
@@ -42,6 +58,11 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   guarantee.
 
 ### Fixed
+
+- GitGraph string exports preserve authored values through Mermaid reload;
+  Class namespace admission and Kanban authored-source provenance retain their
+  respective identity and text contracts. Marker certification checks the
+  serialized marker paint and placement used by the shipped SVG (#572).
 
 - Preserve Class direction-like label text in portable exports, refuse lossy
   empty Class and unrepresentable Quadrant labels, and share Ishikawa/Sankey
@@ -479,6 +500,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   website, and full and lazy browser bundles.
 
 ### Changed
+- Extension core compatibility now follows the 0.5 release line. External
+  extensions declaring only `^0.4.0` must explicitly declare support for 0.5;
+  the Scene contract remains version 2. Bundled descriptors bind to their
+  shipped core version.
 - Every built-in family's shapes, text and connectors are now written by one
   SVG writer from the typed fields paint certification reads, so a render's
   certificate describes the drawing it ships. Families no longer attach their
