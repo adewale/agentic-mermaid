@@ -42,6 +42,15 @@ process.stdout.write('const config='+literal(cfg)+';export default config;export
 const captured = Bun.spawn(['node', '--input-type=module', '-e', capture], { stdout: 'pipe', stderr: 'inherit' })
 const defaults = await new Response(captured.stdout).text()
 if (await captured.exited !== 0) throw new Error('Could not read reference defaults')
+const defaultsSource = ts.createSourceFile('captured-defaults.js', defaults, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS)
+let configKeysInitializer: ts.NewExpression | undefined
+for (const statement of defaultsSource.statements) if (ts.isVariableStatement(statement)) for (const declaration of statement.declarationList.declarations) {
+  if (ts.isIdentifier(declaration.name) && declaration.name.text === 'configKeys' && declaration.initializer && ts.isNewExpression(declaration.initializer)) configKeysInitializer = declaration.initializer
+}
+if (!configKeysInitializer || !ts.isIdentifier(configKeysInitializer.expression) || configKeysInitializer.expression.text !== 'Set'
+  || configKeysInitializer.arguments?.length !== 1 || !ts.isArrayLiteralExpression(configKeysInitializer.arguments[0]!)
+  || !configKeysInitializer.arguments[0].elements.every(ts.isStringLiteral)) throw new Error('Unreviewed captured config-key constructor')
+const configKeys = configKeysInitializer.arguments[0].elements.map(entry => (entry as ts.StringLiteral).text)
 const src = join(upstream, 'packages/mermaid/src')
 // Copy owned function initializers from trusted pinned TypeScript, avoiding a
 // hand-maintained approximation of directive lexing and preprocessing phases.
@@ -133,6 +142,10 @@ export function validateConfigSource(frontmatter,code,diagramType,metadata={}){
 `
 const output = join(root, 'src/shared/pinned-mermaid-config')
 await mkdir(output, { recursive: true })
+const banner = `// Generated from Mermaid ${policy.pin.version} (${revision}), Khroma ${khromaVersion}, es-toolkit ${mergeVersion}.\n// Rebuild: scripts/build/generate-mermaid-config-runtime.ts. MIT notices: LICENSES/{Mermaid,Khroma,es-toolkit}-MIT.txt.\n`
+const keyProgram = `export function createConfigKeys(){return ${configKeysInitializer!.getText(defaultsSource)};}\n`
+await writeFile(join(output, 'config-keys.js'), banner + keyProgram)
+console.log(JSON.stringify({ name: 'config-keys', bytes: Buffer.byteLength(keyProgram), gzip: gzipSync(keyProgram).length, brotli: brotliCompressSync(keyProgram).length }))
 await writeFile(join(output, 'directive-types.ts'), `// Generated from Mermaid ${policy.pin.version} (${revision}).
 // Selectors owned by detectInit and processDirectives. Rebuild with the config generator.
 export function isMermaidConfigDirective(raw: string): boolean {
@@ -154,8 +167,7 @@ try {
       } }],
     })
     if (!result.success) throw new Error(result.logs.map(log => log.message).join('\n'))
-    const program = isolateProgram(await result.outputs[0]!.text())
-    const banner = `// Generated from Mermaid ${policy.pin.version} (${revision}), Khroma ${khromaVersion}, es-toolkit ${mergeVersion}.\n// Rebuild: scripts/build/generate-mermaid-config-runtime.ts. MIT notices: LICENSES/{Mermaid,Khroma,es-toolkit}-MIT.txt.\n`
+    const program = shareConfigKeys(isolateProgram(await result.outputs[0]!.text()))
     await writeFile(join(output, `${name}.js`), banner + program)
     console.log(JSON.stringify({ name, bytes: Buffer.byteLength(program), gzip: gzipSync(program).length, brotli: brotliCompressSync(program).length }))
   }
@@ -191,4 +203,25 @@ function isolateProgram(bundled: string): string {
   const returned = [...exports].map(([name, local]) => `${name}:${local}`).join(',')
   const facade = [...exports].map(([name]) => `export function ${name}(...args){return __amConfigProgram().${name}(...args);}`).join('\n')
   return `function __amConfigProgram(){${budget}\n${program}\nreturn {${returned}};}\n${facade}\n`
+}
+
+/** Preserve both independent factories and allocate their keys at the original
+ * initializer position. Only the trusted identical string literal is shared. */
+function shareConfigKeys(program: string): string {
+  const source = ts.createSourceFile('config-program.js', program, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS)
+  const matches: ts.NewExpression[] = []
+  function visit(node: ts.Node): void {
+    if (ts.isIdentifier(node) && node.text === '__amCreateConfigKeys') throw new Error('Config keys import binding collision')
+    if (ts.isNewExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'Set'
+      && node.arguments?.length === 1 && ts.isArrayLiteralExpression(node.arguments[0]!)) {
+      const elements = node.arguments[0].elements
+      if (elements.length === configKeys.length && elements.every((entry, index) => ts.isStringLiteral(entry) && entry.text === configKeys[index])) matches.push(node)
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
+  if (matches.length !== 1) throw new Error('Expected one pinned config-key initializer')
+  const initializer = matches[0]!
+  return `import {createConfigKeys as __amCreateConfigKeys} from './config-keys.js';\n`
+    + program.slice(0, initializer.getStart(source)) + '__amCreateConfigKeys()' + program.slice(initializer.end)
 }
