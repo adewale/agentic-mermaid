@@ -1,0 +1,7 @@
+{
+  "formatVersion": 1,
+  "roles": {
+    "node": { "fontSize": 20, "paddingX": 18, "paddingY": 12 },
+    "edge": { "fontSize": 16, "lineWidth": 1.8, "bendRadius": 8 }
+  }
+}
