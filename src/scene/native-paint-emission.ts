@@ -167,7 +167,10 @@ export function createNativePaintEmission(maxOperations: number) {
     if (!pay(fields.length * 4)) return undefined
     for (const field of fields) {
       const descriptor = Object.getOwnPropertyDescriptor(paint, field)
-      if (!descriptor) { if (field in paint) return undefined; continue }
+      if (!descriptor) {
+        if (field in paint) { uncertain = true; return undefined }
+        continue
+      }
       if (!('value' in descriptor)) return undefined
       const value = descriptor.value
       // The existing numeric formatter returns strings shorter than13
@@ -176,14 +179,14 @@ export function createNativePaintEmission(maxOperations: number) {
     }
     return inertRectangleRecord(paint)
   }
-  const rectangleInput = (node: ShapeMark, geometry: Extract<Geometry, { kind: 'rect' }>): { geometry: typeof geometry; paint: MarkPaint } | undefined => {
+  const rectangleInput = (node: ShapeMark, geometry: Extract<Geometry, { kind: 'rect' }>): { paint: MarkPaint } | undefined => {
     if (!pay(16) || 'transform' in node || !(geometry.width > 0 && geometry.height > 0)) return undefined
     for (const field of ['rx', 'ry'] as const) {
       const descriptor = Object.getOwnPropertyDescriptor(geometry, field)
       if (descriptor ? !('value' in descriptor) || descriptor.value !== undefined && descriptor.value !== 0 : field in geometry) return undefined
     }
-    const paint = rectanglePaint(node.paint), retained = paint && inertRectangleRecord(geometry)
-    return retained ? { geometry: retained, paint: paint! } : undefined
+    const paint = rectanglePaint(node.paint)
+    return paint ? { paint } : undefined
   }
   const sameRectanglePaint = (paint: MarkPaint, attributes: Readonly<Record<string, string>>): boolean => {
     if (!pay(16) || Object.hasOwn(attributes, 'transform')) return false
@@ -442,9 +445,6 @@ export function createNativePaintEmission(maxOperations: number) {
         // A rectangle has extent, not a line's start/end topology. Never
         // borrow the line-collapse branch or pre-write radii for served ink.
         if (!(served.width > 0 && served.height > 0) || (served.rx ?? 0) !== 0 || (served.ry ?? 0) !== 0) return { ...retained, conditional: true }
-        const original = rectangle.geometry
-        if (served.x === original.x && served.y === original.y && served.width === original.width && served.height === original.height
-          && served.rx === original.rx && served.ry === original.ry) return retained
         const proof = inertRectangleRecord(captured)
         const overlay = proof && replaceField(proof, 'geometry', served)
         const paintNode = overlay && replaceField(overlay, 'paint', rectangle.paint)

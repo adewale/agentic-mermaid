@@ -158,7 +158,13 @@ function publicSharpRectangle(x, width = 30, mode = 'plain') {
     ref: { x: 5, y: 3 }, geometry: { kind: 'circle', cx: 3, cy: 3, r: 2 },
     paint: { fill: 'none', stroke: '#111', strokeWidth: '1' },
   }
+  if (mode === 'late-inherited-width') {
+    marker.size = { width: 10, height: 10 }
+    marker.ref = { x: 8, y: 5 }
+    marker.geometry = { kind: 'circle', cx: 5, cy: 5, r: 4 }
+  }
   let getterReads = 0
+  const emissionTrace = []
   const prototypeTrace = []
   const inheritedWidthBefore = Object.getOwnPropertyDescriptor(Object.prototype, 'strokeWidth')
   const producer = (factory, context) => {
@@ -177,7 +183,14 @@ function publicSharpRectangle(x, width = 30, mode = 'plain') {
           return '0.25'
         } })
       }
+      if (mode === 'late-inherited-width') delete paint.strokeWidth
+      emissionTrace.push('body-write-begin')
       const first = factory.shape({ id: 'served-card', role: 'node', geometry, paint, ...(mode === 'transform' ? { transform: { kind: 'matrix', a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 } } : {}) })
+      emissionTrace.push('body-write-end')
+      if (mode === 'late-inherited-width') {
+        Object.defineProperty(Object.prototype, 'strokeWidth', { configurable: true, writable: true, value: '4' })
+        emissionTrace.push('late-width-installed')
+      }
       if (mode !== 'reused-owned-cover') return [first]
       geometry.x = 53.004
       return [first, factory.shape({ id: 'foreign-cover', role: 'node', owner: { id: 'served-card', role: 'node' }, geometry, paint })]
@@ -195,7 +208,7 @@ function publicSharpRectangle(x, width = 30, mode = 'plain') {
   }
   const restore = replaceFamilyForTest('flowchart', { ...family, lowerScene: sceneLowering(producer) })
   try {
-    return { ...renderMermaidSVGWithReceipt('flowchart LR\nA["Left<br/>upper<br/>lower"] --> B[Right]', { embedFontImport: false, security: 'strict' }), getterReads, prototypeTrace }
+    return { ...renderMermaidSVGWithReceipt('flowchart LR\nA["Left<br/>upper<br/>lower"] --> B[Right]', { embedFontImport: false, security: 'strict' }), getterReads, prototypeTrace, emissionTrace }
   } finally {
     if (inheritedWidthBefore) Object.defineProperty(Object.prototype, 'strokeWidth', inheritedWidthBefore)
     else delete Object.prototype.strokeWidth
@@ -203,16 +216,16 @@ function publicSharpRectangle(x, width = 30, mode = 'plain') {
   }
 }
 
-console.log(JSON.stringify({ integer: publicSharpRectangle(60), rounded: publicSharpRectangle(Number(process.env.AM_RECT_X), Number(process.env.AM_RECT_WIDTH), process.env.AM_RECT_MODE), prototypeRestored: !Object.hasOwn(Object.prototype, 'strokeWidth') }))
+console.log(JSON.stringify({ integer: process.env.AM_RECT_SINGLE === '1' ? undefined : publicSharpRectangle(60), rounded: publicSharpRectangle(Number(process.env.AM_RECT_X), Number(process.env.AM_RECT_WIDTH), process.env.AM_RECT_MODE), prototypeRestored: !Object.hasOwn(Object.prototype, 'strokeWidth') }))
 `
 
-async function publicSharpRectanglePair(x: number, width: number, assertions = '0', mode = 'plain') {
+async function publicSharpRectanglePair(x: number, width: number, assertions = '0', mode = 'plain', single = false) {
   const result = await runRectangleChild(process.execPath, ['--eval', publicSharpRectangleProgram], {
     cwd: fileURLToPath(new URL('../../', import.meta.url)),
-    env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: assertions, AM_RECT_X: String(x), AM_RECT_WIDTH: String(width), AM_RECT_MODE: mode },
+    env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: assertions, AM_RECT_X: String(x), AM_RECT_WIDTH: String(width), AM_RECT_MODE: mode, AM_RECT_SINGLE: single ? '1' : '0' },
   })
   expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' })
-  return JSON.parse(result.stdout) as { integer: ReturnType<typeof renderMermaidSVGWithReceipt>; rounded: ReturnType<typeof renderMermaidSVGWithReceipt> & { getterReads: number; prototypeTrace: number[] }; prototypeRestored: boolean }
+  return JSON.parse(result.stdout) as { integer: ReturnType<typeof renderMermaidSVGWithReceipt>; rounded: ReturnType<typeof renderMermaidSVGWithReceipt> & { getterReads: number; prototypeTrace: number[]; emissionTrace: string[] }; prototypeRestored: boolean }
 }
 
 function rectangleEmissionElements(svg: string) {
@@ -295,8 +308,16 @@ test.each([
   if (mode === 'transform') expect(card.attributes.transform).toBe('matrix(1 0 0 1 0 0)')
 })
 
-test('public same-emission rectangle cannot borrow a vanished inherited stroke width', async () => {
-  const { rounded, prototypeRestored } = await publicSharpRectanglePair(60.00000000000001, 30, '0', 'transient-inherited-width')
+function expectRectangleMarkerContributes(svg: string): void {
+  const reference = ' marker-end="url(#served-ring)"'
+  expect(svg.split(reference)).toHaveLength(2)
+  const actual = new Resvg(svg, { font: { loadSystemFonts: false } }).render().pixels
+  const absent = new Resvg(svg.replace(reference, ''), { font: { loadSystemFonts: false } }).render().pixels
+  expect(Buffer.compare(actual, absent)).not.toBe(0)
+}
+
+test.each([{ operand: 'rounded', x: 60.00000000000001 }, { operand: 'integer', x: 60 }])('public same-emission rectangle cannot borrow a $operand vanished inherited stroke width', async ({ x }) => {
+  const { rounded, prototypeRestored } = await publicSharpRectanglePair(x, 30, '0', 'transient-inherited-width', x === 60)
   const elements = rectangleEmissionElements(rounded.svg)
   const card = elements.find(element => element.attributes['data-id'] === 'served-card')!.attributes
   expect(card).toMatchObject({ x: '60', y: '20', width: '30', height: '40', fill: '#fff', stroke: '#888', 'stroke-width': '0.25' })
@@ -315,6 +336,31 @@ test('public same-emission rectangle cannot borrow a vanished inherited stroke w
   expect(ringRight).toBe(60.5)
   expect(Number(card.x) + Number(card['stroke-width']) / 2).toBe(60.125)
   expect(ringRight - (Number(card.x) + Number(card['stroke-width']) / 2)).toBe(0.375)
+  expectRectangleMarkerContributes(rounded.svg)
+  expect(rounded.receipt.layoutCertification?.status).toBe('unverified')
+})
+
+test('public same-emission rectangle cannot borrow a late inherited width after its unchanged write', async () => {
+  const { rounded, prototypeRestored } = await publicSharpRectanglePair(60, 30, '0', 'late-inherited-width', true)
+  const elements = rectangleEmissionElements(rounded.svg)
+  const card = elements.find(element => element.attributes['data-id'] === 'served-card')!.attributes
+  const circle = elements.find(element => element.name === 'circle')!.attributes
+  const marker = elements.find(element => element.name === 'marker')!.attributes
+  expect(card).toMatchObject({ x: '60', y: '20', width: '30', height: '40', fill: '#fff', stroke: '#888' })
+  expect(card['stroke-width']).toBeUndefined()
+  expect(circle).toMatchObject({ cx: '5', cy: '5', r: '4', fill: 'none', stroke: '#111', 'stroke-width': '1' })
+  expect(marker).toMatchObject({ markerWidth: '10', markerHeight: '10', refX: '8', refY: '5', orient: 'auto', markerUnits: 'userSpaceOnUse' })
+  expect(rounded.emissionTrace).toEqual(['body-write-begin', 'body-write-end', 'late-width-installed'])
+  expect(prototypeRestored).toBe(true)
+  // SVG's omitted stroke-width is1: innerfillx60.5. The actual circle is
+  // centered at57,40 with outerradius4.5, reaching61.5: one whole unit
+  // enters fill. A later prototype width4 would invent innerfillx62.
+  const carrier = elements.find(element => element.attributes['data-id'] === 'served-edge')!.attributes
+  expect(carrier).toMatchObject({ x1: '20', y1: '40', x2: '60', y2: '40', stroke: '#111', 'stroke-width': '1', 'marker-end': 'url(#served-ring)' })
+  const ringRight = Number(carrier.x2) + Number(circle.cx) - Number(marker.refX) + Number(circle.r) + Number(circle['stroke-width']) / 2
+  expect(ringRight).toBe(61.5)
+  expect(ringRight - (Number(card.x) + 0.5)).toBe(1)
+  expectRectangleMarkerContributes(rounded.svg)
   expect(rounded.receipt.layoutCertification?.status).toBe('unverified')
 })
 

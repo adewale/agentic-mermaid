@@ -2604,3 +2604,93 @@ The next correctness step is to consume this occurrence-bound geometry/paint
 boundary for a sound complete fractional stroke/straight-polyline proof of
 row87, retaining whole-body separation and its thin-border counterexample;
 typed cubic and complete cylinder unions follow their owning obligations.
+
+### 29 October: seal unchanged rectangle paint and refuse inherited fallback
+
+Published **fc9e3e38437a7cf78f2d68a345574532ab91fd06** completes
+[CI40867079574](https://github.com/adewale/agentic-mermaid/actions/runs/40867079574)
+at attempt1: **14702P/76skip/0F**, every functional lane,192browser/site tests
+and1084resolved-scene comparisons/35043primitives pass. CI remains failed on
+**33lazy byte rows,18raw/15gzip**, one more than b75: Timeline198802gzip
+exceeds its unchanged198000cap by802. Advisory vectors remain exactly equal
+across874pairs:346regressions/393improvements/135other changes. The actual
+uploaded CI editor metadata reports2009159raw/1310619gzip, passing original
+caps with23881gzip headroom; matched b75CI costs are1202raw/684gzip lower.
+This is uploaded producer metadata plus passed physical browser assertions,
+not independently reconstructed HTML. Local b75measurements stay separate.
+Actual checkout logs, parent b75, published/local clean fc9 and live Main
+0a2dc30b6220c04182f8ccd45550689422606a22 are verified. PR449's historical
+closed head is not misidentified as this tested head; no merge/base claim.
+
+Independent current row77 review confirms expected A/B, a thick labelled
+A-to-B edge, visible bundled-Inter glyphs and distinct marker ink: removing
+markers changes116/120pixels in the two served engine outputs. Exact XML
+checks clipped marker/body/label/root geometry; eight saved observations bind
+by literal SVG equality. The separate b75control already passes with identical
+SVG, so this remains **observed current development correctness, not a new
+row closure**. Actual Native cache behavior and full qualification stay open.
+
+A final unchanged-coordinate review finds **two further false passes on exact
+fc9**. Each is acquired once with frozen source and independent actual XML,
+complete public receipt, PNG/RGBA and positive marker-removal controls:
+
+- An integer supporting rectangle reads inherited strokeWidth0.25, whose getter
+  deletes itself on read3. Actual SVG writes0.25; the proof's legacy fallback
+  assumes default1 and passes although stroke enters forbidden fill by0.375.
+- A larger integer circle has world center57/40 and outer radius4.5. The body
+  actually omits stroke-width (SVG default1); after writing, the producer adds
+  inherited width4. The unchanged-coordinate shortcut discards the inert paint
+  and returns the earlier prototype-backed leaf. Actual ring right61.5 enters
+  actual fill beyond60.5 by1, but the public certificate incorrectly passes.
+
+Independent exact rational stroke patches lie inside later opaque fill. Other
+marker ink survives (24/36pixels), so this is partial erasure/contact, not
+marker blindness. Preexistence before fc9 is not claimed without an earlier
+baseline observation. Both adversaries remain enrolled; cleanup restores the
+original prototype descriptor in finally.
+
+The expanded contract is published before implementation. **UNCHANGE-R1** is
+only7insertions/7deletions in native-paint-emission.ts: encountered inherited
+paint keeps emission uncertainty sticky rather than sharing an ordinary
+unsupported fallback; **every eligible rectangle** consumes its validated
+actual geometry, inert paint and null-prototype leaf. Delete the coordinate
+shortcut and its unused pregeometry copy. The complete SVG writer, Scene path,
+integer predicates, ordinary unsupported legacy paths and all caps are
+unchanged. This closes the two demonstrated sharp-domain escapes, not generic
+unsupported paint, other primitive/nested-owner custody or final sealing.
+
+| Final precommit observation at fc9 plus the exact Native-only patch | Result |
+| --- | --- |
+| Genuine controls |Two old false-P regressions fail2tests/21assertions, then pass2tests/26assertions with actual XML/trace/positive marker-ink checks. No fixture variants or repeated finder probes. |
+| Existing owning tests |344paint tests/2413assertions and82related Native tests/1203assertions pass:426disjoint passes/3616assertions. Focused checks are included, not counted twice; unchanged writer owners are not rerun. |
+| Canonical checks |Core/repository types, full lint and diff checks pass; existing oversized-JSON lint warning remains. |
+| Fresh50compatibility |All50return,0errors, no actual SVG/decoded XML/text/status changes against committed fc9 outputs.16OFFreceipts change only operation counts;25ONfull receipts are identical. |
+| Fresh original-seven matrix |56/56returns, no SVG/status changes;8P for already-passed77/48U for the other six. All changed receipt fields are operations only (-46/-69/-92 by row); maximum313708/400000. Repeats/cross-policy full bytes match; actual Native cache remains UNOBSERVED. |
+
+The50-cell operation deltas range-69through+262, maximum135112/400000.
+These are work-ledger observations, not layout timing or memory measurements.
+All883production/runtime bindings and actual source before/after copies match
+the frozen epoch; the writer directly equals committed fc9. Independent custody
+and ink reviews approve this narrow correction without repeating producer or
+raster probes. The actual Green public tests, old physical false-P ink and
+unchanged writer are separate evidence; no new after-PNG capture is invented.
+Evidence root: `/tmp/pr449-unchanged-rect-20261029/`.
+
+A bounded peer readback also compares the exact24-byte row87source with
+already-retained pinned public Pele1.9model/SVG: A/B, sole A-to-B relationship
+and circle endpoint are observed at model/XML boundaries, with own Native/ELK
+SVGs preserving those authored facts. Public-model equivalence and full peer
+paint/provider admission remain unverified; no new provider calls, renderer,
+download or timing is used. Current Mermaid12.2.0source/manifest admission is
+not substituted for an executed selected-provider comparison. Exact used
+bytes and provenance are copied under `/tmp/pr449-peer-row77-20261029/`.
+Shared provider/fidelity implementation still belongs in Trident.
+
+All six0.6goals remain open; six original certificates remain U and all seven
+stay enrolled. Holdout sealed; ELK default/version/release unchanged. The next
+concrete correctness work is still row87's complete fractional stroke/cardinal
+polyline proof using actual geometry/paint authority, retaining the thin-border
+counterexample and full-body separation; general final sealing, cubic/cylinder
+unions, broader independent coverage and peer qualification remain. Lazy byte
+failures are retained, not waived. The next committed source requires its own
+exact-head CI; fc9's completed run is not relabelled as that new result.
