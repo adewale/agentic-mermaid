@@ -270,8 +270,11 @@ ${body}`
     expect(result.warnings.some(warning => warning.code === 'INTERNAL_ERROR')).toBe(false)
   })
 
-  test.each(['elk', 'agentic'] as const)('official flattened namespace fanout retains full paths and clears headers with %s', backend => {
-    for (const direction of ['TB', 'BT', 'LR', 'RL']) {
+  test.each(['elk', 'agentic'] as const)('official namespace fanout retains full paths and clears headers with sharp or rounded corners with %s', backend => {
+    // Rounded bypass corners need room before the arrowhead and before a
+    // nested header that the same route crosses.
+    for (const hierarchicalNamespaces of [false, true]) for (const bendRadius of [0, 8]) for (const direction of ['TB', 'BT', 'LR', 'RL']) {
+      const variant = `${direction} nested=${hierarchicalNamespaces} radius=${bendRadius}`
       const source = `classDiagram
 direction ${direction}
 namespace Company.Engineering.Backend {
@@ -291,12 +294,12 @@ namespace Company {
 }
 CEO --> Developer : oversees
 CEO --> Designer : oversees`
-      const options = { graphLayout: { backend }, class: { hierarchicalNamespaces: false } }
+      const options = { graphLayout: { backend }, class: { hierarchicalNamespaces }, style: { roles: { edge: { bendRadius } } } }
       const positioned = layoutClassDiagram(parseClassDiagram(lines(source)), options)
       const svg = renderMermaidSVG(source, options)
-      expect(positioned.namespaces.map(namespace => namespace.label).sort()).toEqual([
-        'Company', 'Company.Engineering.Backend', 'Company.Engineering.Frontend',
-      ])
+      expect(positioned.namespaces.map(namespace => [namespace.id, namespace.label]).sort(), variant).toEqual(hierarchicalNamespaces
+        ? [['Company', 'Company'], ['Company.Engineering', 'Engineering'], ['Company.Engineering.Backend', 'Backend'], ['Company.Engineering.Frontend', 'Frontend']]
+        : [['Company', 'Company'], ['Company.Engineering.Backend', 'Company.Engineering.Backend'], ['Company.Engineering.Frontend', 'Company.Engineering.Frontend']])
       for (const label of ['Developer', 'Designer', 'CEO', 'writeCode()', 'createMockup()', 'makeDecisions()']) expect(svg.replace(/<[^>]*>/g, '')).toContain(label)
       expect(positioned.relationships.map(relation => [relation.from, relation.to])).toEqual([['CEO', 'Developer'], ['CEO', 'Designer']])
       for (const relation of positioned.relationships) for (let index = 1; index < relation.points.length; index++) {
@@ -307,7 +310,7 @@ CEO --> Designer : oversees`
           const crossesHeader = Math.abs(a.x - b.x) < 0.01
             ? a.x > namespace.x + 0.01 && a.x < namespace.x + namespace.width - 0.01 && Math.max(a.y, b.y) > namespace.y + 0.01 && Math.min(a.y, b.y) < namespace.y + namespace.headerHeight - 0.01
             : a.y > namespace.y + 0.01 && a.y < namespace.y + namespace.headerHeight - 0.01 && Math.max(a.x, b.x) > namespace.x + 0.01 && Math.min(a.x, b.x) < namespace.x + namespace.width - 0.01
-          expect(crossesHeader, `${direction}: ${relation.from} -> ${relation.to} crosses ${namespace.id}`).toBe(false)
+          expect(crossesHeader, `${variant}: ${relation.from} -> ${relation.to} crosses ${namespace.id}`).toBe(false)
         }
       }
     }
