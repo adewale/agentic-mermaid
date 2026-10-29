@@ -4,6 +4,13 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+### Changed
+
+- Refresh MCP directory evidence, submission requirements and dated publication
+  status, including Smithery's 31 October service transition. Prepare source
+  version 0.5.4 because the updated listing record ships in the npm package;
+  the published 0.5.3 package remains immutable.
+
 ## 0.5.3 — 2026-10-29
 
 Includes the 0.5.2 changes below. Its registry publication was blocked when

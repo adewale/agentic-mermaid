@@ -70,9 +70,12 @@ publication date. A failed lookup does not establish that a listing is absent.
 ### Version and evidence maintenance
 
 On 2026-10-29, `npm view agentic-mermaid version --json` returned `0.5.3`.
+This Markdown file ships in the npm package, so changing it requires a new
+source version rather than different contents under published `0.5.3`.
 Root `server.json`, its npm package entry, `package.json`, and `src/version.ts`
-also carry `0.5.3`. These are independent observations of source and npm;
-they do not establish Registry publication or the hosted deployment version.
+now prepare **source version `0.5.4`**. npm returned E404 for `0.5.4` during
+this review. These source changes do not establish npm or Registry publication,
+or the hosted deployment version.
 The 2026-10-16 audit reported npm and the Registry latest record as `0.4.1`,
 with `0.4.2` in source. Retain those as historical observations.
 
