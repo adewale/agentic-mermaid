@@ -749,7 +749,9 @@ export function mutateClassSource(source: string, op: ClassMutationOp): Result<r
   if (op.kind !== 'add_member' && op.kind !== 'remove_member') return err({ code: 'INVALID_OP', message: 'Source-preserving Class edits support add_member and owned whole-line remove_member only' })
   const read = (text: string) => {
     const normalized = normalizeMermaidSource(text, {}, 'render')
-    return withFrontmatterTitle(withAccessibilityFields(parseClassDiagram(normalized.familyLines, normalized.authoredFamilyLines ?? normalized.familyLines), normalized.accessibility), normalized.frontmatter)
+    // Without a distinct authored grammar, the native reader already uses
+    // each semantic statement as its own quote provenance.
+    return withFrontmatterTitle(withAccessibilityFields(parseClassDiagram(normalized.familyLines, normalized.authoredFamilyLines), normalized.accessibility), normalized.frontmatter)
   }
   try {
     const before = read(source), target = before.classes.find(node => node.id === op.class)

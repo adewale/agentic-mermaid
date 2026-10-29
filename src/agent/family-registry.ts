@@ -1,3 +1,4 @@
+import { PACKAGE_VERSION } from '../version.ts'
 import * as familyDetection from '../shared/builtin-family-detection.ts'
 import { enrollOwnedFamily } from '../experimental/owned-family.ts'
 import { STABLE_FAMILY_DESCRIPTOR_SEEDS } from './stable-family-metadata.ts'
@@ -1374,7 +1375,7 @@ function completeBuiltinDescriptor(seed: BuiltinFamilyDescriptorSeed, hooks: Fam
       id: `family:${seed.id}`,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.4.0' },
+      compatibility: { core: PACKAGE_VERSION },
       provenance: { owner: 'agentic-mermaid', source: 'built-in' },
     }),
     collisionPriority: 100,

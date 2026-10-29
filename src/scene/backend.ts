@@ -1,3 +1,4 @@
+import { PACKAGE_VERSION } from '../version.ts'
 import { observeCache } from '../performance-observations.ts'
 import { formatSvgNumber } from '../shared/svg-number.ts'
 // ============================================================================
@@ -176,7 +177,7 @@ export function isOriginalEnrolledDefaultBackend(backend: unknown): boolean {
 }
 
 const CORE_BACKEND_VERSION = '1.0.0'
-const CORE_BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.4.0', scene: '^2.0.0' })
+const CORE_BACKEND_COMPATIBILITY = Object.freeze({ core: PACKAGE_VERSION, scene: '^2.0.0' })
 const CORE_BACKEND_PROVENANCE = Object.freeze({
   owner: 'agentic-mermaid',
   source: 'built-in',

@@ -36,7 +36,7 @@ describe('deterministic custom-font geometry', () => {
         raw = DefaultBackend.render(doc, context).replace(/\s(?:data-prepared-text|textLength|lengthAdjust|data-font-metrics)="[^"]*"/g, '')
         return raw
       },
-    }, { compatibility: { core: '^0.4.0', scene: '^2.0.0' } })
+    }, { compatibility: { core: '^0.5.0', scene: '^2.0.0' } })
     try {
       const renderer = createMermaidRenderer({
         backendPolicy: { selectBackend: () => id },
