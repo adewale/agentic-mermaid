@@ -1,3 +1,4 @@
+import { erInkIndex } from './ink-index.ts'
 import { ErLabelWorkLimitError } from './errors.ts'
 export { ErLabelWorkLimitError } from './errors.ts'
 import type { PositionedErDiagram, PositionedErRelationship } from './types.ts'
@@ -138,6 +139,11 @@ function placeRelationshipLabels(diagram: PositionedErDiagram, style: ResolvedRe
       return { owner, box: { x0: Math.min(a.x, b.x) - padding, y0: Math.min(a.y, b.y) - padding, x1: Math.max(a.x, b.x) + padding, y1: Math.max(a.y, b.y) + padding } }
     })
   }) : []
+  const fixedQuery = erInkIndex([
+    ...entityBoxes.map(box => ({ box, owner: undefined as PositionedErRelationship | undefined })),
+    ...endpointBoxes.map(box => ({ box, owner: undefined as PositionedErRelationship | undefined })),
+    ...shafts,
+  ], item => item.box, charge)
   for (const rel of diagram.relationships) {
     if (!rel.label || rel.points.length < 2) continue
     const m = rel.labelBlock ?? erRelationshipBlock(rel, style, styleFace)
@@ -145,13 +151,11 @@ function placeRelationshipLabels(diagram: PositionedErDiagram, style: ResolvedRe
     // (8px per side), not merely the smaller painted pill dimensions.
     const bgW = m.width + 16, bgH = m.height + 16
     const boxAt = (cx: number, cy: number): Box => ({ x0: cx - bgW / 2, y0: cy - bgH / 2, x1: cx + bgW / 2, y1: cy + bgH / 2 })
-    const foreignShafts: Box[] = []
-    for (const shaft of shafts) { charge(); if (shaft.owner !== rel) foreignShafts.push(shaft.box) }
     const collides = (b: Box): boolean => {
       charge()
       return b.x0 < 0 || b.y0 < 0 || b.x1 > diagram.width || b.y1 > diagram.height
-      || placed.some(o => { charge(); return intersects(b, o) }) || entityBoxes.some(o => { charge(); return intersects(b, o) }) || endpointBoxes.some(o => { charge(); return intersects(b, o) })
-      || foreignShafts.some(o => { charge(); return intersects(b, o) })
+      || placed.some(o => { charge(); return intersects(b, o) })
+      || fixedQuery(b).some(item => { charge(); return item.owner !== rel && intersects(b, item.box) })
     }
     const pts = rel.points
     const segLens: number[] = []
@@ -196,6 +200,8 @@ function placeRelationshipLabels(diagram: PositionedErDiagram, style: ResolvedRe
       // Samples can miss a narrow clear slot. Subtract the actual occupied
       // intervals from each orthogonal segment, retaining the nearest free
       // point to the midpoint. Earlier clear placements remain unchanged.
+      const foreignShafts: Box[] = []
+      for (const shaft of shafts) { charge(); if (shaft.owner !== rel) foreignShafts.push(shaft.box) }
       charge(entityBoxes.length + endpointBoxes.length + placed.length + foreignShafts.length)
       const obstacles = [...entityBoxes, ...endpointBoxes, ...placed, ...foreignShafts]
       let best: { point: Point; distance: number } | undefined, walked = 0

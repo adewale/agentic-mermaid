@@ -1,3 +1,4 @@
+import { erInkIndex } from './ink-index.ts'
 import { erCardinalityEnvelope, erCardinalityInk, erLabelPillInk, type ErGeometryWork } from './cardinality-geometry.ts'
 import { ErLabelWorkLimitError, ErRouteWorkLimitError, ErRouteGeometryError } from './errors.ts'
 export { ErRouteWorkLimitError, ErRouteGeometryError } from './errors.ts'
@@ -1308,6 +1309,17 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     if (!box) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
     return [{ index, box }]
   })
+  const glyphBox = (glyph: ReturnType<typeof glyphs>[number]): ErInkBox => {
+    charge(glyph.pieces.length)
+    return { x0: Math.min(...glyph.pieces.map(p => p.x0)), y0: Math.min(...glyph.pieces.map(p => p.y0)), x1: Math.max(...glyph.pieces.map(p => p.x1)), y1: Math.max(...glyph.pieces.map(p => p.y1)) }
+  }
+  const obstacleQuery = erInkIndex(obstacles, o => o.box, charge)
+  const snapshot = () => {
+    const currentGlyphs = glyphs(), currentShafts = shafts()
+    const bounds = new Map(currentGlyphs.map(g => [g, glyphBox(g)]))
+    return { currentGlyphs, glyphQuery: erInkIndex(currentGlyphs, g => bounds.get(g)!, charge), shaftQuery: erInkIndex(currentShafts, s => s.box, charge) }
+  }
+  let retained = snapshot()
   let changed = false
   // Allocate automatic entity and frame face contacts. The selected face and far
   // contact remain fixed; the actual glyph, caption and foreign shaft ranges
@@ -1341,8 +1353,8 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     const current = horizontal ? p.y : p.x
     const corner = groupIds.has(terminal.id) ? 6 : Math.min(style.cornerRadius ?? 0, box.width / 2, box.height / 2)
     let low = (horizontal ? box.y : box.x) + corner, high = (horizontal ? box.y + box.height : box.x + box.width) - corner
-    const currentGlyphs = glyphs(), thisGlyph = currentGlyphs.find(g => g.index === terminal.index && g.end === terminal.end)!
-    const laterOnFace = currentGlyphs.filter(glyph => {
+    const { currentGlyphs, glyphQuery, shaftQuery } = retained, thisGlyph = currentGlyphs.find(g => g.index === terminal.index && g.end === terminal.end)!
+    const laterOnFace = [...faceGroups.get(terminal.id)!.values()].flat().map(g => currentGlyphs[g.index * 2 + g.end]!).filter(glyph => {
       charge()
       if (glyph.id !== terminal.id || order.get(glyph.index * 2 + glyph.end)! <= order.get(terminal.index * 2 + terminal.end)!) return false
       return horizontal ? glyph.point.x === p.x && glyph.toward.y === glyph.point.y && Math.sign(glyph.toward.x - glyph.point.x) === sign
@@ -1350,16 +1362,6 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     })
     const laterGlyphs = new Set(laterOnFace)
     charge(laterOnFace.length)
-    const peers: ErInkBox[] = [
-      ...currentGlyphs.filter(g => { charge(); return (g.index !== terminal.index || g.end !== terminal.end) && !laterGlyphs.has(g) }).flatMap(g => g.pieces),
-      // Caption centers are still movable; finalize them after fixed face slots.
-      // They are not immutable obstacles for allocating those slots.
-      ...shafts().filter(shaft => shaft.index !== terminal.index && !laterOnFace.some(g => { charge(); return g.index === shaft.index && (g.end ? shaft.last : shaft.first) })).map(shaft => shaft.box),
-    ]
-    const occupied = [...obstacles.filter(o => o.id !== terminal.id || !!o.group !== groupIds.has(terminal.id)).map(o => o.box), ...peers]
-    const oppositePieces = new Set(currentGlyphs.filter(g => g.index === terminal.index).flatMap(g => g.pieces))
-    charge(oppositePieces.size)
-    const leadObstacles = [...obstacles.filter(o => (o.id !== terminal.id || !!o.group !== groupIds.has(terminal.id)) && !o.border).map(o => o.box), ...peers.filter(piece => !oppositePieces.has(piece))]
     const roleStyle = resolveRoleStyle(styleFace, 'relationship', { category: terminal.rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
     const half = (roleStyle?.lineWidth ?? style.lineWidth) / 2
     const glyphDepth = terminalDepth(thisGlyph.pieces, p, horizontal, sign)
@@ -1368,6 +1370,28 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     const endLead = horizontal ? { x: p.x + sign * length, y: p.y } : { x: p.x, y: p.y + sign * length }
     const leadBox = { x0: Math.min(p.x, endLead.x) - (horizontal ? 0 : half), x1: Math.max(p.x, endLead.x) + (horizontal ? 0 : half),
       y0: Math.min(p.y, endLead.y) - (horizontal ? half : 0), y1: Math.max(p.y, endLead.y) + (horizontal ? half : 0) }
+    // Only ink that can meet this glyph or its lead anywhere on the owned
+    // face can forbid a seat. Distant geometry keeps its final proof below.
+    const reach = [...thisGlyph.pieces, leadBox]
+    charge(reach.length)
+    const window = { x0: Math.min(...reach.map(b => b.x0)), x1: Math.max(...reach.map(b => b.x1)), y0: Math.min(...reach.map(b => b.y0)), y1: Math.max(...reach.map(b => b.y1)) }
+    if (horizontal) { window.y0 += low - current; window.y1 += high - current }
+    else { window.x0 += low - current; window.x1 += high - current }
+    // The forbidden intervals also reserve separation between glyph strokes.
+    // Include those near misses even when their ink is outside the full face.
+    const gap = style.lineWidth + .25
+    if (horizontal) { window.y0 -= gap; window.y1 += gap }
+    else { window.x0 -= gap; window.x1 += gap }
+    const peers: ErInkBox[] = [
+      ...glyphQuery(window).filter(g => { charge(); return (g.index !== terminal.index || g.end !== terminal.end) && !laterGlyphs.has(g) }).flatMap(g => g.pieces),
+      // Caption centers are still movable; finalize them after fixed face slots.
+      // They are not immutable obstacles for allocating those slots.
+      ...shaftQuery(window).filter(shaft => shaft.index !== terminal.index && !laterOnFace.some(g => { charge(); return g.index === shaft.index && (g.end ? shaft.last : shaft.first) })).map(shaft => shaft.box),
+    ]
+    const occupied = [...obstacleQuery(window).filter(o => o.id !== terminal.id || !!o.group !== groupIds.has(terminal.id)).map(o => o.box), ...peers]
+    const oppositePieces = new Set(currentGlyphs.filter(g => g.index === terminal.index).flatMap(g => g.pieces))
+    charge(oppositePieces.size)
+    const leadObstacles = [...obstacleQuery(window).filter(o => (o.id !== terminal.id || !!o.group !== groupIds.has(terminal.id)) && !o.border).map(o => o.box), ...peers.filter(piece => !oppositePieces.has(piece))]
     const reservations = [...thisGlyph.pieces.map(piece => ({ piece, occupied })), { piece: leadBox, occupied: leadObstacles }]
     charge(occupied.length + leadObstacles.length + reservations.length)
     if (current >= low && current <= high && !reservations.some(({piece, occupied}) => occupied.some(other => intersects(piece, other)))) continue
@@ -1438,6 +1462,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     if (!erSimpleRoute(terminal.rel.points, work)) throw new ErRouteGeometryError(terminal.rel.entity1, terminal.rel.entity2)
     delete terminal.rel.finalLabelPosition
     changed = true
+    retained = snapshot()
   }
   if (changed) {
     repairErFrameRoutes(positioned.entities, positioned.groups, relationships, relationships.map(rel => rel.labelBlock ?? erRelationshipBlock(rel, style, styleFace)), style, styleFace, work)
@@ -1503,9 +1528,12 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     charge(glyph.pieces.length * 4 + 1)
     return [glyph, { x0: Math.min(...glyph.pieces.map(p => p.x0)), y0: Math.min(...glyph.pieces.map(p => p.y0)), x1: Math.max(...glyph.pieces.map(p => p.x1)), y1: Math.max(...glyph.pieces.map(p => p.y1)) }] as const
   }))
-  for (const glyph of allGlyphs) for (const other of allGlyphs) {
+  const glyphQuery = erInkIndex(allGlyphs, glyph => glyphBounds.get(glyph)!, charge)
+  const shaftQuery = erInkIndex(allShafts, shaft => shaft.box, charge)
+  const labelQuery = erInkIndex(allLabels, label => label.box, charge)
+  for (const glyph of allGlyphs) for (const other of glyphQuery(glyphBounds.get(glyph)!)) {
     charge()
-    if (other.index * 2 + other.end <= glyph.index * 2 + glyph.end || !intersects(glyphBounds.get(glyph)!, glyphBounds.get(other)!)) continue
+    if (other.index * 2 + other.end <= glyph.index * 2 + glyph.end) continue
     for (const piece of glyph.pieces) if (other.pieces.some(p => intersects(piece, p))) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
   }
   for (const glyph of allGlyphs) {
@@ -1517,16 +1545,16 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     if ((!horizontal && !vertical) || !far || !at || (horizontal ? far.y !== at.y || Math.sign(far.x - at.x) !== sign : far.x !== at.x || Math.sign(far.y - at.y) !== sign)
       || sign * ((horizontal ? far.x : far.y) - (horizontal ? glyph.point.x : glyph.point.y)) < terminalDepth(glyph.pieces, glyph.point, horizontal, sign)) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
     for (const piece of glyph.pieces) {
-      for (const obstacle of obstacles) if ((obstacle.id !== glyph.id || !!obstacle.group !== groupIds.has(glyph.id)) && intersects(piece, obstacle.box)) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
-      for (const shaft of allShafts) if ((shaft.index !== glyph.index || !(glyph.end ? shaft.last : shaft.first)) && intersects(piece, shaft.box)) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
+      for (const obstacle of obstacleQuery(piece)) if ((obstacle.id !== glyph.id || !!obstacle.group !== groupIds.has(glyph.id)) && intersects(piece, obstacle.box)) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
+      for (const shaft of shaftQuery(piece)) if ((shaft.index !== glyph.index || !(glyph.end ? shaft.last : shaft.first)) && intersects(piece, shaft.box)) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
     }
   }
   for (const label of allLabels) {
     const rel = relationships[label.index]!
-    for (const obstacle of obstacles) if (intersects(label.box, obstacle.box)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
-    for (const glyph of allGlyphs) if (intersects(label.box, glyphBounds.get(glyph)!) && glyph.pieces.some(piece => intersects(label.box, piece))) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
-    for (const shaft of allShafts) if (shaft.index !== label.index && intersects(label.box, shaft.box)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
-    for (const other of allLabels) if (other.index < label.index && intersects(label.box, other.box)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
+    for (const obstacle of obstacleQuery(label.box)) if (intersects(label.box, obstacle.box)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
+    for (const glyph of glyphQuery(label.box)) if (intersects(label.box, glyphBounds.get(glyph)!) && glyph.pieces.some(piece => intersects(label.box, piece))) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
+    for (const shaft of shaftQuery(label.box)) if (shaft.index !== label.index && intersects(label.box, shaft.box)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
+    for (const other of labelQuery(label.box)) if (other.index < label.index && intersects(label.box, other.box)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
   }
   return positioned
 }

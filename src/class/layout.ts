@@ -8,7 +8,7 @@ import { assertClassDiagramWork } from '../shared/diagram-limits.ts'
 import { type DisplayTextInput, prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import { type PixelTextBlock, preparePixelText } from '../shared/prepared-text.ts'
 import { repairClassAnnotationSeats } from './annotation-seats.ts'
-import { type ClassElkContact, assertClassElkSelfContactsClear, constructClassElkSelfContacts, projectClassElkContacts, retainClassElkContacts } from './elk-contacts.ts'
+import { type ClassRectangleContact, assertClassElkSelfContactsClear, constructClassElkSelfContacts, projectClassRectangleContacts, retainClassRectangleContacts } from './elk-contacts.ts'
 import { assertClassHeaderPeersClear, finalClassHeaderNumericSeed, type ClassHeaderNumericCapture } from './header-lanes.ts'
 import { classInterfaceMarker } from './interface-occurrences.ts'
 import { assertClassMarkerMeaning, type ClassMarkerAdmissionWork, chargeClassMarkerAdmissionWork, createClassMarkerAdmissionWork } from './marker-admission.ts'
@@ -752,7 +752,7 @@ function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDia
     }
   }
   const endpointChanges = elk && literalRectangles && inkWork ? constructClassElkSelfContacts(positioned, style, inkWork) : undefined
-  const contacts = elk ? retainClassElkContacts(positioned, inkWork) : undefined
+  const contacts = retainClassRectangleContacts(positioned, inkWork)
   const result = withClassTitle(positioned!, diagram.title, style)
   if (result.classes.some(node => node.isInterface)) {
     const interfaces = new Map(result.classes.filter(node => node.isInterface).map(node => [node.id, node]))
@@ -778,12 +778,12 @@ function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDia
 }
 
 /** Shared final geometric admission for both Class producers. */
-export function finalizeClassOwnedSurfaces(result: PositionedClassDiagram, style: ResolvedRenderStyle, inkWork?: ClassMarkerAdmissionWork, contacts?: readonly ClassElkContact[]): void {
+export function finalizeClassOwnedSurfaces(result: PositionedClassDiagram, style: ResolvedRenderStyle, inkWork?: ClassMarkerAdmissionWork, contacts?: readonly ClassRectangleContact[]): void {
   finalizeClassSurfaces(result, style, inkWork, contacts)
 }
 
-function finalizeClassSurfaces(result: PositionedClassDiagram, style: ResolvedRenderStyle, inkWork?: ClassMarkerAdmissionWork, contacts?: readonly ClassElkContact[], stableGeometry = false, endpointChanges?: ReadonlySet<number>): void {
-  if (contacts) projectClassElkContacts(contacts, inkWork)
+function finalizeClassSurfaces(result: PositionedClassDiagram, style: ResolvedRenderStyle, inkWork?: ClassMarkerAdmissionWork, contacts?: readonly ClassRectangleContact[], stableGeometry = false, endpointChanges?: ReadonlySet<number>): void {
+  if (contacts) projectClassRectangleContacts(contacts, inkWork)
   const peerWork=inkWork??createClassMarkerAdmissionWork()
   let numeric:ClassHeaderNumericCapture|undefined
   if(stableGeometry&&style.edgeBendRadius===0&&result.namespaces.length&&result.relationships.length){
@@ -795,13 +795,13 @@ function finalizeClassSurfaces(result: PositionedClassDiagram, style: ResolvedRe
   if (result.relationships.some(rel => rel.markerAt !== 'none')) {
     const oldLeft = result.classes[0]?.x, oldTop = result.classes[0]?.y
     repairClassNoteSeats(result, style, CLS.padding, inkWork)
-    if (contacts && (result.classes[0]?.x !== oldLeft || result.classes[0]?.y !== oldTop)) projectClassElkContacts(contacts, inkWork)
+    if (contacts && (result.classes[0]?.x !== oldLeft || result.classes[0]?.y !== oldTop)) projectClassRectangleContacts(contacts, inkWork)
     repairClassAnnotationSeats(result, style, inkWork ?? createClassMarkerAdmissionWork(), changed)
   } else {
     placeClassCardinalityLabels(result.relationships, result.classes, style, result.width, result.height, extra, true)
     const oldLeft = result.classes[0]?.x, oldTop = result.classes[0]?.y
     repairClassNoteSeats(result, style, CLS.padding, inkWork)
-    if (contacts && (result.classes[0]?.x !== oldLeft || result.classes[0]?.y !== oldTop)) projectClassElkContacts(contacts, inkWork)
+    if (contacts && (result.classes[0]?.x !== oldLeft || result.classes[0]?.y !== oldTop)) projectClassRectangleContacts(contacts, inkWork)
   }
   if (!result.relationships.some(rel => rel.markerAt !== 'none') && changed.size) repairClassAnnotationSeats(result, style, inkWork ?? createClassMarkerAdmissionWork(), changed)
   assertClassElkSelfContactsClear(result,style,endpointChanges,peerWork)

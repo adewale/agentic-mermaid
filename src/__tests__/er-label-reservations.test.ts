@@ -38,10 +38,11 @@ describe('ER label reservations and foreign shafts', () => {
     expect(separateRelationshipLabels(placed, style).get(owner)).toEqual({ x: 300, y: 150 })
   })
 
-  test('moves a label clear of an unrelated shaft while retaining its own relationship', () => {
+  test.each([0, 64])('moves a label clear of an unrelated shaft among %s distant routes', distant => {
     const owner = relationship([{ x: 20, y: 150 }, { x: 580, y: 150 }])
     const foreign = relationship([{ x: 300, y: 30 }, { x: 300, y: 270 }], '')
-    const placed = diagram([owner, foreign]), original = structuredClone(placed)
+    const remote = Array.from({ length: distant }, (_, i) => relationship([{ x: 1000 + i * 40, y: -600 }, { x: 1000 + i * 40, y: -100 }], ''))
+    const placed = diagram([owner, foreign, ...remote]), original = structuredClone(placed)
     const center = separateRelationshipLabels(placed, style).get(owner)!
     expect(center.x).not.toBe(300)
     expect(center.y).toBe(150)
