@@ -4,6 +4,18 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+## 0.5.1 — 2026-10-29
+
+Includes the 0.5.0 changes below. That version's npm and MCP Registry
+publication was blocked by the macOS declaration build; its GitHub source tag
+is retained.
+
+### Fixed
+
+- Give release-platform builds a 4 GiB Node old-space limit so tsup's declaration
+  worker can finish on macOS runners. The limit applies only to the build step;
+  rendering smoke tests and verified-artifact publication retain their checks.
+
 ## 0.5.0 — 2026-10-28
 
 Changes since 0.4.1, including the unpublished 0.4.2 development cycle.
