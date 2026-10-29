@@ -33,10 +33,13 @@ export function createBrowserEditorAdapter(load: () => PreviewWorkerClient | Pro
   return {
     prepareEditorRenderOptions(state: EditorRenderStateInput) {
       if (!state.fitLabelsToPane) return
-      return preparingOptions ??= import('./editor-render-options.ts').then(module => { fittingOptions = module.resolveEditorRenderOptions }).catch(error => {
+      const requested = generation
+      return (preparingOptions ??= import('./editor-render-options.ts').then(module => { fittingOptions = module.resolveEditorRenderOptions }).catch(error => {
         preparingOptions = undefined
-        onRuntimeStatus?.(false)
         throw new PreviewRuntimeLoadError('Label-fitting support could not load; reload the editor to retry', { cause: error })
+      })).catch(error => {
+        if (requested === generation) onRuntimeStatus?.(false)
+        throw error
       })
     },
     resolveEditorRenderOptions: (...args: Parameters<typeof resolveAuthoredEditorOptions>) => (fittingOptions ?? resolveAuthoredEditorOptions)(...args),
