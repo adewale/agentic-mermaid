@@ -1,100 +1,49 @@
-# Agentic Mermaid — agent-native architecture
+# Agent architecture
 
-**Status.** Architecture/spec rationale for the merged agent-native surface on `main`. Current capabilities live in [`docs/features.md`](./docs/features.md); active work lives only in [`TODO.md`](./TODO.md). Not intended for upstream.
+Agentic Mermaid provides typed operations for editing Mermaid source while
+preserving the parts an operation does not own. For runnable examples, use the
+[editing cookbook](docs/agent-api-cookbook.md). Agents should start with
+[Instructions_for_agents.md](Instructions_for_agents.md); contributors should
+read the [renderer architecture](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/README.md).
 
-**System architecture overview.** For the how-the-engine-works entry point — the rendered three-stacks diagram and the routing/layout design docs — start at [`docs/design/system/README.md`](./docs/design/system/README.md).
+## The edit workflow
 
-**Vocabulary.** Use the [library definitions](./docs/api.md#vocabulary) for
-family, source object, Scene part and resolved primitive. Narrowing selects
-the typed family; it does not select one object or keep other objects' positions
-fixed. Existing `SceneNode` and `*Mark` type names describe Scene parts.
+For an existing diagram, parse it with `parseRegisteredMermaid`, narrow it with
+its `as*` helper, and apply the smallest supported `mutate` operation. Inspect
+`verifyMermaid`, then save `serializeMermaid` output. A new diagram can be
+written directly as Mermaid source before parsing and verification.
 
-**Thesis.** Agents authoring Mermaid diagrams today regenerate the whole source on every edit, or render to PNG and read it back with vision. The Beautiful Mermaid renderer foundation already fixed the worst of the rendering side (sync + DOM-free + ASCII). Agentic Mermaid adds the editing surface — structured verification, typed mutation, round-trippable IR — so an agent can edit one node and trust the result without ever opening an image.
+A successful edit must also match the request. Verification does not check
+whether an agent changed the intended label, retained a requested value or
+picked the right diagram family; read back those details before returning.
 
----
+## (1) Deterministic layout
 
-## Why fork Beautiful Mermaid
+Within the supported runtime and dependency configuration, the same input and
+options produce the same layout. Cross-process and cross-runtime tests exercise
+this behavior, and the geometry corpus detects unintended layout changes.
+This is not a promise of identical output across dependency upgrades or every
+host font environment.
 
-The stack is three layers, each contributing something the others can't:
-
-| Layer | Contribution |
-|---|---|
-| **Mermaid (grammar)** | 20+ diagram families. Rendered inline by GitHub, GitLab, Obsidian, Notion. Frontmatter + init + runtime config plane. `accTitle`/`accDescr` directives. **The corpus moat.** |
-| **Beautiful Mermaid (renderer foundation)** | Synchronous, zero DOM, pure TypeScript. ASCII output. Two-color theming. Semantic role styling. Multi-family layout/render coverage. Property + mutation + e2e test scaffold already in place. **The AI-era renderer Craft built for Craft Agents.** |
-| **Agentic Mermaid (this product/workflow)** | `ValidDiagram` IR. Deterministic layout. `verify()`. `mutate()` + round-trip `serializeMermaid`. Agent-agnostic skills, CLI, `--agent-instructions`. **The editing surface.** |
-
-D2 has a better language than Mermaid. The Beautiful Mermaid renderer foundation has a better fit than D2 for agent contexts. Mermaid has a corpus neither of them has. The bet: stacking the three wins.
-
----
-
-## The three properties
-
-1. **Deterministic layout** — same input → structurally identical layout JSON across runs with the same ELK version. (Not "byte-identical SVG across versions" — that's a stronger claim that needs a forked ELK to actually deliver.)
-2. **Verifiable rendering** — structured "did this render cleanly?" check. Structural warnings (anchors, bounds, emptiness, group containment) are reliable; metric warnings (label fit, overlap) are best-effort because they depend on font-measurement parity with ELK.
-3. **Round-trippable** — `parseRegisteredMermaid` produces a `ValidDiagram` that carries source needed to re-emit the diagram. For every family whose registry entry declares a narrower, `mutate` operates on structured bodies; for opaque-fallback bodies, preserved source is the round-trip mechanism.
-
-(Composition — `@include`, templates, layered scenarios — was the fourth in earlier drafts and is deferred. Agents do not currently reach for composition; they paste and edit. Add when evidence demands.)
-
-(1) is a prerequisite for (2) and (3). Skip it and the others check moving targets.
-
-## Honest scope
-
-The checked family roster, capability states, edit policies, narrowers, and mutation operations are generated from `FamilyDescriptor`: read `am capabilities --json`, and use `describeOps(family)` for exact operation schemas. This rationale deliberately does not copy that live inventory.
-
-The generated edit policy decides where typed mutation is available. For an opaque fallback, the agent's tool surface is *parse → verify → render → serialize*, not *parse → mutate → verify → serialize*. Cross-cutting edits on those bodies happen at the preserved source level (`body.source` for opaque bodies), not at the typed mutation layer. Code Mode opportunity #1 covers this for the cases where it matters.
-
----
-
-## (1) Deterministic layout — structural, not seeded
-
-**Empirically established (v4):** ELK output in this configuration is already deterministic, byte-identical across separate processes. The determinism comes from ELK's `considerModelOrder.strategy: NODES_AND_EDGES` setting plus the absence of any `randomSeed` option — layout order is a pure function of model order, not of randomness. Verified by a cross-process test (three separate `bun` invocations on the same source produce identical layout JSON) and a determinism grid.
-
-This is the honest, stronger position. Earlier drafts wrapped ELK in a `withSeededRandom(rng, fn)` helper and exposed a `LayoutContext.rng` seed, claiming the seed "drove" layout. **It did not.** Seed 1 and seed 999999 produced byte-identical output because ELK never consults `Math.random` on this path. That apparatus was theater and is removed. There is no layout seed because none is needed; determinism is a property of the engine configuration, guarded by test. (The render option `seed` that exists today is a *style* seed — it re-rolls the ink of styled looks and never touches layout.)
-
-Enforcement that determinism stays true:
-- A **grep-based lint test** (runs under `bun test`, not aspirational ESLint) fails if `Math.random`, `Date.now`, or `performance.now` appear in `src/agent/**`, `src/gantt/**`, `src/mindmap/**`, `src/gitgraph/**`, or `src/layout-engine.ts` (the Gantt scheduler must never read the wall clock; Mindmap/GitGraph ids and geometry must be deterministic). Introducing ambient nondeterminism breaks the build.
-- A **cross-process determinism test** spawns child processes and asserts byte-identical layout.
-- A **drift sentinel** (`src/__tests__/layout-equivalence.test.ts`) pins integer-rounded layout geometry for the mermaid-docs corpus plus the layout-compare fixtures in `src/__tests__/testdata/layout-geometry-baseline.json`; any intentional re-baseline must be reviewed, with each changed golden and why it changed listed in the PR description.
-
-The canonical artifact is the **layout JSON**, not the SVG:
-
-```json
-{
-  "version": 1,
-  "kind": "flowchart",
-  "nodes":  [{ "id": "A", "x": 12, "y": 36, "w": 80, "h": 40, "shape": "rect" }, ...],
-  "edges":  [{ "id": "A->B", "from": "A", "to": "B", "path": [[..],[..]], "label": {...} }, ...],
-  "groups": [{ "id": "g1", "x": 0, "y": 0, "w": 200, "h": 120, "members": ["A","B"] }, ...],
-  "bounds": { "w": 320, "h": 180 }
-}
-```
-
-There is no `seed` field (it was always `0` — a placeholder masquerading as state). SVG is the visual projection. Two render results are equal iff their layout JSON is structurally equal.
-
----
+The `seed` option controls drawing variation in styles; it does not drive node
+placement. Rendering, terminal layout and rasterization have separate output
+contracts. See [quality](docs/quality.md) and [fonts](docs/custom-fonts.md).
 
 ## (2) Verifiable rendering
 
-```ts
-verifyMermaid(source: string | ValidDiagram, opts?: VerifyOptions): VerifyResult
+`verifyMermaid` reports structural diagnostics, measured geometry and advisory
+warnings. Inspect warning severity and scope along with `ok`.
 
-interface VerifyOptions {
-  suppress?: WarningCode[]      // codes to omit, e.g. ['UNKNOWN_SHAPE']
-  labelCharCap?: number         // default cap 40
-}
+Rendering receipts separately report whether final painted output is `passed`,
+`unverified` or failed. A successful render can still be unverified when a
+backend lacks a final-paint proof or an ink intersection remains uncertain.
+These statuses do not establish visual quality or task correctness.
 
-interface VerifyResult {
-  ok: boolean
-  warnings: LayoutWarning[]
-  layout: RenderedLayout
-}
-```
+The warning tables below are generated from `src/agent/warning-catalog.ts`.
+The [warning reference](https://agentic-mermaid.dev/warnings/) explains individual
+codes, and [quality](docs/quality.md) describes layout priorities and limits.
 
-Warnings split into three tiers by how reliable/actionable the underlying check is:
-
-### Tier 1 — Source-and-structure (reliable)
-
-Derived from parsed structure or character-level source properties. Deterministic, no font measurement dependency.
+### Structural diagnostics
 
 <!-- BEGIN GENERATED: warning-table:structural -->
 | Code | Severity | Description |
@@ -110,9 +59,7 @@ Derived from parsed structure or character-level source properties. Deterministi
 | `INTERNAL_ERROR` | error | Agentic Mermaid hit an internal defect while drawing this source; it is not caused by the source. `defaultRender` says whether an ordinary render still produces output: `succeeds-unchecked` — it does, but the extra consistency checks verify runs failed, so its layout evidence cannot be trusted; `fails` — rendering throws. The payload's `reason` carries the internal error. Do not rewrite the diagram to work around it; report it with the source. |
 <!-- END GENERATED: warning-table:structural -->
 
-### Tier 2 — Geometric
-
-Measured content occlusion is an error. Other geometric warnings can be intentional and remain advisory; inspect their severity and the rendered artifact before suppressing them.
+### Geometric diagnostics
 
 <!-- BEGIN GENERATED: warning-table:geometric -->
 | Code | Severity | Description |
@@ -130,11 +77,7 @@ Measured content occlusion is an error. Other geometric warnings can be intentio
 | `ROUTE_STALE_AFTER_NODE_MOVE` | warning | An endpoint detached from its node entirely, or another node sits on the edge's route (route-contract tripwire) |
 <!-- END GENERATED: warning-table:geometric -->
 
-Codes are the contract surface agents reason about. These tables are generated from `src/agent/warning-catalog.ts`, which must describe every `WarningCode` and nothing else or typecheck fails, so a code cannot ship undocumented. Agents omit known-irrelevant codes via `VerifyOptions.suppress`.
-
-### Tier 3 — Lint (advisory)
-
-Tier 3 warnings are family-specific quality hints for "common LLM mistakes" that parse and render but are probably not what the agent intended. Advisory lint never flips `verify.ok`; an explicitly authored Brand constraint with `action: "error"` emits `BRAND_CONSTRAINT_ERROR` and does flip it.
+### Advisory lint
 
 <!-- BEGIN GENERATED: warning-table:lint -->
 | Code | Severity | Description |
@@ -157,294 +100,39 @@ Tier 3 warnings are family-specific quality hints for "common LLM mistakes" that
 | `BRAND_CONSTRAINT_ERROR` | error | The same inspect-only Brand constraint contract with `action: "error"`; it preserves authored output but flips `verify.ok` so a caller can enforce its declared brand policy. |
 <!-- END GENERATED: warning-table:lint -->
 
-`FamilyDescriptor.verify` hooks are wired and run today; built-ins use them for Tier 1 structural warnings for class/ER and the central flowchart verifier emits the initial Tier 3 lint catalogue. Future lint codes should be added deliberately to `WARNING_TIER` and described in `src/agent/warning-catalog.ts`; `bun run doc-blocks` regenerates the tables here.
-
-**Branded coordinate types** (`Finite`) prevent NaN / Infinity from reaching the renderer. `toFinite()` is the only constructor; it throws on invalid input.
-
-**Model-gap property test**: for every generated `D` that parses successfully, `verify(D).warnings` filtered to Tier-1 `error` codes must be empty. Counterexamples are renderer bugs. Tier-2 warnings are excluded from this property because a `NODE_OVERLAP` or `ROUTE_SELF_CROSS` can be a legitimate property of a valid diagram, not a bug. Tier-3 lint warnings are excluded because they are maintainability hints, not render failures.
-
----
-
-## (3) Round-trippable
-
-A sealed `ValidDiagram` that preserves everything the source had — and carries the canonical source verbatim as the round-trip pillar:
-
-```ts
-interface ValidDiagram {
-  readonly kind: DiagramKind
-  readonly meta: {
-    frontmatter?: Frontmatter
-    initDirectives: InitDirective[]
-    comments: Comment[]
-    accessibility: { title?: string, descr?: string }
-  }
-  readonly body: DiagramBody
-  readonly source: SourceMap
-  /**
-   * The canonical preprocessed source — frontmatter, init directives, and
-   * comments stripped; line breaks normalized. Structured renderers use this as
-   * input. Opaque/source-level fidelity relies on `body.source`, not this field.
-   */
-  readonly canonicalSource: string
-}
-
-type DiagramBody =
-  | { kind: 'flowchart'; graph: MermaidGraph }
-  | SequenceBody | GanttBody | …   // one structured body per registered family; the SDK declaration lists them
-  | { kind: 'opaque'; family: DiagramKind; source: string }
-
-type MutableValidDiagram = import('agentic-mermaid/agent').MutableValidDiagram
-```
-
-```ts
-parseRegisteredMermaid(source: string):                                Result<ValidDiagram, ParseError[]>
-serializeMermaid(d: ValidDiagram):                           string
-synthesizeFromGraph(payload):                                Result<ValidDiagram, ParseError[]>
-createMermaid(kind, opts?):                                  MutableValidDiagram   // empty structured diagram; overloads narrow per kind
-buildMermaid(kind, ops, opts?):                              Result<MutableValidDiagram, MutationError & { opIndex: number }>
-mutate(d, op):                                               Result<MutableValidDiagram, MutationError>
-// Concrete overloads preserve the narrowed family. Overloads and narrowers are
-// registry-derived; discover them with am capabilities --json and describeOps(family).
-```
-
-**`mutate` is overloaded by family.** A registry-declared narrower returns the family-specific mutable type or `null`; the generated capability entry and `describeOps(family)` own the live operation contract. Opaque-fallback diagrams are not typed for mutation, so agents get a compile-time/null-narrower stop rather than a lossy edit path.
-
-Two contracts:
-
-- `serializeMermaid(parseRegisteredMermaid(s)) ≡ normalize(s)` for canonical input. For structured families this emits a fresh canonical form; for opaque families it emits preserved source with `meta` re-attached.
-- `parseRegisteredMermaid(serializeMermaid(d)) ≡ d` for every `d` produced by `parseRegisteredMermaid` or `mutate`.
-
-**Flowchart MutationOp kinds** (the authoritative menu is generated from the registry; `shape` fields accept geometry names and documented v11 names/aliases, and edge targets accept authored edge IDs or endpoint forms):
-
-| Kind | Required | Optional | Inverse |
-|---|---|---|---|
-| `add_node`    | `id`, `label`     | `shape`, `parent` | `remove_node(id)` |
-| `remove_node` | `id`              | —                 | `add_node(id, label, shape, parent)` |
-| `rename_node` | `from`, `to`      | —                 | `rename_node(to, from)` |
-| `set_label`   | `target`, `label` | —                 | `set_label(target, prev_label)` |
-| `add_edge`    | `from`, `to`      | `label`, `style`  | `remove_edge(id)` |
-| `remove_edge` | `id`              | —                 | `add_edge(from, to, label, style)` |
-| `set_shape`   | `id`, `shape`     | —                 | `set_shape(id, prev_shape)` |
-| `set_direction` | `direction`     | `subgraph` (sets that subgraph's override; omit = diagram) | `set_direction(prev_direction, subgraph)` |
-| `add_subgraph` | `id`             | `label`, `parent`, `members` (existing nodes MOVED in — the state `make_composite` precedent) | `remove_subgraph(id)` |
-| `remove_subgraph` | `id`          | `removeMembers` (default dissolves the box — members move to the parent scope; `true` deletes member nodes and their edges) | `add_subgraph(...)` |
-| `move_node`   | `id`, `subgraph \| null` (null = top level) | — | `move_node(id, prev_subgraph)` |
-| `define_class` | `name`, `style` (CSS-like pairs, parsed by the parser's own style grammar) | — | `define_class(name, prev_style)` |
-| `set_node_class` | `id`, `className \| null` | —      | `set_node_class(id, prev_class)` |
-| `set_node_style` | `id`, `style \| null` | —          | `set_node_style(id, prev_style)` |
-
-**Other families.** The flowchart table is the worked example, not the menu. Every other family's op kinds, field shapes, requiredness, enums, and mutator-enforced constraints are generated from the registry: `describeOps(family)` / `opSignatures(family)` in the library and Code Mode, `families[].opFields` in `am capabilities --json`, and the generated SDK declaration. Each family's modeled grammar and fallbacks live in its design doc under [`docs/design/families/`](./docs/design/families/README.md). What stays here are the conventions the families share:
-
-- **Ops are invertible.** A removal carries what re-adding needs and a setter can restore the previous value, so an edit can be undone with typed ops. (Keeping the previous immutable `ValidDiagram` is the cheaper undo — see *Why totality matters*.)
-- **Address by identity where the family has one, by index where order is the meaning.** Nodes, states, classes, entities, services, and radar axes/curves are addressed by id; pie slices, quadrant points, and sankey nodes by their unique label, and a rename that would merge two identities is rejected. Sections, tasks, periods, events, and messages are addressed by index because source order is the timeline; sequence top-level message indices stay separate from fragment-message indices.
-- **Order-bearing families make reordering first-class.** Timeline, Journey, Sequence, and Gantt expose move ops. `index?` on an add op is an insert position (omit = append), a move op takes the insert position after removal, and errors name the legal range.
-- **Ops refuse rather than silently change meaning.** Gantt moves reject when they would change an implicit-start task's predecessor (materialize an explicit start and retry), and Gantt validates every value it writes by rendering and re-parsing that line. Sankey rejects self-loops and cycles. State composite and Architecture group removal refuse a non-empty container (State accepts `recursive: true`).
-- **Numbers are finite and canonical.** Values must be finite and inside the family's range (quadrant coordinates in `[0, 1]`, journey scores 1..5), and XY chart serializes numbers as `String(n)`, the shortest round-tripping decimal.
-
-**Structured-or-opaque rule (v4): never lossy.** The parser only produces a structured body when it fully understands every non-blank, non-comment line for most structured families. If the source contains *any* construct the parser doesn't model — `direction TB` in class, out-of-range scores in journey, duplicate Architecture title declarations, a `;`-joined multi-statement line in xychart, a malformed entry in pie, or out-of-range coordinates in quadrant, etc. — parsing **falls back to an opaque body**. The diagram still parses, renders, verifies (structurally), and round-trips losslessly via preserved `body.source`; it simply isn't offered for structured mutation (structured-family narrowers return `null` on opaque fallbacks). This guarantees the parser never silently drops information. Earlier drafts dropped unrecognized lines on the floor; v4 does not.
-
-**Segment-preserving bodies (BUILD-18) — sequence ends the all-or-nothing cliff.** Sequence carries an ordered `statements: SequenceStatement[]` list. `alt|opt|loop|par` are typed fragments: their branches/messages participate in describe/facts/verify and have dedicated mutation ops. Other block constructs (`critical|break|rect|box … end`) and `Note`/`activate`/`deactivate`/`create`/`destroy`/`autonumber`/`title` remain VERBATIM opaque segments. Top-level message indices stay backward-compatible and distinct from fragment indices. Only an un-segmentable body (a stray `end`, an unclosed block) falls back to whole-body opaque. Gantt adopts the same pattern for calendar directives/click/comments. ER also uses ordered typed and opaque-block segments; Class and Timeline are the remaining follow-up work.
-
-For any opaque fallback, cross-cutting edits are source-level only: operate against preserved source intentionally, then re-parse and verify before returning. Every renderable family now ships structured mutation; a new family follows the same pattern as its definition of done: narrowed type + body parser + serializer + per-family ops + verify hook + round-trip property tests + doc sync (most recently Mindmap and GitGraph). See `docs/contributing/adding-diagram-types.md`.
-
-Convention bans constructing `ValidDiagram` outside `parseRegisteredMermaid`, `mutate`, `synthesizeFromGraph`, and `createMermaid`/`buildMermaid`.
-
----
-
-## Public API
-
-```ts
-parseRegisteredMermaid(source: string):                              Result<ValidDiagram, ParseError[]>
-layoutMermaid(d: ValidDiagram):                            RenderedLayout
-renderMermaidASCII(input: ValidDiagram | string, opts?):   string
-renderMermaidPNG(input: ValidDiagram | string, opts?):     Uint8Array
-renderMermaidSVG(input: ValidDiagram | string, opts?):     string
-verifyMermaid(input: ValidDiagram | string, opts?: VerifyOptions): VerifyResult
-serializeMermaid(d: ValidDiagram):                         string
-// ASCII opts.targetWidth is a hard display-cell bound; impossible bounds throw
-// AsciiWidthError { code, requestedWidth, requiredWidth, family, reason }.
-
-// Mutation is overloaded by family: one overload per mutable family, for example
-mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, MutationError>
-mutate(d: GanttValidDiagram,     op: GanttMutationOp):     Result<GanttValidDiagram, MutationError>
-// Opaque/source-only bodies don't typecheck.
-
-// One narrowing helper per family (the registry names it: families[].narrower
-// in am capabilities --json); null when the diagram isn't of that family or is
-// opaque/source-level.
-asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null
-asGantt(d: ValidDiagram):     GanttValidDiagram | null
-
-// Build a ValidDiagram from a JSON-safe graph payload without re-parsing
-// source. Used by `am parse | am serialize` shell pipelines.
-synthesizeFromGraph(payload: ValidDiagramPayload): Result<ValidDiagram, ParseError[]>
-
-// Blank-slate authoring on the typed path: an empty structured diagram for
-// any built-in family (overloads narrow the return per kind), and a fold of
-// typed ops over that empty diagram. Errors carry the failing op's index.
-createMermaid(kind: DiagramKind, opts?: { direction?: Direction }): MutableValidDiagram
-buildMermaid(kind: DiagramKind, ops: AnyMutationOp[], opts?: { direction?: Direction }): Result<MutableValidDiagram, MutationError & { opIndex: number }>
-
-// VerifyOptions carries the only real knob: the label character cap.
-interface VerifyOptions { suppress?: WarningCode[]; labelCharCap?: number }  // default cap 40
-```
-
-There is no `LayoutContext`, no `SeededRNG`, no `Clock`, no font-metric table in the public surface. Those existed to support a seed apparatus that did nothing (see § (1)). The only verification knob is `labelCharCap`.
-
-**CLI** (`am <verb>`) with JSON where useful: <!-- BEGIN GENERATED: cli-verbs -->`render`, `verify`, `parse`, `serialize`, `mutate`, `preview`, `format`, `describe`, `capabilities`, `styles`, `llms-txt`, `init-agent`, `batch`, `render-markdown`<!-- END GENERATED: cli-verbs --> (`am --help` is authoritative). `am capabilities --json` reports each family's `editPolicy` (`structured-when-narrowed` vs `source-level-only`) plus `mutationOps`, so agents can route without trial-and-error. Plus `am --agent-instructions` printing the canonical agent-use guide embedded in the binary at build time — agents read the doc that ships with the tool, not whatever their training set indexed. The CLI's role is one-shot operations, shell-only contexts (CI, Bash-tool agents), and human inspection; multi-step editing belongs in the library or Code Mode, not in shell pipelines.
-
----
-
-## Compatibility choices from the Beautiful Mermaid foundation
-
-- **Agent surface exposed via the `./agent` subpath export** on the `agentic-mermaid` package. Agentic Mermaid is the product/docs name, npm identity, and repository path (`adewale/agentic-mermaid`). The subpath export keeps renderer and agent surfaces side by side.
-- **Deterministic layout, verified.** Layout JSON is byte-identical across processes because ELK is configured for model-order layout with no random seed (see § (1)). No seed parameter is exposed because none affects output. Cross-machine byte equality across different CPU float behavior is not claimed; structural determinism within an ELK version is guaranteed and tested cross-process.
-- **IDs are content-hashed and stable** across runs (within an ELK version).
-- **`MermaidGraph` is kept** as an exported type — `ValidDiagram` wraps it in `body.graph` for flowchart, rather than replacing it. The original spec called for removal; characterization showed it would break existing tests and the Craft Agents consumer. The wrapping shape costs nothing.
-- **`renderMermaidSVGAsync` is kept**. Removing it was a v1-aspiration that turned out to break consumers for no win at the agent surface.
-- **`mermaidConfig` precedence** is source frontmatter < init < explicit render options for supported family fields. Normalization merges source wrappers; family resolvers then reapply the original explicit section last. State has direct public-path precedence and geometry probes in `state-config.test.ts`.
-
----
-
-## Distribution
-
-Five artifacts, all derived from this doc:
-
-- **npm package** `agentic-mermaid` with the `agentic-mermaid/agent` subpath. The full TypeScript API, including ASCII, PNG, and SVG output helpers. Agents with shell access import the library directly and compose verbs in their own JS/TS runtime; no MCP wrapper required.
-- **`skills/agentic-mermaid-diagram-workflow/`** agent-agnostic skill bundle. Master `SKILL.md` routes by *both* diagram family and composition channel: it picks Code Mode when the MCP is connected, library import when the agent can run JS/TS with imports, the CLI for shell-only contexts. Per-family references (`flowchart.md`, `sequence.md`, etc.) describe syntax. Two channel references — `code-mode.md` (the canonical multi-step pattern) and `cli.md` (shell-only) — describe composition. Progressive disclosure means the LLM loads only what it needs. Family references sync from upstream Mermaid docs weekly via the shipped GitHub Action at `.github/workflows/sync-mermaid-docs.yml`, alongside our additions (LayoutWarning codes, MutationOp taxonomy).
-- **Determinism is tested on output**: `agent-determinism.test.ts` and `ascii-determinism.test.ts` render the same input repeatedly (and under different locales) and require byte-identical results, so ambient randomness or clocks in the agent, layout, or terminal code fail CI.
-- **`agentic-mermaid-mcp`** Code Mode-style MCP server. The primary tool is `execute(code: string)`: the model writes JavaScript against the typed `mermaid.*` SDK declaration embedded in the system prompt. Local stdio/HTTP runs synchronous code in a `node:vm` sandbox. The hosted `/mcp` endpoint runs the same hardened facade in per-request Cloudflare Dynamic Worker isolates with bounded CPU/subrequests and no outbound network. Pure render/verify/describe helpers share transport-neutral behavior. Differential tests pin the common contract and explicitly name strict-module and CPU-time divergences; neither runtime depends on `@cloudflare/codemode`.
-- **`Instructions_for_agents.md`** at repo root, kept under 100 lines. `am --agent-instructions` prints the same content at runtime; a doc-sync test asserts the two are byte-identical.
-
-Beyond stdio, the MCP server also speaks Streamable HTTP/SSE locally (`agentic-mermaid-mcp --transport http`, see `docs/mcp-http-transport.md`), and the hosted `/mcp` endpoint runs the same facade; there is no REST render API and no editor WebSocket watch. The skill teaches Code Mode for both paths: agents-with-shell write JS/TS against the imported library; agents-without-shell write JavaScript against the MCP's `mermaid.*` SDK. Same surface in both cases.
-
----
-
-## Agent-contract verbs (CLI)
-
-Agent-contract CLI verbs for explicit self-discovery, summaries, and batch operation:
-
-- `am capabilities [--json]` — emit `{ sdkVersion, families, warningCodes, outputFormats }`, where each family entry carries its `editPolicy`, `mutationOps`, `opFields`, narrower, headers, and example. Sourced from the family registry and the `WARNING_SEVERITY` / `WARNING_TIER` tables — so the contract is self-describing, not hand-maintained. A JSON Schema is committed at `src/__tests__/__fixtures__/capabilities.schema.json`; any shape drift fails the test loudly.
-- `am batch --jsonl` — read JSONL from stdin, dispatch per-line to render/verify/parse/serialize/mutate handlers, emit one JSON envelope per result. Malformed lines surface `{ ok: false, error: { code: 'INVALID_JSON' } }` and do **not** abort the stream.
-- `am preview <file|-> [--output file.html] [--open] [--json] [--security strict]` — write a standalone strict-mode HTML preview for human inspection without hand-building wrapper files.
-- `am mutate <file|-> (--op '<json>' | --ops '<json array|file>') [--json]` — apply typed mutations, verify once at the commit point, and omit source on verify failure.
-- `am describe <file|-> [--format text|json|facts] [--json]` — emit a prose summary, structured AX tree (`{kind,nodes,edges,entryPoints,sinks}`), or semantic fact lines for screen readers, doc generation, and agent context compaction.
-- **Exit codes** are widened to 4: `EXIT_OK=0`, `EXIT_ARG_ERROR=2`, `EXIT_VERIFY_FAILED=3`, `EXIT_INTERNAL=4` (in `src/cli/exit-codes.ts`). The CLI was previously `0` or `2` only. `EXIT_VERIFY_FAILED=3` is the new code for "valid args, but the diagram failed verify" — important for agents wrapping `am verify` in batch.
-
-**Counter-example, documented.** manuareraa PR #42 on `lukilabs/beautiful-mermaid` ships an MCP server with 4 render-only tools (`render_svg` / `render_ascii` / `list_themes` / `parse`). We rejected this design: a render-tool-per-format MCP forces the agent to chain calls and loses ValidDiagram context. Our Code Mode design keeps one primary `execute()` surface for multi-step edits. The hosted endpoint does expose narrow `describe_sdk`, `render_svg`/`render_ascii`/`render_png`, `verify`, `describe`, and declarative `mutate`/`build` helpers for clients that cannot run code, but they are conveniences over the same facade, not the primary editing API. PR #42 is preserved here as the documented counter-example so future contributors understand why we chose Code Mode. <!-- complete: hosted-mcp-tools -->
-
----
-
-## Agent workflow
-
-The canonical runtime guide lives in `Instructions_for_agents.md` and is emitted byte-for-byte by `am --agent-instructions`; this spec intentionally does not duplicate the full snippet. The stable contract is:
-
-1. <!-- BEGIN GENERATED: new-diagram-policy -->New diagrams: author Mermaid source directly, then parse → verify → render or return it. `buildMermaid(kind, ops)` / `createMermaid(kind)` build a diagram from typed ops when you are generating one programmatically (for example, from data).<!-- END GENERATED: new-diagram-policy -->
-2. For existing diagrams, `parseRegisteredMermaid(source)` → `ValidDiagram`.
-3. Use the family entry's registry-advertised narrower; `null` means no structured mutation for that body.
-4. Apply typed `mutate` ops only to narrowed mutable bodies; Code Mode SDK-returned diagrams are read-only to block direct IR edits.
-5. Run `verifyMermaid(d)` at every commit point and inspect `ok` / `warnings` / `layout`.
-6. Only then `serializeMermaid(d)`.
-
-Anti-patterns: whole-source regeneration of an existing parsed diagram, string concatenation to edit an existing structured diagram where a typed op exists, serializing before inspecting verify, and calling `mutate` on opaque/source-only bodies.
-
----
-
-## Release discipline
-
-This section records the design discipline for the branch, not an active roadmap. Active work lives only in `TODO.md`.
-
-| Principle | Meaning |
-|---|---|
-| **Ship** | Keep the minimum lethal surface together: substrate + `verify` + `mutate` + `serialize` + typed MutationOps + CLI + skill + Code Mode MCP + `Instructions_for_agents.md`. |
-| **Learn** | Use MermaidSeqBench, stored Code Mode evals, live model transcripts, and real consumers to decide what is missing. |
-| **Expand by evidence** | Promote more MutationOps, composition primitives, or additional structured families only when evidence justifies them. |
-
----
-
-## Measurement
-
-| What | How | Target |
-|---|---|---|
-| Layout JSON byte-equality across runs | Representative direction/density cases in `agent-determinism.test.ts`, plus corpus and cross-process keepers | Identical within one ELK version on one machine |
-| Drift sentinel | `layout-equivalence.test.ts`: integer-rounded geometry for the docs corpus plus layout-compare fixtures, byte-compared to a committed baseline; the PR description lists each changed golden and why | 0 diffs |
-| Cross-process determinism | Test spawns child `bun` processes; layout JSON byte-identical across them | 100% |
-| Tier-1 verifier recall on broken-fixture cases | Inline tests per Tier-1 code | high |
-| Round-trip identity | Golden corpus + property test | 100% on canonical input |
-| Round-trip property | Property test (fast-check) | 100% on parseable input |
-| Sequence fidelity | Property test (BUILD-18): any sequence source is segments-or-opaque and always lossless — interleaved structured + opaque lines round-trip in order; `remove_message` never touches opaque-block bytes | 100% lossless |
-| Sad-path coverage | CLI mutate on opaque family; malformed JSON-RPC; broken Code Mode script; N-round format idempotence | explicit tests |
-| Targeted fault controls | Introduce a credible regression at an audited boundary, confirm the owning test fails, restore | Evidence for the recorded scope; no whole-core mutation-coverage claim |
-| Code Mode sandbox isolation | Tests assert `execute()` cannot reach `process`, `require`, `fetch`, `eval`, `Function`, or host-constructor escape paths; dynamic code generation is disabled | explicit tests |
-
-Cross-cutting:
-
-- **Doc-sync** (both directions): every `LayoutWarning` code must appear in this spec, and the `MutationOp` menu is generated rather than copied here. `am --agent-instructions` output must equal `Instructions_for_agents.md` byte-for-byte.
-- **Test honesty:** each claimed behavior needs a credible failing regression and an independent oracle. Packaging parity, determinism and semantic correctness protect different contracts; see [`docs/testing-strategy.md`](./docs/testing-strategy.md).
-
-MermaidSeqBench is wired as an external corpus signal; live model transcript evaluation remains periodic / pre-release rather than PR CI.
-
----
-
-## Risks (honest, v4)
-
-- **Determinism is empirical, not proven.** It's established by cross-process test over a corpus + the drift sentinel, plus reading ELK's config (`considerModelOrder: NODES_AND_EDGES`, no `randomSeed`). An ELK upgrade could in principle change this; the cross-process test and sentinel would catch it. There is no layout seed to fall back on because seeding never affected geometry. (The render option `seed` is a *style* seed: it re-rolls the ink wobble of styled looks and never moves layout.)
-- **Determinism claim, precisely.** Layout JSON is byte-identical (after structural parse) across processes AND across JS runtimes (bun, node) on the same machine and same ELK version; this is verified on same-machine x86_64 and ARM64 when Node + built `dist/` are present. Direct cross-architecture byte equality (x86_64 output compared to ARM64 output) is still not a separate claim.
-- **Sequence structured coverage is segment-preserving (BUILD-18).** Participant declarations, top-level messages, and direct-message `alt`/`opt`/`loop`/`par` fragments are typed; fragment messages participate in describe/facts/verify and dedicated mutation ops. Note/critical/break/rect/box/activate/autonumber/title and nested or otherwise unmodeled fragment content ride along as verbatim opaque-block *segments*, so the structured ops survive instead of going whole-body opaque. Messages inside those remaining opaque blocks are deliberately not modeled. Only un-segmentable input (unbalanced `end`, unclosed block) falls back to whole-body opaque. The honest tradeoff is unchanged — never lossy — it just no longer sacrifices the structured ops at the first unmodeled line. ER also has ordered typed and opaque-block segments; Class and Timeline are the remaining follow-up work.
-- **Every registered renderable family ships structured mutation; opaque fallbacks stay source-level only.** A typed narrower exists for every family kind; only opaque-fallback bodies for unmodeled syntax remain deliberate, lossless source-level paths.
-- **Live-model agent-usage eval is periodic, not PR CI.** Stored Code Mode scripts, sandbox traces, and task oracles run in CI; committed pi-subagent transcripts are archival evidence; API-backed release-model transcripts remain in `TODO.md` because they need model access and selected release tasks.
-- **Bloat in agent-facing docs.** `Instructions_for_agents.md` is kept under 100 lines by review, not by a test.
-
-## What v4 delivers (vs. earlier drafts)
-
-- **Determinism is structural and verified cross-process** — not a seed apparatus. The seed/RNG/clock machinery and the font-metric table are *removed* (they did nothing).
-- **Mutation for every registered renderable family**, with family-narrowed overloads and compile-time rejection of opaque/source-only fallback bodies.
-- **Sequence parsing is lossless** — segment-preserving structured body (BUILD-18): Note/alt/loop/etc. ride along verbatim as opaque-block segments while the structured ops stay live; only un-segmentable input falls back to whole-body opaque; never silently drops constructs.
-- **Substrate enforcement is a real grep test** that runs under `bun test`, not an ESLint config that was never installed.
-- **`synthesizeFromGraph`** lets `am parse | am serialize` round-trip without `canonicalSource` on the wire.
-- **`LABEL_OVERFLOW` is a rendered-line char-count check** (Tier 1, reliable), not a font-metric heuristic: the cap applies to the longest displayed line (XML entities decode, `<br>` splits lines, formatting tags strip), not raw source chars. Families that draw text literally (Pie, Timeline, Gantt, XYChart, GitGraph, Radar) count `<br>` and tags as characters, because that is what they draw.
-- **`Finite` branded type** enforced at every coordinate emission.
-- **Deliverable completeness:** CHANGELOG entry, README section, an `examples/` script, per-verb CLI `--help`, and a [`docs/fork-differences.md`](./docs/fork-differences.md) mention all ship with the code.
-
----
-
-## What Code Mode unlocks
-
-The Code Mode MCP raises the ceiling on what an agent can do with the library in one call. We initially framed the agent surface as a fixed set of verbs (parse, verify, mutate, serialize) where each verb is one round-trip. Code Mode reframes the surface as a typed library that the agent composes against — and the only thing we ship is the small set of typed operations plus a sandbox. The agent supplies the algorithm.
-
-Concrete consequences, in roughly descending impact:
-
-1. **Composition without shipping composition.** `@include`, `@template`, vars/`${}` are deferred indefinitely. An agent can implement its own splice or template flavor in JavaScript over source strings and SDK-returned parsed diagrams — parse trusted inputs, use supported `mutate` operations, verify, serialize — in one round-trip. Code Mode does not bless hand-fabricated `ValidDiagram` clones; structured edits stay on SDK lineage.
-2. **Multi-diagram repo operations.** "Rename `AuthService` across every architecture diagram in this repo, verify each, and report which now have warnings." With verb-per-tool MCP that's `N × 3` round-trips. With Code Mode: host/agent code supplies the file list and source strings, and one `execute()` can process them together. The sandbox itself does not expose filesystem access.
-3. **Auto-fix loops in one round-trip.** `verify` → identify mechanically fixable warnings → apply fixes → `verify` again, as a `while (!result.ok)` block. The agent only sees the final state plus a structured audit trail.
-4. **Diagram-as-tests / CI gate.** A repo installs `agentic-mermaid`, runs the `agentic-mermaid-mcp` binary, and writes a Code Mode snippet that verifies every `.mmd` on push. Diagrams become test artifacts that fail CI when they break.
-5. **No need to ship `diffDiagrams` or `explainDiagram`.** Already cut. Code Mode confirms the cut: an agent that wants structural diff writes it from `parse` + `ValidDiagram` inspection in JavaScript. Every "would be nice to have a verb for" becomes "write the code for it in `execute()`."
-6. **Library as the cross-tool agent interface for diagrams.** A Mermaid linter, a `mermaid → d2` converter, a `graphviz → mermaid` importer can each expose the same Code Mode shape. Any agent then writes one JavaScript snippet that composes across libraries. We've effectively defined the agent interface for diagrams in this language.
-7. **Benchmark eval at speed.** MermaidSeqBench (and any future eval) runs as one `execute()` per case rather than N round-trips. Internal velocity multiplier.
-8. **Hosted Worker path.** The shipped `/mcp` endpoint uses Cloudflare Dynamic Worker isolates through the platform loader binding, not `@cloudflare/codemode`. The runtime has explicit security/resource limits and differential parity with local Code Mode; remaining WAF and abuse-control operations are tracked separately in `TODO.md`.
-9. **The skill becomes runnable, not just descriptive.** `references/code-mode.md` ships canonical executable JavaScript snippets the agent copy-pastes into `execute()`. Skill stops being prose; starts being a library of executable patterns.
-10. **A future diagram REPL would be a thin transport.** A `repl` verb on the `am` CLI could become an interactive Code Mode shell — paste JavaScript, get structured results, iterate. Same sandbox, different transport. It is not shipped and would need promotion to `TODO.md` before implementation.
-
-The biggest single consequence is #1: it gives us permission to never grow the spec for composition, queries, diffing, explaining, or any "we should probably have a verb for that" feature. **The verb set is intentionally small; Code Mode makes it sufficient.**
-
-### Counter-example: why we did not ship a `render-tool-per-format` MCP
-
-Upstream [manuareraa PR #42](https://github.com/lukilabs/beautiful-mermaid/pull/42) takes the opposite design: an MCP server with one tool per output format (`render_svg`, `render_ascii`, `render_png`, etc.), each pinned to a specific renderer call. We considered cloning that surface and decided against it for two reasons. First, the verb explosion is unbounded — every new output format means a new tool, every option flag means a new tool variant, and every cross-cutting workflow (parse → verify → render → write back) requires the agent to glue tools together via the host's tool-call protocol, multiplying round-trips. Second, the per-tool typing pushes structure into the tool schema where the agent can only see what the schema declares; it can't introspect `ValidDiagram`, can't compose `mutate` with `verify`, and can't write the algorithm that uses the answer. Code Mode inverts both: one `execute` tool with a typed `mermaid.*` SDK declaration in scope. Read-only inspection, cross-diagram lookups, and custom transforms are ordinary JavaScript inside that execution context rather than additional MCP tools. Anything PR #42's surface could do — render-to-format with options — is one line of JavaScript inside `execute`; anything our surface can do that PR #42's can't includes every multi-step workflow that touches more than one verb. The asymmetry justifies the cut.
-
----
-
-## Why totality matters
-
-Each property alone leaves a gap. Determinism alone — agents can diff outputs but can't edit without regenerating. Round-trip alone — every edit shuffles the layout, drowning the signal. Verify alone — outputs aren't reproducible across runs, so a warning fixed in one run silently returns in the next.
-
-Together they close a loop:
-
-1. Parse the source into `ValidDiagram`.
-2. `mutate` one node — the IR guarantees the edit produces valid Mermaid.
-3. `verify` — structured warnings tell the agent whether anything broke.
-4. If broken, back up to the previous `ValidDiagram` and try a different op.
-5. `serializeMermaid` only after verify passes.
-
-That loop is the agent-native claim. Replacing several rounds of vision-on-PNG with one structured verification pass is what makes a coding agent reach for this fork before any other Mermaid library.
-
-The API makes the loop possible. `Instructions_for_agents.md` and `am --agent-instructions` make it a habit. Both ship together.
+## (3) Round-trippable source
+
+Every registered renderable family exposes typed edits for the syntax its
+narrower can model. Unsupported statements can be retained as verbatim segments;
+other inputs remain opaque source and refuse ordinary typed mutation. Preserving
+source is preferable to silently dropping meaning to fit a smaller model.
+
+Canonical serialization can normalize source spelling. Where exact retained
+bytes matter, the explicit source-preserving mode supports a bounded set of
+Class and Flowchart edits. It returns the edited source together with its parsed
+diagram and refuses ambiguous ownership or unsupported dependencies. See the
+[mutation policy](docs/agent-mutation-policy.md) for the operations and limits.
+
+## Library, CLI and MCP
+
+For Node/Bun applications, `agentic-mermaid/agent` provides rendering and editing.
+Browser/Worker editing uses `agentic-mermaid/agent/core` to avoid the native PNG
+dependency; browser rendering uses `agentic-mermaid/browser/lazy`.
+
+The CLI and MCP tools use the same operations. Run `am capabilities --json` for
+version-matched families and edit schemas; the registry is their source of truth.
+The [MCP guide](docs/mcp-http-transport.md) distinguishes the local and hosted
+tool sets. Code Mode composes SDK calls in JavaScript; it grants no filesystem
+access. Local VM containment and hosted Worker isolation have different security
+boundaries, documented in [SECURITY.md](SECURITY.md).
+
+## Where to read next
+
+- [API reference](docs/api.md): signatures, options and result shapes.
+- [Mutation policy](docs/agent-mutation-policy.md): structured and source-level edits.
+- [Testing strategy](docs/testing-strategy.md): behavior checks and their limits.
+- [Fork differences](docs/fork-differences.md): additions to Beautiful Mermaid.
+- [TODO.md](https://github.com/adewale/agentic-mermaid/blob/main/TODO.md): active work.
+
+Earlier implementation narratives and removed approaches remain in Git history.
+Current behavior belongs in the owning code, tests and reference guides above.
