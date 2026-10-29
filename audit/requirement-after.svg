@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="631.27" height="1332.8" viewBox="0 0 631.27 1332.8" style="--bg:#fffdf8;--fg:#171512;--line:#24211d;--accent:#1d4ed8;--muted:#5f5a52;--surface:#faf5ea;--border:#24211d;--font:EB Garamond;background:#fffdf8" class="am-0b2hvbs1708z9p"><style>
+  svg.am-0b2hvbs1708z9p { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
+  svg.am-0b2hvbs1708z9p {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #171512;
+    --_text-sec:      #5f5a52;
+    --_text-muted:    #5f5a52;
+    --_text-faint:    #82807c;
+    --_line:          #24211d;
+    --_arrow:         #1d4ed8;
+    --_node-fill:     #faf5ea;
+    --_node-stroke:   #24211d;
+    --_group-fill:    #fffdf8;
+    --_group-hdr:     #f3f1ed;
+    --_inner-stroke:  #e3e1dc;
+    --_key-badge:     #e8e6e1;
+  }
+</style>
+<rect width="631.27" height="1332.8" fill="#fffdf8" data-backdrop="page" />
+<defs>  <marker id="requirement-arrow" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
+    <polygon points="0 0, 9 3.5, 0 7" fill="none" stroke="#171512" stroke-width="1" />
+  </marker>
+  <marker id="requirement-contains" markerWidth="12" markerHeight="12" refX="0" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+    <circle cx="6" cy="6" r="5" fill="#fffdf8" stroke="#171512" stroke-width="1" />
+    <path d="M2 6H10M6 2V10" fill="#fffdf8" stroke="#171512" stroke-width="1" />
+  </marker></defs>
+<g class="requirement-node default" data-id="dense0" data-role="node">
+  <rect x="418.66" y="391.6" width="180.61" height="190" rx="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" />
+  <line x1="418.66" y1="451.6" x2="599.27" y2="451.6" stroke="#171512" stroke-width="0.75" />
+  <text x="508.965" y="421.6" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true"><tspan x="508.965" dy="-4.5" textLength="128.25" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;Requirement&gt;&gt;</tspan><tspan x="508.965" dy="19.5" textLength="56.25" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">dense0</tspan></text>
+  <text x="444.66" y="469.35" text-anchor="start" font-family="EB Garamond" font-size="15" font-weight="400" fill="#171512" data-id="field:dense0:0" data-role="attribute" data-prepared-text="true" dy="5.25" textLength="38.7" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">ID: R0</text>
+  <text x="444.66" y="497.85" text-anchor="start" font-family="EB Garamond" font-size="15" font-weight="400" fill="#171512" data-id="field:dense0:1" data-role="attribute" data-prepared-text="true" dy="5.25" textLength="128.61" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Text: Requirement 0</text>
+  <text x="444.66" y="526.35" text-anchor="start" font-family="EB Garamond" font-size="15" font-weight="400" fill="#171512" data-id="field:dense0:2" data-role="attribute" data-prepared-text="true" dy="5.25" textLength="86.49" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Risk: Medium</text>
+  <text x="444.66" y="554.85" text-anchor="start" font-family="EB Garamond" font-size="15" font-weight="400" fill="#171512" data-id="field:dense0:3" data-role="attribute" data-prepared-text="true" dy="5.25" textLength="109.98" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Verification: Test</text>
+</g>
+<g class="requirement-node default" data-id="dense1" data-role="node">
+  <rect x="243.2925" y="32" width="180.25" height="190" rx="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" />
+  <line x1="243.2925" y1="92" x2="423.5425" y2="92" stroke="#171512" stroke-width="0.75" />
+  <text x="333.4175" y="62" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true"><tspan x="333.4175" dy="-4.5" textLength="128.25" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;Requirement&gt;&gt;</tspan><tspan x="333.4175" dy="19.5" textLength="50.85" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">dense1</tspan></text>
+  <text x="269.2925" y="109.75" text-anchor="start" font-family="EB Garamond" font-size="15" font-weight="400" fill="#171512" data-id="field:dense1:0" data-role="attribute" data-prepared-text="true" dy="5.25" textLength="33.84" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">ID: R1</text>
+  <text x="269.2925" y="138.25" text-anchor="start" font-family="EB Garamond" font-size="15" font-weight="400" fill="#171512" data-id="field:dense1:1" data-role="attribute" data-prepared-text="true" dy="5.25" textLength="123.75" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Text: Requirement 1</text>
+  <text x="269.2925" y="166.75" text-anchor="start" font-family="EB Garamond" font-size="15" font-weight="400" fill="#171512" data-id="field:dense1:2" data-role="attribute" data-prepared-text="true" dy="5.25" textLength="86.49" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Risk: Medium</text>
+  <text x="269.2925" y="195.25" text-anchor="start" font-family="EB Garamond" font-size="15" font-weight="400" fill="#171512" data-id="field:dense1:3" data-role="attribute" data-prepared-text="true" dy="5.25" textLength="109.98" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Verification: Test</text>
+</g>
+<g class="requirement-node default" data-id="dense2" data-role="node">
+  <rect x="198.05" y="391.6" width="180.61" height="190" rx="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" />
+  <line x1="198.05" y1="451.6" x2="378.66" y2="451.6" stroke="#171512" stroke-width="0.75" />
+  <text x="288.355" y="421.6" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true"><tspan x="288.355" dy="-4.5" textLength="128.25" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;Requirement&gt;&gt;</tspan><tspan x="288.355" dy="19.5" textLength="56.25" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">dense2</tspan></text>
+  <text x="224.05" y="469.35" text-anchor="start" font-family="EB Garamond" font-size="15" font-weight="400" fill="#171512" data-id="field:dense2:0" data-role="attribute" data-prepared-text="true" dy="5.25" textLength="38.7" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">ID: R2</text>
+  <text x="224.05" y="497.85" text-anchor="start" font-family="EB Garamond" font-size="15" font-weight="400" fill="#171512" data-id="field:dense2:1" data-role="attribute" data-prepared-text="true" dy="5.25" textLength="128.61" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Text: Requirement 2</text>
+  <text x="224.05" y="526.35" text-anchor="start" font-family="EB Garamond" font-size="15" font-weight="400" fill="#171512" data-id="field:dense2:2" data-role="attribute" data-prepared-text="true" dy="5.25" textLength="86.49" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Risk: Medium</text>
+  <text x="224.05" y="554.85" text-anchor="start" font-family="EB Garamond" font-size="15" font-weight="400" fill="#171512" data-id="field:dense2:3" data-role="attribute" data-prepared-text="true" dy="5.25" textLength="109.98" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Verification: Test</text>
+</g>
+<g class="requirement-node default" data-id="dense3" data-role="node">
+  <rect x="198.05" y="751.2" width="180.61" height="190" rx="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" />
+  <line x1="198.05" y1="811.2" x2="378.66" y2="811.2" stroke="#171512" stroke-width="0.75" />
+  <text x="288.355" y="781.2" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true"><tspan x="288.355" dy="-4.5" textLength="128.25" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;Requirement&gt;&gt;</tspan><tspan x="288.355" dy="19.5" textLength="56.25" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">dense3</tspan></text>
+  <text x="224.05" y="828.95" text-anchor="start" font-family="EB Garamond" font-size="15" font-weight="400" fill="#171512" data-id="field:dense3:0" data-role="attribute" data-prepared-text="true" dy="5.25" textLength="38.7" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">ID: R3</text>
+  <text x="224.05" y="857.45" text-anchor="start" font-family="EB Garamond" font-size="15" font-weight="400" fill="#171512" data-id="field:dense3:1" data-role="attribute" data-prepared-text="true" dy="5.25" textLength="128.61" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Text: Requirement 3</text>
+  <text x="224.05" y="885.95" text-anchor="start" font-family="EB Garamond" font-size="15" font-weight="400" fill="#171512" data-id="field:dense3:2" data-role="attribute" data-prepared-text="true" dy="5.25" textLength="86.49" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Risk: Medium</text>
+  <text x="224.05" y="914.45" text-anchor="start" font-family="EB Garamond" font-size="15" font-weight="400" fill="#171512" data-id="field:dense3:3" data-role="attribute" data-prepared-text="true" dy="5.25" textLength="109.98" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Verification: Test</text>
+</g>
+<g class="requirement-node default" data-id="dense4" data-role="node">
+  <rect x="198.05" y="1110.8" width="180.61" height="190" rx="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" />
+  <line x1="198.05" y1="1170.8" x2="378.66" y2="1170.8" stroke="#171512" stroke-width="0.75" />
+  <text x="288.355" y="1140.8" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true"><tspan x="288.355" dy="-4.5" textLength="128.25" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;Requirement&gt;&gt;</tspan><tspan x="288.355" dy="19.5" textLength="56.25" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">dense4</tspan></text>
+  <text x="224.05" y="1188.55" text-anchor="start" font-family="EB Garamond" font-size="15" font-weight="400" fill="#171512" data-id="field:dense4:0" data-role="attribute" data-prepared-text="true" dy="5.25" textLength="38.7" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">ID: R4</text>
+  <text x="224.05" y="1217.05" text-anchor="start" font-family="EB Garamond" font-size="15" font-weight="400" fill="#171512" data-id="field:dense4:1" data-role="attribute" data-prepared-text="true" dy="5.25" textLength="128.61" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Text: Requirement 4</text>
+  <text x="224.05" y="1245.55" text-anchor="start" font-family="EB Garamond" font-size="15" font-weight="400" fill="#171512" data-id="field:dense4:2" data-role="attribute" data-prepared-text="true" dy="5.25" textLength="86.49" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Risk: Medium</text>
+  <text x="224.05" y="1274.05" text-anchor="start" font-family="EB Garamond" font-size="15" font-weight="400" fill="#171512" data-id="field:dense4:3" data-role="attribute" data-prepared-text="true" dy="5.25" textLength="109.98" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Verification: Test</text>
+</g>
+<g class="requirement-node default" data-id="denseextra" data-role="node">
+  <rect x="32" y="32" width="146.05" height="104.5" rx="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" />
+  <line x1="32" y1="92" x2="178.05" y2="92" stroke="#171512" stroke-width="0.75" />
+  <text x="105.025" y="62" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true"><tspan x="105.025" dy="-4.5" textLength="94.05" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;Element&gt;&gt;</tspan><tspan x="105.025" dy="19.5" textLength="85.05" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">denseextra</tspan></text>
+  <text x="58" y="109.75" text-anchor="start" font-family="EB Garamond" font-size="15" font-weight="400" fill="#171512" data-id="field:denseextra:0" data-role="attribute" data-prepared-text="true" dy="5.25" textLength="64.62" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Type: test</text>
+</g>
+<path d="M539.066666667,391.6 L539.066666667,350.6 Q539.066666667,342.6 531.066666667,342.6 L497.863333333,342.6 Q489.863333333,342.6 489.863333333,334.6 L489.863333333,253 Q489.863333333,245 481.863333333,245 L386.48,245 Q378.48,245 378.48,237 L378.48,222" fill="none" stroke="#171512" stroke-width="1.45" stroke-dasharray="6 4" marker-end="url(#requirement-arrow)" data-relationship="traces" data-direction="forward" data-id="relation-1" data-role="relationship" data-from="dense0" data-to="dense1" role="graphics-symbol" aria-roledescription="relation" aria-label="dense0 to dense1: &lt;&lt;traces&gt;&gt;" />
+<polyline points="288.355,222 288.355,391.6" fill="none" stroke="#171512" stroke-width="1.45" stroke-dasharray="6 4" marker-end="url(#requirement-arrow)" data-relationship="traces" data-direction="forward" data-id="relation-2" data-role="relationship" data-from="dense1" data-to="dense2" role="graphics-symbol" aria-roledescription="relation" aria-label="dense1 to dense2: &lt;&lt;traces&gt;&gt;" />
+<polyline points="288.355,581.6 288.355,751.2" fill="none" stroke="#171512" stroke-width="1.45" stroke-dasharray="6 4" marker-end="url(#requirement-arrow)" data-relationship="traces" data-direction="forward" data-id="relation-3" data-role="relationship" data-from="dense2" data-to="dense3" role="graphics-symbol" aria-roledescription="relation" aria-label="dense2 to dense3: &lt;&lt;traces&gt;&gt;" />
+<polyline points="288.355,941.2 288.355,1110.8" fill="none" stroke="#171512" stroke-width="1.45" stroke-dasharray="6 4" marker-end="url(#requirement-arrow)" data-relationship="traces" data-direction="forward" data-id="relation-4" data-role="relationship" data-from="dense3" data-to="dense4" role="graphics-symbol" aria-roledescription="relation" aria-label="dense3 to dense4: &lt;&lt;traces&gt;&gt;" />
+<path d="M333.4175,222 L333.4175,247 Q333.4175,255 341.4175,255 L470.863333333,255 Q478.863333333,255 478.863333333,263 L478.863333333,391.6" fill="none" stroke="#171512" stroke-width="1.45" stroke-dasharray="6 4" marker-end="url(#requirement-arrow)" data-relationship="refines" data-direction="forward" data-id="relation-5" data-role="relationship" data-from="dense1" data-to="dense0" role="graphics-symbol" aria-roledescription="relation" aria-label="dense1 to dense0: &lt;&lt;refines&gt;&gt;" />
+<g class="requirement-edge-label">
+  <rect x="494.863333333" y="295" width="80.04" height="23.6" fill="#fffdf8" stroke="none" />
+  <text x="534.883333333" y="306.8" text-anchor="middle" font-size="12" font-weight="600" fill="#171512" data-prepared-text="true" dy="4.2" textLength="68.04" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;traces&gt;&gt;</text>
+</g>
+<g class="requirement-edge-label">
+  <rect x="204.315" y="295" width="80.04" height="23.6" fill="#fffdf8" stroke="none" />
+  <text x="244.335" y="306.8" text-anchor="middle" font-size="12" font-weight="600" fill="#171512" data-prepared-text="true" dy="4.2" textLength="68.04" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;traces&gt;&gt;</text>
+</g>
+<g class="requirement-edge-label">
+  <rect x="204.315" y="654.6" width="80.04" height="23.6" fill="#fffdf8" stroke="none" />
+  <text x="244.335" y="666.4" text-anchor="middle" font-size="12" font-weight="600" fill="#171512" data-prepared-text="true" dy="4.2" textLength="68.04" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;traces&gt;&gt;</text>
+</g>
+<g class="requirement-edge-label">
+  <rect x="204.315" y="1014.2" width="80.04" height="23.6" fill="#fffdf8" stroke="none" />
+  <text x="244.335" y="1026" text-anchor="middle" font-size="12" font-weight="600" fill="#171512" data-prepared-text="true" dy="4.2" textLength="68.04" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;traces&gt;&gt;</text>
+</g>
+<g class="requirement-edge-label">
+  <rect x="391.943333333" y="295" width="82.92" height="23.6" fill="#fffdf8" stroke="none" />
+  <text x="433.403333333" y="306.8" text-anchor="middle" font-size="12" font-weight="600" fill="#171512" data-prepared-text="true" dy="4.2" textLength="70.92" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;refines&gt;&gt;</text>
+</g>
+</svg>

@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="311.225" height="450" viewBox="0 0 311.225 450" style="--bg:#fffdf8;--fg:#171512;--line:#24211d;--accent:#1d4ed8;--muted:#5f5a52;--surface:#faf5ea;--border:#24211d;--font:EB Garamond;background:#fffdf8" class="am-0sq15bu0r1ii8s">
+<style>
+  svg.am-0sq15bu0r1ii8s { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
+  .am-0sq15bu0r1ii8s .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg.am-0sq15bu0r1ii8s {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #171512;
+    --_text-sec:      #5f5a52;
+    --_text-muted:    #5f5a52;
+    --_text-faint:    #82807c;
+    --_line:          #24211d;
+    --_arrow:         #1d4ed8;
+    --_node-fill:     #faf5ea;
+    --_node-stroke:   #24211d;
+    --_group-fill:    #fffdf8;
+    --_group-hdr:     #f3f1ed;
+    --_inner-stroke:  #e3e1dc;
+    --_key-badge:     #e8e6e1;
+  }
+</style>
+<rect width="311.225" height="450" fill="#fffdf8" data-backdrop="page" />
+<defs>
+  <marker id="cls-inherit" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto-start-reverse" overflow="visible">
+    <polygon points="0 0, 12 5, 0 10" fill="#fffdf8" stroke="#171512" stroke-width="1.5" />
+  </marker>
+  <marker id="cls-composition" markerWidth="14" markerHeight="12" refX="13" refY="6" orient="auto-start-reverse" viewBox="0 0 14 12" overflow="hidden">
+    <polygon points="7 1, 13 6, 7 11, 1 6" fill="#171512" stroke="#171512" stroke-width="1" />
+  </marker>
+  <marker id="cls-aggregation" markerWidth="14" markerHeight="12" refX="13" refY="6" orient="auto-start-reverse" viewBox="0 0 14 12" overflow="hidden">
+    <polygon points="7 1, 13 6, 7 11, 1 6" fill="#fffdf8" stroke="#171512" stroke-width="1.5" />
+  </marker>
+  <marker id="cls-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto-start-reverse" overflow="visible">
+    <polyline points="0 0, 8 3, 0 6" fill="none" stroke="#171512" stroke-width="1.5" />
+  </marker>
+  <marker id="cls-lollipop" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse" viewBox="0 0 14 14" overflow="hidden">
+    <circle cx="7" cy="7" r="5" fill="#fffdf8" stroke="#171512" stroke-width="1.5" />
+  </marker>
+</defs>
+<path class="class-relationship" data-type="inheritance" data-relation-type="inheritance" data-marker-at="from" d="M149.666666667,155.5 L149.666666667,181.25 Q149.666666667,189.25 141.666666667,189.25 L108,189.25 Q100,189.25 100,197.25 L100,223" fill="none" stroke="#171512" stroke-width="1.45" marker-start="url(#cls-inherit)" data-relationship="inheritance" data-direction="reverse" data-id="rel:Account-&gt;Savings#0" data-role="relationship" data-from="Account" data-to="Savings" role="graphics-symbol" aria-roledescription="relation" aria-label="Account to Savings" />
+<polyline class="class-relationship" data-type="aggregation" data-relation-type="aggregation" data-marker-at="from" data-label="logs" data-from-cardinality="1" data-to-cardinality="*" points="200,155.5 200,346.5" fill="none" stroke="#171512" stroke-width="1.45" marker-start="url(#cls-aggregation)" data-relationship="aggregation" data-direction="reverse" data-id="rel:Account-&gt;Transaction#0" data-role="relationship" data-from="Account" data-to="Transaction" role="graphics-symbol" aria-roledescription="relation" aria-label="Account to Transaction: logs" />
+<g class="class-node" data-id="Account" data-label="Account" data-role="class-box">
+  <rect x="99.3333333333" y="40" width="151" height="115.5" rx="7" ry="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" data-id="class:Account:box" data-role="class-box" />
+  <path d="M106.333333333,40 H243.333333333 A7,7 0 0 1 250.333333333,47 V87.5 H99.3333333333 V47 A7,7 0 0 1 106.333333333,40 Z" fill="#f3f1ed" stroke="#171512" stroke-width="1.45" />
+  <text x="174.833333333" y="63.75" text-anchor="middle" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true" dy="5.25" textLength="61.65" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Account</text>
+  <line x1="99.3333333333" y1="87.5" x2="250.333333333" y2="87.5" stroke="#171512" stroke-width="0.75" />
+  <text x="125.333333333" y="101.5" class="mono" text-anchor="start" font-size="11" font-weight="400" fill="#171512" data-id="member:Account:string" data-role="member" data-prepared-text="true" dy="3.85" textLength="72.6" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"><tspan fill="#82807c">+</tspan><tspan fill="#171512">id: string</tspan></text>
+  <line x1="99.3333333333" y1="121.5" x2="250.333333333" y2="121.5" stroke="#171512" stroke-width="0.75" />
+  <text x="125.333333333" y="135.5" class="mono" text-anchor="start" font-size="11" font-weight="400" fill="#171512" data-id="member:Account:close" data-role="member" data-prepared-text="true" dy="3.85" textLength="99" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"><tspan fill="#5f5a52">+ </tspan><tspan fill="#171512">close()</tspan><tspan fill="#82807c">: </tspan><tspan fill="#5f5a52">void</tspan></text>
+</g>
+<g class="class-node" data-id="Savings" data-label="Savings" data-role="class-box">
+  <rect x="40" y="223" width="120" height="63.5" rx="7" ry="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" data-id="class:Savings:box" data-role="class-box" />
+  <path d="M47,223 H153 A7,7 0 0 1 160,230 V270.5 H40 V230 A7,7 0 0 1 47,223 Z" fill="#f3f1ed" stroke="#171512" stroke-width="1.45" />
+  <text x="100" y="246.75" text-anchor="middle" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true" dy="5.25" textLength="61.65" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Savings</text>
+  <line x1="40" y1="270.5" x2="160" y2="270.5" stroke="#171512" stroke-width="0.75" />
+  <line x1="40" y1="278.5" x2="160" y2="278.5" stroke="#171512" stroke-width="0.75" />
+</g>
+<g class="class-node" data-id="Transaction" data-label="Transaction" data-role="class-box">
+  <rect x="128.775" y="346.5" width="142.45" height="63.5" rx="7" ry="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" data-id="class:Transaction:box" data-role="class-box" />
+  <path d="M135.775,346.5 H264.225 A7,7 0 0 1 271.225,353.5 V394 H128.775 V353.5 A7,7 0 0 1 135.775,346.5 Z" fill="#f3f1ed" stroke="#171512" stroke-width="1.45" />
+  <text x="200" y="370.25" text-anchor="middle" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true" dy="5.25" textLength="90.45" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Transaction</text>
+  <line x1="128.775" y1="394" x2="271.225" y2="394" stroke="#171512" stroke-width="0.75" />
+  <line x1="128.775" y1="402" x2="271.225" y2="402" stroke="#171512" stroke-width="0.75" />
+</g>
+<path class="class-marker-overlay" aria-hidden="true" d="M149.666666667,155.5 L149.666666667,181.25 Q149.666666667,189.25 141.666666667,189.25 L108,189.25 Q100,189.25 100,197.25 L100,223" fill="none" stroke="#171512" stroke-opacity="0" stroke-width="1.45" marker-start="url(#cls-inherit)" pointer-events="none" data-relationship="marker-carrier" data-direction="reverse" />
+<polyline class="class-marker-overlay" aria-hidden="true" points="200,155.5 200,346.5" fill="none" stroke="#171512" stroke-opacity="0" stroke-width="1.45" marker-start="url(#cls-aggregation)" pointer-events="none" data-relationship="marker-carrier" data-direction="reverse" />
+
+<text x="220.14" y="246.75" text-anchor="middle" font-size="12" font-weight="600" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.2" textLength="26.28" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">logs</text>
+<text x="222" y="169.5" text-anchor="middle" font-size="12" font-weight="600" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-id="rel-card:Account-&gt;Transaction#0:from" data-role="cardinality" data-prepared-text="true" dy="4.2" textLength="4.68" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">1</text>
+<text x="190" y="332.5" text-anchor="middle" font-size="12" font-weight="600" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-id="rel-card:Account-&gt;Transaction#0:to" data-role="cardinality" data-prepared-text="true" dy="4.2" textLength="9" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">*</text>
+</svg>

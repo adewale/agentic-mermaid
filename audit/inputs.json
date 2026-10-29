@@ -1,0 +1,117 @@
+[
+  {
+    "family": "architecture",
+    "fixture": "architecture:minimal",
+    "look": "publication",
+    "arrow_end": "end",
+    "straight_tail_px": 10.0,
+    "nominal_head_px": 11.6,
+    "svg": "architecture_minimal-publication.svg",
+    "source": "architecture-beta\n  group backend(cloud)[Backend]\n  service api(server)[API] in backend\n  service db(database)[Database] in backend\n  service cache(disk)[Cache] in backend\n  api:R --> L:db\n  api:B -[reads]-> T:cache",
+    "options": {
+      "style": "publication-figure",
+      "embedFontImport": false
+    },
+    "connector": "edge:api->cache#0"
+  },
+  {
+    "family": "block",
+    "fixture": "block:representative",
+    "look": "publication",
+    "arrow_end": "end",
+    "straight_tail_px": 5.0,
+    "nominal_head_px": 8.0,
+    "svg": "block_representative-publication.svg",
+    "source": "block\n  columns 3\n  rep0[\"Step 0\"]\n  rep1[\"Step 1\"]\n  rep2[\"Step 2\"]\n  rep3[\"Step 3\"]\n  rep0 --> rep1\n  rep1 --> rep2\n  rep2 --> rep3",
+    "options": {
+      "style": "publication-figure",
+      "embedFontImport": false
+    },
+    "connector": "1-rep2-rep3"
+  },
+  {
+    "family": "class",
+    "fixture": "class:minimal",
+    "look": "publication",
+    "arrow_end": "start",
+    "straight_tail_px": 5.0,
+    "nominal_head_px": 17.4,
+    "svg": "class_minimal-publication.svg",
+    "source": "classDiagram\n  class Account {\n    +id: string\n    +close() void\n  }\n  Account <|-- Savings\n  Account \"1\" o-- \"*\" Transaction : logs",
+    "options": {
+      "style": "publication-figure",
+      "embedFontImport": false
+    },
+    "connector": "rel:Account->Savings#0"
+  },
+  {
+    "family": "requirement",
+    "fixture": "requirement:dense",
+    "look": "publication",
+    "arrow_end": "end",
+    "straight_tail_px": 5.0,
+    "nominal_head_px": 9.0,
+    "svg": "requirement_dense-publication.svg",
+    "source": "requirementDiagram\n  requirement dense0 {\n    id: R0\n    text: \"Requirement 0\"\n    risk: medium\n    verifymethod: test\n  }\n  requirement dense1 {\n    id: R1\n    text: \"Requirement 1\"\n    risk: medium\n    verifymethod: test\n  }\n  requirement dense2 {\n    id: R2\n    text: \"Requirement 2\"\n    risk: medium\n    verifymethod: test\n  }\n  requirement dense3 {\n    id: R3\n    text: \"Requirement 3\"\n    risk: medium\n    verifymethod: test\n  }\n  requirement dense4 {\n    id: R4\n    text: \"Requirement 4\"\n    risk: medium\n    verifymethod: test\n  }\n  dense0 - traces -> dense1\n  dense1 - traces -> dense2\n  dense2 - traces -> dense3\n  dense3 - traces -> dense4\n  element denseextra {\n    type: \"test\"\n  }\n  dense1 - refines -> dense0",
+    "options": {
+      "style": "publication-figure",
+      "embedFontImport": false
+    },
+    "connector": "relation-1"
+  },
+  {
+    "family": "gantt",
+    "fixture": "gantt:minimal",
+    "look": "publication",
+    "arrow_end": "end",
+    "straight_tail_px": 8.0,
+    "nominal_head_px": 11.6,
+    "svg": "gantt_minimal-publication.svg",
+    "source": "gantt\n  title Plan\n  dateFormat YYYY-MM-DD\n  section Build\n  Implement :a1, 2026-01-05, 5d\n  Review :after a1, 2d",
+    "options": {
+      "style": "publication-figure",
+      "embedFontImport": false,
+      "gantt": {
+        "dependencyArrows": true
+      }
+    },
+    "connector": "dep:a1->Review:after"
+  },
+  {
+    "family": "c4",
+    "fixture": "c4:dense",
+    "look": "large-markers",
+    "arrow_end": "end",
+    "straight_tail_px": 17.0,
+    "nominal_head_px": 24.0,
+    "svg": "c4_dense-large-markers.svg",
+    "source": "C4Container\n  System_Boundary(denseg, \"Platform\") {\n    Container(dense0, \"Service 0\", \"HTTP\")\n    Container(dense1, \"Service 1\", \"HTTP\")\n    Container(dense2, \"Service 2\", \"HTTP\")\n    Container(dense3, \"Service 3\", \"HTTP\")\n    Container(dense4, \"Service 4\", \"HTTP\")\n  }\n  Rel(dense0, dense1, \"Call 0\")\n  Rel(dense1, dense2, \"Call 1\")\n  Rel(dense2, dense3, \"Call 2\")\n  Rel(dense3, dense4, \"Call 3\")\n  System_Ext(densex, \"Partner\")\n  Rel(dense0, dense1, \"Retry\")",
+    "options": {
+      "style": {
+        "roles": {
+          "edge": {
+            "lineWidth": 3,
+            "bendRadius": 20
+          }
+        }
+      },
+      "embedFontImport": false
+    },
+    "connector": "c4:c4-rel-3:relationship"
+  },
+  {
+    "family": "flowchart",
+    "fixture": "docs-flowchart-81",
+    "look": "publication",
+    "arrow_end": "end",
+    "straight_tail_px": 10.143749999999983,
+    "nominal_head_px": 11.6,
+    "svg": "docs-docs-flowchart-81-publication.svg",
+    "source": "flowchart TB\n    A & B--> C & D",
+    "options": {
+      "style": "publication-figure",
+      "embedFontImport": false
+    },
+    "connector": "edge:B->C#0"
+  }
+]

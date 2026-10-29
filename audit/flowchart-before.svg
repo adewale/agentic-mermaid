@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="238.1" height="247.2875" viewBox="0 0 238.1 247.2875" style="--bg:#fffdf8;--fg:#171512;--line:#24211d;--accent:#1d4ed8;--muted:#5f5a52;--surface:#faf5ea;--border:#24211d;--font:EB Garamond;background:#fffdf8" class="am-1qlukgc0vgaruy">
+<style>
+  svg.am-1qlukgc0vgaruy { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
+  svg.am-1qlukgc0vgaruy {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #171512;
+    --_text-sec:      #5f5a52;
+    --_text-muted:    #5f5a52;
+    --_text-faint:    #82807c;
+    --_line:          #24211d;
+    --_arrow:         #1d4ed8;
+    --_node-fill:     #faf5ea;
+    --_node-stroke:   #24211d;
+    --_group-fill:    #fffdf8;
+    --_group-hdr:     #f3f1ed;
+    --_inner-stroke:  #e3e1dc;
+    --_key-badge:     #e8e6e1;
+  }
+</style>
+<rect width="238.1" height="247.2875" fill="#fffdf8" data-backdrop="page" />
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#1d4ed8" stroke="#1d4ed8" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#1d4ed8" stroke="#1d4ed8" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-color-u-76-61-72-28-2d-2d-66-67-29" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#171512" stroke="#171512" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start-color-u-76-61-72-28-2d-2d-66-67-29" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#171512" stroke="#171512" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<path class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" d="M61.6833333333,93.5 L61.6833333333,153.7875" fill="none" stroke="#171512" stroke-width="1.45" marker-end="url(#arrowhead-color-u-76-61-72-28-2d-2d-66-67-29)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:A-&gt;C#0" data-role="edge" data-from="A" data-to="C" role="graphics-symbol" aria-roledescription="relation" aria-label="A to C" />
+<path class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" d="M72.525,93.5 L72.525,115.64375 Q72.525,123.64375 80.525,123.64375 L146.733333333,123.64375 Q154.733333333,123.64375 154.733333333,131.64375 L154.733333333,153.7875" fill="none" stroke="#171512" stroke-width="1.45" marker-end="url(#arrowhead-color-u-76-61-72-28-2d-2d-66-67-29)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:A-&gt;D#0" data-role="edge" data-from="A" data-to="D" role="graphics-symbol" aria-roledescription="relation" aria-label="A to D" />
+<path class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" d="M154.733333333,93.5 L154.733333333,103.64375 Q154.733333333,111.64375 146.733333333,111.64375 L127.05,111.64375 Q119.05,111.64375 119.05,119.64375 L119.05,127.64375 Q119.05,135.64375 111.05,135.64375 L91.3666666667,135.64375 Q83.3666666667,135.64375 83.3666666667,143.64375 L83.3666666667,153.7875" fill="none" stroke="#171512" stroke-width="1.45" marker-end="url(#arrowhead-color-u-76-61-72-28-2d-2d-66-67-29)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:B-&gt;C#0" data-role="edge" data-from="B" data-to="C" role="graphics-symbol" aria-roledescription="relation" aria-label="B to C" />
+<path class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" d="M176.416666667,93.5 L176.416666667,153.7875" fill="none" stroke="#171512" stroke-width="1.45" marker-end="url(#arrowhead-color-u-76-61-72-28-2d-2d-66-67-29)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:B-&gt;D#0" data-role="edge" data-from="B" data-to="D" role="graphics-symbol" aria-roledescription="relation" aria-label="B to D" />
+<g class="node" data-id="A" data-label="A" data-shape="rectangle" data-role="node">
+  <rect x="40" y="46" width="65.05" height="47.5" rx="7" ry="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" data-id="node-shape:A" data-role="node" />
+  <text x="72.525" y="69.75" text-anchor="middle" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true" dy="5.25" textLength="13.05" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A</text>
+</g>
+<g class="node" data-id="B" data-label="B" data-shape="rectangle" data-role="node">
+  <rect x="133.05" y="46" width="65.05" height="47.5" rx="7" ry="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" data-id="node-shape:B" data-role="node" />
+  <text x="165.575" y="69.75" text-anchor="middle" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true" dy="5.25" textLength="13.05" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">B</text>
+</g>
+<g class="node" data-id="C" data-label="C" data-shape="rectangle" data-role="node">
+  <rect x="40" y="153.7875" width="65.05" height="47.5" rx="7" ry="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" data-id="node-shape:C" data-role="node" />
+  <text x="72.525" y="177.5375" text-anchor="middle" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true" dy="5.25" textLength="13.05" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">C</text>
+</g>
+<g class="node" data-id="D" data-label="D" data-shape="rectangle" data-role="node">
+  <rect x="133.05" y="153.7875" width="65.05" height="47.5" rx="7" ry="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" data-id="node-shape:D" data-role="node" />
+  <text x="165.575" y="177.5375" text-anchor="middle" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true" dy="5.25" textLength="13.05" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">D</text>
+</g>
+</svg>

@@ -1,0 +1,51 @@
+[
+  {
+    "family": "architecture",
+    "point": [
+      520.175,
+      269
+    ]
+  },
+  {
+    "family": "block",
+    "point": [
+      81.175,
+      99.5
+    ]
+  },
+  {
+    "family": "class",
+    "point": [
+      149.666666667,
+      155.5
+    ]
+  },
+  {
+    "family": "requirement",
+    "point": [
+      378.48,
+      222
+    ]
+  },
+  {
+    "family": "gantt",
+    "point": [
+      527.57,
+      121
+    ]
+  },
+  {
+    "family": "c4",
+    "point": [
+      238,
+      536.1
+    ]
+  },
+  {
+    "family": "flowchart",
+    "point": [
+      83.3666666667,
+      153.7875
+    ]
+  }
+]

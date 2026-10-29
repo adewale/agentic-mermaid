@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1708.148" height="802" viewBox="0 0 1708.148 802" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-label="C4 architecture diagram" class="am-0gdhsiz18oj5f6">
+<style>
+  svg.am-0gdhsiz18oj5f6 { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0gdhsiz18oj5f6 {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<rect width="1708.148" height="802" fill="#FFFFFF" data-backdrop="page" />
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="cluster c4-boundary" data-id="denseg" data-c4-kind="system" data-c4-macro="System_Boundary" data-source-line="2" data-alignment="center" data-role="group">
+  <rect x="64" y="64" width="1119.432" height="552.5" rx="0" ry="0" fill="#FFFFFF" stroke="#949495" stroke-width="1" stroke-dasharray="6 4" data-id="c4:denseg:boundary-frame" data-role="group" />
+  <path d="M64,64 H1183.432 V127.2 H64 Z" fill="#f4f4f4" stroke="#949495" stroke-width="1" />
+  <text x="623.716" y="95.6" text-anchor="middle" font-size="12" font-weight="600" fill="#575759" data-prepared-text="true"><tspan x="623.716" dy="-3.6" textLength="47.88" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Platform</tspan><tspan x="623.716" dy="15.6" textLength="110.52" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">[System Boundary]</tspan></text>
+</g>
+<path class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="Call 0" data-c4-macro="Rel" data-authored-from="dense0" data-authored-to="dense1" data-order="1" d="M238,193.5 L548.716,193.5" fill="none" stroke="#939395" stroke-width="3" marker-end="url(#arrowhead)" data-relationship="c4-Rel" data-direction="forward" data-id="c4-rel-1" data-role="edge" data-from="dense0" data-to="dense1" role="graphics-symbol" aria-roledescription="relation" aria-label="dense0 to dense1: Call 0" />
+<path class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="Call 1" data-c4-macro="Rel" data-authored-from="dense1" data-authored-to="dense2" data-order="2" d="M698.716,214.65 L820.8865,214.65 Q838.5115,214.65 838.5115,197.025 L838.5115,197.025 Q838.5115,179.4 856.1365,179.4 L1009.432,179.4" fill="none" stroke="#939395" stroke-width="3" marker-end="url(#arrowhead)" data-relationship="c4-Rel" data-direction="forward" data-id="c4-rel-2" data-role="edge" data-from="dense1" data-to="dense2" role="graphics-symbol" aria-roledescription="relation" aria-label="dense1 to dense2: Call 1" />
+<path class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="Call 2" data-c4-macro="Rel" data-authored-from="dense2" data-authored-to="dense3" data-order="3" d="M1009.432,207.6 L992.432,207.6 Q975.432,207.6 975.432,224.6 L975.432,283.25 Q975.432,303.25 955.432,303.25 L319.125,303.25 Q299.125,303.25 299.125,323.25 L299.125,516.1 Q299.125,536.1 279.125,536.1 L238,536.1" fill="none" stroke="#939395" stroke-width="3" marker-end="url(#arrowhead)" data-relationship="c4-Rel" data-direction="forward" data-id="c4-rel-3" data-role="edge" data-from="dense2" data-to="dense3" role="graphics-symbol" aria-roledescription="relation" aria-label="dense2 to dense3: Call 2" />
+<path class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="Call 3" data-c4-macro="Rel" data-authored-from="dense3" data-authored-to="dense4" data-order="4" d="M238,564.3 L374.7455,564.3 Q381.7955,564.3 381.7955,557.25 L381.7955,557.25 Q381.7955,550.2 388.8455,550.2 L548.716,550.2" fill="none" stroke="#939395" stroke-width="3" marker-end="url(#arrowhead)" data-relationship="c4-Rel" data-direction="forward" data-id="c4-rel-4" data-role="edge" data-from="dense3" data-to="dense4" role="graphics-symbol" aria-roledescription="relation" aria-label="dense3 to dense4: Call 3" />
+<path class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="Retry" data-c4-macro="Rel" data-authored-from="dense0" data-authored-to="dense1" data-order="5" d="M238,235.8 L548.716,235.8" fill="none" stroke="#939395" stroke-width="3" marker-end="url(#arrowhead)" data-relationship="c4-Rel" data-direction="forward" data-id="c4-rel-5" data-role="edge" data-from="dense0" data-to="dense1" role="graphics-symbol" aria-roledescription="relation" aria-label="dense0 to dense1: Retry" />
+<g class="edge-label" data-id="c4:c4-rel-1:label" data-role="edge-label" data-edge-id="c4-rel-1" data-from="dense0" data-to="dense1">
+  <rect x="292.083" y="178.35" width="47.192" height="30.3" rx="3" ry="3" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="315.679" y="193.5" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="27.192" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Call 0</text>
+</g>
+<g class="edge-label" data-id="c4:c4-rel-2:label" data-role="edge-label" data-edge-id="c4-rel-2" data-from="dense1" data-to="dense2">
+  <rect x="902.15775" y="164.25" width="43.628" height="30.3" rx="3" ry="3" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="923.97175" y="179.4" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="23.628" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Call 1</text>
+</g>
+<g class="edge-label" data-id="c4:c4-rel-3:label" data-role="edge-label" data-edge-id="c4-rel-3" data-from="dense2" data-to="dense3">
+  <rect x="613.6825" y="288.1" width="47.192" height="30.3" rx="3" ry="3" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="637.2785" y="303.25" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="27.192" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Call 2</text>
+</g>
+<g class="edge-label" data-id="c4:c4-rel-4:label" data-role="edge-label" data-edge-id="c4-rel-4" data-from="dense3" data-to="dense4">
+  <rect x="441.65975" y="535.05" width="47.192" height="30.3" rx="3" ry="3" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="465.25575" y="550.2" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="27.192" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Call 3</text>
+</g>
+<g class="edge-label" data-id="c4:c4-rel-5:label" data-role="edge-label" data-edge-id="c4-rel-5" data-from="dense0" data-to="dense1">
+  <rect x="369.465" y="220.65" width="47.786" height="30.3" rx="3" ry="3" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="393.358" y="235.8" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="27.786" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Retry</text>
+</g>
+<g class="node c4-container" data-id="dense0" data-c4-kind="container" data-c4-macro="Container" data-parent-id="denseg" data-source-line="3" data-external="false" data-c4-shape="rectangle" data-effective-c4-shape="rectangle" data-role="node">
+  <rect x="88" y="151.2" width="150" height="126.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="c4:dense0:surface" data-role="node" />
+  <text x="163" y="214.65" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="163" dy="-3.9" textLength="59.007" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Service 0</tspan><tspan x="163" dy="16.9" textLength="107.913" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">[Container: HTTP]</tspan></text>
+</g>
+<g class="node c4-container" data-id="dense1" data-c4-kind="container" data-c4-macro="Container" data-parent-id="denseg" data-source-line="4" data-external="false" data-c4-shape="rectangle" data-effective-c4-shape="rectangle" data-role="node">
+  <rect x="548.716" y="151.2" width="150" height="126.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="c4:dense1:surface" data-role="node" />
+  <text x="623.716" y="214.65" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="623.716" dy="-3.9" textLength="54.561" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Service 1</tspan><tspan x="623.716" dy="16.9" textLength="107.913" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">[Container: HTTP]</tspan></text>
+</g>
+<g class="node c4-container" data-id="dense2" data-c4-kind="container" data-c4-macro="Container" data-parent-id="denseg" data-source-line="5" data-external="false" data-c4-shape="rectangle" data-effective-c4-shape="rectangle" data-role="node">
+  <rect x="1009.432" y="151.2" width="150" height="84.6" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="c4:dense2:surface" data-role="node" />
+  <text x="1084.432" y="193.5" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="1084.432" dy="-3.9" textLength="59.007" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Service 2</tspan><tspan x="1084.432" dy="16.9" textLength="107.913" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">[Container: HTTP]</tspan></text>
+</g>
+<g class="node c4-container" data-id="dense3" data-c4-kind="container" data-c4-macro="Container" data-parent-id="denseg" data-source-line="6" data-external="false" data-c4-shape="rectangle" data-effective-c4-shape="rectangle" data-role="node">
+  <rect x="88" y="507.9" width="150" height="84.6" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="c4:dense3:surface" data-role="node" />
+  <text x="163" y="550.2" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="163" dy="-3.9" textLength="59.007" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Service 3</tspan><tspan x="163" dy="16.9" textLength="107.913" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">[Container: HTTP]</tspan></text>
+</g>
+<g class="node c4-container" data-id="dense4" data-c4-kind="container" data-c4-macro="Container" data-parent-id="denseg" data-source-line="7" data-external="false" data-c4-shape="rectangle" data-effective-c4-shape="rectangle" data-role="node">
+  <rect x="548.716" y="507.9" width="150" height="84.6" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="c4:dense4:surface" data-role="node" />
+  <text x="623.716" y="550.2" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="623.716" dy="-3.9" textLength="59.007" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Service 4</tspan><tspan x="623.716" dy="16.9" textLength="107.913" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">[Container: HTTP]</tspan></text>
+</g>
+<g class="node c4-system" data-id="densex" data-c4-kind="system" data-c4-macro="System_Ext" data-source-line="13" data-external="true" data-c4-shape="rectangle" data-effective-c4-shape="rectangle" data-role="node">
+  <rect x="1494.148" y="64" width="150" height="76" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" stroke-dasharray="5 3" data-id="c4:densex:surface" data-role="node" />
+  <text x="1569.148" y="102" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="1569.148" dy="-3.9" textLength="47.892" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Partner</tspan><tspan x="1569.148" dy="16.9" textLength="104.949" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">[External System]</tspan></text>
+</g>
+<g class="c4-legend">
+  <text x="36" y="708.95" text-anchor="start" font-size="13" font-weight="600" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="50.31" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Legend</text>
+  <rect x="34" y="729.4" width="18" height="14.3" fill="#f9f9f9" stroke="#939395" stroke-width="1" />
+  <text x="62" y="736.55" text-anchor="start" font-size="11" font-weight="400" fill="#27272A" data-prepared-text="true" dy="3.85" textLength="47.982" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Container</text>
+  <rect x="34" y="753.7" width="18" height="14.3" fill="#f9f9f9" stroke="#939395" stroke-width="1" stroke-dasharray="5 3" />
+  <text x="62" y="760.85" text-anchor="start" font-size="11" font-weight="400" fill="#27272A" data-prepared-text="true" dy="3.85" textLength="78.276" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">External System</text>
+</g>
+</svg>

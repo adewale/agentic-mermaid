@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="651.7" height="380.5" viewBox="0 0 651.7 380.5" style="--bg:#fffdf8;--fg:#171512;--line:#24211d;--accent:#1d4ed8;--muted:#5f5a52;--surface:#faf5ea;--border:#24211d;--font:EB Garamond;background:#fffdf8;--arch-group-fill:#faf5ea;--arch-group-stroke:#171512;--arch-group-label:#171512;--arch-service-fill:#faf5ea;--arch-service-stroke:#171512;--arch-service-label:#171512;--arch-edge-stroke:#171512;--arch-edge-label:#171512" class="am-1ulixl40ncxykb">
+<style>
+  svg.am-1ulixl40ncxykb { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
+  svg.am-1ulixl40ncxykb {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #171512;
+    --_text-sec:      #5f5a52;
+    --_text-muted:    #5f5a52;
+    --_text-faint:    #82807c;
+    --_line:          #24211d;
+    --_arrow:         #1d4ed8;
+    --_node-fill:     #faf5ea;
+    --_node-stroke:   #24211d;
+    --_group-fill:    #fffdf8;
+    --_group-hdr:     #f3f1ed;
+    --_inner-stroke:  #e3e1dc;
+    --_key-badge:     #e8e6e1;
+  }
+</style>
+<rect width="651.7" height="380.5" fill="#fffdf8" data-backdrop="page" />
+<defs>
+  <marker id="architecture-arrow-end" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#171512" stroke="#171512" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="architecture-arrow-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#171512" stroke="#171512" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="architecture-group" data-id="backend" data-label="Backend" data-role="group">
+  <rect class="architecture-group-frame" x="40" y="40" width="571.7" height="300.5" rx="7" ry="7" fill="#faf5ea" stroke="none" data-id="group-frame:backend" data-role="group" />
+  <path class="architecture-group-band" d="M47,40 H604.7 A7,7 0 0 1 611.7,47 V68 H40 V47 A7,7 0 0 1 47,40 Z" fill="#efeadf" stroke="none" />
+  <rect class="architecture-group-outline" x="40" y="40" width="571.7" height="300.5" rx="7" ry="7" fill="none" stroke="#171512" stroke-width="1.35" data-id="group-outline:backend" data-role="group" />
+  <g class="architecture-icon" data-icon="cloud">
+  <circle class="architecture-icon-mark" cx="55.3504" cy="54.2944" r="2.3552" fill="none" stroke="#171512" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<circle class="architecture-icon-mark" cx="58.2944" cy="52.8224" r="2.944" fill="none" stroke="#171512" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<circle class="architecture-icon-mark" cx="60.944" cy="54.2944" r="2.208" fill="none" stroke="#171512" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 52.9952 56.3552 H 62.8576" fill="none" stroke="#171512" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+</g>
+  <text x="76" y="54" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="700" letter-spacing="0.08" fill="#171512" data-prepared-text="true" dy="4.2"><tspan x="76" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">B</tspan><tspan x="84.72" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">A</tspan><tspan x="93.44" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">C</tspan><tspan x="102.16" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">K</tspan><tspan x="110.88" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">E</tspan><tspan x="119.6" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">N</tspan><tspan x="128.32" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="10.44" lengthAdjust="spacingAndGlyphs">D</tspan></text>
+</g>
+<path class="architecture-edge" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" d="M184,206.25 L199.928125,206.25 Q207.928125,206.25 207.928125,198.25 L207.928125,124.75 Q207.928125,116.75 215.928125,116.75 L240,116.75" fill="none" stroke="#171512" stroke-width="1.45" stroke-linejoin="round" marker-end="url(#architecture-arrow-end)" data-relationship="architecture-edge" data-direction="forward" data-id="edge:api-&gt;db#0" data-role="edge" data-from="api" data-to="db" role="graphics-symbol" aria-roledescription="relation" aria-label="api to db" />
+<path class="architecture-edge" data-from-side="B" data-to-side="T" data-from-boundary="item" data-to-boundary="item" data-label="reads" d="M124,233 L124,239.9640625 Q124,246.928125 130.9640625,246.928125 L514.246875,246.928125 Q520.175,246.928125 520.175,252.85625 L520.175,269" fill="none" stroke="#171512" stroke-width="1.45" stroke-linejoin="round" marker-end="url(#architecture-arrow-end)" data-relationship="architecture-edge" data-direction="forward" data-id="edge:api-&gt;cache#0" data-role="edge" data-from="api" data-to="cache" role="graphics-symbol" aria-roledescription="relation" aria-label="api to cache: reads" />
+<rect class="architecture-edge-label-bg" x="300.979375" y="232.128125" width="50.36" height="29.6" rx="0" ry="0" fill="#fefcf7" stroke="#d5d3cf" stroke-width="0.75" />
+<text x="326.159375" y="246.928125" class="architecture-edge-label-text" text-anchor="middle" font-size="12" font-weight="600" fill="#171512" data-prepared-text="true" dy="4.2" textLength="36.36" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">reads</text>
+<g class="architecture-service" data-id="api" data-label="API" data-role="service">
+  <rect class="architecture-service-card" x="64" y="179.5" width="120" height="53.5" rx="7" ry="7" fill="#faf5ea" stroke="none" data-id="service-card:api" data-role="service" />
+  <rect class="architecture-service-outline" x="64" y="179.5" width="120" height="53.5" rx="7" ry="7" fill="none" stroke="#171512" stroke-width="1.45" data-id="service-outline:api" data-role="service" />
+  <g class="architecture-icon" data-icon="server">
+  <rect class="architecture-icon-mark" x="95.04" y="201.93" width="7.92" height="8.64" rx="0" ry="0" fill="none" stroke="#171512" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 96.12 204.81 H 101.88" fill="none" stroke="#171512" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 96.12 207.33 H 101.88" fill="none" stroke="#171512" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+</g>
+  <text x="126.2" y="206.25" class="architecture-service-label" text-anchor="start" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true" dy="5.25" textLength="27.45" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">API</text>
+</g>
+<g class="architecture-service" data-id="db" data-label="Database" data-role="service">
+  <rect class="architecture-service-card" x="240" y="90" width="156.65" height="53.5" rx="7" ry="7" fill="#faf5ea" stroke="none" data-id="service-card:db" data-role="service" />
+  <rect class="architecture-service-outline" x="240" y="90" width="156.65" height="53.5" rx="7" ry="7" fill="none" stroke="#171512" stroke-width="1.45" data-id="service-outline:db" data-role="service" />
+  <g class="architecture-icon" data-icon="database">
+  <ellipse class="architecture-icon-mark" cx="275" cy="113.87" rx="4.32" ry="1.8" fill="none" stroke="#171512" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 270.68 113.87 V 120.35" fill="none" stroke="#171512" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 279.32 113.87 V 120.35" fill="none" stroke="#171512" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<ellipse class="architecture-icon-mark" cx="275" cy="117.11" rx="4.32" ry="1.8" fill="none" stroke="#171512" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<ellipse class="architecture-icon-mark" cx="275" cy="120.35" rx="4.32" ry="1.8" fill="none" stroke="#171512" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+</g>
+  <text x="302.2" y="116.75" class="architecture-service-label" text-anchor="start" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true" dy="5.25" textLength="70.65" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Database</text>
+</g>
+<g class="architecture-service" data-id="cache" data-label="Cache" data-role="service">
+  <rect class="architecture-service-card" x="452.65" y="269" width="135.05" height="53.5" rx="7" ry="7" fill="#faf5ea" stroke="none" data-id="service-card:cache" data-role="service" />
+  <rect class="architecture-service-outline" x="452.65" y="269" width="135.05" height="53.5" rx="7" ry="7" fill="none" stroke="#171512" stroke-width="1.45" data-id="service-outline:cache" data-role="service" />
+  <g class="architecture-icon" data-icon="disk">
+  <circle class="architecture-icon-mark" cx="487.65" cy="295.75" r="4.68" fill="none" stroke="#171512" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<circle class="architecture-icon-mark" cx="487.65" cy="295.75" r="1.62" fill="none" stroke="#171512" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+</g>
+  <text x="514.85" y="295.75" class="architecture-service-label" text-anchor="start" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true" dy="5.25" textLength="49.05" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Cache</text>
+</g>
+</svg>

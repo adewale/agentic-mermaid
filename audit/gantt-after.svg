@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="722.6" height="186" viewBox="0 0 722.6 186" style="--bg:#fffdf8;--fg:#171512;--line:#24211d;--accent:#1d4ed8;--muted:#5f5a52;--surface:#faf5ea;--border:#24211d;--font:EB Garamond;background:#fffdf8" class="am-0dzgi1g06dmwec">
+<style>
+  svg.am-0dzgi1g06dmwec { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
+  svg.am-0dzgi1g06dmwec {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #171512;
+    --_text-sec:      #5f5a52;
+    --_text-muted:    #5f5a52;
+    --_text-faint:    #82807c;
+    --_line:          #24211d;
+    --_arrow:         #1d4ed8;
+    --_node-fill:     #faf5ea;
+    --_node-stroke:   #24211d;
+    --_group-fill:    #fffdf8;
+    --_group-hdr:     #f3f1ed;
+    --_inner-stroke:  #e3e1dc;
+    --_key-badge:     #e8e6e1;
+  }
+</style>
+<rect width="722.6" height="186" fill="#fffdf8" data-backdrop="page" />
+<defs>
+  <marker id="gantt-1x7kwj1-dep-arrow" markerWidth="8" markerHeight="7" refX="8" refY="3.5" orient="auto">
+    <path d="M0,0 L8,3.5 L0,7 Z" fill="#171512" />
+  </marker>
+</defs>
+<rect class="gantt-section-band" x="106.6" y="50" width="600" height="90" fill="#faf5ea" opacity="0.07" data-id="section-band:Build#0" data-role="section" />
+<line class="gantt-grid-line" x1="106.6" y1="50" x2="106.6" y2="146" stroke="#171512" stroke-width="1.45" opacity="0.6" />
+<line class="gantt-grid-line" x1="192.31" y1="50" x2="192.31" y2="146" stroke="#171512" stroke-width="1.45" opacity="0.6" />
+<line class="gantt-grid-line" x1="278.03" y1="50" x2="278.03" y2="146" stroke="#171512" stroke-width="1.45" opacity="0.6" />
+<line class="gantt-grid-line" x1="363.74" y1="50" x2="363.74" y2="146" stroke="#171512" stroke-width="1.45" opacity="0.6" />
+<line class="gantt-grid-line" x1="449.46" y1="50" x2="449.46" y2="146" stroke="#171512" stroke-width="1.45" opacity="0.6" />
+<line class="gantt-grid-line" x1="535.17" y1="50" x2="535.17" y2="146" stroke="#171512" stroke-width="1.45" opacity="0.6" />
+<line class="gantt-grid-line" x1="620.89" y1="50" x2="620.89" y2="146" stroke="#171512" stroke-width="1.45" opacity="0.6" />
+<line class="gantt-grid-line" x1="706.6" y1="50" x2="706.6" y2="146" stroke="#171512" stroke-width="1.45" opacity="0.6" />
+<text x="106.6" y="158" class="gantt-axis-label" text-anchor="middle" font-size="12" font-weight="600" fill="#171512" data-prepared-text="true" dy="4.2" textLength="29.88" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-05</text>
+<text x="192.31" y="158" class="gantt-axis-label" text-anchor="middle" font-size="12" font-weight="600" fill="#171512" data-prepared-text="true" dy="4.2" textLength="29.88" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-06</text>
+<text x="278.03" y="158" class="gantt-axis-label" text-anchor="middle" font-size="12" font-weight="600" fill="#171512" data-prepared-text="true" dy="4.2" textLength="29.88" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-07</text>
+<text x="363.74" y="158" class="gantt-axis-label" text-anchor="middle" font-size="12" font-weight="600" fill="#171512" data-prepared-text="true" dy="4.2" textLength="29.88" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-08</text>
+<text x="449.46" y="158" class="gantt-axis-label" text-anchor="middle" font-size="12" font-weight="600" fill="#171512" data-prepared-text="true" dy="4.2" textLength="29.88" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-09</text>
+<text x="535.17" y="158" class="gantt-axis-label" text-anchor="middle" font-size="12" font-weight="600" fill="#171512" data-prepared-text="true" dy="4.2" textLength="25.56" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-10</text>
+<text x="620.89" y="158" class="gantt-axis-label" text-anchor="middle" font-size="12" font-weight="600" fill="#171512" data-prepared-text="true" dy="4.2" textLength="21.24" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-11</text>
+<text x="706.6" y="158" class="gantt-axis-label" text-anchor="middle" font-size="12" font-weight="600" fill="#171512" data-prepared-text="true" dy="4.2" textLength="25.56" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-12</text>
+<text x="8" y="65" class="gantt-section-label" text-anchor="start" font-size="12" font-weight="700" letter-spacing="0.08" fill="#171512" data-id="section-label:Build#0" data-role="section" data-prepared-text="true" dy="4.2"><tspan x="8" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">B</tspan><tspan x="16.72" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">U</tspan><tspan x="25.44" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="2.88" lengthAdjust="spacingAndGlyphs">I</tspan><tspan x="28.4" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">L</tspan><tspan x="37.12" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="10.44" lengthAdjust="spacingAndGlyphs">D</tspan></text>
+<text x="16" y="91" class="gantt-task-label" text-anchor="start" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true" dy="5.25" textLength="70.65" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Implement</text>
+<text x="16" y="121" class="gantt-task-label" text-anchor="start" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true" dy="5.25" textLength="54.45" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Review</text>
+<rect class="gantt-bar" data-task="a1" x="106.6" y="80" width="428.57" height="22" rx="3" ry="3" fill="#1d4ed8" stroke="#171512" stroke-width="1.45" opacity="0.92" data-id="task:a1" data-role="task" />
+<rect class="gantt-bar" data-task="Review" x="535.17" y="110" width="171.43" height="22" rx="3" ry="3" fill="#1d4ed8" stroke="#171512" stroke-width="1.45" opacity="0.92" data-id="task:Review" data-role="task" />
+<g opacity="0.6">
+<path class="gantt-dep-arrow" d="M 535.17 91 L 550.77 91 L 550.77 106 L 519.57 106 L 519.57 121 L 535.17 121" fill="none" stroke="#171512" stroke-width="1.45" marker-end="url(#gantt-1x7kwj1-dep-arrow)" data-relationship="after" data-direction="forward" data-id="dep:a1-&gt;Review:after" data-role="edge" data-from="a1" data-to="Review" role="graphics-symbol" aria-roledescription="relation" aria-label="a1 to Review" />
+</g>
+<text x="361.3" y="18" class="gantt-title" text-anchor="middle" font-size="17" font-weight="700" letter-spacing="0.08" fill="#171512" data-id="title" data-role="title" data-prepared-text="true" dy="5.95"><tspan x="335.425" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.24" lengthAdjust="spacingAndGlyphs">P</tspan><tspan x="347.745" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.24" lengthAdjust="spacingAndGlyphs">L</tspan><tspan x="360.065" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.24" lengthAdjust="spacingAndGlyphs">A</tspan><tspan x="372.385" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="14.79" lengthAdjust="spacingAndGlyphs">N</tspan></text>
+</svg>
