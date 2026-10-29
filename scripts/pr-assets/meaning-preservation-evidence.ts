@@ -87,6 +87,38 @@ const stableRepresentativeCues = {
     'Seven components occupy four authored composite groups, including nested Delivery/Persistence inside a two-column Gateway plane span, two empty cells and durable queue/store artwork. Follow six complete labeled connections; Batch enters Ingress from the west while Enqueue leaves south, preserving distinct physical contacts.',
 } as const
 const ownershipGoldenIds = new Set(['corpus/flowchart/94', 'corpus/flowchart/95', 'corpus/flowchart/96', 'corpus/flowchart/98', 'corpus/state/0', 'corpus/state/1', 'corpus/state/8', 'corpus/state/14', 'corpus/state/16', 'corpus/state/17', 'corpus/state/18', 'corpus/state/19'])
+const lineageSource = `flowchart TD
+  subgraph MermaidFamily[Mermaid lineage]
+    Mermaid[Mermaid.js]
+    Beautiful[Beautiful Mermaid]
+    Dart[Mermaid Dart]
+    Agentic[Agentic Mermaid]
+    Zombie[Zombie Mermaid]
+    ASCII[Mermaid ASCII]
+    Mermaid -->|derivative| Beautiful
+    Mermaid -->|Dart port| Dart
+    Beautiful -->|fork| Agentic
+    Beautiful -->|fork| Zombie
+    ASCII -.->|ASCII component port| Beautiful
+  end
+  subgraph OtherEngines[Other implementation lineages]
+    Pele[Pele]
+    Ondine[Ondine]
+    Bezel[Bezel]
+    Franken[Frankenmermaid]
+    Pele -->|Rust port| Ondine
+    Pele -->|port| Bezel
+  end`
+const lineagePublication: RenderOptions = {
+  style: ['publication-figure', 'nord-light', {
+    font: 'Inter',
+    roles: {
+      node: { fontSize: 18, fontWeight: 600, fillColor: '#fffdf8', borderColor: '#7891a6', textColor: '#233448' },
+      edge: { fontSize: 14, strokeColor: '#5e81ac', textColor: '#456079' },
+      group: { fontSize: 15, fontWeight: 700, borderColor: '#a3b4c3' },
+    },
+  }],
+}
 const chartFittingFixtures: Array<{ id: string; title: string; family: 'pie' | 'radar'; source: string; cue: string }> = [
   {
     id: "chart-fit-pie-long",
@@ -125,6 +157,14 @@ const chartFittingFixtures: Array<{ id: string; title: string; family: 'pie' | '
   },
 ]
 const fixtures: Fixture[] = [
+  ...(['default', 'publication'] as const).map(style => ({
+    id: `flowchart-lineage-${style}`,
+    title: `Issue #566: exact lineage diagram, ${style} styling`,
+    source: lineageSource,
+    renderOptions: style === 'publication' ? lineagePublication : {},
+    captureLayout: true as const, pngWidth: 1800,
+    cue: 'Exact ten-project source from #566, with the same source and options before and after. Inspect derivative clear of Mermaid.js, the straight shaft behind its Beautiful Mermaid arrowhead, port clear of Pele, mirrored Ondine/Bezel emissions with level captions, and distinct solid derivative/dotted ASCII component port terminals into Beautiful Mermaid. The publication pair uses the issue’s full Nord/Inter role overrides. The existing relationship-readability tests check this same lineage under both styles; these finite pairs do not establish arbitrary-graph readability.',
+  })),
   ...([undefined, 'excalidraw'] as const).flatMap(style => chartFittingFixtures.map(fixture => ({
     ...fixture, id: fixture.id + '-' + (style ?? 'default'),
     renderOptions: { style, [fixture.family]: { maxWidth: 360 } },
