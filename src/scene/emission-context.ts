@@ -1,10 +1,12 @@
 import { createInlineColorAttributeResolverForVariables, SVG_STYLE_DECLARATIONS } from '../theme.ts'
 import { isHexColor, tryParseCssColor } from '../shared/color-math.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
+import { isRetainedPixelText } from '../shared/prepared-text.ts'
+import { escapeXml } from '../multiline-utils.ts'
 import { isWellFormedSvgText } from '../output-security.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags, type SvgStartTagToken } from '../svg-structure.ts'
-import type { ConnectorMark, DocumentMark, MarkerDescriptor, SceneDoc, SceneNode } from './ir.ts'
+import type { ConnectorMark, DocumentMark, MarkerDescriptor, SceneDoc, SceneNode, TextMark } from './ir.ts'
 import { serializeMarkerResource } from './marker-resources.ts'
 import { parseSvgTransform, transformMatrix } from './transforms.ts'
 
@@ -17,7 +19,7 @@ export type EmissionColorResolver = (value: string) => string | undefined
  * fragments are checked once the same transaction supplies its header. */
 export function createEmissionContext(pay: Pay, options: { resources?: boolean } = {}) {
   let uncertain = false, finished = false
-  let hasMarkedConnector = false
+  let hasMarkedConnector = false, hasRingConnector = false, fractionalCircleContext = true
   let documentPosition: 'before' | 'inside' | 'after' = 'before'
   let needsVariables = false, needsDerivedVariables = false, canonicalStyles = 0, roots = 0
   const documents: Array<{ node: DocumentMark; svg: string }> = []
@@ -34,6 +36,63 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
   const reserve = (count: number): boolean => {
     if (finished || !Number.isSafeInteger(count) || count < 0 || !pay(count)) { uncertain = true; return false }
     return true
+  }
+  const unsupportedFractionalLeaf = Symbol('unsupported-fractional-leaf')
+  // The fractional ring slice reuses the checked canonical document context.
+  // Its disjoint text bounds additionally need correspondence with this write,
+  // rather than a promise made by a caller's prepared-text metadata.
+  const ringTextWrite = (node: TextMark, svg: string): boolean => {
+    if (!reserve(svg.length * 8 + 128)) return false
+    const own = (value: object, name: string): unknown => {
+      if (!reserve(4)) return unsupportedFractionalLeaf
+      const descriptor = Object.getOwnPropertyDescriptor(value, name)
+      return descriptor ? 'value' in descriptor ? descriptor.value : unsupportedFractionalLeaf : name in value ? unsupportedFractionalLeaf : undefined
+    }
+    const block = own(node, 'block') as TextMark['block']
+    if (!block || typeof block !== 'object' || !isRetainedPixelText(block)
+      || own(node, 'measurement') !== 'prepared' || block.monospace || block.letterSpacing !== 0
+      || block.lineBlocks.length !== 1 || block.lines.length !== 1 || block.lineBlocks[0]!.fragments
+      || block.fontFamily !== undefined && block.fontFamily !== 'Inter'
+      || own(node, 'text') !== block.text || !reserve(block.text.length * 8 + 8) || /[^\x20-\x7e]/.test(block.text)
+      || own(node, 'transform') !== undefined || own(node, 'spans') !== undefined
+      || own(node, 'fontStyle') !== undefined || own(node, 'textDecoration') !== undefined
+      || own(node, 'dominantBaseline') !== undefined) return false
+    const layout = own(node, 'textLayout') as TextMark['textLayout']
+    if (!layout || own(layout, 'width') !== block.width || own(layout, 'height') !== block.height
+      || own(layout, 'offsetY') !== 0 || block.lineBlocks[0]!.width !== block.width) return false
+    const x = own(node, 'x'), y = own(node, 'y'), size = own(node, 'fontSize')
+    const weight = own(node, 'fontWeight') ?? block.fontWeight
+    const shift = own(node, 'baselineShift') ?? 0.35, spacing = own(node, 'letterSpacing') ?? 0
+    if (size !== block.fontSize || weight !== block.fontWeight || shift !== 0.35 || spacing !== 0) return false
+    const numeric = [x, y, size, weight, block.fontSize * 0.35]
+    if (!numeric.every(value => typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= 1e6
+      && Number(formatSvgNumber(value)) === value)) return false
+    // The actual fitted advance can normalize an arithmetic tail. Later text
+    // enclosures add three outward ticks, including this one-tick projection;
+    // the exact ring/body contact comparisons receive no such allowance.
+    if (!Number.isFinite(block.width) || block.width < 0 || block.width > 1e6
+      || Math.abs(Number(formatSvgNumber(block.width)) - block.width) > 1 / 2000) return false
+    const tags = scanSvgStartTags(svg), tag = tags[0]
+    if (tags.length !== 1 || !tag || tag.name !== 'text' || tag.start !== 0
+      || svg.slice(tag.end) !== `${escapeXml(block.text)}</text>`) return false
+    const expected: Record<string, string | undefined> = {
+      x: formatSvgNumber(x as number), y: formatSvgNumber(y as number), 'font-size': formatSvgNumber(size as number),
+      'font-weight': formatSvgNumber(weight as number), 'text-anchor': own(node, 'anchor') as string,
+      dy: formatSvgNumber(block.fontSize * 0.35), textLength: formatSvgNumber(block.width),
+      lengthAdjust: 'spacingAndGlyphs', 'font-family': block.fontFamily,
+      'data-prepared-text': 'true', 'data-font-metrics': 'deterministic-fit',
+    }
+    const names = new Set<string>()
+    for (const attribute of tag.attributes) {
+      if (!reserve(attribute.name.length + attribute.value.length + 4) || names.has(attribute.name)) return false
+      names.add(attribute.name)
+      if (Object.hasOwn(expected, attribute.name)) {
+        if (decodedSvgAttributeValue(tag, attribute.name) !== expected[attribute.name]) return false
+      } else if (!['fill', 'id', 'role', 'class', 'xml:space'].includes(attribute.name)
+        && !attribute.name.startsWith('data-') && !attribute.name.startsWith('aria-')) return false
+    }
+    if (decodedSvgAttributeValue(tag, 'class')?.split(/\s+/).includes('mono')) return false
+    return Object.entries(expected).every(([name, value]) => decodedSvgAttributeValue(tag, name) === value)
   }
   const variableUse = (value: string): void => {
     if (value.includes('var(')) needsVariables = true
@@ -221,22 +280,49 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
       for (const marker of node.markers.mid) reference(marker)
       reference(node.markers.end)
     },
+    /** Call only for an owned captured leaf. A hint requests an actual write;
+     * it grants no geometry or paint authority by itself. */
+    hint(node: SceneNode): boolean {
+      if (!reserve(2)) return false
+      if (node.kind === 'connector') {
+        const reference = (marker: MarkerDescriptor | undefined): void => {
+          if (!marker || !reserve(4)) return
+          if (marker.geometry?.kind === 'circle' && marker.paint?.fill === 'none') hasRingConnector = true
+        }
+        reference(node.markers.start)
+        for (const marker of node.markers.mid) { if (!reserve(1)) break; reference(marker) }
+        reference(node.markers.end)
+      }
+      return hasRingConnector && node.kind !== 'document' && node.kind !== 'group'
+    },
+    /** Observe the fragment from this same captured leaf's actual write. */
+    leaf(node: SceneNode, svg: string): void {
+      if (!hasRingConnector || node.kind === 'document' || node.kind === 'group') return
+      if (node.kind === 'text') {
+        if (!ringTextWrite(node, svg)) fractionalCircleContext = false
+      } else {
+        if (!reserve(svg.length * 8 + 32)) { fractionalCircleContext = false; return }
+        const tags = scanSvgStartTags(svg)
+        if (tags.length !== 1 || decodedSvgAttributeValue(tags[0]!, 'transform') !== undefined) fractionalCircleContext = false
+      }
+    },
+    invalidateFractionalCircle(): void { fractionalCircleContext = false },
     group(shell: Extract<SceneNode, { kind: 'group' }>): void {
       if (reserve(2)) groups.push(shell)
     },
-    finish(header: Header): { readonly uncertain: boolean; readonly resolveColor?: EmissionColorResolver } {
-      if (finished) return Object.freeze({ uncertain: true })
+    finish(header: Header): { readonly uncertain: boolean; readonly fractionalCircleContext: boolean; readonly resolveColor?: EmissionColorResolver } {
+      if (finished) return Object.freeze({ uncertain: true, fractionalCircleContext: false })
       // This new obligation belongs to actual marker-bearing occurrences.
       // Other charts retain their existing proof scope; this is not evidence
       // that their unrelated styles, resources or responsive units are closed.
       if (!hasMarkedConnector) {
         finished = true
-        return Object.freeze({ uncertain: false })
+        return Object.freeze({ uncertain: false, fractionalCircleContext: false })
       }
       const font = ownValue(header.colors, 'font')
       if (!reserve(typeof font === 'string' ? font.length * 4 + 16 : 16)) {
         finished = true
-        return Object.freeze({ uncertain: true })
+        return Object.freeze({ uncertain: true, fractionalCircleContext: false })
       }
       for (const { node, svg } of documents) {
         if (!reserve(svg.length * 8 + 128)) break
@@ -272,7 +358,25 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
       for (const shell of groups) {
         const svg = shell.open
         if (!reserve(svg.length * 8 + 64)) break
-        const tag = scanSvgStartTags(svg)[0]
+        const tags = scanSvgStartTags(svg), tag = tags[0]
+        // Only the new fractional proof needs a complete inert shell. Native
+        // captures these fields; Scene's private hint gate runs before finish.
+        // Generic/default Scene writes never set hasRingConnector.
+        if (hasRingConnector && fractionalCircleContext) {
+          if (!reserve(12)) break
+          const open = Object.getOwnPropertyDescriptor(shell, 'open')
+          const close = Object.getOwnPropertyDescriptor(shell, 'close')
+          const join = Object.getOwnPropertyDescriptor(shell, 'join')
+          if (!open || !('value' in open) || typeof open.value !== 'string'
+            || !close || !('value' in close) || typeof close.value !== 'string'
+            || !join || !('value' in join) || typeof join.value !== 'string') fractionalCircleContext = false
+          else {
+            if (!reserve(svg.length * 2 + close.value.length + join.value.length + 16)) break
+            if (open.value !== svg || tags.length !== 1 || !tag || tag.name !== 'g' || tag.selfClosing
+              || /[^\t\n\r ]/.test(svg.slice(0, tag.start)) || /[^\t\n\r ]/.test(svg.slice(tag.end))
+              || close.value !== '</g>' || /[^\t\n\r ]/.test(join.value)) fractionalCircleContext = false
+          }
+        }
         if (!tag || tag.name !== 'g' || decodedSvgAttributeValue(tag, 'style') !== undefined
           || decodedSvgAttributeValue(tag, 'opacity') !== shell.paint?.opacity
           || decodedSvgAttributeValue(tag, 'fill') !== undefined || shell.paint?.fill !== undefined
@@ -285,6 +389,7 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
           names.add(attribute.name)
         }
         const raw = decodedSvgAttributeValue(tag, 'transform')
+        if (raw !== undefined) fractionalCircleContext = false
         if (raw === undefined) {
           if (shell.transform !== undefined) uncertain = true
         } else {
@@ -334,7 +439,9 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
         }
       }
       finished = true
-      return Object.freeze({ uncertain, ...(resolveColor ? { resolveColor } : {}) })
+      return Object.freeze({ uncertain,
+        fractionalCircleContext: hasRingConnector && fractionalCircleContext && !uncertain && (font === undefined || font === 'Inter'),
+        ...(resolveColor ? { resolveColor } : {}) })
     },
   }
 }

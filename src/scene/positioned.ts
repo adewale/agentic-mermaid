@@ -44,7 +44,7 @@ export function retainedPositionedScene(request: ResolvedRenderRequest, layout: 
   const assertions = sceneAssertionsEnabled(request)
   const writer = plan.backend ?? (plan.mode === 'layout' && request.appearance.inferredBackend === 'default' ? getBackendDescriptor('default') : undefined)
   const writes = !plan.family.id.startsWith('family:') && writer && isBuiltinDefaultBackend(writer.backend) && isOriginalEnrolledDefaultBackend(writer.backend)
-    ? createSceneWriteCapture(MAX_OCCLUSION_OPERATIONS) : undefined
+    ? createSceneWriteCapture(MAX_OCCLUSION_OPERATIONS, { fractionalCircleOutput: !request.appearance.styled && !request.appearance.colors.shadow }) : undefined
   const lower = () => plan.family.lowerScene!({ positioned: layout.positioned, colors, resolved: resolvedFamilyRenderContextOf(request) })
   const scene = withTextMeasurementExecution(plan.textMeasurement, () => admitFamilyScene(plan.family,
     !assertions && !plan.family.id.startsWith('family:') ? withDeferredTerminalProjections(lower) : lower(), assertions, writes?.observe))

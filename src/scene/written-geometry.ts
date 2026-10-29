@@ -1,4 +1,13 @@
-import type { ConnectorContourSemantics, Geometry, ScenePoint } from './ir.ts'
+import type { ConnectorContourSemantics, Geometry, MarkPaint, ScenePoint } from './ir.ts'
+
+// The complete paint field set read by the shape writer. Only numeric
+// attributes can acquire a different literal through SVG number formatting.
+export const rectanglePaintFields: Record<keyof MarkPaint, boolean> = {
+  fill: false, fillOpacity: true, stroke: false, strokeOpacity: true,
+  strokeWidth: true, strokeDasharray: true, strokeDashoffset: true,
+  strokeLinecap: false, strokeLinejoin: false, strokeMiterlimit: true,
+  vectorEffect: false, paintOrder: false, opacity: true,
+}
 
 export interface WrittenPolylineProjection {
   readonly contours: readonly ConnectorContourSemantics[]

@@ -144,6 +144,7 @@ export function drawNative(
       validator.node(shell)
       validator.depth(depth)
       const capturedShell = emission.snapshot(shell)
+      if (!capturedShell) emission.uncertain()
       const matrix = capturedShell ? emission.group(capturedShell) : undefined
       const own = capturedShell?.identity ?? { id: shell.id, role: shell.role }
       for (const child of children) {

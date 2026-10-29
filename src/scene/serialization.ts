@@ -1,10 +1,10 @@
 import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
 import { connectorContourSemantics } from './connector-geometry.ts'
 import { isAdmittedSceneDocument } from './scene-admission-state.ts'
-import type { SceneDoc, SceneNode, Geometry } from './ir.ts'
+import type { SceneDoc, SceneNode, Geometry, MarkPaint, ShapeMark } from './ir.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { writeConnectorSvg, writeShapeSvg, writeTextSvg, type SvgGeometryWriteSink } from './svg-writer.ts'
-import { writtenPolylineProjectionOf } from './written-geometry.ts'
+import { rectanglePaintFields, writtenPolylineProjectionOf } from './written-geometry.ts'
 import { createEmissionContext, type EmissionColorResolver } from './emission-context.ts'
 
 // SVG serialization is backend-private state, not part of the public Scene IR.
@@ -21,6 +21,10 @@ const SERIALIZED_SCENE_NODES = new WeakMap<object, string>()
 const WRITABLE_SCENE_NODES = new WeakSet<object>()
 /** Writer output for frozen (admitted) leaf marks, which cannot change after. */
 const WRITTEN_SCENE_NODES = new WeakMap<object, string>()
+// The snapshot handoff is private writer provenance, not a caller flag. Check
+// membership before reflecting on a node so raw/mutable serialization retains
+// its existing observations and strict writer behavior.
+const TRANSFERRED_WRITABLE_NODES = new WeakSet<object>()
 const POSSIBLE_FITTED_TEXT = /<\s*text/i
 
 /** First-write data belongs to one admission transaction, not a global node
@@ -34,14 +38,18 @@ interface SceneWriteRecorder {
   document(node: Extract<SceneNode, { kind: 'document' }>, svg: string): void
   connector(node: ConnectorNode): void
   group(node: Extract<SceneNode, { kind: 'group' }>): void
+  hint(node: SceneNode): boolean
+  rectangle(node: ShapeMark): boolean
+  rectangleRecord(node: ShapeMark, source: Geometry, served: Geometry | undefined, attributes: Readonly<Record<string, string>> | undefined, svg: string): void
+  leaf(node: Exclude<SceneNode, { kind: 'group' }>, svg: string): void
   record: SceneWriteCallback
 }
 // Explicit transaction tokens identify recorders; there is no active global
 // observer, and callers cannot invoke or substitute a recorder callback.
 const sceneWriteObservers = new WeakMap<SceneSerializationObserver, SceneWriteRecorder>()
 type ConnectorNode = Extract<SceneNode, { kind: 'connector' }>
-interface WrittenPath { readonly source: Geometry; readonly svg: string; readonly served: ConnectorNode; readonly conditional: boolean; readonly path: boolean }
-export interface SceneWriteWork { readonly scene: SceneDoc; readonly operations: number; readonly exhausted: boolean; readonly uncertain: boolean; readonly resolveColor?: EmissionColorResolver }
+interface WrittenPath { readonly source: Geometry | undefined; readonly svg: string; readonly served: Exclude<SceneNode, { kind: 'group' }>; readonly conditional: boolean; readonly path: boolean }
+export interface SceneWriteWork { readonly scene: SceneDoc; readonly operations: number; readonly exhausted: boolean; readonly uncertain: boolean; readonly fractionalCircleContext: boolean; readonly resolveColor?: EmissionColorResolver }
 
 const ownValue = (value: object, key: string): unknown => {
   const descriptor = Object.getOwnPropertyDescriptor(value, key)
@@ -56,24 +64,32 @@ class CapturedSceneWrites {
   readonly #maxOperations: number
   readonly #uncertain: boolean
   readonly #resolveColor: EmissionColorResolver | undefined
-  constructor(scene: SceneDoc, paths: ReadonlyMap<SceneNode, WrittenPath>, operations: number, exhausted: boolean, maxOperations: number, uncertain: boolean, resolveColor?: EmissionColorResolver) {
-    this.#scene = scene; this.#paths = paths; this.#operations = operations; this.#exhausted = exhausted; this.#maxOperations = maxOperations; this.#uncertain = uncertain; this.#resolveColor = resolveColor
+  readonly #fractionalCircleContext: boolean
+  constructor(scene: SceneDoc, paths: ReadonlyMap<SceneNode, WrittenPath>, operations: number, exhausted: boolean, maxOperations: number, uncertain: boolean, fractionalCircleContext: boolean, resolveColor?: EmissionColorResolver) {
+    this.#scene = scene; this.#paths = paths; this.#operations = operations; this.#exhausted = exhausted; this.#maxOperations = maxOperations; this.#uncertain = uncertain; this.#fractionalCircleContext = fractionalCircleContext; this.#resolveColor = resolveColor
   }
 
   begin(scene: SceneDoc) {
     if (scene !== this.#scene) return undefined
     let operations = this.#operations, exhausted = this.#exhausted
+    const consumed = new Set<SceneNode>()
     return {
       node: (node: Exclude<SceneNode, { kind: 'group' }>): WrittenPath | undefined => {
         if (exhausted || operations > this.#maxOperations - 16) { exhausted = true; return undefined }
         operations += 16
         const written = this.#paths.get(node)
-        if (!written || WRITTEN_SCENE_NODES.get(node) !== written.svg) return undefined
-        const route = ownValue(node, 'route')
-        if (!route || typeof route !== 'object' || ownValue(route, 'geometry') !== written.source) return undefined
+        if (!written || written.served.kind !== node.kind || WRITTEN_SCENE_NODES.get(node) !== written.svg) return undefined
+        if (node.kind === 'connector') {
+          const route = ownValue(node, 'route')
+          if (!route || typeof route !== 'object' || ownValue(route, 'geometry') !== written.source) return undefined
+        } else {
+          if (consumed.has(node)) return undefined
+          consumed.add(node)
+          if (node.kind === 'shape' ? ownValue(node, 'geometry') !== written.source : node.kind !== 'text' || written.source !== undefined) return undefined
+        }
         return written
       },
-      work: (): SceneWriteWork => Object.freeze({ scene, operations, exhausted, uncertain: this.#uncertain, resolveColor: this.#resolveColor }),
+      work: (): SceneWriteWork => Object.freeze({ scene, operations, exhausted, uncertain: this.#uncertain, fractionalCircleContext: this.#fractionalCircleContext, resolveColor: this.#resolveColor }),
     }
   }
 }
@@ -85,8 +101,10 @@ export function beginSceneWriteInspection(receipt: SceneWriteReceipt | undefined
   try { return receipt !== undefined && issuedSceneWrites.has(receipt) && receipt instanceof CapturedSceneWrites && isAdmittedSceneDocument(scene) ? receipt.begin(scene) : undefined } catch { return undefined }
 }
 
-export function createSceneWriteCapture(maxOperations: number) {
+export function createSceneWriteCapture(maxOperations: number, options: { fractionalCircleOutput?: boolean } = {}) {
   if (!Number.isSafeInteger(maxOperations) || maxOperations < 0 || maxOperations > MAX_OCCLUSION_OPERATIONS) throw new RangeError('Invalid Scene write work allowance')
+  const option = Object.getOwnPropertyDescriptor(options, 'fractionalCircleOutput')
+  const fractionalCircleOutput = !!option && Object.hasOwn(option, 'value') && option.value === true
   let operations = 0, exhausted = false, finished = false
   const paths = new Map<SceneNode, WrittenPath>()
   const pay = (count: number): boolean => {
@@ -95,6 +113,73 @@ export function createSceneWriteCapture(maxOperations: number) {
     return true
   }
   const context = createEmissionContext(pay)
+  const rectangles = new WeakSet<ShapeMark>()
+  const fractional = new WeakSet<SceneNode>()
+  const inert = <T extends object>(source: T): T | undefined => {
+    if (!pay(2)) return undefined
+    const keys = Object.getOwnPropertyNames(source)
+    if (!pay(keys.length * 3)) return undefined
+    const result = Object.create(null) as T
+    for (const key of keys) {
+      const descriptor = Object.getOwnPropertyDescriptor(source, key)
+      if (!descriptor || !('value' in descriptor)) return undefined
+      Object.defineProperty(result, key, { value: descriptor.value, enumerable: descriptor.enumerable })
+    }
+    return Object.preventExtensions(result)
+  }
+  const hint = (node: SceneNode): boolean => {
+    if (finished || !fractionalCircleOutput) return false
+    // No extra property access or reflection reaches an ordinary raw mark.
+    if (!TRANSFERRED_WRITABLE_NODES.has(node)) { context.invalidateFractionalCircle(); return false }
+    if (!pay(4) || Object.getPrototypeOf(node) !== null || !Object.isFrozen(node)) { context.invalidateFractionalCircle(); return false }
+    const keys = Object.getOwnPropertyNames(node)
+    if (!pay(keys.length * 2)) return false
+    for (const key of keys) if (!('value' in Object.getOwnPropertyDescriptor(node, key)!)) { context.invalidateFractionalCircle(); return false }
+    if (!context.hint(node)) return false
+    fractional.add(node)
+    return true
+  }
+  const rectangle = (node: ShapeMark): boolean => {
+    if (!fractional.has(node) || !pay(32)) return false
+    const geometry = ownValue(node, 'geometry'), paint = ownValue(node, 'paint')
+    if (!geometry || typeof geometry !== 'object' || !paint || typeof paint !== 'object'
+      || Object.getPrototypeOf(geometry) !== null || !Object.isFrozen(geometry)
+      || Object.getPrototypeOf(paint) !== null || !Object.isFrozen(paint) || 'transform' in node
+      || ownValue(geometry, 'kind') !== 'rect') return false
+    for (const field of ['x', 'y', 'width', 'height']) if (typeof ownValue(geometry, field) !== 'number') return false
+    if (!((ownValue(geometry, 'width') as number) > 0 && (ownValue(geometry, 'height') as number) > 0)) return false
+    for (const field of ['rx', 'ry']) if (ownValue(geometry, field) !== undefined && ownValue(geometry, field) !== 0) return false
+    for (const field of Object.keys(rectanglePaintFields) as (keyof MarkPaint)[]) {
+      if (!pay(4)) return false
+      const descriptor = Object.getOwnPropertyDescriptor(paint, field)
+      if (!descriptor) { if (field in paint) return false; continue }
+      if (!('value' in descriptor) || descriptor.value !== undefined && (typeof descriptor.value !== 'string' || rectanglePaintFields[field] && descriptor.value.length >= 13)) return false
+    }
+    rectangles.add(node)
+    return true
+  }
+  const rectangleRecord = (node: ShapeMark, source: Geometry, served: Geometry | undefined, attributes: Readonly<Record<string, string>> | undefined, svg: string): void => {
+    if (finished || !rectangles.has(node) || !pay(64) || ownValue(node, 'geometry') !== source) return
+    let conditional = !served || served.kind !== 'rect' || source.kind !== 'rect' || !attributes
+    if (served?.kind === 'rect' && (!(served.width > 0 && served.height > 0) || (served.rx ?? 0) !== 0 || (served.ry ?? 0) !== 0)) conditional = true
+    let matched = 0
+    const paint = node.paint
+    if (attributes) for (const field of Object.keys(rectanglePaintFields) as (keyof MarkPaint)[]) {
+      if (!pay(field.length * 2 + 4)) return
+      const attribute = field.replace(/[A-Z]/g, char => `-${char.toLowerCase()}`), expected = paint[field]
+      const descriptor = Object.getOwnPropertyDescriptor(attributes, attribute)
+      if (descriptor && (!('value' in descriptor) || typeof descriptor.value !== 'string')) conditional = true
+      const actual = descriptor?.value as string | undefined
+      if (!pay((expected?.length ?? 0) + (actual?.length ?? 0))) return
+      if (actual !== expected) conditional = true
+      if (descriptor) matched++
+    }
+    if (attributes && (!pay(16) || Object.getOwnPropertyNames(attributes).length !== matched)) conditional = true
+    const geometry = served && inert(served), proof = inert(node)
+    const overlay = geometry && proof && replace(proof, 'geometry', geometry)
+    if (paths.has(node)) { paths.delete(node); exhausted = true; return }
+    paths.set(node, Object.freeze({ source, svg, served: overlay ?? node, conditional: conditional || !overlay, path: false }))
+  }
   const replace = <T extends object>(source: T, key: string, value: unknown): T | undefined => {
     if (!pay(2)) return undefined
     const keys = Object.getOwnPropertyNames(source)
@@ -161,7 +246,14 @@ export function createSceneWriteCapture(maxOperations: number) {
   sceneWriteObservers.set(observe, { reserve: () => !finished && pay(192), reserveProjection: operations => !finished && pay(operations),
     document: (node, svg) => { if (!finished) context.document(node, svg) },
     connector: node => { if (!finished) context.connector(node) },
-    group: node => { if (!finished) context.group(node) }, record })
+    group: node => { if (!finished) context.group(node) }, hint, rectangle, rectangleRecord,
+    leaf: (node, svg) => {
+      if (finished || !fractional.has(node)) return
+      context.leaf(node, svg)
+      if (node.kind !== 'text' || !pay(32)) return
+      if (paths.has(node)) { paths.delete(node); exhausted = true; return }
+      paths.set(node, Object.freeze({ source: undefined, svg, served: node, conditional: false, path: false }))
+    }, record })
   return {
     observe,
     finish(scene: SceneDoc): SceneWriteReceipt | undefined {
@@ -169,7 +261,8 @@ export function createSceneWriteCapture(maxOperations: number) {
       finished = true
       if (!isAdmittedSceneDocument(scene)) return undefined
       const result = context.finish(scene)
-      const receipt = new CapturedSceneWrites(scene, paths, operations, exhausted, maxOperations, result.uncertain, result.uncertain ? undefined : result.resolveColor)
+      const receipt = new CapturedSceneWrites(scene, paths, operations, exhausted, maxOperations, result.uncertain,
+        fractionalCircleOutput && result.fractionalCircleContext && !exhausted, result.uncertain ? undefined : result.resolveColor)
       Object.freeze(receipt)
       issuedSceneWrites.add(receipt)
       return receipt
@@ -308,23 +401,46 @@ function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observ
   let source: Geometry | undefined, served: Geometry | undefined, received = false, invalid = false, projectionReserved = false
   if (node.kind === 'group') recorder?.group(node)
   if (node.kind === 'connector') recorder?.connector(node)
-  const watched = recorder && node.kind === 'connector' && recorder.reserve()
+  const fractional = recorder?.hint(node) ?? false
+  const rectangle = fractional && node.kind === 'shape' && recorder!.rectangle(node)
+  const watchedConnector = recorder && node.kind === 'connector'
+  const watched = recorder && (watchedConnector || rectangle) && recorder.reserve()
+  let attributesReceived = false, invalidAttributes = false, attributes: Readonly<Record<string, string>> | undefined
   const geometrySink: SvgGeometryWriteSink | undefined = watched ? Object.assign((geometry: Geometry, written: Geometry | undefined) => {
     if (received) { invalid = true; return }
     received = true
     source = geometry
-    served = written
+    if (rectangle && written) {
+      if (!recorder!.reserveProjection(48)) { invalid = true; return }
+      const fresh = Object.create(null) as Geometry
+      for (const key of Object.getOwnPropertyNames(written)) {
+        const descriptor = Object.getOwnPropertyDescriptor(written, key)
+        if (!descriptor || !('value' in descriptor)) { invalid = true; return }
+        Object.defineProperty(fresh, key, { value: descriptor.value, enumerable: descriptor.enumerable })
+      }
+      served = Object.preventExtensions(fresh)
+    } else served = written
     sink?.(geometry, written)
   }, { reserveProjection: (geometry: Geometry, operations: number) => {
     if (node.kind !== 'connector' || geometry !== node.route.geometry || projectionReserved) { invalid = true; return false }
     projectionReserved = true
     return recorder!.reserveProjection(operations)
-  } }) : sink
+  }, rectangleAttributes: rectangle ? (shape: ShapeMark, actual: Readonly<Record<string, string>> | undefined): void => {
+    if (shape !== node || attributesReceived) { invalidAttributes = true; return }
+    attributesReceived = true
+    attributes = actual
+    sink?.rectangleAttributes?.(shape, actual)
+  } : undefined }) : sink
   const svg = writeSceneNode(node, geometrySink, observer)
   // A group is written from its children each time: its children array is
   // not part of what freezing it protects.
   if (node.kind !== 'group' && Object.isFrozen(node)) WRITTEN_SCENE_NODES.set(node, svg)
-  if (watched && source && !invalid && source === node.route.geometry) recorder!.record(node, source, served, svg)
+  if (watched && source) {
+    if (watchedConnector && !invalid && source === (node as ConnectorNode).route.geometry) recorder!.record(node, source, served, svg)
+    else if (rectangle && node.kind === 'shape') recorder!.rectangleRecord(node, source, invalid ? undefined : served,
+      attributesReceived && !invalidAttributes ? attributes : undefined, svg)
+  }
+  if (fractional && node.kind !== 'group' && node.kind !== 'document') recorder!.leaf(node, svg)
   return svg
 }
 
@@ -352,7 +468,12 @@ export function indentLines(s: string, n: number): string {
 export function transferSceneNodeSerialization(source: object, target: object): void {
   const svg = SERIALIZED_SCENE_NODES.get(source)
   if (svg !== undefined) SERIALIZED_SCENE_NODES.set(target, svg)
-  if (WRITABLE_SCENE_NODES.has(source)) WRITABLE_SCENE_NODES.add(target)
+  if (WRITABLE_SCENE_NODES.has(source)) {
+    WRITABLE_SCENE_NODES.add(target)
+    // Only the Scene snapshot handoff starts with an inert target. A public
+    // group clone starts plain; changing its prototype later cannot upgrade it.
+    if (Object.getPrototypeOf(target) === null) TRANSFERRED_WRITABLE_NODES.add(target)
+  }
 }
 
 export function hasSceneNodeSerialization(value: object): boolean {

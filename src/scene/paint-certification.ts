@@ -516,6 +516,7 @@ function prepareFractionalCircleStroke(
   node: NativeConnectorPaintSource, marker: MarkerDescriptor | undefined, position: 'start' | 'mid' | 'end',
   carrier: ScenePaintPrimitive, primitives: readonly ScenePaintPrimitive[], viewport: AxisAlignedBox,
   resolveColor: (value: string) => string | undefined, attached: (owner: SceneOwner) => boolean, work: () => boolean,
+  written: (primitive: ScenePaintPrimitive) => boolean,
 ): CircleStrokeProof | undefined {
   const pay = (count: number): boolean => { for (let i = 0; i < count; i++) if (!work()) return false; return true }
   // Captured own slots are immutable, but an omitted field must not acquire
@@ -559,7 +560,7 @@ function prepareFractionalCircleStroke(
   const g = record(marker?.geometry, ['kind', 'cx', 'cy', 'r'])
   const paint = record(marker?.paint, ['fill', 'stroke', 'strokeWidth', 'opacity', 'fillOpacity', 'strokeOpacity', 'strokeDasharray', 'strokeDashoffset', 'strokeLinecap', 'strokeLinejoin', 'strokeMiterlimit', 'paintOrder', 'vectorEffect'])
   const size = record(marker?.size, ['width', 'height']), ref = record(marker?.ref, ['x', 'y']), line = node.route.geometry
-  if (!pay(96) || g?.kind !== 'circle' || !paint || position === 'mid' || node.transform || node.route.closed
+  if (!pay(96) || !written(carrier) || g?.kind !== 'circle' || !paint || position === 'mid' || node.transform || node.route.closed
     || node.stroke.nonScaling || node.stroke.dash || node.stroke.mixBlendMode && node.stroke.mixBlendMode !== 'normal'
     || node.stroke.paintOrder !== undefined && node.stroke.paintOrder !== 'normal'
     || node.stroke.opacity !== undefined && node.stroke.opacity !== 1 && node.stroke.opacity !== '1'
@@ -607,7 +608,7 @@ function prepareFractionalCircleStroke(
     if (!pay(48)) return undefined
     if (primitive === carrier || primitive.coverage === 'non-painting') continue
     if (primitive.kind === 'document' || primitive.order < carrier.order || primitive.coverage !== 'measured'
-      || primitive.visibility === 'conditional' || primitive.groupOpacity !== undefined || !hasNativeEmissionOccurrence(primitive)) return undefined
+      || primitive.visibility === 'conditional' || primitive.groupOpacity !== undefined || !written(primitive)) return undefined
     const matrix = scenePrimitiveMatrix(primitive), source = paintPrimitiveSource(primitive)
     if (!matrix || !matrix.every((value, index) => value === [1, 0, 0, 1, 0, 0][index])) return undefined
     if (primitive.kind === 'text') {
@@ -1449,8 +1450,11 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
         && !!matrix && matrix[0] === 1 && matrix[1] === 0 && matrix[2] === 0 && matrix[3] === 1 && matrix[4] === 0 && matrix[5] === 0
       const mayFill = markerMayHaveOpaqueFill(resolvePaintColor, descriptor, work)
       const strokeProof = semantic && exactWorld ? prepareMarkerPolygonInk(scene, node, descriptor, marker.position, work, resolvePaintColor) : undefined
-      let circleStroke = semantic && exactWorld && !repaired && emissionWork?.fractionalCircleContext && emissionWork.header.transparent === false
-        ? prepareFractionalCircleStroke(node, descriptor, marker.position, primitive, inspection.primitives, finalBounds, resolvePaintColor, owner => endpointRelation(node, owner) === 'attached', work) : undefined
+      const fractionalCircleAuthority = emissionWork?.fractionalCircleContext && emissionWork.header.transparent === false
+        ? hasNativeEmissionOccurrence
+        : sceneWriteWork?.fractionalCircleContext && sceneWriteWork.scene.transparent === false ? hasSceneWriteEmissionOccurrence : undefined
+      let circleStroke = semantic && exactWorld && !repaired && fractionalCircleAuthority
+        ? prepareFractionalCircleStroke(node, descriptor, marker.position, primitive, inspection.primitives, finalBounds, resolvePaintColor, owner => endpointRelation(node, owner) === 'attached', work, fractionalCircleAuthority) : undefined
       if (!circleStroke && semantic && exactWorld && !repaired && emissionWork?.closedMarkerContext) circleStroke = prepareCircleStroke(node, descriptor, marker.position, work)
       if (circleStroke && !circleStroke.separated) for (const later of inspection.primitives) {
         if (!work()) { circleStroke = undefined; break }
