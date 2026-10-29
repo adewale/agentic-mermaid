@@ -1,0 +1,52 @@
+{
+  "rasterizer": "154.0.8037.57",
+  "font": "Bundled EB Garamond and Inter; system fallback where needed",
+  "method": "Production SVG, unchanged viewBox crops at 1000px width, embedded local font faces, external network requests blocked",
+  "renders": [
+    {
+      "name": "class-80-publication-after-detail.png",
+      "crop": {
+        "x": 6450,
+        "y": 356,
+        "w": 195,
+        "h": 186
+      }
+    },
+    {
+      "name": "cyclic-labelled-15-chains-before-detail.png",
+      "crop": {
+        "x": 252.90150000000006,
+        "y": 597.704,
+        "w": 433.04123333333337,
+        "h": 442.7399999999999
+      }
+    },
+    {
+      "name": "multigraph-24-publication-before-detail.png",
+      "crop": {
+        "x": 1368.3885119047618,
+        "y": 493.9625000000001,
+        "w": 739.8348809523809,
+        "h": 139.14374999999995
+      }
+    },
+    {
+      "name": "cyclic-labelled-15-chains-after-detail.png",
+      "crop": {
+        "x": 252.90150000000006,
+        "y": 597.704,
+        "w": 433.04123333333337,
+        "h": 442.7399999999999
+      }
+    },
+    {
+      "name": "multigraph-24-publication-after-detail.png",
+      "crop": {
+        "x": 1368.3885119047618,
+        "y": 493.9625000000001,
+        "w": 739.8348809523809,
+        "h": 139.14374999999995
+      }
+    }
+  ]
+}

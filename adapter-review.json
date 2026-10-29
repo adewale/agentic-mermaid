@@ -1,0 +1,172 @@
+{
+  "base": "9fc3a141297ea0dd954fae903e5609e2efb8ba7e",
+  "head": "f271cd1e71acd5668c8fc87fec6ad2c3df24636b",
+  "families": [
+    "flowchart",
+    "state",
+    "class",
+    "er",
+    "requirement"
+  ],
+  "combinations": "four directions x default/publication-figure",
+  "cases": 40,
+  "all_rendered": true,
+  "node_and_relationship_identities_preserved": true,
+  "all_40_svg_pairs_byte_identical": true,
+  "extraction_boundary_cases": [
+    {
+      "anchor": 348.04,
+      "delta": -5.684341886080802e-14,
+      "snap": true,
+      "expected": 348.04,
+      "actual": [
+        [
+          338.04,
+          0
+        ],
+        [
+          348.04,
+          0
+        ],
+        [
+          348.04,
+          20
+        ],
+        [
+          388.03999999999996,
+          20
+        ]
+      ]
+    },
+    {
+      "anchor": 348.04,
+      "delta": 1e-11,
+      "snap": false,
+      "expected": 348.04000000001,
+      "actual": [
+        [
+          338.04,
+          0
+        ],
+        [
+          348.04,
+          0
+        ],
+        [
+          348.04000000001,
+          20
+        ],
+        [
+          388.04000000001,
+          20
+        ]
+      ]
+    },
+    {
+      "anchor": 348.04,
+      "delta": 1e-05,
+      "snap": false,
+      "expected": 348.04001,
+      "actual": [
+        [
+          338.04,
+          0
+        ],
+        [
+          348.04,
+          0
+        ],
+        [
+          348.04001,
+          20
+        ],
+        [
+          388.04001,
+          20
+        ]
+      ]
+    },
+    {
+      "anchor": 1000000000,
+      "delta": 5e-07,
+      "snap": true,
+      "expected": 1000000000,
+      "actual": [
+        [
+          999999990,
+          0
+        ],
+        [
+          1000000000,
+          0
+        ],
+        [
+          1000000000,
+          20
+        ],
+        [
+          1000000040.0000005,
+          20
+        ]
+      ]
+    },
+    {
+      "anchor": 1000000000,
+      "delta": 2e-06,
+      "snap": false,
+      "expected": 1000000000.000002,
+      "actual": [
+        [
+          999999990,
+          0
+        ],
+        [
+          1000000000,
+          0
+        ],
+        [
+          1000000000.000002,
+          20
+        ],
+        [
+          1000000040.000002,
+          20
+        ]
+      ]
+    },
+    {
+      "anchor": 10000000000000000,
+      "delta": 2,
+      "snap": false,
+      "expected": 10000000000000002,
+      "actual": [
+        [
+          9999999999999990,
+          0
+        ],
+        [
+          10000000000000000,
+          0
+        ],
+        [
+          10000000000000000,
+          10
+        ],
+        [
+          10000000000000002,
+          10
+        ],
+        [
+          10000000000000002,
+          20
+        ],
+        [
+          10000000000000042,
+          20
+        ]
+      ]
+    }
+  ],
+  "review": "No introduced defect found. Reviewed frame offsets before alignment; joining before simplification; bounded, anchored snapping; Class contact projection and ER contact reconstruction; Requirement downstream translation. Existing real-offset orthogonalization retains the 2px offset at 1e16.",
+  "limits": "Purposeful fixture combinations, not an exhaustive corpus or routing proof. ER and Requirement have no demonstrated failing baseline witness for this change."
+}

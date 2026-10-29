@@ -1,0 +1,31 @@
+LayoutCertificationError: No certified layout after 1 bounded attempts: class-owned-surfaces: Relationship C3 -> C7 lacks an outward Class contact; Relationship C7 -> C15 lacks an outward Class contact; Relationship C7 -> C15 lacks an outward Class contact; Relationship C35 -> C72 lacks an outward Class contact
+    at finalizeClassSurfaces (/workspace/pr582-base/src/class/layout.ts:809:32)
+    at finishClassLayout (/workspace/pr582-base/src/class/layout.ts:775:3)
+    at /workspace/pr582-base/src/class/layout.ts:732:14
+    at runMeasuredGraphBackend (/workspace/pr582-base/src/layout/backend.ts:68:23)
+    at layoutClassDiagram (/workspace/pr582-base/src/class/layout.ts:619:47)
+    at Object.layout (/workspace/pr582-base/src/svg-family-hooks/class.ts:25:69)
+    at /workspace/pr582-base/src/positioning.ts:126:27
+    at withGraphLayoutDecisionObserver (/workspace/pr582-base/src/layout/backend.ts:37:15)
+    at /workspace/pr582-base/src/positioning.ts:123:53
+    at withTextMeasurementExecution (/workspace/pr582-base/src/text-measurement-profile.ts:93:12)
+    at positionFamily (/workspace/pr582-base/src/positioning.ts:108:67)
+    at positionFamilyForNativeRender (/workspace/pr582-base/src/positioning.ts:67:18)
+    at /workspace/pr582-base/src/graphical-render.ts:233:106
+    at measureRenderStage (/workspace/pr582-base/src/render-stages.ts:25:24)
+    at renderResolvedMermaidSVG (/workspace/pr582-base/src/graphical-render.ts:233:42)
+    at consumeResolvedGraphicalRequest (/workspace/pr582-base/src/graphical-render.ts:279:20)
+    at executeInspectedGraphicalRequest (/workspace/pr582-base/src/graphical-render.ts:267:10)
+    at /workspace/pr582-base/src/graphical-render.ts:250:64
+    at withSvgInspectionCache (/workspace/pr582-base/src/svg-inspection-cache.ts:19:15)
+    at executeGraphicalRequest (/workspace/pr582-base/src/graphical-render.ts:250:57)
+    at renderMermaidSVGWithReceipt (/workspace/pr582-base/src/index.ts:329:55)
+    at renderMermaidSVGWithReceipt (/workspace/pr582-base/src/agent/core.ts:444:200)
+    at Object.<anonymous> (/tmp/pr582-capture.cjs:19:18)
+    at Module._compile (node:internal/modules/cjs/loader:1872:14)
+    at Object..js (node:internal/modules/cjs/loader:2003:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47
