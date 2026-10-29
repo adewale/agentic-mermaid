@@ -1,57 +1,57 @@
 [
   {
     "family": "architecture",
-    "median_ms": 7.452953999999977,
-    "p95_ms": 9.461834000000067,
+    "median_ms": 7.174264000000107,
+    "p95_ms": 9.620971000000054,
     "layout_misses": 0,
     "layout_fallbacks": 0
   },
   {
     "family": "block",
-    "median_ms": 4.232120000000009,
-    "p95_ms": 6.370728999999983,
+    "median_ms": 4.08954099999994,
+    "p95_ms": 5.556103000000007,
     "layout_misses": 0,
     "layout_fallbacks": 0
   },
   {
     "family": "class",
-    "median_ms": 6.450681999999915,
-    "p95_ms": 7.439241999999922,
+    "median_ms": 6.517267999999831,
+    "p95_ms": 7.113679000000047,
     "layout_misses": 0,
     "layout_fallbacks": 0
   },
   {
     "family": "requirement",
-    "median_ms": 9.172716000000037,
-    "p95_ms": 18.460922999999866,
+    "median_ms": 10.566184000000021,
+    "p95_ms": 20.964901000000054,
     "layout_misses": 0,
     "layout_fallbacks": 0
   },
   {
     "family": "gantt",
-    "median_ms": 5.057895000000144,
-    "p95_ms": 11.427973000000065,
+    "median_ms": 5.335689000000002,
+    "p95_ms": 13.379284999999982,
     "layout_misses": 0,
     "layout_fallbacks": 0
   },
   {
     "family": "c4",
-    "median_ms": 13.83500099999992,
-    "p95_ms": 21.270341000000144,
+    "median_ms": 14.577041000000008,
+    "p95_ms": 34.29661299999998,
     "layout_misses": 0,
     "layout_fallbacks": 0
   },
   {
     "family": "flowchart",
-    "median_ms": 1.7237830000001395,
-    "p95_ms": 11.656870000000026,
+    "median_ms": 1.7275979999999436,
+    "p95_ms": 1.8492049999999836,
     "layout_misses": 0,
     "layout_fallbacks": 0
   },
   {
     "family": "straight-control",
-    "median_ms": 1.0807170000000497,
-    "p95_ms": 1.3634620000000268,
+    "median_ms": 1.0559369999996306,
+    "p95_ms": 5.771353999999974,
     "layout_misses": 0,
     "layout_fallbacks": 0
   }
