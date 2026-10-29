@@ -38,11 +38,13 @@ route-contract extraction preserves the existing pipeline manifest and order.
   explicit geometry/proof ownership. Keep the
   [campaign preservation contract](docs/design/system/performance-campaign.md).
 
-- [ ] **REL-1 — Qualify, publish and verify 0.5.2** (`todo`,
+- [ ] **REL-1 — Qualify, publish and verify 0.5.3** (`todo`,
   [#378](https://github.com/adewale/agentic-mermaid/issues/378)). The release
-  target and prepared source version are 0.5.2. npm 0.5.1 was verified on
+  target and prepared source version are 0.5.3. npm 0.5.1 was verified on
   29 October; its immutable package cannot include these later fixes. The
-  0.5.0 source tag is retained after its blocked publication. Retain the
+  0.5.0 and 0.5.2 source tags are retained after their blocked publications.
+  The macOS release gate uses a standard Intel macOS 26 host after GitHub's
+  arm64 pool could not acquire the 0.5.2 job. Retain the
   documented source-edit/export limits, update the release issue's automation
   marker when the version change lands, and run
   canonical CI, including its independent semantic and packed-consumer checks,
@@ -62,7 +64,7 @@ route-contract extraction preserves the existing pipeline manifest and order.
   The owner's 27 October decision defers #449's Native-layout qualification
   to 0.6.0; it is not a 0.5 publication condition. ELK remains the default.
   The owner's 29 October decision also moves AGENT-1, AGENT-2 and AGENT-3
-  to 0.6.0. Those improvements remain open and are not 0.5.2 release claims.
+  to 0.6.0. Those improvements remain open and are not 0.5.3 release claims.
 - [ ] **DEC-6 — Decide the hosted `execute` boundary from usage evidence**
   (`owner-decision`, [#204](https://github.com/adewale/agentic-mermaid/issues/204)).
   Compare hosted direct tools, hosted Code Mode and local Code Mode for real

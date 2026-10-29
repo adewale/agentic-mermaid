@@ -59,7 +59,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        # Keep the macOS rendering gate on a standard Intel host. The arm64
+        # pool behind macos-latest could not acquire v0.5.2's release job.
+        os: [macos-26-intel, windows-latest]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Setup Bun

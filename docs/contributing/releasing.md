@@ -12,8 +12,10 @@ Node 22. `bun run lint:package` runs publint and attw on the packed tarball, so
 every export resolves and carries types for Node ESM and bundlers. attw uses its
 `esm-only` profile because the package ships ESM only, and it skips `./browser`
 because that is the classic `<script>` bundle that sets a global, not an import.
-The release workflow retains the registry-derived macOS/Windows smoke and
-owns the publish boundary: an unprivileged job builds once, creates a real
+The release workflow runs the registry-derived rendering contracts on standard
+Intel macOS 26 (`macos-26-intel`) and Windows (`windows-latest`). Its macOS
+smoke covers x64, without a fresh ARM64 result. The workflow owns the publish
+boundary: an unprivileged job builds once, creates a real
 tarball with the pinned publishing npm, compares its contents with the
 reviewed fail-closed manifest, records its integrity and SHA-256 digest, and
 uploads that immutable artifact under a fixed filename. Performance comparisons

@@ -4,6 +4,17 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+## 0.5.3 — 2026-10-29
+
+Includes the 0.5.2 changes below. Its registry publication was blocked when
+GitHub could not allocate a macOS arm64 runner; its source tag is retained.
+
+### Fixed
+
+- Run the required macOS release build and rendering contracts on a standard
+  Intel macOS 26 runner. Windows coverage, the rendering suite, build heap
+  allowance and verified-artifact publication gates are unchanged.
+
 ## 0.5.2 — 2026-10-29
 
 ### Fixed
