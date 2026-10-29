@@ -1,5 +1,4 @@
 import { sanitizeDisplayLines } from '../shared/text-controls.ts'
-import { decodeXML } from 'entities'
 // ============================================================================
 // Mark constructors — the only way family lowerings build scene nodes.
 //
@@ -36,8 +35,8 @@ import {
 } from './connector-geometry.ts'
 import { connectorInlineLabelText } from './bounds.ts'
 import { setConnectorTerminalProjection, copyDeferredTerminalProjection, deferredTerminalProjectionInput } from './deferred-terminal-projection.ts'
-import { visitSvgFirstTagAttributes } from '../svg-structure.ts'
-import { parseSvgTransform, transformMatrix } from './transforms.ts'
+import type { parseSvgTransform } from './transforms.ts'
+import { assertInertGroup } from './group-emission.ts'
 import {
   admitWritableSceneNode,
   attachSceneNodeSerialization,
@@ -66,34 +65,8 @@ function assertMarkAttributes(id: string, attributes: MarkAttributes | undefined
   if (attributes.ariaLabel !== undefined && typeof attributes.ariaLabel !== 'string') throw new TypeError(`Mark "${id}" ariaLabel must be a string`)
 }
 
-const GROUP_HOOK = /^(?:class|data-[a-z][a-z0-9-]*|role|aria-[a-z]+|tabindex|pointer-events|transform|style)$/
-const GROUP_OPEN = /^\s*<g\b[^>]*>(?:<title>[^<]*<\/title>)?$/
-/** Custom properties only: values a family scopes to the group for its marks' var() paints. */
-const CUSTOM_PROPERTIES = /^\s*(?:--[A-Za-z0-9_-]+\s*:[^;]*(?:;\s*|$))*$/
-
-/** A group's open tag carries hooks, and the transform its typed field
- * declares; paint belongs to the marks inside it, which the writer paints. */
-function assertInertGroupOpen(id: string, open: string, transform: SceneTransform | undefined): void {
-  const names = new Set<string>()
-  let rawTransform: string | undefined
-  const tag = GROUP_OPEN.test(open) ? visitSvgFirstTagAttributes(open, 'g', (name, value) => {
-    if (names.has(name)) throw new TypeError(`Group "${id}" open has a duplicate "${name}"`)
-    names.add(name)
-    if (!GROUP_HOOK.test(name)) throw new TypeError(`Group "${id}" open sets "${name}"; paint and geometry belong to typed marks`)
-    if (name === 'style' && !CUSTOM_PROPERTIES.test(decodeXML(value))) {
-      throw new TypeError(`Group "${id}" open style may only set custom properties; paint belongs to typed marks`)
-    }
-    if (name === 'transform') rawTransform = value
-  }) : undefined
-  if (tag !== 'g') throw new TypeError(`Group "${id}" open must be one <g> tag with an optional <title>`)
-  const written = rawTransform === undefined ? undefined : decodeXML(rawTransform)
-  const matrix = written === undefined ? undefined : parseSvgTransform(written)
-  const typed = transform ? transformMatrix(transform) : undefined
-  if (written !== undefined && !matrix) throw new TypeError(`Group "${id}" open has an unsupported transform`)
-  if (!!matrix !== !!typed || matrix && typed && matrix.some((value, index) => Math.abs(value - typed[index]!) > 1e-9 * Math.max(1, Math.abs(value)))) {
-    throw new TypeError(`Group "${id}" open transform disagrees with its typed transform`)
-  }
-}
+const groupEmission = new WeakMap<object, { open: string; opacity: string | undefined; style: boolean; matrix: ReturnType<typeof parseSvgTransform> }>()
+export function retainedGroupEmission(node: object) { return groupEmission.get(node) }
 
 /** Typed identity: the explicit public identity, or the mark id with its
  * class tokens, which is what the writer emits as data-id and class. */
@@ -611,14 +584,15 @@ export function group(fields: {
   channels?: SemanticChannels
   paint?: GroupMark['paint']
 }): GroupMark {
-  assertInertGroupOpen(fields.id, fields.open, fields.transform)
-  const join = fields.join ?? '\n'
-  const identity = semanticIdentityForSvg(fields.open, fields)
-  const cascade = fields.paint && [
-    ...(fields.paint.opacity !== undefined ? [`opacity="${escapeAttr(fields.paint.opacity)}"`] : []),
-    ...(fields.paint.fill !== undefined ? [`fill="${escapeAttr(fields.paint.fill)}"`] : []),
+  const sourceOpen = fields.open, close = fields.close, join = fields.join ?? '\n'
+  const emitted = assertInertGroup({ id: fields.id, open: sourceOpen, close, join, transform: fields.transform })
+  const identity = semanticIdentityForSvg(sourceOpen, fields)
+  const paint = fields.paint, opacity = paint?.opacity, fill = paint?.fill
+  const cascade = paint && [
+    ...(opacity !== undefined ? [`opacity="${escapeAttr(opacity)}"`] : []),
+    ...(fill !== undefined ? [`fill="${escapeAttr(fill)}"`] : []),
   ].join(' ')
-  const painted = cascade ? fields.open.replace(/^<g\b/, `<g ${cascade}`) : fields.open
+  const painted = cascade ? sourceOpen.replace(/^(\s*<g)\b/, `$1 ${cascade}`) : sourceOpen
   const owner = fields.owner ?? { id: identity.id, role: identity.role }
   // A mark can participate in more than one document. Ownership belongs to
   // this composition, so never mutate a caller's reusable child in place.
@@ -642,12 +616,12 @@ export function group(fields: {
   // relation beside the connector authority. The writer serializes a group
   // from its open tag, children and close tag.
   const open = canonicalizeSceneNodeSerialization(ensureSvgIdentity(painted, identity))
-  return admitWritableSceneNode({
+  const result = admitWritableSceneNode({
     kind: 'group',
     id: fields.id,
     role: fields.role,
     open,
-    close: fields.close,
+    close,
     children,
     join,
     channels: fields.channels,
@@ -655,8 +629,10 @@ export function group(fields: {
     owner,
     ...(fields.visibility ? { visibility: fields.visibility } : {}),
     ...(fields.transform ? { transform: fields.transform } : {}),
-    ...(fields.paint ? { paint: fields.paint } : {}),
+    ...(paint ? { paint } : {}),
   })
+  groupEmission.set(result, Object.freeze({ open, opacity, ...emitted, style: emitted.style || fill !== undefined }))
+  return result
 }
 
 export function documentOpen(fields: {

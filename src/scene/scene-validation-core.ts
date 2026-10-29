@@ -5,6 +5,7 @@
  * reference, and non-fetching checks before a backend can observe them.
  */
 
+import { assertInertGroup } from './group-emission.ts'
 import { isRetainedPixelText } from '../shared/prepared-text.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
 import { applyOutputSecurityPolicy } from '../output-security.ts'
@@ -905,6 +906,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
         validateNode(child.node, `${path}.children[${index}].node`, state, depth + 1, subject)
       }
     }
+    try { assertInertGroup(value as unknown as import('./ir.ts').GroupMark) } catch (error) { add(state.diagnostics, 'SCENE_DOCUMENT', path, String(error)) }
     if (state.external && (typeof value.open !== 'string' || !/^<g(?:\s|>)/.test(value.open) || value.close !== '</g>')) {
       add(state.diagnostics, 'SCENE_SECURITY', path, 'external containers must use a generated <g> wrapper')
     }

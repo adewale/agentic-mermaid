@@ -19,7 +19,7 @@ describe('typed Scene SVG writer', () => {
     expect(sceneHasOnlyPreparedText({ ...doc, parts: [marks.documentContent({ id: 'opaque-upper', role: 'chrome' }, '<TEXT>opaque</TEXT>')] })).toBe(false)
     expect(sceneHasOnlyPreparedText({ ...doc, parts: [marks.documentContent({ id: 'opaque-space', role: 'chrome' }, '< text>opaque</text>')] })).toBe(false)
     expect(sceneHasOnlyPreparedText({ ...doc, parts: [marks.documentContent({ id: 'metadata', role: 'chrome' }, '<title>Metadata</title>'), text] })).toBe(true)
-    expect(sceneHasOnlyPreparedText({ ...doc, parts: [marks.group({ id: 'custom-close', role: 'chrome', open: '<g>', close: '</g><text>fallback</text>', children: [] })] })).toBe(false)
+    expect(() => marks.group({ id: 'custom-close', role: 'chrome', open: '<g>', close: '</g><text>fallback</text>', children: [] })).toThrow('close and join must not add artwork')
     expect(sceneHasOnlyPreparedText({ ...doc, parts: [{ ...text }] })).toBe(false)
   })
 

@@ -66,6 +66,9 @@ export interface PixelTextBlock {
 // of the metrics. Scene admission carries it across its own immutable snapshot.
 const pixelBlocks = new WeightedLru<string, PixelTextBlock>(256, 8 * 1024 * 1024)
 const preparedBlocks = new WeakSet<object>()
+// Only constructor-owned immutable data, never the transferable measurement brand.
+const immutablePixelParts = new WeakSet<object>()
+export function isImmutablePixelTextPart(value: object): boolean { return immutablePixelParts.has(value) }
 export function isRetainedPixelText(value: object): boolean { return preparedBlocks.has(value) }
 export function transferRetainedPixelText(source: object, snapshot: object): void {
   if (preparedBlocks.has(source)) preparedBlocks.add(snapshot)
@@ -295,6 +298,7 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
   const lineBlocks = broken.map((runs, i) => {
     const text = runs.map(run => prepared.display === 'literal' ? run.text : serializeStyledSegment(run)).join('')
     runs.forEach(Object.freeze)
+    immutablePixelParts.add(runs)
     const ascii = !/[^\x20-\x7e]/u.test(text)
     const styled = runs.some(run => run.bold || run.italic || run.underline || run.strikethrough)
     const allocation = ascii ? (options.letterSpacing ?? 0) !== 0 ? trackingLayout(runs, options) : styled ? styledRunLayout(runs, options) : undefined : undefined
@@ -306,6 +310,7 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
   const width = lineBlocks.reduce((max, line) => Math.max(max, line.width), 0)
   const block: PixelTextBlock = Object.freeze({ unit: 'px', prepared, text: lines.join('\n'), lines, lineBlocks: Object.freeze(lineBlocks), breaks: Object.freeze(breaks), width, height: lines.length * lineHeight, lineHeight, fontSize: options.fontSize, fontWeight: options.fontWeight, letterSpacing: options.letterSpacing ?? 0, monospace: options.monospace ?? false, safeFont: options.safeFont ?? false, ...(options.fontFamily ? { fontFamily: options.fontFamily } : {}) })
   preparedBlocks.add(block)
+  immutablePixelParts.add(block)
   if (cacheKey !== undefined) pixelBlocks.set(cacheKey, block, cacheKey.length * 2 + block.prepared.source.length * 128 + block.lines.length * 256 + 512)
   return block
 }
@@ -319,6 +324,7 @@ export function pixelTextLine(block: PixelTextBlock | undefined, index: number):
   Object.freeze(lines)
   const projected: PixelTextBlock = Object.freeze({ ...block, text: line.text, lines, lineBlocks: Object.freeze([Object.freeze({ ...line, baseline: block.fontSize * 0.35 })]), breaks: Object.freeze([]), width: line.width, height: block.lineHeight })
   preparedBlocks.add(projected)
+  if (immutablePixelParts.has(block)) immutablePixelParts.add(projected)
   return projected
 }
 

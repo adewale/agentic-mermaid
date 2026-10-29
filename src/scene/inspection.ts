@@ -3,6 +3,7 @@ import type { ConnectorMark, MarkPaint, SceneDoc, SceneNode, SceneOwner, SceneRo
 import { connectorInlineLabelVisualBounds, nodePaintBounds, transformedBounds } from './bounds.ts'
 import { composeMatrices, IDENTITY_MATRIX, transformMatrix, type AffineMatrix } from './transforms.ts'
 import { sceneNodeSerialization } from './serialization.ts'
+import { assertInertGroup } from './group-emission.ts'
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
 
 export interface ScenePaintPrimitive {
@@ -282,8 +283,9 @@ function inspectScene(scene: SceneDoc, retainText?: TextDetails): ScenePaintGeom
     nodes.forEach((node, index) => {
       const key = `${prefix}.${index}`
       if (node.kind === 'group') {
+        const emitted = assertInertGroup(node)
         const own = node.identity ?? { id: node.id, role: node.role }
-        walk(node.children.map(child => child.node), key, composeMatrices(parent, transformMatrix(node.transform)), Object.freeze([...ancestors, ownerSnapshot(own)]), conditional || node.visibility === 'conditional', multiplySceneOpacity(groupOpacity, sceneGroupOpacity(node.paint?.opacity)), untransformed && !node.transform)
+        walk(node.children.map(child => child.node), key, composeMatrices(parent, transformMatrix(node.transform)), Object.freeze([...ancestors, ownerSnapshot(own)]), conditional || node.visibility === 'conditional' || emitted.style || node.paint?.fill !== undefined, multiplySceneOpacity(groupOpacity, sceneGroupOpacity(node.paint?.opacity)), untransformed && !node.transform)
       } else recorder.leaf(node, key, parent, ancestors, conditional, groupOpacity, undefined, untransformed)
     })
   }

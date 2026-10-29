@@ -55,11 +55,20 @@ const box = (r: { x: number; y: number; w: number; h: number }): AxisAlignedBox 
 const viewportBox = (v: PaintViewport): AxisAlignedBox => ({ x0: v.x, y0: v.y, x1: v.x + v.width, y1: v.y + v.height })
 
 interface Surface { primitive: ScenePaintPrimitive; bounds: AxisAlignedBox; interiors?: readonly AxisAlignedBox[]; strokeInteriors?: readonly AxisAlignedBox[]; borderWidth?: number; partBorderWidths?: readonly number[]; partOwnBorderWidths?: readonly number[]; partFilled?: readonly boolean[]; partBounds?: readonly (AxisAlignedBox | undefined)[] }
-type Tree = InkTree<Surface>
-function tree(items: Surface[]): Tree | undefined {
+interface Tree extends InkTree<Surface> { lastOrder: number; left?: Tree; right?: Tree }
+function tree(items: Surface[], work: () => boolean): Tree | undefined {
   // Preserve the existing surface traversal and tie order. Its accounting is
   // unchanged; the new marker/text indexes charge their own construction.
-  return buildInkTree(items, item => item.bounds, undefined, (a, b) => a.primitive.order - b.primitive.order)
+  const root = buildInkTree(items, item => item.bounds) as Tree | undefined
+  const retainOrder = (branch: Tree): number => {
+    if (!work()) return -Infinity
+    let last = -Infinity
+    if (branch.leaves) for (const surface of branch.leaves) { if (!work()) break; last = Math.max(last, surface.primitive.order) }
+    else last = Math.max(retainOrder(branch.left!), retainOrder(branch.right!))
+    return branch.lastOrder = last
+  }
+  if (root) retainOrder(root)
+  return root
 }
 
 const PAINT_QUERY_WORK_LIMIT = Symbol('paint query work limit')
@@ -999,7 +1008,6 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     for (const node of projection.nodes) if (node.label?.trim() && node.labelVisibility !== 'hidden' && node.labelVisibility !== 'semantic') label(String(node.id), node.labelBounds, node.labelContainer)
     for (const value of projection.labels ?? []) if (value.text.trim() && value.visibility !== 'hidden' && value.visibility !== 'semantic') label(value.id, value.bounds, value.container)
   }
-  const surfaces = tree(solidInteriors(scene, inspection.primitives))
   if (emissionWork?.uncertain) outputScope('Emitted document context or marker resource differs from retained paint evidence')
   let pairs = 0, operations = emissionWork?.operations ?? 0, exhausted = emissionWork?.exhausted ?? false
   const work = (): boolean => {
@@ -1007,16 +1015,37 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     operations++
     return true
   }
-  const endpointRoles = new Map<string, Set<string>>()
+  const surfaces = tree(solidInteriors(scene, inspection.primitives), work)
+  type TextBatch = { bounds: AxisAlignedBox; order: number; count: number; surfaces?: Surface[] | null }
+  const textBatches = new Map<readonly SceneOwner[], TextBatch>(), texts: ScenePaintPrimitive[] = [], connectors: ScenePaintPrimitive[] = []
+  // Immutable sibling occurrences can share one conservative lookup without
+  // sharing a visibility exemption. Exact paint order and bounds remain per text.
   for (const primitive of inspection.primitives) {
-    if (exhausted) break
-    for (const owner of [primitive.owner, ...primitive.ancestors]) {
-      if (!work()) break
-      if (!ENDPOINT_ROLES.has(owner.role)) continue
-      const roles = endpointRoles.get(owner.id) ?? new Set<string>()
-      roles.add(owner.role)
-      endpointRoles.set(owner.id, roles)
+    if (!work()) break
+    if (primitive.kind === 'connector') connectors.push(primitive)
+    if (primitive.kind !== 'text' || primitive.coverage !== 'measured' || primitive.visibility === 'conditional') continue
+    texts.push(primitive)
+    if (!primitive.ancestors.length) continue
+    const batch = textBatches.get(primitive.ancestors)
+    if (batch) { batch.bounds = unionSceneBounds(batch.bounds, primitive.bounds)!; batch.order = Math.min(batch.order, primitive.order); batch.count++ }
+    else textBatches.set(primitive.ancestors, { bounds: primitive.bounds!, order: primitive.order, count: 1 })
+  }
+  let endpointRoles: Map<string, Set<string>> | undefined
+  const ambiguousEndpoint = (id: string): boolean => {
+    if (!endpointRoles) {
+      endpointRoles = new Map()
+      for (const primitive of inspection.primitives) {
+        if (exhausted) break
+        for (const owner of [primitive.owner, ...primitive.ancestors]) {
+          if (!work()) break
+          if (!ENDPOINT_ROLES.has(owner.role)) continue
+          const roles = endpointRoles.get(owner.id) ?? new Set<string>()
+          roles.add(owner.role)
+          endpointRoles.set(owner.id, roles)
+        }
+      }
     }
+    return exhausted || (endpointRoles.get(id)?.size ?? 0) > 1
   }
   const endpointRelation = (connector: NativeConnectorPaintSource, owner: SceneOwner): 'attached' | 'unrelated' | 'ambiguous' => {
     let ambiguous = false
@@ -1025,25 +1054,44 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       if (anchor?.owner) {
         if (anchor.owner.id !== id) { ambiguous = true; continue }
         if (anchor.owner.role === owner.role) return 'attached'
-      } else if ((endpointRoles.get(id)?.size ?? 0) > 1) ambiguous = true
+      } else if (ambiguousEndpoint(id)) ambiguous = true
       else return 'attached'
     }
     return ambiguous ? 'ambiguous' : 'unrelated'
   }
-  const check = (branch: Tree | undefined, primitive: ScenePaintPrimitive): void => {
-    if (exhausted || !work() || !branch || !overlaps(branch.bounds, primitive.bounds!)) return
-    if (!branch.leaves) { check(branch.left, primitive); check(branch.right, primitive); return }
+  const textSurfaces = (branch: Tree | undefined, bounds: AxisAlignedBox, order: number, found: Surface[], allowance?: { remaining: number }): void => {
+    if (exhausted || allowance && (allowance.remaining-- <= 0 || found.length > 16) || !work() || !branch || branch.lastOrder <= order || !overlaps(branch.bounds, bounds)) return
+    if (!branch.leaves) { textSurfaces(branch.left, bounds, order, found, allowance); textSurfaces(branch.right, bounds, order, found, allowance); return }
     for (const surface of branch.leaves) {
-      if (!work()) return
-      if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; return }
+      if (allowance && allowance.remaining-- <= 0 || !work()) return
+      if (surface.primitive.order > order && overlaps(surface.bounds, bounds)) { found.push(surface); if (allowance && found.length > 16) return }
+    }
+  }
+  for (const primitive of texts) {
+    const batch = textBatches.get(primitive.ancestors)
+    let found: Surface[] | undefined
+    // A wide container must not turn sparse sibling queries quadratic. Stop
+    // dense union candidates early, charging the attempt before local queries.
+    if (batch && batch.count > 1 && batch.count <= 8 && batch.surfaces !== null) {
+      if (!batch.surfaces) {
+        found = []
+        const allowance = { remaining: 64 }
+        textSurfaces(surfaces, batch.bounds, batch.order, found, allowance)
+        batch.surfaces = allowance.remaining >= 0 && found.length <= 16 ? found : null
+      }
+      found = batch.surfaces ?? undefined
+    }
+    if (!found) { found = []; textSurfaces(surfaces, primitive.bounds!, primitive.order, found) }
+    for (const surface of found) {
+      if (!work()) break
       if (surface.primitive.order <= primitive.order || !overlaps(surface.bounds, primitive.bounds!)) continue
+      if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; break }
       if (surface.interiors?.some(interior => work() && contains(interior, primitive.bounds!))) issue({ code: 'TEXT_OCCLUDED', id: primitive.id, by: surface.primitive.id, message: `Retained text is fully covered by later opaque artwork owned by ${surface.primitive.owner.id}` }, true)
       else potentialOcclusion(primitive.id, surface.primitive.id, 'Later filled artwork overlaps the occupied text band; its exact ink intersection is unverified')
     }
   }
-  for (const primitive of inspection.primitives) if (primitive.kind === 'text' && primitive.coverage === 'measured' && primitive.visibility !== 'conditional') check(surfaces, primitive)
   const strokeAlpha = new Map<string, number | undefined>()
-  for (const primitive of inspection.primitives) {
+  for (const primitive of connectors) {
     if (!work()) break
     const node = paintPrimitiveSource(primitive)
     // Semantic relationships must not cross unrelated cards even when their
@@ -1105,7 +1153,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
   const lastMarkers = new Map<string, MarkerTarget>()
   let markerColor: ReturnType<typeof createInlineColorAttributeResolver> | undefined
   const resolveMarkerColor = (value: string): string | undefined => (markerColor ??= createInlineColorAttributeResolver())(value, scene.colors)
-  for (const primitive of inspection.primitives) {
+  for (const primitive of connectors) {
     const node = paintPrimitiveSource(primitive)
     if (primitive.kind !== 'connector' || node?.kind !== 'connector' || node.lineStyle === 'invisible' || primitive.coverage === 'non-painting') continue
     const ownInverse = inverseMatrix(transformMatrix(node.transform))
@@ -1138,12 +1186,12 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     // A matching later conditional repaint may restore this marker, but does
     // not establish final visible ink. The scene's conditional issue stays U.
     if (target.primitive.visibility === 'conditional') return
-    if (exhausted || !work() || !branch || !overlaps(branch.bounds, target.bounds)) return
+    if (exhausted || !work() || !branch || branch.lastOrder <= target.primitive.order || !overlaps(branch.bounds, target.bounds)) return
     if (!branch.leaves) { markerCheck(branch.left, target); markerCheck(branch.right, target); return }
     for (const surface of branch.leaves) {
       if (!work()) return
-      if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; return }
       if (surface.primitive.order <= target.primitive.order || !overlaps(surface.bounds, target.bounds)) continue
+      if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; return }
       if (target.actualInk && (surface.interiors?.some(interior => work() && contains(interior, target.bounds)) || surface.strokeInteriors?.some(interior => work() && contains(interior, target.bounds)))) {
         issue({ code: 'MARKER_OCCLUDED', id: target.primitive.id, by: surface.primitive.id, message: 'Endpoint marker is fully covered by later opaque artwork with no owned repaint' }, true)
         continue
