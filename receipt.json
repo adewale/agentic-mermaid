@@ -1,6 +1,6 @@
 {
   "base": "142c97ee6179ef5ad73fd8d804a64f6f0a2adb3f",
-  "head": "4f0668c1fec9c18755cf0528fa588d54ea512a84",
+  "head": "aa62a0013b91cbd130290725ab51201a06ba3afa",
   "bun": "1.4.2",
   "fixtures": [
     "compat-corpus-flowchart-98",
