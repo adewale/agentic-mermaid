@@ -72,6 +72,46 @@ describe('unified benchmark CLI preflight', () => {
 })
 
 describe('unified suite execution lifecycle', () => {
+
+  test('records the replay controls actually passed to each child without retaining unrelated environment values', async () => {
+    const { runUnified } = await import('../unified/run.ts')
+    const directory = mkdtempSync(join(tmpdir(), 'am-unified-replay-controls-'))
+    const saved = { AM_FC_SEED: process.env.AM_FC_SEED, AM_FC_NUM_RUNS: process.env.AM_FC_NUM_RUNS, AM_BENCH_TEST_SECRET: process.env.AM_BENCH_TEST_SECRET }
+    try {
+      for (const path of ['src/__tests__', 'docs/project', 'eval/mermaid-upstream-suite-bench']) mkdirSync(join(directory, path), { recursive: true })
+      writeFileSync(join(directory, 'docs/project/upstream-mermaid-policy.json'), JSON.stringify({ pin: { version: 'fixture', commit: 'fixture' } }))
+      writeFileSync(join(directory, 'eval/mermaid-upstream-suite-bench/manifest.json'), JSON.stringify({ upstream: { revision: 'fixture' } }))
+      writeFileSync(join(directory, 'package.json'), JSON.stringify({ scripts: { 'bench:replay-fixture': 'bun run child.ts' } }))
+      writeFileSync(join(directory, 'child.ts'), 'import{writeFileSync}from"node:fs";writeFileSync(process.env.AM_BENCH_SUITE_OUT+"/child-environment.json",JSON.stringify({AM_FC_SEED:process.env.AM_FC_SEED??null,AM_FC_NUM_RUNS:process.env.AM_FC_NUM_RUNS??null}))')
+      const cases: Array<{ name: string; seed: string | undefined; runs: string | undefined; expected: Record<string, string> }> = [
+        { name: 'default', seed: undefined, runs: undefined, expected: { AM_FC_SEED: '7' } },
+        { name: 'explicit', seed: '17', runs: '300', expected: { AM_FC_SEED: '17', AM_FC_NUM_RUNS: '300' } },
+        { name: 'finder', seed: 'random', runs: undefined, expected: { AM_FC_SEED: 'random' } },
+      ]
+      for (const fixture of cases) {
+        delete process.env.AM_FC_SEED
+        delete process.env.AM_FC_NUM_RUNS
+        if (fixture.seed !== undefined) process.env.AM_FC_SEED = fixture.seed
+        if (fixture.runs !== undefined) process.env.AM_FC_NUM_RUNS = fixture.runs
+        process.env.AM_BENCH_TEST_SECRET = 'unrelated-value-must-stay-out-of-receipts'
+        const options = parseOptions(['--out', join(directory, fixture.name), '--suites', 'replay-fixture', '--timeout-ms', '5000'])
+        const report = await runUnified({ ...options, harnessRoot: directory, root: directory })
+        const execution = report.suites.find(suite => suite.id === 'replay-fixture')!
+        expect(execution.status).toBe('passed')
+        expect(execution.environment).toEqual(fixture.expected)
+        const observed = JSON.parse(readFileSync(join(options.out, 'replay-fixture/child-environment.json'), 'utf8'))
+        expect(observed).toEqual({ ...fixture.expected, AM_FC_NUM_RUNS: fixture.runs ?? null })
+        expect(execution.environment).not.toHaveProperty('AM_BENCH_TEST_SECRET')
+      }
+    } finally {
+      for (const key of ['AM_FC_SEED', 'AM_FC_NUM_RUNS', 'AM_BENCH_TEST_SECRET'] as const) {
+        const value = saved[key]
+        if (value === undefined) delete process.env[key]
+        else process.env[key] = value
+      }
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
   test('continues after a timeout and retains both failures and later evidence', async () => {
     const { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readlinkSync, rmSync, existsSync } = await import('node:fs')
     const { tmpdir } = await import('node:os')
