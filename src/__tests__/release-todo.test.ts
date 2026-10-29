@@ -1,10 +1,10 @@
 /**
- * Release to-do (scripts/ci/release-todo.ts): the deploy's one notification
- * that a version on main is waiting for its GitHub Release.
+ * Release to-do helper (scripts/ci/release-todo.ts): explicit manual creation
+ * and cleanup of existing issues after verified deployment.
  *
  * The CLI runs as a subprocess against a stateful fake `gh` (and `npm`) on
  * PATH, so these tests see every REST call it makes and its exit status, the
- * same way deploy-cloudflare.yml runs it. The workflow wiring is covered in
+ * same boundary used by deployment cleanup. The workflow wiring is covered in
  * deploy-workflow-transaction.test.ts.
  */
 import { describe, expect, test } from 'bun:test'

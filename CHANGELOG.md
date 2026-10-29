@@ -6,6 +6,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Changed
 
+- Stop opening release-to-do issues automatically when deployment skips an
+  unpublished version. Keep the warning and Actions summary; verified
+  deployments still close existing release-to-do issues.
+
 - Refresh MCP directory evidence, submission requirements and dated publication
   status, including Smithery's 31 October service transition. Prepare source
   version 0.5.4 because the updated listing record ships in the npm package;
