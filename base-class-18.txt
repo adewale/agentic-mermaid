@@ -1,0 +1,1 @@
+No certified layout after 1 bounded attempts: class-owned-surfaces: Relationship Gateway -> UserService enters namespace header Platform.Auth; Relationship Gateway -> Repository enters namespace header Platform.Data

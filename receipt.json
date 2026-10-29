@@ -1,0 +1,30 @@
+{
+  "base": "0a2dc30b6220c04182f8ccd45550689422606a22",
+  "head": "7c1fc3c0612ae39d5d604f0cc2da2e878f1462fb",
+  "style": "publication-figure",
+  "inputs": [
+    "corpus/class/17",
+    "corpus/class/18",
+    "corpus/class/19"
+  ],
+  "source": "eval/mermaid-docs-corpus/corpus.json",
+  "baseline": "All three production SVG renders throw LayoutCertificationError; full messages are retained.",
+  "head_result": "All three production SVG renders succeed.",
+  "runtime": "Node v24.19.0, TypeScript loaded through installed jiti v1; canonical Bun was unavailable.",
+  "rasterizer": "@resvg/resvg-js 2.6.2, zoom 2, bundled Inter fonts, system fallback enabled; production SVG colors inlined with inlineResolvedColors and marker orientation prepared with prepareResvgMarkerOrientation.",
+  "limitation": "Three corpus inputs in one preset and direction; not an exhaustive geometry proof. PNGs are rasterized SVGs, not the native PNG API.",
+  "sha256": {
+    "base-class-17.txt": "8ec11037677476f90dcdeff6732a7b6a6e6dc1d32582bb12ff1dca68a5277957",
+    "base-class-18.txt": "a2f98ed0e3e630ceab6018850e989da3672685674a64adab2ab1eb86ae5f81a3",
+    "base-class-19.txt": "8fa29e8b0e45c8450781814c73027feab4e935e44485e3194a75f4ae7c0289ac",
+    "class-17.mmd": "4f769c9b600085db03925ae31464ed5a9096eaf7749f4efacbe10d87a2c0c8cc",
+    "class-18.mmd": "901d60ac9f26dd6cef0ac9a21d2b704119f057e9850679d0296acb594c977591",
+    "class-19.mmd": "f4eb00a6eadb9ee3adda8c5144b3d0ada390393889623a6454d9e158bdf3d2f2",
+    "head-class-17.png": "86d03cc16aa2e4748d17290d645eb8f749e8690113919892c955cbd45860c636",
+    "head-class-17.svg": "e58405695e2caa6b2442e8ff8f188da1aec674b82efe6641c5a488e7e2324dd6",
+    "head-class-18.png": "7af7fffd9288760eb00815de6cc0d617e58ee12a836060b0d1bd9042287322ee",
+    "head-class-18.svg": "5f5907ad42614ef0b7efd85d68d38ccede5f7d89a33ea0f6712c45232dc81fd2",
+    "head-class-19.png": "d165e023005a9a465a513f6eb1102a1e763f40d36b369f33f2fefe6868b1bd7c",
+    "head-class-19.svg": "ae8d22da9b5d4362ba6fb8ec27a39306d677e6e9731383b60166bc099a6f76ff"
+  }
+}

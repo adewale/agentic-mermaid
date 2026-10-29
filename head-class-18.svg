@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="593.3" height="589.6" viewBox="0 0 593.3 589.6" style="--bg:#fffdf8;--fg:#171512;--line:#24211d;--accent:#1d4ed8;--muted:#5f5a52;--surface:#faf5ea;--border:#24211d;--font:EB Garamond;background:#fffdf8" class="am-013v1zg0o2syjo">
+<style>
+  svg.am-013v1zg0o2syjo { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
+  .am-013v1zg0o2syjo .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg.am-013v1zg0o2syjo {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #171512;
+    --_text-sec:      #5f5a52;
+    --_text-muted:    #5f5a52;
+    --_text-faint:    #82807c;
+    --_line:          #24211d;
+    --_arrow:         #1d4ed8;
+    --_node-fill:     #faf5ea;
+    --_node-stroke:   #24211d;
+    --_group-fill:    #fffdf8;
+    --_group-hdr:     #f3f1ed;
+    --_inner-stroke:  #e3e1dc;
+    --_key-badge:     #e8e6e1;
+  }
+</style>
+<rect width="593.3" height="589.6" fill="#fffdf8" data-backdrop="page" />
+<defs>
+  <marker id="cls-inherit" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto-start-reverse" overflow="visible">
+    <polygon points="0 0, 12 5, 0 10" fill="#fffdf8" stroke="#171512" stroke-width="1.5" />
+  </marker>
+  <marker id="cls-composition" markerWidth="14" markerHeight="12" refX="13" refY="6" orient="auto-start-reverse" viewBox="0 0 14 12" overflow="hidden">
+    <polygon points="7 1, 13 6, 7 11, 1 6" fill="#171512" stroke="#171512" stroke-width="1" />
+  </marker>
+  <marker id="cls-aggregation" markerWidth="14" markerHeight="12" refX="13" refY="6" orient="auto-start-reverse" viewBox="0 0 14 12" overflow="hidden">
+    <polygon points="7 1, 13 6, 7 11, 1 6" fill="#fffdf8" stroke="#171512" stroke-width="1.5" />
+  </marker>
+  <marker id="cls-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto-start-reverse" overflow="visible">
+    <polyline points="0 0, 8 3, 0 6" fill="none" stroke="#171512" stroke-width="1.5" />
+  </marker>
+  <marker id="cls-lollipop" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse" viewBox="0 0 14 14" overflow="hidden">
+    <circle cx="7" cy="7" r="5" fill="#fffdf8" stroke="#171512" stroke-width="1.5" />
+  </marker>
+</defs>
+<g class="namespace" data-id="Platform" data-label="Platform" data-role="group">
+  <rect x="40" y="40" width="513.3" height="509.6" rx="7" ry="7" fill="#fffdf8" stroke="#171512" stroke-width="1.35" data-id="namespace-rect:Platform" data-role="group" />
+  <path d="M47,40 H546.3 A7,7 0 0 1 553.3,47 V68 H40 V47 A7,7 0 0 1 47,40 Z" fill="#f3f1ed" stroke="#171512" stroke-width="1.35" />
+  <text x="64" y="54" text-anchor="start" font-size="12" font-weight="700" letter-spacing="0.08" fill="#171512" data-prepared-text="true" dy="4.2"><tspan x="64" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">P</tspan><tspan x="72.72" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">L</tspan><tspan x="81.44" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">A</tspan><tspan x="90.16" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">T</tspan><tspan x="98.88" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">F</tspan><tspan x="107.6" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">O</tspan><tspan x="116.32" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">R</tspan><tspan x="125.04" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.6" lengthAdjust="spacingAndGlyphs">M</tspan></text>
+</g>
+<g class="namespace" data-id="Platform.Auth" data-label="Auth" data-parent-id="Platform" data-role="group">
+  <rect x="72" y="326.1" width="211.85" height="193.5" rx="7" ry="7" fill="#fffdf8" stroke="#171512" stroke-width="1.35" data-id="namespace-rect:Platform.Auth" data-role="group" />
+  <path d="M79,326.1 H276.85 A7,7 0 0 1 283.85,333.1 V354.1 H72 V333.1 A7,7 0 0 1 79,326.1 Z" fill="#f3f1ed" stroke="#171512" stroke-width="1.35" />
+  <text x="96" y="340.1" text-anchor="start" font-size="12" font-weight="700" letter-spacing="0.08" fill="#171512" data-prepared-text="true" dy="4.2"><tspan x="96" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">A</tspan><tspan x="104.72" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">U</tspan><tspan x="113.44" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">T</tspan><tspan x="122.16" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="10.44" lengthAdjust="spacingAndGlyphs">H</tspan></text>
+</g>
+<g class="namespace" data-id="Platform.Data" data-label="Data" data-parent-id="Platform" data-role="group">
+  <rect x="323.85" y="326.1" width="197.45" height="193.5" rx="7" ry="7" fill="#fffdf8" stroke="#171512" stroke-width="1.35" data-id="namespace-rect:Platform.Data" data-role="group" />
+  <path d="M330.85,326.1 H514.3 A7,7 0 0 1 521.3,333.1 V354.1 H323.85 V333.1 A7,7 0 0 1 330.85,326.1 Z" fill="#f3f1ed" stroke="#171512" stroke-width="1.35" />
+  <text x="347.85" y="340.1" text-anchor="start" font-size="12" font-weight="700" letter-spacing="0.08" fill="#171512" data-prepared-text="true" dy="4.2"><tspan x="347.85" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">D</tspan><tspan x="356.57" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">A</tspan><tspan x="365.29" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">T</tspan><tspan x="374.01" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="10.44" lengthAdjust="spacingAndGlyphs">A</tspan></text>
+</g>
+<path class="class-relationship" data-type="association" data-relation-type="association" data-marker-at="to" data-label="delegates" d="M177.925,179.5 L177.925,313.375 Q177.925,321.375 185.925,321.375 L285.3,321.375 Q293.3,321.375 293.3,329.375 L293.3,350.825 Q293.3,358.825 285.3,358.825 L185.925,358.825 Q177.925,358.825 177.925,366.825 L177.925,380.1" fill="none" stroke="#171512" stroke-width="1.45" marker-end="url(#cls-arrow)" data-relationship="association" data-direction="forward" data-id="rel:Gateway-&gt;UserService#0" data-role="relationship" data-from="Gateway" data-to="UserService" role="graphics-symbol" aria-roledescription="relation" aria-label="Gateway to UserService: delegates" />
+<path class="class-relationship" data-type="association" data-relation-type="association" data-marker-at="to" data-label="delegates" d="M217.925,179.5 L217.925,184.5 Q217.925,189.5 222.925,189.5 L414.575,189.5 Q422.575,189.5 422.575,197.5 L422.575,313.375 Q422.575,321.375 414.575,321.375 L322.4,321.375 Q314.4,321.375 314.4,329.375 L314.4,350.825 Q314.4,358.825 322.4,358.825 L414.575,358.825 Q422.575,358.825 422.575,366.825 L422.575,380.1" fill="none" stroke="#171512" stroke-width="1.45" marker-end="url(#cls-arrow)" data-relationship="association" data-direction="forward" data-id="rel:Gateway-&gt;Repository#0" data-role="relationship" data-from="Gateway" data-to="Repository" role="graphics-symbol" aria-roledescription="relation" aria-label="Gateway to Repository: delegates" />
+<g class="class-node" data-id="UserService" data-label="UserService" data-role="class-box">
+  <rect x="104" y="380.1" width="147.85" height="109.5" rx="7" ry="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" data-id="class:UserService:box" data-role="class-box" />
+  <path d="M111,380.1 H244.85 A7,7 0 0 1 251.85,387.1 V427.6 H104 V387.1 A7,7 0 0 1 111,380.1 Z" fill="#f3f1ed" stroke="#171512" stroke-width="1.45" />
+  <text x="177.925" y="403.85" text-anchor="middle" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true" dy="5.25" textLength="95.85" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">UserService</text>
+  <line x1="104" y1="427.6" x2="251.85" y2="427.6" stroke="#171512" stroke-width="0.75" />
+  <line x1="104" y1="435.6" x2="251.85" y2="435.6" stroke="#171512" stroke-width="0.75" />
+  <text x="130" y="449.6" class="mono" text-anchor="start" font-size="11" font-weight="400" fill="#171512" data-id="member:UserService:login" data-role="member" data-prepared-text="true" dy="3.85" textLength="59.4" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"><tspan fill="#5f5a52">+ </tspan><tspan fill="#171512">login()</tspan></text>
+  <text x="130" y="469.6" class="mono" text-anchor="start" font-size="11" font-weight="400" fill="#171512" data-id="member:UserService:logout" data-role="member" data-prepared-text="true" dy="3.85" textLength="66" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"><tspan fill="#5f5a52">+ </tspan><tspan fill="#171512">logout()</tspan></text>
+</g>
+<g class="class-node" data-id="Repository" data-label="Repository" data-role="class-box">
+  <rect x="355.85" y="380.1" width="133.45" height="109.5" rx="7" ry="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" data-id="class:Repository:box" data-role="class-box" />
+  <path d="M362.85,380.1 H482.3 A7,7 0 0 1 489.3,387.1 V427.6 H355.85 V387.1 A7,7 0 0 1 362.85,380.1 Z" fill="#f3f1ed" stroke="#171512" stroke-width="1.45" />
+  <text x="422.575" y="403.85" text-anchor="middle" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true" dy="5.25" textLength="81.45" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Repository</text>
+  <line x1="355.85" y1="427.6" x2="489.3" y2="427.6" stroke="#171512" stroke-width="0.75" />
+  <line x1="355.85" y1="435.6" x2="489.3" y2="435.6" stroke="#171512" stroke-width="0.75" />
+  <text x="381.85" y="449.6" class="mono" text-anchor="start" font-size="11" font-weight="400" fill="#171512" data-id="member:Repository:find" data-role="member" data-prepared-text="true" dy="3.85" textLength="52.8" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"><tspan fill="#5f5a52">+ </tspan><tspan fill="#171512">find()</tspan></text>
+  <text x="381.85" y="469.6" class="mono" text-anchor="start" font-size="11" font-weight="400" fill="#171512" data-id="member:Repository:save" data-role="member" data-prepared-text="true" dy="3.85" textLength="52.8" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"><tspan fill="#5f5a52">+ </tspan><tspan fill="#171512">save()</tspan></text>
+</g>
+<g class="class-node" data-id="Gateway" data-label="Gateway" data-role="class-box">
+  <rect x="137.925" y="90" width="120" height="89.5" rx="7" ry="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" data-id="class:Gateway:box" data-role="class-box" />
+  <path d="M144.925,90 H250.925 A7,7 0 0 1 257.925,97 V137.5 H137.925 V97 A7,7 0 0 1 144.925,90 Z" fill="#f3f1ed" stroke="#171512" stroke-width="1.45" />
+  <text x="197.925" y="113.75" text-anchor="middle" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true" dy="5.25" textLength="63.45" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Gateway</text>
+  <line x1="137.925" y1="137.5" x2="257.925" y2="137.5" stroke="#171512" stroke-width="0.75" />
+  <line x1="137.925" y1="145.5" x2="257.925" y2="145.5" stroke="#171512" stroke-width="0.75" />
+  <text x="163.925" y="159.5" class="mono" text-anchor="start" font-size="11" font-weight="400" fill="#171512" data-id="member:Gateway:route" data-role="member" data-prepared-text="true" dy="3.85" textLength="59.4" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"><tspan fill="#5f5a52">+ </tspan><tspan fill="#171512">route()</tspan></text>
+</g>
+<path class="class-marker-overlay" aria-hidden="true" d="M177.925,179.5 L177.925,313.375 Q177.925,321.375 185.925,321.375 L285.3,321.375 Q293.3,321.375 293.3,329.375 L293.3,350.825 Q293.3,358.825 285.3,358.825 L185.925,358.825 Q177.925,358.825 177.925,366.825 L177.925,380.1" fill="none" stroke="#171512" stroke-opacity="0" stroke-width="1.45" marker-end="url(#cls-arrow)" pointer-events="none" data-relationship="marker-carrier" data-direction="forward" />
+<path class="class-marker-overlay" aria-hidden="true" d="M217.925,179.5 L217.925,184.5 Q217.925,189.5 222.925,189.5 L414.575,189.5 Q422.575,189.5 422.575,197.5 L422.575,313.375 Q422.575,321.375 414.575,321.375 L322.4,321.375 Q314.4,321.375 314.4,329.375 L314.4,350.825 Q314.4,358.825 322.4,358.825 L414.575,358.825 Q422.575,358.825 422.575,366.825 L422.575,380.1" fill="none" stroke="#171512" stroke-opacity="0" stroke-width="1.45" marker-end="url(#cls-arrow)" pointer-events="none" data-relationship="marker-carrier" data-direction="forward" />
+<text x="142.945" y="242.3" text-anchor="middle" font-size="12" font-weight="600" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.2" textLength="57.96" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">delegates</text>
+<text x="458.555" y="242.3" text-anchor="middle" font-size="12" font-weight="600" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.2" textLength="57.96" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">delegates</text>
+</svg>

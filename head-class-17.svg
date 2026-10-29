@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="671.4" height="649.6" viewBox="0 0 671.4 649.6" style="--bg:#fffdf8;--fg:#171512;--line:#24211d;--accent:#1d4ed8;--muted:#5f5a52;--surface:#faf5ea;--border:#24211d;--font:EB Garamond;background:#fffdf8" class="am-0z0zknq08otdww">
+<style>
+  svg.am-0z0zknq08otdww { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
+  .am-0z0zknq08otdww .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg.am-0z0zknq08otdww {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #171512;
+    --_text-sec:      #5f5a52;
+    --_text-muted:    #5f5a52;
+    --_text-faint:    #82807c;
+    --_line:          #24211d;
+    --_arrow:         #1d4ed8;
+    --_node-fill:     #faf5ea;
+    --_node-stroke:   #24211d;
+    --_group-fill:    #fffdf8;
+    --_group-hdr:     #f3f1ed;
+    --_inner-stroke:  #e3e1dc;
+    --_key-badge:     #e8e6e1;
+  }
+</style>
+<rect width="671.4" height="649.6" fill="#fffdf8" data-backdrop="page" />
+<defs>
+  <marker id="cls-inherit" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto-start-reverse" overflow="visible">
+    <polygon points="0 0, 12 5, 0 10" fill="#fffdf8" stroke="#171512" stroke-width="1.5" />
+  </marker>
+  <marker id="cls-composition" markerWidth="14" markerHeight="12" refX="13" refY="6" orient="auto-start-reverse" viewBox="0 0 14 12" overflow="hidden">
+    <polygon points="7 1, 13 6, 7 11, 1 6" fill="#171512" stroke="#171512" stroke-width="1" />
+  </marker>
+  <marker id="cls-aggregation" markerWidth="14" markerHeight="12" refX="13" refY="6" orient="auto-start-reverse" viewBox="0 0 14 12" overflow="hidden">
+    <polygon points="7 1, 13 6, 7 11, 1 6" fill="#fffdf8" stroke="#171512" stroke-width="1.5" />
+  </marker>
+  <marker id="cls-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto-start-reverse" overflow="visible">
+    <polyline points="0 0, 8 3, 0 6" fill="none" stroke="#171512" stroke-width="1.5" />
+  </marker>
+  <marker id="cls-lollipop" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse" viewBox="0 0 14 14" overflow="hidden">
+    <circle cx="7" cy="7" r="5" fill="#fffdf8" stroke="#171512" stroke-width="1.5" />
+  </marker>
+</defs>
+<g class="namespace" data-id="Company" data-label="Company" data-role="group">
+  <rect x="40" y="40" width="591.4" height="569.6" rx="7" ry="7" fill="#fffdf8" stroke="#171512" stroke-width="1.35" data-id="namespace-rect:Company" data-role="group" />
+  <path d="M47,40 H624.4 A7,7 0 0 1 631.4,47 V68 H40 V47 A7,7 0 0 1 47,40 Z" fill="#f3f1ed" stroke="#171512" stroke-width="1.35" />
+  <text x="64" y="54" text-anchor="start" font-size="12" font-weight="700" letter-spacing="0.08" fill="#171512" data-prepared-text="true" dy="4.2"><tspan x="64" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">C</tspan><tspan x="72.72" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">O</tspan><tspan x="81.44" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="10.8" lengthAdjust="spacingAndGlyphs">M</tspan><tspan x="92.32" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">P</tspan><tspan x="101.04" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">A</tspan><tspan x="109.76" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">N</tspan><tspan x="118.48" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="10.44" lengthAdjust="spacingAndGlyphs">Y</tspan></text>
+</g>
+<g class="namespace" data-id="Company.Engineering" data-label="Engineering" data-parent-id="Company" data-role="group">
+  <rect x="72" y="90" width="527.4" height="489.6" rx="7" ry="7" fill="#fffdf8" stroke="#171512" stroke-width="1.35" data-id="namespace-rect:Company.Engineering" data-role="group" />
+  <path d="M79,90 H592.4 A7,7 0 0 1 599.4,97 V118 H72 V97 A7,7 0 0 1 79,90 Z" fill="#f3f1ed" stroke="#171512" stroke-width="1.35" />
+  <text x="96" y="104" text-anchor="start" font-size="12" font-weight="700" letter-spacing="0.08" fill="#171512" data-prepared-text="true" dy="4.2"><tspan x="96" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">E</tspan><tspan x="104.72" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">N</tspan><tspan x="113.44" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">G</tspan><tspan x="122.16" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="2.88" lengthAdjust="spacingAndGlyphs">I</tspan><tspan x="125.12" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">N</tspan><tspan x="133.84" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">E</tspan><tspan x="142.56" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">E</tspan><tspan x="151.28" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">R</tspan><tspan x="160" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="2.88" lengthAdjust="spacingAndGlyphs">I</tspan><tspan x="162.96" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">N</tspan><tspan x="171.68" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="10.44" lengthAdjust="spacingAndGlyphs">G</tspan></text>
+</g>
+<g class="namespace" data-id="Company.Engineering.Backend" data-label="Backend" data-parent-id="Company.Engineering" data-role="group">
+  <rect x="104" y="376.1" width="201.8" height="173.5" rx="7" ry="7" fill="#fffdf8" stroke="#171512" stroke-width="1.35" data-id="namespace-rect:Company.Engineering.Backend" data-role="group" />
+  <path d="M111,376.1 H298.8 A7,7 0 0 1 305.8,383.1 V404.1 H104 V383.1 A7,7 0 0 1 111,376.1 Z" fill="#f3f1ed" stroke="#171512" stroke-width="1.35" />
+  <text x="128" y="390.1" text-anchor="start" font-size="12" font-weight="700" letter-spacing="0.08" fill="#171512" data-prepared-text="true" dy="4.2"><tspan x="128" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">B</tspan><tspan x="136.72" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">A</tspan><tspan x="145.44" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">C</tspan><tspan x="154.16" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">K</tspan><tspan x="162.88" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">E</tspan><tspan x="171.6" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">N</tspan><tspan x="180.32" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="10.44" lengthAdjust="spacingAndGlyphs">D</tspan></text>
+</g>
+<g class="namespace" data-id="Company.Engineering.Frontend" data-label="Frontend" data-parent-id="Company.Engineering" data-role="group">
+  <rect x="345.8" y="376.1" width="221.6" height="173.5" rx="7" ry="7" fill="#fffdf8" stroke="#171512" stroke-width="1.35" data-id="namespace-rect:Company.Engineering.Frontend" data-role="group" />
+  <path d="M352.8,376.1 H560.4 A7,7 0 0 1 567.4,383.1 V404.1 H345.8 V383.1 A7,7 0 0 1 352.8,376.1 Z" fill="#f3f1ed" stroke="#171512" stroke-width="1.35" />
+  <text x="369.8" y="390.1" text-anchor="start" font-size="12" font-weight="700" letter-spacing="0.08" fill="#171512" data-prepared-text="true" dy="4.2"><tspan x="369.8" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">F</tspan><tspan x="378.52" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">R</tspan><tspan x="387.24" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">O</tspan><tspan x="395.96" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">N</tspan><tspan x="404.68" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">T</tspan><tspan x="413.4" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">E</tspan><tspan x="422.12" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">N</tspan><tspan x="430.84" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="10.44" lengthAdjust="spacingAndGlyphs">D</tspan></text>
+</g>
+<path class="class-relationship" data-type="association" data-relation-type="association" data-marker-at="to" data-label="leads" d="M204.9,229.5 L204.9,363.375 Q204.9,371.375 212.9,371.375 L307.25,371.375 Q315.25,371.375 315.25,379.375 L315.25,400.825 Q315.25,408.825 307.25,408.825 L212.9,408.825 Q204.9,408.825 204.9,416.825 L204.9,430.1" fill="none" stroke="#171512" stroke-width="1.45" marker-end="url(#cls-arrow)" data-relationship="association" data-direction="forward" data-id="rel:TechLead-&gt;Developer#0" data-role="relationship" data-from="TechLead" data-to="Developer" role="graphics-symbol" aria-roledescription="relation" aria-label="TechLead to Developer: leads" />
+<path class="class-relationship" data-type="association" data-relation-type="association" data-marker-at="to" data-label="leads" d="M253.033333333,229.5 L253.033333333,234.5 Q253.033333333,239.5 258.033333333,239.5 L448.6,239.5 Q456.6,239.5 456.6,247.5 L456.6,363.375 Q456.6,371.375 448.6,371.375 L344.35,371.375 Q336.35,371.375 336.35,379.375 L336.35,400.825 Q336.35,408.825 344.35,408.825 L448.6,408.825 Q456.6,408.825 456.6,416.825 L456.6,430.1" fill="none" stroke="#171512" stroke-width="1.45" marker-end="url(#cls-arrow)" data-relationship="association" data-direction="forward" data-id="rel:TechLead-&gt;Designer#0" data-role="relationship" data-from="TechLead" data-to="Designer" role="graphics-symbol" aria-roledescription="relation" aria-label="TechLead to Designer: leads" />
+<g class="class-node" data-id="Developer" data-label="Developer" data-role="class-box">
+  <rect x="136" y="430.1" width="137.8" height="89.5" rx="7" ry="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" data-id="class:Developer:box" data-role="class-box" />
+  <path d="M143,430.1 H266.8 A7,7 0 0 1 273.8,437.1 V477.6 H136 V437.1 A7,7 0 0 1 143,430.1 Z" fill="#f3f1ed" stroke="#171512" stroke-width="1.45" />
+  <text x="204.9" y="453.85" text-anchor="middle" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true" dy="5.25" textLength="77.85" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Developer</text>
+  <line x1="136" y1="477.6" x2="273.8" y2="477.6" stroke="#171512" stroke-width="0.75" />
+  <line x1="136" y1="485.6" x2="273.8" y2="485.6" stroke="#171512" stroke-width="0.75" />
+  <text x="162" y="499.6" class="mono" text-anchor="start" font-size="11" font-weight="400" fill="#171512" data-id="member:Developer:writeCode" data-role="member" data-prepared-text="true" dy="3.85" textLength="85.8" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"><tspan fill="#5f5a52">+ </tspan><tspan fill="#171512">writeCode()</tspan></text>
+</g>
+<g class="class-node" data-id="Designer" data-label="Designer" data-role="class-box">
+  <rect x="377.8" y="430.1" width="157.6" height="89.5" rx="7" ry="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" data-id="class:Designer:box" data-role="class-box" />
+  <path d="M384.8,430.1 H528.4 A7,7 0 0 1 535.4,437.1 V477.6 H377.8 V437.1 A7,7 0 0 1 384.8,430.1 Z" fill="#f3f1ed" stroke="#171512" stroke-width="1.45" />
+  <text x="456.6" y="453.85" text-anchor="middle" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true" dy="5.25" textLength="68.85" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Designer</text>
+  <line x1="377.8" y1="477.6" x2="535.4" y2="477.6" stroke="#171512" stroke-width="0.75" />
+  <line x1="377.8" y1="485.6" x2="535.4" y2="485.6" stroke="#171512" stroke-width="0.75" />
+  <text x="403.8" y="499.6" class="mono" text-anchor="start" font-size="11" font-weight="400" fill="#171512" data-id="member:Designer:createMockup" data-role="member" data-prepared-text="true" dy="3.85" textLength="105.6" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"><tspan fill="#5f5a52">+ </tspan><tspan fill="#171512">createMockup()</tspan></text>
+</g>
+<g class="class-node" data-id="TechLead" data-label="TechLead" data-role="class-box">
+  <rect x="156.766666667" y="140" width="144.4" height="89.5" rx="7" ry="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" data-id="class:TechLead:box" data-role="class-box" />
+  <path d="M163.766666667,140 H294.166666667 A7,7 0 0 1 301.166666667,147 V187.5 H156.766666667 V147 A7,7 0 0 1 163.766666667,140 Z" fill="#f3f1ed" stroke="#171512" stroke-width="1.45" />
+  <text x="228.966666667" y="163.75" text-anchor="middle" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true" dy="5.25" textLength="77.85" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">TechLead</text>
+  <line x1="156.766666667" y1="187.5" x2="301.166666667" y2="187.5" stroke="#171512" stroke-width="0.75" />
+  <line x1="156.766666667" y1="195.5" x2="301.166666667" y2="195.5" stroke="#171512" stroke-width="0.75" />
+  <text x="182.766666667" y="209.5" class="mono" text-anchor="start" font-size="11" font-weight="400" fill="#171512" data-id="member:TechLead:planSprint" data-role="member" data-prepared-text="true" dy="3.85" textLength="92.4" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"><tspan fill="#5f5a52">+ </tspan><tspan fill="#171512">planSprint()</tspan></text>
+</g>
+<path class="class-marker-overlay" aria-hidden="true" d="M204.9,229.5 L204.9,363.375 Q204.9,371.375 212.9,371.375 L307.25,371.375 Q315.25,371.375 315.25,379.375 L315.25,400.825 Q315.25,408.825 307.25,408.825 L212.9,408.825 Q204.9,408.825 204.9,416.825 L204.9,430.1" fill="none" stroke="#171512" stroke-opacity="0" stroke-width="1.45" marker-end="url(#cls-arrow)" pointer-events="none" data-relationship="marker-carrier" data-direction="forward" />
+<path class="class-marker-overlay" aria-hidden="true" d="M253.033333333,229.5 L253.033333333,234.5 Q253.033333333,239.5 258.033333333,239.5 L448.6,239.5 Q456.6,239.5 456.6,247.5 L456.6,363.375 Q456.6,371.375 448.6,371.375 L344.35,371.375 Q336.35,371.375 336.35,379.375 L336.35,400.825 Q336.35,408.825 344.35,408.825 L448.6,408.825 Q456.6,408.825 456.6,416.825 L456.6,430.1" fill="none" stroke="#171512" stroke-opacity="0" stroke-width="1.45" marker-end="url(#cls-arrow)" pointer-events="none" data-relationship="marker-carrier" data-direction="forward" />
+<text x="182.16" y="292.3" text-anchor="middle" font-size="12" font-weight="600" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.2" textLength="33.48" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">leads</text>
+<text x="480.34" y="292.3" text-anchor="middle" font-size="12" font-weight="600" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.2" textLength="33.48" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">leads</text>
+</svg>
