@@ -6,6 +6,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- Render publication-styled Flowcharts with compound long links when joined
+  route sections differ only by floating-point roundoff, retaining their
+  endpoint contacts and existing route-safety checks.
 - Keep Flowchart relationship ends readable: clear endpoint labels and styled
   arrowheads, symmetric grouped fan-outs with safe caption seats, and distinct
   terminals for differently painted or separately captioned relationships.
