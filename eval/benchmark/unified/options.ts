@@ -19,6 +19,8 @@ export interface SuiteOptions extends UnifiedRunOptions {
   candidateTarball?: string
   candidateSha256?: string
   baseline?: string
+  baselineCheckout?: string
+  candidateCheckout?: string
   baselineRef?: string
   baselineNpm?: string
   baselineTarball?: string
@@ -54,6 +56,8 @@ export function parseOptions(argv: string[]): RunnerOptions {
     'candidate-tarball',
     'candidate-sha256',
     'baseline',
+    'baseline-checkout',
+    'candidate-checkout',
     'baseline-ref',
     'baseline-npm',
     'baseline-tarball',
@@ -159,6 +163,8 @@ export function parseOptions(argv: string[]): RunnerOptions {
     candidateTarball: path('candidate-tarball'),
     candidateSha256: options.get('candidate-sha256'),
     baseline: path('baseline'),
+    baselineCheckout: path('baseline-checkout'),
+    candidateCheckout: path('candidate-checkout'),
     baselineRef: options.get('baseline-ref'),
     baselineNpm: options.get('baseline-npm'),
     baselineTarball: path('baseline-tarball'),
