@@ -164,7 +164,7 @@ export function terminalLabelCorridorLength(edge: PositionedEdge, direction: Dir
   return labelExtent + visibleGap * 3
 }
 
-export function bundledLabelCandidates(edge: PositionedEdge, points: Point[], nodes: PositionedNode[], direction: Direction, style: LabelMetricsStyle): BundledLabelCandidate[] {
+export function bundledLabelCandidates(edge: PositionedEdge, points: Point[], nodes: PositionedNode[], direction: Direction, style: LabelMetricsStyle, admit?: (edge: PositionedEdge, point: Point) => boolean): BundledLabelCandidate[] {
   if (!edge.label) return []
   const totalLength = polylineLength(points)
   if (totalLength === 0) return []
@@ -183,24 +183,34 @@ export function bundledLabelCandidates(edge: PositionedEdge, points: Point[], no
     const gaps = labelEndpointGaps(edge, points, i, style)
     const segmentSlots = [...slots, ...feasibleLabelSlots(baseBox, a, b, gaps)]
       .filter((slot, index, all) => slot >= 0 && slot <= 1 && all.findIndex(other => Math.abs(other - slot) < 0.001) === index)
+    // Nearby lanes may be closer than two opaque pills. A bounded lateral
+    // seat keeps the shaft inside its caption while separating sibling halos.
+    const vertical = Math.abs(a.x - b.x) < 0.01
+    const lateral = Math.min(baseBox.height / 2 + 3, (vertical ? baseBox.width : baseBox.height) / 2 - 1)
+    const offsets = admit ? [0, lateral / 4, -lateral / 4, lateral / 2, -lateral / 2, lateral, -lateral] : [0]
     for (let order = 0; order < segmentSlots.length; order++) {
       const t = segmentSlots[order]!
-      const point = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
-      const box = labelBoxAt(edge, point, style)
-      if (nodes.some(node => rectsOverlap(box, node, 2))) continue
-      if (!clearsTerminalMarkers(edge, points, i, point, box, style)) continue
-      const fitsInsideSegment = labelFitsInsideSegment(box, point, a, b, gaps)
-      raw.push({
-        point,
-        box,
-        order,
-        rank: 0,
-        pathDistance: segmentStartDistance + length * t,
-        routeMidpointDistance: Math.abs(segmentStartDistance + length * t - midpointDistance),
-        segmentMidpointDistance: Math.abs(length * (t - 0.5)),
-        straightRunPenalty: flowAligned && fitsInsideSegment ? 0 : flowAligned ? 2 : 10,
-        terminalSegmentPenalty: terminalSegment ? 1 : 0,
-      })
+      for (const offset of offsets) {
+        const point = { x: a.x + (b.x - a.x) * t + (vertical ? offset : 0), y: a.y + (b.y - a.y) * t + (vertical ? 0 : offset) }
+        const box = labelBoxAt(edge, point, style)
+        if (nodes.some(node => rectsOverlap(box, node, 2))) continue
+        if (!clearsTerminalMarkers(edge, points, i, point, box, style)) continue
+        const fitsInsideSegment = labelFitsInsideSegment(box, point, a, b, gaps)
+        const contained = vertical ? box.y >= Math.min(a.y, b.y) && box.y + box.height <= Math.max(a.y, b.y)
+          : box.x >= Math.min(a.x, b.x) && box.x + box.width <= Math.max(a.x, b.x)
+        if (admit && (!fitsInsideSegment || !contained || !admit(edge, point))) continue
+        raw.push({
+          point,
+          box,
+          order,
+          rank: 0,
+          pathDistance: segmentStartDistance + length * t,
+          routeMidpointDistance: Math.abs(segmentStartDistance + length * t - midpointDistance),
+          segmentMidpointDistance: Math.abs(length * (t - 0.5)),
+          straightRunPenalty: flowAligned && fitsInsideSegment ? 0 : flowAligned ? 2 : 10,
+          terminalSegmentPenalty: terminalSegment ? 1 : 0,
+        })
+      }
     }
     segmentStartDistance += length
   }
@@ -359,15 +369,19 @@ export function assignBundledFanoutLabels(
   // placement re-centring would disturb; leaving that path untouched keeps the
   // change scoped to the new regression.
   recenter = false,
-): void {
+  admit?: (edge: PositionedEdge, point: Point) => boolean,
+): boolean {
   const labeled = proposed.filter(({ edge }) => edge.label)
-  if (labeled.length === 0) return
+  if (labeled.length === 0) return true
   if (labeled.length === 1) {
     const only = labeled[0]!
-    only.edge.labelPosition = bestBundledLabelPosition(only.edge, only.points, nodes, direction, style)
+    const candidates = bundledLabelCandidates(only.edge, only.points, nodes, direction, style, admit)
+    if (admit && candidates.length === 0) return false
+    only.edge.labelPosition = candidates[0]?.point ?? calculatePathMidpoint(only.points)
   } else {
-    const candidateSets = labeled.map(({ edge, points }) => bundledLabelCandidates(edge, points, nodes, direction, style))
+    const candidateSets = labeled.map(({ edge, points }) => bundledLabelCandidates(edge, points, nodes, direction, style, admit))
     if (candidateSets.some(candidates => candidates.length === 0)) {
+      if (admit) return false
       for (const { edge, points } of labeled) edge.labelPosition = bestBundledLabelPosition(edge, points, nodes, direction, style)
     } else {
       const gap = readableLabelGap(style)
@@ -393,6 +407,7 @@ export function assignBundledFanoutLabels(
       search(0)
 
       if (!best) {
+        if (admit) return false
         for (const { edge, points } of labeled) edge.labelPosition = bestBundledLabelPosition(edge, points, nodes, direction, style)
       } else {
         for (let i = 0; i < labeled.length; i++) labeled[i]!.edge.labelPosition = best[i]!.point
@@ -407,7 +422,7 @@ export function assignBundledFanoutLabels(
   // dogleg hugs the route end. Label-only, post-route, HARD-safe; a re-centre that
   // would collide with a node OR a sibling label already re-centred here is
   // declined, so sibling separation is preserved.
-  if (!recenter) return
+  if (!recenter) return true
   const siblingBoxes: Array<{ x: number; y: number; width: number; height: number }> = []
   const gap = readableLabelGap(style)
   for (const { edge } of labeled) {
@@ -421,4 +436,5 @@ export function assignBundledFanoutLabels(
     // Keep the sibling-box list current so a later edge sees this one's new spot.
     if (edge.labelPosition && edge.labelPosition !== before) siblingBoxes[i] = labelBoxAt(edge, edge.labelPosition, style)
   }
+  return true
 }

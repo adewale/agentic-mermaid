@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "status": "approved",
-  "reviewedAt": "2026-10-28",
-  "reviewer": "Claude agent, issue #566 terminal readability review",
-  "scope": "Agent visual review of the Cupertino catalog capture regenerated from the issue #566 working tree, with its catalog shadow option. The PNG is now 900×187 (previously 900×191). All 127 XML elements, 6 nodes, 7 authored edges, Core membership, prepared texts, styles and semantic attributes are retained; every relationship path moves because placement now reserves a straight terminal shaft after each rounded corner. Repair→Validate and the no return leave Repair on separate lanes and meet the decision on different facets; Intake enters from the upper left; both edge captions sit on their own routes clear of nodes and markers. The two Export arrowheads keep a 5.008px complete stroke-envelope gap; no two marker envelopes overlap and no route shares opposing ink. Layout certification passes; the one secondary hitch (Audit→Export, 6.8px) is also present at the prior approved capture. The Vercel and Cloudflare artifact hashes are unchanged. This is agent review, not human approval, exhaustive font-outline/filter certification or universal rendering parity.",
+  "reviewedAt": "2026-10-29",
+  "reviewer": "Codex agent, PR #571 adversarial audit fixes",
+  "scope": "Agent review of the regenerated Cupertino documentation capture with its catalog shadow option, at 900x186 (previously900x187). Inspected complete before/after: six cards, seven directed links, Core membership, labels and two distinct entries into the decision are retained. Styled marker strokes now have four pixels of straight shaft after corners before projection. The two Export arrowheads remain distinct. Vercel and Cloudflare bytes are unchanged. Transit and mid-century cookbook captures also reflect the styled-hook spacing and were inspected. This is agent review, not human approval or exhaustive rendering proof.",
   "artifacts": [
     {
       "id": "cupertino-prototype",
       "path": "docs/assets/style-cookbook/cupertino-prototype.png",
-      "sha256": "394143d21e27fe7aea850f0da2600bbdb68289a6d186a7650dd2a7140bf3bf6b"
+      "sha256": "7e50d010c627341c2dcf63fb30f0e364f3461027a49c78447272421c965305fd"
     },
     {
       "id": "vercel-inspired-prototype",

@@ -482,9 +482,23 @@ function elkMarkerPortExtents(graph: MermaidGraph, style: ResolvedRenderStyle): 
  * whose returns end in a hook of that length. Keep ELK's default unless the
  * style's painted marker and corner need a longer hook and a cycle (a
  * self-loop included) gives the graph such a channel at all. */
-function outerChannelSpacing(style: ResolvedRenderStyle, graph: MermaidGraph): Record<string, string> {
-  const hook = terminalHookLength(style)
+function outerChannelSpacing(graph: MermaidGraph, hook: number): Record<string, string> {
   return hook > terminalHookLength({}) && hasDirectedCycle(graph.edges) ? { 'elk.spacing.edgeNode': String(hook) } : {}
+}
+
+function graphTerminalDemands(style: ResolvedRenderStyle, graph: MermaidGraph): { hook: number; corridor: number } {
+  let hook = terminalHookLength(style)
+  let corridor = 0
+  for (const [index, edge] of graph.edges.entries()) {
+    if (edge.style === 'invisible') continue
+    const painted = { ...edge, inlineStyle: resolveEdgeInlineStyle(index, graph) }
+    const start = terminalHookLength(style, painted, 'start'), end = terminalHookLength(style, painted, 'end')
+    hook = Math.max(hook, start, end)
+    // Straight routes have no edge/node elbow to reserve their marker space.
+    // Both endpoint heads must fit even when ELK aligns the cards directly.
+    corridor = Math.max(corridor, (edge.hasArrowStart ? start - style.edgeBendRadius : 0) + (edge.hasArrowEnd ? end - style.edgeBendRadius : 0))
+  }
+  return { hook, corridor }
 }
 
 function hasDirectedCycle(edges: readonly Pick<MermaidEdge, 'source' | 'target'>[]): boolean {
@@ -513,9 +527,10 @@ function mermaidToElk(
   opts: ElkConversionOptions,
   style: ResolvedRenderStyle,
 ): ElkGraphNode {
+  const { hook, corridor } = graphTerminalDemands(style, graph)
   // Projected families replace these temporary graph connectors with their
   // own measured glyphs/routes; their placement contracts retain their sizes.
-  opts = { ...opts, markerPortExtents: opts.preserveSubgraphChildOrder || opts.stateVisual ? undefined : elkMarkerPortExtents(graph, style) }
+  opts = { ...opts, layerSpacing: Math.max(opts.layerSpacing, corridor), markerPortExtents: opts.preserveSubgraphChildOrder || opts.stateVisual ? undefined : elkMarkerPortExtents(graph, style) }
   // Collect all node IDs that belong to subgraphs
   const subgraphNodeIds = new Set<string>()
   const subgraphIds = new Set<string>()
@@ -668,8 +683,8 @@ function mermaidToElk(
       'elk.spacing.edgeEdge': '12',
       'elk.layered.spacing.edgeEdgeBetweenLayers': '12',
       // Channel segments keep a stroke-scaled marker and rounded corner clear.
-      'elk.layered.spacing.edgeNodeBetweenLayers': String(terminalHookLength(style)),
-      ...outerChannelSpacing(style, graph),
+      'elk.layered.spacing.edgeNodeBetweenLayers': String(hook),
+      ...outerChannelSpacing(graph, hook),
       'elk.padding': `[top=${opts.padding},left=${opts.padding},bottom=${opts.padding},right=${opts.padding}]`,
       'elk.edgeRouting': 'ORTHOGONAL',
       'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
@@ -713,7 +728,7 @@ function mermaidToElk(
   for (const id of rootOrder) {
     const sg = topLevelSubgraphs.get(id)
     if (sg) {
-      elkGraph.children!.push(subgraphToElk(sg, graph, opts, style, edgesBySubgraph, subgraphPorts, crossEdgesByHost, routePortHints, useSourceAwareChildOrder, balancingLabels, separateHierarchy, graph.direction))
+      elkGraph.children!.push(subgraphToElk(sg, graph, opts, style, hook, edgesBySubgraph, subgraphPorts, crossEdgesByHost, routePortHints, useSourceAwareChildOrder, balancingLabels, separateHierarchy, graph.direction))
       continue
     }
     const node = graph.nodes.get(id)
@@ -1096,6 +1111,7 @@ function subgraphToElk(
   graph: MermaidGraph,
   opts: ElkConversionOptions,
   style: ResolvedRenderStyle,
+  hook: number,
   edgesBySubgraph: Map<string | null, Array<{ index: number; edge: MermaidEdge }>>,
   subgraphPorts: Map<string, HierarchyPort[]>,
   crossEdgesByHost: Map<string | null, ElkExtendedEdge[]>,
@@ -1119,8 +1135,8 @@ function subgraphToElk(
     'elk.contentAlignment': 'H_CENTER V_CENTER',
     'elk.spacing.edgeEdge': '12',
     'elk.layered.spacing.edgeEdgeBetweenLayers': '12',
-    'elk.layered.spacing.edgeNodeBetweenLayers': String(terminalHookLength(style)),
-    ...outerChannelSpacing(style, graph),
+    'elk.layered.spacing.edgeNodeBetweenLayers': String(hook),
+    ...outerChannelSpacing(graph, hook),
     'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
     'elk.layered.spacing.nodeNodeBetweenLayers': String(opts.layerSpacing),
     'elk.spacing.nodeNode': String(opts.nodeSpacing),
@@ -1187,7 +1203,7 @@ function subgraphToElk(
 
   // Add nested subgraphs recursively
   for (const child of sg.children) {
-    elkNode.children!.push(subgraphToElk(child, graph, opts, style, edgesBySubgraph, subgraphPorts, crossEdgesByHost, routePortHints, useSourceAwareOrder, balancingLabels, separateHierarchy, effectiveDirection))
+    elkNode.children!.push(subgraphToElk(child, graph, opts, style, hook, edgesBySubgraph, subgraphPorts, crossEdgesByHost, routePortHints, useSourceAwareOrder, balancingLabels, separateHierarchy, effectiveDirection))
   }
 
   // Add internal edges (edges where both endpoints are in this subgraph)
@@ -1556,7 +1572,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'reassignBundledSiblingLabels', doc: 're-home labels onto the correct bundled sibling segment',
     after: ['collapseTinyBundledHitches'], mutates: ['edges'], determinism: 'in-place',
-    run: c => { reassignBundledSiblingLabels(c.nodes, c.edges, c.bundled, c.graph.direction, c.style) },
+    run: c => { reassignBundledSiblingLabels(c.nodes, c.edges, c.bundled, c.graph.direction, c.style, c.groups) },
   },
   {
     id: 'applyRouteContracts', doc: 'classify -> simplify -> straighten (fixed-point) -> certify; FREEZES node geometry',

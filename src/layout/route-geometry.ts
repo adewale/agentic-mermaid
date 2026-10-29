@@ -44,7 +44,12 @@ export function terminalHookLength(style: Pick<LabelMetricsStyle, 'lineWidth' | 
   const lineWidth = style.lineWidth ?? 1
   const marked = !edge || (end === 'start' ? edge.hasArrowStart : edge.hasArrowEnd)
   const marker = !marked ? 0 : edge ? edgeMarkerLength(edge, lineWidth) : ARROW_HEAD.width * lineWidth
-  return Math.max(TERMINAL_HOOK, marker + (style.edgeBendRadius ?? 0) + VISIBLE_SHAFT)
+  const radius = style.edgeBendRadius ?? 0
+  // The round-joined marker stroke extends behind its nominal triangle. Keep
+  // the established 12px default; styled hooks reserve its complete support.
+  const scale = edge?.inlineStyle?.['stroke-width'] ? 1 : lineWidth * (edge?.style === 'thick' ? 2 : 1)
+  const stroke = marked && (marker > ARROW_HEAD.width || radius > 0) ? ARROW_HEAD.strokeWidth / 2 * scale : 0
+  return Math.max(TERMINAL_HOOK, marker + stroke + radius + VISIBLE_SHAFT)
 }
 
 /** Shapes whose forward-facing side is a straight axis-aligned segment.

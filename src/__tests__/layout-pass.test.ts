@@ -18,6 +18,8 @@ import { labelRect } from '../route-contracts.ts'
 import * as routeContracts from '../route-contracts.ts'
 import { applySymmetricParallelEdgeLanes, applyParallelDuplicateLanes } from '../layout/passes/index.ts'
 import { graphEdgeTextBlock } from '../graph-text.ts'
+import { bundleEdgePaths } from '../layout/passes/edge-bundling.ts'
+import { opposingRoutePartners } from '../shared/edge-overlaps.ts'
 import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
 import type { PositionedEdge, PositionedGraph, PositionedNode } from '../types.ts'
 
@@ -175,6 +177,35 @@ S1["same word ok"] --> D`],
     expect(paired([{ x: 2, y: 0 }, { x: 8, y: 0 }])).toBe(0)
     expect(paired([{ x: 20, y: 0 }, { x: 10, y: 0 }])).toBe(0)
     expect(paired([{ x: 5, y: -5 }, { x: 5, y: 5 }])).toBe(0)
+  })
+  for (const direction of ['LR', 'RL'] as const) test.each([
+    ['invisible', '~~~', ''],
+    ['thick', '==>', ''],
+    ['dotted', '-.->', ''],
+    ['different colour', '-->', '\nlinkStyle 0 stroke:red'],
+    ['different marker', '--o', ''],
+  ])(`${direction}: a %s cross-relation cannot license a solid complete-join bus`, (_name, operator, styling) => {
+    const graph = parseMermaid(`flowchart ${direction}\nB ${operator} D\nA --> C\nB --> C\nA --> D${styling}`)
+    const positioned = layoutGraphSync(graph)
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.style])).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.style]))
+    expect(countOpposingRouteOverlaps(positioned.edges)).toBe(0)
+    expect(renderMermaidSVG(`flowchart ${direction}\nB ${operator} D\nA --> C\nB --> C\nA --> D${styling}`)).toContain('<svg')
+  })
+  test('bundling cannot exchange an existing misleading overlap for a new peer', () => {
+    const node = (id: string, x: number, y: number): PositionedNode => ({ id, label: id, shape: 'rectangle', x, y, width: 60, height: 36.9 })
+    const nodes = [node('A', 40, 40), node('C', 148, 40), node('D', 148, 104.9), node('E', 300, 200), node('F', 400, 300), node('G', 500, 400), node('H', 600, 500)]
+    const edge = (source: string, target: string, points: number[][]): PositionedEdge => ({ source, target, style: 'solid', hasArrowStart: false, hasArrowEnd: true, points: points.map(([x, y]) => ({ x: x!, y: y! })) })
+    const edges = [
+      edge('A', 'C', [[100, 58.45], [148, 58.45]]),
+      edge('A', 'D', [[100, 58.45], [112, 58.45], [112, 123.35], [148, 123.35]]),
+      edge('E', 'F', [[300, 218.45], [112, 218.45], [112, 10], [430, 10], [430, 300]]),
+      edge('G', 'H', [[500, 418.45], [124, 418.45], [124, 20], [630, 20], [630, 500]]),
+    ]
+    const subject = edges[1]!, peers = edges.slice(2)
+    expect(opposingRoutePartners(subject, peers)).toEqual([edges[2]!])
+    const bundled = bundleEdgePaths(edges, nodes, [], 'LR', resolveRenderStyle())
+    expect(opposingRoutePartners(subject, peers)).toEqual([edges[2]!])
+    expect(bundled.has(subject)).toBe(false)
   })
   test('the engine rejects actual detour bends before fallback without audit options', () => {
     const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'alignLayerNodes')!

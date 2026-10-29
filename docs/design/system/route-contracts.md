@@ -285,6 +285,9 @@ seems to reach the other's target. It is admitted only when both of those
 readings are real edges painted alike, as in the complete bipartite join of
 `A & B --> C & D`. A fan-in trunk laid back along the reverse route that
 leaves the same port does not qualify.
+An invisible layout link or a differently painted cross-relation cannot supply
+that proof. Admission compares the identities of opposing peers, not only their
+count: exchanging one existing misleading overlap for a new peer is rejected.
 
 Bundle exemptions also cover symmetric convergence and separated parallel
 lanes. Their bounded producers retain ownership of the actual related routes;
@@ -727,11 +730,15 @@ demonstrate the diamond facet-mid ports.
 least `terminalHookLength` from a marked endpoint: the painted marker (8px
 scaled by the stroke, or the fixed head of an authored width), the rounded
 corner radius and 4px of visible line, never less than the established 12px.
-The default 1px square-cornered style therefore keeps 12px exactly. The Z and
+Styled hooks include the marker's backward stroke support. The default 1px
+square-cornered style keeps its established 12px (a nominal 4px allowance before
+marker stroke). The Z and
 escape-detour jogs, bundled junctions, re-anchored doglegs and ELK's
 between-layer edge/node spacing all use it, so a styled arrowhead never
 hangs off its corner (ER already sizes its ELK spacing from marker ink the
-same way). ELK's in-layer edge/node gap, which sets the height of outer
+same way). ELK resolves the actual visible edges' thick/inline paint and both
+endpoints at root and nested scopes. Its rank gap also reserves both heads when
+a straight route has no elbow to provide that space. ELK's in-layer edge/node gap, which sets the height of outer
 feedback channels, takes the hook only when the graph has a cycle (a
 self-loop included): an acyclic graph has no such channel to widen.
 

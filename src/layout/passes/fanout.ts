@@ -7,6 +7,45 @@ import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
 import { countPointPairCrossings } from '../../shared/edge-crossing-pair.ts'
 import { terminalHookLength } from '../route-geometry.ts'
 import { laneContextFor, straightLaneFor } from '../route-lanes.ts'
+import { labelPaintClearance } from '../../route-contracts.ts'
+import { labelHaloExtension, labelRect } from '../../shared/edge-label-geometry.ts'
+import { labelSeatPaintContext } from '../graph-paint-support.ts'
+
+/** A grouped fork cannot grow its corridor. Retain its existing readable
+ * seats, or admit a complete replacement against the proposed route paint. */
+function seatGroupedFanout(
+  proposed: Array<{ edge: PositionedEdge; points: Point[] }>,
+  nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[],
+  direction: Direction, style: LabelMetricsStyle,
+): boolean {
+  let work = 4_000_000
+  const paint = labelSeatPaintContext(nodes, edges, groups, style, units => (work -= units) >= 0)
+  if (!paint) return false
+  const clearance = labelPaintClearance({ nodes, edges, groups }, style)
+  const ignored = new Set(proposed.map(({ edge }) => edge))
+  const source = nodes.find(node => node.id === proposed[0]!.edge.source)!
+  const containers = flattenPositionedGroups(groups).filter(group => rectInsideGroup(source, group))
+  const admit = (edge: PositionedEdge, point: Point): boolean => {
+    const rect = labelRect({ ...edge, labelPosition: point }, style)
+    const halo = rect && clearance.clearPaintRect(rect, labelHaloExtension(edge, style.lineWidth ?? 1), edge)
+    return !!halo && containers.every(group => halo.x > group.x && halo.y > group.y
+      && halo.x + halo.w < group.x + group.width && halo.y + halo.h < group.y + group.height)
+      && paint.clear(edge, point, new Map(), undefined, ignored)
+  }
+  const complete = () => proposed.every(({ edge }) => !edge.label || !!edge.labelPosition && paint.clear(edge, edge.labelPosition, new Map()))
+  const retained = proposed.every(({ edge, points }) => {
+    if (!edge.label) return true
+    if (!edge.labelPosition || !admit(edge, edge.labelPosition)) return false
+    const rect = labelRect(edge, style)!
+    return points.some((b, i) => {
+      if (!i) return false
+      const a = points[i - 1]!
+      return a.x === b.x && a.x >= rect.x && a.x <= rect.x + rect.w && rect.y >= Math.min(a.y, b.y) && rect.y + rect.h <= Math.max(a.y, b.y)
+        || a.y === b.y && a.y >= rect.y && a.y <= rect.y + rect.h && rect.x >= Math.min(a.x, b.x) && rect.x + rect.w <= Math.max(a.x, b.x)
+    })
+  })
+  return retained && complete() || assignBundledFanoutLabels(proposed, nodes, direction, style, false, admit) && complete()
+}
 
 export function reassignBundledSiblingLabels(
   nodes: PositionedNode[],
@@ -14,6 +53,7 @@ export function reassignBundledSiblingLabels(
   bundled: ReadonlySet<PositionedEdge>,
   direction: Direction,
   style: LabelMetricsStyle,
+  groups: PositionedGroup[] = [],
 ): void {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const bySource = new Map<string, PositionedEdge[]>()
@@ -31,7 +71,14 @@ export function reassignBundledSiblingLabels(
       if (!aTarget || !bTarget) return (a.edgeIndex ?? 0) - (b.edgeIndex ?? 0)
       return nodeCrossCenter(aTarget, direction) - nodeCrossCenter(bTarget, direction)
     })
-    assignBundledFanoutLabels(sorted.map(edge => ({ edge, points: edge.points })), nodes, direction, style)
+    const source = nodeMap.get(sorted[0]!.source)!
+    if (source?.shape === 'rectangle' && nodeInsideGroups(source, groups)) {
+      const proposed = sorted.map(edge => ({ edge: { ...edge }, points: edge.points }))
+      const replacements = new Map(sorted.map((edge, i) => [edge, proposed[i]!.edge]))
+      if (seatGroupedFanout(proposed, nodes, edges.map(edge => replacements.get(edge) ?? edge), groups, direction, style)) {
+        sorted.forEach((edge, i) => { edge.labelPosition = proposed[i]!.edge.labelPosition })
+      }
+    } else assignBundledFanoutLabels(sorted.map(edge => ({ edge, points: edge.points })), nodes, direction, style)
   }
 }
 
@@ -220,11 +267,23 @@ export function applySymmetricFanoutEmissions(
       restoreGeometry()
       continue
     }
-    for (const { edge, points } of proposed) {
+    // Route-only forks cannot enlarge their corridor. Prove the entire label
+    // transaction against the proposed ink before replacing the live routes.
+    const staged = proposed.map(({ edge, points }) => ({ edge: { ...edge, points }, points }))
+    if (routeOnly && staged.some(({ edge }) => edge.label)) {
+      const replacements = new Map(proposed.map(({ edge }, i) => [edge, staged[i]!.edge]))
+      const peers = edges.map(edge => replacements.get(edge) ?? edge)
+      if (!seatGroupedFanout(staged, nodes, peers, groups, graph.direction, style)) {
+        restoreGeometry()
+        continue
+      }
+    } else assignBundledFanoutLabels(staged, nodes, graph.direction, style)
+    for (let i = 0; i < proposed.length; i++) {
+      const { edge, points } = proposed[i]!
       edge.points = points
+      edge.labelPosition = staged[i]!.edge.labelPosition
       edge.routeCertificate = undefined
     }
     retainConstructedBundleRoutes(proposed.map(proposal => proposal.edge), bundled)
-    assignBundledFanoutLabels(proposed, nodes, graph.direction, style)
   }
 }

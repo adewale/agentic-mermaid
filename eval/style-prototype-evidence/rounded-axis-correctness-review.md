@@ -28,3 +28,12 @@ The Cupertino capture regenerated from the issue #566 working tree is `394143d21
 The agent inspected the before/after pair at native width and a 3× crop of the decision and Export regions. Repair→Validate and the no return now leave Repair on separate lanes instead of running beside each other into the decision's west vertex; both captions sit on their own routes; the two Export arrowheads keep a 5.008px complete stroke-envelope gap. Layout certification passes, no marker envelopes overlap and no route shares opposing ink. The single secondary `hitches` finding (Audit→Export deviates 6.8px) is unchanged from the prior capture.
 
 The transit-route-map, mid-century-report and star-chart-atlas screenshots also change and were inspected the same way; they carry no approval record. The Vercel and Cloudflare captures are byte-identical. This records agent review, not human approval or a general paint theorem.
+# PR #571 adversarial audit repair, 2026-10-29
+
+Reviewed the regenerated Cupertino, transit and mid-century cookbook captures.
+The terminal spacing includes marker stroke support, retaining complete labels,
+cards, group membership and separate decision/Export entries. Cupertino changes
+from 900x187 to 900x186, transit from 900x189 to 900x187, while mid-century stays
+900x199. Vercel, Cloudflare and star-chart PNG bytes are unchanged. The approval
+records the new Cupertino bytes. This finite agent review is not human approval
+or a claim about arbitrary custom-style geometry.

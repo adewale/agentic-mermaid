@@ -53,6 +53,11 @@ const CASES: Array<{ name: string; source: string }> = [
   { name: 'fan-out with long and short captions', source: 'flowchart TD\n  P[Pele] -->|Rust port| O[Ondine]\n  P -->|port| B[Bezel]' },
   { name: 'grouped fan-out with long and short captions', source: 'flowchart TD\n  subgraph G[Group]\n  P[Pele] -->|Rust port| O[Ondine]\n  P -->|port| B[Bezel]\n  end' },
   { name: 'fan-out with short captions', source: 'flowchart TD\n  A -->|yes| B\n  A -->|no| C' },
+  ...(['TD', 'BT'] as const).map(direction => ({ name: `grouped fan-out with two wide captions (${direction})`, source: `flowchart ${direction}\nsubgraph G[Group]\nA -->|A very long alpha caption| B\nA -->|A very long beta caption| C\nend` })),
+  ...(['LR', 'RL'] as const).flatMap(direction => [false, true].map(grouped => ({
+    name: `thick and dotted fan-in (${direction}, ${grouped ? 'grouped' : 'root'})`,
+    source: `flowchart ${direction}\n${grouped ? 'subgraph G[Group]\n' : ''}A[Source] ==> C[Target]\nB[Other source] -.-> C${grouped ? '\nend' : ''}`,
+  }))),
 ]
 
 const PUBLICATION = {
@@ -126,8 +131,14 @@ function expectReadableEnds(positioned: PositionedGraph, horizontal: boolean, st
     const [from, to] = paintedTerminalRun(edge, style)
     const marker = endMarker(edge, style)
     const vertical = Math.abs(from.x - to.x) < 0.01
-    const extent = vertical ? marker.y1 - marker.y0 : marker.x1 - marker.x0
-    expect(Math.hypot(to.x - from.x, to.y - from.y) - extent, `${edge.source}->${edge.target} arrowhead overhangs its straight shaft`).toBeGreaterThan(1)
+    const sign = Math.sign(vertical ? to.y - from.y : to.x - from.x)
+    const back = vertical ? (sign > 0 ? marker.y0 : marker.y1) : (sign > 0 ? marker.x0 : marker.x1)
+    // Stroke beyond the endpoint is not part of the shaft behind the marker.
+    const visibleShaft = (back - (vertical ? from.y : from.x)) * sign
+    expect(visibleShaft, `${edge.source}->${edge.target} arrowhead overhangs its straight shaft`).toBeGreaterThan(1)
+    if (style.edgeBendRadius > 0 || style.lineWidth > 1 || edge.style === 'thick') {
+      expect(visibleShaft, 'painted marker leaves 4px of visible straight shaft').toBeGreaterThanOrEqual(3.9998)
+    }
   }
 
   for (const edge of positioned.edges) {
@@ -137,6 +148,13 @@ function expectReadableEnds(positioned: PositionedGraph, horizontal: boolean, st
     const painted = { x0: pill.x - halo, y0: pill.y - halo, x1: pill.x + pill.w + halo, y1: pill.y + pill.h + halo }
     for (const id of [edge.source, edge.target]) {
       expect(gap(painted, nodeBox(nodes.get(id)!)), `"${edge.label}" crowds ${id}`).toBeGreaterThanOrEqual(6)
+    }
+    for (const group of positioned.groups) {
+      if (!group.nodeIds?.includes(edge.source) || !group.nodeIds.includes(edge.target)) continue
+      expect(painted.x0, 'caption halo clears its group border').toBeGreaterThan(group.x)
+      expect(painted.x1).toBeLessThan(group.x + group.width)
+      expect(painted.y0).toBeGreaterThan(group.y)
+      expect(painted.y1).toBeLessThan(group.y + group.height)
     }
     if (edge.hasArrowEnd) expect(overlaps(painted, endMarker(edge, style)), `"${edge.label}" covers its arrowhead`).toBe(false)
   }
@@ -156,6 +174,10 @@ function expectReadableEnds(positioned: PositionedGraph, horizontal: boolean, st
 }
 
 describe('Flowchart relationship ends stay readable (#566)', () => {
+  test.each([3, 12])('a %dpx edge style reserves its thick marker stroke', lineWidth => {
+    const { positioned, horizontal, style } = laidOut('flowchart LR\nA[Source] ==> C[Target]\nB[Other source] -.-> C', { style: { roles: { edge: { lineWidth, bendRadius: 8 } } } })
+    expectReadableEnds(positioned, horizontal, style)
+  })
   for (const { name, source } of CASES) {
     for (const style of STYLES) {
       test(`${name}, ${style.name} styling`, () => {
@@ -170,6 +192,7 @@ describe('Flowchart relationship ends stay readable (#566)', () => {
       // "3" sits beside the arrowhead 9 paints into Alpha, between the lanes
       // of 9 and its parallel sibling 4: no seat off 9's marker avoids 4's line.
       name: "a caption kept clear of a neighbour's arrowhead",
+      options: {},
       caption: '3',
       source: 'flowchart TD\n  Z[Start] -->|long 1| A[Alpha]\n  Z -->|long 2| A\n  A -->|3| B[Beta]\n  A -->|4| B\n'
         + '  B -->|5| C[Gamma]\n  B -->|6| D[Delta]\n  C -->|7| D\n  D -->|8| E[End]\n  B -->|9| A\n  C -->|10| A\n  D -->|11| A\n  C -->|13| B\n  D -->|14| B',
@@ -179,11 +202,18 @@ describe('Flowchart relationship ends stay readable (#566)', () => {
       // on either side of the free seat above 12's loop: only moving both
       // together uncovers 11's line.
       name: 'a self-loop caption blocked by two captions at once',
+      options: {},
       caption: '12',
       source: 'flowchart TD\n  B -->|9| A\n  D -->|11| A\n  B -->|12| B\n  C -->|13| B\n  D -->|14| B\n  C -->|18| C',
     },
-  ])('$name covers no other relationship\'s line', ({ caption, source }) => {
-    const { positioned, style } = laidOut(source, {})
+    {
+      name: 'a grouped fan-out with two wide captions',
+      options: { style: 'publication-figure' },
+      caption: 'A very long alpha caption',
+      source: 'flowchart TD\nsubgraph G[Group]\nA -->|A very long alpha caption| B\nA -->|A very long beta caption| C\nend',
+    },
+  ])('$name covers no other relationship\'s line', ({ caption, source, options }) => {
+    const { positioned, style } = laidOut(source, options)
     const subject = positioned.edges.find(edge => edge.label === caption)!
     const pill = labelRect(subject, style)!
     const box = { x0: pill.x, y0: pill.y, x1: pill.x + pill.w, y1: pill.y + pill.h }

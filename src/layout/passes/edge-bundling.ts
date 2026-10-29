@@ -154,13 +154,16 @@ export function bundleEdgePaths(
     // reach the other's target. A trunk may run back along another edge only
     // where both readings are real edges painted alike (a complete bipartite
     // join), never along e.g. the reverse route leaving the same port.
-    const realEdge = (source: string, target: string) => edges.some(edge => edge.source === source && edge.target === target)
+    const realEdge = (source: string, target: string, paint: PositionedEdge) => edges.some(edge => edge.source === source && edge.target === target
+      && edge.style !== 'invisible' && edgesMayShareTerminal(paint, edge)
+      && edge.hasArrowStart === paint.hasArrowStart && edge.hasArrowEnd === paint.hasArrowEnd
+      && (edge.startMarker ?? 'arrow') === (paint.startMarker ?? 'arrow') && (edge.endMarker ?? 'arrow') === (paint.endMarker ?? 'arrow'))
     const misleads = (member: PositionedEdge, other: PositionedEdge) => !edgesMayShareTerminal(member, other)
-      || !realEdge(member.source, other.target) || !realEdge(other.source, member.target)
+      || !realEdge(member.source, other.target, member) || !realEdge(other.source, member.target, other)
     const opposingAdded = (member: PositionedEdge, candidate: PositionedEdge): boolean => {
       const others = edges.filter(edge => edge !== member)
-      const after = opposingRoutePartners(candidate, others).filter(other => misleads(member, other)).length
-      return after > 0 && after > opposingRoutePartners(member, others).filter(other => misleads(member, other)).length
+      const before = new Set(opposingRoutePartners(member, others))
+      return opposingRoutePartners(candidate, others).some(other => !before.has(other) && misleads(member, other))
     }
     return members.filter(member => {
       const points = candidates.get(member.edge)!

@@ -87,6 +87,27 @@ const stableRepresentativeCues = {
 const ownershipGoldenIds = new Set(['corpus/flowchart/94', 'corpus/flowchart/95', 'corpus/flowchart/96', 'corpus/flowchart/98', 'corpus/state/0', 'corpus/state/1', 'corpus/state/8', 'corpus/state/14', 'corpus/state/16', 'corpus/state/17', 'corpus/state/18', 'corpus/state/19'])
 const fixtures: Fixture[] = [
   {
+    id: 'flowchart-grouped-wide-captions',
+    title: 'Grouped fan-out captions keep the sibling connector visible',
+    source: 'flowchart TD\nsubgraph G[Group]\nA -->|A very long alpha caption| B\nA -->|A very long beta caption| C\nend',
+    renderOptions: { style: 'publication-figure' }, captureLayout: true,
+    cue: 'Inspect the alpha caption below A: both outgoing shafts remain visible, both captions are level, and their halos stay inside the group. The owning readability test checks endpoint clearance and foreign-shaft masking. This two-leaf witness does not prove every crowded group has a feasible symmetric fork.',
+  },
+  {
+    id: 'flowchart-thick-terminal-shaft',
+    title: 'Thick arrowhead sits completely on its straight terminal',
+    source: 'flowchart LR\nA[Source] ==> C[Target]\nB[Other source] -.-> C',
+    renderOptions: { style: 'publication-figure' }, captureLayout: true,
+    cue: 'Inspect the thick arrow into Target: its complete marker stroke clears the rounded corner. Source/target identities, the thick solid edge and the dotted sibling are unchanged. The owning test measures actual marker support and straight shaft; this image alone does not establish all marker or route styles.',
+  },
+  {
+    id: 'flowchart-invisible-join',
+    title: 'An invisible layout link cannot license a visible bus relationship',
+    source: 'flowchart LR\nB ~~~ D\nA --> C\nB --> C\nA --> D',
+    captureLayout: true,
+    cue: 'Follow B only to C, and A to both C and D. The layout-only B-to-D link must not acquire a visible connection through opposing shared bus ink. The owning bundle tests preserve the valid all-solid complete join and reject invisible or differently painted inferred relationships. Ordinary crossings remain allowed; this is not a claim of universal crossing-free routing.',
+  },
+  {
     id: 'flowchart-curved-port-diagonal',
     title: 'Curved-node Flowchart survives chain alignment',
     source: 'flowchart TD\nA["ok"]\nB{"warnings"}\nC{"x"}\nD["ok"]\nE(["process the input"])\nA --> B\nB --> C\nB --> D\nA --> E\nE --> D',

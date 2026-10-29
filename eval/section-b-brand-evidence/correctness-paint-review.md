@@ -44,3 +44,13 @@ The canonical sheet regenerated from the issue #566 working tree contains 100 fa
 Architecture placement uses the shared Flowchart ELK conversion. Its edge/node spacing now equals the terminal hook that seats a stroke-scaled marker after a rounded corner (here 3px strokes and a 14px radius), so the placed diagram is slightly wider and is scaled to fit the cell. The agent inspected the before/after cell at native 520×380: the API->Database arrowhead now sits on a straight shaft instead of overhanging its rounded corner; API->Cache keeps its reads label and its entry; the Backend group, icons and palette are unchanged. Default-style Architecture geometry is byte-identical (the layout-equivalence corpus shows no Architecture change).
 
 This approves the composed finite rendering sheet only. It is agent review, not human approval, deployed-site parity, general backend parity or an exhaustive density, readability or font-outline proof. No limits, source semantics or certification checks were relaxed.
+# PR #571 adversarial audit repair, 2026-10-29
+
+The styled terminal hook now includes the arrow resource's round stroke support,
+and ELK reserves the actual visible edges' marker demands. Regenerated the sheet
+and compared every pixel with the previous PR capture: changes are confined to
+the Architecture sentinel cell. Inspected its complete before/after crops at
+native size: API, Database, Cache, the Backend frame, reads caption and both
+directed links remain legible; spacing changes slightly. The other 99 cells are
+byte-identical at the pixel level. The approval records the exact new PNG bytes.
+This is agent review, not human approval or exhaustive rendering certification.
