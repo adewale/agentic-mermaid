@@ -397,10 +397,10 @@ it('resolved circle and ellipse paths preserve the native stroke traversal for d
 
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
-  // Shared marker reservations and routing repairs use 4,734,614 raw bytes.
-  // Keep the gzip ceiling and per-PR relative-growth gate unchanged.
-  expect(html.byteLength).toBeLessThanOrEqual(4_735_000)
-  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_419_750)
+  // Large Class/ER certification and private route channels use 4,735,733 raw
+  // and 1,420,742 gzip bytes with current main. Keep the relative-growth gate.
+  expect(html.byteLength).toBeLessThanOrEqual(4_736_000)
+  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_421_000)
   const runtime = new TextDecoder().decode(html).match(/<script type="module" id="editor-runtime">([\s\S]*?)<\/script>/)?.[1]
   expect(runtime).toBeDefined()
   // These literals belong to the page catalog, not its private renderer worker.
