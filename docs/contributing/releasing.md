@@ -95,11 +95,14 @@ client-side exact-identity check.
 2. **Bump the package and MCP server versions together.** Update `version` in
    `package.json`, `PACKAGE_VERSION` in `src/version.ts`, the top-level `version` in `server.json`, and
    `packages[0].version` in `server.json`. The readiness tests require an exact
-   match. Generated surfaces such as `am llms-txt` and `am capabilities` read the
-   runtime-safe `PACKAGE_VERSION`, so no additional generated-file edit is needed.
+   match. Run `bun run generate:browser-families` and commit the runtime browser
+   descriptors so their `identity.compatibility.core` matches the new version.
+   CLI surfaces such as `am llms-txt` and `am capabilities` read the runtime-safe
+   `PACKAGE_VERSION` directly.
 3. **Roll the changelog.** Retitle `## Unreleased` in
    [`CHANGELOG.md`](../../CHANGELOG.md) to `## <version> — <YYYY-MM-DD>` and open a
-   fresh empty `## Unreleased` above it.
+   fresh empty `## Unreleased` above it. Run `bun run doc-blocks` to refresh the
+   API reference's source/release version paragraph.
 4. **Flip the "published" copy** (see below), commit via PR, and merge to `main`.
 5. **Create the GitHub Release** on the merge commit (tag `v<version>`). Its
    publication fires `publish.yml`, which checks canonical CI, builds and
