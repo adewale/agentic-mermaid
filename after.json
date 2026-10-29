@@ -1,0 +1,19 @@
+{
+  "sha": "f271cd1e71acd5668c8fc87fec6ad2c3df24636b",
+  "bun": "1.4.2",
+  "resvg": "2.6.2",
+  "results": [
+    {
+      "fixture": "class-80",
+      "status": "rendered",
+      "width": 2400,
+      "height": 445
+    },
+    {
+      "fixture": "cyclic-labelled-15-chains",
+      "status": "rendered",
+      "width": 2400,
+      "height": 3457
+    }
+  ]
+}

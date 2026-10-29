@@ -1,0 +1,18 @@
+{
+  "sha": "9fc3a141297ea0dd954fae903e5609e2efb8ba7e",
+  "bun": "1.4.2",
+  "resvg": "2.6.2",
+  "results": [
+    {
+      "fixture": "class-80",
+      "status": "error",
+      "error": "LayoutCertificationError: No certified layout after 1 bounded attempts: class-owned-surfaces: Relationship C3 -> C7 lacks an outward Class contact; Relationship C7 -> C15 lacks an outward Class contact; Relationship C7 -> C15 lacks an outward Class contact; Relationship C35 -> C72 lacks an outward Class contact"
+    },
+    {
+      "fixture": "cyclic-labelled-15-chains",
+      "status": "rendered",
+      "width": 2400,
+      "height": 3457
+    }
+  ]
+}

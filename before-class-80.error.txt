@@ -1,0 +1,1 @@
+LayoutCertificationError: No certified layout after 1 bounded attempts: class-owned-surfaces: Relationship C3 -> C7 lacks an outward Class contact; Relationship C7 -> C15 lacks an outward Class contact; Relationship C7 -> C15 lacks an outward Class contact; Relationship C35 -> C72 lacks an outward Class contact
