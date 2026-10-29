@@ -11,6 +11,7 @@ import type { MermaidGraph, Point, PositionedEdge } from '../../types.ts'
 import { resolveEdgeInlineStyle } from '../../color-resolver.ts'
 import { calculatePathMidpoint, type MarginInfo } from '../geometry.ts'
 import { orthogonalizeEdgePoints } from './orthogonalize.ts'
+import { alignElkRoundoff } from '../elk-roundoff.ts'
 
 /** Private adapter metadata retained by ELK and its layout cache. */
 export interface ElkHierarchySegment extends ElkExtendedEdge {
@@ -52,7 +53,11 @@ export function extractEdgesRecursively(
     // that order supports arbitrary depth without inferring roles from IDs.
     const allPoints: Point[] = []
     for (const part of seg.sort((a, b) => a.order - b.order)) {
-      const previous = allPoints.at(-1), first = part.points[0], next = part.points[1]
+      const previous = allPoints.at(-1)
+      // Parts from different container frames can meet one roundoff apart;
+      // align them to the path so far before judging the join.
+      const points = previous ? alignElkRoundoff([previous, ...part.points]).slice(1) : alignElkRoundoff(part.points)
+      const first = points[0], next = points[1]
       const shared = previous && first && Math.abs(previous.x - first.x) < 1e-6 && Math.abs(previous.y - first.y) < 1e-6
       // ELK can relocate a compound port after its internal layout. Keep real
       // joins, but do not turn a subdivision of the same ink into a new bend
@@ -61,7 +66,7 @@ export function extractEdgesRecursively(
         previous.x === first.x && first.x === next.x && first.y >= Math.min(previous.y, next.y) && first.y <= Math.max(previous.y, next.y)
         || previous.y === first.y && first.y === next.y && first.x >= Math.min(previous.x, next.x) && first.x <= Math.max(previous.x, next.x)
       )
-      allPoints.push(...(shared || redundant ? part.points.slice(1) : part.points))
+      allPoints.push(...(shared || redundant ? points.slice(1) : points))
     }
 
     // Label position: use ELK's inline label position (on-edge with collision avoidance)
