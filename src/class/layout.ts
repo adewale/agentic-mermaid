@@ -1,5 +1,4 @@
-import { prepareMarkerTerminals } from '../scene/marker-terminals.ts'
-import { classMarkerResources, getMarkerDefId, classEndpointTextCandidates } from './relationship-paint.ts'
+import { classRelationshipTerminalClearance, classEndpointTextCandidates } from './relationship-paint.ts'
 import { measuredRouteContactPairBudget, scoreMeasuredRouteCrossings, createOwnedMeasuredRouteContactValidator, type OwnedMeasuredRouteNumericSeed } from '../layout/measured-route-safety.ts'
 import type { MeasuredGraph } from '../layout/agentic-layered-core.ts'
 import { resolveDiagramColors } from '../color-resolver.ts'
@@ -211,11 +210,10 @@ function measureClassCards(diagram: ClassDiagram, style: ResolvedRenderStyle): C
 }
 
 function classTerminalLead(diagram: ClassDiagram, style: ResolvedRenderStyle): number {
-  const terminal = prepareMarkerTerminals(classMarkerResources(style))
   let lead = 0
   for (const rel of diagram.relationships) {
-    if (rel.markerAt === 'from' || rel.markerAt === 'both') lead = Math.max(lead, terminal(getMarkerDefId(rel.fromType ?? rel.type) ?? undefined, style.lineWidth, 'start'))
-    if (rel.markerAt === 'to' || rel.markerAt === 'both') lead = Math.max(lead, terminal(getMarkerDefId(rel.toType ?? rel.type) ?? undefined, style.lineWidth, 'end'))
+    const terminal = classRelationshipTerminalClearance(rel, style)
+    lead = Math.max(lead, terminal.start, terminal.end)
   }
   return lead ? lead + style.edgeBendRadius : 0
 }

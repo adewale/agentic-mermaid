@@ -1,4 +1,3 @@
-import { prepareMarkerTerminals } from '../scene/marker-terminals.ts'
 import { extendTerminalRuns } from '../layout/terminal-clearance.ts'
 import { LayoutCertificationError } from '../layout/certification-error.ts'
 import { simplifyOrthogonal } from '../layout/compound-visibility.ts'
@@ -10,7 +9,7 @@ import { DIAGRAM_TITLE_GAP, diagramTitleBand, type ResolvedRenderStyle } from '.
 import type { Point } from '../types.ts'
 import { type ClassMarkerAdmissionWork, chargeClassMarkerAdmissionWork, createClassMarkerAdmissionWork } from './marker-admission.ts'
 import { type ClassHeaderPeerContext, type ClassHeaderNumericCapture, captureClassHeaderNumericContext, classHeaderDetourCandidates } from './header-lanes.ts'
-import { type ClassMarkerPiece, classCaptionAnchor, classCardinalityAnchor, classMarkerPieces, classMarkerResources, getMarkerDefId, RELATION_LABEL_HALO_WIDTH, RELATION_LABEL_OFFSET_Y } from './relationship-paint.ts'
+import { classRelationshipTerminalClearance, type ClassMarkerPiece, classCaptionAnchor, classCardinalityAnchor, classMarkerPieces, classMarkerResources, getMarkerDefId, RELATION_LABEL_HALO_WIDTH, RELATION_LABEL_OFFSET_Y } from './relationship-paint.ts'
 import type { PositionedClassDiagram, PositionedClassNote } from './types.ts'
 export interface ClassSurfaceBox {
   x: number
@@ -492,7 +491,6 @@ export function repairClassHeaderRoutes(diagram: PositionedClassDiagram, style: 
     charge = () => chargeClassMarkerAdmissionWork(ledger),
     pay = () => { if (!charge()) throw new LayoutCertificationError([{strategy:'class-header-lanes',violations:['Class header proof work limit']}]) }
   if (numeric) { pay(); captureClassHeaderNumericContext(numeric, undefined) }
-  const terminal = prepareMarkerTerminals(classMarkerResources(style))
   const headers = diagram.namespaces.map(ns => { pay(); return expanded({ x: ns.x, y: ns.y, width: ns.width, height: ns.headerHeight }, style.lineWidth / 2) }),
     paint = classRelationshipPaintBoxes(diagram, style, true, pay, false),
     cards = diagram.classes.filter(c => { pay(); return !c.isInterface }),
@@ -554,10 +552,7 @@ export function repairClassHeaderRoutes(diagram: PositionedClassDiagram, style: 
           const support = headerMarkerSupport(detour, style.lineWidth, pay)
           if (markers.some(p => headerMarkerMayMeet(support, p.box, pay) && detour.some((point, i) => { pay(); return i > 0 && classCarrierEntersMarker(detour[i - 1]!, point, p.pieces ?? [], style.lineWidth) }))) continue
           const raw = simplifyOrthogonal([...relation.points.slice(0, segment), ...detour, ...relation.points.slice(segment)])
-          const trial = extendTerminalRuns(raw, {
-            start: terminal(relation.markerAt === 'from' || relation.markerAt === 'both' ? getMarkerDefId(relation.fromType ?? relation.type) ?? undefined : undefined, style.lineWidth, 'start'),
-            end: terminal(relation.markerAt === 'to' || relation.markerAt === 'both' ? getMarkerDefId(relation.toType ?? relation.type) ?? undefined : undefined, style.lineWidth, 'end'),
-          })
+          const trial = extendTerminalRuns(raw, classRelationshipTerminalClearance(relation, style))
           if (!trial) continue
           if (trial !== raw && markers.some(p => trial.some((point, i) => {
             pay()

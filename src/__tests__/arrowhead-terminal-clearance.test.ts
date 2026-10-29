@@ -37,6 +37,7 @@ describe('arrowheads retain straight terminal ink after routing and rounding', (
     { name: 'Flowchart sharp duplicate', source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-19.mmd', import.meta.url), 'utf8') },
     { name: 'Flowchart authored curves', source: 'flowchart LR\nA e1@==> B\nA e2@--> C\ne1@{ curve: linear }\ne2@{ curve: natural }' },
     { name: 'Flowchart complete fan', source: 'flowchart TB\nA & B --> C & D' },
+    { name: 'Flowchart ancestor minimum span', source: 'flowchart TD\nsubgraph G[Group]\nA[Leaf]\nend\nG ---> A', options: { style: undefined, graphLayout: { backend: 'agentic', fallback: 'none' } } },
     { name: 'Architecture clipped junction', source: FAMILY_CONFORMANCE_PROFILES.architecture.citizenship.source, options: { style: wide } },
     { name: 'Class header bypass', source: FAMILY_CONFORMANCE_PROFILES.class.citizenship.source, options: { style: undefined } },
     { name: 'Event Modeling wide corners', source: conformanceSourceFor('eventmodeling', 'family-risk').source, options: { style: wide } },
