@@ -56,7 +56,7 @@ The resolved-scene API's separate `marker-mid` limitation still applies.
 ## Versions
 
 <!-- BEGIN GENERATED: api-versions -->
-This reference describes source version **0.5.0**. The latest release recorded in the [changelog](../CHANGELOG.md) is **0.5.0** (2026-10-28). [Read that version's reference](https://github.com/adewale/agentic-mermaid/blob/v0.5.0/docs/api.md). Changes under **Unreleased**, including new exports, are not part of that recorded release.
+This reference describes source version **0.5.1**. The latest release recorded in the [changelog](../CHANGELOG.md) is **0.5.1** (2026-10-29). [Read that version's reference](https://github.com/adewale/agentic-mermaid/blob/v0.5.1/docs/api.md). Changes under **Unreleased**, including new exports, are not part of that recorded release.
 <!-- END GENERATED: api-versions -->
 
 ```bash
