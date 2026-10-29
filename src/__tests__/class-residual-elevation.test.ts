@@ -294,9 +294,13 @@ namespace Company {
 }
 CEO --> Developer : oversees
 CEO --> Designer : oversees`
-      const options = { graphLayout: { backend }, class: { hierarchicalNamespaces }, style: { roles: { edge: { bendRadius } } } }
-      const positioned = layoutClassDiagram(parseClassDiagram(lines(source)), options)
-      const svg = renderMermaidSVG(source, options)
+      const options = { graphLayout: { backend }, class: { hierarchicalNamespaces } }
+      // Class layout reads the resolved edge face; public rendering resolves
+      // the same radius from the authored style roles.
+      let layout: ReturnType<typeof layoutClassDiagram> | undefined
+      expect(() => { layout = layoutClassDiagram(parseClassDiagram(lines(source)), options, { edge: { bendRadius } }) }).not.toThrow()
+      const positioned = layout!
+      const svg = renderMermaidSVG(source, { ...options, style: { roles: { edge: { bendRadius } } } })
       expect(positioned.namespaces.map(namespace => [namespace.id, namespace.label]).sort(), variant).toEqual(hierarchicalNamespaces
         ? [['Company', 'Company'], ['Company.Engineering', 'Engineering'], ['Company.Engineering.Backend', 'Backend'], ['Company.Engineering.Frontend', 'Frontend']]
         : [['Company', 'Company'], ['Company.Engineering.Backend', 'Company.Engineering.Backend'], ['Company.Engineering.Frontend', 'Company.Engineering.Frontend']])
