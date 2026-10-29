@@ -1299,7 +1299,7 @@ function renderRevision(sha: string): RevisionEvidence {
       import { renderMermaidASCIIWithMeta } from './src/ascii/meta.ts'
       const fixtures = ${JSON.stringify(fixtures)}
       const requestedFixtureOptions = ${JSON.stringify(fixtureOptions)}
-      const fixtureOptions = Object.fromEntries(Object.entries(requestedFixtureOptions).map(([id, options]) => [id, ${JSON.stringify(sha === base)} && options.baseline ? options.baseline : options]))
+      const fixtureOptions = { ...requestedFixtureOptions }
       const renders = {}
       const terminals = {}
       for (const fixture of fixtures) {
@@ -1337,7 +1337,11 @@ function renderRevision(sha: string): RevisionEvidence {
           let requestedOptionsError
           if (${JSON.stringify(sha === base)} && fixture.baselineRenderOptions) {
             try { renderMermaidSVG(input, requestedFixtureOptions[fixture.id].svg) }
-            catch (error) { requestedOptionsError = String(error) }
+            catch (error) {
+              if (!/unknown render option "(?:pie|radar)"/.test(String(error))) throw error
+              requestedOptionsError = String(error)
+              fixtureOptions[fixture.id] = requestedFixtureOptions[fixture.id].baseline
+            }
           }
           const measurement = fixtureOptions[fixture.id].measurementProfile
           const host = measurement ? { textMeasurement: {
@@ -1412,7 +1416,7 @@ const rows = fixtures
       })
       .join('')
     const optionsCaption =
-      (fixture.baselineRenderOptions ? `<p>Baseline control options: <code>${esc(JSON.stringify(fixture.baselineRenderOptions))}</code>. Current options: <code>${esc(JSON.stringify(fixture.renderOptions))}</code>. The authored source and Look are unchanged; the baseline has no width-fitting capability.</p>` : fixture.renderOptions ? `<p>Render options at both revisions: <code>${esc(JSON.stringify(fixture.renderOptions))}</code>.</p>` : '') +
+      (revisions.before.renders[fixture.id]?.requestedOptionsError ? `<p>Baseline control options: <code>${esc(JSON.stringify(fixture.baselineRenderOptions))}</code>. Current options: <code>${esc(JSON.stringify(fixture.renderOptions))}</code>. The authored source and Look are unchanged; the baseline has no width-fitting capability.</p>` : fixture.renderOptions ? `<p>Render options at both revisions: <code>${esc(JSON.stringify(fixture.renderOptions))}</code>.</p>` : '') +
       (fixture.pngWidth ? `<p>PNG previews are scaled to ${fixture.pngWidth}px wide at both revisions; SVG and layout sidecars retain native geometry.</p>` : '') +
       (fixture.pngScale !== undefined ? `<p>PNG scale at both revisions: ${fixture.pngScale}.</p>` : '') +
       (fixture.previewMaxWidth ? `<p>Review host: ${fixture.previewMaxWidth}px; smaller diagrams retain natural size and wider diagrams scale down.</p>` : '') +
@@ -1458,6 +1462,10 @@ writeFileSync(
       terminalOptions: { ascii: { colorMode: 'none', useAscii: true }, unicode: { colorMode: 'html', useAscii: false } },
       options: { security: 'strict', style: 'default unless fixtureOptions overrides it', fonts: 'bundled' },
       fixtureOptions,
+      baselineOptionRefusals: Object.fromEntries(fixtures.flatMap(fixture => {
+        const error = revisions.before.renders[fixture.id]?.requestedOptionsError
+        return error ? [[fixture.id, error]] : []
+      })),
     },
     null,
     2,
