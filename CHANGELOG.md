@@ -6,6 +6,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- Align ELK routes whose straight runs differ only by floating-point roundoff
+  as they are read back, so wide Class diagrams with padded cards keep their
+  card contacts instead of refusing to render, and Flowchart, State, ER and
+  Requirement routes start exactly orthogonal.
 - Render Class diagrams with rounded relationship corners, such as the
   `publication-figure` style, when a relationship must bypass a namespace
   header, including nested namespaces.

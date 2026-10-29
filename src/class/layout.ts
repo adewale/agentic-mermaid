@@ -40,6 +40,7 @@ export { memberToString } from './text.ts'
 
 import type { ElkExtendedEdge, ElkNode, LayoutOptions } from 'elkjs'
 import { elkLayoutSync } from '../elk-instance.ts'
+import { alignElkRoundoff } from '../layout/elk-roundoff.ts'
 import { layoutAgenticGraph } from '../layout/agentic-layered.ts'
 import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
 import { LayoutCertificationError } from '../layout/certification-error.ts'
@@ -348,7 +349,7 @@ function projectClassElkPlacement(result: ElkNode, namespaceLayouts: ReadonlyMap
           y: label.y + (label.height ?? 0) / 2 + offsetY,
         }
       }
-      routes.set(Number(elkEdge.id.slice(1)), { points, labelPosition })
+      routes.set(Number(elkEdge.id.slice(1)), { points: alignElkRoundoff(points), labelPosition })
     }
 
     for (const child of node.children ?? []) {

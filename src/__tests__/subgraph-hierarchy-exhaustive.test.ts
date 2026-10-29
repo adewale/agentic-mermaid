@@ -23,6 +23,10 @@ test.each([
   ['real corner', [[0, 0], [10, 0]], [[10, 5], [20, 5]], [[0, 0], [10, 0], [10, 5], [20, 5]]],
   ['reversal', [[0, 0], [10, 0]], [[15, 0], [5, 0]], [[0, 0], [10, 0], [15, 0], [5, 0]]],
   ['backtracking overlap', [[0, 0], [10, 0]], [[5, 0], [20, 0]], [[0, 0], [10, 0], [5, 0], [20, 0]]],
+  // Two container frames can flatten one vertical run one roundoff apart.
+  ['roundoff vertical subdivision', [[193.34, 529.6], [348.04, 529.6]], [[348.03999999999996, 519.6], [348.03999999999996, 410.2]], [[193.34, 529.6], [348.04, 529.6], [348.04, 410.2]]],
+  ['roundoff corner', [[0, 0], [348.04, 0]], [[348.03999999999996, 20], [400, 20]], [[0, 0], [348.04, 0], [348.04, 20], [400, 20]]],
+  ['sub-pixel corner beyond roundoff', [[0, 0], [348.04, 0]], [[348.04001, 20], [400, 20]], [[0, 0], [348.04, 0], [348.04001, 20], [400, 20]]],
 ] as const)('hierarchy extraction preserves ink at a %s', (_name, first, second, expected) => {
   const graph = parseMermaid('flowchart LR\nA-->B')
   const segments: ElkHierarchySegment[] = [first, second].map((points, order) => ({
