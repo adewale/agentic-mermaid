@@ -17,7 +17,7 @@ import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
 import { SHARED_RENDER_OPTION_FIELDS, sharedRenderOptionsJsonSchema, validateSerializableRenderOptions } from '../render-contract.ts'
 import { verifyNoExternalRefs } from '../output-security.ts'
 import { WARNING_TIER } from '../agent/types.ts'
-import { evaluateBrowserScript, FakeDocument, type FakeElement } from './browser-script-harness.ts'
+import { evaluateBrowserScript, FakeDocument, manualTimers, type FakeElement } from './browser-script-harness.ts'
 
 const moduleScripts = new Map(await Promise.all(['font-picker.js', 'config-panel.js', 'export.js', 'helpers.js', 'rendering.js', 'sharing.js'].map(async name => [name, await editorModuleScript(name)] as const)))
 const editorScript = (name: string) => moduleScripts.get(name)!
@@ -68,6 +68,22 @@ describe('editor render-option boundary', () => {
     expect(resolveEditorRenderOptions({ style: 'hand-drawn' }, dependencies)).toMatchObject({ style: 'hand-drawn', seed: 0 })
     expect(resolveEditorRenderOptions({ style: 'hand-drawn', seed: Number.NaN }, dependencies)).toMatchObject({ seed: 0 })
     expect(resolveEditorRenderOptions({ style: 'crisp', seed: 7 }, dependencies)).not.toHaveProperty('seed')
+  })
+
+  test('pane fitting is opt-in, family-specific and subordinate to authored budgets', () => {
+    const host = { fitLabelsToPane: true, paneWidth: 360.9 }
+    for (const [family, source] of [['pie', '---\ntitle: Example\n---\npie title Team\n"Done": 2'], ['radar', '%% comment\nradar-beta\naxis a,b,c']] as const) {
+      expect(resolveEditorRenderOptions({ ...host, source }, dependencies)).toHaveProperty(`${family}.maxWidth`, 360)
+      expect(resolveEditorRenderOptions({ ...host, source, fitLabelsToPane: false }, dependencies)).not.toHaveProperty(family)
+      const config = { [family]: { maxWidth: 640 } }
+      expect(resolveEditorRenderOptions({ ...host, source, config }, dependencies)).toHaveProperty(`${family}.maxWidth`, 640)
+      expect(config).toEqual({ [family]: { maxWidth: 640 } })
+    }
+    expect(resolveEditorRenderOptions({ ...host, source: 'flowchart TD\nA-->B' }, dependencies)).not.toHaveProperty('pie')
+    expect(resolveEditorRenderOptions({ ...host, source: 'flowchart TD\nA-->B' }, dependencies)).not.toHaveProperty('radar')
+    for (const paneWidth of [0, Number.NaN, Infinity]) {
+      expect(resolveEditorRenderOptions({ ...host, source: 'pie', paneWidth }, dependencies)).not.toHaveProperty('pie')
+    }
   })
 })
 
@@ -136,8 +152,10 @@ describe('editor advanced options panel', () => {
     const apply = document.element('button', { id: 'cfg-advanced-apply' })
     const schema = document.element('p', { id: 'cfg-advanced-schema' })
     const status = document.element('p', { id: 'cfg-advanced-status' })
-    const state = { palette: '', config: { padding: 30 } as Record<string, unknown> }
+    const fitLabels = Object.assign(document.element('input', { id: 'cfg-fit-labels' }), { checked: false })
+    const state = { palette: '', config: { padding: 30 } as Record<string, unknown>, fitLabelsToPane: false }
     const renders: number[] = []
+    const saved: unknown[][] = []
     evaluateBrowserScript(editorScript('config-panel.js'), {
       document,
       // The exact object the global bundle installs on window.__mermaid.
@@ -145,9 +163,11 @@ describe('editor advanced options panel', () => {
       state,
       editorPaletteColors: () => null,
       scheduleRender: (delay: number) => { renders.push(delay) },
+      safeLocalStorageGet: () => null,
+      safeLocalStorageSet: (...args: unknown[]) => { saved.push(args) },
       configView: null,
     }, 'null')
-    return { input, apply, schema, status, state, renders }
+    return { input, apply, schema, status, state, renders, fitLabels, saved }
   }
 
   test('advertises exactly the canonical generated option schema', () => {
@@ -187,6 +207,148 @@ describe('editor advanced options panel', () => {
     expect(input.getAttribute('aria-invalid')).toBe('false')
     expect(renders).toContain(0)
   })
+
+  test('pane fitting is a local preference without persisting derived render options', () => {
+    const { state, fitLabels, renders, saved } = configPanel()
+    expect(fitLabels.checked).toBe(false)
+    fitLabels.checked = true
+    fitLabels.dispatch('change')
+    expect(state.fitLabelsToPane).toBe(true)
+    expect(state.config).toEqual({ padding: 30 })
+    expect(saved).toEqual([['bm-editor-fit-labels', 'true']])
+    expect(renders).toEqual([0])
+  })
+})
+
+describe('editor pane fitting lifecycle', () => {
+  function panePreview(source = 'pie title Delivery\n"Completed across the organisation": 6\n"Remaining": 4', config = {}, prepare?: () => Promise<void>) {
+    const document = new FakeDocument()
+    const node = (id: string) => document.element('div', { id })
+    const previewInner = node('preview-inner'), previewBody = node('preview-body')
+    const timers = manualTimers()
+    let width = 464, resized: () => void = () => {}, cancelled = 0
+    previewBody.layout = () => ({ width })
+    const state = { config, fitLabelsToPane: true, style: 'crisp', zoom: 1 }
+    const zooms: number[] = [], automaticFits: number[] = []
+    const editor = { value: source }
+    const requests: Array<{ options: unknown; resolve(value: unknown): void }> = []
+    let requestStarted!: () => void
+    const firstRequest = new Promise<void>(resolve => { requestStarted = resolve })
+    const api = evaluateBrowserScript<{
+      scheduleRender(delay?: number): void; doRender(version?: number): Promise<void>
+      buildOptions(): Record<string, unknown>; hasCurrentVerifiedSvgArtifact(): boolean
+      readonly renderRequestVersion: number
+    }>(editorScript('rendering.js'), {
+      document, state, editor, previewInner, previewBody,
+      window: { __mermaid: { ...BROWSER_EDITOR_ADAPTER, prepareEditorRenderOptions: prepare, cancelPendingRender: () => { cancelled++ } } },
+      getComputedStyle: () => ({ paddingLeft: '32px', paddingRight: '32px' }),
+      ResizeObserver: class { constructor(callback: () => void) { resized = callback } observe() {} disconnect() {} },
+      ...timers,
+      statusText: node('status-text'), statusDot: node('status-dot'), renderTime: node('render-time'), spinner: node('spinner'),
+      EditorMotion: { adaptiveRenderDelay: () => 100 },
+      editorPaletteInput: () => '', cancelPreviewMotion() {}, applyZoom: (zoom: number) => { zooms.push(zoom) }, fitToView: () => { automaticFits.push(1) }, setEditorErrorLine() {},
+      updateExportAvailability() {}, refreshC4Navigation() {}, refreshDiagramTools() {}, updateHash() {},
+      verifyNoExternalRefs: () => ({ ok: true, refs: [] }),
+      renderMermaidWithReceipt: (_source: string, options: unknown) => new Promise(resolve => { requests.push({ options, resolve }); requestStarted() }),
+      DOMParser: class { parseFromString() { return { documentElement: document.createElementNS('', 'svg'), querySelector: () => null } } },
+    }, '({ scheduleRender, doRender, buildOptions, hasCurrentVerifiedSvgArtifact, get renderRequestVersion() { return renderRequestVersion } })')
+    const artifact = (digest: string, family = 'pie') => ({ svg: '<svg/>', receipt: { sharedRequestDigest: digest, requestDigest: digest, appearanceDigest: digest, executionDecision: { family: { id: `family:${family}` } } }, verification: { ok: true, warnings: [] } })
+    return { api, state, editor, previewInner, requests, firstRequest, timers, artifact, zooms, automaticFits, cancelled: () => cancelled, resize: (next: number) => { width = next; resized() }, changeWidth: (next: number) => { width = next } }
+  }
+
+  test('fitting waits for its option loader and drops a source superseded during loading', async () => {
+    let ready!: () => void
+    const preparation = new Promise<void>(resolve => { ready = resolve })
+    const pane = panePreview(undefined, {}, () => preparation)
+    const stale = pane.api.doRender()
+    expect(pane.requests).toHaveLength(0)
+    pane.editor.value = 'pie title Current\n"Done": 2\n"Remaining": 1'
+    pane.api.scheduleRender(0)
+    ready()
+    await stale
+    expect(pane.requests).toHaveLength(0)
+    const current = pane.api.doRender(pane.api.renderRequestVersion)
+    await pane.firstRequest
+    expect(pane.requests).toHaveLength(1)
+    expect(pane.requests[0]!.options).toHaveProperty('pie.maxWidth', 400)
+    pane.requests[0]!.resolve(pane.artifact('current'))
+    await current
+    expect(pane.api.hasCurrentVerifiedSvgArtifact()).toBe(true)
+  })
+
+  test('pane resizing revokes stale export authority immediately, coalesces work and rejects a pending preview', async () => {
+    const pane = panePreview()
+    const first = pane.api.doRender()
+    pane.requests[0]!.resolve(pane.artifact('first'))
+    await first
+    expect(pane.requests[0]!.options).toHaveProperty('pie.maxWidth', 400)
+    expect(pane.api.hasCurrentVerifiedSvgArtifact()).toBe(true)
+    // Even before ResizeObserver delivers its notification, exports refuse a
+    // preview whose geometry no longer describes the effective request.
+    pane.changeWidth(424)
+    expect(pane.api.hasCurrentVerifiedSvgArtifact()).toBe(false)
+    pane.resize(424)
+    expect(pane.previewInner.dataset.sharedRequestDigest).toBeUndefined()
+    expect(pane.timers.pending()).toBe(1)
+    const pending = pane.api.doRender(pane.api.renderRequestVersion)
+    pane.resize(404)
+    pane.resize(384)
+    expect(pane.timers.pending()).toBe(1)
+    expect(pane.cancelled()).toBe(3)
+    pane.requests[1]!.resolve(pane.artifact('stale'))
+    await pending
+    expect(pane.previewInner.dataset.sharedRequestDigest).toBeUndefined()
+    const current = pane.api.doRender(pane.api.renderRequestVersion)
+    expect(pane.requests[2]!.options).toHaveProperty('pie.maxWidth', 320)
+    pane.requests[2]!.resolve(pane.artifact('current'))
+    await current
+    expect(pane.previewInner.dataset.sharedRequestDigest).toBe('current')
+    expect(pane.api.hasCurrentVerifiedSvgArtifact()).toBe(true)
+  })
+
+  test('unchanged effective budgets, explicit budgets and other families do not queue resize renders', () => {
+    for (const pane of [panePreview(), panePreview('pie\n"A":1', { pie: { maxWidth: 640 } }), panePreview('flowchart TD\nA-->B')]) {
+      pane.api.scheduleRender(0)
+      pane.timers.flush()
+      const version = pane.api.renderRequestVersion
+      pane.resize(pane.api.buildOptions().pie && !(pane.state.config as { pie?: unknown }).pie ? 464 : 384)
+      expect(pane.api.renderRequestVersion).toBe(version)
+      expect(pane.cancelled()).toBe(1)
+      pane.requests[0]!.resolve(pane.artifact('done'))
+    }
+  })
+
+  test('activating pane fitting starts applicable views at full size and retains later deliberate zoom', async () => {
+    const pane = panePreview()
+    pane.state.zoom = 0.4 // Restored preference must also defeat initial automatic shrinking.
+    async function render(family: string) {
+      const job = pane.api.doRender()
+      pane.requests.at(-1)!.resolve(pane.artifact(String(pane.requests.length), family))
+      await job
+    }
+    await render('pie')
+    expect(pane.zooms).toEqual([1])
+    expect(pane.automaticFits).toEqual([])
+    pane.state.zoom = 0.7
+    pane.resize(404)
+    await render('pie')
+    expect(pane.zooms.at(-1)).toBe(0.7)
+    // Leaving the applicable families then returning activates fitting anew.
+    pane.editor.value = 'flowchart TD\nA-->B'
+    await render('flowchart')
+    pane.state.zoom = 0.3
+    pane.editor.value = 'radar-beta\naxis a,b,c\ncurve x{1,2,3}'
+    await render('radar')
+    expect(pane.zooms.at(-1)).toBe(1)
+    // Turning the preference off and back on also resets a deliberate zoom.
+    pane.state.zoom = 0.6
+    pane.state.fitLabelsToPane = false
+    pane.api.scheduleRender()
+    pane.state.fitLabelsToPane = true
+    pane.api.scheduleRender()
+    await render('radar')
+    expect(pane.zooms.at(-1)).toBe(1)
+  })
 })
 
 interface ExportApi {
@@ -210,6 +372,7 @@ function exportHarness(options: {
   defaultScale?: string
   verified?: boolean
   svgArtifact?: { svg: string; receipt: { sharedRequestDigest: string } }
+  previewOptions?: Record<string, unknown>
   adapter?: (...args: unknown[]) => Promise<unknown>
   fetch?: (url: string) => Promise<Response>
 } = {}) {
@@ -244,6 +407,7 @@ function exportHarness(options: {
     buildOptions: () => ({ security: 'strict', embedFontImport: false }),
     renderMermaidPngInBrowserWithReceipt: (...args: unknown[]) => { adapterCalls.push(args); return adapter(...args) },
     lastRenderedSvgArtifact: options.svgArtifact ?? null,
+    lastRenderedSvgOptions: options.previewOptions ?? null,
     URL: class extends URL {
       static createObjectURL(blob: Blob) { downloads.push(blob); return `blob:export-${downloads.length}` }
       static revokeObjectURL(url: string) { revokedUrls.push(url) }
@@ -312,6 +476,13 @@ describe('editor PNG export contract', () => {
     })
     expect(typeof rasterize).toBe('function')
     expect(toasts).toEqual(['PNG saved.'])
+  })
+
+  test('PNG export retains the exact pane budget used by the verified preview', async () => {
+    const previewOptions = { security: 'strict', embedFontImport: false, pie: { maxWidth: 360 } }
+    const { api, adapterCalls } = exportHarness({ previewOptions })
+    await api.canonicalBrowserPng({ scale: 2 })
+    expect(adapterCalls[0]![1]).toEqual(previewOptions)
   })
 
   test('a font that cannot be fetched becomes a diagnostic with unavailable font provenance', async () => {

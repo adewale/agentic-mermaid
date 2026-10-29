@@ -397,10 +397,9 @@ it('resolved circle and ellipse paths preserve the native stroke traversal for d
 
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
-  // Relationship-end fixes and their audit repairs use 4,721,555 raw bytes;
-  // retain about 1KB of headroom without relaxing the compressed ceiling.
-  // One renderer serves both realms; the relative gate also rejects unapproved growth.
-  expect(html.byteLength).toBeLessThanOrEqual(4_723_000)
+  // Bounded chart fitting and relationship-end repairs use 4,728,297 raw bytes.
+  // Keep the gzip ceiling and per-PR relative-growth gate unchanged.
+  expect(html.byteLength).toBeLessThanOrEqual(4_730_000)
   expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_419_750)
   const runtime = new TextDecoder().decode(html).match(/<script type="module" id="editor-runtime">([\s\S]*?)<\/script>/)?.[1]
   expect(runtime).toBeDefined()
