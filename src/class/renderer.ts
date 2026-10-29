@@ -17,7 +17,7 @@ import { buildShadowDefs, buildStyleBlock, type DiagramColors, svgOpenTag } from
 import type { RenderContext } from '../types.ts'
 import { CLASS_STYLE_DEFAULTS, CLS, classAnnotationBlock, classMemberBlock, classTextBlock } from './layout.ts'
 import { classRelationshipLineStyle } from './parser.ts'
-import { classCaptionAnchor, classCardinalityAnchor, classMarkerResources, getMarkerDefId, RELATION_LABEL_HALO_WIDTH, RELATION_LABEL_OFFSET_Y } from './relationship-paint.ts'
+import { classRelationshipTerminalClearance, classCaptionAnchor, classCardinalityAnchor, classMarkerResources, getMarkerDefId, RELATION_LABEL_HALO_WIDTH, RELATION_LABEL_OFFSET_Y } from './relationship-paint.ts'
 import { decodeClassText, memberToString } from './text.ts'
 import type { ClassMember, PositionedClassDiagram, PositionedClassNamespace, PositionedClassNode, PositionedClassNote, PositionedClassRelationship } from './types.ts'
 
@@ -599,6 +599,7 @@ function renderRelationship<T>(marks: DrawingFactory<T>, rel: PositionedClassRel
   if (style.edgeBendRadius > 0 && rel.points.length > 2) {
     const projection = projectRoundedConnectorPath(rel.points, style.edgeBendRadius, {
       metric: 'manhattan',
+      terminalClearance: classRelationshipTerminalClearance(rel, style),
     })
     return marks.connector({
       id: sceneId,
@@ -653,6 +654,7 @@ function renderRelationshipMarkerOverlay<T>(marks: DrawingFactory<T>, rel: Posit
   if (style.edgeBendRadius > 0 && rel.points.length > 2) {
     const projection = projectRoundedConnectorPath(rel.points, style.edgeBendRadius, {
       metric: 'manhattan',
+      terminalClearance: classRelationshipTerminalClearance(rel, style),
     })
     return marks.connector({ ...fields, geometry: projection.geometry, route: { contours: projection.contours } })
   }

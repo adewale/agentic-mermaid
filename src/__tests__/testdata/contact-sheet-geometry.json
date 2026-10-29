@@ -237,29 +237,29 @@
   },
   "R": {
     "title": "labeled feedback — outer loop, label on route",
-    "shell": {"version":1,"kind":"flowchart","bounds":{"w":551,"h":212}},
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":552,"h":212}},
     "nodes": [
       {"id":"A","x":52,"y":73,"w":91,"h":37,"shape":"rectangle","label":"Request"},
       {"id":"B","x":191,"y":40,"w":103,"h":103,"shape":"diamond","label":"Valid?"},
-      {"id":"C","x":417,"y":73,"w":94,"h":37,"shape":"rectangle","label":"Process"}
+      {"id":"C","x":418,"y":73,"w":94,"h":37,"shape":"rectangle","label":"Process"}
     ],
     "edges": [
       {"id":"A->B","from":"A","to":"B","path":[[143,92],[191,92]]},
-      {"id":"B->A","from":"B","to":"A","path":[[242,143],[242,153],[97,153],[97,110]],"label":{"x":118,"y":152,"text":"no, retry"}},
-      {"id":"B->C","from":"B","to":"C","path":[[294,92],[417,92]],"label":{"x":356,"y":92,"text":"yes"}}
+      {"id":"B->A","from":"B","to":"A","path":[[243,143],[243,153],[98,153],[98,110]],"label":{"x":119,"y":152,"text":"no, retry"}},
+      {"id":"B->C","from":"B","to":"C","path":[[294,92],[418,92]],"label":{"x":356,"y":92,"text":"yes"}}
     ],
     "groups": []
   },
   "S": {
     "title": "bi-directional circles — port + outer loop",
-    "shell": {"version":1,"kind":"flowchart","bounds":{"w":321,"h":183}},
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":322,"h":185}},
     "nodes": [
       {"id":"A","x":52,"y":41,"w":84,"h":84,"shape":"circle","label":"One"},
       {"id":"B","x":184,"y":40,"w":85,"h":85,"shape":"circle","label":"Two"}
     ],
     "edges": [
       {"id":"A->B","from":"A","to":"B","path":[[136,83],[184,83]]},
-      {"id":"B->A","from":"B","to":"A","path":[[227,125],[227,135],[94,135],[94,125]]}
+      {"id":"B->A","from":"B","to":"A","path":[[227,125],[227,137],[94,137],[94,125]]}
     ],
     "groups": []
   },
@@ -343,20 +343,20 @@
     "title": "five-way fan-in — centered high-degree hub",
     "shell": {"version":1,"kind":"flowchart","bounds":{"w":730,"h":287}},
     "nodes": [
-      {"id":"Web","x":40,"y":52,"w":111,"h":37,"shape":"rectangle","label":"Web App"},
-      {"id":"Mobile","x":175,"y":52,"w":111,"h":37,"shape":"rectangle","label":"Mobile App"},
-      {"id":"CLI","x":310,"y":52,"w":111,"h":37,"shape":"rectangle","label":"CLI Tool"},
-      {"id":"Partner","x":445,"y":52,"w":111,"h":37,"shape":"rectangle","label":"Partner API"},
-      {"id":"Cron","x":579,"y":52,"w":111,"h":37,"shape":"rectangle","label":"Cron Jobs"},
+      {"id":"Web","x":40,"y":51,"w":111,"h":37,"shape":"rectangle","label":"Web App"},
+      {"id":"Mobile","x":175,"y":51,"w":111,"h":37,"shape":"rectangle","label":"Mobile App"},
+      {"id":"CLI","x":310,"y":51,"w":111,"h":37,"shape":"rectangle","label":"CLI Tool"},
+      {"id":"Partner","x":445,"y":51,"w":111,"h":37,"shape":"rectangle","label":"Partner API"},
+      {"id":"Cron","x":579,"y":51,"w":111,"h":37,"shape":"rectangle","label":"Cron Jobs"},
       {"id":"Gateway","x":319,"y":125,"w":92,"h":37,"shape":"rectangle","label":"Gateway"},
       {"id":"Auth","x":306,"y":210,"w":118,"h":37,"shape":"rectangle","label":"Auth Service"}
     ],
     "edges": [
-      {"id":"Web->Gateway","from":"Web","to":"Gateway","path":[[95,89],[95,107],[365,107],[365,125]]},
-      {"id":"Mobile->Gateway","from":"Mobile","to":"Gateway","path":[[230,89],[230,107],[365,107],[365,125]]},
-      {"id":"CLI->Gateway","from":"CLI","to":"Gateway","path":[[365,89],[365,125]]},
-      {"id":"Partner->Gateway","from":"Partner","to":"Gateway","path":[[500,89],[500,107],[365,107],[365,125]]},
-      {"id":"Cron->Gateway","from":"Cron","to":"Gateway","path":[[635,89],[635,107],[365,107],[365,125]]},
+      {"id":"Web->Gateway","from":"Web","to":"Gateway","path":[[95,88],[95,107],[365,107],[365,125]]},
+      {"id":"Mobile->Gateway","from":"Mobile","to":"Gateway","path":[[230,88],[230,107],[365,107],[365,125]]},
+      {"id":"CLI->Gateway","from":"CLI","to":"Gateway","path":[[365,88],[365,125]]},
+      {"id":"Partner->Gateway","from":"Partner","to":"Gateway","path":[[500,88],[500,107],[365,107],[365,125]]},
+      {"id":"Cron->Gateway","from":"Cron","to":"Gateway","path":[[635,88],[635,107],[365,107],[365,125]]},
       {"id":"Gateway->Auth","from":"Gateway","to":"Auth","path":[[365,162],[365,210]]}
     ],
     "groups": []
@@ -392,9 +392,9 @@
       {"id":"W3","x":293,"y":170,"w":97,"h":37,"shape":"rectangle","label":"Worker 3"}
     ],
     "edges": [
-      {"id":"A->Q","from":"A","to":"Q","path":[[141,58],[159,58],[159,123],[177,123]]},
-      {"id":"B->Q","from":"B","to":"Q","path":[[141,123],[177,123]]},
-      {"id":"C->Q","from":"C","to":"Q","path":[[141,188],[159,188],[159,123],[177,123]]},
+      {"id":"A->Q","from":"A","to":"Q","path":[[140,58],[158,58],[158,123],[177,123]]},
+      {"id":"B->Q","from":"B","to":"Q","path":[[140,123],[177,123]]},
+      {"id":"C->Q","from":"C","to":"Q","path":[[140,188],[158,188],[158,123],[177,123]]},
       {"id":"Q->W1","from":"Q","to":"W1","path":[[257,114],[275,114],[275,58],[293,58]]},
       {"id":"Q->W2","from":"Q","to":"W2","path":[[257,123],[293,123]]},
       {"id":"Q->W3","from":"Q","to":"W3","path":[[257,133],[275,133],[275,188],[293,188]]}
@@ -507,21 +507,21 @@
       {"id":"B1","x":216,"y":40,"w":60,"h":37,"shape":"rectangle","label":"B1"},
       {"id":"B2","x":304,"y":40,"w":60,"h":37,"shape":"rectangle","label":"B2"},
       {"id":"B","x":260,"y":125,"w":60,"h":37,"shape":"rectangle","label":"B"},
-      {"id":"C","x":172,"y":186,"w":60,"h":37,"shape":"rectangle","label":"C"}
+      {"id":"C","x":172,"y":187,"w":60,"h":37,"shape":"rectangle","label":"C"}
     ],
     "edges": [
       {"id":"A1->A","from":"A1","to":"A","path":[[70,77],[70,101],[114,101],[114,125]]},
       {"id":"A2->A","from":"A2","to":"A","path":[[158,77],[158,101],[114,101],[114,125]]},
       {"id":"B1->B","from":"B1","to":"B","path":[[246,77],[246,101],[290,101],[290,125]]},
       {"id":"B2->B","from":"B2","to":"B","path":[[334,77],[334,101],[290,101],[290,125]]},
-      {"id":"A->C","from":"A","to":"C","path":[[114,162],[114,174],[202,174],[202,186]]},
-      {"id":"B->C","from":"B","to":"C","path":[[290,162],[290,174],[202,174],[202,186]]}
+      {"id":"A->C","from":"A","to":"C","path":[[114,162],[114,174],[202,174],[202,187]]},
+      {"id":"B->C","from":"B","to":"C","path":[[290,162],[290,174],[202,174],[202,187]]}
     ],
     "groups": []
   },
   "AI": {
     "title": "dense TD bundles — equal peers + owned chain",
-    "shell": {"version":1,"kind":"flowchart","bounds":{"w":914,"h":725}},
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":914,"h":726}},
     "nodes": [
       {"id":"A1","x":40,"y":60,"w":105,"h":54,"shape":"rectangle","label":"1 / 2"},
       {"id":"A2","x":169,"y":60,"w":105,"h":54,"shape":"rectangle","label":"3 / 4"},
@@ -534,16 +534,16 @@
       {"id":"B","x":671,"y":142,"w":88,"h":54,"shape":"rectangle","label":"BBB\n(yuriko)"},
       {"id":"C","x":466,"y":220,"w":69,"h":37,"shape":"rectangle","label":"CCC"},
       {"id":"D","x":425,"y":305,"w":78,"h":37,"shape":"rectangle","label":"DDDD"},
-      {"id":"E","x":371,"y":435,"w":78,"h":37,"shape":"rectangle","label":"EEEE"},
-      {"id":"F","x":477,"y":389,"w":82,"h":82,"shape":"diamond","label":"F?"},
-      {"id":"G","x":405,"y":631,"w":99,"h":54,"shape":"rectangle","label":"High level\nTr"},
-      {"id":"H","x":532,"y":631,"w":99,"h":54,"shape":"rectangle","label":"Dumb Tr\nS"}
+      {"id":"E","x":371,"y":436,"w":78,"h":37,"shape":"rectangle","label":"EEEE"},
+      {"id":"F","x":477,"y":390,"w":82,"h":82,"shape":"diamond","label":"F?"},
+      {"id":"G","x":405,"y":632,"w":99,"h":54,"shape":"rectangle","label":"High level\nTr"},
+      {"id":"H","x":532,"y":632,"w":99,"h":54,"shape":"rectangle","label":"Dumb Tr\nS"}
     ],
     "edges": [
       {"id":"A->C","from":"A","to":"C","path":[[286,196],[286,208],[500,208],[500,220]]},
       {"id":"B->C","from":"B","to":"C","path":[[715,196],[715,208],[500,208],[500,220]]},
       {"id":"C->D","from":"C","to":"D","path":[[500,257],[500,305]]},
-      {"id":"D->E","from":"D","to":"E","path":[[464,341],[464,365],[410,365],[410,435]]},
+      {"id":"D->E","from":"D","to":"E","path":[[464,342],[464,366],[410,366],[410,436]]},
       {"id":"A1->A","from":"A1","to":"A","path":[[92,114],[92,128],[286,128],[286,142]]},
       {"id":"A2->A","from":"A2","to":"A","path":[[221,114],[221,128],[286,128],[286,142]]},
       {"id":"A3->A","from":"A3","to":"A","path":[[350,114],[350,128],[286,128],[286,142]]},
@@ -551,40 +551,40 @@
       {"id":"B1->B","from":"B1","to":"B","path":[[601,114],[601,128],[715,128],[715,142]]},
       {"id":"B2->B","from":"B2","to":"B","path":[[715,114],[715,142]]},
       {"id":"B3->B","from":"B3","to":"B","path":[[829,114],[829,128],[715,128],[715,142]]},
-      {"id":"D->F","from":"D","to":"F","path":[[464,341],[464,365],[518,365],[518,389]]},
-      {"id":"F->G","from":"F","to":"G","path":[[497,451],[497,515],[454,515],[454,631]],"label":{"x":454,"y":567,"text":"Yes"}},
-      {"id":"F->H","from":"F","to":"H","path":[[538,451],[538,515],[581,515],[581,631]],"label":{"x":581,"y":567,"text":"No"}}
+      {"id":"D->F","from":"D","to":"F","path":[[464,342],[464,366],[518,366],[518,390]]},
+      {"id":"F->G","from":"F","to":"G","path":[[497,452],[497,515],[454,515],[454,632]],"label":{"x":454,"y":568,"text":"Yes"}},
+      {"id":"F->H","from":"F","to":"H","path":[[538,452],[538,515],[581,515],[581,632]],"label":{"x":581,"y":568,"text":"No"}}
     ],
     "groups": []
   },
   "AJ": {
     "title": "dense overlapping-curve pattern — symmetric parallel labels",
-    "shell": {"version":1,"kind":"flowchart","bounds":{"w":405,"h":859}},
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":405,"h":860}},
     "nodes": [
       {"id":"Z","x":141,"y":40,"w":70,"h":37,"shape":"rectangle","label":"Start"},
-      {"id":"A","x":132,"y":193,"w":76,"h":37,"shape":"rectangle","label":"Alpha"},
-      {"id":"B","x":136,"y":346,"w":69,"h":37,"shape":"rectangle","label":"Beta"},
-      {"id":"C","x":191,"y":476,"w":83,"h":37,"shape":"rectangle","label":"Gamma"},
-      {"id":"D","x":133,"y":629,"w":72,"h":37,"shape":"rectangle","label":"Delta"},
-      {"id":"E","x":136,"y":782,"w":66,"h":37,"shape":"rectangle","label":"End"}
+      {"id":"A","x":132,"y":194,"w":76,"h":37,"shape":"rectangle","label":"Alpha"},
+      {"id":"B","x":136,"y":347,"w":69,"h":37,"shape":"rectangle","label":"Beta"},
+      {"id":"C","x":191,"y":477,"w":83,"h":37,"shape":"rectangle","label":"Gamma"},
+      {"id":"D","x":133,"y":630,"w":72,"h":37,"shape":"rectangle","label":"Delta"},
+      {"id":"E","x":136,"y":783,"w":66,"h":37,"shape":"rectangle","label":"End"}
     ],
     "edges": [
-      {"id":"Z->A","from":"Z","to":"A","path":[[170,77],[170,193]],"label":{"x":170,"y":103,"text":"long 1"}},
-      {"id":"Z->A#1","from":"Z","to":"A","path":[[200,77],[200,193]],"label":{"x":200,"y":144,"text":"long 2"}},
-      {"id":"A->B","from":"A","to":"B","path":[[163,230],[163,346]],"label":{"x":163,"y":288,"text":"3"}},
-      {"id":"A->B#1","from":"A","to":"B","path":[[183,230],[183,346]],"label":{"x":201,"y":288,"text":"4"}},
-      {"id":"B->C","from":"B","to":"C","path":[[198,383],[198,476]],"label":{"x":198,"y":429,"text":"5"}},
-      {"id":"B->D","from":"B","to":"D","path":[[170,383],[170,476],[125,476],[125,617],[156,617],[156,629]],"label":{"x":125,"y":571,"text":"6"}},
-      {"id":"C->D","from":"C","to":"D","path":[[197,513],[197,629]],"label":{"x":197,"y":571,"text":"7"}},
-      {"id":"D->E","from":"D","to":"E","path":[[168,666],[168,782]],"label":{"x":168,"y":724,"text":"8"}},
-      {"id":"B->A","from":"B","to":"A","path":[[145,346],[145,230]],"label":{"x":127,"y":288,"text":"9"}},
-      {"id":"C->A","from":"C","to":"A","path":[[274,494],[285,494],[285,212],[208,212]],"label":{"x":285,"y":417,"text":"10"}},
-      {"id":"D->A","from":"D","to":"A","path":[[168,666],[168,690],[48,690],[48,212],[132,212]],"label":{"x":48,"y":451,"text":"11"}},
-      {"id":"B->B","from":"B","to":"B","path":[[136,356],[112,356],[112,374],[136,374]],"label":{"x":94,"y":369,"text":"12"}},
-      {"id":"C->B","from":"C","to":"B","path":[[232,513],[232,537],[305,537],[305,334],[191,334],[191,346]],"label":{"x":305,"y":514,"text":"13"}},
-      {"id":"D->B","from":"D","to":"B","path":[[150,666],[150,678],[68,678],[68,347],[136,347]],"label":{"x":68,"y":512,"text":"14"}},
-      {"id":"C->C","from":"C","to":"C","path":[[191,485],[167,485],[167,503],[191,503]],"label":{"x":149,"y":498,"text":"18"}},
-      {"id":"D->D","from":"D","to":"D","path":[[133,638],[109,638],[109,656],[133,656]],"label":{"x":92,"y":647,"text":"21"}}
+      {"id":"Z->A","from":"Z","to":"A","path":[[170,77],[170,194]],"label":{"x":170,"y":116,"text":"long 1"}},
+      {"id":"Z->A#1","from":"Z","to":"A","path":[[200,77],[200,194]],"label":{"x":200,"y":155,"text":"long 2"}},
+      {"id":"A->B","from":"A","to":"B","path":[[163,231],[163,347]],"label":{"x":163,"y":289,"text":"3"}},
+      {"id":"A->B#1","from":"A","to":"B","path":[[183,231],[183,347]],"label":{"x":201,"y":289,"text":"4"}},
+      {"id":"B->C","from":"B","to":"C","path":[[198,384],[198,477]],"label":{"x":198,"y":431,"text":"5"}},
+      {"id":"B->D","from":"B","to":"D","path":[[170,384],[170,477],[125,477],[125,618],[156,618],[156,630]],"label":{"x":125,"y":572,"text":"6"}},
+      {"id":"C->D","from":"C","to":"D","path":[[197,514],[197,630]],"label":{"x":197,"y":572,"text":"7"}},
+      {"id":"D->E","from":"D","to":"E","path":[[168,667],[168,783]],"label":{"x":168,"y":725,"text":"8"}},
+      {"id":"B->A","from":"B","to":"A","path":[[145,347],[145,231]],"label":{"x":127,"y":289,"text":"9"}},
+      {"id":"C->A","from":"C","to":"A","path":[[274,496],[285,496],[285,212],[208,212]],"label":{"x":285,"y":419,"text":"10"}},
+      {"id":"D->A","from":"D","to":"A","path":[[168,667],[168,691],[48,691],[48,212],[132,212]],"label":{"x":48,"y":452,"text":"11"}},
+      {"id":"B->B","from":"B","to":"B","path":[[136,356],[112,356],[112,375],[136,375]],"label":{"x":94,"y":369,"text":"12"}},
+      {"id":"C->B","from":"C","to":"B","path":[[232,514],[232,538],[305,538],[305,335],[191,335],[191,347]],"label":{"x":305,"y":516,"text":"13"}},
+      {"id":"D->B","from":"D","to":"B","path":[[150,667],[150,679],[68,679],[68,347],[136,347]],"label":{"x":68,"y":513,"text":"14"}},
+      {"id":"C->C","from":"C","to":"C","path":[[191,486],[167,486],[167,505],[191,505]],"label":{"x":149,"y":499,"text":"18"}},
+      {"id":"D->D","from":"D","to":"D","path":[[133,640],[109,640],[109,658],[133,658]],"label":{"x":92,"y":649,"text":"21"}}
     ],
     "groups": []
   },
@@ -647,26 +647,26 @@
     "nodes": [
       {"id":"A1","x":40,"y":52,"w":60,"h":37,"shape":"rectangle","label":"A1"},
       {"id":"A2","x":128,"y":52,"w":60,"h":37,"shape":"rectangle","label":"A2"},
-      {"id":"A","x":84,"y":149,"w":60,"h":37,"shape":"rectangle","label":"A"},
+      {"id":"A","x":84,"y":137,"w":60,"h":37,"shape":"rectangle","label":"A"},
       {"id":"B1","x":216,"y":52,"w":60,"h":37,"shape":"rectangle","label":"B1"},
       {"id":"B2","x":304,"y":52,"w":60,"h":37,"shape":"rectangle","label":"B2"},
-      {"id":"B","x":260,"y":125,"w":60,"h":37,"shape":"rectangle","label":"B"},
+      {"id":"B","x":260,"y":137,"w":60,"h":37,"shape":"rectangle","label":"B"},
       {"id":"C1","x":392,"y":52,"w":60,"h":37,"shape":"rectangle","label":"C1"},
       {"id":"C2","x":480,"y":52,"w":60,"h":37,"shape":"rectangle","label":"C2"},
-      {"id":"C","x":436,"y":149,"w":60,"h":37,"shape":"rectangle","label":"C"},
+      {"id":"C","x":436,"y":137,"w":60,"h":37,"shape":"rectangle","label":"C"},
       {"id":"Merge","x":249,"y":210,"w":81,"h":37,"shape":"rectangle","label":"Merge"},
       {"id":"Done","x":253,"y":295,"w":73,"h":37,"shape":"rectangle","label":"Done"}
     ],
     "edges": [
-      {"id":"A1->A","from":"A1","to":"A","path":[[70,89],[70,119],[114,119],[114,149]]},
-      {"id":"A2->A","from":"A2","to":"A","path":[[158,89],[158,119],[114,119],[114,149]]},
-      {"id":"B1->B","from":"B1","to":"B","path":[[246,89],[246,107],[290,107],[290,125]]},
-      {"id":"B2->B","from":"B2","to":"B","path":[[334,89],[334,107],[290,107],[290,125]]},
-      {"id":"C1->C","from":"C1","to":"C","path":[[422,89],[422,119],[466,119],[466,149]]},
-      {"id":"C2->C","from":"C2","to":"C","path":[[510,89],[510,119],[466,119],[466,149]]},
-      {"id":"A->Merge","from":"A","to":"Merge","path":[[114,186],[114,198],[290,198],[290,210]]},
-      {"id":"B->Merge","from":"B","to":"Merge","path":[[290,162],[290,210]]},
-      {"id":"C->Merge","from":"C","to":"Merge","path":[[466,186],[466,198],[290,198],[290,210]]},
+      {"id":"A1->A","from":"A1","to":"A","path":[[70,89],[70,113],[114,113],[114,137]]},
+      {"id":"A2->A","from":"A2","to":"A","path":[[158,89],[158,113],[114,113],[114,137]]},
+      {"id":"B1->B","from":"B1","to":"B","path":[[246,89],[246,113],[290,113],[290,137]]},
+      {"id":"B2->B","from":"B2","to":"B","path":[[334,89],[334,113],[290,113],[290,137]]},
+      {"id":"C1->C","from":"C1","to":"C","path":[[422,89],[422,113],[466,113],[466,137]]},
+      {"id":"C2->C","from":"C2","to":"C","path":[[510,89],[510,113],[466,113],[466,137]]},
+      {"id":"A->Merge","from":"A","to":"Merge","path":[[114,173],[114,192],[290,192],[290,210]]},
+      {"id":"B->Merge","from":"B","to":"Merge","path":[[290,173],[290,210]]},
+      {"id":"C->Merge","from":"C","to":"Merge","path":[[466,173],[466,192],[290,192],[290,210]]},
       {"id":"Merge->Done","from":"Merge","to":"Done","path":[[290,247],[290,295]]}
     ],
     "groups": []
@@ -694,16 +694,16 @@
   },
   "AP": {
     "title": "duplicate pair into a shared hub — nested, non-crossing lanes",
-    "shell": {"version":1,"kind":"flowchart","bounds":{"w":248,"h":194}},
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":249,"h":194}},
     "nodes": [
       {"id":"A","x":40,"y":52,"w":60,"h":37,"shape":"rectangle","label":"a"},
       {"id":"B","x":40,"y":117,"w":60,"h":37,"shape":"rectangle","label":"b"},
-      {"id":"C","x":148,"y":85,"w":60,"h":37,"shape":"rectangle","label":"c"}
+      {"id":"C","x":149,"y":85,"w":60,"h":37,"shape":"rectangle","label":"c"}
     ],
     "edges": [
-      {"id":"A->C","from":"A","to":"C","path":[[100,64],[129,64],[129,90],[148,90]]},
-      {"id":"A->C#1","from":"A","to":"C","path":[[100,77],[116,77],[116,103],[148,103]]},
-      {"id":"B->C","from":"B","to":"C","path":[[100,136],[143,136],[143,117],[148,117]]}
+      {"id":"A->C","from":"A","to":"C","path":[[100,64],[129,64],[129,90],[149,90]]},
+      {"id":"A->C#1","from":"A","to":"C","path":[[100,77],[116,77],[116,103],[149,103]]},
+      {"id":"B->C","from":"B","to":"C","path":[[100,136],[136,136],[136,117],[149,117]]}
     ],
     "groups": []
   },

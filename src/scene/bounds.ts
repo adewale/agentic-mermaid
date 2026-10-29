@@ -237,6 +237,16 @@ function markerBoundsAt(
   }
 }
 
+/** Axial support at unit carrier width, using the same geometry, reference,
+ * viewBox, marker scale and stroked envelope as painted marker queries. */
+export function markerTerminalDepth(marker: MarkerDescriptor, position: 'start' | 'end'): number {
+  const angle = typeof marker.orient === 'number' ? marker.orient
+    : position === 'start' && marker.orient === 'auto-start-reverse' ? 180 : 0
+  const bounds = markerBoundsAt(marker, { x: 0, y: 0 }, 1, true, angle)
+  if (!bounds) throw new TypeError(`Unmeasured terminal marker ${marker.id}`)
+  return Math.max(0, position === 'start' ? bounds.x1 : -bounds.x0)
+}
+
 export interface ConnectorMarkerPaintRegion {
   position: 'start' | 'mid' | 'end'
   resource: string

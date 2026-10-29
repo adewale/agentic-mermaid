@@ -5,7 +5,8 @@ import { customTextMeasurementActive } from './text-measurement-profile.ts'
 import { resolveLabelContent } from './shared/display-text.ts'
 import type { Direction, MermaidGraph, Point, PortSide, PositionedEdge, PositionedGroup, PositionedNode, RouteBlocker, RouteCertificate, RouteClass, RouteInvariant } from './types.ts'
 import { graphEdgeTextBlock } from './graph-text.ts'
-import { graphEdgeMarkerPaintRegions } from './graph-connectors.ts'
+import { graphEdgeMarkerPaintRegions, graphEdgeTerminalClearance } from './graph-connectors.ts'
+import { extendTerminalRuns, terminalRunLength } from './layout/terminal-clearance.ts'
 import { labelSeatPaintContext } from './layout/graph-paint-support.ts'
 import { resolveRenderStyle } from './styles.ts'
 import { trimOccludedShapeEndpoint } from './shape-clipping.ts'
@@ -29,6 +30,7 @@ import {
   type LabelMetricsStyle,
   classifyRoutes,
   type Axis,
+  axisFor,
   axisPoint,
   perpendicularAxis,
   simplifyPolyline,
@@ -48,6 +50,7 @@ import {
 } from './layout/route-geometry.ts'
 import {
   portSharpness,
+  laneContextFor,
   repairRectLikeEndpointOverflow,
   diamondSpreadTargetPortConstraint,
   satisfiesDiamondSpreadTargetPortConstraint,
@@ -1700,6 +1703,32 @@ function collapseTinyEndpointSegments(nodes: readonly PositionedNode[], edges: r
       edge.points = candidate
       recertifyReroutedEdge(edge, saved, nodeMap.get(edge.source), nodeMap.get(edge.target))
     }
+  }
+}
+
+/** Restore endpoint lead lost by late obstacle/port rewrites. Runs before label
+ * seating; the final closer retains its bend-removal-only contract. */
+export function repairMarkerTerminals(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, graph: Pick<MermaidGraph, 'direction'>, style: LabelMetricsStyle): void {
+  let terminalContext: ReturnType<typeof laneContextFor> | undefined
+  for (const edge of positioned.edges) {
+    if (edge.style === 'invisible' || edge.points.length < 3 || !edge.hasArrowStart && !edge.hasArrowEnd) continue
+    const clearance = graphEdgeTerminalClearance(edge, style)
+    if (terminalRunLength(edge.points, true) + 1e-7 >= clearance.start && terminalRunLength(edge.points, false) + 1e-7 >= clearance.end) continue
+    const points = extendTerminalRuns(edge.points, clearance)
+    if (!points) continue
+    terminalContext ??= laneContextFor(positioned.nodes, positioned.edges, graph.direction, style, positioned.groups)
+    const { ctx } = terminalContext
+    const source = ctx.nodes.find(node => node.id === edge.source), target = ctx.nodes.find(node => node.id === edge.target)
+    const candidate = { ...edge, points }
+    if (invalidEndpointApproaches(candidate, source, target) || routeAddsCrossings(points, edge, ctx) || !routeCandidateMarkersClear(edge, points, positioned.edges, style)) continue
+    let clear = true
+    for (let i = 1; i < points.length && clear; i++) {
+      const a = points[i - 1]!, b = points[i]!, axis = axisFor(a.x === b.x ? 'TB' : 'LR')
+      clear = !hasDirectLaneBlocker(edge, a[axis.cross], Math.min(a[axis.main], b[axis.main]), Math.max(a[axis.main], b[axis.main]), ctx, axis)
+    }
+    if (!clear) continue
+    edge.points = points
+    recertifyReroutedEdge(edge, edge.routeCertificate, source, target)
   }
 }
 

@@ -1,3 +1,4 @@
+import { extendTerminalRuns } from '../layout/terminal-clearance.ts'
 import { LayoutCertificationError } from '../layout/certification-error.ts'
 import { simplifyOrthogonal } from '../layout/compound-visibility.ts'
 import { connectorMarkerPaintRegions } from '../scene/bounds.ts'
@@ -8,7 +9,7 @@ import { DIAGRAM_TITLE_GAP, diagramTitleBand, type ResolvedRenderStyle } from '.
 import type { Point } from '../types.ts'
 import { type ClassMarkerAdmissionWork, chargeClassMarkerAdmissionWork, createClassMarkerAdmissionWork } from './marker-admission.ts'
 import { type ClassHeaderPeerContext, type ClassHeaderNumericCapture, captureClassHeaderNumericContext, classHeaderDetourCandidates } from './header-lanes.ts'
-import { type ClassMarkerPiece, classCaptionAnchor, classCardinalityAnchor, classMarkerPieces, classMarkerResources, getMarkerDefId, RELATION_LABEL_HALO_WIDTH, RELATION_LABEL_OFFSET_Y } from './relationship-paint.ts'
+import { classRelationshipTerminalClearance, type ClassMarkerPiece, classCaptionAnchor, classCardinalityAnchor, classMarkerPieces, classMarkerResources, getMarkerDefId, RELATION_LABEL_HALO_WIDTH, RELATION_LABEL_OFFSET_Y } from './relationship-paint.ts'
 import type { PositionedClassDiagram, PositionedClassNote } from './types.ts'
 export interface ClassSurfaceBox {
   x: number
@@ -550,7 +551,16 @@ export function repairClassHeaderRoutes(diagram: PositionedClassDiagram, style: 
           if (localBoxes.some(box => { pay(); return routeEnters(detour, box) })) continue
           const support = headerMarkerSupport(detour, style.lineWidth, pay)
           if (markers.some(p => headerMarkerMayMeet(support, p.box, pay) && detour.some((point, i) => { pay(); return i > 0 && classCarrierEntersMarker(detour[i - 1]!, point, p.pieces ?? [], style.lineWidth) }))) continue
-          const trial = simplifyOrthogonal([...relation.points.slice(0, segment), ...detour, ...relation.points.slice(segment)])
+          const raw = simplifyOrthogonal([...relation.points.slice(0, segment), ...detour, ...relation.points.slice(segment)])
+          const trial = extendTerminalRuns(raw, classRelationshipTerminalClearance(relation, style))
+          if (!trial) continue
+          if (trial !== raw && markers.some(p => trial.some((point, i) => {
+            pay()
+            if (!i || p.edge === ri && (p.endpoint === 'from' && i === 1 || p.endpoint === 'to' && i === trial.length - 1)) return false
+            const a = trial[i - 1]!, oldA = raw[i - 1]!, oldB = raw[i]!
+            if (a.x === oldA.x && a.y === oldA.y && point.x === oldB.x && point.y === oldB.y) return false
+            return classCarrierEntersMarker(a, point, p.pieces ?? [], style.lineWidth)
+          }))) continue
           if (!simpleClassRoute(trial) || (style.edgeBendRadius <= 0 && markers.some(p => { pay(); return classNewMiterEntersMarker(trial, relation.points, p.pieces ?? [], style.lineWidth) }))) continue
           if (style.edgeBendRadius > 0 && !classNewRoundedCornersClear(trial,relation.points,localBoxes,paint.filter(p=>p.kind==='marker').map(p=>p.pieces??[]),style,pay)) continue
           if (trial[0]!.x !== relation.points[0]!.x || trial[0]!.y !== relation.points[0]!.y || trial.at(-1)!.x !== relation.points.at(-1)!.x || trial.at(-1)!.y !== relation.points.at(-1)!.y) continue

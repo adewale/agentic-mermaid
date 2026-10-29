@@ -1,3 +1,5 @@
+import { extendTerminalRuns } from '../layout/terminal-clearance.ts'
+import { architectureMarkerTerminal } from './markers.ts'
 import { architectureIconFallbackBlock } from './icon-layout.ts'
 import { assertArchitectureDiagramWork } from '../shared/diagram-limits.ts'
 import { LayoutCertificationError } from '../layout/certification-error.ts'
@@ -250,6 +252,8 @@ export function layoutArchitectureDiagram(
         flatGroups,
         services,
         junctionBounds,
+        { start: edge.hasArrowStart ? architectureMarkerTerminal('architecture-arrow-start', typography.edgeLineWidth, 'start') : 0, end: edge.hasArrowEnd ? architectureMarkerTerminal('architecture-arrow-end', typography.edgeLineWidth, 'end') : 0 },
+        typography.edgeBendRadius,
       )
     )
     let edges = routeEdges()
@@ -970,9 +974,11 @@ function routeArchitectureEdge(
   groups: Map<string, PositionedArchitectureGroup>,
   services: PositionedArchitectureService[],
   junctionsById: Map<string, PositionedArchitectureJunction>,
+  terminal: { start: number; end: number },
+  radius: number,
 ): PositionedArchitectureEdge {
-  const source = resolveEndpoint(edge.source, servicesById, serviceBounds, junctionBounds, groups)
-  const target = resolveEndpoint(edge.target, servicesById, serviceBounds, junctionBounds, groups)
+  const source = resolveEndpoint(edge.source, servicesById, serviceBounds, junctionBounds, groups, terminal.start ? terminal.start + radius : 0)
+  const target = resolveEndpoint(edge.target, servicesById, serviceBounds, junctionBounds, groups, terminal.end ? terminal.end + radius : 0)
   const obstacles = architectureRouteObstacles(edge, servicesById, groups, services, junctionsById)
   // Only the anchor-to-exit lead may touch its incident card. The middle
   // route must remain outside both endpoints so it cannot reverse through
@@ -1008,11 +1014,13 @@ function routeArchitectureEdge(
   const middle = routeClearsObstacles(directMiddle, obstacles)
     ? directMiddle
     : routeOrthogonalAroundObstacles(source.exit, target.exit, obstacles) ?? directMiddle
-  const points = simplifyOrthogonalPoints([
+  let points = simplifyOrthogonalPoints([
     source.anchor,
     ...middle,
     target.anchor,
   ])
+  const extended = extendTerminalRuns(points, terminal)
+  if (extended && extended !== points && routeClearsObstacles(extended, obstacles)) points = extended
   const sourceFacesTarget = sideFacesPoint(source.anchor, edge.source.side, target.anchor)
   const targetFacesSource = sideFacesPoint(target.anchor, edge.target.side, source.anchor)
 
@@ -1349,19 +1357,20 @@ function resolveEndpoint(
   serviceBounds: Map<string, Bounds>,
   junctionBounds: Map<string, Bounds>,
   groups: Map<string, PositionedArchitectureGroup>,
+  lead = 0,
 ): ResolvedEndpoint {
   if (endpoint.boundary === 'group') {
     const service = servicesById.get(endpoint.id)!
     const serviceBoundsEntry = serviceBounds.get(endpoint.id)!
     const group = groups.get(service.parentId!)!
     const anchor = groupAnchor(group, serviceBoundsEntry, endpoint.side)
-    return { anchor, exit: movePoint(anchor, endpoint.side, EDGE_EXIT_GAP) }
+    return { anchor, exit: movePoint(anchor, endpoint.side, Math.max(EDGE_EXIT_GAP, lead)) }
   }
 
   const serviceBoundsEntry = serviceBounds.get(endpoint.id)
   if (serviceBoundsEntry) {
     const anchor = rectAnchor(serviceBoundsEntry, endpoint.side)
-    return { anchor, exit: movePoint(anchor, endpoint.side, EDGE_EXIT_GAP) }
+    return { anchor, exit: movePoint(anchor, endpoint.side, Math.max(EDGE_EXIT_GAP, lead)) }
   }
 
   const junctionBoundsEntry = junctionBounds.get(endpoint.id)
@@ -1370,7 +1379,7 @@ function resolveEndpoint(
   }
 
   const anchor = circleAnchor(junctionBoundsEntry, endpoint.side)
-  return { anchor, exit: movePoint(anchor, endpoint.side, EDGE_EXIT_GAP * 0.75) }
+  return { anchor, exit: movePoint(anchor, endpoint.side, Math.max(EDGE_EXIT_GAP * 0.75, lead)) }
 }
 
 function rectAnchor(bounds: Bounds, side: ArchitectureEndpoint['side']): Point {

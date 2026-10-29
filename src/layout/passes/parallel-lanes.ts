@@ -1,3 +1,4 @@
+import { extendTerminalRuns } from '../terminal-clearance.ts'
 import type { ResolvedRenderStyle } from '../../styles.ts'
 import { measureLabelConflicts } from '../label-conflicts.ts'
 import type { Direction, MermaidGraph, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
@@ -11,7 +12,7 @@ import { labelBoxAt, longestSegmentMidpoint, readableLabelGap, bundledLabelCandi
 import type { BundledLabelCandidate } from './bundled-labels.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
 import { labelHaloExtension } from '../../shared/edge-label-geometry.ts'
-import { graphEdgeMarkerPaintRegions } from '../../graph-connectors.ts'
+import { graphEdgeMarkerPaintRegions, graphEdgeTerminalClearance } from '../../graph-connectors.ts'
 import { routeCandidateMarkerBlocker } from '../route-marker-clearance.ts'
 import { portLaneInkClear, portLaneInkWork, withinPortLaneBudget } from './port-lanes.ts'
 
@@ -560,6 +561,9 @@ export function applyParallelDuplicateLanes(
         pts = clipEdgeToShape(pts, source, true)
         pts = clipEdgeToShape(pts, target, false)
         pts = simplifyPolyline(pts)
+        const protectedPoints = extendTerminalRuns(pts, graphEdgeTerminalClearance(edge, style))
+        if (!protectedPoints) return undefined
+        pts = protectedPoints
         if (pts.length < 2 ||
           !onShapeOutline(source, pts[0]!) ||
           !onShapeOutline(target, pts[pts.length - 1]!) ||

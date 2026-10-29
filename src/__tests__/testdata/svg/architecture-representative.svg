@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="665.966" height="280" viewBox="0 0 665.966 280" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-0k0mvm900vr38a">
+<svg xmlns="http://www.w3.org/2000/svg" width="665.966" height="280" viewBox="0 0 665.966 280" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-086nlc21qmsmip">
 <style>
-  svg.am-0k0mvm900vr38a { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg.am-0k0mvm900vr38a {
+  svg.am-086nlc21qmsmip { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-086nlc21qmsmip {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;
@@ -49,9 +49,9 @@
   <text x="74" y="90" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" fill="#575759" data-prepared-text="true" dy="4.2" textLength="65.16" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Application</text>
 </g>
 <polyline class="architecture-edge" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="191.971,146 337.278,146 337.278,158 482.585,158" fill="none" stroke="#939395" stroke-width="1" stroke-linejoin="round" marker-end="url(#architecture-arrow-end)" data-relationship="architecture-edge" data-direction="forward" data-id="edge:api-&gt;db#0" data-role="edge" data-from="api" data-to="db" role="graphics-symbol" aria-roledescription="relation" aria-label="api to db" />
-<polyline class="architecture-edge" data-from-side="B" data-to-side="T" data-from-boundary="item" data-to-boundary="item" data-label="async fan-out" points="123.9855,170 123.9855,190 390.585,190 390.585,206" fill="none" stroke="#939395" stroke-width="1" stroke-linejoin="round" marker-end="url(#architecture-arrow-end)" data-relationship="architecture-edge" data-direction="forward" data-id="edge:api-&gt;bus#0" data-role="edge" data-from="api" data-to="bus" role="graphics-symbol" aria-roledescription="relation" aria-label="api to bus: async fan-out" />
-<rect class="architecture-edge-label-bg" x="215.97825" y="175.85" width="78.614" height="28.3" rx="0" ry="0" fill="#fefefe" stroke="#ececec" stroke-width="0.75" />
-<text x="255.28525" y="190" class="architecture-edge-label-text" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="64.614" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">async fan-out</text>
+<polyline class="architecture-edge" data-from-side="B" data-to-side="T" data-from-boundary="item" data-to-boundary="item" data-label="async fan-out" points="123.9855,170 123.9855,189.8125 390.585,189.8125 390.585,206" fill="none" stroke="#939395" stroke-width="1" stroke-linejoin="round" marker-end="url(#architecture-arrow-end)" data-relationship="architecture-edge" data-direction="forward" data-id="edge:api-&gt;bus#0" data-role="edge" data-from="api" data-to="bus" role="graphics-symbol" aria-roledescription="relation" aria-label="api to bus: async fan-out" />
+<rect class="architecture-edge-label-bg" x="216.16575" y="175.6625" width="78.614" height="28.3" rx="0" ry="0" fill="#fefefe" stroke="#ececec" stroke-width="0.75" />
+<text x="255.47275" y="189.8125" class="architecture-edge-label-text" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="64.614" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">async fan-out</text>
 <g class="architecture-junction" data-id="bus" data-role="junction">
   <circle class="architecture-junction-ring" cx="390.585" cy="214" r="8" fill="#FFFFFF" stroke="#47474a" stroke-width="1.25" data-id="junction-ring:bus" data-role="junction" />
   <circle class="architecture-junction-core" cx="390.585" cy="214" r="4.5" fill="#d3d3d4" stroke="#47474a" stroke-width="0.75" data-id="junction-core:bus" data-role="junction" />
