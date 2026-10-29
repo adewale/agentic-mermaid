@@ -2257,3 +2257,92 @@ qualified. Next concrete work is exact-head CI and the unresolved namespace/
 same-emission/final-admission dependencies above; failed caps are not readiness.
 No merge, force push, new issue/PR/comment, default/version change, package
 publication or check/cap relaxation.
+
+### Exact first CI result and packaging/fixture follow-up
+
+Runtime/test revision **`b6cf6807ae18976ebf1444732cb0424d83049802`** and
+namespace revision **`8e06d4861afb51dc5541415699c59f18259e304f`** were normally
+fast-forward pushed to the retained branch. CI **40847746357, attempt1** is
+terminal **failed**, without job retries. The existing PR description is
+updated; PR449 remains closed/merged and the changes are not on Main.
+
+The original editor budget failure is repaired in actual CI: the browser job
+passes all five canonical contracts, **140P/0F**, including22 editor,68 lazy
+browser,2 CSP,2 CORS and46 interaction cases. The standalone full-Blob byte
+comparison, all-family receipts/verification, recovery and PNG checks pass.
+Node22 consumers, quickstarts, MCP, CLI, dist, website payload and browser-site
+lanes pass. Node24's functional tarball tests pass, then its strict package
+file check finds the new license missing from the reviewed manifest.
+
+The quality job's sole failed check remains **32 lazy byte rows,18raw/14gzip**;
+no request/Brotli failure. CI compressed values differ slightly from local
+values; both remain in the logs/CI-LAZY-VIOLATIONS.json. The513 diagrams and
+2052 format audits have zero hard/soft/render errors. Types and lint pass.
+
+Unit shards record **14686P/76skips/2F**, not a clean suite: shard1 is4568P,
+45skip,1F; shard2 is5005P,13skip,1F; shard3 is5113P,18skip,0F. The new tests
+are not the two failures. One existing website fixture copies the builder but
+omits its newly required LICENSES/Brotli-MIT.txt. The other is the unchanged
+source-map growth guard:5000 shaped nodes692.5ms versus625 nodes18.6ms, above
+its618.9ms limit. One subsequent authorized owning source-map file check passes
+51tests/439assertions; that does not establish the CI cause or erase its
+failure. Parser, source-map and complexity-test files are byte-unchanged from
+81cd. Static review identifies repeated negative whole-suffix regex scanning
+as preexisting potential quadratic work; preserving the diagnostic's deliberate
+suffix semantics is necessary before any repair. No parser optimization,
+threshold/slack increase, extra timing campaign or retry is adopted.
+
+Semantic173P remains63/64qualified with ZenUML unavailable. Upstream3474keeps
+1879passed/121native-refusal/720mismatch/735adapter-unavailable/6reference-
+unqualified/13skip plus3uncollected files. The grammar diagnostics retain13
+silent reads and1402unsupported observations. The advisory fails with346
+regressions/393improvements/135changed across874paired occurrences; all8
+populations complete with zero snapshot errors. These are overlapping dated
+cohorts, not a sealed holdout or new correctness/aesthetic parity. Complete
+logs, semantic artifact and denominator summary are retained in
+`CI-semantic-advisory-40847746357-attempt1-SUMMARY.json`.
+
+The additional packaging correction adds exactly **LICENSES/Brotli-MIT.txt**
+to the existing reviewed npm file manifest; every other entry/count and
+verifier rule is unchanged. The actual packed-package checker reproduces the
+one unexpected-file failure, then passes **226 exact files** after correction.
+Independent tar readback finds every before/after member and file byte identical:
+the license already shipped through the declared LICENSES directory. Full
+license/notice bytes match the source. This local probe verifies the file
+contract, not freshly rebuilt Node/IIFE runtime contents; CI's separately built
+consumer artifacts provide runtime evidence. Its archive SHA256 is
+5316039129a00615a2c25e4beee3762b0af6428b749d3464e2704bfbf342cfc0.
+The initial local npm cache ENOENT under /home/agent is retained; an explicitly
+scoped npm_config_cache under /tmp corrects it without changing HOME or limits.
+
+The owning checkout-with-spaces fixture now copies the actual **LICENSE,
+LICENSES directory and THIRD_PARTY_NOTICES.md** alongside its existing inputs.
+It still runs the copied real builder from the isolated space-containing cwd,
+uses the existing dependency symlink/output-only preload, and retains every
+assertion and20-second child/60-second test limit. Independent static review,
+lint and diff checks pass. **Local green is not claimed**: cold and stable
+filtered attempts hit the unchanged20-second child watchdog with cleanup
+confirmed. One private stage-name-only diagnostic stops inside the existing
+worker minifier, before Brotli packing or notice collection; this does not
+establish an internal cause or justify tuning compiler options. The original
+CI ENOENT and these distinct timeout observations remain separate. A new-head
+CI observation is needed to close this fixture failure.
+
+Independent review also records a cache-custody gap: the existing website
+fixture content fingerprint omits scripts/build and maintained notice inputs,
+so repeated edits to already-dirty files can reuse stale output. No new
+self-source hashes or enlarged hash inventory are introduced to mask it.
+Current artifact qualification uses fresh builds and direct source/artifact
+byte comparisons; a principled cache dependency/custody repair remains open.
+Repository writes are paused during a website fixture run because its existing
+snapshot includes HEAD and whole-repository status, even for disjoint edits.
+
+The two one-line package/fixture changes are the next CI candidate, not a claim
+that every gate passes. Raw evidence is in CI-{unit1,unit2,unit3,browser,quality,
+tarball-node24}.log, MANIFEST-{RED-CACHE-FIXED,GREEN}.log,
+production-standalone-review/package-manifest-b6cf-review/,
+website-space-review/, website-space-path-*.log, space-build-stage/ and
+source-map-review/, under the same evidence root. All seven diagrams, the
+six0.6goals and the other counterexamples above remain open; no holdout access,
+performance campaign, check/cap relaxation, release/default/version change,
+package publication, force push, merge or new issue/PR/comment.
