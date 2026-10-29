@@ -773,7 +773,9 @@ test('ELK bends one roundoff apart still leave outward card contacts on a wide t
   // vertical leg's ends 6527.03333333333 and 6527.033333333329; SVG writes
   // those two numbers differently, so the card contact read as a diagonal.
   const source = graphStressSamples().find(sample => sample.id === 'fixture/stress/class-80-classes.mmd')!.source
-  const { layout, receipt } = layoutMermaidWithReceipt(source, { graphLayout: { backend: 'elk' }, style: { roles: { node: { paddingX: 26, paddingY: 14 } } } })
+  let result: ReturnType<typeof layoutMermaidWithReceipt> | undefined
+  expect(() => { result = layoutMermaidWithReceipt(source, { graphLayout: { backend: 'elk' }, style: { roles: { node: { paddingX: 26, paddingY: 14 } } } }) }).not.toThrow()
+  const { layout, receipt } = result!
   expect(receipt.layoutCertification?.status).toBe('passed')
   // The generator writes C⌊(i-1)/2⌋ <|-- Ci for every i in 1..79.
   expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual(Array.from({ length: 79 }, (_, index) => [`C${Math.floor(index / 2)}`, `C${index + 1}`]))
