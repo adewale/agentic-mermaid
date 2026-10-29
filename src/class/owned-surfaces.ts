@@ -785,13 +785,19 @@ export function classMarkerHeaderInsets(diagram: PositionedClassDiagram, style: 
         if(piece.kind==='circle')reach=Math.max(reach,emitted(a.y)-piece.cy+piece.r)
         else for(const point of piece.points){pay();reach=Math.max(reach,emitted(a.y)-point.y)}
       }
-      let parent=owners.get(node.id)
+      // A rounded bypass corner spends min(radius, drop/2) of the drop into
+      // this contact; it clears the glyph once the drop also holds this much.
+      // Under an outer header the drop ends at the nearest crossed inner
+      // header instead, whose stroke-expanded box the whole corner must clear.
+      const radius=Math.max(0,style.edgeBendRadius)
+      let floor=emitted(a.y)-reach-Math.min(radius,half+reach),parent=owners.get(node.id)
       for(let depth=0;parent&&depth<=groups.size;depth++){
         pay();const ns=groups.get(parent)!
         const header={x:ns.x,y:ns.y,width:ns.width,height:ns.headerHeight}
         if(routeEnters(rel.points,expanded(header,half))){
-          const free=emitted(a.y)-reach-emitted(ns.y)-emitted(ns.headerHeight),old=demands.get(parent)
+          const free=floor-emitted(ns.y)-emitted(ns.headerHeight),old=demands.get(parent)
           demands.set(parent,{count:(old?.count??0)+1,free:Math.min(old?.free??Infinity,free)})
+          floor=emitted(ns.y)-radius-half
         }
         parent=ns.parentId
       }
