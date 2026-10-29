@@ -87,7 +87,7 @@ async function readJsFiles(): Promise<string> {
   if (!result.success) throw new AggregateError(result.logs, 'Editor application bundle failed')
   // Compress the complete application module so catalog literals and their
   // consumers share one scope; keep every catalog value available to the UI.
-  return minifyBrowserRuntime([editorExamplesDataJs(), editorFamilyDataJs(), editorFontDataJs(), await result.outputs[0]!.text()].join('\n'))
+  return minifyBrowserRuntime([editorExamplesDataJs(), editorFamilyDataJs(), editorFontDataJs(), await result.outputs[0]!.text()].join('\n'), ['EDITOR_EXAMPLES', 'EDITOR_PRESET_FONTS'])
 }
 
 function escapeHtmlAttr(value: string): string {
