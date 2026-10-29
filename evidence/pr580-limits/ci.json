@@ -1,15 +1,148 @@
 {
-  "state": "pending",
+  "state": "passed",
+  "verifiedAtUtc": "2026-10-29T15:46:23Z",
   "rendererHead": "53319dbb976dae1865e19f7faca49464ee8e8557",
   "rendererTree": "d994f23d472d25839d024d704691ebb4cb135178",
   "base": "e68b23a8301d5c267966468fb0a5f58bf5d78eaa",
+  "testedMerge": "bba20aeaceff6d8759f009b6b322f20f169a10f4",
+  "testedParents": [
+    "e68b23a8301d5c267966468fb0a5f58bf5d78eaa",
+    "53319dbb976dae1865e19f7faca49464ee8e8557"
+  ],
   "run": 40901964537,
   "url": "https://github.com/adewale/agentic-mermaid/actions/runs/40901964537",
+  "ruffRun": 40901964635,
+  "actualCheckoutEvidence": "Completed payload job123546380156 reports the full tested merge/base/head; fetched refs/pull/580/merge has those exact parents and final source tree.",
+  "liveBaseHeadRecheckedAfterCompletion": true,
+  "jobs": [
+    {
+      "id": 123546379662,
+      "name": "Quality gates",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123546380105,
+      "name": "Unit tests (1/3)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123546380136,
+      "name": "MCP conformance",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123546380145,
+      "name": "Layout backend review evidence",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123546380156,
+      "name": "E2E (payload)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123546380192,
+      "name": "Generated layout diagnostic (advisory)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123546380217,
+      "name": "Unit tests (2/3)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123546380227,
+      "name": "Installed-package quickstarts",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123546380231,
+      "name": "E2E (tarball-consumer)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123546380319,
+      "name": "Expire label approvals of earlier heads",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123546380348,
+      "name": "Unit tests (3/3)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123546380355,
+      "name": "E2E (dist-artifact)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123546380364,
+      "name": "E2E (browser-site)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123546380380,
+      "name": "Changed tests fail on the base branch",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123546380391,
+      "name": "E2E (tarball-consumer-node22)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123546380528,
+      "name": "E2E (cli)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123546380595,
+      "name": "E2E (browser)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123546380611,
+      "name": "Independent semantic conformance / semantic",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123551301679,
+      "name": "test",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123555416250,
+      "name": "CI complete",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
   "observer": {
     "head": "74616adb8fa508ea39fa603f1cfa2c633cf3e0ff",
     "base": "8411ea8c6436787d4bbe32db517d59f1b2edb259",
     "testedMerge": "64a76c410dbab952d259e31011bce1c1f0728438",
+    "tree": "a9283d51a8e7f50e4af920afb9250b5776511073",
     "run": 40885876328,
-    "state": "passed"
+    "state": "passed",
+    "liveBaseHeadAndParentsRechecked": true
   }
 }
