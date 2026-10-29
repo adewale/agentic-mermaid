@@ -10,7 +10,7 @@ import { deferredTerminalProjectionInput, copyDeferredTerminalProjection } from 
 import { transferSceneNodeSerialization } from './serialization.ts'
 import type { SvgGeometryWriteSink } from './svg-writer.ts'
 import { connectorContourSemantics } from './connector-geometry.ts'
-import { rectanglePaintFields, writtenPolylineProjectionOf } from './written-geometry.ts'
+import { rectanglePaintFields, writtenPolylineProjectionOf, prepareWrittenCompoundShape, observeWrittenCompoundShape, completeWrittenCompoundShape } from './written-geometry.ts'
 import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
 import { createEmissionContext, type EmissionColorResolver } from './emission-context.ts'
 import { verifySvgDocumentEnvelope } from '../output-security.ts'
@@ -44,7 +44,7 @@ export function createNativePaintEmission(maxOperations: number) {
   }
   const context = createEmissionContext(pay, { resources: false })
   const failed = Symbol('unsupported-emission')
-  const capturedLeaves = new WeakSet<object>()
+  const capturedLeaves = new WeakMap<object, Leaf>()
   type CaptureContext = 'leaf' | 'route' | 'geometry' | 'points' | 'point'
   const copy = (value: unknown, depth = 0, parents = new Set<object>(), context?: CaptureContext): unknown => {
     if (depth > 64) throw failed
@@ -137,7 +137,7 @@ export function createNativePaintEmission(maxOperations: number) {
       const descriptor = Object.getOwnPropertyDescriptor(source, key)!
       Object.defineProperty(result, key, key === field ? { ...descriptor, value } : descriptor)
     }
-    if (capturedLeaves.has(source) && pay()) capturedLeaves.add(result)
+    if (capturedLeaves.has(source) && pay()) capturedLeaves.set(result, capturedLeaves.get(source)!)
     return Object.preventExtensions(result)
   }
   // This proof-only record cannot acquire an inherited opacity or radius
@@ -152,7 +152,7 @@ export function createNativePaintEmission(maxOperations: number) {
       if (!descriptor || !('value' in descriptor)) return undefined
       Object.defineProperty(result, key, { value: descriptor.value, enumerable: descriptor.enumerable, writable: false, configurable: false })
     }
-    if (capturedLeaves.has(source) && pay()) capturedLeaves.add(result)
+    if (capturedLeaves.has(source) && pay()) capturedLeaves.set(result, capturedLeaves.get(source)!)
     return Object.preventExtensions(result)
   }
   const rectanglePaint = (paint: MarkPaint): MarkPaint | undefined => {
@@ -400,7 +400,8 @@ export function createNativePaintEmission(maxOperations: number) {
         if (!/^[ \t\r\n]*<\/defs>[ \t\r\n]*$/.test(svg.slice(resourceCursor))) definitionsClosed = false
       } else if (node.kind === 'document') closedMarkerContext = false
       if (capturedLeaves.has(node)) {
-        if (context.hint(node)) context.leaf(node, svg)
+        context.hint(node)
+        if (node.kind !== 'document') context.leaf(capturedLeaves.get(node)!, svg)
       } else context.invalidateFractionalCircle()
       return !exhausted
     },
@@ -413,13 +414,15 @@ export function createNativePaintEmission(maxOperations: number) {
       // Eligibility is decided before validation/writing can observe inherited
       // caller hooks. Unsupported rectangles retain their legacy inspection.
       const rectangle = captured.kind === 'shape' && geometry?.kind === 'rect' ? rectangleInput(captured, geometry) : undefined
-      const supported = geometry?.kind === 'line' || geometry?.kind === 'polyline' || !!rectangle || captured.kind === 'connector' && geometry?.kind === 'path'
+      const compound = captured.kind === 'shape' && geometry?.kind === 'compound' ? prepareWrittenCompoundShape(captured, pay) : undefined
+      const supported = !!compound || geometry?.kind === 'line' || geometry?.kind === 'polyline' || !!rectangle || captured.kind === 'connector' && geometry?.kind === 'path'
       // Constant custody is separate from variable projection work. The writer
       // reserves the entire token stream before allocating its first point.
       const reserved = supported && pay(192)
       let received = false, invalid = false, projectionReserved = false, served: Geometry | undefined
       let attributesReceived = false, invalidAttributes = false, attributes: Readonly<Record<string, string>> | undefined
       const sink: SvgGeometryWriteSink | undefined = reserved ? Object.assign((source: Geometry, written: Geometry | undefined) => {
+        if (compound) { observeWrittenCompoundShape(compound, source, written, pay); return }
         if (source !== geometry || received) { invalid = true; return }
         received = true
         // The writer's fresh rectangle record owns actual optional radii too.
@@ -433,11 +436,21 @@ export function createNativePaintEmission(maxOperations: number) {
         if (source !== captured || attributesReceived) { invalidAttributes = true; return }
         attributesReceived = true
         attributes = written
-      } : undefined }) : undefined
+      } : undefined }) : captured.kind === 'text' ? Object.assign(() => {}, { captureTextContext: true as const, reserveTextContext: pay }) : undefined
       const svg = write(captured, sink)
-      if (pay()) capturedLeaves.add(captured)
+      if (pay()) capturedLeaves.set(captured, captured)
       const retained = { node: captured, paintNode: captured, svg, conditional: false }
       if (!supported) return retained
+      if (compound && captured.kind === 'shape' && geometry) {
+        const projection = reserved && completeWrittenCompoundShape(compound, geometry, svg, pay)
+        // Missing fresh callbacks or mismatched bytes cannot create the new
+        // compound projection; existing general compound proofs stay intact.
+        if (!projection) return retained
+        const proof = inertRectangleRecord(captured)
+        const overlay = proof && replaceField(proof, 'geometry', projection.geometry)
+        const paintNode = overlay && replaceField(overlay, 'childPaints', projection.childPaints)
+        return paintNode ? { ...retained, paintNode } : retained
+      }
       // A cached serialization, missing/duplicate receipt, failed capture or
       // unsupported numeric projection cannot borrow another write's proof.
       if (!reserved || !received || invalid || !served || !geometry || served.kind !== geometry.kind) return { ...retained, conditional: true }

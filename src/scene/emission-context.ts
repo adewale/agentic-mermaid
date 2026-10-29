@@ -9,6 +9,7 @@ import { decodedSvgAttributeValue, scanSvgStartTags, type SvgStartTagToken } fro
 import type { ConnectorMark, DocumentMark, MarkerDescriptor, SceneDoc, SceneNode, TextMark } from './ir.ts'
 import { serializeMarkerResource } from './marker-resources.ts'
 import { parseSvgTransform, transformMatrix } from './transforms.ts'
+import { writtenLeafContextOf, writtenTextContextOf } from './svg-writer.ts'
 
 type Header = Pick<SceneDoc, 'width' | 'height' | 'colors'>
 type Pay = (operations: number) => boolean
@@ -23,6 +24,8 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
   let documentPosition: 'before' | 'inside' | 'after' = 'before'
   let needsVariables = false, needsDerivedVariables = false, canonicalStyles = 0, roots = 0
   const documents: Array<{ node: DocumentMark; svg: string }> = []
+  const texts: Array<{ node: TextMark; svg: string }> = []
+  const leaves: Array<{ node: SceneNode; svg: string }> = []
   const groups: Array<Extract<SceneNode, { kind: 'group' }>> = []
   const references: MarkerDescriptor[] = []
   const markerIds = new Set<string>()
@@ -31,7 +34,7 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
   const rootPaintVariables = new Map<string, string>()
   const ownValue = (value: object, name: string): unknown => {
     const descriptor = Object.getOwnPropertyDescriptor(value, name)
-    return descriptor && 'value' in descriptor ? descriptor.value : undefined
+    return descriptor && Object.hasOwn(descriptor, 'value') ? descriptor.value : undefined
   }
   const reserve = (count: number): boolean => {
     if (finished || !Number.isSafeInteger(count) || count < 0 || !pay(count)) { uncertain = true; return false }
@@ -42,7 +45,11 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
   // Its disjoint text bounds additionally need correspondence with this write,
   // rather than a promise made by a caller's prepared-text metadata.
   const ringTextWrite = (node: TextMark, svg: string): boolean => {
-    if (!reserve(svg.length * 8 + 128)) return false
+    // The private receipt comes from the same prepared single-line writer
+    // branch. Pay its exact returned-string match, not a second markup parse.
+    if (!reserve(svg.length * 2 + 8)) return false
+    const actual = writtenTextContextOf(node, svg)
+    if (!actual) return false
     const own = (value: object, name: string): unknown => {
       if (!reserve(4)) return unsupportedFractionalLeaf
       const descriptor = Object.getOwnPropertyDescriptor(value, name)
@@ -64,35 +71,36 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
     const weight = own(node, 'fontWeight') ?? block.fontWeight
     const shift = own(node, 'baselineShift') ?? 0.35, spacing = own(node, 'letterSpacing') ?? 0
     if (size !== block.fontSize || weight !== block.fontWeight || shift !== 0.35 || spacing !== 0) return false
-    const numeric = [x, y, size, weight, block.fontSize * 0.35]
+    if (![x, y].every(value => typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= 1e6
+      && Math.abs(Number(formatSvgNumber(value)) - value) <= 1 / 2000)) return false
+    const numeric = [size, weight]
     if (!numeric.every(value => typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= 1e6
       && Number(formatSvgNumber(value)) === value)) return false
-    // The actual fitted advance can normalize an arithmetic tail. Later text
-    // enclosures add three outward ticks, including this one-tick projection;
-    // the exact ring/body contact comparisons receive no such allowance.
+    const baseline = block.fontSize * 0.35, dy = formatSvgNumber(baseline), servedBaseline = Number(dy)
+    if (!Number.isFinite(baseline) || Math.abs(baseline) > 1e6 || !Number.isFinite(servedBaseline)
+      || Math.abs(servedBaseline) > 1e6 || Math.abs(servedBaseline - baseline) > 1 / 2000) return false
+    // Served position, baseline and fitted advance can normalize arithmetic
+    // tails. Two outward ticks cover their combined projection at either text
+    // edge; a third covers bounds arithmetic. Exact body contact gets no margin.
     if (!Number.isFinite(block.width) || block.width < 0 || block.width > 1e6
       || Math.abs(Number(formatSvgNumber(block.width)) - block.width) > 1 / 2000) return false
-    const tags = scanSvgStartTags(svg), tag = tags[0]
-    if (tags.length !== 1 || !tag || tag.name !== 'text' || tag.start !== 0
-      || svg.slice(tag.end) !== `${escapeXml(block.text)}</text>`) return false
+    // The issuer observes every actual attribute and admits only the old
+    // inert allowlist, with no stroke/style/transform/spans or mono class.
+    // Its multiline branch owns the fixed prepared/fit attributes; this
+    // consumer still checks the exact served typography and plain content.
+    if (actual.content !== escapeXml(block.text)) return false
     const expected: Record<string, string | undefined> = {
       x: formatSvgNumber(x as number), y: formatSvgNumber(y as number), 'font-size': formatSvgNumber(size as number),
       'font-weight': formatSvgNumber(weight as number), 'text-anchor': own(node, 'anchor') as string,
-      dy: formatSvgNumber(block.fontSize * 0.35), textLength: formatSvgNumber(block.width),
-      lengthAdjust: 'spacingAndGlyphs', 'font-family': block.fontFamily,
-      'data-prepared-text': 'true', 'data-font-metrics': 'deterministic-fit',
+      dy, textLength: formatSvgNumber(block.width), 'font-family': block.fontFamily,
     }
-    const names = new Set<string>()
-    for (const attribute of tag.attributes) {
-      if (!reserve(attribute.name.length + attribute.value.length + 4) || names.has(attribute.name)) return false
-      names.add(attribute.name)
-      if (Object.hasOwn(expected, attribute.name)) {
-        if (decodedSvgAttributeValue(tag, attribute.name) !== expected[attribute.name]) return false
-      } else if (!['fill', 'id', 'role', 'class', 'xml:space'].includes(attribute.name)
-        && !attribute.name.startsWith('data-') && !attribute.name.startsWith('aria-')) return false
+    const attributes: Readonly<Record<string, string>> = Object.assign(Object.create(null), actual.attributes,
+      { x: actual.x, y: actual.y, dy: actual.dy, textLength: actual.textLength })
+    for (const [name, value] of Object.entries(expected)) {
+      const served = attributes[name]
+      if (!reserve(name.length + (value?.length ?? 0) + (served?.length ?? 0) + 4) || served !== value) return false
     }
-    if (decodedSvgAttributeValue(tag, 'class')?.split(/\s+/).includes('mono')) return false
-    return Object.entries(expected).every(([name, value]) => decodedSvgAttributeValue(tag, name) === value)
+    return true
   }
   const variableUse = (value: string): void => {
     if (value.includes('var(')) needsVariables = true
@@ -287,24 +295,37 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
       if (node.kind === 'connector') {
         const reference = (marker: MarkerDescriptor | undefined): void => {
           if (!marker || !reserve(4)) return
-          if (marker.geometry?.kind === 'circle' && marker.paint?.fill === 'none') hasRingConnector = true
+          const geometry = marker.geometry
+          if (geometry?.kind === 'circle' && marker.paint?.fill === 'none') hasRingConnector = true
+          else if (geometry?.kind === 'compound' && reserve(8) && geometry.children.length === 2
+            && geometry.children[0]?.kind === 'line' && geometry.children[1]?.kind === 'line') hasRingConnector = true
         }
         reference(node.markers.start)
         for (const marker of node.markers.mid) { if (!reserve(1)) break; reference(marker) }
         reference(node.markers.end)
       }
-      return hasRingConnector && node.kind !== 'document' && node.kind !== 'group'
-    },
-    /** Observe the fragment from this same captured leaf's actual write. */
-    leaf(node: SceneNode, svg: string): void {
-      if (!hasRingConnector || node.kind === 'document' || node.kind === 'group') return
-      if (node.kind === 'text') {
-        if (!ringTextWrite(node, svg)) fractionalCircleContext = false
-      } else {
-        if (!reserve(svg.length * 8 + 32)) { fractionalCircleContext = false; return }
-        const tags = scanSvgStartTags(svg)
-        if (tags.length !== 1 || decodedSvgAttributeValue(tags[0]!, 'transform') !== undefined) fractionalCircleContext = false
+      if (node.kind === 'shape' && reserve(4)) {
+        const geometry = ownValue(node, 'geometry')
+        if (geometry && typeof geometry === 'object' && ownValue(geometry, 'kind') === 'compound' && reserve(32)) {
+          const children = ownValue(geometry, 'children')
+          if (Array.isArray(children) && ownValue(children, 'length') === 5
+            && ['rect', 'line', 'line', 'ellipse', 'ellipse'].every((kind, index) => {
+              const child = ownValue(children, String(index))
+              return !!child && typeof child === 'object' && ownValue(child, 'kind') === kind
+            })) hasRingConnector = true
+        }
       }
+      // Text can precede the first eligible body. Retain its actual write,
+      // but scan it only if this transaction enters the new proof domain.
+      return node.kind === 'text' || hasRingConnector && node.kind !== 'document' && node.kind !== 'group'
+    },
+    /** Observe only an admitted owned leaf's actual write. The writer's
+     * private receipt closes its structure and actual transform emission;
+     * it grants no geometry authority. A later leaf can activate this domain. */
+    leaf(node: SceneNode, svg: string): void {
+      if (!reserve(2)) return
+      if (node.kind === 'text') texts.push({ node, svg })
+      else if (node.kind !== 'document' && node.kind !== 'group') leaves.push({ node, svg })
     },
     invalidateFractionalCircle(): void { fractionalCircleContext = false },
     group(shell: Extract<SceneNode, { kind: 'group' }>): void {
@@ -397,6 +418,16 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
           if (formatSvgNumericAttribute('transform', raw) !== raw || !actual || !typed
             || !actual.every((value, index) => Number.isFinite(value) && Number.isFinite(typed[index]) && value === typed[index])) uncertain = true
         }
+      }
+      if (hasRingConnector && fractionalCircleContext) for (const { node, svg } of leaves) {
+        // Pay exact returned-string comparison and constant receipt access,
+        // rather than reparsing every already-owned leaf's complete markup.
+        if (!reserve(svg.length * 2 + 8)) { fractionalCircleContext = false; break }
+        const actual = writtenLeafContextOf(node, svg)
+        if (!actual || actual.transformed) { fractionalCircleContext = false; break }
+      }
+      if (hasRingConnector && fractionalCircleContext) for (const text of texts) {
+        if (!ringTextWrite(text.node, text.svg)) { fractionalCircleContext = false; break }
       }
       if (options.resources !== false) {
         const checked = new Map<string, MarkerDescriptor>()

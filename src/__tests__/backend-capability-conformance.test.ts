@@ -170,11 +170,11 @@ describe('claim-keyed backend capability conformance', () => {
     const xmlns = 'xmlns="http://www.w3.org/2000/svg"'
     expect(verifySvgDocumentEnvelope(`<svg ${xmlns}><text>safe &amp; sound</text></svg>`)).toBe(true)
     // Raw XML characters and numeric references obey the same scalar bounds.
-    for (const text of ['\t\n\r', 'café 東京', '👩‍💻 é', '\u{10000}', '\u{10ffff}', '&#9;&#10;&#13;&#x10000;']) {
+    for (const text of ['\t\n\r', 'café 東京', '👩‍💻 é', '\u{10000}', '\u{1fffe}', '\u{10ffff}', '&#9;&#10;&#13;&#x10000;&#x1FFFE;']) {
       expect(verifySvgDocumentEnvelope(`<svg ${xmlns}><text>${text}</text></svg>`), text).toBe(true)
       expect(verifySvgDocumentEnvelope(`<svg ${xmlns} data-label="${text}"></svg>`), text).toBe(true)
     }
-    for (const text of ['\u0000', '\u0008', '\u000b', '\u000c', '\u001f', '\ud800', '\udfff', '\ufffe', '\uffff', '&#0;', '&#xD800;', '&#xFFFE;', '&#xFFFF;', '&#x110000;']) {
+    for (const text of ['\u0000', '\u0008', '\u000b', '\u000c', '\u001f', '\ud800', '\udfff', '\ufffe', '\uffff', '&#0;', '&#55296;', '&#xD800;', '&#xFFFE;', '&#xFFFF;', '&#x110000;']) {
       for (const document of [`<svg ${xmlns}><text>${text}</text></svg>`, `<svg ${xmlns} data-label="${text}"></svg>`]) {
         expect(verifySvgDocumentEnvelope(document), text).toBe(false)
         expect(() => applyOutputSecurityPolicy(document, 'strict')).toThrow(/invalid SVG document envelope/)
@@ -183,11 +183,32 @@ describe('claim-keyed backend capability conformance', () => {
     // Child bindings are inherited by descendants, then restored for siblings.
     expect(verifySvgDocumentEnvelope(`<svg ${xmlns} xmlns:a="urn:outer" xmlns:b="urn:inner"><g xmlns:a="urn:inner"><rect a:x="1" /></g><rect a:x="1" b:x="2" /></svg>`)).toBe(true)
     expect(verifySvgDocumentEnvelope(`<svg ${xmlns} xmlns:a="urn:outer" xmlns:b="urn:inner" xml:lang="en"><g xmlns:a="urn:inner" /><rect x="0" a:x="1" b:x="2" /></svg>`)).toBe(true)
+    for (const document of [
+      `<svg ${xmlns}><rect data-label="&quot;'&#34;&#39;" data-next='&apos;"'/></svg>`,
+      `<svg ${xmlns}><rect data-label="&#60; &lt; >"/><text>&#60; &lt; ]]&gt;</text><!--a-b--></svg>`,
+      `<svg ${xmlns} data-label="&#${'0'.repeat(256)}65;"><text>&#x${'0'.repeat(256)}41;</text></svg>`,
+    ]) {
+      expect(verifySvgDocumentEnvelope(document), document).toBe(true)
+      let spent = 0
+      expect(verifySvgDocumentEnvelope(document, operations => {
+        if (operations > 400_000 - spent) return false
+        spent += operations
+        return true
+      }), document).toBe(true)
+      expect(applyOutputSecurityPolicy(document, 'strict')).toEqual({ svg: document, diagnostics: [] })
+    }
     const malformedDocuments = [
       '<svg><rect /></svg>',
       `<svg ${xmlns}><text>&</text></svg>`,
       `<svg ${xmlns}><rect broken /></svg>`,
       `<svg ${xmlns}><rect x="1" x="2" /></svg>`,
+      `<svg ${xmlns}><rect data-label="a"b" /></svg>`,
+      `<svg ${xmlns}><rect data-label="<" /></svg>`,
+      `<svg ${xmlns}><text>]]></text></svg>`,
+      `<svg ${xmlns}><rect data-label="&amp" data-next=";" /></svg>`,
+      `<svg ${xmlns}><rect data-label="&#65" data-next=";" /></svg>`,
+      `<svg ${xmlns}><text>&amp</text><text>;</text></svg>`,
+      `<svg ${xmlns}><text>&#x41</text><text>;</text></svg>`,
       `<svg ${xmlns}><p:rect /></svg>`,
       `<svg ${xmlns} xmlns:a="urn:test" xmlns:b="urn:test"><rect a:x="1" b:x="2" /></svg>`,
       `<svg ${xmlns}><g xmlns:a="urn:child"><rect a:x="1" /></g><rect a:x="1" /></svg>`,
@@ -199,11 +220,13 @@ describe('claim-keyed backend capability conformance', () => {
       `<svg ${xmlns} xmlns:s="${'http://www.w3.org/2000/svg'}"><s:style>@import url(https://evil.example/x.css);</s:style></svg>`,
       `<svg ${xmlns}><style><![CDATA[/*</style>*/ @import url(https://evil.example/x.css);]]></style></svg>`,
       `<svg ${xmlns}><!--x---></svg>`,
+      `<svg ${xmlns}><!--a--b--></svg>`,
       `<svg ${xmlns} xmlns:xml="urn:not-xml"><rect /></svg>`,
       `<svg ${xmlns} xmlns:p="${'http://www.w3.org/2000/xmlns/'}"><rect /></svg>`,
     ]
     for (const document of malformedDocuments) {
       expect(verifySvgDocumentEnvelope(document), document).toBe(false)
+      expect(verifySvgDocumentEnvelope(document, () => true), document).toBe(false)
       expect(() => applyOutputSecurityPolicy(document, 'strict')).toThrow(/invalid SVG document envelope/)
     }
 

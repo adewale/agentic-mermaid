@@ -3016,3 +3016,91 @@ are retained in `/tmp/pr449-completion-20261029/class/`, `ROUNDOFF-RED.log`,
 `ROUNDOFF-GREEN.log`, `MAIN-PORT-OWNERS.log` and `TYPES-R8.log`. All work remains
 on the existing retained PR branch; no issue, PR, force push, merge/reopen,
 publication, external comment or timing campaign was created.
+
+### 29 October: shared cross, cubic and five-piece cylinder proof authority
+
+Parent: `e45bccc813bb5569c3aea2febb81d55e473ba8b0`; retained remote remained
+`a2c1c3f13680785221ed65af7f19ca25cbca9cb5` during implementation. No issue or PR
+was created. All code remains on PR449's existing retained branch; the historical
+PR itself was already merged/closed. ELK remains default; no release/version,
+dependency, check/cap, publication or timing campaign change occurs.
+
+The common producer now binds actual cross stroke pieces, parsed cubic terminal
+orientation, five written cylinder children, transform context and the existing
+single-line prepared-text branch to one actual write. Native and Scene consume
+that same authority; cached geometry/text, foreign/aliased writes and inherited
+or accessor options do not acquire new facts. Unknown CSS/fallback paint stays
+unverified. The full shaft and conservative raw/served envelope union remain.
+
+Cylinder contact uses bounded exact decimal arithmetic, an outward round/bevel
+stroke enclosure, actual marker viewport clipping, all five body pieces and one
+strict positive interior point checked against full strokes and every other
+served shaft/marker/body/text occurrence. The original 400,000-operation cap,
+100,000-pair cap and coordinate/vertex/integer bounds remain. A global actual-LINE
+pose guard also closes a demonstrated opposite-marker complete-erasure false
+pass caused by a late supplied tangent mutation (14-assertion RED/GREEN).
+
+Logical accounting identified repeated XML and already-written text/context
+scans, rather than the solver. The existing XML verifier now validates character,
+reference and delimiter spans in one paid traversal without changing its admitted
+language. Existing security owners pass39 tests/478 assertions. An independent
+deterministic10,205-case old/new/Saxes comparison records zero changed decisions
+and zero new accepted/Saxes-rejected cases; this finite result is not universal
+XML equivalence. The final large Native emission capture drops385,228 to310,861
+charged operations; no timing or speed claim follows.
+
+A metadata snapshot memo experiment was rejected and completely removed: it
+increased charged emission work by2,087 and left both Native refusals unresolved.
+Earlier exact-kernel variants, their failing public tests and actual diagnostics
+remain retained. Sound subtraction then removes duplicate grid corners, checks
+existing side contact before general SAT, uses exact point/rectangle comparisons
+and rectangle-axis separators with SAT fallback, and constructs optional ellipse
+gradient normals only after cardinal directions fail. Every performed visit and
+arithmetic operation remains charged. R15 passes all18 cubic/cylinder public
+Native/Scene/strict cells across both engines with2,058 independent XML/ink
+assertions;521 other owning tests/5,655 assertions and172 text owners/499
+assertions pass. Canonical core/repository types pass at R15. These are
+intermediate results before final own-stroke review and capture qualification.
+
+A final review identified a potential new witness assumption: the same marker's
+background-colored stroke could repaint its fill witness. The first physical
+control failed its alpha-compositing precondition; it is retained as setup
+failure, not false-P evidence. The corrected original small-viewport pair
+returned U, including the foreground control, because the conservative raw
+stroke envelope crossed the viewport. A prospectively translated, fully
+contained pair now tests this actual authority path. No success is attributed
+to a helper or an unexecuted hypothesis. The fully contained pair gives a genuine 2P/2F baseline (72 assertions): both background strokes have zero actual off-shaft contrast yet return P, while matching foreground strokes correctly pass. New cylinder authority now requires absent actual stroke or opaque actual stroke matching the actual fill RGBA, charged eight operations per eligible marker. The same four controls pass all 72 assertions after this guard. This closes a defect introduced by this new proof, not an old published false pass.
+
+Final R16 checks pass: all 18 cubic/cylinder public cells with 2,058 assertions; 525 remaining owning tests in seven files with 5,727 assertions; canonical core and repository typechecks; full Biome lint (1,911 files, existing oversized-JSON warning only). The 172 text owners and 39 XML/security owners have unchanged owning source since their passed checks. This is not final seven-diagram qualification: the fresh 84-cell, 168-call capture and independent full-ink/meaning review are next. The prepared capture worker has independently
+reviewed strict XML pose/occurrence grouping, retains each actual public return
+before later phases and enrolls every marker group rather than sampling the
+first three. Failed/refused/unsupported/unavailable observations remain explicit.
+
+An actually separately constructed14-case holdout was procedurally sealed on
+29 October at18:44UTC, after the earlier unsupported custody statement. Root and
+Agentic implementers have not opened its sources or outcomes. Shared-UID
+procedural custody and the custodian's later observer-author role are disclosed;
+this is not human or double-blind evidence. Candidate/domain/outcome freeze and
+confirmatory execution remain pending.
+
+Pinned public Mermaid Dagre/ELK and Pele1.9 model/render acquisition continues in
+Trident against frozen91-case/1,893-criterion enrollment. Raw failures include
+real Mindmap duplicate IDs, an ELK edit-prelude exception and independently
+confirmed observer defects; no raw failure is silently reclassified. A separately
+owner-tested private observer repair awaits a distinct committed replay epoch.
+Current Agentic comparison arms remain unacquired, not borrowed historical
+results. The human pilot has zero participants/responses; an independent study
+administrator is still needed. Performance remains paused.
+
+New Main `cff46b766b5de287ba421234ca42b7093ec18eff` includes the broad#585
+arrowhead/bend-clearance repair and prerequisites missing on this retained
+branch. Independent review confirms it addresses a pre-existing visible drawing
+defect. It is not yet integrated or qualified here; importing only its helpers
+would not repair the producer path. Its coherent dependency/golden disposition
+packet is retained for the next integration phase. Existing a2 CI40909866579
+failed35 lazy byte rows and the layout advisory. No check is waived and no
+readiness, broad correctness parity, aesthetics or performance superiority is
+claimed. All six0.6 acceptance goals remain open.
+
+Exact rejected/final sources, commands, public artifacts and reviews are retained
+in `/tmp/pr449-completion-20261029/`. Next: commit this verified shared-proof milestone, then acquire every original-seven execution/cache/engine cell with repeat packets and all marker groups, compare against independently frozen authored meaning and inspect actual final SVG/PNG. Continue the full 230-input development cohort and pinned peer epochs; integrate the coherent Main clearance repair before final candidate/holdout qualification. Final-head CI must be observed through completion, retaining byte/advisory failures. Human study administration and responses remain unavailable.

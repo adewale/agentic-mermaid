@@ -4,7 +4,7 @@ import { isAdmittedSceneDocument } from './scene-admission-state.ts'
 import type { SceneDoc, SceneNode, Geometry, MarkPaint, ShapeMark } from './ir.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { writeConnectorSvg, writeShapeSvg, writeTextSvg, type SvgGeometryWriteSink } from './svg-writer.ts'
-import { rectanglePaintFields, writtenPolylineProjectionOf } from './written-geometry.ts'
+import { rectanglePaintFields, writtenPolylineProjectionOf, prepareWrittenCompoundShape, observeWrittenCompoundShape, completeWrittenCompoundShape, type WrittenCompoundInput } from './written-geometry.ts'
 import { createEmissionContext, type EmissionColorResolver } from './emission-context.ts'
 
 // SVG serialization is backend-private state, not part of the public Scene IR.
@@ -39,8 +39,11 @@ interface SceneWriteRecorder {
   connector(node: ConnectorNode): void
   group(node: Extract<SceneNode, { kind: 'group' }>): void
   hint(node: SceneNode): boolean
+  compound(node: ShapeMark): WrittenCompoundInput | undefined
+  compoundRecord(node: ShapeMark, input: WrittenCompoundInput, svg: string): void
   rectangle(node: ShapeMark): boolean
   rectangleRecord(node: ShapeMark, source: Geometry, served: Geometry | undefined, attributes: Readonly<Record<string, string>> | undefined, svg: string): void
+  contextLeaf(node: Exclude<SceneNode, { kind: 'group' }>, svg: string): void
   leaf(node: Exclude<SceneNode, { kind: 'group' }>, svg: string): void
   record: SceneWriteCallback
 }
@@ -138,6 +141,27 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
     if (!context.hint(node)) return false
     fractional.add(node)
     return true
+  }
+  const compound = (node: ShapeMark): WrittenCompoundInput | undefined => {
+    // This independent first-write receipt also serves polygon markers. The
+    // circle/cross hint is not a prerequisite, and raw marks are never reflected.
+    if (finished || !fractionalCircleOutput || !TRANSFERRED_WRITABLE_NODES.has(node)) return undefined
+    if (!pay(4) || Object.getPrototypeOf(node) !== null || !Object.isFrozen(node)) return undefined
+    const geometry = ownValue(node, 'geometry')
+    if (!geometry || typeof geometry !== 'object' || ownValue(geometry, 'kind') !== 'compound') return undefined
+    return prepareWrittenCompoundShape(node, pay)
+  }
+  const compoundRecord = (node: ShapeMark, input: WrittenCompoundInput, svg: string): void => {
+    if (finished) return
+    const source = ownValue(node, 'geometry')
+    if (!source || typeof source !== 'object') return
+    const projection = completeWrittenCompoundShape(input, source as Geometry, svg, pay)
+    if (!projection) return
+    const proof = inert(node), overlay = proof && replace(proof, 'geometry', projection.geometry)
+    const served = overlay && replace(overlay, 'childPaints', projection.childPaints)
+    if (!served) return
+    if (paths.has(node)) { paths.delete(node); exhausted = true; return }
+    paths.set(node, Object.freeze({ source: source as Geometry, svg, served, conditional: false, path: false }))
   }
   const rectangle = (node: ShapeMark): boolean => {
     if (!fractional.has(node) || !pay(32)) return false
@@ -246,11 +270,14 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
   sceneWriteObservers.set(observe, { reserve: () => !finished && pay(192), reserveProjection: operations => !finished && pay(operations),
     document: (node, svg) => { if (!finished) context.document(node, svg) },
     connector: node => { if (!finished) context.connector(node) },
-    group: node => { if (!finished) context.group(node) }, hint, rectangle, rectangleRecord,
-    leaf: (node, svg) => {
-      if (finished || !fractional.has(node)) return
+    group: node => { if (!finished) context.group(node) }, hint, compound, compoundRecord, rectangle, rectangleRecord,
+    contextLeaf: (node, svg) => {
+      if (finished || !fractionalCircleOutput) return
+      if (!TRANSFERRED_WRITABLE_NODES.has(node)) { context.invalidateFractionalCircle(); return }
       context.leaf(node, svg)
-      if (node.kind !== 'text' || !pay(32)) return
+    },
+    leaf: (node, svg) => {
+      if (finished || !fractional.has(node) || node.kind !== 'text' || !pay(32)) return
       if (paths.has(node)) { paths.delete(node); exhausted = true; return }
       paths.set(node, Object.freeze({ source: undefined, svg, served: node, conditional: false, path: false }))
     }, record })
@@ -393,20 +420,26 @@ function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observ
   const stored = SERIALIZED_SCENE_NODES.get(node)
   if (stored !== undefined) {
     if (node.kind === 'document') recorder?.document(node, stored)
+    else if (node.kind !== 'group') recorder?.contextLeaf(node, stored)
     return stored
   }
   if (!WRITABLE_SCENE_NODES.has(node)) throw new TypeError(`Scene node "${node.id}" has no admitted SVG serialization`)
   const written = WRITTEN_SCENE_NODES.get(node)
-  if (written !== undefined) return written
+  if (written !== undefined) {
+    if (node.kind !== 'group' && node.kind !== 'document') recorder?.contextLeaf(node, written)
+    return written
+  }
   let source: Geometry | undefined, served: Geometry | undefined, received = false, invalid = false, projectionReserved = false
   if (node.kind === 'group') recorder?.group(node)
   if (node.kind === 'connector') recorder?.connector(node)
   const fractional = recorder?.hint(node) ?? false
   const rectangle = fractional && node.kind === 'shape' && recorder!.rectangle(node)
+  const compound = node.kind === 'shape' ? recorder?.compound(node) : undefined
   const watchedConnector = recorder && node.kind === 'connector'
-  const watched = recorder && (watchedConnector || rectangle) && recorder.reserve()
+  const watched = recorder && (watchedConnector || rectangle || compound) && recorder.reserve()
   let attributesReceived = false, invalidAttributes = false, attributes: Readonly<Record<string, string>> | undefined
   const geometrySink: SvgGeometryWriteSink | undefined = watched ? Object.assign((geometry: Geometry, written: Geometry | undefined) => {
+    if (compound) { observeWrittenCompoundShape(compound, geometry, written, count => recorder!.reserveProjection(count)); sink?.(geometry, written); return }
     if (received) { invalid = true; return }
     received = true
     source = geometry
@@ -431,15 +464,20 @@ function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observ
     attributes = actual
     sink?.rectangleAttributes?.(shape, actual)
   } : undefined }) : sink
-  const svg = writeSceneNode(node, geometrySink, observer)
+  const actualSink = fractional && node.kind === 'text' ? Object.assign(() => {}, {
+    captureTextContext: true as const, reserveTextContext: (operations: number) => recorder!.reserveProjection(operations),
+  }) : geometrySink
+  const svg = writeSceneNode(node, actualSink, observer)
   // A group is written from its children each time: its children array is
   // not part of what freezing it protects.
   if (node.kind !== 'group' && Object.isFrozen(node)) WRITTEN_SCENE_NODES.set(node, svg)
+  if (compound && node.kind === 'shape') recorder!.compoundRecord(node, compound, svg)
   if (watched && source) {
     if (watchedConnector && !invalid && source === (node as ConnectorNode).route.geometry) recorder!.record(node, source, served, svg)
     else if (rectangle && node.kind === 'shape') recorder!.rectangleRecord(node, source, invalid ? undefined : served,
       attributesReceived && !invalidAttributes ? attributes : undefined, svg)
   }
+  if (node.kind !== 'group' && node.kind !== 'document') recorder?.contextLeaf(node, svg)
   if (fractional && node.kind !== 'group' && node.kind !== 'document') recorder!.leaf(node, svg)
   return svg
 }
@@ -447,7 +485,7 @@ function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observ
 function writeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver): string {
   switch (node.kind) {
     case 'shape': return writeShapeSvg(node, sink)
-    case 'text': return writeTextSvg(node)
+    case 'text': return writeTextSvg(node, sink)
     case 'connector': return writeConnectorSvg(node, sink)
     case 'group': return [
       node.open,

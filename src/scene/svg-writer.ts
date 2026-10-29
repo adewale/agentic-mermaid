@@ -12,7 +12,7 @@ import type { SvgSemanticAccessibility } from './accessibility.ts'
 import { hasDomSvgIdentityRole } from './identity.ts'
 import { serializeTransform } from './transforms.ts'
 import { connectorInlineLabelText } from './bounds.ts'
-import { escapeAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
+import { escapeAttr, escapeXml, renderMultilineText, type PreparedSingleLineWrite } from '../multiline-utils.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
 import { connectorUnitTangent } from './connector-geometry.ts'
 import { createWrittenPolyline } from './written-geometry.ts'
@@ -25,6 +25,24 @@ export type SvgGeometryWriteSink = ((source: Geometry, served: Geometry | undefi
   /** One complete shape write's actual paint literals and transform presence.
    * Undefined means the bounded attribute receipt could not be retained. */
   readonly rectangleAttributes?: (source: ShapeMark, attributes: Readonly<Record<string, string>> | undefined) => void
+  readonly captureTextContext?: true
+  readonly reserveTextContext?: (operations: number) => boolean
+}
+
+interface WrittenLeafContext { readonly transformed: boolean }
+interface WrittenTextContext extends PreparedSingleLineWrite { readonly attributes: Readonly<Record<string, string>> }
+const writtenLeafContexts = new WeakMap<object, { readonly svg: string; readonly context: WrittenLeafContext | undefined; readonly text: WrittenTextContext | undefined }>()
+
+/** Context only: the caller must own this exact source and pay the actual
+ * string comparison. No geometry, cached-write or occurrence authority follows. */
+export function writtenLeafContextOf(node: object, svg: string): WrittenLeafContext | undefined {
+  const written = writtenLeafContexts.get(node)
+  return written?.svg === svg ? written.context : undefined
+}
+
+export function writtenTextContextOf(node: object, svg: string): WrittenTextContext | undefined {
+  const written = writtenLeafContexts.get(node)
+  return written?.svg === svg ? written.text : undefined
 }
 
 /** One append-only writer for a mark. Attribute emission does not allocate
@@ -32,6 +50,7 @@ export type SvgGeometryWriteSink = ((source: Geometry, served: Geometry | undefi
  * Numeric fields use the shared SVG spelling at this write boundary. */
 class SvgWriter {
   value = ''
+  transformed = false
   observeAttributes?: (name: string, literal: string) => void
 
   raw(text: string): void { this.value += text }
@@ -39,6 +58,7 @@ class SvgWriter {
   attribute(name: string, value: string | number, changedToken?: (offset: number, literal: string) => boolean | void, numericToken?: (literal: string, raw: string) => boolean | void): string {
     const literal = typeof value === 'number' ? formatSvgNumber(value) : formatSvgNumericAttribute(name, value, changedToken, numericToken)
     this.value += ` ${name}="${typeof value === 'number' ? literal : escapeAttr(literal)}"`
+    if (name === 'transform') this.transformed = true
     this.observeAttributes?.(name, literal)
     return literal
   }
@@ -235,6 +255,7 @@ export function writeShapeSvg(node: ShapeMark, sink?: SvgGeometryWriteSink): str
     out.raw(' />')
   }
   report?.(node, invalidAttributes ? undefined : Object.freeze(attributes!))
+  writtenLeafContexts.set(node, { svg: out.value, context: Object.freeze({ transformed: out.transformed }), text: undefined })
   return out.value
 }
 
@@ -253,8 +274,26 @@ function typographyAttributes(out: SvgWriter, node: TextMark): void {
 /** Text goes through the shared multi-line writer, which owns line wrappers,
  * prepared runs and fitted advances. A fallback-measured mark is written from
  * its source text, as families wrote unprepared labels. */
-export function writeTextSvg(node: TextMark): string {
+export function writeTextSvg(node: TextMark, sink?: SvgGeometryWriteSink): string {
   const out = new SvgWriter()
+  const option = sink && Object.getOwnPropertyDescriptor(sink, 'captureTextContext')
+  const reservation = option && Object.hasOwn(option, 'value') && option.value === true
+    ? Object.getOwnPropertyDescriptor(sink!, 'reserveTextContext') : undefined
+  const reserve = reservation && Object.hasOwn(reservation, 'value') && typeof reservation.value === 'function'
+    ? reservation.value as (operations: number) => boolean : undefined
+  const capture = reserve && reserve(32)
+  const attributes: Record<string, string> | undefined = capture ? Object.create(null) : undefined
+  const names = capture ? new Set<string>() : undefined
+  let valid = true, actual: PreparedSingleLineWrite | undefined
+  if (attributes) out.observeAttributes = (name, literal) => {
+    if (!valid) return
+    if (!reserve!(name.length * 2 + literal.length + 8)) { valid = false; return }
+    if (names!.has(name)) valid = false
+    names!.add(name)
+    if (['font-size', 'font-weight', 'text-anchor', 'font-family'].includes(name)) attributes[name] = literal
+    else if (!['fill', 'id', 'role', 'class', 'xml:space'].includes(name) && !name.startsWith('data-') && !name.startsWith('aria-')) valid = false
+    if (name === 'class' && literal.split(/\s+/).includes('mono')) valid = false
+  }
   hooks(out, node.attributes)
   typographyAttributes(out, node)
   paintAttributes(out, node.paint)
@@ -262,8 +301,17 @@ export function writeTextSvg(node: TextMark): string {
   identityAttributes(out, node.identity, node.accessibility)
   const attrs = out.value.slice(1)
   const prepared = node.measurement === 'prepared' && node.block
-  const svg = renderMultilineText(prepared ? node.block! : node.text, node.x, node.y, node.fontSize, attrs, node.baselineShift ?? 0.35, node.display === 'literal')
-  if (!node.spans) return svg
+  const svg = renderMultilineText(prepared ? node.block! : node.text, node.x, node.y, node.fontSize, attrs, node.baselineShift ?? 0.35, node.display === 'literal', capture && valid ? written => {
+    if (!reserve!(written.x.length + written.y.length + written.dy.length + written.textLength.length + written.content.length + 32)) { valid = false; return }
+    actual = written
+  } : undefined)
+  if (!node.spans) {
+    if (attributes && valid && actual) {
+      const text = Object.freeze(Object.assign(Object.create(null), actual, { attributes: Object.freeze(attributes) })) as WrittenTextContext
+      writtenLeafContexts.set(node, { svg, context: undefined, text })
+    }
+    return svg
+  }
   const shown = prepared ? node.block!.text : node.text
   const content = `>${escapeXml(shown)}</text>`
   if (!svg.endsWith(content)) throw new TypeError(`Text "${node.id}" spans require a one-line label`)
@@ -272,7 +320,7 @@ export function writeTextSvg(node: TextMark): string {
   return `${svg.slice(0, -content.length)}>${spans}</text>`
 }
 
-function connectorInlineLabelSvg(node: ConnectorMark, label: ConnectorLabelDescriptor, index: number): string | undefined {
+function connectorInlineLabelSvg(node: ConnectorMark, label: ConnectorLabelDescriptor, index: number): { svg: string; transformed: boolean } | undefined {
   if (label.visual?.kind !== 'inline') return undefined
   if (!label.anchor || !label.paint || label.fontSize === undefined || label.textAnchor === undefined) {
     throw new TypeError(`Connector "${node.id}" inline label ${index + 1} requires anchor, paint, fontSize, and textAnchor`)
@@ -296,7 +344,7 @@ function connectorInlineLabelSvg(node: ConnectorMark, label: ConnectorLabelDescr
   out.attribute('text-anchor', label.textAnchor)
   transformAttribute(out, node.transform)
   paintAttributes(out, paint)
-  return renderMultilineText(block, label.anchor.x, label.anchor.y - Math.max(0, label.clearance ?? 0), block.fontSize, out.value.slice(1), 0)
+  return { svg: renderMultilineText(block, label.anchor.x, label.anchor.y - Math.max(0, label.clearance ?? 0), block.fontSize, out.value.slice(1), 0), transformed: out.transformed }
 }
 
 /** A connector is one marker carrier element plus any labels it owns; an
@@ -339,9 +387,11 @@ export function writeConnectorSvg(node: ConnectorMark, sink?: SvgGeometryWriteSi
     const label = connectorInlineLabelSvg(node, node.labels[index]!, index)
     if (label !== undefined) {
       if (out.value) out.raw('\n')
-      out.raw(label)
+      out.raw(label.svg)
+      out.transformed ||= label.transformed
     }
   }
+  writtenLeafContexts.set(node, { svg: out.value, context: Object.freeze({ transformed: out.transformed }), text: undefined })
   return out.value
 }
 
