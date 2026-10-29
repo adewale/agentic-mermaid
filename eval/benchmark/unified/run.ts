@@ -267,12 +267,16 @@ export async function runUnified(options: RunnerOptions): Promise<UnifiedReport>
     if (suite.kind === 'internal') writeFileSync(jobPath, JSON.stringify({ ...options, out: suiteOut, resultPath: internalResult }, null, 2) + '\n')
     execution.command = command
     execution.workingDirectory = suite.cwd ?? options.harnessRoot
-    execution.environment = suite.environment
     execution.log = `${suite.id.replaceAll(':', '-')}/run.log`
     console.log(`unified: ${suite.id} (${suite.kind === 'internal' ? options.root : (suite.cwd ?? options.harnessRoot)})`)
     const env: NodeJS.ProcessEnv = { ...process.env, AM_BENCH_SUITE_OUT: suiteOut, AM_FC_SEED: process.env.AM_FC_SEED ?? '7', ...suite.environment }
     if (options.mermaidDir) env.MERMAID_UPSTREAM_DIR = options.mermaidDir
     if (options.referenceDir) env.MERMAID_REFERENCE_DIR = options.referenceDir
+    execution.environment = { ...suite.environment }
+    for (const key of ['AM_FC_SEED', 'AM_FC_NUM_RUNS'] as const) {
+      const value = env[key]
+      if (value !== undefined) execution.environment[key] = value
+    }
     const startedAt = now(),
       evidenceNotBefore = Date.now(),
       run = await subprocess(command, suite.cwd ?? options.harnessRoot, env, join(options.out, execution.log), options.timeoutMs)
