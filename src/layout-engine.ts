@@ -496,7 +496,7 @@ function graphTerminalDemands(style: ResolvedRenderStyle, graph: MermaidGraph): 
     hook = Math.max(hook, start, end)
     // Straight routes have no edge/node elbow to reserve their marker space.
     // Both endpoint heads must fit even when ELK aligns the cards directly.
-    corridor = Math.max(corridor, (edge.hasArrowStart ? start - style.edgeBendRadius : 0) + (edge.hasArrowEnd ? end - style.edgeBendRadius : 0))
+    corridor = Math.max(corridor, (edge.hasArrowStart ? start - (style.edgeBendRadius ?? 0) : 0) + (edge.hasArrowEnd ? end - (style.edgeBendRadius ?? 0) : 0))
   }
   return { hook, corridor }
 }
@@ -530,7 +530,7 @@ function mermaidToElk(
   const { hook, corridor } = graphTerminalDemands(style, graph)
   // Projected families replace these temporary graph connectors with their
   // own measured glyphs/routes; their placement contracts retain their sizes.
-  opts = { ...opts, layerSpacing: Math.max(opts.layerSpacing, corridor), markerPortExtents: opts.preserveSubgraphChildOrder || opts.stateVisual ? undefined : elkMarkerPortExtents(graph, style) }
+  opts = { ...opts, layerSpacing: Math.max(opts.layerSpacing ?? DEFAULTS.layerSpacing, corridor), markerPortExtents: opts.preserveSubgraphChildOrder || opts.stateVisual ? undefined : elkMarkerPortExtents(graph, style) }
   // Collect all node IDs that belong to subgraphs
   const subgraphNodeIds = new Set<string>()
   const subgraphIds = new Set<string>()
