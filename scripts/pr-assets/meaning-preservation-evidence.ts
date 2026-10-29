@@ -29,6 +29,7 @@ interface Fixture {
   renderOptions?: RenderOptions
   pngWidth?: number
   pngScale?: number
+  previewMaxWidth?: number
   measurementProfile?: 'nonadditive-tracking'
   captureLayout?: true
   classMutation?: ClassMutationOp
@@ -85,7 +86,49 @@ const stableRepresentativeCues = {
     'Seven components occupy four authored composite groups, including nested Delivery/Persistence inside a two-column Gateway plane span, two empty cells and durable queue/store artwork. Follow six complete labeled connections; Batch enters Ingress from the west while Enqueue leaves south, preserving distinct physical contacts.',
 } as const
 const ownershipGoldenIds = new Set(['corpus/flowchart/94', 'corpus/flowchart/95', 'corpus/flowchart/96', 'corpus/flowchart/98', 'corpus/state/0', 'corpus/state/1', 'corpus/state/8', 'corpus/state/14', 'corpus/state/16', 'corpus/state/17', 'corpus/state/18', 'corpus/state/19'])
+const chartFittingFixtures: Array<{ id: string; title: string; family: 'pie' | 'radar'; source: string; cue: string }> = [
+  {
+    id: "chart-fit-pie-long",
+    title: "Pie: long upstream legend labels",
+    family: "pie",
+    source: "---\ndescription: >-\n  Pie diagram with unusually long slice-label text (\"Time spent looking for\n  movie\", \"Time spent watching it\") to verify long labels don't overflow or\n  clip in the legend/chart.\n---\npie title NETFLIX\n  \"Time spent looking for movie\": 90\n  \"Time spent watching it\": 10",
+    cue: "Inspect both complete activity labels and their values in a 360px host; fitting retains selected type instead of scaling the natural side legend with the whole SVG. Pinned source: https://github.com/mermaid-js/mermaid/blob/1fb7869866dd619168d840291c9c54b4f129758b/e2e/diagrams/pie/nightly-check/should-render-a-simple-pie-diagram-with-long-labels.mmd#L1"
+  },
+  {
+    id: "chart-fit-pie-palette",
+    title: "Pie: twelve upstream palette entries",
+    family: "pie",
+    source: "---\ndescription: >-\n  Twelve-slice pie chart under the \"redux-color\" redux colour theme, exercising\n  the full categorical palette scale (including wrap-around past the base colour\n  count) rather than just the first few slices.\nconfig:\n  theme: redux-color\n---\npie title Slice palette\n  \"Alpha\" : 20\n  \"Bravo\" : 16\n  \"Charlie\" : 14\n  \"Delta\" : 12\n  \"Echo\" : 10\n  \"Foxtrot\" : 8\n  \"Golf\" : 7\n  \"Hotel\" : 6\n  \"India\" : 3\n  \"Juliett\" : 2\n  \"Kilo\" : 1\n  \"Lima\" : 1",
+    cue: "Inspect all twelve swatch/value associations in source order across then down. The natural baseline predates width fitting; short legends pack while the plot and selected type retain their sizes. Pinned source: https://github.com/mermaid-js/mermaid/blob/1fb7869866dd619168d840291c9c54b4f129758b/e2e/diagrams/pie/nightly-check/redux-color-theme.mmd#L1"
+  },
+  {
+    id: "chart-fit-radar-restaurants",
+    title: "Radar: four upstream restaurant curves",
+    family: "radar",
+    source: "radar-beta\n  title Restaurant Comparison\n  axis food[\"Food Quality\"], service[\"Service\"], price[\"Price\"]\n  axis ambiance[\"Ambiance\"]\n\n  curve a[\"Restaurant A\"]{4, 3, 2, 4}\n  curve b[\"Restaurant B\"]{3, 4, 3, 3}\n  curve c[\"Restaurant C\"]{2, 3, 4, 2}\n  curve d[\"Restaurant D\"]{2, 2, 4, 3}\n\n  graticule polygon\n  max 5",
+    cue: "Inspect Food Quality, Service, Price and Ambiance, all four distinct curves and complete series labels. Packed rows must retain each swatch/series association. Pinned source: https://github.com/mermaid-js/mermaid/blob/1fb7869866dd619168d840291c9c54b4f129758b/docs/syntax/radar.md#L62"
+  },
+  {
+    id: "chart-fit-radar-grades",
+    title: "Radar: six upstream subject axes",
+    family: "radar",
+    source: "---\ntitle: \"Grades\"\n---\nradar-beta\n  axis m[\"Math\"], s[\"Science\"], e[\"English\"]\n  axis h[\"History\"], g[\"Geography\"], a[\"Art\"]\n  curve a[\"Alice\"]{85, 90, 80, 70, 75, 90}\n  curve b[\"Bob\"]{70, 75, 85, 80, 90, 85}\n\n  max 100\n  min 0",
+    cue: "Inspect all six subject axes, Alice/Bob series and the authored 0–100 domain. The horizontal-spoke estimate fits this 360px budget within the family candidate bound. Pinned source: https://github.com/mermaid-js/mermaid/blob/1fb7869866dd619168d840291c9c54b4f129758b/docs/syntax/radar.md#L34"
+  },
+  {
+    id: "chart-fit-radar-long-axes",
+    title: "Radar: explicit long-label derivative",
+    family: "radar",
+    source: "radar-beta\n  title Frontend framework selection for a long-lived international product portfolio\n  axis perf[\"Runtime performance under sustained and bursty demand\"], dx[\"Developer experience during debugging and refactoring\"], eco[\"Ecosystem integration and long-term library availability\"]\n  axis learn[\"Ease of learning for a team with mixed experience\"], docs[\"Documentation quality across maintenance workflows\"]\n\n  curve react[\"React: large-team ecosystem and integration baseline\"]{4, 4, 5, 3, 4}\n  curve vue[\"Vue: gradual adoption and maintainability baseline\"]{4, 5, 4, 4, 5}\n  curve svelte[\"Svelte: compile-time optimisation and application baseline\"]{5, 5, 3, 4, 4}\n\n  graticule polygon\n  max 5\n  min 0",
+    cue: "Labeled derivative: expands title, five axis labels and three curve labels while retaining upstream IDs, order and distinct values. Inspect complete text and any naturally visible tick annotations. This deliberately infeasible 360px input may exceed the budget; do not treat a scaled review image as a fit. Pinned source: https://github.com/mermaid-js/mermaid/blob/1fb7869866dd619168d840291c9c54b4f129758b/packages/examples/src/examples/radar.ts#L26"
+  },
+]
 const fixtures: Fixture[] = [
+  ...([undefined, 'excalidraw'] as const).flatMap(style => chartFittingFixtures.map(fixture => ({
+    ...fixture, id: fixture.id + '-' + (style ?? 'default'),
+    renderOptions: { style, [fixture.family]: { maxWidth: 360 } },
+    captureLayout: true as const, pngScale: 1, previewMaxWidth: 360,
+  }))),
   {
     id: 'flowchart-curved-port-diagonal',
     title: 'Curved-node Flowchart survives chain alignment',
@@ -1349,7 +1392,7 @@ const rows = fixtures
         const editSidecar = result.edit ? `<p><a href="${fixture.id}-${phase}-edit.json">${phase} typed and reloaded edit facts/order</a></p><pre>${esc(JSON.stringify(result.edit, null, 2))}</pre>` : ''
         const exportedSource = result.source ? `<p><a href="${fixture.id}-${phase}-export.mmd">${phase} exported Mermaid source</a></p><pre>${esc(result.source)}</pre>` : ''
         return `<figure${fixture.renderOptions?.transparent ? ' class="transparent"' : ''}><figcaption>${phase}</figcaption>${
-          result.png ? `<img alt="${phase}: ${esc(fixture.title)}" src="data:image/png;base64,${result.png}">` : `<pre>${esc(result.error ?? 'No render')}</pre>`
+          result.png ? `<img${fixture.previewMaxWidth ? ` style="width:auto;max-width:min(100%,${fixture.previewMaxWidth}px)"` : ''} alt="${phase}: ${esc(fixture.title)}" src="data:image/png;base64,${result.png}">` : `<pre>${esc(result.error ?? 'No render')}</pre>`
         }${semanticSidecar}${editSidecar}${exportedSource}</figure>`
       })
       .join('')
@@ -1357,6 +1400,7 @@ const rows = fixtures
       (fixture.renderOptions ? `<p>Render options at both revisions: <code>${esc(JSON.stringify(fixture.renderOptions))}</code>.</p>` : '') +
       (fixture.pngWidth ? `<p>PNG previews are scaled to ${fixture.pngWidth}px wide at both revisions; SVG and layout sidecars retain native geometry.</p>` : '') +
       (fixture.pngScale !== undefined ? `<p>PNG scale at both revisions: ${fixture.pngScale}.</p>` : '') +
+      (fixture.previewMaxWidth ? `<p>Review host: ${fixture.previewMaxWidth}px; smaller diagrams retain natural size and wider diagrams scale down.</p>` : '') +
       (fixture.measurementProfile ? `<p>Host measurement profile at both revisions: <code>${esc(JSON.stringify({ kind: fixture.measurementProfile, ...measurementProfiles[fixture.measurementProfile] }))}</code>. The callback is bound through the public renderer constructors.</p>` : '')
     const mutation = fixture.classMutation ?? fixture.mutation
     const mutationCaption = mutation ? `<p>${fixture.classMutation ? 'Class edit' : 'Edit'} at both revisions: <code>${esc(JSON.stringify(mutation))}</code>.</p>` : ''
