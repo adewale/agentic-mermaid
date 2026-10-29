@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="422.3" height="556.2875" viewBox="0 0 422.3 556.2875" style="--bg:#fffdf8;--fg:#171512;--line:#24211d;--accent:#1d4ed8;--muted:#5f5a52;--surface:#faf5ea;--border:#24211d;--font:EB Garamond;background:#fffdf8" class="am-1tj0ix31vdm970">
+<style>
+  svg.am-1tj0ix31vdm970 { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
+  svg.am-1tj0ix31vdm970 {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #171512;
+    --_text-sec:      #5f5a52;
+    --_text-muted:    #5f5a52;
+    --_text-faint:    #82807c;
+    --_line:          #24211d;
+    --_arrow:         #1d4ed8;
+    --_node-fill:     #faf5ea;
+    --_node-stroke:   #24211d;
+    --_group-fill:    #fffdf8;
+    --_group-hdr:     #f3f1ed;
+    --_inner-stroke:  #e3e1dc;
+    --_key-badge:     #e8e6e1;
+  }
+</style>
+<rect width="422.3" height="556.2875" fill="#fffdf8" data-backdrop="page" />
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#1d4ed8" stroke="#1d4ed8" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#1d4ed8" stroke="#1d4ed8" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-color-u-76-61-72-28-2d-2d-66-67-29" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#171512" stroke="#171512" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start-color-u-76-61-72-28-2d-2d-66-67-29" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#171512" stroke="#171512" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="subgraph" data-id="subgraph1" data-region="subgraph" data-label="subgraph1" data-role="group">
+  <rect x="194.7375" y="40" width="147.25" height="215" rx="7" ry="7" fill="#fffdf8" stroke="#171512" stroke-width="1.35" data-id="group-rect:subgraph1" data-role="group" />
+  <path d="M201.7375,40 H334.9875 A7,7 0 0 1 341.9875,47 V68 H194.7375 V47 A7,7 0 0 1 201.7375,40 Z" fill="#f3f1ed" stroke="#171512" stroke-width="1.35" />
+  <text x="218.7375" y="54" text-anchor="start" font-size="12" font-weight="700" letter-spacing="0.08" fill="#171512" data-prepared-text="true" dy="4.2"><tspan x="218.7375" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">S</tspan><tspan x="227.4575" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">U</tspan><tspan x="236.1775" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">B</tspan><tspan x="244.8975" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">G</tspan><tspan x="253.6175" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">R</tspan><tspan x="262.3375" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">A</tspan><tspan x="271.0575" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">P</tspan><tspan x="279.7775" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">H</tspan><tspan x="288.4975" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="4.68" lengthAdjust="spacingAndGlyphs">1</tspan></text>
+</g>
+<g class="subgraph" data-id="subgraph2" data-region="subgraph" data-label="subgraph2" data-role="group">
+  <rect x="216.9375" y="283" width="165.3625" height="215.2875" rx="7" ry="7" fill="#fffdf8" stroke="#171512" stroke-width="1.35" data-id="group-rect:subgraph2" data-role="group" />
+  <path d="M223.9375,283 H375.3 A7,7 0 0 1 382.3,290 V311 H216.9375 V290 A7,7 0 0 1 223.9375,283 Z" fill="#f3f1ed" stroke="#171512" stroke-width="1.35" />
+  <text x="240.9375" y="297" text-anchor="start" font-size="12" font-weight="700" letter-spacing="0.08" fill="#171512" data-prepared-text="true" dy="4.2"><tspan x="240.9375" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">S</tspan><tspan x="249.6575" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">U</tspan><tspan x="258.3775" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">B</tspan><tspan x="267.0975" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">G</tspan><tspan x="275.8175" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">R</tspan><tspan x="284.5375" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">A</tspan><tspan x="293.2575" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">P</tspan><tspan x="301.9775" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="8.64" lengthAdjust="spacingAndGlyphs">H</tspan><tspan x="310.6975" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="9" lengthAdjust="spacingAndGlyphs">2</tspan></text>
+</g>
+<path class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" d="M146.45,319.977083333 L162.59375,319.977083333 Q170.59375,319.977083333 170.59375,311.977083333 L170.59375,155.5 Q170.59375,147.5 178.59375,147.5 L194.7375,147.5" fill="none" stroke="#171512" stroke-width="1.45" marker-end="url(#arrowhead-color-u-76-61-72-28-2d-2d-66-67-29)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:outside-&gt;subgraph1#0" data-role="edge" data-from="outside" data-to="subgraph1" role="graphics-symbol" aria-roledescription="relation" aria-label="outside to subgraph1" />
+<path class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" d="M146.45,335.810416667 L167.303690685,335.810416667 Q175.303690685,335.810416667 175.303690685,343.810416667 L175.303690685,500.2875 Q175.303690685,508.2875 183.303690685,508.2875 L342.1875,508.2875 Q350.1875,508.2875 350.1875,500.2875 L350.1875,412.64375 Q350.1875,404.64375 342.1875,404.64375 L341.016666667,404.64375 Q333.016666667,404.64375 333.016666667,396.64375 L333.016666667,380.5" fill="none" stroke="#171512" stroke-width="1.45" marker-end="url(#arrowhead-color-u-76-61-72-28-2d-2d-66-67-29)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:outside-&gt;top2#0" data-role="edge" data-from="outside" data-to="top2" role="graphics-symbol" aria-roledescription="relation" aria-label="outside to top2" />
+<path class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" d="M262.5125,137.5 L262.5125,185.5" fill="none" stroke="#171512" stroke-width="1.45" marker-end="url(#arrowhead-color-u-76-61-72-28-2d-2d-66-67-29)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:top1-&gt;bottom1#0" data-role="edge" data-from="top1" data-to="bottom1" role="graphics-symbol" aria-roledescription="relation" aria-label="top1 to bottom1" />
+<path class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" d="M299.61875,380.5 L299.61875,428.7875" fill="none" stroke="#171512" stroke-width="1.45" marker-end="url(#arrowhead-color-u-76-61-72-28-2d-2d-66-67-29)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:top2-&gt;bottom2#0" data-role="edge" data-from="top2" data-to="bottom2" role="graphics-symbol" aria-roledescription="relation" aria-label="top2 to bottom2" />
+<g class="node" data-id="outside" data-label="outside" data-shape="rectangle" data-role="node">
+  <rect x="40" y="304.14375" width="106.45" height="47.5" rx="7" ry="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" data-id="node-shape:outside" data-role="node" />
+  <text x="93.225" y="327.89375" text-anchor="middle" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true" dy="5.25" textLength="54.45" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">outside</text>
+</g>
+<g class="node" data-id="top1" data-label="top" data-shape="rectangle" data-role="node">
+  <rect x="230.4375" y="90" width="75.85" height="47.5" rx="7" ry="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" data-id="node-shape:top1" data-role="node" />
+  <text x="268.3625" y="113.75" text-anchor="middle" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true" dy="5.25" textLength="23.85" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">top</text>
+</g>
+<g class="node" data-id="bottom1" data-label="bottom" data-shape="rectangle" data-role="node">
+  <rect x="218.7375" y="185.5" width="99.25" height="47.5" rx="7" ry="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" data-id="node-shape:bottom1" data-role="node" />
+  <text x="268.3625" y="209.25" text-anchor="middle" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true" dy="5.25" textLength="47.25" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">bottom</text>
+</g>
+<g class="node" data-id="top2" data-label="top" data-shape="rectangle" data-role="node">
+  <rect x="282.45" y="333" width="75.85" height="47.5" rx="7" ry="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" data-id="node-shape:top2" data-role="node" />
+  <text x="320.375" y="356.75" text-anchor="middle" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true" dy="5.25" textLength="23.85" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">top</text>
+</g>
+<g class="node" data-id="bottom2" data-label="bottom" data-shape="rectangle" data-role="node">
+  <rect x="240.9375" y="428.7875" width="99.25" height="47.5" rx="7" ry="7" fill="#faf5ea" stroke="#171512" stroke-width="1.45" data-id="node-shape:bottom2" data-role="node" />
+  <text x="290.5625" y="452.5375" text-anchor="middle" font-size="15" font-weight="700" fill="#171512" data-prepared-text="true" dy="5.25" textLength="47.25" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">bottom</text>
+</g>
+</svg>

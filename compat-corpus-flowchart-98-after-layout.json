@@ -1,0 +1,382 @@
+{
+  "version": 1,
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "id": "outside",
+      "x": 40,
+      "y": 267.8,
+      "w": 84.928,
+      "h": 36.900000000000006,
+      "shape": "rectangle",
+      "label": "outside",
+      "labelBounds": {
+        "x": 60,
+        "y": 277.8,
+        "w": 44.928,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 40,
+        "y": 267.8,
+        "w": 84.928,
+        "h": 36.900000000000006
+      }
+    },
+    {
+      "id": "top1",
+      "x": 181.678,
+      "y": 84,
+      "w": 60,
+      "h": 36.900000000000006,
+      "shape": "rectangle",
+      "label": "top",
+      "labelBounds": {
+        "x": 201.811,
+        "y": 94,
+        "w": 19.733999999999998,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 181.678,
+        "y": 84,
+        "w": 60,
+        "h": 36.900000000000006
+      }
+    },
+    {
+      "id": "bottom1",
+      "x": 164.928,
+      "y": 168.9,
+      "w": 79,
+      "h": 36.900000000000006,
+      "shape": "rectangle",
+      "label": "bottom",
+      "labelBounds": {
+        "x": 184.928,
+        "y": 178.90000000000003,
+        "w": 39,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 164.928,
+        "y": 168.9,
+        "w": 79,
+        "h": 36.900000000000006
+      }
+    },
+    {
+      "id": "top2",
+      "x": 260.928,
+      "y": 293.8,
+      "w": 60,
+      "h": 36.900000000000006,
+      "shape": "rectangle",
+      "label": "top",
+      "labelBounds": {
+        "x": 281.061,
+        "y": 303.8,
+        "w": 19.733999999999998,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 260.928,
+        "y": 293.8,
+        "w": 60,
+        "h": 36.900000000000006
+      }
+    },
+    {
+      "id": "bottom2",
+      "x": 219.428,
+      "y": 378.70000000000005,
+      "w": 79,
+      "h": 36.900000000000006,
+      "shape": "rectangle",
+      "label": "bottom",
+      "labelBounds": {
+        "x": 239.428,
+        "y": 388.70000000000005,
+        "w": 39,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 219.428,
+        "y": 378.70000000000005,
+        "w": 79,
+        "h": 36.900000000000006
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "outside->subgraph1",
+      "from": "outside",
+      "to": "subgraph1",
+      "path": [
+        [
+          124.928,
+          280.1
+        ],
+        [
+          136.928,
+          280.1
+        ],
+        [
+          136.928,
+          130.9
+        ],
+        [
+          148.928,
+          130.9
+        ]
+      ]
+    },
+    {
+      "id": "outside->top2",
+      "from": "outside",
+      "to": "top2",
+      "path": [
+        [
+          124.928,
+          292.4
+        ],
+        [
+          189.2405,
+          292.4
+        ],
+        [
+          189.2405,
+          441.6
+        ],
+        [
+          315.678,
+          441.6
+        ],
+        [
+          315.678,
+          342.70000000000005
+        ],
+        [
+          300.928,
+          342.70000000000005
+        ],
+        [
+          300.928,
+          330.70000000000005
+        ]
+      ]
+    },
+    {
+      "id": "top1->bottom1",
+      "from": "top1",
+      "to": "bottom1",
+      "path": [
+        [
+          203.303,
+          120.9
+        ],
+        [
+          203.303,
+          168.9
+        ]
+      ]
+    },
+    {
+      "id": "top2->bottom2",
+      "from": "top2",
+      "to": "bottom2",
+      "path": [
+        [
+          270.178,
+          330.70000000000005
+        ],
+        [
+          270.178,
+          378.70000000000005
+        ]
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "id": "subgraph1",
+      "x": 148.928,
+      "y": 40,
+      "w": 111,
+      "h": 181.8,
+      "members": [
+        "top1",
+        "bottom1"
+      ],
+      "label": "subgraph1"
+    },
+    {
+      "id": "subgraph2",
+      "x": 210.678,
+      "y": 249.8,
+      "w": 126.25,
+      "h": 181.8,
+      "members": [
+        "top2",
+        "bottom2"
+      ],
+      "label": "subgraph2"
+    }
+  ],
+  "bounds": {
+    "w": 376.928,
+    "h": 489.6
+  },
+  "regions": [
+    {
+      "id": "canvas",
+      "kind": "canvas",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "w": 376.928,
+        "h": 489.6
+      }
+    },
+    {
+      "id": "group:subgraph1",
+      "kind": "cluster",
+      "elementId": "subgraph1",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 148.928,
+        "y": 40,
+        "w": 111,
+        "h": 181.8
+      },
+      "sourceLine": 2
+    },
+    {
+      "id": "group:subgraph2",
+      "kind": "cluster",
+      "elementId": "subgraph2",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 210.678,
+        "y": 249.8,
+        "w": 126.25,
+        "h": 181.8
+      },
+      "sourceLine": 6
+    },
+    {
+      "id": "node:outside",
+      "kind": "node",
+      "elementId": "outside",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 40,
+        "y": 267.8,
+        "w": 84.928,
+        "h": 36.900000000000006
+      },
+      "sourceLine": 10
+    },
+    {
+      "id": "node:top1",
+      "kind": "node",
+      "elementId": "top1",
+      "parentId": "group:subgraph1",
+      "bounds": {
+        "x": 181.678,
+        "y": 84,
+        "w": 60,
+        "h": 36.900000000000006
+      },
+      "sourceLine": 4
+    },
+    {
+      "id": "node:bottom1",
+      "kind": "node",
+      "elementId": "bottom1",
+      "parentId": "group:subgraph1",
+      "bounds": {
+        "x": 164.928,
+        "y": 168.9,
+        "w": 79,
+        "h": 36.900000000000006
+      },
+      "sourceLine": 4
+    },
+    {
+      "id": "node:top2",
+      "kind": "node",
+      "elementId": "top2",
+      "parentId": "group:subgraph2",
+      "bounds": {
+        "x": 260.928,
+        "y": 293.8,
+        "w": 60,
+        "h": 36.900000000000006
+      },
+      "sourceLine": 8
+    },
+    {
+      "id": "node:bottom2",
+      "kind": "node",
+      "elementId": "bottom2",
+      "parentId": "group:subgraph2",
+      "bounds": {
+        "x": 219.428,
+        "y": 378.70000000000005,
+        "w": 79,
+        "h": 36.900000000000006
+      },
+      "sourceLine": 8
+    },
+    {
+      "id": "edge:outside->subgraph1",
+      "kind": "edge",
+      "elementId": "outside->subgraph1",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 124.928,
+        "y": 130.9,
+        "w": 24,
+        "h": 149.20000000000002
+      }
+    },
+    {
+      "id": "edge:outside->top2",
+      "kind": "edge",
+      "elementId": "outside->top2",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 124.928,
+        "y": 292.4,
+        "w": 190.75,
+        "h": 149.20000000000005
+      }
+    },
+    {
+      "id": "edge:top1->bottom1",
+      "kind": "edge",
+      "elementId": "top1->bottom1",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 203.303,
+        "y": 120.9,
+        "w": 1,
+        "h": 48
+      }
+    },
+    {
+      "id": "edge:top2->bottom2",
+      "kind": "edge",
+      "elementId": "top2->bottom2",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 270.178,
+        "y": 330.70000000000005,
+        "w": 1,
+        "h": 48
+      }
+    }
+  ]
+}

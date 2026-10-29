@@ -1,0 +1,55 @@
+{
+  "base": "142c97ee6179ef5ad73fd8d804a64f6f0a2adb3f",
+  "head": "4f0668c1fec9c18755cf0528fa588d54ea512a84",
+  "bun": "1.4.2",
+  "fixtures": [
+    "compat-corpus-flowchart-98",
+    "flowchart-98-publication"
+  ],
+  "sources": {
+    "compat-corpus-flowchart-98": "flowchart LR\n    subgraph subgraph1\n        direction TB\n        top1[top] --> bottom1[bottom]\n    end\n    subgraph subgraph2\n        direction TB\n        top2[top] --> bottom2[bottom]\n    end\n    %% ^ These subgraphs are identical, except for the links to them:\n\n    %% Link *to* subgraph1: subgraph1 direction is maintained\n    outside --> subgraph1\n    %% Link *within* subgraph2:\n    %% subgraph2 inherits the direction of the top-level graph (LR)\n    outside ---> top2",
+    "flowchart-98-publication": "flowchart LR\n    subgraph subgraph1\n        direction TB\n        top1[top] --> bottom1[bottom]\n    end\n    subgraph subgraph2\n        direction TB\n        top2[top] --> bottom2[bottom]\n    end\n    %% ^ These subgraphs are identical, except for the links to them:\n\n    %% Link *to* subgraph1: subgraph1 direction is maintained\n    outside --> subgraph1\n    %% Link *within* subgraph2:\n    %% subgraph2 inherits the direction of the top-level graph (LR)\n    outside ---> top2"
+  },
+  "terminalFixtures": [],
+  "terminalOptions": {
+    "ascii": {
+      "colorMode": "none",
+      "useAscii": true
+    },
+    "unicode": {
+      "colorMode": "html",
+      "useAscii": false
+    }
+  },
+  "options": {
+    "security": "strict",
+    "style": "default unless fixtureOptions overrides it",
+    "fonts": "bundled"
+  },
+  "fixtureOptions": {
+    "compat-corpus-flowchart-98": {
+      "svg": {
+        "security": "strict"
+      },
+      "png": {
+        "security": "strict",
+        "background": "#ffffff"
+      }
+    },
+    "flowchart-98-publication": {
+      "svg": {
+        "security": "strict",
+        "style": "publication-figure"
+      },
+      "png": {
+        "security": "strict",
+        "style": "publication-figure",
+        "background": "#ffffff",
+        "fitTo": {
+          "width": 1400
+        }
+      }
+    }
+  },
+  "baselineOptionRefusals": {}
+}
