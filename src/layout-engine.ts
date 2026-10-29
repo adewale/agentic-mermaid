@@ -1598,7 +1598,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => { rerouteEdgesThroughNodes(c.nodes, c.edges, c.graph, undefined, c.groups) },
   },
   {
-    id: 'repairLabelsOnSharedTrunks', doc: 're-slot a labeled edge whose pill sits on a trunk shared with another edge (label-only, freeze-safe)',
+    id: 'repairLabelsOnSharedTrunks', doc: 'give a shared-trunk label a clear seat or a proved private channel (edge-only, freeze-safe)',
     after: ['rerouteEdgesThroughNodes'], mutates: ['edges'], determinism: 'in-place',
     run: c => { repairLabelsOnSharedTrunks({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
   },

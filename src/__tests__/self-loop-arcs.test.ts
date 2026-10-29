@@ -206,6 +206,15 @@ describe('self-loops are real arcs (typed route class, not a stub)', () => {
     expect(auditRouteContracts(positioned, graph)).toEqual([])
   })
 
+  test.each(['TD', 'BT', 'LR', 'RL'])('reserves loop shafts across different owners in %s', direction => {
+    const source = `flowchart ${direction}\nN2 --> N2\nN2 --> N2\nN3 --> N3`
+    const graph = parseLegacy(source), positioned = layoutGraphSync(graph)
+    expect(positioned.edges.map(edge => [edge.source, edge.target])).toEqual([['N2', 'N2'], ['N2', 'N2'], ['N3', 'N3']])
+    expect(positioned.edges.every(edge => edge.routeCertificate?.invariant === 'self-loop')).toBe(true)
+    expectSeparatedMarkers(positioned.edges)
+    expect(auditRouteContracts(positioned, graph)).toEqual([])
+  })
+
   test('eight labeled loops allocate unique bounded routes and label centers', () => {
     const source = ['flowchart TD', 'A --> B', ...Array.from({ length: 8 }, (_unused, index) => `B -->|loop${index + 1}| B`), 'B --> C'].join('\n')
     const graph = parseLegacy(source)
