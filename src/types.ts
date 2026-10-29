@@ -591,6 +591,16 @@ export interface RenderOptions {
     /** Wrap whole columns into rows within this best-effort pixel width, retaining readable column widths. */
     maxWidth?: number
   }
+  /** Opt-in graphical fitting; selected typography and slice meaning are retained. */
+  pie?: {
+    /** Best-effort pixel width; explicit legend placement retains precedence. */
+    maxWidth?: number
+  }
+  /** Opt-in graphical fitting; authored frames and radar scale meaning are retained. */
+  radar?: {
+    /** Best-effort pixel width with a bounded plot/legend arrangement search. */
+    maxWidth?: number
+  }
   /** Family-specific SVG renderer options for architecture-beta diagrams. */
   architecture?: {
     visual?: ArchitectureVisualOverrides

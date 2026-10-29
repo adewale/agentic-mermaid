@@ -16,7 +16,8 @@ import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
-import { layoutTextRows } from '../shared/text-rows.ts'
+import { layoutTextColumns } from '../shared/text-rows.ts'
+import { fitChartWidth } from '../shared/chart-width.ts'
 
 // ============================================================================
 // Pie chart layout engine
@@ -54,6 +55,7 @@ const PIE = {
   legendLineHeight: 13 * 1.3,
   legendSwatch: 14,
   legendRowGap: 8,
+  legendColumnGap: 16,
   legendSwatchToText: 8,
   /** General 700-weight fallback allowance, composed with safe W/M metrics. */
   legendHighlightWidthScale: 1.1,
@@ -187,22 +189,43 @@ export function layoutPieChart(
   visual: PieVisualConfig = DEFAULT_PIE_VISUAL_CONFIG,
   styleFace?: Readonly<InternalStyleFace>,
 ): PositionedPieChart {
+  const natural = placePieChart(chart, options, visual, styleFace)
+  const maxWidth = options.pie?.maxWidth
+  if (maxWidth === undefined) return natural
+  return fitChartWidth(natural, maxWidth, attempt => {
+    if (attempt !== 1) return undefined
+    const legendPosition = visual.legendPositionExplicit || visual.legendPosition !== 'right' ? visual.legendPosition : 'bottom'
+    return placePieChart(chart, options, { ...visual, legendPosition }, styleFace, maxWidth)
+  })
+}
+
+function placePieChart(chart: PieChart, options: RenderOptions, visual: PieVisualConfig, styleFace?: Readonly<InternalStyleFace>, maxWidth?: number): PositionedPieChart {
   const style = resolveRenderStyle(options, PIE_STYLE_DEFAULTS, styleFace)
   const total = pieTotal(chart.entries)
 
   const radius = PIE.radius
   const diameter = radius * 2
   const innerRadius = visual.donutHole > 0 ? round(visual.donutHole * radius) : 0
+  // Wrapping cannot make the circle narrower. An infeasible request should
+  // not create a taller legend than this unavoidable canvas needs.
+  const wrapWidth = maxWidth === undefined ? undefined : Math.max(maxWidth, diameter + PIE.paddingX * 2)
+  const legendOverhead = PIE.paddingX * 2 + PIE.legendSwatch + PIE.legendSwatchToText +
+    (visual.legendPosition === 'left' || visual.legendPosition === 'right' ? diameter + PIE.circleToLegendGap : 0)
+  const legendWrapWidth = wrapWidth === undefined || wrapWidth <= legendOverhead ? undefined : wrapWidth - legendOverhead
 
   // Title/legend typography comes from the same resolved config the renderer
   // uses, so larger documented theme sizes reserve geometry by construction.
   const titleFontSize = visual.titleTextSize ?? style.groupHeaderFontSize
   const legendFontSize = visual.legendTextSize ?? style.nodeLabelFontSize
   const legendLineHeight = legendFontSize * 1.3
-  const titleBlock = chart.title ? preparePixelText(chart.displayTitle ?? chart.title, {
+  let titleBlock = chart.title ? preparePixelText(chart.displayTitle ?? chart.title, {
     display: chart.displayTitle === undefined ? 'formatted' : 'literal', transform: style.groupTextTransform,
     fontSize: titleFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, safeFont: true,
+    ...(wrapWidth === undefined ? {} : { maxWidth: wrapWidth - PIE.paddingX * 2 }),
   }) : undefined
+  if (titleBlock && wrapWidth !== undefined && titleBlock.width > wrapWidth - PIE.paddingX * 2 + 0.01) {
+    titleBlock = preparePixelText(titleBlock.prepared, titleBlock)
+  }
   const renderedTitle = titleBlock?.text
   const titleBlockHeight = titleBlock ? titleBlock.height : 0
   const titleHeight = titleBlock ? titleBlockHeight + PIE.titleGap : 0
@@ -221,10 +244,16 @@ export function layoutPieChart(
       ? PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT
       : style.nodeLabelFontWeight
     const source = labelLines.map((line, k) => k === labelLines.length - 1 ? `${line}${suffix}` : line).join('\n')
-    const block = preparePixelText(source, {
+    const highlightScale = fontWeight === PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT ? PIE.legendHighlightWidthScale : 1
+    const textBudget = visual.legendPosition === 'center' ? undefined : legendWrapWidth === undefined ? undefined : legendWrapWidth / highlightScale
+    let block = preparePixelText(source, {
       display: e.displayLabel === undefined ? 'formatted' : 'literal', transform: style.nodeTextTransform,
       fontSize: legendFontSize, fontWeight, letterSpacing: style.nodeLetterSpacing, safeFont: true,
+      ...(textBudget === undefined ? {} : { maxWidth: textBudget }),
     })
+    // A grapheme wider than the column makes this wrapping request infeasible.
+    // Keep its prepared display interpretation and typography without wrapping.
+    if (textBudget !== undefined && block.width > textBudget + 0.01) block = preparePixelText(block.prepared, block)
     const lines = block.lines
     const measuredTextWidth = block.width
     const textWidth = fontWeight === PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT
@@ -232,8 +261,13 @@ export function layoutPieChart(
       : measuredTextWidth
     return { block, lines, fraction, textWidth, reservedWidth: textWidth }
   })
-  const legendRows = layoutTextRows(rows, { gap: PIE.legendRowGap, minRowHeight: PIE.legendSwatch })
-  const legendWidth = PIE.legendSwatch + PIE.legendSwatchToText + legendRows.width
+  const legendRowOptions = {
+    gap: PIE.legendRowGap, minRowHeight: PIE.legendSwatch,
+    leadingWidth: PIE.legendSwatch + PIE.legendSwatchToText, columnGap: PIE.legendColumnGap,
+    ...(wrapWidth !== undefined && (visual.legendPosition === 'top' || visual.legendPosition === 'bottom') ? { maxWidth: wrapWidth - PIE.paddingX * 2 } : {}),
+  }
+  const legendRows = layoutTextColumns(rows, legendRowOptions)
+  const legendWidth = legendRows.width
   const legendHeight = legendRows.height
 
   // Geometry: circle + legend arranged by legendPosition; the canvas always
@@ -317,18 +351,18 @@ export function layoutPieChart(
   for (const slice of slices) if (slice.pctLabel) slice.pctLabel.block = preparePixelText(slice.pctLabel.text, { display: 'literal', fontSize: slice.pctLabel.fontSize, fontWeight: PIE.sliceLabelFontWeight })
 
   // Legend rows.
-  const placedLegendRows = layoutTextRows(rows, { top: legendTop, gap: PIE.legendRowGap, minRowHeight: PIE.legendSwatch })
-  const legend: PositionedPieLegendItem[] = placedLegendRows.rows.map(({ item: row, top, textY }, i) => {
+  const placedLegendRows = layoutTextColumns(rows, { ...legendRowOptions, top: legendTop })
+  const legend: PositionedPieLegendItem[] = placedLegendRows.rows.map(({ item: row, x = 0, top, textY }, i) => {
     const entry = chart.entries[i]!
     const item: PositionedPieLegendItem = {
       label: entry.label,
       ...(entry.displayLabel === undefined ? {} : { literalText: true as const }),
       value: entry.value,
       fraction: row.fraction,
-      x: round(legendX),
+      x: round(legendX + x),
       y: round(top),
       swatchSize: PIE.legendSwatch,
-      textX: round(legendX + PIE.legendSwatch + PIE.legendSwatchToText),
+      textX: round(legendX + x + PIE.legendSwatch + PIE.legendSwatchToText),
       textY: round(textY),
       lines: row.lines,
       block: row.block,

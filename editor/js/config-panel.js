@@ -1,7 +1,7 @@
 import { ui } from './context.js';
 import { editorPaletteColors, state } from './state.js';
 import { scheduleRender } from './rendering.js';
-import { scheduleDraftSave, updateHash } from './sharing.js';
+import { safeLocalStorageGet, safeLocalStorageSet, scheduleDraftSave, updateHash } from './sharing.js';
 import { PRESET_FONTS, fontSelectLabel, paddingNum, paddingSlider } from './font-picker.js';
 import { showToast } from './toast.js';
 import { configView } from './elements.js';
@@ -190,6 +190,17 @@ advancedOptionsApply = document.getElementById('cfg-advanced-apply');
 advancedOptionsSchema = document.getElementById('cfg-advanced-schema');
 
 advancedOptionsStatus = document.getElementById('cfg-advanced-status');
+
+var fitLabelsControl = document.getElementById('cfg-fit-labels');
+if (fitLabelsControl) {
+  state.fitLabelsToPane = safeLocalStorageGet('bm-editor-fit-labels') === 'true';
+  fitLabelsControl.checked = state.fitLabelsToPane;
+  fitLabelsControl.addEventListener('change', function() {
+    state.fitLabelsToPane = fitLabelsControl.checked;
+    safeLocalStorageSet('bm-editor-fit-labels', String(state.fitLabelsToPane));
+    scheduleRender(0);
+  });
+}
 
 
 (function initializeAdvancedOptionsSchema() {

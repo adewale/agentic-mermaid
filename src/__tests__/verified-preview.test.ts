@@ -174,6 +174,20 @@ function workerHarness(timeout = 30_000) {
 }
 
 describe('persistent preview worker queue', () => {
+  test('preparing opt-in editor fitting keeps the worker idle and preserves authored budgets', async () => {
+    const h = workerHarness(), adapter = createBrowserEditorAdapter(() => h.client)
+    const dependencies = { allowedFields: adapter.SHARED_RENDER_OPTION_FIELDS, validate: adapter.validateSerializableRenderOptions, resolvePaletteInput: () => '' }
+    const state = { fitLabelsToPane: true, source: '&#112;ie\n"Done": 2', paneWidth: 360.9 }
+    try {
+      expect(adapter.prepareEditorRenderOptions({ fitLabelsToPane: false })).toBeUndefined()
+      await adapter.prepareEditorRenderOptions(state)
+      expect(adapter.resolveEditorRenderOptions(state, dependencies)).toHaveProperty('pie.maxWidth', 360)
+      expect(adapter.resolveEditorRenderOptions({ ...state, config: { pie: { maxWidth: 640 } } }, dependencies)).toHaveProperty('pie.maxWidth', 640)
+      expect(adapter.resolveEditorRenderOptions({ ...state, source: 'flowchart TD\nA-->B' }, dependencies)).not.toHaveProperty('pie')
+      expect(h.workers).toHaveLength(0)
+    } finally { h.client.dispose() }
+  })
+
   test('editor source edits use the queued worker and discard results after the draft changes', async () => {
     const h = workerHarness(), adapter = createBrowserEditorAdapter(() => h.client)
     const source = 'flowchart TD\nA[Old]\nclassDef retained border:1px s:::colid red'
