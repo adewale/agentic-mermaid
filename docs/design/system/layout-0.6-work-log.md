@@ -2980,3 +2980,39 @@ the shared actual-write authority, then the cubic103 and cylinder206/209 proof
 obligations. Keep broader authored interaction coverage and independently
 observed final-artifact correspondence ahead of any holdout opening or timing
 campaign. Main integration and failed delivery/advisory gates remain explicit.
+
+### 29 October: carry Main's Class contact and route-readback correctness fixes
+
+Parent on the retained PR449 branch: `a2c1c3f13680785221ed65af7f19ca25cbca9cb5`.
+This bounded port carries Main's Class surface rule from
+`9fc3a141297ea0dd954fae903e5609e2efb8ba7e` and shared ELK route-readback rule from
+`d2d106cb151fbcc6736b1b7b3446644660991cec`. It does not merge unrelated Main
+changes, alter the default engine, update goldens, or change a version.
+
+Class namespace/header geometry now uses the admitted contact surfaces. The
+route-owning Flowchart, Class, ER and Requirement adapters normalize only the
+upstream numeric roundoff covered by the shared eight-ULP helper before writing
+geometry. The existing negative beyond-roundoff control stays enrolled; paint
+proofs receive no new epsilon.
+
+Class evidence: the independently authored flat/nested CEO relations give a
+genuine1P/1F baseline and2P after the repair;133 owning tests/5,440 assertions
+pass. Four public captures retain source/model/SVG/PNG: two explicit ELK refusals
+become successful returns; both Native SVGs remain byte-identical. Independent
+XML/geometry readback checks three classes, two ordered relationships,16 owned
+contacts and396 shaft/header/marker supports. The complete rounding owner run
+passes296 tests/41,372 assertions in six files, including Class, ER, Requirement,
+subgraph hierarchy and layout equivalence. The rounding reproduction was3F/1P
+before and4P after. Existing committed layout goldens pass unchanged.
+
+Canonical core/repository types pass on the combined local source (including the
+separate, still-uncommitted emission-proof work). These focused results do not
+qualify that separate work: its largest cylinder still exhausts the unchanged
+Native proof budget. The last published a2c CI40909866579 remains failed on35
+lazy byte rows and its advisory comparison; no delivery check is waived.
+
+Exact rejected/final sources, commands, public artifacts and independent reviews
+are retained in `/tmp/pr449-completion-20261029/class/`, `ROUNDOFF-RED.log`,
+`ROUNDOFF-GREEN.log`, `MAIN-PORT-OWNERS.log` and `TYPES-R8.log`. All work remains
+on the existing retained PR branch; no issue, PR, force push, merge/reopen,
+publication, external comment or timing campaign was created.

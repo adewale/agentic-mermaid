@@ -13,6 +13,7 @@ import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 import { withRenderStageObserver } from '../render-stages.ts'
 import { missingSvgLabels } from './helpers/svg-labels.ts'
+import { graphStressSamples } from '../../eval/layout-compare/generated.ts'
 
 const native = { graphLayout: { backend: 'agentic' as const } }
 const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/class-backends.mmd', import.meta.url), 'utf8')
@@ -705,6 +706,20 @@ test('serialized rectangle faces use exact decimal equality, not a clearance eps
   expect(classSegmentEntersBox({ x: 533.859, y: 110 }, { x: 540, y: 110 }, box)).toBe(false)
   expect(classSegmentEntersBox({ x: 533.8589, y: 110 }, { x: 533.8589, y: 120 }, box)).toBe(true)
   expect(classSegmentEntersBox({ x: 533.859, y: 110 }, { x: 533.859, y: 120 }, box)).toBe(false)
+})
+
+test('ELK bends one roundoff apart still leave outward card contacts on a wide tree', () => {
+  // Wider cards place this tree's lower ranks near x 6500, where ELK spells one
+  // vertical leg's ends 6527.03333333333 and 6527.033333333329; SVG writes
+  // those two numbers differently, so the card contact read as a diagonal.
+  const source = graphStressSamples().find(sample => sample.id === 'fixture/stress/class-80-classes.mmd')!.source
+  let result: ReturnType<typeof layoutMermaidWithReceipt> | undefined
+  expect(() => { result = layoutMermaidWithReceipt(source, { graphLayout: { backend: 'elk' }, style: { roles: { node: { paddingX: 26, paddingY: 14 } } } }) }).not.toThrow()
+  // A refused card contact throws above. The paint receipt is not asserted:
+  // its occlusion check can meet its operation budget on 80 cards.
+  const { layout } = result!
+  // The generator writes C⌊(i-1)/2⌋ <|-- Ci for every i in 1..79.
+  expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual(Array.from({ length: 79 }, (_, index) => [`C${Math.floor(index / 2)}`, `C${index + 1}`]))
 })
 
 test('new orthogonal miter ink includes the corner outside both butt strips', async () => {

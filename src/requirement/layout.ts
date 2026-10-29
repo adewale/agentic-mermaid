@@ -1,5 +1,6 @@
 import type { ElkExtendedEdge, ElkNode } from 'elkjs'
 import { elkLayoutSync } from '../elk-instance.ts'
+import { alignElkRoundoff } from '../layout/elk-roundoff.ts'
 import { layoutAgenticGraph, type AgenticLayout } from '../layout/agentic-layered.ts'
 import { runMeasuredGraphBackend } from '../layout/backend.ts'
 import { measureRenderStage } from '../render-stages.ts'
@@ -103,7 +104,7 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
     return { width: placed.width ?? 0, height: placed.height ?? pad * 2, nodes: positions,
       edges: model.relations.map((_, index) => {
         const edge = placed.edges?.[index], label = edge?.labels?.[0]
-        return { points: (edge?.sections ?? []).flatMap(s => [s.startPoint, ...(s.bendPoints ?? []), s.endPoint]),
+        return { points: alignElkRoundoff((edge?.sections ?? []).flatMap(s => [s.startPoint, ...(s.bendPoints ?? []), s.endPoint])),
           ...(label?.x !== undefined ? { labelPosition: { x: label.x + (label.width ?? 0) / 2, y: (label.y ?? 0) + (label.height ?? 0) / 2 } } : {}) }
       }) }
   })
