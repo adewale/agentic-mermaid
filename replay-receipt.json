@@ -1,0 +1,1203 @@
+{
+  "date": "2026-10-29",
+  "timezone": "Europe/London",
+  "agentic577": {
+    "url": "https://github.com/adewale/agentic-mermaid/pull/577",
+    "verifiedHead": "eece940747963863eaccbaca72db52859f8f4af7",
+    "base": "142c97ee6179ef5ad73fd8d804a64f6f0a2adb3f",
+    "merge": "48faaa90ebe048ebcaeee2444d221fb0520d8fd1",
+    "ci": {
+      "jobs": 20,
+      "conclusion": "success",
+      "run": "https://github.com/adewale/agentic-mermaid/actions/runs/40845589711"
+    },
+    "green": {
+      "passed": 8,
+      "failed": 0,
+      "assertions": 66
+    },
+    "deliberateFailure": {
+      "passed": 7,
+      "failed": 1,
+      "assertions": 56
+    },
+    "restored": {
+      "passed": 8,
+      "failed": 0,
+      "assertions": 66
+    }
+  },
+  "trident48": {
+    "url": "https://github.com/adewale/trident/pull/48",
+    "head": "c2f2a5b945f2458aeb7cabe36b88862b462786cd",
+    "draft": true,
+    "merged": false,
+    "ci": "No configured workflow runs or status checks; green-CI condition therefore not satisfied",
+    "focused": {
+      "passed": 8,
+      "failed": 0,
+      "assertions": 61
+    },
+    "full": {
+      "passed": 418,
+      "failed": 0,
+      "assertions": 2358
+    },
+    "typecheck": "passed",
+    "lint": "passed",
+    "tempDirectoryLimitation": "Original full run: 417 pass, 1 inherited macOS path-alias failure. Complete rerun uses canonical TMPDIR=/private/tmp; no tests skipped."
+  },
+  "zenuml": {
+    "receipt": "https://github.com/adewale/trident/blob/fb344a1847514ec4d37d6d942abedcce4dfebcac/qualification.json",
+    "renderObservationsPassed": 20,
+    "deliveryObservationsPassed": 10,
+    "aggregate": "blocked",
+    "limits": [
+      "Admission proves XML/namespace/canvas/authored labels only; native relationships and CSS/paint fidelity unmeasured.",
+      "Document V8 heap excludes native/GPU/worker/whole-browser process peak. No monetary/model-token cost inferred.",
+      "A0/A1 are same-artifact controls, not independent tools. Five renderer rounds provide repeatability diagnostics, not p95 or causal proof."
+    ]
+  },
+  "tarball": {
+    "seed": 7,
+    "originalSource": "cfd58df8ab8c21ce76eb46556296a7439f231bbf",
+    "currentSource": "eece940747963863eaccbaca72db52859f8f4af7",
+    "originalNode24Suite": {
+      "passed": 13,
+      "failed": 1,
+      "assertions": 434
+    },
+    "currentNode24Suite": {
+      "passed": 14,
+      "failed": 0,
+      "assertions": 1349
+    },
+    "currentNode22Suite": {
+      "passed": 14,
+      "failed": 0,
+      "assertions": 1349
+    },
+    "identicalSavedPngSourcesAndOptionsVerified": true,
+    "results": {
+      "original-node22": {
+        "passed": 9,
+        "failed": 1
+      },
+      "original-node24": {
+        "passed": 9,
+        "failed": 1
+      },
+      "current-node22": {
+        "passed": 10
+      },
+      "current-node24": {
+        "passed": 10
+      }
+    },
+    "limitation": "Historical source was rebuilt with its own frozen lock and packed locally. The old campaign archive was not available, so this attributes a recreated source/input failure, not byte-identical archived tarball provenance or a particular fixing commit."
+  },
+  "route": {
+    "historical": {
+      "source": "cfd58df8ab8c21ce76eb46556296a7439f231bbf",
+      "generatorGitBlob": "0e93b2d0dc3477329204989b9067e1330cc78e75",
+      "fullRun": true,
+      "traversalComplete": true,
+      "metrics": {
+        "cases": 2800,
+        "layouts": 2800,
+        "nodes": 23822,
+        "edges": 23567,
+        "hitchCases": 0,
+        "hitches": 0,
+        "hardViolationCases": 0,
+        "hardViolations": 0,
+        "hardViolationsByMetric": {},
+        "routeFindingCases": 539,
+        "routeFindings": 877,
+        "routeFindingsByCode": {
+          "ROUTE_LABEL_ON_SHARED_TRUNK": 841,
+          "ROUTE_SELF_LOOP_OCCUPANCY": 35,
+          "ROUTE_STALE_AFTER_NODE_MOVE": 1
+        },
+        "certificates": {
+          "assessed": 23567,
+          "findingEdges": 645,
+          "findings": 645,
+          "findingsByCode": {
+            "bend-count-mismatch": 645
+          }
+        },
+        "errors": 0
+      },
+      "examples": [
+        {
+          "generator": "denseDag",
+          "seed": 5,
+          "source": "flowchart RL\n  N0[/\"errors\"/]\n  N1[(q)]\n  N2([\"done\"])\n  N3[/\"retry\"/]\n  N4[(validate input)]\n  N5([\"warnings\"])\n  N6[/\"ok\"/]\n  N7[(same word ok)]\n  N8([\"a longer label goes here\"])\n  N9[/\"x\"/]\n  N10((errors))\n  N8 --->|errors| N0\n  N7 ----> N6\n  N2 --> N5\n  N8 ===>|retry| N0\n  N7 --->|validate input| N10\n  N2 ----> N5\n  N1 --> N0\n  N7 ===>|same word ok| N10\n  N2 --->|a longer label goes here| N5\n  N1 ----> N4",
+          "routeFindings": [
+            {
+              "code": "ROUTE_LABEL_ON_SHARED_TRUNK",
+              "edge": "N7->N10",
+              "sharedWith": "N7->N10"
+            },
+            {
+              "code": "ROUTE_LABEL_ON_SHARED_TRUNK",
+              "edge": "N2->N5",
+              "sharedWith": "N2->N5"
+            }
+          ]
+        },
+        {
+          "generator": "denseDag",
+          "seed": 7,
+          "source": "flowchart BT\n  N0([\"done\"])\n  N1[/\"retry\"/]\n  N2[(validate input)]\n  N3([\"warnings\"])\n  N4[/\"ok\"/]\n  N0 --> N1\n  N0 ===>|retry| N1\n  N0 --->|validate input| N2\n  N1 ----> N2\n  N1 --> N3\n  N2 ===>|same word ok| N3\n  N2 --->|a longer label goes here| N3\n  N2 ----> N4\n  N3 --> N4\n  N3 ===> N4",
+          "routeFindings": [
+            {
+              "code": "ROUTE_LABEL_ON_SHARED_TRUNK",
+              "edge": "N2->N3",
+              "sharedWith": "N2->N3"
+            },
+            {
+              "code": "ROUTE_LABEL_ON_SHARED_TRUNK",
+              "edge": "N2->N3",
+              "sharedWith": "N2->N3"
+            }
+          ]
+        }
+      ]
+    },
+    "current": {
+      "source": "eece940747963863eaccbaca72db52859f8f4af7",
+      "generatorGitBlob": "0e93b2d0dc3477329204989b9067e1330cc78e75",
+      "fullRun": true,
+      "traversalComplete": true,
+      "metrics": {
+        "cases": 2800,
+        "layouts": 2800,
+        "nodes": 23822,
+        "edges": 23567,
+        "hitchCases": 0,
+        "hitches": 0,
+        "hardViolationCases": 0,
+        "hardViolations": 0,
+        "hardViolationsByMetric": {},
+        "routeFindingCases": 299,
+        "routeFindings": 395,
+        "routeFindingsByCode": {
+          "ROUTE_LABEL_ON_SHARED_TRUNK": 362,
+          "ROUTE_SELF_LOOP_OCCUPANCY": 33
+        },
+        "certificates": {
+          "assessed": 23567,
+          "findingEdges": 716,
+          "findings": 716,
+          "findingsByCode": {
+            "bend-count-mismatch": 716
+          }
+        },
+        "errors": 0
+      },
+      "examples": [
+        {
+          "generator": "denseDag",
+          "seed": 5,
+          "source": "flowchart RL\n  N0[/\"errors\"/]\n  N1[(q)]\n  N2([\"done\"])\n  N3[/\"retry\"/]\n  N4[(validate input)]\n  N5([\"warnings\"])\n  N6[/\"ok\"/]\n  N7[(same word ok)]\n  N8([\"a longer label goes here\"])\n  N9[/\"x\"/]\n  N10((errors))\n  N8 --->|errors| N0\n  N7 ----> N6\n  N2 --> N5\n  N8 ===>|retry| N0\n  N7 --->|validate input| N10\n  N2 ----> N5\n  N1 --> N0\n  N7 ===>|same word ok| N10\n  N2 --->|a longer label goes here| N5\n  N1 ----> N4",
+          "routeFindings": [
+            {
+              "code": "ROUTE_LABEL_ON_SHARED_TRUNK",
+              "edge": "N7->N10",
+              "sharedWith": "N7->N10"
+            },
+            {
+              "code": "ROUTE_LABEL_ON_SHARED_TRUNK",
+              "edge": "N2->N5",
+              "sharedWith": "N2->N5"
+            }
+          ]
+        },
+        {
+          "generator": "denseDag",
+          "seed": 7,
+          "source": "flowchart BT\n  N0([\"done\"])\n  N1[/\"retry\"/]\n  N2[(validate input)]\n  N3([\"warnings\"])\n  N4[/\"ok\"/]\n  N0 --> N1\n  N0 ===>|retry| N1\n  N0 --->|validate input| N2\n  N1 ----> N2\n  N1 --> N3\n  N2 ===>|same word ok| N3\n  N2 --->|a longer label goes here| N3\n  N2 ----> N4\n  N3 --> N4\n  N3 ===> N4",
+          "routeFindings": [
+            {
+              "code": "ROUTE_LABEL_ON_SHARED_TRUNK",
+              "edge": "N2->N3",
+              "sharedWith": "N2->N3"
+            },
+            {
+              "code": "ROUTE_LABEL_ON_SHARED_TRUNK",
+              "edge": "N2->N3",
+              "sharedWith": "N2->N3"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "strict": {
+    "producer": "2401d09f1c73b1c650445858e5640127368b21c6",
+    "scope": "single fresh worker per case/backend/revision; correctness replay, no performance claim",
+    "sidecars": "Unchanged original worker consumes complete enumerable receipt inside invocation clock; backend selected/fallback checked outside",
+    "summary": {
+      "receipt": "replays/strict.json",
+      "casesPerSource": 16,
+      "sources": 3,
+      "results": {
+        "original": {
+          "partial": 13,
+          "failed": 3
+        },
+        "pre571": {
+          "partial": 13,
+          "failed": 3
+        },
+        "current": {
+          "partial": 13,
+          "failed": 3
+        }
+      },
+      "remainingCases": [
+        "scaling:class:128:backend:agentic",
+        "scaling:er:128:backend:elk",
+        "scaling:er:128:backend:agentic"
+      ],
+      "limitation": "One fresh unchanged strict worker per source/case/backend. This is a correctness replay, not a six-round timing campaign. Partial results retain incomplete semantic qualification."
+    },
+    "failures": [
+      {
+        "target": "original",
+        "source": "795b2b4c62b595cc904802aa25aaafe8ae54df62",
+        "caseId": "scaling:class:128:backend:agentic",
+        "status": "failed",
+        "error": "LayoutCertificationError: No certified layout after 1 bounded attempts: class-owned-surfaces: Relationship N71 -> N72 lacks an outward Class contact; Relationship N71 -> N72 enters card N71; Relationship N73 -> N74 lacks an outward Class contact; Relationship N97 -> N98 lacks an outward Class contact; Relationship N97 -> N98 enters card N97; Relationship N102 -> N103 lacks an outward Class contact; Relationship N124 -> N125 lacks an outward Class contact; Relationship N124 -> N125 enters card N124",
+        "backendCheck": {
+          "name": "layout-backend-selection",
+          "status": "failed",
+          "expected": {
+            "backend": "agentic",
+            "fallback": "none"
+          },
+          "actual": null,
+          "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+        },
+        "failedChecks": [
+          {
+            "name": "acceptance",
+            "status": "failed",
+            "actual": false
+          },
+          {
+            "name": "layout-backend-selection",
+            "status": "failed",
+            "actual": null
+          }
+        ]
+      },
+      {
+        "target": "original",
+        "source": "795b2b4c62b595cc904802aa25aaafe8ae54df62",
+        "caseId": "scaling:er:128:backend:elk",
+        "status": "failed",
+        "error": "ErRouteWorkLimitError: ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships",
+        "backendCheck": {
+          "name": "layout-backend-selection",
+          "status": "failed",
+          "expected": {
+            "backend": "elk",
+            "fallback": "none"
+          },
+          "actual": null,
+          "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+        },
+        "failedChecks": [
+          {
+            "name": "acceptance",
+            "status": "failed",
+            "actual": false
+          },
+          {
+            "name": "layout-backend-selection",
+            "status": "failed",
+            "actual": null
+          }
+        ]
+      },
+      {
+        "target": "original",
+        "source": "795b2b4c62b595cc904802aa25aaafe8ae54df62",
+        "caseId": "scaling:er:128:backend:agentic",
+        "status": "failed",
+        "error": "ErRouteWorkLimitError: ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships",
+        "backendCheck": {
+          "name": "layout-backend-selection",
+          "status": "failed",
+          "expected": {
+            "backend": "agentic",
+            "fallback": "none"
+          },
+          "actual": null,
+          "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+        },
+        "failedChecks": [
+          {
+            "name": "acceptance",
+            "status": "failed",
+            "actual": false
+          },
+          {
+            "name": "layout-backend-selection",
+            "status": "failed",
+            "actual": null
+          }
+        ]
+      },
+      {
+        "target": "pre571",
+        "source": "c4a8eeb8a3c472fd73e6654c0efa151b8f19a7f5",
+        "caseId": "scaling:class:128:backend:agentic",
+        "status": "failed",
+        "error": "LayoutCertificationError: No certified layout after 1 bounded attempts: class-owned-surfaces: Relationship N71 -> N72 lacks an outward Class contact; Relationship N71 -> N72 enters card N71; Relationship N73 -> N74 lacks an outward Class contact; Relationship N97 -> N98 lacks an outward Class contact; Relationship N97 -> N98 enters card N97; Relationship N102 -> N103 lacks an outward Class contact; Relationship N124 -> N125 lacks an outward Class contact; Relationship N124 -> N125 enters card N124",
+        "backendCheck": {
+          "name": "layout-backend-selection",
+          "status": "failed",
+          "expected": {
+            "backend": "agentic",
+            "fallback": "none"
+          },
+          "actual": null,
+          "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+        },
+        "failedChecks": [
+          {
+            "name": "acceptance",
+            "status": "failed",
+            "actual": false
+          },
+          {
+            "name": "layout-backend-selection",
+            "status": "failed",
+            "actual": null
+          }
+        ]
+      },
+      {
+        "target": "pre571",
+        "source": "c4a8eeb8a3c472fd73e6654c0efa151b8f19a7f5",
+        "caseId": "scaling:er:128:backend:elk",
+        "status": "failed",
+        "error": "ErRouteWorkLimitError: ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships",
+        "backendCheck": {
+          "name": "layout-backend-selection",
+          "status": "failed",
+          "expected": {
+            "backend": "elk",
+            "fallback": "none"
+          },
+          "actual": null,
+          "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+        },
+        "failedChecks": [
+          {
+            "name": "acceptance",
+            "status": "failed",
+            "actual": false
+          },
+          {
+            "name": "layout-backend-selection",
+            "status": "failed",
+            "actual": null
+          }
+        ]
+      },
+      {
+        "target": "pre571",
+        "source": "c4a8eeb8a3c472fd73e6654c0efa151b8f19a7f5",
+        "caseId": "scaling:er:128:backend:agentic",
+        "status": "failed",
+        "error": "ErRouteWorkLimitError: ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships",
+        "backendCheck": {
+          "name": "layout-backend-selection",
+          "status": "failed",
+          "expected": {
+            "backend": "agentic",
+            "fallback": "none"
+          },
+          "actual": null,
+          "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+        },
+        "failedChecks": [
+          {
+            "name": "acceptance",
+            "status": "failed",
+            "actual": false
+          },
+          {
+            "name": "layout-backend-selection",
+            "status": "failed",
+            "actual": null
+          }
+        ]
+      },
+      {
+        "target": "current",
+        "source": "eece940747963863eaccbaca72db52859f8f4af7",
+        "caseId": "scaling:class:128:backend:agentic",
+        "status": "failed",
+        "error": "LayoutCertificationError: No certified layout after 1 bounded attempts: class-owned-surfaces: Relationship N71 -> N72 lacks an outward Class contact; Relationship N71 -> N72 enters card N71; Relationship N73 -> N74 lacks an outward Class contact; Relationship N97 -> N98 lacks an outward Class contact; Relationship N97 -> N98 enters card N97; Relationship N102 -> N103 lacks an outward Class contact; Relationship N124 -> N125 lacks an outward Class contact; Relationship N124 -> N125 enters card N124",
+        "backendCheck": {
+          "name": "layout-backend-selection",
+          "status": "failed",
+          "expected": {
+            "backend": "agentic",
+            "fallback": "none"
+          },
+          "actual": null,
+          "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+        },
+        "failedChecks": [
+          {
+            "name": "acceptance",
+            "status": "failed",
+            "actual": false
+          },
+          {
+            "name": "layout-backend-selection",
+            "status": "failed",
+            "actual": null
+          }
+        ]
+      },
+      {
+        "target": "current",
+        "source": "eece940747963863eaccbaca72db52859f8f4af7",
+        "caseId": "scaling:er:128:backend:elk",
+        "status": "failed",
+        "error": "ErRouteWorkLimitError: ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships",
+        "backendCheck": {
+          "name": "layout-backend-selection",
+          "status": "failed",
+          "expected": {
+            "backend": "elk",
+            "fallback": "none"
+          },
+          "actual": null,
+          "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+        },
+        "failedChecks": [
+          {
+            "name": "acceptance",
+            "status": "failed",
+            "actual": false
+          },
+          {
+            "name": "layout-backend-selection",
+            "status": "failed",
+            "actual": null
+          }
+        ]
+      },
+      {
+        "target": "current",
+        "source": "eece940747963863eaccbaca72db52859f8f4af7",
+        "caseId": "scaling:er:128:backend:agentic",
+        "status": "failed",
+        "error": "ErRouteWorkLimitError: ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships",
+        "backendCheck": {
+          "name": "layout-backend-selection",
+          "status": "failed",
+          "expected": {
+            "backend": "agentic",
+            "fallback": "none"
+          },
+          "actual": null,
+          "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+        },
+        "failedChecks": [
+          {
+            "name": "acceptance",
+            "status": "failed",
+            "actual": false
+          },
+          {
+            "name": "layout-backend-selection",
+            "status": "failed",
+            "actual": null
+          }
+        ]
+      }
+    ]
+  },
+  "performance571": {
+    "sources": {
+      "base": "c4a8eeb8a3c472fd73e6654c0efa151b8f19a7f5",
+      "candidate": "142c97ee6179ef5ad73fd8d804a64f6f0a2adb3f"
+    },
+    "driver": "eece940747963863eaccbaca72db52859f8f4af7",
+    "trident": "f080278e31e4202ca89d524e4ee9e4cf3cbff038",
+    "rounds": 3,
+    "cacheFlags": [
+      "1",
+      "0"
+    ],
+    "schedule": "Fresh same-base control before, exact merged #571 candidate, same-base control after for every round and cache flag. Existing PR_CORE_WORKER used unchanged.",
+    "receiptValidation": "includes-external-receipt-validation",
+    "host": {
+      "system": "Darwin",
+      "machine": "arm64",
+      "node": "24.22.1",
+      "bun": "1.4.2"
+    },
+    "completion": {
+      "finishedAt": "2026-10-29T10:15:04.394Z",
+      "blocks": 6,
+      "workers": 18
+    },
+    "artifacts": {
+      "base": {
+        "source": "c4a8eeb8a3c472fd73e6654c0efa151b8f19a7f5",
+        "packageVersion": "0.5.1",
+        "archiveBytes": 7346046,
+        "archiveSha256": "950f9e3cfa35f2e33a4638426f3a738e8244155ade13c4f67d1c54dcd3c1e5be",
+        "installedDirectDependencies": {
+          "@resvg/resvg-js": "2.6.2",
+          "acorn": "8.16.0",
+          "d3-format": "3.1.0",
+          "d3-sankey": "0.12.3",
+          "elkjs": "0.11.1",
+          "entities": "7.0.1",
+          "yaml": "2.9.1"
+        },
+        "preparation": "Canonical bun run build, npm pack --ignore-scripts of that completed build, npm install of the exact local archive. No package publication."
+      },
+      "candidate": {
+        "source": "142c97ee6179ef5ad73fd8d804a64f6f0a2adb3f",
+        "packageVersion": "0.5.2",
+        "archiveBytes": 7360236,
+        "archiveSha256": "9abdbbb12ade77f86b94be2ec8c308af992d9cc899a845bdd2700231fa743fb8",
+        "installedDirectDependencies": {
+          "@resvg/resvg-js": "2.6.2",
+          "acorn": "8.16.0",
+          "d3-format": "3.1.0",
+          "d3-sankey": "0.12.3",
+          "elkjs": "0.11.1",
+          "entities": "7.0.1",
+          "yaml": "2.9.1"
+        },
+        "preparation": "Canonical bun run build, npm pack --ignore-scripts of that completed build, npm install of the exact local archive. No package publication."
+      }
+    },
+    "comparison": [
+      {
+        "cache": "1",
+        "metric": "cold",
+        "status": "passed",
+        "candidateMedianMs": 291.099083,
+        "referenceMedianMs": 282.4851559247043,
+        "pairedRatio": 1.0254659970956446,
+        "roundRatios": [
+          1.0254659970956446,
+          0.9954934401479097,
+          1.0304933795444873
+        ],
+        "controlRatios": [
+          1.0168273911754377,
+          1.0105593288522732,
+          1.006916486913165
+        ],
+        "decisionBand": {
+          "low": 0.97,
+          "high": 1.03
+        },
+        "assessment": "within observed variation"
+      },
+      {
+        "cache": "1",
+        "metric": "import",
+        "status": "passed",
+        "candidateMedianMs": 113.848791,
+        "referenceMedianMs": 110.64095531649888,
+        "pairedRatio": 1.0276252496055016,
+        "roundRatios": [
+          1.0441224740832762,
+          0.9883944337255257,
+          1.0276252496055016
+        ],
+        "controlRatios": [
+          1.000479892236832,
+          0.997044710709759,
+          1.0102840863846854
+        ],
+        "decisionBand": {
+          "low": 0.97,
+          "high": 1.03
+        },
+        "assessment": "within observed variation"
+      },
+      {
+        "cache": "1",
+        "metric": "firstSvg",
+        "status": "passed",
+        "candidateMedianMs": 177.18312500000002,
+        "referenceMedianMs": 171.69666365602012,
+        "pairedRatio": 1.0136913730019348,
+        "roundRatios": [
+          1.0136913730019348,
+          1.0000885165007658,
+          1.0323455810131879
+        ],
+        "controlRatios": [
+          1.0273131015832042,
+          1.0193585145430795,
+          1.004749484610563
+        ],
+        "decisionBand": {
+          "low": 0.97,
+          "high": 1.03
+        },
+        "assessment": "within observed variation"
+      },
+      {
+        "cache": "1",
+        "metric": "svg",
+        "status": "passed",
+        "candidateMedianMs": 231.1483564999997,
+        "referenceMedianMs": 232.93001949254753,
+        "pairedRatio": 1.0022951335710915,
+        "roundRatios": [
+          1.0064661140439306,
+          0.9798734464867765,
+          1.0022951335710915
+        ],
+        "controlRatios": [
+          0.9680486425956644,
+          0.9407393544994469,
+          1.0018324589912857
+        ],
+        "decisionBand": {
+          "low": 0.9407393544994469,
+          "high": 1.062993692373043
+        },
+        "assessment": "within observed variation"
+      },
+      {
+        "cache": "1",
+        "metric": "svgReceipt",
+        "status": "passed",
+        "candidateMedianMs": 217.1354794166656,
+        "referenceMedianMs": 217.60565251221664,
+        "pairedRatio": 0.9891912530684318,
+        "roundRatios": [
+          0.9891912530684318,
+          0.9853174371421487,
+          1.0356364409800036
+        ],
+        "controlRatios": [
+          1.0066673449406798,
+          0.9274481227589281,
+          0.9414802922401475
+        ],
+        "decisionBand": {
+          "low": 0.9274481227589281,
+          "high": 1.0782274236808502
+        },
+        "assessment": "within observed variation"
+      },
+      {
+        "cache": "1",
+        "metric": "ascii",
+        "status": "passed",
+        "candidateMedianMs": 606.1058244523824,
+        "referenceMedianMs": 611.3668583964051,
+        "pairedRatio": 1.0011301006819513,
+        "roundRatios": [
+          1.0011301006819513,
+          0.9616038291916131,
+          1.0216852172244772
+        ],
+        "controlRatios": [
+          1.0128287581501074,
+          0.9862168761024893,
+          0.951101953463389
+        ],
+        "decisionBand": {
+          "low": 0.951101953463389,
+          "high": 1.0514119925403909
+        },
+        "assessment": "within observed variation"
+      },
+      {
+        "cache": "1",
+        "metric": "asciiReceipt",
+        "status": "passed",
+        "candidateMedianMs": 978.145563500002,
+        "referenceMedianMs": 966.7328748586776,
+        "pairedRatio": 1.0154953612635935,
+        "roundRatios": [
+          1.0154953612635935,
+          0.9748204938084872,
+          1.027124016894425
+        ],
+        "controlRatios": [
+          0.9685724038898701,
+          1.0000345932282584,
+          0.9998713733093637
+        ],
+        "decisionBand": {
+          "low": 0.9685724038898701,
+          "high": 1.0324473379418142
+        },
+        "assessment": "within observed variation"
+      },
+      {
+        "cache": "1",
+        "metric": "unicode",
+        "status": "passed",
+        "candidateMedianMs": 611.0705887142863,
+        "referenceMedianMs": 604.6145197422252,
+        "pairedRatio": 1.0106779919457005,
+        "roundRatios": [
+          1.028396878335146,
+          1.0106779919457005,
+          0.9946975679808254
+        ],
+        "controlRatios": [
+          1.0355882953581186,
+          0.9588245333963665,
+          0.9859959328454865
+        ],
+        "decisionBand": {
+          "low": 0.9588245333963665,
+          "high": 1.0429436932092058
+        },
+        "assessment": "within observed variation"
+      },
+      {
+        "cache": "1",
+        "metric": "unicodeReceipt",
+        "status": "passed",
+        "candidateMedianMs": 975.9283053333431,
+        "referenceMedianMs": 985.1777656954642,
+        "pairedRatio": 0.9794277191412551,
+        "roundRatios": [
+          1.01561287773146,
+          0.9794277191412551,
+          0.9545161459629339
+        ],
+        "controlRatios": [
+          1.0010183578795475,
+          0.9763453358968506,
+          0.9946313471028855
+        ],
+        "decisionBand": {
+          "low": 0.97,
+          "high": 1.03
+        },
+        "assessment": "within observed variation"
+      },
+      {
+        "cache": "1",
+        "metric": "agent",
+        "status": "passed",
+        "candidateMedianMs": 5.665124999999534,
+        "referenceMedianMs": 5.666875816269221,
+        "pairedRatio": 1.0101266065479113,
+        "roundRatios": [
+          1.0326162991847372,
+          0.9804662046066797,
+          1.0101266065479113
+        ],
+        "controlRatios": [
+          0.9090390583948413,
+          0.8270024518179421,
+          1.0934771663441951
+        ],
+        "decisionBand": {
+          "low": 0.8270024518179421,
+          "high": 1.2091862579146766
+        },
+        "assessment": "within observed variation"
+      },
+      {
+        "cache": "1",
+        "metric": "png",
+        "status": "unavailable",
+        "candidateMedianMs": null,
+        "referenceMedianMs": null,
+        "pairedRatio": null,
+        "roundRatios": [],
+        "controlRatios": [],
+        "decisionBand": {
+          "low": 0.97,
+          "high": 1.03
+        },
+        "assessment": "unavailable"
+      },
+      {
+        "cache": "1",
+        "metric": "pngReceipt",
+        "status": "unavailable",
+        "candidateMedianMs": null,
+        "referenceMedianMs": null,
+        "pairedRatio": null,
+        "roundRatios": [],
+        "controlRatios": [],
+        "decisionBand": {
+          "low": 0.97,
+          "high": 1.03
+        },
+        "assessment": "unavailable"
+      },
+      {
+        "cache": "1",
+        "metric": "layoutReceipt",
+        "status": "passed",
+        "candidateMedianMs": 195.7183972000033,
+        "referenceMedianMs": 195.47522078493702,
+        "pairedRatio": 1.0012440268085632,
+        "roundRatios": [
+          1.023020031542364,
+          0.9945754367771938,
+          1.0012440268085632
+        ],
+        "controlRatios": [
+          0.9744778923954155,
+          1.0298028636452634,
+          0.9864198102532701
+        ],
+        "decisionBand": {
+          "low": 0.97,
+          "high": 1.03
+        },
+        "assessment": "within observed variation"
+      },
+      {
+        "cache": "0",
+        "metric": "cold",
+        "status": "passed",
+        "candidateMedianMs": 288.98229100000003,
+        "referenceMedianMs": 288.7222653063382,
+        "pairedRatio": 1.0144516038515485,
+        "roundRatios": [
+          1.0144516038515485,
+          0.9692535582701964,
+          1.068386314064198
+        ],
+        "controlRatios": [
+          0.9500619582807743,
+          0.9824315998056304,
+          1.0857835644272555
+        ],
+        "decisionBand": {
+          "low": 0.9209938635675464,
+          "high": 1.0857835644272555
+        },
+        "assessment": "within observed variation"
+      },
+      {
+        "cache": "0",
+        "metric": "import",
+        "status": "passed",
+        "candidateMedianMs": 110.67270800000001,
+        "referenceMedianMs": 113.01945087572315,
+        "pairedRatio": 0.9792359380837584,
+        "roundRatios": [
+          0.9792359380837584,
+          0.9760446552605104,
+          1.1135285843847023
+        ],
+        "controlRatios": [
+          0.9342154775038272,
+          0.9813405465973587,
+          1.1638736926835498
+        ],
+        "decisionBand": {
+          "low": 0.8591997622132816,
+          "high": 1.1638736926835498
+        },
+        "assessment": "within observed variation"
+      },
+      {
+        "cache": "0",
+        "metric": "firstSvg",
+        "status": "passed",
+        "candidateMedianMs": 178.309583,
+        "referenceMedianMs": 172.84198321942245,
+        "pairedRatio": 1.0376521938734846,
+        "roundRatios": [
+          1.0376521938734846,
+          0.964930462400532,
+          1.0379837274387385
+        ],
+        "controlRatios": [
+          0.9606305669436227,
+          0.9831268024540185,
+          1.034963250795037
+        ],
+        "decisionBand": {
+          "low": 0.9606305669436227,
+          "high": 1.0409829068646406
+        },
+        "assessment": "within observed variation"
+      },
+      {
+        "cache": "0",
+        "metric": "svg",
+        "status": "passed",
+        "candidateMedianMs": 320.6384990000008,
+        "referenceMedianMs": 316.1067361501624,
+        "pairedRatio": 1.0121882402658045,
+        "roundRatios": [
+          1.0121882402658045,
+          1.0162476369599192,
+          1.0113818876302392
+        ],
+        "controlRatios": [
+          0.9776886374673203,
+          1.0065922911580207,
+          1.0777959519898754
+        ],
+        "decisionBand": {
+          "low": 0.9278194060329833,
+          "high": 1.0777959519898754
+        },
+        "assessment": "within observed variation"
+      },
+      {
+        "cache": "0",
+        "metric": "svgReceipt",
+        "status": "passed",
+        "candidateMedianMs": 299.19214100000016,
+        "referenceMedianMs": 300.68967146902946,
+        "pairedRatio": 0.9956762183992609,
+        "roundRatios": [
+          1.0051887687422016,
+          0.9791176615326929,
+          0.9956762183992609
+        ],
+        "controlRatios": [
+          0.9986901923318566,
+          0.9815610668903672,
+          0.9951065790403371
+        ],
+        "decisionBand": {
+          "low": 0.97,
+          "high": 1.03
+        },
+        "assessment": "within observed variation"
+      },
+      {
+        "cache": "0",
+        "metric": "ascii",
+        "status": "passed",
+        "candidateMedianMs": 588.1294579523812,
+        "referenceMedianMs": 608.7194237743936,
+        "pairedRatio": 0.9963240460869018,
+        "roundRatios": [
+          0.9963240460869018,
+          0.9617916939204972,
+          1.0127262059703588
+        ],
+        "controlRatios": [
+          0.9805086938977461,
+          1.036563701190369,
+          1.0146148399036017
+        ],
+        "decisionBand": {
+          "low": 0.9647260451544079,
+          "high": 1.036563701190369
+        },
+        "assessment": "within observed variation"
+      },
+      {
+        "cache": "0",
+        "metric": "asciiReceipt",
+        "status": "passed",
+        "candidateMedianMs": 1070.8345204999996,
+        "referenceMedianMs": 1062.4770420934005,
+        "pairedRatio": 1.0064876554081865,
+        "roundRatios": [
+          1.0064876554081865,
+          1.0252018574009343,
+          0.9936037230320373
+        ],
+        "controlRatios": [
+          1.0149858573178672,
+          0.9974981008015278,
+          1.0183251892778258
+        ],
+        "decisionBand": {
+          "low": 0.97,
+          "high": 1.03
+        },
+        "assessment": "within observed variation"
+      },
+      {
+        "cache": "0",
+        "metric": "unicode",
+        "status": "passed",
+        "candidateMedianMs": 611.4792396249964,
+        "referenceMedianMs": 608.5422019648147,
+        "pairedRatio": 1.0048263500061274,
+        "roundRatios": [
+          0.9695143573867526,
+          1.0115280495836017,
+          1.0048263500061274
+        ],
+        "controlRatios": [
+          0.9967862972668997,
+          0.9864417187886432,
+          0.9973620012569046
+        ],
+        "decisionBand": {
+          "low": 0.97,
+          "high": 1.03
+        },
+        "assessment": "within observed variation"
+      },
+      {
+        "cache": "0",
+        "metric": "unicodeReceipt",
+        "status": "passed",
+        "candidateMedianMs": 1058.9252709999982,
+        "referenceMedianMs": 1051.5264342748362,
+        "pairedRatio": 1.0198593678147214,
+        "roundRatios": [
+          0.9883355524651214,
+          1.021623220335735,
+          1.0198593678147214
+        ],
+        "controlRatios": [
+          1.0189546773822002,
+          0.9397321136754702,
+          1.0448600935136465
+        ],
+        "decisionBand": {
+          "low": 0.9397321136754702,
+          "high": 1.0641330496717951
+        },
+        "assessment": "within observed variation"
+      },
+      {
+        "cache": "0",
+        "metric": "agent",
+        "status": "passed",
+        "candidateMedianMs": 9.070270500000333,
+        "referenceMedianMs": 9.189080088687136,
+        "pairedRatio": 0.9870705677238495,
+        "roundRatios": [
+          1.010324895135906,
+          0.9809713123743621,
+          0.9870705677238495
+        ],
+        "controlRatios": [
+          1.0491533190379405,
+          1.024390116333993,
+          0.9835591740920234
+        ],
+        "decisionBand": {
+          "low": 0.9531495367302336,
+          "high": 1.0491533190379405
+        },
+        "assessment": "within observed variation"
+      },
+      {
+        "cache": "0",
+        "metric": "png",
+        "status": "unavailable",
+        "candidateMedianMs": null,
+        "referenceMedianMs": null,
+        "pairedRatio": null,
+        "roundRatios": [],
+        "controlRatios": [],
+        "decisionBand": {
+          "low": 0.97,
+          "high": 1.03
+        },
+        "assessment": "unavailable"
+      },
+      {
+        "cache": "0",
+        "metric": "pngReceipt",
+        "status": "unavailable",
+        "candidateMedianMs": null,
+        "referenceMedianMs": null,
+        "pairedRatio": null,
+        "roundRatios": [],
+        "controlRatios": [],
+        "decisionBand": {
+          "low": 0.97,
+          "high": 1.03
+        },
+        "assessment": "unavailable"
+      },
+      {
+        "cache": "0",
+        "metric": "layoutReceipt",
+        "status": "passed",
+        "candidateMedianMs": 264.9345546666664,
+        "referenceMedianMs": 267.9407635923497,
+        "pairedRatio": 0.9985928185993422,
+        "roundRatios": [
+          1.010759327507577,
+          0.9800760115379357,
+          0.9985928185993422
+        ],
+        "controlRatios": [
+          0.9947381013856798,
+          0.975409467543004,
+          1.0285393262617373
+        ],
+        "decisionBand": {
+          "low": 0.97,
+          "high": 1.03
+        },
+        "assessment": "within observed variation"
+      }
+    ],
+    "failedCaseCounts": [
+      {
+        "caseId": "class80",
+        "metric": "png",
+        "error": "RangeError: PNG raster budget exceeded: 12600\u00d72125 (27MP); maximum dimension is 16384px and pixel cap is 17MP",
+        "observations": 18
+      },
+      {
+        "caseId": "class80",
+        "metric": "pngReceipt",
+        "error": "RangeError: PNG raster budget exceeded: 12600\u00d72125 (27MP); maximum dimension is 16384px and pixel cap is 17MP",
+        "observations": 18
+      },
+      {
+        "caseId": "er40",
+        "metric": "png",
+        "error": "RangeError: PNG raster budget exceeded: 3915\u00d75644 (23MP); maximum dimension is 16384px and pixel cap is 17MP",
+        "observations": 18
+      },
+      {
+        "caseId": "er40",
+        "metric": "pngReceipt",
+        "error": "RangeError: PNG raster budget exceeded: 3915\u00d75644 (23MP); maximum dimension is 16384px and pixel cap is 17MP",
+        "observations": 18
+      },
+      {
+        "caseId": "state80",
+        "metric": "png",
+        "error": "RangeError: PNG raster budget exceeded: 368\u00d724770 (10MP); maximum dimension is 16384px and pixel cap is 17MP",
+        "observations": 18
+      },
+      {
+        "caseId": "state80",
+        "metric": "pngReceipt",
+        "error": "RangeError: PNG raster budget exceeded: 368\u00d724770 (10MP); maximum dimension is 16384px and pixel cap is 17MP",
+        "observations": 18
+      }
+    ],
+    "independentReductionVerified": true,
+    "scope": "Three bracketed paired rounds per cache flag; six fixed warm inputs, cold first-Flowchart costs, a separate agent-edit workflow and thirteen metrics through the unchanged PR core worker. Summed per-input medians are kept by API. Missing PNG portfolios stay unavailable. Control bands include reciprocals and the existing 3% practical floor; observed variation, not confidence intervals or a whole-renderer speed claim.",
+    "initialAttempt": "Retained separately as preparation failure: wrapper used the former qualifier path. No timing results from that attempt are included."
+  },
+  "liveAgent": "Left blocked at the user\u2019s explicit request; no provider or transcript evidence invented.",
+  "publication": "All benchmark execution local, outside CI. Only bounded ZenUML images and receipts uploaded to separate evidence branch; no large archives or dependencies uploaded.",
+  "reproduction": "Use the recorded immutable sources and own frozen locks. Benchmarks run locally outside CI. This is a bounded receipt; original archive bytes and full new raw worker files are not uploaded."
+}

@@ -1,0 +1,6 @@
+{
+  "graphLayout": {
+    "backend": "elk",
+    "fallback": "none"
+  }
+}
