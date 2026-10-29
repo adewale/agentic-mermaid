@@ -2023,3 +2023,103 @@ remain open, holdout sealed and peer/Trident qualification incomplete. The
 work-log-only follow-up changes no production/test/dependency/workflow and has
 no separate full-CI or readiness claim. No force push, merge, new PR/issue/comment,
 check/cap relaxation, default/version change, publication or timing campaign.
+
+### 29 October: preserve resource identity through final namespacing
+
+Parent revision: `81cd5da918b4c7307acb7f149a45a3513bbf9b68`. This is a
+bounded correctness repair on the retained PR449 branch, targeting 0.6; it is
+not Main, a release, full final-admission authority or seven-row qualification.
+Five existing GPT-6.1 Sol High agents performed disjoint implementation and
+independent falsification. The PR description stated the additional namespace
+contract before implementation. No external comments/messages were sent.
+
+`namespaceSvgIds` previously merged `arrowhead` and an existing `p-arrowhead`
+when applying `p-`. An entity-spelled existing ID instead acquired the wrong
+additional prefix. The repaired mapping uses once-XML-decoded identities,
+reserves natural targets and unresolved reference names before allocating
+suffixes, and uses the same mapping for declarations, URL/href and ARIA
+references. Already-prefixed names remain stable where possible. Literal text
+and data attributes remain outside rewriting.
+
+The owning regression genuinely fails against the unchanged committed
+producer: **4P/3F**, including actual Resvg marker ink. Both literal and
+entity-spelled fixtures lose/substitute **94 pixels** before repair; the
+current output changes **zero pixels** relative to independently authored
+original red/blue/green heads. Original heads are independently nonempty.
+The two definition orders have independently parsed Saxes identity/reference
+expectations; uniqueness alone would miss the entity-spelled ownership defect.
+
+Independent review then found the same preexisting failure class in encoded
+CSS function names, delimiters and quoted IDs. Decode complete XML CSS segments
+before URL tokenization, distinguish literal CDATA, and preserve actual XML
+comments. Three gradient controls each change **800 Resvg pixels** before the
+repair and zero afterward. Missing-reference controls also prevent a formerly
+missing resource from accidentally becoming resolved.
+
+A fake `</style>` inside an actual XML comment exposed premature stylesheet
+range termination. The shared scanner now locates the closing style element
+outside complete XML comments/CDATA; namespace processing preserves the comment
+nodes. **Chromium 154.0.8037.57**, using the actual SVG Blob/image-to-canvas
+path, independently observes original **800 painted gradient pixels**, old
+namespace **0** (identical to the reference-removed control), and repaired
+**800**, with zero original/repaired pixel differences. Exact SVG inputs,
+source copies, PNGs and RGBA readbacks are retained. Resvg does not positively
+support this comment fixture, so its observation remains unknown, not a second
+successful raster lane.
+
+A six-line scanner correction also prevents tag-like text in CDATA from
+becoming real ID/CSS inventory. Two independently authored metadata/visible-text
+controls genuinely fail before this correction and pass afterward. One old
+`svg-inspection` expectation counted a phantom `red` attribute inside literal
+CDATA; only that erroneous inventory item is removed, while its actual complete
+style-body and transformed-byte expectations remain. This is helper text
+preservation: every renderer security mode already rejects CDATA and processing
+instructions. Their rejection is unchanged and they do not count as accepted
+rendering successes or qualification of any original row.
+
+Final namespace/scanner owners pass **51P/0F/832 assertions** across ID hygiene,
+unique IDs, postpass characterization, SVG inspection and adversarial semantic
+owners. Scoped lint and diff checks pass. Separate combined paint/native
+validation/security/accessibility/preview owners pass **478P/0F/3839 assertions**;
+these five files do not overlap the namespace owner's five. Final source types
+and whole-repository lint pass; the existing oversized-JSON lint warning remains.
+The high-severity dependency audit passes for 688 packages, retaining eight
+findings below its threshold. No checks, ceilings or production work limits are
+relaxed; the 400,000-operation proof limit is unchanged.
+
+Fresh ordinary lazy ESM/DTS build passes. Independent final artifact readback
+retains all **59 JavaScript modules**, metadata and source copies. All **25
+families in both Scene assertion modes** preserve literal SVG bytes and entire
+receipts against the retained baseline, with independently authored visible-text
+witnesses parsed from actual SVG. This is 50 paired functional observations,
+not a holdout or broader author-meaning/ink theorem. Caps and exact-head CI are
+separate checks and remain to be recorded below.
+
+Evidence root: `/tmp/pr449-ci-fix2-20261029/`. Relevant members include
+`namespace-red.log`, `namespace-complete-owner-tests.log`, `namespace-ink/`,
+`namespace-architecture-review/chromium-comment/`,
+`REFROZEN-PAINT-SECURITY-PREVIEW.log`, `REFROZEN-TYPES.log`, `REFROZEN-LINT.log`,
+and `production-lazy-review/final-refrozen-epoch/EPOCH-RESULT.json`.
+Some review launch/observer setup attempts failed before their intended check;
+their original commands/results remain alongside the corrected observations.
+
+Unresolved counterexamples stay enrolled. Distinct overlapping prefixes `a`
+and `ar` still produce a preexisting **cross-document** identity collision:
+two actual `arrowhead` IDs, red ink 0/blue80 versus red40/blue40 under unambiguous
+prefixes, and 60 differing Resvg pixels. This repair establishes the stated
+single-document mapping contract, not a universal cross-document namespace
+format. Percent-encoded IRI experiments are withdrawn: Resvg supplied no
+positive original ink, and browser resolution was not established. PI phantom
+tag mutation and the CDATA fake-style-close observations are retained with
+all-mode renderer rejection, rather than promoted to accepted-render evidence.
+
+All original rows **77/87/88/89/103/206/209** remain unverified; all six 0.6 goals
+remain open. The holdout stays sealed, external Mermaid/Pele qualification is
+incomplete, and no aesthetics, runtime, memory or ELK parity claim is made.
+No timing campaign ran. Next correctness dependency is an explicit namespace
+identity contract for overlapping document prefixes, followed by same-emission
+geometry/paint receipts and exact final-admission authority. Row87 needs the
+whole ring/body contact proof as well as a common visible stroke witness:
+independent rational geometry shows a thinner B border can leave the witness
+visible while admitting forbidden fill intrusion. Its current U is not repaired
+by that calculation or by its retained 41-pixel marker intervention.

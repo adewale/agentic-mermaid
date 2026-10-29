@@ -45,6 +45,18 @@ function scanTagEnd(source: string, start: number): number {
   return end + 1
 }
 
+function scanStyleClose(source: string, start: number): number {
+  for (let cursor = source.indexOf('<', start); cursor >= 0; cursor = source.indexOf('<', cursor + 1)) {
+    const comment = source.startsWith('<!--', cursor), cdata = source.startsWith('<![CDATA[', cursor)
+    if (comment || cdata) {
+      const end = source.indexOf(comment ? '-->' : ']]>', cursor + (comment ? 4 : 9))
+      if (end < 0) return -1
+      cursor = end + 2
+    } else if (source.startsWith('</style', cursor) && (source[cursor + 7] === '>' || isWhitespace(source[cursor + 7]))) return cursor
+  }
+  return -1
+}
+
 /** Quote-aware lexical start-tag scan shared by safe SVG post-processors.
  * Final XML admission remains the authority for well-formedness; this scanner
  * only supplies exact attribute/text ranges without ever interpreting text
@@ -66,6 +78,12 @@ function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: S
   for (let start = source.indexOf('<'); start >= 0; start = source.indexOf('<', start + 1)) {
     if (source.startsWith('<!--', start)) {
       const end = source.indexOf('-->', start + 4)
+      if (end < 0) break
+      start = end + 2
+      continue
+    }
+    if (source.startsWith('<![CDATA[', start)) {
+      const end = source.indexOf(']]>', start + 9)
       if (end < 0) break
       start = end + 2
       continue
@@ -117,7 +135,7 @@ function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: S
     if (tags) tags.push(Object.freeze({ name, start, end, attributes: Object.freeze(attributes!), selfClosing }))
     if (first) return undefined
     if (styleContexts && name === 'style' && !selfClosing) {
-      const close = source.indexOf('</style', end)
+      const close = scanStyleClose(source, end)
       if (close >= 0) {
         const range = { start: end, end: close }
         cssRanges?.push(range)
@@ -237,13 +255,13 @@ export function svgCssText(source: string): string {
 
 export function transformSvgCssValues(
   source: string,
-  transform: (css: string) => string,
+  transform: (css: string, range: SvgRange) => string,
   projection: SvgCssProjection = projectSvgCss(source),
 ): string {
   if (projection.source !== source) throw new Error('SVG CSS projection does not match its source')
   return applyReplacements(source, projection.cssRanges.map(range => ({
     ...range,
-    value: transform(source.slice(range.start, range.end)),
+    value: transform(source.slice(range.start, range.end), range),
   })))
 }
 

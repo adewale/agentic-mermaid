@@ -1,5 +1,7 @@
 import { formatSvgNumericAttribute, SVG_LONG_DECIMAL } from './shared/svg-number.ts'
-import { scanSvgStartTags, transformSvgAttributes, transformSvgCssValues } from './svg-structure.ts'
+import { projectSvgCss, scanSvgStartTags, transformSvgAttributes, transformSvgCssValues } from './svg-structure.ts'
+import { decodeXML } from 'entities'
+import { escapeAttr } from './multiline-utils.ts'
 
 /** Fallback for opaque family and extension SVG. Typed writers format their
  * own numeric fields before serialization, so ordinary native output skips
@@ -48,35 +50,86 @@ export function compactSvg(svg: string): string {
  * ids (`arrowhead`, `bm-shadow`, etc.). Node/subgraph groups use `data-id`, not
  * `id`, so this only touches defs/markers/filters — exactly the colliding set.
  *
- * Pure string rewrite, deterministic. Idempotent only if the prefix isn't
- * already applied (callers pass a fresh prefix per diagram). Skips the xmlns
- * and any id that already starts with the prefix.
+ * Existing prefixed IDs retain their names. Reserve every natural target
+ * before allocating collision suffixes, including unresolved reference names
+ * so a missing resource cannot accidentally acquire a target. XML entities
+ * are interpreted once, while authored text and data identities remain inert.
  */
 export function namespaceSvgIds(svg: string, prefix: string): string {
   if (!/^[A-Za-z0-9_.:-]+$/.test(prefix)) {
     throw new Error('idPrefix must be non-empty and contain only ASCII letters, digits, underscore, hyphen, dot, and colon')
   }
-  // Collect declared ids so we only rewrite refs that point at our defs
-  // (never an accidental `url(#…)` inside escaped label text).
+  const attributeValue = (raw: string) => decodeXML(raw.replace(/\r\n?/g, '\n').replace(/[\t\n]/g, ' '))
+  const urls = (css: string, attribute: boolean, rename: (id: string) => string | undefined): string => {
+    const rewrite = (source: string, cdata: boolean): string => {
+      const value = cdata ? source : attribute ? attributeValue(source) : decodeXML(source.replace(/\r\n?/g, '\n'))
+      const rewritten = value.replace(/url\((?:"[^"]*"|'[^']*'|[^)]*)\)/gi, raw => {
+        const match = /^url\(\s*(?:"#([^"]*)"|'#([^']*)'|#([^\s)]+))\s*\)$/i.exec(raw)
+        if (!match) return raw
+        const id = (match[1] ?? match[2] ?? match[3])!, target = rename(id)
+        if (target === undefined || target === id) return raw
+        const start = raw.indexOf('#') + 1
+        return raw.slice(0, start) + target + raw.slice(start + id.length)
+      })
+      return rewritten === value ? source : cdata ? rewritten : escapeAttr(rewritten)
+    }
+    // CSS in CDATA has literal ampersands; ordinary XML character data and
+    // attributes expand entities before CSS tokenization, including function
+    // names and quote delimiters. XML comments are not CSS character data.
+    // Unchanged segments retain their raw bytes.
+    if (attribute) return rewrite(css, false)
+    const parts: string[] = []
+    let end = 0
+    for (const match of css.matchAll(/<!\[CDATA\[([\s\S]*?)\]\]>|<!--[\s\S]*?-->/g)) {
+      parts.push(rewrite(css.slice(end, match.index), false), match[1] === undefined ? match[0] : `<![CDATA[${rewrite(match[1], true)}]]>`)
+      end = match.index + match[0].length
+    }
+    parts.push(rewrite(css.slice(end), false))
+    return parts.join('')
+  }
+  const tags = scanSvgStartTags(svg)
   const declared = new Set<string>()
-  for (const tag of scanSvgStartTags(svg)) {
+  for (const tag of tags) {
     for (const attribute of tag.attributes) {
-      if (attribute.name === 'id') declared.add(attribute.value)
+      if (attribute.name === 'id') declared.add(attributeValue(attribute.value))
     }
   }
-  const namespaced = (id: string) => id.startsWith(prefix) ? id : `${prefix}${id}`
-  const attributes = transformSvgAttributes(svg, attribute => {
-    if (attribute.name === 'id') return namespaced(attribute.value)
+  const missing = new Set<string>()
+  const reference = (id: string): undefined => { if (!declared.has(id)) missing.add(id) }
+  for (const tag of tags) for (const attribute of tag.attributes) {
+    const value = attributeValue(attribute.value)
     if (attribute.name === 'aria-labelledby' || attribute.name === 'aria-describedby') {
-      return attribute.value.split(/\s+/).map(id => declared.has(id) ? namespaced(id) : id).join(' ')
+      for (const id of value.match(/[^\t\n\r ]+/g) ?? []) reference(id)
+    } else if ((attribute.name === 'href' || attribute.name === 'xlink:href') && value.startsWith('#')) reference(value.slice(1))
+  }
+  for (const range of projectSvgCss(svg).cssRanges) urls(svg.slice(range.start, range.end), svg[range.start - 1] === '"' || svg[range.start - 1] === "'", reference)
+  const base = (id: string) => id.startsWith(prefix) ? id : `${prefix}${id}`
+  const reserved = new Set([...declared].map(base))
+  for (const id of missing) reserved.add(id)
+  const names = new Map<string, string>()
+  for (const id of declared) {
+    let target = base(id)
+    if (!id.startsWith(prefix) && (declared.has(target) || missing.has(target))) {
+      let suffix = 1
+      while (reserved.has(`${target}-${suffix}`)) suffix++
+      target = `${target}-${suffix}`
     }
-    if ((attribute.name === 'href' || attribute.name === 'xlink:href') && attribute.value.startsWith('#')) {
-      const id = attribute.value.slice(1)
-      return declared.has(id) ? `#${namespaced(id)}` : attribute.value
+    reserved.add(target)
+    names.set(id, target)
+  }
+  const attributes = transformSvgAttributes(svg, attribute => {
+    const value = attributeValue(attribute.value)
+    let rewritten: string | undefined
+    if (attribute.name === 'id') rewritten = names.get(value)
+    if (attribute.name === 'aria-labelledby' || attribute.name === 'aria-describedby') {
+      rewritten = value.replace(/[^\t\n\r ]+/g, id => names.get(id) ?? id)
     }
-    return undefined
+    if ((attribute.name === 'href' || attribute.name === 'xlink:href') && value.startsWith('#')) {
+      const target = names.get(value.slice(1))
+      if (target !== undefined) rewritten = `#${target}`
+    }
+    return rewritten !== undefined && rewritten !== value ? escapeAttr(rewritten) : undefined
   })
-  return transformSvgCssValues(attributes, css =>
-    css.replace(/url\(#([^)]+)\)/g, (full, id: string) => declared.has(id) ? `url(#${namespaced(id)})` : full))
+  return transformSvgCssValues(attributes, (css, range) => urls(css, attributes[range.start - 1] === '"' || attributes[range.start - 1] === "'", id => names.get(id)))
 }
 
