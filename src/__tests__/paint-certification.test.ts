@@ -380,6 +380,75 @@ test('public same-emission rectangle Scene inspection remains a distinct unverif
   expect(rectangleEmissionElements(rounded.svg).find(element => element.attributes['data-id'] === 'served-card')!.attributes.x).toBe('60')
 })
 
+const duplicateMarkerPaintProgram = String.raw`
+import { getFamily, replaceFamilyForTest } from './src/agent/families.ts'
+import { sceneLowering } from './src/scene/drawing.ts'
+import { serializeMarkerResource } from './src/scene/marker-resources.ts'
+import { renderMermaidSVGWithReceipt } from './src/index.ts'
+const mode = process.env.AM_DUPLICATE_MARKER_MODE
+const family = getFamily('flowchart')
+const paint = mode === 'literal' ? '#111' : 'context-stroke'
+const marker = { id: 'duplicate-resource', shape: 'diamond', units: 'userSpaceOnUse', orient: 'auto-start-reverse',
+  size: { width: 14, height: 12 }, viewBox: { x: 0, y: 0, width: 14, height: 12 }, ref: { x: 13, y: 6 },
+  geometry: { kind: 'polygon', points: [{ x: 7, y: 1 }, { x: 13, y: 6 }, { x: 7, y: 11 }, { x: 1, y: 6 }] },
+  paint: { fill: paint, stroke: paint, strokeWidth: '1.5' } }
+const producer = (factory, context) => {
+  const { width, height } = context.positioned
+  const carrier = (id, stroke) => factory.connector({ id, role: id === 'later' && mode === 'owned-overlay' ? 'chrome' : 'edge',
+    owner: { id: id === 'later' && ['same-owner', 'owned-overlay'].includes(mode) ? 'earlier' : id, role: 'edge' },
+    lineStyle: 'solid', endpoints: { from: 'shared-source', to: id }, geometry: { kind: 'line', x1: 70, y1: 30, x2: 20, y2: 30 },
+    paint: { stroke, strokeWidth: '1' }, markers: { start: marker }, attributes: { className: 'duplicate-' + id } })
+  return { family: 'flowchart', width, height, colors: context.colors, transparent: false, parts: [
+    factory.documentOpen({ id: 'root', width, height, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + height + '">'),
+    factory.definitions({ id: 'resources' }, '<defs>' + serializeMarkerResource(marker) + '</defs>'),
+    carrier('earlier', '#111'), carrier('later', '#fff'), factory.documentClose(),
+  ] }
+}
+// This synthetic producer actually emits a chrome connector in this arm.
+// Declare that test-only capability while retaining the complete role ledger.
+const scenePrimitiveEvidence = mode === 'owned-overlay' ? family.scenePrimitiveEvidence.map(cell =>
+  cell.role === 'chrome' && cell.primitive === 'connector'
+    ? { ...cell, applicability: 'applicable', realization: 'native', evidence: ['src/__tests__/paint-certification.test.ts'], diagnostic: undefined }
+    : cell) : family.scenePrimitiveEvidence
+const restore = replaceFamilyForTest('flowchart', { ...family, scenePrimitiveEvidence, lowerScene: sceneLowering(producer) })
+try { console.log(JSON.stringify(renderMermaidSVGWithReceipt('flowchart LR\nA["Left<br/>upper<br/>lower"] --> B[Right]', { embedFontImport: false, security: 'strict', bg: '#fff' }))) }
+finally { restore() }
+`
+
+test.each((['literal', 'distinct-owner', 'same-owner', 'owned-overlay'] as const).flatMap(mode =>
+  (['native', 'scene'] as const).map(execution => ({ mode, execution })),
+))('public duplicate marker paint retains $mode obligations through $execution', async ({ mode, execution }) => {
+  const child = await runRectangleChild(process.execPath, ['--eval', duplicateMarkerPaintProgram], {
+    cwd: fileURLToPath(new URL('../../', import.meta.url)),
+    env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: execution === 'native' ? '0' : '1', AM_DUPLICATE_MARKER_MODE: mode },
+  })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  const result = JSON.parse(child.stdout) as ReturnType<typeof renderMermaidSVGWithReceipt>
+  const elements = rectangleEmissionElements(result.svg)
+  const resources = elements.filter(element => element.name === 'marker')
+  expect(resources).toHaveLength(1)
+  expect(resources[0]!.attributes).toMatchObject({ id: 'duplicate-resource', markerWidth: '14', markerHeight: '12', viewBox: '0 0 14 12', refX: '13', refY: '6', orient: 'auto-start-reverse', markerUnits: 'userSpaceOnUse' })
+  const polygon = elements.find(element => element.name === 'polygon')!.attributes
+  expect(polygon).toMatchObject({ fill: mode === 'literal' ? '#111' : 'context-stroke', stroke: mode === 'literal' ? '#111' : 'context-stroke', 'stroke-width': '1.5' })
+  const vertices = polygon.points!.match(/[-+]?(?:\d+\.?\d*|\.\d+)/g)!.map(Number)
+  expect(vertices).toEqual([7, 1, 13, 6, 7, 11, 1, 6])
+  const carriers = elements.filter(element => ['duplicate-earlier', 'duplicate-later'].includes(element.attributes.class ?? ''))
+  expect(carriers).toHaveLength(2)
+  expect(carriers.map(element => element.attributes.class)).toEqual(['duplicate-earlier', 'duplicate-later'])
+  expect(carriers.map(element => [element.attributes.x1, element.attributes.y1, element.attributes.x2, element.attributes.y2, element.attributes.stroke, element.attributes['stroke-width'], element.attributes['marker-start']])).toEqual([
+    ['70', '30', '20', '30', '#111', '1', 'url(#duplicate-resource)'],
+    ['70', '30', '20', '30', '#fff', '1', 'url(#duplicate-resource)'],
+  ])
+  expect(elements.some(element => element.attributes.transform !== undefined)).toBe(false)
+  // Cardinal start + auto-start-reverse maps the diamond to (64,25),
+  // (70,30),(64,35),(58,30). Point(64,27) is strict fill interior and
+  // three units off the shaft: contextual paint there belongs to the marker.
+  // Actual consumer support/erasure is separately observed; this test never
+  // replaces context-stroke with a guessed color or infers ink from a P flag.
+  expect(result.receipt.layoutCertification?.status).toBe(mode === 'literal' ? 'passed' : 'unverified')
+  expect(result.receipt.layoutCertification?.outputDigest).toBe(renderedSvgDigest(result.svg))
+})
+
 test.each(['agentic', 'elk'] as const)('public %s thick-arrow and borderless-state markers retain clipping and actual meaning', backend => {
   for (const source of ['flowchart LR\nA ==> B', 'stateDiagram-v2\nstate fork_state <<fork>>\n[*] --> fork_state\nfork_state --> State2\nfork_state --> State3\nstate join_state <<join>>\nState2 --> join_state\nState3 --> join_state\njoin_state --> State4\nState4 --> [*]']) {
     const result = renderMermaidSVGWithReceipt(source, { graphLayout: { backend, fallback: 'none' } })

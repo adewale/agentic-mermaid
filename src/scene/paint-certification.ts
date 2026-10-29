@@ -893,6 +893,45 @@ function markerMayHaveOpaqueFill(resolveColor: (value: string) => string | undef
   return !color || color[3] === 1
 }
 
+/** Identical resources can inherit different paint from distinct carriers.
+ * Only explicit concrete paint (or resolved paint in a flat context) can
+ * justify the existing exact-pose duplicate exemption. */
+function markerPaintIdentity(marker: MarkerDescriptor | undefined, resolveColor: (value: string) => string | undefined, work: () => boolean, resolveVariables: boolean): string | undefined {
+  if (!work() || !marker) return undefined
+  const descriptor = Object.getOwnPropertyDescriptor(marker, 'paint')
+  if (!descriptor || !('value' in descriptor) || !descriptor.value || typeof descriptor.value !== 'object') return undefined
+  const source = descriptor.value as MarkPaint, paint: MarkPaint = Object.create(null)
+  const pay = (count: number): boolean => { for (let i = 0; i < count; i++) if (!work()) return false; return true }
+  for (const field of ['fill', 'stroke', 'opacity', 'strokeWidth', 'strokeMiterlimit', 'strokeLinecap', 'strokeLinejoin', 'strokeDasharray', 'strokeDashoffset', 'paintOrder'] as const) {
+    if (!pay(4)) return undefined
+    const value = Object.getOwnPropertyDescriptor(source, field)
+    if (!value) { if (field in source) return undefined; continue }
+    if (!('value' in value) || value.value !== undefined && typeof value.value !== 'string') return undefined
+    if (typeof value.value === 'string' && !pay(value.value.length * 4)) return undefined
+    Object.defineProperty(paint, field, { value: value.value })
+  }
+  if (!paint.fill || !Number.isFinite(sceneGroupOpacity(paint.opacity)) || paintedStrokeExtent(paint, true) === undefined
+    || paint.strokeDasharray !== undefined && paint.strokeDasharray !== 'none' || paint.strokeDashoffset !== undefined
+    || paint.paintOrder !== undefined && paint.paintOrder !== 'normal') return undefined
+  const concrete = (raw: string): string | undefined => {
+    const color = raw === 'none' || tryParseCssColor(raw) ? raw : resolveVariables ? resolveColor(raw) : undefined
+    if (!color || !pay(color.length * 2 + 1) || color !== 'none' && !tryParseCssColor(color)) return undefined
+    return color
+  }
+  // The typed omitted-stroke model is shared with marker bounds. Supported
+  // emitted resources also require the existing closed root/defs/style guards;
+  // absence alone would not establish this default in arbitrary SVG.
+  const fill = concrete(paint.fill), stroke = concrete(paint.stroke ?? 'none')
+  if (fill === undefined || stroke === undefined || !pay(fill.length + stroke.length + 1)) return undefined
+  return `${fill}\0${stroke}`
+}
+
+function sameMarkerPaint(first: string | undefined, second: string | undefined, work: () => boolean): boolean {
+  if (first === undefined || second === undefined) return false
+  for (let i = 0; i < first.length + second.length; i++) if (!work()) return false
+  return first === second
+}
+
 /** A positive-length open-rectangle intersection proves actual straight shaft
  * ink, unlike a route envelope or a flattened curve approximation. */
 function lineCrossesInterior(line: readonly [ScenePoint, ScenePoint], interior: AxisAlignedBox): boolean {
@@ -1119,7 +1158,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       }
     }
   }
-  type MarkerTarget = { primitive: ScenePaintPrimitive; position: 'start' | 'mid' | 'end'; clipEligible: boolean; anchor: ScenePoint; repaint: string; bounds: AxisAlignedBox; hull?: readonly ScenePoint[]; padding?: number; witnesses?: readonly ScenePoint[]; actualInk: boolean; strokeProof?: MarkerPolygonProof; circleStroke?: CircleStrokeProof; semantic: boolean; mayFill: boolean }
+  type MarkerTarget = { primitive: ScenePaintPrimitive; position: 'start' | 'mid' | 'end'; clipEligible: boolean; anchor: ScenePoint; repaint: string; bounds: AxisAlignedBox; hull?: readonly ScenePoint[]; padding?: number; witnesses?: readonly ScenePoint[]; actualInk: boolean; paintIdentity?: string; strokeProof?: MarkerPolygonProof; circleStroke?: CircleStrokeProof; semantic: boolean; mayFill: boolean }
   const lastMarkers = new Map<string, MarkerTarget>()
   const reserveMarkerGeometry = (geometry: Geometry | undefined): boolean => {
     for (let i = 0; i < 32; i++) if (!work()) return false
@@ -1264,6 +1303,13 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       const actualInk = measuredWorld && knownMapping && descriptor?.paint?.vectorEffect !== 'non-scaling-stroke' && markerHasInk(descriptor, witnesses, resolvePaintColor, work)
       const previous = lastMarkers.get(key)
       const semantic = options.outputSupported !== false && !scene.family.startsWith('family:') && (['edge', 'relationship'].includes(primitive.role) && !!node.endpoints?.from && !!node.endpoints.to || previous?.semantic === true)
+      // Identity describes resource colors; existing visibility and alpha
+      // checks still own the enclosing group's composite opacity.
+      const paintIdentity = semantic && Number.isFinite(primitive.groupOpacity ?? 1) && (primitive.groupOpacity ?? 1) > 0 && (!node.stroke.mixBlendMode || node.stroke.mixBlendMode === 'normal')
+        ? markerPaintIdentity(descriptor, resolvePaintColor, work, primitive.ancestors.length === 0) : undefined
+      if (previous && (previous.semantic || semantic) && !sameMarkerPaint(previous.paintIdentity, paintIdentity, work)) {
+        issue({ code: 'POTENTIAL_OCCLUSION', id: previous.primitive.id, by: primitive.id, message: 'Coincident endpoint markers have no proved equal paint at their carriers' })
+      }
       const matrix = scenePrimitiveMatrix(primitive)
       const exactWorld = primitive.coverage === 'measured' && primitive.visibility !== 'conditional' && (primitive.groupOpacity ?? 1) === 1 && primitive.ancestors.length === 0
         && !!matrix && matrix[0] === 1 && matrix[1] === 0 && matrix[2] === 0 && matrix[3] === 1 && matrix[4] === 0 && matrix[5] === 0
@@ -1291,7 +1337,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
         occurrenceBounds.set(primitive, complete)
         if (!contains(finalBounds, complete)) issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Final viewport does not contain the complete emitted path envelope' })
       }
-      lastMarkers.set(key, { primitive, position: marker.position, clipEligible: semantic && exactWorld && knownMapping, anchor: marker.anchor, repaint: marker.repaint, bounds, hull: marker.hull, padding: marker.padding, witnesses, actualInk, strokeProof, circleStroke, semantic, mayFill })
+      lastMarkers.set(key, { primitive, position: marker.position, clipEligible: semantic && exactWorld && knownMapping, anchor: marker.anchor, repaint: marker.repaint, bounds, hull: marker.hull, padding: marker.padding, witnesses, actualInk, paintIdentity, strokeProof, circleStroke, semantic, mayFill })
     }
   }
   const markerCheck = (branch: Tree | undefined, target: MarkerTarget): void => {
@@ -1349,7 +1395,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       const later = markerTargets[laterIndex]!
       if (!work()) break
       if (!later.semantic || later.primitive.visibility === 'conditional' || later.primitive.order <= earlier.primitive.order
-        || earlier.anchor.x === later.anchor.x && earlier.anchor.y === later.anchor.y && earlier.repaint === later.repaint || !overlaps(earlier.bounds, later.bounds)) continue
+        || earlier.anchor.x === later.anchor.x && earlier.anchor.y === later.anchor.y && earlier.repaint === later.repaint && sameMarkerPaint(earlier.paintIdentity, later.paintIdentity, work) || !overlaps(earlier.bounds, later.bounds)) continue
       if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; break }
       let startWitness = 0, result: 'covered' | 'clear' | 'unknown' = 'unknown'
       while (!exhausted) {
