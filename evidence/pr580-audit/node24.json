@@ -1,5 +1,5 @@
 {
-  "runtime": "v24.22.1",
+  "runtime": "v24.22.2",
   "rows": [
     {
       "family": "class",
@@ -12,7 +12,7 @@
         "labels": 128,
         "occlusionPairs": 3560,
         "maxOcclusionPairs": 100000,
-        "operations": 386761,
+        "operations": 386823,
         "maxOperations": 400000,
         "markers": 127
       },

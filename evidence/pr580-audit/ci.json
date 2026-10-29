@@ -1,0 +1,149 @@
+{
+  "head": "da71287dc3557e79351819acaba97de65a21bff0",
+  "tree": "49b8b5c182110f3a83ca0da3eb373667539ebde7",
+  "base": "0a2dc30b6220c04182f8ccd45550689422606a22",
+  "merge": "e54d2bcbbd3d18506b72cefff75547367801a796",
+  "mergeParents": [
+    "0a2dc30b6220c04182f8ccd45550689422606a22",
+    "da71287dc3557e79351819acaba97de65a21bff0"
+  ],
+  "checkedAt": "2026-10-29T12:26:20Z",
+  "checkoutEvidence": "MCP conformance job123437850085 checked out e54d2bcbbd3d18506b72cefff75547367801a796; Git parents and final live refs match",
+  "status": "passed",
+  "runs": [
+    {
+      "name": "Ruff",
+      "id": 40871037636,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "CI",
+      "id": 40871037466,
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "jobs": [
+    {
+      "id": 123437850085,
+      "name": "MCP conformance",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123437850261,
+      "name": "Generated layout diagnostic (advisory)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123437850281,
+      "name": "Expire label approvals of earlier heads",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123437850338,
+      "name": "Changed tests fail on the base branch",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123437850345,
+      "name": "Unit tests (3/3)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123437850382,
+      "name": "Installed-package quickstarts",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123437850406,
+      "name": "Layout backend review evidence",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123437850462,
+      "name": "Unit tests (2/3)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123437850477,
+      "name": "Unit tests (1/3)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123437850505,
+      "name": "Independent semantic conformance / semantic",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123437850528,
+      "name": "E2E (browser-site)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123437850558,
+      "name": "E2E (payload)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123437850562,
+      "name": "E2E (browser)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123437850601,
+      "name": "E2E (cli)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123437850612,
+      "name": "Quality gates",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123437850674,
+      "name": "E2E (tarball-consumer-node22)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123437850698,
+      "name": "E2E (tarball-consumer)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123437850767,
+      "name": "E2E (dist-artifact)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123441777200,
+      "name": "test",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123444815727,
+      "name": "CI complete",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ]
+}

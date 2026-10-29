@@ -1,8 +1,8 @@
 {
   "pr": "https://github.com/adewale/agentic-mermaid/pull/580",
   "base": "0a2dc30b6220c04182f8ccd45550689422606a22",
-  "head": "774dd971de840d80ef317a9a720f3e1bb9b17224",
-  "productionTreeUnchangedSince": "beb4a08e4604b0cd2f498e4c9c6eb3464d9b8874",
+  "head": "da71287dc3557e79351819acaba97de65a21bff0",
+  "tree": "49b8b5c182110f3a83ca0da3eb373667539ebde7",
   "dependencies": {
     "bun": "1.4.2",
     "node": [
@@ -19,9 +19,26 @@
     "nativeSceneRedAgainstInitialPr": 4,
     "typecheck": "passed",
     "lint": "passed; existing1.2MiBdocumentationJSONwarning",
-    "build": "passed; productionbytesidenticalatfinaltest-onlyhead",
-    "ci": "pending",
-    "ciRun": 40866912762
+    "build": "passed on final production tree",
+    "ci": "passed",
+    "ciRun": 40871037466,
+    "editorBytes": 4729914,
+    "editorRawCap": 4730000,
+    "editorBudget": "passed in Chromium; cap unchanged",
+    "ciRuns": [
+      {
+        "name": "Ruff",
+        "id": 40871037636,
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "CI",
+        "id": 40871037466,
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ]
   },
   "audits": [
     {
@@ -52,11 +69,28 @@
       "evidence": [
         "32 sparse4096/5000 cases;32 candidate successes vs28 base",
         "1600 independent rectangle queries across both branch choices",
-        "Node24 and realChromium sparse red/green receipts"
+        "Node 24 and realChromium sparse red/green receipts"
       ],
       "finding": "Eager ER indexes rejected4096/5000-node diagrams accepted by base; the first lazy fix remained wrong for3\u20134relationships. Final caller-aware cutover fixes the demonstrated class."
     }
   ],
+  "finalSharedIndexAudit": {
+    "head": "da71287dc3557e79351819acaba97de65a21bff0",
+    "stableSortCases": 360,
+    "sortExhaustionBoundaries": 1854,
+    "crossRuntimeSortLedgers": "identical in Bun and Node24",
+    "browserSourceParityCases": 7,
+    "rectangleOracleQueries": 1600,
+    "sceneCases": 36,
+    "sparseSceneCases": 32,
+    "surfaceCases": 12,
+    "indexedNegative": "detected in both consumers",
+    "budgetExhaustion": "unverified at 400000; ER throws",
+    "finding": null,
+    "classWorstDirectionOperations": 391286,
+    "classOperationLimit": 400000
+  },
+  "ciFinding": "Charged native Array.sort comparison counts differed by19 between Bun and Chromium. Deterministic stable merge work, including copies and writes, now preserves exact receipts; a charged ordered-array fast path retains scaling admission.",
   "additionalFinding": "The source unit runner enables Scene assertions and bypasses native drawing; added explicit real Class native-emission consumption. All4directions fail on initialPR and passfinal.",
   "publicScalingReceipts": {
     "node22": {
@@ -73,7 +107,7 @@
             "labels": 128,
             "occlusionPairs": 3560,
             "maxOcclusionPairs": 100000,
-            "operations": 386761,
+            "operations": 386823,
             "maxOperations": 400000,
             "markers": 127
           },
@@ -161,7 +195,7 @@
       ]
     },
     "node24": {
-      "runtime": "v24.22.1",
+      "runtime": "v24.22.2",
       "rows": [
         {
           "family": "class",
@@ -174,7 +208,7 @@
             "labels": 128,
             "occlusionPairs": 3560,
             "maxOcclusionPairs": 100000,
-            "operations": 386761,
+            "operations": 386823,
             "maxOperations": 400000,
             "markers": 127
           },
@@ -275,7 +309,7 @@
             "labels": 128,
             "occlusionPairs": 3560,
             "maxOcclusionPairs": 100000,
-            "operations": 386781,
+            "operations": 386823,
             "maxOperations": 400000,
             "markers": 127
           },
@@ -369,5 +403,154 @@
     "Live-agent evaluations remain blocked as requested.",
     "Earlier route findings and original archive provenance are outside this PR.",
     "No performance score or unrestricted scalability claim; benchmarks remain outsideCI and no archives uploaded."
-  ]
+  ],
+  "finalCombinedCandidate": {
+    "head": "da71287dc3557e79351819acaba97de65a21bff0",
+    "tree": "49b8b5c182110f3a83ca0da3eb373667539ebde7",
+    "base": "0a2dc30b6220c04182f8ccd45550689422606a22",
+    "merge": "e54d2bcbbd3d18506b72cefff75547367801a796",
+    "mergeParents": [
+      "0a2dc30b6220c04182f8ccd45550689422606a22",
+      "da71287dc3557e79351819acaba97de65a21bff0"
+    ],
+    "checkedAt": "2026-10-29T12:26:20Z",
+    "checkoutEvidence": "MCP conformance job123437850085 checked out e54d2bcbbd3d18506b72cefff75547367801a796; Git parents and final live refs match",
+    "status": "passed",
+    "runs": [
+      {
+        "name": "Ruff",
+        "id": 40871037636,
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "CI",
+        "id": 40871037466,
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ],
+    "jobs": [
+      {
+        "id": 123437850085,
+        "name": "MCP conformance",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123437850261,
+        "name": "Generated layout diagnostic (advisory)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123437850281,
+        "name": "Expire label approvals of earlier heads",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123437850338,
+        "name": "Changed tests fail on the base branch",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123437850345,
+        "name": "Unit tests (3/3)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123437850382,
+        "name": "Installed-package quickstarts",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123437850406,
+        "name": "Layout backend review evidence",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123437850462,
+        "name": "Unit tests (2/3)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123437850477,
+        "name": "Unit tests (1/3)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123437850505,
+        "name": "Independent semantic conformance / semantic",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123437850528,
+        "name": "E2E (browser-site)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123437850558,
+        "name": "E2E (payload)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123437850562,
+        "name": "E2E (browser)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123437850601,
+        "name": "E2E (cli)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123437850612,
+        "name": "Quality gates",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123437850674,
+        "name": "E2E (tarball-consumer-node22)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123437850698,
+        "name": "E2E (tarball-consumer)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123437850767,
+        "name": "E2E (dist-artifact)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123441777200,
+        "name": "test",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123444815727,
+        "name": "CI complete",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ]
+  }
 }

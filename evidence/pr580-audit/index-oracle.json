@@ -1,1 +1,1 @@
-{"status":"all strict overlap sets equal the independent exhaustive scan","items":256,"summaries":[{"expectedBatchQueries":1,"checks":800,"operations":204800},{"expectedBatchQueries":10000,"checks":800,"operations":23823}]}
+{"status":"all strict overlap sets equal the independent exhaustive scan","items":256,"summaries":[{"expectedBatchQueries":1,"checks":800,"operations":204800},{"expectedBatchQueries":10000,"checks":800,"operations":36045}]}

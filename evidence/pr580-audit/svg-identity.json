@@ -1,0 +1,24 @@
+{
+  "head": "da71287dc3557e79351819acaba97de65a21bff0",
+  "comparison": "complete final SVG bytes equal the saved production SVGs used in the visual crops",
+  "rows": [
+    {
+      "family": "class",
+      "backend": "agentic",
+      "savedSvgBytesIdentical": true,
+      "sha256": "bfbb77b3c6f56e2126b77b9ec2d23afb556a261c111fcd93e84cbc6879487023"
+    },
+    {
+      "family": "er",
+      "backend": "elk",
+      "savedSvgBytesIdentical": true,
+      "sha256": "0f91370ab29f87a9d96a3fcc21f041b25280b61dd060207b3d5a4889d3511a15"
+    },
+    {
+      "family": "er",
+      "backend": "agentic",
+      "savedSvgBytesIdentical": true,
+      "sha256": "bbfbebb2f92a170ccae26e00076c93aaa5d7a92a4583c0bfbf248f0455111ab4"
+    }
+  ]
+}
