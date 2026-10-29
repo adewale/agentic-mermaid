@@ -569,15 +569,15 @@
       {"id":"E","x":136,"y":782,"w":66,"h":37,"shape":"rectangle","label":"End"}
     ],
     "edges": [
-      {"id":"Z->A","from":"Z","to":"A","path":[[170,77],[170,193]],"label":{"x":170,"y":96,"text":"long 1"}},
-      {"id":"Z->A#1","from":"Z","to":"A","path":[[200,77],[200,193]],"label":{"x":200,"y":135,"text":"long 2"}},
-      {"id":"A->B","from":"A","to":"B","path":[[163,230],[163,346]],"label":{"x":163,"y":249,"text":"3"}},
-      {"id":"A->B#1","from":"A","to":"B","path":[[183,230],[183,346]],"label":{"x":183,"y":288,"text":"4"}},
+      {"id":"Z->A","from":"Z","to":"A","path":[[170,77],[170,193]],"label":{"x":170,"y":103,"text":"long 1"}},
+      {"id":"Z->A#1","from":"Z","to":"A","path":[[200,77],[200,193]],"label":{"x":200,"y":144,"text":"long 2"}},
+      {"id":"A->B","from":"A","to":"B","path":[[163,230],[163,346]],"label":{"x":163,"y":288,"text":"3"}},
+      {"id":"A->B#1","from":"A","to":"B","path":[[183,230],[183,346]],"label":{"x":201,"y":288,"text":"4"}},
       {"id":"B->C","from":"B","to":"C","path":[[198,383],[198,476]],"label":{"x":198,"y":429,"text":"5"}},
       {"id":"B->D","from":"B","to":"D","path":[[170,383],[170,476],[125,476],[125,617],[156,617],[156,629]],"label":{"x":125,"y":571,"text":"6"}},
       {"id":"C->D","from":"C","to":"D","path":[[197,513],[197,629]],"label":{"x":197,"y":571,"text":"7"}},
       {"id":"D->E","from":"D","to":"E","path":[[168,666],[168,782]],"label":{"x":168,"y":724,"text":"8"}},
-      {"id":"B->A","from":"B","to":"A","path":[[145,346],[145,230]],"label":{"x":145,"y":288,"text":"9"}},
+      {"id":"B->A","from":"B","to":"A","path":[[145,346],[145,230]],"label":{"x":127,"y":288,"text":"9"}},
       {"id":"C->A","from":"C","to":"A","path":[[274,494],[285,494],[285,212],[208,212]],"label":{"x":285,"y":417,"text":"10"}},
       {"id":"D->A","from":"D","to":"A","path":[[168,666],[168,690],[48,690],[48,212],[132,212]],"label":{"x":48,"y":451,"text":"11"}},
       {"id":"B->B","from":"B","to":"B","path":[[136,356],[112,356],[112,374],[136,374]],"label":{"x":94,"y":369,"text":"12"}},
@@ -609,17 +609,17 @@
   },
   "AL": {
     "title": "equivalent terminal peer fan-out",
-    "shell": {"version":1,"kind":"flowchart","bounds":{"w":376,"h":202}},
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":373,"h":202}},
     "nodes": [
-      {"id":"Source","x":143,"y":40,"w":86,"h":37,"shape":"rectangle","label":"Source"},
-      {"id":"Left","x":36,"y":125,"w":81,"h":37,"shape":"rectangle","label":"Left"},
-      {"id":"Mid","x":145,"y":125,"w":81,"h":37,"shape":"rectangle","label":"Middle"},
-      {"id":"Right","x":254,"y":125,"w":81,"h":37,"shape":"rectangle","label":"Right"}
+      {"id":"Source","x":140,"y":40,"w":86,"h":37,"shape":"rectangle","label":"Source"},
+      {"id":"Left","x":33,"y":125,"w":81,"h":37,"shape":"rectangle","label":"Left"},
+      {"id":"Mid","x":142,"y":125,"w":81,"h":37,"shape":"rectangle","label":"Middle"},
+      {"id":"Right","x":251,"y":125,"w":81,"h":37,"shape":"rectangle","label":"Right"}
     ],
     "edges": [
-      {"id":"Source->Left","from":"Source","to":"Left","path":[[164,77],[164,101],[77,101],[77,125]]},
-      {"id":"Source->Mid","from":"Source","to":"Mid","path":[[186,77],[186,125]]},
-      {"id":"Source->Right","from":"Source","to":"Right","path":[[207,77],[207,101],[295,101],[295,125]]}
+      {"id":"Source->Left","from":"Source","to":"Left","path":[[161,77],[161,101],[73,101],[73,125]]},
+      {"id":"Source->Mid","from":"Source","to":"Mid","path":[[183,77],[183,125]]},
+      {"id":"Source->Right","from":"Source","to":"Right","path":[[204,77],[204,101],[292,101],[292,125]]}
     ],
     "groups": []
   },

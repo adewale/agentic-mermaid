@@ -68,6 +68,15 @@ function sameEndpointRay(before: readonly Point[], after: readonly Point[], posi
   return Math.sign(p.x - a.x) === Math.sign(q.x - a.x) && Math.sign(p.y - a.y) === Math.sign(q.y - a.y)
 }
 
+/** A rounded orthogonal route paints its endpoint marker along its final
+ * straight segment; the corners before it never reach the marker's tangent. */
+function sameTerminalSegment(before: readonly Point[], after: readonly Point[], position: MarkerRegion['position']): boolean {
+  if (position === 'mid' || before.length < 2 || after.length < 2) return false
+  const pick = (points: readonly Point[]): readonly [Point, Point] => position === 'start' ? [points[0]!, points[1]!] : [points.at(-1)!, points.at(-2)!]
+  const [a, b] = pick(before), [c, d] = pick(after)
+  return a.x === c.x && a.y === c.y && b.x === d.x && b.y === d.y
+}
+
 function separated(a: MarkerRegion, b: MarkerRegion): boolean {
   const x = a.bounds, y = b.bounds
   if (!x || !y || !measured(a) || !measured(b)) return false
@@ -77,6 +86,22 @@ function separated(a: MarkerRegion, b: MarkerRegion): boolean {
   // gap. These are conservative complete stroke/cap/viewport envelopes.
   const error = values.reduce((sum, value) => sum + Math.abs(value), 0) * 1e-10 + 1e-9
   return Number.isFinite(error) && (x.x1 + error < y.x0 || y.x1 + error < x.x0 || x.y1 + error < y.y0 || y.y1 + error < x.y0)
+}
+
+/** One shared terminal paints a single final shaft and glyph for every edge
+ * merged into it. That ink stands for each member only when the members paint
+ * identically and at most one of them is named: a different dash, width or
+ * colour would be painted over, and two labels cannot both own one arrowhead. */
+export function edgesMayShareTerminal(a: PositionedEdge, b: PositionedEdge): boolean {
+  if (a.label && b.label) return false
+  if (a.style !== b.style || a.curve !== b.curve || a.animate !== b.animate || a.animation !== b.animation) return false
+  const styleA = a.inlineStyle ?? {}, styleB = b.inlineStyle ?? {}
+  for (const key in styleA) if (!(key in styleB) || styleB[key] !== styleA[key]) return false
+  for (const key in styleB) if (!(key in styleA)) return false
+  const classesA = a.classNames ?? [], classesB = b.classNames ?? []
+  if (classesA.length !== classesB.length) return false
+  for (let index = 0; index < classesA.length; index++) if (classesA[index] !== classesB[index]) return false
+  return true
 }
 
 /** Optional endpoint-centering candidates may not discard reserved marker
@@ -95,7 +120,8 @@ export function routeCandidateMarkerBlocker(edge: PositionedEdge, points: Point[
     if (old && old.resource === marker.resource && old.repaint === marker.repaint
       && old.anchor.x === marker.anchor.x && old.anchor.y === marker.anchor.y
       && (oldView.directional && newView.directional ? sameEndpointRay(oldView.points, newView.points, marker.position)
-        : edge.points.length === points.length && edge.points.every((point, index) => point.x === points[index]!.x && point.y === points[index]!.y))) continue
+        : edge.curve ? edge.points.length === points.length && edge.points.every((point, index) => point.x === points[index]!.x && point.y === points[index]!.y)
+          : sameTerminalSegment(edge.points, points, marker.position))) continue
     if (!measured(marker)) return blocker(peerOwner, marker.position, 'marker')
     for (const opposite of after) if (opposite !== marker && !separated(marker, opposite)) return blocker(peerOwner, opposite.position, 'opposite-marker')
     for (const peer of peers) {
@@ -111,7 +137,7 @@ export function routeCandidateMarkerBlocker(edge: PositionedEdge, points: Point[
         if (newView.directional && peerView.directional && measured(occurrence) && marker.position === occurrence.position
           && ownNode === peerNode && marker.resource === occurrence.resource && marker.repaint === occurrence.repaint
           && marker.anchor.x === occurrence.anchor.x && marker.anchor.y === occurrence.anchor.y
-          && sameEndpointRay(newView.points, peerView.points, marker.position)) continue
+          && sameEndpointRay(newView.points, peerView.points, marker.position) && edgesMayShareTerminal(edge, peer)) continue
         if (!separated(marker, occurrence)) return blocker(peer, occurrence.position, 'peer-marker')
       }
     }

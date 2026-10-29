@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "status": "approved",
-  "reviewedAt": "2026-10-27",
-  "reviewer": "Codex agents, PR #449 canonical Cupertino routing and marker review",
-  "scope": "Agent visual review of the canonical Cupertino catalog capture at 8d7479e9, with its catalog shadow option. The PNG remains 900×191. Compared with the reviewed 25b7 image, 1,000 pixels change within (145, 70)–(780, 139); the intermediate 888 f019 image is not adopted. All 127 XML elements, 6 nodes, 7 authored edges, Core membership, 9 prepared texts, styles and semantic attributes are retained. Exactly 48 nonzero served line/quadratic tangent vectors are cardinal. All 14 outward approaches have actual painted contact; 13 have exact served centerline/face equality. The Intake facet contact has an explicitly recorded 2.58e-10px centerline residual and exact round-tip stroke/body contact, without an equality tolerance. Complete marker supports, foreign shafts/cards, both opaque label halos and the full header are clear. The two Export arrowheads have a 5.008333333px complete stroke-envelope gap. The two other artifact approvals retain their prior hashes. The existing cookbook owner reproduced these exact Cupertino PNG bytes at runtimes 4461bc8b and 04c52334. Its separate transit-map screenshot mismatch remains unapproved and is not part of this artifact review. This is agent review, not human approval, exhaustive font-outline/filter certification or universal rendering parity.",
+  "reviewedAt": "2026-10-29",
+  "reviewer": "Codex agent, PR #571 adversarial audit fixes",
+  "scope": "Agent review of the regenerated Cupertino documentation capture with its catalog shadow option, at 900x186 (previously900x187). Inspected complete before/after: six cards, seven directed links, Core membership, labels and two distinct entries into the decision are retained. Styled marker strokes now have four pixels of straight shaft after corners before projection. The two Export arrowheads remain distinct. Vercel and Cloudflare bytes are unchanged. Transit and mid-century cookbook captures also reflect the styled-hook spacing and were inspected. This is agent review, not human approval or exhaustive rendering proof.",
   "artifacts": [
     {
       "id": "cupertino-prototype",
       "path": "docs/assets/style-cookbook/cupertino-prototype.png",
-      "sha256": "0b8a5382ca5c4363514ed5ff8d92753484c91146ef7a8e2e26786fe1fda13ee2"
+      "sha256": "7e50d010c627341c2dcf63fb30f0e364f3461027a49c78447272421c965305fd"
     },
     {
       "id": "vercel-inspired-prototype",

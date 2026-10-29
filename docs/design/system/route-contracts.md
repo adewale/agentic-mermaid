@@ -220,8 +220,15 @@ sitting off the diamond's centerline; rectangles use the full side minus a
   parallel segment ("channel" blocker),
 - if the edge has a label, the new segment has capacity for the pill
   (pill extent along the lane + clearance), and an **on-lane label slot**
-  exists — midpoint, then 1/3, then 2/3 — whose pill rect is clear of
-  nodes, other pills, and other edges' segments. On-lane only: a label
+  exists — midpoint, then 1/3, then 2/3, then the seat nearest the
+  midpoint beside the obstacles that block those, with the whole pill on
+  the lane — whose pill rect is clear of nodes, other pills, and other
+  edges' segments. The edge's own endpoints are obstacles too: the pill
+  keeps its 4px halo, the marker painted at that end, and 4px of visible
+  line clear of each (#566), so a label never reads as an annotation on
+  the node. A Z repair seats its label on the longer leg, or on the other
+  leg when that one proves the capacity and the longer leg has no seat;
+  it never seats a pill over its bend. On-lane only: a label
   must sit on its own route so the label-to-edge association stays
   unambiguous (Kakoulis & Tollis' edge-label-placement criterion; dot
   realizes the same doctrine by making labels virtual nodes with reserved
@@ -271,6 +278,16 @@ edge in `A --> X; A --> B; X --> B` could run its trunk straight through
 before they are assigned; a blocked member falls out of the bundle (keeping
 its ELK route, which the route-contract pass then straightens or explains),
 and the junction is re-derived from the members that remain.
+
+A member also falls out when its trunk would add ink shared in opposite
+directions with another edge (#566). Such ink reads as a bus: each route
+seems to reach the other's target. It is admitted only when both of those
+readings are real edges painted alike, as in the complete bipartite join of
+`A & B --> C & D`. A fan-in trunk laid back along the reverse route that
+leaves the same port does not qualify.
+An invisible layout link or a differently painted cross-relation cannot supply
+that proof. Admission compares the identities of opposing peers, not only their
+count: exchanging one existing misleading overlap for a new peer is rejected.
 
 Bundle exemptions also cover symmetric convergence and separated parallel
 lanes. Their bounded producers retain ownership of the actual related routes;
@@ -340,7 +357,13 @@ capacities) and Visio connection points with static vs dynamic glue:
   port, then the source's, before any floating candidate — aligned chains
   run port to port, and a fan-in target receives its edge at the exact
   side midpoint. Same-target edges may converge exactly collinearly at the
-  shared port (the classic fan-in merge into one arrowhead).
+  shared port (the classic fan-in merge into one arrowhead) when they paint
+  identically (stroke kind, inline style, classes, curve, animation) and at
+  most one of them carries a label. Otherwise the shared ink would overpaint
+  one relationship with another or leave two labels owning one arrowhead,
+  so each keeps its own terminal: a route that bends anyway yields the port
+  to a peer that can enter it straight, and takes its own entry or a lane
+  one parallel-pair separation beside the port (#566).
 - **Dynamic glue second**: when centers don't align, a straight lane still
   beats a port-pure Z-bend; the off-port end floats on the side/facet
   (Mermaid's own attachment model). A port lane may attach its floating
@@ -422,7 +445,8 @@ port-candidate cost model (fixed candidates with costs + overflow):
       cross extent and a stub of at least `HOOK_STUB_MIN = 8` px (a
       shorter stub reads as a hitch, not an entry — the degenerate TD/BT
       case keeps its Z). **A fan-in merge outranks the hook**: when a
-      same-target sibling already holds the flow-side entry port, the Z
+      same-target sibling it may share a terminal with already holds the
+      flow-side entry port, the Z
       that converges there into one shared arrowhead (yFiles edge
       grouping; Kakoulis–Tollis unambiguity) beats splitting the fan-in
       across two sides;
@@ -433,7 +457,8 @@ port-candidate cost model (fixed candidates with costs + overflow):
    shared port.
 2. **A side carrying several lines spreads them** along its legal region
    (facet/flat) — no line hogs the point. Fan-ins INTO a side still prefer
-   the target port, where same-target edges merge into one arrowhead.
+   the target port, where same-target edges that may share a terminal
+   merge into one arrowhead.
 3. **When two single-line port lanes conflict** (misaligned centers), the
    sharper shape wins — vertex (sharpness 2) over flat midpoint (1) — and
    the source wins ties (emit beats receive).
@@ -700,6 +725,22 @@ geometry, so future changes cannot visually break these drawings
 without a deliberate re-pin and sheet review. The L–V fan-in scenarios
 demonstrate the symmetric merge across every PORT_EXACT shape; E/G/K
 demonstrate the diamond facet-mid ports.
+
+**Terminal hooks seat their markers (#566).** A route's last bend sits at
+least `terminalHookLength` from a marked endpoint: the painted marker (8px
+scaled by the stroke, or the fixed head of an authored width), the rounded
+corner radius and 4px of visible line, never less than the established 12px.
+Styled hooks include the marker's backward stroke support. The default 1px
+square-cornered style keeps its established 12px (a nominal 4px allowance before
+marker stroke). The Z and
+escape-detour jogs, bundled junctions, re-anchored doglegs and ELK's
+between-layer edge/node spacing all use it, so a styled arrowhead never
+hangs off its corner (ER already sizes its ELK spacing from marker ink the
+same way). ELK resolves the actual visible edges' thick/inline paint and both
+endpoints at root and nested scopes. Its rank gap also reserves both heads when
+a straight route has no elbow to provide that space. ELK's in-layer edge/node gap, which sets the height of outer
+feedback channels, takes the hook only when the graph has a cycle (a
+self-loop included): an acyclic graph has no such channel to widen.
 
 ### 6.3 Hardening found by the property oracles (layout-rubric harness)
 

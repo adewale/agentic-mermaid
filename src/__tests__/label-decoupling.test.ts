@@ -32,7 +32,7 @@ import type { PositionedNode, PositionedEdge } from '../types.ts'
 // from B. Remove any one and A→B is already mid-port.
 const MIN = 'flowchart LR\n  A -->|x| B\n  B2 --> B\n  B --> C'
 
-function abPortGap(): number {
+function abPortGap(): { portGap: number; straight: boolean } {
   const p = layoutGraphSync(parseMermaid(MIN))
   const A = p.nodes.find(n => n.id === 'A')!
   const ab = p.edges.find(e => e.source === 'A' && e.target === 'B')!
@@ -67,7 +67,7 @@ function abPortGap(): number {
     expect(meets({ x0: Math.min(...corners.map(point => point.x)) - 0.375, x1: Math.max(...corners.map(point => point.x)) + 0.375,
       y0: Math.min(...corners.map(point => point.y)) - 0.375, y1: Math.max(...corners.map(point => point.y)) + 0.375 })).toBe(false)
   }
-  return Math.abs(Math.round(ab.points[0]!.y) - Math.round(A.y + A.height / 2))
+  return { portGap: Math.abs(Math.round(ab.points[0]!.y) - Math.round(A.y + A.height / 2)), straight: ab.points.length === 2 }
 }
 
 describe('label decoupling (APL_DECOUPLE_LABELS)', () => {
@@ -75,18 +75,22 @@ describe('label decoupling (APL_DECOUPLE_LABELS)', () => {
     const previous = process.env.APL_DECOUPLE_LABELS
     delete process.env.APL_DECOUPLE_LABELS
     try {
-      expect(abPortGap()).toBeLessThanOrEqual(1) // mid-port exit — co-rank centres the hub, no decoupling
+      expect(abPortGap().portGap).toBeLessThanOrEqual(1) // mid-port exit — co-rank centres the hub, no decoupling
     } finally {
       if (previous === undefined) delete process.env.APL_DECOUPLE_LABELS
       else process.env.APL_DECOUPLE_LABELS = previous
     }
   })
 
-  test('with decoupling enabled: the labelled edge still keeps its mid-port', () => {
+  test('with decoupling enabled: the labelled edge stays straight with its label clear', () => {
     const previous = process.env.APL_DECOUPLE_LABELS
     process.env.APL_DECOUPLE_LABELS = '1'
     try {
-      expect(abPortGap()).toBeLessThanOrEqual(1) // mid-port — the decoupling mechanism
+      // Without ELK's reserved label cell the A->B gap is one 48px layer: the
+      // pill, the halo clearance beside A and beside B's arrowhead, and B2's
+      // terminal hook do not all fit on A's mid-port lane (#566), so the slide
+      // onto it is refused and A->B straightens on B's side instead.
+      expect(abPortGap().straight).toBe(true)
     } finally {
       if (previous === undefined) delete process.env.APL_DECOUPLE_LABELS
       else process.env.APL_DECOUPLE_LABELS = previous

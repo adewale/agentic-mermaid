@@ -5,8 +5,11 @@ import { clipEdgeToShape } from '../../shape-clipping.ts'
 import { nodePaintBounds, paintedStrokeExtent } from '../../scene/bounds.ts'
 import { shape } from '../../scene/marks.ts'
 import { formatSvgNumber } from '../../shared/svg-number.ts'
-import { routeCandidateMarkerBlocker, routeMarkerPaintRegions } from '../route-marker-clearance.ts'
+import { edgesMayShareTerminal, routeCandidateMarkerBlocker, routeMarkerPaintRegions } from '../route-marker-clearance.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
+import { opposingRoutePartners } from '../../shared/edge-overlaps.ts'
+import { terminalHookLength } from '../route-geometry.ts'
+import { hookedElbow } from './shared.ts'
 
 /**
  * Find all groups (outermost first) that geometrically contain the given point.
@@ -147,11 +150,27 @@ export function bundleEdgePaths(
       candidates.set(edge, clipEdgeToShape(clipEdgeToShape(points, source, true), target, false))
     }
     const staged = edges.map(edge => candidates.has(edge) ? { ...edge, points: candidates.get(edge)! } : edge)
+    // Ink shared in opposite directions reads as a bus: each route seems to
+    // reach the other's target. A trunk may run back along another edge only
+    // where both readings are real edges painted alike (a complete bipartite
+    // join), never along e.g. the reverse route leaving the same port.
+    const realEdge = (source: string, target: string, paint: PositionedEdge) => edges.some(edge => edge.source === source && edge.target === target
+      && edge.style !== 'invisible' && edgesMayShareTerminal(paint, edge)
+      && edge.hasArrowStart === paint.hasArrowStart && edge.hasArrowEnd === paint.hasArrowEnd
+      && (edge.startMarker ?? 'arrow') === (paint.startMarker ?? 'arrow') && (edge.endMarker ?? 'arrow') === (paint.endMarker ?? 'arrow'))
+    const misleads = (member: PositionedEdge, other: PositionedEdge) => !edgesMayShareTerminal(member, other)
+      || !realEdge(member.source, other.target, member) || !realEdge(other.source, member.target, other)
+    const opposingAdded = (member: PositionedEdge, candidate: PositionedEdge): boolean => {
+      const others = edges.filter(edge => edge !== member)
+      const before = new Set(opposingRoutePartners(member, others))
+      return opposingRoutePartners(candidate, others).some(other => !before.has(other) && misleads(member, other))
+    }
     return members.filter(member => {
       const points = candidates.get(member.edge)!
       const candidate = staged[edges.indexOf(member.edge)]!
       return bundlePathClear(candidate, nodes, groups, style)
         && !routeCandidateMarkerBlocker(member.edge, points, staged, style, candidate)
+        && !opposingAdded(member.edge, candidate)
     })
   }
 
@@ -159,6 +178,8 @@ export function bundleEdgePaths(
   const isRL = direction === 'RL'
   const isBT = direction === 'BT'
   const isHorizontal = isLR || isRL
+  const memberHook = (members: ReadonlyArray<{ edge: PositionedEdge }>, end: 'start' | 'end'): number =>
+    Math.max(...members.map(({ edge }) => terminalHookLength(style, edge, end)))
 
   // --- Fan-out: group edges by shared source ---
   const fanOutGroups = new Map<string, PositionedEdge[]>()
@@ -208,7 +229,7 @@ export function bundleEdgePaths(
         const nearestX = isLR
           ? Math.min(...members.map(t => t.node.x))
           : Math.max(...members.map(t => t.node.x + t.node.width))
-        let junctionX = exitX + (nearestX - exitX) / 2
+        let junctionX = hookedElbow(exitX, nearestX, memberHook(members, 'start'), memberHook(members, 'end'))
         junctionX = adjustJunctionForGroups(junctionX, srcCX, srcCY, groups, direction)
 
         for (const { edge, node: target } of members) {
@@ -228,7 +249,7 @@ export function bundleEdgePaths(
         const nearestY = isBT
           ? Math.max(...members.map(t => t.node.y + t.node.height))
           : Math.min(...members.map(t => t.node.y))
-        let junctionY = exitY + (nearestY - exitY) / 2
+        let junctionY = hookedElbow(exitY, nearestY, memberHook(members, 'start'), memberHook(members, 'end'))
         junctionY = adjustJunctionForGroups(junctionY, srcCX, srcCY, groups, direction)
 
         for (const { edge, node: target } of members) {
@@ -300,7 +321,7 @@ export function bundleEdgePaths(
         const farthestX = isLR
           ? Math.max(...members.map(s => s.node.x + s.node.width))
           : Math.min(...members.map(s => s.node.x))
-        let junctionX = farthestX + (entryX - farthestX) / 2
+        let junctionX = hookedElbow(farthestX, entryX, memberHook(members, 'start'), memberHook(members, 'end'))
         junctionX = adjustJunctionForGroups(junctionX, tgtCX, tgtCY, groups, direction)
 
         for (const { edge, node: src } of members) {
@@ -320,7 +341,7 @@ export function bundleEdgePaths(
         const farthestY = isBT
           ? Math.min(...members.map(s => s.node.y))
           : Math.max(...members.map(s => s.node.y + s.node.height))
-        let junctionY = farthestY + (entryY - farthestY) / 2
+        let junctionY = hookedElbow(farthestY, entryY, memberHook(members, 'start'), memberHook(members, 'end'))
         junctionY = adjustJunctionForGroups(junctionY, tgtCX, tgtCY, groups, direction)
 
         for (const { edge, node: src } of members) {

@@ -38,12 +38,11 @@ route-contract extraction preserves the existing pipeline manifest and order.
   explicit geometry/proof ownership. Keep the
   [campaign preservation contract](docs/design/system/performance-campaign.md).
 
-- [ ] **REL-1 — Qualify, publish and verify 0.5.1** (`todo`,
+- [ ] **REL-1 — Qualify, publish and verify 0.5.2** (`todo`,
   [#378](https://github.com/adewale/agentic-mermaid/issues/378)). The release
-  target and prepared source version are 0.5.1. The 0.5.0 source tag is retained
-  after macOS declaration-worker heap exhaustion blocked publication. npm and
-  production served 0.4.1 when checked on 29 October. No intermediate 0.4.2
-  publication is required. Retain the
+  target and prepared source version are 0.5.2. npm 0.5.1 was verified on
+  29 October; its immutable package cannot include these later fixes. The
+  0.5.0 source tag is retained after its blocked publication. Retain the
   documented source-edit/export limits, update the release issue's automation
   marker when the version change lands, and run
   canonical CI, including its independent semantic and packed-consumer checks,

@@ -22,7 +22,7 @@ function arrowMarkerResources(color?: string, fixed = false): readonly MarkerDes
   // through the target outline.
   const stroke = color ?? 'var(--_arrow)'
   const suffix = `${color ? `-${markerSuffix(color)}` : ''}${fixed ? '-fixed' : ''}`
-  const paint = { fill: stroke, stroke, strokeWidth: '0.75', strokeLinejoin: 'round' as const }
+  const paint = { fill: stroke, stroke, strokeWidth: String(ARROW_HEAD.strokeWidth), strokeLinejoin: 'round' as const }
   return [
     tipAnchoredArrow(`arrowhead${suffix}`, { width: w, height: h }, 'end', paint, fixed ? 'userSpaceOnUse' : undefined),
     tipAnchoredArrow(`arrowhead-start${suffix}`, { width: w, height: h }, 'start', paint, fixed ? 'userSpaceOnUse' : undefined),

@@ -18,6 +18,8 @@ import { labelRect } from '../route-contracts.ts'
 import * as routeContracts from '../route-contracts.ts'
 import { applySymmetricParallelEdgeLanes, applyParallelDuplicateLanes } from '../layout/passes/index.ts'
 import { graphEdgeTextBlock } from '../graph-text.ts'
+import { bundleEdgePaths } from '../layout/passes/edge-bundling.ts'
+import { opposingRoutePartners } from '../shared/edge-overlaps.ts'
 import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
 import type { PositionedEdge, PositionedGraph, PositionedNode } from '../types.ts'
 
@@ -175,6 +177,35 @@ S1["same word ok"] --> D`],
     expect(paired([{ x: 2, y: 0 }, { x: 8, y: 0 }])).toBe(0)
     expect(paired([{ x: 20, y: 0 }, { x: 10, y: 0 }])).toBe(0)
     expect(paired([{ x: 5, y: -5 }, { x: 5, y: 5 }])).toBe(0)
+  })
+  for (const direction of ['LR', 'RL'] as const) test.each([
+    ['invisible', '~~~', ''],
+    ['thick', '==>', ''],
+    ['dotted', '-.->', ''],
+    ['different colour', '-->', '\nlinkStyle 0 stroke:red'],
+    ['different marker', '--o', ''],
+  ])(`${direction}: a %s cross-relation cannot license a solid complete-join bus`, (_name, operator, styling) => {
+    const graph = parseMermaid(`flowchart ${direction}\nB ${operator} D\nA --> C\nB --> C\nA --> D${styling}`)
+    const positioned = layoutGraphSync(graph)
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.style])).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.style]))
+    expect(countOpposingRouteOverlaps(positioned.edges)).toBe(0)
+    expect(renderMermaidSVG(`flowchart ${direction}\nB ${operator} D\nA --> C\nB --> C\nA --> D${styling}`)).toContain('<svg')
+  })
+  test('bundling cannot exchange an existing misleading overlap for a new peer', () => {
+    const node = (id: string, x: number, y: number): PositionedNode => ({ id, label: id, shape: 'rectangle', x, y, width: 60, height: 36.9 })
+    const nodes = [node('A', 40, 40), node('C', 148, 40), node('D', 148, 104.9), node('E', 300, 200), node('F', 400, 300), node('G', 500, 400), node('H', 600, 500)]
+    const edge = (source: string, target: string, points: number[][]): PositionedEdge => ({ source, target, style: 'solid', hasArrowStart: false, hasArrowEnd: true, points: points.map(([x, y]) => ({ x: x!, y: y! })) })
+    const edges = [
+      edge('A', 'C', [[100, 58.45], [148, 58.45]]),
+      edge('A', 'D', [[100, 58.45], [112, 58.45], [112, 123.35], [148, 123.35]]),
+      edge('E', 'F', [[300, 218.45], [112, 218.45], [112, 10], [430, 10], [430, 300]]),
+      edge('G', 'H', [[500, 418.45], [124, 418.45], [124, 20], [630, 20], [630, 500]]),
+    ]
+    const subject = edges[1]!, peers = edges.slice(2)
+    expect(opposingRoutePartners(subject, peers)).toEqual([edges[2]!])
+    const bundled = bundleEdgePaths(edges, nodes, [], 'LR', resolveRenderStyle())
+    expect(opposingRoutePartners(subject, peers)).toEqual([edges[2]!])
+    expect(bundled.has(subject)).toBe(false)
   })
   test('the engine rejects actual detour bends before fallback without audit options', () => {
     const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'alignLayerNodes')!
@@ -548,11 +579,28 @@ S1["same word ok"] --> D`],
     try {
       const positioned = layoutGraphSync(graph)
       expect(positioned.certification?.status).toBe('passed')
-      expect(overlaps).toEqual([1, 0])
-      expect(countOpposingRouteOverlaps(positioned.edges)).toBe(0)
-      expect(assessLayout(graph, positioned).metrics.portEndpointRate).toBeGreaterThanOrEqual(0.6)
+      // The generic bundler no longer admits a junction that lays N4's
+      // fan-out elbow along N0->N2, so contracts receive no opposing ink here.
+      // N4->N0 then enters N0 on its own lane instead of N0's centre port.
+      expect(overlaps).toEqual([0, 0])
+      expect(assessLayout(graph, positioned).metrics.portEndpointRate).toBeGreaterThanOrEqual(0.5)
       expect(assessLayout(graph, positioned).metrics.edgeCrossings).toBe(0)
     } finally { pass.run = run }
+    // Contracts still own the repair when handed that shared lane: the straight
+    // reciprocal gives up its canonical contacts to leave the bundled elbow.
+    const box = (id: string, x: number, y: number): PositionedNode => ({ id, label: id, shape: 'rectangle', x, y, width: 60, height: 36.9 })
+    const nodes = [box('N2', 40, 95.675), box('N3', 124, 40), box('N4', 40, 163.65), box('N0', 148, 104.9), box('N1', 148, 163.65)]
+    const routes: Record<string, [number, number][]> = {
+      'N2>N3': [[100, 104.9], [112, 104.9], [112, 58.45], [124, 58.45]],
+      'N4>N0': [[100, 182.1], [124, 182.1], [124, 123.35], [148, 123.35]],
+      'N2>N0': [[100, 114.125], [148, 114.125]],
+      'N0>N2': [[148, 123.35], [100, 123.35]],
+      'N4>N1': [[100, 182.1], [124, 182.1], [148, 182.1]],
+    }
+    const edges: PositionedEdge[] = graph.edges.map((edge, edgeIndex) => ({ ...edge, edgeIndex, points: routes[`${edge.source}>${edge.target}`]!.map(([x, y]) => ({ x, y })) }))
+    expect(countOpposingRouteOverlaps(edges)).toBe(1)
+    routeContracts.applyRouteContracts({ nodes, edges, groups: [] }, graph, new Set([edges[1]!, edges[4]!]), resolveRenderStyle())
+    expect(countOpposingRouteOverlaps(edges)).toBe(0)
   })
 
   test.each([...simpleFixtures(), ...complicatedFixtures()])('$id', fixture => {

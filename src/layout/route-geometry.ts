@@ -5,7 +5,8 @@ import type { AnyPort, DiamondFacet, Direction, MermaidGraph, MermaidSubgraph, P
 import { isOutwardShapeApproach } from '../shape-clipping.ts'
 import { pointOnShapeSide, shapeCardinalPorts, shapeRoutingProfile } from '../shape-outline.ts'
 import { renderedEndpointContact } from '../rendered-endpoint-diagnostics.ts'
-import { labelRect } from '../shared/edge-label-geometry.ts'
+import { edgeMarkerLength, labelRect, VISIBLE_SHAFT } from '../shared/edge-label-geometry.ts'
+import { ARROW_HEAD } from '../styles.ts'
 
 // Quality exploration is deterministic and bounded independently of machine
 // speed. Larger graphs keep the existing first-certified fallback behavior.
@@ -30,6 +31,26 @@ export const EPS = 0.01
 export const CLEARANCE = 4
 /** Required free space around a label hosted on a straightened lane. */
 export const LABEL_CLEARANCE = 8
+
+/** Established distance from a route's last bend to its endpoint. */
+const TERMINAL_HOOK = 12
+
+/** Shortest run from a route's last bend to its endpoint that still seats the
+ * painted marker on a straight shaft: the marker (scaled with the stroke), the
+ * rounded corner before it, and visible line between them. The default
+ * square-cornered 1px style keeps the established 12px hook. Without an edge
+ * this is the style's own marked hook, for graph-wide spacing. */
+export function terminalHookLength(style: Pick<LabelMetricsStyle, 'lineWidth' | 'edgeBendRadius'>, edge?: Pick<PositionedEdge, 'style' | 'inlineStyle' | 'hasArrowStart' | 'hasArrowEnd'>, end: 'start' | 'end' = 'end'): number {
+  const lineWidth = style.lineWidth ?? 1
+  const marked = !edge || (end === 'start' ? edge.hasArrowStart : edge.hasArrowEnd)
+  const marker = !marked ? 0 : edge ? edgeMarkerLength(edge, lineWidth) : ARROW_HEAD.width * lineWidth
+  const radius = style.edgeBendRadius ?? 0
+  // The round-joined marker stroke extends behind its nominal triangle. Keep
+  // the established 12px default; styled hooks reserve its complete support.
+  const scale = edge?.inlineStyle?.['stroke-width'] ? 1 : lineWidth * (edge?.style === 'thick' ? 2 : 1)
+  const stroke = marked && (marker > ARROW_HEAD.width || radius > 0) ? ARROW_HEAD.strokeWidth / 2 * scale : 0
+  return Math.max(TERMINAL_HOOK, marker + stroke + radius + VISIBLE_SHAFT)
+}
 
 /** Shapes whose forward-facing side is a straight axis-aligned segment.
  *  Fork/join bars are plain (rounded) rectangles geometrically, which is what

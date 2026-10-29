@@ -1,6 +1,7 @@
 import type { Point, PositionedEdge } from '../types.ts'
 import { graphEdgeTextBlock } from '../graph-text.ts'
 import { resolveLabelContent } from './display-text.ts'
+import { ARROW_HEAD } from '../styles.ts'
 
 /** Padding between retained text bounds and the painted graph-label pill. */
 export const LABEL_PILL_PADDING = 8
@@ -8,6 +9,25 @@ export const LABEL_PILL_PADDING = 8
 /** Opaque paint outside the pill, shared by placement and drawing. */
 export function labelHaloExtension(edge: Pick<PositionedEdge, 'style'>, lineWidth: number): number {
   return Math.max(4, lineWidth * (edge.style === 'thick' ? 2 : 1) * 2)
+}
+
+/** Painted length of an endpoint marker along its shaft. Marker units scale
+ * the head with the carrier stroke; an authored stroke width selects the
+ * fixed user-space head. */
+export function edgeMarkerLength(edge: Pick<PositionedEdge, 'style' | 'inlineStyle'>, lineWidth: number): number {
+  return edge.inlineStyle?.['stroke-width'] ? ARROW_HEAD.width : ARROW_HEAD.width * lineWidth * (edge.style === 'thick' ? 2 : 1)
+}
+
+/** Line left visible between painted pieces that meet along an edge: a
+ * label's halo and the endpoint it labels, or a marker and the corner before
+ * it. The label then reads as part of its line, and the marker sits on it. */
+export const VISIBLE_SHAFT = 4
+
+/** Minimum gap between a pill and one of its own endpoint nodes: the opaque
+ * halo, the marker painted at that end, and a visible run of the line. */
+export function labelEndpointClearance(edge: Pick<PositionedEdge, 'style' | 'inlineStyle' | 'hasArrowStart' | 'hasArrowEnd'>, lineWidth: number, end: 'start' | 'end'): number {
+  const marked = end === 'start' ? edge.hasArrowStart : edge.hasArrowEnd
+  return labelHaloExtension(edge, lineWidth) + (marked ? edgeMarkerLength(edge, lineWidth) : 0) + VISIBLE_SHAFT
 }
 
 export function pillRect(cx: number, cy: number, metrics: { width: number; height: number }): { x: number; y: number; w: number; h: number } {
