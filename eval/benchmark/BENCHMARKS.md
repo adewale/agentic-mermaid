@@ -177,3 +177,14 @@ Inspect representative actual drawings, including interacting failures. A heuris
 Agent replay, live-model/subagent tasks and MCP conformance have value for their **own workflow correctness**, not general renderer performance. Replay is not a new provider run. Live quality/token/cost claims need actual named models, transcripts and observed usage; a blocked provider earns no score. Callable judges need independent real judgments.
 
 Corpus building (`family-portfolio`, corpus import), artifact acquisition, report reducers, chart generators and campaign controllers prepare or explain experiments. They are necessary infrastructure, not additional benchmark outcomes. The command inventory lists their executable boundaries.
+
+## Historical product campaign reports
+
+The AM-specific retained-report writer and chart generator live in `eval/benchmark/unified/update-scorecard.ts` and `eval/benchmark/unified/charts.py`. Their overlay-admission and invocation-census tests move with them. They read existing evidence and never collect new timings. Prepare the pinned Trident dependency first; shared record decoding and artifact-version validation stay in that library.
+
+```sh
+bun eval/benchmark/unified/update-scorecard.ts --run /evidence/am-campaign --output /evidence/am-scorecard.md
+python3 eval/benchmark/unified/charts.py --run /evidence/am-campaign --prs /evidence/am-prs --out /evidence/am-charts
+```
+
+These commands serve AM’s historical source/invocation protocols. Use Trident’s `results:snapshot` and `results:publish` for current ecosystem reporting.
