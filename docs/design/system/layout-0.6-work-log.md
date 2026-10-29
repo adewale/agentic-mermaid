@@ -2797,3 +2797,83 @@ dependency order. The independent holdout remains sealed. No timing/profiling
 campaign, cap relaxation, default/version/publication change or PR merge occurs.
 The previous exact a189 CI failed 33 lazy byte rows; this source requires its
 own exact-head CI, and no inherited readiness is asserted.
+
+### 29 October: complete the bounded row87 circle proof outcome
+
+Source/test commit: `f024e58717f55318931a1b44ed94b220c8f64ff1`, parent
+`e440e7cb053bb7c79ad75c5d8806b182418786f8`. The retained branch was pulled
+fast-forward-only (already current); Main remains separately observed at
+`e68b23a8301d5c267966468fb0a5f58bf5d78eaa`, not merged or jointly qualified.
+
+The reset follows dependencies and measures a completed diagram obligation:
+
+1. Check whether upstream/peer changes are actually prerequisites. Main ceca's
+   endpoint helper excludes this circle's interior reference point, so importing
+   it cannot close87. The community catalog and pinned public Pele1.9 executable,
+   model and SVG show an inline **filled** dot and shortened shaft. Pinned
+   Mermaid12.2 source retains resource markers. Keep our hollow ring/resource
+   encoding; inline conversion adds writer, semantic ownership and equivalence
+   work without removing ring/body obligations. Stop research once this choice
+   is supported; retain the useful once-materialized endpoint idea from Pele.
+2. Freeze original author facts and purposeful thin-border/wide-shaft controls
+   before implementation. The actual original24-byte source has A/B, LR, one
+   A-to-B relationship with a circle end and no relationship label. An isolated
+   baseline directly matches all852 production inputs at e440; the six stock
+   owning cases give genuine2F/4P (both originals U, required P),164 assertions.
+3. Reuse existing actual-write polyline/rectangle and resource authority.
+   A new private compatible context requires checked canonical root/style/colors,
+   complete bound definitions, actual absence of transforms and actual prepared
+   one-line Inter/ASCII text correspondence. No writer/parser/dependency changes.
+   Preparation ownership comes from the retained block brand; `safeFont` is a
+   system-font measurement option, not an authenticity flag. Normalized fitted
+   advance is enclosed by three outward text ticks, never ignored as contact.
+4. Derive one complete world-ring fact with exact bounded thousandth-unit
+   operands in half-thousandth integer ticks. Cardinal mapping uses no rounded
+   operand, trig, contact epsilon or larger cap. One positive-area stroke patch
+   clears the shaft and every later paint support; the entire ring avoids every
+   forbidden fill. Later prepared text has a complete outward exclusion box.
+   Preserve supplied/raw envelope unions and final viewport checks. Unknown
+   CSS fallbacks, inherited/accessor defaults and unsupported geometry remain U.
+5. Verify actual final meaning/ink, owning isolation, compatibility and canonical
+   checks before one publication/CI cycle. Five existing Sol6.1 High agents had
+   disjoint implementation/test work and named peer, proof and final-ink tasks.
+
+The first private prototypes exposed two integration defects before publication:
+unknown CSS fallback incorrectly supplied a concrete paint, and an optional
+internal `separated` flag could be inherited from Object.prototype. Existing
+unknown-CSS expectations stay unchanged. A new owning control draws a completely
+covered integer ring, observes zero marker-removal effect, then installs that
+prototype flag only during synchronous certification and restores its descriptor.
+It genuinely fails1F/9 assertions before the fix. Both proof constructors now own
+a required boolean (old false/new true). These were prototype regressions, not
+defects newly attributed to published e440. Two physically clear fractional-body
+scope controls legitimately become P under the same general tick theorem; their
+independent full-ring clearance and actual marker ink are checked explicitly.
+
+| Final observation | Result |
+| --- | --- |
+| Six owning test files | 465 P / 0 F / 3,942 assertions. Core/repository types and full lint pass; the existing oversized-JSON warning remains. A test-only literal-type error was fixed without changing expectations. |
+| Original87, both graph engines | U to P with identical complete2,999-byte final SVG and unchanged actual/counterfactual PNG. Full annulus right148.25 clears B's filled interior148.375 by1/8;41 marker-dependent pixels, visible A/B glyphs59/68 pixels, ordered ownership and viewport fit independently observed. |
+| Actual public model/peer meaning | Exported parseRegisteredMermaid returns LR, ordered A/B and the sole A-to-B circle-end relationship, matching independently authored facts and the retained pinned public Pele model. Pele's fill, shaft and style differ; its internal provider remains unverified. No executed Mermaid row87 comparison is invented. |
+| Thin/wide adverse stock sources | Actual0.1 border gives1/5 forbidden-fill intrusion with a concrete open stroke patch; actual10px fixed-unit shaft plus B's border absorbs the ring (zero PNG/RGBA marker-removal difference). Both engines keep both cases U; no input tuning or discarded precondition. |
+| Canonical compatibility | 50 returns,48 P/2 pre-existing U, no SVG/XML/text/status changes. All25 OFF receipts change only work (+15 through+69), maximum135,961/400,000. |
+| Original-seven fixed matrix | 56 returns,16 P/40 U. Only87's eight engine/policy/repeat observations change U to P;77 stays P and88/89/103/206/209 stay U. Every SVG/XML/text remains exact; repeat/cross-policy full packets match. Work rises+16 through+28,381, maximum320,925/400,000; this is not a timing result. |
+
+The existing106-call acquisition ran once on the final source with six zero
+worker exits and direct source snapshots, not own-input hashes. Native makes
+zero ELK calls; actual Native cache behavior remains UNOBSERVED. ELK retains
+16 OFF bypasses and16 NORMAL API calls (7 misses/9 hits); API calls are not
+solver counts. The complete row87 default geometry/ink observations do not
+complete cache qualification, a general final-SVG seal or all-six-goal parity.
+
+Evidence and exact rejected/final sources are retained under
+`/tmp/pr449-row87-campaign-20261029/` and
+`/tmp/pr449-row87-ring-20261029/owner/`. Root executed products under the existing
+global lock; reviewers independently inspected actual XML, public models,
+bundled-font PNG/RGBA and unchanged-source bytes. The holdout stays sealed.
+All six0.6goals remain open. Next reuse this proof boundary for the five remaining
+original uncertainties, with independent authored interaction coverage and
+shared final-output correspondence still required before broader qualification.
+No performance campaign, cap/check relaxation, backend/version/release change,
+package publication, force push, PR merge or external comment occurred. The
+previous exact e440 CI failed33 lazy byte rows; this source needs its own CI.
