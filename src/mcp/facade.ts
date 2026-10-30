@@ -185,7 +185,13 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
   }
   const requireTrustedDiagram = (value: unknown, verb: string): void => {
     value = rawOf(value)
-    if (value && (typeof value === 'object' || typeof value === 'function') && !trusted.has(value as object)) {
+    // A missing diagram is almost always a narrower's null (asSequence(d) on a
+    // flowchart) passed straight on; say so instead of letting the engine
+    // report "Cannot read properties of null".
+    if (value === null || value === undefined) {
+      throw sandboxError(`Code Mode ${verb} input is ${value}; it must be a diagram from mermaid.parseRegisteredMermaid(...).value or mermaid.mutate(...). A mermaid.as<Family>(d) narrower returns null when d is a different family — check d.kind before narrowing`)
+    }
+    if ((typeof value === 'object' || typeof value === 'function') && !trusted.has(value as object)) {
       throw sandboxError(`Code Mode ${verb} input must come from mermaid.parseRegisteredMermaid(...) or mermaid.mutate(...)`)
     }
   }
@@ -581,7 +587,7 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     else if (prop === 'renderMermaidSVG' || prop === 'renderMermaidSVGWithReceipt' || prop === 'renderMermaidASCII' || prop === 'renderMermaidASCIIWithReceipt' || prop === 'layoutMermaidWithReceipt')
       value = harden((input: any, opts?: any) => {
         assertOpen()
-        if (input && typeof input === 'object') requireTrustedDiagram(input, String(prop))
+        if (input == null || typeof input === 'object') requireTrustedDiagram(input, String(prop))
         const isAscii = prop === 'renderMermaidASCII' || prop === 'renderMermaidASCIIWithReceipt'
         const configCallback = opts?.onConfigDiagnostic
         const projectionCallback = isAscii ? opts?.onProjectionDiagnostic : undefined

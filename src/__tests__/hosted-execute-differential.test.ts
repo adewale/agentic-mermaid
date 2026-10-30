@@ -165,6 +165,33 @@ describe('hosted execute ≡ vm sandbox', () => {
     }
   })
 
+  test('a failed narrowing passed on to any diagram verb gets the narrower guidance, not an engine TypeError', async () => {
+    // asSequence(flowchart) is null; every verb that takes a diagram must say
+    // why the input is missing instead of dereferencing it.
+    const verbs = ['mutate', 'mutatePreservingSource', 'verifyMermaid', 'analyzeMermaid', 'describeMermaidFacts', 'checkMermaid', 'serializeMermaid', 'asFlowchart', 'renderMermaidSVG', 'renderMermaidASCII', 'layoutMermaidWithReceipt']
+    const code = `${PARSE}
+      const narrowed = mermaid.asSequence(r.value)
+      const out = { narrowed }
+      for (const verb of ${JSON.stringify(verbs)}) {
+        for (const [label, input] of [['null', narrowed], ['undefined', undefined]]) {
+          try { mermaid[verb](input, { kind: 'add_node', id: 'X' }); out[verb + ':' + label] = 'returned' }
+          catch (e) { out[verb + ':' + label] = e.message }
+        }
+      }
+      return out`
+    for (const r of [await executeInSandbox(code), await executeHosted(code)]) {
+      expect(r.ok).toBe(true)
+      const { narrowed, ...messages } = r.value as Record<string, unknown>
+      expect(narrowed).toBeNull()
+      expect(Object.keys(messages)).toHaveLength(verbs.length * 2)
+      for (const [key, message] of Object.entries(messages)) {
+        const [verb, label] = key.split(':')
+        expect({ key, message }).toEqual({ key, message: expect.stringContaining(`Code Mode ${verb} input is ${label}`) })
+        expect({ key, message }).toEqual({ key, message: expect.stringContaining('returns null when d is a different family') })
+      }
+    }
+  })
+
   test('a returned diagram marshals to the { ok, family, source, verify } envelope in both', async () => {
     const code = `${PARSE}; return r.value`
     for (const r of [await executeInSandbox(code), await executeHosted(code)]) {
