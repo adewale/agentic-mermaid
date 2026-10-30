@@ -27,6 +27,7 @@ import {
   isValidExecuteTimeout,
   mcpRenderOptionSchemaProperties,
   projectMcpRenderOptions,
+  RENDER_WARNINGS_NOTE,
   validateMcpToolArguments,
   withClosedMcpInputSchema,
   type McpDispatchOptions,
@@ -121,9 +122,10 @@ export const HOSTED_TOOLS = [
   {
     name: 'render_svg',
     title: 'Render Mermaid as SVG',
-    description: `Render a Mermaid source string to themeable SVG. Returns { ok, svg }.
+    description: `Render a Mermaid source string to themeable SVG. Returns { ok, svg, receipt, warnings }.
 Layout is deterministic: identical input produces identical geometry. The hosted
-boundary forces security:'strict' and embedFontImport:false.`,
+boundary forces security:'strict' and embedFontImport:false.
+${RENDER_WARNINGS_NOTE}`,
     inputSchema: {
       type: 'object',
       additionalProperties: false,
@@ -143,8 +145,8 @@ boundary forces security:'strict' and embedFontImport:false.`,
     description: `Render a Mermaid source string to text. Returns { ok, text, receipt, warnings }.
 useAscii true → plain ASCII (+,-,|); false/absent → Unicode box drawing (┌,─,│).
 targetWidth sets a hard terminal display-cell bound; impossible bounds return a typed error.
-warnings holds source/config warnings (capabilities.json codes); terminal projection
-notes (TERMINAL_* codes) are evidence in receipt.diagnostics, not warnings.`,
+${RENDER_WARNINGS_NOTE} Terminal projection notes (TERMINAL_* codes) are
+evidence in receipt.diagnostics, not warnings.`,
     inputSchema: {
       type: 'object',
       additionalProperties: false,

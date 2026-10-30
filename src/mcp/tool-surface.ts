@@ -429,13 +429,22 @@ ${options.sdkDeclaration}`,
   }
 }
 
+/** Render tools do not verify. Running verify's checks on every render would
+ * add roughly 55-100% CPU to each uncached render (measured locally on 10-60
+ * node flowcharts, xychart, sequence and class diagrams), so the warnings
+ * stay partial and the tools say where the full findings come from. */
+export const RENDER_WARNINGS_NOTE = `warnings lists source/config warnings only (capabilities.json codes); it is not a verification.
+Layout and content-loss findings (e.g. LABELS_HIDDEN, ROUTE_SELF_LOOP_OCCUPANCY) come from
+verify: call it before trusting the drawing.`
+
 export function createRenderPngTool(mode: 'local' | 'hosted'): McpToolDefinition {
   const hosted = mode === 'hosted'
   const pngSchema = pngOutputOptionsJsonSchema(hosted ? 'portable' : 'native')
   const pngProperties = pngSchema.properties as Record<string, JsonSchema>
   const pixelCap = Math.ceil((hosted ? MAX_HOSTED_PNG_PIXELS : MAX_PNG_PIXELS) / 1_000_000)
   const budget = `A raster wider or taller than ${MAX_PNG_RASTER_DIMENSION}px or over ${pixelCap}MP fails with
-PNG_RASTER_BUDGET_EXCEEDED; pass fitTo { width } or { height }, or a smaller scale, to fit it.`
+PNG_RASTER_BUDGET_EXCEEDED; pass fitTo { width } or { height }, or a smaller scale, to fit it.
+${RENDER_WARNINGS_NOTE} Raster font-coverage and legibility warnings are added.`
   return {
     name: 'render_png',
     title: 'Render Mermaid as PNG',
