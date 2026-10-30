@@ -40,6 +40,7 @@ import type { RenderOptions } from '../types.ts'
 import { PACKAGE_VERSION } from '../version.ts'
 import { EXIT_ARG_ERROR, EXIT_INTERNAL, EXIT_OK, EXIT_VERIFY_FAILED } from './exit-codes.ts'
 import { initAgentFiles } from './init-agent.ts'
+import { extractMermaidFences } from './markdown-fences.ts'
 import { HOSTED_MCP_TOOL_NAMES, inlineToolList, LOCAL_MCP_TOOL_NAMES } from '../mcp/tool-names.ts'
 import { EXISTING_DIAGRAM_WORKFLOW, FAMILY_NARROWING_NOTE, NEW_DIAGRAM_POLICY } from '../shared/agent-workflow.ts'
 
@@ -1218,6 +1219,8 @@ function cmdInitAgent(args: ParsedArgs, json: boolean): number {
 
 export interface MarkdownBlockResult {
   index: number
+  /** 1-based Markdown line of the block's opening fence. */
+  line: number
   ok: boolean
   format?: string
   output?: string
@@ -1225,24 +1228,24 @@ export interface MarkdownBlockResult {
 }
 
 /**
- * Extract ```mermaid fenced blocks from markdown and render each. A bad
- * diagram yields an { ok:false } entry and does NOT abort the rest (#543:
- * "skip invalid diagrams instead of failing the whole conversion").
+ * Extract Mermaid fenced code blocks (CommonMark fences whose info string
+ * starts with `mermaid`) from markdown and render each. A bad diagram yields an
+ * { ok:false } entry and does NOT abort the rest (#543: "skip invalid diagrams
+ * instead of failing the whole conversion").
  */
 export function renderMarkdownBlocks(md: string, format: 'svg' | 'ascii' = 'svg'): MarkdownBlockResult[] {
-  const FENCE = /```mermaid[ \t]*\r?\n([\s\S]*?)\r?\n```/g
-  const blocks: string[] = []
-  for (const m of md.matchAll(FENCE)) blocks.push(m[1]!)
+  const blocks = extractMermaidFences(md)
   return collectBatched(
     blocks,
-    (src, i): MarkdownBlockResult => {
+    ({ source: src, line }, i): MarkdownBlockResult => {
       try {
         const output = format === 'ascii' ? renderMermaidASCII(src, { useAscii: true }) : renderMermaidSVG(src)
-        return { index: i, ok: true, format, output }
+        return { index: i, line, ok: true, format, output }
       } catch (e) {
         const structured = cliStructuredRenderFailure(e)
         return {
           index: i,
+          line,
           ok: false,
           error: structured?.error ?? {
             code: 'RENDER_FAILED',
@@ -1252,7 +1255,7 @@ export function renderMarkdownBlocks(md: string, format: 'svg' | 'ascii' = 'svg'
       }
     },
     'MARKDOWN_BLOCK_ERROR',
-  ).map((r, i) => (r.ok ? r.value : { index: i, ok: false, error: r.error }))
+  ).map((r, i) => (r.ok ? r.value : { index: i, line: blocks[i]!.line, ok: false, error: r.error }))
 }
 
 function cmdRenderMarkdown(args: ParsedArgs): number {

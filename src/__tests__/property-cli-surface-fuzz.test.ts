@@ -8,6 +8,7 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { parseArgs, runBatchLine, renderMarkdownBlocks, FLAG_SPECS } from '../cli/index.ts'
+import { extractMermaidFences } from '../cli/markdown-fences.ts'
 
 const NUM_RUNS = 300
 
@@ -226,6 +227,93 @@ describe('cli-surface fuzz: renderMarkdownBlocks', () => {
         expect({ md, tags: blocks.map(b => typeof b.ok) }).toEqual({ md, tags: ['boolean'] })
       }),
       fcParameters({ numRuns: NUM_RUNS }),
+    )
+  })
+
+  it('extracts exactly the CommonMark mermaid fences of composed documents, with content and opening line', () => {
+    // Documents are composed from segments whose CommonMark reading is known by
+    // construction: mermaid fences (either fence character, length 3-5, any
+    // info-string casing or attributes, 0-3 columns of indentation, closing
+    // fences longer than or as long as the opening one), other fences whose
+    // bodies hold mermaid-fence lines, indented code and HTML comments holding
+    // a mermaid fence, and prose. Each segment may sit in a block quote, a
+    // list item, or one nested in the other. The expected blocks come from the
+    // segment model, never from the scanner.
+    type Segment = { lines: readonly string[]; fence?: { body: readonly string[]; indent: number } }
+    type Container = 'quote' | '-' | '*' | '1.' | '10)'
+    const prefixedBody = (lines: readonly string[]) =>
+      fc.array(fc.tuple(fc.constantFrom(...lines), fc.integer({ min: 0, max: 5 })), { maxLength: 5 })
+        .map(entries => entries.map(([line, indent]) => (line === '' ? '' : ' '.repeat(indent) + line)))
+    const mermaidFence = fc.record({
+      char: fc.constantFrom('`', '~'),
+      length: fc.integer({ min: 3, max: 5 }),
+      indent: fc.integer({ min: 0, max: 3 }),
+      info: fc.constantFrom('mermaid', 'Mermaid', 'MERMAID', ' mermaid', 'mermaid title="x"', 'mermaid\t{init}'),
+      closeLength: fc.integer({ min: 0, max: 2 }),
+      closeIndent: fc.integer({ min: 0, max: 3 }),
+      closeTrail: fc.constantFrom('', '  '),
+      // Lines that look like block syntax but are content inside a fence: a
+      // fence of the other character, a shorter run of the same character, a
+      // fence opener carrying an info string, container and HTML markers.
+      body: prefixedBody(['flowchart TD', 'A --> B', '', 'A["``"] --> B', '``', '~~', '```mermaid', '> quoted', '- dash', '<!--', '%% note']),
+    }).map(f => ({
+      ...f,
+      body: [...f.body, ...(f.length > 3 ? [f.char.repeat(f.length - 1)] : []), f.char === '`' ? '~~~' : '```'],
+    }))
+    const segment = (closed: boolean): fc.Arbitrary<Segment> => fc.oneof(
+      mermaidFence.map(f => ({
+        lines: [
+          ' '.repeat(f.indent) + f.char.repeat(f.length) + f.info,
+          ...f.body,
+          ...(closed ? [' '.repeat(f.closeIndent) + f.char.repeat(f.length + f.closeLength) + f.closeTrail] : []),
+        ],
+        fence: { body: f.body, indent: f.indent },
+      })),
+      fc.record({ fence: fc.constantFrom('```', '~~~', '````'), info: fc.constantFrom('', 'js', 'mermaidx', 'text mermaid') })
+        .map(({ fence, info }) => ({ lines: [fence + info, '```mermaid', 'A --> B', '~~~mermaid', fence] })),
+      fc.constant({ lines: ['    ```mermaid', '    A --> B', '    ```'] }),
+      // An HTML comment ends at the first line containing `-->`, so its fence
+      // body must avoid flowchart arrows.
+      fc.constant({ lines: ['<!--', '```mermaid', 'A --- B', '```', '-->'] }),
+      fc.constantFrom({ lines: ['Prose with ``` inside.'] }, { lines: ['# Heading'] }),
+    )
+    const wrap = (lines: readonly string[], container: Container): { lines: readonly string[]; shift: number } => {
+      if (container === 'quote') return { lines: lines.map(line => (line === '' ? '>' : `> ${line}`)), shift: 0 }
+      const indent = (line: string) => (line === '' ? '' : ' '.repeat(container.length + 1) + line)
+      // A marker shares the first line only when that line is unindented, so
+      // the item's content column stays marker width + 1.
+      if (!/^\s/.test(lines[0]!)) return { lines: [`${container} ${lines[0]}`, ...lines.slice(1).map(indent)], shift: 0 }
+      return { lines: [`${container} item`, ...lines.map(indent)], shift: 1 }
+    }
+    const containers = fc.array(fc.constantFrom<Container>('quote', '-', '*', '1.', '10)'), { maxLength: 2 })
+    const doc = fc.record({
+      parts: fc.array(fc.tuple(segment(true), containers), { maxLength: 6 }),
+      last: fc.option(fc.tuple(segment(false), containers)),
+      newline: fc.constantFrom('\n', '\r\n'),
+      trailingNewline: fc.boolean(),
+    })
+    fc.assert(
+      fc.property(doc, ({ parts, last, newline, trailingNewline }) => {
+        const lines: string[] = []
+        const expected: Array<{ source: string; line: number }> = []
+        for (const [index, [seg, nest]] of [...parts, ...(last ? [last] : [])].entries()) {
+          if (index > 0) lines.push('', 'Separator paragraph.', '')
+          let wrapped = { lines: seg.lines, shift: 0 }
+          for (const container of nest) {
+            const next = wrap(wrapped.lines, container)
+            wrapped = { lines: next.lines, shift: wrapped.shift + next.shift }
+          }
+          if (seg.fence) {
+            const { body, indent } = seg.fence
+            const strip = (line: string) => line.slice(Math.min(indent, /^ */.exec(line)![0].length))
+            expected.push({ source: body.map(strip).join('\n'), line: lines.length + wrapped.shift + 1 })
+          }
+          lines.push(...wrapped.lines)
+        }
+        const md = lines.join(newline) + (trailingNewline ? newline : '')
+        expect({ md, blocks: extractMermaidFences(md) }).toEqual({ md, blocks: expected })
+      }),
+      fcParameters({ numRuns: 2000 }),
     )
   })
 })

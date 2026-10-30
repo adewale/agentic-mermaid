@@ -162,8 +162,11 @@ envelope per nonblank line, in order, without waiting for EOF:
 the batch continues and exits 0 even if lines errored. Input/output failures
 exit nonzero. Slow output consumers apply backpressure.`,
   'render-markdown': `am render-markdown <file.md> [--ascii]
-Render fenced \`\`\`mermaid blocks. Bad diagrams yield ok:false entries and do
-not abort the rest of the Markdown file.`,
+Render fenced Mermaid blocks: CommonMark \`\`\` or ~~~ fences whose info string
+starts with mermaid (any case), including fences in list items and block quotes.
+Emits {ok,blocks:[{index,line,ok,format?,output?,error?}]}; line is the 1-based
+line of the opening fence. Bad diagrams yield ok:false entries and do not abort
+the rest of the Markdown file.`,
   'llms-txt': `am llms-txt
 Emit the committed agent-discovery digest generated from current capabilities.`,
   'init-agent': `am init-agent [--dir <path>] [--force] [--json]

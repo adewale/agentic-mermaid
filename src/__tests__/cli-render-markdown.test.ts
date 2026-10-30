@@ -83,6 +83,62 @@ describe('#543 render-markdown skip-bad-diagrams', () => {
     expect(renderMarkdownBlocks('# just text\n\nno diagrams here')).toEqual([])
   })
 
+  test('finds CommonMark mermaid fences in every form and reports each opening line', () => {
+    // Each diagram names its nodes after the fence form it exercises. The
+    // indented-code and HTML-comment blocks are not fences; the 4-space block
+    // used to swallow the next fence and render a node labelled ```.
+    const md = [
+      '# Fences', //                                      1
+      '',
+      '~~~mermaid', //                                    3
+      'flowchart LR',
+      '  TildeA --> TildeB',
+      '~~~',
+      '',
+      '```Mermaid title="Case and attributes"', //       8
+      'flowchart LR',
+      '  CaseA --> CaseB',
+      '```',
+      '',
+      '- A list item',
+      '  ```mermaid', //                                 14
+      '  flowchart LR',
+      '    ListA --> ListB',
+      '  ```',
+      '',
+      '> Quoted:',
+      '> ```mermaid', //                                 20
+      '> flowchart LR',
+      '>   QuoteA --> QuoteB',
+      '> ```',
+      '',
+      '    ```mermaid',
+      '    flowchart LR',
+      '      IndentedCode --> NotAFence',
+      '    ```',
+      '',
+      '<!--',
+      '```mermaid',
+      'flowchart LR',
+      '  Commented --- Out',
+      '```',
+      '-->',
+      '',
+      '```mermaid', //                                   37
+      'flowchart LR',
+      '  OpenA --> OpenB',
+    ].join('\n')
+    const blocks = renderMarkdownBlocks(md, 'ascii')
+    const labels = ['Tilde', 'Case', 'List', 'Quote', 'IndentedCode', 'Commented', 'Open', '```']
+    expect(blocks.map(block => ({ line: block.line, ok: block.ok, drawn: labels.filter(label => block.output?.includes(label)) }))).toEqual([
+      { line: 3, ok: true, drawn: ['Tilde'] },
+      { line: 8, ok: true, drawn: ['Case'] },
+      { line: 14, ok: true, drawn: ['List'] },
+      { line: 20, ok: true, drawn: ['Quote'] },
+      { line: 37, ok: true, drawn: ['Open'] },
+    ])
+  })
+
   test('all-valid markdown → all ok', () => {
     const md = '```mermaid\nflowchart TD\n A --> B\n```\n\n```mermaid\nflowchart LR\n X --> Y\n```'
     const blocks = renderMarkdownBlocks(md, 'ascii')
