@@ -5110,3 +5110,144 @@ independent bounded controls, but those passing controls do not override the
 remaining counterexamples. Next: publish this verified one-key correspondence
 change, follow exact CI, and resolve the actual recorder/underlay authority with
 owning controls before integrating that separate fix.
+
+### 30 October: actual backend emission authority, with shared immutable array facts
+
+Implementation0ad03f2b70ed3ad12e822e59b776b371207ae35d follows published8062145ce.
+It changes seven production files and two owning tests. Original built-in
+DefaultBackend Scene execution now retains first actual admission-return string
+facts, then checks the actual backend's returned document/leaf strings and
+real group/root composition before returning its final certificate. Geometry,
+context and occlusion proof remain in their original phase; no second parse,
+inspection or emission-context replay was added. Recorder registration and
+snapshot allocation/definition/freezing are privately owned. Generic input own-
+descriptor/getter/proxy observations retain their path. Active ownership capture,
+alternate backends, layout-only certification and later byte-changing SVG
+projections retain their separately stated scope; this is not universal final-
+SVG authority or correctness parity.
+
+First eligible Scene acquisition now chooses the pending transaction from the
+immutable execution plan. Verification/brand inspection can obtain Scene before
+rendering without prematurely closing the receipt. This fixes existing
+flowchart/Architecture verification owners without a second Scene, new render
+cache, fresh allowance or retry. Canonical styled page insertion is bound to
+checked prelude dimensions/background, the exact locally returned underlay and
+its position before painted content. Styled marker-free Inter cases retain a
+narrow header/CSS check rather than enabling unrelated marker/resource work.
+Every prior failed/U outcome stays so; actual closure can only downgrade.
+Original fees remain, including flat16leaf custody and4additional primitive
+binding operations. Limits remain400000operations/100000pairs/depth64.
+
+Independent actual-output controls first falsified admission-only authority:
+root composition, cached markup and inherited ownership transformations could
+leave zero marker-removal contribution with a stale P. A replay-based prototype
+was rejected for additional callback observations. Recorder mutability,
+post-import snapshot allocation and normal styled/verification regressions were
+then found before integration and repaired. Existing owning tests exercise the
+actual returned SVG and positive ordinary marker contributions, not a helper
+certificate standing in for ink. A platform content filter interrupted two
+reviewer turns; no skipped runtime probe is counted as passed. Subsequent
+independent static producer/consumer review completed with no ordinary-case
+finding; Root executed the owning regressions. No external target/messages or
+new issue/PR was involved.
+
+The first combined v3 introduced a real capacity regression: adding caption
+correspondence to Requirement100 plus actual composition checks changed both
+Scene engines P380021->U400000, despite exact unchanged SVG. Root added one
+expectation to the EXISTING100chain owner, preserving its independent authored
+model/card/route/caption assertions. Those two Scene rows fail before the repair
+and pass after (2F->2P/1416assertions); Native rows remain enrolled without locking
+in their existing U as desired behavior.
+
+The v4 repair reuses facts established by the shared snapshot producer. Internal
+bookkeeping constructors/methods are captured; arrays are filled/frozen before
+private dense-array provenance is issued, and objects freeze before metadata
+publication. The unused serialization transfer for arrays is removed. Only
+those genuine arrays reuse their immutable slots; raw arrays retain descriptor
+checks, and all actual map/constructor/species/spread/join/indent guards remain.
+This removes repeated reflection, not a check/fee/cap relaxation. Both engines'
+Requirement100 first/repeat stay P398416, with only1584operations headroom and
+exact806SVG/99caption keys. V3 ordinary Class32/LR128/RL128 remained P with exact
+SVG at157130/393441/397904; those older figures retain their v3 revision, not a
+new v4 timing/capacity claim.
+
+Root checks on the combined final v4: canonical core/repository types using
+Trident f080 and nine-file lint pass. Final five owners170P/0F/6843assertions;
+actual-output/verification selection12P/0F/324assertions. The earlier broad v3
+four-owner run739P/4F/15497assertions contains two known capacity failures and
+two30second timeouts. Both timed-out cases pass in isolated fresh execution at
+the UNCHANGED30000ms limit (2P/39assertions); the initial timeouts remain recorded,
+not relabelled as a green broad invocation. Evidence: ROOT-ACTUAL-WRITE-*,
+ROOT-V4-{FINAL-*,ACTUAL-VERIFY-OWNERS,TIMEOUT-CONTROLS,COMBINED-RED,COMBINED-GREEN}.
+Private v3/v4 partial-runtime fixture/registry and stdin failures are retained;
+Root's complete workspace owners are the combined qualification.
+
+One bounded before/after diagnostic uses exact806 seven-file production before
+and the final v4 after, with identical loader, common dependencies and options.
+Four existing inputs (Interj6, styled Requirement loop, Requirement100, ordinary
+Latin), both engines, Native/Scene and first/repeat give64/64calls,0errors or
+timeouts,32byte-exact pairedSVGs,56P/8U. All8U are Native100, retained before and
+after at400000. All4596direct-byte guards and child cleanup pass. Imports/GC,
+fully consumed SVG UTF8+whole receipt/error JSON, whole process and live/settled
+heap remain separate. Corrected run18:42:08.440095->18:42:32.465307UTC.
+
+| Diagnostic,16calls per arm |806before |Final v4 |
+| --- | --- | --- |
+| Native fully consumed call sum |4660.60ms |2864.32ms |
+| Scene fully consumed call sum |3673.08ms |3662.87ms |
+| Native process elapsed |7.432s |4.347s |
+| Scene process elapsed |5.481s |5.454s |
+| Native process peak RSS |266180KiB |261032KiB |
+| Scene process peak RSS |302292KiB |310612KiB |
+
+Only one Native AB and one Scene BA pair were run. Native's decrease is not a
+causal speedup; no statistical preservation/parity or allocation claim follows.
+Slower Scene two-engine repeat sums remain: Inter25.98->56.12ms and styled loop
+105.85->223.59; ordinary90.73->90.93, chain1092.04->958.58. Scene peak RSS rises
+8320KiB in this observation. First/repeat, CPU and heap rows remain in
+measurement/actual-bridge-v4-prepared/results-corrected/SUMMARY.json. Four initial
+onLoad-fallthrough startup failures made zero API calls and remain separate.
+Prepared+result artifacts total889825bytes, below their1MiB bound.
+
+Fresh H5 replays the EXISTING33sources/66engine cells without new peer/holdout,
+raster or timing calls.65cells complete:65models and122returned SVGs are whole-
+byte exact H4;8strict refusals and15normalU remain. No availability/paint-status
+change occurs among completed cells. Work/proof objects change as expected from
+new accounting;63/130stay whole-equal. One worker, historical-cyclic-labelled-15/
+agentic-strict, terminates with signal9 before any result packet; its model and
+render phase outcomes are unavailable. It remains enrolled. The remaining35
+unattempted cells were explicitly completed without retrying that worker; all
+owned children were reaped, controller guards and65worker after-guards pass.
+Exact SVG/options/font matches permit only the original scoped ink citations
+for65cells, not a new glyph/meaning/aesthetics or parity claim.
+
+A SEPARATE authorized six-call diagnostic compares that same failed source on
+806 and v4 with flushed phase observations. Both model58527bytes and both
+SVG30100bytes match H4; baseline strict/normal P292244/P350150, v4P293839/P350150.
+All calls, guards and cleanup pass. Cgroup counters/peak remain unchanged in
+both diagnostic arms. Earlier cumulative oom10/oom_kill6 and16GiB peak lack a
+before-failure baseline, so the original interruption's cause stays undetermined;
+no OOM or product-failure cause is asserted. This diagnostic does NOT rewrite
+H5's65completed/oneunavailable result. Evidence: final-h5-replay-prepared/
+{FINAL-COMPARISON.json,signal-cell-diagnostic/CONCLUSION.json}; all H5/diagnostic
+artifacts total440739bytes, below1MiB. Replacement24 remains sealed.
+
+Separate Native subtraction remains PRIVATE: removing a Scene-only diagnostic
+copy saves45078paid units, with16actualSVGs and generic observation packets
+exact, but all six legacy Native refusals remain. Four operation-attribution
+calls reproduce original ledgers/receipts and falsify the suspected1500-text
+context loop: marked context finish costs7000 and has no such loops. Exhaustion
+is in deferred XML projectFact validation before parsing; caps/prices unchanged.
+Do not ship this partial subtraction as a capacity closure or an unused API.
+Evidence: curve-stage-discriminator/native-prepared-lines-1/.
+
+Exact806CI41102233505 is terminal failure: unit1 4799P/33skip/0F, unit2
+5896P/37skip/2F, unit3 4738P/6skip/4F; all caption/font/173semantic owners pass.
+Six legacy capacity failures persist. Editor gzip1404843 >1334500, demo raw792058
+>788000 and67lazy rows/25groups fail, including State gzip761029 >761000 by29.
+Advisory comparisons fail with zero producer errors. The new implementation
+requires its own exact-head CI; older806 results are not relabelled as v4 CI.
+No default/version/release change, force push, PR merge or package publication.
+Next concrete step: push the verified actual-write fix normally, follow its CI,
+then investigate the Native XML fact duplication at the owning writer boundary
+without widening proof scope, relaxing caps or starting another timing campaign.
