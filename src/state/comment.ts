@@ -3,7 +3,7 @@
 export const STATE_NOTE_OPEN_RE = /^note\s+(left|right)\s+of\s+([\w\p{L}\p{M}\p{N}-]+)\s*$/iu
 /** Mermaid's block-note text runs from the target to `end note`, so it may
  * start on the opening line: `note left of A first line`. */
-export const STATE_NOTE_OPEN_TEXT_RE = /^note\s+(left|right)\s+of\s+([\w\p{L}\p{M}\p{N}-]+)\s+([^\s:].*)$/iu
+export const STATE_NOTE_OPEN_TEXT_RE = /^note\s+(left|right)\s+of\s+([\w\p{L}\p{M}\p{N}-]+)\s+([^\s:][^\r\n]*)$/iu
 export const STATE_NOTE_END_RE = /^end\s+note$/i
 
 /** Where a State comment starts on a line (-1 for none), and whether the line

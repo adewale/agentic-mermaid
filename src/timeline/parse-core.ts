@@ -31,8 +31,8 @@ export function unsupportedTimelineHeaderError(suffix: string): Error {
     example: 'timeline TD',
   })
 }
-export const TIMELINE_TITLE_RE = /^title\s+(.+)$/i
-export const TIMELINE_CONTINUATION_RE = /^:\s+(.+)$/
+export const TIMELINE_TITLE_RE = /^title\s+([^\r\n]+)$/i
+export const TIMELINE_CONTINUATION_RE = /^:\s+([^\r\n]+)$/
 
 /** The SECTION token stops before a colon. Its following EVENT tokens still
  * target the latest period, even when that period belongs to an older section.
@@ -54,7 +54,7 @@ export function isTimelineCommentLine(line: string): boolean {
  * leading `: ` event separator so the shared splitter can enforce Mermaid's
  * separator grammar without treating clock times such as `10:30` as events.
  */
-export const TIMELINE_PERIOD_RE = /^([^:#\n]+?)(\s*:\s+.+)$/
+export const TIMELINE_PERIOD_RE = /^([^:#\n]+?)(\s*:\s+[^\r\n]+)$/
 
 /**
  * Split `: Event 1 : Event 2` using Mermaid's separator rule: a colon starts a

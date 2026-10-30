@@ -42,7 +42,7 @@ export interface StateStereotypeMatch {
   label?: string
 }
 
-const NOTE_LINE_RE = /^note\s+(left|right)\s+of\s+([\w\p{L}\p{M}\p{N}-]+)\s*:\s*(.+)$/iu
+const NOTE_LINE_RE = /^note\s+(left|right)\s+of\s+([\w\p{L}\p{M}\p{N}-]+)\s*:\s*([^\r\n]+)$/iu
 const STEREOTYPE_RE = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}\p{M}\p{N}-]+)\s*<<\s*(fork|join|choice|history|deephistory|H\*|H)\s*>>$/iu
 const SEPARATOR_RE = /^-{2,}$/
 /** History transition endpoints: bare `[H]`/`[H*]` or suffixed `Base[H]`/`Base[H*]`. */
@@ -152,7 +152,7 @@ export function historyLabel(deep: boolean): 'H' | 'H*' {
  *  transition. */
 const TRANSITION_ENDPOINT = String.raw`\[\*\]|[\w\p{L}\p{M}\p{N}-]+\[H\*?\]|\[H\*?\]|[\w\p{L}\p{M}\p{N}-]+`
 const TRANSITION_RE = new RegExp(
-  `^(${TRANSITION_ENDPOINT})(?::::([\\w-]+))?\\s*-->\\s*(${TRANSITION_ENDPOINT})(?::::([\\w-]+))?(?:\\s*:\\s*(.+))?$`,
+  `^(${TRANSITION_ENDPOINT})(?::::([\\w-]+))?\\s*-->\\s*(${TRANSITION_ENDPOINT})(?::::([\\w-]+))?(?:\\s*:\\s*([^\\r\\n]+))?$`,
   'u',
 )
 
@@ -191,7 +191,7 @@ export function stereotypeMarker(stereotype: StateStereotype): string {
 export const STATE_DIRECTION_RE = /^direction\s+(TD|TB|LR|BT|RL)\s*$/i
 export const STATE_ALIAS_RE = /^state\s+"([^"]+)"\s+as\s+([\w\p{L}\p{M}\p{N}-]+)\s*$/u
 export const STATE_COMPOSITE_OPEN_RE = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}\p{M}\p{N}-]+)\s*\{$/u
-export const STATE_DESCRIPTION_RE = /^([\w\p{L}\p{M}\p{N}-]+)\s*:\s*(.+)$/u
+export const STATE_DESCRIPTION_RE = /^([\w\p{L}\p{M}\p{N}-]+)\s*:\s*([^\r\n]+)$/u
 export const STATE_CLASS_DEF_RE = /^classDef\s+([\w,-]+)\s+(.+)$/i
 export const STATE_STYLE_RE = /^style\s+([\w\p{L}\p{M}\p{N},-]+)\s+(.+)$/iu
 export const STATE_LINK_STYLE_RE = /^linkStyle\s+(default|[\d,\s]+)\s+(.+)$/

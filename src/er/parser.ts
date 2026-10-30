@@ -39,7 +39,7 @@ const ER_GLYPH_SOURCE = String.raw`(?:\|\||\|o|o\||\}o|o\{|\}\||\|\{|\bu(?=[.\-|
 const ER_RELATIONSHIP_RE = new RegExp(
   `^(${ER_ENTITY_REFERENCE_SOURCE})(?:[ \\t]+(${ER_CARDINALITY_SOURCE})|(${ER_GLYPH_SOURCE}))` +
   `(?:([ \\t]*(?:--|\\.\\.|\\.-|-\\.)[ \\t]*)|([ \\t]+(?:optionally to|to)[ \\t]+))` +
-  `(?:(${ER_CARDINALITY_SOURCE})[ \\t]+|(${ER_GLYPH_SOURCE}))(${ER_ENTITY_REFERENCE_SOURCE})(?:[ \\t]*:[ \\t]*(.*))?$`,
+  `(?:(${ER_CARDINALITY_SOURCE})[ \\t]+|(${ER_GLYPH_SOURCE}))(${ER_ENTITY_REFERENCE_SOURCE})(?:[ \\t]*:[ \\t]*([^\\r\\n]*))?$`,
   'i',
 )
 
@@ -1094,7 +1094,9 @@ export function parseErRelationshipSyntax(line: string, report?: ErQuotedTextRep
     identifying: operator === '--' || operator === 'to',
     label: readErRelationLabel(match[9] ?? '', report),
     ...(erLabelUnread(match[9]?.trim() ?? '') ? { unreadLabel: true as const }
-      : /^[^"\s][^\s"]*(?:\s+\S|")/.test(match[9]?.trim() ?? '') ? { unquotedWords: true as const } : {}),
+      // Outside a block Mermaid parts words only at blanks and tabs; U+2028
+      // and U+2029 are word characters there.
+      : /^[^"\s][^ \t"]*(?:[ \t]+\S|")/.test(match[9]?.trim() ?? '') ? { unquotedWords: true as const } : {}),
   }
 }
 

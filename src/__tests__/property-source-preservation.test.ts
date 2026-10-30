@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
-import { describeMermaidFacts, mutate, parseRegisteredMermaid, serializeMermaid, synthesizeFromGraph } from '../agent/index.ts'
+import { describeMermaidFacts, mutate, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, synthesizeFromGraph, verifyMermaid } from '../agent/index.ts'
 import { applyMutationBatch } from '../agent/mutate.ts'
 import type { AnyMutationOp, ParsedDiagram } from '../agent/types.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
@@ -157,6 +157,60 @@ describe('format over hostile field text', () => {
         if (!(await upstream.accepts(source))) continue
         const written = format(source)!.written
         expect({ source, written, accepted: await upstream.accepts(written) }).toEqual({ source, written, accepted: true })
+      }
+    } finally {
+      upstream.close()
+    }
+  }, 60_000)
+})
+
+// Mermaid 12.2.0 reads U+2028 and U+2029 inside State, Timeline and ER text
+// as characters of that text. Ours read `.`-based statement patterns, which
+// stop at them, so these sources fell back to preserved source: render and
+// verify failed, and a Timeline title was drawn as a period. Each must read
+// as a typed body stating the text, and draw.
+describe('line separators inside State, Timeline and ER text', () => {
+  const separated = fc.tuple(
+    fc.stringMatching(/^[a-z][a-z0-9]{0,3}$/),
+    fc.array(fc.tuple(fc.constantFrom(' ', ' ', '  ', '  '), fc.stringMatching(/^[a-z0-9]{1,4}$/)), { minLength: 1, maxLength: 3 }),
+  ).map(([first, rest]) => first + rest.map(([separator, word]) => separator + word).join(''))
+  // [name, source, the fact stating the text]
+  const TEMPLATES: ReadonlyArray<readonly [string, (text: string) => string, (text: string) => string]> = [
+    ['state transition', text => `stateDiagram-v2\n  S1 --> S2 : ${text}\n`, text => `edge S1 -> S2 : ${text}`],
+    ['state description', text => `stateDiagram-v2\n  S1 : ${text}\n`, text => `state S1 : ${text}`],
+    ['state note', text => `stateDiagram-v2\n  S1\n  note right of S1 : ${text}\n`, text => `note#0 right of S1 : ${text}`],
+    ['state block note', text => `stateDiagram-v2\n  S1\n  note left of S1\n    ${text}\n  end note\n`, text => `note#0 left of S1 : ${text}`],
+    ['timeline title', text => `timeline\n  title ${text}\n  2020 : a\n`, text => `title ${text}`],
+    ['timeline section', text => `timeline\n  section ${text}\n    2020 : a\n`, text => `section ${text}`],
+    ['timeline event', text => `timeline\n  2020 : ${text}\n`, text => `event 2020 : ${text}`],
+    ['timeline continuation', text => `timeline\n  2020 : a\n       : ${text}\n`, text => `event 2020 : ${text}`],
+    ['timeline period', text => `timeline\n  ${text} : a\n`, text => `period ${text}`],
+    ['er quoted relation', text => `erDiagram\n  A ||--o{ B : "${text}"\n`, text => `relation A one-only -- zero-or-many B : ${text}`],
+    ['er bare relation', text => `erDiagram\n  A ||--o{ B : ${text.replace(/ /g, '')}\n`, text => `relation A one-only -- zero-or-many B : ${text.replace(/ /g, '')}`],
+  ]
+  const caseArb = fc.tuple(fc.constantFrom(...TEMPLATES), separated)
+
+  test('the text is read as a typed body that states it, and draws', () => {
+    fc.assert(fc.property(caseArb, ([[name, template, fact], text]) => {
+      const source = template(text)
+      const diagram = parse(source)
+      expect({ name, kind: diagram.body.kind as string }).toEqual({ name, kind: diagram.kind as string })
+      expect(describeMermaidFacts(diagram)).toContain(fact(text))
+      const verified = verifyMermaid(source)
+      expect({ name, codes: verified.warnings.map(warning => warning.code) }).toEqual({ name, codes: [] })
+      expect(() => renderMermaidSVG(source)).not.toThrow()
+      // Formatting keeps the reading.
+      expect(describeMermaidFacts(parse(serializeMermaid(diagram)))).toEqual(describeMermaidFacts(diagram))
+    }), fcParameters({ numRuns: 200 }))
+  }, 60_000)
+
+  test('Mermaid 12.2.0 reads each source and its formatted form', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const [[name, template], text] of fc.sample(caseArb, { numRuns: 40, seed: 2028 })) {
+        const source = template(text)
+        const written = serializeMermaid(parse(source))
+        expect({ name, source, written, accepted: [await upstream.accepts(source), await upstream.accepts(written)] }).toEqual({ name, source, written, accepted: [true, true] })
       }
     } finally {
       upstream.close()
