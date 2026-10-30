@@ -16,9 +16,11 @@ export function compactMeasuredLoops(input: MeasuredGraph, placed: AgenticLayout
     cross = horizontal ? 'y' : 'x'
   const point = (m: number, c: number): Point => (horizontal ? { x: m, y: c } : { x: c, y: m })
   const boxes = input.nodes.map((node, index) => ({ ...placed.nodes[index]!, width: node.width, height: node.height }))
+  // Final route admission reserves the caption's two-pixel halo too. A
+  // cosmetic shortcut must not erase a jog that keeps another halo clear.
   const labels = input.edges.map((edge, index) => {
     const p = placed.edges[index]!.labelPosition
-    return edge.label && p ? { x: p.x - edge.label.width / 2, y: p.y - edge.label.height / 2, width: edge.label.width, height: edge.label.height } : undefined
+    return edge.label && p ? { x: p.x - edge.label.width / 2 - 2, y: p.y - edge.label.height / 2 - 2, width: edge.label.width + 4, height: edge.label.height + 4 } : undefined
   })
   const ink = placed.edges.map((edge, index) => ({ points: edge.points, style: input.edges[index]!.visible === false ? 'invisible' : 'solid' }))
   const visible = () => ink.map(edge => ({ points: edge.points, visible: edge.style !== 'invisible' }))
@@ -67,7 +69,7 @@ export function compactMeasuredLoops(input: MeasuredGraph, placed: AgenticLayout
         candidates.sort((a, b) => Math.abs(a.x - route.labelPosition!.x) + Math.abs(a.y - route.labelPosition!.y) - Math.abs(b.x - route.labelPosition!.x) - Math.abs(b.y - route.labelPosition!.y))
         labelPosition = undefined
         for (const candidate of candidates) {
-          const box = { x: candidate.x - edge.label.width / 2, y: candidate.y - edge.label.height / 2, width: edge.label.width, height: edge.label.height }
+          const box = { x: candidate.x - edge.label.width / 2 - 2, y: candidate.y - edge.label.height / 2 - 2, width: edge.label.width + 4, height: edge.label.height + 4 }
           work.loopPairs -= occupied.length + total
           if (work.loopPairs < 0) return placed
           if (box.x < input.padding || box.y < input.padding || box.x + box.width > placed.width - input.padding || box.y + box.height > placed.height - input.padding) continue

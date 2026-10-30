@@ -3916,3 +3916,97 @@ No live file contains that prototype. Evidence: label-independent-review/
 marker-roster-{baseline,overlay}.{svg,json}. The reviewed two-file Scene
 structural fact does not share renderer receivers and is independent of both
 rejected identity-sharing assumptions.
+
+
+### 30 October: authored interactions repair real grammar and loop-halo gaps
+
+The separately reviewed Scene structural subtraction is committed privately
+at9c9e6a320d28eb5e8d55465be5de6ed854d8af49; integrated Main remains83744.
+The six-source interaction cohort was independently authored/frozen before
+queries. Its18cells and all14returned SVGs remain enrolled and observed:
+50node owners,67carriers,77observed endpoint decorations in75positive removal
+groups and119positive authored-label removals. Node/relationship counts are
+not a correctness score. Its held-R5 outcomes are Agentic4returned/2refused,
+our ELK5returned/1refused, Pele5returned/1unsupported. Our returned strict/normal
+pairs are byte-identical. Three-system epochs are kept separate from the prior
+20source/60cell cohort and actual Original7/21cells. No holdout was opened.
+
+Pinned Mermaid12.2grammar was queried independently for all6sources:5accepted;
+Class's direct style declaration is a native-readable extension that pinned
+Mermaid/Pele reject. It remains enrolled. Both public implementations accept
+o--> but drop its circle-start meaning; actual Pele has4decorations versus
+5authored in that case. Pele also draws the requested right-of-Audit State
+note below Audit, despite retaining the note's intended side in its model.
+Our two paths retain the right side. ER's18served cardinality ends match the
+authored component topology; coincident/unkeyed ownership limits stay explicit.
+Declared Inter lacks the CJK code point in the formatted case, so positive
+text pixels do not prove correct fallback glyph identity. Exact natural-curve
+style remains unverified. Evidence: authored-interactions-six/SUMMARY.json,
+SOURCE-VALIDITY-ADDENDUM.json, ACTUAL-CARDINALITY-READBACK.json, FONT-COVERAGE.json
+and class-contact-repair/grammar.log with guarded worker/cleanup records.
+
+657dae66144037dd5fd4286a54399c5463c06715 fixes the grammar gap: the shared lexer
+now accepts solid circle/cross-start plus arrow-end operators, preserving both
+authored symbols and length. Typed export is accepted by12.2 and rereads with
+the independent expected meanings. The owning mixed parser case fails before
+repair. Afterward326unique owning/adjacent tests pass2,029assertions across6files:
+171parser,13actual marker-ink,142conformance/edge-ID/metadata/Markdown. The new
+actual SVG tests check authored visible text, both node-stroke contacts and
+positive separate start/end marker removals on both backends. A first observer
+epoch used exact binary floating sum and was corrected to1e-10precision; an
+inappropriate expected-P assertion exposed the existing richer Unicode proof U
+and was removed from this grammar/ink test's scope, with the refusal retained
+here. No product check/tolerance was changed and no full paint-proof gain is
+claimed. The original three-node mixed-case cohort still needs final-candidate
+replay; a repaired two-node variant does not substitute for it.
+
+The new Class interaction exposed a different defect. Optional loop compaction
+checked bare caption boxes while mandatory final route admission already
+reserves a2px halo. It removed a useful jog and drove the loop shaft through
+the reciprocal report caption halo. Both compaction-time label-box creation
+sites now retain that SAME existing2px reservation, so unsafe cosmetic
+shortcuts keep the original feasible route. Final checks, fees, search limits
+and caps are unchanged. The original four directions all fail before repair
+and pass afterward:4tests/176assertions verify actual owned relations, labels,
+cardinalities,6pxHub border, node-stroke contacts, positive per-caption glyph
+removals and per-relation marker+overlay removal pairs. Canonical types/lint pass.
+The FULL Class owner is122P/4F,2,819assertions; its four long-chain Native
+400,000-budget failures remain open and are not hidden by the new4P slice.
+Evidence: xml-adoption-checks/loop-halo-{red,green,class-owner}*,
+types-mixed-marker-loop-halo*,lint-mixed-marker-loop-halo*.
+
+Independent12-input/four-direction Class review changes Native4P/8refusals to
+12P, preserving all4earlier success SVGs and all12ELK SVGs. A subtraction arm
+disabling only cosmetic compaction also passes12; the halo fix retains safe
+LR/RL compaction while matching un-compacted TD/BT output. Browser observations
+cover24candidate cells,192node-stroke contacts,96positive marker groups,
+96positive captions and48positive node removals, with zero foreign-shaft
+intersections against actual glyph bounds plus halo. Final owner-byte-guarded
+replay reproduces all24observed outputs. Initial browser import setup failure
+is retained separately. Evidence: class-contact-repair/independent-halo-review/
+REPORT.json. No new peer acquisition, timing campaign or public artifact claim.
+
+Further subtraction ideas were actually falsified, not adopted speculatively.
+Reusing local certified label/crossing scores removes2crossing+2label scans but
+getter, preferNext and custom retainSelection controls change selected geometry
+from1crossing to3. Removing initial text retention saves1,500visits on an
+unchanged ordinary SVG but changes header ink under both backends; consecutive
+style reuse changes visible title capitalization under an options getter.
+Evidence: post-layout-reuse/REPORT.json and retention-style/REPORT.json.
+
+The remaining critical unpublished repairs are now composed privately. Fresh
+text copy plans retain fresh per-occurrence receivers; an independent own-key
+fix prevents ambient iteration of PRIVATE reflection arrays from dropping own
+caller/Proxy fields. Source Proxy/getter observations remain. XML construction
+uses private indexed rosters and primitive actual composition, with fresh DATA
+position obligations and raw fallback. Replays found and repaired introduced
+R5 false-P cases from private array methods and isolated-string scalar hooks.
+All22before/after-import XML replay cells pass; later actual-attribute-slice
+repair is inR4 and still needs final combined qualification. The separate
+Nativeowning4receiver/own-key cases and final-document XML case are green on
+their respective targets, not yet one shared candidate. First composed capacity
+measurement keeps ALL SIX original refusals U at400,000; original7normal cases
+remain P with identical SVG. No sound capacity closure is currently claimed.
+Next concrete step: finish same-candidate XML/copy/group custody review and
+owning checks, retain refused cases, then normal fast-forward-safe publication
+and exact-head CI. Remote retained branch remains d43; nothing was force-pushed.

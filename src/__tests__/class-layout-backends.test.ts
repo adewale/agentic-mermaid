@@ -1,6 +1,7 @@
 
 import { describe, expect, spyOn, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
+import { SaxesParser } from 'saxes'
 import { layoutMermaidWithReceipt, parseRegisteredMermaid } from '../agent/core.ts'
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
@@ -19,12 +20,66 @@ import { withRenderStageObserver } from '../render-stages.ts'
 import { missingSvgLabels } from './helpers/svg-labels.ts'
 import { measureQuality } from '../agent/quality.ts'
 import { graphStressSamples } from '../../eval/layout-compare/generated.ts'
+import { prepareResvgMarkerOrientation } from '../resvg-marker-orientation.ts'
+import { renderSvgPixels } from './helpers/raster.ts'
 
 const native = { graphLayout: { backend: 'agentic' as const } }
 const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/class-backends.mmd', import.meta.url), 'utf8')
 const compoundFixture = readFileSync(new URL('../../eval/layout-compare/fixtures/class-compound-backends.mmd', import.meta.url), 'utf8')
 
 describe('Class layout backends', () => {
+  test.each(['TB', 'BT', 'LR', 'RL'])('keeps loop compaction outside neighbouring caption halos in %s', direction => {
+    const source = `classDiagram\ndirection ${direction}\nclass Hub {\n +int state\n +tick()\n}\nclass Sink\nHub "1" o-- "many" Sink : owns\nHub "2" o-- "many" Sink : spare\nSink ..> Hub : report\nHub --> Hub : tick\nstyle Hub stroke-width:6px,fill:#fff,stroke:#222`
+    const options = { graphLayout: { backend: 'agentic' as const, fallback: 'none' as const } }
+    const rendered = renderMermaidSVGWithReceipt(source, options)
+    const boxes = new Map<string, Record<string, string>>(), carriers: Array<Record<string, string>> = [], labels: string[] = []
+    let label: string | undefined
+    const parser = new SaxesParser({ xmlns: true })
+    parser.on('opentag', tag => {
+      const attrs = Object.fromEntries(Object.entries(tag.attributes).map(([key, value]) => [key, value.value]))
+      if (tag.local === 'rect' && attrs['data-role'] === 'class-box') boxes.set(attrs['data-id']!.slice(6, -4), attrs)
+      if (tag.local === 'polyline' && attrs.class === 'class-relationship') carriers.push(attrs)
+      if (tag.local === 'text') label = ''
+    })
+    parser.on('text', value => { if (label !== undefined) label += value })
+    parser.on('closetag', tag => { if (tag.local === 'text') { labels.push(label!); label = undefined } })
+    parser.write(rendered.svg).close()
+    expect([...boxes.keys()]).toEqual(['Hub', 'Sink'])
+    expect(boxes.get('Hub')!['stroke-width']).toBe('6')
+    expect(labels).toEqual(expect.arrayContaining(['Hub', 'Sink', 'owns', 'spare', 'report', 'tick', '1', '2', 'many']))
+    expect(carriers.map(edge => [edge['data-from'], edge['data-to'], edge['data-label'], edge['data-type']])).toEqual([
+      ['Hub', 'Sink', 'owns', 'aggregation'], ['Hub', 'Sink', 'spare', 'aggregation'],
+      ['Sink', 'Hub', 'report', 'dependency'], ['Hub', 'Hub', 'tick', 'association'],
+    ])
+    for (const edge of carriers) {
+      const points = edge.points!.split(/\s+/).map(pair => pair.split(',').map(Number))
+      for (const [owner, point] of [[edge['data-from']!, points[0]!], [edge['data-to']!, points.at(-1)!]] as const) {
+        const box = boxes.get(owner)!, x = Number(box.x), y = Number(box.y), width = Number(box.width), height = Number(box.height)
+        expect(point[0]! >= x - 1e-9 && point[0]! <= x + width + 1e-9 && point[1]! >= y - 1e-9 && point[1]! <= y + height + 1e-9).toBe(true)
+        expect(Math.min(Math.abs(point[0]! - x), Math.abs(point[0]! - x - width), Math.abs(point[1]! - y), Math.abs(point[1]! - y - height))).toBeLessThan(1e-9)
+      }
+    }
+    const pixels = (svg: string) => Buffer.from(renderSvgPixels(prepareResvgMarkerOrientation(svg)).pixels)
+    const actual = pixels(rendered.svg)
+    for (const caption of ['owns', 'spare', 'report', 'tick']) {
+      const tag = rendered.svg.match(new RegExp(`<text\\b[^>]*>${caption}</text>`))?.[0]
+      expect(tag).toBeDefined()
+      expect(Buffer.compare(actual, pixels(rendered.svg.replace(tag!, '')))).not.toBe(0)
+    }
+    const semantic = rendered.svg.match(/<polyline\b[^>]*class="class-relationship"[^>]*\/>/g)!, overlays = rendered.svg.match(/<polyline\b[^>]*class="class-marker-overlay"[^>]*\/>/g)!
+    expect(semantic).toHaveLength(4)
+    expect(overlays).toHaveLength(4)
+    for (let index = 0; index < semantic.length; index++) {
+      const end = index < 2 ? 'start' : 'end', attribute = `marker-${end}="${carriers[index]![`marker-${end}`]}"`
+      expect(semantic[index]).toContain(attribute)
+      expect(overlays[index]).toContain(attribute)
+      const removed = rendered.svg.replace(semantic[index]!, semantic[index]!.replace(attribute, '')).replace(overlays[index]!, overlays[index]!.replace(attribute, ''))
+      expect(Buffer.compare(actual, pixels(removed))).not.toBe(0)
+    }
+    expect(rendered.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
+    expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+  })
+
   test.each(['TB', 'BT', 'LR', 'RL'])('renders a long native Class chain with exact card contacts in %s', direction => {
     const source = `classDiagram\ndirection ${direction}\n` + Array.from({ length: 127 }, (_, i) => `N${i} --> N${i + 1}`).join('\n')
     const options = { graphLayout: { backend: 'agentic' as const, fallback: 'none' as const } }
