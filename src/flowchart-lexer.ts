@@ -472,6 +472,9 @@ function lex(text: string, from: number, single: boolean, labelStrings: boolean,
       index = pipe.close
       continue
     }
+    // Upstream lexes `[/` and `[\` as one shape opener (the trapezoid and
+    // parallelogram family), so their text begins after the slash.
+    if (char === '[' && (text[index + 1] === '/' || text[index + 1] === '\\')) { open('shape', index, index + 2); index++; continue }
     if (SHAPE_OPENERS.has(char)) { open('shape', index, index + 1); continue }
     if (char === '-' || char === '=' || char === '<' || char === '~' || (char === '.' && !continuesNodeId(text, index))) {
       const link = matchFlowchartLink(text, index)
