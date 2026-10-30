@@ -472,12 +472,14 @@ function pushClassLines(lines: string[], c: ClassNode, indent: string, deferredM
   }
 }
 
-export function renderClass(body: ClassBody): string {
+/** `writeTitle` false when the title is written as the frontmatter `title:`,
+ * the only title Mermaid's Class grammar reads. */
+export function renderClass(body: ClassBody, writeTitle = true): string {
   const problem = classBodyWriteProblem(body)
   if (problem) throw new Error(problem)
   const lines: string[] = ['classDiagram']
   const deferredMembers: string[] = []
-  if (body.title) lines.push(`  title ${body.title}`)
+  if (body.title && writeTitle) lines.push(`  title ${body.title}`)
   // Dot paths imply unlabeled parents. A labeled parent without direct
   // classes must wrap its descendants: an empty standalone block is invalid.
   const namespaces = body.namespaces ?? []
@@ -645,6 +647,17 @@ function validateClassMembers(members: readonly string[]): MutationError | undef
     }
     if (new RegExp(MERMAID_DIRECTIVE_RE.source, 'i').test(decoded)) {
       return { code: 'INVALID_OP', message: 'Class members cannot hold a %%{…}%% directive, which Mermaid removes from the source' }
+    }
+    // Mermaid's class database reads a member with a `)` after its first
+    // character as a method and fails on one its method pattern cannot split.
+    const trimmed = decoded.trim()
+    if (!(trimmed.startsWith('<<') && trimmed.endsWith('>>')) && trimmed.indexOf(')') > 0 && !/([#+~-])?(.+)\((.*)\)([\s$*])?(.*)([$*])?/.test(decoded)) {
+      return { code: 'INVALID_OP', message: `Class member ${JSON.stringify(member)} holds \`)\` without a method name and \`(\` before it, which Mermaid 12.2.0's class database fails on` }
+    }
+    // A brace keeps a member out of a class block, and Mermaid's inline
+    // `Class : member` text (`:[^:\n;]+`) ends at a colon or semicolon.
+    if (/[{}]/.test(member) && /[:;]/.test(member)) {
+      return { code: 'INVALID_OP', message: `Class member ${JSON.stringify(member)} holds a brace, which only the inline \`Class : member\` form carries, and a colon or semicolon, which ends that form in Mermaid 12.2.0; no spelling holds both` }
     }
   }
 }
@@ -928,8 +941,8 @@ function mutateClassBody(body: ClassBody, op: ClassMutationOp): Result<ClassBody
       const target = findClass(op.class)
       if (!target) return err({ code: 'CLASS_NOT_FOUND', message: `class ${op.class} not found` })
       if (target.isInterface) return err({ code: 'INVALID_OP', message: 'add_interface needs an ordinary class, not another interface occurrence' })
-      if (typeof op.label !== 'string' || !op.label.trim() || /[\r\n`]/.test(op.label) || (op.side !== undefined && op.side !== 'from' && op.side !== 'to')) {
-        return err({ code: 'INVALID_OP', message: 'Interface label must be a non-empty portable single-line name without backticks; side must be from or to' })
+      if (typeof op.label !== 'string' || !op.label.trim() || /[\r\n`]|^\s*"/.test(op.label) || (op.side !== undefined && op.side !== 'from' && op.side !== 'to')) {
+        return err({ code: 'INVALID_OP', message: 'Interface label must be a non-empty portable single-line name without backticks or a leading double quote; side must be from or to' })
       }
       if ((op.lineStyle !== undefined && op.lineStyle !== 'solid' && op.lineStyle !== 'dashed') || (op.relationLabel !== undefined && (typeof op.relationLabel !== 'string' || !op.relationLabel.trim() || /[\r\n]/.test(op.relationLabel)))) {
         return err({ code: 'INVALID_OP', message: 'Interface relationLabel must be a non-empty single line; lineStyle must be solid or dashed' })
@@ -1069,6 +1082,10 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
         })
       }
       const value = node.value
+      if (value.kind === 'title') warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_title', line: header + 1 + node.source.line,
+        message: 'A Class `title` statement is read as the diagram title. Pinned Mermaid\'s Class grammar has no title statement: it ignores the line, or rejects it when the title holds punctuation such as `(` or `!`. The writer writes the title as the frontmatter `title:`, which Mermaid draws.',
+      })
       if (value.kind === 'class' && value.declaration.label === '' || value.kind === 'namespace' && value.label === '') warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_empty_label', line: header + 1 + node.source.line,
         message: 'An explicitly empty Class label is retained for native rendering. Pinned Mermaid requires nonempty label text, so typed editing is unavailable rather than replacing the label with its identity.',
@@ -1205,7 +1222,9 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
 export function verifyClass(body: ClassBody, opts: VerifyOptions): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
 
-  if (body.classes.length === 0 && body.title === undefined) {
+  // A title is frontmatter furniture: Mermaid rejects a Class diagram with no
+  // statement, titled or not (class_empty_diagram).
+  if (body.classes.length === 0) {
     warnings.push({ code: 'EMPTY_DIAGRAM' })
     return warnings
   }

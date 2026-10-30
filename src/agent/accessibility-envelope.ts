@@ -84,7 +84,7 @@ export function ensureAccessibilityLines(source: string, accessibility: Accessib
       .split(/\r?\n/)
       .find(line => line.trim() && !line.trimStart().startsWith('%%'))
       ?.trim() ?? ''
-  const native = /^(?:zenuml|eventmodeling|block(?:-beta)?|sankey(?:-beta)?|mindmap|ishikawa(?:-beta)?)(?:\s|$)/i.test(header)
+  const native = /^(?:zenuml|eventmodeling|block(?:-beta)?|sankey(?:-beta)?|mindmap|ishikawa(?:-beta)?|kanban)(?:\s|$)/i.test(header)
   const present = new Set<string>()
   const physical = source.split(/\r?\n/)
   for (let index = 0; index < physical.length; index++) {

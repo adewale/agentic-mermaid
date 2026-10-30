@@ -125,6 +125,19 @@ function validLabel(value: unknown, field: string): Result<string, MutationError
   return ok(value.trim())
 }
 
+/** A node name a typed edit writes. Mermaid's Sankey CSV reader takes only
+ * printable ASCII, quoted or not, and its entity prepass turns `#name;` codes
+ * into characters it rejects (sankey_unsupported_character): no spelling
+ * holds other text. */
+function writableName(value: unknown, field: string): Result<string, MutationError> {
+  const name = validLabel(value, field)
+  if (!name.ok) return name
+  const outside = /[^\x20-\x7E]/u.exec(name.value)?.[0]
+  if (outside !== undefined) return err({ code: 'INVALID_OP', message: `Sankey ${field} ${JSON.stringify(name.value)} holds U+${outside.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')}; Mermaid 12.2.0 reads only printable ASCII in a Sankey row` })
+  if (/#\w+;/.test(mermaidEntityPrepass(name.value))) return err({ code: 'INVALID_OP', message: `Sankey ${field} ${JSON.stringify(name.value)} holds an entity code, which Mermaid 12.2.0 decodes to a character its Sankey reader rejects` })
+  return name
+}
+
 function validValue(value: unknown, field: string): Result<number, MutationError> {
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
     return err({ code: 'INVALID_OP', message: `Sankey ${field} must be a non-negative number, got ${JSON.stringify(value)}` })
@@ -158,9 +171,9 @@ export function mutateSankey(body: SankeyBody, op: SankeyMutationOp): Result<San
 
   switch (op.kind) {
     case 'add_link': {
-      const source = validLabel(op.source, 'link source')
+      const source = writableName(op.source, 'link source')
       if (!source.ok) return source
-      const target = validLabel(op.target, 'link target')
+      const target = writableName(op.target, 'link target')
       if (!target.ok) return target
       const value = validValue(op.value, 'link value')
       if (!value.ok) return value
@@ -202,7 +215,7 @@ export function mutateSankey(body: SankeyBody, op: SankeyMutationOp): Result<San
     case 'rename_node': {
       const from = validLabel(op.from, 'node label')
       if (!from.ok) return from
-      const to = validLabel(op.to, 'node label')
+      const to = writableName(op.to, 'node label')
       if (!to.ok) return to
       const exists = next.links.some(link => link.source === from.value || link.target === from.value)
       if (!exists) return err({ code: 'NODE_NOT_FOUND', message: `Sankey node "${from.value}" not found` })

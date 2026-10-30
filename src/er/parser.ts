@@ -986,6 +986,13 @@ export function portableErAttributeText(text: string): string {
   return same ? portable : text
 }
 
+/** Whether the text the writer emits for an attribute is one Mermaid's
+ * attribute grammar reads: a typed edit writes no other (an attribute type
+ * or name starting with a digit has no Mermaid spelling). */
+export function writesPortableErAttribute(text: string): boolean {
+  return parseErAttribute(text) !== null && readMermaidErAttribute(portableErAttributeText(text)) !== null
+}
+
 /**
  * The generous attribute form Mermaid's grammar does not read (`--string id`,
  * `string id "c" PK`): a type and a name of any text without spaces, then keys

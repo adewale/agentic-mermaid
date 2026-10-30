@@ -293,11 +293,11 @@ describe('state notes — structured agent body', () => {
 
 // ---------------------------------------------------------------------------
 describe('state note ops (add_note / remove_note / set_note_text)', () => {
-  test('add_note accepts every parser-legal hyphenated ordinary state target', () => {
-    let d = state('stateDiagram-v2\n  in-progress : Working')
-    d = apply(d, { kind: 'add_note', target: 'in-progress', side: 'right', text: 'watch' })
-    expect(d.body.notes?.[0]).toMatchObject({ target: 'in-progress', text: 'watch' })
-    expect(state(serializeMermaid(d)).body).toEqual(d.body)
+  // Mermaid 12.2.0 ends a note's state name at a hyphen and rejects the
+  // note (state_note_target), so an edit writes none on a hyphenated state.
+  test('add_note refuses a hyphenated state target Mermaid cannot read', () => {
+    const d = state('stateDiagram-v2\n  in-progress : Working')
+    expect(mutate(d, { kind: 'add_note', target: 'in-progress', side: 'right', text: 'watch' })).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
   })
 
   test('add_note appends and round-trips through the render parser', () => {

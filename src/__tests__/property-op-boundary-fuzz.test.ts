@@ -286,32 +286,76 @@ describe('op-boundary fuzz: typed text edits round-trip or are refused', () => {
     }), fcParameters({ numRuns: 2000, examples: EXAMPLES }))
   }, 120_000)
 
-  // The pinned Mermaid parser is a slow child process: a bounded set of the
-  // hostile values above, each written by an edit we accept, must be source
-  // Mermaid reads.
-  it('Mermaid 12.2.0 reads what an accepted hostile-text edit writes', async () => {
+  // The pinned Mermaid parser is a slow child process, so it sees a bounded
+  // generated set: starting from a diagram Mermaid 12.2.0 reads, an edit we
+  // accept writes source it reads. Deliberate native extensions are named
+  // here and excluded by op kind; an empty diagram is the blank-slate
+  // scaffold mutate admits (EMPTY_DIAGRAM), which Mermaid rejects by design.
+  const EXTENSION_OPS: Partial<Record<MutableFamilyId, readonly string[]>> = {
+    // State transition paint is written as `linkStyle`, which State's grammar lacks (state_link_style).
+    state: ['set_transition_style'],
+  }
+  type OracleFixture = { family: MutableFamilyId; source?: string; ids: string[] }
+  const familyFixture = (family: MutableFamilyId): OracleFixture => ({ family, ...FIXTURES[family] })
+  // Beside each family's fixture: a declared hyphenated State name, which
+  // only some statements can spell, and a Class diagram with a frontmatter title.
+  const HYPHENATED_STATE: OracleFixture = { family: 'state', source: 'stateDiagram-v2\n  state "Dash" as a-b\n  [*] --> S1\n', ids: ['a-b', 'S1'] }
+  const TITLED_CLASS: OracleFixture = { family: 'class', source: '---\ntitle: Zoo\n---\nclassDiagram\n  class A\n', ids: ['A'] }
+  const oracleEditArb = fc.constantFrom(...FAMILIES.map(familyFixture), HYPHENATED_STATE, TITLED_CLASS).chain(fixture => {
+    const text = fc.oneof(fc.constantFrom(...fixture.ids, 'N1'), hostileText)
+    const op = opArbs(text).opFor(fixture.family).filter(op => !EXTENSION_OPS[fixture.family]?.includes(op.kind as string))
+    return fc.tuple(fc.constant(fixture), fc.array(op, { minLength: 1, maxLength: 2 }))
+  })
+  // Shrunk counterexamples (finder runs and the adversarial review), beside
+  // the round-trip examples above.
+  const ORACLE_EXAMPLES: Array<[[OracleFixture, Array<Record<string, unknown>>]]> = [
+    ...EXAMPLES.map(([[family, ops]]) => [[familyFixture(family), ops]] as [[OracleFixture, Array<Record<string, unknown>>]]),
+    [[familyFixture('sankey'), [{ kind: 'add_link', source: 'x,y', target: 'B', value: 3 }]]],
+    [[familyFixture('sankey'), [{ kind: 'add_link', source: '%%', target: 'B', value: 3 }]]],
+    [[familyFixture('state'), [{ kind: 'rename_state', from: 'S1', to: 'x--y' }]]],
+    [[familyFixture('flowchart'), [{ kind: 'define_class', name: 'x--y', style: 'fill:#f00' }]]],
+    [[familyFixture('flowchart'), [{ kind: 'add_subgraph', id: 'A[B]' }]]],
+    [[familyFixture('flowchart'), [{ kind: 'set_label', target: 'A', label: 'a\u2028b' }]]],
+    [[familyFixture('kanban'), [{ kind: 'set_task_label', id: 't1', label: '`x' }]]],
+    [[familyFixture('packet'), [{ kind: 'set_field_label', index: 0, label: 'a\u0007b\\"' }]]],
+    [[familyFixture('class'), [{ kind: 'set_title', title: 'a(b' }]]],
+    [[TITLED_CLASS, [{ kind: 'set_title', title: '<@' }]]],
+    [[familyFixture('kanban'), [{ kind: 'set_accessibility_title', title: 'a{b}' }]]],
+    [[familyFixture('kanban'), [{ kind: 'set_accessibility_description', description: "'}dX" }]]],
+    [[familyFixture('kanban'), [{ kind: 'set_class', id: 'todo', className: '' }]]],
+    [[HYPHENATED_STATE, [{ kind: 'add_transition', from: 'S1', to: 'a-b' }]]],
+    [[HYPHENATED_STATE, [{ kind: 'add_note', target: 'a-b', side: 'right', text: 'n' }]]],
+    [[familyFixture('sankey'), [{ kind: 'rename_node', from: 'A', to: '東京' }]]],
+    [[familyFixture('er'), [{ kind: 'add_attribute', entity: 'A', text: '0 0' }]]],
+    [[familyFixture('class'), [{ kind: 'add_member', class: 'A', text: 'a}b:c' }]]],
+    [[familyFixture('class'), [{ kind: 'add_member', class: 'A', text: 'a)b' }]]],
+    [[familyFixture('class'), [{ kind: 'add_interface', class: 'A', label: '"x' }]]],
+    [[familyFixture('treemap'), [{ kind: 'define_class', name: 'N1', style: 'a:b;c' }]]],
+  ]
+  it('Mermaid 12.2.0 reads what an accepted edit of a diagram it reads writes', async () => {
     const upstream = startUpstreamMermaid()
+    const fixtureAccepted = new Map<string, boolean>()
+    let checked = 0
     try {
-      for (const [[family, ops]] of [
-        ...EXAMPLES,
-        [['sankey', [{ kind: 'add_link', source: 'x,y', target: 'B', value: 3 }]]],
-        [['sankey', [{ kind: 'add_link', source: '%%', target: 'B', value: 3 }]]],
-        [['state', [{ kind: 'rename_state', from: 'S1', to: 'x--y' }]]],
-        [['flowchart', [{ kind: 'define_class', name: 'x--y', style: 'fill:#f00' }]]],
-        [['flowchart', [{ kind: 'add_subgraph', id: 'A[B]' }]]],
-        [['flowchart', [{ kind: 'set_label', target: 'A', label: 'a b' }]]],
-        [['kanban', [{ kind: 'set_task_label', id: 't1', label: '`x' }]]],
-        [['packet', [{ kind: 'set_field_label', index: 0, label: 'a\u0007b\\"' }]]],
-      ] as typeof EXAMPLES) {
-        const result = applyMutationBatch(base(family), ops)
-        if (!result.ok) continue
+      await fc.assert(fc.asyncProperty(oracleEditArb, async ([fixture, ops]) => {
+        const start = fixture.source === undefined ? createMermaid(fixture.family) : parseRegisteredMermaid(fixture.source)
+        const d = 'ok' in start ? (start.ok ? start.value : undefined) : start
+        if (!d) throw new Error(`${fixture.family} fixture does not parse`)
+        const before = serializeMermaid(d)
+        if (!fixtureAccepted.has(before)) fixtureAccepted.set(before, await upstream.accepts(before))
+        if (!fixtureAccepted.get(before)) return
+        const result = applyMutationBatch(d, ops)
+        if (!result.ok || emptyScaffold(result.value)) return
         const written = serializeMermaid(result.value)
-        expect({ family, ops, written, accepted: await upstream.accepts(written) }).toEqual({ family, ops, written, accepted: true })
-      }
+        checked++
+        expect({ family: fixture.family, ops, written, accepted: await upstream.accepts(written) }).toEqual({ family: fixture.family, ops, written, accepted: true })
+      }), fcParameters({ numRuns: 1000, examples: ORACLE_EXAMPLES }))
     } finally {
       upstream.close()
     }
-  }, 120_000)
+    // Vacuity guard: most generated edits are refused; enough must be written.
+    expect(checked).toBeGreaterThan(100)
+  }, 300_000)
 
   // The documented edit paths are one checked core: mutate, mutateChecked, a
   // one-op batch, applyOps and the hosted MCP mutate tool give the same verdict

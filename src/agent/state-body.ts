@@ -1173,6 +1173,14 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       if (!from.ok) return from
       const to = validEndpoint(op.to, 'transition to')
       if (!to.ok) return to
+      // A name Mermaid cannot read as a transition endpoint has no spelling
+      // there, whether the state is new or already declared (`state "…" as
+      // a-b` is readable; `S1 --> a-b` is not).
+      for (const [endpoint, field] of [[from.value, 'transition from'], [to.value, 'transition to']] as const) {
+        if (endpoint.kind !== 'state') continue
+        const name = validStateName(endpoint.value, field)
+        if (!name.ok) return name
+      }
       const fromContext = validateHistoryContext(next, from.value, op.parent)
       if (!fromContext.ok) return fromContext
       const toContext = validateHistoryContext(next, to.value, op.parent)
@@ -1337,6 +1345,8 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       }
       const target = op.target
       if (!locate(next, target)) return err({ code: 'STATE_NOT_FOUND', message: `State '${target}' not found` })
+      // Mermaid's note statement ends a state name at a hyphen (state_note_target).
+      if (target.includes('-')) return err({ code: 'INVALID_OP', message: `State note target '${target}' holds a hyphen, which Mermaid 12.2.0 cannot read in a note's state name; rename the state first` })
       const side = validNoteSide(op.side)
       if (!side.ok) return side
       const text = validNoteText(op.text)

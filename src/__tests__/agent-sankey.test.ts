@@ -137,6 +137,12 @@ describe('sankey generated CSV and mutation contracts', () => {
       expect(before).toHaveLength(2)
       expect(before.filter(label => label.startsWith('old-label'))).toHaveLength(1)
       const edited = mutate(original, { kind: 'rename_node', from: oldLabel, to: newLabel })
+      // Mermaid's Sankey reader takes only printable ASCII, and decodes entity
+      // codes to characters it rejects: an edit writes no other name.
+      if (/[^\x20-\x7E]|#\w+;/u.test(newLabel)) {
+        expect(edited).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
+        return
+      }
       expect(edited.ok).toBe(true)
       if (!edited.ok) throw new Error(JSON.stringify(edited.error))
       expect(edited.value.body.links).toEqual([{ source: newLabel, target: 'sink', value: 1 }])

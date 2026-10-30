@@ -57,6 +57,7 @@ import { admitVerifyOptions } from './verify-options.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
 import { emptyRenderedLayout } from './layout-to-rendered.ts'
 import { mindmapUnsupportedSyntaxWarnings } from './mindmap-body.ts'
+import { kanbanUnsupportedSyntaxWarnings } from './kanban-body.ts'
 import { parseRegisteredMermaid } from './parse.ts'
 import { prepareRenderInput } from './render-input.ts'
 import { quadrantUnsupportedSyntaxWarnings } from './quadrant-body.ts'
@@ -516,6 +517,7 @@ const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalS
   flowchart: flowchartUpstreamRejectedSyntaxWarnings,
   gantt: ganttUnsupportedSyntaxWarnings,
   journey: journeyUnsupportedSyntaxWarnings,
+  kanban: kanbanUnsupportedSyntaxWarnings,
   mindmap: mindmapUnsupportedSyntaxWarnings,
   quadrant: quadrantUnsupportedSyntaxWarnings,
   radar: radarUnsupportedSyntaxWarnings,

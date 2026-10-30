@@ -758,6 +758,8 @@ function extractClassLabels(source: string): ExtractedLabel[] {
   return out
 }
 
+const CLASS_STRUCTURED_HOOKS = /* @__PURE__ */ structuredFamilyHooks('class', { parseBody: parseClassBody, serialize: renderClass })
+
 export const CLASS_SOURCE_HOOKS = {
   renderSource: () => 'canonical',
   extractLabels: extractClassLabels,
@@ -766,7 +768,20 @@ export const CLASS_SOURCE_HOOKS = {
   // duplicate per-body branch). Single source of truth.
   verify: (body, opts) => (body.kind === 'class' ? verifyClass(body, opts) : []),
   buildSourceMap: buildClassSourceMap,
-  .../* @__PURE__ */ structuredFamilyHooks('class', { parseBody: parseClassBody, serialize: renderClass, }),
+  // Mermaid's Class grammar has no title statement: it ignores `title …` or
+  // rejects it. The title is the frontmatter `title:`, which Mermaid draws;
+  // a body statement, read generously, wins as it does when rendering.
+  parse: ctx => {
+    const parsed = CLASS_STRUCTURED_HOOKS.parse!(ctx)
+    if (parsed.ok && parsed.value.kind === 'class' && parsed.value.title === undefined && typeof ctx.source.frontmatter.title === 'string') parsed.value.title = ctx.source.frontmatter.title
+    return parsed
+  },
+  // The commit and serialize paths write the title into the frontmatter
+  // (withBodyTitleMeta); the body keeps it only when that wrapper cannot.
+  serialize: (body, meta) => {
+    if (body.kind !== 'class') throw new Error(`class serializer received body kind ${body.kind}`)
+    return renderClass(body, meta === undefined || meta.frontmatter?.title !== body.title)
+  },
 } satisfies Omit<FamilyOperations, 'mutate'>
 
 // ---- ER -------------------------------------------------------------------

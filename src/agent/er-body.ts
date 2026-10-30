@@ -30,6 +30,7 @@ import {
   isErKeywordName,
   parseErAttribute,
   portableErAttributeText,
+  writesPortableErAttribute,
   parseErEntityId,
   parseErEntityReference,
   recordErClassNames,
@@ -650,8 +651,8 @@ export function mutateEr(body: ErBody, op: ErMutationOp): Result<ErBody, Mutatio
       }
       if (find(op.id)) return err({ code: 'DUPLICATE_ENTITY', message: `entity ${op.id} already exists` })
       const attributes = op.attributes ?? []
-      if (attributes.some(text => !parseErAttribute(text))) {
-        return err({ code: 'INVALID_OP', message: 'ER attributes must use: type name [PK, FK, UK] ["comment"]' })
+      if (attributes.some(text => !writesPortableErAttribute(text))) {
+        return err({ code: 'INVALID_OP', message: 'ER attributes must use Mermaid\'s attribute form: type name [PK, FK, UK] ["comment"], each word starting with a letter, `_` or `*`' })
       }
       const label = normalizeErEntityLabel(op.label, 'label')
       if (!label.ok) return label
@@ -701,7 +702,7 @@ export function mutateEr(body: ErBody, op: ErMutationOp): Result<ErBody, Mutatio
     case 'add_attribute': {
       const e = find(op.entity)
       if (!e) return err({ code: 'ENTITY_NOT_FOUND', message: `entity ${op.entity} not found` })
-      if (!parseErAttribute(op.text)) return err({ code: 'INVALID_OP', message: 'ER attribute must use: type name [PK, FK, UK] ["comment"]' })
+      if (!writesPortableErAttribute(op.text)) return err({ code: 'INVALID_OP', message: 'ER attribute must use Mermaid\'s attribute form: type name [PK, FK, UK] ["comment"], each word starting with a letter, `_` or `*`' })
       e.attributes.push({ text: op.text })
       if (!ensureErStatements(b).some(statement => statement.kind === 'entity' && statement.id === e.id)) {
         insertAfterCreatingStatement(b, e.id, { kind: 'entity', id: e.id })

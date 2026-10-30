@@ -190,7 +190,7 @@ Accessibility descriptions normalize physical CR/CRLF to logical newlines before
 refolding. A successful mutation must retain the normalized fields in body,
 metadata and reloaded source. Values a family writer cannot spell without
 closing a description block or creating a directive return `INVALID_OP`
-atomically. Block, Mindmap, Sankey and Ishikawa writers carry accessibility
+atomically. Block, Kanban, Mindmap, Sankey and Ishikawa writers carry accessibility
 in owned `%% agentic-mermaid accTitle/accDescr: <JSON string>` comments. Each
 JSON string transports an authored grammar-text field, shielding global
 entities, XML and init-directive processing before its field decoder runs.
@@ -971,6 +971,41 @@ Flowchart classDef name cannot hold `--`, which Mermaid's lexer reads as a
 link. A new State name (`add_state`, `rename_state`, `make_composite`,
 floating notes) holds no hyphen and is not `default`, `click` or `href`.
 Authored names of those shapes are still read, and verify still reports them.
+
+### Typed edits write only what Mermaid 12.2.0 reads
+
+Starting from a diagram Mermaid 12.2.0 reads, an accepted typed edit writes
+source it reads. Where a field has a portable spelling the writer uses it;
+where none exists the edit is refused, field by field. Deliberate native
+extensions stay writable and warned (State transition paint as `linkStyle`).
+
+- Class titles are written as the frontmatter `title:`. Mermaid's Class
+  grammar has no title statement: it ignores `title …`, or rejects it when the
+  title holds `(`, `!`, `*` or astral characters. An authored statement is
+  still read as the title, wins over a frontmatter title as when rendering,
+  and verify reports it (`class_title`). A Class diagram with no class is the
+  empty scaffold (`EMPTY_DIAGRAM`) whether or not it has a title.
+- Kanban accessibility is written as owned native comments, as Mindmap's is.
+  Mermaid's Kanban grammar has no accessibility statement: it draws
+  `accTitle: …` as a column and rejects braces there. Authored statements are
+  still read as metadata and reported (`kanban_accessibility`). A blank
+  Kanban class (`:::` alone, which Mermaid rejects) is not written.
+- A State transition endpoint or note target holding a hyphen has no
+  spelling (`S1 --> a-b` and `note right of a-b` are rejected; `state "…" as
+  a-b` is read), so `add_transition` and `add_note` refuse such a state even
+  when it already exists.
+- A Sankey node name a typed edit writes is printable ASCII without entity
+  codes: Mermaid's Sankey reader takes nothing else, quoted or not.
+- An ER attribute a typed edit writes is one Mermaid's attribute grammar reads
+  (each word starts with a letter, `_` or `*`); the generous forms ours reads
+  stay read-only.
+- A Class member holding a brace and a colon or semicolon has no spelling
+  (only the inline `Class : member` form carries a brace, and its text ends
+  at either); nor does a member holding `)` without a method name and `(`
+  before it, on which Mermaid's class database fails. An interface label
+  cannot start with a double quote.
+- A Treemap classDef declaration holding `;` or `,` has no spelling: the
+  CLASS_DEF token ends at `;` and the writer joins declarations with `,`.
 
 ### Writers spell what readers admit
 

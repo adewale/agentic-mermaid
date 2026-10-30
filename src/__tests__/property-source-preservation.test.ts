@@ -70,6 +70,7 @@ describe('format over hostile field text', () => {
     ['sequence message', text => `sequenceDiagram\n  A->>B: ${text}\n`],
     ['class label', text => `classDiagram\n  class A["${text}"]\n`],
     ['class member', text => `classDiagram\n  class A {\n    ${text}\n  }\n`],
+    ['class title', text => `classDiagram\n  title ${text}\n  class A\n`],
     ['er relation', text => `erDiagram\n  A ||--o{ B : "${text}"\n`],
     ['timeline event', text => `timeline\n  2025 : ${text}\n`],
     ['journey task', text => `journey\n  section S\n    ${text}: 3: Me\n`],
