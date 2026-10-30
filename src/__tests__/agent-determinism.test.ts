@@ -370,8 +370,8 @@ describe('determinism — cross-runtime PNG (Loop 8)', () => {
 describe('determinism — cross-runtime ASCII (Loop 9 M7)', () => {
   // Mirrors the cross-runtime PNG test pattern. Renders the same source as
   // ASCII in bun + in node (via dist/agent.js), compares SHA-256 byte-hashes.
-  // If diverges, the test is marked test.todo with a clear comment and the
-  // gap goes into docs/project/divergences.md. Don't fake-pass.
+  // A divergence is a determinism bug: report it with the reduced source;
+  // never park it as test.todo.
   const NODE = findNodeBinary()
   const DIST = join(import.meta.dir, '..', '..', 'dist', 'agent.js')
   const haveNode = (() => {
@@ -399,8 +399,7 @@ describe('determinism — cross-runtime ASCII (Loop 9 M7)', () => {
       const r = spawnSync(NODE!, ['-e', script], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' })
       expect(r.status, JSON.stringify({ stderr: r.stderr, error: r.error?.message, signal: r.signal })).toBe(0)
       const nodeHash = r.stdout.trim()
-      // Honest comparison. Any divergence fails — convert to test.todo +
-      // document in DIVERGENCES if it does.
+      // Any divergence fails and is a determinism bug to fix.
       expect(nodeHash).toBe(bunHash)
     })
   }

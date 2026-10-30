@@ -403,7 +403,9 @@ describe('property: FamilyDescriptor render waist', () => {
 
   test('external plugins sort after metadata-ordered built-ins in an isolated registry process', async () => {
     const script = String.raw`
+      import './src/__tests__/fc-seed.preload.ts'
       import fc from 'fast-check'
+      import { fcParameters } from './src/__tests__/helpers/fc-parameters.ts'
       import { BUILTIN_FAMILY_METADATA, getFamily, knownFamilies } from './src/agent/families.ts'
       import { registerFamily } from './src/agent/family-registration.ts'
 
@@ -464,7 +466,7 @@ describe('property: FamilyDescriptor render waist', () => {
         if (JSON.stringify(tail) !== JSON.stringify(expectedTail)) {
           throw new Error('external order drifted: ' + JSON.stringify({ tail, expectedTail }))
         }
-      }), { numRuns: 25 })
+      }), fcParameters({ numRuns: 25 }))
     `
     const result = await runChild('bun', ['-e', script], { cwd: process.cwd() })
     expect(result.status, result.stderr || result.stdout).toBe(0)

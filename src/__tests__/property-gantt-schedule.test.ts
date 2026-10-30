@@ -217,8 +217,7 @@ describe('gantt scheduler properties (generated DAGs)', () => {
 
   test('critical-path/slack analysis matches a small backward-pass shadow model', () => {
     fc.assert(fc.property(genTaskList, tasks => {
-      const hasAfterEdge = tasks.some(t => (t.afterRefs?.length ?? 0) > 0)
-      if (!hasAfterEdge) return
+      fc.pre(tasks.some(t => (t.afterRefs?.length ?? 0) > 0))
 
       const s = scheduleOf(toSource(tasks))
       expect(s.analysis).toBeDefined()

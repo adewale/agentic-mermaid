@@ -99,7 +99,7 @@ describe('ΔE_OK perceptual distance', () => {
     fc.assert(
       fc.property(hexColorArb, hexColorArb, (a, b) => {
         expect(deltaEOK(a, a)).toBe(0)
-        expect(deltaEOK(a, b)).toBeCloseTo(deltaEOK(b, a)!, 10)
+        expect(deltaEOK(a, b)).toBe(deltaEOK(b, a))
       }),
       fcParameters({ numRuns: 200 }),
     )

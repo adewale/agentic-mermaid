@@ -101,7 +101,11 @@ describe('xychart bars encode value as length from a shared baseline', () => {
         const lengths = bars.map(bar => horizontal ? bar.width : bar.height)
         const distances = bars.map(bar => Math.abs(bar.value - baseline))
         const reference = distances.indexOf(Math.max(...distances))
-        if (distances[reference] === 0) return
+        if (distances[reference] === 0) {
+          // Every value sits on the baseline, so every bar is empty.
+          for (const length of lengths) expect(length).toBeLessThan(EPSILON)
+          return
+        }
         const pixelsPerUnit = lengths[reference]! / distances[reference]!
         bars.forEach((_bar, index) => {
           expect(Math.abs(lengths[index]! - pixelsPerUnit * distances[index]!)).toBeLessThan(EPSILON)
