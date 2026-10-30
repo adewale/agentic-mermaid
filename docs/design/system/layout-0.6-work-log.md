@@ -5320,3 +5320,128 @@ prefix/event construction be shared without moving lexical validation or
 trusting ambient cache results? Require meaningful owner red→green before any
 adoption; retain generic/getter/CSS/definition/ownership isolation. Campaign end
 remains2026-10-31T12:03:00Z, with no automatic extension.
+
+
+### 30 October21:06UTC: actual inherited text paint, with measured costs retained
+
+Correctness implementation08884a570e02116b29cfc18773ea5cc219ae2034 follows
+published1fb22fe6da2968fecaa9034b5683ad97bacc6f7a. Follow-up
+c607bfba192e3821074c63ed15bd120cbec1cb16 shares the original private XML event
+record rather than constructing an eager parallel paint snapshot. Both are
+verified local commits on the retained branch; publication and exact-head CI
+are separate observations. No release/default/version change or new issue/PR.
+
+The Native writer records the actual escaped paint tokens and whether an
+emitted field came from inheritance, using the SAME paint receiver and the
+existing getter order. A private issuer binds evidence to capture, actual write,
+source and SVG. Write-time inherited evidence survives removal of the property
+before inspection. Unsupported paint/span evidence is distinct from absent
+write evidence and retains U. Only the inherited-paint domain consumes the new
+projection; ordinary own paint retains its existing proof scope.
+
+The recorder uses actual tokens for paint metadata, nonpainting classification
+and occupied bounds. Admission also requires the original deferred typed-leaf
+XML result, current-emission membership and bound document/group/CSS context.
+A valid raw-XML fallback cannot substitute for typed closure. The narrow new
+foreground proof requires opaque contrast over the declared document paper and
+no ambiguous earlier backing artwork. White-on-white and matching-underlay
+controls remain U; intentional zero opacity is not redefined as a required
+visible label. An authentic immutable occurrence roster owns numeric obligation
+checks, even if its public iterator omits a fact. Unbound generic custom-iterator
+sequences retain their previous semantics and gain no stronger actual-emission
+claim. Protected new metadata/work/roster/ancestry bookkeeping assumes the normal
+trusted module-initialization realm; no universal hostile pre-import claim.
+
+Eight existing-owner table rows independently observe actual SVG attributes and
+Inter glyph-removal contribution: visible, white-on-white, zero opacity,
+matching underlay, valid raw fallback hiding the text, removed white, removed
+visible, and removed raw fallback. The meaningful original baseline was0P/4F
+on the earlier55-line test edit: actual SVG/glyph preconditions passed while
+retained paint followed later inherited values. The final eight rows pass
+8P/0F/43assertions. Do not relabel the later baseline import failure caused by
+new API imports as behavioral RED.
+
+Four protocol controls pass4P/0F/26assertions, including genuine unclosed facts,
+foreign/forged bindings and a white-text roster wrapper. Three selective guard
+reversions produce intended unsafe P: removing missing-work enforcement gives
+2P/2F; omitting the raw-roster foreground check gives3P/1F; removing typed closure
+gives6P/2F in the eight-row table, with both valid zero-ink fallbacks incorrectly
+passed. All guards are restored. These controls inspect actual returned ink,
+not a nominal helper certificate as a substitute.
+
+Root canonical core/repository types with Trident f080 and targeted lint pass
+for both implementations. Integrated final Native validation, SVG writer and
+Requirement owners pass125tests/4689assertions, including all four100-requirement
+engine/admission combinations with real child-process access. The earlier
+Native child stdin EPERM startup failures remain recorded separately. Existing
+0/32-marker owner remains1P/1F: unmarked succeeds,32marked remains U400000.
+All source-byte guards and owned-child cleanup pass. Evidence is under
+curve-stage-discriminator/native-actual-text-paint-{3,5}/qualification-final/;
+Root final checks are ROOT-{TYPES,LINT,OWNERS}.
+
+A blind diagnostic-copy subtraction was tried and REJECTED. Existing owning
+case `native retained text copy plans keep scalar depth after ambient maximum
+changes` changes only the preparedLines alias while preserving block/SVG. The
+private v4 omission changes depth65 from U to P1833 (0P/1F/two assertions before
+the first failure). It violates the retained depth limit; earlier16-SVG/observer
+parity had omitted this owner. Inherited getters can also inspect that receiver
+field. No omitted field, relaxed cap or private copy shortcut was adopted.
+Evidence: native-actual-text-paint-4/qualification-final/candidate/scalar-depth.log.
+
+The c607 follow-up retains the complete receiver and diagnostic fields. Logical
+paint keys are carried by the existing private XML attribute events only when
+a Native text reporter is installed. Actual paint/content projection runs once
+when consumed; unsupported results cache as unavailable and reentrant reads
+fail closed. Original typed lexical validation remains independent. New custody
+and projection work is paid; existing fees/caps400000/100000/depth64 remain.
+Independent disjoint producer/custody and consumer reviews report no finding in
+the named scope, not global completeness. In particular this does not establish
+arbitrary valid font-attribute rewriting, glyph identity or shaping correspondence;
+those are retained broader typography limitations.
+
+Two authorized24-call diagnostics use the same three fixtures, Native AB and
+Scene BA, first/repeat, actual SVG UTF8 and whole proof/receipt consumption.
+All calls complete without API error/timeout; each has12byte-exact SVG pairs,
+4603source/dependency guards, exact eight-module loads and four successful child
+cleanups. Import and explicit GC remain separate. The second run compares exact
+original1fb with committed final c607,21:04:44.920364->21:04:53.030744UTC.
+
+| Observation, six calls per arm |1fb before |c607 after |
+| --- | ---: | ---: |
+| Native fully consumed sum |528.51ms |804.02ms |
+| Scene fully consumed sum |584.17ms |819.36ms |
+| Native process elapsed |1.282s |1.655s |
+| Scene process elapsed |1.401s |2.469s |
+| Native peak RSS |145096KiB |159840KiB |
+| Scene peak RSS |138332KiB |163780KiB |
+
+Eleven of twelve paired timings are slower observations. Native sparse repeat
+post-GC heap retaining current outputs/proof rises13695034->20053517bytes;
+Scene14684847->17526676. Native inherited proof changes U1274->P6693; public
+Latin stays P71227->P71287. Sparse32 stays U400000 with completed marker checks
+0->5. All six Scene proofs/receipts are whole-exact. No allocation, statistical
+preservation, causal speedup, or ELK/Pele performance parity follows. The first
+v3 run is also retained: Native506.41->698.33ms, Scene613.33->597.67ms; its Native
+sparse live heap likewise rises. These are different source/run bindings, not
+pooled samples or proof of a trend. Full rows, CPU, heap, slower controls and
+limitations are in measurement/native-actual-paint-mini-{3-final-prepared,5-committed}/
+CONCLUSION.json. Both remain below their1MiB stage bounds with256MiB reserve.
+
+Exact old-head CI41116061969 completed FAILURE at1fb:4799P/33skip/0F,
+5907P/37skip/2F,4738P/6skip/4F; the same six capacity test names. Semantics173P.
+Delivery remains red: editor gzip1407110>1334500, demo raw800317>788000 and
+gzip303555>302500;68lazy failures/25groups including flowchart764084>761500 and
+State764035>761000. New code is not qualified by that old run. Main remains
+118cadd53d3b2dfbaf0dbb959bcc7abb66f16ae5 at the last live fetch; combined current-
+Main qualification remains absent.
+
+Next concrete bounded step: test whether keeping the original nonreporting
+XML attribute/prepared hot-path bodies, and moving new Native receipt bookkeeping
+into separate calls, reduces the observed cost. It must retain the eight actual
+ink rows, protocol guard reversions, depth owner and all existing fees/caps.
+No repeated timing until a new verified source change. Six capacity failures,
+historical19 normal budget, broader rich text/fonts, delivery and independent
+meaning qualification remain open. No new public Mermaid/Pele or holdout calls
+were made; earlier pinned observations retain their own revisions and limits.
+Replacement24 stays sealed. There is no human-study gate. The fixed campaign
+end remains2026-10-31T12:03:00Z, with no automatic extension.
