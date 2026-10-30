@@ -6,6 +6,7 @@ import { describe, test, expect } from 'bun:test'
 import { describeMermaidSource, describeMermaid, describeMermaidTree } from '../agent/describe.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { describeMermaidFacts } from '../agent/facts.ts'
 
 describe('describeMermaid', () => {
   test('flowchart: every node id appears in description', () => {
@@ -23,6 +24,18 @@ describe('describeMermaid', () => {
   test('timeline: every period label appears', () => {
     const out = describeMermaidSource('timeline\n  title Test\n  2020 : COVID\n  2021 : Recovery\n  2022 : Growth')
     for (const period of ['2020', '2021', '2022']) expect(out).toContain(period)
+  })
+
+  test('timeline: summary, tree and facts agree on the title and sections; periods before the first section are unsectioned', () => {
+    const parsed = parseMermaid('timeline\n  title History\n  2000 : Pre-section event\n  section Early\n    2001 : A\n  section Late\n    2020 : B')
+    if (!parsed.ok) throw new Error('parse')
+    expect(describeMermaid(parsed.value)).toBe('A timeline titled "History" with 2 sections and 3 periods. Unsectioned periods: 2000. Sections: Early [2001]; Late [2020].')
+    const tree = describeMermaidTree(parsed.value)
+    const label = (id: string | undefined) => tree.nodes.find(node => node.id === id)?.label
+    expect(tree.title).toBe('History')
+    expect(tree.nodes.map(node => [node.label, label(node.parentId)])).toEqual([['2000', undefined], ['Early', undefined], ['2001', 'Early'], ['Late', undefined], ['2020', 'Late']])
+    const facts = describeMermaidFacts(parsed.value)
+    expect(facts.filter(fact => /^(?:title|section|period \S+ section) /.test(fact))).toEqual(['period 2001 section Early', 'period 2020 section Late', 'section Early', 'section Late', 'title History'])
   })
 
   test('class: every class name appears', () => {
@@ -73,7 +86,7 @@ describe('describeMermaid', () => {
     ['stateDiagram-v2\n  [*] --> A', 'A state diagram with 1 state and 1 transition.'],
     ['classDiagram\n  class A', 'A class diagram with 1 class.'],
     ['erDiagram\n  A {\n    string id\n  }', 'An ER diagram with 1 entity.'],
-    ['timeline\n  section S\n    2020 : a', 'A timeline with 1 section.'],
+    ['timeline\n  section S\n    2020 : a', 'A timeline with 1 section and 1 period.'],
     ['journey\n  section S\n    Go: 5: Me', 'with 1 section and 1 task.'],
     ['gitGraph\n  commit', 'A GitGraph with 1 commit across 1 branch, including 0 merges and 0 cherry-picks.'],
     ['mindmap\n  root\n    leaf', 'with 1 leaf.'],

@@ -211,10 +211,13 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
     for (const e of d.body.entities) tree.nodes.push({ id: e.id, label: e.label || e.id })
     for (const r of d.body.relations) tree.edges.push({ from: r.from, to: r.to, label: r.label || undefined })
   } else if (d.body.kind === 'timeline') {
-    for (const s of d.body.sections)
-      for (const p of s.periods) {
-        tree.nodes.push({ id: p.id, label: p.label })
-      }
+    // Periods before the first `section` belong to no section: the parser's
+    // implicit holder has no label and is not drawn as one.
+    if (d.body.title !== undefined) tree.title = d.body.title
+    for (const s of d.body.sections) {
+      if (s.label !== undefined) tree.nodes.push({ id: s.id, label: s.label })
+      for (const p of s.periods) tree.nodes.push({ id: p.id, label: p.label, ...(s.label !== undefined ? { parentId: s.id } : {}) })
+    }
   } else if (d.body.kind === 'journey') {
     // Tasks carry their journey semantics (score + actors) in the label, the
     // same way pie embeds values and quadrant embeds coordinates — an agent
@@ -520,13 +523,13 @@ function sequenceBranchDisplay(fragment: SequenceFragment, branchIndex: number):
 }
 
 function describeTimeline(d: TimelineValidDiagram): string {
-  const sections = d.body.sections
-  const sectionLabels = sections.map(s => s.label || s.id)
-  const periodLabels: string[] = []
-  for (const s of sections) for (const p of s.periods) periodLabels.push(p.label)
-  let s = `A timeline with ${counted(sections.length, 'section')}.`
-  if (sectionLabels.length > 0) s += ` Sections: ${sectionLabels.join(', ')}.`
-  if (periodLabels.length > 0) s += ` Periods: ${periodLabels.join(', ')}.`
+  const { title, sections } = d.body
+  const sectioned = sections.filter(section => section.label !== undefined)
+  const unsectioned = sections.filter(section => section.label === undefined).flatMap(section => section.periods.map(period => period.label))
+  const periods = sections.reduce((n, section) => n + section.periods.length, 0)
+  let s = `A timeline${title !== undefined ? ` titled "${title}"` : ''} with ${counted(sectioned.length, 'section')} and ${counted(periods, 'period')}.`
+  if (unsectioned.length > 0) s += ` Unsectioned periods: ${unsectioned.join(', ')}.`
+  if (sectioned.length > 0) s += ` Sections: ${sectioned.map(section => memberList(section.label!, section.periods.map(period => period.label))).join('; ')}.`
   return s
 }
 
