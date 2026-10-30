@@ -76,6 +76,31 @@ export function renderArchitectureTerminal(
   const endpointId = (endpoint: ArchitectureEndpoint): string => endpoint.boundary === 'group' ? diagram.services.find(service => service.id === endpoint.id)?.parentId ?? endpoint.id : endpoint.id
   const faceDemand = countFaceDemand(diagram.edges.flatMap(edge => [edge.source, edge.target].map(endpoint => ({ id: endpointId(endpoint), side: endpoint.side }))))
   const minimum = (id: string) => faceSize(faceDemand.get(id))
+  // The box an endpoint attaches to: a group boundary is its service's parent.
+  const endpointBoxId = (endpoint: ArchitectureEndpoint): string | undefined => {
+    const service = diagram.services.find(item => item.id === endpoint.id)
+    if (endpoint.boundary === 'group') return service?.parentId
+    return service || diagram.junctions.some(item => item.id === endpoint.id) ? endpoint.id : undefined
+  }
+  // Each endpoint's slot on its face, in authored edge order.
+  const portCursors = new Map<string, number>()
+  const portSlots = diagram.edges.map(edge => {
+    const source = endpointBoxId(edge.source), target = endpointBoxId(edge.target)
+    if (source === undefined || target === undefined) return undefined
+    const slot = (id: string, side: ArchitectureEndpoint['side']) => {
+      const key = `${id}:${side}`, index = portCursors.get(key) ?? 0
+      portCursors.set(key, index + 1)
+      return index
+    }
+    return { start: slot(source, edge.source.side), end: slot(target, edge.target.side) }
+  })
+  const facePort = (box: CellBox, side: ArchitectureEndpoint['side'], index: number): GridCoord => {
+    const count = faceDemand.get(box.id)?.[side] ?? 1
+    // Group titles replace top-border ink. Attach beyond their complete
+    // display width, where the physical contact is still an owned frame.
+    const header = box.kind === 'group' && side === 'T' ? visualWidth(box.labelLines[0] ?? '') + 3 : 0
+    return allocateFacePort(header ? { ...box, x: box.x + header, width: box.width - header } : box, side, index, count)
+  }
   const allPixelBounds = [
     ...positioned.services.map(item => ({ x: item.x, right: item.x + item.width })),
     ...positioned.junctions.map(item => ({ x: item.x, right: item.x + item.width })),
@@ -196,6 +221,15 @@ export function renderArchitectureTerminal(
       if (box) { box.clearance ??= {}; box.clearance[endpoint.side] = Math.max(box.clearance[endpoint.side] ?? 0, arrow ? 2 : 1) }
     }
     settleArchitectureBoxes(allBoxes)
+    const boxById = new Map([...serviceBoxes, ...junctionBoxes, ...groupBoxes])
+    reserveLabelColumns(allBoxes, diagram.edges.flatMap((edge, index) => {
+      const slots = portSlots[index], source = boxById.get(endpointBoxId(edge.source) ?? ''), target = boxById.get(endpointBoxId(edge.target) ?? '')
+      return edge.label && slots && source && target ? [{
+        width: visualWidth(`[${oneRowDisplayText(edge.label)}]`),
+        source, target, sides: `${edge.source.side}${edge.target.side}`,
+        ports: () => [facePort(source, edge.source.side, slots.start), facePort(target, edge.target.side, slots.end)] as const,
+      }] : []
+    }))
     return { serviceBoxes, junctionBoxes, groupBoxes, allBoxes }
   }
   let expansion = 1
@@ -262,23 +296,14 @@ export function renderArchitectureTerminal(
   const markerCells: Array<{ point: GridCoord; side: ArchitectureEndpoint['side']; owner: TerminalOwner }> = []
   const edgePaths: Array<{ edge: ArchitectureEdge; points: GridCoord[]; owner: TerminalOwner }> = []
   const connectionOwners = new Map<string, Map<string, { owner: TerminalOwner; dirs: Set<Cardinal> }>>()
-  const portCursors = new Map<string, number>()
-  const portFor = (box: CellBox, side: ArchitectureEndpoint['side']): GridCoord => {
-    const key = `${box.id}:${side}`, index = portCursors.get(key) ?? 0, count = faceDemand.get(box.id)?.[side] ?? 1
-    portCursors.set(key, index + 1)
-    // Group titles replace top-border ink. Attach beyond their complete
-    // display width, where the physical contact is still an owned frame.
-    const header = box.kind === 'group' && side === 'T' ? visualWidth(box.labelLines[0] ?? '') + 3 : 0
-    return allocateFacePort(header ? { ...box, x: box.x + header, width: box.width - header } : box, side, index, count)
-  }
   // Reserve every occurrence before routing: a later endpoint marker must not
   // overwrite an earlier shaft that happened to cross its allocated cell.
-  const allocated = diagram.edges.map(edge => {
-    const source = endpointBox(edge.source), target = endpointBox(edge.target)
-    return source && target ? {
+  const allocated = diagram.edges.map((edge, index) => {
+    const source = endpointBox(edge.source), target = endpointBox(edge.target), slots = portSlots[index]
+    return source && target && slots ? {
       source, target,
-      start: portFor(source, edge.source.side),
-      end: portFor(target, edge.target.side),
+      start: facePort(source, edge.source.side, slots.start),
+      end: facePort(target, edge.target.side, slots.end),
     } : undefined
   })
   const outward = (port: GridCoord, side: ArchitectureEndpoint['side']) => ({ x: port.x + (side === 'R' ? 1 : side === 'L' ? -1 : 0), y: port.y + (side === 'B' ? 1 : side === 'T' ? -1 : 0) })
@@ -354,15 +379,12 @@ export function renderArchitectureTerminal(
   }
 
   const labelBoxes: CellBox[] = []
-  const routeCells: CellBox[] = edgePaths.some(({ edge }) => edge.label) ? [...connections.keys()].map(key => {
-    const [x, y] = key.split(',').map(Number)
-    return { id: '', kind: 'junction', x: x!, y: y!, width: 1, height: 1, labelLines: [], depth: 0 }
-  }) : []
   for (const { edge, points, owner } of edgePaths) {
     activeOwner = owner
     if (!edge.label) continue
     const text = `[${oneRowDisplayText(edge.label)}]`
-    const placement = placeEdgeLabel(text, points, [...allBoxes, ...labelBoxes, ...routeCells])
+    // Every drawn route cell is ink a label must not cover, its own included.
+    const placement = placeEdgeLabel(text, points, [...allBoxes, ...labelBoxes], new Set(connections.keys()))
     writeText(placement, text, true)
     labelBoxes.push({
       id: `edge-label-${labelBoxes.length}`,
@@ -601,36 +623,103 @@ function settleArchitectureBoxes(boxes: CellBox[]): void {
   settle()
 }
 
-function placeEdgeLabel(text: string, path: GridCoord[], boxes: CellBox[]): GridCoord {
+interface LabelledRun {
+  width: number
+  source: CellBox
+  target: CellBox
+  sides: string
+  ports: () => readonly [GridCoord, GridCoord]
+}
+
+/**
+ * Give each straight labelled run room for its label with a blank column
+ * either side: above a horizontal run between side-by-side boxes, or beside a
+ * vertical run between stacked boxes. Inserting columns only moves geometry
+ * right of the insertion (stretching the frames that span it), so no other
+ * gap narrows and the containment tree keeps its order.
+ */
+function reserveLabelColumns(boxes: CellBox[], runs: readonly LabelledRun[]): void {
+  const insert = (column: number, delta: number): void => {
+    for (const box of boxes) {
+      if (box.x >= column) box.x += delta
+      else if (box.kind === 'group' && right(box) >= column) box.width += delta
+    }
+  }
+  // Columns a label must not cover across rows top..end: cards, and frames.
+  const walls = (top: number, end: number): number[] => boxes.flatMap(box => box.y > end || bottom(box) < top ? []
+    : box.kind === 'group' ? [box.x, right(box)] : Array.from({ length: box.width }, (_, index) => box.x + index))
+  for (const run of runs) {
+    const need = run.width + 2
+    if (run.sides === 'RL' || run.sides === 'LR') {
+      const [left, rightBox] = run.sides === 'RL' ? [run.source, run.target] : [run.target, run.source]
+      const top = Math.max(left.y, rightBox.y), end = Math.min(bottom(left), bottom(rightBox))
+      if (right(left) >= rightBox.x || top > end) continue
+      // A group frame crossing the run splits it; the label takes one stretch.
+      const stops = [...new Set([right(left), ...walls(top, end).filter(x => x > right(left) && x < rightBox.x), rightBox.x])].sort((a, b) => a - b)
+      let column = right(left) + 1, room = 0
+      for (let index = 1; index < stops.length; index++) if (stops[index]! - stops[index - 1]! - 1 > room) { room = stops[index]! - stops[index - 1]! - 1; column = stops[index - 1]! + 1 }
+      if (room < need) insert(column, need - room)
+    } else if (run.sides === 'BT' || run.sides === 'TB') {
+      const [upper, lower] = run.sides === 'BT' ? [run.source, run.target] : [run.target, run.source]
+      const [start, finish] = run.ports()
+      if (bottom(upper) >= lower.y || start.x !== finish.x) continue
+      const x = start.x, blocked = walls(bottom(upper) + 1, lower.y - 1)
+      const rightRoom = Math.min(Infinity, ...blocked.filter(wall => wall > x)) - x - 1
+      const leftRoom = x - Math.max(-1, ...blocked.filter(wall => wall < x)) - 1
+      if (rightRoom < need && leftRoom < need) insert(x + 1, need - rightRoom)
+    }
+  }
+}
+
+/**
+ * Seat a route label beside its own route: on the row above or below a run,
+ * or one blank column beside a vertical run, never over route ink, a card, a
+ * group frame or another label. Seats nearest the route's midpoint win,
+ * above/left before below/right. Only when every nearby seat is taken does
+ * the search widen ring by ring, so the label stays as close to its own
+ * route as the drawing allows.
+ */
+function placeEdgeLabel(text: string, path: GridCoord[], boxes: CellBox[], routeInk: ReadonlySet<string>): GridCoord {
   const width = visualWidth(text)
   // A label may sit inside a group; only the group's frame is in its way.
   const obstacles = boxes.flatMap(box => box.kind === 'group' ? groupFrame(box) : [box])
-  const segments = path.slice(1).map((point, index) => ({ a: path[index]!, b: point }))
-    .sort((a, b) => (Math.abs(b.b.x - b.a.x) - Math.abs(a.b.x - a.a.x)))
-  const clear = (x: number, y: number): boolean => {
-    const candidate: CellBox = { id: '', kind: 'junction', x, y, width, height: 1, labelLines: [], depth: 0 }
-    return x >= 0 && y >= 0 && obstacles.every(obstacle => !boxesOverlap(candidate, obstacle))
+  // A blank column on each side keeps the brackets from reading as a card,
+  // frame or line glyph; a tight seat gives it up before moving further out.
+  const clear = (x: number, y: number, pad: number): boolean => {
+    if (x < 0 || y < 0) return false
+    for (let column = x - pad; column < x + width + pad; column++) if (routeInk.has(gridKey({ x: column, y }))) return false
+    const candidate: CellBox = { id: '', kind: 'junction', x: x - pad, y, width: width + 2 * pad, height: 1, labelLines: [], depth: 0 }
+    return obstacles.every(obstacle => !boxesOverlap(candidate, obstacle))
   }
-  for (const segment of segments) {
-    if (segment.a.y !== segment.b.y) continue
-    const left = Math.min(segment.a.x, segment.b.x)
-    const right = Math.max(segment.a.x, segment.b.x)
-    if (right - left + 1 < width) continue
-    const x = Math.floor((left + right - width + 1) / 2)
-    if (clear(x, segment.a.y)) return { x, y: segment.a.y }
+  const cells: GridCoord[] = []
+  for (let index = 1; index < path.length; index++) {
+    const a = path[index - 1]!, b = path[index]!
+    const dx = Math.sign(b.x - a.x), dy = Math.sign(b.y - a.y)
+    for (let point = { ...a }; ; point = { x: point.x + dx, y: point.y + dy }) {
+      if (index === 1 || point.x !== a.x || point.y !== a.y) cells.push(point)
+      if (point.x === b.x && point.y === b.y) break
+    }
   }
-  const middle = path[Math.floor(path.length / 2)] ?? { x: 0, y: 0 }
-  for (const dy of [-1, 1, -2, 2, 0]) {
-    const x = Math.max(0, middle.x - Math.floor(width / 2))
-    if (clear(x, middle.y + dy)) return { x, y: middle.y + dy }
+  if (cells.length === 0) cells.push(path[0] ?? { x: 0, y: 0 })
+  const middle = cells[Math.floor((cells.length - 1) / 2)]!
+  // Ring 1 tries a padded seat (one blank column beside a vertical run) and
+  // then a tight one; wider rings keep the same order, so a seat within two
+  // cells always wins over anything further out.
+  for (let attempt = 2; ; attempt++) {
+    const ring = attempt >> 1, pad = attempt & 1 ? 0 : 1, reach = ring + (ring === 1 ? pad : 0)
+    let best: { x: number; y: number; score: number } | undefined
+    const seen = new Set<string>()
+    for (const cell of cells) for (let y = cell.y - ring; y <= cell.y + ring; y++) for (let x = cell.x - reach - width + 1; x <= cell.x + reach; x++) {
+      const key = `${x},${y}`
+      // Seats nearer the route were refused by a tighter ring already.
+      if (seen.has(key)) continue
+      seen.add(key)
+      if (!clear(x, y, pad)) continue
+      const score = Math.abs(x + (width - 1) / 2 - middle.x) + Math.abs(y - middle.y) * 2 + (y > middle.y || x > middle.x ? 0.5 : 0)
+      if (!best || score < best.score || (score === best.score && (y < best.y || (y === best.y && x < best.x)))) best = { x, y, score }
+    }
+    if (best) return { x: best.x, y: best.y }
   }
-  // No candidate may overwrite a foreign card or previously owned label.
-  // Outside the occupied bounds there is always room; hard width policy can
-  // refuse the complete geometry instead of silently clipping its text.
-  let y = Math.max(0, ...boxes.map(box => bottom(box) + 2))
-  const x = Math.max(0, middle.x - Math.floor(width / 2))
-  while (!clear(x, y)) y++
-  return { x, y }
 }
 
 function preferredDirection(side: ArchitectureEndpoint['side']): Direction {

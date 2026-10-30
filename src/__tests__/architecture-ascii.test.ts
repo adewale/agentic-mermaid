@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'bun:test'
+import fc from 'fast-check'
 import { readFileSync } from 'node:fs'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { renderMermaidASCII, renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
-import { terminalDocumentOf, type TerminalDocument, type TerminalRegion } from '../ascii/terminal-document.ts'
+import { terminalDocumentOf, type TerminalCell, type TerminalDocument, type TerminalRegion } from '../ascii/terminal-document.ts'
 import { visualWidth } from '../ascii/width.ts'
 import { AsciiWidthError } from '../ascii/width-error.ts'
 
@@ -24,7 +26,76 @@ function connectedOwnedInk(doc: TerminalDocument, edge: TerminalRegion): boolean
   return seen.has(last)
 }
 
+/**
+ * How far an edge's owned label text sits from its owned route ink, and
+ * whether the finished drawing still has an empty one-row seat for the label
+ * within two cells of that route (label cells themselves count as empty).
+ */
+function labelSeat(doc: TerminalDocument, edge: TerminalRegion, label: string): { distance: number; nearSeatFree: boolean } {
+  const owned = (cell: TerminalCell) => cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id)
+  const ink: Array<[number, number]> = [], text = new Set<string>()
+  for (const [x, y, cell] of doc.entries()) {
+    if (!owned(cell)) continue
+    if (cell.kind === 'stroke' || cell.kind === 'marker') ink.push([x, y])
+    else if (cell.kind === 'text' && label.includes(cell.glyph)) text.add(`${x},${y}`)
+  }
+  const near = (x: number, y: number) => Math.min(...ink.map(([ix, iy]) => Math.max(Math.abs(y - iy), ix < x ? x - ix : ix > x + label.length - 1 ? ix - x - label.length + 1 : 0)))
+  const distance = Math.min(...[...text].map(key => { const [x, y] = key.split(',').map(Number); return Math.min(...ink.map(([ix, iy]) => Math.max(Math.abs(x! - ix), Math.abs(y! - iy)))) }))
+  const empty = (x: number, y: number) => text.has(`${x},${y}`) || !doc.cell(x, y)?.owners.length
+  let nearSeatFree = false
+  for (const [ix, iy] of ink) for (let y = iy - 2; y <= iy + 2 && !nearSeatFree; y++) for (let x = ix - 1 - label.length; x <= ix + 2 && !nearSeatFree; x++) {
+    if (x < 0 || y < 0 || near(x, y) > 2) continue
+    nearSeatFree = Array.from({ length: label.length }, (_, index) => empty(x + index, y)).every(Boolean)
+  }
+  return { distance, nearSeatFree }
+}
+
 describe('renderMermaidASCII – architecture diagrams', () => {
+  // A label is drawn beside its own route: on the row above or below one of
+  // its runs, or one blank column beside a vertical run; never detached below
+  // the drawing. Every edge keeps connected owned ink and its arrowheads.
+  it.each([false, true])('seats every edge label beside its own connected route (ASCII=%s)', useAscii => {
+    const sides = ['L', 'R', 'T', 'B'] as const
+    const graph = fc.record({
+      services: fc.integer({ min: 2, max: 5 }),
+      grouped: fc.array(fc.boolean(), { minLength: 5, maxLength: 5 }),
+      edges: fc.uniqueArray(fc.record({
+        from: fc.nat(4), to: fc.nat(4), fromSide: fc.constantFrom(...sides), toSide: fc.constantFrom(...sides),
+        start: fc.boolean(), end: fc.boolean(), label: fc.stringMatching(/^[a-z]{1,9}$/),
+      }), { minLength: 1, maxLength: 4, selector: edge => `${edge.from}:${edge.fromSide}` }),
+    })
+    fc.assert(fc.property(graph, ({ services, grouped, edges }) => {
+      const lines = ['architecture-beta', '  group private(server)[Private]']
+      for (let index = 0; index < services; index++) lines.push(`  service s${index}(server)[S${index}]${grouped[index] ? ' in private' : ''}`)
+      const authored = edges.map(edge => ({ ...edge, from: edge.from % services, to: edge.to % services })).filter(edge => edge.from !== edge.to)
+      fc.pre(authored.length > 0)
+      for (const edge of authored) lines.push(`  s${edge.from}:${edge.fromSide} ${edge.start ? '<' : ''}-[${edge.label}]-${edge.end ? '>' : ''} ${edge.toSide}:s${edge.to}`)
+      const source = lines.join('\n')
+      const rendered = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' })
+      const doc = terminalDocumentOf(rendered)!
+      const regions = doc.regions().filter(region => region.kind === 'edge')
+      expect(regions, source).toHaveLength(authored.length)
+      for (const edge of regions) {
+        // Edge owners are numbered in authored order; the generated ids never collide.
+        const spec = authored[Number(edge.id.replace('edge:', ''))]!
+        // An unroutable edge is reported and keeps its label in an owned
+        // endpoint summary instead of a route.
+        if (doc.diagnostics.some(diagnostic => diagnostic.feature === `architecture.${edge.id}.route`)) {
+          expect(rendered.text, source).toContain(`: ${spec.label}`)
+          continue
+        }
+        expect(connectedOwnedInk(doc, edge), `${source}\n${rendered.text}`).toBe(true)
+        const markers = [...doc.entries()].filter(([, , cell]) => cell.kind === 'marker' && cell.owners.some(owner => owner.id === edge.id)).map(([x, y]) => `${x},${y}`)
+        expect(markers.includes(`${edge.ports![0]!.x},${edge.ports![0]!.y}`), source).toBe(spec.start)
+        expect(markers.includes(`${edge.ports![1]!.x},${edge.ports![1]!.y}`), source).toBe(spec.end)
+        expect(rendered.text, source).toContain(`[${spec.label}]`)
+        // Only a drawing with no empty seat near the route may push it further.
+        const seat = labelSeat(doc, edge, `[${spec.label}]`)
+        if (seat.nearSeatFree) expect(seat.distance, `${spec.label} is ${seat.distance} cells from its route\n${source}\n${rendered.text}`).toBeLessThanOrEqual(2)
+      }
+    }), fcParameters({ numRuns: 40 }))
+  })
+
   const corpus = JSON.parse(readFileSync(new URL('../../eval/mermaid-docs-corpus/corpus.json', import.meta.url), 'utf8')) as Array<{ family: string; index: number; source: string }>
   it.each([false, true])('keeps every aligned and junction relationship connected through visible owned ink (ASCII=%s)', useAscii => {
     for (const backend of ['elk', 'agentic'] as const) for (const [index, endpoints] of [
