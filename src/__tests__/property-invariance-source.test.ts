@@ -7,11 +7,13 @@
 //       and the whole-output style-scope hash may change. Directives are live syntax, so they are excluded.
 //   MR7 Chain equivalence (flowchart) — `A --> B --> C` says exactly what
 //       `A --> B` plus `B --> C` says, down to identical geometry.
+//   MR8 Reachability locality (flowchart) — adding a node or part that shares
+//       no edge with the existing nodes never changes their UNREACHABLE_NODE.
 
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
-import { asFlowchart, describeMermaidFacts, layoutMermaid, parseRegisteredMermaid as parseMermaid, renderMermaidSVG } from '../agent/index.ts'
+import { asFlowchart, describeMermaidFacts, layoutMermaid, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, verifyMermaid } from '../agent/index.ts'
 import type { DiagramKind, ParsedDiagram } from '../agent/types.ts'
 import { type FamilyMetamorphic, METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 import { normalizeSvg } from './helpers/svg-normalize.ts'
@@ -107,6 +109,32 @@ describe('MR7 flowchart: a chained edge equals its pairwise split', () => {
         },
       ),
       fcParameters({ numRuns: 30 }),
+    )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// MR8 — an unrelated part leaves existing nodes' reachability lint unchanged
+// ---------------------------------------------------------------------------
+
+describe('MR8 flowchart: adding an unrelated node or part never strands existing nodes', () => {
+  // Small directed graphs, cyclic or not, on nodes a0..a4; the unrelated part
+  // uses nodes z0..z2 that share no edge with them.
+  const graphArb = (prefix: string, size: number, minEdges: number) =>
+    fc.array(fc.tuple(fc.integer({ min: 0, max: size - 1 }), fc.integer({ min: 0, max: size - 1 })), { minLength: minEdges, maxLength: size * 2 })
+      .map(edges => edges.map(([from, to]) => `  ${prefix}${from} --> ${prefix}${to}`))
+  const unreachable = (source: string) => new Set(verifyMermaid(source).warnings.flatMap(w => (w.code === 'UNREACHABLE_NODE' ? [w.node] : [])))
+
+  test('UNREACHABLE_NODE for a0..a4 is the same with and without the unrelated part', () => {
+    fc.assert(
+      fc.property(graphArb('a', 5, 1), graphArb('z', 3, 0), (base, unrelated) => {
+        const before = `flowchart TD\n${base.join('\n')}`
+        // An empty unrelated edge list adds the single isolated node z0.
+        const after = `${before}\n${unrelated.length > 0 ? unrelated.join('\n') : '  z0'}`
+        const existing = [...unreachable(after)].filter(id => id.startsWith('a'))
+        expect(existing.sort()).toEqual([...unreachable(before)].sort())
+      }),
+      fcParameters({ numRuns: 40, examples: [[['  a0 --> a1', '  a1 --> a2', '  a1 --> a0'], []]] }),
     )
   })
 })

@@ -201,11 +201,11 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     origins: ['source'],
   },
   UNREACHABLE_NODE: {
-    summary: 'Flowchart/state contains a node not reachable from any entry root when the graph has roots. Usually a stranded branch after an edit.',
-    what: 'a node cannot be reached from any root (a node with no incoming edges) by following edges.',
-    triggers: 'Disconnected clusters left behind after <code>remove_edge</code>/<code>remove_node</code> mutations, or a cycle with no entry edge from the main flow.',
+    summary: 'Flowchart/state contains a node not reachable from any entry root of its connected part, when that part has roots. Usually a stranded branch after an edit.',
+    what: 'a node cannot be reached from any root (a node with no incoming edges) of its connected part by following edges.',
+    triggers: 'A cycle with no entry edge from the flow it feeds, often left behind after <code>remove_edge</code>/<code>remove_node</code> mutations.',
     fix: 'Connect the node into the flow with <code>add_edge</code> from a reachable node, or delete it with <code>remove_node</code> if it is leftover.',
-    example: 'flowchart LR\n  A[Start] --> B[Done]\n  C[Orphan] --> D[Cycle]\n  D --> C',
+    example: 'flowchart LR\n  A[Start] --> B[Done]\n  C[Orphan] --> D[Cycle]\n  D --> C\n  D --> B',
     origins: ['source'],
   },
   DECISION_BRANCH_UNLABELED: {

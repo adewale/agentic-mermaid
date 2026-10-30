@@ -531,7 +531,7 @@ describe('state verify — geometric Tier 2 projection (parity with flowchart)',
     // them on a state diagram proves the state path runs it, and suppressing
     // one of them proves suppression is honored. The geometric checks
     // themselves are proven on a doctored state layout below.
-    const body = '  [*] --> A\n  A --> B\n  A --> B\n  C --> D\n  D --> C'
+    const body = '  [*] --> A\n  A --> B\n  A --> B\n  C --> D\n  D --> C\n  D --> B'
     const expected: LayoutWarning[] = [
       { code: 'DUPLICATE_EDGE', edge: 'A->B#1', duplicateOf: 'A->B#0', from: 'A', to: 'B' },
       { code: 'UNREACHABLE_NODE', node: 'C' },

@@ -1236,7 +1236,7 @@ describe('verify', () => {
     expect(verifyMermaid(`sequenceDiagram\n  A->>B: ${'x'.repeat(60)}`).warnings.some(w => w.code === 'LABEL_OVERFLOW')).toBe(true)
   })
   test('suppress filter drops only the named codes', () => {
-    const src = 'flowchart TD\n  A --> B\n  A --> B\n  C --> D\n  D --> C'
+    const src = 'flowchart TD\n  A --> B\n  A --> B\n  C --> D\n  D --> C\n  D --> B'
     const codes = (opts: Parameters<typeof verifyMermaid>[1]) => verifyMermaid(src, opts).warnings.map(w => w.code)
     expect(codes({})).toEqual(['DUPLICATE_EDGE', 'UNREACHABLE_NODE', 'UNREACHABLE_NODE'])
     expect(codes({ suppress: ['DUPLICATE_EDGE'] })).toEqual(['UNREACHABLE_NODE', 'UNREACHABLE_NODE'])
@@ -1259,7 +1259,9 @@ describe('verify', () => {
     expect(dup).toMatchObject({ code: 'DUPLICATE_EDGE', from: 'A', to: 'B' })
   })
   test('Tier 3 lint: nodes unreachable from entry roots are advisory warnings', () => {
-    const r = verifyMermaid('flowchart TD\n  A --> B\n  C --> D\n  D --> C')
+    // The C/D loop feeds the A flow but nothing enters it; a loop sharing no
+    // edge with the flow is a separate part with no root and is not stranded.
+    const r = verifyMermaid('flowchart TD\n  A --> B\n  C --> D\n  D --> C\n  D --> B')
     expect(r.ok).toBe(true)
     expect(
       r.warnings

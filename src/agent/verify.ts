@@ -1199,17 +1199,29 @@ function lintFlowchartGraph(graph: import('../types.ts').MermaidGraph): LayoutWa
     }
   }
 
+  // Reachability is judged per connected part of the graph: a part's roots
+  // are its nodes without incoming edges, and a node is stranded when none of
+  // them reaches it. A part with no root (a closed loop) has nothing to be
+  // stranded from, so an unrelated node elsewhere never strands it.
   const ids = Array.from(graph.nodes.keys())
   if (ids.length === 0 || graph.edges.length === 0) return warnings
   const incoming = new Map(ids.map(id => [id, 0]))
   const outgoing = new Map(ids.map(id => [id, [] as string[]]))
+  const part = new Map(ids.map(id => [id, id]))
+  const partOf = (id: string): string => {
+    let root = id
+    while (part.get(root) !== root) root = part.get(root)!
+    for (let at = id; at !== root; ) { const next = part.get(at)!; part.set(at, root); at = next }
+    return root
+  }
   for (const edge of graph.edges) {
     if (!graph.nodes.has(edge.source) || !graph.nodes.has(edge.target)) continue
     incoming.set(edge.target, (incoming.get(edge.target) ?? 0) + 1)
     outgoing.get(edge.source)!.push(edge.target)
+    part.set(partOf(edge.source), partOf(edge.target))
   }
   const roots = ids.filter(id => (incoming.get(id) ?? 0) === 0)
-  if (roots.length === 0) return warnings
+  const rootedParts = new Set(roots.map(partOf))
   const seen = new Set<string>(roots)
   const queue = [...roots]
   for (let i = 0; i < queue.length; i++) {
@@ -1220,7 +1232,7 @@ function lintFlowchartGraph(graph: import('../types.ts').MermaidGraph): LayoutWa
     }
   }
   for (const id of ids) {
-    if (!seen.has(id)) warnings.push({ code: 'UNREACHABLE_NODE', node: id })
+    if (!seen.has(id) && rootedParts.has(partOf(id))) warnings.push({ code: 'UNREACHABLE_NODE', node: id })
   }
   return warnings
 }
