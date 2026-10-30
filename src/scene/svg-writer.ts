@@ -274,14 +274,14 @@ export function createSvgXmlCapture(work: (operations: number) => boolean): SvgX
   return capture
 }
 
-function finishXmlLeaf(capture: SvgXmlCapture, node: object, svg: string, xml: XmlLeafWrite | undefined, eligible = true, additional?: Readonly<ArrayLike<XmlLeafWrite>>, typedClosed?: () => void): SvgXmlWrite {
+function finishXmlLeaf(capture: SvgXmlCapture, node: object, svg: string, xml: XmlLeafWrite | undefined, eligible = true, additional?: Readonly<ArrayLike<XmlLeafWrite>>, completion?: XmlLeafWrite): SvgXmlWrite {
   const state = xmlCaptures.get(capture)
   if (!state) throw new TypeError('Unknown XML capture')
   // Empty output cannot insert a delimiter between adjacent raw text spans.
   return state.issue(svg, svg && eligible && xml ? () => {
     let valid = xml.check()
     for (let i = 0; valid && additional && i < additional.length; i++) valid = additional[i]!.check()
-    if (valid) typedClosed?.()
+    if (valid && completion) markXmlLeafComplete(completion)
     return valid ? OCCUPIED_XML_LEAF : state.boundary(svg) ? svg : undefined
   } : svg, node)
 }
@@ -292,6 +292,9 @@ class XmlLeafWrite {
   readonly #events: XmlList<XmlWriteEvent> | undefined
   valid = true
   #paintPrepared = false
+  #complete = false
+  static markComplete(xml: XmlLeafWrite): void { xml.#complete = true }
+  static completed(xml: XmlLeafWrite | undefined): boolean { return xml !== undefined && xml.#complete }
   constructor(state: XmlCaptureState) { this.#state = state; this.valid = state.pay(1); this.#events = this.valid ? xmlList() : undefined }
   list<T>(): XmlList<T> | undefined { return this.#state.pay(1) ? xmlList<T>() : undefined }
   element(name: string): void {
@@ -371,6 +374,7 @@ class XmlLeafWrite {
 }
 
 const projectXmlTextPaint = XmlLeafWrite.paint
+const markXmlLeafComplete = XmlLeafWrite.markComplete, xmlLeafCompleted = XmlLeafWrite.completed
 
 declare const svgTextPaintWrite: unique symbol
 export interface SvgTextPaintWrite { readonly [svgTextPaintWrite]: true }
@@ -386,10 +390,9 @@ class ActualTextPaintWrite implements SvgTextPaintWrite {
   #paintRead = false
   readonly #xml: XmlLeafWrite | undefined
   readonly #inherited: boolean
-  readonly #typedClosed: () => boolean
-  constructor(issuer: object, capture: SvgXmlCapture, write: SvgXmlWrite, source: TextMark, svg: string, xml: XmlLeafWrite | undefined, inherited: boolean, typedClosed: () => boolean) {
+  constructor(issuer: object, capture: SvgXmlCapture, write: SvgXmlWrite, source: TextMark, svg: string, xml: XmlLeafWrite | undefined, inherited: boolean) {
     if (issuer !== textPaintIssuer) throw new TypeError('Actual text paint requires its writer')
-    this.#capture = capture; this.#write = write; this.#source = source; this.#svg = svg; this.#xml = xml; this.#inherited = inherited; this.#typedClosed = typedClosed
+    this.#capture = capture; this.#write = write; this.#source = source; this.#svg = svg; this.#xml = xml; this.#inherited = inherited
   }
   static paint(value: unknown): MarkPaint | undefined {
     if (typeof value !== 'object' || value === null || !(#source in value)) return undefined
@@ -406,11 +409,11 @@ class ActualTextPaintWrite implements SvgTextPaintWrite {
     return typeof value === 'object' && value !== null && #source in value && value.#capture === capture && value.#write === write && value.#source === source && value.#svg === svg
   }
   static closed(value: unknown): boolean {
-    return typeof value === 'object' && value !== null && #source in value && value.#typedClosed()
+    return typeof value === 'object' && value !== null && #source in value && xmlLeafCompleted(value.#xml)
   }
   static close(value: unknown, capture: SvgXmlCapture): boolean {
     if (typeof value !== 'object' || value === null || !(#source in value) || value.#capture !== capture) return false
-    return xmlCaptures.get(capture)?.project(value.#write) === true && value.#typedClosed()
+    return xmlCaptures.get(capture)?.project(value.#write) === true && xmlLeafCompleted(value.#xml)
   }
   static read(value: unknown, source: object, svg: string, capture?: SvgXmlCapture, write?: SvgXmlWrite): MarkPaint | undefined {
     if (typeof value !== 'object' || value === null || !(#source in value)) return undefined
@@ -730,11 +733,10 @@ export function writeTextSvg(node: TextMark, capture?: SvgXmlCapture, sink?: Svg
   } : undefined, node.anchor)
   if (!node.spans) {
     if (!capture) return svg
-    let typedClosed = false
-    const write = finishXmlLeaf(capture, node, svg, out.xml, observed, undefined, report ? () => { typedClosed = true } : undefined)
+    const write = finishXmlLeaf(capture, node, svg, out.xml, observed, undefined, report ? out.xml : undefined)
     if (report) {
       const fact = state!.pay(2)
-        ? new ActualTextPaintWrite(textPaintIssuer, capture, write, node, svg, observed ? out.xml : undefined, inheritedPaint, () => typedClosed) : undefined
+        ? new ActualTextPaintWrite(textPaintIssuer, capture, write, node, svg, observed ? out.xml : undefined, inheritedPaint) : undefined
       report(node, fact)
     }
     return write
@@ -747,7 +749,7 @@ export function writeTextSvg(node: TextMark, capture?: SvgXmlCapture, sink?: Svg
   const written = `${svg.slice(0, -content.length)}>${spans}</text>`
   if (!capture) return written
   const write = capture.raw(written, node)
-  if (report) report(node, state!.pay(2) ? new ActualTextPaintWrite(textPaintIssuer, capture, write, node, written, undefined, inheritedPaint, () => false) : undefined)
+  if (report) report(node, state!.pay(2) ? new ActualTextPaintWrite(textPaintIssuer, capture, write, node, written, undefined, inheritedPaint) : undefined)
   return write
 }
 
