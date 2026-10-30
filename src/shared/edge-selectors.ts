@@ -30,3 +30,25 @@ export function edgeSelectorIndices(edges: readonly SelectableEdge[]): Map<strin
   }
   return indices
 }
+
+/** The id a warning names each edge by: its authored identity when that
+ * resolves to it, else its endpoint occurrence `A->B#k`. Either way the edge
+ * operations (edgeSelectorIndices) resolve it to exactly that edge, so two
+ * parallel edges or self-loops are never named alike. */
+export function edgeWarningIds(edges: readonly SelectableEdge[]): string[] {
+  const indices = edgeSelectorIndices(edges)
+  return edgeEndpointSelectors(edges).map((selector, index) => {
+    const authored = edges[index]!.id
+    return authored && indices.get(authored) === index ? authored : selector
+  })
+}
+
+/** edgeWarningIds for laid-out edges. Occurrences count in source order
+ * (`edgeIndex`), even when the layout collected the edges in another order. */
+export function positionedEdgeWarningIds<E extends SelectableEdge & { edgeIndex?: number }>(edges: readonly E[]): Map<E, string> {
+  const ordered = edges.map((edge, index) => ({ edge, index }))
+    .sort((a, b) => (a.edge.edgeIndex ?? a.index) - (b.edge.edgeIndex ?? b.index))
+    .map(entry => entry.edge)
+  const ids = edgeWarningIds(ordered)
+  return new Map(ordered.map((edge, index) => [edge, ids[index]!]))
+}

@@ -248,7 +248,7 @@ describe('canonical shape outline authority', () => {
     }
     expect(auditRouteContracts(positioned, source)).toContainEqual({
       code: 'ROUTE_SHAPE_MISANCHOR',
-      edge: 'A->B',
+      edge: 'A->B#0',
       node: 'B',
     })
   })

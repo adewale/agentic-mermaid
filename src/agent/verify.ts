@@ -29,7 +29,7 @@ import { isSequenceCommentLine } from '../sequence/statements.ts'
 import { readSequenceText } from '../sequence/text.ts'
 import { wcagCssContrastRatio } from '../shared/color-math.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
-import { edgeEndpointSelectors, edgeSelectorIndices } from '../shared/edge-selectors.ts'
+import { edgeWarningIds, positionedEdgeWarningIds } from '../shared/edge-selectors.ts'
 import { familyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
 import type { PositionedGraph, RenderOptions } from '../types.ts'
 import { formatBarValue } from '../xychart/axis-utils.ts'
@@ -1009,13 +1009,14 @@ function verifyGraph(graph: import('../types.ts').MermaidGraph, d: ValidDiagram,
 /** Tier 1 — structural: misanchored edges, unknown shapes, overlong labels. */
 function graphStructureWarnings(graph: import('../types.ts').MermaidGraph, cap: number): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
-  for (const edge of graph.edges) {
+  const edgeIds = edgeWarningIds(graph.edges)
+  for (const [index, edge] of graph.edges.entries()) {
     const hasSource = graph.nodes.has(edge.source) || Boolean(findSubgraphById(graph.subgraphs, edge.source))
     const hasTarget = graph.nodes.has(edge.target) || Boolean(findSubgraphById(graph.subgraphs, edge.target))
     if (!hasSource || !hasTarget) {
       warnings.push({
         code: 'EDGE_MISANCHORED',
-        edge: `${edge.source}->${edge.target}`,
+        edge: edgeIds[index]!,
         from: hasSource ? edge.source : undefined,
         to: hasTarget ? edge.target : undefined,
       })
@@ -1027,8 +1028,8 @@ function graphStructureWarnings(graph: import('../types.ts').MermaidGraph, cap: 
     const w = labelOverflowWarning(id, resolveLabelContent(node.label, node.labelContent), cap, 'plain')
     if (w) warnings.push(w)
   }
-  for (const edge of graph.edges) {
-    const w = edge.label ? labelOverflowWarning(`${edge.source}->${edge.target}`, resolveLabelContent(edge.label, edge.labelContent), cap, 'plain') : null
+  for (const [index, edge] of graph.edges.entries()) {
+    const w = edge.label ? labelOverflowWarning(edgeIds[index]!, resolveLabelContent(edge.label, edge.labelContent), cap, 'plain') : null
     if (w) warnings.push(w)
   }
   return warnings
@@ -1072,9 +1073,10 @@ export function graphGeometryWarnings(positioned: PositionedGraph, graph: import
       if (o > 0) warnings.push({ code: 'NODE_OVERLAP', a: a.id, b: b.id, areaPx: Math.round(o) })
     }
   }
+  const edgeIds = positionedEdgeWarningIds(positioned.edges)
   for (const e of positioned.edges) {
     const c = countSelfCrossings(e.points)
-    if (c > 0) warnings.push({ code: 'ROUTE_SELF_CROSS', edge: `${e.source}->${e.target}`, count: c })
+    if (c > 0) warnings.push({ code: 'ROUTE_SELF_CROSS', edge: edgeIds.get(e)!, count: c })
   }
   return warnings
 }
@@ -1154,11 +1156,7 @@ function warningKey(w: LayoutWarning): string {
 
 function lintFlowchartGraph(graph: import('../types.ts').MermaidGraph): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
-  const selectors = edgeSelectorIndices(graph.edges)
-  const edgeIds = edgeEndpointSelectors(graph.edges).map((selector, index) => {
-    const authored = graph.edges[index]!.id
-    return authored && selectors.get(authored) === index ? authored : selector
-  })
+  const edgeIds = edgeWarningIds(graph.edges)
   const firstBySignature = new Map<string, { edge: string; from: string; to: string; label?: string }>()
   graph.edges.forEach((edge, index) => {
     const signature = JSON.stringify({
