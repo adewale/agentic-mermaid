@@ -24,9 +24,9 @@ const toWire = (value: unknown) => JSON.parse(JSON.stringify(value, (_key, v) =>
 const REAL_PAYLOADS = FAMILIES.map(fam => ({ family: fam, payload: toWire(createMermaid(fam)) }))
 
 const junkValue = fc.oneof(
-  fc.string({ maxLength: 12 }), fc.integer(), fc.double(), fc.boolean(),
+  fc.string({ unit: 'binary', maxLength: 12 }), fc.integer(), fc.double(), fc.boolean(),
   fc.constant(null), fc.constant(undefined),
-  fc.array(fc.oneof(fc.string({ maxLength: 6 }), fc.integer()), { maxLength: 4 }),
+  fc.array(fc.oneof(fc.string({ unit: 'binary', maxLength: 6 }), fc.integer()), { maxLength: 4 }),
   fc.object({ maxDepth: 2 }),
 )
 // Graph shapes chosen to hit the flowchart rehydration paths that used to throw:
@@ -34,7 +34,7 @@ const junkValue = fc.oneof(
 const graphArb = fc.oneof(
   fc.constant(undefined), fc.constant(null), fc.constant({}),
   fc.record({ nodes: fc.oneof(fc.integer(), fc.array(junkValue, { maxLength: 4 }), fc.object({ maxDepth: 1 })), edges: junkValue }, { requiredKeys: [] }),
-  fc.record({ nodes: fc.array(fc.tuple(fc.string({ maxLength: 4 }), fc.object({ maxDepth: 1 })), { maxLength: 3 }) }),
+  fc.record({ nodes: fc.array(fc.tuple(fc.string({ unit: 'binary', maxLength: 4 }), fc.object({ maxDepth: 1 })), { maxLength: 3 }) }),
 )
 const bodyArb = fc.oneof(
   fc.constant(undefined), junkValue,
@@ -42,7 +42,7 @@ const bodyArb = fc.oneof(
 )
 const payloadArb = fc.oneof(
   fc.anything(),
-  fc.record({ kind: fc.oneof(fc.constantFrom(...FAMILIES), fc.string({ maxLength: 6 })), body: bodyArb, meta: fc.oneof(fc.constant(undefined), fc.object({ maxDepth: 1 })) }, { requiredKeys: [] }),
+  fc.record({ kind: fc.oneof(fc.constantFrom(...FAMILIES), fc.string({ unit: 'binary', maxLength: 6 })), body: bodyArb, meta: fc.oneof(fc.constant(undefined), fc.object({ maxDepth: 1 })) }, { requiredKeys: [] }),
   // A real payload with one corrupted top-level field.
   fc.tuple(fc.constantFrom(...REAL_PAYLOADS.map(real => real.payload)), fc.constantFrom('kind', 'body', 'meta'), junkValue).map(([base, key, v]) => ({ ...base, [key]: v })),
 )
@@ -59,7 +59,9 @@ describe('synthesize fuzz: synthesizeFromGraph is total and deterministic', () =
         expect(typeof source).toBe('string')
         const reparsed = parseMermaid(source)
         expect(reparsed.ok).toBe(true)
-        if (reparsed.ok) expect(reparsed.value.kind).toBe(r.value.kind)
+        // The published source reads back as the diagram that was rebuilt,
+        // not merely as the same family.
+        if (reparsed.ok) expect(describeMermaidFacts(reparsed.value)).toEqual(describeMermaidFacts(r.value))
       } else {
         expect(Array.isArray(r.error)).toBe(true)
         expect(r.error.length).toBeGreaterThan(0)
