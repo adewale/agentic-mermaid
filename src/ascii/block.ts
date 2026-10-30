@@ -81,7 +81,8 @@ export function renderBlockTerminal(lines: string[] | string, config: AsciiConfi
     else members.set(box.parentId, [box.id])
   }
   for (const box of boxes.filter(b => b.container)) {
-    const owner: TerminalOwner = { id: box.id, kind: 'cluster', parent: box.parentId ? { id: box.parentId, kind: 'cluster' } : undefined, members: members.get(box.id) ?? [] }
+    // Registered once: the frame paints every perimeter cell with this owner.
+    const owner = doc.element({ id: box.id, kind: 'cluster', parent: box.parentId ? { id: box.parentId, kind: 'cluster' } : undefined, members: members.get(box.id) ?? [] })
     paintTerminalFrame(doc, box, owner, config.useAscii)
     if (box.block.label) doc.textBlock(box.x + 2, box.y + 1, box.lines, { owner })
   }

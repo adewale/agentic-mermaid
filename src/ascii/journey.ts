@@ -108,7 +108,8 @@ export function renderJourneyTerminal(
   for (let sectionIndex = 0; sectionIndex < diagram.sections.length; sectionIndex++) {
     const section = diagram.sections[sectionIndex]!
     const sectionStart = document.height
-    const sectionOwner: TerminalOwner = { id: section.id, kind: 'band', members: section.tasks.map(task => task.id) }
+    // Registered once: every run the section paints names this owner.
+    const sectionOwner = document.element({ id: section.id, kind: 'band', members: section.tasks.map(task => task.id) })
     owner = sectionOwner
 
     if (section.label) {

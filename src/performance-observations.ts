@@ -9,6 +9,10 @@ export type PerformanceObservation =
     readonly outcome: 'hit' | 'miss' | 'bypass' | 'store-skipped'; readonly reason?: string; readonly detail?: string }
   | { readonly version: 1; readonly kind: 'fallback'; readonly owner: 'native-drawing' | 'elk-degradation' | 'layout-candidate'
     readonly reason: string; readonly attempt?: number }
+  /** Deterministic work units, for scale probes that must not time a
+   * machine: terminal owner fields snapshotted and revalidated on import. */
+  | { readonly version: 1; readonly kind: 'work'; readonly owner: PerformanceWorkOwner; readonly units: number }
+export type PerformanceWorkOwner = 'terminal-owner-import'
 type Observer = (event: PerformanceObservation) => void
 const OBSERVER = Symbol.for('agentic-mermaid.performance-observer.v1')
 const host = globalThis as typeof globalThis & { [OBSERVER]?: Observer }
@@ -33,6 +37,11 @@ export function observeFallback(owner: Extract<PerformanceObservation, { kind: '
   const observer = host[OBSERVER]
   if (typeof observer === 'function') deliver(observer, { version: 1, kind: 'fallback', owner, reason,
     ...(attempt !== undefined ? { attempt } : {}) })
+}
+
+export function observeWork(owner: PerformanceWorkOwner, units: number): void {
+  const observer = host[OBSERVER]
+  if (typeof observer === 'function') deliver(observer, { version: 1, kind: 'work', owner, units })
 }
 
 /** Synchronous diagnostic scope. Restores an enclosing collector on failure. */

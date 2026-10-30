@@ -1,6 +1,7 @@
 import type { RenderedRegionKind } from '../agent/types.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { graphemes } from '../shared/graphemes.ts'
+import { observeWork } from '../performance-observations.ts'
 import { sanitizeTerminalText } from '../terminal-security.ts'
 import type { TerminalProjectionDiagnostic } from '../terminal-style.ts'
 import { colorizeLine, colorizeText, DEFAULT_ASCII_THEME } from './ansi.ts'
@@ -531,6 +532,7 @@ export class TerminalDocument {
     const definitions: TerminalOwner[] = [],
       pending = new Map<string, TerminalOwner>(),
       snapshots = new WeakMap<TerminalOwner, TerminalOwner>()
+    let imported = 0
     for (const supplied of values) {
       if (this.canonicalOwners.has(supplied)) {
         definitions.push(supplied)
@@ -538,6 +540,8 @@ export class TerminalDocument {
       }
       const owner = snapshots.get(supplied) ?? snapshotOwner(supplied),
         key = ownerKey(owner)
+      // Snapshot and validation each visit the definition and its members.
+      imported += 1 + (owner.members?.length ?? 0)
       snapshots.set(supplied, owner)
       const previous = pending.get(key) ?? this.elements.get(key)
       if (previous) validateOwner(previous, owner)
@@ -549,6 +553,7 @@ export class TerminalDocument {
       this.canonicalOwners.add(owner)
       this.ownerKeys.set(owner, key)
     }
+    if (imported) observeWork('terminal-owner-import', imported)
     return definitions
   }
 

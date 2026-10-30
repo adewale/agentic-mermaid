@@ -49,7 +49,9 @@ export function renderGitGraphTerminal(diagram: GitGraphDiagram, config: AsciiCo
   const colors = new Map(branches.map((branch, index) => [branch.name, safeCssColor(themeVariables?.[`git${index % 8}`]) ?? palette[index]!]))
   const paint = (owner: TerminalOwner, branch: string, role: 'line' | 'arrow' | 'text', kind: 'stroke' | 'marker' | 'text') => ({ owner, role, kind, color: colors.get(branch) })
   branches.forEach(branch => {
-    const element: TerminalOwner = { id: generated(`branch:${branch.name}`, ['branch', branch.name]), kind: 'lane', members: diagram.commits.filter(commit => commit.branch === branch.name).map(commit => commit.id) }
+    // Registered once: the rail paints a cell per column, and each import of
+    // an unregistered owner snapshots and revalidates its whole member list.
+    const element = doc.element({ id: generated(`branch:${branch.name}`, ['branch', branch.name]), kind: 'lane', members: diagram.commits.filter(commit => commit.branch === branch.name).map(commit => commit.id) })
     const x = vertical ? xFor(0, branch.name) : Math.max(0, labelWidth - visualWidth(branch.name))
     const y = vertical ? titleRows : yFor(0, branch.name)
     doc.textBlock(x, y, branch.name, paint(element, branch.name, 'text', 'text'))

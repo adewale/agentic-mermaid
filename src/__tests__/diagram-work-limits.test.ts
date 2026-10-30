@@ -25,6 +25,7 @@ import { parseTreemapDiagram } from '../treemap/parser.ts'
 import { layoutTreemapDiagram } from '../treemap/layout.ts'
 import { parseIshikawaDiagram } from '../ishikawa/parser.ts'
 import { layoutIshikawaDiagram } from '../ishikawa/layout.ts'
+import { withPerformanceObserver, type PerformanceWorkOwner } from '../performance-observations.ts'
 
 function cartesian(sources: number, targets: number): string {
   const from = Array.from({ length: sources }, (_, i) => `a${i}`).join(' & ')
@@ -235,5 +236,23 @@ describe('graph work admission', () => {
     expect(() => parseBlockDiagram(nested)).not.toThrow()
     expect(parseTreemapDiagram(`treemap\n${Array.from({ length: 64 }, (_, i) => `${' '.repeat(i)}"Group"`).join('\n')}\n${' '.repeat(64)}"Leaf": 1`).nodes).toHaveLength(65)
     expect(parseIshikawaDiagram(`ishikawa\nEffect\n${Array.from({ length: 64 }, (_, i) => `${' '.repeat(i)}Cause`).join('\n')}`).nodes).toHaveLength(65)
+  })
+})
+
+// Scale probes count deterministic work units (performance-observations.ts),
+// never wall-clock time. Doubling a diagram whose output grows linearly must
+// not much more than double the work: a quadratic hot loop quadruples it.
+describe('work grows with the diagram, not with its square', () => {
+  const work = (owner: PerformanceWorkOwner, render: () => unknown): number => {
+    let units = 0
+    withPerformanceObserver(event => { if (event.kind === 'work' && event.owner === owner) units += event.units }, render)
+    return units
+  }
+
+  test('gitGraph terminal rails import each branch owner once, not once per column', () => {
+    const commits = (count: number) => `gitGraph\n${'  commit\n'.repeat(count)}`
+    const single = work('terminal-owner-import', () => renderMermaidASCII(commits(200))), double = work('terminal-owner-import', () => renderMermaidASCII(commits(400)))
+    expect(single).toBeGreaterThan(0)
+    expect(double / single).toBeLessThan(2.5)
   })
 })
