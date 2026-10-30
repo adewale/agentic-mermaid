@@ -20,6 +20,7 @@ import { statementText, trailingCommentStart } from '../shared/trailing-comment.
 import { parseAccessibilityDirective, statementEndAt } from '../shared/accessibility-directives.ts'
 import { splitAuthoredPieTitleLine } from '../pie/source-title.ts'
 import { decodeXML } from 'entities'
+import { MermaidSyntaxError } from '../shared/syntax-error.ts'
 import {
   classifyMermaidFamilyDescriptorFromFirstLine,
   familyDetectionDiagnostic,
@@ -333,8 +334,11 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
     try {
       parsed = plugin.parse(context)
     } catch (error) {
-      // A registered family's hook throwing is a fault in its descriptor,
-      // reported as one; a built-in parser's throw stays ours to surface.
+      // A prescriptive syntax error is the source's fault, refused the same
+      // way the render-path parser refuses it. Otherwise a registered family's
+      // hook throwing is a fault in its descriptor, reported as one; a
+      // built-in parser's throw stays ours to surface.
+      if (error instanceof MermaidSyntaxError) return err([{ code: 'PARSE_FAILED', message: error.message, line: 1 }])
       if (isBuiltinFamilyId(kind)) throw error
       const reason = error instanceof Error ? error.message : String(error)
       return err([{ code: 'FAMILY_DESCRIPTOR_CONTRACT', message: `Family "${kind}" parse hook threw: ${reason}`, line: 1 }])

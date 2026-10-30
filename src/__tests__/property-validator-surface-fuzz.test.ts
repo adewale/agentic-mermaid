@@ -14,8 +14,10 @@ import { fcParameters } from './helpers/fc-parameters.ts'
 
 import {
   validateStyleSpec, validateSerializableRenderOptions, validateSceneDoc,
-  parseSemVer, semVerSatisfies, renderMermaidSVG,
+  parseSemVer, semVerSatisfies, renderMermaidSVG, verifyMermaid,
 } from '../agent/index.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { FAMILY_ID_SOURCES, FAMILY_LABEL_SOURCES, hostileTextArb } from './helpers/family-text-sources.ts'
 
 const NUM_RUNS = 250
 const SRC = 'flowchart TD\n  A[Start] --> B{Choice}\n  B --> C[End]'
@@ -159,5 +161,43 @@ describe('validator fuzz: validateStyleSpec does not lie', () => {
       }
     }), fcParameters({ numRuns: NUM_RUNS }))
     expect(cleanSeen).toBeGreaterThan(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// verifyMermaid does not lie about renderability. The verify catalog promises
+// that a clean verify proves the diagram renders, and RENDER_FAILED/
+// INTERNAL_ERROR claim a render failure. Verify judges what render draws from
+// the same input, so over hostile label and id text for every family: verify
+// ok ⇒ render succeeds, and render succeeds ⇒ no render-failure finding.
+// ---------------------------------------------------------------------------
+const VERIFY_EXAMPLES: Partial<Record<string, string[]>> = {
+  // Reduced counterexamples (V3, V4): a lone surrogate verified clean but did
+  // not render; a sankey `%%` node and a requirement quote rendered but
+  // verified as RENDER_FAILED (verify rendered the serialized form).
+  packet: ['packet\n0-15: "a\uD800b"'],
+  sankey: ['sankey-beta\n  "%%",B,10'],
+  requirement: ['requirementDiagram\n  requirement r {\n    id: 1\n    text: a"b\n  }'],
+}
+
+describe('validator fuzz: verifyMermaid does not lie about renderability', () => {
+  it.each(BUILTIN_FAMILY_METADATA.map(({ id }) => [id] as const))('%s', family => {
+    const idSource = FAMILY_ID_SOURCES[family]
+    const sourceArb = idSource
+      ? fc.oneof(hostileTextArb.map(FAMILY_LABEL_SOURCES[family]), hostileTextArb.map(idSource))
+      : hostileTextArb.map(FAMILY_LABEL_SOURCES[family])
+    fc.assert(fc.property(sourceArb, source => {
+      const verified = verifyMermaid(source)
+      let rendered = true
+      try { renderMermaidSVG(source) } catch { rendered = false }
+      const claimsRenderFailure = verified.warnings.some(warning => warning.code === 'RENDER_FAILED' || warning.code === 'INTERNAL_ERROR')
+      expect({ source, cleanVerifyButRefused: verified.ok && !rendered, renderFailureButDrawn: rendered && claimsRenderFailure })
+        .toEqual({ source, cleanVerifyButRefused: false, renderFailureButDrawn: false })
+    }), fcParameters({
+      numRuns: 40,
+      // A control-producing entity made verify throw instead of reporting the
+      // render refusal (state, sequence, class, journey, gantt).
+      examples: [...(VERIFY_EXAMPLES[family] ?? []), FAMILY_LABEL_SOURCES[family]('#1;')].map(source => [source] as [string]),
+    }))
   })
 })

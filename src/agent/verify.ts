@@ -88,13 +88,15 @@ const KNOWN_SHAPES = new Set(['rectangle', 'service', 'rounded', 'diamond', 'sta
 /**
  * The one bare-header verdict behind EMPTY_DIAGRAM's documented trigger ("a
  * bare header ... a body containing only comments"). It reads the family's own
- * body source — the preserved bytes of an opaque body, or the canonical
+ * body source — the authored source when verify was given one (what render
+ * draws), else the preserved bytes of an opaque body or the canonical
  * serialization of a structured one — so every built-in family answers it the
  * same way, whether or not its body verifier has an emptiness rule of its own.
  * Universal accessibility metadata is document furniture, not emptiness.
  */
-function hasOnlyHeader(d: ValidDiagram): boolean {
+function hasOnlyHeader(d: ValidDiagram, authored?: string): boolean {
   if (d.meta.accessibility.title !== undefined || d.meta.accessibility.descr !== undefined) return false
+  if (authored !== undefined) return sourceHasOnlyHeader(d.kind, normalizeMermaidSource(authored).familyText)
   if (d.body.kind === 'opaque') {
     // Timeline permits an inline body statement after its header. Preserve its
     // authored bytes, but count the same normalized statements as the parser.
@@ -342,16 +344,18 @@ function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions, aut
       // result for geometric verification. The renderability gate consumes
       // this same request + result and therefore cannot parse or lay out again.
       // Verify is where a built-in lowering bug should surface, so every Scene
-      // lowered for this artifact is cross-checked. A source string and its
-      // parsed diagram position from one render source: the diagram's body
-      // under its config wrapper (init directives, frontmatter, themeCSS),
-      // which is also what every structural tier reads.
-      if (shared) {
-        const request = resolveRenderRequestForExecution(shared.source, opts.renderOptions ?? {}, 'svg', undefined, { expectedFamilyId: d.kind })
-        emitResolvedConfigDiagnostics(request)
+      // lowered for this artifact is cross-checked. Verify judges what render
+      // draws from the same input: a source string positions from that
+      // string, exactly as renderMermaidSVG(string) does, so a serializer
+      // defect cannot surface as a false render failure. A parsed diagram
+      // positions from its render source (renderSourceForParsedDiagram), as
+      // renderMermaidSVG(parsed) does.
+      if (shared || authored !== undefined) {
+        const request = resolveRenderRequestForExecution(shared?.source ?? authored!, opts.renderOptions ?? {}, 'svg', undefined, { expectedFamilyId: d.kind })
+        if (shared) emitResolvedConfigDiagnostics(request)
         assertScenesOf(request)
         artifact = positionResolvedFamilyArtifact(d, request)
-        if (artifact) shared.artifact = artifact
+        if (artifact && shared) shared.artifact = artifact
       } else {
         artifact = positionFamilyArtifact(d, {
           renderOptions: opts.renderOptions,
@@ -774,7 +778,7 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
     && !sourceWarnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === `${d.kind}_accessibility`)) {
     sourceWarnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: `${d.kind}_accessibility`, message: `${d.kind} accessibility metadata is carried in native comments on export. External Mermaid ignores this metadata; diagram topology is preserved.` })
   }
-  const bareHeader = hasOnlyHeader(d)
+  const bareHeader = hasOnlyHeader(d, authored)
   // The header starts the body, on the line after the authored wrapper.
   const wrapperLines = d.meta.wrapperSource?.match(/\n/g)?.length ?? 0
   const hookWarnings = atAuthoredLines(dispatchedWarnings, line => line + wrapperLines)
