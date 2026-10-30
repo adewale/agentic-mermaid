@@ -40,31 +40,37 @@ describe('native Treemap', () => {
     expect(parseTreemapDiagram(renderTreemap(body))).toEqual(body)
   })
 
-  test('area partitions conserve quantity and stay disjoint for generated positive weights', () => {
+  test('area partitions conserve quantity and stay disjoint for generated weights and rectangles', () => {
+    // Rectangles include thin strips (1 x 5000) as well as squares.
+    const rectArb = fc.record({
+      x: fc.integer({ min: -1000, max: 1000 }),
+      y: fc.integer({ min: -1000, max: 1000 }),
+      width: fc.integer({ min: 1, max: 5000 }),
+      height: fc.integer({ min: 1, max: 5000 }),
+    })
     fc.assert(
-      fc.property(fc.array(fc.integer({ min: 1, max: 10000 }), { minLength: 1, maxLength: 30 }), weights => {
+      fc.property(fc.array(fc.integer({ min: 1, max: 10000 }), { minLength: 1, maxLength: 30 }), rectArb, (weights, rect) => {
         const total = weights.reduce((a, b) => a + b, 0)
-        const tiles = squarifyTreemap(
-          weights.map((value, index) => ({ id: String(index), value })),
-          { x: 13, y: 17, width: 840, height: 520 },
-        )
+        const area = rect.width * rect.height
+        const slack = 1e-9 * (Math.abs(rect.x) + Math.abs(rect.y) + rect.width + rect.height)
+        const tiles = squarifyTreemap(weights.map((value, index) => ({ id: String(index), value })), rect)
         expect(tiles).toHaveLength(weights.length)
         for (const tile of tiles) {
-          expect((tile.width * tile.height) / (840 * 520)).toBeCloseTo(weights[Number(tile.id)]! / total, 9)
-          expect(tile.x).toBeGreaterThanOrEqual(13 - 1e-7)
-          expect(tile.y).toBeGreaterThanOrEqual(17 - 1e-7)
-          expect(tile.x + tile.width).toBeLessThanOrEqual(853 + 1e-7)
-          expect(tile.y + tile.height).toBeLessThanOrEqual(537 + 1e-7)
+          expect((tile.width * tile.height) / area).toBeCloseTo(weights[Number(tile.id)]! / total, 9)
+          expect(tile.x).toBeGreaterThanOrEqual(rect.x - slack)
+          expect(tile.y).toBeGreaterThanOrEqual(rect.y - slack)
+          expect(tile.x + tile.width).toBeLessThanOrEqual(rect.x + rect.width + slack)
+          expect(tile.y + tile.height).toBeLessThanOrEqual(rect.y + rect.height + slack)
         }
         for (let i = 0; i < tiles.length; i++)
           for (let j = i + 1; j < tiles.length; j++) {
             const a = tiles[i]!,
               b = tiles[j]!
             const overlap = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y))
-            expect(overlap).toBeLessThan(1e-6)
+            expect(overlap / area).toBeLessThan(1e-9)
           }
       }),
-      fcParameters({ numRuns: 100 }),
+      fcParameters({ numRuns: 200, examples: [[[1, 2, 3], { x: 13, y: 17, width: 840, height: 520 }], [[5, 1, 1, 1], { x: 0, y: 0, width: 1, height: 5000 }]] }),
     )
   })
 
