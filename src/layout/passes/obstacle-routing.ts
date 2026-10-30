@@ -235,6 +235,33 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
   // locally, through a lane just past the obstacle's side. Every other point
   // and both endpoint rays are kept. This is how a route leaving a subgraph
   // through its title band (bottom-to-top flow) exits beside the band instead.
+  // A blocked route whose clear part reaches back from one end can arrive at
+  // that end on another side: keep the route up to the first clear point and
+  // rebuild the tail onto one of the endpoint's cardinal ports (an elbow, or a
+  // halfway jog that keeps the point's own run). For a subgraph frame this is
+  // the way in when its band and a neighbouring card close the authored side.
+  const rebuildEndTail = (pts: Point[], skip: ReadonlySet<string>, endpoint: PositionedNode, admit: (trial: Point[]) => boolean): Point[] | null => {
+    const ports = shapeRoutingProfile(endpoint).sides
+    const normals = { N: { x: 0, y: -1 }, S: { x: 0, y: 1 }, E: { x: 1, y: 0 }, W: { x: -1, y: 0 } } as const
+    for (let j = 1; j < pts.length; j++) {
+      chargeWork?.(1)
+      const rest = pts.slice(j)
+      if (throughNode(rest, skip)) continue
+      const beyond = pts[j]!
+      for (const side of ['N', 'S', 'E', 'W'] as const) {
+        const port = ports[side].preferred, normal = normals[side], along: 'x' | 'y' = normal.x === 0 ? 'y' : 'x', cross: 'x' | 'y' = along === 'x' ? 'y' : 'x'
+        const gap = (beyond[along] - port[along]) * normal[along]
+        if (gap < 2 * THROUGH_LANE_GAP) continue
+        const at = (main: number, side_: number): Point => (along === 'x' ? { x: main, y: side_ } : { x: side_, y: main })
+        for (const tail of [[port, at(beyond[along], port[cross]), beyond], [port, at(port[along] + normal[along] * gap / 2, port[cross]), at(port[along] + normal[along] * gap / 2, beyond[cross]), beyond]]) {
+          chargeWork?.(2 * pts.length + 8)
+          const trial = simplifyPolyline([...tail, ...pts.slice(j + 1)])
+          if (!throughNode(trial, skip) && routeClearOfNodes(tail, nodes, skip, chargeWork) && clearHeaders(trial) && simpleOrthogonal(trial, chargeWork) && admit(trial)) return trial
+        }
+      }
+    }
+    return null
+  }
   const detourAroundObstacle = (pts: Point[], skip: ReadonlySet<string>, admit: (trial: Point[]) => boolean): Point[] | null => {
     const obstacles: Array<{ x: number; y: number; width: number; height: number }> = [...headerBands, ...nodes.filter(node => !skip.has(node.id))]
     for (let k = 0; k + 1 < pts.length; k++) {
@@ -307,6 +334,8 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
       route = detourTerminalSegment(edge.points.toReversed(), skip, trial => keepsApproach(trial.toReversed()))?.reverse() ?? null
     }
     route ??= detourAroundObstacle(edge.points, skip, keepsApproach)
+    route ??= rebuildEndTail(edge.points.toReversed(), skip, target, trial => keepsApproach(trial.toReversed()))?.reverse() ?? null
+    route ??= rebuildEndTail(edge.points, skip, source, keepsApproach)
     if (!route) continue // never-worse: no clean detour found, leave as-is
     const savedCert = edge.routeCertificate
     edge.points = route

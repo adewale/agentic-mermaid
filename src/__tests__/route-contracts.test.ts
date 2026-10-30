@@ -2872,8 +2872,10 @@ it('new terminal detour never changes a simple route into selfcontact',()=>{
  const visited=new Set([`${edge.points[0]!.x},${edge.points[0]!.y}`]);let repeated=false
  for(let i=1;i<edge.points.length;i++){const a=edge.points[i-1]!,b=edge.points[i]!,dx=Math.sign(b.x-a.x),dy=Math.sign(b.y-a.y);expect(dx===0||dy===0).toBe(true);let x=a.x,y=a.y;while(x!==b.x||y!==b.y){x+=dx;y+=dy;const key=`${x},${y}`;if(visited.has(key))repeated=true;visited.add(key)}}
  expect(repeated).toBe(false)
- // Both bounded replacement lanes are obstructed; keep the original failure.
- expect(edge.points).toEqual(old);expect(edge.hasArrowEnd).toBe(true)
+ // Both bounded replacement lanes are obstructed; the only repair rebuilds
+ // the tail onto another side of T, clear of every card and band.
+ expect(edge.points).not.toEqual(old);expect(edge.points[0]).toEqual(old[0]);expect(edge.hasArrowEnd).toBe(true)
+ for(const box of[...nodes,...groups])expect(clear(edge.points,box)).toBe(true)
 })
 it('website Cloud source retains all authored nodes, groups, markers and clear literal bands',async()=>{
  const source="graph TD\n  subgraph Cloud\n    subgraph us-east [US East Region]\n      A[Web Server] --> B[App Server]\n    end\n    subgraph us-west [US West Region]\n      C[Web Server] --> D[App Server]\n    end\n  end\n  E[Load Balancer] --> A\n  E --> C"

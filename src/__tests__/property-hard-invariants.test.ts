@@ -158,15 +158,15 @@ const FRAME_BREACH_EXAMPLES: GroupedCase[] = [
   },
 ]
 
-// Reduced issue-A7 counterexamples: no bounded candidate certifies these, each
-// for a different check (inward endpoint shaft, a group self-loop through its
-// member, diagonal segments in a look that enlarges nodes). Valid source must
-// still render, and verify must name the failed check. Two earlier members of
-// this list now certify: a self-loop across its group's title band and a layer
-// snap that overlapped two nodes; they must stay certified.
+// Reduced issue-A7 counterexamples: no bounded candidate certified these, each
+// for a different check (inward endpoint shaft, a subgraph self-loop through
+// an unrelated card, a self-loop across its group's title band, overlapping
+// nodes, diagonal segments in a look that enlarges nodes). Valid source must
+// still render, and verify must name any failed check; those since fixed must
+// stay certified.
 const UNCERTIFIED_EXAMPLES: GroupedCase[] = [
   { source: 'flowchart BT\n  n1 ==> n1\n  n2 ==> n3\n  n1 --o|e2| n0\n  n3 <-->|e3| n2\n  n2 --> n0\n  n2 --x n1\n', members: [], look: 'default' },
-  { source: 'flowchart LR\n  subgraph G0[Group 0]\n    n2\n  end\n  G0 --x G0\n  n0 <--> n0\n  n2 --x n0\n  n1 <--> G0\n', members: [['G0', ['n2']]], look: 'default' },
+  { source: 'flowchart LR\n  subgraph G0[Group 0]\n    n2\n  end\n  G0 --x G0\n  n0 <--> n0\n  n2 --x n0\n  n1 <--> G0\n', members: [['G0', ['n2']]], look: 'default', mustCertify: true },
   { source: 'flowchart TD\n  subgraph G0[Group 0]\n    direction LR\n    n1\n    n3\n  end\n  n3 -.->|e0| G1\n  n3 ==> n3\n', members: [['G0', ['n1', 'n3']]], look: 'default', mustCertify: true },
   { source: 'flowchart LR\n  n0[Node 0]\n  n3[/Node 3/]\n  n6\n  n10\n  subgraph G1[Group 1]\n    direction LR\n  end\n  n8 ==> n7\n  n16 ==> n2\n  n8 --x|e20| n14\n', members: [], look: 'default', mustCertify: true },
   { source: 'flowchart BT\n  subgraph G0[Group 0]\n    direction LR\n    n5\n  end\n  n3 --o n5\n  n10 --o n5\n  G0 --x|e17| G0\n  n9 --> n8\n', members: [['G0', ['n5']]], look: 'status-dashboard' },
@@ -256,6 +256,8 @@ const RESIDUE_EXAMPLES: GroupedCase[] = [
   // A route whose only clear rebuild arrives at its far endpoint along that
   // endpoint's own axis.
   { source: 'flowchart TD\n  n4(Node 4)\n  n5 --- n5\n  n4 --x|e6| n7\n  n5 ==> n7\n', members: [], look: 'accessible-high-contrast', mustCertify: true },
+  // A terminal shaft clipped off its side's port across a neighbouring card.
+  { source: 'flowchart BT\n  n0[/Node 0/]\n  n1((Node 1))\n  n4{Node 4}\n  subgraph G0[Group 0]\n    direction TB\n    n4\n    n14\n    n8\n  end\n  subgraph G1[Group 1]\n    direction LR\n    n13\n    n1\n  end\n  G0 ==>|e0| G1\n  n15 -->|e1| G0\n  n8 --> n13\n  n10 --- n11\n  G0 --- G1\n  n0 -.-> G1\n  n9 -.-> n9\n  n6 ==>|e7| n4\n  n11 --o|e9| n14\n  n3 -.->|e10| n15\n  n8 ==>|e11| n14\n  n7 --o n8\n  n0 --x|e13| n10\n  n3 -.->|e15| n0\n  n11 <--> n12\n  n4 -.->|e17| n8\n  n13 --x n11\n  n8 -->|e20| n9\n  n13 ==>|e21| n6\n  n13 -->|e22| n2\n', members: [['G0', ['n4', 'n14', 'n8']], ['G1', ['n13', 'n1']]], look: 'accessible-high-contrast', mustCertify: true },
 ]
 
 describe('authored group frames hold their members in every look', () => {

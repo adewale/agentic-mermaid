@@ -7,6 +7,7 @@ import { type LaneContext, setRoutePoints, opposite, routesCrossOrOverlap } from
 import { routeCandidateMarkerBlocker, routeMarkerPaintRegions } from './route-marker-clearance.ts'
 import { nodePaintBounds, paintedStrokeExtent } from '../scene/bounds.ts'
 import { shapeOutline } from '../shape-outline.ts'
+import { segmentThroughShape } from '../layout-rubric.ts'
 import { STROKE_WIDTHS, type ResolvedRenderStyle } from '../styles.ts'
 export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode>, groupMap: ReadonlyMap<string, PositionedGroup>, ctx: Pick<LaneContext, 'nodes' | 'edges' | 'style' | 'routeChannelGeometry'>, markerBlockers?: RouteBlocker[], reserved = new Set<PositionedEdge>()): (edge: PositionedEdge) => PortSide | null {
   const style = ctx.style
@@ -30,7 +31,12 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
   const selfLoopLabelsBySide = new Map<string, Array<{ edge: PositionedEdge; rectIndex: number }>>()
   const rectsOverlap = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }): boolean => Math.min(a.x + a.w, b.x + b.w) > Math.max(a.x, b.x) && Math.min(a.y + a.h, b.y + b.h) > Math.max(a.y, b.y)
   const repairSelfLoopArc = (edge: PositionedEdge): PortSide | null => {
-    const node = nodeMap.get(edge.source)
+    // A subgraph's own self-loop keeps ELK's route unless that route runs
+    // through a card (a member, say); it is then rebuilt around the frame,
+    // which stands in as a rectangle and caps nothing about its own loop.
+    const group = nodeMap.has(edge.source) ? undefined : groupMap.get(edge.source)
+    const frame = group && ctx.nodes.some(card => edge.points.some((point, index) => index > 0 && segmentThroughShape(edge.points[index - 1]!, point, card))) ? group : undefined
+    const node: PositionedNode | undefined = nodeMap.get(edge.source) ?? (frame && { id: frame.id, label: '', shape: 'rectangle', x: frame.x, y: frame.y, width: frame.width, height: frame.height })
     if (!node) return null
 
     const cx = node.x + node.width / 2
@@ -70,6 +76,7 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
         consider(vertical ? other.x : other.y, vertical ? other.x + other.width : other.y + other.height, vertical ? (sign < 0 ? other.y + other.height : other.y) : sign < 0 ? other.x + other.width : other.x, false)
       }
       for (const group of groupMap.values()) {
+        if (group === frame) continue
         const containsNode = cx > group.x && cx < group.x + group.width && cy > group.y && cy < group.y + group.height
         if (containsNode) {
           // The loop must stay inside its own group: the border caps depth,
