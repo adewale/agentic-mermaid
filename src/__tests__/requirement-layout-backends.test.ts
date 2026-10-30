@@ -163,6 +163,7 @@ describe('Requirement layout backends', () => {
       expect(stages).toContain('scene')
     }
     expect(rendered.receipt.layoutDecisions?.[0]?.selected).toBe(backend)
+    if (admission === 'scene') expect(rendered.receipt.layoutCertification?.status).toBe('passed')
     expect(layout.nodes.map(node => node.id)).toEqual(requirements.map(node => node.name))
     expect(layout.edges.map(edge => [edge.from, edge.to, edge.label?.text])).toEqual(relations.map(([from, to]) => [from, to, '<<traces>>']))
 

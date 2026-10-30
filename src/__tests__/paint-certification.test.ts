@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test'
 import { Resvg } from '@resvg/resvg-js'
 import * as marks from '../scene/marks.ts'
+import { withRenderStageObserver } from '../render-stages.ts'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { connectorMarkerPaintRegions, nodePaintBounds } from '../scene/bounds.ts'
@@ -4139,4 +4140,194 @@ test.each(['exact', 'rounded'].flatMap(pose => ['known', 'known-vars', 'known-tr
     expect(proof.status).toBe('unverified')
   }
 
+})
+
+const actualCompositionFont = fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))
+const actualCompositionPixels = (svg: string) => new Resvg(svg, { background: '#fff', font: { fontFiles: [actualCompositionFont], loadSystemFonts: false, defaultFontFamily: 'Inter' } }).render().pixels
+function actualCompositionMarkerPixels(svg: string): number {
+  const a = actualCompositionPixels(svg), b = actualCompositionPixels(svg.replace(/\smarker-end="[^"]*"/g, ''))
+  let count = 0
+  for (let offset = 0; offset < a.length; offset += 4) if (a[offset] !== b[offset] || a[offset + 1] !== b[offset + 1] || a[offset + 2] !== b[offset + 2]) count++
+  return count
+}
+
+for (const backend of ['agentic', 'elk'] as const) test.each(['root-map-join', 'root-map-skip'] as const)(`actual ${backend} composition refuses hidden marker after scene admission: %s`, mode => {
+  const oldAssertions = process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS
+  const originalJoin = Object.getOwnPropertyDescriptor(Array.prototype, 'join')!, join = originalJoin.value
+  const originalMap = Object.getOwnPropertyDescriptor(Array.prototype, 'map')!, map = originalMap.value
+  let installed = false, mutations = 0, callbacks = 0
+  const source = 'flowchart LR\nA-->B'
+  const options = { graphLayout: { backend, fallback: 'none' as const } }
+  const rootParts = (value: unknown[]) => {
+    const first = Object.getOwnPropertyDescriptor(value, '0')?.value
+    return first && typeof first === 'object' && first.kind === 'document' && first.element === 'open'
+  }
+  const installJoin = (root: boolean) => Object.defineProperty(Array.prototype, 'join', { ...originalJoin, value: function(this: unknown[], separator: string) {
+    const result: string = Reflect.apply(join, this, [separator])
+    if (result.includes('marker-end=') && (root ? result.includes('</svg>') : typeof this[0] === 'string' && this[0].startsWith('<g '))) {
+      mutations++
+      if (root) Object.defineProperty(Array.prototype, 'join', originalJoin)
+      return root ? result.replace(/(<svg\b[^>]*>)/, '$1<g opacity="0">').replace('</svg>', '</g></svg>') : result.replace('<g ', '<g opacity="0" ')
+    }
+    return result
+  } })
+  try {
+    process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS = '1'
+    const plain = renderMermaidSVGWithReceipt(source, options)
+    const attacked = withRenderStageObserver(sample => {
+      if (sample.stage !== 'scene' || installed) return
+      installed = true
+      Object.defineProperty(Array.prototype, 'map', { ...originalMap, value: function(this: unknown[], callback: (value: unknown, index: number, source: unknown[]) => unknown, thisArg: unknown) {
+        if (!rootParts(this)) return Reflect.apply(map, this, [callback, thisArg])
+        const result = Reflect.apply(map, this, [function(this: unknown, value: { kind?: string }, index: number, source: unknown[]) {
+          if (mode === 'root-map-skip' && value.kind !== 'document') { mutations++; return '' }
+          callbacks++
+          return Reflect.apply(callback, this, [value, index, source])
+        }, thisArg])
+        if (mode === 'root-map-join') installJoin(true)
+        return result
+      } })
+    }, () => renderMermaidSVGWithReceipt(source, options))
+    Object.defineProperty(Array.prototype, 'join', originalJoin)
+    Object.defineProperty(Array.prototype, 'map', originalMap)
+    expect(installed).toBe(true)
+    expect(mutations).toBeGreaterThan(0)
+    expect(callbacks).toBeGreaterThan(0)
+    expect(plain.receipt.layoutCertification?.status).toBe('passed')
+    expect(actualCompositionMarkerPixels(plain.svg)).toBeGreaterThan(0)
+    expect(actualCompositionMarkerPixels(attacked.svg)).toBe(0)
+    expect(attacked.receipt.layoutCertification?.status).not.toBe('passed')
+    expect(attacked.receipt.layoutCertification?.issues.some(issue => issue.code === 'OUTPUT_SCOPE')).toBe(true)
+  } finally {
+    Object.defineProperty(Array.prototype, 'join', originalJoin)
+    Object.defineProperty(Array.prototype, 'map', originalMap)
+    if (oldAssertions === undefined) delete process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS
+    else process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS = oldAssertions
+  }
+})
+
+
+for (const backend of ['agentic', 'elk'] as const) test(`actual ${backend} cached connector pin survives recorder registration hooks`, () => {
+  const oldAssertions = process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS
+  const setSlot = Object.getOwnPropertyDescriptor(WeakMap.prototype, 'set')!, set = setSlot.value
+  const getSlot = Object.getOwnPropertyDescriptor(WeakMap.prototype, 'get')!, get = getSlot.value
+  let recorder: { string: () => void } | undefined, installed = false, mutations = 0
+  const source = 'flowchart LR\nA-->B'
+  const options = { graphLayout: { backend, fallback: 'none' as const } }
+  try {
+    process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS = '1'
+    const plain = renderMermaidSVGWithReceipt(source, options)
+    Object.defineProperty(WeakMap.prototype, 'set', { ...setSlot, value: function(this: WeakMap<object, unknown>, key: object, value: unknown) {
+      if (value && typeof value === 'object' && typeof Object.getOwnPropertyDescriptor(value, 'string')?.value === 'function'
+        && typeof Object.getOwnPropertyDescriptor(value, 'root')?.value === 'function') recorder = value as typeof recorder
+      return Reflect.apply(set, this, [key, value])
+    } })
+    const attacked = withRenderStageObserver(sample => {
+      if (sample.stage !== 'paint-certification' || installed) return
+      installed = true
+      if (recorder && !Object.isFrozen(recorder)) recorder.string = () => {}
+      Object.defineProperty(WeakMap.prototype, 'get', { ...getSlot, value: function(this: WeakMap<object, unknown>, key: unknown) {
+        const value = Reflect.apply(get, this, [key])
+        if (typeof value === 'string' && key && typeof key === 'object' && Object.getOwnPropertyDescriptor(key, 'kind')?.value === 'connector' && value.includes('marker-end=')) {
+          mutations++
+          Object.defineProperty(WeakMap.prototype, 'get', getSlot)
+          return value.replace(/<(?:polyline|path|line)\b/, '$& opacity="0"')
+        }
+        return value
+      } })
+    }, () => renderMermaidSVGWithReceipt(source, options))
+    Object.defineProperty(WeakMap.prototype, 'set', setSlot)
+    Object.defineProperty(WeakMap.prototype, 'get', getSlot)
+    expect(installed).toBe(true)
+    expect(mutations).toBe(1)
+    expect(plain.receipt.layoutCertification?.status).toBe('passed')
+    expect(actualCompositionMarkerPixels(plain.svg)).toBeGreaterThan(0)
+    expect(actualCompositionMarkerPixels(attacked.svg)).toBe(0)
+    expect(attacked.receipt.layoutCertification?.status).not.toBe('passed')
+    expect(attacked.receipt.layoutCertification?.issues.some(issue => issue.code === 'OUTPUT_SCOPE')).toBe(true)
+  } finally {
+    Object.defineProperty(WeakMap.prototype, 'set', setSlot)
+    Object.defineProperty(WeakMap.prototype, 'get', getSlot)
+    if (oldAssertions === undefined) delete process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS
+    else process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS = oldAssertions
+  }
+})
+
+for (const backend of ['agentic', 'elk'] as const) test(`actual ${backend} styled underlay binds its returned size to the served prelude`, () => {
+  const oldAssertions = process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS
+  const getSlot = Object.getOwnPropertyDescriptor(Map.prototype, 'get')!, get = getSlot.value
+  let installed = false, mutations = 0
+  const source = 'requirementDiagram\ndirection TB\nrequirement r {\ntext: Card\n}\nr - traces -> r'
+  const options = { padding: 32.123456789, graphLayout: { backend, fallback: 'none' as const }, style: { roles: { relationship: { bendRadius: 12 } } } }
+  try {
+    process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS = '1'
+    const plain = renderMermaidSVGWithReceipt(source, options)
+    const attacked = withRenderStageObserver(sample => {
+      if (sample.stage !== 'paint-certification' || installed) return
+      installed = true
+      Object.defineProperty(Map.prototype, 'get', { ...getSlot, value: function(this: Map<unknown, unknown>, key: unknown) {
+        const value = Reflect.apply(get, this, [key])
+        if (typeof key === 'number' && typeof value === 'string') {
+          mutations++
+          Object.defineProperty(Map.prototype, 'get', getSlot)
+          return '0'
+        }
+        return value
+      } })
+    }, () => renderMermaidSVGWithReceipt(source, options))
+    Object.defineProperty(Map.prototype, 'get', getSlot)
+    expect(installed).toBe(true)
+    expect(mutations).toBe(1)
+    expect(plain.receipt.layoutCertification?.status).toBe('passed')
+    expect(actualCompositionMarkerPixels(plain.svg)).toBeGreaterThan(0)
+    expect(attacked.svg).toContain('<rect width="0"')
+    expect(attacked.receipt.layoutCertification?.status).not.toBe('passed')
+    expect(attacked.receipt.layoutCertification?.issues.some(issue => issue.code === 'OUTPUT_SCOPE')).toBe(true)
+  } finally {
+    Object.defineProperty(Map.prototype, 'get', getSlot)
+    if (oldAssertions === undefined) delete process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS
+    else process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS = oldAssertions
+  }
+})
+
+
+for (const backend of ['agentic', 'elk'] as const) test(`actual ${backend} snapshot allocation cannot interpose a receiver after the composition seal`, () => {
+  const oldAssertions = process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS
+  const createSlot = Object.getOwnPropertyDescriptor(Object, 'create')!, create = createSlot.value
+  const mapSlot = Object.getOwnPropertyDescriptor(Array.prototype, 'map')!, map = mapSlot.value
+  let armed = false, rootPartsReads = 0
+  const options = { graphLayout: { backend, fallback: 'none' as const }, embedFontImport: false }
+  try {
+    process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS = '1'
+    const plain = renderMermaidSVGWithReceipt('flowchart LR\nA-->B', options)
+    Object.defineProperty(Object, 'create', { ...createSlot, value: function(this: unknown, prototype: object | null, descriptors?: PropertyDescriptorMap) {
+      const target = Reflect.apply(create, this, [prototype, descriptors]) as object
+      if (prototype !== null) return target
+      return new Proxy(target, { get(object, key, receiver) {
+        if (armed && key === 'parts' && Object.isFrozen(object) && ++rootPartsReads === 2) {
+          Object.defineProperty(Array.prototype, 'map', { ...mapSlot, value: function(this: unknown[], callback: (value: unknown) => unknown, thisArg: unknown) {
+            Object.defineProperty(Array.prototype, 'map', mapSlot)
+            const mapped = Reflect.apply(map, this, [callback, thisArg])
+            return Reflect.apply(map, mapped, [(svg: unknown) => typeof svg === 'string'
+              ? svg.replace(/<(?:path|polyline|line)\b[^>]*\bmarker-end="[^"]*"[^>]*\/>/g, '<g opacity="0">$&</g>') : svg])
+          } })
+        }
+        return Reflect.get(object, key, receiver)
+      } })
+    } })
+    const attacked = withRenderStageObserver(sample => { if (sample.stage === 'paint-certification') armed = true },
+      () => renderMermaidSVGWithReceipt('flowchart LR\nA-->B', options))
+    Object.defineProperty(Object, 'create', createSlot)
+    Object.defineProperty(Array.prototype, 'map', mapSlot)
+    expect(armed).toBe(true)
+    expect(plain.receipt.layoutCertification?.status).toBe('passed')
+    expect(actualCompositionMarkerPixels(plain.svg)).toBeGreaterThan(0)
+    const remaining = actualCompositionMarkerPixels(attacked.svg)
+    expect(remaining > 0 || attacked.receipt.layoutCertification?.status !== 'passed').toBe(true)
+  } finally {
+    Object.defineProperty(Object, 'create', createSlot)
+    Object.defineProperty(Array.prototype, 'map', mapSlot)
+    if (oldAssertions === undefined) delete process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS
+    else process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS = oldAssertions
+  }
 })

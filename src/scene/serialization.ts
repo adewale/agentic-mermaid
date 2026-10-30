@@ -1,7 +1,7 @@
 import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
 import { connectorContourSemantics } from './connector-geometry.ts'
 import { isAdmittedSceneDocument } from './scene-admission-state.ts'
-import { isOwnDataSceneSnapshot } from './scene-data-snapshot.ts'
+import { isOwnDataSceneSnapshot, isOwnDataSceneSnapshotInert, isOwnDataSceneArrayInert } from './scene-data-snapshot.ts'
 import type { SceneDoc, SceneNode, Geometry, MarkPaint, ShapeMark } from './ir.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { writeConnectorSvg, writeShapeSvg, writeTextSvg, type SvgGeometryWriteSink, type SvgXmlCapture, type SvgXmlWrite } from './svg-writer.ts'
@@ -34,11 +34,13 @@ declare const sceneWriteObserver: unique symbol
 export interface SceneSerializationObserver { readonly [sceneWriteObserver]: true }
 type SceneWriteCallback = (node: SceneNode, source: Geometry, served: Geometry | undefined, svg: string) => void
 interface SceneWriteRecorder {
+  string(node: Exclude<SceneNode, { kind: 'group' }>, svg: string): void
+  root(scene: SceneDoc): { readonly composition: GroupComposition; underlay(svg: string): void; complete(sealed: boolean): void } | undefined
   reserve(): boolean
   reserveProjection(operations: number): boolean
   document(node: Extract<SceneNode, { kind: 'document' }>, svg: string): void
   connector(node: ConnectorNode): void
-  group(node: Extract<SceneNode, { kind: 'group' }>): void
+  group(node: Extract<SceneNode, { kind: 'group' }>): { readonly composition: GroupComposition | undefined; complete(sealed: boolean): void } | undefined
   hint(node: SceneNode): boolean
   compound(node: ShapeMark): WrittenCompoundInput | undefined
   compoundRecord(node: ShapeMark, input: WrittenCompoundInput, svg: string): void
@@ -50,7 +52,14 @@ interface SceneWriteRecorder {
 }
 // Explicit transaction tokens identify recorders; there is no active global
 // observer, and callers cannot invoke or substitute a recorder callback.
+const sceneObserverCreate = Object.create, sceneObserverWeakMap = WeakMap
+const sceneObserverGet = WeakMap.prototype.get, sceneObserverSet = WeakMap.prototype.set, sceneObserverDelete = WeakMap.prototype.delete, sceneObserverApply = Reflect.apply
+const actualSceneObservers = new WeakSet<object>()
 const sceneWriteObservers = new WeakMap<SceneSerializationObserver, SceneWriteRecorder>()
+function readSceneWriteObserver(observer: SceneSerializationObserver): SceneWriteRecorder | undefined { return groupObserverApply(groupObserverHas, actualSceneObservers, [observer]) ? sceneObserverApply(sceneObserverGet, sceneWriteObservers, [observer]) : sceneWriteObservers.get(observer) }
+const backendWriteObservers = new WeakMap<object, SceneSerializationObserver>()
+export function sceneBackendWriteObserver(context: object): SceneSerializationObserver | undefined { return sceneObserverApply(sceneObserverGet, backendWriteObservers, [context]) }
+export function sceneDocumentComposition(observer: SceneSerializationObserver, scene: SceneDoc) { return sceneObserverApply(sceneObserverGet, sceneWriteObservers, [observer])?.root(scene) }
 type ConnectorNode = Extract<SceneNode, { kind: 'connector' }>
 interface WrittenPath { readonly source: Geometry | undefined; readonly svg: string; readonly served: Exclude<SceneNode, { kind: 'group' }>; readonly conditional: boolean; readonly path: boolean }
 export interface SceneWriteWork { readonly scene: SceneDoc; readonly operations: number; readonly exhausted: boolean; readonly uncertain: boolean; readonly fractionalCircleContext: boolean; readonly resolveColor?: EmissionColorResolver }
@@ -105,18 +114,38 @@ export function beginSceneWriteInspection(receipt: SceneWriteReceipt | undefined
   try { return receipt !== undefined && issuedSceneWrites.has(receipt) && receipt instanceof CapturedSceneWrites && isAdmittedSceneDocument(scene) ? receipt.begin(scene) : undefined } catch { return undefined }
 }
 
-export function createSceneWriteCapture(maxOperations: number, options: { fractionalCircleOutput?: boolean } = {}) {
+export function createSceneWriteCapture(maxOperations: number, options: { fractionalCircleOutput?: boolean; pageUnderlay?: boolean } = {}, actualBackendWrite = false) {
   if (!Number.isSafeInteger(maxOperations) || maxOperations < 0 || maxOperations > MAX_OCCLUSION_OPERATIONS) throw new RangeError('Invalid Scene write work allowance')
   const option = Object.getOwnPropertyDescriptor(options, 'fractionalCircleOutput')
   const fractionalCircleOutput = !!option && Object.hasOwn(option, 'value') && option.value === true
   let operations = 0, exhausted = false, finished = false
   const paths = new Map<SceneNode, WrittenPath>()
   const pay = (count: number): boolean => {
-    if (exhausted || !Number.isSafeInteger(count) || count < 0 || count > maxOperations - operations) { exhausted = true; return false }
+    if (exhausted || !(actualBackendWrite ? groupSafeInteger(count) : Number.isSafeInteger(count)) || count < 0 || count > maxOperations - operations) { exhausted = true; return false }
     operations += count
     return true
   }
-  const context = createEmissionContext(pay)
+  let emitting = false
+  const context = createEmissionContext(pay, { pageUnderlay: actualBackendWrite && Object.getOwnPropertyDescriptor(options, 'pageUnderlay')?.value === true })
+  const admissionStrings = new sceneObserverWeakMap<object, { readonly svg: string; readonly kind: string }>()
+  let preparedScene: SceneDoc | undefined, preparedContext: ReturnType<typeof context.finish> | undefined
+  let backendContext: object | undefined
+  let actualRoots = 0, actualRootCompleted = false, actualClosed = true
+  const string = (node: Exclude<SceneNode, { kind: 'group' }>, svg: string): void => {
+    if (!actualBackendWrite || finished) return
+    if (!emitting) {
+      if (!pay(1)) return
+      const prior = sceneObserverApply(sceneObserverGet, admissionStrings, [node]) as { svg: string; kind: string } | undefined
+      if (prior) { if (prior.svg !== svg || prior.kind !== node.kind) actualClosed = false; return }
+      sceneObserverApply(sceneObserverSet, admissionStrings, [node, { svg, kind: node.kind }])
+      return
+    }
+    // Same primitive equality used by the existing flat leaf-custody check.
+    // The first value is this actual return, never a second ambient cache get.
+    if (!pay(4)) return
+    const pinned = sceneObserverApply(sceneObserverGet, admissionStrings, [node]) as { svg: string; kind: string } | undefined
+    if (!pinned || pinned.kind !== node.kind || typeof svg !== 'string' || pinned.svg !== svg) actualClosed = false
+  }
   const rectangles = new WeakSet<ShapeMark>()
   const fractional = new WeakSet<SceneNode>()
   const inert = <T extends object>(source: T, field?: string, value?: unknown): T | undefined => {
@@ -135,7 +164,7 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
     return Object.preventExtensions(result)
   }
   const hint = (node: SceneNode): boolean => {
-    if (finished || !fractionalCircleOutput) return false
+    if (finished || !fractionalCircleOutput || actualBackendWrite && emitting) return false
     // No extra property access or reflection reaches an ordinary raw mark.
     if (!TRANSFERRED_WRITABLE_NODES.has(node)) { context.invalidateFractionalCircle(); return false }
     if (!pay(2)) return false
@@ -275,33 +304,89 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
     if (paths.has(node)) { paths.delete(node); exhausted = true; return }
     paths.set(node, Object.freeze({ source, svg, served: paintNode, conditional, path: source.kind === 'path' }))
   }
-  const observe = Object.freeze(Object.create(null)) as SceneSerializationObserver
-  sceneWriteObservers.set(observe, { reserve: () => !finished && pay(192), reserveProjection: operations => !finished && pay(operations),
-    document: (node, svg) => { if (!finished) context.document(node, svg) },
-    connector: node => { if (!finished) context.connector(node) },
-    group: node => { if (!finished) context.group(node) }, hint, compound, compoundRecord, rectangle, rectangleRecord,
+  const observe = (actualBackendWrite ? groupFreeze(sceneObserverCreate(null)) : Object.freeze(Object.create(null))) as SceneSerializationObserver
+  if (actualBackendWrite) groupObserverApply(groupObserverAdd, actualSceneObservers, [observe])
+  const recorder: SceneWriteRecorder = {
+    string,
+    root: scene => actualBackendWrite && emitting && !finished && scene === preparedScene && pay(4) ? (actualRoots++, {
+      composition: groupComposition(scene as never, pay, true),
+      underlay: svg => {
+        if (svg === '') return
+        if (!pay(svg.length * 2 + 16) || svg !== preparedContext?.pageUnderlay
+          || groupOwnDescriptor(scene.parts, '0')?.value !== preparedContext?.pagePrelude) actualClosed = false
+      },
+      complete: sealed => { actualRootCompleted = true; if (!pay(2) || !sealed) actualClosed = false },
+    }) : undefined,
+    reserve: () => !finished && !emitting && pay(192), reserveProjection: count => !finished && !emitting && pay(count),
+    document: (node, svg) => { if (!finished && !emitting) context.document(node, svg) },
+    connector: node => { if (!finished && !emitting) context.connector(node) },
+    group: node => {
+      if (finished) return undefined
+      if (!emitting) { context.group(node); return undefined }
+      const composition = groupObserverApply(groupObserverHas, TRANSFERRED_WRITABLE_NODES, [node]) && isOwnDataSceneSnapshotInert(node) ? groupComposition(node, pay) : undefined
+      return { composition, complete: sealed => { if (!pay(2) || !sealed) actualClosed = false } }
+    }, hint, compound, compoundRecord, rectangle, rectangleRecord,
     contextLeaf: (node, svg) => {
-      if (finished || !fractionalCircleOutput) return
+      if (finished || emitting || !fractionalCircleOutput) return
       if (!TRANSFERRED_WRITABLE_NODES.has(node)) { context.invalidateFractionalCircle(); return }
       context.leaf(node, svg)
     },
     leaf: (node, svg) => {
-      if (finished || !fractional.has(node) || node.kind !== 'text' || !pay(32)) return
+      if (finished || emitting || !fractional.has(node) || node.kind !== 'text' || !pay(32)) return
       if (paths.has(node)) { paths.delete(node); exhausted = true; return }
       paths.set(node, Object.freeze({ source: undefined, svg, served: node, conditional: false, path: false }))
-    }, record })
+    }, record }
+  if (actualBackendWrite) sceneObserverApply(sceneObserverSet, sceneWriteObservers, [observe, groupFreeze(recorder)])
+  else sceneWriteObservers.set(observe, recorder)
+  const detach = (): void => { if (backendContext) { sceneObserverApply(sceneObserverDelete, backendWriteObservers, [backendContext]); backendContext = undefined } }
+  const receipt = (scene: SceneDoc, result: ReturnType<typeof context.finish>): SceneWriteReceipt => {
+    const value = new CapturedSceneWrites(scene, paths, operations, exhausted, maxOperations, result.uncertain,
+      fractionalCircleOutput && result.fractionalCircleContext && !exhausted, result.uncertain ? undefined : result.resolveColor)
+    Object.freeze(value); issuedSceneWrites.add(value); return value
+  }
   return {
     observe,
+    prepare(scene: SceneDoc): SceneWriteReceipt | undefined {
+      if (!actualBackendWrite || preparedScene || emitting || finished) throw new Error('Invalid Scene preparation phase')
+      if (!isAdmittedSceneDocument(scene)) return undefined
+      preparedScene = scene
+      preparedContext = context.finish(scene)
+      return receipt(scene, preparedContext)
+    },
+    beginBackendEmission(scene: SceneDoc, contextObject: object, proof: import('./paint-certification.ts').PaintLayoutCertification): void {
+      if (!actualBackendWrite || emitting || finished || scene !== preparedScene || !preparedContext) throw new Error('Invalid Scene actual-write phase')
+      const completed = proof.checks.operations
+      if (!groupSafeInteger(completed) || completed < 0 || completed > maxOperations) throw new Error('Invalid Scene proof continuation')
+      if (completed < operations) actualClosed = false
+      else pay(completed - operations)
+      for (let index = 0; index < proof.issues.length; index++) if (proof.issues[index]!.code === 'CHECK_BUDGET') exhausted = true
+      emitting = true; backendContext = contextObject
+      sceneObserverApply(sceneObserverSet, backendWriteObservers, [contextObject, observe])
+    },
+    abortBackendEmission(): void { finished = true; actualClosed = false; detach() },
+    finishActual(proof: import('./paint-certification.ts').PaintLayoutCertification): import('./paint-certification.ts').PaintLayoutCertification {
+      if (!actualBackendWrite || !emitting || finished || !preparedContext) throw new Error('Invalid Scene actual-write completion')
+      finished = true; detach()
+      if (actualRoots !== 1 || !actualRootCompleted) actualClosed = false
+      pay(16 + proof.issues.length * 2)
+      const budget = exhausted, scope = !actualClosed
+      let hasBudget = false, hasScope = false
+      for (let index = 0; index < proof.issues.length; index++) { const code = proof.issues[index]!.code; hasBudget ||= code === 'CHECK_BUDGET'; hasScope ||= code === 'OUTPUT_SCOPE' }
+      const extra = (scope && !hasScope ? 1 : 0) + (budget && !hasBudget ? 1 : 0)
+      const issues: import('./paint-certification.ts').PaintCertificationIssue[] = []
+      const count = proof.issues.length < 64 - extra ? proof.issues.length : 64 - extra
+      for (let index = 0; index < count; index++) groupDefine(issues, index, { value: proof.issues[index], enumerable: true, configurable: false, writable: false })
+      if (scope && !hasScope) groupDefine(issues, issues.length, { value: { code: 'OUTPUT_SCOPE', message: 'Actual backend composition differs from its admission write evidence' }, enumerable: true })
+      if (budget && !hasBudget) groupDefine(issues, issues.length, { value: { code: 'CHECK_BUDGET', message: 'Actual backend composition exhausted the existing paint-work allowance' }, enumerable: true })
+      return groupFreeze({ ...proof, status: proof.status === 'failed' ? 'failed' : budget || scope ? 'unverified' : proof.status,
+        checks: groupFreeze({ ...proof.checks, operations: budget ? maxOperations : operations }), issues: groupFreeze(issues) })
+    },
     finish(scene: SceneDoc): SceneWriteReceipt | undefined {
+      if (actualBackendWrite) throw new Error('Actual writes require preparation and same-ledger completion')
       if (finished) throw new Error('Scene write capture already finished')
       finished = true
       if (!isAdmittedSceneDocument(scene)) return undefined
-      const result = context.finish(scene)
-      const receipt = new CapturedSceneWrites(scene, paths, operations, exhausted, maxOperations, result.uncertain,
-        fractionalCircleOutput && result.fractionalCircleContext && !exhausted, result.uncertain ? undefined : result.resolveColor)
-      Object.freeze(receipt)
-      issuedSceneWrites.add(receipt)
-      return receipt
+      return receipt(scene, context.finish(scene))
     },
   }
 }
@@ -433,9 +518,11 @@ export function sceneNodeWrite(node: SceneNode, capture: SvgXmlCapture, sink?: S
 function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver): string
 function serializeSceneNode(node: SceneNode, sink: SvgGeometryWriteSink | undefined, observer: SceneSerializationObserver | undefined, capture: SvgXmlCapture): SvgXmlWrite
 function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver, capture?: SvgXmlCapture): string | SvgXmlWrite {
-  const recorder = observer && sceneWriteObservers.get(observer)
+  const recorder = observer && readSceneWriteObserver(observer)
   const stored = SERIALIZED_SCENE_NODES.get(node)
   if (stored !== undefined) {
+    if (node.kind === 'group') recorder?.group(node)?.complete(false)
+    if (node.kind !== 'group') recorder?.string(node, stored)
     if (node.kind === 'document') recorder?.document(node, stored)
     else if (node.kind !== 'group') recorder?.contextLeaf(node, stored)
     return capture ? capture.raw(stored, node) : stored
@@ -443,11 +530,13 @@ function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observ
   if (!WRITABLE_SCENE_NODES.has(node)) throw new TypeError(`Scene node "${node.id}" has no admitted SVG serialization`)
   const written = WRITTEN_SCENE_NODES.get(node)
   if (written !== undefined) {
+    if (node.kind === 'group') recorder?.group(node)?.complete(false)
+    if (node.kind !== 'group') recorder?.string(node, written)
     if (node.kind !== 'group' && node.kind !== 'document') recorder?.contextLeaf(node, written)
     return capture ? capture.raw(written, node) : written
   }
   let source: Geometry | undefined, served: Geometry | undefined, received = false, invalid = false, projectionReserved = false
-  if (node.kind === 'group') recorder?.group(node)
+  const groupWrite = node.kind === 'group' ? recorder?.group(node) : undefined
   if (node.kind === 'connector') recorder?.connector(node)
   const fractional = recorder?.hint(node) ?? false
   const rectangle = fractional && node.kind === 'shape' && recorder!.rectangle(node)
@@ -481,8 +570,10 @@ function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observ
     attributes = actual
     sink?.rectangleAttributes?.(shape, actual)
   } : undefined }) : sink
-  const output = capture ? writeStructuredSceneNode(node, capture, geometrySink, observer) : writeSceneNode(node, geometrySink, observer)
+  const output = capture ? writeStructuredSceneNode(node, capture, geometrySink, observer) : writeSceneNode(node, geometrySink, observer, groupWrite?.composition)
   const svg = typeof output === 'string' ? output : output.svg
+  groupWrite?.complete(!capture && groupWrite.composition?.valid === true)
+  if (node.kind !== 'group') recorder?.string(node, svg)
   // A group is written from its children each time: its children array is
   // not part of what freezing it protects.
   if (node.kind !== 'group' && Object.isFrozen(node)) WRITTEN_SCENE_NODES.set(node, svg)
@@ -511,17 +602,136 @@ function writeStructuredSceneNode(node: SceneNode, capture: SvgXmlCapture, sink?
   }
 }
 
-function writeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver): string {
+function writeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver, composition?: GroupComposition): string {
   switch (node.kind) {
     case 'shape': return writeShapeSvg(node, sink)
     case 'text': return writeTextSvg(node)
     case 'connector': return writeConnectorSvg(node, sink)
-    case 'group': return [
-      node.open,
-      ...node.children.map(child => indentLines(serializeSceneNode(child.node, undefined, observer), child.indent)),
-      node.close,
-    ].join(node.join)
+    case 'group': {
+      if (!composition) return [
+        node.open,
+        ...node.children.map(child => indentLines(serializeSceneNode(child.node, undefined, observer), child.indent)),
+        node.close,
+      ].join(node.join)
+      {
+        const indentLines = composition.indent
+        const open = node.open
+        composition.beforeMap(node.children)
+        const mapped = node.children.map(child => indentLines(serializeSceneNode(child.node, undefined, observer), child.indent))
+        composition.beforeSpread(mapped)
+        const parts = [open, ...mapped, node.close]
+        composition.beforeJoin(parts)
+        return parts.join(node.join)
+      }
+    }
     case 'document': throw new TypeError(`Scene node "${node.id}" has no admitted SVG serialization`)
+  }
+}
+
+// This private receipt assumes standard intrinsics when this module loads.
+// It does not fingerprint a hostile pre-import realm. Captured reflection only
+// inspects admitted own-data objects; every actual unknown operator still runs.
+const groupDefine = Object.defineProperty, groupFreeze = Object.freeze
+const groupObserverHas = WeakSet.prototype.has, groupObserverAdd = WeakSet.prototype.add, groupObserverApply = Reflect.apply
+const groupSafeInteger = Number.isSafeInteger
+const groupHasOwn = Object.hasOwn
+const groupOwnDescriptor = Object.getOwnPropertyDescriptor
+const groupPrototype = Object.getPrototypeOf
+const groupFrozen = Object.isFrozen
+const groupIsArray = Array.isArray
+const groupArray = Array, groupArrayPrototype = Array.prototype
+const groupStringPrototype = String.prototype, groupRegExpPrototype = RegExp.prototype
+const groupMap = Array.prototype.map, groupJoin = Array.prototype.join
+const groupIterator = Array.prototype[Symbol.iterator]
+const groupIteratorPrototype = Object.getPrototypeOf([][Symbol.iterator]())
+const groupNext = groupOwnDescriptor(groupIteratorPrototype, 'next')!.value
+const groupSpecies = groupOwnDescriptor(Array, Symbol.species)!.get
+const groupRepeat = String.prototype.repeat, groupReplace = String.prototype.replace
+const groupRegExpReplace = RegExp.prototype[Symbol.replace], groupRegExpExec = RegExp.prototype.exec
+const groupRegExpFlags = ['global', 'unicode', 'unicodeSets'] as const
+const groupRegExpGetters = groupRegExpFlags.map(name => groupOwnDescriptor(RegExp.prototype, name)?.get)
+interface GroupComposition {
+  readonly valid: boolean
+  invalidate(): void
+  beforeMap(children: unknown): void
+  beforeSpread(mapped: unknown): void
+  beforeJoin(parts: unknown): void
+  indent(svg: string, spaces: number): string
+}
+function groupComposition(node: Extract<SceneNode, { kind: 'group' }>, pay: (count: number) => boolean, root = false): GroupComposition {
+  let valid = true
+  const charge = (count = 1): boolean => { if (valid && !pay(count)) valid = false; return valid }
+  const descriptor = (source: object, key: PropertyKey): PropertyDescriptor | undefined => charge() ? groupOwnDescriptor(source, key) : undefined
+  const data = (source: object, key: PropertyKey, expected: unknown): boolean => {
+    const slot = descriptor(source, key)
+    return !!slot && groupHasOwn(slot, 'value') && slot.value === expected
+  }
+  const getter = (source: object, key: PropertyKey, expected: unknown): boolean => {
+    const slot = descriptor(source, key)
+    return !!slot && !groupHasOwn(slot, 'value') && slot.get === expected && expected !== undefined
+  }
+  const array = (value: unknown): value is unknown[] => charge(2) && !!value && typeof value === 'object' && groupIsArray(value) && groupPrototype(value) === groupArrayPrototype
+  const dense = (value: unknown, strings: boolean): value is unknown[] => {
+    if (!array(value)) return false
+    const length = descriptor(value, 'length')
+    if (!length || !groupHasOwn(length, 'value')) return false
+    for (let index = 0; index < length.value; index++) {
+      const slot = descriptor(value, String(index))
+      if (!slot || !groupHasOwn(slot, 'value') || strings && typeof slot.value !== 'string') return false
+    }
+    return true
+  }
+  if (!charge(2) || !groupFrozen(node) || groupPrototype(node) !== null) valid = false
+  const fields = root ? [] : ['open', 'close', 'join']
+  for (let index = 0; index < fields.length; index++) {
+    const slot = descriptor(node, fields[index]!)
+    if (!slot || !groupHasOwn(slot, 'value') || typeof slot.value !== 'string') valid = false
+  }
+  const field = descriptor(node, root ? 'parts' : 'children')
+  if (!field || !groupHasOwn(field, 'value')) valid = false
+  return {
+    get valid() { return valid },
+    invalidate(): void { if (!charge()) return; valid = false },
+    beforeMap(children): void {
+      if (!valid) return
+      if (children !== field!.value) { valid = false; return }
+      // Admission checked the roles/order of these producer-owned immutable
+      // slots. Reuse their closed construction rather than reflect them again.
+      const owned = !!children && typeof children === 'object' && charge(2) && isOwnDataSceneArrayInert(children)
+      if (!owned) {
+        if (!dense(children, false) || !charge() || !groupFrozen(children)) { valid = false; return }
+        for (let index = 0; index < children.length; index++) {
+          const child = groupOwnDescriptor(children, String(index))!.value
+          if (!charge(2) || !child || typeof child !== 'object' || !isOwnDataSceneSnapshotInert(child) || !groupFrozen(child)) { valid = false; return }
+          const node = root ? undefined : descriptor(child, 'node'), indent = root ? undefined : descriptor(child, 'indent')
+          if (!root && (!node || !groupHasOwn(node, 'value') || !indent || !groupHasOwn(indent, 'value') || typeof indent.value !== 'number' || indent.value !== indent.value)) { valid = false; return }
+        }
+      }
+      if (descriptor(children, 'map') || descriptor(children, 'constructor')
+        || !data(groupArrayPrototype, 'map', groupMap) || !data(groupArrayPrototype, 'constructor', groupArray)
+        || !getter(groupArray, Symbol.species, groupSpecies)) valid = false
+    },
+    beforeSpread(mapped): void {
+      if (!valid) return
+      if (!dense(mapped, true) || descriptor(mapped as object, Symbol.iterator)
+        || !data(groupArrayPrototype, Symbol.iterator, groupIterator)
+        || !data(groupIteratorPrototype, 'next', groupNext)) valid = false
+    },
+    beforeJoin(parts): void {
+      if (!valid) return
+      if (!(root ? dense(parts, true) : array(parts)) || descriptor(parts as object, 'join') || !data(groupArrayPrototype, 'join', groupJoin)) valid = false
+    },
+    indent(svg, spaces): string {
+      if (!valid || spaces <= 0 || svg === '') return indentLines(svg, spaces)
+      if (typeof svg !== 'string' || typeof spaces !== 'number' || !data(groupStringPrototype, 'repeat', groupRepeat)) valid = false
+      const pad = ' '.repeat(spaces)
+      if (valid) {
+        if (!data(groupStringPrototype, 'replace', groupReplace) || !data(groupRegExpPrototype, Symbol.replace, groupRegExpReplace)
+          || !data(groupRegExpPrototype, 'exec', groupRegExpExec)) valid = false
+        for (let index = 0; valid && index < groupRegExpFlags.length; index++) if (!getter(groupRegExpPrototype, groupRegExpFlags[index]!, groupRegExpGetters[index])) valid = false
+      }
+      return pad + svg.replace(/\n/g, `\n${pad}`)
+    },
   }
 }
 

@@ -23,8 +23,8 @@ import {
 } from './capabilities.ts'
 import type { PrimitiveCapabilityClaim } from './capabilities.ts'
 import { admitBackendSceneDocument } from './external-data-snapshot.ts'
-import { sceneNodeSerialization } from './serialization.ts'
-import { capturedPart } from './part-capture.ts'
+import { sceneNodeSerialization as unobservedSceneNodeSerialization, sceneNodeSerializationObserved, sceneBackendWriteObserver, sceneDocumentComposition } from './serialization.ts'
+import { capturedPart as unobservedCapturedPart } from './part-capture.ts'
 import {
   canonicalExtensionId,
   createExtensionIdentity,
@@ -139,15 +139,29 @@ export const DefaultBackend: StyleBackend = {
   id: 'default',
   capabilities: graphicalBackendCapabilityClaims('backend:default', 'crisp'),
   drawNode(node: SceneNode): string {
-    return sceneNodeSerialization(node)
+    return unobservedSceneNodeSerialization(node)
   },
   render(doc: SceneDoc, ctx: StyleBackendContext): string {
     const admitted = admitBackendSceneDocument(doc)
     const pageRect = pageRectFor(admitted, ctx)
-    return admitted.parts.map((part, i) => {
+    const observer = sceneBackendWriteObserver(ctx)
+    const root = observer ? sceneDocumentComposition(observer, admitted) : undefined
+    root?.underlay(pageRect)
+    const capturedPart = root ? (context: StyleBackendContext, node: SceneNode, svg: string): string => unobservedCapturedPart(context, node, svg, closed => { if (!closed) root.composition.invalidate() }) : unobservedCapturedPart
+    const sceneNodeSerialization = observer ? (part: SceneNode): string => sceneNodeSerializationObserved(part, undefined, observer) : unobservedSceneNodeSerialization
+    if (!observer) return admitted.parts.map((part, i) => {
       const svg = capturedPart(ctx, part, sceneNodeSerialization(part))
       return pageRect && i === 0 ? `${svg}\n${pageRect}` : svg
     }).join('\n')
+    root?.composition.beforeMap(admitted.parts)
+    const mapped = admitted.parts.map((part, i) => {
+      const svg = capturedPart(ctx, part, sceneNodeSerialization(part))
+      return pageRect && i === 0 ? `${svg}\n${pageRect}` : svg
+    })
+    root?.composition.beforeJoin(mapped)
+    const svg = mapped.join('\n')
+    root?.complete(root.composition.valid)
+    return svg
   },
 }
 

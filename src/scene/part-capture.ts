@@ -11,6 +11,9 @@ export interface ScenePartCapture {
 }
 
 const capturePart = Symbol()
+const partHasOwn = Object.hasOwn
+const partOwn = Object.getOwnPropertyDescriptor, partPrototype = Object.getPrototypeOf, partApply = Reflect.apply
+const partObjectPrototype = Object.prototype
 type CapturingContext = StyleBackendContext & { [capturePart]?: (node: SceneNode, svg: string) => string }
 
 export function createScenePartCapture(): ScenePartCapture {
@@ -30,8 +33,14 @@ export function createScenePartCapture(): ScenePartCapture {
   return capture
 }
 
-export function capturedPart(context: StyleBackendContext, node: SceneNode, svg: string): string {
-  return (context as CapturingContext)[capturePart]?.(node, svg) ?? svg
+export function capturedPart(context: StyleBackendContext, node: SceneNode, svg: string, observe?: (unchanged: boolean) => void): string {
+  if (!observe) return (context as CapturingContext)[capturePart]?.(node, svg) ?? svg
+  const own = partOwn(context, capturePart), inherited = partPrototype(context) === partObjectPrototype ? partOwn(partObjectPrototype, capturePart) : undefined
+  const closed = (!own || partHasOwn(own, 'value') && own.value === undefined) && partPrototype(context) === partObjectPrototype && (!inherited || partHasOwn(inherited, 'value') && inherited.value === undefined)
+  const callback = (context as CapturingContext)[capturePart]
+  const result = callback === undefined || callback === null ? svg : partApply(callback, context, [node, svg]) ?? svg
+  observe(closed && callback === undefined)
+  return result
 }
 
 /** Strip the private boundaries before hashing/scoping the SVG. Record owner

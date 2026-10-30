@@ -16,15 +16,24 @@ import { certifyNativePaint, certifyScenePaint, type PaintLayoutCertification } 
 import { observeCache, observeFallback } from '../performance-observations.ts'
 import { cachedNativeDrawing, retainNativeDrawing, type RetainedNativeDrawing } from '../experimental/position-cache.ts'
 
-interface PositionedScene { scene: SceneDoc; crossChecks: boolean; writes?: SceneWriteReceipt; certification?: PaintLayoutCertification }
+interface PositionedScene { scene: SceneDoc; crossChecks: boolean; writes?: SceneWriteReceipt; pendingWrites?: ReturnType<typeof createSceneWriteCapture>; certification?: PaintLayoutCertification }
 type RenderableNativeDrawing = Pick<NativeDrawing, 'svg' | 'preparedText'>
 interface PositionedNative { drawing: RenderableNativeDrawing; producer: DrawingProducer; evidence?: NativeDrawing; certification?: PaintLayoutCertification }
+const positionedWeakGet = WeakMap.prototype.get, positionedApply = Reflect.apply
 const native = new WeakMap<FamilyLayoutResult, WeakMap<ResolvedRenderRequest, PositionedNative>>()
 const retained = new WeakMap<FamilyLayoutResult, WeakMap<ResolvedRenderRequest, PositionedScene>>()
 // Above this conservative native custody capacity, retain one immutable Scene
 // before drawing. This avoids spending the paint allowance on an abandoned
 // native capture; both adapters certify under the same unchanged limits.
 const ER_NATIVE_PAINT_NODE_CAPACITY = 256
+
+/** Resolve the transaction kind before the first Scene consumer. Verification
+ * can inspect/certify before rendering; it must retain that same open receipt. */
+export function actualPositionedSceneWriteEligible(request: ResolvedRenderRequest): boolean {
+  const plan = resolvedRenderExecutionPlanOf(request)
+  return plan.mode === 'scene' && !plan.family.id.startsWith('family:') && !!plan.backend
+    && isBuiltinDefaultBackend(plan.backend.backend) && isOriginalEnrolledDefaultBackend(plan.backend.backend)
+}
 
 /** Lower once from the actual positioned artifact, shared by SVG, layout,
  * verification and receipt consumers. No source parse or layout is repeated. */
@@ -45,15 +54,33 @@ export function retainedPositionedScene(request: ResolvedRenderRequest, layout: 
   if (!plan.family.lowerScene) throw new Error(`Resolved ${request.output} family has no Scene lowering`)
   const colors = request.output === 'png' && request.appearance.colors.embedFontImport !== false
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
+  const actualBackendWrite = actualPositionedSceneWriteEligible(request)
   const assertions = sceneAssertionsEnabled(request)
   const writer = plan.backend ?? (plan.mode === 'layout' && request.appearance.inferredBackend === 'default' ? getBackendDescriptor('default') : undefined)
   const writes = !plan.family.id.startsWith('family:') && writer && isBuiltinDefaultBackend(writer.backend) && isOriginalEnrolledDefaultBackend(writer.backend)
-    ? createSceneWriteCapture(MAX_OCCLUSION_OPERATIONS, { fractionalCircleOutput: !request.appearance.styled && !request.appearance.colors.shadow }) : undefined
+    ? createSceneWriteCapture(MAX_OCCLUSION_OPERATIONS, { fractionalCircleOutput: !request.appearance.styled && !request.appearance.colors.shadow, pageUnderlay: request.appearance.styled }, actualBackendWrite) : undefined
   const lower = () => plan.family.lowerScene!({ positioned: layout.positioned, colors, resolved: resolvedFamilyRenderContextOf(request) })
   const scene = withTextMeasurementExecution(plan.textMeasurement, () => admitFamilyScene(plan.family,
     !assertions && !plan.family.id.startsWith('family:') ? withDeferredTerminalProjections(lower) : lower(), assertions, writes?.observe))
-  requests.set(request, { scene, crossChecks: assertions, writes: writes?.finish(scene) })
+  requests.set(request, { scene, crossChecks: assertions, ...(actualBackendWrite && writes ? { pendingWrites: writes, writes: writes.prepare(scene) } : { writes: writes?.finish(scene) }) })
   return scene
+}
+
+export function beginPositionedBackendEmission(request: ResolvedRenderRequest, layout: FamilyLayoutResult, context: object, proof: PaintLayoutCertification): boolean {
+  const requests = positionedApply(positionedWeakGet, retained, [layout]) as WeakMap<ResolvedRenderRequest, PositionedScene> | undefined
+  const entry = requests && positionedApply(positionedWeakGet, requests, [request]) as PositionedScene | undefined
+  if (!entry?.pendingWrites) return false
+  entry.pendingWrites.beginBackendEmission(entry.scene, context, proof)
+  return true
+}
+export function finishPositionedBackendEmission(request: ResolvedRenderRequest, layout: FamilyLayoutResult, proof: PaintLayoutCertification | undefined, abort = false): PaintLayoutCertification | undefined {
+  const requests = positionedApply(positionedWeakGet, retained, [layout]) as WeakMap<ResolvedRenderRequest, PositionedScene> | undefined
+  const entry = requests && positionedApply(positionedWeakGet, requests, [request]) as PositionedScene | undefined
+  if (!entry?.pendingWrites) return undefined
+  if (abort) entry.pendingWrites.abortBackendEmission()
+  else if (proof) entry.certification = entry.pendingWrites.finishActual(proof)
+  entry.pendingWrites = undefined
+  return entry.certification
 }
 
 /** Native crisp work has no Scene document/group tree. Strong evidence and

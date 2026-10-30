@@ -12,17 +12,19 @@ import { parseSvgTransform, transformMatrix, type AffineMatrix } from './transfo
 import { writtenLeafContextOf } from './svg-writer.ts'
 
 type Header = Pick<SceneDoc, 'width' | 'height' | 'colors'>
+const emissionContextFreeze = Object.freeze
 type Pay = (operations: number) => boolean
 export type EmissionColorResolver = (value: string) => string | undefined
 
 /** Check actual document bytes against the existing writer's closed context.
  * Collection belongs to the admission/write traversal; only these retained
  * fragments are checked once the same transaction supplies its header. */
-export function createEmissionContext(pay: Pay, options: { resources?: boolean } = {}) {
+export function createEmissionContext(pay: Pay, options: { resources?: boolean; pageUnderlay?: boolean } = {}) {
   let uncertain = false, finished = false
   let hasMarkedConnector = false, hasRingConnector = false, fractionalCircleContext = true
   let documentPosition: 'before' | 'inside' | 'after' = 'before'
   let needsVariables = false, needsDerivedVariables = false, canonicalStyles = 0, roots = 0
+  let pagePrelude: DocumentMark | undefined, pageWidth: string | undefined, pageHeight: string | undefined
   const documents: Array<{ node: DocumentMark; svg: string }> = []
   const texts: Array<{ node: TextMark; svg: string }> = []
   const leaves: Array<{ node: SceneNode; svg: string }> = []
@@ -218,6 +220,13 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
     }
     return isWellFormedSvgText(svg.slice(cursor))
   }
+  const pageUnderlayFor = (header: Header): string | undefined => {
+    if (!options.pageUnderlay || uncertain || roots !== 1 || documentPosition !== 'after'
+      || pageWidth === undefined || pageHeight === undefined || !rootVariables.has('--bg')
+      || rootPaintVariables.get('bg') !== ownValue(header.colors, 'bg')
+      || !reserve(pageWidth.length + pageHeight.length + 32)) return undefined
+    return `<rect width="${pageWidth}" height="${pageHeight}" fill="var(--bg)" data-backdrop="page" />`
+  }
   const readDefinitions = (svg: string, tags: readonly SvgStartTagToken[]): void => {
     const outer = tags[0]
     if (!outer || outer.name !== 'defs' || outer.selfClosing || outer.attributes.length
@@ -379,17 +388,18 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
       }
       return result(invalid, frozenMatrix)
     },
-    finish(header: Header): { readonly uncertain: boolean; readonly fractionalCircleContext: boolean; readonly resolveColor: EmissionColorResolver | undefined } {
+    finish(header: Header): { readonly uncertain: boolean; readonly fractionalCircleContext: boolean; readonly resolveColor: EmissionColorResolver | undefined; readonly pageUnderlay?: string; readonly pagePrelude?: DocumentMark } {
       if (finished) return Object.freeze({ uncertain: true, fractionalCircleContext: false, resolveColor: undefined })
       // This new obligation belongs to actual marker-bearing occurrences.
       // Other charts retain their existing proof scope; this is not evidence
       // that their unrelated styles, resources or responsive units are closed.
-      if (!hasMarkedConnector) {
+      if (!hasMarkedConnector && !options.pageUnderlay) {
         finished = true
         return Object.freeze({ uncertain: false, fractionalCircleContext: false, resolveColor: undefined })
       }
+      const underlayOnly = !hasMarkedConnector
       const font = ownValue(header.colors, 'font')
-      if (!reserve(typeof font === 'string' ? font.length * 4 + 16 : 16)) {
+      if (!underlayOnly && !reserve(typeof font === 'string' ? font.length * 4 + 16 : 16)) {
         finished = true
         return Object.freeze({ uncertain: true, fractionalCircleContext: false, resolveColor: undefined })
       }
@@ -397,7 +407,7 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
         if (!reserve(svg.length * 8 + 128)) break
         if (svg.includes('<?') || svg.includes('<!')) { uncertain = true; continue }
         const tags = scanSvgStartTags(svg)
-        if (node.element !== 'definitions') for (const tag of tags) {
+        if (!underlayOnly && node.element !== 'definitions') for (const tag of tags) {
           const id = decodedSvgAttributeValue(tag, 'id')
           if (id !== undefined && markerIds.has(id)) uncertain = true
         }
@@ -406,6 +416,11 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
           // The existing fragment reservation pays these exact token/text
           // spans; the shared scanner remains the only markup inventory.
           if (!rootPreludeMatches(svg, tags, header)) uncertain = true
+          else if (options.pageUnderlay) {
+            pagePrelude = node
+            pageWidth = decodedSvgAttributeValue(tags[0]!, 'width')
+            pageHeight = decodedSvgAttributeValue(tags[0]!, 'height')
+          }
         }
         let styleEnd = -1
         for (const tag of tags) {
@@ -417,12 +432,20 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
           if (tag.selfClosing || tag.attributes.length || end < 0 || !canonicalStyle(svg.slice(tag.end, end), header)) uncertain = true
           else { canonicalStyles++; needsVariables = true }
         }
-        if (options.resources === false) continue
+        if (underlayOnly || options.resources === false) continue
         if (node.element === 'definitions') readDefinitions(svg, tags)
         if (node.markerResources) {
           if (!reserve(node.markerResources.length * 2)) break
           for (const marker of node.markerResources) references.push(marker)
         }
+      }
+      if (underlayOnly) {
+        const pageUnderlay = pageUnderlayFor(header)
+        finished = true
+        // Marker-free inspection keeps its existing scope. Only a nonempty
+        // actual page underlay consumes the additional shell/CSS authority.
+        return emissionContextFreeze({ uncertain: false, fractionalCircleContext: false, resolveColor: undefined,
+          ...(pageUnderlay === undefined ? {} : { pageUnderlay, pagePrelude }) })
       }
       for (const shell of groups) {
         let retained: NativeGroup | undefined
@@ -535,10 +558,15 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
           if (!resolveColor) uncertain = true
         }
       }
+      // Reuse the already checked prelude's actual dimension spellings and
+      // background variable. The backend must compare its local returned page
+      // bytes and insert them immediately after this same prelude occurrence.
+      const pageUnderlay = pageUnderlayFor(header)
       finished = true
-      return Object.freeze({ uncertain,
+      const freeze = options.pageUnderlay ? emissionContextFreeze : Object.freeze
+      return freeze({ uncertain,
         fractionalCircleContext: hasRingConnector && fractionalCircleContext && !uncertain && (font === undefined || font === 'Inter'),
-        resolveColor })
+        resolveColor, ...(pageUnderlay === undefined ? {} : { pageUnderlay, pagePrelude }) })
     },
   }
 }
