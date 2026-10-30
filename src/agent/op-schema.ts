@@ -52,7 +52,9 @@ export interface OpValidationError {
   field?: string
   /** valid field names for this op (or valid op kinds, for unknown_kind) */
   validFields?: string[]
-  /** nearest valid name to a typo'd field/kind, when an obvious match exists */
+  /** nearest valid name to a typo'd field/kind, when an obvious match exists.
+   *  For an op missing `kind` whose op kind sits under another key (`field`,
+   *  e.g. `{op:'add_node'}`), the whole corrected op as JSON. */
   didYouMean?: string
 }
 
@@ -206,6 +208,25 @@ function unreadableOp(family: OpFamily, message: string): OpValidationError {
   }
 }
 
+/** Keys an op author commonly writes where the discriminator `kind` belongs
+ * (the CLI flag is `--op`; other tool schemas say `type`, `action`, …). */
+const DISCRIMINATOR_SLIPS = new Set(['op', 'type', 'action', 'name', 'operation', 'opKind', 'op_kind', 'opType', 'op_type', 'method', 'command', 'cmd', 'verb', 'mutation'])
+
+/** An op without `kind` that carries a valid op kind (or a near typo of one)
+ * under a likely-mistaken key: an alias above, or a typo of `kind` itself. An
+ * exact op kind wins over a near one; otherwise the first such key in order. */
+function misnamedDiscriminator(rec: Record<string, unknown>, validKinds: string[]): { key: string; kind: string } | undefined {
+  let near: { key: string; kind: string } | undefined
+  for (const [key, value] of Object.entries(rec)) {
+    if (typeof value !== 'string') continue
+    if (!DISCRIMINATOR_SLIPS.has(key) && levenshtein(key.toLowerCase(), 'kind') > 1) continue
+    if (validKinds.includes(value)) return { key, kind: value }
+    const guess = nearest(value, validKinds)
+    if (guess && !near) near = { key, kind: guess }
+  }
+  return near
+}
+
 /**
  * Validate one op's SHAPE against its family schema. Returns null when valid.
  * The one and only shape choke point: every untyped edit path (declarative
@@ -229,6 +250,20 @@ function validateAdmittedOp(family: OpFamily, op: unknown): OpValidationError | 
   // the inherited function as an op spec below and crashes on Object.keys(spec.fields).
   if (typeof kind !== 'string' || !Object.hasOwn(schema, kind)) {
     const validKinds = Object.keys(schema)
+    const misnamed = kind === undefined ? misnamedDiscriminator(rec, validKinds) : undefined
+    if (misnamed) {
+      const { [misnamed.key]: _used, ...rest } = rec
+      const corrected = JSON.stringify({ kind: misnamed.kind, ...rest })
+      return {
+        code: 'INVALID_OP',
+        reason: 'unknown_kind',
+        family,
+        field: misnamed.key,
+        message: `${unknownOpMessage(family, op)}. The op discriminator key is "kind", not "${misnamed.key}". Did you mean ${corrected}?`,
+        validFields: validKinds,
+        didYouMean: corrected,
+      }
+    }
     const dym = typeof kind === 'string' ? nearest(kind, validKinds) : undefined
     // Reuse the mutator's own prescriptive phrasing ("valid ops: …") so the
     // message is identical no matter which layer catches the unknown kind; add

@@ -52,6 +52,35 @@ describe('op-schema shape validation (§1–3, §5)', () => {
     expect(errMsg(r.error)).toContain('Did you mean "add_service"')
   })
 
+  test('an op kind written under another key names the discriminator "kind" and the corrected op', () => {
+    const cases: Array<{ family: string; op: Record<string, unknown>; key: string; corrected: Record<string, unknown> }> = [
+      { family: 'flowchart', op: { op: 'add_node', id: 'C', label: 'C' }, key: 'op', corrected: { kind: 'add_node', id: 'C', label: 'C' } },
+      { family: 'class', op: { id: 'A', type: 'add_class' }, key: 'type', corrected: { kind: 'add_class', id: 'A' } },
+      { family: 'flowchart', op: { Kind: 'add_node', id: 'C', label: 'C' }, key: 'Kind', corrected: { kind: 'add_node', id: 'C', label: 'C' } },
+      // A near op kind under a slipped key is corrected too.
+      { family: 'flowchart', op: { action: 'add_nod', id: 'C', label: 'C' }, key: 'action', corrected: { kind: 'add_node', id: 'C', label: 'C' } },
+    ]
+    for (const { family, op, key, corrected } of cases) {
+      const r = applyOps({ family, ops: [op] })
+      expect(r.ok).toBe(false)
+      if (r.ok) continue
+      const error = r.error as { reason?: string; field?: string; didYouMean?: string }
+      expect(error.reason).toBe('unknown_kind')
+      expect(error.field).toBe(key)
+      expect(errMsg(r.error)).toContain(`discriminator key is "kind", not "${key}"`)
+      expect(JSON.parse(error.didYouMean!)).toEqual(corrected)
+      // The suggestion is the op that applies.
+      expect(applyOps({ family, ops: [JSON.parse(error.didYouMean!)] }).ok).toBe(true)
+    }
+    // Text that is no op kind earns no discriminator hint.
+    const plain = applyOps({ family: 'class', ops: [{ name: 'Duck' }] })
+    expect(plain.ok).toBe(false)
+    if (!plain.ok) {
+      expect(errMsg(plain.error)).not.toContain('discriminator')
+      expect((plain.error as { didYouMean?: string }).didYouMean).toBeUndefined()
+    }
+  })
+
   test('wrong primitive type is rejected with the expected type', () => {
     const r = applyOps({
       family: 'class',
