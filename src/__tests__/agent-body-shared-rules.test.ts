@@ -112,14 +112,15 @@ describe('insert-position rule: an omitted index appends, otherwise an integer i
 
 test('sankey reports LABEL_OVERFLOW once per distinct node label, in link order, at the caller cap', () => {
   const long = 'N'.repeat(45)
-  const parsed = parseRegisteredMermaid(`sankey-beta\n${long},B,1\n${long},C,1\nB,C,2\n`)
+  const parsed = parseRegisteredMermaid(`sankey-beta\n${long},BB,1\n${long},CC,1\nBB,CC,2\n`)
   if (!parsed.ok) throw new Error('parse failed')
   const overflow = (labelCharCap?: number) => verifyMermaid(parsed.value, labelCharCap === undefined ? {} : { labelCharCap })
     .warnings.filter(warning => warning.code === 'LABEL_OVERFLOW')
   expect(overflow()).toEqual([{ code: 'LABEL_OVERFLOW', target: long, charCount: 45, limit: 40 }])
-  expect(overflow(0)).toEqual([
-    { code: 'LABEL_OVERFLOW', target: long, charCount: 45, limit: 0 },
-    { code: 'LABEL_OVERFLOW', target: 'B', charCount: 1, limit: 0 },
-    { code: 'LABEL_OVERFLOW', target: 'C', charCount: 1, limit: 0 },
+  // The smallest cap verify admits (a positive safe integer).
+  expect(overflow(1)).toEqual([
+    { code: 'LABEL_OVERFLOW', target: long, charCount: 45, limit: 1 },
+    { code: 'LABEL_OVERFLOW', target: 'BB', charCount: 2, limit: 1 },
+    { code: 'LABEL_OVERFLOW', target: 'CC', charCount: 2, limit: 1 },
   ])
 })

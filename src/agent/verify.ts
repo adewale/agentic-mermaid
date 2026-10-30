@@ -53,6 +53,7 @@ import { flowchartUnsupportedSyntaxWarnings, flowchartUpstreamRejectedSyntaxWarn
 import { mermaidCleanupWarnings } from './cleanup-warnings.ts'
 import { matchMermaidFrontmatter } from '../mermaid-source-wrapper.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
+import { admitVerifyOptions } from './verify-options.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
 import { emptyRenderedLayout } from './layout-to-rendered.ts'
 import { mindmapUnsupportedSyntaxWarnings } from './mindmap-body.ts'
@@ -156,6 +157,7 @@ function roundtripFaithfulnessWarnings(d: ParsedDiagram): LayoutWarning[] {
 
 /** The legacy ok flag is an error gate, never a task-correctness certificate. */
 export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions = {}): VerifyResult {
+  admitVerifyOptions(opts)
   return verifyMermaidInternal(input, opts)
 }
 

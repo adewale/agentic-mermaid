@@ -8,9 +8,14 @@
 //     usable — renderMermaidSVG must accept a clean style / clean options without throwing.
 //     (A validator that green-lights an input the renderer then rejects is the real bug class.)
 // Seed pinned globally (fc-seed.preload.ts); AM_FC_SEED=random hunts fresh counterexamples.
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it, spyOn } from 'bun:test'
 import fc from 'fast-check'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { fcParameters } from './helpers/fc-parameters.ts'
+import { runBatchLine, runCli } from '../cli/index.ts'
+import { createTracingMermaid } from '../mcp/facade.ts'
 
 import {
   validateStyleSpec, validateSerializableRenderOptions, validateSceneDoc,
@@ -199,5 +204,54 @@ describe('validator fuzz: verifyMermaid does not lie about renderability', () =>
       // render refusal (state, sequence, class, journey, gantt).
       examples: [...(VERIFY_EXAMPLES[family] ?? []), FAMILY_LABEL_SOURCES[family]('#1;')].map(source => [source] as [string]),
     }))
+  })
+})
+
+// One admission rule for VerifyOptions.labelCharCap on every surface: a
+// positive safe integer is admitted and anything else is refused with an
+// error naming the option. NaN and Infinity compare false against every
+// label, so admitting one silently disables LABEL_OVERFLOW. The CLI flag
+// carries the value as text and a batch line as JSON, so each surface is
+// asked about the value it can actually receive.
+describe('validator fuzz: verify option admission agrees across library, CLI and MCP Code Mode', () => {
+  const source = 'flowchart LR\n  A'
+  const file = join(mkdtempSync(join(tmpdir(), 'am-verify-options-')), 'diagram.mmd')
+  writeFileSync(file, source)
+  const admits = (value: unknown): boolean => Number.isSafeInteger(value) && (value as number) > 0
+  const refusal = (verify: () => unknown): string | undefined => {
+    try { verify(); return undefined } catch (error) { return error instanceof Error ? error.message : String(error) }
+  }
+  const verdict = (message: string | undefined): string => message === undefined ? 'admitted' : /labelCharCap/.test(message) ? 'refused' : message
+  const cli = (argv: string[]): number => {
+    const out = spyOn(process.stdout, 'write').mockImplementation(() => true), err = spyOn(process.stderr, 'write').mockImplementation(() => true)
+    try { return runCli(argv) as number } finally { out.mockRestore(); err.mockRestore() }
+  }
+  const capArb = fc.oneof(
+    fc.constantFrom(Number.NaN, Infinity, -Infinity, 0, -0, -1, 1, 1.5, 0.5, 1e300, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER + 1, 2 ** 53 + 2),
+    fc.integer({ min: -1_000, max: 1_000 }),
+    fc.double(),
+    fc.constantFrom<unknown>(null, '40', true, [40], {}),
+  )
+
+  it('labelCharCap is admitted exactly when it is a positive safe integer, by every surface', () => {
+    const mcp = createTracingMermaid()
+    fc.assert(fc.property(capArb, cap => {
+      const json: unknown = JSON.parse(JSON.stringify({ cap })).cap
+      const batch = runBatchLine(JSON.stringify({ op: 'verify', source, options: { labelCharCap: json } }))
+      const flag = typeof cap === 'number' ? String(cap) : undefined
+      expect({
+        cap: String(cap),
+        library: verdict(refusal(() => verifyMermaid(source, { labelCharCap: cap as number }))),
+        codeMode: verdict(refusal(() => mcp.verifyMermaid(source, { labelCharCap: cap as number }))),
+        batch: batch.ok || batch.error?.code === 'VERIFY_FAILED' ? 'admitted' : batch.error?.code === 'INVALID_OPTIONS' && /labelCharCap/.test(batch.error.message) ? 'refused' : batch.error?.code,
+        ...(flag === undefined ? {} : { flag: cli(['verify', file, '--label-cap', flag]) === 2 ? 'refused' : 'admitted' }),
+      }).toEqual({
+        cap: String(cap),
+        library: admits(cap) ? 'admitted' : 'refused',
+        codeMode: admits(cap) ? 'admitted' : 'refused',
+        batch: json === undefined || admits(json) ? 'admitted' : 'refused',
+        ...(flag === undefined ? {} : { flag: admits(cap) ? 'admitted' : 'refused' }),
+      })
+    }), fcParameters<[unknown]>({ numRuns: 60, examples: [[Number.NaN], [Infinity], [-1], [0], [1.5], [1e300], [Number.MAX_SAFE_INTEGER + 1]] }))
   })
 })

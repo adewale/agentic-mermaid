@@ -28,6 +28,7 @@ import { logToolInvocation } from '../agent/trace-log.ts'
 import type { AnyMutationOp, LayoutWarning, MutableValidDiagram, MutationError, ParsedDiagram, ParseError, Result, ValidDiagram, WarningCode, WarningOrigin, WarningSeverity } from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import { renderConfigWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
+import { verifyOptionsProblem } from '../agent/verify-options.ts'
 import { WARNING_CATALOG } from '../agent/warning-catalog.ts'
 import { familyDetectionDiagnosticFromPreservedBody, MermaidFamilyDetectionError } from '../family-detection.ts'
 import type { CliRenderFormat, RenderRequestReceipt } from '../render-contract.ts'
@@ -573,11 +574,9 @@ function cmdVerify(args: ParsedArgs): number {
   const labelCapFlag = flagValue(args, 'label-cap')
   let labelCharCap: number | undefined
   if (labelCapFlag !== undefined) {
-    if (!/^[1-9]\d*$/.test(labelCapFlag.trim())) {
-      throw new CliArgumentError('am verify --label-cap must be a positive safe integer')
-    }
-    labelCharCap = Number(labelCapFlag)
-    if (!Number.isSafeInteger(labelCharCap)) {
+    // A flag is text: only decimal digits name the integer the library admits.
+    labelCharCap = /^[1-9]\d*$/.test(labelCapFlag.trim()) ? Number(labelCapFlag) : Number.NaN
+    if (verifyOptionsProblem({ labelCharCap })) {
       throw new CliArgumentError('am verify --label-cap must be a positive safe integer')
     }
   }
@@ -1357,13 +1356,9 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
         if (unknown.length > 0) {
           return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: `unknown batch verify option: ${unknown.join(', ')}` } }
         }
-        const candidate = options as { suppress?: unknown; labelCharCap?: unknown }
-        const warningCodes = new Set(Object.keys(WARNING_SEVERITY))
-        if (candidate.suppress !== undefined && (!Array.isArray(candidate.suppress) || candidate.suppress.some(code => typeof code !== 'string' || !warningCodes.has(code)))) {
-          return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch verify option "suppress" must be an array of known warning-code strings' } }
-        }
-        if (candidate.labelCharCap !== undefined && (!Number.isSafeInteger(candidate.labelCharCap) || (candidate.labelCharCap as number) <= 0)) {
-          return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch verify option "labelCharCap" must be a positive safe integer' } }
+        const problem = verifyOptionsProblem(options)
+        if (problem) {
+          return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: problem.field === 'labelCharCap' ? 'batch verify option "labelCharCap" must be a positive safe integer' : 'batch verify option "suppress" must be an array of known warning-code strings' } }
         }
         const r = verifyMermaid(parsed.source, options as { suppress?: WarningCode[]; labelCharCap?: number })
         if (!r.ok) {

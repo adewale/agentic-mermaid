@@ -1854,7 +1854,10 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
 export const DEFAULT_LABEL_CHAR_CAP = 40
 
 export interface VerifyOptions {
+  /** Known warning codes; any other value is refused (VerifyOptionsError). */
   suppress?: WarningCode[]
+  /** LABEL_OVERFLOW's cap, a positive safe integer (default 40); any other
+   * value is refused (VerifyOptionsError), as `am verify --label-cap` refuses it. */
   labelCharCap?: number
   /** Shared source/config/geometry/appearance options used by render parity and layout evidence. */
   renderOptions?: RenderOptions
