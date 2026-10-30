@@ -41,8 +41,8 @@ export function mermaidMarkdownBlocks(markdown: string): MermaidMarkdownBlock[] 
     if (!match) {
       if (!fence) {
         const boundary = /^ {0,3}(?:#{1,6}(?:\s|$)|(?:\*\s*){3,}$|(?:_\s*){3,}$|(?:-\s*){3,}$)/.test(line)
-        const setext = paragraph && /^ {0,3}(?:=+|-+)\s*$/.test(line)
-        const emptyList = !paragraph && /^ {0,3}(?:[-+*]|\d{1,9}[.)])\s*$/.test(line)
+        const setext: boolean = paragraph && /^ {0,3}(?:=+|-+)\s*$/.test(line)
+        const emptyList: boolean = !paragraph && /^ {0,3}(?:[-+*]|\d{1,9}[.)])\s*$/.test(line)
         const emptyQuote = /^ {0,3}>[ \t]*$/.test(line)
         paragraph = !/^\s*$/.test(line) && !boundary && !setext && !emptyList && !emptyQuote && (paragraph || !/^(?: {4}| {0,3}\t)/.test(line))
       }
