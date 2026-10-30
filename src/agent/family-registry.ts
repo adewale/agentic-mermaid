@@ -850,7 +850,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
       nativeSceneRole('entity', 'container', 'shape'),
       nativeSceneRole('attribute', 'container', 'text'),
       nativeSceneRole('relationship', 'connector'),
-      nativeSceneRole('cardinality', 'shape'),
+      nativeSceneRole('cardinality', 'container', 'shape'),
       nativeSceneRole('label', 'text'),
     ],
     example: 'erDiagram\n  CUSTOMER ||--o{ ORDER : places\n  ORDER {\n    string id\n  }',

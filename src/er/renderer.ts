@@ -117,7 +117,7 @@ export function lowerErDrawing<T>(
   const groupIds = new Set(diagram.groups.map(group => group.id))
   const endpointOwner = (id: string): SceneOwner => ({ id, role: groupIds.has(id) ? 'group' : 'entity' })
   for (const rel of diagram.relationships) {
-    const pairKey = `${rel.entity1}-${rel.entity2}`
+    const pairKey = relationshipPairKey(rel)
     const k = lineOccurrence.get(pairKey) ?? 0
     lineOccurrence.set(pairKey, k + 1)
     parts.push(renderRelationshipLine(marks, rel, style, resolved.styleFace, `rel:${pairKey}#${k}`, endpointOwner))
@@ -131,10 +131,10 @@ export function lowerErDrawing<T>(
   // 3. Cardinality markers at relationship endpoints
   const cardOccurrence = new Map<string, number>()
   for (const rel of diagram.relationships) {
-    const pairKey = `${rel.entity1}-${rel.entity2}`
+    const pairKey = relationshipPairKey(rel)
     const k = cardOccurrence.get(pairKey) ?? 0
     cardOccurrence.set(pairKey, k + 1)
-    parts.push(...renderCardinality(marks, rel, style, `card:${pairKey}#${k}`))
+    parts.push(...renderCardinality(marks, rel, style, `card:${pairKey}#${k}`, { id: `rel:${pairKey}#${k}`, role: 'relationship' }))
   }
 
   // 4. Relationship labels — positions are collision-separated first: two
@@ -144,7 +144,7 @@ export function lowerErDrawing<T>(
   const labelPos = retainedErRelationshipLabels(diagram) ?? separateRelationshipLabels(diagram, style, resolved.styleFace)
   const labelOccurrence = new Map<string, number>()
   for (const rel of diagram.relationships) {
-    const pairKey = `${rel.entity1}-${rel.entity2}`
+    const pairKey = relationshipPairKey(rel)
     const k = labelOccurrence.get(pairKey) ?? 0
     labelOccurrence.set(pairKey, k + 1)
     parts.push(...renderRelationshipLabel(marks, rel, style, resolved.styleFace, `rel-label:${pairKey}#${k}`, labelPos.get(rel)))
@@ -153,6 +153,13 @@ export function lowerErDrawing<T>(
   parts.push(marks.documentClose())
 
   return { family: 'er', width: diagram.width, height: diagram.height, colors, transparent, parts }
+}
+
+/** Keep established readable keys, but never merge delimiter-bearing tuples. */
+function relationshipPairKey(rel: PositionedErRelationship): string {
+  return /[-#:[\]",\u0000-\u001f]/.test(rel.entity1 + rel.entity2)
+    ? JSON.stringify([rel.entity1, rel.entity2])
+    : `${rel.entity1}-${rel.entity2}`
 }
 
 function renderErGroup<T>(marks: DrawingFactory<T>, group: PositionedErGroup, style: ResolvedRenderStyle): T {
@@ -558,7 +565,7 @@ function renderRelationshipLabel<T>(
  *   'many':      ─│<─  (one tick + crow's foot: one or more)
  *   'zero-many': ─o<─  (circle + crow's foot)
  */
-function renderCardinality<T>(marks: DrawingFactory<T>, rel: PositionedErRelationship, style: ResolvedRenderStyle, sceneId: string): T[] {
+function renderCardinality<T>(marks: DrawingFactory<T>, rel: PositionedErRelationship, style: ResolvedRenderStyle, sceneId: string, relationship: SceneOwner): T[] {
   if (rel.points.length < 2) {
     // Old renderer pushed '' for degenerate relationships — keep the empty
     // slot (a compound shape with no children writes '').
@@ -579,8 +586,8 @@ function renderCardinality<T>(marks: DrawingFactory<T>, rel: PositionedErRelatio
   const pN1 = rel.points[rel.points.length - 2]!
 
   return [
-    crowsFootMark(marks, p1, p2, rel.cardinality1, style, `${sceneId}:1`),
-    crowsFootMark(marks, pN, pN1, rel.cardinality2, style, `${sceneId}:2`),
+    crowsFootMark(marks, p1, p2, rel.cardinality1, style, `${sceneId}:1`, relationship, rel, 'start'),
+    crowsFootMark(marks, pN, pN1, rel.cardinality2, style, `${sceneId}:2`, relationship, rel, 'end'),
   ]
 }
 
@@ -594,19 +601,33 @@ function crowsFootMark<T>(
   cardinality: Cardinality,
   style: ResolvedRenderStyle,
   sceneId: string,
+  relationship: SceneOwner,
+  rel: PositionedErRelationship,
+  end: 'start' | 'end',
 ): T {
   const paint: MarkPaint = {
     stroke: style.edgeStrokeColor ?? 'var(--_line)',
     strokeWidth: String(style.lineWidth + 0.25),
   }
   const pieces = erCardinalityPieces(point, toward, cardinality, paint)
-  return marks.shape({
-    id: sceneId,
-    role: 'cardinality',
-    geometry: { kind: 'compound', children: pieces.map(p => p.geometry) },
-    paint,
-    ...(pieces.some(p => p.paint !== paint) ? { childPaints: pieces.map(p => p.paint) } : {}),
+  // The whole glyph owns one public identity. A sibling line/circle must not
+  // borrow ownership from whichever keyed primitive happened to precede it.
+  // Keep the leaf's existing key, paint and owner for inspection and styling.
+  return marks.group({
+    id: `${sceneId}:group`, role: 'cardinality', owner: relationship,
+    open: `<g data-id="${escapeAttr(sceneId)}" data-owner-id="${escapeAttr(relationship.id)}" data-owner-role="${relationship.role}" data-end="${end}" data-endpoint="${escapeAttr(end === 'start' ? rel.entity1 : rel.entity2)}">`,
+    close: '</g>',
     channels: { category: cardinality },
+    children: [{ indent: 0, node: marks.shape({
+      id: sceneId,
+      role: 'cardinality',
+      identity: false,
+      owner: { id: sceneId, role: 'cardinality' },
+      geometry: { kind: 'compound', children: pieces.map(p => p.geometry) },
+      paint,
+      ...(pieces.some(p => p.paint !== paint) ? { childPaints: pieces.map(p => p.paint) } : {}),
+      channels: { category: cardinality },
+    }) }],
   })
 }
 

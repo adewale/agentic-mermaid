@@ -1,5 +1,6 @@
 import { describe, expect, spyOn, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { layoutMermaidWithReceipt, parseRegisteredMermaid } from '../agent/core.ts'
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
@@ -14,6 +15,8 @@ import * as agenticProducer from '../layout/agentic-layered.ts'
 import * as elkProducer from '../elk-instance.ts'
 import * as erLabels from '../er/label-layout.ts'
 import { ErRouteGeometryError } from '../er/errors.ts'
+
+const { JSDOM } = createRequire(import.meta.url)('jsdom')
 
 const native = { graphLayout: { backend: 'agentic' as const } }
 const compoundFixture = readFileSync(new URL('../../eval/layout-compare/fixtures/er-compound-backends.mmd', import.meta.url), 'utf8')
@@ -293,13 +296,18 @@ test.each([...['TB', 'BT', 'LR', 'RL'].flatMap(direction => ['agentic', 'elk'].m
   const rect = (attrs: Record<string, string>): InkBox => ({ x: Number(attrs.x), y: Number(attrs.y), width: Number(attrs.width), height: Number(attrs.height) })
   const headers = new Map(rectangles.flatMap(attrs => attrs['data-id']?.startsWith('er-group:') && attrs['data-id'].endsWith(':header') ? [[attrs['data-id'].slice('er-group:'.length, -7), rect(attrs)] as const] : []))
   const glyphPieces = new Map<string, InkBox[]>()
-  let currentGlyph: string | undefined
   const tags = [...rendered.svg.matchAll(/<(line|circle|polygon|rect|polyline|path|text)\b[^>]*>/g)]
-  for (const match of tags) {
-    const attrs = attributes(match[0]), tag = match[1]!
-    if (attrs['data-id']) currentGlyph = attrs['data-id'].startsWith('card:') ? attrs['data-id'] : undefined
-    if (!['line', 'circle', 'polygon'].includes(tag)) currentGlyph = undefined
-    if (!currentGlyph) continue
+  const dom = new JSDOM(rendered.svg, { contentType: 'image/svg+xml' })
+  let glyphs: Array<{ id: string; tag: string; attrs: Record<string, string> }>
+  try {
+    const groups = [...(dom.window.document as Document).querySelectorAll('g[data-role="cardinality"]')]
+    expect(groups).toHaveLength(relationships.length * 2)
+    glyphs = groups.flatMap(group => [...group.children].map(piece => ({
+      id: group.getAttribute('data-id')!, tag: piece.localName, attrs: attributes(piece.outerHTML),
+    })))
+  } finally { dom.window.close() }
+  for (const { id, tag, attrs } of glyphs) {
+    expect(['line', 'circle', 'polygon']).toContain(tag)
     const half = Number(attrs['stroke-width'] ?? 0) / 2
     let box: InkBox
     if (tag === 'line') {
@@ -317,8 +325,8 @@ test.each([...['TB', 'BT', 'LR', 'RL'].flatMap(direction => ['agentic', 'elk'].m
       const vertices = attrs.points!.split(/\s+/).map(pair => pair.split(',').map(Number)), xs = vertices.map(p => p[0]!), ys = vertices.map(p => p[1]!)
       box = inflated({ x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) }, half * Number(attrs['stroke-miterlimit'] ?? 4))
     }
-    const pieces = glyphPieces.get(currentGlyph) ?? []
-    pieces.push(box); glyphPieces.set(currentGlyph, pieces)
+    const pieces = glyphPieces.get(id) ?? []
+    pieces.push(box); glyphPieces.set(id, pieces)
   }
   const paths = relationships.map(rel => rel.points!.split(/\s+/).map(pair => { const [x, y] = pair.split(',').map(Number); return { x: x!, y: y! } }))
   const marks = relationships.flatMap((rel, index) => ['1', '2'].map((end, i) => {

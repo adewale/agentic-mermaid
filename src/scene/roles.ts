@@ -122,7 +122,7 @@ export const BUILTIN_SCENE_ROLE_TRAITS: Readonly<Record<BuiltinSceneRole, SceneR
   // type, and key badge; the group carries the attribute identity.
   attribute: traits('attribute', TEXT_OR_GROUP, 'label', { domIdentity: true, textHalo: true }),
   relationship: traits('relationship', CONNECTOR, 'edge', { domIdentity: true, relation: true, sketch: 'connector' }),
-  cardinality: traits('cardinality', SHAPE_OR_TEXT, 'label', { domIdentity: true, textHalo: true }),
+  cardinality: traits('cardinality', SHAPE_TEXT_OR_GROUP, 'label', { domIdentity: true, textHalo: true }),
   'pie-slice': traits('pie-slice', SHAPE, 'node', { domIdentity: true, sketch: 'shape' }),
   legend: traits('legend', SHAPE_TEXT_OR_GROUP, 'group', { textHalo: true }),
   bar: traits('bar', SHAPE, 'node', { domIdentity: true, sketch: 'shape' }),
