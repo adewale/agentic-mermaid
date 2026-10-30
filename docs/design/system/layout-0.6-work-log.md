@@ -4549,3 +4549,111 @@ with true-gap/curved-corner controls; prototype a smaller same-emission typed
 write/capture authority for the six budgets. Then freeze a combined candidate,
 replay affected authored meaning/actual ink and complete paired after measurements
 and exact-head CI. No readiness, full parity or 24hour completion is claimed.
+
+### 30 October 14:30 UTC: combined H2 correctness checkpoint and measured limits
+
+Implemented production candidate f1aa530619503129b56ec8c290a50cce4a1b77ae
+includes current Main9519ca5f1 through ancestry merge0d468b35a; the retained
+branch's source/package identity remains0.4.2, targeting the owner's0.6.0 work.
+Fresh fetch finds Main4c72d1c82 ahead by hosted-skill/documentation changes only;
+it is not silently incorporated into this frozen observation. The remote
+retained branch still07b68047a is an ancestor; no concurrent remote writer found.
+PR449 remains merged/closed; this is continuation on its retained branch.
+
+The optional trusted shaped-ink API is implemented in c180fe6a4. Advance and
+occupied bounds are distinct, projected through the actual written fitting,
+anchor and baseline, shared by Native and Scene. Independent actual raster
+observations caught two integration defects before publication: reused implicit
+Inter blocks inherited Caveat and underbounded116pixels; cbff73574 retains the
+measured face (after:467positivepixels, zero outside). A width-only profile whose
+optional callback was absent could later inherit Object.prototype.measureInk;
+8d6ec9054 retains an own undefined slot (callback calls2→0). Default, width-only,
+unknown fallback, decorated, monospaced and fragmented text gain no unsupported
+proof authority. This is a host API, not a new default font/shaping engine; the
+original formatted CJK strict-proof gap remains open.
+
+Historical18 ELK had actual circle-outline/foreign-shaft contact despite the
+rubric's intentional graze tolerance. bd56cef3f extends the existing obstacle
+pass using actual written circle/stroke support and its existing bounded proposal
+validator. Signed clearance−0.125→8.315399562; only one carrier changes, all nodes,
+text, resources and37other carriers stay fixed, Agentic SVG stays exact. Normal
+paint U372009→P372049 and strict U306427→P306453, without changing400000cap.
+Independent review then found animated solid edges were being treated as
+continuous support although SVG writes8/4dashes. f1aa53061 shares the renderer's
+actual dotted-first dash choice with admission. Six gap controls retain exact
+SVG/routes; the overlapping solid control still repairs. H1's22completed cells
+remain explicitly superseded, with44unattempted; no result is relabelled H2.
+Exactly one of322reviewed geometry records changed for this repair; the other321
+remain exact. Root canonical core/repository typecheck and lint pass. Combined
+owning selection:764pass,0fail,6665assertions in8files, including all322goldens.
+Evidence: H2-{typecheck,lint,owners}.log and final-h2-replay/.
+
+Fresh H2 replays33development enrollments as66engine cells, each normal and
+strict:124returned SVGs well formed, eight strict refusals retained,58strict/
+normal whole-byte pairs, all66public models exact versus production6f7ccb418.
+55normal SVGs are exact;11changed outputs receive16fresh observer jobs. All186
+selected foreground removals are positive. Twenty whole ER endpoint groups,
+52visible components and20independent structural cardinality patterns pass.
+Source/dependency guards and cleanup pass; no holdout or new existing-cohort peer
+query is used. The three baseline natural-curve failures no longer have their
+visible right-angle joins. Row103 supplies noncollinear spline evidence; authored6
+natural images are straight and cannot discriminate interpolation families.
+Nonuniform collinear parameterization is not a visible failure.
+
+| Separate development cohort | Agentic strict / normal P,U | Our ELK strict / normal P,U |
+| --- | --- | --- |
+| Earlier20 | 17,3 /14,6 | 17,3 /13,7 |
+| Original7 | 7,0 /7,0 | 7,0 /7,0 |
+| Authored6 | 5,1 /5,1 | 5,1 /5,1 |
+
+Only historical18 ELK changes paint admission versus6f. These counts describe
+paint, not author-meaning correctness or general parity. An untimed128call
+selection control independently observes actual renderer stages: all64paired
+attempt policies match. Assertions0/report returns Native; strict or assertions1
+attempts Scene, including typed refusals. Baseline50returned/14refusals becomes
+H2 52returned/12refusals. Evidence: selection-diagnostic/REPORT.md and
+final-h2-replay/acquisition/COMPARISON-V2.{json,csv}.
+
+Bounded before/after measurement is now complete: three fresh-process rounds of
+eight sources, report/strict, two backends, cache off/normal, assertions off/on,
+with full SVG UTF8 and complete receipt consumption. Before21/24whole batches
+complete; H2 20/24complete. All60second timeouts remain enrolled with no invented
+cost. Conditional-on-completion medians below are64call sums, not batch wall
+time, tail latency, allocation or a parity/speedup claim. Runtime is variable and
+performance preservation is NOT established; investigate with localized paired
+profiles before attributing the differences to a production change.
+
+| Backend / assertions / cache | Completed before→H2 | Call-sum median ms before→H2 | Peak RSS median KiB before→H2 |
+| --- | --- | --- | --- |
+| Agentic /0/off | 3→2 | 37666→42676 | 266800→273100 |
+| Agentic /0/normal | 3→3 | 14158→13712 | 275808→267424 |
+| Agentic /1/off | 3→3 | 42178→43043 | 274840→268316 |
+| Agentic /1/normal | 3→3 | 15885→20390 | 258036→264912 |
+| ELK /0/off | 3→1 | 31097→37574 | 463300→458200 |
+| ELK /0/normal | 3→3 | 13211→23342 | 400236→396812 |
+| ELK /1/off | 0→3 | unavailable→41830 | unavailable→470208 |
+| ELK /1/normal | 3→2 | 13374→17899 | 393484→400184 |
+
+Source/runtime manifests and raw proofs, first/repeat costs, live/settled heap
+and process RSS/high-water survive in measurement/. H2-BEFORE-AFTER-SUMMARY.json
+and H2-BEFORE-AFTER-REPORT.md state scope and all timeouts. Historical18 ELK changes
+admission, so its U→P cost is not an equal-quality comparison. Both backends use
+positioned caches in normal mode; off disables both. No bundle-size improvement
+is inferred from this diagnostic.
+
+The private explicit canonical text-root experiment removes duplicated paid
+copies and obtains P200692 versus legacy P344778 for1500labels without markers;
+with32decorative markers legacy stays U400000 while explicit mode obtains
+P364567. SVGs remain exact. These are new API-mode results, NOT closure of the
+six old regressions. The broad-descendant draft was rejected for copied-root
+authority leakage. R4 confines authority to an exact same-emission root; review
+then identified an ambient Math.max depth-metadata hypothesis, under test before
+any adoption or timing claim. Structured-group and empty-label coalescing
+experiments remain private: they reduce real work but close none of the six.
+
+Remaining concrete work: sound canonical snapshot depth/isolation controls and
+measured adoption; legacy Class128 TB/BT/LR/RL, ER256 and1500label/32marker capacity
+owners; original formatted CJK/own-carrier surviving-ink proof; historical19
+normal-budget refusal; delivery ceilings; broader independent meaning coverage.
+Replacement24 remains sealed. No ready/all-seven-complete/parity claim, human
+study gate, version/default change, cap increase, new PR/issue or publication.
