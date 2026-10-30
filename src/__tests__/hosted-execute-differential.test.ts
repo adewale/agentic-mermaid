@@ -165,6 +165,69 @@ describe('hosted execute ≡ vm sandbox', () => {
     }
   })
 
+  test('SDK arrays answer every non-mutating Array method exactly like a plain copy', async () => {
+    // Oracle: the engine's own Array.prototype applied to a JSON copy of the
+    // same SDK array, inside the same sandbox. Element arguments are named by
+    // index so identity searches resolve within each array's own world. The
+    // object array is meta.comments; the string array is its .map result
+    // (a re-hardened array), which also covers duplicates and ''.
+    const index = fc.integer({ min: -4, max: 6 })
+    const element = fc.oneof(fc.record({ el: fc.integer({ min: 0, max: 5 }) }), fc.constantFrom('a', 'a,b', '', 'zz'))
+    const call = fc.oneof(
+      fc.record({ m: fc.constantFrom('includes', 'indexOf', 'lastIndexOf'), args: fc.oneof(fc.tuple(element), fc.tuple(element, index)) }),
+      fc.record({ m: fc.constantFrom('at', 'flat'), args: fc.tuple(index) }),
+      fc.record({ m: fc.constantFrom('slice', 'toSpliced'), args: fc.array(index, { maxLength: 2 }) }),
+      fc.record({ m: fc.constant('with'), args: fc.tuple(index, element) }),
+      fc.record({ m: fc.constant('join'), args: fc.oneof(fc.constant([]), fc.tuple(fc.constantFrom('', '|', ', '))) }),
+      fc.record({ m: fc.constant('concat'), args: fc.array(fc.oneof(element, fc.constant({ self: true }), fc.constant(['q', ['r']])), { maxLength: 3 }) }),
+      fc.record({ m: fc.constantFrom('toString', 'toLocaleString', 'toReversed', 'entries', 'keys', 'values'), args: fc.constant([]) }),
+      fc.record({ m: fc.constantFrom('map', 'filter', 'some', 'every', 'find', 'findIndex', 'findLast', 'findLastIndex', 'flatMap', 'forEach', 'reduce', 'reduceRight', 'toSorted'), args: fc.constant([]) }),
+    )
+    await fc.assert(fc.asyncProperty(
+      fc.array(fc.constantFrom('a', 'b', 'a,b', '', 'x y'), { maxLength: 5 }),
+      fc.array(call, { minLength: 1, maxLength: 8 }),
+      async (comments, calls) => {
+        const source = ['flowchart TD', ...comments.map(text => `  %%${text ? ` ${text}` : ''}`), '  A --> B'].join('\n')
+        const code = `
+          const objects = mermaid.parseRegisteredMermaid(${JSON.stringify(source)}).value.meta.comments
+          const strings = objects.map(comment => comment.text)
+          const callbacks = {
+            map: [(x, i) => [i, x]], filter: [(x, i) => (JSON.stringify(x).length + i) % 2 === 0],
+            some: [x => JSON.stringify(x).includes('b')], every: [x => JSON.stringify(x).length > 2],
+            find: [x => JSON.stringify(x).includes('a')], findIndex: [x => JSON.stringify(x).includes('a')],
+            findLast: [x => JSON.stringify(x).includes('a')], findLastIndex: [x => JSON.stringify(x).includes('a')],
+            flatMap: [(x, i) => [x, [i]]], forEach: [() => {}], reduce: [(a, x) => a + JSON.stringify(x), '>'],
+            reduceRight: [(a, x) => a + JSON.stringify(x), '<'],
+            toSorted: [(a, b) => JSON.stringify(a) < JSON.stringify(b) ? -1 : JSON.stringify(a) > JSON.stringify(b) ? 1 : 0],
+          }
+          const outcome = (array, call) => {
+            const resolve = arg => arg && typeof arg === 'object' && !Array.isArray(arg) ? (arg.self ? array : array[arg.el]) : arg
+            try {
+              const args = callbacks[call.m] ?? call.args.map(resolve)
+              let value = array[call.m](...args)
+              if (call.m === 'entries' || call.m === 'keys' || call.m === 'values') value = [...value]
+              return { value: JSON.stringify(value) }
+            } catch (e) {
+              return { threw: true }
+            }
+          }
+          const sides = { sdk: {}, plain: {} }
+          for (const [name, array] of [['objects', objects], ['strings', strings]]) {
+            const plain = JSON.parse(JSON.stringify(array))
+            sides.sdk[name] = { length: array.length, outcomes: ${JSON.stringify(calls)}.map(call => outcome(array, call)) }
+            sides.plain[name] = { length: plain.length, outcomes: ${JSON.stringify(calls)}.map(call => outcome(plain, call)) }
+          }
+          return sides`
+        for (const result of [await executeInSandbox(code), await executeHosted(code)]) {
+          expect(result.error).toBeUndefined()
+          const { sdk, plain } = result.value as { sdk: { strings: { length: number } }; plain: unknown }
+          expect(sdk.strings.length).toBe(comments.length)
+          expect(sdk).toEqual(plain as never)
+        }
+      },
+    ), fcParameters({ numRuns: 40 }))
+  })
+
   test('a failed narrowing passed on to any diagram verb gets the narrower guidance, not an engine TypeError', async () => {
     // asSequence(flowchart) is null; every verb that takes a diagram must say
     // why the input is missing instead of dereferencing it.

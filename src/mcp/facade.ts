@@ -50,6 +50,15 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
   }
   const arrayMutators = new Set(['copyWithin', 'fill', 'pop', 'push', 'reverse', 'shift', 'sort', 'splice', 'unshift'])
   const arrayCallbackMethods = new Set(['forEach', 'map', 'filter', 'find', 'findIndex', 'findLast', 'findLastIndex', 'some', 'every', 'flatMap'])
+  // Non-callback, non-mutating methods. Each runs natively over a host copy
+  // of the hardened elements, so identity searches see the same element
+  // proxies index reads return and new arrays hold only hardened values (the
+  // function membrane hardens the result again).
+  const arrayHardenedCopyMethods = new Set(['at', 'concat', 'flat', 'includes', 'indexOf', 'lastIndexOf', 'slice'])
+  // String conversions run over the unwrapped data so an object element
+  // prints as it would in a plain array ("[object Object]") instead of
+  // throwing on a hardened proxy that hides toString; the result is a string.
+  const arrayStringMethods = new Set(['join', 'toLocaleString', 'toString'])
   const rawOf = <T>(value: T): T => (value && (typeof value === 'object' || typeof value === 'function') && raw.has(value as object) ? raw.get(value as object) : value) as T
   const isMap = (value: unknown): value is Map<unknown, unknown> => value instanceof Map || Object.prototype.toString.call(value) === '[object Map]'
   const isSet = (value: unknown): value is Set<unknown> => value instanceof Set || Object.prototype.toString.call(value) === '[object Set]'
@@ -293,6 +302,14 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
             return [index, harden(value)]
           }))
           if (prop === 'keys') return harden(() => iteratorOf(Array.prototype.keys.call(target)))
+          if (typeof prop === 'string' && arrayHardenedCopyMethods.has(prop)) {
+            const method = Reflect.get(Array.prototype, prop) as (...args: unknown[]) => unknown
+            return harden((...args: unknown[]) => Reflect.apply(method, Array.prototype.map.call(target, v => harden(v)), args))
+          }
+          if (typeof prop === 'string' && arrayStringMethods.has(prop)) {
+            const method = Reflect.get(Array.prototype, prop) as (...args: unknown[]) => unknown
+            return harden((...args: unknown[]) => Reflect.apply(method, Array.prototype.map.call(target, v => rawOf(v)), args))
+          }
           if (typeof prop === 'string' && arrayCallbackMethods.has(prop)) {
             return harden((cb: (value: unknown, index: number, array: unknown) => unknown, thisArg?: unknown) => {
               const call = (v: unknown, i: number) => cb.call(thisArg, harden(v), i, proxy)
