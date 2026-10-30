@@ -1346,8 +1346,16 @@ describe('Workers Static Assets website contract', () => {
     expect(mcpCard.tools.map((tool: any) => tool.name)).toEqual(['execute', 'describe_sdk', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build'])
     expect(mcpCard.tools.every((tool: any) => typeof tool.title === 'string' && tool.title.trim().length > 0)).toBe(true)
     expect(mcpCard.tools.every((tool: any) => tool.annotations?.destructiveHint === false)).toBe(true)
-    expect(mcpCard.tools.every((tool: any) => tool.parameters && typeof tool.parameters === 'object')).toBe(true)
+    // Each tool's schema ships once, exactly as tools/list advertises it (its
+    // $defs travel with it), and the machine-read manifests are not indented.
     const mcpManifest = JSON.parse(read('.well-known/mcp.json'))
+    for (const document of [mcpCard, mcpManifest]) {
+      expect(document.tools.map((tool: any) => ({ name: tool.name, inputSchema: tool.inputSchema, parameters: tool.parameters })))
+        .toEqual(HOSTED_TOOLS.map(tool => ({ name: tool.name, inputSchema: tool.inputSchema, parameters: undefined })))
+    }
+    for (const rel of ['.well-known/mcp/server-card.json', '.well-known/mcp.json']) {
+      expect({ rel, minified: read(rel) === `${JSON.stringify(JSON.parse(read(rel)))}\n` }).toEqual({ rel, minified: true })
+    }
     expect(mcpManifest.serverUrl).toBe('https://agentic-mermaid.dev/mcp')
     expect(mcpManifest.tools.map((tool: any) => ({ name: tool.name, title: tool.title }))).toEqual(
       mcpCard.tools.map((tool: any) => ({ name: tool.name, title: tool.title })),

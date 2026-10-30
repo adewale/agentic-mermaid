@@ -203,8 +203,8 @@ async function emit(rel: string, content: FileContent) {
   await writeFile(dest, content)
 }
 
-async function emitJson(rel: string, data: unknown) {
-  await emit(rel, JSON.stringify(data, null, 2) + '\n')
+async function emitJson(rel: string, data: unknown, layout: 'indented' | 'minified' = 'indented') {
+  await emit(rel, (layout === 'minified' ? JSON.stringify(data) : JSON.stringify(data, null, 2)) + '\n')
 }
 
 async function copyFileFrom(src: string, destRel: string) {
@@ -1920,19 +1920,17 @@ function compactToolDescription(description: string) {
   return text.length > 700 ? text.slice(0, 697) + '...' : text
 }
 
-function parametersFromSchema(schema: Record<string, unknown>) {
-  const properties = schema.properties && typeof schema.properties === 'object' ? (schema.properties as Record<string, Record<string, unknown>>) : {}
-  const required = new Set(Array.isArray(schema.required) ? schema.required.map(String) : [])
-  return Object.fromEntries(Object.entries(properties).map(([name, shape]) => [name, { ...shape, required: required.has(name) }]))
-}
-
+// Each tool's schema ships once, as the MCP Tool `inputSchema` tools/list
+// returns, with its `$defs` at the schema root so every local `$ref` resolves.
+// A second per-property `parameters` copy doubled the card and could not carry
+// those root definitions. SEP-2127 server cards define no tool list at all, so
+// no discovery spec asks for either form; this one matches tools/list.
 const hostedToolCards = HOSTED_TOOLS.map(tool => ({
   name: tool.name,
   title: tool.title,
   description: compactToolDescription(tool.description),
   annotations: tool.annotations,
   inputSchema: tool.inputSchema,
-  parameters: parametersFromSchema(tool.inputSchema),
 }))
 
 const mcpServerCard = {
@@ -1977,7 +1975,7 @@ const mcpManifest = {
   serverUrl: mcpServerCard.serverUrl,
   transport: mcpServerCard.transport,
   capabilities: mcpServerCard.capabilities,
-  tools: hostedToolCards.map(({ inputSchema: _inputSchema, ...tool }) => tool),
+  tools: hostedToolCards,
   generatedFrom,
 }
 
@@ -2108,8 +2106,9 @@ if (new Set(aiCatalog.entries.map(entry => entry.identifier)).size !== aiCatalog
   throw new Error('AI catalog identifiers and URLs must be unique')
 }
 
-await emitJson('.well-known/mcp/server-card.json', mcpServerCard)
-await emitJson('.well-known/mcp.json', mcpManifest)
+// Machine-read discovery documents: indentation was most of their bytes.
+await emitJson('.well-known/mcp/server-card.json', mcpServerCard, 'minified')
+await emitJson('.well-known/mcp.json', mcpManifest, 'minified')
 await emitJson('.well-known/ai-catalog.json', aiCatalog)
 
 const skillFiles = ['SKILL.md', 'references/cli.md', 'references/code-mode.md', 'references/flowchart.md', 'references/sequence.md', 'references/timeline.md']

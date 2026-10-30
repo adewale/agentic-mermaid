@@ -187,31 +187,27 @@ const ARCHITECTURE_VISUAL_SCHEMA = {
   'x-agentic-mermaid-runtime-validator': 'architectureVisual',
 } as const satisfies JsonSchemaNode
 
-const STYLE_SPEC_SCHEMA = (() => {
-  const styleSchema = styleSpecJsonSchema() as Record<string, unknown>
-  const definitions = styleSchema.$defs as Record<string, Record<string, unknown>> | undefined
-  const expandLocalReferences = (value: unknown): unknown => {
-    if (Array.isArray(value)) return value.map(expandLocalReferences)
-    if (value === null || typeof value !== 'object') return value
-    const record = value as Record<string, unknown>
-    const reference = record.$ref
-    if (typeof reference === 'string' && reference.startsWith('#/$defs/')) {
-      const definition = definitions?.[reference.slice('#/$defs/'.length)]
-      if (!definition) throw new Error(`StyleSpec schema has unresolved local reference ${reference}`)
-      return expandLocalReferences(definition)
-    }
-    return Object.fromEntries(Object.entries(record)
-      .filter(([key]) => key !== '$defs')
-      .map(([key, child]) => [key, expandLocalReferences(child)]))
+/**
+ * The StyleSpec record and the role-style records it references, as local
+ * definitions. A style input names the record by `$ref` instead of carrying
+ * it: a name-or-record input and a stack of them would otherwise inline the
+ * same ~22 KB record twice in every schema that accepts `style`. The record's
+ * own `#/$defs/roleStyle-*` references keep their names, so every schema that
+ * places these definitions at its root resolves them unchanged.
+ */
+const STYLE_SCHEMA_DEFINITIONS: Readonly<Record<string, JsonSchemaNode>> = (() => {
+  const { $schema: _dialect, $id: _id, title: _title, $defs, ...record } = styleSpecJsonSchema() as Record<string, unknown>
+  const definitions = { ...($defs as Record<string, JsonSchemaNode>), styleSpec: record as JsonSchemaNode }
+  if (Object.hasOwn($defs as object, 'styleSpec') || Object.hasOwn($defs as object, 'jsonValue')) {
+    throw new Error('StyleSpec schema definitions collide with render option definitions')
   }
-  const { $schema: _dialect, $id: _id, title: _title, ...fragment } = styleSchema
-  return expandLocalReferences(fragment) as Record<string, unknown>
+  return definitions
 })()
 
 const STYLE_INPUT_SCHEMA = {
   anyOf: [
     { type: 'string', description: 'Registered Style or Palette name.' },
-    STYLE_SPEC_SCHEMA,
+    { $ref: '#/$defs/styleSpec' },
   ],
   'x-agentic-mermaid-validation-expectation': 'a registered Style name or StyleSpec',
 } as const satisfies JsonSchemaNode
@@ -511,13 +507,28 @@ export function sharedRenderOptionsJsonSchema(): Record<string, unknown> {
     type: 'object',
     additionalProperties: false,
     properties,
-    $defs: { jsonValue: cloneSchema(JSON_VALUE_SCHEMA) },
+    $defs: renderOptionsSchemaDefinitions(),
   }
 }
 
-/** Public StyleInput projection reused by advanced and convenience adapters. */
+/** The local definitions `sharedRenderOptionsJsonSchema()` references by
+ * `#/$defs/<name>`. A schema that embeds the render options object without
+ * its root (an MCP tool's `options` argument) places these at its own root. */
+export function renderOptionsSchemaDefinitions(): Record<string, unknown> {
+  return {
+    jsonValue: cloneSchema(JSON_VALUE_SCHEMA),
+    ...Object.fromEntries(Object.entries(STYLE_SCHEMA_DEFINITIONS).map(([name, definition]) => [name, cloneSchema(definition)])),
+  }
+}
+
+/** Public StyleInput projection reused by advanced and convenience adapters.
+ * Self-contained: it carries the StyleSpec definitions its references name. */
 export function styleInputJsonSchema(description?: string): Record<string, unknown> {
-  return { ...cloneSchema(STYLE_OPTION_SCHEMA), ...(description === undefined ? {} : { description }) }
+  return {
+    ...cloneSchema(STYLE_OPTION_SCHEMA),
+    ...(description === undefined ? {} : { description }),
+    $defs: Object.fromEntries(Object.entries(STYLE_SCHEMA_DEFINITIONS).map(([name, definition]) => [name, cloneSchema(definition)])),
+  }
 }
 
 export interface ResolvedAppearance {

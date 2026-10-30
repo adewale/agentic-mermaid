@@ -10,7 +10,6 @@
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { configWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
 import { EDIT_TOOLS, handleEditTool } from './edit-tools.ts'
-import { knownStyleDescriptors } from '../scene/style-registry.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt } from '../agent/core.ts'
 import { verifyNoExternalRefs } from '../output-security.ts'
@@ -25,7 +24,7 @@ import {
   createRenderPngTool,
   dispatchAdmittedMcpRequest,
   isValidExecuteTimeout,
-  mcpRenderOptionSchemaProperties,
+  mcpRenderToolInputSchema,
   projectMcpRenderOptions,
   RENDER_WARNINGS_NOTE,
   validateMcpToolArguments,
@@ -106,16 +105,6 @@ const MAX_EXECUTE_TIMEOUT_MS = 30_000
 export const LOCAL_FALLBACK_HINT = 'run the local agentic-mermaid CLI or stdio MCP server instead (see https://agentic-mermaid.dev/docs/mcp/)'
 const TOO_LARGE_HINT = `input exceeds the hosted size cap; ${LOCAL_FALLBACK_HINT}`
 
-// Keep hosted discovery aligned with the style registry. This description is
-// the only built-in look menu available to clients that do not call execute.
-const BUILTIN_LOOK_NAMES = knownStyleDescriptors()
-  .filter(descriptor => descriptor.kind === 'look')
-  .map(descriptor => descriptor.inputName)
-const BUILTIN_PALETTE_NAMES = knownStyleDescriptors()
-  .filter(descriptor => descriptor.kind === 'palette')
-  .map(descriptor => descriptor.inputName)
-
-
 export const HOSTED_TOOLS = [
   createExecuteTool({ sdkDeclaration: SDK_CORE_DECLARATION, hosted: true }),
   withClosedMcpInputSchema(createDescribeSdkTool()),
@@ -126,17 +115,7 @@ export const HOSTED_TOOLS = [
 Layout is deterministic: identical input produces identical geometry. The hosted
 boundary forces security:'strict' and embedFontImport:false.
 ${RENDER_WARNINGS_NOTE}`,
-    inputSchema: {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        source: { type: 'string', description: 'Mermaid source.' },
-        ...mcpRenderOptionSchemaProperties(
-          `Shared advanced RenderOptions object. Styles accept a registered Look (${BUILTIN_LOOK_NAMES.join(', ')}), Palette (${BUILTIN_PALETTE_NAMES.join(', ')}), inline record, or left-to-right stack.`,
-        ),
-      },
-      required: ['source'],
-    },
+    inputSchema: mcpRenderToolInputSchema(),
     annotations: PURE_COMPUTE_ANNOTATIONS,
   },
   {
@@ -147,17 +126,10 @@ useAscii true → plain ASCII (+,-,|); false/absent → Unicode box drawing (┌
 targetWidth sets a hard terminal display-cell bound; impossible bounds return a typed error.
 ${RENDER_WARNINGS_NOTE} Terminal projection notes (TERMINAL_* codes) are
 evidence in receipt.diagnostics, not warnings.`,
-    inputSchema: {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        source: { type: 'string', description: 'Mermaid source.' },
-        useAscii: { ...terminalOutputOptionSchema('useAscii'), description: 'true = ASCII characters, false = Unicode (default).' },
-        targetWidth: { ...terminalOutputOptionSchema('targetWidth'), description: 'Hard maximum line width in terminal display cells.' },
-        ...mcpRenderOptionSchemaProperties('Shared advanced RenderOptions object, including style/palette/config/security.'),
-      },
-      required: ['source'],
-    },
+    inputSchema: mcpRenderToolInputSchema({
+      useAscii: { ...terminalOutputOptionSchema('useAscii'), description: 'true = ASCII characters, false = Unicode (default).' },
+      targetWidth: { ...terminalOutputOptionSchema('targetWidth'), description: 'Hard maximum line width in terminal display cells.' },
+    }),
     annotations: PURE_COMPUTE_ANNOTATIONS,
   },
   createRenderPngTool('hosted'),

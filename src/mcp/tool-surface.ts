@@ -12,6 +12,7 @@ import {
 import { admitMcpMessage, type AdmittedMcpMessage } from './admission.ts'
 import { PACKAGE_VERSION } from '../version.ts'
 import {
+  renderOptionsSchemaDefinitions,
   sharedRenderOptionsJsonSchema,
   validateSerializableRenderOptions,
   renderSchemaProblems,
@@ -28,6 +29,7 @@ import type { ExecuteErrorCode } from './execute-limits.ts'
 import type { ExecuteResult } from './sandbox.ts'
 import type { CodeModeLocation } from './facade.ts'
 import { isPlainRecord } from '../shared/plain-data.ts'
+import { knownStyleDescriptors } from '../scene/style-registry.ts'
 import { validateJsonSchema, type SchemaPath, type JsonSchema } from '../shared/schema-validation.ts'
 
 export interface McpToolDefinition {
@@ -155,11 +157,36 @@ export function isValidExecuteTimeout(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
 }
 
-export function mcpRenderOptionSchemaProperties(
-  optionsDescription: string,
-): Record<string, unknown> {
+// Every render tool offers the same `options` object; its description is the
+// only built-in Style menu a client sees without calling execute, so it comes
+// from the style registry, once, for every render tool on every surface.
+const BUILTIN_LOOK_NAMES = knownStyleDescriptors()
+  .filter(descriptor => descriptor.kind === 'look')
+  .map(descriptor => descriptor.inputName)
+const BUILTIN_PALETTE_NAMES = knownStyleDescriptors()
+  .filter(descriptor => descriptor.kind === 'palette')
+  .map(descriptor => descriptor.inputName)
+export const MCP_RENDER_OPTIONS_DESCRIPTION = `Shared advanced RenderOptions object. style accepts a registered Look (${BUILTIN_LOOK_NAMES.join(', ')}), Palette (${BUILTIN_PALETTE_NAMES.join(', ')}), inline StyleSpec record, or left-to-right stack.`
+
+/**
+ * The input schema of a render tool: `source`, the tool's own output fields,
+ * and the shared `options` object. The render options schema names its
+ * StyleSpec and JSON-value records by `#/$defs/<name>`; those definitions sit
+ * at this schema's root, once, so every reference resolves from the tool
+ * schema itself (no embedded `$id` resource) and no record is inlined twice.
+ */
+export function mcpRenderToolInputSchema(outputProperties: Record<string, unknown> = {}): Record<string, unknown> {
+  const { $schema: _dialect, $id: _id, $defs: _defs, ...options } = sharedRenderOptionsJsonSchema()
   return {
-    options: { ...sharedRenderOptionsJsonSchema(), description: optionsDescription },
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      source: { type: 'string', description: 'Mermaid source.' },
+      ...outputProperties,
+      options: { ...options, description: MCP_RENDER_OPTIONS_DESCRIPTION },
+    },
+    required: ['source'],
+    $defs: renderOptionsSchemaDefinitions(),
   }
 }
 
@@ -466,19 +493,12 @@ artifact directory with safe names, size limits, and TTL cleanup.
 Uses bundled resvg + Inter (DejaVu Sans fallback) for same-machine cross-runtime determinism where verified.
 ${budget}
 Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. For non-PNG output, use execute() with mermaid.renderMermaidSVG, mermaid.renderMermaidASCII (useAscii true for ASCII, false for Unicode), or verifyMermaid(...).layout — those are streaming text/data and don't need a dedicated tool.`,
-    inputSchema: {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        source: { type: 'string', description: 'Mermaid source.' },
-        ...pngProperties,
-        ...mcpRenderOptionSchemaProperties('Shared advanced RenderOptions object.'),
-        ...(hosted ? {} : {
-          output: { type: 'string', enum: [...MCP_PNG_OUTPUT_MODES], description: 'PNG return mode (default base64).' },
-        }),
-      },
-      required: ['source'],
-    },
+    inputSchema: mcpRenderToolInputSchema({
+      ...pngProperties,
+      ...(hosted ? {} : {
+        output: { type: 'string', enum: [...MCP_PNG_OUTPUT_MODES], description: 'PNG return mode (default base64).' },
+      }),
+    }),
     annotations: hosted ? PURE_COMPUTE_ANNOTATIONS : MANAGED_ARTIFACT_ANNOTATIONS,
   }
 }

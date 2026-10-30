@@ -252,7 +252,10 @@ describe('Section A canonical render contracts', () => {
   })
 
   test('MCP render schemas expose shared fields only through canonical nested options', () => {
-    expect(styleInputJsonSchema()).toEqual(SHARED_RENDER_OPTION_FIELD_DESCRIPTORS.style.schema)
+    // The public projection carries the StyleSpec definitions its $refs name.
+    const { $defs: styleDefinitions, ...styleProjection } = styleInputJsonSchema() as Record<string, unknown>
+    expect(styleProjection).toEqual(SHARED_RENDER_OPTION_FIELD_DESCRIPTORS.style.schema)
+    expect(Object.keys(styleDefinitions as object)).toContain('styleSpec')
     for (const tool of [...HOSTED_TOOLS, ...LOCAL_TOOLS].filter(tool => tool.name === 'render_svg' || tool.name === 'render_png')) {
       const properties = tool.inputSchema.properties as Record<string, Record<string, unknown>>
       expect(properties.options, `${tool.name}.options`).toBeDefined()

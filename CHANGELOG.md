@@ -21,7 +21,20 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   every non-`sync` style, and a half-arrow's operator as `arrow`. A message
   whose `style` was changed in place is written with that style's arrow.
 
+- Render tool schemas are compact: each render tool's `inputSchema` defines
+  the StyleSpec record once, under `$defs` at the schema root, instead of
+  inlining it for both a single style and a style stack, and every `$ref`
+  resolves from the tool schema itself. Hosted `tools/list` falls from 208 KB
+  to 147 KB. `/.well-known/mcp.json` and `/.well-known/mcp/server-card.json`
+  carry each tool's schema once, as the `inputSchema` `tools/list` returns (the
+  second `parameters` copy is gone), and are served minified: 487 KB → 132 KB
+  and 987 KB → 133 KB.
+
 ### Fixed
+
+- `render_png` and `render_ascii` describe `options` with the registered
+  Looks and Palettes, as `render_svg` does; all render tools share one
+  description.
 
 - Sequence facts and `describe` (text, tree, summaries) show participant
   names, message text, titles and fragment captions as the renderers draw

@@ -22,6 +22,10 @@ import { runCli } from '../cli/index.ts'
 import { createTracingMermaid } from '../mcp/facade.ts'
 import { HOSTED_CODE_MODE_HOST_POLICY } from '../render-host-policy.ts'
 import { captureCli } from './helpers/cli-capture.ts'
+import { AjvJsonSchemaValidator } from '@modelcontextprotocol/sdk/validation/ajv'
+import { LOCAL_TOOLS } from '../mcp/server.ts'
+import { styleSpecJsonSchema } from '../scene/style-spec.ts'
+import { knownStyleDescriptors } from '../scene/style-registry.ts'
 
 const FLOW = 'flowchart TD\n  A[Start] --> B{OK?}\n  B -->|yes| C[Done]'
 const TEST_PNG_RECEIPT = { version: 2, output: 'png', sharedRequestDigest: 'test-shared', requestDigest: 'test-request', appearanceDigest: 'test-appearance', capabilityDecision: { version: 1, accepted: true, resolutions: [] } } as const
@@ -131,6 +135,53 @@ describe('hosted MCP handshake', () => {
     const styleDescription = options?.properties?.style?.description ?? ''
     expect(styleDescription).toContain('registered name')
     expect(styleDescription.toLowerCase()).not.toContain('cupertino')
+  })
+
+  // Every render tool on both surfaces: tools/list loads these into each agent
+  // context, so the ~8 KB StyleSpec record (and the role records it names) must
+  // be defined once per tool, not inlined per style alternative, and every
+  // reference must resolve from the tool schema a client receives.
+  const renderTools = [...HOSTED_TOOLS, ...LOCAL_TOOLS].filter(tool => tool.name.startsWith('render_'))
+
+  test('render tool schemas define each shared record once and resolve every $ref from the tool root', () => {
+    const recordDescription = (styleSpecJsonSchema() as { description: string }).description
+    const resolve = (root: unknown, ref: string) => ref.startsWith('#/')
+      ? ref.slice(2).split('/').reduce<any>((node, part) => node?.[part.replaceAll('~1', '/').replaceAll('~0', '~')], root)
+      : undefined
+    const ajv = new AjvJsonSchemaValidator()
+    for (const tool of renderTools) {
+      const text = JSON.stringify(tool.inputSchema)
+      expect({ tool: tool.name, records: text.split(JSON.stringify(recordDescription)).length - 1 }).toEqual({ tool: tool.name, records: 1 })
+      const refs: string[] = []
+      const nestedResources: string[] = []
+      // Keys of a `properties`/`$defs` map are names (StyleSpec has a `$schema`
+      // field), not keywords; only keyword positions are inspected.
+      const walk = (node: unknown, depth: number, names = false) => {
+        if (Array.isArray(node)) return node.forEach(child => walk(child, depth + 1))
+        if (!node || typeof node !== 'object') return
+        for (const [key, child] of Object.entries(node)) {
+          if (!names && key === '$ref' && typeof child === 'string') refs.push(child)
+          if (!names && depth > 0 && (key === '$id' || key === '$schema')) nestedResources.push(key)
+          walk(child, depth + 1, !names && (key === 'properties' || key === '$defs'))
+        }
+      }
+      walk(tool.inputSchema, 0)
+      expect({ tool: tool.name, nestedResources }).toEqual({ tool: tool.name, nestedResources: [] })
+      expect({ tool: tool.name, unresolved: refs.filter(ref => resolve(tool.inputSchema, ref) === undefined) }).toEqual({ tool: tool.name, unresolved: [] })
+      // A validator we did not write (the MCP SDK's client-side Ajv provider)
+      // still checks every field through the references.
+      const check = ajv.getValidator(tool.inputSchema as never)
+      expect(check({ source: FLOW, options: { style: ['hand-drawn', { roughness: 2 }], mermaidConfig: { flowchart: { curve: 'basis' } } } }).valid).toBe(true)
+      expect(check({ source: FLOW, options: { style: [{ roughness: 'rough' }] } }).valid).toBe(false)
+      expect(check({ source: FLOW, options: { style: { nope: 1 } } }).valid).toBe(false)
+    }
+  })
+
+  test('every render tool describes options with the same registered Look and Palette menu', () => {
+    const descriptions = new Set(renderTools.map(tool => (tool.inputSchema.properties as Record<string, any>).options.description))
+    expect(descriptions.size).toBe(1)
+    const [description] = descriptions
+    for (const descriptor of knownStyleDescriptors()) expect(description).toContain(descriptor.inputName)
   })
 
   test('unknown methods and unknown tools are JSON-RPC errors', async () => {

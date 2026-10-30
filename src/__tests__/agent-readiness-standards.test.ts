@@ -254,7 +254,6 @@ describe('agent-readiness standards syntax', () => {
       expect(tool.inputSchema).toEqual(expect.objectContaining({ type: 'object' }))
       expect(typeof tool.inputSchema.properties).toBe('object')
       expect(Array.isArray(tool.inputSchema.required ?? [])).toBe(true)
-      expect(tool.parameters && typeof tool.parameters).toBe('object')
       expect(tool.annotations).toEqual(expect.objectContaining({
         readOnlyHint: true,
         destructiveHint: false,
