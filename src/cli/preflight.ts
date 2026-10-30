@@ -2,6 +2,7 @@ import { parseArgs, flagEnabled, FLAG_SPECS, COMMAND_FLAGS, COMMAND_POSITIONALS,
 import { GLOBAL_USAGE, COMMAND_HELP } from './help.ts'
 import { AGENT_INSTRUCTIONS } from './agent-instructions.ts'
 import { EXIT_OK, EXIT_ARG_ERROR } from './exit-codes.ts'
+import { PACKAGE_VERSION } from '../version.ts'
 
 export interface PreparedCli { args: ParsedArgs & { command: string }; json: boolean }
 
@@ -25,6 +26,10 @@ export function preflightCli(argv: string[]): { exitCode: number } | PreparedCli
   if (args.errors.length > 0) return { exitCode: argError(args.errors.join(' ')) }
   if (flagEnabled(args, 'agent-instructions')) {
     process.stdout.write(AGENT_INSTRUCTIONS)
+    return { exitCode: EXIT_OK }
+  }
+  if (flagEnabled(args, 'version')) {
+    process.stdout.write(json ? JSON.stringify({ ok: true, version: PACKAGE_VERSION }) + '\n' : `${PACKAGE_VERSION}\n`)
     return { exitCode: EXIT_OK }
   }
   if (flagEnabled(args, 'help') && !args.command) {

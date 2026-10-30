@@ -25,6 +25,7 @@ const FLAG_SPEC_TABLE = {
   'canonical-wrapper': {},
   'preserve-source': {},
   'system-fonts': {},
+  version: {},
   // value flags (placeholder = what the usage shows after the flag)
   suppress: { arg: 'CODES' },
   'label-cap': { arg: 'N' },
@@ -170,7 +171,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
           i++
         }
       }
-    } else if (!out.command) out.command = arg
+    } else if (arg === '-v') record('version', true) // the only short alias
+    else if (!out.command) out.command = arg
     else out.positional.push(arg)
     i++
   }

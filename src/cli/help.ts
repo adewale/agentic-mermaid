@@ -41,6 +41,7 @@ Flags:
   --gantt-today <DATE>   For render: draw the gantt today marker at DATE (rendering never reads the wall clock)
   --target-width <CELLS> Hard terminal-cell bound for ASCII/Unicode output
   --agent-instructions   Print the canonical agent-use guide
+  --version, -v          Print the package version (with --json: {"ok":true,"version":...})
   --help                 Show this message (or per-command help: am <cmd> --help)
 
 Exit codes:
