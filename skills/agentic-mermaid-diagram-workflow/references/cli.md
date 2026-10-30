@@ -45,7 +45,7 @@ am mutate flow.mmd --op '{"kind":"rename_node","from":"X","to":"Y"}'
 am mutate seq.mmd --op '{"kind":"add_message","from":"A","to":"B","text":"Hi"}'
 ```
 
-Exit codes: 0 ok, 2 arg/parse/mutation error, 3 verify failed, 4 internal (including a verify whose errors are all `INTERNAL_ERROR`).
+Exit codes: 0 ok, 2 arg/parse/mutation error or a render the input refuses, 3 verify failed, 4 internal (an `INTERNAL_ERROR` render, or a verify whose errors are all `INTERNAL_ERROR`).
 
 PNG emits `BELOW_READABLE_SIZE` when the smallest measurable configured text
 lands below `--min-label-px` after final raster sizing. The provisional default

@@ -14,7 +14,7 @@ import { isLegacyProtocolVersion } from '../mcp/protocol-versions.ts'
 import pkg from '../../package.json'
 import { visualWidth } from '../ascii/width.ts'
 import { renderMermaidASCII, verifyNoExternalRefs } from '../index.ts'
-import { MAX_HOSTED_PNG_BYTES, PNG_WASM_RUNTIME } from '../png-contract.ts'
+import { MAX_HOSTED_PNG_BYTES, PNG_WASM_RUNTIME, PngRasterizerError } from '../png-contract.ts'
 
 const FLOW = 'flowchart TD\n  A[Start] --> B{OK?}\n  B -->|yes| C[Done]'
 const TEST_PNG_RECEIPT = { version: 2, output: 'png', sharedRequestDigest: 'test-shared', requestDigest: 'test-request', appearanceDigest: 'test-appearance', capabilityDecision: { version: 1, accepted: true, resolutions: [] } } as const
@@ -230,7 +230,7 @@ describe('hosted pure tools', () => {
     const payload = payloadOf(await handleHostedRequest(call('render_svg', { source }), makeContext()))
     expect(payload.ok).toBe(false)
     expect(payload.isError).toBe(true)
-    expect(payload.error).toEqual({ code: 'RENDER_FAILED', message: 'Rendering failed' })
+    expect(payload.error).toEqual({ code: 'RENDER_FAILED', origin: 'config', message: expect.stringContaining('themeCSS is not allowed in strict security mode') })
     expect(payload).not.toHaveProperty('svg')
   })
 
@@ -633,11 +633,19 @@ describe('hosted render_png', () => {
     expect(p.error.code).toBe('PNG_UNAVAILABLE')
   })
 
-  test('rasterizer failures use the transport-neutral render diagnostic', async () => {
-    const ctx = makeContext({ renderPng: async () => { throw new Error('wasm init failed') } })
-    const p = payloadOf(await handleHostedRequest(call('render_png', { source: FLOW }), ctx))
-    expect(p.ok).toBe(false)
-    expect(p.error).toEqual({ code: 'RENDER_FAILED', message: 'Rendering failed' })
+  test('rasterizer and runtime failures are internal errors that keep host details out', async () => {
+    const hostDetail = '/srv/worker/generated/resvg.wasm'
+    for (const thrown of [
+      new PngRasterizerError('loading its resources', new Error(`${hostDetail}: init failed`)),
+      new TypeError(`Cannot read properties of undefined (reading '${hostDetail}')`),
+      Object.assign(new Error(`ENOENT: no such file or directory, open '${hostDetail}'`), { errno: -2, syscall: 'open' }),
+    ]) {
+      const ctx = makeContext({ renderPng: async () => { throw thrown } })
+      const p = payloadOf(await handleHostedRequest(call('render_png', { source: FLOW }), ctx))
+      expect(p.ok).toBe(false)
+      expect(p.error, thrown.name).toEqual({ code: 'INTERNAL_ERROR', message: expect.any(String) })
+      expect(JSON.stringify(p), thrown.name).not.toContain(hostDetail)
+    }
   })
 })
 

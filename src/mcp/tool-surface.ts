@@ -17,7 +17,7 @@ import {
   renderSchemaProblems,
   type SharedRenderOptionField,
 } from '../render-contract.ts'
-import { normalizePortablePngBackground, pngOutputOptionsJsonSchema } from '../png-contract.ts'
+import { MAX_HOSTED_PNG_PIXELS, MAX_PNG_PIXELS, MAX_PNG_RASTER_DIMENSION, normalizePortablePngBackground, pngOutputOptionsJsonSchema } from '../png-contract.ts'
 import {
   limitJsonConfigDiagnostics,
   validateJsonConfigAdmission,
@@ -433,6 +433,9 @@ export function createRenderPngTool(mode: 'local' | 'hosted'): McpToolDefinition
   const hosted = mode === 'hosted'
   const pngSchema = pngOutputOptionsJsonSchema(hosted ? 'portable' : 'native')
   const pngProperties = pngSchema.properties as Record<string, JsonSchema>
+  const pixelCap = Math.ceil((hosted ? MAX_HOSTED_PNG_PIXELS : MAX_PNG_PIXELS) / 1_000_000)
+  const budget = `A raster wider or taller than ${MAX_PNG_RASTER_DIMENSION}px or over ${pixelCap}MP fails with
+PNG_RASTER_BUDGET_EXCEEDED; pass fitTo { width } or { height }, or a smaller scale, to fit it.`
   return {
     name: 'render_png',
     title: 'Render Mermaid as PNG',
@@ -440,12 +443,14 @@ export function createRenderPngTool(mode: 'local' | 'hosted'): McpToolDefinition
       ? `Rasterize a Mermaid source string to PNG. Returns { ok, png_base64 }.
 Hosted rendering uses resvg-wasm with bundled fonts; bytes may differ from the
 local napi renderer, so hosted PNG is a convenience surface, not part of the
-byte-determinism contract. For file/URL artifacts use the local stdio server.`
+byte-determinism contract. For file/URL artifacts use the local stdio server.
+${budget}`
       : `Rasterize a Mermaid source string to PNG. By default returns base64-encoded PNG bytes.
 Set output to "file" or "url" to write a managed artifact instead; artifact responses include
 {path?, url?, mimeType, bytes, sha256}. File/URL artifacts are generated under the MCP server's
 artifact directory with safe names, size limits, and TTL cleanup.
 Uses bundled resvg + Inter (DejaVu Sans fallback) for same-machine cross-runtime determinism where verified.
+${budget}
 Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. For non-PNG output, use execute() with mermaid.renderMermaidSVG, mermaid.renderMermaidASCII (useAscii true for ASCII, false for Unicode), or verifyMermaid(...).layout — those are streaming text/data and don't need a dedicated tool.`,
     inputSchema: {
       type: 'object',

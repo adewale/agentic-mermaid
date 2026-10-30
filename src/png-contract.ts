@@ -409,6 +409,36 @@ export function prepareSvgForPngRasterization(svg: string, dimensions: PngRaster
   return replaceSvgRootStartTag(svg, root, resized)
 }
 
+export const PNG_RASTER_BUDGET_EXCEEDED = 'PNG_RASTER_BUDGET_EXCEEDED' as const
+
+/** The requested raster is larger than the budget of the substrate drawing it.
+ * The diagram and its output options (scale, fitTo) decide the size, so this
+ * is the caller's to fix, and the message says how. */
+export class PngRasterBudgetError extends RangeError {
+  readonly code = PNG_RASTER_BUDGET_EXCEEDED
+  readonly width: number
+  readonly height: number
+  readonly maxDimension: number
+  readonly maxPixels: number
+  readonly budget: 'portable' | 'hosted'
+
+  constructor(budget: 'portable' | 'hosted', width: number, height: number, maxPixels: number) {
+    const pixels = width * height
+    const megapixels = Number.isFinite(pixels) ? ` (${Math.ceil(pixels / 1_000_000)}MP)` : ''
+    super(
+      `${budget === 'hosted' ? 'hosted ' : ''}PNG raster budget exceeded: ${String(width)}×${String(height)}${megapixels}; `
+      + `maximum dimension is ${MAX_PNG_RASTER_DIMENSION}px and ${budget === 'hosted' ? 'hosted ' : ''}pixel cap is ${Math.ceil(maxPixels / 1_000_000)}MP. `
+      + 'Pass fitTo ({ width } or { height }) or a smaller scale to fit the budget (CLI: --fit-width, --fit-height, --scale).',
+    )
+    this.name = 'PngRasterBudgetError'
+    this.width = width
+    this.height = height
+    this.maxDimension = MAX_PNG_RASTER_DIMENSION
+    this.maxPixels = maxPixels
+    this.budget = budget
+  }
+}
+
 /** Shared allocation gate for native, browser, WASM, CLI, and MCP PNG paths. */
 export function assertPngRasterBudget(svg: string, output: PngRasterBudgetPolicy): PngRasterDimensions {
   const dimensions = pngRasterDimensions(svg, output)
@@ -416,13 +446,7 @@ export function assertPngRasterBudget(svg: string, output: PngRasterBudgetPolicy
     || dimensions.height > MAX_PNG_RASTER_DIMENSION
     || !Number.isSafeInteger(dimensions.pixels)
     || dimensions.pixels > MAX_PNG_PIXELS) {
-    const megapixels = Number.isFinite(dimensions.pixels)
-      ? `${Math.ceil(dimensions.pixels / 1_000_000)}MP`
-      : 'a non-finite pixel count'
-    throw new RangeError(
-      `PNG raster budget exceeded: ${dimensions.width}×${dimensions.height} (${megapixels}); `
-      + `maximum dimension is ${MAX_PNG_RASTER_DIMENSION}px and pixel cap is ${Math.ceil(MAX_PNG_PIXELS / 1_000_000)}MP`,
-    )
+    throw new PngRasterBudgetError('portable', dimensions.width, dimensions.height, MAX_PNG_PIXELS)
   }
   return dimensions
 }
@@ -433,21 +457,44 @@ export function assertHostedPngRasterBudget(dimensions: PngRasterDimensions): Pn
   const width = admitted ? dimensions.width : Number.NaN
   const height = admitted ? dimensions.height : Number.NaN
   const pixels = admitted ? dimensions.pixels : Number.NaN
+  // Malformed dimensions are an engine invariant, not a size the caller chose.
   if (!admitted
     || !Number.isSafeInteger(width) || width <= 0
     || !Number.isSafeInteger(height) || height <= 0
     || !Number.isSafeInteger(pixels)
     || pixels <= 0
-    || pixels !== width * height
-    || width > MAX_PNG_RASTER_DIMENSION
+    || pixels !== width * height) {
+    throw new RangeError(`hosted PNG raster dimensions are malformed: ${String(width)}×${String(height)}`)
+  }
+  if (width > MAX_PNG_RASTER_DIMENSION
     || height > MAX_PNG_RASTER_DIMENSION
     || pixels > MAX_HOSTED_PNG_PIXELS) {
-    throw new RangeError(
-      `hosted PNG raster budget exceeded: ${String(width)}×${String(height)}; `
-      + `maximum dimension is ${MAX_PNG_RASTER_DIMENSION}px and hosted pixel cap is ${Math.ceil(MAX_HOSTED_PNG_PIXELS / 1_000_000)}MP`,
-    )
+    throw new PngRasterBudgetError('hosted', width, height, MAX_HOSTED_PNG_PIXELS)
   }
   return dimensions
+}
+
+export const PNG_RASTERIZER_FAILED = 'PNG_RASTERIZER_FAILED' as const
+
+/** The rasterizer substrate itself (its resources, its wasm/native engine, or
+ * the bytes it returned) failed after the diagram rendered. Its cause may name
+ * host resources, so diagnostics report only this stable code. */
+export class PngRasterizerError extends Error {
+  readonly code = PNG_RASTERIZER_FAILED
+
+  constructor(stage: string, cause: unknown) {
+    super(`${PNG_RASTERIZER_FAILED}: the PNG rasterizer failed while ${stage}`, { cause })
+    this.name = 'PngRasterizerError'
+  }
+}
+
+/** Run one rasterizer-substrate step, attributing any failure to it. */
+export function withPngRasterizer<T>(stage: string, step: () => T): T {
+  try {
+    return step()
+  } catch (error) {
+    throw error instanceof PngRasterizerError ? error : new PngRasterizerError(stage, error)
+  }
 }
 
 const BUNDLED_FONT_RESOURCES = Object.freeze(

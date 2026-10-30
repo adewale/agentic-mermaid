@@ -31,6 +31,7 @@ import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
 import { LayoutPassContractError } from '../layout/pass.ts'
 import { MindmapParseError } from '../mindmap/parser.ts'
 import { QuadrantStyleColorError } from '../quadrant/point-style.ts'
+import { PngRasterBudgetError, PngRasterizerError } from '../png-contract.ts'
 import { ParsedDiagramFamilyMismatchError, RenderCapabilityError, RenderConfigError } from '../render-contract.ts'
 import { PaintLayoutCertificationError } from '../scene/paint-certification.ts'
 import { SceneValidationError } from '../scene/scene-validation-core.ts'
@@ -55,6 +56,7 @@ const ORIGINS: ReadonlyArray<readonly [ErrorClass, WarningOrigin]> = [
   [FamilyConformanceError, 'engine'],
   [HtmlEntityTableNotLoadedError, 'engine'],
   [ParsedDiagramFamilyMismatchError, 'engine'],
+  [PngRasterizerError, 'engine'],
   // Theme, Mermaid config and caller render options.
   [ThemeVariableColorError, 'config'],
   [RenderOptionColorError, 'config'],
@@ -77,6 +79,7 @@ const ORIGINS: ReadonlyArray<readonly [ErrorClass, WarningOrigin]> = [
   [ErRouteWorkLimitError, 'source'],
   [ErLabelWorkLimitError, 'source'],
   [C4RouteWorkLimitError, 'source'],
+  [PngRasterBudgetError, 'source'],
   [PaintLayoutCertificationError, 'source'],
 ]
 

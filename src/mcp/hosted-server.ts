@@ -442,7 +442,7 @@ function sourceTool(id: number | string | null, args: Record<string, unknown>, r
   } catch (e) {
     return toolResult(id, {
       ok: false as const,
-      error: projectRenderErrorDiagnostic(e),
+      error: projectRenderErrorDiagnostic(e, { source }),
     }, true)
   }
 }
@@ -510,7 +510,7 @@ async function handleRenderPng(id: number | string | null, args: Record<string, 
   } catch (e) {
     return toolResult(id, {
       ok: false as const,
-      error: projectRenderErrorDiagnostic(e),
+      error: projectRenderErrorDiagnostic(e, { source }),
     }, true)
   }
 }

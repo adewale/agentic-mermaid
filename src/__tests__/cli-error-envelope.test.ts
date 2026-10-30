@@ -2,7 +2,14 @@
 // rather than JSON-stringifying it into `message`.
 
 import { describe, test, expect } from 'bun:test'
-import { runCli } from '../cli/index.ts'
+import { getFamily } from '../agent/families.ts'
+import { replaceFamilyForTest } from '../agent/family-registry.ts'
+import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
+import { renderMarkdownBlocks, runCli } from '../cli/index.ts'
+import { LayoutCertificationError } from '../layout/certification-error.ts'
+import { handleHostedRequest } from '../mcp/hosted-server.ts'
+import { executeInSandbox } from '../mcp/sandbox.ts'
+import { handleRequest } from '../mcp/server.ts'
 import { captureCli as capture } from './helpers/cli-capture.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 
@@ -123,5 +130,106 @@ describe('M1 CLI structured error envelope', () => {
     // success path is NOT wrapped in {ok,error} — it's the diagram itself
     expect(payload.ok).toBeUndefined()
     expect(payload.kind).toBe('flowchart')
+  })
+})
+
+// One render failure, one diagnostic: every render surface reports the same
+// stable code and the renderer's actionable reason for the same input, and the
+// CLI exit code follows the documented table (2 = the caller's input, 4 = an
+// Agentic Mermaid defect).
+describe('render failure diagnostics agree across render surfaces', () => {
+  const textTools = ['render_svg', 'render_ascii', 'render_png'] as const
+  const pngOnly = ['render_png'] as const
+  const graphicalTools = ['render_svg', 'render_png'] as const
+  const chain = `flowchart LR\n${Array.from({ length: 60 }, (_, i) => `  N${i}[node number ${i}] --> N${i + 1}[node number ${i + 1}]`).join('\n')}`
+  const cases = [
+    {
+      name: 'source the parser rejects',
+      source: 'flowchart LR\n  A --> ',
+      expected: { code: 'PARSE_FAILED', message: expect.stringContaining('could not fully consume expected edge target'), details: [expect.objectContaining({ code: 'PARSE_FAILED' })] },
+      exit: 2, cli: ['svg', 'ascii', 'layout', 'png'], tools: textTools, markdown: true, codeMode: true,
+    },
+    {
+      name: 'a statement the render parser refuses',
+      source: 'sequenceDiagram\n  A->>B hi no colon',
+      expected: { code: 'RENDER_FAILED', origin: 'source', message: expect.stringContaining('A->>B hi no colon') },
+      exit: 2, cli: ['svg', 'ascii', 'layout', 'png'], tools: textTools, markdown: true, codeMode: true,
+    },
+    {
+      // Injected below: the graphical layout fails certification.
+      name: 'an engine defect',
+      source: 'flowchart LR\n  Defect --> B',
+      expected: { code: 'INTERNAL_ERROR', message: expect.stringContaining('member Defect: outside authored group G') },
+      exit: 4, cli: ['svg', 'layout', 'png'], tools: graphicalTools, markdown: false, codeMode: true,
+    },
+    {
+      name: 'a PNG over the raster budget',
+      source: chain,
+      expected: {
+        code: 'PNG_RASTER_BUDGET_EXCEEDED', budget: 'portable', maxDimension: 16_384, maxPixels: 16_777_216,
+        width: expect.any(Number), height: expect.any(Number), message: expect.stringContaining('fitTo'),
+      },
+      exit: 2, cli: ['png'], tools: pngOnly, markdown: false, codeMode: false,
+    },
+  ] as const
+
+  const hostedPayload = async (tool: string, source: string): Promise<any> => {
+    const response = await handleHostedRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: tool, arguments: { source } } }, {
+      async execute() { return { ok: true, value: null, logs: [] } },
+      async renderPng(input, opts) { return { ...renderMermaidPNGWithReceipt(input, opts), warnings: [] } },
+    })
+    return JSON.parse((response?.result as { content: Array<{ text: string }> }).content[0]!.text)
+  }
+
+  const withCertificationDefect = async (run: () => Promise<void>): Promise<void> => {
+    const flowchart = getFamily('flowchart')!
+    const restore = replaceFamilyForTest('flowchart', {
+      ...flowchart,
+      layout: context => {
+        if (context.source.text.includes('Defect')) {
+          throw new LayoutCertificationError([{ strategy: 'default', violations: ['member Defect: outside authored group G'] }] as never)
+        }
+        return flowchart.layout!(context)
+      },
+    })
+    try {
+      await run()
+    } finally {
+      restore()
+    }
+  }
+
+  test('CLI formats, hosted tools, stdio render_png, Code Mode and render-markdown report one diagnostic', async () => {
+    await withCertificationDefect(async () => {
+      for (const { name, source, expected, exit, cli, tools, markdown, codeMode } of cases) {
+        const input = tmp(source)
+        for (const format of cli) {
+          const args = ['render', input, '--format', format, '--json', ...(format === 'png' ? ['--output', `${input}.png`] : [])]
+          const result = capture(() => runCli(args))
+          expect({ name, format, code: result.code }).toEqual({ name, format, code: exit })
+          expect(JSON.parse(result.out), `${name} cli ${format}`).toEqual({ ok: false, error: expected })
+        }
+        for (const tool of tools) {
+          expect(await hostedPayload(tool, source), `${name} hosted ${tool}`).toEqual({ ok: false, error: expected })
+        }
+        const stdio = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'render_png', arguments: { source } } })
+        expect(JSON.parse((stdio!.result as { content: Array<{ text: string }> }).content[0]!.text), `${name} stdio render_png`).toEqual({ ok: false, error: expected })
+        if (codeMode) {
+          const sandbox = await executeInSandbox(`try { mermaid.renderMermaidSVG(${JSON.stringify(source)}); return null } catch (e) { return { code: e.code, origin: e.origin, message: e.message, details: e.details } }`)
+          expect(JSON.parse(JSON.stringify(sandbox.value)), `${name} Code Mode`).toEqual(expected)
+        }
+        if (markdown) {
+          expect(renderMarkdownBlocks(`\`\`\`mermaid\n${source}\n\`\`\``)[0], `${name} render-markdown`).toMatchObject({ ok: false, error: expected })
+        }
+      }
+    })
+  })
+
+  test('a missing file in a multi-input render is an argument error, not a render failure', () => {
+    const present = tmp('flowchart LR\n  A --> B')
+    const missing = `${present}.missing.mmd`
+    const { code, out } = capture(() => runCli(['render', present, missing, '--format', 'svg']))
+    expect(code).toBe(0)
+    expect(JSON.parse(out).files[1]).toMatchObject({ ok: false, error: { code: 'ARG', message: `File not found: ${missing}` } })
   })
 })

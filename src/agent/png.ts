@@ -41,6 +41,7 @@ import {
   projectNativePngOutputPolicyInput,
   type PngOutputPolicyInput,
   type PngRuntimeProvenance,
+  withPngRasterizer,
 } from '../png-contract.ts'
 import { finalizePngRasterSvg, renderPngGraphicalProjection } from '../png-graphical.ts'
 import { RESOURCE_MANIFEST } from '../font-manifest.ts'
@@ -211,7 +212,7 @@ function renderMermaidPNGWithReceiptForHost(
     graphical.rasterDimensions,
   )
 
-  const bundledFonts = resolveBundledFonts()
+  const bundledFonts = withPngRasterizer('loading bundled fonts', resolveBundledFonts)
 
   // Surface known coverage/shaping uncertainty before bytes ship. System
   // fonts broaden the rasterizer's set but are machine-dependent, so they
@@ -244,16 +245,18 @@ function renderMermaidPNGWithReceiptForHost(
     },
   }
 
-  const resvg = new Resvg(svg, resvgOpts)
-  const png = applyPngColorProfile(resvg.render().asPng())
-  const actualDimensions = inspectPngDimensions(png)
-  if (actualDimensions.width !== graphical.rasterDimensions.width
-    || actualDimensions.height !== graphical.rasterDimensions.height) {
-    throw new Error(
-      `native PNG rasterizer returned ${actualDimensions.width}×${actualDimensions.height}; `
-      + `expected ${graphical.rasterDimensions.width}×${graphical.rasterDimensions.height}`,
-    )
-  }
+  const png = withPngRasterizer('rasterizing', () => {
+    const rasterized = applyPngColorProfile(new Resvg(svg, resvgOpts).render().asPng())
+    const actualDimensions = inspectPngDimensions(rasterized)
+    if (actualDimensions.width !== graphical.rasterDimensions.width
+      || actualDimensions.height !== graphical.rasterDimensions.height) {
+      throw new Error(
+        `native PNG rasterizer returned ${actualDimensions.width}×${actualDimensions.height}; `
+        + `expected ${graphical.rasterDimensions.width}×${graphical.rasterDimensions.height}`,
+      )
+    }
+    return rasterized
+  })
   // resvg returns Buffer in Node; ensure we surface Uint8Array consistently.
   return {
     png: new Uint8Array(png.buffer, png.byteOffset, png.byteLength),

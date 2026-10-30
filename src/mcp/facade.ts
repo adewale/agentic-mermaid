@@ -109,11 +109,11 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     const prototype = Reflect.getPrototypeOf(value)
     return prototype === Object.prototype || prototype === null ? Object.assign(Object.create(prototype), value) : value
   }
-  const hostCall = <T>(fn: () => T, genericRenderFailure = false): T => {
+  const hostCall = <T>(fn: () => T, renderFailure?: { source?: string }): T => {
     try {
       return fn()
     } catch (e) {
-      const fields = structuredErrorFields(e) ?? (genericRenderFailure ? { name: 'RenderError', ...projectRenderErrorDiagnostic(e) } : undefined)
+      const fields = structuredErrorFields(e) ?? (renderFailure ? { name: 'RenderError', ...projectRenderErrorDiagnostic(e, renderFailure) } : undefined)
       const wrapped = sandboxError((fields?.message as string) ?? (e as Error).message)
       if (fields) {
         structuredErrorMetadata.set(wrapped, fields)
@@ -629,7 +629,8 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
         if (projectionCallback) {
           cloned!.onProjectionDiagnostic = (diagnostic: unknown) => projectionDiagnostics.push(diagnostic)
         }
-        const rendered = hostCall(() => ((target as any)[prop] as (diagram: any, options?: any) => unknown)(rawOf(input), cloned), true)
+        const rawInput = rawOf(input)
+        const rendered = hostCall(() => ((target as any)[prop] as (diagram: any, options?: any) => unknown)(rawInput, cloned), typeof rawInput === 'string' ? { source: rawInput } : {})
         for (const diagnostic of configDiagnostics) configCallback(harden(jsonClone(diagnostic)))
         for (const diagnostic of projectionDiagnostics) projectionCallback(harden(jsonClone(diagnostic)))
         // Render artifacts/receipts are immutable host records. Clone to an

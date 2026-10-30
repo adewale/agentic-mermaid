@@ -217,7 +217,7 @@ function handleRenderPng(id: number | string | null, args: Record<string, unknow
   } catch (e) {
     const payload = {
       ok: false as const,
-      error: projectRenderErrorDiagnostic(e),
+      error: projectRenderErrorDiagnostic(e, { source }),
     }
     return toolResult(id, payload, true)
   }

@@ -46,9 +46,9 @@ Flags:
 
 Exit codes:
   0  ok
-  2  arg / parse error (bad flag, missing file, malformed JSON)
+  2  arg / parse error (bad flag, missing file, malformed JSON), or a render the input refuses
   3  verify reported errors (severity 'error')
-  4  uncaught internal failure, or verify errors that are all INTERNAL_ERROR
+  4  internal failure: an INTERNAL_ERROR render, or verify errors that are all INTERNAL_ERROR
 `
 
 /** Warning codes of one severity, comma-separated and wrapped for help text. */

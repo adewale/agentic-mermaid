@@ -32,7 +32,7 @@ import { WARNING_CATALOG } from '../agent/warning-catalog.ts'
 import { familyDetectionDiagnosticFromPreservedBody, MermaidFamilyDetectionError } from '../family-detection.ts'
 import type { CliRenderFormat, RenderRequestReceipt } from '../render-contract.ts'
 import { CLI_RENDER_FORMATS, DEFAULT_CLI_RENDER_FORMAT, isCliRenderFormat, renderOutputForCliFormat, validateSerializableRenderOptions } from '../render-contract.ts'
-import { projectRenderErrorDiagnostic, type RenderErrorDiagnostic } from '../render-error-diagnostic.ts'
+import { parseFailedDiagnostic, projectRenderErrorDiagnostic, type ParseFailedDiagnostic, type RenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 import type { StyleInput, StyleSpec } from '../scene/style-registry.ts'
 import { inferBackend, knownStyleDescriptors, resolveStyleStack, validateStyleSpec } from '../scene/style-registry.ts'
 import { collectBatched } from '../shared/batched.ts'
@@ -50,10 +50,8 @@ import { EXISTING_DIAGRAM_WORKFLOW, FAMILY_NARROWING_NOTE, NEW_DIAGRAM_POLICY } 
  * ParseError[] in `details` — so an agent reads `error.details` instead of
  * re-parsing a JSON string buried in `error.message`.
  */
-function parseErrorEnvelope(errors: ParseError[]): { ok: false; error: { code: string; message: string; details: ParseError[] } } {
-  const first = errors[0]
-  const message = first ? `${first.code}: ${first.message}` : 'parse error'
-  return { ok: false, error: { code: 'PARSE_FAILED', message, details: errors } }
+function parseErrorEnvelope(errors: ParseError[]): { ok: false; error: ParseFailedDiagnostic } {
+  return { ok: false, error: parseFailedDiagnostic(errors) }
 }
 
 type CliStructuredFailure = {
@@ -69,9 +67,15 @@ function isCliStructuredFailure(value: unknown): value is CliStructuredFailure {
   return typeof error.code === 'string' && typeof error.message === 'string'
 }
 
-function cliStructuredRenderFailure(error: unknown): CliStructuredFailure {
+function cliStructuredRenderFailure(error: unknown, source?: string): CliStructuredFailure {
   if (isCliStructuredFailure(error)) return error
-  return { ok: false, error: projectRenderErrorDiagnostic(error) }
+  return { ok: false, error: projectRenderErrorDiagnostic(error, { source }) }
+}
+
+/** A render failure is the caller's input (exit 2: the source, its
+ * configuration, or an option) unless the engine is at fault (exit 4). */
+function renderFailureExitCode(failure: CliStructuredFailure): number {
+  return failure.error.code === 'INTERNAL_ERROR' ? EXIT_INTERNAL : EXIT_ARG_ERROR
 }
 
 /** CLI render accepts installed extensions but cannot execute a source-only
@@ -91,14 +95,14 @@ function readSourceArg(arg: string | undefined): string {
     // Loop 9 M5: TTY-stdin guard. When stdin is an interactive TTY (no
     // pipe), the read blocks forever waiting for the user to paste + Ctrl-D
     // — confusing UX. Fail fast with a clear hint.
-    if (process.stdin.isTTY) throw new Error('needs a file argument or piped stdin')
+    if (process.stdin.isTTY) throw new CliArgumentError('needs a file argument or piped stdin')
     try {
       return readFileSync(0).toString('utf8')
     } catch {
       return ''
     }
   }
-  if (!existsSync(arg)) throw new Error(`File not found: ${arg}`)
+  if (!existsSync(arg)) throw new CliArgumentError(`File not found: ${arg}`)
   return readFileSync(arg, 'utf8')
 }
 
@@ -159,23 +163,19 @@ export function runPreparedCli({ args, json }: PreparedCli): number | Promise<nu
 }
 
 function reportCliFailure(args: ParsedArgs, json: boolean, e: unknown): number {
+  // Argument and file-shape failures (missing file, TTY stdin, a bad flag)
+  // are not renderer failures even when they occur under the render command.
   if (e instanceof CliArgumentError) return reportArgumentError(e.message, json)
   const msg = e instanceof Error ? e.message : String(e)
-  // Argument and file-shape failures are not renderer failures even when
-  // they occur under the render command.
-  const isArgError = /^needs a file argument|^File not found:/.test(msg)
-  const structured = isArgError ? undefined : args.command === 'render' || args.command === 'preview' || isCliStructuredFailure(e) ? cliStructuredRenderFailure(e) : undefined
+  const structured = args.command === 'render' || args.command === 'preview' || isCliStructuredFailure(e) ? cliStructuredRenderFailure(e) : undefined
   if (structured) {
     if (json) process.stdout.write(JSON.stringify(structured) + '\n')
     else process.stderr.write(`Error: ${structured.error.code}: ${structured.error.message}\n`)
-    return EXIT_ARG_ERROR
+    return renderFailureExitCode(structured)
   }
-  // Loop 9 M5: argument-shape errors (missing file, TTY stdin, etc.) get
-  // exit 2 per the documented contract. Heuristic: messages thrown from
-  // readSourceArg / arg parsing are advisory rather than internal bugs.
-  if (json) process.stdout.write(JSON.stringify({ ok: false, error: { code: isArgError ? 'ARG' : 'INTERNAL', message: msg } }) + '\n')
+  if (json) process.stdout.write(JSON.stringify({ ok: false, error: { code: 'INTERNAL', message: msg } }) + '\n')
   else process.stderr.write(`Error: ${msg}\n`)
-  return isArgError ? EXIT_ARG_ERROR : EXIT_INTERNAL
+  return EXIT_INTERNAL
 }
 function cmdRender(args: ParsedArgs, json: boolean): number {
   const numeric = (name: ValueFlagName): number | undefined => {
@@ -280,12 +280,11 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
         const rendered = renderSourceToFormatWithReceipt(src, format, formatOptions)
         return { index, file, ok: true, output: rendered.output, receipt: rendered.receipt, warnings }
       } catch (e) {
-        const structured = cliStructuredRenderFailure(e)
         return {
           index,
           file,
           ok: false,
-          error: structured?.error ?? { code: 'RENDER_FAILED', message: e instanceof Error ? e.message : String(e) },
+          error: e instanceof CliArgumentError ? { code: 'ARG', message: e.message } : cliStructuredRenderFailure(e).error,
         }
       }
     })
@@ -308,9 +307,8 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     preflightCliRenderableSource(source)
   } catch (error) {
     const structured = cliStructuredRenderFailure(error)
-    if (!structured) throw error
     process.stdout.write(JSON.stringify(structured) + '\n')
-    return EXIT_ARG_ERROR
+    return renderFailureExitCode(structured)
   }
 
   const configWarnings = configWarningsForMermaid(source)
@@ -531,27 +529,21 @@ function emitConfigWarnings(warnings: LayoutWarning[], prefix: string): void {
   }
 }
 
+/** PNG failures surface through the same render envelope and exit codes as
+ * every other format (reportCliFailure). */
 function renderPngSync(source: string, opts: PngOptions, outFile: string, json: boolean, configWarnings: LayoutWarning[] = []): number {
-  try {
-    // Glyph-coverage and legibility warnings (CJK/emoji without a covering
-    // font; text rasterized below the minLabelPx floor) go to stderr — the
-    // PNG itself can't show what silently became tofu or unreadable — and
-    // ride along in the --json envelope for programmatic callers.
-    const rasterWarnings: PngRasterWarning[] = []
-    const rendered = renderMermaidPNGWithReceipt(source, { ...opts, onWarning: w => rasterWarnings.push(w) })
-    const png = rendered.png
-    const warnings: Array<PngRasterWarning | LayoutWarning> = [...configWarnings, ...rasterWarnings]
-    writeFileSync(outFile, png)
-    for (const w of warnings) process.stderr.write(`am render --format png: warning ${w.code}: ${'message' in w ? w.message : 'configuration has no effect'}\n`)
-    if (json) process.stdout.write(JSON.stringify({ ok: true, path: outFile, bytes: png.length, receipt: rendered.receipt, runtime: rendered.runtime, warnings }) + '\n')
-    return EXIT_OK
-  } catch (e) {
-    // Named render refusals use the common CLI JSON/plain-text envelope.
-    if (projectRenderErrorDiagnostic(e).code !== 'RENDER_FAILED') throw e
-    const msg = e instanceof Error ? e.message : String(e)
-    process.stderr.write(`am render --format png: ${msg}\n`)
-    return EXIT_INTERNAL
-  }
+  // Glyph-coverage and legibility warnings (CJK/emoji without a covering
+  // font; text rasterized below the minLabelPx floor) go to stderr — the
+  // PNG itself can't show what silently became tofu or unreadable — and
+  // ride along in the --json envelope for programmatic callers.
+  const rasterWarnings: PngRasterWarning[] = []
+  const rendered = renderMermaidPNGWithReceipt(source, { ...opts, onWarning: w => rasterWarnings.push(w) })
+  const png = rendered.png
+  const warnings: Array<PngRasterWarning | LayoutWarning> = [...configWarnings, ...rasterWarnings]
+  writeFileSync(outFile, png)
+  for (const w of warnings) process.stderr.write(`am render --format png: warning ${w.code}: ${'message' in w ? w.message : 'configuration has no effect'}\n`)
+  if (json) process.stdout.write(JSON.stringify({ ok: true, path: outFile, bytes: png.length, receipt: rendered.receipt, runtime: rendered.runtime, warnings }) + '\n')
+  return EXIT_OK
 }
 
 function cmdVerify(args: ParsedArgs): number {
@@ -678,8 +670,7 @@ export function mutateSource(source: string, ops: AnyMutationOp[], preserveSourc
   }
   const r0 = parseRegisteredMermaid(source)
   if (!r0.ok) {
-    const env = parseErrorEnvelope(r0.error)
-    return { ok: false, family: null, error: { code: 'PARSE_FAILED', message: env.error.message, details: env.error.details } }
+    return { ok: false, family: null, error: parseFailedDiagnostic(r0.error) }
   }
   const family = r0.value.kind
   if (r0.value.body.kind === 'opaque' || r0.value.body.kind === 'preserved' || r0.value.body.kind === 'extension' || !getFamily(r0.value.kind)?.mutate) {
@@ -1234,16 +1225,7 @@ export function renderMarkdownBlocks(md: string, format: 'svg' | 'ascii' = 'svg'
         const output = format === 'ascii' ? renderMermaidASCII(src, { useAscii: true }) : renderMermaidSVG(src)
         return { index: i, line, ok: true, format, output }
       } catch (e) {
-        const structured = cliStructuredRenderFailure(e)
-        return {
-          index: i,
-          line,
-          ok: false,
-          error: structured?.error ?? {
-            code: 'RENDER_FAILED',
-            message: e instanceof Error ? e.message : String(e),
-          },
-        }
+        return { index: i, line, ok: false, error: cliStructuredRenderFailure(e, src).error }
       }
     },
     'MARKDOWN_BLOCK_ERROR',
@@ -1447,18 +1429,12 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
     // transport does (cmdRender/preview/render-markdown), instead of collapsing them to a
     // generic internal error. cliStructuredRenderFailure first honours an already-structured
     // throw; any remaining render-path exception is still a bounded RENDER_FAILED response.
-    const structured = cliStructuredRenderFailure(e)
-    if (structured) return { ok: false, op, error: structured.error }
-    return {
-      ok: false,
-      op,
-      error: { code: 'RENDER_FAILED', message: e instanceof Error ? e.message : String(e) },
-    }
+    return { ok: false, op, error: cliStructuredRenderFailure(e).error }
   }
 }
 
 async function cmdBatch(): Promise<number> {
-  if (process.stdin.isTTY) throw new Error('needs a file argument or piped stdin')
+  if (process.stdin.isTTY) throw new CliArgumentError('needs a file argument or piped stdin')
   const { streamJsonlBatch } = await import('./jsonl.ts')
   await streamJsonlBatch(process.stdin, process.stdout, runBatchLine)
   // Per-line failures don't abort; input/output transport failures do.
