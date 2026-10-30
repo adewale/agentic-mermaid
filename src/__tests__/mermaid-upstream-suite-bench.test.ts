@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { reviewedUpstreamCases } from '../../eval/mermaid-upstream-suite-bench/cases.ts'
 import { asArchitecture, asC4, asClass, asEr, asFlowchart, asGantt, asGitGraph, asJourney, asMindmap, asPie, asQuadrant, asRadar, asSankey, asSequence, asState, asTimeline, asXyChart, layoutMermaid, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
-import { countStructuralElements, isDrop } from '../agent/structural-count.ts'
+import { countStructuralElements, faithfulnessWarning } from '../agent/structural-count.ts'
 import type { DiagramKind, ParsedDiagram, ValidDiagram } from '../agent/types.ts'
 import { asBlock, asIshikawa, asKanban, asPacket, asRequirement, asTreemap } from '../agent/types.ts'
 import { displayText } from '../multiline-utils.ts'
@@ -136,7 +136,7 @@ describe('BUILD-20 Mermaid upstream parser/DB bench', () => {
         // editability. Source-only input is checked against authored bytes above.
         if (before) {
           expect(after, `${c.id} lost its structured representation on reload`).not.toBeNull()
-          if (after) expect({ id: c.id, drop: isDrop(before, after), before, after }).toEqual({ id: c.id, drop: false, before, after })
+          if (after) expect({ id: c.id, drop: faithfulnessWarning(before, after).length > 0, before, after }).toEqual({ id: c.id, drop: false, before, after })
         }
       }
     })

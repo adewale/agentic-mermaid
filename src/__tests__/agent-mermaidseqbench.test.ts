@@ -6,7 +6,7 @@ import { describe, test, expect } from 'bun:test'
 import { join } from 'node:path'
 import { loadDataset, runBench } from '../../eval/mermaidseqbench/runner.ts'
 import { parseRegisteredMermaid as parseMermaid, serializeMermaid } from '../agent/index.ts'
-import { countStructuralElements, isDrop } from '../agent/structural-count.ts'
+import { countStructuralElements, faithfulnessWarning } from '../agent/structural-count.ts'
 
 const DATA = join(import.meta.dir, '..', '..', 'eval', 'mermaidseqbench', 'data.csv')
 
@@ -37,7 +37,7 @@ describe('MermaidSeqBench (132 human-verified samples)', () => {
       const p2 = parseMermaid(serializeMermaid(p1.value))
       const after = p2.ok ? countStructuralElements(p2.value) : null
       // Shared verdict (Move 3): same drop semantics as the corpus + upstream gates.
-      if (isDrop(before, after)) drops.push(row.title)
+      if (faithfulnessWarning(before, after).length > 0) drops.push(row.title)
     }
     expect(drops).toEqual([])
   })

@@ -9,7 +9,7 @@ import { join } from 'node:path'
 import { runParseVerifyRoundtrip } from '../../eval/shared/run-bench.ts'
 import { countStructuralElements } from '../../eval/shared/structural-count.ts'
 import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
-import { isDrop } from '../agent/structural-count.ts'
+import { faithfulnessWarning } from '../agent/structural-count.ts'
 
 const CORPUS_PATH = join(import.meta.dir, '..', '..', 'eval', 'mermaid-docs-corpus', 'corpus.json')
 const DIVERGENCES_PATH = join(import.meta.dir, '..', '..', 'eval', 'mermaid-docs-corpus', 'divergences.json')
@@ -178,7 +178,7 @@ describe('mermaid-js legacy docs corpus (271 examples, 12 families)', () => {
       // Route through the one tested verdict (faithfulnessWarning) so all three
       // differential gates share identical drop semantics. `before` is non-null
       // here; a null `after` is reported as total loss by the helper.
-      if (isDrop(before, after)) {
+      if (faithfulnessWarning(before, after).length > 0) {
         drops.push({ key: corpusKey(entry), before, after })
       }
     }
