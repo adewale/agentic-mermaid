@@ -32,7 +32,7 @@ import { readGanttStatements } from '../gantt/parser.ts'
 import { type JourneyParseIssue, walkJourneyLines } from '../journey/parse-core.ts'
 import { getFrontmatterScalar, normalizeMermaidSource } from '../mermaid-source.ts'
 import { PIE_QUOTED_TEXT, splitAuthoredPieTitleLine } from '../pie/source-title.ts'
-import { parseQuadrantChart } from '../quadrant/parser.ts'
+import { parseQuadrantChart, QuadrantCoordinateError } from '../quadrant/parser.ts'
 import { sourceLineStarts, sourcePointAt } from '../family-detection.ts'
 import { cleanupMermaidSource, originalMermaidOffset } from '../shared/mermaid-cleanup.ts'
 import { sequenceFamilySource } from '../sequence/family-source.ts'
@@ -1090,8 +1090,8 @@ export const PIE_SOURCE_HOOKS = {
 // quadrantChart header; `title T`; `x-axis a --> b`; `y-axis a --> b`;
 // `quadrant-1..4 label`; `Label: [x, y]`. Quadrant is structured-when-narrowed:
 // the body parses to a QuadrantBody (title, axes, quadrant labels, points) or
-// falls back to opaque when any line is unmodeled (styling, malformed coords,
-// duplicate point labels). Labels are the title, both axis label sides, the
+// falls back to opaque when any line is unmodeled (unportable styling,
+// malformed coords). Labels are the title, both axis label sides, the
 // four quadrant region labels, and the point labels.
 function extractQuadrantLabels(source: string): ExtractedLabel[] {
   const out: ExtractedLabel[] = []
@@ -1181,7 +1181,13 @@ export const QUADRANT_SOURCE_HOOKS = {
   buildSourceMap: buildChartSourceMap,
   parse: ctx => {
     const source = normalizeMermaidSource(ctx.source.originalText, {}, 'render')
-    const body = /^quadrant(?:chart)?\s*$/i.test(stripTrailingComment(source.familyLines[0] ?? '')) ? parseQuadrantBody(source.familyLines.slice(1)) : null
+    let body: QuadrantBody | null
+    try {
+      body = /^quadrant(?:chart)?\s*$/i.test(stripTrailingComment(source.familyLines[0] ?? '')) ? parseQuadrantBody(source.familyLines.slice(1)) : null
+    } catch (error) {
+      if (error instanceof QuadrantCoordinateError) return err([{ code: 'PARSE_FAILED', message: error.message }])
+      throw error
+    }
     return ok(body ?? { kind: 'opaque', family: 'quadrant', source: ctx.opaqueSource })
   },
   serialize: body => {

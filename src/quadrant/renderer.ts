@@ -5,6 +5,7 @@ import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { escapeXml } from '../multiline-utils.ts'
 import { quadrantStyleDefaults } from './layout.ts'
+import { quadrantPointIds } from './parser.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import type { SceneNode } from '../scene/ir.ts'
@@ -190,17 +191,15 @@ export function lowerQuadrantDrawing<T>(
   // Points. Interaction chrome (hover targets + tooltips) is collected into
   // an overlay appended after all data marks, mirroring the xychart pattern.
   const pointOverlay: T[] = []
-  const pointOccurrences = new Map<string, number>()
-  for (const point of chart.points) {
-    const occurrence = pointOccurrences.get(point.label) ?? 0
-    pointOccurrences.set(point.label, occurrence + 1)
-    const pointId = occurrence === 0 ? `point:${point.label}` : `point:${point.label}#${occurrence}`
+  const pointIds = quadrantPointIds(chart.points.map(point => point.label))
+  for (const [index, point] of chart.points.entries()) {
+    const pointId = `point:${pointIds[index]!}`
     // Leader line first so it paints under its circle and label.
     if (point.leader) {
       const l = point.leader
       parts.push(marks.shape(
         {
-          id: `leader:${point.label}`,
+          id: `leader:${pointIds[index]!}`,
           role: 'chrome',
           geometry: { kind: 'line', x1: l.x1, y1: l.y1, x2: l.x2, y2: l.y2 },
           paint: { stroke: style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: '1' },

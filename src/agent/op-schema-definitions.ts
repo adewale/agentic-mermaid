@@ -313,14 +313,17 @@ const PIE_SCHEMA: Record<string, OpSpec> = {
   reorder_slice: { fields: { from: num(), to: num() } },
 }
 
+// A repeated point label is another point; its later points are numbered in
+// document order (quadrantPointIds).
+const QUADRANT_POINT_ID = 'a repeated label reads as A, A#2, … in document order'
 const QUADRANT_SCHEMA: Record<string, OpSpec> = {
   set_title: { fields: { title: strOrNull() } },
   set_axis_labels: { fields: { axis: oneOf(AXIS_KINDS), near: strOrNull(), far: strOrNull(false) } },
   set_quadrant_label: { fields: { quadrant: num(), label: strOrNull() } },
   add_point: { fields: { label: str(), x: withNote(num(), '0..1'), y: withNote(num(), '0..1') } },
-  remove_point: { fields: { label: str() } },
-  move_point: { fields: { label: str(), x: withNote(num(), '0..1'), y: withNote(num(), '0..1') } },
-  rename_point: { fields: { from: str(), to: str() } },
+  remove_point: { fields: { label: withNote(str(), QUADRANT_POINT_ID) } },
+  move_point: { fields: { label: withNote(str(), QUADRANT_POINT_ID), x: withNote(num(), '0..1'), y: withNote(num(), '0..1') } },
+  rename_point: { fields: { from: withNote(str(), QUADRANT_POINT_ID), to: str() } },
 }
 
 const GANTT_SCHEMA: Record<string, OpSpec> = {

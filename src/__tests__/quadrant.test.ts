@@ -153,8 +153,8 @@ describe('quadrant parser — sad paths error loudly', () => {
     })
   }
 
-  it('duplicate point labels error loudly', () => {
-    expect(() => parse('quadrantChart\n  A: [0.1, 0.1]\n  A: [0.9, 0.9]')).toThrow(/Duplicate/i)
+  it('a repeated point label is another point, as in Mermaid', () => {
+    expect(parse('quadrantChart\n  A: [0.1, 0.1]\n  A: [0.9, 0.9]').points.map(p => [p.label, p.x])).toEqual([['A', 0.1], ['A', 0.9]])
   })
 
   it('a malformed point in the middle aborts the whole parse', () => {

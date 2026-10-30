@@ -9,7 +9,8 @@
 //   x-axis <near> [--> <far>]
 //   y-axis <near> [--> <far>]
 //   quadrant-1..quadrant-4 <label>
-//   <Label>[:::class]: [x, y] [styles]   x,y in [0,1]
+//   <Label>[:::class]: [x, y] [styles]   x,y in [0,1]; a repeated label is
+//                                        another point, addressed as Label#2, …
 //   classDef <class> <styles>
 //
 // Per-point styling (upstream mermaid#5173) is STRUCTURED content: `:::`
@@ -29,8 +30,9 @@
 // Unmodeled family syntax falls back to a lossless opaque body. The serializer re-emits a
 // canonical form the legacy parser re-parses identically (differential-tested).
 // The legacy renderer ERRORS LOUDLY on malformed lines / out-of-range coords;
-// here those fall back to opaque (preserved verbatim) and still surface the
-// loud render-time error.
+// a malformed line falls back to opaque (preserved verbatim) and still surfaces
+// the loud render-time error, while a coordinate that is not a number in [0, 1]
+// is a parse failure of a modeled statement (Mermaid rejects it too).
 // ============================================================================
 
 import { unknownOpMessage } from './mutation-ops.ts'
@@ -42,7 +44,7 @@ import { ok, err } from './types.ts'
 import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { isValidPointClassName, renderPointStyleEntries } from '../quadrant/point-style.ts'
-import { parseQuadrantChart, quadrantStatementEnds, quadrantTextSource, quadrantTextWritable } from '../quadrant/parser.ts'
+import { parseQuadrantChart, QuadrantCoordinateError, quadrantPointIds, quadrantStatementEnds, quadrantTextSource, quadrantTextWritable } from '../quadrant/parser.ts'
 import { statementText } from '../shared/trailing-comment.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 
@@ -116,8 +118,10 @@ function quadrantWriteProblems(body: QuadrantContent): Array<{ syntax: string; m
 /**
  * Parse quadrant body lines (header excluded). Returns a structured body only
  * if EVERY non-blank, non-comment line is a modeled title / axis / quadrant /
- * point directive with in-range coordinates and no duplicate point labels.
- * Otherwise returns null (opaque fallback). Unlike pie/xychart, an empty
+ * point directive with in-range coordinates. A repeated point label is another
+ * point (Mermaid draws both); typed edits address it by its quadrantPointIds id.
+ * A coordinate outside [0, 1] throws QuadrantCoordinateError: the statement is
+ * modeled, so that source does not parse. Otherwise returns null (opaque fallback). Unlike pie/xychart, an empty
  * quadrant chart (header only) still renders, so there is no minimum-content
  * floor.
  */
@@ -140,7 +144,8 @@ export function parseQuadrantBody(lines: string[]): QuadrantBody | null {
       body.classDefs = Object.assign(Object.create(null), Object.fromEntries(Object.entries(parsed.classDefs).map(([name, style]) => [name, canonicalStyle(style)])))
     }
     return body
-  } catch {
+  } catch (error) {
+    if (error instanceof QuadrantCoordinateError) throw error
     return null
   }
 }
@@ -268,8 +273,10 @@ function validCoord(value: unknown, field: string): Result<number, MutationError
   return ok(value)
 }
 
-function findPoint(body: QuadrantBody, label: string): number {
-  return body.points.findIndex(p => p.label === label)
+/** A point by its identity: its label, or `<label>#<n>` for a repeated label's
+ * later points (quadrantPointIds, the rule the renderer's element ids use). */
+function findPoint(body: QuadrantBody, id: string): number {
+  return quadrantPointIds(body.points.map(point => point.label)).indexOf(id)
 }
 
 export function mutateQuadrant(body: QuadrantBody, op: QuadrantMutationOp): Result<QuadrantBody, MutationError> {

@@ -1,6 +1,6 @@
 import type { QuadrantChart, QuadrantAxis, QuadrantPoint } from './types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
-import { syntaxError } from '../shared/syntax-error.ts'
+import { MermaidSyntaxError, syntaxError } from '../shared/syntax-error.ts'
 import { parsePointStyleEntries, parseClassDefTail, splitPointClassSuffix } from './point-style.ts'
 import { requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { joinStatementLines, quotedTextEnds, statementText, stripTrailingComment } from '../shared/trailing-comment.ts'
@@ -178,6 +178,28 @@ export function quadrantTextRejections(line: string): string[] {
  * Throws on malformed input (see faithfulness contract above). `report`
  * hears the unquoted text Mermaid's lexer rejects (quadrantText).
  */
+/**
+ * One identity per point, in document order: the first point with a label
+ * keeps the label as its id, and each later one gets the next free
+ * `<label>#<n>` (A, A#2, A#3, ...), never a label the author wrote for another
+ * point (an authored `A#2` keeps its name, so the second A becomes A#3).
+ * Renderer element ids and typed point edits share this rule.
+ */
+export function quadrantPointIds(labels: readonly string[]): string[] {
+  const authored = new Set(labels)
+  const used = new Set<string>()
+  return labels.map(label => {
+    let id = label
+    if (used.has(id)) {
+      let n = 2
+      while (authored.has(`${label}#${n}`) || used.has(`${label}#${n}`)) n++
+      id = `${label}#${n}`
+    }
+    used.add(id)
+    return id
+  })
+}
+
 export function parseQuadrantChart(lines: string[], report?: QuadrantTextReport, onPoint?: (point: QuadrantPoint, source: { start: number; end: number }) => void): QuadrantChart {
   const lineStarts = onPoint ? [0] : undefined
   if (lineStarts) for (const line of lines) lineStarts.push(lineStarts[lineStarts.length - 1]! + line.length + 1)
@@ -208,7 +230,6 @@ export function parseQuadrantChart(lines: string[], report?: QuadrantTextReport,
   // Null prototype: `__proto__`/`constructor` are legal class names and must
   // become ordinary own keys, never prototype writes/reads.
   const classDefs: QuadrantChart['classDefs'] = Object.create(null) as QuadrantChart['classDefs']
-  const seenPointLabels = new Set<string>()
 
   for (let i = 0; i < lines.length; i++) {
     // Mermaid's Quadrant grammar ends a statement at a `%%` comment, except a
@@ -273,10 +294,8 @@ export function parseQuadrantChart(lines: string[], report?: QuadrantTextReport,
         }
         const x = parseCoord(label, m[2]!.trim())
         const y = parseCoord(label, m[3]!.trim())
-        if (seenPointLabels.has(label)) {
-          throw new Error(`Duplicate quadrant point label: "${label}"`)
-        }
-        seenPointLabels.add(label)
+        // A repeated label is another point, as in Mermaid; quadrantPointIds
+        // gives each one its own identity.
         if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'addPointLabel', label, { line: i + 1, unit: 'normalized' })
         const point: QuadrantPoint = { label, x, y }
         if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'createPoint', point, { line: i + 1, unit: 'normalized' })
@@ -361,17 +380,27 @@ function parseAxis(tail: string, which: string, report?: QuadrantTextReport): Qu
   return { near }
 }
 
+/** A point coordinate that is not a number in [0, 1]. The point statement is
+ * modeled and Mermaid rejects the value too, so this is a parse failure of the
+ * source, never a reason to preserve it as unmodeled syntax. */
+export class QuadrantCoordinateError extends MermaidSyntaxError {
+  constructor(message: string) {
+    super(message)
+    this.name = 'QuadrantCoordinateError'
+  }
+}
+
 /** Parse a coordinate, enforcing the [0,1] range (loud error otherwise). */
 function parseCoord(label: string, raw: string): number {
   if (!/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(raw)) {
-    throw new Error(
+    throw new QuadrantCoordinateError(
       `Quadrant point "${label}" has non-numeric coordinate "${raw}". ` +
         'Coordinates must be numbers in [0, 1].',
     )
   }
   const value = Number.parseFloat(raw)
   if (!Number.isFinite(value) || value < 0 || value > 1) {
-    throw new Error(
+    throw new QuadrantCoordinateError(
       `Quadrant point "${label}" coordinate "${raw}" is out of range. ` +
         'Coordinates must be in [0, 1].',
     )
