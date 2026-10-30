@@ -172,4 +172,41 @@ describe('xychart bars encode value as length from a shared baseline', () => {
       fcParameters({ numRuns: PROPERTY_RUNS, examples: [[[20, 20]], [[-20, -20]], [[20, -20]], [[-91, -20, 81]]] }),
     )
   })
+
+  it('horizontal charts draw the same sign in SVG and ASCII: positive bars run right of the zero column, negative bars left', () => {
+    const signedArb = fc.array(fc.integer({ min: 20, max: 100 }).chain(magnitude => fc.constantFrom(magnitude, -magnitude)), { minLength: 2, maxLength: 5 })
+    fc.assert(
+      fc.property(signedArb, values => {
+        const source = sourceFor({ horizontal: true, values })
+        const svgBars = renderedBars(renderMermaidSVG(source))
+        expect(svgBars.map(bar => bar.value)).toEqual(values)
+        const baselineX = svgBars.map(bar => bar.value > 0 ? bar.x : bar.x + bar.width)[0]!
+        for (const bar of svgBars) {
+          if (bar.value > 0) expect({ value: bar.value, starts: Math.abs(bar.x - baselineX) < EPSILON }).toEqual({ value: bar.value, starts: true })
+          else expect({ value: bar.value, ends: Math.abs(bar.x + bar.width - baselineX) < EPSILON }).toEqual({ value: bar.value, ends: true })
+        }
+
+        const { ascii, regions } = renderMermaidASCIIWithMeta(source, { useAscii: true, colorMode: 'none' })
+        const rows = ascii.split('\n')
+        const zero = regions.find(region => region.kind === 'label' && region.id === 'y-tick-0')!
+        const plot = regions.find(region => region.kind === 'plot' && region.id === 'plot')!
+        expect(zero).toBeDefined()
+        expect(plot).toBeDefined()
+        const zeroColumn = Math.floor((zero.canvasColStart + zero.canvasColEnd - 1) / 2)
+        const range = parsedRange(source)
+        const cellsPerUnit = (plot.canvasColEnd - plot.canvasColStart) / (range.max - range.min)
+        values.forEach((value, index) => {
+          const category = regions.find(region => region.kind === 'node' && region.id === `x-category-${index}`)!
+          const row = rows[category.canvasRow]!
+          const filled = [...row].flatMap((cell, column) => cell === '#' ? [column] : [])
+          expect(filled.length).toBeGreaterThan(0)
+          // Each boundary rounds to a whole cell, so lengths differ by at most one.
+          expect(Math.abs(filled.length - Math.abs(value) * cellsPerUnit)).toBeLessThanOrEqual(1)
+          if (value > 0) expect({ value, first: Math.min(...filled) }).toEqual({ value, first: zeroColumn })
+          else expect({ value, last: Math.max(...filled) }).toEqual({ value, last: zeroColumn - 1 })
+        })
+      }),
+      fcParameters({ numRuns: PROPERTY_RUNS, examples: [[[20, 20]], [[-20, -20]], [[20, -20]], [[40, -60, 80]]] }),
+    )
+  })
 })
