@@ -13,6 +13,7 @@ import { decodeXML } from 'entities'
 import { displayText, normalizeBrTags, normalizePlainLabel } from '../multiline-utils.ts'
 import type { LayoutWarning } from './types.ts'
 import { preparedDisplayTextValue, type DisplayTextInput } from '../shared/display-text.ts'
+import { graphemes } from '../shared/graphemes.ts'
 
 /** How a family's renderer reads label text: flowchart plain labels keep
  * `*`/`~` literal (`plain`); most families render markdown-lite emphasis;
@@ -21,17 +22,22 @@ import { preparedDisplayTextValue, type DisplayTextInput } from '../shared/displ
 export type LabelEmphasis = 'markdown-lite' | 'plain' | 'literal'
 
 /**
- * Length of a label as rendered: the longest line after entity decoding and
- * the family's display interpretation. `&#160;` counts as one character; in a
- * formatted label `<br/>` starts a new line and counts as zero.
+ * Length of a label as rendered: the longest line, in grapheme clusters,
+ * after entity decoding and the family's display interpretation. `&#160;`,
+ * an accented letter and a ZWJ emoji sequence each count as one character;
+ * in a formatted label `<br/>` starts a new line and counts as zero.
  */
 export function labelDisplayLength(label: DisplayTextInput, emphasis: LabelEmphasis = 'markdown-lite'): number {
-  if (typeof label !== 'string') return preparedDisplayTextValue(label).split('\n').reduce((max, line) => Math.max(max, line.length), 0)
+  if (typeof label !== 'string') return longestLine(preparedDisplayTextValue(label))
   const decoded = decodeXML(label)
   const rendered = emphasis === 'literal'
     ? displayText(decoded, 'literal')
     : displayText(emphasis === 'plain' ? normalizePlainLabel(decoded) : normalizeBrTags(decoded))
-  return rendered.split('\n').reduce((max, line) => Math.max(max, line.length), 0)
+  return longestLine(rendered)
+}
+
+function longestLine(rendered: string): number {
+  return rendered.split('\n').reduce((max, line) => Math.max(max, graphemes(line).length), 0)
 }
 
 /** Build a LABEL_OVERFLOW warning when the rendered length exceeds the cap, else null. */

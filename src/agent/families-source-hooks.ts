@@ -113,7 +113,10 @@ function extractFlowchartLabels(source: string): ExtractedLabel[] {
     const idMatch = raw.match(/^([A-Za-z_][\w-]*)/)
     const target = idMatch ? idMatch[1]! : `line${i + 1}`
     for (const m of raw.matchAll(FLOWCHART_LABEL_RE)) {
-      const text = (m[1] ?? m[3] ?? m[4] ?? m[5] ?? m[6] ?? m[7] ?? m[8] ?? '').trim()
+      let text = (m[1] ?? m[3] ?? m[4] ?? m[5] ?? m[6] ?? m[7] ?? m[8] ?? '').trim()
+      // A quoted "`…`" is a markdown string: its backticks are delimiters,
+      // consumed like the quotes (flowchart-labels.ts parseFlowchartLabel).
+      if (m[1] !== undefined && text.length >= 2 && text.startsWith('`') && text.endsWith('`')) text = text.slice(1, -1).trim()
       if (text) out.push({ text, target })
     }
   }
