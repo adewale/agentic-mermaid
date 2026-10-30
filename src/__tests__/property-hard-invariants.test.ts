@@ -250,6 +250,14 @@ const ROUTE_SHAPE_EXAMPLES: GroupedCase[] = [
   { source: 'flowchart BT\n  n1([Node 1])\n  n1 ==> n4\n  n4 --- n3\n  n2 --x|e3| n2\n  n2 --x|e5| n4\n', members: [], look: 'accessible-high-contrast', mustCertify: true },
 ]
 
+// Reduced counterexamples of the last uncertified sweep renders, one per
+// residual check; each must certify.
+const RESIDUE_EXAMPLES: GroupedCase[] = [
+  // A route whose only clear rebuild arrives at its far endpoint along that
+  // endpoint's own axis.
+  { source: 'flowchart TD\n  n4(Node 4)\n  n5 --- n5\n  n4 --x|e6| n7\n  n5 ==> n7\n', members: [], look: 'accessible-high-contrast', mustCertify: true },
+]
+
 describe('authored group frames hold their members in every look', () => {
   test('generated subgraph flowcharts render, keep members in frames, and name any uncertified check', () => {
     fc.assert(fc.property(groupedFlowchartArb, ({ source, members, look, mustCertify }) => {
@@ -298,6 +306,6 @@ describe('authored group frames hold their members in every look', () => {
           `${member} inside ${id} (${look})\n${source}`).toEqual([true, true, true, true])
         }
       }
-    }), fcParameters({ numRuns: 40, seed: SEED, examples: [...FRAME_BREACH_EXAMPLES, ...UNCERTIFIED_EXAMPLES, ...MISLEADING_EXAMPLES, ...HEADER_BAND_EXAMPLES, ...PASS_CONTRACT_EXAMPLES, ...ENDPOINT_EXAMPLES, ...ROUTE_SHAPE_EXAMPLES].map(example => [example]) }))
+    }), fcParameters({ numRuns: 40, seed: SEED, examples: [...FRAME_BREACH_EXAMPLES, ...UNCERTIFIED_EXAMPLES, ...MISLEADING_EXAMPLES, ...HEADER_BAND_EXAMPLES, ...PASS_CONTRACT_EXAMPLES, ...ENDPOINT_EXAMPLES, ...ROUTE_SHAPE_EXAMPLES, ...RESIDUE_EXAMPLES].map(example => [example]) }))
   })
 })

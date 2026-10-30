@@ -381,9 +381,11 @@ const TERMINAL_STUB = 12
  * orthogonal and simple, clears every card (exact shapes) and its own card's
  * box, clears every title band, and has fewer invalid approaches than before.
  * Bundle-owned routes and self-loops keep their own owners. Fires only on an
- * invalid approach, which no certified layout has.
+ * invalid approach, which no certified layout has. A `residual` call, made
+ * after marker terminals are repaired, also tries a halfway jog that keeps
+ * the clear point's own arrival axis (the point may be the far endpoint).
  */
-export function repairInwardEndpointApproaches(nodes: PositionedNode[], edges: PositionedEdge[], groups: readonly PositionedGroup[], skipEdge: (edge: PositionedEdge) => boolean = () => false): number {
+export function repairInwardEndpointApproaches(nodes: PositionedNode[], edges: PositionedEdge[], groups: readonly PositionedGroup[], skipEdge: (edge: PositionedEdge) => boolean = () => false, residual = false): number {
   const nodeMap = new Map(nodes.map(node => [node.id, node]))
   const normals = { N: { x: 0, y: -1 }, S: { x: 0, y: 1 }, E: { x: 1, y: 0 }, W: { x: -1, y: 0 } } as const
   const outsideBox = (point: Point, node: PositionedNode): boolean =>
@@ -420,17 +422,23 @@ export function repairInwardEndpointApproaches(nodes: PositionedNode[], edges: P
           const beyond = oriented[j]!
           if (!outsideBox(beyond, node)) continue
           const at = (main: number, side_: number): Point => (along === 'x' ? { x: main, y: side_ } : { x: side_, y: main })
-          const tail = (beyond[along] - port[along]) * sign >= TERMINAL_STUB
-            ? [port, at(beyond[along], port[cross]), beyond]
-            : [port, at(port[along] + sign * TERMINAL_STUB, port[cross]), at(port[along] + sign * TERMINAL_STUB, beyond[cross]), beyond]
-          const trial = simplifyPolyline([...tail, ...oriented.slice(j + 1)])
-          const route = start ? trial : trial.toReversed()
-          if (!simpleOrthogonal(route) || !routeClearOfNodes(tail.slice(1), nodes, others)) continue
-          if (nodes.some(other => other.id !== edge.source && other.id !== edge.target && route.some((point, index) => index > 0 && segmentThroughShape(route[index - 1]!, point, other)))) continue
-          if (!routeClearsTitleBands(route, groups)) continue
-          if (invalidEndpointApproaches({ ...edge, points: route }, source, target) >= invalid) continue
-          repaired = route
-          break search
+          const gap = (beyond[along] - port[along]) * sign
+          // An elbow onto the point; a halfway jog, which keeps the point's
+          // own arrival along the same axis (it may be the far endpoint);
+          // or a stub out of the side first when the point is not beyond it.
+          const tails = gap >= TERMINAL_STUB
+            ? [[port, at(beyond[along], port[cross]), beyond], ...(residual ? [[port, at(port[along] + sign * gap / 2, port[cross]), at(port[along] + sign * gap / 2, beyond[cross]), beyond]] : [])]
+            : [[port, at(port[along] + sign * TERMINAL_STUB, port[cross]), at(port[along] + sign * TERMINAL_STUB, beyond[cross]), beyond]]
+          for (const tail of tails) {
+            const trial = simplifyPolyline([...tail, ...oriented.slice(j + 1)])
+            const route = start ? trial : trial.toReversed()
+            if (!simpleOrthogonal(route) || !routeClearOfNodes(tail.slice(1), nodes, others)) continue
+            if (nodes.some(other => other.id !== edge.source && other.id !== edge.target && route.some((point, index) => index > 0 && segmentThroughShape(route[index - 1]!, point, other)))) continue
+            if (!routeClearsTitleBands(route, groups)) continue
+            if (invalidEndpointApproaches({ ...edge, points: route }, source, target) >= invalid) continue
+            repaired = route
+            break search
+          }
         }
       }
       if (!repaired) continue

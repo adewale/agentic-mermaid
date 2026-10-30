@@ -1619,6 +1619,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
       c.titleBandRepairs = rerouted.titleBandRepairs
       c.safetyRepairs = (c.safetyRepairs ?? 0) + rerouted.repaired + repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge))
       repairMarkerTerminals({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style)
+      c.safetyRepairs += repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge), true)
     },
   },
   {
