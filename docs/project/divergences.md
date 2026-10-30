@@ -958,3 +958,15 @@ breaks a single-line title cannot hold. A Sequence edit that removes the
 statement between two preserved segments leaves the one segment a re-read
 builds, and Event Modeling's native accessibility comments are read back
 decoded, as every other family's are.
+
+### Identities a typed edit introduces
+
+A typed edit writes only identities Mermaid 12.2.0 reads as themselves, even
+where our reader is more generous. A Flowchart node id (`add_node`,
+`rename_node`, `add_edge`) or subgraph id (`add_subgraph`) must read back as
+that id when written as a statement of its own: `A;B`, `A[B]`, `A{B}`, `a b`
+and ` A` are refused, as are ids shared with an existing subgraph or node. A
+Flowchart classDef name cannot hold `--`, which Mermaid's lexer reads as a
+link. A new State name (`add_state`, `rename_state`, `make_composite`,
+floating notes) holds no hyphen and is not `default`, `click` or `href`.
+Authored names of those shapes are still read, and verify still reports them.

@@ -227,3 +227,18 @@ describe('implicit-state preservation after transition removal', () => {
       : []).toEqual(['A', 'B'])
   })
 })
+
+// Our reader takes hyphenated names (and `default`, `click`, `href`) and verify
+// reports them as source Mermaid cannot read (`state_endpoint_name`). A typed
+// edit writes strictly: rename_state S1 -> `x--y` used to succeed and write
+// `[*] --> x--y`, which Mermaid 12.2.0 rejects (V2).
+describe('a name a typed edit introduces is one Mermaid reads', () => {
+  const NAMES = ['x--y', 'x-y', 'Idle-2', 'default', 'click', 'href']
+  const OPS: Array<(name: string) => StateMutationOp> = [
+    name => ({ kind: 'add_state', id: name }),
+    name => ({ kind: 'rename_state', from: 'Idle', to: name }),
+  ]
+  test.each(NAMES.flatMap(name => OPS.map(op => op(name))))('%j is refused', op => {
+    expect(mutate(state(), op)).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
+  })
+})

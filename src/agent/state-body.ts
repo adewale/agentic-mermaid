@@ -990,6 +990,19 @@ function validId(value: unknown, field: string): Result<string, MutationError> {
   return ok(value)
 }
 
+/** A state name a typed edit introduces. Our reader also takes hyphenated
+ * names and the words `default`, `click` and `href`, but pinned Mermaid
+ * cannot read them as states (verify reports `state_endpoint_name`), so an
+ * edit never writes a new one. */
+function validStateName(value: unknown, field: string): Result<string, MutationError> {
+  const id = validId(value, field)
+  if (!id.ok) return id
+  if (id.value.includes('-') || /^(?:default|click|href)$/i.test(id.value)) {
+    return err({ code: 'INVALID_OP', message: `State ${field} '${id.value}' is not a name Mermaid 12.2.0 reads as a state: it holds no hyphen and is not default, click or href` })
+  }
+  return id
+}
+
 type ClassifiedEndpoint = { value: string; kind: 'pseudo' | 'history' | 'state' }
 
 /** Classify endpoint syntax before mutation; only ordinary state endpoints may
@@ -1073,7 +1086,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
 
   switch (op.kind) {
     case 'add_state': {
-      const id = validId(op.id, 'state id')
+      const id = validStateName(op.id, 'state id')
       if (!id.ok) return id
       const ids = new Set<string>()
       collectIds(next.states, ids)
@@ -1125,7 +1138,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       break
     }
     case 'rename_state': {
-      const to = validId(op.to, 'rename target')
+      const to = validStateName(op.to, 'rename target')
       if (!to.ok) return to
       const loc = locate(next, op.from)
       if (!loc) return err({ code: 'STATE_NOT_FOUND', message: `State '${op.from}' not found` })
