@@ -16,6 +16,11 @@ import {
   styleSpecTypeScriptDeclaration,
   validateStyleSpec,
 } from '../scene/style-registry.ts'
+import { BUILTIN_PALETTE_DEFINITIONS, type BuiltinPaletteDefinition } from '../palette-catalog.ts'
+import { renderResolvedScene } from '../index.ts'
+import { wcagCssContrastRatio } from '../shared/color-math.ts'
+import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 import { useTestChildren } from './helpers/test-child.ts'
 
@@ -188,6 +193,59 @@ describe('StyleSpec has one projected field authority', () => {
     expect(styleItems.map(item => item[0])).not.toContain(PROBE_PALETTE)
     expect(themeItems.map(item => item[0])).not.toContain(PROBE_LOOK)
   }, 60_000)
+
+  // A Palette layered over a Look (the documented `hand-drawn,dracula`) used
+  // to keep the Look's ink chosen for its own page: hand-drawn's #26262b
+  // border on dracula's #282a36 (1.06:1), and data ink such as Gantt bars
+  // painted from it (#26262b bars on zinc-dark, white blueprint bars on
+  // zinc-light).
+  test('a Palette layered over any built-in Look draws ink chosen for the Palette\'s page', () => {
+    const looks = knownStyleDescriptors().filter(descriptor => descriptor.kind === 'look' && descriptor.inputName !== 'crisp')
+    for (const look of looks) for (const palette of BUILTIN_PALETTE_DEFINITIONS as readonly BuiltinPaletteDefinition[]) {
+      const colors = resolveStyleStack([look.inputName, palette.inputName])!.colors!
+      const pair = `${look.inputName} × ${palette.inputName}`
+      expect([colors.bg, colors.fg], pair).toEqual([palette.colors.bg, palette.colors.fg])
+      for (const token of ['line', 'accent', 'muted', 'border'] as const) {
+        if (palette.colors[token] !== undefined) expect(colors[token], `${pair}: ${token}`).toBe(palette.colors[token])
+        // Ink the Palette leaves to the Look must read on the Palette's page.
+        else if (colors[token] !== undefined) expect(wcagCssContrastRatio(colors[token]!, palette.colors.bg), `${pair}: ${token} ${colors[token]}`).toBeGreaterThanOrEqual(3)
+      }
+    }
+    const gantt = 'gantt\n  dateFormat YYYY-MM-DD\n  section S\n  T1 :a1, 2024-01-01, 3d\n  T2 :after a1, 2d'
+    for (const look of looks) for (const palette of ['zinc-light', 'zinc-dark']) {
+      const scene = renderResolvedScene(gantt, { style: [look.inputName, palette] })
+      const tasks = scene.parts.filter(part => part.role === 'task')
+      expect(tasks.length).toBe(2)
+      for (const task of tasks) {
+        const inks = task.primitives.flatMap(primitive => primitive.kind === 'text' ? [] : [primitive.paint.fill, primitive.paint.stroke])
+        const contrast = Math.max(...inks.map(ink => wcagCssContrastRatio(ink, scene.colors.bg) ?? 0))
+        expect(contrast, `${look.inputName} × ${palette}: Gantt bar ink`).toBeGreaterThanOrEqual(3)
+      }
+    }
+  })
+
+  test('a layer that moves the page keeps earlier ink that reads there and makes the rest read', () => {
+    const hex = fc.tuple(fc.integer({ min: 0, max: 255 }), fc.integer({ min: 0, max: 255 }), fc.integer({ min: 0, max: 255 }))
+      .map(channels => `#${channels.map(channel => channel.toString(16).padStart(2, '0')).join('')}`)
+    const ink = fc.record({ line: hex, accent: hex, muted: hex, border: hex })
+    fc.assert(fc.property(hex, hex, ink, hex, hex, (bg, fg, authored, page, pageFg) => {
+      fc.pre(bg !== page)
+      const colors = resolveStyleStack([{ colors: { bg, fg, ...authored } }, { colors: { bg: page, fg: pageFg } }])!.colors!
+      for (const token of ['line', 'accent', 'muted', 'border'] as const) {
+        const carried = colors[token]
+        if (carried === undefined) continue // re-derived from the new page
+        if (wcagCssContrastRatio(authored[token], page)! >= 3) expect(carried).toBe(authored[token])
+        else expect(wcagCssContrastRatio(carried, page)!).toBeGreaterThanOrEqual(3)
+      }
+    }), fcParameters({
+      numRuns: 300,
+      // The documented stack's border, and a page whose foreground cannot reach 3:1.
+      examples: [
+        ['#f7f5ef', '#1a1a1e', { line: '#26262b', accent: '#26262b', muted: '#26262b', border: '#26262b' }, '#282a36', '#f8f8f2'],
+        ['#ffffff', '#000000', { line: '#777777', accent: '#777777', muted: '#777777', border: '#777777' }, '#767676', '#808080'],
+      ],
+    }))
+  })
 
   test('removed Tufte and default bare inputs have no metadata or public resolution', () => {
     expect(knownStyleDescriptors().some(descriptor => descriptor.identity.id === 'look:tufte')).toBe(true)

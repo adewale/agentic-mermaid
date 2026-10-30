@@ -10,7 +10,10 @@ without that capability instead of promising style support they cannot render.
 
 Styles compose by **stacking**: `RenderOptions.style` accepts a name, an
 inline spec, or an array of either, merged left → right (later fields win,
-colors merge per channel):
+colors merge per channel; a layer that changes `bg` carries earlier `line`,
+`accent`, `muted` and `border` ink it leaves unset onto its page, keeping ink
+that still reads at 3:1 and otherwise keeping its place between page and
+foreground):
 
 ```ts
 import { renderMermaidSVG, registerStyle } from 'agentic-mermaid'

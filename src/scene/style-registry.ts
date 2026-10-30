@@ -64,6 +64,7 @@ import { SCENE_ROLE_DESCRIPTORS, type BuiltinSceneRole } from './roles.ts'
 export { resolveRoleStyle, type SemanticBindingContext } from './roles.ts'
 import { isPlainRecord } from '../shared/plain-data.ts'
 import { nearestName } from '../shared/nearest-name.ts'
+import { contrastRatio, ensureContrast, toHex, tryParseCssColor, WCAG_AA_NON_TEXT_CONTRAST } from '../shared/color-math.ts'
 
 /** Private renderer defaults for built-in looks. This is intentionally not
  *  part of the public StyleSpec schema, registerStyle boundary, or docs. */
@@ -392,10 +393,43 @@ function mergeUniquePolicy<T>(left: readonly T[] | undefined, right: readonly T[
   return values
 }
 
+/** Ink channels chosen to read against one page. */
+const PAGE_RELATIVE_INK_TOKENS = ['line', 'accent', 'muted', 'border'] as const
+
+function opaqueRgb(value: string | undefined): readonly [number, number, number] | undefined {
+  const rgba = value === undefined ? null : tryParseCssColor(value)
+  return rgba && rgba[3] === 1 ? [rgba[0], rgba[1], rgba[2]] : undefined
+}
+
+/** Ink an earlier layer chose for `from` (with foreground `fromFg`), carried
+ * onto the page `to`. Ink that still reads there (WCAG non-text contrast) is
+ * kept as authored. Otherwise it keeps its place between page and foreground,
+ * and reads: hand-drawn's near-ink border becomes near-ink on dracula rather
+ * than staying dark on dark. Undefined re-derives the channel from the new
+ * page; ink that cannot be measured is left as authored. */
+function inkForPage(ink: string, from: string | undefined, fromFg: string | undefined, to: string, toFg: string | undefined): string | undefined {
+  const value = opaqueRgb(ink), page = opaqueRgb(to)
+  if (!value || !page) return ink
+  if ((contrastRatio(toHex(...value), toHex(...page)) ?? Infinity) >= WCAG_AA_NON_TEXT_CONTRAST) return ink
+  const oldPage = opaqueRgb(from), oldFg = opaqueRgb(fromFg), newFg = opaqueRgb(toFg)
+  if (!oldPage || !oldFg || !newFg) return undefined
+  const axis = oldFg.map((channel, index) => channel - oldPage[index]!)
+  const length = axis.reduce((sum, channel) => sum + channel * channel, 0)
+  if (length === 0) return undefined
+  const position = Math.max(0, Math.min(1, axis.reduce((sum, channel, index) => sum + channel * (value[index]! - oldPage[index]!), 0) / length))
+  const carried = toHex(...page.map((channel, index) => channel + position * (newFg[index]! - channel)) as [number, number, number])
+  // A narrower palette can leave that place below the minimum; move toward
+  // its foreground just enough to read.
+  return ensureContrast(carried, toHex(...page), WCAG_AA_NON_TEXT_CONTRAST, toHex(...newFg))
+}
+
 /** Merge a stack of styles left → right: later fields win; colors merge per
- *  channel. Names resolve through the registry; unknown names throw with the
- *  known list (fail loud — a silently-crisp fallback would erode trust in
- *  style coverage). */
+ *  channel, except that a layer which moves the page (sets a different `bg`)
+ *  carries the earlier ink channels it leaves unset onto its page (inkForPage)
+ *  instead of keeping ink chosen for the old one (hand-drawn's dark border
+ *  under dracula). Names resolve through the registry; unknown names throw
+ *  with the known list (fail loud — a silently-crisp fallback would erode
+ *  trust in style coverage). */
 function resolveInternalStyleStack(input: StyleInput | StyleInput[] | undefined): InternalStyleSpec | undefined {
   if (input === undefined) return undefined
   const stack = Array.isArray(input) ? input : [input]
@@ -422,6 +456,16 @@ function resolveInternalStyleStack(input: StyleInput | StyleInput[] | undefined)
       if (value === undefined) continue
       if (key === 'colors') {
         const colors = { ...merged.colors }
+        const page = spec.colors?.bg
+        if (page !== undefined && page.trim().toLowerCase() !== merged.colors?.bg?.trim().toLowerCase()) {
+          for (const token of PAGE_RELATIVE_INK_TOKENS) {
+            const inherited = colors[token]
+            if (inherited === undefined || spec.colors?.[token] !== undefined) continue
+            const carried = inkForPage(inherited, merged.colors?.bg, merged.colors?.fg, page, spec.colors?.fg ?? merged.colors?.fg)
+            if (carried === undefined) delete colors[token]
+            else colors[token] = carried
+          }
+        }
         for (const [token, color] of Object.entries(spec.colors ?? {})) {
           if (color !== undefined) (colors as Record<string, string>)[token] = color
         }
