@@ -104,3 +104,14 @@ The emitted HTML also includes the full MIT notice of `base64-js` 1.5.1 and
 Pako 1.0.11's MIT license and Zlib CRC header (Jean-loup Gailly, Mark Adler,
 Vitaly Puzrin and Andrey Tupitsin). Decoder notices stay outside the opaque
 worker payload. These dependencies do not enter the public Node/Scene API.
+
+## D3 named connector interpolation
+
+The shared named-curve projection uses **d3-shape 1.3.7**. Its installed
+dependency closure includes **d3-path 1.0.9**. Both licenses are reproduced.
+
+- d3-shape: <https://github.com/d3/d3-shape/tree/v1.3.7>; BSD-3-Clause, copyright 2010–2015 Mike Bostock; `LICENSES/d3-shape-BSD-3-Clause.txt`.
+- d3-path: <https://github.com/d3/d3-path/tree/v1.0.9>; BSD-3-Clause, copyright 2015–2016 Mike Bostock; `LICENSES/d3-path-BSD-3-Clause.txt`.
+
+The exact installed license terms are reproduced in the listed files and
+included in the npm package.
