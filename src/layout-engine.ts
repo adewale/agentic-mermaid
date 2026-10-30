@@ -91,6 +91,7 @@ import {
   equalizePeerNodeDimensions,
   reanchorOffOutlineEndpoints,
   rerouteEdgesThroughNodes,
+  repairInwardEndpointApproaches,
   alignForkRejoinPeerCenters,
   alignPortLanes,
   alignLabeledSourcePort,
@@ -1598,7 +1599,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'rerouteEdgesThroughNodes', doc: 're-route an edge left running through a node by a node-mover (honorLinkRankDistance/alignPortLanes) around the obstacle and restore protected marker leads before label placement (edge-only, freeze-safe)',
     after: ['reanchorOffOutlineEndpoints'], mutates: ['edges'], determinism: 'in-place',
-    run: c => { c.titleBandRepairs = rerouteEdgesThroughNodes(c.nodes, c.edges, c.graph, undefined, c.groups); repairMarkerTerminals({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
+    run: c => { c.titleBandRepairs = rerouteEdgesThroughNodes(c.nodes, c.edges, c.graph, undefined, c.groups); repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge)); repairMarkerTerminals({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
   },
   {
     id: 'repairLabelsOnSharedTrunks', doc: 'give a shared-trunk label a clear seat or a proved private channel (edge-only, freeze-safe)',

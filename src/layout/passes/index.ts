@@ -1,7 +1,7 @@
 // Post-ELK geometry passes. Keep orchestration in layout-engine.ts and pass ownership here.
 export { equalizePeerNodeDimensions, centerPeerBarycenters, corankFanInSpokes, markCorankFanInBundles, alignForkRejoinPeerCenters } from './peers.ts'
 export { honorLinkRankDistance } from './rank-distance.ts'
-export { reanchorOffOutlineEndpoints, rerouteEdgesThroughNodes, collapseTinyBundledHitches } from './obstacle-routing.ts'
+export { reanchorOffOutlineEndpoints, rerouteEdgesThroughNodes, repairInwardEndpointApproaches, collapseTinyBundledHitches } from './obstacle-routing.ts'
 export { reassignBundledSiblingLabels, applySymmetricFanoutEmissions } from './fanout.ts'
 export { applySymmetricParallelEdgeLanes, applyParallelDuplicateLanes } from './parallel-lanes.ts'
 export { alignLabeledSourcePort, alignPortLanes } from './port-lanes.ts'

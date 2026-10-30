@@ -4,7 +4,8 @@ import { recertifyReroutedEdge, shapePorts, simplifyPolyline } from '../../route
 import { bundleRouteBeforeRewrite, retainBundleRouteAfterRewrite } from '../bundle-routes.ts'
 import { calculatePathMidpoint, layoutFlow, nodeCrossSize, nodeCrossStart } from '../geometry.ts'
 import { doglegBetween, hookedElbow, routeClearOfNodes } from './shared.ts'
-import { terminalHookLength, simpleOrthogonal, type LabelMetricsStyle } from '../route-geometry.ts'
+import { invalidEndpointApproaches, terminalHookLength, simpleOrthogonal, type LabelMetricsStyle } from '../route-geometry.ts'
+import { shapeRoutingProfile } from '../../shape-outline.ts'
 import { isOutwardShapeApproach } from '../../shape-clipping.ts'
 
 /**
@@ -345,5 +346,99 @@ export function collapseTinyBundledHitches(nodes: PositionedNode[], edges: Posit
         retainBundleRouteAfterRewrite(edge, bundle)
       }
     }
+  }
+}
+
+/** No segment enters a group's reserved title band (the certification
+ * group-header check); an unmeasured band cannot prove a clear route. */
+function routeClearsTitleBands(pts: readonly Point[], groups: readonly PositionedGroup[]): boolean {
+  const visit = (group: PositionedGroup): boolean => {
+    const height = group.concurrencyRegion ? 0 : group.headerHeight
+    if (group.width !== 0 && (height === undefined || !Number.isFinite(height) || height < 0)) return false
+    if (height !== undefined && height > 0 && group.width > 0) for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1]!, b = pts[i]!
+      if (Math.max(a.x, b.x) > group.x && Math.min(a.x, b.x) < group.x + group.width
+        && Math.max(a.y, b.y) > group.y && Math.min(a.y, b.y) < group.y + height) return false
+    }
+    return group.children.every(visit)
+  }
+  return groups.every(visit)
+}
+
+const TERMINAL_STUB = 12
+
+/**
+ * Post-freeze repair for an endpoint whose terminal shaft approaches its card
+ * from inside or along the border (the rubric's endpointApproaches check).
+ * ELK can hook a route around a card and end it with a short stub from inside
+ * the card's box, and a non-rectangular outline can turn its rectangular port
+ * into an inward or tangent approach. Keeping the rest of the route, the tail
+ * is rebuilt from the first route point outside the card: an elbow onto the
+ * endpoint's own side (or a cardinal port) that arrives along the outward
+ * normal, with a stub of at least TERMINAL_STUB when the point is not already
+ * beyond the side. A rebuilt tail is adopted only when the whole route stays
+ * orthogonal and simple, clears every card (exact shapes) and its own card's
+ * box, clears every title band, and has fewer invalid approaches than before.
+ * Bundle-owned routes and self-loops keep their own owners. Fires only on an
+ * invalid approach, which no certified layout has.
+ */
+export function repairInwardEndpointApproaches(nodes: PositionedNode[], edges: PositionedEdge[], groups: readonly PositionedGroup[], skipEdge: (edge: PositionedEdge) => boolean = () => false): void {
+  const nodeMap = new Map(nodes.map(node => [node.id, node]))
+  const normals = { N: { x: 0, y: -1 }, S: { x: 0, y: 1 }, E: { x: 1, y: 0 }, W: { x: -1, y: 0 } } as const
+  const outsideBox = (point: Point, node: PositionedNode): boolean =>
+    point.x < node.x - 1 || point.x > node.x + node.width + 1 || point.y < node.y - 1 || point.y > node.y + node.height + 1
+  const nearestSide = (node: PositionedNode, point: Point): keyof typeof normals => {
+    const gaps = [['N', Math.abs(point.y - node.y)], ['S', Math.abs(point.y - node.y - node.height)], ['W', Math.abs(point.x - node.x)], ['E', Math.abs(point.x - node.x - node.width)]] as const
+    return [...gaps].sort((a, b) => a[1] - b[1])[0]![0]
+  }
+  for (const edge of edges) {
+    if (edge.source === edge.target || edge.style === 'invisible' || edge.points.length < 2 || skipEdge(edge)) continue
+    const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
+    let invalid = invalidEndpointApproaches(edge, source, target)
+    if (invalid === 0) continue
+    let points = edge.points
+    for (const start of [true, false]) {
+      const node = start ? source : target
+      if (!node || invalidEndpointApproaches({ ...edge, points }, start ? node : undefined, start ? undefined : node) === 0) continue
+      const oriented = start ? points : points.toReversed()
+      const end = oriented[0]!
+      const ports = shapeRoutingProfile(node).sides
+      const own = nearestSide(node, end)
+      const candidates: Array<{ port: Point; side: keyof typeof normals }> = [{ port: end, side: own }]
+      for (const side of [own, 'N', 'S', 'E', 'W'] as const) {
+        const port = ports[side].preferred
+        if (!candidates.some(candidate => candidate.port.x === port.x && candidate.port.y === port.y)) candidates.push({ port, side })
+      }
+      const others = new Set([start ? edge.target : edge.source])
+      let repaired: Point[] | undefined
+      search: for (const { port, side } of candidates) {
+        const normal = normals[side], along: 'x' | 'y' = normal.x === 0 ? 'y' : 'x', cross: 'x' | 'y' = along === 'x' ? 'y' : 'x'
+        const sign = normal[along]
+        for (let j = 1; j < oriented.length; j++) {
+          const beyond = oriented[j]!
+          if (!outsideBox(beyond, node)) continue
+          const at = (main: number, side_: number): Point => (along === 'x' ? { x: main, y: side_ } : { x: side_, y: main })
+          const tail = (beyond[along] - port[along]) * sign >= TERMINAL_STUB
+            ? [port, at(beyond[along], port[cross]), beyond]
+            : [port, at(port[along] + sign * TERMINAL_STUB, port[cross]), at(port[along] + sign * TERMINAL_STUB, beyond[cross]), beyond]
+          const trial = simplifyPolyline([...tail, ...oriented.slice(j + 1)])
+          const route = start ? trial : trial.toReversed()
+          if (!simpleOrthogonal(route) || !routeClearOfNodes(tail.slice(1), nodes, others)) continue
+          if (nodes.some(other => other.id !== edge.source && other.id !== edge.target && route.some((point, index) => index > 0 && segmentThroughShape(route[index - 1]!, point, other)))) continue
+          if (!routeClearsTitleBands(route, groups)) continue
+          if (invalidEndpointApproaches({ ...edge, points: route }, source, target) >= invalid) continue
+          repaired = route
+          break search
+        }
+      }
+      if (!repaired) continue
+      points = repaired
+      invalid = invalidEndpointApproaches({ ...edge, points }, source, target)
+    }
+    if (points === edge.points) continue
+    const savedCert = edge.routeCertificate
+    edge.points = points
+    recertifyReroutedEdge(edge, savedCert, source, target)
+    if (edge.label) edge.labelPosition = calculatePathMidpoint(points)
   }
 }

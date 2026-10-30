@@ -228,6 +228,15 @@ const PASS_CONTRACT_EXAMPLES: GroupedCase[] = [
   },
 ]
 
+// Reduced issue-A7 counterexamples whose terminal shaft approached its card
+// from inside: ELK hooked a feedback route around its target and ended it with
+// a short stub from inside the card's box, and a route that ran up inside a
+// slanted card's box hooked down into its bottom port.
+const ENDPOINT_EXAMPLES: GroupedCase[] = [
+  { source: 'flowchart BT\n  n2((Node 2))\n  n3[/Node 3/]\n  n4 --x|e0| n1\n  n0 --o|e2| n2\n  n0 --x n0\n  n2 --x n0\n  n3 --- n2\n  n4 <--> n1\n  n4 ==>|e7| n1\n  n2 --x n1\n', members: [], look: 'default', mustCertify: true },
+  { source: 'flowchart BT\n  n1 <--> n1\n  n10 --x|e1| n1\n  n3 --> n1\n  n10 --o n11\n', members: [], look: 'accessible-high-contrast', mustCertify: true },
+]
+
 describe('authored group frames hold their members in every look', () => {
   test('generated subgraph flowcharts render, keep members in frames, and name any uncertified check', () => {
     fc.assert(fc.property(groupedFlowchartArb, ({ source, members, look, mustCertify }) => {
@@ -276,6 +285,6 @@ describe('authored group frames hold their members in every look', () => {
           `${member} inside ${id} (${look})\n${source}`).toEqual([true, true, true, true])
         }
       }
-    }), fcParameters({ numRuns: 40, seed: SEED, examples: [...FRAME_BREACH_EXAMPLES, ...UNCERTIFIED_EXAMPLES, ...MISLEADING_EXAMPLES, ...HEADER_BAND_EXAMPLES, ...PASS_CONTRACT_EXAMPLES].map(example => [example]) }))
+    }), fcParameters({ numRuns: 40, seed: SEED, examples: [...FRAME_BREACH_EXAMPLES, ...UNCERTIFIED_EXAMPLES, ...MISLEADING_EXAMPLES, ...HEADER_BAND_EXAMPLES, ...PASS_CONTRACT_EXAMPLES, ...ENDPOINT_EXAMPLES].map(example => [example]) }))
   })
 })
