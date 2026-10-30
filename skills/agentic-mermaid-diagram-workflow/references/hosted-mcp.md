@@ -45,7 +45,7 @@ synonym is still an invalid call.
 ## Direct tools
 
 <!-- complete: hosted-mcp-tools -->
-- `verify({ source })` returns structural `ok`, detected `family`, `summary`,
+- `verify({ source })` returns `ok`, detected `family`, `summary`,
   `warnings`, and layout counts. Confirm the family as well as `ok`.
 - `describe({ source, format })` uses `text` for prose, `json` for an AX tree,
   and `facts` for compact deterministic semantic fact lines.
@@ -60,6 +60,10 @@ synonym is still an invalid call.
 - `execute({ code, timeoutMs? })` runs synchronous JavaScript with the injected
   `mermaid.*` global. Reserve it for custom control flow that a direct tool or
   op list cannot express.
+
+<!-- BEGIN GENERATED: verify-result -->
+`verify.ok` means no unsuppressed error was detected, including measured content occlusion and explicit error policies. It is not a visual-quality or semantic-correctness score.
+<!-- END GENERATED: verify-result -->
 
 There is no hosted `capabilities` tool. Use the MCP client's `tools/list` for
 tool discovery and `describe_sdk` for one family's mutation schema.
