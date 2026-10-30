@@ -1,0 +1,19 @@
+{
+  "base": "5f76c56f5afe345406a3da480fced0299d5cb384",
+  "head": "ae46880e0779f0726ff9bf5b01bb216b6a578b41",
+  "pr": 590,
+  "namedInput": "tiny-axis.mmd",
+  "textInput": {
+    "softHyphen": "ab\u00adcdef",
+    "zeroWidthSpace": "ab\u200bcdef",
+    "fontSize": 14,
+    "fontWeight": 400,
+    "maxWidth": 27
+  },
+  "artifactSha256": {
+    "after.svg": "cfb4fffd72312fdb5192f05e80feaa4486c63f172933dd76b9a8b330574c8d38",
+    "before-after.png": "202db6daef0ba14a1ec10e9eac8a337e71c2fc7d4ffbd2922415d5a136b10f25",
+    "before.svg": "755dd68496374f53a039631191daf90b1a978af9dd716fac75a6591e5894d49c"
+  },
+  "limit": "One numeric fixture and fixed text/font budget; no general layout, font, platform or arbitrary-TeX guarantee."
+}
