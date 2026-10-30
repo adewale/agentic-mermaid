@@ -36,6 +36,18 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   Looks and Palettes, as `render_svg` does; all render tools share one
   description.
 
+- Agent-facing docs: the site publishes the skill's `references/hosted-mcp.md`
+  that `SKILL.md` tells hosted agents to read; the getting-started hosted
+  `render_svg` example nests `style` and `seed` in `options`; generator and
+  audit comments no longer appear in `agent-instructions.md`, `start.md`,
+  `SKILL.md` or `am --agent-instructions`; `/docs/mcp/` and the skill page list
+  the local server's six tools; `/errors/verify-failed/` names every
+  error-severity code instead of claiming only structural warnings block. The
+  guide explains `SCALE_RANGE_EXCLUDES_ZERO` and says `BELOW_READABLE_SIZE` and
+  `PNG_FONT_COVERAGE` are PNG raster warnings, not verify codes. The build now
+  fails when a served skill file names an unpublished reference or a published
+  page shows hosted arguments `/mcp` rejects.
+
 - Sequence facts and `describe` (text, tree, summaries) show participant
   names, message text, titles and fragment captions as the renderers draw
   them: `participant A as "Alice"` reads `participant A : Alice`, not

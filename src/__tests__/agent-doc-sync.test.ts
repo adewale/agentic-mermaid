@@ -91,9 +91,12 @@ function sdkDeclarationTypeErrors(consumer: string): string[] {
 }
 
 describe('Instructions_for_agents.md', () => {
-  test('byte-matches am --agent-instructions exactly', () => {
+  test('am --agent-instructions is the guide without its repository-maintenance comments', () => {
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
-    expect(AGENT_INSTRUCTIONS).toEqual(guide)
+    // Generated-block delimiters and `complete:` audit annotations are for
+    // repository tooling; the agent-facing copy keeps every other byte.
+    expect(AGENT_INSTRUCTIONS).not.toContain('<!--')
+    expect(AGENT_INSTRUCTIONS).toEqual(guide.replace(/^<!-- [^>]* -->\n/gm, '').replace(/<!-- [^>]* -->/g, ''))
   })
   test('quick-start Code Mode snippets execute and lint clean', async () => {
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')

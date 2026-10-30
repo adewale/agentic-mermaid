@@ -1,11 +1,13 @@
 import { join } from 'node:path'
+import { agentFacingMarkdown } from '../src/shared/agent-doc-text.ts'
 
 const ROOT = join(import.meta.dir, '..')
 const CHECK = process.argv.includes('--check')
 const guidePath = join(ROOT, 'Instructions_for_agents.md')
 const modulePath = join(ROOT, 'src', 'cli', 'agent-instructions.ts')
 
-const guide = await Bun.file(guidePath).text()
+// The CLI hands agents the guide without its repository-maintenance comments.
+const guide = agentFacingMarkdown(await Bun.file(guidePath).text())
 const artifacts = [
   [modulePath, `// Generated from Instructions_for_agents.md by scripts/generate-agent-doc-artifacts.ts.\nexport const AGENT_INSTRUCTIONS = ${JSON.stringify(guide)}\n`],
 ] as const

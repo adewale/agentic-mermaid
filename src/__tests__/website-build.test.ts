@@ -25,7 +25,10 @@ import { evaluateBrowserScript, FakeDocument, manualTimers, runBrowserScriptInCo
 
 ensureWebsiteBuilt()
 import { HOSTED_TOOLS, SUPPORTED_PROTOCOL_VERSIONS } from '../mcp/hosted-server.ts'
+import { LOCAL_TOOLS } from '../mcp/server.ts'
+import { validateMcpToolArguments } from '../mcp/tool-surface.ts'
 import { verifyMermaid } from '../agent/verify.ts'
+import { WARNING_SEVERITY } from '../agent/types.ts'
 import { SHARED_RENDER_OPTION_FIELDS, sharedRenderOptionsJsonSchema, validateSerializableRenderOptions } from '../render-contract.ts'
 import { knownStyleDescriptors } from '../scene/style-registry.ts'
 import { resolveEditorRenderOptions } from '../editor-render-options.ts'
@@ -668,6 +671,19 @@ describe('Workers Static Assets website contract', () => {
       expect(served).toContain(`[${ref}](${target})`)
     }
     expect(Array.from(served.matchAll(/`(?:docs\/|references\/upstream\/)[^`]*`/g), match => match[0])).toEqual([])
+    // Every reference the served copy still names relative to itself resolves
+    // to a published file (SKILL.md tells hosted agents to read hosted-mcp.md).
+    for (const ref of new Set(Array.from(served.matchAll(/`(references\/[^`\s]+)`/g), match => match[1]!))) {
+      expect({ ref, published: existsSync(join(SITE, 'skills/agentic-mermaid-diagram-workflow', ref)) }).toEqual({ ref, published: true })
+    }
+  })
+
+  test('agent-facing Markdown carries no repository-maintenance comments', () => {
+    const agentText = ['agent-instructions.md', 'start.md', 'index.md', ...files().filter(rel => rel.startsWith('skills/') && rel.endsWith('.md'))]
+    for (const rel of agentText) {
+      const markers = read(rel).match(/<!-- (?:(?:BEGIN|END) GENERATED|complete):[^>]*-->/g) ?? []
+      expect({ rel, markers }).toEqual({ rel, markers: [] })
+    }
   })
 
 
@@ -840,7 +856,8 @@ describe('Workers Static Assets website contract', () => {
     const gettingStarted = read('docs/getting-started/index.html')
     expect(gettingStarted).toContain('data-copy-name="MCP config"')
     expect(gettingStarted).toContain('Fetch https://agentic-mermaid.dev/start.md and follow it.')
-    expect(read('start.md').trim()).toBe(readFileSync(join(REPO, 'website/source/start.md'), 'utf8').trim())
+    // Served as authored, minus the repository's generated-block comments.
+    expect(read('start.md').trim()).toBe(readFileSync(join(REPO, 'website/source/start.md'), 'utf8').replace(/^<!-- [^>]* -->\n/gm, '').replace(/<!-- [^>]* -->/g, '').trim())
     expect(home).toContain('/examples/index.json')
     expect(home).toContain('/skills/agentic-mermaid-diagram-workflow/SKILL.md')
     const editorScript = editorScriptRel(editor)
@@ -1447,10 +1464,8 @@ describe('Workers Static Assets website contract', () => {
   test('MCP claims cover the hosted endpoint without a stale public harness manifest', () => {
     expect(existsSync(join(SITE, 'harnesses.json'))).toBe(false)
     const publicText = files().filter((f) => /\.(html|json|md|txt)$/.test(f)).map(read).join('\n')
-    expect(publicText).toContain('execute</code>, <code>describe_sdk</code>, <code>render_png</code>, and <code>describe</code>')
-    const mcpPage = read('docs/mcp/index.html')
-    expect(mcpPage).toContain('Hosted tools: <code>execute</code>, <code>describe_sdk</code>, <code>render_svg</code>')
-    expect(mcpPage).toContain('The local MCP tools are <code>execute</code>, <code>describe_sdk</code>, <code>render_png</code>, and <code>describe</code>')
+    // The tool lists themselves are checked against both registries in
+    // 'pages name exactly the tools each MCP server lists'.
     expect(publicText).toContain('https://agentic-mermaid.dev/mcp')
     expect(publicText).toContain('https://agentic-mermaid.dev/.well-known/mcp')
     expect(publicText).toContain('https://agentic-mermaid.dev/.well-known/mcp/server-card.json')
@@ -1594,6 +1609,28 @@ describe('Workers Static Assets website contract', () => {
     expect(text).toContain('/capabilities.json')
     const hostedLine = text.match(/Hosted MCP endpoint[^\n]+with ([^.]+)\./)?.[1] ?? ''
     expect(hostedLine.split(/,\s*/)).toEqual(HOSTED_TOOLS.map(tool => tool.name))
+  })
+
+  test('the getting-started hosted render_svg example is a request /mcp accepts', () => {
+    const shown = read('docs/getting-started/index.html').split('// Hosted MCP render_svg arguments')[1]?.split('</code>')[0] ?? ''
+    const args = JSON.parse(shown.replaceAll('&quot;', '"').replaceAll('&gt;', '>').replaceAll('&lt;', '<').replaceAll('&amp;', '&'))
+    expect(validateMcpToolArguments(HOSTED_TOOLS.find(tool => tool.name === 'render_svg')!, args)).toEqual([])
+    expect(args.options.style).toEqual(['ops-schematic', 'nord-light'])
+  })
+
+  test('the verify-failed page names every code that makes verify.ok false', () => {
+    const page = read('errors/verify-failed/index.md')
+    const blocking = (Object.keys(WARNING_SEVERITY) as Array<keyof typeof WARNING_SEVERITY>).filter(code => WARNING_SEVERITY[code] === 'error')
+    for (const code of blocking) expect({ code, named: page.includes(code) }).toEqual({ code, named: true })
+    const advisory = (Object.keys(WARNING_SEVERITY) as Array<keyof typeof WARNING_SEVERITY>).filter(code => WARNING_SEVERITY[code] !== 'error')
+    for (const code of advisory) expect({ code, named: new RegExp(`\\b${code}\\b`).test(page) }).toEqual({ code, named: false })
+  })
+
+  test('pages name exactly the tools each MCP server lists', () => {
+    const toolsAfter = (rel: string, lead: string) => [...(read(rel).split(lead)[1]?.split('.')[0] ?? '').matchAll(/<code>([a-z_]+)<\/code>/g)].map(match => match[1])
+    expect(toolsAfter('docs/mcp/index.html', 'The local MCP tools are ')).toEqual(LOCAL_TOOLS.map(tool => tool.name))
+    expect(toolsAfter('docs/mcp/index.html', 'Hosted tools: ')).toEqual(HOSTED_TOOLS.map(tool => tool.name))
+    expect(toolsAfter('skills/agentic-mermaid-diagram-workflow/index.html', 'The local stdio MCP exposes ')).toEqual(LOCAL_TOOLS.map(tool => tool.name))
   })
 
   test('production CSP forbids inline executable scripts and generated pages externalize them', () => {

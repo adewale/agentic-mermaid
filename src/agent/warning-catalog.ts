@@ -289,6 +289,7 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
   },
   SCALE_RANGE_EXCLUDES_ZERO: {
     summary: 'The radial scale excludes zero.',
+    guideNote: 'a radar chart measures its radii from an authored non-zero `min`, so radii are not proportional to the values; use `min 0`, or keep the truncation and disclose the scale',
     what: 'Radar radii are measured from an authored non-zero minimum.',
     triggers: 'A radar chart sets min above zero.',
     fix: 'Use min 0 for proportional radii, or retain the deliberate truncation and disclose the scale.',

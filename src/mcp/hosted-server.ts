@@ -93,7 +93,7 @@ export const SUPPORTED_PROTOCOL_VERSIONS = ['2025-03-26', '2025-06-18', '2025-11
 
 // Hosted server identity, distinct from the local stdio server's
 // MCP_SERVER_NAME: registries and clients cache tool lists by server identity,
-// and this surface (9 tools) must never shadow the local one (4 tools).
+// and this surface must never shadow the local one, which lists other tools.
 export const HOSTED_MCP_SERVER_NAME = 'agentic-mermaid-hosted'
 
 export const MAX_SOURCE_BYTES = 64 * 1024

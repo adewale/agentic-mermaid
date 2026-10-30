@@ -99,7 +99,7 @@ export interface McpDispatchOptions {
 // The LOCAL stdio/HTTP server identity. The hosted transport reports its own
 // name (HOSTED_MCP_SERVER_NAME in hosted-server.ts): registries and clients
 // cache tool lists by server identity, and the two surfaces expose different
-// tools (4 local vs 9 hosted), so they must not share one.
+// tool sets (see LOCAL_TOOLS and HOSTED_TOOLS), so they must not share one.
 export const MCP_SERVER_NAME = 'agentic-mermaid-mcp'
 // The release identity gate keeps this runtime-safe constant synchronized with
 // package.json so every MCP handshake reports the published package version.
