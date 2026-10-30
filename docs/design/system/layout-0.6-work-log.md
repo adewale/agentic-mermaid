@@ -3655,3 +3655,24 @@ experiments. The deferred-group-only experiment is rejected for closure: its
 Class lower bound is at least485,118operations before all remaining work, and
 its unmarked path adds binding overhead. No work price/cap is reduced to hide
 that result.
+
+
+The rectangle subtraction is privately committed at`56a4d8b90`.
+The existing doc-block generator now restores only`docs/api.md`'s
+`api-versions` block to the retained source/package version0.4.2. The unchanged
+owning doc test changes1P/1F→2P/0F(3assertions); every other API paragraph,
+generator authority and version source is unchanged. The changelog still
+records its actual0.5.3release. Evidence:`api-versions/RESULT.json`. No release
+version is bumped to satisfy the check.
+
+Exact published d43CI40978745281 is failed, correcting the older running note.
+Retained job logs now classify its delivery failures precisely: browser
+standalone HTML is2,114,766raw/1,385,699gzip bytes versus gzip cap1,334,500;
+the other21browser tests pass. Lazy delivery has58distinct over-budget rows
+(22raw,19gzip,17brotli) across22family/scenario groups, not the earlier rough
+count56. No request-count overrun is reported. The standalone diagnostic has
+one worker-side ELK module and none in the page, so it does not demonstrate a
+second renderer. The generated-layout advisory has no runtime errors but
+still reports quality regressions. These failures remain enrolled and caps
+unchanged; local doc/geometry/proof checks do not qualify unpublished head CI.
+Logs:`ci-readonly-40978745281/` under the session root.
