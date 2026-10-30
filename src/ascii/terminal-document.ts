@@ -469,6 +469,18 @@ export class TerminalDocument {
     for (const [y, row] of this.rows) for (const [x, cell] of row) yield [x, y, cell] as const
   }
 
+  /** Snapshot of the occupied cells inside `bounds`. Within each row the
+   * cells keep `entries()` order, so repainting them in sequence reorders a
+   * row exactly as repainting the same cells from a whole-document snapshot. */
+  entriesWithin(bounds: TerminalBounds): Array<readonly [number, number, TerminalCell]> {
+    const cells: Array<readonly [number, number, TerminalCell]> = []
+    for (let y = bounds.y; y < bounds.y + bounds.height; y++) {
+      const row = this.rows.get(y)
+      if (row) for (const [x, cell] of row) if (x >= bounds.x && x < bounds.x + bounds.width) cells.push([x, y, cell] as const)
+    }
+    return cells
+  }
+
   /** Attach identity at a family drawing boundary, retaining explicit text cells. */
   attribute(owners: TerminalOwner | readonly TerminalOwner[], paint: Omit<TerminalPaint, 'owner'> = {}): this {
     const canonical = this.owners(Array.isArray(owners) ? owners : [owners])

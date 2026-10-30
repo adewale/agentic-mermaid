@@ -16,6 +16,7 @@ import { projectC4Graph } from '../c4/projection.ts'
 import { c4LegendEntries } from '../c4/legend.ts'
 import { visualWidth } from './width.ts'
 import { assertC4DiagramWork } from '../shared/diagram-limits.ts'
+import { observeWork } from '../performance-observations.ts'
 
 /** Native cell-space C4 cards and compound frames. Neither coordinates nor
  * text lines are reconstructed from a pixel drawing or serialized SVG. */
@@ -66,9 +67,15 @@ export function renderC4Terminal(body: C4Body, config: AsciiConfig, colorMode?: 
   const routes = allocateBoxRoutes([...placement.boxes.values()], relations, direction)
   const owner = (item: typeof body.elements[number] | typeof body.boundaries[number]): TerminalOwner => ({ id: identities.nodes.get(item.id)!, kind: 'external' in item ? 'node' : 'cluster', sourceLine: c4SourceLine(body, item.statementId), ...(item.parentId ? { parent: { id: item.parentId, kind: 'cluster' as const } } : {}), ...(!('external' in item) ? { members: [...body.elements, ...body.boundaries].filter(child => child.parentId === item.id).map(child => child.id) } : {}) })
   const color = (value: string | undefined) => { const parsed = value ? tryParseCssColor(value) : undefined; return parsed ? toHex(parsed[0], parsed[1], parsed[2]) : undefined }
+  // Styling visits only the cells an item or route can own, never the whole
+  // document once per item: every card, frame and header paints inside its
+  // placed box, and a route owns its path, end markers and label cells.
+  let styledCells = 0
   const styleFrame = (item: typeof body.elements[number] | typeof body.boundaries[number], itemOwner: TerminalOwner) => {
     const appearance = c4Appearance(item, options), stroke = color(appearance.stroke), textColor = color(appearance.text)
-    for (const [x, y, cell] of [...doc.entries()]) if (cell.owners.some(value => value.id === itemOwner.id && value.kind === itemOwner.kind)) {
+    const cells = doc.entriesWithin(placement.boxes.get(item.id)!)
+    styledCells += cells.length
+    for (const [x, y, cell] of cells) if (cell.owners.some(value => value.id === itemOwner.id && value.kind === itemOwner.kind)) {
       if (cell.kind === 'text' && textColor) cell.color = textColor
       else if (cell.stroke) { if (stroke) cell.color = stroke; if (appearance.dashed) doc.stroke(x, y, cell.stroke.mask, { owner: itemOwner, role: 'border', ascii, style: item.style.lineStyle === 'dotted' ? 'dotted' : 'dashed', color: stroke }) }
     }
@@ -91,8 +98,10 @@ export function renderC4Terminal(body: C4Body, config: AsciiConfig, colorMode?: 
     for (let x = box.x + 1; x < box.x + box.width - 1; x++) doc.stroke(x, y, 10, { owner: itemOwner, role: 'border', ascii })
     header(item.id, itemOwner, item.alignment); styleFrame(item, itemOwner)
   }
+  const relationships = new Map<string, typeof body.relationships[number]>()
+  for (const item of body.relationships) if (!relationships.has(item.id)) relationships.set(item.id, item)
   for (const route of routes) {
-    const item = body.relationships.find(item => item.id === route.relation.id)!, edgeOwner = doc.element({ id: item.id, kind: 'edge', from: item.source, to: item.target, sourceLine: c4SourceLine(body, item.statementId) })
+    const item = relationships.get(route.relation.id)!, edgeOwner = doc.element({ id: item.id, kind: 'edge', from: item.source, to: item.target, sourceLine: c4SourceLine(body, item.statementId) })
     if (item.style.lineStyle === 'dotted') { if (!paintTerminalRoute(doc, route.path, edgeOwner, ascii, 'dotted')) throw new Error(`Allocated C4 route ${item.id} conflicts with admitted geometry`) }
     else paintBoxRoute(doc, route, edgeOwner, ascii, item.style.lineStyle === 'dashed')
     for (const [end, port, enabled] of [['start', route.source, item.bidirectional], ['end', route.target, true]] as const) {
@@ -101,7 +110,13 @@ export function renderC4Terminal(body: C4Body, config: AsciiConfig, colorMode?: 
       if (marker) doc.marker(port.x, port.y, marker, { owner: edgeOwner, role: 'arrow', color: color(item.style.lineColor) })
     }
     paintBoxText(doc, route.label, edgeOwner)
-    for (const [, , cell] of doc.entries()) if (cell.owners.some(value => value.id === item.id && value.kind === 'edge')) { const paint = color(cell.kind === 'text' ? item.style.textColor : item.style.lineColor); if (paint) cell.color = paint }
+    const routeCells: Array<{ readonly x: number; readonly y: number }> = [...route.path.points, route.source, route.target]
+    if (route.label) for (let y = route.label.y; y < route.label.y + route.label.height; y++) for (let x = route.label.x; x < route.label.x + route.label.width; x++) routeCells.push({ x, y })
+    styledCells += routeCells.length
+    for (const { x, y } of routeCells) {
+      const cell = doc.cell(x, y)
+      if (cell?.owners.some(value => value.id === item.id && value.kind === 'edge')) { const paint = color(cell.kind === 'text' ? item.style.textColor : item.style.lineColor); if (paint) cell.color = paint }
+    }
   }
   for (const item of body.elements) {
     const box = placement.boxes.get(item.id)!, itemOwner = doc.element(owner(item)), shape = effectiveC4Shape(item)
@@ -126,6 +141,7 @@ export function renderC4Terminal(body: C4Body, config: AsciiConfig, colorMode?: 
     }
     header(item.id, itemOwner, undefined, y); styleFrame(item, itemOwner)
   }
+  observeWork('terminal-c4-style', styledCells)
   if (titleBlock) doc.textBlock(5, 1, measuredText(titleBlock.lines), { owner: { id: identities.generated('c4:title', ['c4', 'title']), kind: 'label' }, role: 'text' })
   for (const field of ['diagramMarginX', 'diagramMarginY', 'c4ShapeMargin', 'c4ShapePadding', 'width', 'height', 'boxMargin', 'nextLinePaddingX', 'wrapPadding', 'maxWidth']) if (c4Config[field] !== undefined) doc.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature: `c4.config.${field}`, message: `C4 ${field} is a pixel dimension; terminal layout independently allocates measured character cells.` })
   const legend = c4LegendEntries(body, options)

@@ -280,6 +280,13 @@ describe('work grows with the diagram, not with its square', () => {
     expect(double / single).toBeLessThan(2.5)
   })
 
+  test('C4 terminal styling visits the cells each card and route owns, not the whole document per item', () => {
+    const systems = (count: number) => `C4Context\n${Array.from({ length: count }, (_, i) => `  System(s${i}, "System ${i}")`).join('\n')}\n${Array.from({ length: count - 1 }, (_, i) => `  Rel(s${i}, s${i + 1}, "Calls")`).join('\n')}`
+    const single = work('terminal-c4-style', () => renderMermaidASCII(systems(100))), double = work('terminal-c4-style', () => renderMermaidASCII(systems(200)))
+    expect(single).toBeGreaterThan(0)
+    expect(double / single).toBeLessThan(2.5)
+  })
+
   test('Class layout admission work grows linearly with an inheritance tree of hundreds of cards', () => {
     // 280 cards spent the whole budget while the final contact check charged
     // every pair of route segments.

@@ -11,10 +11,10 @@ export type PerformanceObservation =
     readonly reason: string; readonly attempt?: number }
   /** Deterministic work units, for scale probes that must not time a
    * machine: terminal owner fields snapshotted and revalidated on import,
-   * operations charged to one Class layout's admission ledger, and cells
-   * popped by the terminal A* route search. */
+   * operations charged to one Class layout's admission ledger, cells popped
+   * by the terminal A* route search, and cells C4 terminal styling visits. */
   | { readonly version: 1; readonly kind: 'work'; readonly owner: PerformanceWorkOwner; readonly units: number }
-export type PerformanceWorkOwner = 'terminal-owner-import' | 'class-layout-admission' | 'terminal-route-search'
+export type PerformanceWorkOwner = 'terminal-owner-import' | 'class-layout-admission' | 'terminal-route-search' | 'terminal-c4-style'
 type Observer = (event: PerformanceObservation) => void
 const OBSERVER = Symbol.for('agentic-mermaid.performance-observer.v1')
 const host = globalThis as typeof globalThis & { [OBSERVER]?: Observer }
