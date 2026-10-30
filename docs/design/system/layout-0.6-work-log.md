@@ -4455,3 +4455,97 @@ proof remain separate work. Delivery caps and broader supported-input evidence
 also remain open. No timing campaign was run. Replacement24 remains sealed.
 Current execution/access is available; these are technical gaps, not missing
 permissions, study participants or hypothetical gates.
+
+
+### 30 October: seven-issue campaign, shared curve/ownership fixes and bounded baseline
+
+The owner authorized the seven reported issues across both Agentic/ELK-backed
+outputs and Native/Scene emission, including shared pipeline/API changes and
+before/after correctness/runtime/memory measurement. This supersedes the earlier
+pause on timing for these regression checks only. No limits, default, release
+version or publication policy changed. The existing continuation task is now
+hourly until 31 October 12:03 UTC, with active-writer coordination; this does not
+guarantee uninterrupted execution or establish completion. Five GPT-6.1 Sol High
+agents have disjoint implementation and independently falsifiable reviews, with
+at most three production writers. The detailed 0.6 document remains an
+assistant-authored work plan, not an extra owner-approved acceptance contract.
+
+Baseline HEAD07b68047aa033188ea7e2556f4326ec5e5e9138c/production6f7ccb418
+and live Main83744a4e1 were fetched; retained remote equalled HEAD. No competing
+writers existed. All866production source files directly equal the retained
+6f runtime used for baseline, with the same existing dependency root. No source
+hashes or holdout access were used. Evidence root:
+/tmp/pr449-correctness-24h-20261030; baseline/SOURCE-BINDING.json.
+
+ER cardinality ownership is implemented in abb83e451 (private source9da8d047b):
+complete endpoint glyphs have one ancestor owner tied to an ordered relationship
+and start/end, while each child keeps its original paint and inspection owner.
+Parallel/repeated occurrences and ambiguous delimiter-bearing endpoint tuples
+remain distinct. Ordinary existing IDs are retained. Eight paired Native/Scene,
+Agentic/ELK and crisp/sketch observations preserve exact raster RGBA. Final tests
+against baseline production5P/3F become8P/0F with1160assertions; broader owner
+selection685P/2F retains the existing ER256 and decorative32 capacity failures.
+Core types/lint pass. Evidence: er-evidence/HANDOFF.md, RED-GREEN.json.
+
+Named curve semantics are implemented in
+dbabc7a269dface95ca0c1d2a8f9d5fd3cc8d4a9 (private80d9a60f6). One shared
+producer emits the12standard interpolation choices, with typed commands driving
+written SVG, conservative bounds, adaptive hit geometry and marker tangents.
+D3shape1.3.7 and types are now direct declarations of already installed/locked
+packages; no new installed dependency closure. Unknown names keep source round
+trips and report a clear render error. Two-point natural degenerates straight;
+exact constant decimal routes do not fabricate tangents. Shared coordinates are
+normalized to existing served precision before contours/projection: this fixes
+row103 retained/written endpoint mismatch without proof changes or changing its
+final d bytes. Both row103 layout backends now paint smooth natural geometry and
+pass unchanged certification. Final owner45P/839assertions; baseline producer
+with final tests23F/22P; restored candidate45P. Narrow paint25P/468assertions
+covers six backend/execution cells and final marker ink. Canonical core/repo
+types and lint pass. Independent132cell pure probe passes only its stated
+integer/degenerate domain; later decimal constant finding was added separately.
+A20target viewport falsifier found no clipping; that long-span source remains U
+for marker/body contact, not a viewport defect. No full curve-domain claim.
+Evidence: curve-verification-commands.txt and meaning-fonts/CURVE-*.
+
+CJK qualification extends the existing png-fonts owner with independently
+expected horizontal-one and hollow-square glyph shapes. Explicit existing Noto
+fontDirs paints those actual glyphs across both layout backends and graphical
+writers; bundled fonts alone produce identical tofu with honest warnings.
+Disabling only the raster fallback while leaving warning coverage intact fails
+the shape assertion. FontDirs affects raster resources, not layout measurement.
+The formatted interaction's selected five labels/heads retain positive ink and
+no observed label/marker contacts in both resource profiles; strict refusals
+remain enrolled. Root's first owner run12P/2skip lacked the configured directory;
+qualified AM_CJK_FONT_DIR=/usr/share/fonts/opentype/noto run14P/0F/93assertions.
+This is stronger regression coverage for existing behavior, not a new default
+CJK implementation or a claim about every glyph. Evidence: meaning-fonts/REPORT.md,
+ROOT-QUALIFIED-OWNER.log, RASTER-MUTATION-valid.log.
+
+Bounded BEFORE measurement uses eight development sources, both backends,
+report/strict, cache off/normal and assertions off/on, with full SVG and complete
+receipt JSON consumption. Three fresh-process rounds yield21completed batches
+of64calls and3retained60second whole-batch timeouts for uncached ELK/assertions.
+RSS/high-water and live/settled heap are recorded; these are not allocation
+measurements. Assertion mode does not establish every family's renderer.
+No after/performance result exists yet; no timeout is assigned a fabricated cost
+or removed from the denominator. Evidence: measurement/BEFORE-SUMMARY.json and
+all worker logs. The individually acquired prior correctness cohorts remain
+separate development evidence; replacement24 stays sealed.
+
+Two active findings must not be called complete. A structured-group prototype
+removes duplicated raw-open parsing but closes NONE of the six capacity cases;
+it is being archived/reverted, preserving committed ownership and other writers.
+Fresh receiver isolation and required capture dominate. A pinned Inter-Bold48px
+j paints1.686px left of its allocated advance band. The proposed optional trusted
+shaped-ink profile separates advance from occupied bounds and projects through
+actual emitted fitting;45independent raster cases pass, but full combined types,
+adoption and certification applicability remain pending. Default/width-only and
+unknown fallback get no new proof authority. The original rich/CJK proof gap
+remains open. Evidence: capacity/ and rich-proof/ plus meaning-fonts/RICH-*.
+
+Next concrete work: finish/review the shaped-ink producer/API change; repair the
+actual circle-outline/shaft contact trigger in the existing obstacle-routing pass
+with true-gap/curved-corner controls; prototype a smaller same-emission typed
+write/capture authority for the six budgets. Then freeze a combined candidate,
+replay affected authored meaning/actual ink and complete paired after measurements
+and exact-head CI. No readiness, full parity or 24hour completion is claimed.
