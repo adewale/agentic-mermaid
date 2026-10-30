@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="951.768" height="158" viewBox="0 0 951.768 158" style="--bg:#123a63;--fg:#eaf2fb;--line:#dbe9f7;--accent:#ffffff;--muted:#b8cfe6;--surface:#1c4a78;--border:#dbe9f7;--font:Share Tech Mono;background:#123a63" class="am-0n8rx8c13m752a">
+<svg xmlns="http://www.w3.org/2000/svg" width="951.768" height="158" viewBox="0 0 951.768 158" style="--bg:#123a63;--fg:#eaf2fb;--line:#dbe9f7;--accent:#ffffff;--muted:#b8cfe6;--surface:#1c4a78;--border:#dbe9f7;--font:Share Tech Mono;background:#123a63" class="am-1eh17gm0gnh50y">
 <style>
-  svg.am-0n8rx8c13m752a { font-family: var(--font, 'Share Tech Mono'), system-ui, sans-serif; }
-  .am-0n8rx8c13m752a .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
-  svg.am-0n8rx8c13m752a {
+  svg.am-1eh17gm0gnh50y { font-family: var(--font, 'Share Tech Mono'), system-ui, sans-serif; }
+  .am-1eh17gm0gnh50y .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg.am-1eh17gm0gnh50y {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #eaf2fb;
     --_text-sec:      #b8cfe6;
@@ -104,18 +104,26 @@
   <line x1="771.768" y1="85" x2="911.768" y2="85" stroke="#dbe9f7" stroke-width="0.75" />
   <text paint-order="stroke" stroke="#123a63" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="841.768" y="96" text-anchor="middle" font-size="11" font-weight="400" fill="#b8cfe6" data-id="entity-empty:LINE_ITEM" data-role="attribute" data-prepared-text="true" dy="3.85"><tspan x="809.164" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="65.208" lengthAdjust="spacingAndGlyphs" font-style="italic">(no attributes)</tspan></text>
 </g>
-<line x1="184" y1="73" x2="184" y2="85" stroke="#dbe9f7" stroke-width="1.25" data-id="card:CUSTOMER-ORDER#0:1" data-role="cardinality" />
+<g data-id="card:CUSTOMER-ORDER#0:1" data-owner-id="rel:CUSTOMER-ORDER#0" data-owner-role="relationship" data-end="start" data-endpoint="CUSTOMER" data-role="cardinality">
+<line x1="184" y1="73" x2="184" y2="85" stroke="#dbe9f7" stroke-width="1.25" />
 <line x1="188" y1="73" x2="188" y2="85" stroke="#dbe9f7" stroke-width="1.25" />
-<line x1="397.726" y1="86" x2="385.726" y2="79" stroke="#dbe9f7" stroke-width="1.25" data-id="card:CUSTOMER-ORDER#0:2" data-role="cardinality" />
+</g>
+<g data-id="card:CUSTOMER-ORDER#0:2" data-owner-id="rel:CUSTOMER-ORDER#0" data-owner-role="relationship" data-end="end" data-endpoint="ORDER" data-role="cardinality">
+<line x1="397.726" y1="86" x2="385.726" y2="79" stroke="#dbe9f7" stroke-width="1.25" />
 <line x1="397.726" y1="79" x2="385.726" y2="79" stroke="#dbe9f7" stroke-width="1.25" />
 <line x1="397.726" y1="72" x2="385.726" y2="79" stroke="#dbe9f7" stroke-width="1.25" />
 <circle cx="381.726" cy="79" r="4" fill="#123a63" stroke="#dbe9f7" stroke-width="1.25" />
-<line x1="545.726" y1="73" x2="545.726" y2="85" stroke="#dbe9f7" stroke-width="1.25" data-id="card:ORDER-LINE_ITEM#0:1" data-role="cardinality" />
+</g>
+<g data-id="card:ORDER-LINE_ITEM#0:1" data-owner-id="rel:ORDER-LINE_ITEM#0" data-owner-role="relationship" data-end="start" data-endpoint="ORDER" data-role="cardinality">
+<line x1="545.726" y1="73" x2="545.726" y2="85" stroke="#dbe9f7" stroke-width="1.25" />
 <line x1="549.726" y1="73" x2="549.726" y2="85" stroke="#dbe9f7" stroke-width="1.25" />
-<line x1="767.768" y1="86" x2="755.768" y2="79" stroke="#dbe9f7" stroke-width="1.25" data-id="card:ORDER-LINE_ITEM#0:2" data-role="cardinality" />
+</g>
+<g data-id="card:ORDER-LINE_ITEM#0:2" data-owner-id="rel:ORDER-LINE_ITEM#0" data-owner-role="relationship" data-end="end" data-endpoint="LINE_ITEM" data-role="cardinality">
+<line x1="767.768" y1="86" x2="755.768" y2="79" stroke="#dbe9f7" stroke-width="1.25" />
 <line x1="767.768" y1="79" x2="755.768" y2="79" stroke="#dbe9f7" stroke-width="1.25" />
 <line x1="767.768" y1="72" x2="755.768" y2="79" stroke="#dbe9f7" stroke-width="1.25" />
 <line x1="751.768" y1="85" x2="751.768" y2="73" stroke="#dbe9f7" stroke-width="1.25" />
+</g>
 <rect x="270" y="68.85" width="41.726" height="20.3" rx="2" ry="2" fill="#123a63" stroke="#2c5075" stroke-width="0.5" />
 <text paint-order="stroke" stroke="#123a63" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="290.863" y="79" text-anchor="middle" font-size="11" font-weight="400" fill="#b8cfe6" data-prepared-text="true" dy="3.85" textLength="33.726" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">places</text>
 <rect x="631.726" y="68.85" width="50.042" height="20.3" rx="2" ry="2" fill="#123a63" stroke="#2c5075" stroke-width="0.5" />
