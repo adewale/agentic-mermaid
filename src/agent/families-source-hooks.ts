@@ -165,7 +165,7 @@ function extractStateLabels(source: string): ExtractedLabel[] {
     } else if (raw.includes('-->') && raw.includes(':')) {
       const colon = raw.indexOf(':')
       out.push({ text: raw.slice(colon + 1).trim(), target })
-    } else if ((m = raw.match(/^[\w\p{L}-]+\s*:\s*(.+)$/u))) {
+    } else if ((m = raw.match(/^[\w\p{L}\p{M}\p{N}-]+\s*:\s*(.+)$/u))) {
       out.push({ text: m[1]!.trim(), target })
     } else if ((m = raw.match(/^note\s+(?:left of|right of)\s+\S+\s*:\s*(.+)$/i))) {
       out.push({ text: m[1]!.trim(), target })

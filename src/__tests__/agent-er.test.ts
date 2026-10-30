@@ -286,6 +286,17 @@ describe('ER — round-trip', () => {
     const out2 = serializeMermaid(parse(out1))
     expect(out2).toBe(out1)
   })
+
+  // Mermaid's ER lexer takes any non-ASCII code unit as a name character; these
+  // names were read as opaque source that neither renderer could draw.
+  test.each(['éx', 'e\u0301x', 'x٣', '一¼', 'a😀', '𐌀x', 'a\u00a0b'])('a bare entity name %j reads, draws and writes back as itself', name => {
+    const src = `erDiagram\n  ${name} ||--o{ B : has`
+    const d = parse(src)
+    expect(asEr(d)?.body.entities.map(entity => entity.id)).toEqual([name, 'B'])
+    expect(serializeMermaid(parse(serializeMermaid(d)))).toBe(serializeMermaid(d))
+    expect(decodeXML(renderMermaidSVG(src))).toContain(`data-id="${name}"`)
+    expect(renderMermaidASCII(src)).toContain(name)
+  })
 })
 
 describe('ER — verify', () => {

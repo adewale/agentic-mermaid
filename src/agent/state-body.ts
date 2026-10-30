@@ -1935,7 +1935,7 @@ export function verifyState(body: StateBody, opts: VerifyOptions): LayoutWarning
   // anchors to the enclosing composite, so it is always structurally valid).
   const anchors = (endpoint: string): boolean => {
     if (known.has(endpoint)) return true
-    const h = endpoint.match(/^([\w\p{L}-]*)\[H\*?\]$/u)
+    const h = endpoint.match(/^([\w\p{L}\p{M}\p{N}-]*)\[H\*?\]$/u)
     if (!h) return false
     return h[1] === '' || known.has(h[1]!)
   }

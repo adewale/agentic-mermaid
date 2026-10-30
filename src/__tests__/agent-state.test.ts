@@ -603,7 +603,12 @@ describe('state fast-check round-trip property', () => {
   // Generate small state machines (incl. nested composites depth ≤ 2 and [*]
   // usage) and assert serialize → parse → serialize is idempotent and the body
   // survives the round-trip with the same state/transition shape.
-  const id = fc.string({ minLength: 1, maxLength: 4 }).filter(s => /^[A-Za-z][A-Za-z0-9]*$/.test(s))
+  // State ids: letters, combining marks and digits of any script, and
+  // underscores (not leading digits or marks), minus the statement keywords a
+  // bare id cannot be.
+  const STATE_KEYWORDS = new Set(['state', 'end', 'note', 'direction', 'class', 'classdef', 'style', 'as', 'left', 'right', 'of', 'over', 'accTitle', 'accDescr'].map(word => word.toLowerCase()))
+  const id = fc.string({ unit: 'grapheme', minLength: 1, maxLength: 6 })
+    .filter(s => /^[\p{L}_][\p{L}\p{M}\p{N}_]*$/u.test(s) && !STATE_KEYWORDS.has(s.toLowerCase()))
 
   const shape = (states: StateNode[], transitions: StateTransition[]): unknown => ({
     states: states.map(s => ({ id: s.id, label: s.label, children: s.states ? shape(s.states, s.transitions ?? []) : null })),
@@ -641,7 +646,9 @@ describe('state fast-check round-trip property', () => {
         states: states.map(id => ({ id, label: `${id} label`, children: null })),
         transitions: transitions.map((t, i) => ({ ...t, label: `step ${i}` })),
       })
-    }), fcParameters({ numRuns: 200 }))
+      // Reduced counterexamples: ids holding a non-ASCII digit or a combining
+      // mark fell back to opaque source that no renderer could draw.
+    }), fcParameters({ numRuns: 200, examples: [[{ states: ['一¼'], transitions: [{ from: '[*]', to: '[*]' }] }], [{ states: ['e\u0301'], transitions: [{ from: '[*]', to: 'e\u0301' }] }]] }))
   })
 
   test('generated nested composites (depth ≤ 2) round-trip stably', () => {
@@ -670,7 +677,7 @@ describe('state fast-check round-trip property', () => {
         }],
         transitions: [],
       })
-    }), fcParameters({ numRuns: 100 }))
+    }), fcParameters({ numRuns: 100, examples: [[{ outer: 'Ͱ', inner: ['𐌀𑁒', 'Έ'] }]] }))
   })
 })
 

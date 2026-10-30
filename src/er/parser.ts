@@ -15,7 +15,10 @@ import { decodeErText, erTextLabel, erTextContent, type ErQuotedTextReport, read
 // names (e.g. `1`, `2.5`, `"Entity<br>Name"`). Keep this grammar in one
 // place so declarations, blocks, relationships, and the agent body agree.
 // A bare name ends where the lexer's word ends: `id1||--||id2` is two names.
-const ER_BARE_ENTITY_ID_SOURCE = String.raw`[A-Za-z0-9_][\w.-]*(?![\w.-])`
+// Mermaid's ER lexer takes every non-ASCII code unit as a name character
+// (`éx`, `x٣`, `一¼`, `a😀`), so astral characters count through their
+// surrogate halves.
+const ER_BARE_ENTITY_ID_SOURCE = String.raw`[A-Za-z0-9_\u0080-\uFFFF][\w.\-\u0080-\uFFFF]*(?![\w.\-\u0080-\uFFFF])`
 // A quoted name as the lexer hands it over. A `\"` stays inside the token, and
 // readErQuotedName reads it as `"` (Mermaid ER quoted text has no escapes).
 const ER_QUOTED_NAME_SOURCE = String.raw`"(?:\\.|[^"\\])*"`

@@ -43,6 +43,12 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- State ids holding a combining mark or a non-ASCII digit (`é` written
+  decomposed, `x٣`, `一¼`) and ER entity names holding any non-ASCII
+  character (`éx`, `a😀`, `a¼`) are read, drawn and edited like other names.
+  Mermaid accepts them; they used to fall back to opaque source that the SVG,
+  PNG and terminal renderers refused.
+
 - `render_png` and `render_ascii` describe `options` with the registered
   Looks and Palettes, as `render_svg` does; all render tools share one
   description.
