@@ -297,22 +297,29 @@ class XmlLeafWrite {
   element(name: string): void {
     if (this.valid) { this.valid = this.#state.pay(1); if (this.valid) this.#events![this.#events!.length++] = ['element', name] }
   }
-  attribute(name: string, escaped: unknown, paintField?: keyof MarkPaint): void {
-    if (this.valid) {
-      this.valid = typeof escaped === 'string' && this.#state.pay(paintField === undefined ? 1 : 2)
-      if (this.valid) this.#events![this.#events!.length++] = paintField === undefined ? ['attribute', name, escaped as string] : ['attribute', name, escaped as string, paintField]
-    }
+  attribute(name: string, escaped: unknown): void {
+    if (this.valid) { this.valid = typeof escaped === 'string' && this.#state.pay(1); if (this.valid) this.#events![this.#events!.length++] = ['attribute', name, escaped as string] }
+  }
+  recordPaintField(field: keyof MarkPaint): void {
+    if (!this.valid) return
+    this.valid = this.#state.pay(1)
+    if (!this.valid) return
+    const index = this.#events!.length - 1, event = this.#events![index]
+    if (!event || event[0] !== 'attribute' || event.length !== 3) { this.valid = false; return }
+    this.#events![index] = ['attribute', event[1], event[2], field]
   }
   text(content: string): void {
     if (this.valid) { this.valid = typeof content === 'string' && this.#state.pay(1); if (this.valid) this.#events![this.#events!.length++] = ['text', content] }
   }
-  prepared(written: PreparedSingleLineWrite, paint = false): void {
+  prepared(written: PreparedSingleLineWrite): void {
     if (!this.valid) return
     const { x, y, dy, textLength, content } = written
     this.valid = typeof x === 'string' && typeof y === 'string' && typeof dy === 'string' && typeof textLength === 'string' && typeof content === 'string' && this.#state.pay(5)
     if (this.valid) this.#events![this.#events!.length++] = ['prepared', x, y, dy, textLength, content]
     for (let i = 0; i < written.additionalAttributes.length; i++) { const attribute = written.additionalAttributes[i]!; this.attribute(attribute.name, attribute.value) }
-    if (paint) this.#paintPrepared = this.#state.pay(1) && written.additionalAttributes.length === 0
+  }
+  markPaintPrepared(written: PreparedSingleLineWrite): void {
+    if (this.valid) this.#paintPrepared = this.#state.pay(1) && written.additionalAttributes.length === 0
   }
   static paint(xml: XmlLeafWrite): MarkPaint | undefined {
     if (!xml.valid || !xml.#paintPrepared || !xml.#state.pay(1)) return undefined
@@ -473,7 +480,8 @@ class SvgWriter {
     const literal = typeof value === 'number' ? formatSvgNumber(value) : formatSvgNumericAttribute(name, value, changedToken, numericToken)
     const escaped = typeof value === 'number' ? literal : escapeAttr(literal)
     this.value += ` ${name}="${escaped}"`
-    this.xml?.attribute(name, escaped, this.observePaint ? paintField : undefined)
+    this.xml?.attribute(name, escaped)
+    if (paintField !== undefined && this.observePaint) this.xml?.recordPaintField(paintField)
     if (name === 'transform') this.transformed = true
     this.observeAttributes?.(name, literal)
     if (paintField !== undefined) this.observePaint?.(paintField, literal, escaped)
@@ -717,7 +725,8 @@ export function writeTextSvg(node: TextMark, capture?: SvgXmlCapture, sink?: Svg
   let observed = false
   const svg = renderMultilineText(prepared ? node.block! : node.text, node.x, node.y, node.fontSize, attrs, node.baselineShift ?? 0.35, node.display === 'literal', out.xml ? written => {
     observed = true
-    out.xml!.prepared(written, !!report)
+    out.xml!.prepared(written)
+    if (report) out.xml!.markPaintPrepared(written)
   } : undefined, node.anchor)
   if (!node.spans) {
     if (!capture) return svg
