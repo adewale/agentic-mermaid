@@ -132,7 +132,7 @@ describe('validator fuzz: validateSerializableRenderOptions does not lie', () =>
       }
       // Reduced counterexample: the terminal renderer silently ignored an
       // unknown key the SVG renderer refuses.
-    }), fcParameters({ numRuns: NUM_RUNS, examples: [[{ unknownField: null }]] }))
+    }), fcParameters<[Record<string, unknown>]>({ numRuns: NUM_RUNS, examples: [[{ unknownField: null }]] }))
     // Guard against a vacuous property: both directions must be exercised.
     expect(cleanSeen).toBeGreaterThan(0)
     expect(rejectedSeen).toBeGreaterThan(0)
