@@ -413,8 +413,9 @@ describe('layoutArchitectureDiagram', () => {
     expect(distanceToPolyline(shortcut.labelPosition!, shortcut.points)).toBeLessThanOrEqual(0.001)
   })
 
-  it('every chain shortcut clears every intermediate card (property)', () => {
-    fc.assert(fc.property(fc.integer({ min: 3, max: 8 }), count => {
+  it('every chain shortcut clears every intermediate card', () => {
+    // A finite domain (3..8 services): every length runs.
+    for (let count = 3; count <= 8; count++) {
       const lines = ['architecture-beta']
       for (let i = 0; i < count; i++) lines.push(`service s${i}(server)[S${i}]`)
       for (let i = 1; i < count; i++) lines.push(`s${i - 1}:R --> L:s${i}`)
@@ -422,9 +423,9 @@ describe('layoutArchitectureDiagram', () => {
       const result = layout(lines.join('\n'))
       const shortcut = result.edges.at(-1)!
       const intermediates = result.services.filter(service => service.id !== 's0' && service.id !== `s${count - 1}`)
-      return shortcut.points.every((point, index, points) => index === 0 || point.x === points[index - 1]!.x || point.y === points[index - 1]!.y)
-        && intermediates.every(service => !routeCrossesBoxInterior(shortcut.points, service))
-    }), fcParameters({ numRuns: 60 }))
+      expect({ count, orthogonal: shortcut.points.every((point, index, points) => index === 0 || point.x === points[index - 1]!.x || point.y === points[index - 1]!.y) }).toEqual({ count, orthogonal: true })
+      expect({ count, crossed: intermediates.filter(service => routeCrossesBoxInterior(shortcut.points, service)).map(service => service.id) }).toEqual({ count, crossed: [] })
+    }
   })
 
   it('routes group-boundary shortcuts around an unrelated group interior', () => {
