@@ -51,11 +51,11 @@ it.each(['native', 'scene'] as const)('host-shaped bold j bounds enclose actual 
       bounds: { x0: -50 / 2048 * 48, y0: -1572 / 2048 * 48, x1: 443 / 2048 * 48, y1: 418 / 2048 * 48 },
     } : undefined,
   }, 'Inter')!
-  const block = withTextMeasurementExecution(measurement, () => preparePixelText('<b>j</b>', { fontSize: 48, fontWeight: 400, fontFamily: 'Inter' }))
+  const block = withTextMeasurementExecution(measurement, () => preparePixelText('<b>j</b>', { fontSize: 48, fontWeight: 400 }))
   expect(block.width).toBe(18.72)
-  const colors = { bg: '#fff', fg: '#111' }, context = { positioned: { width: 240, height: 160 }, colors, resolved: { renderOptions: {} } }
+  const colors = { bg: '#fff', fg: '#111', font: 'Caveat' }, context = { positioned: { width: 240, height: 160 }, colors, resolved: { renderOptions: {} } }
   const producer: DrawingProducer = factory => ({ family: 'flowchart', width: 240, height: 160, transparent: false, colors, parts: [
-    factory.documentOpen({ id: 'root', width: 240, height: 160, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160">'),
+    factory.documentOpen({ id: 'root', width: 240, height: 160, colors, transparent: false, font: 'Caveat', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160" style="font-family:Caveat">'),
     factory.text({ id: 'bold-j', role: 'label', text: '<b>j</b>', block, x: 100, y: 80, fontSize: 48, anchor: 'start', paint: { fill: '#111' } }),
     factory.documentClose(),
   ] })
@@ -71,7 +71,7 @@ it.each(['native', 'scene'] as const)('host-shaped bold j bounds enclose actual 
   const bounds = paint.primitives.find(primitive => primitive.id === 'bold-j')!.bounds!
   const tags = svg.match(/<text\b[^>]*>[\s\S]*?<\/text>/g)!
   expect(tags).toHaveLength(1)
-  const font = { fontFiles: [join(import.meta.dirname, '../../assets/fonts/Inter-Bold.ttf')], loadSystemFonts: false, defaultFontFamily: 'Inter' }
+  const font = { fontFiles: ['Inter-Bold.ttf', 'Caveat.ttf'].map(file => join(import.meta.dirname, '../../assets/fonts/', file)), loadSystemFonts: false, defaultFontFamily: 'Inter' }
   const raster = new Resvg(svg, { font }).render(), pixels = raster.pixels
   const absent = new Resvg(svg.replace(tags[0]!, ''), { font }).render().pixels
   let changed = 0, outside = 0
@@ -85,6 +85,8 @@ it.each(['native', 'scene'] as const)('host-shaped bold j bounds enclose actual 
   }
   expect(changed).toBeGreaterThan(0)
   expect(outside).toBe(0)
+  expect(block.fontFamily).toBe('Inter')
+  expect(tags[0]).toContain('font-family="Inter"')
   expect(svg).toContain('x="100" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="18.72"')
   expect(bounds.x0).toBeCloseTo(98.3135135135, 9)
   expect(bounds.x1).toBeCloseTo(114.9422702703, 9)

@@ -54,6 +54,7 @@ export function snapshotTextMeasurementProfile(profile: TextMeasurementProfile |
 /** Per-request cache shared by layout and drawing, held only in the private plan. */
 export interface TextMeasurementExecution {
   readonly identity: TextMeasurementProfileIdentity
+  readonly fontFamily: string
   readonly hasInk: boolean
   readonly width: (input: Omit<ProfileTextMeasurementInput, 'fontFamily'> & { fontFamily?: string }) => number
   readonly ink: (input: Omit<ProfileTextMeasurementInput, 'fontFamily'> & { fontFamily?: string }) => ProfileTextInkMeasurement | undefined
@@ -73,6 +74,7 @@ export function createTextMeasurementExecution(
   const inks = new Map<string, ProfileTextInkMeasurement | undefined>()
   return Object.freeze({
     identity,
+    fontFamily,
     hasInk: snapshot.measureInk !== undefined,
     width(input: Omit<ProfileTextMeasurementInput, 'fontFamily'> & { fontFamily?: string }): number {
       const selectedFont = input.fontFamily ?? (input.monospace ? 'JetBrains Mono' : fontFamily)
@@ -147,4 +149,8 @@ export function profileTextInk(input: Omit<ProfileTextMeasurementInput, 'fontFam
 
 export function customTextInkActive(): boolean {
   return activeExecution?.hasInk === true
+}
+
+export function profileTextFontFamily(): string | undefined {
+  return activeExecution?.fontFamily
 }

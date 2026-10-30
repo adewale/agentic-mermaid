@@ -8,7 +8,7 @@ import { graphemes } from './graphemes.ts'
 import { serializeStyledSegment } from './inline-format.ts'
 import { isImmutableDisplayTextPart, isOwnedDisplayTextPart, prepareDisplayText, type DisplayRun, type DisplayTextInput, type PreparedDisplayText } from './display-text.ts'
 import { createImmutableParts } from './immutable-parts.ts'
-import { customTextMeasurementActive, customTextInkActive, profileTextInk, type ProfileTextInkMeasurement } from '../text-measurement-profile.ts'
+import { customTextMeasurementActive, customTextInkActive, profileTextInk, profileTextFontFamily, type ProfileTextInkMeasurement } from '../text-measurement-profile.ts'
 import { formatSvgNumber } from './svg-number.ts'
 import type { AxisAlignedBox } from './transformed-bounds.ts'
 
@@ -383,7 +383,11 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
   immutablePixelParts.freezeOwned(lines)
   breaks.forEach(immutablePixelParts.freezeOwned)
   const width = lineBlocks.reduce((max, line) => Math.max(max, line.width), 0)
-  const block: PixelTextBlock = immutablePixelParts.freezeOwned({ unit: 'px', prepared, text: lines.join('\n'), lines, lineBlocks: immutablePixelParts.freezeOwned(lineBlocks), breaks: immutablePixelParts.freezeOwned(breaks), width, height: lines.length * lineHeight, lineHeight, fontSize: options.fontSize, fontWeight: options.fontWeight, letterSpacing: options.letterSpacing ?? 0, monospace: options.monospace ?? false, safeFont: options.safeFont ?? false, ...(options.fontFamily ? { fontFamily: options.fontFamily } : {}) })
+  // A shaped block may be reused under another document. Its measured face
+  // must remain an emitted override rather than inheriting that new root.
+  const fontFamily = options.fontFamily ?? (completeInk ? profileTextFontFamily() : undefined)
+  if (!fontFamily) completeInk = false
+  const block: PixelTextBlock = immutablePixelParts.freezeOwned({ unit: 'px', prepared, text: lines.join('\n'), lines, lineBlocks: immutablePixelParts.freezeOwned(lineBlocks), breaks: immutablePixelParts.freezeOwned(breaks), width, height: lines.length * lineHeight, lineHeight, fontSize: options.fontSize, fontWeight: options.fontWeight, letterSpacing: options.letterSpacing ?? 0, monospace: options.monospace ?? false, safeFont: options.safeFont ?? false, ...(fontFamily ? { fontFamily } : {}) })
   preparedBlocks.add(block)
   if (completeInk) shapedInkBlocks.add(block)
   if (cacheKey !== undefined) pixelBlocks.set(cacheKey, block, cacheKey.length * 2 + block.prepared.source.length * 128 + block.lines.length * 256 + 512)

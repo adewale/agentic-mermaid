@@ -51,13 +51,15 @@ describe('trusted host pixel measurement profiles', () => {
         } : undefined } })
         const source = 'flowchart LR\nA["<b>j</b>"]', options = { font: 'Inter', style: { roles: { node: { fontSize: 48, fontWeight: 400 } } } }
         const result = renderer.renderMermaidSVGWithReceipt(source, options)
-        expect(result.svg).toBe(createMermaidRenderer({ ...host, textMeasurement: profile(measure) }).renderMermaidSVG(source, options))
+        const widthOnlySvg = createMermaidRenderer({ ...host, textMeasurement: profile(measure) }).renderMermaidSVG(source, options)
         const texts = result.svg.match(/<text\b[^>]*>[\s\S]*?<\/text>/g)!
         expect(texts).toHaveLength(1)
+        expect(texts[0]).toContain('font-family="Inter"')
         expect(texts[0]).toContain('textLength="18.72"')
         expect(texts[0]).toMatch(/font-weight="(?:bold|700)"[^>]*>j<\/tspan>/)
         const font = { fontFiles: [join(import.meta.dirname, '../../assets/fonts/Inter-Bold.ttf')], loadSystemFonts: false, defaultFontFamily: 'Inter' }
         const raster = new Resvg(result.svg, { font }).render(), pixels = raster.pixels
+        expect(pixels.equals(new Resvg(widthOnlySvg, { font }).render().pixels)).toBe(true)
         const absent = new Resvg(result.svg.replace(texts[0]!, ''), { font }).render().pixels
         let changed = 0
         for (let i = 0; i < pixels.length; i += 4) if (!pixels.subarray(i, i + 4).equals(absent.subarray(i, i + 4))) changed++

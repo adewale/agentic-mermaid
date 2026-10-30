@@ -154,6 +154,12 @@ the width-only behavior. The callback must describe the same resolved fonts and
 shaping used by the SVG/PNG consumer; estimated or fallback widths cannot supply
 an ink envelope. This does not make the consumer load those fonts.
 
+A complete shaped block retains the execution-selected family even when its
+preparation omitted `fontFamily`. The SVG writer emits that explicit override,
+so reusing the block under another document cannot silently substitute the new
+root's font while keeping the old ink bounds. Width-only, default and unsupported
+blocks retain their existing inherited-font behavior.
+
 Pass the same profile to `createMermaidPNGRenderer` or
 `createMermaidBrowserPNGRenderer` to share graphical geometry and receipt
 identity across outputs. The fonts must also be available to the rasterizer
