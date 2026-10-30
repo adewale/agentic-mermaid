@@ -573,12 +573,16 @@ export class PngArtifactBackgroundError extends TypeError {
 /** Resolve explicit/artifact/fallback precedence once before substrate
  * dispatch. An authored but non-concrete artifact paint is an error: silently
  * substituting white would make valid rgb()/hsl() inputs and unresolved var()
- * references indistinguishable. */
+ * references indistinguishable. A transparent artifact (RenderOptions
+ * `transparent`) paints no page in SVG, so the raster leaves it unpainted too
+ * unless an explicit PNG background asks for a matte. */
 export function resolvePngRasterBackground(
   svg: string,
   outputPolicy: Pick<ResolvedPngOutputPolicy, 'background'>,
+  transparent = false,
 ): string {
   if (outputPolicy.background.mode === 'explicit') return outputPolicy.background.value
+  if (transparent) return PORTABLE_PNG_COLOR_KEYWORDS.transparent
   const rootStyle = svgRootAttribute(svgRootTag(svg), 'style')
   const artifactPaint = rootStyle?.match(/(?:^|;)\s*--bg\s*:\s*([^;]+)/i)?.[1]?.trim()
   if (artifactPaint === undefined) return outputPolicy.background.fallback

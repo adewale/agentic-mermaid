@@ -359,6 +359,18 @@ describe('canonical PNG output-option authority', () => {
     expect(portable.receipt).toEqual(native.receipt)
   })
 
+  test('a transparent artifact rasterizes unpainted on every substrate unless a PNG background mattes it', () => {
+    const options = { style: 'dracula', transparent: true } as const
+    expect(renderPngGraphicalProjection(SOURCE, options, { scale: 0.1 }).rasterBackground).toBe('#00000000')
+    expect(renderPortablePngGraphicalProjection(SOURCE, options, { scale: 0.1 }).rasterBackground).toBe('#00000000')
+    const unpainted = decodePng(renderMermaidPNGWithReceipt(SOURCE, { ...options, scale: 0.1, onWarning: () => {} }).png)
+    expect([...unpainted.rgba.slice(0, 4)]).toEqual([0, 0, 0, 0])
+    const matte = decodePng(renderMermaidPNGWithReceipt(SOURCE, { ...options, background: '#123456', scale: 0.1, onWarning: () => {} }).png)
+    expect([...matte.rgba.slice(0, 4)]).toEqual([0x12, 0x34, 0x56, 0xff])
+    // No page is painted, so a host-resolved page paint needs no PNG resolution.
+    expect(renderPngGraphicalProjection(SOURCE, { bg: 'var(--brand-bg)', transparent: true }, { scale: 0.1 }).rasterBackground).toBe('#00000000')
+  })
+
   test('native rasterization paints valid rgb() artifact backgrounds and rejects unresolved paints', () => {
     const red = decodePng(renderMermaidPNGWithReceipt(SOURCE, {
       bg: 'rgb(255 0 0)',

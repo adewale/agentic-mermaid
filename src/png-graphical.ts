@@ -51,7 +51,7 @@ function renderResolvedPngGraphicalProjection(
   resolutionOptions: RenderExecutionResolutionOptions = {},
 ): PngGraphicalProjection {
   const graphical = executeGraphicalRequest(source, renderOptions, 'png', outputPolicy, resolutionOptions)
-  const rasterBackground = resolvePngRasterBackground(graphical.svg, outputPolicy)
+  const rasterBackground = resolvePngRasterBackground(graphical.svg, outputPolicy, renderOptions.transparent === true)
   const rasterDimensions = assertPngRasterBudget(graphical.svg, outputPolicy)
   return {
     ...graphical,
