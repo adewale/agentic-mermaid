@@ -484,6 +484,11 @@ export function repairInwardEndpointApproaches(nodes: PositionedNode[], edges: P
   return repairs
 }
 
+/** An endpoint either stays put or remains on its card's outline. */
+function onShapeOutlineOrSame(point: Point, original: Point, owner: PositionedNode | undefined): boolean {
+  return point.x === original.x && point.y === original.y || (owner !== undefined && onShapeOutline(owner, point, 0.01))
+}
+
 /**
  * Post-freeze repair for a diagonal segment left in an otherwise orthogonal
  * route (the rubric's diagonalSegments check). A node mover translates an
@@ -491,12 +496,14 @@ export function repairInwardEndpointApproaches(nodes: PositionedNode[], edges: P
  * coordinate (ELK emits collinear interior points), or re-anchors an exit onto
  * a new lane without moving the next bend; when no later rebuild owns the
  * route, the step survives as a slanted segment. The repair keeps both
- * endpoints and tries, in order: moving the diagonal's far run onto the near
- * point's coordinate, the near run onto the far point's, an elbow at either
- * corner, and a halfway jog that keeps both segment directions. A candidate is adopted only when the route becomes orthogonal and
- * simple, clears every other card (exact shapes, and boxes for the changed
- * segments), clears every title band, and has no more invalid endpoint
- * approaches. Fires only on a diagonal, which no certified layout has.
+ * endpoints on their outlines and tries, in order: sliding a terminal step's
+ * endpoint along its own side onto the other point's lane, moving the
+ * diagonal's far run onto the near point's coordinate, the near run onto the
+ * far point's, an elbow at either corner, and a halfway jog that keeps both
+ * segment directions. A candidate is adopted only when the route becomes
+ * orthogonal and simple, clears every other card (exact shapes, and boxes for
+ * the changed segments), clears every title band, and has no more invalid
+ * endpoint approaches. Fires only on a diagonal, which no certified layout has.
  */
 export function repairResidualDiagonals(nodes: PositionedNode[], edges: PositionedEdge[], groups: readonly PositionedGroup[], skipEdge: (edge: PositionedEdge) => boolean = () => false): number {
   const nodeMap = new Map(nodes.map(node => [node.id, node]))
@@ -522,6 +529,18 @@ export function repairResidualDiagonals(nodes: PositionedNode[], edges: Position
         return next
       }
       const candidates: Array<Point[] | undefined> = []
+      // A terminal step straightens by sliding that endpoint along its own
+      // side to the other point's lane, when the lane meets the outline there.
+      const slideEnd = (index: number, toward: Point, owner: PositionedNode | undefined): Point[] | undefined => {
+        if (!owner) return undefined
+        for (const axis of ['x', 'y'] as const) {
+          const moved = { ...current[index]!, [axis]: toward[axis] }
+          if (onShapeOutline(owner, moved, 0.01)) return current.map((point, k) => (k === index ? moved : point))
+        }
+        return undefined
+      }
+      if (i === 1) candidates.push(slideEnd(0, b, source))
+      if (i === last) candidates.push(slideEnd(last, a, target))
       for (const axis of ['x', 'y'] as const) candidates.push(carry(i, 1, axis, a[axis]), carry(i - 1, -1, axis, b[axis]))
       candidates.push([...current.slice(0, i), { x: b.x, y: a.y }, ...current.slice(i)], [...current.slice(0, i), { x: a.x, y: b.y }, ...current.slice(i)])
       // A step between two terminal rays: jog halfway, keeping both rays.
@@ -531,7 +550,7 @@ export function repairResidualDiagonals(nodes: PositionedNode[], edges: Position
       for (const candidate of candidates) {
         if (!candidate) continue
         const route = simplifyPolyline(candidate)
-        if (route.length < 2 || route[0]!.x !== current[0]!.x || route[0]!.y !== current[0]!.y || route.at(-1)!.x !== current[last]!.x || route.at(-1)!.y !== current[last]!.y) continue
+        if (route.length < 2 || !onShapeOutlineOrSame(route[0]!, current[0]!, source) || !onShapeOutlineOrSame(route.at(-1)!, current[last]!, target)) continue
         if (!simpleOrthogonal(route)) continue
         const fresh = (point: Point): boolean => !current.some(old => old.x === point.x && old.y === point.y)
         const touched = route.filter((point, index) => fresh(point) || (index > 0 && fresh(route[index - 1]!)) || (index < route.length - 1 && fresh(route[index + 1]!)))

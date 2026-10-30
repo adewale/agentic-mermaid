@@ -258,6 +258,8 @@ const RESIDUE_EXAMPLES: GroupedCase[] = [
   { source: 'flowchart TD\n  n4(Node 4)\n  n5 --- n5\n  n4 --x|e6| n7\n  n5 ==> n7\n', members: [], look: 'accessible-high-contrast', mustCertify: true },
   // A terminal shaft clipped off its side's port across a neighbouring card.
   { source: 'flowchart BT\n  n0[/Node 0/]\n  n1((Node 1))\n  n4{Node 4}\n  subgraph G0[Group 0]\n    direction TB\n    n4\n    n14\n    n8\n  end\n  subgraph G1[Group 1]\n    direction LR\n    n13\n    n1\n  end\n  G0 ==>|e0| G1\n  n15 -->|e1| G0\n  n8 --> n13\n  n10 --- n11\n  G0 --- G1\n  n0 -.-> G1\n  n9 -.-> n9\n  n6 ==>|e7| n4\n  n11 --o|e9| n14\n  n3 -.->|e10| n15\n  n8 ==>|e11| n14\n  n7 --o n8\n  n0 --x|e13| n10\n  n3 -.->|e15| n0\n  n11 <--> n12\n  n4 -.->|e17| n8\n  n13 --x n11\n  n8 -->|e20| n9\n  n13 ==>|e21| n6\n  n13 -->|e22| n2\n', members: [['G0', ['n4', 'n14', 'n8']], ['G1', ['n13', 'n1']]], look: 'accessible-high-contrast', mustCertify: true },
+  // A route squared off by a 6px jog where its endpoint could slide onto the lane.
+  { source: 'flowchart LR\n  n0{Node 0}\n  n2{Node 2}\n  n5(Node 5)\n  n6(Node 6)\n  n7[/Node 7/]\n  n9[/Node 9/]\n  n10{Node 10}\n  subgraph G0[Group 0]\n    n8\n    n0\n    n3\n  end\n  n2 ==> n1\n  n5 --- G0\n  n7 --o n3\n  n8 -.->|e5| n5\n  n0 <--> n11\n  n3 <--> n0\n  n6 --x|e8| n5\n  n9 --> n3\n  n11 -.->|e10| n1\n  n10 --o n10\n  n9 -.-> n7\n  n12 ==>|e14| n7\n  n2 --> n0\n  n4 --- n0\n  n12 ---|e17| n3\n', members: [['G0', ['n8', 'n0', 'n3']]], look: 'ops-schematic', mustCertify: true },
 ]
 
 describe('authored group frames hold their members in every look', () => {
