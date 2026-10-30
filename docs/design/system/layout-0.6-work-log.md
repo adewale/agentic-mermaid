@@ -3803,3 +3803,49 @@ returns; independent final-ink observation remains underway. These are not a
 Next concrete work: apply the independently qualified seed156caption repair,
 then combine only proved actual-work subtractions against the five remaining
 admission refusals. Full final-head CI and delivery budgets remain unresolved.
+
+
+### 30 October: bounded caption-seat repair without shaft masking
+
+The same-emission XML/text change is privately committed at
+`9d1a054162189972d9f2efa7f3554db29b734db2`.
+Seed156's remaining label conflicts were not inherited from ELK extraction:
+actual routes/captions are clear until separateEdgeLabelPills moves captions
+onto unrelated shafts while repairing small halo overlaps. The existing
+separator now first tries four deterministic near-current cross-axis offsets,
+charges them and the label roster to the same1,000,000-unit work ledger, and
+checks joint seats through the existing complete paint context. It removes
+the legacy permission to hide a foreign shaft beneath a caption halo. No route
+or node coordinate, tolerance, sweep count,64-pair candidate limit or work cap
+is changed. Custom/reentrant measurement keeps its conservative path.
+
+The original seed156direction cases and a separately authored four-node,
+four-edge interaction fail before repair(16P/3F) and pass afterward(19P/0F).
+Padded conflicts change TD5→0 and BT1→0. Independent actual halo/raster checks
+change TD5→0,BT2→0,interaction1→0; these different measures are not pooled.
+All node boxes and every edge path remain byte-identical; only caption seats
+move. Authored labels/endpoints, actual node-stroke contacts and marker tips
+remain. Eight generated source/direction SVGs plus the authored interaction
+exactly reproduce the independently observed pinned-font/Chromium artifacts.
+
+The private frozen candidate passes575graph/route/bundle tests plus161text,
+label and custom-measurement owners, with scoped types/lint. After exact live
+adoption on9d, targeted19cases pass272assertions, actual-root core types and
+scoped two-file lint pass. All2,045tracked TS/JSON bytes and head stayed unchanged
+during each check, with original deadlines and descendant cleanup. Baseline and
+candidate binding is by direct complete bytes in
+`seed156-labels/DIRECT-BYTE-BINDING.json`; earlier source-hash metadata was
+contrary to repository guidance and is explicitly superseded, not reused as
+authority. No source/test rerun was invented for that artifact correction.
+Evidence:`seed156-labels/FINAL-REPORT.json`,`LIVE-QUALIFICATION.json` and
+`FINAL-SVG-SOURCE-BINDING.json` under the session root.
+
+Main advanced during work to83744a4e1ae5c9d3821ba8a283811367fd31eade
+(release notes/API reference). It is fetched but not yet integrated at this
+entry. No literal rebase completion or current-base readiness is claimed.
+Five large proof-capacity refusals remain, while failed subtraction experiments
+stay enrolled: dropping marker repaint hides accepted thick-border ink; lazy
+XML fact activation saves unmarked work but introduces a valid late-marker
+refusal and is not adopted. Next check: integrate the new Main documentation,
+finish independent receiver-sensitive getter review of text reuse, and compose
+only qualified work subtractions against the remaining budget cases.

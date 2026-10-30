@@ -10,6 +10,11 @@ import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { runCli } from '../cli/index.ts'
 import { measureQuality } from '../agent/quality.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
+import { separateEdgeLabelPills } from '../route-contracts.ts'
+import { graphTextBlock } from '../graph-text.ts'
+import { renderSvg } from '../renderer.ts'
+import { scanSvgStartTags, decodedSvgAttributeValue } from '../svg-structure.ts'
+import { missingSvgLabels } from './helpers/svg-labels.ts'
 import { portLaneInkClear } from '../layout/passes/port-lanes.ts'
 import { bundleEdgePaths } from '../layout/passes/edge-bundling.ts'
 import { resolveRenderStyle } from '../styles.ts'
@@ -86,22 +91,88 @@ describe('checked graph layout selection', () => {
     { seed: 156, nodes: 8, edges: 18, from: 'n0', to: 'n5', labels: ['edge 0 xxx', 'edge 12 xxxxxxxxxxxxxxx', 'edge 16 xxxxxxxxxxxxxxxxxxx'] },
   ].flatMap(sample => ['TD', 'BT', 'LR', 'RL'].map(direction => ({ ...sample, direction }))))('retains labelled duplicates without displacing safe captions in ELK cycle $seed in $direction', ({ seed, nodes, edges, from, to, labels, direction }) => {
     const source = generatedFlowchartSamples({ start: seed, count: 1 })[0]!.source.replace('flowchart TD', `flowchart ${direction}`)
-    const options = { graphLayout: { backend: 'elk' as const }, ...(seed === 40 ? { layoutSafety: 'strict' as const } : {}) }
+    const options = { graphLayout: { backend: 'elk' as const }, layoutSafety: 'strict' as const }
     const svg = renderMermaidSVGWithReceipt(source, options)
     const result = layoutMermaidWithReceipt(source, { ...options, debug: true })
     expect(result.layout.nodes).toHaveLength(nodes)
     expect(result.layout.edges).toHaveLength(edges)
     const parallel = result.layout.edges.filter(edge => edge.from === from && edge.to === to)
     expect(parallel).toHaveLength(labels.length)
+    expect(parallel.map(edge => edge.label?.text)).toEqual(labels)
+    const paintedCaptions = scanSvgStartTags(svg.svg).filter(tag => tag.name === 'g' && decodedSvgAttributeValue(tag, 'class') === 'edge-label' && decodedSvgAttributeValue(tag, 'data-from') === from && decodedSvgAttributeValue(tag, 'data-to') === to)
+    expect(paintedCaptions.map(tag => decodedSvgAttributeValue(tag, 'data-label'))).toEqual(labels)
     expect(parallel[0]!.path).not.toEqual(parallel[1]!.path)
     expect(measureQuality(result.layout).labelConflicts?.labelLabel).toBe(0)
-    if (seed === 40) {
-      expect(measureQuality(result.layout).labelConflicts?.total).toBe(0)
-      expect(svg.receipt.layoutCertification?.status).toBe('passed')
-    }
+    expect(measureQuality(result.layout).labelConflicts?.total).toBe(0)
+    expect(svg.receipt.layoutCertification?.status).toBe('passed')
     for (const label of labels) expect(svg.svg).toContain(label)
     expect(svg.receipt.layoutCertification?.status).not.toBe('failed')
     expect(svg.receipt.layoutDecisions?.[0]?.selected).toBe('elk')
+  })
+
+  test('separates nearby caption halos without seating a caption on a foreign guard route', () => {
+    const source = `flowchart TD
+Top left@-->|edge 12 xxxxxxxxxxxxxxx| Bottom
+Top wide@-->|edge 16 xxxxxxxxxxxxxxxxxxx| Bottom
+Top right@-->|edge 4 xxxxxxx| Bottom
+GuardStart[G] guard@--> GuardEnd[H]`
+    const graph = parseFlowchart(source), style = resolveRenderStyle({})
+    const positions = [
+      { id: 'Top', x: 0, y: 0, width: 620, height: 40 },
+      { id: 'Bottom', x: 0, y: 320, width: 620, height: 40 },
+      { id: 'GuardStart', x: 700, y: 50, width: 40, height: 40 },
+      { id: 'GuardEnd', x: 900, y: 50, width: 40, height: 40 },
+    ]
+    const nodes: PositionedNode[] = positions.map(position => ({ ...graph.nodes.get(position.id)!, ...position, labelBlock: graphTextBlock(graph.nodes.get(position.id)!.label, style, 'node') }))
+    // The guard leaves a narrow clear seat beside each existing caption but
+    // crosses the distant runs the old longest-segment ladder tries first.
+    const paths: Array<Array<[number, number]>> = [
+      [[257.734, 40], [257.734, 320]],
+      [[416.124, 40], [416.124, 320]],
+      [[549.274, 40], [549.274, 320]],
+      [[700, 70], [607, 70], [607, 44], [174, 44], [174, 100], [607, 100], [607, 110], [100, 110], [100, 147], [888, 147], [888, 184], [100, 184], [100, 221], [888, 221], [888, 258], [100, 258], [100, 295], [888, 295], [960, 295], [960, 110], [888, 110], [888, 70], [900, 70]],
+    ]
+    const centers = [{ x: 257.429, y: 70 }, { x: 415.699, y: 70 }, { x: 549.274, y: 70 }]
+    const edges: PositionedEdge[] = graph.edges.map((edge, index) => ({ ...edge, edgeIndex: index, points: paths[index]!.map(([x, y]) => ({ x, y })), labelPosition: centers[index], ...(edge.label ? { labelBlock: graphTextBlock(edge.label, style, 'edge') } : {}) }))
+    const positioned = { width: 1000, height: 400, nodes, edges, groups: [] }
+    const facts = [
+      ['left', 'Top', 'Bottom', 'edge 12 xxxxxxxxxxxxxxx'],
+      ['wide', 'Top', 'Bottom', 'edge 16 xxxxxxxxxxxxxxxxxxx'],
+      ['right', 'Top', 'Bottom', 'edge 4 xxxxxxx'],
+      ['guard', 'GuardStart', 'GuardEnd', undefined],
+    ]
+    separateEdgeLabelPills(positioned, graph, style)
+    expect(edges.map(edge => [edge.id, edge.source, edge.target, edge.label])).toEqual(facts)
+    expect(edges.map(edge => edge.points.map(point => [point.x, point.y]))).toEqual(paths)
+    expect(nodes.map(({ id, x, y, width, height }) => ({ id, x, y, width, height }))).toEqual(positions)
+    const svg = renderSvg({ positioned, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } })
+    const tags = scanSvgStartTags(svg)
+    const carriers = tags.filter(tag => tag.name === 'polyline' && decodedSvgAttributeValue(tag, 'data-role') === 'edge')
+    expect(carriers.map(tag => ['data-id', 'data-from', 'data-to', 'data-label'].map(name => decodedSvgAttributeValue(tag, name)))).toEqual(facts)
+    expect(carriers.map(tag => decodedSvgAttributeValue(tag, 'points'))).toEqual(paths.map(path => path.map(point => point.join(',')).join(' ')))
+    expect(missingSvgLabels(svg, facts.slice(0, 3).map(row => row[3]!))).toEqual([])
+    for (let index = 0; index < tags.length; index++) {
+      const label = tags[index]!
+      if (label.name !== 'g' || decodedSvgAttributeValue(label, 'class') !== 'edge-label') continue
+      const halo = tags[index + 1]!
+      expect(decodedSvgAttributeValue(halo, 'class')).toBe('edge-label-halo')
+      const x = Number(decodedSvgAttributeValue(halo, 'x')), y = Number(decodedSvgAttributeValue(halo, 'y'))
+      const right = x + Number(decodedSvgAttributeValue(halo, 'width')), bottom = y + Number(decodedSvgAttributeValue(halo, 'height'))
+      for (const carrier of carriers) {
+        if (decodedSvgAttributeValue(carrier, 'data-label') === decodedSvgAttributeValue(label, 'data-label')) continue
+        const half = Number(decodedSvgAttributeValue(carrier, 'stroke-width')) / 2
+        const points = decodedSvgAttributeValue(carrier, 'points')!.split(' ').map(token => token.split(',').map(Number))
+        for (let point = 1; point < points.length; point++) {
+          const [ax, ay] = points[point - 1]!, [bx, by] = points[point]!
+          expect(ax === bx || ay === by).toBe(true)
+          const covered = ax === bx
+            ? ax! > x - half && ax! < right + half && Math.max(ay!, by!) > y - half && Math.min(ay!, by!) < bottom + half
+            : ay! > y - half && ay! < bottom + half && Math.max(ax!, bx!) > x - half && Math.min(ax!, bx!) < right + half
+          expect(covered).toBe(false)
+        }
+      }
+    }
+    expect(edges.filter(edge => edge.label).every(edge => edge.labelPosition!.y === 70)).toBe(true)
   })
 
   test.each([
