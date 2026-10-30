@@ -45,6 +45,7 @@ export function createNativePaintEmission(maxOperations: number) {
   const xml = createSvgXmlCapture(pay)
   const failed = Symbol('unsupported-emission')
   const capturedLeaves = new WeakMap<object, Leaf>()
+  let ownedPartRosters: WeakSet<object> | undefined
   type CaptureContext = 'leaf' | 'route' | 'geometry' | 'points' | 'point' | 'pixel-part'
   interface TextCopyPlan { readonly source: object; readonly array: boolean; readonly slots: readonly TextCopySlot[]; readonly length: number | undefined; readonly height: number }
   interface TextCopySlot { readonly key: string; readonly enumerable: boolean; readonly value: unknown; readonly child: TextCopyPlan | undefined }
@@ -199,6 +200,23 @@ export function createNativePaintEmission(maxOperations: number) {
     } finally { planningText = undefined }
   }
 
+  let observedPaintFields: (keyof MarkPaint)[] | undefined
+  const refuseInheritedPaint = (paint: unknown): void => {
+    if (!paint || typeof paint !== 'object') return
+    if (!pay(2)) { uncertain = true; return }
+    if (Object.getPrototypeOf(paint) === null) return
+    if (!observedPaintFields) {
+      // The existing finite MarkPaint inventory owns all thirteen fields.
+      // Retain its private key roster once, before walking any paint record.
+      if (!pay(16)) { uncertain = true; return }
+      observedPaintFields = Object.keys(rectanglePaintFields) as (keyof MarkPaint)[]
+    }
+    for (let index = 0; index < observedPaintFields.length; index++) {
+      if (!pay(2)) { uncertain = true; break }
+      const field = observedPaintFields[index]!
+      if (!Object.hasOwn(paint, field) && field in paint) uncertain = true
+    }
+  }
   const snapshot = <T>(value: T): T | undefined => {
     try { return copy(value) as T } catch { return undefined }
   }
@@ -343,6 +361,10 @@ export function createNativePaintEmission(maxOperations: number) {
     snapshot,
     same,
     retainFragment(): boolean { return pay() },
+    ownsParts(value: unknown): boolean {
+      if (!pay(2)) { uncertain = true; return false }
+      return value !== null && typeof value === 'object' && (ownedPartRosters?.has(value) ?? false)
+    },
     parts<T>(items: readonly T[], max: number): readonly T[] {
       if (!pay()) { uncertain = true; return items }
       if (!Array.isArray(items)) { uncertain = true; return items }
@@ -353,10 +375,17 @@ export function createNativePaintEmission(maxOperations: number) {
       const retained: T[] = []
       for (let index = 0; index < length; index++) {
         const descriptor = Object.getOwnPropertyDescriptor(items, String(index))
-        if (!descriptor || !Object.hasOwn(descriptor, 'value')) { uncertain = true; retained.push(items[index]!) }
-        else retained.push(descriptor.value as T)
+        let value: T
+        if (!descriptor || !Object.hasOwn(descriptor, 'value')) { uncertain = true; value = items[index]! }
+        else value = descriptor.value as T
+        Object.defineProperty(retained, index, { value, enumerable: true, writable: true, configurable: true })
       }
-      return Object.freeze(retained)
+      const frozen = Object.freeze(retained)
+      // The first completed roster pays its private set allocation as well
+      // as registration. A failed registration retains the legacy array.
+      if (!pay(ownedPartRosters ? 2 : 4)) { uncertain = true; return frozen }
+      ;(ownedPartRosters ??= new WeakSet()).add(frozen)
+      return frozen
     },
     uncertain(): void { uncertain = true },
     header(header: Omit<SceneDoc, 'parts'>, svg: string): Omit<SceneDoc, 'parts'> {
@@ -490,6 +519,37 @@ export function createNativePaintEmission(maxOperations: number) {
         if (!/^[ \t\r\n]*<\/defs>[ \t\r\n]*$/.test(svg.slice(resourceCursor))) definitionsClosed = false
       } else if (node.kind === 'document') closedMarkerContext = false
       if (capturedLeaves.has(node)) {
+        // A prototype changed after writing cannot move retained source ink.
+        // Presence checks on this owned plain record do not invoke its getter;
+        // ordinary context and inspection reads still run in their old order.
+        if (node.kind !== 'document') {
+          if (!pay(2)) uncertain = true
+          else if (!Object.hasOwn(node, 'transform') && 'transform' in node) uncertain = true
+        }
+        if (node.kind !== 'document') {
+          if (!pay(2)) uncertain = true
+          else {
+            const paint = Object.getOwnPropertyDescriptor(node, 'paint')
+            if (paint && Object.hasOwn(paint, 'value')) refuseInheritedPaint(paint.value)
+          }
+          if (node.kind === 'shape') {
+            if (!pay(2)) uncertain = true
+            else {
+              const children = Object.getOwnPropertyDescriptor(node, 'childPaints')
+              if (children && Object.hasOwn(children, 'value') && Array.isArray(children.value)) {
+                if (!pay(2)) uncertain = true
+                else {
+                  const length = Object.getOwnPropertyDescriptor(children.value, 'length')
+                  if (length && Object.hasOwn(length, 'value')) for (let index = 0; index < length.value; index++) {
+                    if (!pay(2)) { uncertain = true; break }
+                    const paint = Object.getOwnPropertyDescriptor(children.value, String(index))
+                    if (paint && Object.hasOwn(paint, 'value')) refuseInheritedPaint(paint.value)
+                  }
+                }
+              }
+            }
+          }
+        }
         context.hint(node)
         if (node.kind !== 'document') context.leaf(capturedLeaves.get(node)!, svg)
       } else context.invalidateFractionalCircle()

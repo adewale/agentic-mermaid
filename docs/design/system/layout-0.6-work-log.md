@@ -1,6 +1,7 @@
 # Native layout 0.6 correctness work log
 
-The [qualification contract](layout-0.6-qualification.md) defines acceptance;
+The [qualification work plan](layout-0.6-qualification.md) records the six goals
+and proposed evidence; its additional research methods are not acceptance gates.
 [TODO.md](../../../TODO.md#owned-graph-backend-qualification-owner-request-pr-449)
 remains the sole backlog. Entries record bounded evidence, not completed parity.
 
@@ -4080,3 +4081,138 @@ preserving source Proxy/getter and generic fallback observations. This is not
 fixed by the XML-validity repair alone. Owner source remains held privately
 during current-root checks; no parallel writer overwrote it. Remote retained
 branch is still d43. No readiness or correctness-parity claim is made.
+
+### 30 October07:46UTC: compose actual-roster and post-write authority repairs
+
+Fetched Main and the retained branch again: Main is still
+83744a4e1ae5c9d3821ba8a283811367fd31eade and the published retained branch is
+d43ef02ee11f9c5f99d5138e9455f14efcbab27b. Both are ancestors of private7c4486bf0;
+no concurrent remote changes were discarded. PR449 itself remains merged and
+closed. No new PR or issue was created.
+
+Three independently observed roster failures are now represented in the owning
+paint test: final-root map, final-group map, and private group-child iteration.
+On the old composition these can remove an actual connector while leaving valid
+XML and a passed certificate. The third mode excludes the caller's submitted
+array; it specifically exposes omission by the private retained traversal. Its
+old output loses284foreground pixels. The repaired own-slot traversal preserves
+the complete submitted occurrence and uses the same retained roster for actual
+serialization and inspection. Public caller/foreign/exhausted fallback behavior
+remains separate; the three paired controls preserve actual SVG and all54
+observed source reads. No caller-issued trust capability was introduced.
+
+Adopted frozenRosterR2 Drawing/XML files, the independently owned Native roster
+and late-transform guard, and inert synthetic proof operands. Exact pre-adoption
+bytes and complete file-to-freeze equality are recorded in
+roster-transform-adoption/BINDING.json and before/. Removed the unpublished,
+unused XML validation compatibility surface rather than retaining another
+certificate-like result. Owning XML tests independently parse actual SVG with
+Saxes before checking production verification. Actual-root Native/writer owners
+pass88tests/577assertions; the targeted roster/own-data/final-ink selection
+passes7tests/78assertions. These are the composed transform-only bytes, not the
+pending opacity repair or a final release qualification.
+
+Late inherited transform exposes the same failed assumption through Native
+retained leaves and ordinary synthetic Scene proof wrappers. A producer emits a
+white circle or stroked line over a head, then adds a transform getter after
+writing. Actual SVG is unchanged and removing the covered head changes0pixels,
+but the old proof moves the cover and incorrectly passes. Native conservatively
+marks inherited unowned transform uncertain; synthetic proof-only operands
+have no prototype. The writer's original source reads/receivers are preserved.
+Full private owner62P/429assertions, strict types and scoped lint pass on the
+exact transform-only freeze; mutable-before-admission and explicit own-transform
+controls retain visible heads and pass. No timing claim follows.
+
+Publication is still withheld for one demonstrated related counterexample:
+with an explicitly emitted own marker opacity of1, a late inherited zero opacity
+on the white cover also changes old U to falseP. The earlier opacity control
+stayed U only because missing marker opacity was incidental uncertainty. The
+stronger control is retained in late-transform-review/
+RESULT-PROPERTIES-OWN-OPACITY.json. A bounded repair and owning control are in
+progress; planning or the transform-only green results do not close this case.
+
+The six capacity refusals remain enrolled and unresolved. Additional paid-stage
+profiling has ruled out a paint-only cache as a solution. A separate bounded
+experiment tests whether Class invisible repaint carriers can retain only the
+complete straight terminal run instead of duplicating the entire route. ER has
+no corresponding duplicated carrier: its relationship is drawn once and each
+cardinality is already constant-size geometry. That source observation is not
+an ER budget improvement. The replacement holdout remains sealed. Next concrete
+step: close the demonstrated optional-paint authority hole, qualify the composed
+candidate, then replay exact enrolled comparisons and publish only verified,
+coherent work with a normal fast-forward push.
+
+### 30 October08:08UTC: complete combined authority checks; preserve six refusals
+
+The demonstrated late-paint class is now repaired on the composed candidate.
+With all marker alpha fields explicitly1, six formerly passed but actually
+covered heads become unverified: circle opacity/fillOpacity/fill and line
+opacity/strokeOpacity/stroke. All20 paired field observations preserve exact
+actual SVG and every pre-certification getter read; all prototypes are restored.
+Independent raster controls find0changed pixels on removal of the covered head,
+30on the exposed head, and48/61on the two node labels. The stronger owning test
+fails on the transform-only implementation in both Native rows; both Scene rows
+already pass. Evidence: late-transform-review/PAINT-FIELD-HANDOFF.json and
+budget-attribution/marker-equivalence/paint-guard-*.
+
+Native observation checks the existing complete13-field MarkPaint inventory,
+including compound child paints, through paid own-slot/presence checks on its
+already captured data. It does not invoke an extra source getter or return
+before the existing observation path. Already inert paint has no inheritance;
+a paid prototype check skips the impossible inherited-field walk. Synthetic
+Scene proof operands remain inert. No writer source receiver, generic mutable
+fallback, declaration/ownership rule, epsilon, price or production cap changed.
+Adoption binds exact bytes in paint-field-adoption/BINDING.json; the roster
+owner's final exact-SVG assertion is native-roster-owning-test-v4, not v3.
+
+On these SAME actual-root code bytes, canonical core+repository types and full
+repository lint pass. Owning checks across11files total969P/6F/45,965assertions:
+88Native/writer;105adjacent Scene;607paint (557P/2F complement plus48P stock);
+175Class/ER (171P/4F). All six failures are the retained capacity cases, not
+newly excused expectations: four128-class Native chains, ER256Native, and
+1,500labels/32decorations Native. Source/head guards and process cleanup pass.
+The first full paint-owner worker reached the existing117second limit; its
+partial evidence and terminated/reaped result are retained. The final full
+607-test coverage is established by disjoint name partitions under the SAME
+117second worker and30second test limits, with no timeout extension.
+Evidence: xml-adoption-checks/{types-final-authority,lint-final-authority,
+final-authority-*}. The earlier command's nonexistent deferred-test spelling
+executed only the two real files (88tests); the subsequent105-test Scene run
+explicitly owns the real deferred-terminal-projection.test.ts. No absent file
+is counted as tested.
+
+Further actual subtraction controls do not justify a dispatch change. ER has
+one visible principal relationship, no Class-like invisible duplicate carrier;
+12individual cardinality removals change48..143pixels. Shortening its route
+would change visible geometry and does not address capture exhaustion. The
+existing strong Scene path, selected BEFORE any Native capture, passes Class128
+LR/RL at373,818/378,281, ER256at66,126 and a separate Class64TB control at264,449.
+Class128TB/BT still exhaust400,000; the factory case remains Native-unverified
+and has no public family Scene adapter. All six portable paired SVGs are exactly
+equal. The13fresh-process control cells retain all guards and cleanup. Selecting
+assertions also changes admission and deferred projection policy, so this is
+not an isolated ordinary-adapter experiment. No size/direction rule or automatic
+fallback was added. Evidence: scene-adapter-control/REPORT.json and
+er-route-subtraction/REPORT.json. A family-wide single immutable authority is a
+future structural option requiring original producer/writer custody, ordinary
+path qualification and performance-hold evidence; these controls do not prove it.
+
+A fifth Sol6.1High worker independently reread the historical comparison bytes:
+all95normal SVGs parse, all23retained ours strict/normal pairs match, all21
+Original7 models match independently authored facts, and all418pinned Pele files
+match the fetched artifact. Original7's177positive marker groups and87positive
+label removals, and authored6's75groups/119labels are supported as bounded
+foreground observations, not universal correctness. This review also found and
+corrected the stale work-log introduction calling the assistant-authored plan an
+acceptance contract. No human-study gate applies. Evidence:
+final-evidence-independent-review/PRELIMINARY-REVIEW.json.
+
+The freshly frozen final-authority-checkpoint binds1,708files directly to this
+candidate, with zero production differences from the immutable paint-guard
+runtime. Its66ours-cell replay is in progress; no old proof or work count is
+reused and no new peer acquisition is fabricated. The exact original three-node
+mixed-marker source now parses and emits under both engines, but both strict
+paths still refuse unproved cross/overlap ink; two-node controls do not close
+that remaining uncertainty. Replacement24 stays sealed. Next step: commit this
+verified authority repair, push normally, follow exact-head CI and finish the
+separate fresh comparison. No correctness parity or delivery readiness is claimed.

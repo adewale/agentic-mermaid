@@ -26,16 +26,13 @@ declare const svgXmlWrite: unique symbol
 declare const svgXmlCapture: unique symbol
 export interface SvgXmlWrite { readonly [svgXmlWrite]: true; readonly svg: string }
 export interface SvgXmlWriteRecord { readonly svg: string; readonly node: object | undefined }
-export interface SvgXmlValidationRecord extends SvgXmlWriteRecord { readonly skeleton: string }
 export interface SvgXmlCapture {
   readonly [svgXmlCapture]: true
   raw(svg: string, node?: object): SvgXmlWrite
-  join(writes: readonly SvgXmlWrite[], separator?: string): SvgXmlWrite
+  join(writes: Iterable<SvgXmlWrite>, separator?: string): SvgXmlWrite
   indent(write: SvgXmlWrite, spaces: number): SvgXmlWrite
   /** Identity and actual bytes only; exhaustion cannot discard emitted output. */
   read(write: SvgXmlWrite, expectedNode?: object): SvgXmlWriteRecord | undefined
-  /** Complete private construction checks only when the final envelope needs them. */
-  validate(write: SvgXmlWrite): SvgXmlValidationRecord | undefined
   /** Fresh envelope verification binds occupied DATA positions to this actual tree. */
   verify(write: SvgXmlWrite): boolean
 }
@@ -76,7 +73,6 @@ interface XmlWriteFact {
   readonly record: SvgXmlWriteRecord
   readonly projection: string | (() => XmlProjectionResult)
   projected?: XmlProjection
-  completed?: SvgXmlValidationRecord
 }
 const xmlCaptures = new WeakMap<SvgXmlCapture, XmlCaptureState>()
 const xmlWrites = new WeakMap<SvgXmlWrite, XmlWriteFact>()
@@ -139,26 +135,6 @@ export function createSvgXmlCapture(work: (operations: number) => boolean): SvgX
     return fact.projected = typeof projected === 'string'
       ? Object.freeze({ skeleton: projected, occupied: EMPTY_XML_OCCUPIED }) : projected
   }
-  const validateFact = (fact: XmlWriteFact): SvgXmlValidationRecord | undefined => {
-    const projected = projectFact(fact)
-    if (!projected) return undefined
-    if (fact.completed) return fact.completed
-    let skeleton = projected.skeleton
-    if (projected.occupied.length) {
-      skeleton = ''
-      let cursor = 0
-      for (let i = 0; i < projected.occupied.length; i++) {
-        const position = projected.occupied[i]!
-        if (!pay(position - cursor + 6)) return undefined
-        skeleton += xmlRange(projected.skeleton, cursor, position) + '<g/>'
-        cursor = position + 1
-      }
-      if (!pay(projected.skeleton.length - cursor)) return undefined
-      skeleton += xmlRange(projected.skeleton, cursor)
-    }
-    if (!pay(2)) return undefined
-    return fact.completed = Object.freeze(Object.assign(Object.create(null), { svg: fact.record.svg, node: fact.record.node, skeleton })) as SvgXmlValidationRecord
-  }
   const literal = (value: string, attribute: boolean): boolean => {
     if (!pay(2)) return false
     const cache = attribute ? attributes : texts
@@ -214,7 +190,7 @@ export function createSvgXmlCapture(work: (operations: number) => boolean): SvgX
       if (typeof svg !== 'string') throw new TypeError('XML raw chunks require a string')
       return issue(svg, svg, node)
     },
-    join(writes: readonly SvgXmlWrite[], separator = '\n'): SvgXmlWrite {
+    join(writes: Iterable<SvgXmlWrite>, separator = '\n'): SvgXmlWrite {
       if (typeof separator !== 'string') throw new TypeError('XML joins require a string separator')
       const children = pay(1) ? xmlList<XmlWriteFact>() : undefined
       let svg = '', count = 0
@@ -280,10 +256,6 @@ export function createSvgXmlCapture(work: (operations: number) => boolean): SvgX
     read(write: SvgXmlWrite, expectedNode?: object): SvgXmlWriteRecord | undefined {
       const found = factOf(write)?.record
       return found && (expectedNode === undefined || found.node === expectedNode) ? found : undefined
-    },
-    validate(write: SvgXmlWrite): SvgXmlValidationRecord | undefined {
-      const found = factOf(write)
-      return found ? validateFact(found) : undefined
     },
     verify(write: SvgXmlWrite): boolean {
       const found = factOf(write)

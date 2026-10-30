@@ -350,6 +350,113 @@ test.each(['owned', 'proxy'] as const)('Native text snapshots retain %s own data
   expect({ own: changed.thirdOwnSourceStart, sourceStart: changed.thirdSourceStart, trace: changed.trace, fill: result.attributes.fill, actualCenterPixel: [...actual.subarray((130 * 200 + 150) * 4, (130 * 200 + 150) * 4 + 4)] }).toEqual({ own: true, sourceStart: mode === 'owned' ? 0 : 7, trace: clean.trace, fill: '#000', actualCenterPixel: [0, 0, 0, 255] })
 })
 
+const ownedFragmentRosterProgram = String.raw`
+import { drawNative } from './src/scene/native-drawing.ts'
+import { certifyNativePaint } from './src/scene/paint-certification.ts'
+import { preparePixelText } from './src/shared/prepared-text.ts'
+import { serializeMarkerResource } from './src/scene/marker-resources.ts'
+const mode = process.env.AM_FRAGMENT_ROSTER_MODE, width = 200, height = 100, colors = { bg: '#fff', fg: '#111' }
+const block = preparePixelText('Route', { fontSize: 12, fontWeight: 400 })
+const marker = { id: 'roster-arrow', shape: 'arrow', geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: 8, y: 4 }, { x: 0, y: 8 }] }, size: { width: 8, height: 8 }, ref: { x: 8, y: 4 }, units: 'userSpaceOnUse', orient: 'auto', overflow: 'visible', paint: { fill: '#111' } }
+const callerChildren = new WeakSet()
+const render = () => {
+  const drawing = drawNative(factory => {
+    const open = factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">')
+    const defs = factory.definitions({ id: 'defs', markerResources: [marker] }, '<defs>' + serializeMarkerResource(marker) + '</defs>')
+    const source = factory.shape({ id: 'A', role: 'node', geometry: { kind: 'rect', x: 10, y: 40, width: 20, height: 20 }, paint: { fill: '#fff', stroke: '#111', strokeWidth: '1' } })
+    const target = factory.shape({ id: 'B', role: 'node', geometry: { kind: 'rect', x: 160, y: 40, width: 20, height: 20 }, paint: { fill: '#fff', stroke: '#111', strokeWidth: '1' } })
+    const edge = factory.connector({ id: 'semantic-edge', role: 'edge', endpoints: { from: 'A', to: 'B' }, geometry: { kind: 'polyline', points: [{ x: 30, y: 50 }, { x: 160, y: 50 }] }, lineStyle: 'solid', paint: { stroke: '#111', strokeWidth: '1.5', fill: 'none' }, markers: { end: marker } })
+    const children = [{ node: edge, indent: 0 }]; callerChildren.add(children)
+    const submitted = mode === 'root' ? edge : factory.group({ id: 'connector-group', role: 'chrome', open: '<g>', close: '</g>', children })
+    const label = factory.text({ id: 'route-label', role: 'label', text: 'Route', block, x: 90, y: 25, fontSize: 12, anchor: 'middle', paint: { fill: '#111' } })
+    return { family: 'flowchart', width, height, colors, transparent: false, parts: [open, defs, source, target, submitted, label, factory.documentClose()] }
+  }, { positioned: { width, height }, colors, resolved: { renderOptions: {} } }, 'flowchart')
+  return { svg: drawing.svg, proof: certifyNativePaint(drawing.header, drawing.paint), inspectedConnectorIDs: drawing.paint.primitives.filter(p => p.kind === 'connector').map(p => p.id) }
+}
+const clean = render(), hookKey = mode === 'group-children' ? Symbol.iterator : 'map', original = Object.getOwnPropertyDescriptor(Array.prototype, hookKey), nativeMethod = original.value, trace = []
+let changed
+try {
+  Object.defineProperty(Array.prototype, hookKey, { ...original, value(callback, thisArg) {
+    if (mode === 'group-children') {
+      const iterator = Reflect.apply(nativeMethod, this, [])
+      if (callerChildren.has(this)) return iterator
+      let wrappers = this.length > 0, selected = -1
+      for (let index = 0; index < this.length; index++) {
+        const slot = Object.getOwnPropertyDescriptor(this, String(index))
+        const wrapper = slot && Object.hasOwn(slot, 'value') ? slot.value : undefined
+        const node = wrapper && typeof wrapper === 'object' ? Object.getOwnPropertyDescriptor(wrapper, 'node') : undefined
+        const fragment = node && Object.hasOwn(node, 'value') ? node.value : undefined
+        const kind = fragment && typeof fragment === 'object' ? Object.getOwnPropertyDescriptor(fragment, 'kind') : undefined
+        const svg = fragment && typeof fragment === 'object' ? Object.getOwnPropertyDescriptor(fragment, 'svg') : undefined
+        if (!kind || !Object.hasOwn(kind, 'value') || !['leaf', 'group'].includes(kind.value) || !svg || !Object.hasOwn(svg, 'value') || typeof svg.value !== 'string') { wrappers = false; break }
+        if (svg.value.includes('data-id="semantic-edge"')) selected = index
+      }
+      if (!wrappers || selected < 0) return iterator
+      trace.push({ length: this.length, selected, kind: 'private-child-wrapper' })
+      let index = 0
+      return { next() { let result = iterator.next(); const position = index++; if (!result.done && position === selected) { result = iterator.next(); index++ } return result } }
+    }
+
+    const mapped = Reflect.apply(nativeMethod, this, [callback, thisArg])
+    let fragments = this.length > 0, selected = -1
+    for (let index = 0; index < this.length; index++) {
+      const slot = Object.getOwnPropertyDescriptor(this, String(index))
+      const value = slot && Object.hasOwn(slot, 'value') ? slot.value : undefined
+      const kind = value && typeof value === 'object' ? Object.getOwnPropertyDescriptor(value, 'kind') : undefined
+      const svg = value && typeof value === 'object' ? Object.getOwnPropertyDescriptor(value, 'svg') : undefined
+      if (!kind || !Object.hasOwn(kind, 'value') || !['leaf', 'group'].includes(kind.value) || !svg || !Object.hasOwn(svg, 'value') || typeof svg.value !== 'string') { fragments = false; break }
+      if (svg.value.includes('data-id="semantic-edge"')) selected = index
+    }
+    if (!fragments || selected < 0) return mapped
+    trace.push({ length: this.length, selected, kind: this[selected].kind })
+    const retained = []
+    for (let index = 0; index < mapped.length; index++) if (index !== selected) retained.push(mapped[index])
+    return retained
+  } })
+  changed = render()
+} finally { Object.defineProperty(Array.prototype, hookKey, original) }
+console.log(JSON.stringify({ clean, changed, trace, prototypeRestored: Object.getOwnPropertyDescriptor(Array.prototype, hookKey).value === nativeMethod }))
+`
+
+test.each(['root', 'group', 'group-children'] as const)('Native actual output retains the submitted %s connector occurrence under an inherited private roster hook', async mode => {
+  const child = await runTextReceiverChild(process.execPath, ['--eval', ownedFragmentRosterProgram], {
+    cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env, AM_FRAGMENT_ROSTER_MODE: mode },
+  })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  type Capture = { svg: string; proof: ReturnType<typeof certifyNativePaint>; inspectedConnectorIDs: string[] }
+  const packet = JSON.parse(child.stdout) as { clean: Capture; changed: Capture; trace: unknown[]; prototypeRestored: boolean }
+  expect(packet.prototypeRestored).toBe(true)
+  const clean = rectangleEmissionElements(packet.clean.svg), changed = rectangleEmissionElements(packet.changed.svg)
+  expect(packet.clean.proof.status).toBe('passed')
+  const carrier = clean.filter(element => element.attributes['data-id'] === 'semantic-edge')
+  expect(carrier).toHaveLength(1)
+  expect(carrier[0]!.attributes).toMatchObject({ points: '30,50 160,50', 'data-from': 'A', 'data-to': 'B', 'marker-end': 'url(#roster-arrow)', stroke: '#111', 'stroke-width': '1.5' })
+  const source = clean.find(element => element.attributes['data-id'] === 'A')!.attributes
+  const target = clean.find(element => element.attributes['data-id'] === 'B')!.attributes
+  expect(source).toMatchObject({ x: '10', y: '40', width: '20', height: '20', stroke: '#111', 'stroke-width': '1' })
+  expect(target).toMatchObject({ x: '160', y: '40', width: '20', height: '20', stroke: '#111', 'stroke-width': '1' })
+  // Actual written rectangle boundaries, not metadata alone, own both tips.
+  expect([Number(source.x) + Number(source.width), Number(target.x)]).toEqual([30, 160])
+  expect(Number(source.y) < 50 && Number(source.y) + Number(source.height) > 50 && Number(target.y) < 50 && Number(target.y) + Number(target.height) > 50).toBe(true)
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
+  const pixels = (svg: string) => new Resvg(svg, { font, background: '#fff' }).render().pixels
+  const actual = pixels(packet.clean.svg), marker = ' marker-end="url(#roster-arrow)"'
+  expect(actual).toHaveLength(200 * 100 * 4)
+  expect(packet.clean.svg.split(marker)).toHaveLength(2)
+  const withoutHead = pixels(packet.clean.svg.replace(marker, ''))
+  let offShaftForeground = 0
+  for (let offset = 0; offset < actual.length; offset += 4) {
+    if (Math.abs(Math.floor(offset / 4 / 200) + 0.5 - 50) <= 0.75) continue
+    if (actual[offset]! + 2 < withoutHead[offset]!) offShaftForeground++
+  }
+  expect(offShaftForeground).toBeGreaterThan(0)
+  const glyph = packet.clean.svg.match(/<text\b[^>]*>Route<\/text>/)![0]
+  expect(Buffer.compare(actual, pixels(packet.clean.svg.replace(glyph, '')))).not.toBe(0)
+  expect(packet.changed.svg).toBe(packet.clean.svg)
+  expect(packet.changed.proof.status).toBe('passed')
+  expect({ nodes: changed.filter(element => element.attributes['data-role'] === 'node').map(element => element.attributes['data-id']), carriers: changed.filter(element => element.attributes['data-id'] === 'semantic-edge').map(element => element.attributes), inspected: packet.changed.inspectedConnectorIDs, routeLabels: packet.changed.svg.match(/<text\b[^>]*>Route<\/text>/g)?.length }).toEqual({ nodes: ['A', 'B'], carriers: [carrier[0]!.attributes], inspected: ['semantic-edge'], routeLabels: 1 })
+})
+
 test.each(['close', 'join'] as const)('group %s cannot emit uninspected covering artwork', field => {
   const colors = { bg: '#fff', fg: '#111' }, artwork = '<rect x="10" y="10" width="80" height="60" fill="#fff"/>'
   const context = { positioned: { width: 100, height: 80 }, colors, resolved: { renderOptions: {} } }

@@ -1,12 +1,13 @@
 import { expect, test } from 'bun:test'
 import { Resvg } from '@resvg/resvg-js'
+import { fileURLToPath } from 'node:url'
 import { SaxesParser } from 'saxes'
 import * as marks from '../scene/marks.ts'
 import { assertFinalSvgByteBudget, createNativeSceneValidator, SCENE_VALIDATION_LIMITS, SceneValidationError } from '../scene/scene-validation.ts'
 import { inspectSvgOnce, withSvgInspectionCache } from '../svg-inspection-cache.ts'
 import { deferredTerminalProjectionInput, withDeferredTerminalProjections } from '../scene/deferred-terminal-projection.ts'
 import { serializeLinearGradientResources } from '../scene/gradient-resources.ts'
-import type { LinearGradientDescriptor, SceneDoc, SceneNode } from '../scene/ir.ts'
+import type { LinearGradientDescriptor, MarkPaint, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { drawNative } from '../scene/native-drawing.ts'
 import { certifyNativePaint, certifyScenePaint } from '../scene/paint-certification.ts'
 import { serializeMarkerResource, tipAnchoredArrow } from '../scene/marker-resources.ts'
@@ -571,4 +572,112 @@ test('native resource limits accumulate across otherwise admissible definitions'
   validator.node(definition(0, 5_000))
   validator.node(definition(5_000, 5_000))
   expect(() => validator.node(definition(10_000, 1))).toThrow(/10000 aggregate gradient resources/)
+})
+
+test.each((['circle', 'line'] as const).flatMap(geometry => (['native', 'scene'] as const).map(execution => ({ geometry, execution }))))('$execution paint keeps emitted $geometry occlusion after late inherited optional fields', ({ geometry, execution }) => {
+  type Mode = 'covered' | 'late-transform' | 'wrong-id' | 'late-opacity' | 'late-fill-opacity' | 'late-stroke-opacity' | 'late-fill' | 'late-stroke' | 'late-owner' | 'rect-control' | 'explicit-transform' | 'mutable-before-admission'
+  const width = 400, height = 160, colors = { bg: '#fff', fg: '#111' }
+  const context = { positioned: { width, height }, colors, resolved: { renderOptions: {} } }
+  const translated = { kind: 'matrix' as const, a: 1, b: 0, c: 0, d: 1, e: 120, f: 0 }
+  const arrow = tipAnchoredArrow('late-field-arrow', { width: 8, height: 5 }, 'end', { fill: '#111', stroke: 'none', opacity: '1', fillOpacity: '1', strokeOpacity: '1' }, 'userSpaceOnUse')
+  const draw = (mode: Mode) => {
+    const field = mode === 'late-opacity' ? 'opacity' : mode === 'late-fill-opacity' ? 'fillOpacity' : mode === 'late-stroke-opacity' ? 'strokeOpacity' : mode === 'late-fill' ? 'fill' : mode === 'late-stroke' ? 'stroke' : mode === 'late-owner' ? 'owner' : 'transform'
+    const previous = Object.getOwnPropertyDescriptor(Object.prototype, field)
+    let installed = false, inheritedPaint = '#fff'
+    const install = () => {
+      Object.defineProperty(Object.prototype, field, { configurable: true, get() {
+        if (field === 'opacity' || field === 'fillOpacity' || field === 'strokeOpacity') {
+          const fill = Object.getOwnPropertyDescriptor(this, 'fill')
+          return fill && Object.hasOwn(fill, 'value') && fill.value === '#fff' ? '0' : undefined
+        }
+        if (field === 'fill' || field === 'stroke') {
+          const width = Object.getOwnPropertyDescriptor(this, 'strokeWidth')
+          return width && Object.hasOwn(width, 'value') && width.value === (geometry === 'circle' ? '0' : '28') ? inheritedPaint : undefined
+        }
+        const target = mode === 'wrong-id' ? 'different-cover' : 'white-cover'
+        if ((this as { id?: string }).id !== target) return undefined
+        return field === 'owner' ? { id: 'ordinary-edge', role: 'edge' } : translated
+      } })
+      installed = true
+    }
+    const producer: DrawingProducer = factory => {
+      const open = factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">`)
+      const definitions = factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(arrow)}</defs>`)
+      const nodes = [20, 150].map((x, index) => factory.shape({ id: index ? 'B' : 'A', role: 'node', geometry: { kind: 'rect', x, y: 50, width: 30, height: 30 }, paint: { fill: '#fff', stroke: '#111', strokeWidth: '1' } }))
+      const edge = factory.connector({ id: 'ordinary-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 50, y1: 65, x2: 150, y2: 65 }, paint: { stroke: '#111', strokeWidth: '1' }, endpoints: { from: 'A', to: 'B' }, markers: { end: arrow } })
+      const labels = ['A', 'B'].map((text, index) => factory.text({ id: `label:${text}`, role: 'label', text, block: preparePixelText(text, { fontSize: 12, fontWeight: 400 }), x: index ? 165 : 35, y: 65, fontSize: 12, anchor: 'middle', paint: { fill: '#111' } }))
+      const coverPaint: MarkPaint = geometry === 'line' && mode !== 'rect-control' ? { fill: '#fff', stroke: '#fff', strokeWidth: '28' } : { fill: '#fff', stroke: 'none', strokeWidth: '0' }
+      if (mode === 'late-fill' || mode === 'late-stroke') { delete coverPaint[mode === 'late-fill' ? 'fill' : 'stroke']; install() }
+      const cover = factory.shape({ id: 'white-cover', role: 'chrome', geometry: mode === 'rect-control' ? { kind: 'rect', x: 132, y: 51, width: 28, height: 28 }
+        : geometry === 'circle' ? { kind: 'circle', cx: 146, cy: 65, r: 14 } : { kind: 'line', x1: 146, y1: 45, x2: 146, y2: 85 },
+      paint: coverPaint,
+      ...(mode === 'explicit-transform' ? { transform: translated } : {}) })
+      const close = factory.documentClose()
+      // Both actual writes precede the prototype change. These getters must
+      // not rewrite absent fields on retained occurrences or proof operands.
+      if (mode === 'late-fill' || mode === 'late-stroke') inheritedPaint = 'none'
+      else if (['late-transform', 'wrong-id', 'late-opacity', 'late-fill-opacity', 'late-stroke-opacity', 'late-owner', 'rect-control'].includes(mode)) install()
+      return { family: 'flowchart', width, height, colors, transparent: false, parts: [open, definitions, ...nodes, edge, ...labels, cover, close] }
+    }
+    try {
+      if (execution === 'native') {
+        const drawing = drawNative(producer, context, 'flowchart')
+        return { svg: drawing.svg, proof: certifyNativePaint(drawing.header, drawing.paint) }
+      }
+      const raw = producer<SceneNode>(marks, context)
+      if (mode === 'mutable-before-admission') {
+        const cover = raw.parts.find(node => node.id === 'white-cover')!
+        if (cover.kind === 'shape' && cover.geometry.kind === 'circle') cover.geometry.cx += 120
+        else if (cover.kind === 'shape' && cover.geometry.kind === 'line') { cover.geometry.x1 += 120; cover.geometry.x2 += 120 }
+      }
+      const capture = createSceneWriteCapture(MAX_OCCLUSION_OPERATIONS)
+      const admitted = admitSceneDocument(raw, 'internal', true, capture.observe)
+      const receipt = capture.finish(admitted)
+      return { svg: DefaultBackend.render(admitted, { seed: 0 }), proof: certifyScenePaint(admitted, undefined, { sceneWriteReceipt: receipt }) }
+    } finally {
+      if (installed) {
+        if (previous) Object.defineProperty(Object.prototype, field, previous)
+        else delete (Object.prototype as Record<string, unknown>)[field]
+      }
+    }
+  }
+  const pixels = (svg: string) => new Resvg(svg, { background: '#fff', font: { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter' } }).render().pixels
+  const changed = (a: Uint8Array, b: Uint8Array) => { let count = 0; for (let i = 0; i < a.length; i += 4) if (a[i] !== b[i] || a[i + 1] !== b[i + 1] || a[i + 2] !== b[i + 2] || a[i + 3] !== b[i + 3]) count++; return count }
+  const reference = ' marker-end="url(#late-field-arrow)"'
+  const clean = draw('covered'), late = draw('late-transform')
+  expect(late.svg).toBe(clean.svg)
+  const elements: Array<{ name: string; attributes: Record<string, string> }> = []
+  const parser = new SaxesParser({ xmlns: false })
+  parser.on('opentag', tag => { elements.push({ name: tag.name, attributes: tag.attributes as Record<string, string> }) })
+  parser.write(late.svg).close()
+  expect(elements.find(element => element.attributes['data-id'] === 'ordinary-edge')?.attributes).toMatchObject({ x1: '50', y1: '65', x2: '150', y2: '65', 'data-from': 'A', 'data-to': 'B', 'marker-end': 'url(#late-field-arrow)' })
+  const cover = geometry === 'circle' ? /<circle cx="146" cy="65" r="14"[^>]*\/>/ : /<line x1="146" y1="45" x2="146" y2="85"[^>]*\/>/
+  expect(late.svg.match(cover)?.[0]).not.toContain('transform=')
+  expect(changed(pixels(late.svg), pixels(late.svg.replace(reference, '')))).toBe(0)
+  const exposed = late.svg.replace(cover, '')
+  expect(changed(pixels(exposed), pixels(exposed.replace(reference, '')))).toBeGreaterThan(0)
+  for (const text of ['A', 'B']) expect(changed(pixels(late.svg), pixels(late.svg.replace(new RegExp('<text\\b[^>]*>' + text + '</text>'), '')))).toBeGreaterThan(0)
+  for (const result of [clean, late, ...(['wrong-id', 'late-opacity', 'late-owner', 'rect-control'] as const).map(draw)]) {
+    expect(result.proof.checks.operations).toBeLessThan(400_000)
+    expect(result.proof.issues.some(issue => issue.code === 'CHECK_BUDGET')).toBe(false)
+    expect(result.proof.status).not.toBe('passed')
+  }
+  for (const mode of ['late-fill-opacity', 'late-stroke-opacity', 'late-fill', 'late-stroke'] as const) {
+    const result = draw(mode), headPixels = changed(pixels(result.svg), pixels(result.svg.replace(reference, '')))
+    expect(result.proof.checks.operations).toBeLessThan(400_000)
+    if (execution === 'scene' && geometry === 'line' && mode === 'late-stroke') {
+      // Scene admission copies own fields before its actual write. Its
+      // omitted stroke draws no later eraser and keeps the arrow visible.
+      expect(headPixels).toBeGreaterThan(0)
+      expect(result.proof.status, JSON.stringify(result.proof.issues)).toBe('passed')
+    } else {
+      expect(headPixels).toBe(0)
+      expect(result.proof.status).not.toBe('passed')
+    }
+  }
+  for (const mode of execution === 'scene' ? ['explicit-transform', 'mutable-before-admission'] as const : ['explicit-transform'] as const) {
+    const visible = draw(mode)
+    expect(changed(pixels(visible.svg), pixels(visible.svg.replace(reference, '')))).toBeGreaterThan(0)
+    expect(visible.proof.status, JSON.stringify(visible.proof.issues)).toBe('passed')
+  }
 })

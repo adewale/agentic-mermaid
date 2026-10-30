@@ -58,6 +58,10 @@ const overlaps = (a: AxisAlignedBox, b: AxisAlignedBox): boolean => a.x0 < b.x1 
 const box = (r: { x: number; y: number; w: number; h: number }): AxisAlignedBox => ({ x0: r.x, y0: r.y, x1: r.x + r.w, y1: r.y + r.h })
 const viewportBox = (v: PaintViewport): AxisAlignedBox => ({ x0: v.x, y0: v.y, x1: v.x + v.width, y1: v.y + v.height })
 
+// Synthetic proof operands have no inherited optional paint or transform.
+// Caller-owned records keep their existing reads and writer receivers.
+const proofRecord = <T extends object>(fields: T): T => Object.assign(Object.create(null), fields)
+
 interface Surface { primitive: ScenePaintPrimitive; bounds: AxisAlignedBox; interiors?: readonly AxisAlignedBox[]; strokeInteriors?: readonly AxisAlignedBox[]; borderWidth?: number; partBorderWidths?: readonly number[]; partFilled?: readonly boolean[]; partBounds?: readonly (AxisAlignedBox | undefined)[] }
 interface Tree extends InkTree<Surface> { lastOrder: number; left?: Tree; right?: Tree }
 function tree(items: Surface[], work: () => boolean, retained: boolean): Tree | undefined {
@@ -178,7 +182,7 @@ function solidInteriors(primitives: readonly ScenePaintPrimitive[], resolveColor
     if (!(filled ? filled.some(Boolean) : singleFilled) && !(stroked ? stroked.some(Boolean) : singleStroked)) continue
     const m = scenePrimitiveMatrix(primitive)!
     const [a, b, c, d, e, f] = m
-    const transform: SceneTransform = { kind: 'matrix', a, b, c, d, e, f }
+    const transform: SceneTransform = proofRecord({ kind: 'matrix' as const, a, b, c, d, e, f })
     let bounds: AxisAlignedBox | undefined
     const partBounds: Array<AxisAlignedBox | undefined> | undefined = pieces ? [] : undefined
     for (let index = 0, count = pieces?.length ?? 1; index < count; index++) {
@@ -187,7 +191,7 @@ function solidInteriors(primitives: readonly ScenePaintPrimitive[], resolveColor
       if (!(filled ? filled[index] : singleFilled) && !(stroked ? stroked[index] : singleStroked)) continue
       // Do not keep an invisible sibling's geometry in the possible ink box.
       // Unknown child bounds retain the original conservative primitive box.
-      const painted = nodePaintBounds({ kind: 'shape', id: primitive.id, role: primitive.role, geometry, paint }, transform)
+      const painted = nodePaintBounds(proofRecord({ kind: 'shape' as const, id: primitive.id, role: primitive.role, geometry, paint, transform: undefined }), transform)
       const part = painted ?? primitive.bounds!
       if (partBounds) partBounds[index] = part
       bounds = unionSceneBounds(bounds, part)
@@ -427,8 +431,9 @@ function emittedEndpointMarker(node: NativeConnectorPaintSource, marker: MarkerD
   }
   const start = position === 'start' ? startPoint : nextPoint, end = position === 'start' ? nextPoint : startPoint
   const tangent = { x: end.x - start.x, y: end.y - start.y }
-  const emitted = connectorMarkerPaintRegions({ route: { geometry: { kind: 'line', x1: start.x, y1: start.y, x2: end.x, y2: end.y }, closed: false,
-    contours: [{ start, end, closed: false, startTangent: tangent, endTangent: tangent }] }, stroke: { width }, markers: { mid: [], ...(position === 'start' ? { start: marker } : { end: marker }) } })[0]
+  const emitted = connectorMarkerPaintRegions(proofRecord({ route: proofRecord({ geometry: proofRecord({ kind: 'line' as const, x1: start.x, y1: start.y, x2: end.x, y2: end.y }), closed: false,
+    contours: [proofRecord({ start, end, closed: false, startTangent: tangent, endTangent: tangent })] }), stroke: proofRecord({ width }),
+    markers: proofRecord({ mid: [], ...(position === 'start' ? { start: marker } : { end: marker }) }), transform: undefined }))[0]
   if (!work() || !emitted?.bounds || !raw.bounds) return undefined
   const bounds = unionSceneBounds(raw.bounds, emitted.bounds)!
   // The SVG orient="auto" start marker follows the forward path tangent.
@@ -535,7 +540,7 @@ function markerHasInk(marker: MarkerDescriptor | undefined, witnesses: readonly 
     if (g.kind === 'ellipse' && g.rx > 0 && g.ry > 0 && visible({ x: g.cx, y: g.cy })) return true
     if (g.kind === 'rect' && g.width > 0 && g.height > 0 && visible({ x: g.x + g.width / 2, y: g.y + g.height / 2 })) return true
   }
-  if (sceneGroupOpacity(marker.paint?.strokeOpacity) !== 1 || !opaque(marker.paint?.stroke) || marker.paint?.strokeDasharray || !(Number.parseFloat(marker.paint?.strokeWidth ?? '1') > 0) || paintedStrokeExtent(marker.paint ?? {}, true) === undefined) return false
+  if (sceneGroupOpacity(marker.paint?.strokeOpacity) !== 1 || !opaque(marker.paint?.stroke) || marker.paint?.strokeDasharray || !(Number.parseFloat(marker.paint?.strokeWidth ?? '1') > 0) || paintedStrokeExtent(marker.paint ?? proofRecord({}), true) === undefined) return false
   const lineHasInk = (a: ScenePoint, b: ScenePoint): boolean => work() && Math.hypot(b.x - a.x, b.y - a.y) > 0 && visible({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 })
   if (g.kind === 'line') return lineHasInk({ x: g.x1, y: g.y1 }, { x: g.x2, y: g.y2 })
   if (g.kind === 'polygon' || g.kind === 'polyline') return g.points.length <= 64 && g.points.some((p, i) => i > 0 && lineHasInk(g.points[i - 1]!, p))
@@ -1006,11 +1011,11 @@ export function prepareMarkerPolygonInk(scene: Pick<NativePaintHeader, 'colors'>
   const points = marker.geometry.points
   // A polyline's fill closes implicitly in SVG. Reuse the polygon mapping for
   // its vertex positions, but only its actual open segments supply stroke ink.
-  const local = marker.geometry.kind === 'polygon' ? marker : { ...marker, geometry: { kind: 'polygon' as const, points } }
+  const local = marker.geometry.kind === 'polygon' ? marker : proofRecord({ ...marker, geometry: proofRecord({ kind: 'polygon' as const, points }) })
   const tangent = position === 'start' ? { x: next.x - first.x, y: next.y - first.y } : { x: first.x - next.x, y: first.y - next.y }
   const start = position === 'start' ? first : next, end = position === 'start' ? next : first
-  const line = { kind: 'line' as const, x1: start.x, y1: start.y, x2: end.x, y2: end.y }
-  const region = connectorMarkerPaintRegions({ route: { ...node.route, geometry: line, contours: [{ start, end, closed: false, startTangent: tangent, endTangent: tangent }] }, stroke: { ...node.stroke, width }, markers: { mid: [], ...(position === 'start' ? { start: local } : { end: local }) } })[0]
+  const line = proofRecord({ kind: 'line' as const, x1: start.x, y1: start.y, x2: end.x, y2: end.y })
+  const region = connectorMarkerPaintRegions(proofRecord({ route: proofRecord({ ...node.route, geometry: line, contours: [proofRecord({ start, end, closed: false, startTangent: tangent, endTangent: tangent })] }), stroke: proofRecord({ ...node.stroke, width }), markers: proofRecord({ mid: [], ...(position === 'start' ? { start: local } : { end: local }) }), transform: undefined }))[0]
   const hull = region?.hull
   if (!hull || hull.length !== points.length || !pay(hull.length)) return undefined
   let sign = 0
@@ -1090,12 +1095,12 @@ export function prepareMarkerPolygonInk(scene: Pick<NativePaintHeader, 'colors'>
     // Only the proof uses an unclipped stencil. Its full paint is a superset
     // of the actual hidden marker, so strict separation proves visibility
     // without asserting a clipping boundary or changing the emitted resource.
-    const stencil: MarkerDescriptor = matchedHiddenViewport ? {
+    const stencil: MarkerDescriptor = matchedHiddenViewport ? proofRecord({
       id: marker.id, shape: marker.shape, geometry: marker.geometry, paint: marker.paint,
       units: marker.units, size: marker.size, ref: marker.ref, orient: marker.orient,
       viewBox: marker.viewBox, scale: marker.scale, overflow: 'visible',
-    } : marker
-    paintPieceSource = { marker: stencil, anchor: first, tangent, position, width }
+    }) : marker
+    paintPieceSource = proofRecord({ marker: stencil, anchor: first, tangent, position, width })
   }
   if (paintPieceSource && !work()) return undefined
   // Reuse the normalized region's full resource/pose identity. The hull
@@ -1664,8 +1669,8 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     const exactInk = options.outputSupported !== false && !scene.family.startsWith('family:') && !!node.endpoints?.from && !!node.endpoints.to && alpha !== undefined && alpha > 0 && width > 0 && opacity > 0 && !node.stroke.dash
     const matrix = scenePrimitiveMatrix(primitive)!
     const [a, b, c, d, e, f] = matrix
-    const transform: SceneTransform = { kind: 'matrix', a, b, c, d, e, f }
-    const extent = paintedStrokeExtent({ stroke: node.stroke.color, strokeWidth: String(node.stroke.width), strokeLinecap: node.stroke.lineCap, strokeLinejoin: node.stroke.lineJoin, strokeMiterlimit: String(node.stroke.miterLimit) }, connectorStrokeHasJoins(node.route))
+    const transform: SceneTransform = proofRecord({ kind: 'matrix' as const, a, b, c, d, e, f })
+    const extent = paintedStrokeExtent(proofRecord({ stroke: node.stroke.color, strokeWidth: String(node.stroke.width), strokeLinecap: node.stroke.lineCap, strokeLinejoin: node.stroke.lineJoin, strokeMiterlimit: String(node.stroke.miterLimit) }), connectorStrokeHasJoins(node.route))
     if (extent === undefined) {
       issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Final connector stroke has no bounded cap/join extent' })
       if (!terminalPath) continue
@@ -1875,7 +1880,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     const ownInverse = inverseMatrix(transformMatrix(node.transform))
     if (!ownInverse) continue
     const [a, b, c, d, e, f] = composeMatrices(scenePrimitiveMatrix(primitive)!, ownInverse)
-    const parent: SceneTransform = { kind: 'matrix', a, b, c, d, e, f }
+    const parent: SceneTransform = proofRecord({ kind: 'matrix' as const, a, b, c, d, e, f })
     let reserved = true
     if (contours) for (let i = 0; i < contours.length; i++) {
       for (let j = 0; j < 24; j++) if (!work()) reserved = false
@@ -2190,8 +2195,8 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
             candidate.preparedBody = body
           }
         }
-        if (body) contact = body({ ...pose, marker }, clearWorldWitness)
-      } else contact = exactCompoundContact(geometry, paints, { ...pose, marker }, opaqueCompoundPaint, clearWorldWitness, work)
+        if (body) contact = body(proofRecord({ ...pose, marker }), clearWorldWitness)
+      } else contact = exactCompoundContact(geometry, paints, proofRecord({ ...pose, marker }), opaqueCompoundPaint, clearWorldWitness, work)
       if (contact) contacts.add(primitive)
     }
     target.cylinderContacts = contacts

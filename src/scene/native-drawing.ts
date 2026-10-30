@@ -38,6 +38,23 @@ export interface NativeDrawing {
   readonly header: Omit<SceneDoc, 'parts'>
 }
 
+/** Internal rosters use own iterator operations. The input arrays keep their
+ * ordinary observable prototype and symbols; no inherited map/iterator can
+ * change the completed roster used for emission and inspection. */
+function privateValues<T>(length: number, read: (index: number) => T): Iterable<T> {
+  const iterable = Object.create(null) as Iterable<T>
+  iterable[Symbol.iterator] = () => {
+    let index = 0
+    const iterator = Object.create(null) as Iterator<T>
+    iterator.next = (): IteratorResult<T> => index < length ? { done: false, value: read(index++) } : { done: true, value: undefined }
+    return iterator
+  }
+  return iterable
+}
+function appendPrivate<T>(values: T[], value: T): void {
+  Object.defineProperty(values, values.length, { value, enumerable: true, writable: true, configurable: true })
+}
+
 /** Feed each emitted occurrence to inspection without copying its descendants
  * every time a group wraps them. Reused fragments keep distinct occurrence keys. */
 function inspectPaint(header: PaintInspectionHeader, parts: readonly Fragment[], observe: (node: LeafNode, svg: string) => boolean): ScenePaintGeometryInspection {
@@ -49,7 +66,7 @@ function inspectPaint(header: PaintInspectionHeader, parts: readonly Fragment[],
       const fragment = children[index]!
       const key = `${prefix}.${index}`
       if (fragment.kind === 'group') {
-        groups.push(fragment)
+        appendPrivate(groups, fragment)
         // Reduce once per occurrence, preserving the original bottom-up
         // floating-point association for both matrices and group opacity.
         let parentMatrix: ReturnType<typeof transformMatrix> | undefined
@@ -64,9 +81,9 @@ function inspectPaint(header: PaintInspectionHeader, parts: readonly Fragment[],
           if (group.conditional) conditional = true
         }
         const ancestors = nativePaintAncestors(occurrence?.ancestors, fragment.own)
-        const owner = fragment.owner?.id === fragment.own.id && fragment.owner.role === fragment.own.role ? ancestors.at(-1) : fragment.owner
+        const owner = fragment.owner?.id === fragment.own.id && fragment.owner.role === fragment.own.role ? ancestors[ancestors.length - 1] : fragment.owner
         visit(fragment.children, key, { parentMatrix, ancestors, owner, conditional, groupOpacity })
-        groups.pop()
+        groups.length--
       } else if (occurrence) {
         const bound = !fragment.conditional && observe(fragment.node, fragment.svg)
         recorder.leaf(fragment.node, key, occurrence.parentMatrix, occurrence.ancestors, occurrence.conditional || !bound, occurrence.groupOpacity, fragment.node.owner ?? occurrence.owner)
@@ -124,18 +141,19 @@ export function drawNative(
       if (!submittedChildren || !Object.hasOwn(submittedChildren, 'value')) emission.uncertain()
       const { children: inputChildren, ...shellFields } = fields
       const submitted = emission.parts(inputChildren, SCENE_VALIDATION_LIMITS.maxNodes)
+      const submittedRoster = emission.ownsParts(submitted) ? privateValues(submitted.length, index => submitted[index]!) : submitted
       const childParts: Array<{ readonly node: Fragment; readonly indent: number }> = []
       let nodeCount = 1, characters = 0, depth = 1, prepared = true, allOwned = true
       const children: Fragment[] = []
-      for (const child of submitted) {
+      for (const child of submittedRoster) {
         // Read each caller wrapper only once. The same owned node+indent pair
         // supplies both retained ancestry and actual SVG composition.
         const nodeField = Object.getOwnPropertyDescriptor(child, 'node'), indentField = Object.getOwnPropertyDescriptor(child, 'indent')
         if (!nodeField || !Object.hasOwn(nodeField, 'value') || !indentField || !Object.hasOwn(indentField, 'value')) emission.uncertain()
         const entry = Object.freeze({ node: child.node, indent: child.indent })
-        childParts.push(entry)
+        appendPrivate(childParts, entry)
         if (!ownedFragments.has(entry.node)) { emission.uncertain(); allOwned = false }
-        children.push(entry.node)
+        appendPrivate(children, entry.node)
         nodeCount += entry.node.nodeCount
         characters += entry.node.svg.length
         depth = Math.max(depth, 1 + entry.node.depth)
@@ -150,15 +168,18 @@ export function drawNative(
       if (!capturedShell) emission.uncertain()
       const matrix = capturedShell ? emission.group(capturedShell) : undefined
       const own = capturedShell?.identity ?? { id: shell.id, role: shell.role }
-      for (const child of children) {
+      for (let index = 0; index < children.length; index++) {
+        const child = children[index]!
         if (child.kind === 'leaf' && child.node.kind === 'shape' && !child.node.identity) validator.enclosure(child.node.id, capturedShell?.identity ?? shell.identity ?? own)
       }
       let xmlWrite: SvgXmlWrite
       if (allOwned) {
-        const fragments = [xml.raw(shell.open)]
-        for (const child of childParts) fragments.push(xml.indent(child.node.xmlWrite, child.indent))
-        fragments.push(xml.raw(shell.close))
-        xmlWrite = xml.join(fragments, shell.join)
+        xmlWrite = xml.join(privateValues(childParts.length + 2, index => {
+          if (index === 0) return xml.raw(shell.open)
+          if (index === childParts.length + 1) return xml.raw(shell.close)
+          const child = childParts[index - 1]!
+          return xml.indent(child.node.xmlWrite, child.indent)
+        }), shell.join)
       } else {
         // Keep the legacy read/coercion order for foreign fragment values.
         const fragments = [shell.open]
@@ -177,17 +198,21 @@ export function drawNative(
   const document: DrawingDocument<Fragment> = withDeferredTerminalProjections(() => producer(factory, context))
   // One actual occurrence roster owns BOTH byte composition and inspection.
   // Late getters cannot substitute a different document after serialization.
-  for (const field of ['parts', 'family', 'width', 'height', 'colors', 'transparent'] as const) {
+  const documentFields = ['parts', 'family', 'width', 'height', 'colors', 'transparent'] as const
+  for (let index = 0; index < documentFields.length; index++) {
+    const field = documentFields[index]!
     const descriptor = Object.getOwnPropertyDescriptor(document, field)
     if (!descriptor || !Object.hasOwn(descriptor, 'value')) emission.uncertain()
   }
   const parts = emission.parts(document.parts, SCENE_VALIDATION_LIMITS.maxNodes)
+  const ownsParts = emission.ownsParts(parts)
+  const partRoster = ownsParts ? privateValues(parts.length, index => parts[index]!) : parts
   let allOwned = true
-  for (const part of parts) if (!ownedFragments.has(part)) { emission.uncertain(); allOwned = false }
+  for (const part of partRoster) if (!ownedFragments.has(part)) { emission.uncertain(); allOwned = false }
   const result = validator.finish()
   if (!result.valid) throw new SceneValidationError(result.diagnostics)
   let nodeCount = 0, characters = -1, preparedText = true
-  for (const part of parts) {
+  for (const part of partRoster) {
     nodeCount += part.nodeCount
     characters += part.svg.length + 1
     preparedText = preparedText && part.prepared
@@ -195,8 +220,12 @@ export function drawNative(
   if (nodeCount > SCENE_VALIDATION_LIMITS.maxNodes) throw new RangeError('Native drawing contains too many emitted nodes')
   if (characters > SCENE_VALIDATION_LIMITS.maxFinalSvgBytes) throw new RangeError('Native drawing exceeds the final SVG limit')
   const backdrop = pageRectFor(document, { seed: 0, ...(style ? { style } : {}) })
-  const xmlWrite = allOwned
-    ? xml.join(parts.map((part, index) => index === 0 && backdrop ? xml.join([part.xmlWrite, xml.raw(backdrop)], '\n') : part.xmlWrite), '\n')
+  const xmlWrite = allOwned && ownsParts
+    ? xml.join(privateValues(parts.length, index => {
+      const part = parts[index]!
+      return index === 0 && backdrop ? xml.join(privateValues(2, position => position === 0 ? part.xmlWrite : xml.raw(backdrop)), '\n') : part.xmlWrite
+    }), '\n')
+    : allOwned ? xml.join(parts.map((part, index) => index === 0 && backdrop ? xml.join([part.xmlWrite, xml.raw(backdrop)], '\n') : part.xmlWrite), '\n')
     : xml.raw(parts.map((part, index) => index === 0 && backdrop ? `${part.svg}\n${backdrop}` : part.svg).join('\n'))
   const svg = xmlWrite.svg
   assertFinalSvgByteBudget(svg, 'native drawing output')
