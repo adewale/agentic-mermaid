@@ -425,7 +425,8 @@ function renderDivider<T>(marks: DrawingFactory<T>, clsId: string, which: 'attrs
  */
 function renderMember<T>(marks: DrawingFactory<T>, member: ClassMember, x: number, y: number, style: ResolvedRenderStyle, sceneId: string, ink: (tone: string) => string, prepared?: PixelTextBlock): T {
   const block = prepared ?? classMemberBlock(member)
-  const plain = memberToString(member)
+  // The member text is what the member draws: display controls are inert.
+  const plain = sanitizeDisplayLines(memberToString(member))
   const nameInk = ink(style.nodeTextColor ?? 'var(--_text-sec)')
   const spans: HighlightRun[] = []
 

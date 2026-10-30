@@ -37,6 +37,7 @@ import { assertRenderableMarker, serializeMarkerResources } from './marker-resou
 import { assertRenderableLinearGradient, LINEAR_GRADIENT_LIMITS, serializeLinearGradientResources } from './gradient-resources.ts'
 import { BUILTIN_SCENE_ROLE_TRAITS, sceneRoleTraits } from './roles.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
+import { xmlCarriableText } from '../shared/text-controls.ts'
 import { inspectSvgOnce } from '../svg-inspection-cache.ts'
 import { canonicalizeSceneNodeSerialization, sceneNodeSerialization } from './serialization.ts'
 import { MARK_CLASS_TOKENS, MARK_DATA_KEY, WRITER_OWNED_DATA_KEYS } from './svg-writer.ts'
@@ -103,6 +104,11 @@ const MAX_SERIALIZATION_BYTES_PER_NODE = SCENE_VALIDATION_LIMITS.maxSerializatio
 const MAX_AGGREGATE_SERIALIZATION_BYTES = SCENE_VALIDATION_LIMITS.maxAggregateSerializationBytes
 const MAX_FINAL_SVG_BYTES = SCENE_VALIDATION_LIMITS.maxFinalSvgBytes
 const EXTERNAL_ID = /^[A-Za-z0-9][A-Za-z0-9_.:/-]*$/
+/** External Scene documents name parts in a short safe grammar. A built-in
+ * Scene's ids carry authored source identities and labels verbatim, so their
+ * length is bounded by the text budget, never by a shorter id cap that a long
+ * but valid label or node id would exceed. */
+const MAX_EXTERNAL_ID_LENGTH = 256
 const NAMESPACED_ROLE = /^[a-z0-9][a-z0-9._/-]*:[a-z0-9][a-z0-9._/-]*$/i
 const SAFE_DASH = /^(?:none|[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?(?:[\s,]+[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)*)$/
 const CONTROL_CHARACTER = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/
@@ -264,15 +270,19 @@ function boundedString(
   value: unknown,
   path: string,
   diagnostics: MutableDiagnostic[],
-  options: { empty?: boolean; max?: number; externalId?: boolean } = {},
+  options: { empty?: boolean; max?: number; externalId?: boolean; authored?: boolean } = {},
 ): value is string {
   if (typeof value !== 'string') {
     add(diagnostics, 'SCENE_ID', path, 'must be a string')
     return false
   }
+  // A built-in Scene's identity (an id in internal mode) carries authored
+  // source text verbatim: its length is bounded by the text budget, and the
+  // XML write boundary (escapeAttr), not an id grammar, makes it carriable.
+  const authored = options.authored ?? options.externalId === false
   if (!options.empty && value.length === 0) add(diagnostics, 'SCENE_ID', path, 'must not be empty')
-  if (value.length > (options.max ?? 256)) add(diagnostics, 'SCENE_ID', path, 'is too long')
-  if (CONTROL_CHARACTER.test(value)) add(diagnostics, 'SCENE_ID', path, 'contains a control character')
+  if (value.length > (options.max ?? (authored ? MAX_TEXT_LENGTH : MAX_EXTERNAL_ID_LENGTH))) add(diagnostics, 'SCENE_ID', path, 'is too long')
+  if (!authored && CONTROL_CHARACTER.test(value)) add(diagnostics, 'SCENE_ID', path, 'contains a control character')
   if (options.externalId && !EXTERNAL_ID.test(value)) add(diagnostics, 'SCENE_ID', path, 'must use the safe external id grammar')
   return true
 }
@@ -352,7 +362,7 @@ function validatePaint(
 
 /** Writer hooks: class tokens and data-* strings, with writer-owned keys
  * reserved (see svg-writer.ts). */
-function validateMarkAttributes(value: unknown, path: string, diagnostics: MutableDiagnostic[]): void {
+function validateMarkAttributes(value: unknown, path: string, diagnostics: MutableDiagnostic[], external: boolean): void {
   if (!record(value)) {
     add(diagnostics, 'SCENE_DOCUMENT', path, 'must be an attribute hook object')
     return
@@ -363,7 +373,9 @@ function validateMarkAttributes(value: unknown, path: string, diagnostics: Mutab
   }
   if (value.ariaHidden !== undefined && value.ariaHidden !== true) add(diagnostics, 'SCENE_DOCUMENT', `${path}.ariaHidden`, 'must be true when present')
   if (value.tabIndex !== undefined && value.tabIndex !== 0) add(diagnostics, 'SCENE_DOCUMENT', `${path}.tabIndex`, 'must be 0 when present')
-  if (value.ariaLabel !== undefined) boundedString(value.ariaLabel, `${path}.ariaLabel`, diagnostics, { max: MAX_TEXT_LENGTH })
+  // Built-in hooks carry authored labels and references (an empty label's
+  // accessible name is empty); escapeAttr makes their characters carriable.
+  if (value.ariaLabel !== undefined) boundedString(value.ariaLabel, `${path}.ariaLabel`, diagnostics, external ? { max: MAX_TEXT_LENGTH } : { empty: true, authored: true })
   if (value.data === undefined) return
   if (!record(value.data)) {
     add(diagnostics, 'SCENE_DOCUMENT', `${path}.data`, 'must be a string record')
@@ -371,7 +383,7 @@ function validateMarkAttributes(value: unknown, path: string, diagnostics: Mutab
   }
   for (const [key, item] of Object.entries(value.data)) {
     if (!MARK_DATA_KEY.test(key) || WRITER_OWNED_DATA_KEYS.has(key)) add(diagnostics, 'SCENE_DOCUMENT', `${path}.data.${key}`, 'must be a family data-* key the writer does not own')
-    boundedString(item, `${path}.data.${key}`, diagnostics, { empty: true, max: MAX_TEXT_LENGTH })
+    boundedString(item, `${path}.data.${key}`, diagnostics, { empty: true, max: MAX_TEXT_LENGTH, authored: !external })
   }
 }
 
@@ -572,7 +584,7 @@ function validateGeometry(
   }
 }
 
-function validateChannels(value: unknown, path: string, diagnostics: MutableDiagnostic[]): void {
+function validateChannels(value: unknown, path: string, diagnostics: MutableDiagnostic[], external: boolean): void {
   if (value === undefined) return
   if (!record(value)) {
     add(diagnostics, 'SCENE_DOCUMENT', path, 'must be a semantic channel object')
@@ -584,7 +596,10 @@ function validateChannels(value: unknown, path: string, diagnostics: MutableDiag
   if (typeof value.progress === 'number' && (value.progress < 0 || value.progress > 1)) {
     add(diagnostics, 'SCENE_BOUNDS', `${path}.progress`, 'must be in [0,1]')
   }
-  for (const field of ['category', 'status', 'route'] as const) {
+  // A built-in category is the authored series/slice/axis label it groups,
+  // which may be empty or long; external channels keep their short form.
+  if (value.category !== undefined) boundedString(value.category, `${path}.category`, diagnostics, external ? { max: 4096 } : { empty: true, authored: true })
+  for (const field of ['status', 'route'] as const) {
     if (value[field] !== undefined) boundedString(value[field], `${path}.${field}`, diagnostics, { max: 4096 })
   }
   if (value.emphasis !== undefined && typeof value.emphasis !== 'boolean') {
@@ -780,7 +795,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
   if (typeof value.id === 'string' && typeof value.role === 'string') state.subjects.add(JSON.stringify([value.id, value.role]))
   if (record(value.identity) && typeof value.identity.id === 'string' && typeof value.identity.role === 'string') state.subjects.add(JSON.stringify([value.identity.id, value.identity.role]))
   if (record(value.owner) && typeof value.owner.id === 'string' && typeof value.owner.role === 'string') state.ownerReferences.push({ key: JSON.stringify([value.owner.id, value.owner.role]), path: `${path}.owner` })
-  validateChannels(value.channels, `${path}.channels`, state.diagnostics)
+  validateChannels(value.channels, `${path}.channels`, state.diagnostics, state.external)
   const serialized = !state.native || kind === 'document'
     ? validateNodeSerialization(value as unknown as SceneNode, path, state)
     : undefined
@@ -797,12 +812,12 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
   if (value.owner !== undefined) {
     if (!record(value.owner)) add(state.diagnostics, 'SCENE_REFERENCE', `${path}.owner`, 'must be a semantic owner')
     else {
-      boundedString(value.owner.id, `${path}.owner.id`, state.diagnostics)
+      boundedString(value.owner.id, `${path}.owner.id`, state.diagnostics, { authored: !state.external })
       if (typeof value.owner.role !== 'string' || (!Object.hasOwn(BUILTIN_SCENE_ROLE_TRAITS, value.owner.role) && !NAMESPACED_ROLE.test(value.owner.role))) add(state.diagnostics, 'SCENE_ROLE', `${path}.owner.role`, 'must be a Scene role')
     }
   }
   if (value.visibility !== undefined && value.visibility !== 'conditional') add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.visibility`, 'must be conditional')
-  if (value.attributes !== undefined) validateMarkAttributes(value.attributes, `${path}.attributes`, state.diagnostics)
+  if (value.attributes !== undefined) validateMarkAttributes(value.attributes, `${path}.attributes`, state.diagnostics, state.external)
 
   if (kind === 'shape') {
     if (value.identity === undefined && typeof value.role === 'string' && hasDomSvgIdentityRole(value.role as SceneRole)) {
@@ -1029,7 +1044,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
           const ownerPath = `${path}.endpoints.${field}.owner`
           if (!record(endpoint.owner)) add(state.diagnostics, 'SCENE_REFERENCE', ownerPath, 'must be a semantic owner')
           else {
-            boundedString(endpoint.owner.id, `${ownerPath}.id`, state.diagnostics)
+            boundedString(endpoint.owner.id, `${ownerPath}.id`, state.diagnostics, { authored: !state.external })
             if (typeof endpoint.owner.role !== 'string' || (!Object.hasOwn(BUILTIN_SCENE_ROLE_TRAITS, endpoint.owner.role) && !NAMESPACED_ROLE.test(endpoint.owner.role))) add(state.diagnostics, 'SCENE_ROLE', `${ownerPath}.role`, 'must be a Scene role')
             const id = value.endpoints[field === 'start' ? 'from' : 'to']
             if (id !== undefined && endpoint.owner.id !== id) add(state.diagnostics, 'SCENE_FIDELITY', ownerPath, 'must retain the authored endpoint identity')
@@ -1455,8 +1470,8 @@ export function createNativeSceneValidator(
     depth,
     enclosure(artworkId, owner) {
       open()
-      boundedString(artworkId, 'scene.enclosure.id', diagnostics)
-      boundedString(owner.id, 'scene.enclosure.owner.id', diagnostics)
+      boundedString(artworkId, 'scene.enclosure.id', diagnostics, { authored: true })
+      boundedString(owner.id, 'scene.enclosure.owner.id', diagnostics, { authored: true })
       const prior = native.enclosures.get(artworkId)
       if (prior && (prior.id !== owner.id || prior.role !== owner.role)) {
         add(diagnostics, 'SCENE_FIDELITY', 'scene.enclosure', 'artwork cannot have conflicting semantic enclosures')
@@ -1603,7 +1618,9 @@ export function validateSceneDocument(value: unknown, options: SceneValidationOp
     if (diagnostics.length === 0 && crossChecks) {
       const scene = value as unknown as SceneDoc
       try {
-        const svg = external ? externalSvg : scene.parts.map(sceneNodeSerialization).join('\n')
+        // Inspect an internal Scene as the render emits it (graphical-render
+        // writes characters XML cannot carry as inert ones before this gate).
+        const svg = external ? externalSvg : xmlCarriableText(scene.parts.map(sceneNodeSerialization).join('\n'))
         if (svg !== undefined) applyOutputSecurityPolicy(svg, external ? 'strict' : 'default')
       } catch (error) {
         add(diagnostics, 'SCENE_SECURITY', 'scene', error instanceof Error ? error.message : String(error))

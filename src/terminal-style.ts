@@ -294,7 +294,7 @@ function reportTerminalControlReplacement(diagnostics: TerminalProjectionDiagnos
   diagnostics.push({
     code: 'TERMINAL_CONTROL_CHARACTERS_REPLACED',
     feature: 'terminal-text',
-    message: 'User-derived C0/C1 terminal control characters were replaced with inert single-cell text before layout and color projection.',
+    message: 'User-derived C0/C1 terminal control characters, bidi embedding/override/isolate controls, noncharacters and lone surrogates were replaced with inert single-cell text before layout and color projection.',
   })
 }
 

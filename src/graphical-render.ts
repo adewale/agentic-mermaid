@@ -39,6 +39,7 @@ import { sceneHasOnlyPreparedText } from './scene/serialization.ts'
 import { withTextMeasurementExecution } from './text-measurement-profile.ts'
 import { withSvgInspectionCache } from './svg-inspection-cache.ts'
 import { measureRenderStage } from './render-stages.ts'
+import { sanitizeDisplayLines, xmlCarriableText } from './shared/text-controls.ts'
 import type { ScenePartCapture } from './scene/part-capture.ts'
 
 export interface ResolvedGraphicalExecution {
@@ -89,8 +90,10 @@ export function lowerPositionedFamilyScene(
   return retainedPositionedScene(request, layout)
 }
 
+/** Accessible names are display text: controls and code points no output can
+ * carry become the inert characters labels draw. */
 function escapeXmlText(value: string): string {
-  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return sanitizeDisplayLines(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
 function injectAccessibility(
@@ -194,7 +197,10 @@ function renderPositionedWithTextMeasurement(
   }
   assertFinalSvgByteBudget(rawSvg, 'backend/family SVG output')
 
-  let svg = inlineResolvedColors(rawSvg, context.colors)
+  // Typed identities and family data attributes keep authored text verbatim
+  // through the Scene; the bytes we emit cannot hold what XML cannot carry,
+  // so those characters are written as the inert ones display text draws.
+  let svg = inlineResolvedColors(xmlCarriableText(rawSvg), context.colors)
   if (layoutCertification?.repairs.length && executionPlan.backend?.inputName === 'default') svg = expandSvgViewport(svg, layoutCertification.viewport)
   assertFinalSvgByteBudget(svg, 'color-resolved SVG output')
   if (!preparedText) svg = fitUncalibratedSvgText(svg, request.appearance.font)
