@@ -173,15 +173,21 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
     }
     for (const e of g.edges) tree.edges.push({ from: e.source, to: e.target, label: e.label || undefined, ...treeDirection(arrowheadDirection(e.hasArrowStart, e.hasArrowEnd)) })
   } else if (d.body.kind === 'state') {
-    const visit = (states: import('./types.ts').StateNode[], transitions: import('./types.ts').StateTransition[]) => {
+    const visit = (states: import('./types.ts').StateNode[], transitions: import('./types.ts').StateTransition[], parentId?: string) => {
       for (const s of states) {
-        tree.nodes.push({ id: s.id, label: s.label || s.id })
-        if (s.regions) for (const region of s.regions) visit(region.states, region.transitions)
-        else if (s.states !== undefined) visit(s.states, s.transitions ?? [])
+        tree.nodes.push({ id: s.id, label: s.label || s.id, ...(parentId ? { parentId } : {}) })
+        if (s.regions) for (const region of s.regions) visit(region.states, region.transitions, s.id)
+        else if (s.states !== undefined) visit(s.states, s.transitions ?? [], s.id)
       }
       for (const t of transitions) tree.edges.push({ from: t.from, to: t.to, label: t.label || undefined })
     }
     visit(d.body.states, d.body.transitions)
+    // A state diagram names its entries and exits: the targets of each scope's
+    // `[*] -->` and the sources of its `--> [*]`, as the summary lists them.
+    const ends = statePseudostateEnds(d.body)
+    tree.entryPoints.push(...new Set(ends.initial.map(end => end.id)))
+    tree.sinks.push(...new Set(ends.final.map(end => end.id)))
+    return tree
   } else if (d.body.kind === 'sequence') {
     for (const p of d.body.participants) tree.nodes.push({ id: p.id, label: sequenceParticipantDisplay(p) })
     const fragments = d.body.statements.flatMap(statement => statement.kind === 'fragment' ? [statement.fragment] : [])
@@ -470,7 +476,7 @@ function describeState(body: import('./types.ts').StateBody): string {
     const lbl = t.label ? ` (${t.label})` : ''
     return `${t.from} -> ${t.to}${lbl}`
   })
-  const starts = body.transitions.filter(t => t.from === '[*]').map(t => t.to)
+  const ends = statePseudostateEnds(body)
   let s = `A state diagram with ${counted(flat.length, 'state')} and ${counted(allTransitions.length, 'transition')}.`
   if (composites.length > 0) s += ` Composite states: ${composites.map(c => c.label || c.id).join(', ')}.`
   if (stateLabels.length > 0) s += ` States: ${stateLabels.join(', ')}.`
@@ -481,8 +487,35 @@ function describeState(body: import('./types.ts').StateBody): string {
   }
   if (body.floatingNotes?.length) s += ` Floating notes: ${body.floatingNotes.map(note => `${note.id}${note.scope ? ` in ${note.scope.parent}${note.scope.region !== undefined ? ` region ${note.scope.region}` : ''}` : ''}: ${note.text}`).join('; ')}.`
   if (transStr.length > 0) s += ` Transitions: ${transStr.join('; ')}.`
-  if (starts.length > 0) s += ` Initial: ${starts.join(', ')}.`
+  if (ends.initial.length > 0) s += ` Initial: ${ends.initial.map(stateEndText).join(', ')}.`
+  if (ends.final.length > 0) s += ` Final: ${ends.final.map(stateEndText).join(', ')}.`
   return s
+}
+
+interface StatePseudostateEnd { id: string; scope?: string }
+
+/** Each scope's `[*]` reads as that scope's start (as a source) or end (as a
+ * target): the states it enters and the states that leave through it, with
+ * the composite (and region) that owns the transition. */
+function statePseudostateEnds(body: import('./types.ts').StateBody): { initial: StatePseudostateEnd[]; final: StatePseudostateEnd[] } {
+  const initial: StatePseudostateEnd[] = []
+  const final: StatePseudostateEnd[] = []
+  const visit = (states: import('./types.ts').StateNode[], transitions: import('./types.ts').StateTransition[], scope?: string) => {
+    for (const t of transitions) {
+      if (t.from === '[*]' && t.to !== '[*]') initial.push({ id: t.to, ...(scope ? { scope } : {}) })
+      if (t.to === '[*]' && t.from !== '[*]') final.push({ id: t.from, ...(scope ? { scope } : {}) })
+    }
+    for (const s of states) {
+      if (s.regions) s.regions.forEach((region, index) => visit(region.states, region.transitions, `${s.id} region ${index}`))
+      else if (s.states !== undefined) visit(s.states, s.transitions ?? [], s.id)
+    }
+  }
+  visit(body.states, body.transitions)
+  return { initial, final }
+}
+
+function stateEndText(end: StatePseudostateEnd): string {
+  return end.scope ? `${end.id} (in ${end.scope})` : end.id
 }
 
 function describeSequence(d: SequenceValidDiagram): string {

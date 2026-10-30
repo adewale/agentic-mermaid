@@ -208,6 +208,14 @@ describe('#7349 AX tree — describeMermaid({format:json})', () => {
     expect(flowTree.sinks).toContain('Outer')
   })
 
+  test('state: entry points and sinks are the [*] ends the summary names, each in its composite scope', () => {
+    const source = 'stateDiagram-v2\n  [*] --> A\n  state C {\n    [*] --> X\n    X --> [*]\n  }\n  A --> C\n  C --> [*]'
+    const tree = describeMermaidTree(parseMermaidOk(source))
+    expect({ entryPoints: tree.entryPoints, sinks: tree.sinks }).toEqual({ entryPoints: ['A', 'X'], sinks: ['C', 'X'] })
+    expect(Object.fromEntries(tree.nodes.map(n => [n.id, n.parentId]))).toEqual({ A: undefined, C: undefined, X: 'C' })
+    expect(describeMermaidSource(source)).toContain('Initial: A, X (in C). Final: C, X (in C).')
+  })
+
   test('an unregistered source → preserved-family JSON tree, not a throw', () => {
     const json = describeMermaidSource('not a diagram', { format: 'json' })
     const parsed = JSON.parse(json)
