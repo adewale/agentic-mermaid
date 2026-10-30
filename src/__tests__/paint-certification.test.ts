@@ -58,6 +58,60 @@ function drawPaintControl(producer: DrawingProducer, context: Parameters<typeof 
   return { svg, header: admitted, paint: inspectScenePaintGeometry(admitted, receipt), proof: certifyScenePaint(admitted, undefined, { sceneWriteReceipt: receipt }), admitted, raw, receipt }
 }
 
+test('many ordinary prepared labels retain bounded Native paint proof without markers', () => {
+  const width = 200, height = 31000, colors = { bg: '#fff', fg: '#111' }
+  const block = preparePixelText('x', { fontSize: 12, fontWeight: 400 })
+  const marker = tipAnchoredArrow('decorative-arrow', { width: 8, height: 5 }, 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.75' }, 'userSpaceOnUse')
+  const open = '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="31000">'
+  const context = { positioned: { width, height }, colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ family: 'flowchart', width, height, colors, transparent: false, parts: [
+    factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, open),
+    factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    ...Array.from({ length: 1500 }, (_, index) => factory.text({ id: `text:${index}`, role: 'label', text: 'x', block, x: 20, y: 1000 + index * 20, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })),
+    factory.documentClose(),
+  ] })
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(drawing.paint.primitives.filter(primitive => primitive.kind === 'text').map(primitive => primitive.id)).toEqual(Array.from({ length: 1500 }, (_, index) => `text:${index}`))
+  const labels: Array<{ attributes: Record<string, string>; text: string }> = []
+  let current: typeof labels[number] | undefined
+  const parser = new SaxesParser({ xmlns: true })
+  parser.on('opentag', tag => {
+    if (tag.local === 'text') {
+      current = { attributes: Object.fromEntries(Object.entries(tag.attributes).map(([name, value]) => [name, value.value])), text: '' }
+      labels.push(current)
+    }
+  })
+  parser.on('text', value => { if (current) current.text += value })
+  parser.on('closetag', tag => { if (tag.local === 'text') current = undefined })
+  parser.write(drawing.svg).close()
+  expect(labels).toHaveLength(1500)
+  for (const [index, label] of labels.entries()) {
+    const { textLength, ...attributes } = label.attributes
+    expect(Number.isFinite(Number(textLength)) && Number(textLength) > 0).toBe(true)
+    expect({ text: label.text, attributes }).toEqual({ text: 'x', attributes: {
+      x: '20', y: String(1000 + index * 20), 'text-anchor': 'start', 'font-size': '12', 'font-weight': '400', fill: '#111',
+      'data-prepared-text': 'true', dy: '4.2', lengthAdjust: 'spacingAndGlyphs', 'data-font-metrics': 'deterministic-fit',
+    } })
+  }
+  expect(drawing.svg.split(open)).toHaveLength(2)
+  const tags = drawing.svg.match(/<text\b[^>]*>[^<]*<\/text>/g)!
+  expect(tags).toHaveLength(1500)
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
+  for (const index of [0, 1499]) {
+    // Crop the actual document to a 20px window; only the raster viewport
+    // changes. Removing that actual first/last tag must remove visible ink.
+    const cropped = drawing.svg.replace(open, `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="20" viewBox="0 ${990 + index * 20} 200 20">`)
+    const actual = new Resvg(cropped, { font, background: '#fff' }).render().pixels
+    const absent = new Resvg(cropped.replace(tags[index]!, ''), { font, background: '#fff' }).render().pixels
+    expect(actual.length).toBe(200 * 20 * 4)
+    expect(Buffer.compare(actual, absent)).not.toBe(0)
+  }
+  const proof = certifyNativePaint(drawing.header, drawing.paint)
+  expect(proof.checks.maxOperations).toBe(400000)
+  expect(proof.checks.operations).toBeLessThanOrEqual(400000)
+  expect(proof.status).toBe('passed')
+})
+
 test.each(['close', 'join'] as const)('group %s cannot emit uninspected covering artwork', field => {
   const colors = { bg: '#fff', fg: '#111' }, artwork = '<rect x="10" y="10" width="80" height="60" fill="#fff"/>'
   const context = { positioned: { width: 100, height: 80 }, colors, resolved: { renderOptions: {} } }
