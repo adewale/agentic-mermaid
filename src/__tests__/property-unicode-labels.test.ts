@@ -4,7 +4,7 @@
 // layout fault, not a parse/escape fault. This one deliberately fills labels
 // with the characters most likely to break rendering — XML metacharacters
 // (& < > " '), emoji and multi-codepoint ZWJ sequences, CJK, RTL scripts,
-// combining marks, zero-width spaces, and an SVG-injection attempt — and asserts
+// combining marks, discretionary breaks, and an SVG-injection attempt — and asserts
 // the pipeline stays sound:
 //   • parses + lays out without throwing, with FINITE geometry (zero-width and
 //     combining marks must not produce NaN widths in text measurement),
@@ -16,7 +16,7 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
-import { parseRegisteredMermaid as parseMermaid, layoutMermaid, renderMermaidSVG, renderMermaidASCII } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, layoutMermaid, renderMermaidSVG, renderMermaidASCII, asFlowchart, serializeMermaid } from '../agent/index.ts'
 import { auditRenderedRoutes } from '../agent/rendered-route-audit.ts'
 
 const SEED = 0x00c0ffee
@@ -27,7 +27,7 @@ const TOKENS = [
   '中文', '日本語', '한국어',             // CJK
   'مرحبا', 'עברית',                     // RTL scripts
   'café', 'naïve', 'é',           // precomposed + combining accent
-  '​', '‍', ' ',         // zero-width space, ZWJ, non-breaking space
+  '​', '\u00ad', '‍', ' ', // zero-width space, soft hyphen, ZWJ, non-breaking space
   '</text><script>x</script>',          // SVG-injection attempt
   'ok', 'warn', 'x y',                  // ordinary tokens
 ]
@@ -67,7 +67,43 @@ describe('unicode / XML-significant label fuzz (escaping + measurement axis)', (
         assertSound(`flowchart TD\n  A["${esc(a)}"] -->|${esc(e)}| B["${esc(b)}"]\n  B --> C["${esc(c)}"]`)
       }),
       // A `&quot;` that decodes to a bare quote inside a label.
-      fcParameters({ numRuns: 100, seed: SEED, examples: [['&', '" &', '&', '&']] }),
+      fcParameters({ numRuns: 100, seed: SEED, examples: [['&', '" &', '&', '&'], ['&', '&', '&', '\u200b'], ['\u00ad', '\u200b', '\u00ad\u200b', '\u00ad']] }),
     )
   }, 30000)
+})
+
+
+it.each(['\u200b', '\u00ad', '\u00ad\u200b', '<b>\u00ad\u200b</b>'])('discretionary-only captions retain authored text without a painted label: %s', caption => {
+  const source = `flowchart TD\nA["&"] -->|${caption}| B["&"]\nB --> C["&"]`
+  const parsed = parseMermaid(source)
+  expect(parsed.ok).toBe(true)
+  if (!parsed.ok) return
+  const flowchart = asFlowchart(parsed.value)!
+  const before = serializeMermaid(parsed.value)
+  for (const backend of ['agentic', 'elk'] as const) {
+    const options = { graphLayout: { backend, fallback: 'none' as const } }
+    const layout = layoutMermaid(parsed.value, options)
+    expect(layout.edges[0]!.label).toBeUndefined()
+    expect(auditRenderedRoutes(layout)).toEqual([])
+    expect(renderMermaidSVG(source, options)).not.toContain('class="edge-label"')
+  }
+  expect(() => renderMermaidASCII(source)).not.toThrow()
+  expect(flowchart.body.graph.edges[0]!.label).toBe(caption)
+  expect(serializeMermaid(parsed.value)).toBe(before)
+})
+
+
+it('keeps visible edge captions beside unused discretionary hints', () => {
+  const caption = 'ab\u00adcd\u200bef'
+  const source = `flowchart LR\nA -->|${caption}| B`
+  const parsed = parseMermaid(source)
+  expect(parsed.ok).toBe(true)
+  if (!parsed.ok) return
+  for (const backend of ['agentic', 'elk'] as const) {
+    const options = { graphLayout: { backend, fallback: 'none' as const } }
+    expect(layoutMermaid(parsed.value, options).edges[0]!.label?.text).toBe(caption)
+    const svg = renderMermaidSVG(source, options)
+    expect(svg).toContain('class="edge-label"')
+    expect(svg).toContain('abcdef')
+  }
 })
