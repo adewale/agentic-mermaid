@@ -4968,3 +4968,62 @@ LiveMain now118cadd53d3b2dfbaf0dbb959bcc7abb66f16ae5, including new Unicode/text
 and chart work beyond prior4c72d1c82. It has not been silently integrated into the
 frozen candidate or inherited by earlier measurements. Read-only overlap review
 is assigned before deciding the next combined-candidate qualification.
+
+### 30 October: exact CI closure of the three font regressions; safe subtraction
+
+Normal fast-forward push published eca222a4f and ef26c30a61a756ed53d30408f5373e8566f95ea5.
+CI41096359214 for exact ef26 is now terminal failure with exactly the six legacy
+unit capacity failures: unit2 5896P/37skip/2F, unit3 4738P/6skip/4F, unit1 pass.
+All three new font owner regressions pass in that run; independent semantics
+173P/0F, both installed Node tarball consumers, quickstarts, CLI, MCP, dist and
+browser-site pass. Quality's sole failed check is lazy size. Browser functional
+and CSP checks pass with only the editor payload assertion failing. Generated
+layout advisory comparisons still fail despite zero producer render errors.
+This is not green CI or proof of full correctness parity.
+
+Current ef26 delivery costs: editor gzip1404651 >1334500 (70151over); demo
+raw792118 >788000 (4118over). Lazy size has67unique rows/25groups:25raw,23gzip,
+19Brotli; State gzip761050 >761000 is a NEW50byte overrun, not merely an old
+failure. Full exact status, retained logs and parsed rows are recorded under
+CI-FONT-REFINEMENT-{STATUS,SUMMARY}.json. No ceiling/check changed.
+
+The new public paired layout artifact12996477215 from that run is downloaded
+and its3799424byte archive matches uploaded SHA25621add3be4acb9d6fd6a2e3649dc7706b0091b6d8b7491340cebd6edc12425ef6.
+Only the12Inter review files were retained locally. All four JSON records have
+exact ae079 base/ef26head and matching source/options per backend. Independently
+viewed before/after PNGs show the first j hook cut at the left edge before and
+complete afterward; fitted1000x818 pixel left bound0->23. Native SVG CSS size
+stays76.32x62.4 while viewBox0 0 76.32 62.4 becomes -3 0 80 65.4088050314.
+Actual node/text-group bytes stay exact. P->P is not the ink evidence. Existing
+independent viewport-reveal observations bind to the identical beforeSVG and
+its12outside pixel centers. PR description links this actual archive, not a
+pending or fabricated image attachment. Evidence: font-ci-pairs/.
+
+One safe subtraction replaces the single-entry frozen initial-bearing lookup
+with its equivalent conditional, preserving non-j signed zero. Independent
+font closure review supports exactly the same j-only rule; no bound or guard
+changes. Root24glyph-raster owners/144assertions, final three-file lint and
+canonical core/repository types using Trident f080 pass. The attempted second
+subtraction, replacing visible-run map/join with line.text, was NOT adopted:
+a getter-bearing supplied preparation can retain formatted line.text while the
+actual admitted Scene emits plain runs. Four bounded actual-ink probes retain
+Native italic U with293outside pixels and Native bold U with0; Scene snapshots
+emit plain text and stay P with0outside. No false-positive P was found in that
+bounded control, and no generic getter isolation is weakened.
+
+A single private actual-config JS build (dts omitted, output redirected; no
+source/check/cap changes) with the safe subtraction and the subsequently
+REJECTED three-attribute Requirement prototype reports State raw2473843,
+gzip761018, still18bytes over761000. It is not the final one-key candidate or a
+successful delivery closure. The existing report producer is reused with only
+its metadata location redirected; this is size observation, not functional or
+runtime qualification. Font delivery files occupy about5MiB and disk remains
+above the256MiB reserve. No new timing preservation or memory allocation claim
+is inferred from this subtraction. Evidence: FONT-DELIVERY-*.
+
+Main118cadd53 remains outside this frozen candidate. Independent source review
+finds unchanged fonts/manifest/shaping tables/writer, but overlapping shared
+preparation, hint normalization and graph caption handling require a careful
+combined integration; replacing the complete preparation file would lose the
+campaign's ownership/font/cache rules. No rebase/merge or version change was
+silently performed. The review is meaning-fonts/NEW-MAIN-118c-REVIEW.md.
