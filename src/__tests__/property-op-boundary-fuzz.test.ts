@@ -25,6 +25,7 @@ import { serializeMermaid } from '../agent/serialize.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
 import { getFamily } from '../agent/families.ts'
 import type { AnyMutationOp, ParsedDiagram } from '../agent/types.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { handleHostedRequest, type HostedMcpContext } from '../mcp/hosted-server.ts'
 import type { JsonRpcRequest } from '../mcp/protocol.ts'
 
@@ -283,6 +284,33 @@ describe('op-boundary fuzz: typed text edits round-trip or are refused', () => {
         expect(back).toEqual({ written: back.written, kind: d.body.kind, facts: describeMermaidFacts(d) })
       }
     }), fcParameters({ numRuns: 2000, examples: EXAMPLES }))
+  }, 120_000)
+
+  // The pinned Mermaid parser is a slow child process: a bounded set of the
+  // hostile values above, each written by an edit we accept, must be source
+  // Mermaid reads.
+  it('Mermaid 12.2.0 reads what an accepted hostile-text edit writes', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const [[family, ops]] of [
+        ...EXAMPLES,
+        [['sankey', [{ kind: 'add_link', source: 'x,y', target: 'B', value: 3 }]]],
+        [['sankey', [{ kind: 'add_link', source: '%%', target: 'B', value: 3 }]]],
+        [['state', [{ kind: 'rename_state', from: 'S1', to: 'x--y' }]]],
+        [['flowchart', [{ kind: 'define_class', name: 'x--y', style: 'fill:#f00' }]]],
+        [['flowchart', [{ kind: 'add_subgraph', id: 'A[B]' }]]],
+        [['flowchart', [{ kind: 'set_label', target: 'A', label: 'a b' }]]],
+        [['kanban', [{ kind: 'set_task_label', id: 't1', label: '`x' }]]],
+        [['packet', [{ kind: 'set_field_label', index: 0, label: 'a\u0007b\\"' }]]],
+      ] as typeof EXAMPLES) {
+        const result = applyMutationBatch(base(family), ops)
+        if (!result.ok) continue
+        const written = serializeMermaid(result.value)
+        expect({ family, ops, written, accepted: await upstream.accepts(written) }).toEqual({ family, ops, written, accepted: true })
+      }
+    } finally {
+      upstream.close()
+    }
   }, 120_000)
 
   // The documented edit paths are one checked core: mutate, mutateChecked, a

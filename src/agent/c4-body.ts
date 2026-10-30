@@ -21,7 +21,10 @@ export function parseC4Body(lines: string[] | string, accessibility: Accessibili
     const body = readC4Source(lines)
     if (accessibility.title !== undefined) body.accessibilityTitle = accessibility.title
     if (accessibility.descr !== undefined) body.accessibilityDescription = accessibility.descr
-    return body
+    // Read generously, write strictly: text the typed writer cannot spell
+    // (a NUL in a label) keeps the authored source instead of a typed body
+    // whose serialization would throw.
+    return c4BodyProblem(body) === null ? body : null
   } catch (error) {
     if (error instanceof C4AmbiguousArgumentError) throw error
     return null

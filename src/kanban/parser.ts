@@ -144,6 +144,7 @@ export function parseKanbanDiagram(input: readonly string[] | string, accessibil
     let rawId = '',
       label = '',
       implicitId = false,
+      markdownLabel = false,
       declaredLabelStart = indent,
       suffix = ''
     const metadataAt = text.indexOf('@{'),
@@ -156,7 +157,7 @@ export function parseKanbanDiagram(input: readonly string[] | string, accessibil
       let rest = text.slice(opener.index + opening.length),
         consumed: number
       if (rest.startsWith('"')) {
-        const markdown = rest.startsWith('"`'),
+        const markdown = (markdownLabel = rest.startsWith('"`')),
           delimiter = markdown ? '`"' : '"'
         const start = markdown ? 2 : 1
         declaredLabelStart = indent + opener.index + opening.length + start
@@ -222,7 +223,7 @@ export function parseKanbanDiagram(input: readonly string[] | string, accessibil
     let id = occurrence ? `${rawId}#${occurrence + 1}` : rawId
     while (used.has(id)) id += '#'
     used.add(id)
-    const item: KanbanItem = { id, sourceId: rawId, ...(implicitId ? { implicitId: true } : {}), label, metadata, ...(metadata.icon ? { icon: String(metadata.icon) } : {}) }
+    const item: KanbanItem = { id, sourceId: rawId, ...(implicitId ? { implicitId: true } : {}), label, ...(markdownLabel && kanbanMetadataLabel(metadata.label) === undefined ? { markdown: true as const } : {}), metadata, ...(metadata.icon ? { icon: String(metadata.icon) } : {}) }
     baseIndent ??= indent
     if (indent < baseIndent) throw fail(`Items without section detected, found section ("${label}")`, indent, 'columns at the first column indentation and cards indented beneath them')
     if (indent === baseIndent) {

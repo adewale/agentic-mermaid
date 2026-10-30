@@ -34,7 +34,10 @@ export function renderKanban(body: KanbanBody): string {
     // the original authored text after the shared entity decoder.
     const label = encodeMermaidEntities(implicitId ? item.sourceId : item.label, '"%&').replace(/\r\n/g, '\r\r\n')
     const identifier = implicitId ? '' : encodeMermaidEntities(item.sourceId, '()[]{}@%&')
-    lines.push(`${indent}${identifier}["${label}"]`)
+    // A markdown string keeps its backtick delimiters; a plain label must not
+    // open one, so its leading backtick is written as an entity.
+    const markdown = item.markdown === true && !implicitId
+    lines.push(`${indent}${identifier}["${markdown ? `\`${label}\`` : label.startsWith('`') ? `#96;${label.slice(1)}` : label}"]`)
     const metadata = { ...item.metadata }
     // An implicit identity comes from the declaration, independently of a
     // later display-label edit. Keep both through the public writer.
@@ -111,6 +114,7 @@ export function mutateKanban(body: KanbanBody, op: KanbanMutationOp): Result<Kan
       const target = column(op.id)
       if (!target || !text(op.label)) return fail('set_column_label requires an existing column and non-empty label')
       target.label = op.label
+      delete target.markdown
       delete target.metadata.label
       break
     }
@@ -145,6 +149,7 @@ export function mutateKanban(body: KanbanBody, op: KanbanMutationOp): Result<Kan
       const target = parent(op.id)?.tasks.find(task => task.id === op.id)
       if (!target || !text(op.label)) return fail('set_task_label requires an existing task and non-empty label')
       target.label = op.label
+      delete target.markdown
       delete target.metadata.label
       break
     }

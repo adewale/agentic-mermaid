@@ -677,7 +677,9 @@ function escapeLabel(label: string, content?: LabelContent): string {
   if (label === '') return '" "'
   // Upstream rejects a bracket, `|`, `"` or `@` in a bare label, and a leading
   // `~~~` (its invisible-link token).
-  if (/[\[\]{}()|"@]|^~~~/.test(label) || (content?.value === label && content.authored?.startsWith('`'))) return quoteLabel(label, content)
+  // A bare label also ends at a U+2028/U+2029 line terminator, which the
+  // quoted form holds.
+  if (/[\[\]{}()|"@\u2028\u2029]|^~~~/.test(label) || (content?.value === label && content.authored?.startsWith('`'))) return quoteLabel(label, content)
   return protectLabelDirection(writeFlowchartLabelText(label, content))
 }
 

@@ -87,9 +87,10 @@ export function sankeyBodyProblem(body: SankeyBody, allowEmptyDraft = false): st
 
 // ---- Serializer -------------------------------------------------------------
 
-/** Quote a CSV field only when its content demands it (RFC 4180). */
+/** Quote a CSV field only when its content demands it (RFC 4180), or when
+ * a bare field would open a `%%` comment line. */
 function renderCsvField(label: string): string {
-  if (/[",]/.test(label) || label !== label.trim()) {
+  if (/[",]/.test(label) || label !== label.trim() || label.startsWith('%%')) {
     return `"${label.replace(/"/g, '""')}"`
   }
   return label
@@ -98,7 +99,9 @@ function renderCsvField(label: string): string {
 export function renderSankey(body: SankeyBody): string {
   const lines: string[] = ['sankey-beta']
   for (const link of body.links) {
-    lines.push(`  ${renderCsvField(link.source)},${renderCsvField(link.target)},${formatNumber(link.value)}`)
+    const row = `${renderCsvField(link.source)},${renderCsvField(link.target)},${formatNumber(link.value)}`
+    // Pinned Mermaid rejects an indented row that opens with a quoted field.
+    lines.push(row.startsWith('"') ? row : `  ${row}`)
   }
   return lines.join('\n') + '\n'
 }
@@ -301,6 +304,7 @@ export function sankeyUnsupportedSyntaxWarnings(canonicalSource: string, authore
     // Mermaid trims whitespace from the end of the source.
     const raw = authoredLine?.(index + 1) ?? lines[index]!
     const row = index === last ? raw.trimEnd() : raw
+    if (!continuation && /^\s+"/.test(row)) warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_indented_quoted_row', line: index + 1, message: 'Pinned Mermaid rejects an indented Sankey row that opens with a quoted field. Ours reads it; canonical export writes that row unindented.' })
     if (row.includes('%%{')) warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_directive_text', line: index + 1, message: 'A Sankey node name containing a directive opener is read as written. Pinned Mermaid rejects it, and CSV has no escape preserving the name; this source remains preserved without typed edits.' })
     const outside = /[^\x20-\x7E\r]/u.exec(row)?.[0]
     if (outside !== undefined) {

@@ -141,7 +141,9 @@ export function quadrantTextWritable(text: string): boolean {
   const quoted = quadrantTextSource(text, true).startsWith('"')
   // A quoted leading backtick enters the exclusive Markdown lexer state,
   // whose token cannot contain a literal backtick. Bare backticks remain text.
-  return !text.startsWith('%%') && !text.includes('%%{') && !(quoted && text.startsWith('`')) && (!quoted || !text.includes('"'))
+  // Empty text writes nothing a reader takes as text, and the reader trims
+  // the blanks beside a line break inside a quoted value.
+  return text !== '' && !/[^\S\n]\n|\n[^\S\n]/.test(text) && !text.startsWith('%%') && !text.includes('%%{') && !(quoted && text.startsWith('`')) && (!quoted || !text.includes('"'))
 }
 
 /** Where Mermaid's quadrant lexer rejects unquoted text: what it rejects. */

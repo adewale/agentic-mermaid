@@ -37,12 +37,19 @@ export const ZENUML_SOURCE_HOOKS: Omit<FamilyOperations, 'mutate'> = {
     if (body.kind !== 'zenuml') return map
     const ends = { nodes: new Map<string, SourceLocation>(), edges: new Map<string, SourceLocation>(), labels: new Map<string, SourceLocation>() }
     const starts = sourceLineStarts(source)
-    parseZenUML(source, event => {
-      const start = sourcePointAt(starts, event.start), end = sourcePointAt(starts, event.end)
-      if (event.kind === 'nodes' && map.nodes.has(event.id)) return
-      map[event.kind].set(event.id, { line: start.line, col: start.col })
-      if (event.kind !== 'groups') ends[event.kind].set(event.id, { line: end.line, col: end.col })
-    })
+    try {
+      parseZenUML(source, event => {
+        const start = sourcePointAt(starts, event.start), end = sourcePointAt(starts, event.end)
+        if (event.kind === 'nodes' && map.nodes.has(event.id)) return
+        map[event.kind].set(event.id, { line: start.line, col: start.col })
+        if (event.kind !== 'groups') ends[event.kind].set(event.id, { line: end.line, col: end.col })
+      })
+    } catch {
+      // The body was read from the authored text; this map reads the
+      // XML-decoded canonical text, where `&amp;'` becomes an unclosed quote.
+      // Locations are optional metadata: parse stays total without them.
+      return { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
+    }
     recordSourceMapEnds(map, ends)
     return map
   },

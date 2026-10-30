@@ -87,8 +87,10 @@ export function stableFamilyFacts(body: StableBody): string[] {
     case 'kanban':
       body.columns.forEach((column, index) => {
         facts.push(`column#${index} ${text(column.sourceId)} : ${text(column.label)}`)
+        if (column.markdown) facts.push(`column#${index} markdown`)
         column.tasks.forEach((task, order) => {
           facts.push(`task#${index}.${order} ${text(task.sourceId)} : ${text(task.label)}`)
+          if (task.markdown) facts.push(`task#${index}.${order} markdown`)
           for (const [key, value] of Object.entries(task.metadata)) facts.push(`task#${index}.${order} metadata ${text(key)} ${text(value)}`)
           if (task.icon) facts.push(`task#${index}.${order} icon ${text(task.icon)}`)
           if (task.className) facts.push(`task#${index}.${order} class ${text(task.className)}`)

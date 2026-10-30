@@ -31,7 +31,7 @@ import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { resolveArchitectureIcon } from '../architecture/icons.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import {
-  readArchitectureStatements, architectureIconError, architectureIdError, architectureStatementEnds, architectureTerminalRejections, architectureTitleSource, architectureIconTextSource,
+  readArchitectureStatements, architectureIconError, architectureIdError, architectureStatementEnds, architectureTerminalRejections, architectureTitle, architectureTitleSource, architectureIconTextSource,
 } from '../architecture/parser.ts'
 import { statementText } from '../shared/trailing-comment.ts'
 
@@ -167,6 +167,11 @@ export function parseArchitectureBody(
       if (!endpointIds.has(member)) return null
     }
   }
+  // A [title] ours reads but the writer cannot spell (a bare title ending in
+  // a backslash, which the quoted form would read as an escaped quote) stays
+  // source-preserved rather than a typed body that formats to other text.
+  const titles = [...groups.map(group => group.label), ...services.map(service => service.label), ...edges.flatMap(edge => edge.label === undefined ? [] : [edge.label])]
+  if (titles.some(label => architectureTitle(architectureTitleSource(label)) !== label)) return null
 
   return {
     kind: 'architecture',

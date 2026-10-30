@@ -970,3 +970,31 @@ Flowchart classDef name cannot hold `--`, which Mermaid's lexer reads as a
 link. A new State name (`add_state`, `rename_state`, `make_composite`,
 floating notes) holds no hyphen and is not `default`, `click` or `href`.
 Authored names of those shapes are still read, and verify still reports them.
+
+### Writers spell what readers admit
+
+`serializeMermaid` must not throw on a body the parser produced, and
+`am format` output re-reads as the same facts and formats to itself. Where a
+field has a faithful spelling the writer uses it; where none exists the reader
+keeps the source preserved instead of a typed body.
+
+- Entity-decoded text never spells a directive opener: the `%` between `%`
+  and `{` is written `#37;`, because Mermaid strips `%%{…}%%` anywhere,
+  quoted text included. A plain `%%` stays whatever the grammar context reads
+  it as (text in Mindmap nodes and State labels).
+- A Flowchart label holding U+2028 or U+2029 is written quoted. A bare label
+  ends at those terminators.
+- Requirement text holding `"` is written bare when the bare lexer reads it
+  back exactly, as Mermaid also reads it. Otherwise there is no spelling: a
+  quoted string has no escape.
+- Packet labels use only the reader's backslash escapes. Controls and lone
+  surrogates are written as themselves instead of JSON `\uXXXX` escapes,
+  which the reader takes literally.
+- Kanban markdown labels (`"`…`"`) keep their backticks; editing the label
+  text makes it plain. A plain label's leading backtick is written `#96;`.
+- Sankey rows opening with a quoted field are written unindented. Mermaid
+  rejects them indented; ours reads them and warns
+  (`sankey_indented_quoted_row`). A node name starting `%%` is quoted, so its
+  row is not a comment.
+- A C4 label holding NUL, and an Architecture title ending in a backslash,
+  have no writer spelling; such source stays preserved.
