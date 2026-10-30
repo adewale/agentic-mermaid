@@ -286,28 +286,54 @@ function finishXmlLeaf(capture: SvgXmlCapture, node: object, svg: string, xml: X
   } : svg, node)
 }
 
-type XmlWriteEvent = readonly ['element', string] | readonly ['attribute', string, string] | readonly ['text', string] | readonly ['prepared', string, string, string, string, string]
+type XmlWriteEvent = readonly ['element', string] | readonly ['attribute', string, string, (keyof MarkPaint)?] | readonly ['text', string] | readonly ['prepared', string, string, string, string, string]
 class XmlLeafWrite {
   readonly #state: XmlCaptureState
   readonly #events: XmlList<XmlWriteEvent> | undefined
   valid = true
+  #paintPrepared = false
   constructor(state: XmlCaptureState) { this.#state = state; this.valid = state.pay(1); this.#events = this.valid ? xmlList() : undefined }
   list<T>(): XmlList<T> | undefined { return this.#state.pay(1) ? xmlList<T>() : undefined }
   element(name: string): void {
     if (this.valid) { this.valid = this.#state.pay(1); if (this.valid) this.#events![this.#events!.length++] = ['element', name] }
   }
-  attribute(name: string, escaped: unknown): void {
-    if (this.valid) { this.valid = typeof escaped === 'string' && this.#state.pay(1); if (this.valid) this.#events![this.#events!.length++] = ['attribute', name, escaped as string] }
+  attribute(name: string, escaped: unknown, paintField?: keyof MarkPaint): void {
+    if (this.valid) {
+      this.valid = typeof escaped === 'string' && this.#state.pay(paintField === undefined ? 1 : 2)
+      if (this.valid) this.#events![this.#events!.length++] = paintField === undefined ? ['attribute', name, escaped as string] : ['attribute', name, escaped as string, paintField]
+    }
   }
   text(content: string): void {
     if (this.valid) { this.valid = typeof content === 'string' && this.#state.pay(1); if (this.valid) this.#events![this.#events!.length++] = ['text', content] }
   }
-  prepared(written: PreparedSingleLineWrite): void {
+  prepared(written: PreparedSingleLineWrite, paint = false): void {
     if (!this.valid) return
     const { x, y, dy, textLength, content } = written
     this.valid = typeof x === 'string' && typeof y === 'string' && typeof dy === 'string' && typeof textLength === 'string' && typeof content === 'string' && this.#state.pay(5)
     if (this.valid) this.#events![this.#events!.length++] = ['prepared', x, y, dy, textLength, content]
     for (let i = 0; i < written.additionalAttributes.length; i++) { const attribute = written.additionalAttributes[i]!; this.attribute(attribute.name, attribute.value) }
+    if (paint) this.#paintPrepared = this.#state.pay(1) && written.additionalAttributes.length === 0
+  }
+  static paint(xml: XmlLeafWrite): MarkPaint | undefined {
+    if (!xml.valid || !xml.#paintPrepared || !xml.#state.pay(1)) return undefined
+    const paint = { __proto__: null } as MarkPaint
+    let prepared = false
+    for (let i = 0; i < xml.#events!.length; i++) {
+      if (!xml.#state.pay(2)) return undefined
+      const event = xml.#events![i]!
+      if (event[0] === 'attribute' && event.length === 4) {
+        const field = event[3], escaped = event[2]
+        if (field === undefined || !xml.#state.pay(2 + escaped.length)) return undefined
+        for (let j = 0; j < escaped.length; j++) if (escaped[j] === '&') return undefined
+        textPaintDefine(paint, field, { value: escaped, enumerable: true, writable: false, configurable: false })
+      } else if (event[0] === 'prepared') {
+        const content = event[5]
+        if (prepared || !xml.#state.pay(content.length + 1)) return undefined
+        for (let j = 0; j < content.length; j++) if (content[j] === '<') return undefined
+        prepared = true
+      }
+    }
+    return prepared ? textPaintFreeze(paint) : undefined
   }
   check(): boolean {
     if (!this.valid || !this.#state.pay(1)) return false
@@ -337,6 +363,8 @@ class XmlLeafWrite {
   }
 }
 
+const projectXmlTextPaint = XmlLeafWrite.paint
+
 declare const svgTextPaintWrite: unique symbol
 export interface SvgTextPaintWrite { readonly [svgTextPaintWrite]: true }
 const textPaintDefine = Object.defineProperty, textPaintFreeze = Object.freeze, textPaintHasOwn = Object.hasOwn
@@ -347,15 +375,22 @@ class ActualTextPaintWrite implements SvgTextPaintWrite {
   readonly #write: SvgXmlWrite
   readonly #source: TextMark
   readonly #svg: string
-  readonly #paint: MarkPaint | undefined
+  #paint: MarkPaint | undefined
+  #paintRead = false
+  readonly #xml: XmlLeafWrite | undefined
   readonly #inherited: boolean
   readonly #typedClosed: () => boolean
-  constructor(issuer: object, capture: SvgXmlCapture, write: SvgXmlWrite, source: TextMark, svg: string, paint: MarkPaint | undefined, inherited: boolean, typedClosed: () => boolean) {
+  constructor(issuer: object, capture: SvgXmlCapture, write: SvgXmlWrite, source: TextMark, svg: string, xml: XmlLeafWrite | undefined, inherited: boolean, typedClosed: () => boolean) {
     if (issuer !== textPaintIssuer) throw new TypeError('Actual text paint requires its writer')
-    this.#capture = capture; this.#write = write; this.#source = source; this.#svg = svg; this.#paint = paint; this.#inherited = inherited; this.#typedClosed = typedClosed
+    this.#capture = capture; this.#write = write; this.#source = source; this.#svg = svg; this.#xml = xml; this.#inherited = inherited; this.#typedClosed = typedClosed
   }
   static paint(value: unknown): MarkPaint | undefined {
-    return typeof value === 'object' && value !== null && #source in value ? value.#paint : undefined
+    if (typeof value !== 'object' || value === null || !(#source in value)) return undefined
+    if (!value.#paintRead) {
+      value.#paintRead = true
+      value.#paint = value.#xml ? projectXmlTextPaint(value.#xml) : undefined
+    }
+    return value.#paint
   }
   static inherited(value: unknown): boolean {
     return typeof value === 'object' && value !== null && #source in value && value.#inherited
@@ -372,7 +407,7 @@ class ActualTextPaintWrite implements SvgTextPaintWrite {
   }
   static read(value: unknown, source: object, svg: string, capture?: SvgXmlCapture, write?: SvgXmlWrite): MarkPaint | undefined {
     if (typeof value !== 'object' || value === null || !(#source in value)) return undefined
-    return value.#source === source && value.#svg === svg && (capture === undefined || value.#capture === capture && value.#write === write) ? value.#paint : undefined
+    return value.#source === source && value.#svg === svg && (capture === undefined || value.#capture === capture && value.#write === write) ? paintActualTextPaintWrite(value) : undefined
   }
 }
 const readActualTextPaintWrite = ActualTextPaintWrite.read, paintActualTextPaintWrite = ActualTextPaintWrite.paint
@@ -438,7 +473,7 @@ class SvgWriter {
     const literal = typeof value === 'number' ? formatSvgNumber(value) : formatSvgNumericAttribute(name, value, changedToken, numericToken)
     const escaped = typeof value === 'number' ? literal : escapeAttr(literal)
     this.value += ` ${name}="${escaped}"`
-    this.xml?.attribute(name, escaped)
+    this.xml?.attribute(name, escaped, this.observePaint ? paintField : undefined)
     if (name === 'transform') this.transformed = true
     this.observeAttributes?.(name, literal)
     if (paintField !== undefined) this.observePaint?.(paintField, literal, escaped)
@@ -667,15 +702,11 @@ export function writeTextSvg(node: TextMark, capture?: SvgXmlCapture, sink?: Svg
   typographyAttributes(out, node)
   const report = capture && sink?.textPaint
   const state = report && xmlCaptures.get(capture!)
-  const actualPaint = state ? { __proto__: null } as MarkPaint : undefined
-  let paintValid = !!state, preparedPaint = false, inheritedPaint = false
+  let inheritedPaint = false
   let paintReceiver: MarkPaint
-  if (state) out.observePaint = (field, literal, escaped) => {
-    if (!state.pay(2)) { paintValid = false; return }
+  if (state) out.observePaint = field => {
+    if (!state.pay(2)) return
     if (!textPaintHasOwn(paintReceiver, field)) inheritedPaint = true
-    if (typeof escaped !== 'string' || !state.pay(2 + escaped.length)) { paintValid = false; return }
-    for (let i = 0; i < escaped.length; i++) if (escaped[i] === '&') { paintValid = false; return }
-    if (paintValid) textPaintDefine(actualPaint!, field, { value: escaped, enumerable: true, writable: false, configurable: false })
   }
   paintAttributes(out, paintReceiver = node.paint)
   out.observePaint = undefined
@@ -686,20 +717,15 @@ export function writeTextSvg(node: TextMark, capture?: SvgXmlCapture, sink?: Svg
   let observed = false
   const svg = renderMultilineText(prepared ? node.block! : node.text, node.x, node.y, node.fontSize, attrs, node.baselineShift ?? 0.35, node.display === 'literal', out.xml ? written => {
     observed = true
-    out.xml!.prepared(written)
-    if (report) {
-      preparedPaint = written.additionalAttributes.length === 0 && typeof written.content === 'string' && state!.pay(written.content.length + 1)
-      for (let i = 0; preparedPaint && i < written.content.length; i++) if (written.content[i] === '<') preparedPaint = false
-    }
+    out.xml!.prepared(written, !!report)
   } : undefined, node.anchor)
   if (!node.spans) {
     if (!capture) return svg
     let typedClosed = false
-    const eligiblePaint = paintValid && preparedPaint && observed
-    const write = finishXmlLeaf(capture, node, svg, out.xml, observed, undefined, eligiblePaint ? () => { typedClosed = true } : undefined)
+    const write = finishXmlLeaf(capture, node, svg, out.xml, observed, undefined, report ? () => { typedClosed = true } : undefined)
     if (report) {
       const fact = state!.pay(2)
-        ? new ActualTextPaintWrite(textPaintIssuer, capture, write, node, svg, eligiblePaint ? textPaintFreeze(actualPaint!) : undefined, inheritedPaint, () => typedClosed) : undefined
+        ? new ActualTextPaintWrite(textPaintIssuer, capture, write, node, svg, observed ? out.xml : undefined, inheritedPaint, () => typedClosed) : undefined
       report(node, fact)
     }
     return write
