@@ -5251,3 +5251,72 @@ No default/version/release change, force push, PR merge or package publication.
 Next concrete step: push the verified actual-write fix normally, follow its CI,
 then investigate the Native XML fact duplication at the owning writer boundary
 without widening proof scope, relaxing caps or starting another timing campaign.
+
+### 30 October: truthful exhausted-composition diagnostic; two compiler candidates rejected
+
+Implementation ed98e578ae189aa621851362fc7de4648a2a8443 follows published
+39d6d8e65fcbf9558c8b499d50e4ae53367a646b. When the existing paint ledger is
+exhausted, actual closure can lack a completed root without establishing any
+byte difference. Its OUTPUT_SCOPE message now states that composition authority
+could not be established within the allowance. Both OUTPUT_SCOPE and
+CHECK_BUDGET, unverified status, all work charges and caps remain. Genuine
+non-budget composition mismatches retain their previous diagnostic. This is a
+diagnostic correction, not a capacity closure or proof that every refused SVG
+is unchanged.
+
+An existing paint-certification owner file now exercises the actual direct
+transaction: real immutable admitted marker Scene, real initial passed proof,
+explicit exhausted continuation, same-context DefaultBackend output and final
+closure. The returned SVG equals the ordinary render, and removing its arrow
+changes actual raster ink. The new case fails at the false old message before
+the fix (0P/1F/eight assertions), then passes with all four existing hidden-marker
+composition controls (5P/0F/40assertions). Canonical core/repository types with
+Trident f080 and targeted Biome lint pass. An initial ESLint invocation failed
+before lint because this repository uses Biome; that startup mistake is retained,
+not counted as a product/test failure. Evidence: ROOT-EXHAUSTED-AUTHORITY-
+{RED,GREEN,TYPES,BIOME,LINT}.log. Independent scoped static review found no issue
+in this two-file change; no runtime review probe is claimed.
+
+Exact-head CI41112315244 completed FAILURE at19:20:06UTC on39d6d8e65, with
+paired review base8062145ce. Units:4799P/33skip/0F,5906P/37skip/2F,
+4738P/6skip/4F; same six failing names and ten additional passes. Semantics
+173P/0F; tarballs/Node22, CLI/dist/browser-site/MCP/quickstarts and backend
+artifact evidence pass. Class128 TB/BT has the additional exhausted-composition
+message repaired above; all six capacity failures remain. Delivery worsens:
+editor gzip1406946>1334500; demo raw800229>788000 plus new gzip303527>302500;
+68lazy failed metrics across25groups, versus67 previously. Newly failing
+flowchart gzip764058>761500; State gzip764008>761000. Advisory fails with zero
+producer errors. Filtered exact logs are CI-ACTUAL-WRITE-{FILTERED,
+FAILURE-EXCERPTS}.json. Fresh branch ref is39d6d8e65 and live Main118cadd53d3b2dfbaf0dbb959bcc7abb66f16ae5;
+current-Main combined qualification remains absent. Older CI is not relabelled
+as qualification of the new diagnostic commit.
+
+Five replacement Sol6.1High agents inspected and implemented distinct slices;
+only one private production author and Root's disjoint diagnostic writer were
+active. Both further XML candidates remain PRIVATE and rejected:
+
+* Exact-prefix lexical cache: existing sparse0/32markers owner stays1P/1F.
+  Candidate reaches16marker checks but exhausts400000; no exact saving is
+  inferred from an absent emission-total packet. Static review identified a
+  captured pre-import Map.get result that can forge first-prefix validity for
+  malformed actual attribute names. No runtime reproduction is claimed.
+* Incremental writer validation: actual new code was loaded in both supervised
+  arms, but owner remains1P/1F at400000, with zero completed marker checks.
+  Moving lexical validation into writing introduces temporary-Map-hook and
+  reentrant failed-copy scheduling counterexamples in static review. Successful
+  copying retains ordinary prototypes and does not imply callback-free writing.
+  Both source guards pass and all children are reaped. No new cap, fee discount
+  or public flag was adopted.
+
+The old prefix and new incremental patches/results are retained respectively in
+curve-stage-discriminator/native-prepared-lines-1/ and native-incremental-xml-1/;
+independent XML-CUSTODY-STATIC-REVIEW.txt and XML-INCREMENTAL-CUSTODY-STATIC-REVIEW.txt
+state their exact static scope. Both new artifact sets remain below1MiB, with
+the256MiB free-space reserve preserved. No timing campaign, holdout opening,
+public peer rerender, dependency install or build was performed for these
+rejected experiments. Six legacy capacities and historical19 normal budget stay
+enrolled. Next concrete implementation question: can capture-owned deferred
+prefix/event construction be shared without moving lexical validation or
+trusting ambient cache results? Require meaningful owner red→green before any
+adoption; retain generic/getter/CSS/definition/ownership isolation. Campaign end
+remains2026-10-31T12:03:00Z, with no automatic extension.
