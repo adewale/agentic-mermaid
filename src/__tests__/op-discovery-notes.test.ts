@@ -96,7 +96,7 @@ describe('Code Mode can self-discover op shapes', () => {
 
 test('resolved-scene discovery names the executable API, limits and canonical primitive fields', () => {
   const summary = buildCapabilities().resolvedScene
-  expect(summary).toMatchObject({ api: 'renderResolvedScene', version: 2, synchronous: true })
+  expect(summary).toMatchObject({ api: 'renderResolvedScene', version: 2, synchronous: true, coordinates: 'primitive-local', matrix: 'local-to-root-user-space' })
   const detail = describeSdkPayload(summary.discovery.arguments)
   expect(detail).toMatchObject({ ok: true, capability: 'resolved-scene', codeMode: { defaultMaxResultBytes: 2 * 1024 * 1024 } })
   expect(describeSdkPayload({ capability: 'resolved-scene', detail: 'signatures' })).toMatchObject({ ok: true, signatures: [expect.stringContaining('renderResolvedScene')] })
