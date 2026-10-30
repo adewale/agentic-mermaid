@@ -1,7 +1,7 @@
 import type { Direction, MermaidGraph, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { graphReachability, layoutFlow, nodeCrossCenter, nodeMainStart, rectsOverlap } from '../geometry.ts'
-import { positionedEdgeForwardish, sameFlowLayer, nodeInsideGroups, flattenPositionedGroups, rectInsideGroup, expandGroupsForMainShift, sourceEmissionPort, targetFlowPort, symmetricOffsets, doglegBetween, routeClearOfNodes } from './shared.ts'
+import { positionedEdgeForwardish, sameFlowLayer, nodeInsideGroups, flattenPositionedGroups, rectInsideGroup, expandGroupsForMainShift, moveKeepsGroupContainment, sourceEmissionPort, targetFlowPort, symmetricOffsets, doglegBetween, routeClearOfNodes } from './shared.ts'
 import { terminalLabelRunLength, terminalLabelCorridorLength, assignBundledFanoutLabels } from './bundled-labels.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
 import { countPointPairCrossings } from '../../shared/edge-crossing-pair.ts'
@@ -242,6 +242,12 @@ export function applySymmetricFanoutEmissions(
       targetEdge = f.isHorizontal
         ? (f.sign > 0 ? Math.min(...targets.map(t => t.x)) : Math.max(...targets.map(t => t.x + t.width)))
         : (f.sign > 0 ? Math.min(...targets.map(t => t.y)) : Math.max(...targets.map(t => t.y + t.height)))
+    }
+    // A diamond may own grouped targets. Only the corridor shift refits their
+    // frames, so the settled placement must leave each member inside them.
+    if (!routeOnly && !targets.every((target, i) => moveKeepsGroupContainment(oldTargets[i]!, target, groups))) {
+      restoreGeometry()
+      continue
     }
     const requiredTerminalRun = Math.max(0, ...sorted.map(edge => terminalLabelRunLength(edge, graph.direction, style, sourceEdge, targetEdge)))
     const midpointElbow = sourceEdge + (targetEdge - sourceEdge) * 0.5

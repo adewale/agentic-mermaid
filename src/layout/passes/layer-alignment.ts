@@ -1,5 +1,6 @@
-import type { Direction, Point, PositionedEdge, PositionedNode } from '../../types.ts'
+import type { Direction, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
 import { DEFAULTS } from '../geometry.ts'
+import { moveKeepsGroupContainment } from './shared.ts'
 import { clipEdgeToShape, isOutwardShapeApproach } from '../../shape-clipping.ts'
 import { trimBoundaryEndpointRuns } from '../../route-contracts.ts'
 
@@ -58,11 +59,15 @@ function shiftedEndpointPoints(points: Point[], horizontal: boolean, sourceDelta
  * Edge endpoints connected to shifted nodes are adjusted proportionally.
  * Intermediate bend points are left unchanged — edge bundling or clipping
  * will recalculate them afterwards.
+ *
+ * Group frames are not refitted here, so a layer whose snap would carry a
+ * member outside a frame that holds it keeps ELK's stagger.
  */
 export function alignLayerNodes(
   nodes: PositionedNode[],
   edges: PositionedEdge[],
-  direction: Direction
+  direction: Direction,
+  groups: PositionedGroup[] = [],
 ): void {
   if (nodes.length === 0) return
 
@@ -166,6 +171,7 @@ export function alignLayerNodes(
     const projectedNodes = new Map(layer.map(node => [node.id, {
       ...node, ...(isHorizontal ? { x: node.x + (moves.get(node.id) ?? 0) } : { y: node.y + (moves.get(node.id) ?? 0) }),
     }]))
+    if (layer.some(node => !moveKeepsGroupContainment(node, projectedNodes.get(node.id)!, groups))) continue
     const checked = new Set<PositionedEdge>()
     let breaksApproach = false
     for (const id of moves.keys()) {

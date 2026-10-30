@@ -1449,7 +1449,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     // ELK repairs and the shared forest fan preparation retain their passes.
     enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     mayChangeMetrics: { bends: 'improve-only', straight: 'improve-only' },
-    run: c => { alignLayerNodes(c.nodes, c.edges, c.graph.direction) },
+    run: c => { alignLayerNodes(c.nodes, c.edges, c.graph.direction, c.groups) },
   },
   {
     id: 'equalizePeerNodeDimensions', doc: 'equalize peer box sizes + pack layers so symmetry is visible downstream',

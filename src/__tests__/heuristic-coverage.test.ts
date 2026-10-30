@@ -28,7 +28,7 @@ import { parseMermaid } from '../parser.ts'
 import { assessLayout } from '../layout-rubric.ts'
 import { clipEdgeToShape } from '../shape-clipping.ts'
 import { trimBoundaryEndpointRuns } from '../route-contracts.ts'
-import type { PositionedNode, PositionedEdge, Point } from '../types.ts'
+import type { PositionedNode, PositionedEdge, PositionedGroup, Point } from '../types.ts'
 
 // --- tiny builders for synthetic positioned geometry --------------------------
 function mkNode(id: string, x: number, y: number, w = 40, h = 30): PositionedNode {
@@ -112,6 +112,20 @@ describe('occlusion-safe alignLayerNodes — the snapOccludes guard', () => {
         yHi > P.y + 0.5 && yLo < P.y + P.height - 0.5
     })
     expect(throughNode).toBe(false)
+  })
+
+  // ELK offsets a grouped member by its frame padding, so it can share a
+  // flow-axis band with an ungrouped peer. Frames are not refitted here.
+  it.each([
+    { name: 'declines a snap that would carry a member past its frame', frameHeight: 40, expected: [100, 120] },
+    { name: 'CONTROL: snaps a member that stays inside a taller frame', frameHeight: 60, expected: [layerCentre, layerCentre] },
+  ])('$name', ({ frameHeight, expected }) => {
+    const P = mkNode('P', 0, 100)
+    const Q = mkNode('Q', 100, 120)
+    const frame: PositionedGroup = { id: 'G', label: 'G', x: -10, y: 95, width: 60, height: frameHeight, children: [] }
+    alignLayerNodes([P, Q], [], 'TD', [frame])
+    expect([P.y, Q.y]).toEqual([...expected])
+    expect(P.y >= frame.y && P.y + P.height <= frame.y + frame.height).toBe(true)
   })
 
   const rotate = (point: Point, turns: number): Point => {

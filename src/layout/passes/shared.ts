@@ -71,6 +71,16 @@ export function rectInsideGroup(rect: { x: number; y: number; width: number; hei
     rect.y + rect.height <= group.y + group.height + 0.5
 }
 
+type Rect = { x: number; y: number; width: number; height: number }
+
+/** A post-ELK node move keeps its node inside every group frame that held it.
+ * ELK places each authored member inside its group; a cosmetic snap, resize or
+ * symmetric placement that would carry a member across a frame it does not
+ * also refit must be declined, or the result cannot certify. */
+export function moveKeepsGroupContainment(before: Rect, after: Rect, groups: PositionedGroup[]): boolean {
+  return flattenPositionedGroups(groups).every(group => !rectInsideGroup(before, group) || rectInsideGroup(after, group))
+}
+
 export function expandGroupsForMainShift(
   groups: PositionedGroup[],
   rects: Array<{ x: number; y: number; width: number; height: number }>,
