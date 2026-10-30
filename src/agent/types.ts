@@ -71,13 +71,19 @@ export interface SequenceParticipant {
   links?: Record<string, string>
 }
 
+/** One name per Mermaid whole-head arrow, solid then dashed. A half-arrow
+ * keeps its exact operator in `arrow` and only its shaft here (sync/reply). */
 export type SequenceMessageStyle =
   | 'sync' // ->>
   | 'reply' // -->>
-  | 'async' // ->
-  | 'async-dashed' // -->
+  | 'line' // -> (no head)
+  | 'line-dashed' // -->
+  | 'async' // -) (open head)
+  | 'async-dashed' // --)
   | 'lost' // -x
   | 'lost-dashed' // --x
+  | 'bidirectional' // <<->>
+  | 'bidirectional-dashed' // <<-->>
 
 export type SequenceMessageArrow =
   | '<<->>'
@@ -127,7 +133,8 @@ export interface SequenceMessage {
   text: string
   textContent?: LabelContent
   style: SequenceMessageStyle
-  /** Exact closed official endpoint operator when richer than legacy style. */
+  /** Exact official operator as read. Written while it has this `style`;
+   * otherwise `style`'s own arrow is written. */
   arrow?: SequenceMessageArrow
   centralStart?: boolean
   centralEnd?: boolean

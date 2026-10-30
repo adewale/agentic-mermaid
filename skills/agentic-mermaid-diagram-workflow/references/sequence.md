@@ -11,8 +11,10 @@ sequenceDiagram
 Participants: `participant A`, `participant A as Label`, `actor A`. Also declared
 implicitly by first message reference.
 
-Arrows → style: `->>` sync, `-->>` reply, `->` async, `-->` async-dashed,
-`-x` lost, `--x` lost-dashed.
+Arrows → style: `->>` sync, `-->>` reply, `->` line, `-->` line-dashed (no
+head), `-)` async, `--)` async-dashed (open head), `-x` lost, `--x`
+lost-dashed, `<<->>` bidirectional, `<<-->>` bidirectional-dashed. Half-arrows
+(`-|\` …) keep their operator in `arrow`; facts state it.
 
 MutationOps include participant/top-level message edits plus `add_fragment`,
 `remove_fragment`, fragment/branch label edits, and fragment-message add/remove/

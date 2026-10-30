@@ -13,6 +13,14 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   channels; `message` keeps each runner's wording. Clients that read
   `error` as a string should read `error.message`.
 
+- Sequence message styles now name Mermaid's arrows: `async` writes `-)` and
+  `async-dashed` writes `--)` (open head), as in Mermaid, instead of `->` and
+  `-->`, which draw no head. Those are now `line` and `line-dashed`, and
+  `<<->>` / `<<-->>` are `bidirectional` / `bidirectional-dashed`. Parsed
+  `-)`, `--)` and bidirectional messages no longer read as `sync`; facts state
+  every non-`sync` style, and a half-arrow's operator as `arrow`. A message
+  whose `style` was changed in place is written with that style's arrow.
+
 ### Fixed
 
 - `execute` failures now say where the agent's own code failed:

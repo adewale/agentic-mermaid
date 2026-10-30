@@ -27,7 +27,7 @@
 
 import { unknownOpMessage } from './mutation-ops.ts'
 import type {
-  SequenceBody, SequenceParticipant, SequenceMessage, SequenceMessageStyle,
+  SequenceBody, SequenceParticipant, SequenceMessage, SequenceMessageArrow, SequenceMessageStyle,
   SequenceStatement, SequenceMutationOp, SequenceFragment, MutationError, Result, LayoutWarning,
 } from './types.ts'
 import { ok, err } from './types.ts'
@@ -176,10 +176,10 @@ function preservedLineEvents(rawLine: string): ParticipantEvent[] {
 function sequenceMessageFromParsed(msg: ReturnType<typeof parseSequenceMessageLine> & {}): SequenceMessage {
   const text = readSequenceText(msg.label.trim())
   return {
-    from: msg.from, to: msg.to, text: text.value, style: styleForArrow(msg.arrow),
+    from: msg.from, to: msg.to, text: text.value, style: sequenceMessageStyle(msg.arrow),
     ...(msg.wrap === undefined ? {} : { wrap: msg.wrap }),
     ...(text.content ? { textContent: text.content } : {}),
-    arrow: msg.arrow as import('./types.ts').SequenceMessageArrow,
+    arrow: msg.arrow as SequenceMessageArrow,
     ...(msg.centralStart ? { centralStart: true } : {}), ...(msg.centralEnd ? { centralEnd: true } : {}),
     ...(msg.activationMark === '+' ? { activate: true } : {}), ...(msg.activationMark === '-' ? { deactivate: true } : {}),
   }
@@ -275,16 +275,17 @@ export function sequenceMessages(body: SequenceBody): SequenceMessage[] {
 }
 
 
-function styleForArrow(a: string): SequenceMessageStyle {
-  switch (a) {
-    case '->>': return 'sync'
-    case '-->>': return 'reply'
-    case '->': return 'async'
-    case '-->': return 'async-dashed'
-    case '-x': return 'lost'
-    case '--x': return 'lost-dashed'
-    default: return 'sync'
-  }
+/** Each style's Mermaid arrow: the one place the two vocabularies meet. */
+const STYLE_ARROWS: Readonly<Record<SequenceMessageStyle, SequenceMessageArrow>> = {
+  sync: '->>', reply: '-->>', line: '->', 'line-dashed': '-->', async: '-)', 'async-dashed': '--)',
+  lost: '-x', 'lost-dashed': '--x', bidirectional: '<<->>', 'bidirectional-dashed': '<<-->>',
+}
+const ARROW_STYLES = new Map(Object.entries(STYLE_ARROWS).map(([style, arrow]) => [arrow as string, style as SequenceMessageStyle]))
+
+/** The style of a Mermaid arrow. A half-arrow has no style of its own; it
+ * keeps its shaft, solid (sync) or dashed (reply). */
+export function sequenceMessageStyle(arrow: string): SequenceMessageStyle {
+  return ARROW_STYLES.get(arrow) ?? (arrow.includes('--') ? 'reply' : 'sync')
 }
 
 // ---- Verifier ---------------------------------------------------------------
@@ -504,19 +505,15 @@ function renderMessage(m: SequenceMessage): string {
   const to = `${m.centralEnd ? '()' : ''}${m.activate ? '+' : m.deactivate ? '-' : ''}${m.to}`
   // `title: ` starts Mermaid's legacy title token; an adjacent message
   // payload keeps the same actor ID and message text.
-  const prefix = `  ${from}${m.arrow ?? arrowForStyle(m.style)}${to}:${m.to.toLowerCase() === 'title' ? '' : ' '}`
+  const prefix = `  ${from}${sequenceMessageArrow(m)}${to}:${m.to.toLowerCase() === 'title' ? '' : ' '}`
   return messageWithBoundary(m.from, prefix + writeSequenceControlledText(m.text, m.textContent, m.wrap, prefix))
 }
 
-export function arrowForStyle(s: SequenceMessageStyle): string {
-  switch (s) {
-    case 'sync': return '->>'
-    case 'reply': return '-->>'
-    case 'async': return '->'
-    case 'async-dashed': return '-->'
-    case 'lost': return '-x'
-    case 'lost-dashed': return '--x'
-  }
+/** The arrow a message is written with: its exact operator while that has
+ * the message's style (half-arrows keep theirs), else the style's arrow, so
+ * an edited style is never contradicted by a stale operator. */
+export function sequenceMessageArrow(m: Pick<SequenceMessage, 'style' | 'arrow'>): SequenceMessageArrow {
+  return m.arrow !== undefined && sequenceMessageStyle(m.arrow) === m.style ? m.arrow : STYLE_ARROWS[m.style]
 }
 
 // ---- Mutator ----------------------------------------------------------------

@@ -9,6 +9,8 @@
  *   - set_participant_label { id, label }
  */
 import { afterAll, beforeAll, describe, test, expect } from 'bun:test'
+import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
@@ -172,6 +174,86 @@ describe('Sequence text survives edits and source delimiters', () => {
     const edited = apply(original, { kind: 'set_message_text', index: 0, text: '<b>X</b>' })
     expect(edited.body.messages[0]!.textContent).toBeUndefined()
     expect(serializeMermaid(edited)).toContain('A->>B: <b>X</b>')
+  })
+})
+
+// ============================================================================
+// Message style ↔ Mermaid arrow ↔ drawn heads
+// ============================================================================
+
+// Mermaid 12.2.0's sequence arrows (sequenceDiagram.jison), the typed style
+// each one is, and what it draws: shaft and the head at each end. A
+// half-arrow's style records only its shaft, so its operator is a fact too.
+const ARROW_CASES = [
+  { arrow: '->>', style: 'sync', dashed: false, start: 'none', end: 'filled' },
+  { arrow: '-->>', style: 'reply', dashed: true, start: 'none', end: 'filled' },
+  { arrow: '->', style: 'line', dashed: false, start: 'none', end: 'none' },
+  { arrow: '-->', style: 'line-dashed', dashed: true, start: 'none', end: 'none' },
+  { arrow: '-)', style: 'async', dashed: false, start: 'none', end: 'open' },
+  { arrow: '--)', style: 'async-dashed', dashed: true, start: 'none', end: 'open' },
+  { arrow: '-x', style: 'lost', dashed: false, start: 'none', end: 'cross' },
+  { arrow: '--x', style: 'lost-dashed', dashed: true, start: 'none', end: 'cross' },
+  { arrow: '<<->>', style: 'bidirectional', dashed: false, start: 'filled', end: 'filled' },
+  { arrow: '<<-->>', style: 'bidirectional-dashed', dashed: true, start: 'filled', end: 'filled' },
+  { arrow: '-|\\', style: 'sync', dashed: false, start: 'none', end: 'half-top', half: true },
+  { arrow: '--|/', style: 'reply', dashed: true, start: 'none', end: 'half-bottom', half: true },
+  { arrow: '--\\\\', style: 'reply', dashed: true, start: 'none', end: 'stick-top', half: true },
+  { arrow: '-//', style: 'sync', dashed: false, start: 'none', end: 'stick-bottom', half: true },
+  { arrow: '/|--', style: 'reply', dashed: true, start: 'half-bottom', end: 'none', half: true },
+  { arrow: '\\\\-', style: 'sync', dashed: false, start: 'stick-top', end: 'none', half: true },
+] as const
+const STYLE_CASES = ARROW_CASES.filter(c => !('half' in c))
+
+/** Shaft and heads of every drawn message, in message order. */
+function drawnMessages(svg: string): string[] {
+  return [...svg.matchAll(/<g class="message"[^>]*data-line-style="(\w+)" data-start-head="([\w-]+)" data-end-head="([\w-]+)"/g)]
+    .map(([, line, start, end]) => `${line} ${start} ${end}`)
+}
+const drawn = (c: (typeof ARROW_CASES)[number]) => `${c.dashed ? 'dashed' : 'solid'} ${c.start} ${c.end}`
+const arrowFacts = (subject: string, c: (typeof ARROW_CASES)[number]) =>
+  [...('half' in c ? [`${subject} arrow ${c.arrow}`] : []), ...(c.style === 'sync' ? [] : [`${subject} style ${c.style}`])]
+
+describe('sequence message style names the arrow Mermaid reads and ours draws', () => {
+  let upstream: ReturnType<typeof startUpstreamMermaid>
+  beforeAll(() => { upstream = startUpstreamMermaid() })
+  afterAll(async () => { await upstream.close() })
+
+  test('every parsed arrow: typed style, facts, written arrow and drawn heads agree', () => {
+    const lines = ARROW_CASES.map((c, i) => `A${c.arrow}B: m${i}`)
+    for (const preserved of [false, true]) {
+      const d = sequence(['sequenceDiagram', ...(preserved ? ['rect rgb(1, 2, 3)', ...lines, 'end'] : lines)].join('\n'))
+      const facts = describeMermaidFacts(d)
+      const subject = (i: number) => preserved ? `preserved-message#0.${i + 1}` : `message#${i}`
+      ARROW_CASES.forEach((c, i) => {
+        expect({ arrow: c.arrow, facts: facts.filter(f => f.startsWith(`${subject(i)} style `) || f.startsWith(`${subject(i)} arrow `)) })
+          .toEqual({ arrow: c.arrow, facts: arrowFacts(subject(i), c) })
+        if (!preserved) expect({ arrow: c.arrow, style: d.body.messages[i]!.style }).toEqual({ arrow: c.arrow, style: c.style })
+      })
+      expect(serializeMermaid(d).split('\n').filter(line => / m\d+$/.test(line)).map(line => line.trim())).toEqual(lines)
+      expect(drawnMessages(renderMermaidSVG(d))).toEqual(ARROW_CASES.map(drawn))
+    }
+  })
+
+  test('each op style writes its Mermaid arrow, which Mermaid accepts, and draws its heads', async () => {
+    let d = sequence('sequenceDiagram\n  participant A\n  participant B')
+    for (const c of STYLE_CASES) d = apply(d, { kind: 'add_message', from: 'A', to: 'B', text: c.style, style: c.style })
+    const written = serializeMermaid(d)
+    expect(written.split('\n').filter(line => line.includes(':')).map(line => line.trim())).toEqual(STYLE_CASES.map(c => `A${c.arrow}B: ${c.style}`))
+    expect(await upstream.accepts(written)).toBe(true)
+    expect(drawnMessages(renderMermaidSVG(d))).toEqual(STYLE_CASES.map(drawn))
+    expect(describeMermaidFacts(sequence(written))).toEqual(describeMermaidFacts(d))
+  })
+
+  test('a style edited on a parsed message is written, not its stale operator', () => {
+    fc.assert(fc.property(fc.constantFrom(...ARROW_CASES), fc.constantFrom(...STYLE_CASES), fc.boolean(), (from, to, self) => {
+      const d = sequence(`sequenceDiagram\n  A${from.arrow}${self ? 'A' : 'B'}: x`)
+      d.body.messages[0]!.style = to.style
+      const reread = sequence(serializeMermaid(d))
+      // A half-arrow keeps its operator while its shaft's style is unchanged.
+      const kept = 'half' in from && from.style === to.style ? from : to
+      expect({ style: reread.body.messages[0]!.style, arrow: reread.body.messages[0]!.arrow, drawn: drawnMessages(renderMermaidSVG(d)) })
+        .toEqual({ style: kept.style, arrow: kept.arrow, drawn: [drawn(kept)] })
+    }), fcParameters({ numRuns: 60 }))
   })
 })
 

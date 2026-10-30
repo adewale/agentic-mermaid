@@ -70,7 +70,7 @@ describe('deterministic Mermaid facts', () => {
     const out = facts(source)
     for (const message of ['message A -> B : start', 'message A -> B : attempt', 'message B -> A : retry', 'message A -> B : <b>literal</b>']) expect(out).toContain(message)
     expect(out).toContain('title Checkout')
-    expect(out.filter(fact => fact.startsWith('preserved-message#'))).toHaveLength(3)
+    expect(out.filter(fact => fact.startsWith('preserved-message#') && fact.includes(' -> '))).toHaveLength(3)
     expect(out.filter(fact => /^message#\d+ (?:top-level|fragment#)/.test(fact))).toEqual(['message#0 top-level A -> B : start'])
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))

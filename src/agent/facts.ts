@@ -14,13 +14,13 @@ import { stableFamilyFacts } from './stable-family-source-hooks.ts'
 import { classRelationLineStyle, classRelationMarkers } from './class-body.ts'
 import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
-import { sequenceMessageContexts } from './sequence-body.ts'
+import { sequenceMessageArrow, sequenceMessageContexts, sequenceMessageStyle } from './sequence-body.ts'
 import { readSequenceStatements } from '../sequence/parser.ts'
 import { readSequenceText } from '../sequence/text.ts'
 import { journeyActorKey } from '../journey/parse-core.ts'
 import { displayText } from '../multiline-utils.ts'
 import { resolveLabelContent, type LabelContent } from '../shared/display-text.ts'
-import type { ArchitectureBody, ClassBody, ErBody, GanttBody, GitGraphBody, JourneyBody, MindmapBody, PieBody, QuadrantBody, SequenceBody, StateBody, TimelineBody, XyChartBody } from './types.ts'
+import type { ArchitectureBody, ClassBody, ErBody, GanttBody, GitGraphBody, JourneyBody, MindmapBody, PieBody, QuadrantBody, SequenceBody, SequenceMessage, SequenceMessageArrow, StateBody, TimelineBody, XyChartBody } from './types.ts'
 import { err, ok, type ParsedDiagram, type ParseError, type Result } from './types.ts'
 
 export type MermaidFact = string
@@ -317,7 +317,7 @@ function factsSequence(out: string[], body: SequenceBody): void {
     const m = context.message
     add(out, `message ${clean(m.from)} -> ${clean(m.to)} : ${clean(m.text)}`)
     add(out, `message#${i} ${context.scope === 'top-level' ? 'top-level' : `fragment#${context.fragmentIndex} branch#${context.branchIndex}`} ${clean(m.from)} -> ${clean(m.to)} : ${clean(m.text)}`)
-    if (m.style !== 'sync') add(out, `message#${i} style ${m.style}`)
+    addSequenceArrow(out, `message#${i}`, m)
     if (m.wrap !== undefined) add(out, `message#${i} wrap ${m.wrap}`)
   })
   body.statements.forEach((statement, segment) => {
@@ -331,6 +331,7 @@ function factsSequence(out: string[], body: SequenceBody): void {
         // Preserved statements are observable without becoming typed edit
         // indexes. Keep the existing message# indexes stable for callers.
         add(out, `preserved-message#${segment}.${index} ${clean(m.from)} -> ${clean(m.to)} : ${text}`)
+        addSequenceArrow(out, `preserved-message#${segment}.${index}`, { style: sequenceMessageStyle(m.arrow), arrow: m.arrow as SequenceMessageArrow })
       } else if (syntax?.kind === 'title') add(out, `title ${clean(readSequenceText(syntax.text).value)}`)
     })
   })
@@ -345,6 +346,14 @@ function factsSequence(out: string[], body: SequenceBody): void {
       if (branch.wrap !== undefined) add(out, `fragment#${index} branch#${branchIndex} wrap ${branch.wrap}`)
     })
   })
+}
+
+/** A message's style when not the default `sync`, and its operator when the
+ * style alone does not name it (a half-arrow). */
+function addSequenceArrow(out: string[], subject: string, m: Pick<SequenceMessage, 'style' | 'arrow'>): void {
+  if (m.style !== 'sync') add(out, `${subject} style ${m.style}`)
+  const arrow = sequenceMessageArrow(m)
+  if (arrow !== sequenceMessageArrow({ style: m.style })) add(out, `${subject} arrow ${arrow}`)
 }
 
 function factsTimeline(out: string[], body: TimelineBody): void {

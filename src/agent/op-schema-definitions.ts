@@ -65,7 +65,7 @@ export interface OpSpec {
 // Enum value lists, kept in sync with the type aliases they mirror.
 const NODE_SHAPES: readonly NodeShape[] = ['rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle', 'ellipse', 'subroutine', 'doublecircle', 'hexagon', 'cylinder', 'asymmetric', 'trapezoid', 'trapezoid-alt', 'lean-r', 'lean-l', 'state-start', 'state-end']
 const EDGE_STYLES: readonly EdgeStyle[] = ['solid', 'dotted', 'thick', 'invisible']
-const SEQUENCE_MESSAGE_STYLES: readonly SequenceMessageStyle[] = ['sync', 'reply', 'async', 'async-dashed', 'lost', 'lost-dashed']
+const SEQUENCE_MESSAGE_STYLES: readonly SequenceMessageStyle[] = ['sync', 'reply', 'line', 'line-dashed', 'async', 'async-dashed', 'lost', 'lost-dashed', 'bidirectional', 'bidirectional-dashed']
 const PARTICIPANT_KINDS = ['participant', 'actor'] as const
 const SEQUENCE_FRAGMENT_KINDS = ['alt', 'opt', 'loop', 'par', 'par_over'] as const
 const CLASS_REL_KINDS: readonly ClassRelationKind[] = ['inheritance', 'composition', 'aggregation', 'association', 'dependency', 'realization', 'link-solid', 'link-dashed', 'lollipop']
