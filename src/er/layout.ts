@@ -622,8 +622,11 @@ function repairErFrameRoutes(entities: PositionedErEntity[], groups: PositionedE
       const length = Math.abs(horizontal ? toward.x - at.x : toward.y - at.y), radius = roleStyle?.bendRadius ?? style.edgeBendRadius
       const neighbor = at === start ? rel.points[2] : rel.points.at(-3)
       const nextLength = neighbor ? Math.abs(neighbor.x - toward.x) + Math.abs(neighbor.y - toward.y) : length
+      // The following corner's stroke reaches half its width back along this
+      // leg, as the final glyph-versus-shaft check measures it.
+      const half = rel.points.length > 2 ? (roleStyle?.lineWidth ?? style.lineWidth) / 2 : 0
       const remaining = length - (rel.points.length > 2 ? Math.min(radius, length / 2, nextLength / 2) : 0)
-      return remaining >= depth
+      return remaining - half >= depth
     }
     if (!blocked(rel.points) && erSimpleRoute(rel.points, work)
       && enoughLead(start, rel.points[1]!, rel.cardinality1)

@@ -242,15 +242,18 @@ const selfRelationships = 'erDiagram\n  direction LR\n  EMPLOYEE ||--o{ EMPLOYEE
 // relationship between the framed cards and another from the outer frame.
 const framedSelfRelationships = 'erDiagram\n  direction LR\n  EMPLOYEE ||--o{ EMPLOYEE : manages\n  EMPLOYEE |o--|{ EMPLOYEE : "is the deputy of"\n  LEAD ||--o| LEAD : mentors\n  LEAD }o--o{ LEAD : ""\n  LEAD }|--|| EMPLOYEE : leads\n  subgraph STAFF\n    EMPLOYEE\n    subgraph TEAM\n      LEAD\n    end\n  end\n  STAFF ||--o{ DEPARTMENT : staffs'
 
-type RouteInkCase = { direction: string; backend: 'agentic' | 'elk'; framesOnly: boolean; vocabulary: boolean; siblings: boolean; selfLoops: false | 'open' | 'framed'; source?: string }
+// Inter-entity routes only; ELK's terminal legs barely hold the far glyphs.
+const wideConnectors = 'erDiagram\n  D ||--|| C : mentors\n  D }o--o{ A : is the deputy of\n  B {\n    string id PK\n    string name\n    int age "comment here"\n  }\n  D {\n    string id PK\n    string name\n    int age "comment here"\n  }'
 
-function expectRetainedErRouteInk({ direction, backend, framesOnly, vocabulary, siblings, selfLoops, source: generated }: RouteInkCase): void {
+type RouteInkCase = { direction: string; backend: 'agentic' | 'elk'; framesOnly: boolean; vocabulary: boolean; siblings: boolean; selfLoops: false | 'open' | 'framed'; source?: string; style?: { roles: { relationship: { lineWidth: number } } } }
+
+function expectRetainedErRouteInk({ direction, backend, framesOnly, vocabulary, siblings, selfLoops, source: generated, style }: RouteInkCase): void {
   const mixed = vocabulary ? mixedFrameNormals.replace('I1 ||--|| F1', 'I1 }|--o| F1').replace('I2 ||--|| F2 : links', 'I2 }o--|| F2').replace('A ||--|| TOP', 'A u--o{ TOP').replace('TOP ||--|| B', 'TOP |o--|{ B').replace('B1 ||--|| B2 : links', 'B1 }o--o{ B2') : mixedFrameNormals
-  const source = generated ?? (selfLoops ? (selfLoops === 'framed' ? framedSelfRelationships : selfRelationships).replace('direction LR', `direction ${direction}`) : siblings ? direction === 'LR' ? siblingFrameNormals : siblingFrameNormals.replace('erDiagram', `erDiagram\ndirection ${direction}`) : (framesOnly ? frameOnlyNormals : mixed).replace('direction LR', `direction ${direction}`)), options = { graphLayout: { backend, ...(siblings ? { fallback: 'none' as const } : {}) } }
+  const source = generated ?? (selfLoops ? (selfLoops === 'framed' ? framedSelfRelationships : selfRelationships).replace('direction LR', `direction ${direction}`) : siblings ? direction === 'LR' ? siblingFrameNormals : siblingFrameNormals.replace('erDiagram', `erDiagram\ndirection ${direction}`) : (framesOnly ? frameOnlyNormals : mixed).replace('direction LR', `direction ${direction}`)), options = { graphLayout: { backend, ...(siblings ? { fallback: 'none' as const } : {}) }, ...(style ? { style } : {}) }
   const model = parseErDiagram(toMermaidLines(source)), original = structuredClone(model)
   let placed!: ReturnType<typeof layoutErDiagram>, rendered!: ReturnType<typeof renderMermaidSVGWithReceipt>
   expect(() => { placed = layoutErDiagram(model, options); rendered = renderMermaidSVGWithReceipt(source, options) }).not.toThrow()
-  if (!framesOnly && !siblings && !selfLoops) {
+  if (!generated && !framesOnly && !siblings && !selfLoops) {
     // TOP explicitly says TB and B1 -> B2 is an authored dependency between
     // its direct child frames, even when the diagram's outer flow differs.
     const first = placed.groups.find(group => group.id === 'B1')!, second = placed.groups.find(group => group.id === 'B2')!
@@ -397,7 +400,9 @@ function expectRetainedErRouteInk({ direction, backend, framesOnly, vocabulary, 
   }
 }
 
-test.each([...['TB', 'BT', 'LR', 'RL'].flatMap(direction => ['agentic', 'elk'].map(backend => ({ direction, backend: backend as 'agentic' | 'elk', framesOnly: false, vocabulary: false }))), ...(['agentic', 'elk'] as const).map(backend => ({ direction: 'LR', backend, framesOnly: true, vocabulary: false })), ...(['agentic', 'elk'] as const).map(backend => ({ direction: 'LR', backend, framesOnly: false, vocabulary: true }))].map(entry => ({ ...entry, siblings: false })).concat(...['TB', 'BT', 'LR', 'RL'].flatMap(direction => (['agentic', 'elk'] as const).map(backend => ({ direction, backend, framesOnly: false, vocabulary: false, siblings: true })))).map(entry => ({ ...entry, selfLoops: false as RouteInkCase['selfLoops'] })).concat(...(['open', 'framed'] as const).flatMap(selfLoops => ['TB', 'BT', 'LR', 'RL'].flatMap(direction => (['agentic', 'elk'] as const).map(backend => ({ direction, backend, framesOnly: false, vocabulary: false, siblings: false, selfLoops }))))))('ER rebuilt frame routes retain actual normal contacts in $direction with $backend framesOnly=$framesOnly vocabulary=$vocabulary siblings=$siblings selfLoops=$selfLoops', expectRetainedErRouteInk)
+test.each([...['TB', 'BT', 'LR', 'RL'].flatMap(direction => ['agentic', 'elk'].map(backend => ({ direction, backend: backend as 'agentic' | 'elk', framesOnly: false, vocabulary: false }))), ...(['agentic', 'elk'] as const).map(backend => ({ direction: 'LR', backend, framesOnly: true, vocabulary: false })), ...(['agentic', 'elk'] as const).map(backend => ({ direction: 'LR', backend, framesOnly: false, vocabulary: true }))].map(entry => ({ ...entry, siblings: false })).concat(...['TB', 'BT', 'LR', 'RL'].flatMap(direction => (['agentic', 'elk'] as const).map(backend => ({ direction, backend, framesOnly: false, vocabulary: false, siblings: true })))).map(entry => ({ ...entry, selfLoops: false as RouteInkCase['selfLoops'] })).concat(...(['open', 'framed'] as const).flatMap(selfLoops => ['TB', 'BT', 'LR', 'RL'].flatMap(direction => (['agentic', 'elk'] as const).map(backend => ({ direction, backend, framesOnly: false, vocabulary: false, siblings: false, selfLoops }))))).concat(
+  // A wider connector's corner stroke reaches back toward a producer leg's glyph.
+  ...['TB', 'BT', 'LR', 'RL'].flatMap(direction => (['agentic', 'elk'] as const).map(backend => ({ direction, backend, framesOnly: false, vocabulary: false, siblings: false, selfLoops: false as const, style: { roles: { relationship: { lineWidth: 1.45 } } }, source: wideConnectors.replace('erDiagram', `erDiagram\n  direction ${direction}`) })))))('ER rebuilt frame routes retain actual normal contacts in $direction with $backend framesOnly=$framesOnly vocabulary=$vocabulary siblings=$siblings selfLoops=$selfLoops style=$style', expectRetainedErRouteInk)
 
 test('ER self-relationship arches stay distinct, attached and clear for generated entities', () => {
   const start = fc.constantFrom('||', '|o', '}o', '}|'), end = fc.constantFrom('||', 'o|', 'o{', '|{')
