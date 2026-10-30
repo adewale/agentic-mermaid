@@ -371,28 +371,43 @@ test('radar baseline warnings use the rendered auto-range below one', () => {
   }))
 })
 
-test('generated radar scale boundaries agree with independent radial and diagnostic expectations', () => {
-  fc.assert(fc.property(
-    fc.integer({ min: -3, max: 3 }), fc.integer({ min: 0, max: 5 }), fc.integer({ min: 1, max: 10 }), fc.boolean(),
-    (exponent, lower, span, explicitMax) => {
-      const unit = 10 ** exponent
-      const min = lower * unit / 10
-      const max = (lower + span) * unit / 10
-      const values = [min / 2, min, (min + max) / 2, max, explicitMax ? max * 1.5 : max]
-      const source = `radar-beta\naxis a,b,c,d,e\ncurve sample{${values.join(',')}}\nmin ${min}${explicitMax ? `\nmax ${max}` : ''}`
-      const result = verifyMermaid(source)
-      const outside = values.filter(value => value < min || value > max)
-      const clipped = result.warnings.filter(warning => warning.code === 'VALUES_OUTSIDE_RANGE')
-      expect(clipped.map(({ series, values, range }) => ({ series, values, range }))).toEqual(outside.length ? [{ series: 'sample', values: outside, range: { min, max } }] : [])
-      expect(result.warnings.flatMap(warning => warning.code === 'SCALE_RANGE_EXCLUDES_ZERO' ? [warning.range] : [])).toEqual(min > 0 ? [{ min, max }] : [])
-      const positioned = layoutRadarChart(parseRadarChart(normalizeMermaidSource(source).lines))
-      for (const [index, vertex] of positioned.curves[0]!.vertices.entries()) {
-        const ratio = values[index]! < min ? 0 : values[index]! > max ? 1 : (values[index]! - min) / (max - min)
-        // Pixel coordinates are rounded to two decimals at the layout boundary.
-        expect(Math.abs(Math.hypot(vertex.x - positioned.cx, vertex.y - positioned.cy) - ratio * positioned.radius)).toBeLessThanOrEqual(0.015)
-      }
-      expect(positioned.rings.at(-1)!.value).toBeCloseTo(max, 9)
-      expect(renderMermaidASCII(source)).toContain(`scale: ${min} .. ${max}`)
-    },
-  ), fcParameters({ numRuns: 150, examples: [[0, 1, 5, false]] }))
+// One generated scale (min, max, sample values) feeds three independent
+// contracts below, each with its own property.
+const radarScaleArb = fc.tuple(fc.integer({ min: -3, max: 3 }), fc.integer({ min: 0, max: 5 }), fc.integer({ min: 1, max: 10 }), fc.boolean())
+  .map(([exponent, lower, span, explicitMax]) => {
+    const unit = 10 ** exponent
+    const min = lower * unit / 10
+    const max = (lower + span) * unit / 10
+    const values = [min / 2, min, (min + max) / 2, max, explicitMax ? max * 1.5 : max]
+    const source = `radar-beta\naxis a,b,c,d,e\ncurve sample{${values.join(',')}}\nmin ${min}${explicitMax ? `\nmax ${max}` : ''}`
+    return { min, max, values, source }
+  })
+const radarScaleExamples: Array<[{ min: number; max: number; values: number[]; source: string }]> = [[{ min: 0.1, max: 0.6, values: [0.05, 0.1, 0.35, 0.6, 0.6], source: 'radar-beta\naxis a,b,c,d,e\ncurve sample{0.05,0.1,0.35,0.6,0.6}\nmin 0.1' }]]
+
+test('generated radar scales: verify reports exactly the clipped values and a range excluding zero', () => {
+  fc.assert(fc.property(radarScaleArb, ({ min, max, values, source }) => {
+    const result = verifyMermaid(source)
+    const outside = values.filter(value => value < min || value > max)
+    const clipped = result.warnings.filter(warning => warning.code === 'VALUES_OUTSIDE_RANGE')
+    expect(clipped.map(({ series, values, range }) => ({ series, values, range }))).toEqual(outside.length ? [{ series: 'sample', values: outside, range: { min, max } }] : [])
+    expect(result.warnings.flatMap(warning => warning.code === 'SCALE_RANGE_EXCLUDES_ZERO' ? [warning.range] : [])).toEqual(min > 0 ? [{ min, max }] : [])
+  }), fcParameters({ numRuns: 150, examples: radarScaleExamples }))
+}, 30000)
+
+test('generated radar scales: each vertex sits at its clamped share of the radius', () => {
+  fc.assert(fc.property(radarScaleArb, ({ min, max, values, source }) => {
+    const positioned = layoutRadarChart(parseRadarChart(normalizeMermaidSource(source).lines))
+    for (const [index, vertex] of positioned.curves[0]!.vertices.entries()) {
+      const ratio = values[index]! < min ? 0 : values[index]! > max ? 1 : (values[index]! - min) / (max - min)
+      // Pixel coordinates are rounded to two decimals at the layout boundary.
+      expect(Math.abs(Math.hypot(vertex.x - positioned.cx, vertex.y - positioned.cy) - ratio * positioned.radius)).toBeLessThanOrEqual(0.015)
+    }
+    expect(positioned.rings.at(-1)!.value).toBeCloseTo(max, 9)
+  }), fcParameters({ numRuns: 150, examples: radarScaleExamples }))
+}, 30000)
+
+test('generated radar scales: the terminal names the scale', () => {
+  fc.assert(fc.property(radarScaleArb, ({ min, max, source }) => {
+    expect(renderMermaidASCII(source)).toContain(`scale: ${min} .. ${max}`)
+  }), fcParameters({ numRuns: 150, examples: radarScaleExamples }))
 }, 30000)

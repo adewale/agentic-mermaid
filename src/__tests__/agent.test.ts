@@ -395,6 +395,8 @@ describe('BUILD-18 segment-preserving sequence — fast-check properties', () =>
           .map(l => l.trim())
           .filter(Boolean)
         expect(outNonBlank).toEqual(origNonBlank)
+        // An opaque body is the source itself: byte-exact, not just its lines.
+        if (d.body.kind === 'opaque') expect([src, `${src}\n`]).toContain(serializeMermaid(d))
         // Round-trip stable.
         expect(serializeMermaid(parse(out))).toBe(serializeMermaid(d))
       }),

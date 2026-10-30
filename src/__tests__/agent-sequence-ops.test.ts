@@ -9,8 +9,6 @@
  *   - set_participant_label { id, label }
  */
 import { afterAll, beforeAll, describe, test, expect } from 'bun:test'
-import fc from 'fast-check'
-import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
@@ -245,15 +243,20 @@ describe('sequence message style names the arrow Mermaid reads and ours draws', 
   })
 
   test('a style edited on a parsed message is written, not its stale operator', () => {
-    fc.assert(fc.property(fc.constantFrom(...ARROW_CASES), fc.constantFrom(...STYLE_CASES), fc.boolean(), (from, to, self) => {
-      const d = sequence(`sequenceDiagram\n  A${from.arrow}${self ? 'A' : 'B'}: x`)
-      d.body.messages[0]!.style = to.style
-      const reread = sequence(serializeMermaid(d))
-      // A half-arrow keeps its operator while its shaft's style is unchanged.
-      const kept = 'half' in from && from.style === to.style ? from : to
-      expect({ style: reread.body.messages[0]!.style, arrow: reread.body.messages[0]!.arrow, drawn: drawnMessages(renderMermaidSVG(d)) })
-        .toEqual({ style: kept.style, arrow: kept.arrow, drawn: [drawn(kept)] })
-    }), fcParameters({ numRuns: 60 }))
+    // A finite table (every arrow × every style × self or not), so every case runs.
+    for (const from of ARROW_CASES) {
+      for (const to of STYLE_CASES) {
+        for (const self of [false, true]) {
+          const d = sequence(`sequenceDiagram\n  A${from.arrow}${self ? 'A' : 'B'}: x`)
+          d.body.messages[0]!.style = to.style
+          const reread = sequence(serializeMermaid(d))
+          // A half-arrow keeps its operator while its shaft's style is unchanged.
+          const kept = 'half' in from && from.style === to.style ? from : to
+          expect({ from: from.arrow, to: to.style, self, style: reread.body.messages[0]!.style, arrow: reread.body.messages[0]!.arrow, drawn: drawnMessages(renderMermaidSVG(d)) })
+            .toEqual({ from: from.arrow, to: to.style, self, style: kept.style, arrow: kept.arrow, drawn: [drawn(kept)] })
+        }
+      }
+    }
   })
 })
 
