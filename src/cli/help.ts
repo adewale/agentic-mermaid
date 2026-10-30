@@ -103,8 +103,11 @@ too. Stack them with render --style (e.g. --style hand-drawn,dracula) and
 re-roll ink with --seed. Custom styles are JSON records (docs/style-authoring.md);
 pass a .json file path anywhere a name is accepted.
 With --json: [{ name, canonicalId, kind: look|palette, isDefault, backend, intent?, blurb }].`,
-  verify: `am verify <file|-> [--suppress A,B] [--label-cap N] [--style NAMES|file]
+  verify: `am verify <file|-> [--markdown] [--suppress A,B] [--label-cap N] [--style NAMES|file]
 Always emits JSON: {ok, warnings[], layout}.
+With --markdown: verify every Mermaid fence and emit {ok,file,blocks[]}.
+Warnings use physical document lines; lineIsBlockStart marks a fallback when
+no precise source line is available. Backtick and tilde fences are supported.
   --style <S>       Resolve the same named/file-backed Style used by render so
                     inspect-only Brand constraints evaluate the styled Scene.
 Error codes flip ok=false:
