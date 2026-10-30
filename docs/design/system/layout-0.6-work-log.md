@@ -4319,3 +4319,69 @@ Canonical core/repository types and lint pass on the combined test/golden source
 This is coverage protecting a sound refusal, not closure of the rich-text case
 or any of the six budget refusals. Production remains6f and replacement24 stays
 sealed. No timing/performance campaign was run.
+
+### 30 October09:13UTC: review eight changed goldens and add public Mermaid observations
+
+Updated ONLY8records in src/__tests__/testdata/layout-geometry-baseline.json;
+314records remain exactly unchanged. No test, threshold, cap or corpus member
+was removed. The eight changes are intentional effects of89085491's optional
+proposal caption admission and ea1a2090's nearby caption-seat repair. Each
+affects six records and four overlap. The earlier Main/older-change attribution
+was wrong because the first partial reversion left ea1live; a corrected private
+control reverting only the four890files and the pre-ea1route-contracts file
+restores ALL322golden records and complete golden bytes. All earlier invalid
+controls and superseded reports remain retained and do not authorize this update.
+
+| Golden record | Reviewed reason |
+| --- | --- |
+| corpus/state/14 | ea1 moves three return captions while preserving ten paths, node boxes, groups and bounds. |
+| cyclic-labelled-13 | Both repairs preserve caption separation in optional route allocation and the edge20 caption seat. |
+| cyclic-labelled-15-chains | Both repairs preserve parallel/private channels and the edge12 caption seat. |
+| cyclic-labelled-15 | Reject optional moves without established caption clearance; six nodes and26edge entries move. |
+| cyclic-labelled-18-cuts | Preserve captions during shared-channel selection; four nodes and24edge entries move. |
+| cyclic-labelled-19 | Move only edge36's caption to a clear seat on the existing return route. |
+| cyclic-labelled-9-chains | Both repairs preserve duplicate/private routes and edge8's caption seat; budget U remains. |
+| cyclic-labelled-9 | Preserve caption separation in optional lanes and edge4's caption seat; three nodes and18edge entries move. |
+
+Independent actual evidence for the seven CYCLIC fixtures (distinct from the
+original seven unverified diagrams) retains98nodes,222carriers,195positive
+coincident head-removal groups,156positive individual glyph removals including
+all58captions, and444actual owned-outline contacts. State14 separately retains
+its10ordered transitions and actual13glyphs/4starts/10headgroups, all positive,
+with20actual endpoint contacts. The three moved return captions individually
+change436/472/474darker pixels. Its containment evidence is one Active frame and
+two drawn dividers separating state bands, not bounding boxes inferred from
+three empty semantic concurrency groups. All integer golden paths/anchors bind
+to actual emitted SVG. No universal aesthetic improvement is claimed.
+Evidence: final-evidence-independent-review/GOLDEN-EIGHT-FINAL-REVIEW.json and
+state14-golden-actual/RESULT-ACTUAL.json. Root owning geometry/marker check passes
+15tests/177assertions, including the full322geometry gate. Canonical types and
+lint pass on these exact code/test/golden bytes; all guards/cleanup pass.
+
+A separate fourth renderer arm now observes public Mermaid12.2.0 in real
+Chromium, matching source tag1fb7869866dd619168d840291c9c54b4f129758b. The same
+six frozen authored sources yield5SVGs and1retained Class-style parse rejection.
+An initial explicit htmlLabels:false profile is retained as configuration-specific
+evidence; a separately frozen public-default HTML profile is primary. Both
+profiles together make12public calls and retain under2MB. In the primary profile
+the requested start circle is missing (4actual ends versus5authored); boldRead
+and italicDone survive. The State note is actually right of Audit by74px,
+unlike the observed Pele below-state placement. Ten SELECTED marker removals and
+15text-paint-only removals are positive while label boxes/backgrounds remain.
+Earlier whole-foreignObject removals also removed plates, so they are not cited
+as glyph-only observations. Actual final DOM fonts are Inter, but asynchronous
+font loading during Mermaid's internal layout measurement is unverified; no
+cross-renderer spacing/aesthetics rank or CJK glyph identity follows. Finer
+State/ER internal models and exact natural interpolant identity remain limited.
+No new peer/setup package or repository harness was installed. Evidence:
+authored-interactions-six/mermaid12-browser-default-html/READBACK.json.
+
+The temporary evidence-reserve refusal was resolved by full-byte hardlink
+deduplication of188completed pre-campaign files. All paths/contents survive;
+held/custody sources, Git, dependencies and the live workspace were excluded.
+Official post-dedup owned size899,101,801bytes fits the unchanged report/next-batch
+reserve. Evidence: immutable-dedup/COMPLETE-BYTE-DEDUP.json.gz and
+final-comparison-preparation/CAPACITY-AFTER-LOSSLESS-DEDUP.json. Fresh6fcomparison
+replay is running, reusing no old proofs or work counts. Next step is normal
+publication and exact-head CI; the six capacity failures and delivery caps remain
+open. Replacement24 is still sealed and no full correctness parity is claimed.
