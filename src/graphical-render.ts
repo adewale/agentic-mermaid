@@ -34,6 +34,7 @@ import { emitResolvedConfigDiagnostics } from './render-config-diagnostics.ts'
 import { retainedPositionedScene, retainedNativeDrawing, positionedPaintCertification } from './scene/positioned.ts'
 import { PaintLayoutCertificationError, paintFailureIsDrawable, type PaintLayoutCertification, type PaintViewport } from './scene/paint-certification.ts'
 import { assertFinalSvgByteBudget } from './scene/scene-validation-core.ts'
+import { isBuiltInBackend } from './scene/backend.ts'
 import type { SceneDoc } from './scene/ir.ts'
 import { sceneHasOnlyPreparedText } from './scene/serialization.ts'
 import { withTextMeasurementExecution } from './text-measurement-profile.ts'
@@ -200,7 +201,11 @@ function renderPositionedWithTextMeasurement(
   // Typed identities and family data attributes keep authored text verbatim
   // through the Scene; the bytes we emit cannot hold what XML cannot carry,
   // so those characters are written as the inert ones display text draws.
-  let svg = inlineResolvedColors(xmlCarriableText(rawSvg), context.colors)
+  // Only core producers are repaired: a host backend or extension family that
+  // emits such characters stays under the output-security refusal.
+  const trustedProducer = !family.id.startsWith('family:')
+    && (executionPlan.mode !== 'scene' || !executionPlan.backend || isBuiltInBackend(executionPlan.backend.backend))
+  let svg = inlineResolvedColors(trustedProducer ? xmlCarriableText(rawSvg) : rawSvg, context.colors)
   if (layoutCertification?.repairs.length && executionPlan.backend?.inputName === 'default') svg = expandSvgViewport(svg, layoutCertification.viewport)
   assertFinalSvgByteBudget(svg, 'color-resolved SVG output')
   if (!preparedText) svg = fitUncalibratedSvgText(svg, request.appearance.font)
