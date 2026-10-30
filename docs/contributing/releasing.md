@@ -104,20 +104,13 @@ client-side exact-identity check.
    fresh empty `## Unreleased` above it. Run `bun run doc-blocks` to refresh the
    API reference's source/release version paragraph.
 4. **Flip the "published" copy** (see below), commit via PR, and merge to `main`.
-5. **Create the GitHub Release** on the merge commit (tag `v<version>`). Its
-   publication fires `publish.yml`, which checks canonical CI, builds and
-   verifies the package, publishes to npm, and then publishes matching server
-   metadata to the MCP Registry. Benchmarks run separately. You do not
-   need to remember this step: once the merge's CI passes, the deploy finds the
-   version missing from npm and opens a **release to-do** issue that
-   @mentions you, labelled `release-todo`, titled
-   `Publish v<version>: production still serves v<previous>`. Its link opens
-   the new-release form with the tag, the target commit and the title
-   `Agentic Mermaid v<version>` filled in, plus the version's `CHANGELOG.md`
-   section as notes when that fits in a URL. Check the notes and publish. If
-   `main` has moved on since the issue opened, set the target to the current
-   `main` commit once its CI is green, because the deploy ships only the
-   current `main` commit.
+5. **Create the GitHub Release** on the current `main` commit once its CI is
+   green (tag `v<version>`). Its publication fires `publish.yml`, which checks
+   canonical CI, builds and verifies the package, publishes to npm, and then
+   publishes matching server metadata to the MCP Registry. Benchmarks run
+   separately. Publication is an explicit maintainer action: an unpublished
+   version makes the deploy skip with a warning and Actions summary, without
+   opening an issue.
 6. **Verify:** `npm view agentic-mermaid version` shows the new version;
    if npm committed the immutable version before the workflow recorded success,
    rerun it—the publish job recovers only after the registry's SHA-512 integrity
@@ -143,22 +136,15 @@ keeps serving its previous build. That gap is expected between steps 4 and 5.
 (0.4.2 was bumped on 2026-08-03 and not published, and production stayed on
 0.4.1 for eight weeks while every deploy run was green.)
 
-The deploy job turns that gap into a release to-do
-([`scripts/ci/release-todo.ts`](../../scripts/ci/release-todo.ts)), so it
-notifies you once instead of failing pushes or nagging daily:
+Automatic release-issue creation is disabled. A missing npm version is reported
+in the deployment log and Actions summary; create the GitHub Release explicitly
+when its validated commit is ready. No issue or comment is created on that skip.
 
-- **When a version is first found missing from npm,** the skip opens one
-  `release-todo` issue for it (step 5). That is the only notification for that
-  version.
-- **Later skips for the same version write nothing:** no comment, no edit and
-  no new issue, even if you closed the issue by hand. A newer unpublished
-  version gets its own issue.
-- **When a deploy of that version or a later one is promoted and verified,**
-  the deploy closes the issue with a one-line comment.
-- **The run's outcome never changes.** A skip stays green, and a GitHub API
-  error while opening or closing the issue is a warning. The steps run inside
-  the existing deploy job with `issues: write`; there is no schedule and no
-  extra job.
+After a successful deployment is promoted and both production checks pass, the
+existing [`release-todo.ts`](../../scripts/ci/release-todo.ts) cleanup can still
+close older release-to-do issues with a one-line comment. Cleanup errors remain
+warnings and do not change the deployment outcome. The job retains
+`issues: write` for this cleanup only.
 
 To check what production actually serves, run the freshness check by hand,
 for example after a release or whenever deploys look stale. It makes one
