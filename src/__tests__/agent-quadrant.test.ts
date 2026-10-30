@@ -219,6 +219,20 @@ describe('quadrant structured parse', () => {
     } finally { upstream.close() }
   })
 
+  // Reduced from the structural all-families fuzz: text holding `%%` was
+  // written bare, where `%%` opens a comment, so the point fell out of the
+  // body and the axis lost its far side.
+  test('keeps percent pairs quoted in point, axis and quadrant text', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      const diagram = quadrant('quadrantChart\n  x-axis "J%%" --> b\n  quadrant-1 "50%% done"\n  "a%%b": [0.3, 0.1]')
+      const serialized = serializeMermaid(diagram)
+      expect(quadrant(serialized).body).toEqual(diagram.body)
+      expect(diagram.body.points.map(point => point.label)).toEqual(['a%%b'])
+      expect(await upstream.accepts(serialized)).toBe(true)
+    } finally { upstream.close() }
+  })
+
   test('keeps distinct class definition and reference spellings through edits and reload', async () => {
     const source = 'quadrantChart\n  A:::constructor: [0.2, 0.8]\n  B:::__proto__: [0.7, 0.3]\n  C:::title: [0.4, 0.6]\n  classDef constructor radius: 11\n  classDef a-b radius: 9\n  classDef a-titleOne color: #abc\n  classDef ax-axis color: #def\n'
     const upstream = startUpstreamMermaid()

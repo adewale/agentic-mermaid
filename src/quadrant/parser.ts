@@ -130,7 +130,8 @@ function quadrantTextError(text: string, authored = false): string | undefined {
 /** Quadrant text as source: bare where Mermaid reads it so, else one "…" string. */
 export function quadrantTextSource(text: string, completeLabel = false): string {
   const keyword = /(?:^|[^A-Za-z])(?:x-axis|y-axis|quadrant-[1-4]|quadrantChart|classDef|accTitle|accDescr|title)/i
-  return quadrantTextError(text) !== undefined || completeLabel && (text !== text.trim() || keyword.test(text)) ? `"${text}"` : text
+  // Outside a string, `%%` opens a comment that takes the rest of the line.
+  return quadrantTextError(text) !== undefined || text.includes('%%') || completeLabel && (text !== text.trim() || keyword.test(text)) ? `"${text}"` : text
 }
 
 /** Whether quadrantTextSource writes `text` as source Mermaid reads back:
