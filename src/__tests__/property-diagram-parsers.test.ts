@@ -41,7 +41,7 @@ function toLines(source: string): string[] {
 }
 
 describe('property-based sequence parsing', () => {
-  it('auto-creates referenced actors and preserves message count', () => {
+  it('auto-creates referenced actors and keeps every message in order', () => {
     // Prefix names so the generator cannot emit Sequence keywords such as Par.
     const sequenceArb = fc.uniqueArray(idArb.map(id => `Actor${id}`), { minLength: 2, maxLength: 5 }).chain(ids =>
       fc.record({
@@ -69,7 +69,8 @@ describe('property-based sequence parsing', () => {
         const diagram = parseSequenceDiagram(toLines(source))
         const actorIds = new Set(diagram.actors.map(actor => actor.id))
 
-        expect(diagram.messages).toHaveLength(messages.length)
+        expect(diagram.messages.map(message => [message.from, message.to, message.label]))
+          .toEqual(messages.map(message => [message.from, message.to, message.label]))
         for (const message of messages) {
           expect(actorIds.has(message.from)).toBe(true)
           expect(actorIds.has(message.to)).toBe(true)
@@ -81,7 +82,7 @@ describe('property-based sequence parsing', () => {
 })
 
 describe('property-based timeline parsing', () => {
-  it('preserves total periods and events and assigns unique ids', () => {
+  it('keeps every period and event in order and assigns unique ids', () => {
     const sectionArb = fc.record({
       label: fc.option(labelArb, { nil: undefined }),
       periods: fc.array(
@@ -97,19 +98,14 @@ describe('property-based timeline parsing', () => {
     fc.assert(
       fc.property(fc.array(sectionArb, { minLength: 1, maxLength: 3 }), (sections) => {
         const lines = ['timeline']
-        let expectedPeriodCount = 0
-        let expectedEventCount = 0
+        const expectedPeriods: Array<[string, string[]]> = []
 
         for (const section of sections) {
           if (section.label) lines.push(`section ${section.label}`)
           for (const period of section.periods) {
             lines.push(`${period.label} : ${period.firstEvent}`)
-            expectedPeriodCount++
-            expectedEventCount++
-            for (const continuationEvent of period.continuationEvents) {
-              lines.push(`: ${continuationEvent}`)
-              expectedEventCount++
-            }
+            for (const continuationEvent of period.continuationEvents) lines.push(`: ${continuationEvent}`)
+            expectedPeriods.push([period.label, [period.firstEvent, ...period.continuationEvents]])
           }
         }
 
@@ -117,8 +113,7 @@ describe('property-based timeline parsing', () => {
         const periods = diagram.sections.flatMap(section => section.periods)
         const events = periods.flatMap(period => period.events)
 
-        expect(periods).toHaveLength(expectedPeriodCount)
-        expect(events).toHaveLength(expectedEventCount)
+        expect(periods.map(period => [period.label, period.events.map(event => event.text)])).toEqual(expectedPeriods)
         expect(new Set(periods.map(period => period.id)).size).toBe(periods.length)
         expect(new Set(events.map(event => event.id)).size).toBe(events.length)
       }),

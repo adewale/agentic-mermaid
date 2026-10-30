@@ -279,7 +279,7 @@ describe('property-based ASCII pathfinding', () => {
     expect(getPath(new Map(), { x: 1, y: 1 }, { x: 2, y: 2 }, Down)?.[1]).toEqual({ x: 1, y: 2 })
   })
 
-  it('mergePath preserves endpoints and is idempotent', () => {
+  it('mergePath keeps the walk and removes every straight-through point', () => {
     const walkArb = fc
       .array(
         fc.record({
@@ -306,6 +306,24 @@ describe('property-based ASCII pathfinding', () => {
         expect(merged[merged.length - 1]).toEqual(path[path.length - 1])
         expect(mergePath(merged)).toEqual(merged)
         expect(merged.length <= path.length).toBe(true)
+        // Merging drops only redundant points: walking the merged corners
+        // visits the same cells in the same order, and no kept point lies
+        // midway along a straight run in one direction.
+        const cells = (points: typeof path) => points.flatMap((point, i) => {
+          if (i === 0) return [point]
+          const previous = points[i - 1]!
+          const length = Math.abs(point.x - previous.x) + Math.abs(point.y - previous.y)
+          return Array.from({ length }, (_, step) => ({
+            x: previous.x + Math.sign(point.x - previous.x) * (step + 1),
+            y: previous.y + Math.sign(point.y - previous.y) * (step + 1),
+          }))
+        })
+        expect(cells(merged)).toEqual(path)
+        for (let i = 1; i + 1 < merged.length; i++) {
+          const before = { x: Math.sign(merged[i]!.x - merged[i - 1]!.x), y: Math.sign(merged[i]!.y - merged[i - 1]!.y) }
+          const after = { x: Math.sign(merged[i + 1]!.x - merged[i]!.x), y: Math.sign(merged[i + 1]!.y - merged[i]!.y) }
+          expect({ at: i, straightThrough: before.x === after.x && before.y === after.y }).toEqual({ at: i, straightThrough: false })
+        }
       }),
       fcParameters({ numRuns: PROPERTY_RUNS }),
     )
