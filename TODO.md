@@ -38,15 +38,18 @@ route-contract extraction preserves the existing pipeline manifest and order.
   explicit geometry/proof ownership. Keep the
   [campaign preservation contract](docs/design/system/performance-campaign.md).
 
-- [ ] **REL-1 — Qualify, publish and verify 0.5.3** (`todo`,
-  [#378](https://github.com/adewale/agentic-mermaid/issues/378)). The release
-  target and prepared source version are 0.5.3. npm 0.5.1 was verified on
-  29 October; its immutable package cannot include these later fixes. The
+- [ ] **REL-1 — Qualify, publish and verify 0.5.4** (`todo`). The release
+  target and source version are 0.5.4, including #580's Class/ER rendering
+  fixes and #393's directory guidance and deployment automation changes.
+  Version 0.5.3 was published to npm and the MCP Registry and deployed on
+  29 October ([publication](https://github.com/adewale/agentic-mermaid/actions/runs/40940647568),
+  [deployment](https://github.com/adewale/agentic-mermaid/actions/runs/40943546603));
+  [#378](https://github.com/adewale/agentic-mermaid/issues/378) is closed.
+  Its immutable package cannot include these later fixes. The
   0.5.0 and 0.5.2 source tags are retained after their blocked publications.
   The macOS release gate uses a standard Intel macOS 26 host after GitHub's
   arm64 pool could not acquire the 0.5.2 job. Retain the
-  documented source-edit/export limits, update the release issue's automation
-  marker when the version change lands, and run
+  documented source-edit/export limits and run
   canonical CI, including its independent semantic and packed-consumer checks,
   on the actual immutable release candidate. The publication workflow also
   requires platform smoke tests and the verified package artifact. Following
@@ -54,7 +57,9 @@ route-contract extraction preserves the existing pipeline manifest and order.
   or authorize publication. Keep performance claims within their measured scope
   under PERF-1. Follow `docs/contributing/releasing.md`,
   publish the verified artifact, then verify npm/MCP Registry metadata and the
-  matching deployed site/MCP identity and a live capability.
+  matching deployed site/MCP identity and a live capability. Automatic
+  release-issue creation is disabled; an unpublished version leaves a warning
+  and Actions summary while production retains the previous published build.
   #410's Class work, #418's ER/Journey/empty-edit/YAML repairs, #419's text
   preservation and #416's config ownership are merged. #363, #367 and #372
   are closed; they are no longer pending source integrations. Qualify release
@@ -64,7 +69,7 @@ route-contract extraction preserves the existing pipeline manifest and order.
   The owner's 27 October decision defers #449's Native-layout qualification
   to 0.6.0; it is not a 0.5 publication condition. ELK remains the default.
   The owner's 29 October decision also moves AGENT-1, AGENT-2 and AGENT-3
-  to 0.6.0. Those improvements remain open and are not 0.5.3 release claims.
+  to 0.6.0. Those improvements remain open and are not 0.5.4 release claims.
 - [ ] **DEC-6 — Decide the hosted `execute` boundary from usage evidence**
   (`owner-decision`, [#204](https://github.com/adewale/agentic-mermaid/issues/204)).
   Compare hosted direct tools, hosted Code Mode and local Code Mode for real
