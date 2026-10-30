@@ -8,12 +8,12 @@ import {
   handleHostedRequest, HOSTED_MCP_SERVER_NAME, HOSTED_TOOLS, MAX_CODE_BYTES, MAX_SOURCE_BYTES,
   SUPPORTED_PROTOCOL_VERSIONS, cacheKeyFor, type HostedMcpContext, type ExecuteResult,
 } from '../mcp/hosted-server.ts'
-import { MCP_SERVER_NAME, validateMcpToolArguments } from '../mcp/tool-surface.ts'
+import { MCP_SERVER_NAME, createRenderPngTool, validateMcpToolArguments } from '../mcp/tool-surface.ts'
 import type { JsonRpcRequest } from '../mcp/protocol.ts'
 import { isLegacyProtocolVersion } from '../mcp/protocol-versions.ts'
 import pkg from '../../package.json'
 import { visualWidth } from '../ascii/width.ts'
-import { renderMermaidASCII, verifyNoExternalRefs } from '../index.ts'
+import { renderMermaidASCII, renderMermaidSVG, verifyNoExternalRefs, type RenderOptions } from '../index.ts'
 import { MAX_HOSTED_PNG_BYTES, PNG_WASM_RUNTIME, PngRasterizerError } from '../png-contract.ts'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -187,6 +187,23 @@ describe('hosted pure tools', () => {
     expect(response?.error?.message).toContain('exceeds maximum nesting depth 64')
     expect(context.executeCalls).toEqual([])
     expect(context.pngCalls).toEqual([])
+  })
+
+  // The StyleSpec validator owns these diagnoses; a union over its shapes
+  // must not replace them with "must be a registered Style name or StyleSpec".
+  test.each([
+    [{ roughness: 99 }, '"roughness" must be between 0 and 10'],
+    [{ bogus: 1 }, 'unknown field "bogus"'],
+    [{ colors: { bg: 'url(http://x)' } }, 'color token "bg" must be a safe non-fetching CSS color'],
+    [['hand-drawn', { colors: { bg: '#12345' } }], 'color token "bg" must be a safe non-fetching CSS color'],
+    ['handdrawn', 'Unknown style "handdrawn". Did you mean "hand-drawn"?'],
+    ['Dracula', 'Unknown style "Dracula". Did you mean "dracula"?'],
+  ])('MCP tools and the library name the same StyleInput problem for %j', async (style, problem) => {
+    const hosted = await handleHostedRequest(call('render_svg', { source: FLOW, options: { style } }), makeContext())
+    expect(hosted?.error?.code).toBe(-32602)
+    expect(hosted?.error?.message).toContain(problem)
+    expect(validateMcpToolArguments(createRenderPngTool('local'), { source: FLOW, options: { style } }).join('\n')).toContain(problem)
+    expect(() => renderMermaidSVG(FLOW, { style } as RenderOptions)).toThrow(problem)
   })
 
   test('render_svg renders deterministic themeable SVG', async () => {

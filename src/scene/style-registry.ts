@@ -63,6 +63,7 @@ import type {
 import { SCENE_ROLE_DESCRIPTORS, type BuiltinSceneRole } from './roles.ts'
 export { resolveRoleStyle, type SemanticBindingContext } from './roles.ts'
 import { isPlainRecord } from '../shared/plain-data.ts'
+import { nearestName } from '../shared/nearest-name.ts'
 
 /** Private renderer defaults for built-in looks. This is intentionally not
  *  part of the public StyleSpec schema, registerStyle boundary, or docs. */
@@ -404,7 +405,11 @@ function resolveInternalStyleStack(input: StyleInput | StyleInput[] | undefined)
       const resolved = canonicalStyleId(entry)
       if (resolved === 'look:crisp') continue
       const named = resolved ? STYLE_REGISTRY.get(resolved)?.value : undefined
-      if (!named) throw new StyleSpecError(`Unknown style "${entry}". Known styles: ${knownStyles().join(', ')}`)
+      if (!named) {
+        const known = knownStyles()
+        const suggestion = nearestName(entry, known)
+        throw new StyleSpecError(`Unknown style "${entry}".${suggestion ? ` Did you mean "${suggestion}"?` : ''} Known styles: ${known.join(', ')}`)
+      }
       specs.push(named)
     } else {
       specs.push(validatedStyleSpecSnapshot(entry))

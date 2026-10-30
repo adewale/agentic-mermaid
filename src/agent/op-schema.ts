@@ -1,5 +1,6 @@
 import { OP_SCHEMAS as SCHEMAS, type FieldSpec, type FieldType, type RecordShape } from './op-schema-definitions.ts'
 import { unknownOpMessage, type MutableFamilyId } from './mutation-ops.ts'
+import { nameDistance, nearestName as nearest } from '../shared/nearest-name.ts'
 
 // ============================================================================
 // op-schema: shape validation for every family's structured mutation ops.
@@ -56,30 +57,6 @@ export interface OpValidationError {
    *  For an op missing `kind` whose op kind sits under another key (`field`,
    *  e.g. `{op:'add_node'}`), `kind`; the message shows the corrected op. */
   didYouMean?: string
-}
-
-function levenshtein(a: string, b: string): number {
-  const m = a.length,
-    n = b.length
-  const d = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)])
-  for (let j = 0; j <= n; j++) d[0]![j] = j
-  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) d[i]![j] = Math.min(d[i - 1]![j]! + 1, d[i]![j - 1]! + 1, d[i - 1]![j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1))
-  return d[m]![n]!
-}
-
-/** Nearest candidate within an edit-distance threshold (typo tolerance). */
-function nearest(target: string, candidates: string[]): string | undefined {
-  let best: string | undefined
-  let bestD = Infinity
-  for (const c of candidates) {
-    const dist = levenshtein(target.toLowerCase(), c.toLowerCase())
-    if (dist < bestD) {
-      bestD = dist
-      best = c
-    }
-  }
-  // Only suggest when the match is close (<= ~40% of the longer string).
-  return best !== undefined && bestD <= Math.max(2, Math.ceil(best.length * 0.4)) ? best : undefined
 }
 
 function typeName(f: FieldType): string {
@@ -223,7 +200,7 @@ function misnamedDiscriminator(rec: Record<string, unknown>, validKinds: string[
   let near: { key: string; kind: string } | undefined
   for (const [key, value] of Object.entries(rec)) {
     if (typeof value !== 'string') continue
-    if (!DISCRIMINATOR_SLIPS.has(key) && levenshtein(key.toLowerCase(), 'kind') > 1) continue
+    if (!DISCRIMINATOR_SLIPS.has(key) && nameDistance(key, 'kind') > 1) continue
     if (validKinds.includes(value)) return { key, kind: value }
     const guess = nearest(value, validKinds)
     if (guess && !near) near = { key, kind: guess }
