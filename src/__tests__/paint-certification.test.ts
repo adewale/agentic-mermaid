@@ -4151,6 +4151,35 @@ function actualCompositionMarkerPixels(svg: string): number {
   return count
 }
 
+test('actual composition distinguishes exhausted authority from an observed byte difference', () => {
+  const marker = tipAnchoredArrow('actual-budget-arrow', { width: 8, height: 5 }, 'end', { fill: '#111', stroke: 'none' }, 'userSpaceOnUse')
+  const capture = createSceneWriteCapture(MAX_OCCLUSION_OPERATIONS, {}, true)
+  const admitted = admitSceneDocument(scene([
+    marks.documentOpen({ id: 'root', width: 100, height: 80, colors: { bg: '#fff', fg: '#111' }, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+    marks.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 80, y2: 40 }, paint: { stroke: '#111', strokeWidth: '1' }, markers: { end: marker } }),
+    marks.documentClose(),
+  ]), 'internal', true, capture.observe)
+  const receipt = capture.prepare(admitted)
+  const proof = certifyScenePaint(admitted, undefined, { sceneWriteReceipt: receipt })
+  expect(proof.status).toBe('passed')
+  const exhausted = { ...proof, status: 'unverified' as const,
+    checks: { ...proof.checks, operations: MAX_OCCLUSION_OPERATIONS },
+    issues: [{ code: 'CHECK_BUDGET' as const, message: 'Paint-work allowance exhausted before backend composition' }],
+  }
+  const context = { seed: 0 }
+  capture.beginBackendEmission(admitted, context, exhausted)
+  const svg = DefaultBackend.render(admitted, context)
+  const closed = capture.finishActual(exhausted)
+  expect(svg).toBe(DefaultBackend.render(admitted, { seed: 0 }))
+  expect(actualCompositionMarkerPixels(svg)).toBeGreaterThan(0)
+  expect(closed.status).toBe('unverified')
+  expect(closed.checks.operations).toBe(MAX_OCCLUSION_OPERATIONS)
+  expect(closed.checks.maxOperations).toBe(MAX_OCCLUSION_OPERATIONS)
+  expect(closed.issues.map(issue => issue.code)).toEqual(['CHECK_BUDGET', 'OUTPUT_SCOPE'])
+  expect(closed.issues.find(issue => issue.code === 'OUTPUT_SCOPE')?.message).toBe('Actual backend composition could not be established within the paint-work allowance')
+})
+
 for (const backend of ['agentic', 'elk'] as const) test.each(['root-map-join', 'root-map-skip'] as const)(`actual ${backend} composition refuses hidden marker after scene admission: %s`, mode => {
   const oldAssertions = process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS
   const originalJoin = Object.getOwnPropertyDescriptor(Array.prototype, 'join')!, join = originalJoin.value

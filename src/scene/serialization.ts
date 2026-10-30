@@ -376,7 +376,9 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
       const issues: import('./paint-certification.ts').PaintCertificationIssue[] = []
       const count = proof.issues.length < 64 - extra ? proof.issues.length : 64 - extra
       for (let index = 0; index < count; index++) groupDefine(issues, index, { value: proof.issues[index], enumerable: true, configurable: false, writable: false })
-      if (scope && !hasScope) groupDefine(issues, issues.length, { value: { code: 'OUTPUT_SCOPE', message: 'Actual backend composition differs from its admission write evidence' }, enumerable: true })
+      if (scope && !hasScope) groupDefine(issues, issues.length, { value: { code: 'OUTPUT_SCOPE', message: budget
+        ? 'Actual backend composition could not be established within the paint-work allowance'
+        : 'Actual backend composition differs from its admission write evidence' }, enumerable: true })
       if (budget && !hasBudget) groupDefine(issues, issues.length, { value: { code: 'CHECK_BUDGET', message: 'Actual backend composition exhausted the existing paint-work allowance' }, enumerable: true })
       return groupFreeze({ ...proof, status: proof.status === 'failed' ? 'failed' : budget || scope ? 'unverified' : proof.status,
         checks: groupFreeze({ ...proof.checks, operations: budget ? maxOperations : operations }), issues: groupFreeze(issues) })
