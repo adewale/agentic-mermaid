@@ -1,3 +1,4 @@
+import { readSvgTextPaintWrite, type SvgTextPaintWrite } from './svg-writer.ts'
 import { isAdmittedSceneDocument } from './scene-admission-state.ts'
 import { tryParseCssColor } from '../shared/color-math.ts'
 import type { ConnectorMark, MarkPaint, SceneDoc, SceneNode, SceneOwner, SceneRole, SceneTransform, ShapeMark, TextMark } from './ir.ts'
@@ -58,6 +59,15 @@ export type NativeConnectorPaintSource = Pick<ConnectorMark, 'kind' | 'lineStyle
 export type NativePaintSource = Pick<ShapeMark, 'kind' | 'geometry' | 'paint' | 'childPaints' | 'transform'>
   | NativeConnectorPaintSource | Pick<TextMark, 'kind' | 'paint'> | { readonly kind: 'document' }
 const nativeSources = new WeakMap<ScenePaintGeometry, NativePaintSource>()
+const textPaintMap = WeakMap, textPaintSet = WeakSet, textPaintApply = Reflect.apply
+const textPaintGet = WeakMap.prototype.get, textPaintPut = WeakMap.prototype.set
+const textPaintAdd = WeakSet.prototype.add, textPaintHas = WeakSet.prototype.has
+const textPaintFreeze = Object.freeze, textPaintDefine = Object.defineProperty
+const nativeTextPaintWrites = new textPaintMap<ScenePaintGeometry, SvgTextPaintWrite>()
+const ownedTextPaintRosters = new textPaintMap<ScenePaintGeometryInspection, boolean>()
+export function nativeTextPaintWriteOf(primitive: ScenePaintGeometry): SvgTextPaintWrite | undefined { return textPaintApply(textPaintGet, nativeTextPaintWrites, [primitive]) }
+export function hasOwnedTextPaintRoster(inspection: ScenePaintGeometryInspection): boolean { return textPaintApply(textPaintGet, ownedTextPaintRosters, [inspection]) !== undefined }
+export function ownedTextPaintRoster(inspection: ScenePaintGeometryInspection): boolean | undefined { return textPaintApply(textPaintGet, ownedTextPaintRosters, [inspection]) }
 export function paintPrimitiveSource(primitive: ScenePaintGeometry): NativePaintSource | undefined {
   return nativeSources.get(primitive) ?? sources.get(primitive)
 }
@@ -115,9 +125,9 @@ export function shapeSurfacePaint(node: Pick<ShapeMark, 'paint' | 'childPaints'>
   return node.childPaints?.find(paint => !absentPaint(paint.fill) && Number(paint.opacity ?? 1) !== 0) ?? node.paint
 }
 
-function nonPainting(node: SceneNode): boolean {
+function nonPainting(node: SceneNode, actualTextPaint?: MarkPaint): boolean {
   if (node.kind === 'document') return node.element !== 'content' || node.nonPaint !== undefined || sceneNodeSerialization(node).trim() === ''
-  if (node.kind === 'text') return !textPaints(hasDisplayedText(node.block, node.text), node.paint)
+  if (node.kind === 'text') return !textPaints(hasDisplayedText(node.block, node.text), actualTextPaint ?? node.paint)
   if (node.kind === 'connector') return node.lineStyle === 'invisible'
   if (node.kind === 'shape') {
     if (node.conditionalPaint) return false
@@ -167,9 +177,9 @@ export interface NativePaintEntry {
 }
 export type PaintInspectionHeader = Pick<SceneDoc, 'family' | 'width' | 'height'>
 
-const ownedAncestors = new WeakSet<readonly SceneOwner[]>()
-const emptyAncestors: readonly SceneOwner[] = Object.freeze([])
-ownedAncestors.add(emptyAncestors)
+const ownedAncestors = new textPaintSet<readonly SceneOwner[]>()
+const emptyAncestors: readonly SceneOwner[] = textPaintFreeze([])
+textPaintApply(textPaintAdd, ownedAncestors, [emptyAncestors])
 
 function ownerSnapshot(owner: SceneOwner): SceneOwner {
   return Object.freeze({ id: owner.id, role: owner.role })
@@ -178,20 +188,24 @@ function ownerSnapshot(owner: SceneOwner): SceneOwner {
 /** An occurrence owns one inert ancestry snapshot, shared by its leaves. */
 export function nativePaintAncestors(parent: readonly SceneOwner[] | undefined, owner: SceneOwner): readonly SceneOwner[] {
   const snapshot = ownerSnapshot(owner)
-  const prefix = parent === undefined ? emptyAncestors : ownedAncestors.has(parent) ? parent
+  const prefix = parent === undefined ? emptyAncestors : textPaintApply(textPaintHas, ownedAncestors, [parent]) ? parent
     : Array.from(parent, ownerSnapshot)
-  const ancestors = Object.freeze([...prefix, snapshot])
-  ownedAncestors.add(ancestors)
+  const retained: SceneOwner[] = []
+  for (let i = 0; i < prefix.length; i++) textPaintDefine(retained, i, { value: prefix[i], enumerable: true, writable: true, configurable: true })
+  textPaintDefine(retained, retained.length, { value: snapshot, enumerable: true, writable: true, configurable: true })
+  const ancestors = textPaintFreeze(retained)
+  textPaintApply(textPaintAdd, ownedAncestors, [ancestors])
   return ancestors
 }
 
 /** Feed native occurrences directly without allocating intermediate entries. */
 export function createOwnedNativePaintRecorder(header: PaintInspectionHeader, documentFont?: string) {
-  const recorder = createPaintRecorder(header, undefined, true, documentFont)
+  const recorder = createPaintRecorder(header, undefined, true, documentFont, true)
   return {
-    leaf(node: NativePaintEntry['node'], key: string, parentMatrix?: AffineMatrix, ancestors: readonly SceneOwner[] = emptyAncestors, conditional = false, groupOpacity = 1, owner?: SceneOwner) {
-      if (!ownedAncestors.has(ancestors)) throw new TypeError('Native paint ancestors must be owned snapshots')
-      recorder.leaf(node, key, parentMatrix, ancestors, conditional, groupOpacity, owner)
+    leaf(node: NativePaintEntry['node'], key: string, parentMatrix?: AffineMatrix, ancestors: readonly SceneOwner[] = emptyAncestors, conditional = false, groupOpacity = 1, owner?: SceneOwner, paintWrite?: SvgTextPaintWrite, svg = '') {
+      if (!textPaintApply(textPaintHas, ownedAncestors, [ancestors])) throw new TypeError('Native paint ancestors must be owned snapshots')
+      const actual = paintWrite ? readSvgTextPaintWrite(paintWrite, node, svg) : undefined
+      recorder.leaf(node, key, parentMatrix, ancestors, conditional, groupOpacity, owner, undefined, false, parentMatrix === undefined, actual, actual ? paintWrite : undefined)
     },
     finish: recorder.finish,
   }
@@ -209,30 +223,36 @@ export function inspectNativePaintGeometry(header: PaintInspectionHeader, entrie
   return recorder.finish()
 }
 
-function nativePaintSource(node: Exclude<SceneNode, { kind: 'group' }>): NativePaintSource {
+function nativePaintSource(node: Exclude<SceneNode, { kind: 'group' }>, actualTextPaint?: MarkPaint, freeze = Object.freeze): NativePaintSource {
   switch (node.kind) {
-    case 'shape': return Object.freeze({ kind: node.kind, geometry: node.geometry, paint: node.paint, ...(node.childPaints ? { childPaints: node.childPaints } : {}), ...(node.transform ? { transform: node.transform } : {}) })
-    case 'connector': return Object.freeze({ kind: node.kind, lineStyle: node.lineStyle, endpoints: node.endpoints, route: node.route, stroke: node.stroke, markers: node.markers, ...(node.transform ? { transform: node.transform } : {}) })
-    case 'text': return Object.freeze({ kind: node.kind, paint: node.paint })
-    case 'document': return Object.freeze({ kind: node.kind })
+    case 'shape': return freeze({ kind: node.kind, geometry: node.geometry, paint: node.paint, ...(node.childPaints ? { childPaints: node.childPaints } : {}), ...(node.transform ? { transform: node.transform } : {}) })
+    case 'connector': return freeze({ kind: node.kind, lineStyle: node.lineStyle, endpoints: node.endpoints, route: node.route, stroke: node.stroke, markers: node.markers, ...(node.transform ? { transform: node.transform } : {}) })
+    case 'text': return freeze({ kind: node.kind, paint: actualTextPaint ?? node.paint })
+    case 'document': return freeze({ kind: node.kind })
   }
 }
 
-function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDetails, native = false, documentFont?: string) {
+function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDetails, native = false, documentFont?: string, owning = false) {
+  const freeze = owning ? textPaintFreeze : Object.freeze
+  let hasActualPaint = false
+  const append = (primitive: ScenePaintGeometry): void => {
+    if (owning) textPaintDefine(primitives, primitives.length, { value: primitive, enumerable: true, writable: true, configurable: true })
+    else primitives.push(primitive)
+  }
   const primitives: ScenePaintGeometry[] = []
   const coverage = { measured: 0, unmeasured: 0, nonPainting: 0, preparedText: 0, fallbackText: 0 }
-  const leaf = (semanticNode: Exclude<SceneNode, { kind: 'group' }>, key: string, parent: AffineMatrix | undefined, ancestors: readonly SceneOwner[], conditional: boolean, groupOpacity: number, explicitOwner?: SceneOwner, servedNode?: Exclude<SceneNode, { kind: 'group' }>, pathAuthority = false, untransformed = parent === undefined): void => {
+  const leaf = (semanticNode: Exclude<SceneNode, { kind: 'group' }>, key: string, parent: AffineMatrix | undefined, ancestors: readonly SceneOwner[], conditional: boolean, groupOpacity: number, explicitOwner?: SceneOwner, servedNode?: Exclude<SceneNode, { kind: 'group' }>, pathAuthority = false, untransformed = parent === undefined, actualTextPaint?: MarkPaint, actualPaintWrite?: SvgTextPaintWrite): void => {
     const node = servedNode ?? semanticNode
     const owner = explicitOwner ?? node.owner ?? ancestors.at(-1) ?? node.identity ?? { id: node.id, role: node.role }
-    const source = native || servedNode ? nativePaintSource(node) : undefined
-    const hidden = groupOpacity === 0 || nonPainting(node)
+    const source = native || servedNode ? nativePaintSource(node, actualTextPaint, freeze) : undefined
+    const hidden = groupOpacity === 0 || nonPainting(node, actualTextPaint)
     const [a, b, c, d, e, f] = parent ?? IDENTITY_MATRIX
     const parentTransform: SceneTransform | undefined = parent || node.transform ? { kind: 'matrix', a, b, c, d, e, f } : undefined
-    const matrix = !parent && !node.transform ? IDENTITY_PAINT_MATRIX : Object.freeze(composeMatrices(parent ?? IDENTITY_MATRIX, transformMatrix(node.transform)))
-    const bounds = hidden ? undefined : nodePaintBounds(node, parentTransform, documentFont)
+    const matrix = !parent && !node.transform ? IDENTITY_PAINT_MATRIX : freeze(composeMatrices(parent ?? IDENTITY_MATRIX, transformMatrix(node.transform)))
+    const bounds = hidden ? undefined : nodePaintBounds(node, parentTransform, documentFont, actualTextPaint)
     const measured = !!bounds && finite(bounds)
     const status = hidden ? 'non-painting' : measured ? 'measured' : 'unmeasured'
-    const primitive: ScenePaintGeometry = Object.freeze({
+    const primitive: ScenePaintGeometry = freeze({
       key, id: node.id, kind: node.kind, role: node.role,
       // Native ancestry contains only our frozen snapshots, including when
       // callers supplied mutable ancestor objects. Never share a raw owner.
@@ -241,17 +261,19 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
       order: primitives.length, coverage: status,
       ...(conditional || node.visibility === 'conditional' || !Number.isFinite(groupOpacity) ? { visibility: 'conditional' as const } : {}),
       ...(groupOpacity < 1 ? { groupOpacity } : {}),
-      ...(measured ? { bounds: Object.freeze(bounds!) } : {}),
+      ...(measured ? { bounds: freeze(bounds!) } : {}),
       ...(!hidden && !measured ? { reason: node.kind === 'document' ? 'opaque-visible-content' : 'missing-paint-geometry' } : {}),
-      ...(node.kind === 'text' ? { text: Object.freeze({ measurement: node.measurement ?? 'unavailable', ...retainText?.(node.text, node.block, true) }) } : {}),
+      ...(node.kind === 'text' ? { text: freeze({ measurement: node.measurement ?? 'unavailable', ...retainText?.(node.text, node.block, true) }) } : {}),
     })
     if (source) nativeSources.set(primitive, source)
+    if (actualPaintWrite) hasActualPaint = true
+    if (actualPaintWrite) textPaintApply(textPaintPut, nativeTextPaintWrites, [primitive, actualPaintWrite])
     if (!native) sources.set(primitive, semanticNode)
     if (servedNode && primitive.visibility !== 'conditional') sceneWriteOccurrences.add(primitive)
     if (pathAuthority && primitive.visibility !== 'conditional') scenePathOccurrences.add(primitive)
     worldMatrices.set(primitive, matrix)
     if (untransformed && !node.transform) untransformedPrimitives.add(primitive)
-    primitives.push(primitive)
+    append(primitive)
     if (hidden) coverage.nonPainting++
     else if (measured) coverage.measured++
     else coverage.unmeasured++
@@ -267,19 +289,19 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
       const [la, lb, lc, ld, le, lf] = matrix
       const bounds = local && transformedBounds(local, { kind: 'matrix', a: la, b: lb, c: lc, d: ld, e: le, f: lf })
       const measured = !!bounds && finite(bounds)
-      const inline: ScenePaintGeometry = Object.freeze({
+      const inline: ScenePaintGeometry = freeze({
         key: `${key}.label.${labelIndex}`, id: label.id ?? `${node.id}:label:${labelIndex}`, kind: 'text', role: 'label',
         owner: primitive.owner, ancestors: primitive.ancestors, order: primitives.length,
         coverage: hidden ? 'non-painting' : measured ? 'measured' : 'unmeasured',
         ...(primitive.visibility ? { visibility: primitive.visibility } : {}),
         ...(groupOpacity < 1 ? { groupOpacity } : {}),
-        ...(measured ? { bounds: Object.freeze(bounds!) } : !hidden ? { reason: 'missing-inline-label-geometry' } : {}),
-        text: Object.freeze({ measurement: label.block ? 'prepared' : 'fallback', ...retainText?.(label.text, label.block) }),
+        ...(measured ? { bounds: freeze(bounds!) } : !hidden ? { reason: 'missing-inline-label-geometry' } : {}),
+        text: freeze({ measurement: label.block ? 'prepared' : 'fallback', ...retainText?.(label.text, label.block) }),
       })
       if (source) nativeSources.set(inline, source)
       if (!native) sources.set(inline, semanticNode)
       worldMatrices.set(inline, matrix)
-      primitives.push(inline)
+      append(inline)
       if (hidden) coverage.nonPainting++
       else {
         if (measured) coverage.measured++
@@ -292,8 +314,9 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
   return {
     leaf,
     finish: (): ScenePaintGeometryInspection => {
-      const inspection = Object.freeze({ version: 1 as const, family: header.family, bounds: Object.freeze({ width: header.width, height: header.height }), primitives: Object.freeze(primitives), coverage: Object.freeze(coverage) })
+      const inspection = freeze({ version: 1 as const, family: header.family, bounds: freeze({ width: header.width, height: header.height }), primitives: freeze(primitives), coverage: freeze(coverage) })
       immutablePaintRosters.add(inspection)
+      if (owning) textPaintApply(textPaintPut, ownedTextPaintRosters, [inspection, hasActualPaint])
       return inspection
     },
   }

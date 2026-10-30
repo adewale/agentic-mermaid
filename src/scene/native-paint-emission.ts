@@ -1,3 +1,4 @@
+import { nativeTextPaintWriteOf, ownedTextPaintRoster } from './inspection.ts'
 import type { SceneNode, SceneDoc, ConnectorMark, Geometry, MarkPaint, ShapeMark } from './ir.ts'
 import type { ScenePaintGeometryInspection, ScenePaintGeometry } from './inspection.ts'
 import { scanSvgStartTags, decodedSvgAttributeValue } from '../svg-structure.ts'
@@ -7,7 +8,7 @@ import { formatSvgNumber } from '../shared/svg-number.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
 import { deferredTerminalProjectionInput, copyDeferredTerminalProjection } from './deferred-terminal-projection.ts'
 import { transferSceneNodeSerialization } from './serialization.ts'
-import { createSvgXmlCapture, type SvgGeometryWriteSink, type SvgXmlWrite } from './svg-writer.ts'
+import { createSvgXmlCapture, hasInheritedSvgTextPaint, closeSvgTextPaintWrite, hasSvgTextPaintClosure, matchesSvgTextPaintWrite, readSvgTextPaintWrite, type SvgTextPaintWrite, type SvgGeometryWriteSink, type SvgXmlWrite } from './svg-writer.ts'
 import { connectorContourSemantics } from './connector-geometry.ts'
 import { rectanglePaintFields, writtenPolylineProjectionOf, prepareWrittenCompoundShape, observeWrittenCompoundShape, completeWrittenCompoundShape } from './written-geometry.ts'
 import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
@@ -18,10 +19,13 @@ export { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
 
 type Leaf = Exclude<SceneNode, { kind: 'group' }>
 export interface NativeEmissionWork { readonly operations: number; readonly exhausted: boolean; readonly uncertain: boolean; readonly closedMarkerContext: boolean; readonly fractionalCircleContext: boolean; readonly header: Omit<SceneDoc, 'parts'>; readonly resolveColor?: EmissionColorResolver }
+const textPaintSet = WeakSet, textPaintMap = WeakMap, textPaintApply = Reflect.apply
+const textPaintGet = WeakMap.prototype.get, textPaintPut = WeakMap.prototype.set
+const textPaintAdd = WeakSet.prototype.add, textPaintHas = WeakSet.prototype.has, textPaintFreeze = Object.freeze
 const emittedOccurrences = new WeakSet<ScenePaintGeometry>()
 export function hasNativeEmissionOccurrence(primitive: ScenePaintGeometry): boolean { return emittedOccurrences.has(primitive) }
-const emissionWork = new WeakMap<ScenePaintGeometryInspection, NativeEmissionWork>()
-export function nativeEmissionWorkOf(inspection: ScenePaintGeometryInspection): NativeEmissionWork | undefined { return emissionWork.get(inspection) }
+const emissionWork = new textPaintMap<ScenePaintGeometryInspection, NativeEmissionWork>()
+export function nativeEmissionWorkOf(inspection: ScenePaintGeometryInspection): NativeEmissionWork | undefined { return textPaintApply(textPaintGet, emissionWork, [inspection]) }
 
 /** Every occurrence retains immutable operands BEFORE the existing writer
  * call. Lines and polylines retain that actual write's numeric operands;
@@ -45,6 +49,8 @@ export function createNativePaintEmission(maxOperations: number) {
   const xml = createSvgXmlCapture(pay)
   const failed = Symbol('unsupported-emission')
   const capturedLeaves = new WeakMap<object, Leaf>()
+  const observedTextPaintWrites = new textPaintSet<SvgTextPaintWrite>()
+  let usedTextPaint = false
   let ownedPartRosters: WeakSet<object> | undefined
   type CaptureContext = 'leaf' | 'route' | 'geometry' | 'points' | 'point' | 'pixel-part'
   interface TextCopyPlan { readonly source: object; readonly array: boolean; readonly slots: readonly TextCopySlot[]; readonly length: number | undefined; readonly height: number }
@@ -202,21 +208,23 @@ export function createNativePaintEmission(maxOperations: number) {
   }
 
   let observedPaintFields: (keyof MarkPaint)[] | undefined
-  const refuseInheritedPaint = (paint: unknown): void => {
-    if (!paint || typeof paint !== 'object') return
-    if (!pay(2)) { uncertain = true; return }
-    if (Object.getPrototypeOf(paint) === null) return
+  const hasInheritedPaint = (paint: unknown): boolean => {
+    if (!paint || typeof paint !== 'object') return false
+    if (!pay(2)) { uncertain = true; return true }
+    if (Object.getPrototypeOf(paint) === null) return false
     if (!observedPaintFields) {
       // The existing finite MarkPaint inventory owns all thirteen fields.
       // Retain its private key roster once, before walking any paint record.
-      if (!pay(16)) { uncertain = true; return }
+      if (!pay(16)) { uncertain = true; return true }
       observedPaintFields = Object.keys(rectanglePaintFields) as (keyof MarkPaint)[]
     }
+    let inherited = false
     for (let index = 0; index < observedPaintFields.length; index++) {
       if (!pay(2)) { uncertain = true; break }
       const field = observedPaintFields[index]!
-      if (!Object.hasOwn(paint, field) && field in paint) uncertain = true
+      if (!Object.hasOwn(paint, field) && field in paint) inherited = true
     }
+    return inherited
   }
   const snapshot = <T>(value: T): T | undefined => {
     try { return copy(value) as T } catch { return undefined }
@@ -450,7 +458,8 @@ export function createNativePaintEmission(maxOperations: number) {
       if (actual?.uncertain) uncertain = true
       return actual?.matrix
     },
-    observe(node: Leaf, svg: string): boolean {
+    observe(node: Leaf, svg: string, paintWrite?: SvgTextPaintWrite, xmlWrite?: SvgXmlWrite): boolean | SvgTextPaintWrite {
+      let actualTextPaint: SvgTextPaintWrite | undefined
       // Reserve the actual occurrence's custody records before inspection.
       // Every inline label can add one primitive; noninline labels only make
       // this a conservative upper bound. Failed reservations are conditional.
@@ -531,7 +540,16 @@ export function createNativePaintEmission(maxOperations: number) {
           if (!pay(2)) uncertain = true
           else {
             const paint = Object.getOwnPropertyDescriptor(node, 'paint')
-            if (paint && Object.hasOwn(paint, 'value')) refuseInheritedPaint(paint.value)
+            if (paint && Object.hasOwn(paint, 'value')) {
+              if (hasInheritedPaint(paint.value) || node.kind === 'text' && paintWrite && hasInheritedSvgTextPaint(paintWrite)) {
+                const fact = node.kind === 'text' && paintWrite && pay(6) && matchesSvgTextPaintWrite(paintWrite, xml, xmlWrite, node, svg) ? paintWrite : undefined
+                if (fact && readSvgTextPaintWrite(fact, node, svg) && pay(2)) {
+                  textPaintApply(textPaintAdd, observedTextPaintWrites, [fact]); usedTextPaint = true
+                  context.requireTextPaintContext()
+                  actualTextPaint = fact
+                } else uncertain = true
+              }
+            }
           }
           if (node.kind === 'shape') {
             if (!pay(2)) uncertain = true
@@ -544,7 +562,7 @@ export function createNativePaintEmission(maxOperations: number) {
                   if (length && Object.hasOwn(length, 'value')) for (let index = 0; index < length.value; index++) {
                     if (!pay(2)) { uncertain = true; break }
                     const paint = Object.getOwnPropertyDescriptor(children.value, String(index))
-                    if (paint && Object.hasOwn(paint, 'value')) refuseInheritedPaint(paint.value)
+                    if (paint && Object.hasOwn(paint, 'value') && hasInheritedPaint(paint.value)) uncertain = true
                   }
                 }
               }
@@ -554,9 +572,9 @@ export function createNativePaintEmission(maxOperations: number) {
         context.hint(node)
         if (node.kind !== 'document') context.leaf(capturedLeaves.get(node)!, svg)
       } else context.invalidateFractionalCircle()
-      return !exhausted
+      return exhausted ? false : actualTextPaint ?? true
     },
-    leaf(node: Leaf, write: (node: Leaf, sink?: SvgGeometryWriteSink) => string | SvgXmlWrite): { node: Leaf; paintNode: Leaf; svg: string; xmlWrite: SvgXmlWrite | undefined; conditional: boolean } {
+    leaf(node: Leaf, write: (node: Leaf, sink?: SvgGeometryWriteSink) => string | SvgXmlWrite): { node: Leaf; paintNode: Leaf; svg: string; xmlWrite: SvgXmlWrite | undefined; textPaint?: SvgTextPaintWrite; conditional: boolean } {
       const serialize = (source: Leaf, sink?: SvgGeometryWriteSink): { svg: string; xmlWrite: SvgXmlWrite | undefined } => {
         const written = write(source, sink)
         if (typeof written === 'string') return { svg: written, xmlWrite: undefined }
@@ -579,7 +597,8 @@ export function createNativePaintEmission(maxOperations: number) {
       const reserved = supported && pay(192)
       let received = false, invalid = false, projectionReserved = false, served: Geometry | undefined
       let attributesReceived = false, invalidAttributes = false, attributes: Readonly<Record<string, string>> | undefined
-      const sink: SvgGeometryWriteSink | undefined = reserved ? Object.assign((source: Geometry, written: Geometry | undefined) => {
+      let textPaintReceived = false, textPaintInvalid = false, textPaint: SvgTextPaintWrite | undefined
+      const sink: SvgGeometryWriteSink | undefined = reserved || captured.kind === 'text' ? Object.assign((source: Geometry, written: Geometry | undefined) => {
         if (compound) { observeWrittenCompoundShape(compound, source, written, pay); return }
         if (source !== geometry || received) { invalid = true; return }
         received = true
@@ -590,14 +609,18 @@ export function createNativePaintEmission(maxOperations: number) {
         if (source !== geometry || projectionReserved) { invalid = true; return false }
         projectionReserved = true
         return pay(operations)
-      }, rectangleAttributes: rectangle ? (source: ShapeMark, written: Readonly<Record<string, string>> | undefined): void => {
+      }, textPaint: captured.kind === 'text' ? (source: object, fact: SvgTextPaintWrite | undefined): void => {
+        if (source !== captured || textPaintReceived) { textPaintInvalid = true; return }
+        textPaintReceived = true; textPaint = fact
+      } : undefined, rectangleAttributes: rectangle ? (source: ShapeMark, written: Readonly<Record<string, string>> | undefined): void => {
         if (source !== captured || attributesReceived) { invalidAttributes = true; return }
         attributesReceived = true
         attributes = written
       } : undefined }) : undefined
       const { svg, xmlWrite } = serialize(captured, sink)
+      const textPaintBound = textPaintReceived && !textPaintInvalid && textPaint && pay(6) && matchesSvgTextPaintWrite(textPaint, xml, xmlWrite, captured, svg)
       if (pay()) capturedLeaves.set(captured, captured)
-      const retained = { node: captured, paintNode: captured, svg, xmlWrite, conditional: false }
+      const retained = { node: captured, paintNode: captured, svg, xmlWrite, textPaint: textPaintBound ? textPaint : undefined, conditional: false }
       if (!supported) return retained
       if (compound && captured.kind === 'shape' && geometry) {
         const projection = reserved && completeWrittenCompoundShape(compound, geometry, svg, pay)
@@ -680,14 +703,31 @@ export function createNativePaintEmission(maxOperations: number) {
         const verified = typeof output === 'string' ? verifySvgDocumentEnvelope(output, pay) : xml.verify(output)
         if (!verified) uncertain = true
       }
-      // Paid in observe before these immutable occurrences were created.
-      // Conditional fallback occurrences already prohibit P, even if rewrapped.
-      for (const primitive of inspection.primitives) if (primitive.visibility !== 'conditional') emittedOccurrences.add(primitive)
-      emissionWork.set(inspection, Object.freeze({ operations, exhausted, uncertain,
+      // This existing occurrence pass also closes exactly the paint facts
+      // consumed by the recorder. Raw fallback never closes typed paint.
+      const actualPaintRoster = ownedTextPaintRoster(inspection)
+      const occurrence = (primitive: ScenePaintGeometry): void => {
+        if (actualPaintRoster !== false) {
+          if (!pay(2)) uncertain = true
+          else {
+            const fact = nativeTextPaintWriteOf(primitive)
+            if (fact) {
+              if (!pay(2) || !textPaintApply(textPaintHas, observedTextPaintWrites, [fact])) uncertain = true
+              else if (hasMarkedConnector ? !hasSvgTextPaintClosure(fact) : !closeSvgTextPaintWrite(fact, xml)) uncertain = true
+            }
+          }
+        }
+        // Paid in observe; exhausted closure cannot discard occurrence custody.
+        if (primitive.visibility !== 'conditional') emittedOccurrences.add(primitive)
+      }
+      if (actualPaintRoster === true) {
+        for (let i = 0; i < inspection.primitives.length; i++) occurrence(inspection.primitives[i]!)
+      } else for (const primitive of inspection.primitives) occurrence(primitive)
+      textPaintApply(textPaintPut, emissionWork, [inspection, (usedTextPaint ? textPaintFreeze : Object.freeze)({ operations, exhausted, uncertain,
         closedMarkerContext: closedMarkerContext && definitionsClosed && !unrecordedPaint && rootOpens === 1 && rootCloses === 1 && !uncertain && !exhausted,
         fractionalCircleContext: checkedContext.fractionalCircleContext && definitionsClosed && resources.size === checked.size
           && !unrecordedPaint && rootOpens === 1 && rootCloses === 1 && !uncertain && !exhausted,
-        header, resolveColor: uncertain ? undefined : checkedContext.resolveColor }))
+        header, resolveColor: uncertain ? undefined : checkedContext.resolveColor })])
     },
   }
 }

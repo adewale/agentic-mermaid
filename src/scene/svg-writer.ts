@@ -65,6 +65,7 @@ interface XmlCaptureState {
   literal(value: string, attribute: boolean): boolean
   name(value: string): boolean
   prepared(): boolean
+  project(write: SvgXmlWrite): boolean
   boundary(value: string): boolean
   issue(svg: string, skeleton: string | (() => XmlProjectionResult), node?: object): SvgXmlWrite
 }
@@ -266,17 +267,21 @@ export function createSvgXmlCapture(work: (operations: number) => boolean): SvgX
         : verifySvgDocumentEnvelope(found.record.svg, pay)
     },
   })) as SvgXmlCapture
-  xmlCaptures.set(capture, { pay, literal, name, prepared, boundary, issue })
+  xmlCaptures.set(capture, { pay, literal, name, prepared, boundary, issue, project(write) {
+    const found = factOf(write)
+    return !!found && projectFact(found) !== undefined
+  } })
   return capture
 }
 
-function finishXmlLeaf(capture: SvgXmlCapture, node: object, svg: string, xml: XmlLeafWrite | undefined, eligible = true, additional?: Readonly<ArrayLike<XmlLeafWrite>>): SvgXmlWrite {
+function finishXmlLeaf(capture: SvgXmlCapture, node: object, svg: string, xml: XmlLeafWrite | undefined, eligible = true, additional?: Readonly<ArrayLike<XmlLeafWrite>>, typedClosed?: () => void): SvgXmlWrite {
   const state = xmlCaptures.get(capture)
   if (!state) throw new TypeError('Unknown XML capture')
   // Empty output cannot insert a delimiter between adjacent raw text spans.
   return state.issue(svg, svg && eligible && xml ? () => {
     let valid = xml.check()
     for (let i = 0; valid && additional && i < additional.length; i++) valid = additional[i]!.check()
+    if (valid) typedClosed?.()
     return valid ? OCCUPIED_XML_LEAF : state.boundary(svg) ? svg : undefined
   } : svg, node)
 }
@@ -332,6 +337,59 @@ class XmlLeafWrite {
   }
 }
 
+declare const svgTextPaintWrite: unique symbol
+export interface SvgTextPaintWrite { readonly [svgTextPaintWrite]: true }
+const textPaintDefine = Object.defineProperty, textPaintFreeze = Object.freeze, textPaintHasOwn = Object.hasOwn
+const textPaintIssuer = { __proto__: null }
+class ActualTextPaintWrite implements SvgTextPaintWrite {
+  declare readonly [svgTextPaintWrite]: true
+  readonly #capture: SvgXmlCapture
+  readonly #write: SvgXmlWrite
+  readonly #source: TextMark
+  readonly #svg: string
+  readonly #paint: MarkPaint | undefined
+  readonly #inherited: boolean
+  readonly #typedClosed: () => boolean
+  constructor(issuer: object, capture: SvgXmlCapture, write: SvgXmlWrite, source: TextMark, svg: string, paint: MarkPaint | undefined, inherited: boolean, typedClosed: () => boolean) {
+    if (issuer !== textPaintIssuer) throw new TypeError('Actual text paint requires its writer')
+    this.#capture = capture; this.#write = write; this.#source = source; this.#svg = svg; this.#paint = paint; this.#inherited = inherited; this.#typedClosed = typedClosed
+  }
+  static paint(value: unknown): MarkPaint | undefined {
+    return typeof value === 'object' && value !== null && #source in value ? value.#paint : undefined
+  }
+  static inherited(value: unknown): boolean {
+    return typeof value === 'object' && value !== null && #source in value && value.#inherited
+  }
+  static matches(value: unknown, capture: SvgXmlCapture, write: SvgXmlWrite | undefined, source: object, svg: string): boolean {
+    return typeof value === 'object' && value !== null && #source in value && value.#capture === capture && value.#write === write && value.#source === source && value.#svg === svg
+  }
+  static closed(value: unknown): boolean {
+    return typeof value === 'object' && value !== null && #source in value && value.#typedClosed()
+  }
+  static close(value: unknown, capture: SvgXmlCapture): boolean {
+    if (typeof value !== 'object' || value === null || !(#source in value) || value.#capture !== capture) return false
+    return xmlCaptures.get(capture)?.project(value.#write) === true && value.#typedClosed()
+  }
+  static read(value: unknown, source: object, svg: string, capture?: SvgXmlCapture, write?: SvgXmlWrite): MarkPaint | undefined {
+    if (typeof value !== 'object' || value === null || !(#source in value)) return undefined
+    return value.#source === source && value.#svg === svg && (capture === undefined || value.#capture === capture && value.#write === write) ? value.#paint : undefined
+  }
+}
+const readActualTextPaintWrite = ActualTextPaintWrite.read, paintActualTextPaintWrite = ActualTextPaintWrite.paint
+const inheritedActualTextPaintWrite = ActualTextPaintWrite.inherited, matchesActualTextPaintWrite = ActualTextPaintWrite.matches
+export function svgTextPaintOf(value: SvgTextPaintWrite): MarkPaint | undefined { return paintActualTextPaintWrite(value) }
+export function hasInheritedSvgTextPaint(value: SvgTextPaintWrite): boolean { return inheritedActualTextPaintWrite(value) }
+const closedActualTextPaintWrite = ActualTextPaintWrite.closed, closeActualTextPaintWrite = ActualTextPaintWrite.close
+export function hasSvgTextPaintClosure(value: SvgTextPaintWrite): boolean { return closedActualTextPaintWrite(value) }
+export function closeSvgTextPaintWrite(value: SvgTextPaintWrite, capture: SvgXmlCapture): boolean { return closeActualTextPaintWrite(value, capture) }
+/** A paint fact owns actual primitive tokens from this structured write. */
+export function readSvgTextPaintWrite(value: SvgTextPaintWrite | undefined, source: object, svg: string): MarkPaint | undefined {
+  return readActualTextPaintWrite(value, source, svg)
+}
+export function matchesSvgTextPaintWrite(value: SvgTextPaintWrite | undefined, capture: SvgXmlCapture, write: SvgXmlWrite | undefined, source: object, svg: string): boolean {
+  return matchesActualTextPaintWrite(value, capture, write, source, svg)
+}
+
 /** A receipt from this actual geometry write, never from cached markup.
  * Undefined served geometry means numeric spelling exceeded bounded custody. */
 export type SvgGeometryWriteSink = ((source: Geometry, served: Geometry | undefined) => void) & {
@@ -340,6 +398,7 @@ export type SvgGeometryWriteSink = ((source: Geometry, served: Geometry | undefi
   /** One complete shape write's actual paint literals and transform presence.
    * Undefined means the bounded attribute receipt could not be retained. */
   readonly rectangleAttributes?: (source: ShapeMark, attributes: Readonly<Record<string, string>> | undefined) => void
+  readonly textPaint?: (source: TextMark, fact: SvgTextPaintWrite | undefined) => void
 }
 
 interface WrittenLeafContext { readonly transformed: boolean }
@@ -359,6 +418,7 @@ class SvgWriter {
   value = ''
   transformed = false
   observeAttributes?: (name: string, literal: string) => void
+  observePaint?: (field: keyof MarkPaint, literal: string, escaped: unknown) => void
   readonly xml?: XmlLeafWrite
 
   constructor(capture?: SvgXmlCapture, text = false) {
@@ -374,15 +434,17 @@ class SvgWriter {
 
   raw(text: string): void { this.value += text }
 
-  attribute(name: string, value: string | number, changedToken?: (offset: number, literal: string) => boolean | void, numericToken?: (literal: string, raw: string) => boolean | void): string {
+  attribute(name: string, value: string | number, changedToken?: (offset: number, literal: string) => boolean | void, numericToken?: (literal: string, raw: string) => boolean | void, paintField?: keyof MarkPaint): string {
     const literal = typeof value === 'number' ? formatSvgNumber(value) : formatSvgNumericAttribute(name, value, changedToken, numericToken)
     const escaped = typeof value === 'number' ? literal : escapeAttr(literal)
     this.value += ` ${name}="${escaped}"`
     this.xml?.attribute(name, escaped)
     if (name === 'transform') this.transformed = true
     this.observeAttributes?.(name, literal)
+    if (paintField !== undefined) this.observePaint?.(paintField, literal, escaped)
     return literal
   }
+  paintAttribute(field: keyof MarkPaint, name: string, value: string): void { this.attribute(name, value, undefined, undefined, field) }
 }
 
 /** `data-*` keys the writer derives from typed fields, or that the shared
@@ -404,19 +466,19 @@ function hooks(out: SvgWriter, attributes: MarkAttributes | undefined): void {
 }
 
 function paintAttributes(out: SvgWriter, paint: MarkPaint): void {
-  if (paint.fill !== undefined) out.attribute('fill', paint.fill)
-  if (paint.fillOpacity !== undefined) out.attribute('fill-opacity', paint.fillOpacity)
-  if (paint.stroke !== undefined) out.attribute('stroke', paint.stroke)
-  if (paint.strokeOpacity !== undefined) out.attribute('stroke-opacity', paint.strokeOpacity)
-  if (paint.strokeWidth !== undefined) out.attribute('stroke-width', paint.strokeWidth)
-  if (paint.strokeDasharray !== undefined) out.attribute('stroke-dasharray', paint.strokeDasharray)
-  if (paint.strokeDashoffset !== undefined) out.attribute('stroke-dashoffset', paint.strokeDashoffset)
-  if (paint.strokeLinecap !== undefined) out.attribute('stroke-linecap', paint.strokeLinecap)
-  if (paint.strokeLinejoin !== undefined) out.attribute('stroke-linejoin', paint.strokeLinejoin)
-  if (paint.strokeMiterlimit !== undefined) out.attribute('stroke-miterlimit', paint.strokeMiterlimit)
-  if (paint.vectorEffect !== undefined) out.attribute('vector-effect', paint.vectorEffect)
-  if (paint.paintOrder !== undefined) out.attribute('paint-order', paint.paintOrder)
-  if (paint.opacity !== undefined) out.attribute('opacity', paint.opacity)
+  if (paint.fill !== undefined) out.paintAttribute('fill', 'fill', paint.fill)
+  if (paint.fillOpacity !== undefined) out.paintAttribute('fillOpacity', 'fill-opacity', paint.fillOpacity)
+  if (paint.stroke !== undefined) out.paintAttribute('stroke', 'stroke', paint.stroke)
+  if (paint.strokeOpacity !== undefined) out.paintAttribute('strokeOpacity', 'stroke-opacity', paint.strokeOpacity)
+  if (paint.strokeWidth !== undefined) out.paintAttribute('strokeWidth', 'stroke-width', paint.strokeWidth)
+  if (paint.strokeDasharray !== undefined) out.paintAttribute('strokeDasharray', 'stroke-dasharray', paint.strokeDasharray)
+  if (paint.strokeDashoffset !== undefined) out.paintAttribute('strokeDashoffset', 'stroke-dashoffset', paint.strokeDashoffset)
+  if (paint.strokeLinecap !== undefined) out.paintAttribute('strokeLinecap', 'stroke-linecap', paint.strokeLinecap)
+  if (paint.strokeLinejoin !== undefined) out.paintAttribute('strokeLinejoin', 'stroke-linejoin', paint.strokeLinejoin)
+  if (paint.strokeMiterlimit !== undefined) out.paintAttribute('strokeMiterlimit', 'stroke-miterlimit', paint.strokeMiterlimit)
+  if (paint.vectorEffect !== undefined) out.paintAttribute('vectorEffect', 'vector-effect', paint.vectorEffect)
+  if (paint.paintOrder !== undefined) out.paintAttribute('paintOrder', 'paint-order', paint.paintOrder)
+  if (paint.opacity !== undefined) out.paintAttribute('opacity', 'opacity', paint.opacity)
 }
 
 function transformAttribute(out: SvgWriter, transform: SceneTransform | undefined): void {
@@ -598,12 +660,25 @@ function typographyAttributes(out: SvgWriter, node: TextMark): void {
  * prepared runs and fitted advances. A fallback-measured mark is written from
  * its source text, as families wrote unprepared labels. */
 export function writeTextSvg(node: TextMark): string
-export function writeTextSvg(node: TextMark, capture: SvgXmlCapture): SvgXmlWrite
-export function writeTextSvg(node: TextMark, capture?: SvgXmlCapture): string | SvgXmlWrite {
+export function writeTextSvg(node: TextMark, capture: SvgXmlCapture, sink?: SvgGeometryWriteSink): SvgXmlWrite
+export function writeTextSvg(node: TextMark, capture?: SvgXmlCapture, sink?: SvgGeometryWriteSink): string | SvgXmlWrite {
   const out = new SvgWriter(capture, true)
   hooks(out, node.attributes)
   typographyAttributes(out, node)
-  paintAttributes(out, node.paint)
+  const report = capture && sink?.textPaint
+  const state = report && xmlCaptures.get(capture!)
+  const actualPaint = state ? { __proto__: null } as MarkPaint : undefined
+  let paintValid = !!state, preparedPaint = false, inheritedPaint = false
+  let paintReceiver: MarkPaint
+  if (state) out.observePaint = (field, literal, escaped) => {
+    if (!state.pay(2)) { paintValid = false; return }
+    if (!textPaintHasOwn(paintReceiver, field)) inheritedPaint = true
+    if (typeof escaped !== 'string' || !state.pay(2 + escaped.length)) { paintValid = false; return }
+    for (let i = 0; i < escaped.length; i++) if (escaped[i] === '&') { paintValid = false; return }
+    if (paintValid) textPaintDefine(actualPaint!, field, { value: escaped, enumerable: true, writable: false, configurable: false })
+  }
+  paintAttributes(out, paintReceiver = node.paint)
+  out.observePaint = undefined
   transformAttribute(out, node.transform)
   identityAttributes(out, node.identity, node.accessibility)
   const attrs = capture ? xmlRange(out.value, 1) : out.value.slice(1)
@@ -612,15 +687,33 @@ export function writeTextSvg(node: TextMark, capture?: SvgXmlCapture): string | 
   const svg = renderMultilineText(prepared ? node.block! : node.text, node.x, node.y, node.fontSize, attrs, node.baselineShift ?? 0.35, node.display === 'literal', out.xml ? written => {
     observed = true
     out.xml!.prepared(written)
+    if (report) {
+      preparedPaint = written.additionalAttributes.length === 0 && typeof written.content === 'string' && state!.pay(written.content.length + 1)
+      for (let i = 0; preparedPaint && i < written.content.length; i++) if (written.content[i] === '<') preparedPaint = false
+    }
   } : undefined, node.anchor)
-  if (!node.spans) return capture ? finishXmlLeaf(capture, node, svg, out.xml, observed) : svg
+  if (!node.spans) {
+    if (!capture) return svg
+    let typedClosed = false
+    const eligiblePaint = paintValid && preparedPaint && observed
+    const write = finishXmlLeaf(capture, node, svg, out.xml, observed, undefined, eligiblePaint ? () => { typedClosed = true } : undefined)
+    if (report) {
+      const fact = state!.pay(2)
+        ? new ActualTextPaintWrite(textPaintIssuer, capture, write, node, svg, eligiblePaint ? textPaintFreeze(actualPaint!) : undefined, inheritedPaint, () => typedClosed) : undefined
+      report(node, fact)
+    }
+    return write
+  }
   const shown = prepared ? node.block!.text : node.text
   const content = `>${escapeXml(shown)}</text>`
   if (!svg.endsWith(content)) throw new TypeError(`Text "${node.id}" spans require a one-line label`)
   let spans = ''
   for (const span of node.spans) spans += `<tspan fill="${escapeAttr(span.fill)}">${escapeXml(span.text)}</tspan>`
   const written = `${svg.slice(0, -content.length)}>${spans}</text>`
-  return capture ? capture.raw(written, node) : written
+  if (!capture) return written
+  const write = capture.raw(written, node)
+  if (report) report(node, state!.pay(2) ? new ActualTextPaintWrite(textPaintIssuer, capture, write, node, written, undefined, inheritedPaint, () => false) : undefined)
+  return write
 }
 
 function connectorInlineLabelSvg(node: ConnectorMark, label: ConnectorLabelDescriptor, index: number, capture?: SvgXmlCapture): { svg: string; transformed: boolean; xml?: XmlLeafWrite; complete: boolean } | undefined {

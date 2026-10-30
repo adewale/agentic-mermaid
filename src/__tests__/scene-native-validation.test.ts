@@ -18,6 +18,9 @@ import { admitSceneDocument } from '../scene/external-data-snapshot.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { createSceneWriteCapture, sceneNodeSerialization } from '../scene/serialization.ts'
 import { MAX_OCCLUSION_OPERATIONS } from '../scene/paint-work.ts'
+import { createOwnedNativePaintRecorder, paintPrimitiveSource } from '../scene/inspection.ts'
+import { createNativePaintEmission } from '../scene/native-paint-emission.ts'
+import { createSvgXmlCapture, matchesSvgTextPaintWrite, writeTextSvg, type SvgGeometryWriteSink, type SvgTextPaintWrite } from '../scene/svg-writer.ts'
 
 const header: Omit<SceneDoc, 'parts'> = { family: 'flowchart', width: 200, height: 100, colors: { bg: '#fff', fg: '#111' }, transparent: false }
 const shape = (id = 'A') => marks.shape({ id, role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 20, height: 20 }, paint: { fill: '#111' } })
@@ -680,6 +683,149 @@ test.each((['circle', 'line'] as const).flatMap(geometry => (['native', 'scene']
     expect(changed(pixels(visible.svg), pixels(visible.svg.replace(reference, '')))).toBeGreaterThan(0)
     expect(visible.proof.status, JSON.stringify(visible.proof.issues)).toBe('passed')
   }
+})
+
+test.each(['visible', 'white-on-white', 'zero-opacity', 'matching-underlay', 'raw-fallback', 'removed-white', 'removed-visible', 'removed-raw-fallback'] as const)('native text paint retains its actual emitted values after inherited changes (%s)', mode => {
+  const fields = ['fill', 'fillOpacity'] as const
+  const previous = fields.map(field => Object.getOwnPropertyDescriptor(Object.prototype, field))
+  const replaceDescriptor = Object.getOwnPropertyDescriptor(String.prototype, 'replace')!
+  const consecutive = new WeakSet<object>()
+  const target = (value: object) => Object.getOwnPropertyDescriptor(value, 'strokeWidth')?.value === '0'
+  const emittedFill = mode === 'white-on-white' || mode === 'removed-white' ? '#fff' : '#111'
+  const emittedOpacity = mode === 'raw-fallback' ? undefined : mode === 'zero-opacity' ? '0' : '1'
+  const visible = mode === 'visible' || mode === 'removed-visible'
+  const raw = mode === 'raw-fallback' || mode === 'removed-raw-fallback'
+  let late = false
+  let drawing: ReturnType<typeof drawNative>, observed: { fill?: string; fillOpacity?: string }
+  try {
+    Object.defineProperty(Object.prototype, 'fill', { configurable: true, get() {
+      if (!target(this)) return undefined
+      if (late) return 'none'
+      const repeated = consecutive.has(this)
+      consecutive.add(this)
+      return repeated ? emittedFill : emittedFill === '#111' ? '#fff' : '#111'
+    } })
+    Object.defineProperty(Object.prototype, 'fillOpacity', { configurable: true, get() {
+      if (!target(this)) return undefined
+      consecutive.delete(this)
+      return mode === 'raw-fallback' ? undefined : late ? '0' : emittedOpacity
+    } })
+    if (raw) Object.defineProperty(String.prototype, 'replace', { ...replaceDescriptor, value: function(this: string, search: unknown, replacement: unknown) {
+      return String(this) === '&amp;probe' && typeof replacement === 'function' ? 'probe" opacity="0' : Reflect.apply(replaceDescriptor.value, this, [search, replacement])
+    } })
+    const context = { positioned: { width: 200, height: 100 }, colors: header.colors, resolved: { renderOptions: {} } }
+    const producer: DrawingProducer = factory => {
+      const open = factory.documentOpen({ id: 'root', width: 200, height: 100, colors: header.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">')
+      const underlay = mode === 'matching-underlay' ? [factory.shape({ id: 'matching-underlay', role: 'chrome', geometry: { kind: 'rect', x: 15, y: 15, width: 150, height: 70 }, paint: { fill: '#111', fillOpacity: '1', stroke: 'none', strokeWidth: '1' } })] : []
+      const text = factory.text({ id: 'emitted-text', role: 'label', text: 'Read', block: preparePixelText('Read', { fontSize: 20, fontWeight: 400 }), x: 30, y: 45, fontSize: 20, anchor: 'start', paint: { strokeWidth: '0', ...(raw ? { fill: '#111' } : {}) }, ...(raw ? { attributes: { data: { probe: '&probe' } } } : {}) })
+      if (mode === 'removed-white' || mode === 'removed-visible' || mode === 'removed-raw-fallback') for (const field of fields) delete (Object.prototype as Record<string, unknown>)[field]
+      late = true
+      return { ...header, parts: [open, ...underlay, text, factory.documentClose()] }
+    }
+    drawing = drawNative(producer, context, 'flowchart')
+    const primitive = drawing.paint.primitives.find(primitive => primitive.id === 'emitted-text')!
+    const source = paintPrimitiveSource(primitive)
+    if (source?.kind !== 'text') throw new Error('Expected emitted text paint')
+    observed = { fill: source.paint.fill, fillOpacity: source.paint.fillOpacity }
+  } finally {
+    Object.defineProperty(String.prototype, 'replace', replaceDescriptor)
+    for (let index = 0; index < fields.length; index++) {
+      if (previous[index]) Object.defineProperty(Object.prototype, fields[index]!, previous[index]!)
+      else delete (Object.prototype as Record<string, unknown>)[fields[index]!]
+    }
+  }
+  const texts = drawing.svg.match(/<text\b[^>]*>Read<\/text>/g)!
+  expect(texts).toHaveLength(1)
+  const tag = scanSvgStartTags(texts[0]!)[0]!
+  const attributes = Object.fromEntries(tag.attributes.map(attribute => [attribute.name, attribute.value]))
+  expect({ fill: attributes.fill, fillOpacity: attributes['fill-opacity'] }).toEqual({ fill: emittedFill, fillOpacity: emittedOpacity })
+  if (raw) {
+    expect(() => new SaxesParser({ xmlns: true }).write(drawing.svg).close()).not.toThrow()
+    expect(attributes).toMatchObject({ 'data-probe': 'probe', opacity: '0' })
+  }
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
+  const pixels = (svg: string) => new Resvg(svg, { font, background: '#fff' }).render().pixels
+  const contributes = Buffer.compare(pixels(drawing.svg), pixels(drawing.svg.replace(texts[0]!, ''))) !== 0
+  expect(contributes).toBe(visible)
+  if (raw || mode === 'removed-white') expect(certifyNativePaint(drawing.header, drawing.paint).status).toBe('unverified')
+  if (visible) expect(certifyNativePaint(drawing.header, drawing.paint)).toMatchObject({ status: 'passed', issues: [] })
+  if (mode === 'white-on-white' || mode === 'matching-underlay') expect(certifyNativePaint(drawing.header, drawing.paint).status).not.toBe('passed')
+  expect(observed).toEqual({ fill: emittedFill, fillOpacity: emittedOpacity })
+})
+
+test.each([false, true])('an actual text paint fact needs its own completed Native emission (zero opacity: %s)', transparent => {
+  const node = marks.text({ id: 'unclosed-text', role: 'label', text: 'Read', block: preparePixelText('Read', { fontSize: 20, fontWeight: 400 }), x: 30, y: 45, fontSize: 20, anchor: 'start', paint: { fill: '#111', ...(transparent ? { opacity: '0' } : {}) } })
+  const capture = createSvgXmlCapture(() => true)
+  let fact: SvgTextPaintWrite | undefined
+  const sink: SvgGeometryWriteSink = Object.assign(() => {}, { textPaint: (_source: object, written: SvgTextPaintWrite | undefined) => { fact = written } })
+  const write = writeTextSvg(node, capture, sink)
+  if (!fact) throw new Error('Expected an actual writer paint fact')
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">${write.svg}</svg>`
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
+  const pixels = (value: string) => new Resvg(value, { font, background: '#fff' }).render().pixels
+  expect(Buffer.compare(pixels(svg), pixels(svg.replace(write.svg, ''))) !== 0).toBe(!transparent)
+  expect(matchesSvgTextPaintWrite(fact, capture, write, node, write.svg)).toBe(true)
+  for (const [otherCapture, otherWrite, otherSource] of [
+    [createSvgXmlCapture(() => true), write, node],
+    [capture, writeTextSvg(node, capture), node],
+    [capture, write, { ...node }],
+  ] as const) expect(matchesSvgTextPaintWrite(fact, otherCapture, otherWrite, otherSource, write.svg)).toBe(false)
+  const forged = Object.create(Object.getPrototypeOf(fact), Object.getOwnPropertyDescriptors(fact)) as SvgTextPaintWrite
+  expect(matchesSvgTextPaintWrite(forged, capture, write, node, write.svg)).toBe(false)
+  expect(() => Reflect.construct(Object.getPrototypeOf(fact).constructor, [{}, capture, write, node, write.svg, { fill: '#111' }, () => true])).toThrow(TypeError)
+  const ordinary = createOwnedNativePaintRecorder(header, 'Inter')
+  ordinary.leaf(node, 'ordinary')
+  expect(certifyNativePaint(header, ordinary.finish()).status).toBe('passed')
+  const unclosed = createOwnedNativePaintRecorder(header, 'Inter')
+  unclosed.leaf(node, 'unclosed', undefined, undefined, false, 1, undefined, fact, write.svg)
+  const inspection = unclosed.finish()
+  expect(certifyNativePaint(header, inspection).status).toBe('unverified')
+  const iterator = Object.getOwnPropertyDescriptor(Array.prototype, Symbol.iterator)!
+  try {
+    Object.defineProperty(Array.prototype, Symbol.iterator, { ...iterator, value: function(this: unknown[]) {
+      return this === inspection.primitives ? (function* () {})() : Reflect.apply(iterator.value, this, [])
+    } })
+    expect(certifyNativePaint(header, inspection).status).toBe('unverified')
+  } finally { Object.defineProperty(Array.prototype, Symbol.iterator, iterator) }
+})
+
+test.each(['visible', 'white-on-white'] as const)('a finalized Native text roster retains actual foreground obligations through a white-text wrapper (%s)', mode => {
+  const previous = Object.getOwnPropertyDescriptor(Object.prototype, 'opacity')
+  let svg = '', textSvg = '', proof: ReturnType<typeof certifyNativePaint>
+  try {
+    Object.defineProperty(Object.prototype, 'opacity', { configurable: true, get() {
+      return Object.getOwnPropertyDescriptor(this, 'strokeWidth')?.value === '0' ? '1' : undefined
+    } })
+    const emission = createNativePaintEmission(MAX_OCCLUSION_OPERATIONS)
+    const openSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">'
+    const boundHeader = emission.header(header, openSvg)
+    const validator = createNativeSceneValidator(boundHeader)
+    const append = (node: ReturnType<typeof marks.text> | ReturnType<typeof marks.documentOpen>) => emission.leaf(node, (captured, sink) => validator.write(captured, emission.xml, 0, sink))
+    const parts = [
+      append(marks.documentOpen({ id: 'root', width: 200, height: 100, colors: header.colors, transparent: false, font: 'Inter', hasMonoFont: false }, openSvg)),
+      append(marks.text({ id: 'wrapped-text', role: 'label', text: 'Read', block: preparePixelText('Read', { fontSize: 20, fontWeight: 400 }), x: 30, y: 45, fontSize: 20, anchor: 'start', paint: { fill: mode === 'visible' ? '#111' : '#fff', strokeWidth: '0' } })),
+      append(marks.documentClose()),
+    ]
+    const recorder = createOwnedNativePaintRecorder(boundHeader, 'Inter')
+    for (const [index, part] of parts.entries()) {
+      const observed = emission.observe(part.paintNode, part.svg, part.textPaint, part.xmlWrite)
+      recorder.leaf(part.paintNode, String(index), undefined, undefined, !observed, 1, undefined, typeof observed === 'object' ? observed : undefined, part.svg)
+    }
+    const inspection = recorder.finish()
+    const finalized = mode === 'visible' ? inspection : { ...inspection, primitives: [...inspection.primitives] }
+    const output = emission.xml.join(parts.map(part => part.xmlWrite!))
+    svg = output.svg; textSvg = parts[1]!.svg
+    emission.finish(finalized, boundHeader, output)
+    proof = certifyNativePaint(boundHeader, finalized)
+  } finally {
+    if (previous) Object.defineProperty(Object.prototype, 'opacity', previous)
+    else delete (Object.prototype as Record<string, unknown>).opacity
+  }
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
+  const pixels = (value: string) => new Resvg(value, { font, background: '#fff' }).render().pixels
+  expect(textSvg).toContain(`fill="${mode === 'visible' ? '#111' : '#fff'}"`)
+  expect(Buffer.compare(pixels(svg), pixels(svg.replace(textSvg, ''))) !== 0).toBe(mode === 'visible')
+  expect(proof.status).toBe(mode === 'visible' ? 'passed' : 'unverified')
 })
 
 test('native retained text copy plans keep scalar depth after ambient maximum changes', () => {

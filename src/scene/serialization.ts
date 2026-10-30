@@ -593,7 +593,7 @@ function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observ
 function writeStructuredSceneNode(node: SceneNode, capture: SvgXmlCapture, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver): SvgXmlWrite {
   switch (node.kind) {
     case 'shape': return writeShapeSvg(node, sink, capture)
-    case 'text': return writeTextSvg(node, capture)
+    case 'text': return writeTextSvg(node, capture, sink)
     case 'connector': return writeConnectorSvg(node, sink, capture)
     case 'group': return capture.join([
       capture.raw(node.open),

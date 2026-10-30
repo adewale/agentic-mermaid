@@ -634,11 +634,11 @@ function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform): 
 /** Conservative painted bounds, independent of legacy layout/hit envelopes.
  * Pass the ancestor transform before stroke expansion, so non-scaling strokes
  * retain their world-space width. Unknown artwork is wholly unmeasured. */
-export function nodePaintBounds(node: SceneNode, parentTransform?: SceneTransform, documentFont?: string): AxisAlignedBox | undefined {
-  return paintBounds(node, parentTransform, documentFont)
+export function nodePaintBounds(node: SceneNode, parentTransform?: SceneTransform, documentFont?: string, actualTextPaint?: MarkPaint): AxisAlignedBox | undefined {
+  return paintBounds(node, parentTransform, documentFont, actualTextPaint)
 }
 
-function paintBounds(node: SceneNode, parentTransform?: SceneTransform, documentFont?: string): AxisAlignedBox | undefined {
+function paintBounds(node: SceneNode, parentTransform?: SceneTransform, documentFont?: string, actualTextPaint?: MarkPaint): AxisAlignedBox | undefined {
   const transform = composedTransform(parentTransform, node.transform)
   if (transform && !inverseMatrix(transformMatrix(transform))) return undefined
   let local: AxisAlignedBox | undefined
@@ -676,9 +676,9 @@ function paintBounds(node: SceneNode, parentTransform?: SceneTransform, document
       const envelope = preparedInterTextBounds(block, x, y, anchor, baselineShift, documentFont)
       if (envelope) local = unionSceneBounds(local, envelope)
     }
-    const extent = paintedStrokeExtent(node.paint, false)
+    const extent = paintedStrokeExtent(actualTextPaint ?? node.paint, false)
     if (!local || extent === undefined) return undefined
-    return paintedBox(local, extent, node.paint.vectorEffect === 'non-scaling-stroke', transform)
+    return paintedBox(local, extent, (actualTextPaint ?? node.paint).vectorEffect === 'non-scaling-stroke', transform)
   } else if (node.kind === 'group') {
     for (const child of node.children) {
       if (child.node.kind === 'document' && child.node.nonPaint) continue

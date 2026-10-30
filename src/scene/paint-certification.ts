@@ -1,10 +1,11 @@
+import { svgTextPaintOf } from './svg-writer.ts'
 import { buildInkTree, createInkIndex, chargeInkSort, type InkTree } from '../shared/ink-index.ts'
 import type { RenderedLayout } from '../agent/types.ts'
 import { connectorMarkerPaintRegions, connectorStrokeHasJoins, expandSceneBounds, nodePaintBounds, paintedStrokeExtent, unionSceneBounds, transformedBounds, visitTypedPathSegments, type ConnectorMarkerPaintRegion, type TypedPathSegment } from './bounds.ts'
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
 import { createInlineColorAttributeResolver, resolveInlineColorAttribute } from '../theme.ts'
 import { tryParseCssColor, type RgbaColor } from '../shared/color-math.ts'
-import { hasScenePathEmissionOccurrence, hasSceneWriteEmissionOccurrence, hasImmutablePaintRoster, inspectScenePaintGeometry, paintPrimitiveSource, scenePathEmissionWorkOf, scenePrimitiveMatrix, scenePrimitiveUntransformed, sceneGroupOpacity, type ScenePaintGeometryInspection, type NativeConnectorPaintSource, type ScenePaintGeometry as ScenePaintPrimitive } from './inspection.ts'
+import { nativeTextPaintWriteOf, ownedTextPaintRoster, hasOwnedTextPaintRoster, hasScenePathEmissionOccurrence, hasSceneWriteEmissionOccurrence, hasImmutablePaintRoster, inspectScenePaintGeometry, paintPrimitiveSource, scenePathEmissionWorkOf, scenePrimitiveMatrix, scenePrimitiveUntransformed, sceneGroupOpacity, type ScenePaintGeometryInspection, type NativeConnectorPaintSource, type ScenePaintGeometry as ScenePaintPrimitive } from './inspection.ts'
 import type { SceneWriteReceipt } from './serialization.ts'
 import type { ConnectorContourSemantics, Geometry, MarkPaint, SceneDoc, SceneOwner, ScenePoint, SceneTransform, MarkerDescriptor } from './ir.ts'
 import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
@@ -1451,9 +1452,11 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     issue({ code: 'OUTPUT_SCOPE', message: 'Retained Scene writes are paired with a different document' })
     scene = sceneWriteWork.scene
   }
-  let x0 = 0, y0 = 0, x1 = scene.width, y1 = scene.height, conditional = 0
+  let x0 = 0, y0 = 0, x1 = scene.width, y1 = scene.height, conditional = 0, hasActualTextPaint = ownedTextPaintRoster(inspection) === true
   for (const primitive of inspection.primitives) {
-    if (!emissionWork && hasNativeEmissionOccurrence(primitive)) issue({ code: 'OUTPUT_SCOPE', message: 'Native paint occurrences have no bound emission context' })
+    const actualTextPaint = nativeTextPaintWriteOf(primitive)
+    if (actualTextPaint) hasActualTextPaint = true
+    if (!emissionWork && (hasNativeEmissionOccurrence(primitive) || actualTextPaint)) issue({ code: 'OUTPUT_SCOPE', message: 'Native paint occurrences have no bound emission context' })
     if (!sceneWriteWork && hasSceneWriteEmissionOccurrence(primitive)) issue({ code: 'OUTPUT_SCOPE', message: 'Scene paint occurrences have no bound write context' })
     if (primitive.visibility === 'conditional') { conditional++; continue }
     if (primitive.coverage === 'unmeasured') unmeasuredPaint(primitive.id, primitive.reason ?? 'Paint geometry is unavailable')
@@ -1536,6 +1539,43 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       if (field && Object.hasOwn(field, 'value') && typeof field.value === 'boolean') documentTransparent = field.value
     }
   }
+  // The inherited-paint correction admits only a proved opaque foreground
+  // over its declared document paper, without any earlier local backing ink.
+  const checkActualTextForeground = (primitive: ScenePaintPrimitive): void => {
+    const pay = (count: number): boolean => { for (let i = 0; i < count; i++) if (!work()) return false; return true }
+    if (!emissionWork || !pay(2)) return
+    const fact = nativeTextPaintWriteOf(primitive)
+    if (!fact) return
+    if (!pay(12)) return
+    const paint = svgTextPaintOf(fact)
+    if (!paint) { unmeasuredPaint(primitive.id, 'Actual text paint has no retained foreground'); return }
+    const activeStroke = paint.stroke !== undefined && paint.stroke !== 'none' && paint.stroke !== 'transparent' && paint.strokeWidth !== '0' && paint.strokeWidth !== '0px'
+    if (primitive.coverage !== 'measured' || !primitive.bounds || primitive.visibility === 'conditional'
+      || !retainedRoster || !hasOwnedTextPaintRoster(inspection) || !immutableBackground || documentTransparent !== false || primitive.ancestors.length || (primitive.groupOpacity ?? 1) !== 1
+      || sceneGroupOpacity(paint.opacity) !== 1 || sceneGroupOpacity(paint.fillOpacity) !== 1 || activeStroke
+      || paint.paintOrder !== undefined && paint.paintOrder !== 'normal' || !paint.fill) {
+      unmeasuredPaint(primitive.id, 'Inherited text paint has no proved opaque foreground context'); return
+    }
+    for (let i = 0; i < primitive.order; i++) {
+      if (!work()) return
+      const earlier = inspection.primitives[i]!
+      if (earlier.coverage === 'non-painting') continue
+      if (!earlier.bounds || overlaps(earlier.bounds, primitive.bounds!)) {
+        if (++pairs > MAX_OCCLUSION_PAIRS) exhausted = true
+        unmeasuredPaint(primitive.id, 'Earlier artwork leaves the local text background unproved'); return
+      }
+    }
+    if (!pay(paint.fill.length * 2 + 4)) return
+    const literal = resolvePaintColor(paint.fill), background = readBoundBackground()
+    if (!literal || !pay(literal.length * 4 + 4)) {
+      unmeasuredPaint(primitive.id, 'Actual text fill has no proved color'); return
+    }
+    const foreground = tryParseCssColor(literal)
+    if (!foreground || foreground[3] !== 1 || !background || background[3] !== 1
+      || foreground[0] === background[0] && foreground[1] === background[1] && foreground[2] === background[2]) {
+      unmeasuredPaint(primitive.id, 'Actual text fill has no proved contrast against its background')
+    }
+  }
   const cylinderContext = !repaired && !(emissionWork?.uncertain || sceneWriteWork?.uncertain)
     && !!(emissionWork?.fractionalCircleContext && emissionWork.header.transparent === false
       || sceneWriteWork?.fractionalCircleContext && sceneWriteWork.scene.transparent === false)
@@ -1615,7 +1655,17 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     }
   }
   if (!retainedRoster) for (const primitive of inspection.primitives) {
-    if (primitive.kind === 'text' && primitive.coverage === 'measured' && primitive.visibility !== 'conditional') checkRawText(surfaces, primitive)
+    if (primitive.kind === 'text' && primitive.coverage === 'measured' && primitive.visibility !== 'conditional') {
+      checkRawText(surfaces, primitive)
+    }
+  }
+  // Actual-paint obligations consume numeric occurrence slots, not ambient iterators.
+  if (hasActualTextPaint) for (let i = 0; i < inspection.primitives.length; i++) {
+    if (!work() || !work()) break
+    const primitive = inspection.primitives[i]!
+    if (!nativeTextPaintWriteOf(primitive)) continue
+    if (!emissionWork) { outputScope('Native paint occurrences have no bound emission context'); continue }
+    if (primitive.coverage !== 'non-painting') checkActualTextForeground(primitive)
   }
   for (const primitive of texts) {
     const batch = textBatches.get(primitive.ancestors)

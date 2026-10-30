@@ -21,7 +21,7 @@ export type EmissionColorResolver = (value: string) => string | undefined
  * fragments are checked once the same transaction supplies its header. */
 export function createEmissionContext(pay: Pay, options: { resources?: boolean; pageUnderlay?: boolean } = {}) {
   let uncertain = false, finished = false
-  let hasMarkedConnector = false, hasRingConnector = false, fractionalCircleContext = true
+  let hasMarkedConnector = false, hasTextPaintContext = false, hasRingConnector = false, fractionalCircleContext = true
   let documentPosition: 'before' | 'inside' | 'after' = 'before'
   let needsVariables = false, needsDerivedVariables = false, canonicalStyles = 0, roots = 0
   let pagePrelude: DocumentMark | undefined, pageWidth: string | undefined, pageHeight: string | undefined
@@ -283,6 +283,7 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean; 
     return true
   }
   return {
+    requireTextPaintContext(): void { if (reserve(1)) hasTextPaintContext = true },
     document(node: DocumentMark, svg: string): void {
       if (!reserve(3)) return
       if (node.element === 'open') {
@@ -393,11 +394,11 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean; 
       // This new obligation belongs to actual marker-bearing occurrences.
       // Other charts retain their existing proof scope; this is not evidence
       // that their unrelated styles, resources or responsive units are closed.
-      if (!hasMarkedConnector && !options.pageUnderlay) {
+      if (!hasMarkedConnector && !hasTextPaintContext && !options.pageUnderlay) {
         finished = true
         return Object.freeze({ uncertain: false, fractionalCircleContext: false, resolveColor: undefined })
       }
-      const underlayOnly = !hasMarkedConnector
+      const underlayOnly = !hasMarkedConnector && !hasTextPaintContext
       const font = ownValue(header.colors, 'font')
       if (!underlayOnly && !reserve(typeof font === 'string' ? font.length * 4 + 16 : 16)) {
         finished = true
@@ -563,7 +564,7 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean; 
       // bytes and insert them immediately after this same prelude occurrence.
       const pageUnderlay = pageUnderlayFor(header)
       finished = true
-      const freeze = options.pageUnderlay ? emissionContextFreeze : Object.freeze
+      const freeze = options.pageUnderlay || hasTextPaintContext ? emissionContextFreeze : Object.freeze
       return freeze({ uncertain,
         fractionalCircleContext: hasRingConnector && fractionalCircleContext && !uncertain && (font === undefined || font === 'Inter'),
         resolveColor, ...(pageUnderlay === undefined ? {} : { pageUnderlay, pagePrelude }) })
