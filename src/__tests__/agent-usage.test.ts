@@ -157,10 +157,17 @@ describe('homepage prompt eval contract', () => {
     const removed = 'Before returning, confirm the specific change the task asked for is actually present'
     expect(baseline).toContain(removed)
     expect(treatment).not.toContain(removed)
+    expect(treatment).toContain('including measured content occlusion and explicit error policies')
+    expect(treatment).not.toContain('SEMANTIC READBACK')
     for (const heldConstant of ['Do not assume this repository is checked out', 'am capabilities --json', 'Run `verifyMermaid` at every commit point', 'return an object with `{ source }`', 'Updated Mermaid']) {
       expect({ heldConstant, baseline: baseline.includes(heldConstant), treatment: treatment.includes(heldConstant) }).toEqual({ heldConstant, baseline: true, treatment: true })
     }
     expect(() => applyHomepagePromptVariant('not the start.md protocol', 'no-semantic-readback')).toThrow('semantic read-back guidance')
+    const reworded = baseline.replace(removed, 'Check the requested change before returning')
+    expect(applyHomepagePromptVariant(reworded, 'no-semantic-readback')).not.toContain('Check the requested change before returning')
+    const block = baseline.match(/<!-- BEGIN SEMANTIC READBACK -->[\s\S]*?<!-- END SEMANTIC READBACK -->/)![0]
+    expect(treatment).toBe(baseline.replace(block, ''))
+    expect(() => applyHomepagePromptVariant(`${baseline}\n${block}`, 'no-semantic-readback')).toThrow('exactly one')
   })
 
   test('subagent prompt capture keeps the homepage surface fetch-only', () => {
