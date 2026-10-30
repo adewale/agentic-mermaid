@@ -12,6 +12,7 @@ import { stableFamilyFacts } from './stable-family-source-hooks.ts'
 // ============================================================================
 
 import { classRelationLineStyle, classRelationMarkers } from './class-body.ts'
+import { readClassMemberClassifiers } from '../class/parser.ts'
 import { arrowheadDirection, directionArrow } from '../shared/relation-direction.ts'
 import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
@@ -399,7 +400,14 @@ function factsClass(out: string[], body: ClassBody): void {
     if (c.generic) add(out, `class ${clean(c.id)} generic ${clean(c.generic)}`)
     if (c.label) add(out, `class ${clean(c.id)} : ${clean(c.label)}`)
     if (c.namespace) add(out, `class ${clean(c.id)} in namespace ${clean(c.namespace)}`)
-    for (const member of c.members) add(out, `member ${clean(c.id)} ${clean(member)}`)
+    for (const member of c.members) {
+      // A `$`/`*` classifier is styling, not member text: it reads back as
+      // its own fact, as the renderers draw it as underline/italic.
+      const { text, isStatic, isAbstract } = readClassMemberClassifiers(member)
+      add(out, `member ${clean(c.id)} ${clean(text)}`)
+      if (isAbstract) add(out, `member ${clean(c.id)} ${clean(text)} abstract`)
+      if (isStatic) add(out, `member ${clean(c.id)} ${clean(text)} static`)
+    }
   }
   body.relations.forEach((r, i) => {
     const cards = `${r.fromCardinality ? ` ${clean(r.fromCardinality)}` : ''}${r.toCardinality ? ` ${clean(r.toCardinality)}` : ''}`

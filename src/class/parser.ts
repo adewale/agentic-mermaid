@@ -1216,11 +1216,38 @@ function ensureClass(classMap: Map<string, ClassNode>, id: string, generic?: str
   return cls
 }
 
+/**
+ * Mermaid's member classifiers, `$` static and `*` abstract, read where
+ * Mermaid reads them: on a method, directly after its `)` or as the last
+ * character of its return type (`speak()* void`, `run() int*`); on an
+ * attribute, as its last character (`String id$`). The older `name$()`
+ * method spelling is read too. A classifier is styling: `text` is the member
+ * without it, which is what is drawn and read back.
+ */
+export function readClassMemberClassifiers(line: string): { text: string; isStatic: boolean; isAbstract: boolean } {
+  const flags = { isStatic: false, isAbstract: false }
+  const take = (marker: string | undefined): boolean => {
+    if (marker === '$') flags.isStatic = true
+    else if (marker === '*') flags.isAbstract = true
+    else return false
+    return true
+  }
+  const method = line.match(/^(.+?)\(([^)]*)\)(.*)$/)
+  if (!method) return { text: take(line.at(-1)) ? line.slice(0, -1) : line, ...flags }
+  let name = method[1]!
+  let tail = method[3]!
+  if (take(name.trimEnd().at(-1))) name = name.trimEnd().slice(0, -1)
+  if (take(tail[0])) tail = tail.slice(1)
+  else if (take(tail.trimEnd().at(-1))) tail = tail.trimEnd().slice(0, -1)
+  return { text: `${name}(${method[2]!})${tail}`, ...flags }
+}
+
 /** Parse a class member line (attribute or method) */
 export function parseClassMember(line: string): { member: ClassMember; isMethod: boolean } | null {
   const authored = line.trim()
-  const trimmed = /#\w+;$/.test(authored) ? authored : authored.replace(/;$/, '')
-  if (!trimmed) return null
+  const marked = /#\w+;$/.test(authored) ? authored : authored.replace(/;$/, '')
+  if (!marked) return null
+  const { text: trimmed, isStatic, isAbstract } = readClassMemberClassifiers(marked)
 
   // Extract visibility prefix
   let visibility: ClassMember['visibility'] = ''
@@ -1236,13 +1263,10 @@ export function parseClassMember(line: string): { member: ClassMember; isMethod:
     const name = methodMatch[1]!.trim()
     const params = methodMatch[2]?.trim() || undefined // Store the parameter string
     const type = methodMatch[3]?.trim()
-    // Check for static ($) or abstract (*) markers
-    const isStatic = name.endsWith('$') || rest.includes('$')
-    const isAbstract = name.endsWith('*') || rest.includes('*')
     return {
       member: {
         visibility,
-        name: name.replace(/[$*]$/, ''),
+        name,
         type: type || undefined,
         isStatic,
         isAbstract,
@@ -1267,14 +1291,11 @@ export function parseClassMember(line: string): { member: ClassMember; isMethod:
     name = parts[0] ?? rest
   }
 
-  const isStatic = name.endsWith('$')
-  const isAbstract = name.endsWith('*')
-
   return {
     member: {
       visibility,
-      name: name.replace(/[$*]$/, ''),
-      sourceText: trimmed.replace(/[$*]$/, ''),
+      name,
+      sourceText: trimmed,
       type: type || undefined,
       isStatic,
       isAbstract,

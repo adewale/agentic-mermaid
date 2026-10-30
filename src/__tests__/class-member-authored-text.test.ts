@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { describeMermaidFacts, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
@@ -72,6 +72,32 @@ test('authored member display keeps UML modifiers and SVG escaping', () => {
   expect(svg).toContain('text-decoration="underline"')
   expect(svg).toContain('&lt;script&gt;')
   expect(svg).not.toContain('<script>')
+})
+
+// Mermaid reads a method classifier after `)` or at the end of its return
+// type; it styles the member and is never drawn or read back as text.
+test('method classifiers style the member on every surface and are never shown as text', () => {
+  const source = 'classDiagram\n  class Animal {\n    +speak()* void\n    +make()$ A\n    +run() int*\n  }\n'
+  const shown = ['+ speak(): void', '+ make(): A', '+ run(): int']
+  expect(drawnTexts(source)).toEqual(['Animal', ...shown])
+  const svg = renderMermaidSVG(source)
+  const memberTag = (name: string) => svg.match(new RegExp(`<text\\b[^>]*data-id="member:Animal:${name}"[^>]*>`))?.[0] ?? ''
+  expect(['speak', 'make', 'run'].map(name => [/font-style="italic"/.test(memberTag(name)), /text-decoration="underline"/.test(memberTag(name))]))
+    .toEqual([[true, false], [false, true], [true, false]])
+  const ascii = renderMermaidASCII(source)
+  for (const text of shown) expect(ascii).toContain(text)
+  expect(ascii).not.toMatch(/[*$]/)
+
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok) throw new Error('parse')
+  const members = describeMermaidFacts(parsed.value).filter(fact => fact.startsWith('member '))
+  expect(members).toEqual([
+    'member Animal +make() A', 'member Animal +make() A static',
+    'member Animal +run() int', 'member Animal +run() int abstract',
+    'member Animal +speak() void', 'member Animal +speak() void abstract',
+  ])
+  // The writer keeps the authored classifiers, so the source round-trips.
+  for (const member of ['+speak()* void', '+make()$ A', '+run() int*']) expect(serializeMermaid(parsed.value)).toContain(member)
 })
 
 test('equal member presentation profiles keep each class label, color and UML modifier', () => {
