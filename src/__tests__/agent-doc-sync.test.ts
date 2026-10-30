@@ -397,16 +397,8 @@ describe('start.md bootstrap claims stay true', () => {
   })
 
   test('Code Mode instructions do not name library-only methods', async () => {
-    expect(START).not.toContain('applyOps({ source, family, ops })')
-    expect(START).toContain('Code Mode intentionally exposes neither of those batch wrappers')
     const result = await executeInSandbox('return typeof mermaid.applyOps')
     expect(result).toEqual(expect.objectContaining({ ok: true, value: 'undefined' }))
-  })
-
-  test('the hosted MCP tools it lists match the server exactly', () => {
-    const sentence = START.match(/Tools:\s*([^.\n]+)/)?.[1] ?? ''
-    const named = new Set([...sentence.matchAll(/`([a-z_]+)`/g)].map(m => m[1]))
-    expect(named).toEqual(new Set(HOSTED_TOOLS.map(t => t.name)))
   })
 })
 

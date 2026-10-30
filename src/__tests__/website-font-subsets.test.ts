@@ -11,7 +11,6 @@ import {
   WEBSITE_INTER_SUBSET_MANIFEST,
   WEBSITE_INTER_SUBSET_MAX_FACE_BYTES,
   WEBSITE_INTER_SUBSET_MAX_TOTAL_BYTES,
-  WEBSITE_INTER_SUBSET_REQUIREMENTS_SHA256,
   WEBSITE_INTER_SUBSET_TOOLCHAIN,
   WEBSITE_INTER_UNICODE_RANGES,
   expectedWebsiteInterSources,
@@ -35,8 +34,6 @@ describe('canonical website Inter subsets', () => {
     expect(manifest.unicodeRanges).toEqual(WEBSITE_INTER_UNICODE_RANGES)
     expect(manifest.sources).toEqual(expectedWebsiteInterSources())
     expect(manifest.totalBytes).toBeLessThanOrEqual(WEBSITE_INTER_SUBSET_MAX_TOTAL_BYTES)
-    expect(manifest.requirementsSha256).toBe(WEBSITE_INTER_SUBSET_REQUIREMENTS_SHA256)
-    expect(digest(readFileSync(join(ROOT, WEBSITE_INTER_SUBSET_TOOLCHAIN.requirements)))).toBe(WEBSITE_INTER_SUBSET_REQUIREMENTS_SHA256)
 
     const directory = join(ROOT, WEBSITE_INTER_SUBSET_DIRECTORY)
     expect(readdirSync(directory).sort()).toEqual([

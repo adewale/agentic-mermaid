@@ -4,12 +4,7 @@
 // harness would keep serving stale cached results.
 
 import { describe, expect, test } from 'bun:test'
-import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { computeDeployVersion } from '../../website/src/deploy-hash.ts'
-import { ensureWebsiteBuilt } from './website-public-fixture.ts'
-
-ensureWebsiteBuilt()
 
 const bytes = (s: string) => new TextEncoder().encode(s)
 
@@ -43,15 +38,5 @@ describe('computeDeployVersion', () => {
 
   test('emits the v<version>-<24 hex> shape', () => {
     expect(computeDeployVersion('9.9.9', [bytes('x')])).toMatch(/^v9\.9\.9-[0-9a-f]{24}$/)
-  })
-})
-
-describe('generated deploy-version.ts', () => {
-  const rel = join(import.meta.dir, '..', '..', 'website', 'src', 'generated', 'deploy-version.ts')
-
-  test('exists and exports a well-formed DEPLOY_VERSION (run `bun run website`)', () => {
-    expect(existsSync(rel)).toBe(true)
-    const text = readFileSync(rel, 'utf8')
-    expect(text).toMatch(/export const DEPLOY_VERSION = 'v\d+\.\d+\.\d+-[0-9a-f]{24}'/)
   })
 })

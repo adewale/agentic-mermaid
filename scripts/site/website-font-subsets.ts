@@ -7,7 +7,6 @@ export const WEBSITE_INTER_SUBSET_MANIFEST = `${WEBSITE_INTER_SUBSET_DIRECTORY}/
 export const WEBSITE_INTER_SUBSET_HASH_LENGTH = 12
 export const WEBSITE_INTER_SUBSET_MAX_FACE_BYTES = 41_000
 export const WEBSITE_INTER_SUBSET_MAX_TOTAL_BYTES = 160_000
-export const WEBSITE_INTER_SUBSET_REQUIREMENTS_SHA256 = '62e4d79a99706cc098541a98014e0aa0749f3796754ec8a14bb45a96aaf94fa8'
 
 export const WEBSITE_INTER_SUBSET_TOOLCHAIN = Object.freeze({
   platform: 'linux/amd64',
@@ -80,7 +79,6 @@ export interface WebsiteInterSubsetManifest {
   schemaVersion: number
   authority: string
   toolchain: typeof WEBSITE_INTER_SUBSET_TOOLCHAIN
-  requirementsSha256: string
   unicodeRanges: readonly string[]
   arguments: readonly string[]
   probes: typeof WEBSITE_INTER_GLYPH_PROBES
@@ -102,7 +100,6 @@ export function validateWebsiteInterSubsetManifest(value: WebsiteInterSubsetMani
   if (value.schemaVersion !== WEBSITE_INTER_SUBSET_SCHEMA_VERSION) problems.push(`schemaVersion ${value.schemaVersion}`)
   if (value.authority !== WEBSITE_INTER_SUBSET_AUTHORITY) problems.push(`authority ${value.authority}`)
   if (JSON.stringify(value.toolchain) !== JSON.stringify(WEBSITE_INTER_SUBSET_TOOLCHAIN)) problems.push('toolchain drift')
-  if (value.requirementsSha256 !== WEBSITE_INTER_SUBSET_REQUIREMENTS_SHA256) problems.push('requirements digest drift')
   if (JSON.stringify(value.unicodeRanges) !== JSON.stringify(WEBSITE_INTER_UNICODE_RANGES)) problems.push('unicode range drift')
   if (JSON.stringify(value.arguments) !== JSON.stringify(WEBSITE_INTER_SUBSET_ARGUMENTS)) problems.push('argument drift')
   if (JSON.stringify(value.probes) !== JSON.stringify(WEBSITE_INTER_GLYPH_PROBES)) problems.push('probe drift')

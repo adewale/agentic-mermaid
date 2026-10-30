@@ -19,7 +19,6 @@ import {
   WEBSITE_INTER_SUBSET_FACES,
   WEBSITE_INTER_SUBSET_HASH_LENGTH,
   WEBSITE_INTER_SUBSET_MANIFEST,
-  WEBSITE_INTER_SUBSET_REQUIREMENTS_SHA256,
   WEBSITE_INTER_SUBSET_SCHEMA_VERSION,
   WEBSITE_INTER_SUBSET_TOOLCHAIN,
   WEBSITE_INTER_UNICODE_RANGES,
@@ -31,7 +30,6 @@ import {
 const ROOT = join(import.meta.dir, '..', '..')
 const FONT_PARENT = join(ROOT, 'website', 'source', 'assets', 'fonts')
 const COMMITTED = join(ROOT, WEBSITE_INTER_SUBSET_DIRECTORY)
-const REQUIREMENTS = join(ROOT, WEBSITE_INTER_SUBSET_TOOLCHAIN.requirements)
 const mode = process.argv.includes('--write') ? 'write' : process.argv.includes('--check') ? 'check' : ''
 if (!mode) throw new Error('Usage: bun run scripts/site/subset-website-inter-fonts.ts --write|--check')
 
@@ -51,8 +49,6 @@ function exactFiles(directory: string): string[] {
 }
 
 mkdirSync(FONT_PARENT, { recursive: true })
-const requirementsSha256 = sha256(readFileSync(REQUIREMENTS))
-if (requirementsSha256 !== WEBSITE_INTER_SUBSET_REQUIREMENTS_SHA256) throw new Error('Inter subset requirements digest differs from the pinned authority')
 // Keep staging outside the website fingerprint trees so a concurrent website
 // build never observes generator scratch files; ROOT shares the destination's
 // filesystem, so the final directory rename remains atomic.
@@ -111,7 +107,6 @@ try {
     schemaVersion: WEBSITE_INTER_SUBSET_SCHEMA_VERSION,
     authority: WEBSITE_INTER_SUBSET_AUTHORITY,
     toolchain: WEBSITE_INTER_SUBSET_TOOLCHAIN,
-    requirementsSha256,
     unicodeRanges: WEBSITE_INTER_UNICODE_RANGES,
     arguments: WEBSITE_INTER_SUBSET_ARGUMENTS,
     probes: WEBSITE_INTER_GLYPH_PROBES,

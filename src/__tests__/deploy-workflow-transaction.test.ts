@@ -287,27 +287,28 @@ describe('deploy workflow ordering and guards', () => {
 
   test('rollback runs exactly when an armed deploy is not fully verified, even after a failed step', () => {
     const rollback = step('Roll back any unverified deployment')
-    const outputs = (armed: boolean, mcp: boolean, site: boolean): Outputs => ({
+    // Every step after promotion that reports `verified` must gate rollback,
+    // including one added later.
+    const verifications = STEPS.slice(stepIndex('Promote the verified candidate to all traffic') + 1)
+      .filter(candidate => candidate.id && candidate.run?.includes('verified=true'))
+      .map(candidate => candidate.id!)
+    expect(verifications.length).toBeGreaterThanOrEqual(2)
+    const outputs = (armed: boolean, verified: readonly string[]): Outputs => ({
       'rollback-guard': armed ? { armed: 'true' } : {},
-      'production-verify': mcp ? { verified: 'true' } : {},
-      'production-site-verify': site ? { verified: 'true' } : {},
+      ...Object.fromEntries(verifications.map(id => [id, verified.includes(id) ? { verified: 'true' } : {}])),
     })
-    // An unverified run has a failed verification step, so the job is failing.
-    const table = [
-      [false, false, false], [true, false, false], [true, true, false], [true, false, true], [true, true, true],
-    ].map(([armed, mcp, site]) => ({
-      armed,
-      mcp,
-      site,
-      rollsBack: guardAllows(rollback.if, { event: 'workflow_run', outputs: outputs(armed!, mcp!, site!), jobStatus: mcp && site ? 'success' : 'failure' }),
-    }))
-    expect(table).toEqual([
-      { armed: false, mcp: false, site: false, rollsBack: false },
-      { armed: true, mcp: false, site: false, rollsBack: true },
-      { armed: true, mcp: true, site: false, rollsBack: true },
-      { armed: true, mcp: false, site: true, rollsBack: true },
-      { armed: true, mcp: true, site: true, rollsBack: false },
-    ])
+    const rollsBack = (armed: boolean, verified: readonly string[]) => guardAllows(rollback.if, {
+      event: 'workflow_run',
+      outputs: outputs(armed, verified),
+      // An unverified run has a failed verification step, so the job is failing.
+      jobStatus: verified.length === verifications.length ? 'success' : 'failure',
+    })
+    expect(rollsBack(false, [])).toBe(false)
+    expect(rollsBack(true, [])).toBe(true)
+    expect(rollsBack(true, verifications)).toBe(false)
+    for (const missing of verifications) {
+      expect({ missing, rollsBack: rollsBack(true, verifications.filter(id => id !== missing)) }).toEqual({ missing, rollsBack: true })
+    }
   })
 })
 

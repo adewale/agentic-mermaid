@@ -169,15 +169,4 @@ describe('production website smoke deployment wiring', () => {
         .toEqual({ smokeStatus, verified })
     }
   })
-
-  test('rolls back unless every post-promotion verification passes', () => {
-    // Every step after promotion that reports `verified` gates the rollback.
-    const verifications = steps.slice(promoteIndex + 1).filter(step => step.id && step.run?.includes('verified=true')).map(step => step.id!)
-    expect(verifications.length).toBeGreaterThanOrEqual(2)
-    const rollback = steps.find(step => /\bwrangler rollback\b/.test(step.run ?? ''))
-    expect(rollback?.if).toContain('always()')
-    for (const id of verifications) {
-      expect({ id, gatesRollback: rollback?.if?.includes(`steps.${id}.outputs.verified != 'true'`) }).toEqual({ id, gatesRollback: true })
-    }
-  })
 })

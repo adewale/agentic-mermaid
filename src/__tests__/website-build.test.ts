@@ -252,6 +252,11 @@ async function websiteWorker(): Promise<{ fetch: (request: Request, env: any) =>
 }
 
 describe('Workers Static Assets website contract', () => {
+  test('the build emits a well-formed DEPLOY_VERSION for the /mcp cache', () => {
+    const text = readFileSync(join(import.meta.dir, '..', '..', 'website', 'src', 'generated', 'deploy-version.ts'), 'utf8')
+    expect(text).toMatch(/export const DEPLOY_VERSION = 'v\d+\.\d+\.\d+-[0-9a-f]{24}'/)
+  })
+
   test('library reference delivers API details and a page-specific Markdown alternative', () => {
     for (const rel of ['docs/api/', 'docs/api/advanced/']) {
       const html = read(`${rel}index.html`)
@@ -1360,7 +1365,7 @@ describe('Workers Static Assets website contract', () => {
     // single-source; a bump to one without the other tells clients we do not
     // support a version we in fact serve, or vice versa.
     expect(mcpCard.protocolVersions).toEqual([...SUPPORTED_PROTOCOL_VERSIONS])
-    expect(mcpCard.tools.map((tool: any) => tool.name)).toEqual(['execute', 'describe_sdk', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build'])
+    expect(mcpCard.tools.map((tool: any) => tool.name)).toEqual(HOSTED_TOOLS.map(tool => tool.name))
     expect(mcpCard.tools.every((tool: any) => typeof tool.title === 'string' && tool.title.trim().length > 0)).toBe(true)
     expect(mcpCard.tools.every((tool: any) => tool.annotations?.destructiveHint === false)).toBe(true)
     // Each tool's schema ships once, exactly as tools/list advertises it (its
