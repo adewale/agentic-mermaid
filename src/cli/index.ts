@@ -27,7 +27,7 @@ import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 import { logToolInvocation } from '../agent/trace-log.ts'
 import type { AnyMutationOp, LayoutWarning, MutableValidDiagram, MutationError, ParsedDiagram, ParseError, Result, ValidDiagram, WarningCode, WarningOrigin, WarningSeverity } from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
-import { configWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
+import { renderConfigWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
 import { WARNING_CATALOG } from '../agent/warning-catalog.ts'
 import { familyDetectionDiagnosticFromPreservedBody, MermaidFamilyDetectionError } from '../family-detection.ts'
 import type { CliRenderFormat, RenderRequestReceipt } from '../render-contract.ts'
@@ -275,9 +275,9 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     const results = args.positional.map((file, index) => {
       try {
         const src = readSourceArg(file)
-        const warnings = configWarningsForMermaid(src)
+        const warnings = renderConfigWarningsForMermaid(src, formatOptions)
         emitConfigWarnings(warnings, `am render ${file}`)
-        const rendered = renderSourceToFormatWithReceipt(src, format, formatOptions)
+        const rendered = renderSourceToFormatWithReceipt(src, format, reportingConfigDiagnosticsOnce(formatOptions, warnings))
         return { index, file, ok: true, output: rendered.output, receipt: rendered.receipt, warnings }
       } catch (e) {
         return {
@@ -311,7 +311,7 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     return renderFailureExitCode(structured)
   }
 
-  const configWarnings = configWarningsForMermaid(source)
+  const configWarnings = renderConfigWarningsForMermaid(source, formatOptions)
 
   const outFile = flagValue(args, 'o') ?? flagValue(args, 'output') ?? ''
   if (output.id === 'png') {
@@ -343,13 +343,13 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     const loadSystemFonts = flagEnabled(args, 'system-fonts')
     // PNG render is native-sync via resvg; keep bytes off stdout and write the
     // raster artifact explicitly to the requested output path.
-    const { certificates: _certificates, targetWidth: _targetWidth, ...sharedOptions } = formatOptions
+    const { certificates: _certificates, targetWidth: _targetWidth, ...sharedOptions } = reportingConfigDiagnosticsOnce(formatOptions, configWarnings)
     return renderPngSync(source, { ...sharedOptions, scale, background, fitTo, minLabelPx, fontDirs, loadSystemFonts }, outFile, json, configWarnings)
   }
   // Loop 9 M3/M4, #7645: layout = layout shape; unicode is the default text
   // renderer; `--security strict` enforces the shared SVG output-security policy.
   emitConfigWarnings(configWarnings, 'am render')
-  const rendered = renderPreflightedSourceToFormatWithReceipt(source, format, formatOptions)
+  const rendered = renderPreflightedSourceToFormatWithReceipt(source, format, reportingConfigDiagnosticsOnce(formatOptions, configWarnings))
   const out = rendered.output
   const layoutWarnings = configWarnings.length > 0 ? { warnings: configWarnings } : {}
   // The artifact is what plain stdout carries. --output writes it for every
@@ -499,8 +499,9 @@ function cmdRenderWatch(file: string, format: string, args: ParsedArgs, json: bo
   const emit = () => {
     try {
       const src = readFileSync(file, 'utf8')
-      emitConfigWarnings(configWarningsForMermaid(src), 'am render --watch')
-      const out = renderSourceToFormat(src, format, opts)
+      const warnings = renderConfigWarningsForMermaid(src, opts)
+      emitConfigWarnings(warnings, 'am render --watch')
+      const out = renderSourceToFormat(src, format, reportingConfigDiagnosticsOnce(opts, warnings))
       const text = typeof out === 'string' ? out : JSON.stringify(out)
       if (outFile) {
         writeFileSync(outFile, text)
@@ -521,6 +522,14 @@ function cmdRenderWatch(file: string, format: string, args: ParsedArgs, json: bo
   watchPathForChanges(file, emit)
   // Block forever — the watcher keeps the event loop alive.
   return EXIT_OK
+}
+
+/** The render's own config diagnostics, minus those already reported as
+ * `warnings` (emitConfigWarnings writes those to stderr), so each reaches the
+ * terminal once; any other, such as a declined layout fallback, still does. */
+function reportingConfigDiagnosticsOnce<Options extends RenderOptions>(options: Options, reported: readonly LayoutWarning[]): Options {
+  const seen = new Set(reported.map(warning => JSON.stringify(warning)))
+  return { ...options, onConfigDiagnostic: diagnostic => { if (!seen.has(JSON.stringify(diagnostic))) process.stderr.write(`${diagnostic.message}\n`) } }
 }
 
 function emitConfigWarnings(warnings: LayoutWarning[], prefix: string): void {

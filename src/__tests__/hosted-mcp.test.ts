@@ -23,7 +23,7 @@ import { createTracingMermaid } from '../mcp/facade.ts'
 import { HOSTED_CODE_MODE_HOST_POLICY } from '../render-host-policy.ts'
 import { captureCli } from './helpers/cli-capture.ts'
 import { AjvJsonSchemaValidator } from '@modelcontextprotocol/sdk/validation/ajv'
-import { LOCAL_TOOLS } from '../mcp/server.ts'
+import { handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
 import { styleSpecJsonSchema } from '../scene/style-spec.ts'
 import { knownStyleDescriptors } from '../scene/style-registry.ts'
 
@@ -326,6 +326,26 @@ describe('hosted pure tools', () => {
       expect(payload.warnings).toContainEqual(expect.objectContaining({
         code: 'INEFFECTIVE_CONFIG', field: 'state.titleTopMargin',
       }))
+    }
+  })
+
+  test('render tools on every surface report config warnings for the mermaidConfig the caller passed', async () => {
+    const mermaidConfig = { theme: 'darkk', flowchart: { madeUpKey: 1 } }
+    const expected = [
+      expect.objectContaining({ code: 'INEFFECTIVE_CONFIG', field: 'theme' }),
+      expect.objectContaining({ code: 'INEFFECTIVE_CONFIG', field: 'flowchart.madeUpKey' }),
+    ]
+    const surfaces: Array<[string, unknown]> = []
+    for (const name of ['render_svg', 'render_ascii', 'render_png']) {
+      surfaces.push([`hosted ${name}`, payloadOf(await handleHostedRequest(call(name, { source: FLOW, options: { mermaidConfig } }), makeContext())).warnings])
+    }
+    surfaces.push(['stdio render_png', payloadOf(await handleRequest(call('render_png', { source: FLOW, options: { mermaidConfig } })) as any).warnings])
+    const input = join(mkdtempSync(join(tmpdir(), 'am-config-warnings-')), 'flow.mmd')
+    writeFileSync(input, FLOW)
+    const cli = captureCli(() => runCli(['render', input, '--format', 'svg', '--json', '--options', JSON.stringify({ mermaidConfig })]))
+    surfaces.push(['cli render', JSON.parse(cli.out).warnings])
+    for (const [surface, warnings] of surfaces) {
+      expect({ surface, warnings }).toEqual({ surface, warnings: expect.arrayContaining(expected) })
     }
   })
 

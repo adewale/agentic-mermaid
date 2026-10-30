@@ -8,7 +8,7 @@
 // Worker invocation and are eligible for the private compute cache.
 
 import { parseRegisteredMermaid } from '../agent/parse.ts'
-import { configWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
+import { renderConfigWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
 import { EDIT_TOOLS, handleEditTool } from './edit-tools.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt } from '../agent/core.ts'
@@ -225,7 +225,7 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
         ok: true as const,
         svg: rendered.svg,
         receipt: rendered.receipt,
-        warnings: sourceConfigWarnings(source),
+        warnings: renderConfigWarningsForMermaid(source, projectMcpRenderOptions(args)),
       }
     })
     case 'render_ascii': return sourceTool(id, args, source => {
@@ -245,7 +245,7 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
         ok: true as const,
         text: rendered.text,
         receipt: rendered.receipt,
-        warnings: sourceConfigWarnings(source),
+        warnings: renderConfigWarningsForMermaid(source, projectMcpRenderOptions(args)),
       }
     })
     case 'render_png': return handleRenderPng(id, args, context)
@@ -293,10 +293,6 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
  * dialect in the same response. Matched by the family's own header keyword, so a
  * `graph`/`flowchart`/`architecture-beta`/… first line resolves deterministically.
  */
-function sourceConfigWarnings(source: string) {
-  return configWarningsForMermaid(source)
-}
-
 function familyExampleForSource(source: string): { family: string; example: string } | undefined {
   const first = source.split('\n').map(l => l.trim()).find(l => l.length > 0) ?? ''
   const header = first.split(/\s+/)[0] ?? ''
@@ -487,7 +483,7 @@ async function handleRenderPng(id: number | string | null, args: Record<string, 
         message: `hosted PNG output exceeds the ${MAX_HOSTED_PNG_BYTES}-byte response cap; ${LOCAL_FALLBACK_HINT}`,
       } }, true)
     }
-    const warnings = [...sourceConfigWarnings(source), ...result.warnings]
+    const warnings = [...renderConfigWarningsForMermaid(source, normalized.render), ...result.warnings]
       .filter((warning, index, all) => all.findIndex(candidate => JSON.stringify(candidate) === JSON.stringify(warning)) === index)
     return toolResult(id, {
       ok: true as const,

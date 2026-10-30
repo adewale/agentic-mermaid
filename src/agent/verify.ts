@@ -30,7 +30,7 @@ import { readSequenceText } from '../sequence/text.ts'
 import { wcagCssContrastRatio } from '../shared/color-math.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 import { edgeWarningIds, positionedEdgeWarningIds } from '../shared/edge-selectors.ts'
-import { familyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
+import { explicitFamilyConfigDiagnostics, familyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
 import type { PositionedGraph, RenderOptions } from '../types.ts'
 import { formatBarValue } from '../xychart/axis-utils.ts'
 import type { PositionedXYChart } from '../xychart/types.ts'
@@ -725,6 +725,22 @@ export function configWarningsForDiagram(d: ParsedDiagram): LayoutWarning[] {
 export function configWarningsForMermaid(source: string): LayoutWarning[] {
   const parsed = parseRegisteredMermaid(source)
   return parsed.ok ? configWarningsForDiagram(parsed.value) : []
+}
+
+/**
+ * The config warnings a render reports in its `warnings`: the source's own
+ * config (frontmatter, init directives) and the explicit
+ * `RenderOptions.mermaidConfig` the caller passed, read by the same family
+ * diagnostics the render pipeline gives `onConfigDiagnostic`. Every render
+ * surface (MCP render tools, CLI render) reports both, so an option the caller
+ * passed is never named only on a console. Never lays out or renders.
+ */
+export function renderConfigWarningsForMermaid(source: string, options: Pick<RenderOptions, 'mermaidConfig'> = {}): LayoutWarning[] {
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok) return []
+  const fromSource = configWarningsForDiagram(parsed.value)
+  if (options.mermaidConfig === undefined || parsed.value.body.kind === 'preserved') return fromSource
+  return dedupedConcat(fromSource, explicitFamilyConfigDiagnostics(parsed.value.kind, options.mermaidConfig) as LayoutWarning[])
 }
 
 function commentLossWarnings(parsed: ParsedDiagram): LayoutWarning[] {

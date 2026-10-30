@@ -40,6 +40,11 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   Looks and Palettes, as `render_svg` does; all render tools share one
   description.
 
+- Render tools report config warnings for the `mermaidConfig` the caller
+  passed (hosted `render_svg`/`render_ascii`/`render_png`, local `render_png`,
+  `am render --options`), such as an unknown `flowchart.madeUpKey` or a
+  misspelled `theme`, in `warnings`; before, they reached only the console.
+
 - A JSON-RPC response object posted by a client is accepted and ignored
   (hosted: HTTP 202, no body; stdio: no reply) instead of being answered with
   `-32600`. `notifications/initialized` sent with an `id` is a request and is

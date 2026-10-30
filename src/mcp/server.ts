@@ -28,7 +28,7 @@ import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from 
 import { mcpDescribePayload } from './describe-payload.ts'
 import { createArtifactStore, type ArtifactRecord, type ArtifactStore } from './artifacts.ts'
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
-import { configWarningsForMermaid } from '../agent/verify.ts'
+import { renderConfigWarningsForMermaid } from '../agent/verify.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { projectNativePngOutputPolicyInput } from '../png-contract.ts'
 import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
@@ -197,12 +197,13 @@ function handleRenderPng(id: number | string | null, args: Record<string, unknow
   try {
     const fontWarnings: Array<Record<string, unknown>> = []
     const pngOutput = projectNativePngOutputPolicyInput(args)
+    const renderOptions = projectMcpRenderOptions(args)
     const rendered = renderMermaidPNGWithReceipt(source, {
-      ...projectMcpRenderOptions(args),
+      ...renderOptions,
       ...pngOutput,
       onWarning: warning => fontWarnings.push(warning as unknown as Record<string, unknown>),
     })
-    const warnings = [...configWarningsForMermaid(source), ...fontWarnings]
+    const warnings = [...renderConfigWarningsForMermaid(source, renderOptions), ...fontWarnings]
       .filter((warning, index, all) => all.findIndex(candidate => JSON.stringify(candidate) === JSON.stringify(warning)) === index)
     if (output === 'base64') {
       const png_base64 = Buffer.from(rendered.png).toString('base64')
