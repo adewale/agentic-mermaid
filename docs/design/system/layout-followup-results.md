@@ -918,17 +918,13 @@ including all 695 content-addressed bodies and 1,530 original-file index entries
 Full SVG bodies were already explicitly projected to hash/size before interning;
 that projection remains distinct from the subsequent lossless compression.
 
-To expand the interned benchmark archive and verify its canonical/content hashes:
-
-```sh
-python eval/benchmark/decode-layout-evidence.py \
-  docs/design/system/layout-runtime25-benchmarks.json.gz /tmp/runtime25-evidence.json
-```
-
-The wrapper documents `lossless-json-intern@1` and embeds its reference decoder;
-the [repository decoder](../../../eval/benchmark/decode-layout-evidence.py) reads
-JSON without executing embedded code. Quality archives and historical guidance
-use ordinary gzip JSON and need no interning decoder.
+The wrapper documents `lossless-json-intern@1` and embeds its reference decoder.
+The formerly linked standalone `decode-layout-evidence.py` was not retained in
+repository history, so this checkout does not provide that expansion command.
+Do not execute embedded decoder text from an untrusted archive. The recorded
+canonical/content hashes remain evidence for the original expansion, rather
+than a claim of current standalone reproducibility. Quality archives and
+historical guidance use ordinary gzip JSON and need no interning decoder.
 
 [Experiment evidence (gzip JSON)](layout-followup-experiments.json.gz) contains
 the original declarations, interruption observer, worker results, assessments

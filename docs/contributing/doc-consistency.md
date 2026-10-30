@@ -7,9 +7,11 @@ at. It is not copied by hand. Hand copies are how the repo ended up
 recommending two different ways to author a new diagram for months, and how
 six docs kept listing a stale hosted tool set.
 
-Two checks run in `bun run test`: generated blocks are current, and every
-documented CLI invocation is one the CLI accepts. Everything else — registry
-lists, links, paths, scripts, and prose claims — is audited by hand.
+Generated-block and documented CLI-invocation checks run in `bun run test`.
+The agent-doc suite also executes agent examples and bundles browser recipes.
+Links, named Bun scripts and prose claims still need the manual audit below.
+Release preparation includes that audit; verified release completion retires
+finished backlog entries and records its proof links.
 
 ## Generated blocks
 
@@ -70,14 +72,17 @@ the CLI accepts (`COMMAND_FLAGS`, `CLI_RENDER_FORMATS`, `MCP_FLAG_SPECS`).
 Prose claims — "the hosted endpoint caches results", "Radar projects the
 renderer AST", "0.4.2 is not yet published" — have no registry to check
 against. Audit them from time to time, before a release for example, by
-giving the prompt below to an agent with a checkout of `main`. The audit
-reports findings in a GitHub issue and never blocks a merge.
+giving the prompt below to an agent with a checkout of `main`. Report findings
+in the conversation with file/line evidence. Create or update a GitHub issue
+only when the user explicitly requests it.
 
 ### Audit prompt
 
 Audit the maintained Markdown docs in this repository for internal
-consistency. The maintained set is `git ls-files '*.md'` minus the
-exclusions in `src/__tests__/helpers/maintained-docs.ts`. Text between
+consistency. The maintained set is returned by `maintainedMarkdownFiles()` in
+`scripts/docs/maintained-docs.ts`: tracked and new unignored Markdown, excluding
+archives, upstream copies and recorded research/run artifacts. Pending deletions
+are skipped. Text between
 `<!-- BEGIN GENERATED` and `<!-- END GENERATED` markers is generated; skip it.
 
 Skip generated blocks and the CLI verbs, flags, and formats the tests
@@ -100,8 +105,6 @@ Report only findings you verified against the code or another doc. For each
 one, give the file and line, the claim, the evidence (a code path or the
 contradicting doc), and the fix.
 
-If there are no findings, stop without opening an issue. Otherwise, look for
-an open issue whose title starts with "Doc consistency audit". If one exists,
-add the findings to it as a comment and do not repeat findings it already
-lists. If none exists, open an issue titled "Doc consistency audit
-YYYY-MM-DD" with the findings as a task list. Do not open a pull request.
+If there are no findings, report the checked scope and stop. Otherwise, return
+the verified findings in the conversation with their evidence and proposed fix.
+Do not create issues, comments or pull requests without an explicit request.

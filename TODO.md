@@ -14,6 +14,8 @@ retain their evidence. Candidate implementation does not establish merge,
 publication or deployment; a closed issue is not completion evidence when its
 acceptance conditions still fail. Plans supply design context, never additional
 queues. Retired IDs are not reused.
+Release 0.5.4 publication and production verification completed on 30 October;
+see the [release record](docs/project/archive/releases.md#054--2026-10-30).
 CONS-43 is retired: `src/layout/passes/index.ts` contains only re-exports;
 cohesive implementations already live in their owning pass modules. Further
 route-contract extraction preserves the existing pipeline manifest and order.
@@ -38,39 +40,6 @@ route-contract extraction preserves the existing pipeline manifest and order.
   explicit geometry/proof ownership. Keep the
   [campaign preservation contract](docs/design/system/performance-campaign.md).
 
-- [ ] **REL-1 — Qualify, publish and verify 0.5.4** (`todo`). The release
-  target on Main is 0.5.4, including #580's Class/ER rendering fixes and
-  #393's directory guidance and deployment automation changes. This retained
-  qualification branch keeps source version 0.4.2 and performs no publication.
-  Version 0.5.3 was published to npm and the MCP Registry and deployed on
-  29 October ([publication](https://github.com/adewale/agentic-mermaid/actions/runs/40940647568),
-  [deployment](https://github.com/adewale/agentic-mermaid/actions/runs/40943546603));
-  [#378](https://github.com/adewale/agentic-mermaid/issues/378) is closed.
-  Its immutable package cannot include these later fixes. The
-  0.5.0 and 0.5.2 source tags are retained after their blocked publications.
-  The macOS release gate uses a standard Intel macOS 26 host after GitHub's
-  arm64 pool could not acquire the 0.5.2 job. Retain the
-  documented source-edit/export limits and run
-  canonical CI, including its independent semantic and packed-consumer checks,
-  on the actual immutable release candidate. The publication workflow also
-  requires platform smoke tests and the verified package artifact. Following
-  #492, benchmarks run separately in explicit local sessions; they do not block
-  or authorize publication. Keep performance claims within their measured scope
-  under PERF-1. Follow `docs/contributing/releasing.md`,
-  publish the verified artifact, then verify npm/MCP Registry metadata and the
-  matching deployed site/MCP identity and a live capability. Automatic
-  release-issue creation is disabled; an unpublished version leaves a warning
-  and Actions summary while production retains the previous published build.
-  #410's Class work, #418's ER/Journey/empty-edit/YAML repairs, #419's text
-  preservation and #416's config ownership are merged. #363, #367 and #372
-  are closed; they are no longer pending source integrations. Qualify release
-  claims with the [remaining export limits](docs/project/divergences.md#mermaid-input-decisions-363)
-  and output-specific projection limits. Green source CI alone does not prove
-  publication or hosted delivery; #477 and #478 remain delivery concerns.
-  The owner's 27 October decision defers #449's Native-layout qualification
-  to 0.6.0; it is not a 0.5 publication condition. ELK remains the default.
-  The owner's 29 October decision also moves AGENT-1, AGENT-2 and AGENT-3
-  to 0.6.0. Those improvements remain open and are not 0.5.4 release claims.
 - [ ] **DEC-6 — Decide the hosted `execute` boundary from usage evidence**
   (`owner-decision`, [#204](https://github.com/adewale/agentic-mermaid/issues/204)).
   Compare hosted direct tools, hosted Code Mode and local Code Mode for real
@@ -334,7 +303,7 @@ route-contract extraction preserves the existing pipeline manifest and order.
 
 TRIAGE-2 and CONS-46 are retired after merged #418/#419. The wholesale ER
 serializer WIP and Flowchart rejection proposal are superseded by the existing
-declaration planner and read-and-warn codecs. Publication remains under REL-1;
+declaration planner and read-and-warn codecs. Publication completed with [0.5.4](docs/project/archive/releases.md#054--2026-10-30);
 terminal convergence remains under CONS-45.
 
 ## Export limits

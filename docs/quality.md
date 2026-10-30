@@ -214,9 +214,12 @@ The Auth Flow regression is the concrete example. Mermaid can choose a more
 compact-looking rendering for the feedback loops; Agentic Mermaid now
 prioritizes semantic LR source order (`A → B → C → ... → H`) and routes
 `No` loops backward. That preserves author intent and avoids the earlier
-misordered layout, but it also makes the diagram wider. `verify.ok` still
-only means structurally valid; visual quality needs layout metrics,
-geometry assertions, screenshot/PNG review, or human inspection.
+misordered layout, but it also makes the diagram wider. Visual quality needs layout metrics, geometry assertions, screenshot/PNG
+review, or human inspection.
+
+<!-- BEGIN GENERATED: verify-result -->
+`verify.ok` means no unsuppressed error was detected, including measured content occlusion and explicit error policies. It is not a visual-quality or semantic-correctness score.
+<!-- END GENERATED: verify-result -->
 
 ## What we do NOT claim
 

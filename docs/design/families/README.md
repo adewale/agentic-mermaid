@@ -3,27 +3,46 @@
 Design notes for individual diagram families. A family's full picture is deliberately spread
 across several surfaces; this hub points at each.
 
-## Families with a dedicated design note
+## Family notes
 
-<!-- complete: family-ids -->
-| Family | Design note | Notable cross-cutting surface |
-|---|---|---|
-| Architecture (`architecture-beta`) | [`architecture-beta.md`](./architecture-beta.md) | ops from `describeOps('architecture')`; level in [`source-preservation-ladder.md`](../system/source-preservation-ladder.md) |
-| Class | [`class.md`](./class.md) | namespace, generic, paint, and cardinality coverage |
-| ER | [`er.md`](./er.md) | ordered typed/opaque segments and terminal clearance |
-| Flowchart | [`flowchart.md`](./flowchart.md) (+ [`flowchart-parser-conformance.md`](./flowchart-parser-conformance.md)) | routing in [`route-contracts.md`](../system/route-contracts.md) |
-| Gantt | [`gantt.md`](./gantt.md) (+ [`gantt-research.md`](./gantt-research.md)) | schedule resolver; citizenship worked example |
-| GitGraph | [`gitgraph.md`](./gitgraph.md), [`gitgraph-research.md`](./gitgraph-research.md) | replay semantics, deterministic identities, history/use-case visual research |
-| Journey | [`journey.md`](./journey.md) (+ [`journey-migration-parity.md`](./journey-migration-parity.md), [`journey-usage-research.md`](./journey-usage-research.md)) | migration parity; classic visual mode; usage research |
-| Mindmap | [`mindmap.md`](./mindmap.md) | indentation-sensitive tree, compact bilateral layout, and spatial terminal output |
-| Pie | [`pie.md`](./pie.md) | donut, labels, palette, and legend geometry |
-| Quadrant | [`quadrant.md`](./quadrant.md) | point paint and dense placement |
-| Radar (`radar-beta`) | [`radar.md`](./radar.md) | graticules, shared chart palette, and long axis-label placement |
-| Sankey | [`sankey.md`](./sankey.md) | `d3-sankey` layering, flow conservation (`FLOW_IMBALANCE`), and ribbon paint |
-| Sequence | [`sequence.md`](./sequence.md) | block/lifecycle semantics and containment |
-| State | [`state.md`](./state.md) | regions, notes, pseudostates, paint, and loop routes |
-| Timeline | [`timeline.md`](./timeline.md) | shared grammar and vertical layout |
-| XY chart | [`xychart.md`](./xychart.md) | legend, axes, orientation, and raster parity |
+<!-- BEGIN GENERATED: family-design-notes -->
+| Family | Design note |
+| --- | --- |
+| Flowchart | [flowchart.md](./flowchart.md) |
+| State | [state.md](./state.md) |
+| Sequence | [sequence.md](./sequence.md) |
+| Timeline | [timeline.md](./timeline.md) |
+| Class | [class.md](./class.md) |
+| ER | [er.md](./er.md) |
+| Journey | [journey.md](./journey.md) |
+| Architecture | [architecture-beta.md](./architecture-beta.md) |
+| XY chart | [xychart.md](./xychart.md) |
+| Pie | [pie.md](./pie.md) |
+| Quadrant | [quadrant.md](./quadrant.md) |
+| Gantt | [gantt.md](./gantt.md) |
+| Mindmap | [mindmap.md](./mindmap.md) |
+| GitGraph | [gitgraph.md](./gitgraph.md) |
+| Radar | [radar.md](./radar.md) |
+| Sankey | [sankey.md](./sankey.md) |
+| C4 | [c4.md](./c4.md) |
+| Packet | [packet.md](./packet.md) |
+| Kanban | [kanban.md](./kanban.md) |
+| Requirement | [requirement.md](./requirement.md) |
+| Treemap | [treemap.md](./treemap.md) |
+| Ishikawa | [ishikawa.md](./ishikawa.md) |
+| Block | [block.md](./block.md) |
+| Event Modeling | [eventmodeling.md](./eventmodeling.md) |
+| ZenUML | See the shared system and family contracts below. |
+<!-- END GENERATED: family-design-notes -->
+
+The registry supplies this index. Families without a dedicated note use the
+[system hub](../system/README.md) and the
+[shared implementation contract](stable-family-implementation.md). Related
+research and parser notes remain alongside each family document.
+See also the [Flowchart parser](flowchart-parser-conformance.md),
+[Gantt research](gantt-research.md), [GitGraph research](gitgraph-research.md),
+[Journey migration](journey-migration-parity.md) and
+[Journey usage research](journey-usage-research.md).
 
 ## Generated visual evidence
 

@@ -7,7 +7,7 @@
 // doc-blocks test fails when a block is stale or names an unknown renderer.
 // A block may be inline (inside a sentence) or span lines.
 
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { BUILTIN_FAMILY_METADATA, getFamily } from '../../src/agent/families.ts'
 import { WARNING_SEVERITY, WARNING_TIER, type WarningCode, type WarningTier } from '../../src/agent/types.ts'
@@ -17,7 +17,9 @@ import { SUPPORTED_PROTOCOL_VERSIONS } from '../../src/mcp/hosted-server.ts'
 import { HTTP_SSE_PROTOCOL_VERSIONS, STDIO_PROTOCOL_VERSIONS } from '../../src/mcp/server.ts'
 import { HOSTED_MCP_TOOL_NAMES, inlineToolList, LOCAL_MCP_TOOL_NAMES } from '../../src/mcp/tool-names.ts'
 import { CLI_RENDER_FORMATS, SHARED_RENDER_OPTION_FIELD_DESCRIPTORS } from '../../src/render-contract.ts'
-import { DIAGRAM_TERMINOLOGY, EXISTING_DIAGRAM_WORKFLOW, FAMILY_NARROWING_NOTE, NEW_DIAGRAM_POLICY } from '../../src/shared/agent-workflow.ts'
+import { DIAGRAM_TERMINOLOGY, EXISTING_DIAGRAM_WORKFLOW, FAMILY_NARROWING_NOTE, NEW_DIAGRAM_POLICY, VERIFY_RESULT_MEANING } from '../../src/shared/agent-workflow.ts'
+import { AGENTIC_MAX_NODES, AGENTIC_MAX_EDGES, AGENTIC_MAX_RANKS, AGENTIC_MAX_EXPANDED_VERTICES } from '../../src/layout/agentic-limits.ts'
+import { DIAGRAM_WORK_LIMITS } from '../../src/shared/diagram-limits.ts'
 import { PACKAGE_VERSION } from '../../src/version.ts'
 
 const ticked = (values: readonly string[]): string => values.map(value => `\`${value}\``).join(', ')
@@ -68,6 +70,31 @@ const apiVersions = (): string => {
   return `This reference describes source version **${PACKAGE_VERSION}**. The latest release recorded in the [changelog](../CHANGELOG.md) is **${release[1]}** (${release[2]}). [Read that version's reference](https://github.com/adewale/agentic-mermaid/blob/v${release[1]}/docs/api.md). Changes under **Unreleased**, including new exports, are not part of that recorded release.`
 }
 
+const graphLayoutLimits = (): string => [
+  '| Scope | Limit |',
+  '| --- | --- |',
+  ...[
+    ['Host nodes, including group frames', DIAGRAM_WORK_LIMITS.nodes],
+    ['Host edges', DIAGRAM_WORK_LIMITS.edges],
+    ['Agentic measured nodes, including group frames', AGENTIC_MAX_NODES],
+    ['Agentic internal edges', AGENTIC_MAX_EDGES],
+    ['Agentic internal ranks', AGENTIC_MAX_RANKS],
+    ['Agentic expanded workspace vertices', AGENTIC_MAX_EXPANDED_VERTICES],
+  ].map(([scope, limit]) => `| ${scope} | ${Number(limit).toLocaleString('en-US')} |`),
+].join('\n')
+
+const familyDesignNotes = (): string => {
+  const root = join(import.meta.dir, '../../docs/design/families')
+  return [
+    '| Family | Design note |',
+    '| --- | --- |',
+    ...BUILTIN_FAMILY_METADATA.map(family => {
+      const file = `${family.id === 'architecture' ? 'architecture-beta' : family.id}.md`
+      return `| ${family.label} | ${existsSync(join(root, file)) ? `[${file}](./${file})` : 'See the shared system and family contracts below.'} |`
+    }),
+  ].join('\n')
+}
+
 /**
  * Renderer for each block id; `noop-keys:<family>` takes the family id, and
  * `warning-summaries:<tier>` / `warning-table:<tier>` take a warning tier.
@@ -76,6 +103,9 @@ export const DOC_BLOCKS: Readonly<Record<string, (argument?: string) => string>>
   'diagram-terminology': () => DIAGRAM_TERMINOLOGY,
   'family-narrowing': () => FAMILY_NARROWING_NOTE,
   'api-versions': apiVersions,
+  'graph-layout-limits': graphLayoutLimits,
+  'verify-result': () => VERIFY_RESULT_MEANING,
+  'family-design-notes': familyDesignNotes,
   'render-options': renderOptionsTable,
   'agent-workflow': () => `${NEW_DIAGRAM_POLICY} ${EXISTING_DIAGRAM_WORKFLOW}`,
   'new-diagram-policy': () => NEW_DIAGRAM_POLICY,

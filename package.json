@@ -240,7 +240,8 @@
     "bench:modern-summary": "bun eval/benchmark/commands.ts bench:modern-summary",
     "bench:corpus:export": "bun eval/benchmark/commands.ts corpus:export",
     "bench:results": "bun eval/trident/run.ts results:publish",
-    "build:zenuml": "tsup --config tsup.zenuml.config.ts"
+    "build:zenuml": "tsup --config tsup.zenuml.config.ts",
+    "release:prepare": "bun run scripts/prepare-release.ts"
   },
   "dependencies": {
     "@resvg/resvg-js": "2.6.2",

@@ -156,7 +156,7 @@ npx --no-install agentic-mermaid mcp
 
 Use the library, CLI or local MCP for private diagrams, offline work, larger inputs or local PNG files. The [MCP transport guide](./docs/mcp-http-transport.md) covers HTTP/SSE and file/URL artifacts; [agent setup](#agent-quick-start) shows how to generate a sample client configuration. The [tool reference and Code Mode guide](./docs/mcp-code-mode-rationale.md) explains the available tools and multi-step edits.
 
-An optional public, unauthenticated MCP endpoint runs at `https://agentic-mermaid.dev/mcp`. It accepts MCP JSON-RPC rather than REST render requests, caps inputs at 64 KB and returns PNG as base64. Hosted calls send your source or code to the server; see the [privacy notice](./docs/MCP-PRIVACY.md). Directory maintainers can use the [MCP listing record](./docs/MCP-DIRECTORY-LISTINGS.md).
+An optional public, unauthenticated MCP endpoint runs at `https://agentic-mermaid.dev/mcp`. It accepts MCP JSON-RPC rather than REST render requests, caps inputs at 64 KB and returns PNG as base64. Hosted calls send your source or code to the server; see the [privacy notice](./docs/MCP-PRIVACY.md). Directory maintainers can use the [MCP listing record](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/mcp-directory-listings.md).
 
 ## Structured edit example
 

@@ -4,7 +4,8 @@
  * rank potentials by primal/dual equality. This is bounded cycle cancellation,
  * not a network-simplex implementation. Exhaustion keeps the caller's ranks. */
 import type { MeasuredGraph } from './agentic-layered-core.ts'
-export const MAX_MEASURED_RANKS = 4096
+import { AGENTIC_MAX_RANKS as MAX_MEASURED_RANKS } from './agentic-limits.ts'
+export { MAX_MEASURED_RANKS }
 /** Private ranks are geometry constraints, not authored link lengths. Both
  * policies preserve minSpan; the compact candidate reserves a label rank only
  * on links with measured labels. The default remains the two-rank policy. */

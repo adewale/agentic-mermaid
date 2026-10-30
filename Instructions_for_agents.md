@@ -69,7 +69,7 @@ do not accept this mode.
 
 ## The verify-before-commit rule
 
-Run `verifyMermaid` at every commit point — anywhere the result would be saved, sent, or shown. For new diagrams, verify the authored source. For existing diagrams, verify after mutation and before serializing. You may batch several `mutate` calls between verifications, but never serialize a `ValidDiagram` whose `verify` result you have not inspected. `verify.ok` means no unsuppressed error was detected, including measured content occlusion; it is not a visual-quality or semantic-correctness score. For task-critical meaning, inspect `describeMermaidFacts(d)` or call `checkMermaid(d, requiredFacts)` before returning.
+Run `verifyMermaid` at every commit point — anywhere the result would be saved, sent, or shown. For new diagrams, verify the authored source. For existing diagrams, verify after mutation and before serializing. You may batch several `mutate` calls between verifications, but never serialize a `ValidDiagram` whose `verify` result you have not inspected. <!-- BEGIN GENERATED: verify-result -->`verify.ok` means no unsuppressed error was detected, including measured content occlusion and explicit error policies. It is not a visual-quality or semantic-correctness score.<!-- END GENERATED: verify-result --> For task-critical meaning, inspect `describeMermaidFacts(d)` or call `checkMermaid(d, requiredFacts)` before returning.
 
 ## Tier 1 vs Tier 2 vs Tier 3 warnings
 

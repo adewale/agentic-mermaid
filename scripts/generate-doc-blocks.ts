@@ -1,7 +1,7 @@
 // Regenerate the generated blocks in every maintained Markdown file
 // (scripts/docs/doc-blocks.ts). `--check` reports stale blocks without writing.
 
-import { maintainedMarkdownFiles, REPO_ROOT } from '../src/__tests__/helpers/maintained-docs.ts'
+import { maintainedMarkdownFiles, REPO_ROOT } from './docs/maintained-docs.ts'
 import { syncDocBlocks } from './docs/doc-blocks.ts'
 
 const check = process.argv.includes('--check')

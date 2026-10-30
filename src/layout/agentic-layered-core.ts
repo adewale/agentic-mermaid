@@ -8,6 +8,7 @@ import { layoutCyclicGraph, type LayoutSearchWork } from './cycle-layout-search.
 import { layoutCompoundGraph } from './agentic-compound-core.ts'
 import { feedbackOrder } from './cycle-order.ts'
 import { assignChannelTracks, type ChannelStep, type ChannelWork } from './channel-tracks.ts'
+import { AGENTIC_MAX_NODES as MAX_NODES, AGENTIC_MAX_EDGES as MAX_EDGES, AGENTIC_MAX_EXPANDED_VERTICES as MAX_EXPANDED_VERTICES } from './agentic-limits.ts'
 
 export interface MeasuredGraph {
   /** Ordered partitions are local to a sibling scope; omitted values use zero. */
@@ -74,10 +75,7 @@ interface Vertex {
   outgoing: number[]
 }
 
-// These are local solver bounds, not a replacement for request admission.
-const MAX_NODES = 4096
-const MAX_EDGES = 16384
-export const MAX_EXPANDED_VERTICES = 32768
+export { MAX_EXPANDED_VERTICES }
 const SWEEP_PAIRS = 4
 const LABEL_GAP = 8
 

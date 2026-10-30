@@ -150,6 +150,22 @@ selection in `layoutDecisions` and emits a fallback diagnostic. An ELK fallback
 is not an Agentic completion. Unexpected engine defects and global work limits
 are not hidden by fallback.
 
+<!-- BEGIN GENERATED: graph-layout-limits -->
+| Scope | Limit |
+| --- | --- |
+| Host nodes, including group frames | 5,000 |
+| Host edges | 5,000 |
+| Agentic measured nodes, including group frames | 4,096 |
+| Agentic internal edges | 16,384 |
+| Agentic internal ranks | 4,096 |
+| Agentic expanded workspace vertices | 32,768 |
+<!-- END GENERATED: graph-layout-limits -->
+
+Groups and self-loop helpers consume Agentic capacity. Separate expansion,
+routing and certification allowances can refuse smaller diagrams. Exceeding
+the Agentic ceiling raises `GraphLayoutUnsupportedError`; explicit ELK fallback
+retains the host limits above. These limits cannot be raised by source config.
+
 The async `agentic-mermaid/browser/lazy` entry downloads ELK only when the
 selected layout actually needs it. A successful strict Agentic render does not
 fetch ELK; requested fallback still loads it when native placement declines.
@@ -161,7 +177,7 @@ The CLI accepts `am render diagram.mmd --graph-layout agentic
 --graph-layout-fallback elk`. Mermaid source configuration is preserved and is
 not an alias for these options. Terminal-cell placement retains its family
 rules; optional graphical companions and Architecture's pixel placement honor
-the selector. See the [backend design](https://github.com/adewale/agentic-mermaid/blob/ce240587211b90395a820115d2503b73bf5ff4e3/docs/design/system/layout-backends.md) for
+the selector. See the [backend design](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/layout-backends.md) for
 qualification and comparative measurement.
 
 ## Resolved paths and text

@@ -129,9 +129,11 @@ establish representativeness; the interacting domain features do. See the
 [citizenship review contract](./contributing/diagram-family-citizenship.md#representative-examples-are-mandatory).
 
 **Runs:** every PR (`bun run test`, including the canonical 30-second per-test budget).
-**Does not prove:** that the diagram is *visually* good. `verify.ok` is
-structural only — stated repeatedly because it has burned us (the Auth
-Flow episode, Loop 15).
+**Does not prove:** that the diagram is *visually* good.
+
+<!-- BEGIN GENERATED: verify-result -->
+`verify.ok` means no unsuppressed error was detected, including measured content occlusion and explicit error policies. It is not a visual-quality or semantic-correctness score.
+<!-- END GENERATED: verify-result -->
 
 ## 2. Derived oracles — goldens and snapshots
 

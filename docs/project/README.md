@@ -11,6 +11,7 @@ code/tests, not dated inventories.
 | Document | Purpose and backlog owner |
 |---|---|
 | [Website payload plan](website-payload-plan.md) | Measured optimization boundaries; remaining work is WEB-2. Historical byte totals are not current budgets. |
+| [MCP directory listings](mcp-directory-listings.md) | Repository-only directory submissions, ownership and dated publication evidence. |
 | [Hosted abuse controls](mcp-abuse-controls-plan.md) | Threat model and acceptance detail for SEC-4. DEC-6 separately owns whether hosted execute should remain. |
 | [MCP interop](mcp-client-interop-verification-plan.md) | Implemented TypeScript lane, instrumented Python probe and recorded manual client coverage; includes the completed TEST-4 verification record. |
 | [Brand/family design record](brand-primitives-plan.md) | Design rationale and completed rollout; current architecture lives in the [system hub](../design/system/README.md). Old report/receipt tables are not current gates. |
@@ -21,6 +22,9 @@ code/tests, not dated inventories.
 | [Staged replacement of ELK](layered-layout-proposal.md) | Proposed measured-graph adapter, Pele evaluation, staged scope and acceptance boundary for replacing ELK. |
 
 ## Completed and superseded work
+
+The [release record](archive/releases.md) binds completed releases to their
+source, CI, registry publication and verified production deployment.
 
 The [archive](archive/) retains dated evidence without claiming it describes
 today's build, protocol, CI or deployment. In particular:
@@ -38,7 +42,7 @@ today's build, protocol, CI or deployment. In particular:
   old reproductions as an unfinished consolidation task.
 - [Prepared text and terminal delivery](archive/prepared-text-geometry-delivery-2026-10.md)
   records BUILD-36/BUG-62–64 completion and #380's superseded runtime work.
-  Merged source is distinct from REL-1's publication/deployment work.
+  Publication and deployment completed with [0.5.4](archive/releases.md#054--2026-10-30).
 - The #248 delivery plan has been removed. #248 was closed `not_planned`, and
   #361 dismantled its harness/report/receipt programme. Useful assertions now
   belong in ordinary owning tests; the deleted plan remains recoverable in Git.
