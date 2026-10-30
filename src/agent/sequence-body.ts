@@ -36,7 +36,7 @@ import { parseAccessibilityDirective } from '../shared/accessibility-directives.
 import { SequenceParticipantFold, type ParticipantEvent, type SequenceParticipantFoldOptions, type SequenceParticipantRecord } from '../sequence/participants.ts'
 import { isCharacterReference, sequenceGrammarText } from '../sequence/family-source.ts'
 import { isSequenceCommentLine, scanSequenceStatementLines, splitSequenceStatementLines } from '../sequence/statements.ts'
-import { appendOpaqueSegment } from './opaque-segments.ts'
+import { appendOpaqueSegment, coalesceOpaqueSegments } from './opaque-segments.ts'
 import { writeMermaidComment } from '../shared/trailing-comment.ts'
 import { normalizeSequenceMessageText, readSequenceText, writeSequenceText, writeSequenceControlledText } from '../sequence/text.ts'
 import { readMetadataBlock } from '../shared/metadata-yaml.ts'
@@ -582,7 +582,7 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       const removedMsgIdx = new Set<number>()
       messages.forEach((m, mi) => { if (m.from === op.id || m.to === op.id) removedMsgIdx.add(mi) })
       const keptMessages = messages.filter((_, mi) => !removedMsgIdx.has(mi))
-      const rebuilt = rebuildStatements(statements, idx, removedMsgIdx, op.id)
+      const rebuilt = coalesceOpaqueSegments(rebuildStatements(statements, idx, removedMsgIdx, op.id))
       return ok(refolded({ kind: 'sequence', participants, messages: keptMessages, statements: rebuilt }))
     }
     case 'add_message': {
@@ -788,7 +788,7 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       return err({ code: 'INVALID_OP', message: unknownOpMessage('sequence', _x) })
     }
   }
-  const next: SequenceBody = { kind: 'sequence', participants, messages, statements }
+  const next: SequenceBody = { kind: 'sequence', participants, messages, statements: coalesceOpaqueSegments(statements) }
   const invalid = serializationIdError(next)
   return invalid ? err(invalid) : ok(refolded(next))
 }

@@ -140,6 +140,7 @@ export function adoptStatementAccessibility(meta: { accessibility: Accessibility
 export function accessibilityFromBody(body: DiagramBody): Accessibility | undefined {
   switch (body.kind) {
     case 'zenuml':
+    case 'eventmodeling':
     case 'timeline':
     case 'journey':
     case 'architecture':

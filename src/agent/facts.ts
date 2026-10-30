@@ -390,6 +390,10 @@ function factsClass(out: string[], body: ClassBody): void {
   // queryable — "what namespaces exist" and "which namespace holds class X".
   for (const ns of body.namespaces ?? []) {
     add(out, `namespace ${clean(ns.name)}${ns.label ? ` : ${clean(ns.label)}` : ''}`)
+    // A dotted path names its ancestors too (`namespace A.B` nests B in A),
+    // whether they were declared as their own blocks or not.
+    const segments = ns.name.split('.')
+    for (let depth = 1; depth < segments.length; depth++) add(out, `namespace ${clean(segments.slice(0, depth).join('.'))}`)
   }
   for (const c of body.classes) {
     if (c.isInterface) {

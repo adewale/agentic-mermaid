@@ -895,7 +895,7 @@ function mutateFlowchartGraph(graph: MermaidGraph, op: FlowchartMutationOp): Res
       const invalidId = nodeIdError(op.from) ?? nodeIdError(op.to)
       if (invalidId) return err(invalidId)
       ensureNode(graph, op.from); ensureNode(graph, op.to)
-      graph.edges.push({ source: op.from, target: op.to, label: edgeLabelInput(op.label), style: op.style ?? 'solid', hasArrowStart: false, hasArrowEnd: true })
+      graph.edges.push({ source: op.from, target: op.to, label: edgeLabelInput(op.label), style: op.style ?? 'solid', hasArrowStart: false, hasArrowEnd: op.style !== 'invisible' })
       return done()
     }
     case 'remove_edge': {

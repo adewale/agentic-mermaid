@@ -19,6 +19,12 @@ import { fcParameters } from './helpers/fc-parameters.ts'
 import { validateOp, applyOps, mutateChecked, hasOpSchema, describeOps } from '../agent/core.ts'
 import { createMermaid } from '../agent/create.ts'
 import { MUTATION_OPS_BY_FAMILY, type MutableFamilyId } from '../agent/mutation-ops.ts'
+import { mutate, applyMutationBatch } from '../agent/mutate.ts'
+import { parseRegisteredMermaid } from '../agent/parse.ts'
+import { serializeMermaid } from '../agent/serialize.ts'
+import { describeMermaidFacts } from '../agent/facts.ts'
+import { getFamily } from '../agent/families.ts'
+import type { AnyMutationOp, ParsedDiagram } from '../agent/types.ts'
 import { handleHostedRequest, type HostedMcpContext } from '../mcp/hosted-server.ts'
 import type { JsonRpcRequest } from '../mcp/protocol.ts'
 
@@ -59,35 +65,40 @@ const opObjArb = fc.tuple(kindArb, fc.array(fc.tuple(fieldNameArb, junkValue), {
 // an empty diagram.
 const ID_VOCAB = ['A', 'B', 'n1', 'Label']
 type FieldDoc = { name: string; required: boolean; type: string; fields?: FieldDoc[] }
-// A record from published nested field docs (e.g. xychart axis.range).
-const recordFor = (fields: FieldDoc[]): fc.Arbitrary<Record<string, unknown>> => {
-  const record: Record<string, fc.Arbitrary<unknown>> = {}
-  for (const f of fields) record[f.name] = valueFor(f)
-  return fc.record(record, { requiredKeys: fields.filter(f => f.required).map(f => f.name) })
-}
-const valueFor = (field: Pick<FieldDoc, 'type' | 'fields'>): fc.Arbitrary<unknown> => {
-  const { type, fields } = field
-  if (type.startsWith('one of ')) {
-    const values = [...type.matchAll(/"(?:[^"\\]|\\.)*"/g)].map(m => JSON.parse(m[0]) as string)
-    return type.endsWith(' | null') ? fc.constantFrom<unknown>(...values, null) : fc.constantFrom(...values)
+// Shape-valid op records from the published field docs, with every string
+// field (top-level or nested, e.g. xychart axis.range) drawn from `text`.
+const opArbs = (text: fc.Arbitrary<string>) => {
+  const recordFor = (fields: FieldDoc[]): fc.Arbitrary<Record<string, unknown>> => {
+    const record: Record<string, fc.Arbitrary<unknown>> = {}
+    for (const f of fields) record[f.name] = valueFor(f)
+    return fc.record(record, { requiredKeys: fields.filter(f => f.required).map(f => f.name) })
   }
-  switch (type) {
-    case 'string': return fc.constantFrom(...ID_VOCAB)
-    case 'number': return fc.integer({ min: 0, max: 3 })
-    case 'boolean': return fc.boolean()
-    case 'string | null': return fc.option(fc.constantFrom(...ID_VOCAB), { nil: null })
-    case 'number | null': return fc.option(fc.integer({ min: 0, max: 3 }), { nil: null })
-    case 'boolean | null': return fc.option(fc.boolean(), { nil: null })
-    case 'string[]': return fc.array(fc.constantFrom(...ID_VOCAB), { maxLength: 2 })
-    case 'number[]': return fc.array(fc.integer({ min: 0, max: 3 }), { maxLength: 2 })
-    case 'object[]': return fields ? fc.array(recordFor(fields), { maxLength: 2 }) : fc.array(fc.dictionary(fc.constantFrom('id', 'label', 'value'), fc.constantFrom(...ID_VOCAB), { maxKeys: 3 }), { maxLength: 2 })
-    case 'object': return recordFor(fields ?? [])
-    case 'object | null': return fields ? fc.option(recordFor(fields), { nil: null }) : fc.constant(null)
-    default: throw new Error(`op-boundary fuzz: no generator for field type ${type}`)
+  const valueFor = (field: Pick<FieldDoc, 'type' | 'fields'>): fc.Arbitrary<unknown> => {
+    const { type, fields } = field
+    if (type.startsWith('one of ')) {
+      const values = [...type.matchAll(/"(?:[^"\\]|\\.)*"/g)].map(m => JSON.parse(m[0]) as string)
+      return type.endsWith(' | null') ? fc.constantFrom<unknown>(...values, null) : fc.constantFrom(...values)
+    }
+    switch (type) {
+      case 'string': return text
+      case 'number': return fc.integer({ min: 0, max: 3 })
+      case 'boolean': return fc.boolean()
+      case 'string | null': return fc.option(text, { nil: null })
+      case 'number | null': return fc.option(fc.integer({ min: 0, max: 3 }), { nil: null })
+      case 'boolean | null': return fc.option(fc.boolean(), { nil: null })
+      case 'string[]': return fc.array(text, { maxLength: 2 })
+      case 'number[]': return fc.array(fc.integer({ min: 0, max: 3 }), { maxLength: 3 })
+      case 'object[]': return fields ? fc.array(recordFor(fields), { maxLength: 2 }) : fc.array(fc.dictionary(fc.constantFrom('id', 'label', 'value'), text, { maxKeys: 3 }), { maxLength: 2 })
+      case 'object': return recordFor(fields ?? [])
+      case 'object | null': return fields ? fc.option(recordFor(fields), { nil: null }) : fc.constant(null)
+      default: throw new Error(`op-boundary fuzz: no generator for field type ${type}`)
+    }
   }
+  const opFor = (family: MutableFamilyId): fc.Arbitrary<Record<string, unknown>> =>
+    fc.oneof(...Object.entries(describeOps(family)).map(([kind, fields]) => recordFor(fields).map(o => ({ kind, ...o }))))
+  return { recordFor, opFor }
 }
-const shapeValidOpArb = (family: MutableFamilyId): fc.Arbitrary<Record<string, unknown>> =>
-  fc.oneof(...Object.entries(describeOps(family)).map(([kind, fields]) => recordFor(fields).map(o => ({ kind, ...o }))))
+const shapeValidOpArb = opArbs(fc.constantFrom(...ID_VOCAB)).opFor
 // A near miss: a shape-valid op with exactly one defect the boundary must catch —
 // a required field dropped, an unknown field added (`name` for `id`), or a field
 // retyped. The mutator alone might tolerate these; validateOp must not.
@@ -165,6 +176,145 @@ describe('op-boundary fuzz: applyOps / mutateChecked', () => {
       expect(applyOps({ family, ops })).toEqual(applyOps({ family, ops }))
     }), fcParameters({ numRuns: NUM_RUNS }))
   })
+})
+
+// Typed text and identifier edits, for every family and every string field an
+// op publishes, either refuse or write Mermaid that re-reads as the edited
+// diagram (CLAUDE.md: write strictly, keep the author's meaning). A value the
+// writer cannot hold used to be accepted and silently changed on re-read:
+// `%%` and `%%{…}%%` inside titles and labels (K1), `<br>` in a quadrant
+// title (K2), U+2028 in a gantt title (K3), ids that read as statement
+// separators or shape brackets (V1).
+describe('op-boundary fuzz: typed text edits round-trip or are refused', () => {
+  // A small diagram per family whose ids the ops can target; families
+  // without a source start from their blank-slate scaffold.
+  const FIXTURES: Record<MutableFamilyId, { source?: string; ids: string[] }> = {
+    flowchart: { source: 'flowchart TD\n  A[Alpha] --> B\n  subgraph G[Group]\n    C\n  end\n', ids: ['A', 'B', 'C', 'G', 'A->B'] },
+    state: { source: 'stateDiagram-v2\n  [*] --> S1\n  S1 --> S2 : go\n  note right of S1 : n\n', ids: ['S1', 'S2'] },
+    sequence: { source: 'sequenceDiagram\n  participant A\n  participant B\n  A->>B: hi\n  loop L\n    B->>A: back\n  end\n', ids: ['A', 'B'] },
+    timeline: { source: 'timeline\n  title T\n  section One\n    2020 : Start\n', ids: [] },
+    class: { source: 'classDiagram\n  class A\n  class B\n  A <|-- B\n', ids: ['A', 'B'] },
+    er: { source: 'erDiagram\n  A ||--o{ B : has\n', ids: ['A', 'B'] },
+    journey: { source: 'journey\n  title Day\n  section Morning\n    Wake: 3: Me\n', ids: ['Me'] },
+    architecture: { source: 'architecture-beta\n  group g(cloud)[G]\n  service api(server)[API] in g\n  service db(database)[DB]\n  junction j\n  api:R --> L:db\n', ids: ['api', 'db', 'g', 'j'] },
+    xychart: { source: 'xychart-beta\n  title Sales\n  x-axis [jan, feb]\n  y-axis "Revenue" 0 --> 10\n  bar S [3, 5]\n', ids: [] },
+    pie: { source: 'pie\n  title Pets\n  "Dogs" : 3\n  "Cats" : 2\n', ids: ['Dogs', 'Cats'] },
+    quadrant: { source: 'quadrantChart\n  title Reach\n  x-axis Low --> High\n  y-axis Low --> High\n  quadrant-1 Q1\n  A: [0.3, 0.6]\n', ids: ['A'] },
+    gantt: { source: 'gantt\n  title Plan\n  dateFormat YYYY-MM-DD\n  section Build\n    Core : core, 2024-01-01, 3d\n', ids: ['core'] },
+    mindmap: { source: 'mindmap\n  root((Root))\n    Child\n', ids: ['root', 'Child'] },
+    gitgraph: { source: 'gitGraph\n  commit id: "a"\n  branch dev\n  commit id: "b"\n', ids: ['a', 'b', 'dev', 'main'] },
+    radar: { source: 'radar-beta\n  title Skills\n  axis a["A"], b["B"], c["C"]\n  curve x["X"]{1, 2, 3}\n', ids: ['a', 'b', 'c', 'x'] },
+    sankey: { source: 'sankey-beta\nA,B,1\n', ids: ['A', 'B'] },
+    c4: { source: 'C4Context\n  Person(u, "User")\n  System(s, "Sys")\n  Rel(u, s, "uses")\n', ids: ['u', 's'] },
+    packet: { source: 'packet\n  0-7: "a"\n', ids: [] },
+    kanban: { source: 'kanban\n  todo[Todo]\n    t1[Task]\n', ids: ['todo', 't1'] },
+    requirement: { source: 'requirementDiagram\n  requirement r {\n    id: 1\n    text: hi\n  }\n  element e {\n    type: sim\n  }\n  e - satisfies -> r\n', ids: ['r', 'e'] },
+    treemap: { source: 'treemap-beta\n  "A"\n    "B": 1\n', ids: [] },
+    ishikawa: { ids: [] },
+    block: { source: 'block\n  a b\n  a --> b\n', ids: ['a', 'b'] },
+    zenuml: { ids: [] },
+    eventmodeling: { ids: [] },
+  }
+  const base = (family: MutableFamilyId): ParsedDiagram => {
+    const source = FIXTURES[family].source
+    if (source === undefined) return createMermaid(family)
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(`${family} fixture: ${JSON.stringify(parsed.error)}`)
+    return parsed.value
+  }
+  // Grammar punctuation, comment and directive markers, entity spellings
+  // (including a noncharacter), line-break markup, line terminators, controls,
+  // a lone surrogate, combining marks and a ZWJ emoji, beside the full
+  // code-point range and long runs.
+  const HOSTILE = ['%%', '%%{x}%%', '%%{init: {}}%%', '#35;', '#37;', '#quot;', '#65534;', '#59;', '"', "'", '`', '[', ']', '{', '}', '(', ')', '|', ';', ',', ':', '--', '-->', '<br>', '<br/>', '<BR >', ' ', ' ', '\u0000', '\u0007', '\u0085', '\u001b', '\t', ' ', '\ud800', 'é', '👩🏽‍💻', '東京', 'end', 'title', '\\', '&amp;', '#', '<', '>', '@', '=', '+', '*', '~']
+  const hostileText = fc.oneof(
+    fc.string({ unit: 'binary', minLength: 1, maxLength: 10 }),
+    fc.string({ unit: 'grapheme', minLength: 1, maxLength: 10 }),
+    fc.array(fc.oneof(fc.constantFrom(...HOSTILE), fc.string({ unit: 'grapheme-ascii', maxLength: 3 })), { minLength: 1, maxLength: 6 }).map(parts => parts.join('')),
+    fc.string({ unit: 'grapheme-ascii', minLength: 60, maxLength: 300 }),
+  )
+  const editArb = familyArb.chain(family => {
+    const ids = FIXTURES[family].ids
+    const text = fc.oneof(fc.constantFrom(...ids, 'N1'), hostileText)
+    return fc.tuple(fc.constant(family), fc.array(opArbs(text).opFor(family), { minLength: 1, maxLength: 3 }))
+  })
+  // Blank-slate builders may hold a body below the family's source floor (a
+  // Sankey diagram after its last link is removed); mutate admits that one
+  // scaffold, which re-reads as preserved source.
+  const emptyScaffold = (d: ParsedDiagram) => getFamily(d.kind)?.verify?.(d.body, {}).some(warning => warning.code === 'EMPTY_DIAGRAM') === true
+  const reread = (d: ParsedDiagram) => {
+    const written = serializeMermaid(d)
+    const parsed = parseRegisteredMermaid(written)
+    if (!parsed.ok) return { written, error: parsed.error }
+    if (parsed.value.body.kind !== d.body.kind && emptyScaffold(d)) return { written, scaffold: true }
+    return { written, kind: parsed.value.body.kind, facts: describeMermaidFacts(parsed.value) }
+  }
+  // Shrunk counterexamples (finder runs and the adversarial review).
+  const EXAMPLES: Array<[[MutableFamilyId, Array<Record<string, unknown>>]]> = [
+    [['pie', [{ kind: 'set_title', title: 'a %% b' }]]],
+    [['class', [{ kind: 'set_title', title: '%%{x}%%$y8:k<<+' }]]],
+    [['architecture', [{ kind: 'set_service_label', id: 'api', label: 'a %%{x}%% b' }]]],
+    [['radar', [{ kind: 'set_axis_label', id: 'a', label: '%%{init: {}}%%>P<br/>jMY' }]]],
+    [['flowchart', [{ kind: 'set_label', target: 'A', label: '%%{x}%%#35;' }]]],
+    [['quadrant', [{ kind: 'set_quadrant_label', quadrant: 1, label: '+%%' }]]],
+    [['quadrant', [{ kind: 'set_title', title: 'a<br>b' }]]],
+    [['gantt', [{ kind: 'set_title', title: 'a b' }]]],
+    [['flowchart', [{ kind: 'rename_node', from: 'B', to: 'A;B' }]]],
+    [['flowchart', [{ kind: 'rename_node', from: 'B', to: 'A[B]' }]]],
+    [['flowchart', [{ kind: 'add_subgraph', id: '񂕛򘭍򓧩񗡱' }]]],
+    [['flowchart', [{ kind: 'add_edge', from: 'A', to: 'A', label: 'x', style: 'invisible' }]]],
+    [['requirement', [{ kind: 'rename_node', from: 'r', to: '%%{init: {}}%%~#59;' }]]],
+    [['sequence', [{ kind: 'add_message', from: 'N1', to: 'US#', text: 'x', wrap: false, index: 1 }]]],
+    [['eventmodeling', [{ kind: 'set_accessibility_title', title: 'https://example.com' }]]],
+  ]
+
+  it('an accepted edit re-reads as the edited diagram', () => {
+    fc.assert(fc.property(editArb, ([family, ops]) => {
+      let d = base(family)
+      for (const op of ops) {
+        const result = mutateChecked(d, op)
+        if (!result.ok) {
+          expect(result.error.message.length).toBeGreaterThan(0)
+          continue
+        }
+        d = result.value
+        const back = reread(d)
+        if ('scaffold' in back) continue
+        expect(back).toEqual({ written: back.written, kind: d.body.kind, facts: describeMermaidFacts(d) })
+      }
+    }), fcParameters({ numRuns: 2000, examples: EXAMPLES }))
+  }, 120_000)
+
+  // The documented edit paths are one checked core: mutate, mutateChecked, a
+  // one-op batch, applyOps and the hosted MCP mutate tool give the same verdict
+  // and the same source. applyOps (and MCP) additionally gate on verify, so a
+  // diagram mutate accepts may still be refused there with VERIFY_FAILED.
+  // mutatePreservingSource edits opaque bodies only and refuses these
+  // structured fixtures by design.
+  it('the mutate entry points agree on refusal and written source', async () => {
+    const ctx: HostedMcpContext = { execute: async () => ({ ok: true, value: null, logs: [] }) }
+    const singleEditArb = familyArb.chain(family => fc.tuple(fc.constant(family), fc.array(opArbs(fc.oneof(fc.constantFrom(...FIXTURES[family].ids, 'N1'), hostileText)).opFor(family), { minLength: 1, maxLength: 1 })))
+    await fc.assert(fc.asyncProperty(singleEditArb, async ([family, [op]]) => {
+      // Every path starts from the same source text.
+      const source = serializeMermaid(base(family))
+      const parsed = parseRegisteredMermaid(source)
+      if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+      const d = parsed.value
+      const outcome = (r: { ok: true; value: ParsedDiagram } | { ok: false; error: { code: string; message: string } }) => r.ok ? { ok: true, source: serializeMermaid(r.value) } : { ok: false, code: r.error.code, message: r.error.message }
+      // mutate is the typed entry point (no shape check): it agrees with the
+      // checked core on every op that passes shape validation.
+      const direct = outcome(mutateChecked(d, op))
+      if (validateOp(family, op) === null) expect(outcome(mutate(d, op as AnyMutationOp))).toEqual(direct)
+      const batch = applyMutationBatch(d, [op])
+      expect(batch.ok ? outcome(batch) : { ok: false, code: batch.error.code, message: batch.error.message }).toEqual(direct)
+      const envelope = applyOps({ source, ops: [op] })
+      const declarative = envelope.ok ? { ok: true, source: envelope.source } : { ok: false, code: envelope.error.code, message: envelope.error.message }
+      if (!(direct.ok && !envelope.ok && envelope.error.code === 'VERIFY_FAILED')) expect(declarative).toEqual(direct)
+      const response = await handleHostedRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'mutate', arguments: { source, ops: [op] } } } as JsonRpcRequest, ctx)
+      const payload = JSON.parse(((response as { result: { content: Array<{ text: string }> } }).result.content[0]!.text))
+      expect(payload.ok ? { ok: true, source: payload.source } : { ok: false, code: payload.error.code, message: payload.error.message }).toEqual(declarative)
+    }), fcParameters({ numRuns: 300, examples: EXAMPLES.map(([[family, ops]]) => [[family, ops.slice(0, 1)]] as [[MutableFamilyId, Array<Record<string, unknown>>]]) }))
+  }, 120_000)
 })
 
 // Nested op records (an xychart axis and its range, a block record and its

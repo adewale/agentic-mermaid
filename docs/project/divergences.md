@@ -944,3 +944,17 @@ native message reading remains available with `UNSUPPORTED_SYNTAX`; typed
 editing stays unavailable for those sources. A leading `loop)` already starts
 a block and retains the block-boundary error when no `end` follows. Longer
 ordinary IDs such as `created)` remain writable.
+
+### Typed edits publish only what reads back
+
+A typed edit (`mutate`, `mutateChecked`, batches, `applyOps`, MCP `mutate`)
+publishes its source only when re-reading that source states the same facts as
+the edited body. Otherwise it is refused with `INVALID_OP` naming the facts
+that would change. A value a writer cannot spell is refused, never written as
+something else. Examples: `%%` in a Pie, Quadrant, Radar, Architecture or
+Class title, whose readers keep entity codes literal, so no escape exists;
+`<br>` in a Quadrant title or U+2028 in a Gantt title, which re-read as line
+breaks a single-line title cannot hold. A Sequence edit that removes the
+statement between two preserved segments leaves the one segment a re-read
+builds, and Event Modeling's native accessibility comments are read back
+decoded, as every other family's are.

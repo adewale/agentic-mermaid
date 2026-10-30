@@ -8,12 +8,22 @@ import { prepareDisplayText } from '../shared/display-text.ts'
 import { serializeEventModeling } from '../eventmodeling/body.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { ok, type LayoutWarning } from './types.ts'
+import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
+import { accessibilityFields } from '../shared/accessibility-directives.ts'
 export const EVENTMODELING_SOURCE_HOOKS: Omit<FamilyOperations, 'mutate'> = {
   parse: ctx => {
     try {
       const body = parseEventModeling(ctx.source.familyBody)
       if (body.title === undefined && typeof ctx.source.frontmatter.title === 'string') body.title = ctx.source.frontmatter.title
       if (eventNonportableIdentifiers(body).length) return ok({ kind: 'opaque', family: 'eventmodeling', source: ctx.opaqueSource })
+      // The envelope consumed native accessibility comments in their
+      // transport spelling; the body and meta carry the decoded text, as
+      // they do for every other family that owns accessibility.
+      if (body.accessibilityTitle === undefined && body.accessibilityDescription === undefined) {
+        const logical = readAuthoredGrammarAccessibility(ctx.meta.accessibility)
+        ctx.meta.accessibility = logical
+        Object.assign(body, accessibilityFields(logical))
+      }
       return ok(body)
     } catch {
       return ok({ kind: 'opaque', family: 'eventmodeling', source: ctx.opaqueSource })

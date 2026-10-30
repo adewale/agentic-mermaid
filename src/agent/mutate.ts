@@ -52,6 +52,7 @@ import { admitOpRecord, validateOp, hasOpSchema } from './op-schema.ts'
 import { AccessibilityTextError, accessibilityFromBody, ensureAccessibilityLines, normalizeBodyAccessibility } from './accessibility-envelope.ts'
 import { parseRegisteredMermaid as parseMermaid } from './parse.ts'
 import { applySourceEdits, sameSourceMeaning } from './source-mutation.ts'
+import { serializationDrift } from './serialization-closure.ts'
 
 export function mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, MutationError>
 export function mutate(d: StateValidDiagram, op: StateMutationOp): Result<StateValidDiagram, MutationError>
@@ -187,6 +188,12 @@ function commitMutation(d: ParsedDiagram, body: ParsedDiagram['body']): Result<P
       message: 'Accessibility text cannot be serialized by this family without changing its value; remove directive openers or description block delimiters',
     })
   }
+  // The same representation is not the same meaning: a value the writer
+  // cannot hold (a `%%` comment, a statement separator, an id that reads as
+  // shape syntax) parses back as different content. Refuse it, naming what
+  // would change, instead of publishing a silently altered diagram.
+  const drift = sameRepresentation ? serializationDrift({ ...d, meta, body } as ParsedDiagram, reparsed.value) : undefined
+  if (drift) return err({ code: 'INVALID_OP', message: `The edit cannot be written faithfully: ${drift}` })
   return ok({
     ...d,
     body,
