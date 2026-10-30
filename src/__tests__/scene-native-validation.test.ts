@@ -681,3 +681,92 @@ test.each((['circle', 'line'] as const).flatMap(geometry => (['native', 'scene']
     expect(visible.proof.status, JSON.stringify(visible.proof.issues)).toBe('passed')
   }
 })
+
+test('native retained text copy plans keep scalar depth after ambient maximum changes', () => {
+  const colors = { bg: '#fff', fg: '#111' },
+    width = 200,
+    height = 100,
+    context = { positioned: { width, height }, colors, resolved: { renderOptions: {} } }
+  function graphHeight(value: any): number {
+    if (!value || typeof value !== 'object') return 0
+    let result = 0
+    for (const key of Object.getOwnPropertyNames(value)) {
+      if (Array.isArray(value) && key === 'length') continue
+      const d = Object.getOwnPropertyDescriptor(value, key)!
+      if (!Object.hasOwn(d, 'value')) throw Error('Accessor in fixture')
+      const h = 1 + graphHeight(d.value)
+      if (h > result) result = h
+    }
+    return result
+  }
+  const rows: any[] = []
+  for (const mode of ['legacy-plan'])
+    for (const poison of [false, true])
+      for (const extra of [0, 1]) {
+        const block = preparePixelText('x', { fontSize: 12, fontWeight: 400 }),
+          runHeight = graphHeight(block.lineBlocks[0]!.runs),
+          wraps = 63 - runHeight + extra
+        let canonical: any,
+          injected = false,
+          inject = false,
+          maxCalls = 0
+        const mapDescriptor = Object.getOwnPropertyDescriptor(Array.prototype, 'map')!,
+          map = mapDescriptor.value,
+          maxDescriptor = Object.getOwnPropertyDescriptor(Math, 'max')!
+        const poisoned = (fn: () => any) => {
+          if (!poison) return fn()
+          Object.defineProperty(Math, 'max', {
+            ...maxDescriptor,
+            value: (...values: number[]) => {
+              if (values.length === 2 && values.every(value => Number.isInteger(value) && value >= 0 && value <= 64)) {
+                maxCalls++
+                return 0
+              }
+              return Reflect.apply(maxDescriptor.value, Math, values)
+            },
+          })
+          try {
+            return fn()
+          } finally {
+            Object.defineProperty(Math, 'max', maxDescriptor)
+          }
+        }
+        try {
+          Object.defineProperty(Array.prototype, 'map', {
+            ...mapDescriptor,
+            value: function (this: any, callback: any, thisArg: any) {
+              if (inject && !injected && this === (canonical ?? block).lineBlocks) {
+                injected = true
+                let value: any = (canonical ?? block).lineBlocks[0].runs
+                for (let i = 0; i < wraps; i++) value = [value]
+                return value
+              }
+              return Reflect.apply(map, this, [callback, thisArg])
+            },
+          })
+          const producer = (factory: any) => {
+            const parts = [factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">')]
+            const text = (id: string) => factory.text({ id, role: 'label', text: 'x', block: canonical ?? block, x: 20, y: 30, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })
+            parts.push(text('seed'))
+            parts.push(poisoned(() => text('plan')))
+            inject = true
+            parts.push(text('target'))
+            parts.push(factory.documentClose())
+            return { family: 'flowchart' as const, width, height, colors, transparent: false, parts }
+          }
+          const drawing = drawNative(producer, context, 'flowchart'),
+            proof = certifyNativePaint(drawing.header, drawing.paint)
+          if (!injected) throw Error('Fixture injection missed')
+          if (proof.issues.some((issue: any) => issue.code === 'CHECK_BUDGET')) throw Error('Unexpected budget refusal')
+          rows.push({ mode, poison, scalarDepth: 1 + wraps + runHeight, runHeight, wraps, maxCalls, status: proof.status, operations: proof.checks.operations, svg: drawing.svg, proof })
+        } finally {
+          Object.defineProperty(Array.prototype, 'map', mapDescriptor)
+          Object.defineProperty(Math, 'max', maxDescriptor)
+        }
+      }
+  for (const mode of ['legacy-plan']) {
+    const selected = rows.filter(row => row.mode === mode)
+    if (selected.some(row => row.svg !== selected[0].svg)) throw Error('Fixture changed actual SVG')
+  }
+  for (const row of rows) expect(row.status, JSON.stringify(row)).toBe(row.scalarDepth === 64 ? 'passed' : 'unverified')
+})

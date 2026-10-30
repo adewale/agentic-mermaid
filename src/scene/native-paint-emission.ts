@@ -130,7 +130,8 @@ export function createNativePaintEmission(maxOperations: number) {
         if (!pay(2)) throw failed
         const child = copied && typeof copied === 'object' ? planningText!.plans.get(copied) : undefined
         if (copied && typeof copied === 'object' && !child) throw failed
-        planHeight = Math.max(planHeight, 1 + (child?.height ?? 0))
+        const candidateHeight = 1 + (child?.height ?? 0)
+        if (candidateHeight > planHeight) planHeight = candidateHeight
         Object.defineProperty(planSlots, String(planSlots.length), { value: { key, enumerable: descriptor.enumerable!, value: child ? undefined : copied, child }, enumerable: true })
       }
       Object.defineProperty(result, key, { value: copied, enumerable: descriptor.enumerable, configurable: false, writable: false })
