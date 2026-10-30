@@ -49,6 +49,24 @@ describe('source-preserving edits across agent channels', () => {
     expect(failed).toMatchObject({ ok: false, opIndex: 1 })
     expect('source' in failed).toBe(false)
   })
+  test('CLI mutate --json and batch carry the MCP mutate envelope fields on failure and success', async () => {
+    const source = 'flowchart TD\n  A --> B\n'
+    const file = join(temp.dir('mutate-envelope-'), 'diagram.mmd')
+    writeFileSync(file, source)
+    const mcp = async (ops: unknown[]) => JSON.parse(((await handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'mutate', arguments: { source, ops } } }))!.result as any).content[0].text)
+    const rename = { kind: 'set_label', target: 'A', label: 'Start' }
+    const missing = { kind: 'remove_node', id: 'ZZ' }
+    for (const ops of [[rename, missing], [rename]]) {
+      const expected = await mcp(ops)
+      const { source: _source, verify: _verify, ...shared } = expected
+      expect(Object.keys(shared).sort(), JSON.stringify(ops)).toEqual(ops.length === 2 ? ['error', 'family', 'ok', 'opIndex'] : ['family', 'ok'])
+      const cli = JSON.parse(capture(() => runCli(['mutate', file, '--ops', JSON.stringify(ops), '--json'])).out)
+      expect(cli).toMatchObject(ops.length === 2 ? shared : { ...shared, source: expected.source })
+      const batch = runBatchLine(JSON.stringify({ op: 'mutate', source, mutations: ops }))
+      expect(batch).toMatchObject(ops.length === 2 ? { ...shared, op: 'mutate' } : { ok: true, op: 'mutate', data: { family: expected.family, source: expected.source } })
+    }
+  })
+
   test('refuses invalid modes and source-preserving builders', () => {
     for (const mode of ['unknown', null, false]) expect(applyOps({ source: 'flowchart TD\nA', ops: [], mode } as any).ok).toBe(false)
     expect(applyOps({ family: 'class', ops: [{ kind: 'add_class', id: 'A' }], mode: 'source-preserving' }).ok).toBe(false)

@@ -643,7 +643,11 @@ function cmdSerialize(): number {
 
 type CliMutationError = MutationError | { code: string; message: string; details?: unknown }
 
-type MutationRunResult = { ok: true; source: string; verify: VerifySummary; mode?: 'source-preserving' } | { ok: false; error: CliMutationError; verify?: VerifySummary }
+/** `family` and `opIndex` mirror the MCP mutate envelope ({ok, family,
+ * opIndex?, error}); `error.details` keeps the CLI's {index, op} locator. */
+type MutationRunResult =
+  | { ok: true; family: string; source: string; verify: VerifySummary; mode?: 'source-preserving' }
+  | { ok: false; family: string | null; opIndex?: number; error: CliMutationError; verify?: VerifySummary }
 
 function parseMutationOpsFlag(args: ParsedArgs): Result<AnyMutationOp[], CliMutationError> {
   const opStr = flagValue(args, 'op') ?? ''
@@ -666,32 +670,37 @@ function parseMutationOpsFlag(args: ParsedArgs): Result<AnyMutationOp[], CliMuta
 export function mutateSource(source: string, ops: AnyMutationOp[], preserveSource = false): MutationRunResult {
   if (preserveSource) {
     const result = applyOps({ source, ops, mode: 'source-preserving' })
-    if (!result.ok) return { ok: false, error: { ...result.error, ...(result.opIndex !== undefined ? { details: { index: result.opIndex, op: ops[result.opIndex] } } : {}) } }
-    return { ok: true, source: result.source, verify: result.verify, mode: 'source-preserving' }
+    if (!result.ok) {
+      const { opIndex } = result
+      return { ok: false, family: result.family, ...(opIndex !== undefined ? { opIndex } : {}), error: { ...result.error, ...(opIndex !== undefined ? { details: { index: opIndex, op: ops[opIndex] } } : {}) } }
+    }
+    return { ok: true, family: result.family, source: result.source, verify: result.verify, mode: 'source-preserving' }
   }
   const r0 = parseRegisteredMermaid(source)
   if (!r0.ok) {
     const env = parseErrorEnvelope(r0.error)
-    return { ok: false, error: { code: 'PARSE_FAILED', message: env.error.message, details: env.error.details } }
+    return { ok: false, family: null, error: { code: 'PARSE_FAILED', message: env.error.message, details: env.error.details } }
   }
+  const family = r0.value.kind
   if (r0.value.body.kind === 'opaque' || r0.value.body.kind === 'preserved' || r0.value.body.kind === 'extension' || !getFamily(r0.value.kind)?.mutate) {
-    return { ok: false, error: { code: 'UNSUPPORTED_FAMILY', message: `No structured mutation contract for ${r0.value.kind}` } }
+    return { ok: false, family, error: { code: 'UNSUPPORTED_FAMILY', message: `No structured mutation contract for ${family}` } }
   }
   const batch = applyMutationBatch(r0.value, ops)
   if (!batch.ok) {
     const { opIndex, ...error } = batch.error
-    return { ok: false, error: { ...error, details: { index: opIndex, op: ops[opIndex] } } }
+    return { ok: false, family, opIndex, error: { ...error, details: { index: opIndex, op: ops[opIndex] } } }
   }
   const current = batch.value
   const { accepted, verification: verify } = verifyMutationResult(current, r0.value)
   if (!accepted) {
     return {
       ok: false,
+      family,
       error: { code: 'VERIFY_FAILED', message: 'mutated diagram failed verify; source was not emitted', details: verify.warnings },
       verify,
     }
   }
-  return { ok: true, source: serializeMermaid(current), verify }
+  return { ok: true, family, source: serializeMermaid(current), verify }
 }
 
 function cmdMutate(args: ParsedArgs, json: boolean): number {
@@ -705,10 +714,10 @@ function cmdMutate(args: ParsedArgs, json: boolean): number {
 
 function emitMutationRun(r: MutationRunResult, json: boolean): number {
   if (!r.ok) {
-    process.stdout.write(JSON.stringify({ ok: false, error: r.error, verify: r.verify }, replacer) + '\n')
+    process.stdout.write(JSON.stringify({ ok: false, family: r.family, opIndex: r.opIndex, error: r.error, verify: r.verify }, replacer) + '\n')
     return r.error.code === 'VERIFY_FAILED' ? verifyFailureExit(r.verify?.warnings ?? []) : EXIT_ARG_ERROR
   }
-  process.stdout.write(json ? JSON.stringify({ ok: true, source: r.source, verify: r.verify, ...(r.mode ? { mode: r.mode } : {}) }, replacer) + '\n' : r.source)
+  process.stdout.write(json ? JSON.stringify({ ok: true, family: r.family, source: r.source, verify: r.verify, ...(r.mode ? { mode: r.mode } : {}) }, replacer) + '\n' : r.source)
   return EXIT_OK
 }
 
@@ -1270,6 +1279,9 @@ export interface BatchRenderOptions extends Record<string, unknown> {
 interface BatchOutput {
   ok: boolean
   op?: string
+  /** mutate lines: the MCP mutate envelope's family and failing op index. */
+  family?: string | null
+  opIndex?: number
   data?: unknown
   verify?: unknown
   error?: { code: string; message: string; details?: unknown }
@@ -1415,6 +1427,8 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
           return {
             ok: false,
             op,
+            family: r.family,
+            ...(r.opIndex !== undefined ? { opIndex: r.opIndex } : {}),
             error: {
               code: r.error.code,
               message: r.error.message,
@@ -1422,7 +1436,7 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
             },
             ...(r.verify ? { verify: JSON.parse(JSON.stringify(r.verify, replacer)) } : {}),
           }
-        return { ok: true, op, data: { source: r.source, verify: JSON.parse(JSON.stringify(r.verify, replacer)), ...(r.mode ? { mode: r.mode } : {}) } }
+        return { ok: true, op, data: { family: r.family, source: r.source, verify: JSON.parse(JSON.stringify(r.verify, replacer)), ...(r.mode ? { mode: r.mode } : {}) } }
       }
       default:
         return { ok: false, op, error: { code: 'UNKNOWN_OP', message: `unknown op: ${op}` } }
