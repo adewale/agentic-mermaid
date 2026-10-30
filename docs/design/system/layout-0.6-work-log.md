@@ -4900,3 +4900,55 @@ ancestor paint to the same final bytes and preserve generic observations/caps.
 The Scene zero-ink counterexamples, six legacy capacity failures, broader font/
 rich-text domain and delivery budgets remain unresolved. No full parity or
 completion claim, new PR/issue, force push, release or automatic deadline extension.
+
+### 30 October: CI font-envelope refusals repaired without weakening ink checks
+
+Exact-head CI41087046640 at2f6efed19851b0edb6c185d301dd50d5f1063d25 is terminal
+failure. It contains the six known capacity failures AND three new failures:
+Class namespace TB/BT and Sequence creation toward the right participant. The
+new global Inter overhang envelope was too coarse near otherwise clear marker
+ink; these were new proof refusals, not demonstrated new visible collisions.
+
+The shared font-derived envelope now applies the negative left bearing only
+when the first character can need it (initial j, including the full reachable
+single-substitution closure of all four pinned faces). Every later glyph starts
+at least254font units after the preceding one, exceeding the maximum50negative
+bearing and175right overhang. A complete single-line unfragmented text run has
+no following pair adjustment on its last glyph, whose outline fits its raw
+advance. Only that complete-run right margin becomes zero. Formatted/tracked
+fragments and multiline tspans retain the175adjusted right bound because shaping
+may cross span edges. No font/domain guard, assertion, cap or check is relaxed.
+Independent read-only review of the four font closures found no counterexample.
+
+Existing selected owners give3P/3F before,6P/0F/278assertions after; no owner test
+expectation changes. The24new original clipping controls remain green, and84
+independently observed interior-j, mixed-weight, multiline, tracked, three-anchor
+and fractional-size Native/Scene ink cases have zero outside-envelope pixels.
+Across20observed Class/Sequence proof rows, four U->P and four background-white
+rows remain U. All eight retained Class SVG files are byte-identical; the12
+Sequence rows have equal output digests/viewports (not separately retained-byte
+comparison). This does not claim every family/input or arbitrary font is sound.
+
+Root final checks: full Class/Sequence138tests give134P/4F/2963assertions, with
+exactly the four old Class128 capacity refusals; all179font/host/prepared owners
+pass783assertions. Canonical core/repository typechecks using pinned Trident f080
+and targeted two-file Biome lint pass. The initial typecheck launch missed Bun
+on the child PATH and exited127; the corrected canonical invocation exits0.
+Evidence: meaning-fonts/width-only-negative-bearing/endpoint-refinement/,
+including OWNER-RED, ROOT-AFFECTED-OWNERS, ROOT-FONT-OWNERS, ROOT-TYPES and
+ROOT-LINT logs,84ink observations and VISIBLE-OUTPUT-READBACK.json. Earlier cost
+measurements retain their original fdf43revision; no new timing preservation
+claim is inferred for this refinement.
+
+The actual-backend Scene proof experiment remains private. Independent actual
+marker-removal observations reject admission-only root authority: late root
+composition can leave zero marker ink while the old receipt still passes. The
+new private bridge makes those actual-output cases U, but independent review
+then confirmed new ambient Array.push callback observations during deferred
+context replay. That candidate is blocked, not shipped; its author is repairing
+actual-only metadata isolation before another review. Six capacity owners,
+historical19normal budget, general rich-text/font authority, delivery ceilings
+and independent broad meaning qualification remain open. Replacement24 stays
+sealed. Next concrete step: publish this verified font refusal repair, inspect
+exact-head CI and paired clipping artifacts, then qualify the actual-write bridge
+against callback isolation, actual visible ink and unchanged work limits.

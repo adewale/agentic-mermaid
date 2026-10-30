@@ -99,8 +99,8 @@ export function preparedInterTextBounds(block: PixelTextBlock, cx: number, cy: n
     const line = block.lineBlocks[index]
     if (!line) return undefined
     const served = preparedTextLineGeometry(block, index, cx, cy, anchor, baselineShift)
-    const include = (text: string, weight: number, x: number, width: number): boolean => {
-      const envelope = interTextEnvelope(text, weight, size, width)
+    const include = (text: string, weight: number, x: number, width: number, completeShapingRun = false): boolean => {
+      const envelope = interTextEnvelope(text, weight, size, width, completeShapingRun)
       if (!envelope) return false
       const bounds = { x0: x - envelope.left, x1: x + width + envelope.right, y0: served.baseline - envelope.above, y1: served.baseline + envelope.below }
       if (!Object.values(bounds).every(value => Number.isFinite(value) && Math.abs(value) <= 1e6)) return false
@@ -114,7 +114,9 @@ export function preparedInterTextBounds(block: PixelTextBlock, cx: number, cy: n
       if (!run || !position || !include(fragment.text, run.bold ? Math.max(700, block.fontWeight) : block.fontWeight, Number(position.x), Number(position.textLength))) return undefined
     } else {
       const width = Number(served.textLength), offset = anchor === 'middle' ? width / 2 : anchor === 'end' ? width : 0
-      if (!include(line.runs.map(run => run.text).join(''), block.fontWeight, Number(served.x) - offset, width)) return undefined
+      // Only a single unfragmented line owns the complete <text> shaping run.
+      // Multiline tspans retain the same conservative bound as fragments.
+      if (!include(line.runs.map(run => run.text).join(''), block.fontWeight, Number(served.x) - offset, width, block.lineBlocks.length === 1)) return undefined
     }
   }
   return result
