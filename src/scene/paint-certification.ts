@@ -1896,11 +1896,18 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       const measuredWorld = primitive.coverage === 'measured' && !!inverseMatrix(scenePrimitiveMatrix(primitive)!)
       const knownMapping = descriptor?.units === 'userSpaceOnUse' || knownUnitScale
       const previous = lastMarkers.get(key)
-      const semantic = options.outputSupported !== false && !scene.family.startsWith('family:') && (['edge', 'relationship'].includes(primitive.role) && !!node.endpoints?.from && !!node.endpoints.to || previous?.semantic === true)
+      const semantic = options.outputSupported !== false && !scene.family.startsWith('family:') && (['edge', 'relationship', 'message'].includes(primitive.role) && !!node.endpoints?.from && !!node.endpoints.to || previous?.semantic === true)
+      // A checked document/resource palette remains valid inside its checked
+      // inert groups. A caller palette or another write's occurrence does not.
+      let boundGroupPalette = false
+      if (primitive.ancestors.length && immutableBackground && work() && work()) {
+        boundGroupPalette = !!emissionWork && !emissionWork.uncertain && !emissionWork.exhausted && emissionWork.resolveColor === boundColor && hasNativeEmissionOccurrence(primitive)
+          || !!sceneWriteWork && !sceneWriteWork.uncertain && !sceneWriteWork.exhausted && sceneWriteWork.resolveColor === boundColor && hasSceneWriteEmissionOccurrence(primitive)
+      }
       // Identity describes resource colors; existing visibility and alpha
       // checks still own the enclosing group's composite opacity.
       const paintEvidence = Number.isFinite(primitive.groupOpacity ?? 1) && (primitive.groupOpacity ?? 1) > 0 && (!node.stroke.mixBlendMode || node.stroke.mixBlendMode === 'normal')
-        ? markerPaintIdentity(descriptor, resolvePaintColor, work, primitive.ancestors.length === 0) : undefined
+        ? markerPaintIdentity(descriptor, resolvePaintColor, work, primitive.ancestors.length === 0 || boundGroupPalette) : undefined
       const paintIdentity = semantic ? paintEvidence?.identity : undefined
       if (previous && (previous.semantic || semantic) && !sameMarkerPaint(previous.paintIdentity, paintIdentity, work)) {
         issue({ code: 'POTENTIAL_OCCLUSION', id: previous.primitive.id, by: primitive.id, message: 'Coincident endpoint markers have no proved equal paint at their carriers' })

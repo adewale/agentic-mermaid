@@ -3676,3 +3676,53 @@ second renderer. The generated-layout advisory has no runtime errors but
 still reports quality regressions. These failures remain enrolled and caps
 unchanged; local doc/geometry/proof checks do not qualify unpublished head CI.
 Logs:`ci-readonly-40978745281/` under the session root.
+
+
+### 30 October: same-emission Sequence marker visibility
+
+The creation-message geometry was already correct in both directions. Its
+unverified proof came from grouped var(--_arrow) paint lacking a same-write
+palette witness. More seriously, the semantic-role filter omitted message:
+a white-on-white head could receive P despite zero marker-removal pixels.
+Shared marker checking now includes typed messages and resolves grouped paint
+only through the matching private Native/Scene write context and occurrence.
+Header, palette, opacity, CSS, definition, clipping and ownership isolation
+remain required; no caller palette or cloned inspection borrows this fact.
+
+The existing creation table now observes actual XML line/header/resource/text
+fields and actual glyph/head ink at1px/3px widths with default/literal/white
+palettes, left and right. Normal heads produce231/1,917right and231/1,918left
+changed pixels; Welcome removal produces2,120/2,099. White heads produce zero
+and strict certification refuses. The original cases fail2/12before the
+change; all12pass/144assertions afterward. Forty exact SVG/crop/removal PNG
+artifacts are byte-identical. The left raster observer uses the existing
+production marker-orientation adapter; raw Resvg auto-start-reverse limitations
+are retained as observer setup evidence, not relabelled as a product defect.
+Broader Sequence owners pass158tests/16,354assertions. The initial8reference
+failures were sandbox EPERM writing child pipes; the same frozen inputs pass
+with normal IPC. Independent37-context controls retain mutable/getter/CSS/
+public-cache/clone/header/owner distinctions, including actual covered-marker
+F and changed-palette U. Evidence:`sequence/REPORT.json`,`authority-review/`.
+
+The combined R5 prototype now passes both canonical core and repository types
+with pinned Tridentf080278e31e4202ca89d524e4ee9e4cf3cbff038. These checks include
+all tracked eval/tooling source, not a partial repository inventory. A complete
+frozen workspace fixes my earlier omitted fixtures/Bun preload: its paint/Scene
+complement is645P/1F/8,797assertions; only the already-open ER256Native budget
+refusal remains in that partition. Eight earlier setup/config failures and
+one real refusal remain in the first incomplete-workspace log. This result
+qualifies that recorded private prototype; final combined head/CI are still
+pending and the separate63curve/endpoint cases are recorded independently.
+
+Two Class subtraction attempts are rejected with actual-ink controls. Moving
+relations above cards paints through an unrelated card; both certificates
+already reject that positioned route. Removing only repaint carriers erases
+an entire baseline-accepted thick-border inheritance marker:108removal pixels
+become0 and candidate correctly reports MARKER_OCCLUDED in Native and Scene.
+No large-direction success is claimed for either stopped experiment; their
+unrun eight-direction/writer cells remain enrolled. The published PR description
+was corrected on30October04:17UTC, with published/private status separated,
+CI terminal failure recorded and malformed duplicated reproduction text fixed.
+New visual assets are local only; the description explicitly leaves the
+mechanical linter's missing embedded-public-asset finding open. No external
+comment/message or fabricated public asset link was created.
