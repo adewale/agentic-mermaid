@@ -265,6 +265,8 @@ SVG requirements:
 - Style + Palette rendering routes Gantt marks through the internal style face:
   task labels, bars, grid lines, markers, and section bands should respond to named styles and palette stacks;
 - status classes: `gantt-bar`, `gantt-bar-done`, `gantt-bar-active`, `gantt-bar-crit`, `gantt-milestone`, `gantt-milestone-done`, `gantt-milestone-active`, `gantt-milestone-crit`, `gantt-vert-marker`, `gantt-excluded-band`;
+- each status is drawn apart from every other by ink, never by opacity alone, with one cue per terminal glyph: plain a solid body (█), active a lighter body inside an outline (▓), crit a pale body inside a heavy outline (▒), done a pale body inside a dashed outline (░); milestones take their status the same way;
+- theme line/accent/border ink is drawn through the renderer's repaired tokens (`--_line`, `--_arrow`, `--_node-stroke`), so an unreadable theme line or accent cannot leave the grid or bars faint;
 - text contrast tests for status bars in light and dark themes;
 - `displayMode: compact` uses deterministic interval packing and has a fixture where dense rows would overlap under naive spacing.
 

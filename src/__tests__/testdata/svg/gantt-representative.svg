@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="735" height="312" viewBox="0 0 735 312" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-1b1r5xf0uwbzqj">
+<svg xmlns="http://www.w3.org/2000/svg" width="735" height="312" viewBox="0 0 735 312" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-0qyukfd0dlsp3p">
 <style>
-  svg.am-1b1r5xf0uwbzqj { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg.am-1b1r5xf0uwbzqj {
+  svg.am-0qyukfd0dlsp3p { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0qyukfd0dlsp3p {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;
@@ -31,10 +31,10 @@
 <text x="16" y="151" class="gantt-task-label" text-anchor="start" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="69.381" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Future task</text>
 <text x="16" y="217" class="gantt-task-label" text-anchor="start" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="50.115" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Crit task</text>
 <text x="16" y="247" class="gantt-task-label" text-anchor="start" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="50.856" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Release</text>
-<rect class="gantt-bar gantt-bar-done" data-task="des1" x="119" y="80" width="80" height="22" rx="3" ry="3" fill="#27272A" stroke="none" opacity="0.55" data-id="task:des1" data-role="task" />
-<rect class="gantt-bar gantt-bar-active" data-task="des2" x="239" y="110" width="200" height="22" rx="3" ry="3" fill="#27272A" stroke="#27272A" stroke-width="1.5" opacity="1" data-id="task:des2" data-role="task" />
-<rect class="gantt-bar" data-task="des3" x="439" y="140" width="280" height="22" rx="3" ry="3" fill="#27272A" stroke="none" opacity="0.92" data-id="task:des3" data-role="task" />
-<rect class="gantt-bar gantt-bar-crit" data-task="c1" x="119" y="206" width="160" height="22" rx="3" ry="3" fill="#27272A" stroke="#27272A" stroke-width="1.5" opacity="0.95" data-id="task:c1" data-role="task" />
-<path class="gantt-milestone" data-task="m1" d="M 708 236 L 719 247 L 708 258 L 697 247 Z" fill="#27272A" stroke="#27272A" stroke-width="1" data-id="task:m1" data-role="milestone" />
+<rect class="gantt-bar gantt-bar-done" data-task="des1" x="119" y="80" width="80" height="22" rx="3" ry="3" fill="#bebebf" stroke="#27272A" stroke-width="1.25" stroke-dasharray="3 2" data-id="task:des1" data-role="task" />
+<rect class="gantt-bar gantt-bar-active" data-task="des2" x="239" y="110" width="200" height="22" rx="3" ry="3" fill="#7d7d7f" stroke="#27272A" stroke-width="1.5" data-id="task:des2" data-role="task" />
+<rect class="gantt-bar" data-task="des3" x="439" y="140" width="280" height="22" rx="3" ry="3" fill="#27272A" stroke="none" data-id="task:des3" data-role="task" />
+<rect class="gantt-bar gantt-bar-crit" data-task="c1" x="119" y="206" width="160" height="22" rx="3" ry="3" fill="#c9c9ca" stroke="#27272A" stroke-width="2.5" data-id="task:c1" data-role="task" />
+<path class="gantt-milestone" data-task="m1" d="M 708 236 L 719 247 L 708 258 L 697 247 Z" fill="#27272A" stroke="none" data-id="task:m1" data-role="milestone" />
 <text x="367.5" y="18" class="gantt-title" text-anchor="middle" font-size="17" font-weight="600" fill="#27272A" data-id="title" data-role="title" data-prepared-text="true" dy="5.95" textLength="378.93" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Adding GANTT diagram functionality to mermaid</text>
 </svg>
