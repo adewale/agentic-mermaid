@@ -154,4 +154,17 @@ describe('mcp-surface fuzz: executeInSandbox', () => {
       fcParameters({ numRuns: SANDBOX_RUNS }),
     )
   }, LONG_TIMEOUT_MS)
+  it('returns the value the code computes, and reports the message the code throws', async () => {
+    await fc.assert(
+      fc.asyncProperty(fc.jsonValue({ maxDepth: 2 }), fc.string({ unit: 'grapheme', minLength: 1, maxLength: 20 }), async (value, message) => {
+        const returned = await executeInSandbox(`return ${JSON.stringify(value)}`, { timeoutMs: 1000 })
+        expect(returned).toMatchObject({ ok: true })
+        expect((returned as { value: unknown }).value).toEqual(JSON.parse(JSON.stringify(value)))
+        const thrown = await executeInSandbox(`throw new Error(${JSON.stringify(message)})`, { timeoutMs: 1000 })
+        expect(thrown.ok).toBe(false)
+        expect(String((thrown as { error: unknown }).error)).toContain(message)
+      }),
+      fcParameters({ numRuns: SANDBOX_RUNS }),
+    )
+  }, LONG_TIMEOUT_MS)
 })
