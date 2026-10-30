@@ -667,11 +667,13 @@ function paintBounds(node: SceneNode, parentTransform?: SceneTransform, document
     const block = node.measurement === 'prepared' ? node.block : undefined
     const matches = block && node.fontSize === block.fontSize && (node.fontWeight ?? block.fontWeight) === block.fontWeight
       && (node.letterSpacing ?? 0) === block.letterSpacing && !node.fontStyle && !node.textDecoration && !node.dominantBaseline && !node.spans
-    const position = matches ? { x: node.x, y: node.y, anchor: node.anchor, baselineShift: node.baselineShift ?? 0.35 } : undefined
-    const ink = position ? preparedTextInkBounds(block!, position.x, position.y, position.anchor, position.baselineShift) : undefined
+    let x = 0, y = 0, baselineShift = 0.35
+    let anchor: typeof node.anchor = 'start'
+    if (matches) { x = node.x; y = node.y; anchor = node.anchor; baselineShift = node.baselineShift ?? 0.35 }
+    const ink = matches ? preparedTextInkBounds(block!, x, y, anchor, baselineShift) : undefined
     local = ink ?? nodeWorldBounds({ ...node, transform: undefined })
-    if (!ink && block && hasPreparedInterTextEnvelope(block) && position) {
-      const envelope = preparedInterTextBounds(block, position.x, position.y, position.anchor, position.baselineShift, documentFont)
+    if (!ink && block && hasPreparedInterTextEnvelope(block) && matches) {
+      const envelope = preparedInterTextBounds(block, x, y, anchor, baselineShift, documentFont)
       if (envelope) local = unionSceneBounds(local, envelope)
     }
     const extent = paintedStrokeExtent(node.paint, false)
