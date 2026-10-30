@@ -57,8 +57,8 @@ function appendPrivate<T>(values: T[], value: T): void {
 
 /** Feed each emitted occurrence to inspection without copying its descendants
  * every time a group wraps them. Reused fragments keep distinct occurrence keys. */
-function inspectPaint(header: PaintInspectionHeader, parts: readonly Fragment[], observe: (node: LeafNode, svg: string) => boolean): ScenePaintGeometryInspection {
-  const recorder = createOwnedNativePaintRecorder(header)
+function inspectPaint(header: PaintInspectionHeader, parts: readonly Fragment[], observe: (node: LeafNode, svg: string) => boolean, documentFont?: string): ScenePaintGeometryInspection {
+  const recorder = createOwnedNativePaintRecorder(header, documentFont)
   const groups: GroupFragment[] = []
   type Occurrence = Omit<NativePaintEntry, 'node' | 'key'>
   function visit(children: readonly Fragment[], prefix: string, occurrence?: Occurrence): void {
@@ -235,7 +235,9 @@ export function drawNative(
   const finalHeader = emission.snapshot({ family: document.family, width: document.width, height: document.height, colors: document.colors, transparent: document.transparent })
   const paintHeader = Object.freeze({ ...capturedHeader, family: finalHeader?.family ?? family })
   if (!finalHeader || !emission.same({ ...finalHeader, width: Number(formatSvgNumber(finalHeader.width)), height: Number(formatSvgNumber(finalHeader.height)) }, paintHeader)) emission.uncertain()
-  const paint = inspectPaint(paintHeader, parts, emission.observe)
+  const font = emittedHeader ? Object.getOwnPropertyDescriptor(emittedHeader.colors, 'font') : undefined
+  const documentFont = font && Object.hasOwn(font, 'value') && typeof font.value === 'string' ? font.value : undefined
+  const paint = inspectPaint(paintHeader, parts, emission.observe, documentFont)
   // The styled backdrop is emitted outside the recorder's primitive roster.
   // It excludes only new proofs requiring a closed marker-paint context.
   emission.finish(paint, paintHeader, xmlWrite, backdrop !== '')

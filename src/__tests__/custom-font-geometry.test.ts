@@ -1,16 +1,71 @@
 import { KNOWN_EXTENSION_CONTRACT_VERSIONS } from '../shared/extension-identity.ts'
 import { describe, expect, test } from 'bun:test'
-import { createMermaidRenderer, DefaultBackend, registerBackend, renderMermaidSVG } from '../index.ts'
+import { createMermaidRenderer, DefaultBackend, registerBackend, renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import { fitUncalibratedSvgText } from '../custom-font-geometry.ts'
 import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
 import { measureFormattedTextWidth, measureMonospaceTextWidth, measureTextWidth } from '../text-metrics.ts'
 import { decodePng, inkColumns } from './helpers/png-pixels.ts'
 import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
+import { Resvg } from '@resvg/resvg-js'
+import { join } from 'node:path'
+import { withRenderStageObserver } from '../render-stages.ts'
+import { useTestChildren } from './helpers/test-child.ts'
 
 const BUNDLED_FONT_FAMILIES = [...new Set(HOSTED_FONT_RESOURCES.map(resource => resource.family))]
+const runChild = useTestChildren(20_000)
 
 describe('deterministic custom-font geometry', () => {
+  test.each([
+    ['jAlphabetf', 24, 400], ['jAlphabetf', 48, 500], ['jAlphabetf', 72, 600],
+    ['jjjjjj', 48, 700], ['<b>jjjjjj</b>', 48, 400], ['jAlpha<b>f</b>', 24, 400],
+  ].flatMap(([label, size, weight]) => (['agentic', 'elk'] as const).flatMap(backend => (['native', 'scene'] as const).map(mode => ({ label: String(label), size: Number(size), weight: Number(weight), backend, mode })))))('bundled Inter outlines survive zero padding: $label/$size/$weight/$backend/$mode', async ({ label, size, weight, backend, mode }) => {
+    const source = `flowchart LR\nA["${label}"]\nstyle A fill:none,stroke:none`
+    const options = { font: 'Inter', padding: 0, embedFontImport: false, graphLayout: { backend, fallback: 'none' as const },
+      style: { roles: { node: { fontSize: size, fontWeight: weight, paddingX: 0, paddingY: 0 } } } }
+    let result: ReturnType<typeof renderMermaidSVGWithReceipt>
+    if (mode === 'native') {
+      const child = await runChild(process.execPath, ['-e', `
+        import { renderMermaidSVGWithReceipt } from './src/index.ts'
+        import { withRenderStageObserver } from './src/render-stages.ts'
+        const stages = [], result = withRenderStageObserver(s => stages.push(s.stage), () => renderMermaidSVGWithReceipt(${JSON.stringify(source)}, ${JSON.stringify(options)}))
+        console.log(JSON.stringify({ result, stages }))
+      `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '0' } })
+      expect(child.status, child.stderr).toBe(0)
+      const packet = JSON.parse(child.stdout)
+      expect(packet.stages).toContain('drawing'); expect(packet.stages).not.toContain('scene')
+      result = packet.result
+    } else {
+      const stages: string[] = []
+      result = withRenderStageObserver(s => stages.push(s.stage), () => renderMermaidSVGWithReceipt(source, { ...options, layoutSafety: 'strict' }))
+      expect(stages).toContain('scene')
+    }
+    expect(result.receipt.layoutCertification?.status).toBe('passed')
+    const root = result.svg.match(/<svg\b[^>]*>/)![0], text = result.svg.match(/<text\b[^>]*>[\s\S]*?<\/text>/g)!
+    expect(text).toHaveLength(1)
+    const view = root.match(/viewBox="([^"]+)"/)![1]!.split(/\s+/).map(Number)
+    const width = Number(root.match(/width="([^"]+)"/)![1]), height = Number(root.match(/height="([^"]+)"/)![1])
+    // Reveal any clipped ink with a viewport-only change. All text bytes,
+    // shaping, fitting and coordinates remain those of the returned SVG.
+    const expandedRoot = root.replace(/width="[^"]+"/, `width="${width * (view[2]! + 40) / view[2]!}"`)
+      .replace(/height="[^"]+"/, `height="${height * (view[3]! + 40) / view[3]!}"`)
+      .replace(/viewBox="[^"]+"/, `viewBox="${view[0]! - 20} ${view[1]! - 20} ${view[2]! + 40} ${view[3]! + 40}"`)
+    const expanded = result.svg.replace(root, expandedRoot)
+    const font = { fontFiles: HOSTED_FONT_RESOURCES.filter(face => face.family === 'Inter').map(face => join(import.meta.dirname, '../..', face.path)), loadSystemFonts: false, defaultFontFamily: 'Inter' }
+    const raster = new Resvg(expanded, { font }).render(), pixels = raster.pixels
+    const absent = new Resvg(expanded.replace(text[0]!, ''), { font }).render().pixels
+    let changed = 0, outside = 0
+    for (let y = 0; y < raster.height; y++) for (let x = 0; x < raster.width; x++) {
+      const offset = (y * raster.width + x) * 4
+      if (pixels.subarray(offset, offset + 4).equals(absent.subarray(offset, offset + 4))) continue
+      changed++
+      const wx = view[0]! - 20 + (x + .5) * (view[2]! + 40) / raster.width, wy = view[1]! - 20 + (y + .5) * (view[3]! + 40) / raster.height
+      if (wx < view[0]! || wx >= view[0]! + view[2]! || wy < view[1]! || wy >= view[1]! + view[3]!) outside++
+    }
+    expect(changed).toBeGreaterThan(0)
+    expect(outside).toBe(0)
+  })
+
   test('trusted metrics receive inherited SVG fonts and keep their advances separate', () => {
     const fonts: string[] = []
     const execution = createTextMeasurementExecution({

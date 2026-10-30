@@ -11,6 +11,7 @@ import { createImmutableParts } from './immutable-parts.ts'
 import { customTextMeasurementActive, customTextInkActive, profileTextInk, profileTextFontFamily, type ProfileTextInkMeasurement } from '../text-measurement-profile.ts'
 import { formatSvgNumber } from './svg-number.ts'
 import type { AxisAlignedBox } from './transformed-bounds.ts'
+import { interTextEnvelope } from './inter-text-envelope.ts'
 
 export interface PixelTextOptions {
   display?: LabelDisplay
@@ -73,6 +74,7 @@ export interface PixelTextBlock {
 const pixelBlocks = new WeightedLru<string, PixelTextBlock>(256, 8 * 1024 * 1024)
 const preparedBlocks = new WeakSet<object>()
 const shapedInkBlocks = new WeakSet<object>()
+const interEnvelopeBlocks = new WeakSet<object>()
 // Only constructor-owned immutable data, never the transferable measurement brand.
 const immutablePixelParts = createImmutableParts(isImmutableDisplayTextPart, isOwnedDisplayTextPart)
 export function isImmutablePixelTextPart(value: object): boolean { return immutablePixelParts.has(value) }
@@ -81,9 +83,42 @@ export function isRetainedPixelText(value: object): boolean { return preparedBlo
 export function transferRetainedPixelText(source: object, snapshot: object): void {
   if (preparedBlocks.has(source)) preparedBlocks.add(snapshot)
   if (shapedInkBlocks.has(source)) shapedInkBlocks.add(snapshot)
+  if (interEnvelopeBlocks.has(source)) interEnvelopeBlocks.add(snapshot)
 }
 
 export function hasPreparedTextInk(block: PixelTextBlock): boolean { return shapedInkBlocks.has(block) }
+export function hasPreparedInterTextEnvelope(block: PixelTextBlock): boolean { return interEnvelopeBlocks.has(block) }
+
+/** Bundled normal Inter has a conservative Latin envelope distinct from a
+ * host's exact shaped ink. It never grants the host-shaped measurement brand. */
+export function preparedInterTextBounds(block: PixelTextBlock, cx: number, cy: number, anchor: string, baselineShift = 0.35, documentFont?: string): AxisAlignedBox | undefined {
+  if (!interEnvelopeBlocks.has(block) || (block.fontFamily ?? documentFont) !== 'Inter') return undefined
+  let result: AxisAlignedBox | undefined
+  const size = Number(formatSvgNumber(block.fontSize))
+  for (let index = 0; index < block.lineBlocks.length; index++) {
+    const line = block.lineBlocks[index]
+    if (!line) return undefined
+    const served = preparedTextLineGeometry(block, index, cx, cy, anchor, baselineShift)
+    const include = (text: string, weight: number, x: number, width: number): boolean => {
+      const envelope = interTextEnvelope(text, weight, size, width)
+      if (!envelope) return false
+      const bounds = { x0: x - envelope.left, x1: x + width + envelope.right, y0: served.baseline - envelope.above, y1: served.baseline + envelope.below }
+      if (!Object.values(bounds).every(value => Number.isFinite(value) && Math.abs(value) <= 1e6)) return false
+      result = result ? { x0: Math.min(result.x0, bounds.x0), y0: Math.min(result.y0, bounds.y0), x1: Math.max(result.x1, bounds.x1), y1: Math.max(result.y1, bounds.y1) } : bounds
+      return true
+    }
+    if (line.fragments) for (let i = 0; i < line.fragments.length; i++) {
+      const fragment = line.fragments[i]
+      if (!fragment) return undefined
+      const run = line.runs[fragment.runIndex], position = served.fragments?.[i]
+      if (!run || !position || !include(fragment.text, run.bold ? Math.max(700, block.fontWeight) : block.fontWeight, Number(position.x), Number(position.textLength))) return undefined
+    } else {
+      const width = Number(served.textLength), offset = anchor === 'middle' ? width / 2 : anchor === 'end' ? width : 0
+      if (!include(line.runs.map(run => run.text).join(''), block.fontWeight, Number(served.x) - offset, width)) return undefined
+    }
+  }
+  return result
+}
 
 /** The served fitted operands are shared by emission and occupied geometry.
  * Advance allocation remains separate from the host's actual outline bounds. */
@@ -277,7 +312,7 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
   }
   if (!Number.isFinite(options.fontSize) || options.fontSize <= 0 || !Number.isFinite(options.fontWeight) || !Number.isFinite(options.letterSpacing ?? 0)) throw new RangeError('Prepared text requires finite typography and a positive font size')
   const cacheKey = performanceExperimentEnabled('text-spans') && !customTextMeasurementActive() && typeof source === 'string' && source.length <= 16384
-    ? JSON.stringify([source, options]) : undefined
+    ? JSON.stringify([source, options, profileTextFontFamily()]) : undefined
   if (cacheKey !== undefined) { const cached = pixelBlocks.get(cacheKey); if (cached) return cached }
   const prepared = prepareDisplayText(source, options.display, options.transform)
   const maxWidth = options.maxWidth
@@ -385,11 +420,17 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
   const width = lineBlocks.reduce((max, line) => Math.max(max, line.width), 0)
   // A shaped block may be reused under another document. Its measured face
   // must remain an emitted override rather than inheriting that new root.
-  const fontFamily = options.fontFamily ?? (completeInk ? profileTextFontFamily() : undefined)
+  const selectedFont = options.fontFamily ?? profileTextFontFamily()
+  const interEnvelope = !customTextMeasurementActive() && selectedFont === 'Inter' && !options.monospace && lineBlocks.every(line =>
+    line.runs.every(run => !run.italic && !run.underline && !run.strikethrough)
+    && (line.fragments ? line.fragments.every(fragment => interTextEnvelope(fragment.text, line.runs[fragment.runIndex]!.bold ? Math.max(700, options.fontWeight) : options.fontWeight, options.fontSize, fragment.width) !== undefined)
+      : interTextEnvelope(line.runs.map(run => run.text).join(''), options.fontWeight, options.fontSize, line.width) !== undefined))
+  const fontFamily = options.fontFamily ?? (completeInk ? selectedFont : undefined)
   if (!fontFamily) completeInk = false
   const block: PixelTextBlock = immutablePixelParts.freezeOwned({ unit: 'px', prepared, text: lines.join('\n'), lines, lineBlocks: immutablePixelParts.freezeOwned(lineBlocks), breaks: immutablePixelParts.freezeOwned(breaks), width, height: lines.length * lineHeight, lineHeight, fontSize: options.fontSize, fontWeight: options.fontWeight, letterSpacing: options.letterSpacing ?? 0, monospace: options.monospace ?? false, safeFont: options.safeFont ?? false, ...(fontFamily ? { fontFamily } : {}) })
   preparedBlocks.add(block)
   if (completeInk) shapedInkBlocks.add(block)
+  if (interEnvelope) interEnvelopeBlocks.add(block)
   if (cacheKey !== undefined) pixelBlocks.set(cacheKey, block, cacheKey.length * 2 + block.prepared.source.length * 128 + block.lines.length * 256 + 512)
   return block
 }
@@ -404,6 +445,7 @@ export function pixelTextLine(block: PixelTextBlock | undefined, index: number):
   const projected: PixelTextBlock = immutablePixelParts.freeze({ ...block, text: line.text, lines, lineBlocks: immutablePixelParts.freeze([immutablePixelParts.freeze({ ...line, baseline: block.fontSize * 0.35 })]), breaks: immutablePixelParts.freeze([]), width: line.width, height: block.lineHeight })
   preparedBlocks.add(projected)
   if (hasPreparedTextInk(block)) shapedInkBlocks.add(projected)
+  if (interEnvelopeBlocks.has(block)) interEnvelopeBlocks.add(projected)
   return projected
 }
 

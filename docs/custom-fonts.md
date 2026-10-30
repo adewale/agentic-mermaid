@@ -103,6 +103,22 @@ library stack.
 `validateStyleSpec` checks that `font` is a string. It cannot prove that the
 family is installed, present under `fontDirs`, or available to a browser.
 
+## Default occupied text bounds
+
+Layout advances and glyph outlines are different measurements. Normal bundled
+Inter at weights 400, 500, 600 and 700 has a conservative outline envelope for
+Latin letters and spaces, derived from the pinned faces' substitution, kerning
+and outline bounds. Native and Scene use the actual written position, baseline,
+font size and fitted length with that envelope. It can expand the final SVG
+viewport to retain overhanging ink without changing layout advances or ports.
+
+The envelope applies only when the captured or admitted document selects Inter;
+reusing a block under Caveat does not force Inter or borrow its envelope. It is
+separate from a host's shaped-ink measurement. Punctuation, Unicode, synthetic
+italic, other faces, arbitrary CSS font overrides and custom width-only profiles
+keep their existing limits. This does not establish complete glyph visibility
+for every font or extend the paint certificate beyond its stated scope.
+
 ## Trusted font measurement profiles
 
 By default, graphical layout uses deterministic Inter-compatible width

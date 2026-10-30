@@ -186,8 +186,8 @@ export function nativePaintAncestors(parent: readonly SceneOwner[] | undefined, 
 }
 
 /** Feed native occurrences directly without allocating intermediate entries. */
-export function createOwnedNativePaintRecorder(header: PaintInspectionHeader) {
-  const recorder = createPaintRecorder(header, undefined, true)
+export function createOwnedNativePaintRecorder(header: PaintInspectionHeader, documentFont?: string) {
+  const recorder = createPaintRecorder(header, undefined, true, documentFont)
   return {
     leaf(node: NativePaintEntry['node'], key: string, parentMatrix?: AffineMatrix, ancestors: readonly SceneOwner[] = emptyAncestors, conditional = false, groupOpacity = 1, owner?: SceneOwner) {
       if (!ownedAncestors.has(ancestors)) throw new TypeError('Native paint ancestors must be owned snapshots')
@@ -218,7 +218,7 @@ function nativePaintSource(node: Exclude<SceneNode, { kind: 'group' }>): NativeP
   }
 }
 
-function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDetails, native = false) {
+function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDetails, native = false, documentFont?: string) {
   const primitives: ScenePaintGeometry[] = []
   const coverage = { measured: 0, unmeasured: 0, nonPainting: 0, preparedText: 0, fallbackText: 0 }
   const leaf = (semanticNode: Exclude<SceneNode, { kind: 'group' }>, key: string, parent: AffineMatrix | undefined, ancestors: readonly SceneOwner[], conditional: boolean, groupOpacity: number, explicitOwner?: SceneOwner, servedNode?: Exclude<SceneNode, { kind: 'group' }>, pathAuthority = false, untransformed = parent === undefined): void => {
@@ -229,7 +229,7 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
     const [a, b, c, d, e, f] = parent ?? IDENTITY_MATRIX
     const parentTransform: SceneTransform | undefined = parent || node.transform ? { kind: 'matrix', a, b, c, d, e, f } : undefined
     const matrix = !parent && !node.transform ? IDENTITY_PAINT_MATRIX : Object.freeze(composeMatrices(parent ?? IDENTITY_MATRIX, transformMatrix(node.transform)))
-    const bounds = hidden ? undefined : nodePaintBounds(node, parentTransform)
+    const bounds = hidden ? undefined : nodePaintBounds(node, parentTransform, documentFont)
     const measured = !!bounds && finite(bounds)
     const status = hidden ? 'non-painting' : measured ? 'measured' : 'unmeasured'
     const primitive: ScenePaintGeometry = Object.freeze({
@@ -300,7 +300,7 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
 }
 
 function inspectScene(scene: SceneDoc, retainText?: TextDetails, writes?: ReturnType<typeof beginSceneWriteInspection>, requireWritten: false | 'marked' | 'all' = false): ScenePaintGeometryInspection {
-  const recorder = createPaintRecorder(scene, retainText)
+  const recorder = createPaintRecorder(scene, retainText, false, isAdmittedSceneDocument(scene) ? scene.colors.font : undefined)
   const walk = (nodes: readonly SceneNode[], prefix: string, parent: AffineMatrix, ancestors: readonly SceneOwner[], conditional = false, groupOpacity = 1, untransformed = true): void => {
     nodes.forEach((node, index) => {
       const key = `${prefix}.${index}`

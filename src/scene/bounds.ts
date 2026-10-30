@@ -2,7 +2,7 @@ import { tryParseCssColor } from '../shared/color-math.ts'
 import { rotateBoxBounds, type AxisAlignedBox } from '../shared/transformed-bounds.ts'
 import type { ConnectorContourSemantics, ConnectorLabelDescriptor, ConnectorMark, Geometry, MarkPaint, MarkerDescriptor, SceneNode, ScenePoint, SceneTransform } from './ir.ts'
 import { connectorEndpointAnchors, connectorMidpoints } from './connector-geometry.ts'
-import { preparePixelText, preparedTextInkBounds, type PixelTextBlock } from '../shared/prepared-text.ts'
+import { preparePixelText, preparedTextInkBounds, preparedInterTextBounds, hasPreparedInterTextEnvelope, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
 import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
 import { writtenPolylineProjectionOf } from './written-geometry.ts'
@@ -634,11 +634,11 @@ function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform): 
 /** Conservative painted bounds, independent of legacy layout/hit envelopes.
  * Pass the ancestor transform before stroke expansion, so non-scaling strokes
  * retain their world-space width. Unknown artwork is wholly unmeasured. */
-export function nodePaintBounds(node: SceneNode, parentTransform?: SceneTransform): AxisAlignedBox | undefined {
-  return paintBounds(node, parentTransform)
+export function nodePaintBounds(node: SceneNode, parentTransform?: SceneTransform, documentFont?: string): AxisAlignedBox | undefined {
+  return paintBounds(node, parentTransform, documentFont)
 }
 
-function paintBounds(node: SceneNode, parentTransform?: SceneTransform): AxisAlignedBox | undefined {
+function paintBounds(node: SceneNode, parentTransform?: SceneTransform, documentFont?: string): AxisAlignedBox | undefined {
   const transform = composedTransform(parentTransform, node.transform)
   if (transform && !inverseMatrix(transformMatrix(transform))) return undefined
   let local: AxisAlignedBox | undefined
@@ -665,17 +665,22 @@ function paintBounds(node: SceneNode, parentTransform?: SceneTransform): AxisAli
     // nodeWorldBounds already uses the retained occupied band/offset. Apply
     // the transform only once, after optional text stroke expansion.
     const block = node.measurement === 'prepared' ? node.block : undefined
-    const ink = block && node.fontSize === block.fontSize && (node.fontWeight ?? block.fontWeight) === block.fontWeight
+    const matches = block && node.fontSize === block.fontSize && (node.fontWeight ?? block.fontWeight) === block.fontWeight
       && (node.letterSpacing ?? 0) === block.letterSpacing && !node.fontStyle && !node.textDecoration && !node.dominantBaseline && !node.spans
-      ? preparedTextInkBounds(block, node.x, node.y, node.anchor, node.baselineShift ?? 0.35) : undefined
+    const position = matches ? { x: node.x, y: node.y, anchor: node.anchor, baselineShift: node.baselineShift ?? 0.35 } : undefined
+    const ink = position ? preparedTextInkBounds(block!, position.x, position.y, position.anchor, position.baselineShift) : undefined
     local = ink ?? nodeWorldBounds({ ...node, transform: undefined })
+    if (!ink && block && hasPreparedInterTextEnvelope(block) && position) {
+      const envelope = preparedInterTextBounds(block, position.x, position.y, position.anchor, position.baselineShift, documentFont)
+      if (envelope) local = unionSceneBounds(local, envelope)
+    }
     const extent = paintedStrokeExtent(node.paint, false)
     if (!local || extent === undefined) return undefined
     return paintedBox(local, extent, node.paint.vectorEffect === 'non-scaling-stroke', transform)
   } else if (node.kind === 'group') {
     for (const child of node.children) {
       if (child.node.kind === 'document' && child.node.nonPaint) continue
-      const bounds = paintBounds(child.node, transform)
+      const bounds = paintBounds(child.node, transform, documentFont)
       if (!bounds) return undefined
       local = unionSceneBounds(local, bounds)
     }

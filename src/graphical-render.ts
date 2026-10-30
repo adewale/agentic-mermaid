@@ -149,7 +149,7 @@ export function renderPositionedMermaidSVG(
   capture?: ScenePartCapture,
 ): ResolvedGraphicalExecution {
   return withTextMeasurementExecution(resolvedRenderExecutionPlanOf(request).textMeasurement, () =>
-    renderPositionedWithTextMeasurement(request, layout, securityDiagnostics, capture))
+    renderPositionedWithTextMeasurement(request, layout, securityDiagnostics, capture), request.appearance.font)
 }
 
 function renderPositionedWithTextMeasurement(

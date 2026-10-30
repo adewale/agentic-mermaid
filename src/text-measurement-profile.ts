@@ -124,14 +124,18 @@ export function createTextMeasurementExecution(
 // Every entry installs its own context (including undefined), and finally
 // restores it, so nested/default renders and exceptions cannot leak metrics.
 let activeExecution: TextMeasurementExecution | undefined
+let activeFontFamily: string | undefined
 
-export function withTextMeasurementExecution<T>(execution: TextMeasurementExecution | undefined, run: () => T): T {
+export function withTextMeasurementExecution<T>(execution: TextMeasurementExecution | undefined, run: () => T, fontFamily?: string): T {
   const previous = activeExecution
+  const previousFont = activeFontFamily
   activeExecution = execution
+  activeFontFamily = execution?.fontFamily ?? fontFamily
   try {
     return run()
   } finally {
     activeExecution = previous
+    activeFontFamily = previousFont
   }
 }
 
@@ -152,5 +156,5 @@ export function customTextInkActive(): boolean {
 }
 
 export function profileTextFontFamily(): string | undefined {
-  return activeExecution?.fontFamily
+  return activeFontFamily
 }
