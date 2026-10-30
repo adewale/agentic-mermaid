@@ -21,6 +21,7 @@ import {
   validateStyleSpec, validateSerializableRenderOptions, validateSceneDoc,
   parseSemVer, semVerSatisfies, renderMermaidSVG, verifyMermaid,
 } from '../agent/index.ts'
+import { renderMermaidASCII } from '../index.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { FAMILY_ID_SOURCES, FAMILY_LABEL_SOURCES, hostileTextArb } from './helpers/family-text-sources.ts'
 
@@ -116,18 +117,25 @@ const renderOptsArb = fc
   })
 
 describe('validator fuzz: validateSerializableRenderOptions does not lie', () => {
-  it('a clean options object renders without throwing', () => {
+  it('options render on SVG and terminal exactly when the validator finds no problem', () => {
     let cleanSeen = 0
-    fc.assert(fc.property(renderOptsArb, opts => {
+    let rejectedSeen = 0
+    fc.assert(fc.property(fc.oneof(renderOptsArb, fc.dictionary(fc.constantFrom(...Object.keys(RENDER_OPT_ARBS), 'unknownField'), fc.jsonValue(), { maxKeys: 4 })), opts => {
       const problems = validateSerializableRenderOptions(opts)
-      if (problems.length === 0) {
-        cleanSeen++
-        // The validator green-lit these options; the renderer MUST accept them.
-        expect(() => renderMermaidSVG(SRC, opts as never)).not.toThrow()
+      if (problems.length === 0) cleanSeen++
+      else rejectedSeen++
+      // Green-lit options must render; refused ones must be refused by the
+      // renderers too, not silently drawn with the bad value.
+      for (const render of [renderMermaidSVG, renderMermaidASCII]) {
+        if (problems.length === 0) expect(() => render(SRC, opts as never)).not.toThrow()
+        else expect(() => render(SRC, opts as never)).toThrow()
       }
-    }), fcParameters({ numRuns: NUM_RUNS }))
-    // Guard against a vacuous property: the arbitraries must produce clean options sometimes.
+      // Reduced counterexample: the terminal renderer silently ignored an
+      // unknown key the SVG renderer refuses.
+    }), fcParameters({ numRuns: NUM_RUNS, examples: [[{ unknownField: null }]] }))
+    // Guard against a vacuous property: both directions must be exercised.
     expect(cleanSeen).toBeGreaterThan(0)
+    expect(rejectedSeen).toBeGreaterThan(0)
   })
 })
 
@@ -156,16 +164,18 @@ const styleSpecArb = fc
   })
 
 describe('validator fuzz: validateStyleSpec does not lie', () => {
-  it('a clean style spec renders without throwing', () => {
+  it('a style spec renders exactly when the validator finds no problem', () => {
     let cleanSeen = 0
-    fc.assert(fc.property(styleSpecArb, spec => {
+    let rejectedSeen = 0
+    fc.assert(fc.property(fc.oneof(styleSpecArb, fc.dictionary(fc.constantFrom(...Object.keys(STYLE_FIELD_ARBS), 'unknownField'), fc.jsonValue(), { maxKeys: 4 })), spec => {
       const problems = validateStyleSpec(spec as never)
-      if (problems.length === 0) {
-        cleanSeen++
-        expect(() => renderMermaidSVG(SRC, { style: spec as never })).not.toThrow()
-      }
+      if (problems.length === 0) cleanSeen++
+      else rejectedSeen++
+      if (problems.length === 0) expect(() => renderMermaidSVG(SRC, { style: spec as never })).not.toThrow()
+      else expect(() => renderMermaidSVG(SRC, { style: spec as never })).toThrow()
     }), fcParameters({ numRuns: NUM_RUNS }))
     expect(cleanSeen).toBeGreaterThan(0)
+    expect(rejectedSeen).toBeGreaterThan(0)
   })
 })
 
