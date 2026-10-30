@@ -8,8 +8,8 @@ metadata and relevant comments were read. This is not a claim to have reviewed
 every implementation or every historical discussion. Empty issue history is
 recorded rather than treated as evidence of quality.
 
-The implementation candidate is based on main `83744a4e`. Source changes are
-unreleased. No registry publication or production deployment is authorized by
+The implementation began on main `83744a4e` and the PR is rebased onto
+`4c72d1c8`. Source changes are unreleased. No registry publication or production deployment is authorized by
 this work. The original three-project report and the detailed source snapshots,
 probe outputs, profiles and browser captures are retained with the session.
 
@@ -59,9 +59,10 @@ not imply independent algorithms or equal semantic scope.
   retains its 2MiB default result limit, and uncaught errors retain the prior text
   envelope. Catch and return selected typed fields when needed.
 - **Markdown verification:** `am verify --markdown` reuses the normal verifier,
-  checks all extracted Mermaid blocks, maps available warning lines into the
+  checks extracted top-level Mermaid blocks, maps available warning lines into the
   physical document and explicitly marks block-start fallback locations. The
-  fence parser tracks non-Mermaid examples, longer fences, tilde fences and CRLF.
+  fence parser tracks non-Mermaid examples, HTML blocks/comments, longer fences,
+  tilde fences and CRLF. Nested list/blockquote fences require host extraction.
   An unclosed fence extends to EOF for static Markdown; streaming completion is
   a host decision. Existing Markdown rendering continues past invalid diagrams.
   No remark/rehype package or new rendering engine is introduced.
@@ -72,7 +73,7 @@ remain separate, deferred work. Mathematical labels remain research only.
 
 ## Routing profile and simplification decision
 
-The source diagnostic observes the existing **25-pass** pipeline, all four
+The pre-rebase source diagnostic observes the existing **25-pass** pipeline, all four
 fixtures `flowchart-basic`, `fan-in-fan-out`, `cyclic-labelled-15-chains` and
 `cyclic-labelled-18-cuts`, default and publication styles, position-cache allowed
 and disabled, and two rounds. Every one of the **32 SVG observations** matches
@@ -151,7 +152,8 @@ math fallback or math implementation backlog item is added.
 
 ## Local verification
 
-The final candidate passes **329 tests across 11 affected suites**, covering
+Before the rebase and HTML-context audit fix, the local candidate passed
+**329 tests across 11 affected suites**, covering
 numeric layout, pixel/cell text, measurements, resolved scenes, structured errors,
 Markdown CLI, SDK discovery/declarations and local/hosted execution parity.
 Earlier broader XY and geometry checks also passed; their counts overlap and
@@ -171,5 +173,6 @@ initialization/discovery/typed refusals. Public TypeScript declarations compile.
 The installed runtime-neutral entry also bundles and executes successfully in
 Chromium's main thread and a Web Worker with zero external requests.
 
-These are local candidate checks, not full CI or release qualification. The
-branch remains uncommitted and unmerged; no publication or deployment occurred.
+These are dated local candidate checks, not final-head CI or release qualification.
+The PR records checks for its final revision, including the HTML-context repair. The
+PR remains unmerged; no publication or deployment occurred.

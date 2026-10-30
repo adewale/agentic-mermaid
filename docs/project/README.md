@@ -21,6 +21,14 @@ code/tests, not dated inventories.
 | [Conditional forest layout](conditional-forest-layout.md) | Opt-in forest eligibility, fallback boundary and reproducible qualification commands. |
 | [Staged replacement of ELK](layered-layout-proposal.md) | Proposed measured-graph adapter, Pele evaluation, staged scope and acceptance boundary for replacing ELK. |
 
+## Dated comparisons
+
+- [Upstream lessons — 30 October 2026](upstream-lessons-2026-10-30.md) records the
+  additional-project scan, candidate repairs, routing profile and contrast tests.
+- [Mathematical labels — 30 October 2026](math-labels-research-2026-10-30.md)
+  compares the scanned engines and integrations. It is research, not an
+  implementation proposal or a new backlog.
+
 ## Completed and superseded work
 
 The [release record](archive/releases.md) binds completed releases to their
