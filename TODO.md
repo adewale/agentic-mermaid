@@ -42,7 +42,8 @@ route-contract extraction preserves the existing pipeline manifest and order.
   version is 0.5.4 and remains unpublished during development. The verified
   0.5.3 release is on npm and the MCP Registry and serves production; its
   [delivery record](https://github.com/adewale/agentic-mermaid/issues/378) is
-  complete. Main now includes #580's Class/ER scaling and routing repairs.
+  complete. Main now includes #580's Class/ER scaling and routing repairs
+  and #393's directory evidence refresh and removal of automatic release issues.
   Keep subsequent changes under **Unreleased**, retain 0.5.4 across development
   merges, and publish only when the owner chooses to release. A green merge
   does not authorize publication or a new production deployment.
