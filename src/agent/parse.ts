@@ -456,7 +456,7 @@ function markDroppedComments(diagram: ValidDiagram, authoredSource: string, stat
     const knownLines = new Set(comments.map(comment => comment.line))
     // These grammars either expose every real comment in envelope metadata,
     // or keep percent pairs inside their statement text.
-    if (['flowchart', 'state', 'journey', 'timeline', 'ishikawa', 'sankey'].includes(diagram.kind)) return comments
+    if (['flowchart', 'state', 'journey', 'timeline', 'ishikawa', 'sankey', 'zenuml'].includes(diagram.kind)) return comments
     if (diagram.kind === 'gantt') {
       const wrapperLines = (normalized.wrapperSource?.match(/\n/g) ?? []).length
       for (const statement of readGanttStatements(lines.map((line, index) => index < wrapperLines ? '' : line))) {

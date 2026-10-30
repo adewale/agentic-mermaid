@@ -166,6 +166,21 @@ BookService.getBook()`)
   expect(projectZenUMLSequence(reparsed).notes.map(n => n.text)).toEqual(notes.map(n => n.text))
 })
 
+// Reduced from the structural all-families fuzz: `%%` inside a title is title
+// text, but comment retention read it as a trailing comment. The title moves
+// to frontmatter, so the "dropped" comment came back as a bare `%%` line,
+// which ZenUML's grammar rejects. Real full-line comments still round-trip.
+test.each([
+  ['zenuml\n  title a%%\n  A->B: hi', [], 'a%%'],
+  ['zenuml\n  title 50%% done %% x\n  %% kept\n  A->B: hi', ['%% kept'], '50%% done %% x'],
+])('percent pairs in a ZenUML title stay title text: %j', (source, comments, title) => {
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
+  const canonical = serializeMermaid(parsed.value)
+  expect(canonical.split('\n').filter(line => line.trim().startsWith('%%'))).toEqual(comments)
+  const reparsed = parseRegisteredMermaid(canonical)
+  expect(reparsed.ok && reparsed.value.body.kind === 'zenuml' && reparsed.value.body.title).toBe(title)
+})
 test('checked edits rename implicit and nested identities without mutating the prior body', () => {
   const body = parseZenUML('zenuml\nClient->API.request() {\n  Worker.work() {\n    API->Worker: update\n  }\n  return complete\n}')
   const before = serializeZenUML(body)
