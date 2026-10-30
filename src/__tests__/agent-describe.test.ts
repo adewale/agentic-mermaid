@@ -67,6 +67,25 @@ describe('describeMermaid', () => {
     }
   })
 
+  // Counts agree with their nouns: a single item is never "1 edges" or "1 item(s)".
+  test.each([
+    ['flowchart TD\n  A --> B', 'A 2-node flowchart with 1 edge.'],
+    ['stateDiagram-v2\n  [*] --> A', 'A state diagram with 1 state and 1 transition.'],
+    ['classDiagram\n  class A', 'A class diagram with 1 class.'],
+    ['erDiagram\n  A {\n    string id\n  }', 'An ER diagram with 1 entity.'],
+    ['timeline\n  section S\n    2020 : a', 'A timeline with 1 section.'],
+    ['journey\n  section S\n    Go: 5: Me', 'with 1 section and 1 task.'],
+    ['gitGraph\n  commit', 'A GitGraph with 1 commit across 1 branch, including 0 merges and 0 cherry-picks.'],
+    ['mindmap\n  root\n    leaf', 'with 1 leaf.'],
+    ['pie\n  "a" : 1', 'with 1 slice.'],
+    ['xychart-beta\n  x-axis [a]\n  bar [1]', 'with 1 series.'],
+    ['architecture-beta\n  group g(cloud)[G]\n  service s(server)[S] in g\n  service t(server)[T] in g\n  s:R --> L:t', 'with 1 group, 2 services, and 1 connection.'],
+    ['sankey-beta\n  a,b,1', 'across 1 link between 2 nodes.'],
+    ['radar-beta\n  axis a\n  curve c{1}', 'comparing 1 curve (c) across 1 axis (a).'],
+  ])('summary counts agree with their nouns: %j', (source, phrase) => {
+    expect(describeMermaidSource(source)).toContain(phrase)
+  })
+
   test('an unregistered source returns a non-empty preservation description', () => {
     const out = describeMermaidSource('not a diagram')
     expect(out.length).toBeGreaterThan(0)

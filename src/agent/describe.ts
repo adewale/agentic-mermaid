@@ -118,9 +118,9 @@ export function describeMermaid(d: ParsedDiagram, opts: DescribeOptions = {}): s
     const axes = d.body.axes.map(a => a.label).join(', ')
     const curves = d.body.curves.map(c => c.label).join(', ')
     const title = d.body.title ? `"${d.body.title}" ` : ''
-    return `A radar chart ${title}comparing ${d.body.curves.length} curve(s)${curves ? ` (${curves})` : ''} across ${d.body.axes.length} axis/axes${axes ? ` (${axes})` : ''}.`
+    return `A radar chart ${title}comparing ${counted(d.body.curves.length, 'curve')}${curves ? ` (${curves})` : ''} across ${counted(d.body.axes.length, 'axis', 'axes')}${axes ? ` (${axes})` : ''}.`
   }
-  if (d.body.kind === 'c4') return `A ${d.body.variant} architecture diagram${d.body.title ? ` \"${d.body.title}\"` : ''} with ${d.body.elements.length} element(s), ${d.body.boundaries.length} boundary/boundaries and ${d.body.relationships.length} interaction(s).`
+  if (d.body.kind === 'c4') return `A ${d.body.variant} architecture diagram${d.body.title ? ` \"${d.body.title}\"` : ''} with ${counted(d.body.elements.length, 'element')}, ${counted(d.body.boundaries.length, 'boundary', 'boundaries')} and ${counted(d.body.relationships.length, 'interaction')}.`
   if (d.body.kind === 'sankey') {
     const nodes = new Set<string>()
     for (const link of d.body.links) {
@@ -128,16 +128,16 @@ export function describeMermaid(d: ParsedDiagram, opts: DescribeOptions = {}): s
       nodes.add(link.target)
     }
     const total = d.body.links.reduce((sum, link) => sum + link.value, 0)
-    return `A sankey diagram flowing ${total} across ${d.body.links.length} link(s) between ${nodes.size} node(s).`
+    return `A sankey diagram flowing ${total} across ${counted(d.body.links.length, 'link')} between ${counted(nodes.size, 'node')}.`
   }
   if (d.body.kind === 'zenuml') {
     const model = projectZenUMLSequence(d.body)
-    return `A ZenUML interaction${model.title === undefined ? '' : ` titled ${JSON.stringify(model.title)}`} with ${model.actors.filter(actor => !actor.external).length} participants, ${model.messages.length} messages and ${model.blocks.length} control scopes.`
+    return `A ZenUML interaction${model.title === undefined ? '' : ` titled ${JSON.stringify(model.title)}`} with ${counted(model.actors.filter(actor => !actor.external).length, 'participant')}, ${counted(model.messages.length, 'message')} and ${counted(model.blocks.length, 'control scope')}.`
   }
-  if (d.body.kind === 'eventmodeling') return `An Event Modeling diagram with ${d.body.frames.length} frames and ${eventRelations(d.body).length} relations.`
+  if (d.body.kind === 'eventmodeling') return `An Event Modeling diagram with ${counted(d.body.frames.length, 'frame')} and ${counted(eventRelations(d.body).length, 'relation')}.`
   if (isStableFamilyBody(d.body)) {
     const count = stableFamilyCount(d.body)
-    return `A ${d.kind} diagram with ${count.nodes} item(s), ${count.groups} group(s) and ${count.edges} relationship(s).`
+    return `A ${d.kind} diagram with ${counted(count.nodes, 'item')}, ${counted(count.groups, 'group')} and ${counted(count.edges, 'relationship')}.`
   }
   if (d.body.kind === 'opaque') return describeOpaque(d.kind, d.body.source)
   if (d.body.kind === 'extension') return describeOpaque(d.kind, d.body.source)
@@ -379,13 +379,13 @@ function describeMindmap(body: import('./types.ts').MindmapBody): string {
     node.children.forEach(visit)
   }
   visit(body.root)
-  return `A ${count}-node mindmap rooted at ${body.root.label}, with ${leaves} leaves.${top.length ? ` Main branches: ${top.join(', ')}.` : ''}`
+  return `A ${count}-node mindmap rooted at ${body.root.label}, with ${counted(leaves, 'leaf', 'leaves')}.${top.length ? ` Main branches: ${top.join(', ')}.` : ''}`
 }
 
 function describeGitGraph(body: import('./types.ts').GitGraphBody): string {
   const merges = body.commits.filter(commit => commit.source === 'merge').length
   const cherries = body.commits.filter(commit => commit.source === 'cherry-pick').length
-  return `A GitGraph with ${body.commits.length} commits across ${body.branches.length} branches, including ${merges} merges and ${cherries} cherry-picks. Branches: ${body.branches.map(branch => branch.name).join(', ')}.`
+  return `A GitGraph with ${counted(body.commits.length, 'commit')} across ${counted(body.branches.length, 'branch', 'branches')}, including ${counted(merges, 'merge')} and ${counted(cherries, 'cherry-pick')}. Branches: ${body.branches.map(branch => branch.name).join(', ')}.`
 }
 
 function describeFlowchart(d: FlowchartValidDiagram): string {
@@ -406,12 +406,18 @@ function describeFlowchart(d: FlowchartValidDiagram): string {
     }
   }
   visitGroups(g.subgraphs)
-  let s = `A ${nodes.length}-node flowchart with ${edges.length} edges. Nodes: ${labels.join(', ')}.`
+  let s = `A ${nodes.length}-node flowchart with ${counted(edges.length, 'edge')}. Nodes: ${labels.join(', ')}.`
   if (subgraphs.length > 0) s += ` Subgraphs: ${subgraphs.join('; ')}.`
   if (edgeStr.length > 0) s += ` Edges: ${edgeStr.join('; ')}.`
   if (tree.entryPoints.length > 0) s += ` Entry points: ${tree.entryPoints.join(', ')}.`
   if (tree.sinks.length > 0) s += ` Sinks: ${tree.sinks.join(', ')}.`
   return s
+}
+
+/** A count with its noun in number agreement: `1 edge`, `2 edges`. Every
+ * summary sentence counts through here. */
+function counted(count: number, singular: string, plural = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : plural}`
 }
 
 /** A group named with the ids it directly contains, as describe prose lists it. */
@@ -462,7 +468,7 @@ function describeState(body: import('./types.ts').StateBody): string {
     return `${t.from} -> ${t.to}${lbl}`
   })
   const starts = body.transitions.filter(t => t.from === '[*]').map(t => t.to)
-  let s = `A state diagram with ${flat.length} states and ${allTransitions.length} transitions.`
+  let s = `A state diagram with ${counted(flat.length, 'state')} and ${counted(allTransitions.length, 'transition')}.`
   if (composites.length > 0) s += ` Composite states: ${composites.map(c => c.label || c.id).join(', ')}.`
   if (stateLabels.length > 0) s += ` States: ${stateLabels.join(', ')}.`
   const stereotypes = flat.filter(state => state.stereotype).map(state => `${state.label || state.id} (${state.stereotype})`)
@@ -518,7 +524,7 @@ function describeTimeline(d: TimelineValidDiagram): string {
   const sectionLabels = sections.map(s => s.label || s.id)
   const periodLabels: string[] = []
   for (const s of sections) for (const p of s.periods) periodLabels.push(p.label)
-  let s = `A timeline with ${sections.length} sections.`
+  let s = `A timeline with ${counted(sections.length, 'section')}.`
   if (sectionLabels.length > 0) s += ` Sections: ${sectionLabels.join(', ')}.`
   if (periodLabels.length > 0) s += ` Periods: ${periodLabels.join(', ')}.`
   return s
@@ -528,7 +534,7 @@ function describeJourney(body: import('./types.ts').JourneyBody): string {
   const sections = body.sections
   const taskCount = sections.reduce((n, s) => n + s.tasks.length, 0)
   const actors = new Map(sections.flatMap(s => s.tasks.flatMap(t => t.actors.map((actor, index) => [journeyActorKey(actor, t.actorContents?.[index]), displayText(resolveLabelContent(actor, t.actorContents?.[index]))] as const))))
-  let s = `A user journey${body.title ? ` titled "${displayText(resolveLabelContent(body.title, body.titleContent))}"` : ''} with ${sections.length} sections and ${taskCount} tasks.`
+  let s = `A user journey${body.title ? ` titled "${displayText(resolveLabelContent(body.title, body.titleContent))}"` : ''} with ${counted(sections.length, 'section')} and ${counted(taskCount, 'task')}.`
   const sectionLabels = sections.flatMap(sec => sec.label === undefined ? [] : [displayText(resolveLabelContent(sec.label, sec.labelContent))])
   if (sectionLabels.length > 0) s += ` Sections: ${sectionLabels.join(', ')}.`
   const taskStr = sections.flatMap(sec => sec.tasks.map(t => `${displayText(resolveLabelContent(t.text, t.textContent))} (${t.score})`))
@@ -542,7 +548,7 @@ function describeArchitecture(body: import('./types.ts').ArchitectureBody): stri
   const services = body.services
   const junctions = body.junctions
   const edges = body.edges
-  let s = `An architecture diagram${body.title ? ` titled "${body.title}"` : ''} with ${groups.length} groups, ${services.length} services, and ${edges.length} connections.`
+  let s = `An architecture diagram${body.title ? ` titled "${body.title}"` : ''} with ${counted(groups.length, 'group')}, ${counted(services.length, 'service')}, and ${counted(edges.length, 'connection')}.`
   if (body.accessibilityTitle) s += ` Accessible title: ${body.accessibilityTitle}.`
   if (body.accessibilityDescription) s += ` Accessible description: ${body.accessibilityDescription.replace(/\n/g, ' ')}.`
   if (groups.length > 0) {
@@ -559,7 +565,7 @@ function describeArchitecture(body: import('./types.ts').ArchitectureBody): stri
 function describeXyChart(body: import('./types.ts').XyChartBody): string {
   const series = body.series
   const orientation = body.horizontal ? 'horizontal ' : ''
-  let s = `An ${orientation}XY chart${body.title ? ` titled "${body.title}"` : ''} with ${series.length} series.`
+  let s = `An ${orientation}XY chart${body.title ? ` titled "${body.title}"` : ''} with ${counted(series.length, 'series', 'series')}.`
   const axisDesc = (label: string, axis: import('./types.ts').XyChartAxis | undefined): string | undefined => {
     if (!axis) return undefined
     const parts: string[] = []
@@ -576,14 +582,14 @@ function describeXyChart(body: import('./types.ts').XyChartBody): string {
 }
 
 function describePie(body: import('./types.ts').PieBody): string {
-  let s = `A pie chart${body.title ? ` titled "${body.title}"` : ''} with ${body.slices.length} slices.`
+  let s = `A pie chart${body.title ? ` titled "${body.title}"` : ''} with ${counted(body.slices.length, 'slice')}.`
   const sliceStr = body.slices.map(sl => `${sl.label} (${sl.value})`)
   if (sliceStr.length > 0) s += ` Slices: ${sliceStr.join(', ')}.`
   return s
 }
 
 function describeQuadrant(body: import('./types.ts').QuadrantBody): string {
-  let s = `A quadrant chart${body.title ? ` titled "${body.title}"` : ''} with ${body.points.length} points.`
+  let s = `A quadrant chart${body.title ? ` titled "${body.title}"` : ''} with ${counted(body.points.length, 'point')}.`
   const regions = body.quadrants.filter((q): q is string => Boolean(q))
   if (regions.length > 0) s += ` Quadrants: ${regions.join(', ')}.`
   const pointStr = body.points.map(p => `${p.label} [${p.x}, ${p.y}]`)
@@ -597,7 +603,7 @@ function describeClass(d: ClassValidDiagram): string {
   const relations = d.body.relations
   const names = classes.map(c => (c.generic ? `${c.id}<${c.generic}>` : c.id))
   const relStr = relations.map(r => `${r.from} ${directionArrow(classRelationDirection(r))} ${r.to} (${r.kind})`)
-  let s = `A class diagram with ${classes.length} classes.`
+  let s = `A class diagram with ${counted(classes.length, 'class', 'classes')}.`
   if (names.length > 0) s += ` Classes: ${names.join(', ')}.`
   if (interfaces.length > 0) s += ` Interfaces: ${interfaces.map(node => node.label ?? node.id).join(', ')}.`
   // Namespace membership (repo #118): name each namespace with its members.
@@ -621,7 +627,7 @@ function describeEr(d: ErValidDiagram): string {
     const lbl = r.label ? ` (${r.label})` : ''
     return `${r.from} ${r.leftCard}-${r.rightCard} ${r.to}${lbl}`
   })
-  let s = `An ER diagram with ${entities.length} entities.`
+  let s = `An ER diagram with ${counted(entities.length, 'entity', 'entities')}.`
   if (names.length > 0) s += ` Entities: ${names.join(', ')}.`
   if (relStr.length > 0) s += ` Relations: ${relStr.join('; ')}.`
   return s
@@ -630,7 +636,7 @@ function describeEr(d: ErValidDiagram): string {
 function describeGantt(d: ValidDiagram & { body: import('./types.ts').GanttBody }): string {
   const body = d.body
   const tasks = body.sections.flatMap(s => s.tasks)
-  let s = `A Gantt chart${body.title ? ` titled "${body.title}"` : ''} with ${body.sections.filter(sec => sec.label !== undefined).length} sections and ${tasks.length} tasks.`
+  let s = `A Gantt chart${body.title ? ` titled "${body.title}"` : ''} with ${counted(body.sections.filter(sec => sec.label !== undefined).length, 'section')} and ${counted(tasks.length, 'task')}.`
 
   // Resolve the schedule for date range / critical path; raw expressions are
   // the fallback when the source needs context this body cannot see.
