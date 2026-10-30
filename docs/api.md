@@ -268,7 +268,8 @@ try {
 }
 ```
 
-Uncaught Code Mode failures retain the existing text error envelope. Discovery
+Uncaught Code Mode failures retain the existing text error envelope. The on-demand
+declarations augment the compact SDK declaration with typed parts and primitives. Discovery
 keeps `part.node` opaque to bound its declaration size; library users can import
 the complete `ResolvedScene` type. A Scene part ID such as `node:A` is distinct
 from the authored node ID `A`.

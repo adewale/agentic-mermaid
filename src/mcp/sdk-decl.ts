@@ -2,6 +2,7 @@ import { SDK_COMMON_DECLARATIONS, SDK_MODEL_DECLARATIONS, SDK_TEXT_DECLARATIONS,
 import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyMetadata } from '../agent/families.ts'
 import { architectureVisualOverridesTypeScriptDeclaration, RENDER_CONTRACT_VERSION, RENDER_OUTPUT_DESCRIPTORS, sharedRenderOptionsTypeScriptDeclaration } from '../render-contract.ts'
 import { styleSpecTypeScriptDeclaration } from '../scene/style-spec.ts'
+import { RESOLVED_SCENE_VERSION } from '../scene/resolved-types.ts'
 import { FAMILY_NARROWING_NOTE, NEW_DIAGRAM_POLICY } from '../shared/agent-workflow.ts'
 import { terminalOutputOptionsTypeScriptFields, terminalOutputPolicyTypeScriptDeclaration } from '../terminal-contract.ts'
 
@@ -187,7 +188,7 @@ export const CODE_MODE_LAYOUT_SUMMARY_DECLARATION = `interface RenderedLayout { 
 
 const CODE_MODE_RENDER_METHOD_DECLARATIONS = codeModeRenderMethodDeclarations()
 
-export const CODE_MODE_RESOLVED_SCENE_SUMMARY_DECLARATION = `interface ResolvedScene {version:number;family:string;width:number;height:number;svg:string;parts:unknown[];frame:unknown[]}`
+export const CODE_MODE_RESOLVED_SCENE_SUMMARY_DECLARATION = `interface ResolvedScene {version:${RESOLVED_SCENE_VERSION};family:string;width:number;height:number;svg:string}`
 
 export const SDK_DECLARATION = `// Mermaid agent SDK available as the global \`mermaid\`. All calls are
 // synchronous and pure. Compose multi-step edits in one execute() call.
