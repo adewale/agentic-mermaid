@@ -427,7 +427,8 @@ export interface OpFieldDoc {
   note?: string
   /** The fields of a nested record (`object`, `object | null`, or each item of
    *  `object[]`), when the shape layer validates them. Omitted where a record
-   *  repeats its own shape (block `children`), which the note says. */
+   *  repeats its own shape (block `children`), or is named by reference in
+   *  the note (an update record with its add record's fields). */
   fields?: OpFieldDoc[]
 }
 
@@ -440,7 +441,7 @@ function describeFields(fields: Record<string, FieldSpec>, nested = false): OpFi
     return {
       name, required: f.required, type: typeName(f),
       ...(f.note !== undefined ? { note: f.note } : {}),
-      ...(shape && !(nested && selfNesting) ? { fields: describeFields(shape.fields, true) } : {}),
+      ...(shape && !shape.byReference && !(nested && selfNesting) ? { fields: describeFields(shape.fields, true) } : {}),
     }
   })
 }

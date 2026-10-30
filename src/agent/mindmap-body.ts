@@ -4,7 +4,7 @@ import type {
 } from './types.ts'
 import { err, ok } from './types.ts'
 import type { MindmapNode, MindmapShape } from '../mindmap/types.ts'
-import { mindmapNestedShapeLines, mindmapNonportableTextLines, mindmapSerializationProblem, mindmapStatementEnds, parseMindmap, serializeMindmap } from '../mindmap/parser.ts'
+import { assignMindmapIdentities, mindmapAuthoredId, mindmapNestedShapeLines, mindmapNonportableTextLines, mindmapSerializationProblem, mindmapStatementEnds, parseMindmap, serializeMindmap } from '../mindmap/parser.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
@@ -114,26 +114,71 @@ function unstableDecorationError(field: 'icon' | 'class', value: string): Result
   return err({ code: 'INVALID_OP', message: `Mindmap ${field} '${value}' is not serialization-stable` })
 }
 
+/** Ids that earlier edits in a batch moved, old → current: set_label or
+ * rename_node on a default-shaped node (its text is its id), or occurrence
+ * ids renumbered by a structural edit. A body published by a fresh parse has
+ * none, so this only explains addresses within one batch. */
+const movedIds = new WeakMap<MindmapBody, ReadonlyMap<string, string>>()
+
+function allNodes(root: MindmapNode): MindmapNode[] {
+  const nodes: MindmapNode[] = []
+  const visit = (node: MindmapNode): void => { nodes.push(node); node.children.forEach(visit) }
+  visit(root)
+  return nodes
+}
+
 export function mutateMindmap(body: MindmapBody, op: MindmapMutationOp): Result<MindmapBody, MutationError> {
   const problem = mindmapSerializationProblem(body)
   if (problem) return err({ code: 'INVALID_OP', message: problem })
   const next = cloneBody(body)
-  const allIds = (): Set<string> => {
-    const ids = new Set<string>()
-    const visit = (node: MindmapNode): void => { ids.add(node.id); node.children.forEach(visit) }
-    visit(next.root)
-    return ids
+  const before = new Map(allNodes(next.root).map(node => [node, node.id]))
+  const moved = new Map(movedIds.get(body) ?? [])
+  const result = applyMindmapOp(next, op, moved)
+  if (!result.ok) return result
+  // One identity rule for parsing and editing: the edited body has the ids a
+  // fresh parse of its source gives.
+  assignMindmapIdentities(next.root)
+  const live = new Set<string>()
+  for (const node of allNodes(next.root)) {
+    live.add(node.id)
+    const old = before.get(node)
+    if (old === undefined || old === node.id) continue
+    for (const [from, to] of moved) if (to === old) moved.set(from, node.id)
+    moved.set(old, node.id)
   }
+  for (const from of moved.keys()) if (live.has(from)) moved.delete(from)
+  if (moved.size) movedIds.set(next, moved)
+  return ok(next)
+}
+
+function applyMindmapOp(next: MindmapBody, op: MindmapMutationOp, moved: ReadonlyMap<string, string>): Result<MindmapBody, MutationError> {
+  const allIds = (): Set<string> => new Set(allNodes(next.root).map(node => node.id))
+  // An address that names no node: say where an earlier edit moved it, or
+  // list the ids there are.
+  const rule = `A default-shaped node's text is its id (set_label and rename_node rename it), and repeated identities are numbered in document order (X, X#2, …).`
+  const notFound = (role: 'node' | 'parent', id: string): Result<never, MutationError> => {
+    const now = moved.get(id)
+    if (now !== undefined) return err({ code: 'NODE_NOT_FOUND', message: `Mindmap ${role} '${id}' not found: an earlier edit changed its id to '${now}'; address it as '${now}'. ${rule}` })
+    const ids = [...allIds()]
+    const shown = ids.slice(0, 12).map(value => `'${value}'`).join(', ')
+    return err({ code: 'NODE_NOT_FOUND', message: `Mindmap ${role} '${id}' not found. Node ids: ${shown}${ids.length > 12 ? `, … (${ids.length - 12} more)` : ''}. ${rule}` })
+  }
+  const duplicate = (id: string): Result<never, MutationError> => err({
+    code: 'DUPLICATE_NODE',
+    message: id === next.root.id
+      ? `Mindmap node '${id}' already exists: it is the root, and every mindmap has exactly one (a new mindmap starts with the root 'root'). Rename it with rename_node or set_label, or add this node under a parent.`
+      : `Mindmap node '${id}' already exists; choose another id.`,
+  })
   switch (op.kind) {
     case 'add_node': {
       const id = validText(op.id, 'node id'); if (!id.ok) return id
       const label = validText(op.label, 'label'); if (!label.ok) return label
-      if (allIds().has(id.value)) return err({ code: 'DUPLICATE_NODE', message: `Mindmap node '${id.value}' already exists` })
+      if (allIds().has(id.value)) return duplicate(id.value)
       const parent = locate(next.root, op.parent)
-      if (!parent) return err({ code: 'NODE_NOT_FOUND', message: `Mindmap parent '${op.parent}' not found` })
+      if (!parent) return notFound('parent', op.parent)
       const shape = op.shape ?? 'default'
       if (!SHAPES.includes(shape)) return err({ code: 'INVALID_OP', message: `Mindmap shape must be one of: ${SHAPES.join(', ')}` })
-      if (shape === 'default' && id.value !== label.value) return err({ code: 'INVALID_OP', message: 'A default mindmap node uses its label as identity; choose a bordered shape when id and label differ' })
+      if (shape === 'default' && id.value !== label.value) return err({ code: 'INVALID_OP', message: `A default-shaped mindmap node's text is its identity, so its id must equal its label; pass id '${label.value}', or give a bordered shape (rect, rounded, circle, cloud, bang, hexagon) for id '${id.value}' with label '${label.value}'` })
       if (!stableNodeSyntax(id.value, label.value, shape)) return unstableNodeError(id.value, label.value, shape)
       const index = op.index ?? parent.node.children.length
       if (!Number.isInteger(index) || index < 0 || index > parent.node.children.length) return err({ code: 'INVALID_OP', message: `Mindmap child index ${index} is out of range` })
@@ -142,7 +187,7 @@ export function mutateMindmap(body: MindmapBody, op: MindmapMutationOp): Result<
     }
     case 'remove_node': {
       const found = locate(next.root, op.id)
-      if (!found) return err({ code: 'NODE_NOT_FOUND', message: `Mindmap node '${op.id}' not found` })
+      if (!found) return notFound('node', op.id)
       if (!found.parent) return err({ code: 'INVALID_OP', message: 'The mindmap root cannot be removed' })
       if (found.node.children.length > 0 && op.recursive !== true) return err({ code: 'INVALID_OP', message: `Mindmap node '${op.id}' has children; pass recursive:true to remove its subtree` })
       found.parent.children.splice(found.parent.children.indexOf(found.node), 1)
@@ -150,32 +195,39 @@ export function mutateMindmap(body: MindmapBody, op: MindmapMutationOp): Result<
     }
     case 'rename_node': {
       const found = locate(next.root, op.from)
-      if (!found) return err({ code: 'NODE_NOT_FOUND', message: `Mindmap node '${op.from}' not found` })
+      if (!found) return notFound('node', op.from)
       const to = validText(op.to, 'rename target'); if (!to.ok) return to
-      if (allIds().has(to.value)) return err({ code: 'DUPLICATE_NODE', message: `Mindmap node '${to.value}' already exists` })
+      if (allIds().has(to.value)) return duplicate(to.value)
       // Valid default-shape nodes use their label as identity by construction.
       const nextLabel = found.node.shape === 'default' ? to.value : found.node.label
       if (!stableNodeSyntax(to.value, nextLabel, found.node.shape, found.node.markdown)) return unstableNodeError(to.value, nextLabel, found.node.shape)
       found.node.label = nextLabel
       found.node.id = to.value
+      delete found.node.sourceId
       return ok(next)
     }
     case 'set_label': {
       const found = locate(next.root, op.id)
-      if (!found) return err({ code: 'NODE_NOT_FOUND', message: `Mindmap node '${op.id}' not found` })
+      if (!found) return notFound('node', op.id)
       const label = validText(op.label, 'label'); if (!label.ok) return label
-      const nextId = found.node.shape === 'default' ? label.value : found.node.id
-      if (found.node.shape === 'default' && label.value !== found.node.id && allIds().has(label.value)) return err({ code: 'DUPLICATE_NODE', message: `Mindmap node '${label.value}' already exists` })
+      const authored = mindmapAuthoredId(found.node)
+      // A default-shaped node's text is its identity: a new text renames it.
+      const renames = found.node.shape === 'default' && label.value !== authored
+      if (renames && allIds().has(label.value)) return duplicate(label.value)
+      const nextId = renames ? label.value : authored
       if (!stableNodeSyntax(nextId, label.value, found.node.shape, found.node.markdown)) return unstableNodeError(nextId, label.value, found.node.shape)
-      found.node.id = nextId
+      if (renames) {
+        found.node.id = nextId
+        delete found.node.sourceId
+      }
       found.node.label = label.value
       return ok(next)
     }
     case 'move_node': {
       const found = locate(next.root, op.id)
       const parent = locate(next.root, op.parent)
-      if (!found) return err({ code: 'NODE_NOT_FOUND', message: `Mindmap node '${op.id}' not found` })
-      if (!parent) return err({ code: 'NODE_NOT_FOUND', message: `Mindmap parent '${op.parent}' not found` })
+      if (!found) return notFound('node', op.id)
+      if (!parent) return notFound('parent', op.parent)
       if (!found.parent) return err({ code: 'INVALID_OP', message: 'The mindmap root cannot be moved' })
       if (locate(found.node, op.parent)) return err({ code: 'INVALID_OP', message: `Cannot move '${op.id}' into its own subtree` })
       found.parent.children.splice(found.parent.children.indexOf(found.node), 1)
@@ -186,16 +238,17 @@ export function mutateMindmap(body: MindmapBody, op: MindmapMutationOp): Result<
     }
     case 'set_shape': {
       const found = locate(next.root, op.id)
-      if (!found) return err({ code: 'NODE_NOT_FOUND', message: `Mindmap node '${op.id}' not found` })
+      if (!found) return notFound('node', op.id)
       if (!SHAPES.includes(op.shape)) return err({ code: 'INVALID_OP', message: `Mindmap shape must be one of: ${SHAPES.join(', ')}` })
-      if (op.shape === 'default' && found.node.id !== found.node.label) return err({ code: 'INVALID_OP', message: 'Default mindmap shape requires id and label to match' })
-      if (!stableNodeSyntax(found.node.id, found.node.label, op.shape, found.node.markdown)) return unstableNodeError(found.node.id, found.node.label, op.shape)
+      const authored = mindmapAuthoredId(found.node)
+      if (op.shape === 'default' && authored !== found.node.label) return err({ code: 'INVALID_OP', message: `A default-shaped mindmap node's text is its identity, so its id must equal its label; rename '${authored}' to '${found.node.label}' first (rename_node), or keep a bordered shape` })
+      if (!stableNodeSyntax(authored, found.node.label, op.shape, found.node.markdown)) return unstableNodeError(authored, found.node.label, op.shape)
       found.node.shape = op.shape
       return ok(next)
     }
     case 'set_icon': {
       const found = locate(next.root, op.id)
-      if (!found) return err({ code: 'NODE_NOT_FOUND', message: `Mindmap node '${op.id}' not found` })
+      if (!found) return notFound('node', op.id)
       if (op.icon === null) delete found.node.icon
       else {
         const icon = validText(op.icon, 'icon'); if (!icon.ok) return icon
@@ -206,7 +259,7 @@ export function mutateMindmap(body: MindmapBody, op: MindmapMutationOp): Result<
     }
     case 'set_node_class': {
       const found = locate(next.root, op.id)
-      if (!found) return err({ code: 'NODE_NOT_FOUND', message: `Mindmap node '${op.id}' not found` })
+      if (!found) return notFound('node', op.id)
       if (op.className === null) delete found.node.className
       else {
         const value = validText(op.className, 'class'); if (!value.ok) return value

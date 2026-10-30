@@ -5,8 +5,13 @@ import type { PositionedDiagramTitle } from '../styles.ts'
 export type MindmapShape = 'default' | 'rect' | 'rounded' | 'circle' | 'cloud' | 'bang' | 'hexagon'
 
 export interface MindmapNode {
-  /** Stable source identity; duplicate identities are rejected. */
+  /** Distinct, addressable identity: the authored identity (explicit id, or a
+   * default node's text), or for a later node repeating one, `<identity>#<n>`
+   * in document order (see assignMindmapIdentities). */
   id: string
+  /** The authored identity, present only when `id` is a later occurrence's
+   * generated id; serialization writes this, never `id`. */
+  sourceId?: string
   label: string
   shape: MindmapShape
   /** Label originated as Mermaid's quoted Markdown String syntax. */

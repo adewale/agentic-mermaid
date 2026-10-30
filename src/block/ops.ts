@@ -25,7 +25,7 @@ const BLOCK_INPUT: RecordShape = { fields: blockFields(str()) }
 export const BLOCK_OP_SCHEMAS = {
   set_columns: { fields: { columns: num(), parentId: str(false) } },
   add_block: { fields: { block: { type: 'object-or-null' as const, required: true, shape: BLOCK_INPUT }, parentId: str(false), index: num(false) } },
-  update_block: { fields: { id: str(), changes: { type: 'object-or-null' as const, required: true, shape: { fields: blockFields(undefined) } } } },
+  update_block: { fields: { id: str(), changes: { type: 'object-or-null' as const, required: true, note: 'add_block block fields to change, except id', shape: { fields: blockFields(undefined), byReference: true as const } } } },
   rename_block: { fields: { from: str(), to: str() } },
   remove_block: { fields: { id: str(), cascade: { type: 'boolean' as const, required: false } } },
   move_block: { fields: { id: str(), parentId: str(false), index: num(false) } },

@@ -2383,8 +2383,8 @@
       "family": "mindmap",
       "topic": "duplicate node identity",
       "upstream": "May retain parser-generated node bookkeeping without a public duplicate-id diagnostic.",
-      "local": "Rejects duplicate semantic ids with MINDMAP_DUPLICATE_ID.",
-      "reason": "Typed mutation and SVG data-id require an unambiguous source identity."
+      "local": "Retains every node: a repeated identity's later nodes get collision-free occurrence ids (X#2, ...) in document order and keep the authored identity as sourceId, which serialization writes.",
+      "reason": "Typed mutation and SVG data-id require an unambiguous identity; repeated text Mermaid accepts must not be rejected or overwritten."
     },
     {
       "family": "gitgraph",

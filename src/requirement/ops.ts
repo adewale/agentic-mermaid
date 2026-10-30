@@ -25,9 +25,9 @@ const elementFields = (name: boolean): Record<string, FieldSpec> => ({
 export const REQUIREMENT_OP_SCHEMAS = {
   set_direction: { fields: { direction: { type: 'enum' as const, values: ['TB', 'BT', 'LR', 'RL'], required: true } } },
   add_requirement: { fields: { requirement: record({ fields: requirementFields(true) }) } },
-  update_requirement: { fields: { id: str(), changes: record({ fields: requirementFields(false) }) } },
+  update_requirement: { fields: { id: str(), changes: { ...record({ fields: requirementFields(false), byReference: true as const }), note: 'add_requirement requirement fields to change, except name' } } },
   add_element: { fields: { element: record({ fields: elementFields(true) }) } },
-  update_element: { fields: { id: str(), changes: record({ fields: elementFields(false) }) } },
+  update_element: { fields: { id: str(), changes: { ...record({ fields: elementFields(false), byReference: true as const }), note: 'add_element element fields to change, except name' } } },
   rename_node: { fields: { from: str(), to: str() } },
   remove_node: { fields: { id: str(), cascade: { type: 'boolean' as const, required: false } } },
   add_relation: { fields: { relation: record({ fields: { type: { ...str(), note: 'contains, copies, derives, satisfies, verifies, refines or traces' }, src: str(), dst: str(), id: str(false) } }) } },

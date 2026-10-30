@@ -5,7 +5,7 @@ import { asGitGraph, asMindmap, layoutMermaid, mutate, parseRegisteredMermaid as
 import { visualWidth } from '../ascii/width.ts'
 import { assessRenderedLayout, familyHardViolations } from '../family-rubric.ts'
 import { layoutGitGraph } from '../gitgraph/layout.ts'
-import { GitGraphParseError, MindmapDuplicateIdError, parseGitGraph, parseMindmap, renderMermaidASCII, renderMermaidSVG, serializeGitGraph, serializeMindmap, verifyNoExternalRefs } from '../index.ts'
+import { GitGraphParseError, parseGitGraph, parseMindmap, renderMermaidASCII, renderMermaidSVG, serializeGitGraph, serializeMindmap, verifyNoExternalRefs } from '../index.ts'
 import { layoutMindmap } from '../mindmap/layout.ts'
 import { lowerMindmapScene } from '../mindmap/renderer.ts'
 import { DefaultBackend, getFamily } from '../agent/core.ts'
@@ -179,8 +179,33 @@ describe('Mindmap full-family citizenship', () => {
     }
   })
 
-  test('rejects duplicate semantic identities instead of silently overwriting a node', () => {
-    expect(() => parseMindmap('mindmap\n  root\n    dup[First]\n    dup[Second]')).toThrow(MindmapDuplicateIdError)
+  test('a repeated identity is another node, never an overwrite, and keeps its authored text', () => {
+    // Mermaid 12.2.0 accepts repeated node text and repeated explicit ids.
+    // Each later occurrence gets the next free `<identity>#<n>`; an authored
+    // `X#2` keeps its own name, so the second `X` becomes `X#3`.
+    const source = 'mindmap\n  root((R))\n    A\n      X\n    B\n      X\n    X#2\n    dup[First]\n    dup[Second]\n'
+    const diagram = parseMindmap(source)
+    const nodes: Array<{ id: string; sourceId?: string; label: string; parent?: string }> = []
+    const visit = (node: typeof diagram.root, parent?: string): void => {
+      nodes.push({ id: node.id, ...(node.sourceId ? { sourceId: node.sourceId } : {}), label: node.label, ...(parent ? { parent } : {}) })
+      node.children.forEach(child => visit(child, node.id))
+    }
+    visit(diagram.root)
+    expect(nodes).toEqual([
+      { id: 'root', label: 'R' },
+      { id: 'A', label: 'A', parent: 'root' },
+      { id: 'X', label: 'X', parent: 'A' },
+      { id: 'B', label: 'B', parent: 'root' },
+      { id: 'X#3', sourceId: 'X', label: 'X', parent: 'B' },
+      { id: 'X#2', label: 'X#2', parent: 'root' },
+      { id: 'dup', label: 'First', parent: 'root' },
+      { id: 'dup#2', sourceId: 'dup', label: 'Second', parent: 'root' },
+    ])
+    expect(serializeMindmap(diagram)).toBe(source)
+    expect(parseMindmap(serializeMindmap(diagram))).toEqual(diagram)
+    const ascii = renderMermaidASCII(source)
+    expect(ascii.split('─ X\n')).toHaveLength(3)
+    expect(ascii).toContain('[Second]')
   })
 
   test('rejects empty icon decorations instead of dropping them on round-trip', () => {
@@ -281,19 +306,100 @@ describe('Mindmap full-family citizenship', () => {
     expect(verified.warnings).toContainEqual(expect.objectContaining({ code: 'INEFFECTIVE_CONFIG', field: 'mindmap.unknownSpacing' }))
   })
 
-  test('keeps deterministic tree invariants under generated sibling labels', () => {
+  // Generated trees whose text repeats across and within branches (including
+  // an authored name shaped like a generated id), at several indentation
+  // units. Each node is (depth, text); a node is at most one level deeper
+  // than the one before it.
+  const repeatedTextTreeArb = fc.tuple(
+    fc.array(fc.tuple(fc.nat(), fc.constantFrom('A', 'B', 'X', 'Y', 'X#2', 'X#3')), { minLength: 1, maxLength: 10 }),
+    fc.constantFrom(1, 2, 4),
+  ).map(([picks, unit]) => {
+    const nodes: Array<{ depth: number; text: string }> = [{ depth: 0, text: 'Root' }]
+    for (const [pick, text] of picks) nodes.push({ depth: 1 + pick % (nodes[nodes.length - 1]!.depth + 1), text })
+    const lines = (step: number, base: number) => ['mindmap', ...nodes.map(node => `${' '.repeat(base + node.depth * step)}${node.text}`)].join('\n') + '\n'
+    return { nodes, source: lines(unit, 2), canonical: lines(2, 2) }
+  })
+  const preorder = (root: ReturnType<typeof parseMindmap>['root']) => {
+    const out: Array<{ id: string; sourceId?: string; label: string; depth: number }> = []
+    const visit = (node: typeof root, depth: number): void => { out.push({ id: node.id, ...(node.sourceId ? { sourceId: node.sourceId } : {}), label: node.label, depth }); node.children.forEach(child => visit(child, depth + 1)) }
+    visit(root, 0)
+    return out
+  }
+
+  test('keeps deterministic tree invariants and distinct identities under generated repeated text', () => {
     fc.assert(
-      fc.property(fc.uniqueArray(fc.stringMatching(/^[A-Za-z][A-Za-z0-9]{0,8}$/), { minLength: 1, maxLength: 8 }), labels => {
-        const source = ['mindmap', '  Root', ...labels.map(label => `    ${label}`)].join('\n')
+      fc.property(repeatedTextTreeArb, ({ nodes, source, canonical }) => {
         const parsed = parseMindmap(source)
+        const read = preorder(parsed.root)
+        // Every node is read, in order and at its depth, with its own text.
+        expect(read.map(node => [node.depth, node.label])).toEqual(nodes.map(node => [node.depth, node.text]))
+        // Identities are distinct; the authored identity is the node's text;
+        // a text's first node keeps it as its id (so an authored `X#2` is
+        // never displaced), and each later one is numbered from it.
+        expect(new Set(read.map(node => node.id)).size).toBe(read.length)
+        for (const [index, node] of read.entries()) {
+          expect(node.sourceId ?? node.id).toBe(node.label)
+          const first = read.findIndex(other => other.label === node.label) === index
+          expect(node.id === node.label).toBe(first)
+          if (!first) expect(node.id.startsWith(`${node.label}#`)).toBe(true)
+        }
         const layout = layoutMindmap(parsed)
-        expect(layout.nodes).toHaveLength(labels.length + 1)
-        expect(layout.edges).toHaveLength(labels.length)
-        expect(serializeMindmap(parseMindmap(serializeMindmap(parsed)))).toBe(serializeMindmap(parsed))
+        expect(layout.nodes).toHaveLength(nodes.length)
+        expect(layout.edges).toHaveLength(nodes.length - 1)
+        // The writer keeps the author's text; reading it back is identity.
+        expect(serializeMindmap(parsed)).toBe(canonical)
+        expect(parseMindmap(serializeMindmap(parsed))).toEqual(parsed)
+        // Typed body and canonical source agree with the authored reading.
+        const typed = parseMermaid(source)
+        if (!typed.ok || typed.value.body.kind !== 'mindmap') throw new Error(JSON.stringify(typed))
+        expect(typed.value.body.root).toEqual(parsed.root)
+        const reread = parseMermaid(typed.value.canonicalSource)
+        if (!reread.ok) throw new Error(JSON.stringify(reread.error))
+        expect(reread.value.body).toEqual(typed.value.body)
+        expect(describeMermaidFacts(typed.value).filter(fact => fact.startsWith('node ') && fact.includes(' : '))).toHaveLength(nodes.length)
       }),
-      fcParameters({ numRuns: 30, seed: 1501 }),
+      fcParameters({ numRuns: 60, seed: 1501 }),
     )
   })
+
+  test('typed edits on repeated text keep the ids a fresh parse gives', () => {
+    fc.assert(
+      fc.property(repeatedTextTreeArb.filter(tree => tree.nodes.length > 1), fc.nat(), ({ source }, pick) => {
+        const typed = parseMermaid(source)
+        if (!typed.ok) throw new Error(JSON.stringify(typed.error))
+        const ids = preorder((typed.value.body as { root: ReturnType<typeof parseMindmap>['root'] }).root).map(node => node.id)
+        const target = ids[1 + pick % (ids.length - 1)]!
+        for (const op of [
+          { kind: 'remove_node', id: target, recursive: true },
+          { kind: 'move_node', id: target, parent: 'Root', index: 0 },
+          { kind: 'set_icon', id: target, icon: 'fa fa-book' },
+        ] as const) {
+          const edited = mutate(typed.value, op)
+          if (!edited.ok) throw new Error(`${JSON.stringify(op)}: ${edited.error.message}`)
+          const written = serializeMermaid(edited.value)
+          const fresh = parseMermaid(written)
+          if (!fresh.ok) throw new Error(JSON.stringify(fresh.error))
+          expect(fresh.value.body).toEqual(edited.value.body)
+        }
+      }),
+      fcParameters({ numRuns: 40, seed: 1502 }),
+    )
+  })
+
+  test('generated repeated-text mindmaps and their written source are valid Mermaid', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      await fc.assert(
+        fc.asyncProperty(repeatedTextTreeArb, async ({ source }) => {
+          expect(await upstream.accepts(source)).toBe(true)
+          expect(await upstream.accepts(serializeMindmap(parseMindmap(source)))).toBe(true)
+        }),
+        fcParameters({ numRuns: 8, seed: 1503 }),
+      )
+    } finally {
+      upstream.close()
+    }
+  }, 60_000)
 })
 
 function publicGitGraphCommit(id: string, sequence: number): PositionedGitGraphCommit {

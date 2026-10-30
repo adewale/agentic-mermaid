@@ -13,9 +13,49 @@ export class MindmapParseError extends Error {
   constructor(message: string, readonly line?: number) { super(message); this.name = 'MindmapParseError' }
 }
 
+/** @deprecated No longer thrown: a repeated node identity is read as a
+ * separate node with an occurrence id (see assignMindmapIdentities). Kept
+ * for API compatibility. */
 export class MindmapDuplicateIdError extends MindmapParseError {
   readonly code = 'MINDMAP_DUPLICATE_ID'
   constructor(readonly id: string, line: number) { super(`Duplicate mindmap node identity '${id}' on line ${line}; every node identity must be unique.`, line) }
+}
+
+/** The identity the author wrote for a node: its explicit id, or a default
+ * node's text. A later node repeating it keeps it here as `sourceId`. */
+export function mindmapAuthoredId(node: Pick<MindmapNode, 'id' | 'sourceId'>): string {
+  return node.sourceId ?? node.id
+}
+
+/** Give every node a distinct, addressable id from its authored identity, in
+ * document order: the first node with an identity keeps it, and each later
+ * one gets `<identity>#<n>` (n = 2, 3, …; the second `X` is `X#2`) with
+ * `sourceId` keeping the authored identity. No authored identity in the
+ * diagram is ever given to another node, so a node written as `X#2` keeps
+ * that id and the generated one moves on. Parsing and every typed edit apply
+ * this one rule, so a body's ids are the ids a fresh parse of its source
+ * gives. */
+export function assignMindmapIdentities(root: MindmapNode): void {
+  const nodes: MindmapNode[] = []
+  const visit = (node: MindmapNode): void => { nodes.push(node); node.children.forEach(visit) }
+  visit(root)
+  const authored = new Set(nodes.map(mindmapAuthoredId))
+  const used = new Set<string>()
+  const seen = new Map<string, number>()
+  for (const node of nodes) {
+    const source = mindmapAuthoredId(node)
+    let occurrence = (seen.get(source) ?? 0) + 1
+    seen.set(source, occurrence)
+    let id = source
+    if (occurrence > 1) {
+      id = `${source}#${occurrence}`
+      while (authored.has(id) || used.has(id)) id = `${source}#${++occurrence}`
+    }
+    used.add(id)
+    node.id = id
+    if (id === source) delete node.sourceId
+    else node.sourceId = source
+  }
 }
 
 interface ParsedNode { id: string; label: string; shape: MindmapShape; markdown?: true }
@@ -37,7 +77,6 @@ export function parseMindmap(source: string): MindmapDiagram {
   if (headerIndex < 0) throw new MindmapParseError('Mindmap source must start with the mindmap header')
   if (parserObservationActive('mindmap')) observeParserStatement('mindmap', 'header', rawLines[headerIndex]!, { line: headerIndex + 1, unit: 'normalized' })
   const stack: Array<{ indent: number; node: MindmapNode }> = []
-  const ids = new Set<string>()
   let root: MindmapNode | undefined
   let lastNode: MindmapNode | undefined
   // Accessibility is plain metadata, not node formatting. In particular a
@@ -80,8 +119,6 @@ export function parseMindmap(source: string): MindmapDiagram {
     if (!parsed) {
       throw new MindmapParseError(`Invalid mindmap node syntax on line ${index + 1}: ${trimmed}`, index + 1)
     }
-    if (ids.has(parsed.id)) throw new MindmapDuplicateIdError(parsed.id, index + 1)
-    ids.add(parsed.id)
     const node: MindmapNode = { ...parsed, children: [] }
     if (parserObservationActive('mindmap')) observeParserMutation('mindmap', 'createNode', node, { line: startLine, unit: 'normalized' })
     const indent = indentation(raw)
@@ -98,6 +135,7 @@ export function parseMindmap(source: string): MindmapDiagram {
     lastNode = node
   }
   if (!root) throw new MindmapParseError('Mindmap requires exactly one root node')
+  assignMindmapIdentities(root)
   return { root, ...(accessibilityTitle ? { accessibilityTitle } : {}), ...(accessibilityDescription ? { accessibilityDescription } : {}) }
 }
 
@@ -362,7 +400,9 @@ function plainLabel(value: string): string {
 function writeMindmapNode(node: MindmapNode): string {
   const markdown = node.markdown
   const mode = markdown ? 'markdown' : node.shape === 'default' ? 'bare' : /[()\]}]/.test(node.label) || node.label.startsWith('"') ? 'quoted' : 'unquoted'
-  const id = node.id === plainLabel(node.label) && (/[()[\]{}\r\n]/.test(node.id) || node.id.includes('%%{') || !NODE_ID_TEXT.test(node.id)) ? '' : node.id
+  // The author's identity, not a later occurrence's generated id.
+  const authored = mindmapAuthoredId(node)
+  const id = authored === plainLabel(node.label) && (/[()[\]{}\r\n]/.test(authored) || authored.includes('%%{') || !NODE_ID_TEXT.test(authored)) ? '' : authored
   return protectMermaidEntityPrepass(reserved => {
     const payload = writeMindmapText(node.label, mode, reserved)
     const label = markdown ? `"\`${payload}\`"` : mode === 'quoted' ? `"${payload}"` : payload
@@ -381,8 +421,9 @@ function writeMindmapNode(node: MindmapNode): string {
 export function mindmapSerializationProblem(diagram: MindmapDiagram, authoredSource?: string): string | undefined {
   const visit = (node: MindmapNode): string | undefined => {
     if (node.shape === 'default' && (writeMindmapNode(node) !== node.label.replace(/\n/g, '<br/>') || cleanLabel(node.label).label !== node.label)) return `Mindmap default node "${node.id}" needs text escapes that would change its identity; choose a bordered shape with an explicit identity before editing this text`
-    const anonymous = node.shape !== 'default' && node.id === plainLabel(node.label)
-    if ((!anonymous && node.id.includes('%%{')) || [node.icon, node.className].some(value => value?.includes('%%{'))) {
+    const authored = mindmapAuthoredId(node)
+    const anonymous = node.shape !== 'default' && authored === plainLabel(node.label)
+    if ((!anonymous && authored.includes('%%{')) || [node.icon, node.className].some(value => value?.includes('%%{'))) {
       return `Mindmap node "${node.id}" has an explicit identity or decoration containing a directive opener; rename that identity before editing its text`
     }
     for (const child of node.children) { const problem = visit(child); if (problem) return problem }

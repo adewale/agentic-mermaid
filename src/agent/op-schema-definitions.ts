@@ -36,6 +36,10 @@ export type FieldType =
 export interface RecordShape {
   fields: Record<string, FieldSpec>
   requireOneOf?: readonly string[]
+  /** Discovery names this record in its field's note instead of listing its
+   *  fields again (an update record whose fields are its add record's). It
+   *  is validated in full either way. */
+  byReference?: true
 }
 
 /** A field type plus its required flag. Intersection (not `extends`) because
@@ -345,11 +349,21 @@ const GANTT_SCHEMA: Record<string, OpSpec> = {
   move_section: { fields: { from: num(), to: num() } },
 }
 
+// Mindmap identity: a default-shaped node's text is its id; a repeated
+// identity's later nodes are numbered in document order (X, X#2, …).
 const MINDMAP_SCHEMA: Record<string, OpSpec> = {
-  add_node: { fields: { id: str(), label: str(), parent: str(), shape: oneOf(MINDMAP_SHAPES, false), index: num(false) } },
+  add_node: {
+    fields: {
+      id: withNote(str(), 'must equal label for the default shape; repeated text reads as X, X#2, … in document order'),
+      label: str(),
+      parent: withNote(str(), "a new mindmap already has its one root, 'root'"),
+      shape: withNote(oneOf(MINDMAP_SHAPES, false), 'default: default; a bordered shape allows id != label'),
+      index: num(false),
+    },
+  },
   remove_node: { fields: { id: str(), recursive: bool(false) } },
   rename_node: { fields: { from: str(), to: str() } },
-  set_label: { fields: { id: str(), label: str() } },
+  set_label: { fields: { id: str(), label: withNote(str(), 'renames a default-shaped node: its id becomes the label') } },
   move_node: { fields: { id: str(), parent: str(), index: num(false) } },
   set_shape: { fields: { id: str(), shape: oneOf(MINDMAP_SHAPES) } },
   set_icon: { fields: { id: str(), icon: strOrNull() } },

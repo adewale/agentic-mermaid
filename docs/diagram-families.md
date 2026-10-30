@@ -204,7 +204,7 @@ mindmap
     Delivery
 ```
 
-Mindmap uses indentation for parentage and supports Mermaid node shapes, `::icon(...)`, `:::class`, accessibility directives, deterministic tree layout, and structured mutation through `asMindmap`. Duplicate semantic ids are rejected. Use `describeOps('mindmap')` for the exact operation schema; see [`design/families/mindmap.md`](https://github.com/adewale/agentic-mermaid/blob/0f05d39858d0061b79a0c99ef03a5c10d537ddaa/docs/design/families/mindmap.md).
+Mindmap uses indentation for parentage and supports Mermaid node shapes, `::icon(...)`, `:::class`, accessibility directives, deterministic tree layout, and structured mutation through `asMindmap`. Repeated node text or explicit ids are separate nodes: later occurrences get occurrence ids (`X#2`, …) and keep the authored text as `sourceId`; a default-shaped node's text is its id. Use `describeOps('mindmap')` for the exact operation schema; see [`design/families/mindmap.md`](https://github.com/adewale/agentic-mermaid/blob/0f05d39858d0061b79a0c99ef03a5c10d537ddaa/docs/design/families/mindmap.md).
 
 ## GitGraph
 

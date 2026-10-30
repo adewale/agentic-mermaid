@@ -290,6 +290,13 @@ terminal output represents the cause/effect tree. Both advertise that projection
 explicitly; neither claims to reproduce the graphical area/fishbone geometry.
 Their SVG renderers retain those domain hallmarks.
 
+Mindmap reads a repeated node identity (the same text under two parents, or a
+repeated explicit id) as another node, as Mermaid does; Mermaid keys nodes by
+an internal counter. Ours gives the first node with an identity that id and
+each later one the next free `<identity>#<n>` in document order, keeping the
+authored identity as `sourceId` for serialization. Ours rejected repeated
+identities as `MINDMAP_DUPLICATE_ID` before; that error is no longer thrown.
+
 Generated occurrence IDs describe the current serialized artifact. Structural
 edits normalize the published typed body to the same IDs and order seen by a
 fresh parse, source map and renderer. Read the returned IDs before a subsequent

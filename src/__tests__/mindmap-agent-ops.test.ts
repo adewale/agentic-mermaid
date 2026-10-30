@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { mutateMindmap, parseMindmapBody, renderMindmapBody, verifyMindmap } from '../agent/mindmap-body.ts'
-import { mutate, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { applyOps, describeOps, mutate, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import type { MindmapBody, MindmapMutationOp, MutationError, Result } from '../agent/types.ts'
 import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
@@ -38,6 +38,10 @@ function expectError(
   expect(result).toEqual({ ok: false, error: { code, message } })
 }
 
+// A missing address lists the ids of body() and states the identity rule.
+const missing = (role: 'node' | 'parent', id: string): string =>
+  `Mindmap ${role} '${id}' not found. Node ids: 'root', 'a', 'leaf', 'box', 'dest'. A default-shaped node's text is its id (set_label and rename_node rename it), and repeated identities are numbered in document order (X, X#2, …).`
+
 function child(input: MindmapBody, id: string) {
   const stack = [input.root]
   while (stack.length) {
@@ -69,10 +73,10 @@ describe('Mindmap typed operations — discriminating mutation contract', () => 
     expectError({ kind: 'add_node', id: 42 as never, label: 'x', parent: 'root' }, 'INVALID_OP', 'Mindmap node id must be a non-empty single-line string')
     expectError({ kind: 'add_node', id: ' ', label: 'x', parent: 'root' }, 'INVALID_OP', 'Mindmap node id must be a non-empty single-line string')
     expectError({ kind: 'add_node', id: 'x', label: 'bad\nlabel', parent: 'root' }, 'INVALID_OP', 'Mindmap label must be a non-empty single-line string')
-    expectError({ kind: 'add_node', id: 'a', label: 'a', parent: 'root' }, 'DUPLICATE_NODE', "Mindmap node 'a' already exists")
-    expectError({ kind: 'add_node', id: 'x', label: 'x', parent: 'missing' }, 'NODE_NOT_FOUND', "Mindmap parent 'missing' not found")
+    expectError({ kind: 'add_node', id: 'a', label: 'a', parent: 'root' }, 'DUPLICATE_NODE', "Mindmap node 'a' already exists; choose another id.")
+    expectError({ kind: 'add_node', id: 'x', label: 'x', parent: 'missing' }, 'NODE_NOT_FOUND', missing('parent', 'missing'))
     expectError({ kind: 'add_node', id: 'x', label: 'x', parent: 'root', shape: 'triangle' as never }, 'INVALID_OP', 'Mindmap shape must be one of: default, rect, rounded, circle, cloud, bang, hexagon')
-    expectError({ kind: 'add_node', id: 'stable', label: 'Display', parent: 'root' }, 'INVALID_OP', 'A default mindmap node uses its label as identity; choose a bordered shape when id and label differ')
+    expectError({ kind: 'add_node', id: 'stable', label: 'Display', parent: 'root' }, 'INVALID_OP', "A default-shaped mindmap node's text is its identity, so its id must equal its label; pass id 'Display', or give a bordered shape (rect, rounded, circle, cloud, bang, hexagon) for id 'stable' with label 'Display'")
     for (const index of [-1, 0.5, 4]) {
       expectError({ kind: 'add_node', id: `x${index}`, label: `x${index}`, parent: 'root', index }, 'INVALID_OP', `Mindmap child index ${index} is out of range`)
     }
@@ -83,7 +87,7 @@ describe('Mindmap typed operations — discriminating mutation contract', () => 
     const recursive = apply({ kind: 'remove_node', id: 'a', recursive: true })
     expect(child(recursive, 'a')).toBeUndefined()
     expect(child(recursive, 'leaf')).toBeUndefined()
-    expectError({ kind: 'remove_node', id: 'missing' }, 'NODE_NOT_FOUND', "Mindmap node 'missing' not found")
+    expectError({ kind: 'remove_node', id: 'missing' }, 'NODE_NOT_FOUND', missing('node', 'missing'))
     expectError({ kind: 'remove_node', id: 'root' }, 'INVALID_OP', 'The mindmap root cannot be removed')
     expectError({ kind: 'remove_node', id: 'a' }, 'INVALID_OP', "Mindmap node 'a' has children; pass recursive:true to remove its subtree")
   })
@@ -96,9 +100,9 @@ describe('Mindmap typed operations — discriminating mutation contract', () => 
     const equalExplicit = body()
     child(equalExplicit, 'box')!.label = 'box'
     expect(child(apply({ kind: 'rename_node', from: 'box', to: 'panel' }, equalExplicit), 'panel')?.label).toBe('box')
-    expectError({ kind: 'rename_node', from: 'missing', to: 'x' }, 'NODE_NOT_FOUND', "Mindmap node 'missing' not found")
+    expectError({ kind: 'rename_node', from: 'missing', to: 'x' }, 'NODE_NOT_FOUND', missing('node', 'missing'))
     expectError({ kind: 'rename_node', from: 'a', to: '\n' }, 'INVALID_OP', 'Mindmap rename target must be a non-empty single-line string')
-    expectError({ kind: 'rename_node', from: 'a', to: 'dest' }, 'DUPLICATE_NODE', "Mindmap node 'dest' already exists")
+    expectError({ kind: 'rename_node', from: 'a', to: 'dest' }, 'DUPLICATE_NODE', "Mindmap node 'dest' already exists; choose another id.")
   })
 
   test('set_label keeps bordered identity but intentionally renames default-shape identity', () => {
@@ -110,9 +114,9 @@ describe('Mindmap typed operations — discriminating mutation contract', () => 
     expect(child(explicit, 'box')?.label).toBe('New display')
     // A bordered node may display another node's id without changing identity.
     expect(child(apply({ kind: 'set_label', id: 'box', label: 'dest' }), 'box')?.label).toBe('dest')
-    expectError({ kind: 'set_label', id: 'missing', label: 'x' }, 'NODE_NOT_FOUND', "Mindmap node 'missing' not found")
+    expectError({ kind: 'set_label', id: 'missing', label: 'x' }, 'NODE_NOT_FOUND', missing('node', 'missing'))
     expectError({ kind: 'set_label', id: 'a', label: ' ' }, 'INVALID_OP', 'Mindmap label must be a non-empty single-line string')
-    expectError({ kind: 'set_label', id: 'a', label: 'dest' }, 'DUPLICATE_NODE', "Mindmap node 'dest' already exists")
+    expectError({ kind: 'set_label', id: 'a', label: 'dest' }, 'DUPLICATE_NODE', "Mindmap node 'dest' already exists; choose another id.")
   })
 
   test('default-node edits refuse escapes that would rename their bare identity token', () => {
@@ -149,8 +153,8 @@ describe('Mindmap typed operations — discriminating mutation contract', () => 
     expect(child(moved, 'a')?.children).toEqual([])
     const appended = apply({ kind: 'move_node', id: 'leaf', parent: 'dest' })
     expect(child(appended, 'dest')?.children.map(node => node.id)).toEqual(['leaf'])
-    expectError({ kind: 'move_node', id: 'missing', parent: 'root' }, 'NODE_NOT_FOUND', "Mindmap node 'missing' not found")
-    expectError({ kind: 'move_node', id: 'leaf', parent: 'missing' }, 'NODE_NOT_FOUND', "Mindmap parent 'missing' not found")
+    expectError({ kind: 'move_node', id: 'missing', parent: 'root' }, 'NODE_NOT_FOUND', missing('node', 'missing'))
+    expectError({ kind: 'move_node', id: 'leaf', parent: 'missing' }, 'NODE_NOT_FOUND', missing('parent', 'missing'))
     expectError({ kind: 'move_node', id: 'root', parent: 'dest' }, 'INVALID_OP', 'The mindmap root cannot be moved')
     expectError({ kind: 'move_node', id: 'a', parent: 'leaf' }, 'INVALID_OP', "Cannot move 'a' into its own subtree")
     for (const index of [-1, 0.5, 1]) {
@@ -164,9 +168,9 @@ describe('Mindmap typed operations — discriminating mutation contract', () => 
     }
     expect(child(apply({ kind: 'set_shape', id: 'a', shape: 'default' }), 'a')?.shape).toBe('default')
     expect(child(apply({ kind: 'set_shape', id: 'box', shape: 'circle' }), 'box')?.shape).toBe('circle')
-    expectError({ kind: 'set_shape', id: 'missing', shape: 'rect' }, 'NODE_NOT_FOUND', "Mindmap node 'missing' not found")
+    expectError({ kind: 'set_shape', id: 'missing', shape: 'rect' }, 'NODE_NOT_FOUND', missing('node', 'missing'))
     expectError({ kind: 'set_shape', id: 'a', shape: 'triangle' as never }, 'INVALID_OP', 'Mindmap shape must be one of: default, rect, rounded, circle, cloud, bang, hexagon')
-    expectError({ kind: 'set_shape', id: 'box', shape: 'default' }, 'INVALID_OP', 'Default mindmap shape requires id and label to match')
+    expectError({ kind: 'set_shape', id: 'box', shape: 'default' }, 'INVALID_OP', "A default-shaped mindmap node's text is its identity, so its id must equal its label; rename 'box' to 'Box label' first (rename_node), or keep a bordered shape")
     const delimiterId = parseMindmapBody('mindmap\n  (A[B)\n')
     const changedShape = apply({ kind: 'set_shape', id: 'A[B', shape: 'rect' }, delimiterId)
     expect(changedShape.root).toMatchObject({ id: 'A[B', label: 'A[B', shape: 'rect' })
@@ -176,7 +180,7 @@ describe('Mindmap typed operations — discriminating mutation contract', () => 
   test('icon and class operations set, trim, clear, and validate', () => {
     expect(child(apply({ kind: 'set_icon', id: 'box', icon: '  mdi:cloud  ' }), 'box')?.icon).toBe('mdi:cloud')
     expect(child(apply({ kind: 'set_icon', id: 'box', icon: null }), 'box')?.icon).toBeUndefined()
-    expectError({ kind: 'set_icon', id: 'missing', icon: 'x' }, 'NODE_NOT_FOUND', "Mindmap node 'missing' not found")
+    expectError({ kind: 'set_icon', id: 'missing', icon: 'x' }, 'NODE_NOT_FOUND', missing('node', 'missing'))
     expectError({ kind: 'set_icon', id: 'box', icon: 'bad\nicon' }, 'INVALID_OP', 'Mindmap icon must be a non-empty single-line string')
     for (const icon of ['mdi:bad)']) {
       expectError({ kind: 'set_icon', id: 'box', icon }, 'INVALID_OP', `Mindmap icon '${icon}' is not serialization-stable`)
@@ -184,7 +188,7 @@ describe('Mindmap typed operations — discriminating mutation contract', () => 
 
     expect(child(apply({ kind: 'set_node_class', id: 'box', className: '  critical  ' }), 'box')?.className).toBe('critical')
     expect(child(apply({ kind: 'set_node_class', id: 'box', className: null }), 'box')?.className).toBeUndefined()
-    expectError({ kind: 'set_node_class', id: 'missing', className: 'x' }, 'NODE_NOT_FOUND', "Mindmap node 'missing' not found")
+    expectError({ kind: 'set_node_class', id: 'missing', className: 'x' }, 'NODE_NOT_FOUND', missing('node', 'missing'))
     expectError({ kind: 'set_node_class', id: 'box', className: '' }, 'INVALID_OP', 'Mindmap class must be a non-empty single-line string')
     for (const className of ['hot  cold']) {
       expectError({ kind: 'set_node_class', id: 'box', className }, 'INVALID_OP', `Mindmap class '${className}' is not serialization-stable`)
@@ -206,6 +210,32 @@ describe('Mindmap typed operations — discriminating mutation contract', () => 
     expect(apply({ kind: 'set_accessibility_description', description: null }, described).accessibilityDescription).toBeUndefined()
     expectError({ kind: 'set_accessibility_description', description: '' }, 'INVALID_OP', 'Mindmap accessibility description must be non-empty text')
     expect(apply({ kind: 'set_accessibility_description', description: 'Hierarchy%%cut' }).accessibilityDescription).toBe('Hierarchy%%cut')
+  })
+
+  test('identity rules are discoverable up front and named where a guess fails', () => {
+    // A blank mindmap has its one root, 'root'; a default-shaped node's text
+    // is its id; set_label on one renames it. Each rule is in the op notes…
+    const ops = describeOps('mindmap')
+    const note = (kind: string, field: string) => ops[kind]?.find(entry => entry.name === field)?.note ?? ''
+    expect(note('add_node', 'parent')).toContain("'root'")
+    expect(note('add_node', 'id')).toContain('equal label')
+    expect(note('set_label', 'label')).toContain('id becomes the label')
+    // …and each natural first guess fails with the fix.
+    const fails = (batch: unknown[]) => {
+      const result = applyOps({ family: 'mindmap', ops: batch })
+      if (result.ok) throw new Error('expected a rejected batch')
+      return result.error
+    }
+    expect(fails([{ kind: 'add_node', id: 'root', label: 'Product', parent: 'root' }])).toMatchObject({ code: 'DUPLICATE_NODE', message: expect.stringContaining('rename_node') })
+    expect(fails([{ kind: 'add_node', id: 'a', label: 'A', parent: 'root' }]).message).toContain("pass id 'A', or give a bordered shape")
+    expect(fails([{ kind: 'set_label', id: 'root', label: 'Product' }, { kind: 'add_node', id: 'A', label: 'A', parent: 'root' }])).toMatchObject({
+      code: 'NODE_NOT_FOUND', message: expect.stringContaining("changed its id to 'Product'; address it as 'Product'"),
+    })
+    // Removing an earlier repeated node renumbers the later one; the batch says so.
+    const renumbered = applyOps({ source: 'mindmap\n  root\n    X\n    B\n      X\n', ops: [{ kind: 'remove_node', id: 'X' }, { kind: 'set_icon', id: 'X#2', icon: 'fa fa-book' }] })
+    expect(renumbered).toMatchObject({ ok: false, opIndex: 1, error: { code: 'NODE_NOT_FOUND', message: expect.stringContaining("changed its id to 'X'") } })
+    expect(applyOps({ source: 'mindmap\n  root\n    X\n    B\n      X\n', ops: [{ kind: 'remove_node', id: 'X' }, { kind: 'set_icon', id: 'X', icon: 'fa fa-book' }] }))
+      .toMatchObject({ ok: true, source: 'mindmap\n  root\n    B\n      X\n        ::icon(fa fa-book)\n' })
   })
 
   test('unknown operations fail prescriptively', () => {
