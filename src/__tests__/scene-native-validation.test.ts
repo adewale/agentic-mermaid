@@ -6,13 +6,17 @@ import { assertFinalSvgByteBudget, createNativeSceneValidator, SCENE_VALIDATION_
 import { inspectSvgOnce, withSvgInspectionCache } from '../svg-inspection-cache.ts'
 import { deferredTerminalProjectionInput, withDeferredTerminalProjections } from '../scene/deferred-terminal-projection.ts'
 import { serializeLinearGradientResources } from '../scene/gradient-resources.ts'
-import type { LinearGradientDescriptor, SceneDoc } from '../scene/ir.ts'
+import type { LinearGradientDescriptor, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { drawNative } from '../scene/native-drawing.ts'
-import { certifyNativePaint } from '../scene/paint-certification.ts'
+import { certifyNativePaint, certifyScenePaint } from '../scene/paint-certification.ts'
 import { serializeMarkerResource, tipAnchoredArrow } from '../scene/marker-resources.ts'
 import type { DrawingProducer } from '../scene/drawing.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
+import { admitSceneDocument } from '../scene/external-data-snapshot.ts'
+import { DefaultBackend } from '../scene/backend.ts'
+import { createSceneWriteCapture, sceneNodeSerialization } from '../scene/serialization.ts'
+import { MAX_OCCLUSION_OPERATIONS } from '../scene/paint-work.ts'
 
 const header: Omit<SceneDoc, 'parts'> = { family: 'flowchart', width: 200, height: 100, colors: { bg: '#fff', fg: '#111' }, transparent: false }
 const shape = (id = 'A') => marks.shape({ id, role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 20, height: 20 }, paint: { fill: '#111' } })
@@ -273,6 +277,12 @@ test.each([
     if (mode === 'trailing-group') parts.push(factory.group({ id: 'trailing', role: 'chrome', open: '<g>', close: '</g>', children: [{ node: factory.shape({ id: 'group-artwork', role: 'chrome', geometry: { kind: 'rect', x: 150, y: 10, width: 20, height: 20 }, paint: { fill: '#111' } }), indent: 2 }] }))
     return { ...header, parts }
   }
+  if (mode === 'namespace-three-decode-alias' || mode === 'namespace-literal-whitespace-alias') {
+    // Invalid metadata now fails its own admission before it can be composed
+    // with unrelated painting occurrences into a final document.
+    expect(() => drawNative(producer, context, 'flowchart')).toThrow(/closed non-painting metadata/)
+    return
+  }
   const drawing = drawNative(producer, context, 'flowchart')
   expect(drawing.svg.startsWith(opening)).toBe(true)
   const xml = () => new SaxesParser({ xmlns: true }).write(drawing.svg).close()
@@ -306,6 +316,60 @@ test.each([
   if (positive) expect(proof.status, JSON.stringify(proof.issues)).toBe('passed')
   else expect(proof.status).not.toBe('passed')
   if (!validXml) expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'OUTPUT_SCOPE' }))
+})
+
+test.each((['title', 'desc'] as const).flatMap(element => (['native', 'scene'] as const).map(execution => ({ element, execution }))))('$execution admission requires each non-painting $element fragment to close before actual marker ink', ({ element, execution }) => {
+  const marker = tipAnchoredArrow('metadata-scope-arrow', { width: 8, height: 5 }, 'end', { fill: '#000' }, 'userSpaceOnUse')
+  const context = { positioned: { width: 200, height: 100 }, colors: header.colors, resolved: { renderOptions: {} } }
+  const producer = (split: boolean): DrawingProducer => factory => ({ ...header, parts: [
+    factory.documentOpen({ id: 'root', width: 200, height: 100, colors: header.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">'),
+    factory.definitions({ id: 'markers' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    factory.shape({ id: 'A', role: 'node', geometry: { kind: 'rect', x: 5, y: 20, width: 10, height: 40 }, paint: { fill: '#fff' } }),
+    factory.shape({ id: 'B', role: 'node', geometry: { kind: 'rect', x: 90, y: 20, width: 10, height: 40 }, paint: { fill: '#fff' } }),
+    factory.documentContent({ id: 'metadata-before', role: 'chrome', nonPaint: 'accessibility' }, split ? `<${element}>` : `<${element}>Relation metadata</${element}>`),
+    factory.connector({ id: 'edge', role: 'edge', endpoints: { from: 'A', to: 'B' }, lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 60, y2: 40 }, paint: { stroke: '#000' }, markers: { end: marker } }),
+    factory.documentContent({ id: 'metadata-after', role: 'chrome', nonPaint: 'accessibility' }, split ? `</${element}>` : ''),
+    factory.documentClose(),
+  ] })
+  const raw = producer(true)<SceneNode>(marks, context)
+  const hiddenSvg = raw.parts.map(sceneNodeSerialization).join('\n')
+  expect(() => new SaxesParser({ xmlns: true }).write(hiddenSvg).close()).not.toThrow()
+  expect(hiddenSvg).toContain(`<${element}>\n<line `)
+  const reference = ' marker-end="url(#metadata-scope-arrow)"'
+  expect(hiddenSvg.split(reference)).toHaveLength(2)
+  const exposedSvg = hiddenSvg.replace(`<${element}>\n`, '').replace(`\n</${element}>`, '')
+  const pixels = (svg: string) => new Resvg(svg, { background: '#fff', font: { loadSystemFonts: false } }).render().pixels
+  const changedPixels = (first: Uint8Array, second: Uint8Array): number => {
+    let changed = 0
+    for (let index = 0; index < first.length; index += 4) {
+      if (first[index] !== second[index] || first[index + 1] !== second[index + 1]
+        || first[index + 2] !== second[index + 2] || first[index + 3] !== second[index + 3]) changed++
+    }
+    return changed
+  }
+  // Balanced whole-document XML can still place the real carrier inside
+  // descriptive metadata. Its declared marker then contributes no pixels.
+  expect(changedPixels(pixels(hiddenSvg), pixels(hiddenSvg.replace(reference, '')))).toBe(0)
+  expect(changedPixels(pixels(exposedSvg), pixels(exposedSvg.replace(reference, '')))).toBeGreaterThan(0)
+
+  let visibleSvg: string
+  if (execution === 'native') {
+    const visible = drawNative(producer(false), context, 'flowchart')
+    visibleSvg = visible.svg
+    expect(certifyNativePaint(visible.header, visible.paint).status).toBe('passed')
+  } else {
+    const capture = createSceneWriteCapture(MAX_OCCLUSION_OPERATIONS)
+    const visible = admitSceneDocument(producer(false)<SceneNode>(marks, context), 'internal', true, capture.observe)
+    visibleSvg = DefaultBackend.render(visible, { seed: 0 })
+    expect(certifyScenePaint(visible, undefined, { sceneWriteReceipt: capture.finish(visible) }).status).toBe('passed')
+  }
+  expect(changedPixels(pixels(visibleSvg), pixels(visibleSvg.replace(reference, '')))).toBeGreaterThan(0)
+  withSvgInspectionCache(() => {
+    const opening = `<${element}>`
+    inspectSvgOnce('start-tags', opening, () => [])
+    inspectSvgOnce('xml-envelope', `<svg xmlns="http://www.w3.org/2000/svg">${opening}</svg>`, () => true)
+    expect(() => execution === 'native' ? drawNative(producer(true), context, 'flowchart') : admitSceneDocument(raw, 'internal', true)).toThrow(SceneValidationError)
+  })
 })
 
 test('native paint inspects the same document occurrence roster that it emits', () => {

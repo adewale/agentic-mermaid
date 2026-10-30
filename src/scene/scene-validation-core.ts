@@ -7,8 +7,8 @@
 
 import { assertInertGroup } from './group-emission.ts'
 import { isRetainedPixelText } from '../shared/prepared-text.ts'
-import { scanSvgStartTags } from '../svg-structure.ts'
-import { applyOutputSecurityPolicy } from '../output-security.ts'
+import { scanSvgStartTags, scanSvgStartTagsFresh } from '../svg-structure.ts'
+import { applyOutputSecurityPolicy, verifySvgDocumentEnvelope } from '../output-security.ts'
 import { safeCssPaint } from '../shared/css-color.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
 import { parseExtensionId } from '../shared/extension-identity.ts'
@@ -920,7 +920,12 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     if (value.nonPaint !== undefined) {
       const tags: Record<string, readonly string[]> = { accessibility: ['title', 'desc'], stylesheet: ['style'], 'interaction-metadata': ['title', 'desc'] }
       const allowed = tags[String(value.nonPaint)]
-      if (value.element !== 'content' || !allowed || serialized === undefined || scanSvgStartTags(serialized).some(tag => !allowed.includes(tag.name))) {
+      // Metadata must close its own scope. Separate fragments cannot capture
+      // later typed artwork inside a nonpainting title, description or style.
+      // Admission checks fresh bytes; public inspection caches grant no authority.
+      if (value.element !== 'content' || !allowed || serialized === undefined
+        || scanSvgStartTagsFresh(serialized).some(tag => !allowed.includes(tag.name))
+        || !verifySvgDocumentEnvelope(`<svg xmlns="http://www.w3.org/2000/svg">${serialized}</svg>`, () => true)) {
         add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.nonPaint`, 'must describe only closed non-painting metadata elements')
       }
     }

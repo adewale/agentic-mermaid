@@ -3544,3 +3544,60 @@ unclassified at this check. Semantic conformance, unit shard3, CLI, payload,
 artifact, both installed tarball consumers, quickstarts and MCP pass. These new
 counterexamples are additional to the six isolated-Main budget refusals. No
 claim of a fully passing current branch or universalELKparity is made.
+
+
+### 30 October sustained campaign: Main integration and closed metadata scope
+
+The requested campaign started at01:53:05UTC; its requested eight-hour target
+is09:53:05UTC. This entry records completed work, not eight elapsed hours.
+Five GPT6.1Sol agents atHigh split three-system observations, label/crossing
+repairs, Sequence/XML writes, budget attribution and independent authority
+falsification. Existing uncommitted work was preserved in binary patches under
+`/tmp/pr449-eight-hour-20261030/` before integration. Product work stays globally
+serialized with117+3-second workers,30-second cells/tests,300+3-second type
+workers and the existing400,000-operation/geometry/byte limits.
+
+A normal pull confirms retained published head
+`d43ef02ee11f9c5f99d5138e9455f14efcbab27b`. Private integration now descends from
+that head and fetched Main`bb06b11c64c84b43f540854d3a96ca18c54c492a`, at private
+merge`2ecf117c47ca4200b783f8a21c05dcd85d558ed0`. Version-only merge conflicts
+retain0.4.2. This is a private merge integration, not a completed rebase or
+passing published candidate. PR449 remains merged/closed; no replacement issue
+or PR, package publication, version bump or ELK-default change is made.
+
+Independent review found a pre-existing accepted wrong drawing: separately
+admitted nonPaint accessibility fragments `<title>`/`</title>` or
+`<desc>`/`</desc>` can surround a real semantic marked connector. Actual SVG is
+XML-valid, certification passes, but removing its marker changes zero raster
+pixels; removing only the metadata wrappers restores94marker pixels. Native
+and fresh Scene receipts both reproduce this defect.
+
+Shared document admission now requires each declared nonpainting fragment to
+be a complete XML fragment beneath a canonical SVG wrapper, retaining the
+existing allowed-element inventory. Both the allowed-tag scan and XML check
+observe fresh bytes; public inspection-cache results cannot grant authority.
+No generic geometry/paint/helper result substitutes for final ink.
+
+The existing Native validation owner extends one table across title/desc and
+Native/Scene. XML parsing and actual marker-removal raster controls precede the
+admission assertion. Four targeted cases fail before the change only at that
+assertion; the full owning file passes58tests/317assertions afterward. Complete
+closed metadata and namespace-distinct controls remain positive; two old
+namespace-alias controls now reject at the earlier admission boundary. Scoped
+types(895 imported files) and lint pass, with frozen inputs and all descendants
+reaped. Evidence:`authority-review/metadata-owner-{red-R2,green-R2}*` and
+`metadata-scoped-*` beneath the session directory. These are owning/scoped
+checks, not a claim that combined canonical core/repository types or CI pass.
+
+Remaining work is explicit: label/Sequence fixes are independently qualified
+but not yet committed; five of the six large admission refusals remain open in
+the current private experiment. The1,500-label/32-marker owning case passes in
+an unpublished XML/pure-origin prototype at367,793/400,000 with identical
+335,043-byte SVG, but raw lexical boundary hardening and combined qualification
+are still pending. The unsafe broad frozen-object memo was rejected: a
+constructor-branded caller Proxy changed later actual SVG when reflection was
+skipped. Only separate private allocation provenance is being considered.
+Existing d43CI is failed, including browser/lazy delivery budgets; no cap is
+raised. Next concrete step: commit the qualified label/contact fixes, finish
+safe same-write XML authority and remove duplicated group work, then rerun
+all six admission owners and exact combined-candidate checks.
