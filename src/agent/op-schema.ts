@@ -1,4 +1,4 @@
-import { OP_SCHEMAS as SCHEMAS, type FieldType } from './op-schema-definitions.ts'
+import { OP_SCHEMAS as SCHEMAS, type FieldSpec, type FieldType, type RecordShape } from './op-schema-definitions.ts'
 import { unknownOpMessage, type MutableFamilyId } from './mutation-ops.ts'
 
 // ============================================================================
@@ -100,6 +100,8 @@ function typeName(f: FieldType): string {
       return 'string[]'
     case 'number-array':
       return 'number[]'
+    case 'object':
+      return 'object'
     case 'object-array':
       return 'object[]'
     case 'object-or-null':
@@ -129,6 +131,8 @@ function matchesType(spec: FieldType, value: unknown): boolean {
       return Array.isArray(value) && value.every(v => typeof v === 'number' && Number.isFinite(v))
     case 'object-array':
       return Array.isArray(value) && value.every(item => item !== null && typeof item === 'object' && !Array.isArray(item))
+    case 'object':
+      return value !== null && typeof value === 'object' && !Array.isArray(value)
     case 'object-or-null':
       return value === null || (typeof value === 'object' && !Array.isArray(value))
     case 'enum':
@@ -279,23 +283,50 @@ function validateAdmittedOp(family: OpFamily, op: unknown): OpValidationError | 
     }
   }
 
-  const spec = schema[kind]!
-  const validFields = Object.keys(spec.fields)
+  return validateFields(family, kind, rec, schema[kind]!, '')
+}
+
+/** A field of a nested record named exactly `key`, as a dotted path relative
+ *  to `fields` (`min` → `range.min`): the author wrote it one level too high. */
+function nestedFieldPath(key: string, fields: Record<string, FieldSpec>, seen: Set<RecordShape> = new Set()): string | undefined {
+  for (const [name, spec] of Object.entries(fields)) {
+    const shape = recordShape(spec)
+    if (!shape || seen.has(shape)) continue
+    if (Object.hasOwn(shape.fields, key)) return `${name}${spec.type === 'object-array' ? '[]' : ''}.${key}`
+    const deeper = nestedFieldPath(key, shape.fields, new Set([...seen, shape]))
+    if (deeper) return `${name}${spec.type === 'object-array' ? '[]' : ''}.${deeper}`
+  }
+  return undefined
+}
+
+function recordShape(spec: FieldSpec): RecordShape | undefined {
+  return spec.type === 'object' || spec.type === 'object-or-null' || spec.type === 'object-array' ? spec.shape : undefined
+}
+
+/** Validate `rec` against `shape`: the op itself (`path` empty) or a nested
+ *  record at `path` (`axis.`, `block.children[0].`). Unknown keys, missing
+ *  required fields, requireOneOf and primitive types are checked at this level
+ *  before any nested record, so the first error is the outermost one. */
+function validateFields(family: OpFamily, kind: string, rec: Record<string, unknown>, shape: RecordShape, path: string): OpValidationError | null {
+  const names = Object.keys(shape.fields)
+  const validFields = names.map(name => path + name)
+  const owner = path ? ` of ${path.slice(0, -1)}` : ''
 
   // 1) Unknown / misnamed fields (this catches the `name`-instead-of-`id` bug).
   for (const key of Object.keys(rec)) {
-    if (key === 'kind') continue
+    if (!path && key === 'kind') continue
     // Own-property only: an inherited field name (`toString`, `constructor`, …) must be
     // reported as an unknown field, not silently accepted via the prototype chain.
-    if (!Object.hasOwn(spec.fields, key)) {
-      const dym = nearest(key, validFields)
+    if (!Object.hasOwn(shape.fields, key)) {
+      const near = nestedFieldPath(key, shape.fields) ?? nearest(key, names)
+      const dym = near === undefined ? undefined : path + near
       return {
         code: 'INVALID_OP',
         reason: 'unknown_field',
         family,
         opKind: kind,
-        field: key,
-        message: `Unknown field "${key}" for ${family} op "${kind}".${dym ? ` Did you mean "${dym}"?` : ''} Valid fields: ${validFields.join(', ')}.`,
+        field: path + key,
+        message: `Unknown field "${path + key}" for ${family} op "${kind}".${dym ? ` Did you mean "${dym}"?` : ''} Valid fields${owner}: ${names.join(', ')}.`,
         validFields,
         didYouMean: dym,
       }
@@ -303,7 +334,7 @@ function validateAdmittedOp(family: OpFamily, op: unknown): OpValidationError | 
   }
 
   // 2) Missing required fields.
-  for (const [name, fspec] of Object.entries(spec.fields)) {
+  for (const [name, fspec] of Object.entries(shape.fields)) {
     if (!fspec.required) continue
     if (rec[name] === undefined) {
       return {
@@ -311,27 +342,28 @@ function validateAdmittedOp(family: OpFamily, op: unknown): OpValidationError | 
         reason: 'missing_field',
         family,
         opKind: kind,
-        field: name,
-        message: `Missing required field "${name}" (${typeName(fspec)}) for ${family} op "${kind}". Fields: ${validFields.join(', ')}.`,
+        field: path + name,
+        message: `Missing required field "${path + name}" (${typeName(fspec)}) for ${family} op "${kind}". Fields${owner}: ${names.join(', ')}.`,
         validFields,
       }
     }
   }
 
   // 3) requireOneOf (e.g. remove_edge needs index OR id).
-  if (spec.requireOneOf && !spec.requireOneOf.some(f => rec[f] !== undefined)) {
+  if (shape.requireOneOf && !shape.requireOneOf.some(f => rec[f] !== undefined)) {
     return {
       code: 'INVALID_OP',
       reason: 'require_one_of',
       family,
       opKind: kind,
-      message: `${family} op "${kind}" requires at least one of: ${spec.requireOneOf.join(', ')}.`,
+      ...(path ? { field: path.slice(0, -1) } : {}),
+      message: `${family} op "${kind}"${path ? ` field "${path.slice(0, -1)}"` : ''} requires at least one of: ${shape.requireOneOf.map(f => path + f).join(', ')}.`,
       validFields,
     }
   }
 
   // 4) Present fields must match their declared type.
-  for (const [name, fspec] of Object.entries(spec.fields)) {
+  for (const [name, fspec] of Object.entries(shape.fields)) {
     if (rec[name] === undefined) continue
     if (!matchesType(fspec, rec[name])) {
       return {
@@ -339,10 +371,22 @@ function validateAdmittedOp(family: OpFamily, op: unknown): OpValidationError | 
         reason: 'wrong_type',
         family,
         opKind: kind,
-        field: name,
-        message: `Field "${name}" of ${family} op "${kind}" must be ${typeName(fspec)}, got ${JSON.stringify(rec[name])}.`,
+        field: path + name,
+        message: `Field "${path + name}" of ${family} op "${kind}" must be ${typeName(fspec)}, got ${JSON.stringify(rec[name])}.`,
         validFields,
       }
+    }
+  }
+
+  // 5) Nested records with a declared shape, outermost first.
+  for (const [name, fspec] of Object.entries(shape.fields)) {
+    const nested = recordShape(fspec)
+    const value = rec[name]
+    if (!nested || value === undefined || value === null) continue
+    const items = fspec.type === 'object-array' ? (value as Record<string, unknown>[]).map((item, index) => [item, `${path}${name}[${index}].`] as const) : [[value as Record<string, unknown>, `${path}${name}.`] as const]
+    for (const [item, itemPath] of items) {
+      const problem = validateFields(family, kind, item, nested, itemPath)
+      if (problem) return problem
     }
   }
 
@@ -381,6 +425,24 @@ export interface OpFieldDoc {
   required: boolean
   type: string
   note?: string
+  /** The fields of a nested record (`object`, `object | null`, or each item of
+   *  `object[]`), when the shape layer validates them. Omitted where a record
+   *  repeats its own shape (block `children`), which the note says. */
+  fields?: OpFieldDoc[]
+}
+
+/** A record that nests records of its own shape (a block's children) is
+ *  spelled out where an op field holds it, not again inside a record. */
+function describeFields(fields: Record<string, FieldSpec>, nested = false): OpFieldDoc[] {
+  return Object.entries(fields).map(([name, f]) => {
+    const shape = recordShape(f)
+    const selfNesting = shape !== undefined && Object.values(shape.fields).some(field => recordShape(field) === shape)
+    return {
+      name, required: f.required, type: typeName(f),
+      ...(f.note !== undefined ? { note: f.note } : {}),
+      ...(shape && !(nested && selfNesting) ? { fields: describeFields(shape.fields, true) } : {}),
+    }
+  })
 }
 
 /** Full field shapes for every op of a family — the thing a model must know to
@@ -394,7 +456,7 @@ export function describeOps(family: OpFamily): Record<string, OpFieldDoc[]> {
   }
   const out: Record<string, OpFieldDoc[]> = {}
   for (const [kind, spec] of Object.entries(SCHEMAS[family])) {
-    out[kind] = Object.entries(spec.fields).map(([name, f]) => ({ name, required: f.required, type: typeName(f), ...(f.note !== undefined ? { note: f.note } : {}) }))
+    out[kind] = describeFields(spec.fields)
   }
   return out
 }

@@ -1,11 +1,31 @@
+import type { FieldSpec, RecordShape } from '../agent/op-schema-definitions.ts'
+
 const str = (required = true) => ({ type: 'string' as const, required }),
   num = (required = true) => ({ type: 'number' as const, required }),
-  obj = () => ({ type: 'object-or-null' as const, required: true }),
+  strs = () => ({ type: 'string-array' as const, required: false }),
   nullable = () => ({ type: 'string-or-null' as const, required: true })
+// BlockInput: `children` holds records of this same shape.
+// Value notes are given once, on the add_block record.
+const blockFields = (id: FieldSpec | undefined): Record<string, FieldSpec> => {
+  const note = (spec: FieldSpec, text: string): FieldSpec => (id ? { ...spec, note: text } : spec)
+  return {
+    ...(id ? { id } : {}),
+    label: str(false),
+    type: note(str(false), 'shape name, composite, space or block_arrow; default: square'),
+    widthInColumns: note(num(false), 'integer 1..1000'),
+    columns: note(num(false), '-1 (auto) or integer 1..1000'),
+    directions: note(strs(), 'block_arrow: right, left, up, down, x, y'),
+    classes: strs(),
+    styles: strs(),
+    width: note(num(false), 'space width, integer 1..10000'),
+    children: { type: 'object-array', required: false, note: 'composite only; block records', get shape() { return BLOCK_INPUT } },
+  }
+}
+const BLOCK_INPUT: RecordShape = { fields: blockFields(str()) }
 export const BLOCK_OP_SCHEMAS = {
   set_columns: { fields: { columns: num(), parentId: str(false) } },
-  add_block: { fields: { block: obj(), parentId: str(false), index: num(false) } },
-  update_block: { fields: { id: str(), changes: obj() } },
+  add_block: { fields: { block: { type: 'object-or-null' as const, required: true, shape: BLOCK_INPUT }, parentId: str(false), index: num(false) } },
+  update_block: { fields: { id: str(), changes: { type: 'object-or-null' as const, required: true, shape: { fields: blockFields(undefined) } } } },
   rename_block: { fields: { from: str(), to: str() } },
   remove_block: { fields: { id: str(), cascade: { type: 'boolean' as const, required: false } } },
   move_block: { fields: { id: str(), parentId: str(false), index: num(false) } },

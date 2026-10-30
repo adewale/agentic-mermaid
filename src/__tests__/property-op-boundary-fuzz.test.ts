@@ -58,7 +58,15 @@ const opObjArb = fc.tuple(kindArb, fc.array(fc.tuple(fieldNameArb, junkValue), {
 // with values drawn from a tiny id vocabulary so add_* ops can actually land on
 // an empty diagram.
 const ID_VOCAB = ['A', 'B', 'n1', 'Label']
-const valueForType = (type: string): fc.Arbitrary<unknown> => {
+type FieldDoc = { name: string; required: boolean; type: string; fields?: FieldDoc[] }
+// A record from published nested field docs (e.g. xychart axis.range).
+const recordFor = (fields: FieldDoc[]): fc.Arbitrary<Record<string, unknown>> => {
+  const record: Record<string, fc.Arbitrary<unknown>> = {}
+  for (const f of fields) record[f.name] = valueFor(f)
+  return fc.record(record, { requiredKeys: fields.filter(f => f.required).map(f => f.name) })
+}
+const valueFor = (field: Pick<FieldDoc, 'type' | 'fields'>): fc.Arbitrary<unknown> => {
+  const { type, fields } = field
   if (type.startsWith('one of ')) {
     const values = [...type.matchAll(/"(?:[^"\\]|\\.)*"/g)].map(m => JSON.parse(m[0]) as string)
     return type.endsWith(' | null') ? fc.constantFrom<unknown>(...values, null) : fc.constantFrom(...values)
@@ -72,18 +80,14 @@ const valueForType = (type: string): fc.Arbitrary<unknown> => {
     case 'boolean | null': return fc.option(fc.boolean(), { nil: null })
     case 'string[]': return fc.array(fc.constantFrom(...ID_VOCAB), { maxLength: 2 })
     case 'number[]': return fc.array(fc.integer({ min: 0, max: 3 }), { maxLength: 2 })
-    case 'object[]': return fc.array(fc.dictionary(fc.constantFrom('id', 'label', 'value'), fc.constantFrom(...ID_VOCAB), { maxKeys: 3 }), { maxLength: 2 })
-    case 'object | null': return fc.constant(null)
+    case 'object[]': return fields ? fc.array(recordFor(fields), { maxLength: 2 }) : fc.array(fc.dictionary(fc.constantFrom('id', 'label', 'value'), fc.constantFrom(...ID_VOCAB), { maxKeys: 3 }), { maxLength: 2 })
+    case 'object': return recordFor(fields ?? [])
+    case 'object | null': return fields ? fc.option(recordFor(fields), { nil: null }) : fc.constant(null)
     default: throw new Error(`op-boundary fuzz: no generator for field type ${type}`)
   }
 }
 const shapeValidOpArb = (family: MutableFamilyId): fc.Arbitrary<Record<string, unknown>> =>
-  fc.oneof(...Object.entries(describeOps(family)).map(([kind, fields]) => {
-    const record: Record<string, fc.Arbitrary<unknown>> = {}
-    for (const f of fields) record[f.name] = valueForType(f.type)
-    const requiredKeys = fields.filter(f => f.required).map(f => f.name)
-    return fc.record(record, { requiredKeys }).map(o => ({ kind, ...o }))
-  }))
+  fc.oneof(...Object.entries(describeOps(family)).map(([kind, fields]) => recordFor(fields).map(o => ({ kind, ...o }))))
 // A near miss: a shape-valid op with exactly one defect the boundary must catch —
 // a required field dropped, an unknown field added (`name` for `id`), or a field
 // retyped. The mutator alone might tolerate these; validateOp must not.
@@ -160,6 +164,58 @@ describe('op-boundary fuzz: applyOps / mutateChecked', () => {
     fc.assert(fc.property(familyArb, fc.array(opArb, { maxLength: 4 }), (family, ops) => {
       expect(applyOps({ family, ops })).toEqual(applyOps({ family, ops }))
     }), fcParameters({ numRuns: NUM_RUNS }))
+  })
+})
+
+// Nested op records (an xychart axis and its range, a block record and its
+// children, requirement records) are shape-checked like an op's own fields. A
+// key the record does not have was silently dropped (`axis: {name, min, max}`
+// wrote `y-axis Units` and deleted the range); it must be rejected with its
+// dotted path, and the batch must not apply.
+describe('op-boundary fuzz: a stray key in a nested op record is rejected, never dropped', () => {
+  const XY = 'xychart-beta\n  x-axis [a, b]\n  y-axis "Old" 0 --> 120\n  bar [5, 20]\n'
+  // Each base op applies as written; `slips` are keys that record does not have.
+  const NESTED: Array<{ input: { source: string } | { family: MutableFamilyId }; op: Record<string, unknown>; records: Array<{ path: Array<string | number>; slips: string[] }> }> = [
+    {
+      input: { source: XY },
+      op: { kind: 'set_y_axis', axis: { name: 'Units', range: { min: 0, max: 200 } } },
+      records: [{ path: ['axis'], slips: ['min', 'max', 'title', 'labels'] }, { path: ['axis', 'range'], slips: ['step', 'from', 'to'] }],
+    },
+    { input: { source: XY }, op: { kind: 'set_x_axis', axis: { name: 'Region', categories: ['a', 'b'] } }, records: [{ path: ['axis'], slips: ['labels', 'values', 'title'] }] },
+    {
+      input: { family: 'block' },
+      op: { kind: 'add_block', block: { id: 'g', type: 'composite', children: [{ id: 'c', label: 'C' }] } },
+      records: [{ path: ['block'], slips: ['shape', 'shap', 'text'] }, { path: ['block', 'children', 0], slips: ['lable', 'name', 'shape'] }],
+    },
+    { input: { family: 'requirement' }, op: { kind: 'add_requirement', requirement: { name: 'r', text: 'hi', risk: 'High' } }, records: [{ path: ['requirement'], slips: ['txt', 'label', 'verify'] }] },
+    { input: { family: 'requirement' }, op: { kind: 'add_element', element: { name: 'e', type: 'sim' } }, records: [{ path: ['element'], slips: ['typ', 'doc', 'label'] }] },
+  ]
+  const dotted = (path: Array<string | number>) => path.map((part, index) => typeof part === 'number' ? `[${part}]` : `${index ? '.' : ''}${part}`).join('')
+  const withStray = (op: Record<string, unknown>, path: Array<string | number>, key: string, value: unknown) => {
+    const copy = structuredClone(op)
+    let record = copy as Record<string | number, unknown>
+    for (const part of path) record = record[part] as Record<string | number, unknown>
+    record[key] = value
+    return copy
+  }
+  // Realistic slips, plus generated keys in a namespace no record uses.
+  const caseArb = fc.constantFrom(...NESTED).chain(entry => fc.tuple(
+    fc.constant(entry),
+    fc.constantFrom(...entry.records).chain(record => fc.tuple(fc.constant(record), fc.oneof(fc.constantFrom(...record.slips), fc.stringMatching(/^x_[a-z]{1,6}$/)))),
+    fc.oneof(fc.integer({ min: -5, max: 500 }), fc.string({ maxLength: 6 }), fc.boolean()),
+  ))
+
+  it('every base op applies without the stray key', () => {
+    for (const { input, op } of NESTED) expect(applyOps({ ...input, ops: [op] })).toMatchObject({ ok: true })
+  })
+
+  it('rejects the stray key with its dotted path and applies nothing', () => {
+    fc.assert(fc.property(caseArb, ([{ input, op }, [record, key], value]) => {
+      const r = applyOps({ ...input, ops: [withStray(op, record.path, key, value)] })
+      expect(r.ok).toBe(false)
+      if (r.ok) return
+      expect(r.error).toMatchObject({ code: 'INVALID_OP', reason: 'unknown_field', field: `${dotted(record.path)}.${key}` })
+    }), fcParameters({ numRuns: 200 }))
   })
 })
 

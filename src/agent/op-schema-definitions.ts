@@ -24,8 +24,19 @@ export type FieldType =
   | { type: 'enum'; values: readonly string[]; nullable?: boolean }
   | { type: 'string-array' }
   | { type: 'number-array' }
-  | { type: 'object-or-null' }
-  | { type: 'object-array' } // a nested record (deep shape validated by the mutator)
+  // Nested records. With a `shape`, the shape layer validates the record's
+  // keys, required fields and primitive types like an op's own fields, so a
+  // stray key is rejected instead of silently dropped. Without one, the
+  // record is free-form here and its deep shape is the mutator's to check.
+  | { type: 'object'; shape?: RecordShape }
+  | { type: 'object-or-null'; shape?: RecordShape }
+  | { type: 'object-array'; shape?: RecordShape }
+
+/** The fields of a nested record, validated and discovered like an op's own. */
+export interface RecordShape {
+  fields: Record<string, FieldSpec>
+  requireOneOf?: readonly string[]
+}
 
 /** A field type plus its required flag. Intersection (not `extends`) because
  *  FieldType is a union — an interface cannot extend a union. */
@@ -73,8 +84,9 @@ const boolOrNull = (required = true): FieldSpec => ({ type: 'boolean-or-null', r
 const strOrNull = (required = true): FieldSpec => ({ type: 'string-or-null', required })
 const strArr = (required = true): FieldSpec => ({ type: 'string-array', required })
 const numArr = (required = true): FieldSpec => ({ type: 'number-array', required })
-const objOrNull = (required = true): FieldSpec => ({ type: 'object-or-null', required })
+const objOrNull = (required = true, shape?: RecordShape): FieldSpec => ({ type: 'object-or-null', required, ...(shape ? { shape } : {}) })
 const objArr = (required = true): FieldSpec => ({ type: 'object-array', required })
+const obj = (shape: RecordShape, required = true): FieldSpec => ({ type: 'object', required, shape })
 const oneOf = (values: readonly string[], required = true, nullable = false): FieldSpec => ({ type: 'enum', values, nullable, required })
 /** Attach a discovery note (mutator-enforced constraint or omit-default) to a
  *  field spec without changing its shape validation. */
@@ -263,10 +275,21 @@ const ARCHITECTURE_SCHEMA: Record<string, OpSpec> = {
   remove_edge: { fields: { index: num(false), id: str(false) }, requireOneOf: ['index', 'id'] },
 }
 
+// XyChartAxisSpec. The op replaces the whole axis: a field left out is cleared.
+const XY_AXIS: RecordShape = {
+  fields: {
+    name: strOrNull(false),
+    categories: withNote(strArr(false), 'x-axis only'),
+    range: obj({ fields: { min: num(), max: num() } }, false),
+  },
+}
+const xyAxis = (axis: 'x' | 'y'): FieldSpec =>
+  withNote(objOrNull(true, XY_AXIS), `replaces the whole ${axis}-axis: an omitted field is cleared; null removes it`)
+
 const XYCHART_SCHEMA: Record<string, OpSpec> = {
   set_title: { fields: { title: strOrNull() } },
-  set_x_axis: { fields: { axis: objOrNull() } },
-  set_y_axis: { fields: { axis: objOrNull() } },
+  set_x_axis: { fields: { axis: xyAxis('x') } },
+  set_y_axis: { fields: { axis: xyAxis('y') } },
   add_series: { fields: { kind2: withNote(oneOf(SERIES_KINDS), 'series type — the field is named kind2, not kind'), name: strOrNull(false), values: numArr() } },
   remove_series: { fields: { index: num() } },
   set_series_values: { fields: { index: num(), values: numArr() } },

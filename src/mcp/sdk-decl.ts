@@ -192,6 +192,8 @@ export const SDK_DECLARATION = `// Mermaid agent SDK available as the global \`m
 // Code Mode is synchronous: async/await, Promise jobs, and dynamic import are not supported.
 
 type Result<T, E> = { ok: true; value: T } | { ok: false; error: E }
+// fields: a nested record's own fields (e.g. xychart set_y_axis axis.range).
+interface OpFieldDoc { name: string; required: boolean; type: string; note?: string; fields?: OpFieldDoc[] }
 type MermaidConfigScalar = string | number | boolean | null
 type MermaidConfigValue = MermaidConfigScalar | MermaidConfigValue[] | { [key: string]: MermaidConfigValue | undefined }
 type MermaidRuntimeConfig = {
@@ -365,7 +367,7 @@ ${CODE_MODE_RENDER_METHOD_DECLARATIONS}
   // values, and constraint/default notes (e.g. score "finite number 1..5", shape
   // "default: rectangle"); opSignatures returns compact one-liners like
   // "add_point(label, x, y)". Read these before authoring an unfamiliar op.
-  describeOps(family: DiagramKind): Record<string, { name: string; required: boolean; type: string; note?: string }[]>
+  describeOps(family: DiagramKind): Record<string, OpFieldDoc[]>
   opSignatures(family: DiagramKind): string[]
   // Opaque Class: add_member/remove_member; Flowchart: set_label/rename_node.
   // Save value.source exactly; verify value.diagram. Ambiguous ownership and
