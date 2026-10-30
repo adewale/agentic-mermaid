@@ -1,3 +1,4 @@
+import { describeSdkPayload } from '../mcp/sdk-discovery.ts'
 // Discovery completion: op field-shapes now carry constraint/default NOTES the
 // mutator enforces (journey score 1..5, quadrant x/y 0..1, pie value > 0,
 // flowchart shape/edge defaults, xychart kind2 footgun), and the read-only
@@ -90,4 +91,18 @@ describe('Code Mode can self-discover op shapes', () => {
       expect(r.error).toContain('flowchart')
     }
   })
+})
+
+
+test('resolved-scene discovery names the executable API, limits and canonical primitive fields', () => {
+  const summary = buildCapabilities().resolvedScene
+  expect(summary).toMatchObject({ api: 'renderResolvedScene', version: 2, synchronous: true })
+  const detail = describeSdkPayload(summary.discovery.arguments)
+  expect(detail).toMatchObject({ ok: true, capability: 'resolved-scene', codeMode: { defaultMaxResultBytes: 2 * 1024 * 1024 } })
+  expect(describeSdkPayload({ capability: 'resolved-scene', detail: 'signatures' })).toMatchObject({ ok: true, signatures: [expect.stringContaining('renderResolvedScene')] })
+  expect(detail.declaration).toContain('interface ResolvedPaint')
+  expect(detail.declaration).toContain('strokeWidth: number')
+  expect(detail.declaration).toContain('node: unknown')
+  expect(JSON.stringify(detail).length).toBeLessThan(12_000)
+  expect(() => describeSdkPayload({ capability: 'resolved-scene', family: 'flowchart' })).toThrow()
 })

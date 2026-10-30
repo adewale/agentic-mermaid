@@ -1,4 +1,4 @@
-import { SDK_COMMON_DECLARATIONS, SDK_MODEL_DECLARATIONS, SDK_TEXT_DECLARATIONS } from './generated/sdk-types.ts'
+import { SDK_COMMON_DECLARATIONS, SDK_MODEL_DECLARATIONS, SDK_TEXT_DECLARATIONS, SDK_RESOLVED_SCENE_DECLARATIONS } from './generated/sdk-types.ts'
 import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyMetadata } from '../agent/families.ts'
 import { architectureVisualOverridesTypeScriptDeclaration, RENDER_CONTRACT_VERSION, RENDER_OUTPUT_DESCRIPTORS, sharedRenderOptionsTypeScriptDeclaration } from '../render-contract.ts'
 import { styleSpecTypeScriptDeclaration } from '../scene/style-spec.ts'
@@ -187,6 +187,8 @@ export const CODE_MODE_LAYOUT_SUMMARY_DECLARATION = `interface RenderedLayout { 
 
 const CODE_MODE_RENDER_METHOD_DECLARATIONS = codeModeRenderMethodDeclarations()
 
+export const CODE_MODE_RESOLVED_SCENE_SUMMARY_DECLARATION = `interface ResolvedScene {version:number;family:string;width:number;height:number;svg:string;parts:unknown[];frame:unknown[]}`
+
 export const SDK_DECLARATION = `// Mermaid agent SDK available as the global \`mermaid\`. All calls are
 // synchronous and pure. Compose multi-step edits in one execute() call.
 // Code Mode is synchronous: async/await, Promise jobs, and dynamic import are not supported.
@@ -230,6 +232,7 @@ ${CODE_MODE_RENDER_OPTION_DECLARATIONS}
 
 ${SDK_DIAGRAM_KIND_DECLARATION}
 ${SDK_COMMON_DECLARATIONS}
+${SDK_RESOLVED_SCENE_DECLARATIONS}
 
 interface ValidDiagram {
   readonly kind: DiagramKind
@@ -357,6 +360,7 @@ ${SDK_MUTATE_METHOD_DECLARATIONS}
   serializeMermaid(d: ParsedDiagram): string
   // Compatibility conveniences return only bytes/text; use the receipt-aware
   // methods below for transport parity and projection/security evidence.
+  renderResolvedScene(input: ParsedDiagram | string, opts?: SvgRenderOptions): ResolvedScene
   renderMermaidSVG(input: ParsedDiagram | string, opts?: SvgRenderOptions): string
   renderMermaidASCII(input: ParsedDiagram | string, opts?: AsciiRenderOptions): string
 ${CODE_MODE_RENDER_METHOD_DECLARATIONS}

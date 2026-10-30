@@ -74,6 +74,8 @@ const EQUIVALENT_CASES: Array<[label: string, code: string, expectedValue?: unkn
   ['SDK parse ok flag', `${PARSE}; return r.ok`],
   ['SDK parse → narrow → serialize round trip', `${PARSE}; const f = mermaid.asFlowchart(r.value); return mermaid.serializeMermaid(f)`],
   ['SDK mutate adds a node', `${PARSE}; const m = mermaid.mutate(r.value, { kind: 'add_node', id: 'C', label: 'New' }); return { ok: m.ok, source: m.ok ? mermaid.serializeMermaid(m.value) : null }`],
+  ['resolved-scene projection through both runtimes', `${PARSE}; const s = mermaid.renderResolvedScene(r.value, {security:'strict'}); return {version:s.version,family:s.family,count:s.parts.length}`, {version:2,family:'flowchart',count:3}],
+  ['typed resolved artwork refusal through both runtimes', `try {mermaid.renderResolvedScene('flowchart LR\\nA-->B',{shadow:true})} catch(e) {return {code:e.code,partId:e.partId,feature:e.feature}}`, {code:'RESOLVED_SCENE_UNSUPPORTED_ARTWORK',partId:'node:A',feature:'filter'}],
   ['SDK render through execute', `${PARSE}; return mermaid.renderMermaidSVG(r.value, { security: 'strict', embedFontImport: false }).length`],
   ['SDK render config callback survives the façade', `const warnings = []; mermaid.renderMermaidSVG('stateDiagram-v2\\n  A --> B', { mermaidConfig: { state: { titleTopMargin: 10 } }, onConfigDiagnostic: d => warnings.push(d.field) }); return warnings`],
   ['SDK verify warnings shape', `${PARSE}; const v = mermaid.verifyMermaid(r.value); return { ok: v.ok, warnings: v.warnings.length }`],
@@ -195,17 +197,19 @@ describe('hosted execute render policy', () => {
     embedFontImport: false,
   })
 
-  test('both execute SVG APIs default to the host-owned strict projection', async () => {
+  test('execute graphical APIs default to the host-owned strict projection', async () => {
     const hosted = await executeHosted(`
       const source = ${JSON.stringify(source)}
       return {
         plain: mermaid.renderMermaidSVG(source),
         artifact: mermaid.renderMermaidSVGWithReceipt(source),
+        resolved: mermaid.renderResolvedScene(source).svg,
       }
     `)
     expect(hosted.ok).toBe(true)
-    const value = hosted.value as { plain: string; artifact: typeof expected }
+    const value = hosted.value as { plain: string; artifact: typeof expected; resolved: string }
     expect(value.plain).toBe(expected.svg)
+    expect(value.resolved).toBe(expected.svg)
     expect(value.artifact).toEqual(expected)
     expect(verifyNoExternalRefs(value.plain)).toEqual({ ok: true, refs: [] })
     expect(verifyNoExternalRefs(value.artifact.svg)).toEqual({ ok: true, refs: [] })
@@ -218,11 +222,13 @@ describe('hosted execute render policy', () => {
       return {
         plain: mermaid.renderMermaidSVG(source, weaker),
         artifact: mermaid.renderMermaidSVGWithReceipt(source, weaker),
+        resolved: mermaid.renderResolvedScene(source, weaker).svg,
       }
     `)
     expect(hosted.ok).toBe(true)
-    const value = hosted.value as { plain: string; artifact: typeof expected }
+    const value = hosted.value as { plain: string; artifact: typeof expected; resolved: string }
     expect(value.plain).toBe(expected.svg)
+    expect(value.resolved).toBe(expected.svg)
     expect(value.artifact).toEqual(expected)
     expect(verifyNoExternalRefs(value.plain)).toEqual({ ok: true, refs: [] })
     expect(verifyNoExternalRefs(value.artifact.svg)).toEqual({ ok: true, refs: [] })
