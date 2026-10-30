@@ -280,6 +280,30 @@ describe('work grows with the diagram, not with its square', () => {
     expect(double / single).toBeLessThan(2.5)
   })
 
+  test('flowchart terminal layout keeps a layered DAG as wide as its layers, not drifting sideways per layer', () => {
+    // Four nodes per layer, each wired to the layer above by the same cross
+    // edges. Fan-in alignment started each layer under its rightmost parent
+    // and stacked the rest after it, so every layer sat further right and
+    // canvas cells grew about 4.3x per doubling.
+    const parents = [[2, 3], [0, 3], [0], [0, 1]]
+    const id = (index: number) => `n${String(index).padStart(3, '0')}`
+    const layered = (size: number): string => ['flowchart TD', ...Array.from({ length: size - 4 }, (_, i) => i + 4)
+      .flatMap(child => parents[child % 4]!.map(parent => `  ${id(child - 4 - child % 4 + parent)} --> ${id(child)}`))].join('\n')
+    const runs = [38, 75, 150, 300].map(size => {
+      let cells = 0
+      const routeSearch = work('terminal-route-search', () => {
+        const rows = renderMermaidASCII(layered(size)).split('\n')
+        cells = rows.length * Math.max(...rows.map(row => row.length))
+      })
+      return { cells, routeSearch }
+    })
+    expect(runs[0]!.routeSearch).toBeGreaterThan(0)
+    for (let i = 1; i < runs.length; i++) {
+      expect(runs[i]!.cells / runs[i - 1]!.cells).toBeLessThan(2.5)
+      expect(runs[i]!.routeSearch / runs[i - 1]!.routeSearch).toBeLessThan(2.5)
+    }
+  })
+
   test('C4 terminal styling visits the cells each card and route owns, not the whole document per item', () => {
     const systems = (count: number) => `C4Context\n${Array.from({ length: count }, (_, i) => `  System(s${i}, "System ${i}")`).join('\n')}\n${Array.from({ length: count - 1 }, (_, i) => `  Rel(s${i}, s${i + 1}, "Calls")`).join('\n')}`
     const single = work('terminal-c4-style', () => renderMermaidASCII(systems(100))), double = work('terminal-c4-style', () => renderMermaidASCII(systems(200)))
