@@ -4733,3 +4733,61 @@ owners unchanged. Rejecting the unused canonical API avoids enlarging that task.
 Historical19 normal budget, default font-dependent shaping, public Requirement
 caption association, delivery caps and broader meaning evidence remain open.
 The campaign still ends31October12:03UTC; no automatic extension or holdout opening.
+
+### 30 October: terminal H3 CI and two bounded integration repairs
+
+Explicit CI41074350015 completed at ffdbdf5a59429855e5218f008410a6b16cc7f0bc
+with failures. Independent semantic conformance, built-artifact/CLI/MCP,
+installed quickstarts, Node22 consumers, browser-site and layout review evidence
+pass. The Node24 tarball's14consumer tests/1343assertions pass, then its strict
+package verifier rejects the two newly added D3 licenses. This was an oversight
+in the notice integration, not a consumer initialization failure.
+
+Commit13db3bd408449d1458fdc0ad7a3f0ff1436db7bf adds exactly those two literal
+license paths to the owning reviewed package manifest. Schema, verifier, strict
+unexpected/missing-file checks and hash multiplicities are unchanged. Existing
+verifier owner6P/0F/16assertions, JSON/order/diff checks and Biome pass; exact
+installed nested license bytes were independently rechecked. Full packed-package
+validation awaits the new exact-head CI, because local dist/metafile is absent.
+
+Unit1 passes. Unit2 is5895P/37skip/3F: known ER256 and1500label/32marker capacity
+plus a newly stale ER blueprint golden. Unit3 is4738P/6skip/4F, exactly the four
+known Class128 directions. No test timeout or other new unit failure appears.
+The seven total failures must not be described as only the six old ones.
+Filtered source-bound evidence: capacity/CI-H3-UNIT-TRIAGE.json and unit fault
+files. The six original owners still fail at400000operations and remain enrolled.
+
+Commit0d9a6073a0cf82ece5696e3c55e95ad6afa857ee updates only the reviewed
+testdata/styled/er-basic.blueprint.svg. One owner RED becomes GREEN through the
+owning filtered updater, then a normal nonupdate run passes. The entire diff is
+four complete-cardinality ownership groups/identity relocation and their derived
+CSS scope rename. Independent inverse reconstruction restores the old SVG
+exactly after only those metadata/scope differences; geometry, text and paint
+are unchanged. Explicit bundled-font3x raster2855x474,5413080RGBAbytes has zero
+changed channels. All36other styled goldens stay byte-exact. The first observer
+was killed137 after repeatedly fetching a native pixel buffer; its correction
+snapshots each buffer once. This is retained observer failure evidence, not a
+product-memory result. Evidence: er-blueprint-golden-review/.
+
+Remaining CI delivery failures are real: browser21functional+2CSP tests pass,
+but editor gzip1403727 exceeds1334500 by69227bytes (6440above prior CI). Lazy
+budgets fail66rows in25groups:25raw/22gzip/19Brotli. Website demo raw790115
+exceeds788000 by2115. Exact fault rows/logs survive in rich-proof/H3-CI-TRIAGE.json
+and H3-LAZY-BUDGET-ROWS.json. No ceiling or check was raised.
+
+A bounded private exact-config lazy JS build, directly bound to526runtime/
+config/package files at ffdbdf5a5, reproduces all25raw failures. All65post-SWC
+output lengths match their metafile:3619959bytes total. It disproves the proposed
+CJS-baggage explanation: D3 is already ESM/tree-shaken; seven curve modules plus
+math contribute7730pre-compaction attribution bytes, becoming one7678byte shipped
+chunk. Its path dependency, arc/line generators and barrel bodies emit zero.
+Only7of25families reach D3; many large failures exclude it. No safe dead factory
+subset was found. No redundant alias experiment or unsupported curve subtraction
+was adopted. The initial native-build sandbox EPERM and successful supported
+build are retained. This does not establish total bundle or runtime parity.
+Evidence: curve-delivery/MODULE-DELIVERY-REPORT.json. No timing campaign followed.
+
+The two verified integration repairs are pushed normally on the retained branch,
+then canonical CI is explicitly dispatched again for the exact new head. Old
+run failures remain historical; they are not relabelled as fixed CI. The broader
+runtime/performance, six-capacity, rich-proof and delivery work remains open.
