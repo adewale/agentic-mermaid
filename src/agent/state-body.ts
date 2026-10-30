@@ -1003,6 +1003,13 @@ function validStateName(value: unknown, field: string): Result<string, MutationE
   return id
 }
 
+/** A transition named by index and by a from/to endpoint that it does not
+ * have: the op names two transitions, and one would be silently ignored. */
+function selectorMismatch(t: StateTransition, op: { index?: number; from?: string; to?: string }): Result<never, MutationError> | undefined {
+  if (op.index === undefined || ((op.from === undefined || op.from === t.from) && (op.to === undefined || op.to === t.to))) return undefined
+  return err({ code: 'INVALID_OP', message: `Transition ${op.index} is ${t.from} --> ${t.to}, not ${op.from ?? t.from} --> ${op.to ?? t.to}; name it by index or by from/to` })
+}
+
 type ClassifiedEndpoint = { value: string; kind: 'pseudo' | 'history' | 'state' }
 
 /** Classify endpoint syntax before mutation; only ordinary state endpoints may
@@ -1207,6 +1214,8 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       const list = scope.value.transitions
       if (op.index !== undefined) {
         if (!list[op.index]) return err({ code: 'TRANSITION_NOT_FOUND', message: `No transition at index ${op.index}` })
+        const mismatch = selectorMismatch(list[op.index]!, op)
+        if (mismatch) return mismatch
         removeScopeTransitions(scope.value.states, list, (_transition, index) => index === op.index)
         break
       }
@@ -1226,6 +1235,8 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       if (op.index !== undefined) t = list[op.index]
       else if (op.from !== undefined && op.to !== undefined) t = list.find(tr => tr.from === op.from && tr.to === op.to)
       if (!t) return err({ code: 'TRANSITION_NOT_FOUND', message: 'transition not found (need a valid index or from/to pair)' })
+      const mismatch = selectorMismatch(t, op)
+      if (mismatch) return mismatch
       delete t.labelContent
       if (op.label === null) { delete t.label; break }
       const l = validLabel(op.label, 'transition label')

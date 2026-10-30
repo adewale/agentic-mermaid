@@ -964,6 +964,17 @@ that source is a byte-exact fixed point: edge whitespace a grammar drops on
 read (a Class member ` k`, a Sequence message of U+2028 alone) is dropped
 from the stored value too, as the next format would drop it. An edit whose
 written source formats to something else that does not settle is refused.
+Each value an accepted edit supplies is stated by the facts of its re-read;
+a value the mutator would drop or rewrite before writing is refused instead:
+a Gantt tag outside `active, done, crit, milestone, vert`, a Quadrant far
+axis label without a near one, a Block edge marker outside `arrow_open,
+arrow_point, arrow_circle, arrow_cross`, a directive in a Class interface
+label, a State transition named by an index and by endpoints it does not
+have, and a Packet, Kanban, Requirement, Block, Treemap or Ishikawa value
+whose written source reads back differently (a Packet title `%%`). Facts
+state an Architecture service's icon text and Event Modeling's entity
+declarations. Paint (styles, CSS classes, classDef names) and Kanban icons
+are not semantic facts.
 verify's `CONTENT_DROPPED_ON_ROUNDTRIP` compares the same facts for any
 diagram it is given, naming the facts lost and gained, so content that re-reads
 differently with unchanged node, edge and group counts is reported too.

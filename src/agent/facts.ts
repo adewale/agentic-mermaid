@@ -213,6 +213,7 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
     }
     case 'eventmodeling':
       if (d.body.title !== undefined) add(out, `title ${JSON.stringify(d.body.title)}`)
+      d.body.entities.forEach(entity => add(out, `entity ${JSON.stringify(entity)}`))
       d.body.frames.forEach((frame, index) => add(out, `frame#${index} ${JSON.stringify(frame)}`))
       eventRelations(d.body).forEach(edge => add(out, `relation ${edge.from} -> ${edge.to} ${edge.explicit ? 'explicit' : 'inferred'}`))
       Object.entries(d.body.data).forEach(([id, data]) => add(out, `data ${id} ${JSON.stringify(data)}`))
@@ -496,6 +497,7 @@ function factsArchitecture(out: string[], body: ArchitectureBody): void {
   for (const s of body.services) {
     add(out, `service ${clean(s.id)} : ${clean(s.label || s.id)}`)
     if (s.icon) add(out, `service ${clean(s.id)} icon ${clean(s.icon)}`)
+    if (s.iconText !== undefined) add(out, `service ${clean(s.id)} icon text ${clean(s.iconText)}`)
     if (s.parentId) add(out, `service ${clean(s.id)} parent ${clean(s.parentId)}`)
   }
   for (const j of body.junctions) {

@@ -27,7 +27,15 @@ function mutation<K extends StableBody['kind']>(kind: K, adapter: { readSource: 
     }
     // Generated occurrence IDs belong to the resulting source artifact.
     // Publish the same identities/order that its renderer and source map see.
-    const normalized = readSource(serialize(changed.value))
+    const source = serialize(changed.value)
+    const normalized = readSource(source)
+    // The re-read replaces the edited body, so the commit's fact closure sees
+    // only what was written: a value the writer drops (a Packet title `%%`,
+    // read back as a comment) would vanish unseen. The written source must
+    // read back as itself.
+    if (normalized && serialize(normalized) !== source) {
+      return err({ code: 'INVALID_OP', message: `The edit cannot be written faithfully: the ${kind} source written for it reads back differently` })
+    }
     if (normalized && (changed.value.accessibilityTitle !== normalized.accessibilityTitle
       || changed.value.accessibilityDescription !== normalized.accessibilityDescription)) {
       return err({ code: 'INVALID_OP', message: `${kind} accessibility text cannot be serialized without changing its value` })

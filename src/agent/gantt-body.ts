@@ -433,6 +433,9 @@ export function mutateGantt(input: GanttBody, op: GanttMutationOp): Result<Gantt
       }
       const index = resolveInsertIndex(op.index, s.tasks.length, 'Gantt')
       if (!index.ok) return index
+      // A tag outside Mermaid's vocabulary has no spelling; it was dropped.
+      const unknownTag = (op.tags ?? []).find(tag => !(GANTT_TASK_TAGS as readonly string[]).includes(tag))
+      if (unknownTag !== undefined) return err({ code: 'INVALID_OP', message: `Gantt task tag ${JSON.stringify(unknownTag)} is not one of ${GANTT_TASK_TAGS.join(', ')}` })
       const task: GanttBodyTask = {
         id: nextTaskId(),
         taskId: op.taskId,

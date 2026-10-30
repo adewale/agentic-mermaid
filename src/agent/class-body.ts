@@ -944,6 +944,7 @@ function mutateClassBody(body: ClassBody, op: ClassMutationOp): Result<ClassBody
       if (typeof op.label !== 'string' || !op.label.trim() || /[\r\n`]|^\s*"/.test(op.label) || (op.side !== undefined && op.side !== 'from' && op.side !== 'to')) {
         return err({ code: 'INVALID_OP', message: 'Interface label must be a non-empty portable single-line name without backticks or a leading double quote; side must be from or to' })
       }
+      if (new RegExp(MERMAID_DIRECTIVE_RE.source, 'i').test(op.label)) return err({ code: 'INVALID_OP', message: 'Interface label cannot hold a %%{…}%% directive, which Mermaid removes from the source' })
       if ((op.lineStyle !== undefined && op.lineStyle !== 'solid' && op.lineStyle !== 'dashed') || (op.relationLabel !== undefined && (typeof op.relationLabel !== 'string' || !op.relationLabel.trim() || /[\r\n]/.test(op.relationLabel)))) {
         return err({ code: 'INVALID_OP', message: 'Interface relationLabel must be a non-empty single line; lineStyle must be solid or dashed' })
       }

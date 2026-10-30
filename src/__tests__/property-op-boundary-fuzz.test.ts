@@ -292,6 +292,67 @@ describe('op-boundary fuzz: typed text edits round-trip or are refused', () => {
     }), fcParameters({ numRuns: 2000, examples: EXAMPLES }))
   }, 120_000)
 
+  // Equal facts after a re-read do not show that the edit wrote what was
+  // asked: a value the mutator drops or rewrites before writing (an unknown
+  // Gantt tag, a Quadrant far label without a near one, a Class interface
+  // label's directive, a Block marker name) passes that check. Each value an
+  // accepted op supplies must be stated by the facts of its re-read. Values
+  // are drawn from text facts state verbatim (no controls, entity codes,
+  // line-break, emphasis or Class classifier (`$`, `*`) markup, which facts
+  // display decoded); the
+  // round-trip property above covers hostile text. Fields facts do not state
+  // are named: paint (style, CSS classes, classDef names) and Kanban icons.
+  const SHOWN = ['%%', '"', "'", '`', '[', ']', '{', '}', '(', ')', '|', ';', ',', ':', '--', '-->', ' ', 'é', '👩🏽‍💻', '東京', 'end', 'title', '#', '@', '=', '+', '/', '.', '!', '?', '^']
+  const shownText = fc.oneof(
+    fc.stringMatching(/^[A-Za-z][A-Za-z0-9]{0,5}$/),
+    fc.array(fc.oneof(fc.constantFrom(...SHOWN), fc.stringMatching(/^[A-Za-z0-9]{1,3}$/)), { minLength: 1, maxLength: 6 }).map(parts => parts.join('')),
+  )
+  const UNSTATED = new Set(['style', 'className', 'icon'])
+  // Fields that select an existing element rather than supply a value.
+  const SELECTORS = new Set(['id', 'target', 'class', 'entity', 'for', 'from', 'to', 'column', 'parent', 'state'])
+  const requested = (family: MutableFamilyId, op: Record<string, unknown>): Array<[string, string]> => {
+    const kind = op.kind as string
+    const out: Array<[string, string]> = []
+    if (kind.startsWith('remove_')) return out
+    const types = Object.fromEntries(describeOps(family)[kind]!.map(field => [field.name, field.type]))
+    for (const [field, value] of Object.entries(op)) {
+      if (field === 'kind' || !/^string/.test(types[field] ?? '') || UNSTATED.has(field) || (kind === 'define_class' && field === 'name')) continue
+      if (kind.startsWith('rename_') ? field !== 'to' : !kind.startsWith('add_') && SELECTORS.has(field)) continue
+      for (const text of Array.isArray(value) ? value : [value]) if (typeof text === 'string' && text.trim()) out.push([field, text])
+    }
+    return out
+  }
+  const stated = (facts: readonly string[], text: string) => {
+    const shown = text.trim()
+    return facts.some(fact => fact.includes(shown) || fact.includes(JSON.stringify(shown).slice(1, -1)))
+  }
+  const REQUESTED_EXAMPLES: Array<[[MutableFamilyId, Array<Record<string, unknown>>]]> = [
+    [['gantt', [{ kind: 'add_task', sectionIndex: 0, label: 'w', tags: ['N1'], start: '2024-01-01', end: '1d' }]]],
+    [['quadrant', [{ kind: 'set_axis_labels', axis: 'x', near: null, far: 'N1' }]]],
+    [['class', [{ kind: 'add_interface', class: 'A', label: '%%{init: {}}%%a' }]]],
+    [['block', [{ kind: 'add_edge', from: 'b', to: 'a', arrowStart: 'N1' }]]],
+    [['state', [{ kind: 'set_transition_label', index: 0, from: 'X', to: 'Y', label: 'L' }]]],
+    [['architecture', [{ kind: 'set_service_icon_text', id: 'db', text: 'N1' }]]],
+    [['eventmodeling', [{ kind: 'set_entities', entities: ['N1'] }]]],
+  ]
+  it('an accepted edit states each requested value in its re-read facts', () => {
+    const requestArb = familyArb.chain(family => fc.tuple(fc.constant(family), fc.array(opArbs(fc.oneof(fc.constantFrom(...FIXTURES[family].ids, 'N1'), shownText)).opFor(family), { minLength: 1, maxLength: 1 })))
+    let checked = 0
+    fc.assert(fc.property(requestArb, ([family, ops]) => {
+      const op = ops[0]!
+      const result = mutateChecked(base(family), op)
+      if (!result.ok || emptyScaffold(result.value)) return
+      const parsed = parseRegisteredMermaid(serializeMermaid(result.value))
+      if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+      const facts = describeMermaidFacts(parsed.value)
+      for (const [field, text] of requested(family, op)) {
+        checked++
+        expect({ family, op, field, text, stated: stated(facts, text) }).toEqual({ family, op, field, text, stated: true })
+      }
+    }), fcParameters({ numRuns: 3000, examples: REQUESTED_EXAMPLES }))
+    expect(checked).toBeGreaterThan(500)
+  }, 120_000)
+
   // The pinned Mermaid parser is a slow child process, so it sees a bounded
   // generated set: starting from a diagram Mermaid 12.2.0 reads, an edit we
   // accept writes source it reads. Deliberate native extensions are named

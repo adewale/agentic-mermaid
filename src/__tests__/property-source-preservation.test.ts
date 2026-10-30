@@ -148,20 +148,25 @@ describe('format over hostile field text', () => {
     }), fcParameters({ numRuns: 3000, examples: EXAMPLES }))
   })
 
-  // Pinned Mermaid is a slow child process, so the oracle sees a bounded set:
-  // where Mermaid reads the authored source, it reads the formatted source.
+  // Pinned Mermaid is a slow child process, so the oracle sees a bounded
+  // generated set beside the examples: where Mermaid reads the authored
+  // source, it reads the formatted source.
   test('Mermaid 12.2.0 reads the formatted form of a source it reads', async () => {
     const upstream = startUpstreamMermaid()
+    let checked = 0
     try {
-      for (const [source] of [...EXAMPLES, ['sankey-beta\n"a,b",B,10\n'], ['sankey-beta\nA,B,10\n"x,y",B,3\n'], ['requirementDiagram\n  requirement r {\n    id: 1\n    text: say "hi" now\n  }\n']] as Array<[string]>) {
-        if (!(await upstream.accepts(source))) continue
+      const fixed: Array<[string]> = [...EXAMPLES, ['sankey-beta\n"a,b",B,10\n'], ['sankey-beta\nA,B,10\n"x,y",B,3\n'], ['requirementDiagram\n  requirement r {\n    id: 1\n    text: say "hi" now\n  }\n']]
+      await fc.assert(fc.asyncProperty(sourceArb, async source => {
+        if (!format(source) || !(await upstream.accepts(source))) return
         const written = format(source)!.written
+        checked++
         expect({ source, written, accepted: await upstream.accepts(written) }).toEqual({ source, written, accepted: true })
-      }
+      }), fcParameters({ numRuns: 400, examples: fixed }))
     } finally {
       upstream.close()
     }
-  }, 60_000)
+    expect(checked).toBeGreaterThan(50)
+  }, 120_000)
 })
 
 // Mermaid 12.2.0 reads U+2028 and U+2029 inside State, Timeline and ER text

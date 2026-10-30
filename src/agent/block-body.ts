@@ -89,6 +89,9 @@ function spacerRuns(children: readonly Block[]): Block[] {
   return items
 }
 
+/** The edge end markers the writer spells (`<`, `o`, `x`, or none). */
+const BLOCK_EDGE_MARKERS: readonly string[] = ['arrow_open', 'arrow_point', 'arrow_circle', 'arrow_cross']
+
 export function renderBlock(body: BlockBody): string {
   const lines = ['block']
   appendNativeAccessibilityLines(lines, body)
@@ -214,6 +217,7 @@ export function mutateBlock(body: BlockBody, op: BlockMutationOp): Result<BlockB
       case 'add_edge': {
         find(op.from)
         find(op.to)
+        for (const marker of [op.arrowStart, op.arrowEnd]) if (marker !== undefined && !BLOCK_EDGE_MARKERS.includes(marker)) throw new Error(`Block edge marker ${JSON.stringify(marker)} is not one of ${BLOCK_EDGE_MARKERS.join(', ')}`)
         if (op.label !== undefined) quote(op.label)
         let i = 1
         while (next.edges.some(e => e.id === `edge-${i}`)) i++

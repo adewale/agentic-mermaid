@@ -295,6 +295,8 @@ export function mutateQuadrant(body: QuadrantBody, op: QuadrantMutationOp): Resu
         return err({ code: 'INVALID_OP', message: `Quadrant set_axis_labels axis must be 'x' or 'y', got ${JSON.stringify(op.axis)}` })
       }
       if (op.near === null) {
+        // `x-axis` names its near label first; a far label alone has no spelling.
+        if (op.far !== undefined && op.far !== null) return err({ code: 'INVALID_OP', message: `Quadrant ${op.axis}-axis far label needs a near label; near: null removes the axis` })
         if (op.axis === 'x') delete next.xAxis
         else delete next.yAxis
         break
