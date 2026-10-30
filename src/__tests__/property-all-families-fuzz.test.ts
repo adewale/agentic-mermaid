@@ -21,18 +21,18 @@ import { beforeAll, describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
 import { SaxesParser } from 'saxes'
 import { layoutFamilyToRendered } from '../agent/family-layouts.ts'
-import { describeMermaidFacts, layoutMermaid, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, serializeMermaid } from '../agent/index.ts'
+import { describeMermaidFacts, layoutMermaid, parseRegisteredMermaid as parseMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
 import { auditRenderedRoutes } from '../agent/rendered-route-audit.ts'
 import { stateBodyToGraph } from '../agent/state-body.ts'
-import type { ParsedDiagram, RenderedLayout } from '../agent/types.ts'
+import type { DiagramKind, ParsedDiagram, RenderedLayout } from '../agent/types.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid as parseRendererGraph } from '../parser.ts'
 import { auditRouteContracts } from '../route-contracts.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import type { MermaidGraph } from '../types.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
-import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
+import { METAMORPHIC_FAMILIES, type FamilyMetamorphic } from './helpers/metamorphic-families.ts'
 import { expectWellFormedXml, svgXmlReady } from './helpers/svg-xml.ts'
 
 beforeAll(svgXmlReady)
@@ -41,6 +41,18 @@ const erReciprocalChain = "erDiagram\n q00 ||--o{ q01 : rel\n q01 ||--o{ q02 : r
 
 const SEED = 0x5eed1234
 const tagArb = fc.integer({ min: 0, max: 1_000_000 }).map(n => `q${n.toString(36)}`)
+
+/** The registry builder: a k-entity chain, relabelled by tag, optionally
+ * with an add-primary or add-relation snippet appended. */
+function builderArb(fam: FamilyMetamorphic, tags: fc.Arbitrary<string> = tagArb): fc.Arbitrary<string> {
+  const [kmin, kmax] = fam.kRange
+  return fc.record({ k: fc.integer({ min: kmin, max: kmax }), tag: tags, extra: fc.constantFrom('none', 'primary', 'relation') }).map(({ k, tag, extra }) => {
+    let s = fam.build(k, tag)
+    if (extra === 'primary' && fam.addPrimary) s += fam.addPrimary.snippet(k, tag)
+    if (extra === 'relation' && fam.addRelation) s += fam.addRelation(k, tag)
+    return s
+  })
+}
 
 // The graph families flow through the ELK route-contract pipeline, so a
 // MermaidGraph is available and the FULL auditRouteContracts applies: flowchart
@@ -394,21 +406,9 @@ function rendererSemanticProjection(layout: RenderedLayout): unknown {
 describe('universal fuzz: every renderable family (strong output oracles)', () => {
 
   for (const fam of Object.values(METAMORPHIC_FAMILIES)) {
-    const [kmin, kmax] = fam.kRange
-    // Structural variation: vary the entity count across the whole valid range,
-    // relabel via tag, and randomly append an add-primary / add-relation snippet.
-    const srcArb = fc
-      .record({
-        k: fc.integer({ min: kmin, max: kmax }),
-        tag: tagArb,
-        extra: fc.constantFrom('none', 'primary', 'relation'),
-      })
-      .map(({ k, tag, extra }) => {
-        let s = fam.build(k, tag)
-        if (extra === 'primary' && fam.addPrimary) s += fam.addPrimary.snippet(k, tag)
-        if (extra === 'relation' && fam.addRelation) s += fam.addRelation(k, tag)
-        return s
-      })
+    // Vary the entity count across the whole valid range, relabel via tag,
+    // and randomly append an add-primary / add-relation snippet.
+    const srcArb = builderArb(fam)
 
     test(`${fam.family}: serializer output reparses through the agent and renderer without semantic drift`, () => {
       fc.assert(
@@ -468,14 +468,7 @@ describe('universal fuzz: every renderable family (strong output oracles)', () =
     // docs/svg-semantic-contract.md: data-id is deterministic and unique
     // within one SVG, and source-authored IDs win over generated ones.
     test(`${fam.family}: every data-id is unique within one SVG`, () => {
-      const identitySrcArb = fc
-        .record({ k: fc.integer({ min: kmin, max: kmax }), tag: identityTagArb, extra: fc.constantFrom('none', 'primary', 'relation') })
-        .map(({ k, tag, extra }) => {
-          let s = fam.build(k, tag)
-          if (extra === 'primary' && fam.addPrimary) s += fam.addPrimary.snippet(k, tag)
-          if (extra === 'relation' && fam.addRelation) s += fam.addRelation(k, tag)
-          return s
-        })
+      const identitySrcArb = builderArb(fam, identityTagArb)
       fc.assert(
         fc.property(identitySrcArb, src => {
           let svg: string
@@ -488,4 +481,96 @@ describe('universal fuzz: every renderable family (strong output oracles)', () =
       )
     })
   }
+})
+
+// Structural fuzz (Hegel finding F-03). The builders above draw about twenty
+// shapes per family; METAMORPHIC_FAMILIES[f].arb draws structure instead —
+// nesting, styles, notes, directions and hostile quoted text — and these
+// oracles need no predictable tally, so they read it, falling back to the
+// builder for a family without one:
+//   • render totality: a typed body renders to well-formed SVG and draws in
+//     the terminal (a body published as typed is one every surface can draw),
+//   • serialize closure: the canonical source re-reads to the same body kind
+//     and the same describeMermaidFacts,
+//   • verify honesty: a clean verify means render succeeds, and a render
+//     that succeeds is not reported as RENDER_FAILED / INTERNAL_ERROR.
+// Source an agent parser deliberately keeps opaque (unwritable text such as
+// `%%{word`, or an unmodelled statement) need not render, but verify must say so.
+
+/** Reduced counterexamples, each fixed at its owning producer. */
+const STRUCTURAL_EXAMPLES: Partial<Record<DiagramKind, string[]>> = {
+  // Requirement cards were sized for face demand counted before placement.
+  requirement: ['requirementDiagram\n  direction LR\n  requirement a {\n  }\n  requirement b {\n  }\n  a - contains -> b\n  b - derives -> a'],
+  // `space:2` was written as two spaces with fresh generated ids.
+  block: ['block\n  a\n  space:2\n  b'],
+  // SVG identities were spliced in with a replacement string (`$&`).
+  timeline: ['timeline\n  section $&w\n    2020 : a'],
+  // The line lexer read the quote after `[/` as label text.
+  flowchart: ['flowchart TD\n  A[/"x{"\\]\n  B["a $& b"]'],
+  // The renderer's ER name grammar admitted ASCII only.
+  er: ['erDiagram\n  é0 {\n    int a\n  }'],
+  // Quadrant text holding `%%` was written bare.
+  quadrant: ['quadrantChart\n  x-axis "J%%" --> b\n  "a%%b": [0.3, 0.1]'],
+}
+
+const opaqueBody = (d: ParsedDiagram): boolean => d.body.kind === 'opaque' || d.body.kind === 'preserved'
+
+describe('structural fuzz: every family (render, closure, verify, terminal)', () => {
+  for (const fam of Object.values(METAMORPHIC_FAMILIES)) {
+    const srcArb = fam.arb ?? builderArb(fam)
+
+    test(`${fam.family}: structural sources render, close under serialization and verify honestly`, () => {
+      fc.assert(
+        fc.property(srcArb, src => {
+          const parsed = parseMermaid(src)
+          // Generated source is valid input for its family.
+          expect({ src, ok: parsed.ok }).toEqual({ src, ok: true })
+          if (!parsed.ok) return
+          expect(parsed.value.kind).toBe(fam.family)
+          const typed = !opaqueBody(parsed.value)
+
+          if (typed) {
+            const canonical = serializeMermaid(parsed.value)
+            const reread = parseMermaid(canonical)
+            expect({ src, canonical, ok: reread.ok }).toEqual({ src, canonical, ok: true })
+            if (!reread.ok) return
+            expect({ src, canonical, kind: reread.value.body.kind, facts: describeMermaidFacts(reread.value) })
+              .toEqual({ src, canonical, kind: parsed.value.body.kind, facts: describeMermaidFacts(parsed.value) })
+          }
+
+          let svg: string | undefined
+          try {
+            svg = renderMermaidSVG(src)
+          } catch (error) {
+            if (typed) throw error
+          }
+          if (svg !== undefined) assertWellFormedSvg(svg)
+          const verified = verifyMermaid(src)
+          const claimsRenderFailure = verified.warnings.some(warning => warning.code === 'RENDER_FAILED' || warning.code === 'INTERNAL_ERROR')
+          expect({ src, cleanVerifyButRefused: verified.ok && svg === undefined, renderFailureButDrawn: svg !== undefined && claimsRenderFailure })
+            .toEqual({ src, cleanVerifyButRefused: false, renderFailureButDrawn: false })
+
+          // A diagram of spacers alone draws no terminal text, so totality is
+          // the oracle here, not output length.
+          if (typed) renderMermaidASCII(src)
+        }),
+        fcParameters({ numRuns: 8, seed: SEED ^ 0xf03, examples: (STRUCTURAL_EXAMPLES[fam.family] ?? []).map(src => [src] as [string]) }),
+      )
+    })
+  }
+
+  // A generator that drifts into source every parser keeps opaque would leave
+  // the closure and terminal oracles above with nothing to check.
+  test('structural generators mostly produce typed bodies', () => {
+    const thin = Object.values(METAMORPHIC_FAMILIES).flatMap(fam => {
+      if (!fam.arb) return []
+      const samples = fc.sample(fam.arb, { numRuns: 60, seed: SEED })
+      const typed = samples.filter(src => {
+        const parsed = parseMermaid(src)
+        return parsed.ok && !opaqueBody(parsed.value)
+      })
+      return typed.length / samples.length >= 0.6 ? [] : [`${fam.family} ${typed.length}/${samples.length}`]
+    })
+    expect(thin).toEqual([])
+  })
 })

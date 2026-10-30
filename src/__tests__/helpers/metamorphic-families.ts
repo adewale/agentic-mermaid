@@ -19,7 +19,9 @@
 // guessed (e.g. a timeline period line adds a period AND an event ⇒ nodeDelta 2;
 // state has no standalone-state syntax that stays structured ⇒ no add-primary).
 
+import type fc from 'fast-check'
 import type { DiagramKind } from '../../agent/types.ts'
+import { STRUCTURAL_FAMILY_ARBS } from './family-structural-arbs.ts'
 
 export interface AddPrimary {
   /** Source appended to add primary entities. */
@@ -38,6 +40,9 @@ export interface FamilyMetamorphic {
   addPrimary: AddPrimary | null
   /** Append one relation (edges += 1, nodes unchanged), or null for edgeless families. */
   addRelation: ((k: number, tag: string) => string) | null
+  /** Structural generator (nesting, styles, notes, hostile quoted text) for
+   * the oracles that need no predictable tally; see family-structural-arbs.ts. */
+  arb?: fc.Arbitrary<string>
 }
 
 const range = (k: number) => Array.from({ length: k }, (_, i) => i)
@@ -243,3 +248,5 @@ export const METAMORPHIC_FAMILIES: Record<DiagramKind, FamilyMetamorphic> = {
     addRelation: (_k, t) => `\n  ${t}0,${t}sink,7`,
   },
 }
+
+for (const [family, arb] of Object.entries(STRUCTURAL_FAMILY_ARBS) as [DiagramKind, fc.Arbitrary<string>][]) METAMORPHIC_FAMILIES[family].arb = arb
