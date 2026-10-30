@@ -1030,12 +1030,16 @@ export interface ValidDiagram {
    * For STRUCTURED bodies, `canonicalSource` is the normalized text
    * (`normalized.text` from `mermaid-source.ts`) — used by `renderMermaidSVG`
    * + the legacy parser for the flowchart pathway. After `serializeMermaid`,
-   * the re-emitted source is rebuilt from the structured body.
+   * the re-emitted source is rebuilt from the structured body. Families whose
+   * grammar reads indentation as structure (mindmap, kanban, treemap,
+   * ishikawa) keep each line's indentation, so parsing `canonicalSource`
+   * reads the same diagram; other families' lines are trimmed.
    *
    * For OPAQUE bodies, the serializer emits `body.source` directly (NOT
    * `canonicalSource`) so original indentation and blank lines round-trip
    * byte-for-byte. `canonicalSource` is still set, but it's the normalized
-   * (line-trimmed) form — useful for layout / rendering, not for fidelity.
+   * form (line-trimmed, or indentation-keeping for the families above) —
+   * useful for layout / rendering, not for fidelity.
    *
    * This split exists because the legacy flowchart parser needs trimmed
    * lines, but opaque-fallback round-trip needs the original. Treat

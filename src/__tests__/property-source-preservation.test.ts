@@ -30,6 +30,30 @@ function edit(diagram: ParsedDiagram, op: AnyMutationOp): ParsedDiagram {
 
 const wrapperArb = fc.constantFrom('', '%% wrapper\n', '---\ntitle: Preserve\n---\n%% wrapper\n', '%%{init: {"theme":"dark"}}%%\n')
 
+describe('canonical source', () => {
+  for (const family of Object.values(METAMORPHIC_FAMILIES)) {
+    // canonicalSource is the normalized renderer and source-map input. Families
+    // that read indentation as structure (mindmap, kanban, treemap, ishikawa)
+    // lost their tree when it was line-trimmed: a mindmap's canonical source
+    // re-read as several roots. Scaling the indentation keeps every family's
+    // relative structure, so the canonical source must read as the same facts.
+    test(`${family.family}: the canonical source reads as the authored diagram`, () => {
+      fc.assert(fc.property(
+        fc.integer({ min: family.kRange[0], max: family.kRange[1] }), fc.integer({ min: 1, max: 3 }),
+        (size, scale) => {
+          const source = family.build(size, 'canon').replace(/^ +/gm, indent => ' '.repeat(indent.length * scale))
+          const diagram = parse(source)
+          const reread = parseRegisteredMermaid(diagram.canonicalSource)
+          expect(reread.ok).toBe(true)
+          if (!reread.ok) return
+          expect(reread.value.body.kind).toBe(diagram.body.kind)
+          expect(describeMermaidFacts(reread.value)).toEqual(describeMermaidFacts(diagram))
+        }), fcParameters({ numRuns: 8 }),
+      )
+    })
+  }
+})
+
 describe('source comments across serialization and edit sequences', () => {
   for (const family of Object.values(METAMORPHIC_FAMILIES)) {
     test(`${family.family}: parser-identified comment occurrences survive without changing facts`, () => {

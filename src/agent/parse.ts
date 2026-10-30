@@ -186,6 +186,23 @@ function semanticFamilyLineSource(
   }
 }
 
+/** Built-in families whose grammar reads a line's indentation as structure
+ * (mindmap, treemap and ishikawa parentage; kanban column versus task). */
+const INDENTED_GRAMMARS: ReadonlySet<string> = new Set(['mindmap', 'kanban', 'treemap', 'ishikawa'])
+
+/** The canonical lines of an indentation-sensitive family: the same lines,
+ * in the same order, as the line-trimmed form (no blank or `%%` line), each
+ * keeping its indentation, so parsing the canonical source reads the same
+ * tree. The header line is trimmed as in the line-trimmed form. */
+function indentedCanonicalText(body: string): string {
+  const lines = body.split(/\r\n?|\n/).filter(line => {
+    const text = line.trim()
+    return text && !text.startsWith('%%')
+  }).map(line => line.trimEnd())
+  if (lines.length > 0) lines[0] = lines[0]!.trimStart()
+  return lines.join('\n')
+}
+
 /** Descriptor-dispatched parser with a forward-compatible extension envelope. */
 export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, ParseError[]> {
   const errors: ParseError[] = []
@@ -235,7 +252,9 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
   // source with no wrapper” from synthesized payloads, which omit
   // wrapperSource and therefore request canonical wrapper synthesis.
   const meta = extractMeta(authoredEnvelope)
-  const canonicalSource = authoredEnvelope.text
+  const canonicalSource = capturedFamily && INDENTED_GRAMMARS.has(capturedFamily.id)
+    ? indentedCanonicalText(authoredEnvelope.body)
+    : authoredEnvelope.text
   const sourceMapCanonicalSource = maskAccessibilityDirectivesForSourceMap(canonicalSource, capturedFamily)
   const documentSpans = sourcePreservationSpans(
     source,

@@ -130,7 +130,7 @@ describe('wrapper fidelity (1C): verbatim round-trip by default', () => {
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
     expect(parsed.value.body.kind).not.toBe('opaque')
-    expect(parsed.value.canonicalSource.split('\n')).toContain(statement)
+    expect(parsed.value.canonicalSource.split('\n').map(line => line.trim())).toContain(statement)
     expect(parsed.value.meta.initDirectives.map(directive => directive.parsed)).toEqual([config])
     const serialized = serializeMermaid(parsed.value)
     expect(serialized).toStartWith(`${directive}\n`)
