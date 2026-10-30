@@ -4,7 +4,7 @@ import type { Point, PositionedEdge } from '../types.ts'
 import type { Geometry, MarkPaint } from '../scene/ir.ts'
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
-import { graphEdgePathProjection } from '../graph-connectors.ts'
+import { graphEdgePathProjection, graphEdgeDashArray } from '../graph-connectors.ts'
 import { expandSceneBounds, paintedStrokeExtent, visitTypedPathSegments } from '../scene/bounds.ts'
 import { routeMarkerPaintRegions } from './route-marker-clearance.ts'
 import { labelRect, labelHaloExtension } from '../shared/edge-label-geometry.ts'
@@ -110,7 +110,7 @@ export function circleShaftPaintContext(style: GraphPaintStyle, pay: (units: num
     if (!routes) { routes = new WeakMap(); shafts.set(edge, routes) }
     if (routes.has(points)) return routes.get(points)
     if (!pay(8) || points.length < 2 || points.length > MAX_PREFERENCE_NODES * MAX_PREFERENCE_EDGES
-      || edge.curve || edge.style === 'dotted' || (style.edgeBendRadius ?? 0) !== 0) return undefined
+      || edge.curve || graphEdgeDashArray(edge) !== undefined || (style.edgeBendRadius ?? 0) !== 0) return undefined
     if (edge.style === 'invisible') return []
     const half = paintedStrokeExtent(edgeShaftPaint(edge, style), false)
     if (half === undefined || !pay(points.length * 8 + 8)) return undefined

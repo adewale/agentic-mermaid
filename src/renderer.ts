@@ -4,7 +4,7 @@ import { graphTextBlock } from './graph-text.ts'
 import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, PositionedStateNote, RenderContext, RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from './theme.ts'
-import { STROKE_WIDTHS, FLOWCHART_DOTTED_DASH, resolveRenderStyle, diagramTitleFields } from './styles.ts'
+import { STROKE_WIDTHS, resolveRenderStyle, diagramTitleFields } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import { escapeAttr, escapeDisplayAttr } from './multiline-utils.ts'
 import { topRoundedRectPath } from './scene/svg-writer.ts'
@@ -16,7 +16,7 @@ import { DefaultBackend } from './scene/backend.ts'
 import type { ResolvedStateVisualConfig } from './state/config.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
 import { serializeMarkerResources } from './scene/marker-resources.ts'
-import { flowchartMarkerResources, markerIdPrefix, markerSuffix, graphEdgePathProjection } from './graph-connectors.ts'
+import { flowchartMarkerResources, markerIdPrefix, markerSuffix, graphEdgePathProjection, graphEdgeDashArray } from './graph-connectors.ts'
 export { compactSvg, namespaceSvgIds } from './svg-postprocess.ts'
 import { paintsNodeFill, shapeOutline } from './shape-outline.ts'
 import { LABEL_PILL_PADDING, labelHaloExtension } from './shared/edge-label-geometry.ts'
@@ -405,9 +405,7 @@ function renderEdge<T>(
   // Section A output is static and active SVG is rejected in every security
   // mode. Preserve authored animation intent as typed metadata plus a stable
   // dashed projection; a future motion layer can consume the same metadata.
-  const effectiveDashArray = edge.style === 'dotted'
-    ? `${FLOWCHART_DOTTED_DASH.dash} ${FLOWCHART_DOTTED_DASH.gap}`
-    : edge.animate ? '8 4' : undefined
+  const effectiveDashArray = graphEdgeDashArray(edge)
   const baseStrokeWidth = edge.style === 'thick' ? style.lineWidth * 2 : style.lineWidth
   const markerColor = edge.inlineStyle?.stroke ?? style.edgeStrokeColor
 

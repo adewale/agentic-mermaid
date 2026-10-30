@@ -1,5 +1,5 @@
 import type { EdgeMarker, PositionedEdge } from './types.ts'
-import { ARROW_HEAD } from './styles.ts'
+import { ARROW_HEAD, FLOWCHART_DOTTED_DASH } from './styles.ts'
 import type { MarkerDescriptor } from './scene/ir.ts'
 import { prepareMarkerTerminals } from './scene/marker-terminals.ts'
 import { tipAnchoredArrow } from './scene/marker-resources.ts'
@@ -7,6 +7,13 @@ import { connectorContourSemantics, projectRoundedConnectorPath, type ConnectorP
 import { projectGraphCurve } from './graph-curve.ts'
 import { connectorMarkerPaintRegions, type ConnectorMarkerPaintRegion } from './scene/bounds.ts'
 import { canonicalTextDigest } from './render-contract.ts'
+
+/** Static SVG preserves animation intent as dashes; authored dotted style
+ * takes precedence. Placement must use the same selected shaft paint. */
+export function graphEdgeDashArray(edge: Pick<PositionedEdge, 'style' | 'animate'>): string | undefined {
+  return edge.style === 'dotted' ? `${FLOWCHART_DOTTED_DASH.dash} ${FLOWCHART_DOTTED_DASH.gap}`
+    : edge.animate ? '8 4' : undefined
+}
 
 /**
  * Reusable arrow head markers — both forward (end) and pre-rotated start variants.

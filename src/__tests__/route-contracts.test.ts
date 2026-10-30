@@ -2832,6 +2832,39 @@ describe('DECISION_BRANCH_UNLABELED lint (ISO 5807 10.3.1.2 / ANSI X3.5 4.10.2)'
 
 describe('node repairs retain terminal axes around measured headers', () => {
 const repair = rerouteEdgesThroughNodes
+for(const [style,animate,animation,dash] of [
+ ['solid',false,undefined,null],['solid',true,'slow','8 4'],['solid',true,'fast','8 4'],
+ ['thick',true,'fast','8 4'],['dotted',false,undefined,'4 4'],['dotted',true,'fast','4 4'],
+] as const)it(`preserves the actual clear dash gap: ${style}, animate=${animate}, animation=${animation}`,()=>{
+ const { JSDOM }=createRequire(import.meta.url)('jsdom')
+ const nodes:PositionedNode[]=[
+  {id:'S',label:'S',shape:'rectangle',x:0,y:111.49,width:40,height:20},
+  {id:'T',label:'T',shape:'rectangle',x:220,y:111.49,width:40,height:20},
+  {id:'C',label:'C',shape:'circle',x:114,y:80,width:40,height:40,inlineStyle:{fill:'#fff',stroke:'#000','stroke-width':'2'}},
+ ]
+ const edge:PositionedEdge={source:'S',target:'T',style,animate,animation,hasArrowStart:false,hasArrowEnd:true,endMarker:'arrow',edgeIndex:0,points:[{x:40,y:121.49},{x:220,y:121.49}],inlineStyle:{stroke:'#f00','stroke-width':'1'}}
+ const old=structuredClone(edge.points)
+ const observe=()=>{
+  const svg=renderSvg({positioned:{width:300,height:180,nodes,edges:[edge],groups:[]},colors:{bg:'#fff',fg:'#111',embedFontImport:false},resolved:{renderOptions:{}}})
+  const dom=new JSDOM(svg,{contentType:'image/svg+xml'})
+  try{
+   const document=dom.window.document as Document,circle=document.querySelector('[data-id="C"] circle')!,shaft=document.querySelector('[data-role="edge"]')!
+   const n=(element:Element,name:string)=>Number(element.getAttribute(name))
+   expect([n(circle,'cx'),n(circle,'cy'),n(circle,'r'),n(circle,'stroke-width'),n(shaft,'stroke-width')]).toEqual([134,100,20,2,1])
+   expect(shaft.getAttribute('stroke-dasharray')).toBe(dash)
+   return {svg,points:shaft.getAttribute('points')!.split(/\s+/).map(pair=>pair.split(',').map(Number))}
+  }finally{dom.window.close()}
+ }
+ const before=observe();expect(before.points).toEqual([[40,121.49],[220,121.49]])
+ // The complete possible contact interval is inside the literal SVG dash gap
+ // x132..136 for BOTH 8/4 and 4/4 patterns, measured from the authored x40 start.
+ const halfContact=Math.sqrt(21**2-20.99**2)
+ expect(134-halfContact).toBeGreaterThan(132);expect(134+halfContact).toBeLessThan(136)
+ repair(nodes,[edge],{direction:'LR'},undefined,[],resolveRenderStyle())
+ const after=observe()
+ if(dash){expect(edge.points).toEqual(old);expect(after.svg).toBe(before.svg)}
+ else{expect(edge.points).not.toEqual(old);expect(after.points.some(([,y])=>y!>123)).toBe(true)}
+})
 it('clears the final painted circle contact in a labelled reciprocal ELK graph',()=>{
  const { JSDOM }=createRequire(import.meta.url)('jsdom')
  const source=readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-18-cuts.mmd',import.meta.url),'utf8')
