@@ -128,8 +128,13 @@ describe('Markdown verification', () => {
     expect(renderMarkdownBlocks(md, 'ascii').map(block => block.ok)).toEqual([true])
   })
 
+  test.each([['    code', 9], ['\tcode', 9], [' \tcode', 9], ['1.', 9], ['1)', 9], ['>', 9], ['Paragraph\n>', 10]] as const)('the block boundary %s leaves following HTML outside a paragraph', (prefix, startLine) => {
+    const md = [prefix, '<custom-widget>', '```mermaid', 'not a diagram', '```', '</custom-widget>', '', '~~~mermaid', 'flowchart LR', 'A-->B', '~~~'].join('\n')
+    expect(verifyMarkdownBlocks(md).map(block => [block.startLine, block.ok])).toEqual([[startLine, true]])
+  })
+
   test('HTML-looking text inside code and inline tags do not hide a later diagram', () => {
-    for (const prefix of ['```text\n<!--\n```', 'Paragraph\n<custom-widget>', '```not`a-fence\n<custom-widget>', '# Heading\n<custom-widget>\nnot a diagram\n']) {
+    for (const prefix of ['```text\n<!--\n```', 'Paragraph\n<custom-widget>', 'Paragraph\n    continuation\n<custom-widget>', '```not`a-fence\n<custom-widget>', '=\n<custom-widget>', '====\n<custom-widget>', '--\n<custom-widget>', '# Heading\n<custom-widget>\nnot a diagram\n']) {
       const md = `${prefix}\n~~~mermaid\nflowchart LR\nA-->B\n~~~`
       expect(verifyMarkdownBlocks(md).map(block => block.ok)).toEqual([true])
     }

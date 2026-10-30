@@ -39,7 +39,13 @@ export function mermaidMarkdownBlocks(markdown: string): MermaidMarkdownBlock[] 
     }
     const match = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line)
     if (!match) {
-      if (!fence) paragraph = !/^\s*$/.test(line) && !/^ {0,3}(?:#{1,6}(?:\s|$)|(?:\*\s*){3,}$|(?:_\s*){3,}$|(?:-\s*){3,}$|(?:=+|-+)\s*$)/.test(line)
+      if (!fence) {
+        const boundary = /^ {0,3}(?:#{1,6}(?:\s|$)|(?:\*\s*){3,}$|(?:_\s*){3,}$|(?:-\s*){3,}$)/.test(line)
+        const setext = paragraph && /^ {0,3}(?:=+|-+)\s*$/.test(line)
+        const emptyList = !paragraph && /^ {0,3}(?:[-+*]|\d{1,9}[.)])\s*$/.test(line)
+        const emptyQuote = /^ {0,3}>[ \t]*$/.test(line)
+        paragraph = !/^\s*$/.test(line) && !boundary && !setext && !emptyList && !emptyQuote && (paragraph || !/^(?: {4}| {0,3}\t)/.test(line))
+      }
       continue
     }
     const marks = match[1]!, info = match[2]!.trim()
