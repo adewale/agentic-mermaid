@@ -18,6 +18,7 @@ import { unsupportedCodeReason } from './facade.ts'
 import { rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import {
   EXECUTE_TIMEOUT_ERROR,
+  executeToolPayload,
   PURE_COMPUTE_ANNOTATIONS,
   createDescribeTool,
   createExecuteTool,
@@ -446,15 +447,6 @@ function sourceTool(id: number | string | null, args: Record<string, unknown>, r
   }
 }
 
-/** Hosted execute errors share the { code, message } envelope of every other
- *  hosted tool. The sandbox's message is kept verbatim and only classified:
- *  a CPU-budget overrun (see failure() in website/src/execute-loader.ts) is
- *  EXECUTE_TIMEOUT; everything else — user exceptions, syntax errors, loader
- *  failures — is EXECUTE_FAILED. */
-function executeError(message: string): { code: 'EXECUTE_FAILED' | 'EXECUTE_TIMEOUT'; message: string } {
-  return { code: /exceeded its \d+ms CPU budget/.test(message) ? 'EXECUTE_TIMEOUT' : 'EXECUTE_FAILED', message }
-}
-
 async function handleExecute(id: number | string | null, args: Record<string, unknown>, context: HostedMcpContext): Promise<JsonRpcResponse> {
   const code = args.code
   if (typeof code !== 'string') return rpcError(id, -32602, 'execute requires `code` (string)')
@@ -464,7 +456,7 @@ async function handleExecute(id: number | string | null, args: Record<string, un
   // Screen sync-only violations before any isolate exists: rejected code costs
   // nothing and the error message matches the local sandbox exactly.
   const reason = unsupportedCodeReason(code)
-  if (reason) return toolResult(id, { ok: false as const, error: executeError(reason), logs: [] }, true)
+  if (reason) return toolResult(id, executeToolPayload({ ok: false, error: reason, logs: [] }), true)
   const requested = args.timeoutMs
   if (requested !== undefined && !isValidExecuteTimeout(requested)) {
     return rpcError(id, -32602, EXECUTE_TIMEOUT_ERROR)
@@ -473,12 +465,14 @@ async function handleExecute(id: number | string | null, args: Record<string, un
     ? Math.min(requested, MAX_EXECUTE_TIMEOUT_MS)
     : DEFAULT_EXECUTE_TIMEOUT_MS
   try {
+    // The CPU-budget overrun is tagged EXECUTE_TIMEOUT by the runner (see
+    // failure() in website/src/execute-loader.ts); the shared payload keeps
+    // the runner's message verbatim, exactly as the stdio server does.
     const r = await context.execute(code, timeoutMs)
-    if (r.ok) return toolResult(id, r, false)
-    return toolResult(id, { ok: false as const, error: executeError(r.error ?? 'sandbox returned no error message'), logs: r.logs ?? [] }, true)
+    return toolResult(id, executeToolPayload(r), !r.ok)
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    return toolResult(id, { ok: false as const, error: executeError(msg), logs: [] }, true)
+    return toolResult(id, executeToolPayload({ ok: false, error: msg, logs: [] }), true)
   }
 }
 

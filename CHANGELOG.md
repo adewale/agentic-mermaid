@@ -4,6 +4,15 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+### Changed
+
+- The local stdio MCP `execute` tool now reports failures in the same envelope
+  as the hosted server: `{ ok: false, error: { code, message }, logs }` instead
+  of `{ ok: false, error: "<message>", logs }`. `code` is `EXECUTE_TIMEOUT` when
+  the time budget stopped the code and `EXECUTE_FAILED` otherwise, on both
+  channels; `message` keeps each runner's wording. Clients that read
+  `error` as a string should read `error.message`.
+
 ### Fixed
 
 - Make repeated `verify` calls in one process (`am batch`, the stdio and hosted

@@ -515,9 +515,10 @@ describe('hosted execute', () => {
 
   test('sandbox-reported failures carry the same envelope, classified by cause', async () => {
     // Every hosted tool errors as { code, message }; execute is no exception.
-    // A CPU-budget overrun (execute-loader failure() wording) is EXECUTE_TIMEOUT;
-    // anything else — user throw, syntax error — is EXECUTE_FAILED, message verbatim.
-    const timedOut = makeContext({ execute: async () => ({ ok: false, error: 'Script execution exceeded its 5000ms CPU budget', logs: [] }) })
+    // A runner-tagged budget overrun (execute-loader failure()) is
+    // EXECUTE_TIMEOUT; anything else — user throw, syntax error — is
+    // EXECUTE_FAILED, message verbatim.
+    const timedOut = makeContext({ execute: async () => ({ ok: false, error: 'Script execution exceeded its 5000ms CPU budget', code: 'EXECUTE_TIMEOUT', logs: [] }) })
     const t = payloadOf(await handleHostedRequest(call('execute', { code: 'while (true) {}' }), timedOut))
     expect(t.error).toEqual({ code: 'EXECUTE_TIMEOUT', message: 'Script execution exceeded its 5000ms CPU budget' })
     const threw = makeContext({ execute: async () => ({ ok: false, error: 'boom', logs: ['before the throw'] }) })

@@ -168,7 +168,7 @@ function failure(message: string, timeoutMs: number): ExecuteResult {
   const clean = primary.replace(/^Uncaught\s+/, '').replace(/\b(?:user|harness)\.js:\d+(?::\d+)?\b/g, '<sandbox>')
   // The loader surfaces a cpuMs overrun as a thrown exception on the call.
   if (/cpu|exceeded|limit/i.test(clean) && !/SyntaxError/i.test(clean)) {
-    return { ok: false, error: `Script execution exceeded its ${timeoutMs}ms CPU budget`, logs: [] }
+    return { ok: false, error: `Script execution exceeded its ${timeoutMs}ms CPU budget`, code: 'EXECUTE_TIMEOUT', logs: [] }
   }
   // Strip workerd's startup preamble so syntax errors read like the sandbox's.
   // Production Worker Loader sometimes omits the `SyntaxError:` prefix and

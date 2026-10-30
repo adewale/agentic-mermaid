@@ -767,7 +767,8 @@ describe('MCP — JSON-RPC happy + sad', () => {
     expect(payload.ok).toBe(false)
     // The reported deadline is the 25 ms transport cap, not the default
     // sandbox timeout, so the cap applied without timing the call.
-    const deadline = Number(String(payload.error).match(/timed out after (\d+)ms/)?.[1])
+    expect(payload.error.code).toBe('EXECUTE_TIMEOUT')
+    const deadline = Number(String(payload.error.message).match(/timed out after (\d+)ms/)?.[1])
     expect(deadline).toBeGreaterThan(0)
     expect(deadline).toBeLessThanOrEqual(25)
   })

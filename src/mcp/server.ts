@@ -10,6 +10,7 @@ import { DEFAULT_EXECUTE_TIMEOUT_MS } from './execute-limits.ts'
 import { isJsonContentType, preserveExactJsonRpcIds, rpcError as error, stringifyJsonRpc, toolResult, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import {
   EXECUTE_TIMEOUT_ERROR,
+  executeToolPayload,
   createDescribeTool,
   createExecuteTool,
   createRenderPngTool,
@@ -168,7 +169,7 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
     )
     if (typeof code !== 'string') return error(id, -32602, 'execute requires `code` (string)')
     const r = await executeInSandbox(code, { timeoutMs })
-    return toolResult(id, r, !r.ok)
+    return toolResult(id, executeToolPayload(r), !r.ok)
   }
   if (name === 'mutate') return handleEditTool(id, args, 'source')
   if (name === 'build') return handleEditTool(id, args, 'family')

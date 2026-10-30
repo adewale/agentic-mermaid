@@ -23,6 +23,8 @@ import {
   validateJsonConfigAdmission,
 } from '../shared/json-config-admission.ts'
 import type { RenderOptions } from '../types.ts'
+import type { ExecuteErrorCode } from './execute-limits.ts'
+import type { ExecuteResult } from './sandbox.ts'
 import { isPlainRecord } from '../shared/plain-data.ts'
 import { validateJsonSchema, type SchemaPath, type JsonSchema } from '../shared/schema-validation.ts'
 
@@ -125,6 +127,21 @@ const MANAGED_ARTIFACT_ANNOTATIONS = {
 } as const
 
 export const EXECUTE_TIMEOUT_ERROR = 'execute timeoutMs must be a positive integer'
+
+/** The execute tool payload both servers return. Success passes the runner's
+ * { ok, value, logs } through; failure is { ok:false, error:{ code, message },
+ * logs } with the runner's message verbatim and a stable code (see
+ * ExecuteErrorCode), so an agent can branch on error.code on either channel. */
+export function executeToolPayload(result: ExecuteResult):
+  | ExecuteResult
+  | { ok: false; error: { code: ExecuteErrorCode; message: string }; logs: string[] } {
+  if (result.ok) return result
+  return {
+    ok: false,
+    error: { code: result.code ?? 'EXECUTE_FAILED', message: result.error ?? 'sandbox returned no error message' },
+    logs: result.logs ?? [],
+  }
+}
 
 /** One validation contract shared by hosted and local Code Mode. */
 export function isValidExecuteTimeout(value: unknown): value is number {

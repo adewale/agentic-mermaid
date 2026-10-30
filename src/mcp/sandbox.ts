@@ -8,6 +8,7 @@ import {
   LOGS_TRUNCATED_MARKER,
   normalizeExecuteOutputLimits,
   utf8ByteLength,
+  type ExecuteErrorCode,
   type ExecuteOutputLimits,
 } from './execute-limits.ts'
 
@@ -21,7 +22,21 @@ export interface ExecuteOptions {
   /** Trusted host instrumentation; never exposed to agent code. */
   onTraceCall?: (call: ExecutionTraceCall) => void
 }
-export interface ExecuteResult { ok: boolean; value?: unknown; logs?: string[]; error?: string; trace?: ExecutionTraceCall[] }
+export interface ExecuteResult {
+  ok: boolean
+  value?: unknown
+  logs?: string[]
+  error?: string
+  /** Set on a failure the runner's own time budget caused; absent means EXECUTE_FAILED. */
+  code?: ExecuteErrorCode
+  trace?: ExecutionTraceCall[]
+}
+
+// node:vm's watchdog message and the pre-run budget check above it. Only the
+// formatted message is classified (sandbox values are never inspected), so a
+// script that throws this exact text misclassifies only its own failure.
+const RUN_TIMEOUT_MESSAGE = /^(?:Script|Code Mode) execution timed out after \d+ms$/
+const TIMEOUT: Pick<ExecuteResult, 'code'> = { code: 'EXECUTE_TIMEOUT' }
 
 const MIN_BUN_SDK_TIMEOUT_MS = 1_000
 
@@ -238,7 +253,11 @@ function runInSandbox(code: string, opts: ExecuteOptions = {}): ExecuteResult {
     }
   }
   const withTrace = <T extends Omit<ExecuteResult, 'trace'>>(r: T): ExecuteResult => opts.trace ? { ...r, trace } : r
-  if (runErr) { sdkClosed = true; return withTrace({ ok: false, error: errorMessage(runErr), logs: readLogs() }) }
+  if (runErr) {
+    sdkClosed = true
+    const error = errorMessage(runErr)
+    return withTrace({ ok: false, error, ...(RUN_TIMEOUT_MESSAGE.test(error) ? TIMEOUT : {}), logs: readLogs() })
+  }
 
   // `undefined` isn't valid JSON; promote it to null so code with no explicit
   // return value still produces ok:true with a well-defined payload.
@@ -260,7 +279,7 @@ function runInSandbox(code: string, opts: ExecuteOptions = {}): ExecuteResult {
   if (resultMayContainSdkValue) {
     const remainingMs = remainingBudgetMs()
     if (remainingMs <= 0 || (typeof Bun !== 'undefined' && remainingMs < MIN_BUN_SDK_TIMEOUT_MS)) {
-      return withTrace({ ok: false, error: `Code Mode execution timed out after ${timeoutMs}ms while committing the result`, logs: readLogs() })
+      return withTrace({ ok: false, error: `Code Mode execution timed out after ${timeoutMs}ms while committing the result`, ...TIMEOUT, logs: readLogs() })
     }
     const marshalKey = `__pi_marshal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`
     const marshalTarget = () => marshalCodeModeResult(sandbox.mermaid, result)
@@ -294,13 +313,9 @@ function runInSandbox(code: string, opts: ExecuteOptions = {}): ExecuteResult {
       marshalled = vm.runInContext(`globalThis[${JSON.stringify(marshalKey)}]()`, context, { timeout: remainingMs })
     } catch (e) {
       const message = errorMessage(e)
-      return withTrace({
-        ok: false,
-        error: /timed out/i.test(message)
-          ? `Code Mode execution timed out after ${timeoutMs}ms while committing the result`
-          : `could not commit Code Mode result: ${message}`,
-        logs: readLogs(),
-      })
+      return withTrace(/timed out/i.test(message)
+        ? { ok: false, error: `Code Mode execution timed out after ${timeoutMs}ms while committing the result`, ...TIMEOUT, logs: readLogs() }
+        : { ok: false, error: `could not commit Code Mode result: ${message}`, logs: readLogs() })
     } finally {
       try { Reflect.deleteProperty(sandbox, marshalKey) } catch {}
     }
@@ -309,12 +324,13 @@ function runInSandbox(code: string, opts: ExecuteOptions = {}): ExecuteResult {
   try {
     const stringifyTimeoutMs = remainingBudgetMs()
     if (stringifyTimeoutMs <= 0) {
-      return withTrace({ ok: false, error: `Code Mode execution timed out after ${timeoutMs}ms while serializing the result`, logs: readLogs() })
+      return withTrace({ ok: false, error: `Code Mode execution timed out after ${timeoutMs}ms while serializing the result`, ...TIMEOUT, logs: readLogs() })
     }
     sandbox.__pi_result = marshalled
     stringified = vm.runInContext('__pi_stringify_result(__pi_result)', context, { timeout: stringifyTimeoutMs }) as string | undefined
   } catch (e) {
-    return withTrace({ ok: false, error: `non-serializable: ${errorMessage(e)} — ${CODE_MODE_RETURN_HINT}`, logs: readLogs() })
+    const message = errorMessage(e)
+    return withTrace({ ok: false, error: `non-serializable: ${message} — ${CODE_MODE_RETURN_HINT}`, ...(RUN_TIMEOUT_MESSAGE.test(message) ? TIMEOUT : {}), logs: readLogs() })
   } finally {
     try { sandbox.__pi_result = undefined } catch {}
   }

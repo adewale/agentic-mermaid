@@ -24,6 +24,10 @@ import {
   verifyNoExternalRefs,
 } from '../index.ts'
 import { layoutMermaidWithReceipt } from '../agent/core.ts'
+import { handleRequest } from '../mcp/server.ts'
+import { handleHostedRequest } from '../mcp/hosted-server.ts'
+import type { JsonRpcRequest, JsonRpcResponse } from '../mcp/protocol.ts'
+import { createLoaderExecute, type WorkerLoaderBinding } from '../../website/src/execute-loader.ts'
 
 // Memoized: re-importing an identical data: URL deadlocks under `bun test`
 // (fine in plain bun), and the loader caches per-id isolates anyway.
@@ -385,6 +389,71 @@ describe('bounded local/hosted Code Mode output', () => {
       expect(result.error).toContain('x')
     }
   })
+})
+
+// The execute tool payload as each server returns it. Hosted runs the real
+// hosted-server → execute-loader → harness-runtime path; only workerd is
+// replaced, by a loader that starts an "isolate" the way dynamic-harness.ts
+// does (a module that fails to parse fails the start with workerd's
+// SyntaxError wording, which drives the loader's statement-form fallback).
+function runningLoader(): WorkerLoaderBinding {
+  return {
+    get(_id, getCode) {
+      return {
+        getEntrypoint() {
+          return {
+            async fetch() {
+              const { modules } = await getCode()
+              let fn: unknown
+              try { fn = await importUserModule(modules['user.js']!) }
+              catch (e) { throw new Error(`Uncaught SyntaxError: ${formatHarnessError(e)}`) }
+              return new Response(JSON.stringify(runUserCode(fn)), { headers: { 'content-type': 'application/json' } })
+            },
+          }
+        },
+      }
+    },
+  }
+}
+/** workerd stops an isolate that exhausts cpuMs by failing the call. */
+const cpuLimitLoader: WorkerLoaderBinding = {
+  get() { return { getEntrypoint() { return { fetch: async () => { throw new Error('Worker exceeded CPU time limit.') } } } } },
+}
+function executeCall(code: string, timeoutMs: number): JsonRpcRequest {
+  return { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'execute', arguments: { code, timeoutMs } } }
+}
+function toolPayload(response: JsonRpcResponse | null): { isError: boolean; payload: any } {
+  const result = response?.result as { isError?: boolean; content?: Array<{ text?: string }> } | undefined
+  return { isError: result?.isError === true, payload: JSON.parse(result?.content?.[0]?.text ?? 'null') }
+}
+async function stdioTool(code: string, timeoutMs = 5000) {
+  return toolPayload(await handleRequest(executeCall(code, timeoutMs)))
+}
+async function hostedTool(code: string, timeoutMs = 5000, loader: WorkerLoaderBinding = runningLoader()) {
+  return toolPayload(await handleHostedRequest(executeCall(code, timeoutMs), { execute: createLoaderExecute(loader, 'HARNESS') }))
+}
+
+describe('execute tool error envelope is one shape on stdio and hosted', () => {
+  // Messages are each runner's own wording; the shape and the code are shared.
+  const cases: Array<{ label: string; code: string; expected: string; message?: string; timeoutMs?: number; hostedLoader?: WorkerLoaderBinding }> = [
+    { label: 'user throw', code: "throw new Error('boom')", expected: 'EXECUTE_FAILED', message: 'boom' },
+    { label: 'sync-only pre-screen', code: 'await 1', expected: 'EXECUTE_FAILED', message: 'Code Mode is synchronous; async/await, Promise jobs, finalizers, queueMicrotask, Array.fromAsync, and dynamic import are not supported' },
+    { label: 'syntax error', code: 'return ) === (', expected: 'EXECUTE_FAILED' },
+    { label: 'non-serializable result', code: 'const a = {}; a.self = a; return a', expected: 'EXECUTE_FAILED' },
+    { label: 'time budget exhausted', code: 'while (true) {}', expected: 'EXECUTE_TIMEOUT', timeoutMs: 200, hostedLoader: cpuLimitLoader },
+  ]
+  for (const { label, code, expected, message, timeoutMs, hostedLoader } of cases) {
+    test(label, async () => {
+      const channels = { stdio: await stdioTool(code, timeoutMs), hosted: await hostedTool(code, timeoutMs, hostedLoader) }
+      for (const [channel, { isError, payload }] of Object.entries(channels)) {
+        expect({ channel, isError, ok: payload.ok, logs: payload.logs }).toEqual({ channel, isError: true, ok: false, logs: [] })
+        expect({ channel, error: payload.error }).toEqual({
+          channel,
+          error: { code: expected, message: message ?? expect.any(String) },
+        })
+      }
+    })
+  }
 })
 
 /** Syntax and JSON-serialization messages come from the engine, not from us. */
