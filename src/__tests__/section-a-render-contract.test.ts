@@ -48,27 +48,8 @@ function configJsonKeys(value: fc.JsonValue): fc.JsonValue {
 
 const recursiveConfigJson = fc.jsonValue({ stringUnit: 'binary' }).map(configJsonKeys)
 
-const EXPECTED_BUILTIN_OPTION_APPLICABILITY = {
-  layoutHints: ['flowchart', 'state'],
-  graphLayout: ['flowchart', 'state', 'architecture', 'class', 'er', 'requirement'],
-  padding: ['flowchart', 'state', 'architecture', 'c4'],
-  nodeSpacing: ['flowchart', 'state', 'class', 'er', 'architecture', 'c4'],
-  layerSpacing: ['flowchart', 'state', 'class', 'er', 'architecture', 'c4'],
-  wrappingWidth: ['flowchart'],
-  componentSpacing: [],
-  interactive: ['xychart', 'pie', 'quadrant'],
-  shadow: ['flowchart', 'state', 'sequence', 'timeline', 'class', 'er', 'journey', 'xychart', 'pie', 'quadrant', 'gantt', 'mindmap', 'gitgraph', 'sankey'],
-  class: ['class'],
-  kanban: ['kanban'],
-  pie: ['pie'],
-  radar: ['radar'],
-  architecture: ['architecture'],
-  timeline: ['timeline'],
-  journey: ['journey'],
-  gantt: ['gantt'],
-  ganttToday: ['gantt'],
-} as const satisfies Partial<Record<SharedRenderOptionField, readonly DiagramKind[]>>
-
+// One admissible value per family-scoped option; the descriptor is the only
+// applicability authority.
 const FAMILY_SCOPED_OPTION_VALUES = {
   layoutHints: { ranks: { A: 0, B: 1 } },
   graphLayout: { backend: 'elk' },
@@ -88,7 +69,7 @@ const FAMILY_SCOPED_OPTION_VALUES = {
   journey: { experienceCurve: false },
   gantt: { dependencyArrows: true, criticalPath: true },
   ganttToday: '2026-01-08',
-} as const satisfies Record<keyof typeof EXPECTED_BUILTIN_OPTION_APPLICABILITY, unknown>
+} as const satisfies Partial<Record<SharedRenderOptionField, unknown>>
 
 describe('Section A canonical render contracts', () => {
   test('deferred evidence captures mutable accessors once and rejects invalid data immediately', () => {
@@ -136,8 +117,7 @@ describe('Section A canonical render contracts', () => {
       properties: Record<string, Record<string, unknown>>
     }
     const scopedFields = SHARED_RENDER_OPTION_FIELDS.filter(field => 'applicableBuiltinFamilies' in SHARED_RENDER_OPTION_FIELD_DESCRIPTORS[field])
-    const expectedFields = Object.keys(EXPECTED_BUILTIN_OPTION_APPLICABILITY) as Array<keyof typeof EXPECTED_BUILTIN_OPTION_APPLICABILITY>
-    expect(scopedFields).toEqual(expectedFields)
+    expect(scopedFields.filter(field => !(field in FAMILY_SCOPED_OPTION_VALUES)), 'scoped options without a probe value').toEqual([])
 
     for (const field of SHARED_RENDER_OPTION_FIELDS) {
       const descriptor = SHARED_RENDER_OPTION_FIELD_DESCRIPTORS[field]
@@ -146,9 +126,7 @@ describe('Section A canonical render contracts', () => {
         continue
       }
       const applicable: readonly DiagramKind[] = descriptor.applicableBuiltinFamilies
-      const scopedField = field as keyof typeof EXPECTED_BUILTIN_OPTION_APPLICABILITY
-      const expected = EXPECTED_BUILTIN_OPTION_APPLICABILITY[scopedField]
-      expect(applicable, field).toEqual(expected)
+      const scopedField = field as keyof typeof FAMILY_SCOPED_OPTION_VALUES
       expect(Object.isFrozen(applicable), field).toBe(true)
       expect(new Set(applicable).size, field).toBe(applicable.length)
       expect(

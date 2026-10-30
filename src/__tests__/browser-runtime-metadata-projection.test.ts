@@ -90,10 +90,12 @@ describe('browser runtime metadata projection', () => {
     }
     // These owners preserve witness IDs, claim statuses/limitations, report
     // acceptance and failure diagnostics independently of observation prose.
-    for (const name of ['outcome', 'runCapabilityClaims', 'runBackendConformance']) {
-      expect(before.functions.has(name)).toBe(true)
-      expect(after.functions.get(name)).toBe(before.functions.get(name))
-    }
+    // Only observation arguments of outcome() calls may change: every function
+    // that makes no such call is byte-identical after projection.
+    expect([...after.functions.keys()]).toEqual([...before.functions.keys()])
+    const untouched = [...before.functions].filter(([, text]) => !/(?<!function )\boutcome\(/.test(text))
+    expect(untouched.length).toBeGreaterThan(0)
+    for (const [name, text] of untouched) expect(after.functions.get(name), name).toBe(text)
   })
 
   test('preserves evaluation, coercion, throws and diagnostics after minifying projected observations', () => {

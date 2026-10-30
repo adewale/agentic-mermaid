@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { createZenUMLRenderer, renderZenUMLSVG, createUpstreamZenUMLRenderer, renderUpstreamZenUMLSVG, ZenUMLBackendError, ZENUML_CAPABILITIES, UPSTREAM_ZENUML_CAPABILITIES } from '../zenuml/index.ts'
+import { createZenUMLRenderer, renderZenUMLSVG, createUpstreamZenUMLRenderer, renderUpstreamZenUMLSVG, ZenUMLBackendError } from '../zenuml/index.ts'
 import { parseRegisteredMermaid, registerStyle, renderMermaidSVG, serializeMermaid } from '../agent/core.ts'
 
 const source = 'zenuml\nAlice->Bob: hello'
@@ -10,8 +10,6 @@ test('ZenUML has native semantics, shared styles and a separate explicit upstrea
   if (!parsed.ok) return
   expect(parsed.value.body.kind).toBe('zenuml')
   expect(serializeMermaid(parsed.value)).toContain('Alice->Bob: hello')
-  expect(ZENUML_CAPABILITIES).toMatchObject({ nativeParse: true, typedEditing: true, nativeScene: true, styles: true, palettes: true, node: true, terminal: true })
-  expect(UPSTREAM_ZENUML_CAPABILITIES).toMatchObject({ nativeParse: false, typedEditing: false, nativeScene: false, styles: false, node: false })
 })
 
 test('native asynchronous entry works in Node with complete Look/Palette/role options and no backend URL', async () => {

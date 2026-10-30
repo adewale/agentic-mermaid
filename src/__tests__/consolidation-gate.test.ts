@@ -73,7 +73,15 @@ describe('consolidation gate — shared primitives stay single-sourced', () => {
     // box edge (the measured-vs-drawn divergence that undersized class/er
     // title boxes). Drawn text is fitted to its textLength, so its horizontal
     // extent is exact.
-    const sources = ['classDiagram\n  class VeryLongAccountNameForTesting {\n    +identifierWithALongName: string\n    +close() void\n  }', 'erDiagram\n  VERY_LONG_CUSTOMER_ENTITY_NAME {\n    string identifier_with_a_long_name\n  }']
+    // A title-only box has no member line wide enough to hide an undersized
+    // header measurement.
+    const longName = 'ExtremelyLongDescriptiveDomainAggregateRootRepositoryNameForTheCustomerBillingReconciliationLedger'
+    const sources = [
+      'classDiagram\n  class VeryLongAccountNameForTesting {\n    +identifierWithALongName: string\n    +close() void\n  }',
+      'erDiagram\n  VERY_LONG_CUSTOMER_ENTITY_NAME {\n    string identifier_with_a_long_name\n  }',
+      `classDiagram\n  class ${longName}`,
+      `erDiagram\n  ${longName} {\n    string id\n  }`,
+    ]
     const attr = (tag: string, name: string) => new RegExp(`\\s${name}="([^"]*)"`).exec(tag)?.[1]
     let lines = 0
     for (const source of sources) {
@@ -92,6 +100,6 @@ describe('consolidation gate — shared primitives stay single-sourced', () => {
         }
       }
     }
-    expect(lines).toBeGreaterThanOrEqual(5)
+    expect(lines).toBeGreaterThanOrEqual(8)
   })
 })

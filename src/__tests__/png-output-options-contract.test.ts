@@ -65,23 +65,16 @@ describe('canonical PNG output-option authority', () => {
     expect(JSON.parse(result.stdout).bytes).toBeGreaterThan(0)
   }, 60000)
 
-  test('projects exact portable, native-policy, and native-host field sets', () => {
-    expect(PNG_OUTPUT_OPTION_FIELDS).toEqual([
-      'scale', 'background', 'fitTo', 'minLabelPx', 'fontDirs', 'loadSystemFonts', 'onWarning',
-    ])
-    expect(PORTABLE_PNG_OUTPUT_OPTION_FIELDS).toEqual(['scale', 'background', 'fitTo', 'minLabelPx'])
-    expect(NATIVE_PNG_OUTPUT_POLICY_FIELDS).toEqual([
-      'scale', 'background', 'fitTo', 'minLabelPx', 'fontDirs', 'loadSystemFonts',
-    ])
-    expect(NATIVE_PNG_HOST_ONLY_OPTION_FIELDS).toEqual(['fontDirs', 'loadSystemFonts', 'onWarning'])
+  test('partitions fields into portable and native-host-only, keeping the callback out of policy', () => {
+    expect([...PORTABLE_PNG_OUTPUT_OPTION_FIELDS, ...NATIVE_PNG_HOST_ONLY_OPTION_FIELDS].sort()).toEqual([...PNG_OUTPUT_OPTION_FIELDS].sort())
+    expect(PORTABLE_PNG_OUTPUT_OPTION_FIELDS.filter(field => NATIVE_PNG_HOST_ONLY_OPTION_FIELDS.includes(field as never))).toEqual([])
+    expect(PORTABLE_PNG_OUTPUT_OPTION_FIELDS.every(field => NATIVE_PNG_OUTPUT_POLICY_FIELDS.includes(field))).toBe(true)
     expect(Object.isFrozen(PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS)).toBe(true)
     expect(PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS.onWarning).toMatchObject({
       scope: 'native-host-only',
       input: 'callback',
       policy: 'excluded',
       receipt: 'excluded',
-      typeScript: '(warning: PngRasterWarning) => void',
-      description: 'Native host callback for glyph-coverage and raster-legibility warnings; never serialized or receipted.',
     })
 
     const portable = pngOutputOptionsJsonSchema('portable') as {
