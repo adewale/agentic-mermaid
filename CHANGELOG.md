@@ -15,6 +15,13 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- `execute` failures now say where the agent's own code failed:
+  `error.location` is the 1-based `{ line, column }` of an uncaught error (or
+  of the token where code that does not parse stopped), on both the hosted and
+  stdio servers, with no runner frames or host paths. A caught `e.stack` is
+  left as the engine produced it; its `user.js` / `codemode.ts` frames are one
+  line below the agent's line numbers.
+
 - Make repeated `verify` calls in one process (`am batch`, the stdio and hosted
   MCP servers, library loops) report the same warnings as the first call.
   Cached layouts lost the proof that a bundled route's bends are deliberate,

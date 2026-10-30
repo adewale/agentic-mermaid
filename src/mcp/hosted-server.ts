@@ -14,7 +14,7 @@ import { knownStyleDescriptors } from '../scene/style-registry.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt } from '../agent/core.ts'
 import { verifyNoExternalRefs } from '../output-security.ts'
-import { unsupportedCodeReason } from './facade.ts'
+import { codeModeScreen } from './facade.ts'
 import { rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import {
   EXECUTE_TIMEOUT_ERROR,
@@ -455,8 +455,8 @@ async function handleExecute(id: number | string | null, args: Record<string, un
   }
   // Screen sync-only violations before any isolate exists: rejected code costs
   // nothing and the error message matches the local sandbox exactly.
-  const reason = unsupportedCodeReason(code)
-  if (reason) return toolResult(id, executeToolPayload({ ok: false, error: reason, logs: [] }), true)
+  const screened = codeModeScreen(code)
+  if (screened) return toolResult(id, executeToolPayload({ ok: false, error: screened.message, location: screened.location, logs: [] }), true)
   const requested = args.timeoutMs
   if (requested !== undefined && !isValidExecuteTimeout(requested)) {
     return rpcError(id, -32602, EXECUTE_TIMEOUT_ERROR)

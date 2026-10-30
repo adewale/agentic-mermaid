@@ -7,7 +7,16 @@
 // for behavioral parity with sandbox.ts: same hardened facade, same console
 // coercion, same result serialization, same error surface.
 
-import { codeModeStatementBody, createTracingMermaid, marshalCodeModeResult, CODE_MODE_RETURN_HINT } from './facade.ts'
+import {
+  agentCodeLocation,
+  codeModeExpressionPayload,
+  codeModeStatementBody,
+  createTracingMermaid,
+  firstStackFrame,
+  marshalCodeModeResult,
+  CODE_MODE_RETURN_HINT,
+  type CodeModeWrapForm,
+} from './facade.ts'
 import type { ExecuteResult } from './sandbox.ts'
 import { HOSTED_CODE_MODE_HOST_POLICY } from '../render-host-policy.ts'
 import {
@@ -95,7 +104,9 @@ export function hardenIsolateGlobals(): void {
  */
 export function userModuleSources(code: string): { expr: string; stmt: string } {
   const params = ['mermaid', 'console', ...SHADOWED_GLOBALS].join(', ')
-  const stripped = code.trim().replace(/;\s*$/, '') // drop a single trailing semicolon
+  // Agent code starts at column 1 of line 2 in both forms (see
+  // agentCodeLocation), so leading whitespace is kept, not trimmed.
+  const stripped = codeModeExpressionPayload(code)
   // The function is wrapped in parentheses (an EXPRESSION position) so a
   // wrapper breakout — code that closes the function body early with `}` —
   // lands inside a parenthesized expression, where a `import`/`export`/`;`
@@ -103,11 +114,32 @@ export function userModuleSources(code: string): { expr: string; stmt: string } 
   // than run injected top-level module code (e.g. `import ... from
   // 'cloudflare:sockets'`). Dynamic `import(` is separately blocked by
   // unsupportedCodeReason. A comma+IIFE tail can still run at eval time, but
-  // only against hardenIsolateGlobals()-stripped capabilities.
+  // only against hardenIsolateGlobals()-stripped capabilities. The body sits
+  // in `try { } finally { }` exactly as in expressionFirstWraps, so the two
+  // runners share scoping and no top-level return is a tail call.
   return {
-    expr: `export default (function (${params}) { return (\n${stripped}\n) })\n`,
-    stmt: `export default (function (${params}) {\n${codeModeStatementBody(code)}\n})\n`,
+    expr: `export default (function (${params}) { try { return (\n${stripped}\n) } finally {} })\n`,
+    stmt: `export default (function (${params}) { try {\n${codeModeStatementBody(code)}\n} finally {} })\n`,
   }
+}
+
+/** What the isolate answers: an ExecuteResult plus, for an uncaught error,
+ * the first user.js stack frame in module coordinates. Only the parent knows
+ * the code and which wrap ran, so it maps the frame with toAgentResult. */
+export interface HarnessResult extends ExecuteResult { frame?: { line: number; column: number } }
+
+/** Replace the isolate's module-coordinate frame with the agent-code location. */
+export function toAgentResult(result: HarnessResult, code: string, form: CodeModeWrapForm): ExecuteResult {
+  const { frame, ...rest } = result
+  const location = frame && typeof frame === 'object' ? agentCodeLocation(code, form, frame.line, frame.column) : undefined
+  return location ? { ...rest, location } : rest
+}
+
+/** A thrown value's stack, read the way formatHarnessError reads its message. */
+function thrownStack(err: unknown): unknown {
+  try {
+    return err && (typeof err === 'object' || typeof err === 'function') ? (err as { stack?: unknown }).stack : undefined
+  } catch { return undefined }
 }
 
 /** Coerce a console argument to the string the vm bootstrap would log. */
@@ -142,7 +174,7 @@ const toStringTag = (v: unknown): string => Object.prototype.toString.call(v)
  * cannot represent is a `non-serializable:` error. The SDK closes before
  * serialization so getters/proxy traps cannot do late SDK work.
  */
-export function runUserCode(fn: unknown): ExecuteResult {
+export function runUserCode(fn: unknown): HarnessResult {
   const logs: string[] = []
   let logBytes = 0
   let logsTruncated = false
@@ -187,7 +219,9 @@ export function runUserCode(fn: unknown): ExecuteResult {
     result = fn(mermaid, consoleObj)
   } catch (e) {
     closed = true
-    return { ok: false, error: formatHarnessError(e), logs }
+    const error = formatHarnessError(e)
+    const frame = firstStackFrame(thrownStack(e), 'user.js')
+    return frame ? { ok: false, error, logs, frame } : { ok: false, error, logs }
   }
   closed = true
 

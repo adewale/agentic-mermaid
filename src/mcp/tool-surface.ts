@@ -25,6 +25,7 @@ import {
 import type { RenderOptions } from '../types.ts'
 import type { ExecuteErrorCode } from './execute-limits.ts'
 import type { ExecuteResult } from './sandbox.ts'
+import type { CodeModeLocation } from './facade.ts'
 import { isPlainRecord } from '../shared/plain-data.ts'
 import { validateJsonSchema, type SchemaPath, type JsonSchema } from '../shared/schema-validation.ts'
 
@@ -129,16 +130,21 @@ const MANAGED_ARTIFACT_ANNOTATIONS = {
 export const EXECUTE_TIMEOUT_ERROR = 'execute timeoutMs must be a positive integer'
 
 /** The execute tool payload both servers return. Success passes the runner's
- * { ok, value, logs } through; failure is { ok:false, error:{ code, message },
- * logs } with the runner's message verbatim and a stable code (see
- * ExecuteErrorCode), so an agent can branch on error.code on either channel. */
+ * { ok, value, logs } through; failure is { ok:false, error:{ code, message,
+ * location? }, logs } with the runner's message verbatim, a stable code (see
+ * ExecuteErrorCode) so an agent can branch on error.code on either channel,
+ * and, when known, the failing { line, column } in the agent's own code. */
 export function executeToolPayload(result: ExecuteResult):
   | ExecuteResult
-  | { ok: false; error: { code: ExecuteErrorCode; message: string }; logs: string[] } {
+  | { ok: false; error: { code: ExecuteErrorCode; message: string; location?: CodeModeLocation }; logs: string[] } {
   if (result.ok) return result
   return {
     ok: false,
-    error: { code: result.code ?? 'EXECUTE_FAILED', message: result.error ?? 'sandbox returned no error message' },
+    error: {
+      code: result.code ?? 'EXECUTE_FAILED',
+      message: result.error ?? 'sandbox returned no error message',
+      ...(result.location ? { location: { line: result.location.line, column: result.location.column } } : {}),
+    },
     logs: result.logs ?? [],
   }
 }

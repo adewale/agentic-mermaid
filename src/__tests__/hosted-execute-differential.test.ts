@@ -28,6 +28,7 @@ import { handleRequest } from '../mcp/server.ts'
 import { handleHostedRequest } from '../mcp/hosted-server.ts'
 import type { JsonRpcRequest, JsonRpcResponse } from '../mcp/protocol.ts'
 import { createLoaderExecute, type WorkerLoaderBinding } from '../../website/src/execute-loader.ts'
+import { runInThisContext } from 'node:vm'
 
 // Memoized: re-importing an identical data: URL deadlocks under `bun test`
 // (fine in plain bun), and the loader caches per-id isolates anyway.
@@ -396,6 +397,15 @@ describe('bounded local/hosted Code Mode output', () => {
 // replaced, by a loader that starts an "isolate" the way dynamic-harness.ts
 // does (a module that fails to parse fails the start with workerd's
 // SyntaxError wording, which drives the loader's statement-form fallback).
+// user.js is compiled under the file name workerd's module registry gives it,
+// as a strict script whose completion value is the default export: Bun's
+// module loader transpiles and can drop stack columns, which V8 always
+// reports. Only `export default ` on wrapper line 1 changes, so agent-code
+// positions are exactly those of the module.
+function loadUserModule(source: string): unknown {
+  if (!source.startsWith('export default (function')) throw new Error('unexpected user.js shape')
+  return runInThisContext(`"use strict"; ${source.slice('export default '.length)}`, { filename: 'user.js' })
+}
 function runningLoader(): WorkerLoaderBinding {
   return {
     get(_id, getCode) {
@@ -405,7 +415,7 @@ function runningLoader(): WorkerLoaderBinding {
             async fetch() {
               const { modules } = await getCode()
               let fn: unknown
-              try { fn = await importUserModule(modules['user.js']!) }
+              try { fn = loadUserModule(modules['user.js']!) }
               catch (e) { throw new Error(`Uncaught SyntaxError: ${formatHarnessError(e)}`) }
               return new Response(JSON.stringify(runUserCode(fn)), { headers: { 'content-type': 'application/json' } })
             },
@@ -435,25 +445,99 @@ async function hostedTool(code: string, timeoutMs = 5000, loader: WorkerLoaderBi
 
 describe('execute tool error envelope is one shape on stdio and hosted', () => {
   // Messages are each runner's own wording; the shape and the code are shared.
-  const cases: Array<{ label: string; code: string; expected: string; message?: string; timeoutMs?: number; hostedLoader?: WorkerLoaderBinding }> = [
-    { label: 'user throw', code: "throw new Error('boom')", expected: 'EXECUTE_FAILED', message: 'boom' },
+  const cases: Array<{ label: string; code: string; expected: string; message?: string; location?: unknown; timeoutMs?: number; hostedLoader?: WorkerLoaderBinding }> = [
+    { label: 'user throw', code: "throw new Error('boom')", expected: 'EXECUTE_FAILED', message: 'boom', location: { line: 1, column: expect.any(Number) } },
     { label: 'sync-only pre-screen', code: 'await 1', expected: 'EXECUTE_FAILED', message: 'Code Mode is synchronous; async/await, Promise jobs, finalizers, queueMicrotask, Array.fromAsync, and dynamic import are not supported' },
-    { label: 'syntax error', code: 'return ) === (', expected: 'EXECUTE_FAILED' },
+    { label: 'syntax error', code: 'return ) === (', expected: 'EXECUTE_FAILED', location: { line: 1, column: 8 } },
     { label: 'non-serializable result', code: 'const a = {}; a.self = a; return a', expected: 'EXECUTE_FAILED' },
     { label: 'time budget exhausted', code: 'while (true) {}', expected: 'EXECUTE_TIMEOUT', timeoutMs: 200, hostedLoader: cpuLimitLoader },
   ]
-  for (const { label, code, expected, message, timeoutMs, hostedLoader } of cases) {
+  for (const { label, code, expected, message, location, timeoutMs, hostedLoader } of cases) {
     test(label, async () => {
       const channels = { stdio: await stdioTool(code, timeoutMs), hosted: await hostedTool(code, timeoutMs, hostedLoader) }
       for (const [channel, { isError, payload }] of Object.entries(channels)) {
         expect({ channel, isError, ok: payload.ok, logs: payload.logs }).toEqual({ channel, isError: true, ok: false, logs: [] })
         expect({ channel, error: payload.error }).toEqual({
           channel,
-          error: { code: expected, message: message ?? expect.any(String) },
+          error: { code: expected, message: message ?? expect.any(String), ...(location ? { location } : {}) },
         })
       }
     })
   }
+})
+
+describe('execute failures carry a location in the agent\'s own code on stdio and hosted', () => {
+  // Oracle: the generator places the failing statement at a known line and
+  // column span. Engines differ on which token of the expression they report
+  // (V8 the property name, JavaScriptCore the dot or call paren), so the
+  // column must fall inside the failing statement; the line must be exact.
+  const failures = ['throw new Error("boom")', 'null.x', 'mermaid.parseRegisteredMermaid(42)', 'undefinedName + 1', 'mermaid.serializeMermaid(mermaid.asSequence(mermaid.parseRegisteredMermaid("flowchart LR\\n A-->B").value))']
+  const indent = fc.integer({ min: 0, max: 6 }).map(n => ' '.repeat(n))
+  const expressions = failures.filter(failure => !failure.startsWith('throw'))
+  // How the failing statement ends the program: 'last' makes it the final
+  // expression statement (captured with an inserted `return (`, or the whole
+  // program in expression form when nothing precedes it — a tail call);
+  // 'return' makes it an explicit `return f(...)`; 'more' adds lines after it.
+  const ending = fc.constantFrom('last' as const, 'return' as const, 'more' as const)
+  const statementShape = fc.record({
+    shape: fc.constant('statement' as const),
+    before: fc.array(indent, { maxLength: 3 }),
+    indent,
+    pad: fc.constantFrom('', 'const p = 0; ', 'let q = 1;   '),
+    ending,
+  }).chain(base => fc.record({
+    failure: fc.constantFrom(...(base.ending === 'return' ? expressions : failures)),
+    after: base.ending === 'more' ? fc.array(indent, { minLength: 1, maxLength: 2 }) : fc.constant<string[]>([]),
+  }).map(rest => ({ ...base, ...rest })))
+  const expressionShape = fc.record({
+    shape: fc.constant('expression' as const),
+    before: fc.array(indent, { maxLength: 3 }),
+    indent,
+    pad: fc.constant(''),
+    ending: fc.constant('more' as const),
+    failure: fc.constantFrom(...expressions),
+    after: fc.array(indent, { maxLength: 2 }),
+  })
+  // The one-liner: the whole program is the failing expression (expression
+  // form, where the SDK call is the returned value).
+  const bareShape = fc.record({
+    shape: fc.constant('statement' as const),
+    before: fc.constant<string[]>([]),
+    indent,
+    pad: fc.constant(''),
+    ending: fc.constant('last' as const),
+    failure: fc.constantFrom(...expressions),
+    after: fc.constant<string[]>([]),
+  })
+  const syntaxShape = fc.record({
+    shape: fc.constant('syntax' as const),
+    before: fc.array(indent, { maxLength: 3 }),
+    indent,
+    pad: fc.constantFrom('', 'const p = 0; '),
+    ending: fc.constant('more' as const),
+    failure: fc.constant('const = 1'),
+    after: fc.array(indent, { maxLength: 2 }),
+  })
+
+  test('generated failing lines report their own line and a column inside the failing statement', async () => {
+    await fc.assert(fc.asyncProperty(fc.oneof(statementShape, expressionShape, bareShape, syntaxShape), async ({ shape, before, indent, pad, ending, failure, after }) => {
+      const failing = ending === 'return' ? `return ${failure}` : failure
+      const lines = shape === 'expression'
+        ? ['[', ...before.map((space, i) => `${space}${i},`), `${indent}${failing},`, ...after.map((space, i) => `${space}${i + 10},`), ']']
+        : [...before.map((space, i) => `${space}const v${i} = ${i};`), `${indent}${pad}${failing}`, ...after.map((space, i) => `${space}const w${i} = ${i};`)]
+      const code = lines.join('\n')
+      const line = (shape === 'expression' ? 1 : 0) + before.length + 1
+      const first = indent.length + pad.length + 1
+      const last = indent.length + pad.length + failing.length
+      for (const [channel, { payload }] of Object.entries({ stdio: await stdioTool(code), hosted: await hostedTool(code) })) {
+        expect({ channel, ok: payload.ok, keys: Object.keys(payload.error ?? {}).sort() }).toEqual({ channel, ok: false, keys: ['code', 'location', 'message'] })
+        const { location } = payload.error as { location: { line: number; column: number } }
+        expect({ channel, code, line: location.line }).toEqual({ channel, code, line })
+        expect({ channel, code, columnInside: location.column >= first && location.column <= last, column: location.column }).toEqual({ channel, code, columnInside: true, column: location.column })
+        expect(JSON.stringify(payload.error)).not.toMatch(/harness\.js|user\.js|codemode\.ts|sandbox\.ts|Object\.fetch/)
+      }
+    }), fcParameters({ numRuns: 60 }))
+  })
 })
 
 /** Syntax and JSON-serialization messages come from the engine, not from us. */

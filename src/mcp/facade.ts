@@ -757,56 +757,169 @@ function narrowerFamily(prop: string | symbol): TraceNarrowFamily {
   return family
 }
 
-/** Preserve statement semantics and capture the final meaningful top-level expression. */
-export function codeModeStatementBody(code: string): string {
+// ── Agent-code positions ────────────────────────────────────────────────
+// Every Code Mode wrap (node:vm and hosted module, expression and statement
+// form) puts the agent's code verbatim at column 1 of the wrap's line 2, so an
+// engine position in the wrapped script is the agent position one line down.
+// The single in-line shift is the statement form's return capture: `return (`
+// is inserted where the final expression statement starts, moving the rest of
+// that one line right by its length. agentCodeLocation undoes both, so
+// reported locations are exact. A raw `e.stack` read by agent code is the
+// engine's own value and stays unedited: its user.js/codemode.ts frames carry
+// the one-line offset, and it also lists the runner's frames.
+
+/** A position in the agent's own code: 1-based line and column (UTF-16 units). */
+export interface CodeModeLocation { line: number; column: number }
+export type CodeModeWrapForm = 'expression' | 'statement'
+
+/** Lines every wrap places above the agent's first line. */
+const CODE_MODE_LINE_OFFSET = 1
+const RETURN_CAPTURE = 'return ('
+const STATEMENT_PARSE_PREFIX = 'function __agent_code__(){"use strict";\n'
+const LINE_TERMINATOR = /\r\n|[\n\r\u2028\u2029]/g
+const MAX_STACK_CHARS = 16_384
+
+/** The agent code minus one trailing semicolon: the expression-form payload. */
+export function codeModeExpressionPayload(code: string): string {
+  return code.replace(/;\s*$/, '')
+}
+
+/** [start, end) of the final meaningful top-level expression statement, with
+ * its terminating semicolon excluded, or undefined when there is none. */
+function finalExpressionStatement(code: string): { start: number; end: number } | undefined {
   try {
     // Parse in the function context we execute: new.target and return are
     // legal here, while strict-mode syntax restrictions apply in both hosts.
-    const prefix = 'function __agent_code__(){"use strict";\n'
-    const ast = parseJavaScript(`${prefix}${code}\n}`, { ecmaVersion: 'latest', sourceType: 'script' })
+    const ast = parseJavaScript(`${STATEMENT_PARSE_PREFIX}${code}\n}`, { ecmaVersion: 'latest', sourceType: 'script' })
     const fn = ast.body[0]
-    if (fn?.type !== 'FunctionDeclaration') return code
+    if (fn?.type !== 'FunctionDeclaration') return undefined
     const last = fn.body.body.findLast(statement => statement.type !== 'EmptyStatement')
-    if (last?.type === 'ExpressionStatement') {
-      const offset = prefix.length
-      // The injected directive belongs to the wrapper, never to user output.
-      if (last.start < offset) return code
-      return `${code.slice(0, last.start - offset)}return (\n${code.slice(last.expression.start - offset, last.expression.end - offset)}\n);${code.slice(last.end - offset)}`
-    }
+    if (last?.type !== 'ExpressionStatement') return undefined
+    const offset = STATEMENT_PARSE_PREFIX.length
+    // The injected directive belongs to the wrapper, never to user output.
+    if (last.start < offset) return undefined
+    const start = last.start - offset
+    const end = last.end - offset
+    return { start, end: code[end - 1] === ';' ? end - 1 : end }
   } catch {
     // The execution boundary owns syntax errors; do not repair invalid code.
+    return undefined
   }
-  return code
+}
+
+/** Preserve statement semantics and capture the final meaningful top-level
+ * expression. The capture inserts no line break before the expression, so
+ * every agent line keeps its number (see agentCodeLocation). */
+export function codeModeStatementBody(code: string): string {
+  const capture = finalExpressionStatement(code)
+  if (!capture) return code
+  const rest = code.slice(capture.end).replace(/^;/, '')
+  return `${code.slice(0, capture.start)}${RETURN_CAPTURE}${code.slice(capture.start, capture.end)}\n);${rest}`
+}
+
+/** 0-based line index and column of a UTF-16 offset in `code`. */
+function lineColumnOf(code: string, offset: number): { line: number; column: number } {
+  let line = 0
+  let lineStart = 0
+  for (const match of code.slice(0, offset).matchAll(LINE_TERMINATOR)) {
+    line += 1
+    lineStart = match.index + match[0].length
+  }
+  return { line, column: offset - lineStart }
 }
 
 /**
- * Generate candidate wrappings in order of preference: expression form first
- * (handles bare expressions including objects/arrows/templates), then
- * statement form (handles multi-statement bodies with `return` etc.). The
- * first that compiles wins. Code Mode is deliberately synchronous: allowing
- * Promise jobs after `vm.runInContext` lets sandbox code block the host event
- * loop outside the VM timeout.
+ * Map a 1-based engine position in a wrapped script back to the agent's code.
+ * Undefined when the position lies outside the agent's lines (the wrapper's
+ * own call frame).
  */
-export function expressionFirstWraps(code: string): string[] {
-  const t = code.trim()
-  const stripped = t.replace(/;\s*$/, '') // drop a single trailing semicolon
-  const expressionWrapped = `(function (mermaid, console) { "use strict"; return (\n${stripped}\n) })(mermaid, console)`
-  const statementWrapped = `(function (mermaid, console) { "use strict";\n${codeModeStatementBody(code)}\n})(mermaid, console)`
-  // Expression form handles bare expressions including objects/arrows/templates.
-  // Pick it only if host parsing succeeds; never retry based on sandbox-thrown
-  // values, because their getters/proxy traps are attacker-controlled.
+export function agentCodeLocation(code: string, form: CodeModeWrapForm, line: number, column: number): CodeModeLocation | undefined {
+  if (!Number.isSafeInteger(line) || !Number.isSafeInteger(column) || column < 1) return undefined
+  const agentLine = line - CODE_MODE_LINE_OFFSET
+  const lineCount = (form === 'expression' ? codeModeExpressionPayload(code) : code).split(LINE_TERMINATOR).length
+  if (agentLine < 1 || agentLine > lineCount) return undefined
+  const capture = form === 'statement' ? finalExpressionStatement(code) : undefined
+  if (capture) {
+    const at = lineColumnOf(code, capture.start)
+    const zeroBased = column - 1
+    if (agentLine === at.line + 1 && zeroBased >= at.column) {
+      return { line: agentLine, column: Math.max(at.column, zeroBased - RETURN_CAPTURE.length) + 1 }
+    }
+  }
+  return { line: agentLine, column }
+}
+
+/** The first `at ... (<fileName>:line:column)` frame of an engine stack
+ * string (V8 and JavaScriptCore both print this form), in wrapped-script
+ * coordinates. Only frame lines are read, so message text cannot match. */
+export function firstStackFrame(stack: unknown, fileName: string): { line: number; column: number } | undefined {
+  if (typeof stack !== 'string') return undefined
+  const escaped = fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const frame = new RegExp(`^\\s*at (?:.*[ (])?(?:[^\\s()]*/)?${escaped}:(\\d+):(\\d+)\\)?\\s*$`)
+  for (const text of stack.slice(0, MAX_STACK_CHARS).split('\n')) {
+    const match = frame.exec(text)
+    if (match) return { line: Number(match[1]), column: Number(match[2]) }
+  }
+  return undefined
+}
+
+/** Where the pre-screen parser stopped in code that does not parse, in agent
+ * coordinates. A failure past the agent's last line (an unterminated block or
+ * literal) is reported at the end of the code. */
+function codeModeSyntaxLocation(code: string): CodeModeLocation | undefined {
+  try {
+    parseJavaScript(`${STATEMENT_PARSE_PREFIX}${code}\n}`, { ecmaVersion: 'latest', sourceType: 'script', locations: true })
+    return undefined
+  } catch (e) {
+    const loc = (e as { loc?: { line?: unknown; column?: unknown } }).loc
+    if (typeof loc?.line !== 'number' || typeof loc.column !== 'number') return undefined
+    const lines = code.split(LINE_TERMINATOR)
+    const line = loc.line - CODE_MODE_LINE_OFFSET
+    if (line < 1) return { line: 1, column: 1 }
+    if (line > lines.length) return { line: lines.length, column: lines[lines.length - 1]!.length + 1 }
+    return { line, column: loc.column + 1 }
+  }
+}
+
+/**
+ * The node:vm wrap for agent code: expression form when the code parses as a
+ * bare expression (objects/arrows/templates included), otherwise statement
+ * form (multi-statement bodies with `return` etc.). Code Mode is deliberately
+ * synchronous: allowing Promise jobs after `vm.runInContext` lets sandbox code
+ * block the host event loop outside the VM timeout.
+ *
+ * The body sits in `try { } finally { }` so no top-level `return f(...)` is a
+ * tail call: JavaScriptCore (Bun) performs proper tail calls in strict mode,
+ * which would drop the agent's frame from the stack of an error thrown inside
+ * f and leave nothing to locate.
+ */
+export function expressionFirstWraps(code: string): { source: string; form: CodeModeWrapForm } {
+  const stripped = codeModeExpressionPayload(code)
+  // Pick expression form only if host parsing succeeds; never retry based on
+  // sandbox-thrown values, because their getters/proxy traps are
+  // attacker-controlled.
   try {
     // eslint-disable-next-line no-new-func
     new Function(`"use strict"; return (\n${stripped}\n)`)
-    return [expressionWrapped]
+    return { source: `(function (mermaid, console) { "use strict"; try { return (\n${stripped}\n) } finally {} })(mermaid, console)`, form: 'expression' }
   } catch {
-    return [statementWrapped]
+    return { source: `(function (mermaid, console) { "use strict"; try {\n${codeModeStatementBody(code)}\n} finally {} })(mermaid, console)`, form: 'statement' }
   }
+}
+
+const SYNTAX_REASON = 'Code Mode syntax must be a strict JavaScript expression or function body'
+
+/** unsupportedCodeReason plus, for code that does not parse, where it stopped. */
+export function codeModeScreen(code: string): { message: string; location?: CodeModeLocation } | undefined {
+  const message = unsupportedCodeReason(code)
+  if (message === undefined) return undefined
+  const location = message === SYNTAX_REASON ? codeModeSyntaxLocation(code) : undefined
+  return location ? { message, location } : { message }
 }
 
 export function unsupportedCodeReason(code: string): string | undefined {
   const ast = parseCodeModeAst(code)
-  if (!ast) return 'Code Mode syntax must be a strict JavaScript expression or function body'
+  if (!ast) return SYNTAX_REASON
   let usesAsync = false
   let usesRealm = false
   walkJavaScriptAst(ast, (node, parent, parentKey) => {
@@ -838,7 +951,7 @@ const REALM_UNSUPPORTED_IDENTIFIERS = new Set(['Atomics', 'SharedArrayBuffer', '
  * distinguish regex literals from division safely and previously created both
  * false positives and a dynamic-import screening bypass. */
 function parseCodeModeAst(code: string): AcornNode | undefined {
-  const stripped = code.trim().replace(/;\s*$/, '')
+  const stripped = codeModeExpressionPayload(code)
   const candidates = [
     `function __agent_code__(){"use strict"; return (\n${stripped}\n)}`,
     `function __agent_code__(){"use strict";\n${code}\n}`,

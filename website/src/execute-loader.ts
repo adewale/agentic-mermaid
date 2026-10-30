@@ -16,7 +16,7 @@
 // serving the old code after a deploy). The isolate gets no bindings, no
 // network (`globalOutbound: null`), and a CPU budget.
 
-import { userModuleSources, MAX_RESULT_BYTES } from '../../src/mcp/harness-runtime.ts'
+import { toAgentResult, userModuleSources, MAX_RESULT_BYTES, type HarnessResult } from '../../src/mcp/harness-runtime.ts'
 import type { ExecuteResult, HostedExecuteTelemetry } from '../../src/mcp/hosted-server.ts'
 import { PACKAGE_VERSION } from '../../src/version.ts'
 
@@ -136,14 +136,16 @@ export function createLoaderExecute(loader: WorkerLoaderBinding, harnessSource: 
       // error in the agent's code — route it to the clean malformed-result
       // message instead of leaking a raw JSON.parse error through failure().
       if (text === '') return { ok: false, error: 'sandbox returned a malformed result', logs: [] }
-      let result: ExecuteResult
+      let result: HarnessResult
       try {
-        result = JSON.parse(text) as ExecuteResult
+        result = JSON.parse(text) as HarnessResult
       } catch {
         return { ok: false, error: 'sandbox returned a malformed result', logs: [] }
       }
       if (typeof result?.ok !== 'boolean') return { ok: false, error: 'sandbox returned a malformed result', logs: [] }
-      return result
+      // The isolate reports an uncaught error's frame in user.js coordinates;
+      // this side knows the code and the wrap, so it owns the mapping.
+      return toAgentResult(result, code, variant === 'e' ? 'expression' : 'statement')
     }
 
     const errorMessage = (e: unknown): string => (e instanceof Error ? e.message : String(e))
