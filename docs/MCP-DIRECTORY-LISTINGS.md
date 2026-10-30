@@ -49,20 +49,89 @@ from `verify.ok` alone.
 
 ## Directory record
 
-The root `server.json` prepares version `0.5.2`; this metadata change does not
-establish Registry publication. The directory observations below retain their
-recorded dates.
+Evidence reviewed **2026-10-29** for the eight destinations in the
+[original checklist](https://x.com/soraiadev/status/2082500548134056063).
+“Listed” requires a public entry; submission and account ownership are separate
+states. Search-index evidence is labelled below because it cannot establish
+live endpoint health. Review dates do not replace the source's own test or
+publication date. A failed lookup does not establish that a listing is absent.
 
-| Directory | Registration input | Recorded status on 2026-07-30 |
+| Directory / evidence | Status and date | Next action |
 |---|---|---|
-| Official MCP Registry | Root [`server.json`](../server.json) | Active at version `0.4.1` (published to npm and the Registry on 2026-07-31) |
-| OpenAI Plugins | Endpoint plus canonical fields above | Account-gated submission; tool titles and privacy notice captured in this repository |
-| Claude Connectors Directory | Endpoint plus canonical fields above | Account-gated Team/Enterprise submission; tool titles and privacy notice captured in this repository |
-| Cursor Directory | Repository and endpoint | Not found in directory; account-gated submission remains |
-| MCPServers.org | Name, short description, repository, category `Design`, support email | Submitted on 2026-07-30; review pending |
-| PulseMCP | Official Registry ingestion | Listed as Agentic Mermaid |
-| Smithery | Endpoint | Not found; account-gated submission remains |
-| Glama | Repository or Official Registry entry | Listed and healthy; ownership claim remains optional |
+| [Official MCP Registry: immutable `0.4.1` record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.adewale%2Fagentic-mermaid/versions/0.4.1) | **Historical publication confirmed; current latest unverified.** The 2026-10-16 audit reported `0.4.1` as latest. The API could not be retrieved on 2026-10-29. Published 2026-07-31 by [release run](https://github.com/adewale/agentic-mermaid/actions/runs/30626742621). | Recheck the live latest record against npm and root [`server.json`](../server.json); keep that manifest as the only publication authority. |
+| [OpenAI Plugins](https://platform.openai.com/plugins) | **Desired; no submission receipt recorded.** Current [submission instructions](https://developers.openai.com/plugins/deploy/submission) checked 2026-10-29. | Prepare the required package and review materials below, then complete the verified developer/account flow. |
+| [Claude directory](https://claude.com/resources/articles/build-plugins-for-claude) | **Desired; no submission receipt recorded.** New portal announced 2026-09-25; accepts a single remote connector or a plugin bundle from developers on paid Claude plans. The old Team/Enterprise-only note is obsolete. | Submit the hosted URL through the portal linked from the announcement; optionally bundle the existing diagram-workflow skill. |
+| [Cursor Directory](https://cursor.directory/) | **Desired; current listing unconfirmed.** The public catalog is a plugin directory, checked 2026-10-29. Neither the catalog view nor search results established an Agentic Mermaid entry. | Search the current catalog while signed in and use its current plugin submission flow; record its receipt. |
+| [MCPServers.org listing](https://mcpservers.org/servers/adewale/agentic-mermaid) | **Public search-index evidence**, rechecked 2026-10-29 via the [localized listing](https://mcpservers.org/zh-CN/servers/adewale/agentic-mermaid). The canonical page could not be retrieved. The index supports listing discovery, not current page or endpoint health; the July submission has no retained receipt. | Inspect the listing in a browser and request an update only if the endpoint/copy is wrong. |
+| [PulseMCP](https://www.pulsemcp.com/servers) | **Historical listing, current entry unconfirmed.** July's record said “Listed as Agentic Mermaid,” but retained no entry URL. On 2026-10-29 the directory still announces that new submissions and listing changes are paused. | Recover the existing entry URL when lookup is available; do not assume Registry ingestion guarantees a current listing or submit a duplicate. |
+| [Smithery service transition](https://smithery.ai/future) | **No verified entry or receipt recorded.** The notice checked 2026-10-29 ends proxy services, accounts, API keys, CLI and SDKs on **2026-10-31**. A curated public directory with direct server URLs remains. | Do not start the retiring account/proxy publishing flow described in older [publishing docs](https://smithery.ai/docs/build/publish). Confirm the continuing directory's intake process; use the canonical hosted URL for any future entry. |
+| [Glama connector](https://glama.ai/mcp/connectors/io.github.adewale/agentic-mermaid) | **Public listing found; ownership unconfirmed.** The page retrieved on 2026-10-29 reports “Healthy,” with **Last Tested 2026-10-16**. This is the directory's dated result, not a fresh independent endpoint probe. | Use the listing's ownership flow to verify the domain or GitHub account. Do not equate automatic indexing with an ownership claim. |
+
+### Version and evidence maintenance
+
+On 2026-10-29, `npm view agentic-mermaid version --json` returned `0.5.3`.
+This Markdown file ships in the npm package, so changing it requires a new
+source version rather than different contents under published `0.5.3`.
+Root `server.json`, its npm package entry, `package.json`, and `src/version.ts`
+now prepare **source version `0.5.4`**. npm returned E404 for `0.5.4` during
+this review. These source changes do not establish npm or Registry publication,
+or the hosted deployment version.
+The 2026-10-16 audit reported npm and the Registry latest record as `0.4.1`,
+with `0.4.2` in source. Retain those as historical observations.
+
+The Registry latest API could not be retrieved during this review, and the
+hosted MCP version was not rechecked. Before publishing or updating a listing,
+query the [Registry latest search](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.adewale%2Fagentic-mermaid&version=latest)
+and initialize the hosted MCP endpoint independently. Do not infer either
+version from a source manifest, npm release, or third-party health badge.
+
+The July MCPServers.org submission has no retained receipt ID. Its public
+listing above is the available evidence. For every future submission, add the
+timestamp, resulting listing or receipt URL/ID, submitted version, review status,
+ownership status, and exact remaining action here. Keep credentials and private
+reviewer data out of public records.
+
+### Remaining OpenAI submission materials
+
+The [official submission guide](https://developers.openai.com/plugins/deploy/submission),
+reviewed on 2026-10-29, separates the package from portal setup. Upload a ZIP
+that declares the remote MCP server; complete developer identity verification,
+the portal's domain challenge, connection setup and automated scans separately.
+Initial MCP review needs five positive and three negative cases plus an
+accessible video walkthrough. These review materials can be supplied through
+the package or portal; private reviewer credentials stay outside the ZIP.
+
+Review also requires HTTPS website, support-page, privacy-policy and
+terms-of-service URLs. The email above is a contact, not a support-page URL.
+The three example prompts are not a completed review package. Approved hosted
+terms, a support-page URL, a walkthrough, the package, completed review cases
+and the portal's exact challenge token are not recorded here. The MIT source
+license does not establish hosted-service terms.
+
+## Additional opportunities reviewed on 2026-10-29
+
+These are researched candidates, not submitted entries or claims that the
+services first launched after July.
+
+| Opportunity / primary source | Fit and remaining work |
+|---|---|
+| [MCP.Directory](https://mcp.directory/submit) | Accepts a public GitHub URL and optional npm package. Search for an existing entry before submitting `adewale/agentic-mermaid` with npm package `agentic-mermaid`; use the directory's update process if one exists. No receipt recorded. |
+| [Cline MCP Marketplace](https://github.com/cline/mcp-marketplace) | The current submission instructions require a repository URL, 400×400 PNG logo, reason for inclusion, and observed successful installation by Cline from the README or `llms-install.md`. Check for an existing entry before preparing a submission. No submission made. |
+| [Docker MCP Registry](https://github.com/docker/mcp-registry) | A potential route for the local stdio distribution. Requires a working Docker deployment and a reviewed catalog contribution; it is not automatic ingestion from our hosted Registry entry. Container packaging/validation remains separate work. |
+| [Microsoft MCP Server Registry](https://github.com/microsoft/mcp-server-registry) | **Not currently eligible:** its current README restricts V1 onboarding to Microsoft first-party servers. Watch for community eligibility; do not open an ineligible manifest PR. |
+
+Glama ownership and the Claude portal are follow-ups to existing evidence and
+prepared copy. OpenAI can distribute the existing skill with the MCP connection
+once the review materials are ready. Smithery needs a new intake check after
+its service transition; the old proxy publishing route is not a durable next step.
+
+### Outreach
+
+The [reply to the original checklist](https://x.com/e_stradella/status/2082502989625872764)
+suggests `r/mcp` with the Showcase tag. Record it as **desired outreach, not
+registered or posted**. Prepare a small public diagram example and check the
+community's current rules before posting; no Reddit post or outreach message
+has been sent as part of this refresh.
 
 ## Publication checks
 
