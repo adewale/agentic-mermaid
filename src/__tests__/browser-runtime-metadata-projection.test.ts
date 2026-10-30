@@ -24,7 +24,7 @@ function project(path: string, options: ProjectionOptions = {}): string {
   }> = []
   runtimeRenderContractPlugin(options).setup({
     onLoad({ filter }, load) { loaders.push({ filter, load }) },
-    onResolve() { throw new Error('Source-only projections must not register module resolvers') },
+    onResolve() { if (!options?.sourceOnlySceneAdmission) throw new Error('Source-only projections must not register module resolvers') },
   })
   return loaders.find(loader => loader.filter.test(path))?.load({ path })?.contents ?? readFileSync(path, 'utf8')
 }
@@ -328,4 +328,70 @@ test('Bun-hosted compaction keeps lazy imports, module identity and recipe-addre
     names.push(result.outputs.map(output => basename(output.path)).sort())
   }
   expect(names[1]!.filter(name => names[0]!.includes(name))).toEqual([])
+})
+
+
+test('private mutation schemas omit discovery notes while retaining complete shape admission', async () => {
+  const cases = [
+    ['flowchart', { kind: 'add_node', id: 'A', label: 'Node' }, true],
+    ['flowchart', { kind: 'add_node', id: 'A', label: 'Node', shape: 'manual-input' }, true],
+    ['flowchart', { kind: 'add_node', id: 'A' }, false],
+    ['flowchart', { kind: 'add_node', id: 'A', label: 'Node', shape: 'unknown' }, false],
+    ['state', { kind: 'remove_state', id: 'A' }, true],
+    ['state', { kind: 'remove_state', id: 'A', recursive: 'yes' }, false],
+    ['state', { kind: 'add_transition', from: '[*]', to: 'A' }, true],
+    ['state', { kind: 'add_transition', to: 'A' }, false],
+    ['state', { kind: 'move_state', id: 'A', parent: null }, true],
+    ['state', { kind: 'set_direction', direction: 'SIDE' }, false],
+    ['gantt', { kind: 'set_task_status', sectionIndex: 0, taskIndex: 0, status: null }, true],
+    ['gantt', { kind: 'set_task_status', sectionIndex: 0, taskIndex: 0, status: 'unknown' }, false],
+  ] as const
+  const outputs: unknown[][] = []
+  for (const options of [{}, { schemaDocumentation: false }, { sourceOnlySceneAdmission: true }, { schemaDocumentation: false, sourceOnlySceneAdmission: true }]) {
+    const result = await build({
+      stdin: { resolveDir: root, loader: 'ts', contents: "export { describeOps, validateOp } from './src/agent/op-schema.ts';" },
+      bundle: true, format: 'esm', platform: 'node', write: false, plugins: [runtimeRenderContractPlugin(options)],
+    })
+    const consumer = await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles![0]!.text).toString('base64')}`) as {
+      describeOps(family: string): Record<string, Array<{ name: string; note?: string }>>
+      validateOp(family: string, op: unknown): unknown
+    }
+    const note = consumer.describeOps('state').remove_state!.find(field => field.name === 'recursive')!.note
+    if (options.schemaDocumentation === false && options.sourceOnlySceneAdmission) expect(note).toBeUndefined()
+    else expect(note).toContain('refuse a non-empty composite')
+    const admission = cases.map(([family, op, accepted]) => {
+      const verdict = consumer.validateOp(family, op)
+      expect(verdict === null).toBe(accepted)
+      return verdict
+    })
+    outputs.push(admission)
+  }
+  for (const output of outputs.slice(1)) expect(output).toEqual(outputs[0])
+})
+
+test('private note projection preserves spread getters and dynamic argument evaluation, and refuses changed helper semantics', () => {
+  const source = `
+    const events = [];
+    const withNote = (spec, note) => ({ ...spec, note });
+    const spec = () => { events.push('spec'); return { get type() { events.push('get'); return 'string'; }, required: true }; };
+    const note = () => { events.push('note'); return 'dynamic'; };
+    function run() {
+      const literal = withNote(spec(), 'literal prose');
+      const template = withNote(spec(), \`template prose\`);
+      const dynamic = withNote(spec(), note());
+      let thrown;
+      try { withNote(spec(), (() => { events.push('throw'); throw new Error('note failure'); })()); }
+      catch (error) { thrown = error.message; }
+      return { events, literal, template, dynamic, thrown, copied: Object.getOwnPropertyDescriptor(literal, 'type').get === undefined };
+    }
+  `
+  const path = fixture('src/agent/op-schema-definitions.ts', source)
+  const evaluate = (text: string) => Function(`${transformSync(text, { loader: 'ts' }).code}\nreturn run();`)()
+  const before = evaluate(source)
+  const after = evaluate(project(path, { sourceOnlySceneAdmission: true, schemaDocumentation: false }))
+  expect(after).toEqual({ ...before, literal: { type: 'string', required: true }, template: { type: 'string', required: true } })
+  expect(after.events).toEqual(['spec', 'get', 'spec', 'get', 'spec', 'note', 'get', 'spec', 'throw'])
+  expect(after.thrown).toBe('note failure')
+  const changed = fixture('changed/src/agent/op-schema-definitions.ts', source.replace('({ ...spec, note })', "({ ...spec, note, effect: events.push('changed') })"))
+  expect(() => project(changed, { sourceOnlySceneAdmission: true, schemaDocumentation: false })).toThrow('Unsupported mutation schema note helper')
 })

@@ -306,11 +306,45 @@ function runtimeFamilyEditorSource(source: string, path: string): string {
   } finally { transformed.dispose() }
 }
 
+/** The private editor validates mutation shapes but does not expose SDK op
+ * discovery. Omit only literal notes from the owned pure annotation helper. */
+function runtimeMutationSchemaSource(source: string, path: string): string {
+  const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  const helpers = file.statements.flatMap(statement => ts.isVariableStatement(statement)
+    ? statement.declarationList.declarations.filter(declaration => ts.isIdentifier(declaration.name) && declaration.name.text === 'withNote') : [])
+  const helper = helpers[0]?.initializer
+  const body = helper && ts.isArrowFunction(helper) && ts.isParenthesizedExpression(helper.body) ? helper.body.expression : undefined
+  if (helpers.length !== 1 || !helper || !ts.isArrowFunction(helper) || helper.modifiers?.length
+    || helper.parameters.length !== 2 || helper.parameters.some((parameter, index) => !ts.isIdentifier(parameter.name)
+      || parameter.name.text !== ['spec', 'note'][index] || parameter.initializer || parameter.dotDotDotToken)
+    || !body || !ts.isObjectLiteralExpression(body) || body.properties.length !== 2
+    || !ts.isSpreadAssignment(body.properties[0]!) || !ts.isIdentifier(body.properties[0]!.expression) || body.properties[0]!.expression.text !== 'spec'
+    || !ts.isShorthandPropertyAssignment(body.properties[1]!) || body.properties[1]!.name.text !== 'note') {
+    throw new Error('Unsupported mutation schema note helper')
+  }
+  const transformed = ts.transform(file, [context => root => {
+    const visit: ts.Visitor = node => {
+      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'withNote'
+        && node.arguments.length === 2 && !ts.isSpreadElement(node.arguments[0]!)
+        && (ts.isStringLiteral(node.arguments[1]!) || ts.isNoSubstitutionTemplateLiteral(node.arguments[1]!))) {
+        return ts.factory.createObjectLiteralExpression([ts.factory.createSpreadAssignment(ts.visitNode(node.arguments[0]!, visit) as ts.Expression)])
+      }
+      return ts.visitEachChild(node, visit, context)
+    }
+    return ts.visitNode(root, visit) as ts.SourceFile
+  }])
+  try { return ts.createPrinter().printFile(transformed.transformed[0]!) }
+  finally { transformed.dispose() }
+}
+
 /** Structural plugin interface works in both esbuild and Bun builds. */
 export function runtimeRenderContractPlugin({ schemaDocumentation = true, terminalAdapter = true, conformanceObservations = true, familyEditorMetadata = true, coalesceRuntimePrimitives = false, sourceOnlySceneAdmission = false } = {}) {
   return {
     name: 'runtime-render-contract',
     setup(build: BrowserBuild) {
+      if (sourceOnlySceneAdmission && !schemaDocumentation) build.onLoad({ filter: /[\\/]src[\\/]agent[\\/]op-schema-definitions\.ts$/ }, ({ path }) => ({
+        contents: runtimeMutationSchemaSource(readFileSync(path, 'utf8'), path), loader: 'ts', resolveDir: dirname(path),
+      }))
       if (sourceOnlySceneAdmission) {
         // These private consumers accept source/options/output operations,
         // never Scene input or extension registration. Share native checks;
