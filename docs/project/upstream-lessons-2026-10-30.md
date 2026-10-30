@@ -9,7 +9,7 @@ every implementation or every historical discussion. Empty issue history is
 recorded rather than treated as evidence of quality.
 
 The implementation began on main `83744a4e` and the PR is rebased onto
-`4c72d1c8`. Source changes are unreleased. No registry publication or production deployment is authorized by
+`5f76c56f`. Source changes are unreleased. No registry publication or production deployment is authorized by
 this work. The original three-project report and the detailed source snapshots,
 probe outputs, profiles and browser captures are retained with the session.
 
@@ -50,6 +50,8 @@ not imply independent algorithms or equal semantic scope.
   one. Pixel and cell wrapping preserve the authored source, selected break
   positions, style and grapheme boundaries. A selected hyphen retains the
   authored hint's source span instead of pretending to be an unrelated glyph.
+  Hint-only captions are omitted from geometry before either graph producer
+  reserves a seat, while the parsed graph and authored source remain intact.
 - **Resolved scenes:** the existing API is callable from Code Mode and discoverable
   through capabilities and `describe_sdk`. Unsupported artwork fails atomically
   with a nominal error carrying a stable code, Scene part ID and feature.
@@ -174,5 +176,8 @@ The installed runtime-neutral entry also bundles and executes successfully in
 Chromium's main thread and a Web Worker with zero external requests.
 
 These are dated local candidate checks, not final-head CI or release qualification.
-The PR records checks for its final revision, including the HTML-context repair. The
+The PR records checks for its final revision, including the HTML-context and
+empty-caption repairs. Private editor delivery omits literal operation-discovery
+prose through the existing build projection, preserving mutation validation and
+public discovery. Payload ceilings and minifier settings remain unchanged. The
 PR remains unmerged; no publication or deployment occurred.
