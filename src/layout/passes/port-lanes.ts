@@ -302,7 +302,10 @@ function alignLabeledSourcePortCandidate(
       for (const o of edges) {
         if (o.target !== nId || o === labelled) continue // incoming edges only
         const P = nodeMap.get(o.source)
-        if (!P || set.has(P.id)) continue
+        // An edge from a subgraph frame cannot travel with the chain; sliding
+        // would leave its endpoint at the old port, off the moved outline.
+        if (!P) return null
+        if (set.has(P.id)) continue
         if (edges.filter(x => x.source === P.id).length !== 1) return null // fan-out hub upstream
         if (!PORT_EXACT.has(P.shape) || inGroup(P)) return null            // unmovable source
         set.add(P.id); stack.push(P.id)

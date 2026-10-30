@@ -217,6 +217,17 @@ const MISLEADING_EXAMPLES: GroupedCase[] = [
   },
 ]
 
+// Reduced issue-A7 counterexample of a broken pass contract: the labelled
+// source n11 is fed by an edge from subgraph G0, which cannot travel with the
+// source's slide, so alignLabeledSourcePort left that endpoint off the moved
+// outline and worsened portRate (LayoutMetricBudgetError, no render at all).
+const PASS_CONTRACT_EXAMPLES: GroupedCase[] = [
+  {
+    source: 'flowchart LR\n  subgraph G0[Group 0]\n    n9\n  end\n  n11 <-->|e5| n7\n  G0 ---|e8| n11\n  n12 -.->|e12| n4\n  n10 -.-> n7\n  n9 --o|e18| n10\n  n6 ---|e19| n7\n',
+    members: [['G0', ['n9']]], look: 'default', mustCertify: true,
+  },
+]
+
 describe('authored group frames hold their members in every look', () => {
   test('generated subgraph flowcharts render, keep members in frames, and name any uncertified check', () => {
     fc.assert(fc.property(groupedFlowchartArb, ({ source, members, look, mustCertify }) => {
@@ -265,6 +276,6 @@ describe('authored group frames hold their members in every look', () => {
           `${member} inside ${id} (${look})\n${source}`).toEqual([true, true, true, true])
         }
       }
-    }), fcParameters({ numRuns: 40, seed: SEED, examples: [...FRAME_BREACH_EXAMPLES, ...UNCERTIFIED_EXAMPLES, ...MISLEADING_EXAMPLES, ...HEADER_BAND_EXAMPLES].map(example => [example]) }))
+    }), fcParameters({ numRuns: 40, seed: SEED, examples: [...FRAME_BREACH_EXAMPLES, ...UNCERTIFIED_EXAMPLES, ...MISLEADING_EXAMPLES, ...HEADER_BAND_EXAMPLES, ...PASS_CONTRACT_EXAMPLES].map(example => [example]) }))
   })
 })
