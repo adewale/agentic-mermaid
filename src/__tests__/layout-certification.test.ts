@@ -555,7 +555,7 @@ describe('bounded final layout certification', () => {
     expect(drawn.certification).toBeUndefined()
     expect(drawn.uncertifiedLayout).toEqual({
       status: 'uncertified', strategy: 'detour', attempts: 4,
-      violations: [{ kind: 'diagonalSegments', targets: ['A->B'], detail: 'A->B segment 2' }],
+      violations: [{ kind: 'diagonalSegments', targets: ['A->B#0'], detail: 'A->B segment 2' }],
     })
     expect(drawn.nodes.find(node => node.id === 'A')!.label).toBe('A')
     // A misleading violation outranks any number of cosmetic ones.

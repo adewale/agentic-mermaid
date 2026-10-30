@@ -454,3 +454,20 @@ describe('property: ports and outlines (mathematical oracles over random diagram
     expect(unseparated).toBeLessThanOrEqual(UNSEPARATED_DUPLICATE_BASELINE)
   })
 })
+
+// F13: a violation targets its edge by the id the edge operations resolve
+// (`A->B#k`, or an authored id), so LAYOUT_UNCERTIFIED names the right one of
+// a repeated pair rather than the first `A->B`.
+describe('rubric violations name edges by their operation ids', () => {
+  it('targets the second of two parallel edges and an authored edge id', () => {
+    const graph = parseMermaid('flowchart LR\n  A --> B\n  A --> B\n  A e1@--> C')
+    const positioned = layoutGraphSync(graph)
+    for (const edge of positioned.edges) {
+      if (edge.edgeIndex === 0) continue
+      const a = edge.points[0]!, b = edge.points.at(-1)!
+      edge.points = [a, { x: (a.x + b.x) / 2, y: a.y + 7 }, b]
+    }
+    const diagonals = hardViolations(assessLayout(graph, positioned)).filter(violation => violation.metric === 'diagonalSegments')
+    expect([...new Set(diagonals.flatMap(violation => violation.targets))].sort()).toEqual(['A->B#1', 'e1'])
+  })
+})

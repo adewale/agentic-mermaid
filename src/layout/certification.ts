@@ -11,6 +11,7 @@ import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { prepareDisplayText, resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 import { observeFallback } from '../performance-observations.ts'
 import { graphTextBlock } from '../graph-text.ts'
+import { positionedEdgeWarningIds } from '../shared/edge-selectors.ts'
 
 export { LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
 export type { LayoutCertificationViolation, UncertifiedLayoutReceipt } from './uncertified-layout.ts'
@@ -233,6 +234,7 @@ function headerRouteFindings(positioned: PositionedGraph, style: ResolvedRenderS
     }
     return low < high
   }
+  const warningIds = positionedEdgeWarningIds(positioned.edges)
   const visit = (group: PositionedGroup): void => {
     if (!group.concurrencyRegion) {
       const block = group.labelBlock ?? graphTextBlock(resolveLabelContent(group.label, group.labelContent), style, 'group')
@@ -242,7 +244,7 @@ function headerRouteFindings(positioned: PositionedGraph, style: ResolvedRenderS
         if (edge.style === 'invisible') continue
         for (let index = 1; index < edge.points.length; index++) if (enters(edge.points[index - 1]!, edge.points[index]!, group, height)) {
           const text = `group-header ${group.id}: edge ${edge.source}->${edge.target} segment ${index} enters reserved band`
-          failures.push({ text, drawable: { kind: 'groupHeaderBand', targets: [group.id, `${edge.source}->${edge.target}`], detail: text } })
+          failures.push({ text, drawable: { kind: 'groupHeaderBand', targets: [group.id, warningIds.get(edge)!], detail: text } })
           break
         }
       }
