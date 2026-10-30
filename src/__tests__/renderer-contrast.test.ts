@@ -89,10 +89,30 @@ describe('auto-contrast ink contract', () => {
     }), fcParameters({ numRuns: 2000 }))
   })
 
-  test('node text on a custom fill clears WCAG AA end to end', () => {
+  // Every family whose cards take an authored `style` fill: all text the
+  // card owns (title, members, attributes) clears AA on that fill.
+  test.each([
+    ['flowchart', (fill: string) => `flowchart TD\n  A[Card]\n  style A fill:${fill}`],
+    ['state', (fill: string) => `stateDiagram-v2\n  A: Card\n  style A fill:${fill}`],
+    ['class', (fill: string) => `classDiagram\n  class A {\n    +String value\n    +go() void\n  }\n  style A fill:${fill}`],
+    ['er', (fill: string) => `erDiagram\n  A {\n    string value PK\n  }\n  style A fill:${fill}`],
+    ['block', (fill: string) => `block-beta\n  A["Card"]\n  style A fill:${fill}`],
+    ['requirement', (fill: string) => `requirementDiagram\n  requirement A {\n    id: 1\n    text: card\n  }\n  style A fill:${fill}`],
+  ] as const)('%s card text on a custom fill clears WCAG AA end to end', (_family, source) => {
     fc.assert(fc.property(hexArb, fill => {
-      const svg = renderMermaidSVG(`flowchart TD\n  A\n  style A fill:${fill}`)
-      expect(wcagContrastRatio(firstTextFill(svg)!, fill)!).toBeGreaterThanOrEqual(4.5)
+      const svg = renderMermaidSVG(source(fill))
+      const owner = svg.match(/<g\b[^>]*data-id="A"[^>]*>([\s\S]*?)<\/g>/)?.[1] ?? ''
+      // Card text is drawn on the authored fill; an ER key label is drawn on
+      // its own badge, the filled shape just before it.
+      let previousPaint: string | undefined
+      const pairs: Array<{ ink: string; ground: string }> = []
+      for (const [tag] of owner.matchAll(/<(?:rect|path|polygon|text)\b[^>]*>/g)) {
+        const paint = tag.match(/\sfill="([^"]*)"/)?.[1]
+        if (tag.startsWith('<text')) pairs.push({ ink: paint!, ground: /data-id="[^"]*:key-text"/.test(tag) ? previousPaint! : fill })
+        else if (paint && paint !== 'none') previousPaint = paint
+      }
+      expect(pairs.length).toBeGreaterThan(0)
+      for (const { ink, ground } of pairs) expect({ ink, ground, aa: wcagContrastRatio(ink, ground)! >= 4.5 }).toEqual({ ink, ground, aa: true })
     }), fcParameters({ numRuns: 60 }))
   })
 })
