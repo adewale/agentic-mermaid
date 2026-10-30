@@ -1,8 +1,11 @@
 import { describe, expect, spyOn, test } from 'bun:test'
+import fc from 'fast-check'
 import { readFileSync } from 'node:fs'
-import { renderMermaidSVGWithReceipt } from '../index.ts'
+import { renderMermaidASCII, renderMermaidSVGWithReceipt } from '../index.ts'
 import { layoutMermaidWithReceipt, parseRegisteredMermaid } from '../agent/core.ts'
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
+import { verifyMermaid } from '../agent/verify.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { layoutErDiagram } from '../er/layout.ts'
 import { parseErDiagram } from '../er/parser.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
@@ -232,12 +235,19 @@ const frameOnlyNormals = 'erDiagram\ndirection LR\nsubgraph Tall\n subgraph N0\n
 
 const siblingFrameNormals = "erDiagram\n    subgraph title1\n        A1 ||--|| A2 : links\n    end\n\n    subgraph title2\n        B1 ||--|| B2 : links\n    end\n\n    subgraph title3\n        C1 ||--|| C2 : links\n    end\n\n    title1 ||--|| title2 : links\n    title2 ||--|| title3 : links\n    title2 ||--|| C2 : links"
 
-test.each([...['TB', 'BT', 'LR', 'RL'].flatMap(direction => ['agentic', 'elk'].map(backend => ({ direction, backend: backend as 'agentic' | 'elk', framesOnly: false, vocabulary: false }))), ...(['agentic', 'elk'] as const).map(backend => ({ direction: 'LR', backend, framesOnly: true, vocabulary: false })), ...(['agentic', 'elk'] as const).map(backend => ({ direction: 'LR', backend, framesOnly: false, vocabulary: true }))].map(entry => ({ ...entry, siblings: false })).concat(...['TB', 'BT', 'LR', 'RL'].flatMap(direction => (['agentic', 'elk'] as const).map(backend => ({ direction, backend, framesOnly: false, vocabulary: false, siblings: true })))))('ER rebuilt frame routes retain actual normal contacts in $direction with $backend framesOnly=$framesOnly vocabulary=$vocabulary siblings=$siblings', ({ direction, backend, framesOnly, vocabulary, siblings }) => {
+// Several self-relationships on one entity, labelled and unlabelled, beside
+// attributes and another entity's terminal and self-relationships.
+const selfRelationships = 'erDiagram\n  direction LR\n  EMPLOYEE ||--o{ EMPLOYEE : manages\n  EMPLOYEE ||--o| EMPLOYEE : mentors\n  EMPLOYEE }o--o{ EMPLOYEE : ""\n  EMPLOYEE |o--|{ EMPLOYEE : "is the deputy of"\n  EMPLOYEE }o--|| DEPARTMENT : "works in"\n  DEPARTMENT ||--|| DEPARTMENT : twin\n  DEPARTMENT }|--o{ DEPARTMENT : ""\n  EMPLOYEE {\n    string id PK\n    string name\n  }'
+
+type RouteInkCase = { direction: string; backend: 'agentic' | 'elk'; framesOnly: boolean; vocabulary: boolean; siblings: boolean; selfLoops: boolean; source?: string }
+
+function expectRetainedErRouteInk({ direction, backend, framesOnly, vocabulary, siblings, selfLoops, source: generated }: RouteInkCase): void {
   const mixed = vocabulary ? mixedFrameNormals.replace('I1 ||--|| F1', 'I1 }|--o| F1').replace('I2 ||--|| F2 : links', 'I2 }o--|| F2').replace('A ||--|| TOP', 'A u--o{ TOP').replace('TOP ||--|| B', 'TOP |o--|{ B').replace('B1 ||--|| B2 : links', 'B1 }o--o{ B2') : mixedFrameNormals
-  const source = siblings ? direction === 'LR' ? siblingFrameNormals : siblingFrameNormals.replace('erDiagram', `erDiagram\ndirection ${direction}`) : (framesOnly ? frameOnlyNormals : mixed).replace('direction LR', `direction ${direction}`), options = { graphLayout: { backend, ...(siblings ? { fallback: 'none' as const } : {}) } }
+  const source = generated ?? (selfLoops ? selfRelationships.replace('direction LR', `direction ${direction}`) : siblings ? direction === 'LR' ? siblingFrameNormals : siblingFrameNormals.replace('erDiagram', `erDiagram\ndirection ${direction}`) : (framesOnly ? frameOnlyNormals : mixed).replace('direction LR', `direction ${direction}`)), options = { graphLayout: { backend, ...(siblings ? { fallback: 'none' as const } : {}) } }
   const model = parseErDiagram(toMermaidLines(source)), original = structuredClone(model)
-  const placed = layoutErDiagram(model, options), rendered = renderMermaidSVGWithReceipt(source, options)
-  if (!framesOnly && !siblings) {
+  let placed!: ReturnType<typeof layoutErDiagram>, rendered!: ReturnType<typeof renderMermaidSVGWithReceipt>
+  expect(() => { placed = layoutErDiagram(model, options); rendered = renderMermaidSVGWithReceipt(source, options) }).not.toThrow()
+  if (!framesOnly && !siblings && !selfLoops) {
     // TOP explicitly says TB and B1 -> B2 is an authored dependency between
     // its direct child frames, even when the diagram's outer flow differs.
     const first = placed.groups.find(group => group.id === 'B1')!, second = placed.groups.find(group => group.id === 'B2')!
@@ -274,16 +284,19 @@ test.each([...['TB', 'BT', 'LR', 'RL'].flatMap(direction => ['agentic', 'elk'].m
   expect(relationships).toHaveLength(model.relationships.length)
   for (const [relationshipIndex, rel] of relationships.entries()) {
     const expected = model.relationships[relationshipIndex]!
-    expect([rel['data-cardinality1'], rel['data-cardinality2'], rel['data-label'] ?? '', rel['data-identifying']]).toEqual([expected.cardinality1, expected.cardinality2, expected.label, String(expected.identifying)])
+    expect([rel['data-from'], rel['data-to'], rel['data-cardinality1'], rel['data-cardinality2'], rel['data-label'] ?? '', rel['data-identifying']]).toEqual([expected.entity1, expected.entity2, expected.cardinality1, expected.cardinality2, expected.label, String(expected.identifying)])
     const points = rel.points!.split(/\s+/).map(pair => { const [x, y] = pair.split(',').map(Number); return { x: x!, y: y! } })
     const start = points[0]!, end = points.at(-1)!, next = points.find(p => p.x !== start.x || p.y !== start.y)!, previous = [...points].reverse().find(p => p.x !== end.x || p.y !== end.y)!
     expect(normal(start, next, boxes.get(rel['data-from']!)!)).toBe(true)
     expect(normal(end, previous, boxes.get(rel['data-to']!)!)).toBe(true)
+    // SVG numbers carry 12 significant digits, so an outline contact may round
+    // just inside a separately written rect; `normal` accepts the same 1e-6.
+    const interior = (box: { x: number; y: number; width: number; height: number }) => ({ x: box.x + 1e-6, y: box.y + 1e-6, width: box.width - 2e-6, height: box.height - 2e-6 })
     for (const [index, point] of points.entries()) if (index) {
       const before = points[index - 1]!
       expect(point.x === before.x || point.y === before.y).toBe(true)
-      for (const entity of model.entities) expect(enters(before, point, boxes.get(entity.id)!)).toBe(false)
-      for (const group of placed.groups) expect(enters(before, point, { ...boxes.get(group.id)!, height: group.headerHeight })).toBe(false)
+      for (const entity of model.entities) expect(enters(before, point, interior(boxes.get(entity.id)!))).toBe(false)
+      for (const group of placed.groups) expect(enters(before, point, interior({ ...boxes.get(group.id)!, height: group.headerHeight }))).toBe(false)
     }
 
   }
@@ -361,9 +374,40 @@ test.each([...['TB', 'BT', 'LR', 'RL'].flatMap(direction => ['agentic', 'elk'].m
       const envelope = inflated(pill, Number(relationships[index]!['stroke-width'] ?? 1) / 2)
       for (let i = 1; i < path.length; i++) expect(enters(path[i - 1]!, path[i]!, envelope)).toBe(false)
     }
+    // The caption sits on its own relationship's route.
+    const own = paths[labelled[pillIndex]!]!
+    expect(own.slice(1).some((point, i) => enters(own[i]!, point, pill))).toBe(true)
     for (let earlier = 0; earlier < pillIndex; earlier++) expect(overlaps(pill, pills[earlier]!)).toBe(false)
   }
+  if (selfLoops && backend === 'elk') {
+    // Every public surface draws the same relationships as the SVG.
+    expect(verifyMermaid(source)).toEqual(expect.objectContaining({ ok: true, warnings: [] }))
+    const layout = layoutMermaidWithReceipt(source, options).layout
+    expect(layout.edges.map(edge => [edge.from, edge.to, edge.label?.text ?? ''])).toEqual(model.relationships.map(rel => [rel.entity1, rel.entity2, rel.label]))
+    for (const [index, edge] of layout.edges.entries()) {
+      expect(edge.path).toHaveLength(paths[index]!.length)
+      for (const [k, [x, y]] of edge.path.entries()) expect(Math.max(Math.abs(x - paths[index]![k]!.x), Math.abs(y - paths[index]![k]!.y))).toBeLessThanOrEqual(.5)
+    }
+    expect(renderMermaidPNGWithReceipt(source, options).png.length).toBeGreaterThan(0)
+    const terminal = renderMermaidASCII(source)
+    for (const text of [...model.entities.map(entity => entity.id), ...model.relationships.flatMap(rel => rel.label ? [rel.label] : [])]) expect(terminal).toContain(text)
+  }
+}
 
+test.each([...['TB', 'BT', 'LR', 'RL'].flatMap(direction => ['agentic', 'elk'].map(backend => ({ direction, backend: backend as 'agentic' | 'elk', framesOnly: false, vocabulary: false }))), ...(['agentic', 'elk'] as const).map(backend => ({ direction: 'LR', backend, framesOnly: true, vocabulary: false })), ...(['agentic', 'elk'] as const).map(backend => ({ direction: 'LR', backend, framesOnly: false, vocabulary: true }))].map(entry => ({ ...entry, siblings: false })).concat(...['TB', 'BT', 'LR', 'RL'].flatMap(direction => (['agentic', 'elk'] as const).map(backend => ({ direction, backend, framesOnly: false, vocabulary: false, siblings: true })))).map(entry => ({ ...entry, selfLoops: false })).concat(...['TB', 'BT', 'LR', 'RL'].flatMap(direction => (['agentic', 'elk'] as const).map(backend => ({ direction, backend, framesOnly: false, vocabulary: false, siblings: false, selfLoops: true })))))('ER rebuilt frame routes retain actual normal contacts in $direction with $backend framesOnly=$framesOnly vocabulary=$vocabulary siblings=$siblings selfLoops=$selfLoops', expectRetainedErRouteInk)
+
+test('ER self-relationship arches stay distinct, attached and clear for generated entities', () => {
+  const start = fc.constantFrom('||', '|o', '}o', '}|'), end = fc.constantFrom('||', 'o|', 'o{', '|{')
+  const label = fc.constantFrom('""', 'x', 'manages', '"works in"', '"is the deputy of"')
+  const entity = fc.record({ loops: fc.array(fc.tuple(start, end, label), { minLength: 1, maxLength: 5 }), attributes: fc.boolean() })
+  const link = fc.tuple(fc.nat(2), fc.nat(2), start, end, label)
+  fc.assert(fc.property(fc.array(entity, { minLength: 1, maxLength: 3 }), fc.array(link, { maxLength: 3 }), fc.constantFrom('TB', 'BT', 'LR', 'RL'), (entities, links, direction) => {
+    const source = ['erDiagram', `direction ${direction}`,
+      ...entities.flatMap((entry, i) => entry.loops.map(([a, b, text]) => `E${i} ${a}--${b} E${i} : ${text}`)),
+      ...links.flatMap(([from, to, a, b, text]) => from !== to && from < entities.length && to < entities.length ? [`E${from} ${a}--${b} E${to} : ${text}`] : []),
+      ...entities.flatMap((entry, i) => entry.attributes ? [`E${i} {`, 'string id PK', 'string name', '}'] : [])].join('\n')
+    expectRetainedErRouteInk({ direction, backend: 'elk', framesOnly: false, vocabulary: false, siblings: false, selfLoops: true, source })
+  }), fcParameters({ numRuns: 12 }))
 })
 
 
