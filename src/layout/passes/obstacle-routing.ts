@@ -5,6 +5,8 @@ import { bundleRouteBeforeRewrite, retainBundleRouteAfterRewrite } from '../bund
 import { calculatePathMidpoint, layoutFlow, nodeCrossSize, nodeCrossStart } from '../geometry.ts'
 import { doglegBetween, hookedElbow, routeClearOfNodes } from './shared.ts'
 import { terminalHookLength, simpleOrthogonal, type LabelMetricsStyle } from '../route-geometry.ts'
+import { circleShaftPaintContext, type GraphPaintStyle } from '../graph-paint-support.ts'
+import { graphInkClear, graphInkWork, withinGraphInkBudget } from '../label-conflicts.ts'
 
 /**
  * Post-freeze safety net for STALE edge endpoints. A pass that MOVES a node is
@@ -72,23 +74,45 @@ export function reanchorOffOutlineEndpoints(nodes: PositionedNode[], edges: Posi
  * adopted ONLY when it clears every node and both endpoints stay on their outlines;
  * otherwise the edge is left untouched (never traded for a worse route).
  *
- * Fires ONLY on an edge the rubric already flags edgeThroughNode — which the
- * HARD-clean corpus never has — so it is a strict no-op there and byte-exact
- * equivalence holds. Edge-only, deterministic (fixed candidate order); label
- * re-centred on the new route. Self-loops are skipped.
+ * A supplied resolved style also admits actual written circle/orthogonal-shaft
+ * contacts that the rubric's intentional graze tolerance ignores. These added
+ * repairs preserve painted bodies, markers, labels and headers under the same
+ * bounded proposal validator as port-lane changes. Unsupported geometry keeps
+ * the existing outcome. Edge-only and deterministic; self-loops are skipped.
  */
-export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: PositionedEdge[], graph: Pick<MermaidGraph, 'direction'>, chargeWork?: (operations: number) => void, groups: readonly PositionedGroup[] = []): void {
+export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: PositionedEdge[], graph: Pick<MermaidGraph, 'direction'>, chargeWork?: (operations: number) => void, groups: readonly PositionedGroup[] = [], style?: GraphPaintStyle): void {
   const f = layoutFlow(graph.direction)
   chargeWork?.(nodes.length)
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const THROUGH_LANE_GAP = 10
+  const paintWork = graphInkWork()
+  const payPaint = (units: number): boolean => { chargeWork?.(units); return (paintWork.remaining -= units) >= 0 }
+  const paintedContact = style && withinGraphInkBudget(nodes, edges, groups) ? circleShaftPaintContext(style, payPaint) : undefined
+  let currentEdge: PositionedEdge, paintedRepair = false
+  const blockedBy = (a: Point, b: Point, node: PositionedNode): boolean => segmentThroughShape(a, b, node)
+    || paintedRepair && node.id !== currentEdge.source && node.id !== currentEdge.target && paintedContact!(currentEdge, [a, b], node) !== false
   const throughNode = (pts: Point[], skip: ReadonlySet<string>): boolean => {
     for (const n of nodes) {
       chargeWork?.(1)
       if (skip.has(n.id)) continue
-      for (let i = 1; i < pts.length; i++) { chargeWork?.(1); if (segmentThroughShape(pts[i - 1]!, pts[i]!, n)) return true }
+      for (let i = 1; i < pts.length; i++) { chargeWork?.(1); if (blockedBy(pts[i - 1]!, pts[i]!, n)) return true }
     }
     return false
+  }
+  const admitPaint = (submitted: Point[]): boolean => {
+    if (!paintedRepair) return true
+    const original = currentEdge.points
+    // Source-terminal proposals are constructed in the reversed domain.
+    // Paint/marker ownership still follows the authored source/target order.
+    const reverse = submitted[0]!.x === original.at(-1)!.x && submitted[0]!.y === original.at(-1)!.y
+      && submitted.at(-1)!.x === original[0]!.x && submitted.at(-1)!.y === original[0]!.y
+    if (reverse && !payPaint(submitted.length)) return false
+    const points = reverse ? submitted.toReversed() : submitted
+    const sameRay = (port: Point, old: Point, next: Point): boolean => old.x === port.x && next.x === port.x && Math.sign(old.y - port.y) === Math.sign(next.y - port.y)
+      || old.y === port.y && next.y === port.y && Math.sign(old.x - port.x) === Math.sign(next.x - port.x)
+    if (!sameRay(original[0]!, original[1]!, points[1]!) || !sameRay(original.at(-1)!, original.at(-2)!, points.at(-2)!) || !simpleOrthogonal(points, chargeWork)) return false
+    const proposed = { ...currentEdge, points, ...(currentEdge.label ? { labelPosition: calculatePathMidpoint(points) } : {}) }
+    return graphInkClear(nodes, edges.map(edge => edge === currentEdge ? proposed : edge), nodes, edges, groups, style!, paintWork, chargeWork)
   }
   // Headers are live reserved geometry, including endpoint ancestors. A node
   // detour may not trade an opaque card crossing for a reserved-band crossing.
@@ -135,7 +159,7 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
       for (const cp of cands) {
         const trial = pts.map(p => ({ ...p }))
         trial[k]![ax] = cp; trial[k + 1]![ax] = cp
-        if (!throughNode(trial, skip) && routeClearOfNodes(trial, nodes, skip, chargeWork) && clearHeaders(trial)) return simplifyPolyline(trial)
+        if (!throughNode(trial, skip) && routeClearOfNodes(trial, nodes, skip, chargeWork) && clearHeaders(trial) && admitPaint(trial)) return simplifyPolyline(trial)
       }
     }
     return null
@@ -172,7 +196,7 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     const lanes = [...new Set(laneSet)].sort((p, q) => Math.abs(p - mean) - Math.abs(q - mean))
     for (const lane of lanes) {
       const route = simplifyPolyline([start, pt(m1, start[f.cross]), pt(m1, lane), pt(m2, lane), pt(m2, end[f.cross]), end])
-      if (!throughNode(route, skip) && routeClearOfNodes(route, nodes, skip, chargeWork) && clearHeaders(route)) return route
+      if (!throughNode(route, skip) && routeClearOfNodes(route, nodes, skip, chargeWork) && clearHeaders(route) && admitPaint(route)) return route
     }
     return null
   }
@@ -190,7 +214,7 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     const lanes: number[] = []
     for (const node of nodes) {
       chargeWork?.(1)
-      if (skip.has(node.id) || !segmentThroughShape(a, end, node)) continue
+      if (skip.has(node.id) || !blockedBy(a, end, node)) continue
       chargeWork?.(2) // two actual boundary candidates
       lanes.push(node[cross] - THROUGH_LANE_GAP, node[cross] + (cross === 'x' ? node.width : node.height) + THROUGH_LANE_GAP)
     }
@@ -205,17 +229,21 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
         oldNext.x === port.x && next.x === port.x && Math.sign(oldNext.y - port.y) === Math.sign(next.y - port.y)
         || oldNext.y === port.y && next.y === port.y && Math.sign(oldNext.x - port.x) === Math.sign(next.x - port.x)
       if (!sameRay(pts[0]!, pts[1]!, trial[1]!) || !sameRay(end, a, trial.at(-2)!)) continue
-      if (!throughNode(trial, noSkip) && routeClearOfNodes(trial, nodes, skip, chargeWork) && clearHeaders(trial) && simpleOrthogonal(trial, chargeWork)) return trial
+      if (!throughNode(trial, noSkip) && routeClearOfNodes(trial, nodes, skip, chargeWork) && clearHeaders(trial) && simpleOrthogonal(trial, chargeWork) && admitPaint(trial)) return trial
     }
     return null
   }
   for (const edge of edges) {
+    currentEdge = edge; paintedRepair = false
     chargeWork?.(1)
     if (edge.source === edge.target || edge.points.length < 2) continue
     const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
     if (!source || !target) continue
     const skip = new Set([edge.source, edge.target])
-    if (!throughNode(edge.points, skip)) continue // no-op gate: only fires on edgeThroughNode
+    if (!throughNode(edge.points, skip)) {
+      if (!paintedContact || !nodes.some(node => !skip.has(node.id) && paintedContact(edge, edge.points, node) === true)) continue
+      paintedRepair = true
+    }
     // Off-outline endpoints are reanchorOffOutlineEndpoints' job; this pass only
     // relocates the interior of an otherwise port-exact route.
     if (!onShapeOutline(source, edge.points[0]!) || !onShapeOutline(target, edge.points[edge.points.length - 1]!)) continue

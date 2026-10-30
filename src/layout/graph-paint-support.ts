@@ -26,6 +26,10 @@ export const boxesMeet = (a: AxisAlignedBox, b: AxisAlignedBox): boolean => {
   const error = (Math.abs(a.x0) + Math.abs(a.y0) + Math.abs(a.x1) + Math.abs(a.y1) + Math.abs(b.x0) + Math.abs(b.y0) + Math.abs(b.x1) + Math.abs(b.y1)) * 1e-10 + 1e-9
   return !Number.isFinite(error) || a.x0 < b.x1 + error && b.x0 < a.x1 + error && a.y0 < b.y1 + error && b.y0 < a.y1 + error
 }
+function edgeShaftPaint(edge: PositionedEdge, style: GraphPaintStyle): MarkPaint {
+  return { stroke: edge.inlineStyle?.stroke ?? style.edgeStrokeColor ?? 'var(--_line)',
+    strokeWidth: formatSvgNumericAttribute('stroke-width', edge.inlineStyle?.['stroke-width'] ?? String((style.lineWidth ?? 1) * (edge.style === 'thick' ? 2 : 1))) }
+}
 /** Optional movement needs a sufficient separator, not another collision
  * certifier. Unknown paint/geometry or overlapping conservative supports keep
  * the original layout; every segment and endpoint resource is retained. */
@@ -35,8 +39,7 @@ export function edgeInk(edge: PositionedEdge, style: GraphPaintStyle, work: () =
   if (style.edgeBendRadius !== undefined && !(Number.isFinite(style.edgeBendRadius) && style.edgeBendRadius >= 0)) return undefined
   // renderEdge forwards these two authored fields; connector paint defaults
   // are butt caps and miter joins (limit four), owned by paintedStrokeExtent.
-  const paint: MarkPaint = { stroke: edge.inlineStyle?.stroke ?? style.edgeStrokeColor ?? 'var(--_line)',
-    strokeWidth: formatSvgNumericAttribute('stroke-width', edge.inlineStyle?.['stroke-width'] ?? String((style.lineWidth ?? 1) * (edge.style === 'thick' ? 2 : 1))) }
+  const paint = edgeShaftPaint(edge, style)
   const extent = paintedStrokeExtent(paint, edge.points.length > 2 || !!edge.curve || (style.edgeBendRadius ?? 0) > 0)
   if (extent === undefined || edge.points.length < 2) return undefined
   if ((edge.hasArrowStart || edge.hasArrowEnd) && paintedStrokeExtent({ ...paint, stroke: 'black' }, false) === undefined) return undefined
@@ -73,6 +76,82 @@ import type { PositionedNode, PositionedGroup } from '../types.ts'
 import { shapeOutline } from '../shape-outline.ts'
 import { nodePaintBounds } from '../scene/bounds.ts'
 import { STROKE_WIDTHS } from '../styles.ts'
+import { tryParseCssColor } from '../shared/color-math.ts'
+
+/** Construction-level contact for a written circle and an orthogonal shaft.
+ * Strip rectangles retain butt caps; right-angle joins retain their complete
+ * miter square. A circle's empty bounding-box corners cannot trigger repair.
+ * Curved/diagonal/dashed routes and unknown paint stay outside this domain. */
+export function circleShaftPaintContext(style: GraphPaintStyle, pay: (units: number) => boolean) {
+  type Circle = { cx: number; cy: number; radius: number; innerRadius: number; bounds: AxisAlignedBox }
+  const circles = new Map<PositionedNode, Circle | false | undefined>()
+  const shafts = new WeakMap<PositionedEdge, WeakMap<readonly Point[], AxisAlignedBox[] | undefined>>()
+  const circle = (node: PositionedNode): Circle | false | undefined => {
+    if (circles.has(node)) return circles.get(node)
+    if (!pay(32)) return undefined
+    const width = node.inlineStyle?.['stroke-width'] ?? String(style.nodeLineWidth ?? STROKE_WIDTHS.innerBox)
+    if (!pay(width.length + node.id.length + 8)) return undefined
+    const piece = shapeOutline(node, { fill: node.inlineStyle?.fill ?? style.nodeFillColor ?? 'var(--_node-fill)', stroke: node.inlineStyle?.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: formatSvgNumericAttribute('stroke-width', width) }, style.cornerRadius)
+    if (piece.geometry.kind !== 'circle') { circles.set(node, false); return false }
+    const geometry = writtenGeometry(piece.geometry)
+    if (geometry.kind !== 'circle' || !pay(32)) return undefined
+    const bounds = nodePaintBounds({ kind: 'shape', id: node.id, role: 'node', geometry, paint: piece.paint })
+    const extent = paintedStrokeExtent(piece.paint, false)
+    const filled = piece.paint.fill !== 'none' && piece.paint.fill !== 'transparent' && tryParseCssColor(piece.paint.fill ?? '')?.[3] !== 0
+    if (!filled && extent === 0) { circles.set(node, false); return false }
+    const radius = geometry.r + (extent ?? 0)
+    const result = finiteBox(bounds) && extent !== undefined && geometry.r > 0 && Number.isFinite(radius ** 2)
+      ? { cx: geometry.cx, cy: geometry.cy, radius, innerRadius: filled ? 0 : Math.max(0, geometry.r - extent), bounds } : undefined
+    circles.set(node, result)
+    return result
+  }
+  const shaft = (edge: PositionedEdge, points: readonly Point[]): AxisAlignedBox[] | undefined => {
+    let routes = shafts.get(edge)
+    if (!routes) { routes = new WeakMap(); shafts.set(edge, routes) }
+    if (routes.has(points)) return routes.get(points)
+    if (!pay(8) || points.length < 2 || points.length > MAX_PREFERENCE_NODES * MAX_PREFERENCE_EDGES
+      || edge.curve || edge.style === 'dotted' || (style.edgeBendRadius ?? 0) !== 0) return undefined
+    if (edge.style === 'invisible') return []
+    const half = paintedStrokeExtent(edgeShaftPaint(edge, style), false)
+    if (half === undefined || !pay(points.length * 8 + 8)) return undefined
+    const written = points.map(writtenPoint), boxes: AxisAlignedBox[] = []
+    let previous: Point | undefined
+    for (let index = 1; index < written.length; index++) {
+      const a = written[index - 1]!, b = written[index]!
+      if (![a.x, a.y, b.x, b.y].every(Number.isFinite)) return undefined
+      const dx = b.x - a.x, dy = b.y - a.y
+      if (dx === 0 && dy === 0) continue
+      if (dx !== 0 && dy !== 0) return undefined
+      if (previous) {
+        if (previous.x * dx + previous.y * dy < 0) return undefined
+        if (previous.x * dy !== previous.y * dx) boxes.push({ x0: a.x - half, y0: a.y - half, x1: a.x + half, y1: a.y + half })
+      }
+      boxes.push(dx === 0 ? { x0: a.x - half, y0: Math.min(a.y, b.y), x1: a.x + half, y1: Math.max(a.y, b.y) }
+        : { x0: Math.min(a.x, b.x), y0: a.y - half, x1: Math.max(a.x, b.x), y1: a.y + half })
+      previous = { x: dx, y: dy }
+    }
+    if (!half) boxes.length = 0
+    routes.set(points, boxes)
+    return boxes
+  }
+  return (edge: PositionedEdge, points: readonly Point[], node: PositionedNode): boolean | undefined => {
+    if (!pay(2)) return undefined
+    const body = circle(node)
+    if (body === false) return false
+    const strips = shaft(edge, points)
+    if (!body || !strips) return undefined
+    for (const strip of strips) {
+      if (!pay(4)) return undefined
+      if (!boxesMeet(body.bounds, strip)) continue
+      const x = Math.max(strip.x0, Math.min(body.cx, strip.x1)), y = Math.max(strip.y0, Math.min(body.cy, strip.y1))
+      const near = (x - body.cx) ** 2 + (y - body.cy) ** 2
+      const far = Math.max(Math.abs(strip.x0 - body.cx), Math.abs(strip.x1 - body.cx)) ** 2 + Math.max(Math.abs(strip.y0 - body.cy), Math.abs(strip.y1 - body.cy)) ** 2
+      if (!Number.isFinite(near) || !Number.isFinite(far)) return undefined
+      if (near <= body.radius ** 2 && far >= body.innerRadius ** 2) return true
+    }
+    return false
+  }
+}
 
 /** One synchronous label-only proposal owns this snapshot. No route/node/style
  * writes or host measurement callbacks occur before publication. Labels stay

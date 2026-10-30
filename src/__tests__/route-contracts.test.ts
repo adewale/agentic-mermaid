@@ -25,6 +25,9 @@ import { alignLabeledSourcePort, alignPortLanes } from '../layout/passes/port-la
 import { trimOccludedShapeEndpoint } from '../shape-clipping.ts'
 import { labelSeatPaintContext } from '../layout/graph-paint-support.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
+import { createRequire } from 'node:module'
+import { renderSvg } from '../renderer.ts'
+import { readFileSync } from 'node:fs'
 
 describe('outward exact endpoint approaches', () => {
   it.each((['LR', 'RL', 'TD', 'BT'] as const).flatMap(direction => [false, true].map(labelled => [direction, labelled] as const)))('keeps feedback approaches outward through optional alignment in %s layouts (labels: %s)', (direction, labelled) => {
@@ -2829,6 +2832,57 @@ describe('DECISION_BRANCH_UNLABELED lint (ISO 5807 10.3.1.2 / ANSI X3.5 4.10.2)'
 
 describe('node repairs retain terminal axes around measured headers', () => {
 const repair = rerouteEdgesThroughNodes
+it('clears the final painted circle contact in a labelled reciprocal ELK graph',()=>{
+ const { JSDOM }=createRequire(import.meta.url)('jsdom')
+ const source=readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-18-cuts.mmd',import.meta.url),'utf8')
+ const rendered=renderMermaidSVGWithReceipt(source,{graphLayout:{backend:'elk',fallback:'none'},embedFontImport:false})
+ const dom=new JSDOM(rendered.svg,{contentType:'image/svg+xml'})
+ try{
+  const document=dom.window.document as Document,circle=document.querySelector('[data-id="n1"] circle')!,shaft=document.querySelector('[data-role="edge"][data-from="n0"][data-to="n13"]')!
+  const n=(tag:Element,key:string)=>Number(tag.getAttribute(key)),cx=n(circle,'cx'),cy=n(circle,'cy'),r=n(circle,'r')
+  expect([circle.localName,n(circle,'stroke-width'),n(shaft,'stroke-width')]).toEqual(['circle',.75,1]);expect(r).toBeGreaterThan(0)
+  const points=shaft.getAttribute('points')!.split(/\s+/).map(pair=>pair.split(',').map(Number))
+  const distance=Math.min(...points.slice(1).map((b,i)=>{const a=points[i]!,dx=b[0]!-a[0]!,dy=b[1]!-a[1]!,t=Math.max(0,Math.min(1,((cx-a[0]!)*dx+(cy-a[1]!)*dy)/(dx*dx+dy*dy)));return Math.hypot(a[0]!+t*dx-cx,a[1]!+t*dy-cy)}))
+  expect(distance-r-n(circle,'stroke-width')/2-2*n(shaft,'stroke-width')).toBeGreaterThan(0)
+  expect(document.querySelectorAll('[data-role="edge"][data-from]')).toHaveLength(38)
+  expect([...document.querySelectorAll('text')].map(tag=>tag.textContent).sort()).toEqual([...Array.from({length:18},(_,i)=>`Node 296-${i}`),'edge 0 xxx','edge 4 xxxxxxx','edge 8 xxxxxxxxxxx','edge 12 xxxxxxxxxxxxxxx','edge 16 xxxxxxxxxxxxxxxxxxx','edge 20 xxxxxx','edge 24 xxxxxxxxxx','edge 28 xxxxxxxxxxxxxx','edge 32 xxxxxxxxxxxxxxxxxx','edge 36 xxxxx'].sort())
+  const resource=shaft.getAttribute('marker-end')!.slice(5,-1)
+  expect([...document.querySelectorAll('marker')].filter(marker=>marker.id===resource)).toHaveLength(1)
+  expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+ }finally{dom.window.close()}
+})
+for (const transpose of [false, true]) for (const reverse of [false,true]) for (const name of ['stroke-only contact', 'positive stroke gap', 'empty curved corner'] as const) it(`repairs actual ${name} without moving a clear route, transpose=${transpose}, reverse=${reverse}`, () => {
+ const { JSDOM } = createRequire(import.meta.url)('jsdom')
+ const y=name==='positive stroke gap'?121.6:name==='empty curved corner'?80:121
+ const p=(x:number,y:number)=>transpose?{x:y,y:x}:{x,y}
+ const box=(id:string,x:number,y:number,width:number,height:number,shape:PositionedNode['shape']='rectangle'):PositionedNode=>({id,label:id,shape,...p(x,y),width:transpose?height:width,height:transpose?width:height})
+ const nodes=[box('S',0,y-10,40,20),box('T',name==='empty curved corner'?260:220,(name==='empty curved corner'?40:y)-10,40,20),{...box('C',110,80,40,40,'circle'),inlineStyle:{fill:'#fff',stroke:'#000','stroke-width':'2'}}]
+ const points=(name==='empty curved corner'?[[40,80],[115,80],[115,40],[260,40]]:[[40,y],[220,y]]).map(([x,y])=>p(x!,y!))
+ if(reverse)points.reverse()
+ const edge:PositionedEdge={source:reverse?'T':'S',target:reverse?'S':'T',style:'solid',hasArrowStart:false,hasArrowEnd:true,endMarker:'arrow',edgeIndex:0,points,inlineStyle:{stroke:'#f00','stroke-width':'1'}}
+ const old=structuredClone(points)
+ const observe=()=>{
+  const dom=new JSDOM(renderSvg({positioned:{width:340,height:340,nodes,edges:[edge],groups:[]},colors:{bg:'#fff',fg:'#111',embedFontImport:false},resolved:{renderOptions:{}}}),{contentType:'image/svg+xml'})
+  try{
+   const document=dom.window.document as Document,circle=document.querySelector('[data-id="C"] circle')!,shaft=document.querySelector('[data-role="edge"]')!
+   expect([shaft.getAttribute('data-from'),shaft.getAttribute('data-to')]).toEqual([edge.source,edge.target])
+   const n=(tag:Element,key:string)=>Number(tag.getAttribute(key)),cx=n(circle,'cx'),cy=n(circle,'cy'),r=n(circle,'r'),width=n(shaft,'stroke-width')
+   expect([cx,cy,r,n(circle,'stroke-width'),width]).toEqual(transpose?[100,130,20,2,1]:[130,100,20,2,1])
+   const path=shaft.getAttribute('points')!.split(/\s+/).map(pair=>pair.split(',').map(Number))
+   const distance=Math.min(...path.slice(1).map((b,i)=>{const a=path[i]!,dx=b[0]!-a[0]!,dy=b[1]!-a[1]!,t=Math.max(0,Math.min(1,((cx-a[0]!)*dx+(cy-a[1]!)*dy)/(dx*dx+dy*dy)));return Math.hypot(a[0]!+t*dx-cx,a[1]!+t*dy-cy)}))
+   expect(shaft.hasAttribute('marker-end')).toBe(true)
+   return distance-r-n(circle,'stroke-width')/2-width*(path.length>2?2:.5)
+  }finally{dom.window.close()}
+ }
+ const before=observe()
+ if(name==='stroke-only contact')expect(before).toBeCloseTo(-.5,8)
+ else expect(before).toBeGreaterThan(0)
+ repair(nodes,[edge],{direction:transpose?(reverse?'BT':'TB'):(reverse?'RL':'LR')},undefined,[],resolveRenderStyle())
+ expect(observe()).toBeGreaterThan(0)
+ expect([edge.points[0],edge.points.at(-1)]).toEqual([old[0],old.at(-1)])
+ if(name!=='stroke-only contact')expect(edge.points).toEqual(old)
+ else expect(edge.points).not.toEqual(old)
+})
 const cross=(a:any,b:any,box:any)=>a.x===b.x?a.x>box.x&&a.x<box.x+box.width&&Math.max(a.y,b.y)>box.y&&Math.min(a.y,b.y)<box.y+box.height:a.y===b.y&&a.y>box.y&&a.y<box.y+box.height&&Math.max(a.x,b.x)>box.x&&Math.min(a.x,b.x)<box.x+box.width
 const clear=(path:any[],box:any)=>path.slice(1).every((b,i)=>!cross(path[i],b,box))
 const sameRay=(port:any,old:any,next:any)=>old.x===port.x&&next.x===port.x&&Math.sign(old.y-port.y)===Math.sign(next.y-port.y)||old.y===port.y&&next.y===port.y&&Math.sign(old.x-port.x)===Math.sign(next.x-port.x)

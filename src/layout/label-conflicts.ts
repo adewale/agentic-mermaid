@@ -1,8 +1,13 @@
-import type { Point, PositionedEdge, PositionedGraph } from '../types.ts'
+import { shapeOutline } from '../shape-outline.ts'
+import { geometryBounds, nodePaintBounds, unionSceneBounds } from '../scene/bounds.ts'
+import { formatSvgNumericAttribute } from '../shared/svg-number.ts'
+import { STROKE_WIDTHS } from '../styles.ts'
+import { invalidEndpointApproaches, MAX_PREFERENCE_EDGES, MAX_PREFERENCE_NODES } from './route-geometry.ts'
+import type { Point, PositionedEdge, PositionedGraph, PositionedNode, PositionedGroup } from '../types.ts'
 import type { RenderedLayout } from '../agent/types.ts'
 import { LABEL_PILL_PADDING, LABEL_INTERIOR_TOLERANCE as INTERIOR_TOLERANCE, segmentEntersLabelRect, labelRect, labelHaloExtension } from '../shared/edge-label-geometry.ts'
 import { calculatePathMidpoint } from './geometry.ts'
-import { boxesMeet, edgeInk, finiteBox, type GraphPaintStyle } from './graph-paint-support.ts'
+import { boxesMeet, edgeInk, finiteBox, writtenGeometry, type GraphPaintStyle } from './graph-paint-support.ts'
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
 
 export interface LabelConflictCounts {
@@ -182,4 +187,124 @@ export function preservesLabelInkSeparation(
     if (error === exhausted) return false
     throw error
   }
+}
+
+export const graphRouteChanged = (edge: PositionedEdge, previous: PositionedEdge): boolean => edge.points.length !== previous.points.length
+  || edge.points.some((point, index) => point.x !== previous.points[index]!.x || point.y !== previous.points[index]!.y)
+
+export function withinGraphInkBudget(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], groups: readonly PositionedGroup[]): boolean {
+  if (nodes.length > MAX_PREFERENCE_NODES || edges.length > MAX_PREFERENCE_EDGES) return false
+  let remaining = MAX_PREFERENCE_NODES - nodes.length
+  const fits = (groups: readonly PositionedGroup[]): boolean => groups.every(group => --remaining >= 0 && fits(group.children))
+  return fits(groups)
+}
+
+export function graphInkWork(): { remaining: number } {
+  return { remaining: MAX_PREFERENCE_NODES * MAX_PREFERENCE_EDGES }
+}
+
+export function graphInkClear(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], beforeNodes: readonly PositionedNode[], beforeEdges: readonly PositionedEdge[], groups: readonly PositionedGroup[], style: GraphPaintStyle, budget = graphInkWork(), chargeWork?: (operations: number) => void): boolean {
+  const changedNodes = nodes.map((node, index) => node.x !== beforeNodes[index]!.x || node.y !== beforeNodes[index]!.y)
+  const changedEdges = edges.map((edge, index) => graphRouteChanged(edge, beforeEdges[index]!)
+    || edge.labelPosition?.x !== beforeEdges[index]!.labelPosition?.x || edge.labelPosition?.y !== beforeEdges[index]!.labelPosition?.y)
+  if (!changedNodes.some(Boolean) && !changedEdges.some(Boolean)) return true
+  // The existing bounded quality-exploration scope also bounds this optional
+  // publication proof. Oversized routes/pairs cannot consume unlimited work.
+  const work = (): boolean => { chargeWork?.(1); return --budget.remaining >= 0 }
+  const supports = new Map<PositionedEdge, ReturnType<typeof edgeInk>>()
+  const ink = (edge: PositionedEdge): ReturnType<typeof edgeInk> => {
+    if (!supports.has(edge)) supports.set(edge, edgeInk(edge, style, work))
+    return supports.get(edge)
+  }
+  const cards = new Map<PositionedNode, AxisAlignedBox | undefined>()
+  const card = (node: PositionedNode): AxisAlignedBox | undefined => {
+    if (!cards.has(node)) {
+      const piece = shapeOutline(node, { fill: node.inlineStyle?.fill ?? style.nodeFillColor ?? 'var(--_node-fill)',
+        stroke: node.inlineStyle?.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)',
+        strokeWidth: formatSvgNumericAttribute('stroke-width', node.inlineStyle?.['stroke-width'] ?? String(style.nodeLineWidth ?? STROKE_WIDTHS.innerBox)) }, style.cornerRadius)
+      cards.set(node, nodePaintBounds({ kind: 'shape', id: node.id, role: 'node', geometry: writtenGeometry(piece.geometry), paint: piece.paint, ...(piece.childPaints ? { childPaints: piece.childPaints } : {}) }))
+    }
+    return cards.get(node)
+  }
+  try {
+    // Retain incoming admission of moved-card borders against every other
+    // live card, independently of route ownership.
+    for (let index = 0; index < nodes.length; index++) {
+      if (!changedNodes[index]) continue
+      const box = card(nodes[index]!)
+      if (!finiteBox(box)) return false
+      for (let peerIndex = 0; peerIndex < nodes.length; peerIndex++) {
+        if (peerIndex === index || changedNodes[peerIndex] && peerIndex < index) continue
+        if (!work()) return false
+        const peer = card(nodes[peerIndex]!)
+        if (!finiteBox(peer) || boxesMeet(box, peer)) return false
+      }
+    }
+    for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
+      const node = nodes[nodeIndex]!
+      for (let edgeIndex = 0; edgeIndex < edges.length; edgeIndex++) {
+        const edge = edges[edgeIndex]!
+        if (!changedNodes[nodeIndex] && !changedEdges[edgeIndex]) continue
+        if (!work()) return false
+        // A canonical contact still has to face outward. Prove each endpoint
+        // separately so improving one cannot hide a new inward shaft at the other.
+        if (edge.source === node.id && invalidEndpointApproaches(edge, node) > invalidEndpointApproaches(beforeEdges[edgeIndex]!, beforeNodes[nodeIndex]!)) return false
+        if (edge.target === node.id && invalidEndpointApproaches(edge, undefined, node) > invalidEndpointApproaches(beforeEdges[edgeIndex]!, undefined, beforeNodes[nodeIndex]!)) return false
+        const route = ink(edge)
+        if (!route) return false
+        const box = card(node)
+        if (!finiteBox(box)) return false
+        if (edge.source !== node.id && edge.target !== node.id) for (const support of route.shafts) if (!work() || boxesMeet(box, support)) return false
+        for (const marker of route.markers) {
+          const owner = marker.position === 'start' ? edge.source : edge.target
+          if (owner !== node.id && (!work() || !finiteBox(marker.bounds) || boxesMeet(box, marker.bounds))) return false
+        }
+        const rect = edge.style === 'invisible' ? labelRect(edge, style) : null
+        const halo = labelHaloExtension(edge, style.lineWidth ?? 1)
+        const caption = route.label ?? (rect ? { x0: rect.x - halo, y0: rect.y - halo, x1: rect.x + rect.w + halo, y1: rect.y + rect.h + halo } : undefined)
+        if (caption && (!work() || boxesMeet(box, caption))) return false
+      }
+    }
+    const involved = new Set(changedEdges.flatMap((changed, index) => changed ? [index] : []))
+    if (!preservesLabelInkSeparation(beforeEdges, edges, style, involved, work)) return false
+    return graphHeadersClear(nodes, edges, beforeNodes, beforeEdges, groups, ink, card, work)
+  } catch {
+    // Invalid/unsupported artwork is handled by the mandatory final gate.
+    // This optional cosmetic pass must not publish an unproved replacement.
+    return false
+  }
+}
+
+function graphHeadersClear(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], beforeNodes: readonly PositionedNode[], beforeEdges: readonly PositionedEdge[], groups: readonly PositionedGroup[], ink: (edge: PositionedEdge) => ReturnType<typeof edgeInk>, card: (node: PositionedNode) => AxisAlignedBox | undefined, work: () => boolean): boolean {
+  const changedNodes = nodes.filter((node, index) => node.x !== beforeNodes[index]!.x || node.y !== beforeNodes[index]!.y)
+  const changedEdges = edges.filter((edge, ordinal) => edge.style !== 'invisible' && graphRouteChanged(edge, beforeEdges[ordinal]!))
+  const clear = (group: PositionedGroup): boolean => {
+    if (!work()) return false
+    if (!group.concurrencyRegion && group.width !== 0) {
+      const height = group.headerHeight ?? group.height
+      if (!Number.isFinite(group.width) || group.width < 0 || !Number.isFinite(height) || height < 0) return false
+      if (height > 0 && group.width > 0) {
+        // The semantic reservation stays live. Include its written rectangle
+        // as well, so decimal emission cannot shrink the clearance proof.
+        const band = unionSceneBounds({ x0: group.x, y0: group.y, x1: group.x + group.width, y1: group.y + height },
+          geometryBounds(writtenGeometry({ kind: 'rect', x: group.x, y: group.y, width: group.width, height })))
+        if (!finiteBox(band)) return false
+        for (const node of changedNodes) {
+          if (!work()) return false
+          const painted = card(node)
+          if (!finiteBox(painted)) return false
+          const footprint = unionSceneBounds(painted, { x0: node.x, y0: node.y, x1: node.x + node.width, y1: node.y + node.height })!
+          if (!finiteBox(footprint) || boxesMeet(footprint, band)) return false
+        }
+        for (const edge of changedEdges) {
+          const supports = ink(edge)
+          if (!supports) return false
+          for (const support of supports.shafts) if (!work() || boxesMeet(support, band)) return false
+          for (const marker of supports.markers) if (!work() || !finiteBox(marker.bounds) || boxesMeet(marker.bounds, band)) return false
+        }
+      }
+    }
+    return group.children.every(clear)
+  }
+  return groups.every(clear)
 }
