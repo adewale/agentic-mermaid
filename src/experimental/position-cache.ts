@@ -1,7 +1,7 @@
 import { estimatedResidency } from './cache-residency.ts'
 import type { FamilyLayoutResult, FamilyPositionedView } from '../agent/families.ts'
 import { graphLayoutDecisionsOf, transferGraphLayoutDecisions } from '../layout/decision-evidence.ts'
-import { transferRetainedPixelText } from '../shared/prepared-text.ts'
+import { isImmutablePixelTextPart, transferRetainedPixelText } from '../shared/prepared-text.ts'
 import { WeightedLru } from './weighted-lru.ts'
 import { observeCache } from '../performance-observations.ts'
 import type { PaintLayoutCertification } from '../scene/paint-certification.ts'
@@ -28,35 +28,39 @@ function isolatedKey(family: object, key: string): string {
   if (id === undefined) { id = nextFamilyId++; familyIds.set(family, id) }
   return `${id}:${key}`
 }
-/** Copies remain private until provenance needed by prepared text is restored. */
-export function clonePositioned<T>(source: T): T {
+/** Public copies remain independent mutable snapshots. Private native copies
+ * may share only constructor-owned immutable text, preserving custody cost. */
+export function clonePositioned<T>(source: T, immutableText = false): T {
   const copy = structuredClone(source)
   const seen = new WeakSet<object>()
-  const visit = (a: unknown, b: unknown): void => {
-    if (a === null || typeof a !== 'object' || b === null || typeof b !== 'object' || seen.has(a)) return
+  const visit = (a: unknown, b: unknown): unknown => {
+    if (a === null || typeof a !== 'object' || b === null || typeof b !== 'object') return b
+    if (immutableText && isImmutablePixelTextPart(a)) return a
+    if (seen.has(a)) return b
     seen.add(a); transferRetainedPixelText(a, b)
     if (a instanceof Map && b instanceof Map) {
       const copies = b.entries()
       for (const [key, value] of a) {
         const [copyKey, copyValue] = copies.next().value!
-        visit(key, copyKey); visit(value, copyValue)
+        const retainedKey = visit(key, copyKey), retainedValue = visit(value, copyValue)
+        b.delete(copyKey); b.set(retainedKey, retainedValue)
       }
     } else if (a instanceof Set && b instanceof Set) {
       const copies = b.values()
-      for (const value of a) visit(value, copies.next().value)
-    } else for (const key of Object.keys(a)) visit((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])
+      for (const value of a) { const copied = copies.next().value; b.delete(copied); b.add(visit(value, copied)) }
+    } else for (const key of Object.keys(a)) (b as Record<string, unknown>)[key] = visit((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])
+    return b
   }
-  visit(source, copy)
-  return copy
+  return visit(source, copy) as T
 }
 /** Membership records actual private cache geometry, including its operation
  * wrappers, never a caller brand. */
 export function isRetainedPositionedSnapshot(result: object): boolean { return retainedResults.has(result) }
-export function cachedPositioned(family: object, key: string, alreadyObserved = false): FamilyLayoutResult | undefined {
+export function cachedPositioned(family: object, key: string, alreadyObserved = false, immutableText = false): FamilyLayoutResult | undefined {
   const value = results.get(isolatedKey(family, key))
   if (!alreadyObserved) observeCache('positioned-layout', value ? 'hit' : 'miss')
   if (!value) return undefined
-  const copy = clonePositioned(value.result)
+  const copy = clonePositioned(value.result, immutableText)
   transferGraphLayoutDecisions(value.result, copy)
   return copy
 }
@@ -89,7 +93,7 @@ function retainSnapshot(family: object, key: string, value: FamilyLayoutResult, 
   if (weight > MAX_WEIGHT) { observeCache('positioned-layout', 'store-skipped', 'weight-limit'); return }
   let retained = snapshot
   if (copy) {
-    try { retained = clonePositioned(snapshot) } catch (error) {
+    try { retained = clonePositioned(snapshot, true) } catch (error) {
       // C4 identity planners carry callbacks. Keep the complete authoritative
       // artifact uncached when a private snapshot cannot preserve its evidence.
       if (error instanceof Error && error.name === 'DataCloneError') { observeCache('positioned-layout', 'store-skipped', 'uncloneable'); return }

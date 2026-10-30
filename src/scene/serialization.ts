@@ -466,10 +466,7 @@ function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observ
     attributes = actual
     sink?.rectangleAttributes?.(shape, actual)
   } : undefined }) : sink
-  const actualSink = fractional && node.kind === 'text' ? Object.assign(() => {}, {
-    captureTextContext: true as const, reserveTextContext: (operations: number) => recorder!.reserveProjection(operations),
-  }) : geometrySink
-  const svg = writeSceneNode(node, actualSink, observer)
+  const svg = writeSceneNode(node, geometrySink, observer)
   // A group is written from its children each time: its children array is
   // not part of what freezing it protects.
   if (node.kind !== 'group' && Object.isFrozen(node)) WRITTEN_SCENE_NODES.set(node, svg)
@@ -487,7 +484,7 @@ function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observ
 function writeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver): string {
   switch (node.kind) {
     case 'shape': return writeShapeSvg(node, sink)
-    case 'text': return writeTextSvg(node, sink)
+    case 'text': return writeTextSvg(node)
     case 'connector': return writeConnectorSvg(node, sink)
     case 'group': return [
       node.open,

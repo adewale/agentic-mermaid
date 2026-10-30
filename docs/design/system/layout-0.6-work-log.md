@@ -3326,3 +3326,221 @@ next integration will require own descriptor values before reading them and
 omit the unbounded Native shortcut, retaining paid recursive admission. It must
 also preserve this milestone's fresh group/context checks and all exact-body,
 own-stroke, background and global-witness authority. No new issue/PR was filed.
+
+### 29 October: correction of planning authority
+
+The owner challenged the mandatory human-study requirement and the authority of
+the qualification document. The assistant introduced that formal acceptance
+contract at `795b2b4c62b595cc904802aa25aaafe8ae54df62`; the owner's six goals
+and release timeline did not approve the additional study, statistical margins
+or all-or-nothing completion gates. Calling the document "owner-directed" was
+an unsupported attribution. The plan and TODO now distinguish the requested
+goals from assistant-proposed methods. A human panel, study administrator and
+participant recruitment are optional research and do not block completion.
+Earlier log entries describing six binding contracts or missing humans as a
+blocker are superseded by this correction; their historical test results remain.
+No production check, budget, correctness expectation or existing CI gate is
+relaxed. Continue concrete fixes and honest actual-render/metric comparisons,
+reporting each measured domain and counterexample. Existing sealed artifacts
+remain sealed under their custody rules; they do not create a new release gate.
+
+### 29 October, 23:14 UTC: live branch check and remaining integration work
+
+The verified implementation milestone is published at
+`eb1fb3312507766b4a9dc2c5eddcb89247e852a2`; the planning-authority correction
+is separately published at `fac4f0c8557ac1343eefe5438556dd7cf5818ef9` on the
+same retained branch. A fresh connector check and Git fetch/pull confirm that
+branch head; `git pull --ff-only` reports already up to date. Main remains
+`1fc21f5181db543c7a9735dbd166ad89d8dae03f`. The isolated integration contains
+that exact Main snapshot but is still an uncommitted merge over `eb1fb3312`.
+No rebase has been completed or published and no force push occurred. The
+canonical worktree is clean. Concurrent implementation was paused to inspect and
+preserve all pending changes before resuming; no active agent work was lost.
+
+Incoming Main contains sound routing fixes plus two unsafe immutable-text
+assumptions. Independent actual controls show a live accessor-bearing prepared
+plan can be treated as immutable through inherited descriptor value, and the
+unbounded Native shortcut bypasses depth64. The minimal integrated correction
+requires an own value before reading it and initially removes the shortcut.
+Actual owning tests fail twice against the relevant Main source and pass in
+the corrected candidate. Seventy nested prepared plans retain the same SVG but
+must remain U; cached supplied text must remain independent of later mutation.
+
+At frozen R20, canonical types and lint pass; prepared-text/cache owners pass
+79 tests/339 assertions, build metadata owners pass eight/205, and additional
+routing/loop/ER-label/terminal owners pass 565/6,167. The complete paint/Scene
+partition reports **688P/12F**, while the six route owners report **325P/4F**.
+All frozen-source guards and process cleanup complete. These failures are not
+waived or called readiness. Six paint failures are older invalid-group fixtures
+now rejected before any output by the stronger Main constructor. Their exact
+adversarial payloads are retained with explicit rejection assertions and plain
+actual-ink positive controls. Three concern spatial queries over the private
+inspector's immutable roster: its kind/order/bounds facts are safe independently
+of actual-write authority, while mutable paint and the exact contact theorems
+keep their separate fresh checks. A subsequent **148P/0F/1,213-assertion** run
+covers those repairs and existing mutable/getter/palette, alias, foreign/cached,
+descriptor and hidden-ink negatives; all 1,484 source files match across that
+short epoch. A full final owning run has not yet been repeated.
+
+The remaining seven observed failures are budget refusals: four directions of
+the Class128 chain, ER256's Native writer, and two 1,500-text decorative cases.
+These are valid-input admission gaps, not demonstrated accepted wrong drawings.
+Class128 preserves all 128 authored nodes and 127 ordered relations under both
+writers, with byte-identical SVG/models, Native graph selection and zero ELK
+calls, but both writers reach 400,000 operations. Forcing Scene is a measured
+negative experiment and does not justify a family exception. Paid-only profiles
+locate Class Scene context at 167,973 operations (85,280 on groups), with
+additional write/projection/record work. ER256 Scene already passes at 219,802,
+but its default Native writer exhausts capture. Timing campaigns remain paused.
+
+A four-file depth-aware immutable-text draft is preserved but was not yet
+parsed, typechecked or executed at the live status check. It must retain scalar
+depth boundaries, prototype/cycle/own-slot/point checks and generic getter
+behavior; arbitrary undefined geometry contexts cannot borrow text metadata
+facts. Independent review is pending. The group/capture owner has adopted no
+runtime shortcut or quota repricing. Next: test bounded text-fact reuse and
+subtraction of unused precision work, close these seven owning refusals, finish
+the Main integration while retaining the published correction, then perform
+final-source checks and exact-head CI. All negative results and unverified or
+unavailable observations remain enrolled. No human study is a dependency.
+
+### 29 October, 23:59 UTC: checked session state and subtracted unsuccessful drafts
+
+Fresh Git fetch/pull confirms retained published head
+`fac4f0c8557ac1343eefe5438556dd7cf5818ef9` and Main
+`1fc21f5181db543c7a9735dbd166ad89d8dae03f`. PR449 is merged/closed
+(28 October, 00:25 UTC); thirteen discussion comments are unchanged since the
+last check. GitHub reports zero Actions runs for this published head. The
+isolated Main integration remains uncommitted over `eb1fb3312`, with all index
+conflicts resolved. No rebase, Main integration commit or force push is claimed.
+A whole published-branch rebase would rewrite published ancestry; preserve it
+through normal integration instead of replaying 427 branch-only commits.
+The old two private cache-authority commits are already represented by the
+published milestone and must not be replayed merely to claim rebase activity.
+
+Five Sol6.1 High agents split experimental cleanup and independently falsifiable
+paint/ownership, CI/configuration, history and evidence reviews. No confirmed
+weakening was found in the inspected staged roster/group/cap integration, but
+review is not a passing test or final readiness result. Incoming Main's inherited
+descriptor-value and Native depth-bypass fixes remain mandatory.
+
+The additional R21 depth-metadata and R22/R23 THIN text-context implementations
+closed **zero** large-input refusals in their controlled comparisons. Both are
+removed from the candidate; their complete drafts, actual SVGs, counterexamples
+and unsuccessful outcomes remain outside the repository. The simpler mandatory
+R20 custody changes remain, together with independently authored depth48/64
+positive and depth68/288 refusal controls. Cleanup receipts are retained under
+`/tmp/pr449-completion-20261029/integration-cleanup-final/`.
+
+A new exact frozen-source owning check after subtraction passes **82 text/cache
+tests / 351 assertions**. The paint-complement and six Scene owners report
+**634P/3F / 5,728 assertions**; the three failures are ER256 Native and the two
+1,500-text decorative cases. The four Class128 directions each still fail the
+passed-proof assertion: **0P/4F / eight assertions**. These are seven unresolved
+valid-input admission gaps; no failure is waived, hidden or counted as a pass.
+Canonical core/repository types and full lint pass. All checks compare all
+1,484 source files directly before/at-lock/after, use existing 117+3-second
+product and 300+3-second type bounds, and reap owned processes. The earlier
+63 separately partitioned paint tests were not replayed in this new check;
+their R20 results remain tied to R20. Exact commands/results and cleanup records
+are in `/tmp/pr449-completion-20261029/live-status-after-cleanup/`.
+
+Next concrete experiment is bounded subtraction of unused precision-text write
+capture: validate actual bound single-line SVG only when the existing fractional
+proof needs it, instead of eagerly retaining a receipt for every text. It is an
+outside-repository prototype, not implementation success or a new gate. Adoption
+requires a real budget-admission improvement and preservation of existing
+negative controls and original-seven artifact evidence. No timing campaign or
+price/cap relaxation is authorized. The original-six goals remain unfinished;
+human participants are not a dependency.
+
+### 30 October: published-source precision-text subtraction and live status
+
+Runtime change `2acc924ce60f6aa7d4a87d83e2d0007e317ff427`, over published
+`fac4f0c8557ac1343eefe5438556dd7cf5818ef9`, removes eager precision-text
+receipt callbacks and retained attribute records. Only an existing active
+fractional proof inspects its actual same-emission single-line SVG, using a
+closed, paid canonical attribute/content grammar. Exact typography, prepared
+metrics, ownership, getter/depth/CSS isolation and all caps remain. Ordinary
+text no longer performs unused precision capture; no global result cache,
+second geometry writer, family exemption or changed fee for retained work is
+introduced. The optional R21 metadata and R22/R23 THIN drafts closed zero large
+cases and were dropped. A first lazy parser also regressed diagram206 through
+extra generic XML decoding; that epoch was rejected. The final grammar removes
+those performed generic passes instead of waiving their cost.
+
+The canonical regression has 1,500 prepared labels and an unused arrow
+resource, with zero marker occurrences. Before the change, the actual output is
+unverified at 400,000 operations. Afterward it passes at **382,336/400,000**,
+with identical **329,865-byte SVG**. Its owning test independently reads all
+1,500 actual text elements, authored occurrence IDs/order and typography, and
+observes first/last glyph removal in two small pinned-font raster crops. On
+unchanged parent production the test fails only at its final passed-proof
+assertion after 3,011 actual-output/contract assertions; the same test passes
+with this change. These two crop witnesses do not claim that all 1,500 glyphs
+were separately raster-observed. The 32-marker variant remains enrolled and U;
+it is not silently removed or converted to an expected success.
+
+The complete paint/Scene owners pass **666 unique tests / 11,917 assertions**
+across seven files using three disjoint/exhaustive partitions (18 +45 +603).
+The standalone green regression replay is not added to that unique count.
+Prepared-text/cache owners pass **74 tests / 327 assertions**. Canonical core
+and repository types and full lint pass. All seven checks keep 1,480 source
+files byte-identical before/at-lock/after, retain existing 117+3-second product
+and 300+3-second type bounds, and reap owned descendants. Independent read-only
+review found no introduced authority defect and confirmed exact correspondence
+of the reviewed four-file overlay to the committed runtime. Exact commands,
+red/green logs, artifacts, byte comparisons and cleanup records are under
+`/tmp/pr449-completion-20261029/canonical-text-subtraction-{red,green}/` and
+`conditional-text-subtraction/`. No timing campaign was run.
+
+Latest fetched Main remains `1fc21f5181db543c7a9735dbd166ad89d8dae03f`.
+PR449 is merged/closed; follow-ups remain on its retained branch. The separate
+Main integration is still uncommitted, and no completed rebase is claimed.
+Incoming Main's inherited descriptor-value and unbounded Native depth shortcut
+remain corrected in that isolated candidate. Five Sol6.1 High agents split
+cleanup, authority/CI/history reviews and evidence auditing; no competing
+writers or uncommitted changes were overwritten. Published ancestry is
+preserved and no force push is used.
+
+After applying the same four files there, the exact seven previously failing
+owning cases are **1P/6F**. The existing no-marker case passes. Remaining valid
+admission gaps are Class128 in TB/BT/LR/RL, ER256 Native and 1,500 text labels
+with 32 decorative markers. These are budget refusals; no demonstrated accepted
+wrong drawing is inferred from them. Their checks/caps are not relaxed to make
+the Main integration green. This failing integration is not published.
+
+A separate private-Main overlay acquisition preserves **28 unique original-seven
+OFF cells** (two graph backends × two writers × seven sources) plus four
+identical-source206 repeat calls: all32P and SVG bytes baseline-equal. This is
+not NORMAL-cache, strict-execution, holdout, raster or final-published-head
+qualification. Its Native Agentic206 uses396,056/400,000, leaving3,944 operations;
+that observation is not assigned to this canonical revision. The earlier full
+230-input development and public-peer campaigns also keep their earlier exact
+revisions. Current Agentic peer arms and the sealed replacement holdout remain
+unacquired. Human participants are optional research, not a blocker.
+
+At this commit, final-head CI is not yet observed; dispatch it after the normal
+fast-forward-safe push and report its actual result separately. No parity with
+ELK in correctness, aesthetics, timing, memory or delivery size is claimed.
+Next concrete step: trace and remove duplicate context/capture work in the
+32-marker counterexample, close the remaining six owning refusals, then finish
+the Main integration and rerun the affected combined-candidate checks. No new
+issue, PR, package, version bump or default-backend change is created.
+
+The runtime follow-up above is now normally pushed at branch/log head
+`d43ef02ee11f9c5f99d5138e9455f14efcbab27b`, with clean canonical worktree.
+Exact-head CI [40978745281](https://github.com/adewale/agentic-mermaid/actions/runs/40978745281)
+is running; no terminal outcome is claimed. Existing PR449 description is updated
+without reopening it or creating a comment. This local integration still needs
+the published d43 ancestry before eventual fast-forward-safe publication.
+
+30 October follow-up: exact-head CI40978745281 at d43ef02ee has completed
+with failure. Two unit shards fail five tests: ELKcycle40TD/BT each report
+three label conflicts; left/right Sequence creation rejects overlapping-marker
+proof as unverified; docs/api.md api-versions block is stale. Browser/quality
+and generated-layout advisory lanes also fail; causes of those lanes remain
+unclassified at this check. Semantic conformance, unit shard3, CLI, payload,
+artifact, both installed tarball consumers, quickstarts and MCP pass. These new
+counterexamples are additional to the six isolated-Main budget refusals. No
+claim of a fully passing current branch or universalELKparity is made.

@@ -1,3 +1,4 @@
+import { buildInkTree, createInkIndex, chargeInkSort, type InkTree } from '../shared/ink-index.ts'
 import type { RenderedLayout } from '../agent/types.ts'
 import { connectorMarkerPaintRegions, connectorStrokeHasJoins, expandSceneBounds, nodePaintBounds, paintedStrokeExtent, unionSceneBounds, transformedBounds, visitTypedPathSegments, type ConnectorMarkerPaintRegion, type TypedPathSegment } from './bounds.ts'
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
@@ -58,23 +59,35 @@ const box = (r: { x: number; y: number; w: number; h: number }): AxisAlignedBox 
 const viewportBox = (v: PaintViewport): AxisAlignedBox => ({ x0: v.x, y0: v.y, x1: v.x + v.width, y1: v.y + v.height })
 
 interface Surface { primitive: ScenePaintPrimitive; bounds: AxisAlignedBox; interiors?: readonly AxisAlignedBox[]; strokeInteriors?: readonly AxisAlignedBox[]; borderWidth?: number; partBorderWidths?: readonly number[]; partFilled?: readonly boolean[]; partBounds?: readonly (AxisAlignedBox | undefined)[] }
-interface Tree { bounds: AxisAlignedBox; leaves?: readonly Surface[]; left?: Tree; right?: Tree }
-function tree(items: Surface[]): Tree | undefined {
-  if (!items.length) return undefined
-  const bounds = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }
-  for (const surface of items) {
-    bounds.x0 = Math.min(bounds.x0, surface.bounds.x0)
-    bounds.y0 = Math.min(bounds.y0, surface.bounds.y0)
-    bounds.x1 = Math.max(bounds.x1, surface.bounds.x1)
-    bounds.y1 = Math.max(bounds.y1, surface.bounds.y1)
+interface Tree extends InkTree<Surface> { lastOrder: number; left?: Tree; right?: Tree }
+function tree(items: Surface[], work: () => boolean, retained: boolean): Tree | undefined {
+  // Keep the existing surface tie order. Only privately retained occurrences
+  // supply cached paint-order bounds; raw callers retain fresh order checks.
+  const root = buildInkTree(items, item => item.bounds, undefined, (a, b) => a.primitive.order - b.primitive.order) as Tree | undefined
+  const retainOrder = (branch: Tree): number => {
+    if (!work()) return -Infinity
+    let last = -Infinity
+    if (branch.leaves) for (const surface of branch.leaves) { if (!work()) break; last = Math.max(last, surface.primitive.order) }
+    else last = Math.max(retainOrder(branch.left!), retainOrder(branch.right!))
+    return branch.lastOrder = last
   }
-  if (items.length <= 8) return { bounds, leaves: items }
-  const axis = bounds.x1 - bounds.x0 >= bounds.y1 - bounds.y0 ? 'x0' : 'y0'
-  // These arrays belong to this tree: the root comes from solidInteriors,
-  // and child ranges are fresh slices. Keep the same split and tie order.
-  items.sort((a, b) => a.bounds[axis] - b.bounds[axis] || a.primitive.order - b.primitive.order)
-  const middle = Math.floor(items.length / 2)
-  return { bounds, left: tree(items.slice(0, middle)), right: tree(items.slice(middle)) }
+  if (root && retained) retainOrder(root)
+  return root
+}
+
+const PAINT_QUERY_WORK_LIMIT = Symbol('paint query work limit')
+/** Only the spatial broad phase is shared. Exact paint predicates and ordered
+ * issue priority stay here, under this certificate's original allowance. */
+function orderedPaintQuery<T extends { bounds: AxisAlignedBox; index: number }>(items: T[], work: () => boolean, expectedQueries: number): (bounds: AxisAlignedBox) => T[] {
+  const charge = (count = 1): void => { for (let i = 0; i < count; i++) if (!work()) throw PAINT_QUERY_WORK_LIMIT }
+  const query = createInkIndex(items, item => item.bounds, charge, expectedQueries)
+  return bounds => {
+    try {
+      const found = query(bounds)
+      chargeInkSort(found, (a, b) => a.index - b.index, charge)
+      return found
+    } catch (error) { if (error !== PAINT_QUERY_WORK_LIMIT) throw error; return [] }
+  }
 }
 
 /** A straight orthogonal stroke is contained by its half-width body and
@@ -1479,7 +1492,6 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
   const resolvePaintColor = (value: string): string | undefined => !colorHeaderMatches ? undefined
     : boundColor ? boundColor(value) : (paletteColor ??= createInlineColorAttributeResolver())(value, scene.colors)
   const surfaceItems = solidInteriors(inspection.primitives, resolvePaintColor)
-  const surfaces = tree(surfaceItems)
   if (emissionWork?.uncertain) issue({ code: 'OUTPUT_SCOPE', message: 'Emitted document context or marker resource differs from retained paint evidence' })
   if (sceneWriteWork?.uncertain) issue({ code: 'OUTPUT_SCOPE', message: 'Emitted Scene context or marker resource differs from retained paint evidence' })
   let pairs = 0, operations = (emissionWork?.operations ?? 0) + (sceneWriteWork?.operations ?? 0), exhausted = (emissionWork?.exhausted ?? false) || (sceneWriteWork?.exhausted ?? false)
@@ -1529,16 +1541,42 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     if (source?.kind === 'shape' && source.geometry.kind === 'compound' && hasWrittenCompoundProjection(source.geometry)
       && (hasNativeEmissionOccurrence(primitive) || hasSceneWriteEmissionOccurrence(primitive))) { cylinderCapture = true; break }
   }
-  const endpointRoles = new Map<string, Set<string>>()
-  for (const primitive of inspection.primitives) {
-    if (exhausted) break
-    for (const owner of [primitive.owner, ...primitive.ancestors]) {
-      if (!work()) break
-      if (!ENDPOINT_ROLES.has(owner.role)) continue
-      const roles = endpointRoles.get(owner.id) ?? new Set<string>()
-      roles.add(owner.role)
-      endpointRoles.set(owner.id, roles)
+  // The private inspector freezes bounds, kind and order even for generic
+  // Scene input. Spatial queries reuse those facts, never mutable paint data.
+  const retainedRoster = work() && work() && hasImmutablePaintRoster(inspection) && work()
+  const surfaces = tree(surfaceItems, work, retainedRoster)
+  type TextBatch = { bounds: AxisAlignedBox; order: number; count: number; surfaces?: Surface[] | null }
+  const textBatches = new Map<readonly SceneOwner[], TextBatch>(), texts: ScenePaintPrimitive[] = [], connectors: ScenePaintPrimitive[] = []
+  // Immutable sibling occurrences can share one conservative lookup without
+  // sharing a visibility exemption. Exact paint order and bounds remain per text.
+  if (retainedRoster) for (const primitive of inspection.primitives) {
+    if (!work()) break
+    if (primitive.kind === 'connector') connectors.push(primitive)
+    if (primitive.kind !== 'text' || primitive.coverage !== 'measured' || primitive.visibility === 'conditional') continue
+    texts.push(primitive)
+    if (!primitive.ancestors.length) continue
+    const batch = textBatches.get(primitive.ancestors)
+    if (batch) { batch.bounds = unionSceneBounds(batch.bounds, primitive.bounds)!; batch.order = Math.min(batch.order, primitive.order); batch.count++ }
+    else textBatches.set(primitive.ancestors, { bounds: primitive.bounds!, order: primitive.order, count: 1 })
+  }
+  let endpointRoles: Map<string, Set<string>> | undefined
+  const collectEndpointRoles = (): void => {
+    endpointRoles = new Map()
+    for (const primitive of inspection.primitives) {
+      if (exhausted) break
+      for (const owner of [primitive.owner, ...primitive.ancestors]) {
+        if (!work()) break
+        if (!ENDPOINT_ROLES.has(owner.role)) continue
+        const roles = endpointRoles.get(owner.id) ?? new Set<string>()
+        roles.add(owner.role)
+        endpointRoles.set(owner.id, roles)
+      }
     }
+  }
+  if (!retainedRoster) collectEndpointRoles()
+  const ambiguousEndpoint = (id: string): boolean => {
+    if (!endpointRoles) collectEndpointRoles()
+    return exhausted || (endpointRoles!.get(id)?.size ?? 0) > 1
   }
   const endpointRelation = (connector: NativeConnectorPaintSource, owner: SceneOwner): 'attached' | 'unrelated' | 'ambiguous' => {
     let ambiguous = false
@@ -1547,14 +1585,14 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       if (anchor?.owner) {
         if (anchor.owner.id !== id) { ambiguous = true; continue }
         if (anchor.owner.role === owner.role) return 'attached'
-      } else if ((endpointRoles.get(id)?.size ?? 0) > 1) ambiguous = true
+      } else if (ambiguousEndpoint(id)) ambiguous = true
       else return 'attached'
     }
     return ambiguous ? 'ambiguous' : 'unrelated'
   }
-  const check = (branch: Tree | undefined, primitive: ScenePaintPrimitive): void => {
+  const checkRawText = (branch: Tree | undefined, primitive: ScenePaintPrimitive): void => {
     if (exhausted || !work() || !branch || !overlaps(branch.bounds, primitive.bounds!)) return
-    if (!branch.leaves) { check(branch.left, primitive); check(branch.right, primitive); return }
+    if (!branch.leaves) { checkRawText(branch.left, primitive); checkRawText(branch.right, primitive); return }
     for (const surface of branch.leaves) {
       if (!work()) return
       if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; return }
@@ -1563,19 +1601,39 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       else potentialOcclusion(primitive.id, surface.primitive.id, 'Later filled artwork overlaps the occupied text band; its exact ink intersection is unverified')
     }
   }
-  // Reuse only the recorder's same-emission immutable occurrence roster.
-  // Kind is fixed; every later text eligibility/overlap predicate still runs.
-  let textOccurrences: ScenePaintPrimitive[] | undefined
-  if (colorHeaderMatches && (emissionWork || sceneWriteWork) && work() && work()
-    && hasImmutablePaintRoster(inspection) && work()) textOccurrences = []
-  for (const primitive of inspection.primitives) {
-    if (textOccurrences && !work()) break
-    if (primitive.kind !== 'text') continue
-    if (textOccurrences) {
-      if (!work()) break
-      textOccurrences.push(primitive)
+  const textSurfaces = (branch: Tree | undefined, bounds: AxisAlignedBox, order: number, found: Surface[], allowance?: { remaining: number }): void => {
+    if (exhausted || allowance && (allowance.remaining-- <= 0 || found.length > 16) || !work() || !branch || retainedRoster && branch.lastOrder <= order || !overlaps(branch.bounds, bounds)) return
+    if (!branch.leaves) { textSurfaces(branch.left, bounds, order, found, allowance); textSurfaces(branch.right, bounds, order, found, allowance); return }
+    for (const surface of branch.leaves) {
+      if (allowance && allowance.remaining-- <= 0 || !work()) return
+      if (surface.primitive.order > order && overlaps(surface.bounds, bounds)) { found.push(surface); if (allowance && found.length > 16) return }
     }
-    if (primitive.coverage === 'measured' && primitive.visibility !== 'conditional') check(surfaces, primitive)
+  }
+  if (!retainedRoster) for (const primitive of inspection.primitives) {
+    if (primitive.kind === 'text' && primitive.coverage === 'measured' && primitive.visibility !== 'conditional') checkRawText(surfaces, primitive)
+  }
+  for (const primitive of texts) {
+    const batch = textBatches.get(primitive.ancestors)
+    let found: Surface[] | undefined
+    // A wide container must not turn sparse sibling queries quadratic. Stop
+    // dense union candidates early, charging the attempt before local queries.
+    if (batch && batch.count > 1 && batch.count <= 8 && batch.surfaces !== null) {
+      if (!batch.surfaces) {
+        found = []
+        const allowance = { remaining: 64 }
+        textSurfaces(surfaces, batch.bounds, batch.order, found, allowance)
+        batch.surfaces = allowance.remaining >= 0 && found.length <= 16 ? found : null
+      }
+      found = batch.surfaces ?? undefined
+    }
+    if (!found) { found = []; textSurfaces(surfaces, primitive.bounds!, primitive.order, found) }
+    for (const surface of found) {
+      if (!work()) break
+      if (surface.primitive.order <= primitive.order || !overlaps(surface.bounds, primitive.bounds!)) continue
+      if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; break }
+      if (surface.interiors?.some(interior => work() && contains(interior, primitive.bounds!))) issue({ code: 'TEXT_OCCLUDED', id: primitive.id, by: surface.primitive.id, message: `Retained text is fully covered by later opaque artwork owned by ${surface.primitive.owner.id}` }, true)
+      else potentialOcclusion(primitive.id, surface.primitive.id, 'Later filled artwork overlaps the occupied text band; its exact ink intersection is unverified')
+    }
   }
   const strokeAlpha = new Map<string, number | undefined>()
   // These belong to this paid occurrence walk, not to a mutable source node or
@@ -1583,7 +1641,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
   const pathContours = new Map<ScenePaintPrimitive, readonly ConnectorContourSemantics[]>()
   const occurrenceBounds = new Map<ScenePaintPrimitive, AxisAlignedBox>()
   const actualShaftParts = new Map<ScenePaintPrimitive, readonly AxisAlignedBox[]>()
-  for (const primitive of inspection.primitives) {
+  for (const primitive of retainedRoster ? connectors : inspection.primitives) {
     if (!work()) break
     const node = paintPrimitiveSource(primitive)
     // Semantic relationships must not cross unrelated cards even when their
@@ -1685,7 +1743,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     }
     return true
   }
-  for (const primitive of inspection.primitives) {
+  for (const primitive of retainedRoster ? connectors : inspection.primitives) {
     const node = paintPrimitiveSource(primitive)
     if (primitive.kind !== 'connector' || node?.kind !== 'connector' || node.lineStyle === 'invisible' || primitive.coverage === 'non-painting') continue
     const ownData = (value: object, key: string): unknown => {
@@ -1947,13 +2005,14 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     // not establish final visible ink. The scene's conditional issue stays U.
     if (target.primitive.visibility === 'conditional') return
     if (target.circleStroke?.separated) { work(); return }
-    if (exhausted || !work() || !branch || !overlaps(branch.bounds, target.bounds)) return
+    if (exhausted || !work() || !branch || retainedRoster && branch.lastOrder <= target.primitive.order || !overlaps(branch.bounds, target.bounds)) return
     if (!branch.leaves) { markerCheck(branch.left, target); markerCheck(branch.right, target); return }
     for (const surface of branch.leaves) {
       if (!work()) return
-      if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; return }
+      if (!retainedRoster && ++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; return }
       if (surface.primitive.order <= target.primitive.order || !overlaps(surface.bounds, target.bounds)) continue
       if (target.cylinderContacts?.has(surface.primitive)) continue
+      if (retainedRoster && ++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; return }
       if (target.actualInk && (surface.interiors?.some(interior => work() && contains(interior, target.bounds)) || surface.strokeInteriors?.some(interior => work() && contains(interior, target.bounds)))) {
         issue({ code: 'MARKER_OCCLUDED', id: target.primitive.id, by: surface.primitive.id, message: 'Endpoint marker is fully covered by later opaque artwork with no owned repaint' }, true)
         continue
@@ -2131,6 +2190,29 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     target.cylinderContacts = contacts
   }
   for (let index = 0; index < markerTargets.length; index++) markerCheck(surfaces, markerTargets[index]!)
+  // A few marker queries keep the original linear walk: building an index
+  // cannot amortize amid a large unrelated primitive roster.
+  let semanticMarkers = 0, textQueries = 0
+  if (retainedRoster) for (const target of markerTargets) {
+    if (!work()) break
+    if (!target.semantic || target.primitive.visibility === 'conditional') continue
+    semanticMarkers++
+    if (!(target.strokeProof?.fill === 'absent' && target.strokeProof.stroke === 'absent')) textQueries++
+  }
+  const indexedText = retainedRoster && textQueries > Math.ceil(Math.log2(inspection.primitives.length + 1)) ** 2
+  const indexedMarkers = retainedRoster && semanticMarkers > Math.ceil(Math.log2(semanticMarkers + 1)) ** 2
+  const textItems: Array<{ primitive: ScenePaintPrimitive; bounds: AxisAlignedBox; index: number }> = []
+  if (indexedText) for (const [index, primitive] of inspection.primitives.entries()) {
+    if (!work()) break
+    if (primitive.kind === 'text' && primitive.coverage === 'measured' && primitive.visibility !== 'conditional' && primitive.bounds) textItems.push({ primitive, bounds: primitive.bounds, index })
+  }
+  const textQuery = indexedText ? orderedPaintQuery(textItems, work, textQueries) : undefined
+  const markerItems: Array<{ primitive: ScenePaintPrimitive; bounds: AxisAlignedBox; target: MarkerTarget; index: number }> = []
+  if (indexedMarkers) for (const [index, target] of markerTargets.entries()) {
+    if (!work()) break
+    if (target.semantic && target.primitive.visibility !== 'conditional') markerItems.push({ primitive: target.primitive, bounds: target.bounds, target, index })
+  }
+  const markerQuery = indexedMarkers ? orderedPaintQuery(markerItems, work, semanticMarkers) : undefined
   // Prepared text and endpoint markers can hide each other in either paint
   // order. Text bounds already include the actual halo stroke; neither
   // a same owner/color nor a bounds overlap proves glyph-ink separation.
@@ -2140,10 +2222,9 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     if (target.circleStroke?.separated) continue
     if (!target.semantic || target.primitive.visibility === 'conditional'
       || target.strokeProof?.fill === 'absent' && target.strokeProof.stroke === 'absent') continue
-    if (textOccurrences && !work()) break
-    const primitives = textOccurrences ?? inspection.primitives
-    for (let primitiveIndex = 0; primitiveIndex < primitives.length; primitiveIndex++) {
-      const primitive = primitives[primitiveIndex]!
+    const targetTexts = textQuery ? textQuery(target.bounds).map(item => item.primitive) : retainedRoster ? texts : inspection.primitives
+    for (let primitiveIndex = 0; primitiveIndex < targetTexts.length; primitiveIndex++) {
+      const primitive = targetTexts[primitiveIndex]!
       if (!work()) break
       if (primitive.kind !== 'text' || primitive.coverage !== 'measured' || primitive.visibility === 'conditional'
         || !primitive.bounds || !overlaps(primitive.bounds, target.bounds)) continue
@@ -2156,8 +2237,8 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     const earlier = markerTargets[earlierIndex]!
     if (exhausted) break
     if (!earlier.semantic || earlier.primitive.visibility === 'conditional') continue
-    for (let laterIndex = 0; laterIndex < markerTargets.length; laterIndex++) {
-      const later = markerTargets[laterIndex]!
+    const laterMarkers = markerQuery ? markerQuery(earlier.bounds).map(item => item.target) : markerTargets
+    for (const later of laterMarkers) {
       if (!work()) break
       const earlierRepaint = earlier.strokeProof?.repaint, laterRepaint = later.strokeProof?.repaint
       if (!later.semantic || later.primitive.visibility === 'conditional' || later.primitive.order <= earlier.primitive.order

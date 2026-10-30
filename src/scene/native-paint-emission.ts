@@ -433,7 +433,7 @@ export function createNativePaintEmission(maxOperations: number) {
         if (source !== captured || attributesReceived) { invalidAttributes = true; return }
         attributesReceived = true
         attributes = written
-      } : undefined }) : captured.kind === 'text' ? Object.assign(() => {}, { captureTextContext: true as const, reserveTextContext: pay }) : undefined
+      } : undefined }) : undefined
       const svg = write(captured, sink)
       if (pay()) capturedLeaves.set(captured, captured)
       const retained = { node: captured, paintNode: captured, svg, conditional: false }

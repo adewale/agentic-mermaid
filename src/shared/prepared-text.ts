@@ -6,7 +6,8 @@ import type { TextTransform } from '../types.ts'
 import { LINE_HEIGHT_RATIO, measureTextWidth, measureSystemFontSafeTextWidth, measureMonospaceTextWidth, getCharWidth } from '../text-metrics.ts'
 import { graphemes } from './graphemes.ts'
 import { serializeStyledSegment } from './inline-format.ts'
-import { prepareDisplayText, type DisplayRun, type DisplayTextInput, type PreparedDisplayText } from './display-text.ts'
+import { isImmutableDisplayTextPart, prepareDisplayText, type DisplayRun, type DisplayTextInput, type PreparedDisplayText } from './display-text.ts'
+import { createImmutableParts } from './immutable-parts.ts'
 import { customTextMeasurementActive } from '../text-measurement-profile.ts'
 
 export interface PixelTextOptions {
@@ -66,6 +67,9 @@ export interface PixelTextBlock {
 // of the metrics. Scene admission carries it across its own immutable snapshot.
 const pixelBlocks = new WeightedLru<string, PixelTextBlock>(256, 8 * 1024 * 1024)
 const preparedBlocks = new WeakSet<object>()
+// Only constructor-owned immutable data, never the transferable measurement brand.
+const immutablePixelParts = createImmutableParts(isImmutableDisplayTextPart)
+export function isImmutablePixelTextPart(value: object): boolean { return immutablePixelParts.has(value) }
 export function isRetainedPixelText(value: object): boolean { return preparedBlocks.has(value) }
 export function transferRetainedPixelText(source: object, snapshot: object): void {
   if (preparedBlocks.has(source)) preparedBlocks.add(snapshot)
@@ -128,12 +132,12 @@ function trackingLayout(runs: readonly DisplayRun[], options: PixelTextOptions):
     const run = runs[cluster.runIndex]!, next = clusters[index + 1]
     const lastInStyle = !next || !sameStyle(run, runs[next.runIndex]!)
     const width = trackedGlyphWidth(cluster.text, run, lastInStyle, options)
-    const fragment = Object.freeze({ ...cluster, x, width })
+    const fragment = immutablePixelParts.freeze({ ...cluster, x, width })
     min = Math.min(min, x); max = Math.max(max, x + width)
     x += width + (options.letterSpacing ?? 0)
     return fragment
   })
-  return { width: max - min, originX: -min, fragments: Object.freeze(fragments) }
+  return { width: max - min, originX: -min, fragments: immutablePixelParts.freeze(fragments) }
 }
 
 /** Fit each style run itself: fitting a parent containing style descendants is
@@ -149,11 +153,11 @@ function styledRunLayout(runs: readonly DisplayRun[], options: PixelTextOptions)
   let x = 0
   const fragments = groups.map(({ runIndex, text }) => {
     const width = advance([{ ...runs[runIndex]!, text }], options)
-    const fragment = Object.freeze({ runIndex, text, x, width })
+    const fragment = immutablePixelParts.freeze({ runIndex, text, x, width })
     x += width
     return fragment
   })
-  return { width: x, originX: 0, fragments: Object.freeze(fragments) }
+  return { width: x, originX: 0, fragments: immutablePixelParts.freeze(fragments) }
 }
 
 function trackedGlyphWidth(text: string, run: DisplayRun, lastInStyle: boolean, options: PixelTextOptions): number {
@@ -294,17 +298,17 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
   const lineHeight = options.fontSize * Math.max(LINE_HEIGHT_RATIO, /[\p{Script=Arabic}\p{Script=Hebrew}]/u.test(visible) ? 2.4 : 0, maxMarks ? LINE_HEIGHT_RATIO + maxMarks * 0.6 : 0)
   const lineBlocks = broken.map((runs, i) => {
     const text = runs.map(run => prepared.display === 'literal' ? run.text : serializeStyledSegment(run)).join('')
-    runs.forEach(Object.freeze)
+    runs.forEach(immutablePixelParts.freeze)
     const ascii = !/[^\x20-\x7e]/u.test(text)
     const styled = runs.some(run => run.bold || run.italic || run.underline || run.strikethrough)
     const allocation = ascii ? (options.letterSpacing ?? 0) !== 0 ? trackingLayout(runs, options) : styled ? styledRunLayout(runs, options) : undefined : undefined
-    return Object.freeze({ runs: Object.freeze(runs), text, width: allocation?.width ?? advance(runs, options), baseline: i * lineHeight + options.fontSize * 0.35, originX: allocation?.originX ?? 0, ...(allocation ? { fragments: allocation.fragments } : {}) })
+    return immutablePixelParts.freeze({ runs: immutablePixelParts.freeze(runs), text, width: allocation?.width ?? advance(runs, options), baseline: i * lineHeight + options.fontSize * 0.35, originX: allocation?.originX ?? 0, ...(allocation ? { fragments: allocation.fragments } : {}) })
   })
   const lines = lineBlocks.map(line => line.text)
-  Object.freeze(lines)
-  breaks.forEach(Object.freeze)
+  immutablePixelParts.freeze(lines)
+  breaks.forEach(immutablePixelParts.freeze)
   const width = lineBlocks.reduce((max, line) => Math.max(max, line.width), 0)
-  const block: PixelTextBlock = Object.freeze({ unit: 'px', prepared, text: lines.join('\n'), lines, lineBlocks: Object.freeze(lineBlocks), breaks: Object.freeze(breaks), width, height: lines.length * lineHeight, lineHeight, fontSize: options.fontSize, fontWeight: options.fontWeight, letterSpacing: options.letterSpacing ?? 0, monospace: options.monospace ?? false, safeFont: options.safeFont ?? false, ...(options.fontFamily ? { fontFamily: options.fontFamily } : {}) })
+  const block: PixelTextBlock = immutablePixelParts.freeze({ unit: 'px', prepared, text: lines.join('\n'), lines, lineBlocks: immutablePixelParts.freeze(lineBlocks), breaks: immutablePixelParts.freeze(breaks), width, height: lines.length * lineHeight, lineHeight, fontSize: options.fontSize, fontWeight: options.fontWeight, letterSpacing: options.letterSpacing ?? 0, monospace: options.monospace ?? false, safeFont: options.safeFont ?? false, ...(options.fontFamily ? { fontFamily: options.fontFamily } : {}) })
   preparedBlocks.add(block)
   if (cacheKey !== undefined) pixelBlocks.set(cacheKey, block, cacheKey.length * 2 + block.prepared.source.length * 128 + block.lines.length * 256 + 512)
   return block
@@ -316,8 +320,8 @@ export function pixelTextLine(block: PixelTextBlock | undefined, index: number):
   if (!block || !line) return undefined
   if (!isRetainedPixelText(block)) throw new TypeError('Pixel line projection requires retained preparation')
   const lines = [line.text]
-  Object.freeze(lines)
-  const projected: PixelTextBlock = Object.freeze({ ...block, text: line.text, lines, lineBlocks: Object.freeze([Object.freeze({ ...line, baseline: block.fontSize * 0.35 })]), breaks: Object.freeze([]), width: line.width, height: block.lineHeight })
+  immutablePixelParts.freeze(lines)
+  const projected: PixelTextBlock = immutablePixelParts.freeze({ ...block, text: line.text, lines, lineBlocks: immutablePixelParts.freeze([immutablePixelParts.freeze({ ...line, baseline: block.fontSize * 0.35 })]), breaks: immutablePixelParts.freeze([]), width: line.width, height: block.lineHeight })
   preparedBlocks.add(projected)
   return projected
 }

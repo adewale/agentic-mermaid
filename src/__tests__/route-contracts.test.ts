@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
+import { bendCount } from '../layout/route-geometry.ts'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { applyRouteContracts, auditRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, straightLaneFor, recertifyReroutedEdge, shapePorts, simplifyPolyline, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills } from '../route-contracts.ts'
@@ -742,6 +743,17 @@ describe('classifyRoutes', () => {
   it('longer cycles mark only the closing edge as feedback', () => {
     const graph = parseMermaid('flowchart TD\n  A --> B\n  B --> C\n  C --> A')
     expect(classifyRoutes(graph)).toEqual(['primary-forward', 'primary-forward', 'feedback'])
+  })
+})
+
+describe('emitted route certificate bends', () => {
+  it('ignores writer-equivalent arithmetic elbows while keeping real small turns and retained contacts', () => {
+    const points = [{ x: 385.978, y: 723.293 }, { x: 273.978, y: 723.293 }, { x: 273.978, y: 723.2930000000001 }, { x: 161.978, y: 723.2930000000001 }]
+    const before = structuredClone(points)
+    expect(bendCount(points)).toBe(0)
+    expect(bendCount(points.map(p => ({ x: p.x + 40, y: p.y + 40 })))).toBe(0)
+    expect(bendCount([{ x: 0, y: 0 }, { x: .0001, y: 0 }, { x: .0001, y: .0001 }])).toBe(1)
+    expect(points).toEqual(before)
   })
 })
 
@@ -3334,4 +3346,68 @@ it('rounded header emission retains the generic join support when tiny arcs lose
  const style=resolveRenderStyle(),rounded=labelSeatPaintContext([], [edge], [header],{...style,groupCornerRadius:5.6001e-11},()=>true)!,sharp=labelSeatPaintContext([], [edge], [header],{...style,groupCornerRadius:0},()=>true)!
  expect(rounded.clear(edge,{x:150,y:150},new Map())).toBe(false)
  expect(sharp.clear(edge,{x:150,y:150},new Map())).toBe(true)
+})
+
+describe('private label-bearing route channels', () => {
+  const cases = [
+    ["duplicate routes with different labels", "flowchart RL\n  N8 ===>|retry| N0\n  N2 ----> N5\n  N1 --> N0\n  N7 ===>|same word ok| N10\n  N2 --->|a longer label goes here| N5\n  N1 ----> N4"],
+    ["outer feedback corridor", "flowchart LR\n  N0 --> N1\n  N3 ===> N4\n  N1 ---->|same word ok| N2\n  N4 --> N5\n  N5 ===> N0\n  N2 --->|errors| N3\n  N5 ---->|q| N4"],
+    ["normal stem beside a foreign label", "flowchart LR\n  N4 ---> N3\n  N2 -->|validate input| N1\n  N5 ===> N4\n  N0 ---> N5\n  N3 ---->|same word ok| N2\n  N4 -->|a longer label goes here| N5\n  N1 ===> N0"],
+    ["tight retained target elbow", "flowchart TD\n  N0[/\"same word ok\"/]\n  N1((a longer label goes here))\n  N2([\"x\"])\n  N3[/\"errors\"/]\n  N4((q))\n  N5([\"done\"])\n  N6{retry}\n  N7((validate input))\n  N8([\"warnings\"])\n  N9{ok}\n  N10((same word ok))\n  N11([\"a longer label goes here\"])\n  N3 ----> N0\n  N4 --> N9\n  N1 ===>|x| N10\n  N2 --->|errors| N7\n  N11 ----> N8\n  N8 --> N5\n  N9 ===>|retry| N2\n  N6 --->|validate input| N3\n  N7 ----> N0\n  N4 --> N1\n  N1 ===>|same word ok| N10\n  N2 --->|a longer label goes here| N7"],
+    ["coincident reciprocal labels", "flowchart LR\n  N0[(retry)]\n  N1([\"validate input\"])\n  N2[/\"warnings\"/]\n  N3[(ok)]\n  N4([\"same word ok\"])\n  N5[/\"a longer label goes here\"/]\n  N5 ===>|retry| N2\n  N2 --->|validate input| N5\n  N3 ----> N0\n  N0 --> N3\n  N3 ===>|same word ok| N0\n  N4 --->|a longer label goes here| N1\n  N1 ----> N4\n  N2 --> N5\n  N5 ===> N2"],
+    ["coincident incoming thick arrow", "flowchart BT\n  N0([\"validate input\"])\n  N1[/\"warnings\"/]\n  N2[(ok)]\n  N3([\"same word ok\"])\n  N4[/\"a longer label goes here\"/]\n  N0 -->|validate input| N1\n  N0 ===>|warnings| N2\n  N0 ---> N2\n  N1 ----> N2\n  N1 -->|a longer label goes here| N3\n  N2 ===>|x| N3\n  N2 ---> N3\n  N2 ----> N4\n  N3 --> N4\n  N3 ===>|retry| N0\n  N3 --->|validate input| N0\n  N4 ----> N0"],
+    ["mixed-width duplicate captions", "flowchart RL\n  N0[\"a longer label goes here\"]\n  N1{x}\n  N2{{errors}}\n  N3[\"q\"]\n  N4{done}\n  N5{{retry}}\n  N6[\"validate input\"]\n  N5 --->|a longer label goes here| N4\n  N6 ---->|x| N5\n  N0 --> N3\n  N5 ===> N4\n  N6 --->|done| N5\n  N4 ---->|retry| N3\n  N5 --> N4\n  N6 ===> N5\n  N4 --->|ok| N3\n  N5 ---->|same word ok| N4\n  N6 --> N2\n  N4 ===> N3\n  N5 --->|errors| N4"]
+  ] as const
+
+  it.each(cases.flatMap(([name, source]) => ['LR', 'RL', 'TD', 'BT'].map(direction => [name, direction, source.replace(/^flowchart [A-Z]+/, `flowchart ${direction}`)] as const)))('seats %s in %s without dropping route semantics', (_name, _direction, source) => {
+    const graph = parseMermaid(source), positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.edgeIndex, edge.source, edge.target, edge.label, edge.hasArrowStart, edge.hasArrowEnd, edge.startMarker, edge.endMarker]))
+      .toEqual(graph.edges.map((edge, i) => [i, edge.source, edge.target, edge.label, edge.hasArrowStart, edge.hasArrowEnd, edge.startMarker, edge.endMarker]))
+    expect(auditRouteContracts(positioned, graph)).toEqual([])
+    expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
+    for (const edge of positioned.edges) expect(edge.routeCertificate?.bendCount).toBe(bendCount(edge.points))
+  })
+})
+
+it.each([0, 1, 2, 3].flatMap(turns => ([['end', 'solid', false], ['start', 'solid', false], ['start', 'thick', false], ['both', 'thick', false], ['start', 'thick', true]] as const).map(([marked, shaft, collinear]) => ({ turns, marked, shaft, collinear }))))('a private channel retains $marked $shaft arrow leads and clears foreign ink at rotation $turns (collinear=$collinear)', ({ turns, marked, shaft, collinear }) => {
+  const direction = (['LR', 'TD', 'RL', 'BT'] as const)[turns]!
+  const graph = parseMermaid(`flowchart ${direction}\nA -->|handoff| B\nA --> B\nC --> D\nX0\nX1\nX2\nX3\nX4`), style = resolveRenderStyle()
+  // Typed routing retains authored endpoint identities with a source-only head.
+  Object.assign(graph.edges[0]!, { style: shaft, hasArrowStart: marked !== 'end', hasArrowEnd: marked !== 'start' })
+  const rotate = (point: Point): Point => {
+    let { x, y } = point
+    for (let i = 0; i < turns; i++) [x, y] = [-y, x]
+    return { x, y }
+  }
+  const node = (id: string, x: number, y: number, width = 20, height = 20): PositionedNode => {
+    const a = rotate({ x, y }), b = rotate({ x: x + width, y: y + height })
+    return { ...graph.nodes.get(id)!, x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(b.x - a.x), height: Math.abs(b.y - a.y) }
+  }
+  const nodes = [node('A', 0, 0), node('B', 220, 0), node('C', 170, 100), node('D', 60, 21.15), ...[40, 80, 120, 160, 200].map((x, i) => node(`X${i}`, x, -25, 15, 17))]
+  const foreign = [[180, 100], [180, -60], [140, -60], [140, 20], [100, 20], [100, -60], [60, -60], [60, 20], [40, 20], [40, 100], [70, 100], [70, 41.15]].map(([x, y]) => rotate({ x: x!, y: y! }))
+  const edges: PositionedEdge[] = graph.edges.map((edge, edgeIndex) => ({ ...edge, edgeIndex, points: edgeIndex < 2 ? [rotate({ x: 20, y: 10 }), ...(collinear && edgeIndex === 0 ? [rotate({ x: 25, y: 10 })] : []), rotate({ x: 220, y: 10 })] : foreign,
+    ...(edgeIndex === 0 ? { labelPosition: rotate({ x: 150, y: 10 }) } : {}) }))
+  const before = structuredClone(edges), positioned = { nodes, edges, groups: [] }
+  repairLabelsOnSharedTrunks(positioned, graph, style)
+  expect(edges[2]).toEqual(before[2])
+  expect(edges[0]!.points.length).toBeGreaterThan(2)
+  for (const start of [true, false]) {
+    if (!(start ? edges[0]!.hasArrowStart : edges[0]!.hasArrowEnd)) continue
+    const path = edges[0]!.points, tip = start ? path[0]! : path.at(-1)!, turn = start ? path[1]! : path.at(-2)!
+    expect(Math.hypot(turn.x - tip.x, turn.y - tip.y)).toBeGreaterThanOrEqual(8.375 * (shaft === 'thick' ? 2 : 1) + 4)
+  }
+  expect(edges[0]!.points[0]).toEqual(before[0]!.points[0])
+  expect(edges[0]!.points.at(-1)).toEqual(before[0]!.points.at(-1))
+  expect(auditRouteContracts(positioned, graph).filter(finding => finding.code === 'ROUTE_LABEL_ON_SHARED_TRUNK')).toEqual([])
+  // Independent support for the served default arrow: triangle (67.5,49.15),
+  // (70,41.15), (72.5,49.15), plus its 0.375px outline. The old proposal's
+  // shaft through (70,47.15) crosses the triangle's filled interior.
+  const a = rotate({ x: 67.125, y: 40.775 }), b = rotate({ x: 72.875, y: 49.525 })
+  const marker = { x0: Math.min(a.x, b.x), x1: Math.max(a.x, b.x), y0: Math.min(a.y, b.y), y1: Math.max(a.y, b.y) }
+  for (let i = 1; i < edges[0]!.points.length; i++) {
+    const p = edges[0]!.points[i - 1]!, q = edges[0]!.points[i]!
+    expect(Math.min(p.x, q.x) - .5 < marker.x1 && Math.max(p.x, q.x) + .5 > marker.x0
+      && Math.min(p.y, q.y) - .5 < marker.y1 && Math.max(p.y, q.y) + .5 > marker.y0).toBe(false)
+  }
 })

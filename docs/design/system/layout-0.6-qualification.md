@@ -1,7 +1,15 @@
-# Native layout: 0.6 qualification contract
+# Native layout: 0.6 correctness work plan
 
-Status: owner-directed **0.6.0** work, 27 October 2026. This is an acceptance
-contract, not completed qualification or a second backlog. The sole backlog
+Status corrected 29 October 2026: an **assistant-authored work plan**, first
+published at `795b2b4c62b595cc904802aa25aaafe8ae54df62` on 27 October.
+The owner requested the six goals below and the **0.6.0** timeline, but did not
+approve this document as an acceptance contract or approve its additional study
+and statistical requirements. Its earlier "owner-directed" contract label
+overstated that approval. The detailed research methods below are proposals,
+not additional release or completion gates. In particular, a human study is
+optional; participant or administrator availability does not block this work.
+Existing production limits, CI checks and explicit user instructions still apply.
+The sole backlog
 owner remains [Owned graph backend qualification in TODO.md](../../../TODO.md#owned-graph-backend-qualification-owner-request-pr-449).
 PR [#449](https://github.com/adewale/agentic-mermaid/pull/449) was merged and
 closed on 28 October 2026. The 0.6 qualification campaign continues on its
@@ -11,19 +19,20 @@ It changes neither the package version nor the default backend and performs no
 publication. Feature qualification and the release publication procedure remain
 separate decisions.
 
-## Six acceptance contracts
+## Six requested goals and proposed evidence
 
-| Owner goal | Required evidence |
+| Owner goal | Evidence to collect and report |
 | --- | --- |
 | 1. Fix coverage gaps | A registry-derived family/feature/execution matrix with independently expected meaning, witnesses and explicit unsupported or missing cells. |
 | 2. Establish broader correctness | A prospectively frozen independent holdout, no demonstrated incorrect accepted output and no Native-only loss of admission within the claimed supported domain. All failures, refusals and unknowns remain enrolled. |
-| 3. Match or beat ELK aesthetics | Per-family metric vectors and independent blinded task/readability evidence meet predeclared non-inferiority criteria. Superiority requires separate evidence. |
+| 3. Match or beat ELK aesthetics | Paired actual-render review and per-family metrics for readability, labels, routing, grouping and edit stability, with concrete wins and losses. A blinded human study is optional research. |
 | 4. Match ELK performance | Fully consumed public outputs meet calibrated per-case/family parity bounds across cold, warm, cached, edited and churn regimes. Memory and browser delivery are separately qualified. |
 | 5. Verify the seven diagrams | Sound final-artifact certificates and independent actual-ink review for every source under both engines/cache policies, with unchanged production limits. |
 | 6. Compare correctness with Mermaid and Pele | Independent author intent checked through public models, rendered occurrences and visible ink in pinned public artifacts. Report full and shared-supported/observable populations. |
 
-All six remain open. Earlier instrumentation, tests and repaired examples do not
-complete this contract. A narrower family policy may be evaluated prospectively;
+Report progress and remaining counterexamples for each goal at the observed
+revision. The proposed research programme is not an all-or-nothing acceptance
+contract. A narrower family policy may be evaluated prospectively;
 deleting adverse inputs or counting ELK fallback as Native completion cannot
 satisfy the existing target.
 
@@ -147,7 +156,7 @@ actual XML and bundled-font raster review. Qualify every remaining issue in all
 seven sources under both engines/cache policies, with unchanged 400,000-operation
 and other limits. No epsilon, higher cap or producer-name exemption closes a gap.
 
-## Aesthetic qualification
+## Aesthetics assessment
 
 Use independently qualified paired outputs for aesthetics while reporting
 availability over the full population. Pin fonts, appearance, direction, seeds
@@ -158,7 +167,12 @@ Retain win/tie/loss counts, tails and worst cases. Raw and translation-aligned
 movement, order and attachment changes are separate. No weighted aggregate can
 hide a bad family or demonstrated drawing defect.
 
-Prepare anonymous randomised A/B material for an independently arranged human
+Actual paired SVG/PNG review and the existing metric vectors are the practical
+assessment for this campaign. State their limitations and avoid unsupported
+claims of universal superiority. No new human-study gate is authorized.
+
+Optional future research, if separately commissioned: prepare anonymous
+randomised A/B material for an independently arranged human
 panel. Counterbalance path/relationship tracing, cardinality, label ownership,
 containment and locating edits. Each participant performs comprehension tasks
 on one assigned arm per source before seeing paired preference material, or use
@@ -181,7 +195,11 @@ Reuse [paired comparisons](../../../eval/layout-compare/run.ts),
 the existing rubric and visual tools. Purchase's task-dependent crossing results
 and mental-map research motivate separate measurements, not universal weights.
 
-## Performance qualification
+## Proposed performance methodology
+
+The additional round counts, calibrated margins and statistical protocols in
+this section are research proposals, not owner-approved acceptance conditions.
+Performance campaigns remain paused during the requested correctness work.
 
 Shared runner changes belong in [Trident](../../../eval/trident/README.md).
 First version the full-consumption/completeness adapter: the older release
@@ -262,10 +280,12 @@ renderer supplies our correctness specification.
 
 Start with extended coverage profiles/independent authored models, audited peer
 adapters and a bounded Flowchart/Class/ER fidelity slice. In parallel implement
-the first shared emission-proof prototype and prepare the aesthetic pilot.
+the first shared emission-proof prototype. The prepared aesthetic pilot is
+optional research, not a dependency of the implementation.
 Establish a descriptive baseline before solver tuning. After repairs, freeze a
 candidate and fresh confirmatory holdout. Acquire controlled performance only
-after correctness and agreed aesthetics pass on that same artifact.
+after the current correctness work; report observed tradeoffs on the same
+artifact without inventing additional approval or human-study dependencies.
 
 Use the pinned
 [Mermaid Community JSON](https://github.com/adewale/trident/blob/0a0453c8cc64567d4ad1ccdc256035fb311cf31d/catalog/mermaid-community.json),

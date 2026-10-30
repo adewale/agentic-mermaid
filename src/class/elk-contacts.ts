@@ -6,7 +6,7 @@ import { type ClassMarkerAdmissionWork, chargeClassMarkerAdmissionWork } from '.
 import { addClassSvgNumbers, classCarrierBoundsMayMeetMarker, classCarrierSupportBounds, classRelationshipPaintBoxes, compareClassSvgSum } from './owned-surfaces.ts'
 import type { PositionedClassDiagram, PositionedClassNode, PositionedClassRelationship } from './types.ts'
 
-export interface ClassElkContact {
+export interface ClassRectangleContact {
   node: PositionedClassNode
   relation: PositionedClassRelationship
   from: boolean
@@ -130,11 +130,11 @@ export function assertClassElkSelfContactsClear(diagram: PositionedClassDiagram,
   }
 }
 
-/** Retain only exact raw rectangle/normal identities, before the title's rigid
- * translation. References stay within the owned, freshly extracted artifact. */
-export function retainClassElkContacts(diagram: PositionedClassDiagram, work?: ClassMarkerAdmissionWork): ClassElkContact[] {
+/** Retain exact raw rectangle/normal identities from either producer before
+ * the title's rigid translation. References stay within the owned artifact. */
+export function retainClassRectangleContacts(diagram: PositionedClassDiagram, work?: ClassMarkerAdmissionWork): ClassRectangleContact[] {
   const nodes = new Map(diagram.classes.map(node => { charge(work); return [node.id, node] })),
-    contacts: ClassElkContact[] = []
+    contacts: ClassRectangleContact[] = []
   for (const relation of diagram.relationships)
     for (const from of [true, false]) {
       charge(work)
@@ -152,7 +152,7 @@ export function retainClassElkContacts(diagram: PositionedClassDiagram, work?: C
 
 /** Reconcile a proved raw face to the exact sum of the two actual SVG fields.
  * No nearby point, automatic side or unrelated coordinate is reassigned. */
-export function projectClassElkContacts(contacts: readonly ClassElkContact[], work?: ClassMarkerAdmissionWork): void {
+export function projectClassRectangleContacts(contacts: readonly ClassRectangleContact[], work?: ClassMarkerAdmissionWork): void {
   const updates: { point: { x: number; y: number }; axis: 'x' | 'y'; value: number }[] = []
   for (const {node, relation, from, axis} of contacts) {
     charge(work)

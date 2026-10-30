@@ -1,10 +1,10 @@
+import { erInkIndex } from './ink-index.ts'
 import { erCardinalityEnvelope, erCardinalityInk, erLabelPillInk, type ErGeometryWork } from './cardinality-geometry.ts'
 import { ErLabelWorkLimitError, ErRouteWorkLimitError, ErRouteGeometryError } from './errors.ts'
 export { ErRouteWorkLimitError, ErRouteGeometryError } from './errors.ts'
 import { resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 import { assertErDiagramWork, DIAGRAM_WORK_LIMITS } from '../shared/diagram-limits.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
-import { resolveRoleStyle } from '../scene/style-registry.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 import { visitTypedPathSegments } from '../scene/bounds.ts'
 /**
@@ -38,7 +38,7 @@ import { segmentThroughShape } from '../layout-rubric.ts'
 import { generatedIds } from '../shared/generated-identity.ts'
 import { simplifyPolyline } from '../route-contracts.ts'
 import { calculatePathMidpoint } from '../layout/geometry.ts'
-import { erCandidateCaptionClear, erRelationshipBlock, finalizeErRelationshipLabels, retainedErRelationshipLabels, separateRelationshipLabels } from './label-layout.ts'
+import { erCandidateCaptionClear, erRelationshipBlock, erRelationshipStyle, finalizeErRelationshipLabels, retainedErRelationshipLabels, separateRelationshipLabels } from './label-layout.ts'
 export { erRelationshipBlock } from './label-layout.ts'
 export { erCommentText } from './text.ts'
 
@@ -288,7 +288,7 @@ function repairErFrameRoutes(entities: PositionedErEntity[], groups: PositionedE
     if (caption && !caption.indices.has(index)) continue
     if (rel.points.length < 2) continue
     const [start, end] = [rel.points[0]!, rel.points.at(-1)!]
-    const roleStyle = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
+    const roleStyle = erRelationshipStyle(rel, styleFace)
     // A clear sharp polyline can still cut a card when its corners are rounded.
     // Both producers reserve their actual rendered bend/stroke envelope.
     const clearance = (roleStyle?.bendRadius ?? style.edgeBendRadius) + 2 * (roleStyle?.lineWidth ?? style.lineWidth)
@@ -483,7 +483,7 @@ function buildErElkGraph(
   let markerClearance = 0
   const spans = new Map<string, number>()
   for (const rel of diagram.relationships) {
-    const role = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
+    const role = erRelationshipStyle(rel, styleFace)
     for (const [id, cardinality] of [[rel.entity1, rel.cardinality1], [rel.entity2, rel.cardinality2]] as const) {
       // Canonical cardinalities contain at most four shape bounds; debit
       // their construction, union and this retained capacity record together.
@@ -584,7 +584,7 @@ function extractErLayout(
   const positionedGroups = deriveErGroups(diagram, positionedEntities, style, interior.padding, framePadding)
   // Reserve a full terminal zone plus the rounded envelopes of both peers.
   // Otherwise an unrelated card can leave no legal cardinality-bearing stem.
-  const siblingGap = result.preserveTerminalNormals ? 20 + 2 * Math.max(style.edgeBendRadius, ...diagram.relationships.map(rel => resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })?.bendRadius ?? style.edgeBendRadius)) : 20
+  const siblingGap = result.preserveTerminalNormals ? 20 + 2 * Math.max(style.edgeBendRadius, ...diagram.relationships.map(rel => erRelationshipStyle(rel, styleFace)?.bendRadius ?? style.edgeBendRadius)) : 20
   separateErCompounds(diagram, positionedEntities, positionedGroups, style, relationshipBlocks, interior.padding, interior.exits, siblingGap, styleFace, work, framePadding)
   const boxes = new Map<string, { x: number; y: number; width: number; height: number }>()
   positionedEntities.forEach(entity => boxes.set(entity.id, entity))
@@ -729,7 +729,7 @@ function applyErGroupDirections(diagram: ErDiagram, entities: PositionedErEntity
       const source = erCardinalityEnvelope(rel.cardinality1, style.lineWidth), target = erCardinalityEnvelope(rel.cardinality2, style.lineWidth)
       erCharge(work, 2)
       if (!source || !target) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
-      const radius = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })?.bendRadius ?? style.edgeBendRadius
+      const radius = erRelationshipStyle(rel, styleFace)?.bendRadius ?? style.edgeBendRadius
       const terminal = Math.max(18, source.x1) + Math.max(18, target.x1) + 2 * radius + 2 * (style.lineWidth + .25)
       return [Math.max(rel.label ? relationshipBlocks[i]![horizontal ? 'width' : 'height'] + 56 : 0,
         terminal + (rel.label ? relationshipBlocks[i]![horizontal ? 'width' : 'height'] + 20 : 0))]
@@ -764,7 +764,7 @@ function erFrameInkPadding(diagram: ErDiagram, style: ResolvedRenderStyle, style
         }
       }
     }
-    const radius = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })?.bendRadius ?? style.edgeBendRadius
+    const radius = erRelationshipStyle(rel, styleFace)?.bendRadius ?? style.edgeBendRadius
     for (const [id, kind] of [[rel.entity1, rel.cardinality1], [rel.entity2, rel.cardinality2]] as const) {
       const parent = parents.get(id)
       if (!parent) continue
@@ -774,7 +774,7 @@ function erFrameInkPadding(diagram: ErDiagram, style: ResolvedRenderStyle, style
       // The parent owns the real glyph-bearing stem and the existing
       // router's virtual endpoint, inflated obstacle, and one-pixel middle
       // clearance. Reserve those exact authorities before deriving the frame.
-      const roleWidth = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })?.lineWidth ?? style.lineWidth
+      const roleWidth = erRelationshipStyle(rel, styleFace)?.lineWidth ?? style.lineWidth
       const guide = bound.x1 + 2 * radius + 2 * roleWidth + 3 * (style.lineWidth + .25) + 2 + .75
       padding.set(parent, Math.max(padding.get(parent) ?? 20, guide))
     }
@@ -870,7 +870,7 @@ function separateErCompounds(diagram: ErDiagram, entities: PositionedErEntity[],
         const from = subjects.get(rel.entity1), to = subjects.get(rel.entity2)
         if (!from || !to) continue
         const points = erExteriorRoute(from, to)
-        const radius = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })?.bendRadius ?? style.edgeBendRadius
+        const radius = erRelationshipStyle(rel, styleFace)?.bendRadius ?? style.edgeBendRadius
         // Actual glyph + rounded lead, the middle router's 1px clearance on
         // either side, and actual stroke gaps. This is used only after a live
         // glyph/body conflict, never as a global spacing increase.
@@ -902,7 +902,7 @@ function separateErCompounds(diagram: ErDiagram, entities: PositionedErEntity[],
       if (!from || !to || from === to) continue
       const source = erCardinalityEnvelope(rel.cardinality1, style.lineWidth), target = erCardinalityEnvelope(rel.cardinality2, style.lineWidth)
       if (!source || !target) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
-      const radius = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })?.bendRadius ?? style.edgeBendRadius
+      const radius = erRelationshipStyle(rel, styleFace)?.bendRadius ?? style.edgeBendRadius
       const occupied = (bounds: typeof source) => Math.max(0, bounds.x1, -bounds.x0, bounds.y1, -bounds.y0) + radius
       const terminals = occupied(source) + occupied(target) + 2 * (style.lineWidth + .25)
       // Retain the established labelled cross-clearance floor; actual glyph
@@ -1134,7 +1134,7 @@ export function layoutErDiagram(
     let layerSpacing = options.layerSpacing ?? ER.layerSpacing
     let minimumTerminalLead = 0
     for (const rel of diagram.relationships) {
-      const role = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
+      const role = erRelationshipStyle(rel, styleFace)
       for (const [id, kind] of [[rel.entity1, rel.cardinality1], [rel.entity2, rel.cardinality2]] as const) {
         const bound = erCardinalityEnvelope(kind, style.lineWidth)
         erCharge(work)
@@ -1253,7 +1253,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     return sign > 0 ? (horizontal ? piece.x1 - point.x : piece.y1 - point.y) : (horizontal ? point.x - piece.x0 : point.y - piece.y0)
   }))
   const shafts = () => relationships.flatMap((rel, index) => {
-    const role = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
+    const role = erRelationshipStyle(rel, styleFace)
     const half = (role?.lineWidth ?? style.lineWidth) / 2
     const radius = role?.bendRadius ?? style.edgeBendRadius
     const clipButtCap = (box: ErInkBox, a: Point, b: Point, start: boolean) => {
@@ -1309,6 +1309,17 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     if (!box) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
     return [{ index, box }]
   })
+  const glyphBox = (glyph: ReturnType<typeof glyphs>[number]): ErInkBox => {
+    charge(glyph.pieces.length)
+    return { x0: Math.min(...glyph.pieces.map(p => p.x0)), y0: Math.min(...glyph.pieces.map(p => p.y0)), x1: Math.max(...glyph.pieces.map(p => p.x1)), y1: Math.max(...glyph.pieces.map(p => p.y1)) }
+  }
+  const obstacleQuery = erInkIndex(obstacles, o => o.box, charge, relationships.length * 8)
+  const snapshot = () => {
+    const currentGlyphs = glyphs(), currentShafts = shafts()
+    const bounds = new Map(currentGlyphs.map(g => [g, glyphBox(g)]))
+    return { currentGlyphs, glyphQuery: erInkIndex(currentGlyphs, g => bounds.get(g)!, charge, currentGlyphs.length), shaftQuery: erInkIndex(currentShafts, s => s.box, charge, currentGlyphs.length) }
+  }
+  let retained = snapshot()
   let changed = false
   // Allocate automatic entity and frame face contacts. The selected face and far
   // contact remain fixed; the actual glyph, caption and foreign shaft ranges
@@ -1342,8 +1353,8 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     const current = horizontal ? p.y : p.x
     const corner = groupIds.has(terminal.id) ? 6 : Math.min(style.cornerRadius ?? 0, box.width / 2, box.height / 2)
     let low = (horizontal ? box.y : box.x) + corner, high = (horizontal ? box.y + box.height : box.x + box.width) - corner
-    const currentGlyphs = glyphs(), thisGlyph = currentGlyphs.find(g => g.index === terminal.index && g.end === terminal.end)!
-    const laterOnFace = currentGlyphs.filter(glyph => {
+    const { currentGlyphs, glyphQuery, shaftQuery } = retained, thisGlyph = currentGlyphs.find(g => g.index === terminal.index && g.end === terminal.end)!
+    const laterOnFace = [...faceGroups.get(terminal.id)!.values()].flat().map(g => currentGlyphs[g.index * 2 + g.end]!).filter(glyph => {
       charge()
       if (glyph.id !== terminal.id || order.get(glyph.index * 2 + glyph.end)! <= order.get(terminal.index * 2 + terminal.end)!) return false
       return horizontal ? glyph.point.x === p.x && glyph.toward.y === glyph.point.y && Math.sign(glyph.toward.x - glyph.point.x) === sign
@@ -1351,17 +1362,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     })
     const laterGlyphs = new Set(laterOnFace)
     charge(laterOnFace.length)
-    const peers: ErInkBox[] = [
-      ...currentGlyphs.filter(g => { charge(); return (g.index !== terminal.index || g.end !== terminal.end) && !laterGlyphs.has(g) }).flatMap(g => g.pieces),
-      // Caption centers are still movable; finalize them after fixed face slots.
-      // They are not immutable obstacles for allocating those slots.
-      ...shafts().filter(shaft => shaft.index !== terminal.index && !laterOnFace.some(g => { charge(); return g.index === shaft.index && (g.end ? shaft.last : shaft.first) })).map(shaft => shaft.box),
-    ]
-    const occupied = [...obstacles.filter(o => o.id !== terminal.id || !!o.group !== groupIds.has(terminal.id)).map(o => o.box), ...peers]
-    const oppositePieces = new Set(currentGlyphs.filter(g => g.index === terminal.index).flatMap(g => g.pieces))
-    charge(oppositePieces.size)
-    const leadObstacles = [...obstacles.filter(o => (o.id !== terminal.id || !!o.group !== groupIds.has(terminal.id)) && !o.border).map(o => o.box), ...peers.filter(piece => !oppositePieces.has(piece))]
-    const roleStyle = resolveRoleStyle(styleFace, 'relationship', { category: terminal.rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
+    const roleStyle = erRelationshipStyle(terminal.rel, styleFace)
     const half = (roleStyle?.lineWidth ?? style.lineWidth) / 2
     const glyphDepth = terminalDepth(thisGlyph.pieces, p, horizontal, sign)
     const protectedLength = glyphDepth + (roleStyle?.bendRadius ?? style.edgeBendRadius) + half + style.lineWidth + .25
@@ -1369,6 +1370,28 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     const endLead = horizontal ? { x: p.x + sign * length, y: p.y } : { x: p.x, y: p.y + sign * length }
     const leadBox = { x0: Math.min(p.x, endLead.x) - (horizontal ? 0 : half), x1: Math.max(p.x, endLead.x) + (horizontal ? 0 : half),
       y0: Math.min(p.y, endLead.y) - (horizontal ? half : 0), y1: Math.max(p.y, endLead.y) + (horizontal ? half : 0) }
+    // Only ink that can meet this glyph or its lead anywhere on the owned
+    // face can forbid a seat. Distant geometry keeps its final proof below.
+    const reach = [...thisGlyph.pieces, leadBox]
+    charge(reach.length)
+    const window = { x0: Math.min(...reach.map(b => b.x0)), x1: Math.max(...reach.map(b => b.x1)), y0: Math.min(...reach.map(b => b.y0)), y1: Math.max(...reach.map(b => b.y1)) }
+    if (horizontal) { window.y0 += low - current; window.y1 += high - current }
+    else { window.x0 += low - current; window.x1 += high - current }
+    // The forbidden intervals also reserve separation between glyph strokes.
+    // Include those near misses even when their ink is outside the full face.
+    const gap = style.lineWidth + .25
+    if (horizontal) { window.y0 -= gap; window.y1 += gap }
+    else { window.x0 -= gap; window.x1 += gap }
+    const peers: ErInkBox[] = [
+      ...glyphQuery(window).filter(g => { charge(); return (g.index !== terminal.index || g.end !== terminal.end) && !laterGlyphs.has(g) }).flatMap(g => g.pieces),
+      // Caption centers are still movable; finalize them after fixed face slots.
+      // They are not immutable obstacles for allocating those slots.
+      ...shaftQuery(window).filter(shaft => shaft.index !== terminal.index && !laterOnFace.some(g => { charge(); return g.index === shaft.index && (g.end ? shaft.last : shaft.first) })).map(shaft => shaft.box),
+    ]
+    const occupied = [...obstacleQuery(window).filter(o => o.id !== terminal.id || !!o.group !== groupIds.has(terminal.id)).map(o => o.box), ...peers]
+    const oppositePieces = new Set(currentGlyphs.filter(g => g.index === terminal.index).flatMap(g => g.pieces))
+    charge(oppositePieces.size)
+    const leadObstacles = [...obstacleQuery(window).filter(o => (o.id !== terminal.id || !!o.group !== groupIds.has(terminal.id)) && !o.border).map(o => o.box), ...peers.filter(piece => !oppositePieces.has(piece))]
     const reservations = [...thisGlyph.pieces.map(piece => ({ piece, occupied })), { piece: leadBox, occupied: leadObstacles }]
     charge(occupied.length + leadObstacles.length + reservations.length)
     if (current >= low && current <= high && !reservations.some(({piece, occupied}) => occupied.some(other => intersects(piece, other)))) continue
@@ -1376,7 +1399,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     const oppositeHorizontal = opposite.point.y === opposite.toward.y
     if (horizontal !== oppositeHorizontal) {
       const oppositeSign = Math.sign(oppositeHorizontal ? opposite.toward.x - opposite.point.x : opposite.toward.y - opposite.point.y)
-      const role = resolveRoleStyle(styleFace, 'relationship', { category: terminal.rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
+      const role = erRelationshipStyle(terminal.rel, styleFace)
       const depth = terminalDepth(opposite.pieces, opposite.point, oppositeHorizontal, oppositeSign) + (role?.lineWidth ?? style.lineWidth) / 2 + style.lineWidth + .25
       const lead = depth + Math.min(role?.bendRadius ?? style.edgeBendRadius, depth)
       const coordinate = oppositeHorizontal ? opposite.point.x : opposite.point.y
@@ -1422,7 +1445,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
       const start = points[0]!, end = points.at(-1)!
       points[first]![cross] = candidate
       const a = currentGlyphs.find(g => g.index === terminal.index && g.end === 0)!, b = currentGlyphs.find(g => g.index === terminal.index && g.end === 1)!
-      const role = resolveRoleStyle(styleFace, 'relationship', { category: terminal.rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
+      const role = erRelationshipStyle(terminal.rel, styleFace)
       const needed = (glyph: typeof a) => {
         const ray = Math.sign(horizontal ? glyph.toward.x - glyph.point.x : glyph.toward.y - glyph.point.y)
         const depth = terminalDepth(glyph.pieces, glyph.point, horizontal, ray) + (role?.lineWidth ?? style.lineWidth) / 2 + style.lineWidth + .25
@@ -1439,6 +1462,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     if (!erSimpleRoute(terminal.rel.points, work)) throw new ErRouteGeometryError(terminal.rel.entity1, terminal.rel.entity2)
     delete terminal.rel.finalLabelPosition
     changed = true
+    retained = snapshot()
   }
   if (changed) {
     repairErFrameRoutes(positioned.entities, positioned.groups, relationships, relationships.map(rel => rel.labelBlock ?? erRelationshipBlock(rel, style, styleFace)), style, styleFace, work)
@@ -1504,9 +1528,12 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     charge(glyph.pieces.length * 4 + 1)
     return [glyph, { x0: Math.min(...glyph.pieces.map(p => p.x0)), y0: Math.min(...glyph.pieces.map(p => p.y0)), x1: Math.max(...glyph.pieces.map(p => p.x1)), y1: Math.max(...glyph.pieces.map(p => p.y1)) }] as const
   }))
-  for (const glyph of allGlyphs) for (const other of allGlyphs) {
+  const glyphQuery = erInkIndex(allGlyphs, glyph => glyphBounds.get(glyph)!, charge, allGlyphs.length + allLabels.length)
+  const shaftQuery = erInkIndex(allShafts, shaft => shaft.box, charge, allGlyphs.length * 4 + allLabels.length)
+  const labelQuery = erInkIndex(allLabels, label => label.box, charge, allLabels.length)
+  for (const glyph of allGlyphs) for (const other of glyphQuery(glyphBounds.get(glyph)!)) {
     charge()
-    if (other.index * 2 + other.end <= glyph.index * 2 + glyph.end || !intersects(glyphBounds.get(glyph)!, glyphBounds.get(other)!)) continue
+    if (other.index * 2 + other.end <= glyph.index * 2 + glyph.end) continue
     for (const piece of glyph.pieces) if (other.pieces.some(p => intersects(piece, p))) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
   }
   for (const glyph of allGlyphs) {
@@ -1518,16 +1545,16 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     if ((!horizontal && !vertical) || !far || !at || (horizontal ? far.y !== at.y || Math.sign(far.x - at.x) !== sign : far.x !== at.x || Math.sign(far.y - at.y) !== sign)
       || sign * ((horizontal ? far.x : far.y) - (horizontal ? glyph.point.x : glyph.point.y)) < terminalDepth(glyph.pieces, glyph.point, horizontal, sign)) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
     for (const piece of glyph.pieces) {
-      for (const obstacle of obstacles) if ((obstacle.id !== glyph.id || !!obstacle.group !== groupIds.has(glyph.id)) && intersects(piece, obstacle.box)) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
-      for (const shaft of allShafts) if ((shaft.index !== glyph.index || !(glyph.end ? shaft.last : shaft.first)) && intersects(piece, shaft.box)) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
+      for (const obstacle of obstacleQuery(piece)) if ((obstacle.id !== glyph.id || !!obstacle.group !== groupIds.has(glyph.id)) && intersects(piece, obstacle.box)) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
+      for (const shaft of shaftQuery(piece)) if ((shaft.index !== glyph.index || !(glyph.end ? shaft.last : shaft.first)) && intersects(piece, shaft.box)) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
     }
   }
   for (const label of allLabels) {
     const rel = relationships[label.index]!
-    for (const obstacle of obstacles) if (intersects(label.box, obstacle.box)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
-    for (const glyph of allGlyphs) if (intersects(label.box, glyphBounds.get(glyph)!) && glyph.pieces.some(piece => intersects(label.box, piece))) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
-    for (const shaft of allShafts) if (shaft.index !== label.index && intersects(label.box, shaft.box)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
-    for (const other of allLabels) if (other.index < label.index && intersects(label.box, other.box)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
+    for (const obstacle of obstacleQuery(label.box)) if (intersects(label.box, obstacle.box)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
+    for (const glyph of glyphQuery(label.box)) if (intersects(label.box, glyphBounds.get(glyph)!) && glyph.pieces.some(piece => intersects(label.box, piece))) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
+    for (const shaft of shaftQuery(label.box)) if (shaft.index !== label.index && intersects(label.box, shaft.box)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
+    for (const other of labelQuery(label.box)) if (other.index < label.index && intersects(label.box, other.box)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
   }
   return positioned
 }

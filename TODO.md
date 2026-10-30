@@ -356,13 +356,16 @@ A new defect needs a current reproduction at its owning boundary.
 ## Owned graph backend qualification (owner request, PR #449)
 
 **Release target: 0.6.0**, per the owner's 27 October decision. This section
-remains the sole backlog owner. The six acceptance contracts are in
-[Native layout: 0.6 qualification](docs/design/system/layout-0.6-qualification.md):
+remains the sole backlog owner. The six requested goals are described in the
+assistant-authored [Native layout work plan](docs/design/system/layout-0.6-qualification.md):
 repair coverage; establish broader held-out correctness; match or beat ELK
 aesthetics; match ELK performance; soundly verify the seven unverified diagrams;
-and compare correctness with public Mermaid and Pele artifacts. All six remain
-open. Checked historical work below is implementation/evaluation evidence at its
-named revision, not completion of these 0.6 contracts. Keep the feature draft and
+and compare correctness with public Mermaid and Pele artifacts. The owner did
+not approve that document as an acceptance contract. Its extra statistical and
+human-study methods are proposals; a human panel or administrator is not a
+completion gate. Report actual progress and gaps for each goal. Checked
+historical work below is implementation/evaluation evidence at its
+named revision. Keep the feature
 opt-in while qualifying it; this deferral does not change package versions,
 publish a release or authorize a default switch.
 

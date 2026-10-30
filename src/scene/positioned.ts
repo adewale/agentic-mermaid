@@ -21,6 +21,10 @@ type RenderableNativeDrawing = Pick<NativeDrawing, 'svg' | 'preparedText'>
 interface PositionedNative { drawing: RenderableNativeDrawing; producer: DrawingProducer; evidence?: NativeDrawing; certification?: PaintLayoutCertification }
 const native = new WeakMap<FamilyLayoutResult, WeakMap<ResolvedRenderRequest, PositionedNative>>()
 const retained = new WeakMap<FamilyLayoutResult, WeakMap<ResolvedRenderRequest, PositionedScene>>()
+// Above this conservative native custody capacity, retain one immutable Scene
+// before drawing. This avoids spending the paint allowance on an abandoned
+// native capture; both adapters certify under the same unchanged limits.
+const ER_NATIVE_PAINT_NODE_CAPACITY = 256
 
 /** Lower once from the actual positioned artifact, shared by SVG, layout,
  * verification and receipt consumers. No source parse or layout is repeated. */
@@ -59,6 +63,7 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
   let bypass = sceneAssertionsEnabled(request) ? 'scene-assertions' : plan.family.id.startsWith('family:') ? 'external-family'
     : plan.backend && !isBuiltinDefaultBackend(plan.backend.backend) ? 'alternate-backend'
       : !(plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && plan.backend?.inputName === 'default') ? 'unsupported-mode' : undefined
+  if (!bypass && plan.family.id === 'er' && (retainedFamilyProjection(layout)?.nodes.length ?? 0) > ER_NATIVE_PAINT_NODE_CAPACITY) bypass = 'paint-proof-capacity'
   let producer = bypass ? undefined : nativeDrawingOf(plan.family.lowerScene)
   if (!producer) bypass ??= 'no-native-producer'
   if (bypass) {

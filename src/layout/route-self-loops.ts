@@ -3,12 +3,12 @@ import type { Point, PortSide, PositionedEdge, PositionedGroup, PositionedNode, 
 import { graphEdgeTextBlock } from '../graph-text.ts'
 import { clipEdgeToShape } from '../shape-clipping.ts'
 import { LABEL_PILL_PADDING, labelHaloExtension, labelRect } from '../shared/edge-label-geometry.ts'
-import { type LaneContext, setRoutePoints, opposite } from './route-geometry.ts'
+import { type LaneContext, setRoutePoints, opposite, routesCrossOrOverlap } from './route-geometry.ts'
 import { routeCandidateMarkerBlocker, routeMarkerPaintRegions } from './route-marker-clearance.ts'
 import { nodePaintBounds, paintedStrokeExtent } from '../scene/bounds.ts'
 import { shapeOutline } from '../shape-outline.ts'
 import { STROKE_WIDTHS, type ResolvedRenderStyle } from '../styles.ts'
-export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode>, groupMap: ReadonlyMap<string, PositionedGroup>, ctx: Pick<LaneContext, 'nodes' | 'edges' | 'style' | 'routeChannelGeometry'>, markerBlockers?: RouteBlocker[]): (edge: PositionedEdge) => PortSide | null {
+export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode>, groupMap: ReadonlyMap<string, PositionedGroup>, ctx: Pick<LaneContext, 'nodes' | 'edges' | 'style' | 'routeChannelGeometry'>, markerBlockers?: RouteBlocker[], reserved = new Set<PositionedEdge>()): (edge: PositionedEdge) => PortSide | null {
   const style = ctx.style
 
   // ---- Self-loop arc routing (plan §State 6; upstream #6336/#6049) --------
@@ -248,6 +248,7 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
       // Clip both endpoints onto non-rectangular outlines before measuring
       // the actual marker pose. Failed seats leave all live routes unchanged.
       const clipped = clipEdgeToShape(clipEdgeToShape(points, node, true), node, false)
+      if ([...reserved].some(other => other !== edge && routesCrossOrOverlap(clipped, other.points))) return null
       const blocker = routeCandidateMarkerBlocker(edge, clipped, ctx.edges, style)
       if (blocker) { markerBlockers?.push(blocker); return null }
       const labels = labelPlanFor(side, depth, clipped)
@@ -287,6 +288,7 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
       clipped = candidate.points
       labelUpdates = candidate.labels
     }
+    reserved.add(edge)
     selfLoopRank.set(sideKey(chosen), sideRank(chosen) + 1)
     setRoutePoints(ctx, edge, clipped)
     const labelSideKey = sideKey(chosen)

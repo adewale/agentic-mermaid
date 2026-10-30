@@ -10,6 +10,9 @@ import { labelDisplayLength } from '../agent/label-metrics.ts'
 import { preparePixelText, fitPixelText } from '../shared/prepared-text.ts'
 import { renderMultilineText } from '../multiline-utils.ts'
 import { nodeWorldBounds } from '../scene/bounds.ts'
+import { drawNative } from '../scene/native-drawing.ts'
+import { certifyNativePaint } from '../scene/paint-certification.ts'
+import type { DrawingProducer } from '../scene/drawing.ts'
 import * as marks from '../scene/marks.ts'
 import { nodeProblems } from '../scene/fidelity.ts'
 import { transferSceneNodeSerialization } from '../scene/serialization.ts'
@@ -166,6 +169,34 @@ describe('prepared display text', () => {
     expect(block.prepared.lines[0]![0]!.text).toBe('<b>')
     expect(Object.isFrozen(block.prepared)).toBe(true)
     expect(Object.isFrozen(block.prepared.lines[0]![0]!.clusters)).toBe(true)
+  })
+
+  it.each([{ nesting: 10, deepest: 48 }, { nesting: 14, deepest: 64 }, { nesting: 15, deepest: 68 }, { nesting: 70, deepest: 288 }])('keeps constructor text at descendant depth $deepest within Native snapshot limits', ({ nesting, deepest }) => {
+    const text = 'Read'
+    let plan = prepareDisplayText(text, 'literal')
+    // Native's text leaf adds one edge to the block. Its ordinary prepared
+    // plan reaches scalar data at depth8; each extra plan adds four edges.
+    for (let depth = 0; depth < nesting; depth++) {
+      const run = { text, bold: false, italic: false, underline: false, strikethrough: false, sourceStart: 0, sourceEnd: text.length, extra: plan }
+      plan = prepareDisplayText({ source: text, display: 'literal', lineStarts: [0], lines: [[run]] })
+    }
+    const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+    const drawing = (block: ReturnType<typeof preparePixelText>) => {
+      const producer: DrawingProducer = factory => ({ family: 'flowchart', width: 100, height: 80, transparent: false, colors: context.colors, parts: [
+        factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80" style="--bg:#fff;--fg:#111">'),
+        factory.text({ id: 'label', role: 'label', text, block, x: 50, y: 30, fontSize: 12, anchor: 'middle', paint: { fill: '#111' } }),
+        factory.documentClose(),
+      ] })
+      const result = drawNative(producer, context, 'flowchart')
+      return { ...result, proof: certifyNativePaint(result.header, result.paint) }
+    }
+    const ordinary = drawing(preparePixelText(text, { fontSize: 12, fontWeight: 400 }))
+    const deep = drawing(preparePixelText(plan, { fontSize: 12, fontWeight: 400 }))
+    expect(ordinary.proof.status).toBe('passed')
+    expect(deep.svg).toBe(ordinary.svg)
+    expect(deep.proof.status).toBe(deepest <= 64 ? 'passed' : 'unverified')
+    if (deepest <= 64) expect(deep.proof.issues).toEqual([])
+    else expect(deep.proof.issues).toContainEqual(expect.objectContaining({ code: 'CONDITIONAL_PAINT' }))
   })
 
   it('preserves measurement observations for supplied fragment accessors', () => {
