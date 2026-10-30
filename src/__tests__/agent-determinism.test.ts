@@ -3,6 +3,7 @@
 // No seed apparatus (it did nothing); determinism is structural to ELK.
 
 import { describe, test, expect } from 'bun:test'
+import fc from 'fast-check'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -11,7 +12,9 @@ import { pathToFileURL } from 'node:url'
 import { verifyMermaid } from '../agent/verify.ts'
 import type { RenderedLayout } from '../agent/types.ts'
 import { clearElkLayoutCache } from '../elk-instance.ts'
+import { PERFORMANCE_EXPERIMENTS, withPerformanceExperiments } from '../experimental-performance.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(20_000)
@@ -90,6 +93,51 @@ describe('determinism grid (in-process, repeat call)', () => {
       expect(layout()).toEqual(layout())
     })
   }
+})
+
+// verify is a pure function of its source. A repeat call is served from the
+// positioned-layout cache; a call with that cache off recomputes everything.
+// Both must report exactly what the first call reported, even when an earlier
+// call already warmed the cache. Fan-ins, fan-outs and duplicate edges produce
+// constructed bundle lanes, whose deliberate bends the route tripwires exempt.
+describe('determinism — verify warnings ignore process history', () => {
+  const graphArb = fc.record({
+    n: fc.integer({ min: 4, max: 12 }),
+    mult: fc.integer({ min: 2, max: 7 }),
+    offset: fc.nat(11),
+    every: fc.integer({ min: 2, max: 5 }),
+    skip: fc.integer({ min: 1, max: 11 }),
+    dir: fc.constantFrom(...DIRECTIONS),
+  })
+  const toSource = ({ n, mult, offset, every, skip, dir }: { n: number; mult: number; offset: number; every: number; skip: number; dir: string }): string => {
+    const lines = [`flowchart ${dir}`]
+    for (let i = 0; i < n; i++) {
+      lines.push(`  N${i}[node ${i}] --> N${(i * mult + offset) % n}`)
+      if (i % every === 0) lines.push(`  N${i} --> N${(i + skip) % n}`)
+    }
+    return lines.join('\n')
+  }
+  const uncached = PERFORMANCE_EXPERIMENTS.filter(name => name !== 'position-cache')
+
+  test('repeat and cache-off verifies of generated fan-out graphs agree', () => {
+    fc.assert(fc.property(graphArb, graph => {
+      const source = toSource(graph)
+      const verdict = () => JSON.stringify((({ ok, warnings }) => ({ ok, warnings }))(verifyMermaid(source)))
+      const first = verdict()
+      const repeat = verdict()
+      const recomputed = withPerformanceExperiments(uncached, verdict)
+      expect(repeat).toBe(first)
+      expect(recomputed).toBe(first)
+    }), fcParameters({ numRuns: 24, seed: 0x5eed_a3, includeErrorInReport: true, examples: [
+      // The reported 20-node case: calls after the first reported ROUTE_HITCH
+      // on N0->N3, N5->N18 and N5->N16, three fan-out bundle members.
+      [{ n: 20, mult: 7, offset: 3, every: 5, skip: 11, dir: 'TD' }],
+      // A duplicate pair drawn as parallel lanes (N3->N0 twice).
+      [{ n: 8, mult: 5, offset: 1, every: 3, skip: 5, dir: 'LR' }],
+      // Reduced counterexample: the N1->N2 / N3->N2 fan-in.
+      [{ n: 4, mult: 2, offset: 0, every: 4, skip: 1, dir: 'TD' }],
+    ] }))
+  }, 60_000)
 })
 
 describe('edit stability — small source mutations preserve the unchanged primary chain', () => {

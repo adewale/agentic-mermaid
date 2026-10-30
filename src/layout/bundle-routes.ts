@@ -47,6 +47,14 @@ export function hasConstructedBundleRoute(edge: PositionedEdge): boolean {
   return true
 }
 
+/** A private snapshot copy of a constructed route keeps its ownership, so a
+ * cached layout is audited exactly like the fresh one it was copied from.
+ * Ownership stays bound to the copied ink: moving its interior still drops it. */
+export function transferConstructedBundleRoute(source: object, copy: object): void {
+  const owned = constructed.get(source as PositionedEdge)
+  if (owned) constructed.set(copy as PositionedEdge, owned)
+}
+
 /** Carry ownership only through a known construction-preserving operation:
  * clipping, polyline simplification or removal of a proven tiny hitch. Late
  * rerouting and certificate reissuance deliberately cannot call this seam. */

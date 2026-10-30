@@ -4,6 +4,13 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+### Fixed
+
+- Make repeated `verify` calls in one process (`am batch`, the stdio and hosted
+  MCP servers, library loops) report the same warnings as the first call.
+  Cached layouts lost the proof that a bundled route's bends are deliberate,
+  so later calls reported spurious `ROUTE_HITCH` warnings.
+
 ## 0.5.4 — 2026-10-30
 
 ### Fixed

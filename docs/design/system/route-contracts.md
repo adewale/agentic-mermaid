@@ -292,8 +292,9 @@ count: exchanging one existing misleading overlap for a new peer is rejected.
 Bundle exemptions also cover symmetric convergence and separated parallel
 lanes. Their bounded producers retain ownership of the actual related routes;
 the public `bundle` certificate label cannot create it. Clipping and polyline
-normalization preserve existing ownership, as do label-only edits and uniform
-translation. A later lane change loses the exemption, and ordinary certificate
+normalization preserve existing ownership, as do label-only edits, uniform
+translation and the positioned-layout cache's private snapshot copies, so a
+cached verify audits the same exemptions as a cold one. A later lane change loses the exemption, and ordinary certificate
 reissuance cannot restore it. The existing hitch/rubric checks and corpus
 certificate observations consume this construction-bound evidence (#265).
 

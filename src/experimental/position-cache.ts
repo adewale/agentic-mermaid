@@ -1,5 +1,6 @@
 import { estimatedResidency } from './cache-residency.ts'
 import type { FamilyLayoutResult, FamilyPositionedView } from '../agent/families.ts'
+import { transferConstructedBundleRoute } from '../layout/bundle-routes.ts'
 import { graphLayoutDecisionsOf, transferGraphLayoutDecisions } from '../layout/decision-evidence.ts'
 import { isImmutablePixelTextPart, transferRetainedPixelText } from '../shared/prepared-text.ts'
 import { WeightedLru } from './weighted-lru.ts'
@@ -37,7 +38,7 @@ export function clonePositioned<T>(source: T, immutableText = false): T {
     if (a === null || typeof a !== 'object' || b === null || typeof b !== 'object') return b
     if (immutableText && isImmutablePixelTextPart(a)) return a
     if (seen.has(a)) return b
-    seen.add(a); transferRetainedPixelText(a, b)
+    seen.add(a); transferRetainedPixelText(a, b); transferConstructedBundleRoute(a, b)
     if (a instanceof Map && b instanceof Map) {
       const copies = b.entries()
       for (const [key, value] of a) {
