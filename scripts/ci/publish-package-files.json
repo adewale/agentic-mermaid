@@ -82,7 +82,6 @@
     "dist/zenuml/chunks/mermaid-yaml-runtime-[hash].js",
     "dist/zenuml/chunks/render-core-[hash].js",
     "dist/zenuml/chunks/zenuml-[hash].js",
-    "docs/MCP-DIRECTORY-LISTINGS.md",
     "docs/MCP-PRIVACY.md",
     "docs/README.md",
     "docs/agent-api-cookbook.md",

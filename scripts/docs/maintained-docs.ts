@@ -4,9 +4,10 @@
 // transcripts) and text synced verbatim from upstream Mermaid are excluded.
 
 import { execFileSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
-export const REPO_ROOT = join(import.meta.dir, '..', '..', '..')
+export const REPO_ROOT = join(import.meta.dir, '..', '..')
 
 const EXCLUDED = [
   /^docs\/project\/archive\//,
@@ -18,12 +19,12 @@ const EXCLUDED = [
   /FONT-LICENSES\.md$/,
 ]
 
-/** Repository-relative paths of every tracked, maintained Markdown file. */
-export function maintainedMarkdownFiles(): string[] {
-  const tracked = execFileSync('git', ['ls-files', '*.md'], { timeout: 20_000, killSignal: 'SIGKILL', cwd: REPO_ROOT, encoding: 'utf8' })
+/** Include new unignored docs during preparation, and skip pending deletions. */
+export function maintainedMarkdownFiles(root = REPO_ROOT): string[] {
+  const tracked = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '*.md'], { timeout: 20_000, killSignal: 'SIGKILL', cwd: root, encoding: 'utf8' })
     .split('\n')
     .filter(Boolean)
-  return tracked.filter(path => !EXCLUDED.some(pattern => pattern.test(path))).sort()
+  return [...new Set(tracked)].filter(path => existsSync(join(root, path)) && !EXCLUDED.some(pattern => pattern.test(path))).sort()
 }
 
 const GENERATED_BLOCK = /<!-- BEGIN GENERATED[\s\S]*?<!-- END GENERATED[^>]*-->/g

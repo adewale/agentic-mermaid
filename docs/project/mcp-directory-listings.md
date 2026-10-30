@@ -2,9 +2,11 @@
 
 This file is the canonical, copy-ready registration record for Agentic
 Mermaid's hosted MCP server. Update it whenever the endpoint, tool surface,
-version, support contact, or directory status changes.
+version, support contact, or directory status changes. This operational record
+is repository-only; it is not shipped in the npm package. Release completion
+lives in the [release record](archive/releases.md).
 
-The root [`server.json`](../server.json) is the single official MCP Registry
+The root [`server.json`](../../server.json) is the single official MCP Registry
 authority. It covers both the npm package and hosted endpoint; do not publish a
 second domain-namespaced record for the same server.
 
@@ -58,7 +60,7 @@ publication date. A failed lookup does not establish that a listing is absent.
 
 | Directory / evidence | Status and date | Next action |
 |---|---|---|
-| [Official MCP Registry: immutable `0.4.1` record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.adewale%2Fagentic-mermaid/versions/0.4.1) | **Historical publication confirmed; current latest unverified.** The 2026-10-16 audit reported `0.4.1` as latest. The API could not be retrieved on 2026-10-29. Published 2026-07-31 by [release run](https://github.com/adewale/agentic-mermaid/actions/runs/30626742621). | Recheck the live latest record against npm and root [`server.json`](../server.json); keep that manifest as the only publication authority. |
+| [Official MCP Registry: `0.5.4` record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.adewale%2Fagentic-mermaid/versions/0.5.4) | **Publication confirmed on 2026-10-30.** The [publication workflow](https://github.com/adewale/agentic-mermaid/actions/runs/40993548242) succeeded after npm propagation. Production identity was [verified separately](https://github.com/adewale/agentic-mermaid/actions/runs/40994851812). | Before a future submission, recheck the exact version and live identity against root [`server.json`](../../server.json). |
 | [OpenAI Plugins](https://platform.openai.com/plugins) | **Desired; no submission receipt recorded.** Current [submission instructions](https://developers.openai.com/plugins/deploy/submission) checked 2026-10-29. | Prepare the required package and review materials below, then complete the verified developer/account flow. |
 | [Claude directory](https://claude.com/resources/articles/build-plugins-for-claude) | **Desired; no submission receipt recorded.** New portal announced 2026-09-25; accepts a single remote connector or a plugin bundle from developers on paid Claude plans. The old Team/Enterprise-only note is obsolete. | Submit the hosted URL through the portal linked from the announcement; optionally bundle the existing diagram-workflow skill. |
 | [Cursor Directory](https://cursor.directory/) | **Desired; current listing unconfirmed.** The public catalog is a plugin directory, checked 2026-10-29. Neither the catalog view nor search results established an Agentic Mermaid entry. | Search the current catalog while signed in and use its current plugin submission flow; record its receipt. |
@@ -69,21 +71,21 @@ publication date. A failed lookup does not establish that a listing is absent.
 
 ### Version and evidence maintenance
 
-On 2026-10-29, `npm view agentic-mermaid version --json` returned `0.5.3`.
-This Markdown file ships in the npm package, so changing it requires a new
-source version rather than different contents under published `0.5.3`.
-Root `server.json`, its npm package entry, `package.json`, and `src/version.ts`
-now prepare **source version `0.5.4`**. npm returned E404 for `0.5.4` during
-this review. These source changes do not establish npm or Registry publication,
-or the hosted deployment version.
-The 2026-10-16 audit reported npm and the Registry latest record as `0.4.1`,
-with `0.4.2` in source. Retain those as historical observations.
+Source manifests describe source, npm describes package availability, and the
+hosted server card describes production. The [release record](archive/releases.md)
+links the separate publication and deployment proofs for 0.5.4. Read current
+source versions from root `package.json` and `server.json`; do not copy them into
+this operational record before publication.
 
-The Registry latest API could not be retrieved during this review, and the
-hosted MCP version was not rechecked. Before publishing or updating a listing,
-query the [Registry latest search](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.adewale%2Fagentic-mermaid&version=latest)
-and initialize the hosted MCP endpoint independently. Do not infer either
-version from a source manifest, npm release, or third-party health badge.
+Historical observations: the 2026-10-29 review found npm 0.5.3 and E404 for the
+then-prepared 0.5.4. The 2026-10-16 review found npm and the Registry latest record
+at 0.4.1, with 0.4.2 in source. Those observations retain their dates; they do not
+describe today's installation. Third-party directory statuses above retain their
+own review dates and were not re-probed during the 0.5.4 release.
+
+Before publishing or updating a listing, query the exact Registry identity and
+initialize the hosted MCP independently. Do not infer either from a source
+manifest, npm release, or third-party health badge.
 
 The July MCPServers.org submission has no retained receipt ID. Its public
 listing above is the available evidence. For every future submission, add the

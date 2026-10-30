@@ -25,6 +25,7 @@ import { evaluateBrowserScript, FakeDocument, manualTimers, runBrowserScriptInCo
 
 ensureWebsiteBuilt()
 import { HOSTED_TOOLS, SUPPORTED_PROTOCOL_VERSIONS } from '../mcp/hosted-server.ts'
+import { LOCAL_TOOLS } from '../mcp/server.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { SHARED_RENDER_OPTION_FIELDS, sharedRenderOptionsJsonSchema, validateSerializableRenderOptions } from '../render-contract.ts'
 import { knownStyleDescriptors } from '../scene/style-registry.ts'
@@ -1439,10 +1440,17 @@ describe('Workers Static Assets website contract', () => {
   test('MCP claims cover the hosted endpoint without a stale public harness manifest', () => {
     expect(existsSync(join(SITE, 'harnesses.json'))).toBe(false)
     const publicText = files().filter((f) => /\.(html|json|md|txt)$/.test(f)).map(read).join('\n')
-    expect(publicText).toContain('execute</code>, <code>describe_sdk</code>, <code>render_png</code>, and <code>describe</code>')
     const mcpPage = read('docs/mcp/index.html')
-    expect(mcpPage).toContain('Hosted tools: <code>execute</code>, <code>describe_sdk</code>, <code>render_svg</code>')
-    expect(mcpPage).toContain('The local MCP tools are <code>execute</code>, <code>describe_sdk</code>, <code>render_png</code>, and <code>describe</code>')
+    const skillPage = read('skills/agentic-mermaid-diagram-workflow/index.html')
+    for (const [page, prefix, tools] of [
+      [mcpPage, 'Hosted tools: ', HOSTED_TOOLS],
+      [mcpPage, 'The local MCP tools are ', LOCAL_TOOLS],
+      [skillPage, 'The local stdio MCP exposes ', LOCAL_TOOLS],
+    ] as const) {
+      const list = page.slice(page.indexOf(prefix) + prefix.length).split('.')[0]!
+      const names = [...list.matchAll(/<code>([^<]+)<\/code>/g)].map(match => match[1]!)
+      expect(names).toEqual(tools.map(tool => tool.name))
+    }
     expect(publicText).toContain('https://agentic-mermaid.dev/mcp')
     expect(publicText).toContain('https://agentic-mermaid.dev/.well-known/mcp')
     expect(publicText).toContain('https://agentic-mermaid.dev/.well-known/mcp/server-card.json')

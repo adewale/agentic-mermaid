@@ -4,6 +4,19 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+### Changed
+
+- Generate website MCP tool lists, verification wording and backend-limit
+  documentation from shared authorities; repair family navigation and obsolete
+  contributor commands and links.
+- Add `bun run release:prepare VERSION [--date YYYY-MM-DD]` to update version
+  projections and run their existing generators together. Failed generation
+  restores prior file contents; preparation leaves publication explicit.
+- Consolidate the release checklist, record completed 0.5.4 delivery, and
+  separate the current backend contract from dated design and experiments.
+- Keep directory-submission records in repository-only project documentation
+  rather than shipping operational status snapshots in the npm package.
+
 ## 0.5.4 — 2026-10-30
 
 ### Fixed

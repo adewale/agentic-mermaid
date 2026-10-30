@@ -24,6 +24,7 @@ import { NodeResourceResolver } from '../src/node-resource-resolver.ts'
 import { namespaceSvgIds } from '../src/renderer.ts'
 import { HOSTED_MCP_SERVER_NAME, HOSTED_TOOLS, SUPPORTED_PROTOCOL_VERSIONS } from '../src/mcp/hosted-server.ts'
 import { MCP_SERVER_VERSION } from '../src/mcp/tool-surface.ts'
+import { HOSTED_MCP_TOOL_NAMES, LOCAL_MCP_TOOL_NAMES } from '../src/mcp/tool-names.ts'
 import { resolveBuildGitSha } from './build-provenance.ts'
 import { AI_CATALOG_RESOURCES } from './agent-resource-inventory.ts'
 import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, markdownAlternative, staticRedirectLines } from './src/site-routes.ts'
@@ -110,6 +111,10 @@ const relatedAgentLinks = [
   '<link rel="ai-catalog" type="application/json" href="/.well-known/ai-catalog.json">',
 ].join('\n')
 
+function toolNamesHtml(names: readonly string[]): string {
+  return names.map(name => `<code>${escapeHtml(name)}</code>`).join(', ')
+}
+
 function agentDiscoveryLinks(route: string): string {
   const markdownPath = markdownAlternative(route)
   return (markdownPath ? `<link rel="alternate" type="text/markdown" href="${markdownPath}">\n` : '') + relatedAgentLinks
@@ -188,7 +193,9 @@ function transformEditorHtml(html: string): string {
 }
 
 async function readSourcePage(path: string) {
-  return await Bun.file(join(SOURCE_PAGES, path)).text()
+  return (await Bun.file(join(SOURCE_PAGES, path)).text())
+    .replaceAll('{{LOCAL_MCP_TOOLS}}', toolNamesHtml(LOCAL_MCP_TOOL_NAMES))
+    .replaceAll('{{HOSTED_MCP_TOOLS}}', toolNamesHtml(HOSTED_MCP_TOOL_NAMES))
 }
 
 async function readSourceDiagram(path: string) {
@@ -2543,7 +2550,7 @@ const docPages: DocPage[] = [
     'docs/mcp/index.html',
     'MCP',
     'Hosted MCP at /mcp, plus a local stdio server.',
-    "<p>The hosted MCP endpoint is <code>https://agentic-mermaid.dev/mcp</code>: stateless streamable HTTP (JSON-RPC over POST, no sessions). Hosted tools: <code>execute</code>, <code>describe_sdk</code>, <code>render_svg</code>, <code>render_ascii</code>, <code>render_png</code>, <code>verify</code>, <code>describe</code>, <code>mutate</code>, and <code>build</code>. Call <code>describe_sdk</code> for one family's compact signatures or exact mutation fields; pass <code>format: &quot;facts&quot;</code> to <code>describe</code> for deterministic semantic read-back. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; <code>execute</code>, <code>mutate</code>, and <code>build</code> bypass it. The JSON-RPC response itself is always <code>cache-control: no-store</code>, and <code>x-agentic-mermaid-compute-cache</code> reports reuse. Inputs are capped at 64KB, and Code Mode <code>execute</code> runs in an isolated on-demand Worker with network access disabled and a CPU budget.</p><p>The local MCP tools are <code>execute</code>, <code>describe_sdk</code>, <code>render_png</code>, and <code>describe</code>. Multi-step parse/narrow/mutate/verify workflows run inside <code>execute(code)</code>; local <code>describe_sdk</code> returns version-matched mutation schemas and <code>describe</code> supports <code>format: &quot;facts&quot;</code>. For file/URL PNG artifacts, diagrams beyond the hosted caps, or offline use, run the installed package locally: <code>npx --no-install agentic-mermaid mcp</code>.</p><p><strong>Privacy:</strong> every hosted tool call sends your diagram source (or Code Mode code) to this site\u2019s server. For diagrams that must not leave your machine, use the library, the CLI, or the local stdio server \u2014 the pipeline is fully local and needs no network.</p><p><strong>Response framing:</strong> the hosted <code>/mcp</code> endpoint always replies with plain <code>application/json</code> \u2014 no SSE <code>data:</code> framing \u2014 so scripts can parse the body directly. The local HTTP transport\u2019s <code>/sse</code> + <code>/message</code> pair delivers responses as SSE events on the open stream; script writers who want unframed JSON should POST to its <code>/rpc</code> endpoint instead.</p>" +
+    "<p>The hosted MCP endpoint is <code>https://agentic-mermaid.dev/mcp</code>: stateless streamable HTTP (JSON-RPC over POST, no sessions). Hosted tools: " + toolNamesHtml(HOSTED_MCP_TOOL_NAMES) + ". Call <code>describe_sdk</code> for one family's compact signatures or exact mutation fields; pass <code>format: &quot;facts&quot;</code> to <code>describe</code> for deterministic semantic read-back. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; <code>execute</code>, <code>mutate</code>, and <code>build</code> bypass it. The JSON-RPC response itself is always <code>cache-control: no-store</code>, and <code>x-agentic-mermaid-compute-cache</code> reports reuse. Inputs are capped at 64KB, and Code Mode <code>execute</code> runs in an isolated on-demand Worker with network access disabled and a CPU budget.</p><p>The local MCP tools are " + toolNamesHtml(LOCAL_MCP_TOOL_NAMES) + ". Use <code>mutate</code> and <code>build</code> for declarative JSON edit batches, or <code>execute(code)</code> for custom multi-step logic; local <code>describe_sdk</code> returns version-matched mutation schemas and <code>describe</code> supports <code>format: &quot;facts&quot;</code>. For file/URL PNG artifacts, diagrams beyond the hosted caps, or offline use, run the installed package locally: <code>npx --no-install agentic-mermaid mcp</code>.</p><p><strong>Privacy:</strong> every hosted tool call sends your diagram source (or Code Mode code) to this site\u2019s server. For diagrams that must not leave your machine, use the library, the CLI, or the local stdio server \u2014 the pipeline is fully local and needs no network.</p><p><strong>Response framing:</strong> the hosted <code>/mcp</code> endpoint always replies with plain <code>application/json</code> \u2014 no SSE <code>data:</code> framing \u2014 so scripts can parse the body directly. The local HTTP transport\u2019s <code>/sse</code> + <code>/message</code> pair delivers responses as SSE events on the open stream; script writers who want unframed JSON should POST to its <code>/rpc</code> endpoint instead.</p>" +
       docsIndex,
   ],
   [

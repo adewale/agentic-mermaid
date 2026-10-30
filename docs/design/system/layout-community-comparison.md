@@ -38,7 +38,7 @@ not evidence that we have caught up with another implementation.
 
 ## What the community inventory actually represents
 
-[Mermaid Community](../../mermaid-community.json) contains **83 nodes**:
+[Mermaid Community](https://github.com/adewale/agentic-mermaid/blob/ee9c9dc32f9bc3b47de2f5990bc1466b55815649/docs/mermaid-community.json) contains **83 nodes**:
 45 forks, 8 ports, 3 bindings, 26 independently rooted projects and the language
 origin. Those are provenance categories, not 83 independent layout algorithms.
 64 nodes have the observed role. Roles overlap: the inventory marks 9 graphical

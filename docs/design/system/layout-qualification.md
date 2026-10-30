@@ -29,7 +29,7 @@ fixes. It records the placement-only improvement, rejected optimization arms,
 new source/generated/edit qualification and separately pinned full benchmarks.
 Its results do not replace the historical runtime22 measurements below.
 
-The starting inventory is [Mermaid Community](../../mermaid-community.json).
+The starting inventory is [Mermaid Community](https://github.com/adewale/agentic-mermaid/blob/ee9c9dc32f9bc3b47de2f5990bc1466b55815649/docs/mermaid-community.json).
 Project descriptions and ancestry are leads, not benchmark evidence. Sources
 were inspected at these revisions; no third-party layout code was copied.
 
