@@ -432,8 +432,8 @@ describe('bounded final layout certification', () => {
     const graph = parseMermaid('flowchart TB\nc1-->a2\nsubgraph one\na1\nend\na1-->a2\nsubgraph two\nb1-->b2\nend\nsubgraph three\nc2\nend\nc1-->c2\none --> two\nthree --> two\ntwo --> c2')
     const positioned = layoutGraphSync(graph), certification = positioned.certification!, preference = certification.preference
     expect(certification).toMatchObject({ status: 'passed', hardViolations: 0 })
-    // Rejected header-unsafe proposals consume the existing fallback budget;
-    // only certified placements appear in the comparison evidence below.
+    // Rejected proposals consume the existing fallback budget; only certified
+    // placements appear in the comparison evidence below.
     expect(certification.attempts).toBeLessThanOrEqual(MAX_LAYOUT_CANDIDATES)
     expect(certification.attempts).toBeGreaterThanOrEqual(preference.compared.length)
     expect(positioned.nodes.map(node => node.id).sort()).toEqual(['a1', 'a2', 'b1', 'b2', 'c1', 'c2'])
@@ -444,9 +444,10 @@ describe('bounded final layout certification', () => {
     expect(positioned.groups.map(group => ({ id: group.id, nodes: group.nodeIds?.toSorted() })).sort((a, b) => a.id.localeCompare(b.id))).toEqual([
       { id: 'one', nodes: ['a1'] }, { id: 'three', nodes: ['c2'] }, { id: 'two', nodes: ['b1', 'b2'] },
     ])
-    expect(preference.reason).toBe('first-certified')
-    expect(preference.compared).toHaveLength(1)
-    expect(new Set(preference.compared.map(candidate => candidate.strategy)).size).toBe(1)
+    // The default placement certifies only by detouring routes around title
+    // bands, so it defers to the separate-hierarchy placement, which needs none.
+    expect(preference.reason).toBe('unreadableTitles')
+    expect(preference.compared.map(candidate => [candidate.strategy, candidate.score.unreadableTitles])).toEqual([['default', 1], ['separate-hierarchy', 0]])
     const placement = preference.compared.find(candidate => candidate.strategy === certification.strategy)
     expect(placement).toBeDefined()
     // The selected placement already has zero crossings and label conflicts;

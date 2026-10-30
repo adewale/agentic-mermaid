@@ -159,16 +159,37 @@ const FRAME_BREACH_EXAMPLES: GroupedCase[] = [
 ]
 
 // Reduced issue-A7 counterexamples: no bounded candidate certifies these, each
-// for a different check (inward endpoint shaft, edge through a node, a self-loop
-// across a group title band, overlapping nodes, diagonal segments in a look
-// that enlarges nodes). Valid source must still render, and verify must name
-// the failed check.
+// for a different check (inward endpoint shaft, a group self-loop through its
+// member, diagonal segments in a look that enlarges nodes). Valid source must
+// still render, and verify must name the failed check. Two earlier members of
+// this list now certify: a self-loop across its group's title band and a layer
+// snap that overlapped two nodes; they must stay certified.
 const UNCERTIFIED_EXAMPLES: GroupedCase[] = [
   { source: 'flowchart BT\n  n1 ==> n1\n  n2 ==> n3\n  n1 --o|e2| n0\n  n3 <-->|e3| n2\n  n2 --> n0\n  n2 --x n1\n', members: [], look: 'default' },
   { source: 'flowchart LR\n  subgraph G0[Group 0]\n    n2\n  end\n  G0 --x G0\n  n0 <--> n0\n  n2 --x n0\n  n1 <--> G0\n', members: [['G0', ['n2']]], look: 'default' },
-  { source: 'flowchart TD\n  subgraph G0[Group 0]\n    direction LR\n    n1\n    n3\n  end\n  n3 -.->|e0| G1\n  n3 ==> n3\n', members: [['G0', ['n1', 'n3']]], look: 'default' },
-  { source: 'flowchart LR\n  n0[Node 0]\n  n3[/Node 3/]\n  n6\n  n10\n  subgraph G1[Group 1]\n    direction LR\n  end\n  n8 ==> n7\n  n16 ==> n2\n  n8 --x|e20| n14\n', members: [], look: 'default' },
+  { source: 'flowchart TD\n  subgraph G0[Group 0]\n    direction LR\n    n1\n    n3\n  end\n  n3 -.->|e0| G1\n  n3 ==> n3\n', members: [['G0', ['n1', 'n3']]], look: 'default', mustCertify: true },
+  { source: 'flowchart LR\n  n0[Node 0]\n  n3[/Node 3/]\n  n6\n  n10\n  subgraph G1[Group 1]\n    direction LR\n  end\n  n8 ==> n7\n  n16 ==> n2\n  n8 --x|e20| n14\n', members: [], look: 'default', mustCertify: true },
   { source: 'flowchart BT\n  subgraph G0[Group 0]\n    direction LR\n    n5\n  end\n  n3 --o n5\n  n10 --o n5\n  G0 --x|e17| G0\n  n9 --> n8\n', members: [['G0', ['n5']]], look: 'status-dashboard' },
+]
+
+// Reduced issue-A7 counterexamples whose routes entered a group's reserved
+// title band and must now certify: an edge into a subgraph whose interior run
+// crossed the target's band; a member self-loop drawn up into its group's band;
+// and, in bottom-to-top flow, a route leaving a subgraph straight up through
+// the band at the frame's top.
+const HEADER_BAND_EXAMPLES: GroupedCase[] = [
+  {
+    source: 'flowchart TD\n  n2((Node 2))\n  subgraph G0[Group 0]\n    n2\n  end\n  subgraph G1[Group 1]\n    n1\n  end\n  G0 --- G1\n  n0 --x|e2| G1\n  G1 ---|e3| n2\n  G1 -.-> G1\n',
+    members: [['G0', ['n2']], ['G1', ['n1']]], look: 'default', mustCertify: true,
+  },
+  {
+    source: 'flowchart TD\n  subgraph G0[Group 0]\n    direction LR\n    n4\n    n5\n  end\n  n5 ==> n5\n  n0 -.-> n5\n',
+    members: [['G0', ['n4', 'n5']]], look: 'default', mustCertify: true,
+  },
+  {
+    source: 'flowchart BT\n  n6((Node 6))\n  subgraph G0[Group 0]\n    n7\n    n5\n  end\n  n3 --- n1\n  n4 ---|e1| n1\n  n6 --> n7\n  n6 ==> n5\n  n7 --> n3\n  n6 <--> n1\n  n4 --x n6\n  n1 --x|e11| n8\n  n6 -->|e12| n6\n  n8 ---|e16| n5\n',
+    members: [['G0', ['n7', 'n5']]], look: 'status-dashboard', mustCertify: true,
+  },
 ]
 
 // Reduced issue-A7 counterexamples that drew misleading geometry and must now
@@ -244,6 +265,6 @@ describe('authored group frames hold their members in every look', () => {
           `${member} inside ${id} (${look})\n${source}`).toEqual([true, true, true, true])
         }
       }
-    }), fcParameters({ numRuns: 40, seed: SEED, examples: [...FRAME_BREACH_EXAMPLES, ...UNCERTIFIED_EXAMPLES, ...MISLEADING_EXAMPLES].map(example => [example]) }))
+    }), fcParameters({ numRuns: 40, seed: SEED, examples: [...FRAME_BREACH_EXAMPLES, ...UNCERTIFIED_EXAMPLES, ...MISLEADING_EXAMPLES, ...HEADER_BAND_EXAMPLES].map(example => [example]) }))
   })
 })

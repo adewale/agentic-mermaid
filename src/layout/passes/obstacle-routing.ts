@@ -73,12 +73,15 @@ export function reanchorOffOutlineEndpoints(nodes: PositionedNode[], edges: Posi
  * adopted ONLY when it clears every node and both endpoints stay on their outlines;
  * otherwise the edge is left untouched (never traded for a worse route).
  *
- * Fires ONLY on an edge the rubric already flags edgeThroughNode — which the
- * HARD-clean corpus never has — so it is a strict no-op there and byte-exact
- * equivalence holds. Edge-only, deterministic (fixed candidate order); label
- * re-centred on the new route. Self-loops are skipped.
+ * Fires ONLY on an edge the rubric already flags edgeThroughNode, or one that
+ * enters a group's reserved title band (the certification group-header check)
+ * — which the HARD-clean corpus never has — so it is a strict no-op there and
+ * byte-exact equivalence holds. Edge-only, deterministic (fixed candidate
+ * order); label re-centred on the new route. Self-loops are skipped. Returns
+ * how many title-band entries it repaired: the caller ranks such a placement
+ * below an alternative that needed no detour.
  */
-export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: PositionedEdge[], graph: Pick<MermaidGraph, 'direction'>, chargeWork?: (operations: number) => void, groups: readonly PositionedGroup[] = []): void {
+export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: PositionedEdge[], graph: Pick<MermaidGraph, 'direction'>, chargeWork?: (operations: number) => void, groups: readonly PositionedGroup[] = []): number {
   const f = layoutFlow(graph.direction)
   chargeWork?.(nodes.length)
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
@@ -112,6 +115,16 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     for (const group of groups) if (!visit(group)) return false
     return true
   }
+  // Reserved title bands, as rectangles, supply lanes just outside them.
+  const headerBands: Array<{ x: number; y: number; width: number; height: number }> = []
+  const collectBands = (items: readonly PositionedGroup[]): void => {
+    for (const group of items) {
+      const height = group.concurrencyRegion ? 0 : group.headerHeight ?? 0
+      if (height > 0 && group.width > 0) headerBands.push({ x: group.x, y: group.y, width: group.width, height })
+      collectBands(group.children)
+    }
+  }
+  collectBands(groups)
   // Slide a blocked INTERIOR (non-terminal) axis-aligned segment sideways to the
   // nearest parallel lane clear of every node, keeping the polyline's endpoints
   // and orthogonal shape. Only shifts when both neighbours are perpendicular to
@@ -121,7 +134,7 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
       const a = pts[k]!, b = pts[k + 1]!, before = pts[k - 1]!, after = pts[k + 2]!
       const vertical = Math.abs(a.x - b.x) < 0.5, horizontal = Math.abs(a.y - b.y) < 0.5
       if (vertical === horizontal) continue // diagonal or degenerate — leave it
-      if (!throughNode([a, b], skip)) continue // not the offending segment
+      if (!throughNode([a, b], skip) && clearHeaders([a, b])) continue // not the offending segment
       const ax: 'x' | 'y' = vertical ? 'x' : 'y'
       const perp: 'x' | 'y' = vertical ? 'y' : 'x'
       if (Math.abs(before[perp] - a[perp]) > 0.5 || Math.abs(after[perp] - b[perp]) > 0.5) continue
@@ -131,6 +144,10 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
         chargeWork?.(1)
         if (skip.has(n.id)) continue
         cands.push(n[ax] - THROUGH_LANE_GAP, n[ax] + (ax === 'x' ? n.width : n.height) + THROUGH_LANE_GAP)
+      }
+      for (const band of headerBands) {
+        chargeWork?.(1)
+        cands.push(band[ax] - THROUGH_LANE_GAP, band[ax] + (ax === 'x' ? band.width : band.height) + THROUGH_LANE_GAP)
       }
       cands.sort((p, q) => Math.abs(p - c) - Math.abs(q - c))
       for (const cp of cands) {
@@ -212,6 +229,38 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     }
     return null
   }
+  // Last resort: a segment that runs straight across one obstacle (a card or
+  // a reserved title band) and extends past it on both sides steps around it
+  // locally, through a lane just past the obstacle's side. Every other point
+  // and both endpoint rays are kept. This is how a route leaving a subgraph
+  // through its title band (bottom-to-top flow) exits beside the band instead.
+  const detourAroundObstacle = (pts: Point[], skip: ReadonlySet<string>, admit: (trial: Point[]) => boolean): Point[] | null => {
+    const obstacles: Array<{ x: number; y: number; width: number; height: number }> = [...headerBands, ...nodes.filter(node => !skip.has(node.id))]
+    for (let k = 0; k + 1 < pts.length; k++) {
+      const a = pts[k]!, b = pts[k + 1]!
+      const axis: 'x' | 'y' | undefined = a.y === b.y && a.x !== b.x ? 'x' : a.x === b.x && a.y !== b.y ? 'y' : undefined
+      if (!axis) continue
+      const cross = axis === 'x' ? 'y' : 'x', extent = (box: { width: number; height: number }, along: 'x' | 'y') => along === 'x' ? box.width : box.height
+      const lo = Math.min(a[axis], b[axis]), hi = Math.max(a[axis], b[axis]), dir = Math.sign(b[axis] - a[axis])
+      for (const box of obstacles) {
+        chargeWork?.(1)
+        const crossLo = box[cross], crossHi = box[cross] + extent(box, cross)
+        if (!(a[cross] > crossLo && a[cross] < crossHi)) continue
+        const boxLo = box[axis], boxHi = box[axis] + extent(box, axis)
+        if (!(boxLo - THROUGH_LANE_GAP > lo && boxHi + THROUGH_LANE_GAP < hi)) continue
+        const enter = dir > 0 ? boxLo - THROUGH_LANE_GAP : boxHi + THROUGH_LANE_GAP
+        const leave = dir > 0 ? boxHi + THROUGH_LANE_GAP : boxLo - THROUGH_LANE_GAP
+        const lanes = [crossLo - THROUGH_LANE_GAP, crossHi + THROUGH_LANE_GAP].sort((p, q) => Math.abs(p - a[cross]) - Math.abs(q - a[cross]))
+        for (const lane of lanes) {
+          chargeWork?.(2 * pts.length + 8)
+          const at = (main: number, side: number): Point => (axis === 'x' ? { x: main, y: side } : { x: side, y: main })
+          const trial = simplifyPolyline([...pts.slice(0, k + 1), at(enter, a[cross]), at(enter, lane), at(leave, lane), at(leave, a[cross]), ...pts.slice(k + 1)])
+          if (!throughNode(trial, skip) && routeClearOfNodes(trial, nodes, skip, chargeWork) && clearHeaders(trial) && simpleOrthogonal(trial, chargeWork) && admit(trial)) return trial
+        }
+      }
+    }
+    return null
+  }
   // An edge to or from a subgraph ends on its frame. The frame stands in as a
   // rectangle endpoint, so a group edge through a card is repaired like any
   // other; the frame's own members sit behind that endpoint.
@@ -223,13 +272,15 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     }
   }
   collectFrames(groups)
+  let titleBandRepairs = 0
   for (const edge of edges) {
     chargeWork?.(1)
     if (edge.source === edge.target || edge.points.length < 2) continue
     const source = nodeMap.get(edge.source) ?? frames.get(edge.source), target = nodeMap.get(edge.target) ?? frames.get(edge.target)
     if (!source || !target) continue
     const skip = new Set([edge.source, edge.target])
-    if (!throughNode(edge.points, skip)) continue // no-op gate: only fires on edgeThroughNode
+    const entersBand = !clearHeaders(edge.points)
+    if (!entersBand && !throughNode(edge.points, skip)) continue // no-op gate: only fires on edgeThroughNode or a header-band entry
     // Off-outline endpoints are reanchorOffOutlineEndpoints' job; this pass only
     // relocates the interior of an otherwise port-exact route.
     if (!onShapeOutline(source, edge.points[0]!) || !onShapeOutline(target, edge.points[edge.points.length - 1]!)) continue
@@ -254,12 +305,15 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
       chargeWork?.(edge.points.length) // reverse-domain reference initialization
       route = detourTerminalSegment(edge.points.toReversed(), skip, trial => keepsApproach(trial.toReversed()))?.reverse() ?? null
     }
+    route ??= detourAroundObstacle(edge.points, skip, keepsApproach)
     if (!route) continue // never-worse: no clean detour found, leave as-is
     const savedCert = edge.routeCertificate
     edge.points = route
     recertifyReroutedEdge(edge, savedCert, nodeMap.get(edge.source), nodeMap.get(edge.target))
     if (edge.label) edge.labelPosition = calculatePathMidpoint(route)
+    if (entersBand) titleBandRepairs++
   }
+  return titleBandRepairs
 }
 
 export function collapseTinyBundledHitches(nodes: PositionedNode[], edges: PositionedEdge[], bundled: Set<PositionedEdge>): void {

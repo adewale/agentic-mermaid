@@ -124,7 +124,10 @@ The bounded preference comparison follows the
 group titles, crossings, padded label conflicts, avoidable bends, preferred
 endpoint contacts, peer alignment and canvas area. A candidate with a better
 lower-priority score cannot displace one with a better earlier score. This final
-comparison does not excuse a production pass-contract error.
+comparison does not excuse a production pass-contract error. A placement whose
+routes certify only after a detour around a group's reserved title band ranks
+like one with an unreadable title: the next bounded candidate is tried, and the
+detoured placement is drawn only when that alternative does not certify.
 
 A repaired viewport with non-scaling strokes is unverified: keeping the display
 size changes the stroke extent in user units. Endpoint checks allow an arrow’s

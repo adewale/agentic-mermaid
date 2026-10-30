@@ -72,8 +72,10 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
       for (const group of groupMap.values()) {
         const containsNode = cx > group.x && cx < group.x + group.width && cy > group.y && cy < group.y + group.height
         if (containsNode) {
-          // The loop must stay inside its own group: the border caps depth.
-          const inner = vertical ? (sign < 0 ? group.y : group.y + group.height) : sign < 0 ? group.x : group.x + group.width
+          // The loop must stay inside its own group: the border caps depth,
+          // and above the node the reserved title band caps it first.
+          const header = group.concurrencyRegion ? 0 : group.headerHeight ?? 0
+          const inner = vertical ? (sign < 0 ? group.y + header : group.y + group.height) : sign < 0 ? group.x : group.x + group.width
           const dist = (inner - sideCoord) * sign
           if (dist > 0) max = Math.min(max, dist - 4)
         } else {
