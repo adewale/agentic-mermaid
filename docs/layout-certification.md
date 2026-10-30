@@ -12,12 +12,19 @@ const result = renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' })
 console.log(result.receipt.layoutCertification)
 ```
 
-The default `report` policy preserves explicit limitations. It still rejects
-proven native text/marker occlusion and enforces production layout-pass
-contracts. `strict` requires a passed final certificate, including for plain
-string renders; missing evidence, exhausted checks, custom graphical backends,
-and unverified interactive states cannot become successful strict renders.
-Output security remains a separate policy.
+The default `report` policy preserves explicit limitations and enforces
+production layout-pass contracts. When no layout candidate certifies, or the
+final paint proof fails, it still draws the diagram if the failures are
+drawable (routes, title bands, overlaps, containment, covered text or
+markers, a connector across an unrelated card) and nothing is lost or clipped: `layoutCertification.geometry` names the
+candidate drawn and its failed checks, `status` stays the paint verdict, and
+`verifyMermaid` fails with `LAYOUT_UNCERTIFIED` (or `GROUP_BREACH`). A
+candidate that would change authored content, and paint outside the final
+viewport, are still refused. `strict` requires a passed final certificate,
+including for plain string renders; missing evidence, exhausted checks, custom
+graphical backends, uncertified geometry and unverified interactive states
+cannot become successful strict renders. Output security remains a separate
+policy.
 
 ## Pixel geometry
 

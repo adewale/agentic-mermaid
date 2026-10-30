@@ -54,6 +54,9 @@ export interface FamilyLayoutResult<TPositioned extends PositionedDiagram = Posi
   positioned: TPositioned
   /** False when the family renderer already owns SVG accessibility metadata. */
   injectAccessibility?: boolean
+  /** Set by the positioning seam, never by a descriptor: report layout safety
+   * drew geometry that failed certification only on drawable checks. */
+  uncertifiedLayout?: import('../layout/uncertified-layout.ts').UncertifiedLayoutReceipt
 }
 
 /** Inputs available to a descriptor's one request-boundary normalizer. Public

@@ -434,8 +434,8 @@ ${options.sdkDeclaration}`,
  * node flowcharts, xychart, sequence and class diagrams), so the warnings
  * stay partial and the tools say where the full findings come from. */
 export const RENDER_WARNINGS_NOTE = `warnings lists source/config warnings only (capabilities.json codes); it is not a verification.
-Layout and content-loss findings (e.g. LABELS_HIDDEN, ROUTE_SELF_LOOP_OCCUPANCY) come from
-verify: call it before trusting the drawing.`
+Layout and content-loss findings (e.g. LABELS_HIDDEN, ROUTE_SELF_LOOP_OCCUPANCY, LAYOUT_UNCERTIFIED) come from
+verify: call it before trusting the drawing. receipt.layoutCertification.geometry marks a drawing that failed layout certification.`
 
 export function createRenderPngTool(mode: 'local' | 'hosted'): McpToolDefinition {
   const hosted = mode === 'hosted'

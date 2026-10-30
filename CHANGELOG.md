@@ -36,6 +36,25 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - `am describe --json` carries `warnings` in every format (`text`, `facts`,
   `json`), as the MCP `describe` tool does.
 
+- A valid diagram no longer fails to render because no layout candidate passed
+  certification. Since group containment and the other hard checks became
+  refusals (a9a71f0c, and the #449-era candidate loop), about 2.6% of
+  generated subgraph flowcharts in the default look, and up to 12.6% in
+  `accessible-high-contrast`, failed every render with "No certified layout"
+  and verify reported `INTERNAL_ERROR`. With the default `layoutSafety:
+  'report'`, Flowchart and State (and Architecture placement, and every
+  family's final geometry check) now draw the candidate with the fewest
+  misleading violations, then the fewest violations, then the first in
+  candidate order. A failed final paint proof (covered text or markers, a
+  connector across an unrelated card) also renders now, as it already did on
+  rough backends, unless paint falls outside the final viewport. `receipt.layoutCertification.geometry` records the
+  candidate drawn and its failed checks, and verify returns `ok: false` with
+  the new error-severity `LAYOUT_UNCERTIFIED` warning per failed check
+  (`violation`, `targets`) or `GROUP_BREACH` for containment. `layoutSafety:
+  'strict'` still refuses; candidates that would lose or change content,
+  clipped paint and broken layout-pass contracts (for example an
+  `alignLabeledSourcePort` metric budget) remain `INTERNAL_ERROR`.
+
 - `execute` failures now say where the agent's own code failed:
   `error.location` is the 1-based `{ line, column }` of an uncaught error (or
   of the token where code that does not parse stopped), on both the hosted and

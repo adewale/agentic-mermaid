@@ -37,6 +37,10 @@ export interface PaintLayoutCertification {
   readonly checks: { readonly primitives: number; readonly labels: number; readonly occlusionPairs: number; readonly maxOcclusionPairs: number; readonly operations: number; readonly maxOperations: number; readonly markers: number }
   readonly issues: readonly PaintCertificationIssue[]
   readonly limitations: readonly string[]
+  /** Present when report layout safety drew geometry that failed layout
+   * certification: the candidate drawn and the checks it fails. `status`
+   * remains the paint proof's own verdict. */
+  readonly geometry?: import('../layout/uncertified-layout.ts').UncertifiedLayoutReceipt
 }
 
 const renderedCertificates = new WeakMap<RenderedLayout, PaintLayoutCertification>()
@@ -45,6 +49,8 @@ export function renderedPaintCertification(layout: RenderedLayout): PaintLayoutC
 
 export const MAX_OCCLUSION_PAIRS = 100_000
 const MAX_ISSUES = 64
+const CLIPPED_RETAINED_PAINT = 'Final viewport does not contain retained paint'
+const CLIPPED_MARKER_PAINT = 'Final viewport does not contain serialized marker paint'
 const TOLERANCE = 0.5
 /** Floating-point noise in layout arithmetic (a legend top at -3.6e-15); ink
  * within it of the canvas edge is on the canvas, not past it. */
@@ -1307,9 +1313,24 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
   }
   if (exhausted) issue({ code: 'CHECK_BUDGET', message: `Occlusion checking reached its ${MAX_OCCLUSION_PAIRS}-pair or ${MAX_OCCLUSION_OPERATIONS}-operation limit` })
   // Mandatory final certification of the chosen viewport, including markers.
-  for (const primitive of inspection.primitives) if (primitive.bounds && primitive.visibility !== 'conditional' && !contains(finalBounds, primitive.bounds, ARITHMETIC_NOISE)) unmeasuredPaint(primitive.id, 'Final viewport does not contain retained paint', true)
-  for (const target of markerTargets) if (target.primitive.visibility !== 'conditional' && !contains(finalBounds, target.bounds, ARITHMETIC_NOISE)) unmeasuredPaint(target.primitive.id, 'Final viewport does not contain serialized marker paint', true)
+  for (const primitive of inspection.primitives) if (primitive.bounds && primitive.visibility !== 'conditional' && !contains(finalBounds, primitive.bounds, ARITHMETIC_NOISE)) unmeasuredPaint(primitive.id, CLIPPED_RETAINED_PAINT, true)
+  for (const target of markerTargets) if (target.primitive.visibility !== 'conditional' && !contains(finalBounds, target.bounds, ARITHMETIC_NOISE)) unmeasuredPaint(target.primitive.id, CLIPPED_MARKER_PAINT, true)
   return Object.freeze({ version: 1, unit: 'px', scope: 'native-scene', status: failed ? 'failed' : unverified ? 'unverified' : 'passed', viewport, attempts: repaired ? 2 : 1, repairs: Object.freeze(repaired ? ['expand-viewport' as const] : []), coverage: Object.freeze({ measured: inspection.coverage.measured, unmeasured: inspection.coverage.unmeasured, preparedText: inspection.coverage.preparedText, fallbackText: inspection.coverage.fallbackText, conditional }), checks: Object.freeze({ primitives: inspection.primitives.length, labels, occlusionPairs: Math.min(pairs, MAX_OCCLUSION_PAIRS), maxOcclusionPairs: MAX_OCCLUSION_PAIRS, operations, maxOperations: MAX_OCCLUSION_OPERATIONS, markers: lastMarkers.size }), issues: Object.freeze(issues), limitations: Object.freeze(['Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.', 'Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof.']) })
+}
+
+/** Failed-paint issue codes whose ink is still emitted inside the final
+ * viewport: artwork crosses or covers other artwork. Clipped paint is not. */
+export const DRAWABLE_PAINT_FAILURES: ReadonlySet<PaintCertificationIssue['code']> = new Set(['LABEL_CONTAINMENT', 'TEXT_OCCLUDED', 'CONNECTOR_CARD_CROSSING', 'MARKER_OCCLUDED'])
+const CLIPPED_PAINT: ReadonlySet<string> = new Set([CLIPPED_RETAINED_PAINT, CLIPPED_MARKER_PAINT])
+
+/** Whether report layout safety still emits a drawing whose paint proof
+ * failed: no retained paint lies outside the final viewport, and the bounded
+ * issue list is complete, so no clipped paint can hide past it. Covered text
+ * and markers are still in the document; verify reports them. Strict safety
+ * refuses every failed proof. */
+export function paintFailureIsDrawable(certification: PaintLayoutCertification): boolean {
+  return certification.status === 'failed' && certification.issues.length < MAX_ISSUES
+    && !certification.issues.some(issue => issue.code === 'UNMEASURED_PAINT' && CLIPPED_PAINT.has(issue.message))
 }
 
 export class PaintLayoutCertificationError extends Error {

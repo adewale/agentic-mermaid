@@ -11,11 +11,16 @@ The policy order and its explicit conflicts are described in
 
 The Flowchart/State graph engine now runs this independent hard checker before
 returning a layout. It tries at most four deterministic placement candidates and
-returns a certification receipt or `LAYOUT_CERTIFICATION_FAILED`. The common
-positioning boundary additionally checks every native family's final projection
-against the family rubric's hard rules. Specialized layouters have one
-deterministic attempt and fail explicitly. This does not certify soft aesthetics
-or family-specific obligations absent from those checkers.
+returns a certification receipt. The common positioning boundary additionally
+checks every native family's final projection against the family rubric's hard
+rules; specialized layouters have one deterministic attempt. When nothing
+certifies, report layout safety draws the best drawable candidate with an
+uncertified receipt and verify fails with `LAYOUT_UNCERTIFIED`; strict safety,
+or a candidate that would lose content, throws `LAYOUT_CERTIFICATION_FAILED`
+(see [`api-advanced.md`](../../api-advanced.md)). Hard violations stay
+defects to fix in the producing passes; the fallback only stops them from
+refusing valid diagrams. This does not certify soft aesthetics or
+family-specific obligations absent from those checkers.
 
 ## Why a deterministic rubric
 

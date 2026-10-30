@@ -6,6 +6,7 @@ import { getFamily } from '../agent/families.ts'
 import { replaceFamilyForTest } from '../agent/family-registry.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
+import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { renderMarkdownBlocks, runCli } from '../cli/index.ts'
 import { LayoutCertificationError } from '../layout/certification-error.ts'
 import { handleHostedRequest } from '../mcp/hosted-server.ts'
@@ -232,6 +233,74 @@ describe('render failure diagnostics agree across render surfaces', () => {
     const { code, out } = capture(() => runCli(['render', present, missing, '--format', 'svg']))
     expect(code).toBe(0)
     expect(JSON.parse(out).files[1]).toMatchObject({ ok: false, error: { code: 'ARG', message: `File not found: ${missing}` } })
+  })
+})
+
+// Issue A7: report layout safety draws geometry that fails certification only
+// on drawable checks instead of refusing it. Every render surface returns the
+// drawing with the same receipt, and every verify surface fails naming the
+// check. The injected final geometry draws node B over node A.
+describe('an uncertified drawing renders everywhere and verify names it', () => {
+  const source = 'flowchart LR\n  A[Overlap A]\n  B[Overlap B]'
+  const withOverlap = async (run: () => Promise<void>): Promise<void> => {
+    const flowchart = getFamily('flowchart')!
+    const restore = replaceFamilyForTest('flowchart', {
+      ...flowchart,
+      layout: context => {
+        const result = flowchart.layout!(context)
+        const positioned = ('positioned' in result ? result.positioned : result) as import('../types.ts').PositionedGraph
+        const [a, b] = positioned.nodes
+        b!.x = a!.x + 4
+        b!.y = a!.y + 4
+        return result
+      },
+    })
+    try { await run() } finally { restore() }
+  }
+  const hostedPayload = async (tool: string): Promise<any> => {
+    const response = await handleHostedRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: tool, arguments: { source } } }, {
+      async execute() { return { ok: true, value: null, logs: [] } },
+      async renderPng(input, opts) { return { ...renderMermaidPNGWithReceipt(input, opts), warnings: [] } },
+    })
+    return JSON.parse((response?.result as { content: Array<{ text: string }> }).content[0]!.text)
+  }
+
+  test('library, CLI, hosted and stdio MCP, and Code Mode agree', async () => {
+    await withOverlap(async () => {
+      const geometry = { status: 'uncertified' as const, strategy: 'flowchart:final', attempts: 1, violations: [{ kind: 'nodeOverlaps', targets: ['A', 'B'], detail: 'A overlaps B' }] }
+      const library = verifyMermaid(source)
+      expect(library.ok).toBe(false)
+      expect(library.warnings).toContainEqual({ code: 'LAYOUT_UNCERTIFIED', violation: 'nodeOverlaps', targets: ['A', 'B'], message: expect.stringContaining('A overlaps B') })
+      expect(library.layoutCertification?.geometry).toEqual(geometry)
+
+      const input = tmp(source)
+      for (const format of ['svg', 'png', 'layout']) {
+        const args = ['render', input, '--format', format, '--json', ...(format === 'png' ? ['--output', `${input}.png`] : [])]
+        const result = capture(() => runCli(args))
+        expect({ format, code: result.code }).toEqual({ format, code: 0 })
+        expect(JSON.parse(result.out).receipt.layoutCertification.geometry, `cli ${format}`).toEqual(geometry)
+      }
+      const cli = capture(() => runCli(['verify', input, '--json']))
+      expect(cli.code).toBe(3)
+      expect(JSON.parse(cli.out).warnings, 'cli verify').toEqual(library.warnings)
+
+      for (const tool of ['render_svg', 'render_png']) {
+        const payload = await hostedPayload(tool)
+        expect({ tool, ok: payload.ok, geometry: payload.receipt.layoutCertification.geometry }).toEqual({ tool, ok: true, geometry })
+      }
+      const hosted = await hostedPayload('verify')
+      expect({ ok: hosted.ok, warnings: hosted.warnings }, 'hosted verify').toEqual({ ok: false, warnings: library.warnings })
+
+      const stdio = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'render_png', arguments: { source } } })
+      const stdioPayload = JSON.parse((stdio!.result as { content: Array<{ text: string }> }).content[0]!.text)
+      expect({ ok: stdioPayload.ok, geometry: stdioPayload.receipt.layoutCertification.geometry }, 'stdio render_png').toEqual({ ok: true, geometry })
+
+      const sandbox = await executeInSandbox(`const source = ${JSON.stringify(source)}; const verify = mermaid.verifyMermaid(source); return { geometry: mermaid.renderMermaidSVGWithReceipt(source).receipt.layoutCertification.geometry, ok: verify.ok, warnings: verify.warnings }`)
+      expect(JSON.parse(JSON.stringify(sandbox.value ?? sandbox)), 'Code Mode').toEqual({ geometry, ok: false, warnings: library.warnings })
+
+      // Strict layout safety still refuses the same drawing.
+      expect(() => renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' })).toThrow(LayoutCertificationError)
+    })
   })
 })
 

@@ -16,6 +16,7 @@ import type { FamilyLayoutResult, FamilyPositionedProjectionOptions, FamilyPosit
 import type { FamilyId } from './agent/types.ts'
 import { assessRenderedLayoutHardViolations } from './family-rubric.ts'
 import { LayoutCertificationError } from './layout/certification-error.ts'
+import { mergeUncertifiedLayout, type UncertifiedLayoutReceipt } from './layout/uncertified-layout.ts'
 import { graphLayoutDecisionsOf, retainGraphLayoutDecision, withGraphLayoutDecisionObserver, type GraphLayoutDecision } from './layout/backend.ts'
 import type { NormalizedMermaidSource } from './mermaid-source.ts'
 import { type ResolvedRenderRequest, resolvedFamilyRenderContextOf, resolvedRenderExecutionPlanOf } from './render-contract.ts'
@@ -27,6 +28,16 @@ import type { PositionedDiagram } from './types.ts'
 const retainedProjections = new WeakMap<FamilyLayoutResult, FamilyPositionedView>()
 const borrowedNativeProducers = new WeakMap<FamilyLayoutResult, DrawingProducer>()
 const reportedFallbacks = new WeakSet<ResolvedRenderRequest>()
+
+/** Final family checks a drawing can fail while still showing every authored
+ * element with its meaning. Non-finite or off-canvas geometry loses content
+ * and always refuses. */
+const DRAWABLE_FINAL_METRICS: ReadonlySet<string> = new Set(['nodeOverlaps', 'groupBreaches', 'groupOverlaps'])
+
+function graphUncertifiedReceipt(positioned: PositionedDiagram): UncertifiedLayoutReceipt | undefined {
+  const receipt = (positioned as { uncertifiedLayout?: UncertifiedLayoutReceipt }).uncertifiedLayout
+  return receipt?.status === 'uncertified' ? receipt : undefined
+}
 
 /** Pixel dependencies in terminal renderers use the same evidence boundary. */
 export function retainRequestGraphLayoutDecision(request: ResolvedRenderRequest, decision: GraphLayoutDecision, role: 'primary' | 'companion'): void {
@@ -119,7 +130,9 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
     // the public-copy fallback without counting its second probe again.
     const hit = boundedKey === undefined ? undefined : cachedPositioned(descriptor, boundedKey, borrow, immutableText)
     const produced: GraphLayoutDecision[] = []
-    const result = hit ?? normalizeFamilyLayoutResult(
+    // A fresh result is the seam's own wrapper: its uncertified receipt must
+    // never be written onto a descriptor-owned object.
+    const result = hit ?? { ...normalizeFamilyLayoutResult(
       withGraphLayoutDecisionObserver(decision => {
         produced.push(decision)
         retainRequestGraphLayoutDecision(request, decision, role)
@@ -131,18 +144,26 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
         ...(resolved.familyConfig ? { familyConfig: resolved.familyConfig } : {}),
         ...(resolved.familyAppearance ? { familyAppearance: resolved.familyAppearance } : {}),
       })),
-    )
+    ) }
     if (hit) for (const decision of graphLayoutDecisionsOf(hit)) retainRequestGraphLayoutDecision(request, decision, role)
     else for (const decision of produced) retainGraphLayoutDecision(result, decision)
     if (certifyFinal) {
       // Specialized native layouters have one deterministic candidate; do not
       // rerun identical work as a pretend fallback. Graph families already ran
       // their bounded stronger route certification before reaching this seam.
+      // Report layout safety draws drawable failures with an uncertified
+      // receipt (merged with the graph candidate loop's); strict refuses.
       try {
         const view = descriptor.projectPositioned!({ positioned: result.positioned, options: projectionOptions })
         const violations = assessRenderedLayoutHardViolations({ ...view, kind: familyId })
-        if (violations.length) throw new LayoutCertificationError([{ strategy, violations: violations.map(value => `${value.metric}: ${value.detail}`) }])
+        if (violations.length && (request.renderOptions.layoutSafety === 'strict' || violations.some(value => !DRAWABLE_FINAL_METRICS.has(value.metric)))) {
+          throw new LayoutCertificationError([{ strategy, violations: violations.map(value => `${value.metric}: ${value.detail}`) }])
+        }
         retainedProjections.set(result, view)
+        const uncertified = mergeUncertifiedLayout(graphUncertifiedReceipt(result.positioned), strategy,
+          violations.map(value => ({ kind: value.metric, targets: value.targets ?? [], detail: value.detail })))
+        if (uncertified) result.uncertifiedLayout = uncertified
+        else delete result.uncertifiedLayout
       } catch (error) {
         if (error instanceof LayoutCertificationError) throw error
         throw new LayoutCertificationError([{ strategy, violations: [error instanceof Error ? error.message : String(error)] }])

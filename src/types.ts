@@ -209,6 +209,9 @@ export interface PositionedGraph extends PositionedDiagram {
   title?: PositionedDiagramTitle
   /** Final hard-geometry certification, after bounded layout alternatives. */
   certification?: import('./layout/certification.ts').LayoutCertificationReceipt
+  /** Instead of `certification`: report layout safety drew this graph from its
+   * best drawable candidate although none certified. */
+  uncertifiedLayout?: import('./layout/uncertified-layout.ts').UncertifiedLayoutReceipt
 }
 
 /** A placed state-diagram note box. */

@@ -67,6 +67,7 @@ codes, and [quality](docs/quality.md) describes layout priorities and limits.
 | `NODE_OVERLAP` | warning | Two laid-out node bounding boxes intersect |
 | `CONTENT_OCCLUDED` | error | Final layout hides authored text or an interaction marker |
 | `LAYOUT_LIMIT_EXCEEDED` | warning | Preserved content exceeds an explicitly requested layout budget |
+| `LAYOUT_UNCERTIFIED` | error | No layout candidate passed certification, so the diagram was drawn from the best one anyway (fewest misleading, then fewest violations). One warning per failed check: `violation` names it (a hard rubric metric such as `endpointApproaches` or `edgeThroughNode`, `groupHeaderBand`, or a paint issue such as `CONNECTOR_CARD_CROSSING`) and `targets` the ids involved; a containment failure is `GROUP_BREACH`. Render still succeeds; `receipt.layoutCertification.geometry` names the candidate drawn. `layoutSafety: "strict"` refuses instead. |
 | `ROUTE_SELF_CROSS` | warning | An edge route crosses itself |
 | `ROUTE_HITCH` | warning | An edge bends although a direct lane for it is provably clear (route-contract tripwire) |
 | `ROUTE_UNEXPLAINED_BEND` | warning | An edge contains a diagonal segment under orthogonal routing (route-contract tripwire) |

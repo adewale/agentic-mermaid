@@ -493,7 +493,9 @@ test('Sankey thick cubic ribbons retain compact native paint bounds', () => {
   }
 })
 
-test('the production render boundary rejects newly occluded text and verify reports the same failure', () => {
+// Issue A7: report layout safety draws a failed paint proof whose paint stays
+// in the viewport, and verify names the failed check; strict safety refuses.
+test('the production render boundary reports newly occluded text and verify fails naming it', () => {
   const family = getFamily('flowchart')!
   let lowerings = 0
   const restore = replaceFamilyForTest('flowchart', { ...family, lowerScene(context) {
@@ -503,11 +505,16 @@ test('the production render boundary rejects newly occluded text and verify repo
     return { ...original, parts: [...original.parts.slice(0, -1), cover, original.parts.at(-1)!] }
   } })
   try {
-    expect(() => renderMermaidSVGWithReceipt('flowchart LR\nA[Visible] --> B[Read]')).toThrow('Final paint certification failed')
-    const verification = verifyMermaid('flowchart LR\nA[Visible] --> B[Read]')
+    const source = 'flowchart LR\nA[Visible] --> B[Read]'
+    const rendered = renderMermaidSVGWithReceipt(source)
+    expect(rendered.svg).toContain('Visible')
+    expect(rendered.receipt.layoutCertification?.status).toBe('failed')
+    const verification = verifyMermaid(source)
     expect(verification.ok).toBe(false)
     expect(verification.layoutCertification?.status).toBe('failed')
-    expect(lowerings).toBe(2)
+    expect(verification.warnings).toContainEqual(expect.objectContaining({ code: 'LAYOUT_UNCERTIFIED', violation: 'TEXT_OCCLUDED', targets: expect.arrayContaining(['late-cover']) }))
+    expect(() => renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' })).toThrow('Final paint certification failed')
+    expect(lowerings).toBe(3)
   } finally { restore() }
 })
 

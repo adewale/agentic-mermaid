@@ -34,10 +34,12 @@ import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
-import '../index.ts' // installs the render families positionResolvedFamily resolves
+import { renderMermaidSVGWithReceipt } from '../index.ts' // also installs the render families positionResolvedFamily resolves
+import { verifyMermaid } from '../agent/verify.ts'
 import { positionResolvedFamily } from '../positioning.ts'
 import { resolveRenderRequestForExecution } from '../render-contract.ts'
 import { LayoutCertificationError } from '../layout/certification.ts'
+import type { PaintLayoutCertification } from '../scene/paint-certification.ts'
 import type { PositionedGraph, PositionedGroup } from '../types.ts'
 
 const SEED = 0x0decaf
@@ -156,20 +158,45 @@ const FRAME_BREACH_EXAMPLES: GroupedCase[] = [
   },
 ]
 
+// Reduced issue-A7 counterexamples: no bounded candidate certifies these, each
+// for a different check (inward endpoint shaft, edge through a node, a self-loop
+// across a group title band, overlapping nodes, diagonal segments in a look
+// that enlarges nodes). Valid source must still render, and verify must name
+// the failed check.
+const UNCERTIFIED_EXAMPLES: GroupedCase[] = [
+  { source: 'flowchart BT\n  n1 ==> n1\n  n2 ==> n3\n  n1 --o|e2| n0\n  n3 <-->|e3| n2\n  n2 --> n0\n  n2 --x n1\n', members: [], look: 'default' },
+  { source: 'flowchart LR\n  subgraph G0[Group 0]\n    n2\n  end\n  G0 --x G0\n  n0 <--> n0\n  n2 --x n0\n  n1 <--> G0\n', members: [['G0', ['n2']]], look: 'default' },
+  { source: 'flowchart TD\n  subgraph G0[Group 0]\n    direction LR\n    n1\n    n3\n  end\n  n3 -.->|e0| G1\n  n3 ==> n3\n', members: [['G0', ['n1', 'n3']]], look: 'default' },
+  { source: 'flowchart LR\n  n0[Node 0]\n  n3[/Node 3/]\n  n6\n  n10\n  subgraph G1[Group 1]\n    direction LR\n  end\n  n8 ==> n7\n  n16 ==> n2\n  n8 --x|e20| n14\n', members: [], look: 'default' },
+  { source: 'flowchart BT\n  subgraph G0[Group 0]\n    direction LR\n    n5\n  end\n  n3 --o n5\n  n10 --o n5\n  G0 --x|e17| G0\n  n9 --> n8\n', members: [['G0', ['n5']]], look: 'status-dashboard' },
+]
+
 describe('authored group frames hold their members in every look', () => {
-  test('generated subgraph flowcharts never place a member outside its frame', () => {
+  test('generated subgraph flowcharts render, keep members in frames, and name any uncertified check', () => {
     fc.assert(fc.property(groupedFlowchartArb, ({ source, members, look, mustCertify }) => {
-      let positioned: PositionedGraph
-      try {
-        const request = resolveRenderRequestForExecution(source, look === 'default' ? {} : { style: look }, 'svg')
-        positioned = (positionResolvedFamily('flowchart', request) as { positioned: PositionedGraph }).positioned
-      } catch (error) {
-        // Other hard metrics (header bands, endpoint approaches) are separate
-        // contracts. Frame correspondence is checked before them, so no
-        // attempt of a certification failure may report a frame breach.
-        if (mustCertify || !(error instanceof LayoutCertificationError)) throw error
-        expect(error.attempts.flatMap(attempt => attempt.violations).filter(violation => violation.includes('outside authored'))).toEqual([])
-        return
+      const options = look === 'default' ? {} : { style: look }
+      // Issue A7: valid source always renders, whether or not a candidate certifies.
+      const { svg, receipt } = renderMermaidSVGWithReceipt(source, options)
+      expect(svg.startsWith('<svg'), `${look}\n${source}`).toBe(true)
+      const request = resolveRenderRequestForExecution(source, options, 'svg')
+      const result = positionResolvedFamily('flowchart', request)
+      const positioned = result.positioned as PositionedGraph
+      const geometry = (receipt.layoutCertification as PaintLayoutCertification | undefined)?.geometry
+      expect(geometry, 'the render receipt records the positioned result').toEqual(result.uncertifiedLayout)
+      if (mustCertify) expect(geometry).toBeUndefined()
+      const kinds = new Set(geometry?.violations.map(violation => violation.kind))
+      // The independent rubric finds no hard violation the receipt leaves out.
+      if (look === 'default') {
+        const oracle = hardViolations(assessLayout(parseMermaid(normalizeMermaidSource(source).text), positioned)).map(violation => violation.metric)
+        expect(oracle.filter(metric => !kinds.has(metric)), `${look}\n${source}`).toEqual([])
+      }
+      if (geometry) {
+        const verdict = verifyMermaid(source, { renderOptions: options })
+        expect(verdict.ok, `${look}\n${source}`).toBe(false)
+        const named = new Set(verdict.warnings.flatMap(warning => warning.code === 'LAYOUT_UNCERTIFIED' ? [warning.violation] : warning.code === 'GROUP_BREACH' ? ['groupBreaches'] : []))
+        expect([...kinds].filter(kind => !named.has(kind)), `${look}\n${source}`).toEqual([])
+        // Strict layout safety refuses what report safety drew uncertified.
+        expect(() => renderMermaidSVGWithReceipt(source, { ...options, layoutSafety: 'strict' })).toThrow(LayoutCertificationError)
       }
       const frames = new Map<string, PositionedGroup>()
       const collect = (groups: PositionedGroup[]): void => { for (const group of groups) { frames.set(group.id, group); collect(group.children) } }
@@ -185,6 +212,6 @@ describe('authored group frames hold their members in every look', () => {
           `${member} inside ${id} (${look})\n${source}`).toEqual([true, true, true, true])
         }
       }
-    }), fcParameters({ numRuns: 40, seed: SEED, examples: FRAME_BREACH_EXAMPLES.map(example => [example]) }))
+    }), fcParameters({ numRuns: 40, seed: SEED, examples: [...FRAME_BREACH_EXAMPLES, ...UNCERTIFIED_EXAMPLES].map(example => [example]) }))
   })
 })

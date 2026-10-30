@@ -2,6 +2,7 @@ import { measureLabelConflicts } from '../layout/label-conflicts.ts'
 import { countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
 import { refineOwnedLayoutCandidate as refineNative, certifyOwnedLayoutCandidate as certifyNative } from '../layout/agentic-producer-core.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
+import { verifyMermaid } from '../agent/verify.ts'
 import { describe, expect, test } from 'bun:test'
 import { certifyCandidate, positionedGeometryViolations, positionedHeaderRouteViolations, retainSelection, certifyLayoutCandidates, certifyLayoutWithRouteAlternative, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
 import { LayoutMetricBudgetError } from '../layout/pass.ts'
@@ -515,6 +516,72 @@ describe('bounded final layout certification', () => {
     if (field === 'group-label') invalid.groups[0]!.label = 'changed'
     if (field === 'parent') invalid.groups = []
     expect(() => certifyLayoutCandidates(graph, resolveRenderStyle({}), [{ strategy: 'lost-content', produce: () => invalid }])).toThrow(LayoutCertificationError)
+  })
+
+  // Issue A7: report layout safety draws a graph no candidate certifies from its
+  // best drawable candidate instead of refusing it. The rule is deterministic:
+  // fewest misleading violations, then fewest violations, then candidate order;
+  // a candidate that changed authored meaning is never drawn.
+  test('report safety draws the best drawable candidate when none certifies', () => {
+    const graph = parseMermaid('flowchart LR\n  A --> B\n  C')
+    const base = layoutGraphSync(graph)
+    const detour = (positioned: PositionedGraph): void => {
+      const [a, b] = positioned.edges[0]!.points
+      const mid = (a!.x + b!.x) / 2
+      positioned.edges[0]!.points = [a!, { x: mid, y: a!.y }, { x: mid + 4, y: a!.y + 4 }, { x: mid + 4, y: b!.y }, b!]
+    }
+    const variants: Record<string, (positioned: PositionedGraph) => void> = {
+      // Only a changed label: no geometry failure, but it misstates the source.
+      'changed-label': positioned => { positioned.nodes[0]!.label = 'changed' },
+      // C drawn over B: one misleading violation.
+      overlap: positioned => {
+        const b = positioned.nodes.find(node => node.id === 'B')!, c = positioned.nodes.find(node => node.id === 'C')!
+        c.x = b.x + 4; c.y = b.y + 4
+      },
+      // A diagonal detour on a route certified straight: two cosmetic violations.
+      'straight-detour': detour,
+      // The same detour without the straight certificate: one cosmetic violation.
+      detour: positioned => { delete positioned.edges[0]!.routeCertificate; detour(positioned) },
+      'later-detour': positioned => { delete positioned.edges[0]!.routeCertificate; detour(positioned) },
+    }
+    const candidates = (names: string[]) => names.map(strategy => {
+      const positioned = structuredClone(base)
+      variants[strategy]!(positioned)
+      return { strategy, produce: () => positioned }
+    })
+    const all = ['changed-label', 'overlap', 'straight-detour', 'detour']
+    const drawn = certifyLayoutCandidates(graph, resolveRenderStyle({}), candidates(all), undefined, true)
+    expect(drawn.certification).toBeUndefined()
+    expect(drawn.uncertifiedLayout).toEqual({
+      status: 'uncertified', strategy: 'detour', attempts: 4,
+      violations: [{ kind: 'diagonalSegments', targets: ['A->B'], detail: 'A->B segment 2' }],
+    })
+    expect(drawn.nodes.find(node => node.id === 'A')!.label).toBe('A')
+    // A misleading violation outranks any number of cosmetic ones.
+    expect(certifyLayoutCandidates(graph, resolveRenderStyle({}), candidates(['overlap', 'straight-detour']), undefined, true).uncertifiedLayout!.strategy).toBe('straight-detour')
+    // Equal counts keep the established candidate order.
+    expect(certifyLayoutCandidates(graph, resolveRenderStyle({}), candidates(['later-detour', 'detour']), undefined, true).uncertifiedLayout!.strategy).toBe('later-detour')
+    // Identical input selects identical geometry.
+    expect(certifyLayoutCandidates(graph, resolveRenderStyle({}), candidates(all), undefined, true)).toEqual(drawn)
+    // Strict safety, and a graph whose only candidates change meaning, still refuse.
+    expect(() => certifyLayoutCandidates(graph, resolveRenderStyle({}), candidates(all))).toThrow(LayoutCertificationError)
+    expect(() => certifyLayoutCandidates(graph, resolveRenderStyle({}), candidates(['changed-label']), undefined, true)).toThrow(LayoutCertificationError)
+  })
+
+  // The State hook reaches the same candidate loop through its own options.
+  // Reduced counterexample: a self-loop crossing a directed composite's title
+  // band, which no candidate avoided when this was written.
+  test('State drawings share the report-safety fallback', () => {
+    const source = 'stateDiagram-v2\n  state G0 {\n    direction LR\n    a\n    b\n  }\n  b --> b\n  b --> c\n  c --> G0'
+    const { svg, receipt } = renderMermaidSVGWithReceipt(source)
+    expect(svg.startsWith('<svg')).toBe(true)
+    const geometry = (receipt.layoutCertification as { geometry?: { violations: Array<{ kind: string }> } } | undefined)?.geometry
+    if (!geometry) return
+    const verdict = verifyMermaid(source)
+    expect(verdict.ok).toBe(false)
+    const named = verdict.warnings.flatMap(warning => warning.code === 'LAYOUT_UNCERTIFIED' ? [warning.violation] : warning.code === 'GROUP_BREACH' ? ['groupBreaches'] : [])
+    expect(geometry.violations.map(violation => violation.kind).filter(kind => !named.includes(kind))).toEqual([])
+    expect(() => renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' })).toThrow(LayoutCertificationError)
   })
 
   test('a candidate cannot exchange authored members between intact group frames', () => {

@@ -46,6 +46,8 @@ const TOL = 0.5
 export interface FamilyRubricViolation {
   metric: string
   detail: string
+  /** Authored ids the violation names; for groupBreaches, the group then the member. */
+  targets?: readonly string[]
 }
 
 export interface FamilyRubricMetrics {
@@ -264,7 +266,7 @@ function assessFamilyLayout(layout: RenderedLayout): FamilyLayoutAssessment {
         b = pairNodes[j]!
       if (!finiteRect(a.x, a.y, a.w, a.h) || !finiteRect(b.x, b.y, b.w, b.h)) continue
       if (!rectOverlap(a, b)) continue
-      violations.push({ metric: 'nodeOverlaps', detail: `${a.id} overlaps ${b.id}` })
+      violations.push({ metric: 'nodeOverlaps', detail: `${a.id} overlaps ${b.id}`, targets: [a.id, b.id] })
     }
   }
 
@@ -277,14 +279,14 @@ function assessFamilyLayout(layout: RenderedLayout): FamilyLayoutAssessment {
       const parent = g.parentId ? groupById.get(g.parentId) : undefined
       if (parent && finiteRect(g.x, g.y, g.w, g.h) && finiteRect(parent.x, parent.y, parent.w, parent.h)) {
         if (!rectContains(parent, g, axes)) {
-          violations.push({ metric: 'groupBreaches', detail: `${g.id} outside parent ${parent.id}` })
+          violations.push({ metric: 'groupBreaches', detail: `${g.id} outside parent ${parent.id}`, targets: [parent.id, g.id] })
         }
       }
       for (const memberId of g.members) {
         const n = nodeById.get(memberId)
         if (!n || !finiteRect(n.x, n.y, n.w, n.h)) continue
         if (!rectContains(g, n, axes)) {
-          violations.push({ metric: 'groupBreaches', detail: `${memberId} outside ${g.id}` })
+          violations.push({ metric: 'groupBreaches', detail: `${memberId} outside ${g.id}`, targets: [g.id, memberId] })
         }
       }
     }
@@ -301,7 +303,7 @@ function assessFamilyLayout(layout: RenderedLayout): FamilyLayoutAssessment {
       if (!rectOverlap(a, b)) continue
       if (rectContains(a, b) || rectContains(b, a)) continue
       if (isAncestor(a, b, groupById) || isAncestor(b, a, groupById)) continue
-      violations.push({ metric: 'groupOverlaps', detail: `${a.id} partially overlaps ${b.id}` })
+      violations.push({ metric: 'groupOverlaps', detail: `${a.id} partially overlaps ${b.id}`, targets: [a.id, b.id] })
     }
   }
 

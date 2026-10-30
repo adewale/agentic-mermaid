@@ -32,7 +32,7 @@ import { replaceSvgRootStartTag, svgAttribute, svgRootStartTag } from './svg-str
 import { scopeSvgStyles } from './svg-style-scope.ts'
 import { emitResolvedConfigDiagnostics } from './render-config-diagnostics.ts'
 import { retainedPositionedScene, retainedNativeDrawing, positionedPaintCertification } from './scene/positioned.ts'
-import { PaintLayoutCertificationError, type PaintLayoutCertification, type PaintViewport } from './scene/paint-certification.ts'
+import { PaintLayoutCertificationError, paintFailureIsDrawable, type PaintLayoutCertification, type PaintViewport } from './scene/paint-certification.ts'
 import { assertFinalSvgByteBudget } from './scene/scene-validation-core.ts'
 import type { SceneDoc } from './scene/ir.ts'
 import { sceneHasOnlyPreparedText } from './scene/serialization.ts'
@@ -130,6 +130,22 @@ function expandSvgViewport(svg: string, viewport: PaintViewport): string {
   return replaceSvgRootStartTag(svg, root, rewritten.slice(0, -1) + attrs + '>')
 }
 
+/** The one render decision on a final paint proof. Strict layout safety needs
+ * a passed proof. Report safety refuses a failed default-backend proof only
+ * when paint may be clipped; other failures (covered text or markers, a
+ * connector across a card, text past its region) render and verify reports
+ * them (see `reportedPaintFailure`), as rough backends already rendered. */
+export function paintCertificationRefuses(request: ResolvedRenderRequest, certification: PaintLayoutCertification): boolean {
+  if (request.renderOptions.layoutSafety === 'strict') return certification.status !== 'passed'
+  return certification.status === 'failed' && resolvedRenderExecutionPlanOf(request).backend?.inputName === 'default' && !paintFailureIsDrawable(certification)
+}
+
+/** A failed default-backend paint proof report safety drew anyway. */
+export function reportedPaintFailure(request: ResolvedRenderRequest, certification: PaintLayoutCertification | undefined): boolean {
+  return certification !== undefined && request.renderOptions.layoutSafety !== 'strict' && certification.status === 'failed'
+    && resolvedRenderExecutionPlanOf(request).backend?.inputName === 'default' && paintFailureIsDrawable(certification)
+}
+
 /** Render an exact descriptor layout result; this function never positions. */
 export function renderPositionedMermaidSVG(
   request: ResolvedRenderRequest,
@@ -161,7 +177,7 @@ function renderPositionedWithTextMeasurement(
     const drawing = capture ? undefined : measureRenderStage('drawing', () => retainedNativeDrawing(request, layout))
     const scene = drawing ? undefined : measureRenderStage('scene', () => lowerPositionedFamilyScene(request, layout))
     layoutCertification = measureRenderStage('paint-certification', () => positionedPaintCertification(request, layout))
-    if ((effectiveOptions.layoutSafety === 'strict' && layoutCertification.status !== 'passed') || (layoutCertification.status === 'failed' && executionPlan.backend?.inputName === 'default')) throw new PaintLayoutCertificationError(layoutCertification)
+    if (paintCertificationRefuses(request, layoutCertification)) throw new PaintLayoutCertificationError(layoutCertification)
     rawSvg = drawing?.svg ?? measureRenderStage('backend', () => {
       const backendContext = {
         seed: effectiveOptions.seed ?? 0,

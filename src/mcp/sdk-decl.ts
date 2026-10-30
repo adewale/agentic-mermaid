@@ -300,7 +300,9 @@ ${SDK_VALID_DIAGRAM_ALIASES}
 //   INTERNAL_ERROR (an Agentic Mermaid defect, not the source; defaultRender:
 //   'succeeds-unchecked' | 'fails' says whether an ordinary render still produces output;
 //   do not rewrite the diagram to work around it).
-// Tier 2 (geometric): CONTENT_OCCLUDED is an error; LAYOUT_LIMIT_EXCEEDED,
+// Tier 2 (geometric): CONTENT_OCCLUDED is an error; so is LAYOUT_UNCERTIFIED
+// (no layout candidate passed certification, so the best one was drawn anyway;
+// violation: the failed check, targets: its ids). LAYOUT_LIMIT_EXCEEDED,
 // NODE_OVERLAP, ROUTE_SELF_CROSS and the following tripwires are advisory.
 // route-contract tripwires ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND,
 // ROUTE_LABEL_ON_SHARED_TRUNK, ROUTE_SELF_LOOP_OCCUPANCY, ROUTE_CONTAINER_MISANCHOR,
@@ -315,7 +317,7 @@ ${CODE_MODE_LAYOUT_SUMMARY_DECLARATION}
 type WarningCode =
   | 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS' | 'GROUP_BREACH'
   | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'UNRESOLVABLE_SCHEDULE' | 'RENDER_FAILED' | 'INTERNAL_ERROR'
-  | 'NODE_OVERLAP' | 'CONTENT_OCCLUDED' | 'LAYOUT_LIMIT_EXCEEDED' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH'
+  | 'NODE_OVERLAP' | 'CONTENT_OCCLUDED' | 'LAYOUT_LIMIT_EXCEEDED' | 'LAYOUT_UNCERTIFIED' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH'
   | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK' | 'ROUTE_SELF_LOOP_OCCUPANCY' | 'ROUTE_CONTAINER_MISANCHOR'
   | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'
   | 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'FLOW_IMBALANCE' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX'

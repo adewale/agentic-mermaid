@@ -60,7 +60,8 @@ import { resolveClassInlineStyle, resolveEdgeInlineStyle, resolveNodeInlineStyle
 import { runPipeline } from './layout/pass.ts'
 import type { LayoutPass, PassContextBase } from './layout/pass.ts'
 import type { PassMetrics, RubricMetric } from './layout/pass.ts'
-import { certifyCandidate, retainSelection, certifyLayoutWithRouteAlternative, certifyLayoutPlacementCandidates, positionedGeometryViolations, withinLayoutPreferenceBudget, LayoutCertificationError, type LayoutCertificationCandidate } from './layout/certification.ts'
+import { certifyCandidate, retainSelection, certifyLayoutWithRouteAlternative, certifyLayoutPlacementCandidates, positionedGeometryFindings, withinLayoutPreferenceBudget, LayoutCertificationError, type LayoutCertificationCandidate } from './layout/certification.ts'
+import { mergeUncertifiedLayout } from './layout/uncertified-layout.ts'
 import {
   DEFAULTS,
   flattenGroupBounds,
@@ -2005,8 +2006,16 @@ export function layoutGraphSync(
   positioned.height += band.height
   positioned.width = Math.max(positioned.width, band.width + 2 * padding)
   positioned.title = positionDiagramTitle(band, positioned.width, padding)
-  const violations = positionedGeometryViolations(positioned, style)
-  if (violations.length) throw new LayoutCertificationError([{ strategy: 'final-title-projection', violations }])
+  const findings = positionedGeometryFindings(positioned, style)
+  if (findings.length === 0) return positioned
+  // Report layout safety draws a title band whose only failures are drawable,
+  // recording them with the candidate's receipt; strict safety refuses.
+  if (options.layoutSafety === 'strict' || findings.some(finding => !finding.drawable)) {
+    throw new LayoutCertificationError([{ strategy: 'final-title-projection', violations: findings.map(finding => finding.text) }])
+  }
+  const prior = positioned.uncertifiedLayout ?? positioned.certification
+  positioned.uncertifiedLayout = mergeUncertifiedLayout(positioned.uncertifiedLayout, prior?.strategy ?? 'final-title-projection', findings.map(finding => finding.drawable!), prior?.attempts)
+  delete positioned.certification
   return positioned
 }
 
@@ -2215,12 +2224,15 @@ function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpo
   // only for the selected placement, reusing its ELK result and certified score.
   // One preliminary forest, at most four ELK placements and one route pipeline;
   // the existing 16-ELK exceptional upper bound is unchanged.
-  if (purpose === 'placement') return certifyLayoutPlacementCandidates(graph, style, candidates, preliminary)
+  // Report layout safety still draws a graph no candidate certifies, from its
+  // best drawable candidate, with an uncertified receipt; strict refuses.
+  const allowUncertified = options.layoutSafety !== 'strict'
+  if (purpose === 'placement') return certifyLayoutPlacementCandidates(graph, style, candidates, preliminary, allowUncertified)
   return certifyLayoutWithRouteAlternative(graph, style, candidates, (placed, score) => {
     const makeRoute = routeAlternatives.get(placed)
     if (!makeRoute || (score.edgeCrossings === 0 && score.labelConflicts === 0)) return undefined
     return { strategy: 'without-generic-bundling', produce: makeRoute, preferNext: preferReadableTitles }
-  }, preliminary)
+  }, preliminary, allowUncertified)
 }
 
 function groupsNarrowerThanTitles(groups: readonly PositionedGroup[], graph: MermaidGraph, style: ResolvedRenderStyle): boolean {

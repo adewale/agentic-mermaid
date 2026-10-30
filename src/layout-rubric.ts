@@ -70,6 +70,8 @@ export function rubricSeverity(metric: string): RubricSeverity {
 export interface RubricViolation {
   metric: string
   detail: string
+  /** Authored ids the violation names (edges as `source->target`). */
+  targets?: readonly string[]
   /** Evidence-based impact rank; reports are sorted by it. */
   severity: RubricSeverity
 }
@@ -512,7 +514,7 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
       const approaches = invalidEndpointApproaches(e, nodeMap.get(e.source), nodeMap.get(e.target))
       if (approaches) {
         endpointApproaches += approaches
-        violations.push({ metric: 'endpointApproaches', detail: `${id}: ${approaches} inward or tangent exact endpoint shaft(s)` })
+        violations.push({ metric: 'endpointApproaches', detail: `${id}: ${approaches} inward or tangent exact endpoint shaft(s)`, targets: [id] })
       }
     }
     // Justified-bend exemption: a bend that is part of a SYMMETRIC convergence
@@ -533,14 +535,14 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
 
     if (bends > 0 && e.routeCertificate?.invariant === 'straight') {
       unexplainedBends += bends
-      violations.push({ metric: 'unexplainedBends', detail: `${id} certified straight with ${bends} bends` })
+      violations.push({ metric: 'unexplainedBends', detail: `${id} certified straight with ${bends} bends`, targets: [id] })
     }
 
     for (let i = 1; i < e.points.length; i++) {
       const a = e.points[i - 1]!, b = e.points[i]!
       if (Math.abs(a.x - b.x) > 0.01 && Math.abs(a.y - b.y) > 0.01) {
         diagonal++
-        violations.push({ metric: 'diagonalSegments', detail: `${id} segment ${i}` })
+        violations.push({ metric: 'diagonalSegments', detail: `${id} segment ${i}`, targets: [id] })
       }
     }
 
@@ -552,7 +554,7 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
       if (!node) continue
       if (!pt || !onShapeOutline(node, pt)) {
         offOutline++
-        violations.push({ metric: 'offOutlineEndpoints', detail: pt ? `${id} ${label} on ${nodeId}(${node.shape}) at (${pt.x.toFixed(1)},${pt.y.toFixed(1)})` : `${id} missing ${label} endpoint on ${nodeId}` })
+        violations.push({ metric: 'offOutlineEndpoints', detail: pt ? `${id} ${label} on ${nodeId}(${node.shape}) at (${pt.x.toFixed(1)},${pt.y.toFixed(1)})` : `${id} missing ${label} endpoint on ${nodeId}`, targets: [id, nodeId] })
       }
     }
     const srcNode = nodeMap.get(e.source)
@@ -578,7 +580,7 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
       }
       if (best > allow) {
         labelOffRoute++
-        violations.push({ metric: 'labelOffRoute', detail: `${id} label ${best.toFixed(1)}px from its route (allowed ${allow.toFixed(1)})` })
+        violations.push({ metric: 'labelOffRoute', detail: `${id} label ${best.toFixed(1)}px from its route (allowed ${allow.toFixed(1)})`, targets: [id] })
       }
       // SOFT label-CENTRING aggregate: track the worst (most off-centre) label.
       if (withSoftMetrics) worstLabelOffset = Math.max(worstLabelOffset, labelMidpointOffset(e))
@@ -592,7 +594,7 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
       for (let i = 1; i < e.points.length; i++) {
         if (segmentThroughShape(e.points[i - 1]!, e.points[i]!, node)) {
           edgeThroughNode++
-          violations.push({ metric: 'edgeThroughNode', detail: `${e.source}->${e.target} segment ${i} through ${node.id}` })
+          violations.push({ metric: 'edgeThroughNode', detail: `${e.source}->${e.target} segment ${i} through ${node.id}`, targets: [`${e.source}->${e.target}`, node.id] })
           break
         }
       }
@@ -609,13 +611,13 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
       const oy = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y)
       if (ox > 0.5 && oy > 0.5) {
         nodeOverlaps++
-        violations.push({ metric: 'nodeOverlaps', detail: `${a.id} overlaps ${b.id}` })
+        violations.push({ metric: 'nodeOverlaps', detail: `${a.id} overlaps ${b.id}`, targets: [a.id, b.id] })
       }
     }
   }
 
   const hitchList = findRouteHitches(positioned, graph, style)
-  for (const h of hitchList) violations.push({ metric: 'hitches', detail: `${h.edge} deviates ${h.deviationPx}px with a clear lane` })
+  for (const h of hitchList) violations.push({ metric: 'hitches', detail: `${h.edge} deviates ${h.deviationPx}px with a clear lane`, targets: [h.edge] })
 
   return {
     metrics: {

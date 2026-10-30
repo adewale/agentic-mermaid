@@ -6,12 +6,14 @@ import { LayoutPassContractError, withinLayoutPreferenceBudget } from './pass.ts
 export { MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES, withinLayoutPreferenceBudget } from './pass.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { DeferredDependencyError, LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
+import type { LayoutCertificationViolation, UncertifiedLayoutReceipt } from './uncertified-layout.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { prepareDisplayText, resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 import { observeFallback } from '../performance-observations.ts'
 import { graphTextBlock } from '../graph-text.ts'
 
 export { LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
+export type { LayoutCertificationViolation, UncertifiedLayoutReceipt } from './uncertified-layout.ts'
 
 export const MAX_LAYOUT_CANDIDATES = 4
 
@@ -68,8 +70,18 @@ export interface LayoutCertificationCandidate {
   qualityAlternative?: boolean
 }
 
-function correspondenceViolations(graph: MermaidGraph, positioned: PositionedGraph, style: ResolvedRenderStyle): string[] {
-  const failures: string[] = []
+/** A certification failure. A drawable one leaves every authored element
+ * drawn with its meaning; only its placement or route is imperfect. */
+export interface CertificationFinding {
+  text: string
+  drawable?: LayoutCertificationViolation
+}
+
+const findingTexts = (findings: readonly CertificationFinding[]): string[] => findings.map(finding => finding.text)
+
+function correspondenceViolations(graph: MermaidGraph, positioned: PositionedGraph, style: ResolvedRenderStyle): CertificationFinding[] {
+  const failures: CertificationFinding[] = []
+  const fail = (text: string): void => { failures.push({ text }) }
   const retainedText = (id: string, label: DisplayTextInput, block: PixelTextBlock | undefined, role: 'node' | 'edge' | 'group'): void => {
     if (!block) return
     const transform = role === 'node' ? style.nodeTextTransform : role === 'edge' ? style.edgeTextTransform : style.groupTextTransform
@@ -87,7 +99,7 @@ function correspondenceViolations(graph: MermaidGraph, positioned: PositionedGra
       }))
     if (actual.source !== expected.source || actual.display !== expected.display || actual.transform !== expected.transform ||
         actual.lineStarts.length !== expected.lineStarts.length || actual.lineStarts.some((start, line) => start !== expected.lineStarts[line]) || !sameRuns) {
-      failures.push(`${id}: changed retained prepared text`)
+      fail(`${id}: changed retained prepared text`)
     }
   }
   const expectedGroups = new Map<string, string>(),
@@ -103,7 +115,7 @@ function correspondenceViolations(graph: MermaidGraph, positioned: PositionedGra
   }
   const actual = (groups: PositionedGroup[], parent = ''): void => {
     for (const group of groups) {
-      if (actualGroups.has(group.id)) failures.push(`group ${group.id}: duplicate identity`)
+      if (actualGroups.has(group.id)) fail(`group ${group.id}: duplicate identity`)
       actualGroups.set(group.id, parent)
       positionedGroups.set(group.id, group)
       actual(group.children, group.id)
@@ -111,35 +123,37 @@ function correspondenceViolations(graph: MermaidGraph, positioned: PositionedGra
   }
   expected(graph.subgraphs)
   actual(positioned.groups)
-  for (const [id, parent] of expectedGroups) if (actualGroups.get(id) !== parent) failures.push(`group ${id}: missing or changed parent`)
-  for (const id of actualGroups.keys()) if (!expectedGroups.has(id)) failures.push(`group ${id}: unexpected identity`)
+  for (const [id, parent] of expectedGroups) if (actualGroups.get(id) !== parent) fail(`group ${id}: missing or changed parent`)
+  for (const id of actualGroups.keys()) if (!expectedGroups.has(id)) fail(`group ${id}: unexpected identity`)
   const nodeIds = new Set<string>()
   const positionedNodes = new Map(positioned.nodes.map(node => [node.id, node]))
   for (const node of positioned.nodes) {
-    if (nodeIds.has(node.id)) failures.push(`node ${node.id}: duplicate identity`)
+    if (nodeIds.has(node.id)) fail(`node ${node.id}: duplicate identity`)
     nodeIds.add(node.id)
-    if (!graph.nodes.has(node.id)) failures.push(`node ${node.id}: unexpected identity`)
-    else if (node.label !== graph.nodes.get(node.id)!.label) failures.push(`node ${node.id}: changed label`)
+    if (!graph.nodes.has(node.id)) fail(`node ${node.id}: unexpected identity`)
+    else if (node.label !== graph.nodes.get(node.id)!.label) fail(`node ${node.id}: changed label`)
     else {
       const authored = graph.nodes.get(node.id)!
       retainedText(`node ${node.id}`, resolveLabelContent(authored.label, authored.labelContent), node.labelBlock, 'node')
     }
   }
-  for (const id of graph.nodes.keys()) if (!nodeIds.has(id) && !actualGroups.has(id)) failures.push(`node ${id}: missing identity`)
+  for (const id of graph.nodes.keys()) if (!nodeIds.has(id) && !actualGroups.has(id)) fail(`node ${id}: missing identity`)
   for (const [id, authored] of authoredGroups) {
     const group = positionedGroups.get(id)
     if (!group) continue
-    if (group.label !== authored.label) failures.push(`group ${id}: changed label`)
+    if (group.label !== authored.label) fail(`group ${id}: changed label`)
     retainedText(`group ${id}`, resolveLabelContent(authored.label, authored.labelContent), group.labelBlock, 'group')
     const parent = positionedGroups.get(expectedGroups.get(id) ?? '')
     if (parent && (group.x < parent.x - 0.5 || group.y < parent.y - 0.5 || group.x + group.width > parent.x + parent.width + 0.5 || group.y + group.height > parent.y + parent.height + 0.5)) {
-      failures.push(`group ${id}: outside authored parent ${parent.id}`)
+      const text = `group ${id}: outside authored parent ${parent.id}`
+      failures.push({ text, drawable: { kind: 'groupBreaches', targets: [parent.id, id], detail: text } })
     }
     for (const memberId of authored.nodeIds) {
       if (authoredGroups.has(memberId)) continue
       const member = positionedNodes.get(memberId)
       if (member && (member.x < group.x - 0.5 || member.y < group.y - 0.5 || member.x + member.width > group.x + group.width + 0.5 || member.y + member.height > group.y + group.height + 0.5)) {
-        failures.push(`member ${memberId}: outside authored group ${id}`)
+        const text = `member ${memberId}: outside authored group ${id}`
+        failures.push({ text, drawable: { kind: 'groupBreaches', targets: [id, memberId], detail: text } })
       }
     }
   }
@@ -147,10 +161,10 @@ function correspondenceViolations(graph: MermaidGraph, positioned: PositionedGra
   for (const [index, edge] of positioned.edges.entries()) {
     const identity = edge.edgeIndex ?? index,
       authored = graph.edges[identity]
-    if (edgeIndices.has(identity)) failures.push(`edge ${identity}: duplicate identity`)
+    if (edgeIndices.has(identity)) fail(`edge ${identity}: duplicate identity`)
     edgeIndices.add(identity)
     if (!authored) {
-      failures.push(`edge ${identity}: unexpected identity`)
+      fail(`edge ${identity}: unexpected identity`)
       continue
     }
     if (authored.label !== undefined) retainedText(`edge ${identity}`, resolveLabelContent(authored.label, authored.labelContent), edge.labelBlock, 'edge')
@@ -165,11 +179,11 @@ function correspondenceViolations(graph: MermaidGraph, positioned: PositionedGra
       (edge.startMarker ?? 'arrow') !== (authored.startMarker ?? 'arrow') ||
       (edge.endMarker ?? 'arrow') !== (authored.endMarker ?? 'arrow')
     ) {
-      failures.push(`edge ${identity}: changed endpoints, identity, label, shaft or markers`)
+      fail(`edge ${identity}: changed endpoints, identity, label, shaft or markers`)
     }
   }
   graph.edges.forEach((_, index) => {
-    if (!edgeIndices.has(index)) failures.push(`edge ${index}: missing identity`)
+    if (!edgeIndices.has(index)) fail(`edge ${index}: missing identity`)
   })
   return failures
 }
@@ -196,7 +210,11 @@ function retainAuthoredMembership(graph: MermaidGraph, positioned: PositionedGra
  * independently of title glyph ink. Exterior group endpoint contact never
  * enters this open rectangle; endpoint identity grants no route exemption. */
 export function positionedHeaderRouteViolations(positioned: PositionedGraph, style: ResolvedRenderStyle): string[] {
-  const failures: string[] = []
+  return findingTexts(headerRouteFindings(positioned, style))
+}
+
+function headerRouteFindings(positioned: PositionedGraph, style: ResolvedRenderStyle): CertificationFinding[] {
+  const failures: CertificationFinding[] = []
   const enters = (a: Point, b: Point, group: PositionedGroup, height: number): boolean => {
     let low = 0, high = 1
     for (const [start, delta, min, max] of [
@@ -214,11 +232,12 @@ export function positionedHeaderRouteViolations(positioned: PositionedGraph, sty
     if (!group.concurrencyRegion) {
       const block = group.labelBlock ?? graphTextBlock(resolveLabelContent(group.label, group.labelContent), style, 'group')
       const height = group.headerHeight ?? style.groupHeaderFontSize + 16 + block.height - block.lineHeight
-      if (!Number.isFinite(height) || height < 0) failures.push(`group-header ${group.id}: invalid retained height`)
+      if (!Number.isFinite(height) || height < 0) failures.push({ text: `group-header ${group.id}: invalid retained height` })
       else if (height > 0 && group.width > 0) for (const edge of positioned.edges) {
         if (edge.style === 'invisible') continue
         for (let index = 1; index < edge.points.length; index++) if (enters(edge.points[index - 1]!, edge.points[index]!, group, height)) {
-          failures.push(`group-header ${group.id}: edge ${edge.source}->${edge.target} segment ${index} enters reserved band`)
+          const text = `group-header ${group.id}: edge ${edge.source}->${edge.target} segment ${index} enters reserved band`
+          failures.push({ text, drawable: { kind: 'groupHeaderBand', targets: [group.id, `${edge.source}->${edge.target}`], detail: text } })
           break
         }
       }
@@ -264,8 +283,14 @@ function positionedGeometryBaseViolations(positioned: PositionedGraph, style: Re
 
 /** Final graph geometry includes the reserved header routing contract. */
 export function positionedGeometryViolations(positioned: PositionedGraph, style: ResolvedRenderStyle): string[] {
+  return findingTexts(positionedGeometryFindings(positioned, style))
+}
+
+/** Base geometry failures (non-finite, off-canvas, missing routes or label
+ * geometry) lose content and are never drawable; header-band entries are. */
+export function positionedGeometryFindings(positioned: PositionedGraph, style: ResolvedRenderStyle): CertificationFinding[] {
   const failures = positionedGeometryBaseViolations(positioned, style)
-  return failures.length ? failures : positionedHeaderRouteViolations(positioned, style)
+  return failures.length ? failures.map(text => ({ text })) : headerRouteFindings(positioned, style)
 }
 
 function preferenceScore(positioned: PositionedGraph, metrics: RubricMetrics, preferNext: boolean): LayoutPreferenceScore {
@@ -293,6 +318,29 @@ interface CertifiedSelection {
   attempts: number
 }
 
+/** A produced candidate whose every failure is drawable. `violations` holds
+ * the hard rubric findings too once `complete`; a candidate rejected before
+ * its rubric ran is completed only if it is needed for the fallback. */
+interface DrawableCandidate {
+  positioned: PositionedGraph
+  strategy: string
+  violations: LayoutCertificationViolation[]
+  complete: boolean
+}
+
+interface UncertifiedSelection {
+  uncertified: DrawableCandidate
+  attempts: number
+}
+
+/** Violation classes that can misstate structure rather than only look
+ * imperfect: wrong containment, hidden nodes, an edge drawn through or away
+ * from a node, a label away from its edge. */
+const MISLEADING_VIOLATIONS: ReadonlySet<string> = new Set(['groupBreaches', 'groupOverlaps', 'nodeOverlaps', 'edgeThroughNode', 'offOutlineEndpoints', 'labelOffRoute'])
+
+const rubricViolation = (violation: { metric: string; detail: string; targets?: readonly string[] }): LayoutCertificationViolation =>
+  ({ kind: violation.metric, targets: violation.targets ?? [], detail: violation.detail })
+
 /** Final candidates cannot opt out of any final geometry contract. */
 export function certifyCandidate(graph: MermaidGraph, style: ResolvedRenderStyle, candidate: LayoutCertificationCandidate, strictProducer = false): ReturnType<typeof certifyCandidateForPurpose> {
   return certifyCandidateForPurpose(graph, style, candidate, strictProducer)
@@ -300,20 +348,28 @@ export function certifyCandidate(graph: MermaidGraph, style: ResolvedRenderStyle
 
 function certifyCandidateForPurpose(graph: MermaidGraph, style: ResolvedRenderStyle, candidate: LayoutCertificationCandidate, strictProducer = false, purpose: 'final' | 'placement' = 'final'): {
   certified?: CertifiedCandidate
+  /** Present when the candidate failed only drawable checks. */
+  drawable?: DrawableCandidate
   attempt: LayoutCertificationAttempt
 } {
   try {
     const positioned = candidate.produce()
     const correspondence = correspondenceViolations(graph, positioned, style)
-    if (strictProducer && correspondence.length) throw new TypeError(`Owned layout changed authored meaning: ${correspondence.join('; ')}`)
-    const violations = [...correspondence, ...(purpose === 'placement' ? positionedGeometryBaseViolations(positioned, style) : positionedGeometryViolations(positioned, style))]
+    if (strictProducer && correspondence.length) throw new TypeError(`Owned layout changed authored meaning: ${findingTexts(correspondence).join('; ')}`)
+    const findings: CertificationFinding[] = [...correspondence, ...(purpose === 'placement' ? positionedGeometryBaseViolations(positioned, style).map(text => ({ text })) : positionedGeometryFindings(positioned, style))]
+    const violations = findingTexts(findings)
     const rubric = violations.length === 0 ? assessLayout(graph, positioned, style) : undefined
-    if (rubric) violations.push(...hardViolations(rubric).map(violation => `${violation.metric}: ${violation.detail}`))
+    const hard = rubric ? hardViolations(rubric) : []
+    violations.push(...hard.map(violation => `${violation.metric}: ${violation.detail}`))
     const preferNext = violations.length === 0 && (candidate.preferNext?.(positioned) ?? false)
+    const drawable = violations.length > 0 && findings.every(finding => finding.drawable)
     return {
       attempt: { strategy: candidate.strategy, violations },
       ...(violations.length === 0 && rubric ? {
         certified: { positioned, strategy: candidate.strategy, score: preferenceScore(positioned, rubric.metrics, preferNext) },
+      } : {}),
+      ...(drawable ? {
+        drawable: { positioned, strategy: candidate.strategy, violations: [...findings.map(finding => finding.drawable!), ...hard.map(rubricViolation)], complete: rubric !== undefined },
       } : {}),
     }
   } catch (error) {
@@ -334,8 +390,27 @@ function preferredCandidate(first: CertifiedCandidate, alternative: CertifiedCan
   return { selected: first, reason: 'candidate-order' }
 }
 
-function selectCertifiedCandidates(graph: MermaidGraph, style: ResolvedRenderStyle, candidates: readonly LayoutCertificationCandidate[], preliminary?: LayoutCertificationCandidate, purpose: 'final' | 'placement' = 'final'): CertifiedSelection {
+/** Report-mode fallback when no candidate certifies. Deterministic: fewest
+ * misleading violations, then fewest violations, then candidate order. A
+ * candidate that changed authored meaning, lost geometry or threw is never
+ * drawn. Candidates rejected before their rubric ran are completed here, so
+ * every compared count covers the same checks. */
+function bestDrawableCandidate(graph: MermaidGraph, style: ResolvedRenderStyle, drawable: readonly DrawableCandidate[]): DrawableCandidate | undefined {
+  let best: { candidate: DrawableCandidate; misleading: number } | undefined
+  for (const candidate of drawable) {
+    if (!candidate.complete) {
+      try { candidate.violations.push(...hardViolations(assessLayout(graph, candidate.positioned, style)).map(rubricViolation)) } catch { continue }
+      candidate.complete = true
+    }
+    const misleading = candidate.violations.filter(violation => MISLEADING_VIOLATIONS.has(violation.kind)).length
+    if (!best || misleading < best.misleading || (misleading === best.misleading && candidate.violations.length < best.candidate.violations.length)) best = { candidate, misleading }
+  }
+  return best?.candidate
+}
+
+function selectCertifiedCandidates(graph: MermaidGraph, style: ResolvedRenderStyle, candidates: readonly LayoutCertificationCandidate[], preliminary: LayoutCertificationCandidate | undefined, purpose: 'final' | 'placement', allowUncertified: boolean): CertifiedSelection | UncertifiedSelection {
   const attempts: LayoutCertificationAttempt[] = []
+  const drawable: DrawableCandidate[] = []
   // A conditional producer must not evict the fourth established fallback.
   const fallbacks = candidates.slice(0, MAX_LAYOUT_CANDIDATES)
   const bounded = preliminary ? [preliminary, ...fallbacks] : fallbacks
@@ -353,6 +428,7 @@ function selectCertifiedCandidates(graph: MermaidGraph, style: ResolvedRenderSty
     }
     const result = certifyCandidateForPurpose(graph, style, candidate, false, purpose)
     attempts.push(result.attempt)
+    if (result.drawable) drawable.push(result.drawable)
     const certified = result.certified
     if (certified) {
       compared.push({ strategy: certified.strategy, score: certified.score })
@@ -377,7 +453,18 @@ function selectCertifiedCandidates(graph: MermaidGraph, style: ResolvedRenderSty
     rejected = true
   }
   if (deferred) return accept(deferred, 'no-alternative')
+  const uncertified = allowUncertified ? bestDrawableCandidate(graph, style, drawable) : undefined
+  if (uncertified) return { uncertified, attempts: attempts.length }
   throw new LayoutCertificationError(attempts)
+}
+
+function retainUncertified(graph: MermaidGraph, selection: UncertifiedSelection): PositionedGraph {
+  const { uncertified: { positioned, strategy, violations }, attempts } = selection
+  retainAuthoredMembership(graph, positioned)
+  const receipt: UncertifiedLayoutReceipt = { status: 'uncertified', strategy, attempts, violations }
+  delete positioned.certification
+  positioned.uncertifiedLayout = receipt
+  return positioned
 }
 
 export function retainSelection(graph: MermaidGraph, selection: CertifiedSelection): PositionedGraph {
@@ -391,19 +478,24 @@ export function retainSelection(graph: MermaidGraph, selection: CertifiedSelecti
 }
 
 /** @internal Family placement retains every authored relationship's influence
- * but returns no generic routes or route certificate for a family to misuse. */
-export function certifyLayoutPlacementCandidates(graph: MermaidGraph, style: ResolvedRenderStyle, candidates: readonly LayoutCertificationCandidate[], preliminary?: LayoutCertificationCandidate): Pick<PositionedGraph, 'width' | 'height' | 'nodes' | 'groups'> {
-  const { selected } = selectCertifiedCandidates(graph, style, candidates, preliminary, 'placement')
-  retainAuthoredMembership(graph, selected.positioned)
-  const { width, height, nodes, groups } = selected.positioned
+ * but returns no generic routes or route certificate for a family to misuse.
+ * An uncertified placement is left to the family's final certification. */
+export function certifyLayoutPlacementCandidates(graph: MermaidGraph, style: ResolvedRenderStyle, candidates: readonly LayoutCertificationCandidate[], preliminary?: LayoutCertificationCandidate, allowUncertified = false): Pick<PositionedGraph, 'width' | 'height' | 'nodes' | 'groups'> {
+  const selection = selectCertifiedCandidates(graph, style, candidates, preliminary, 'placement', allowUncertified)
+  const positioned = 'uncertified' in selection ? selection.uncertified.positioned : selection.selected.positioned
+  retainAuthoredMembership(graph, positioned)
+  const { width, height, nodes, groups } = positioned
   return { width, height, nodes, groups }
 }
 
 /** Hard feasibility gates every candidate. One additional certified alternative
  * may improve a title or a bounded graph with label conflicts or crossings.
- * Stable candidate-order ties never initiate another expensive production. */
-export function certifyLayoutCandidates(graph: MermaidGraph, style: ResolvedRenderStyle, candidates: readonly LayoutCertificationCandidate[], preliminary?: LayoutCertificationCandidate): PositionedGraph {
-  return retainSelection(graph, selectCertifiedCandidates(graph, style, candidates, preliminary))
+ * Stable candidate-order ties never initiate another expensive production.
+ * With `allowUncertified` (report layout safety), a graph no candidate
+ * certifies returns its best drawable candidate with an uncertified receipt. */
+export function certifyLayoutCandidates(graph: MermaidGraph, style: ResolvedRenderStyle, candidates: readonly LayoutCertificationCandidate[], preliminary?: LayoutCertificationCandidate, allowUncertified = false): PositionedGraph {
+  const selection = selectCertifiedCandidates(graph, style, candidates, preliminary, 'final', allowUncertified)
+  return 'uncertified' in selection ? retainUncertified(graph, selection) : retainSelection(graph, selection)
 }
 
 /** Select placement, then optionally certify one new route proposal. The baseline
@@ -416,8 +508,11 @@ export function certifyLayoutWithRouteAlternative(
   routeFor: (placed: PositionedGraph, score: Readonly<LayoutPreferenceScore>) =>
     (LayoutCertificationCandidate & { strategy: 'without-generic-bundling' }) | undefined,
   preliminary?: LayoutCertificationCandidate,
+  allowUncertified = false,
 ): PositionedGraph {
-  const placement = selectCertifiedCandidates(graph, style, candidates, preliminary)
+  const placement = selectCertifiedCandidates(graph, style, candidates, preliminary, 'final', allowUncertified)
+  // An uncertified placement has no certified score to compare a route against.
+  if ('uncertified' in placement) return retainUncertified(graph, placement)
   const placed = retainSelection(graph, placement)
   const alternative = routeFor(placed, placement.selected.score)
   if (!alternative) return placed

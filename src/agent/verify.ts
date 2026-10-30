@@ -1,6 +1,7 @@
 import { eventModelingUnsupportedSyntaxWarnings } from './eventmodeling-body.ts'
 import { canonicalWrapperConfig } from './wrapper-portability.ts'
-import { PaintLayoutCertificationError } from '../scene/paint-certification.ts'
+import { PaintLayoutCertificationError, renderedPaintCertification } from '../scene/paint-certification.ts'
+import { uncertifiedLayoutWarnings } from './uncertified-layout.ts'
 import { deferredDependency } from '../layout/certification-error.ts'
 // ============================================================================
 // verifyMermaid — Tier 1 (source/structure) + Tier 2 (geometric) + Tier 3 (lint).
@@ -14,7 +15,7 @@ import { deferredDependency } from '../layout/certification-error.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import { applyGanttFrontmatterConfig, parseGanttModel } from '../gantt/parser.ts'
 import { GANTT_TODAY_MARKER_STYLE_PROPS, parseTodayMarkerStyle } from '../gantt/today-marker.ts'
-import { executeGraphicalRequest, graphicalSvgArtifact, lowerPositionedFamilyScene, renderPositionedMermaidSVG, type GraphicalSvgArtifact, type ResolvedGraphicalExecution } from '../graphical-render.ts'
+import { executeGraphicalRequest, graphicalSvgArtifact, lowerPositionedFamilyScene, renderPositionedMermaidSVG, reportedPaintFailure, type GraphicalSvgArtifact, type ResolvedGraphicalExecution } from '../graphical-render.ts'
 import { normalizeMermaidSource, normalizeMermaidSourceWithOverrides } from '../mermaid-source.ts'
 import { captureRenderOptions, resolveRenderRequest, resolveRenderRequestForExecution } from '../render-contract.ts'
 import { assertScenesOf } from '../scene/assertions.ts'
@@ -238,7 +239,7 @@ function verifyParsedMermaid(input: ParsedDiagram | string, opts: VerifyOptions,
   }
   try {
     const structured = verifyStructure(parsed.value, opts, positioned, typeof input === 'string' ? input : undefined)
-    return withRenderParity(withBrandConstraints(structured, opts, positioned), opts, positioned, shared)
+    return withUncertifiedLayout(withRenderParity(withBrandConstraints(structured, opts, positioned), opts, positioned, shared), opts, positioned)
   } catch (error) {
     // Family layouts, color admission and a work limit only a render-path
     // parser enforces (state nesting) are findings, not verify failures.
@@ -390,6 +391,31 @@ function withRenderParity(result: VerifyResult, opts: VerifyOptions, positioned:
     return { ...result, ...(rendered.layoutCertification ? { layoutCertification: rendered.layoutCertification } : {}) }
   } catch (e) {
     return { ...result, ok: false, ...(e instanceof PaintLayoutCertificationError ? { layoutCertification: e.certification } : {}), warnings: [...result.warnings, positioned.failure(e)] }
+  }
+}
+
+/**
+ * A drawing report layout safety produced although certification failed is
+ * still a verify failure: name each failed check (GROUP_BREACH or
+ * LAYOUT_UNCERTIFIED). Runs after the render-parity gate, which rendered this
+ * same artifact while `ok` was still true, and keeps the receipt that records
+ * the uncertified drawing.
+ */
+function withUncertifiedLayout(result: VerifyResult, opts: VerifyOptions, positioned: VerificationArtifact): VerifyResult {
+  let artifact: ProjectedFamilyArtifact | null
+  try { artifact = positioned() } catch { return result }
+  if (!artifact) return result
+  const certification = renderedPaintCertification(artifact.rendered)
+  const geometry = artifact.layoutResult.uncertifiedLayout
+  const paintFailure = reportedPaintFailure(artifact.request, certification) ? certification : undefined
+  if (!geometry && !paintFailure) return result
+  const suppressed = new Set(opts.suppress ?? [])
+  const warnings = uncertifiedLayoutWarnings(geometry, paintFailure).filter(warning => !suppressed.has(warning.code))
+  return {
+    ...result,
+    ok: result.ok && !warnings.some(warning => WARNING_SEVERITY[warning.code] === 'error'),
+    warnings: dedupedConcat(result.warnings, warnings),
+    ...(certification && !result.layoutCertification ? { layoutCertification: certification } : {}),
   }
 }
 

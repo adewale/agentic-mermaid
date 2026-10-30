@@ -213,12 +213,28 @@ reference adapters and records unavailable comparisons honestly.
 
 Flowchart/State positioned graphs also carry a `certification` receipt after
 bounded final geometry checking. At most four deterministic candidates are
-considered. Exhaustion throws `LayoutCertificationError` with code
-`LAYOUT_CERTIFICATION_FAILED` and per-candidate reasons. This certifies hard graph
-invariants, not an optimal layout. The common positioning boundary also vetoes
-hard family-rubric violations in every native family's final projection.
-Specialized family layouters get one attempt and fail explicitly; their checks
-do not imply graph route guarantees or certify soft aesthetic quality.
+considered. This certifies hard graph invariants, not an optimal layout. The
+common positioning boundary also checks hard family-rubric rules in every
+native family's final projection; specialized family layouters get one
+attempt, and their checks do not imply graph route guarantees or certify soft
+aesthetic quality.
+
+When no candidate certifies, the default `layoutSafety: 'report'` still draws
+the diagram if some candidate fails only drawable checks (routes, group title
+bands, node or group overlaps, containment) and keeps every authored element,
+label and endpoint on the canvas. It draws the candidate with the fewest
+misleading violations (containment, overlaps, edges through or detached from
+nodes, labels away from their edge), then the fewest violations, then the first
+in candidate order. The positioned graph carries `uncertifiedLayout` instead of
+`certification`, `receipt.layoutCertification.geometry` names the candidate and
+its failed checks, and `verifyMermaid` fails with `LAYOUT_UNCERTIFIED` (or
+`GROUP_BREACH`) per check. A failed final paint proof (covered text or markers,
+a connector across an unrelated card) follows the same rule; paint outside the
+final viewport still refuses. `layoutSafety: 'strict'`, a candidate
+that would lose or change content, and a broken layout-pass contract still
+throw (`LayoutCertificationError`, code `LAYOUT_CERTIFICATION_FAILED`, with
+per-candidate reasons, or the pass-contract error); verify reports those as
+`INTERNAL_ERROR`.
 
 The family registry is the operation authority. Use `am capabilities --json`
 for the current roster and field schemas, or call `describeOps(family)` and

@@ -112,8 +112,10 @@ fewer bends alone cannot buy a crossing. Canonical ports may yield when the
 certifying route owner measurably repairs hard geometry, reduces crossings or
 removes bends.
 The graph engine independently certifies the
-final candidate before returning it, with at most four deterministic placement candidates
-and an explicit `LAYOUT_CERTIFICATION_FAILED` error on exhaustion. This certifies
+final candidate before returning it, with at most four deterministic placement candidates.
+On exhaustion, report layout safety draws the best drawable candidate and verify
+fails with `LAYOUT_UNCERTIFIED`; strict safety, or no candidate that keeps all
+content, throws `LAYOUT_CERTIFICATION_FAILED` ([details](api-advanced.md)). This certifies
 hard graph geometry, not minimum crossings or universal aesthetic quality.
 Within 64 nodes/groups and 128 edges, a certified graph with crossings or label
 conflicts may try one additional distinct strategy. Feasible candidates compare
