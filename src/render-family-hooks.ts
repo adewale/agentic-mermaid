@@ -261,7 +261,7 @@ export const TREEMAP_RENDER_HOOKS = /* @__PURE__ */ { ...TREEMAP_SVG_HOOKS, rend
 
 export const ISHIKAWA_RENDER_HOOKS = /* @__PURE__ */ { ...ISHIKAWA_SVG_HOOKS, renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderIshikawaTerminal(ctx)) }
 
-export const BLOCK_RENDER_HOOKS = /* @__PURE__ */ { ...BLOCK_SVG_HOOKS, renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderBlockTerminal(ctx.source.familyBody, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth)) }
+export const BLOCK_RENDER_HOOKS = /* @__PURE__ */ { ...BLOCK_SVG_HOOKS, renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderBlockTerminal(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth)) }
 
 export const BUILTIN_RENDER_HOOKS = /* @__PURE__ */ Object.freeze({
   flowchart: FLOWCHART_RENDER_HOOKS,

@@ -92,10 +92,12 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
 
   const addCommit = (attrs: ParsedAttrs, sourceKind: GitGraphCommit['source'], line: number, extra: Partial<GitGraphCommit> = {}, parents?: string[]): GitGraphCommit => {
     const customId = attrs.id !== undefined
-    const preferred = attrs.id ?? `c${sequence}`
+    // Mermaid gives `id:""` a generated ID, as if no ID were authored; the
+    // empty spelling stays the commit's sourceId so it is written back as is.
+    const preferred = attrs.id || `c${sequence}`
     // Pinned syntax rejects an explicit merge ID that names an existing commit.
     if (sourceKind === 'merge' && customId && latestSourceCommit.has(preferred)) throw new GitGraphDuplicateCommitError(preferred, line)
-    const id = customId && !commitById.has(preferred) ? preferred : allocateId(preferred, ['commit', sequence])
+    const id = customId && attrs.id !== '' && !commitById.has(preferred) ? preferred : allocateId(preferred, ['commit', sequence])
     const type = sourceKind === 'merge' ? 'MERGE' : sourceKind === 'cherry-pick' ? 'CHERRY_PICK' : (attrs.type ?? 'NORMAL')
     const branch = branches.get(currentBranch)!
     const commit: GitGraphCommit = {

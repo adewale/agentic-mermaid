@@ -8,9 +8,10 @@ import { beforeAll, describe, expect, it } from 'bun:test'
 import { strict as assert } from 'node:assert'
 import fc from 'fast-check'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
-import { renderMermaidSVG } from '../index.ts'
+import { layoutMermaidWithReceipt, renderMermaidPNG } from '../agent/index.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
-import { FAMILY_LABEL_SOURCES } from './helpers/family-text-sources.ts'
+import { FAMILY_ID_SOURCES, FAMILY_LABEL_SOURCES, hostileTextArb } from './helpers/family-text-sources.ts'
 import { expectWellFormedXml, svgXmlReady } from './helpers/svg-xml.ts'
 
 const PROPERTY_RUNS = 100
@@ -103,5 +104,52 @@ describe('SVG is well-formed XML for labels full of XML metacharacters', () => {
   it('journey: a label that is only a line break renders well-formed XML', () => {
     const source = 'journey\n  title t\n  section <br/>\n  task: 5: me'
     expectWellFormedXml(renderMermaidSVG(source), source)
+  })
+})
+
+// CLAUDE.md rule 5: our own surfaces may not disagree. For any label or id
+// text — every code point, entity, noncharacter, lone surrogate, bidi control,
+// very long or empty — SVG, PNG, ASCII, Unicode and layout JSON either all
+// draw the diagram or all refuse it for the same named reason. Text one output
+// cannot carry is drawn as the same inert characters by all of them.
+describe('every output gives one verdict for hostile label and id text', () => {
+  it.each(BUILTIN_FAMILY_METADATA.map(({ id }) => [id] as const))('%s', family => {
+    const idSource = FAMILY_ID_SOURCES[family]
+    const sourceArb = idSource
+      ? fc.oneof(hostileTextArb.map(FAMILY_LABEL_SOURCES[family]), hostileTextArb.map(idSource))
+      : hostileTextArb.map(FAMILY_LABEL_SOURCES[family])
+    const result = fc.check(
+      fc.property(sourceArb, source => {
+        const outcomes = {
+          svg: outcome(() => renderMermaidSVG(source)),
+          // The raster pixel budget is PNG's own documented size knob, not
+          // text admission; fitting the width keeps very long labels in it.
+          png: outcome(() => renderMermaidPNG(source, { fitTo: { width: 800 } })),
+          ascii: outcome(() => renderMermaidASCII(source, { useAscii: true })),
+          unicode: outcome(() => renderMermaidASCII(source, { useAscii: false })),
+          layout: outcome(() => layoutMermaidWithReceipt(source)),
+        }
+        const verdicts = new Set(Object.values(outcomes).map(item => item.ok ? 'drawn' : `refused: ${item.message}`))
+        expect({ source, verdicts: verdicts.size, outcomes }).toEqual({ source, verdicts: 1, outcomes })
+      }),
+      fcParameters({
+        numRuns: 30,
+        includeErrorInReport: true,
+        examples: [
+          // Reduced finder counterexamples (K4, V3, V8): noncharacters as
+          // entities and raw text, a lone surrogate, labels past 256
+          // characters and an empty label each split SVG/PNG from ASCII.
+          [FAMILY_LABEL_SOURCES[family]('x#65534;y')],
+          [FAMILY_LABEL_SOURCES[family]('a\ufffeb')],
+          [FAMILY_LABEL_SOURCES[family]('a\ud800b')],
+          [FAMILY_LABEL_SOURCES[family]('x'.repeat(300))],
+          [FAMILY_LABEL_SOURCES[family]('')],
+          // ...and an empty id (gitGraph `id:""`, a blank block line whose
+          // terminal parse reported a different line).
+          ...(idSource ? [[idSource('n'.repeat(300))] as [string], [idSource('')] as [string]] : []),
+        ],
+      }),
+    )
+    assert.equal(result.failed, false, fc.defaultReportMessage(result))
   })
 })

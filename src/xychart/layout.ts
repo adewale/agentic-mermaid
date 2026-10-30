@@ -588,7 +588,10 @@ function buildBottomAxisTicks<T extends string | number>(
   const keepEvery = Number.isFinite(minSpacing) && minSpacing > 0 ? Math.max(1, Math.ceil((maxW + 6) / minSpacing)) : 1
 
   return values.map((value, index) => {
-    const label = index % keepEvery === 0 ? labels[index]! : ''
+    // A label wider than the canvas cannot be clamped inside it; like a
+    // thinned label it is not drawn, and verify reports it as hidden.
+    const fitsCanvas = totalWidth === undefined || widths[index]! <= totalWidth - 4
+    const label = index % keepEvery === 0 && fitsCanvas ? labels[index]! : ''
     // Clamp the label box inside the canvas: the last tick sits AT the plot's
     // right edge and a centered label pokes past the right padding otherwise.
     let labelX = scale(value)
