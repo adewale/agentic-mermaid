@@ -44,6 +44,8 @@ import { alignElkRoundoff } from '../layout/elk-roundoff.ts'
 import { layoutAgenticGraph } from '../layout/agentic-layered.ts'
 import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
 import { LayoutCertificationError } from '../layout/certification-error.ts'
+import { ClassLayoutWorkLimitError } from './errors.ts'
+import { observeWork } from '../performance-observations.ts'
 import { directionToElk } from '../layout/backend.ts'
 import { runMeasuredGraphBackend } from '../layout/backend.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
@@ -616,13 +618,27 @@ function placeClassCardinalityLabels(relationships: PositionedClassRelationship[
  */
 export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions = {}, styleFace?: Readonly<InternalStyleFace>, paintBackendId?: string): PositionedClassDiagram {
   assertClassDiagramWork(diagram)
+  // Every admission check charges this one ledger, and a backend retry never
+  // restores its work. A refusal raised once it is spent reports the size
+  // limit the diagram exceeded, not a failed certification.
+  const inkWork = createClassMarkerAdmissionWork()
+  try {
+    return layoutClassDiagramWithin(inkWork, diagram, options, styleFace, paintBackendId)
+  } catch (error) {
+    if (error instanceof LayoutCertificationError && inkWork.exhausted) throw new ClassLayoutWorkLimitError({ cause: error })
+    throw error
+  } finally {
+    observeWork('class-layout-admission', inkWork.operations)
+  }
+}
+
+function layoutClassDiagramWithin(inkWork: ClassMarkerAdmissionWork, diagram: ClassDiagram, options: RenderOptions, styleFace?: Readonly<InternalStyleFace>, paintBackendId?: string): PositionedClassDiagram {
   const style = resolveRenderStyle(options, CLASS_STYLE_DEFAULTS, styleFace)
   // These first-party marker overlays are canonical. Sketch notes can extend
   // outside the native note envelope, so they cannot prove final non-restoration.
   const canonicalMarkers = paintBackendId === undefined || paintBackendId === 'backend:default' || ((paintBackendId === 'backend:rough' || paintBackendId === 'backend:hybrid') && diagram.notes.length === 0)
   // Resolve once, before either callback, from the canonical request options.
   const hasMarkers = diagram.relationships.some(rel => rel.markerAt !== 'none')
-  const inkWork = createClassMarkerAdmissionWork()
   const markerAdmission = canonicalMarkers && hasMarkers ? { colors: Object.freeze(resolveDiagramColors(options, options.mermaidConfig ?? {})), work: inkWork } : undefined
   if (diagram.classes.length === 0 && !diagram.namespaces.length && !diagram.notes.length) {
     const empty = (): PositionedClassDiagram => withClassTitle({ width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, classes: [], relationships: [], notes: [], namespaces: [] }, diagram.title, style)

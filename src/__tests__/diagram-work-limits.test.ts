@@ -248,11 +248,35 @@ describe('work grows with the diagram, not with its square', () => {
     withPerformanceObserver(event => { if (event.kind === 'work' && event.owner === owner) units += event.units }, render)
     return units
   }
+  // A random recursive tree: each class inherits from an earlier one.
+  const classTree = (size: number, seed = 7): string => {
+    let state = seed
+    const next = () => (state = (state * 1103515245 + 12345) % 2147483648) / 2147483648
+    return `classDiagram\n${Array.from({ length: size - 1 }, (_, i) => `  C${Math.floor(next() * (i + 1))} <|-- C${i + 1}`).join('\n')}`
+  }
 
   test('gitGraph terminal rails import each branch owner once, not once per column', () => {
     const commits = (count: number) => `gitGraph\n${'  commit\n'.repeat(count)}`
     const single = work('terminal-owner-import', () => renderMermaidASCII(commits(200))), double = work('terminal-owner-import', () => renderMermaidASCII(commits(400)))
     expect(single).toBeGreaterThan(0)
     expect(double / single).toBeLessThan(2.5)
+  })
+
+  test('Class layout admission work grows linearly with an inheritance tree of hundreds of cards', () => {
+    // 280 cards spent the whole budget while the final contact check charged
+    // every pair of route segments.
+    const single = work('class-layout-admission', () => renderMermaidSVG(classTree(140))), double = work('class-layout-admission', () => renderMermaidSVG(classTree(280)))
+    expect(single).toBeGreaterThan(0)
+    expect(double / single).toBeLessThan(2.5)
+  })
+
+  test('a Class tree past the admission budget reports the work limit, never an internal error', () => {
+    const source = classTree(700)
+    let refusal: unknown
+    try { renderMermaidSVG(source) } catch (error) { refusal = error }
+    expect(refusal).toMatchObject({ name: 'ClassLayoutWorkLimitError', code: 'CLASS_LAYOUT_WORK_LIMIT' })
+    const verified = verifyMermaid(source)
+    expect(verified.warnings.filter(warning => warning.code === 'RENDER_FAILED' || warning.code === 'INTERNAL_ERROR'))
+      .toEqual([{ code: 'RENDER_FAILED', origin: 'source', reason: expect.stringContaining('CLASS_LAYOUT_WORK_LIMIT') }])
   })
 })

@@ -10,9 +10,10 @@ export type PerformanceObservation =
   | { readonly version: 1; readonly kind: 'fallback'; readonly owner: 'native-drawing' | 'elk-degradation' | 'layout-candidate'
     readonly reason: string; readonly attempt?: number }
   /** Deterministic work units, for scale probes that must not time a
-   * machine: terminal owner fields snapshotted and revalidated on import. */
+   * machine: terminal owner fields snapshotted and revalidated on import,
+   * and operations charged to one Class layout's admission ledger. */
   | { readonly version: 1; readonly kind: 'work'; readonly owner: PerformanceWorkOwner; readonly units: number }
-export type PerformanceWorkOwner = 'terminal-owner-import'
+export type PerformanceWorkOwner = 'terminal-owner-import' | 'class-layout-admission'
 type Observer = (event: PerformanceObservation) => void
 const OBSERVER = Symbol.for('agentic-mermaid.performance-observer.v1')
 const host = globalThis as typeof globalThis & { [OBSERVER]?: Observer }

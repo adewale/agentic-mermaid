@@ -21,6 +21,7 @@
 // ============================================================================
 
 import { C4RouteWorkLimitError } from '../c4/errors.ts'
+import { ClassLayoutWorkLimitError } from '../class/errors.ts'
 import { ErRouteGeometryError, ErRouteWorkLimitError } from '../er/errors.ts'
 import { ErLabelWorkLimitError } from '../er/errors.ts'
 import { MermaidFamilyDetectionError } from '../family-detection.ts'
@@ -81,6 +82,7 @@ const ORIGINS: ReadonlyArray<readonly [ErrorClass, WarningOrigin]> = [
   [ErRouteWorkLimitError, 'source'],
   [ErLabelWorkLimitError, 'source'],
   [C4RouteWorkLimitError, 'source'],
+  [ClassLayoutWorkLimitError, 'source'],
   [PngRasterBudgetError, 'source'],
   [PaintLayoutCertificationError, 'source'],
 ]
