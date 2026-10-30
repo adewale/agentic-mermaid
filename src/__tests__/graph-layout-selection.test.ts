@@ -10,6 +10,10 @@ import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { runCli } from '../cli/index.ts'
 import { measureQuality } from '../agent/quality.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
+import { portLaneInkClear } from '../layout/passes/port-lanes.ts'
+import { bundleEdgePaths } from '../layout/passes/edge-bundling.ts'
+import { resolveRenderStyle } from '../styles.ts'
+import type { PositionedEdge, PositionedNode } from '../types.ts'
 import { parseMermaid as parseFlowchart } from '../parser.ts'
 import { clearElkLayoutCache } from '../elk-instance.ts'
 import { renderMermaidSVGWithReceipt, GraphLayoutUnsupportedError } from '../index.ts'
@@ -100,6 +104,68 @@ describe('checked graph layout selection', () => {
     expect(svg.receipt.layoutDecisions?.[0]?.selected).toBe('elk')
   })
 
+  test.each([
+    { change: 'foreign shaft crosses caption', expected: false },
+    { change: 'caption moves onto foreign shaft', expected: false },
+    { change: 'caption covers its own marker', expected: false },
+    { change: 'caption swaps covered marker ends', expected: false },
+    { change: 'caption halos overlap', expected: false },
+    { change: 'equal-count conflict swaps owners', expected: false },
+    { change: 'foreign shaft stays clear', expected: true },
+    { change: 'hidden shaft crosses caption', expected: true },
+    { change: 'hidden edge caption overlaps', expected: false },
+    { change: 'hidden edge caption covers card', expected: false },
+  ])('admits a port-lane proposal only when caption separation survives: $change', ({ change, expected }) => {
+    const edge = (source: string, target: string, points: Array<[number, number]>, label?: string, labelPosition?: { x: number; y: number }): PositionedEdge => ({
+      source, target, points: points.map(([x, y]) => ({ x, y })), label, labelPosition,
+      style: 'solid', hasArrowStart: false, hasArrowEnd: false,
+    })
+    const before = [
+      edge('A', 'B', [[0, 80], [300, 80]], 'reserved', { x: 50, y: 80 }),
+      edge('C', 'D', [[180, 0], [180, 160]]),
+    ]
+    if (change === 'equal-count conflict swaps owners') before.push(edge('E', 'F', [[50, 0], [50, 160]]))
+    if (change === 'caption covers its own marker' || change === 'caption swaps covered marker ends') before[0]!.hasArrowEnd = true
+    if (change === 'caption swaps covered marker ends') { before[0]!.hasArrowStart = true; before[0]!.labelPosition!.x = 10 }
+    if (change === 'caption halos overlap' || change === 'hidden edge caption overlaps' || change === 'hidden edge caption covers card') {
+      before[1] = edge('C', 'D', [[0, 160], [300, 160]], 'peer', { x: 50, y: 160 })
+    }
+    if (change.startsWith('hidden')) before[1]!.style = 'invisible'
+    if (change === 'hidden edge caption covers card') { before[0]!.points = [{ x: 0, y: -80 }, { x: 300, y: -80 }]; before[0]!.labelPosition!.y = -80 }
+    const after = structuredClone(before)
+    if (change === 'caption moves onto foreign shaft') after[0]!.labelPosition!.x = 180
+    else if (change === 'caption covers its own marker' || change === 'caption swaps covered marker ends') after[0]!.labelPosition!.x = 290
+    else if (change === 'caption halos overlap' || change === 'hidden edge caption overlaps' || change === 'hidden edge caption covers card') after[1]!.labelPosition!.y = 110
+    else {
+      after[1]!.points = [{ x: change === 'foreign shaft stays clear' ? 220 : 50, y: 0 }, { x: change === 'foreign shaft stays clear' ? 220 : 50, y: 160 }]
+      if (change === 'equal-count conflict swaps owners') after[2]!.points = [{ x: 180, y: 0 }, { x: 180, y: 160 }]
+    }
+    const nodes: PositionedNode[] = change === 'hidden edge caption covers card' ? [{ id: 'card', label: 'card', shape: 'rectangle', x: 20, y: 100, width: 60, height: 40 }] : []
+    expect(portLaneInkClear(nodes, after, nodes, before, [], resolveRenderStyle({}))).toBe(expected)
+  })
+
+  test.each([{ captionY: 120, members: 0 }, { captionY: 400, members: 2 }])('bundles a fan only when its new shaft clears the foreign caption at $captionY', ({ captionY, members }) => {
+    const node = (id: string, x: number, y: number): PositionedNode => ({ id, label: id, shape: 'rectangle', x, y, width: 40, height: 40 })
+    const edge = (source: string, target: string, points: Array<[number, number]>): PositionedEdge => ({ source, target, points: points.map(([x, y]) => ({ x, y })), style: 'solid', hasArrowStart: false, hasArrowEnd: false })
+    const nodes = [node('A', 0, 0), node('B', 200, 200), node('C', 400, 200), node('X', 260, 0), node('Y', 260, 460)]
+    const edges = [
+      edge('A', 'B', [[20, 40], [20, 70], [220, 70], [220, 200]]),
+      edge('A', 'C', [[30, 40], [30, 60], [420, 60], [420, 200]]),
+      { ...edge('X', 'Y', [[280, 40], [280, 460]]), label: 'reserved', labelPosition: { x: 280, y: captionY } },
+    ]
+    const before = structuredClone(edges)
+    const bundled = bundleEdgePaths(edges, nodes, [], 'TD', resolveRenderStyle({}))
+    expect(bundled.size).toBe(members)
+    expect(edges[2]).toEqual(before[2])
+    if (members === 0) expect(edges).toEqual(before)
+    else {
+      expect(edges[0]!.points).not.toEqual(before[0]!.points)
+      expect(edges[1]!.points).not.toEqual(before[1]!.points)
+      expect(edges[0]!.points[0]).toEqual({ x: 20, y: 40 })
+      expect(edges[1]!.points.at(-1)).toEqual({ x: 420, y: 200 })
+    }
+  })
+
   test.each(['TD', 'LR', 'BT', 'RL'].flatMap(direction => [
     { direction, links: 'A & B --> C & D', ids: ['A', 'B', 'C', 'D'], facts: ['A->C', 'A->D', 'B->C', 'B->D'] },
     { direction, links: 'A & B --> C', ids: ['A', 'B', 'C'], facts: ['A->C', 'B->C'] },
@@ -160,9 +226,10 @@ describe('checked graph layout selection', () => {
   })
 
   test.each([
-    ...[171, 217, 228, 296, 319].map(seed => ({ seed, generator: 'lcg-v1' as const })),
-    { seed: 22, generator: 'sha256-counter-v1' as const },
-  ])('retains clear long-edge ordering for development $generator seed $seed', ({ seed, generator }) => {
+    { seed: 171, generator: 'lcg-v1' as const, maxCrossings: 3 },
+    ...[217, 228, 296, 319].map(seed => ({ seed, generator: 'lcg-v1' as const, maxCrossings: undefined })),
+    { seed: 22, generator: 'sha256-counter-v1' as const, maxCrossings: undefined },
+  ])('retains clear long-edge ordering for development $generator seed $seed', ({ seed, generator, maxCrossings }) => {
     const source = generatedFlowchartSamples({ start: seed, count: 1 }, generator)[0]!.source
     const rendered = renderMermaidSVGWithReceipt(source, AGENTIC)
     const native = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
@@ -170,6 +237,7 @@ describe('checked graph layout selection', () => {
     const quality = measureQuality(native.layout)
     expect(quality.nodeCount).toBe(8 + seed % 13)
     expect(quality.edgeCount).toBe(2 * quality.nodeCount + seed % 7)
+    if (maxCrossings !== undefined) expect(quality.edgeCrossings).toBeLessThanOrEqual(maxCrossings)
     expect(quality.edgeCrossings).toBeLessThanOrEqual(measureQuality(reference.layout).edgeCrossings)
     expect(quality.labelConflicts?.total).toBe(0)
     expect(quality.routeOverlaps).toEqual({ opposing: 0, parallel: 0 })

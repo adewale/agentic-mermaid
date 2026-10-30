@@ -547,8 +547,8 @@ export function layoutLayeredGraph(
   }
   // Tiny cyclic graphs already enumerate every cycle-search start. Keep that
   // tuned policy: chain inversion gains there can add physical route bends.
-  // Use chain insertion where larger graphs sample only a few cycle starts.
-  if (input.compactPrivateRanks && nodes.length > 12 && nodes.length <= 20 && edges.length <= 64 && vertices.length <= 256) {
+  // DAGs can refine long chains at every size without changing cycle placement.
+  if (input.compactPrivateRanks && (nodes.length > 12 || !input.cycleOriented) && nodes.length <= 20 && edges.length <= 64 && vertices.length <= 256) {
     refinePrivateChainOrder(bands, vertices, chains, searchWork)
   }
   // On a DAG, joint moves can make previously blocked local swaps improving

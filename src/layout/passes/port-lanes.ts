@@ -1,5 +1,6 @@
 import type { DiamondFacet, Direction, MermaidGraph, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
 import { portEndpointRate, segmentThroughShape } from '../../layout-rubric.ts'
+import { preservesLabelInkSeparation } from '../label-conflicts.ts'
 import { centerOutLabelSamples, diamondFacetPorts, invalidEndpointApproaches, labelPaintClearance, labelRect, laneContextFor, PORT_EXACT, recertifyReroutedEdge, shapePorts, simplifyPolyline, straightLaneFor } from '../../route-contracts.ts'
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { DEFAULTS, graphReachability, layoutDebug, layoutEnvFlag } from '../geometry.ts'
@@ -35,7 +36,8 @@ export function portLaneInkWork(): { remaining: number } {
 
 export function portLaneInkClear(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], beforeNodes: readonly PositionedNode[], beforeEdges: readonly PositionedEdge[], groups: readonly PositionedGroup[], style: PortLaneStyle, budget = portLaneInkWork()): boolean {
   const changedNodes = nodes.map((node, index) => node.x !== beforeNodes[index]!.x || node.y !== beforeNodes[index]!.y)
-  const changedEdges = edges.map((edge, index) => routeChanged(edge, beforeEdges[index]!))
+  const changedEdges = edges.map((edge, index) => routeChanged(edge, beforeEdges[index]!)
+    || edge.labelPosition?.x !== beforeEdges[index]!.labelPosition?.x || edge.labelPosition?.y !== beforeEdges[index]!.labelPosition?.y)
   if (!changedNodes.some(Boolean) && !changedEdges.some(Boolean)) return true
   // The existing bounded quality-exploration scope also bounds this optional
   // publication proof. Oversized routes/pairs cannot consume unlimited work.
@@ -73,7 +75,7 @@ export function portLaneInkClear(nodes: readonly PositionedNode[], edges: readon
       const node = nodes[nodeIndex]!
       for (let edgeIndex = 0; edgeIndex < edges.length; edgeIndex++) {
         const edge = edges[edgeIndex]!
-        if ((!changedNodes[nodeIndex] && !changedEdges[edgeIndex]) || edge.style === 'invisible') continue
+        if (!changedNodes[nodeIndex] && !changedEdges[edgeIndex]) continue
         if (!work()) return false
         // A canonical contact still has to face outward. Prove each endpoint
         // separately so improving one cannot hide a new inward shaft at the other.
@@ -88,9 +90,14 @@ export function portLaneInkClear(nodes: readonly PositionedNode[], edges: readon
           const owner = marker.position === 'start' ? edge.source : edge.target
           if (owner !== node.id && (!work() || !finiteBox(marker.bounds) || boxesMeet(box, marker.bounds))) return false
         }
-        if (route.label && (!work() || boxesMeet(box, route.label))) return false
+        const rect = edge.style === 'invisible' ? labelRect(edge, style) : null
+        const halo = labelHaloExtension(edge, style.lineWidth ?? 1)
+        const caption = route.label ?? (rect ? { x0: rect.x - halo, y0: rect.y - halo, x1: rect.x + rect.w + halo, y1: rect.y + rect.h + halo } : undefined)
+        if (caption && (!work() || boxesMeet(box, caption))) return false
       }
     }
+    const involved = new Set(changedEdges.flatMap((changed, index) => changed ? [index] : []))
+    if (!preservesLabelInkSeparation(beforeEdges, edges, style, involved, work)) return false
     return portLaneHeadersClear(nodes, edges, beforeNodes, beforeEdges, groups, ink, card, work)
   } catch {
     // Invalid/unsupported artwork is handled by the mandatory final gate.

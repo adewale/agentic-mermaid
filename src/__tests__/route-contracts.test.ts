@@ -1686,10 +1686,14 @@ describe('duplicate parallel edges (fast-check counterexample, pinned)', () => {
       expect(onShapeOutline(positioned.nodes.find(node => node.id === from)!, edge.points[0]!)).toBe(true)
       expect(onShapeOutline(positioned.nodes.find(node => node.id === to)!, edge.points.at(-1)!)).toBe(true)
     }
-    expect(dups.find(e => e.label)?.routeCertificate?.invariant).toBe('bundle')
     expect(auditRouteContracts(positioned, graph).filter(f => f.code === 'ROUTE_LABEL_ON_SHARED_TRUNK')).toEqual([])
     expect(assessLayout(graph, positioned).metrics.labelConflicts).toBe(0)
     const tags = scanSvgStartTags(renderMermaidSVG(source.replace('flowchart TD', `flowchart ${direction}`), { embedFontImport: false }))
+    const labelledShaft = tags.find(tag => tag.name === 'polyline' && decodedSvgAttributeValue(tag, 'data-from') === from && decodedSvgAttributeValue(tag, 'data-to') === to && decodedSvgAttributeValue(tag, 'data-label') === 'no')!
+    // Safe placement can leave a private straight lane or a proved detour;
+    // neither needs the exemption reserved for a constructed bundle.
+    const writtenPoints = decodedSvgAttributeValue(labelledShaft, 'points')!.split(' ')
+    expect(dups.find(e => e.label)?.routeCertificate?.invariant).toBe(writtenPoints.length === 2 ? 'straight' : 'explained-detour')
     const owner = tags.findIndex(tag => tag.name === 'g' && decodedSvgAttributeValue(tag, 'class') === 'edge-label' && decodedSvgAttributeValue(tag, 'data-from') === from && decodedSvgAttributeValue(tag, 'data-to') === to)
     expect(owner).toBeGreaterThanOrEqual(0)
     const halo = tags[owner + 1]!

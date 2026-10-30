@@ -8,7 +8,8 @@ import { formatSvgNumber } from '../../shared/svg-number.ts'
 import { edgesMayShareTerminal, routeCandidateMarkerBlocker, routeMarkerPaintRegions } from '../route-marker-clearance.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
 import { opposingRoutePartners } from '../../shared/edge-overlaps.ts'
-import { terminalHookLength } from '../route-geometry.ts'
+import { terminalHookLength, MAX_PREFERENCE_EDGES, MAX_PREFERENCE_NODES } from '../route-geometry.ts'
+import { preservesLabelInkSeparation } from '../label-conflicts.ts'
 import { hookedElbow } from './shared.ts'
 
 /**
@@ -144,6 +145,7 @@ export function bundleEdgePaths(
 ): Set<PositionedEdge> {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const processed = new Set<PositionedEdge>()
+  let labelWork = MAX_PREFERENCE_NODES * MAX_PREFERENCE_EDGES
   const admittedMembers = <T extends { edge: PositionedEdge }>(members: T[], candidates: Map<PositionedEdge, Point[]>): T[] => {
     for (const [edge, points] of candidates) {
       const source = nodeMap.get(edge.source)!, target = nodeMap.get(edge.target)!
@@ -169,6 +171,7 @@ export function bundleEdgePaths(
       const points = candidates.get(member.edge)!
       const candidate = staged[edges.indexOf(member.edge)]!
       return bundlePathClear(candidate, nodes, groups, style)
+        && preservesLabelInkSeparation(edges, staged, style, new Set([edges.indexOf(member.edge)]), () => --labelWork >= 0)
         && !routeCandidateMarkerBlocker(member.edge, points, staged, style, candidate)
         && !opposingAdded(member.edge, candidate)
     })

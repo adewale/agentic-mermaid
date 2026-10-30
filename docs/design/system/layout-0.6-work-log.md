@@ -3601,3 +3601,34 @@ Existing d43CI is failed, including browser/lazy delivery budgets; no cap is
 raised. Next concrete step: commit the qualified label/contact fixes, finish
 safe same-write XML authority and remove duplicated group work, then rerun
 all six admission owners and exact combined-candidate checks.
+
+
+The closed-metadata boundary is committed privately at
+`b9888f053` (full revision recorded by Git); all other pending files were
+preserved. The next coherent graph repair rejects optional port-lane/bundle
+proposals that introduce a new foreign caption/shaft/marker collision. Shared
+checks retain existing conflicting pair identities, not just totals, so an
+old collision cannot pay for a different new one. Actual seed40ELK TD/BT
+caption conflicts change3→0, preserving9nodes,23carriers,6captions, all46
+endpoint contacts and23marker tips. LR/RL output stays byte-identical.
+
+The improved ELK result exposed Native171at7crossings versus5. This source is
+acyclic; an existing bounded private-chain ordering pass accidentally excluded
+small DAGs along with small cyclic graphs. Its gate now admits small DAGs
+while retaining the small-cycle policy and every existing work/size cap.
+Independently counted written crossings change7→3; ELK remains5. All authored
+endpoint/label occurrences,23start+23end contacts and23marker tips remain.
+Eight neighbouring small-DAG/cycle direction controls have identical SVG bytes.
+
+Four owning files pass253tests/9,981assertions; the strengthened existing171
+row fails at7>3 without the gate change, and passes with it. The original
+Native<=ELK inequality is retained. Eight changed mixed-duplicate route cases
+pass138assertions;45adjacent-owner tests pass256assertions. Their certificate
+kind assertion follows actual two-point straight versus bent explained-detour
+geometry while retaining all existing hard violations/contact/ownership checks.
+The wider990-route replay reached the unchanged117-second worker limit and
+is not counted as passing. Frozen core/repository-config checks and seven-file
+lint pass; final combined canonical checks still remain. Evidence and exact
+source binding:`labels/FINAL-REPORT.json`,`FROZEN-SEVEN-FILES.json` and
+`final-seven-overlay/` under the session root. Seed156foreign-caption conflicts
+remain(TD5,BT1); no universal caption-solving or ELK-parity claim is made.
