@@ -1,4 +1,4 @@
-import type { MermaidGraph, RenderOptions } from './types.ts'
+import type { ConfigDiagnostic, MermaidGraph, RenderOptions } from './types.ts'
 import { compositeCssColor, legibleInk, relativeLuminance, toHex, tryParseHex, WCAG_AA_NON_TEXT_CONTRAST, WCAG_AA_TEXT_CONTRAST } from './shared/color-math.ts'
 import type { DiagramColors } from './theme.ts'
 import { DEFAULTS, resolvedColorValue } from './theme.ts'
@@ -6,6 +6,7 @@ import type { MermaidRuntimeConfig, MermaidThemeVariables } from './mermaid-sour
 import { safeCssPaint } from './shared/css-color.ts'
 import { checkedAuthoredStyle } from './shared/style-props.ts'
 import { graphClassNames } from './shared/graph-classes.ts'
+import { nearestName } from './shared/nearest-name.ts'
 
 const MERMAID_THEME_COLORS: Record<string, DiagramColors> = {
   default: { bg: DEFAULTS.bg, fg: DEFAULTS.fg },
@@ -67,6 +68,24 @@ export function resolveDiagramColors(
 export function resolveThemeColors(themeName: unknown): DiagramColors | undefined {
   if (typeof themeName !== 'string' || !themeName) return undefined
   return MERMAID_THEME_COLORS[themeName.toLowerCase()]
+}
+
+/** Mermaid's `theme: 'null'` selects no theme: the default colors, by intent. */
+const MERMAID_THEME_NAMES = [...Object.keys(MERMAID_THEME_COLORS), 'null']
+
+/** The default colors a misspelled or mistyped `theme` falls back to are
+ * silent otherwise, so name the field, the value and the valid themes. */
+export function mermaidThemeConfigDiagnostics(root: unknown): ConfigDiagnostic[] {
+  if (!root || typeof root !== 'object' || Array.isArray(root) || !Object.hasOwn(root, 'theme')) return []
+  const theme = (root as { theme?: unknown }).theme
+  if (theme === null || theme === undefined) return []
+  if (typeof theme === 'string' && MERMAID_THEME_NAMES.includes(theme.toLowerCase())) return []
+  const suggestion = typeof theme === 'string' ? nearestName(theme, MERMAID_THEME_NAMES) : undefined
+  return [{
+    code: 'INEFFECTIVE_CONFIG',
+    field: 'theme',
+    message: `Mermaid theme ${JSON.stringify(theme)} names no theme and has no effect; the default colors apply.${suggestion ? ` Did you mean "${suggestion}"?` : ''} Valid themes: ${MERMAID_THEME_NAMES.join(', ')}.`,
+  }]
 }
 
 export function readThemeValue(vars: MermaidThemeVariables | undefined, ...keys: string[]): string | undefined {

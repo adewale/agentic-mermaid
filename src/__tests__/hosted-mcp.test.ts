@@ -206,6 +206,15 @@ describe('hosted pure tools', () => {
     expect(() => renderMermaidSVG(FLOW, { style } as RenderOptions)).toThrow(problem)
   })
 
+  test('a guessed theme render option points at mermaidConfig.theme and style on every surface', async () => {
+    const hint = 'set a Mermaid theme with mermaidConfig.theme, or a registered Style or Palette with style'
+    const hosted = await handleHostedRequest(call('render_svg', { source: FLOW, options: { theme: 'dark' } }), makeContext())
+    expect(hosted?.error?.message).toContain(`arguments.options.theme is not allowed; ${hint}`)
+    expect(validateMcpToolArguments(createRenderPngTool('local'), { source: FLOW, options: { theme: 'dark' } }))
+      .toEqual([`arguments.options.theme is not allowed; ${hint}`])
+    expect(() => renderMermaidSVG(FLOW, { theme: 'dark' } as RenderOptions)).toThrow(`unknown render option "theme"; ${hint}`)
+  })
+
   test('render_svg renders deterministic themeable SVG', async () => {
     const first = payloadOf(await handleHostedRequest(call('render_svg', { source: FLOW }), makeContext()))
     expect(first.ok).toBe(true)

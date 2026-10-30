@@ -15,6 +15,7 @@ import {
   sharedRenderOptionsJsonSchema,
   validateSerializableRenderOptions,
   renderSchemaProblems,
+  misplacedRenderOptionHint,
   type SharedRenderOptionField,
 } from '../render-contract.ts'
 import { MAX_HOSTED_PNG_PIXELS, MAX_PNG_PIXELS, MAX_PNG_RASTER_DIMENSION, normalizePortablePngBackground, pngOutputOptionsJsonSchema } from '../png-contract.ts'
@@ -204,7 +205,11 @@ export function validateMcpToolArguments(tool: McpToolDefinition, value: unknown
       return validator === 'architectureVisual' ? [] : renderSchemaProblems(value, schema, path)
     },
   })
-    .map(problem => `${formatSchemaPath(problem.path)} ${problem.message}`)
+    .map(problem => {
+      const hint = problem.message === 'is not allowed' && problem.path.length === 2 && problem.path[0] === 'options'
+        ? misplacedRenderOptionHint(String(problem.path[1])) : undefined
+      return `${formatSchemaPath(problem.path)} ${problem.message}${hint ? `; ${hint}` : ''}`
+    })
   return limitJsonConfigDiagnostics(problems, 'arguments')
 }
 

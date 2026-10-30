@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { configWarningsForMermaid } from '../agent/verify.ts'
 import { explicitFamilyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
+import { verifyMermaid } from '../agent/index.ts'
+import { renderMermaidSVG, type ConfigDiagnostic } from '../index.ts'
 
 const tuple = (diagnostic: { code: string; field?: string; message?: string }) =>
   [diagnostic.code, diagnostic.field, diagnostic.message]
@@ -27,5 +29,27 @@ describe('family config diagnostics have one schema-owned contract', () => {
     const second = explicitFamilyConfigDiagnostics('journey', { journey: { z: 1, boxMargin: 10, ä: 1 } })
     expect(first).toEqual(second)
     expect(first.map(item => item.field)).toEqual(['journey.boxMargin', 'journey.z', 'journey.ä'])
+  })
+
+  // `theme` is shared by every family; a misspelling silently left the
+  // default colors, with no warning on verify or render.
+  test.each(['flowchart LR\n  A --> B', 'pie\n  "A": 1', 'gitGraph\n  commit'])('an invalid Mermaid theme is named on verify and render: %j', body => {
+    const themeWarnings = (source: string) => verifyMermaid(source).warnings.filter(warning => warning.code === 'INEFFECTIVE_CONFIG' && warning.field === 'theme')
+    const renderDiagnostics = (theme: unknown) => {
+      const seen: ConfigDiagnostic[] = []
+      // Config is untyped JSON at the boundary; a number reaches it too.
+      renderMermaidSVG(body, { mermaidConfig: { theme: theme as string }, onConfigDiagnostic: diagnostic => seen.push(diagnostic) })
+      return seen.filter(diagnostic => diagnostic.field === 'theme')
+    }
+    const misspelled = expect.objectContaining({ field: 'theme', message: expect.stringMatching(/"darkk".*Did you mean "dark"\?.*Valid themes: .*\bdefault\b/) })
+    for (const source of [`%%{init: {"theme":"darkk"}}%%\n${body}`, `---\nconfig:\n  theme: darkk\n---\n${body}`]) {
+      expect(themeWarnings(source)).toEqual([misspelled])
+    }
+    expect(renderDiagnostics('darkk')).toEqual([misspelled])
+    expect(renderDiagnostics(5)).toEqual([expect.objectContaining({ field: 'theme', message: expect.stringContaining('5') })])
+    for (const theme of ['default', 'base', 'dark', 'Forest', 'neutral', 'null']) {
+      expect(themeWarnings(`%%{init: {"theme":"${theme}"}}%%\n${body}`)).toEqual([])
+      expect(renderDiagnostics(theme)).toEqual([])
+    }
   })
 })

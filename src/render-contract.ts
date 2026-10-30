@@ -447,6 +447,17 @@ export function renderSchemaProblems(value: unknown, schema: JsonSchema, path: r
 
 let validationRootSchema: JsonSchemaNode | undefined
 
+/** Option names callers guess for settings that live elsewhere. */
+const MISPLACED_RENDER_OPTION_HINTS: Readonly<Record<string, string>> = Object.freeze({
+  theme: 'set a Mermaid theme with mermaidConfig.theme, or a registered Style or Palette with style',
+  themeVariables: 'set Mermaid theme variables with mermaidConfig.themeVariables',
+})
+
+/** Where an unknown render option's setting lives, when it is a known guess. */
+export function misplacedRenderOptionHint(field: string): string | undefined {
+  return Object.hasOwn(MISPLACED_RENDER_OPTION_HINTS, field) ? MISPLACED_RENDER_OPTION_HINTS[field] : undefined
+}
+
 /** Validate the shared advanced JSON object used by CLI/MCP/editor adapters. */
 export function validateSerializableRenderOptions(value: unknown): string[] {
   if (!isPlainRecord(value)) return ['render options must be a plain JSON object']
@@ -457,7 +468,8 @@ export function validateSerializableRenderOptions(value: unknown): string[] {
   const rootSchema = validationRootSchema ??= deepFreeze(sharedRenderOptionsJsonSchema())
   for (const [field, fieldValue] of Object.entries(value)) {
     if (!Object.hasOwn(SHARED_RENDER_OPTION_FIELD_DESCRIPTORS, field)) {
-      problems.push(`unknown render option "${field}"`)
+      const hint = misplacedRenderOptionHint(field)
+      problems.push(`unknown render option "${field}"${hint ? `; ${hint}` : ''}`)
       continue
     }
     if (fieldValue === null) {
