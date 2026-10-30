@@ -242,3 +242,19 @@ test('XML attribute projection preserves whitespace and decodes source reference
   expect(identity).toEqual({ id, role: 'edge', from, to })
   expect(ensureSvgIdentity(crisp, identity)).toBe(crisp)
 })
+
+// Reduced from the structural all-families fuzz: identities were written with
+// a string replacement, so authored text spelling `$&` or `$'` inserted the
+// matched tag or the rest of the document, and every family's SVG render
+// failed scene validation for such a label or id.
+test.each(['$&', "$'", '$`', '$$', '$1', 'R$&D'])('authored text spelling %j keeps the identity it was written with', text => {
+  const crisp = '<g class="node"><title>t</title><rect/></g>'
+  const identity = { id: `node:${text}`, role: 'node' as const, from: text, to: `${text}x` }
+  const written = ensureSvgIdentity(`<g data-id="old" class="node"><title>t</title><rect/></g>`, identity)
+  expect(semanticIdentityForSvg(written, { id: 'unused', role: 'node' })).toEqual({ ...identity, classNames: ['node'] })
+  expect(written.endsWith('<title>t</title><rect/></g>')).toBe(true)
+  expect(ensureSvgIdentity(crisp, identity).endsWith('<title>t</title><rect/></g>')).toBe(true)
+  for (const source of [`flowchart TD\n  A["${text}"]`, `timeline\n  section ${text}\n    2020 : a`, `sequenceDiagram\n  participant A as ${text}\n  A->>B: x`]) {
+    expect(() => renderMermaidSVG(source, { embedFontImport: false }), source).not.toThrow()
+  }
+})

@@ -94,7 +94,8 @@ export function ensureSvgIdentity(svg: string, identity: SvgSemanticIdentity): s
   const set = (source: string, name: string, value: string): string => {
     const encoded = escapeAttr(value)
     const pattern = new RegExp(`\\s${name}="[^"]*"`)
-    if (pattern.test(source)) return source.replace(pattern, ` ${name}="${encoded}"`)
+    // A function replacement: authored text may spell `$&` or `$'`.
+    if (pattern.test(source)) return source.replace(pattern, () => ` ${name}="${encoded}"`)
     const close = source.endsWith('/>') ? '/>' : '>'
     const body = source.slice(0, -close.length).trimEnd()
     return `${body} ${name}="${encoded}"${close === '/>' ? ' /' : ''}>`
@@ -103,5 +104,5 @@ export function ensureSvgIdentity(svg: string, identity: SvgSemanticIdentity): s
 
   if (identity.from !== undefined) authoritativeOpening = set(authoritativeOpening, 'data-from', identity.from)
   if (identity.to !== undefined) authoritativeOpening = set(authoritativeOpening, 'data-to', identity.to)
-  return authoritativeOpening === opening ? svg : svg.replace(opening, authoritativeOpening)
+  return authoritativeOpening === opening ? svg : svg.replace(opening, () => authoritativeOpening)
 }
