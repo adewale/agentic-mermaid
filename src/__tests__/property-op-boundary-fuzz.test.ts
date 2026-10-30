@@ -248,7 +248,7 @@ describe('op-boundary fuzz: typed text edits round-trip or are refused', () => {
     const parsed = parseRegisteredMermaid(written)
     if (!parsed.ok) return { written, error: parsed.error }
     if (parsed.value.body.kind !== d.body.kind && emptyScaffold(d)) return { written, scaffold: true }
-    return { written, kind: parsed.value.body.kind, facts: describeMermaidFacts(parsed.value) }
+    return { written, kind: parsed.value.body.kind, facts: describeMermaidFacts(parsed.value), formatted: serializeMermaid(parsed.value) }
   }
   // Shrunk counterexamples (finder runs and the adversarial review).
   const EXAMPLES: Array<[[MutableFamilyId, Array<Record<string, unknown>>]]> = [
@@ -267,6 +267,9 @@ describe('op-boundary fuzz: typed text edits round-trip or are refused', () => {
     [['requirement', [{ kind: 'rename_node', from: 'r', to: '%%{init: {}}%%~#59;' }]]],
     [['sequence', [{ kind: 'add_message', from: 'N1', to: 'US#', text: 'x', wrap: false, index: 1 }]]],
     [['eventmodeling', [{ kind: 'set_accessibility_title', title: 'https://example.com' }]]],
+    // Edge whitespace a re-read drops: the edit stores what format writes.
+    [['class', [{ kind: 'add_member', class: 'A', text: ' k' }]]],
+    [['sequence', [{ kind: 'add_message', from: 'A', to: 'B', text: '\u2028' }]]],
   ]
 
   it('an accepted edit re-reads as the edited diagram', () => {
@@ -281,7 +284,10 @@ describe('op-boundary fuzz: typed text edits round-trip or are refused', () => {
         d = result.value
         const back = reread(d)
         if ('scaffold' in back) continue
-        expect(back).toEqual({ written: back.written, kind: d.body.kind, facts: describeMermaidFacts(d) })
+        // `am format` of the written source is a byte-exact fixed point: the
+        // edit stored what the writer's re-read holds (facts trim, so they
+        // cannot see edge whitespace a re-read drops).
+        expect(back).toEqual({ written: back.written, kind: d.body.kind, facts: describeMermaidFacts(d), formatted: back.written })
       }
     }), fcParameters({ numRuns: 2000, examples: EXAMPLES }))
   }, 120_000)

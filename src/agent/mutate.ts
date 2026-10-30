@@ -45,7 +45,7 @@ import type {
   Result,
 } from './types.ts'
 import { ok, err } from './types.ts'
-import { wrapperPrefix } from './serialize.ts'
+import { serializeMermaid, wrapperPrefix } from './serialize.ts'
 import { logToolInvocation } from './trace-log.ts'
 import { getFamily } from './families.ts'
 import { admitOpRecord, validateOp, hasOpSchema } from './op-schema.ts'
@@ -195,18 +195,33 @@ function commitMutation(d: ParsedDiagram, body: ParsedDiagram['body']): Result<P
   // would change, instead of publishing a silently altered diagram.
   const drift = sameRepresentation ? serializationDrift({ ...d, meta, body } as ParsedDiagram, reparsed.value) : undefined
   if (drift) return err({ code: 'INVALID_OP', message: `The edit cannot be written faithfully: ${drift}` })
+  // Facts trim, so they cannot see edge whitespace a grammar drops on read
+  // (a class member " k", a message text U+2028). Store what the written
+  // source holds, so `am format` of the published source is a byte-exact
+  // fixed point; a writer that does not settle is refused.
+  let committed: { body: ParsedDiagram['body']; canonicalSource: string; reread: ParsedDiagram } = { body, canonicalSource, reread: reparsed.value }
+  if (sameRepresentation) {
+    const formatted = serializeMermaid(reparsed.value)
+    if (formatted !== canonicalSource) {
+      const settled = parseMermaid(formatted)
+      if (!settled.ok || settled.value.body.kind !== body.kind || serializeMermaid(settled.value) !== formatted || serializationDrift(reparsed.value, settled.value)) {
+        return err({ code: 'INVALID_OP', message: 'The edit cannot be written faithfully: formatting the written Mermaid does not settle on one source' })
+      }
+      committed = { body: reparsed.value.body, canonicalSource: formatted, reread: settled.value }
+    }
+  }
   return ok({
     ...d,
-    body,
+    body: committed.body,
     meta: {
-      ...reparsed.value.meta,
+      ...committed.reread.meta,
       // This receipt describes loss from the originally parsed artifact.
       // Reparsing the already-canonical mutation output cannot rediscover a
       // comment that structured serialization intentionally omitted.
       ...(d.meta.droppedComments ? { droppedComments: d.meta.droppedComments } : {}),
     },
-    canonicalSource,
-    source: reparsed.value.source,
+    canonicalSource: committed.canonicalSource,
+    source: committed.reread.source,
   } as ParsedDiagram)
 }
 
