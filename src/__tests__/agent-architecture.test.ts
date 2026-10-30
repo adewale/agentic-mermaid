@@ -357,6 +357,52 @@ describe('architecture mutation ops', () => {
     expect(rejected.ok ? '' : rejected.error.message).toContain('update the edge boundary')
   })
 
+  // A `{group}` endpoint names its group's boundary, so an edit must not leave
+  // the other end inside that group (Mermaid rejects the same-group case).
+  test('refuses edits that point a group-boundary endpoint into its own group', async () => {
+    const source = `architecture-beta
+  group cloud(cloud)[Cloud]
+  group private(server)[Private] in cloud
+  group storage(disk)[Storage] in cloud
+  group vault(disk)[Vault] in private
+  service db(database)[DB] in private
+  service api(server)[API] in private
+  service disk1(disk)[Disk] in storage
+  service key(disk)[Key] in vault
+  junction hub in cloud
+  api:R --> L:db
+  db{group}:B <--> T:disk1
+`
+    const base = architecture(source)
+    const refused: ArchitectureMutationOp[] = [
+      { kind: 'move_service', id: 'disk1', group: 'private' },
+      { kind: 'move_service', id: 'disk1', group: 'vault' },
+      { kind: 'add_edge', from: 'db', to: 'api', fromSide: 'R', toSide: 'L', fromBoundary: 'group' },
+      { kind: 'add_edge', from: 'key', to: 'db', fromSide: 'T', toSide: 'B', toBoundary: 'group' },
+      { kind: 'add_edge', from: 'db', to: 'key', fromSide: 'B', toSide: 'T', fromBoundary: 'group', toBoundary: 'group' },
+      { kind: 'update_edge', index: 0, fromBoundary: 'group' },
+      { kind: 'update_edge', index: 1, to: 'api' },
+    ]
+    for (const op of refused) {
+      const result = mutate(base, op)
+      expect({ op, ok: result.ok, code: result.ok ? null : result.error.code }).toEqual({ op, ok: false, code: 'INVALID_OP' })
+      expect(result.ok ? '' : result.error.message, JSON.stringify(op)).toMatch(/would join group "(private|vault)" to "\w+", which is inside it/)
+    }
+    // Leading out of the group stays editable, including into a sibling group.
+    for (const op of [
+      { kind: 'move_service', id: 'disk1', group: 'cloud' },
+      { kind: 'add_edge', from: 'key', to: 'db', fromSide: 'R', toSide: 'L', fromBoundary: 'group' },
+      { kind: 'add_edge', from: 'db', to: 'hub', fromSide: 'L', toSide: 'R', fromBoundary: 'group' },
+    ] satisfies ArchitectureMutationOp[]) {
+      const result = mutate(base, op)
+      if (!result.ok) throw new Error(`${JSON.stringify(op)}: ${result.error.message}`)
+      expect(await upstream.publicAccepts(serializeMermaid(result.value)), JSON.stringify(op)).toBe(true)
+    }
+    // An authored conflict stays reported rather than blocking unrelated edits.
+    const authored = architecture(source.replace('in storage', 'in private'))
+    expect(mutate(authored, { kind: 'set_service_label', id: 'api', label: 'Gateway' }).ok).toBe(true)
+  })
+
   test('sets and clears accessibility metadata through typed ops', () => {
     let d = apply(architecture(), { kind: 'set_accessibility_title', title: 'System topology' })
     d = apply(d, { kind: 'set_accessibility_description', description: 'Line one\nLine two' })
@@ -416,6 +462,29 @@ describe('architecture verify + render', () => {
     const v = verifyMermaid(d)
     expect(v.ok).toBe(true)
     expect(serializeMermaid(d)).toContain('service cache(disk)[Cache]')
+  })
+
+  test('reports a group-boundary edge whose other end is inside that group', async () => {
+    const groups = 'architecture-beta\n  group private(server)[Private]\n  group vault(disk)[Vault] in private\n  service db(database)[DB] in private\n  service key(disk)[Key] in vault\n  service web(internet)[Web]\n'
+    const cases: Array<[string, string | undefined, boolean]> = [
+      ['  db{group}:B <--> T:web\n', undefined, true],
+      ['  db:R --> L:key\n', undefined, true],
+      ['  key{group}:L --> R:db\n', undefined, true],
+      ['  db{group}:B --> T:key\n', 'private', true],
+      ['  key{group}:T --> B:db{group}\n', 'private', true],
+      ['  service api(server)[API] in private\n  api:R --> L:db{group}\n', 'private', false],
+    ]
+    for (const [edges, group, mermaidAccepts] of cases) {
+      const source = groups + edges
+      const warnings = verifyMermaid(architecture(source)).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')
+      expect(warnings.map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax), edges).toEqual(group ? ['architecture_group_edge_inside_group'] : [])
+      if (!group) continue
+      const message = warnings[0]!.code === 'UNSUPPORTED_SYNTAX' ? warnings[0]!.message : ''
+      expect(message, edges).toContain(`group "${group}"`)
+      // The Mermaid claim matches the pinned reference.
+      expect(await upstream.publicAccepts(source), edges).toBe(mermaidAccepts)
+      expect(message.includes('Pinned Mermaid rejects this edge'), edges).toBe(!mermaidAccepts)
+    }
   })
 
   test('EMPTY_DIAGRAM fires on a header-only (opaque) diagram', () => {

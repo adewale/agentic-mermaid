@@ -209,11 +209,7 @@ export function renderArchitecture(body: ArchitectureBody): string {
   for (const j of body.junctions) {
     lines.push(`  junction ${j.id}${j.parentId ? ` in ${j.parentId}` : ''}`)
   }
-  for (const e of body.edges) {
-    const sourceBoundary = e.source.boundary === 'group' ? '{group}' : ''
-    const targetBoundary = e.target.boundary === 'group' ? '{group}' : ''
-    lines.push(`  ${e.source.id}${sourceBoundary}:${e.source.side} ${renderArrow(e)} ${e.target.side}:${e.target.id}${targetBoundary}`)
-  }
+  for (const e of body.edges) lines.push(`  ${architectureEdgeSource(e)}`)
   // Align directives last: canonical order guarantees every member is already
   // declared, which both the upstream grammar and the legacy parser require.
   for (const a of body.alignments ?? []) {
@@ -335,12 +331,59 @@ function validateArchitectureEndpoint(
   return ok(undefined)
 }
 
+/** An edge as its Mermaid statement writes it. */
+function architectureEdgeSource(e: ArchitectureEdge): string {
+  const boundary = (endpoint: ArchitectureEdge['source']) => endpoint.boundary === 'group' ? '{group}' : ''
+  return `${e.source.id}${boundary(e.source)}:${e.source.side} ${renderArrow(e)} ${e.target.side}:${e.target.id}${boundary(e.target)}`
+}
+
+/**
+ * A `{group}` endpoint attaches to its service's group boundary, so it must
+ * lead out of that group: the other end may not sit inside it (directly or in
+ * a nested group), nor attach to the same or a nested group's boundary. Such
+ * an edge has no route that crosses the boundary it names. Pinned Mermaid
+ * rejects the case where both ends share their direct group.
+ */
+function architectureGroupEdgeConflict(body: ArchitectureBody, e: ArchitectureEdge): { group: string; other: string; mermaidRejects: boolean } | undefined {
+  const parentOf = (id: string) => body.services.find(item => item.id === id)?.parentId ?? body.junctions.find(item => item.id === id)?.parentId
+  const within = (groupId: string | undefined, ancestor: string): boolean => {
+    for (let current = groupId, depth = 0; current !== undefined && depth <= body.groups.length; current = body.groups.find(group => group.id === current)?.parentId, depth++) {
+      if (current === ancestor) return true
+    }
+    return false
+  }
+  for (const [end, other] of [[e.source, e.target], [e.target, e.source]] as const) {
+    const group = end.boundary === 'group' ? parentOf(end.id) : undefined
+    if (group === undefined || !within(parentOf(other.id), group)) continue
+    const endParent = parentOf(end.id), otherParent = parentOf(other.id)
+    return { group, other: other.id, mermaidRejects: endParent !== undefined && endParent === otherParent }
+  }
+  return undefined
+}
+
 /** Edge id convention: `<from>-><to>` (matches the flowchart edgeId idiom). */
 export function architectureEdgeId(e: ArchitectureEdge): string {
   return `${e.source.id}->${e.target.id}`
 }
 
 export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutationOp): Result<ArchitectureBody, MutationError> {
+  const result = applyArchitectureOp(body, op)
+  if (!result.ok) return result
+  // Edits never write a `{group}` edge that cannot leave its group (Mermaid
+  // rejects the same-group case); one already in the source stays reported.
+  const before = new Set(body.edges.filter(edge => architectureGroupEdgeConflict(body, edge)).map(architectureEdgeSource))
+  for (const edge of result.value.edges) {
+    const conflict = architectureGroupEdgeConflict(result.value, edge)
+    if (!conflict || before.has(architectureEdgeSource(edge))) continue
+    return err({
+      code: 'INVALID_OP',
+      message: `Edge "${architectureEdgeSource(edge)}" would join group "${conflict.group}" to "${conflict.other}", which is inside it; a {group} endpoint must lead out of its group. Set that endpoint's boundary to "item" (update_edge) or keep "${conflict.other}" outside "${conflict.group}".`,
+    })
+  }
+  return result
+}
+
+function applyArchitectureOp(body: ArchitectureBody, op: ArchitectureMutationOp): Result<ArchitectureBody, MutationError> {
   const next = cloneArchitecture(body)
 
   switch (op.kind) {
@@ -742,6 +785,13 @@ export function verifyArchitecture(body: ArchitectureBody, opts: VerifyOptions):
       })
     }
     if (e.label !== undefined) overflow(`edge#${i}:${architectureEdgeId(e)}`, e.label)
+    const conflict = ids.has(e.source.id) && ids.has(e.target.id) ? architectureGroupEdgeConflict(body, e) : undefined
+    if (conflict) {
+      warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'architecture_group_edge_inside_group',
+        message: `Edge ${i} "${architectureEdgeSource(e)}" joins group "${conflict.group}" to "${conflict.other}", which is inside it, so no route can cross the boundary it names and the drawing misleads.${conflict.mermaidRejects ? ' Pinned Mermaid rejects this edge.' : ''} Use an item endpoint, or move "${conflict.other}" outside "${conflict.group}".`,
+      })
+    }
   })
   return warnings
 }
