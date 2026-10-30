@@ -45,12 +45,14 @@ function protectedGraphCells(document: Canvas): PathOccupancy {
   }
   // All routes are planned before any route ink is overlaid, so the admitted
   // document is already the stable occupancy store; do not duplicate its cells.
+  const hasCell = (x: number, y: number): boolean =>
+    protectedCell(document.cell(x, y)) || !!textRows.get(y)?.some(span => x >= span.left && x < span.right)
   return {
     extent: { maxX, maxY },
+    hasCell,
     has(key) {
       const comma = key.indexOf(',')
-      const x = Number(key.slice(0, comma)), y = Number(key.slice(comma + 1))
-      return protectedCell(document.cell(x, y)) || !!textRows.get(y)?.some(span => x >= span.left && x < span.right)
+      return hasCell(Number(key.slice(0, comma)), Number(key.slice(comma + 1)))
     },
   }
 }
@@ -1406,11 +1408,14 @@ function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupan
   edges.sort((a, b) => orderByEdge.get(a)! - orderByEdge.get(b)!)
   interface Rectangle extends DrawingCoord { width: number; height: number }
   const rectangles = new Map<AsciiEdge, Rectangle>()
-  const routed = new Map<string, number>()
+  // Per-cell route state is read for every searched step, so it is keyed by
+  // one number. Terminal coordinates are far below the row stride.
+  const cellKey = (x: number, y: number): number => y * 0x200000 + x
+  const routed = new Map<number, number>()
   const retainedEdges = new Map(graph.edges.filter(edge => !edge.cellAllocation).map(edge => [terminalEdgeOwner(graph, edge).id, edge]))
   for (const [x, y, cell] of retained.entries()) if (cell.kind === 'stroke' && cell.owners.some(owner => owner.kind === 'edge')) {
     const mask = cell.stroke?.mask ?? 0
-    routed.set(`${x},${y}`, (mask & 5 ? 5 : 0) | (mask & 10 ? 10 : 0))
+    routed.set(cellKey(x, y), (mask & 5 ? 5 : 0) | (mask & 10 ? 10 : 0))
   }
   const retainedText = new Map<NonNullable<TerminalCell['textBlock']>, Set<AsciiEdge>>()
   for (const [, , cell] of retained.entries()) if (cell.textBlock) for (const owner of cell.owners) {
@@ -1418,7 +1423,7 @@ function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupan
     if (edge) { const members = retainedText.get(cell.textBlock) ?? new Set<AsciiEdge>(); members.add(edge); retainedText.set(cell.textBlock, members) }
   }
   const ends = new Map<AsciiEdge, [DrawingCoord, DrawingCoord]>()
-  const markerCells = new Map<string, Set<AsciiEdge>>()
+  const markerCells = new Map<number, Set<AsciiEdge>>()
   const approaches = new Map<string, { edge: AsciiEdge; start: boolean }>()
   const overlapping = new Map<AsciiEdge, DrawingCoord>()
   const obstructed = new Map<AsciiEdge, DrawingCoord>()
@@ -1457,7 +1462,7 @@ function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupan
       if (previous && (previous.edge !== edge || previous.start !== isStart)) {
         overlapping.set(previous.edge, marker); overlapping.set(edge, marker)
       } else approaches.set(key, { edge, start: isStart })
-      const owners = markerCells.get(key) ?? new Set<AsciiEdge>(); owners.add(edge); markerCells.set(key, owners)
+      const owners = markerCells.get(cellKey(marker.x, marker.y)) ?? new Set<AsciiEdge>(); owners.add(edge); markerCells.set(cellKey(marker.x, marker.y), owners)
     }
   }
   if (conflicts.size) return conflicts
@@ -1489,7 +1494,7 @@ function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupan
       const margin = text.height > 1 ? 1 : 0
       if (point.x < margin || point.y < 0) return false
       for (let y = point.y; y < point.y + text.height; y++) for (let x = point.x - margin; x < point.x + text.width; x++) {
-        if (retained.cell(x, y) || protectedCells.has(`${x},${y}`) || markerCells.has(`${x},${y}`)) return false
+        if (retained.cell(x, y) || protectedCells.has(`${x},${y}`) || markerCells.has(cellKey(x, y))) return false
         for (const box of rectangles.values()) if (inside(box, x, y)) return false
       }
       return true
@@ -1517,19 +1522,37 @@ function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupan
   }
   const rectangleList = [...rectangles]
   const extent = { maxX: Math.max(protectedCells.extent.maxX, ...rectangleList.map(([, box]) => box.x + box.width)), maxY: Math.max(protectedCells.extent.maxY, ...rectangleList.map(([, box]) => box.y + box.height)) }
+  // Index each admitted label rectangle by the cells it covers (`inside`,
+  // including a multiline label's wire column) so an obstacle probe reads
+  // only the labels at that cell instead of every label in the diagram.
+  const rectangleCells = new Map<number, Array<[AsciiEdge, Rectangle]>>()
+  for (const entry of rectangleList) {
+    const [, box] = entry
+    for (let y = box.y; y < box.y + box.height; y++) for (let x = box.x - (box.height > 1 ? 1 : 0); x < box.x + box.width; x++) {
+      const members = rectangleCells.get(cellKey(x, y)); if (members) members.push(entry); else rectangleCells.set(cellKey(x, y), [entry])
+    }
+  }
   for (const edge of edges) {
     if (!ends.has(edge)) continue
     const [start, end] = ends.get(edge)!, rectangle = rectangles.get(edge)
     const exit = step(start, edge.startDir, graphEdgeEscape(edge, true)), entry = step(end, edge.endDir, graphEdgeEscape(edge, false))
-    const ownMarkers = new Set([start, end, step(start, edge.startDir, 1), step(end, edge.endDir, 1)].map(point => `${point.x},${point.y}`))
+    const ownMarkers = new Set([start, end, step(start, edge.startDir, 1), step(end, edge.endDir, 1)].map(point => cellKey(point.x, point.y)))
+    const protectedCell = protectedCells.hasCell ?? ((x: number, y: number) => protectedCells.has(`${x},${y}`))
+    const hasCell = (x: number, y: number): boolean => {
+      const key = cellKey(x, y)
+      if (ownMarkers.has(key) || protectedCell(x, y)) return true
+      for (const owner of markerCells.get(key) ?? []) if (owner !== edge) return true
+      // Another label blocks its whole `inside` area; this edge's own label
+      // blocks only a multiline rectangle, never the adjacent wire column.
+      for (const [owner, box] of rectangleCells.get(key) ?? []) if (owner !== edge || box.height > 1 && x >= box.x) return true
+      return false
+    }
     const obstacles: PathOccupancy = {
       extent,
+      hasCell,
       has(key) {
-        if (ownMarkers.has(key) || protectedCells.has(key)) return true
-        for (const owner of markerCells.get(key) ?? []) if (owner !== edge) return true
-        const [x, y] = key.split(',').map(Number)
-        return rectangleList.some(([owner, box]) => owner !== edge ? inside(box, x!, y!)
-          : box.height > 1 && x! >= box.x && x! < box.x + box.width && y! >= box.y && y! < box.y + box.height)
+        const comma = key.indexOf(',')
+        return hasCell(Number(key.slice(0, comma)), Number(key.slice(comma + 1)))
       },
     }
     // A multiline label has a real adjacent vertical run spanning every row,
@@ -1538,7 +1561,7 @@ function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupan
     const labelEnd = rectangle && labelStart ? { x: labelStart.x, y: labelStart.y + rectangle.height - 1 } : undefined
     const canStep = (from: DrawingCoord, to: DrawingCoord): boolean => {
       const mask = from.x === to.x ? 5 : 10
-      return !((routed.get(`${from.x},${from.y}`) ?? 0) & mask) && !((routed.get(`${to.x},${to.y}`) ?? 0) & mask)
+      return !((routed.get(cellKey(from.x, from.y)) ?? 0) & mask) && !((routed.get(cellKey(to.x, to.y)) ?? 0) & mask)
     }
     const first = !obstacles.has(`${exit.x},${exit.y}`) && !obstacles.has(`${entry.x},${entry.y}`)
       ? getPath(obstacles, exit, labelStart ?? entry, edge.startDir, canStep) : null
@@ -1549,7 +1572,7 @@ function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupan
         const a = edge.cellRoute.points[index - 1]!, b = edge.cellRoute.points[index]!
         const dx = Math.sign(b.x - a.x), dy = Math.sign(b.y - a.y), mask = dx ? 10 : 5
         for (let x = a.x, y = a.y;; x += dx, y += dy) {
-          const key = `${x},${y}`; routed.set(key, (routed.get(key) ?? 0) | mask)
+          const key = cellKey(x, y); routed.set(key, (routed.get(key) ?? 0) | mask)
           if (x === b.x && y === b.y) break
         }
       }

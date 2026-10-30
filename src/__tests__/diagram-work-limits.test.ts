@@ -262,6 +262,24 @@ describe('work grows with the diagram, not with its square', () => {
     expect(double / single).toBeLessThan(2.5)
   })
 
+  test('flowchart terminal route search grows with the routes, not with the rectangles between their ends', () => {
+    // A square grid plus corner-to-corner edges draws linearly more ink as
+    // nodes double, but first-in first-out A* flooded each long edge's whole
+    // bounding rectangle: about 2.9x the search work per doubling.
+    const grid = (size: number): string => {
+      const side = Math.round(Math.sqrt(size)), lines = ['flowchart TD']
+      for (let i = 0; i < size; i++) {
+        if (i % side + 1 < side && i + 1 < size) lines.push(`  g${i} --> g${i + 1}`)
+        if (i + side < size) lines.push(`  g${i} --> g${i + side}`)
+      }
+      for (let i = 0; i < side; i++) lines.push(`  g${i} --> g${size - 1 - i}`)
+      return lines.join('\n')
+    }
+    const single = work('terminal-route-search', () => renderMermaidASCII(grid(75))), double = work('terminal-route-search', () => renderMermaidASCII(grid(150)))
+    expect(single).toBeGreaterThan(0)
+    expect(double / single).toBeLessThan(2.5)
+  })
+
   test('Class layout admission work grows linearly with an inheritance tree of hundreds of cards', () => {
     // 280 cards spent the whole budget while the final contact check charged
     // every pair of route segments.
