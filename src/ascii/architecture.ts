@@ -606,7 +606,9 @@ function settleArchitectureBoxes(boxes: CellBox[]): void {
       // Every header line is occupied geometry, including an empty group header.
       if (parent && box.y < parent.y + parent.labelLines.length + BOX_GAP) move(box, parent.y + parent.labelLines.length + BOX_GAP - box.y)
       for (;;) {
-        const blockers = placed.filter(other => boxesOverlap(envelope(box), envelope(other)))
+        // Port envelopes may meet, but two frames never share or abut a line:
+        // a frame touching its sibling reads as one merged border.
+        const blockers = placed.filter(other => boxesOverlap(envelope(box), envelope(other)) || boxesOverlap({ ...box, x: box.x - 1, y: box.y - 1, width: box.width + 2, height: box.height + 2 }, other))
         if (!blockers.length) break
         move(box, Math.max(...blockers.map(other => bottom(other) + Math.max(BOX_GAP, (other.clearance?.B ?? 0) + (box.clearance?.T ?? 0)) + 1)) - box.y)
       }
