@@ -3046,7 +3046,7 @@ describe('port-lane foreign painted corridors', () => {
     const nodes = [node('F', -100, 52), node('N', 102.5, 50), node('C', x - 20, -40), node('D', endX - 20, 100)]
     const edges: PositionedEdge[] = [
       { source: 'F', target: 'N', style: 'solid', hasArrowStart: false, hasArrowEnd: false, points: [{ x: -60, y: 72 }, { x: 80, y: 72 }, { x: 80, y: 70 }, { x: 102.5, y: 70 }] },
-      { source: 'C', target: 'D', style: 'solid', hasArrowStart: false, hasArrowEnd: true, curve: 'basis', points: [{ x, y: 0 }, { x: endX, y: 100 }] },
+      { source: 'C', target: 'D', style: 'solid', hasArrowStart: false, hasArrowEnd: true, curve: 'bumpX', points: [{ x, y: 0 }, { x: endX, y: 100 }] },
     ]
     const groups: PositionedGroup[] = nodes.filter(n => n.id !== 'N').map(n => ({ id: `pin-${n.id}`, label: '', x: n.x - 1, y: n.y - 1, width: 42, height: 42, headerHeight: 0, children: [] }))
     const style = { ...resolveRenderStyle(), nodeLineWidth: .75, cornerRadius: 0, lineWidth: 1, edgeBendRadius: 0 }

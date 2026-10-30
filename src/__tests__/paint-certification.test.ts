@@ -1568,13 +1568,43 @@ test.each((['curves', 'cylinder15', 'cylinder9'] as const).flatMap(kind =>
       const startY = (Number(sourceBody.y) * 100 + Number(sourceBody.height) * 100 * (index === 0 ? 1 : 2) / 3) / 100
       const endY = (Number(targetBody.y) * 100 + Number(targetBody.height) * 50) / 100
       expect(element.name).toBe('path')
-      expect(element.attributes.d!.match(/[A-Za-z]/g)).toEqual(['M', 'C', 'C', 'C'])
-      expect(element.attributes.d!.match(/[-+]?(?:\d+\.?\d*|\.\d+)/g)!.map(Number)).toEqual([100, startY, 112, startY, 112, startY, 124, startY, 124, startY, 124, endY, 124, endY, 136, endY, 136, endY, 148, endY])
+      const commands = [...element.attributes.d!.matchAll(/([MLC])([^MLC]*)/g)].map(match => ({ command: match[1], values: match[2]!.match(/[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi)!.map(Number) }))
+      const knots = [[100, startY], [124, startY], [124, endY], [148, endY]]
+      expect(commands.map(command => command.values.slice(-2))).toEqual(knots)
+      let dx = 1, dy = 0
+      if (index === 0) {
+        expect(commands.map(command => command.command)).toEqual(['M', 'L', 'L', 'L'])
+        expect(commands.every(command => command.values.length === 2)).toBe(true)
+      } else {
+        expect(commands.map(command => command.command)).toEqual(['M', 'C', 'C', 'C'])
+        for (let segment = 1; segment < commands.length; segment++) {
+          const values = commands[segment]!.values
+          expect(values).toHaveLength(6)
+          for (const axis of [0, 1]) {
+            // A natural spline interpolates these independently authored
+            // knots, has zero endpoint curvature and shares first/second
+            // derivatives at each unit-parameter knot. The old mid-X
+            // cubics fail at both noncollinear interior joins.
+            if (segment === 1) expect(knots[0]![axis]! - 2 * values[axis]! + values[axis + 2]!).toBeCloseTo(0, 7)
+            if (segment === commands.length - 1) expect(values[axis + 4]! - 2 * values[axis + 2]! + values[axis]!).toBeCloseTo(0, 7)
+            if (segment > 1) {
+              const previous = commands[segment - 1]!.values, knot = knots[segment - 1]![axis]!
+              expect(knot - previous[axis + 2]!).toBeCloseTo(values[axis]! - knot, 7)
+              expect(knot - 2 * previous[axis + 2]! + previous[axis]!).toBeCloseTo(values[axis + 2]! - 2 * values[axis]! + knot, 7)
+            }
+          }
+        }
+        const last = commands.at(-1)!.values, length = Math.hypot(last[4]! - last[2]!, last[5]! - last[3]!)
+        expect(length).toBeGreaterThan(0)
+        dx = (last[4]! - last[2]!) / length; dy = (last[5]! - last[3]!) / length
+        expect(Math.abs(dy)).toBeGreaterThan(0.1)
+      }
       expect(targetBody).toMatchObject({ x: '148', width: '60', height: '36.9', fill: '#f9f9f9', stroke: '#949495', 'stroke-width': '0.75' })
-      // Written last two controls(136,y) and tip(148,y) give an eastward
-      // actual terminal derivative. The default-unit clipped marker spans
-      // x[132,148],y±5 for thick e1, and x[140,148],y±2.5 for e2.
-      poses.set(element.attributes['data-id']!, { x: 148, y: endY, dx: 1, dy: 0, target, index })
+      // The same actual derivative maps default-unit arrow-fill patches;
+      // each remains outside the target's actual left-side fill.
+      const width = Number(element.attributes['stroke-width'])
+      for (const sign of [-1, 1]) expect(148 - 4 * width * dx - sign * width * dy).toBeLessThan(148)
+      poses.set(element.attributes['data-id']!, { x: 148, y: endY, dx, dy, target, index })
     }
     selected = ['e1', 'e2']
   } else {

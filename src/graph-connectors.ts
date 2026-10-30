@@ -1,9 +1,10 @@
-import type { EdgeMarker, Point, PositionedEdge } from './types.ts'
+import type { EdgeMarker, PositionedEdge } from './types.ts'
 import { ARROW_HEAD } from './styles.ts'
 import type { MarkerDescriptor } from './scene/ir.ts'
 import { prepareMarkerTerminals } from './scene/marker-terminals.ts'
 import { tipAnchoredArrow } from './scene/marker-resources.ts'
-import { connectorContourSemantics, projectConnectorPath, projectRoundedConnectorPath, type ConnectorPathProjection, type ConnectorPathProjectionSegment } from './scene/connector-geometry.ts'
+import { connectorContourSemantics, projectRoundedConnectorPath, type ConnectorPathProjection } from './scene/connector-geometry.ts'
+import { projectGraphCurve } from './graph-curve.ts'
 import { connectorMarkerPaintRegions, type ConnectorMarkerPaintRegion } from './scene/bounds.ts'
 import { canonicalTextDigest } from './render-contract.ts'
 
@@ -115,28 +116,10 @@ export function graphEdgeTerminalClearance(edge: Pick<PositionedEdge, 'style' | 
   }
 }
 
-function pointsToCurveProjection(points: Point[]): ConnectorPathProjection {
-  const first = points[0]!
-  let d = `M ${first.x} ${first.y}`
-  const segments: ConnectorPathProjectionSegment[] = []
-  for (let index = 1; index < points.length; index++) {
-    const previous = points[index - 1]!
-    const point = points[index]!
-    const mx = (previous.x + point.x) / 2
-    d += ` C ${mx} ${previous.y}, ${mx} ${point.y}, ${point.x} ${point.y}`
-    segments.push({
-      kind: 'cubic',
-      control1: { x: mx, y: previous.y },
-      control2: { x: mx, y: point.y },
-      end: point,
-    })
-  }
-  return projectConnectorPath(d, first, segments)
-}
-
 /** The same typed path drives marker tangents during placement and lowering. */
 export function graphEdgePathProjection(edge: PositionedEdge, style: { edgeBendRadius?: number; lineWidth?: number }): ConnectorPathProjection | undefined {
-  return edge.curve ? pointsToCurveProjection(edge.points)
+  const curve = edge.curve
+  return curve ? projectGraphCurve(edge.points, curve)
     : (style.edgeBendRadius ?? 0) > 0 ? projectRoundedConnectorPath(edge.points, style.edgeBendRadius!, { terminalClearance: graphEdgeTerminalClearance(edge, style) }) : undefined
 }
 
