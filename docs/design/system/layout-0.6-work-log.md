@@ -3343,3 +3343,77 @@ No production check, budget, correctness expectation or existing CI gate is
 relaxed. Continue concrete fixes and honest actual-render/metric comparisons,
 reporting each measured domain and counterexample. Existing sealed artifacts
 remain sealed under their custody rules; they do not create a new release gate.
+
+### 30 October: published-source precision-text subtraction and live status
+
+Runtime change `2acc924ce60f6aa7d4a87d83e2d0007e317ff427`, over published
+`fac4f0c8557ac1343eefe5438556dd7cf5818ef9`, removes eager precision-text
+receipt callbacks and retained attribute records. Only an existing active
+fractional proof inspects its actual same-emission single-line SVG, using a
+closed, paid canonical attribute/content grammar. Exact typography, prepared
+metrics, ownership, getter/depth/CSS isolation and all caps remain. Ordinary
+text no longer performs unused precision capture; no global result cache,
+second geometry writer, family exemption or changed fee for retained work is
+introduced. The optional R21 metadata and R22/R23 THIN drafts closed zero large
+cases and were dropped. A first lazy parser also regressed diagram206 through
+extra generic XML decoding; that epoch was rejected. The final grammar removes
+those performed generic passes instead of waiving their cost.
+
+The canonical regression has 1,500 prepared labels and an unused arrow
+resource, with zero marker occurrences. Before the change, the actual output is
+unverified at 400,000 operations. Afterward it passes at **382,336/400,000**,
+with identical **329,865-byte SVG**. Its owning test independently reads all
+1,500 actual text elements, authored occurrence IDs/order and typography, and
+observes first/last glyph removal in two small pinned-font raster crops. On
+unchanged parent production the test fails only at its final passed-proof
+assertion after 3,011 actual-output/contract assertions; the same test passes
+with this change. These two crop witnesses do not claim that all 1,500 glyphs
+were separately raster-observed. The 32-marker variant remains enrolled and U;
+it is not silently removed or converted to an expected success.
+
+The complete paint/Scene owners pass **666 unique tests / 11,917 assertions**
+across seven files using three disjoint/exhaustive partitions (18 +45 +603).
+The standalone green regression replay is not added to that unique count.
+Prepared-text/cache owners pass **74 tests / 327 assertions**. Canonical core
+and repository types and full lint pass. All seven checks keep 1,480 source
+files byte-identical before/at-lock/after, retain existing 117+3-second product
+and 300+3-second type bounds, and reap owned descendants. Independent read-only
+review found no introduced authority defect and confirmed exact correspondence
+of the reviewed four-file overlay to the committed runtime. Exact commands,
+red/green logs, artifacts, byte comparisons and cleanup records are under
+`/tmp/pr449-completion-20261029/canonical-text-subtraction-{red,green}/` and
+`conditional-text-subtraction/`. No timing campaign was run.
+
+Latest fetched Main remains `1fc21f5181db543c7a9735dbd166ad89d8dae03f`.
+PR449 is merged/closed; follow-ups remain on its retained branch. The separate
+Main integration is still uncommitted, and no completed rebase is claimed.
+Incoming Main's inherited descriptor-value and unbounded Native depth shortcut
+remain corrected in that isolated candidate. Five Sol6.1 High agents split
+cleanup, authority/CI/history reviews and evidence auditing; no competing
+writers or uncommitted changes were overwritten. Published ancestry is
+preserved and no force push is used.
+
+After applying the same four files there, the exact seven previously failing
+owning cases are **1P/6F**. The existing no-marker case passes. Remaining valid
+admission gaps are Class128 in TB/BT/LR/RL, ER256 Native and 1,500 text labels
+with 32 decorative markers. These are budget refusals; no demonstrated accepted
+wrong drawing is inferred from them. Their checks/caps are not relaxed to make
+the Main integration green. This failing integration is not published.
+
+A separate private-Main overlay acquisition preserves **28 unique original-seven
+OFF cells** (two graph backends × two writers × seven sources) plus four
+identical-source206 repeat calls: all32P and SVG bytes baseline-equal. This is
+not NORMAL-cache, strict-execution, holdout, raster or final-published-head
+qualification. Its Native Agentic206 uses396,056/400,000, leaving3,944 operations;
+that observation is not assigned to this canonical revision. The earlier full
+230-input development and public-peer campaigns also keep their earlier exact
+revisions. Current Agentic peer arms and the sealed replacement holdout remain
+unacquired. Human participants are optional research, not a blocker.
+
+At this commit, final-head CI is not yet observed; dispatch it after the normal
+fast-forward-safe push and report its actual result separately. No parity with
+ELK in correctness, aesthetics, timing, memory or delivery size is claimed.
+Next concrete step: trace and remove duplicate context/capture work in the
+32-marker counterexample, close the remaining six owning refusals, then finish
+the Main integration and rerun the affected combined-candidate checks. No new
+issue, PR, package, version bump or default-backend change is created.
