@@ -412,9 +412,12 @@ describe('bounded final layout certification', () => {
       expect(calls).toBe(1)
       expect(ordinary.certification?.preference.reason).toBe('first-certified')
       calls = 0
+      // Without subgraphs the separate-hierarchy candidate still changes ELK's
+      // root hierarchy mode, so a placement with a crossing compares it; the
+      // co-rank variants are no-ops here and are not produced.
       const crossing = layoutGraphSync(parseMermaid('flowchart TD\nA[Start] --> B{Is it?}\nB -->|Yes| C[OK]\nC --> D[Rethink]\nD --> B\nB ---->|No| E[End]'))
-      expect(calls).toBe(1)
-      expect(crossing.certification?.preference.compared).toHaveLength(1)
+      expect(calls).toBe(2)
+      expect(crossing.certification?.preference.compared.map(candidate => candidate.strategy)).toEqual(['default', 'separate-hierarchy'])
       calls = 0
       const alreadySeparate = layoutGraphSync(parseMermaid('flowchart TB\nc1-->a2\nsubgraph one\ndirection TB\na1\nend\na1-->a2\nsubgraph two\nb1-->b2\nend\nsubgraph three\nc2\nend\nc1-->c2\none --> two\nthree --> two\ntwo --> c2'))
       // A header-clear, zero-crossing placement has no reason to run the
@@ -426,6 +429,33 @@ describe('bounded final layout certification', () => {
       expect(alreadySeparate.certification?.preference.routing).toBeUndefined()
       expectClearZeroFixture(alreadySeparate)
     } finally { firstPass.run = run }
+  })
+
+  // Sweep seed 10166 has no subgraphs. Its default placement certifies with
+  // two crossings; the separate-hierarchy placement certifies with none and
+  // was never compared, on the false premise that it repeats the default.
+  test('a graph without subgraphs draws the separate-hierarchy placement when it ranks better', () => {
+    const source = 'flowchart LR\n  n0{Node 0}\n  n1(Node 1)\n  n2((Node 2))\n  n3([Node 3])\n  n4{Node 4}\n  n5{Node 5}\n  n6(Node 6)\n  n7([Node 7])\n  n8{Node 8}\n  n9((Node 9))\n  n10(Node 10)\n  n11[Node 11]\n  n12(Node 12)\n  n1 ==>|e0| n1\n  n9 --- n0\n  n3 <-->|e2| n8\n  n10 -.->|e3| n4\n  n9 --o n12\n  n1 <-->|e5| n5\n  n5 <-->|e6| n10\n  n2 ==> n4\n  n2 --- n10\n  n12 --o|e9| n11\n  n12 <--> n2\n  n0 <--> n7\n  n6 -.-> n1\n  n6 ==> n10\n  n12 ==>|e14| n7\n  n9 --x n1\n'
+    const graph = parseMermaid(source)
+    const positioned = layoutGraphSync(graph), preference = positioned.certification!.preference
+    expect(preference.compared.map(candidate => candidate.strategy)).toContain('separate-hierarchy')
+    const independent = assessLayout(graph, positioned, resolveRenderStyle({})).metrics.edgeCrossings
+    expect(independent).toBe(preference.selectedScore.edgeCrossings)
+    expect(independent).toBe(Math.min(...preference.compared.map(candidate => candidate.score.edgeCrossings)))
+    expect(independent).toBe(0)
+  })
+
+  // Sweep seed 10529 (ops-schematic): the default placement reaches one
+  // crossing only through its unbundled route proposal. Ranking placements by
+  // their bundled scores alone drew separate-hierarchy with two.
+  test('placements are ranked with their route proposals', () => {
+    const source = 'flowchart TD\n  n0{Node 0}\n  n1[Node 1]\n  n2[/Node 2/]\n  n3[/Node 3/]\n  n4[/Node 4/]\n  n5[/Node 5/]\n  n6(Node 6)\n  n7((Node 7))\n  n8(Node 8)\n  n9([Node 9])\n  n10([Node 10])\n  n11[Node 11]\n  n12[/Node 12/]\n  n13[Node 13]\n  n9 --o n2\n  n5 --x n2\n  n2 -.-> n2\n  n11 --> n1\n  n3 --> n2\n  n4 --o n3\n  n0 --- n8\n  n8 -->|e7| n0\n  n1 -.-> n11\n  n2 -.->|e9| n0\n  n13 --x|e10| n9\n  n7 ==>|e11| n0\n  n8 --o|e12| n6\n  n2 --- n10\n  n8 --o|e14| n2\n  n3 --x n8\n  n12 --x|e16| n4\n  n7 --- n4\n  n4 --o n4\n'
+    const options = { style: 'ops-schematic' }
+    const positioned = positionResolvedFamily('flowchart', resolveRenderRequestForExecution(source, options, 'svg')).positioned as PositionedGraph
+    const preference = positioned.certification!.preference
+    expect(preference.compared.length).toBeGreaterThan(1)
+    expect(preference.selectedScore.edgeCrossings).toBe(1)
+    expect(preference.selectedScore.edgeCrossings).toBeLessThanOrEqual(Math.min(...preference.compared.map(candidate => candidate.score.edgeCrossings)))
   })
 
   test('a real crossing graph bounds comparisons while retaining authored endpoints and zero-crossing ink', () => {
@@ -445,9 +475,10 @@ describe('bounded final layout certification', () => {
       { id: 'one', nodes: ['a1'] }, { id: 'three', nodes: ['c2'] }, { id: 'two', nodes: ['b1', 'b2'] },
     ])
     // The default placement certifies only by detouring routes around title
-    // bands, so it defers to the separate-hierarchy placement, which needs none.
+    // bands, so it defers; every remaining placement is compared and the first
+    // that needs no detour is drawn.
     expect(preference.reason).toBe('unreadableTitles')
-    expect(preference.compared.map(candidate => [candidate.strategy, candidate.score.unreadableTitles])).toEqual([['default', 1], ['separate-hierarchy', 0]])
+    expect(preference.compared.map(candidate => [candidate.strategy, candidate.score.unreadableTitles])).toEqual([['default', 1], ['separate-hierarchy', 0], ['without-corank', 1], ['separate-without-corank', 0]])
     const placement = preference.compared.find(candidate => candidate.strategy === certification.strategy)
     expect(placement).toBeDefined()
     // The selected placement already has zero crossings and label conflicts;
@@ -721,7 +752,9 @@ describe('bounded final layout certification', () => {
     expect(positioned.certification?.attempts).toBe(2)
   })
 
-  test.each(['title', 'quality'] as const)('a certified fallback survives an invalid %s alternative without an extra production', preference => {
+  // A title or quality probe compares every remaining alternative it may use,
+  // so an invalid one does not end it.
+  test.each(['title', 'quality'] as const)('a certified fallback survives an invalid %s alternative', preference => {
     const graph = parseMermaid('flowchart LR\nA --> B\nC --> D')
     const clean = routeWitness(graph, { A: [20, 100], B: [260, 100], C: [140, 20], D: [140, 220] }, [[[60, 120], [260, 120]], [[160, 60], [160, 220]]])
     const invalid = structuredClone(clean)
@@ -744,15 +777,17 @@ describe('bounded final layout certification', () => {
         },
       },
       {
-        strategy: 'unused',
+        strategy: 'later',
         produce: () => {
           calls++
           return clean
         },
       },
     ])
-    expect(calls).toBe(2)
-    expect(positioned.certification).toMatchObject({ status: 'passed', strategy: 'default', attempts: 2, hardViolations: 0 })
+    expect(calls).toBe(3)
+    // The later candidate's titles are readable, so it outranks the deferred
+    // default; on the quality probe the two tie and candidate order keeps it.
+    expect(positioned.certification).toMatchObject({ status: 'passed', strategy: preference === 'title' ? 'later' : 'default', attempts: 3, hardViolations: 0 })
   })
 
   test.each([

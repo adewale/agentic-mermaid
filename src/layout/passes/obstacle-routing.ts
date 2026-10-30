@@ -79,10 +79,10 @@ export function reanchorOffOutlineEndpoints(nodes: PositionedNode[], edges: Posi
  * — which the HARD-clean corpus never has — so it is a strict no-op there and
  * byte-exact equivalence holds. Edge-only, deterministic (fixed candidate
  * order); label re-centred on the new route. Self-loops are skipped. Returns
- * how many title-band entries it repaired: the caller ranks such a placement
- * below an alternative that needed no detour.
+ * how many routes it rebuilt and how many of those entered a title band: the
+ * caller ranks such placements against alternatives that needed no repair.
  */
-export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: PositionedEdge[], graph: Pick<MermaidGraph, 'direction'>, chargeWork?: (operations: number) => void, groups: readonly PositionedGroup[] = []): number {
+export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: PositionedEdge[], graph: Pick<MermaidGraph, 'direction'>, chargeWork?: (operations: number) => void, groups: readonly PositionedGroup[] = []): { titleBandRepairs: number; repaired: number } {
   const f = layoutFlow(graph.direction)
   chargeWork?.(nodes.length)
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
@@ -273,7 +273,7 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     }
   }
   collectFrames(groups)
-  let titleBandRepairs = 0
+  let titleBandRepairs = 0, repaired = 0
   for (const edge of edges) {
     chargeWork?.(1)
     if (edge.source === edge.target || edge.points.length < 2) continue
@@ -313,8 +313,9 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     recertifyReroutedEdge(edge, savedCert, nodeMap.get(edge.source), nodeMap.get(edge.target))
     if (edge.label) edge.labelPosition = calculatePathMidpoint(route)
     if (entersBand) titleBandRepairs++
+    repaired++
   }
-  return titleBandRepairs
+  return { titleBandRepairs, repaired }
 }
 
 export function collapseTinyBundledHitches(nodes: PositionedNode[], edges: PositionedEdge[], bundled: Set<PositionedEdge>): void {
@@ -382,7 +383,7 @@ const TERMINAL_STUB = 12
  * Bundle-owned routes and self-loops keep their own owners. Fires only on an
  * invalid approach, which no certified layout has.
  */
-export function repairInwardEndpointApproaches(nodes: PositionedNode[], edges: PositionedEdge[], groups: readonly PositionedGroup[], skipEdge: (edge: PositionedEdge) => boolean = () => false): void {
+export function repairInwardEndpointApproaches(nodes: PositionedNode[], edges: PositionedEdge[], groups: readonly PositionedGroup[], skipEdge: (edge: PositionedEdge) => boolean = () => false): number {
   const nodeMap = new Map(nodes.map(node => [node.id, node]))
   const normals = { N: { x: 0, y: -1 }, S: { x: 0, y: 1 }, E: { x: 1, y: 0 }, W: { x: -1, y: 0 } } as const
   const outsideBox = (point: Point, node: PositionedNode): boolean =>
@@ -391,6 +392,7 @@ export function repairInwardEndpointApproaches(nodes: PositionedNode[], edges: P
     const gaps = [['N', Math.abs(point.y - node.y)], ['S', Math.abs(point.y - node.y - node.height)], ['W', Math.abs(point.x - node.x)], ['E', Math.abs(point.x - node.x - node.width)]] as const
     return [...gaps].sort((a, b) => a[1] - b[1])[0]![0]
   }
+  let repairs = 0
   for (const edge of edges) {
     if (edge.source === edge.target || edge.style === 'invisible' || edge.points.length < 2 || skipEdge(edge)) continue
     const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
@@ -440,7 +442,9 @@ export function repairInwardEndpointApproaches(nodes: PositionedNode[], edges: P
     edge.points = points
     recertifyReroutedEdge(edge, savedCert, source, target)
     if (edge.label) edge.labelPosition = calculatePathMidpoint(points)
+    repairs++
   }
+  return repairs
 }
 
 /**
@@ -457,10 +461,11 @@ export function repairInwardEndpointApproaches(nodes: PositionedNode[], edges: P
  * segments), clears every title band, and has no more invalid endpoint
  * approaches. Fires only on a diagonal, which no certified layout has.
  */
-export function repairResidualDiagonals(nodes: PositionedNode[], edges: PositionedEdge[], groups: readonly PositionedGroup[], skipEdge: (edge: PositionedEdge) => boolean = () => false): void {
+export function repairResidualDiagonals(nodes: PositionedNode[], edges: PositionedEdge[], groups: readonly PositionedGroup[], skipEdge: (edge: PositionedEdge) => boolean = () => false): number {
   const nodeMap = new Map(nodes.map(node => [node.id, node]))
   // The rubric's diagonal: both offsets beyond 0.01px (sub-hundredth slopes are roundoff).
   const diagonalAt = (pts: readonly Point[]): number => pts.findIndex((point, index) => index > 0 && Math.abs(point.x - pts[index - 1]!.x) > 0.01 && Math.abs(point.y - pts[index - 1]!.y) > 0.01)
+  let repairs = 0
   for (const edge of edges) {
     if (edge.source === edge.target || edge.style === 'invisible' || edge.points.length < 2 || skipEdge(edge)) continue
     const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
@@ -508,5 +513,7 @@ export function repairResidualDiagonals(nodes: PositionedNode[], edges: Position
     edge.points = points
     recertifyReroutedEdge(edge, savedCert, source, target)
     if (edge.label) edge.labelPosition = calculatePathMidpoint(points)
+    repairs++
   }
+  return repairs
 }

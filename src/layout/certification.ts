@@ -65,9 +65,15 @@ export interface LayoutCertificationCandidate {
   /** Try the next bounded candidate first, retaining this already certified
    * result if the preferred alternative fails. Runs inside this attempt. */
   preferNext?: (positioned: PositionedGraph) => boolean
-  /** A fallback may be identical for this graph (for example hierarchy mode
-   * without groups). It remains available after failure, but is not a quality
-   * probe. At most one eligible alternative is produced after certification. */
+  /** The placement certified only through a post-route safety repair. It is
+   * compared with the remaining quality alternatives even without crossings
+   * or label conflicts, so a repair never displaces a cleaner alternative. */
+  compareFurther?: (positioned: PositionedGraph) => boolean
+  /** A fallback may be identical for this graph (for example SEPARATE
+   * hierarchy mode when the default is already SEPARATE). It remains available
+   * after failure, but is not a quality probe. A probe produces every
+   * remaining eligible alternative (within MAX_LAYOUT_CANDIDATES) and keeps
+   * the best certified one. */
   qualityAlternative?: boolean
 }
 
@@ -316,6 +322,8 @@ interface CertifiedCandidate {
   positioned: PositionedGraph
   strategy: string
   score: LayoutPreferenceScore
+  /** Certified only through a post-route safety repair (compareFurther). */
+  repaired?: true
 }
 
 interface CertifiedSelection {
@@ -323,6 +331,8 @@ interface CertifiedSelection {
   reason: LayoutPreferenceEvidence['reason']
   compared: Array<{ strategy: string; score: LayoutPreferenceScore }>
   attempts: number
+  /** Every certified placement, in candidate order (the selected one included). */
+  certified?: CertifiedCandidate[]
 }
 
 /** A produced candidate whose every failure is drawable. `violations` holds
@@ -373,7 +383,7 @@ function certifyCandidateForPurpose(graph: MermaidGraph, style: ResolvedRenderSt
     return {
       attempt: { strategy: candidate.strategy, violations },
       ...(violations.length === 0 && rubric ? {
-        certified: { positioned, strategy: candidate.strategy, score: preferenceScore(positioned, rubric.metrics, preferNext) },
+        certified: { positioned, strategy: candidate.strategy, score: preferenceScore(positioned, rubric.metrics, preferNext), ...(candidate.compareFurther?.(positioned) ? { repaired: true as const } : {}) },
       } : {}),
       ...(drawable ? {
         drawable: { positioned, strategy: candidate.strategy, violations: [...findings.map(finding => finding.drawable!), ...hard.map(rubricViolation)], complete: rubric !== undefined },
@@ -423,10 +433,12 @@ function selectCertifiedCandidates(graph: MermaidGraph, style: ResolvedRenderSty
   const bounded = preliminary ? [preliminary, ...fallbacks] : fallbacks
   let deferred: CertifiedCandidate | undefined
   let probe: 'readability' | 'routing' | undefined
+  let routingReason: LayoutPreferenceEvidence['reason'] | undefined
   let rejected = false
   const compared: CertifiedSelection['compared'] = []
+  const certifiedPlacements: CertifiedCandidate[] = []
   const accept = (selected: CertifiedCandidate, reason: LayoutPreferenceEvidence['reason']): CertifiedSelection =>
-    ({ selected, reason, compared, attempts: attempts.length })
+    ({ selected, reason, compared, attempts: attempts.length, certified: certifiedPlacements })
   for (const [index, candidate] of bounded.entries()) {
     if (deferred && probe === 'routing' && candidate.qualityAlternative === false) continue
     if (rejected) {
@@ -439,9 +451,16 @@ function selectCertifiedCandidates(graph: MermaidGraph, style: ResolvedRenderSty
     const certified = result.certified
     if (certified) {
       compared.push({ strategy: certified.strategy, score: certified.score })
+      certifiedPlacements.push(certified)
       if (deferred) {
         const choice = preferredCandidate(deferred, certified)
-        return accept(choice.selected, choice.reason)
+        // A probe compares every remaining alternative it may use, so the
+        // selection is the best certified one, not merely the better of the
+        // first two (bounded by MAX_LAYOUT_CANDIDATES placements).
+        // The reason records the comparison the final selection last won.
+        if (choice.selected === certified || routingReason === undefined || routingReason === 'alternative-invalid') routingReason = choice.reason
+        deferred = choice.selected
+        continue
       }
       const alternatives = bounded.slice(index + 1)
       if (certified.score.unreadableTitles && alternatives.length > 0) {
@@ -449,17 +468,20 @@ function selectCertifiedCandidates(graph: MermaidGraph, style: ResolvedRenderSty
         probe = 'readability'
         continue
       }
-      if (certified.score.edgeCrossings === 0 && certified.score.labelConflicts === 0) return accept(certified, 'first-certified')
+      if (certified.score.edgeCrossings === 0 && certified.score.labelConflicts === 0 && !certified.repaired) return accept(certified, 'first-certified')
       if (!withinLayoutPreferenceBudget(graph)) return accept(certified, 'work-budget')
       if (!alternatives.some(alternative => alternative.qualityAlternative !== false)) return accept(certified, 'no-alternative')
       deferred = certified
       probe = 'routing'
       continue
     }
-    if (deferred) return accept(deferred, 'alternative-invalid')
+    if (deferred) {
+      routingReason ??= 'alternative-invalid'
+      continue
+    }
     rejected = true
   }
-  if (deferred) return accept(deferred, 'no-alternative')
+  if (deferred) return accept(deferred, routingReason ?? 'no-alternative')
   const uncertified = allowUncertified ? bestDrawableCandidate(graph, style, drawable) : undefined
   if (uncertified) return { uncertified, attempts: attempts.length }
   throw new LayoutCertificationError(attempts)
@@ -496,7 +518,8 @@ export function certifyLayoutPlacementCandidates(graph: MermaidGraph, style: Res
 }
 
 /** Hard feasibility gates every candidate. One additional certified alternative
- * may improve a title or a bounded graph with label conflicts or crossings.
+ * may improve a title; a bounded graph with label conflicts or crossings is
+ * compared against every remaining quality alternative.
  * Stable candidate-order ties never initiate another expensive production.
  * With `allowUncertified` (report layout safety), a graph no candidate
  * certifies returns its best drawable candidate with an uncertified receipt. */
@@ -520,27 +543,40 @@ export function certifyLayoutWithRouteAlternative(
   const placement = selectCertifiedCandidates(graph, style, candidates, preliminary, 'final', allowUncertified)
   // An uncertified placement has no certified score to compare a route against.
   if ('uncertified' in placement) return retainUncertified(graph, placement)
-  const placed = retainSelection(graph, placement)
-  const alternative = routeFor(placed, placement.selected.score)
-  if (!alternative) return placed
-  const baseline = { ...placement.selected, strategy: 'bundled' }
-  const result = certifyCandidate(graph, style, alternative)
-  const compared = [{ strategy: baseline.strategy, score: baseline.score }]
-  if (result.certified) compared.push({ strategy: result.certified.strategy, score: result.certified.score })
-  const choice = result.certified ? preferredCandidate(baseline, result.certified)
-    : { selected: baseline, reason: 'alternative-invalid' as const }
-  const routed = choice.selected.positioned
-  retainAuthoredMembership(graph, routed)
-  routed.certification = {
-    ...placed.certification!,
-    preference: {
-      ...placed.certification!.preference,
-      selectedScore: choice.selected.score,
-      routing: {
-        strategy: choice.selected === baseline ? 'bundled' : alternative.strategy,
-        preference: { selectedScore: choice.selected.score, reason: choice.reason, compared },
-      },
-    },
+  // The route proposal can change a placement's rank, so each certified
+  // placement is compared with its best route; the selected placement stays
+  // first and wins ties.
+  const routed = (placementCandidate: CertifiedCandidate) => {
+    const alternative = routeFor(placementCandidate.positioned, placementCandidate.score)
+    if (!alternative) return { placement: placementCandidate, final: placementCandidate, routing: undefined }
+    const baseline = { ...placementCandidate, strategy: 'bundled' }
+    const result = certifyCandidate(graph, style, alternative)
+    const compared = [{ strategy: baseline.strategy, score: baseline.score }]
+    if (result.certified) compared.push({ strategy: result.certified.strategy, score: result.certified.score })
+    const choice = result.certified ? preferredCandidate(baseline, result.certified)
+      : { selected: baseline, reason: 'alternative-invalid' as const }
+    return { placement: placementCandidate, final: choice.selected, routing: {
+      strategy: choice.selected === baseline ? 'bundled' as const : alternative.strategy,
+      preference: { selectedScore: choice.selected.score, reason: choice.reason, compared },
+    } }
   }
-  return routed
+  const selectedRoute = routed(placement.selected)
+  let best = selectedRoute, reason = placement.reason
+  for (const other of placement.certified ?? []) {
+    if (other === placement.selected) continue
+    const candidate = routed(other)
+    // A placement without a route proposal already lost the placement comparison.
+    if (!candidate.routing) continue
+    const choice = preferredCandidate(best.final, candidate.final)
+    if (choice.selected === candidate.final) { best = candidate; reason = choice.reason }
+  }
+  const placed = retainSelection(graph, { ...placement, selected: best.placement, reason })
+  if (!best.routing) return placed
+  const final = best.final.positioned
+  retainAuthoredMembership(graph, final)
+  final.certification = {
+    ...placed.certification!,
+    preference: { ...placed.certification!.preference, selectedScore: best.final.score, routing: best.routing },
+  }
+  return final
 }
