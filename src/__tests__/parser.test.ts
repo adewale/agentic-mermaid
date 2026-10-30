@@ -449,9 +449,11 @@ describe('parseMermaid – circle/cross endpoint markers', () => {
   })
 
   it('parses mixed source and target circle/cross markers', () => {
-    const graph = parseMermaid('graph LR\n  A o--x B\n  C x--o D')
+    const graph = parseMermaid('graph LR\n  A o--x B\n  C x--o D\n  E o-->|queue| F\n  G x---> H')
     expect(graph.edges[0]).toMatchObject({ startMarker: 'circle', endMarker: 'cross', hasArrowStart: true, hasArrowEnd: true })
     expect(graph.edges[1]).toMatchObject({ startMarker: 'cross', endMarker: 'circle', hasArrowStart: true, hasArrowEnd: true })
+    expect(graph.edges[2]).toMatchObject({ source: 'E', target: 'F', label: 'queue', startMarker: 'circle', endMarker: 'arrow', hasArrowStart: true, hasArrowEnd: true })
+    expect(graph.edges[3]).toMatchObject({ source: 'G', target: 'H', startMarker: 'cross', endMarker: 'arrow', hasArrowStart: true, hasArrowEnd: true, length: 2 })
   })
 
   it('keeps default arrow marker semantics for existing arrow syntax', () => {

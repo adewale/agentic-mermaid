@@ -90,6 +90,13 @@ cases already render on base `9b64b5f4`; they are controls, not gains attributed
 to this change. Mermaid's pinned grammar accepts the declaration but drops its
 semantic action; retaining the note is intentional.
 
+Solid Flowchart links retain distinct authored endpoint symbols, including
+`A o-->|queue| B` and `A x---> B`. Pinned Mermaid12.2.0 accepts these spellings
+but drops the start symbol; Pele1.9 does the same for the tested circle/arrow
+case. Ours retains both ends in the editable body, typed export and actual
+SVG. This grammar/meaning repair does not imply complete glyph or paint-proof
+coverage for labels using fallback fonts.
+
 Block terminal cards reserve actual face demand before routing, growing
 monotonically until allocated ports fit. Nested grid gutters derive from the
 router's protected approach distance and retain a free channel. Shared terminal
