@@ -4223,3 +4223,66 @@ finds Main `83744a4e1ae5c9d3821ba8a283811367fd31eade` and retained remote
 `d43ef02ee11f9c5f99d5138e9455f14efcbab27b`, both ancestors of that checkpoint;
 the implementation worktree is clean. This following entry changes only the
 work log. Exact-head CI is pending normal publication, not assumed successful.
+
+### 30 October08:37UTC: fix built module initialization without losing admission
+
+Published64e4be6ac at retained-head13996508f51984ae097bff7ab936c5d2d8a7ba1a
+with a normal D43fast-forward. Exact-head CI41024742203 completed red, despite
+independent semantic conformance and unit shard1 passing. Its built Node/browser
+imports and installed consumers expose a regression from9c9e6a320: serialization
+imports snapshot ownership, snapshot initializes its derived limits through
+validation-core, and that core also imports serialization. The newly closed
+initialization cycle reads SCENE_VALIDATION_LIMITS before initialization. A
+minimal actual Bun-built NodeESM/NodeCJS/browserESM reproduction fails in all
+three plain Node consumers at the same maxNodes read. This is an implementation
+defect, not an execution/access blocker or a test to waive.
+
+Tested subtraction first: reversing ONLY9c's two runtime hunks fixes all three
+imports and111owners, but restores structural reflection work. Actual Scene
+Class128RL regresses P378,281→U400,000 with unchanged SVG; LR changes to P398,330.
+That alternative is rejected and all Root edits from it were restored exactly
+from1399 before choosing the final fix. No reversal was committed or pushed.
+Its failed admission, source freeze and reports remain in scene-import-cycle/.
+
+The bounded adopted change puts the unchanged frozen9-value validation-limit
+object in a dependency-free leaf module. Validation-core imports and reexports
+the SAME binding; snapshot reads that leaf directly for its module-top derived
+limits, retaining its lazy core error/mode dependencies. Private snapshot
+completion authority, serialization, source getters, prices and all cap values
+are unchanged. All three minimal built artifacts now import in plain Node;
+actual SceneRL remains P378,281 with byte-identical188,701-byte SVG. An independent
+review runs core-first and snapshot-first in all three artifact formats:6/6
+fresh Node controls preserve core/leaf/public export identity, frozen values and
+descriptors, derived limits, detached snapshots, zero accessor reads, refusal of
+unissued receipts, and initialized capture/validator. No new state issuer exists.
+
+On the exact adopted Root files, canonical core+repository types and lint pass;
+118Native/writer/external-Scene/crisp owners pass851assertions, including CI's
+source import/conformance failure. All source/head guards and child cleanup pass.
+Evidence: scene-import-cycle/{LEAF-REPORT.json,LEAF-SOURCE-MANIFEST.json,
+leaf-root-adoption/BINDING.json,independent-leaf-review/RESULTS.json} and
+xml-adoption-checks/{types-limits-leaf,lint-limits-leaf,limits-leaf-owners}*.
+Full installed-package/tarball checks still require the next published-head CI;
+minimal artifact controls are not reported as a full-package pass.
+
+The1399CI unit failures separate into the six retained capacity cases, the
+initialization defect and its cross-runtime consequences, and an8-of322
+geometry-golden difference. Each golden needs actual review before an update;
+two candidate-selection changes and six earlier caption-only changes are under
+separate private attribution. Source-level pass counts do not erase these CI
+failures. Editor gzip remains1,397,265>1,334,500; lazy delivery has64distinct
+over-budget rows (26raw/19gzip/19Brotli). The generated diagnostic has no render
+errors but aesthetic tradeoffs. No limits or checks were changed.
+
+Fresh1399comparison results retain66ours cells: old20 strict33P/7U and
+normal26P/14U; Original7 both phases14P; authored6 each phase10P/2U. The123
+returned phase SVGs are well formed; source/options, owned labels and literal
+relations independently match. Twenty changed normal artifacts require fresh
+ink review; no universal geometry/parity claim follows. The original rich
+three-node mixed-marker case preserves all5authored heads, including positive
+off-shaft pixels for BOTH crosses on BOTH layouts. Its remaining strict U is
+a genuine correspondence/proof gap, not an observed missing head. The narrower
+ASCII-only text binding and compound stroke existence assumptions are being
+investigated without bypassing them. Replacement24 stays sealed. Next step:
+publish the limits fix with reviewed golden/owning changes when ready, rerun
+exact-head CI, and bind the final comparison to that combined source.

@@ -5,6 +5,8 @@
  * reference, and non-fetching checks before a backend can observe them.
  */
 
+import { SCENE_VALIDATION_LIMITS } from './scene-validation-limits.ts'
+export { SCENE_VALIDATION_LIMITS } from './scene-validation-limits.ts'
 import { assertInertGroup } from './group-emission.ts'
 import { isRetainedPixelText } from '../shared/prepared-text.ts'
 import { scanSvgStartTags, scanSvgStartTagsFresh } from '../svg-structure.ts'
@@ -43,18 +45,6 @@ import { canonicalizeSceneNodeSerialization, sceneNodeWrite, sceneNodeSerializat
 import { MARK_CLASS_TOKENS, MARK_DATA_KEY, WRITER_OWNED_DATA_KEYS } from './svg-writer.ts'
 
 export const SCENE_VALIDATION_VERSION = 2 as const
-export const SCENE_VALIDATION_LIMITS = Object.freeze({
-  maxExtent: 1_000_000,
-  maxNodes: 100_000,
-  maxDepth: 64,
-  maxTextLength: 1_000_000,
-  maxTextBytes: 2_000_000,
-  maxPoints: 50_000,
-  maxSerializationBytesPerNode: 5_000_000,
-  maxAggregateSerializationBytes: 16_000_000,
-  maxFinalSvgBytes: 8_000_000,
-} as const)
-
 export type SceneValidationDiagnosticCode =
   | 'SCENE_DOCUMENT'
   | 'SCENE_FINITE'
