@@ -4657,3 +4657,79 @@ owners; original formatted CJK/own-carrier surviving-ink proof; historical19
 normal-budget refusal; delivery ceilings; broader independent meaning coverage.
 Replacement24 remains sealed. No ready/all-seven-complete/parity claim, human
 study gate, version/default change, cap increase, new PR/issue or publication.
+
+### 30 October 14:45 UTC: reject stale capture authority; ship the independent legacy fix
+
+Independent falsification confirmed a legacy copy-plan bug as well as a bug in
+the private canonical API: changing ambient Math.max only while height metadata
+was built could admit scalar depth65 although the retained limit is64. Root
+reproduced the legacy false P2360 against actual H2 production with the new owner
+before changing production (one failing test). Commit3683f0a447998f9de0fd4416e79b1a8498cb421b
+uses a direct integer comparison for legacy metadata; depth64 stays P, depth65
+stays U under both ordinary and changed Math.max, with identical actual SVG.
+No budget, price, supported depth or fresh generic receiver policy changes.
+Evidence: capacity/ROOT-LEGACY-HEIGHT-RED.log, HEIGHT-AMBIENT-{R4,R5}.json.
+
+The revised private R5 API then failed a different, independently observed
+custody test: query-only Object.preventExtensions replacement left its returned
+root extensible. After restoration, adding deep own metadata yielded a stale
+height P1309 at scalar depth65; a fresh generic copy refused U1776. All four
+actual SVGs were byte-identical. No budget issue masked the result. R5 is
+REJECTED, not implemented, timed or adopted. Its source stays frozen and the
+counterexample/patch survive under capacity/PREVENT-EXTENSIONS-R5.json and
+prepared-canonical-rejected-r5-on-legacy.patch. The API closes none of the six
+legacy owners; adding production complexity for its unused mode is not justified.
+The independent legacy fix remains shipped. This is deliberate subtraction,
+not a new success assigned to the six refusals.
+
+Commit a8647fbe8d3d1f2b7b034db98a4616c1a029acab adds eight cases to the
+existing Architecture and Requirement owning tables, covering both layout
+backends and actual Native/Scene selection. Independently authored nested
+group/junction/physical-boundary expectations and repeated Requirement relation
+occurrences are checked against public models and actual SVG identities,
+connectivity, fields and captions. The two valid new sources match the selected
+meaning/visible-ink checks in pinned public Pele1.9 and Mermaid12.2.0 artifacts.
+Their original unquoted Requirement-ID source remains enrolled as unsupported
+by all three systems; the separately frozen quoted companion does not replace it.
+Requirement caption ownership lacks stable public per-relation keys and remains
+a stated limit. No glyph/marker visibility is inferred from DOM presence.
+Evidence: meaning-fonts/family-extension/{REPORT,ADOPTION}.md and SUMMARY.json.
+
+Root's combined three-owner run passes115tests/5742assertions. The initial
+sandbox run's six child-stdin EPERM failures remain in ROOT-H3-OWNERS.log;
+the supported local-child execution passes in ROOT-H3-OWNERS-QUALIFIED.log.
+These are unrelated to the six retained production-capacity failures. Canonical
+core/repository types pass in ROOT-H3-TYPES-FINAL.log after correcting a nullable
+fixture access; lint passes in ROOT-H3-LINT.log with only the existing oversized
+exclusions-file warning. Private narrowed typing/timeout attempts are preserved,
+not substituted for this canonical result.
+
+An isolated H3 diagnostic at a8647fbe8 completes eight fresh ELK/assertions0
+processes and64fully consumed calls, no timeouts/retries/remaining workers.
+Two fixed capacity sources, cache normal ABBA/off BAAB, report/strict, first/
+repeat retain exact actual SVGs and full receipts/refusals versus6f. All32report
+calls stay U and32strict calls refuse; no correctness status changes. Source,
+input and dependency guards pass. Eight-call wall sums: normal baseline9.665/
+8.293s versus H3 7.838/9.721s; off baseline14.714/14.126s versus H3 10.060/14.901s.
+Cached first mesh report is directionally slower (baseline2.829/3.400s versus
+H3 3.627/4.509s); inclusive layout contains most of that observation. Cache-off
+ranges overlap and same-runtime spread is substantial. This does not establish
+general preservation, a causal regression, or explain the full-batch timeouts.
+CPU includes process threads; inclusive stages are not additive. Evidence:
+curve-stage-discriminator/h3-run/{RESULTS.md,PAIRED-READBACK.json,LEDGER.json}.
+
+Commit24b8cae83b5dd644e0a0f68a5e68b753343abd87 includes the exact installed
+d3-shape1.3.7 and nested d3-path1.0.9 BSD licenses and notices through the existing
+LICENSES packaging glob. No dependency installation or package publication.
+The first two ordinary pushes hit GitHub internal server errors; the subsequent
+HTTP1.1/non-thin ordinary push published H2 bcbb56e16 without force. New verified
+commits use the same retained branch. PR449 is closed, so pushes do not trigger
+its PR CI; explicitly dispatch canonical CI on the final pushed ref and record
+its exact head/result before claiming readiness. No readiness claim is made.
+
+Next implementation priority is the remaining sound rich-text/own-carrier ink
+boundary and useful shared final-emission authority, with the six old capacity
+owners unchanged. Rejecting the unused canonical API avoids enlarging that task.
+Historical19 normal budget, default font-dependent shaping, public Requirement
+caption association, delivery caps and broader meaning evidence remain open.
+The campaign still ends31October12:03UTC; no automatic extension or holdout opening.
