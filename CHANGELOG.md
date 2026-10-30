@@ -4,6 +4,31 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+## 0.5.4 — 2026-10-30
+
+### Fixed
+
+- Render 128-card Class chains with Agentic and 128-entity ER chains with either
+  backend without exhausting paint certification or falling back to another
+  backend. Preserve authored identities and directed relationship endpoints.
+- Give independent self-loops and labelled relationships separate channels
+  where they previously shared unrelated connector segments. Reserve source
+  and target arrowhead clearance separately and measure the complete straight
+  terminal run, including redundant waypoints. Crowded fixed ports can still
+  prevent a short terminal from being extended.
+- Keep Scene group inspection and emitted paint consistent for joins, open and
+  closed paths, and transforms. Preserve immutable text ownership in private
+  cache copies while keeping public copies independent.
+
+### Performance
+
+- Reuse spatial queries in ER layout and paint certification, choosing linear
+  scans for small query batches and rebuilding indexes after routes move.
+  Supported sparse ER diagrams with 4,096–5,000 entities complete certification
+  within the existing 400,000-operation allowance; Agentic retains its
+  4,096-node cap. Avoid duplicate scene capture and immutable text processing
+  on large ER renders.
+
 ### Changed
 
 - Stop opening release-to-do issues automatically when deployment skips an
@@ -11,9 +36,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   deployments still close existing release-to-do issues.
 
 - Refresh MCP directory evidence, submission requirements and dated publication
-  status, including Smithery's 31 October service transition. Prepare source
-  version 0.5.4 because the updated listing record ships in the npm package;
-  the published 0.5.3 package remains immutable.
+  status, including Smithery's 31 October service transition.
 
 ## 0.5.3 — 2026-10-29
 
