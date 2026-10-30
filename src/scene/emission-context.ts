@@ -9,7 +9,7 @@ import { decodedSvgAttributeValue, scanSvgStartTags, scanSvgStartTagsFresh, type
 import type { ConnectorMark, DocumentMark, MarkerDescriptor, SceneDoc, SceneNode, TextMark } from './ir.ts'
 import { serializeMarkerResource } from './marker-resources.ts'
 import { parseSvgTransform, transformMatrix, type AffineMatrix } from './transforms.ts'
-import { writtenLeafContextOf, writtenTextContextOf } from './svg-writer.ts'
+import { writtenLeafContextOf } from './svg-writer.ts'
 
 type Header = Pick<SceneDoc, 'width' | 'height' | 'colors'>
 type Pay = (operations: number) => boolean
@@ -48,11 +48,6 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
   // Its disjoint text bounds additionally need correspondence with this write,
   // rather than a promise made by a caller's prepared-text metadata.
   const ringTextWrite = (node: TextMark, svg: string): boolean => {
-    // The private receipt comes from the same prepared single-line writer
-    // branch. Pay its exact returned-string match, not a second markup parse.
-    if (!reserve(svg.length * 2 + 8)) return false
-    const actual = writtenTextContextOf(node, svg)
-    if (!actual) return false
     const own = (value: object, name: string): unknown => {
       if (!reserve(4)) return unsupportedFractionalLeaf
       const descriptor = Object.getOwnPropertyDescriptor(value, name)
@@ -87,18 +82,41 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
     // edge; a third covers bounds arithmetic. Exact body contact gets no margin.
     if (!Number.isFinite(block.width) || block.width < 0 || block.width > 1e6
       || Math.abs(Number(formatSvgNumber(block.width)) - block.width) > 1 / 2000) return false
-    // The issuer observes every actual attribute and admits only the old
-    // inert allowlist, with no stroke/style/transform/spans or mono class.
-    // Its multiline branch owns the fixed prepared/fit attributes; this
-    // consumer still checks the exact served typography and plain content.
-    if (actual.content !== escapeXml(block.text)) return false
+    // Only an active precision domain inspects this occurrence's actual
+    // fragment. Prepay the two bounded lexical passes before locating quotes.
+    if (!reserve(svg.length * 2 + 8) || !svg.startsWith('<text ')) return false
+    const attributes: Record<string, string> = Object.create(null)
+    const attribute = / ([A-Za-z_:][A-Za-z0-9_.:-]*)="([^"<]*)"/y
+    let cursor = 5
+    while (svg[cursor] !== '>') {
+      attribute.lastIndex = cursor
+      const match = attribute.exec(svg)
+      if (!match) return false
+      const name = match[1]!, raw = match[2]!
+      // The actual writer uses escapeAttr: one canonical-escape/character
+      // pass replaces generic XML validation and decoding. Prepay it, plus
+      // name classification and duplicate/record custody, before checking.
+      if (!reserve(name.length * 2 + raw.length + 8) || Object.hasOwn(attributes, name)
+        || !/^(?:[^&<>"\0-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff\ufffe\uffff]|&(?:amp|lt|gt|quot|#39|#9|#10|#13);)*$/u.test(raw)) return false
+      if (!['x', 'y', 'dy', 'textLength', 'lengthAdjust', 'font-size', 'font-weight', 'text-anchor', 'font-family',
+        'fill', 'id', 'role', 'class', 'xml:space'].includes(name) && !name.startsWith('data-') && !name.startsWith('aria-')) return false
+      // Only canonical whitespace references can introduce class separators;
+      // other escaped entities cannot spell letters or whitespace in "mono".
+      if (name === 'class' && (!reserve(raw.length + 8) || raw.split(/(?:\s|&#(?:9|10|13);)+/).includes('mono'))) return false
+      attributes[name] = raw
+      cursor = attribute.lastIndex
+    }
+    const content = escapeXml(block.text), close = cursor + 1 + content.length
+    if (!reserve(content.length * 2 + 16) || svg.slice(cursor + 1, close) !== content || svg.slice(close) !== '</text>'
+      || attributes['data-prepared-text'] !== 'true' || attributes['data-font-metrics'] !== 'deterministic-fit'
+      || attributes.lengthAdjust !== 'spacingAndGlyphs'
+      || attributes['xml:space'] !== undefined && attributes['xml:space'] !== 'preserve') return false
+    if (!reserve(block.text.length + 8) || /(?:^ | $| {2})/.test(block.text) && attributes['xml:space'] !== 'preserve') return false
     const expected: Record<string, string | undefined> = {
       x: formatSvgNumber(x as number), y: formatSvgNumber(y as number), 'font-size': formatSvgNumber(size as number),
       'font-weight': formatSvgNumber(weight as number), 'text-anchor': own(node, 'anchor') as string,
       dy, textLength: formatSvgNumber(block.width), 'font-family': block.fontFamily,
     }
-    const attributes: Readonly<Record<string, string>> = Object.assign(Object.create(null), actual.attributes,
-      { x: actual.x, y: actual.y, dy: actual.dy, textLength: actual.textLength })
     for (const [name, value] of Object.entries(expected)) {
       const served = attributes[name]
       if (!reserve(name.length + (value?.length ?? 0) + (served?.length ?? 0) + 4) || served !== value) return false
