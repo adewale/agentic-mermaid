@@ -279,11 +279,13 @@ from the authored node ID `A`.
 am verify README.md --markdown --json
 ```
 
-This opt-in mode runs the existing verifier on every Mermaid code fence and
+This opt-in mode runs the existing verifier on top-level Mermaid code fences and
 returns `{ok,file,blocks}`. It checks all blocks even when one fails and uses
 the normal verification exit status. Backtick and tilde fences of three or more
 characters are supported, including longer fences around Markdown examples.
-Non-Mermaid fenced examples are skipped as whole blocks.
+Non-Mermaid fenced examples and HTML blocks/comments are skipped as whole blocks.
+Fences nested in lists or blockquotes require extraction by the host; this CLI
+mode does not provide a full Markdown AST or whole-document coverage of them.
 
 Each block reports its first physical source line. Warning lines are mapped to
 the Markdown file; `lineIsBlockStart: true` explicitly marks the fallback when

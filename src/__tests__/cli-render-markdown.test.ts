@@ -116,6 +116,25 @@ describe('Markdown verification', () => {
     expect(result.blocks[1].warnings[0]).toMatchObject({ line: 11, lineIsBlockStart: true })
   })
 
+  test.each([
+    ['<!--', '-->'], ['<pre>', '</pre>'], ['<script>', '</script>'],
+    ['<style>', '</style>'], ['<textarea>', '</textarea>'],
+    ['<?instruction', '?>'], ['<!DOCTYPE', '>'], ['<![CDATA[', ']]>'],
+    ['<div>', ''], ['<custom-widget data-name="example">', ''],
+  ])('ignores fence-looking text inside the HTML block %s', (open, close) => {
+    const md = [open, '```mermaid', 'not a diagram', '```', close, '', '~~~mermaid', 'flowchart LR', 'A-->B', '~~~'].join('\n')
+    const blocks = verifyMarkdownBlocks(md)
+    expect(blocks.map(block => [block.startLine, block.ok])).toEqual([[8, true]])
+    expect(renderMarkdownBlocks(md, 'ascii').map(block => block.ok)).toEqual([true])
+  })
+
+  test('HTML-looking text inside code and inline tags do not hide a later diagram', () => {
+    for (const prefix of ['```text\n<!--\n```', 'Paragraph\n<custom-widget>', '```not`a-fence\n<custom-widget>', '# Heading\n<custom-widget>\nnot a diagram\n']) {
+      const md = `${prefix}\n~~~mermaid\nflowchart LR\nA-->B\n~~~`
+      expect(verifyMarkdownBlocks(md).map(block => block.ok)).toEqual([true])
+    }
+  })
+
   test('empty Markdown and indented example fences contain no Mermaid blocks', () => {
     expect(verifyMarkdownBlocks('No diagrams.')).toEqual([])
     expect(verifyMarkdownBlocks('    ```mermaid\n    wrong\n    ```')).toEqual([])

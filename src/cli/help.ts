@@ -105,7 +105,8 @@ pass a .json file path anywhere a name is accepted.
 With --json: [{ name, canonicalId, kind: look|palette, isDefault, backend, intent?, blurb }].`,
   verify: `am verify <file|-> [--markdown] [--suppress A,B] [--label-cap N] [--style NAMES|file]
 Always emits JSON: {ok, warnings[], layout}.
-With --markdown: verify every Mermaid fence and emit {ok,file,blocks[]}.
+With --markdown: verify top-level Mermaid fences and emit {ok,file,blocks[]}.
+Nested list/blockquote fences require host extraction; HTML examples are skipped.
 Warnings use physical document lines; lineIsBlockStart marks a fallback when
 no precise source line is available. Backtick and tilde fences are supported.
   --style <S>       Resolve the same named/file-backed Style used by render so
