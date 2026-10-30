@@ -366,7 +366,7 @@ test('private mutation schemas omit discovery notes while retaining complete sha
     })
     outputs.push(admission)
   }
-  for (const output of outputs.slice(1)) expect(output).toEqual(outputs[0])
+  for (const output of outputs.slice(1)) expect(output).toEqual(outputs[0]!)
 })
 
 test('private note projection preserves spread getters and dynamic argument evaluation, and refuses changed helper semantics', () => {
