@@ -5517,3 +5517,124 @@ is implemented at this checkpoint. Six capacities, historical19, broader fonts/
 rich-text/meaning, current-Main integration and delivery remain open; exact new
 CI must be followed separately. Replacement24 remains sealed. Fixed campaign end
 2026-10-31T12:03:00Z remains unchanged after the interruption.
+
+
+### 30 October23:54UTC: remove completion callbacks; find and repair a real coverage regression
+
+Implementation51045f1c2a293ae066ccfd0106d5ab322ab31f35 moves typed completion
+onto the existing private XML leaf. The bit is marked at the original point
+only after the primary and all additional typed checks succeed. Exact capture/
+write/source/SVG binding, monotonic completion, raw/span refusal and all work
+charges remain. Two function allocations per reporting nonspan text are removed;
+this is not a demonstrated net memory improvement. Canonical f080 types, lint,
+125owning tests/4689assertions and two independent scoped reviews pass.
+
+An isolated24call comparison ab5->51045 has0errors/timeouts,4596byte guards,
+four cleaned-up workers and12/12exact whole SVG AND proof/receipt pairs.
+Native six-call sum1611.81->746.83ms contains a765.26ms baseline sparse-repeat
+outlier; inherited repeat is slower2.34->4.03ms. Scene577.64->729.71ms, with
+five of six rows slower. Peak RSS Native138284->146148KiB, Scene137396->153152.
+Native sparse repeat immediate post-GC heap13971112->20046632bytes with current
+outputs/proofs live. No causal speedup, net allocation/retention benefit or parity
+claim. Raw rows remain in measurement/native-actual-paint-mini-7-memory/.
+
+The private worker's historical `settled` label means an immediate explicit-GC
+sample inside the active synchronous job, with result/proof/observer data still
+live. It is not quiescent retained-object attribution. One standalone Bun1.4.2
+counter control (no Mermaid calls or timing) observes heapUsed539648->999424
+before explicit GC,549727 after GC while held data are verified,150229 after
+helper return plus a host turn. This neither proves global counter freshness nor
+supports a cached-counter or product-leak claim. Any maintained observer/harness
+correction belongs in Trident; no parallel permanent harness was added here.
+
+The broader-corpus preparation found a REAL regression that unit CI did not
+cover. Exact historical-cyclic-labelled-19/agentic normal output was previously
+P399989, with11operations headroom. On51045 it becomes U400000/CHECK_BUDGET.
+A separate original1fb eight-file control restores P399989; strict staysP331930
+in both. Public model and all four actual SVGs are direct-byte exact H4, with
+unchanged viewport,44markers and118primitives. Both one-shot workers, reference/
+source/dependency guards and child cleanup pass. No retry or extra allowance was
+used. Evidence: v7-nearcap-one-cell/{current51045,original1fb,CONCLUSION}.json.
+This is an introduced admission/coverage regression, not changed author meaning
+or changed geometry. It was not hidden among the old six capacity refusals.
+
+Fix e7f5095db9b6fc4864c49d142ab60111e881d6a0 removes an unused full receipt
+comparison at leaf creation; the existing complete binding remains at actual
+use before projection/admission. Callback source/duplicate and XML-write guards
+remain. It also reuses complete own-slot presence from the actual captured text
+paint. The producer verifies the final sealed literal clone AFTER all shared
+bookkeeping: identity, prototype, nonextensibility, all actual keys and readonly
+nonconfigurable data descriptors. Symbols/accessors/foreign or unverified clones
+get no hint. This matters because transfer bookkeeping can expose a clone to
+WeakSet hooks before sealing; trusting operator identities or descriptor intent
+alone was rejected in review.
+
+For that private immutable domain, known own fields cannot disappear and missing
+own fields cannot be added. The consumer therefore checks only missing fields
+against the LIVE prototype, retaining write-time evidence for fields removed
+after emission. The fixed13field order is a private module-initialization snapshot
+of the existing catalog. Unknown/raw/shape paths retain their prior runtime roster
+and checks, with actual new lookup overhead where applicable; global-hook callback
+counts are not claimed identical on the optimized internal path. No source or
+diagnostic field is dropped. This is actual eliminated repeated reflection and
+binding, not lower prices or larger400000/100000/depth64 limits.
+
+The new owning case reuses the tracked1023byte cyclic-labelled fixture in the
+existing paint-certification owner. It verifies fresh Native execution,19authored
+node IDs/labels,44directed arrow carriers, parallel occurrence/caption facts,
+30actual text tags and positive actual Node76-0 glyph contribution before proof.
+The first attempt failed renderer-selection PRECONDITIONS and is not behavioral
+RED. The corrected fresh-child case passes those preconditions and96assertions,
+failing only at P on51045 (0P/1F), then passes1P/0F/96 after the fix. Candidate
+normal model/SVG/receipt/proof/work are also whole-byte exact H4 atP399989.
+
+Root canonical f080 core/repository types and final two-file lint pass. An initial
+TS2352 null-prototype-table annotation error is retained; the explicit unknown
+cast fixes only typing. The broad paint/Native/writer owners complete720P/2F/
+11631assertions: only existing ER256 and sparse32 capacity failures remain, no
+new failing name or timeout. All four large Requirement engine/adapter owners
+pass2832assertions. Every supervisor reports owned children reaped. Evidence is
+native-actual-text-paint-8/ROOT-{OWNER-GREEN,TYPES-FIXED,LINT-FINAL,FULL-OWNERS,REQ100}.
+All source/patch variants and initial setup/type/precondition failures are retained.
+
+One controlled32call diagnostic compares51045->e7, changing ONLY Native emission.
+It explicitly adds the tracked historical19 public control to the prior three
+fixtures; four fresh8call workers keep Native AB/Scene BA.0errors/timeouts,
+4599guards, one exact module load/worker, four cleanups and16/16exact SVG pairs;
+all eight Scene proofs/receipts are whole-exact. Historical19 Native first/repeat
+restores U400000->P399989. Inherited P6693->P6665, ordinary P71287->P71227.
+Sparse32 remains U400000; completed-marker progress5->0 is retained, not called
+an improvement. Total outcomes26P/6U. No holdout/peer/raster/timing retry occurred.
+
+| Eight-call diagnostic observation |51045before |e7after |
+| --- | ---: | ---: |
+| Native fully consumed sum |2295.06ms |2606.65ms |
+| Scene fully consumed sum |1941.37ms |1364.77ms |
+| Native peak RSS |203132KiB |225172KiB |
+| Scene peak RSS |197072KiB |206176KiB |
+
+Slower paired rows remain: Native inherited first31.14->89.54ms, sparse first
+284.23->462.01, Latin repeat49.75->61.50, historical19 first895.13->1106.68;
+Scene inherited first48.22->49.47. Historical19 Native repeat623.03->555.66
+is not a causal speedup claim. Immediate post-GC heap with current output/proof
+live rises27102527->27635260bytes Native,26704219->27324811 Scene. Full import,
+CPU, first/repeat, live/immediate-GC and whole-process observations are retained
+in measurement/native-actual-paint-mini-8-nearcap/CONCLUSION.json (344549bytes).
+The actual correctness gain is restored bounded coverage with unchanged output;
+time/memory preservation and ELK/Pele superiority remain unproven.
+
+Exact published d45 CI41140313528 completed FAILURE at22:58:40UTC. Units
+4799P/33skip/0F,5907P/37skip/2F,4750P/6skip/4F: same six capacity names and
+12additional passes versus1fb. Semantics173P/0F; CLI/dist, tarballs/Bun+Node22,
+browser-site, MCP, quickstarts and backend evidence pass. Delivery remains red:
+editor gzip1410386>1334500; demo805855>788000/gzip305527>302500;68lazy failed
+metrics/25groups, including flowchart766062>761500 and State766013>761000.
+Filtered CI evidence is ci-d45-41140313528/summary.json (20827bytes). This run
+qualifies d45 status only; it does not qualify51045 or e7.
+
+Next concrete step is the prepared ONE fresh replay of the existing33sources/
+66engine cells at the new published candidate, comparing actual model/SVG bytes
+against H4 and H5 statuses separately. The old H5 unavailable signal9 cell and
+six-call diagnostic remain separate. Do not retry or open replacement24. Then
+follow CI for the exact final pushed head; six old capacities and delivery remain
+open. The fixed campaign end2026-10-31T12:03:00Z is unchanged.
