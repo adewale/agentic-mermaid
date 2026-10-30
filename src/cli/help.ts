@@ -95,7 +95,10 @@ ${cliRenderFormatHelpLines()}
                     (provisional default 9; 0 disables)
   --watch           Re-render one input file on change (non-PNG only)
 Multiple inputs emit a JSON results array for non-PNG formats.
-With --json, textual forms wrap output as {"<format>": "..."}.`,
+With --json, success prints {"ok":true,...}: textual forms as
+{"ok":true,"<format>":"...","receipt":{...},"warnings":[...]}, layout as the
+layout JSON plus "ok". With --output FILE the file always holds the plain
+artifact; --json then prints {"ok":true,"path","bytes","receipt","warnings"}.`,
   styles: `am styles [--json]
 List every registered style. A style is a partial description of how diagrams
 look; a colors-only style is a palette, a full look sets stroke/fill/typography

@@ -353,15 +353,23 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   emitConfigWarnings(configWarnings, 'am render')
   const rendered = renderPreflightedSourceToFormatWithReceipt(source, format, formatOptions)
   const out = rendered.output
-  // --output writes the artifact for every single-shot format, matching the
-  // documented `am render --format svg --output diagram.svg` (it was png-only,
-  // silently ignored elsewhere — the docs' samples produced no file).
-  const text = typeof out === 'string' ? (json ? JSON.stringify({ [format]: out, receipt: rendered.receipt, warnings: configWarnings }) + '\n' : out.endsWith('\n') ? out : out + '\n') : JSON.stringify({ ...out, receipt: rendered.receipt, ...(configWarnings.length > 0 ? { warnings: configWarnings } : {}) }) + '\n'
+  const layoutWarnings = configWarnings.length > 0 ? { warnings: configWarnings } : {}
+  // The artifact is what plain stdout carries. --output writes it for every
+  // single-shot format, matching the documented
+  // `am render --format svg --output diagram.svg`; --json never changes the
+  // file's bytes, it reports the write on stdout as the PNG path does.
+  const artifact = typeof out === 'string' ? (out.endsWith('\n') ? out : out + '\n') : JSON.stringify({ ...out, receipt: rendered.receipt, ...layoutWarnings }) + '\n'
   if (outFile) {
-    writeFileSync(outFile, text)
+    writeFileSync(outFile, artifact)
+    if (json) process.stdout.write(JSON.stringify({ ok: true, path: outFile, bytes: Buffer.byteLength(artifact), receipt: rendered.receipt, warnings: configWarnings }) + '\n')
     return EXIT_OK
   }
-  process.stdout.write(text)
+  if (!json) {
+    process.stdout.write(artifact)
+    return EXIT_OK
+  }
+  const envelope = typeof out === 'string' ? { ok: true, [format]: out, receipt: rendered.receipt, warnings: configWarnings } : { ok: true, ...out, receipt: rendered.receipt, ...layoutWarnings }
+  process.stdout.write(JSON.stringify(envelope) + '\n')
   return EXIT_OK
 }
 
