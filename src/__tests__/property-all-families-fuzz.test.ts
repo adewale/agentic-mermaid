@@ -19,6 +19,7 @@
 
 import { beforeAll, describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { SaxesParser } from 'saxes'
 import { layoutFamilyToRendered } from '../agent/family-layouts.ts'
 import { describeMermaidFacts, layoutMermaid, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, serializeMermaid } from '../agent/index.ts'
 import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
@@ -63,6 +64,29 @@ function assertFiniteGeometry(layout: RenderedLayout): void {
 
 function assertWellFormedSvg(svg: string): void {
   expectWellFormedXml(svg, svg.slice(0, 200))
+}
+
+/** Every decoded data-id in one SVG, read by an independent XML parser. */
+function svgDataIds(svg: string): string[] {
+  const ids: string[] = []
+  const parser = new SaxesParser()
+  parser.on('opentag', tag => {
+    const id = (tag.attributes as Record<string, string>)['data-id']
+    if (id !== undefined) ids.push(id)
+  })
+  parser.write(svg).close()
+  return ids
+}
+
+// Authored names that resemble the IDs families generate for relations,
+// branches, parts and occurrences, beside ordinary generated tags.
+const identityTagArb = fc.oneof(tagArb, fc.constantFrom('c', 'edge', 'node', 'link', 'part', 'relation', 'branch', 'field', 'group', 'label'))
+
+/** Reduced counterexamples (V9): an authored node or commit named like a
+ * generated relation/branch ID shared its data-id with that relation/branch. */
+const DATA_ID_EXAMPLES: Partial<Record<string, string[]>> = {
+  mindmap: ['mindmap\n  root\n    a\n    root->a'],
+  gitgraph: ['gitGraph\n  commit id:"branch:main"\n  commit id:"branch:main->c1"\n  commit'],
 }
 
 interface SemanticInventory {
@@ -438,6 +462,29 @@ describe('universal fuzz: every renderable family (strong output oracles)', () =
           if (graph) expect(auditRouteContracts(layoutGraphSync(graph), graph)).toEqual([])
         }),
         fcParameters({ numRuns: 40, seed: SEED, ...(fam.family === 'er' ? { examples: [[erReciprocalChain]] } : {}) }),
+      )
+    })
+
+    // docs/svg-semantic-contract.md: data-id is deterministic and unique
+    // within one SVG, and source-authored IDs win over generated ones.
+    test(`${fam.family}: every data-id is unique within one SVG`, () => {
+      const identitySrcArb = fc
+        .record({ k: fc.integer({ min: kmin, max: kmax }), tag: identityTagArb, extra: fc.constantFrom('none', 'primary', 'relation') })
+        .map(({ k, tag, extra }) => {
+          let s = fam.build(k, tag)
+          if (extra === 'primary' && fam.addPrimary) s += fam.addPrimary.snippet(k, tag)
+          if (extra === 'relation' && fam.addRelation) s += fam.addRelation(k, tag)
+          return s
+        })
+      fc.assert(
+        fc.property(identitySrcArb, src => {
+          let svg: string
+          try { svg = renderMermaidSVG(src) } catch { return }
+          const ids = svgDataIds(svg)
+          const duplicates = [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))]
+          expect({ src, duplicates }).toEqual({ src, duplicates: [] })
+        }),
+        fcParameters({ numRuns: 40, seed: SEED ^ 0x1d, examples: (DATA_ID_EXAMPLES[fam.family] ?? []).map(src => [src] as [string]) }),
       )
     })
   }

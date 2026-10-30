@@ -1,7 +1,8 @@
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import { escapeAttr } from '../multiline-utils.ts'
 import { DefaultBackend } from '../scene/backend.ts'
-import { semanticChildId, semanticNamespacedId, semanticRelationId } from '../scene/identity.ts'
+import { semanticChildId, semanticNamespacedId, semanticRelationIds } from '../scene/identity.ts'
+import { generatedIds } from '../shared/generated-identity.ts'
 import type { Geometry } from '../scene/ir.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { ensureContrast, isHexColor, mixHex } from '../shared/color-math.ts'
@@ -77,9 +78,15 @@ export function lowerGitGraphDrawing<T>(marks: DrawingFactory<T>, ctx: RenderCon
     )
   }
 
+  // Authored commit IDs win: a commit named `branch:main` or `a->b` keeps its
+  // name, and the generated branch and relation IDs beside it stay distinct.
+  const commitIds = diagram.commits.map(commit => commit.id)
+  const allocateBranchId = generatedIds(commitIds)
+  const branchIds = new Map(diagram.branches.map(branch => [branch.name, allocateBranchId(semanticNamespacedId('branch', branch.name), ['branch', branch.name])]))
+  const relationId = semanticRelationIds([...commitIds, ...branchIds.values()])
   if (diagram.showBranches) {
     for (const branch of diagram.branches) {
-      const branchId = semanticNamespacedId('branch', branch.name)
+      const branchId = branchIds.get(branch.name)!
       const branchPaint = paints.branches.get(branch.name)!
       const labelX = r(diagram.direction === 'LR' ? branch.x1 - 10 : branch.x1)
       const labelY = r(diagram.direction === 'LR' ? branch.y1 : branch.y1 - 16)
@@ -144,7 +151,7 @@ export function lowerGitGraphDrawing<T>(marks: DrawingFactory<T>, ctx: RenderCon
     const edgePaint = targetBranch ? (paints.branches.get(targetBranch)?.line ?? 'var(--_line)') : 'var(--_line)'
     parts.push(
       marks.connector({
-        id: semanticRelationId(edge.from, edge.to),
+        id: relationId(edge.from, edge.to),
         role: 'edge',
         geometry: { kind: 'polyline', points: edge.points.map(point => ({ x: r(point.x), y: r(point.y) })) },
         lineStyle: edge.kind === 'cherry-pick' ? 'dashed' : 'solid',

@@ -2,6 +2,7 @@ import { decodeXML } from 'entities'
 import type { SceneRole } from './roles.ts'
 import { sceneRoleTraits } from './roles.ts'
 import { escapeAttr } from '../multiline-utils.ts'
+import { generatedIds } from '../shared/generated-identity.ts'
 
 /** Public semantic identity carried by every structured Scene mark. */
 export interface SvgSemanticIdentity {
@@ -27,6 +28,15 @@ export function semanticRelationId(from: string, to: string, prefix = ''): strin
     ? `${from}->${to}`
     : `relation:${JSON.stringify([from, to])}`
   return prefix ? `${prefix}:${body}` : body
+}
+
+/** Relation IDs for one SVG, unique beside the authored node IDs it reserves:
+ * a node authored as `a->b` keeps its name, and the relation a→b, or a
+ * second relation between the same endpoints, takes an occurrence suffix. */
+export function semanticRelationIds(reserved: Iterable<string>, prefix = ''): (from: string, to: string) => string {
+  const allocate = generatedIds(reserved)
+  let occurrence = 0
+  return (from, to) => allocate(semanticRelationId(from, to, prefix), ['relation', occurrence++])
 }
 
 export function semanticChildId(base: string, ...parts: Array<string | number>): string {
