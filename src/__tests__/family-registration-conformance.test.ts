@@ -14,7 +14,6 @@ import {
 import { createExtensionIdentity } from '../shared/extension-identity.ts'
 import { toFinite } from '../agent/types.ts'
 import { declareFamilyScenePrimitiveEvidence } from '../agent/families.ts'
-import { configWarningsForMermaid } from '../agent/verify.ts'
 import { explicitFamilyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { renderMermaidSVG } from '../index.ts'
@@ -200,7 +199,6 @@ describe('external family executable registration conformance', () => {
       expect(Object.isFrozen(getFamily(base.id)?.config?.keys)).toBe(true)
       const root = { custom: { limit: -1, z: true } }
       const source = `---\nconfig:\n  custom:\n    limit: -1\n    z: true\n---\n%%{init: ${JSON.stringify(root)}}%%\n${base.example}`
-      expect(configWarningsForMermaid(source)).toEqual(expected)
       expect(explicitFamilyConfigDiagnostics(base.id, root)).toEqual(expected)
       const callsBeforeVerify = calls
       expect(verifyMermaid(source).warnings).toEqual(expected)
@@ -223,7 +221,6 @@ describe('external family executable registration conformance', () => {
     try {
       const root = { custom: { legacy: true, unknown: true } }
       const source = `%%{init: ${JSON.stringify(root)}}%%\n${base.example}`
-      expect(configWarningsForMermaid(source)).toEqual([])
       expect(verifyMermaid(source).warnings).toEqual([])
       expect(explicitFamilyConfigDiagnostics(base.id, root)).toEqual([
         { code: 'INEFFECTIVE_CONFIG', field: 'custom.legacy', message: `${base.id} config field "legacy" is accepted for compatibility but has no effect on this renderer.` },

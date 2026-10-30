@@ -727,12 +727,6 @@ export function configWarningsForDiagram(d: ParsedDiagram): LayoutWarning[] {
   return dedupedConcat(familySpecific, familyConfigShapeWarnings(builtin))
 }
 
-/** Lightweight source-only config diagnostics; never lays out or renders. */
-export function configWarningsForMermaid(source: string): LayoutWarning[] {
-  const parsed = parseRegisteredMermaid(source)
-  return parsed.ok ? configWarningsForDiagram(parsed.value) : []
-}
-
 /**
  * The config warnings a render reports in its `warnings`: the source's own
  * config (frontmatter, init directives) and the explicit
