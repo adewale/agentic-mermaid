@@ -482,6 +482,18 @@ describe('native requirement', () => {
     }
     expect(renderMermaidSVG('requirementDiagram\nrequirement r {\ntext: Card\n}\nr - traces -> r', { style: { roles: { relationship: { bendRadius: 12 } } } })).toMatch(/<path\b[^>]*d="[^"]*Q/)
   })
+  // Reduced from the structural all-families fuzz: a relation back to an
+  // earlier rank leaves the face opposite the flow, so face demand counted
+  // before placement left a horizontal card too short for both ports.
+  test.each(['LR', 'RL', 'TB', 'BT'])('reciprocal relations in direction %s allocate distinct terminal ports on both cards', direction => {
+    const source = `requirementDiagram\n  direction ${direction}\n  requirement a {\n  }\n  requirement b {\n  }\n  a - contains -> b\n  b - derives -> a\n  a - traces -> b`
+    const terminal = renderMermaidASCIIWithMeta(source, { colorMode: 'none' })
+    expect(terminal.warnings).not.toContainEqual(expect.objectContaining({ code: 'ASCII_RENDER_FAILED' }))
+    const ports = terminal.regions.filter(region => region.kind === 'edge').map(region => region.ports?.map(({ nodeId, end }) => `${end}:${nodeId}`))
+    expect(ports.sort()).toEqual([['start:a', 'end:b'], ['start:a', 'end:b'], ['start:b', 'end:a']])
+    const cells = terminal.regions.flatMap(region => region.ports?.map(({ x, y }) => `${x},${y}`) ?? [])
+    expect(new Set(cells).size).toBe(cells.length)
+  })
   test('unmodeled source stays opaque, and unresolved relations block partial rendering', () => {
     const unknown = parse('requirementDiagram\nnot a modeled statement')
     expect(unknown.ok).toBe(true)

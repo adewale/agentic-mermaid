@@ -75,20 +75,39 @@ export function renderRequirementTerminal(lines: string[] | string, config: Asci
     if (siblings) siblings.push(card)
     else rows.set(rank, [card])
   }
-  const boxes: (TerminalBox & { sections: string[][] })[] = []
-  let axis = 4
-  for (let rank = 0; rank <= Math.max(-1, ...ranks.values()); rank++) {
-    let cross = 4,
-      extent = 0
-    for (const c of rows.get(rank) ?? []) {
-      const size = sizes.get(c.id)!
-      boxes.push({ ...size, id: c.id, sections: c.sections, x: horizontal ? axis : cross, y: horizontal ? cross : axis })
-      cross += (horizontal ? size.height : size.width) + 6
-      extent = Math.max(extent, horizontal ? size.width : size.height)
+  const place = (): (TerminalBox & { sections: string[][] })[] => {
+    const placed: (TerminalBox & { sections: string[][] })[] = []
+    let axis = 4
+    for (let rank = 0; rank <= Math.max(-1, ...ranks.values()); rank++) {
+      let cross = 4,
+        extent = 0
+      for (const c of rows.get(rank) ?? []) {
+        const size = sizes.get(c.id)!
+        placed.push({ ...size, id: c.id, sections: c.sections, x: horizontal ? axis : cross, y: horizontal ? cross : axis })
+        cross += (horizontal ? size.height : size.width) + 6
+        extent = Math.max(extent, horizontal ? size.width : size.height)
+      }
+      axis += extent + 10
     }
-    axis += extent + 10
+    reverseBoxes(placed, direction)
+    return placed
   }
-  reverseBoxes(boxes, direction)
+  let boxes = place()
+  // The faces a relation uses follow placement: a relation back to an earlier
+  // rank leaves the face opposite the flow direction. Recount the placed
+  // faces, as C4 and ER do, so every port is allocated before painting.
+  for (let pass = 0; pass < relations.length * 2 + 2; pass++) {
+    let changed = false
+    for (const [id, face] of boxFaceSizes(relations, direction, boxes)) {
+      const size = sizes.get(id)
+      if (!size || (size.width >= face.width && size.height >= face.height)) continue
+      size.width = Math.max(size.width, face.width)
+      size.height = Math.max(size.height, face.height)
+      changed = true
+    }
+    if (!changed) break
+    boxes = place()
+  }
   const doc = new TerminalDocument(),
     routes = allocateBoxRoutes(boxes, relations, direction)
   const byId = new Map(model.relations.map(edge => [edge.id, edge]))
