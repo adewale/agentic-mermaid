@@ -9,6 +9,7 @@ import { fcParameters } from './helpers/fc-parameters.ts'
 import { asClass, mutate, serializeMermaid } from '../agent/index.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { runCli } from '../cli/index.ts'
+import { mcpDescribePayload } from '../mcp/describe-payload.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { captureCli as capture } from './helpers/cli-capture.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
@@ -80,6 +81,21 @@ describe('deterministic Mermaid facts', () => {
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
     expect(checkMermaid(parsed.value, ['message A -> B : attempt', 'message B -> A : retry']).ok).toBe(true)
     expect(facts(serializeMermaid(parsed.value))).toEqual(out)
+  })
+
+  test('Sequence notes are facts with their placement and participants, wherever they are preserved', () => {
+    const source = 'sequenceDiagram\n  A->>B: hi\n  Note over A,B: shared<br/>step\n  rect rgb(1, 2, 3)\n    Note left of A: "quoted"\n  end\n  alt ok\n    A->>B: yes\n    Note right of B: wrap: done\n  end'
+    const expected = ['note over A,B : shared\\nstep', 'note left of A : quoted', 'note right of B : done']
+    const out = facts(source)
+    expect(out.filter(fact => fact.startsWith('note '))).toEqual([...expected].sort())
+    expect(out.filter(fact => fact.startsWith('preserved-note#'))).toHaveLength(3)
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(facts(serializeMermaid(parsed.value))).toEqual(out)
+    // The same notes, placed on the same participants, as the SVG draws them.
+    const drawn = [...renderMermaidSVG(source).matchAll(/<g class="note" data-position="(\w+)" data-actors="([^"]*)"/g)]
+      .map(([, position, actors]) => `${position === 'over' ? 'over' : `${position} of`} ${actors}`)
+    expect(drawn).toEqual(expected.map(fact => fact.slice('note '.length, fact.indexOf(' : '))))
   })
 
   test('Sequence text reads as drawn: alias quotes and line breaks are interpreted, as in the SVG', () => {
@@ -248,5 +264,15 @@ describe('facts through Code Mode and CLI surfaces', () => {
     const json = capture(() => runCli(['describe', file, '--format', 'facts', '--json']))
     expect(json.code).toBe(0)
     expect(JSON.parse(json.out).facts).toContain('edge Processing -> [*] : done')
+  })
+
+  test('am describe --json carries verify warnings in every format, as MCP describe does', () => {
+    const source = 'sequenceDiagram\n  A->>B: hi\n  Note over A: kept verbatim'
+    const file = temp.file('note.mmd', source)
+    for (const format of ['text', 'facts', 'json']) {
+      const result = capture(() => runCli(['describe', file, '--format', format, '--json']))
+      expect({ format, code: result.code, out: JSON.parse(result.out) }).toEqual({ format, code: 0, out: mcpDescribePayload(source, { format }) })
+    }
+    expect(mcpDescribePayload(source, { format: 'facts' }).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX' }))
   })
 })

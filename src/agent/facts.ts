@@ -336,6 +336,11 @@ function factsSequence(out: string[], body: SequenceBody): void {
         // indexes. Keep the existing message# indexes stable for callers.
         add(out, `preserved-message#${segment}.${index} ${clean(m.from)} -> ${clean(m.to)} : ${text}`)
         addSequenceArrow(out, `preserved-message#${segment}.${index}`, { style: sequenceMessageStyle(m.arrow), arrow: m.arrow as SequenceMessageArrow })
+      } else if (syntax?.kind === 'note') {
+        const { position, actorIds, text } = syntax.note
+        const note = `${position === 'over' ? 'over' : `${position} of`} ${actorIds.map(clean).join(',')} : ${clean(sequencePayloadDisplayText(text))}`
+        add(out, `note ${note}`)
+        add(out, `preserved-note#${segment}.${index} ${note}`)
       } else if (syntax?.kind === 'title') add(out, `title ${clean(sequencePayloadDisplayText(syntax.text))}`)
     })
   })

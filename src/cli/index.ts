@@ -839,18 +839,21 @@ function cmdDescribe(args: ParsedArgs, json: boolean): number {
     else process.stderr.write(`describe: verify failed: ${verification.warnings.map(warning => warning.code).join(', ')}\n`)
     return verifyFailureExit(verification.warnings)
   }
+  // The --json envelope carries verify's warnings in every format, as the
+  // MCP describe payload does; plain output stays the bare description.
+  const envelope = (payload: Record<string, unknown>): string => JSON.stringify({ ok: true, ...payload, warnings: verification.warnings }, replacer) + '\n'
   if (format === 'json') {
     const tree = describeMermaidTree(parsed.value)
-    process.stdout.write(JSON.stringify(json ? { ok: true, tree } : tree) + '\n')
+    process.stdout.write(json ? envelope({ tree }) : JSON.stringify(tree) + '\n')
     return EXIT_OK
   }
   if (format === 'facts') {
     const facts = describeMermaidFacts(parsed.value)
-    process.stdout.write(json ? JSON.stringify({ ok: true, facts }) + '\n' : facts.join('\n') + '\n')
+    process.stdout.write(json ? envelope({ facts }) : facts.join('\n') + '\n')
     return EXIT_OK
   }
   const described = describeMermaid(parsed.value)
-  process.stdout.write(json ? JSON.stringify({ ok: true, text: described }) + '\n' : described + '\n')
+  process.stdout.write(json ? envelope({ text: described }) : described + '\n')
   return EXIT_OK
 }
 

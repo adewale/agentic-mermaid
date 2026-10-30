@@ -29,6 +29,13 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   `"Alice"`, and `<br/>` reads as a line break (`\n` in facts), as in
   Flowchart facts. The typed body and serialized source are unchanged.
 
+- Sequence notes are in facts: `note over A,B : text` (also `left of` /
+  `right of`) and `preserved-note#<segment>.<index> …`, including notes
+  inside `rect`, `critical` or note-bearing fragments.
+
+- `am describe --json` carries `warnings` in every format (`text`, `facts`,
+  `json`), as the MCP `describe` tool does.
+
 - `execute` failures now say where the agent's own code failed:
   `error.location` is the 1-based `{ line, column }` of an uncaught error (or
   of the token where code that does not parse stopped), on both the hosted and
