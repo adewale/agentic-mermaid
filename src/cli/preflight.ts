@@ -5,14 +5,23 @@ import { EXIT_OK, EXIT_ARG_ERROR } from './exit-codes.ts'
 
 export interface PreparedCli { args: ParsedArgs & { command: string }; json: boolean }
 
+/** An invalid invocation (flag value, flag combination, op JSON) detected by a
+ * command after preflight. Commands throw it; the CLI failure boundary reports
+ * it exactly like a preflight argument error. */
+export class CliArgumentError extends Error {}
+
+/** The one argument-error report: human text on stderr and, under --json, the
+ * {ok:false,error:{code:'ARG'}} envelope on stdout; exit 2. */
+export function reportArgumentError(message: string, json: boolean): number {
+  if (json) process.stdout.write(JSON.stringify({ ok: false, error: { code: 'ARG', message } }) + '\n')
+  process.stderr.write(`${message}\n`)
+  return EXIT_ARG_ERROR
+}
+
 export function preflightCli(argv: string[]): { exitCode: number } | PreparedCli {
   const args = parseArgs(argv)
   const json = flagEnabled(args, 'json')
-  const argError = (message: string): number => {
-    if (json) process.stdout.write(JSON.stringify({ ok: false, error: { code: 'ARG', message } }) + '\n')
-    process.stderr.write(`${message}\n`)
-    return EXIT_ARG_ERROR
-  }
+  const argError = (message: string): number => reportArgumentError(message, json)
   if (args.errors.length > 0) return { exitCode: argError(args.errors.join(' ')) }
   if (flagEnabled(args, 'agent-instructions')) {
     process.stdout.write(AGENT_INSTRUCTIONS)

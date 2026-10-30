@@ -33,6 +33,35 @@ describe('M1 CLI structured error envelope', () => {
     }
   })
 
+  test('command-level flag validation errors honour --json with the ARG envelope', () => {
+    const input = tmp('flowchart TD\n  A --> B')
+    // [argv, the flag the message must name]
+    for (const [argv, flag] of [
+      [['render', input, '--format', 'nope'], '--format'],
+      [['render', input, '--format', 'png'], '--output'],
+      [['render', input, '--style', 'no-such-style'], '--style'],
+      [['render', input, '--options', '{not json'], '--options'],
+      [['render', input, '--seed', 'abc'], '--seed'],
+      [['render', input, '--certificates'], '--certificates'],
+      [['verify', input, '--suppress', 'NOT_A_CODE'], '--suppress'],
+      [['verify', input, '--label-cap', '0'], '--label-cap'],
+      [['describe', input, '--format', 'nope'], '--format'],
+      [['mutate', input, '--op', '{bad'], 'mutation JSON'],
+      [['mutate', input, '--ops', '[]'], '--ops'],
+      [['mutate', input], '--op'],
+      [['preview', input, '--security', 'lax'], '--security'],
+    ] as const) {
+      const label = argv.join(' ')
+      const json = capture(() => runCli([...argv, '--json']))
+      expect(json.code, label).toBe(2)
+      const payload = JSON.parse(json.out)
+      expect(payload, label).toEqual({ ok: false, error: { code: 'ARG', message: expect.stringContaining(flag) } })
+      expect(json.err, label).toBe(`${payload.error.message}\n`)
+      // Without --json the same text stays on stderr and stdout stays empty.
+      expect(capture(() => runCli([...argv])), label).toEqual({ code: 2, out: '', err: json.err })
+    }
+  })
+
   test('am parse error: message is a human string, details is the ParseError[]', () => {
     const { code, out } = capture(() => runCli(['parse', tmp('flowchart XX\n  A --> B')]))
     expect(code).toBe(2)

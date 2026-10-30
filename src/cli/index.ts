@@ -1,7 +1,7 @@
 import { flagEnabled, flagValue, PNG_RENDER_FLAGS, type ParsedArgs, type ValueFlagName } from './args.ts'
 import { PNG_DEFAULT_SCALE } from '../output-policy-versions.ts'
 import { GLOBAL_USAGE } from './help.ts'
-import { preflightCli, type PreparedCli } from './preflight.ts'
+import { CliArgumentError, preflightCli, reportArgumentError, type PreparedCli } from './preflight.ts'
 export * from './args.ts'
 export { GLOBAL_USAGE, COMMAND_HELP } from './help.ts'
 import { applyMutationBatch } from '../agent/mutate.ts'
@@ -159,6 +159,7 @@ export function runPreparedCli({ args, json }: PreparedCli): number | Promise<nu
 }
 
 function reportCliFailure(args: ParsedArgs, json: boolean, e: unknown): number {
+  if (e instanceof CliArgumentError) return reportArgumentError(e.message, json)
   const msg = e instanceof Error ? e.message : String(e)
   // Argument and file-shape failures are not renderer failures even when
   // they occur under the render command.
@@ -188,13 +189,11 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   const ganttToday = flagValue(args, 'gantt-today')
   const targetWidth = numeric('target-width')
   if (!isCliRenderFormat(format)) {
-    process.stderr.write(`am render: unsupported --format ${format}; expected ${CLI_RENDER_FORMATS.join(', ')}\n`)
-    return EXIT_ARG_ERROR
+    throw new CliArgumentError(`am render: unsupported --format ${format}; expected ${CLI_RENDER_FORMATS.join(', ')}`)
   }
   const output = renderOutputForCliFormat(format)!
   if (securityFlag !== undefined && securityFlag !== 'strict') {
-    process.stderr.write('am render --security accepts only strict\n')
-    return EXIT_ARG_ERROR
+    throw new CliArgumentError('am render --security accepts only strict')
   }
   let advancedOptions: RenderOptions = {}
   const optionsFlag = flagValue(args, 'options')
@@ -202,8 +201,7 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     try {
       advancedOptions = parseRenderOptionsFlag(optionsFlag)
     } catch (error) {
-      process.stderr.write(`am render --options: ${error instanceof Error ? error.message : String(error)}\n`)
-      return EXIT_ARG_ERROR
+      throw new CliArgumentError(`am render --options: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
   const graphLayout = flagValue(args, 'graph-layout')
@@ -216,33 +214,27 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     }
     const problems = validateSerializableRenderOptions({ graphLayout: candidate })
     if (problems.length) {
-      process.stderr.write(`am render: ${problems.join('; ')}\n`)
-      return EXIT_ARG_ERROR
+      throw new CliArgumentError(`am render: ${problems.join('; ')}`)
     }
     advancedOptions = { ...advancedOptions, graphLayout: candidate as NonNullable<RenderOptions['graphLayout']> }
   }
   if (targetWidth !== undefined && (!Number.isInteger(targetWidth) || targetWidth <= 0)) {
-    process.stderr.write('am render --target-width expects a positive integer number of terminal cells\n')
-    return EXIT_ARG_ERROR
+    throw new CliArgumentError('am render --target-width expects a positive integer number of terminal cells')
   }
   if (targetWidth !== undefined && output.id !== 'ascii' && output.id !== 'unicode') {
-    process.stderr.write('am render --target-width is valid only with --format ascii or unicode\n')
-    return EXIT_ARG_ERROR
+    throw new CliArgumentError('am render --target-width is valid only with --format ascii or unicode')
   }
   const pngOnly = PNG_RENDER_FLAGS.filter(name => args.flags[name] !== undefined)
   if (output.id !== 'png' && pngOnly.length > 0) {
-    process.stderr.write(`am render: ${pngOnly.map(name => `--${name}`).join(', ')} ${pngOnly.length > 1 ? 'are' : 'is'} valid only with --format png\n`)
-    return EXIT_ARG_ERROR
+    throw new CliArgumentError(`am render: ${pngOnly.map(name => `--${name}`).join(', ')} ${pngOnly.length > 1 ? 'are' : 'is'} valid only with --format png`)
   }
   const certificates = flagEnabled(args, 'certificates')
   const watch = flagEnabled(args, 'watch')
   if (certificates && output.id !== 'layout') {
-    process.stderr.write('am render: --certificates is valid only with --format layout\n')
-    return EXIT_ARG_ERROR
+    throw new CliArgumentError('am render: --certificates is valid only with --format layout')
   }
   if (watch && args.positional.length > 1) {
-    process.stderr.write('am render --watch accepts exactly one input file\n')
-    return EXIT_ARG_ERROR
+    throw new CliArgumentError('am render --watch accepts exactly one input file')
   }
 
   // --style: a stack of names and/or .json spec files; fail fast (exit 2) on
@@ -254,14 +246,12 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
       style = parseStyleFlag(styleFlag)
       resolveStyleStack(style)
     } catch (e) {
-      process.stderr.write(`am render --style: ${e instanceof Error ? e.message : String(e)}\n`)
-      return EXIT_ARG_ERROR
+      throw new CliArgumentError(`am render --style: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
   const seed = numeric('seed')
   if (seed !== undefined && !Number.isFinite(seed)) {
-    process.stderr.write('am render --seed expects a finite number\n')
-    return EXIT_ARG_ERROR
+    throw new CliArgumentError('am render --seed expects a finite number')
   }
   const formatOptions: RenderFormatOptions = {
     ...advancedOptions,
@@ -274,8 +264,7 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   }
 
   if (args.positional.length > 1 && output.id === 'png') {
-    process.stderr.write('am render --format png accepts exactly one input; run once per file with a distinct --output path\n')
-    return EXIT_ARG_ERROR
+    throw new CliArgumentError('am render --format png accepts exactly one input; run once per file with a distinct --output path')
   }
 
   // #959: multi-input — when more than one positional file is given, render
@@ -306,8 +295,7 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
 
   // #930: watch mode — re-render on file change.
   if (watch && output.id === 'png') {
-    process.stderr.write('am render --format png does not support --watch; run non-watch PNG renders with --output <file.png>\n')
-    return EXIT_ARG_ERROR
+    throw new CliArgumentError('am render --format png does not support --watch; run non-watch PNG renders with --output <file.png>')
   }
   if (watch && typeof args.positional[0] === 'string' && args.positional[0] !== '-') {
     return cmdRenderWatch(args.positional[0], format, args, json, formatOptions)
@@ -330,30 +318,25 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   const outFile = flagValue(args, 'o') ?? flagValue(args, 'output') ?? ''
   if (output.id === 'png') {
     if (!outFile) {
-      process.stderr.write('am render --format png requires --output <file.png> (PNG bytes corrupt terminals if piped to stdout)\n')
-      return EXIT_ARG_ERROR
+      throw new CliArgumentError('am render --format png requires --output <file.png> (PNG bytes corrupt terminals if piped to stdout)')
     }
     const scale = numeric('scale') ?? PNG_DEFAULT_SCALE
     if (!Number.isFinite(scale) || scale <= 0) {
-      process.stderr.write('am render --scale expects a positive finite number\n')
-      return EXIT_ARG_ERROR
+      throw new CliArgumentError('am render --scale expects a positive finite number')
     }
     const background = flagValue(args, 'bg')
     const fitWidth = numeric('fit-width')
     const fitHeight = numeric('fit-height')
     if (fitWidth !== undefined && fitHeight !== undefined) {
-      process.stderr.write('am render PNG fitting accepts --fit-width or --fit-height, not both\n')
-      return EXIT_ARG_ERROR
+      throw new CliArgumentError('am render PNG fitting accepts --fit-width or --fit-height, not both')
     }
     if ((fitWidth !== undefined && (!Number.isSafeInteger(fitWidth) || fitWidth <= 0)) || (fitHeight !== undefined && (!Number.isSafeInteger(fitHeight) || fitHeight <= 0))) {
-      process.stderr.write('am render --fit-width/--fit-height expects a positive integer pixel value\n')
-      return EXIT_ARG_ERROR
+      throw new CliArgumentError('am render --fit-width/--fit-height expects a positive integer pixel value')
     }
     const fitTo = fitWidth !== undefined ? { width: fitWidth } : fitHeight !== undefined ? { height: fitHeight } : undefined
     const minLabelPx = numeric('min-label-px')
     if (minLabelPx !== undefined && (!Number.isFinite(minLabelPx) || minLabelPx < 0)) {
-      process.stderr.write('am render --min-label-px expects a non-negative finite number\n')
-      return EXIT_ARG_ERROR
+      throw new CliArgumentError('am render --min-label-px expects a non-negative finite number')
     }
     const fontDirs = flagValue(args, 'font-dirs')
       ?.split(',')
@@ -505,8 +488,7 @@ export function watchPathForChanges(file: string, onChange: () => void, debounce
 function cmdRenderWatch(file: string, format: string, args: ParsedArgs, json: boolean, opts: RenderFormatOptions = {}): number {
   const outFile = flagValue(args, 'output') ?? ''
   if (outFile && resolve(outFile) === resolve(file)) {
-    process.stderr.write('am render --watch output must differ from the input file\n')
-    return EXIT_ARG_ERROR
+    throw new CliArgumentError('am render --watch output must differ from the input file')
   }
   const emit = () => {
     try {
@@ -575,8 +557,7 @@ function cmdVerify(args: ParsedArgs): number {
       .filter(Boolean)
     const known = new Set(Object.keys(WARNING_SEVERITY))
     if (values.length === 0 || values.some(value => !known.has(value))) {
-      process.stderr.write('am verify --suppress accepts only known warning codes\n')
-      return EXIT_ARG_ERROR
+      throw new CliArgumentError('am verify --suppress accepts only known warning codes')
     }
     suppress = values as WarningCode[]
   }
@@ -584,13 +565,11 @@ function cmdVerify(args: ParsedArgs): number {
   let labelCharCap: number | undefined
   if (labelCapFlag !== undefined) {
     if (!/^[1-9]\d*$/.test(labelCapFlag.trim())) {
-      process.stderr.write('am verify --label-cap must be a positive safe integer\n')
-      return EXIT_ARG_ERROR
+      throw new CliArgumentError('am verify --label-cap must be a positive safe integer')
     }
     labelCharCap = Number(labelCapFlag)
     if (!Number.isSafeInteger(labelCharCap)) {
-      process.stderr.write('am verify --label-cap must be a positive safe integer\n')
-      return EXIT_ARG_ERROR
+      throw new CliArgumentError('am verify --label-cap must be a positive safe integer')
     }
   }
   let style: StyleInput[] | undefined
@@ -600,8 +579,7 @@ function cmdVerify(args: ParsedArgs): number {
       style = parseStyleFlag(styleFlag)
       resolveStyleStack(style)
     } catch (error) {
-      process.stderr.write(`am verify --style: ${error instanceof Error ? error.message : String(error)}\n`)
-      return EXIT_ARG_ERROR
+      throw new CliArgumentError(`am verify --style: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
   const r = verifyMermaid(source, {
@@ -712,8 +690,7 @@ function cmdMutate(args: ParsedArgs, json: boolean): number {
   const source = readSourceArg(args.positional[0])
   const ops = parseMutationOpsFlag(args)
   if (!ops.ok) {
-    process.stderr.write(`mutate: ${ops.error.message}\n`)
-    return EXIT_ARG_ERROR
+    throw new CliArgumentError(`mutate: ${ops.error.message}`)
   }
   return emitMutationRun(mutateSource(source, ops.value, args.flags['preserve-source'] === true), json)
 }
@@ -784,8 +761,7 @@ function cmdPreview(args: ParsedArgs, json: boolean): number {
   const security = 'strict' as const
   const securityFlag = flagValue(args, 'security')
   if (securityFlag !== undefined && securityFlag !== 'strict') {
-    process.stderr.write('am preview --security accepts only strict\n')
-    return EXIT_ARG_ERROR
+    throw new CliArgumentError('am preview --security accepts only strict')
   }
   const html = buildPreviewHtml(source, { security })
   if (!html.ok) {
@@ -831,8 +807,7 @@ function cmdDescribe(args: ParsedArgs, json: boolean): number {
   const rawFormat = flagValue(args, 'format')
   const format = rawFormat === undefined ? 'text' : isDescribeFormat(rawFormat) ? rawFormat : undefined
   if (!format) {
-    process.stderr.write(`am describe --format must be one of: ${DESCRIBE_FORMATS.join(', ')}\n`)
-    return EXIT_ARG_ERROR
+    throw new CliArgumentError(`am describe --format must be one of: ${DESCRIBE_FORMATS.join(', ')}`)
   }
   const parsed = parseRegisteredMermaid(source)
   if (!parsed.ok) {
