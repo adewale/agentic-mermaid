@@ -1670,19 +1670,20 @@ test.each((['curves', 'cylinder15', 'cylinder9'] as const).flatMap(kind =>
   expect(result.receipt.layoutCertification?.status).toBe('passed')
 })
 
-test.each((['covered', 'dashed', 'unknown-width', 'scaled', 'mutated'] as const).flatMap(mode => (['native', 'scene'] as const).map(execution => ({ mode, execution }))))('cross marker $mode retains conservative actual-write authority through $execution', ({ mode, execution }) => {
-  const colors = { bg: '#fff', fg: '#111' }
+test.each((['covered', 'dashed', 'unknown-width', 'scaled', 'mutated', 'own-shaft-zero'] as const).flatMap(mode => (['native', 'scene'] as const).map(execution => ({ mode, execution }))))('cross marker $mode retains conservative actual-write authority through $execution', ({ mode, execution }) => {
+  const absorbed = mode === 'own-shaft-zero'
+  const colors = { bg: '#fff', fg: absorbed ? '#000' : '#111' }
   const context = { positioned: { width: 248, height: 116.9 }, colors, resolved: { renderOptions: {} } }
-  const marker: MarkerDescriptor = { id: 'controlled-cross', shape: 'cross', orient: 'auto', size: { width: 8, height: 8 }, ref: { x: 7.375, y: 4 }, ...(mode === 'scaled' ? { units: 'strokeWidth' as const } : {}),
-    geometry: { kind: 'compound', children: [{ kind: 'line', x1: 1.25, y1: 1.25, x2: 6.75, y2: 6.75 }, { kind: 'line', x1: 1.25, y1: 6.75, x2: 6.75, y2: 1.25 }] },
-    paint: { fill: 'none', stroke: '#111', strokeWidth: mode === 'unknown-width' ? 'var(--host)' : '1.25', strokeLinecap: 'round', ...(mode === 'dashed' ? { strokeDasharray: '1 100' } : {}) },
+  const marker: MarkerDescriptor = { id: 'controlled-cross', shape: 'cross', orient: 'auto', size: { width: 8, height: 8 }, ref: { x: 7.375, y: 4 }, ...(absorbed ? { units: 'userSpaceOnUse' as const } : mode === 'scaled' ? { units: 'strokeWidth' as const } : {}),
+    geometry: { kind: 'compound', children: absorbed ? [{ kind: 'line', x1: 3.99, y1: 3.99, x2: 4.01, y2: 4.01 }, { kind: 'line', x1: 3.99, y1: 4.01, x2: 4.01, y2: 3.99 }] : [{ kind: 'line', x1: 1.25, y1: 1.25, x2: 6.75, y2: 6.75 }, { kind: 'line', x1: 1.25, y1: 6.75, x2: 6.75, y2: 1.25 }] },
+    paint: absorbed ? { stroke: '#000', strokeWidth: '.5', strokeLinecap: 'butt' } : { fill: 'none', stroke: '#111', strokeWidth: mode === 'unknown-width' ? 'var(--host)' : '1.25', strokeLinecap: 'round', ...(mode === 'dashed' ? { strokeDasharray: '1 100' } : {}) },
   }
   const producer: DrawingProducer = factory => {
     const open = factory.documentOpen({ id: 'root', width: 248, height: 116.9, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="248" height="116.9" viewBox="0 0 248 116.9">')
     const definitions = factory.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}</defs>`)
     if (mode === 'mutated') marker.paint!.stroke = 'none'
     return { family: 'flowchart', width: 248, height: 116.9, transparent: false, colors, parts: [open, definitions,
-      factory.connector({ id: 'controlled-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'polyline', points: [{ x: 100, y: 58.45 }, { x: 148, y: 58.45 }] }, paint: { stroke: '#111', strokeWidth: mode === 'scaled' ? '2' : '1' }, endpoints: { from: 'A', to: 'B' }, markers: { end: marker } }),
+      factory.connector({ id: 'controlled-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'polyline', points: [{ x: 100, y: 58.45 }, { x: 148, y: 58.45 }] }, paint: { stroke: absorbed ? '#000' : '#111', strokeWidth: absorbed ? '32' : mode === 'scaled' ? '2' : '1' }, endpoints: { from: 'A', to: 'B' }, markers: { end: marker } }),
       factory.shape({ id: 'A', role: 'node', geometry: { kind: 'rect', x: 40, y: 40, width: 60, height: 36.9, rx: 0, ry: 0 }, paint: { fill: '#fff', stroke: '#888', strokeWidth: '0.75' } }),
       factory.shape({ id: 'B', role: 'node', geometry: { kind: 'rect', x: 148, y: 40, width: 60, height: 36.9, rx: 0, ry: 0 }, paint: { fill: '#fff', stroke: '#888', strokeWidth: '0.75' } }),
       ...(mode === 'covered' ? [factory.shape({ id: 'cover', role: 'chrome', geometry: { kind: 'rect', x: 138, y: 52, width: 13, height: 13 }, paint: { fill: '#fff', stroke: '#fff', strokeWidth: '1' } })] : []),
@@ -1694,12 +1695,15 @@ test.each((['covered', 'dashed', 'unknown-width', 'scaled', 'mutated'] as const)
   expect(elements.find(element => element.name === 'svg')!.attributes.viewBox).toBe('0 0 248 116.9')
   const resource = elements.find(element => element.name === 'marker')!.attributes
   expect(resource).toMatchObject({ id: 'controlled-cross', markerWidth: '8', markerHeight: '8', refX: '7.375', refY: '4', orient: 'auto' })
-  expect(resource.markerUnits).toBe(mode === 'scaled' ? 'strokeWidth' : undefined)
+  expect(resource.markerUnits).toBe(absorbed ? 'userSpaceOnUse' : mode === 'scaled' ? 'strokeWidth' : undefined)
   expect(resource.viewBox).toBeUndefined()
   const lines = elements.filter(element => element.name === 'line')
-  expect(lines.map(element => [element.attributes.x1, element.attributes.y1, element.attributes.x2, element.attributes.y2])).toEqual([['1.25', '1.25', '6.75', '6.75'], ['1.25', '6.75', '6.75', '1.25']])
-  for (const line of lines) expect(line.attributes).toMatchObject({ stroke: '#111', 'stroke-width': mode === 'unknown-width' ? 'var(--host)' : '1.25', 'stroke-linecap': 'round', ...(mode === 'dashed' ? { 'stroke-dasharray': '1 100' } : {}) })
-  expect(elements.find(element => element.attributes['data-id'] === 'controlled-edge')!.attributes).toMatchObject({ points: '100,58.45 148,58.45', 'data-from': 'A', 'data-to': 'B', 'stroke-width': mode === 'scaled' ? '2' : '1', 'marker-end': 'url(#controlled-cross)' })
+  expect(lines.map(element => [element.attributes.x1, element.attributes.y1, element.attributes.x2, element.attributes.y2])).toEqual(absorbed ? [['3.99', '3.99', '4.01', '4.01'], ['3.99', '4.01', '4.01', '3.99']] : [['1.25', '1.25', '6.75', '6.75'], ['1.25', '6.75', '6.75', '1.25']])
+  for (const line of lines) {
+    expect(line.attributes).toMatchObject({ stroke: absorbed ? '#000' : '#111', 'stroke-width': absorbed ? '.5' : mode === 'unknown-width' ? 'var(--host)' : '1.25', 'stroke-linecap': absorbed ? 'butt' : 'round', ...(mode === 'dashed' ? { 'stroke-dasharray': '1 100' } : {}) })
+    if (absorbed) expect(line.attributes.fill).toBeUndefined()
+  }
+  expect(elements.find(element => element.attributes['data-id'] === 'controlled-edge')!.attributes).toMatchObject({ points: '100,58.45 148,58.45', 'data-from': 'A', 'data-to': 'B', stroke: absorbed ? '#000' : '#111', 'stroke-width': absorbed ? '32' : mode === 'scaled' ? '2' : '1', 'marker-end': 'url(#controlled-cross)' })
   expect(elements.find(element => element.attributes['data-id'] === 'B')!.attributes).toMatchObject({ x: '148', y: '40', width: '60', height: '36.9', fill: '#fff', stroke: '#888', 'stroke-width': '0.75' })
   expect(elements.some(element => element.attributes.transform !== undefined)).toBe(false)
   const token = ' marker-end="url(#controlled-cross)"'
@@ -1707,6 +1711,14 @@ test.each((['covered', 'dashed', 'unknown-width', 'scaled', 'mutated'] as const)
   const rendered = new Resvg(drawing.svg).render(), pixels = rendered.pixels
   const absent = new Resvg(drawing.svg.replace(token, '')).render().pixels
   const changed = Buffer.compare(pixels, absent) !== 0
+  if (absorbed) {
+    expect(elements.find(element => element.attributes['data-id'] === 'A')!.attributes).toMatchObject({ x: '40', y: '40', width: '60', height: '36.9', fill: '#fff', stroke: '#888', 'stroke-width': '0.75' })
+    // Both tiny diagonals lie wholly inside the opaque own shaft. Resource
+    // stroke existence cannot establish a surviving endpoint distinction.
+    expect(changed).toBe(false)
+    expect(drawing.proof.status).not.toBe('passed')
+    return
+  }
   if (mode === 'covered') {
     expect(elements.find(element => element.name === 'rect' && element.attributes.x === '138')!.attributes).toMatchObject({ x: '138', y: '52', width: '13', height: '13', fill: '#fff' })
     // Complete cross bounds[141.25,148]×[55.075,61.825] lie under

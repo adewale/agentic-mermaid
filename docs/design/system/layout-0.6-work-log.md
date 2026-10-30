@@ -4268,8 +4268,10 @@ minimal artifact controls are not reported as a full-package pass.
 The1399CI unit failures separate into the six retained capacity cases, the
 initialization defect and its cross-runtime consequences, and an8-of322
 geometry-golden difference. Each golden needs actual review before an update;
-two candidate-selection changes and six earlier caption-only changes are under
-separate private attribution. Source-level pass counts do not erase these CI
+two caption-safety repairs are under separate private attribution. The initial
+Main/older-caption attribution was incorrect:890affects six cyclic records and
+ea1affects six caption-seat records, with four overlaps. Source-level pass counts
+do not erase these CI
 failures. Editor gzip remains1,397,265>1,334,500; lazy delivery has64distinct
 over-budget rows (26raw/19gzip/19Brotli). The generated diagnostic has no render
 errors but aesthetic tradeoffs. No limits or checks were changed.
@@ -4286,3 +4288,34 @@ ASCII-only text binding and compound stroke existence assumptions are being
 investigated without bypassing them. Replacement24 stays sealed. Next step:
 publish the limits fix with reviewed golden/owning changes when ready, rerun
 exact-head CI, and bind the final comparison to that combined source.
+
+### 30 October09:12UTC: retain the cross counterexample; reject unsafe proof broadening
+
+The limits initialization repair is committed and normally published as
+6f7ccb418cde9888b4d66c4da1e5cf20190fe922. Main remains83744a4e1; no force push,
+PR merge, version change, package publication or default-backend change occurred.
+
+The original formatted three-node source actually paints all five heads. A
+private compound-line proof expansion removed its two UNMEASURED issues, kept
+the remaining contact uncertainty, passed37owners/types/lint, and preserved SVG
+and all seven original proofs. Those successes were insufficient. An independent
+tiny user-space cross is fully absorbed by its identically painted wide shaft:
+the old proof U22257 becomes candidate P22370 while removing its marker reference
+changes0pixels. Source-space nonempty stroke does not establish a surviving
+semantic head. The entire runtime expansion and its broader owner extension are
+REJECTED, with all failed epochs retained. No partial helper result is shipped
+as a correctness improvement. Evidence: budget-attribution/authored-cross-proof/
+{REJECTION-HANDOFF.json,OWNSHAFT-CONTROL-V3.json}.
+
+Retained only the independently authored own-shaft-zero counterexample as one
+mode of the existing cross-marker owning table, through BOTH Native and admitted
+Scene. Actual resource/carrier/card attributes and zero full-RGBA marker removal
+are asserted before requiring nonP. Current production13P/175assertions; the
+rejected expansion11P/2F on identical test bytes fails only after the actual0ink
+assertions. Corrected setup-only missing-new-module epochs remain distinct.
+Root test-only adoption binds exact bytes at budget-attribution/
+ownshaft-owning-regression/ROOT-ADOPTION.json; Root's owning selection passes13P.
+Canonical core/repository types and lint pass on the combined test/golden source.
+This is coverage protecting a sound refusal, not closure of the rich-text case
+or any of the six budget refusals. Production remains6f and replacement24 stays
+sealed. No timing/performance campaign was run.
