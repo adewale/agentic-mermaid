@@ -12,6 +12,7 @@ import {
   renderMermaidSVG,
   validateSerializableRenderOptions,
   type ProfileTextMeasurementInput,
+  type ProfileTextInkMeasurement,
   type RenderOptions,
   type TextMeasurementProfile,
 } from '../index.ts'
@@ -22,6 +23,9 @@ import { layoutMermaidWithReceipt } from '../agent/core.ts'
 import { receiptOf, resolveRenderRequestForExecution } from '../render-contract.ts'
 import type { PositionedRadarChart } from '../radar/types.ts'
 import { pngFixture } from './helpers/png-fixture.ts'
+import { createTextMeasurementExecution } from '../text-measurement-profile.ts'
+import { Resvg } from '@resvg/resvg-js'
+import { join } from 'node:path'
 
 const SOURCE = 'flowchart TD\n  A[Hello world]'
 const RADAR_SOURCE = 'radar-beta\naxis a["AB"],b["CD"],c["EF"]\ncurve v["GH"]{1,2,3}'
@@ -31,6 +35,88 @@ function profile(measure: TextMeasurementProfile['measure'] = ({ text }) => [...
 }
 
 describe('trusted host pixel measurement profiles', () => {
+  test('public fitted bold ink keeps its authored glyph and allocation through Native and Scene', () => {
+    const id = 'backend:test/shaped-ink-public'
+    const unregister = registerBackend({ ...DefaultBackend, id, capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: id })) }, {
+      compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core, scene: '^2.0.0' },
+      provenance: { owner: 'host-text-measurement-test', source: 'test' },
+    })
+    try {
+      for (const execution of ['native', 'scene'] as const) {
+        const host = execution === 'scene' ? { backendPolicy: { selectBackend: () => id } } : {}
+        const measure = () => 18.72
+        const renderer = createMermaidRenderer({ ...host, textMeasurement: { ...profile(measure), version: '2.0.0', measureInk: input => input.text === 'j' && input.fontWeight === 700 ? {
+          advance: 555 / 2048 * input.fontSize,
+          bounds: { x0: -50 / 2048 * input.fontSize, y0: -1572 / 2048 * input.fontSize, x1: 443 / 2048 * input.fontSize, y1: 418 / 2048 * input.fontSize },
+        } : undefined } })
+        const source = 'flowchart LR\nA["<b>j</b>"]', options = { font: 'Inter', style: { roles: { node: { fontSize: 48, fontWeight: 400 } } } }
+        const result = renderer.renderMermaidSVGWithReceipt(source, options)
+        expect(result.svg).toBe(createMermaidRenderer({ ...host, textMeasurement: profile(measure) }).renderMermaidSVG(source, options))
+        const texts = result.svg.match(/<text\b[^>]*>[\s\S]*?<\/text>/g)!
+        expect(texts).toHaveLength(1)
+        expect(texts[0]).toContain('textLength="18.72"')
+        expect(texts[0]).toMatch(/font-weight="(?:bold|700)"[^>]*>j<\/tspan>/)
+        const font = { fontFiles: [join(import.meta.dirname, '../../assets/fonts/Inter-Bold.ttf')], loadSystemFonts: false, defaultFontFamily: 'Inter' }
+        const raster = new Resvg(result.svg, { font }).render(), pixels = raster.pixels
+        const absent = new Resvg(result.svg.replace(texts[0]!, ''), { font }).render().pixels
+        let changed = 0
+        for (let i = 0; i < pixels.length; i += 4) if (!pixels.subarray(i, i + 4).equals(absent.subarray(i, i + 4))) changed++
+        expect(changed).toBeGreaterThan(0)
+        expect(result.receipt.textMeasurement).toEqual({ id: 'test:font-metrics', version: '2.0.0' })
+      }
+    } finally { unregister() }
+  })
+
+  test('snapshots optional shaped ink once and caches it by the complete font input', () => {
+    const input = { text: 'j', fontFamily: 'Inter', fontSize: 48, fontWeight: 700, fontStyle: 'normal' as const, monospace: false }
+    const reads: string[] = [], calls: ProfileTextMeasurementInput[] = []
+    const returned = { advance: 13, bounds: { x0: -2, y0: -37, x1: 11, y1: 10 } }
+    const supplied = { ...profile(), get measureInk() {
+      reads.push('callback')
+      return (value: ProfileTextMeasurementInput) => {
+        calls.push(value)
+        if (value.text === 'unsupported') return undefined
+        return { get advance() { reads.push('advance'); return returned.advance }, get bounds() {
+          reads.push('bounds')
+          return {
+            get x0() { reads.push('x0'); return returned.bounds.x0 }, get y0() { reads.push('y0'); return returned.bounds.y0 },
+            get x1() { reads.push('x1'); return returned.bounds.x1 }, get y1() { reads.push('y1'); return returned.bounds.y1 },
+          }
+        } }
+      }
+    } }
+    const execution = createTextMeasurementExecution(supplied, 'Inter')!
+    const first = execution.ink(input)!
+    returned.advance = 99; returned.bounds.x0 = -99
+    expect(execution.ink({ ...input })).toBe(first)
+    expect(first).toEqual({ advance: 13, bounds: { x0: -2, y0: -37, x1: 11, y1: 10 } })
+    expect(Object.isFrozen(first) && Object.isFrozen(first.bounds)).toBe(true)
+    expect(reads).toEqual(['callback', 'advance', 'bounds', 'x0', 'y0', 'x1', 'y1'])
+    expect(execution.ink({ ...input, text: 'unsupported' })).toBeUndefined()
+    expect(execution.ink({ ...input, text: 'unsupported' })).toBeUndefined()
+    execution.ink({ ...input, fontFamily: 'Other' })
+    execution.ink({ ...input, fontStyle: 'italic' })
+    expect(calls).toHaveLength(4)
+    expect(calls.every(Object.isFrozen)).toBe(true)
+    const changed = createTextMeasurementExecution({ ...supplied, version: '2.0.0' }, 'Inter')!
+    expect(changed.identity).toEqual({ id: supplied.id, version: '2.0.0' })
+    expect(changed.ink(input)?.advance).toBe(99)
+  })
+
+  test.each([
+    null, 12, Promise.resolve({ advance: 1, bounds: null }),
+    { advance: NaN, bounds: null }, { advance: -1, bounds: null }, { advance: 1_000_001, bounds: null },
+    { advance: 0, bounds: { x0: 0, y0: -1, x1: 1, y1: 1 } },
+    { advance: 1, bounds: { x0: 2, y0: -1, x1: 1, y1: 1 } },
+    { advance: 1, bounds: { x0: 0, y0: 2, x1: 1, y1: 1 } },
+    { advance: 1, bounds: { x0: -Infinity, y0: -1, x1: 1, y1: 1 } },
+    { advance: 1, bounds: { x0: 0, y0: -1, x1: 1_000_001, y1: 1 } },
+    { advance: 1, bounds: { x0: '0', y0: -1, x1: 1, y1: 1 } },
+  ])('rejects malformed host-shaped ink %j', invalid => {
+    const execution = createTextMeasurementExecution({ ...profile(), measureInk: () => invalid as ProfileTextInkMeasurement }, 'Inter')!
+    expect(() => execution.ink({ text: 'j', fontSize: 48, fontWeight: 700, fontStyle: 'normal', monospace: false })).toThrow(/finite ordered ink bounds/)
+  })
+
   test('the selected profile controls both node geometry and painted text advances', () => {
     const inputs: ProfileTextMeasurementInput[] = []
     const renderer = createMermaidRenderer({ textMeasurement: profile(input => {
@@ -258,6 +344,7 @@ describe('trusted host pixel measurement profiles', () => {
       { ...profile(), id: DEFAULT_TEXT_MEASUREMENT_PROFILE.id },
       { ...profile(), version: 'latest' },
       { ...profile(), measure: 12 },
+      { ...profile(), measureInk: 12 },
     ]) expect(() => createMermaidRenderer({ textMeasurement: invalid as TextMeasurementProfile })).toThrow(/textMeasurement/)
     const callback = profile(() => { throw new Error('untrusted callback ran') })
     expect(validateSerializableRenderOptions({ textMeasurement: callback }).length).toBeGreaterThan(0)

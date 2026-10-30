@@ -612,7 +612,7 @@ export function writeTextSvg(node: TextMark, capture?: SvgXmlCapture): string | 
   const svg = renderMultilineText(prepared ? node.block! : node.text, node.x, node.y, node.fontSize, attrs, node.baselineShift ?? 0.35, node.display === 'literal', out.xml ? written => {
     observed = true
     out.xml!.prepared(written)
-  } : undefined)
+  } : undefined, node.anchor)
   if (!node.spans) return capture ? finishXmlLeaf(capture, node, svg, out.xml, observed) : svg
   const shown = prepared ? node.block!.text : node.text
   const content = `>${escapeXml(shown)}</text>`
@@ -651,7 +651,7 @@ function connectorInlineLabelSvg(node: ConnectorMark, label: ConnectorLabelDescr
   const svg = renderMultilineText(block, label.anchor.x, label.anchor.y - Math.max(0, label.clearance ?? 0), block.fontSize, capture ? xmlRange(out.value, 1) : out.value.slice(1), 0, false, out.xml ? written => {
     complete = true
     out.xml!.prepared(written)
-  } : undefined)
+  } : undefined, label.textAnchor)
   return { svg, transformed: out.transformed, xml: out.xml, complete }
 }
 

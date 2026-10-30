@@ -132,6 +132,28 @@ non-negative, and at most 1,000,000 pixels. Line heights retain the existing
 prepared-text rules. The profile is used throughout family layout and SVG
 emission; it does not change terminal cell measurement.
 
+A profile may also provide `measureInk(input)`, returning
+`{ advance, bounds: { x0, y0, x1, y1 } }`. The bounds describe the actual shaped
+glyph ink relative to the alphabetic baseline origin, in pixels, with positive
+`y` downward. `advance` is that shaping engine's natural advance; it is distinct
+from the allocation returned by `measure`. The library applies the actual
+serialized SVG position, baseline and `textLength / advance` horizontal fitting
+to the ink bounds. Allocation widths, wrapping and the emitted glyphs remain
+unchanged. Return `undefined` when ink is unmeasured, or `{ advance, bounds: null }`
+for a run that paints no ink. Advances must be finite and between zero and
+1,000,000; nonempty ink needs a positive advance. Bound coordinates must be
+finite, ordered and within ±1,000,000 pixels. An invalid or unbounded fitted
+projection fails before returning output.
+
+This optional authority currently covers prepared proportional ASCII fitted
+runs, including independent bold/italic fragments and tracking. Every line in
+the block must have supported ink metrics. Native non-ASCII shaping, decorations,
+monospace blocks, external spans and typography overrides retain their existing
+geometry without acquiring shaped-ink authority. Omitting the callback preserves
+the width-only behavior. The callback must describe the same resolved fonts and
+shaping used by the SVG/PNG consumer; estimated or fallback widths cannot supply
+an ink envelope. This does not make the consumer load those fonts.
+
 Pass the same profile to `createMermaidPNGRenderer` or
 `createMermaidBrowserPNGRenderer` to share graphical geometry and receipt
 identity across outputs. The fonts must also be available to the rasterizer
@@ -139,11 +161,13 @@ through its normal font-loading mechanism. A measurement profile does not
 load or embed font files.
 
 Keep a profile's metrics and font resources stable for its `id` and `version`.
-Change the version when its metrics or fonts change. For reproducible output,
+Change the version when its width metrics, ink metrics or fonts change. For reproducible output,
 measure from pinned font resources and a fixed shaping implementation. A host
 may explicitly choose browser measurement after fonts load, but that remains
 host-dependent; the library never selects Canvas implicitly. Profile fields
-and callback references are captured at renderer construction, while mutable
+and callback references, including the optional `measureInk` slot, are read once
+at renderer construction. Returned ink fields are copied and cached per complete
+font input within the request, while mutable
 state closed over by the callback remains the host's responsibility.
 
 The selected identity appears as `receipt.textMeasurement` and in the

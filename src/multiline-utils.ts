@@ -10,8 +10,10 @@ import { LINE_HEIGHT_RATIO } from './text-metrics.ts'
 import { formatSvgNumber } from './shared/svg-number.ts'
 import { HAS_FORMAT_TAGS } from './shared/inline-format.ts'
 import { prepareDisplayText, type DisplayRun, type DisplayTextInput } from './shared/display-text.ts'
-import type { PixelTextBlock } from './shared/prepared-text.ts'
+import { hasPreparedTextInk, preparedTextLineGeometry, type PixelTextBlock } from './shared/prepared-text.ts'
 import { sanitizeDisplayLines } from './shared/text-controls.ts'
+import { scanSvgStartTagsFresh, decodedSvgAttributeValue } from './svg-structure.ts'
+import { isWellFormedSvgText } from './output-security.ts'
 
 /**
  * Normalize label text: strip surrounding quotes, convert <br> tags and
@@ -161,7 +163,7 @@ function renderDisplayRuns(segments: readonly DisplayRun[], fontWeight = 400): s
 /** Tracking and fallback shaping are not uniformly included in textLength by
  * SVG rasterizers. Position these graphemes in the measured band explicitly;
  * ordinary untracked single-font runs keep their continuous shaping. */
-function renderPreparedLine(block: PixelTextBlock, index: number, cx: number, anchor: string, baseline?: number): string {
+function renderPreparedLine(block: PixelTextBlock, index: number, cx: number, anchor: string, baseline?: number, served?: ReturnType<typeof preparedTextLineGeometry>): string {
   const line = block.lineBlocks[index]!
   // Keep the complete logical line in one shaping context. In particular,
   // spaces do not separate RTL words into left-to-right positioned fragments,
@@ -173,10 +175,10 @@ function renderPreparedLine(block: PixelTextBlock, index: number, cx: number, an
   if (block.letterSpacing === 0 && !line.fragments) return renderDisplayRuns(line.runs, block.fontWeight)
   if (!line.fragments) throw new TypeError('Tracked text requires retained fragment allocations')
   const origin = (anchor === 'middle' ? cx - line.width / 2 : anchor === 'end' ? cx - line.width : cx) + line.originX
-  return line.fragments.map(fragment => {
+  return line.fragments.map((fragment, index) => {
     const style = displayRunAttributes(line.runs[fragment.runIndex]!, block.fontWeight)
     const whitespace = /^ | $/.test(fragment.text) ? ' xml:space="preserve"' : ''
-    return `<tspan x="${formatSvgNumber(origin + fragment.x)}" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="${formatSvgNumber(Math.max(0, fragment.width))}" lengthAdjust="spacingAndGlyphs"${whitespace}${style.length ? ` ${style.join(' ')}` : ''}>${escapeXml(fragment.text)}</tspan>`
+    return `<tspan x="${served?.fragments![index]!.x ?? formatSvgNumber(origin + fragment.x)}" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="${served?.fragments![index]!.textLength ?? formatSvgNumber(Math.max(0, fragment.width))}" lengthAdjust="spacingAndGlyphs"${whitespace}${style.length ? ` ${style.join(' ')}` : ''}>${escapeXml(fragment.text)}</tspan>`
   }).join('')
 }
 
@@ -191,6 +193,26 @@ export interface PreparedSingleLineWrite {
   readonly textLength: string
   readonly content: string
   readonly additionalAttributes: readonly { readonly name: string; readonly value: string }[]
+}
+
+/** Generic string callers have no typed attribute authority. Only a complete,
+ * quote-aware inventory may select their actual presentation attribute. */
+function textAnchorAttribute(attrs: string): 'start' | 'middle' | 'end' | undefined {
+  const source = `<text ${attrs}>`, tags = scanSvgStartTagsFresh(source), tag = tags[0]
+  if (tags.length !== 1 || !tag || tag.name !== 'text' || tag.start !== 0 || tag.end !== source.length || tag.selfClosing) return undefined
+  const seen = new Set<string>()
+  let cursor = 5
+  for (const attribute of tag.attributes) {
+    if (seen.has(attribute.name) || !/^[A-Za-z_:][A-Za-z0-9_.:-]*$/.test(attribute.name)
+      || !/^[\t\n\r ]+$/.test(source.slice(cursor, attribute.nameStart))
+      || !/^[\t\n\r ]*=[\t\n\r ]*["']$/.test(source.slice(attribute.nameStart + attribute.name.length, attribute.valueStart))
+      || !isWellFormedSvgText(attribute.value)) return undefined
+    seen.add(attribute.name)
+    cursor = attribute.valueEnd + 1
+  }
+  if (!/^[\t\n\r ]*>$/.test(source.slice(cursor))) return undefined
+  const anchor = decodedSvgAttributeValue(tag, 'text-anchor') ?? 'start'
+  return anchor === 'start' || anchor === 'middle' || anchor === 'end' ? anchor : undefined
 }
 
 /**
@@ -217,17 +239,20 @@ export function renderMultilineText(
   baselineShift: number = 0.35,
   literalText = false,
   observePreparedLine?: (written: PreparedSingleLineWrite) => void,
+  typedAnchor?: 'start' | 'middle' | 'end',
 ): string {
   const block = typeof text === 'string' ? undefined : text
   const value = block ? block.text : text as string
   const lines = block ? block.lines : value.split('\n')
   const display = block?.prepared.display ?? (literalText ? 'literal' : 'formatted')
-  const anchor = attrs.match(/\btext-anchor="([^"]*)"/)?.[1] ?? 'start'
+  const anchor = typedAnchor ?? textAnchorAttribute(attrs) ?? 'start'
+  const inkGeometry = block && typedAnchor !== undefined && hasPreparedTextInk(block)
+    ? block.lineBlocks.map((_, index) => preparedTextLineGeometry(block, index, cx, cy, anchor, baselineShift)) : undefined
   const nativeShaping = block && /[^\x20-\x7e]/u.test(block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join(''))
   const fragmented = block && (block.letterSpacing !== 0 || nativeShaping)
   const writtenAttributes: Array<{ name: string; value: string }> | undefined = observePreparedLine ? [] : undefined
   const renderLine = (line: string, index: number) => block
-    ? renderPreparedLine(block, index, cx, anchor)
+    ? renderPreparedLine(block, index, cx, anchor, undefined, inkGeometry?.[index])
     : renderDisplayLine(line, display)
   if (display === 'literal' && HAS_FORMAT_TAGS.test(value) && !attrs.includes('data-literal-text=')) { attrs += ' data-literal-text="true"'; if (writtenAttributes) Object.defineProperty(writtenAttributes, writtenAttributes.length, { value: { name: 'data-literal-text', value: 'true' }, enumerable: true, writable: true, configurable: true }) }
   const visible = block ? block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : displayText(value, display)
@@ -236,7 +261,7 @@ export function renderMultilineText(
   let servedAdvance: string | undefined
   const advanceAttrs = (i: number) => {
     if (!block || fragmented || block.lineBlocks[i]!.fragments) return ''
-    const width = formatSvgNumber(block.lineBlocks[i]!.width)
+    const width = inkGeometry?.[i]!.textLength ?? formatSvgNumber(block.lineBlocks[i]!.width)
     if (observePreparedLine && i === 0) servedAdvance = width
     return ` textLength="${width}" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"`
   }
@@ -246,13 +271,13 @@ export function renderMultilineText(
     const dy = fontSize * baselineShift
     if (nativeShaping) return `<text x="${formatSvgNumber(cx)}" y="${formatSvgNumber(cy)}" ${attrs}>${renderPreparedLine(block, 0, cx, anchor, cy + dy)}</text>`
     if (observePreparedLine) {
-      const x = formatSvgNumber(cx), y = formatSvgNumber(cy), baseline = formatSvgNumber(dy)
+      const x = inkGeometry?.[0]!.x ?? formatSvgNumber(cx), y = inkGeometry?.[0]!.y ?? formatSvgNumber(cy), baseline = inkGeometry?.[0]!.dy ?? formatSvgNumber(dy)
       const advance = advanceAttrs(0), content = renderLine(value, 0)
       const svg = `<text x="${x}" y="${y}" ${attrs} dy="${baseline}"${advance}>${content}</text>`
       if (block && servedAdvance !== undefined) observePreparedLine({ x, y, dy: baseline, textLength: servedAdvance, content, additionalAttributes: writtenAttributes! })
       return svg
     }
-    return `<text x="${formatSvgNumber(cx)}" y="${formatSvgNumber(cy)}" ${attrs} dy="${formatSvgNumber(dy)}"${advanceAttrs(0)}>${renderLine(value, 0)}</text>`
+    return `<text x="${inkGeometry?.[0]!.x ?? formatSvgNumber(cx)}" y="${inkGeometry?.[0]!.y ?? formatSvgNumber(cy)}" ${attrs} dy="${inkGeometry?.[0]!.dy ?? formatSvgNumber(dy)}"${advanceAttrs(0)}>${renderLine(value, 0)}</text>`
   }
 
   // Multi-line — use tspan elements with vertical centering
@@ -264,8 +289,8 @@ export function renderMultilineText(
     const dy = i === 0 ? firstDy : lineHeight
     // Native RTL fragments can consume relative advances in visual order.
     // Pin every baseline independently of the fragments' visual order.
-    const position = nativeShaping ? `y="${formatSvgNumber(cy + firstDy + i * lineHeight)}"` : `dy="${formatSvgNumber(dy)}"`
-    return `<tspan x="${formatSvgNumber(cx)}" ${position}${advanceAttrs(i)}>${renderLine(line, i)}</tspan>`
+    const position = nativeShaping ? `y="${formatSvgNumber(cy + firstDy + i * lineHeight)}"` : `dy="${inkGeometry?.[i]!.dy ?? formatSvgNumber(dy)}"`
+    return `<tspan x="${inkGeometry?.[i]!.x ?? formatSvgNumber(cx)}" ${position}${advanceAttrs(i)}>${renderLine(line, i)}</tspan>`
   }).join('')
 
   return `<text x="${formatSvgNumber(cx)}" y="${formatSvgNumber(cy)}" ${attrs}>${tspans}</text>`

@@ -22,9 +22,75 @@ import { measureRenderedText, renderedTextReady } from './helpers/rendered-text.
 import { Resvg } from '@resvg/resvg-js'
 import { join } from 'node:path'
 import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
+import { admitSceneDocument } from '../scene/external-data-snapshot.ts'
+import { createSceneWriteCapture } from '../scene/serialization.ts'
+import { DefaultBackend } from '../scene/backend.ts'
+import { inspectScenePaintGeometry } from '../scene/inspection.ts'
+import { MAX_OCCLUSION_OPERATIONS } from '../scene/native-paint-emission.ts'
 
 beforeAll(() => renderedTextReady())
 const typography = { fontSize: 18, fontWeight: 600 }
+
+it.each([
+  'data-text-anchor="end" text-anchor="start"',
+  'data-note=\' text-anchor="end" \' text-anchor="start"',
+  'text-anchor="start" data-note=\' text-anchor="end" \'',
+  'text-anchor="end" text-anchor="start"',
+  'data-note=\'unterminated text-anchor="end"',
+])('inert quoted attributes cannot choose a prepared fragment anchor: %s', attrs => {
+  const block = preparePixelText('<b>j</b>', { fontSize: 48, fontWeight: 400 })
+  expect(renderMultilineText(block, 100, 80, 48, attrs)).toContain('<tspan x="100" text-anchor="start"')
+})
+
+it.each(['native', 'scene'] as const)('host-shaped bold j bounds enclose actual fitted ink through %s', execution => {
+  // Independently read Inter-Bold glyf/hmtx: units/em2048, advance555,
+  // outline[-50,-418,443,1572]. SVG y points down from its baseline.
+  const measurement = createTextMeasurementExecution({ id: 'test:inter-bold-ink', version: '1.0.0', measure: () => 18.72,
+    measureInk: input => input.text === 'j' && input.fontWeight === 700 ? {
+      advance: 555 / 2048 * 48,
+      bounds: { x0: -50 / 2048 * 48, y0: -1572 / 2048 * 48, x1: 443 / 2048 * 48, y1: 418 / 2048 * 48 },
+    } : undefined,
+  }, 'Inter')!
+  const block = withTextMeasurementExecution(measurement, () => preparePixelText('<b>j</b>', { fontSize: 48, fontWeight: 400, fontFamily: 'Inter' }))
+  expect(block.width).toBe(18.72)
+  const colors = { bg: '#fff', fg: '#111' }, context = { positioned: { width: 240, height: 160 }, colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ family: 'flowchart', width: 240, height: 160, transparent: false, colors, parts: [
+    factory.documentOpen({ id: 'root', width: 240, height: 160, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160">'),
+    factory.text({ id: 'bold-j', role: 'label', text: '<b>j</b>', block, x: 100, y: 80, fontSize: 48, anchor: 'start', paint: { fill: '#111' } }),
+    factory.documentClose(),
+  ] })
+  let svg: string, paint: ReturnType<typeof inspectScenePaintGeometry>
+  if (execution === 'native') ({ svg, paint } = drawNative(producer, context, 'flowchart'))
+  else {
+    const capture = createSceneWriteCapture(MAX_OCCLUSION_OPERATIONS)
+    const document = admitSceneDocument(producer(marks, context), 'internal', true, capture.observe)
+    const receipt = capture.finish(document)
+    svg = DefaultBackend.render(document, { seed: 0 })
+    paint = inspectScenePaintGeometry(document, receipt)
+  }
+  const bounds = paint.primitives.find(primitive => primitive.id === 'bold-j')!.bounds!
+  const tags = svg.match(/<text\b[^>]*>[\s\S]*?<\/text>/g)!
+  expect(tags).toHaveLength(1)
+  const font = { fontFiles: [join(import.meta.dirname, '../../assets/fonts/Inter-Bold.ttf')], loadSystemFonts: false, defaultFontFamily: 'Inter' }
+  const raster = new Resvg(svg, { font }).render(), pixels = raster.pixels
+  const absent = new Resvg(svg.replace(tags[0]!, ''), { font }).render().pixels
+  let changed = 0, outside = 0
+  for (let y = 0; y < raster.height; y++) for (let x = 0; x < raster.width; x++) {
+    const offset = (y * raster.width + x) * 4
+    if (pixels.subarray(offset, offset + 4).equals(absent.subarray(offset, offset + 4))) continue
+    changed++
+    // A raster sample may cover only part of a pixel; its pixel cell must
+    // still intersect the independently shaped continuous envelope.
+    if (x + 1 <= bounds.x0 || x >= bounds.x1 || y + 1 <= bounds.y0 || y >= bounds.y1) outside++
+  }
+  expect(changed).toBeGreaterThan(0)
+  expect(outside).toBe(0)
+  expect(svg).toContain('x="100" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="18.72"')
+  expect(bounds.x0).toBeCloseTo(98.3135135135, 9)
+  expect(bounds.x1).toBeCloseTo(114.9422702703, 9)
+  expect(bounds.y0).toBeCloseTo(59.95625, 9)
+  expect(bounds.y1).toBeCloseTo(106.596875, 9)
+})
 
 describe('prepared display text', () => {
   it('keeps decoded tags and emphasis literal through fitting, Scene fidelity, metrics and writing', () => {

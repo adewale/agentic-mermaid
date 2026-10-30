@@ -2,7 +2,7 @@ import { tryParseCssColor } from '../shared/color-math.ts'
 import { rotateBoxBounds, type AxisAlignedBox } from '../shared/transformed-bounds.ts'
 import type { ConnectorContourSemantics, ConnectorLabelDescriptor, ConnectorMark, Geometry, MarkPaint, MarkerDescriptor, SceneNode, ScenePoint, SceneTransform } from './ir.ts'
 import { connectorEndpointAnchors, connectorMidpoints } from './connector-geometry.ts'
-import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
+import { preparePixelText, preparedTextInkBounds, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
 import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
 import { writtenPolylineProjectionOf } from './written-geometry.ts'
@@ -443,7 +443,7 @@ export function connectorInlineLabelVisualBounds(
     : label.textAnchor === 'end' ? label.anchor.x - labelWidth : label.anchor.x
   const y = label.anchor.y - Math.max(0, label.clearance ?? 0)
   const halo = Math.max(0, label.halo?.width ?? 0) / 2
-  return expandSceneBounds({
+  return expandSceneBounds(preparedTextInkBounds(block, label.anchor.x, y, label.textAnchor, 0) ?? {
     x0,
     y0: y - block.fontSize * 0.35 - block.height / 2,
     x1: x0 + labelWidth,
@@ -664,7 +664,11 @@ function paintBounds(node: SceneNode, parentTransform?: SceneTransform): AxisAli
   } else if (node.kind === 'text') {
     // nodeWorldBounds already uses the retained occupied band/offset. Apply
     // the transform only once, after optional text stroke expansion.
-    local = nodeWorldBounds({ ...node, transform: undefined })
+    const block = node.measurement === 'prepared' ? node.block : undefined
+    const ink = block && node.fontSize === block.fontSize && (node.fontWeight ?? block.fontWeight) === block.fontWeight
+      && (node.letterSpacing ?? 0) === block.letterSpacing && !node.fontStyle && !node.textDecoration && !node.dominantBaseline && !node.spans
+      ? preparedTextInkBounds(block, node.x, node.y, node.anchor, node.baselineShift ?? 0.35) : undefined
+    local = ink ?? nodeWorldBounds({ ...node, transform: undefined })
     const extent = paintedStrokeExtent(node.paint, false)
     if (!local || extent === undefined) return undefined
     return paintedBox(local, extent, node.paint.vectorEffect === 'non-scaling-stroke', transform)
