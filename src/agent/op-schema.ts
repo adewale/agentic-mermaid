@@ -54,7 +54,7 @@ export interface OpValidationError {
   validFields?: string[]
   /** nearest valid name to a typo'd field/kind, when an obvious match exists.
    *  For an op missing `kind` whose op kind sits under another key (`field`,
-   *  e.g. `{op:'add_node'}`), the whole corrected op as JSON. */
+   *  e.g. `{op:'add_node'}`), `kind`; the message shows the corrected op. */
   didYouMean?: string
 }
 
@@ -265,7 +265,7 @@ function validateAdmittedOp(family: OpFamily, op: unknown): OpValidationError | 
         field: misnamed.key,
         message: `${unknownOpMessage(family, op)}. The op discriminator key is "kind", not "${misnamed.key}". Did you mean ${corrected}?`,
         validFields: validKinds,
-        didYouMean: corrected,
+        didYouMean: 'kind',
       }
     }
     const dym = typeof kind === 'string' ? nearest(kind, validKinds) : undefined

@@ -68,9 +68,12 @@ describe('op-schema shape validation (§1–3, §5)', () => {
       expect(error.reason).toBe('unknown_kind')
       expect(error.field).toBe(key)
       expect(errMsg(r.error)).toContain(`discriminator key is "kind", not "${key}"`)
-      expect(JSON.parse(error.didYouMean!)).toEqual(corrected)
-      // The suggestion is the op that applies.
-      expect(applyOps({ family, ops: [JSON.parse(error.didYouMean!)] }).ok).toBe(true)
+      // As for unknown_field: `field` is the wrong key, `didYouMean` the right one.
+      expect(error.didYouMean).toBe('kind')
+      // The message carries the corrected op, and it is the op that applies.
+      const suggested = JSON.parse(errMsg(r.error).match(/Did you mean (\{.*\})\?$/)![1]!)
+      expect(suggested).toEqual(corrected)
+      expect(applyOps({ family, ops: [suggested] }).ok).toBe(true)
     }
     // Text that is no op kind earns no discriminator hint.
     const plain = applyOps({ family: 'class', ops: [{ name: 'Duck' }] })
