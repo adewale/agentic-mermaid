@@ -9,6 +9,8 @@ import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { parseArgs, runBatchLine, renderMarkdownBlocks, FLAG_SPECS } from '../cli/index.ts'
 import { extractMermaidFences } from '../cli/markdown-fences.ts'
+import { BOOLEAN_FLAGS } from '../cli/args.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 
 const NUM_RUNS = 300
 
@@ -55,26 +57,46 @@ describe('cli-surface fuzz: parseArgs', () => {
         for (const v of Object.values(parsed.flags)) {
           expect(typeof v === 'string' || v === true).toBe(true)
         }
+        expect(parsed.errors.every(error => typeof error === 'string')).toBe(true)
       }),
       fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
+  // argv values are arbitrary OS strings; `=` inside a value is data (the
+  // name ends at the first `=`).
+  const argValueArb = fc.string({ unit: 'grapheme', maxLength: 20 })
+
   it('binds `--flag=value` verbatim when trailing junk is positional', () => {
     // Positional tokens (no `--` prefix) never touch `flags`, so the bound value
-    // must survive them. (parseArgs is last-write-wins, so junk that *re-sets*
-    // the same flag legitimately overrides it — not tested here.)
-    const positionalNoiseArb = fc.array(fc.string({ maxLength: 12 }).filter(s => !s.startsWith('--')), { maxLength: 6 })
+    // must survive them.
+    const positionalNoiseArb = fc.array(fc.string({ unit: 'grapheme', maxLength: 12 }).filter(s => !s.startsWith('--')), { maxLength: 6 })
     fc.assert(
-      fc.property(
-        fc.constantFrom(...flagNames),
-        fc.string({ maxLength: 20 }).filter(v => !v.includes('=')),
-        positionalNoiseArb,
-        (flag, value, noise) => {
-          const parsed = parseArgs([`--${flag}=${value}`, ...noise])
-          expect(parsed.flags[flag]).toBe(value)
-        },
-      ),
+      fc.property(fc.constantFrom(...flagNames), argValueArb, positionalNoiseArb, (flag, value, noise) => {
+        const parsed = parseArgs([`--${flag}=${value}`, ...noise])
+        expect(parsed.flags[flag]).toBe(value)
+      }),
+      fcParameters({ numRuns: NUM_RUNS }),
+    )
+  })
+
+  it('a repeated flag keeps its first value and is reported exactly once per repeat', () => {
+    fc.assert(
+      fc.property(fc.constantFrom(...flagNames), fc.array(argValueArb, { minLength: 2, maxLength: 4 }), (flag, values) => {
+        const parsed = parseArgs(values.map(value => `--${flag}=${value}`))
+        expect(parsed.flags[flag]).toBe(values[0])
+        expect(parsed.errors.filter(error => error === `Flag --${flag} may be supplied only once.`)).toHaveLength(values.length - 1)
+      }),
+      fcParameters({ numRuns: NUM_RUNS }),
+    )
+  })
+
+  it('a value given to a boolean flag is reported, and only boolean flags report it', () => {
+    fc.assert(
+      fc.property(fc.constantFrom(...flagNames), argValueArb, (flag, value) => {
+        const parsed = parseArgs([`--${flag}=${value}`])
+        expect(parsed.errors).toEqual(BOOLEAN_FLAGS.has(flag) ? [`Flag --${flag} does not accept a value.`] : [])
+      }),
       fcParameters({ numRuns: NUM_RUNS }),
     )
   })
@@ -119,6 +141,23 @@ describe('cli-surface fuzz: runBatchLine', () => {
         }
       }),
       fcParameters({ numRuns: NUM_RUNS }),
+    )
+  })
+
+  it('a valid render line returns exactly what the library renders for that line', () => {
+    const labelArb = fc.string({ unit: 'grapheme', minLength: 1, maxLength: 8 }).filter(label => /^[\p{L}\p{N} ]+$/u.test(label) && label.trim() === label)
+    const sourceArb = fc.array(labelArb, { minLength: 1, maxLength: 4 })
+      .map(labels => `flowchart LR\n${labels.map((label, i) => `  n${i}["${label}"]${i > 0 ? `\n  n${i - 1} --> n${i}` : ''}`).join('\n')}`)
+    fc.assert(
+      fc.property(sourceArb, fc.integer({ min: 0, max: 999 }), fc.constantFrom('svg', 'ascii', 'unicode'), (source, idx, format) => {
+        const out = runBatchLine(JSON.stringify({ op: 'render', source, options: { format } }), idx)
+        expect(out).toMatchObject({ ok: true, op: 'render' })
+        const expected = format === 'svg'
+          ? renderMermaidSVG(source, { idPrefix: `d${idx}-` })
+          : renderMermaidASCII(source, { useAscii: format === 'ascii' })
+        expect((out as { data: Record<string, unknown> }).data[format]).toBe(expected)
+      }),
+      fcParameters({ numRuns: 40 }),
     )
   })
 
