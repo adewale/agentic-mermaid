@@ -3632,3 +3632,26 @@ lint pass; final combined canonical checks still remain. Evidence and exact
 source binding:`labels/FINAL-REPORT.json`,`FROZEN-SEVEN-FILES.json` and
 `final-seven-overlay/` under the session root. Seed156foreign-caption conflicts
 remain(TD5,BT1); no universal caption-solving or ELK-parity claim is made.
+
+
+The graph repair is now privately committed at
+`89085491c9701e9c26c24966d8048cf4d4e7bf37`; closed metadata admission is
+`b9888f053cf941018bd339c354e2e995c29e595c`.
+A separate actual-allocation subtraction shares the existing rectangle-paint
+inventory's literal SVG attribute names/numeric classification and replaces
+three proof-overlay walks with one descriptor-preserving inert copy. Native
+and Scene still require exact own data, preserve optional undefined fields,
+and retain the192-unit supported-geometry reservation and every cap.
+
+204unique owning cases/3,528assertions pass in both baseline and overlay,
+covering Native/writer/inspection plus rectangle/compound/cylinder/prototype/
+forgery controls. Runtime types and three-file lint pass. Small Class/ER actual
+SVGs are byte-identical; each removes676actually paid operations. All six large
+refusals remain U with this subtraction alone, so it is not claimed to close
+them or improve wall-clock speed. Exact before/after controls and source bytes
+are in`budget-attribution/SUBTRACTION-*` under the session root. This coherent
+subtraction is kept separate from the larger unpublished XML/owned-text/group
+experiments. The deferred-group-only experiment is rejected for closure: its
+Class lower bound is at least485,118operations before all remaining work, and
+its unmarked path adds binding overhead. No work price/cap is reduced to hide
+that result.

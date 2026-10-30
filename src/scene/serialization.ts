@@ -118,16 +118,19 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
   const context = createEmissionContext(pay)
   const rectangles = new WeakSet<ShapeMark>()
   const fractional = new WeakSet<SceneNode>()
-  const inert = <T extends object>(source: T): T | undefined => {
+  const inert = <T extends object>(source: T, field?: string, value?: unknown): T | undefined => {
     if (!pay(2)) return undefined
     const keys = Object.getOwnPropertyNames(source)
     if (!pay(keys.length * 3)) return undefined
     const result = Object.create(null) as T
+    let replaced = false
     for (const key of keys) {
       const descriptor = Object.getOwnPropertyDescriptor(source, key)
       if (!descriptor || !Object.hasOwn(descriptor, 'value')) return undefined
-      Object.defineProperty(result, key, { value: descriptor.value, enumerable: descriptor.enumerable })
+      if (key === field) replaced = true
+      Object.defineProperty(result, key, { value: key === field ? value : descriptor.value, enumerable: descriptor.enumerable })
     }
+    if (field !== undefined && !replaced) return undefined
     return Object.preventExtensions(result)
   }
   const hint = (node: SceneNode): boolean => {
@@ -177,7 +180,7 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
       if (!pay(4)) return false
       const descriptor = Object.getOwnPropertyDescriptor(paint, field)
       if (!descriptor) { if (field in paint) return false; continue }
-      if (!Object.hasOwn(descriptor, 'value') || descriptor.value !== undefined && (typeof descriptor.value !== 'string' || rectanglePaintFields[field] && descriptor.value.length >= 13)) return false
+      if (!Object.hasOwn(descriptor, 'value') || descriptor.value !== undefined && (typeof descriptor.value !== 'string' || rectanglePaintFields[field].numeric && descriptor.value.length >= 13)) return false
     }
     rectangles.add(node)
     return true
@@ -189,8 +192,8 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
     let matched = 0
     const paint = node.paint
     if (attributes) for (const field of Object.keys(rectanglePaintFields) as (keyof MarkPaint)[]) {
-      if (!pay(field.length * 2 + 4)) return
-      const attribute = field.replace(/[A-Z]/g, char => `-${char.toLowerCase()}`), expected = paint[field]
+      if (!pay(4)) return
+      const attribute = rectanglePaintFields[field].attribute, expected = paint[field]
       const descriptor = Object.getOwnPropertyDescriptor(attributes, attribute)
       const ownData = !!descriptor && Object.hasOwn(descriptor, 'value')
       if (descriptor && (!ownData || typeof descriptor.value !== 'string')) conditional = true
@@ -200,8 +203,8 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
       if (descriptor) matched++
     }
     if (attributes && (!pay(16) || Object.getOwnPropertyNames(attributes).length !== matched)) conditional = true
-    const geometry = served && inert(served), proof = inert(node)
-    const overlay = geometry && proof && replace(proof, 'geometry', geometry)
+    const geometry = served && inert(served)
+    const overlay = geometry && inert(node, 'geometry', geometry)
     if (paths.has(node)) { paths.delete(node); exhausted = true; return }
     paths.set(node, Object.freeze({ source, svg, served: overlay ?? node, conditional: conditional || !overlay, path: false }))
   }

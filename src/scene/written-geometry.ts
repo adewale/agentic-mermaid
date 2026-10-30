@@ -4,11 +4,14 @@ import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number
 
 // The complete paint field set read by the shape writer. Only numeric
 // attributes can acquire a different literal through SVG number formatting.
-export const rectanglePaintFields: Record<keyof MarkPaint, boolean> = {
-  fill: false, fillOpacity: true, stroke: false, strokeOpacity: true,
-  strokeWidth: true, strokeDasharray: true, strokeDashoffset: true,
-  strokeLinecap: false, strokeLinejoin: false, strokeMiterlimit: true,
-  vectorEffect: false, paintOrder: false, opacity: true,
+export const rectanglePaintFields: Record<keyof MarkPaint, { readonly attribute: string; readonly numeric: boolean }> = {
+  fill: { attribute: 'fill', numeric: false }, fillOpacity: { attribute: 'fill-opacity', numeric: true },
+  stroke: { attribute: 'stroke', numeric: false }, strokeOpacity: { attribute: 'stroke-opacity', numeric: true },
+  strokeWidth: { attribute: 'stroke-width', numeric: true }, strokeDasharray: { attribute: 'stroke-dasharray', numeric: true },
+  strokeDashoffset: { attribute: 'stroke-dashoffset', numeric: true }, strokeLinecap: { attribute: 'stroke-linecap', numeric: false },
+  strokeLinejoin: { attribute: 'stroke-linejoin', numeric: false }, strokeMiterlimit: { attribute: 'stroke-miterlimit', numeric: true },
+  vectorEffect: { attribute: 'vector-effect', numeric: false }, paintOrder: { attribute: 'paint-order', numeric: false },
+  opacity: { attribute: 'opacity', numeric: true },
 }
 
 export interface WrittenPolylineProjection {
@@ -44,7 +47,6 @@ const compoundProjections = new WeakSet<object>()
 const own = (o: object, key: string): PropertyDescriptor | undefined => Object.getOwnPropertyDescriptor(o, key)
 const ownData = (o: object, key: string): unknown => { const d = own(o, key); return d && Object.hasOwn(d, 'value') ? d.value : undefined }
 const geometrySlots = { rect: ['x', 'y', 'width', 'height'], line: ['x1', 'y1', 'x2', 'y2'], ellipse: ['cx', 'cy', 'rx', 'ry'] } as const
-const attributeName = (field: string): string => field.replace(/[A-Z]/g, c => `-${c.toLowerCase()}`)
 const record = <T extends object>(source: T): T => Object.freeze(Object.assign(Object.create(null), source))
 
 /** Structural eligibility is deliberately exact, not a family or node-ID rule.
@@ -184,7 +186,7 @@ export function completeWrittenCompoundShape(token: WrittenCompoundInput, source
     cursor = tag.end
     const expected = new Map<string, string>(), numbers: Record<string, number> = Object.create(null), paint: Record<string, string> = Object.create(null)
     for (const [field, value] of Object.entries(piece.geometry)) expected.set(field, formatSvgNumber(value))
-    for (const [field, value] of Object.entries(piece.paint)) expected.set(attributeName(field), formatSvgNumericAttribute(attributeName(field), value!))
+    for (const [field, value] of Object.entries(piece.paint)) expected.set(rectanglePaintFields[field as keyof MarkPaint].attribute, formatSvgNumericAttribute(rectanglePaintFields[field as keyof MarkPaint].attribute, value!))
     if (i === 0) for (const [field, value] of input.identity) expected.set(field, value)
     const seen = new Set<string>()
     for (const attribute of tag.attributes) {
@@ -202,7 +204,7 @@ export function completeWrittenCompoundShape(token: WrittenCompoundInput, source
       if (!Number.isFinite(value)) return undefined
       numbers[field] = value
     }
-    for (const field of Object.keys(piece.paint)) paint[field] = decodedSvgAttributeValue(tag, attributeName(field))!
+    for (const field of Object.keys(piece.paint)) paint[field] = decodedSvgAttributeValue(tag, rectanglePaintFields[field as keyof MarkPaint].attribute)!
     const child = record({ kind: piece.kind, ...numbers }) as unknown as Geometry
     if (child.kind === 'rect' && !(child.width > 0 && child.height > 0) || child.kind === 'ellipse' && !(child.rx > 0 && child.ry > 0)) return undefined
     children.push(child); paints.push(record(paint))

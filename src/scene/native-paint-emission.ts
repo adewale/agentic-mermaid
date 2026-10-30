@@ -144,17 +144,24 @@ export function createNativePaintEmission(maxOperations: number) {
     return Object.preventExtensions(result)
   }
   // This proof-only record cannot acquire an inherited opacity or radius
-  // after emission. The writer and generic caller objects remain unchanged.
-  const inertRectangleRecord = <T extends object>(source: T): T | undefined => {
+  // after emission. Required overlays share this one descriptor walk; an
+  // absent or accessor field cannot acquire an emitted replacement.
+  // The writer and generic caller objects remain unchanged.
+  const inertRectangleRecord = <T extends object>(source: T, firstField?: string, firstValue?: unknown, secondField?: string, secondValue?: unknown): T | undefined => {
     if (!pay(2)) return undefined
     const keys = Object.getOwnPropertyNames(source)
     if (!pay(keys.length * 3)) return undefined
     const result = Object.create(null) as T
+    let replaced = 0
     for (const key of keys) {
       const descriptor = Object.getOwnPropertyDescriptor(source, key)
       if (!descriptor || !Object.hasOwn(descriptor, 'value')) return undefined
-      Object.defineProperty(result, key, { value: descriptor.value, enumerable: descriptor.enumerable, writable: false, configurable: false })
+      let value = descriptor.value
+      if (key === firstField) { value = firstValue; replaced |= 1 }
+      else if (key === secondField) { value = secondValue; replaced |= 2 }
+      Object.defineProperty(result, key, { value, enumerable: descriptor.enumerable, writable: false, configurable: false })
     }
+    if (firstField !== undefined && !(replaced & 1) || secondField !== undefined && !(replaced & 2)) return undefined
     if (capturedLeaves.has(source) && pay()) capturedLeaves.set(result, capturedLeaves.get(source)!)
     return Object.preventExtensions(result)
   }
@@ -172,7 +179,7 @@ export function createNativePaintEmission(maxOperations: number) {
       const value = descriptor.value
       // The existing numeric formatter returns strings shorter than13
       // verbatim. Longer numeric paints need their own emitted authority.
-      if (value !== undefined && (typeof value !== 'string' || rectanglePaintFields[field] && value.length >= 13)) return undefined
+      if (value !== undefined && (typeof value !== 'string' || rectanglePaintFields[field].numeric && value.length >= 13)) return undefined
     }
     return inertRectangleRecord(paint)
   }
@@ -191,9 +198,10 @@ export function createNativePaintEmission(maxOperations: number) {
     for (const field of Object.keys(rectanglePaintFields) as (keyof MarkPaint)[]) {
       const expected = paint[field]
       // Field names are a fixed bounded inventory; arbitrary data hooks never
-      // reach this record. Pay both the name conversion and string equality.
-      if (!pay(field.length * 2 + 4)) return false
-      const attribute = field.replace(/[A-Z]/g, char => `-${char.toLowerCase()}`)
+      // reach this record. Literal names remove conversion; descriptor and
+      // actual-value comparisons remain paid.
+      if (!pay(4)) return false
+      const attribute = rectanglePaintFields[field].attribute
       const descriptor = Object.getOwnPropertyDescriptor(attributes, attribute)
       if (descriptor && (!Object.hasOwn(descriptor, 'value') || typeof descriptor.value !== 'string')) return false
       const actual = descriptor?.value as string | undefined
@@ -443,9 +451,7 @@ export function createNativePaintEmission(maxOperations: number) {
         // Missing fresh callbacks or mismatched bytes cannot create the new
         // compound projection; existing general compound proofs stay intact.
         if (!projection) return retained
-        const proof = inertRectangleRecord(captured)
-        const overlay = proof && replaceField(proof, 'geometry', projection.geometry)
-        const paintNode = overlay && replaceField(overlay, 'childPaints', projection.childPaints)
+        const paintNode = inertRectangleRecord(captured, 'geometry', projection.geometry, 'childPaints', projection.childPaints)
         return paintNode ? { ...retained, paintNode } : retained
       }
       // A cached serialization, missing/duplicate receipt, failed capture or
@@ -456,9 +462,7 @@ export function createNativePaintEmission(maxOperations: number) {
         // A rectangle has extent, not a line's start/end topology. Never
         // borrow the line-collapse branch or pre-write radii for served ink.
         if (!(served.width > 0 && served.height > 0) || (served.rx ?? 0) !== 0 || (served.ry ?? 0) !== 0) return { ...retained, conditional: true }
-        const proof = inertRectangleRecord(captured)
-        const overlay = proof && replaceField(proof, 'geometry', served)
-        const paintNode = overlay && replaceField(overlay, 'paint', rectangle.paint)
+        const paintNode = inertRectangleRecord(captured, 'geometry', served, 'paint', rectangle.paint)
         return paintNode ? { ...retained, paintNode, conditional: false } : { ...retained, conditional: true }
       }
       if (served === geometry) return retained
