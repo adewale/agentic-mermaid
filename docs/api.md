@@ -257,9 +257,11 @@ readable `message`. `feature` distinguishes cases such as `filter` and
 `RESOLVED_SCENE_UNAVAILABLE`. A failure returns no partial scene and does not
 modify a previously returned artifact.
 
-In Code Mode, catch the error and return the needed fields:
+Pass this JavaScript body to Code Mode's `execute` tool to return selected
+fields or a typed refusal:
 
-```ts
+```js
+const source = 'flowchart LR; A-->B'
 try {
   const scene = mermaid.renderResolvedScene(source)
   return { version: scene.version, parts: scene.parts.map(p => ({ id: p.id, primitives: p.primitives })) }
