@@ -1,6 +1,9 @@
 import { projectZenUMLSequence } from '../zenuml/native-sequence.ts'
 import type { FamilyOperations } from './family-registry.ts'
-import { ok, type SourceMap, type SourceLocation } from './types.ts'
+import { ok, type LayoutWarning, type SourceMap, type SourceLocation } from './types.ts'
+import { labelOverflowCollector } from './body-utils.ts'
+import { resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
+import type { SequenceDiagram } from '../sequence/types.ts'
 import { sourceLineStarts, sourcePointAt } from '../shared/source-spans.ts'
 import { recordSourceMapEnds } from './source-map-spans.ts'
 import { preservedMermaidFamilyText } from '../mermaid-source.ts'
@@ -53,5 +56,27 @@ export const ZENUML_SOURCE_HOOKS: Omit<FamilyOperations, 'mutate'> = {
     recordSourceMapEnds(map, ends)
     return map
   },
-  verify: body => body.kind === 'zenuml' && !projectZenUMLSequence(body).actors.some(actor => !actor.external) ? [{ code: 'EMPTY_DIAGRAM' }] : [],
+  verify: (body, opts) => {
+    if (body.kind !== 'zenuml') return []
+    const model = projectZenUMLSequence(body)
+    if (!model.actors.some(actor => !actor.external)) return [{ code: 'EMPTY_DIAGRAM' }]
+    const warnings: LayoutWarning[] = []
+    const overflow = labelOverflowCollector(warnings, opts)
+    for (const label of zenumlDrawnLabels(model)) overflow(label.target, label.text)
+    return warnings
+  },
+}
+
+/** The text the Sequence renderer draws for a ZenUML projection: participant
+ * headers, message labels, and fragment conditions and branch labels, each
+ * named by its statement identity. */
+function zenumlDrawnLabels(model: SequenceDiagram): Array<{ target: string; text: DisplayTextInput }> {
+  return [
+    ...model.actors.filter(actor => !actor.external).map(actor => ({ target: actor.id, text: resolveLabelContent(actor.label, actor.labelContent) })),
+    ...model.messages.flatMap(message => message.id === undefined ? [] : [{ target: message.id, text: resolveLabelContent(message.label, message.labelContent) }]),
+    ...model.blocks.flatMap(block => [
+      ...(block.label && block.id !== undefined ? [{ target: block.id, text: resolveLabelContent(block.label, block.labelContent) }] : []),
+      ...block.dividers.flatMap((divider, index) => divider.label && block.id !== undefined ? [{ target: `${block.id}:branch#${index + 1}`, text: resolveLabelContent(divider.label, divider.labelContent) }] : []),
+    ]),
+  ]
 }

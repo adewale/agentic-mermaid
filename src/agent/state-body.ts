@@ -1987,7 +1987,9 @@ export function verifyState(body: StateBody, opts: VerifyOptions): LayoutWarning
       }
       historyLint(t.from)
       historyLint(t.to)
-      if (t.label !== undefined) overflow(edge, t.label)
+      // A transition label's LABEL_OVERFLOW is reported once, by verify's
+      // graph projection, under the indexed edge id (`A->B#k`) that names it
+      // apart from a parallel transition.
     })
   }
   visit(body.states, body.transitions)
