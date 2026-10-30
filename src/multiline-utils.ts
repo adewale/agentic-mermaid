@@ -190,6 +190,7 @@ export interface PreparedSingleLineWrite {
   readonly dy: string
   readonly textLength: string
   readonly content: string
+  readonly additionalAttributes: readonly { readonly name: string; readonly value: string }[]
 }
 
 /**
@@ -224,12 +225,13 @@ export function renderMultilineText(
   const anchor = attrs.match(/\btext-anchor="([^"]*)"/)?.[1] ?? 'start'
   const nativeShaping = block && /[^\x20-\x7e]/u.test(block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join(''))
   const fragmented = block && (block.letterSpacing !== 0 || nativeShaping)
+  const writtenAttributes: Array<{ name: string; value: string }> | undefined = observePreparedLine ? [] : undefined
   const renderLine = (line: string, index: number) => block
     ? renderPreparedLine(block, index, cx, anchor)
     : renderDisplayLine(line, display)
-  if (display === 'literal' && HAS_FORMAT_TAGS.test(value) && !attrs.includes('data-literal-text=')) attrs += ' data-literal-text="true"'
+  if (display === 'literal' && HAS_FORMAT_TAGS.test(value) && !attrs.includes('data-literal-text=')) { attrs += ' data-literal-text="true"'; writtenAttributes?.push({ name: 'data-literal-text', value: 'true' }) }
   const visible = block ? block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : displayText(value, display)
-  if (/(?:^ | $| {2}|\t)/m.test(visible) && !attrs.includes('xml:space=')) attrs += ' xml:space="preserve"'
+  if (/(?:^ | $| {2}|\t)/m.test(visible) && !attrs.includes('xml:space=')) { attrs += ' xml:space="preserve"'; writtenAttributes?.push({ name: 'xml:space', value: 'preserve' }) }
   if (block) attrs += ' data-prepared-text="true"'
   let servedAdvance: string | undefined
   const advanceAttrs = (i: number) => {
@@ -247,7 +249,7 @@ export function renderMultilineText(
       const x = formatSvgNumber(cx), y = formatSvgNumber(cy), baseline = formatSvgNumber(dy)
       const advance = advanceAttrs(0), content = renderLine(value, 0)
       const svg = `<text x="${x}" y="${y}" ${attrs} dy="${baseline}"${advance}>${content}</text>`
-      if (block && servedAdvance !== undefined) observePreparedLine({ x, y, dy: baseline, textLength: servedAdvance, content })
+      if (block && servedAdvance !== undefined) observePreparedLine({ x, y, dy: baseline, textLength: servedAdvance, content, additionalAttributes: writtenAttributes! })
       return svg
     }
     return `<text x="${formatSvgNumber(cx)}" y="${formatSvgNumber(cy)}" ${attrs} dy="${formatSvgNumber(dy)}"${advanceAttrs(0)}>${renderLine(value, 0)}</text>`

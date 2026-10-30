@@ -12,10 +12,255 @@ import type { SvgSemanticAccessibility } from './accessibility.ts'
 import { hasDomSvgIdentityRole } from './identity.ts'
 import { serializeTransform } from './transforms.ts'
 import { connectorInlineLabelText } from './bounds.ts'
-import { escapeAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
+import { escapeAttr, escapeXml, renderMultilineText, type PreparedSingleLineWrite } from '../multiline-utils.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
 import { connectorUnitTangent } from './connector-geometry.ts'
 import { createWrittenPolyline } from './written-geometry.ts'
+import { indentLines } from './serialization.ts'
+
+/** XML construction belongs to one actual writer transaction. Raw chunks and
+ * cached bytes retain their full markup in the validation projection. */
+declare const svgXmlWrite: unique symbol
+declare const svgXmlCapture: unique symbol
+export interface SvgXmlWrite { readonly [svgXmlWrite]: true; readonly svg: string }
+export interface SvgXmlWriteRecord { readonly svg: string; readonly node: object | undefined }
+export interface SvgXmlValidationRecord extends SvgXmlWriteRecord { readonly skeleton: string }
+export interface SvgXmlCapture {
+  readonly [svgXmlCapture]: true
+  raw(svg: string, node?: object): SvgXmlWrite
+  join(writes: readonly SvgXmlWrite[], separator?: string): SvgXmlWrite
+  indent(write: SvgXmlWrite, spaces: number): SvgXmlWrite
+  /** Identity and actual bytes only; exhaustion cannot discard emitted output. */
+  read(write: SvgXmlWrite, expectedNode?: object): SvgXmlWriteRecord | undefined
+  /** Complete private construction checks only when the final envelope needs them. */
+  validate(write: SvgXmlWrite): SvgXmlValidationRecord | undefined
+}
+interface XmlCaptureState {
+  pay(operations: number): boolean
+  literal(value: string, attribute: boolean): boolean
+  name(value: string): boolean
+  prepared(): boolean
+  boundary(value: string): boolean
+  issue(svg: string, skeleton: string | (() => string | undefined), node?: object): SvgXmlWrite
+}
+interface XmlWriteFact {
+  readonly capture: SvgXmlCapture
+  readonly record: SvgXmlWriteRecord
+  readonly projection: string | (() => string | undefined)
+  completed?: SvgXmlValidationRecord
+}
+const xmlCaptures = new WeakMap<SvgXmlCapture, XmlCaptureState>()
+const xmlWrites = new WeakMap<SvgXmlWrite, XmlWriteFact>()
+
+export function createSvgXmlCapture(work: (operations: number) => boolean): SvgXmlCapture {
+  const names = new Map<string, boolean>(), attributes = new Map<string, boolean>(), texts = new Map<string, boolean>(), boundaries = new Map<string, boolean>()
+  let exhausted = false
+  const pay = (count: number): boolean => {
+    if (exhausted || !Number.isSafeInteger(count) || count < 0 || work(count) !== true) { exhausted = true; return false }
+    return true
+  }
+  let capture: SvgXmlCapture
+  const issue = (svg: string, projection: string | (() => string | undefined), node?: object): SvgXmlWrite => {
+    pay(1)
+    const write = Object.freeze(Object.assign(Object.create(null), { svg })) as SvgXmlWrite
+    const record = Object.freeze(Object.assign(Object.create(null), { svg, node })) as SvgXmlWriteRecord
+    xmlWrites.set(write, { capture, record, projection })
+    return write
+  }
+  const factOf = (write: SvgXmlWrite): XmlWriteFact | undefined => {
+    pay(1)
+    if (typeof write !== 'object' || write === null) return undefined
+    const found = xmlWrites.get(write)
+    return found?.capture === capture ? found : undefined
+  }
+  // Opaque fragments must finish their lexical tokens before a typed element
+  // can be substituted. Element nesting/namespaces stay with the final parser.
+  const boundary = (value: string): boolean => {
+    if (!pay(2)) return false
+    const retained = boundaries.get(value)
+    if (retained !== undefined) return retained
+    if (!pay(value.length * 2 + 2)) return false
+    let tag = false, reference = false, quote: '"' | "'" | undefined, valid = true
+    for (let i = 0; i < value.length; i++) {
+      const character = value[i]!
+      if (reference) { if (character === ';') reference = false; continue }
+      if (character === '&') { reference = true; continue }
+      if (!tag) {
+        if (character === '<') {
+          const next = value[i + 1]
+          if (!next || next === '!' || next === '?') { valid = false; break }
+          tag = true
+        }
+      } else if (quote) {
+        if (character === quote) quote = undefined
+        else if (character === '<') { valid = false; break }
+      } else if (character === '"' || character === "'") quote = character
+      else if (character === '>') tag = false
+      else if (character === '<') { valid = false; break }
+    }
+    valid &&= !tag && !reference && quote === undefined
+    boundaries.set(value, valid)
+    return valid
+  }
+  const validateFact = (fact: XmlWriteFact): SvgXmlValidationRecord | undefined => {
+    if (!pay(2)) return undefined
+    if (fact.completed) return fact.completed
+    const skeleton = typeof fact.projection === 'string' ? boundary(fact.projection) ? fact.projection : undefined : fact.projection()
+    if (skeleton === undefined || exhausted) return undefined
+    return fact.completed = Object.freeze(Object.assign(Object.create(null), { svg: fact.record.svg, node: fact.record.node, skeleton })) as SvgXmlValidationRecord
+  }
+  const literal = (value: string, attribute: boolean): boolean => {
+    if (!pay(2)) return false
+    const cache = attribute ? attributes : texts
+    const retained = cache.get(value)
+    if (retained !== undefined) return retained
+    if (!pay(value.length + 2)) return false
+    let valid = true
+    for (let i = 0; i < value.length; i++) {
+      const code = value.charCodeAt(i)
+      if (code === 0x3c || !attribute && code === 0x3e && value[i - 1] === ']' && value[i - 2] === ']' || attribute && code === 0x22 || code < 0x20 && code !== 9 && code !== 10 && code !== 13 || code === 0xfffe || code === 0xffff) { valid = false; break }
+      if (code >= 0xd800 && code <= 0xdbff) {
+        const next = value.charCodeAt(++i)
+        if (!(next >= 0xdc00 && next <= 0xdfff)) { valid = false; break }
+      } else if (code >= 0xdc00 && code <= 0xdfff) { valid = false; break }
+      if (code === 0x26) {
+        // Only spellings this writer's escaping functions actually produce.
+        const reference = /^&(?:amp|lt|gt|quot|#39|#9|#10|#13);/.exec(value.slice(i, i + 7))?.[0]
+        if (!reference) { valid = false; break }
+        i += reference.length - 1
+      }
+    }
+    cache.set(value, valid)
+    return valid
+  }
+  const name = (value: string): boolean => {
+    if (!pay(2)) return false
+    const retained = names.get(value)
+    if (retained !== undefined) return retained
+    if (!pay(value.length + 2)) return false
+    const valid = value === 'xml:space' || value !== 'xmlns' && /^[A-Za-z_][A-Za-z0-9_.-]*$/.test(value)
+    names.set(value, valid)
+    return valid
+  }
+  let preparedChecked = false
+  const prepared = (): boolean => {
+    if (!pay(1)) return false
+    if (preparedChecked) return true
+    for (const fixed of ['x', 'y', 'dy', 'textLength', 'data-prepared-text', 'lengthAdjust', 'data-font-metrics']) if (!name(fixed)) return false
+    for (const fixed of ['true', 'spacingAndGlyphs', 'deterministic-fit']) if (!literal(fixed, true)) return false
+    preparedChecked = true
+    return true
+  }
+  capture = Object.freeze(Object.assign(Object.create(null), {
+    raw(svg: string, node?: object): SvgXmlWrite {
+      if (typeof svg !== 'string') throw new TypeError('XML raw chunks require a string')
+      return issue(svg, svg, node)
+    },
+    join(writes: readonly SvgXmlWrite[], separator = '\n'): SvgXmlWrite {
+      if (typeof separator !== 'string') throw new TypeError('XML joins require a string separator')
+      const actual: string[] = [], children: XmlWriteFact[] = []
+      for (const write of writes) {
+        const found = factOf(write)
+        if (!found) throw new TypeError('XML composition requires this capture’s actual writes')
+        actual.push(found.record.svg); children.push(found)
+      }
+      const svg = actual.join(separator)
+      return issue(svg, () => {
+        if (children.length > 1 && !boundary(separator)) return undefined
+        const skeleton: string[] = []
+        let characters = separator.length * Math.max(0, children.length - 1)
+        for (const child of children) {
+          const checked = validateFact(child)
+          if (!checked) return undefined
+          skeleton.push(checked.skeleton)
+          characters += checked.skeleton.length
+        }
+        if (!pay(skeleton.length + characters)) return undefined
+        return skeleton.join(separator)
+      })
+    },
+    indent(write: SvgXmlWrite, spaces: number): SvgXmlWrite {
+      const found = factOf(write)
+      if (!found) throw new TypeError('XML indentation requires this capture’s actual write')
+      if (spaces <= 0 || found.record.svg === '') return write
+      const svg = indentLines(found.record.svg, spaces)
+      if (typeof spaces !== 'number') return issue(svg, svg)
+      return issue(svg, () => {
+        const checked = validateFact(found)
+        if (!checked || !pay(checked.skeleton.length + Math.max(0, spaces) + 2)) return undefined
+        let valid = true
+        for (let i = 0; i < checked.skeleton.length; i++) if (checked.skeleton[i] === '\n' && !pay(Math.max(0, spaces))) { valid = false; break }
+        return valid ? indentLines(checked.skeleton, spaces) : undefined
+      })
+    },
+    read(write: SvgXmlWrite, expectedNode?: object): SvgXmlWriteRecord | undefined {
+      const found = factOf(write)?.record
+      return found && (expectedNode === undefined || found.node === expectedNode) ? found : undefined
+    },
+    validate(write: SvgXmlWrite): SvgXmlValidationRecord | undefined {
+      const found = factOf(write)
+      return found ? validateFact(found) : undefined
+    },
+  })) as SvgXmlCapture
+  xmlCaptures.set(capture, { pay, literal, name, prepared, boundary, issue })
+  return capture
+}
+
+function finishXmlLeaf(capture: SvgXmlCapture, node: object, svg: string, xml: XmlLeafWrite | undefined, eligible = true, additional: readonly XmlLeafWrite[] = []): SvgXmlWrite {
+  const state = xmlCaptures.get(capture)
+  if (!state) throw new TypeError('Unknown XML capture')
+  // Empty output cannot insert a delimiter between adjacent raw text spans.
+  return state.issue(svg, svg && eligible && xml ? () => xml.check() && additional.every(part => part.check()) ? '<g/>' : state.boundary(svg) ? svg : undefined : svg, node)
+}
+
+type XmlWriteEvent = readonly ['element', string] | readonly ['attribute', string, string] | readonly ['text', string] | readonly ['prepared', string, string, string, string, string]
+class XmlLeafWrite {
+  readonly #state: XmlCaptureState
+  readonly #events: XmlWriteEvent[] = []
+  valid = true
+  constructor(state: XmlCaptureState) { this.#state = state }
+  element(name: string): void {
+    if (this.valid) { this.valid = this.#state.pay(1); if (this.valid) this.#events.push(['element', name]) }
+  }
+  attribute(name: string, escaped: unknown): void {
+    if (this.valid) { this.valid = typeof escaped === 'string' && this.#state.pay(1); if (this.valid) this.#events.push(['attribute', name, escaped as string]) }
+  }
+  text(content: string): void {
+    if (this.valid) { this.valid = typeof content === 'string' && this.#state.pay(1); if (this.valid) this.#events.push(['text', content]) }
+  }
+  prepared(written: PreparedSingleLineWrite): void {
+    if (!this.valid) return
+    const { x, y, dy, textLength, content } = written
+    this.valid = typeof x === 'string' && typeof y === 'string' && typeof dy === 'string' && typeof textLength === 'string' && typeof content === 'string' && this.#state.pay(5)
+    if (this.valid) this.#events.push(['prepared', x, y, dy, textLength, content])
+    for (const attribute of written.additionalAttributes) this.attribute(attribute.name, attribute.value)
+  }
+  check(): boolean {
+    if (!this.valid || !this.#state.pay(1)) return false
+    const attributes = new Set<string>()
+    for (const event of this.#events) {
+      if (!this.#state.pay(2)) return false
+      if (event[0] === 'element') {
+        attributes.clear()
+        const name = event[1]
+        if (name !== 'rect' && name !== 'circle' && name !== 'ellipse' && name !== 'line' && name !== 'polygon' && name !== 'polyline' && name !== 'path' && name !== 'text') return false
+      } else if (event[0] === 'attribute') {
+        if (attributes.has(event[1]) || !this.#state.name(event[1]) || !this.#state.literal(event[2], true)) return false
+        attributes.add(event[1])
+      } else if (event[0] === 'prepared') {
+        if (!this.#state.prepared()) return false
+        const attribute = (name: string, value?: string): boolean => {
+          if (!this.#state.pay(2) || attributes.has(name)) return false
+          attributes.add(name)
+          return value === undefined || this.#state.literal(value, true)
+        }
+        if (!attribute('x', event[1]) || !attribute('y', event[2]) || !attribute('dy', event[3]) || !attribute('textLength', event[4])
+          || !attribute('data-prepared-text') || !attribute('lengthAdjust') || !attribute('data-font-metrics') || !this.#state.literal(event[5], false)) return false
+      } else if (!this.#state.literal(event[1], false)) return false
+    }
+    return true
+  }
+}
 
 /** A receipt from this actual geometry write, never from cached markup.
  * Undefined served geometry means numeric spelling exceeded bounded custody. */
@@ -44,12 +289,26 @@ class SvgWriter {
   value = ''
   transformed = false
   observeAttributes?: (name: string, literal: string) => void
+  readonly xml?: XmlLeafWrite
+
+  constructor(capture?: SvgXmlCapture, text = false) {
+    const state = capture && xmlCaptures.get(capture)
+    if (state) { this.xml = new XmlLeafWrite(state); if (text) this.xml.element('text') }
+  }
+
+  element(name: string): void {
+    const actual = `${name}`
+    this.raw(`<${actual}`)
+    this.xml?.element(actual)
+  }
 
   raw(text: string): void { this.value += text }
 
   attribute(name: string, value: string | number, changedToken?: (offset: number, literal: string) => boolean | void, numericToken?: (literal: string, raw: string) => boolean | void): string {
     const literal = typeof value === 'number' ? formatSvgNumber(value) : formatSvgNumericAttribute(name, value, changedToken, numericToken)
-    this.value += ` ${name}="${typeof value === 'number' ? literal : escapeAttr(literal)}"`
+    const escaped = typeof value === 'number' ? literal : escapeAttr(literal)
+    this.value += ` ${name}="${escaped}"`
+    this.xml?.attribute(name, escaped)
     if (name === 'transform') this.transformed = true
     this.observeAttributes?.(name, literal)
     return literal
@@ -219,8 +478,10 @@ function geometryAttributes(out: SvgWriter, geometry: ElementGeometry, sink?: Sv
 
 /** Compound geometry writes one element per child, each with its own paint;
  * hooks, identity and ARIA go on the first. */
-export function writeShapeSvg(node: ShapeMark, sink?: SvgGeometryWriteSink): string {
-  const out = new SvgWriter()
+export function writeShapeSvg(node: ShapeMark, sink?: SvgGeometryWriteSink): string
+export function writeShapeSvg(node: ShapeMark, sink: SvgGeometryWriteSink | undefined, capture: SvgXmlCapture): SvgXmlWrite
+export function writeShapeSvg(node: ShapeMark, sink?: SvgGeometryWriteSink, capture?: SvgXmlCapture): string | SvgXmlWrite {
+  const out = new SvgWriter(capture)
   const compound = node.geometry.kind === 'compound'
   const pieces = node.geometry.kind === 'compound' ? node.geometry.children : [node.geometry]
   const report = compound ? undefined : sink?.rectangleAttributes
@@ -234,7 +495,7 @@ export function writeShapeSvg(node: ShapeMark, sink?: SvgGeometryWriteSink): str
     const piece = pieces[index]!
     if (piece.kind === 'compound') throw new TypeError(`Shape "${node.id}" nests compound geometry`)
     if (index) out.raw('\n')
-    out.raw(`<${piece.kind}`)
+    out.element(piece.kind)
     if (index === 0) hooks(out, node.attributes)
     geometryAttributes(out, piece, sink)
     // Only the13 paint fields and one transform can enter this receipt.
@@ -248,7 +509,7 @@ export function writeShapeSvg(node: ShapeMark, sink?: SvgGeometryWriteSink): str
   }
   report?.(node, invalidAttributes ? undefined : Object.freeze(attributes!))
   writtenLeafContexts.set(node, { svg: out.value, context: Object.freeze({ transformed: out.transformed }) })
-  return out.value
+  return capture ? finishXmlLeaf(capture, node, out.value, out.xml) : out.value
 }
 
 function typographyAttributes(out: SvgWriter, node: TextMark): void {
@@ -266,8 +527,10 @@ function typographyAttributes(out: SvgWriter, node: TextMark): void {
 /** Text goes through the shared multi-line writer, which owns line wrappers,
  * prepared runs and fitted advances. A fallback-measured mark is written from
  * its source text, as families wrote unprepared labels. */
-export function writeTextSvg(node: TextMark): string {
-  const out = new SvgWriter()
+export function writeTextSvg(node: TextMark): string
+export function writeTextSvg(node: TextMark, capture: SvgXmlCapture): SvgXmlWrite
+export function writeTextSvg(node: TextMark, capture?: SvgXmlCapture): string | SvgXmlWrite {
+  const out = new SvgWriter(capture, true)
   hooks(out, node.attributes)
   typographyAttributes(out, node)
   paintAttributes(out, node.paint)
@@ -275,17 +538,22 @@ export function writeTextSvg(node: TextMark): string {
   identityAttributes(out, node.identity, node.accessibility)
   const attrs = out.value.slice(1)
   const prepared = node.measurement === 'prepared' && node.block
-  const svg = renderMultilineText(prepared ? node.block! : node.text, node.x, node.y, node.fontSize, attrs, node.baselineShift ?? 0.35, node.display === 'literal')
-  if (!node.spans) return svg
+  let observed = false
+  const svg = renderMultilineText(prepared ? node.block! : node.text, node.x, node.y, node.fontSize, attrs, node.baselineShift ?? 0.35, node.display === 'literal', out.xml ? written => {
+    observed = true
+    out.xml!.prepared(written)
+  } : undefined)
+  if (!node.spans) return capture ? finishXmlLeaf(capture, node, svg, out.xml, observed) : svg
   const shown = prepared ? node.block!.text : node.text
   const content = `>${escapeXml(shown)}</text>`
   if (!svg.endsWith(content)) throw new TypeError(`Text "${node.id}" spans require a one-line label`)
   let spans = ''
   for (const span of node.spans) spans += `<tspan fill="${escapeAttr(span.fill)}">${escapeXml(span.text)}</tspan>`
-  return `${svg.slice(0, -content.length)}>${spans}</text>`
+  const written = `${svg.slice(0, -content.length)}>${spans}</text>`
+  return capture ? capture.raw(written, node) : written
 }
 
-function connectorInlineLabelSvg(node: ConnectorMark, label: ConnectorLabelDescriptor, index: number): { svg: string; transformed: boolean } | undefined {
+function connectorInlineLabelSvg(node: ConnectorMark, label: ConnectorLabelDescriptor, index: number, capture?: SvgXmlCapture): { svg: string; transformed: boolean; xml?: XmlLeafWrite; complete: boolean } | undefined {
   if (label.visual?.kind !== 'inline') return undefined
   if (!label.anchor || !label.paint || label.fontSize === undefined || label.textAnchor === undefined) {
     throw new TypeError(`Connector "${node.id}" inline label ${index + 1} requires anchor, paint, fontSize, and textAnchor`)
@@ -299,7 +567,7 @@ function connectorInlineLabelSvg(node: ConnectorMark, label: ConnectorLabelDescr
       paintOrder: 'stroke fill',
     } : {}),
   }
-  const out = new SvgWriter()
+  const out = new SvgWriter(capture, true)
   out.attribute('data-id', label.id ?? `${node.id}-label-${index + 1}`)
   out.attribute('data-role', 'label')
   out.attribute('data-connector-label-for', node.id)
@@ -309,20 +577,29 @@ function connectorInlineLabelSvg(node: ConnectorMark, label: ConnectorLabelDescr
   out.attribute('text-anchor', label.textAnchor)
   transformAttribute(out, node.transform)
   paintAttributes(out, paint)
-  return { svg: renderMultilineText(block, label.anchor.x, label.anchor.y - Math.max(0, label.clearance ?? 0), block.fontSize, out.value.slice(1), 0), transformed: out.transformed }
+  let complete = false
+  const svg = renderMultilineText(block, label.anchor.x, label.anchor.y - Math.max(0, label.clearance ?? 0), block.fontSize, out.value.slice(1), 0, false, out.xml ? written => {
+    complete = true
+    out.xml!.prepared(written)
+  } : undefined)
+  return { svg, transformed: out.transformed, xml: out.xml, complete }
 }
 
 /** A connector is one marker carrier element plus any labels it owns; an
  * invisible connector draws its labels without the carrier. SVG defaults
  * (butt caps, miter joins, limit 4) are left implicit. */
-export function writeConnectorSvg(node: ConnectorMark, sink?: SvgGeometryWriteSink): string {
-  const out = new SvgWriter()
+export function writeConnectorSvg(node: ConnectorMark, sink?: SvgGeometryWriteSink): string
+export function writeConnectorSvg(node: ConnectorMark, sink: SvgGeometryWriteSink | undefined, capture: SvgXmlCapture): SvgXmlWrite
+export function writeConnectorSvg(node: ConnectorMark, sink?: SvgGeometryWriteSink, capture?: SvgXmlCapture): string | SvgXmlWrite {
+  const out = new SvgWriter(capture)
+  let complete = true
+  const inline: XmlLeafWrite[] | undefined = capture ? [] : undefined
   const { stroke, markers } = node
   const dash = stroke.dash
   const midMarker = markers.mid[0]
   if (node.lineStyle !== 'invisible') {
     const geometry = node.route.geometry
-    out.raw(`<${geometry.kind}`)
+    out.element(geometry.kind)
     hooks(out, node.attributes)
     geometryAttributes(out, geometry, sink)
     if (geometry.kind !== 'line') out.attribute('fill', 'none')
@@ -349,15 +626,16 @@ export function writeConnectorSvg(node: ConnectorMark, sink?: SvgGeometryWriteSi
     out.raw(' />')
   }
   for (let index = 0; index < node.labels.length; index++) {
-    const label = connectorInlineLabelSvg(node, node.labels[index]!, index)
+    const label = connectorInlineLabelSvg(node, node.labels[index]!, index, capture)
     if (label !== undefined) {
+      if (capture) { complete &&= label.complete && label.xml !== undefined; if (label.xml) inline!.push(label.xml) }
       if (out.value) out.raw('\n')
       out.raw(label.svg)
       out.transformed ||= label.transformed
     }
   }
   writtenLeafContexts.set(node, { svg: out.value, context: Object.freeze({ transformed: out.transformed }) })
-  return out.value
+  return capture ? finishXmlLeaf(capture, node, out.value, out.xml, complete, inline!) : out.value
 }
 
 /** Path for a header band with rounded top corners and a square bottom. */

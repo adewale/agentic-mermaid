@@ -2,12 +2,12 @@ import type { SceneNode, SceneDoc, ConnectorMark, Geometry, MarkPaint, ShapeMark
 import type { ScenePaintGeometryInspection, ScenePaintGeometry } from './inspection.ts'
 import { scanSvgStartTags, decodedSvgAttributeValue } from '../svg-structure.ts'
 import { serializeMarkerResource } from './marker-resources.ts'
-import { transferRetainedPixelText } from '../shared/prepared-text.ts'
+import { transferRetainedPixelText, isOwnedPixelTextPart } from '../shared/prepared-text.ts'
 import { formatSvgNumber } from '../shared/svg-number.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
 import { deferredTerminalProjectionInput, copyDeferredTerminalProjection } from './deferred-terminal-projection.ts'
 import { transferSceneNodeSerialization } from './serialization.ts'
-import type { SvgGeometryWriteSink } from './svg-writer.ts'
+import { createSvgXmlCapture, type SvgGeometryWriteSink, type SvgXmlWrite } from './svg-writer.ts'
 import { connectorContourSemantics } from './connector-geometry.ts'
 import { rectanglePaintFields, writtenPolylineProjectionOf, prepareWrittenCompoundShape, observeWrittenCompoundShape, completeWrittenCompoundShape } from './written-geometry.ts'
 import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
@@ -42,10 +42,13 @@ export function createNativePaintEmission(maxOperations: number) {
     return true
   }
   const context = createEmissionContext(pay, { resources: false })
+  const xml = createSvgXmlCapture(pay)
   const failed = Symbol('unsupported-emission')
   const capturedLeaves = new WeakMap<object, Leaf>()
-  type CaptureContext = 'leaf' | 'route' | 'geometry' | 'points' | 'point'
-  const copy = (value: unknown, depth = 0, parents = new Set<object>(), context?: CaptureContext): unknown => {
+  type CaptureContext = 'leaf' | 'route' | 'geometry' | 'points' | 'point' | 'pixel-part'
+  const textCopies = new WeakMap<object, { readonly value: unknown; readonly height: number }>()
+  let measuringText: { maxDepth: number } | undefined
+  const copyInner = (value: unknown, depth: number, parents: Set<object>, context?: CaptureContext): unknown => {
     if (depth > 64) throw failed
     if (value === null || value === undefined || typeof value === 'boolean') return value
     if (typeof value === 'number' || typeof value === 'string') return value
@@ -94,7 +97,8 @@ export function createNativePaintEmission(maxOperations: number) {
         || context === 'route' && key === 'geometry') ownedFields |= 1
       const pointSlot = context === 'points' && /^(?:0|[1-9]\d*)$/.test(key) && Number(key) < 0xffff_ffff
       if (pointSlot) ownedPointSlots++
-      const childContext = context === 'leaf' && kind === 'connector' && key === 'route' ? 'route'
+      const childContext = context === 'pixel-part' || context === 'leaf' && kind === 'text' && (key === 'block' || key === 'preparedLines') ? 'pixel-part'
+        : context === 'leaf' && kind === 'connector' && key === 'route' ? 'route'
         : (context === 'leaf' && kind === 'shape' || context === 'route') && key === 'geometry' ? 'geometry' : context === 'geometry' && kind === 'polyline' && key === 'points' ? 'points' : pointSlot ? 'point' : undefined
       Object.defineProperty(result, key, { value: copy(descriptor.value, depth + 1, parents, childContext), enumerable: descriptor.enumerable, configurable: false, writable: false })
     }
@@ -123,6 +127,32 @@ export function createNativePaintEmission(maxOperations: number) {
     // arrays also own readonly length. Prevent extensions without rescanning
     // the same fields a second time through Object.freeze.
     return Object.preventExtensions(result)
+  }
+  const copy = (value: unknown, depth = 0, parents = new Set<object>(), context?: CaptureContext): unknown => {
+    if (depth > 64) throw failed
+    if (measuringText) {
+      if (!pay()) throw failed
+      measuringText.maxDepth = Math.max(measuringText.maxDepth, depth)
+    }
+    if (measuringText || context !== 'pixel-part' || !value || typeof value !== 'object') return copyInner(value, depth, parents, context)
+    // Only library-allocated plain text data is reflection-pure. Structural
+    // freezing and transferable measurement brands cannot qualify a Proxy.
+    if (!pay(2)) throw failed
+    if (!isOwnedPixelTextPart(value)) return copyInner(value, depth, parents, context)
+    if (!pay(2)) throw failed
+    const previous = textCopies.get(value)
+    if (previous) {
+      if (depth + previous.height > 64) throw failed
+      return previous.value
+    }
+    const measure = { maxDepth: depth }
+    measuringText = measure
+    try {
+      const result = copyInner(value, depth, parents, context)
+      if (!pay(2)) throw failed
+      textCopies.set(value, { value: result, height: measure.maxDepth - depth })
+      return result
+    } finally { measuringText = undefined }
   }
   const snapshot = <T>(value: T): T | undefined => {
     try { return copy(value) as T } catch { return undefined }
@@ -255,6 +285,7 @@ export function createNativePaintEmission(maxOperations: number) {
     return cost
   }
   return {
+    xml,
     snapshot,
     same,
     retainFragment(): boolean { return pay() },
@@ -410,10 +441,17 @@ export function createNativePaintEmission(maxOperations: number) {
       } else context.invalidateFractionalCircle()
       return !exhausted
     },
-    leaf(node: Leaf, write: (node: Leaf, sink?: SvgGeometryWriteSink) => string): { node: Leaf; paintNode: Leaf; svg: string; conditional: boolean } {
+    leaf(node: Leaf, write: (node: Leaf, sink?: SvgGeometryWriteSink) => string | SvgXmlWrite): { node: Leaf; paintNode: Leaf; svg: string; xmlWrite: SvgXmlWrite | undefined; conditional: boolean } {
+      const serialize = (source: Leaf, sink?: SvgGeometryWriteSink): { svg: string; xmlWrite: SvgXmlWrite | undefined } => {
+        const written = write(source, sink)
+        if (typeof written === 'string') return { svg: written, xmlWrite: undefined }
+        const record = xml.read(written, source)
+        if (!record) throw new TypeError('Native XML output must belong to its actual captured leaf')
+        return { svg: record.svg, xmlWrite: written }
+      }
       let captured: Leaf | undefined
       try { captured = copy(node, 0, new Set(), 'leaf') as Leaf } catch { /* Strict mutable fallback. */ }
-      if (!captured) return { node, paintNode: node, svg: write(node), conditional: true }
+      if (!captured) return { node, paintNode: node, ...serialize(node), conditional: true }
       transferSceneNodeSerialization(node, captured)
       const geometry = captured.kind === 'shape' ? captured.geometry : captured.kind === 'connector' && captured.lineStyle !== 'invisible' ? captured.route.geometry : undefined
       // Eligibility is decided before validation/writing can observe inherited
@@ -442,9 +480,9 @@ export function createNativePaintEmission(maxOperations: number) {
         attributesReceived = true
         attributes = written
       } : undefined }) : undefined
-      const svg = write(captured, sink)
+      const { svg, xmlWrite } = serialize(captured, sink)
       if (pay()) capturedLeaves.set(captured, captured)
-      const retained = { node: captured, paintNode: captured, svg, conditional: false }
+      const retained = { node: captured, paintNode: captured, svg, xmlWrite, conditional: false }
       if (!supported) return retained
       if (compound && captured.kind === 'shape' && geometry) {
         const projection = reserved && completeWrittenCompoundShape(compound, geometry, svg, pay)
@@ -491,7 +529,7 @@ export function createNativePaintEmission(maxOperations: number) {
       const paintNode = replaceField(captured, 'route', route)
       return paintNode ? { ...retained, paintNode, conditional: !path && collapsed } : { ...retained, conditional: true }
     },
-    finish(inspection: ScenePaintGeometryInspection, header: Omit<SceneDoc, 'parts'>, svg: string, unrecordedPaint = false): void {
+    finish(inspection: ScenePaintGeometryInspection, header: Omit<SceneDoc, 'parts'>, output: string | SvgXmlWrite, unrecordedPaint = false): void {
       // An issued inspection cannot be resealed with another document. Nor can
       // a wrapper around its already-issued occurrences borrow fresh custody.
       if (emissionWork.has(inspection)) return
@@ -523,7 +561,11 @@ export function createNativePaintEmission(maxOperations: number) {
       // This raw-document obligation belongs to marker-bearing emission proofs.
       // The callback forces a fresh parse and pays its scans and namespace work
       // from the same unchanged allowance as capture and geometric proof.
-      if (hasMarkedConnector && !verifySvgDocumentEnvelope(svg, pay)) uncertain = true
+      if (hasMarkedConnector) {
+        const record = typeof output === 'string' ? undefined : xml.validate(output)
+        const envelope = typeof output === 'string' ? output : record?.skeleton ?? xml.read(output)?.svg
+        if (envelope === undefined || !verifySvgDocumentEnvelope(envelope, pay)) uncertain = true
+      }
       // Paid in observe before these immutable occurrences were created.
       // Conditional fallback occurrences already prohibit P, even if rewrapped.
       for (const primitive of inspection.primitives) if (primitive.visibility !== 'conditional') emittedOccurrences.add(primitive)

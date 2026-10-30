@@ -3726,3 +3726,80 @@ CI terminal failure recorded and malformed duplicated reproduction text fixed.
 New visual assets are local only; the description explicitly leaves the
 mechanical linter's missing embedded-public-asset finding open. No external
 comment/message or fabricated public asset link was created.
+
+
+### 30 October: actual writer XML custody and pure-origin text-copy reuse
+
+Sequence visibility is privately committed at
+`66b8f05810bbb6225bb0dab12735d142875c3ab7`. The implementation worktree is now
+attached to local`work/pr449-main-correctness-20261030`; retained remote head
+remains d43 until a normal verified push. Existing work was preserved.
+
+One opaque per-emission XML capture now owns actual leaf writes, raw wrappers,
+group indentation/join and final document composition. Native returns the SVG
+from that same composed object. Default string writer/validator APIs remain
+available. Fresh typed leaf facts validate the actual escaped attribute names,
+values and text, including scalar characters and duplicate attributes. Cached,
+unsupported and opaque markup stays raw. Only final marker-bearing proof asks
+for the lazy validation projection; its fresh whole-envelope check still pays
+from the same400,000allowance. Incomplete raw lexical tokens, comments/PIs,
+separators and failed-leaf fallbacks cannot hide malformed actual output:
+projection decline rechecks that same object's actual SVG. Empty output cannot
+insert a fake XML boundary. No public registration/safe boolean issues this
+construction evidence, and no separately supplied SVG is compared to a helper
+certificate. Actual geometry/stroke/cylinder/contact/ownership checks remain.
+
+Actual constructors now distinguish private local allocations from the older
+structural immutable/transferable measurement brands. Only known local records
+and explicitly built arrays mint the stronger provenance, bottom-up inside the
+existing freeze walk. Generic supplied interpretation immutablePlan is unchanged.
+Native's first complete copy measures and pays scalar-depth extent; later copies
+reuse only that same emission's completed own-origin text data in TextMark.block
+and preparedLines contexts. Geometry, generic snapshot, caller Proxy/getter,
+mutable/CSS/definition paths keep their checks. The original hostile custom-map
+Proxy still receives two descriptor traps on both captures and produces the
+same later white rectangle. Depth64P/depth65U, cycles, accessors, functions and
+nonstandard prototypes retain their outcomes; no constructor depth scan or
+unpaid second full-tree walk is added.
+
+The existing1,500-label/32-decorative-marker refusal becomes P at
+368,437/400,000 in the final R5 frozen runtime (355,119emission operations),
+versus the earlier R3 experiment's367,793. The actual335,043-byte SVG is identical
+to the recorded baseline. Root's exact implementation checks pass the three
+existing text owners/3,015assertions, including all1,500actual XML fields and
+first/last pinned-font glyph removal. Five large refusals remain open: Class128
+in four directions and ER256Native. No timing or memory benefit is inferred.
+
+The complete R5 paint/Scene owner partitions pass708unique tests and fail1
+known ER capacity case across seven files,11,989assertions total. The63expensive
+curve/endpoint cases are disjoint from the646-case complement:18P/2,109assertions,
+45P/1,083,645P1F/8,797. Their actual authored meaning and final marker/label ink
+checks remain. Source bytes are frozen in`combined-r5/runtime`; original failed
+harness configurations remain separately recorded. The latest writer test also
+keeps stateful non-string-content, raw-comment/separator and empty-boundary
+falsifiers. Its26P/83assertions are owning XML behavior checks, with final-ink
+coverage retained at the higher paint owners.
+
+After applying the exact nine runtime files and latest owning test to the real
+implementation worktree, canonical core+repository types pass, full Biome passes
+(1existing oversized-JSON warning),96writer/Native/Sequence tests pass with
+544assertions, and the3text cases pass3,015assertions. All four checks guard
+2,103tracked source/config inputs before, at lock and after, retain117+3/300+3
+worker bounds and30-second test bounds, and reap descendants. Executable bytes
+match the qualified R5 snapshot; the already committed metadata explanation
+comment is retained. Evidence:`XML-ADOPTION-BINDING.json`,`xml-adoption-checks/`,
+`xml-write/`,`sequence/`,`authority-review/` and`budget-attribution/` under the
+session root. No group-constructor, marker-snapshot, Scene-snapshot or residual
+192-accounting experiment is silently included in this commit.
+
+The three-system comparison is being extended with the ACTUAL original-seven
+rows77,87,88,89,103,206,209. The previous20-source/60-cell baseline included seven
+other historical cycles; it does not qualify these seven. New enrollment is
+21cells,14fresh our cells with separately enrolled strict/normal phases,5fresh
+Pele cells and2explicit exact-source/options/artifact-matched Pele reuses.
+Initial product results are all14our cells strictP/normalP and all7Pele SVG/model
+returns; independent final-ink observation remains underway. These are not a
+28/84cross-product or pooled verdict, and the replacement holdout stays sealed.
+Next concrete work: apply the independently qualified seed156caption repair,
+then combine only proved actual-work subtractions against the five remaining
+admission refusals. Full final-head CI and delivery budgets remain unresolved.

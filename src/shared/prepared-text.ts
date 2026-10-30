@@ -6,7 +6,7 @@ import type { TextTransform } from '../types.ts'
 import { LINE_HEIGHT_RATIO, measureTextWidth, measureSystemFontSafeTextWidth, measureMonospaceTextWidth, getCharWidth } from '../text-metrics.ts'
 import { graphemes } from './graphemes.ts'
 import { serializeStyledSegment } from './inline-format.ts'
-import { isImmutableDisplayTextPart, prepareDisplayText, type DisplayRun, type DisplayTextInput, type PreparedDisplayText } from './display-text.ts'
+import { isImmutableDisplayTextPart, isOwnedDisplayTextPart, prepareDisplayText, type DisplayRun, type DisplayTextInput, type PreparedDisplayText } from './display-text.ts'
 import { createImmutableParts } from './immutable-parts.ts'
 import { customTextMeasurementActive } from '../text-measurement-profile.ts'
 
@@ -68,8 +68,9 @@ export interface PixelTextBlock {
 const pixelBlocks = new WeightedLru<string, PixelTextBlock>(256, 8 * 1024 * 1024)
 const preparedBlocks = new WeakSet<object>()
 // Only constructor-owned immutable data, never the transferable measurement brand.
-const immutablePixelParts = createImmutableParts(isImmutableDisplayTextPart)
+const immutablePixelParts = createImmutableParts(isImmutableDisplayTextPart, isOwnedDisplayTextPart)
 export function isImmutablePixelTextPart(value: object): boolean { return immutablePixelParts.has(value) }
+export function isOwnedPixelTextPart(value: object): boolean { return immutablePixelParts.hasOwned(value) }
 export function isRetainedPixelText(value: object): boolean { return preparedBlocks.has(value) }
 export function transferRetainedPixelText(source: object, snapshot: object): void {
   if (preparedBlocks.has(source)) preparedBlocks.add(snapshot)
@@ -296,19 +297,22 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
   const visible = prepared.lines.map(runs => runs.map(run => run.text).join('')).join('\n')
   const maxMarks = /\p{M}/u.test(visible.normalize('NFD').replace(/[\uFE0E\uFE0F]/g, '')) ? graphemes(visible.normalize('NFD')).reduce((max, cluster) => Math.max(max, (cluster.replace(/[\uFE0E\uFE0F]/g, '').match(/\p{M}/gu) ?? []).length), 0) : 0
   const lineHeight = options.fontSize * Math.max(LINE_HEIGHT_RATIO, /[\p{Script=Arabic}\p{Script=Hebrew}]/u.test(visible) ? 2.4 : 0, maxMarks ? LINE_HEIGHT_RATIO + maxMarks * 0.6 : 0)
-  const lineBlocks = broken.map((runs, i) => {
+  const lineBlocks: PixelTextLine[] = []
+  for (let i = 0; i < broken.length; i++) {
+    const runs = broken[i]!
     const text = runs.map(run => prepared.display === 'literal' ? run.text : serializeStyledSegment(run)).join('')
     runs.forEach(immutablePixelParts.freeze)
     const ascii = !/[^\x20-\x7e]/u.test(text)
     const styled = runs.some(run => run.bold || run.italic || run.underline || run.strikethrough)
     const allocation = ascii ? (options.letterSpacing ?? 0) !== 0 ? trackingLayout(runs, options) : styled ? styledRunLayout(runs, options) : undefined : undefined
-    return immutablePixelParts.freeze({ runs: immutablePixelParts.freeze(runs), text, width: allocation?.width ?? advance(runs, options), baseline: i * lineHeight + options.fontSize * 0.35, originX: allocation?.originX ?? 0, ...(allocation ? { fragments: allocation.fragments } : {}) })
-  })
-  const lines = lineBlocks.map(line => line.text)
-  immutablePixelParts.freeze(lines)
-  breaks.forEach(immutablePixelParts.freeze)
+    lineBlocks.push(immutablePixelParts.freezeOwned({ runs: immutablePixelParts.freezeOwned(runs), text, width: allocation?.width ?? advance(runs, options), baseline: i * lineHeight + options.fontSize * 0.35, originX: allocation?.originX ?? 0, ...(allocation ? { fragments: allocation.fragments } : {}) }))
+  }
+  const lines: string[] = []
+  for (const line of lineBlocks) lines.push(line.text)
+  immutablePixelParts.freezeOwned(lines)
+  breaks.forEach(immutablePixelParts.freezeOwned)
   const width = lineBlocks.reduce((max, line) => Math.max(max, line.width), 0)
-  const block: PixelTextBlock = immutablePixelParts.freeze({ unit: 'px', prepared, text: lines.join('\n'), lines, lineBlocks: immutablePixelParts.freeze(lineBlocks), breaks: immutablePixelParts.freeze(breaks), width, height: lines.length * lineHeight, lineHeight, fontSize: options.fontSize, fontWeight: options.fontWeight, letterSpacing: options.letterSpacing ?? 0, monospace: options.monospace ?? false, safeFont: options.safeFont ?? false, ...(options.fontFamily ? { fontFamily: options.fontFamily } : {}) })
+  const block: PixelTextBlock = immutablePixelParts.freezeOwned({ unit: 'px', prepared, text: lines.join('\n'), lines, lineBlocks: immutablePixelParts.freezeOwned(lineBlocks), breaks: immutablePixelParts.freezeOwned(breaks), width, height: lines.length * lineHeight, lineHeight, fontSize: options.fontSize, fontWeight: options.fontWeight, letterSpacing: options.letterSpacing ?? 0, monospace: options.monospace ?? false, safeFont: options.safeFont ?? false, ...(options.fontFamily ? { fontFamily: options.fontFamily } : {}) })
   preparedBlocks.add(block)
   if (cacheKey !== undefined) pixelBlocks.set(cacheKey, block, cacheKey.length * 2 + block.prepared.source.length * 128 + block.lines.length * 256 + 512)
   return block

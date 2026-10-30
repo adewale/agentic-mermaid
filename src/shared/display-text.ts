@@ -25,6 +25,7 @@ const displayPlans = new WeightedLru<string, PreparedDisplayText>(512, 4 * 1024 
 const retainedPlans = new WeakSet<object>()
 const immutableDisplayParts = createImmutableParts()
 export function isImmutableDisplayTextPart(value: object): boolean { return immutableDisplayParts.has(value) }
+export function isOwnedDisplayTextPart(value: object): boolean { return immutableDisplayParts.hasOwned(value) }
 function retainPlan(plan: PreparedDisplayText): PreparedDisplayText { retainedPlans.add(plan); return plan }
 
 /** Capture a supplied interpretation without reading its source a second time. */
@@ -151,10 +152,11 @@ export function prepareDisplayText(source: DisplayTextInput, display: LabelDispl
   if (cacheKey !== undefined) { const cached = displayPlans.get(cacheKey); if (cached) return cached }
   let offset = 0
   const lineStarts: number[] = []
-  const empty = immutableDisplayParts.freeze([]) as readonly DisplayRun[]
-  const lines = source.split('\n').map(line => {
+  const empty = immutableDisplayParts.freezeOwned([]) as readonly DisplayRun[]
+  const lines: Array<readonly DisplayRun[]> = []
+  for (const line of source.split('\n')) {
     lineStarts.push(offset)
-    if (line === '') { offset++; return empty }
+    if (line === '') { offset++; lines.push(empty); continue }
     let runs: DisplayRun[]
     if (display === 'literal') {
       runs = [{ text: line, bold: false, italic: false, underline: false, strikethrough: false, sourceStart: offset, sourceEnd: offset + line.length }]
@@ -169,19 +171,21 @@ export function prepareDisplayText(source: DisplayTextInput, display: LabelDispl
       if (cursor < line.length) spans.push({ start: cursor, end: line.length })
       runs = parseInlineFormatting(line).map((run, i) => ({ ...run, sourceStart: offset + spans[i]!.start, sourceEnd: offset + spans[i]!.end }))
     }
-    runs = runs.map(run => {
+    const retainedRuns: DisplayRun[] = []
+    for (const run of runs) {
       let sourceAt = run.sourceStart
-      const clusters = graphemes(run.text).map(cluster => {
-        const result = immutableDisplayParts.freeze({ text: sanitizeTextControls(cluster), sourceStart: sourceAt, sourceEnd: sourceAt + cluster.length })
+      const clusters: NonNullable<DisplayRun['clusters']>[number][] = []
+      for (const cluster of graphemes(run.text)) {
+        const result = immutableDisplayParts.freezeOwned({ text: sanitizeTextControls(cluster), sourceStart: sourceAt, sourceEnd: sourceAt + cluster.length })
         sourceAt += cluster.length
-        return result
-      })
-      return immutableDisplayParts.freeze({ ...run, text: clusters.map(cluster => cluster.text).join(''), clusters: immutableDisplayParts.freeze(clusters) })
-    })
+        clusters.push(result)
+      }
+      retainedRuns.push(immutableDisplayParts.freezeOwned({ ...run, text: clusters.map(cluster => cluster.text).join(''), clusters: immutableDisplayParts.freezeOwned(clusters) }))
+    }
     offset += line.length + 1
-    return immutableDisplayParts.freeze(runs)
-  })
-  const prepared = retainPlan(immutableDisplayParts.freeze({ source, display, lines: immutableDisplayParts.freeze(lines), lineStarts: immutableDisplayParts.freeze(lineStarts) }))
+    lines.push(immutableDisplayParts.freezeOwned(retainedRuns))
+  }
+  const prepared = retainPlan(immutableDisplayParts.freezeOwned({ source, display, lines: immutableDisplayParts.freezeOwned(lines), lineStarts: immutableDisplayParts.freezeOwned(lineStarts) }))
   const result = transform ? transformPreparedDisplayText(prepared, transform) : prepared
   if (cacheKey !== undefined) displayPlans.set(cacheKey, result, cacheKey.length * 2 + source.length * 96 + 256)
   return result

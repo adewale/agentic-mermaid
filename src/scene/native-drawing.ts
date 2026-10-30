@@ -11,9 +11,11 @@ import { createOwnedNativePaintRecorder, multiplySceneOpacity, nativePaintAncest
 import { createNativeSceneValidator, SceneValidationError, SCENE_VALIDATION_LIMITS, assertFinalSvgByteBudget } from './scene-validation-core.ts'
 import { withDeferredTerminalProjections } from './deferred-terminal-projection.ts'
 import { createNativePaintEmission, MAX_OCCLUSION_OPERATIONS } from './native-paint-emission.ts'
+import type { SvgXmlWrite } from './svg-writer.ts'
 
 interface FragmentData {
   readonly svg: string
+  readonly xmlWrite: SvgXmlWrite
   readonly nodeCount: number
   readonly depth: number
   readonly prepared: boolean
@@ -87,15 +89,16 @@ export function drawNative(
 ): NativeDrawing {
   const header = { family, width: context.positioned.width, height: context.positioned.height, colors: context.colors, transparent: context.resolved.renderOptions.transparent ?? false }
   const emission = createNativePaintEmission(MAX_OCCLUSION_OPERATIONS)
+  const xml = emission.xml
   if (family.startsWith('family:')) emission.uncertain()
   let emittedHeader = emission.snapshot(header)
   const validator = createNativeSceneValidator(header)
   const ownedFragments = new WeakSet<object>()
   const ownFragment = <T extends Fragment>(fragment: T): T => { if (emission.retainFragment()) ownedFragments.add(fragment); return Object.freeze(fragment) }
   const leaf = (node: LeafNode): Fragment => {
-    const captured = emission.leaf(node, (captured, sink) => validator.node(captured, 0, sink))
+    const captured = emission.leaf(node, (captured, sink) => validator.write(captured, xml, 0, sink))
     const svg = captured.svg
-    return ownFragment({ kind: 'leaf', node: captured.paintNode, svg, conditional: captured.conditional, nodeCount: 1, depth: 0,
+    return ownFragment({ kind: 'leaf', node: captured.paintNode, svg, xmlWrite: captured.xmlWrite!, conditional: captured.conditional, nodeCount: 1, depth: 0,
       prepared: node.kind === 'document' ? !/<\s*text/i.test(svg)
         : node.kind !== 'text' || node.measurement === 'prepared' && node.block !== undefined })
   }
@@ -122,7 +125,7 @@ export function drawNative(
       const { children: inputChildren, ...shellFields } = fields
       const submitted = emission.parts(inputChildren, SCENE_VALIDATION_LIMITS.maxNodes)
       const childParts: Array<{ readonly node: Fragment; readonly indent: number }> = []
-      let nodeCount = 1, characters = 0, depth = 1, prepared = true
+      let nodeCount = 1, characters = 0, depth = 1, prepared = true, allOwned = true
       const children: Fragment[] = []
       for (const child of submitted) {
         // Read each caller wrapper only once. The same owned node+indent pair
@@ -131,7 +134,7 @@ export function drawNative(
         if (!nodeField || !Object.hasOwn(nodeField, 'value') || !indentField || !Object.hasOwn(indentField, 'value')) emission.uncertain()
         const entry = Object.freeze({ node: child.node, indent: child.indent })
         childParts.push(entry)
-        if (!ownedFragments.has(entry.node)) emission.uncertain()
+        if (!ownedFragments.has(entry.node)) { emission.uncertain(); allOwned = false }
         children.push(entry.node)
         nodeCount += entry.node.nodeCount
         characters += entry.node.svg.length
@@ -150,12 +153,22 @@ export function drawNative(
       for (const child of children) {
         if (child.kind === 'leaf' && child.node.kind === 'shape' && !child.node.identity) validator.enclosure(child.node.id, capturedShell?.identity ?? shell.identity ?? own)
       }
-      const fragments = [shell.open]
-      for (const child of childParts) fragments.push(indentLines(child.node.svg, child.indent))
-      fragments.push(shell.close)
-      const svg = fragments.join(shell.join)
+      let xmlWrite: SvgXmlWrite
+      if (allOwned) {
+        const fragments = [xml.raw(shell.open)]
+        for (const child of childParts) fragments.push(xml.indent(child.node.xmlWrite, child.indent))
+        fragments.push(xml.raw(shell.close))
+        xmlWrite = xml.join(fragments, shell.join)
+      } else {
+        // Keep the legacy read/coercion order for foreign fragment values.
+        const fragments = [shell.open]
+        for (const child of childParts) fragments.push(indentLines(child.node.svg, child.indent))
+        fragments.push(shell.close)
+        xmlWrite = xml.raw(fragments.join(shell.join))
+      }
+      const svg = xmlWrite.svg
       validator.serialization(svg)
-      return ownFragment({ kind: 'group', svg, children: Object.freeze(children), matrix, own, owner: capturedShell?.owner,
+      return ownFragment({ kind: 'group', svg, xmlWrite, children: Object.freeze(children), matrix, own, owner: capturedShell?.owner,
         conditional: !capturedShell || shell.visibility === 'conditional', opacity: sceneGroupOpacity(capturedShell?.paint?.opacity),
         nodeCount, depth, prepared: !/<\s*text/i.test(shell.open + shell.close) && prepared })
     },
@@ -169,7 +182,8 @@ export function drawNative(
     if (!descriptor || !Object.hasOwn(descriptor, 'value')) emission.uncertain()
   }
   const parts = emission.parts(document.parts, SCENE_VALIDATION_LIMITS.maxNodes)
-  for (const part of parts) if (!ownedFragments.has(part)) emission.uncertain()
+  let allOwned = true
+  for (const part of parts) if (!ownedFragments.has(part)) { emission.uncertain(); allOwned = false }
   const result = validator.finish()
   if (!result.valid) throw new SceneValidationError(result.diagnostics)
   let nodeCount = 0, characters = -1, preparedText = true
@@ -181,7 +195,10 @@ export function drawNative(
   if (nodeCount > SCENE_VALIDATION_LIMITS.maxNodes) throw new RangeError('Native drawing contains too many emitted nodes')
   if (characters > SCENE_VALIDATION_LIMITS.maxFinalSvgBytes) throw new RangeError('Native drawing exceeds the final SVG limit')
   const backdrop = pageRectFor(document, { seed: 0, ...(style ? { style } : {}) })
-  const svg = parts.map((part, index) => index === 0 && backdrop ? `${part.svg}\n${backdrop}` : part.svg).join('\n')
+  const xmlWrite = allOwned
+    ? xml.join(parts.map((part, index) => index === 0 && backdrop ? xml.join([part.xmlWrite, xml.raw(backdrop)], '\n') : part.xmlWrite), '\n')
+    : xml.raw(parts.map((part, index) => index === 0 && backdrop ? `${part.svg}\n${backdrop}` : part.svg).join('\n'))
+  const svg = xmlWrite.svg
   assertFinalSvgByteBudget(svg, 'native drawing output')
   // The document shell was already emitted. Late aliases cannot rewrite the
   // palette or viewport used by inspection and by later public certification.
@@ -192,6 +209,6 @@ export function drawNative(
   const paint = inspectPaint(paintHeader, parts, emission.observe)
   // The styled backdrop is emitted outside the recorder's primitive roster.
   // It excludes only new proofs requiring a closed marker-paint context.
-  emission.finish(paint, paintHeader, svg, backdrop !== '')
+  emission.finish(paint, paintHeader, xmlWrite, backdrop !== '')
   return Object.freeze({ svg, header: paintHeader, preparedText, paint })
 }

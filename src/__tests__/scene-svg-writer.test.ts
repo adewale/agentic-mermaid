@@ -1,8 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 import * as marks from '../scene/marks.ts'
-import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, sceneHasOnlyPreparedText } from '../scene/serialization.ts'
+import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, sceneHasOnlyPreparedText, sceneNodeWrite, transferSceneNodeSerialization } from '../scene/serialization.ts'
 import { validateSceneDoc } from '../scene/scene-validation.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
+import { createSvgXmlCapture, writeShapeSvg, writeTextSvg, writeConnectorSvg, type SvgXmlWrite, type SvgXmlCapture } from '../scene/svg-writer.ts'
+import { verifySvgDocumentEnvelope } from '../output-security.ts'
+import { createNativeSceneValidator } from '../scene/scene-validation-core.ts'
+import type { SceneNode } from '../scene/ir.ts'
 
 // The default backend writes shape, text and connector elements from their
 // typed fields, so paint certification, which reads those fields, describes
@@ -155,4 +159,125 @@ describe('typed Scene SVG writer', () => {
     expect(canonical).toBe('<svg xmlns="http://www.w3.org/2000/svg" width="3" height="2" viewBox="0 0 3 2">')
     expect(canonical).not.toBe(authored)
   })
+
+  test('actual XML construction preserves malformed raw context, scalars and empty boundaries', () => {
+    const capture = createSvgXmlCapture(() => true)
+    const envelope = (write: SvgXmlWrite, open = '<svg xmlns="http://www.w3.org/2000/svg">', close = '</svg>') => {
+      const whole = capture.join([capture.raw(open), write, capture.raw(close)], '')
+      const checked = capture.validate(whole)
+      const actual = capture.read(whole)!.svg
+      return [verifySvgDocumentEnvelope(actual), verifySvgDocumentEnvelope(checked?.skeleton ?? actual)]
+    }
+    const block = preparePixelText('x & < y', { fontSize: 12, fontWeight: 400 })
+    const text = marks.text({ id: 'text', role: 'label', text: block.text, block, x: 5, y: 10, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })
+    const written = writeTextSvg(text, capture)
+    expect(written.svg).toBe(writeTextSvg(text))
+    expect(envelope(written)).toEqual([true, true])
+    for (const opening of ['<svg xmlns="http://www.w3.org/2000/svg"><g data-title="&unbound;">', '<svg xmlns="http://www.w3.org/2000/svg"><g data-title="\ufffe">', '<svg xmlns="http://www.w3.org/2000/svg"><p:group>']) {
+      expect(envelope(written, opening, opening.endsWith('<p:group>') ? '</p:group></svg>' : '</g></svg>')).toEqual([false, false])
+    }
+    for (const value of ['\udc00', '\ufffe', '\uffff']) {
+      const bad = marks.shape({ id: 'bad', role: 'node', geometry: { kind: 'rect', x: 0, y: 0, width: 1, height: 1 }, paint: { fill: '#111' }, attributes: { data: { probe: value } } })
+      expect(envelope(writeShapeSvg(bad, undefined, capture))).toEqual([false, false])
+    }
+    for (const value of ['\udc00', '<bad>']) {
+      let calls = 0, coercions = 0
+      const content = { length: 0, toString() { coercions++; return value } }
+      const prepared = preparePixelText('x', { fontSize: 12, fontWeight: 400, display: 'literal' })
+      const runs = [{ ...prepared.lineBlocks[0]!.runs[0]! }]
+      Object.defineProperty(runs, 'map', { value(callback: (entry: unknown) => unknown) {
+        return ++calls === 4 ? { join() { return content } } : Array.prototype.map.call(this, callback)
+      } })
+      const mutable = { ...text, text: 'x', block: { ...prepared, lineBlocks: [{ ...prepared.lineBlocks[0]!, runs }] } }
+      expect(envelope(writeTextSvg(mutable, capture))).toEqual([false, false])
+      expect({ calls, coercions }).toEqual({ calls: 4, coercions: 1 })
+    }
+    const shape = marks.shape({ id: 'duplicate', role: 'node', geometry: { kind: 'rect', x: 0, y: 0, width: 1, height: 1 }, paint: { fill: '#111' } })
+    // The direct writer still has to account for every actual attribute even
+    // when a caller supplies fields the mark constructor would reject.
+    expect(envelope(writeShapeSvg({ ...shape, attributes: { data: { id: 'second' } } }, undefined, capture))).toEqual([false, false])
+    const hidden = marks.connector({ id: 'hidden', role: 'edge', geometry: { kind: 'line', x1: 0, y1: 0, x2: 1, y2: 0 }, lineStyle: 'invisible', paint: {} })
+    const empty = writeConnectorSvg(hidden, undefined, capture)
+    expect(empty.svg).toBe('')
+    expect(envelope(empty, '<svg xmlns="http://www.w3.org/2000/svg"><g>]]', '></g></svg>')).toEqual([false, false])
+    const inline = marks.connector({ id: 'inline', role: 'edge', geometry: { kind: 'line', x1: 0, y1: 0, x2: 40, y2: 0 }, lineStyle: 'solid', paint: { stroke: '#111' },
+      labels: [{ text: 'Kept & clear', anchor: { x: 20, y: 10 }, paint: { fill: '#111' }, fontSize: 12, fontWeight: 400, textAnchor: 'middle', visual: { kind: 'inline' } }],
+    })
+    const inlineWrite = writeConnectorSvg(inline, undefined, capture)
+    expect(inlineWrite.svg).toBe(writeConnectorSvg(inline))
+    expect(inlineWrite.svg).toContain('Kept &amp; clear')
+    expect(envelope(inlineWrite)).toEqual([true, true])
+    const commentShape = writeShapeSvg({ ...shape, identity: { id: 'a--b', role: 'node' } }, undefined, capture)
+    expect(envelope(commentShape, '<svg xmlns="http://www.w3.org/2000/svg"><!--', '--></svg>')).toEqual([false, false])
+    const unsupported = writeShapeSvg({ ...shape, geometry: { kind: '!--' } } as never, undefined, capture)
+    const unsupportedWhole = capture.join([capture.raw('<svg xmlns="http://www.w3.org/2000/svg">'), unsupported, commentShape, capture.raw('--></svg>')], '')
+    const unsupportedChecked = capture.validate(unsupportedWhole)
+    const unsupportedActual = capture.read(unsupportedWhole)!.svg
+    expect(verifySvgDocumentEnvelope(unsupportedActual)).toBe(false)
+    expect(verifySvgDocumentEnvelope(unsupportedChecked?.skeleton ?? unsupportedActual)).toBe(false)
+    const commentTail = capture.join([commentShape, capture.raw('--></svg>')], '')
+    const throughSeparator = capture.join([capture.raw('<svg xmlns="http://www.w3.org/2000/svg">'), commentTail], '<!--')
+    const checkedSeparator = capture.validate(throughSeparator)
+    const separatorActual = capture.read(throughSeparator)!.svg
+    expect(verifySvgDocumentEnvelope(separatorActual)).toBe(false)
+    expect(verifySvgDocumentEnvelope(checkedSeparator?.skeleton ?? separatorActual)).toBe(false)
+    capture.raw('<!--') // An unused fragment cannot invalidate another output.
+    const unaffected = capture.join([capture.raw('<svg xmlns="http://www.w3.org/2000/svg">'), written, capture.raw('</svg>')], '')
+    expect(capture.validate(unaffected)).toBeDefined()
+    expect(capture.validate(capture.join([written], '<!--'))).toBeDefined()
+    // Valid legacy token splits remain renderable through the actual fallback.
+    expect(envelope(empty, '<svg xmlns="http://www.w3.org/2000/svg"><g data-label="', 'ok"></g></svg>')).toEqual([true, true])
+    expect(envelope(empty, '<svg xmlns="http://www.w3.org/2000/svg"><g>&am', 'p;</g></svg>')).toEqual([true, true])
+    const foreign = createSvgXmlCapture(() => true)
+    expect(foreign.read(written)).toBeUndefined()
+    expect(() => foreign.join([written])).toThrow()
+    expect(capture.read(written, {})).toBeUndefined()
+    const exhausted = createSvgXmlCapture(() => false)
+    const raw = exhausted.raw('<broken>')
+    expect(exhausted.read(raw)?.svg).toBe('<broken>')
+    expect(exhausted.validate(raw)).toBeUndefined()
+
+    const fresh = Object.freeze({ ...shape })
+    transferSceneNodeSerialization(shape, fresh)
+    const validator = createNativeSceneValidator({ family: 'flowchart', width: 20, height: 20, transparent: false, colors: { bg: '#fff', fg: '#111' } })
+    const first = validator.write(fresh, capture)
+    expect(capture.read(first, fresh)?.svg).toBe(writeShapeSvg(shape))
+    expect(envelope(first)).toEqual([true, true])
+    const cached = sceneNodeWrite(fresh, capture)
+    expect(cached.svg).toBe(first.svg)
+    expect(envelope(cached)).toEqual([true, true])
+  })
+
+  test.each(['shape', 'text', 'connector'] as const)('structured %s writes preserve source getter order and emitted bytes', kind => {
+    const make = (): SceneNode => kind === 'shape'
+      ? marks.shape({ id: 'shape', role: 'node', geometry: { kind: 'rect', x: 1 / 3, y: 2, width: 30, height: 12, rx: 3 }, paint: { fill: '#fff', stroke: '#111' }, attributes: { data: { label: 'a & b' } } })
+      : kind === 'text'
+        ? marks.text({ id: 'text', role: 'label', text: 'Prepared', block: preparePixelText('Prepared', { fontSize: 12, fontWeight: 400 }), x: 5, y: 10, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })
+        : marks.connector({ id: 'edge', role: 'edge', geometry: { kind: 'line', x1: 0, y1: 0, x2: 40, y2: 0 }, lineStyle: 'solid', paint: { stroke: '#111' }, endpoints: { from: 'a', to: 'b' } })
+    const observe = (structured: boolean) => {
+      const reads: string[] = [], proxies = new WeakMap<object, object>()
+      const wrap = (value: object, path: string): object => {
+        const cached = proxies.get(value)
+        if (cached) return cached
+        const proxy = new Proxy(value, { get(target, key, receiver) {
+          reads.push(`${path}.${String(key)}`)
+          const entry = Reflect.get(target, key, receiver)
+          return entry && typeof entry === 'object' ? wrap(entry, `${path}.${String(key)}`) : entry
+        } })
+        proxies.set(value, proxy)
+        return proxy
+      }
+      const node = wrap(structuredClone(make()), 'node') as SceneNode
+      const capture: SvgXmlCapture | undefined = structured ? createSvgXmlCapture(() => true) : undefined
+      const written = node.kind === 'shape' ? capture ? writeShapeSvg(node, undefined, capture) : writeShapeSvg(node)
+        : node.kind === 'text' ? capture ? writeTextSvg(node, capture) : writeTextSvg(node)
+          : node.kind === 'connector' ? capture ? writeConnectorSvg(node, undefined, capture) : writeConnectorSvg(node) : ''
+      if (capture && typeof written !== 'string') capture.validate(written)
+      return { svg: typeof written === 'string' ? written : written.svg, reads }
+    }
+    const legacy = observe(false), structured = observe(true)
+    expect(structured.svg).toBe(legacy.svg)
+    expect(structured.reads).toEqual(legacy.reads)
+  })
+
 })

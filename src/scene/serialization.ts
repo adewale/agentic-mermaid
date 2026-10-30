@@ -3,7 +3,7 @@ import { connectorContourSemantics } from './connector-geometry.ts'
 import { isAdmittedSceneDocument } from './scene-admission-state.ts'
 import type { SceneDoc, SceneNode, Geometry, MarkPaint, ShapeMark } from './ir.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
-import { writeConnectorSvg, writeShapeSvg, writeTextSvg, type SvgGeometryWriteSink } from './svg-writer.ts'
+import { writeConnectorSvg, writeShapeSvg, writeTextSvg, type SvgGeometryWriteSink, type SvgXmlCapture, type SvgXmlWrite } from './svg-writer.ts'
 import { rectanglePaintFields, writtenPolylineProjectionOf, prepareWrittenCompoundShape, observeWrittenCompoundShape, completeWrittenCompoundShape, type WrittenCompoundInput } from './written-geometry.ts'
 import { createEmissionContext, type EmissionColorResolver } from './emission-context.ts'
 
@@ -420,19 +420,27 @@ export function sceneNodeSerializationObserved(node: SceneNode, sink?: SvgGeomet
   return serializeSceneNode(node, sink, observer)
 }
 
-function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver): string {
+/** One actual typed write supplies both the bytes and its XML construction fact.
+ * Stored/mutable/cached markup keeps its complete XML in the projection. */
+export function sceneNodeWrite(node: SceneNode, capture: SvgXmlCapture, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver): SvgXmlWrite {
+  return serializeSceneNode(node, sink, observer, capture)
+}
+
+function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver): string
+function serializeSceneNode(node: SceneNode, sink: SvgGeometryWriteSink | undefined, observer: SceneSerializationObserver | undefined, capture: SvgXmlCapture): SvgXmlWrite
+function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver, capture?: SvgXmlCapture): string | SvgXmlWrite {
   const recorder = observer && sceneWriteObservers.get(observer)
   const stored = SERIALIZED_SCENE_NODES.get(node)
   if (stored !== undefined) {
     if (node.kind === 'document') recorder?.document(node, stored)
     else if (node.kind !== 'group') recorder?.contextLeaf(node, stored)
-    return stored
+    return capture ? capture.raw(stored, node) : stored
   }
   if (!WRITABLE_SCENE_NODES.has(node)) throw new TypeError(`Scene node "${node.id}" has no admitted SVG serialization`)
   const written = WRITTEN_SCENE_NODES.get(node)
   if (written !== undefined) {
     if (node.kind !== 'group' && node.kind !== 'document') recorder?.contextLeaf(node, written)
-    return written
+    return capture ? capture.raw(written, node) : written
   }
   let source: Geometry | undefined, served: Geometry | undefined, received = false, invalid = false, projectionReserved = false
   if (node.kind === 'group') recorder?.group(node)
@@ -469,7 +477,8 @@ function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observ
     attributes = actual
     sink?.rectangleAttributes?.(shape, actual)
   } : undefined }) : sink
-  const svg = writeSceneNode(node, geometrySink, observer)
+  const output = capture ? writeStructuredSceneNode(node, capture, geometrySink, observer) : writeSceneNode(node, geometrySink, observer)
+  const svg = typeof output === 'string' ? output : output.svg
   // A group is written from its children each time: its children array is
   // not part of what freezing it protects.
   if (node.kind !== 'group' && Object.isFrozen(node)) WRITTEN_SCENE_NODES.set(node, svg)
@@ -481,7 +490,21 @@ function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observ
   }
   if (node.kind !== 'group' && node.kind !== 'document') recorder?.contextLeaf(node, svg)
   if (fractional && node.kind !== 'group' && node.kind !== 'document') recorder!.leaf(node, svg)
-  return svg
+  return capture ? output as SvgXmlWrite : svg
+}
+
+function writeStructuredSceneNode(node: SceneNode, capture: SvgXmlCapture, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver): SvgXmlWrite {
+  switch (node.kind) {
+    case 'shape': return writeShapeSvg(node, sink, capture)
+    case 'text': return writeTextSvg(node, capture)
+    case 'connector': return writeConnectorSvg(node, sink, capture)
+    case 'group': return capture.join([
+      capture.raw(node.open),
+      ...node.children.map(child => capture.indent(serializeSceneNode(child.node, undefined, observer, capture), child.indent)),
+      capture.raw(node.close),
+    ], node.join)
+    case 'document': throw new TypeError(`Scene node "${node.id}" has no admitted SVG serialization`)
+  }
 }
 
 function writeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver): string {

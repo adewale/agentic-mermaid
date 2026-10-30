@@ -38,8 +38,8 @@ import { assertRenderableLinearGradient, LINEAR_GRADIENT_LIMITS, serializeLinear
 import { BUILTIN_SCENE_ROLE_TRAITS, sceneRoleTraits } from './roles.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { createSvgInspector } from '../svg-inspection-cache.ts'
-import type { SvgGeometryWriteSink } from './svg-writer.ts'
-import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, sceneNodeSerializationObserved, type SceneSerializationObserver } from './serialization.ts'
+import type { SvgGeometryWriteSink, SvgXmlCapture, SvgXmlWrite } from './svg-writer.ts'
+import { canonicalizeSceneNodeSerialization, sceneNodeWrite, sceneNodeSerialization, sceneNodeSerializationObserved, type SceneSerializationObserver } from './serialization.ts'
 import { MARK_CLASS_TOKENS, MARK_DATA_KEY, WRITER_OWNED_DATA_KEYS } from './svg-writer.ts'
 
 export const SCENE_VALIDATION_VERSION = 2 as const
@@ -1416,6 +1416,7 @@ export function sceneValidationMode(value: unknown, options: SceneValidationOpti
 export interface NativeSceneValidator {
   /** Rejects invalid source fields before writing; groups must have children: []. */
   node(node: SceneNode, depth?: number, sink?: SvgGeometryWriteSink): string
+  write(node: SceneNode, capture: SvgXmlCapture, depth?: number, sink?: SvgGeometryWriteSink): SvgXmlWrite
   depth(depth: number): void
   enclosure(artworkId: string, owner: SceneOwner): void
   /** Checks the full composed group limit without recounting its child bytes. */
@@ -1460,6 +1461,31 @@ export function createNativeSceneValidator(
       const serialized = node.kind === 'document' ? sceneNodeSerialization(node) : validateNodeSerialization(node, path, state, sink)
       if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
       return serialized!
+    },
+    write(node, capture, nesting = 0, sink) {
+      open()
+      depth(nesting)
+      if (node.kind === 'group' && (!Array.isArray(node.children) || node.children.length !== 0)) {
+        add(diagnostics, 'SCENE_DOCUMENT', 'scene.parts', 'native groups must be shallow headers with separately submitted children')
+        throw new SceneValidationError(diagnostics)
+      }
+      const path = `scene.parts[${state.nodeCount}]`
+      validateNode(node, path, state, nesting)
+      if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
+      let written: SvgXmlWrite | undefined
+      try {
+        written = sceneNodeWrite(node, capture, sink, state.serializationObserver)
+        if (node.kind !== 'document' && boundedUtf8ByteLength(written.svg, MAX_SERIALIZATION_BYTES_PER_NODE) > MAX_SERIALIZATION_BYTES_PER_NODE) {
+          add(diagnostics, 'SCENE_DOCUMENT', path, 'has an oversized SVG serialization')
+        }
+      } catch (error) {
+        add(diagnostics, 'SCENE_DOCUMENT', path, error instanceof Error ? error.message : String(error))
+      }
+      if (state.aggregateBudgets && written !== undefined) {
+        consumeStringBudget(state.budget, 'serializationBytes', 'serializationExceeded', written.svg, path, diagnostics, MAX_AGGREGATE_SERIALIZATION_BYTES, 'Scene serializations')
+      }
+      if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
+      return written!
     },
     depth,
     enclosure(artworkId, owner) {
