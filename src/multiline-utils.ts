@@ -229,9 +229,9 @@ export function renderMultilineText(
   const renderLine = (line: string, index: number) => block
     ? renderPreparedLine(block, index, cx, anchor)
     : renderDisplayLine(line, display)
-  if (display === 'literal' && HAS_FORMAT_TAGS.test(value) && !attrs.includes('data-literal-text=')) { attrs += ' data-literal-text="true"'; writtenAttributes?.push({ name: 'data-literal-text', value: 'true' }) }
+  if (display === 'literal' && HAS_FORMAT_TAGS.test(value) && !attrs.includes('data-literal-text=')) { attrs += ' data-literal-text="true"'; if (writtenAttributes) Object.defineProperty(writtenAttributes, writtenAttributes.length, { value: { name: 'data-literal-text', value: 'true' }, enumerable: true, writable: true, configurable: true }) }
   const visible = block ? block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : displayText(value, display)
-  if (/(?:^ | $| {2}|\t)/m.test(visible) && !attrs.includes('xml:space=')) { attrs += ' xml:space="preserve"'; writtenAttributes?.push({ name: 'xml:space', value: 'preserve' }) }
+  if (/(?:^ | $| {2}|\t)/m.test(visible) && !attrs.includes('xml:space=')) { attrs += ' xml:space="preserve"'; if (writtenAttributes) Object.defineProperty(writtenAttributes, writtenAttributes.length, { value: { name: 'xml:space', value: 'preserve' }, enumerable: true, writable: true, configurable: true }) }
   if (block) attrs += ' data-prepared-text="true"'
   let servedAdvance: string | undefined
   const advanceAttrs = (i: number) => {

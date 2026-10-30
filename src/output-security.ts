@@ -9,7 +9,6 @@
 // ============================================================================
 
 import { createSvgInspector } from './svg-inspection-cache.ts'
-import { isAsciiXmlNameChar } from './shared/xml-name.ts'
 
 export const OUTPUT_SECURITY_POLICY_VERSION = 2 as const
 export type OutputSecurityMode = 'default' | 'strict'
@@ -82,18 +81,30 @@ const XML_NAMED_REFERENCES = new Set(['amp', 'lt', 'gt', 'quot', 'apos'])
 type XmlWork = (operations: number) => void
 const XML_WORK_EXHAUSTED = Symbol('xml-work-exhausted')
 
+function xmlTokenAt(source: string, token: string, start: number): boolean {
+  if (start < 0 || start + token.length > source.length) return false
+  for (let i = 0; i < token.length; i++) if (source[start + i] !== token[i]) return false
+  return true
+}
+function xmlHasColon(value: string): boolean { for (let i = 0; i < value.length; i++) if (value[i] === ':') return true; return false }
+function xmlAsciiLetter(character: string | undefined): boolean { return character !== undefined && (character >= 'A' && character <= 'Z' || character >= 'a' && character <= 'z') }
+function xmlNameCharacter(character: string | undefined): boolean { return xmlAsciiLetter(character) || character !== undefined && (character >= '0' && character <= '9' || character === '_' || character === '-' || character === '.' || character === ':') }
+function xmlScalarCharacter(character: string): boolean { return character === '\t' || character === '\n' || character === '\r' || character >= '\u0020' && character <= '\ud7ff' || character >= '\ue000' && character <= '\ufffd' }
+
 function xmlIndexOf(source: string, needle: string, start: number, work?: XmlWork): number {
   if (!work) return source.indexOf(needle, start)
   for (let index = start; index <= source.length - needle.length; index++) {
     work(needle.length)
-    if (source.startsWith(needle, index)) return index
+    if (xmlTokenAt(source, needle, index)) return index
   }
   return -1
 }
 
 function xmlSlice(source: string, start: number, end: number, work?: XmlWork): string {
   work?.(Math.max(0, end - start))
-  return source.slice(start, end)
+  let result = ''
+  for (let i = start; i < end; i++) result += source[i]!
+  return result
 }
 
 function isXmlWhitespace(char: string | undefined): boolean {
@@ -102,14 +113,10 @@ function isXmlWhitespace(char: string | undefined): boolean {
 
 function readXmlNameEnd(source: string, start: number, work?: XmlWork): number {
   work?.(1)
-  const code = source.charCodeAt(start), lower = code | 32
-  if (!((lower >= 97 && lower <= 122) || code === 95)) return -1
+  const character = start < source.length ? source[start] : undefined
+  if (!xmlAsciiLetter(character) && character !== '_') return -1
   let end = start + 1
-  for (;;) {
-    work?.(1)
-    if (!isAsciiXmlNameChar(source[end])) break
-    end++
-  }
+  for (;;) { work?.(1); if (!xmlNameCharacter(end < source.length ? source[end] : undefined)) break; end++ }
   return end
 }
 
@@ -125,13 +132,16 @@ function parsePrefixedXmlName(name: string, work?: XmlWork): XmlQualifiedName | 
   const colon = xmlIndexOf(name, ':', 0, work)
   if (colon <= 0 || colon === name.length - 1 || xmlIndexOf(name, ':', colon + 1, work) >= 0) return undefined
   work?.(1)
-  if (!/^[A-Za-z_]$/.test(name[colon + 1]!)) return undefined
+  if (!xmlAsciiLetter(name[colon + 1]) && name[colon + 1] !== '_') return undefined
   return { prefix: xmlSlice(name, 0, colon, work), local: xmlSlice(name, colon + 1, name.length, work) }
 }
 
 const XML_NAMESPACE = 'http://www.w3.org/XML/1998/namespace'
 const XMLNS_NAMESPACE = 'http://www.w3.org/2000/xmlns/'
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg'
+
+interface XmlParserList<T> { length: number; [index: number]: T }
+function xmlParserList<T>(): XmlParserList<T> { const result = Object.create(null) as XmlParserList<T>; result.length = 0; return result }
 
 interface XmlElementFrame {
   readonly name: string
@@ -188,11 +198,12 @@ function readXmlReferenceEnd(source: string, start: number, work?: XmlWork): num
     let value = 0, digits = 0
     while (cursor < source.length) {
       work?.(2)
-      const code = source.charCodeAt(cursor)
-      if (code === 59) return digits > 0 && isAllowedXmlCodePoint(value) ? cursor + 1 : -1
-      const digit = code >= 48 && code <= 57 ? code - 48
-        : hex && code >= 65 && code <= 70 ? code - 55
-          : hex && code >= 97 && code <= 102 ? code - 87 : -1
+      const character = source[cursor]!
+      if (character === ';') return digits > 0 && isAllowedXmlCodePoint(value) ? cursor + 1 : -1
+      const digit = character >= '0' && character <= '9' ? +character
+        : hex && (character === 'a' || character === 'A') ? 10 : hex && (character === 'b' || character === 'B') ? 11
+          : hex && (character === 'c' || character === 'C') ? 12 : hex && (character === 'd' || character === 'D') ? 13
+            : hex && (character === 'e' || character === 'E') ? 14 : hex && (character === 'f' || character === 'F') ? 15 : -1
       if (digit < 0) return -1
       value = value * (hex ? 16 : 10) + digit
       if (value > 0x10ffff) return -1
@@ -203,13 +214,13 @@ function readXmlReferenceEnd(source: string, start: number, work?: XmlWork): num
   const nameStart = cursor
   while (cursor < source.length) {
     work?.(1)
-    const code = source.charCodeAt(cursor)
-    if (code === 59) {
+    const character = source[cursor]!
+    if (character === ';') {
       const name = xmlSlice(source, nameStart, cursor, work)
       work?.(name.length + 1)
       return XML_NAMED_REFERENCES.has(name) ? cursor + 1 : -1
     }
-    if (cursor - nameStart >= 4 || code < 97 || code > 122) return -1
+    if (cursor - nameStart >= 4 || character < 'a' || character > 'z') return -1
     cursor++
   }
   return -1
@@ -218,53 +229,52 @@ function readXmlReferenceEnd(source: string, start: number, work?: XmlWork): num
 /** One pass owns scalar, reference and delimiter checks for text or a quoted
  * attribute. Only consumers of raw attribute bytes materialize a slice. */
 function readXmlDataEnd(source: string, start: number, quote: string | undefined, outside: boolean, work?: XmlWork): number {
-  const delimiter = quote?.charCodeAt(0)
   let cursor = start, brackets = 0
   while (cursor < source.length) {
     work?.(1)
-    const code = source.charCodeAt(cursor)
-    if (code === delimiter || delimiter === undefined && code === 60) return cursor
-    if (outside && !isXmlWhitespace(source[cursor])) return -1
-    if (code === 38) {
+    const character = source[cursor]!
+    if (character === quote || quote === undefined && character === '<') return cursor
+    if (outside && !isXmlWhitespace(character)) return -1
+    if (character === '&') {
       const end = readXmlReferenceEnd(source, cursor, work)
       if (end < 0) return -1
       brackets = 0; cursor = end
       continue
     }
-    if (delimiter !== undefined && code === 60) return -1
-    if (delimiter === undefined) {
-      if (code === 62 && brackets >= 2) return -1
-      brackets = code === 93 ? Math.min(2, brackets + 1) : 0
+    if (quote !== undefined && character === '<') return -1
+    if (quote === undefined) {
+      if (character === '>' && brackets >= 2) return -1
+      brackets = character === ']' ? brackets < 2 ? brackets + 1 : 2 : 0
     }
-    if (code >= 0xd800 && code <= 0xdbff) {
+    if (character >= '\ud800' && character <= '\udbff') {
       work?.(1)
-      const low = source.charCodeAt(cursor + 1)
-      if (!(low >= 0xdc00 && low <= 0xdfff)) return -1
+      const low = cursor + 1 < source.length ? source[cursor + 1]! : ''
+      if (!(low >= '\udc00' && low <= '\udfff')) return -1
       cursor += 2
     } else {
-      if (!isAllowedXmlCodePoint(code)) return -1
+      if (!xmlScalarCharacter(character)) return -1
       cursor++
     }
   }
-  return delimiter === undefined ? cursor : -1
+  return quote === undefined ? cursor : -1
 }
 
 function readXmlCommentEnd(source: string, start: number, work?: XmlWork): number {
   let cursor = start
   while (cursor < source.length) {
     work?.(1)
-    const code = source.charCodeAt(cursor)
-    if (code === 45) {
+    const character = source[cursor]!
+    if (character === '-') {
       work?.(2)
-      if (source[cursor + 1] === '-') return source[cursor + 2] === '>' ? cursor + 3 : -1
+      if (cursor + 1 < source.length && source[cursor + 1] === '-') return cursor + 2 < source.length && source[cursor + 2] === '>' ? cursor + 3 : -1
     }
-    if (code >= 0xd800 && code <= 0xdbff) {
+    if (character >= '\ud800' && character <= '\udbff') {
       work?.(1)
-      const low = source.charCodeAt(cursor + 1)
-      if (!(low >= 0xdc00 && low <= 0xdfff)) return -1
+      const low = cursor + 1 < source.length ? source[cursor + 1]! : ''
+      if (!(low >= '\udc00' && low <= '\udfff')) return -1
       cursor += 2
     } else {
-      if (!isAllowedXmlCodePoint(code)) return -1
+      if (!xmlScalarCharacter(character)) return -1
       cursor++
     }
   }
@@ -298,26 +308,54 @@ export function verifySvgDocumentEnvelope(svg: string, work?: (operations: numbe
   return inspectDocumentEnvelope(svg)
 }
 
-function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, rawValue: string) => void, work?: XmlWork): boolean {
-  const stack: XmlElementFrame[] = []
+/** Extra rejection obligations for private XML construction projections.
+ * Every occupied SPACE must occur in parsed DATA inside the SVG root; none
+ * may be skipped by an attribute, comment, tag or reference scanner. This
+ * does not exempt any bytes from the ordinary fresh XML checks. */
+export function verifySvgDocumentDataPositions(svg: string, positions: Readonly<ArrayLike<number>>, work?: (operations: number) => boolean): boolean {
+  const charge: XmlWork = operations => { if (work && !work(operations)) throw XML_WORK_EXHAUSTED }
+  let next = 0, previous = -1
+  const data = (start: number, end: number, inside: boolean): boolean => {
+    charge(1)
+    while (next < positions.length) {
+      charge(2)
+      const position = positions[next]!
+      if (position >= end) break
+      if (!Number.isSafeInteger(position) || position < start || position <= previous || !inside || svg[position] !== ' ') return false
+      previous = position; next++
+    }
+    return true
+  }
+  try {
+    const valid = verifyDocumentEnvelope(svg, undefined, charge, data)
+    charge(1)
+    return valid && next === positions.length
+  } catch (error) {
+    if (error === XML_WORK_EXHAUSTED) return false
+    throw error
+  }
+}
+
+function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, rawValue: string) => void, work?: XmlWork, observeData?: (start: number, end: number, inside: boolean) => boolean): boolean {
+  const stack = xmlParserList<XmlElementFrame>()
   let rootSeen = false
   let rootClosed = false
   // A leading decoded byte-order mark is legal XML; elsewhere it is text,
   // so it cannot stand in for XML whitespace outside the root.
   work?.(1)
-  let cursor = svg.charCodeAt(0) === 0xfeff ? 1 : 0
+  let cursor = svg[0] === '\ufeff' ? 1 : 0
 
   while (cursor < svg.length) {
     work?.(1)
     if (svg[cursor] !== '<') {
       const end = readXmlDataEnd(svg, cursor, undefined, stack.length === 0, work)
-      if (end < 0) return false
+      if (end < 0 || observeData && !observeData(cursor, end, stack.length > 0)) return false
       cursor = end
       continue
     }
 
     work?.(24)
-    if (svg.startsWith('<!--', cursor)) {
+    if (xmlTokenAt(svg, '<!--', cursor)) {
       if (stack.length === 0) return false
       const end = readXmlCommentEnd(svg, cursor + 4, work)
       if (end < 0) return false
@@ -327,18 +365,21 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
     // First-party serializers do not need CDATA. Excluding it keeps the
     // security scanner and XML parser on one text model: a fake `</style>`
     // inside CDATA cannot truncate the later CSS-reference scan.
-    if (svg.startsWith('<![CDATA[', cursor)) return false
-    if (svg.startsWith('<!', cursor) || svg.startsWith('<?', cursor)) return false
+    if (xmlTokenAt(svg, '<![CDATA[', cursor)) return false
+    if (xmlTokenAt(svg, '<!', cursor) || xmlTokenAt(svg, '<?', cursor)) return false
 
-    if (svg.startsWith('</', cursor)) {
+    if (xmlTokenAt(svg, '</', cursor)) {
       let end = readXmlNameEnd(svg, cursor + 2, work)
       if (end < 0) return false
       const name = xmlSlice(svg, cursor + 2, end, work)
       work?.(name.length * 2 + 1)
-      if (name.includes(':')) return false
+      if (xmlHasColon(name)) return false
       while (isXmlWhitespace(svg[end])) { work?.(1); end++ }
       work?.(1)
-      if (svg[end] !== '>' || stack.pop()?.name !== name) return false
+      if (svg[end] !== '>' || stack.length === 0) return false
+      const frame = stack[--stack.length]
+      delete stack[stack.length]
+      if (frame?.name !== name) return false
       cursor = end + 1
       if (stack.length === 0) {
         if (name !== 'svg' || rootClosed) return false
@@ -353,7 +394,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
     if (nameEnd < 0 || rootClosed) return false
     const name = xmlSlice(svg, cursor + 1, nameEnd, work)
     work?.(name.length)
-    if (name.includes(':')) return false
+    if (xmlHasColon(name)) return false
     if (stack.length === 0) {
       if (rootSeen || name !== 'svg') return false
       rootSeen = true
@@ -361,7 +402,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
 
     let end = nameEnd
     const rawAttributes = new Set<string>()
-    const namespaceAttributes: Array<{ readonly name: string; readonly prefix?: string; readonly local?: string; readonly value: string }> = []
+    const namespaceAttributes = xmlParserList<{ readonly name: string; readonly prefix?: string; readonly local?: string; readonly value: string }>()
     let selfClosing = false
     for (;;) {
       work?.(4)
@@ -379,7 +420,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       const attribute = xmlSlice(svg, end, attributeEnd, work)
       work?.(attribute.length * 3 + 2)
       if (rawAttributes.has(attribute)) return false
-      const prefixed = attribute.includes(':')
+      const prefixed = xmlHasColon(attribute)
       const attributeName = prefixed ? parsePrefixedXmlName(attribute, work) : undefined
       if (prefixed && !attributeName) return false
       rawAttributes.add(attribute)
@@ -400,7 +441,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
         const value = xmlSlice(svg, valueStart, end, work)
         if (attributeName || attribute === 'xmlns') {
           work?.(1)
-          namespaceAttributes.push({ name: attribute, ...attributeName, value: decodeXmlNamespaceValue(value, work) })
+          namespaceAttributes[namespaceAttributes.length++] = { name: attribute, ...attributeName, value: decodeXmlNamespaceValue(value, work) }
         }
         observeAttribute?.(attribute, value)
       }
@@ -410,10 +451,13 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
     // Frames share inherited bindings until a declaration changes them. Never
     // mutate a parent's map: a child's declarations cannot leak to siblings.
     work?.(2)
-    const inheritedNamespaces = stack.at(-1)?.namespaces
-    let namespaces: ReadonlyMap<string, string> = inheritedNamespaces ?? new Map([['xml', XML_NAMESPACE]])
+    const inheritedNamespaces = stack.length ? stack[stack.length - 1]!.namespaces : undefined
+    let namespaces: ReadonlyMap<string, string>
+    if (inheritedNamespaces) namespaces = inheritedNamespaces
+    else { const initial = new Map<string, string>(); initial.set('xml', XML_NAMESPACE); namespaces = initial }
     let declaredNamespaces: Map<string, string> | undefined
-    for (const attribute of namespaceAttributes) {
+    for (let index = 0; index < namespaceAttributes.length; index++) {
+      const attribute = namespaceAttributes[index]!
       work?.(4)
       const isDefaultDeclaration = attribute.name === 'xmlns'
       const isPrefixedDeclaration = attribute.prefix === 'xmlns'
@@ -449,7 +493,8 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
     }
 
     let expandedAttributes: Set<string> | undefined
-    for (const attribute of namespaceAttributes) {
+    for (let index = 0; index < namespaceAttributes.length; index++) {
+      const attribute = namespaceAttributes[index]!
       work?.(2)
       if (attribute.name === 'xmlns' || attribute.prefix === 'xmlns') continue
       // Raw-name uniqueness already proves unprefixed attributes unique.
@@ -472,7 +517,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       if (stack.length === 0) return false
     } else {
       work?.(1)
-      stack.push({ name, namespaces })
+      stack[stack.length++] = { name, namespaces }
     }
   }
 

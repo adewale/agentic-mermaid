@@ -166,13 +166,36 @@ describe('typed Scene SVG writer', () => {
       const whole = capture.join([capture.raw(open), write, capture.raw(close)], '')
       const checked = capture.validate(whole)
       const actual = capture.read(whole)!.svg
-      return [verifySvgDocumentEnvelope(actual), verifySvgDocumentEnvelope(checked?.skeleton ?? actual)]
+      const actualValid = verifySvgDocumentEnvelope(actual)
+      expect(capture.verify(whole)).toBe(actualValid)
+      return [actualValid, verifySvgDocumentEnvelope(checked?.skeleton ?? actual)]
     }
     const block = preparePixelText('x & < y', { fontSize: 12, fontWeight: 400 })
     const text = marks.text({ id: 'text', role: 'label', text: block.text, block, x: 5, y: 10, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })
     const written = writeTextSvg(text, capture)
     expect(written.svg).toBe(writeTextSvg(text))
     expect(envelope(written)).toEqual([true, true])
+    // A SPACE projection still represents actual artwork: its private occupied
+    // position must be DATA inside the root, including after CRLF indentation.
+    const root = '<svg xmlns="http://www.w3.org/2000/svg">'
+    for (const parts of [[written, capture.raw(root + '</svg>')], [capture.raw(root + '</svg>'), written]]) {
+      const outside = capture.join(parts, '')
+      expect(verifySvgDocumentEnvelope(capture.read(outside)!.svg)).toBe(false)
+      expect(capture.verify(outside)).toBe(false)
+    }
+    const paired = capture.join([written, written], '\r\n')
+    const indented = capture.indent(capture.join([capture.raw(root), capture.indent(paired, 2), capture.raw('</svg>')], '\r\n'), 3)
+    expect(capture.read(indented)!.svg).toContain('\r\n     <text')
+    expect(verifySvgDocumentEnvelope(capture.read(indented)!.svg)).toBe(true)
+    expect(capture.verify(indented)).toBe(true)
+    for (const [spaces, prefix] of [[0.5, ''], [2.9, '  '], [Number.NaN, ''], [-0.5, '']] as const) {
+      const shifted = capture.indent(written, spaces)
+      expect(shifted.svg).toBe(prefix + written.svg)
+      const whole = capture.join([capture.raw(root), shifted, capture.raw('</svg>')], '\r\n')
+      expect(verifySvgDocumentEnvelope(whole.svg)).toBe(true)
+      expect(capture.verify(whole)).toBe(true)
+    }
+    expect(() => capture.indent(written, Number.POSITIVE_INFINITY)).toThrow(RangeError)
     for (const opening of ['<svg xmlns="http://www.w3.org/2000/svg"><g data-title="&unbound;">', '<svg xmlns="http://www.w3.org/2000/svg"><g data-title="\ufffe">', '<svg xmlns="http://www.w3.org/2000/svg"><p:group>']) {
       expect(envelope(written, opening, opening.endsWith('<p:group>') ? '</p:group></svg>' : '</g></svg>')).toEqual([false, false])
     }
@@ -200,6 +223,9 @@ describe('typed Scene SVG writer', () => {
     const empty = writeConnectorSvg(hidden, undefined, capture)
     expect(empty.svg).toBe('')
     expect(envelope(empty, '<svg xmlns="http://www.w3.org/2000/svg"><g>]]', '></g></svg>')).toEqual([false, false])
+    expect(envelope(written, '<svg xmlns="http://www.w3.org/2000/svg"><g>]]', '></g></svg>')).toEqual([true, true])
+    expect(envelope(empty, '<svg xmlns="http://www.w3.org/2000/svg"><g>\ud800', '\udc00</g></svg>')).toEqual([true, true])
+    expect(envelope(written, '<svg xmlns="http://www.w3.org/2000/svg"><g>\ud800', '\udc00</g></svg>')).toEqual([false, false])
     const inline = marks.connector({ id: 'inline', role: 'edge', geometry: { kind: 'line', x1: 0, y1: 0, x2: 40, y2: 0 }, lineStyle: 'solid', paint: { stroke: '#111' },
       labels: [{ text: 'Kept & clear', anchor: { x: 20, y: 10 }, paint: { fill: '#111' }, fontSize: 12, fontWeight: 400, textAnchor: 'middle', visual: { kind: 'inline' } }],
     })
@@ -230,12 +256,65 @@ describe('typed Scene SVG writer', () => {
     expect(envelope(empty, '<svg xmlns="http://www.w3.org/2000/svg"><g>&am', 'p;</g></svg>')).toEqual([true, true])
     const foreign = createSvgXmlCapture(() => true)
     expect(foreign.read(written)).toBeUndefined()
+    expect(foreign.verify(written)).toBe(false)
     expect(() => foreign.join([written])).toThrow()
     expect(capture.read(written, {})).toBeUndefined()
     const exhausted = createSvgXmlCapture(() => false)
     const raw = exhausted.raw('<broken>')
     expect(exhausted.read(raw)?.svg).toBe('<broken>')
     expect(exhausted.validate(raw)).toBeUndefined()
+    expect(exhausted.verify(raw)).toBe(false)
+
+    // Private construction records must survive ambient receiver-sensitive
+    // hooks. Compare the actual emitted bytes with both fresh verification
+    // paths after restoring every prototype before making assertions.
+    const badInline = marks.connector({ id: 'bad-inline', role: 'edge', geometry: { kind: 'line', x1: 0, y1: 0, x2: 40, y2: 0 }, lineStyle: 'solid', paint: { stroke: '#111' },
+      labels: [{ text: 'label', visual: { kind: 'inline' }, anchor: { x: 20, y: 10 }, paint: { fill: '\uffff' }, fontSize: 12, textAnchor: 'middle' }],
+    })
+    for (const mode of ['occupied-iterator', 'children-iterator', 'events-iterator', 'events-push', 'inline-push', 'additional-every', 'actual-join', 'isolated-scalar', 'attrs-slice'] as const) {
+      const prototype = mode === 'isolated-scalar' || mode === 'attrs-slice' ? String.prototype : Array.prototype
+      const key = mode.endsWith('iterator') ? Symbol.iterator : mode.endsWith('push') ? 'push' : mode === 'additional-every' ? 'every' : mode === 'actual-join' ? 'join' : mode === 'attrs-slice' ? 'slice' : 'charCodeAt'
+      const descriptor = Object.getOwnPropertyDescriptor(prototype, key)!
+      const local = createSvgXmlCapture(() => true)
+      let actual = '', accepted = false, legacy = false
+      const replacement = mode.endsWith('iterator') ? function* (this: unknown[]) {
+        for (let index = 0; index < this.length; index++) {
+          const value = this[index] as { record?: { svg: string } } & readonly unknown[]
+          if (mode === 'occupied-iterator' && typeof value === 'number' && value === 0) continue
+          if (mode === 'children-iterator' && value?.record?.svg === '</g>') continue
+          if (mode === 'events-iterator' && value?.[0] === 'attribute' && value[1] === 'data-bad key') continue
+          yield value
+        }
+      } : mode.endsWith('push') ? function (this: unknown[], ...values: unknown[]) {
+        const value = values[0] as { check?: unknown } & readonly unknown[]
+        if (mode === 'inline-push' && typeof value?.check === 'function'
+          || mode === 'events-push' && value?.[0] === 'attribute' && value[1] === 'data-bad key') return this.length
+        return Reflect.apply(descriptor.value, this, values)
+      } : mode === 'additional-every' ? function (this: unknown[], ...values: unknown[]) {
+        return typeof (this[0] as { check?: unknown } | undefined)?.check === 'function' ? true : Reflect.apply(descriptor.value, this, values)
+      } : mode === 'actual-join' ? function (this: string[], ...values: unknown[]) {
+        let opening = false, artwork = false, closing = false
+        for (let index = 0; index < this.length; index++) {
+          const value = this[index]
+          if (typeof value === 'string') { opening ||= value.startsWith('<svg '); artwork ||= value.startsWith('<rect '); closing ||= value === '</svg>' }
+        }
+        return Reflect.apply(descriptor.value, this, values) + (opening && artwork && closing ? '</g>' : '')
+      } : mode === 'attrs-slice' ? function (this: string, ...values: unknown[]) { const result = Reflect.apply(descriptor.value, this, values); return this.startsWith(' text-anchor=') ? result + ' data-bad=' : result } : function (this: string, index: number) { return this.length === 1 && this[0] === '\uffff' ? 65 : Reflect.apply(descriptor.value, this, [index]) }
+      try {
+        Object.defineProperty(prototype, key, { ...descriptor, value: replacement })
+        const artwork = mode === 'attrs-slice' ? writeTextSvg(text, local) : mode === 'inline-push' || mode === 'additional-every' ? writeConnectorSvg(badInline, undefined, local)
+          : writeShapeSvg({ ...shape, ...(mode === 'events-iterator' || mode === 'events-push' ? { attributes: { data: { 'bad key': 'literal' } } } : mode === 'isolated-scalar' ? { attributes: { data: { custom: '\uffff' } } } : {}) }, undefined, local)
+        const whole = mode === 'occupied-iterator' ? local.join([artwork, local.raw(root + '</svg>')], '')
+          : local.join([local.raw(root), artwork, ...(mode === 'children-iterator' ? [local.raw('</g>')] : []), local.raw('</svg>')], '')
+        actual = whole.svg
+        accepted = local.verify(whole)
+        const checked = local.validate(whole)
+        legacy = verifySvgDocumentEnvelope(checked?.skeleton ?? actual, () => true)
+      } finally { Object.defineProperty(prototype, key, descriptor) }
+      const actualValid = verifySvgDocumentEnvelope(actual, () => true)
+      expect({ mode, accepted }).toEqual({ mode, accepted: actualValid })
+      expect({ mode, legacy }).toEqual({ mode, legacy: actualValid })
+    }
 
     const fresh = Object.freeze({ ...shape })
     transferSceneNodeSerialization(shape, fresh)

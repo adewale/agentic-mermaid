@@ -46,8 +46,29 @@ export function createNativePaintEmission(maxOperations: number) {
   const failed = Symbol('unsupported-emission')
   const capturedLeaves = new WeakMap<object, Leaf>()
   type CaptureContext = 'leaf' | 'route' | 'geometry' | 'points' | 'point' | 'pixel-part'
-  const textCopies = new WeakMap<object, { readonly value: unknown; readonly height: number }>()
-  let measuringText: { maxDepth: number } | undefined
+  interface TextCopyPlan { readonly source: object; readonly array: boolean; readonly slots: readonly TextCopySlot[]; readonly length: number | undefined; readonly height: number }
+  interface TextCopySlot { readonly key: string; readonly enumerable: boolean; readonly value: unknown; readonly child: TextCopyPlan | undefined }
+  const textPlans = new WeakMap<object, { plan: TextCopyPlan | undefined }>()
+  let copyingFirstText = false
+  let planningText: { readonly plans: WeakMap<object, TextCopyPlan>; pure: boolean } | undefined
+  const materializeText = (plan: TextCopyPlan, depth: number): unknown => {
+    if (depth + plan.height > 64 || !pay()) throw failed
+    // Every occurrence receives the same fresh {} / [] receiver as copyInner.
+    // Only source key/descriptor reflection is retained in the private plan.
+    const result: Record<string, unknown> | unknown[] = plan.array ? [] : {}
+    for (let index = 0; index < plan.slots.length; index++) {
+      if (!pay()) throw failed
+      const slot = plan.slots[index]!
+      const value = slot.child ? materializeText(slot.child, depth + 1) : slot.value
+      Object.defineProperty(result, slot.key, { value, enumerable: slot.enumerable, configurable: false, writable: false })
+    }
+    if (plan.array) {
+      if (!pay()) throw failed
+      Object.defineProperty(result, 'length', { value: plan.length, writable: false })
+    }
+    transferRetainedPixelText(plan.source, result)
+    return Object.preventExtensions(result)
+  }
   const copyInner = (value: unknown, depth: number, parents: Set<object>, context?: CaptureContext): unknown => {
     if (depth > 64) throw failed
     if (value === null || value === undefined || typeof value === 'boolean') return value
@@ -64,10 +85,13 @@ export function createNativePaintEmission(maxOperations: number) {
     const kindSlot = context === 'leaf' || context === 'geometry' ? Object.getOwnPropertyDescriptor(value, 'kind') : undefined
     const kind = kindSlot && Object.hasOwn(kindSlot, 'value') ? kindSlot.value : undefined
     if ((context === 'leaf' || context === 'geometry') && typeof kind !== 'string') throw failed
+    let planSlots: TextCopySlot[] | undefined, planHeight = 0
+    if (planningText) { if (!pay(2)) throw failed; planSlots = [] }
     let ownedFields = 0, ownedPointSlots = 0
     let arrayLength: PropertyDescriptor | undefined
     const deferredProjection = deferredTerminalProjectionInput(value)
-    for (const key of keys) {
+    for (let keyIndex = 0; keyIndex < keys.length; keyIndex++) {
+      const key = keys[keyIndex]!
       if (!pay()) throw failed
       // This visit owns descriptor retention and scalar assignment.
       const descriptor = Object.getOwnPropertyDescriptor(value, key)
@@ -100,7 +124,15 @@ export function createNativePaintEmission(maxOperations: number) {
       const childContext = context === 'pixel-part' || context === 'leaf' && kind === 'text' && (key === 'block' || key === 'preparedLines') ? 'pixel-part'
         : context === 'leaf' && kind === 'connector' && key === 'route' ? 'route'
         : (context === 'leaf' && kind === 'shape' || context === 'route') && key === 'geometry' ? 'geometry' : context === 'geometry' && kind === 'polyline' && key === 'points' ? 'points' : pointSlot ? 'point' : undefined
-      Object.defineProperty(result, key, { value: copy(descriptor.value, depth + 1, parents, childContext), enumerable: descriptor.enumerable, configurable: false, writable: false })
+      const copied = copy(descriptor.value, depth + 1, parents, childContext)
+      if (planSlots) {
+        if (!pay(2)) throw failed
+        const child = copied && typeof copied === 'object' ? planningText!.plans.get(copied) : undefined
+        if (copied && typeof copied === 'object' && !child) throw failed
+        planHeight = Math.max(planHeight, 1 + (child?.height ?? 0))
+        Object.defineProperty(planSlots, String(planSlots.length), { value: { key, enumerable: descriptor.enumerable!, value: child ? undefined : copied, child }, enumerable: true })
+      }
+      Object.defineProperty(result, key, { value: copied, enumerable: descriptor.enumerable, configurable: false, writable: false })
     }
     const requiredFields = context === 'point' ? 3 : context === 'geometry' ? kind === 'line' || kind === 'rect' ? 15 : kind === 'polyline' || kind === 'path' ? 1 : 0
       : context === 'route' || context === 'leaf' && (kind === 'shape' || kind === 'connector') ? 1 : 0
@@ -111,6 +143,7 @@ export function createNativePaintEmission(maxOperations: number) {
       Object.defineProperty(result, 'length', { value: arrayLength.value, writable: false })
     }
     if (deferredProjection) {
+      if (planningText) { if (!pay()) throw failed; planningText.pure = false }
       if (!pay(3) || !copyDeferredTerminalProjection(value, result as unknown as ConnectorMark)) throw failed
       const descriptor = Object.getOwnPropertyDescriptor(result, 'terminalProjection')!
       Object.defineProperty(result, 'terminalProjection', { ...descriptor, configurable: false })
@@ -126,34 +159,46 @@ export function createNativePaintEmission(maxOperations: number) {
     // Every retained data property is already nonwritable/nonconfigurable;
     // arrays also own readonly length. Prevent extensions without rescanning
     // the same fields a second time through Object.freeze.
+    if (planSlots) {
+      if (!pay(2)) throw failed
+      planningText!.plans.set(result, { source: value, array: Array.isArray(value), slots: planSlots, length: arrayLength?.value, height: planHeight })
+    }
     return Object.preventExtensions(result)
   }
   const copy = (value: unknown, depth = 0, parents = new Set<object>(), context?: CaptureContext): unknown => {
     if (depth > 64) throw failed
-    if (measuringText) {
-      if (!pay()) throw failed
-      measuringText.maxDepth = Math.max(measuringText.maxDepth, depth)
-    }
-    if (measuringText || context !== 'pixel-part' || !value || typeof value !== 'object') return copyInner(value, depth, parents, context)
-    // Only library-allocated plain text data is reflection-pure. Structural
-    // freezing and transferable measurement brands cannot qualify a Proxy.
+    if (planningText || copyingFirstText || context !== 'pixel-part' || !value || typeof value !== 'object') return copyInner(value, depth, parents, context)
+    // Ownership allows retaining reflection instructions; it never authorizes
+    // sharing the receivers observed by inherited getters or array methods.
     if (!pay(2)) throw failed
     if (!isOwnedPixelTextPart(value)) return copyInner(value, depth, parents, context)
     if (!pay(2)) throw failed
-    const previous = textCopies.get(value)
-    if (previous) {
-      if (depth + previous.height > 64) throw failed
-      return previous.value
+    const previous = textPlans.get(value)
+    if (previous?.plan) return materializeText(previous.plan, depth)
+    if (!previous) {
+      copyingFirstText = true
+      try {
+        const result = copyInner(value, depth, parents, context)
+        if (!pay(2)) throw failed
+        textPlans.set(value, { plan: undefined })
+        return result
+      } finally { copyingFirstText = false }
     }
-    const measure = { maxDepth: depth }
-    measuringText = measure
+    if (!pay(2)) throw failed
+    const planning = { plans: new WeakMap<object, TextCopyPlan>(), pure: true }
+    planningText = planning
     try {
       const result = copyInner(value, depth, parents, context)
-      if (!pay(2)) throw failed
-      textCopies.set(value, { value: result, height: measure.maxDepth - depth })
+      if (planning.pure) {
+        if (!pay(2)) throw failed
+        const plan = planning.plans.get(result as object)
+        if (!plan) throw failed
+        previous.plan = plan
+      }
       return result
-    } finally { measuringText = undefined }
+    } finally { planningText = undefined }
   }
+
   const snapshot = <T>(value: T): T | undefined => {
     try { return copy(value) as T } catch { return undefined }
   }
@@ -166,7 +211,8 @@ export function createNativePaintEmission(maxOperations: number) {
     if (!ownField || !Object.hasOwn(ownField, 'value')) return undefined
     if (!pay(keys.length * 3)) return undefined
     const result = Object.create(Object.getPrototypeOf(source)) as T
-    for (const key of keys) {
+    for (let keyIndex = 0; keyIndex < keys.length; keyIndex++) {
+      const key = keys[keyIndex]!
       const descriptor = Object.getOwnPropertyDescriptor(source, key)!
       Object.defineProperty(result, key, key === field ? { ...descriptor, value } : descriptor)
     }
@@ -183,7 +229,8 @@ export function createNativePaintEmission(maxOperations: number) {
     if (!pay(keys.length * 3)) return undefined
     const result = Object.create(null) as T
     let replaced = 0
-    for (const key of keys) {
+    for (let keyIndex = 0; keyIndex < keys.length; keyIndex++) {
+      const key = keys[keyIndex]!
       const descriptor = Object.getOwnPropertyDescriptor(source, key)
       if (!descriptor || !Object.hasOwn(descriptor, 'value')) return undefined
       let value = descriptor.value
@@ -199,7 +246,8 @@ export function createNativePaintEmission(maxOperations: number) {
     if (!pay(16)) return undefined
     const fields = Object.keys(rectanglePaintFields) as (keyof MarkPaint)[]
     if (!pay(fields.length * 4)) return undefined
-    for (const field of fields) {
+    for (let fieldIndex = 0; fieldIndex < fields.length; fieldIndex++) {
+      const field = fields[fieldIndex]!
       const descriptor = Object.getOwnPropertyDescriptor(paint, field)
       if (!descriptor) {
         if (field in paint) { uncertain = true; return undefined }
@@ -215,7 +263,9 @@ export function createNativePaintEmission(maxOperations: number) {
   }
   const rectangleInput = (node: ShapeMark, geometry: Extract<Geometry, { kind: 'rect' }>): { paint: MarkPaint } | undefined => {
     if (!pay(16) || 'transform' in node || !(geometry.width > 0 && geometry.height > 0)) return undefined
-    for (const field of ['rx', 'ry'] as const) {
+    const fields = ['rx', 'ry'] as const
+    for (let fieldIndex = 0; fieldIndex < fields.length; fieldIndex++) {
+      const field = fields[fieldIndex]!
       const descriptor = Object.getOwnPropertyDescriptor(geometry, field)
       if (descriptor ? !Object.hasOwn(descriptor, 'value') || descriptor.value !== undefined && descriptor.value !== 0 : field in geometry) return undefined
     }
@@ -225,7 +275,9 @@ export function createNativePaintEmission(maxOperations: number) {
   const sameRectanglePaint = (paint: MarkPaint, attributes: Readonly<Record<string, string>>): boolean => {
     if (!pay(16) || Object.hasOwn(attributes, 'transform')) return false
     let matched = 0
-    for (const field of Object.keys(rectanglePaintFields) as (keyof MarkPaint)[]) {
+    const fields = Object.keys(rectanglePaintFields) as (keyof MarkPaint)[]
+    for (let fieldIndex = 0; fieldIndex < fields.length; fieldIndex++) {
+      const field = fields[fieldIndex]!
       const expected = paint[field]
       // Field names are a fixed bounded inventory; arbitrary data hooks never
       // reach this record. Literal names remove conversion; descriptor and
@@ -252,14 +304,15 @@ export function createNativePaintEmission(maxOperations: number) {
     if (!pay(2)) return false
     const ak = Object.getOwnPropertyNames(a), bk = Object.getOwnPropertyNames(b)
     if (!pay(ak.length + bk.length)) return false
-    for (const key of ak) {
+    for (let keyIndex = 0; keyIndex < ak.length; keyIndex++) {
+      const key = ak[keyIndex]!
       if (!pay(3)) return false
       const da = Object.getOwnPropertyDescriptor(a, key), db = Object.getOwnPropertyDescriptor(b, key)
       if (!da) continue
       na++
       if (!db || !Object.hasOwn(da, 'value') || !Object.hasOwn(db, 'value') || da.enumerable !== db.enumerable || !same(da.value, db.value)) return false
     }
-    for (const key of bk) { if (!pay()) return false; if (Object.hasOwn(b, key)) nb++ }
+    for (let keyIndex = 0; keyIndex < bk.length; keyIndex++) { if (!pay()) return false; if (Object.hasOwn(b, bk[keyIndex]!)) nb++ }
     return na === nb
   }
   // Upper bound for one resource serialization. Fields are already inert and
@@ -273,7 +326,8 @@ export function createNativePaintEmission(maxOperations: number) {
     if (!pay()) return undefined
     const keys = Object.getOwnPropertyNames(value)
     if (!pay(keys.length)) return undefined
-    for (const key of keys) {
+    for (let keyIndex = 0; keyIndex < keys.length; keyIndex++) {
+      const key = keys[keyIndex]!
       if (!pay(3)) return undefined
       const descriptor = Object.getOwnPropertyDescriptor(value, key)
       if (!descriptor || !Object.hasOwn(descriptor, 'value')) return undefined
@@ -562,9 +616,8 @@ export function createNativePaintEmission(maxOperations: number) {
       // The callback forces a fresh parse and pays its scans and namespace work
       // from the same unchanged allowance as capture and geometric proof.
       if (hasMarkedConnector) {
-        const record = typeof output === 'string' ? undefined : xml.validate(output)
-        const envelope = typeof output === 'string' ? output : record?.skeleton ?? xml.read(output)?.svg
-        if (envelope === undefined || !verifySvgDocumentEnvelope(envelope, pay)) uncertain = true
+        const verified = typeof output === 'string' ? verifySvgDocumentEnvelope(output, pay) : xml.verify(output)
+        if (!verified) uncertain = true
       }
       // Paid in observe before these immutable occurrences were created.
       // Conditional fallback occurrences already prohibit P, even if rewrapped.

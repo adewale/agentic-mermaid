@@ -4010,3 +4010,73 @@ remain P with identical SVG. No sound capacity closure is currently claimed.
 Next concrete step: finish same-candidate XML/copy/group custody review and
 owning checks, retain refused cases, then normal fast-forward-safe publication
 and exact-head CI. Remote retained branch remains d43; nothing was force-pushed.
+
+
+### 30 October06:47UTC: repair the falsified XML and receiver-sharing paths
+
+The Class halo repair is privately committed at
+9f9816babbec1bdba83cf2feb284ec8c0ada4211. The combined source now replaces9d's
+held text clones with fresh per-occurrence materialization. A first owned-text
+occurrence performs the full fresh copy and records only private seen state;
+the second builds a paid descriptor plan inside the existing copy walk; later
+occurrences allocate fresh records/arrays and retain every assignment/depth
+debit. All block/prepared/lineBlocks/runs/preparedLines diagnostics stay fresh.
+Caller mutable/Proxy/getter sources retain reflective copying. A separate
+pre-existing own-data bug is fixed: private reflection-key arrays are traversed
+by own numeric slots so ambient iteration cannot omit caller own fields.
+Source Proxy ownKeys/descriptor observations remain; this deliberately fixes
+key loss, not an assertion of equivalence with the old erroneous callback.
+
+XML evidence now uses private own-slot rosters, primitive actual composition
+and scalar/name/reference checks, and occupied-space DATA obligations inside
+the fresh root parser. An isolated string/array method cannot alter a private
+fact independently of actual bytes. Unknown/raw/cached/failed paths still
+parse their actual emitted SVG; exhausted capture cannot mint P. Primitive
+numeric capture indentation and completed attribute trimming use primitive
+construction; original default string writers and generic coercion/error
+paths remain. Independent22before/after-import falsifiers pass on the frozen
+R2 hardening; R4 additionally closes an actual before-import attribute-slice
+case that made malformed SVG receive P on R5. All evidence/failed epochs
+remain in label-independent-review/xml-r2-replay/ and space-xml/.
+
+Exact actual-root adoption uses the four runtime files plus current owning
+writer test from frozenR3/R4, with the single Nativefinish verify hunk applied
+once. Direct byte binding and pre-adoption sources are recorded in
+correctness-adoption-r3-r4/BINDING.json and before/. On that SAME source,
+canonical core+repository types and full repository lint pass;96writer/Native/
+Sequence owners pass607assertions. Paint's targeted composition/receiver/text
+slice is6P/1F(3,048assertions), with only the retained1,500/32-marker capacity
+case failing. Two additional own-data/Proxy cases pass20assertions. The first
+filter did not select those two, so they are counted separately, not silently
+assumed covered. All source/head guards and child cleanup pass. Evidence:
+xml-adoption-checks/{repaired-xml-copy-owners,types-repaired-xml-copy,
+lint-repaired-xml-copy,repaired-copy-and-final-ink,repaired-own-data-ink}*.
+
+Capacity remains unresolved:42physical cells compare freshR3, +SPACE R4,
++separate group-constructor facts. All14SVGs are identical across arms;
+Original7 normal proofs stay P (best composite minimum margin74,760), but
+ZERO of the six large refusals closes. Group facts are NOT adopted here.
+The unmarked1,500receipt is295,253→296,754→296,760; small extra work is not
+hidden. Native+SPACE is a correctness repair, not a claimed timing/memory win.
+Evidence: budget-attribution/plan-space-capacity-r4/CAPACITY-HANDOFF.json.
+
+Paid-stage profiling locates the refusals upstream of paint certification.
+Class64/128 arrive with Native400,000 already exhausted and pay0paint units;
+ER256 arrives exhausted at399,955 then pays45; text32 arrives exhausted at
+399,999 then pays1. Completed controls are Class32Native274,728+paint25,917
+and ER128Native271,990+paint5,216. All6instrumented/control pairs preserve
+identical SVG and complete proofs, with unchanged prices/caps. Repeated
+validator/inspection bounds work is unpriced and cannot fix these admissions.
+No paint-only cache was built. Evidence: paid-paint-review/REPORT.json and
+PAID-PAINT-COUNTS.json. Next work targets repeated capture/resource comparisons.
+
+A further same-roster counterexample remains open before publication: inherited
+map on a PRIVATE final fragment array can omit an actual connector while
+inspection still retains it; actual XML is valid and the old certificate P.
+Both root and inert-group cases have meaningful red owning controls with
+actual labels, contacts and off-shaft head removal. The repair will bind
+actual serialization and inspection to the same indexed captured roster while
+preserving source Proxy/getter and generic fallback observations. This is not
+fixed by the XML-validity repair alone. Owner source remains held privately
+during current-root checks; no parallel writer overwrote it. Remote retained
+branch is still d43. No readiness or correctness-parity claim is made.

@@ -112,6 +112,244 @@ test('many ordinary prepared labels retain bounded Native paint proof without ma
   expect(proof.status).toBe('passed')
 })
 
+const runTextReceiverChild = useTestChildren(20_000)
+const textReceiverProgram = String.raw`
+import { drawNative } from './src/scene/native-drawing.ts'
+import { preparePixelText } from './src/shared/prepared-text.ts'
+const mode = process.env.AM_TEXT_RECEIVER_MODE
+const block = preparePixelText('Read', { fontSize: 18, fontWeight: 400 })
+const nativeMap = Array.prototype.map
+const prototype = mode === 'fontFamily' ? Object.prototype : Array.prototype
+const key = mode === 'fontFamily' ? 'fontFamily' : 'map'
+const original = Object.getOwnPropertyDescriptor(prototype, key)
+const phases = new WeakMap(), trace = []
+let phase = 'before', drawing
+const firstPhase = receiver => {
+  if (!phases.has(receiver)) phases.set(receiver, phase)
+  const first = phases.get(receiver)
+  trace.push({ firstPhase: first, phase })
+  return first
+}
+try {
+  if (mode === 'fontFamily') Object.defineProperty(prototype, key, {
+    configurable: true,
+    get() { return firstPhase(this) === phase ? 'Inter' : 'DejaVuSansMono' },
+  })
+  else Object.defineProperty(prototype, key, {
+    ...original,
+    value(callback, thisArg) {
+      const slot = Object.getOwnPropertyDescriptor(this, '0')
+      const run = slot && Object.hasOwn(slot, 'value') ? slot.value : undefined
+      const text = run && typeof run === 'object' ? Object.getOwnPropertyDescriptor(run, 'text') : undefined
+      const bold = run && typeof run === 'object' ? Object.getOwnPropertyDescriptor(run, 'bold') : undefined
+      if (!text || !Object.hasOwn(text, 'value') || text.value !== 'Read'
+        || !bold || !Object.hasOwn(bold, 'value') || typeof bold.value !== 'boolean') return nativeMap.call(this, callback, thisArg)
+      const first = firstPhase(this)
+      const mapped = nativeMap.call(this, callback, thisArg)
+      return first === phase ? mapped : nativeMap.call(mapped, value => typeof value === 'string' ? value.replaceAll('Read', 'Lost') : value)
+    },
+  })
+  const width = 300, height = 140, colors = { bg: '#fff', fg: '#111' }
+  const producer = factory => {
+    const open = factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="140">')
+    phase = 'first'
+    const first = factory.text({ id: 'first', role: 'label', text: 'Read', block, x: 20, y: 40, fontSize: 18, anchor: 'start', paint: { fill: '#111' } })
+    phase = 'second'
+    const second = factory.text({ id: 'second', role: 'label', text: 'Read', block, x: 20, y: 90, fontSize: 18, anchor: 'start', paint: { fill: '#111' } })
+    return { family: 'flowchart', width, height, colors, transparent: false, parts: [open, first, second, factory.documentClose()] }
+  }
+  drawing = drawNative(producer, { positioned: { width, height }, colors, resolved: { renderOptions: {} } }, 'flowchart')
+} finally {
+  if (original) Object.defineProperty(prototype, key, original)
+  else Reflect.deleteProperty(prototype, key)
+}
+console.log(JSON.stringify({
+  svg: drawing.svg,
+  ids: drawing.paint.primitives.filter(primitive => primitive.kind === 'text').map(primitive => primitive.id),
+  trace,
+  prototypeRestored: original ? Object.getOwnPropertyDescriptor(prototype, key)?.value === original.value
+    && Object.getOwnPropertyDescriptor(prototype, key)?.get === original.get : !Object.hasOwn(prototype, key),
+}))
+`
+
+test.each(['fontFamily', 'array-map'] as const)('shared owned text preserves receiver-sensitive inherited %s behavior per leaf', async mode => {
+  const child = await runTextReceiverChild(process.execPath, ['--eval', textReceiverProgram], {
+    cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env, AM_TEXT_RECEIVER_MODE: mode },
+  })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  const packet = JSON.parse(child.stdout) as { svg: string; ids: string[]; trace: Array<{ firstPhase: string; phase: string }>; prototypeRestored: boolean }
+  expect(packet.prototypeRestored).toBe(true)
+  expect(packet.ids).toEqual(['first', 'second'])
+  const labels: Array<{ text: string; fontFamily: string | null; x: string | undefined; y: string | undefined }> = []
+  let current: typeof labels[number] | undefined
+  const parser = new SaxesParser({ xmlns: true })
+  parser.on('opentag', tag => {
+    if (tag.local !== 'text') return
+    const attributes = Object.fromEntries(Object.entries(tag.attributes).map(([name, value]) => [name, value.value]))
+    current = { text: '', fontFamily: attributes['font-family'] ?? null, x: attributes.x, y: attributes.y }
+    labels.push(current)
+  })
+  parser.on('text', text => { if (current) current.text += text })
+  parser.on('closetag', tag => { if (tag.local === 'text') current = undefined })
+  parser.write(packet.svg).close()
+  expect(labels).toHaveLength(2)
+  expect(labels.map(({ x, y }) => ({ x, y }))).toEqual([{ x: '20', y: '40' }, { x: '20', y: '90' }])
+  const tags = packet.svg.match(/<text\b[^>]*>[\s\S]*?<\/text>/g)!
+  expect(tags).toHaveLength(2)
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
+  // These removals prove actual glyph presence. A missing DejaVuSansMono alias
+  // may fall back to Inter here; the emitted family is checked independently.
+  const pixels = (svg: string) => new Resvg(svg, { font, background: '#fff' }).render().pixels
+  const actual = pixels(packet.svg)
+  for (const tag of tags) expect(Buffer.compare(actual, pixels(packet.svg.replace(tag, '')))).not.toBe(0)
+  expect(new Set(packet.trace.map(read => read.phase))).toEqual(new Set(['first', 'second']))
+  expect(labels.map(({ text, fontFamily }) => ({ text, fontFamily }))).toEqual([
+    { text: 'Read', fontFamily: mode === 'fontFamily' ? 'Inter' : null },
+    { text: 'Read', fontFamily: mode === 'fontFamily' ? 'Inter' : null },
+  ])
+})
+
+const finalDocumentJoinProgram = String.raw`
+import { drawNative } from './src/scene/native-drawing.ts'
+import { certifyNativePaint } from './src/scene/paint-certification.ts'
+import { preparePixelText } from './src/shared/prepared-text.ts'
+import { serializeMarkerResource } from './src/scene/marker-resources.ts'
+const width = 200, height = 100, colors = { bg: '#fff', fg: '#111' }
+const block = preparePixelText('Route', { fontSize: 12, fontWeight: 400 })
+const marker = { id: 'xml-array-arrow', shape: 'arrow', geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: 8, y: 4 }, { x: 0, y: 8 }] }, size: { width: 8, height: 8 }, ref: { x: 8, y: 4 }, units: 'userSpaceOnUse', orient: 'auto', overflow: 'visible', paint: { fill: '#111' } }
+const render = () => drawNative(factory => ({ family: 'flowchart', width, height, colors, transparent: false, parts: [
+  factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">'),
+  factory.definitions({ id: 'defs', markerResources: [marker] }, '<defs>' + serializeMarkerResource(marker) + '</defs>'),
+  factory.connector({ id: 'xml-edge', role: 'edge', geometry: { kind: 'polyline', points: [{ x: 20, y: 50 }, { x: 160, y: 50 }] }, lineStyle: 'solid', paint: { stroke: '#111', strokeWidth: '1.5', fill: 'none' }, markers: { end: marker } }),
+  factory.text({ id: 'route-label', role: 'label', text: 'Route', block, x: 90, y: 25, fontSize: 12, anchor: 'middle', paint: { fill: '#111' } }),
+  factory.documentClose(),
+] }), { positioned: { width, height }, colors, resolved: { renderOptions: {} } }, 'flowchart')
+const clean = render(), original = Object.getOwnPropertyDescriptor(Array.prototype, 'join'), trace = []
+let changed
+try {
+  Object.defineProperty(Array.prototype, 'join', { ...original, value(separator) {
+    let open = false, polyline = false, close = false
+    for (let index = 0; index < this.length; index++) {
+      const descriptor = Object.getOwnPropertyDescriptor(this, String(index))
+      if (!descriptor || !Object.hasOwn(descriptor, 'value') || typeof descriptor.value !== 'string') continue
+      open ||= descriptor.value.startsWith('<svg ')
+      polyline ||= descriptor.value.includes('<polyline ')
+      close ||= descriptor.value === '</svg>'
+    }
+    const value = Reflect.apply(original.value, this, [separator])
+    if (!open || !polyline || !close) return value
+    trace.push(this.length)
+    return value + '</g>'
+  } })
+  changed = render()
+} finally { Object.defineProperty(Array.prototype, 'join', original) }
+console.log(JSON.stringify({
+  clean: { svg: clean.svg, proof: certifyNativePaint(clean.header, clean.paint) },
+  changed: { svg: changed.svg, proof: certifyNativePaint(changed.header, changed.paint) },
+  trace, prototypeRestored: Array.prototype.join === original.value,
+}))
+`
+
+test('Native XML proof follows actual final document composition under an inherited join hook', async () => {
+  const child = await runTextReceiverChild(process.execPath, ['--eval', finalDocumentJoinProgram], {
+    cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env },
+  })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  type Output = { svg: string; proof: ReturnType<typeof certifyNativePaint> }
+  const packet = JSON.parse(child.stdout) as { clean: Output; changed: Output; trace: number[]; prototypeRestored: boolean }
+  expect(packet.prototypeRestored).toBe(true)
+  const wellFormed = (svg: string): boolean => {
+    try { new SaxesParser({ xmlns: true }).write(svg).close(); return true } catch { return false }
+  }
+  expect(wellFormed(packet.clean.svg)).toBe(true)
+  expect(packet.clean.proof.status).toBe('passed')
+  const elements = rectangleEmissionElements(packet.clean.svg)
+  expect(elements.find(element => element.attributes['data-id'] === 'xml-edge')!.attributes).toMatchObject({ points: '20,50 160,50', stroke: '#111', 'stroke-width': '1.5', 'marker-end': 'url(#xml-array-arrow)' })
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
+  const pixels = (svg: string) => new Resvg(svg, { font, background: '#fff' }).render().pixels
+  const actual = pixels(packet.clean.svg), marker = ' marker-end="url(#xml-array-arrow)"'
+  expect(packet.clean.svg.split(marker)).toHaveLength(2)
+  const withoutMarker = pixels(packet.clean.svg.replace(marker, ''))
+  let offShaftForeground = 0
+  for (let offset = 0; offset < actual.length; offset += 4) {
+    if (Math.abs(Math.floor(offset / 4 / 200) + 0.5 - 50) <= 0.75) continue
+    if (actual[offset]! + 2 < withoutMarker[offset]!) offShaftForeground++
+  }
+  expect(offShaftForeground).toBeGreaterThan(0)
+  const label = packet.clean.svg.match(/<text\b[^>]*>Route<\/text>/)![0]
+  expect(Buffer.compare(actual, pixels(packet.clean.svg.replace(label, '')))).not.toBe(0)
+  expect(wellFormed(packet.changed.svg) || packet.changed.proof.status !== 'passed').toBe(true)
+})
+
+const ownTextKeysProgram = String.raw`
+import { drawNative } from './src/scene/native-drawing.ts'
+import { preparePixelText, transferRetainedPixelText } from './src/shared/prepared-text.ts'
+const mode = process.env.AM_OWN_TEXT_KEYS_MODE, prepared = preparePixelText('x', { fontSize: 12, fontWeight: 400 })
+let phase = 'before', trace = []
+const block = mode === 'proxy' ? new Proxy({ ...prepared, sourceStart: 7 }, {
+  ownKeys(target) { trace.push([phase, 'ownKeys']); return Reflect.ownKeys(target) },
+  getOwnPropertyDescriptor(target, key) { trace.push([phase, 'descriptor', String(key)]); return Reflect.getOwnPropertyDescriptor(target, key) },
+}) : prepared
+if (mode === 'proxy') transferRetainedPixelText(prepared, block)
+const colors = { bg: '#fff', fg: '#111' }, width = 200, height = 160
+const original = Object.getOwnPropertyDescriptor(Array.prototype, Symbol.iterator), iterate = original.value
+let removed = 0, thirdOwnSourceStart, thirdSourceStart
+const render = () => {
+  trace = []
+  const drawing = drawNative(factory => {
+    const open = factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="160">')
+    const make = (id, y) => factory.text({ id, role: 'label', text: 'x', block, x: 20, y, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })
+    phase = 'first'; const first = make('first', 30)
+    phase = 'second'; const second = make('second', 60)
+    phase = 'third'; const third = make('third', 90)
+    const retained = mode === 'proxy' ? third.node.block : third.node.block.lineBlocks[0].runs[0]
+    thirdOwnSourceStart = Object.hasOwn(retained, 'sourceStart'); thirdSourceStart = retained.sourceStart
+    phase = 'after'
+    const result = factory.shape({ id: 'own-key-result', role: 'chrome', geometry: { kind: 'rect', x: 140, y: 120, width: 20, height: 20 }, paint: { fill: thirdOwnSourceStart ? '#000' : '#fff' } })
+    return { family: 'flowchart', width, height, colors, transparent: false, parts: [open, first, second, third, result, factory.documentClose()] }
+  }, { positioned: { width, height }, colors, resolved: { renderOptions: {} } }, 'flowchart')
+  return { svg: drawing.svg, thirdOwnSourceStart, thirdSourceStart, trace }
+}
+const clean = render()
+let changed
+try {
+  Object.defineProperty(Array.prototype, Symbol.iterator, { ...original, value() {
+    const iterator = Reflect.apply(iterate, this, [])
+    const skip = phase === 'third' && typeof this[0] === 'string' && this.includes('sourceStart')
+    return { next() {
+      let result = iterator.next()
+      if (skip && !result.done && result.value === 'sourceStart') { removed++; result = iterator.next() }
+      return result
+    } }
+  } })
+  changed = render()
+} finally { Object.defineProperty(Array.prototype, Symbol.iterator, original) }
+console.log(JSON.stringify({ clean, changed, removed, prototypeRestored: Object.getOwnPropertyDescriptor(Array.prototype, Symbol.iterator).value === iterate }))
+`
+
+test.each(['owned', 'proxy'] as const)('Native text snapshots retain %s own data when an inherited iterator filters reflection keys', async mode => {
+  const child = await runTextReceiverChild(process.execPath, ['--eval', ownTextKeysProgram], {
+    cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env, AM_OWN_TEXT_KEYS_MODE: mode },
+  })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  type Capture = { svg: string; thirdOwnSourceStart: boolean; thirdSourceStart?: number; trace: unknown[] }
+  const packet = JSON.parse(child.stdout) as { clean: Capture; changed: Capture; removed: number; prototypeRestored: boolean }
+  expect(packet.prototypeRestored).toBe(true)
+  const clean = packet.clean, changed = packet.changed, svg = changed.svg
+  expect({ own: clean.thirdOwnSourceStart, sourceStart: clean.thirdSourceStart }).toEqual({ own: true, sourceStart: mode === 'owned' ? 0 : 7 })
+  new SaxesParser({ xmlns: true }).write(svg).close()
+  const texts = [...svg.matchAll(/<text\b[^>]*>x<\/text>/g)].map(match => match[0])
+  expect(texts).toHaveLength(3)
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
+  const pixels = (svg: string) => new Resvg(svg, { font, background: '#fff' }).render().pixels
+  const actual = pixels(svg)
+  expect(actual).toHaveLength(200 * 160 * 4)
+  for (const text of texts) expect(Buffer.compare(actual, pixels(svg.replace(text, '')))).not.toBe(0)
+  const result = rectangleEmissionElements(svg).find(element => element.name === 'rect' && element.attributes.x === '140' && element.attributes.y === '120')!
+  expect(result.attributes).toMatchObject({ x: '140', y: '120', width: '20', height: '20' })
+  expect({ own: changed.thirdOwnSourceStart, sourceStart: changed.thirdSourceStart, trace: changed.trace, fill: result.attributes.fill, actualCenterPixel: [...actual.subarray((130 * 200 + 150) * 4, (130 * 200 + 150) * 4 + 4)] }).toEqual({ own: true, sourceStart: mode === 'owned' ? 0 : 7, trace: clean.trace, fill: '#000', actualCenterPixel: [0, 0, 0, 255] })
+})
+
 test.each(['close', 'join'] as const)('group %s cannot emit uninspected covering artwork', field => {
   const colors = { bg: '#fff', fg: '#111' }, artwork = '<rect x="10" y="10" width="80" height="60" fill="#fff"/>'
   const context = { positioned: { width: 100, height: 80 }, colors, resolved: { renderOptions: {} } }
