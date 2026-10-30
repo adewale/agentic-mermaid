@@ -4952,3 +4952,19 @@ and independent broad meaning qualification remain open. Replacement24 stays
 sealed. Next concrete step: publish this verified font refusal repair, inspect
 exact-head CI and paired clipping artifacts, then qualify the actual-write bridge
 against callback isolation, actual visible ink and unchanged work limits.
+
+Commit eca222a4f contains the verified endpoint-envelope repair above. The existing
+CI layout archive now accepts an optional immutable40hex base on manual dispatch
+and includes the same Interj6/48Bold/zero-padding input on both graph backends,
+with separate base/head processes producing SVG, PNG and receipt/revision/options
+JSON. Input is environment-bound, validated and quoted before fetch. YAML parse,
+diff whitespace and independent workflow security/source-identity review pass.
+Existing19fixture renders remain after-only; the four advisory inputs are paired
+only when a base is supplied. No extra harness/check, artifact commit or budget
+change is introduced. This is review tooling, not new correctness evidence until
+that exact CI artifact has run and been inspected.
+
+LiveMain now118cadd53d3b2dfbaf0dbb959bcc7abb66f16ae5, including new Unicode/text
+and chart work beyond prior4c72d1c82. It has not been silently integrated into the
+frozen candidate or inherited by earlier measurements. Read-only overlap review
+is assigned before deciding the next combined-candidate qualification.

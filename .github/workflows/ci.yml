@@ -2,6 +2,12 @@ name: CI
 
 on:
   workflow_dispatch:
+    inputs:
+      layout_review_base:
+        description: Optional full commit SHA for paired layout review artifacts
+        required: false
+        default: ''
+        type: string
   push:
     branches: [main]
   pull_request:
@@ -73,10 +79,11 @@ jobs:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
       - name: Prepare the immutable base for layout review
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.layout_review_base != '')
         env:
-          LAYOUT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          LAYOUT_BASE_SHA: ${{ github.event.pull_request.base.sha || inputs.layout_review_base }}
         run: |
+          [[ "$LAYOUT_BASE_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "Expected a full layout review base SHA" >&2; exit 1; }
           layout_base="$RUNNER_TEMP/layout-review-base"
           git fetch --no-tags --depth=1 origin "$LAYOUT_BASE_SHA"
           git worktree add --detach "$layout_base" "$LAYOUT_BASE_SHA"
@@ -132,6 +139,7 @@ jobs:
               { name: "class-inheritance", source: samples.find(s => s.id === "corpus/class/0")?.source },
               { name: "er-tree", source: samples.find(s => s.id === "fixture/stress/er-40-entities.mmd")?.source },
               { name: "parallel-labels", source: generatedFlowchartSamples({ start: 40, count: 1 })[0].source },
+              { name: "inter-overhang", source: "flowchart LR\nA[jjjjjj]\nstyle A fill:none,stroke:none", renderOptions: { font: "Inter", padding: 0, style: { roles: { node: { fontSize: 48, fontWeight: 700, paddingX: 0, paddingY: 0 } } } } },
             ];
             if (advisory.some(s => !s.source)) throw new Error("Missing layout advisory review input");
             // Each revision gets its own process and module/registry identities.
@@ -139,10 +147,10 @@ jobs:
             const probe = `
               const { renderMermaidPNGWithReceipt, renderMermaidSVGWithReceipt, layoutMermaidWithReceipt, measureQuality } = await import(process.cwd() + "/src/agent/index.ts");
               const revision = new TextDecoder().decode(Bun.spawnSync(["git", "rev-parse", "HEAD"]).stdout).trim();
-              for (const { name, source } of JSON.parse(process.env.LAYOUT_REVIEW_INPUTS)) for (const backend of ["elk", "agentic"]) {
+              for (const { name, source, renderOptions } of JSON.parse(process.env.LAYOUT_REVIEW_INPUTS)) for (const backend of ["elk", "agentic"]) {
                 const label = process.env.LAYOUT_REVIEW_LABEL;
                 const path = process.env.LAYOUT_REVIEW + "/advisory-" + name + "-" + label + "-" + backend;
-                const options = { graphLayout: { backend }, security: "strict" };
+                const options = { ...renderOptions, graphLayout: { backend }, security: "strict" };
                 try {
                   const svg = renderMermaidSVGWithReceipt(source, options);
                   const png = renderMermaidPNGWithReceipt(source, { ...options, fitTo: { width: 1000 } });
