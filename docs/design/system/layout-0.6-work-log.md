@@ -4791,3 +4791,112 @@ The two verified integration repairs are pushed normally on the retained branch,
 then canonical CI is explicitly dispatched again for the exact new head. Old
 run failures remain historical; they are not relabelled as fixed CI. The broader
 runtime/performance, six-capacity, rich-proof and delivery work remains open.
+
+### 30 October: actual Inter clipping repaired; exact H4 replay and bounded cost
+
+The second exact-head CI41076488545 at ae0796e5838fec295ec9e36af8997c090f31d2bf
+confirms both integration repairs: installed Node24 tarball/package verifier
+passes, and unit2 now has only its two old capacity failures (5896P/37skip/2F).
+Unit3 retains the four Class128 failures; unit1 and independent semantics pass.
+Quality/lazy, browser/editor and demo payload budgets still fail. The generated
+layout advisory also fails its comparisons despite zero producer render errors;
+its regressions/improvements remain evidence, not readiness. No cap was raised.
+
+A new independent authored interaction proved actual glyph clipping under both
+engines and both writers: flowchart LR, A[jjjjjj], invisible card, Inter Bold48,
+zero diagram/node padding. All eight plain/rich cells were paint-P, but expanding
+only the same emitted SVG's viewport revealed12missing glyph pixel centers.
+Twelve single-j controls were unclipped. P's retained-band disclaimer does not
+establish full glyph visibility. Omitted versus explicit Inter was later tested
+separately: all16renders are whole-SVG identical with explicit resolved Inter,
+P and zero clipping after the fix; the suspected default-custody gap was not
+reproduced. Evidence: meaning-fonts/width-only-negative-bearing/.
+
+Commit20aa710e5e6b4ea970770417239435860868b50a implements one shared conservative
+outline envelope for pinned normal Inter400/500/600/700 Latin letters/spaces.
+Reachable single-substitution and kerning metadata gives positive adjusted
+advance A>=254n, left bearing>=-50, right overhang<=175 and vertical outline
+[-442,1850] at2048units/em. Actual spacingAndGlyphs fitting to W therefore bounds
+overhangs by50W/(254n) and175W/(254n). Independent review checks count-preserving
+substitutions, placement/advance fields, preserved spaces and separately fitted
+tracking fragments. No font parser/dependency or per-fixture padding is added.
+
+The envelope is a private capability distinct from host-shaped ink, projected
+through the same served x/y/baseline/font-size/textLength. It is unioned with
+allocated bounds, not substituted for layout advances. Native reads only the
+own captured font descriptor; Scene uses admitted document font. The cache
+includes selected family and a Caveat reuse cannot inherit Inter authority or
+force an Inter override. Unicode, punctuation, italic, arbitrary CSS overrides
+and other faces remain outside this new domain. Existing work limits remain.
+The SVG text/geometry/ports/palette/display dimensions remain exact; viewport
+and its automatic namespace change. All eight original cells retain P with
+clipped centers12->0. The narrower scope is documented in docs/custom-fonts.md.
+
+Final new owning raster table is24F against exact ae079 production, then green
+with unchanged expectations. Final custom-font/host/prepared owners179P/0F/
+783assertions; additional Native owners65P/0F/490assertions. Fractional-size,
+three-anchor/plain-rich/custody controls observe36positive Inter cases, zero
+outside pixels, and36Caveat cases deliberately outside this authority with
+implicit family preserved. Their6316outside-envelope observations remain
+enrolled. A missing font forwarder, nullable fallback type error and generic
+getter rereads were corrected before canonical checks; intermediate failures
+are retained. Root canonical core/repository types and lint pass.
+
+Fresh H4 replays the existing33sources/66engine cells at20aa. All124returned
+SVGs,66public models,124receipt files and132certification/work objects are
+whole-byte/value identical to H2. All guards and child cleanup pass; eight
+strict refusals remain. All66existing scoped actual-output citations are eligible
+by exact bytes/options/fonts, with no proof reused. The old cohort does not
+exercise the new clipping fix; the24red/green owners and eight original clipping
+cells are separate evidence. No holdout or new peer query was used. Evidence:
+final-h4-replay/{FINAL-HANDOFF.json,REPORT.md,H2-COMPARISON.json}.
+
+Bounded instrumented cost diagnostics compare exact ae079 production with the
+new code: three fresh-process pairs AB/BA/AB, both backends, Native-report and
+Scene-strict, cache off, four sources, first+two repeats. All SVG UTF8 and full
+receipt/error JSON are consumed in clocks; import/GC are separate and whole-
+process elapsed/CPU are also retained. First candidate288calls/0errors/no timeout
+has Class32 repeat medians127.31->146.32ms, so preservation was not claimed.
+Commit fdf43bd16746c317ce30def9b8a1b211414694ca removes one avoidable temporary
+object per prepared-text bounds call, reusing primitive scalars in exactly the
+same getter order. Independent review and fresh244owners/1273assertions pass;
+canonical core/repo types and targeted lint pass again.
+
+| Scalar candidate diagnostic | Before ae079 | After fdf43 |
+| --- | --- | --- |
+| Completed calls / retained errors |144 /0 |144 /0 |
+| Median48call fully consumed sum |3730.08ms |3914.04ms |
+| Median whole-process elapsed, including setup/GC |7540.19ms |7538.26ms |
+| Median process peak RSS |246728KiB |246208KiB |
+| Class32 median repeat |140.19ms |140.51ms |
+| Ordinary Latin graph median repeat |43.21ms |53.44ms |
+| Plain/rich overhang median repeats |12.22/9.54ms |12.01/9.72ms |
+
+Raw rounds overlap and vary; the slower ordinary control remains explicit. This
+small diagnostic does not establish statistical parity, allocations, general
+speed or bundle preservation. The clipping cases change visible quality, not
+an equal-quality speedup. Baseline868production files/9223103Git-blob bytes
+directly match ae079. Evidence: measurement/H4-{BASE-BINDING,RUNS,COST-SUMMARY}.json,
+H4-SCALAR-{RUNS,COST-SUMMARY}.json and raw worker/progress files. No further timing
+campaign follows this bounded check.
+
+Two further shared-Scene experiments remain unshipped. Epoch1 returned-byte
+comparison is implemented privately but increases Class32 work152195->193135,
+closes no capacity owner and leaves128TB/BT at400000. It exposes an EXISTING
+false-P: replacing Array.join can add opacity0 to the actual group, or delete all
+children; the marker contributes zero pixels while baseline still returnsP12080
+(ordinary control20darkpixels). Epoch2 observes actual returned groups and
+conservatively refuses nonempty typed groups, catching both zero-ink classes
+while preserving actual SVG/getter order/three callbacks. It also withdraws
+Class32 P->U340270 and Class128 LR/RL P->U400000, so is not adopted as a capacity
+or parity improvement. The early getter-order and deletion-hole controls found
+and corrected in private drafts remain recorded. Root/frozen variants survive.
+Evidence: capacity/SCENE-GROUP-EPOCH{1,2}-HANDOFF.json and private patches.
+
+The next concrete shared-proof boundary is the existing final SVG/XML security
+inventory AFTER backend/projection/composition, instead of another per-group
+comparison or an unused snapshot API. It must bind actual child presence and
+ancestor paint to the same final bytes and preserve generic observations/caps.
+The Scene zero-ink counterexamples, six legacy capacity failures, broader font/
+rich-text domain and delivery budgets remain unresolved. No full parity or
+completion claim, new PR/issue, force push, release or automatic deadline extension.
