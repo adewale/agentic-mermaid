@@ -4216,3 +4216,10 @@ paths still refuse unproved cross/overlap ink; two-node controls do not close
 that remaining uncertainty. Replacement24 stays sealed. Next step: commit this
 verified authority repair, push normally, follow exact-head CI and finish the
 separate fresh comparison. No correctness parity or delivery readiness is claimed.
+
+Code checkpoint: `64e4be6ac340f4a1d81683878198237a91683f01` contains the
+qualified authority repair and owning regressions. The08:10 pre-push fetch still
+finds Main `83744a4e1ae5c9d3821ba8a283811367fd31eade` and retained remote
+`d43ef02ee11f9c5f99d5138e9455f14efcbab27b`, both ancestors of that checkpoint;
+the implementation worktree is clean. This following entry changes only the
+work log. Exact-head CI is pending normal publication, not assumed successful.
