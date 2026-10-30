@@ -320,12 +320,22 @@ export async function dispatchAdmittedMcpRequest<Context>(message: AdmittedMcpMe
       })
       break
     }
-    case 'notifications/initialized': response = era === 'modern' ? unknownMethod(id, req.method) : null; break
+    // JSON-RPC 2.0: a message with an id is a request, whatever its method is
+    // called, and a request gets a response. MCP defines initialized only as
+    // a notification, so the request form names no method this server has.
+    case 'notifications/initialized': response = era === 'modern'
+      ? unknownMethod(id, req.method)
+      : notification ? null : rpcError(id, -32601, 'Method not found: notifications/initialized is a notification; send it without an id'); break
     case 'ping': response = era === 'modern' ? unknownMethod(id, req.method) : reply(id, {}); break
     case 'server/discover': response = era === 'modern'
       ? reply(id, discoverResult(surface, servedVersions))
       : unknownMethod(id, req.method); break
-    case 'tools/list': response = reply(id, { tools: surface.tools }); break
+    // The whole list fits one page, so this server never issues a nextCursor
+    // and no cursor a client sends can name a page (MCP pagination: an invalid
+    // cursor SHOULD be -32602 rather than silently restarting the listing).
+    case 'tools/list': response = isPlainRecord(req.params) && Object.hasOwn(req.params, 'cursor')
+      ? rpcError(id, -32602, 'Invalid params: unknown cursor; this server lists every tool in one page and issues no cursors')
+      : reply(id, { tools: surface.tools }); break
     case 'tools/call': {
       if (!isPlainRecord(req.params)) {
         response = rpcError(id, -32602, 'Invalid params: tools/call requires an object')

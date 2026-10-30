@@ -11,7 +11,7 @@ import { BUILTIN_FAMILY_METADATA, getFamily, replaceFamilyForTest } from '../age
 import { runCli, runBatchLine } from '../cli/index.ts'
 import { MCP_CLI_HELP, parseMcpCliOptions, runMcpCli } from '../mcp/mcp-cli.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
-import { handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
+import { createStdioMessageProcessor, handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
 import { captureCli as capture } from './helpers/cli-capture.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 import { useTestChildren } from './helpers/test-child.ts'
@@ -807,6 +807,20 @@ describe('MCP — JSON-RPC happy + sad', () => {
     expect(await handleRequest({ jsonrpc: '2.0', method: 'notifications/initialized' })).toBeNull()
     expect(await handleRequest({ jsonrpc: '2.0', method: 'ping' })).toBeNull()
     expect(await handleRequest({ jsonrpc: '2.0', method: 'made/up' })).toBeNull()
+  })
+  test('stdio answers every request, ignores a stray response, and refuses a cursor it never issued', async () => {
+    const output: string[] = []
+    const processor = createStdioMessageProcessor({}, line => output.push(line))
+    processor.accept(JSON.stringify({ jsonrpc: '2.0', id: 11, result: {} }))
+    processor.accept(JSON.stringify({ jsonrpc: '2.0', id: 12, error: { code: 1, message: 'client-side failure' } }))
+    processor.accept(JSON.stringify({ jsonrpc: '2.0', id: 13, method: 'notifications/initialized' }))
+    processor.accept(JSON.stringify({ jsonrpc: '2.0', id: 14, method: 'tools/list', params: { cursor: 'garbage' } }))
+    await processor.drain()
+    const replies = output.map(line => JSON.parse(line))
+    expect(replies.map(reply => ({ id: reply.id, code: reply.error?.code }))).toEqual([
+      { id: 13, code: -32601 },
+      { id: 14, code: -32602 },
+    ])
   })
   test('malformed JSON-RPC envelopes are rejected before dispatch', async () => {
     const missingVersion = await handleRequest({ id: 8, method: 'ping' } as any)

@@ -206,6 +206,21 @@ describe('JSON-RPC round trips', () => {
     }
   })
 
+  // Streamable HTTP: a posted JSON-RPC response or notification is 202 with no
+  // body; JSON-RPC 2.0: a message with an id is a request and is answered.
+  test.each([
+    { name: 'a client result response', body: { jsonrpc: '2.0', id: 1, result: {} }, status: 202, reply: undefined },
+    { name: 'a client error response', body: { jsonrpc: '2.0', id: 'r', error: { code: 1, message: 'x' } }, status: 202, reply: undefined },
+    { name: 'a batch of client responses', body: [{ jsonrpc: '2.0', id: 1, result: {} }], status: 202, reply: undefined },
+    { name: 'notifications/initialized with an id', body: rpc('notifications/initialized', undefined, 7), status: 200, reply: { id: 7, code: -32601 } },
+    { name: 'tools/list with a cursor this server never issued', body: rpc('tools/list', { cursor: 'garbage' }, 9), status: 200, reply: { id: 9, code: -32602 } },
+  ])('$name', async ({ body, status, reply }) => {
+    const { handler } = makeHandler()
+    const res = await handler(post(body))
+    const text = await res.text()
+    expect({ status: res.status, reply: text ? (({ id, error }) => ({ id, code: error?.code }))(JSON.parse(text)) : undefined }).toEqual({ status, reply })
+  })
+
   test('batches answer per-request and drop notification slots', async () => {
     const { handler } = makeHandler()
     const res = await handler(post([rpc('ping', undefined, 'a'), { jsonrpc: '2.0', method: 'notifications/initialized' }, rpc('tools/list', undefined, 'b')]))

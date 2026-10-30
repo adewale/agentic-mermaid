@@ -62,6 +62,7 @@ export function isAdmittedMcpRequest(message: AdmittedMcpMessage): message is Ad
 
 export type McpAdmissionFailureKind =
   | 'invalid-request'
+  | 'response'
   | 'header-mismatch'
   | 'unsupported-version'
   | 'invalid-modern-metadata'
@@ -138,9 +139,22 @@ function acceptance(
     : { ok: true, message: { ...base, notification: false } }
 }
 
+/** A JSON-RPC 2.0 Response object: an id and exactly one of result/error, and
+ * no method. Clients send these only to answer server-initiated requests. */
+function isJsonRpcResponse(raw: Record<string, unknown> | null): boolean {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw) || raw.jsonrpc !== '2.0') return false
+  const has = (key: string) => Object.prototype.hasOwnProperty.call(raw, key)
+  return !has('method') && has('id') && has('result') !== has('error')
+}
+
 /** Validate and classify one parsed JSON value exactly once. */
 export function admitMcpMessage(rawMessage: unknown, options: McpAdmissionOptions): McpAdmissionResult {
   const raw = rawMessage as Record<string, unknown> | null
+  // This server sends no requests, so a client response answers nothing it
+  // awaits. JSON-RPC 2.0 never replies to a Response object, and Streamable
+  // HTTP accepts a posted response with 202 and no body; stdio ignores it.
+  // Answering it with -32600 would put an unsolicited message on the wire.
+  if (isJsonRpcResponse(raw)) return { ok: false, kind: 'response', response: null }
   const hasId = Boolean(raw && Object.prototype.hasOwnProperty.call(raw, 'id'))
   const rawId = raw?.id
   const validId = rawId === undefined || typeof rawId === 'string'

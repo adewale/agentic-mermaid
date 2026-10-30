@@ -30,11 +30,20 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   second `parameters` copy is gone), and are served minified: 487 KB → 132 KB
   and 987 KB → 133 KB.
 
+- `tools/list` answers a request carrying a `cursor` with `-32602`, on the
+  hosted and local servers: the whole list is one page and the server issues
+  no cursors, so no cursor can name a page.
+
 ### Fixed
 
 - `render_png` and `render_ascii` describe `options` with the registered
   Looks and Palettes, as `render_svg` does; all render tools share one
   description.
+
+- A JSON-RPC response object posted by a client is accepted and ignored
+  (hosted: HTTP 202, no body; stdio: no reply) instead of being answered with
+  `-32600`. `notifications/initialized` sent with an `id` is a request and is
+  answered (`-32601`) instead of being swallowed.
 
 - Agent-facing docs: the site publishes the skill's `references/hosted-mcp.md`
   that `SKILL.md` tells hosted agents to read; the getting-started hosted

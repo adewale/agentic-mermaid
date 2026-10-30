@@ -70,15 +70,14 @@ const requestArb = fc.record({
   method: methodArb,
   params: paramsArb,
 }, { requiredKeys: ['jsonrpc', 'method'] })
+type FuzzRequest = typeof requestArb extends fc.Arbitrary<infer T> ? T : never
 
 function assertWellFormedResponse(response: unknown, req: JsonRpcRequest): void {
   // JSON-RPC 2.0: a notification (no `id` member) is never answered and every
-  // request is. The one silent request today is `notifications/initialized`
-  // sent WITH an id, which the legacy handshake swallows.
+  // request is, whatever its method is called.
   const notification = !Object.hasOwn(req, 'id')
   if (response === null) {
-    expect({ method: req.method, answerable: !notification && req.method !== 'notifications/initialized' })
-      .toEqual({ method: req.method, answerable: false })
+    expect({ method: req.method, answerable: !notification }).toEqual({ method: req.method, answerable: false })
     return
   }
   expect({ method: req.method, notification }).toEqual({ method: req.method, notification: false })
@@ -108,7 +107,8 @@ describe('mcp-surface fuzz: handleRequest', () => {
         const response = await handleRequest(req as JsonRpcRequest)
         assertWellFormedResponse(response, req as JsonRpcRequest)
       }),
-      fcParameters({ numRuns: NUM_RUNS }),
+      // Reduced counterexample: the legacy handshake once swallowed this request.
+      fcParameters<[FuzzRequest]>({ numRuns: NUM_RUNS, examples: [[{ jsonrpc: '2.0', id: 1, method: 'notifications/initialized' }]] }),
     )
   }, LONG_TIMEOUT_MS)
 

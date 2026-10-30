@@ -192,7 +192,7 @@ describe('hosted MCP handshake', () => {
   })
 
   test('notifications return null; ping pongs', async () => {
-    expect(await handleHostedRequest(rpc('notifications/initialized'), makeContext())).toBeNull()
+    expect(await handleHostedRequest({ jsonrpc: '2.0', method: 'notifications/initialized' }, makeContext())).toBeNull()
     expect((await handleHostedRequest(rpc('ping'), makeContext()))?.result).toEqual({})
   })
 })
