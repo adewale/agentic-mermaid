@@ -34,6 +34,13 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   hosted and local servers: the whole list is one page and the server issues
   no cursors, so no cursor can name a page.
 
+- Terminal renders (`renderMermaidASCII`, `renderMermaidASCIIWithReceipt`,
+  `renderMermaidASCIIWithMeta`) refuse an unknown or misspelt option with the
+  same `Invalid RenderOptions: unknown render option "…"` error as
+  `renderMermaidSVG`, instead of ignoring it. Terminal-only fields
+  (`useAscii`, padding, `colorMode`, `theme`, widths, `onProjectionDiagnostic`)
+  are unchanged.
+
 ### Fixed
 
 - `render_png` and `render_ascii` describe `options` with the registered
