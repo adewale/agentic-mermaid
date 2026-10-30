@@ -4,6 +4,7 @@
 import { describe, test, expect } from 'bun:test'
 import { getFamily } from '../agent/families.ts'
 import { replaceFamilyForTest } from '../agent/family-registry.ts'
+import { verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { renderMarkdownBlocks, runCli } from '../cli/index.ts'
 import { LayoutCertificationError } from '../layout/certification-error.ts'
@@ -231,5 +232,33 @@ describe('render failure diagnostics agree across render surfaces', () => {
     const { code, out } = capture(() => runCli(['render', present, missing, '--format', 'svg']))
     expect(code).toBe(0)
     expect(JSON.parse(out).files[1]).toMatchObject({ ok: false, error: { code: 'ARG', message: `File not found: ${missing}` } })
+  })
+})
+
+// RENDER_FAILED is the verify finding for source the parser, or the render
+// path, refuses (the warning catalog's definition). Every verify surface
+// reports it with the same code; hosted verify keeps its structured parse or
+// family diagnostic alongside.
+describe('verify reports one finding across verify surfaces', () => {
+  test('library, CLI, Code Mode and hosted verify agree on a source that does not parse', async () => {
+    for (const [source, reason] of [
+      ['notafamily\n  x', 'UNKNOWN_HEADER'],
+      ['flowchart LR\n  A[Alpha] --> B[Beta] %% c', 'remaining input: "%% c"'],
+    ] as const) {
+      const library = verifyMermaid(source).warnings
+      expect(library, source).toContainEqual({ code: 'RENDER_FAILED', origin: 'source', reason: expect.stringContaining(reason) })
+      const cli = capture(() => runCli(['verify', tmp(source)]))
+      expect(cli.code, source).toBe(3)
+      expect(JSON.parse(cli.out).warnings, `${source} cli`).toEqual(library)
+      const sandbox = await executeInSandbox(`return mermaid.verifyMermaid(${JSON.stringify(source)}).warnings`)
+      expect(JSON.parse(JSON.stringify(sandbox.value)), `${source} Code Mode`).toEqual(library)
+      const response = await handleHostedRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'verify', arguments: { source } } }, {
+        async execute() { return { ok: true, value: null, logs: [] } },
+        async renderPng() { throw new Error('verify does not rasterize') },
+      })
+      const hosted = JSON.parse((response?.result as { content: Array<{ text: string }> }).content[0]!.text)
+      expect(hosted.ok, source).toBe(false)
+      expect(hosted.warnings, `${source} hosted`).toEqual(library)
+    }
   })
 })

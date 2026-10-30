@@ -2704,7 +2704,7 @@ const errors: Array<{ id: string; title: string; desc: string; recover: string; 
     title: 'Parse error',
     desc: 'The source could not be parsed. Preserve the source and point to the line/column when available.',
     recover: 'The source is not valid Mermaid for any known family, so it never became a diagram. Preserve the original text and surface the parser’s line/column; fix the offending line, or return the failure untouched rather than guessing a rewrite that changes intent.',
-    related: 'Often pairs with <a href="/warnings/UNSUPPORTED_SYNTAX/">UNSUPPORTED_SYNTAX</a> when syntax parses in mermaid.js but not the structured model.',
+    related: 'Render surfaces return it as <code>PARSE_FAILED</code> with the parser’s <code>details</code>; every verify surface reports it as the <a href="/warnings/RENDER_FAILED/">RENDER_FAILED</a> warning with <code>origin: "source"</code>. Often pairs with <a href="/warnings/UNSUPPORTED_SYNTAX/">UNSUPPORTED_SYNTAX</a> when syntax parses in mermaid.js but not the structured model.',
   },
   {
     id: 'mutation-error',

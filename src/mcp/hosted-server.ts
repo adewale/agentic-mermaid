@@ -162,7 +162,9 @@ targetWidth sets a hard terminal display-cell bound; impossible bounds return a 
     title: 'Verify Mermaid diagram',
     description: `Parse and verify source, structure, and renderability. This runs the graphical pipeline. Returns
 { ok, family, summary, warnings, layout: { bounds, nodes, edges } } for valid
-diagrams and { ok: false, errors } for parse failures. \`family\` is the detected
+diagrams and { ok: false, errors, warnings } for parse failures (an unknown header
+gives { ok: false, error, warnings }); warnings use the same codes as library/CLI
+verify, so a source that does not parse is RENDER_FAILED there too. \`family\` is the detected
 diagram family and \`summary\` a one-line description — check them: ok:true only
 means the diagram is structurally valid, not that it is the kind you intended.
 Warnings use the layout-rubric codes.`,
@@ -270,17 +272,25 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
     case 'render_png': return handleRenderPng(id, args, context)
     case 'verify': return sourceTool(id, args, source => {
       const parsed = parseRegisteredMermaid(source)
+      // A source that does not parse, or whose family is unknown, keeps its
+      // structured parse/family diagnostic here, and also carries verify's own
+      // findings so its warning codes match the library and CLI verify.
       if (!parsed.ok) {
         // Self-describing tool: when the header names a known family, hand back
         // that family's canonical example so a failed authoring attempt gets the
         // correct dialect in the same response — no need to fetch capabilities.json.
         const hint = familyExampleForSource(source)
-        return { ok: false as const, errors: parsed.error, ...(hint ?? {}) }
+        const v = verifyMermaid(source)
+        return { ok: false as const, errors: parsed.error, warnings: v.warnings, checks: v.checks, ...(hint ?? {}) }
       }
       if (parsed.value.body.kind === 'preserved') {
-        throw new MermaidFamilyDetectionError(
-          familyDetectionDiagnosticFromPreservedBody(parsed.value.body),
-        )
+        const v = verifyMermaid(parsed.value)
+        return {
+          ok: false as const,
+          error: projectRenderErrorDiagnostic(new MermaidFamilyDetectionError(familyDetectionDiagnosticFromPreservedBody(parsed.value.body))),
+          warnings: v.warnings,
+          checks: v.checks,
+        }
       }
       const v = verifyMermaid(parsed.value)
       const summary = mcpVerificationSummary(parsed.value)
