@@ -17,6 +17,7 @@ import { accessibilitySerializationProblem, AccessibilityTextError, ensureAccess
 import type { ExtensionIdentity } from '../shared/extension-identity.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 import { radarBodyProblem } from './radar-body.ts'
+import { serializationDrift } from './serialization-closure.ts'
 import { matchMermaidFrontmatter } from '../mermaid-source-wrapper.ts'
 import { mermaidInitDirectiveIdentity, mermaidInitDirectives, stripMermaidInitDirectives } from '../mermaid-source.ts'
 
@@ -245,6 +246,20 @@ export function synthesizeFromGraph(payload: ValidDiagramPayload): Result<Parsed
     if (!reparsed.ok || reparsed.value.kind !== rebuilt.value.kind) {
       const detail = reparsed.ok ? `serialized source reparsed as ${reparsed.value.kind}/${reparsed.value.body.kind}` : reparsed.error.map(error => error.message).join('; ')
       return err([{ code: 'INVALID_PAYLOAD', message: `serialized payload is not a valid ${kind} diagram: ${detail}` }])
+    }
+    // The payload is untrusted: a field holding grammar (a direction
+    // `LR; click A …`, an id with a newline and a statement, an edge to an
+    // undeclared node) serializes to source that reads back as a different
+    // diagram. Publish only a payload its own serialization states exactly;
+    // a source-preserved body is its own source.
+    if (rebuilt.value.body.kind !== 'opaque') {
+      const sameRepresentation = reparsed.value.body.kind === rebuilt.value.body.kind
+      const emptyScaffold = !sameRepresentation && reparsed.value.body.kind === 'opaque' && getFamily(kind)?.verify?.(rebuilt.value.body, {}).some(warning => warning.code === 'EMPTY_DIAGRAM') === true
+      if (!sameRepresentation && !emptyScaffold) {
+        return err([{ code: 'INVALID_PAYLOAD', message: `serialized payload reads back as body kind "${reparsed.value.body.kind}", not "${rebuilt.value.body.kind}"` }])
+      }
+      const drift = sameRepresentation ? serializationDrift(rebuilt.value, reparsed.value) : undefined
+      if (drift) return err([{ code: 'INVALID_PAYLOAD', message: `payload is not the diagram its serialization states: ${drift}` }])
     }
     // Publish the parser-admitted snapshot, not the caller's retained graph.
     // Reparse normalization prevents malformed optional metadata and nested

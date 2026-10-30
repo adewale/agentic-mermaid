@@ -944,7 +944,9 @@ describe('synthesizeFromGraph', () => {
           nodes: { N: { id: 'N', label: 'N', shape: 'rectangle' } },
           edges: [],
           classDefs: ['foo', 'bar'] as never, // not [k,v] tuples
-          nodeStyles: [['ok', { fill: '#000' }], 'bad', null] as never,
+          // A style for an undeclared node would declare it on re-read; the
+          // payload must stay the diagram it states.
+          nodeStyles: [['N', { fill: '#000' }], 'bad', null] as never,
         },
       },
     })
@@ -984,7 +986,7 @@ describe('synthesizeFromGraph', () => {
         kind: 'flowchart',
         graph: {
           direction: 'TD',
-          nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' } },
+          nodes: { '0': { id: '0', label: '0', shape: 'rectangle' } },
           edges: [],
           nodeStyles: m as never,
         },

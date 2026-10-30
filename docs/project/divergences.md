@@ -998,3 +998,12 @@ keeps the source preserved instead of a typed body.
   row is not a comment.
 - A C4 label holding NUL, and an Architecture title ending in a backslash,
   have no writer spelling; such source stays preserved.
+
+### Untrusted payloads publish only what they state
+
+`synthesizeFromGraph` (`am serialize`, batch `serialize`, Code Mode) applies
+the same closure to JSON payloads: a payload whose serialization re-reads as
+different facts (a direction holding a statement, an id holding a newline, an
+edge to an undeclared node, a style for an undeclared node) is refused with
+`INVALID_PAYLOAD`. A source-preserved body is its own source and is reparsed
+as before.

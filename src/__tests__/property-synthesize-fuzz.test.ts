@@ -9,9 +9,9 @@ import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 
-import { synthesizeFromGraph, serializeMermaid, parseRegisteredMermaid as parseMermaid, createMermaid } from '../agent/index.ts'
+import { synthesizeFromGraph, serializeMermaid, parseRegisteredMermaid as parseMermaid, createMermaid, describeMermaidFacts } from '../agent/index.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
-import type { DiagramKind } from '../agent/types.ts'
+import type { DiagramKind, ParsedDiagram } from '../agent/types.ts'
 
 const NUM_RUNS = 400
 
@@ -72,6 +72,71 @@ describe('synthesize fuzz: synthesizeFromGraph is total and deterministic', () =
     fc.assert(fc.property(payloadArb, payload => {
       expect(JSON.stringify(synthesizeFromGraph(payload as never))).toBe(JSON.stringify(synthesizeFromGraph(payload as never)))
     }), fcParameters({ numRuns: NUM_RUNS }))
+  })
+})
+
+// `am serialize` rehydrates untrusted JSON (V13). A string field holding
+// grammar — a direction `LR; click A href "javascript:…"`, a node id with a
+// newline and a statement, an edge to a node nobody declared — used to be
+// written verbatim and published as whatever its source re-read as. A payload
+// is published only as the diagram it states, or refused.
+describe('synthesize fuzz: a forged payload is refused or published as written', () => {
+  const SOURCES = [
+    'flowchart LR\n  A[Alpha] --> B\n  subgraph G\n    C\n  end\n',
+    'sequenceDiagram\n  A->>B: hi\n',
+    'stateDiagram-v2\n  S1 --> S2 : go\n',
+    'classDiagram\n  class A\n  A <|-- B\n',
+    'erDiagram\n  A ||--o{ B : has\n',
+    'pie\n  title Pets\n  "Dogs" : 3\n',
+    'journey\n  section S\n    Wake: 3: Me\n',
+    'timeline\n  2020 : Start\n',
+    'sankey-beta\nA,B,1\n',
+    'gantt\n  dateFormat YYYY-MM-DD\n  section S\n    T : t1, 2024-01-01, 1d\n',
+    'quadrantChart\n  A: [0.3, 0.6]\n',
+    'architecture-beta\n  service api(server)[API]\n  service db(database)[DB]\n  api:R --> L:db\n',
+    'gitGraph\n  commit id: "a"\n',
+  ]
+  const payloads = SOURCES.map(source => {
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    return toWire(parsed.value) as { kind: DiagramKind; body: Record<string, unknown> }
+  })
+  const stringLeaves = (value: unknown, path: Array<string | number>): Array<Array<string | number>> => {
+    if (typeof value === 'string') return [path]
+    if (!value || typeof value !== 'object') return []
+    return Object.entries(value).flatMap(([key, entry]) => stringLeaves(entry, [...path, Array.isArray(value) ? Number(key) : key]))
+  }
+  const HOSTILE = ['LR; click A href "javascript:alert(1)"', 'A\nclick A call alert(1)', 'Z', 'A[B]', 'A;B', '%%{init: {}}%%', '%%', '"', '\n', ' ', ';', ':', ',', '-->', '|', '[', ']', '{', '}']
+  const textArb = fc.oneof(fc.constantFrom(...HOSTILE), fc.string({ unit: 'binary', minLength: 1, maxLength: 8 }), fc.array(fc.constantFrom(...HOSTILE, 'x', ' '), { minLength: 1, maxLength: 4 }).map(parts => parts.join('')))
+  const forgedArb = fc.constantFrom(...payloads).chain(payload => fc.tuple(fc.constant(payload), fc.constantFrom(...stringLeaves(payload.body, ['body'])), textArb)).map(([payload, path, text]) => {
+    const forged = structuredClone(payload) as Record<string | number, unknown>
+    let record = forged
+    for (const part of path.slice(0, -1)) record = record[part] as Record<string | number, unknown>
+    record[path.at(-1)!] = text
+    return forged
+  })
+  // The payload as the diagram it states: the flowchart graph's records are
+  // Maps in memory, as the rehydration rebuilds them.
+  const stated = (payload: Record<string | number, unknown>): ParsedDiagram => {
+    const diagram = structuredClone(payload) as unknown as ParsedDiagram & { body: { graph?: Record<string, unknown> } }
+    const graph = diagram.body.graph
+    if (graph) for (const key of ['nodes', 'classDefs', 'classAssignments', 'nodeStyles', 'linkStyles']) graph[key] = new Map(Object.entries((graph[key] ?? {}) as object))
+    return diagram
+  }
+  const EXAMPLES: Array<[Record<string | number, unknown>]> = [
+    [(() => { const p = structuredClone(payloads[0]!) as any; p.body.graph.direction = 'LR; click A href "javascript:alert(1)"'; return p })()],
+    [(() => { const p = structuredClone(payloads[0]!) as any; p.body.graph.edges[0].target = 'Z'; return p })()],
+  ]
+
+  it('a published rehydration states exactly the facts of its payload', () => {
+    fc.assert(fc.property(forgedArb, forged => {
+      const published = synthesizeFromGraph(forged as never)
+      if (!published.ok) {
+        expect(published.error[0]!.code).toBe('INVALID_PAYLOAD')
+        return
+      }
+      expect(describeMermaidFacts(published.value)).toEqual(describeMermaidFacts(stated(forged)))
+    }), fcParameters({ numRuns: 1500, examples: EXAMPLES }))
   })
 })
 
