@@ -189,29 +189,217 @@ function erInteriorRoute(from: { x: number; y: number; width: number; height: nu
 }
 
 type ErFace = 'N' | 'E' | 'S' | 'W'
+type ErLoop = { index: number; lineWidth: number; radius: number; depth: number; cross: number; caption?: { width: number; height: number } }
+type ErLoopRoute = Pick<PositionedErRelationship, 'entity1' | 'entity2' | 'points'>
+const ER_OPPOSITE: Record<ErFace, ErFace> = { N: 'S', S: 'N', E: 'W', W: 'E' }
+
+function erOverlaps(a: ErInkBox, b: ErInkBox): boolean {
+  return a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0
+}
+
+/** Each entity's self-relationships with their glyph and caption metrics. */
+function erSelfLoops(entityIds: ReadonlySet<string>, relationships: readonly Pick<PositionedErRelationship, 'entity1' | 'entity2' | 'cardinality1' | 'cardinality2' | 'label' | 'identifying'>[], blocks: readonly PixelTextBlock[], style: ResolvedRenderStyle, styleFace: Readonly<InternalStyleFace> | undefined, work: ErGeometryWork): Map<string, ErLoop[]> {
+  const loops = new Map<string, ErLoop[]>()
+  for (const [index, rel] of relationships.entries()) {
+    erCharge(work)
+    if (rel.entity1 !== rel.entity2 || !entityIds.has(rel.entity1)) continue
+    const role = erRelationshipStyle(rel, styleFace)
+    const bounds = [erCardinalityEnvelope(rel.cardinality1, style.lineWidth), erCardinalityEnvelope(rel.cardinality2, style.lineWidth)]
+    erCharge(work, 24)
+    if (!bounds[0] || !bounds[1]) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
+    loops.set(rel.entity1, [...(loops.get(rel.entity1) ?? []), { index, lineWidth: role?.lineWidth ?? style.lineWidth, radius: role?.bendRadius ?? style.edgeBendRadius,
+      depth: Math.max(bounds[0].x1, bounds[1].x1), cross: Math.max(0, ...bounds.flatMap(bound => [-bound!.y0, bound!.y1])),
+      // The finished caption audit reserves the block plus 8px per side.
+      ...(rel.label ? { caption: { width: blocks[index]!.width + 16, height: blocks[index]!.height + 16 } } : {}) }])
+  }
+  return loops
+}
+
+/** The usable faces for an entity's arches, from the face whose space the
+ * producer reserved for its loops; faces holding another relationship's
+ * terminal stay with it. */
+function erArchFaces(id: string, box: { x: number; y: number; width: number; height: number }, loops: readonly ErLoop[], routes: readonly ErLoopRoute[], work: ErGeometryWork): { preferred: ErFace; faces: ErFace[] } {
+  const cx = box.x + box.width / 2, cy = box.y + box.height / 2
+  const nearest = (point: Point): ErFace => ([['N', Math.abs(point.y - box.y)], ['S', Math.abs(point.y - box.y - box.height)], ['W', Math.abs(point.x - box.x)], ['E', Math.abs(point.x - box.x - box.width)]] as Array<[ErFace, number]>)
+    .reduce((best, next) => next[1] < best[1] ? next : best)[0]
+  const taken = new Set<ErFace>()
+  for (const rel of routes) {
+    erCharge(work)
+    if (rel.entity1 === rel.entity2 || rel.points.length < 2) continue
+    if (rel.entity1 === id) taken.add(nearest(rel.points[0]!))
+    if (rel.entity2 === id) taken.add(nearest(rel.points.at(-1)!))
+  }
+  const interior = routes[loops[0]!.index]?.points.slice(1, -1) ?? []
+  erCharge(work, interior.length)
+  const reference = interior.length ? { x: interior.reduce((sum, p) => sum + p.x, 0) / interior.length, y: interior.reduce((sum, p) => sum + p.y, 0) / interior.length } : { x: cx, y: box.y - 1 }
+  const relX = (reference.x - cx) / Math.max(box.width / 2, 1), relY = (reference.y - cy) / Math.max(box.height / 2, 1)
+  const preferred: ErFace = Math.abs(relX) > Math.abs(relY) ? (relX < 0 ? 'W' : 'E') : relY > 0 ? 'S' : 'N'
+  const faces = [preferred, ER_OPPOSITE[preferred], ...(['N', 'E', 'S', 'W'] as const).filter(face => face !== preferred && face !== ER_OPPOSITE[preferred])]
+  return { preferred, faces: faces.filter(face => !taken.has(face)) }
+}
+
+/** Plan one entity's arches. Arches on one face nest by caption width,
+ * narrowest innermost. Glyphs on neighbouring legs stay a stroke gap apart,
+ * each outer leg passes beyond the inner caption band and each outer apex
+ * clears it with its rounded corners. Apexes widen beyond their own captions
+ * only when the whole stack still fits on the face. Loops spread over the
+ * producer's loop face and its opposite, nesting there before reaching
+ * sideways toward the faces between neighbours. `clear` judges a stack's
+ * shaft envelopes (`body`) and its glyph leads and captions (`exposed`). The
+ * result's `content` bounds the card and every planned arch envelope. */
+function planErArches(box: { x: number; y: number; width: number; height: number }, loops: readonly ErLoop[], preferred: ErFace, faces: readonly ErFace[], style: ResolvedRenderStyle, work: ErGeometryWork, clear: (body: readonly ErInkBox[], exposed: readonly ErInkBox[]) => boolean): { arches: Array<{ index: number; points: Point[]; apex: Point }>; content: ErInkBox } | undefined {
+  const cx = box.x + box.width / 2, cy = box.y + box.height / 2, gap = style.lineWidth + .25
+  const corner = Math.min(style.cornerRadius ?? 0, box.width / 2, box.height / 2)
+  const stack = (face: ErFace, assigned: readonly ErLoop[]) => {
+    const horizontal = face === 'N' || face === 'S'
+    const along = (loop: ErLoop) => loop.caption ? (horizontal ? loop.caption.width : loop.caption.height) / 2 : 0
+    const normal = (loop: ErLoop) => loop.caption ? (horizontal ? loop.caption.height : loop.caption.width) / 2 : 0
+    const nested = [...assigned].sort((a, b) => along(a) - along(b) || a.index - b.index)
+    erCharge(work, nested.length * 4)
+    const spans = (widen: (loop: ErLoop, minimum: number, last: boolean) => number) => nested.reduce<number[]>((all, loop, k) => {
+      const inner = nested[k - 1], s = all[k - 1]
+      const minimum = inner === undefined || s === undefined ? Math.max(loop.cross + gap, loop.radius + loop.lineWidth, 12)
+        : Math.max(s + inner.cross + loop.cross + loop.lineWidth + 2 * gap, along(inner) + loop.lineWidth / 2 + 1 + gap)
+      return [...all, widen(loop, minimum, k === nested.length - 1)]
+    }, [])
+    const limit = (loop: ErLoop) => (horizontal ? box.width : box.height) / 2 - corner - loop.cross - gap
+    const fits = (s: readonly number[]) => s.every((value, k) => value <= limit(nested[k]!))
+    const target = (loop: ErLoop, minimum: number) => Math.max(minimum, Math.min(limit(loop), along(loop) + 2 * gap))
+    const s = [spans(target), spans((loop, minimum, last) => last ? target(loop, minimum) : minimum)].find(fits)
+    if (!s) return undefined
+    // Every caption clears the legacy endpoint zone and every glyph on the face.
+    const keepOut = Math.max(18, ...nested.map(loop => loop.depth + loop.lineWidth)) + 1
+    const heights = nested.reduce<Array<{ h: number; top: number }>>((all, loop, k) => {
+      const lead = loop.depth + loop.radius + loop.lineWidth + gap, below = all[k - 1]
+      const h = Math.max(lead, loop.caption ? keepOut + normal(loop) : 0, below ? below.top + loop.lineWidth / 2 + 1 + gap + Math.max(normal(loop), loop.radius) : 0)
+      return [...all, { h, top: h + (loop.caption ? normal(loop) : loop.lineWidth / 2) }]
+    }, [])
+    const area = (a0: number, a1: number, n0: number, n1: number): ErInkBox => face === 'N' ? { x0: cx + a0, x1: cx + a1, y0: box.y - n1, y1: box.y - n0 }
+      : face === 'S' ? { x0: cx + a0, x1: cx + a1, y0: box.y + box.height + n0, y1: box.y + box.height + n1 }
+        : face === 'W' ? { x0: box.x - n1, x1: box.x - n0, y0: cy + a0, y1: cy + a1 } : { x0: box.x + box.width + n0, x1: box.x + box.width + n1, y0: cy + a0, y1: cy + a1 }
+    // Shafts keep the repair's rounded-envelope clearance from foreign cards,
+    // frames, glyphs and captions; glyph leads and captions also clear
+    // foreign shafts.
+    const margin = Math.max(...nested.map(loop => loop.radius + 2 * loop.lineWidth)) + gap + 1
+    const body = nested.flatMap((loop, k) => {
+      const span = s[k]!, { h } = heights[k]!
+      return [area(-span - margin, -span + margin, 0, h + margin), area(span - margin, span + margin, 0, h + margin), area(-span - margin, span + margin, h - margin, h + margin)]
+    })
+    const exposed = nested.flatMap((loop, k) => {
+      const span = s[k]!, { h } = heights[k]!, lead = Math.max(18, loop.depth + loop.radius + loop.lineWidth + gap) + gap, half = loop.cross + gap
+      return [area(-span - half, -span + half, 0, lead), area(span - half, span + half, 0, lead), ...(loop.caption ? [area(-along(loop), along(loop), h - normal(loop), h + normal(loop))] : [])]
+    })
+    if (!clear(body, exposed)) return undefined
+    const at = (a: number, n: number): Point => face === 'N' ? { x: cx + a, y: box.y - n }
+      : face === 'S' ? { x: cx + a, y: box.y + box.height + n }
+        : face === 'W' ? { x: box.x - n, y: cy + a } : { x: box.x + box.width + n, y: cy + a }
+    return { envelope: [...body, ...exposed], arches: nested.map((loop, k) => {
+      const span = s[k]!, { h } = heights[k]!
+      return { index: loop.index, points: [at(-span, 0), at(-span, h), at(span, h), at(span, 0)], apex: at(0, h) }
+    }) }
+  }
+  const side = (face: ErFace) => face === preferred || face === ER_OPPOSITE[preferred] ? 0 : 1
+  const assigned = new Map<ErFace, ErLoop[]>()
+  const complete = loops.every(loop => {
+    const face = [...faces].sort((a, b) => side(a) - side(b) || (assigned.get(a)?.length ?? 0) - (assigned.get(b)?.length ?? 0))
+      .find(candidate => stack(candidate, [...(assigned.get(candidate) ?? []), loop]))
+    if (face) assigned.set(face, [...(assigned.get(face) ?? []), loop])
+    return face !== undefined
+  })
+  if (!complete) return undefined
+  const content = { x0: box.x, y0: box.y, x1: box.x + box.width, y1: box.y + box.height }
+  const arches = [...assigned].flatMap(([face, nested]) => {
+    const planned = stack(face, nested)!
+    for (const part of planned.envelope) Object.assign(content, { x0: Math.min(content.x0, part.x0), y0: Math.min(content.y0, part.y0), x1: Math.max(content.x1, part.x1), y1: Math.max(content.y1, part.y1) })
+    return planned.arches
+  })
+  return { arches, content }
+}
+
+/** Measured placement reserves card boxes; frames and sibling packing must
+ * also hold each card's self-relationship arches. Plan them before any frame
+ * exists, on the routes the cards' other relationships will take: a retained
+ * producer route, an exterior route rebuilt between moved ends or toward a
+ * frame's members, or an ancestor's bottom corridor. Return what each arch
+ * envelope adds beyond its card on every side. */
+function erSelfLoopReach(entities: readonly PositionedErEntity[], diagram: ErDiagram, routes: ReadonlyMap<number, Point[]>, original: ReadonlyMap<string, { x: number; y: number }>, blocks: readonly PixelTextBlock[], style: ResolvedRenderStyle, styleFace: Readonly<InternalStyleFace> | undefined, work: ErGeometryWork): Map<string, ErInkBox> {
+  const byId = new Map(entities.map(entity => [entity.id, entity]))
+  const loops = erSelfLoops(new Set(byId.keys()), diagram.relationships, blocks, style, styleFace, work)
+  const reach = new Map<string, ErInkBox>()
+  if (!loops.size) return reach
+  const parents = new Map<string, string | undefined>([...diagram.entities.map(entity => [entity.id, entity.groupId] as const), ...diagram.groups.map(group => [group.id, group.parentId] as const)])
+  const within = (group: string, id: string) => {
+    for (let parent = parents.get(id), depth = 0; parent !== undefined && depth < DIAGRAM_WORK_LIMITS.nesting; parent = parents.get(parent), depth++) { erCharge(work); if (parent === group) return true }
+    return false
+  }
+  const frame = (group: string) => {
+    const members = entities.filter(entity => within(group, entity.id))
+    erCharge(work, entities.length)
+    if (!members.length) return undefined
+    const x = Math.min(...members.map(member => member.x)), y = Math.min(...members.map(member => member.y))
+    return { x, y, width: Math.max(...members.map(member => member.x + member.width)) - x, height: Math.max(...members.map(member => member.y + member.height)) - y }
+  }
+  const anticipated = diagram.relationships.map((rel, index): ErLoopRoute => {
+    const from = byId.get(rel.entity1), to = byId.get(rel.entity2), none = { entity1: rel.entity1, entity2: rel.entity2, points: [] }
+    if (!loops.has(rel.entity1) && !loops.has(rel.entity2)) return none
+    if (from && to) {
+      const route = routes.get(index), a = original.get(from.id), b = original.get(to.id)
+      const dx = a ? from.x - a.x : NaN, dy = a ? from.y - a.y : NaN
+      return { ...none, points: route?.length && b && to.x - b.x === dx && to.y - b.y === dy ? route.map(point => ({ x: point.x + dx, y: point.y + dy })) : erExteriorRoute(from, to) }
+    }
+    const card = from ?? to, group = from ? rel.entity2 : rel.entity1
+    if (!card) return none
+    if (within(group, card.id)) {
+      const bottom = { x: card.x + card.width / 2, y: card.y + card.height }
+      return { ...none, points: [bottom, bottom] }
+    }
+    const box = frame(group)
+    return { ...none, points: !box ? [] : from ? erExteriorRoute(card, box) : erExteriorRoute(box, card) }
+  })
+  for (const [id, members] of loops) {
+    const box = byId.get(id)!, { preferred, faces } = erArchFaces(id, box, members, anticipated, work)
+    const plan = planErArches(box, members, preferred, faces, style, work, () => true)
+    if (plan) reach.set(id, { x0: box.x - plan.content.x0, y0: box.y - plan.content.y0, x1: plan.content.x1 - box.x - box.width, y1: plan.content.y1 - box.y - box.height })
+  }
+  return reach
+}
+
+/** A card's box together with its planned self-relationship arches. */
+function erOccupied(entity: PositionedErEntity, reach: ReadonlyMap<string, ErInkBox>): { x: number; y: number; width: number; height: number } {
+  const extra = reach.get(entity.id)
+  return extra ? { x: entity.x - extra.x0, y: entity.y - extra.y0, width: entity.width + extra.x0 + extra.x1, height: entity.height + extra.y0 + extra.y1 } : entity
+}
+
+/** The frames, innermost first, that hold `content` with each frame's own
+ * padding and header, as deriveErGroups would place them; undefined fields
+ * mean the frame already holds it. */
+function erGrownFrames(content: ErInkBox, chain: readonly PositionedErDiagram['groups'][number][], framePadding: ReadonlyMap<string, number>, bottomPadding: ReadonlyMap<string, number>): Array<{ group: PositionedErDiagram['groups'][number]; frame: { x: number; y: number; width: number; height: number } }> {
+  let need = content
+  return chain.map(group => {
+    const pad = framePadding.get(group.id) ?? 20
+    const x0 = Math.min(group.x, need.x0 - pad), y0 = Math.min(group.y, need.y0 - pad - group.headerHeight)
+    const x1 = Math.max(group.x + group.width, need.x1 + pad), y1 = Math.max(group.y + group.height, need.y1 + Math.max(pad, bottomPadding.get(group.id) ?? 0))
+    need = { x0, y0, x1, y1 }
+    return { group, frame: { x: x0, y: y0, width: x1 - x0, height: y1 - y0 } }
+  })
+}
 
 /** Self-relationships are ER-owned arches. A layered producer nests an
  * entity's loops on one face with legs shorter than a cardinality and no
  * caption band between them; repairing each loop alone then leaves an inner
  * caption, or glyph, enclosed by its sibling. Each arch instead leaves and
- * re-enters one face clear of the entity's other terminals: loops spread over
- * those faces and nest outward on a shared face, every leg carries its complete
- * glyph and rounded lead, and every arch clears the glyphs and caption band of
- * the arch inside it. Foreign routes may cross an arch's middle, never its
- * glyphs or caption. An entity whose arches would meet a foreign card, frame,
- * glyph or caption keeps the producer's routes for the existing repair. */
-function erSelfLoopArches(entities: readonly PositionedErEntity[], groups: PositionedErDiagram['groups'], relationships: PositionedErRelationship[], blocks: readonly PixelTextBlock[], style: ResolvedRenderStyle, styleFace: Readonly<InternalStyleFace> | undefined, work: ErGeometryWork): void {
+ * re-enters one face clear of the entity's other terminals (see
+ * planErArches). Foreign routes may cross an arch's middle, never its glyphs
+ * or caption. An entity whose arches would meet a foreign card, frame, glyph
+ * or caption keeps the producer's routes for the existing repair. */
+function erSelfLoopArches(entities: readonly PositionedErEntity[], groups: PositionedErDiagram['groups'], relationships: PositionedErRelationship[], blocks: readonly PixelTextBlock[], style: ResolvedRenderStyle, styleFace: Readonly<InternalStyleFace> | undefined, work: ErGeometryWork, framePadding: ReadonlyMap<string, number> = new Map(), bottomPadding: ReadonlyMap<string, number> = new Map()): Set<number> {
+  const parents = new Map<string, string | undefined>([...entities.map(entity => [entity.id, entity.groupId] as const), ...groups.map(group => [group.id, group.parentId] as const)])
   const byId = new Map(entities.map(entity => [entity.id, entity]))
-  const loops = new Map<string, number[]>()
-  for (const [index, rel] of relationships.entries()) {
-    erCharge(work)
-    if (rel.entity1 !== rel.entity2 || !byId.has(rel.entity1)) continue
-    loops.set(rel.entity1, [...(loops.get(rel.entity1) ?? []), index])
-  }
-  if (!loops.size) return
+  const loops = erSelfLoops(new Set(byId.keys()), relationships, blocks, style, styleFace, work)
+  const arched = new Set<number>()
+  if (!loops.size) return arched
   const charge = (count = 1) => erCharge(work, count)
   const gap = style.lineWidth + .25
-  const overlaps = (a: ErInkBox, b: ErInkBox) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0
   // A route's shafts, and its glyphs with the caption audit's legacy endpoint
   // zone plus any reserved caption.
   const ink = (index: number): { shafts: ErInkBox[]; solid: ErInkBox[] } => {
@@ -236,128 +424,84 @@ function erSelfLoopArches(entities: readonly PositionedErEntity[], groups: Posit
   }))
   // Fixed ink is indexed once; each entity's settled loops join it afterwards.
   const fixed = relationships.map((rel, index) => rel.entity1 === rel.entity2 && loops.has(rel.entity1) ? { shafts: [], solid: [] } : ink(index))
-  const fixedSolid: ErInkBox[] = [...cards.values(), ...groups.flatMap(group => [
+  const strips = (group: { x: number; y: number; width: number; height: number; headerHeight: number }): ErInkBox[] => [
     { x0: group.x - .75, y0: group.y - .75, x1: group.x + group.width + .75, y1: group.y + group.headerHeight },
     { x0: group.x - .75, y0: group.y - .75, x1: group.x + .75, y1: group.y + group.height + .75 },
     { x0: group.x + group.width - .75, y0: group.y - .75, x1: group.x + group.width + .75, y1: group.y + group.height + .75 },
     { x0: group.x - .75, y0: group.y + group.height - .75, x1: group.x + group.width + .75, y1: group.y + group.height + .75 },
-  ]), ...fixed.flatMap(entry => entry.solid)]
+  ]
+  const frameInk = new Map(groups.map(group => [group.id, strips(group)]))
+  const fixedSolid: ErInkBox[] = [...cards.values(), ...[...frameInk.values()].flat(), ...fixed.flatMap(entry => entry.solid)]
   const solidQuery = erInkIndex(fixedSolid, box => box, charge, loops.size), shaftQuery = erInkIndex(fixed.flatMap(entry => entry.shafts), box => box, charge, loops.size)
-  const settledSolid: ErInkBox[] = [], settledShafts: ErInkBox[] = []
-  // Faces already holding another relationship's terminal stay with it.
-  const terminalFaces = new Map<string, Set<ErFace>>()
-  for (const rel of relationships) for (const [id, point] of [[rel.entity1, rel.points[0]], [rel.entity2, rel.points.at(-1)]] as const) {
-    charge()
-    const box = byId.get(id)
-    if (rel.entity1 === rel.entity2 || !box || !point) continue
-    const distances: Array<[ErFace, number]> = [['N', Math.abs(point.y - box.y)], ['S', Math.abs(point.y - box.y - box.height)], ['W', Math.abs(point.x - box.x)], ['E', Math.abs(point.x - box.x - box.width)]]
-    terminalFaces.set(id, (terminalFaces.get(id) ?? new Set()).add(distances.reduce((best, next) => next[1] < best[1] ? next : best)[0]))
+  const settledSolid: ErInkBox[] = [], settledShafts: ErInkBox[] = [], stale = new Set<ErInkBox>()
+  const groupById = new Map(groups.map(group => [group.id, group]))
+  const ancestors = (id: string | undefined): string[] => {
+    const chain: string[] = []
+    for (let group = id === undefined ? undefined : groupById.get(id); group && chain.length < DIAGRAM_WORK_LIMITS.nesting; group = group.parentId === undefined ? undefined : groupById.get(group.parentId)) chain.push(group.id)
+    return chain
   }
-  const opposite: Record<ErFace, ErFace> = { N: 'S', S: 'N', E: 'W', W: 'E' }
-  type Loop = { index: number; lineWidth: number; radius: number; depth: number; cross: number; caption?: { width: number; height: number } }
-  for (const [id, indices] of loops) {
-    const box = byId.get(id)!, cx = box.x + box.width / 2, cy = box.y + box.height / 2
-    const members: Loop[] = indices.map(index => {
-      const rel = relationships[index]!, role = erRelationshipStyle(rel, styleFace)
-      const bounds = [erCardinalityEnvelope(rel.cardinality1, style.lineWidth), erCardinalityEnvelope(rel.cardinality2, style.lineWidth)]
-      charge(24)
-      if (!bounds[0] || !bounds[1]) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
-      return { index, lineWidth: role?.lineWidth ?? style.lineWidth, radius: role?.bendRadius ?? style.edgeBendRadius,
-        depth: Math.max(bounds[0].x1, bounds[1].x1), cross: Math.max(0, ...bounds.flatMap(bound => [-bound!.y0, bound!.y1])),
-        // The finished caption audit reserves the block plus 8px per side.
-        ...(rel.label ? { caption: { width: blocks[index]!.width + 16, height: blocks[index]!.height + 16 } } : {}) }
-    })
-    // Start from the face whose space the producer reserved for its loops.
-    const interior = relationships[indices[0]!]!.points.slice(1, -1)
-    charge(interior.length)
-    const reference = interior.length ? { x: interior.reduce((sum, p) => sum + p.x, 0) / interior.length, y: interior.reduce((sum, p) => sum + p.y, 0) / interior.length } : { x: cx, y: box.y - 1 }
-    const relX = (reference.x - cx) / Math.max(box.width / 2, 1), relY = (reference.y - cy) / Math.max(box.height / 2, 1)
-    const preferred: ErFace = Math.abs(relX) > Math.abs(relY) ? (relX < 0 ? 'W' : 'E') : relY > 0 ? 'S' : 'N'
-    const faces = [preferred, opposite[preferred], ...(['N', 'E', 'S', 'W'] as const).filter(face => face !== preferred && face !== opposite[preferred])]
-      .filter(face => !terminalFaces.get(id)?.has(face))
+  for (const [id, members] of loops) {
+    const box = byId.get(id)!, { preferred, faces } = erArchFaces(id, box, members, relationships, work)
     // Broad phase: no stack of these arches can reach beyond this bound.
     const reach = members.reduce((sum, loop) => sum + loop.depth + 2 * loop.radius + 4 * loop.lineWidth + 4 * gap + 20 + (loop.caption ? loop.caption.width + loop.caption.height : 0), 0)
     const near = { x0: box.x - reach, y0: box.y - reach, x1: box.x + box.width + reach, y1: box.y + box.height + reach }
     charge(settledSolid.length + settledShafts.length)
     const ownCard = cards.get(id)
-    const solid = [...solidQuery(near).filter(part => part !== ownCard), ...settledSolid.filter(part => overlaps(part, near))]
-    const shafts = [...shaftQuery(near), ...settledShafts.filter(part => overlaps(part, near))]
-    const corner = Math.min(style.cornerRadius ?? 0, box.width / 2, box.height / 2)
-    // Arches on one face nest by caption width, narrowest innermost. Glyphs on
-    // neighbouring legs stay a stroke gap apart, each outer leg passes beyond
-    // the inner caption band and each outer apex clears it with its rounded
-    // corners. Apexes widen beyond their own captions only when the whole
-    // stack still fits on the face.
-    const stack = (face: ErFace, assigned: readonly Loop[]) => {
-      const horizontal = face === 'N' || face === 'S'
-      const along = (loop: Loop) => loop.caption ? (horizontal ? loop.caption.width : loop.caption.height) / 2 : 0
-      const normal = (loop: Loop) => loop.caption ? (horizontal ? loop.caption.height : loop.caption.width) / 2 : 0
-      const nested = [...assigned].sort((a, b) => along(a) - along(b) || a.index - b.index)
-      charge(nested.length * 4)
-      const spans = (widen: (loop: Loop, minimum: number, last: boolean) => number) => nested.reduce<number[]>((all, loop, k) => {
-        const inner = nested[k - 1], s = all[k - 1]
-        const minimum = inner === undefined || s === undefined ? Math.max(loop.cross + gap, loop.radius + loop.lineWidth, 12)
-          : Math.max(s + inner.cross + loop.cross + loop.lineWidth + 2 * gap, along(inner) + loop.lineWidth / 2 + 1 + gap)
-        return [...all, widen(loop, minimum, k === nested.length - 1)]
-      }, [])
-      const limit = (loop: Loop) => (horizontal ? box.width : box.height) / 2 - corner - loop.cross - gap
-      const fits = (s: readonly number[]) => s.every((value, k) => value <= limit(nested[k]!))
-      const target = (loop: Loop, minimum: number) => Math.max(minimum, Math.min(limit(loop), along(loop) + 2 * gap))
-      const s = [spans(target), spans((loop, minimum, last) => last ? target(loop, minimum) : minimum)].find(fits)
-      if (!s) return undefined
-      // Every caption clears the legacy endpoint zone and every glyph on the face.
-      const keepOut = Math.max(18, ...nested.map(loop => loop.depth + loop.lineWidth)) + 1
-      const heights = nested.reduce<Array<{ h: number; top: number }>>((all, loop, k) => {
-        const lead = loop.depth + loop.radius + loop.lineWidth + gap, below = all[k - 1]
-        const h = Math.max(lead, loop.caption ? keepOut + normal(loop) : 0, below ? below.top + loop.lineWidth / 2 + 1 + gap + Math.max(normal(loop), loop.radius) : 0)
-        return [...all, { h, top: h + (loop.caption ? normal(loop) : loop.lineWidth / 2) }]
-      }, [])
-      const area = (a0: number, a1: number, n0: number, n1: number): ErInkBox => face === 'N' ? { x0: cx + a0, x1: cx + a1, y0: box.y - n1, y1: box.y - n0 }
-        : face === 'S' ? { x0: cx + a0, x1: cx + a1, y0: box.y + box.height + n0, y1: box.y + box.height + n1 }
-          : face === 'W' ? { x0: box.x - n1, x1: box.x - n0, y0: cy + a0, y1: cy + a1 } : { x0: box.x + box.width + n0, x1: box.x + box.width + n1, y0: cy + a0, y1: cy + a1 }
-      // Shafts keep the repair's rounded-envelope clearance from foreign
-      // cards, frames, glyphs and captions; glyph leads and captions also
-      // clear foreign shafts.
-      const margin = Math.max(...nested.map(loop => loop.radius + 2 * loop.lineWidth)) + gap + 1
-      const body = nested.flatMap((loop, k) => {
-        const span = s[k]!, { h } = heights[k]!
-        return [area(-span - margin, -span + margin, 0, h + margin), area(span - margin, span + margin, 0, h + margin), area(-span - margin, span + margin, h - margin, h + margin)]
-      })
-      const exposed = nested.flatMap((loop, k) => {
-        const span = s[k]!, { h } = heights[k]!, lead = Math.max(18, loop.depth + loop.radius + loop.lineWidth + gap) + gap, half = loop.cross + gap
-        return [area(-span - half, -span + half, 0, lead), area(span - half, span + half, 0, lead), ...(loop.caption ? [area(-along(loop), along(loop), h - normal(loop), h + normal(loop))] : [])]
-      })
-      charge((body.length + exposed.length) * (solid.length + shafts.length))
-      if (body.some(part => solid.some(other => overlaps(part, other))) || exposed.some(part => solid.some(other => overlaps(part, other)) || shafts.some(other => overlaps(part, other)))) return undefined
-      const at = (a: number, n: number): Point => face === 'N' ? { x: cx + a, y: box.y - n }
-        : face === 'S' ? { x: cx + a, y: box.y + box.height + n }
-          : face === 'W' ? { x: box.x - n, y: cy + a } : { x: box.x + box.width + n, y: cy + a }
-      return nested.map((loop, k) => {
-        const span = s[k]!, { h } = heights[k]!
-        return { index: loop.index, points: [at(-span, 0), at(-span, h), at(span, h), at(span, 0)], apex: at(0, h) }
-      })
+    const solid = [...solidQuery(near).filter(part => part !== ownCard && !stale.has(part)), ...settledSolid.filter(part => erOverlaps(part, near))]
+    const shafts = [...shaftQuery(near), ...settledShafts.filter(part => erOverlaps(part, near))]
+    const clearOf = (blocking: readonly ErInkBox[]) => (body: readonly ErInkBox[], exposed: readonly ErInkBox[]) => {
+      charge((body.length + exposed.length) * (blocking.length + shafts.length))
+      return !body.some(part => blocking.some(other => erOverlaps(part, other))) && !exposed.some(part => blocking.some(other => erOverlaps(part, other)) || shafts.some(other => erOverlaps(part, other)))
     }
-    // Spread over the producer's loop face and its opposite, nesting there
-    // before reaching sideways toward the faces between neighbours.
-    const side = (face: ErFace) => face === preferred || face === opposite[preferred] ? 0 : 1
-    const assigned = new Map<ErFace, Loop[]>()
-    const complete = members.every(loop => {
-      const face = [...faces].sort((a, b) => side(a) - side(b) || (assigned.get(a)?.length ?? 0) - (assigned.get(b)?.length ?? 0))
-        .find(candidate => stack(candidate, [...(assigned.get(candidate) ?? []), loop]))
-      if (face) assigned.set(face, [...(assigned.get(face) ?? []), loop])
-      return face !== undefined
-    })
-    if (complete) for (const [face, nested] of assigned) for (const { index, points, apex } of stack(face, nested)!) {
+    let plan = planErArches(box, members, preferred, faces, style, work, clearOf(solid))
+    // Frames were derived from planned reach on anticipated routes. When the
+    // final routes took a planned face, grow the card's own frames around the
+    // arches instead, if every grown frame keeps clear of foreign cards,
+    // frames, glyphs and captions and of the routes attached to it.
+    const chain = ancestors(byId.get(id)!.groupId)
+    if (!plan && chain.length) {
+      const own = new Set(chain.flatMap(group => frameInk.get(group)!))
+      const grown = planErArches(box, members, preferred, faces, style, work, clearOf(solid.filter(part => !own.has(part))))
+      const frames = grown && erGrownFrames(grown.content, chain.map(group => groupById.get(group)!), framePadding, bottomPadding)
+      if (grown && frames && frames.every(({ group, frame }) => {
+        const inside = (other: string) => other === group.id || ancestors(parents.get(other)).includes(group.id)
+        const outer = ancestors(group.id)
+        const area = { x0: frame.x, y0: frame.y, x1: frame.x + frame.width, y1: frame.y + frame.height }
+        charge(cards.size + groups.length + relationships.length)
+        if ([...cards].some(([other, card]) => !inside(other) && erOverlaps(card, area))) return false
+        if (groups.some(other => !inside(other.id) && !outer.includes(other.id) && erOverlaps({ x0: other.x, y0: other.y, x1: other.x + other.width, y1: other.y + other.height }, area))) return false
+        // Attached routes keep their outward terminal leg beyond the frame.
+        if (relationships.some(rel => ([[rel.entity1, rel.points[0], rel.points[1]], [rel.entity2, rel.points.at(-1), rel.points.at(-2)]] as const).some(([end, at, next]) => end === group.id && at && next
+          && !(ancestors(parents.get(rel.entity1 === group.id ? rel.entity2 : rel.entity1)).includes(group.id))
+          && next.x > area.x0 && next.x < area.x1 && next.y > area.y0 && next.y < area.y1))) return false
+        const attached = new Set(relationships.flatMap((rel, index) => rel.entity1 === group.id || rel.entity2 === group.id ? [index] : []))
+        const border = strips({ ...frame, headerHeight: group.headerHeight })
+        const foreign = [...fixed.filter((_, index) => !attached.has(index)).flatMap(entry => entry.solid), ...settledSolid]
+        charge(border.length * (foreign.length + shafts.length))
+        return !border.some(part => foreign.some(other => erOverlaps(part, other))) && !shafts.some(other => erOverlaps(border[0]!, other))
+      })) {
+        plan = grown
+        for (const { group, frame } of frames) {
+          for (const part of frameInk.get(group.id)!) stale.add(part)
+          Object.assign(group, frame)
+          frameInk.set(group.id, strips(group))
+          settledSolid.push(...frameInk.get(group.id)!)
+        }
+      }
+    }
+    for (const { index, points, apex } of plan?.arches ?? []) {
       const rel = relationships[index]!
+      arched.add(index)
       rel.points = points
       if (rel.label) rel.labelPosition = apex
       else delete rel.labelPosition
     }
-    for (const index of indices) {
+    for (const { index } of members) {
       const settled = ink(index)
       settledSolid.push(...settled.solid); settledShafts.push(...settled.shafts)
     }
   }
+  return arched
 }
 
 function erPreferredLabelBounds(relationships: readonly PositionedErRelationship[], blocks: readonly PixelTextBlock[]) {
@@ -441,7 +585,7 @@ function canonicalErContacts(entities: PositionedErEntity[], groups: PositionedE
 /** Reroute each relationship whose route crosses an unrelated card or a group
  * header: a route to a group frame, or one rebuilt after separating compounds
  * moved only one of its ends. */
-function repairErFrameRoutes(entities: PositionedErEntity[], groups: PositionedErDiagram['groups'], relationships: PositionedErRelationship[], blocks: readonly PixelTextBlock[], style: ResolvedRenderStyle, styleFace?: Readonly<InternalStyleFace>, work: ErGeometryWork = { operations: 0 }, caption?: { indices: ReadonlySet<number>; admit: (index: number, points: Point[]) => boolean }): void {
+function repairErFrameRoutes(entities: PositionedErEntity[], groups: PositionedErDiagram['groups'], relationships: PositionedErRelationship[], blocks: readonly PixelTextBlock[], style: ResolvedRenderStyle, styleFace?: Readonly<InternalStyleFace>, work: ErGeometryWork = { operations: 0 }, caption?: { indices: ReadonlySet<number>; admit: (index: number, points: Point[]) => boolean }, scope?: (index: number) => boolean): void {
   canonicalErContacts(entities, groups, relationships, work)
   const glyphLineWidth = style.lineWidth
   const generated = generatedIds([...entities.map(entity => entity.id), ...groups.map(group => group.id)])
@@ -458,6 +602,7 @@ function repairErFrameRoutes(entities: PositionedErEntity[], groups: PositionedE
   const charge = (count: number) => erCharge(work, count)
   for (const [index, rel] of relationships.entries()) {
     if (caption && !caption.indices.has(index)) continue
+    if (scope && !scope(index)) continue
     if (rel.points.length < 2) continue
     const [start, end] = [rel.points[0]!, rel.points.at(-1)!]
     const roleStyle = erRelationshipStyle(rel, styleFace)
@@ -752,12 +897,14 @@ function extractErLayout(
   const relationshipBlocks = diagram.relationships.map(rel => erRelationshipBlock(rel, style, styleFace))
   const interior = erInteriorCorridors(diagram, relationshipBlocks)
   const framePadding = erFrameInkPadding(diagram, style, styleFace, work)
+  // Frames and sibling packing hold each card's self-relationship arches.
   applyErGroupDirections(diagram, positionedEntities, relationshipBlocks, style, styleFace, work)
-  const positionedGroups = deriveErGroups(diagram, positionedEntities, style, interior.padding, framePadding)
+  const loopReach = diagram.groups.length ? erSelfLoopReach(positionedEntities, diagram, result.routes, originalPositions, relationshipBlocks, style, styleFace, work) : new Map<string, ErInkBox>()
+  const positionedGroups = deriveErGroups(diagram, positionedEntities, style, interior.padding, framePadding, loopReach)
   // Reserve a full terminal zone plus the rounded envelopes of both peers.
   // Otherwise an unrelated card can leave no legal cardinality-bearing stem.
   const siblingGap = result.preserveTerminalNormals ? 20 + 2 * Math.max(style.edgeBendRadius, ...diagram.relationships.map(rel => erRelationshipStyle(rel, styleFace)?.bendRadius ?? style.edgeBendRadius)) : 20
-  separateErCompounds(diagram, positionedEntities, positionedGroups, style, relationshipBlocks, interior.padding, interior.exits, siblingGap, styleFace, work, framePadding)
+  separateErCompounds(diagram, positionedEntities, positionedGroups, style, relationshipBlocks, interior.padding, interior.exits, siblingGap, styleFace, work, framePadding, loopReach)
   const boxes = new Map<string, { x: number; y: number; width: number; height: number }>()
   positionedEntities.forEach(entity => boxes.set(entity.id, entity))
   positionedGroups.forEach(group => boxes.set(group.id, group))
@@ -796,8 +943,13 @@ function extractErLayout(
     })
   }
 
-  erSelfLoopArches(positionedEntities, positionedGroups, relationships, relationshipBlocks, style, styleFace, work)
-  repairErFrameRoutes(positionedEntities, positionedGroups, relationships, relationshipBlocks, style, styleFace, work)
+  // Other routes settle first so arches keep clear of their final ink; only
+  // loops left on producer routes then take the generic repair.
+  const loopIds = new Set(positionedEntities.map(entity => entity.id))
+  const loop = (index: number) => relationships[index]!.entity1 === relationships[index]!.entity2 && loopIds.has(relationships[index]!.entity1)
+  repairErFrameRoutes(positionedEntities, positionedGroups, relationships, relationshipBlocks, style, styleFace, work, undefined, index => !loop(index))
+  const arched = erSelfLoopArches(positionedEntities, positionedGroups, relationships, relationshipBlocks, style, styleFace, work, framePadding, interior.padding)
+  repairErFrameRoutes(positionedEntities, positionedGroups, relationships, relationshipBlocks, style, styleFace, work, undefined, index => loop(index) && !arched.has(index))
 
   // Nested group padding can extend left/top of ELK's entity-only canvas, and
   // group endpoints are routed after ELK. Translate the complete geometry as
@@ -955,11 +1107,11 @@ function erFrameInkPadding(diagram: ErDiagram, style: ResolvedRenderStyle, style
   return padding
 }
 
-function deriveErGroups(diagram: ErDiagram, entities: PositionedErEntity[], style: ResolvedRenderStyle, bottomPadding: ReadonlyMap<string, number>, framePadding: ReadonlyMap<string, number>): PositionedErDiagram['groups'] {
+function deriveErGroups(diagram: ErDiagram, entities: PositionedErEntity[], style: ResolvedRenderStyle, bottomPadding: ReadonlyMap<string, number>, framePadding: ReadonlyMap<string, number>, loopReach: ReadonlyMap<string, ErInkBox> = new Map()): PositionedErDiagram['groups'] {
   const positioned: PositionedErDiagram['groups'] = []
   for (const group of [...diagram.groups].reverse()) {
     const members = [
-      ...entities.filter(entity => entity.groupId === group.id),
+      ...entities.filter(entity => entity.groupId === group.id).map(entity => erOccupied(entity, loopReach)),
       ...positioned.filter(child => child.parentId === group.id),
     ]
     const pad = framePadding.get(group.id) ?? 20
@@ -982,7 +1134,7 @@ function deriveErGroups(diagram: ErDiagram, entities: PositionedErEntity[], styl
  * each compound as one unit so scoped directions and ownership survive.
  * Each collision advances beyond a previously placed item, bounding a local
  * repair by the number of siblings; no convergence/retry loop is needed. */
-function separateErCompounds(diagram: ErDiagram, entities: PositionedErEntity[], groups: PositionedErDiagram['groups'], style: ResolvedRenderStyle, relationshipBlocks: readonly PixelTextBlock[], bottomPadding: ReadonlyMap<string, number>, exitPadding: ReadonlyMap<string, number>, siblingGap = 20, styleFace?: Readonly<InternalStyleFace>, work: ErGeometryWork = { operations: 0 }, framePadding: ReadonlyMap<string, number> = new Map()): boolean {
+function separateErCompounds(diagram: ErDiagram, entities: PositionedErEntity[], groups: PositionedErDiagram['groups'], style: ResolvedRenderStyle, relationshipBlocks: readonly PixelTextBlock[], bottomPadding: ReadonlyMap<string, number>, exitPadding: ReadonlyMap<string, number>, siblingGap = 20, styleFace?: Readonly<InternalStyleFace>, work: ErGeometryWork = { operations: 0 }, framePadding: ReadonlyMap<string, number> = new Map(), loopReach: ReadonlyMap<string, ErInkBox> = new Map()): boolean {
   if (groups.length === 0) return false
   type Box = { x: number; y: number; width: number; height: number }
   type Item = { box: Box; ids: Set<string>; move: (dx: number, dy: number) => void }
@@ -1186,8 +1338,9 @@ function separateErCompounds(diagram: ErDiagram, entities: PositionedErEntity[],
         component.push(memberById.get(id)!)
         pending.push(...neighbors.get(id)!)
       }
-      const x = Math.min(...component.map(member => member.x)), y = Math.min(...component.map(member => member.y))
-      const box = { x, y, width: Math.max(...component.map(member => member.x + member.width)) - x, height: Math.max(...component.map(member => member.y + member.height)) - y }
+      const occupied = component.map(member => erOccupied(member, loopReach))
+      const x = Math.min(...occupied.map(member => member.x)), y = Math.min(...occupied.map(member => member.y))
+      const box = { x, y, width: Math.max(...occupied.map(member => member.x + member.width)) - x, height: Math.max(...occupied.map(member => member.y + member.height)) - y }
       components.push({ box, ids: new Set(component.map(member => member.id)), move: (dx, dy) => {
         box.x += dx; box.y += dy
         for (const member of component) { member.x += dx; member.y += dy }
@@ -1646,8 +1799,15 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     charge(relationships.length + failedCaptions.length)
     const failed = new Set(failedCaptions)
     const indices = new Set(relationships.flatMap((rel, index) => failed.has(rel) ? [index] : []))
+    // A rerouted caption never takes a self-relationship arch's reserved one.
+    const archCaptions = relationships.flatMap((rel, index) => {
+      const at = rel.labelPosition, block = rel.labelBlock ?? erRelationshipBlock(rel, style, styleFace)
+      return rel.entity1 === rel.entity2 && rel.label && at && !failed.has(rel)
+        ? [{ index, box: { id: '', label: '', shape: 'rectangle' as const, x: at.x - block.width / 2 - 8, y: at.y - block.height / 2 - 8, width: block.width + 16, height: block.height + 16 } }] : []
+    })
+    const clearOfArchCaptions = (index: number, points: Point[]) => !points.slice(1).some((point, i) => archCaptions.some(caption => { charge(); return caption.index !== index && segmentThroughShape(points[i]!, point, caption.box) }))
     repairErFrameRoutes(positioned.entities, positioned.groups, relationships, relationships.map(rel => rel.labelBlock ?? erRelationshipBlock(rel, style, styleFace)), style, styleFace, work,
-      { indices, admit: (index, points) => erCandidateCaptionClear(positioned, index, points, style, styleFace, work) })
+      { indices, admit: (index, points) => clearOfArchCaptions(index, points) && erCandidateCaptionClear(positioned, index, points, style, styleFace, work) })
     positioned.width = Math.max(positioned.width, ...relationships.flatMap(rel => rel.points.map(point => point.x + ER.padding)))
     positioned.height = Math.max(positioned.height, ...relationships.flatMap(rel => rel.points.map(point => point.y + ER.padding)))
     finalizeErRelationshipLabels(positioned, style, styleFace, work)

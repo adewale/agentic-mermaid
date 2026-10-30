@@ -238,12 +238,15 @@ const siblingFrameNormals = "erDiagram\n    subgraph title1\n        A1 ||--|| A
 // Several self-relationships on one entity, labelled and unlabelled, beside
 // attributes and another entity's terminal and self-relationships.
 const selfRelationships = 'erDiagram\n  direction LR\n  EMPLOYEE ||--o{ EMPLOYEE : manages\n  EMPLOYEE ||--o| EMPLOYEE : mentors\n  EMPLOYEE }o--o{ EMPLOYEE : ""\n  EMPLOYEE |o--|{ EMPLOYEE : "is the deputy of"\n  EMPLOYEE }o--|| DEPARTMENT : "works in"\n  DEPARTMENT ||--|| DEPARTMENT : twin\n  DEPARTMENT }|--o{ DEPARTMENT : ""\n  EMPLOYEE {\n    string id PK\n    string name\n  }'
+// The same arches on cards inside a frame and a nested frame, beside a
+// relationship between the framed cards and another from the outer frame.
+const framedSelfRelationships = 'erDiagram\n  direction LR\n  EMPLOYEE ||--o{ EMPLOYEE : manages\n  EMPLOYEE |o--|{ EMPLOYEE : "is the deputy of"\n  LEAD ||--o| LEAD : mentors\n  LEAD }o--o{ LEAD : ""\n  LEAD }|--|| EMPLOYEE : leads\n  subgraph STAFF\n    EMPLOYEE\n    subgraph TEAM\n      LEAD\n    end\n  end\n  STAFF ||--o{ DEPARTMENT : staffs'
 
-type RouteInkCase = { direction: string; backend: 'agentic' | 'elk'; framesOnly: boolean; vocabulary: boolean; siblings: boolean; selfLoops: boolean; source?: string }
+type RouteInkCase = { direction: string; backend: 'agentic' | 'elk'; framesOnly: boolean; vocabulary: boolean; siblings: boolean; selfLoops: false | 'open' | 'framed'; source?: string }
 
 function expectRetainedErRouteInk({ direction, backend, framesOnly, vocabulary, siblings, selfLoops, source: generated }: RouteInkCase): void {
   const mixed = vocabulary ? mixedFrameNormals.replace('I1 ||--|| F1', 'I1 }|--o| F1').replace('I2 ||--|| F2 : links', 'I2 }o--|| F2').replace('A ||--|| TOP', 'A u--o{ TOP').replace('TOP ||--|| B', 'TOP |o--|{ B').replace('B1 ||--|| B2 : links', 'B1 }o--o{ B2') : mixedFrameNormals
-  const source = generated ?? (selfLoops ? selfRelationships.replace('direction LR', `direction ${direction}`) : siblings ? direction === 'LR' ? siblingFrameNormals : siblingFrameNormals.replace('erDiagram', `erDiagram\ndirection ${direction}`) : (framesOnly ? frameOnlyNormals : mixed).replace('direction LR', `direction ${direction}`)), options = { graphLayout: { backend, ...(siblings ? { fallback: 'none' as const } : {}) } }
+  const source = generated ?? (selfLoops ? (selfLoops === 'framed' ? framedSelfRelationships : selfRelationships).replace('direction LR', `direction ${direction}`) : siblings ? direction === 'LR' ? siblingFrameNormals : siblingFrameNormals.replace('erDiagram', `erDiagram\ndirection ${direction}`) : (framesOnly ? frameOnlyNormals : mixed).replace('direction LR', `direction ${direction}`)), options = { graphLayout: { backend, ...(siblings ? { fallback: 'none' as const } : {}) } }
   const model = parseErDiagram(toMermaidLines(source)), original = structuredClone(model)
   let placed!: ReturnType<typeof layoutErDiagram>, rendered!: ReturnType<typeof renderMermaidSVGWithReceipt>
   expect(() => { placed = layoutErDiagram(model, options); rendered = renderMermaidSVGWithReceipt(source, options) }).not.toThrow()
@@ -394,7 +397,7 @@ function expectRetainedErRouteInk({ direction, backend, framesOnly, vocabulary, 
   }
 }
 
-test.each([...['TB', 'BT', 'LR', 'RL'].flatMap(direction => ['agentic', 'elk'].map(backend => ({ direction, backend: backend as 'agentic' | 'elk', framesOnly: false, vocabulary: false }))), ...(['agentic', 'elk'] as const).map(backend => ({ direction: 'LR', backend, framesOnly: true, vocabulary: false })), ...(['agentic', 'elk'] as const).map(backend => ({ direction: 'LR', backend, framesOnly: false, vocabulary: true }))].map(entry => ({ ...entry, siblings: false })).concat(...['TB', 'BT', 'LR', 'RL'].flatMap(direction => (['agentic', 'elk'] as const).map(backend => ({ direction, backend, framesOnly: false, vocabulary: false, siblings: true })))).map(entry => ({ ...entry, selfLoops: false })).concat(...['TB', 'BT', 'LR', 'RL'].flatMap(direction => (['agentic', 'elk'] as const).map(backend => ({ direction, backend, framesOnly: false, vocabulary: false, siblings: false, selfLoops: true })))))('ER rebuilt frame routes retain actual normal contacts in $direction with $backend framesOnly=$framesOnly vocabulary=$vocabulary siblings=$siblings selfLoops=$selfLoops', expectRetainedErRouteInk)
+test.each([...['TB', 'BT', 'LR', 'RL'].flatMap(direction => ['agentic', 'elk'].map(backend => ({ direction, backend: backend as 'agentic' | 'elk', framesOnly: false, vocabulary: false }))), ...(['agentic', 'elk'] as const).map(backend => ({ direction: 'LR', backend, framesOnly: true, vocabulary: false })), ...(['agentic', 'elk'] as const).map(backend => ({ direction: 'LR', backend, framesOnly: false, vocabulary: true }))].map(entry => ({ ...entry, siblings: false })).concat(...['TB', 'BT', 'LR', 'RL'].flatMap(direction => (['agentic', 'elk'] as const).map(backend => ({ direction, backend, framesOnly: false, vocabulary: false, siblings: true })))).map(entry => ({ ...entry, selfLoops: false as RouteInkCase['selfLoops'] })).concat(...(['open', 'framed'] as const).flatMap(selfLoops => ['TB', 'BT', 'LR', 'RL'].flatMap(direction => (['agentic', 'elk'] as const).map(backend => ({ direction, backend, framesOnly: false, vocabulary: false, siblings: false, selfLoops }))))))('ER rebuilt frame routes retain actual normal contacts in $direction with $backend framesOnly=$framesOnly vocabulary=$vocabulary siblings=$siblings selfLoops=$selfLoops', expectRetainedErRouteInk)
 
 test('ER self-relationship arches stay distinct, attached and clear for generated entities', () => {
   const start = fc.constantFrom('||', '|o', '}o', '}|'), end = fc.constantFrom('||', 'o|', 'o{', '|{')
@@ -406,7 +409,7 @@ test('ER self-relationship arches stay distinct, attached and clear for generate
       ...entities.flatMap((entry, i) => entry.loops.map(([a, b, text]) => `E${i} ${a}--${b} E${i} : ${text}`)),
       ...links.flatMap(([from, to, a, b, text]) => from !== to && from < entities.length && to < entities.length ? [`E${from} ${a}--${b} E${to} : ${text}`] : []),
       ...entities.flatMap((entry, i) => entry.attributes ? [`E${i} {`, 'string id PK', 'string name', '}'] : [])].join('\n')
-    expectRetainedErRouteInk({ direction, backend: 'elk', framesOnly: false, vocabulary: false, siblings: false, selfLoops: true, source })
+    expectRetainedErRouteInk({ direction, backend: 'elk', framesOnly: false, vocabulary: false, siblings: false, selfLoops: 'open', source })
   }), fcParameters({ numRuns: 12 }))
 })
 
