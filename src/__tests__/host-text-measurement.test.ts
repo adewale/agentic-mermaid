@@ -264,6 +264,35 @@ describe('trusted host pixel measurement profiles', () => {
     expect(a.receipt.appearanceDigest).toEqual(b.receipt.appearanceDigest)
   })
 
+  test.each(['absent', 'undefined', 'provided'] as const)('snapshots optional shaped-ink absence before prototype changes: %s', mode => {
+    const supplied: TextMeasurementProfile = { id: 'test:optional-ink-snapshot', version: '1.0.0', measure: () => 20 }
+    const providedTexts: string[] = []
+    if (mode !== 'absent') Object.defineProperty(supplied, 'measureInk', { value: mode === 'provided' ? (input: ProfileTextMeasurementInput) => {
+      providedTexts.push(input.text)
+      return { advance: 20, bounds: { x0: 0, y0: -10, x1: 20, y1: 0 } }
+    } : undefined })
+    const renderer = createMermaidRenderer({ textMeasurement: supplied })
+    const previous = Object.getOwnPropertyDescriptor(Object.prototype, 'measureInk')
+    let inheritedCalls = 0
+    try {
+      Object.defineProperty(Object.prototype, 'measureInk', { configurable: true, value() {
+        inheritedCalls++
+        return { advance: 20, bounds: { x0: 0, y0: -10, x1: 20, y1: 0 } }
+      } })
+      // Distinct fresh sources ensure neither a cached artifact nor one
+      // request's metric cache can hide a later callback activation.
+      for (const text of ['ABC', 'XYZ']) {
+        const svg = renderer.renderMermaidSVG(`flowchart LR\nA[${text}]`, { embedFontImport: false })
+        expect(svg).toContain(`>${text}</text>`)
+      }
+      expect(inheritedCalls).toBe(0)
+      expect(providedTexts.includes('ABC') && providedTexts.includes('XYZ')).toBe(mode === 'provided')
+    } finally {
+      if (previous) Object.defineProperty(Object.prototype, 'measureInk', previous)
+      else delete (Object.prototype as { measureInk?: unknown }).measureInk
+    }
+  })
+
   test('positioned Radar and Sankey label projections retain their selected profile', () => {
     for (const source of [RADAR_SOURCE, '---\ntitle: AB\n---\nsankey-beta\nSource,Target,2']) {
       const parsed = parseRegisteredMermaid(source)

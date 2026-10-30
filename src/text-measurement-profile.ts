@@ -48,7 +48,7 @@ export function snapshotTextMeasurementProfile(profile: TextMeasurementProfile |
   }
   if (typeof measure !== 'function') throw new TypeError('textMeasurement.measure must be a function')
   if (measureInk !== undefined && typeof measureInk !== 'function') throw new TypeError('textMeasurement.measureInk must be a function')
-  return Object.freeze({ id, version, measure, ...(measureInk ? { measureInk } : {}) })
+  return Object.freeze({ id, version, measure, measureInk })
 }
 
 /** Per-request cache shared by layout and drawing, held only in the private plan. */
