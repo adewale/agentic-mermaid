@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="246.072" height="509.4" viewBox="0 0 246.072 509.4" style="--bg:#fdfbf6;--fg:#31302c;--line:#4d4a44;--accent:#7a6a52;--surface:#ead9b9;--border:#5a564e;--font:Caveat;background:#fdfbf6" class="am-00mekp41drwia8"><style>
-  svg.am-00mekp41drwia8 { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
-  svg.am-00mekp41drwia8 {
+<svg xmlns="http://www.w3.org/2000/svg" width="246.072" height="509.4" viewBox="0 0 246.072 509.4" style="--bg:#fdfbf6;--fg:#31302c;--line:#4d4a44;--accent:#7a6a52;--surface:#ead9b9;--border:#5a564e;--font:Caveat;background:#fdfbf6" class="am-0mbs84t0f8weis"><style>
+  svg.am-0mbs84t0f8weis { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
+  svg.am-0mbs84t0f8weis {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #31302c;
     --_text-sec:      #5e5d58;
@@ -45,7 +45,7 @@
 </g>
 <polyline stroke-opacity="0" points="123.036,131.7 123.036,300" fill="none" stroke="#4d4a44" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#requirement-arrow)" data-relationship="verifies" data-direction="forward" data-id="relation-1" data-role="relationship" data-from="benchmark" data-to="fast" role="graphics-symbol" aria-roledescription="relation" aria-label="benchmark to fast: &lt;&lt;verifies&gt;&gt;" />
 <path d="M123.95 130.9 C124.1 180.49, 125 226.1, 121.68 298.84" fill="none" stroke="#4d4a44" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" stroke-dasharray="6 4" />
-<g class="requirement-edge-label">
+<g class="requirement-edge-label" data-edge-id="relation-1">
   <rect x="45.986" y="204.7" width="73.05" height="22.3" fill="#fdfbf6" stroke="none" />
   <text x="82.511" y="215.85" text-anchor="middle" font-size="11" font-weight="400" fill="#31302c" data-prepared-text="true" dy="3.85" textLength="61.05" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;verifies&gt;&gt;</text>
 </g>

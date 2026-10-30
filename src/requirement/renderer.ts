@@ -91,7 +91,8 @@ export function lowerRequirementDrawing<T>(marks: DrawingFactory<T>, ctx: Render
       marks.group({
         id: `edge-label:${edge.id}`,
         role: 'edge-label',
-        open: '<g class="requirement-edge-label">',
+        owner: { id: edge.id, role: 'relationship' },
+        open: `<g class="requirement-edge-label" data-edge-id="${escapeAttr(edge.id)}">`,
         close: '</g>',
         children: [
           { indent: 2, node: marks.shape({ id: `label-bg:${edge.id}`, role: 'chrome', owner: { id: edge.id, role: 'relationship' }, geometry: { kind: 'rect', x: q.x - b.width / 2 - 6, y: q.y - b.height / 2 - 4, width: b.width + 12, height: b.height + 8 }, paint: { fill: 'var(--bg)', stroke: 'none' } }) },

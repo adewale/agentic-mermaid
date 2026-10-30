@@ -5027,3 +5027,86 @@ preparation, hint normalization and graph caption handling require a careful
 combined integration; replacing the complete preparation file would lose the
 campaign's ownership/font/cache rules. No rebase/merge or version change was
 silently performed. The review is meaning-fonts/NEW-MAIN-118c-REVIEW.md.
+
+### 30 October: explicit Requirement caption correspondence, with subtraction
+
+The Requirement producer now links each caption to its actual relationship
+occurrence using the existing C4 data-edge-id convention and the typed
+relationship owner. Consumers resolve ordered endpoints/type from that carrier;
+they need not infer a generated-ID prefix or SVG order. A card named relation-1
+remains a node, distinct from the relationship owner with the same string ID.
+The existing four independently authored parallel/name-collision owners now
+check one-to-one caption/carrier keys plus the literal authored endpoint/type/
+caption table on both engines and Native/Scene. Qualified RED is four real
+missing-association failures, then4P/0F/260assertions; two initial sandbox child
+stdin EPERM failures are retained separately and are not counted as RED.
+Full Requirement owner24P/0F/3989assertions; final targeted lint and canonical
+core/repository types with Trident f080 pass. No cap or expectation is relaxed.
+
+Subtraction was necessary. The initial three-attribute variant duplicated
+endpoints onto every caption. Both 100-requirement Scene cases changed from
+P358709 to U400000. This was discovered before commit and rejected. The final
+one-key variant adds104bytes to each four-caption SVG (Native work+2078,
+Scene+832). For99captions it adds2664bytes, preserving both Scene proofs at
+P380021, below the unchanged400000limit. Removing only new data-edge-id fields
+and the derived CSS scope rename restores all four small and both100chain SVGs
+exactly: geometry, labels, paint, routes and root dimensions are unchanged.
+The rejected three-attribute evidence remains in requirement-caption/.
+
+Root reviews/updates only requirement-basic.watercolor.svg through the existing
+filtered owning updater. Original7201bytes becomes7227: one new caption link
+plus derived CSS scope. Exact inverse restores the entire old SVG; actual
+bundled Caveat.ttf3x raster738x1528/4510656RGBAbytes has zero changed channels.
+Initial observer used a nonexistent Caveat-Regular.ttf path; that result is
+retained but not used. Corrected review checks actual font existence and
+positive dark ink. Final nonupdate golden owner passes. All other goldens are
+untouched. Evidence: requirement-caption-golden-review/ONE-KEY-*.
+
+A bounded isolated diagnostic completed48/48calls,0APIerrors/timeouts, four
+fresh processes and all children reaped. Both graph engines, actualNative and
+Scene providers, small authored interaction,100chain and ordinary Latin control
+are observed first/repeat with cache off. Both arms share frozen common
+production at fbfb687afb1ef80a87943f681f41a1c5bd4df744 plus the final candidate
+files; only the in-memory Requirement renderer differs (before from ef26).
+This is not a whole-ef26 runtime comparison. All4593production/dependency/font/
+fixture bytes stay unchanged. Full SVG UTF8 and entire receipt/error JSON are
+consumed inside clocks; imports, explicit GC and whole-process resources remain
+separate. Batch17:45:58.830223->17:46:21.852233UTC,30October.
+
+| Diagnostic,12calls per arm | Before | Final one-key |
+| --- | --- | --- |
+| Native consumed call sum |2682.90ms |2873.36ms |
+| Scene consumed call sum |4695.92ms |4820.32ms |
+| Native process elapsed |4.070s |4.432s |
+| Scene process elapsed |6.660s |6.726s |
+| Native process peak RSS |266792KiB |265856KiB |
+| Scene process peak RSS |294676KiB |295460KiB |
+
+Small-caption Native two-engine repeat sum110.21->137.76ms is retained as a
+slower observation; Scene273.80->278.56. Ordinary-control first Scene263.16->
+330.27also varies. There is only one Native AB and one Scene BA pair, so provider
+and order are confounded; no statistical preservation/parity, allocation or
+causal ranking claim follows. Pre/postGC heap observations and whole-process
+CPU/high-water are retained separately, not called allocations. Four initial
+missing-/usr/bin/time startup commands made zero product calls; those failures
+are preserved separately from the corrected fresh-Python child-resource run.
+Evidence: measurement/requirement-caption-cost/{SUMMARY,RUNS,BINDING}.json.
+
+Fresh final Native100 remains U400000 in all eight before/after xengine xrepeat
+rows; it was already U before this change. These additional proof-budget cells
+remain enrolled alongside the six legacy failing test owners. Fresh Scene100
+remains P358709->P380021 in all eight corresponding rows. Logical association,
+unchanged pixels and these selected proofs do not establish universal meaning,
+actual glyph/head survival, aesthetics or ELK/Pele correctness parity.
+
+The separate Scene backend-authority experiment is still NOT adopted. Root
+review then independent actual-ink controls confirmed two more blockers:
+mutable recorder registration can bypass a cached-string pin check, and
+unconditional refusal of the styled page underlay regresses real Requirement
+bend-role owners despite identical SVG and positive marker ink. The author is
+repairing those producer/consumer boundaries, not weakening the tests. The
+no-replay design has already rejected actual root/cache/capture rewrites in
+independent bounded controls, but those passing controls do not override the
+remaining counterexamples. Next: publish this verified one-key correspondence
+change, follow exact CI, and resolve the actual recorder/underlay authority with
+owning controls before integrating that separate fix.

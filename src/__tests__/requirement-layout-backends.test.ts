@@ -19,7 +19,7 @@ const runChild = useTestChildren(20_000)
 describe('Requirement layout backends', () => {
   test.each((['agentic', 'elk'] as const).flatMap(backend => (['scene', 'native'] as const).map(admission => ({ backend, admission }))))('retains parallel requirement occurrences and authored names with $backend through $admission', async ({ backend, admission }) => {
     // Authored relation-1 is a card name, independently of generated edge IDs;
-    // the two satisfies declarations must remain two visible label owners.
+    // the two satisfies declarations must retain separate caption owners.
     const interaction = {
       source: 'requirementDiagram\ndirection LR\nrequirement "relation-1" {\n  id: "R-1"\n  text: "Authorize release"\n  risk: medium\n  verifymethod: test\n}\nfunctionalRequirement gate {\n  id: "F-2"\n  text: "Reject stale token"\n  risk: high\n  verifymethod: analysis\n}\nelement worker {\n  type: software\n  docRef: "Spec R-1"\n}\nworker - satisfies -> "relation-1"\nworker - satisfies -> "relation-1"\n"relation-1" - derives -> gate\ngate - traces -> "relation-1"',
       direction: 'LR',
@@ -110,6 +110,15 @@ describe('Requirement layout backends', () => {
       const labels = labelGroups.map(group => group.querySelector('text')!)
       expect(labels.map(label => label.textContent)).toEqual(interaction.relations.map(relation => relation.displayLabel))
       expect(labelGroups).toHaveLength(4)
+      // A caption references the relationship, even when a card shares its ID.
+      expect(labelGroups.map(group => group.getAttribute('data-edge-id')).sort()).toEqual(carriers.map(carrier => carrier.getAttribute('data-id')).sort())
+      const captionRelations = carriers.map(carrier => {
+        const captions = labelGroups.filter(group => group.getAttribute('data-edge-id') === carrier.getAttribute('data-id'))
+        expect(captions).toHaveLength(1)
+        const caption = captions[0]!
+        return { from: carrier.getAttribute('data-from'), to: carrier.getAttribute('data-to'), kind: carrier.getAttribute('data-relationship'), displayLabel: caption.querySelector('text')!.textContent }
+      })
+      expect(captionRelations).toEqual([...interaction.relations])
       for (const group of labelGroups) expect(group.querySelectorAll(':scope > text')).toHaveLength(1)
       expect(labels[0]!.getAttribute('x') + ',' + labels[0]!.getAttribute('y')).not.toBe(labels[1]!.getAttribute('x') + ',' + labels[1]!.getAttribute('y'))
       const ids = [...document.querySelectorAll('[id]')].map(element => element.id)
