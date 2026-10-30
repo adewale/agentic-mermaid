@@ -11,11 +11,16 @@
 
 import { describe, test, expect } from 'bun:test'
 import { plugin } from 'bun'
+import fc from 'fast-check'
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
 import { renderMermaidSVG, verifyNoExternalRefs, getStyle, inferBackend, knownStyleDescriptors, resolveStyleStack, validateStyleSpec } from '../index.ts'
+import * as marks from '../scene/marks.ts'
+import { HybridBackend } from '../scene/hybrid-backend.ts'
+import type { Geometry } from '../scene/ir.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { FAMILY_CONFORMANCE_PROFILES } from './helpers/family-conformance-profiles.ts'
 import { renderedTextReady } from './helpers/rendered-text.ts'
 import { normalizeSvg } from './helpers/svg-normalize.ts'
@@ -184,6 +189,138 @@ describe('styled output', () => {
   test('crisp output is unaffected by style registration (explicit crisp)', () => {
     const source = 'graph TD\n A-->B'
     expect(renderMermaidSVG(source, { style: 'crisp' })).toBe(renderMermaidSVG(source))
+  })
+})
+
+// The freehand ribbon may wobble but must keep the silhouette class of what
+// it outlines: a rectangle keeps four corners, a rounded box its arcs, a
+// diamond its four points, a circle its round outline, a connector its bends.
+// The expected outline is computed here from the geometry alone; the ribbon
+// (a filled outline of the stroke) must stay within its own width plus the
+// wobble of that outline, in both directions (symmetric Hausdorff distance).
+describe('freehand silhouettes', () => {
+  type Pt = { x: number; y: number }
+  /** A 3.5px ribbon around the centerline plus 1px of hand wobble. */
+  const RIBBON_TOLERANCE = 4.5
+
+  function distanceToOutline(p: Pt, outline: readonly Pt[], closed: boolean): number {
+    let best = Infinity
+    const segments = closed ? outline.length : outline.length - 1
+    for (let i = 0; i < segments; i++) {
+      const a = outline[i]!, b = outline[(i + 1) % outline.length]!
+      const dx = b.x - a.x, dy = b.y - a.y, len2 = dx * dx + dy * dy
+      const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2))
+      best = Math.min(best, Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy))
+    }
+    return best
+  }
+
+  function arcPoints(cx: number, cy: number, rx: number, ry: number, from: number, sweep: number, n: number): Pt[] {
+    return Array.from({ length: n + 1 }, (_, k) => {
+      const a = from + (sweep * k) / n
+      return { x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * ry }
+    })
+  }
+
+  /** The exact outline (densely sampled for curves) the ribbon must follow. */
+  function expectedOutline(geometry: Geometry): { points: Pt[]; closed: boolean } {
+    switch (geometry.kind) {
+      case 'circle': return { points: arcPoints(geometry.cx, geometry.cy, geometry.r, geometry.r, 0, Math.PI * 2, 180), closed: true }
+      case 'ellipse': return { points: arcPoints(geometry.cx, geometry.cy, geometry.rx, geometry.ry, 0, Math.PI * 2, 180), closed: true }
+      case 'polygon': return { points: geometry.points, closed: true }
+      case 'polyline': return { points: geometry.points, closed: false }
+      case 'rect': {
+        const { x, y, width: w, height: h } = geometry, r = geometry.rx ?? 0
+        if (r === 0) return { points: [{ x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h }], closed: true }
+        const q = Math.PI / 2
+        return {
+          points: [
+            ...arcPoints(x + r, y + r, r, r, 2 * q, q, 30),
+            ...arcPoints(x + w - r, y + r, r, r, 3 * q, q, 30),
+            ...arcPoints(x + w - r, y + h - r, r, r, 0, q, 30),
+            ...arcPoints(x + r, y + h - r, r, r, q, q, 30),
+          ],
+          closed: true,
+        }
+      }
+      default: throw new Error(`no expected outline for ${geometry.kind}`)
+    }
+  }
+
+  function densify(points: readonly Pt[], closed: boolean): Pt[] {
+    const out: Pt[] = []
+    const segments = closed ? points.length : points.length - 1
+    for (let i = 0; i < segments; i++) {
+      const a = points[i]!, b = points[(i + 1) % points.length]!
+      for (let k = 0; k < 16; k++) out.push({ x: a.x + ((b.x - a.x) * k) / 16, y: a.y + ((b.y - a.y) * k) / 16 })
+    }
+    if (!closed) out.push(points.at(-1)!)
+    return out
+  }
+
+  function ribbonOutline(geometry: Geometry, seed: number): Pt[] {
+    const paint = { fill: 'none', stroke: '#000000', strokeWidth: '1' }
+    const node = geometry.kind === 'polyline'
+      ? marks.connector({ id: 'route', role: 'edge', lineStyle: 'solid', geometry: { kind: 'path', d: 'M0 0', points: geometry.points }, paint })
+      : marks.shape({ id: 'outline', role: 'node', geometry, paint })
+    const svg = HybridBackend.drawNode(node, { seed, style: { name: 'look:freehand-silhouette', stroke: 'freehand', strokeWidth: 1.6 } })
+    const paths = [...svg.matchAll(/<path d="([^"]+)"/g)]
+    expect(paths.length, svg).toBe(1)
+    const numbers = paths[0]![1]!.match(/-?\d+(?:\.\d+)?/g)!.map(Number)
+    return Array.from({ length: numbers.length / 2 }, (_, i) => ({ x: numbers[2 * i]!, y: numbers[2 * i + 1]! }))
+  }
+
+  const box = fc.record({ x: fc.integer({ min: 0, max: 200 }), y: fc.integer({ min: 0, max: 200 }), width: fc.integer({ min: 40, max: 240 }), height: fc.integer({ min: 30, max: 120 }) })
+  const geometryArb: fc.Arbitrary<Geometry> = fc.oneof(
+    box.map(b => ({ kind: 'rect' as const, ...b })),
+    box.chain(b => fc.integer({ min: 4, max: Math.floor(Math.min(b.width, b.height) / 2) }).map(r => ({ kind: 'rect' as const, ...b, rx: r, ry: r }))),
+    fc.record({ cx: fc.integer({ min: 0, max: 200 }), cy: fc.integer({ min: 0, max: 200 }), r: fc.integer({ min: 12, max: 90 }) }).map(c => ({ kind: 'circle' as const, ...c })),
+    fc.record({ cx: fc.integer({ min: 0, max: 200 }), cy: fc.integer({ min: 0, max: 200 }), rx: fc.integer({ min: 15, max: 120 }), ry: fc.integer({ min: 8, max: 40 }) }).map(e => ({ kind: 'ellipse' as const, ...e })),
+    fc.tuple(box, fc.constantFrom('diamond', 'hexagon', 'parallelogram', 'trapezoid'), fc.double({ min: 0.1, max: 0.3, noNaN: true })).map(([{ x, y, width: w, height: h }, kind, f]) => {
+      const i = w * f
+      const points = {
+        diamond: [{ x: x + w / 2, y }, { x: x + w, y: y + h / 2 }, { x: x + w / 2, y: y + h }, { x, y: y + h / 2 }],
+        hexagon: [{ x: x + i, y }, { x: x + w - i, y }, { x: x + w, y: y + h / 2 }, { x: x + w - i, y: y + h }, { x: x + i, y: y + h }, { x, y: y + h / 2 }],
+        parallelogram: [{ x: x + i, y }, { x: x + w, y }, { x: x + w - i, y: y + h }, { x, y: y + h }],
+        trapezoid: [{ x: x + i, y }, { x: x + w - i, y }, { x: x + w, y: y + h }, { x, y: y + h }],
+      }[kind]
+      return { kind: 'polygon' as const, points }
+    }),
+    // Orthogonal connector routes with one to three bends.
+    fc.array(fc.integer({ min: 20, max: 120 }), { minLength: 2, maxLength: 4 }).map(lengths => {
+      const points: Pt[] = [{ x: 0, y: 0 }]
+      lengths.forEach((length, i) => {
+        const last = points.at(-1)!
+        points.push(i % 2 === 0 ? { x: last.x + length, y: last.y } : { x: last.x, y: last.y + length })
+      })
+      return { kind: 'polyline' as const, points }
+    }),
+  )
+
+  test('every outline keeps its silhouette class for every seed', () => {
+    fc.assert(
+      fc.property(geometryArb, fc.integer({ min: 0, max: 0x7fffffff }), (geometry, seed) => {
+        const ribbon = ribbonOutline(geometry, seed)
+        const expected = expectedOutline(geometry)
+        // Every point of the shape is drawn (no cut corner, no collapsed circle)...
+        const missed = Math.max(...densify(expected.points, expected.closed).map(p => distanceToOutline(p, ribbon, true)))
+        // ...and the ribbon never strays from it (no corner rounded off a box).
+        const strayed = Math.max(...ribbon.map(p => distanceToOutline(p, expected.points, expected.closed)))
+        expect(missed, `${JSON.stringify(geometry)} seed ${seed}: shape point left undrawn`).toBeLessThanOrEqual(RIBBON_TOLERANCE)
+        expect(strayed, `${JSON.stringify(geometry)} seed ${seed}: ribbon strays from the shape`).toBeLessThanOrEqual(RIBBON_TOLERANCE)
+      }),
+      fcParameters<[Geometry, number]>({
+        numRuns: 200,
+        // The reported D-shaped box and teardrop diamond, the circle that
+        // collapsed to a dot, and the reduced cut connector bend.
+        examples: [
+          [{ kind: 'rect', x: 51, y: 47, width: 69, height: 37 }, 1],
+          [{ kind: 'polygon', points: [{ x: 60, y: 0 }, { x: 120, y: 60 }, { x: 60, y: 120 }, { x: 0, y: 60 }] }, 1],
+          [{ kind: 'circle', cx: 50, cy: 50, r: 40 }, 1],
+          [{ kind: 'polyline', points: [{ x: 0, y: 0 }, { x: 20, y: 0 }, { x: 20, y: 20 }] }, 0],
+        ],
+      }),
+    )
   })
 })
 

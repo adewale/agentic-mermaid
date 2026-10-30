@@ -24,17 +24,41 @@ const clamp01 = (t: number) => Math.max(0, Math.min(1, t))
 
 type Pt = { x: number; y: number }
 
+/** Corner arcs of a rounded rect, clockwise from the top-left arc, so a
+ *  rounded or stadium node keeps its rounded silhouette in the polygon. */
+function roundedRectOutline(x: number, y: number, w: number, h: number, rx: number, ry: number): Pt[] {
+  const out: Pt[] = []
+  const corners = [
+    { cx: x + rx, cy: y + ry, from: Math.PI },
+    { cx: x + w - rx, cy: y + ry, from: Math.PI * 1.5 },
+    { cx: x + w - rx, cy: y + h - ry, from: 0 },
+    { cx: x + rx, cy: y + h - ry, from: Math.PI * 0.5 },
+  ]
+  const arcSteps = 6
+  for (const c of corners) {
+    for (let i = 0; i <= arcSteps; i++) {
+      const a = c.from + (i / arcSteps) * (Math.PI / 2)
+      out.push({ x: c.cx + Math.cos(a) * rx, y: c.cy + Math.sin(a) * ry })
+    }
+  }
+  return out
+}
+
 /** Convert closed geometries to a polygon for freehand/wash rendering.
  *  Returns null when the geometry can't be polygonized cheaply (paths). */
 function polygonize(geom: Geometry): Pt[] | null {
   switch (geom.kind) {
-    case 'rect':
+    case 'rect': {
+      const rx = Math.min(Math.max(0, geom.rx ?? 0), geom.width / 2)
+      const ry = Math.min(Math.max(0, geom.ry ?? geom.rx ?? 0), geom.height / 2)
+      if (rx >= 0.5 && ry >= 0.5) return roundedRectOutline(geom.x, geom.y, geom.width, geom.height, rx, ry)
       return [
         { x: geom.x, y: geom.y },
         { x: geom.x + geom.width, y: geom.y },
         { x: geom.x + geom.width, y: geom.y + geom.height },
         { x: geom.x, y: geom.y + geom.height },
       ]
+    }
     case 'polygon':
       return geom.points
     case 'circle': {
@@ -70,20 +94,44 @@ function strokePathFromOutline(outline: number[][]): string {
   return d.join(' ')
 }
 
-/** Resample a polyline/polygon into a jittered, pressure-annotated centerline
- *  (ported from the prototype's engine.ts, behavior unchanged). */
+/** Resample a polyline/polygon into a jittered, pressure-annotated centerline.
+ *  Every authored vertex is a sample, so the stroke smoother bends at the
+ *  corner instead of cutting it. A closed outline starts and ends mid-edge:
+ *  no corner sits on the cap seam, so every corner is drawn the same way. */
 function sampledCenterline(pts: Pt[], rng: () => number, closed: boolean, wobble: number): [number, number, number][] {
-  const src = closed ? [...pts, pts[0]!] : pts
+  let src = pts
+  if (closed) {
+    const a = pts[0]!, b = pts[1]!
+    const seam = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+    src = [seam, ...pts.slice(1), a, seam]
+  }
+  // A corner is a vertex where the outline turns by more than ~25 degrees;
+  // curve samples (circles, arcs) turn less and stay smooth.
+  const isCorner = (k: number): boolean => {
+    if (k <= 0 || k >= src.length - 1) return false
+    const p = src[k - 1]!, q = src[k]!, r = src[k + 1]!
+    const ux = q.x - p.x, uy = q.y - p.y, vx = r.x - q.x, vy = r.y - q.y
+    const norm = Math.hypot(ux, uy) * Math.hypot(vx, vy)
+    return norm > 0 && (ux * vx + uy * vy) / norm < 0.9
+  }
   const out: [number, number, number][] = []
   for (let i = 0; i < src.length - 1; i++) {
     const a = src[i]!, b = src[i + 1]!
     const len = Math.hypot(b.x - a.x, b.y - a.y) || 1
     const steps = Math.max(1, Math.ceil(len / 14))
     const nx = -(b.y - a.y) / len, ny = (b.x - a.x) / len
+    // Samples hugging a corner keep the streamlined stroke tight on it;
+    // without them the smoother rounds a square corner by ~5px.
+    const hug = len > 12 ? 2.5 / len : 0
+    const ts: number[] = []
     for (let j = 0; j < steps; j++) {
-      if (i > 0 && j === 0) continue
-      const t = j / steps
-      const atEnd = !closed && ((i === 0 && j === 0) || (i === src.length - 2 && j === steps))
+      ts.push(j / steps)
+      if (hug && j === 0 && isCorner(i)) ts.push(hug)
+    }
+    if (hug && isCorner(i + 1)) ts.push(1 - hug)
+    for (let j = 0; j < ts.length; j++) {
+      const t = ts[j]!
+      const atEnd = !closed && i === 0 && j === 0
       const jitter = atEnd ? 0 : (rng() - 0.5) * 2 * wobble
       const p = { x: lerp(a.x, b.x, t) + nx * jitter, y: lerp(a.y, b.y, t) + ny * jitter }
       const phase = (i + t) / Math.max(1, src.length - 1)
@@ -91,8 +139,13 @@ function sampledCenterline(pts: Pt[], rng: () => number, closed: boolean, wobble
       out.push([p.x, p.y, pressure])
     }
   }
-  const last = src[src.length - 1]!
-  out.push([last.x, last.y, closed ? out[0]?.[2] ?? 0.55 : 0.46])
+  if (closed) {
+    const [x, y, pressure] = out[0]!
+    out.push([x, y, pressure])
+  } else {
+    const last = src[src.length - 1]!
+    out.push([last.x, last.y, 0.46])
+  }
   return out
 }
 
