@@ -92,6 +92,7 @@ import {
   reanchorOffOutlineEndpoints,
   rerouteEdgesThroughNodes,
   repairInwardEndpointApproaches,
+  repairResidualDiagonals,
   alignForkRejoinPeerCenters,
   alignPortLanes,
   alignLabeledSourcePort,
@@ -1621,6 +1622,11 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     after: ['separateEdgeLabelPills'], mutates: ['edges'], determinism: 'fixed-point',
     mayChangeMetrics: { straight: 'improve-only', bends: 'improve-only' },
     run: c => { closeRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
+  },
+  {
+    id: 'repairResidualDiagonals', doc: 're-route a diagonal segment the settled route still has (a node mover shifted part of a collinear run) into an orthogonal step, keeping both endpoints (edge-only, freeze-safe)',
+    after: ['closeRouteContracts'], mutates: ['edges'], determinism: 'in-place',
+    run: c => { repairResidualDiagonals(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge)) },
   },
   {
     id: 'translateGeometryToNonNegativeOrigin', doc: 'shift whole graph to a non-negative origin (allowed after freeze)',

@@ -442,3 +442,71 @@ export function repairInwardEndpointApproaches(nodes: PositionedNode[], edges: P
     if (edge.label) edge.labelPosition = calculatePathMidpoint(points)
   }
 }
+
+/**
+ * Post-freeze repair for a diagonal segment left in an otherwise orthogonal
+ * route (the rubric's diagonalSegments check). A node mover translates an
+ * endpoint and its adjacent point but not the rest of a run that shared their
+ * coordinate (ELK emits collinear interior points), or re-anchors an exit onto
+ * a new lane without moving the next bend; when no later rebuild owns the
+ * route, the step survives as a slanted segment. The repair keeps both
+ * endpoints and tries, in order: moving the diagonal's far run onto the near
+ * point's coordinate, the near run onto the far point's, an elbow at either
+ * corner, and a halfway jog that keeps both segment directions. A candidate is adopted only when the route becomes orthogonal and
+ * simple, clears every other card (exact shapes, and boxes for the changed
+ * segments), clears every title band, and has no more invalid endpoint
+ * approaches. Fires only on a diagonal, which no certified layout has.
+ */
+export function repairResidualDiagonals(nodes: PositionedNode[], edges: PositionedEdge[], groups: readonly PositionedGroup[], skipEdge: (edge: PositionedEdge) => boolean = () => false): void {
+  const nodeMap = new Map(nodes.map(node => [node.id, node]))
+  // The rubric's diagonal: both offsets beyond 0.01px (sub-hundredth slopes are roundoff).
+  const diagonalAt = (pts: readonly Point[]): number => pts.findIndex((point, index) => index > 0 && Math.abs(point.x - pts[index - 1]!.x) > 0.01 && Math.abs(point.y - pts[index - 1]!.y) > 0.01)
+  for (const edge of edges) {
+    if (edge.source === edge.target || edge.style === 'invisible' || edge.points.length < 2 || skipEdge(edge)) continue
+    const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
+    const invalid = invalidEndpointApproaches(edge, source, target)
+    const others = new Set([edge.source, edge.target])
+    let points = edge.points
+    for (let guard = 0; guard < edge.points.length; guard++) {
+      const i = diagonalAt(points)
+      if (i < 0) break
+      const current = points, a = current[i - 1]!, b = current[i]!, last = current.length - 1
+      // Carry a run: every consecutive interior point sharing the start
+      // point's coordinate on `axis` moves to `to`; endpoints never move.
+      const carry = (start: number, step: number, axis: 'x' | 'y', to: number): Point[] | undefined => {
+        if (start <= 0 || start >= last) return undefined
+        const old = current[start]![axis], next = current.map(point => ({ ...point }))
+        for (let k = start; k > 0 && k < last && current[k]![axis] === old; k += step) next[k]![axis] = to
+        return next
+      }
+      const candidates: Array<Point[] | undefined> = []
+      for (const axis of ['x', 'y'] as const) candidates.push(carry(i, 1, axis, a[axis]), carry(i - 1, -1, axis, b[axis]))
+      candidates.push([...current.slice(0, i), { x: b.x, y: a.y }, ...current.slice(i)], [...current.slice(0, i), { x: a.x, y: b.y }, ...current.slice(i)])
+      // A step between two terminal rays: jog halfway, keeping both rays.
+      const midX = (a.x + b.x) / 2, midY = (a.y + b.y) / 2
+      candidates.push([...current.slice(0, i), { x: a.x, y: midY }, { x: b.x, y: midY }, ...current.slice(i)], [...current.slice(0, i), { x: midX, y: a.y }, { x: midX, y: b.y }, ...current.slice(i)])
+      let fixed: Point[] | undefined
+      for (const candidate of candidates) {
+        if (!candidate) continue
+        const route = simplifyPolyline(candidate)
+        if (route.length < 2 || route[0]!.x !== current[0]!.x || route[0]!.y !== current[0]!.y || route.at(-1)!.x !== current[last]!.x || route.at(-1)!.y !== current[last]!.y) continue
+        if (!simpleOrthogonal(route)) continue
+        const fresh = (point: Point): boolean => !current.some(old => old.x === point.x && old.y === point.y)
+        const touched = route.filter((point, index) => fresh(point) || (index > 0 && fresh(route[index - 1]!)) || (index < route.length - 1 && fresh(route[index + 1]!)))
+        if (touched.length > 1 && !routeClearOfNodes(touched, nodes, others)) continue
+        if (nodes.some(other => !others.has(other.id) && route.some((point, index) => index > 0 && segmentThroughShape(route[index - 1]!, point, other)))) continue
+        if (!routeClearsTitleBands(route, groups)) continue
+        if (invalidEndpointApproaches({ ...edge, points: route }, source, target) > invalid) continue
+        fixed = route
+        break
+      }
+      if (!fixed) break
+      points = fixed
+    }
+    if (points === edge.points || diagonalAt(points) >= 0) continue
+    const savedCert = edge.routeCertificate
+    edge.points = points
+    recertifyReroutedEdge(edge, savedCert, source, target)
+    if (edge.label) edge.labelPosition = calculatePathMidpoint(points)
+  }
+}

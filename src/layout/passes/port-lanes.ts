@@ -386,9 +386,21 @@ function alignLabeledSourcePortCandidate(
     // delta — so each incoming edge stays straight and exits its source at mid.
     for (const n of chainNodes) { if (isHorizontal) n.y += delta; else n.x += delta }
     for (const o of edges) {
-      if (chain.has(o.source) && chain.has(o.target)) for (const p of o.points) p[cross] += delta
+      if (!chain.has(o.source) || !chain.has(o.target)) continue
+      for (const p of o.points) p[cross] += delta
+      // A label rides with its rigidly translated route (a chain self-loop's
+      // pill would otherwise be left beside where its loop used to be).
+      if (o.labelPosition) o.labelPosition = { ...o.labelPosition, [cross]: o.labelPosition[cross] + delta }
     }
-    e.points[0] = shapePorts(S)[exitSide]
+    const port = e.points[0] = shapePorts(S)[exitSide]
+    // The slide puts the exit on the predicted lane. When the old first bend
+    // is off that lane, rejoin the route where it first reaches the lane, so
+    // the moved exit never leaves a diagonal first segment.
+    const first = e.points[1]
+    if (first && first.x !== port.x && first.y !== port.y) {
+      const rejoin = e.points.findIndex((point, index) => index > 1 && point[cross] === port[cross])
+      if (rejoin > 1) e.points = [port, ...e.points.slice(rejoin)]
+    }
   }
 }
 

@@ -237,6 +237,19 @@ const ENDPOINT_EXAMPLES: GroupedCase[] = [
   { source: 'flowchart BT\n  n1 <--> n1\n  n10 --x|e1| n1\n  n3 --> n1\n  n10 --o n11\n', members: [], look: 'accessible-high-contrast', mustCertify: true },
 ]
 
+// Reduced issue-A7 counterexamples with a slanted segment or a detached
+// label: a layer snap moved a route's endpoint and first bend but not the
+// collinear point after them; alignLabeledSourcePort slid a source off the
+// lane of its straight two-point route; the same slide re-anchored an exit
+// onto a new lane without moving the next bend; and it carried a self-loop
+// with its node but left the loop's label behind.
+const ROUTE_SHAPE_EXAMPLES: GroupedCase[] = [
+  { source: 'flowchart BT\n  n5(Node 5)\n  subgraph G0[Group 0]\n    direction TB\n    n8\n    n10\n    n1\n  end\n  subgraph G1[Group 1]\n    direction LR\n    n0\n    n3\n  end\n  n1 ---|e0| G1\n  n8 --x n1\n  n6 -.->|e4| n2\n  n0 --- n5\n  n0 --x|e7| n13\n  G1 --x n1\n  n3 --o n5\n  n6 -->|e10| n11\n  G1 --x|e11| n5\n  n8 -->|e12| n9\n  n5 --> n7\n  n9 --> n3\n  n6 ==> n10\n  n1 -->|e16| n2\n  n13 -.->|e17| n9\n  n1 --> n7\n  G1 -.-> n13\n  n9 -.->|e20| n8\n  G0 --x n6\n  n1 --- n2\n  n11 --> n6\n  n7 --x n13\n  n1 <--> n12\n  n8 --x|e27| n5\n', members: [['G0', ['n8', 'n10', 'n1']], ['G1', ['n0', 'n3']]], look: 'status-dashboard', mustCertify: true },
+  { source: 'flowchart BT\n  n2[/Node 2/]\n  n8([Node 8])\n  n7 --- n5\n  n13 --> n4\n  n8 <-->|e6| n12\n  n7 --x|e7| n1\n  n2 ---|e8| n13\n  n2 <--> n14\n  n13 --- n7\n  n4 ==> n4\n  n5 --o n12\n  n5 --x|e17| n14\n', members: [], look: 'status-dashboard', mustCertify: true },
+  { source: 'flowchart LR\n  n5[/Node 5/]\n  n6{Node 6}\n  n7[Node 7]\n  n4 <--> n9\n  n8 --o n10\n  n5 -.-> n3\n  n5 ---|e6| n8\n  n10 -.->|e8| n0\n  n9 ==>|e9| n2\n  n6 ==>|e11| n7\n  n5 -.->|e12| n7\n  n5 --o n0\n  n3 --- n5\n', members: [], look: 'status-dashboard', mustCertify: true },
+  { source: 'flowchart BT\n  n1([Node 1])\n  n1 ==> n4\n  n4 --- n3\n  n2 --x|e3| n2\n  n2 --x|e5| n4\n', members: [], look: 'accessible-high-contrast', mustCertify: true },
+]
+
 describe('authored group frames hold their members in every look', () => {
   test('generated subgraph flowcharts render, keep members in frames, and name any uncertified check', () => {
     fc.assert(fc.property(groupedFlowchartArb, ({ source, members, look, mustCertify }) => {
@@ -285,6 +298,6 @@ describe('authored group frames hold their members in every look', () => {
           `${member} inside ${id} (${look})\n${source}`).toEqual([true, true, true, true])
         }
       }
-    }), fcParameters({ numRuns: 40, seed: SEED, examples: [...FRAME_BREACH_EXAMPLES, ...UNCERTIFIED_EXAMPLES, ...MISLEADING_EXAMPLES, ...HEADER_BAND_EXAMPLES, ...PASS_CONTRACT_EXAMPLES, ...ENDPOINT_EXAMPLES].map(example => [example]) }))
+    }), fcParameters({ numRuns: 40, seed: SEED, examples: [...FRAME_BREACH_EXAMPLES, ...UNCERTIFIED_EXAMPLES, ...MISLEADING_EXAMPLES, ...HEADER_BAND_EXAMPLES, ...PASS_CONTRACT_EXAMPLES, ...ENDPOINT_EXAMPLES, ...ROUTE_SHAPE_EXAMPLES].map(example => [example]) }))
   })
 })
