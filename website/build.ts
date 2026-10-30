@@ -2153,7 +2153,7 @@ Styling: every render accepts style (a renderer treatment like hand-drawn, water
 - [MCP manifest](https://agentic-mermaid.dev/.well-known/mcp.json): compact tool manifest for agents and scanners.
 - [AI catalog](https://agentic-mermaid.dev/.well-known/ai-catalog.json): discovery index for the agent-facing resources on this domain.
 - [Agent instructions](https://agentic-mermaid.dev/agent-instructions.md): compact operating guide for agents.
-- [Capabilities](https://agentic-mermaid.dev/capabilities.json): authoritative family, output, mutation, and warning-code contract.
+- [Capabilities](https://agentic-mermaid.dev/capabilities.json): authoritative family, output, mutation, and warning-code contract (terminal TERMINAL_* projection codes are receipt diagnostics, not warnings).
 - [Examples](https://agentic-mermaid.dev/examples/index.json): the same example IDs and sources loaded by the editor.
 - [Workflow skill](https://agentic-mermaid.dev/skills/agentic-mermaid-diagram-workflow/SKILL.md): optional skill for skills-capable agents.
 

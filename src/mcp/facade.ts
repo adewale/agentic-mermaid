@@ -618,8 +618,9 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
         // The host policy is applied after cloning caller data, so even an
         // explicit weaker value cannot cross any hosted render/layout boundary.
         // Local Code Mode supplies no policy and retains caller-selectable
-        // behavior.
-        if (hostPolicy) cloned = { ...(cloned ?? {}), ...hostPolicy.render }
+        // behavior. The policy governs SVG content only; terminal text has its
+        // own safety projection, so it is not reported as a caller option there.
+        if (hostPolicy && !isAscii) cloned = { ...(cloned ?? {}), ...hostPolicy.render }
         const configDiagnostics: unknown[] = []
         const projectionDiagnostics: unknown[] = []
         if (configCallback || projectionCallback) cloned ??= {}

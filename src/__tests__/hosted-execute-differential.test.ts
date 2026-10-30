@@ -324,7 +324,10 @@ describe('hosted execute render policy', () => {
     expect(value.plain).not.toContain('@import')
   })
 
-  test('ASCII and layout use the same host-owned request projection', async () => {
+  // The SVG policy governs layout's request projection; terminal text has its
+  // own safety projection, so the caller's options reach ASCII unchanged (and
+  // are reported there as not applicable) while the drawing cannot change.
+  test('layout uses the host-owned request projection and ASCII the caller options', async () => {
     const hosted = await executeHosted(`
       const source = ${JSON.stringify(source)}
       const weaker = { security: 'default', embedFontImport: true }
@@ -338,13 +341,12 @@ describe('hosted execute render policy', () => {
       ascii: ReturnType<typeof renderMermaidASCIIWithReceipt>
       layout: ReturnType<typeof layoutMermaidWithReceipt>
     }
-    const expectedAscii = renderMermaidASCIIWithReceipt(source, {
-      security: 'strict', embedFontImport: false,
-    })
+    const expectedAscii = renderMermaidASCIIWithReceipt(source, { security: 'default', embedFontImport: true })
     const expectedLayout = layoutMermaidWithReceipt(source, {
       security: 'strict', embedFontImport: false,
     })
     expect(value.ascii).toEqual(JSON.parse(JSON.stringify(expectedAscii)))
+    expect(value.ascii.text).toBe(renderMermaidASCIIWithReceipt(source, { security: 'strict', embedFontImport: false }).text)
     expect(value.layout).toEqual(JSON.parse(JSON.stringify(expectedLayout)))
   })
 })

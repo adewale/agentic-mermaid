@@ -140,9 +140,11 @@ boundary forces security:'strict' and embedFontImport:false.`,
   {
     name: 'render_ascii',
     title: 'Render Mermaid as text',
-    description: `Render a Mermaid source string to text. Returns { ok, text }.
+    description: `Render a Mermaid source string to text. Returns { ok, text, receipt, warnings }.
 useAscii true → plain ASCII (+,-,|); false/absent → Unicode box drawing (┌,─,│).
-targetWidth sets a hard terminal display-cell bound; impossible bounds return a typed error.`,
+targetWidth sets a hard terminal display-cell bound; impossible bounds return a typed error.
+warnings holds source/config warnings (capabilities.json codes); terminal projection
+notes (TERMINAL_* codes) are evidence in receipt.diagnostics, not warnings.`,
     inputSchema: {
       type: 'object',
       additionalProperties: false,
@@ -253,20 +255,23 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
       }
     })
     case 'render_ascii': return sourceTool(id, args, source => {
-      const projectionWarnings: unknown[] = []
+      // The host's SVG policy (security, embedFontImport) has nothing to
+      // enforce on terminal text, so it is not added here: an option the
+      // caller did not pass must not be reported as one terminals ignore.
+      // Terminal projection diagnostics (TERMINAL_*) are receipt evidence,
+      // in receipt.diagnostics, as on the CLI; `warnings` carries the same
+      // catalogued source/config warnings every render surface reports.
       const rendered = renderMermaidASCIIWithReceipt(source, {
         ...projectMcpRenderOptions(args),
-        ...HOSTED_RENDER_OPTIONS,
         useAscii: args.useAscii === true,
         targetWidth: args.targetWidth as number | undefined,
         colorMode: 'none',
-        onProjectionDiagnostic: diagnostic => projectionWarnings.push(diagnostic),
       })
       return {
         ok: true as const,
         text: rendered.text,
         receipt: rendered.receipt,
-        warnings: [...sourceConfigWarnings(source), ...projectionWarnings],
+        warnings: sourceConfigWarnings(source),
       }
     })
     case 'render_png': return handleRenderPng(id, args, context)
@@ -403,7 +408,7 @@ export function cacheKeyFor(name: string | undefined, args: Record<string, unkno
         source: args.source,
         useAscii: args.useAscii === true,
         targetWidth: typeof args.targetWidth === 'number' ? args.targetWidth : undefined,
-        render: { ...projectMcpRenderOptions(args), ...HOSTED_RENDER_OPTIONS },
+        render: projectMcpRenderOptions(args),
       } : null
     case 'render_png': {
       if (typeof args.source !== 'string') return null

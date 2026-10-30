@@ -15,6 +15,13 @@ import pkg from '../../package.json'
 import { visualWidth } from '../ascii/width.ts'
 import { renderMermaidASCII, verifyNoExternalRefs } from '../index.ts'
 import { MAX_HOSTED_PNG_BYTES, PNG_WASM_RUNTIME, PngRasterizerError } from '../png-contract.ts'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { runCli } from '../cli/index.ts'
+import { createTracingMermaid } from '../mcp/facade.ts'
+import { HOSTED_CODE_MODE_HOST_POLICY } from '../render-host-policy.ts'
+import { captureCli } from './helpers/cli-capture.ts'
 
 const FLOW = 'flowchart TD\n  A[Start] --> B{OK?}\n  B -->|yes| C[Done]'
 const TEST_PNG_RECEIPT = { version: 2, output: 'png', sharedRequestDigest: 'test-shared', requestDigest: 'test-request', appearanceDigest: 'test-appearance', capabilityDecision: { version: 1, accepted: true, resolutions: [] } } as const
@@ -256,17 +263,33 @@ describe('hosted pure tools', () => {
     expect(ascii.text).not.toContain('┌')
   })
 
-  test('render_ascii keeps security and font-import policy host-owned', async () => {
-    const source = 'flowchart LR\n  A --> B'
+  test('render_ascii reports only options the caller passed, and the same warnings as the CLI', async () => {
+    // The host's SVG policy cannot change terminal text, and an option the
+    // caller never passed is not reported as one terminals ignore.
+    const source = 'flowchart LR\n  A --> B\n  B --> C\n  C --> C'
+    const optionNotes = (payload: any) => payload.receipt.diagnostics
+      .filter((diagnostic: { code: string }) => diagnostic.code.startsWith('TERMINAL_RENDER_OPTION'))
+      .map((diagnostic: { feature: string }) => diagnostic.feature)
     const baseline = payloadOf(await handleHostedRequest(call('render_ascii', { source }), makeContext()))
-    const weaker = payloadOf(await handleHostedRequest(call('render_ascii', {
+    expect(baseline.ok).toBe(true)
+    expect(baseline.warnings).toEqual([])
+    expect(optionNotes(baseline)).toEqual([])
+    const input = join(mkdtempSync(join(tmpdir(), 'am-hosted-ascii-')), 'chain.mmd')
+    writeFileSync(input, source)
+    const cli = captureCli(() => runCli(['render', input, '--format', 'unicode', '--json']))
+    expect(JSON.parse(cli.out)).toMatchObject({ ok: true, unicode: baseline.text, warnings: baseline.warnings })
+
+    const asked = payloadOf(await handleHostedRequest(call('render_ascii', {
       source,
       options: { security: 'default', embedFontImport: true },
     }), makeContext()))
-    expect(weaker.text).toBe(baseline.text)
-    expect(weaker.receipt).toEqual(baseline.receipt)
-    expect(cacheKeyFor('render_ascii', { source, options: { security: 'default', embedFontImport: true } }))
-      .toEqual(cacheKeyFor('render_ascii', { source }))
+    expect(asked.text).toBe(baseline.text)
+    expect(asked.warnings).toEqual([])
+    expect(optionNotes(asked)).toEqual(['render-option:embedFontImport', 'render-option:security'])
+
+    // Code Mode under the hosted policy follows the same rule.
+    const hostedCodeMode = createTracingMermaid(undefined, undefined, undefined, HOSTED_CODE_MODE_HOST_POLICY)
+    expect(optionNotes(hostedCodeMode.renderMermaidASCIIWithReceipt(source, { colorMode: 'none' }))).toEqual([])
   })
 
   test('render_ascii exposes targetWidth and typed impossible-width errors', async () => {
