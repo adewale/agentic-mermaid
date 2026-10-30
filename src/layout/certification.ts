@@ -77,6 +77,8 @@ export interface CertificationFinding {
   drawable?: LayoutCertificationViolation
 }
 
+const MEMBER_FRAME_ROUNDOFF = 1e-6
+
 const findingTexts = (findings: readonly CertificationFinding[]): string[] => findings.map(finding => finding.text)
 
 function correspondenceViolations(graph: MermaidGraph, positioned: PositionedGraph, style: ResolvedRenderStyle): CertificationFinding[] {
@@ -148,10 +150,13 @@ function correspondenceViolations(graph: MermaidGraph, positioned: PositionedGra
       const text = `group ${id}: outside authored parent ${parent.id}`
       failures.push({ text, drawable: { kind: 'groupBreaches', targets: [parent.id, id], detail: text } })
     }
+    // A member touching or crossing its frame's stroke reads as outside the
+    // group; only floating-point roundoff is tolerated. verify's geometric
+    // GROUP_BREACH check (graphGeometryWarnings) is never stricter than this.
     for (const memberId of authored.nodeIds) {
       if (authoredGroups.has(memberId)) continue
       const member = positionedNodes.get(memberId)
-      if (member && (member.x < group.x - 0.5 || member.y < group.y - 0.5 || member.x + member.width > group.x + group.width + 0.5 || member.y + member.height > group.y + group.height + 0.5)) {
+      if (member && (member.x < group.x - MEMBER_FRAME_ROUNDOFF || member.y < group.y - MEMBER_FRAME_ROUNDOFF || member.x + member.width > group.x + group.width + MEMBER_FRAME_ROUNDOFF || member.y + member.height > group.y + group.height + MEMBER_FRAME_ROUNDOFF)) {
         const text = `member ${memberId}: outside authored group ${id}`
         failures.push({ text, drawable: { kind: 'groupBreaches', targets: [id, memberId], detail: text } })
       }

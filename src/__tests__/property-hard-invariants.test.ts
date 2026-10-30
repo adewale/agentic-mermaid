@@ -171,6 +171,31 @@ const UNCERTIFIED_EXAMPLES: GroupedCase[] = [
   { source: 'flowchart BT\n  subgraph G0[Group 0]\n    direction LR\n    n5\n  end\n  n3 --o n5\n  n10 --o n5\n  G0 --x|e17| G0\n  n9 --> n8\n', members: [['G0', ['n5']]], look: 'status-dashboard' },
 ]
 
+// Reduced issue-A7 counterexamples that drew misleading geometry and must now
+// certify: a layer snap that overlapped two nodes and left a member 0.23px past
+// its frame (verify reported GROUP_BREACH on a drawing certification accepted);
+// an edge into a subgraph routed through an unrelated card, whose repair must
+// keep its outward source shaft; the same with a group-member target; and a
+// through-card route whose untouched leg grazes another card's bounding box.
+const MISLEADING_EXAMPLES: GroupedCase[] = [
+  {
+    source: 'flowchart LR\n  n1([Node 1])\n  n2{Node 2}\n  n3((Node 3))\n  n8[/Node 8/]\n  n9{Node 9}\n  n10([Node 10])\n  subgraph G0[Group 0]\n    n10\n  end\n  subgraph G1[Group 1]\n    direction LR\n    n5\n  end\n  subgraph G2[Group 2]\n    n8\n  end\n  G2 -.->|e1| G1\n  n8 ==> n9\n  n10 ---|e3| G0\n  n9 -->|e4| n0\n  n1 -.-> n0\n  G0 ==>|e6| n5\n  n10 ==> n1\n  n9 --- n5\n',
+    members: [['G0', ['n10']], ['G1', ['n5']], ['G2', ['n8']]], look: 'status-dashboard', mustCertify: true,
+  },
+  {
+    source: 'flowchart LR\n  n0(Node 0)\n  subgraph G0[Group 0]\n    n6\n  end\n  subgraph G1[Group 1]\n    direction LR\n  end\n  G1 --o|e1| n13\n  n8 -.->|e6| n4\n  n8 --x|e8| n8\n  n13 -->|e12| G0\n  n0 -.->|e13| n9\n  n13 -->|e16| n9\n  n8 --> n9\n  n11 --> n6\n',
+    members: [['G0', ['n6']]], look: 'default', mustCertify: true,
+  },
+  {
+    source: 'flowchart LR\n  subgraph G0[Group 0]\n    n0\n    n1\n  end\n  subgraph G1[Group 1]\n    direction LR\n    n8\n  end\n  n8 ==> n1\n  n9 <--> n1\n  n10 --x n10\n  n0 --o|e6| G1\n  n8 ==>|e7| n10\n',
+    members: [['G0', ['n0', 'n1']], ['G1', ['n8']]], look: 'accessible-high-contrast', mustCertify: true,
+  },
+  {
+    source: 'flowchart LR\n  n0(Node 0)\n  n6((Node 6))\n  n10((Node 10))\n  subgraph G0[Group 0]\n    n0\n    n1\n  end\n  subgraph G1[Group 1]\n    direction LR\n    n8\n    n9\n  end\n  n8 ==> n1\n  n9 <--> n1\n  n10 --x n10\n  n6 --> n1\n  n0 --o|e6| G1\n  n8 ==>|e7| n10\n',
+    members: [['G0', ['n0', 'n1']], ['G1', ['n8', 'n9']]], look: 'accessible-high-contrast', mustCertify: true,
+  },
+]
+
 describe('authored group frames hold their members in every look', () => {
   test('generated subgraph flowcharts render, keep members in frames, and name any uncertified check', () => {
     fc.assert(fc.property(groupedFlowchartArb, ({ source, members, look, mustCertify }) => {
@@ -198,6 +223,11 @@ describe('authored group frames hold their members in every look', () => {
         // Strict layout safety refuses what report safety drew uncertified.
         expect(() => renderMermaidSVGWithReceipt(source, { ...options, layoutSafety: 'strict' })).toThrow(LayoutCertificationError)
       }
+      // No look draws one card over another (the rubric's 0.5px overlap rule).
+      const cards = positioned.nodes
+      const overlapping = cards.flatMap((a, i) => cards.slice(i + 1).filter(b =>
+        Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x) > 0.5 && Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y) > 0.5).map(b => `${a.id}/${b.id}`))
+      expect(overlapping, `${look}\n${source}`).toEqual([])
       const frames = new Map<string, PositionedGroup>()
       const collect = (groups: PositionedGroup[]): void => { for (const group of groups) { frames.set(group.id, group); collect(group.children) } }
       collect(positioned.groups)
@@ -207,11 +237,13 @@ describe('authored group frames hold their members in every look', () => {
         expect(frame, `${id} frame`).toBeDefined()
         for (const member of ids) {
           const node = nodes.get(member)!
-          expect([node.x >= frame!.x - 0.5, node.y >= frame!.y - 0.5,
-            node.x + node.width <= frame!.x + frame!.width + 0.5, node.y + node.height <= frame!.y + frame!.height + 0.5],
+          // The frame stroke sits on its edge, so only roundoff is tolerated;
+          // verify's GROUP_BREACH check uses no wider tolerance on any side.
+          expect([node.x >= frame!.x - 1e-6, node.y >= frame!.y - 1e-6,
+            node.x + node.width <= frame!.x + frame!.width + 1e-6, node.y + node.height <= frame!.y + frame!.height + 1e-6],
           `${member} inside ${id} (${look})\n${source}`).toEqual([true, true, true, true])
         }
       }
-    }), fcParameters({ numRuns: 40, seed: SEED, examples: [...FRAME_BREACH_EXAMPLES, ...UNCERTIFIED_EXAMPLES].map(example => [example]) }))
+    }), fcParameters({ numRuns: 40, seed: SEED, examples: [...FRAME_BREACH_EXAMPLES, ...UNCERTIFIED_EXAMPLES, ...MISLEADING_EXAMPLES].map(example => [example]) }))
   })
 })

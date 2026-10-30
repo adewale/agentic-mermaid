@@ -78,7 +78,14 @@ type Rect = { x: number; y: number; width: number; height: number }
  * symmetric placement that would carry a member across a frame it does not
  * also refit must be declined, or the result cannot certify. */
 export function moveKeepsGroupContainment(before: Rect, after: Rect, groups: PositionedGroup[]): boolean {
-  return flattenPositionedGroups(groups).every(group => !rectInsideGroup(before, group) || rectInsideGroup(after, group))
+  // The frame tolerance identifies which frames held the node; the move
+  // itself may not push it any further past their edges than ELK placed it.
+  return flattenPositionedGroups(groups).every(group => !rectInsideGroup(before, group) || frameExcess(after, group) <= Math.max(frameExcess(before, group), 1e-6))
+}
+
+/** How far a rectangle reaches past a group frame's nearest edge. */
+export function frameExcess(rect: Rect, group: PositionedGroup): number {
+  return Math.max(0, group.x - rect.x, group.y - rect.y, rect.x + rect.width - group.x - group.width, rect.y + rect.height - group.y - group.height)
 }
 
 export function expandGroupsForMainShift(

@@ -5,6 +5,7 @@ import { bundleRouteBeforeRewrite, retainBundleRouteAfterRewrite } from '../bund
 import { calculatePathMidpoint, layoutFlow, nodeCrossSize, nodeCrossStart } from '../geometry.ts'
 import { doglegBetween, hookedElbow, routeClearOfNodes } from './shared.ts'
 import { terminalHookLength, simpleOrthogonal, type LabelMetricsStyle } from '../route-geometry.ts'
+import { isOutwardShapeApproach } from '../../shape-clipping.ts'
 
 /**
  * Post-freeze safety net for STALE edge endpoints. A pass that MOVES a node is
@@ -115,7 +116,7 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
   // nearest parallel lane clear of every node, keeping the polyline's endpoints
   // and orthogonal shape. Only shifts when both neighbours are perpendicular to
   // the segment (so the slide cannot bend a neighbour into a diagonal).
-  const shiftInteriorSegment = (pts: Point[], skip: ReadonlySet<string>): Point[] | null => {
+  const shiftInteriorSegment = (pts: Point[], skip: ReadonlySet<string>, admit: (trial: Point[]) => boolean): Point[] | null => {
     for (let k = 1; k <= pts.length - 3; k++) {
       const a = pts[k]!, b = pts[k + 1]!, before = pts[k - 1]!, after = pts[k + 2]!
       const vertical = Math.abs(a.x - b.x) < 0.5, horizontal = Math.abs(a.y - b.y) < 0.5
@@ -135,7 +136,9 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
       for (const cp of cands) {
         const trial = pts.map(p => ({ ...p }))
         trial[k]![ax] = cp; trial[k + 1]![ax] = cp
-        if (!throughNode(trial, skip) && routeClearOfNodes(trial, nodes, skip, chargeWork) && clearHeaders(trial)) return simplifyPolyline(trial)
+        // Box clearance applies to the three segments the slide moved; the
+        // untouched prefix and suffix keep their exact-shape proof.
+        if (!throughNode(trial, skip) && routeClearOfNodes(trial.slice(k - 1, k + 3), nodes, skip, chargeWork) && clearHeaders(trial) && admit(simplifyPolyline(trial))) return simplifyPolyline(trial)
       }
     }
     return null
@@ -148,7 +151,7 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
   // target and an unrelated node beside it) plus the whole-band edges as a
   // fallback — nearest the ports first. This handles both the forward skip link
   // and the feedback U-route whose return segment cut a node beside the target.
-  const bracketOverBand = (pts: Point[], skip: ReadonlySet<string>): Point[] | null => {
+  const bracketOverBand = (pts: Point[], skip: ReadonlySet<string>, admit: (trial: Point[]) => boolean): Point[] | null => {
     const start = pts[0]!, end = pts[pts.length - 1]!
     const mLo = Math.min(start[f.main], end[f.main]), mHi = Math.max(start[f.main], end[f.main])
     let bandLo = Infinity, bandHi = -Infinity
@@ -172,7 +175,7 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     const lanes = [...new Set(laneSet)].sort((p, q) => Math.abs(p - mean) - Math.abs(q - mean))
     for (const lane of lanes) {
       const route = simplifyPolyline([start, pt(m1, start[f.cross]), pt(m1, lane), pt(m2, lane), pt(m2, end[f.cross]), end])
-      if (!throughNode(route, skip) && routeClearOfNodes(route, nodes, skip, chargeWork) && clearHeaders(route)) return route
+      if (!throughNode(route, skip) && routeClearOfNodes(route, nodes, skip, chargeWork) && clearHeaders(route) && admit(route)) return route
     }
     return null
   }
@@ -180,7 +183,7 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
   // Keep that actual port ray; move the preceding turn around the blocking card.
   chargeWork?.(1)
   const noSkip = new Set<string>()
-  const detourTerminalSegment = (pts: Point[], skip: ReadonlySet<string>): Point[] | null => {
+  const detourTerminalSegment = (pts: Point[], skip: ReadonlySet<string>, admit: (trial: Point[]) => boolean): Point[] | null => {
     if (pts.length < 3) return null
     const end = pts.at(-1)!, a = pts.at(-2)!, before = pts.at(-3)!
     const axis = a.y === end.y && a.x !== end.x ? 'x' : a.x === end.x && a.y !== end.y ? 'y' : undefined
@@ -205,30 +208,56 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
         oldNext.x === port.x && next.x === port.x && Math.sign(oldNext.y - port.y) === Math.sign(next.y - port.y)
         || oldNext.y === port.y && next.y === port.y && Math.sign(oldNext.x - port.x) === Math.sign(next.x - port.x)
       if (!sameRay(pts[0]!, pts[1]!, trial[1]!) || !sameRay(end, a, trial.at(-2)!)) continue
-      if (!throughNode(trial, noSkip) && routeClearOfNodes(trial, nodes, skip, chargeWork) && clearHeaders(trial) && simpleOrthogonal(trial, chargeWork)) return trial
+      if (!throughNode(trial, noSkip) && routeClearOfNodes(trial, nodes, skip, chargeWork) && clearHeaders(trial) && simpleOrthogonal(trial, chargeWork) && admit(trial)) return trial
     }
     return null
   }
+  // An edge to or from a subgraph ends on its frame. The frame stands in as a
+  // rectangle endpoint, so a group edge through a card is repaired like any
+  // other; the frame's own members sit behind that endpoint.
+  const frames = new Map<string, PositionedNode>()
+  const collectFrames = (items: readonly PositionedGroup[]): void => {
+    for (const group of items) {
+      frames.set(group.id, { id: group.id, label: '', shape: 'rectangle', x: group.x, y: group.y, width: group.width, height: group.height })
+      collectFrames(group.children)
+    }
+  }
+  collectFrames(groups)
   for (const edge of edges) {
     chargeWork?.(1)
     if (edge.source === edge.target || edge.points.length < 2) continue
-    const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
+    const source = nodeMap.get(edge.source) ?? frames.get(edge.source), target = nodeMap.get(edge.target) ?? frames.get(edge.target)
     if (!source || !target) continue
     const skip = new Set([edge.source, edge.target])
     if (!throughNode(edge.points, skip)) continue // no-op gate: only fires on edgeThroughNode
     // Off-outline endpoints are reanchorOffOutlineEndpoints' job; this pass only
     // relocates the interior of an otherwise port-exact route.
     if (!onShapeOutline(source, edge.points[0]!) || !onShapeOutline(target, edge.points[edge.points.length - 1]!)) continue
-    let route = shiftInteriorSegment(edge.points, skip) ?? bracketOverBand(edge.points, skip)
-      ?? detourTerminalSegment(edge.points, skip)
+    // A detour keeps each endpoint's outward approach: sliding a lane past
+    // the port would turn the terminal shaft back into its own card.
+    const firstMove = (pts: readonly Point[], start: boolean): Point | undefined => {
+      const index = start ? 0 : pts.length - 1, step = start ? 1 : -1
+      for (let next = index + step; next >= 0 && next < pts.length; next += step) {
+        if (pts[next]!.x !== pts[index]!.x || pts[next]!.y !== pts[index]!.y) return pts[next]
+      }
+      return undefined
+    }
+    const outward = (pts: readonly Point[], start: boolean): boolean | undefined => {
+      const adjacent = firstMove(pts, start)
+      return adjacent && isOutwardShapeApproach(start ? source : target, pts[start ? 0 : pts.length - 1]!, adjacent)
+    }
+    const wasOutward = [outward(edge.points, true), outward(edge.points, false)]
+    const keepsApproach = (trial: Point[]): boolean => [true, false].every((start, end) => wasOutward[end] !== true || outward(trial, start) === true)
+    let route = shiftInteriorSegment(edge.points, skip, keepsApproach) ?? bracketOverBand(edge.points, skip, keepsApproach)
+      ?? detourTerminalSegment(edge.points, skip, keepsApproach)
     if (!route) {
       chargeWork?.(edge.points.length) // reverse-domain reference initialization
-      route = detourTerminalSegment(edge.points.toReversed(), skip)?.reverse() ?? null
+      route = detourTerminalSegment(edge.points.toReversed(), skip, trial => keepsApproach(trial.toReversed()))?.reverse() ?? null
     }
     if (!route) continue // never-worse: no clean detour found, leave as-is
     const savedCert = edge.routeCertificate
     edge.points = route
-    recertifyReroutedEdge(edge, savedCert, source, target)
+    recertifyReroutedEdge(edge, savedCert, nodeMap.get(edge.source), nodeMap.get(edge.target))
     if (edge.label) edge.labelPosition = calculatePathMidpoint(route)
   }
 }
