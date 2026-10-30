@@ -107,8 +107,10 @@ route-contract extraction preserves the existing pipeline manifest and order.
   SDK layer, and verify shipped declarations/runtime behavior in Node, Bun,
   browsers and Workers before changing the recommendation.
 - [ ] **AGENT-3 — Make resolved scenes discoverable and failures actionable**
-  (`todo`, owner requested 2026-10-27; deferred to 0.6.0 by the owner on
-  2026-10-29). Expose resolved-scene
+  (`todo`, owner requested 2026-10-27; brought forward on 2026-10-30 after
+  the earlier 0.6 deferral). Candidate source adds resolved-scene discovery,
+  Code Mode access and typed artwork failures; land and qualify the candidate
+  before calling this delivered. Expose resolved-scene
   support through existing agent discovery and the Code Mode SDK, with explicit
   result-size/runtime limits. Give unsupported-artwork failures stable typed
   fields such as `code`, `partId` and `feature`, preserving readable messages
