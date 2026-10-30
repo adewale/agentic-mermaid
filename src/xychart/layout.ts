@@ -1,3 +1,4 @@
+import { linearFraction } from '../shared/linear-range.ts'
 import { layoutTooltip } from '../shared/tooltip-layout.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import type {
@@ -253,13 +254,13 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig, measure: 
   // stay on the plot; lines on the same axis share the inset.
   const xInset = chart.xAxis.range && chart.series.some(series => series.type === 'bar') ? plotArea.width / Math.max(1, dataCount) / 2 : 0
   const xScaleValue = chart.xAxis.range
-    ? (value: number) => plotArea.x + xInset + ((value - chart.xAxis.range!.min) / (chart.xAxis.range!.max - chart.xAxis.range!.min || 1)) * (plotArea.width - 2 * xInset)
+    ? (value: number) => plotArea.x + xInset + linearFraction(value, chart.xAxis.range!.min, chart.xAxis.range!.max) * (plotArea.width - 2 * xInset)
     : undefined
   const xPoint = (index: number) => xScaleValue ? xScaleValue(dataXValues[index]!) : plotArea.x + (index + 0.5) * (plotArea.width / dataCount)
   const xPointSpacing = xScaleValue
     ? getPointSpacing(dataXValues, xScaleValue, plotArea.width / Math.max(2, dataCount))
     : plotArea.width / Math.max(1, dataCount)
-  const yScale = (value: number) => plotArea.y + plotArea.height - ((value - yRange.min) / (yRange.max - yRange.min || 1)) * plotArea.height
+  const yScale = (value: number) => plotArea.y + plotArea.height - linearFraction(value, yRange.min, yRange.max) * plotArea.height
 
   const xTicks = !xAxisConfig.config.showLabel
     ? []
@@ -378,7 +379,7 @@ function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig, measure
     height: plotHeight,
   }
 
-  const valueScale = (value: number) => plotArea.x + ((value - yRange.min) / (yRange.max - yRange.min || 1)) * plotArea.width
+  const valueScale = (value: number) => plotArea.x + linearFraction(value, yRange.min, yRange.max) * plotArea.width
   const categoryPoint = (index: number) => plotArea.y + (index + 0.5) * (plotArea.height / dataCount)
   const categorySpacing = plotArea.height / Math.max(1, dataCount)
 

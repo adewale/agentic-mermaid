@@ -1,3 +1,6 @@
+export { ResolvedSceneError, type ResolvedSceneFeature } from '../scene/resolved-error.ts'
+export { renderResolvedScene } from '../resolved-scene.ts'
+export { RESOLVED_SCENE_VERSION, type ResolvedScene } from '../scene/resolved-types.ts'
 export { PaintLayoutCertificationError, type PaintLayoutCertification } from '../scene/paint-certification.ts'
 import { renderedPaintCertification, retainRenderedPaintCertification } from '../scene/paint-certification.ts'
 // ============================================================================

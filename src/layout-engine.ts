@@ -1983,6 +1983,22 @@ function collectAllSubgraphIds(sg: MermaidSubgraph, out: Set<string>): void {
 // Public API
 // ============================================================================
 
+/** Authored break hints can prepare to no display text. Preserve the caller's
+ * graph while omitting such captions before either producer reserves ranks,
+ * anchors and painted pills for them. Empty metrics alone are not evidence:
+ * a custom font may legitimately measure visible text at zero advance. */
+function graphWithDisplayCaptions(graph: MermaidGraph, style: ResolvedRenderStyle): MermaidGraph {
+  let display = graph
+  for (const [index, edge] of graph.edges.entries()) {
+    if (!edge.label || !/[\u00ad\u200b]/.test(edge.label)) continue
+    const block = graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge')
+    if (block.lineBlocks.some(line => line.runs.some(run => run.text.length > 0))) continue
+    if (display === graph) display = { ...graph, edges: [...graph.edges] }
+    display.edges[index] = { ...edge, label: '' }
+  }
+  return display
+}
+
 /**
  * Lay out a parsed MermaidGraph using ELK.js (synchronous).
  * Returns a fully positioned graph ready for rendering.
@@ -1992,8 +2008,8 @@ export function layoutGraphSync(
   options: LayoutEngineOptions = {}
 ): PositionedGraph {
   assertMermaidGraphWork(graph)
-  const positioned = layoutUntitledGraph(graph, options)
   const style = resolveRenderStyle(options, (options as StateRenderOptions).stateVisual?.styleDefaults, options.styleFace)
+  const positioned = layoutUntitledGraph(graphWithDisplayCaptions(graph, style), options)
   retainGraphText(positioned, style)
   const band = diagramTitleBand(options.diagramTitle, resolveRenderStyle(options, (options as StateRenderOptions).stateVisual?.styleDefaults, options.styleFace))
   if (!band) return positioned

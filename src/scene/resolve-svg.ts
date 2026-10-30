@@ -1,3 +1,4 @@
+import { ResolvedSceneError, type ResolvedSceneFeature } from './resolved-error.ts'
 import { tryParseCssColor, toHex } from '../shared/color-math.ts'
 import { computedStyle, cssLength, cssRules, splitCss, svgTree, type SvgElement } from './resolved-css.ts'
 import { IDENTITY, multiply, pathData, pathEndpoints, svgMatrix } from './resolved-geometry.ts'
@@ -20,8 +21,9 @@ export function resolveSvgScene(svg: string, scene: SceneDoc, owners: readonly n
   })
   const frame: ResolvedPrimitive[] = []
   let activeOwner = -1
-  const fail = (feature: string): never => {
-    throw new Error(`Resolved Scene part "${partByIndex.get(activeOwner)?.id ?? 'frame'}": ${feature}`)
+  const fail = (feature: ResolvedSceneFeature, detail: string): never => {
+    const partId = partByIndex.get(activeOwner)?.id ?? 'frame'
+    throw new ResolvedSceneError('RESOLVED_SCENE_UNSUPPORTED_ARTWORK', partId, feature, `Resolved Scene part "${partId}": ${detail}`)
   }
   const collectIds = (node: SvgElement): void => {
     if (node.attrs.id) ids.set(node.attrs.id, node)
@@ -35,16 +37,16 @@ export function resolveSvgScene(svg: string, scene: SceneDoc, owners: readonly n
       const style = computedStyle(node, node.parent ? styleOf(node.parent) : undefined, rules)
       styles.set(node, style)
       return style
-    } catch (error) { return fail((error as Error).message) }
+    } catch (error) { return fail('css', (error as Error).message) }
   }
   const color = (value: string, style: Record<string, string>): [string, number] => {
     if (value === 'none') return ['none', 1]
-    if (/url\s*\(/i.test(value)) return fail(`paint server ${value}`)
+    if (/url\s*\(/i.test(value)) return fail('paint-server', `paint server ${value}`)
     if (value.toLowerCase() === 'currentcolor') value = style.color!
     const mix = value.match(/^color-mix\(in srgb,\s*(.+)\)$/i)
     if (mix) {
       const components = splitCss(mix[1]!, ',')
-      if (components.length !== 2) return fail(`Unsupported color ${value}`)
+      if (components.length !== 2) return fail('css', `Unsupported color ${value}`)
       const parse = (component: string): [string, number | undefined] => {
         const m = component.match(/^(.*?)\s+([\d.]+)%$/)
         return m ? [m[1]!, Number(m[2]) / 100] : [component, undefined]
@@ -53,15 +55,15 @@ export function resolveSvgScene(svg: string, scene: SceneDoc, owners: readonly n
       const w1 = aw ?? (bw === undefined ? 0.5 : 1 - bw), w2 = bw ?? 1 - w1
       const [ca, aa] = color(a, style), [cb, ab] = color(b, style)
       const A = tryParseCssColor(ca), B = tryParseCssColor(cb)
-      if (!A || !B) return fail(`Unsupported color ${value}`)
+      if (!A || !B) return fail('css', `Unsupported color ${value}`)
       const sum = w1 + w2
-      if (!(sum > 0) || !Number.isFinite(sum)) return fail(`Unsupported color ${value}`)
+      if (!(sum > 0) || !Number.isFinite(sum)) return fail('css', `Unsupported color ${value}`)
       const alpha = (aa * w1 + ab * w2) / sum
       const channel = (i: number) => alpha ? (A[i]! * aa * w1 + B[i]! * ab * w2) / (sum * alpha) : 0
       return [toHex(channel(0), channel(1), channel(2)).toLowerCase(), alpha * Math.min(1, sum)]
     }
     const rgba = tryParseCssColor(value)
-    if (!rgba) return fail(`Unsupported color ${value}`)
+    if (!rgba) return fail('css', `Unsupported color ${value}`)
     return [toHex(rgba[0], rgba[1], rgba[2]).toLowerCase(), rgba[3]]
   }
   const length = (value: string, style: Record<string, string>): number => cssLength(value, Number(style['font-size']))
@@ -89,18 +91,18 @@ export function resolveSvgScene(svg: string, scene: SceneDoc, owners: readonly n
     activeOwner = owner
     const style = styleOf(node)
     if (style.display === 'none') return
-    for (const prop of ['filter', 'clip-path', 'mask', 'marker-mid']) if (style[prop] !== 'none') fail(`${prop}: ${style[prop]}`)
+    for (const prop of ['filter', 'clip-path', 'mask', 'marker-mid']) if (style[prop] !== 'none') fail(prop as ResolvedSceneFeature, `${prop}: ${style[prop]}`)
     const opacity = inheritedOpacity * Number(style.opacity)
     const matrix = multiply(parentMatrix, svgMatrix(node.attrs.transform))
     if (tag === 'g' || tag === 'a' || tag === 'svg') {
-      if (tag === 'svg' && node !== root) fail('nested svg viewport')
+      if (tag === 'svg' && node !== root) fail('nested-svg', 'nested svg viewport')
       node.children.forEach(child => visit(child, matrix, opacity, givenOwner, marker))
       return
     }
     if (tag === 'text' && node.children.length) {
       for (const child of node.children) {
         const checkText = (run: SvgElement): void => {
-          if (run.tag !== 'tspan') fail(`Unsupported text element <${run.tag}>`)
+          if (run.tag !== 'tspan') fail('text-element', `Unsupported text element <${run.tag}>`)
           run.children.forEach(checkText)
         }
         checkText(child)
@@ -130,15 +132,15 @@ export function resolveSvgScene(svg: string, scene: SceneDoc, owners: readonly n
       return
     }
     let d: string
-    try { d = pathData(node, Number(style['font-size'])) } catch (error) { return fail((error as Error).message) }
+    try { d = pathData(node, Number(style['font-size'])) } catch (error) { return fail('geometry', (error as Error).message) }
     push(owner, { kind: 'path', d, matrix, paint, ...(marker ? { marker: true as const } : {}) })
     for (const [prop, at] of [['marker-start', 0], ['marker-end', 1]] as const) {
       const ref = style[prop]!
       if (ref === 'none') continue
       const id = ref.match(/#([^)"']+)/)?.[1]
-      const resource = (id ? ids.get(id) : undefined) ?? fail(`Unresolved marker ${ref}`)
-      if (resource.tag !== 'marker') fail(`Unresolved marker ${ref}`)
-      if (markerStack.has(resource)) fail(`Cyclic marker ${ref}`)
+      const resource = (id ? ids.get(id) : undefined) ?? fail('marker', `Unresolved marker ${ref}`)
+      if (resource.tag !== 'marker') fail('marker', `Unresolved marker ${ref}`)
+      if (markerStack.has(resource)) fail('marker', `Cyclic marker ${ref}`)
       markerStack.add(resource)
       const endpoint = pathEndpoints(d)[at]
       const orient = resource.attrs.orient ?? '0'
@@ -158,8 +160,8 @@ export function resolveSvgScene(svg: string, scene: SceneDoc, owners: readonly n
     }
   }
   try { visit(root, [...IDENTITY], 1) } catch (error) {
-    if ((error as Error).message.startsWith('Resolved Scene part')) throw error
-    fail((error as Error).message)
+    if (error instanceof ResolvedSceneError) throw error
+    fail('geometry', (error as Error).message)
   }
   // Detach the public data from retained admission state and omit undefined
   // fields so the complete result survives a JSON round trip unchanged.

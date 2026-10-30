@@ -17,6 +17,20 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Keep directory-submission records in repository-only project documentation
   rather than shipping operational status snapshots in the npm package.
 
+### Fixed
+
+- Preserve distinct XY axis ticks for tiny and large finite ranges, and avoid
+  overflow when projecting a range that crosses both numeric extremes.
+- Treat soft hyphens and zero-width spaces as discretionary line-break hints
+  in pixel and terminal text, preserving authored source positions and styles.
+
+### Added
+
+- Expose resolved scenes through Code Mode and agent capability discovery, with
+  on-demand painted primitive declarations and typed unsupported-artwork errors.
+- Add `am verify --markdown` to check Mermaid fences with physical document
+  lines while keeping ordinary verification and Markdown rendering behavior.
+
 ## 0.5.4 — 2026-10-30
 
 ### Fixed

@@ -177,3 +177,18 @@ describe('Code Mode structured render errors', () => {
     expect((width.value as { requiredWidth: number }).requiredWidth).toBeGreaterThan(1)
   })
 })
+
+
+test('Code Mode exposes resolved parts and preserves safe typed artwork errors', async () => {
+  const result = await executeInSandbox(`
+    const scene = mermaid.renderResolvedScene('flowchart LR\\nA-->B');
+    try { mermaid.renderResolvedScene('flowchart LR\\nA-->B', {shadow:true}) }
+    catch (error) {
+      let escaped = false
+      try { escaped = !!error.constructor.constructor('return process')() } catch (_) {}
+      return { version: scene.version, parts: scene.parts.length, code: error.code, partId: error.partId, feature: error.feature, escaped, previousArtifactUnchanged: scene.svg === mermaid.renderMermaidSVG('flowchart LR\\nA-->B') }
+    }
+  `)
+  expect(result).toMatchObject({ ok: true, value: { version: 2, code: 'RESOLVED_SCENE_UNSUPPORTED_ARTWORK', partId: 'node:A', feature: 'filter', escaped: false, previousArtifactUnchanged: true } })
+  expect((result.value as { parts: number }).parts).toBeGreaterThan(2)
+})

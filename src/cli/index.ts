@@ -1,3 +1,5 @@
+import { mermaidMarkdownBlocks } from './markdown.ts'
+import { RESOLVED_SCENE_CAPABILITY } from '../scene/resolved-types.ts'
 import { flagEnabled, flagValue, PNG_RENDER_FLAGS, type ParsedArgs, type ValueFlagName } from './args.ts'
 import { PNG_DEFAULT_SCALE } from '../output-policy-versions.ts'
 import { GLOBAL_USAGE } from './help.ts'
@@ -603,11 +605,14 @@ function cmdVerify(args: ParsedArgs): number {
       return EXIT_ARG_ERROR
     }
   }
-  const r = verifyMermaid(source, {
-    suppress,
-    labelCharCap,
-    ...(style ? { renderOptions: { style } } : {}),
-  })
+  const options = { suppress, labelCharCap, ...(style ? { renderOptions: { style } } : {}) }
+  if (flagEnabled(args, 'markdown')) {
+    const blocks = verifyMarkdownBlocks(source, options)
+    const ok = blocks.every(block => block.ok)
+    process.stdout.write(JSON.stringify({ ok, file: args.positional[0] ?? '<stdin>', blocks }, replacer) + '\n')
+    return ok ? EXIT_OK : verifyFailureExit(blocks.flatMap(block => block.warnings))
+  }
+  const r = verifyMermaid(source, options)
   process.stdout.write(JSON.stringify(r, replacer) + '\n')
   return r.ok ? EXIT_OK : verifyFailureExit(r.warnings)
 }
@@ -916,6 +921,7 @@ interface WarningCodeCapability {
 }
 
 interface CapabilitiesEnvelope {
+  resolvedScene: typeof RESOLVED_SCENE_CAPABILITY
   sdkVersion: string
   families: FamilyCapability[]
   warningCodes: WarningCodeCapability[]
@@ -992,6 +998,7 @@ export function buildCapabilities(): CapabilitiesEnvelope {
   }))
   return {
     sdkVersion,
+    resolvedScene: RESOLVED_SCENE_CAPABILITY,
     families,
     warningCodes,
     outputFormats: [...CLI_RENDER_FORMATS],
@@ -1230,9 +1237,7 @@ export interface MarkdownBlockResult {
  * "skip invalid diagrams instead of failing the whole conversion").
  */
 export function renderMarkdownBlocks(md: string, format: 'svg' | 'ascii' = 'svg'): MarkdownBlockResult[] {
-  const FENCE = /```mermaid[ \t]*\r?\n([\s\S]*?)\r?\n```/g
-  const blocks: string[] = []
-  for (const m of md.matchAll(FENCE)) blocks.push(m[1]!)
+  const blocks = mermaidMarkdownBlocks(md).map(block => block.source)
   return collectBatched(
     blocks,
     (src, i): MarkdownBlockResult => {
@@ -1253,6 +1258,19 @@ export function renderMarkdownBlocks(md: string, format: 'svg' | 'ascii' = 'svg'
     },
     'MARKDOWN_BLOCK_ERROR',
   ).map((r, i) => (r.ok ? r.value : { index: i, ok: false, error: r.error }))
+}
+
+/** Verify each block with the existing source/renderability contract. A line
+ * without a precise source diagnostic is explicitly marked as the block start. */
+export function verifyMarkdownBlocks(markdown: string, options?: Parameters<typeof verifyMermaid>[1]) {
+  return mermaidMarkdownBlocks(markdown).map((block, index) => {
+    const verified = verifyMermaid(block.source, options)
+    const warnings = verified.warnings.map(warning => {
+      const line = 'line' in warning && typeof warning.line === 'number' && Number.isSafeInteger(warning.line) && warning.line > 0 ? warning.line : undefined
+      return { ...warning, line: block.startLine + (line ?? 1) - 1, ...(line === undefined ? { lineIsBlockStart: true } : {}) }
+    })
+    return { index, startLine: block.startLine, ok: verified.ok, warnings }
+  })
 }
 
 function cmdRenderMarkdown(args: ParsedArgs): number {

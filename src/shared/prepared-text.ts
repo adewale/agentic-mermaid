@@ -1,3 +1,4 @@
+import { discretionaryBreakKind, stripDiscretionaryBreaks } from './discretionary-breaks.ts'
 import { asciiAdvanceSpans } from '../experimental/ascii-advances.ts'
 import { performanceExperimentEnabled } from '../experimental-performance.ts'
 import { WeightedLru } from '../experimental/weighted-lru.ts'
@@ -82,10 +83,14 @@ function sameStyle(a: DisplayRun, b: DisplayRun): boolean {
 function coalesce(runs: readonly DisplayRun[]): DisplayRun[] {
   const result: DisplayRun[] = []
   let prior: { -readonly [Key in keyof DisplayRun]: DisplayRun[Key] } | undefined
-  for (const run of runs.flatMap(run => (run as WrapGlyph).fragments ?? run)) {
+  for (const input of runs.flatMap(run => (run as WrapGlyph).fragments ?? run)) {
+    const text = stripDiscretionaryBreaks(input.text)
+    if (!text) continue
+    const run = text === input.text ? input : { ...input, text, ...(input.clusters ? { clusters: input.clusters.filter(cluster => !discretionaryBreakKind(cluster.text)) } : {}) }
     if (prior && sameStyle(prior, run)) {
       // Only the newly copied accumulator is mutable; input runs stay retained.
       prior.text += run.text
+      prior.clusters = prior.clusters && run.clusters ? [...prior.clusters, ...run.clusters] : undefined
       prior.sourceEnd = run.sourceEnd
     } else {
       prior = { ...run }
@@ -98,7 +103,7 @@ function coalesce(runs: readonly DisplayRun[]): DisplayRun[] {
 function advance(runs: readonly DisplayRun[], options: PixelTextOptions): number {
   if (runs.length === 0) return 0
   const measure = options.safeFont ? measureSystemFontSafeTextWidth : measureTextWidth
-  const grouped = runs.length === 1 && !(runs[0] as WrapGlyph).fragments ? runs : coalesce(runs)
+  const grouped = runs.length === 1 && !(runs[0] as WrapGlyph).fragments && stripDiscretionaryBreaks(runs[0]!.text) === runs[0]!.text ? runs : coalesce(runs)
   const text = grouped.length === 1 ? grouped[0]!.text : grouped.map(run => run.text).join('')
   if ((options.letterSpacing ?? 0) !== 0 && !/[^\x20-\x7e]/u.test(text)) return trackedBounds(grouped, options).width
   const width = options.monospace
@@ -230,7 +235,7 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
     if (lineIndex > 0) breaks.push({ kind: 'authored', sourceOffset: prepared.lineStarts[lineIndex]! - 1 })
     if (original.length === 0) { broken.push([]); continue }
     if (!maxWidth || !Number.isFinite(maxWidth) || maxWidth <= 0 || advance(original, options) <= maxWidth) {
-      broken.push([...original]); continue
+      broken.push(original.some(run => stripDiscretionaryBreaks(run.text) !== run.text) ? coalesce(original) : [...original]); continue
     }
     const clusters = glyphs(original)
     const textSpans = performanceExperimentEnabled('text-spans')
@@ -244,16 +249,25 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
     } : undefined
     let start = 0
     while (start < clusters.length) {
+      while (start < clusters.length && discretionaryBreakKind(clusters[start]!.text)) start++
+      if (start === clusters.length) break
       let end = start
       let whitespace = -1
+      let hint = -1
+      const rememberHint = (at: number): void => {
+        const kind = discretionaryBreakKind(clusters[at]!.text)
+        if (kind && at > start && advance([...clusters.slice(start, at), ...(kind === 'hyphen' ? [hyphenRun(clusters[at]!)] : [])], options) <= maxWidth) hint = at + 1
+      }
       if (fits) {
         while (end < clusters.length && fits(start, end + 1)) {
           if (/\s/u.test(clusters[end]!.text)) whitespace = end + 1
+          rememberHint(end)
           end++
         }
       } else {
         while (end < clusters.length && advance(clusters.slice(start, end + 1), options) <= maxWidth) {
           if (/\s/u.test(clusters[end]!.text)) whitespace = end + 1
+          rememberHint(end)
           end++
         }
       }
@@ -265,7 +279,12 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
       let hyphen = false
       let paintEnd: number | undefined
       let replacedText: string | undefined
-      if (whitespace > start) {
+      if (hint > start && hint >= whitespace) {
+        end = hint
+        paintEnd = end - 1
+        replacedText = clusters[end - 1]!.text
+        hyphen = discretionaryBreakKind(replacedText) === 'hyphen'
+      } else if (whitespace > start) {
         if (clusters.slice(start, whitespace).some(cluster => !/\s/u.test(cluster.text))) while (whitespace < clusters.length && /\s/u.test(clusters[whitespace]!.text)) whitespace++
         end = whitespace
         paintEnd = end
@@ -283,7 +302,10 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
       }
       const line = coalesce(clusters.slice(start, paintEnd ?? end))
       const sourceOffset = spans?.offsets[end] ?? clusters[end]?.sourceStart ?? prepared.source.length
-      if (hyphen) line.push({ ...hyphenRun(clusters[end - 1]!), sourceStart: sourceOffset, sourceEnd: sourceOffset })
+      if (hyphen) {
+        const authored = end === hint ? clusters[end - 1] : undefined
+        line.push({ ...hyphenRun(clusters[end - 1]!), sourceStart: authored?.sourceStart ?? sourceOffset, sourceEnd: authored?.sourceEnd ?? sourceOffset })
+      }
       broken.push(line)
       if (end < clusters.length) breaks.push({ kind: hyphen ? 'hyphen' : 'wrap', sourceOffset, ...(replacedText ? { replacedText } : {}) })
       start = end

@@ -10,7 +10,11 @@ export function getDataXValues(chart: Pick<XYChart, 'xAxis' | 'series'>, count =
   if (chart.xAxis.range) {
     const { min, max } = chart.xAxis.range
     const step = count > 1 ? (max - min) / (count - 1) : 0
-    return Array.from({ length: count }, (_, index) => min + step * index)
+    return Array.from({ length: count }, (_, index) => {
+      if (index === 0) return min
+      if (index === count - 1) return max
+      return Number.isFinite(step) ? min + step * index : min * (1 - index / (count - 1)) + max * (index / (count - 1))
+    })
   }
   return Array.from({ length: count }, (_, index) => index)
 }
@@ -52,12 +56,25 @@ export function formatBarValue(value: number): string {
 }
 
 export function linearTicks(min: number, max: number, count = 10): number[] {
-  if (!(count > 0)) return []
+  if (!(count > 0) || !Number.isFinite(count)) return []
   if (min === max) return [min]
 
   const reverse = max < min
   const start = reverse ? max : min
   const stop = reverse ? min : max
+  const step = (stop - start) / count
+  // Normalize only when subtraction or the reciprocal tick increment cannot
+  // be represented. Ordinary domains keep their existing arithmetic.
+  if (!Number.isFinite(step) || step === 0 || !Number.isFinite(Math.pow(10, -Math.floor(Math.log10(step))))) {
+    const magnitude = Math.max(Math.abs(start), Math.abs(stop))
+    const scaledStart = start / magnitude, scaledStop = stop / magnitude
+    if (scaledStart === start && scaledStop === stop) return []
+    const ticks = linearTicks(scaledStart, scaledStop, count)
+      .map(value => value * magnitude)
+      .filter(value => Number.isFinite(value) && value >= start && value <= stop)
+    const distinct = [...new Set(ticks)]
+    return reverse ? distinct.reverse() : distinct
+  }
   const [indexStart, indexStop, increment] = tickSpec(start, stop, count)
   if (!(indexStop >= indexStart)) return []
 
@@ -75,15 +92,13 @@ export function linearTicks(min: number, max: number, count = 10): number[] {
     for (let i = 0; i < tickCount; i++) ticks[i] = (indexStart + i) * increment
   }
 
-  return ticks.map(roundTick)
+  return [...new Set(ticks.map(value => Math.max(start, Math.min(stop, value))))]
 }
 
 export function formatTickValue(value: number): string {
-  if (!Number.isFinite(value)) return String(value)
-  if (Number.isInteger(value)) return String(value)
-
-  // Preserve distinct fractional ticks, including domains below one hundredth.
-  return Number(value.toPrecision(12)).toString()
+  // The shortest round-trip spelling preserves ticks even when their spacing
+  // is smaller than a fixed decimal or significant-digit budget.
+  return String(value)
 }
 
 function tickSpec(start: number, stop: number, count: number): [number, number, number] {
@@ -116,9 +131,5 @@ function tickSpec(start: number, stop: number, count: number): [number, number, 
   }
 
   return [indexStart, indexStop, increment]
-}
-
-function roundTick(value: number): number {
-  return Math.round(value * 1e12) / 1e12
 }
 
