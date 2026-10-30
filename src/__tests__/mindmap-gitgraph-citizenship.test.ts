@@ -4,7 +4,7 @@ import { describeMermaidFacts } from '../agent/facts.ts'
 import { asGitGraph, asMindmap, layoutMermaid, mutate, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { visualWidth } from '../ascii/width.ts'
 import { assessRenderedLayout, familyHardViolations } from '../family-rubric.ts'
-import { layoutGitGraph } from '../gitgraph/layout.ts'
+import { gitGraphRouteViolations, layoutGitGraph } from '../gitgraph/layout.ts'
 import { GitGraphParseError, parseGitGraph, parseMindmap, renderMermaidASCII, renderMermaidSVG, serializeGitGraph, serializeMindmap, verifyNoExternalRefs } from '../index.ts'
 import { layoutMindmap } from '../mindmap/layout.ts'
 import { lowerMindmapScene } from '../mindmap/renderer.ts'
@@ -695,6 +695,159 @@ describe('GitGraph full-family citizenship', () => {
     expect(configuredAgent.ok && asGitGraph(configuredAgent.value)?.body.mainBranchName).toBe('trunk')
     const verified = verifyMermaid('---\nconfig:\n  gitGraph:\n    mysteryLane: 3\n---\ngitGraph\n  commit')
     expect(verified.warnings).toContainEqual(expect.objectContaining({ code: 'INEFFECTIVE_CONFIG', field: 'gitGraph.mysteryLane' }))
+  })
+
+  // A connector travelling along a lane past another commit reads as passing
+  // through it (a merge drawn through `hotfix` claims the wrong history), and
+  // two connectors drawn on one line cannot be told apart. Generated
+  // histories, in every direction, with and without parallel commits: every
+  // connector joins its own two commits, passes no other commit, and shares
+  // collinear ink with another connector only as a trunk leaving or entering
+  // a commit both join; the layout certificate agrees.
+  describe('connector routes', () => {
+    type Point = { x: number; y: number }
+    const distance = (p: Point, a: Point, b: Point) => {
+      const dx = b.x - a.x, dy = b.y - a.y, length2 = dx * dx + dy * dy
+      const t = length2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / length2))
+      return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy)
+    }
+    /** Collinear overlap (longer than a pixel) of two axis-aligned segments. */
+    const overlap = (a1: Point, a2: Point, b1: Point, b2: Point): [Point, Point] | undefined => {
+      for (const [u, v] of [['x', 'y'], ['y', 'x']] as const) {
+        // Segments running along u at the same v.
+        if (a1[v] !== a2[v] || b1[v] !== b2[v] || a1[v] !== b1[v] || a1[u] === a2[u] || b1[u] === b2[u]) continue
+        const low = Math.max(Math.min(a1[u], a2[u]), Math.min(b1[u], b2[u])), high = Math.min(Math.max(a1[u], a2[u]), Math.max(b1[u], b2[u]))
+        if (high - low > 1) return [{ ...a1, [u]: low }, { ...a1, [u]: high }]
+      }
+      return undefined
+    }
+
+    function routeFailures(positioned: PositionedGitGraphDiagram): string[] {
+      const failures: string[] = []
+      const commitById = new Map(positioned.commits.map(commit => [commit.id, commit]))
+      for (const edge of positioned.edges) {
+        const name = `${edge.from}->${edge.to}`
+        const from = commitById.get(edge.from)!, to = commitById.get(edge.to)!
+        if (edge.points[0]!.x !== from.x || edge.points[0]!.y !== from.y || edge.points.at(-1)!.x !== to.x || edge.points.at(-1)!.y !== to.y) failures.push(`${name} does not join its commits`)
+        for (const [a, b] of segments(edge.points)) {
+          if (a.x !== b.x && a.y !== b.y) failures.push(`${name} has a diagonal segment`)
+          // Commit marks reach 10px from their centre.
+          for (const commit of positioned.commits) if (commit.id !== edge.from && commit.id !== edge.to && distance(commit, a, b) <= 10) failures.push(`${name} passes ${commit.id}`)
+        }
+      }
+      positioned.edges.forEach((edge, i) => {
+        for (const other of positioned.edges.slice(i + 1)) {
+          const trunks = [edge.from, edge.to].filter(id => id === other.from || id === other.to).map(id => trunk(edge, other, id))
+          for (const [a1, a2] of segments(edge.points))
+            for (const [b1, b2] of segments(other.points)) {
+              const run = overlap(a1, a2, b1, b2)
+              if (run && !trunks.some(path => run.every(end => segments(path).some(([p, q]) => distance(end, p, q) < 0.5)))) failures.push(`${edge.from}->${edge.to} runs along ${other.from}->${other.to}`)
+            }
+        }
+      })
+      return failures
+    }
+
+    /** Ink two connectors share from a commit both join: the same path from
+     *  it until they part, so a fork or a join is one trunk, not two lines. */
+    function trunk(a: PositionedGitGraphDiagram['edges'][number], b: PositionedGitGraphDiagram['edges'][number], commit: string): Point[] {
+      const walk = (edge: typeof a) => {
+        const points = edge.from === commit ? edge.points : [...edge.points].reverse()
+        // One point per pixel of path length, so a shared prefix compares
+        // pixel by pixel whatever the vertices.
+        const out: Point[] = []
+        let carried = 0
+        for (const [p, q] of segments(points)) {
+          const length = Math.hypot(q.x - p.x, q.y - p.y)
+          for (let s = carried; s < length; s++) out.push({ x: p.x + ((q.x - p.x) * s) / length, y: p.y + ((q.y - p.y) * s) / length })
+          carried = length === 0 ? carried : (Math.ceil(length - carried) + carried) - length
+        }
+        out.push(points.at(-1)!)
+        return out
+      }
+      const p = walk(a), q = walk(b)
+      let n = 1
+      while (n < p.length && n < q.length && Math.abs(p[n]!.x - q[n]!.x) < 0.5 && Math.abs(p[n]!.y - q[n]!.y) < 0.5) n++
+      return p.slice(0, Math.max(2, n))
+    }
+    const segments = (points: readonly Point[]) => points.slice(1).map((point, i) => [points[i]!, point] as const)
+
+    const OPS = ['commit', 'branch', 'checkout', 'merge', 'cherry-pick'] as const
+    /** Replay generated operations, keeping only statements the parser accepts. */
+    function history(ops: ReadonlyArray<{ op: (typeof OPS)[number]; pick: number }>): string[] {
+      const lines = ['commit id: "k0"']
+      const branches = ['main']
+      let commits = 1
+      for (const { op, pick } of ops) {
+        const commitIds = Array.from({ length: commits }, (_, i) => `k${i}`)
+        const candidate = op === 'commit' ? `commit id: "k${commits}"`
+          : op === 'branch' ? `branch b${branches.length}`
+          : op === 'checkout' ? `checkout ${branches[pick % branches.length]}`
+          : op === 'merge' ? `merge ${branches[pick % branches.length]} id: "m${lines.length}"`
+          : `cherry-pick id: "${commitIds[pick % commitIds.length]}"`
+        try {
+          parseGitGraph(['gitGraph', ...lines, candidate].join('\n'))
+        } catch {
+          continue
+        }
+        lines.push(candidate)
+        if (op === 'commit') commits++
+        if (op === 'branch') branches.push(`b${branches.length}`)
+      }
+      return lines
+    }
+
+    test('no connector passes a commit or runs along another connector', () => {
+      fc.assert(
+        fc.property(fc.array(fc.record({ op: fc.constantFrom(...OPS), pick: fc.nat({ max: 40 }) }), { minLength: 4, maxLength: 28 }), ops => {
+          const body = history(ops)
+          for (const direction of ['LR', 'TB', 'BT'] as const) {
+            const diagram = parseGitGraph([`gitGraph ${direction}:`, ...body].join('\n'))
+            for (const parallelCommits of [false, true]) {
+              const positioned = layoutGitGraph(diagram, { parallelCommits })
+              expect(routeFailures(positioned), `${direction} parallel=${parallelCommits}\n${body.join('\n')}`).toEqual([])
+              expect(positioned.uncertifiedLayout, `${direction} parallel=${parallelCommits}`).toBeUndefined()
+            }
+          }
+        }),
+        fcParameters({
+          numRuns: 60,
+          // The reported history: develop's merge ran along main through
+          // `hotfix`; the cherry-pick ran along the feature lane through f2
+          // and shared a vertical with the f2 -> m1 merge.
+          examples: [[[
+            { op: 'branch', pick: 0 }, { op: 'commit', pick: 0 }, { op: 'branch', pick: 0 }, { op: 'commit', pick: 0 }, { op: 'commit', pick: 0 },
+            { op: 'checkout', pick: 1 }, { op: 'merge', pick: 2 }, { op: 'checkout', pick: 0 }, { op: 'cherry-pick', pick: 2 }, { op: 'commit', pick: 0 }, { op: 'merge', pick: 1 },
+          ]], [[
+            // A branch merged before it left its lane runs along main past k1, k2.
+            { op: 'branch', pick: 0 }, { op: 'checkout', pick: 0 }, { op: 'commit', pick: 0 }, { op: 'commit', pick: 0 }, { op: 'merge', pick: 1 },
+          ]], [[
+            // Four branches forking from one commit share one trunk.
+            ...[1, 2, 3, 4].flatMap(() => [{ op: 'branch' as const, pick: 0 }, { op: 'commit' as const, pick: 0 }, { op: 'checkout' as const, pick: 0 }]),
+          ]]],
+        }),
+      )
+    })
+
+    test('the layout certificate names a connector through a commit or along another', () => {
+      // Hand-drawn routes the old router produced: the merge into c8 runs
+      // along main through hotfix; the cherry-pick shares the f2 merge's column.
+      const commits = [
+        { id: 'f1', lane: 2, x: 100, y: 200 }, { id: 'f2', lane: 2, x: 200, y: 200 }, { id: 'm1', lane: 1, x: 300, y: 100 },
+        { id: 'pick', lane: 0, x: 400, y: 0 }, { id: 'hotfix', lane: 0, x: 500, y: 0 }, { id: 'c8', lane: 0, x: 600, y: 0 },
+      ]
+      const edges = [
+        { from: 'm1', to: 'c8', kind: 'merge' as const, points: [{ x: 300, y: 100 }, { x: 450, y: 100 }, { x: 450, y: 0 }, { x: 600, y: 0 }] },
+        { from: 'f2', to: 'm1', kind: 'merge' as const, points: [{ x: 200, y: 200 }, { x: 250, y: 200 }, { x: 250, y: 100 }, { x: 300, y: 100 }] },
+        { from: 'f1', to: 'pick', kind: 'cherry-pick' as const, points: [{ x: 100, y: 200 }, { x: 250, y: 200 }, { x: 250, y: 0 }, { x: 400, y: 0 }] },
+      ]
+      const found = gitGraphRouteViolations(commits, edges).map(violation => [violation.kind, ...violation.targets])
+      expect(found).toContainEqual(['edgeThroughNode', 'm1->c8', 'hotfix'])
+      expect(found).toContainEqual(['edgeThroughNode', 'f1->pick', 'f2'])
+      expect(found).toContainEqual(['collinearEdges', 'f2->m1', 'f1->pick'])
+      const verify = verifyMermaid('gitGraph\n  commit id:"c1"\n  branch develop\n  commit id:"d1"\n  branch feature/login\n  commit id:"f1"\n  commit id:"f2"\n  checkout develop\n  merge feature/login id:"m1"\n  checkout main\n  cherry-pick id:"f1"\n  commit id:"hotfix"\n  merge develop id:"c8"')
+      expect(verify.warnings.filter(warning => warning.code === 'LAYOUT_UNCERTIFIED')).toEqual([])
+    })
   })
 
   test('preserves deterministic commit and parent counts under generated linear histories', () => {

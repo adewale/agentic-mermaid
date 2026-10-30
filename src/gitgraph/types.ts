@@ -84,6 +84,9 @@ export interface PositionedGitGraphDiagram extends PositionedDiagram {
   showBranches: boolean
   showCommitLabel: boolean
   rotateCommitLabel: boolean
+  /** Present only when a connector still passes a commit or runs along
+   *  another connector (gitGraphRouteViolations): drawn, but uncertified. */
+  uncertifiedLayout?: import('../layout/uncertified-layout.ts').UncertifiedLayoutReceipt
 }
 
 /** Keep source labels independent of collision-free typed occurrence IDs. */
