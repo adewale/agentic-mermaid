@@ -4385,3 +4385,73 @@ final-comparison-preparation/CAPACITY-AFTER-LOSSLESS-DEDUP.json. Fresh6fcomparis
 replay is running, reusing no old proofs or work counts. Next step is normal
 publication and exact-head CI; the six capacity failures and delivery caps remain
 open. Replacement24 is still sealed and no full correctness parity is claimed.
+
+### 30 October09:43UTC: terminal CI, fresh comparison and a concrete natural-curve defect
+
+Normal publication reaches tested head a8b7fcfffc35e28073d9867e1033de869483ce92:
+production6f7ccb418cde9888b4d66c4da1e5cf20190fe922 plus the6b0b30b9f regression
+and reviewed goldens. Main and retained remote were re-fetched at09:41; Main is
+still83744a4e1ae5c9d3821ba8a283811367fd31eade and remote equalsa8b7, with no
+competing changes. This following report is documentation only.
+
+Exact-head CI41031927956 completed. Independent semantic conformance, all built
+artifact contracts, installed quickstarts, Node22/24tarball consumers, MCP, CLI,
+browser-site and payload jobs pass. All nine initialization/cross-runtime unit
+consequences and the geometry-golden failure from1399are absent. Unit failures
+are now EXACTLY the six retained capacities: Class128TB/BT/LR/RL, ER256Native
+and1,500labels/32decorations Native. No expected pass was changed to unknown or
+skipped. Browser's21other functional tests pass, but editor gzip remains
+1,397,287>1,334,500 (62,787over). Lazy delivery has64failed rows across26groups:
+26raw/19gzip/19Brotli. The layout diagnostic has mixed aesthetic outcomes and
+zero render errors. CI remains failed; no readiness or performance parity is
+claimed. Evidence: ci41031927956/FINAL-CLASSIFICATION.json and the exact public
+Actions run. No check, source/default backend, package version or cap was relaxed.
+
+Fresh6fsource acquisition and independent review cover66ours cells, all with
+fresh API calls, certificates and work counts. All normal SVG/model bytes and
+all57returned strict SVGs match1399exactly;9strict refusals remain absent SVGs.
+All123returned phase SVGs are well formed. Actual-output observers for all20
+changed outputs are complete, with exact eligible reuse for unchanged outputs.
+The six old seed40 caption/other-route witnesses now have zero projected
+glyph/route overlap and nonempty actual glyph masks. No holdout or new peer
+query was used for this replay. Evidence: final-6f-authority-checkpoint/
+SUMMARY.json and final-evidence-independent-review/post-publish-audit/
+{FINAL-AUDIT-HANDOFF.json,FRESH6F-all66-final.json}.
+
+| Separate cohort | Agentic strict / normal paint P,U | Our ELK strict / normal paint P,U |
+| --- | --- | --- |
+| Earlier20sources | 17,3 /14,6 | 16,4 /12,8 |
+| Original7 | 7,0 /7,0 | 7,0 /7,0 |
+| Authored6 | 5,1 /5,1 | 5,1 /5,1 |
+
+These are paint-geometry coverage counts, NOT author-meaning correctness scores.
+An additional read-only final-artifact review has now proved an unresolved
+natural-curve producer defect in THREE cells: Original7row103under BOTH engines,
+and authored6ELKeNatural. The requested natural path has two visible90degree
+centreline joins, although its geometry certificate is P. At(124,97.05), exact
+written controls give incoming direction(12,0), outgoing first nonzero direction
+(0,26.3), cross315.6/dot0. The next cubic's zero first derivative is not a missing
+tangent: its nonzero higher-order displacement gives vertical departure. The
+joins are visible in retained actual browser pixels in an open48px corridor.
+Two independent readers confirm the minimum natural smoothness failure without
+requiring D3-identical bytes. graphEdgePathProjection currently treats every
+truthy curve name as the same generic mid-X cubic projection. Source/name
+retention and C commands did not establish interpolation correctness.
+
+This replaces the earlier merely-unverified classification in those specific
+cells with a KNOWN authored-meaning defect; older evidence is not overwritten.
+Original7has14passed paint cells, but MUST NOT be called seven correct diagrams.
+The shared renderer affects both layout backends. Horizontal natural paths in
+the authored Agentic/Pele/Mermaid cases stay nondiscriminating U; Pele row103has
+a genuinely curved G1 join, not a proved exact natural interpolant. Evidence:
+natural-curve-readonly/REPORT.json and final-evidence-independent-review/
+NATURAL-INDEPENDENT-REVIEW.json. No unsafe curve/proof implementation was added.
+
+Next concrete implementation is the shared named-curve projection, starting with
+independently authored noncollinear linear/natural expectations, then re-proving
+placement, route, marker and actual-ink contracts on that same projection. The
+six capture-capacity refusals and rich-text/off-own-carrier surviving-stroke
+proof remain separate work. Delivery caps and broader supported-input evidence
+also remain open. No timing campaign was run. Replacement24 remains sealed.
+Current execution/access is available; these are technical gaps, not missing
+permissions, study participants or hypothetical gates.
