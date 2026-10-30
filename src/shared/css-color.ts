@@ -96,6 +96,28 @@ export function isSafeCssColor(value: string): boolean {
   return safeCssColor(value) !== undefined
 }
 
+const CSS_PAINT_KEYWORDS = new Set(['currentcolor', 'none'])
+
+/**
+ * False only for a spelling this runtime can judge and knows is no color: an
+ * identifier that names no CSS color or paint keyword (`notacolor`, `blurple`)
+ * or a malformed rgb()/hsl(). Other color functions and var() references are
+ * resolved by the host and pass through, as safeCssPaint admitted them.
+ * Every palette token and render-option paint applies this, so SVG and PNG
+ * refuse the same input up front instead of drawing different fallbacks.
+ */
+export function isRecognizableCssColor(value: string): boolean {
+  const color = value.trim().toLowerCase()
+  if (/^[a-z][a-z0-9-]*$/.test(color)) return CSS_PAINT_KEYWORDS.has(color) || tryParseCssColor(color) !== null
+  if (/^(?:rgba?|hsla?)\s*\(/.test(color)) return tryParseCssColor(color) !== null
+  return true
+}
+
+/** The vocabulary reported when a palette token or render-option paint is no color. */
+export function cssColorSpellings(allowVariables: boolean): string {
+  return `a color name, #hex, rgb(), hsl(), ${allowVariables ? 'transparent, or var(--name)' : 'or transparent'}`
+}
+
 /**
  * The deliberately smaller authored style-color vocabulary that we can
  * validate as an actual paint, not merely as injection-safe text. Unresolved

@@ -10,7 +10,8 @@
 // color-bearing syntax renders or is refused with an error that names the
 // value, so an agent can correct it from the message: a style, classDef or
 // linkStyle paint or a theme color exactly when it is not a CSS color the scene
-// can draw, a render option when it is not a safe CSS paint. A typed style op
+// can draw; a render option, Style palette token or Style role color when it
+// is not a safe CSS paint or names no color, alike on SVG, PNG and MCP. A typed style op
 // refuses the same colors as the directives when the diagram is built. Nothing
 // else is thrown, and no NaN or unreadable hex is ever drawn.
 // Seed pinned globally (fc-seed.preload.ts).
@@ -21,6 +22,7 @@ import { fcParameters } from './helpers/fc-parameters.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { buildMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
+import { createRenderPngTool, validateMcpToolArguments } from '../mcp/tool-surface.ts'
 import type { MermaidRuntimeConfig } from '../mermaid-source.ts'
 import type { RenderOptions } from '../types.ts'
 import { compositeCssColor, isHexColor, isSixDigitHex, parseHex, relativeLuminance, tryParseCssColor, tryParseHex } from '../shared/color-math.ts'
@@ -187,22 +189,17 @@ const PLACEMENTS: Record<string, (color: string) => readonly [source: string, op
   'xychart data label color': color => configured('xychart\n  x-axis [A, B]\n  y-axis 0 --> 2\n  bar [1, 2]', { xyChart: { showDataLabel: true }, themeVariables: { xyChart: { dataLabelColor: color } } }),
   'sankey link color': color => configured('sankey-beta\n  A,B,1', { sankey: { linkColor: color } }),
   'sankey node color': color => configured('sankey-beta\n  A,B,1', { sankey: { nodeColors: { A: color } } }),
-  'option bg': color => [FLOWCHART, { bg: color }],
-  'option fg': color => [FLOWCHART, { fg: color }],
-  'option accent': color => [FLOWCHART, { accent: color }],
 }
 // Agentic Mermaid fails closed where a browser would ignore the color. A
-// render option is refused when it is not a safe CSS paint, and the message
-// names the option. A style, classDef or linkStyle paint, or a theme color, is
+// style, classDef or linkStyle paint, or a theme color, is
 // refused exactly when it is not a CSS color the scene can draw, and the
 // message names the directive or theme key, the property and the value. A
 // sequence rect, whose argument is background paint with no label to fall back
 // to, also refuses colors that are not concrete.
-const OPTION_REFUSAL = /^Invalid RenderOptions: render option "(?:bg|fg|accent)" must be a safe, non-fetching CSS paint/
 const RECT_REFUSAL = /^SEQUENCE_RECT_COLOR_UNSUPPORTED: /
 const HEX_PAINT_ATTRIBUTE = /\s(?:fill|stroke|color|stop-color|flood-color)="(#[^"]*)"/g
 const HEX_CUSTOM_PROPERTY = /--[\w-]+\s*:\s*(#[^\s;"}]*)/g
-const authoredPlacements = Object.keys(PLACEMENTS).filter(placement => !placement.startsWith('option ') && !placement.startsWith('sequence '))
+const authoredPlacements = Object.keys(PLACEMENTS).filter(placement => !placement.startsWith('sequence '))
 const inputFormArb = fc.constantFrom('init', 'frontmatter', 'options')
 
 function authoredInput(placement: string, color: string, form: string): readonly [string, RenderOptions?] {
@@ -267,7 +264,7 @@ describe('an authored color renders, or is refused because it cannot be drawn', 
     }))
   }, 120_000)
 
-  test('sequence headers and explicit render options retain their distinct admission contracts', () => {
+  test('sequence headers retain their distinct admission contract', () => {
     const placements = Object.keys(PLACEMENTS).filter(placement => !authoredPlacements.includes(placement))
     fc.assert(fc.property(fc.constantFrom(...placements), colorishArb, (placement, color) => {
       const [source, options] = PLACEMENTS[placement]!(color)
@@ -278,8 +275,7 @@ describe('an authored color renders, or is refused because it cannot be drawn', 
         const message = error instanceof Error ? error.message : String(error)
         if (placement === 'sequence rect' && RECT_REFUSAL.test(message)) return
         expect(safeCssPaint(color)).toBeUndefined()
-        if (placement.startsWith('option ')) expect(message).toMatch(OPTION_REFUSAL)
-        else expect(message).toContain(`${JSON.stringify(color)} is not a CSS color — expected `)
+        expect(message).toContain(`${JSON.stringify(color)} is not a CSS color — expected `)
         return
       }
       expectFinitePaints(svg)
@@ -287,9 +283,66 @@ describe('an authored color renders, or is refused because it cannot be drawn', 
       numRuns: RENDER_RUNS,
       // Inputs that crashed before each gate agreed with its parser.
       examples: [
-        ['option accent', 'constructor'],
         ['sequence box', 'constructor'],
       ],
+    }))
+  }, 120_000)
+})
+
+// Request colors: render options, Style palette tokens and Style role colors.
+// Each is refused up front, by every output and by the MCP argument check,
+// exactly when it is unsafe or names no color: never drawn as an invalid CSS
+// paint in SVG and refused (or blackened) in PNG. The message names the field,
+// and the value whenever the value is safe to echo.
+const REQUEST_PLACEMENTS: Record<string, { field: string; mcpField?: string; options: (color: string) => RenderOptions }> = {
+  'option bg': { field: 'render option "bg"', mcpField: 'arguments.options.bg', options: color => ({ bg: color }) },
+  'option fg': { field: 'render option "fg"', mcpField: 'arguments.options.fg', options: color => ({ fg: color }) },
+  'option accent': { field: 'render option "accent"', mcpField: 'arguments.options.accent', options: color => ({ accent: color }) },
+  'style bg': { field: 'color token "bg"', options: color => ({ style: { colors: { bg: color } } }) },
+  'style accent over a look': { field: 'color token "accent"', options: color => ({ style: ['hand-drawn', { colors: { accent: color } }] }) },
+  'style role border': { field: '"roles.node.borderColor"', options: color => ({ style: { roles: { node: { borderColor: color } } } }) },
+}
+// Host-resolved paints (var(), currentColor) are not concrete page colors a
+// PNG can paint; the request-color contract is about concrete colors.
+const concreteColorArb = validColorArb.filter(color => color !== 'currentColor' && !color.startsWith('var('))
+const localPngTool = createRenderPngTool('local')
+
+describe('a request color is drawn alike on every output, or refused up front', () => {
+  test('independently classified colors render on SVG and PNG, or are refused by both and by MCP', () => {
+    const candidateArb = fc.oneof(
+      concreteColorArb.map(color => ({ color, valid: true })),
+      invalidColorArb.map(color => ({ color, valid: false })),
+    )
+    fc.assert(fc.property(fc.constantFrom(...Object.keys(REQUEST_PLACEMENTS)), candidateArb, (placement, { color, valid }) => {
+      const { field, mcpField = field, options: optionsFor } = REQUEST_PLACEMENTS[placement]!
+      const options = optionsFor(color)
+      const mcpProblems = validateMcpToolArguments(localPngTool, { source: FLOWCHART, options })
+      if (valid) {
+        let svg = ''
+        expect(() => { svg = renderMermaidSVG(FLOWCHART, options) }, `${placement}: SVG`).not.toThrow()
+        expectFinitePaints(svg)
+        let png: Uint8Array = new Uint8Array()
+        expect(() => { png = renderMermaidPNG(FLOWCHART, { ...options, scale: 0.25, minLabelPx: 0 }) }, `${placement}: PNG`).not.toThrow()
+        expect([...png.slice(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
+        expect(mcpProblems, `${placement}: MCP`).toEqual([])
+        return
+      }
+      let refusal = ''
+      try { renderMermaidSVG(FLOWCHART, options) } catch (error) { refusal = error instanceof Error ? error.message : String(error) }
+      expect(refusal, `${placement}: SVG`).toContain(field)
+      if (safeCssPaint(color) !== undefined) expect(refusal).toContain(JSON.stringify(color))
+      expect(() => renderMermaidPNG(FLOWCHART, { ...options, scale: 0.25, minLabelPx: 0 }), `${placement}: PNG`).toThrow(refusal)
+      expect(mcpProblems.join('\n'), `${placement}: MCP`).toContain(mcpField)
+    }), fcParameters({
+      numRuns: 120,
+      // Reported: a misspelled name drew an invalid paint in SVG while PNG
+      // refused it (bg) or painted black arrowheads (accent).
+      examples: Object.keys(REQUEST_PLACEMENTS).flatMap(placement => [
+        [placement, { color: 'notacolor', valid: false }],
+        [placement, { color: 'notacolorblurple', valid: false }],
+        [placement, { color: 'rgb(1 x 1)', valid: false }],
+        [placement, { color: 'REBECCAPURPLE', valid: true }],
+      ]),
     }))
   }, 120_000)
 })

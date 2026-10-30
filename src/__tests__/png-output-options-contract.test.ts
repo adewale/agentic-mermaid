@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
+import { renderErrorOrigin } from '../agent/error-origin.ts'
 import {
   canonicalizeConcreteCssColor,
   MAX_PNG_FONT_DIRECTORIES,
@@ -379,6 +380,8 @@ describe('canonical PNG output-option authority', () => {
       }
       expect(unresolved).toMatchObject({ code: PNG_ARTIFACT_BACKGROUND_UNRESOLVED, paint })
       expect(String(unresolved)).toContain(PNG_ARTIFACT_BACKGROUND_UNRESOLVED)
+      // The page paint is caller configuration, not authored diagram source.
+      expect(renderErrorOrigin(unresolved)).toBe('config')
     }
 
     const transparent = decodePng(renderMermaidPNGWithReceipt(SOURCE, {

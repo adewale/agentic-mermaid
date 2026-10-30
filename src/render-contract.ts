@@ -26,7 +26,7 @@ import {
   type StyleSpec,
 } from './scene/style-registry.ts'
 import { styleSpecJsonSchema } from './scene/style-spec.ts'
-import { safeCssColor, safeCssPaint } from './shared/css-color.ts'
+import { cssColorSpellings, isRecognizableCssColor, safeCssColor, safeCssPaint } from './shared/css-color.ts'
 import { safeCssFontFamily } from './shared/css-font.ts'
 import {
   assertJsonConfigAdmission,
@@ -414,6 +414,9 @@ export function renderSchemaProblems(value: unknown, schema: JsonSchema, path: r
   }
   if (runtimeValidator === 'safeCssPaint' && safeCssPaint(value) === undefined) {
     return [{ path, message: 'must be a safe, non-fetching CSS paint', generic: false }]
+  }
+  if ((runtimeValidator === 'safeCssColor' || runtimeValidator === 'safeCssPaint') && !isRecognizableCssColor(value as string)) {
+    return [{ path, message: `must be a CSS color, not ${JSON.stringify(value)} (use ${cssColorSpellings(runtimeValidator === 'safeCssPaint')})`, generic: false }]
   }
   if (runtimeValidator === 'safeCssFontFamily' && safeCssFontFamily(value) === undefined) {
     return [{ path, message: 'must be a safe, non-fetching CSS font family or stack', generic: false }]

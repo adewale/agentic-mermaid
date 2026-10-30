@@ -1,4 +1,4 @@
-import { safeCssColor, safeCssPaint } from '../shared/css-color.ts'
+import { cssColorSpellings, isRecognizableCssColor, safeCssColor, safeCssPaint } from '../shared/css-color.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
 import { SCENE_ROLE_DESCRIPTORS, type BuiltinSceneRole } from './roles.ts'
 import {
@@ -321,6 +321,7 @@ function validateRoleStyleRecord(raw: unknown, path: string, applicable?: Readon
     if (descriptor.kind === 'number' && !numberIsValid(candidate, descriptor)) problems.push(`"${leaf}" must be ${descriptor.expected}`)
     else if (descriptor.kind === 'font' && (typeof candidate !== 'string' || safeCssFontFamily(candidate) === undefined)) problems.push(`"${leaf}" must be a safe non-fetching CSS font family or stack`)
     else if (descriptor.kind === 'color' && !safeRoleColor(candidate)) problems.push(`"${leaf}" must be a safe non-fetching CSS paint`)
+    else if (descriptor.kind === 'color' && !isRecognizableCssColor(candidate as string)) problems.push(`"${leaf}" must be a CSS color, not ${JSON.stringify(candidate)} (use ${cssColorSpellings(true)})`)
     else if (descriptor.kind === 'enum' && (typeof candidate !== 'string' || !(descriptor.values as readonly string[]).includes(candidate))) problems.push(`"${leaf}" must be one of ${descriptor.values.join(' | ')}`)
   }
   return problems
@@ -470,6 +471,7 @@ export function validateStyleSpec(value: unknown): string[] {
           if (!Object.hasOwn(STYLE_COLOR_TOKEN_DESCRIPTORS, token)) problems.push(`unknown color token "${token}"`)
           else if (color !== undefined && typeof color !== 'string') problems.push(`color token "${token}" must be a string`)
           else if (color !== undefined && safeCssColor(color) === undefined) problems.push(`color token "${token}" must be a safe non-fetching CSS color`)
+          else if (color !== undefined && !isRecognizableCssColor(color)) problems.push(`color token "${token}" must be a CSS color, not ${JSON.stringify(color)} (use ${cssColorSpellings(false)})`)
         }
         break
       }

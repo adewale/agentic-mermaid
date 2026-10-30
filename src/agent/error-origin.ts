@@ -31,7 +31,7 @@ import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
 import { LayoutPassContractError } from '../layout/pass.ts'
 import { MindmapParseError } from '../mindmap/parser.ts'
 import { QuadrantStyleColorError } from '../quadrant/point-style.ts'
-import { PngRasterBudgetError, PngRasterizerError } from '../png-contract.ts'
+import { PngArtifactBackgroundError, PngRasterBudgetError, PngRasterizerError } from '../png-contract.ts'
 import { ParsedDiagramFamilyMismatchError, RenderCapabilityError, RenderConfigError } from '../render-contract.ts'
 import { PaintLayoutCertificationError } from '../scene/paint-certification.ts'
 import { SceneValidationError } from '../scene/scene-validation-core.ts'
@@ -66,6 +66,8 @@ const ORIGINS: ReadonlyArray<readonly [ErrorClass, WarningOrigin]> = [
   [GraphLayoutUnsupportedError, 'config'],
   [RenderCapabilityError, 'config'],
   [StyleSpecError, 'config'],
+  // A page paint (render option, Style or theme variable) PNG cannot resolve.
+  [PngArtifactBackgroundError, 'config'],
   // The authored diagram, including host work limits it can exceed and the
   // final paint certification a strict render requires of it.
   [MermaidSyntaxError, 'source'],
