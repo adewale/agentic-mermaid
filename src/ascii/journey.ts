@@ -1,4 +1,4 @@
-import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
+import { terminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ============================================================================
 // ASCII renderer — journey diagrams
 //
@@ -185,7 +185,3 @@ export function renderJourneyTerminal(
   return terminalArtifact(document, { colorMode, theme, trimEnd: true })
 }
 
-/** Compatibility string entry point; native dispatch retains the drawing. */
-export function renderJourneyAscii(...args: Parameters<typeof renderJourneyTerminal>): string {
-  return serializeTerminalArtifact(renderJourneyTerminal(...args))
-}

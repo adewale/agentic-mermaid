@@ -4,7 +4,7 @@ import { resolvePacketConfig } from '../packet/config.ts'
 import { parsePacketDiagram } from '../packet/parser.ts'
 import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
 import { prepareCellText } from './prepared-text.ts'
-import { serializeTerminalArtifact, type TerminalArtifact, terminalArtifact } from './terminal-artifact.ts'
+import { type TerminalArtifact, terminalArtifact } from './terminal-artifact.ts'
 import { TerminalDocument } from './terminal-document.ts'
 import { paintTerminalFrame } from './terminal-geometry.ts'
 import { AsciiWidthError } from './width-error.ts'
@@ -59,7 +59,4 @@ export function renderPacketTerminal(context: AsciiContext): TerminalArtifact {
     y += height + 1
   }
   return terminalArtifact(document, { colorMode: context.colorMode, theme: context.theme, trimEnd: true })
-}
-export function renderPacketAscii(context: AsciiContext): string {
-  return serializeTerminalArtifact(renderPacketTerminal(context))
 }

@@ -4,7 +4,7 @@ import { layout as layoutGrid, type Cell } from '../block/grid.ts'
 import type { Block } from '../block/types.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { TerminalDocument, type TerminalOwner, type TerminalMarker } from './terminal-document.ts'
-import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
+import { terminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { displayText } from '../multiline-utils.ts'
@@ -120,7 +120,4 @@ export function renderBlockTerminal(lines: string[] | string, config: AsciiConfi
     return terminalArtifact(out, { colorMode, theme })
   }
   return terminalArtifact(doc, { colorMode, theme })
-}
-export function renderBlockAscii(...args: Parameters<typeof renderBlockTerminal>): string {
-  return serializeTerminalArtifact(renderBlockTerminal(...args))
 }

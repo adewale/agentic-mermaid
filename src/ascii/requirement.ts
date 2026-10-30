@@ -1,7 +1,7 @@
 import { parseRequirementDiagram } from '../requirement/parser.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { TerminalDocument, type TerminalOwner } from './terminal-document.ts'
-import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
+import { terminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 import { drawMultiBox } from './draw.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
@@ -119,7 +119,4 @@ export function renderRequirementTerminal(lines: string[] | string, config: Asci
     return terminalArtifact(out, { colorMode, theme })
   }
   return terminalArtifact(doc, { colorMode, theme })
-}
-export function renderRequirementAscii(...args: Parameters<typeof renderRequirementTerminal>): string {
-  return serializeTerminalArtifact(renderRequirementTerminal(...args))
 }

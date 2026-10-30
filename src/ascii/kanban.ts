@@ -4,7 +4,7 @@ import { kanbanItemText } from '../kanban/layout.ts'
 import { parseKanbanDiagram } from '../kanban/parser.ts'
 import { preservedMermaidFamilyText, withFrontmatterTitle } from '../mermaid-source.ts'
 import { prepareCellText } from './prepared-text.ts'
-import { serializeTerminalArtifact, type TerminalArtifact, terminalArtifact } from './terminal-artifact.ts'
+import { type TerminalArtifact, terminalArtifact } from './terminal-artifact.ts'
 import { TerminalDocument } from './terminal-document.ts'
 import { paintTerminalFrame } from './terminal-geometry.ts'
 import { AsciiWidthError } from './width-error.ts'
@@ -44,7 +44,4 @@ export function renderKanbanTerminal(context: AsciiContext): TerminalArtifact {
     document.overlay(column.local, column.x, top)
   }
   return terminalArtifact(document, { colorMode: context.colorMode, theme: context.theme, trimEnd: true })
-}
-export function renderKanbanAscii(context: AsciiContext): string {
-  return serializeTerminalArtifact(renderKanbanTerminal(context))
 }

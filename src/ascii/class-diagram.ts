@@ -11,7 +11,7 @@ import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
 import { allocateBoxRoutes, allocateConstructiveClassRoutes, TerminalBoxRouteUnavailable, type BoxRoute, BOX_ROUTE_APPROACH_DISTANCE, type BoxRelation, type BoxSide, boxFaceDemands, boxFaceSizes, classLikePaint, paintBoxRoute, paintBoxText, reverseBoxes, type TerminalBox } from './class-like-layout.ts'
 import { drawMultiBox } from './draw.ts'
 import { terminalIds } from './identity.ts'
-import { serializeTerminalArtifact, type TerminalArtifact, terminalArtifact } from './terminal-artifact.ts'
+import { type TerminalArtifact, terminalArtifact } from './terminal-artifact.ts'
 import { TerminalDocument, type TerminalMarker, type TerminalOwner } from './terminal-document.ts'
 import { faceSize, paintTerminalFrame } from './terminal-geometry.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
@@ -441,7 +441,3 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
   return terminalArtifact(doc, { colorMode, theme, ...(construction ? { trimEnd: true } : {}) })
 }
 
-/** Compatibility string entry point; native dispatch retains the drawing. */
-export function renderClassAscii(...args: Parameters<typeof renderClassTerminal>): string {
-  return serializeTerminalArtifact(renderClassTerminal(...args))
-}

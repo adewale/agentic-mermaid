@@ -1,5 +1,5 @@
 import { resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
-import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
+import { terminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ER cards and relationship ports are allocated in integer terminal cells.
 // Source semantics, complete labels and family cardinalities stay distinct.
 import { parseErDiagram } from '../er/parser.ts'
@@ -180,7 +180,3 @@ export function renderErTerminal(text: string, config: AsciiConfig, colorMode?: 
   return finish(doc)
 }
 
-/** Compatibility string entry point; native dispatch retains the drawing. */
-export function renderErAscii(...args: Parameters<typeof renderErTerminal>): string {
-  return serializeTerminalArtifact(renderErTerminal(...args))
-}

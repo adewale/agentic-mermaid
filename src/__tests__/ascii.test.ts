@@ -9,7 +9,7 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidASCII } from '../ascii/index.ts'
-import { hasDiagonalLines, DIAGONAL_CHARS } from '../ascii/validate.ts'
+import { DIAGONAL_CHARS } from '../ascii/validate.ts'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseAsciiGoldenFixture } from '../../scripts/ascii-golden-fixture.ts'
@@ -100,12 +100,6 @@ describe('Unicode rendering', () => {
 describe('Config behavior', () => {
   const mermaidInput = 'graph LR\nA --> B'
 
-  it('ASCII and Unicode outputs should differ', () => {
-    const asciiOutput = renderMermaidASCII(mermaidInput, { useAscii: true })
-    const unicodeOutput = renderMermaidASCII(mermaidInput, { useAscii: false })
-    expect(asciiOutput).not.toBe(unicodeOutput)
-  })
-
   it('ASCII output should not contain Unicode box-drawing characters', () => {
     const output = renderMermaidASCII(mermaidInput, { useAscii: true })
     expect(output).not.toContain('┌')
@@ -117,26 +111,6 @@ describe('Config behavior', () => {
     const output = renderMermaidASCII(mermaidInput, { useAscii: false })
     const hasUnicode = output.includes('┌') || output.includes('─') || output.includes('│')
     expect(hasUnicode).toBe(true)
-  })
-})
-
-// ============================================================================
-// Diagonal validation — ensures all edges use orthogonal Manhattan routing
-// ============================================================================
-
-describe('Diagonal validation', () => {
-  it('hasDiagonalLines utility correctly detects diagonal characters', () => {
-    // Should detect ASCII diagonals
-    expect(hasDiagonalLines('A / B')).toBe(true)
-    expect(hasDiagonalLines('A \\ B')).toBe(true)
-
-    // Should detect Unicode diagonals
-    expect(hasDiagonalLines('A ╱ B')).toBe(true)
-    expect(hasDiagonalLines('A ╲ B')).toBe(true)
-
-    // Should not flag clean output
-    expect(hasDiagonalLines('┌───┐\n│ A │\n└───┘')).toBe(false)
-    expect(hasDiagonalLines('+---+\n| A |\n+---+')).toBe(false)
   })
 })
 

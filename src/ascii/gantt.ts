@@ -1,4 +1,4 @@
-import { serializeTerminalArtifact, type TerminalArtifact, terminalArtifact } from './terminal-artifact.ts'
+import { type TerminalArtifact, terminalArtifact } from './terminal-artifact.ts'
 
 // ============================================================================
 // ASCII renderer — Gantt diagrams (docs/design/families/gantt.md §5).
@@ -421,7 +421,3 @@ function padForCol(col: number, glyph: string): string {
   return ' '.repeat(col) + glyph
 }
 
-/** Compatibility string entry point; native dispatch retains the drawing. */
-export function renderGanttAscii(...args: Parameters<typeof renderGanttTerminal>): string {
-  return serializeTerminalArtifact(renderGanttTerminal(...args))
-}

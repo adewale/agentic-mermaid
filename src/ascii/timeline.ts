@@ -1,4 +1,4 @@
-import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
+import { terminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ============================================================================
 // ASCII renderer — timeline diagrams
 //
@@ -138,7 +138,3 @@ export function renderTimelineTerminal(
   return terminalArtifact(document, { colorMode, theme, trimEnd: true })
 }
 
-/** Compatibility string entry point; native dispatch retains the drawing. */
-export function renderTimelineAscii(...args: Parameters<typeof renderTimelineTerminal>): string {
-  return serializeTerminalArtifact(renderTimelineTerminal(...args))
-}

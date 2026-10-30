@@ -1,4 +1,4 @@
-import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
+import { terminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ============================================================================
 // ASCII renderer — Sankey diagram
 //
@@ -180,7 +180,3 @@ function padStartToVisualWidth(text: string, width: number): string {
   return pad > 0 ? ' '.repeat(pad) + text : text
 }
 
-/** Compatibility string entry point; native dispatch retains the drawing. */
-export function renderSankeyAscii(...args: Parameters<typeof renderSankeyTerminal>): string {
-  return serializeTerminalArtifact(renderSankeyTerminal(...args))
-}

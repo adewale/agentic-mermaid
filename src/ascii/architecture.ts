@@ -1,4 +1,4 @@
-import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
+import { terminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ============================================================================
 // Spatial ASCII/Unicode renderer — architecture diagrams
 //
@@ -749,7 +749,3 @@ function boxesOverlap(a: CellBox, b: CellBox): boolean {
   return a.x <= right(b) && b.x <= right(a) && a.y <= bottom(b) && b.y <= bottom(a)
 }
 
-/** Compatibility string entry point; native dispatch retains the drawing. */
-export function renderArchitectureAscii(...args: Parameters<typeof renderArchitectureTerminal>): string {
-  return serializeTerminalArtifact(renderArchitectureTerminal(...args))
-}

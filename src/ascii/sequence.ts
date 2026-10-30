@@ -1,4 +1,4 @@
-import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
+import { terminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // Terminal sequence layout owns cell bounds before painting. Lexical fragment
 // boundaries distinguish notes and empty sections sharing a message cursor.
 import { parseSequenceDiagram, displayMessageContent, getSequenceBlockBoundaries } from '../sequence/parser.ts'
@@ -448,7 +448,3 @@ function sequenceMarker(head: SequenceMessageHead, right: boolean, ascii: boolea
   return { shape: head === 'filled' ? 'triangle' : head === 'open' ? 'open-arrow' : head === 'cross' ? 'sequence-cross' : head, direction: right ? 'R' : 'L', ascii }
 }
 
-/** Compatibility string entry point; native dispatch retains the drawing. */
-export function renderSequenceAscii(...args: Parameters<typeof renderSequenceTerminal>): string {
-  return serializeTerminalArtifact(renderSequenceTerminal(...args))
-}

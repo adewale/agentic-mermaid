@@ -4,7 +4,7 @@ import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { safeCssColor } from '../shared/css-color.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { terminalIds } from './identity.ts'
-import { serializeTerminalArtifact, type TerminalArtifact, terminalArtifact } from './terminal-artifact.ts'
+import { type TerminalArtifact, terminalArtifact } from './terminal-artifact.ts'
 import { TerminalDocument, type TerminalOwner } from './terminal-document.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { visualWidth } from './width.ts'
@@ -157,7 +157,3 @@ export function renderGitGraphTerminal(diagram: GitGraphDiagram, config: AsciiCo
   return terminalArtifact(doc, { colorMode, theme, trimEnd: true })
 }
 
-/** Compatibility string entry point; native dispatch retains the drawing. */
-export function renderGitGraphAscii(...args: Parameters<typeof renderGitGraphTerminal>): string {
-  return serializeTerminalArtifact(renderGitGraphTerminal(...args))
-}
