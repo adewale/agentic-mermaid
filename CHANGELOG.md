@@ -23,6 +23,12 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- Sequence facts and `describe` (text, tree, summaries) show participant
+  names, message text, titles and fragment captions as the renderers draw
+  them: `participant A as "Alice"` reads `participant A : Alice`, not
+  `"Alice"`, and `<br/>` reads as a line break (`\n` in facts), as in
+  Flowchart facts. The typed body and serialized source are unchanged.
+
 - `execute` failures now say where the agent's own code failed:
   `error.location` is the 1-based `{ line, column }` of an uncaught error (or
   of the token where code that does not parse stopped), on both the hosted and

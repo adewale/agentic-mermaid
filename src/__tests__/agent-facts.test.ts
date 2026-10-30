@@ -1,7 +1,11 @@
 import { describe, expect, test } from 'bun:test'
+import fc from 'fast-check'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { describeMermaid } from '../agent/describe.ts'
 import { checkMermaid, describeMermaidFacts, describeMermaidFactsSource } from '../agent/facts.ts'
+import { renderMermaidSVG } from '../index.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { asClass, mutate, serializeMermaid } from '../agent/index.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { runCli } from '../cli/index.ts'
@@ -76,6 +80,28 @@ describe('deterministic Mermaid facts', () => {
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
     expect(checkMermaid(parsed.value, ['message A -> B : attempt', 'message B -> A : retry']).ok).toBe(true)
     expect(facts(serializeMermaid(parsed.value))).toEqual(out)
+  })
+
+  test('Sequence text reads as drawn: alias quotes and line breaks are interpreted, as in the SVG', () => {
+    // Visible lines, joined by an authored break spelling; the alias may be quoted.
+    const lineArb = fc.stringMatching(/^[A-Z][a-z]{0,5}(?: [a-z]{1,4})?$/)
+    fc.assert(fc.property(fc.array(lineArb, { minLength: 1, maxLength: 3 }), fc.constantFrom('<br/>', '<br>', '<br />'), fc.constantFrom('', ' '), fc.boolean(),
+      (lines, br, pad, quoted) => {
+        const authored = lines.join(`${pad}${br}${pad}`)
+        const drawn = lines.join(`${pad}\n${pad}`)
+        const source = `sequenceDiagram\n  participant A as ${quoted ? `"${authored}"` : authored}\n  A->>A: ${authored}\n  alt ${authored}\n    A->>A: x\n  end`
+        const parsed = parseMermaid(source)
+        if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+        const shown = drawn.replace(/\n/g, '\\n')
+        const expected = [`participant A : ${shown}`, `message A -> A : ${shown}`, `fragment#0 branch#0 : ${shown}`]
+        expect({ source, missing: checkMermaid(parsed.value, expected).missing }).toEqual({ source, missing: [] })
+        // The renderer's own reading of the participant name.
+        const label = renderMermaidSVG(source).match(/<g class="actor" data-id="A" data-label="([^"]*)"/)?.[1]?.replace(/&#10;/g, '\n')
+        expect({ source, label }).toEqual({ source, label: drawn })
+        const tree = JSON.parse(describeMermaid(parsed.value, { format: 'json' }))
+        expect({ source, node: tree.nodes[0].label, edge: tree.edges[0].label }).toEqual({ source, node: drawn, edge: drawn })
+        expect(describeMermaid(parsed.value)).toStartWith(`A sequence diagram between ${drawn}.`)
+      }), fcParameters({ numRuns: 40, examples: [[['Alice', 'Smith'], '<br/>', ' ', true], [['Alice'], '<br/>', '', true]] }))
   })
 })
 

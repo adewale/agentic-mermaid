@@ -16,7 +16,7 @@ import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
 import { sequenceMessageArrow, sequenceMessageContexts, sequenceMessageStyle } from './sequence-body.ts'
 import { readSequenceStatements } from '../sequence/parser.ts'
-import { readSequenceText } from '../sequence/text.ts'
+import { sequenceDisplayText, sequencePayloadDisplayText } from '../sequence/text.ts'
 import { journeyActorKey } from '../journey/parse-core.ts'
 import { displayText } from '../multiline-utils.ts'
 import { resolveLabelContent, type LabelContent } from '../shared/display-text.ts'
@@ -308,15 +308,19 @@ function factsState(out: string[], body: StateBody): void {
 }
 
 function factsSequence(out: string[], body: SequenceBody): void {
+  // Text reads as drawn: the body keeps authored quotes and markup.
+  const shown = (value: string, content?: LabelContent): string => clean(sequenceDisplayText(value, content))
   body.participants.forEach((p, i) => {
-    add(out, `${p.kind} ${clean(p.id)} : ${clean(p.label || p.id)}`)
-    add(out, `participant#${i} ${clean(p.id)} : ${clean(p.label || p.id)}`)
+    const label = p.label ? shown(p.label, p.labelContent) : clean(p.id)
+    add(out, `${p.kind} ${clean(p.id)} : ${label}`)
+    add(out, `participant#${i} ${clean(p.id)} : ${label}`)
     if (p.wrap !== undefined) add(out, `participant#${i} wrap ${p.wrap}`)
   })
   sequenceMessageContexts(body).forEach((context, i) => {
     const m = context.message
-    add(out, `message ${clean(m.from)} -> ${clean(m.to)} : ${clean(m.text)}`)
-    add(out, `message#${i} ${context.scope === 'top-level' ? 'top-level' : `fragment#${context.fragmentIndex} branch#${context.branchIndex}`} ${clean(m.from)} -> ${clean(m.to)} : ${clean(m.text)}`)
+    const text = shown(m.text, m.textContent)
+    add(out, `message ${clean(m.from)} -> ${clean(m.to)} : ${text}`)
+    add(out, `message#${i} ${context.scope === 'top-level' ? 'top-level' : `fragment#${context.fragmentIndex} branch#${context.branchIndex}`} ${clean(m.from)} -> ${clean(m.to)} : ${text}`)
     addSequenceArrow(out, `message#${i}`, m)
     if (m.wrap !== undefined) add(out, `message#${i} wrap ${m.wrap}`)
   })
@@ -326,13 +330,13 @@ function factsSequence(out: string[], body: SequenceBody): void {
       const syntax = entry.syntax
       if (syntax?.kind === 'message') {
         const m = syntax.message
-        const text = clean(readSequenceText(m.label).value)
+        const text = clean(sequencePayloadDisplayText(m.label))
         add(out, `message ${clean(m.from)} -> ${clean(m.to)} : ${text}`)
         // Preserved statements are observable without becoming typed edit
         // indexes. Keep the existing message# indexes stable for callers.
         add(out, `preserved-message#${segment}.${index} ${clean(m.from)} -> ${clean(m.to)} : ${text}`)
         addSequenceArrow(out, `preserved-message#${segment}.${index}`, { style: sequenceMessageStyle(m.arrow), arrow: m.arrow as SequenceMessageArrow })
-      } else if (syntax?.kind === 'title') add(out, `title ${clean(readSequenceText(syntax.text).value)}`)
+      } else if (syntax?.kind === 'title') add(out, `title ${clean(sequencePayloadDisplayText(syntax.text))}`)
     })
   })
   const fragments = body.statements.filter(statement => statement.kind === 'fragment')
@@ -341,8 +345,9 @@ function factsSequence(out: string[], body: SequenceBody): void {
     add(out, `fragment#${index} ${statement.fragment.fragmentKind}`)
     if (statement.fragment.wrap !== undefined) add(out, `fragment#${index} wrap ${statement.fragment.wrap}`)
     statement.fragment.branches.forEach((branch, branchIndex) => {
-      const label = branch.label ?? (branchIndex === 0 ? statement.fragment.label : undefined)
-      add(out, `fragment#${index} branch#${branchIndex}${label ? ` : ${clean(label)}` : ''}`)
+      const label = branch.label !== undefined ? shown(branch.label, branch.labelContent)
+        : branchIndex === 0 && statement.fragment.label !== undefined ? shown(statement.fragment.label, statement.fragment.labelContent) : ''
+      add(out, `fragment#${index} branch#${branchIndex}${label ? ` : ${label}` : ''}`)
       if (branch.wrap !== undefined) add(out, `fragment#${index} branch#${branchIndex} wrap ${branch.wrap}`)
     })
   })

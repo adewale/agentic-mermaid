@@ -28,7 +28,8 @@ import { describeMermaidFacts } from './facts.ts'
 import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
 import { sequenceMessageContexts, sequenceMessages } from './sequence-body.ts'
-import type { ClassValidDiagram, ErValidDiagram, FamilyId, FlowchartValidDiagram, ParsedDiagram, SequenceValidDiagram, TimelineValidDiagram, ValidDiagram } from './types.ts'
+import { sequenceDisplayText } from '../sequence/text.ts'
+import type { ClassValidDiagram, ErValidDiagram, FamilyId, FlowchartValidDiagram, ParsedDiagram, SequenceFragment, SequenceParticipant, SequenceValidDiagram, TimelineValidDiagram, ValidDiagram } from './types.ts'
 
 /** Every describe format, for the CLI flag, the MCP tool schema, and argument checks. */
 export const DESCRIBE_FORMATS = ['text', 'json', 'facts'] as const
@@ -166,20 +167,22 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
     }
     visit(d.body.states, d.body.transitions)
   } else if (d.body.kind === 'sequence') {
-    for (const p of d.body.participants) tree.nodes.push({ id: p.id, label: p.label || p.id })
+    for (const p of d.body.participants) tree.nodes.push({ id: p.id, label: sequenceParticipantDisplay(p) })
+    const fragments = d.body.statements.flatMap(statement => statement.kind === 'fragment' ? [statement.fragment] : [])
     sequenceMessageContexts(d.body).forEach(context => {
       const m = context.message
+      const branchLabel = context.scope === 'fragment' ? sequenceBranchDisplay(fragments[context.fragmentIndex]!, context.branchIndex) : ''
       tree.edges.push({
         from: m.from,
         to: m.to,
-        label: m.text || undefined,
+        label: (m.text && sequenceDisplayText(m.text, m.textContent)) || undefined,
         ...(context.scope === 'fragment'
           ? {
               sequence: {
                 fragmentIndex: context.fragmentIndex,
                 branchIndex: context.branchIndex,
                 fragmentKind: context.fragmentKind,
-                ...((context.branchLabel ?? (context.branchIndex === 0 ? context.fragmentLabel : undefined)) ? { branchLabel: context.branchLabel ?? context.fragmentLabel } : {}),
+                ...(branchLabel ? { branchLabel } : {}),
               },
             }
           : {}),
@@ -426,20 +429,20 @@ function describeState(body: import('./types.ts').StateBody): string {
 
 function describeSequence(d: SequenceValidDiagram): string {
   const parts = d.body.participants
-  const partStr = parts.map(p => p.label || p.id).join(', ')
+  const partStr = parts.map(sequenceParticipantDisplay).join(', ')
   let s = `A sequence diagram between ${partStr || '(no participants)'}.`
   const interactions: string[] = []
   let fragmentIndex = 0
   for (const statement of d.body.statements) {
     if (statement.kind === 'message') {
       const message = d.body.messages[statement.ref]
-      if (message) interactions.push(`message ${message.from} -> ${message.to}: ${message.text}`)
+      if (message) interactions.push(`message ${message.from} -> ${message.to}: ${sequenceDisplayText(message.text, message.textContent)}`)
       continue
     }
     if (statement.kind !== 'fragment') continue
     const branches = statement.fragment.branches.map((branch, branchIndex) => {
-      const label = branch.label ?? (branchIndex === 0 ? statement.fragment.label : undefined)
-      const messages = branch.messages.map(m => `${m.from} -> ${m.to}: ${m.text}`).join('; ') || 'no messages'
+      const label = sequenceBranchDisplay(statement.fragment, branchIndex)
+      const messages = branch.messages.map(m => `${m.from} -> ${m.to}: ${sequenceDisplayText(m.text, m.textContent)}`).join('; ') || 'no messages'
       return `branch ${branchIndex}${label ? ` (${label})` : ''}: ${messages}`
     })
     interactions.push(`fragment ${fragmentIndex} (${statement.fragment.fragmentKind}): ${branches.join(' | ')}`)
@@ -447,6 +450,18 @@ function describeSequence(d: SequenceValidDiagram): string {
   }
   if (interactions.length > 0) s += ` Interactions in source order: ${interactions.join('; ')}.`
   return s
+}
+
+/** A participant's name as drawn; the body keeps authored quotes and markup. */
+function sequenceParticipantDisplay(p: SequenceParticipant): string {
+  return p.label ? sequenceDisplayText(p.label, p.labelContent) : p.id
+}
+
+/** A branch's caption as drawn; the first branch shows the fragment's. */
+function sequenceBranchDisplay(fragment: SequenceFragment, branchIndex: number): string {
+  const branch = fragment.branches[branchIndex]
+  if (branch?.label !== undefined) return sequenceDisplayText(branch.label, branch.labelContent)
+  return branchIndex === 0 && fragment.label !== undefined ? sequenceDisplayText(fragment.label, fragment.labelContent) : ''
 }
 
 function describeTimeline(d: TimelineValidDiagram): string {
