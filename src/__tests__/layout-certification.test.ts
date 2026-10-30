@@ -962,8 +962,12 @@ describe('retained header bands are independent of frame height', () => {
       const { ctx } = laneContextFor([], [edge], 'TB', style, [group])
       expect(directLaneBlockers(edge, 80, row.lo, row.hi, ctx)).toEqual(row.block ? [{ kind: 'group-header', id: 'g' }] : [])
     })
-  test('public empty golden group retains authored identity and its zero-area band', () => {
-    const source = 'graph LR\nsubgraph one\nend\nA --> B\n'
+  // F17: an empty subgraph keeps a visible frame, its title band over a
+  // padded body and at least as wide as the title, instead of a 0x0 rect.
+  test.each([
+    ['flowchart subgraph', 'graph LR\nsubgraph one\nend\nA --> B\n'],
+    ['state composite', 'stateDiagram-v2\n  state one {\n  }\n  A --> B\n'],
+  ])('public empty %s retains authored identity and a visible frame under its band', (_, source) => {
     const rendered = renderMermaidSVGWithReceipt(source, { embedFontImport: false })
     expect(rendered.receipt.layoutCertification?.status).toBe('passed')
     expect(rendered.svg).toContain('data-id="one"')
@@ -973,13 +977,16 @@ describe('retained header bands are independent of frame height', () => {
     expect(rendered.svg).toContain('marker-end=')
     const group = /<g\b[^>]*data-id="one"[^>]*>([\s\S]*?)<\/g>/.exec(rendered.svg)![1]!
     const rect = /<rect\b[^>]*>/.exec(group)![0]
-    expect(rect).toContain('width="0"')
-    expect(rect).toContain('height="0"')
+    const attr = (tag: string, name: string): number => Number(new RegExp(`\\b${name}="([^"]+)"`).exec(tag)![1])
     const path = /<path\b[^>]*d="([^"]+)"/.exec(group)![1]!,
       n = path.match(/[-+]?(?:\d*\.\d+|\d+\.?\d*)(?:[eE][-+]?\d+)?/g)!.map(Number)
+    // Band: M x,y H right V bottom H x Z, 28px tall, spanning the frame.
     expect(n).toHaveLength(5)
-    expect(n[0]).toBe(n[2])
-    expect(n[2]).toBe(n[4])
+    expect([n[0], n[1], n[2], n[4]]).toEqual([attr(rect, 'x'), attr(rect, 'y'), attr(rect, 'x') + attr(rect, 'width'), attr(rect, 'x')])
     expect(n[3]! - n[1]!).toBe(28)
+    // A body below the band, and room for the title text.
+    expect(attr(rect, 'height')).toBeGreaterThan(28)
+    const text = /<text\b[^>]*>/.exec(group)![0]
+    expect(attr(text, 'x') + attr(text, 'textLength')).toBeLessThanOrEqual(attr(rect, 'x') + attr(rect, 'width'))
   })
 })

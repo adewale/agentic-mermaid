@@ -1101,6 +1101,10 @@ function groupHeaderHeight(
   return Math.max(measured, group.headerMinHeight)
 }
 
+/** Placement body of an empty group; a colon cannot occur in an authored id. */
+const EMPTY_GROUP_BODY_PREFIX = 'empty-group:'
+const EMPTY_GROUP_BODY = { width: 24, height: 16 }
+
 /**
  * Convert a MermaidSubgraph to an ELK compound node.
  * Includes internal edges (edges where both endpoints are in this subgraph)
@@ -1202,6 +1206,14 @@ function subgraphToElk(
     if (node) {
       elkNode.children!.push(nodeToElkLeaf(nodeId, node, style, routePortHints, effectiveDirection, opts.stateVisual, opts.nodeSizes?.get(nodeId), opts.markerPortExtents?.get(nodeId)))
     }
+  }
+
+  // An empty group would collapse to a 0x0 frame. An unpainted placement
+  // body (never a positioned node: it has no authored entry) reserves a
+  // frame under the title band, at least as wide as the title.
+  if (!sg.concurrencyRegion && sg.headerMinHeight === undefined && elkNode.children!.length === 0 && sg.children.length === 0) {
+    const title = sg.label ? Math.ceil((sg.titleOffset ?? style.groupLabelPaddingX) + graphTextBlock(resolveLabelContent(sg.label, sg.labelContent), style, 'group').width + style.groupLabelPaddingX) : 0
+    elkNode.children!.push({ id: `${EMPTY_GROUP_BODY_PREFIX}${sg.id}`, width: Math.max(title - 2 * style.groupPaddingX, EMPTY_GROUP_BODY.width), height: EMPTY_GROUP_BODY.height })
   }
 
   // Add nested subgraphs recursively
