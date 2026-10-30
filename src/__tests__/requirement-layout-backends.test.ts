@@ -17,6 +17,108 @@ const source = (direction: string) => fixture.replace('direction TB', `direction
 const runChild = useTestChildren(20_000)
 
 describe('Requirement layout backends', () => {
+  test.each((['agentic', 'elk'] as const).flatMap(backend => (['scene', 'native'] as const).map(admission => ({ backend, admission }))))('retains parallel requirement occurrences and authored names with $backend through $admission', async ({ backend, admission }) => {
+    // Authored relation-1 is a card name, independently of generated edge IDs;
+    // the two satisfies declarations must remain two visible label owners.
+    const interaction = {
+      source: 'requirementDiagram\ndirection LR\nrequirement "relation-1" {\n  id: "R-1"\n  text: "Authorize release"\n  risk: medium\n  verifymethod: test\n}\nfunctionalRequirement gate {\n  id: "F-2"\n  text: "Reject stale token"\n  risk: high\n  verifymethod: analysis\n}\nelement worker {\n  type: software\n  docRef: "Spec R-1"\n}\nworker - satisfies -> "relation-1"\nworker - satisfies -> "relation-1"\n"relation-1" - derives -> gate\ngate - traces -> "relation-1"',
+      direction: 'LR',
+      requirements: [
+        { name: 'relation-1', kind: 'requirement', requirementId: 'R-1', text: 'Authorize release', risk: 'medium', verifyMethod: 'test' },
+        { name: 'gate', kind: 'functionalRequirement', requirementId: 'F-2', text: 'Reject stale token', risk: 'high', verifyMethod: 'analysis' },
+      ],
+      elements: [
+        { name: 'worker', type: 'software', docRef: 'Spec R-1' },
+      ],
+      relations: [
+        { from: 'worker', to: 'relation-1', kind: 'satisfies', displayLabel: '<<satisfies>>' },
+        { from: 'worker', to: 'relation-1', kind: 'satisfies', displayLabel: '<<satisfies>>' },
+        { from: 'relation-1', to: 'gate', kind: 'derives', displayLabel: '<<derives>>' },
+        { from: 'gate', to: 'relation-1', kind: 'traces', displayLabel: '<<traces>>' },
+      ],
+    } as const
+
+    const options = { graphLayout: { backend, fallback: 'none' as const }, embedFontImport: false }
+    let packet: { rendered: ReturnType<typeof renderMermaidSVGWithReceipt>; parsed: ReturnType<typeof parseRegisteredMermaid>; stages: string[] }
+    if (admission === 'native') {
+      const child = await runChild(process.execPath, ['-e', `
+        import { renderMermaidSVGWithReceipt, parseRegisteredMermaid } from './src/index.ts'
+        import { withRenderStageObserver } from './src/render-stages.ts'
+        const input = await Bun.stdin.text(), options = ${JSON.stringify(options)}, stages = []
+        const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(input, options))
+        console.log(JSON.stringify({ rendered, parsed: parseRegisteredMermaid(input), stages }))
+      `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' }, input: interaction.source })
+      expect(child.status, child.stderr).toBe(0)
+      packet = JSON.parse(child.stdout)
+      expect(packet.stages).toContain('drawing')
+      expect(packet.stages).not.toContain('scene')
+    } else {
+      const stages: string[] = []
+      const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(interaction.source, options))
+      packet = { rendered, parsed: parseRegisteredMermaid(interaction.source), stages }
+      expect(stages).toContain('scene')
+    }
+    expect(packet.rendered.receipt.layoutDecisions?.[0]?.selected).toBe(backend)
+    if (!packet.parsed.ok) throw new Error('The independently authored interaction must parse')
+    const body = packet.parsed.value.body
+
+    if (body.kind !== 'requirement') throw new Error('Expected public structured Requirement')
+    const normalized = (value: string) => value.toLowerCase().replace(/[^a-z]/g, '')
+    expect(body.direction).toBe(interaction.direction)
+    expect(body.requirements.map(requirement => ({ name: requirement.name, kind: normalized(requirement.type), requirementId: requirement.requirementId, text: requirement.text,
+      risk: requirement.risk.toLowerCase(), verifyMethod: requirement.verifyMethod.toLowerCase() }))).toEqual(interaction.requirements.map(requirement => ({ ...requirement, kind: normalized(requirement.kind) })))
+    expect(body.elements.map(element => ({ name: element.name, type: element.type, docRef: element.docRef }))).toEqual([...interaction.elements])
+    expect(body.relations.map(relation => ({ from: relation.src, to: relation.dst, kind: relation.type, displayLabel: `<<${relation.type}>>` }))).toEqual([...interaction.relations])
+    expect(new Set(body.relations.map(relation => relation.id)).size).toBe(4)
+    const { JSDOM } = createRequire(import.meta.url)('jsdom')
+    const dom = new JSDOM(packet.rendered.svg, { contentType: 'image/svg+xml' })
+    try {
+      const document = dom.window.document as Document
+      const cards = [...document.querySelectorAll('g.requirement-node')]
+      expect(cards.map(card => card.getAttribute('data-id')).sort()).toEqual(['gate', 'relation-1', 'worker'])
+      const expectedCards = [
+        { name: 'relation-1', kind: 'requirement', rows: ['ID: R-1', 'Text: Authorize release', 'Risk: Medium', 'Verification: Test'] },
+        { name: 'gate', kind: 'functionalRequirement', rows: ['ID: F-2', 'Text: Reject stale token', 'Risk: High', 'Verification: Analysis'] },
+        { name: 'worker', kind: 'element', rows: ['Type: software', 'Doc Ref: Spec R-1'] },
+      ]
+      for (const expected of expectedCards) {
+        const card = cards.find(card => card.getAttribute('data-id') === expected.name)!
+        const frame = card.querySelector('rect')!
+        expect(Number(frame.getAttribute('width'))).toBeGreaterThan(0)
+        expect(Number(frame.getAttribute('height'))).toBeGreaterThan(0)
+        const ownedText = [...card.querySelectorAll('text')].map(text => text.textContent ?? '')
+        expect(ownedText[0]!.endsWith(expected.name)).toBe(true)
+        expect(normalized(ownedText[0]!)).toStartWith(normalized(expected.kind))
+        expect(ownedText.slice(1)).toEqual(expected.rows)
+      }
+      const carriers = [...document.querySelectorAll('[data-role="relationship"][data-from]')]
+      expect(carriers.map(carrier => ({ from: carrier.getAttribute('data-from'), to: carrier.getAttribute('data-to'), kind: carrier.getAttribute('data-relationship') })))
+        .toEqual(interaction.relations.map(({ displayLabel: _label, ...relation }) => relation))
+      expect(new Set(carriers.map(carrier => carrier.getAttribute('data-id'))).size).toBe(4)
+      expect(carriers.map(carrier => carrier.getAttribute('data-id'))).toEqual(body.relations.map(relation => relation.id))
+      for (const carrier of carriers) {
+        expect(carrier.getAttribute('stroke-dasharray')).toBe('6 4')
+        expect(carrier.getAttribute('marker-end')).toBe('url(#requirement-arrow)')
+        expect(carrier.hasAttribute('marker-start')).toBe(false)
+        const route = carrier.getAttribute('points') ?? carrier.getAttribute('d')!
+        expect(route).not.toMatch(/NaN|Infinity|undefined/)
+        const coordinates = route.match(/[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi)!.map(Number)
+        expect(coordinates.every(Number.isFinite)).toBe(true)
+        expect(coordinates.length).toBeGreaterThanOrEqual(4)
+      }
+      const labelGroups = [...document.querySelectorAll('g.requirement-edge-label')]
+      const labels = labelGroups.map(group => group.querySelector('text')!)
+      expect(labels.map(label => label.textContent)).toEqual(interaction.relations.map(relation => relation.displayLabel))
+      expect(labelGroups).toHaveLength(4)
+      for (const group of labelGroups) expect(group.querySelectorAll(':scope > text')).toHaveLength(1)
+      expect(labels[0]!.getAttribute('x') + ',' + labels[0]!.getAttribute('y')).not.toBe(labels[1]!.getAttribute('x') + ',' + labels[1]!.getAttribute('y'))
+      const ids = [...document.querySelectorAll('[id]')].map(element => element.id)
+      expect(new Set(ids).size).toBe(ids.length)
+      // Logical correspondence and separate owned labels are narrower than
+      // actual glyph/head ink or a complete occlusion proof.
+    } finally { dom.window.close() }
+  })
+
   test.each((['agentic', 'elk'] as const).flatMap(backend => (['scene', 'native'] as const).map(admission => ({ backend, admission }))))('retains all authored cards and traces in a 100-requirement chain with $backend through $admission admission', async ({ backend, admission }) => {
     const requirements = Array.from({ length: 100 }, (_, index) => ({ name: `r${index}`, id: `R${index}`, text: `Requirement ${index}` }))
     const relations = Array.from({ length: 99 }, (_, index) => [`r${index}`, `r${index + 1}`, 'traces'])
