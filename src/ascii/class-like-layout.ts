@@ -74,6 +74,32 @@ function faceCounts(relations: readonly BoxRelation[], direction: DiagramDirecti
 
 export { faceCounts as boxFaceDemands }
 
+/** Cells a card's self-loops need beyond its right and bottom faces, the
+ * most any card of `relations` needs: each nested slot (allocateBoxRoutes)
+ * is two cells outside the previous one and clears the previous loop's label
+ * by a blank cell. Placement that leaves this room (plus a neighbour's own
+ * endpoint approach) lets every loop take its own slot. */
+export function selfLoopClearance(relations: readonly BoxRelation[]): number {
+  const byCard = new Map<string, Array<{ width: number; height: number }>>()
+  for (const relation of relations) {
+    if (relation.from !== relation.to) continue
+    const label = relation.lines?.some(line => line.length > 0) ? measuredText(relation.lines) : { width: 0, height: 0 }
+    byCard.set(relation.from, [...byCard.get(relation.from) ?? [], label])
+  }
+  let clearance = 0
+  for (const labels of byCard.values()) {
+    let x = BOX_ROUTE_APPROACH_DISTANCE + 1, y = BOX_ROUTE_APPROACH_DISTANCE + 1, right = x, bottom = y
+    for (const label of labels) {
+      right = Math.max(right, x, label.width)
+      bottom = Math.max(bottom, y + label.height)
+      x = Math.max(x + 2, label.width + 1)
+      y += label.height ? label.height + 2 : 2
+    }
+    clearance = Math.max(clearance, right + 1, bottom + 1)
+  }
+  return clearance
+}
+
 function sealRoute(route: Omit<BoxRoute, typeof allocatedRoute | 'path'>): BoxRoute {
   const path = allocateTerminalRoute(route.relation.id,
     { ...route.source, nodeId: route.relation.from, end: 'start' },
@@ -110,16 +136,28 @@ const overlaps = (a: TerminalBounds, b: TerminalBounds): boolean => a.x < b.x + 
 export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: readonly BoxRelation[], direction: DiagramDirection, additionalObstacles: readonly TerminalBox[] = []): BoxRoute[] {
   const byId = new Map(boxes.map(box => [box.id, box]))
   const counts = faceCounts(relations, direction, byId), cursors = new Map<string, number>()
-  const port = (id: string, side: BoxSide): BoxPort => {
-    const box = byId.get(id)!, key = `${id}\0${side}`, index = cursors.get(key) ?? 0
+  // Self-relationships leave the right face and return through the bottom
+  // face, one nested slot each: the n-th loop of a card (n = 0 innermost)
+  // takes the n-th port from that corner on both faces, so the loops nest
+  // without crossing. Every other endpoint keeps its encounter order.
+  const selfRank = new Map<BoxRelation, number>(), selfCount = new Map<string, number>()
+  for (const relation of relations) {
+    if (relation.from !== relation.to) continue
+    const rank = selfCount.get(relation.from) ?? 0
+    selfRank.set(relation, rank); selfCount.set(relation.from, rank + 1)
+  }
+  const port = (id: string, side: BoxSide, loop?: number): BoxPort => {
+    const box = byId.get(id)!, count = counts.get(id)![side]
+    if (loop !== undefined) return allocateFacePort(box, side, count - 1 - loop, count)
+    const key = `${id}\0${side}`, index = cursors.get(key) ?? 0
     cursors.set(key, index + 1)
-    const count = counts.get(id)![side]
     return allocateFacePort(box, side, index, count)
   }
   const plans = relations.map(relation => {
     if (!byId.has(relation.from) || !byId.has(relation.to)) throw new Error(`Terminal route ${relation.id} has no allocated endpoint box`)
     const [from, to] = sides(relation, direction, byId)
-    return { relation, source: port(relation.from, from), target: port(relation.to, to) }
+    const loop = selfRank.get(relation)
+    return { relation, source: port(relation.from, from, loop), target: port(relation.to, to, loop), ...(loop === undefined ? {} : { loop }) }
   })
   // The map is a search adapter over cell rectangles; its payload is unused by
   // getPath. No family-specific node store or dense output canvas is copied.
@@ -144,18 +182,18 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     const d = delta[point.side]
     for (let step = 0; step <= BOX_ROUTE_APPROACH_DISTANCE; step++) markerCells.add(`${point.x + d.x * step},${point.y + d.y * step}`)
   }
+  const free = (bounds: TerminalBounds) => {
+    const clearance = { x: bounds.x - 1, y: bounds.y - 1, width: bounds.width + 2, height: bounds.height + 2 }
+    if (bounds.x < 0 || bounds.y < 0 || textObstacles.some(box => overlaps(clearance, box)) || textBounds.some(other => overlaps(clearance, other))) return false
+    // A label beside an exit can seal it between neighboring face ports.
+    // Keep the same one-cell clearance around complete marker approaches.
+    for (let y = clearance.y; y < clearance.y + clearance.height; y++) for (let x = clearance.x; x < clearance.x + clearance.width; x++) if (markerCells.has(`${x},${y}`)) return false
+    for (let y = bounds.y; y < bounds.y + bounds.height; y++) for (let x = bounds.x; x < bounds.x + bounds.width; x++) if (routeCells.has(`${x},${y}`)) return false
+    return true
+  }
   const text = (lines: readonly string[] | undefined, anchors: readonly GridCoord[]): BoxText | undefined => {
     if (!lines?.some(line => line.length > 0)) return undefined
     const measured = measuredText(lines), width = measured.width, height = measured.height
-    const free = (bounds: TerminalBounds) => {
-      const clearance = { x: bounds.x - 1, y: bounds.y - 1, width: bounds.width + 2, height: bounds.height + 2 }
-      if (bounds.x < 0 || bounds.y < 0 || textObstacles.some(box => overlaps(clearance, box)) || textBounds.some(other => overlaps(clearance, other))) return false
-      // A label beside an exit can seal it between neighboring face ports.
-      // Keep the same one-cell clearance around complete marker approaches.
-      for (let y = clearance.y; y < clearance.y + clearance.height; y++) for (let x = clearance.x; x < clearance.x + clearance.width; x++) if (markerCells.has(`${x},${y}`)) return false
-      for (let y = bounds.y; y < bounds.y + height; y++) for (let x = bounds.x; x < bounds.x + width; x++) if (routeCells.has(`${x},${y}`)) return false
-      return true
-    }
     // Nearest meaningful anchors first; all candidates are complete rectangles.
     for (let radius = 0; radius < 24; radius++) for (const anchor of anchors) {
       const candidates = [
@@ -180,10 +218,87 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     return Object.freeze({ ...bounds, lines: Object.freeze([...lines]), text: measured })
   }
   for (const key of markerCells) occupied.set(key, blocker)
-  const routes: BoxRoute[] = []
-  for (const plan of plans) {
+  const routes = new Map<(typeof plans)[number], BoxRoute>()
+  const record = (points: readonly GridCoord[]) => { for (const point of points) { const key = gridKey(point); routeCells.add(key); occupied.set(key, blocker) } }
+  const approachCells = (port: BoxPort) => Array.from({ length: BOX_ROUTE_APPROACH_DISTANCE + 1 }, (_, step) => `${port.x + delta[port.side].x * step},${port.y + delta[port.side].y * step}`)
+  /** The next free nested slot outside each card's right-bottom corner. */
+  const loopSlot = new Map<string, { x: number; y: number }>()
+  /**
+   * A self-loop drawn as its own nested slot around the card's right-bottom
+   * corner: out of the right face, down past the bottom, back into the bottom
+   * face. Its label sits just inside the slot, under the loop's bottom leg and
+   * beside its rising leg; the next loop of the card passes outside that
+   * label with a blank cell between. Undefined when the slot would touch a
+   * card, another endpoint approach, text or an earlier route.
+   */
+  const constructLoop = (plan: (typeof plans)[number]): { points: GridCoord[]; label?: BoxText } | undefined => {
+    const { relation, source, target } = plan
+    if (source.side !== 'R' || target.side !== 'B') return undefined
+    const slot = loopSlot.get(relation.from) ?? { x: source.x + BOX_ROUTE_APPROACH_DISTANCE + 1, y: target.y + BOX_ROUTE_APPROACH_DISTANCE + 1 }
+    const points: GridCoord[] = []
+    const run = (to: GridCoord) => {
+      const from = points.at(-1)!, dx = Math.sign(to.x - from.x), dy = Math.sign(to.y - from.y)
+      for (let x = from.x + dx, y = from.y + dy; x !== to.x + dx || y !== to.y + dy; x += dx, y += dy) points.push({ x, y })
+    }
+    points.push({ x: source.x, y: source.y })
+    run({ x: slot.x, y: source.y }); run({ x: slot.x, y: slot.y }); run({ x: target.x, y: slot.y }); run({ x: target.x, y: target.y })
+    const own = new Set([...approachCells(source), ...approachCells(target)])
+    const nearLabel = new Set(loopLabels.flatMap(ring).map(gridKey))
+    if (points.some(point => {
+      const key = gridKey(point)
+      return cardCells.has(key) || routeCells.has(key) || nearLabel.has(key) || (markerCells.has(key) && !own.has(key)) || textBounds.some(bounds => overlaps(bounds, { ...point, width: 1, height: 1 }))
+    })) return undefined
+    let label: BoxText | undefined
+    let next = { x: slot.x + 2, y: slot.y + 2 }
+    if (relation.lines?.some(line => line.length > 0)) {
+      const measured = measuredText(relation.lines), bounds = { x: target.x + 1, y: slot.y + 1, width: measured.width, height: measured.height }
+      const clearance = { x: bounds.x - 1, y: bounds.y - 1, width: bounds.width + 2, height: bounds.height + 2 }
+      const blocked = (x: number, y: number) => cardCells.has(`${x},${y}`) || routeCells.has(`${x},${y}`) || markerCells.has(`${x},${y}`) || points.some(point => point.x === x && point.y === y)
+      let clear = !textObstacles.some(box => overlaps(clearance, box)) && !textBounds.some(other => overlaps(clearance, other))
+      for (let y = bounds.y; clear && y < bounds.y + bounds.height; y++) for (let x = bounds.x; clear && x < bounds.x + bounds.width; x++) if (blocked(x, y)) clear = false
+      if (!clear) return undefined
+      label = Object.freeze({ ...bounds, lines: Object.freeze([...relation.lines]), text: measured })
+      next = { x: Math.max(next.x, bounds.x + bounds.width + 1), y: bounds.y + bounds.height + 1 }
+    }
+    loopSlot.set(relation.from, next)
+    if (label) { textBounds.push(label); occupy(label); loopLabels.push(label) }
+    return { points, ...(label ? { label } : {}) }
+  }
+  /** Self-loop labels, and the cells of every self-loop route. A loop label
+   * touches its own loop and keeps a blank cell from every other loop. */
+  const loopLabels: TerminalBounds[] = [], loopCells = new Set<string>()
+  const ring = (bounds: TerminalBounds) => Array.from({ length: (bounds.width + 2) * (bounds.height + 2) }, (_, i) => ({ x: bounds.x - 1 + (i % (bounds.width + 2)), y: bounds.y - 1 + Math.floor(i / (bounds.width + 2)) }))
+    .filter(cell => cell.x < bounds.x || cell.x >= bounds.x + bounds.width || cell.y < bounds.y || cell.y >= bounds.y + bounds.height)
+  /** A searched self-loop's label: the first free rectangle touching its own
+   * path (under, over, right of or left of a path cell, lowest cells first)
+   * that no other loop touches. Undefined when there is none. */
+  const searchedLoopLabel = (lines: readonly string[] | undefined, points: readonly GridCoord[]): BoxText | undefined => {
+    if (!lines?.some(line => line.length > 0)) return undefined
+    const measured = measuredText(lines), own = new Set(points.map(gridKey))
+    const cells = [...points].sort((a, b) => b.y - a.y || a.x - b.x)
+    for (const cell of cells) {
+      for (const candidate of [{ x: cell.x, y: cell.y + 1 }, { x: cell.x, y: cell.y - measured.height }, { x: cell.x + 1, y: cell.y }, { x: cell.x - measured.width, y: cell.y }]) {
+        const bounds = { ...candidate, width: measured.width, height: measured.height }
+        if (!free(bounds) || points.some(point => overlaps(bounds, { ...point, width: 1, height: 1 }))) continue
+        if (ring(bounds).some(around => loopCells.has(gridKey(around)) && !own.has(gridKey(around)))) continue
+        textBounds.push(bounds); occupy(bounds); loopLabels.push(bounds)
+        return Object.freeze({ ...bounds, lines: Object.freeze([...lines]), text: measured })
+      }
+    }
+    return undefined
+  }
+  // Self-loops claim their nested corner slots before other routes search.
+  const order = [...plans.filter(plan => plan.loop !== undefined), ...plans.filter(plan => plan.loop === undefined)]
+  for (const plan of order) {
     const { relation, source, target } = plan
     const fromLabel = text(relation.fromLines, [source]), toLabel = text(relation.toLines, [target])
+    const loop = plan.loop === undefined ? undefined : constructLoop(plan)
+    if (loop) {
+      record(loop.points)
+      for (const point of loop.points) loopCells.add(gridKey(point))
+      routes.set(plan, sealRoute({ relation, source, target, points: loop.points, ...(loop.label ? { label: loop.label } : {}), ...(fromLabel ? { fromLabel } : {}), ...(toLabel ? { toLabel } : {}) }))
+      continue
+    }
     const sourceExit = { x: source.x + delta[source.side].x * BOX_ROUTE_APPROACH_DISTANCE, y: source.y + delta[source.side].y * BOX_ROUTE_APPROACH_DISTANCE }
     const targetExit = { x: target.x + delta[target.side].x * BOX_ROUTE_APPROACH_DISTANCE, y: target.y + delta[target.side].y * BOX_ROUTE_APPROACH_DISTANCE }
     // Previously used routes are obstacles on the first attempt. The bounded
@@ -203,7 +318,12 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     const exitsClear = sourceExit.x >= 0 && sourceExit.y >= 0 && targetExit.x >= 0 && targetExit.y >= 0 && clearExit(source) && clearExit(target)
     const path = () => getClearAxisPath(occupied, sourceExit, targetExit)
       ?? getPath(occupied, sourceExit, targetExit, preferred[source.side])
+    // A searched self-loop first keeps a blank cell from every loop label.
+    const halo = plan.loop === undefined ? [] : loopLabels.flatMap(ring).map(gridKey).filter(key => !occupied.has(key))
+    for (const key of halo) occupied.set(key, blocker)
     let middle = exitsClear ? path() : null
+    for (const key of halo) occupied.delete(key)
+    if (!middle && halo.length) middle = exitsClear ? path() : null
     if (!middle) {
       const removedRoutes: string[] = []
       // Cross line ink only; endpoint markers and their approaches stay
@@ -216,11 +336,12 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     if (!middle) throw new TerminalBoxRouteUnavailable(`No feasible terminal route for ${relation.id}; move the related cards or reduce their label footprint`)
     const approach = (port: BoxPort) => Array.from({ length: BOX_ROUTE_APPROACH_DISTANCE }, (_, step) => step === 0 ? port : ({ x: port.x + delta[port.side].x * step, y: port.y + delta[port.side].y * step }))
     const points = [...approach(source), ...middle, ...approach(target).reverse()]
-    for (const point of points) { const key = gridKey(point); routeCells.add(key); occupied.set(key, blocker) }
-    const label = text(relation.lines, [points[Math.floor(points.length / 2)]!, source, target])
-    routes.push(sealRoute({ ...plan, points, ...(label ? { label } : {}), ...(fromLabel ? { fromLabel } : {}), ...(toLabel ? { toLabel } : {}) }))
+    record(points)
+    if (plan.loop !== undefined) for (const point of points) loopCells.add(gridKey(point))
+    const label = (plan.loop === undefined ? undefined : searchedLoopLabel(relation.lines, points)) ?? text(relation.lines, [points[Math.floor(points.length / 2)]!, source, target])
+    routes.set(plan, sealRoute({ relation, source, target, points, ...(label ? { label } : {}), ...(fromLabel ? { fromLabel } : {}), ...(toLabel ? { toLabel } : {}) }))
   }
-  return routes
+  return plans.map(plan => routes.get(plan)!)
 }
 
 /** Paint each route's own ports; the compositor owns compatible intersections. */

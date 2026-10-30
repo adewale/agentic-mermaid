@@ -9,7 +9,7 @@ import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { displayText } from '../multiline-utils.ts'
 import { paintTerminalFrame } from './terminal-geometry.ts'
-import { allocateBoxRoutes, BOX_ROUTE_APPROACH_DISTANCE, boxFaceSizes, paintBoxRoute, paintBoxText, type BoxRelation } from './class-like-layout.ts'
+import { allocateBoxRoutes, BOX_ROUTE_APPROACH_DISTANCE, boxFaceSizes, paintBoxRoute, paintBoxText, selfLoopClearance, type BoxRelation } from './class-like-layout.ts'
 import { frontmatterTitle, type MermaidFrontmatterMap } from '../mermaid-source.ts'
 
 interface BlockCell extends Cell {
@@ -46,7 +46,9 @@ export function renderBlockTerminal(lines: string[] | string, config: AsciiConfi
   const relations: BoxRelation[] = model.edges.map(e => ({ id: e.id, from: e.start!, to: e.end!, ...(e.label ? { lines: wrapText(blockDisplayText(e.label), width ? Math.max(1, width - 8) : undefined) } : {}) }))
   // Opposing protected approaches must leave a transverse channel between
   // cells. Without it, disjoint ports can close a pocket around another exit.
-  const gap = relations.length ? Math.max(6, 2 * (BOX_ROUTE_APPROACH_DISTANCE + 1) + 1) : 6
+  // Self-loops take nested slots beyond a card's right and bottom faces; a
+  // neighbour's endpoint approach and a blank cell must still fit beyond them.
+  const gap = relations.length ? Math.max(6, 2 * (BOX_ROUTE_APPROACH_DISTANCE + 1) + 1, selfLoopClearance(relations) + BOX_ROUTE_APPROACH_DISTANCE + 2) : 6
   layoutGrid(root, gap)
   let boxes = placedBoxes()
   const cells = new Map(all.map(cell => [cell.block.id, cell]))

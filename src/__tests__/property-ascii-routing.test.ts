@@ -3,7 +3,8 @@ import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 
-import { renderMermaidASCII } from '../ascii/index.ts'
+import { renderMermaidASCII, renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
+import { terminalDocumentOf } from '../ascii/terminal-document.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { convertToAsciiGraph } from '../ascii/converter.ts'
 import { determineLabelLine } from '../ascii/edge-routing.ts'
@@ -525,6 +526,59 @@ describe('property-based renderMermaidASCII', () => {
         ],
         edges: [{ from: 'Bs5br', to: 'Bbln', label: undefined }, { from: 'Bs5br', to: 'Bbln', label: 'a' }, { from: 'Mu', to: 'Bbln', label: undefined }],
       }]] }),
+    )
+  })
+
+  // Every family drawn by the shared card router (class, ER, requirement, C4,
+  // block) gives each self-relationship its own loop: certified (connected,
+  // marked, no shared run with another route), crossing no other loop of its
+  // card, with its label beside that loop and nearer to it than to any other
+  // loop of the card. Read from the cells each relationship owns.
+  it('draws each card self-relationship as its own loop with its label beside it', () => {
+    const SELF_LOOP_SOURCES = {
+      class: (labels: readonly (string | undefined)[]) => ['classDiagram', '  class A', '  class B', '  A --> B', ...labels.map(label => `  A --> A${label ? ` : ${label}` : ''}`)],
+      er: (labels: readonly (string | undefined)[]) => ['erDiagram', '  A ||--o{ B : has', ...labels.map((label, i) => `  A ||--o{ A : ${label ?? `r${i}`}`)],
+      requirement: (labels: readonly (string | undefined)[]) => ['requirementDiagram', '  requirement r {', '    id: 1', '  }', '  element e {', '    type: sim', '  }', '  e - satisfies -> r', ...labels.map((_, i) => `  r - ${['contains', 'copies', 'derives', 'refines', 'traces'][i % 5]} -> r`)],
+      c4: (labels: readonly (string | undefined)[]) => ['C4Context', '  Person(u, "User")', '  System(s, "System")', '  Rel(u, s, "Uses")', ...labels.map((label, i) => `  Rel(s, s, "${label ?? `r${i}`}")`)],
+      block: (labels: readonly (string | undefined)[]) => ['block-beta', '  columns 2', '  a b', '  a --> b', ...labels.map(label => (label ? `  a -- "${label}" --> a` : '  a --> a'))],
+    } as const
+    const chebyshev = (a: readonly { x: number; y: number }[], b: readonly { x: number; y: number }[]) =>
+      Math.min(Infinity, ...a.flatMap(p => b.map(q => Math.max(Math.abs(p.x - q.x), Math.abs(p.y - q.y)))))
+    fc.assert(
+      fc.property(
+        fc.constantFrom(...(Object.keys(SELF_LOOP_SOURCES) as (keyof typeof SELF_LOOP_SOURCES)[])),
+        fc.array(fc.option(wordArb, { nil: undefined }), { minLength: 1, maxLength: 4 }),
+        fc.boolean(),
+        (family, labels, useAscii) => {
+          const source = SELF_LOOP_SOURCES[family](labels).join('\n')
+          const result = renderMermaidASCIIWithReceipt(source, { colorMode: 'none', useAscii })
+          expect(result.receipt.layoutCertification, source).toMatchObject({ status: 'passed', issues: [] })
+          const doc = terminalDocumentOf(result)!
+          const cellsOf = (id: string, kinds: readonly string[]) =>
+            [...doc.entries()].flatMap(([x, y, cell]) => (kinds.includes(cell.kind ?? '') && cell.owners.some(owner => owner.kind === 'edge' && owner.id === id) ? [{ x, y }] : []))
+          const loops = doc.regions().filter(region => region.kind === 'edge' && region.from === region.to)
+          expect(loops, source).toHaveLength(labels.length)
+          const ink = new Map(loops.map(loop => [loop.id, cellsOf(loop.id, ['stroke', 'marker'])]))
+          for (const loop of loops) {
+            const own = ink.get(loop.id)!
+            for (const other of loops) {
+              if (other === loop) continue
+              const shared = own.filter(p => ink.get(other.id)!.some(q => q.x === p.x && q.y === p.y))
+              expect(shared, `${loop.id} and ${other.id} share cells\n${result.text}`).toEqual([])
+            }
+            const label = cellsOf(loop.id, ['text'])
+            if (label.length === 0) continue
+            const nearest = chebyshev(label, own)
+            expect(nearest, `${loop.id} label is beside its loop\n${result.text}`).toBeLessThanOrEqual(2)
+            for (const other of loops) if (other !== loop) expect(chebyshev(label, ink.get(other.id)!), `${loop.id} label is nearer ${other.id}\n${result.text}`).toBeGreaterThan(nearest)
+          }
+        },
+      ),
+      fcParameters({
+        numRuns: 40,
+        // The reported tangle: three labelled class self-relationships.
+        examples: [['class', ['first', 'second', 'third'], false], ['er', ['manages', 'mentors', 'backs'], false], ['block', [undefined, 'again'], false]],
+      }),
     )
   })
 })
