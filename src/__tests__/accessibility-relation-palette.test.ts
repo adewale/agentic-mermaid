@@ -35,7 +35,7 @@ describe('typed relation accessibility', () => {
       expect(relations.map(element => `${attr(element, 'data-from')}->${attr(element, 'data-to')}`).sort(), entry.family).toEqual(expected)
       for (const relation of relations) {
         expect(relation, entry.family).toMatch(/role="graphics-symbol"/)
-        expect(relation, entry.family).toMatch(/aria-label="[^"]+ to [^"]+/)
+        for (const endpoint of [attr(relation, 'data-from'), attr(relation, 'data-to')]) expect(attr(relation, 'aria-label'), entry.family).toContain(endpoint)
       }
     }
     expect(enrolled.length).toBeGreaterThan(0)

@@ -312,7 +312,7 @@ export function connector(fields: ConnectorFields): ConnectorMark {
   const accessibleLabel = firstLabel?.visual?.kind === 'inline'
     ? connectorInlineLabelText(firstLabel).lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n')
     : firstLabel ? displayText(resolveLabelContent(firstLabel.text, firstLabel.textContent), firstLabel.display ?? 'literal') : undefined
-  const accessibility = relationAccessibility(identity, accessibleLabel)
+  const accessibility = relationAccessibility(identity, accessibleLabel, fields.relationship?.direction)
   assertMarkAttributes(fields.id, fields.attributes)
   if (accessibility && fields.attributes?.ariaLabel !== undefined) throw new TypeError(`Connector "${fields.id}" takes its aria-label from typed relation accessibility`)
   for (const [index, label] of labels.entries()) {

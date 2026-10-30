@@ -12,6 +12,7 @@ import { stableFamilyFacts } from './stable-family-source-hooks.ts'
 // ============================================================================
 
 import { classRelationLineStyle, classRelationMarkers } from './class-body.ts'
+import { arrowheadDirection, directionArrow } from '../shared/relation-direction.ts'
 import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
 import { sequenceMessageArrow, sequenceMessageContexts, sequenceMessageStyle } from './sequence-body.ts'
@@ -79,9 +80,10 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
       }
       visitGroups(g.subgraphs)
       g.edges.forEach((e, i) => {
-        const base = `edge ${clean(e.source)} -> ${clean(e.target)}`
+        const arrow = directionArrow(arrowheadDirection(e.hasArrowStart, e.hasArrowEnd))
+        const base = `edge ${clean(e.source)} ${arrow} ${clean(e.target)}`
         add(out, e.label ? `${base} : ${clean(e.label)}` : base)
-        add(out, `edge#${i} ${clean(e.source)} -> ${clean(e.target)}${e.label ? ` : ${clean(e.label)}` : ''}`)
+        add(out, `edge#${i} ${clean(e.source)} ${arrow} ${clean(e.target)}${e.label ? ` : ${clean(e.label)}` : ''}`)
         if (e.style !== 'solid') add(out, `${base} style ${e.style}`)
       })
       break
@@ -491,9 +493,10 @@ function factsArchitecture(out: string[], body: ArchitectureBody): void {
   body.edges.forEach((e, i) => {
     const source = `${clean(e.source.id)}${e.source.boundary === 'group' ? '{group}' : ''}:${e.source.side}`
     const target = `${clean(e.target.id)}${e.target.boundary === 'group' ? '{group}' : ''}:${e.target.side}`
-    const base = `edge ${source} -> ${target}`
+    const arrow = directionArrow(arrowheadDirection(e.hasArrowStart, e.hasArrowEnd))
+    const base = `edge ${source} ${arrow} ${target}`
     add(out, e.label ? `${base} : ${clean(e.label)}` : base)
-    add(out, `edge#${i} ${source} -> ${target}${e.label ? ` : ${clean(e.label)}` : ''}`)
+    add(out, `edge#${i} ${source} ${arrow} ${target}${e.label ? ` : ${clean(e.label)}` : ''}`)
   })
 }
 

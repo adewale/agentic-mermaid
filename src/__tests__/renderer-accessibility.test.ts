@@ -2,8 +2,11 @@
 // the structured AX tree from describeMermaid({format:'json'}).
 
 import { describe, test, expect } from 'bun:test'
+import fc from 'fast-check'
 import { renderMermaidSVG } from '../index.ts'
 import { describeMermaidSource, describeMermaidTree } from '../agent/describe.ts'
+import { describeMermaidFacts } from '../agent/facts.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { mutate } from '../agent/mutate.ts'
 import { verifyMermaid } from '../agent/verify.ts'
@@ -189,7 +192,20 @@ describe('#7349 AX tree — describeMermaid({format:json})', () => {
   test('class: classes → nodes, relations → edges', () => {
     const tree = describeMermaidTree(parseMermaidOk('classDiagram\n class A\n class B\n A <|-- B'))
     expect(tree.nodes.map(n => n.id).sort()).toEqual(['A', 'B'])
-    expect(tree.edges).toEqual([{ from: 'A', to: 'B', label: 'inheritance' }])
+    expect(tree.edges).toEqual([{ from: 'A', to: 'B', label: 'inheritance', direction: 'reverse' }])
+  })
+
+  test('architecture and flowchart name each group\'s members in prose and parent every member in the tree', () => {
+    const architecture = 'architecture-beta\n  group cloud(cloud)[Cloud]\n  group private(server)[Private] in cloud\n  group storage(disk)[Storage] in cloud\n  service db(database)[DB] in private\n  service api(server)[API] in private\n  junction j1 in cloud\n  service web(internet)[Web]\n  web:R --> L:api'
+    expect(describeMermaidSource(architecture)).toContain('Groups: Cloud [private, storage, j1]; Private [db, api]; Storage [empty].')
+    const archParents = Object.fromEntries(describeMermaidTree(parseMermaidOk(architecture)).nodes.map(n => [n.id, n.parentId]))
+    expect(archParents).toEqual({ cloud: undefined, private: 'cloud', storage: 'cloud', db: 'private', api: 'private', web: undefined, j1: 'cloud' })
+
+    const flowchart = 'flowchart LR\n  subgraph Outer[Outer box]\n    A\n    subgraph Inner\n      B\n    end\n  end\n  C --> Outer\n  A --> B'
+    expect(describeMermaidSource(flowchart)).toContain('Subgraphs: Outer box [Inner, A]; Inner [B].')
+    const flowTree = describeMermaidTree(parseMermaidOk(flowchart))
+    expect(Object.fromEntries(flowTree.nodes.map(n => [n.id, n.parentId]))).toEqual({ Outer: undefined, Inner: 'Outer', A: 'Outer', B: 'Inner', C: undefined })
+    expect(flowTree.sinks).toContain('Outer')
   })
 
   test('an unregistered source → preserved-family JSON tree, not a throw', () => {
@@ -197,6 +213,59 @@ describe('#7349 AX tree — describeMermaid({format:json})', () => {
     const parsed = JSON.parse(json)
     expect(parsed.kind).toBe('family:unknown')
     expect(parsed.nodes).toEqual([])
+  })
+})
+
+// Every read-back surface names an edge's direction the way its arrowheads are
+// drawn: describe prose and facts write the arrow token between the authored
+// endpoints, the AX tree marks non-forward edges, and the SVG relation carries
+// the matching marker ends and an aria-label read in arrowhead order.
+describe('relation direction read-back agrees with the drawn arrowheads', () => {
+  type Heads = { start: boolean; end: boolean }
+  const token = ({ start, end }: Heads) => (start && end ? '<->' : start ? '<-' : end ? '->' : '--')
+  const treeDirection = ({ start, end }: Heads) => (start && end ? 'bidirectional' : start ? 'reverse' : end ? undefined : 'undirected')
+  const spoken = ({ start, end }: Heads, from: string, to: string) =>
+    start && end ? `between ${from} and ${to} in both directions` : start ? `${to} to ${from}` : end ? `${from} to ${to}` : `between ${from} and ${to}`
+  // Each family's authored arrow forms and the arrowheads they draw.
+  const families: Record<string, { forms: Array<[string, Heads]>; source: (arrow: string) => string; prose: RegExp; fact?: (arrow: string) => string; ids?: [string, string] }> = {
+    flowchart: {
+      forms: [['-->', { start: false, end: true }], ['---', { start: false, end: false }], ['<-->', { start: true, end: true }], ['-.-', { start: false, end: false }], ['<-.->', { start: true, end: true }], ['==>', { start: false, end: true }], ['--o', { start: false, end: true }], ['x--x', { start: true, end: true }]],
+      source: arrow => `flowchart LR\n  A ${arrow} B`,
+      prose: /Edges: A (\S+) B\./,
+      fact: arrow => `edge A ${arrow} B`,
+    },
+    architecture: {
+      forms: [['-->', { start: false, end: true }], ['<--', { start: true, end: false }], ['<-->', { start: true, end: true }], ['--', { start: false, end: false }], ['-[uses]->', { start: false, end: true }], ['<-[uses]-', { start: true, end: false }]],
+      // Lower-case ids: `L:B` would read B as a side.
+      source: arrow => `architecture-beta\n  service a(server)[A]\n  service b(server)[B]\n  a:R ${arrow} L:b`,
+      prose: /Connections: a (\S+) b/,
+      fact: arrow => `edge a:R ${arrow} b:L`,
+      ids: ['a', 'b'],
+    },
+    class: {
+      forms: [['-->', { start: false, end: true }], ['<--', { start: true, end: false }], ['<|--', { start: true, end: false }], ['--|>', { start: false, end: true }], ['<|--|>', { start: true, end: true }], ['--', { start: false, end: false }], ['*--', { start: true, end: false }]],
+      source: arrow => `classDiagram\n  A ${arrow} B`,
+      prose: /Relations: A (\S+) B \(/,
+    },
+  }
+  test('describe, AX tree, facts and SVG marker ends and aria-label', () => {
+    const arb = fc.constantFrom(...Object.keys(families)).chain(family => fc.tuple(fc.constant(family), fc.constantFrom(...families[family]!.forms)))
+    fc.assert(fc.property(arb, ([family, [arrow, heads]]) => {
+      const spec = families[family]!
+      const source = spec.source(arrow)
+      const parsed = parseMermaidOk(source)
+      expect(describeMermaidSource(source).match(spec.prose)?.[1], source).toBe(token(heads))
+      const [edge] = describeMermaidTree(parsed).edges
+      expect(edge?.direction, source).toBe(treeDirection(heads))
+      const label = arrow.includes('uses') ? ': uses' : ''
+      if (spec.fact) expect(describeMermaidFacts(parsed), source).toContain(`${spec.fact(token(heads))}${label && ` ${label}`}`)
+      const relations = [...renderMermaidSVG(source).matchAll(/<[^>]+aria-roledescription="relation"[^>]*>/g)].map(m => m[0])
+      expect(relations, source).toHaveLength(1)
+      const relation = relations[0]!
+      expect(/\smarker-start="url\(/.test(relation), source).toBe(heads.start)
+      expect(/\smarker-end="url\(/.test(relation), source).toBe(heads.end)
+      expect(decodeXML(relation.match(/aria-label="([^"]*)"/)![1]!), source).toBe(`${spoken(heads, ...(spec.ids ?? ['A', 'B']))}${label}`)
+    }), fcParameters({ numRuns: 60 }))
   })
 })
 

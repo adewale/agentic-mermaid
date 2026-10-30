@@ -17,6 +17,7 @@ import { serializeMarkerResources } from '../scene/marker-resources.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
 import { messageLabelOcclusion, type VisibleSpan } from './label-occlusion.ts'
 import { semanticChildId } from '../scene/identity.ts'
+import { arrowheadDirection } from '../shared/relation-direction.ts'
 
 
 // ============================================================================
@@ -631,9 +632,7 @@ function renderMessage<T>(
     endpoints: { from: msg.from, to: msg.to },
     relationship: {
       kind: 'sequence-message',
-      direction: msg.isSelf ? 'self'
-        : startMarker && endMarker ? 'bidirectional'
-          : startMarker ? 'reverse' : endMarker ? 'forward' : 'undirected',
+      direction: msg.isSelf ? 'self' : arrowheadDirection(startMarker !== undefined, endMarker !== undefined),
     },
     route: { ownership: 'layout' },
     labels: msg.label ? [{ text: msg.label, ...(msg.labelContent ? { textContent: msg.labelContent } : {}) }] : [],
