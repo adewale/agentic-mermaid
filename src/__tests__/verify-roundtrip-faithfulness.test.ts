@@ -7,6 +7,8 @@
   // into the warning vocabulary as lint/warning.
 
 import { describe, test, expect } from 'bun:test'
+import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseRegisteredMermaid as parseMermaid, verifyMermaid } from '../agent/index.ts'
 import { WARNING_TIER, WARNING_SEVERITY } from '../agent/types.ts'
 
@@ -17,6 +19,8 @@ const FAITHFUL: Record<string, string> = {
   er: 'erDiagram\n  CUSTOMER ||--o{ ORDER : places\n  ORDER ||--|{ LINE : contains',
   state: 'stateDiagram-v2\n  [*] --> Idle\n  Idle --> Running\n  Running --> [*]',
   pie: 'pie title Pets\n  "Dogs" : 40\n  "Cats" : 30',
+  // A wide spacer's cells are named after its one generated occurrence.
+  block: 'block\n  ida space:3 idb idc',
 }
 
 describe('CONTENT_DROPPED_ON_ROUNDTRIP verify lint', () => {
@@ -41,6 +45,33 @@ describe('CONTENT_DROPPED_ON_ROUNDTRIP verify lint', () => {
     expect(p.ok).toBe(true)
     if (!p.ok) return
     expect(verifyMermaid(p.value).ok).toBe(true)
+  })
+
+  // The lint compares facts, not the {nodes, edges, groups} tally: a node id
+  // no spelling carries re-reads as other content with the same counts
+  // (`A;B --> B` re-reads as node A and the edge B --> B). A typed diagram
+  // reaches verify that way from Code Mode or a payload; the lint must name
+  // the lost node, and stay silent for an id that reads back as itself.
+  test('a node id that re-reads as other content is reported with its lost facts', () => {
+    const parsed = parseMermaid('flowchart LR\n  X --> B\n  B --> C\n')
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const forged = (id: string) => {
+      const d = structuredClone(parsed.value) as typeof parsed.value
+      if (d.body.kind !== 'flowchart') throw new Error('expected a flowchart body')
+      const graph = d.body.graph
+      const node = { ...graph.nodes.get('X')!, id, label: id }
+      graph.nodes = new Map([[id, node], ...[...graph.nodes].filter(([key]) => key !== 'X')])
+      graph.edges = graph.edges.map(edge => edge.source === 'X' ? { ...edge, source: id } : edge)
+      return d
+    }
+    const plain = fc.stringMatching(/^n[a-z0-9]{0,5}$/)
+    const unspellable = fc.tuple(plain, fc.constantFrom(';', ';D', '[x]', '(x)', '{x}', ' y', '-->D', ' & D')).map(([id, tail]) => id + tail)
+    fc.assert(fc.property(fc.oneof(plain.map((id): [string, boolean] => [id, false]), unspellable.map((id): [string, boolean] => [id, true])), ([id, reported]) => {
+      const drops = verifyMermaid(forged(id)).warnings.filter(warning => warning.code === 'CONTENT_DROPPED_ON_ROUNDTRIP')
+      if (!reported) return expect(drops).toEqual([])
+      expect(drops).toHaveLength(1)
+      expect(drops[0]).toMatchObject({ lost: expect.arrayContaining([`node ${id} : ${id}`]) })
+    }), fcParameters({ numRuns: 200, examples: [[['A;B', true]]] as Array<[[string, boolean]]> }))
   })
 
   // Move 6: an OPAQUE body (the wrapper's `before === null` branch) must never

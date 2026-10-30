@@ -73,6 +73,22 @@ function declaration(node: Block): string {
   if (!pair) throw new Error(`Unknown block shape ${node.type}`)
   return `${name}${pair[0]}${label}${pair[1]}`
 }
+/** A wide spacer (`space:3`) is read as one cell per column, named after its
+ * one generated occurrence (`block_generated_1-0`, `-1`, `-2`). Write such a
+ * run back as one wide spacer, so a re-read names its cells alike. */
+function spacerRuns(children: readonly Block[]): Block[] {
+  const items: Block[] = []
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i]!
+    const occurrence = child.type === 'space' && (child.width ?? 1) === 1 ? /^(block_generated_\d+)-0$/.exec(child.id)?.[1] : undefined
+    let width = 1
+    while (occurrence && children[i + width]?.type === 'space' && (children[i + width]!.width ?? 1) === 1 && children[i + width]!.id === `${occurrence}-${width}`) width++
+    items.push(width > 1 ? { ...child, width } : child)
+    i += width - 1
+  }
+  return items
+}
+
 export function renderBlock(body: BlockBody): string {
   const lines = ['block']
   appendNativeAccessibilityLines(lines, body)
@@ -89,7 +105,8 @@ export function renderBlock(body: BlockBody): string {
       const inner = node === body.root ? depth + 1 : depth + 1
       if (node.columns !== undefined) lines.push(`${'  '.repeat(inner)}columns ${node.columns < 0 ? 'auto' : node.columns}`)
       if (node !== body.root) stack.push({ node, depth, close: true })
-      for (let i = (node.children?.length ?? 0) - 1; i >= 0; i--) stack.push({ node: node.children![i]!, depth: inner })
+      const items = spacerRuns(node.children ?? [])
+      for (let i = items.length - 1; i >= 0; i--) stack.push({ node: items[i]!, depth: inner })
     } else if (node.type === 'space') lines.push(`${pad}space${node.width && node.width !== 1 ? `:${node.width}` : ''}`)
     else lines.push(`${pad}${declaration(node)}${node.widthInColumns && node.widthInColumns !== 1 ? `:${node.widthInColumns}` : ''}`)
   }

@@ -70,6 +70,8 @@ import { xychartUnsupportedSyntaxWarnings } from './xychart-body.ts'
 import { radarUnsupportedSyntaxWarnings } from './radar-body.ts'
 import { sankeyUnsupportedSyntaxWarnings } from './sankey-body.ts'
 import { countStructuralElements, faithfulnessWarning } from './structural-count.ts'
+import { describeFactDrift, serializationFactDrift } from './serialization-closure.ts'
+import { describeMermaidFacts } from './facts.ts'
 import { logToolInvocation } from './trace-log.ts'
 import type { ExtensionValidDiagram, LayoutWarning, ParseError, ParsedDiagram, RenderedLayout, SequenceBody, ValidDiagram, VerifyOptions, VerifyResult, WarningCode } from './types.ts'
 import { DEFAULT_LABEL_CHAR_CAP, WARNING_SEVERITY } from './types.ts'
@@ -130,25 +132,32 @@ function sourceHasOnlyHeader(kind: ValidDiagram['kind'], source: string): boolea
 }
 
 /**
- * Tier-3 faithfulness lint: does the structured {nodes, edges, groups} tally
- * survive a parse → serialize → re-parse cycle? Round-trip *byte*-stability
- * (already gated elsewhere) only proves serialize∘parse is idempotent; this
- * proves canonical serialization is not silently dropping a node/edge/group —
- * the ER `}o` class of bug. Promoted from a corpus-only check + the LLM-judge
- * helper so it now runs on EVERY verify, for every family. Opaque bodies carry
- * no structured arrays (their faithfulness is byte-verbatim) and are skipped.
+ * Tier-3 faithfulness lint: does canonical serialization re-read as the same
+ * diagram? Round-trip *byte*-stability (already gated elsewhere) only proves
+ * serialize∘parse is idempotent; this compares the semantic facts of the
+ * diagram with those of its re-read (the serialization closure typed edits
+ * use), so a value that re-reads as something else — an id holding `;` that
+ * splits into two statements — is reported even when the {nodes, edges,
+ * groups} tally is unchanged, naming the facts lost and gained. Runs on every
+ * verify, for every family. Opaque bodies carry no structured arrays (their
+ * faithfulness is byte-verbatim) and are skipped.
  */
 function roundtripFaithfulnessWarnings(d: ParsedDiagram): LayoutWarning[] {
-  // Thin I/O wrapper: do the parse → serialize → re-parse, then defer the
-  // verdict to the pure (mutation-gated, unit-tested) faithfulnessWarning.
+  // Thin I/O wrapper: do the parse → serialize → re-parse; counts go to the
+  // pure (mutation-gated, unit-tested) faithfulnessWarning, facts to the
+  // shared serialization closure.
   try {
     const before = countStructuralElements(d)
     if (!before) return []
     const reparsed = parseRegisteredMermaid(serializeMermaid(d))
-    if (!reparsed.ok) return faithfulnessWarning(before, null) // total loss
-    const after = countStructuralElements(reparsed.value)
-    if (!after) return [] // reparsed to an opaque body — the round-trip gate owns that
-    return faithfulnessWarning(before, after)
+    const after = reparsed.ok ? countStructuralElements(reparsed.value) : null
+    // A blank-slate scaffold below its family's source floor (an empty
+    // Sankey) re-reads as preserved source by design (EMPTY_DIAGRAM).
+    if (reparsed.ok && !after && getFamily(d.kind)?.verify?.(d.body, {}).some(warning => warning.code === 'EMPTY_DIAGRAM')) return []
+    const drift = reparsed.ok ? serializationFactDrift(d, reparsed.value) : { lost: describeMermaidFacts(d), gained: [] }
+    if (!drift.lost.length && !drift.gained.length) return faithfulnessWarning(before, after ?? before)
+    const message = reparsed.ok ? `Canonical serialization ${describeFactDrift(drift)} on re-read` : 'Canonical serialization does not re-parse; every fact is lost'
+    return [{ code: 'CONTENT_DROPPED_ON_ROUNDTRIP', before, after: after ?? { nodes: 0, edges: 0, groups: 0 }, lost: drift.lost, gained: drift.gained, message }]
   } catch {
     // Serialization/parse threw — the round-trip-stability gate owns that
     // failure mode; don't double-report it as a faithfulness drop.

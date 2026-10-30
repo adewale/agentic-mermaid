@@ -1717,13 +1717,15 @@ export type LayoutWarning =
   | { code: 'COMMENT_DROPPED'; count: number; lines: number[] }
   | { code: 'UNSUPPORTED_SYNTAX'; line?: number; syntax: string; node?: NodeId; message: string }
   /**
-   * Structured content was lost across a parse → serialize → re-parse cycle:
-   * the {nodes, edges, groups} tally changed, so canonical serialization is
-   * silently dropping (or duplicating) a node/edge/group even though the bytes
-   * may re-parse. The faithfulness analogue of COMMENT_DROPPED — "100% parse
-   * success is not faithfulness" (Loop 17). Lint, never flips verify.ok.
+   * Structured content changed across a parse → serialize → re-parse cycle:
+   * the re-read states different facts (`lost`, `gained`; describeMermaidFacts),
+   * so canonical serialization is silently dropping, adding or altering
+   * content even though the bytes may re-parse; `before`/`after` carry the
+   * {nodes, edges, groups} tallies. The faithfulness analogue of
+   * COMMENT_DROPPED — "100% parse success is not faithfulness" (Loop 17).
+   * Lint, never flips verify.ok.
    */
-  | { code: 'CONTENT_DROPPED_ON_ROUNDTRIP'; before: { nodes: number; edges: number; groups: number }; after: { nodes: number; edges: number; groups: number } }
+  | { code: 'CONTENT_DROPPED_ON_ROUNDTRIP'; before: { nodes: number; edges: number; groups: number }; after: { nodes: number; edges: number; groups: number }; lost?: string[]; gained?: string[]; message?: string }
   /**
    * A Mermaid config field was accepted (for config-shape compatibility) but
    * has no effect on this family's geometry or paint — e.g. Journey's

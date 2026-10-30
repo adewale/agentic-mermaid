@@ -959,6 +959,9 @@ breaks a single-line title cannot hold. A Sequence edit that removes the
 statement between two preserved segments leaves the one segment a re-read
 builds, and Event Modeling's native accessibility comments are read back
 decoded, as every other family's are.
+verify's `CONTENT_DROPPED_ON_ROUNDTRIP` compares the same facts for any
+diagram it is given, naming the facts lost and gained, so content that re-reads
+differently with unchanged node, edge and group counts is reported too.
 
 ### Identities a typed edit introduces
 

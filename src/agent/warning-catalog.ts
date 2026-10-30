@@ -244,11 +244,11 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     origins: ['source'],
   },
   CONTENT_DROPPED_ON_ROUNDTRIP: {
-    summary: 'The structured `{nodes, edges, groups}` tally changed across a parse → serialize → re-parse cycle, so canonical serialization is silently dropping or duplicating content even though the bytes may re-parse (payload carries `before`/`after` counts). The faithfulness analogue of `COMMENT_DROPPED` — "100% parse success is not faithfulness". Runs on every verify, for every family; opaque bodies (byte-verbatim) are exempt.',
-    guideNote: 'the structured node/edge/group tally changed across a parse → serialize → re-parse cycle — canonical serialization is silently dropping or duplicating content even though the bytes may re-parse; treat it as a faithfulness bug to report',
-    what: 'a parse → serialize → re-parse cycle lost nodes, edges, or groups by count.',
-    triggers: 'A serializer defect on unusual syntax: the faithfulness tally before and after the round trip disagrees. This is a tripwire that guards every verify; it should not fire on supported syntax.',
-    fix: 'Do not serialize the typed tree for this diagram — fall back to source-level edits so nothing is lost, and report the source; the before/after counts on the warning pinpoint what vanished.',
+    summary: 'A parse → serialize → re-parse cycle states different semantic facts, so canonical serialization is silently dropping, adding or altering content even though the bytes may re-parse (payload carries the `lost`/`gained` facts and `before`/`after` `{nodes, edges, groups}` counts). The faithfulness analogue of `COMMENT_DROPPED` — "100% parse success is not faithfulness". Runs on every verify, for every family; opaque bodies (byte-verbatim) are exempt.',
+    guideNote: 'a parse → serialize → re-parse cycle states different facts (`lost`/`gained` name them) — canonical serialization is silently dropping, adding or altering content even though the bytes may re-parse; treat it as a faithfulness bug to report',
+    what: 'a parse → serialize → re-parse cycle lost or gained semantic facts.',
+    triggers: 'A serializer defect on unusual syntax, or a diagram holding a value no spelling carries (an id holding `;` re-reads as two statements): the facts before and after the round trip disagree, even when the counts agree. This is a tripwire that guards every verify; it should not fire on supported syntax.',
+    fix: 'Do not serialize the typed tree for this diagram — fall back to source-level edits so nothing is lost, and report the source; the `lost` and `gained` facts on the warning pinpoint what changed.',
     origins: ['engine'],
   },
   EVENT_SOURCE_TYPE: {
