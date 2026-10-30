@@ -1,8 +1,10 @@
+import { linearFraction } from '../shared/linear-range.ts'
+
 /** A numeric domain projected onto cell boundaries, rather than cell centers.
  * The authored endpoints remain fixed; rounding never expands the domain. */
 export function quantizedScale(domain: { min: number; max: number }, extent: number) {
   const position = (value: number, subdivisions = 1): number => {
-    const fraction = domain.min === domain.max ? 0 : (value - domain.min) / (domain.max - domain.min)
+    const fraction = linearFraction(value, domain.min, domain.max)
     return Math.round(Math.max(0, Math.min(1, fraction)) * extent * subdivisions) / subdivisions
   }
 
