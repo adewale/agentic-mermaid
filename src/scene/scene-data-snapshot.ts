@@ -16,6 +16,11 @@ import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { transferSceneNodeSerialization, type SceneSerializationObserver } from './serialization.ts'
 import { materializeOwnTerminalProjection } from './deferred-terminal-projection.ts'
 
+// Allocation provenance only. Semantic admission and each actual write remain
+// separate obligations; a caller-created frozen object cannot join this set.
+const ownDataSnapshots = new WeakSet<object>()
+export function isOwnDataSceneSnapshot(value: object): boolean { return ownDataSnapshots.has(value) }
+
 export interface ExternalDataSnapshotLimits {
   readonly maxObjects: number
   readonly maxTextBytes: number
@@ -209,7 +214,9 @@ export function snapshotBoundedExternalData(
         })
       }
       transferRetainedPixelText(candidate, snapshot)
-      return Object.freeze(snapshot)
+      Object.freeze(snapshot)
+      ownDataSnapshots.add(snapshot)
+      return snapshot
     } finally {
       active.delete(candidate)
     }

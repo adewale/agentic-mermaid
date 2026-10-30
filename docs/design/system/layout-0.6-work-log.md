@@ -3849,3 +3849,70 @@ XML fact activation saves unmarked work but introduces a valid late-marker
 refusal and is not adopted. Next check: integrate the new Main documentation,
 finish independent receiver-sensitive getter review of text reuse, and compose
 only qualified work subtractions against the remaining budget cases.
+
+
+### 30 October05:29UTC: current Main and a rejected receiver-sharing assumption
+
+Main83744a4e1ae5c9d3821ba8a283811367fd31eade is now integrated through
+cd7d84354 (ancestry-preserving merge, not a rewritten rebase). Its changes are
+release documentation only. TODO and the API paragraph preserve this branch's
+0.4.2 source/package version and no-publication scope while recording Main's
+0.5.4 release notes. The replacement24holdout remains sealed.
+
+Independent receiver-sensitive getter review found a real introduced defect
+in unpublished9d text reuse: two labels that previously received fresh block
+receivers now share one. An inherited fontFamily getter keyed by receiver and
+producer phase changes the second emitted font from Inter to DejaVuSansMono.
+Both receipts pass. With explicitly declared identical pinned browser font
+faces, the second line changes1,062RGBA pixels. The earlier raw-Resvg alias
+fallback result is retained separately and does not prove font equality.
+Evidence: receiver-fontfamily-falsification/REVIEW.json, CONTROL-ONLY.patch,
+explicit-fontface artifacts and PNG-DIFFERENCE.json under the session root.
+This counterexample supersedes the earlier text-memo soundness claim;9d has
+not been pushed. The1,500/32-marker capacity closure must be re-established
+after repair and is not currently a sound qualification result. The next
+implementation replaces held clone identities with fresh per-occurrence
+materialization from a bounded descriptor-copy plan. All text subtrees remain
+in scope: prepared.display/source and preparedLines are read by actual consumers.
+
+The original-seven three-system observation is complete at the frozen R5
+revision:21cells, all14our strict+normal cells P with byte-equal phase outputs,
+all7public pinned Pele1.9SVG/model returns. Independently authored meaning
+matches21/21; actual111owned node labels,186carriers and195endpoint decorations
+are enrolled. Marker-removal evidence covers177coincident groups, not195
+individual visibility claims.45relation-caption and42first/last-node removals
+are positive. Row103exact natural-curve style remains unverified: our C segments
+are collinear within an orthogonal route, while Pele e2 is genuinely curved.
+Default-input results remain observations of their exact frozen revision; they
+do not establish generic getter correctness or global parity. Evidence:
+original-seven-three-system-r5/SUMMARY.json.
+
+The independently reviewed two-file Scene snapshot change is being adopted
+separately. Completed bounded own-data null-prototype records receive a private
+structural allocation fact after recursive capture/freeze; arrays and originals
+do not. The existing serializer can avoid repeating prototype/freeze/key/
+descriptor checks on only those exact records. Generic mutable/Proxy/getter
+paths, actual writing and semantic/geometry proof remain. Reviewed physical
+prototype:218owners/3,942assertions pass,34allocation/import-order controls pass;
+three exact SVGs are unchanged and observed reflection removal matches290/498/324
+paid operations. No Class/ER closure, timing or memory claim follows. Actual
+combined-source checks are pending; source adoption does not itself qualify it.
+
+Actual integrated-source Scene+documentation owners pass70tests/2,171assertions;
+canonical core+repository types and repository biome lint pass. Source/head
+byte guards and descendant cleanup pass in all three jobs. An initial command
+ran biome check instead of the repository's biome lint and reported pre-existing
+formatter/import-order differences; that stricter unrelated formatter result
+is preserved as lint-scene-own-data.log, not hidden or mistaken for the
+canonical lint result. Evidence: xml-adoption-checks/{scene-own-data-docs,
+types-scene-own-data,lint-scene-own-data-canonical}-RESULT.json.
+
+A separate introduced defect rejects the private marker-snapshot experiment.
+Under restored inherited Array methods, baseline Class A-->B emits two marker-end
+carriers but the prototype emits none, while both receipts pass. Returning a
+cloned definition roster changed the receiver seen by the family's existing
+find call. Its earlier25,341operation saving does not qualify it for adoption.
+No live file contains that prototype. Evidence: label-independent-review/
+marker-roster-{baseline,overlay}.{svg,json}. The reviewed two-file Scene
+structural fact does not share renderer receivers and is independent of both
+rejected identity-sharing assumptions.

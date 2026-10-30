@@ -1,6 +1,7 @@
 import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
 import { connectorContourSemantics } from './connector-geometry.ts'
 import { isAdmittedSceneDocument } from './scene-admission-state.ts'
+import { isOwnDataSceneSnapshot } from './scene-data-snapshot.ts'
 import type { SceneDoc, SceneNode, Geometry, MarkPaint, ShapeMark } from './ir.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { writeConnectorSvg, writeShapeSvg, writeTextSvg, type SvgGeometryWriteSink, type SvgXmlCapture, type SvgXmlWrite } from './svg-writer.ts'
@@ -137,10 +138,13 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
     if (finished || !fractionalCircleOutput) return false
     // No extra property access or reflection reaches an ordinary raw mark.
     if (!TRANSFERRED_WRITABLE_NODES.has(node)) { context.invalidateFractionalCircle(); return false }
-    if (!pay(4) || Object.getPrototypeOf(node) !== null || !Object.isFrozen(node)) { context.invalidateFractionalCircle(); return false }
-    const keys = Object.getOwnPropertyNames(node)
-    if (!pay(keys.length * 2)) return false
-    for (const key of keys) if (!Object.hasOwn(Object.getOwnPropertyDescriptor(node, key)!, 'value')) { context.invalidateFractionalCircle(); return false }
+    if (!pay(2)) return false
+    if (!isOwnDataSceneSnapshot(node)) {
+      if (!pay(4) || Object.getPrototypeOf(node) !== null || !Object.isFrozen(node)) { context.invalidateFractionalCircle(); return false }
+      const keys = Object.getOwnPropertyNames(node)
+      if (!pay(keys.length * 2)) return false
+      for (const key of keys) if (!Object.hasOwn(Object.getOwnPropertyDescriptor(node, key)!, 'value')) { context.invalidateFractionalCircle(); return false }
+    }
     if (!context.hint(node)) return false
     fractional.add(node)
     return true
