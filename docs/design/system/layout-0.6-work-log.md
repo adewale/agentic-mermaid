@@ -5445,3 +5445,75 @@ meaning qualification remain open. No new public Mermaid/Pele or holdout calls
 were made; earlier pinned observations retain their own revisions and limits.
 Replacement24 stays sealed. There is no human-study gate. The fixed campaign
 end remains2026-10-31T12:03:00Z, with no automatic extension.
+
+
+### 30 October22:44UTC: preserve the ordinary XML path; final bounded cost result
+
+Implementation ab5bf86024b9f28e505848ba094f6308ec6f0c20 changes only svg-writer:
+original nonreporting attribute/prepared methods are restored. Reporting text
+annotates the just-completed private attribute event in a separate paid call;
+missing, duplicate or invalid event association invalidates the leaf. Prepared
+eligibility follows the original callback/attribute traversal. Lazy paint,
+receipt binding, typed closure, CSS/foreground domain and all fees/caps remain.
+
+The private candidate keeps eight glyph rows8P/43assertions, four protocol
+controls4P/26, depth owner1P/4, Native75P/550 and XML26P/148. All three selective
+reversions retain the same meaningful2/1/2 unsafe-P failures. Root's integrated
+three owning files pass125tests/4689assertions including all four Requirement100
+combinations with real child access; lint passes. After an execution interruption,
+the previous typecheck handle was unavailable. Its log showed both phases but
+was not treated as an exit-status observation. A fresh supervised canonical
+core/repository typecheck with Trident f080 returns0, with all children reaped.
+All eight Root production files equal the frozen private v6 bytes. No previous
+partial/startup failure has been relabelled as success.
+
+The requested five Sol6.1High agents completed disjoint implementation/reviews.
+Three later read-only research turns hit usage-limit errors and were not called
+completed; on the subsequent continuation all five agents could resume. Those
+retries found no demonstrated new authored-meaning defect in the existing pinned
+peer artifacts, no safe producer-only numeric-XML shortcut, and no single small
+grammar subtraction sufficient to close all six refusals. In particular numeric
+formatter cache hits can retain hook-poisoned spellings after hooks are restored;
+finite inputs/current intrinsic identities do not prove actual XML safety. The
+prepared-name grammar opportunity is at most33000gross units in1500labels before
+binding, below the historical text-only shortfall; Class/ER exhaust earlier.
+These are scoped read-only findings, not implementations or new corpus runs.
+
+Final named-hotpath diagnostic: original1fb22fe6da2968fecaa9034b5683ad97bacc6f7a
+against committedab5bf86024b9f28e505848ba094f6308ec6f0c20,
+22:41:06.805->22:41:13.047UTC. Same24calls, Native AB/Scene BA, three original
+fixtures, first/repeat, identical loader/fixtures/options/common dependencies.
+All24complete with0APIerrors/timeouts;12SVGpairs are exact;4603byte guards,
+eight-module loading and four child cleanups pass. Whole Scene proof/receipt
+pairs remain exact. Native inherited proof changes U1274->P6693; sparse32 stays
+U400000 (completed marker checks0->5), ordinary Latin P71227->P71287.
+
+| Six-call diagnostic observation |1fb before |ab5 after |
+| --- | ---: | ---: |
+| Native fully consumed sum |588.88ms |649.51ms |
+| Scene fully consumed sum |583.30ms |543.30ms |
+| Native peak RSS |140140KiB |177904KiB |
+| Scene peak RSS |139208KiB |149660KiB |
+
+Nine of twelve timing pairs are slower observations. Native first/repeat rows:
+inherited27.71/1.51->33.37/1.87ms; sparse207.86/143.88->252.60/127.44;
+Latin174.14/33.77->194.92/39.30. Scene rows:
+inherited50.37/1.54->58.13/1.61; sparse244.50/108.32->211.26/109.81;
+Latin123.81/54.76->125.63/36.87. Sparse repeat settled heap with current
+output/proof live: Native13684201->20713333bytes; Scene14691276->14738539.
+Full import/CPU/process/live/settled rows are retained separately in
+measurement/native-actual-paint-mini-6-committed/CONCLUSION.json,297068bytes.
+A lower Scene total is not causal evidence; neither time nor memory preservation,
+allocation improvement or ELK/Pele parity is established. Earlier v3/v5 cost
+failures remain separate; they are not pooled or rewritten as improved samples.
+This completes the named hotpath hypothesis without further timing repeats.
+
+Next concrete implementation question: replace the two per-text typed-completion
+callbacks with completion state on the existing private XML leaf, marked at the
+same original full typed-validation point. This could remove guaranteed callback
+allocations without dropping source/diagnostic fields; activation retention and
+memory benefit remain unproven and require bounded verification. No such change
+is implemented at this checkpoint. Six capacities, historical19, broader fonts/
+rich-text/meaning, current-Main integration and delivery remain open; exact new
+CI must be followed separately. Replacement24 remains sealed. Fixed campaign end
+2026-10-31T12:03:00Z remains unchanged after the interruption.
