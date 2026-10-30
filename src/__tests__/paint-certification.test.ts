@@ -113,6 +113,46 @@ test('many ordinary prepared labels retain bounded Native paint proof without ma
   expect(proof.status).toBe('passed')
 })
 
+test('an admitted cyclic labelled multigraph retains bounded public Native paint proof', async () => {
+  const source = readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-19.mmd', import.meta.url), 'utf8')
+  const child = await runTextReceiverChild(process.execPath, ['--eval', String.raw`
+process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS = '0'
+const { readFileSync } = await import('node:fs')
+const { renderMermaidSVGWithReceipt } = await import('./src/index.ts')
+const { withRenderStageObserver } = await import('./src/render-stages.ts')
+const { withPerformanceObserver } = await import('./src/performance-observations.ts')
+const stages = new Set(); let provider
+const rendered = withPerformanceObserver(event => {
+  if (event.kind === 'cache' && event.owner === 'paint-certification') provider = event.detail
+}, () => withRenderStageObserver(sample => stages.add(sample.stage), () => renderMermaidSVGWithReceipt(readFileSync(0, 'utf8'), { graphLayout: { backend: 'agentic', fallback: 'none' }, embedFontImport: false })))
+console.log(JSON.stringify({ rendered, stages: [...stages], provider }))
+`], { cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' }, input: source })
+  expect({ status: child.status, error: child.stderr }).toEqual({ status: 0, error: '' })
+  const { rendered, stages, provider } = JSON.parse(child.stdout) as { rendered: ReturnType<typeof renderMermaidSVGWithReceipt>; stages: string[]; provider: string }
+  expect(stages).toContain('drawing')
+  expect(stages).not.toContain('scene')
+  expect(provider).toBe('native')
+  const elements = rectangleEmissionElements(rendered.svg)
+  const nodes = elements.filter(element => element.name === 'g' && element.attributes.class === 'node')
+  expect(nodes.map(node => node.attributes['data-id']).sort()).toEqual(Array.from({ length: 19 }, (_, index) => `n${index}`).sort())
+  for (const [index, id] of Array.from({ length: 19 }, (_, index) => `n${index}`).entries()) expect(nodes.find(node => node.attributes['data-id'] === id)?.attributes['data-label']).toBe(`Node 76-${index}`)
+  const edges = elements.filter(element => element.attributes['data-role'] === 'edge')
+  expect(edges).toHaveLength(44)
+  for (const edge of edges) expect(edge.attributes).toMatchObject({ 'data-marker-end': 'arrow', 'marker-end': expect.stringMatching(/^url\(#[^)]+\)$/) })
+  expect(edges.filter(edge => edge.attributes['data-from'] === 'n0' && edge.attributes['data-to'] === 'n4').map(edge => edge.attributes['data-label'] ?? '')).toEqual(['', 'edge 16 xxxxxxxxxxxxxxxxxxx', ''])
+  expect(edges.filter(edge => edge.attributes['data-from'] === 'n9' && edge.attributes['data-to'] === 'n13')).toHaveLength(2)
+  const textTags = rendered.svg.match(/<text\b[^>]*>[^<]*<\/text>/g)!
+  expect(textTags).toHaveLength(30)
+  const texts = textTags.map(tag => tag.slice(tag.indexOf('>') + 1, -7))
+  for (let index = 0; index < 19; index++) expect(texts).toContain(`Node 76-${index}`)
+  for (const caption of ['edge 0 xxx', 'edge 16 xxxxxxxxxxxxxxxxxxx', 'edge 40 xxxxxxxxx']) expect(texts).toContain(caption)
+  const selected = textTags.find(tag => tag.endsWith('>Node 76-0</text>'))!
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
+  const pixels = (svg: string) => new Resvg(svg, { font, background: '#fff' }).render().pixels
+  expect(Buffer.compare(pixels(rendered.svg), pixels(rendered.svg.replace(selected, '')))).not.toBe(0)
+  expect(rendered.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [], checks: { maxOperations: 400000 } })
+})
+
 const runTextReceiverChild = useTestChildren(20_000)
 const textReceiverProgram = String.raw`
 import { drawNative } from './src/scene/native-drawing.ts'

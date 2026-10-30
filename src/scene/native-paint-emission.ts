@@ -22,6 +22,13 @@ export interface NativeEmissionWork { readonly operations: number; readonly exha
 const textPaintSet = WeakSet, textPaintMap = WeakMap, textPaintApply = Reflect.apply
 const textPaintGet = WeakMap.prototype.get, textPaintPut = WeakMap.prototype.set
 const textPaintAdd = WeakSet.prototype.add, textPaintHas = WeakSet.prototype.has, textPaintFreeze = Object.freeze
+const textPaintPrototype = Object.prototype, textPaintKeys = Reflect.ownKeys
+const textPaintDescriptor = Object.getOwnPropertyDescriptor, textPaintProto = Object.getPrototypeOf
+const textPaintExtensible = Object.isExtensible, textPaintOwn = Object.hasOwn, textPaintDefine = Object.defineProperty
+const textPaintFields = textPaintFreeze(Object.keys(rectanglePaintFields) as (keyof MarkPaint)[])
+const textPaintBits = { __proto__: null } as unknown as Record<string, number>
+for (let i = 0; i < textPaintFields.length; i++) textPaintDefine(textPaintBits, textPaintFields[i]!, { value: 1 << i })
+textPaintFreeze(textPaintBits)
 const emittedOccurrences = new WeakSet<ScenePaintGeometry>()
 export function hasNativeEmissionOccurrence(primitive: ScenePaintGeometry): boolean { return emittedOccurrences.has(primitive) }
 const emissionWork = new textPaintMap<ScenePaintGeometryInspection, NativeEmissionWork>()
@@ -52,12 +59,30 @@ export function createNativePaintEmission(maxOperations: number) {
   const observedTextPaintWrites = new textPaintSet<SvgTextPaintWrite>()
   let usedTextPaint = false
   let ownedPartRosters: WeakSet<object> | undefined
-  type CaptureContext = 'leaf' | 'route' | 'geometry' | 'points' | 'point' | 'pixel-part'
+  type CaptureContext = 'leaf' | 'route' | 'geometry' | 'points' | 'point' | 'pixel-part' | 'text-paint'
   interface TextCopyPlan { readonly source: object; readonly array: boolean; readonly slots: readonly TextCopySlot[]; readonly length: number | undefined; readonly height: number }
   interface TextCopySlot { readonly key: string; readonly enumerable: boolean; readonly value: unknown; readonly child: TextCopyPlan | undefined }
   const textPlans = new WeakMap<object, { plan: TextCopyPlan | undefined }>()
   let copyingFirstText = false
   let planningText: { readonly plans: WeakMap<object, TextCopyPlan>; pure: boolean } | undefined
+  const capturedTextPaint = new textPaintMap<object, number>()
+  const retainTextPaintPresence = (result: object): void => {
+    if (!pay() || textPaintProto(result) !== textPaintPrototype) return
+    if (!pay() || textPaintExtensible(result)) return
+    if (!pay()) return
+    const keys = textPaintKeys(result)
+    if (!pay(keys.length)) return
+    let mask = 0
+    for (let i = 0; i < keys.length; i++) {
+      if (!pay()) return
+      const key = keys[i]!
+      if (typeof key !== 'string') return
+      const descriptor = textPaintDescriptor(result, key)
+      if (!descriptor || !textPaintOwn(descriptor, 'value') || descriptor.configurable !== false || descriptor.writable !== false) return
+      mask |= textPaintBits[key] ?? 0
+    }
+    if (pay()) textPaintApply(textPaintPut, capturedTextPaint, [result, mask])
+  }
   const materializeText = (plan: TextCopyPlan, depth: number): unknown => {
     if (depth + plan.height > 64 || !pay()) throw failed
     // Every occurrence receives the same fresh {} / [] receiver as copyInner.
@@ -128,7 +153,8 @@ export function createNativePaintEmission(maxOperations: number) {
         || context === 'route' && key === 'geometry') ownedFields |= 1
       const pointSlot = context === 'points' && /^(?:0|[1-9]\d*)$/.test(key) && Number(key) < 0xffff_ffff
       if (pointSlot) ownedPointSlots++
-      const childContext = context === 'pixel-part' || context === 'leaf' && kind === 'text' && (key === 'block' || key === 'preparedLines') ? 'pixel-part'
+      const childContext = context === 'leaf' && kind === 'text' && key === 'paint' ? 'text-paint'
+        : context === 'pixel-part' || context === 'leaf' && kind === 'text' && (key === 'block' || key === 'preparedLines') ? 'pixel-part'
         : context === 'leaf' && kind === 'connector' && key === 'route' ? 'route'
         : (context === 'leaf' && kind === 'shape' || context === 'route') && key === 'geometry' ? 'geometry' : context === 'geometry' && kind === 'polyline' && key === 'points' ? 'points' : pointSlot ? 'point' : undefined
       const copied = copy(descriptor.value, depth + 1, parents, childContext)
@@ -171,7 +197,11 @@ export function createNativePaintEmission(maxOperations: number) {
       if (!pay(2)) throw failed
       planningText!.plans.set(result, { source: value, array: Array.isArray(value), slots: planSlots, length: arrayLength?.value, height: planHeight })
     }
-    return Object.preventExtensions(result)
+    const retained = Object.preventExtensions(result)
+    // Literal allocation and exact returned identity exclude an interposed proxy.
+    // Shared bookkeeping can expose the clone, so inspect only after sealing.
+    if (context === 'text-paint' && retained === result) retainTextPaintPresence(result)
+    return retained
   }
   const copy = (value: unknown, depth = 0, parents = new Set<object>(), context?: CaptureContext): unknown => {
     if (depth > 64) throw failed
@@ -223,6 +253,21 @@ export function createNativePaintEmission(maxOperations: number) {
       if (!pay(2)) { uncertain = true; break }
       const field = observedPaintFields[index]!
       if (!Object.hasOwn(paint, field) && field in paint) inherited = true
+    }
+    return inherited
+  }
+  const hasInheritedTextPaint = (paint: unknown): boolean => {
+    if (!paint || typeof paint !== 'object') return false
+    if (!pay(2)) { uncertain = true; return true }
+    const mask = textPaintApply(textPaintGet, capturedTextPaint, [paint]) as number | undefined
+    if (mask === undefined) return hasInheritedPaint(paint)
+    if (!pay(2)) { uncertain = true; return true }
+    if (Object.getPrototypeOf(paint) === null) return false
+    let inherited = false
+    for (let i = 0; i < textPaintFields.length; i++) {
+      if (mask & (1 << i)) continue
+      if (!pay()) { uncertain = true; break }
+      if (textPaintFields[i]! in paint) inherited = true
     }
     return inherited
   }
@@ -541,7 +586,7 @@ export function createNativePaintEmission(maxOperations: number) {
           else {
             const paint = Object.getOwnPropertyDescriptor(node, 'paint')
             if (paint && Object.hasOwn(paint, 'value')) {
-              if (hasInheritedPaint(paint.value) || node.kind === 'text' && paintWrite && hasInheritedSvgTextPaint(paintWrite)) {
+              if ((node.kind === 'text' ? hasInheritedTextPaint(paint.value) : hasInheritedPaint(paint.value)) || node.kind === 'text' && paintWrite && hasInheritedSvgTextPaint(paintWrite)) {
                 const fact = node.kind === 'text' && paintWrite && pay(6) && matchesSvgTextPaintWrite(paintWrite, xml, xmlWrite, node, svg) ? paintWrite : undefined
                 if (fact && readSvgTextPaintWrite(fact, node, svg) && pay(2)) {
                   textPaintApply(textPaintAdd, observedTextPaintWrites, [fact]); usedTextPaint = true
@@ -618,9 +663,9 @@ export function createNativePaintEmission(maxOperations: number) {
         attributes = written
       } : undefined }) : undefined
       const { svg, xmlWrite } = serialize(captured, sink)
-      const textPaintBound = textPaintReceived && !textPaintInvalid && textPaint && pay(6) && matchesSvgTextPaintWrite(textPaint, xml, xmlWrite, captured, svg)
+      const textPaintCandidate = textPaintReceived && !textPaintInvalid ? textPaint : undefined
       if (pay()) capturedLeaves.set(captured, captured)
-      const retained = { node: captured, paintNode: captured, svg, xmlWrite, textPaint: textPaintBound ? textPaint : undefined, conditional: false }
+      const retained = { node: captured, paintNode: captured, svg, xmlWrite, textPaint: textPaintCandidate, conditional: false }
       if (!supported) return retained
       if (compound && captured.kind === 'shape' && geometry) {
         const projection = reserved && completeWrittenCompoundShape(compound, geometry, svg, pay)
