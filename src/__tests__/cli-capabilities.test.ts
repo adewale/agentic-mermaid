@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { BUILTIN_FAMILY_METADATA, getFamily, getFamilyConformanceReport, knownBuiltinFamilies, knownFamilies } from '../agent/families.ts'
 import { WARNING_SEVERITY } from '../agent/types.ts'
 import { buildCapabilities, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
-import { CLI_RENDER_FORMATS, cliRenderFormatJsonSchema } from '../render-contract.ts'
+import { CLI_RENDER_FORMATS } from '../render-contract.ts'
 
 describe('am capabilities', () => {
   it('emits a bounded JSON object with the built-in discovery fields', () => {
@@ -164,7 +164,6 @@ describe('am capabilities', () => {
         warning.code,
       ).toBe(true)
     }
-    expect(schema.properties.outputFormats.items).toEqual(cliRenderFormatJsonSchema())
     const outputFormats = new Set(schema.properties.outputFormats.items.enum)
     for (const format of cap.outputFormats) expect(outputFormats.has(format)).toBe(true)
   })

@@ -422,22 +422,29 @@ function renderSourceToFormat(source: string, format: string, opts: RenderFormat
 }
 
 /**
- * #930: pure re-render step for watch mode — reads the file, renders to the
- * requested format, returns the output string. Extracted so it's unit-testable
+ * #930: one `--watch` frame for the file's current contents — the rendered
+ * output (absent after a failed render) and the stderr lines the watcher
+ * prints, in order. The watch loop and its tests share it, so it is testable
  * without fs.watch timing.
  */
-export function renderFileOnce(file: string, format: string, opts: RenderFormatOptions = {}): string {
-  const src = readFileSync(file, 'utf8')
+export function renderWatchFrame(file: string, format: string, opts: RenderFormatOptions, json: boolean): { output?: string; stderr: string[] } {
+  const stderr: string[] = []
+  const write = (line: string) => { stderr.push(line) }
   try {
-    const out = renderSourceToFormat(src, format, opts)
-    return typeof out === 'string' ? out : JSON.stringify(out)
+    const src = readFileSync(file, 'utf8')
+    const warnings = renderConfigWarningsForMermaid(src, opts)
+    emitConfigWarnings(warnings, 'am render --watch', write)
+    const out = renderSourceToFormat(src, format, reportingConfigDiagnosticsOnce(opts, warnings, write))
+    return { output: typeof out === 'string' ? out : JSON.stringify(out), stderr }
   } catch (e) {
-    // Watch mode wants a printable line, not a throw: all documented render
-    // diagnostics serialize through the same envelope as one-shot rendering;
-    // unknown implementation errors still propagate to the watcher boundary.
     const structured = cliStructuredRenderFailure(e)
-    if (structured) return JSON.stringify(structured)
-    throw e
+    if (json && structured) write(`${JSON.stringify(structured)}\n`)
+    else {
+      const error = structured?.error
+      const message = error?.message ?? (e instanceof Error ? e.message : String(e))
+      write(`render error: ${error ? `${error.code}: ` : ''}${message}\n`)
+    }
+    return { stderr }
   }
 }
 
@@ -498,24 +505,17 @@ function cmdRenderWatch(file: string, format: string, args: ParsedArgs, json: bo
     throw new CliArgumentError('am render --watch output must differ from the input file')
   }
   const emit = () => {
+    const frame = renderWatchFrame(file, format, opts, json)
+    for (const line of frame.stderr) process.stderr.write(line)
+    if (frame.output === undefined) return
+    const text = frame.output
     try {
-      const src = readFileSync(file, 'utf8')
-      const warnings = renderConfigWarningsForMermaid(src, opts)
-      emitConfigWarnings(warnings, 'am render --watch')
-      const out = renderSourceToFormat(src, format, reportingConfigDiagnosticsOnce(opts, warnings))
-      const text = typeof out === 'string' ? out : JSON.stringify(out)
       if (outFile) {
         writeFileSync(outFile, text)
         process.stderr.write(`rendered → ${outFile}\n`)
       } else process.stdout.write(text + (text.endsWith('\n') ? '' : '\n'))
     } catch (e) {
-      const structured = cliStructuredRenderFailure(e)
-      if (json && structured) process.stderr.write(`${JSON.stringify(structured)}\n`)
-      else {
-        const error = structured?.error
-        const message = error?.message ?? (e instanceof Error ? e.message : String(e))
-        process.stderr.write(`render error: ${error ? `${error.code}: ` : ''}${message}\n`)
-      }
+      process.stderr.write(`render error: ${e instanceof Error ? e.message : String(e)}\n`)
     }
   }
   emit() // initial render
@@ -528,14 +528,18 @@ function cmdRenderWatch(file: string, format: string, args: ParsedArgs, json: bo
 /** The render's own config diagnostics, minus those already reported as
  * `warnings` (emitConfigWarnings writes those to stderr), so each reaches the
  * terminal once; any other, such as a declined layout fallback, still does. */
-function reportingConfigDiagnosticsOnce<Options extends RenderOptions>(options: Options, reported: readonly LayoutWarning[]): Options {
+function reportingConfigDiagnosticsOnce<Options extends RenderOptions>(options: Options, reported: readonly LayoutWarning[], write: (line: string) => void = writeStderr): Options {
   const seen = new Set(reported.map(warning => JSON.stringify(warning)))
-  return { ...options, onConfigDiagnostic: diagnostic => { if (!seen.has(JSON.stringify(diagnostic))) process.stderr.write(`${diagnostic.message}\n`) } }
+  return { ...options, onConfigDiagnostic: diagnostic => { if (!seen.has(JSON.stringify(diagnostic))) write(`${diagnostic.message}\n`) } }
 }
 
-function emitConfigWarnings(warnings: LayoutWarning[], prefix: string): void {
+function writeStderr(line: string): void {
+  process.stderr.write(line)
+}
+
+function emitConfigWarnings(warnings: LayoutWarning[], prefix: string, write: (line: string) => void = writeStderr): void {
   for (const warning of warnings) {
-    process.stderr.write(`${prefix}: warning ${warning.code}${'field' in warning ? ` (${warning.field})` : ''}: ${'message' in warning ? warning.message : 'configuration has no effect'}\n`)
+    write(`${prefix}: warning ${warning.code}${'field' in warning ? ` (${warning.field})` : ''}: ${'message' in warning ? warning.message : 'configuration has no effect'}\n`)
   }
 }
 

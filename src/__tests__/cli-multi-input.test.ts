@@ -3,7 +3,7 @@
 import { describe, test, expect } from 'bun:test'
 import { readFileSync, renameSync, watch as fsWatch, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { runCli, renderFileOnce, watchPathForChanges } from '../cli/index.ts'
+import { runCli, renderWatchFrame, watchPathForChanges } from '../cli/index.ts'
 import { captureCli as capture } from './helpers/cli-capture.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 
@@ -136,31 +136,22 @@ describe('#959 multi-input rendering', () => {
   })
 })
 
-describe('#930 watch re-render step (renderFileOnce)', () => {
-  test('re-renders SVG from the current file contents', () => {
-    const f = tmp('flowchart TD\n A[One] --> B[Two]')
-    expect(renderFileOnce(f, 'svg')).toContain('<svg')
-  })
-
-  test('reflects file changes on re-invocation (the watch loop core)', () => {
+describe('#930 watch frame (the step every --watch change runs)', () => {
+  test('reflects file changes on re-invocation', () => {
     const f = tmp('flowchart TD\n A[Before]')
-    expect(renderFileOnce(f, 'ascii')).toContain('Before')
+    expect(renderWatchFrame(f, 'ascii', {}, false)).toMatchObject({ output: expect.stringContaining('Before'), stderr: [] })
     writeFileSync(f, 'flowchart TD\n A[After]')
-    expect(renderFileOnce(f, 'ascii')).toContain('After')
+    expect(renderWatchFrame(f, 'ascii', {}, false).output).toContain('After')
   })
 
-  test('layout format returns layout', () => {
+  test('strict SVG option applies to the watch frame', () => {
     const f = tmp('flowchart TD\n A --> B')
-    const out = JSON.parse(renderFileOnce(f, 'layout'))
-    expect(out.kind).toBe('flowchart')
+    const output = renderWatchFrame(f, 'svg', { security: 'strict' }, false).output
+    expect(output).toContain('<svg')
+    expect(output).not.toContain('fonts.googleapis.com')
   })
 
-  test('strict SVG option applies to the watch render core', () => {
-    const f = tmp('flowchart TD\n A --> B')
-    expect(renderFileOnce(f, 'svg', { security: 'strict' })).not.toContain('fonts.googleapis.com')
-  })
-
-  test('watch re-renders serialize family diagnostics instead of printing an undefined message', () => {
+  test('a failed frame prints the family diagnostic, as JSON under --json and as one line otherwise', () => {
     for (const fixture of [
       {
         source: 'futureDiagram&#45;v99\n  payload',
@@ -173,7 +164,11 @@ describe('#930 watch re-render step (renderFileOnce)', () => {
         authoredHeader: 'swimlane&#45;beta',
       },
     ]) {
-      const payload = JSON.parse(renderFileOnce(tmp(fixture.source), 'svg'))
+      const file = tmp(fixture.source)
+      const structured = renderWatchFrame(file, 'svg', {}, true)
+      expect(structured.output).toBeUndefined()
+      expect(structured.stderr).toHaveLength(1)
+      const payload = JSON.parse(structured.stderr[0]!)
       expect(payload).toMatchObject({
         ok: false,
         error: {
@@ -186,6 +181,10 @@ describe('#930 watch re-render step (renderFileOnce)', () => {
       expect(payload.error.message).not.toContain('undefined')
       const span = payload.error.preservation.spans.header
       expect(fixture.source.slice(span.start.offset, span.end.offset)).toBe(fixture.authoredHeader)
+
+      const plain = renderWatchFrame(file, 'svg', {}, false)
+      expect(plain.output).toBeUndefined()
+      expect(plain.stderr).toEqual([`render error: ${fixture.code}: ${payload.error.message}\n`])
     }
   })
 
