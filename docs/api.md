@@ -238,8 +238,8 @@ limitation.
 
 ### Agent discovery and failures
 
-The discovery additions in this section are **Unreleased**; npm 0.5.3 does not
-expose this Code Mode method. Check the installed `am capabilities --json`
+The discovery additions and Code Mode method in this section are included in
+**0.5.5**. Check the installed `am capabilities --json`
 `resolvedScene` field, then call `describe_sdk` with
 `{ "capability": "resolved-scene" }` for painted primitive fields, error fields
 and limits. The existing family mutation discovery remains unchanged.
