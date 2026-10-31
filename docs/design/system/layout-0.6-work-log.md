@@ -5896,3 +5896,79 @@ is not implemented as a six-case solution. The unfavorable cost observation
 needs attribution before any performance-preservation claim, with shared harness
 corrections owned in Trident. Replacement24 remains sealed; fixed campaign end
 2026-10-31T12:03:00Z is unchanged.
+
+
+### 31 October01:12UTC: close shared cache poisoning and projected-line authority
+
+Following the01728 repair through its other consumers found a real additional
+failure: mutable failed-freeze preparations still entered display/pixel LRUs
+under the original authored string. Four separately authored literal controls
+(pixel/display cache x Native/Scene) all emitted the injected later word during
+a fresh ordinary preparation, after the freeze hook was restored. The private
+probe and original7f RED both retain those actual SVGs. This affects both
+renderers; it is not merely a certificate disagreement.
+
+This commit reuses authentic immutable-parts qualification for string-display
+and pixel cache admission and new Pixel constructor measurement/ink/envelope
+brands. Interpretation provenance is deliberately separate: the existing live
+accessor-plan owner caught an introduced recapture regression when retained
+interpretation was incorrectly gated too. That change was removed; interpreted
+inputs keep their original provenance/live behavior while immutable cache and
+constructor authority remain independently checked. Existing generic custody
+RED(Read instead of Lost) now passes unchanged. No check was weakened.
+
+The derived-line API requires a separate distinction. Legitimate admitted
+snapshots carry measured data without constructor-owned descendant brands.
+Requiring constructor provenance for their projections would drop valid shaped
+ink. Instead the five fresh literal wrappers record their actual own DATA and
+prototype before the existing dynamic freezes. After all five calls, the record
+requires actual frozen state, identical prototype, complete keys, SameValue
+fields and enumerability. Private records use protected numeric slots; source
+getters, source graph and freeze order are not replayed. Only the existing
+measurement authority transfers; no constructor-owned brand or cache is minted.
+The existing admission-before-seal transfer function remains byte-unchanged.
+
+Owning adversarial controls reproduced actual substituted text through both a
+foreign runs array and inherited fragments on a changed new-wrapper prototype.
+Both now receive the existing immutable-preparation admission refusal. No-op
+wrapper freezing is also refused. Legitimate admitted-snapshot line projections
+still enclose actual fitted Inter-Bold j ink through Native and Scene, using the
+existing independently read glyph metrics and raster owner. The prior Native
+mutable-copy control now obtains explicit healthy measurement transfer after
+failed construction; its original before/before/after SVG oracle remains.
+
+Final exact four owners pass186tests/5207assertions; generic custody separately
+passes. Canonical core/repository types with existing Trident
+f080278e31e4202ca89d524e4ee9e4cf3cbff038 and four-file lint return0; children reaped.
+Two disjoint producer/consumer reviews report no remaining finding in the named
+scope. Root additionally reverts ONLY both shared modules to7f with FINAL tests:
+4positive passes/7meaningful failures (four wrong cache words, three missing
+projection refusals), then restores whole bytes. Selectively reverting ONLY the
+immutable-parts helper to9a498 still gives two actual stale-word failures with
+the amended final tests. Restored final selected controls pass14tests/80assertions,
+including genuine shaped projections and generic live custody. These selective
+reversions are not mislabelled whole-baseline runs. Evidence:
+immutable-cache-fix-7f/{REPORT-FINAL.json,ROOT-FINAL-CONTROLS.json,
+ROOT-FINAL-BASELINE-RED.log,ROOT-FINAL-HELPER-RED.log,ROOT-FINAL-CONTROLS-GREEN.log}.
+
+The first broader selection uncovered five PNG font-copy EFBIG setup failures
+under the inherited64KiB file limit and the real interpretation regression.
+The setup failures remain recorded, not counted as product failures or passes;
+PNG consumers were not retried with relaxed limits. Final checks use the exact
+SVG-owning set and targeted generic custody. Initial repository-type setup also
+failed a default-cache network fetch; the final canonical offline run passes.
+No PNG/font download, work-limit change, holdout access or timing occurred in
+these owning checks. The next bounded cost diagnostic adds the existing tracked
+gantt-basic source because it actually uses projected section/task lines; then
+one affected existing corpus replay must qualify this new production revision.
+
+Obsolete7f CI41151420187 completed FAILURE at00:51:42UTC, all20jobs terminal:
+units4799/5910/4752passes, same six capacity failures, semantics173P/0F. Delivery
+remains red: editor gzip1410439>1334500; demo raw807039>788000/gzip305967>302500;
+68lazy failed metrics/25groups, flowchart766501>761500 and State766449>761000.
+The newly demonstrated cache defect invalidates that candidate regardless of
+its passing custody tests. Filtered evidence: ci-7f0d224-41151420187/summary.json.
+Its cancellation could not be requested: no connector capability, inherited CLI
+credential401. Git transport dry-run succeeds, but current connector observation
+capability does not provide a workflow-dispatch action. Exact new-head CI remains
+to be started after publishing; old CI will not be presented as its verification.

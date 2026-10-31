@@ -839,6 +839,10 @@ test.each(['freeze', 'ownership-lookup'] as const)('native retained text observe
     block = mode === 'freeze' ? prepared : JSON.parse(JSON.stringify(prepared))
     if (mode === 'ownership-lookup') transferRetainedPixelText(prepared, block)
   } finally { Object.defineProperty(Object, 'freeze', freeze) }
+  if (mode === 'freeze') {
+    const healthy = preparePixelText(before, { display: 'literal', fontSize: 18, fontWeight: 400, fontFamily: 'Inter' })
+    transferRetainedPixelText(healthy, block)
+  }
   expect(Object.isExtensible(block)).toBe(true)
   expect(Object.isExtensible(block.lineBlocks[0]!.runs[0]!)).toBe(true)
   const width = 240, height = 140, colors = { bg: '#fff', fg: '#111' }

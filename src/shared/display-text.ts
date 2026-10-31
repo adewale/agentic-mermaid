@@ -22,15 +22,17 @@ export interface PreparedDisplayText {
 }
 
 const displayPlans = new WeightedLru<string, PreparedDisplayText>(512, 4 * 1024 * 1024)
-const retainedPlans = new WeakSet<object>()
+// Interpreter provenance preserves live prepared inputs. Immutable reuse is
+// authenticated separately by immutableDisplayParts.
+const interpretedPlans = new WeakSet<object>()
 const immutableDisplayParts = createImmutableParts()
 export function isImmutableDisplayTextPart(value: object): boolean { return immutableDisplayParts.has(value) }
 export function isOwnedDisplayTextPart(value: object): boolean { return immutableDisplayParts.hasOwned(value) }
-function retainPlan(plan: PreparedDisplayText): PreparedDisplayText { retainedPlans.add(plan); return plan }
+function retainPlan(plan: PreparedDisplayText): PreparedDisplayText { interpretedPlans.add(plan); return plan }
 
 /** Capture a supplied interpretation without reading its source a second time. */
 function immutablePlan(plan: PreparedDisplayText): PreparedDisplayText {
-  if (retainedPlans.has(plan)) return plan
+  if (interpretedPlans.has(plan)) return plan
   return retainPlan(immutableDisplayParts.freeze({
     source: plan.source, display: plan.display, ...(plan.transform ? { transform: plan.transform } : {}),
     lineStarts: immutableDisplayParts.freeze([...plan.lineStarts]),
@@ -187,7 +189,7 @@ export function prepareDisplayText(source: DisplayTextInput, display: LabelDispl
   }
   const prepared = retainPlan(immutableDisplayParts.freezeOwned({ source, display, lines: immutableDisplayParts.freezeOwned(lines), lineStarts: immutableDisplayParts.freezeOwned(lineStarts) }))
   const result = transform ? transformPreparedDisplayText(prepared, transform) : prepared
-  if (cacheKey !== undefined) displayPlans.set(cacheKey, result, cacheKey.length * 2 + source.length * 96 + 256)
+  if (cacheKey !== undefined && immutableDisplayParts.has(result)) displayPlans.set(cacheKey, result, cacheKey.length * 2 + source.length * 96 + 256)
   return result
 }
 

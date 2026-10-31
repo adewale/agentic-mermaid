@@ -75,6 +75,10 @@ const pixelBlocks = new WeightedLru<string, PixelTextBlock>(256, 8 * 1024 * 1024
 const preparedBlocks = new WeakSet<object>()
 const shapedInkBlocks = new WeakSet<object>()
 const interEnvelopeBlocks = new WeakSet<object>()
+const pixelProjectionFrozen = Object.isFrozen
+const pixelProjectionPrototype = Object.getPrototypeOf
+const pixelProjectionDescriptor = Object.getOwnPropertyDescriptor, pixelProjectionOwn = Object.hasOwn
+const pixelProjectionKeys = Reflect.ownKeys, pixelProjectionSame = Object.is, pixelProjectionDefine = Object.defineProperty
 // Only constructor-owned immutable data, never the transferable measurement brand.
 const immutablePixelParts = createImmutableParts(isImmutableDisplayTextPart, isOwnedDisplayTextPart)
 export function isImmutablePixelTextPart(value: object): boolean { return immutablePixelParts.has(value) }
@@ -430,10 +434,12 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
   const fontFamily = options.fontFamily ?? (completeInk ? selectedFont : undefined)
   if (!fontFamily) completeInk = false
   const block: PixelTextBlock = immutablePixelParts.freezeOwned({ unit: 'px', prepared, text: lines.join('\n'), lines, lineBlocks: immutablePixelParts.freezeOwned(lineBlocks), breaks: immutablePixelParts.freezeOwned(breaks), width, height: lines.length * lineHeight, lineHeight, fontSize: options.fontSize, fontWeight: options.fontWeight, letterSpacing: options.letterSpacing ?? 0, monospace: options.monospace ?? false, safeFont: options.safeFont ?? false, ...(fontFamily ? { fontFamily } : {}) })
-  preparedBlocks.add(block)
-  if (completeInk) shapedInkBlocks.add(block)
-  if (interEnvelope) interEnvelopeBlocks.add(block)
-  if (cacheKey !== undefined) pixelBlocks.set(cacheKey, block, cacheKey.length * 2 + block.prepared.source.length * 128 + block.lines.length * 256 + 512)
+  if (immutablePixelParts.has(block)) {
+    preparedBlocks.add(block)
+    if (completeInk) shapedInkBlocks.add(block)
+    if (interEnvelope) interEnvelopeBlocks.add(block)
+    if (cacheKey !== undefined) pixelBlocks.set(cacheKey, block, cacheKey.length * 2 + block.prepared.source.length * 128 + block.lines.length * 256 + 512)
+  }
   return block
 }
 
@@ -442,12 +448,37 @@ export function pixelTextLine(block: PixelTextBlock | undefined, index: number):
   const line = block?.lineBlocks[index]
   if (!block || !line) return undefined
   if (!isRetainedPixelText(block)) throw new TypeError('Pixel line projection requires retained preparation')
+  const parts: { value: object; prototype: object | null; keys: readonly PropertyKey[]; slots: PropertyDescriptor[]; valid: boolean }[] = []
+  const freezePart = <T extends object>(value: T): Readonly<T> => {
+    const prototype = pixelProjectionPrototype(value), keys = pixelProjectionKeys(value), slots: PropertyDescriptor[] = []
+    let valid = true
+    for (let i = 0; i < keys.length; i++) {
+      const slot = pixelProjectionDescriptor(value, keys[i]!)
+      if (!slot || !pixelProjectionOwn(slot, 'value')) { valid = false; break }
+      pixelProjectionDefine(slots, i, { value: slot, enumerable: true })
+    }
+    pixelProjectionDefine(parts, parts.length, { value: { value, prototype, keys, slots, valid }, enumerable: true })
+    return immutablePixelParts.freeze(value)
+  }
   const lines = [line.text]
-  immutablePixelParts.freeze(lines)
-  const projected: PixelTextBlock = immutablePixelParts.freeze({ ...block, text: line.text, lines, lineBlocks: immutablePixelParts.freeze([immutablePixelParts.freeze({ ...line, baseline: block.fontSize * 0.35 })]), breaks: immutablePixelParts.freeze([]), width: line.width, height: block.lineHeight })
-  preparedBlocks.add(projected)
-  if (hasPreparedTextInk(block)) shapedInkBlocks.add(projected)
-  if (interEnvelopeBlocks.has(block)) interEnvelopeBlocks.add(projected)
+  freezePart(lines)
+  const projected: PixelTextBlock = freezePart({ ...block, text: line.text, lines, lineBlocks: freezePart([freezePart({ ...line, baseline: block.fontSize * 0.35 })]), breaks: freezePart([]), width: line.width, height: block.lineHeight })
+  // Projection derives the source's measurement authority. Admitted snapshots
+  // need no constructor ownership. Authenticate each new wrapper after all
+  // dynamic freezes, retaining its original data and child references.
+  let valid = parts.length === 5
+  for (let partIndex = 0; valid && partIndex < parts.length; partIndex++) {
+    const part = parts[partIndex]!
+    if (!part.valid || !pixelProjectionFrozen(part.value) || pixelProjectionPrototype(part.value) !== part.prototype) { valid = false; break }
+    const keys = pixelProjectionKeys(part.value)
+    if (keys.length !== part.keys.length) { valid = false; break }
+    for (let i = 0; i < keys.length; i++) {
+      const slot = pixelProjectionDescriptor(part.value, keys[i]!), before = part.slots[i]!
+      if (keys[i] !== part.keys[i] || !slot || !pixelProjectionOwn(slot, 'value')
+        || !pixelProjectionSame(slot.value, before.value) || slot.enumerable !== before.enumerable) { valid = false; break }
+    }
+  }
+  if (valid) transferRetainedPixelText(block, projected)
   return projected
 }
 

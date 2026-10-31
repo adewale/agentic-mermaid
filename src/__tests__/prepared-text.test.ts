@@ -7,7 +7,7 @@ import { decodeMermaidEntities } from '../shared/mermaid-entity-display.ts'
 import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
 import { prepareCellText } from '../ascii/prepared-text.ts'
 import { labelDisplayLength } from '../agent/label-metrics.ts'
-import { preparePixelText, fitPixelText } from '../shared/prepared-text.ts'
+import { preparePixelText, fitPixelText, pixelTextLine } from '../shared/prepared-text.ts'
 import { renderMultilineText } from '../multiline-utils.ts'
 import { nodeWorldBounds } from '../scene/bounds.ts'
 import { drawNative } from '../scene/native-drawing.ts'
@@ -42,7 +42,9 @@ it.each([
   expect(renderMultilineText(block, 100, 80, 48, attrs)).toContain('<tspan x="100" text-anchor="start"')
 })
 
-it.each(['native', 'scene'] as const)('host-shaped bold j bounds enclose actual fitted ink through %s', execution => {
+it.each((['native', 'scene'] as const).flatMap(execution => [
+  { execution, admittedLine: false }, { execution, admittedLine: true },
+]))('host-shaped bold j bounds enclose actual fitted ink through $execution (admitted line: $admittedLine)', ({ execution, admittedLine }) => {
   // Independently read Inter-Bold glyf/hmtx: units/em2048, advance555,
   // outline[-50,-418,443,1572]. SVG y points down from its baseline.
   const measurement = createTextMeasurementExecution({ id: 'test:inter-bold-ink', version: '1.0.0', measure: () => 18.72,
@@ -51,7 +53,7 @@ it.each(['native', 'scene'] as const)('host-shaped bold j bounds enclose actual 
       bounds: { x0: -50 / 2048 * 48, y0: -1572 / 2048 * 48, x1: 443 / 2048 * 48, y1: 418 / 2048 * 48 },
     } : undefined,
   }, 'Inter')!
-  const block = withTextMeasurementExecution(measurement, () => preparePixelText('<b>j</b>', { fontSize: 48, fontWeight: 400 }))
+  let block = withTextMeasurementExecution(measurement, () => preparePixelText('<b>j</b>', { fontSize: 48, fontWeight: 400 }))
   expect(block.width).toBe(18.72)
   const colors = { bg: '#fff', fg: '#111', font: 'Caveat' }, context = { positioned: { width: 240, height: 160 }, colors, resolved: { renderOptions: {} } }
   const producer: DrawingProducer = factory => ({ family: 'flowchart', width: 240, height: 160, transparent: false, colors, parts: [
@@ -59,6 +61,12 @@ it.each(['native', 'scene'] as const)('host-shaped bold j bounds enclose actual 
     factory.text({ id: 'bold-j', role: 'label', text: '<b>j</b>', block, x: 100, y: 80, fontSize: 48, anchor: 'start', paint: { fill: '#111' } }),
     factory.documentClose(),
   ] })
+  if (admittedLine) {
+    const admitted = admitSceneDocument(producer(marks, context), 'internal', true)
+    const text = admitted.parts.find(part => part.kind === 'text')
+    if (!text || text.kind !== 'text' || !text.block) throw new Error('Expected admitted prepared text')
+    block = pixelTextLine(text.block, 0)!
+  }
   let svg: string, paint: ReturnType<typeof inspectScenePaintGeometry>
   if (execution === 'native') ({ svg, paint } = drawNative(producer, context, 'flowchart'))
   else {
@@ -344,6 +352,85 @@ describe('prepared display text', () => {
 })
 
 describe('prepared text at the graphical boundary', () => {
+  it.each(['unfrozen', 'relinked-runs', 'foreign-prototype'] as const)('a projected line refuses Native admission after its new wrappers are %s', mode => {
+    const { source, injected } = Object.freeze({ source: 'ProjectionBeforeC731', injected: 'ProjectionAfterCC731' })
+    const block = preparePixelText(source, { fontSize: 18, fontWeight: 400, fontFamily: 'Inter' })
+    const freeze = Object.getOwnPropertyDescriptor(Object, 'freeze')!
+    let projected: ReturnType<typeof preparePixelText>
+    let replaced = 0
+    try {
+      Object.defineProperty(Object, 'freeze', { ...freeze, value: <T>(value: T): T => {
+        if (mode === 'unfrozen') return value
+        if (value && typeof value === 'object' && Object.getOwnPropertyDescriptor(value, 'runs')?.value === block.lineBlocks[0]!.runs) {
+          if (mode === 'relinked-runs') Object.assign(value, { runs: [{ ...block.lineBlocks[0]!.runs[0]!, text: injected }] })
+          else Object.setPrototypeOf(value, { fragments: [{ runIndex: 0, text: injected, x: 0, width: block.lineBlocks[0]!.width }] })
+          replaced++
+        }
+        return Reflect.apply(freeze.value, Object, [value])
+      } })
+      projected = pixelTextLine(block, 0)!
+    } finally { Object.defineProperty(Object, 'freeze', freeze) }
+    expect(Object.isExtensible(projected)).toBe(mode === 'unfrozen')
+    expect(replaced).toBe(mode === 'unfrozen' ? 0 : 1)
+    const width = 360, height = 120, colors = { bg: '#fff', fg: '#111', font: 'Inter' }
+    const context = { positioned: { width, height }, colors, resolved: { renderOptions: {} } }
+    const producer: DrawingProducer = factory => ({ family: 'flowchart', width, height, colors, transparent: false, parts: [
+      factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="360" height="120">'),
+      factory.text({ id: 'projected-label', role: 'label', text: source, block: projected, x: 20, y: 50, fontSize: 18, anchor: 'start', paint: { fill: '#111' } }),
+      factory.documentClose(),
+    ] })
+    expect(() => drawNative(producer, context, 'flowchart')).toThrow('must retain the actual immutable pixel text preparation')
+  })
+
+  it.each([
+    { cache: 'pixel', execution: 'native', before: 'PixelNativeBeforeC731', after: 'PixelNativeAfterCC731' },
+    { cache: 'pixel', execution: 'scene', before: 'PixelSceneBeforeC731', after: 'PixelSceneAfterCC731' },
+    { cache: 'display', execution: 'native', before: 'DisplayNativeBeforeC731', after: 'DisplayNativeAfterCC731' },
+    { cache: 'display', execution: 'scene', before: 'DisplaySceneBeforeC731', after: 'DisplaySceneAfterCC731' },
+  ] as const)('fresh preparation preserves its authored literal after an interposed freeze in the $cache cache through $execution', fixture => {
+    const expected = Object.freeze({ before: fixture.before, after: fixture.after })
+    const freeze = Object.getOwnPropertyDescriptor(Object, 'freeze')!
+    const options = { display: 'literal' as const, fontSize: 18, fontWeight: 400, fontFamily: 'Inter' }
+    let pixel: ReturnType<typeof preparePixelText> | undefined
+    let display: ReturnType<typeof prepareDisplayText> | undefined
+    try {
+      Object.defineProperty(Object, 'freeze', { ...freeze, value: <T>(value: T): T => value })
+      if (fixture.cache === 'pixel') pixel = preparePixelText(expected.before, options)
+      else display = prepareDisplayText(expected.before, 'literal')
+    } finally { Object.defineProperty(Object, 'freeze', freeze) }
+    const plan = pixel?.prepared ?? display!
+    Object.assign(plan, { source: expected.after })
+    Object.assign(plan.lines[0]![0]!, { text: expected.after })
+    if (pixel) {
+      Object.assign(pixel, { text: expected.after })
+      pixel.lines[0] = expected.after
+      Object.assign(pixel.lineBlocks[0]!, { text: expected.after })
+      Object.assign(pixel.lineBlocks[0]!.runs[0]!, { text: expected.after })
+    }
+    const block = preparePixelText(expected.before, options)
+    const width = 360, height = 120, colors = { bg: '#fff', fg: '#111', font: 'Inter' }
+    const context = { positioned: { width, height }, colors, resolved: { renderOptions: {} } }
+    const producer: DrawingProducer = factory => ({ family: 'flowchart', width, height, colors, transparent: false, parts: [
+      factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="360" height="120">'),
+      factory.text({ id: 'cache-label', role: 'label', text: expected.before, block, x: 20, y: 50, fontSize: 18, anchor: 'start', paint: { fill: '#111' } }),
+      factory.documentClose(),
+    ] })
+    let svg: string
+    if (fixture.execution === 'native') svg = drawNative(producer, context, 'flowchart').svg
+    else {
+      const capture = createSceneWriteCapture(MAX_OCCLUSION_OPERATIONS)
+      const document = admitSceneDocument(producer(marks, context), 'internal', true, capture.observe)
+      capture.finish(document)
+      svg = DefaultBackend.render(document, { seed: 0 })
+    }
+    const texts = svg.match(/<text\b[^>]*>[^<]*<\/text>/g)!
+    expect(texts).toHaveLength(1)
+    expect(texts[0]!.slice(texts[0]!.indexOf('>') + 1, -7)).toBe(expected.before)
+    const font = { fontFiles: [join(import.meta.dirname, '../../assets/fonts/Inter-Regular.ttf')], loadSystemFonts: false, defaultFontFamily: 'Inter' }
+    const pixels = (value: string) => new Resvg(value, { font, background: '#fff' }).render().pixels
+    expect(Buffer.compare(pixels(svg), pixels(svg.replace(texts[0]!, '')))).not.toBe(0)
+  })
+
   it.each([{ letterSpacing: 0, fontWeight: 400 }, { letterSpacing: 2, fontWeight: 400 }, { letterSpacing: 0, fontWeight: 800 }])('paints retained styled allocations without nested fitting: %j', ({ letterSpacing, fontWeight }) => {
     let measurements = 0
     const execution = createTextMeasurementExecution({ id: 'test:styled-allocations', version: '1.0.0', measure: ({ text }) => { measurements++; return text.length > 1 ? text.length * 10 + 5 : 10 } }, 'Inter')
