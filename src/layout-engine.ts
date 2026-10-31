@@ -1416,8 +1416,6 @@ export interface LayoutPassContext extends PassContextBase {
   frozen: boolean
   /** Routes rerouteEdgesThroughNodes had to detour around a reserved title band. */
   titleBandRepairs?: number
-  /** Routes any post-route safety repair rebuilt (cards, bands, endpoints, diagonals). */
-  safetyRepairs?: number
 }
 
 /** Necessary precondition for lane splitters. Avoid measuring their crossing
@@ -1617,9 +1615,9 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => {
       const rerouted = rerouteEdgesThroughNodes(c.nodes, c.edges, c.graph, undefined, c.groups)
       c.titleBandRepairs = rerouted.titleBandRepairs
-      c.safetyRepairs = (c.safetyRepairs ?? 0) + rerouted.repaired + repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge))
+      repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge))
       repairMarkerTerminals({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style)
-      c.safetyRepairs += repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge), true)
+      repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge), true)
     },
   },
   {
@@ -1646,7 +1644,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'repairResidualDiagonals', doc: 're-route a diagonal segment the settled route still has (a node mover shifted part of a collinear run) into an orthogonal step, keeping both endpoints (edge-only, freeze-safe)',
     after: ['closeRouteContracts'], mutates: ['edges'], determinism: 'in-place',
-    run: c => { c.safetyRepairs = (c.safetyRepairs ?? 0) + repairResidualDiagonals(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge)) },
+    run: c => { repairResidualDiagonals(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge)) },
   },
   {
     id: 'translateGeometryToNonNegativeOrigin', doc: 'shift whole graph to a non-negative origin (allowed after freeze)',
@@ -1916,7 +1914,6 @@ function finishGraphGeometry(
     ...(ctx.notes.length > 0 ? { notes: ctx.notes } : {}),
   }
   if (ctx.titleBandRepairs) TITLE_BAND_DETOURS.add(positioned)
-  if (ctx.safetyRepairs) SAFETY_REPAIRED.add(positioned)
   return { genericBundled: ctx.genericBundled, positioned }
 }
 
@@ -1925,12 +1922,6 @@ function finishGraphGeometry(
  * as the separate-hierarchy placement, built to keep cross-hierarchy routes off
  * title bands) is preferred whenever it also certifies. */
 const TITLE_BAND_DETOURS = new WeakSet<PositionedGraph>()
-
-/** Placements whose routes needed any post-route safety repair. Such a
- * placement is compared with the remaining quality alternatives even when it
- * certifies without crossings, so the repair never displaces an alternative
- * that ranks better. */
-const SAFETY_REPAIRED = new WeakSet<PositionedGraph>()
 
 
 /**
@@ -2236,7 +2227,6 @@ function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpo
   // title band, defers to the next bounded candidate and is kept if that one
   // fails. Family placement discards these generic routes, so only titles count.
   const preferReadableTitles = (positioned: PositionedGraph) => groupsNarrowerThanTitles(positioned.groups, graph, style) || (purpose !== 'placement' && TITLE_BAND_DETOURS.has(positioned))
-  const compareFurther = (positioned: PositionedGraph) => purpose !== 'placement' && SAFETY_REPAIRED.has(positioned)
   const compareRoutes = options.compareRoutePreferences !== false
   const routeAlternatives = new WeakMap<PositionedGraph, () => PositionedGraph>()
   // Keep parallel pairs with their specialized route owners: fewer proper
@@ -2244,14 +2234,10 @@ function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpo
   const rememberAlternative: RememberRouteAlternative | undefined = compareRoutes && withinLayoutPreferenceBudget(graph) && !hasParallelPair(graph.edges)
     ? (positioned, produce) => { routeAlternatives.set(positioned, produce) }
     : undefined
-  // The separate-hierarchy candidate repeats the default's ELK input only when
-  // the default already lays out SEPARATE (a subgraph sets its own direction).
-  // Otherwise the root hierarchy mode differs, so it is a real alternative even
-  // for a graph without subgraphs, and it is compared whenever it may win.
-  const distinctHierarchy = !usesSeparateHierarchy(graph, options)
+  const distinctHierarchy = graph.subgraphs.length > 0 && !usesSeparateHierarchy(graph, options)
   const candidates: LayoutCertificationCandidate[] = [{
     strategy: 'default', produce: () => layoutCandidate(graph, options, rememberAlternative),
-    preferNext: preferReadableTitles, compareFurther,
+    preferNext: preferReadableTitles,
   }]
   // One conditional producer before the complete established fallback list.
   // Projected Architecture graphs reserve authored child order and have
@@ -2260,16 +2246,14 @@ function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpo
   // mandatory downstream pass contracts. Preserve ELK for those requests.
   const forestSpacing = (options.nodeSpacing ?? DEFAULTS.nodeSpacing) > 0 && (options.layerSpacing ?? DEFAULTS.layerSpacing) > 0
   const preliminary = options.graphLayout === undefined && performanceExperimentEnabled('indexed-layout') && forestSpacing && !options.stateVisual && !options.preserveSubgraphChildOrder && isIndexedForestGraph(graph)
-    ? { strategy: 'indexed-forest', produce: () => layoutCandidate(graph, options, rememberAlternative, true), preferNext: preferReadableTitles, compareFurther }
+    ? { strategy: 'indexed-forest', produce: () => layoutCandidate(graph, options, rememberAlternative, true), preferNext: preferReadableTitles }
     : undefined
   if (!options.separateHierarchy) {
-    candidates.push({ strategy: 'separate-hierarchy', produce: () => layoutCandidate(graph, { ...options, separateHierarchy: true }, rememberAlternative), preferNext: preferReadableTitles, compareFurther, qualityAlternative: compareRoutes && distinctHierarchy })
+    candidates.push({ strategy: 'separate-hierarchy', produce: () => layoutCandidate(graph, { ...options, separateHierarchy: true }, rememberAlternative), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && distinctHierarchy })
   }
   if (!options.disableCorankFanIn && !layoutEnvFlag('APL_NO_CORANK_FANIN')) {
-    // Disabling co-rank fan-in changes nothing without balancing labels.
-    const corank = corankFanInBalancingLabels(graph, style).size > 0
-    candidates.push({ strategy: 'without-corank', produce: () => layoutCandidate(graph, { ...options, disableCorankFanIn: true }, rememberAlternative), preferNext: preferReadableTitles, compareFurther, qualityAlternative: compareRoutes && corank })
-    if (!options.separateHierarchy) candidates.push({ strategy: 'separate-without-corank', produce: () => layoutCandidate(graph, { ...options, separateHierarchy: true, disableCorankFanIn: true }, rememberAlternative), preferNext: preferReadableTitles, compareFurther, qualityAlternative: compareRoutes && distinctHierarchy && corank })
+    candidates.push({ strategy: 'without-corank', produce: () => layoutCandidate(graph, { ...options, disableCorankFanIn: true }, rememberAlternative), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && corankFanInBalancingLabels(graph, style).size > 0 })
+    if (!options.separateHierarchy) candidates.push({ strategy: 'separate-without-corank', produce: () => layoutCandidate(graph, { ...options, separateHierarchy: true, disableCorankFanIn: true }, rememberAlternative), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && distinctHierarchy })
   }
   // Search placement strategies first, then test one completed route proposal
   // only for the selected placement, reusing its ELK result and certified score.
@@ -2282,7 +2266,7 @@ function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpo
   return certifyLayoutWithRouteAlternative(graph, style, candidates, (placed, score) => {
     const makeRoute = routeAlternatives.get(placed)
     if (!makeRoute || (score.edgeCrossings === 0 && score.labelConflicts === 0)) return undefined
-    return { strategy: 'without-generic-bundling', produce: makeRoute, preferNext: preferReadableTitles, compareFurther }
+    return { strategy: 'without-generic-bundling', produce: makeRoute, preferNext: preferReadableTitles }
   }, preliminary, allowUncertified)
 }
 

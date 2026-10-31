@@ -123,16 +123,7 @@ The bounded preference comparison follows the
 [graph priority order](quality.md#layout-priorities-and-their-limits): readable
 group titles, crossings, padded label conflicts, avoidable bends, preferred
 endpoint contacts, peer alignment and canvas area. A candidate with a better
-lower-priority score cannot displace one with a better earlier score. When the
-first certified placement has crossings or label conflicts, every remaining
-bounded candidate that lays out differently is certified and compared, and the
-best is drawn (ties keep candidate order); a separate-hierarchy candidate is
-skipped only when the default already lays out SEPARATE. A placement that
-certifies only through a post-route safety repair (a route rebuilt around a
-node, an endpoint approach or a diagonal squared off) is compared the same way
-even without crossings, so a repair never displaces a cleaner alternative. Each
-certified placement is ranked together with its own route proposal, so a
-placement is not chosen for routes it will not draw. This final
+lower-priority score cannot displace one with a better earlier score. This final
 comparison does not excuse a production pass-contract error. A placement whose
 routes certify only after a detour around a group's reserved title band ranks
 like one with an unreadable title: the next bounded candidate is tried, and the
