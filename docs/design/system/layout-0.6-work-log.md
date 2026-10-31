@@ -5640,7 +5640,7 @@ follow CI for the exact final pushed head; six old capacities and delivery remai
 open. The fixed campaign end2026-10-31T12:03:00Z is unchanged.
 
 
-### 31 October00:18UTC: completed full replay and a frozen State interaction probe
+### 31 October00:16UTC: completed full replay and a frozen State interaction probe
 
 Fresh replay at published09098b8ef5d2517ff90ddbc642baa7c69f4c41ea (production
 through e7f5095db9b6fc4864c49d142ab60111e881d6a0) completes all33sources/
@@ -5705,7 +5705,7 @@ qualify09098. Replacement24 stays sealed; no human-study gate was introduced.
 The fixed campaign end remains2026-10-31T12:03:00Z.
 
 
-### 31 October00:30UTC: extend actual ER compound ownership coverage
+### 31 October00:29UTC: extend actual ER compound ownership coverage
 
 The existing crow's-foot ownership table now includes a separately frozen
 nested-frame source: p(root), c(parent p), A(parent c), B(parent p), ordered
@@ -5742,7 +5742,7 @@ Live Main remains118cadd53d3b2dfbaf0dbb959bcc7abb66f16ae5. New local changes are
 outside that CI result. Filtered record: ci-9a498-41149298650/summary.json,25588bytes.
 
 
-### 31 October00:32UTC: repair constructor ownership that admitted mutable copy-plan sources
+### 31 October00:29UTC: repair constructor ownership that admitted mutable copy-plan sources
 
 A newly reproduced pre-existing qualification defect affected Native retained
 text copying. createImmutableParts called dynamic Object.freeze but assumed it
@@ -5783,3 +5783,116 @@ immutable-constructor-9a498/{RED3,GREEN,OWNERS,TYPES,LINT-CANONICAL}.log and cle
 records. No capacity closure, new broad replay, timing or memory result is
 claimed at this point. Next: one existing bounded fully-consumed cost diagnostic
 with only this helper changed, then new-head affected replay/CI qualification.
+
+
+### 31 October00:39UTC: qualify01728 and retain unfavorable bounded cost observations
+
+Completed implementations are ER owning coverage94f1679a8 and actual immutable
+ownership repair01728d9398265bf47c3509c516b48c532932d2a5. Earlier headings now use
+the actual commit minutes (9a49800:16:18,94f00:29:19,0172800:29:40UTC); exact
+revisions remain the evidence authority.
+
+One fresh affected replay at01728 completes all33sources/66engine cells. All
+66public models and124returned SVGs directly equal H4. All132H6 phase outcomes,
+paint statuses, retained proof summaries and full checks/work objects equal;
+all eight strict refusal names/messages also equal. No new unavailable worker,
+retry or unattempted cell. H6 model/SVG equality remains transitive through H4;
+full H6 proof objects were not retained. All guards and66owned-child cleanup
+records pass. The old H5 unavailable observation remains unchanged. Counts stay
+agentic29strict P/4refusal and26normal P/7U; our ELK29/4 and25/8 respectively.
+The existing original7 remains7/7scoped paint-P on each backend, not a universal
+correctness claim. Evidence: final-immutable-correctness-replay/{SUMMARY.json,
+FINAL-COMPARISON.json},365457bytes. No new timing, raster, peers or holdout access
+occurred in that replay.
+
+The one bounded mini9 diagnostic isolates ONLY shared/immutable-parts.ts between
+9a498 and01728, reusing the existing mini8 worker and three earlier fixtures.
+Native AB/Scene BA, first/repeat,24calls total:0errors/timeouts,4598byte guards,
+one helper load/worker, four owned-child cleanups,12/12whole SVG AND proof/
+receipt pairs exact. Outcomes20P/4U; Native sparse32 stays U400000 and every
+recorded status/work object is unchanged. Historical19 is absent from this
+three-fixture diagnostic; its existing cohort result is qualified by the replay.
+
+| Six-call observation |9a498before |01728after |
+| --- | ---: | ---: |
+| Native fully consumed sum |1849.55ms |3103.55ms |
+| Scene fully consumed sum |664.17ms |1525.72ms |
+| Native import |787.91ms |4733.83ms |
+| Scene import |587.97ms |5525.89ms |
+| Native peak RSS |140064KiB |173076KiB |
+| Scene peak RSS |143736KiB |165824KiB |
+
+Eleven of twelve paired calls are slower observations. Final immediate post-GC
+heap with current output/proof live: Native19456798->19454239bytes,
+Scene19159037->19356719. These are not quiescent retention or allocation counts.
+The single Native AB/Scene BA pair, especially its very different import costs,
+does not establish causal attribution or time/memory preservation. The observed
+cost problem remains open; it is not relabelled success or an ELK/Pele result.
+No timing retry or performance tuning was done. Evidence: measurement/
+immutable-parts-mini-9/{CONCLUSION.json,results-corrected/},214890bytes.
+
+To retain the replay's original reserve-plus1MiB storage gate, Root reclaimed
+one unused completed font-copy cache:10files directly byte-equal bundled assets,
+4112728bytes, no live Bun/Node owner or open file-descriptor reference. No source,
+evidence or worktree was removed. The first check matched prefixed cache names
+incorrectly and stopped before deletion; the corrected check matches actual
+bundled filenames. Record: immutable-constructor-9a498/ROOT-FONT-CACHE-CLEANUP.json.
+No guard, operation cap or child timeout was relaxed.
+
+Automatic approval review rejected a full retained PR-body replacement as a
+potentially non-public large export. A safer compact description using published
+commit/CI/work-log links was accepted and passes the good-pr visual linter with
+0errors/0warnings. No external comment/message was sent, and the rejected large
+payload was not retried through another channel.
+
+
+### 31 October: exact-source public Pele State readback; Mermaid remains unavailable
+
+One genuine pinned public Pele1.9 parse/render returns6176byte SVG for the SAME
+376byte frozen State source/expectations used at09098. No counterexample in the
+selected author/actual-geometry contract: four authored leaves and parentage,
+one Group, four distinct scoped pseudostates separate from the authored alias,
+nine directed transition occurrences with nine triangular head paths, five
+owned captions and one B note. Actual outlines establish nesting and carrier/
+head contacts with rounding plus0.5stroke allowance; shaft paths deliberately
+stop7units before their head tips and are not misreported as disconnected.
+The auxiliary note connector touches B/note; actual note lies44units right of B
+with matching vertical center. Root independently parsed the retained actual
+SVG and agrees with that selected count/position readback.
+
+| Selected frozen State source | Authored leaves/pseudos/transitions/captions | Right B note | Selected glyph/head foreground |
+| --- | --- | --- | --- |
+| Our agentic, Native and Scene |4/4/9/5each |18unit gap |11/11text and9/9heads contribute per writer |
+| Our ELK, Native and Scene |4/4/9/5each |91.0915unit gap |11/11text and9/9heads contribute per writer |
+| Public Pele1.9 |4/4/9/5 |44unit gap |UNVERIFIED |
+| Public Mermaid12.2 |UNAVAILABLE |UNAVAILABLE |UNAVAILABLE |
+
+This is one source and selected geometry/meaning, not aggregate correctness or
+aesthetics. Positive foreground removal in ours does not prove every character
+is readable or exclude partial occlusion. Pele's actual XML contains CSS variable
+paint; no faithful browser observation was available, so visible glyph/head
+survival is explicitly U rather than inferred from path presence. The existing
+public profile is unchanged: fontFamilyInter,responsivefalse,autoDirectionfalse;
+it is not a claim about Pele's browser defaults.
+
+Pele's public shipped entry/tarball provenance and all418extracted files are
+verified; the existing acquire worker is whole-byte unchanged. One attempt,
+source/artifact guards and child cleanup pass; no retry, download, browser, PNG,
+network or holdout access. Evidence: state-public-peers-09098/{FINAL.json,
+PELE-ACTUAL-READBACK.json,MERMAID-UNAVAILABLE.json},69898bytes. The new exact-source
+public Mermaid enrollment remains UNAVAILABLE: its unchanged browser wrapper
+requires1139741824free bytes versus272752640observed. No browser launched or
+Mermaid renderer failure is inferred. Existing historical public peer records
+remain separate. Closing this observation gap requires available browser
+resources; current artifacts do not support a complete three-system score.
+
+Next concrete step after publishing this checkpoint: follow exact-head CI to
+terminal with review base1fb22fe6da2968fecaa9034b5683ad97bacc6f7a. Six legacy
+capacities, delivery ceilings and current-Main combined integration remain open.
+The next code question is shared work elimination that closes a capacity owner
+without dropping diagnostics or changing generic receiver behavior; the smaller
+nontext paint-presence proposal has only low-thousands projected savings and
+is not implemented as a six-case solution. The unfavorable cost observation
+needs attribution before any performance-preservation claim, with shared harness
+corrections owned in Trident. Replacement24 remains sealed; fixed campaign end
+2026-10-31T12:03:00Z is unchanged.
