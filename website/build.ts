@@ -1706,7 +1706,7 @@ for (const [source, target] of pageOutputs) {
   if (source !== 'home.html') html = injectWorkflowSvg(html)
   if (source === 'home.html') {
     // The agent pointer (primary CTA) is intentionally a single fetch instruction;
-    // start.md stays the canonical protocol instead of being duplicated inline.
+    // start.md routes to the maintained guide instead of duplicating it inline.
     html = html.replace('{{AGENT_POINTER}}', escapeAttr(HOMEPAGE_AGENT_POINTER))
     html = injectHeroStyleFigure(html)
     html = html.replace('{{WORKFLOW_FIGURE}}', workflowFigureHtml())
@@ -2119,17 +2119,10 @@ await emitJson('.well-known/mcp/server-card.json', mcpServerCard)
 await emitJson('.well-known/mcp.json', mcpManifest)
 await emitJson('.well-known/ai-catalog.json', aiCatalog)
 
-const skillFiles = ['SKILL.md', 'references/cli.md', 'references/code-mode.md', 'references/flowchart.md', 'references/sequence.md', 'references/timeline.md']
-// The deploy ships only the files above, so repo-relative references the bundle
-// does not include (references/upstream/*, docs/*) must point at GitHub in the
-// served copy — an agent following a served 404 wastes a turn.
-const SKILL_REPO_BLOB = 'https://github.com/adewale/agentic-mermaid/blob/main'
-function rewriteServedSkillRefs(text: string) {
-  return text.replaceAll(/`(docs\/[^`]+)`/g, (_, path: string) => `[${path}](${SKILL_REPO_BLOB}/${path})`).replaceAll(/`(references\/upstream\/[^`]*)`/g, (_, path: string) => `[${path}](${SKILL_REPO_BLOB}/skills/agentic-mermaid-diagram-workflow/${path})`)
-}
+const skillFiles = ['SKILL.md', 'references/cli.md', 'references/code-mode.md', 'references/hosted-mcp.md', 'references/flowchart.md', 'references/sequence.md', 'references/timeline.md']
 for (const file of skillFiles) {
   const text = await Bun.file(join(ROOT, 'skills/agentic-mermaid-diagram-workflow', file)).text()
-  await emit(`skills/agentic-mermaid-diagram-workflow/${file}`, file === 'SKILL.md' ? rewriteServedSkillRefs(text) : text)
+  await emit(`skills/agentic-mermaid-diagram-workflow/${file}`, text)
 }
 
 // Public llms.txt must not expose repo-only backlog/eval/contributor surfaces.
@@ -2154,7 +2147,7 @@ Styling: every render accepts style (a renderer treatment like hand-drawn, water
 
 ## Start Here
 
-- [Agent bootstrap](https://agentic-mermaid.dev/start.md): copy-and-follow workflow for one diagram task.
+- [Agent bootstrap](https://agentic-mermaid.dev/start.md): choose a channel and open the operating guide.
 - [Hosted MCP endpoint](https://agentic-mermaid.dev/mcp): stateless Streamable HTTP JSON-RPC with ${HOSTED_TOOLS.map(tool => tool.name).join(', ')}.
 - [MCP server card](https://agentic-mermaid.dev/.well-known/mcp/server-card.json): pre-connection metadata for the hosted MCP server.
 - [MCP manifest](https://agentic-mermaid.dev/.well-known/mcp.json): compact tool manifest for agents and scanners.

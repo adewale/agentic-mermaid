@@ -1,13 +1,12 @@
 #!/usr/bin/env bun
 // Label approvals approve one head, not the pull request for good. CI honours
-// two PR labels: `no-red-green` (a pure refactor needs no red → green test) and
-// `payload-growth-approved` (the payload growth is intended). Read live, a label
+// `payload-growth-approved` when payload growth is intended. Read live, a label
 // applied to one head kept approving every later push, so new code rode on an
 // old approval. A label now counts only when it was applied after the event
 // that brought the current head, and on each push the approval labels applied
 // before it are removed, as GitHub dismisses stale reviews.
 
-export const APPROVAL_LABELS = ['no-red-green', 'payload-growth-approved'] as const
+export const APPROVAL_LABELS = ['payload-growth-approved'] as const
 export type ApprovalLabel = (typeof APPROVAL_LABELS)[number]
 
 export interface LabelEvent {
@@ -62,7 +61,7 @@ function gh(args: string[]): string {
   return result.stdout.toString()
 }
 
-const USAGE = 'Usage: bun run scripts/ci/label-approval.ts check --label <no-red-green|payload-growth-approved> | expire  (in a pull_request workflow run)\n'
+const USAGE = 'Usage: bun run scripts/ci/label-approval.ts check --label <payload-growth-approved> | expire  (in a pull_request workflow run)\n'
 
 if (import.meta.main) {
   const [mode, ...rest] = process.argv.slice(2)

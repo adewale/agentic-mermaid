@@ -27,12 +27,24 @@ jobs:
             -f branch=main \
             -f status=success \
             -f per_page=100)"
-          successes="$(printf '%s' "$runs" | jq --arg sha "$GITHUB_SHA" \
-            '[.workflow_runs[] | select(.head_sha == $sha and .conclusion == "success")] | length')"
-          if [ "$successes" -lt 1 ]; then
-            echo "No successful CI workflow run exists for release commit $GITHUB_SHA on main" >&2
-            exit 1
-          fi
+          eligible_runs="$(printf '%s' "$runs" | jq -r --arg sha "$GITHUB_SHA" \
+            '.workflow_runs[] | select(.head_sha == $sha and .conclusion == "success") | .id | select(type == "number" and floor == .)')"
+          # CI complete owns strict lane accounting. The successful artifact build
+          # distinguishes full qualification from a green documentation-only run.
+          required_jobs='["Build portable test artifacts", "CI complete"]'
+          for run_id in $eligible_runs; do
+            jobs="$(gh api --paginate -X GET \
+              "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs" \
+              -f filter=latest -f per_page=100)"
+            qualified="$(printf '%s' "$jobs" | jq -s --argjson required "$required_jobs" \
+              '[.[].jobs[]] as $jobs | all($required[]; . as $name | any($jobs[]; .name == $name and .conclusion == "success"))')"
+            if [ "$qualified" = true ]; then
+              echo "Release commit $GITHUB_SHA has full canonical CI qualification in run $run_id"
+              exit 0
+            fi
+          done
+          echo "No fully qualified canonical CI run exists for release commit $GITHUB_SHA on main; dispatch full CI before publishing" >&2
+          exit 1
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -262,7 +274,50 @@ jobs:
           printf '%s  package.tgz\n' "$manifest_sha" | cmp --silent - release-artifact/package.sha256
           actual_sha="$(sha256sum release-artifact/package.tgz | cut -d ' ' -f 1)"
           test "$actual_sha" = "$manifest_sha"
+          manifest_integrity="$(jq -er '.integrity | select(type == "string")' release-artifact/package-manifest.json)"
+          actual_integrity="sha512-$(openssl dgst -sha512 -binary release-artifact/package.tgz | openssl base64 -A)"
+          test "$actual_integrity" = "$manifest_integrity"
           tar --extract --gzip --file release-artifact/package.tgz --to-stdout package/server.json > server.json
+
+      - name: Wait for the byte-identical public npm version
+        # npm can accept an upload several minutes before public metadata exists.
+        # Wait on the retained artifact's exact identity; never rebuild or upload.
+        env:
+          NPM_AVAILABILITY_RETRY_DELAYS: 0 15 30 30 60 60 60 60 60 60
+        run: |
+          package_json="$(tar --extract --gzip --file release-artifact/package.tgz --to-stdout package/package.json)"
+          package_name="$(printf '%s' "$package_json" | jq -er '.name | select(. == "agentic-mermaid")')"
+          package_version="$(printf '%s' "$package_json" | jq -er '.version | select(type == "string" and length > 0)')"
+          expected_integrity="$(jq -er '.integrity | select(type == "string")' release-artifact/package-manifest.json)"
+          encoded_version="$(jq -rn --arg version "$package_version" '$version | @uri')"
+          package_url="https://registry.npmjs.org/agentic-mermaid/$encoded_version"
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+          for retry_delay in $NPM_AVAILABILITY_RETRY_DELAYS; do
+            sleep "$retry_delay"
+            if http_status="$(curl --silent --show-error --location \
+              --connect-timeout 5 --max-time 10 \
+              --output "$response_file" --write-out '%{http_code}' "$package_url")"; then
+              case "$http_status" in
+                200)
+                  if ! jq -e --arg name "$package_name" --arg version "$package_version" \
+                    --arg integrity "$expected_integrity" \
+                    '.name == $name and .version == $version and .dist.integrity == $integrity' \
+                    "$response_file" >/dev/null; then
+                    echo "Public npm metadata for $package_name@$package_version does not match the verified artifact" >&2
+                    exit 1
+                  fi
+                  echo "$package_name@$package_version is publicly available with the verified integrity"
+                  exit 0
+                  ;;
+                404|408|429|5??) ;;
+                *) echo "Unexpected npm availability response: HTTP $http_status" >&2; exit 1 ;;
+              esac
+            fi
+            echo "Waiting for public npm availability of $package_name@$package_version"
+          done
+          echo "Public npm availability did not converge within the bounded wait; retry only this job with the retained artifact" >&2
+          exit 1
 
       - name: Install MCP Registry publisher
         # The binary shares this job's OIDC permission, so pin both its release

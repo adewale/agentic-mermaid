@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { runAllScenarios, lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
 import { DEFAULT_CASES, KNOWLEDGE_CASES, CREATE_CASES, checkAgentUsageTaskSource, requiresStructuredMutation, runAgentUsageEval } from '../../eval/agent-usage/run.ts'
 import { AGENT_USAGE_SUPPORTED_FAMILIES, scoreAgentUsageRenderedQuality } from '../../eval/agent-usage/render-quality.ts'
-import { extractHomepageAgentPrompt, homepagePromptChecklist, HOMEPAGE_AGENT_POINTER, buildHomepageFullPrompt, readStartMd, applyHomepagePromptVariant } from '../../eval/agent-usage/homepage-prompt.ts'
+import { extractHomepageAgentPrompt, HOMEPAGE_AGENT_POINTER, buildHomepageFullPrompt, readStartMd, applyHomepagePromptVariant } from '../../eval/agent-usage/homepage-prompt.ts'
 import { buildSubagentPromptEvalRequest, extractBareTask, prepareSubagentPromptEval, finalizeSubagentPromptEval } from '../../eval/agent-usage/capture-subagent-prompt-eval.ts'
 import { runCli } from '../cli/index.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
@@ -138,35 +138,21 @@ describe('homepage prompt eval contract', () => {
   test('homepage CTA is fetch-only and eval cases append only task slots', () => {
     const prompt = extractHomepageAgentPrompt()
     expect(prompt).toBe('Fetch https://agentic-mermaid.dev/start.md and follow it.')
-    expect(homepagePromptChecklist(buildHomepageFullPrompt())).toEqual([])
-    expect(buildHomepageFullPrompt()).toContain('Do not assume this repository is checked out')
-    expect(buildHomepageFullPrompt()).toContain('the hosted MCP at `https://agentic-mermaid.dev/mcp`')
-    expect(buildHomepageFullPrompt()).toContain('Mutation ops use a `kind` discriminator')
     for (const c of DEFAULT_CASES) {
       expect({ id: c.id, startsWithPointer: c.prompt.startsWith(`${HOMEPAGE_AGENT_POINTER}\n\nTask:\n`) }).toEqual({ id: c.id, startsWithPointer: true })
       expect({ id: c.id, unresolved: /<replace with|<include the facts|<paste existing/.test(c.prompt) }).toEqual({ id: c.id, unresolved: false })
-      for (const inlineOnly of ['Do not assume this repository is checked out', 'Mutation ops use a `kind` discriminator', 'return an object with `{ source }`']) {
-        expect({ id: c.id, inlineOnly, leaked: c.prompt.includes(inlineOnly) }).toEqual({ id: c.id, inlineOnly, leaked: false })
-      }
     }
   })
 
-  test('start.md prompt variants remove only eval-targeted semantic read-back guidance', () => {
+  test('guide prompt variants remove exactly the marked semantic guidance independently of wording', () => {
     const baseline = buildHomepageFullPrompt()
+    const block = baseline.match(/<!-- BEGIN SEMANTIC READBACK -->[\s\S]*?<!-- END SEMANTIC READBACK -->/)?.[0]
+    expect(block).toBeDefined()
     const treatment = applyHomepagePromptVariant(baseline, 'no-semantic-readback')
-    const removed = 'Before returning, confirm the specific change the task asked for is actually present'
-    expect(baseline).toContain(removed)
-    expect(treatment).not.toContain(removed)
-    expect(treatment).toContain('including measured content occlusion and explicit error policies')
-    expect(treatment).not.toContain('SEMANTIC READBACK')
-    for (const heldConstant of ['Do not assume this repository is checked out', 'am capabilities --json', 'Run `verifyMermaid` at every commit point', 'return an object with `{ source }`', 'Updated Mermaid']) {
-      expect({ heldConstant, baseline: baseline.includes(heldConstant), treatment: treatment.includes(heldConstant) }).toEqual({ heldConstant, baseline: true, treatment: true })
-    }
-    expect(() => applyHomepagePromptVariant('not the start.md protocol', 'no-semantic-readback')).toThrow('semantic read-back guidance')
-    const reworded = baseline.replace(removed, 'Check the requested change before returning')
-    expect(applyHomepagePromptVariant(reworded, 'no-semantic-readback')).not.toContain('Check the requested change before returning')
-    const block = baseline.match(/<!-- BEGIN SEMANTIC READBACK -->[\s\S]*?<!-- END SEMANTIC READBACK -->/)![0]
-    expect(treatment).toBe(baseline.replace(block, ''))
+    expect(treatment).toBe(baseline.replace(block!, ''))
+    const reworded = '<!-- BEGIN SEMANTIC READBACK -->\nDifferent semantic read-back wording.\n<!-- END SEMANTIC READBACK -->'
+    expect(applyHomepagePromptVariant(baseline.replace(block!, reworded), 'no-semantic-readback')).toBe(treatment)
+    expect(() => applyHomepagePromptVariant('unmarked guide', 'no-semantic-readback')).toThrow('exactly one')
     expect(() => applyHomepagePromptVariant(`${baseline}\n${block}`, 'no-semantic-readback')).toThrow('exactly one')
   })
 
@@ -188,20 +174,16 @@ describe('homepage prompt eval contract', () => {
     expect(request).toContain('Task prompt under test:')
     expect(request).toContain(HOMEPAGE_AGENT_POINTER)
     expect(request).toContain('Task:\nAdd a done transition')
-    expect(request).not.toContain('Run `verifyMermaid` at every commit point')
-    expect(request).not.toContain('Before returning, confirm the specific change')
+    expect(request).not.toContain(buildHomepageFullPrompt())
   })
 
-  test('the pointer targets start.md and does not duplicate its protocol', () => {
-    const startBody = readStartMd()
-      .replace(/^#[^\n]*\n+/, '')
-      .trim()
-    const protocol = buildHomepageFullPrompt()
-    expect(protocol).toBe(startBody)
+  test('the bootstrap links to the maintained guide and the public task remains fetch-only', () => {
+    const links = [...readStartMd().matchAll(/\[[^\]]+\]\(([^)]+)\)/g)].map(match => match[1])
+    expect(links).toContain('/agent-instructions.md')
+    const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
+      .replace(/^#[^\n]*\n+/, '').trim()
+    expect(buildHomepageFullPrompt()).toBe(guide)
     expect(HOMEPAGE_AGENT_POINTER).toBe('Fetch https://agentic-mermaid.dev/start.md and follow it.')
-    for (const startOnly of ['Do not assume this repository is checked out', 'Run `verifyMermaid` at every commit point', 'Updated Mermaid']) {
-      expect({ startOnly, inPointer: HOMEPAGE_AGENT_POINTER.includes(startOnly), inStartMd: protocol.includes(startOnly) }).toEqual({ startOnly, inPointer: false, inStartMd: true })
-    }
   })
 
   test('authoring facts stated by the prompt are true', () => {

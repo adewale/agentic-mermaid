@@ -90,7 +90,7 @@ describe('SVG is well-formed XML for labels full of XML metacharacters', () => {
       }),
     )
     // Keep fast-check's shrunk replay details while exposing an assertion to
-    // Bun's JUnit report, which the base-branch red-green gate requires.
+    // Bun's JUnit report, which the optional base-production diagnostic reads.
     assert.equal(result.failed, false, fc.defaultReportMessage(result))
   })
 

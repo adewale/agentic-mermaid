@@ -1,110 +1,184 @@
-# Agentic Mermaid — agent-use guide
+# Agentic Mermaid — operating guide
 
-This is the canonical agent-use guide. The same content is emitted by `am --agent-instructions`. A doc-sync test asserts the two are byte-identical.
+Use this guide to create, edit, verify and render Mermaid diagrams. It is also
+emitted by `am --agent-instructions` and served at
+`https://agentic-mermaid.dev/agent-instructions.md`. `am init-agent` installs a
+copy with the consumer's skill, so the operating rules remain available offline.
 
-## When to use Agentic Mermaid
+## Choose one channel
 
-Use Agentic Mermaid when an agent needs to create, edit, verify, describe, or render Mermaid diagrams through deterministic library, CLI, or MCP calls. It is strongest when the workflow needs typed edits, semantic fact read-back, CI-safe verification, or reproducible SVG, PNG, ASCII, and Unicode output.
+Do not assume this repository is checked out. Use the first available channel
+that fits the task, then stop discovering tools:
 
-Do not use the hosted MCP for private diagrams; use the local library, CLI, or self-hosted MCP so source stays in your environment. Use another tool when the artifact is not Mermaid source or requires freeform canvas editing that Mermaid cannot express.
+| Available environment | Channel | Version-matched reference |
+|---|---|---|
+| JS/TS with the package installed | `agentic-mermaid/agent/core` for portable editing; `/agent` also supplies native PNG | Installed declarations and `am capabilities --json` |
+| Shell | `am …` or `npx agentic-mermaid …` | `am <command> --help` |
+| Connected local MCP | `agentic-mermaid-mcp` | `describe_sdk` and the connected tool list |
+| Network only, with permission to send the source | Hosted MCP at `https://agentic-mermaid.dev/mcp` | Connected tool list and `describe_sdk` |
 
-## Quick start
+Private source should stay in a local library, CLI or self-hosted MCP. The
+hosted endpoint sends source to another service; package installation also
+makes network requests. Do not ask the user to perform work that your available
+channel can complete.
 
-<!-- BEGIN GENERATED: family-narrowing -->
-Narrowing selects a structured, typed family with an as* helper. It does not select one element or freeze layout coordinates.
-<!-- END GENERATED: family-narrowing -->
+CLI is convenient for one-shot work. In MCP, use the direct `verify`,
+`describe`, render, `mutate` or `build` tool when the connected server advertises
+it. Use `execute` for custom synchronous logic. The hosted and local tool lists
+differ: inspect the connected server instead of borrowing another channel's
+names. Hosted tools are <!-- BEGIN GENERATED: hosted-mcp-tools -->`execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, and `build`<!-- END GENERATED: hosted-mcp-tools -->.
 
-Use the [library vocabulary](https://agentic-mermaid.dev/docs/api/#vocabulary)
-for family, Scene part and resolved primitive. Keep source objects distinct
-from drawing parts.
+Hosted MCP is stateless Streamable HTTP JSON-RPC, with no initialize handshake
+required. It has no REST render API. A raw verify request is
+`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"verify","arguments":{"source":"flowchart TD\n  API --> DB"}}}`.
+Use the published [MCP reference](https://agentic-mermaid.dev/docs/mcp/) for
+transport and input limits; do not send private material merely to test access.
 
-<!-- complete: hosted-mcp-tools -->
-Choose the narrowest channel. <!-- BEGIN GENERATED: agent-workflow -->New diagrams: author Mermaid source directly, then parse → verify → render or return it. `buildMermaid(kind, ops)` / `createMermaid(kind)` build a diagram from typed ops when you are generating one programmatically (for example, from data). Existing structured diagrams: parse → narrow → mutate → verify → serialize.<!-- END GENERATED: agent-workflow --> Local MCP exposes `mutate` and `build` for atomic JSON edit batches; use `execute` or the library for custom logic. CLI is best for one-shot verify/render/preview. Code Mode exposes `mermaid.*`; library users import the same names from `agentic-mermaid/agent` — including `describeOps(family)` and `opSignatures(family)`, which return each op's exact fields, required-ness, inlined enum values, and constraint/default notes (e.g. journey score `finite number 1..5`, flowchart shape `default: rectangle`) so you can look up an unfamiliar op instead of guessing; use `describeMermaidFacts` / `checkMermaid` when you need semantic read-back such as `edge Processing -> [*] : done`, `member Duck +quack()`, or `task Docs start after core`. A hosted MCP at `agentic-mermaid.dev/mcp` (stateless Streamable HTTP JSON-RPC) exposes `execute` (Code Mode), `describe_sdk` (one family's mutation schema on demand), `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, and the declarative `mutate` (edit a `source`) and `build` (author from a `family`) — which apply a JSON op list and return `{ok,family,source,verify}`, prescriptive `{ok:false,…,error}` on a bad op; prefer them for structured edits and reserve `execute` for logic the ops do not express — all with 64KB input caps; the call shape is a plain POST (stateless, no initialize handshake): `POST /mcp` with `content-type: application/json` and body `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"verify","arguments":{"source":"flowchart TD\n  A --> B"}}}`. Prefer the local library, CLI, or a self-hosted MCP and reach for the hosted endpoint only when you cannot install. Agentic Mermaid outputs ASCII, PNG, and SVG; Unicode text and JSON layout are also available. Flowchart authoring facts: quote any label carrying punctuation (`id["HTTPS /api/sessions*"]`); `\n` inside a quoted label is a line break and canonicalizes to `<br>` on serialize; `subgraph id["Title"] … end` groups nodes; labeled and dotted edges are `A -- "label" --> B`, `A -.-> B`, and `A -. "label" .-> B`. For every other family, read that family's exact header, edge, and relationship syntax from its `example` in `am capabilities --json` (`capabilities.json` `families[].example`) rather than assuming flowchart syntax — e.g. class inheritance `Base <|-- Derived`, ER cardinality `A ||--o{ B : label`, architecture edges `api:R --> L:db`.
+## Discover the family's actual schema
+
+Run `am capabilities --json` for installed families, headers, examples, edit
+policies, warning codes and operation fields. In MCP, use
+`describe_sdk({ family, detail: 'fields' })`; `detail: 'signatures'` is a compact
+menu. These describe the installed or connected version. Online
+`https://agentic-mermaid.dev/capabilities.json` describes production and may be
+newer than a local installation.
+
+Choose the family from the reader's task. Use its own header, narrower and
+operation vocabulary: state diagrams narrow with `asState`, not `asFlowchart`.
+Mutation ops use a `kind` discriminator and family-specific fields; do not
+invent synonyms or convenience flags. Pass one op to `mutate(d, op)`, not an
+array. Library `applyOps({ source, ops })` and MCP `mutate({ source, ops })`
+provide atomic batches; Code Mode repeats `mermaid.mutate(d, op)` instead.
+For painted geometry, discover `describe_sdk({ capability: 'resolved-scene' })`
+and use `renderResolvedScene`; its result limit and typed artwork failures are
+part of that capability's declaration.
+
+## Author or edit, then verify
+
+<!-- BEGIN GENERATED: agent-workflow -->New diagrams: author Mermaid source directly, then parse → verify → render or return it. `buildMermaid(kind, ops)` / `createMermaid(kind)` build a diagram from typed ops when you are generating one programmatically (for example, from data). Existing structured diagrams: parse → narrow → mutate → verify → serialize.<!-- END GENERATED: agent-workflow -->
+
+<!-- BEGIN GENERATED: family-narrowing -->Narrowing selects a structured, typed family with an as* helper. It does not select one element or freeze layout coordinates.<!-- END GENERATED: family-narrowing -->
+
+For an existing structured diagram, retain its parsed value and apply the
+smallest typed edit. Code Mode exposes synchronous `mermaid.*` methods and
+read-only returned diagrams; use mutation operations rather than assigning into
+the body. It does not support imports, async functions, Promise jobs or local
+file I/O. Library calls use the same names without the `mermaid.` prefix.
+
+This existing-diagram example runs in Code Mode:
 
 ```ts
-const source = 'flowchart TD\n  API --> DB'
-const d0 = mermaid.parseRegisteredMermaid(source)
-if (!d0.ok) throw new Error('parse')
-
-const flow = mermaid.asFlowchart(d0.value)
-if (!flow) return { phase: 'narrow', family: d0.value.kind }
-
-const d1 = mermaid.mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
-if (!d1.ok) throw new Error('mutate')
-
-const verify = mermaid.verifyMermaid(d1.value)
+const parsed = mermaid.parseRegisteredMermaid('flowchart TD\n  API --> DB')
+if (!parsed.ok) return { phase: 'parse', errors: parsed.error }
+const flow = mermaid.asFlowchart(parsed.value)
+if (!flow) return { phase: 'narrow', family: parsed.value.kind }
+const edited = mermaid.mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
+if (!edited.ok) return { phase: 'mutate', error: edited.error }
+const verify = mermaid.verifyMermaid(edited.value)
 if (!verify.ok) return { phase: 'verify', warnings: verify.warnings }
-
-return { source: mermaid.serializeMermaid(d1.value) }
+return { source: mermaid.serializeMermaid(edited.value) }
 ```
 
-A new diagram is authored as source, parsed, and verified — no mutation ceremony:
+A new diagram needs no mutation step:
 
 ```ts
 const source = 'flowchart LR\n  API --> DB'
 const parsed = mermaid.parseRegisteredMermaid(source)
 if (!parsed.ok) return { phase: 'parse', errors: parsed.error }
-
-const check = mermaid.verifyMermaid(parsed.value)
-if (!check.ok) return { phase: 'verify', warnings: check.warnings }
-
+const verify = mermaid.verifyMermaid(parsed.value)
+if (!verify.ok) return { phase: 'verify', warnings: verify.warnings }
 return { source }
 ```
 
-Before mutating an existing diagram, use the matching narrower advertised by `am capabilities --json` or `describe_sdk` (for example, `asFlowchart` or `asState`). State diagrams own a dedicated body: `asState` narrows them — including concurrency regions, notes, `<<fork>>`/`<<join>>`/`<<choice>>`, history pseudostates, and class/inline paint — and state-shaped ops (`add_state`, `add_transition`, `make_composite`, `add_note`, `set_state_class`, …) apply; `asFlowchart` returns null on a state diagram. Sequence diagrams are segment-preserving: `alt`/`opt`/`loop`/`par` fragments are typed, their messages appear in describe/facts/verify, and fragment/branch/message mutation ops can author and edit them. Other constructs such as `Note`/`box`/`critical`/`activate`/`autonumber`/`title` ride along verbatim; top-level `remove_message`/`set_message_text` indexes remain separate from fragment messages. Only an un-segmentable sequence (e.g. an unbalanced `end`) falls back to opaque. Gantt charts are segment-preserving too: title/section/task ops stay live while calendar directives (`dateFormat`, `excludes`, …), `click` lines, and comments ride along verbatim; gantt rendering never reads the wall clock — pass `ganttToday` to draw the today marker — and the opt-in `gantt.dependencyArrows`/`gantt.criticalPath` render options overlay dependency arrows and critical-path emphasis without any new Mermaid syntax. In Code Mode, SDK-returned diagrams are read-only; structured edits must go through `mermaid.mutate`. Opaque-fallback bodies (any unmodeled syntax) round-trip losslessly as source-level bodies but do not expose structured mutation; return an unsupported-family result unless the task explicitly asks for source-level editing, then re-parse and verify before returning.
+Run `verifyMermaid` at every commit point: before source is saved, sent or
+shown, and after the last edit before serialization. Inspect `ok`, `warnings`
+and layout evidence. For MCP `mutate` or `build`, require top-level `ok`, the
+intended `family` and `verify.ok`; inspect `verify.warnings`. If an op fails,
+keep the previous artifact, inspect `opIndex` and the error, then rediscover
+its exact fields before retrying. In a hosted edit request, `source` is the
+original pre-edit input, byte-for-byte; express changes only in `ops`.
 
-For an explicitly requested source-level edit of an opaque Class or Flowchart,
-use `mermaid.mutatePreservingSource(diagram, op)` (library: the same export).
-Supported operations are Class `add_member`/`remove_member` and Flowchart
-`set_label`/`rename_node`; removal requires an unambiguous whole member line,
-and renames refuse unsupported class/style/click/href dependencies or colliding
-group identities. Save `value.source` exactly after inspecting
-`verifyMermaid(value.diagram)`. The diagram stays opaque and its portability
-warning remains; portable Mermaid export is not promised. Atomic batches use
-`applyOps({ source, ops, mode: 'source-preserving' })`, or MCP `mutate` with
-`mode: 'source-preserving'`. The editor adapter exposes programmatic
-`applyOps(source, ops, 'source-preserving')` through its worker. Unsupported or
-ambiguous ownership refuses without emitting partial edited source; builders
-do not accept this mode.
+<!-- BEGIN GENERATED: verify-result -->`verify.ok` means no unsuppressed error was detected, including measured content occlusion and explicit error policies. It is not a visual-quality or semantic-correctness score.<!-- END GENERATED: verify-result -->
 
-## The verify-before-commit rule
+<!-- BEGIN SEMANTIC READBACK -->
+Before returning, compare the result with the task. Preserve requested labels,
+values, prefixes, endpoints and relationships exactly; verification alone will
+not catch an omitted transition label or visibility marker. Use
+`describeMermaidFacts(d)` / `checkMermaid(d, requiredFacts)` or MCP `describe`
+with `format: 'facts'` for semantic read-back. For a new diagram, also check the
+intended family and whether its advertised narrower returns a structured body.
+If it unexpectedly falls back to opaque, inspect the warning and the family's
+capability example instead of calling a merely renderable result editable.
+<!-- END SEMANTIC READBACK -->
 
-Run `verifyMermaid` at every commit point — anywhere the result would be saved, sent, or shown. For new diagrams, verify the authored source. For existing diagrams, verify after mutation and before serializing. You may batch several `mutate` calls between verifications, but never serialize a `ValidDiagram` whose `verify` result you have not inspected. <!-- BEGIN GENERATED: verify-result -->`verify.ok` means no unsuppressed error was detected, including measured content occlusion and explicit error policies. It is not a visual-quality or semantic-correctness score.<!-- END GENERATED: verify-result --> For task-critical meaning, inspect `describeMermaidFacts(d)` or call `checkMermaid(d, requiredFacts)` before returning.
+Do not suppress error-severity findings or truncate authored content to make
+verification pass. For intentionally long labels, set `labelCharCap` or
+`am verify --label-cap N` to the intended policy. For `INTERNAL_ERROR`, report
+the original source and diagnostic; do not rewrite the diagram to hide a
+renderer defect. The [warning reference](https://agentic-mermaid.dev/warnings/)
+and [architecture reference](https://github.com/adewale/agentic-mermaid/blob/main/AGENT_NATIVE.md)
+explain the generated warning catalog and its limits.
 
-## Tier 1 vs Tier 2 vs Tier 3 warnings
+## Source-preserved and opaque input
 
-Tier 1 (structural, reliable, universal): <!-- BEGIN GENERATED: warning-summaries:structural -->`EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW`, `UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`, `INTERNAL_ERROR`. `LABEL_OVERFLOW` means a label's longest displayed line is over the char cap — `<br>`/`\n` split lines, XML entities decode to one char, formatting tags strip (families that draw text literally count them); default cap 40, raise via `labelCharCap` / `am verify --label-cap N` when long labels are intentional instead of truncating the user's text. `UNRESOLVABLE_SCHEDULE` means a gantt parses but its schedule cannot resolve, so render would fail; `reason` names the `GANTT_*` error. `RENDER_FAILED` means the parser, the strict render parser, layout, or theme colors reject the source or its configuration (any family; `origin` says which), so rendering would fail; `reason` carries the renderer error — a clean verify proves the diagram actually renders. `INTERNAL_ERROR` means Agentic Mermaid hit an internal defect, not caused by the source; `defaultRender` is `succeeds-unchecked` when an ordinary render still produces output that the failed consistency checks cannot vouch for, or `fails` when rendering throws — do not rewrite the diagram to work around it; report it with the source.<!-- END GENERATED: warning-summaries:structural --> Applies to every family. Never suppress Tier 1 errors.
+Unmodeled syntax can remain as opaque source or verbatim segments. A null
+narrower refuses structured mutation; it does not mean the source is empty.
+If a task explicitly needs a source-level edit, make the smallest edit, say
+`source-level fallback`, then reparse and verify. Preserve comments and bytes
+outside the requested edit. Do not silently regenerate the diagram.
 
-Tier 2 (geometric): <!-- BEGIN GENERATED: warning-summaries:geometric -->`NODE_OVERLAP`, `CONTENT_OCCLUDED`, `LAYOUT_LIMIT_EXCEEDED`, `ROUTE_SELF_CROSS`, `ROUTE_HITCH`, `ROUTE_UNEXPLAINED_BEND`, `ROUTE_LABEL_ON_SHARED_TRUNK`, `ROUTE_SELF_LOOP_OCCUPANCY`, `ROUTE_CONTAINER_MISANCHOR`, `ROUTE_SHAPE_MISANCHOR`, `ROUTE_STALE_AFTER_NODE_MOVE`.<!-- END GENERATED: warning-summaries:geometric --> `CONTENT_OCCLUDED` fails verification when measured paint hides content. `LAYOUT_LIMIT_EXCEEDED` reports an unmet budget while retaining content. The `ROUTE_*` codes are route-contract tripwires (docs/design/system/route-contracts.md — the layout pipeline upholds these itself, so they fire only on pipeline regressions). Route tripwires fire for flowchart/state. `NODE_OVERLAP` also checks class, ER, journey, timeline and sequence boxes, and class/ER add boundary-anchor checks (`ROUTE_SHAPE_MISANCHOR`). Other geometric concerns surface via perceptual metrics (`measureQuality(layoutMermaid(d))`). See `docs/quality.md`. Gate on error severity; use the remaining geometric warnings to assess layout quality.
+For bounded opaque Class/Flowchart edits, use
+`mutatePreservingSource(diagram, op)`: Class `add_member`/`remove_member`, or
+Flowchart `set_label`/`rename_node`. Save `value.source` exactly after inspecting
+`verifyMermaid(value.diagram)`. The body remains opaque and its portability
+warning remains. Ambiguous ownership and unsupported dependencies refuse
+atomically. Library `applyOps` and MCP `mutate` select these batches with
+`mode: 'source-preserving'`; CLI uses `--preserve-source`. Read the
+[mutation policy](https://agentic-mermaid.dev/docs/agent-mutation-policy/) for
+operation limits before choosing this path.
 
-Tier 3 (lint and inspect-only policy): <!-- BEGIN GENERATED: warning-summaries:lint -->`DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_UNLABELED`, `FLOW_IMBALANCE`, `COMMENT_DROPPED`, `UNSUPPORTED_SYNTAX`, `CONTENT_DROPPED_ON_ROUNDTRIP`, `EVENT_SOURCE_TYPE`, `INEFFECTIVE_CONFIG`, `LOW_CONTRAST`, `LABELS_HIDDEN`, `SCALE_RANGE_EXCLUDES_ZERO`, `BAR_RANGE_EXCLUDES_ZERO`, `VALUES_OUTSIDE_RANGE`, `BRAND_CONSTRAINT_WARNING`, `BRAND_CONSTRAINT_ERROR`. `DECISION_BRANCH_UNLABELED` means a multi-exit decision diamond has an unlabeled branch. `FLOW_IMBALANCE` means a sankey intermediate node receives a different total than it emits — conservation across stages is the domain's defining property, so the warning names the node, its inflow, its outflow, and the unaccounted amount (which otherwise renders silently as node height); balance the flows or add an explicit remainder link. `COMMENT_DROPPED` means a payload carries known comment loss; current serializers retain detected comments, but cannot recover text already omitted from an older payload. `UNSUPPORTED_SYNTAX` means either a Mermaid construct (for example flowchart edge IDs, edge metadata, click/href, or markdown strings) is preserved losslessly as source but is not fully modeled by local structured mutation/render semantics, or `syntax: "empty_layout"` means the source carries content but the local layout produced a 0x0 canvas with no nodes, edges, or groups. Inspect the warning message and `verify.layout` before accepting the artifact. `CONTENT_DROPPED_ON_ROUNDTRIP` means the structured node/edge/group tally changed across a parse → serialize → re-parse cycle — canonical serialization is silently dropping or duplicating content even though the bytes may re-parse; treat it as a faithfulness bug to report. `EVENT_SOURCE_TYPE` means inspect the named Event Modeling source and target frame types; rendering preserves the authored connection. `INEFFECTIVE_CONFIG` means a Mermaid config field has no effect on this family's output — it was accepted for compatibility but is not wired, is unknown to the family, or has an invalid value (the warning names the field). `LOW_CONTRAST` means a concrete authored paint remains authoritative but misses a measurable contrast threshold against the final resolved opaque background; the warning reports both colors, the measured ratio, and the minimum without repainting. Transparent output is not measured because its host backdrop is unknown. `LABELS_HIDDEN` means a chart left out text the source asked for because it did not fit: for an XY chart, `target: "x-axis"` lists the category names the axis does not draw (thinned or dropped) and `target: "data-labels"` lists the bars whose value label has no room (shorten the names, flip the chart with `set_orientation {horizontal: true}`, or widen the value range); for a quadrant chart, `target: "point-labels"` lists the points whose label collides with labels placed first (spread the points, shorten the names, or enlarge the chart). `BAR_RANGE_EXCLUDES_ZERO` means an XY chart with bar series has an authored y-axis range that excludes zero, so bars start at the reported `baseline` and their lengths are not proportional to their values; include zero with `set_y_axis`, or draw the series as a line. `VALUES_OUTSIDE_RANGE` means an XY chart series has values outside the authored y-axis range: a bar stops at the edge of the range, so its length understates the value, and a line point is drawn past the plot; the warning names the `series` and its `values` outside the `range`. Widen the range with `set_y_axis`, or remove it.<!-- END GENERATED: warning-summaries:lint --> Advisory lint never flips `verify.ok`; a caller-authored Brand constraint with `action: "error"` emits `BRAND_CONSTRAINT_ERROR` and does. Brand constraints inspect final contrast, accent area, or monochrome role paint without repainting or relayout.
+## Render and inspect
 
-## CLI verbs
+Use the requested SVG, PNG, ASCII, Unicode or layout output. Choose `style`
+from `am styles --json`, an inline data-only spec or a stack; validate untrusted
+specs with `validateStyleSpec`. `seed` varies styled ink without moving layout.
+Use strict security when output must contain no external-fetch references;
+render and verify with the same options. PNG sizing and font availability can
+change readability: inspect the artifact rather than treating a successful
+render or a `BELOW_READABLE_SIZE` warning as a general quality verdict.
+Gantt has no implicit clock read: pass `ganttToday` to draw today's marker.
 
-<!-- complete: cli-verbs -->
-`am capabilities --json` — JSON envelope listing families, `families[].editPolicy`, `families[].mutationOps`, warning codes, output formats (<!-- BEGIN GENERATED: render-formats -->`svg`, `ascii`, `unicode`, `png`, `layout`<!-- END GENERATED: render-formats -->). Schema-stable; use it to self-discover.
-`am batch --jsonl` — JSONL stdin → JSONL stdout for render/verify/parse/serialize/mutate. Mutation requests opt into bounded source edits with `preserveSource: true`. Malformed lines surface error but don't abort the stream.
-`am render <file…> --format svg|ascii|unicode|layout [--security strict] [--style <names|file.json>] [--seed N]` — layout emits the JSON layout shape; --security strict = no external-fetch refs; `--style` takes a stack (comma-separated names and/or .json spec files, merged left → right, e.g. `--style hand-drawn,dracula`) and applies to graphical and terminal projection; `--seed` re-rolls styled ink. Multiple files → results array for non-PNG formats. `--watch` is single-file/non-PNG only. PNG uses `--format png --output file.png` for one input and does not support watch/multi-input; `--fit-width`/`--fit-height` constrain raster size and `--min-label-px` emits `BELOW_READABLE_SIZE` when measurable configured text falls below the selected effective-pixel floor (provisional default 9; `0` disables).
-`am preview <file|-> [--output out.html] [--open] [--json] [--security strict]` — standalone strict-mode HTML preview for human inspection.
-`am mutate <file|-> (--op '<JSON>'|--ops '<JSON array|file>') [--preserve-source] [--json]` — apply mutation(s), run verify, emit source only if verify succeeds, or if its only errors are `INTERNAL_ERROR` defects the input already had (same reason and `defaultRender`; `verify` then still reports them). `--preserve-source` opts into the bounded opaque Class/Flowchart edits above. JSON success includes `{ok,source,verify}` and `mode: 'source-preserving'` when selected; verify failure exits 3 (4 when every error is `INTERNAL_ERROR`) and omits source.
-`am verify <file|-> [--json] [--label-cap N] [--suppress CODES] [--style <names|file.json>]` — full tiered verify; `--style` evaluates inspect-only Brand constraints against the same styled Scene used by render; exit 3 only on error-severity findings. `am parse` (ValidDiagram JSON), `am serialize` (ValidDiagram JSON on stdin → canonical source), and `am format` (idempotent reformat) round out the loop.
-`am describe <file|-> [--format text|json|facts]` — prose summary, structured AX tree (`{kind,nodes,edges,entryPoints,sinks}`, #7349), or semantic fact lines. Library: `describeMermaid(d, {format})`, `describeMermaidFacts(d)`, `checkMermaid(d, facts)`.
-`am styles [--json]` — list registered styles: the default, full looks, and palette-only themes, with backends and blurbs.
-`am llms-txt` — agent-discovery digest (llms.txt convention).
-`am init-agent [--dir .] [--force]` — writes a non-clobbering AGENTS.md section, root skills/ bundle, and .mcp.json sample into a consumer repo.
-`am render-markdown <file.md> [--ascii]` — render each Mermaid fenced block; skips invalid diagrams, never aborts the file. JSON: `{blocks:[{index,ok,output|error}]}`.
-Exit codes: `0` ok, `2` arg/parse/mutation error, `3` verify-failed, `4` internal (including a verify whose errors are all `INTERNAL_ERROR`). Parse and verify-failure errors carry `error.details` arrays, not stringified blobs.
+Flowchart labels containing punctuation should be quoted. In a quoted label,
+`\n` is a line break and canonical serialization uses `<br>`. A group is
+`subgraph id["Title"] … end`; labeled and dotted edges use
+`A -- "label" --> B`, `A -.-> B` and `A -. "label" .-> B`. Use another family's
+capability example for its syntax. The [API reference](https://agentic-mermaid.dev/docs/api/)
+separates source objects, Scene parts and resolved painted primitives.
 
-Library extras: `renderMermaidPNG(src,{fitTo,background,minLabelPx,onWarning,style,seed,fontDirs})` returns PNG bytes and reports bounded raster warnings through `onWarning`; `BELOW_READABLE_SIZE` is evidence of configured-text shrinkage, not a general readability verdict. `renderMermaidASCIIWithMeta(src)` → `{ascii,regions,actions,warnings,routeParity}` for TUI click-mapping; `describeMermaidFacts(d)` / `checkMermaid(d, facts)` expose deterministic semantic facts; `analyzeMermaid(d)` / `analyzeMermaidSource(source)` returns non-rendering feedback/action/Gantt analysis; `asciiToMermaid(ascii)` reverses flowchart ASCII (best-effort, lossy); `verifyNoExternalRefs(svg)` asserts no external fetch; `renderMermaidSVG(src,{idPrefix})` namespaces def ids for multi-diagram pages. See SECURITY.md.
+## Ground the task and return the result
 
-## Styles
+Read supplied repositories, files and URLs when available. Every node and edge
+must follow the supplied context or inspected source. Include each requested
+entity and relationship; do not merge them to simplify the task. Mark uncertain
+connections or omit them with an explanation. When context leaves the scope or
+abstraction level open, choose the smallest consistent interpretation, keep
+one abstraction level and state the assumptions. If the intended audience,
+medium or improvement is unclear, inspect read-only information and ask for
+the missing goal before changing the diagram.
 
-Every library render call accepts `style`: a registered Look or Palette discovered through `am styles --json`, an inline spec (a plain JSON record of palette/font/stroke/fill/backdrop fields, all optional), or a stack merged left → right (`{ style: ['hand-drawn', 'dracula'] }`). `seed` re-rolls the ink wobble of styled looks and never moves layout, so `(source, style, seed)` reproduces an image exactly. Custom styles are data, not code: check untrusted records with `validateStyleSpec(json)` (returns problems; `[]` = usable) and register reusable ones with a canonical identity such as `registerStyle({ name: 'look:acme', ... })` — importable from `agentic-mermaid` and `agentic-mermaid/agent`. `style: 'crisp'` (or unset) selects the canonical default renderer. Styles apply uniformly to built-in families and to extensions that advertise native Scene/style support. The authoring guide and quality rubric live in docs/style-authoring.md. SVG declares any font; PNG bundles the faces the built-in looks use and uses Inter with DejaVu per-glyph fallback for unbundled families (supply extras via `fontDirs`).
+In chat, return `Updated Mermaid` with the final source in a Mermaid fenced
+code block, `Verification` with
+what was actually checked and any limitations, and `Trace` naming the channel
+and calls used. Include `Sources` for inspected files. Return additional
+artifacts when requested. In Code Mode, return `{ source }` after verification
+or an error object. If asked for one final fenced JSON tool request, finish
+all prose before its only fenced block and stop after the block.
 
-## Anti-patterns
+If no Agentic Mermaid channel is available, return the best source and say
+`not verified — Agentic Mermaid unavailable`, naming what you tried. Label
+secondary parser checks as secondary; never invent an Agentic Mermaid result.
+Do not modify project files unless the user asked for file changes.
 
-- Regenerating an existing parsed diagram instead of mutating it. Defeats round-trip; produces noise.
-- Verifying only after a long risky edit chain. Loses precision about which op broke it.
-- Serializing before reading `verify.ok` / `verify.warnings` / `verify.layout`.
-- Concatenating source to edit an existing structured diagram when a typed `mutate` op exists. (Authoring a new diagram as source is the default path, not an anti-pattern.)
-- Calling `mutate` on an opaque-fallback body; the structured-family narrower returns null for unmodeled syntax, so edit its preserved source instead.
+For task recipes, read the [editing cookbook](https://agentic-mermaid.dev/docs/agent-api-cookbook/).
+Use local package declarations and discovery over newer online examples when
+working with an older installed version.

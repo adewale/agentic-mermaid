@@ -187,7 +187,7 @@ function surfaceContext(surface: PromptEvalSurface): string {
 
 function promptForVariant(prompt: string, surface: PromptEvalSurface, variant: PromptEvalVariant): string {
   if (surface === 'homepage' && variant !== 'baseline') {
-    throw new Error('--prompt-variant is not compatible with the fetch-only homepage surface; compare start.md variants separately')
+    throw new Error('--prompt-variant is not compatible with the fetch-only homepage surface; compare operating-guide variants separately')
   }
   return prompt
 }
@@ -757,7 +757,7 @@ function usage() {
 
 Prepare defaults to the complete create+mutate registry and writes requests under eval/agent-usage/transcripts/<provider>-<timestamp>/requests/.
 Dispatch each request to a fresh subagent in Pi, Claude, Codex, or another harness, save exact raw responses under responses/, then finalize.
-Finalize writes one transcript JSON per case plus summary.json and exits nonzero when capture is incomplete or the task oracle rejects a response. Use --mode chat to test the raw public prompt response shape; use --mode code for executable Code Mode transcripts. --surface none is the chat-only no-docs baseline: the bare task with zero product guidance, graded on the task oracle alone. The homepage surface is fetch-only; compare start.md variants separately rather than with --prompt-variant.`
+Finalize writes one transcript JSON per case plus summary.json and exits nonzero when capture is incomplete or the task oracle rejects a response. Use --mode chat to test the raw public prompt response shape; use --mode code for executable Code Mode transcripts. --surface none is the chat-only no-docs baseline: the bare task with zero product guidance, graded on the task oracle alone. The homepage surface is fetch-only; compare operating-guide variants separately rather than with --prompt-variant.`
 }
 
 async function readStdin(): Promise<string> {

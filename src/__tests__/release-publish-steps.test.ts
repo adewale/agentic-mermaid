@@ -72,10 +72,19 @@ describe('release gate: exact-SHA canonical CI attestation', () => {
   const SHA = '0123456789abcdef0123456789abcdef01234567'
   const OTHER = 'fedcba9876543210fedcba9876543210fedcba98'
 
-  function attest(runs: Array<{ head_sha: string; conclusion: string }>) {
+  const qualificationJobs = ['Build portable test artifacts', 'CI complete']
+  type Job = { name: string; conclusion: string }
+
+  function attest(runs: Array<{ head_sha: string; conclusion: string }>, jobs: Job[] = qualificationJobs.map(name => ({ name, conclusion: 'success' }))) {
     const dir = tempDir()
-    writeFileSync(join(dir, 'runs.json'), JSON.stringify({ workflow_runs: runs }))
-    stub(dir, 'gh', 'printf \'%s\\n\' "$*" >> "$MOCK_ROOT/gh-calls"\ncat "$MOCK_ROOT/runs.json"\n')
+    writeFileSync(join(dir, 'runs.json'), JSON.stringify({ workflow_runs: runs.map((run, index) => ({ ...run, id: 100 + index })) }))
+    writeFileSync(join(dir, 'jobs.json'), JSON.stringify({ jobs }))
+    stub(dir, 'gh', `printf '%s\\n' "$*" >> "$MOCK_ROOT/gh-calls"
+case "$*" in
+  *'/jobs'*) cat "$MOCK_ROOT/jobs.json" ;;
+  *) cat "$MOCK_ROOT/runs.json" ;;
+esac
+`)
     const result = execute(gate, dir, { GITHUB_SHA: SHA, GITHUB_REPOSITORY: 'owner/repo', GH_TOKEN: 'test-token' })
     return { ...result, calls: lines(join(dir, 'gh-calls')) }
   }
@@ -89,10 +98,24 @@ describe('release gate: exact-SHA canonical CI attestation', () => {
 
   test('asks for main-branch CI runs of the exact release commit', () => {
     const { calls } = attest([{ head_sha: SHA, conclusion: 'success' }])
-    expect(calls).toHaveLength(1)
+    expect(calls).toHaveLength(2)
     expect(calls[0]).toContain('repos/owner/repo/actions/workflows/ci.yml/runs')
     expect(calls[0]).toContain(`head_sha=${SHA}`)
     expect(calls[0]).toContain('branch=main')
+    expect(calls[1]).toContain('repos/owner/repo/actions/runs/100/jobs')
+    expect(calls[1]).toContain('filter=latest')
+  })
+
+  test('a successful documentation-only run does not qualify a release', () => {
+    const jobs = [{ name: 'CI complete', conclusion: 'success' }, { name: 'Build portable test artifacts', conclusion: 'skipped' }]
+    expect(attest([{ head_sha: SHA, conclusion: 'success' }], jobs).status).not.toBe(0)
+  })
+
+  test.each(qualificationJobs.flatMap(name => ['failure', 'cancelled', 'skipped', 'missing'].map(conclusion => [name, conclusion] as const)))('%s with outcome %s cannot qualify a release', (failedName, conclusion) => {
+    const jobs = qualificationJobs.flatMap(name => name === failedName
+      ? conclusion === 'missing' ? [] : [{ name, conclusion }]
+      : [{ name, conclusion: 'success' }])
+    expect(attest([{ head_sha: SHA, conclusion: 'success' }], jobs).status).not.toBe(0)
   })
 })
 
@@ -125,16 +148,14 @@ describe.each([
     expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' })
   })
 
-  if (job === 'benchmark') {
-    test('rejects a manifest with mismatched SHA-512 integrity', () => {
-      const { result } = artifact(dir => {
-        const path = join(dir, 'package-manifest.json')
-        const manifest = JSON.parse(readFileSync(path, 'utf8'))
-        writeFileSync(path, JSON.stringify({ ...manifest, integrity: sriSha512(Buffer.from('other bytes')) }))
-      })
-      expect(result.status).not.toBe(0)
+  test('rejects a manifest with mismatched SHA-512 integrity', () => {
+    const { result } = artifact(dir => {
+      const path = join(dir, 'package-manifest.json')
+      const manifest = JSON.parse(readFileSync(path, 'utf8'))
+      writeFileSync(path, JSON.stringify({ ...manifest, integrity: sriSha512(Buffer.from('other bytes')) }))
     })
-  }
+    expect(result.status).not.toBe(0)
+  })
 
   test.each([
     ['a tarball changed after packing', (dir: string, bytes: Buffer) => writeFileSync(join(dir, 'package.tgz'), Buffer.concat([bytes, Buffer.from('x')]))],
@@ -240,6 +261,82 @@ esac
   })
 })
 
+describe('publish-mcp job: public npm availability', () => {
+  const wait = step('publish-mcp', 'Wait for the byte-identical public npm version')
+  type PublicState = 'match' | 'absent' | 'unavailable' | 'network' | 'mismatch' | 'wrongVersion' | 'wrongName' | 'malformed' | 'forbidden'
+
+  function availability(states: PublicState[]) {
+    const dir = tempDir()
+    mkdirSync(join(dir, 'release-artifact'))
+    const bytes = tarball(dir, { name: 'agentic-mermaid', version: '9.9.9' })
+    writeFileSync(join(dir, 'release-artifact', 'package.tgz'), bytes)
+    const integrity = sriSha512(bytes)
+    writeFileSync(join(dir, 'release-artifact', 'package-manifest.json'), JSON.stringify({ integrity }))
+    const metadata = { name: 'agentic-mermaid', version: '9.9.9', dist: { integrity } }
+    writeFileSync(join(dir, 'response-match'), JSON.stringify(metadata))
+    writeFileSync(join(dir, 'response-mismatch'), JSON.stringify({ ...metadata, dist: { integrity: sriSha512(Buffer.from('other bytes')) } }))
+    writeFileSync(join(dir, 'response-wrongVersion'), JSON.stringify({ ...metadata, version: '9.9.8' }))
+    writeFileSync(join(dir, 'response-wrongName'), JSON.stringify({ ...metadata, name: 'someone-else' }))
+    writeFileSync(join(dir, 'response-malformed'), '{')
+    writeFileSync(join(dir, 'states'), `${states.join('\n')}\n`)
+    stub(dir, 'sleep', 'printf \'%s\\n\' "$*" >> "$MOCK_ROOT/sleeps"\n')
+    stub(dir, 'curl', `output=
+connect_timeout=none
+max_time=none
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --output) output="$2"; shift 2 ;;
+    --write-out) shift 2 ;;
+    --connect-timeout) connect_timeout="$2"; shift 2 ;;
+    --max-time) max_time="$2"; shift 2 ;;
+    --silent|--show-error|--location) shift ;;
+    *) printf '%s\\n' "$1" >> "$MOCK_ROOT/requests"; shift ;;
+  esac
+done
+printf '%s %s\\n' "$connect_timeout" "$max_time" >> "$MOCK_ROOT/request-timeouts"
+count=$(wc -l < "$MOCK_ROOT/requests")
+state="$(sed -n "\${count}p" "$MOCK_ROOT/states")"
+if [ -z "$state" ]; then state="$(tail -n 1 "$MOCK_ROOT/states")"; fi
+case "$state" in
+  network) exit 7 ;;
+  absent) printf '404' ;;
+  unavailable) printf '503' ;;
+  forbidden) printf '403' ;;
+  *) cp "$MOCK_ROOT/response-$state" "$output"; printf '200' ;;
+esac
+`)
+    const result = execute(wait, dir, { NPM_AVAILABILITY_RETRY_DELAYS: '0 15 30' })
+    return { ...result, requests: lines(join(dir, 'requests')), sleeps: lines(join(dir, 'sleeps')), timeouts: lines(join(dir, 'request-timeouts')) }
+  }
+
+  test.each(['absent', 'unavailable', 'network'] as const)('waits through %s until the exact published bytes are public', state => {
+    const result = availability([state, state, 'match'])
+    expect({ status: result.status, requests: result.requests, sleeps: result.sleeps }).toEqual({
+      status: 0,
+      requests: Array(3).fill('https://registry.npmjs.org/agentic-mermaid/9.9.9'),
+      sleeps: ['0', '15', '30'],
+    })
+  })
+
+  test.each(['mismatch', 'wrongVersion', 'wrongName', 'malformed', 'forbidden'] as const)('fails closed without retry for %s metadata', state => {
+    const result = availability([state, 'match'])
+    expect(result.status).not.toBe(0)
+    expect(result.requests).toEqual(['https://registry.npmjs.org/agentic-mermaid/9.9.9'])
+  })
+
+  test('bounds every metadata request even while retrying a network failure', () => {
+    const result = availability(['network', 'match'])
+    expect(result.timeouts).toEqual(['5 10', '5 10'])
+  })
+
+  test('stops after the bounded wait when public availability never converges', () => {
+    const result = availability(['absent'])
+    expect(result.status).not.toBe(0)
+    expect(result.requests).toHaveLength(3)
+    expect(result.sleeps).toEqual(['0', '15', '30'])
+  })
+})
+
 describe('publish-mcp job: pinned publisher binary', () => {
   const install = step('publish-mcp', 'Install MCP Registry publisher')
 
@@ -304,20 +401,54 @@ cp "$MOCK_ROOT/served.tar.gz" "$output"
   })
 })
 
-// Release attests the entire canonical run, including independent semantics.
-describe('canonical CI: semantic conformance is required for release approval', () => {
-  const complete = step('ci-complete', 'Require every CI lane to pass', ciWorkflow)
-  const passing = { SEMANTIC_RESULT: 'success', CONSUMER_RESULT: 'success', TEST_RESULT: 'success', E2E_RESULT: 'success', RED_GREEN_RESULT: 'skipped', EXPIRE_RESULT: 'skipped' }
+// CI reports only work selected by scope; the release gate separately requires full runtime proof.
+describe('canonical CI: selected lane completion', () => {
+  const complete = step('ci-complete', 'Require every selected CI lane to pass', ciWorkflow)
+  const runtime = ['artifacts', 'test', 'e2e', 'semantic', 'consumer-quickstarts'] as const
+  type Outcome = Record<string, { result: string }>
 
-  test('accepts the completed lanes and expected non-PR skips', () => {
-    expect(execute(complete, tempDir(), passing).status).toBe(0)
+  function outcomes(full: boolean): Outcome {
+    return {
+      scope: { result: 'success' }, docs: { result: full ? 'skipped' : 'success' },
+      'expire-label-approvals': { result: 'skipped' },
+      ...Object.fromEntries(runtime.map(name => [name, { result: full ? 'success' : 'skipped' }])),
+    }
+  }
+
+  function aggregate(full: string, results: Outcome) {
+    return execute(complete, tempDir(), { FULL: full, RESULTS: JSON.stringify(results) })
+  }
+
+  test.each([true, false])('accepts only completed selected lanes with full=%s', full => {
+    expect(aggregate(String(full), outcomes(full)).status).toBe(0)
   })
 
-  test.each(['failure', 'cancelled', 'skipped', ''])('refuses release approval when independent semantics is %s', result => {
-    expect(execute(complete, tempDir(), { ...passing, SEMANTIC_RESULT: result }).status).not.toBe(0)
+  test.each(runtime.flatMap(name => ['failure', 'cancelled', 'skipped', 'missing'].map(result => [name, result] as const)))('full qualification rejects %s with outcome %s', (name, result) => {
+    const results = outcomes(true)
+    if (result === 'missing') delete results[name]
+    else results[name] = { result }
+    expect(aggregate('true', results).status).not.toBe(0)
   })
 
-  test.each(['failure', 'cancelled', 'skipped', ''])('refuses release approval when installed quickstarts is %s', result => {
-    expect(execute(complete, tempDir(), { ...passing, CONSUMER_RESULT: result }).status).not.toBe(0)
+  test.each([...runtime])('documentation routing rejects an unexpectedly selected %s lane', name => {
+    const results = outcomes(false)
+    results[name] = { result: 'success' }
+    expect(aggregate('false', results).status).not.toBe(0)
+  })
+
+  test.each([true, false])('a missing scope decision cannot pass with full=%s', full => {
+    const results = outcomes(full)
+    delete results.scope
+    expect(aggregate(String(full), results).status).not.toBe(0)
+  })
+
+  test('documentation routing cannot pass without its selected docs result', () => {
+    const results = outcomes(false)
+    delete results.docs
+    expect(aggregate('false', results).status).not.toBe(0)
+  })
+
+  test.each(['', 'unknown'])('an unrecognized scope output cannot pass: %s', mode => {
+    expect(aggregate(mode, outcomes(false)).status).not.toBe(0)
   })
 })

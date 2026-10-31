@@ -14,10 +14,11 @@ retain their evidence. Candidate implementation does not establish merge,
 publication or deployment; a closed issue is not completion evidence when its
 acceptance conditions still fail. Plans supply design context, never additional
 queues. Retired IDs are not reused.
-Release 0.5.5 publication and production verification completed on 31 October;
-see the [release record](docs/project/archive/releases.md#055--2026-10-31).
-AGENT-3 is retired: resolved-scene discovery, Code Mode access and typed artwork
-failures are released and verified in 0.5.5. AGENT-1/2 remain deferred to 0.6.0.
+Completed publication and production verification are recorded in the
+[release record](docs/project/archive/releases.md), including retired release
+and agent-workflow tasks. AGENT-1 consolidation is in Unreleased source; its operating-guide and installed
+consumer evidence is in the [test audit](docs/project/testing-audit-2026-10-31.md).
+AGENT-2 remains deferred to 0.6.0. Source work does not establish publication.
 CONS-43 is retired: `src/layout/passes/index.ts` contains only re-exports;
 cohesive implementations already live in their owning pass modules. Further
 route-contract extraction preserves the existing pipeline manifest and order.
@@ -91,15 +92,6 @@ route-contract extraction preserves the existing pipeline manifest and order.
 
 ## Ready build backlog
 
-- [ ] **AGENT-1 — Consolidate the agent starting guide** (`todo`, owner
-  requested 2026-10-27; deferred to 0.6.0 by the owner on 2026-10-29).
-  Make `/start.md` a short task/channel
-  router into one maintained operating guide and version-matched references.
-  Generate overlapping instructions for the CLI, installed drop-in and website
-  from that guide. Preserve useful channel entry points while removing repeated
-  rules and competing mini-tutorials. Validate with fresh-agent tasks that choose
-  a channel once and reach the relevant operation details without reconciling
-  multiple guides.
 - [ ] **AGENT-2 — Reduce library import decisions** (`todo`, owner requested
   2026-10-27; deferred to 0.6.0 by the owner on 2026-10-29). Recommend one
   portable agent entry for parsing,

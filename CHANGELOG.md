@@ -4,6 +4,22 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+### Changed
+
+- Run focused documentation and executable-example checks for recognized
+  Markdown-only changes; retain full runtime qualification for code changes,
+  unknown inputs and manual release qualification. Reuse portable bundles,
+  website fixtures and one verified tarball across compatible CI consumers.
+- Select extended layout review artifacts for relevant rendering changes or an
+  explicit request. Keep regression diagnostics opt-in and refresh the reviewed
+  README hero deliberately rather than gate every change on an SVG fingerprint.
+- Use one agent operating guide across CLI, installed skills and the website,
+  with short channel routers, an offline installed copy and version-pinned MCP
+  configuration. Keep executable documentation checks without pinning prose.
+- Wait for public npm identity and integrity before MCP Registry publication;
+  require full exact-commit runtime CI before releasing. Keep completion facts
+  in one release record.
+
 ## 0.5.5 — 2026-10-31
 
 ### Changed

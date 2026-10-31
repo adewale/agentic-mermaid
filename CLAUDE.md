@@ -173,11 +173,10 @@ The seven dimensions:
    unrelated refactoring smuggled in.
 4. **Tests that prove the fix** — tests must fail when the fix is reverted.
    Verify red→green and state the result (e.g. "N tests fail without the fix").
-   CI's `red-green` job checks this: at least one changed test must fail against
-   the base branch's production code. It skips itself when no `src/`/`bin/`
-   production file or no test changed; label `no-red-green` only a pure
-   refactor that changes both. A label approves only the head it was applied
-   to: CI removes it when new commits arrive, so re-apply it after a push.
+   For bug fixes, demonstrate the intended failure and passing repair at the
+   owning boundary. The optional `scripts/ci/red-green.ts --base <sha>` diagnostic
+   can help; one failing assertion does not prove every changed contract.
+   Behavior-preserving refactors do not need a failing-base test or opt-out label.
 5. **Scoped and safe** — one concern, minimal diff, full test suite run, risks flagged.
 6. **Standalone description** — what / why / how / testing / risk, understandable
    without reading the diff.

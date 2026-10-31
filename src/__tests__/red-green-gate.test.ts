@@ -1,4 +1,4 @@
-// Exercise the CI entrypoint in real two-commit repositories. A failing Bun
+// Exercise the optional diagnostic in real two-commit repositories. A failing Bun
 // process is not, by itself, evidence that a behavioral assertion ran.
 import { describe, expect, test } from 'bun:test'
 import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs'
@@ -43,7 +43,7 @@ async function check(testSource: string, baseSource = 'export const value = 1\n'
 
 const imports = "import { beforeAll, expect, test } from 'bun:test'\nimport { value } from '../value.ts'\n"
 
-describe('CI red→green proves a behavioral regression', () => {
+describe('optional base-production regression diagnostic', () => {
   test('accepts a changed assertion that fails against base production', async () => {
     const result = await check(imports + "test('new behavior', () => expect(value).toBe(2))\n")
     expect(result.status, result.output).toBe(0)

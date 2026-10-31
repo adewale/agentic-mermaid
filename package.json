@@ -1,7 +1,7 @@
 {
   "name": "agentic-mermaid",
   "mcpName": "io.github.adewale/agentic-mermaid",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "license": "MIT",
   "description": "Agentic Mermaid: render, verify, and safely edit Mermaid diagrams as ASCII, PNG, SVG, or structured agent workflows — with composable styles (hand-drawn, excalidraw, watercolor, or your own as JSON).",
   "type": "module",
@@ -183,7 +183,6 @@
     "prepublishOnly": "npm run build",
     "goldens:ascii": "bun run scripts/update-ascii-goldens.ts",
     "hero": "bun run scripts/site/hero.ts",
-    "hero:check": "bun run scripts/site/hero.ts --check",
     "style:audit": "bun test --timeout 60000 src/__tests__/style-options.test.ts src/__tests__/styled-output.test.ts",
     "sketch:check": "bun test scripts/sketch-prototype/styles.test.ts && bun run scripts/sketch-prototype/contrast-audit.ts",
     "doc-blocks": "bun run scripts/generate-doc-blocks.ts",

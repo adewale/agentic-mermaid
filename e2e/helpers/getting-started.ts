@@ -140,14 +140,17 @@ function runPage(source: string, blocks: string[], tarball: string, mcpConfig?: 
 }
 
 export function runGettingStartedCommands(repo: string, tarball: string): void {
-  const site = mkdtempSync(join(tmpdir(), 'am-getting-started-site-'))
+  const transferred = process.env.AM_CI_ARTIFACTS === '1'
+  const site = transferred ? join(repo, 'website/public') : mkdtempSync(join(tmpdir(), 'am-getting-started-site-'))
   try {
-    const build = spawnSync('bun', ['run', 'website/build.ts'], {
-      cwd: repo,
-      env: { ...process.env, SITE_NPM_STATUS: 'published', AM_WEBSITE_PUBLIC_DIR: site },
-      encoding: 'utf8', timeout: STEP_TIMEOUT_MS, maxBuffer: 16 * 1024 * 1024,
-    })
-    if (build.status !== 0) throw new Error(`Getting Started website build failed: ${build.error ?? ''}\n${build.stderr}\n${build.stdout}`)
+    if (!transferred) {
+      const build = spawnSync('bun', ['run', 'website/build.ts'], {
+        cwd: repo,
+        env: { ...process.env, SITE_NPM_STATUS: 'published', AM_WEBSITE_PUBLIC_DIR: site },
+        encoding: 'utf8', timeout: STEP_TIMEOUT_MS, maxBuffer: 16 * 1024 * 1024,
+      })
+      if (build.status !== 0) throw new Error(`Getting Started website build failed: ${build.error ?? ''}\n${build.stderr}\n${build.stdout}`)
+    }
     const page = readFileSync(join(site, 'docs/getting-started/index.html'), 'utf8')
     const blocks = [...page.matchAll(/<pre\b[^>]*>\s*<code class="language-bash">([\s\S]*?)<\/code><\/pre>/g)].map(match => decodeHTML(match[1]!))
     const config = page.match(/<code id="getting-started-mcp-config">([\s\S]*?)<\/code>/)
@@ -158,6 +161,6 @@ export function runGettingStartedCommands(repo: string, tarball: string): void {
     runPage('website /docs/getting-started/', blocks, tarball, mcpConfig, version)
     runPage('docs/getting-started.md', markdownShellBlocks(readFileSync(join(repo, 'docs/getting-started.md'), 'utf8')), tarball)
   } finally {
-    rmSync(site, { recursive: true, force: true })
+    if (!transferred) rmSync(site, { recursive: true, force: true })
   }
 }
