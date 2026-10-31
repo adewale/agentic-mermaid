@@ -397,6 +397,7 @@ describe('start.md bootstrap claims stay true', () => {
   })
 
   test('Code Mode instructions do not name library-only methods', async () => {
+    expect(START).not.toMatch(/mermaid\.applyOps/)
     const result = await executeInSandbox('return typeof mermaid.applyOps')
     expect(result).toEqual(expect.objectContaining({ ok: true, value: 'undefined' }))
   })

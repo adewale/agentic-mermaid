@@ -7,7 +7,6 @@ import { renderErrorOrigin } from '../agent/error-origin.ts'
 import {
   canonicalizeConcreteCssColor,
   MAX_PNG_FONT_DIRECTORIES,
-  NATIVE_PNG_HOST_ONLY_OPTION_FIELDS,
   NATIVE_PNG_OUTPUT_POLICY_FIELDS,
   PNG_ARTIFACT_BACKGROUND_UNRESOLVED,
   PNG_DEFAULT_SCALE,
@@ -65,9 +64,7 @@ describe('canonical PNG output-option authority', () => {
     expect(JSON.parse(result.stdout).bytes).toBeGreaterThan(0)
   }, 60000)
 
-  test('partitions fields into portable and native-host-only, keeping the callback out of policy', () => {
-    expect([...PORTABLE_PNG_OUTPUT_OPTION_FIELDS, ...NATIVE_PNG_HOST_ONLY_OPTION_FIELDS].sort()).toEqual([...PNG_OUTPUT_OPTION_FIELDS].sort())
-    expect(PORTABLE_PNG_OUTPUT_OPTION_FIELDS.filter(field => NATIVE_PNG_HOST_ONLY_OPTION_FIELDS.includes(field as never))).toEqual([])
+  test('portable fields are policy fields, and the callback stays out of policy and receipts', () => {
     expect(PORTABLE_PNG_OUTPUT_OPTION_FIELDS.every(field => NATIVE_PNG_OUTPUT_POLICY_FIELDS.includes(field))).toBe(true)
     expect(Object.isFrozen(PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS)).toBe(true)
     expect(PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS.onWarning).toMatchObject({

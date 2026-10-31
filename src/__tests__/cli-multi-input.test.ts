@@ -144,6 +144,15 @@ describe('#930 watch frame (the step every --watch change runs)', () => {
     expect(renderWatchFrame(f, 'ascii', {}, false).output).toContain('After')
   })
 
+  test('a frame reports each ineffective config field once, before its output', () => {
+    const f = tmp('---\nconfig:\n  journey:\n    boxMargin: 10\n---\njourney\n  Task: 3: Me')
+    const frame = renderWatchFrame(f, 'svg', {}, false)
+    expect(frame.output).toContain('<svg')
+    expect(frame.stderr.filter(line => line.includes('journey.boxMargin'))).toEqual([
+      expect.stringMatching(/^am render --watch: warning INEFFECTIVE_CONFIG \(journey\.boxMargin\): .+\n$/),
+    ])
+  })
+
   test('strict SVG option applies to the watch frame', () => {
     const f = tmp('flowchart TD\n A --> B')
     const output = renderWatchFrame(f, 'svg', { security: 'strict' }, false).output
