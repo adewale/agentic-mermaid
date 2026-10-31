@@ -54,6 +54,11 @@ links their proofs for completed releases.
    record for publication status rather than repeating versions and workflow links.
    These operational records stay outside the npm package.
 
+Documentation-only CI success does not deploy. For a website-only update at an
+already published version, dispatch full `ci.yml` on current main, wait for its
+success, then dispatch `deploy-cloudflare.yml`; this does not publish a release.
+The deployment gate checks full qualification before using production credentials.
+
 A documentation change inside the npm package still needs a new version.
 Documentation-only CI checks the same npm package identity with
 `published-version.ts --docs-only`, reusing the published runtime instead of

@@ -5,8 +5,9 @@ name: Deploy website to Cloudflare
 # hosted MCP endpoint at /mcp. This workflow rebuilds the bundle and deploys it
 # with wrangler.
 #
-# Gated on a successful CI or npm-publish run for the same commit on main, and
-# on the checked-out package version already existing on npm with every browser
+# Triggered by successful CI or npm publication, then gated on actual full
+# canonical CI qualification for the same main commit. Documentation-only CI
+# success cannot deploy. Also require the package version on npm with every browser
 # artifact byte-identical to the ones built from the validated commit. This keeps
 # the site's pinned CDN URL and its locally bundled artifact on one provenance.
 # Also runnable manually via workflow_dispatch after proving the same exact-SHA
@@ -19,9 +20,8 @@ name: Deploy website to Cloudflare
 #
 # Requires two repository secrets to publish from GitHub: CLOUDFLARE_API_TOKEN
 # (a token with the Workers Scripts:Edit permission) and CLOUDFLARE_ACCOUNT_ID.
-# If either secret is absent, the workflow fails before checkout. A green deploy
-# workflow therefore means the production transaction actually reached its
-# guarded deployment path; missing credentials can no longer look like success.
+# After full qualification, missing secrets fail before checkout. Run summaries
+# distinguish an unqualified or unpublished skip from verified production delivery.
 #
 # Note: /mcp is public, unauthenticated compute. Keep the DEC-2 WAF rate-limit
 # rule and DEC-3 worker_loaders binding (see TODO.md) provisioned before
@@ -66,8 +66,50 @@ jobs:
       # 10 requests/minute leaves substantial rolling-window WAF headroom.
       MCP_REQUEST_INTERVAL_SECONDS: '6'
     steps:
+      - name: Require full canonical CI qualification
+        id: runtime-qualification
+        timeout-minutes: 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOY_EVENT_NAME: ${{ github.event_name }}
+        run: |
+          runs="$(timeout 20s gh api -X GET \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs" \
+            -f head_sha="$EXPECTED_SHA" -f branch=main -f status=success -f per_page=100)"
+          eligible_runs="$(jq -r --arg sha "$EXPECTED_SHA" '
+            .workflow_runs[] | select(.head_sha == $sha and .head_branch == "main" and .conclusion == "success")
+            | .id | select(type == "number" and floor == .)
+          ' <<< "$runs")"
+          # CI complete owns strict selected-lane accounting; artifact success
+          # distinguishes full qualification from documentation-only success.
+          required_jobs='["Build portable test artifacts", "CI complete"]'
+          for run_id in $eligible_runs; do
+            jobs="$(timeout 20s gh api --paginate -X GET \
+              "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs" -f filter=latest -f per_page=100)"
+            qualified="$(printf '%s' "$jobs" | jq -s --argjson required "$required_jobs" \
+              '[.[].jobs[]] as $jobs | all($required[]; . as $name | any($jobs[]; .name == $name and .conclusion == "success"))')"
+            if [[ "$qualified" == true ]]; then
+              echo "qualified=true" >> "$GITHUB_OUTPUT"
+              echo "ok   full canonical CI passed for $EXPECTED_SHA in run $run_id"
+              exit 0
+            fi
+          done
+          echo "qualified=false" >> "$GITHUB_OUTPUT"
+          if [[ "$DEPLOY_EVENT_NAME" == workflow_dispatch ]]; then
+            echo "::error title=Full canonical CI proof missing::Dispatch full ci.yml on main for $EXPECTED_SHA before manually deploying."
+            exit 1
+          fi
+          echo "::notice title=Cloudflare deploy skipped::No full canonical CI qualification exists for $EXPECTED_SHA; documentation-only success does not deploy."
+          {
+            echo "### Cloudflare deploy skipped"
+            echo ""
+            echo "No full canonical CI qualification exists for commit $EXPECTED_SHA."
+            echo "Documentation-only CI does not authorize a deployment."
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Check Cloudflare deployment secrets
         id: cloudflare-secrets
+        if: steps.runtime-qualification.outputs.qualified == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -108,30 +150,6 @@ jobs:
             echo "::error title=Stale deployment trigger::Refusing to deploy $EXPECTED_SHA because current main is $main_tip."
             exit 1
           fi
-
-      - name: Require successful canonical CI for a manual deployment
-        if: github.event_name == 'workflow_dispatch' && steps.cloudflare-secrets.outputs.available == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          runs="$(gh api -X GET \
-            "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs" \
-            -f head_sha="$EXPECTED_SHA" \
-            -f branch=main \
-            -f event=push \
-            -f status=success \
-            -f per_page=100)"
-          if ! jq -e --arg sha "$EXPECTED_SHA" '
-            any(.workflow_runs[];
-              .head_sha == $sha
-              and .head_branch == "main"
-              and .event == "push"
-              and .conclusion == "success")
-          ' <<<"$runs" >/dev/null; then
-            echo "::error title=Canonical CI proof missing::No successful CI push run exists for manual deployment commit $EXPECTED_SHA on main."
-            exit 1
-          fi
-          echo "ok   canonical CI passed for manual deployment commit $EXPECTED_SHA"
 
       - name: Setup Bun
         if: steps.cloudflare-secrets.outputs.available == 'true'

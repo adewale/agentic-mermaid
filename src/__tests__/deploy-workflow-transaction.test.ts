@@ -220,9 +220,9 @@ describe('deploy workflow shape', () => {
 describe('deploy workflow ordering and guards', () => {
   test('production state changes only after identity gates, and rollback is armed before the first change', () => {
     const order = [
+      'Require full canonical CI qualification',
       'Check Cloudflare deployment secrets',
       'Require the exact current main commit',
-      'Require successful canonical CI for a manual deployment',
       'Require the site\'s exact package version on npm',
       'Install dependencies',
       'Verify every published browser artifact is byte-identical',
@@ -270,13 +270,6 @@ describe('deploy workflow ordering and guards', () => {
     }
   })
 
-  test('manual dispatch, and only manual dispatch, must prove canonical CI', () => {
-    const proof = step('Require successful canonical CI for a manual deployment')
-    const ready = { 'cloudflare-secrets': { available: 'true' } }
-    expect(guardAllows(proof.if, { event: 'workflow_dispatch', outputs: ready })).toBe(true)
-    expect(guardAllows(proof.if, { event: 'workflow_run', outputs: ready })).toBe(false)
-  })
-
   test('a failed gate stops every later production change', () => {
     const ready: Outputs = { 'cloudflare-secrets': { available: 'true' }, 'npm-version': { available: 'true' }, 'rollback-guard': { armed: 'true' } }
     for (const name of ['Attach the candidate at zero traffic', 'Promote the verified candidate to all traffic', 'Verify the promoted production version']) {
@@ -311,6 +304,81 @@ describe('deploy workflow ordering and guards', () => {
   })
 })
 
+describe('deploy workflow canonical qualification', () => {
+  const QUALIFY = 'Require full canonical CI qualification'
+  const requiredJobs = ['Build portable test artifacts', 'CI complete']
+  type Job = { name: string; conclusion: string }
+
+  function qualify(event: string, options: { jobs?: Job[]; runOverrides?: Partial<{ head_sha: string; head_branch: string; conclusion: string }>; apiFailure?: boolean } = {}) {
+    const run = { id: 42, head_sha: SHA, head_branch: 'main', event: 'workflow_dispatch', conclusion: 'success', ...options.runOverrides }
+    return runStep(QUALIFY, {
+      env: { DEPLOY_EVENT_NAME: event },
+      stubs: { gh: options.apiFailure ? 'exit 17' : `case "$*" in
+        *'/jobs'*) cat "$MOCK_ROOT/jobs.json" ;;
+        *) cat "$MOCK_ROOT/runs.json" ;;
+      esac` },
+      files: {
+        'runs.json': JSON.stringify({ workflow_runs: [run] }),
+        'jobs.json': JSON.stringify({ jobs: options.jobs ?? requiredJobs.map(name => ({ name, conclusion: 'success' })) }),
+      },
+    })
+  }
+
+  function noDeployment(result: StepRun, event: string) {
+    const enabled = STEPS.slice(stepIndex(QUALIFY) + 1).filter(candidate => guardAllows(candidate.if, {
+      event, outputs: { 'runtime-qualification': result.outputs }, jobStatus: result.status === 0 ? 'success' : 'failure',
+    }))
+    expect(enabled.map(candidate => candidate.name ?? candidate.uses)).toEqual([])
+  }
+
+  test.each(['workflow_run', 'workflow_dispatch'])('full canonical CI qualification enables %s before credentials', event => {
+    const result = qualify(event)
+    expect({ status: result.status, outputs: result.outputs }).toEqual({ status: 0, outputs: { qualified: 'true' } })
+    const query = result.calls.find(call => call.startsWith('gh api -X GET'))!
+    for (const filter of [`-f head_sha=${SHA}`, '-f branch=main', '-f status=success']) expect(query).toContain(filter)
+    expect(query).toContain('repos/adewale/agentic-mermaid/actions/workflows/ci.yml/runs')
+    expect(result.calls.find(call => call.includes('/actions/runs/42/jobs'))).toContain('filter=latest')
+    expect(guardAllows(step('Check Cloudflare deployment secrets').if, { event, outputs: { 'runtime-qualification': result.outputs } })).toBe(true)
+  })
+
+  test('documentation-only automatic success skips honestly before credentials, state changes or cleanup', () => {
+    const result = qualify('workflow_run', { jobs: [
+      { name: 'CI complete', conclusion: 'success' }, { name: 'Build portable test artifacts', conclusion: 'skipped' },
+    ] })
+    expect({ status: result.status, outputs: result.outputs }).toEqual({ status: 0, outputs: { qualified: 'false' } })
+    expect(result.summary).toContain('### Cloudflare deploy skipped')
+    noDeployment(result, 'workflow_run')
+  })
+
+  test.each(requiredJobs.flatMap(name => ['failure', 'cancelled', 'skipped', 'missing'].map(conclusion => [name, conclusion] as const)))('%s with outcome %s cannot authorize deployment', (failedName, conclusion) => {
+    const jobs = requiredJobs.flatMap(name => name === failedName
+      ? conclusion === 'missing' ? [] : [{ name, conclusion }]
+      : [{ name, conclusion: 'success' }])
+    for (const event of ['workflow_run', 'workflow_dispatch']) {
+      const result = qualify(event, { jobs })
+      expect({ status: result.status, outputs: result.outputs }).toEqual({ status: event === 'workflow_run' ? 0 : 1, outputs: { qualified: 'false' } })
+      if (event === 'workflow_dispatch') expect(result.stdout).toContain('Dispatch full ci.yml on main')
+      noDeployment(result, event)
+    }
+  })
+
+  test.each(['workflow_run', 'workflow_dispatch'])('mismatched canonical run identity cannot authorize %s', event => {
+    for (const runOverrides of [{ head_sha: 'f'.repeat(40) }, { head_branch: 'release' }, { conclusion: 'cancelled' }]) {
+      const result = qualify(event, { runOverrides })
+      expect({ status: result.status, outputs: result.outputs }).toEqual({ status: event === 'workflow_run' ? 0 : 1, outputs: { qualified: 'false' } })
+      expect(result.calls).toHaveLength(1)
+      noDeployment(result, event)
+    }
+  })
+
+  test('an unavailable Actions API fails closed instead of claiming an unqualified skip', () => {
+    const result = qualify('workflow_run', { apiFailure: true })
+    expect(result.status).not.toBe(0)
+    expect(result.outputs).toEqual({})
+    noDeployment(result, 'workflow_run')
+  })
+})
+
 describe('deploy workflow gates (executed with stubs)', () => {
   test('missing Cloudflare credentials fail the run loudly instead of skipping', () => {
     const missing = runStep('Check Cloudflare deployment secrets', { env: { CLOUDFLARE_API_TOKEN: '', CLOUDFLARE_ACCOUNT_ID: 'account' } })
@@ -320,26 +388,6 @@ describe('deploy workflow gates (executed with stubs)', () => {
     expect(missing.outputs).toEqual({})
     const present = runStep('Check Cloudflare deployment secrets', { env: { CLOUDFLARE_API_TOKEN: 'token', CLOUDFLARE_ACCOUNT_ID: 'account' } })
     expect({ status: present.status, outputs: present.outputs }).toEqual({ status: 0, outputs: { available: 'true' } })
-  })
-
-  test('a manual deploy requires a successful push CI run for the exact commit on main', () => {
-    const run = (overrides: Record<string, string>) => ({ head_sha: SHA, head_branch: 'main', event: 'push', conclusion: 'success', ...overrides })
-    const attempt = (runs: unknown[]) => runStep('Require successful canonical CI for a manual deployment', {
-      stubs: { gh: `cat "$MOCK_ROOT/runs.json"` },
-      files: { 'runs.json': JSON.stringify({ workflow_runs: runs }) },
-    })
-    const accepted = attempt([run({ head_sha: 'f'.repeat(40) }), run({})])
-    expect(accepted.status).toBe(0)
-    const query = accepted.calls.find(call => call.startsWith('gh api'))!
-    for (const filter of [`-f head_sha=${SHA}`, '-f branch=main', '-f event=push', '-f status=success']) expect(query).toContain(filter)
-    expect(query).toContain('repos/adewale/agentic-mermaid/actions/workflows/ci.yml/runs')
-
-    const mismatches: Array<Record<string, string>> = [{ head_sha: 'f'.repeat(40) }, { head_branch: 'release' }, { event: 'workflow_dispatch' }, { conclusion: 'failure' }]
-    for (const mismatch of mismatches) {
-      const refused = attempt([run(mismatch)])
-      expect({ mismatch, status: refused.status }).toEqual({ mismatch, status: 1 })
-      expect(refused.stdout).toContain('::error title=Canonical CI proof missing::')
-    }
   })
 
   test('the installed wrangler must be the version package.json locks', () => {

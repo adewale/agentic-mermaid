@@ -24,9 +24,11 @@ changes still require a version bump; repository-only records need no rebuild.
 The runtime is composed only in isolated package trees; a workspace build is
 never created, overwritten or removed by this mode.
 
-A successful docs-only run cannot authorize release. The publisher requires
-actual successful portable-artifact and canonical-completion jobs on the exact
-main commit. The artifact producer distinguishes full qualification; the
+A successful docs-only run cannot authorize release or deployment. Both
+privileged boundaries require actual successful portable-artifact and
+canonical-completion jobs on the exact main commit. Automatic docs-only
+success skips deployment before credentials or production state are used;
+a manual deployment without full qualification fails closed. The artifact producer distinguishes full qualification; the
 completion job owns strict success/skip accounting for every selected runtime
 lane. This avoids copying the runtime-job roster into the publisher and tests.
 
@@ -110,6 +112,9 @@ The preceding 0.5.5 prose-only main run
 [41212294422](https://github.com/adewale/agentic-mermaid/actions/runs/41212294422)
 took 16 minutes and 59.8 summed job-minutes; its browser job took 15.1 minutes.
 Those are observed job durations, not billing or a controlled performance baseline.
+The actual focused docs sequence passed from a clean candidate checkout in
+73.27 seconds with the locked dependency installation reused. That excludes
+installation and hosted queues; it is not a controlled comparison with CI.
 The new scheduling and reuse remove repeated work; no general CI speedup is
 claimed until comparable hosted runs exist.
 

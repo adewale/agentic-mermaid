@@ -600,7 +600,9 @@ table here, which would drift. In broad strokes:
   `layout_evidence`. Ordinary docs changes do not generate the campaigns.
 - **Release qualification:** publication requires successful outcomes from
   every full runtime lane on the exact release SHA. A green documentation-only
-  run cannot authorize publication; dispatch full CI for that main commit.
+  run cannot authorize publication or deployment; dispatch full CI for that main
+  commit. Automatic docs-only success skips deployment, and an unqualified manual
+  deployment fails before production credentials or state are used.
 - **Weekly (`contract-discovery.yml`):** one bounded model/grammar discovery job;
   findings remain replay artifacts for human triage, without automated issues.
 - **Per deploy (`deploy-cloudflare.yml`):** an unpublished package version
