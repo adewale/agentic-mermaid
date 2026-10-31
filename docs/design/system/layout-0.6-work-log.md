@@ -5703,3 +5703,40 @@ meaning coverage and current-Main combined qualification remain open. Exact
 new-head CI must run after this documentation checkpoint; old d45 CI does not
 qualify09098. Replacement24 stays sealed; no human-study gate was introduced.
 The fixed campaign end remains2026-10-31T12:03:00Z.
+
+
+### 31 October00:30UTC: extend actual ER compound ownership coverage
+
+The existing crow's-foot ownership table now includes a separately frozen
+nested-frame source: p(root), c(parent p), A(parent c), B(parent p), ordered
+p->c:first, p->c:second and c->p:reply. Across both graph backends and public
+normal/direct Native/DefaultBackend Scene outputs, the owner checks literal
+public parentage and ordered occurrences, actual frame containment, endpoint
+contacts, caption association, six distinct owned cardinality groups and exact
+two-tick local geometry. All36compound marker-removal observations contribute
+darker actual pixels using bundled Inter and existing public color/font raster
+adapters. The direct drawing paths do not imply the public test-preload path is
+Native. No source-matched public Mermaid/Pele result is available for this source.
+
+The extended ER owner passes10tests/2282assertions. Initial failures were observer
+errors (absent caption IDs; unresolved CSS variables in raw drawing raster),
+not behavioral RED. Three readonly-tuple type errors were corrected without
+changing expected values. Final core types and lint pass; Root's later combined
+four-file owners pass177tests/5164assertions, canonical core/repository types and
+three-file lint pass. The initially invoked biome check included pre-existing
+format/import diagnostics; canonical biome lint passes without formatting churn.
+This is independently authored coverage, not a new runtime-defect fix or full
+correctness claim. Evidence: er-compound-owner-9a498/{EXPECTED.json,REPORT.json},
+immutable-constructor-9a498/{OWNERS,TYPES,LINT-CANONICAL}.log. Existing source and
+holdout enrollment remain intact; replacement24 stays sealed.
+
+Exact9a498 CI41149298650 is terminal FAILURE at00:27:19UTC: all20jobs complete,
+units4799P/33skip/0F,5908P/37skip/2F,4750P/6skip/4F, same six legacy capacity
+names, one additional pass versus d45. Semantics173P/0F and CLI/dist/Bun+Node22
+packages/browser-site/MCP/quickstarts/backend evidence pass. Delivery remains
+red: editor gzip1409954>1334500; demo raw806877>788000 and gzip305865>302500;
+68lazy failed metrics/25groups, including flowchart gzip766397>761500 and State
+766347>761000. Actual workflow-dispatch checkout is direct9a498, review base
+1fb22fe6da2968fecaa9034b5683ad97bacc6f7a; it is not a current-Main merge checkout.
+Live Main remains118cadd53d3b2dfbaf0dbb959bcc7abb66f16ae5. New local changes are
+outside that CI result. Filtered record: ci-9a498-41149298650/summary.json,25588bytes.

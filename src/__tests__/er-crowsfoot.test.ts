@@ -16,6 +16,7 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { createRequire } from 'node:module'
+import { Resvg } from '@resvg/resvg-js'
 import { parseErDiagram } from '../er/parser.ts'
 import { layoutErDiagram } from '../er/layout.ts'
 import { lowerErScene } from '../er/renderer.ts'
@@ -31,6 +32,7 @@ import type { SceneDoc, ShapeMark } from '../scene/ir.ts'
 import { drawNative } from '../scene/native-drawing.ts'
 import { inspectScenePrimitives } from '../scene/inspection.ts'
 import { nativeDrawingOf } from '../scene/drawing.ts'
+import { inlineResolvedColors, inlineFontVarForRaster } from '../theme.ts'
 
 const { JSDOM } = createRequire(import.meta.url)('jsdom')
 
@@ -106,22 +108,50 @@ function markerFor(glyphs: string): { lines: number; circles: number; category: 
 }
 
 describe('crow\'s-foot marker vocabulary (upstream reference)', () => {
-  it.each(['agentic', 'elk'] as const)('%s emits every endpoint piece inside its own relationship occurrence through Native and Scene', backend => {
-    const source = `erDiagram
+  for (const { name, source, authored, entities, groups } of [{
+    name: 'entity endpoints',
+    source: `erDiagram
 direction LR
 A["Account ledger"]
 B["Session window"]
 A ||--o{ B : opens
 A |o..|{ B : revokes
 B }o--o| A : belongs
-A u--|| A : retries`
-    const authored = [
+A u--|| A : retries`,
+    authored: [
       ['A', 'B', 'opens', 'one', 'zero-many', 'rel:A-B#0'],
       ['A', 'B', 'revokes', 'zero-one', 'many', 'rel:A-B#1'],
       ['B', 'A', 'belongs', 'zero-many', 'zero-one', 'rel:B-A#0'],
       ['A', 'A', 'retries', 'parent', 'one', 'rel:A-A#0'],
-    ] as const
-    const options = { graphLayout: { backend, fallback: 'none' as const }, embedFontImport: false }
+    ],
+    entities: [['A', undefined], ['B', undefined]],
+    groups: [],
+  }, {
+    name: 'repeated ancestor and descendant frame endpoints',
+    source: `erDiagram
+subgraph p
+subgraph c
+A
+end
+B
+end
+p ||--|| c : first
+p ||--|| c : second
+c ||--|| p : reply`,
+    authored: [
+      ['p', 'c', 'first', 'one', 'one', 'rel:p-c#0'],
+      ['p', 'c', 'second', 'one', 'one', 'rel:p-c#1'],
+      ['c', 'p', 'reply', 'one', 'one', 'rel:c-p#0'],
+    ],
+    entities: [['A', 'c'], ['B', 'p']],
+    groups: [['p', undefined], ['c', 'p']],
+  }] as const) it.each(['agentic', 'elk'] as const)(`%s emits every endpoint piece inside its own relationship occurrence through Native and Scene: ${name}`, backend => {
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok || parsed.value.body.kind !== 'er') throw new Error('Expected structured ER')
+    expect(parsed.value.body.entities.map(entity => [entity.id, entity.groupId])).toEqual(entities.map(entity => [...entity]))
+    expect(parsed.value.body.groups?.map(group => [group.id, group.parentId]) ?? []).toEqual(groups.map(group => [...group]))
+    expect(parsed.value.body.relations.map(relation => [relation.from, relation.to, relation.label])).toEqual(authored.map(([from, to, label]) => [from, to, label]))
+    const options = { graphLayout: { backend, fallback: 'none' as const }, embedFontImport: false, font: 'Inter' }
     const rendered = renderMermaidSVGWithReceipt(source, options)
     expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: backend, attempts: [{ backend, outcome: 'selected' }] })])
     const request = resolveRenderRequestForExecution(source, options, 'svg')
@@ -142,6 +172,28 @@ A u--|| A : retries`
         const document = dom.window.document as Document
         const carriers = [...document.querySelectorAll('[data-role="relationship"][data-from]')]
         const markers = [...document.querySelectorAll('[data-role="cardinality"]')]
+        const frameElements = [...document.querySelectorAll('.er-subgraph')]
+        expect(frameElements.map(frame => [frame.getAttribute('data-id'), frame.getAttribute('data-parent-id') ?? undefined])).toEqual(groups.map(group => [...group]))
+        expect([...document.querySelectorAll('.entity')].map(entity => entity.getAttribute('data-id'))).toEqual(entities.map(([id]) => id))
+        const box = (id: string): number[] => {
+          const rect = document.querySelector(`[data-id="entity-rect:${id}"], [data-id="er-group:${id}:box"]`)!
+          expect(rect).not.toBeNull()
+          return ['x', 'y', 'width', 'height'].map(attribute => Number(rect.getAttribute(attribute)))
+        }
+        const inside = (child: string, parent: string): boolean => {
+          const [x, y, w, h] = box(child), [px, py, pw, ph] = box(parent)
+          return x! >= px! && y! >= py! && x! + w! <= px! + pw! && y! + h! <= py! + ph!
+        }
+        const parents = new Map<string, string | undefined>([...entities, ...groups])
+        for (const [id, parent] of parents) {
+          const ancestors: string[] = []
+          for (let owner = parent; owner !== undefined; owner = parents.get(owner)) ancestors.push(owner)
+          for (const [other] of groups) if (id !== other) expect(inside(id, other)).toBe(ancestors.includes(other))
+        }
+        // Direct drawings precede the public color pass; Resvg cannot paint
+        // their CSS variables. Use the same color/font raster adapters.
+        const raster = () => new Resvg(inlineFontVarForRaster(inlineResolvedColors(document.documentElement.outerHTML, request.appearance.colors)), { background: '#fff', font: { fontFiles: [new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url).pathname], loadSystemFonts: false, defaultFontFamily: 'Inter' } }).render().pixels
+        const originalPixels = raster()
         expect(carriers).toHaveLength(authored.length)
         expect(markers).toHaveLength(authored.length * 2)
         const identities = [...document.querySelectorAll('[data-id]')].map(element => element.getAttribute('data-id'))
@@ -149,6 +201,22 @@ A u--|| A : retries`
         for (const [index, [from, to, label, startKind, endKind, edgeId]] of authored.entries()) {
           const carrier = carriers[index]!
           expect([carrier.getAttribute('data-from'), carrier.getAttribute('data-to'), carrier.getAttribute('data-label'), carrier.getAttribute('data-id')]).toEqual([from, to, label, edgeId])
+          const captions = [...document.querySelectorAll('text')].filter(text => text.textContent === label)
+          expect(captions).toHaveLength(1)
+          const caption = captions[0]!, x = Number(caption.getAttribute('x')), y = Number(caption.getAttribute('y'))
+          const points = carrier.getAttribute('points')!.split(/\s+/).map(pair => pair.split(',').map(Number))
+          expect(points.some((b, i) => {
+            const a = points[i - 1]
+            return a && (Math.abs(a[0]! - b[0]!) < .002 && Math.abs(x - a[0]!) < .002 && y >= Math.min(a[1]!, b[1]!) - .002 && y <= Math.max(a[1]!, b[1]!) + .002
+              || Math.abs(a[1]! - b[1]!) < .002 && Math.abs(y - a[1]!) < .002 && x >= Math.min(a[0]!, b[0]!) - .002 && x <= Math.max(a[0]!, b[0]!) + .002)
+          })).toBe(true)
+          if (groups.length) {
+            for (const [id, point] of [[from, points[0]!], [to, points.at(-1)!]] as const) {
+              const [x, y, w, h] = box(id), [px, py] = point
+              expect(Math.min(Math.abs(px! - x!), Math.abs(px! - x! - w!)) < .002 && py! >= y! - .002 && py! <= y! + h! + .002
+                || Math.min(Math.abs(py! - y!), Math.abs(py! - y! - h!)) < .002 && px! >= x! - .002 && px! <= x! + w! + .002).toBe(true)
+            }
+          }
           for (const [end, kind, suffix] of [['start', startKind, '1'], ['end', endKind, '2']] as const) {
             const id = `card:${edgeId.slice(4)}:${suffix}`
             const matching = markers.filter(marker => marker.getAttribute('data-id') === id)
@@ -158,6 +226,12 @@ A u--|| A : retries`
             expect([marker.getAttribute('data-owner-id'), marker.getAttribute('data-owner-role'), marker.getAttribute('data-end'), marker.getAttribute('data-endpoint')]).toEqual([edgeId, 'relationship', end, end === 'start' ? from : to])
             expect(marker.hasAttribute('data-from') || marker.hasAttribute('data-to')).toBe(false)
             expectOwnedGlyph(marker, carrier, end, kind)
+            marker.setAttribute('visibility', 'hidden')
+            const removedPixels = raster()
+            marker.removeAttribute('visibility')
+            let darker = 0
+            for (let i = 0; i < originalPixels.length; i += 4) if (originalPixels[i]! + originalPixels[i + 1]! + originalPixels[i + 2]! < removedPixels[i]! + removedPixels[i + 1]! + removedPixels[i + 2]!) darker++
+            expect({ edgeId, end, visible: darker > 0 }).toEqual({ edgeId, end, visible: true })
           }
         }
       } finally { dom.window.close() }
