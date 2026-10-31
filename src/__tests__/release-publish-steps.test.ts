@@ -16,6 +16,7 @@ const temp = useTempDirs()
 const REPO = join(import.meta.dir, '..', '..')
 const workflow = parseYaml(readFileSync(join(REPO, '.github', 'workflows', 'publish.yml'), 'utf8'))
 const ciWorkflow = parseYaml(readFileSync(join(REPO, '.github', 'workflows', 'ci.yml'), 'utf8'))
+const qualification = parseYaml(readFileSync(join(REPO, '.github', 'workflows', 'qualify-ci.yml'), 'utf8'))
 
 interface Step { name?: string; run?: string; env?: Record<string, string> }
 
@@ -67,55 +68,68 @@ function tarball(dir: string, packageJson: Record<string, unknown>, extra: Recor
 const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
 const sriSha512 = (bytes: Buffer) => `sha512-${createHash('sha512').update(bytes).digest('base64')}`
 
-describe('release gate: exact-SHA canonical CI attestation', () => {
-  const gate = step('release-gate', 'Require successful canonical CI for the exact release commit')
+describe('shared exact-SHA canonical CI qualification', () => {
+  const gate = step('qualify', 'Require full canonical CI qualification', qualification)
   const SHA = '0123456789abcdef0123456789abcdef01234567'
-  const OTHER = 'fedcba9876543210fedcba9876543210fedcba98'
-
-  const qualificationJobs = ['Build portable test artifacts', 'CI complete']
   type Job = { name: string; conclusion: string }
+  const passing = [{ name: 'test', conclusion: 'success' }, { name: 'CI complete', conclusion: 'success' }]
 
-  function attest(runs: Array<{ head_sha: string; conclusion: string }>, jobs: Job[] = qualificationJobs.map(name => ({ name, conclusion: 'success' }))) {
+  function attest(options: { required?: boolean; jobs?: Job[]; run?: Record<string, unknown> | null; apiFailure?: boolean; malformedJobs?: boolean } = {}) {
     const dir = tempDir()
-    writeFileSync(join(dir, 'runs.json'), JSON.stringify({ workflow_runs: runs.map((run, index) => ({ ...run, id: 100 + index })) }))
-    writeFileSync(join(dir, 'jobs.json'), JSON.stringify({ jobs }))
-    stub(dir, 'gh', `printf '%s\\n' "$*" >> "$MOCK_ROOT/gh-calls"
-case "$*" in
-  *'/jobs'*) cat "$MOCK_ROOT/jobs.json" ;;
-  *) cat "$MOCK_ROOT/runs.json" ;;
-esac
-`)
-    const result = execute(gate, dir, { GITHUB_SHA: SHA, GITHUB_REPOSITORY: 'owner/repo', GH_TOKEN: 'test-token' })
-    return { ...result, calls: lines(join(dir, 'gh-calls')) }
+    writeFileSync(join(dir, 'runs.json'), JSON.stringify({ workflow_runs: options.run === null ? [] : [{ id: 42, head_sha: SHA, head_branch: 'main', conclusion: 'success', ...options.run }] }))
+    writeFileSync(join(dir, 'jobs.json'), options.malformedJobs ? '{' : JSON.stringify({ jobs: options.jobs ?? passing }))
+    stub(dir, 'gh', options.apiFailure ? 'exit 17' : `case "$*" in
+      *'/jobs'*) cat "$MOCK_ROOT/jobs.json" ;;
+      *) cat "$MOCK_ROOT/runs.json" ;;
+    esac`)
+    const output = join(dir, 'output')
+    writeFileSync(output, '')
+    const result = execute(gate, dir, {
+      EXPECTED_SHA: SHA, GITHUB_REPOSITORY: 'owner/repo', GH_TOKEN: 'test-token',
+      REQUIRE_QUALIFICATION: String(options.required ?? true),
+      GITHUB_OUTPUT: output, GITHUB_STEP_SUMMARY: join(dir, 'summary'),
+    })
+    return { ...result, output: readFileSync(output, 'utf8') }
   }
 
-  test('passes only when canonical CI succeeded on the exact release commit', () => {
-    expect(attest([{ head_sha: SHA, conclusion: 'success' }]).status).toBe(0)
-    expect(attest([]).status).not.toBe(0)
-    expect(attest([{ head_sha: OTHER, conclusion: 'success' }]).status).not.toBe(0)
-    expect(attest([{ head_sha: SHA, conclusion: 'failure' }, { head_sha: OTHER, conclusion: 'success' }]).status).not.toBe(0)
+  test('release identity cannot run before the shared required qualification', () => {
+    expect(workflow.jobs['release-gate'].needs).toBe('qualification')
+    expect(workflow.jobs.qualification.uses).toBe('./.github/workflows/qualify-ci.yml')
+    expect(workflow.jobs.qualification.with.commit).toBe('${{ github.sha }}')
+    expect(workflow.jobs.qualification.with.required ?? qualification.on.workflow_call.inputs.required.default).toBe(true)
   })
 
-  test('asks for main-branch CI runs of the exact release commit', () => {
-    const { calls } = attest([{ head_sha: SHA, conclusion: 'success' }])
-    expect(calls).toHaveLength(2)
-    expect(calls[0]).toContain('repos/owner/repo/actions/workflows/ci.yml/runs')
-    expect(calls[0]).toContain(`head_sha=${SHA}`)
-    expect(calls[0]).toContain('branch=main')
-    expect(calls[1]).toContain('repos/owner/repo/actions/runs/100/jobs')
-    expect(calls[1]).toContain('filter=latest')
+  test.each([true, false])('full runtime proof qualifies with required=%s', required => {
+    const result = attest({ required })
+    expect({ status: result.status, output: result.output }).toEqual({ status: 0, output: 'qualified=true\n' })
   })
 
-  test('a successful documentation-only run does not qualify a release', () => {
-    const jobs = [{ name: 'CI complete', conclusion: 'success' }, { name: 'Build portable test artifacts', conclusion: 'skipped' }]
-    expect(attest([{ head_sha: SHA, conclusion: 'success' }], jobs).status).not.toBe(0)
+  test.each(['failure', 'cancelled', 'skipped', 'missing'])('a runtime aggregate that is %s cannot qualify docs-only success', conclusion => {
+    const jobs = passing.flatMap(job => job.name === 'test' ? conclusion === 'missing' ? [] : [{ ...job, conclusion }] : [job])
+    for (const required of [true, false]) {
+      const result = attest({ required, jobs })
+      expect({ status: result.status, output: result.output }).toEqual({ status: required ? 1 : 0, output: 'qualified=false\n' })
+    }
   })
 
-  test.each(qualificationJobs.flatMap(name => ['failure', 'cancelled', 'skipped', 'missing'].map(conclusion => [name, conclusion] as const)))('%s with outcome %s cannot qualify a release', (failedName, conclusion) => {
-    const jobs = qualificationJobs.flatMap(name => name === failedName
-      ? conclusion === 'missing' ? [] : [{ name, conclusion }]
-      : [{ name, conclusion: 'success' }])
-    expect(attest([{ head_sha: SHA, conclusion: 'success' }], jobs).status).not.toBe(0)
+  test('canonical completion is required in addition to runtime proof', () => {
+    expect(attest({ jobs: passing.filter(job => job.name !== 'CI complete') }).status).not.toBe(0)
+  })
+
+  test.each([{ head_sha: 'f'.repeat(40) }, { head_branch: 'release' }, { conclusion: 'cancelled' }])('refuses mismatched run identity %j', run => {
+    expect(attest({ run }).output).toBe('qualified=false\n')
+  })
+
+  test('no successful canonical run cannot qualify', () => {
+    const result = attest({ run: null })
+    expect(result.status).not.toBe(0)
+    expect(result.output).toBe('qualified=false\n')
+  })
+
+  test.each([{ apiFailure: true }, { malformedJobs: true }])('an unreadable Actions API fails rather than reporting a normal deployment skip: %j', failure => {
+    const result = attest({ required: false, ...failure })
+    expect(result.status).not.toBe(0)
+    expect(result.output).toBe('')
   })
 })
 
@@ -401,54 +415,58 @@ cp "$MOCK_ROOT/served.tar.gz" "$output"
   })
 })
 
-// CI reports only work selected by scope; the release gate separately requires full runtime proof.
-describe('canonical CI: selected lane completion', () => {
+describe('canonical CI completion', () => {
   const complete = step('ci-complete', 'Require every selected CI lane to pass', ciWorkflow)
-  const runtime = ['artifacts', 'test', 'e2e', 'semantic', 'consumer-quickstarts'] as const
+  const runtime = step('test', 'Require every runtime lane to pass', ciWorkflow)
   type Outcome = Record<string, { result: string }>
-
-  function outcomes(full: boolean): Outcome {
-    return {
-      scope: { result: 'success' }, docs: { result: full ? 'skipped' : 'success' },
-      'expire-label-approvals': { result: 'skipped' },
-      ...Object.fromEntries(runtime.map(name => [name, { result: full ? 'success' : 'skipped' }])),
-    }
+  function selected(full: boolean): Outcome {
+    return { scope: { result: 'success' }, docs: { result: full ? 'skipped' : 'success' },
+      test: { result: full ? 'success' : 'skipped' }, 'expire-label-approvals': { result: 'skipped' } }
   }
-
   function aggregate(full: string, results: Outcome) {
     return execute(complete, tempDir(), { FULL: full, RESULTS: JSON.stringify(results) })
   }
 
-  test.each([true, false])('accepts only completed selected lanes with full=%s', full => {
-    expect(aggregate(String(full), outcomes(full)).status).toBe(0)
+  test.each([true, false])('selected checks pass with full=%s, including additional successful work', full => {
+    expect(aggregate(String(full), selected(full)).status).toBe(0)
+    const extra = selected(full)
+    extra[full ? 'docs' : 'test'] = { result: 'success' }
+    expect(aggregate(String(full), extra).status).toBe(0)
   })
 
-  test.each(runtime.flatMap(name => ['failure', 'cancelled', 'skipped', 'missing'].map(result => [name, result] as const)))('full qualification rejects %s with outcome %s', (name, result) => {
-    const results = outcomes(true)
-    if (result === 'missing') delete results[name]
-    else results[name] = { result }
-    expect(aggregate('true', results).status).not.toBe(0)
+  test.each(['failure', 'cancelled', 'skipped', 'missing'])('required work that is %s cannot pass', result => {
+    for (const full of [true, false]) {
+      const outcomes = selected(full)
+      const key = full ? 'test' : 'docs'
+      if (result === 'missing') delete outcomes[key]
+      else outcomes[key] = { result }
+      expect(aggregate(String(full), outcomes).status).not.toBe(0)
+    }
   })
 
-  test.each([...runtime])('documentation routing rejects an unexpectedly selected %s lane', name => {
-    const results = outcomes(false)
-    results[name] = { result: 'success' }
-    expect(aggregate('false', results).status).not.toBe(0)
+  test.each(['failure', 'cancelled'])('additional work that ends in %s still fails completion', result => {
+    for (const full of [true, false]) {
+      const outcomes = selected(full)
+      outcomes[full ? 'docs' : 'test'] = { result }
+      expect(aggregate(String(full), outcomes).status).not.toBe(0)
+    }
   })
 
-  test.each([true, false])('a missing scope decision cannot pass with full=%s', full => {
-    const results = outcomes(full)
-    delete results.scope
-    expect(aggregate(String(full), results).status).not.toBe(0)
+  test('a missing scope or unknown mode cannot pass', () => {
+    const outcomes = selected(true)
+    delete outcomes.scope
+    expect(aggregate('true', outcomes).status).not.toBe(0)
+    for (const mode of ['', 'unknown']) expect(aggregate(mode, selected(false)).status).not.toBe(0)
   })
 
-  test('documentation routing cannot pass without its selected docs result', () => {
-    const results = outcomes(false)
-    delete results.docs
-    expect(aggregate('false', results).status).not.toBe(0)
-  })
-
-  test.each(['', 'unknown'])('an unrecognized scope output cannot pass: %s', mode => {
-    expect(aggregate(mode, outcomes(false)).status).not.toBe(0)
+  test('full runtime proof requires every declared dependency to succeed', () => {
+    const results: Outcome = Object.fromEntries(ciWorkflow.jobs.test.needs.map((name: string) => [name, { result: 'success' }]))
+    const run = () => execute(runtime, tempDir(), { RESULTS: JSON.stringify(results) })
+    expect(run().status).toBe(0)
+    for (const name of Object.keys(results)) {
+      results[name] = { result: 'skipped' }
+      expect(run().status).not.toBe(0)
+      results[name] = { result: 'success' }
+    }
   })
 })

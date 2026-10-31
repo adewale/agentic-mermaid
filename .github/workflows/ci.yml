@@ -105,7 +105,7 @@ jobs:
           AM_EDITOR_BUILD_METAFILE: ci-editor-metafile.json
         run: |
           bun run build
-          bun -e 'import { ensureWebsiteBuilt } from "./src/__tests__/website-public-fixture.ts"; ensureWebsiteBuilt()'
+          AM_CI_ARTIFACTS=1 bun -e 'import { ensureWebsiteBuilt } from "./src/__tests__/website-public-fixture.ts"; ensureWebsiteBuilt()'
       - name: Verify the package, including private-file exclusion
         run: |
           mkdir -p skill-evals/private
@@ -120,9 +120,14 @@ jobs:
             dist/
             website/public/
             website/src/generated/
-            ci-release-artifact/
             ci-editor-metafile.json
           include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        with:
+          name: verified-test-package
+          path: ci-release-artifact/
           retention-days: 7
           if-no-files-found: error
 
@@ -494,27 +499,34 @@ jobs:
           EVENT_ACTION: ${{ github.event.action }}
         run: bun run scripts/ci/label-approval.ts expire
 
-  # Preserve the existing required check name while the work behind it runs in
-  # parallel. always() turns a failed or cancelled prerequisite into a failed
-  # aggregate gate instead of a misleading skipped check.
+  # Preserve the existing required check name. This aggregate is the single
+  # proof that every runtime dependency passed, including installed consumers.
   test:
     runs-on: ubuntu-latest
-    needs: [scope, unit, quality, mcp-conformance]
+    needs: [scope, artifacts, unit, quality, mcp-conformance, cli, e2e, semantic, consumer-quickstarts]
     if: ${{ always() && needs.scope.outputs.full == 'true' }}
-    timeout-minutes: 10
-
+    timeout-minutes: 5
     steps:
-      - name: Require every test lane to pass
-        if: ${{ always() }}
+      - name: Require every runtime lane to pass
         env:
-          UNIT_RESULT: ${{ needs.unit.result }}
-          QUALITY_RESULT: ${{ needs.quality.result }}
-          MCP_CONFORMANCE_RESULT: ${{ needs['mcp-conformance'].result }}
-        run: |
-          if [[ "$UNIT_RESULT" != "success" || "$QUALITY_RESULT" != "success" || "$MCP_CONFORMANCE_RESULT" != "success" ]]; then
-            echo "unit=$UNIT_RESULT quality=$QUALITY_RESULT mcp-conformance=$MCP_CONFORMANCE_RESULT"
-            exit 1
-          fi
+          RESULTS: ${{ toJSON(needs) }}
+        run: jq -e 'all(.[]; .result == "success")' <<< "$RESULTS"
+
+  cli:
+    name: CLI and single-binary tests
+    needs: scope
+    if: needs.scope.outputs.full == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - run: bun install --frozen-lockfile
+      - name: Run CLI and native binary contracts
+        run: cd e2e && bun test cli-smoke.e2e.test.ts cli.e2e.test.ts fresh-checkout.e2e.test.ts single-binary.e2e.test.ts --timeout 180000
 
   e2e:
     needs: [scope, artifacts]
@@ -532,7 +544,6 @@ jobs:
         shell: bash
     env:
       AM_CI_ARTIFACTS: '1'
-      AM_TEST_TARBALL: ${{ github.workspace }}/ci-release-artifact/package.tgz
     timeout-minutes: 45
     permissions:
       actions: read
@@ -542,7 +553,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [cli, dist-artifact, tarball-consumer, tarball-consumer-node22, browser, browser-site, payload]
+        suite: [dist-artifact, tarball-consumer, tarball-consumer-node22, browser, browser-site, payload]
 
     steps:
       - uses: actions/checkout@v7
@@ -593,6 +604,12 @@ jobs:
           name: portable-test-artifacts
           path: .
 
+      - uses: actions/download-artifact@v8
+        if: ${{ matrix.suite == 'tarball-consumer' || matrix.suite == 'tarball-consumer-node22' }}
+        with:
+          name: verified-test-package
+          path: ci-release-artifact
+
       - name: Install GitHub CLI for head-bound payload approvals
         if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}
         run: apt-get update && apt-get install -y gh
@@ -635,9 +652,7 @@ jobs:
 
       - name: Capture native ZenUML Looks and configured browser controls
         if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}
-        run: |
-          bun run build
-          bun run scripts/pr-assets/zenuml-evidence.ts bench-report/meaning-preservation/zenuml
+        run: bun run scripts/pr-assets/zenuml-evidence.ts bench-report/meaning-preservation/zenuml
 
       - name: Retain diagram review images
         if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}
@@ -647,14 +662,6 @@ jobs:
           path: bench-report/meaning-preservation/
           if-no-files-found: ignore
           retention-days: 30
-
-      - name: Run CLI E2E tests
-        if: ${{ matrix.suite == 'cli' }}
-        run: cd e2e && bun test cli-smoke.e2e.test.ts cli.e2e.test.ts fresh-checkout.e2e.test.ts --timeout 120000
-
-      - name: Run single-binary E2E tests
-        if: ${{ matrix.suite == 'cli' }}
-        run: cd e2e && bun test single-binary.e2e.test.ts --timeout 180000
 
       - name: Verify built artifacts and bundler compatibility
         if: ${{ matrix.suite == 'dist-artifact' }}
@@ -670,11 +677,13 @@ jobs:
 
       - name: Run tarball consumer and Getting Started commands under Node
         if: ${{ matrix.suite == 'tarball-consumer' || matrix.suite == 'tarball-consumer-node22' }}
-        # Packs, installs into a clean project, and fuzzes the installed library
+        # Installs the verified package into a clean project and fuzzes its library
         # + `am`/`agentic-mermaid-mcp` bins as spawned Node processes — the real
         # consumer path (exports resolution, files[], bin linking, native deps).
         # Executes the Getting Started shell blocks and pinned MCP config from
         # the built page and library guide against that same tarball.
+        env:
+          AM_TEST_TARBALL: ${{ github.workspace }}/ci-release-artifact/package.tgz
         run: cd e2e && bun test tarball-consumer-fuzz.e2e.test.ts --timeout 600000
 
       - name: Reject a divergent already-published immutable npm version
@@ -789,11 +798,11 @@ jobs:
           if-no-files-found: warn
 
 
-  # One required result, with explicit success/skip expectations for each mode.
+  # The selected mode must pass; additional successful checks are harmless.
   ci-complete:
     name: CI complete
     runs-on: ubuntu-latest
-    needs: [scope, docs, artifacts, test, e2e, expire-label-approvals, semantic, consumer-quickstarts]
+    needs: [scope, docs, test, expire-label-approvals]
     if: ${{ always() }}
     timeout-minutes: 5
     steps:
@@ -805,13 +814,10 @@ jobs:
           jq -e --arg full "$FULL" '
             .scope.result == "success" and
             (."expire-label-approvals".result | . == "success" or . == "skipped") and
-            (if $full == "true" then
-              .docs.result == "skipped" and
-              ([.artifacts.result, .test.result, .e2e.result, .semantic.result, ."consumer-quickstarts".result] | all(. == "success"))
-            elif $full == "false" then
-              .docs.result == "success" and
-              ([.artifacts.result, .test.result, .e2e.result, .semantic.result, ."consumer-quickstarts".result] | all(. == "skipped"))
-            else false end)
+            ([.docs.result, .test.result] | all(. == "success" or . == "skipped")) and
+            (if $full == "true" then .test.result == "success"
+             elif $full == "false" then .docs.result == "success"
+             else false end)
           ' <<< "$RESULTS"
 
   consumer-quickstarts:
@@ -832,8 +838,8 @@ jobs:
       - run: bun install --frozen-lockfile
       - uses: actions/download-artifact@v8
         with:
-          name: portable-test-artifacts
-          path: .
+          name: verified-test-package
+          path: ci-release-artifact
       - run: node scripts/ci/installed-quickstarts.mjs
         env:
           AM_TEST_TARBALL: ${{ github.workspace }}/ci-release-artifact/package.tgz

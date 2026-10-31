@@ -10,42 +10,22 @@ permissions:
   contents: read
 
 jobs:
+  qualification:
+    uses: ./.github/workflows/qualify-ci.yml
+    permissions:
+      actions: read
+      contents: read
+    with:
+      commit: ${{ github.sha }}
+
   release-gate:
-    name: Attest release identity and canonical CI
+    name: Attest release identity
+    needs: qualification
     runs-on: ubuntu-latest
     permissions:
       actions: read
       contents: read
     steps:
-      - name: Require successful canonical CI for the exact release commit
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          runs="$(gh api -X GET \
-            "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs" \
-            -f head_sha="$GITHUB_SHA" \
-            -f branch=main \
-            -f status=success \
-            -f per_page=100)"
-          eligible_runs="$(printf '%s' "$runs" | jq -r --arg sha "$GITHUB_SHA" \
-            '.workflow_runs[] | select(.head_sha == $sha and .conclusion == "success") | .id | select(type == "number" and floor == .)')"
-          # CI complete owns strict lane accounting. The successful artifact build
-          # distinguishes full qualification from a green documentation-only run.
-          required_jobs='["Build portable test artifacts", "CI complete"]'
-          for run_id in $eligible_runs; do
-            jobs="$(gh api --paginate -X GET \
-              "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs" \
-              -f filter=latest -f per_page=100)"
-            qualified="$(printf '%s' "$jobs" | jq -s --argjson required "$required_jobs" \
-              '[.[].jobs[]] as $jobs | all($required[]; . as $name | any($jobs[]; .name == $name and .conclusion == "success"))')"
-            if [ "$qualified" = true ]; then
-              echo "Release commit $GITHUB_SHA has full canonical CI qualification in run $run_id"
-              exit 0
-            fi
-          done
-          echo "No fully qualified canonical CI run exists for release commit $GITHUB_SHA on main; dispatch full CI before publishing" >&2
-          exit 1
-
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           # Release identity proves tag ancestry against origin/main.

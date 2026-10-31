@@ -1729,14 +1729,15 @@ await emit('editor/index.html', await generateEditorHtml())
 // content-addressed chunks. The browser therefore fetches only the family used
 // by the page, without a bundler, import map, or framework adapter.
 //
-// Rebuild even when the ignored artifact already exists. Otherwise a local or
-// manual site build can silently copy browser bytes from an older checkout.
+// Ordinary builds regenerate lazy bundles. CI can consume bundles produced in
+// this same checkout; --check still regenerates independently.
 async function emitLazyBrowserDemo() {
   const artifactDirectory = join(ROOT, 'dist', 'browser-lazy')
   const artifact = join(artifactDirectory, 'index.js')
-  const built = Bun.spawnSync(['bun', 'run', 'build:browser:lazy'], { cwd: ROOT, stdout: 'pipe', stderr: 'pipe' })
-  if (!built.success || !existsSync(artifact)) {
-    throw new Error(`browser demo needs dist/browser-lazy/index.js; \`bun run build:browser:lazy\` failed:\n${built.stderr}`)
+  const built = process.env.AM_CI_ARTIFACTS === '1' && !CHECK ? null
+    : Bun.spawnSync(['bun', 'run', 'build:browser:lazy'], { cwd: ROOT, stdout: 'pipe', stderr: 'pipe' })
+  if ((built && !built.success) || !existsSync(artifact)) {
+    throw new Error(`browser demo needs dist/browser-lazy/index.js; \`bun run build:browser:lazy\` failed:\n${built?.stderr ?? 'missing transferred artifact'}`)
   }
   const script = await Bun.file(artifact).text()
   if (!script.includes('renderMermaidSVGAsync')) {

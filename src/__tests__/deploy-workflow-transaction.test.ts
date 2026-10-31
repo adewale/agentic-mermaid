@@ -19,7 +19,7 @@ const temp = useTempDirs()
 const REPO = join(import.meta.dir, '..', '..')
 const WORKFLOW = parseYaml(readFileSync(join(REPO, '.github', 'workflows', 'deploy-cloudflare.yml'), 'utf8')) as {
   concurrency: Record<string, unknown>
-  jobs: { deploy: { permissions: Record<string, string>; env: Record<string, string>; steps: Step[] } }
+  jobs: { qualification: { uses: string; with: Record<string, string> }; deploy: { needs: string; if: string; permissions: Record<string, string>; env: Record<string, string>; steps: Step[] } }
 }
 const JOB = WORKFLOW.jobs.deploy
 const STEPS = JOB.steps
@@ -60,7 +60,7 @@ function guardAllows(condition: string | undefined, context: { event: string; ou
   const expression = (condition ?? 'success()').trim().replace(/^\$\{\{([\s\S]*)\}\}$/, '$1')
   if (!/\b(?:always|success|failure|cancelled)\(\)/.test(expression) && status !== 'success') return false
   const js = expression
-    .replace(/steps\.([\w-]+)\.outputs\.([\w-]+)/g, (_, id: string, key: string) => `(outputs[${JSON.stringify(id)}]?.[${JSON.stringify(key)}] ?? '')`)
+    .replace(/(?:steps|needs)\.([\w-]+)\.outputs\.([\w-]+)/g, (_, id: string, key: string) => `(outputs[${JSON.stringify(id)}]?.[${JSON.stringify(key)}] ?? '')`)
     .replace(/github\.event_name/g, 'event')
     .replace(/\balways\(\)/g, 'true')
     .replace(/\bsuccess\(\)/g, String(status === 'success'))
@@ -220,7 +220,6 @@ describe('deploy workflow shape', () => {
 describe('deploy workflow ordering and guards', () => {
   test('production state changes only after identity gates, and rollback is armed before the first change', () => {
     const order = [
-      'Require full canonical CI qualification',
       'Check Cloudflare deployment secrets',
       'Require the exact current main commit',
       'Require the site\'s exact package version on npm',
@@ -304,79 +303,15 @@ describe('deploy workflow ordering and guards', () => {
   })
 })
 
-describe('deploy workflow canonical qualification', () => {
-  const QUALIFY = 'Require full canonical CI qualification'
-  const requiredJobs = ['Build portable test artifacts', 'CI complete']
-  type Job = { name: string; conclusion: string }
-
-  function qualify(event: string, options: { jobs?: Job[]; runOverrides?: Partial<{ head_sha: string; head_branch: string; conclusion: string }>; apiFailure?: boolean } = {}) {
-    const run = { id: 42, head_sha: SHA, head_branch: 'main', event: 'workflow_dispatch', conclusion: 'success', ...options.runOverrides }
-    return runStep(QUALIFY, {
-      env: { DEPLOY_EVENT_NAME: event },
-      stubs: { gh: options.apiFailure ? 'exit 17' : `case "$*" in
-        *'/jobs'*) cat "$MOCK_ROOT/jobs.json" ;;
-        *) cat "$MOCK_ROOT/runs.json" ;;
-      esac` },
-      files: {
-        'runs.json': JSON.stringify({ workflow_runs: [run] }),
-        'jobs.json': JSON.stringify({ jobs: options.jobs ?? requiredJobs.map(name => ({ name, conclusion: 'success' })) }),
-      },
-    })
+test('deployment is gated by shared qualification before checkout, credentials or rollback', () => {
+  expect(JOB.needs).toBe('qualification')
+  expect(WORKFLOW.jobs.qualification.uses).toBe('./.github/workflows/qualify-ci.yml')
+  expect(WORKFLOW.jobs.qualification.with.required).toBe("${{ github.event_name == 'workflow_dispatch' }}")
+  expect(WORKFLOW.jobs.qualification.with.commit).toBe(JOB.env.EXPECTED_SHA)
+  for (const qualified of ['', 'false', 'true']) {
+    expect(guardAllows(JOB.if, { event: 'workflow_run', outputs: { qualification: { qualified } } })).toBe(qualified === 'true')
   }
-
-  function noDeployment(result: StepRun, event: string) {
-    const enabled = STEPS.slice(stepIndex(QUALIFY) + 1).filter(candidate => guardAllows(candidate.if, {
-      event, outputs: { 'runtime-qualification': result.outputs }, jobStatus: result.status === 0 ? 'success' : 'failure',
-    }))
-    expect(enabled.map(candidate => candidate.name ?? candidate.uses)).toEqual([])
-  }
-
-  test.each(['workflow_run', 'workflow_dispatch'])('full canonical CI qualification enables %s before credentials', event => {
-    const result = qualify(event)
-    expect({ status: result.status, outputs: result.outputs }).toEqual({ status: 0, outputs: { qualified: 'true' } })
-    const query = result.calls.find(call => call.startsWith('gh api -X GET'))!
-    for (const filter of [`-f head_sha=${SHA}`, '-f branch=main', '-f status=success']) expect(query).toContain(filter)
-    expect(query).toContain('repos/adewale/agentic-mermaid/actions/workflows/ci.yml/runs')
-    expect(result.calls.find(call => call.includes('/actions/runs/42/jobs'))).toContain('filter=latest')
-    expect(guardAllows(step('Check Cloudflare deployment secrets').if, { event, outputs: { 'runtime-qualification': result.outputs } })).toBe(true)
-  })
-
-  test('documentation-only automatic success skips honestly before credentials, state changes or cleanup', () => {
-    const result = qualify('workflow_run', { jobs: [
-      { name: 'CI complete', conclusion: 'success' }, { name: 'Build portable test artifacts', conclusion: 'skipped' },
-    ] })
-    expect({ status: result.status, outputs: result.outputs }).toEqual({ status: 0, outputs: { qualified: 'false' } })
-    expect(result.summary).toContain('### Cloudflare deploy skipped')
-    noDeployment(result, 'workflow_run')
-  })
-
-  test.each(requiredJobs.flatMap(name => ['failure', 'cancelled', 'skipped', 'missing'].map(conclusion => [name, conclusion] as const)))('%s with outcome %s cannot authorize deployment', (failedName, conclusion) => {
-    const jobs = requiredJobs.flatMap(name => name === failedName
-      ? conclusion === 'missing' ? [] : [{ name, conclusion }]
-      : [{ name, conclusion: 'success' }])
-    for (const event of ['workflow_run', 'workflow_dispatch']) {
-      const result = qualify(event, { jobs })
-      expect({ status: result.status, outputs: result.outputs }).toEqual({ status: event === 'workflow_run' ? 0 : 1, outputs: { qualified: 'false' } })
-      if (event === 'workflow_dispatch') expect(result.stdout).toContain('Dispatch full ci.yml on main')
-      noDeployment(result, event)
-    }
-  })
-
-  test.each(['workflow_run', 'workflow_dispatch'])('mismatched canonical run identity cannot authorize %s', event => {
-    for (const runOverrides of [{ head_sha: 'f'.repeat(40) }, { head_branch: 'release' }, { conclusion: 'cancelled' }]) {
-      const result = qualify(event, { runOverrides })
-      expect({ status: result.status, outputs: result.outputs }).toEqual({ status: event === 'workflow_run' ? 0 : 1, outputs: { qualified: 'false' } })
-      expect(result.calls).toHaveLength(1)
-      noDeployment(result, event)
-    }
-  })
-
-  test('an unavailable Actions API fails closed instead of claiming an unqualified skip', () => {
-    const result = qualify('workflow_run', { apiFailure: true })
-    expect(result.status).not.toBe(0)
-    expect(result.outputs).toEqual({})
-    noDeployment(result, 'workflow_run')
-  })
+  expect(guardAllows(JOB.if, { event: 'workflow_run', outputs: { qualification: { qualified: 'true' } }, jobStatus: 'failure' })).toBe(false)
 })
 
 describe('deploy workflow gates (executed with stubs)', () => {

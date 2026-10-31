@@ -40,7 +40,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  qualification:
     # Deploy on a manual dispatch, successful main CI, or a successful publish
     # (release-triggered runs may report the release tag as head_branch).
     if: >-
@@ -52,6 +52,17 @@ jobs:
          github.event.workflow_run.head_branch == 'main') ||
         (github.event.workflow_run.name == 'Publish to npm' &&
          github.event.workflow_run.event == 'release')))
+    uses: ./.github/workflows/qualify-ci.yml
+    permissions:
+      actions: read
+      contents: read
+    with:
+      commit: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+      required: ${{ github.event_name == 'workflow_dispatch' }}
+
+  deploy:
+    needs: qualification
+    if: needs.qualification.outputs.qualified == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -66,50 +77,8 @@ jobs:
       # 10 requests/minute leaves substantial rolling-window WAF headroom.
       MCP_REQUEST_INTERVAL_SECONDS: '6'
     steps:
-      - name: Require full canonical CI qualification
-        id: runtime-qualification
-        timeout-minutes: 2
-        env:
-          GH_TOKEN: ${{ github.token }}
-          DEPLOY_EVENT_NAME: ${{ github.event_name }}
-        run: |
-          runs="$(timeout 20s gh api -X GET \
-            "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs" \
-            -f head_sha="$EXPECTED_SHA" -f branch=main -f status=success -f per_page=100)"
-          eligible_runs="$(jq -r --arg sha "$EXPECTED_SHA" '
-            .workflow_runs[] | select(.head_sha == $sha and .head_branch == "main" and .conclusion == "success")
-            | .id | select(type == "number" and floor == .)
-          ' <<< "$runs")"
-          # CI complete owns strict selected-lane accounting; artifact success
-          # distinguishes full qualification from documentation-only success.
-          required_jobs='["Build portable test artifacts", "CI complete"]'
-          for run_id in $eligible_runs; do
-            jobs="$(timeout 20s gh api --paginate -X GET \
-              "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs" -f filter=latest -f per_page=100)"
-            qualified="$(printf '%s' "$jobs" | jq -s --argjson required "$required_jobs" \
-              '[.[].jobs[]] as $jobs | all($required[]; . as $name | any($jobs[]; .name == $name and .conclusion == "success"))')"
-            if [[ "$qualified" == true ]]; then
-              echo "qualified=true" >> "$GITHUB_OUTPUT"
-              echo "ok   full canonical CI passed for $EXPECTED_SHA in run $run_id"
-              exit 0
-            fi
-          done
-          echo "qualified=false" >> "$GITHUB_OUTPUT"
-          if [[ "$DEPLOY_EVENT_NAME" == workflow_dispatch ]]; then
-            echo "::error title=Full canonical CI proof missing::Dispatch full ci.yml on main for $EXPECTED_SHA before manually deploying."
-            exit 1
-          fi
-          echo "::notice title=Cloudflare deploy skipped::No full canonical CI qualification exists for $EXPECTED_SHA; documentation-only success does not deploy."
-          {
-            echo "### Cloudflare deploy skipped"
-            echo ""
-            echo "No full canonical CI qualification exists for commit $EXPECTED_SHA."
-            echo "Documentation-only CI does not authorize a deployment."
-          } >> "$GITHUB_STEP_SUMMARY"
-
       - name: Check Cloudflare deployment secrets
         id: cloudflare-secrets
-        if: steps.runtime-qualification.outputs.qualified == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

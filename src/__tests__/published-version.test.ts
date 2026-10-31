@@ -105,9 +105,6 @@ describe('premerge immutable npm version CLI', () => {
     const local = fixture()
     const result = local.run()
     expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' })
-    expect(result.calls[0]).toBe('view agentic-mermaid@1.2.3 version --json')
-    expect(result.calls[1]).toStartWith('pack agentic-mermaid@1.2.3 --ignore-scripts --json ')
-    expect(result.calls[2]).toStartWith('pack --ignore-scripts --json ')
     expect(existsSync(join(local.root, 'lifecycle-ran'))).toBe(false)
     expect(existsSync(join(local.root, 'dist'))).toBe(false)
     expect(result.temporary).toEqual([])
@@ -188,14 +185,13 @@ describe('premerge immutable npm version CLI', () => {
     expect(result.calls).toEqual(['view agentic-mermaid@1.2.3 version --json'])
   })
 
-  test.each([false, true])('full mode retains the existing build and packing order when changed=%s', changed => {
+  test.each([false, true])('full mode compares package contents and preserves the existing build when changed=%s', changed => {
     const local = fixture({ full: true })
     if (changed) writeFileSync(join(local.root, 'dist', 'index.js'), 'export const version = "changed"\n')
     const result = local.run()
     expect(result.status === 0).toBe(!changed)
-    expect(result.calls[1]).toStartWith('pack --ignore-scripts --json ')
-    expect(result.calls[2]).toStartWith('pack agentic-mermaid@1.2.3 --ignore-scripts --json ')
     expect(readFileSync(join(local.root, 'dist', 'index.js'), 'utf8')).toContain(changed ? 'changed' : '1.2.3')
+    expect(existsSync(join(local.root, 'lifecycle-ran'))).toBe(false)
     expect(result.temporary).toEqual([])
   })
 })
