@@ -43,6 +43,13 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- `RENDER_OPTION_NOT_APPLICABLE` now names the families an option really
+  affects. `padding` is consumed by Requirement, Block, Packet, Kanban and
+  Event Modeling, `nodeSpacing` by Event Modeling and `layerSpacing` by
+  Requirement, which no longer warn; `shadow` draws on C4 and ZenUML cards
+  (no warning) but on no XYChart, Pie, Quadrant, Gantt, Mindmap or GitGraph
+  shape, which now warn instead of silently ignoring it.
+
 - State ids holding a combining mark or a non-ASCII digit (`é` written
   decomposed, `x٣`, `一¼`) and ER entity names holding any non-ASCII
   character (`éx`, `a😀`, `a¼`) are read, drawn and edited like other names.

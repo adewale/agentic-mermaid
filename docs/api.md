@@ -291,14 +291,14 @@ for precedence and custom looks. This table is generated from runtime descriptor
 | `border` | `string` | derived | Node and group border color. |
 | `font` | `string` | `Inter` | CSS font family or stack. |
 | `style` | `StyleInput \| StyleInput[]` | `crisp` | Registered Style/Palette name, inline StyleSpec, or left-to-right stack. |
-| `padding` | `number` | `40` | Canvas padding in SVG user units. Built-in families: flowchart, state, architecture, c4. Not consumed by terminal output. |
-| `nodeSpacing` | `number` | `24` | Horizontal spacing between sibling nodes. Built-in families: flowchart, state, class, er, architecture, c4. Not consumed by terminal output. |
-| `layerSpacing` | `number` | `40` | Vertical spacing between graph layers. Built-in families: flowchart, state, class, er, architecture, c4. Not consumed by terminal output. |
+| `padding` | `number` | `40` | Canvas padding in SVG user units. Built-in families: flowchart, state, architecture, c4, requirement, block, packet, kanban, eventmodeling. Not consumed by terminal output. |
+| `nodeSpacing` | `number` | `24` | Horizontal spacing between sibling nodes. Built-in families: flowchart, state, class, er, architecture, c4, eventmodeling. Not consumed by terminal output. |
+| `layerSpacing` | `number` | `40` | Vertical spacing between graph layers. Built-in families: flowchart, state, class, er, architecture, c4, requirement. Not consumed by terminal output. |
 | `wrappingWidth` | `number` | unset | Flowchart measured-label wrapping budget in pixels. Built-in families: flowchart. Not consumed by terminal output. |
 | `componentSpacing` | `number` | extension-defined | Spacing between disconnected graph components for compatible extension families; no built-in family currently consumes it. Built-in families: none; extension-defined. Not consumed by terminal output. |
 | `transparent` | `boolean` | `false` | Omit the painted SVG canvas background. |
 | `interactive` | `boolean` | `false` | Enable hover tooltips for supported chart data points. Built-in families: xychart, pie, quadrant. |
-| `shadow` | `boolean` | `false` | Paint explicit drop shadows on node shapes. Built-in families: flowchart, state, sequence, timeline, class, er, journey, xychart, pie, quadrant, gantt, mindmap, gitgraph, sankey. |
+| `shadow` | `boolean` | `false` | Paint explicit drop shadows on node shapes. Built-in families: flowchart, state, sequence, timeline, class, er, journey, sankey, c4, zenuml. |
 | `class` | `{ hierarchicalNamespaces?: boolean }` | `hierarchicalNamespaces: true` | Class-diagram rendering controls. Built-in families: class. Not consumed by terminal output. |
 | `kanban` | `{ maxWidth?: number }` | `maxWidth`: unset | Opt-in Kanban column wrapping with readable column widths. Built-in families: kanban. Not consumed by terminal output. |
 | `pie` | `{ maxWidth?: number }` | `maxWidth`: unset | Opt-in Pie title and legend fitting without shrinking typography. Built-in families: pie. Not consumed by terminal output. |

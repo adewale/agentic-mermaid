@@ -71,6 +71,25 @@ const FAMILY_SCOPED_OPTION_VALUES = {
   ganttToday: '2026-01-08',
 } as const satisfies Partial<Record<SharedRenderOptionField, unknown>>
 
+// Inputs on which a scoped option visibly acts, where the family's example is
+// too small to show it (or the probe value is the default). Keyed field/family.
+const OPTION_EFFECT_PROBES: Readonly<Record<string, { source?: string; value?: unknown }>> = {
+  'layoutHints/state': { source: 'stateDiagram-v2\n  [*] --> A\n  [*] --> B\n  A --> C\n  B --> C', value: { adjacent: [['B', 'A']] } },
+  'graphLayout/flowchart': { source: 'flowchart TD\n  A --> B\n  A --> C\n  B --> D\n  C --> D', value: { backend: 'agentic' } },
+  'graphLayout/state': { source: 'stateDiagram-v2\n  [*] --> A\n  A --> B\n  A --> C\n  B --> D\n  C --> D', value: { backend: 'agentic' } },
+  'graphLayout/class': { source: 'classDiagram\n  A <|-- B\n  A <|-- C\n  B --> D\n  C --> D', value: { backend: 'agentic' } },
+  'graphLayout/er': { source: 'erDiagram\n  A ||--o{ B : x\n  A ||--o{ C : y\n  B ||--o{ D : z\n  C ||--o{ D : w', value: { backend: 'agentic' } },
+  'graphLayout/requirement': { source: 'requirementDiagram\n  requirement a {\n    id: 1\n  }\n  element b {\n  }\n  element c {\n  }\n  b - satisfies -> a\n  c - satisfies -> a', value: { backend: 'agentic' } },
+  'graphLayout/architecture': { source: 'architecture-beta\n  service a(server)[A]\n  service b(server)[B]\n  service c(server)[C]\n  a:R --> L:b\n  a:B --> T:c', value: { backend: 'agentic' } },
+  'nodeSpacing/state': { source: 'stateDiagram-v2\n  [*] --> A\n  [*] --> B\n  A --> C\n  B --> C' },
+  'nodeSpacing/er': { source: 'erDiagram\n  A ||--o{ B : x\n  A ||--o{ C : y' },
+  'nodeSpacing/c4': { source: 'C4Context\n  Person(a, "A")\n  System(b, "B")\n  System(c, "C")\n  Rel(a, b, "uses")\n  Rel(a, c, "uses")', value: 177 },
+  'layerSpacing/c4': { source: `C4Context\n${Array.from({ length: 6 }, (_, i) => `  System(s${i}, "S${i}")`).join('\n')}`, value: 191 },
+  'wrappingWidth/flowchart': { source: 'flowchart TD\n  A["a fairly long label that needs wrapping in a narrow budget"] --> B', value: 60 },
+  'class/class': { source: 'classDiagram\n  namespace Outer.Inner {\n    class A\n  }\n  namespace Outer {\n    class B\n  }' },
+  'kanban/kanban': { source: `kanban\n${['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon'].map((column, i) => `  c${i}[${column}]\n    t${i}[task ${i}]`).join('\n')}`, value: { maxWidth: 400 } },
+}
+
 describe('Section A canonical render contracts', () => {
   test('deferred evidence captures mutable accessors once and rejects invalid data immediately', () => {
     const data = { label: 'captured' }
@@ -92,6 +111,43 @@ describe('Section A canonical render contracts', () => {
     expect(schema.additionalProperties).toBe(false)
     expect(Object.keys(schema.properties)).toEqual(expect.arrayContaining(['style', 'mermaidConfig', 'security', 'idPrefix']))
   })
+
+  test('a family-scoped option changes exactly the families it names as applicable', () => {
+    // The descriptor is the applicability authority; this checks it against
+    // what renderers do, so it cannot drift either way: a listed family must
+    // draw differently with the option, an unlisted one must draw identically.
+    // Shadow is one stylesheet rule for every family; it draws only where its
+    // selectors match an element.
+    const shadowReachesAnElement = (drawn: string): boolean => {
+      const selectors = /([^{}]*)\{\s*filter:\s*url\(#bm-shadow\)/.exec(drawn)?.[1] ?? ''
+      const body = drawn.replace(/<style>[\s\S]*?<\/style>/, '')
+      return selectors.split(',').map(selector => selector.trim().replace(/^\.am-scope\s+/, '')).some(selector => {
+        const match = /^\.([\w-]+)(?:\[([\w-]+)="([^"]*)"\])?$/.exec(selector)
+        if (!match) return false
+        const [, cls, attr, attrValue] = match
+        return [...body.matchAll(/<[a-z]+\b[^>]*\sclass="([^"]*)"[^>]*>/g)].some(([tag, classes]) =>
+          classes!.split(/\s+/).includes(cls!) && (!attr || tag.includes(`${attr}="${attrValue}"`)))
+      })
+    }
+    // The style scope token and generated ids digest the options themselves;
+    // only what the option draws counts as a change.
+    const svg = (source: string, options: RenderOptions) => renderMermaidSVGWithReceipt(source, options).svg
+      .replace(/\bam-[a-z0-9]+\b/g, 'am-scope').replace(/\b([a-z]+)-[a-z0-9]{6}-(title|desc)\b/g, '$1-id-$2')
+    const mismatches: string[] = []
+    for (const field of SHARED_RENDER_OPTION_FIELDS) {
+      const descriptor = SHARED_RENDER_OPTION_FIELD_DESCRIPTORS[field]
+      if (!('applicableBuiltinFamilies' in descriptor)) continue
+      const applicable: readonly DiagramKind[] = descriptor.applicableBuiltinFamilies
+      for (const family of BUILTIN_FAMILY_METADATA) {
+        const probe = OPTION_EFFECT_PROBES[`${field}/${family.id}`] ?? {}
+        const source = probe.source ?? family.example
+        const value = 'value' in probe ? probe.value : FAMILY_SCOPED_OPTION_VALUES[field as keyof typeof FAMILY_SCOPED_OPTION_VALUES]
+        const changed = field === 'shadow' ? shadowReachesAnElement(svg(source, { shadow: true })) : svg(source, { [field]: value } as RenderOptions) !== svg(source, {})
+        if (changed !== applicable.includes(family.id)) mismatches.push(`${field}/${family.id}: ${changed ? 'changes output but is not listed' : 'listed but changes nothing'}`)
+      }
+    }
+    expect(mismatches).toEqual([])
+  }, 120_000)
 
   test('editing an exported schema cannot change runtime admission or later exports', () => {
     const exported = sharedRenderOptionsJsonSchema() as {
