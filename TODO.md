@@ -16,8 +16,7 @@ acceptance conditions still fail. Plans supply design context, never additional
 queues. Retired IDs are not reused.
 Completed publication and production verification are recorded in the
 [release record](docs/project/archive/releases.md), including retired release
-and agent-workflow tasks. AGENT-1 consolidation is in Unreleased source; its operating-guide and installed
-consumer evidence is in the [test audit](docs/project/testing-audit-2026-10-31.md).
+and agent-workflow tasks. AGENT-1 consolidation is in Unreleased source;
 AGENT-2 remains deferred to 0.6.0. Source work does not establish publication.
 CONS-43 is retired: `src/layout/passes/index.ts` contains only re-exports;
 cohesive implementations already live in their owning pass modules. Further
