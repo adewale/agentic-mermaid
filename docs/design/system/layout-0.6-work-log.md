@@ -5638,3 +5638,68 @@ against H4 and H5 statuses separately. The old H5 unavailable signal9 cell and
 six-call diagnostic remain separate. Do not retry or open replacement24. Then
 follow CI for the exact final pushed head; six old capacities and delivery remain
 open. The fixed campaign end2026-10-31T12:03:00Z is unchanged.
+
+
+### 31 October00:18UTC: completed full replay and a frozen State interaction probe
+
+Fresh replay at published09098b8ef5d2517ff90ddbc642baa7c69f4c41ea (production
+through e7f5095db9b6fc4864c49d142ab60111e881d6a0) completes all33sources/
+66unique engine cells, with0failed workers or unattempted cells. All66public
+models and124returned SVGs are direct-byte exact H4. All eight strict refusals
+and15normal U outcomes remain enrolled. Source/options/dependency guards, all
+11font-file comparisons to H4 Git blobs and owned-child cleanup pass. An
+independent read-only agent recomputed enrollment and accounting without a
+second product run. Evidence: final-v8-correctness-replay/{SUMMARY.json,CELLS.jsonl}.
+
+| Existing cohort | OUR agentic strict P/refusal; normal P/U | OUR ELK strict P/refusal; normal P/U |
+| --- | --- | --- |
+| Earlier20 |17/3;14/6 |17/3;13/7 |
+| Original7 |7/0;7/0 |7/0;7/0 |
+| Authored6 |5/1;5/1 |5/1;5/1 |
+| Total33per backend |29/4;26/7 |29/4;25/8 |
+
+These are scoped paint-certification counts for our shared drawing/proof stack,
+not independent public Mermaid/Pele results or full correctness/aesthetic parity.
+The repaired agentic historical19 normal result is P399989; our ELK counterpart
+remains U400000. No previously completed H5 P becomes non-P. Availability and
+paint status agree across65comparable H5 cells/130phases;118work objects agree
+and12recorded work changes remain. H5 model/SVG comparison is transitive through
+H4, not a claim of direct H5 comparison.
+
+H5's historical15/agentic exit247/SIG9 remains unavailable in its original
+record. The new replay separately completes it: strict P293839, normal P350150,
+with actual model/SVG exact H4. This is fresh availability evidence, not an
+attributed fix or a rewrite of the old failure. There were no retries, new
+raster observations, public peer calls, timing measurements or holdout access.
+
+One additional independently frozen State source was authored before outputs:
+four ordinary leaves including alias __start_0, a nested Group/X, distinct root/
+nested initial/final pseudostates, reciprocal plus parallel transitions, a
+container-target edge and a right-side B note. Four fresh normal cells at09098
+(Native/Scene x agentic/ELK) all return public models and actual SVGs. All models
+are equal; Native/Scene SVGs are whole-byte equal within each backend. Authored
+identities/parents, nine transition occurrences, parallel captions, scoped
+pseudostates and note ownership survive. Actual carrier endpoints meet their
+owned visible outlines within0.002 SVG units, not merely stored layout boxes.
+
+Bundled Inter/Resvg removal controls find positive actual contribution for all
+44text and36arrowhead observations. A separate read-only reviewer parses the
+four retained final SVGs: the note's actual rectangle is right of B by18units
+agentic/91.0915ELK, with matching vertical center; actual Group outlines contain
+X and nested pseudostates while the other leaves/root pseudostates remain
+outside. All nine carriers remain distinct. Positive whole-text contribution
+does not prove every character is readable or exclude partial occlusion.
+Evidence: state-semantic-probe-09098/{source.mmd,EXPECTED.json,CONCLUSION.json,
+CELLS.jsonl} and compressed actual outputs,49509bytes. This is one selected
+interaction source, not a general family or public-peer comparison. Existing
+State identity/parallel-edge owners already protect the corresponding behavior;
+no duplicate test or artificial bug fix was added after finding no counterexample.
+
+The five requested Sol6.1High agents completed disjoint replay-accounting,
+identity, probe, final-geometry reviews and CI preparation. Subsequent work
+continues on specific unresolved capacity/authority/rich-text/meaning questions.
+Six original capacity failures, delivery budgets, broader Unicode/rich-text/
+meaning coverage and current-Main combined qualification remain open. Exact
+new-head CI must run after this documentation checkpoint; old d45 CI does not
+qualify09098. Replacement24 stays sealed; no human-study gate was introduced.
+The fixed campaign end remains2026-10-31T12:03:00Z.
