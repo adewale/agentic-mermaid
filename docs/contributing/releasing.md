@@ -9,8 +9,8 @@ links their proofs for completed releases.
 
 ## Release checklist
 
-1. **Prepare the source version.** Run `bun run release:prepare 0.5.5`, replacing
-   the version with the intended next release. This updates the package, runtime
+1. **Prepare the source version.** Choose `release_version`, then run
+   `bun run release:prepare "$release_version"`. This updates the package, runtime
    and MCP versions together and runs the existing browser-family, doc-block
    and agent-document generators. Without `--date`, notes stay under Unreleased.
    The command prints changed paths. It performs no Git writes, network requests,
@@ -21,37 +21,52 @@ links their proofs for completed releases.
    Generate facts with `bun run doc-blocks`; retain dated research measurements
    as historical evidence. Inspect affected renders for visual releases.
 3. **Finalize the notes.** For example, run
-   `bun run release:prepare 0.5.5 --date 2026-10-30` with the intended version and
-   date. This rolls Unreleased into a dated section, opens a fresh Unreleased,
-   and refreshes the generated API version paragraph. Review the resulting diff.
+   `bun run release:prepare "$release_version" --date "$release_date"` with
+   the intended version and date (`YYYY-MM-DD`). This rolls Unreleased into a
+   dated section, opens a fresh Unreleased, and refreshes the generated API version paragraph. Review the resulting diff.
 4. **Land the reviewed change and finish CI.** Use the authorized repository
-   workflow. Wait for canonical `ci.yml` success on the final main SHA. Recheck
-   main before tagging. Semantic, browser, packed-consumer, type and quality
-   gates remain required. Benchmarks run separately and do not authorize publication.
+   workflow. Require full canonical `ci.yml` qualification on the final main SHA;
+   a green documentation-only run is insufficient. If scope routing skipped runtime
+   checks, dispatch `ci.yml` on `main` to qualify that exact commit. Recheck main
+   before tagging. Semantic, browser, packed-consumer, type and quality gates remain
+   required. Benchmarks run separately and do not authorize publication.
 5. **Publish the GitHub Release.** Use tag `v<version>` on that exact validated
    commit. This explicitly starts the publication workflow. It runs macOS Intel
    and Windows rendering contracts, builds and verifies one tarball, publishes
    those exact bytes to npm, then publishes its `server.json` to the MCP Registry.
-6. **Verify public availability.** Query the exact version with
-   `npm view agentic-mermaid@0.5.5 version`, then install it into a scratch
-   consumer and run the bins and documented examples. An accepted npm publish
-   can remain in processing for several minutes. If MCP registration reports
-   that npm cannot find the new version, wait for public availability and rerun
-   only the failed MCP job. Retain the original verified artifact.
+6. **Confirm publication.** Follow the publication workflow to completion. It
+   waits for public npm metadata matching the retained tarball's exact version
+   and SHA-512 integrity before registering with MCP. Temporary absence or network
+   failures retry within a bounded window; conflicting or malformed metadata fails
+   immediately. If availability never converges, retry only the failed MCP job
+   using the retained artifact. Install the public version into a scratch consumer
+   and run the bins and documented examples.
 7. **Verify production.** Require actual upload, candidate probes, promotion
    and both production checks in the deployment run; a green skipped run is
    insufficient. Confirm the expected commit/package identity and a live MCP
    operation. The workflow compares shipped browser artifacts with npm before
    upload, tests the candidate at zero traffic, and verifies 100% traffic after
    promotion. Failure after attachment reaches verification or rollback.
-8. **Record completion.** Add the release SHA and CI, npm/MCP publication and
-   production proof links to [the release record](../project/archive/releases.md).
-   Remove the completed release task from [TODO.md](../../TODO.md). Reconcile
-   repository-only [directory records](../project/mcp-directory-listings.md)
-   when their publication facts change. These operational records stay outside
-   the npm package, so completion bookkeeping does not alter published bytes.
+8. **Record completion once.** Add the release SHA and CI, npm/MCP publication,
+   consumer and production proof links to [the release record](../project/archive/releases.md).
+   Retire completed backlog tasks in [TODO.md](../../TODO.md), linking to that record.
+   Directory records keep submission and ownership facts; they reference the release
+   record for publication status rather than repeating versions and workflow links.
+   These operational records stay outside the npm package.
+
+Documentation-only CI success does not deploy. For a website-only update at an
+already published version, dispatch full `ci.yml` on current main, wait for its
+success, then dispatch `deploy-cloudflare.yml`; this does not publish a release.
+Publishing and deployment use the same read-only qualification workflow. It
+requires successful `test` (all runtime dependencies) and `CI complete` jobs on
+the exact main commit before either workflow reaches checkout or credentials.
 
 A documentation change inside the npm package still needs a new version.
+Documentation-only CI checks the same npm package identity with
+`published-version.ts --docs-only`, reusing the published runtime instead of
+building it. This mode requires `dist` to be absent and composes package trees
+inside isolated scratch; it never writes or removes a working build. Run it
+before documentation checks that build website assets.
 Published versions are immutable; keep the package-content guard intact.
 
 ## Publication and recovery boundary

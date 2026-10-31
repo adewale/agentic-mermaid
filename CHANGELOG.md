@@ -4,6 +4,12 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+### Changed
+
+- Use one agent operating guide across the CLI, installed skills and website.
+  `am init-agent` includes an offline copy and pins MCP configuration to the
+  installed package version.
+
 ## 0.5.5 — 2026-10-31
 
 ### Changed

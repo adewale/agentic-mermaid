@@ -1,8 +1,8 @@
 # Verified releases
 
-Record completion after package publication and production verification.
-Source preparation alone is not a completed release. Dated evidence below
-does not claim to describe a later deployment.
+Completed deliveries are recorded below. Follow the
+[release checklist](../../contributing/releasing.md) when adding an entry.
+Source preparation alone does not establish publication or deployment.
 
 ## 0.5.5 — 2026-10-31
 

@@ -25,11 +25,11 @@ if (!NODE) throw new Error('dist artifact gate requires a plain Node executable'
 const temp = useTempDirs('am-dist-')
 
 beforeAll(() => {
-  const build = spawnSync('bun', ['run', 'build'], { cwd: REPO, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
+  const build = process.env.AM_CI_ARTIFACTS === '1' ? null : spawnSync('bun', ['run', 'build'], { cwd: REPO, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
   // A broken build must fail loudly, not skip — that is exactly what shipping
   // would break.
-  if (build.status !== 0 || !existsSync(DIST_CORE)) {
-    throw new Error(`\`bun run build\` failed (status ${build.status}); built artifact contracts cannot run.\n${build.stderr ?? ''}`)
+  if ((build && build.status !== 0) || !existsSync(DIST_CORE)) {
+    throw new Error(`Portable build is unavailable (status ${build?.status ?? 'missing transferred artifact'}); built artifact contracts cannot run.\n${build?.stderr ?? ''}`)
   }
 }, BUILD_TIMEOUT_MS)
 

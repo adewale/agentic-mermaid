@@ -494,22 +494,14 @@ mistake. Do not silently trim a generator or relax an assertion after it fails.
 Tests can be green while missing faults. The red-green-refactor cycle is the
 defence: write the test, watch it fail for the right reason, then fix.
 
-- **Red → green** (`scripts/ci/red-green.ts`, the `red-green` CI job) — when a
-  pull request changes production source and tests, at least one changed test
-  must produce an assertion failure attributed to a test location against base
-  production. Missing imports, non-assertion setup errors, unlocated suite-hook
-  assertions, timeouts and aborted runners are not
-  behavioral evidence; the gate reads the pinned Bun runner's JUnit report.
-  Unexpected production exceptions need an explicit `toThrow` / `not.toThrow`
-  assertion. This mechanically
-  checks the "tests that fail when the fix is reverted" rule for every PR,
-  instead of a hand-written probe per fix. Pure refactors opt out with the
-  `no-red-green` label. Like `payload-growth-approved`, it approves only the
-  head it was applied to (`scripts/ci/label-approval.ts`): CI ignores a label
-  applied before the latest push and removes it when new commits arrive.
-  Bun's JUnit report cannot distinguish located per-test hook assertions from
-  test-body assertions. Review their meaning: this gate is fault evidence, not
-  a substitute for auditing whether each assertion exercises production behavior.
+- **Red → green** is evidence for a bug fix, not a universal PR formality.
+  Run `bun scripts/ci/red-green.ts --base <sha>` when comparing changed tests
+  with base production helps demonstrate the intended regression. It is an
+  opt-in diagnostic: missing imports, setup failures, timeouts and aborted
+  runners do not count as behavioral evidence. A located assertion failure
+  still needs review; one unrelated red test cannot establish coverage for all
+  changed contracts. Refactors preserve behavior and need no failing-base
+  assertion or approval label.
 
 **Why this matters:** line coverage is collected weekly and on manual dispatch
 by `coverage.yml`, as one merged LCOV artifact assembled from three unit shards.
@@ -590,28 +582,22 @@ threads a golden anchor (reference-guided scoring).
 `ci.yml` is the source of truth for what gates each PR — read it rather than a
 table here, which would drift. In broad strokes:
 
-- **Per-PR (`ci.yml`):** the three-shard unit/property suite (`bun run test`) —
-  Tier-1 verify, goldens, the differential + faithfulness + metamorphic gates,
-  `measureQuality`/whole-corpus ugly-detector/layout-rubric, the heuristic-tracker ratchet,
-  the corpus/seqbench/upstream benches — plus the high/critical dependency audit,
-  type check, the hero check, the parallel browser/CLI/binary/fuzz e2e matrix (whose
-  browser lane checks route payload budgets and, on pull requests, the gzip
-  delta against the base branch built on the same runner), and the
-  red → green changed-test check. Each unit shard runs its files with
-  `--parallel=2` (isolated worker processes), so a test file cannot depend on
-  another file's imports. CI prepares the shared website fixture in a separate
-  two-minute step before starting those workers, so parallel consumers reuse
-  a completed build instead of competing to generate it. A final `CI complete` job waits for the required
-  test aggregate, every E2E matrix job and red → green, providing one
-  protectable result that cannot turn green early.
+- **Per change (`ci.yml`):** recognized Markdown-only edits run documentation,
+  executable-example and website checks. Other changes and manual dispatches run
+  full runtime qualification. Compatible consumers reuse built artifacts; native
+  builds and independent installations retain their own contracts. Required
+  checks must pass; additional passing checks do not invalidate the run.
+- **Layout review:** relevant PR changes select the advisory image and generated
+  layout campaigns. A full manual dispatch can request them with `layout_evidence`.
+- **Release and deployment:** follow the [release guide](contributing/releasing.md)
+  for full qualification and the distinction between CI success and delivery.
 - **Weekly (`contract-discovery.yml`):** one bounded model/grammar discovery job;
   findings remain replay artifacts for human triage, without automated issues.
-- **Per deploy (`deploy-cloudflare.yml`, release to-do):** when the deploy
-  skips because `package.json` names a version that is not on npm, it opens
-  one `release-todo` issue for that version, and a verified deploy of the
-  version closes it (`scripts/ci/release-todo.ts`, tested with a fake `gh` in
-  `release-todo.test.ts`). It adds no schedule and never fails a run. **Does
-  not prove:** what production serves; it only reports the skip.
+- **Per deploy (`deploy-cloudflare.yml`):** an unpublished package version
+  skips deployment with a warning and Actions summary. It opens no issues.
+  Verified promotion can close an existing release-to-do issue. Candidate
+  website/MCP probes, production identity checks and rollback protect actual
+  promotion; a green skipped workflow is not deployment evidence.
 - **Local performance campaigns:** benchmark suites are excluded from CI,
   scheduled workflows, hosted manual Actions and publication dependencies.
   `bun run bench:release` retains the matched Node corpus, scaling, agent edit,

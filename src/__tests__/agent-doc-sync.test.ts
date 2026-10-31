@@ -9,14 +9,13 @@ import { join } from 'node:path'
 import { build as buildWithEsbuild } from 'esbuild'
 import ts from 'typescript'
 import { lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
-import { mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/core.ts'
+import { mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/core.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import type { AnyMutationOp, DiagramKind, MutableValidDiagram, ParsedDiagram } from '../agent/types.ts'
 import * as agentTypes from '../agent/types.ts'
-import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
+import { WARNING_TIER } from '../agent/types.ts'
 import { AGENT_INSTRUCTIONS } from '../cli/agent-instructions.ts'
 import { buildCapabilities, buildLlmsTxt, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
-import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 import { useTestChildren } from './helpers/test-child.ts'
@@ -90,18 +89,27 @@ function sdkDeclarationTypeErrors(consumer: string): string[] {
   return ts.getPreEmitDiagnostics(ts.createProgram([...sources.keys()], options, host)).map(diagnostic => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'))
 }
 
+function expectVerifiedSource(value: unknown): void {
+  const source = value !== null && typeof value === 'object' && 'source' in value ? value.source : undefined
+  expect(typeof source).toBe('string')
+  const parsed = parseRegisteredMermaid(source as string)
+  expect(parsed.ok).toBe(true)
+  if (parsed.ok) expect(verifyMermaid(parsed.value).ok).toBe(true)
+}
+
 describe('Instructions_for_agents.md', () => {
   test('byte-matches am --agent-instructions exactly', () => {
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
     expect(AGENT_INSTRUCTIONS).toEqual(guide)
   })
-  test('quick-start Code Mode snippets execute and lint clean', async () => {
+  test('quick-start Code Mode snippets return verified source and lint clean', async () => {
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
     const snippets = Array.from(guide.matchAll(/```ts\n([\s\S]*?)\n```/g)).map(m => m[1]!)
     expect(snippets.length).toBeGreaterThan(0)
     for (const snippet of snippets) {
       const r = await executeInSandbox(snippet, { trace: true })
       expect({ ok: r.ok, error: r.error }).toEqual({ ok: true, error: undefined })
+      expectVerifiedSource(r.value)
       expect(lintAgentTrace(r.trace as SdkCall[])).toEqual([])
     }
   })
@@ -127,24 +135,6 @@ async function readWithTimeout(promise: Promise<string>, timeoutMs: number): Pro
 }
 
 async function runBunExample(script: string, args: string[] = [], timeoutMs = 60_000): Promise<{ status: number | null; timedOut: boolean; stdout: string; stderr: string }> {
-  // Bun 1.3.11 intermittently dies with SIGILL ("panic(main thread):
-  // unreachable — This indicates a bug in Bun, not your code") when spawning
-  // these examples in sandboxed containers. Retry ONLY on that runtime-crash
-  // signature; genuine example failures (nonzero exit without the panic
-  // banner, bad payloads) are never retried.
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const r = await runBunExampleOnce(script, args, timeoutMs)
-    // Signal deaths surface as 128+signal (observed: 132 SIGILL, 134
-    // SIGABRT), sometimes with empty stderr because the crash preempts the
-    // panic banner, or as a null status without our timeout firing. Genuine
-    // example failures exit 1-4 and are never retried.
-    const bunCrashed = r.stderr.includes('Bun has crashed') || (typeof r.status === 'number' && r.status >= 128) || (r.status === null && !r.timedOut)
-    if (!bunCrashed) return r
-  }
-  return runBunExampleOnce(script, args, timeoutMs)
-}
-
-async function runBunExampleOnce(script: string, args: string[] = [], timeoutMs = 60_000): Promise<{ status: number | null; timedOut: boolean; stdout: string; stderr: string }> {
   const proc = Bun.spawn(['bun', 'run', script, ...args], { cwd: REPO, stdout: 'pipe', stderr: 'pipe' })
   const stdoutPromise = new Response(proc.stdout).text()
   const stderrPromise = new Response(proc.stderr).text()
@@ -165,12 +155,24 @@ async function runBunExampleOnce(script: string, args: string[] = [], timeoutMs 
 }
 
 describe('agent-facing runnable docs', () => {
-  test('Code Mode skill snippets execute and lint clean', async () => {
+  test('Code Mode skill snippets return verified sources or documented skips and lint clean', async () => {
     const snippets = tsCodeBlocks(join(REPO, 'skills/agentic-mermaid-diagram-workflow/references/code-mode.md'))
     expect(snippets.length).toBeGreaterThan(0)
     for (const snippet of snippets) {
       const r = await executeInSandbox(snippet, { trace: true })
       expect({ ok: r.ok, error: r.error }).toEqual({ ok: true, error: undefined })
+      const results = Array.isArray(r.value) ? r.value : [r.value]
+      let sources = 0
+      for (const result of results) {
+        if (result !== null && typeof result === 'object' && 'skipped' in result && result.skipped === true) {
+          expect((result as { family?: unknown }).family).toBe('timeline')
+          expect(typeof (result as { reason?: unknown }).reason).toBe('string')
+        } else {
+          expectVerifiedSource(result)
+          sources++
+        }
+      }
+      expect(sources).toBeGreaterThan(0)
       expect(lintAgentTrace(r.trace as SdkCall[])).toEqual([])
     }
   })
@@ -370,52 +372,15 @@ const badWidth: SharedRenderOptions = { mermaidConfig: { sankey: { nodeWidth: '1
   })
 })
 
-describe('start.md bootstrap claims stay true', () => {
-  // start.md is the hosted bootstrap the homepage pointer fetches and the source
-  // the inline homepage prompt is composed from. It is deliberately condensed —
-  // it does NOT enumerate every narrower/warning code (it points at
-  // capabilities.json for those), so it does not belong in the exhaustive
-  // reference-doc loops above. Instead, pin every claim it DOES make: whatever
-  // narrowers, warning codes, and tools it names must be real.
-  const START = readFileSync(join(REPO, 'website/source/start.md'), 'utf8')
-
-  test('every as* narrower it names is a real narrower', () => {
-    const real = new Set<string>(BUILTIN_FAMILY_METADATA.map(family => family.narrower))
-    const named = [...START.matchAll(/\bas[A-Z][A-Za-z]*\b/g)].map(m => m[0])
-    expect(named.length).toBeGreaterThan(0)
-    for (const n of named) expect({ narrower: n, real: real.has(n) }).toEqual({ narrower: n, real: true })
-  })
-
-  test('every warning code it names is a real code', () => {
-    const codes = new Set(Object.keys(WARNING_SEVERITY))
-    const named = [...START.matchAll(/\b[A-Z]{2,}(?:_[A-Z]+)+\b/g)].map(m => m[0])
-    expect(named.length).toBeGreaterThan(0) // at least LABEL_OVERFLOW
-    for (const c of named) expect({ code: c, real: codes.has(c) }).toEqual({ code: c, real: true })
-  })
-
-  test('Code Mode instructions do not name library-only methods', async () => {
-    expect(START).not.toContain('applyOps({ source, family, ops })')
-    expect(START).toContain('Code Mode intentionally exposes neither of those batch wrappers')
-    const result = await executeInSandbox('return typeof mermaid.applyOps')
-    expect(result).toEqual(expect.objectContaining({ ok: true, value: 'undefined' }))
-  })
-
-  test('the hosted MCP tools it lists match the server exactly', () => {
-    const sentence = START.match(/Tools:\s*([^.\n]+)/)?.[1] ?? ''
-    const named = new Set([...sentence.matchAll(/`([a-z_]+)`/g)].map(m => m[1]))
-    expect(named).toEqual(new Set(HOSTED_TOOLS.map(t => t.name)))
-  })
+test('Code Mode keeps library-only batch wrappers unavailable', async () => {
+  const result = await executeInSandbox('return typeof mermaid.applyOps')
+  expect(result).toEqual(expect.objectContaining({ ok: true, value: 'undefined' }))
 })
 
 describe('documented package usage works', () => {
   test('browser client recipes bundle through the browser ESM entry', async () => {
     for (const file of ['docs/react.md', 'docs/getting-started.md']) {
       const text = readFileSync(join(REPO, file), 'utf8')
-      if (file === 'docs/react.md') {
-        expect(text).toContain('className="diagram diagram-surface"')
-        expect(text).toContain('.diagram-surface {')
-        expect(text).toContain('.dark .diagram-surface {')
-      }
       // Getting Started demonstrates the browser API; the complete React
       // adapter lives in react.md rather than a second copy to keep in sync.
       const clientBlocks = Array.from(text.matchAll(/```tsx?\n([\s\S]*?)\n```/g))

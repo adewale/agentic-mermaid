@@ -2,7 +2,8 @@
 
 <!-- complete: local-mcp-tools -->
 `agentic-mermaid-mcp` exposes a primary Code Mode tool, `execute(code)`, plus
-narrow `describe_sdk`, `render_png`, and `describe` helpers. The initial
+narrow `describe_sdk`, `render_png`, and `describe` helpers, plus declarative
+`mutate` and `build` tools. The initial
 `execute` declaration contains only the core SDK. Call
 `describe_sdk({ family, detail: 'fields' })` before an unfamiliar mutation to
 load that family's exact schema; use `detail: 'signatures'` for a compact menu.

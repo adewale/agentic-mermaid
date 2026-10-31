@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { resolve } from 'node:path'
+import { existsSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import { BROWSER_CONTRACT_FILES } from './browser-contract-files.ts'
 
@@ -41,7 +42,13 @@ async function run(
   }
 }
 
-await run(['bun', 'run', 'website'], { cwd: root })
+if (process.env.AM_CI_ARTIFACTS === '1') {
+  for (const path of ['website/public/index.html', 'dist/browser.global.js']) {
+    if (!existsSync(resolve(root, path))) throw new Error(`Transferred browser artifact is missing: ${path}`)
+  }
+} else {
+  await run(['bun', 'run', 'website'], { cwd: root })
+}
 for (const contract of contracts) {
   await run(['bun', 'test', contract.file, '--timeout', '600000'], {
     cwd: import.meta.dir,

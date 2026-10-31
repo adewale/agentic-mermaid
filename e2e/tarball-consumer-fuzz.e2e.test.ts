@@ -111,24 +111,27 @@ let binShimMcp = ''
 let haveConsumer = false
 
 beforeAll(() => {
-  const build = spawnSync('bun', ['run', 'build'], { cwd: REPO, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
-  if (build.status !== 0) throw new Error(`bun run build failed (${build.status}):\n${build.stderr ?? ''}`)
-
   work = mkdtempSync(join(tmpdir(), 'am-consumer-'))
-  const version = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8')).version as string
-  const privateEvalDir = join(REPO, 'skill-evals', 'private')
-  mkdirSync(privateEvalDir, { recursive: true })
-  const privateProbeDir = mkdtempSync(join(privateEvalDir, 'pack-exclusion-'))
-  const privateSentinel = join(privateProbeDir, 'sentinel.txt')
-  writeFileSync(privateSentinel, 'must never ship\n')
-  let pack: ReturnType<typeof spawnSync>
-  try {
-    pack = spawnSync(NPM, ['pack', '--pack-destination', work], { cwd: REPO, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
-  } finally {
-    rmSync(privateProbeDir, { recursive: true, force: true })
+  if (process.env.AM_TEST_TARBALL) {
+    tarball = resolve(process.env.AM_TEST_TARBALL)
+  } else {
+    const build = spawnSync('bun', ['run', 'build'], { cwd: REPO, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
+    if (build.status !== 0) throw new Error(`bun run build failed (${build.status}):\n${build.stderr ?? ''}`)
+    const version = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8')).version as string
+    const privateEvalDir = join(REPO, 'skill-evals', 'private')
+    mkdirSync(privateEvalDir, { recursive: true })
+    const privateProbeDir = mkdtempSync(join(privateEvalDir, 'pack-exclusion-'))
+    const privateSentinel = join(privateProbeDir, 'sentinel.txt')
+    writeFileSync(privateSentinel, 'must never ship\n')
+    let pack: ReturnType<typeof spawnSync>
+    try {
+      pack = spawnSync(NPM, ['pack', '--pack-destination', work], { cwd: REPO, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
+    } finally {
+      rmSync(privateProbeDir, { recursive: true, force: true })
+    }
+    if (pack.status !== 0) throw new Error(`npm pack failed (${pack.status}):\n${pack.stderr ?? ''}`)
+    tarball = join(work, `agentic-mermaid-${version}.tgz`)
   }
-  if (pack.status !== 0) throw new Error(`npm pack failed (${pack.status}):\n${pack.stderr ?? ''}`)
-  tarball = join(work, `agentic-mermaid-${version}.tgz`)
   if (!existsSync(tarball)) throw new Error(`expected tarball missing: ${tarball}`)
 
   writeFileSync(join(work, 'package.json'), JSON.stringify({ name: 'am-consumer', private: true, version: '1.0.0' }))
@@ -394,7 +397,18 @@ describe('installed tarball — am bin', () => {
     const mixedSrcs = fc.sample(mixedArb, 20)
     const mixedOps = fc.sample(fc.constantFrom('render', 'verify', 'parse', 'serialize'), 20)
     mixedSrcs.forEach((src, k) => lines.push(JSON.stringify({ op: mixedOps[k], source: src })))
-    for (const bad of ['not json at all', '{"op":123}', '{"nope":1}', '[]', 'null']) lines.push(bad)
+    const invalidAt = new Map<number, string>()
+    for (const [bad, code] of [
+      ['not json at all', 'INVALID_JSON'], ['{"op":123}', 'INVALID_PAYLOAD'],
+      ['{"nope":1}', 'INVALID_PAYLOAD'], ['[]', 'INVALID_PAYLOAD'], ['null', 'INVALID_PAYLOAD'],
+    ] as const) {
+      invalidAt.set(lines.length, code)
+      lines.push(bad)
+      // Recovery must reach a later valid request, not just terminate cleanly
+      // after an invalid final line.
+      asciiAt.set(lines.length, flow[0]!)
+      lines.push(JSON.stringify({ op: 'render', source: flow[0], options: { format: 'ascii' } }))
+    }
 
     const r = spawnSync(NODE!, [amBin, 'batch', '--jsonl'], { cwd: work, input: lines.join('\n') + '\n', encoding: 'utf8', timeout: RUN_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024 })
     expect(r.status).toBe(0) // clean exit; a segfault/panic would be 132/139
@@ -406,6 +420,7 @@ describe('installed tarball — am bin', () => {
       const res = JSON.parse(line) as { ok: boolean; op?: string; data?: { ascii?: string }; error?: { code?: string } }
       expect(typeof res.ok).toBe('boolean')
       if (!res.ok) expect(typeof res.error?.code).toBe('string')
+      if (invalidAt.has(i)) expect(res).toMatchObject({ ok: false, error: { code: invalidAt.get(i) } })
       if (asciiAt.has(i)) {
         // A valid flowchart ASCII render must SUCCEED and carry `ascii` — assert
         // unconditionally so a regression that drops the field (still ok:true)
@@ -513,7 +528,8 @@ describe('installed tarball — mcp bin', () => {
     expect({ status: r.status, stderr: r.stderr }).toEqual({ status: 0, stderr: '' })
     const output = r.stdout.split('\n').filter(Boolean)
     expect(output).toHaveLength(ids.length)
-    for (const id of ids) expect(output.some(line => line.includes(`"id":${id}`))).toBe(true)
+    const tokens = output.map(line => line.match(/"id"\s*:\s*(-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)(?=\s*[,}])/)?.[1])
+    expect(tokens.sort()).toEqual([...ids].sort())
   }, RUN_TIMEOUT_MS)
 
   test('generated JSON-RPC over stdio yields well-formed responses and never crashes', () => {

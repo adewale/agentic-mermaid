@@ -4,6 +4,8 @@ node_modules/
 # Build output
 /llms.txt
 dist/
+/ci-release-artifact/
+/ci-editor-metafile.json
 /site/
 *.tsbuildinfo
 
