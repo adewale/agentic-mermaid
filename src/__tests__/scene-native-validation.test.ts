@@ -13,7 +13,7 @@ import { certifyNativePaint, certifyScenePaint } from '../scene/paint-certificat
 import { serializeMarkerResource, tipAnchoredArrow } from '../scene/marker-resources.ts'
 import type { DrawingProducer } from '../scene/drawing.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
-import { preparePixelText } from '../shared/prepared-text.ts'
+import { preparePixelText, transferRetainedPixelText, isOwnedPixelTextPart } from '../shared/prepared-text.ts'
 import { admitSceneDocument } from '../scene/external-data-snapshot.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { createSceneWriteCapture, sceneNodeSerialization } from '../scene/serialization.ts'
@@ -826,6 +826,63 @@ test.each(['visible', 'white-on-white'] as const)('a finalized Native text roste
   expect(textSvg).toContain(`fill="${mode === 'visible' ? '#111' : '#fff'}"`)
   expect(Buffer.compare(pixels(svg), pixels(svg.replace(textSvg, ''))) !== 0).toBe(mode === 'visible')
   expect(proof.status).toBe(mode === 'visible' ? 'passed' : 'unverified')
+})
+
+test.each(['freeze', 'ownership-lookup'] as const)('native retained text observes later source changes after interposed %s', mode => {
+  const freeze = Object.getOwnPropertyDescriptor(Object, 'freeze')!
+  const lookup = Object.getOwnPropertyDescriptor(WeakSet.prototype, 'has')!
+  const before = mode === 'freeze' ? 'FreezeBefore' : 'LookupBefore', after = mode === 'freeze' ? 'FreezeAfter' : 'LookupAfter'
+  let block: ReturnType<typeof preparePixelText>
+  try {
+    if (mode === 'freeze') Object.defineProperty(Object, 'freeze', { ...freeze, value: <T>(value: T): T => value })
+    const prepared = preparePixelText(before, { fontSize: 18, fontWeight: 400, fontFamily: 'Inter' })
+    block = mode === 'freeze' ? prepared : JSON.parse(JSON.stringify(prepared))
+    if (mode === 'ownership-lookup') transferRetainedPixelText(prepared, block)
+  } finally { Object.defineProperty(Object, 'freeze', freeze) }
+  expect(Object.isExtensible(block)).toBe(true)
+  expect(Object.isExtensible(block.lineBlocks[0]!.runs[0]!)).toBe(true)
+  const width = 240, height = 140, colors = { bg: '#fff', fg: '#111' }
+  const context = { positioned: { width, height }, colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => {
+    const parts = [factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="140">')]
+    const text = (id: string, y: number) => factory.text({ id, role: 'label', text: block.text, block, x: 20, y, fontSize: 18, anchor: 'start', paint: { fill: '#111' } })
+    parts.push(text('seed', 30), text('second', 65))
+    // These are still writable source objects. A completed earlier emission
+    // cannot grant a cached copy authority over this later source occurrence.
+    const line = block.lineBlocks[0]!
+    Object.assign(block, { text: after })
+    block.lines[0] = after
+    Object.assign(block.prepared, { source: after })
+    Object.assign(block.prepared.lines[0]![0]!, { text: after })
+    Object.assign(line, { text: after })
+    Object.assign(line.runs[0]!, { text: after })
+    parts.push(text('changed', 100), factory.documentClose())
+    return { family: 'flowchart', width, height, colors, transparent: false, parts }
+  }
+  let drawing: ReturnType<typeof drawNative>
+  try {
+    if (mode === 'ownership-lookup') {
+      // Discover only the ownership lookup receivers exposed by this ambient
+      // hook. Measurement brands are a different authority and stay untouched.
+      const ownershipSets = new Set<WeakSet<object>>()
+      Object.defineProperty(WeakSet.prototype, 'has', { ...lookup, value: function (this: WeakSet<object>, value: object) {
+        if (value === block) ownershipSets.add(this)
+        return Reflect.apply(lookup.value, this, [value])
+      } })
+      expect(isOwnedPixelTextPart(block)).toBe(false)
+      Object.defineProperty(WeakSet.prototype, 'has', { ...lookup, value: function (this: WeakSet<object>, value: object) {
+        return value === block && ownershipSets.has(this) || Reflect.apply(lookup.value, this, [value])
+      } })
+    }
+    drawing = drawNative(producer, context, 'flowchart')
+  } finally { Object.defineProperty(WeakSet.prototype, 'has', lookup) }
+  expect(block.lineBlocks[0]!.runs[0]!.text).toBe(after)
+  const tags = drawing.svg.match(/<text\b[^>]*>[^<]*<\/text>/g)!
+  expect(tags).toHaveLength(3)
+  expect(tags.map(tag => tag.slice(tag.indexOf('>') + 1, -7))).toEqual([before, before, after])
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter' }
+  const pixels = (svg: string) => new Resvg(svg, { font, background: '#fff' }).render().pixels
+  expect(Buffer.compare(pixels(drawing.svg), pixels(drawing.svg.replace(tags[2]!, '')))).not.toBe(0)
 })
 
 test('native retained text copy plans keep scalar depth after ambient maximum changes', () => {

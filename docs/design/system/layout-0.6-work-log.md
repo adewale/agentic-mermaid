@@ -5740,3 +5740,46 @@ red: editor gzip1409954>1334500; demo raw806877>788000 and gzip305865>302500;
 1fb22fe6da2968fecaa9034b5683ad97bacc6f7a; it is not a current-Main merge checkout.
 Live Main remains118cadd53d3b2dfbaf0dbb959bcc7abb66f16ae5. New local changes are
 outside that CI result. Filtered record: ci-9a498-41149298650/summary.json,25588bytes.
+
+
+### 31 October00:32UTC: repair constructor ownership that admitted mutable copy-plan sources
+
+A newly reproduced pre-existing qualification defect affected Native retained
+text copying. createImmutableParts called dynamic Object.freeze but assumed it
+had actually frozen the constructor value; its ownership WeakSet lookups also
+used mutable prototype methods. In a single emission, the first two uses of
+such a block could populate a TextCopyPlan; after coherent source text changed,
+the third actual SVG still emitted the old word. The earlier completed write
+was incorrectly treated as authority for this later mutable occurrence.
+
+This commit keeps the dynamic freeze call, then checks actual frozen state and
+complete bottom-up data descriptors with trusted module-initialization
+inspection primitives. Private set operations are captured too; an ambient
+post-import lookup/add hook cannot forge local or delegated constructor brands.
+Unknown, accessor-bearing or mutable-descendant objects receive no immutable/
+owned qualification. Rejected values remain the same original objects and keep
+the generic fresh-copy path. Normal genuinely immutable sources retain existing
+plans and fresh per-emission receivers. Native fields, getter order, depth64,
+operation prices and400000/100000caps are unchanged. No hostile pre-import realm
+or universal measurement-brand-forgery guarantee is made.
+
+Two owning table controls in scene-native-validation inspect actual final text:
+noop-freeze preparation and a targeted ownership-lookup spoof after imports.
+The latter records only ownership lookup receivers; unrelated measurement brands
+stay untouched. Both require before/before/after literal text and positive actual
+third-tag glyph contribution with bundled Inter. On9a498 production the final
+RED3 run is0P/2F/11assertions: both exact third SVG words are stale. After this
+fix it is2P/0F/13assertions. An earlier overbroad WeakSet spoof hit unrelated
+measurement authority and crashed before the intended observation; RED2 remains
+recorded and is not claimed as the final stale-output discriminator. The first
+single noop-freeze reproduction is also retained separately.
+
+Root's four owning files pass177tests/5164assertions, including unchanged scalar
+depth and constructor/fidelity controls, complete ER ownership, prepared text and
+mutable input coverage. Canonical f080 core/repository types and three-file lint
+pass; supervisors report all owned children reaped. Two disjoint independent
+producer/consumer reviews report no finding in this post-import scope. Evidence:
+immutable-constructor-9a498/{RED3,GREEN,OWNERS,TYPES,LINT-CANONICAL}.log and cleanup
+records. No capacity closure, new broad replay, timing or memory result is
+claimed at this point. Next: one existing bounded fully-consumed cost diagnostic
+with only this helper changed, then new-head affected replay/CI qualification.
