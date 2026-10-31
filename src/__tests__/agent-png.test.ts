@@ -1,6 +1,7 @@
 // Loop 8 P: PNG export — basic validity tests.
 
 import { describe, test, expect } from 'bun:test'
+import { spawnSync } from 'node:child_process'
 import { createMermaidPNGRenderer, renderMermaidPNG } from '../agent/png.ts'
 import { DefaultBackend, registerBackend } from '../scene/backend.ts'
 import { decodePng } from './helpers/png-pixels.ts'
@@ -19,6 +20,31 @@ function readPngDimensions(png: Uint8Array): { width: number; height: number } {
 }
 
 describe('renderMermaidPNG', () => {
+  test('loads the native rasterizer only when the public agent surface renders PNG', () => {
+    const child = spawnSync(process.execPath, ['--eval', `
+      import { createRequire } from 'node:module'
+      const require = createRequire(import.meta.url)
+      const loaded = () => Object.keys(require.cache).some(path => path.includes('@resvg/resvg-js'))
+      const agent = await import(${JSON.stringify(new URL('../agent/index.ts', import.meta.url).href)})
+      const imported = loaded()
+      const source = 'flowchart LR\\n A --> B'
+      const parsed = agent.parseRegisteredMermaid(source).ok
+      const verified = agent.verifyMermaid(source).ok
+      const svg = agent.renderMermaidSVG(source).includes('<svg')
+      const beforePng = loaded()
+      const first = agent.renderMermaidPNG(source)
+      const second = agent.renderMermaidPNG(source)
+      process.stdout.write(JSON.stringify({ imported, parsed, verified, svg, beforePng, afterPng: loaded(),
+        synchronous: first instanceof Uint8Array, repeated: Buffer.from(first).equals(Buffer.from(second)),
+        magic: Array.from(first.subarray(0, 8)) }))
+    `], { encoding: 'utf8' })
+    expect(child.status, child.stderr).toBe(0)
+    expect(JSON.parse(child.stdout)).toEqual({
+      imported: false, parsed: true, verified: true, svg: true, beforePng: false,
+      afterPng: true, synchronous: true, repeated: true, magic: PNG_MAGIC,
+    })
+  })
+
   test('checks font-projected raster input before native PNG rendering', () => {
     const id = 'backend:test/native-png-font-joining'
     const triggerSeed = 991_339
