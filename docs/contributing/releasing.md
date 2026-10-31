@@ -22,8 +22,8 @@ links their proofs for completed releases.
    as historical evidence. Inspect affected renders for visual releases.
 3. **Finalize the notes.** For example, run
    `bun run release:prepare "$release_version" --date "$release_date"` with
-   the intended version and date (`YYYY-MM-DD`). This rolls Unreleased into a dated section, opens a fresh Unreleased,
-   and refreshes the generated API version paragraph. Review the resulting diff.
+   the intended version and date (`YYYY-MM-DD`). This rolls Unreleased into a
+   dated section, opens a fresh Unreleased, and refreshes the generated API version paragraph. Review the resulting diff.
 4. **Land the reviewed change and finish CI.** Use the authorized repository
    workflow. Require full canonical `ci.yml` qualification on the final main SHA;
    a green documentation-only run is insufficient. If scope routing skipped runtime
@@ -57,7 +57,9 @@ links their proofs for completed releases.
 Documentation-only CI success does not deploy. For a website-only update at an
 already published version, dispatch full `ci.yml` on current main, wait for its
 success, then dispatch `deploy-cloudflare.yml`; this does not publish a release.
-The deployment gate checks full qualification before using production credentials.
+Publishing and deployment use the same read-only qualification workflow. It
+requires successful `test` (all runtime dependencies) and `CI complete` jobs on
+the exact main commit before either workflow reaches checkout or credentials.
 
 A documentation change inside the npm package still needs a new version.
 Documentation-only CI checks the same npm package identity with

@@ -582,27 +582,15 @@ threads a golden anchor (reference-guided scoring).
 `ci.yml` is the source of truth for what gates each PR — read it rather than a
 table here, which would drift. In broad strokes:
 
-- **Documentation-only changes:** explicitly recognized Markdown paths run
-  generated-fact checks, documented CLI/API examples, installed-guide checks
-  and website regeneration. Unknown paths and unavailable diff history receive
-  full qualification. The final `CI complete` job rejects failures, cancellations
-  and skips outside the selected mode.
-- **Runtime changes and manual qualification (`ci.yml`):** the three unit
-  shards, semantic conformance, type/lint/dependency checks, installed quickstarts
-  and browser/CLI/binary/packed-consumer suites remain required. One producer
-  builds the portable bundles, website fixture and verified tarball; compatible
-  consumers reuse those bytes and install independently under Node 22 and 24.
-  Native binary tests and release platform builds retain their own compilation.
-  Browser payload checks retain real request graphs and base-branch comparisons.
-- **Extended layout review:** rendering/layout changes on PRs select the
-  advisory backend-image and generated-layout campaigns. A manual CI dispatch
-  always runs full qualification and can request these extra artifacts with
-  `layout_evidence`. Ordinary docs changes do not generate the campaigns.
-- **Release qualification:** publication requires successful outcomes from
-  every full runtime lane on the exact release SHA. A green documentation-only
-  run cannot authorize publication or deployment; dispatch full CI for that main
-  commit. Automatic docs-only success skips deployment, and an unqualified manual
-  deployment fails before production credentials or state are used.
+- **Per change (`ci.yml`):** recognized Markdown-only edits run documentation,
+  executable-example and website checks. Other changes and manual dispatches run
+  full runtime qualification. Compatible consumers reuse built artifacts; native
+  builds and independent installations retain their own contracts. Required
+  checks must pass; additional passing checks do not invalidate the run.
+- **Layout review:** relevant PR changes select the advisory image and generated
+  layout campaigns. A full manual dispatch can request them with `layout_evidence`.
+- **Release and deployment:** follow the [release guide](contributing/releasing.md)
+  for full qualification and the distinction between CI success and delivery.
 - **Weekly (`contract-discovery.yml`):** one bounded model/grammar discovery job;
   findings remain replay artifacts for human triage, without automated issues.
 - **Per deploy (`deploy-cloudflare.yml`):** an unpublished package version

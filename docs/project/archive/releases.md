@@ -1,11 +1,8 @@
 # Verified releases
 
-This is the single record of completed release delivery. After package
-publication and production verification, add the release commit, canonical CI,
-publication, consumer and deployment proof links here. Backlog and directory
-records point here rather than copying current versions or workflow results.
-Source preparation alone is not a completed release. Dated evidence below
-does not claim to describe a later deployment.
+Completed deliveries are recorded below. Follow the
+[release checklist](../../contributing/releasing.md) when adding an entry.
+Source preparation alone does not establish publication or deployment.
 
 ## 0.5.5 — 2026-10-31
 

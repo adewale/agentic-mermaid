@@ -71,12 +71,9 @@ publication date. A failed lookup does not establish that a listing is absent.
 
 ### Version and evidence maintenance
 
-Source manifests describe source, npm describes package availability, and the
-hosted server card describes production. The [release record](archive/releases.md)
-is the single publication and deployment history. Read source versions from root
-`package.json` and `server.json`. Do not copy current release versions, timestamps
-or workflow links into this directory record; update it when directory submission,
-listing or ownership facts change.
+For package publication and production delivery, see the
+[release record](archive/releases.md). Update this document when directory
+submission, listing or ownership facts change.
 
 Historical observations: the 2026-10-29 review found npm 0.5.3 and E404 for the
 then-prepared 0.5.4. The 2026-10-16 review found npm and the Registry latest record
