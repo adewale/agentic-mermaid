@@ -9,7 +9,7 @@ of every test or a claim of faster rendering.
 
 | Previous cost or weak assurance | Change and retained contract |
 | --- | --- |
-| Full runtime CI for every documentation edit | Recognized Markdown changes run generated facts, CLI/API examples, offline-guide checks and website regeneration. Unknown paths, missing history and manual dispatch run full qualification. Real Git merge/rename fixtures protect the decision. |
+| Full runtime CI for every documentation edit | Recognized Markdown changes run package-immutability, generated facts, CLI/API examples, offline-guide checks and website regeneration. Unknown paths, missing history and manual dispatch run full qualification. Real Git merge/rename fixtures protect the decision. |
 | Independent rebuilds in compatible consumers | One producer builds portable bundles, site/Worker inputs and a verified tarball. Unit, browser and installed Node 22/24 consumers reuse those bytes; each consumer still installs independently. Native binary and release platform builds remain independent. Published-site shell examples reuse the shared site in CI. |
 | Extended layout campaigns on unrelated PRs | Relevant rendering changes select advisory images and generated layouts; a manual dispatch can request them. Required runtime regressions and all 25 layout passes remain. |
 | Documentation tests pinning sentences and CSS names | Removed those assertions and the unused prompt-checklist helper. Retained real executable examples, SDK/sandbox behavior, distinct semantic-readback prompt variants and served-link checks. |
@@ -17,6 +17,12 @@ of every test or a claim of faster rendering.
 | Mandatory failing-base gate and opt-out label | Kept the base-production diagnostic as an explicit tool. Removed its required CI job and label. Bug fixes still need intended red→green evidence; refactors need no failing-base assertion. Payload growth approval remains bound to its head. |
 | Manual npm propagation recovery and duplicate release facts | MCP registration waits for public exact-version npm metadata and matching SHA-512 within bounded retries. Conflicts fail closed. One release record owns completed delivery facts; other records link to it. |
 | Overlapping agent operating rules | One maintained operating guide feeds CLI and offline installation; the hosted start and skill are short routers. Generated MCP config pins the installed package version. Exact channel references remain available. |
+
+For a published version, the docs path temporarily reuses its published runtime
+bundle and compares the same canonical npm package trees. Shipped documentation
+changes still require a version bump; repository-only records need no rebuild.
+The runtime is composed only in isolated package trees; a workspace build is
+never created, overwritten or removed by this mode.
 
 A successful docs-only run cannot authorize release. The publisher requires
 actual successful portable-artifact and canonical-completion jobs on the exact
@@ -118,8 +124,13 @@ Observed failures were retained and classified: an initial website fixture run
 reached zero assertions because concurrent edits invalidated three builds;
 a stable rerun passed. A strengthened test initially used a Bun asymmetric
 matcher that mutated the inspected source value; capturing its primitive before
-assertion corrected the test. A readonly-table type error was corrected without
-changing expectations. The Packet value failure remains a product finding.
+assertion corrected the test. Readonly-table and nullable-fixture type errors were corrected without
+changing expectations. Preservation review caught a concurrent-replacement cleanup
+race in an initial runtime-borrowing approach; isolated package-tree composition
+removed all workspace writes, and real npm-pack races preserve the other build. The Packet value failure remains a product finding.
+The first hosted run also caught a stale assertion requiring short onboarding
+routers to repeat every family narrower; the complete reference assertion stays
+in `llms.txt`, while installed-guide delivery remains with its filesystem owner.
 A suspected empty-documentation test gap was rejected after the actual compiler
 command failed with no inputs; it is not reported as a defect.
 

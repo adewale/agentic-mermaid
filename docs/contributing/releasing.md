@@ -55,6 +55,11 @@ links their proofs for completed releases.
    These operational records stay outside the npm package.
 
 A documentation change inside the npm package still needs a new version.
+Documentation-only CI checks the same npm package identity with
+`published-version.ts --docs-only`, reusing the published runtime instead of
+building it. This mode requires `dist` to be absent and composes package trees
+inside isolated scratch; it never writes or removes a working build. Run it
+before documentation checks that build website assets.
 Published versions are immutable; keep the package-content guard intact.
 
 ## Publication and recovery boundary

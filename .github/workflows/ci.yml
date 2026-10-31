@@ -67,9 +67,17 @@ jobs:
           bun-version: 1.4.2
           no-cache: true
       - run: bun install --frozen-lockfile
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Use the publishing npm for package selection
+        run: npm install -g npm@11.18.0 --ignore-scripts
+      - name: Preserve published package immutability without rebuilding
+        run: bun run scripts/ci/published-version.ts --docs-only
       - name: Check generated facts and execute documented examples
         run: |
-          bun test --timeout 30000 src/__tests__/doc-blocks.test.ts src/__tests__/doc-cli-commands.test.ts src/__tests__/agent-doc-sync.test.ts src/__tests__/cli-init-agent.test.ts
+          bun test --timeout 30000 src/__tests__/doc-blocks.test.ts src/__tests__/doc-cli-commands.test.ts src/__tests__/agent-doc-sync.test.ts src/__tests__/cli-init-agent.test.ts src/__tests__/cli-llms-txt.test.ts
           bun run scripts/generate-agent-doc-artifacts.ts --check
           bun run website:check
           git diff --exit-code
