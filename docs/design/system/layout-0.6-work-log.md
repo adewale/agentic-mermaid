@@ -5972,3 +5972,87 @@ Its cancellation could not be requested: no connector capability, inherited CLI
 credential401. Git transport dry-run succeeds, but current connector observation
 capability does not provide a workflow-dispatch action. Exact new-head CI remains
 to be started after publishing; old CI will not be presented as its verification.
+
+
+### 31 October01:20UTC:9cc replay and Gantt-inclusive bounded cost check complete
+
+Production9cc788db58b5f7d4681c167cb533c30f0473b498 is normal-fast-forward
+published on the retained branch. Final local checks and scoped reviews above
+apply to its exact bytes. One fresh affected replay completes all33sources/
+66engine cells:66models and124returned SVGs direct-byte equal H4; all132H6
+outcomes/statuses, retained proof summaries and full work objects equal. All
+eight refusal names/messages equal;8strict refusals and15normalU remain enrolled.
+No unavailable worker, retry or unattempted case. All source/dependency guards
+and66owned-child cleanup records pass. H6 model/SVG equality is transitive viaH4;
+full H6 proof objects were not retained. The older H5 unavailable record remains
+unchanged. Evidence: final-cache-correctness-replay/{SUMMARY,FINAL-COMPARISON}.json,
+365457bytes. No new timing, ink census, peers or holdout access in this replay.
+
+Normal scoped paint counts stay26P/7U agentic versus25P/8U our ELK on33sources
+each; strict29P/4refusals each. Historical19 agentic remains strictP331930,
+normalP399989, while ELK normal remainsU400000. These are paint-domain counts,
+not complete author-meaning/aesthetic or public Mermaid/Pele correctness scores.
+
+The one mini10 diagnostic reuses the existing worker/loader and changes only
+its two-line registration/input selection to include tracked gantt-basic.mmd.
+The three older fixtures remain; the Gantt fixture reaches section/task line
+projection in the production lowering. It is not an invented benchmark. Exact
+before7f0d224ed157ac2ede87dc90b7c713070c6046b8 versus after9cc changes ONLY
+shared/display-text.ts and shared/prepared-text.ts; immutable-parts is common.
+Four fresh workers, Native AB/Scene BA, first/repeat,32calls total all complete
+with0errors/timeouts.4602source/dependency/input guards and four owned-child
+cleanups pass; each override module loads once/worker. All16whole SVG AND full
+proof/receipt JSON pairs equal:12older-fixture pairs plus4Gantt pairs. Status,
+availability and logical work are unchanged,28P/4U total. Native sparse32 stays
+U400000; Scene's existing direct proof staysP59411. Those distinct adapters are
+not relabelled a graph-engine or independent public-peer comparison.
+
+| Eight-call bounded observation |7f before |9cc after |
+| --- | ---: | ---: |
+| Native fully consumed sum |807.36ms |660.21ms |
+| Scene fully consumed sum |882.12ms |646.75ms |
+| Native peak RSS |173596KiB |141580KiB |
+| Scene peak RSS |139436KiB |150244KiB |
+| Native Gantt first / repeat |24.43/10.54ms |26.54/14.94ms |
+| Scene Gantt first / repeat |32.71/17.20ms |37.36/13.92ms |
+
+Both Native Gantt rows and Scene Gantt first are slower observations. Other
+slower rows remain Native inherited-first34.16->44.00ms, Scene Latin-first
+146.40->148.76/repeat31.59->35.62. Final immediate post-GC heap with current
+outputs/proofs live: Native20490286->20532357bytes, Scene20142641->20106456.
+Import Native558.78->474.15ms, Scene507.45->568.56. Import includes symmetric
+two Git-blob reads plus instrumentation/module loading; the after arm also
+reads candidate files. It is not product-only import. RSS is subtree high-water
+including untimed loader/GC/output work, not allocation. A single ordered pair
+cannot establish causal speedup or time/memory preservation. Lower aggregate
+sums do not erase the slower target rows or the earlier unfavorable mini9.
+All CPU/RSS/heap/first/repeat rows and limits remain in measurement/
+immutable-cache-mini-10/CONCLUSION.json,322433bytes. No timing retries, new PNG,
+font download, public peer call, new maintained harness or holdout access.
+
+A read-only import/measurement audit found no eager immutable-parts qualifier
+caller on the checked index import graph; static inspection does not prove
+zero executions or explain mini9's multi-second import delta. The loader timing
+includes synchronous Git subprocesses and filesystem transpiler-cache state was
+not recorded, so causal product-import attribution remains unresolved. Shared
+observer changes, if pursued, belong in Trident; no harness fix is claimed here.
+
+Git transport normal pushes and remote reads succeed; retained remote is9cc
+and live Main remains118cadd53d3b2dfbaf0dbb959bcc7abb66f16ae5. GitHub Actions
+workflow dispatch remains a real access blocker: inherited CLI credential401,
+no configured fallback when unset, no usable Git credential-helper secret,
+and no dispatch connector capability. Existing connector CI observation works.
+The owner was asked to restore Actions access or run CI manually; no credential
+value was printed/stored and no scopes/accounts changed. No new-head run exists
+at this checkpoint, so no current-CI/readiness claim. The old7f run is explicitly
+obsolete for this repair. This final journal commit changes documentation only.
+
+Remaining concrete work: start and follow exact final-head CI with review base
+1fb22fe6da2968fecaa9034b5683ad97bacc6f7a once access is restored; keep the six
+capacity and delivery failures open. Then test actual source-slot reuse from
+already computed immutable qualification against the existing Class128 owner,
+including generic getter/depth controls and memory cost, before adopting another
+compiler path. This is an unimplemented experiment, not projected capacity
+closure. Broader Unicode/rich-text/meaning qualification and combined current-
+Main verification remain open. Replacement24 stays sealed; the fixed campaign
+end remains2026-10-31T12:03:00Z with no automatic extension.
