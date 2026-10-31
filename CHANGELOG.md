@@ -4,6 +4,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+## 0.5.5 — 2026-10-31
+
 ### Changed
 
 - Generate website MCP tool lists, verification wording and backend-limit
