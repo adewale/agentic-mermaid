@@ -60,7 +60,7 @@ publication date. A failed lookup does not establish that a listing is absent.
 
 | Directory / evidence | Status and date | Next action |
 |---|---|---|
-| [Official MCP Registry: `0.5.4` record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.adewale%2Fagentic-mermaid/versions/0.5.4) | **Publication confirmed on 2026-10-30.** The [publication workflow](https://github.com/adewale/agentic-mermaid/actions/runs/40993548242) succeeded after npm propagation. Production identity was [verified separately](https://github.com/adewale/agentic-mermaid/actions/runs/40994851812). | Before a future submission, recheck the exact version and live identity against root [`server.json`](../../server.json). |
+| [Official MCP Registry: `0.5.5` record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.adewale%2Fagentic-mermaid/versions/0.5.5) | **Publication confirmed on 2026-10-31.** The [publication workflow](https://github.com/adewale/agentic-mermaid/actions/runs/41213616825) succeeded after npm propagation. Production identity was [verified separately](https://github.com/adewale/agentic-mermaid/actions/runs/41214591346). | Before a future submission, recheck the exact version and live identity against root [`server.json`](../../server.json). |
 | [OpenAI Plugins](https://platform.openai.com/plugins) | **Desired; no submission receipt recorded.** Current [submission instructions](https://developers.openai.com/plugins/deploy/submission) checked 2026-10-29. | Prepare the required package and review materials below, then complete the verified developer/account flow. |
 | [Claude directory](https://claude.com/resources/articles/build-plugins-for-claude) | **Desired; no submission receipt recorded.** New portal announced 2026-09-25; accepts a single remote connector or a plugin bundle from developers on paid Claude plans. The old Team/Enterprise-only note is obsolete. | Submit the hosted URL through the portal linked from the announcement; optionally bundle the existing diagram-workflow skill. |
 | [Cursor Directory](https://cursor.directory/) | **Desired; current listing unconfirmed.** The public catalog is a plugin directory, checked 2026-10-29. Neither the catalog view nor search results established an Agentic Mermaid entry. | Search the current catalog while signed in and use its current plugin submission flow; record its receipt. |
@@ -73,7 +73,7 @@ publication date. A failed lookup does not establish that a listing is absent.
 
 Source manifests describe source, npm describes package availability, and the
 hosted server card describes production. The [release record](archive/releases.md)
-links the separate publication and deployment proofs for 0.5.4. Read current
+links the separate publication and deployment proofs for 0.5.5. Read current
 source versions from root `package.json` and `server.json`; do not copy them into
 this operational record before publication.
 
@@ -81,7 +81,7 @@ Historical observations: the 2026-10-29 review found npm 0.5.3 and E404 for the
 then-prepared 0.5.4. The 2026-10-16 review found npm and the Registry latest record
 at 0.4.1, with 0.4.2 in source. Those observations retain their dates; they do not
 describe today's installation. Third-party directory statuses above retain their
-own review dates and were not re-probed during the 0.5.4 release.
+own review dates and were not re-probed during the 0.5.5 release.
 
 Before publishing or updating a listing, query the exact Registry identity and
 initialize the hosted MCP independently. Do not infer either from a source

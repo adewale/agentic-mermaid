@@ -14,8 +14,10 @@ retain their evidence. Candidate implementation does not establish merge,
 publication or deployment; a closed issue is not completion evidence when its
 acceptance conditions still fail. Plans supply design context, never additional
 queues. Retired IDs are not reused.
-Release 0.5.4 publication and production verification completed on 30 October;
-see the [release record](docs/project/archive/releases.md#054--2026-10-30).
+Release 0.5.5 publication and production verification completed on 31 October;
+see the [release record](docs/project/archive/releases.md#055--2026-10-31).
+AGENT-3 is retired: resolved-scene discovery, Code Mode access and typed artwork
+failures are released and verified in 0.5.5. AGENT-1/2 remain deferred to 0.6.0.
 CONS-43 is retired: `src/layout/passes/index.ts` contains only re-exports;
 cohesive implementations already live in their owning pass modules. Further
 route-contract extraction preserves the existing pipeline manifest and order.
@@ -106,19 +108,6 @@ route-contract extraction preserves the existing pipeline manifest and order.
   import paths and aliases. Reuse the current entries rather than adding another
   SDK layer, and verify shipped declarations/runtime behavior in Node, Bun,
   browsers and Workers before changing the recommendation.
-- [ ] **AGENT-3 — Make resolved scenes discoverable and failures actionable**
-  (`todo`, owner requested 2026-10-27; brought forward on 2026-10-30 after
-  the earlier 0.6 deferral). Candidate source adds resolved-scene discovery,
-  Code Mode access and typed artwork failures; land and qualify the candidate
-  before calling this delivered. Expose resolved-scene
-  support through existing agent discovery and the Code Mode SDK, with explicit
-  result-size/runtime limits. Give unsupported-artwork failures stable typed
-  fields such as `code`, `partId` and `feature`, preserving readable messages
-  and the prior artifact on failure. Test supported artwork and named unsupported
-  features such as gradients through installed library and agent boundaries.
-  Document released availability so agents can select a supported representation
-  or report the precise limitation without parsing English error messages.
-
 - [ ] **BUILD-27 — MCP Apps support** (`todo`). Expose an interactive
   in-agent diagram UI through MCP Apps: `ui://` resources, correct
   `text/html;profile=mcp-app` resource MIME type, tool `_meta.ui.resourceUri`
