@@ -20,8 +20,9 @@ Choose the task, then use the matching surface:
 
 Agents with a shell can use `am capabilities --json` and `am styles --json` to
 discover installed support. In MCP, use `describe_sdk` for mutation fields and
-`execute` for the documented Code Mode functions. Resolved scenes are currently
-available from the main library entry only, not Code Mode.
+`execute` for the documented Code Mode functions. Resolved scenes are available
+from the library and Code Mode; use `describe_sdk` with
+`{ "capability": "resolved-scene" }` for their types and runtime limits.
 
 ## Vocabulary
 
