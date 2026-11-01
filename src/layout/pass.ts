@@ -11,7 +11,6 @@ export { MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES, withinLayoutPreferenceBudge
 // budgets and post-freeze geometry contracts apply to every production run.
 
 export type PassEffect = 'extract' | 'positions' | 'dimensions' | 'edges' | 'labels' | 'translate'
-export type Determinism = 'pure-order' | 'fixed-point' | 'in-place'
 export type RubricMetric = 'hard' | 'crossings' | 'bends' | 'straight' | 'portRate' | 'symErr' | 'parallelOverlaps' | 'endpointApproaches' | 'opposingOverlaps'
 
 /** Per-metric acceptance direction and allowance. */
@@ -68,7 +67,6 @@ export interface LayoutPass<C extends PassContextBase> {
   mutates: PassEffect[]
   /** Per-metric acceptance budgets, enforced in production. */
   mayChangeMetrics?: Partial<Record<RubricMetric, MetricBudget>>
-  determinism: Determinism
   /** After this pass, node geometry is frozen (the route-contract pass). */
   freezesNodes?: boolean
   /** When present and false, the pass is skipped (e.g. bundling without mergeEdges). */
