@@ -12,7 +12,7 @@ import { labelSeatPaintContext } from './layout/graph-paint-support.ts'
 import { resolveRenderStyle } from './styles.ts'
 import { trimOccludedShapeEndpoint } from './shape-clipping.ts'
 import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
-import { LABEL_PILL_PADDING, labelEndpointClearance, labelHaloExtension, labelRect, labelHaloRect, pillRect, segmentEntersLabelRect } from './shared/edge-label-geometry.ts'
+import { LABEL_PILL_PADDING, labelEndpointClearance, labelHaloExtension, labelRect, pillRect, segmentEntersLabelRect } from './shared/edge-label-geometry.ts'
 import { bundleRouteBeforeRewrite, hasConstructedBundleRoute, retainBundleRouteAfterRewrite } from './layout/bundle-routes.ts'
 import {
   withinLayoutPreferenceBudget,
@@ -1224,7 +1224,7 @@ export function labelPaintClearance(positioned: { nodes: PositionedNode[]; edges
   }
   const clearPaintRect = (inner: LabelPaintRect, halo: number, edge: PositionedEdge): LabelPaintRect | undefined => {
     work?.()
-    const pill = labelHaloRect(inner, halo)
+    const pill = { x: inner.x - halo, y: inner.y - halo, w: inner.w + 2 * halo, h: inner.h + 2 * halo }
     // Own endpoint cards are obstacles too: a repair must not exchange a
     // route-label ambiguity for hidden authored text or terminal symbols.
     // Beside them the halo also leaves that end's marker and some line.
@@ -1567,7 +1567,7 @@ export function separateEdgeLabelPills(
   const rectOf = (e: PositionedEdge): { x: number; y: number; w: number; h: number } | null => {
     const r = labelRect(e, style)
     const halo = labelHaloPadding(e, style)
-    return r && labelHaloRect(r, halo)
+    return r && { x: r.x - halo, y: r.y - halo, w: r.w + 2 * halo, h: r.h + 2 * halo }
   }
   const intersects = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }): boolean => Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 0.5 && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 0.5
 

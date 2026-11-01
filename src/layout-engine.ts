@@ -1436,7 +1436,7 @@ function checkpointCentering(context: LayoutPassContext): () => void {
 export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'extractEdgesRecursively', doc: 'flatten ELK edges to absolute coords (+orthogonalize cross-hierarchy)',
-    after: [], mutates: ['extract', 'groups', 'prepared-text'], determinism: 'pure-order',
+    after: [], mutates: ['extract'], determinism: 'pure-order',
     run: c => {
       if (c.elkResult) extractEdgesRecursively(c.elkResult, c.graph, c.edges, 0, 0, c.margins)
       retainGraphText(c, c.style)
@@ -1461,7 +1461,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   },
   {
     id: 'alignForkRejoinPeerCenters', doc: 'center fork/rejoin hubs on their peer barycenter',
-    after: ['equalizePeerNodeDimensions'], mutates: ['positions', 'edges', 'labels'], determinism: 'in-place',
+    after: ['equalizePeerNodeDimensions'], mutates: ['positions', 'edges'], determinism: 'in-place',
     mayChangeMetrics: { symErr: 'improve-only', bends: { worsenBy: 2 } },
     enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     run: c => { alignForkRejoinPeerCenters(c.nodes, c.edges, c.groups, c.graph, c.style) },
@@ -1476,7 +1476,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   },
   {
     id: 'centerPeerBarycenters', proposal: true, doc: 'center peer fan-in/fan-out trunks over peer barycenters (#57/#61)',
-    after: ['alignPortLanes'], mutates: ['positions', 'edges', 'labels'], determinism: 'in-place',
+    after: ['alignPortLanes'], mutates: ['positions', 'edges'], determinism: 'in-place',
     mayChangeMetrics: { symErr: 'improve-only', bends: { worsenBy: 2 } },
     enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     run: c => {
@@ -1487,7 +1487,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   },
   {
     id: 'honorLinkRankDistance', doc: 'shove target sub-DAG to honor variable-length link rank distance; push ahead anything the shove lands on and rebuild blocked reconnect routes through free channels (#81)',
-    after: ['centerPeerBarycenters'], mutates: ['positions', 'groups', 'edges', 'labels'], determinism: 'in-place',
+    after: ['centerPeerBarycenters'], mutates: ['positions', 'edges'], determinism: 'in-place',
     enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     run: c => { honorLinkRankDistance(c.nodes, c.edges, c.groups, c.graph) },
   },
@@ -1503,7 +1503,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   },
   {
     id: 'bundleEdgePaths', doc: 'bundle fan-out/fan-in edges into shared trunks (when mergeEdges)',
-    after: ['alignLabeledSourcePort'], mutates: ['edges', 'labels', 'bundles'], determinism: 'pure-order',
+    after: ['alignLabeledSourcePort'], mutates: ['edges'], determinism: 'pure-order',
     enabled: c => c.mergeEdges,
     run: c => {
       c.bundled = bundleEdgePaths(c.edges, c.nodes, c.groups, c.graph.direction, c.style)
@@ -1517,13 +1517,13 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     // both key off. Independent of mergeEdges: the fan-in converges via centering
     // whether or not the plain bundler ran, so the marker must too.
     id: 'markCorankFanInBundles', doc: 're-route + mark co-ranked mixed-label fan-in spokes bundle-owned (justified symmetric-convergence bend)',
-    after: ['bundleEdgePaths'], mutates: ['edges', 'labels', 'bundles'], determinism: 'in-place',
+    after: ['bundleEdgePaths'], mutates: ['edges'], determinism: 'in-place',
     enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     run: c => { markCorankFanInBundles(c.nodes, c.edges, c.groups, c.graph, c.bundled, c.style) },
   },
   {
     id: 'clipEdgeToShape', doc: 'clip edge endpoints to real (non-rect) shape outlines',
-    after: ['markCorankFanInBundles'], mutates: ['edges', 'bundles'], determinism: 'in-place',
+    after: ['markCorankFanInBundles'], mutates: ['edges'], determinism: 'in-place',
     mayChangeMetrics: { portRate: { worsenBy: 1, whenImproves: 'endpointApproaches' }, endpointApproaches: 'improve-only' },
     run: c => {
       const nodeMap = new Map(c.nodes.map(n => [n.id, n]))
@@ -1542,21 +1542,21 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   },
   {
     id: 'applySymmetricFanoutEmissions', doc: 're-route small equivalent fan-outs symmetrically; mark bundle-owned',
-    after: ['clipEdgeToShape'], mutates: ['positions', 'dimensions', 'groups', 'edges', 'labels', 'bundles', 'certificates'], determinism: 'in-place',
+    after: ['clipEdgeToShape'], mutates: ['positions', 'dimensions', 'edges'], determinism: 'in-place',
     mayChangeMetrics: { symErr: 'improve-only', bends: { worsenBy: 2 } },
     enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     run: c => { applySymmetricFanoutEmissions(c.nodes, c.edges, c.groups, c.graph, c.bundled, c.style) },
   },
   {
     id: 'applySymmetricParallelEdgeLanes', doc: 'separate parallel edges into symmetric non-crossing lanes',
-    after: ['applySymmetricFanoutEmissions'], mutates: ['edges', 'labels', 'bundles', 'certificates'], determinism: 'in-place',
+    after: ['applySymmetricFanoutEmissions'], mutates: ['edges'], determinism: 'in-place',
     enabled: context => (Boolean(context.elkResult) || context.mergeEdges) && hasParallelPair(context.edges, true),
     mayChangeMetrics: { symErr: 'improve-only', crossings: 'improve-only' },
     run: c => { applySymmetricParallelEdgeLanes(c.nodes, c.edges, c.groups, c.graph, c.bundled, c.style) },
   },
   {
     id: 'applyParallelDuplicateLanes', doc: 'split exact duplicate edges into separated lanes',
-    after: ['applySymmetricParallelEdgeLanes'], mutates: ['edges', 'labels', 'bundles', 'certificates'], determinism: 'in-place',
+    after: ['applySymmetricParallelEdgeLanes'], mutates: ['edges'], determinism: 'in-place',
     enabled: context => (Boolean(context.elkResult) || context.mergeEdges) && hasParallelPair(context.edges),
     // Separating genuinely shared duplicate ink preserves authored multiplicity.
     // A local lane proposal may spend at most one crossing per repaired pair.
@@ -1566,7 +1566,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'collapseTinyBundledHitches', doc: 'remove sub-perceptual hitches introduced by bundling',
     after: ['applySymmetricFanoutEmissions', 'applySymmetricParallelEdgeLanes', 'applyParallelDuplicateLanes'],
-    mutates: ['edges', 'bundles', 'certificates'], determinism: 'in-place', mayChangeMetrics: { bends: 'improve-only' },
+    mutates: ['edges'], determinism: 'in-place', mayChangeMetrics: { bends: 'improve-only' },
     run: c => { collapseTinyBundledHitches(c.nodes, c.edges, c.bundled) },
   },
   {
@@ -1576,7 +1576,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   },
   {
     id: 'applyRouteContracts', doc: 'classify -> simplify -> straighten (fixed-point) -> certify; FREEZES node geometry',
-    after: ['reassignBundledSiblingLabels'], mutates: ['edges', 'labels', 'bundles', 'certificates'], determinism: 'fixed-point', freezesNodes: true,
+    after: ['reassignBundledSiblingLabels'], mutates: ['edges'], determinism: 'fixed-point', freezesNodes: true,
     // An uncertified two-point route can still be diagonal or cross a node.
     // Hard/terminal repairs and fewer crossings may cost up to four bends
     // per removed defect. Mere preferred-port or symmetry changes may not.
@@ -1614,7 +1614,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   },
   {
     id: 'closeRouteContracts', doc: 're-prove settled final routes and re-certify only auditor-proven hitches; each scan monotonically removes bends (edge-only)',
-    after: ['separateEdgeLabelPills'], mutates: ['edges', 'bundles', 'certificates'], determinism: 'fixed-point',
+    after: ['separateEdgeLabelPills'], mutates: ['edges'], determinism: 'fixed-point',
     mayChangeMetrics: { straight: 'improve-only', bends: 'improve-only' },
     run: c => { closeRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
   },
@@ -1630,7 +1630,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     // landing at negative coords shifts the whole graph uniformly (translate,
     // freeze-safe).
     id: 'placeStateNotes', doc: 'place state-diagram note boxes on their declared side, clear of nodes/groups/routes (state diagrams only; translate-only)',
-    after: ['translateGeometryToNonNegativeOrigin'], mutates: ['translate', 'notes'], determinism: 'in-place',
+    after: ['translateGeometryToNonNegativeOrigin'], mutates: ['translate'], determinism: 'in-place',
     enabled: c => Boolean(c.graph.stateNotes?.length),
     run: c => { c.notes = placeStateNotes(c.nodes, c.edges, c.groups, c.graph, c.style, c.layoutPadding, c.stateNoteMargin) },
   },

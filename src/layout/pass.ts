@@ -10,7 +10,7 @@ export { MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES, withinLayoutPreferenceBudge
 // Each pass mutates the shared context in place. Ordering, declared metric
 // budgets and post-freeze geometry contracts apply to every production run.
 
-export type PassEffect = 'extract' | 'positions' | 'dimensions' | 'groups' | 'edges' | 'labels' | 'prepared-text' | 'bundles' | 'certificates' | 'notes' | 'translate'
+export type PassEffect = 'extract' | 'positions' | 'dimensions' | 'edges' | 'labels' | 'translate'
 export type Determinism = 'pure-order' | 'fixed-point' | 'in-place'
 export type RubricMetric = 'hard' | 'crossings' | 'bends' | 'straight' | 'portRate' | 'symErr' | 'parallelOverlaps' | 'endpointApproaches' | 'opposingOverlaps'
 
@@ -64,8 +64,7 @@ export interface LayoutPass<C extends PassContextBase> {
   doc: string
   /** Partial-order deps (ids that must run earlier). */
   after: string[]
-  /** Written channels. The runner independently checks actual frozen boxes
-   * and routes; declarations alone never establish unchanged geometry. */
+  /** Mutation classes. Frozen boxes and routes are checked independently. */
   mutates: PassEffect[]
   /** Per-metric acceptance budgets, enforced in production. */
   mayChangeMetrics?: Partial<Record<RubricMetric, MetricBudget>>
