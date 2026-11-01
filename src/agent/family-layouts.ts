@@ -120,8 +120,14 @@ export function positionResolvedFamilyArtifact(d: ParsedDiagram, request: Resolv
   } catch (error) {
     throw new FamilyLayoutError(d.kind, 'layout', error)
   }
-  const rendered = projectResolvedFamilyLayout(request, result, options)
-  if (!rendered) return null
+  let view: FamilyPositionedView
+  try {
+    view = retainedFamilyProjection(result) ?? withTextMeasurementExecution(executionPlan.textMeasurement, () =>
+      descriptor.projectPositioned!({ positioned: result.positioned, options }))
+  } catch (error) {
+    throw new FamilyLayoutError(d.kind, 'projectPositioned', error)
+  }
+  const rendered = stampFamilyKind(d.kind, view)
   if (descriptor.lowerScene && !d.kind.startsWith('family:')) {
     const certification = positionedPaintCertification(request, result)
     if (request.renderOptions.layoutSafety === 'strict' && certification.status !== 'passed') throw new PaintLayoutCertificationError(certification)
