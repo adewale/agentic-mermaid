@@ -1,4 +1,5 @@
 import { randomInt } from 'node:crypto'
+import { unitTestFiles } from './unit-test-files.ts'
 
 // Finder only: each process logs its seed and exact file list for replay.
 // Fresh OS processes cover module/native state that --isolate cannot reset.
@@ -6,7 +7,7 @@ const [mode, ...selected] = process.argv.slice(2)
 if (mode !== 'shuffled' && mode !== 'fresh-process') throw new Error('Usage: bun run scripts/ci/find-test-order.ts shuffled|fresh-process [files...]')
 const seed = process.env.AM_TEST_ORDER_SEED === undefined ? randomInt(0, 0x100000000) : Number(process.env.AM_TEST_ORDER_SEED)
 if (!Number.isSafeInteger(seed) || seed < 0 || seed > 0xffffffff) throw new Error('AM_TEST_ORDER_SEED must be an unsigned 32-bit integer')
-const files = selected.length ? selected : [...new Bun.Glob('**/*.test.ts').scanSync('src/__tests__')].map(file => `./src/__tests__/${file}`).sort().concat('./eval/family-usage/count.test.ts')
+const files = selected.length ? selected : unitTestFiles()
 // Shuffle file arguments explicitly; Bun also randomizes tests within files.
 let state = seed
 for (let index = files.length - 1; index > 0; index--) {

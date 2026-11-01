@@ -105,7 +105,7 @@ jobs:
           AM_EDITOR_BUILD_METAFILE: ci-editor-metafile.json
         run: |
           bun run build
-          AM_CI_ARTIFACTS=1 bun -e 'import { ensureWebsiteBuilt } from "./src/__tests__/website-public-fixture.ts"; ensureWebsiteBuilt()'
+          bun scripts/site/prepare-website-fixture.ts --reuse-lazy
       - name: Verify the package, including private-file exclusion
         run: |
           mkdir -p skill-evals/private
@@ -171,11 +171,13 @@ jobs:
           name: portable-test-artifacts
           path: .
       - name: Verify the transferred website fixture is usable
-        run: bun -e 'import { ensureWebsiteBuilt } from "./src/__tests__/website-public-fixture.ts"; ensureWebsiteBuilt()'
+        run: bun scripts/site/prepare-website-fixture.ts --reuse
 
       # Coverage is a scheduled diagnostic, not a condition for passing tests.
       # Keep two isolated workers: subprocess-heavy suites contend at four.
       - name: Run test shard
+        env:
+          AM_WEBSITE_FIXTURE_ROOT: ${{ github.workspace }}
         run: bun run test -- --shard=${{ matrix.shard }} --parallel=2
 
   layout-evidence:
