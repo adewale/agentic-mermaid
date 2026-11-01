@@ -258,11 +258,13 @@ Canonical JSON changes formatting, so the file index also retains every original
 raw SHA256/size. The archive indexes831 files and581 unique bodies. It is
 9138100 gzip bytes, SHA256
 `ef582ba7b554106ddc4700a4f5f6f4af323ba35c4d512332ce5c8334eb1416da`.
-The existing readable decoder verifies all content hashes and restores256903815
+The recorded decoder run verified all content hashes and restored 256903815
 canonical bytes, SHA256
 `d762a447f5226d835205a8e5656e8d9f84adeb9a499ffdb2bedda6488beb1a17`:
 
-[Replay commands and raw data are retained in the original snapshot.](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-followup-results.md)
+The [original snapshot](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-followup-results.md)
+retains the raw archive and original instructions. Its standalone decoder command
+is unavailable: the decoder was not retained in repository history.
 
 Existing historical archives are unchanged. This is repository evaluation
 evidence, not an addition to a renderer's fetched bundle or a new qualification
