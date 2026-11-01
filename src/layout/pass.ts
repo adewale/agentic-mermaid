@@ -1,6 +1,6 @@
 export { MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES, withinLayoutPreferenceBudget } from './route-geometry.ts'
 
-// The LayoutPass abstraction — see docs/design/system/route-contracts.md §8.
+// The LayoutPass abstraction — see docs/design/system/route-contracts.md.
 //
 // Generic over the concrete context so this module has NO dependency on the
 // layout engine (and therefore cannot create an import cycle). The concrete
@@ -10,11 +10,11 @@ export { MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES, withinLayoutPreferenceBudge
 // Each pass mutates the shared context in place. Ordering, declared metric
 // budgets and post-freeze geometry contracts apply to every production run.
 
-export type PassEffect = 'extract' | 'positions' | 'dimensions' | 'edges' | 'translate'
+export type PassEffect = 'extract' | 'positions' | 'dimensions' | 'edges' | 'labels' | 'translate'
 export type Determinism = 'pure-order' | 'fixed-point' | 'in-place'
 export type RubricMetric = 'hard' | 'crossings' | 'bends' | 'straight' | 'portRate' | 'symErr' | 'parallelOverlaps' | 'endpointApproaches' | 'opposingOverlaps'
 
-/** Per-metric direction/budget for the ratchet (§3.3, resolves OQ-B1). */
+/** Per-metric acceptance direction and allowance. */
 export type MetricBudget = 'improve-only' | { worsenBy: number; whenImproves?: RubricMetric | readonly RubricMetric[]; perImprovement?: true }
 
 export type PassMetrics = Partial<Record<RubricMetric, number>>
@@ -43,7 +43,7 @@ export class LayoutMetricBudgetError extends LayoutPassContractError {
   }
 }
 
-/** The minimal shape `runPipeline` needs to enforce the freeze invariant (§3.2). */
+/** The geometry `runPipeline` observes to enforce the freeze invariant. */
 export interface PassContextBase {
   frozen: boolean
   nodes: ReadonlyArray<PassBox>
@@ -59,14 +59,14 @@ interface PassBox { id?: string; x: number; y: number; width: number; height: nu
 interface PassGroup extends PassBox { children?: ReadonlyArray<PassGroup> }
 
 export interface LayoutPass<C extends PassContextBase> {
-  /** Stable id; the route-contracts §8 pipeline line is generated from `doc`. */
+  /** Stable id for ordering, diagnostics and pass observations. */
   id: string
   doc: string
   /** Partial-order deps (ids that must run earlier). */
   after: string[]
-  /** Geometry channels this pass writes — drives the freeze invariant (§3.2). */
+  /** Mutation classes. Frozen boxes and routes are checked independently. */
   mutates: PassEffect[]
-  /** Per-metric direction/budget (the ratchet, §3.3), enforced in production. */
+  /** Per-metric acceptance budgets, enforced in production. */
   mayChangeMetrics?: Partial<Record<RubricMetric, MetricBudget>>
   determinism: Determinism
   /** After this pass, node geometry is frozen (the route-contract pass). */

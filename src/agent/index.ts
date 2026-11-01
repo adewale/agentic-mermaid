@@ -12,13 +12,14 @@ export type {
   PngLegibilityWarning, PngOptions, PngRasterWarning, RenderedPng,
 } from './png.ts'
 
-import { renderMermaidPNG } from './png.ts'
-import { layoutMermaid, renderMermaidSVG } from './core.ts'
+import { renderMermaidPNGWithReceiptForHost } from './png.ts'
+import { executeGraphicalRequest, type GraphicalLayoutConsumer } from '../graphical-render.ts'
+import { assertFamilyLayoutProjection, projectResolvedFamilyLayout } from './family-layouts.ts'
+import { buildRenderedRegions } from './rendered-regions.ts'
 import { renderMermaidASCIIWithMeta, type AsciiRegion, type AsciiWarning } from '../ascii/meta.ts'
 import { parseRegisteredMermaid as parseMermaid } from './parse.ts'
 import { collectActionRecords } from './analyze.ts'
 import { prepareRenderInput } from './render-input.ts'
-import { SHARED_RENDER_OPTION_FIELDS } from '../render-contract.ts'
 import { toFinite } from './types.ts'
 import { inspectPngDimensions } from '../output-color-profile.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
@@ -29,6 +30,7 @@ import type {
   ParsedDiagram,
   RenderedRegion,
   RenderedRegionKind,
+  RenderedLayout,
 } from './types.ts'
 import type { RenderOptions } from '../types.ts'
 
@@ -61,14 +63,6 @@ export type RenderedActionArtifact =
   | { format: 'svg'; output: string; actionSurface: RendererActionSurface }
   | { format: 'png'; output: Uint8Array; actionSurface: RendererActionSurface }
   | { format: 'ascii' | 'unicode'; output: string; actionSurface: RendererActionSurface; warnings: AsciiWarning[] }
-
-function sharedRenderOptions(options: Readonly<Record<string, unknown>>): RenderOptions {
-  const result: Record<string, unknown> = {}
-  for (const field of SHARED_RENDER_OPTION_FIELDS) {
-    if (options[field] !== undefined) result[field] = options[field]
-  }
-  return result as RenderOptions
-}
 
 function terminalRegionId(region: Pick<AsciiRegion, 'id' | 'kind'>): string {
   if (region.kind === 'node') return `node:${region.id}`
@@ -177,7 +171,8 @@ export function renderMermaidWithActions(
   input: ParsedDiagram | string,
   request: RenderMermaidActionRequest,
 ): RenderedActionArtifact {
-  const source = prepareRenderInput(input).source
+  const prepared = prepareRenderInput(input)
+  const source = prepared.source
   if (request.format === 'ascii' || request.format === 'unicode') {
     const meta = renderMermaidASCIIWithMeta(input, {
       ...(request.options ?? {}),
@@ -196,21 +191,30 @@ export function renderMermaidWithActions(
   }
 
   const options = request.options ?? {}
-  const shared = sharedRenderOptions(options as Readonly<Record<string, unknown>>)
   const parsed = parseMermaid(source)
   if (!parsed.ok) throw new Error(parsed.error.map(error => error.message).join('; '))
   const diagram = typeof input === 'string' ? parsed.value : input
-  const layout = layoutMermaid(diagram, { ...shared, regions: true })
+  const projection: { layout?: RenderedLayout } = {}
+  const consumeLayout: GraphicalLayoutConsumer = {
+    validate: assertFamilyLayoutProjection,
+    consume(resolved, result) {
+      const layout = projectResolvedFamilyLayout(resolved, result, { debug: undefined })
+      if (!layout) throw new Error(`No public layout projection registered for Mermaid family "${diagram.kind}"`)
+      layout.regions = buildRenderedRegions(diagram, layout)
+      projection.layout = layout
+    },
+  }
   const actions = collectActionRecords(parsed.value)
   if (request.format === 'svg') {
-    const output = renderMermaidSVG(input, options)
+    const output = executeGraphicalRequest(source, options, 'svg', undefined, { expectedFamilyId: prepared.expectedFamilyId }, consumeLayout).svg
     return {
       format: 'svg',
       output,
-      actionSurface: actionSurface('svg', 'pixel', actions, layout.regions ?? [], embeddedSvgActionKeys(output)),
+      actionSurface: actionSurface('svg', 'pixel', actions, projection.layout!.regions ?? [], embeddedSvgActionKeys(output)),
     }
   }
-  const output = renderMermaidPNG(input, options)
+  const output = renderMermaidPNGWithReceiptForHost(input, options, {}, { input: prepared, consumeLayout }).png
+  const layout = projection.layout!
   const dimensions = inspectPngDimensions(output)
   const regions = scalePixelRegions(
     layout.regions ?? [],

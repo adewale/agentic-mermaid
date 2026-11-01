@@ -156,12 +156,7 @@ export function applySymmetricParallelEdgeLanes(
         if (source.shape !== 'diamond' && labelTouchesNeighborRoute(p.edge, { x: box.x, y: box.y, w: box.width, h: box.height }, edges)) ok = false
       }
       if (!ok || parallelLaneProposalAllowed(edges, proposed, style) !== true) continue
-      for (const { edge, points, label } of proposed) {
-        edge.points = points
-        edge.labelPosition = label
-        edge.routeCertificate = undefined
-      }
-      retainConstructedBundleRoutes(proposed.map(proposal => proposal.edge), bundled)
+      publishParallelLanes(proposed, bundled)
       break
     }
   }
@@ -190,6 +185,18 @@ export function applySymmetricParallelEdgeLanes(
  * `applySymmetricParallelEdgeLanes`; other cases remain with route certification.
  */
 type ParallelLaneProposal = { edge: PositionedEdge; points: Point[]; label?: Point }
+
+/** Publish only admitted proposals, preserving edge identity and replacing
+ * route certificates before recording constructed bundle ownership. */
+function publishParallelLanes(proposed: ParallelLaneProposal[], bundled: Set<PositionedEdge>, preSeparated?: Set<PositionedEdge>): void {
+  for (const { edge, points, label } of proposed) {
+    edge.points = points
+    edge.labelPosition = label
+    edge.routeCertificate = undefined
+    preSeparated?.add(edge)
+  }
+  retainConstructedBundleRoutes(proposed.map(proposal => proposal.edge), bundled)
+}
 type ParallelLabelClearance = { nodes: PositionedNode[]; style: ResolvedRenderStyle }
 
 function parallelLaneLabelAdmission(edges: PositionedEdge[], proposed: ParallelLaneProposal[], clearance: ParallelLabelClearance): boolean {
@@ -401,13 +408,7 @@ export function applyParallelDuplicateLanes(
       }
     }
     if (proposalOptions.labelClearance && !parallelLaneLabelAdmission(edges, proposed, proposalOptions.labelClearance)) return false
-    for (const { edge, points, label } of proposed) {
-      edge.points = points
-      edge.labelPosition = label
-      edge.routeCertificate = undefined
-      preSeparated.add(edge)
-    }
-    retainConstructedBundleRoutes(proposed.map(proposal => proposal.edge), bundled)
+    publishParallelLanes(proposed, bundled, preSeparated)
     return true
   }
 
@@ -607,12 +608,7 @@ export function applyParallelDuplicateLanes(
       if (!accepted) return
       proposed = accepted
     }
-    for (const { edge, points } of proposed) {
-      edge.points = points
-      edge.labelPosition = undefined
-      edge.routeCertificate = undefined
-    }
-    retainConstructedBundleRoutes(proposed.map(proposal => proposal.edge), bundled)
+    publishParallelLanes(proposed, bundled)
   }
 
   for (const bucket of fwdByTarget.values()) distribute(bucket, false)
