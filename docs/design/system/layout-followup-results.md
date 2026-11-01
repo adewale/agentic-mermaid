@@ -885,11 +885,11 @@ deterministic gzip is 4,699,444 bytes, SHA256
 `aeebba2b292ebf781a38a49407d7a36d323faa2775bcaa85cab9839f70d0698a`.
 Lossless interning restores exactly 73,422,567 canonical JSON bytes, SHA256
 `44dfaa17cdcf840355faad897a6d508575e980e5dee6fb0a1e5788561afac62b`.
-The repository decoder independently verifies that hash and all 588 content
+The recorded decoder run verified that hash and all 588 content
 hashes. The envelope retains 1,283 original-file index entries and 240 explicit
 SVG hash/size projections, without dropping numerical samples, receipts,
 certificates, controls, null gates, failure diagnostics or unlaunched rows.
-Use the same decoder command below with the runtime26 filename. Mutable main
+The standalone decoder is unavailable, as described below. Mutable main
 report/PR prose is excluded; frozen source and measured artifact identities
 remain authoritative.
 
