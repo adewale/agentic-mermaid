@@ -215,23 +215,44 @@ export async function oracleScene(page: Page, spec: Spec): Promise<ResolvedScene
 const close = (a: number | undefined, b: number | undefined, tol = 1e-6) =>
   a === b || (a !== undefined && b !== undefined && Math.abs(a - b) <= tol * Math.max(1, Math.abs(b)))
 const GEOMETRY_TOLERANCE = 0.05 // root user units (SVG px)
+type ComparedPath = { d: string; m: number[] }
 
-/** Same ink, whatever the start point, direction or command spelling of either path:
- *  both are sampled every 0.1 root units through Chromium's getPointAtLength, their
- *  lengths agree, and every sample of each lies within the tolerance of the other's
- *  sampled polyline. At that spacing a chord cuts a right-angle corner by at most
- *  0.1·√2/4 ≈ 0.035 units and a 0.5-unit-radius curve by 0.0025, both under the
- *  0.05 tolerance. Chromium measures both sides, so neither path parser is trusted. */
-function sameGeometryInBrowser(pairs: { a: { d: string; m: number[] }; b: { d: string; m: number[] } }[], tol: number) {
+/** Compare centerlines independently of start, direction and command spelling.
+ *  Chromium measures both paths; mutual sampled-polyline proximity permits
+ *  equivalent encodings without trusting either path parser. Dashed strokes
+ *  also use finer samples and stroke hit-testing for phase, caps and subpath
+ *  resets. Sampling is bounded at 100,000 intervals per path. */
+function sameGeometryInBrowser(pairs: { a: ComparedPath; b: ComparedPath; stroke?: Paint }[], tol: number) {
   const NS = 'http://www.w3.org/2000/svg', STEP = 0.1
   const svg = document.createElementNS(NS, 'svg'); document.body.appendChild(svg)
   const scale = (M: DOMMatrix) => Math.sqrt(Math.abs(M.a * M.d - M.b * M.c)) || 1
-  const sample = (d: string, M: DOMMatrix) => {
+  const sample = (d: string, M: DOMMatrix, painted = false) => {
     const p = document.createElementNS(NS, 'path'); p.setAttribute('d', d); svg.appendChild(p)
-    const total = p.getTotalLength(), n = Math.min(100000, Math.ceil(total * scale(M) / STEP)), pts: DOMPoint[] = []
+    // The Frobenius norm bounds stretching along any tangent, including shear.
+    const spacingScale = painted ? Math.hypot(M.a, M.b, M.c, M.d) : scale(M)
+    const total = p.getTotalLength(), n = Math.min(100000, Math.ceil(total * spacingScale / (painted ? tol / 2 : STEP))), pts: DOMPoint[] = []
     for (let i = 0; i <= n; i++) pts.push(M.transformPoint(p.getPointAtLength(n ? total * i / n : 0)))
     p.remove()
     return { length: total * scale(M), pts }
+  }
+  const strokePath = (d: string, paint: Paint) => {
+    const p = document.createElementNS(NS, 'path'); p.setAttribute('d', d); svg.appendChild(p)
+    for (const [key, value] of Object.entries({
+      fill: 'none', stroke: '#000', 'stroke-width': paint.strokeWidth,
+      'stroke-linecap': paint.lineCap, 'stroke-linejoin': paint.lineJoin, 'stroke-miterlimit': paint.miterLimit,
+      'stroke-dasharray': paint.dashArray?.join(' ') || 'none', 'stroke-dashoffset': paint.dashOffset ?? 0,
+    })) p.style.setProperty(key, String(value), 'important')
+    return p
+  }
+  const offsets = Array.from({ length: 8 }, (_, i) => [Math.cos(i * Math.PI / 4) * tol, Math.sin(i * Math.PI / 4) * tol])
+  const offInk = (points: DOMPoint[], from: SVGPathElement, fromInverse: DOMMatrix, to: SVGPathElement, toInverse: DOMMatrix) => {
+    for (const point of points) {
+      if (!from.isPointInStroke(fromInverse.transformPoint(point))) continue
+      if (to.isPointInStroke(toInverse.transformPoint(point))) continue
+      if (!offsets.some(([x, y]) => to.isPointInStroke(toInverse.transformPoint(new DOMPoint(point.x + x!, point.y + y!)))))
+        return `dash placement differs near (${point.x.toFixed(3)}, ${point.y.toFixed(3)})`
+    }
+    return ''
   }
   const segDist = (p: DOMPoint, a: DOMPoint, b: DOMPoint) => {
     const dx = b.x - a.x, dy = b.y - a.y, l = dx * dx + dy * dy
@@ -253,7 +274,7 @@ function sameGeometryInBrowser(pairs: { a: { d: string; m: number[] }; b: { d: s
     }
     return -1
   }
-  const result = pairs.map(({ a, b }) => {
+  const result = pairs.map(({ a, b, stroke }) => {
     // Equal path data and linear maps have identical lengths. A translation
     // moves every point by the same distance, proving the geometry tolerance
     // without sampling huge hatched paths for CTM inversion roundoff.
@@ -275,12 +296,18 @@ function sameGeometryInBrowser(pairs: { a: { d: string; m: number[] }; b: { d: s
         })) return ''
       }
     }
-    const A = sample(a.d, new DOMMatrix(a.m)), B = sample(b.d, new DOMMatrix(b.m))
+    // Finer samples reduce aliasing at dash boundaries and after a moveto.
+    const A = sample(a.d, new DOMMatrix(a.m), Boolean(stroke)), B = sample(b.d, new DOMMatrix(b.m), Boolean(stroke))
     if (Math.abs(A.length - B.length) > 0.01 + 1e-4 * Math.max(A.length, B.length)) return `length ${A.length.toFixed(4)} vs ${B.length.toFixed(4)}`
     const offA = off(A.pts, B.pts)
     if (offA >= 0) return `point ${offA}/${A.pts.length - 1} of the API path is more than ${tol} from the reference`
     const offB = off(B.pts, A.pts)
     if (offB >= 0) return `point ${offB}/${B.pts.length - 1} of the reference is more than ${tol} from the API path`
+    if (stroke) {
+      const pa = strokePath(a.d, stroke), pb = strokePath(b.d, stroke), ia = new DOMMatrix(a.m).inverse(), ib = new DOMMatrix(b.m).inverse()
+      try { return offInk(A.pts, pa, ia, pb, ib) || offInk(B.pts, pb, ib, pa, ia) }
+      finally { pa.remove(); pb.remove() }
+    }
     return ''
   })
   svg.remove()
@@ -302,7 +329,7 @@ export async function compareScenes(page: Page, api: ResolvedScene, ref: Resolve
     if (JSON.stringify(ap.node) !== JSON.stringify(rp.node)) say(`parts[${i}].node`, 'differs from the SceneDoc part')
     groups.push([`parts[${i}] ${rp.id}`, ap.primitives, rp.primitives])
   })
-  const geometry: { where: string; a: { d: string; m: number[] }; b: { d: string; m: number[] } }[] = []
+  const geometry: { where: string; a: ComparedPath; b: ComparedPath; stroke?: Paint }[] = []
   for (const [where, a, r] of groups) {
     if (a.length !== r.length) { say(where, `${a.length} primitives vs ${r.length}`); continue }
     r.forEach((rp, j) => {
@@ -323,13 +350,18 @@ export async function compareScenes(page: Page, api: ResolvedScene, ref: Resolve
       } else if (rp.kind === 'path' && ap.kind === 'path') {
         // Matrix differences already fail the comparison independently. Avoid
         // resampling all the ink merely to report the same failure twice.
-        if (ap.matrix.every((v, n) => close(v, rp.matrix[n], n < 4 ? 1e-6 : 1e-4)))
-          geometry.push({ where: at, a: { d: ap.d, m: ap.matrix }, b: { d: rp.d, m: rp.matrix } })
+        if (ap.matrix.every((v, n) => close(v, rp.matrix[n], n < 4 ? 1e-6 : 1e-4))) {
+          // Paint differences already fail above; compare placement under the
+          // reference paint and transfer it only for visible dashed strokes.
+          const stroke = R.stroke !== 'none' && R.strokeWidth > 0 && R.opacity > 0 && R.strokeOpacity > 0
+            && R.dashArray?.some(value => value > 0) ? R : undefined
+          geometry.push({ where: at, a: { d: ap.d, m: ap.matrix }, b: { d: rp.d, m: rp.matrix }, stroke })
+        }
       }
     })
   }
   const verdicts: string[] = await page.evaluate(({ src, pairs, tol }) => (0, eval)(`(${src})`)(pairs, tol),
-    { src: sameGeometryInBrowser.toString(), pairs: geometry.map(({ a, b }) => ({ a, b })), tol: GEOMETRY_TOLERANCE })
+    { src: sameGeometryInBrowser.toString(), pairs: geometry.map(({ a, b, stroke }) => ({ a, b, stroke })), tol: GEOMETRY_TOLERANCE })
   verdicts.forEach((v, n) => { if (v) say(geometry[n]!.where, `geometry ${v}`) })
   return bad
 }
