@@ -663,7 +663,6 @@ describe('runPipeline invariant enforcement', () => {
     doc: '',
     after: [],
     mutates: ['edges'],
-    determinism: 'in-place',
     run: c => {
       c.log.push(over.id)
     },

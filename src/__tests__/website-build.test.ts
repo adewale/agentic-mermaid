@@ -32,7 +32,8 @@ import { knownStyleDescriptors } from '../scene/style-registry.ts'
 import { resolveEditorRenderOptions } from '../editor-render-options.ts'
 import { useTestChildren } from './helpers/test-child.ts'
 
-const runChild = useTestChildren(20_000)
+const EDITOR_BUILD_TEST_TIMEOUT = 60_000
+const runChild = useTestChildren(EDITOR_BUILD_TEST_TIMEOUT - 5_000)
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -776,7 +777,7 @@ describe('Workers Static Assets website contract', () => {
     } finally {
       rmSync(parent, { recursive: true, force: true })
     }
-  }, 60_000)
+  }, EDITOR_BUILD_TEST_TIMEOUT)
 
   test('generated public text assets do not depend on external font imports', () => {
     const scanned = files().filter((f) => /\.(html|svg|css|md|txt|json)$/.test(f))

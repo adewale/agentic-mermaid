@@ -28,7 +28,7 @@ jobs:
           fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
           no-cache: true
       - name: Classify the changes in the tested checkout
         id: scope
@@ -64,7 +64,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
           no-cache: true
       - run: bun install --frozen-lockfile
       - uses: actions/setup-node@v7
@@ -91,7 +91,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
           no-cache: true
       - uses: actions/setup-node@v7
         with:
@@ -105,7 +105,7 @@ jobs:
           AM_EDITOR_BUILD_METAFILE: ci-editor-metafile.json
         run: |
           bun run build
-          AM_CI_ARTIFACTS=1 bun -e 'import { ensureWebsiteBuilt } from "./src/__tests__/website-public-fixture.ts"; ensureWebsiteBuilt()'
+          bun scripts/site/prepare-website-fixture.ts --reuse-lazy
       - name: Verify the package, including private-file exclusion
         run: |
           mkdir -p skill-evals/private
@@ -157,7 +157,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
           no-cache: true
 
       - name: Install dependencies
@@ -171,11 +171,13 @@ jobs:
           name: portable-test-artifacts
           path: .
       - name: Verify the transferred website fixture is usable
-        run: bun -e 'import { ensureWebsiteBuilt } from "./src/__tests__/website-public-fixture.ts"; ensureWebsiteBuilt()'
+        run: bun scripts/site/prepare-website-fixture.ts --reuse
 
       # Coverage is a scheduled diagnostic, not a condition for passing tests.
       # Keep two isolated workers: subprocess-heavy suites contend at four.
       - name: Run test shard
+        env:
+          AM_WEBSITE_FIXTURE_ROOT: ${{ github.workspace }}
         run: bun run test -- --shard=${{ matrix.shard }} --parallel=2
 
   layout-evidence:
@@ -193,7 +195,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
       - run: bun install --frozen-lockfile
       - name: Prepare the immutable base for layout review
         if: github.event_name == 'pull_request'
@@ -342,7 +344,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
           no-cache: true
       - run: bun install --frozen-lockfile
       - name: Record every generated input and backend outcome
@@ -431,7 +433,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
           no-cache: true
 
       # This is the same aggregate developers run locally. It installs the
@@ -454,7 +456,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
           no-cache: true
 
       - name: Setup Node for the official conformance CLI
@@ -489,7 +491,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
           no-cache: true
 
       - name: Remove approval labels applied to an earlier head
@@ -522,7 +524,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
           no-cache: true
       - run: bun install --frozen-lockfile
       - name: Run CLI and native binary contracts
@@ -533,7 +535,7 @@ jobs:
     if: needs.scope.outputs.full == 'true'
     name: E2E (${{ matrix.suite }})
     runs-on: ubuntu-latest
-    # These suites construct their own inputs; no unit/quality dependency.
+    # Consume portable build artifacts without waiting for unit/quality checks.
     # Browser binaries and OS libraries are one versioned environment. Avoid
     # re-provisioning three engines from an Ubuntu mirror on every CI run.
     container:
@@ -578,14 +580,14 @@ jobs:
         if: ${{ matrix.suite == 'browser' || matrix.suite == 'browser-site' || matrix.suite == 'payload' }}
         # The image has Node/npm but no unzip, which setup-bun requires.
         run: |
-          npm install --global bun@1.4.2
-          test "$(bun --version)" = "1.4.2"
+          npm install --global bun@1.4.4
+          test "$(bun --version)" = "1.4.4"
 
       - name: Setup Bun
         if: ${{ matrix.suite != 'browser' && matrix.suite != 'browser-site' && matrix.suite != 'payload' }}
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
           no-cache: true
 
       - name: Setup Node for shipped-artifact gates
@@ -707,14 +709,14 @@ jobs:
         run: |
           mkdir -p bench-report/resolved-scene
           bun scripts/resolved-scene-corpus.ts families /tmp/resolved-families.json
-          bun scripts/resolved-scene-oracle.ts /tmp/resolved-families.json --compare --worker-bundle dist/browser.global.js | tee bench-report/resolved-scene/families.log
+          bun scripts/resolved-scene-oracle.ts /tmp/resolved-families.json --compare --progress --worker-bundle dist/browser.global.js | tee bench-report/resolved-scene/families.log
           rayner_checkout=$(mktemp -d)
           git -C "$rayner_checkout" init --quiet
           git -C "$rayner_checkout" remote add origin https://github.com/adewale/rayner.git
           git -C "$rayner_checkout" fetch --quiet --depth=1 origin bd6f4d980f68d1a0b59f5f17fd16c5b955e9f824
           git -C "$rayner_checkout" checkout --quiet --detach FETCH_HEAD
           bun scripts/resolved-scene-corpus.ts rayner "$rayner_checkout" /tmp/resolved-rayner.json
-          bun scripts/resolved-scene-oracle.ts /tmp/resolved-rayner.json --compare --self-test | tee bench-report/resolved-scene/rayner.log
+          bun scripts/resolved-scene-oracle.ts /tmp/resolved-rayner.json --compare --self-test --progress | tee bench-report/resolved-scene/rayner.log
 
       - name: Retain resolved-scene comparisons
         if: ${{ always() && matrix.suite == 'browser' }}
@@ -830,7 +832,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
           no-cache: true
       - uses: actions/setup-node@v7
         with:

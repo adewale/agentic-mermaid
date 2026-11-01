@@ -235,7 +235,7 @@ measurement, not a solver optimization. Both cache campaigns now complete all
 arms and independent matched memory. Both ELK A/A controls pass, including
 per-case ceilings. The observed runner is AMD EPYC 9V74, 4 logical CPUs,
 Node 26.3.0 / Bun 1.4.2, unlike the earlier EPYC 7763 runner. Do not pool the runs.
-The [complete follow-up summary](layout-cost-b473-results.json) retains every
+The [complete follow-up summary](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-cost-b473-results.json) retains every
 arm's checks, population, environment, per-case timing and group memory.
 
 | Observation | Off: ELK A/A | Off: native | Normal: ELK A/A | Normal: native |
@@ -379,7 +379,7 @@ needed. The objective remains open; ELK stays the supported default.
 
 ## Reproduction
 
-The [machine-readable results](layout-qualification-results.json) retain cohort
+The [machine-readable results](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-qualification-results.json) retain cohort
 counts, adverse cases, raw ratios and artifact provenance. The
 [complete CI quality artifact](https://github.com/adewale/agentic-mermaid/actions/runs/39692904654/artifacts/12389776376)
 contains source/fixture/workload and generated inputs, both backend outcomes,

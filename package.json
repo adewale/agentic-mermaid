@@ -142,7 +142,7 @@
     "!dist/metafile-esm.json"
   ],
   "scripts": {
-    "test": "bun test --timeout 30000 src/__tests__/ eval/family-usage/count.test.ts eval/endpoint-marker/architecture-metrics.test.ts",
+    "test": "bun run scripts/ci/run-unit-tests.ts",
     "test:coverage": "bun run test -- --coverage",
     "typecheck": "bun run typecheck:core && bun run typecheck:repo",
     "typecheck:core": "tsc --noEmit -p tsconfig.json",

@@ -136,7 +136,7 @@ Inclusive percentages overlap and cannot be added. Short-window throughput and
 GC vary markedly across repeats; no ratios of these calls/windows are speed
 claims. Heap estimates are neither exact bytes nor peak/retained memory. Full
 stacks, per-worker counts/checksums, source-mapped frames and artifact identities
-are preserved in [profile results](layout-exploration/profile-results.json).
+are preserved in [profile results](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-exploration/profile-results.json).
 
 The existing browser profiler is useful precedent, but currently selects
 default ELK/Bezel, has no explicit CPU warmup, and exposes overlapping end-only
@@ -199,7 +199,7 @@ proof budgets merely to change the result.
 - [Family portfolios and subtraction](layout-exploration/scope-subtraction.md)
 - [Profiling boundaries, factorials and experimental controls](layout-exploration/profiling-strategy.md)
 - [Paint, stability, ports, readability and distribution](layout-exploration/stability-certification.md)
-- [New compact profile evidence](layout-exploration/profile-results.json)
+- [New compact profile evidence](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-exploration/profile-results.json)
 - [Independent review of the profiling method and raw stacks](layout-exploration/profile-review.md)
 
 Local full evidence is `/workspace/pr449-exploration`: `profile-worker.mjs`,

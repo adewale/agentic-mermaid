@@ -27,20 +27,39 @@ Run `bun run quality:check` to execute the complete GitHub **Quality gates**
 job locally. The command installs the frozen dependency graph and then runs
 the dependency audit, the font-subset, lazy browser-family catalog, and website
 regeneration checks, the whole-corpus audit, lint,
-repository-wide typechecking, and hero freshness (the
+repository-wide typechecking (the
 list is `QUALITY_CHECKS` in `scripts/ci/quality-gates.ts`). The workflow calls
 this same entry point, so the local list and CI list cannot diverge.
 
-The E2E lanes build their own inputs and start alongside unit tests; only the
-final `CI complete` gate waits for every lane. Package manifest and export/type
-checks run after the Node 24 tarball consumer has built the package, rather
-than rebuilding all browser artifacts in a unit shard. Unit shards build only
-the Node bundle. Browser contracts run in two disjoint file shards, retaining
-one test process per file. Payload measurement has its own lane: each site
-build supplies the lazy bundle for comparison, so neither head nor base needs
-a second full package build. Generic PR render evidence is generated on demand
-with `scripts/pr-assets/meaning-preservation-evidence.ts BASE_SHA HEAD_SHA OUT_DIR`;
-automatic rendering of the same fixtures is no longer appended to every PR.
+CI's artifact job builds the portable bundles, website fixture and verified
+tarball once. Unit and E2E lanes consume those artifacts from the same checkout;
+the final `CI complete` gate waits for every selected lane. Package manifest and
+export/type checks inspect the packed artifact without rebuilding it in a unit
+shard. Browser contracts run in two disjoint file shards, with one test process
+per file. Payload measurement reuses the head build and builds the base website
+separately for comparison.
+
+The canonical unit collection is owned by `scripts/ci/unit-test-files.ts` and
+shared with the order finder. `bun run test` prepares website fixtures before
+starting its workers. Focused `bun test <file>` commands build on first use in
+that process. Re-run the command after editing build inputs. For concurrent
+focused commands in one checkout, prepare the fixture once and pass its owning
+checkout explicitly:
+
+```bash
+bun scripts/site/prepare-website-fixture.ts
+AM_WEBSITE_FIXTURE_ROOT="$(pwd -P)" bun test <files> --parallel=2
+```
+
+CI validates transferred fixtures with `--reuse`; `--reuse-lazy` is reserved for
+the artifact producer immediately after its portable bundle build. No source
+fingerprints or persistent freshness sentinels decide whether output is current.
+
+The payload lane retains before/after witnesses for rendering changes; they can
+also be generated on demand with
+`scripts/pr-assets/meaning-preservation-evidence.ts BASE_SHA HEAD_SHA OUT_DIR`.
+Scene comparisons cover the full selected corpus. Comparer fault checks run
+once on the first eligible scene for each case, with progress logged per scene.
 
 Both tarball-consumer lanes also execute the Getting Started commands from the
 built website's shell blocks and `docs/getting-started.md`'s bash fences in fresh
@@ -57,8 +76,8 @@ gates: regenerate one with its `gallery:*` command when the rendering is
 reviewed again. Where an evidence script carried a real assertion, the unit
 suite now runs it against current code (for example the issue #87 link-rank
 gaps and the Section B sheet, which is regenerated in memory and
-byte-compared). Generated runtime modules are the narrow committed exception
-when production code imports them. Other derived discovery views are generated
+byte-compared). Generated runtime modules and published reference documentation are committed
+when one maintained source owns them. Other derived discovery views are generated
 at delivery: `am llms-txt` and the website use current registries, while the
 repository's authored `llms.txt` points readers to those sources. A second
 committed capability roster and its snapshot-freshness test are unnecessary.

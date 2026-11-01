@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // Per-PR payload growth, judged against the base branch built on the same
-// runner with the same toolchain — instead of byte-exact baselines committed to
+// runner with each revision's pinned Bun — instead of byte-exact baselines committed to
 // the repository and re-recorded on Linux for every change. The route and lazy
 // family byte ceilings (website-payload-budgets.ts, browser-lazy-budgets.json)
 // keep generous headroom and bound accumulated growth; this check bounds each
