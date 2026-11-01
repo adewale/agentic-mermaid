@@ -42,6 +42,7 @@ import { resolveGanttSchedule } from '../gantt/schedule.ts'
 import { AuthoredStyleColorError } from '../shared/style-props.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { positionResolvedFamily, retainedFamilyProjection } from '../positioning.ts'
+import { clonePositioned, isRetainedPositionedSnapshot } from '../experimental/position-cache.ts'
 import type { RenderOutput, ResolvedRenderRequest } from '../render-contract.ts'
 import { RenderConfigError, resolvedRenderExecutionPlanOf, resolveRenderRequest } from '../render-contract.ts'
 import { withTextMeasurementExecution } from '../text-measurement-profile.ts'
@@ -119,14 +120,8 @@ export function positionResolvedFamilyArtifact(d: ParsedDiagram, request: Resolv
   } catch (error) {
     throw new FamilyLayoutError(d.kind, 'layout', error)
   }
-  let view: FamilyPositionedView
-  try {
-    view = retainedFamilyProjection(result) ?? withTextMeasurementExecution(executionPlan.textMeasurement, () =>
-      descriptor.projectPositioned!({ positioned: result.positioned, options }))
-  } catch (error) {
-    throw new FamilyLayoutError(d.kind, 'projectPositioned', error)
-  }
-  const rendered = stampFamilyKind(d.kind, view)
+  const rendered = projectResolvedFamilyLayout(request, result, options)
+  if (!rendered) return null
   if (descriptor.lowerScene && !d.kind.startsWith('family:')) {
     const certification = positionedPaintCertification(request, result)
     if (request.renderOptions.layoutSafety === 'strict' && certification.status !== 'passed') throw new PaintLayoutCertificationError(certification)
@@ -134,6 +129,32 @@ export function positionResolvedFamilyArtifact(d: ParsedDiagram, request: Resolv
     if (options.debug) rendered.paintCertification = certification
   }
   return { request, layoutResult: result, positioned: result.positioned, rendered }
+}
+
+/** Reject unsupported action projection before any drawing hook can run. */
+export function assertFamilyLayoutProjection(request: ResolvedRenderRequest): void {
+  const descriptor = resolvedRenderExecutionPlanOf(request).family
+  if (!descriptor.layout || !descriptor.projectPositioned) throw new Error(`No public layout projection registered for Mermaid family "${descriptor.id}"`)
+  if (request.renderOptions.layoutSafety === 'strict' && (!descriptor.lowerScene || descriptor.id.startsWith('family:'))) throw new FamilyLayoutError(descriptor.id, 'projectPositioned', new RenderConfigError('Strict layout safety requires native Scene evidence'))
+}
+
+/** Project the exact render result without another request or layout. Borrowed
+ * cache geometry stays private even when a projector returns mutable views. */
+export function projectResolvedFamilyLayout(request: ResolvedRenderRequest, result: FamilyLayoutResult, options: FamilyPositionedProjectionOptions = {}): RenderedLayout | null {
+  const plan = resolvedRenderExecutionPlanOf(request)
+  const descriptor = plan.family
+  if (!descriptor.projectPositioned) return null
+  assertFamilyLayoutProjection(request)
+  const retained = retainedFamilyProjection(result)
+  if (retained) return stampFamilyKind(descriptor.id, isRetainedPositionedSnapshot(result) ? clonePositioned(retained) : retained)
+  const snapshot = isRetainedPositionedSnapshot(result) ? clonePositioned(result) : result
+  try {
+    const view = withTextMeasurementExecution(plan.textMeasurement, () =>
+      descriptor.projectPositioned!({ positioned: snapshot.positioned, options }))
+    return stampFamilyKind(descriptor.id, view)
+  } catch (error) {
+    throw new FamilyLayoutError(descriptor.id, 'projectPositioned', error)
+  }
 }
 
 function structuredBodyExpectsNodes(d: ParsedDiagram): boolean {

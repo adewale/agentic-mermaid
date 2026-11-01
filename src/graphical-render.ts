@@ -53,6 +53,12 @@ export interface GraphicalSvgArtifact {
   readonly receipt: RenderRequestReceipt
 }
 
+/** Internal projections consume owned positioning, never public evidence. */
+export interface GraphicalLayoutConsumer {
+  validate(request: ResolvedRenderRequest): void
+  consume(request: ResolvedRenderRequest, layout: FamilyLayoutResult): void
+}
+
 /** Internal receipt digest for a completed graphical output. SVG already has
  * its own byte budget; request-data snapshot limits do not constrain artifacts.
  * Primitive strings cannot change between admission and hashing. */
@@ -227,12 +233,11 @@ function renderPositionedWithTextMeasurement(
 export function renderResolvedMermaidSVG(
   request: ResolvedRenderRequest,
   securityDiagnostics: OutputSecurityDiagnostic[],
+  consumeLayout?: GraphicalLayoutConsumer,
 ): ResolvedGraphicalExecution {
-  return renderPositionedMermaidSVG(
-    request,
-    measureRenderStage('layout', () => positionFamilyForNativeRender(request)),
-    securityDiagnostics,
-  )
+  const layout = measureRenderStage('layout', () => positionFamilyForNativeRender(request))
+  consumeLayout?.consume(request, layout)
+  return renderPositionedMermaidSVG(request, layout, securityDiagnostics)
 }
 
 /**
@@ -246,8 +251,9 @@ export function executeGraphicalRequest(
   output: 'svg' | 'png',
   outputOptions?: unknown,
   resolutionOptions: RenderExecutionResolutionOptions = {},
+  consumeLayout?: GraphicalLayoutConsumer,
 ): GraphicalSvgArtifact {
-  return withSvgInspectionCache(() => executeInspectedGraphicalRequest(text, options, output, outputOptions, resolutionOptions))
+  return withSvgInspectionCache(() => executeInspectedGraphicalRequest(text, options, output, outputOptions, resolutionOptions, consumeLayout))
 }
 
 function executeInspectedGraphicalRequest(
@@ -256,6 +262,7 @@ function executeInspectedGraphicalRequest(
   output: 'svg' | 'png',
   outputOptions: unknown,
   resolutionOptions: RenderExecutionResolutionOptions,
+  consumeLayout?: GraphicalLayoutConsumer,
 ): GraphicalSvgArtifact {
   const request = measureRenderStage('request', () => resolveRenderRequestForExecution(
     text,
@@ -264,7 +271,7 @@ function executeInspectedGraphicalRequest(
     outputOptions,
     resolutionOptions,
   ))
-  return consumeResolvedGraphicalRequest(request)
+  return consumeResolvedGraphicalRequest(request, consumeLayout)
 }
 
 /** Async entries retain one immutable request across dependency loading.
@@ -273,10 +280,11 @@ export function executeResolvedGraphicalRequest(request: ResolvedRenderRequest):
   return withSvgInspectionCache(() => consumeResolvedGraphicalRequest(request))
 }
 
-function consumeResolvedGraphicalRequest(request: ResolvedRenderRequest): GraphicalSvgArtifact {
+function consumeResolvedGraphicalRequest(request: ResolvedRenderRequest, consumeLayout?: GraphicalLayoutConsumer): GraphicalSvgArtifact {
   emitResolvedConfigDiagnostics(request)
+  consumeLayout?.validate(request)
   const securityDiagnostics: OutputSecurityDiagnostic[] = []
-  const rendered = renderResolvedMermaidSVG(request, securityDiagnostics)
+  const rendered = renderResolvedMermaidSVG(request, securityDiagnostics, consumeLayout)
   return graphicalSvgArtifact(request, rendered, securityDiagnostics)
 }
 
