@@ -535,7 +535,7 @@ jobs:
     if: needs.scope.outputs.full == 'true'
     name: E2E (${{ matrix.suite }})
     runs-on: ubuntu-latest
-    # These suites construct their own inputs; no unit/quality dependency.
+    # Consume portable build artifacts without waiting for unit/quality checks.
     # Browser binaries and OS libraries are one versioned environment. Avoid
     # re-provisioning three engines from an Ubuntu mirror on every CI run.
     container:

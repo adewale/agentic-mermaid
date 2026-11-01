@@ -422,7 +422,8 @@ export async function selfTest(page: Page, ref: ResolvedScene, checked = new Set
   await plant('primitive dropped', s => { const p = s.parts.find(x => x.primitives.length); if (!p) return false; p.primitives.pop(); return true }, true)
   await plant('rect redrawn from another corner, other direction', s => {
     const rectangle = /^M(\S+) (\S+)h(\S+)v(\S+)h\S+Z$/
-    const p = paths(s).find(path => rectangle.test(path.d)), m = p?.d.match(rectangle)
+    // Reversing a dashed path can move its visible dashes despite equal geometry.
+    const p = paths(s).find(path => !path.paint.dashArray?.length && rectangle.test(path.d)), m = p?.d.match(rectangle)
     if (!p || !m) return false
     const [x, y, w, h] = m.slice(1).map(Number) as [number, number, number, number]
     p.d = `M${x + w} ${y + h}V${y}H${x}V${y + h}Z`
