@@ -709,14 +709,14 @@ jobs:
         run: |
           mkdir -p bench-report/resolved-scene
           bun scripts/resolved-scene-corpus.ts families /tmp/resolved-families.json
-          bun scripts/resolved-scene-oracle.ts /tmp/resolved-families.json --compare --worker-bundle dist/browser.global.js | tee bench-report/resolved-scene/families.log
+          bun scripts/resolved-scene-oracle.ts /tmp/resolved-families.json --compare --progress --worker-bundle dist/browser.global.js | tee bench-report/resolved-scene/families.log
           rayner_checkout=$(mktemp -d)
           git -C "$rayner_checkout" init --quiet
           git -C "$rayner_checkout" remote add origin https://github.com/adewale/rayner.git
           git -C "$rayner_checkout" fetch --quiet --depth=1 origin bd6f4d980f68d1a0b59f5f17fd16c5b955e9f824
           git -C "$rayner_checkout" checkout --quiet --detach FETCH_HEAD
           bun scripts/resolved-scene-corpus.ts rayner "$rayner_checkout" /tmp/resolved-rayner.json
-          bun scripts/resolved-scene-oracle.ts /tmp/resolved-rayner.json --compare --self-test | tee bench-report/resolved-scene/rayner.log
+          bun scripts/resolved-scene-oracle.ts /tmp/resolved-rayner.json --compare --self-test --progress | tee bench-report/resolved-scene/rayner.log
 
       - name: Retain resolved-scene comparisons
         if: ${{ always() && matrix.suite == 'browser' }}

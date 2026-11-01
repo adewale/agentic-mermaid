@@ -346,6 +346,7 @@ async function main() {
   await page.setContent('<!doctype html><body></body>')
   const api = (am as Record<string, unknown>).renderResolvedScene as ((s: string, o: object) => ResolvedScene) | undefined
   const scenes: ResolvedScene[] = [], failures: string[] = []
+  const comparerChecks = new Set<string>()
   const bundleAt = flags.indexOf('--worker-bundle')
   if (bundleAt >= 0) {
     const bundle = readFileSync(flags[bundleAt + 1]!, 'utf8')
@@ -387,7 +388,7 @@ async function main() {
         for (const d of await compareScenes(page, got, ref)) failures.push(`${label}: ${d}`)
       }
     }
-    if (flags.includes('--self-test')) failures.push(...(await selfTest(page, ref)).map(d => `${label}: ${d}`))
+    if (flags.includes('--self-test')) failures.push(...(await selfTest(page, ref, comparerChecks)).map(d => `${label}: ${d}`))
   }
   await browser.close()
   const out = flags[flags.indexOf('--out') + 1]
@@ -395,29 +396,33 @@ async function main() {
   const prims = scenes.reduce((n, s) => n + s.frame.length + s.parts.reduce((m, p) => m + p.primitives.length, 0), 0)
   console.log(`${corpus.length} diagrams, ${scenes.length} read, ${prims} primitives, ${failures.length} failures`)
   for (const f of failures.slice(0, 200)) console.log('  ' + f)
-  if (flags.includes('--self-test')) console.log('defects planted:', planted)
+  if (flags.includes('--self-test')) console.log('comparer checks:', [...comparerChecks])
   process.exitCode = failures.length ? 1 : 0
 }
 
-/** The comparer passes the reference against itself and fails each planted defect. */
-const planted: Record<string, number> = {}
-export async function selfTest(page: Page, ref: ResolvedScene): Promise<string[]> {
+/** Each defect is checked on its first eligible scene, once per corpus run. */
+export async function selfTest(page: Page, ref: ResolvedScene, checked = new Set<string>()): Promise<string[]> {
   const copy = () => JSON.parse(JSON.stringify(ref)) as ResolvedScene
   const problems: string[] = []
-  if ((await compareScenes(page, copy(), ref)).length) problems.push('self-test: reference differs from itself')
-  const firstPath = (s: ResolvedScene) => s.parts.flatMap(p => p.primitives).find((p): p is PathPrimitive => p.kind === 'path' && !p.marker)
+  if (!checked.has('reference')) {
+    checked.add('reference')
+    if ((await compareScenes(page, copy(), ref)).length) problems.push('self-test: reference differs from itself')
+  }
+  const paths = (s: ResolvedScene) => s.parts.flatMap(p => p.primitives).filter((p): p is PathPrimitive => p.kind === 'path' && !p.marker)
   const plant = async (name: string, change: (s: ResolvedScene) => boolean, expectFailure: boolean) => {
+    if (checked.has(name)) return
     const s = copy()
     if (!change(s)) return
-    planted[name] = (planted[name] ?? 0) + 1
+    checked.add(name)
     const found = (await compareScenes(page, s, ref)).length > 0
     if (found !== expectFailure) problems.push(`self-test: ${name} ${expectFailure ? 'was not caught' : 'was wrongly flagged'}`)
   }
-  await plant('path moved 0.1px', s => { const p = firstPath(s); if (!p) return false; p.matrix[4] += 0.1; return true }, true)
-  await plant('fill changed', s => { const p = firstPath(s); if (!p || p.paint.fill === 'none') return false; p.paint.fill = p.paint.fill === '#000000' ? '#000001' : '#000000'; return true }, true)
+  await plant('path moved 0.1px', s => { const p = paths(s)[0]; if (!p) return false; p.matrix[4] += 0.1; return true }, true)
+  await plant('fill changed', s => { const p = paths(s).find(path => path.paint.fill !== 'none'); if (!p) return false; p.paint.fill = p.paint.fill === '#000000' ? '#000001' : '#000000'; return true }, true)
   await plant('primitive dropped', s => { const p = s.parts.find(x => x.primitives.length); if (!p) return false; p.primitives.pop(); return true }, true)
   await plant('rect redrawn from another corner, other direction', s => {
-    const p = firstPath(s), m = p?.d.match(/^M(\S+) (\S+)h(\S+)v(\S+)h\S+Z$/)
+    const rectangle = /^M(\S+) (\S+)h(\S+)v(\S+)h\S+Z$/
+    const p = paths(s).find(path => rectangle.test(path.d)), m = p?.d.match(rectangle)
     if (!p || !m) return false
     const [x, y, w, h] = m.slice(1).map(Number) as [number, number, number, number]
     p.d = `M${x + w} ${y + h}V${y}H${x}V${y + h}Z`
