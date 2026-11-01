@@ -1,4 +1,4 @@
-// Tests for the LayoutPass abstraction (docs/design/system/route-contracts.md §8):
+// Tests for the LayoutPass abstraction (docs/design/system/route-contracts.md):
 // production runPipeline enforcement and the geometry its passes produce.
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
@@ -40,11 +40,42 @@ describe('source-aware ELK child order', () => {
 })
 
 describe('declared pass budgets on actual native geometry', () => {
+  test('duplicate lane repair cannot precede symmetric parallel repair', () => {
+    const graph = parseMermaid(`flowchart TD
+N0((ok))
+N1((warnings))
+N2(["same word ok"])
+N3(["validate input"])
+N4[(warnings)]
+N4 --->|ok| N1
+N4 ---> N1
+N4 ===>|same word ok| N1
+N0 ===> N2
+N0 -->|warnings| N2
+N1 --> N3
+N1 -->|process the request| N3
+N1 ---> N3
+N2 --->|a longer label goes here| N4`)
+    const pipeline = LAYOUT_PIPELINE as Array<(typeof LAYOUT_PIPELINE)[number]>
+    const symmetric = pipeline.findIndex(pass => pass.id === 'applySymmetricParallelEdgeLanes')
+    const duplicate = pipeline.findIndex(pass => pass.id === 'applyParallelDuplicateLanes')
+    const first = pipeline[symmetric]!, second = pipeline[duplicate]!
+    pipeline[symmetric] = second
+    pipeline[duplicate] = first
+    try {
+      expect(() => withPerformanceExperiments([], () => layoutGraphSync(graph))).toThrow(/applyParallelDuplicateLanes.*must run after.*applySymmetricParallelEdgeLanes/)
+    } finally {
+      pipeline[symmetric] = first
+      pipeline[duplicate] = second
+    }
+  })
+
   test.each(['LR', 'RL', 'TD', 'BT'] as const)('%s: final closure repairs a late false bundle certificate before public output', direction => {
     withPerformanceExperiments(['text-spans', 'indexed-layout'], () => {
       const source = `flowchart ${direction}\nA[Start] --> B[Done]`
       const baseline = renderMermaidSVG(source, { embedFontImport: false })
-      const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'separateEdgeLabelPills')!, run = pass.run
+      // The injected route fault must originate at a route-writing owner.
+      const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'repairLabelsOnSharedTrunks')!, run = pass.run
       let injected = 0
       pass.run = context => {
         run(context)
@@ -68,6 +99,20 @@ describe('declared pass budgets on actual native geometry', () => {
         expect(injected).toBeGreaterThanOrEqual(2)
       } finally { pass.run = run }
     })
+  })
+
+  test('a label-only pass cannot rewrite a route even with a fresh certificate', () => {
+    const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'separateEdgeLabelPills')!, run = pass.run
+    pass.run = context => {
+      run(context)
+      const edge = context.edges[0]!, a = edge.points[0]!, b = edge.points.at(-1)!
+      edge.points = [a, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, b]
+      edge.routeCertificate = { ...edge.routeCertificate! }
+    }
+    try {
+      expect(() => withPerformanceExperiments(['text-spans', 'indexed-layout'], () =>
+        renderMermaidSVG('flowchart LR\nA[Start] --> B[Done]', { embedFontImport: false }))).toThrow(/separateEdgeLabelPills.*rewrote edge geometry/)
+    } finally { pass.run = run }
   })
 
   test.each([

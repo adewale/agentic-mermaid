@@ -42,6 +42,11 @@ export function labelRect(edge: PositionedEdge, style: Parameters<typeof graphEd
   return pillRect(edge.labelPosition.x, edge.labelPosition.y, block)
 }
 
+/** The same opaque halo bounds are used for seat admission and pill collisions. */
+export function labelHaloRect(inner: ReturnType<typeof pillRect>, halo: number): ReturnType<typeof pillRect> {
+  return { x: inner.x - halo, y: inner.y - halo, w: inner.w + 2 * halo, h: inner.h + 2 * halo }
+}
+
 export const LABEL_INTERIOR_TOLERANCE = 0.5
 
 /** Clip a segment against the open, slightly inset pill body. */
