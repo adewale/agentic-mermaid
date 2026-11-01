@@ -11,7 +11,7 @@ editing surface. Source lives in `src/`; the layout pipeline is in
 
 ## Commands
 
-- `bun install` — install dependencies. Requires Bun 1.4.0 or later (CI pins 1.4.2);
+- `bun install` — install dependencies. Requires Bun 1.4.0 or later (CI pins 1.4.4);
   older Bun mishandles `node:vm` timeouts and the MCP server refuses to start. In
   cloud sessions the SessionStart hook (`scripts/ci/session-start.sh`) upgrades an
   older Bun and runs `bun install` for you, in the background: if `bun --version`

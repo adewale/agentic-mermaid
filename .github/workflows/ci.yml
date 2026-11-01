@@ -28,7 +28,7 @@ jobs:
           fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
           no-cache: true
       - name: Classify the changes in the tested checkout
         id: scope
@@ -64,7 +64,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
           no-cache: true
       - run: bun install --frozen-lockfile
       - uses: actions/setup-node@v7
@@ -91,7 +91,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
           no-cache: true
       - uses: actions/setup-node@v7
         with:
@@ -157,7 +157,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
           no-cache: true
 
       - name: Install dependencies
@@ -195,7 +195,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
       - run: bun install --frozen-lockfile
       - name: Prepare the immutable base for layout review
         if: github.event_name == 'pull_request'
@@ -344,7 +344,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
           no-cache: true
       - run: bun install --frozen-lockfile
       - name: Record every generated input and backend outcome
@@ -433,7 +433,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
           no-cache: true
 
       # This is the same aggregate developers run locally. It installs the
@@ -456,7 +456,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
           no-cache: true
 
       - name: Setup Node for the official conformance CLI
@@ -491,7 +491,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
           no-cache: true
 
       - name: Remove approval labels applied to an earlier head
@@ -524,7 +524,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
           no-cache: true
       - run: bun install --frozen-lockfile
       - name: Run CLI and native binary contracts
@@ -580,14 +580,14 @@ jobs:
         if: ${{ matrix.suite == 'browser' || matrix.suite == 'browser-site' || matrix.suite == 'payload' }}
         # The image has Node/npm but no unzip, which setup-bun requires.
         run: |
-          npm install --global bun@1.4.2
-          test "$(bun --version)" = "1.4.2"
+          npm install --global bun@1.4.4
+          test "$(bun --version)" = "1.4.4"
 
       - name: Setup Bun
         if: ${{ matrix.suite != 'browser' && matrix.suite != 'browser-site' && matrix.suite != 'payload' }}
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
           no-cache: true
 
       - name: Setup Node for shipped-artifact gates
@@ -832,7 +832,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
           no-cache: true
       - uses: actions/setup-node@v7
         with:
