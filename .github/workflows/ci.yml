@@ -773,7 +773,7 @@ jobs:
           (cd ../payload-base && PATH="$base_path" bun install --frozen-lockfile)
           bun run scripts/build/browser-lazy-report.ts --measure-only --json > head-lazy.json
           cp dist/metafile-esm.json head-lazy-metafile.json
-          PATH="$base_path" "$head_bun" run scripts/site/website-payload-report.ts --root ../payload-base --report base-site.json
+          AM_CI_ARTIFACTS=0 PATH="$base_path" "$head_bun" run scripts/site/website-payload-report.ts --root ../payload-base --report base-site.json
           bun run scripts/build/browser-lazy-report.ts --root ../payload-base --measure-only --json > base-lazy.json
           cp ../payload-base/dist/metafile-esm.json base-lazy-metafile.json
           allow=()
