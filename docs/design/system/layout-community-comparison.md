@@ -120,7 +120,7 @@ inside `Requirement 10`) and metadata-only occurrences. Every arm/input is
 rerun; first-campaign coverage and timings are not pooled into the corrected
 result. This repairs the evaluator and does not change renderer output.
 
-[Complete raw results](layout-community-results.json) retain all 300 observations.
+[Complete raw results](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-community-results.json) retain all 300 observations.
 
 Environment: Node v24.19.0, Bun 1.4.2, INTEL(R) XEON(R) PLATINUM 8573C, 5 logical CPUs, Linux x64. All 30 workers complete with no restarts. All 285 successful captured SVG hashes validate, with 0 changing-output calls; all 285 captures are byte-identical to the initial campaign. No build/test ran concurrently with either timing campaign.
 
@@ -154,7 +154,7 @@ Warm public SVG milliseconds per call, median across three rounds; lower is fast
 | merman | 10/10 | none |
 | mermaid-rs | 10/10 | none |
 
-Local A/A median paired ratios fall outside reciprocal 1.1 on **5/10 inputs** (seq20, er40, state80, requirement100, architecture3). The per-input A/A range is 0.958–1.372. Native/ELK ratios and A/A are retained separately in the [evidence summary](layout-community-summary.json). Flow5 is an adverse observation: native/ELK is **1.177×**, with A/A **1.024×** (native sample MAD/median 14%). This SVG-only cohort does not qualify an all-case timing improvement; the independent full 27-input qualification remains the stronger within-pipeline result.
+Local A/A median paired ratios fall outside reciprocal 1.1 on **5/10 inputs** (seq20, er40, state80, requirement100, architecture3). The per-input A/A range is 0.958–1.372. Native/ELK ratios and A/A are retained separately in the [evidence summary](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-community-summary.json). Flow5 is an adverse observation: native/ELK is **1.177×**, with A/A **1.024×** (native sample MAD/median 14%). This SVG-only cohort does not qualify an all-case timing improvement; the independent full 27-input qualification remains the stronger within-pipeline result.
 
 Pele, Ondine and Merman are materially faster than our public SVG calls on these inputs. Zombie simple is materially faster on the Flowcharts and marker-free State input, while using a narrower graph contract. Our native calls are faster than this Rust/WASM binding on the tested Flowcharts, Class, ER, State and Requirement, but that binding wins on Architecture and unchanged controls. Neither implementation language nor removing ELK determines whole-workflow performance. The large Sequence/C4 gaps remain even though our graph solver is unused; shared-pipeline profiling is still necessary.
 
@@ -208,7 +208,7 @@ successful cost campaigns. All required CI passes at `b4734ec7`; passing require
 CI is separate from passing advisory quality and cost qualification.
 
 The [historical full cost artifact](https://github.com/adewale/agentic-mermaid/actions/runs/39695626480/artifacts/12391357430)
-and [per-case/memory summary](layout-cost-b473-results.json) use b4734ec7,
+and [per-case/memory summary](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-cost-b473-results.json) use b4734ec7,
 with renderer/build files unchanged from the e9 freeze. Both cache policies now
 complete on the recorded EPYC 9V74 runner; the earlier EPYC 7763 incomplete run
 remains separate. The new complete measurements close an evidence gap, while

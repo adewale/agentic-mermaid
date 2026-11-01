@@ -17,16 +17,13 @@ Clock admission uses the source-defined console async anchors and hrtime bracket
 
 ## Portable selected evidence
 
-- [Archive](pr449-gc-diagnostic-2026-10-23-evidence.json.gz), **1,435,837 bytes**, SHA-256 `cdbc4039be11245549e9fb20ca8432b02a106e520a9e2419b2386179937fcba7`.
-- [Exact evidence index](pr449-gc-diagnostic-2026-10-23-evidence-index.json), [whole-object exclusions](pr449-gc-diagnostic-2026-10-23-exclusions.json), [verifier](pr449-gc-diagnostic-2026-10-23-verify.py) and [root verification](pr449-gc-diagnostic-2026-10-23-archive-verification.json).
+- [Archive](https://raw.githubusercontent.com/adewale/agentic-mermaid/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/pr449-gc-diagnostic-2026-10-23-evidence.json.gz), **1,435,837 bytes**, SHA-256 `cdbc4039be11245549e9fb20ca8432b02a106e520a9e2419b2386179937fcba7`.
+- [Exact evidence index](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/pr449-gc-diagnostic-2026-10-23-evidence-index.json), [whole-object exclusions](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/pr449-gc-diagnostic-2026-10-23-exclusions.json), [verifier](pr449-gc-diagnostic-2026-10-23-verify.py) and [root verification](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/pr449-gc-diagnostic-2026-10-23-archive-verification.json).
 
-The first assembly fits its 16 MiB compressed / 64 MiB unique-content limits: 232 complete original paths, 164 unique objects, 68 duplicate paths and 10,933,382 unique decoded bytes. All 34 actual raw files are included, with four complete traces, complete calls/journals/results, frozen methods, reader, controller, owning/independent reviews and preserved preparation/reviewer failures. The full 737-file/13-link/89-directory runtime is excluded whole with an exact cross-reference to the [forest baseline inventory](pr449-forest-boundary-2026-10-23-evidence.md); pinned Node/Python binaries are separately inventoried. This is not a standalone live replay environment.
+The first assembly fits its 16 MiB compressed / 64 MiB unique-content limits: 232 complete original paths, 164 unique objects, 68 duplicate paths and 10,933,382 unique decoded bytes. All 34 actual raw files are included, with four complete traces, complete calls/journals/results, frozen methods, reader, controller, owning/independent reviews and preserved preparation/reviewer failures. The full 737-file/13-link/89-directory runtime is excluded whole with an exact cross-reference to the [forest baseline inventory](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/pr449-forest-boundary-2026-10-23-evidence.md); pinned Node/Python binaries are separately inventoried. This is not a standalone live replay environment.
 
 From this directory, run the archive-only verifier with a fresh output destination:
 
-```sh
-env -u PYTHONOPTIMIZE python3 pr449-gc-diagnostic-2026-10-23-verify.py \
-  pr449-gc-diagnostic-2026-10-23-evidence.json.gz /tmp/pr449-gc-verification.json
-```
+[Replay commands and raw data are retained in the original snapshot.](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/pr449-gc-diagnostic-2026-10-23.md)
 
 It checks every retained hash/length, all four complete journals, 300 calls, 600 actual anchor endpoints and 608 snapshots. It does not execute the original reader or recalculate clock associations/GC unions, import product code, or run a renderer, controller, browser or measurement. The earlier [RSS and hosted timing controls](pr449-controls-2026-10-23.md) remain failed and separate.

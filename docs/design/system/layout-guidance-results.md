@@ -28,11 +28,11 @@ The integration also propagates family-owned custom placement sizes and updates
 exactly one default geometry golden: the new PR fixture's junction ring is now
 16×16 at its actual outline instead of its old 28×28 allocation box.
 
-The [machine-readable evidence](layout-guidance-results.json) retains all pilot
+The [machine-readable evidence](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-guidance-results.json) retains all pilot
 rounds, rejected arms, quality/admission changes, adverse metric cases, edit
 comparison and raw-file hashes. The [runtime23 report](layout-experiment-results.md)
 remains historical evidence, not a relabelled runtime24 benchmark.
-The [final benchmark evidence (gzip JSON)](layout-guidance-benchmarks.json.gz) retains the
+The [final benchmark evidence (gzip JSON)](https://raw.githubusercontent.com/adewale/agentic-mermaid/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-guidance-benchmarks.json.gz) retains the
 dedicated hosted campaigns, independent CI canary, per-case rounds and tails,
 missing/failed gates, churn observations, artifact provenance and the separate
 whole 27-input memory-only declaration and results.

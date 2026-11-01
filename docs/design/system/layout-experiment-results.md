@@ -38,7 +38,7 @@ certification is unchanged and may still return `unverified`.
 
 ## Retained quality results
 
-The retained [quality summary](layout-experiment-results.json)
+The retained [quality summary](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-experiment-results.json)
 records source and generated before/after populations, per-case differences,
 failures and certificate outcomes.
 
@@ -276,7 +276,7 @@ The retained investigation provides the underlying proposals and cautions:
 - [Literature and layout algorithms](layout-exploration/layout-literature.md): routing, ordering, label placement and scope-specific opportunities.
 - [Community feedback](layout-exploration/community-feedback.md) and [primary evidence](layout-exploration/community-primary-evidence.json): fidelity expectations and concrete reported failures.
 - [Scope and subtraction](layout-exploration/scope-subtraction.md): fewer passes, narrower guarantees and family eligibility counterfactuals.
-- [Profiling strategy](layout-exploration/profiling-strategy.md), [profile review](layout-exploration/profile-review.md) and [profile results](layout-exploration/profile-results.json): sampled observations, causal experiments, cache controls and A/A limits.
+- [Profiling strategy](layout-exploration/profiling-strategy.md), [profile review](layout-exploration/profile-review.md) and [profile results](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-exploration/profile-results.json): sampled observations, causal experiments, cache controls and A/A limits.
 - [Stability and certification](layout-exploration/stability-certification.md): task-specific mental-map literature, exact predicate/construction distinctions, shared final geometry and retained proof scope.
 
 These sources favor explicit constraints, authoritative geometry, measured

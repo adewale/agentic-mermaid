@@ -2,7 +2,7 @@
 
 The native engine has useful wins against ELK, but does not beat it on every aspect. ELK remains the default and the six native families remain opt-in. This note supplements the [sealed frontier report](pr449-frontier-2026-10-23.md); it preserves that report's dated evidence rather than relabelling historical measurements as current results.
 
-The [structured companion](pr449-current-measurements-2026-10-23.json) binds this note and the [selected evidence packet](pr449-current-measurements-2026-10-23-evidence.json.gz). The packet is 13.8 MB compressed and retains complete canonical numerical records for both hosted canaries, the failed dirty-bilayer trial and all 126 constructor workers. [Inspection instructions](pr449-current-measurements-2026-10-23-evidence.md) explain its coverage and explicit omissions.
+The [structured companion](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/pr449-current-measurements-2026-10-23.json) binds this note and the [selected evidence packet](https://raw.githubusercontent.com/adewale/agentic-mermaid/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/pr449-current-measurements-2026-10-23-evidence.json.gz). The packet is 13.8 MB compressed and retains complete canonical numerical records for both hosted canaries, the failed dirty-bilayer trial and all 126 constructor workers. [Inspection instructions](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/pr449-current-measurements-2026-10-23-evidence.md) explain its coverage and explicit omissions.
 
 ## Completed hosted canary
 

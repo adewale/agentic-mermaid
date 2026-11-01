@@ -241,7 +241,7 @@ or retune evaluated cases into a claimed holdout win.
 
 ### Durable evidence for this round
 
-[The cyclic experiment archive](layout-runtime26-cyclic-experiments.json.gz)
+[The cyclic experiment archive](https://raw.githubusercontent.com/adewale/agentic-mermaid/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-runtime26-cyclic-experiments.json.gz)
 retains all four exact candidate source/test patches against the published f2af
 base, accepted3258 and prototype build identities, executed harness bytes and
 immutable declarations. It contains the12 raw CPU/heap profiles, complete40-case
@@ -262,11 +262,7 @@ The existing readable decoder verifies all content hashes and restores256903815
 canonical bytes, SHA256
 `d762a447f5226d835205a8e5656e8d9f84adeb9a499ffdb2bedda6488beb1a17`:
 
-```sh
-python eval/benchmark/decode-layout-evidence.py \
-  docs/design/system/layout-runtime26-cyclic-experiments.json.gz \
-  /tmp/layout-runtime26-cyclic-experiments.json
-```
+[Replay commands and raw data are retained in the original snapshot.](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-followup-results.md)
 
 Existing historical archives are unchanged. This is repository evaluation
 evidence, not an addition to a renderer's fetched bundle or a new qualification
@@ -684,7 +680,7 @@ and semantic checks therefore coexist with 21 crossing losses and 48 worse
 edit-motion transitions. Human readability, perceived symmetry and incremental
 guarantees remain distinct, unproved aspects. The complete per-case
 crossing/bend/length/area loss tables for both policies are retained in the
-[runtime26 quality evidence](layout-runtime26-quality.json.gz).
+[runtime26 quality evidence](https://raw.githubusercontent.com/adewale/agentic-mermaid/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-runtime26-quality.json.gz).
 
 That archive losslessly envelopes the explicitly projected complete case
 evidence, its index, exact eight generator/harness/analysis byte records and
@@ -880,7 +876,7 @@ after this frozen source have their own CI status.
 
 ## Evidence
 
-[Final26 benchmark evidence](layout-runtime26-benchmarks.json.gz) preserves all
+[Final26 benchmark evidence](https://raw.githubusercontent.com/adewale/agentic-mermaid/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-runtime26-benchmarks.json.gz) preserves all
 four dedicated campaigns and the separate canary; complete local 30-worker
 memory and 36-worker Architecture results; exact executed harnesses, inputs,
 compiled manifests and package/lock identities; browser/source validation; and
@@ -897,7 +893,7 @@ Use the same decoder command below with the runtime26 filename. Mutable main
 report/PR prose is excluded; frozen source and measured artifact identities
 remain authoritative.
 
-[Intermediate25 quality evidence](layout-runtime25-quality.json.gz) preserves
+[Intermediate25 quality evidence](https://raw.githubusercontent.com/adewale/agentic-mermaid/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-runtime25-quality.json.gz) preserves
 the original broad-refinement outcomes and independently declared Flowchart
 cohort 448–511. Its gzip SHA256 is
 `bc51ffa8764c68afba2d1b9488136b2b075056648a82fbe53a76dc207c5b24bc`;
@@ -906,7 +902,7 @@ the uncompressed envelope SHA256 is
 Final 26 quality and benchmark evidence are separate, preserving rather than
 overwriting the intermediate results.
 
-[Intermediate25 benchmark evidence](layout-runtime25-benchmarks.json.gz) retains
+[Intermediate25 benchmark evidence](https://raw.githubusercontent.com/adewale/agentic-mermaid/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-runtime25-benchmarks.json.gz) retains
 all four failed manual campaigns, the separate canary, whole 27 memory and the
 three Architecture cost experiments. Its deterministic gzip is 4,703,503 bytes,
 SHA256 `74a12d3683d19a9060a2238883acb9164530254111ce0ab91a67d7155beed604`.
@@ -926,7 +922,7 @@ canonical/content hashes remain evidence for the original expansion, rather
 than a claim of current standalone reproducibility. Quality archives and
 historical guidance use ordinary gzip JSON and need no interning decoder.
 
-[Experiment evidence (gzip JSON)](layout-followup-experiments.json.gz) contains
+[Experiment evidence (gzip JSON)](https://raw.githubusercontent.com/adewale/agentic-mermaid/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-followup-experiments.json.gz) contains
 the original declarations, interruption observer, worker results, assessments
 and rejected payload reports. It projects 432 full SVG strings to SHA256 and
 UTF-8 size while preserving all measurements, receipt/decision/certification
@@ -944,7 +940,7 @@ The compressed evidence SHA256 is
 `6c258bd4290d9139b4b6070b8c71505e0d82c7ffcc8083b4acba4026a7c03f86`.
 
 Historical benchmark evidence is now
-[lossless gzip JSON](layout-guidance-benchmarks.json.gz), with compressed SHA256
+[lossless gzip JSON](https://raw.githubusercontent.com/adewale/agentic-mermaid/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-guidance-benchmarks.json.gz), with compressed SHA256
 `bf34ecbb2ac7816defc571c0c386d445fae7e2b27eedf73fb37948d1104a93ee`.
 Its uncompressed SHA256 remains
 `64a39f5ce73ebd2fc6fd506bc8ff1c8369afac19f8c2c613a483c0a87fac6e35`.
