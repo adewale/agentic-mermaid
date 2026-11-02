@@ -643,6 +643,17 @@ test.each([
   expect(descriptors).toBe(reads)
 })
 
+test.each([false, true])('native capture keeps the final source validity check when revocation is %s', revokeAtEnd => {
+  const { proxy, revoke } = Proxy.revocable({ x: 1, y: 2 }, {
+    getOwnPropertyDescriptor(target, key) {
+      const descriptor = Reflect.getOwnPropertyDescriptor(target, key)
+      if (key === 'y' && revokeAtEnd) revoke()
+      return descriptor
+    },
+  })
+  expect(createNativePaintEmission(10000).snapshot(proxy) !== undefined).toBe(!revokeAtEnd)
+})
+
 test.each(['full', 'compound', 'fill-opacity-zero', 'thin', 'partial', 'repaint', 'dashed', 'translucent', 'unknown-width', 'unknown-opacity', 'non-scaling', 'scaled', 'rotated', 'sheared', 'circle', 'ellipse', 'polygon', 'marker-none', 'marker-unknown'] as const)('%s endpoint stroke cannot hide a fully covered marker behind its contact exemption', mode => {
   const marker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: mode === 'marker-none' ? 'none' : mode === 'marker-unknown' ? 'var(--unknown)' : '#000' }, 'userSpaceOnUse')
   const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
