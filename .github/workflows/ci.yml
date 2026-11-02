@@ -698,10 +698,11 @@ jobs:
         if: ${{ matrix.suite == 'tarball-consumer' }}
         run: bun run lint:package
 
-      - name: Run canonical browser contract shard
-        if: ${{ matrix.suite == 'browser' || matrix.suite == 'browser-site' }}
-        # One Playwright/server suite per process, with disjoint file shards.
-        run: bun run test:browser --shard=${{ matrix.suite == 'browser' && '1/2' || '2/2' }}
+      - name: Run canonical browser contracts
+        if: ${{ matrix.suite == 'browser-site' }}
+        # Keep every contract, one process per file. The other browser job
+        # owns resolved-scene comparisons, so neither waits behind both suites.
+        run: bun run test:browser
 
       - name: Compare resolved scenes with Chromium
         if: ${{ matrix.suite == 'browser' }}
@@ -728,7 +729,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Retain Editor interaction review images
-        if: ${{ always() && matrix.suite == 'browser' }}
+        if: ${{ always() && matrix.suite == 'browser-site' }}
         uses: actions/upload-artifact@v7
         with:
           name: editor-community-review-${{ github.event.pull_request.head.sha || github.sha }}
@@ -737,7 +738,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Retain standalone editor module graph and byte counts
-        if: ${{ always() && matrix.suite == 'browser' }}
+        if: ${{ always() && matrix.suite == 'browser-site' }}
         uses: actions/upload-artifact@v7
         with:
           name: standalone-editor-diagnostics-${{ github.event.pull_request.head.sha || github.sha }}
