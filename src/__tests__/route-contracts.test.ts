@@ -3391,5 +3391,5 @@ it('an overflowing terminal displacement cannot bypass marker separation', () =>
     points: [{ x: -1e308, y: 0 }, { x: 1e308, y: 0 }, { x: 1e308, y: 1 }, { x: 0, y: 1 }] }
   const candidate = [edge.points[0]!, { x: 0, y: 0 }, ...edge.points.slice(1)]
   const peer: PositionedEdge = { ...edge, source: 'C', target: 'D', points: [{ x: -9.5e307, y: 0 }, { x: -9e307, y: 0 }] }
-  expect(routeCandidateMarkerBlocker(edge, candidate, [edge, peer], { lineWidth: 1e306 })).toEqual(expect.objectContaining({ kind: 'port' }))
+  expect(routeCandidateMarkerBlocker(edge, candidate, [edge, peer], { ...resolveRenderStyle(), lineWidth: 1e306, edgeBendRadius: 0 })).toEqual(expect.objectContaining({ kind: 'port' }))
 })
