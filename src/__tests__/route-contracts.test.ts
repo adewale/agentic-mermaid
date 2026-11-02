@@ -3374,3 +3374,13 @@ it.each([0, 1, 2, 3].flatMap(turns => ([['end', 'solid', false], ['start', 'soli
       && Math.min(p.y, q.y) - .5 < marker.y1 && Math.max(p.y, q.y) + .5 > marker.y0).toBe(false)
   }
 })
+
+it('route repair preserves authored identities when positioned edges are reordered', () => {
+  const graph = parseMermaid('flowchart LR\n __proto__[Origin] -->|first| constructor[Merge]\n Other -->|second| constructor\n constructor --> End')
+  const positioned = layoutGraphSync(graph)
+  positioned.edges.reverse()
+  const identities = positioned.edges.map(edge => [edge.edgeIndex, edge.source, edge.target, edge.label])
+  applyRouteContracts(positioned, graph, new Set(), resolveRenderStyle())
+  expect(positioned.edges.map(edge => [edge.edgeIndex, edge.source, edge.target, edge.label])).toEqual(identities)
+  expect(auditRouteContracts(positioned, graph)).toEqual([])
+})
