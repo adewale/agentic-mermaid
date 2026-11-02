@@ -628,6 +628,21 @@ test.each([[63, true], [64, false], [65, false]] as const)('numeric point captur
   }
 })
 
+test.each([
+  ['numeric', 3, false, 0],
+  ['numeric', 4, false, 1],
+  ['numeric', 5, true, 2],
+  ['nested', 20, true, 2],
+  ['accessor', 4, false, 1],
+] as const)('native capture charges descriptor work before reading %s input with budget %i', (kind, budget, accepted, reads) => {
+  let descriptors = 0
+  const input = kind === 'numeric' ? { x: 1, y: 2 } : kind === 'nested' ? { x: { a: 1 }, y: 2 }
+    : { get x() { throw new Error('Accessors must not run') }, y: 2 }
+  const value = new Proxy(input, { getOwnPropertyDescriptor(target, key) { descriptors++; return Reflect.getOwnPropertyDescriptor(target, key) } })
+  expect(createNativePaintEmission(budget).snapshot(value) !== undefined).toBe(accepted)
+  expect(descriptors).toBe(reads)
+})
+
 test.each(['full', 'compound', 'fill-opacity-zero', 'thin', 'partial', 'repaint', 'dashed', 'translucent', 'unknown-width', 'unknown-opacity', 'non-scaling', 'scaled', 'rotated', 'sheared', 'circle', 'ellipse', 'polygon', 'marker-none', 'marker-unknown'] as const)('%s endpoint stroke cannot hide a fully covered marker behind its contact exemption', mode => {
   const marker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: mode === 'marker-none' ? 'none' : mode === 'marker-unknown' ? 'var(--unknown)' : '#000' }, 'userSpaceOnUse')
   const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }

@@ -45,27 +45,42 @@ export function createNativePaintEmission(maxOperations: number) {
     // slots and subsequent descriptor/copy visits are distinct paid work.
     const keys = Object.getOwnPropertyNames(value)
     if (!pay(keys.length)) throw failed
+    const deferredProjection = deferredTerminalProjectionInput(value)
+    // Pay before reading caller data and reuse each descriptor if the typed
+    // constructor declines, so fallback cannot repeat uncharged proxy work.
+    let inspected = 0
+    let x: PropertyDescriptor | undefined, y: PropertyDescriptor | undefined
     // Coordinate buffers dominate native geometry. Capture their fixed scalar
     // records directly; descriptors still prove that no accessor or hidden
     // field can acquire immutable authority through this constructor.
-    if (depth < 64 && keys.length === 2 && keys[0] === 'x' && keys[1] === 'y') {
-      const x = Object.getOwnPropertyDescriptor(value, 'x')!, y = Object.getOwnPropertyDescriptor(value, 'y')!
-      if ('value' in x && 'value' in y && x.enumerable && y.enumerable && typeof x.value === 'number' && typeof y.value === 'number') {
-        if (!pay(2)) throw failed
-        const point = Object.freeze({ x: x.value as number, y: y.value as number })
-        transferRetainedPixelText(value, point)
-        return point
+    if (!deferredProjection && depth < 64 && keys.length === 2 && keys[0] === 'x' && keys[1] === 'y') {
+      if (!pay()) throw failed
+      x = Object.getOwnPropertyDescriptor(value, 'x')
+      inspected = 1
+      if (x && 'value' in x && x.enumerable && typeof x.value === 'number') {
+        if (!pay()) throw failed
+        y = Object.getOwnPropertyDescriptor(value, 'y')
+        inspected = 2
+        if (y && 'value' in y && y.enumerable && typeof y.value === 'number') {
+          const point = Object.freeze({ x: x.value as number, y: y.value as number })
+          transferRetainedPixelText(value, point)
+          return point
+        }
       }
     }
     parents.add(value)
     const result: Record<string, unknown> | unknown[] = Array.isArray(value) ? [] : {}
     let arrayLength: PropertyDescriptor | undefined
-    const deferredProjection = deferredTerminalProjectionInput(value)
-    for (const key of keys) {
-      if (!pay()) throw failed
+    for (let index = 0; index < keys.length; index++) {
+      const key = keys[index]!
       // This property visit owns descriptor retention and scalar assignment;
       // a primitive needs no second visit or numeric formatting/replay.
-      const descriptor = Object.getOwnPropertyDescriptor(value, key)
+      let descriptor: PropertyDescriptor | undefined
+      if (index < inspected) descriptor = index === 0 ? x : y
+      else {
+        if (!pay()) throw failed
+        descriptor = Object.getOwnPropertyDescriptor(value, key)
+      }
       if (!descriptor) continue
       if (key === 'length' && Array.isArray(value)) { arrayLength = descriptor; continue }
       // Deferred terminal geometry is neither read nor used by paint writing.
