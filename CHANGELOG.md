@@ -4,11 +4,42 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+## 0.5.6 — 2026-11-02
+
+### Performance
+
+- Load the native PNG rasterizer only when PNG rendering reaches rasterization,
+  avoiding its initialization for parsing, verification and SVG rendering.
+- Reuse one captured request and positioned result for SVG/PNG action rendering,
+  removing duplicate positioning work.
+
+### Fixed
+
+- Keep SVG/PNG action hit regions aligned with the drawing when render options
+  have stateful getters. Isolate mutable projections from cached geometry and
+  reject unsupported projections before drawing hooks run.
+- Detect moved dashes in the Chromium resolved-scene CI comparer while accepting
+  equivalent path encodings and symmetric dashed reversals.
+- Prepare website test fixtures once per invocation instead of reusing stale
+  output after repeated dirty build-config edits. Keep the editor build child's
+  deadline within its existing 60-second test budget.
+
 ### Changed
 
 - Use one agent operating guide across the CLI, installed skills and website.
   `am init-agent` includes an offline copy and pins MCP configuration to the
   installed package version.
+- Enforce layout-repair dependencies and route-write restrictions while retaining
+  the existing pass order, placement rules and geometry budgets.
+- Use Bun 1.4.4 for CI and release/deployment builds, avoiding Bun 1.4.2's
+  independently reproduced pipe-GC subprocess hang. Install a payload comparison's
+  base Bun through npm so it works in browser containers without `unzip`.
+- Share qualified build artifacts, select documentation checks for recognized
+  Markdown changes, and verify exact npm identity before MCP registration.
+  Strengthen executable-example, fresh-output and JSON-RPC checks.
+- Remove redundant verification gates, unused pass metadata and historical raw
+  measurement packets from the current checkout. Immutable links retain access
+  to the archived evidence; maintained generated public references remain.
 
 ## 0.5.5 — 2026-10-31
 
