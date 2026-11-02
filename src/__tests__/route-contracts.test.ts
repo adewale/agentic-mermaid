@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { bendCount } from '../layout/route-geometry.ts'
+import { routeCandidateMarkerBlocker } from '../layout/route-marker-clearance.ts'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { applyRouteContracts, auditRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, straightLaneFor, recertifyReroutedEdge, shapePorts, simplifyPolyline, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills } from '../route-contracts.ts'
@@ -3383,4 +3384,12 @@ it('route repair preserves authored identities when positioned edges are reorder
   applyRouteContracts(positioned, graph, new Set(), resolveRenderStyle())
   expect(positioned.edges.map(edge => [edge.edgeIndex, edge.source, edge.target, edge.label])).toEqual(identities)
   expect(auditRouteContracts(positioned, graph)).toEqual([])
+})
+
+it('an overflowing terminal displacement cannot bypass marker separation', () => {
+  const edge: PositionedEdge = { source: 'A', target: 'B', style: 'solid', hasArrowStart: true, hasArrowEnd: false,
+    points: [{ x: -1e308, y: 0 }, { x: 1e308, y: 0 }, { x: 1e308, y: 1 }, { x: 0, y: 1 }] }
+  const candidate = [edge.points[0]!, { x: 0, y: 0 }, ...edge.points.slice(1)]
+  const peer: PositionedEdge = { ...edge, source: 'C', target: 'D', points: [{ x: -9.5e307, y: 0 }, { x: -9e307, y: 0 }] }
+  expect(routeCandidateMarkerBlocker(edge, candidate, [edge, peer], { lineWidth: 1e306 })).toEqual(expect.objectContaining({ kind: 'port' }))
 })

@@ -79,6 +79,7 @@ function sameWrittenEndpointRay(before: readonly Point[], after: readonly Point[
     for (let i = 1; i < points.length; i++) {
       const point = points[start ? i : points.length - i - 1]!
       const dx = Number(formatSvgNumber(point.x)) - x, dy = Number(formatSvgNumber(point.y)) - y
+      if (!Number.isFinite(dx) || !Number.isFinite(dy) || !Number.isFinite(Math.hypot(dx, dy))) return undefined
       if (dx || dy) return { x, y, dx, dy }
     }
     return undefined
