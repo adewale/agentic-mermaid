@@ -45,12 +45,20 @@ export function createNativePaintEmission(maxOperations: number) {
     // slots and subsequent descriptor/copy visits are distinct paid work.
     const keys = Object.getOwnPropertyNames(value)
     if (!pay(keys.length)) throw failed
+    // Coordinate buffers dominate native geometry. Capture their fixed scalar
+    // records directly; descriptors still prove that no accessor or hidden
+    // field can acquire immutable authority through this constructor.
+    if (keys.length === 2 && keys[0] === 'x' && keys[1] === 'y') {
+      const x = Object.getOwnPropertyDescriptor(value, 'x')!, y = Object.getOwnPropertyDescriptor(value, 'y')!
+      if ('value' in x && 'value' in y && x.enumerable && y.enumerable && typeof x.value === 'number' && typeof y.value === 'number') {
+        if (!pay(2)) throw failed
+        const point = Object.freeze({ x: x.value as number, y: y.value as number })
+        transferRetainedPixelText(value, point)
+        return point
+      }
+    }
     parents.add(value)
-    const array = Array.isArray(value)
-    // Populate owned data without invoking inherited setters. Freeze the
-    // completed record once instead of configuring each readonly field separately.
-    const result: Record<string, unknown> | unknown[] = array ? [] : Object.create(null)
-    if (array) Object.setPrototypeOf(result, null)
+    const result: Record<string, unknown> | unknown[] = Array.isArray(value) ? [] : {}
     let arrayLength: PropertyDescriptor | undefined
     const deferredProjection = deferredTerminalProjectionInput(value)
     for (const key of keys) {
@@ -63,9 +71,7 @@ export function createNativePaintEmission(maxOperations: number) {
       // Deferred terminal geometry is neither read nor used by paint writing.
       if (key === 'terminalProjection' && deferredProjection) continue
       if (!('value' in descriptor)) throw failed
-      const child = copy(descriptor.value, depth + 1, parents)
-      if (descriptor.enumerable) (result as Record<string, unknown>)[key] = child
-      else Object.defineProperty(result, key, { value: child, enumerable: false, configurable: true, writable: true })
+      Object.defineProperty(result, key, { value: copy(descriptor.value, depth + 1, parents), enumerable: descriptor.enumerable, configurable: false, writable: false })
     }
     if (Array.isArray(value)) {
       if (!arrayLength || !('value' in arrayLength)) throw failed
@@ -78,8 +84,7 @@ export function createNativePaintEmission(maxOperations: number) {
     }
     transferRetainedPixelText(value, result)
     parents.delete(value)
-    Object.setPrototypeOf(result, array ? Array.prototype : Object.prototype)
-    return Object.freeze(result)
+    return Object.preventExtensions(result)
   }
   const snapshot = <T>(value: T): T | undefined => {
     try { return copy(value) as T } catch { return undefined }
