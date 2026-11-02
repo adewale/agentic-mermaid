@@ -4,6 +4,41 @@ Completed deliveries are recorded below. Follow the
 [release checklist](../../contributing/releasing.md) when adding an entry.
 Source preparation alone does not establish publication or deployment.
 
+## 0.5.6 — 2026-11-02
+
+- [Release v0.5.6](https://github.com/adewale/agentic-mermaid/releases/tag/v0.5.6)
+  points to `a66282d831c0b9d677a5a92b3be48d9ea9b35d19`.
+- [Canonical CI](https://github.com/adewale/agentic-mermaid/actions/runs/41463134976)
+  passed on that exact main commit, including unit shards, semantic conformance,
+  browser comparisons, installed quickstarts and packed consumers.
+- [Publication](https://github.com/adewale/agentic-mermaid/actions/runs/41466325272)
+  passed macOS Intel and Windows rendering checks, verified one tarball and
+  published npm plus the active MCP Registry record
+  `io.github.adewale/agentic-mermaid@0.5.6`. Public npm metadata and the `latest`
+  tag both resolve to 0.5.6; the Registry job verified the same package integrity
+  before publication.
+- A fresh Node 24.19.0 consumer installed the public npm tarball and passed all
+  six documented JS/TS examples and CLI SVG/PNG/ASCII exports. Additional checks
+  passed SVG, PNG and resolved-scene rendering with ELK and strict Agentic;
+  editing, verification and serialization; deferred native PNG initialization;
+  single-read action options; typed artwork refusals; CLI aliases; offline agent
+  instructions; and `init-agent` output with a version-pinned MCP configuration.
+  Installed stdio MCP discovery, Code Mode rendering and typed error read-back
+  passed. The downloaded tarball matched npm's SHA-512 integrity; its SHA-256 is
+  `8cd34af7bf7b457f8e636c99b64ee476268f02dbdd2ec5f75727cb96ace25e4f`.
+- [Production deployment](https://github.com/adewale/agentic-mermaid/actions/runs/41468285879)
+  completed at 15:14 UTC. Browser artifacts matched the public npm package
+  byte-for-byte. Zero-traffic website and full MCP probes passed before promotion;
+  production identity, live verify/execute and website checks passed after
+  promotion to 100% traffic. This was an actual deployment. The workspace network
+  policy blocked direct website and Registry reads; their public checks ran in
+  the publication and deployment workflows.
+
+AGENT-1 is delivered in 0.5.6: one maintained operating guide supplies offline
+CLI instructions and the repo-local agent workflow. AGENT-2 remains deferred
+to 0.6.0. This release keeps the layout repair order and resource/quality limits;
+mathematical labels remain research only.
+
 ## 0.5.5 — 2026-10-31
 
 - [Release v0.5.5](https://github.com/adewale/agentic-mermaid/releases/tag/v0.5.5)
