@@ -4,6 +4,19 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+### Added
+
+- Insert and remove empty concurrency regions in composite states with
+  `add_region` and `remove_region`. State, transition, move and floating-note
+  edits can append the next region while preserving scoped notes and comments.
+
+### Fixed
+
+- Rebase declaration positions when grouping states after transition removal,
+  and preserve inferred declaration order across edits to legacy state bodies.
+- Reject region removal that cannot preserve both composite and surviving
+  region directions in Mermaid source.
+
 ## 0.5.6 — 2026-11-02
 
 ### Performance

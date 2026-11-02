@@ -42,6 +42,8 @@ export const MUTATION_OPS_BY_FAMILY = {
     "set_node_style"
   ],
   "state": [
+    "add_region",
+    "remove_region",
     "add_state",
     "remove_state",
     "rename_state",

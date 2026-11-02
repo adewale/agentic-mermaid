@@ -1426,7 +1426,15 @@ export type ArchitectureMutationOp =
   | { kind: 'update_edge'; index: number; from?: string; to?: string; fromSide?: ArchitectureSide; toSide?: ArchitectureSide; fromBoundary?: ArchitectureEndpointBoundary; toBoundary?: ArchitectureEndpointBoundary; label?: string | null; hasArrowStart?: boolean; hasArrowEnd?: boolean }
   | { kind: 'remove_edge'; index?: number; id?: string }
 
+// For content-producing edits (add_state, add_transition, move_state and
+// add_floating_note), region equal to the parent's current scope
+// count appends a parallel region (one for a non-concurrent composite).
+// Other region-addressed operations require an existing region.
 export type StateMutationOp =
+  // Insert an empty region (default append); region indexes of existing
+  // content shift with it. Removal requires an empty region, retaining one scope.
+  | { kind: 'add_region'; parent: string; index?: number }
+  | { kind: 'remove_region'; parent: string; index: number }
   | { kind: 'add_state'; id: string; label?: string | null; parent?: string | null; region?: number }
   // recursive: true removes a non-empty composite with its whole subtree
   // (default refuses, naming the flag); transitions and notes touching any
