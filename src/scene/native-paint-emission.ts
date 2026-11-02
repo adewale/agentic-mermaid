@@ -46,7 +46,11 @@ export function createNativePaintEmission(maxOperations: number) {
     const keys = Object.getOwnPropertyNames(value)
     if (!pay(keys.length)) throw failed
     parents.add(value)
-    const result: Record<string, unknown> | unknown[] = Array.isArray(value) ? [] : {}
+    const array = Array.isArray(value)
+    // Populate owned data without invoking inherited setters. Freeze the
+    // completed record once instead of configuring each readonly field separately.
+    const result: Record<string, unknown> | unknown[] = array ? [] : Object.create(null)
+    if (array) Object.setPrototypeOf(result, null)
     let arrayLength: PropertyDescriptor | undefined
     const deferredProjection = deferredTerminalProjectionInput(value)
     for (const key of keys) {
@@ -59,7 +63,9 @@ export function createNativePaintEmission(maxOperations: number) {
       // Deferred terminal geometry is neither read nor used by paint writing.
       if (key === 'terminalProjection' && deferredProjection) continue
       if (!('value' in descriptor)) throw failed
-      Object.defineProperty(result, key, { value: copy(descriptor.value, depth + 1, parents), enumerable: descriptor.enumerable, configurable: false, writable: false })
+      const child = copy(descriptor.value, depth + 1, parents)
+      if (descriptor.enumerable) (result as Record<string, unknown>)[key] = child
+      else Object.defineProperty(result, key, { value: child, enumerable: false, configurable: true, writable: true })
     }
     if (Array.isArray(value)) {
       if (!arrayLength || !('value' in arrayLength)) throw failed
@@ -72,10 +78,8 @@ export function createNativePaintEmission(maxOperations: number) {
     }
     transferRetainedPixelText(value, result)
     parents.delete(value)
-    // Every retained data property is already nonwritable/nonconfigurable;
-    // arrays also own readonly length. Prevent extensions without rescanning
-    // the same fields a second time through Object.freeze.
-    return Object.preventExtensions(result)
+    Object.setPrototypeOf(result, array ? Array.prototype : Object.prototype)
+    return Object.freeze(result)
   }
   const snapshot = <T>(value: T): T | undefined => {
     try { return copy(value) as T } catch { return undefined }
