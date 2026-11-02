@@ -177,6 +177,19 @@ describe('one shared choke point — byte-identical rejection (§6)', () => {
     expect(errMsg(checked.error)).toBe(errMsg(declarative.error))
   })
 
+  test('CLI edit batches admit region topology changes and retain content in the selected scope', () => {
+    const result = mutateSource('stateDiagram-v2\nstate on { idle --> busy }', [
+      { kind: 'add_region', parent: 'on', index: 0 },
+      { kind: 'add_state', id: 'milk', parent: 'on', region: 0 },
+      { kind: 'add_region', parent: 'on' },
+      { kind: 'remove_region', parent: 'on', index: 2 },
+    ])
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw new Error(result.error.message)
+    expect(result.source).toBe('stateDiagram-v2\n  state on {\n    milk\n    --\n    idle --> busy\n  }\n')
+    expect(result.verify.ok).toBe(true)
+  })
+
   test('the CLI --op/--ops path shares the choke point (no silent mangle)', () => {
     // mutateSource backs `am mutate`; its ops arrive as untyped JSON. It must
     // reject the same bad op the same way, not build `class undefined`.

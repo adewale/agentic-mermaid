@@ -29,6 +29,35 @@ A family has mutation exposure when public agent surfaces advertise typed struct
 
 When a particular body does not narrow, agents are not told it can be safely edited through typed ops. The diagram may still parse, render, verify, describe, and serialize; that body just does not get structured mutation.
 
+## State concurrency edits
+
+`add_state`, `add_transition`, `move_state`, and `add_floating_note` accept a
+zero-based `region` with a composite `parent`. An index equal to the parent's current scope count appends a parallel
+region, serialized with `--`. A composite without separators has one scope, so
+`{ kind: 'add_state', id: 'still', parent: 'on', region: 1 }` creates its second
+region. Existing content stays in region 0; further appends use 2, 3, and so on.
+Omitting `region` continues to select region 0. Skipped, negative, and fractional
+indexes are invalid. Transition selectors and paint edits select existing regions only.
+
+`add_region { parent, index? }` inserts an empty region, appending by default.
+Existing regions, their direction overrides, and scoped floating notes keep their
+ownership as indexes shift. `remove_region { parent, index }` removes an empty
+region; move or remove its states, transitions and floating notes first. When
+only one region remains, it becomes an ordinary composite scope, retaining its
+effective direction. The sole scope of a composite cannot be removed. Removing
+region 0 is refused if it would expose a conflicting direction override while
+multiple regions remain: Mermaid cannot retain that override separately from
+the composite direction before the first separator.
+
+## State declaration schedules
+
+Declaration positions are offsets in their owning transition sequence, not
+global state positions. State edits first materialize the serializer's schedule
+for legacy/synthesized bodies that omit these offsets. Removing transitions,
+partitioning them into a composite, or hoisting them out must rebase declarations
+in every affected scope. This keeps later edits and serialize/reparse from
+changing declaration order or state ownership.
+
 ## Current split
 
 Structured mutation is exposed for every built-in renderable family when its modeled subset narrows. `am capabilities --json` lists each family's narrower and `mutationOps`, and `describeOps(family)` gives the exact op fields; this page does not keep a second roster.
