@@ -220,9 +220,17 @@ function markerBoundsAt(
   const scale = Math.max(painted ? 1 : 0, marker.scale ?? 1) * unitScale
   if (angle !== undefined) {
     const radians = angle * Math.PI / 180, cosine = Math.cos(radians), sine = Math.sin(radians)
-    const corners = [[viewportLocal.x0, viewportLocal.y0], [viewportLocal.x0, viewportLocal.y1], [viewportLocal.x1, viewportLocal.y0], [viewportLocal.x1, viewportLocal.y1]]
-      .map(([x, y]) => ({ x: anchor.x + ((x! - refX) * cosine - (y! - refY) * sine) * scale, y: anchor.y + ((x! - refX) * sine + (y! - refY) * cosine) * scale }))
-    return corners.every(point => Number.isFinite(point.x) && Number.isFinite(point.y)) ? pointsBounds(corners) : undefined
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
+    for (let corner = 0; corner < 4; corner++) {
+      const x = corner < 2 ? viewportLocal.x0 : viewportLocal.x1
+      const y = corner % 2 === 0 ? viewportLocal.y0 : viewportLocal.y1
+      const px = anchor.x + ((x - refX) * cosine - (y - refY) * sine) * scale
+      const py = anchor.y + ((x - refX) * sine + (y - refY) * cosine) * scale
+      if (!Number.isFinite(px) || !Number.isFinite(py)) return undefined
+      x0 = Math.min(x0, px); y0 = Math.min(y0, py)
+      x1 = Math.max(x1, px); y1 = Math.max(y1, py)
+    }
+    return { x0, y0, x1, y1 }
   }
   // Auto orientation may rotate around the marker ref. A radial square is a
   // conservative AABB for every tangent and avoids path parsing.
@@ -263,7 +271,7 @@ export function connectorMarkerPaintRegions(node: {
   stroke: Pick<ConnectorMark['stroke'], 'width'>
   markers: ConnectorMark['markers']
   transform?: SceneTransform
-}, parentTransform?: SceneTransform): ConnectorMarkerPaintRegion[] {
+}, parentTransform?: SceneTransform, includeHull = true): ConnectorMarkerPaintRegion[] {
   const geometry = node.route.geometry, endpoints = connectorEndpointAnchors(geometry, node.route.closed)
   const mids = connectorMidpoints(geometry, node.route.closed)
   const transform = composedTransform(parentTransform, node.transform)
@@ -278,7 +286,7 @@ export function connectorMarkerPaintRegions(node: {
     // composed linear transform, rather than an owner or resource count.
     const repaint = JSON.stringify([{ ...marker, orient: marker.orient ?? 'auto' }, angle ?? ['unknown', geometry], marker.units === 'userSpaceOnUse' ? 1 : strokeWidth, matrix.slice(0, 4)])
     let hull: ScenePoint[] | undefined, padding: number | undefined
-    if (angle !== undefined && marker.geometry?.kind === 'polygon' && marker.geometry.points.length <= 64) {
+    if (includeHull && angle !== undefined && marker.geometry?.kind === 'polygon' && marker.geometry.points.length <= 64) {
       const sizeScale = marker.viewBox && marker.size ? Math.min(marker.size.width / marker.viewBox.width, marker.size.height / marker.viewBox.height) : 1
       const scale = sizeScale * Math.max(1, marker.scale ?? 1) * (marker.units === 'userSpaceOnUse' ? 1 : strokeWidth)
       const radians = angle * Math.PI / 180, cosine = Math.cos(radians), sine = Math.sin(radians)
