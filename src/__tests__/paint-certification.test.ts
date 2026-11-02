@@ -620,6 +620,14 @@ test('native capture detaches sparse data and keeps prototype-like keys inert', 
   expect(Object.isFrozen(captured.hidden)).toBe(true)
 })
 
+test.each([[63, true], [64, false], [65, false]] as const)('numeric point capture respects the depth cutoff at %i wrappers', (depth, accepted) => {
+  for (const point of [{ x: 1, y: 2 }, { y: 2, x: 1 }]) {
+    let value: object = point
+    for (let index = 0; index < depth; index++) value = { child: value }
+    expect(createNativePaintEmission(10000).snapshot(value) !== undefined).toBe(accepted)
+  }
+})
+
 test.each(['full', 'compound', 'fill-opacity-zero', 'thin', 'partial', 'repaint', 'dashed', 'translucent', 'unknown-width', 'unknown-opacity', 'non-scaling', 'scaled', 'rotated', 'sheared', 'circle', 'ellipse', 'polygon', 'marker-none', 'marker-unknown'] as const)('%s endpoint stroke cannot hide a fully covered marker behind its contact exemption', mode => {
   const marker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: mode === 'marker-none' ? 'none' : mode === 'marker-unknown' ? 'var(--unknown)' : '#000' }, 'userSpaceOnUse')
   const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }

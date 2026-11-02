@@ -48,7 +48,7 @@ export function createNativePaintEmission(maxOperations: number) {
     // Coordinate buffers dominate native geometry. Capture their fixed scalar
     // records directly; descriptors still prove that no accessor or hidden
     // field can acquire immutable authority through this constructor.
-    if (keys.length === 2 && keys[0] === 'x' && keys[1] === 'y') {
+    if (depth < 64 && keys.length === 2 && keys[0] === 'x' && keys[1] === 'y') {
       const x = Object.getOwnPropertyDescriptor(value, 'x')!, y = Object.getOwnPropertyDescriptor(value, 'y')!
       if ('value' in x && 'value' in y && x.enumerable && y.enumerable && typeof x.value === 'number' && typeof y.value === 'number') {
         if (!pay(2)) throw failed
