@@ -63,8 +63,9 @@ export function compactMeasuredLoops(input: MeasuredGraph, placed: AgenticLayout
           halfCross = (horizontal ? edge.label.height : edge.label.width) / 2
         const lower = halfMain + 16,
           upper = (lane - start[main]) * sign - halfMain - 8
-        if (lower > upper) continue
-        const m = start[main] + sign * Math.max(lower, Math.min(upper, (labelPosition[main] - start[main]) * sign))
+        // A caption beside the outer bend need not fit inside a terminal leg.
+        // The same occupied-label, shaft and crossing checks below admit it.
+        const m = lower > upper ? lane : start[main] + sign * Math.max(lower, Math.min(upper, (labelPosition[main] - start[main]) * sign))
         const candidates = [point(m, Math.min(start[cross], end[cross]) - halfCross - 4), point(m, Math.max(start[cross], end[cross]) + halfCross + 4)]
         candidates.sort((a, b) => Math.abs(a.x - route.labelPosition!.x) + Math.abs(a.y - route.labelPosition!.y) - Math.abs(b.x - route.labelPosition!.x) - Math.abs(b.y - route.labelPosition!.y))
         labelPosition = undefined

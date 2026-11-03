@@ -28,6 +28,85 @@ const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/class-b
 const compoundFixture = readFileSync(new URL('../../eval/layout-compare/fixtures/class-compound-backends.mmd', import.meta.url), 'utf8')
 
 describe('Class layout backends', () => {
+  test.each([true, false])('retains every caption on its own final carrier after loop compaction (markers=%s)', marked => {
+    const source = marked ? fixture : fixture.replaceAll('-->', '--').replaceAll('..>', '..').replaceAll('o--', '--')
+    const rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'none' }, embedFontImport: false })
+    const carriers: Array<Record<string, string>> = [], texts = new Map<string, Record<string, string>>()
+    let text = '', attrs: Record<string, string> | undefined
+    const parser = new SaxesParser({ xmlns: true })
+    parser.on('opentag', tag => {
+      const next = Object.fromEntries(Object.entries(tag.attributes).map(([key, value]) => [key, value.value]))
+      if (tag.local === 'polyline' && next.class === 'class-relationship') carriers.push(next)
+      if (tag.local === 'text') { text = ''; attrs = next }
+    })
+    parser.on('text', value => { if (attrs) text += value })
+    parser.on('closetag', tag => { if (tag.local === 'text' && attrs) { texts.set(text, attrs); attrs = undefined } })
+    parser.write(rendered.svg).close()
+    expect(carriers.map(e => [e['data-from'], e['data-to'], e['data-label']])).toEqual([
+      ['Account', 'Audit', 'records'], ['Account', 'Audit', 'reviews'], ['Audit', 'Account', 'belongs'],
+      ['Account', 'Account', 'delegates'], ['Repository', 'Account', 'stores'],
+    ])
+    for (const carrier of carriers) {
+      const caption = texts.get(carrier['data-label']!)!, width = Number(caption.textLength), x = Number(caption.x) - width / 2 - 1.5 - 8, y = Number(caption.y) - 11 * 1.3 / 2 - 1.5 - 8
+      const points = carrier.points!.split(/\s+/).map(pair => pair.split(',').map(Number))
+      const associated = points.slice(1).some((b, i) => {
+        const a = points[i]!
+        return a[0] === b[0]
+          ? a[0]! > x && a[0]! < x + width + 19 && Math.max(a[1]!, b[1]!) > y && Math.min(a[1]!, b[1]!) < y + 11 * 1.3 + 19
+          : a[1] === b[1] && a[1]! > y && a[1]! < y + 11 * 1.3 + 19 && Math.max(a[0]!, b[0]!) > x && Math.min(a[0]!, b[0]!) < x + width + 19
+      })
+      expect(associated, `${carrier['data-label']} detached from its own final carrier`).toBe(true)
+    }
+    expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+  })
+
+  test('seats a short loop caption beside the outer turn without extra terminal depth', () => {
+    const source = 'classDiagram\ndirection TB\nclass A\nclass B\nclass Sink\nA --> Sink : input\nB --> Sink\nSink --> Sink : retry'
+    const rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'none' }, embedFontImport: false })
+    const boxes = new Map<string, Record<string, string>>(), carriers: Array<Record<string, string>> = [], texts: Array<{ text: string; attrs: Record<string, string> }> = []
+    let current: { text: string; attrs: Record<string, string> } | undefined
+    const parser = new SaxesParser({ xmlns: true })
+    parser.on('opentag', tag => {
+      const attrs = Object.fromEntries(Object.entries(tag.attributes).map(([key, value]) => [key, value.value]))
+      if (tag.local === 'rect' && attrs['data-role'] === 'class-box') boxes.set(attrs['data-id']!.slice(6, -4), attrs)
+      if (tag.local === 'polyline' && attrs.class === 'class-relationship') carriers.push(attrs)
+      if (tag.local === 'text') current = { text: '', attrs }
+    })
+    parser.on('text', value => { if (current) current.text += value })
+    parser.on('closetag', tag => { if (tag.local === 'text' && current) { texts.push(current); current = undefined } })
+    parser.write(rendered.svg).close()
+    expect([...boxes.keys()]).toEqual(['A', 'B', 'Sink'])
+    expect(texts.map(t => t.text)).toEqual(['A', 'B', 'Sink', 'input', 'retry'])
+    expect(carriers.map(e => [e['data-from'], e['data-to'], e['data-type'], e['data-label']])).toEqual([
+      ['A', 'Sink', 'association', 'input'], ['B', 'Sink', 'association', undefined], ['Sink', 'Sink', 'association', 'retry'],
+    ])
+    for (const carrier of carriers) {
+      const points = carrier.points!.split(/\s+/).map(pair => pair.split(',').map(Number))
+      for (const [id, point] of [[carrier['data-from']!, points[0]!], [carrier['data-to']!, points.at(-1)!]] as const) {
+        const b = boxes.get(id)!, x = Number(b.x), y = Number(b.y), w = Number(b.width), h = Number(b.height)
+        expect(point[0]! >= x && point[0]! <= x + w && point[1]! >= y && point[1]! <= y + h).toBe(true)
+        expect(Math.min(Math.abs(point[0]! - x), Math.abs(point[0]! - x - w), Math.abs(point[1]! - y), Math.abs(point[1]! - y - h))).toBeLessThan(1e-9)
+      }
+    }
+    const loop = carriers[2]!.points!.split(/\s+/).map(pair => pair.split(',').map(Number)), retry = texts.find(t => t.text === 'retry')!.attrs
+    expect(loop).toHaveLength(4)
+    // The existing 24px loop lead has room for this caption beside the bend;
+    // its measured height need not also fit inside both terminal legs.
+    expect(loop[1]![1]! - loop[0]![1]!).toBeLessThanOrEqual(24)
+    expect(Number(retry.y)).toBe(loop[1]![1]!)
+    expect(loop[0]).not.toEqual(loop[3])
+    expect(Number(retry.x) + Number(retry.textLength) / 2 + 1.5).toBeLessThan(loop[0]![0]!)
+    expect(Number(retry.y) - 11 * 1.3 / 2 - 1.5).toBeGreaterThan(Number(boxes.get('Sink')!.y) + Number(boxes.get('Sink')!.height))
+    const pixels = (svg: string) => Buffer.from(renderSvgPixels(prepareResvgMarkerOrientation(svg)).pixels), actual = pixels(rendered.svg)
+    const caption = rendered.svg.match(/<text\b[^>]*>retry<\/text>/)![0]
+    expect(Buffer.compare(actual, pixels(rendered.svg.replace(caption, caption.replace('<text ', '<text opacity="0" '))))).not.toBe(0)
+    const base = rendered.svg.match(/<polyline\b[^>]*class="class-relationship"[^>]*\/>/g)![2]!
+    const overlay = rendered.svg.match(/<polyline\b[^>]*class="class-marker-overlay"[^>]*\/>/g)![2]!
+    const noHead = rendered.svg.replace(base, base.replace(/ marker-end="[^"]+"/, '')).replace(overlay, overlay.replace(/ marker-end="[^"]+"/, ''))
+    expect(Buffer.compare(actual, pixels(noHead))).not.toBe(0)
+    expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+  })
+
   test.each(['TB', 'BT', 'LR', 'RL'])('keeps loop compaction outside neighbouring caption halos in %s', direction => {
     const source = `classDiagram\ndirection ${direction}\nclass Hub {\n +int state\n +tick()\n}\nclass Sink\nHub "1" o-- "many" Sink : owns\nHub "2" o-- "many" Sink : spare\nSink ..> Hub : report\nHub --> Hub : tick\nstyle Hub stroke-width:6px,fill:#fff,stroke:#222`
     const options = { graphLayout: { backend: 'agentic' as const, fallback: 'none' as const } }
