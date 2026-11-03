@@ -6056,3 +6056,51 @@ compiler path. This is an unimplemented experiment, not projected capacity
 closure. Broader Unicode/rich-text/meaning qualification and combined current-
 Main verification remain open. Replacement24 stays sealed; the fixed campaign
 end remains2026-10-31T12:03:00Z with no automatic extension.
+
+### 3 November: reconstructed fixes, measured against recovered 3b56
+
+The November workspace/objects remain lost. This is new work on recovered
+3b56da55e6570908beb5d96c25f4c03c1a828a22, not restoration of the missing runtime.
+Local branch work/pr449-reconstruct-20261103, code head
+16c736365a414ea3d659337ca5024b1159d1f77a. Owner's current deadline is
+2026-11-08T23:59:59Z; no push, PR, CI, default/version change or publication.
+
+5f4d30676 recovers literal Requirement relationships, caption owners and actual
+SVG contacts across four directions/both engines. 68cedfbe2/fea0dcc0f shorten
+Class loops and remove single-private-lane jogs; caption association remains
+checked after shortening. 2fa90e530 rejects changing/accessor extents in the new
+optional seat. 408cbab6d/0cee26acd reuse existing bounds at the Requirement owner,
+before drawing admission; generic certified producer behavior is unchanged.
+
+| Same-input final SVG | Recovered Agentic | Current Agentic | Current ELK |
+| --- | ---: | ---: | ---: |
+| Ordinary Class area / wire / bends | 116424 / 387.2 / 6 | 105210 / 248.6 / 2 | 104010 / 325.2 / 4 |
+| Requirement TB area / wire / bends | 299392.0858 / 738.0576 / 8 | 282093.76798 / 645.4576 / 8 | 257555.09848 / 963.46853 / 10 |
+| Class lazy requests / gzip bytes | 22 / 291723 | 21 / 291870 | 20 / 669930 |
+
+Class area remains +1.15% versus ELK; Requirement TB/BT +9.53%. Requirement LR/RL
+area is -1.44%, with six bends versus eight, but a wider viewport. The final
+combined closure adds 147 gzip bytes to Agentic and 734 to ELK versus recovered
+base; isolated packaging savings are not reused as combined results. Separate
+forest loading remains, preserving omitted-layout/ELK isolation.
+
+Meaning/contact owners, pinned-Inter caption/head controls and compiled-Class
+whole-SVG/entire-receipt bindings pass. Final changed runtime owners 231P;
+Class owners 240P with four known chain cases still filtered/open. Core typing
+and lint pass (old oversize evidence-file warning); repository typing cannot
+resolve missing Trident. Inherited browser-size failures remain. Geometry-cache
+off/on, first/repeat/edit: 16 fresh workers, 48 fully consumed SVG+receipt calls,
+all returned/P. N=1 observations are mixed: Requirement Agentic first 222.16 to
+238.99ms (geometry cache off), 232.20 to 284.80ms (on); Class peak RSS 109008 to
+109976KiB (off). All timings/import/RSS/live-heap rows retained, no allocation,
+latency or causal speedup claim.
+
+Evidence: /tmp/pr449-week-comparison-20261101/{recovery-class,final-2fa-requirement-*,
+recovery-payload/fit-leaf-candidate,recovery-cost.jsonl,requirement-ink.json}.
+Rejected private-gap discount introduced compound LR/RL refusals; original
+controls pass again. Post-proof generic fitting was removed after an owning
+failure; changing-width controls are red without their correction. Missing
+original-baseline/peer qualification, capacity/refusal/Unicode gaps stay open;
+replacement24 remains sealed. Next fix: find a smaller two-rank Requirement
+candidate without the stopped report-first bend/wire regression; retain the
+remaining Class area and forest-request deficits. No continuous run is claimed.
