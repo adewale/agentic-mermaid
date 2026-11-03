@@ -6175,3 +6175,31 @@ Next: reuse private writer/capture operands to remove source walks while keeping
 fresh receiver/getter/resource/CSS isolation; no cap repricing or stopped
 furniture/cycle replay. Original baseline/Trident/peer qualification unavailable;
 replacement24 sealed. Local only.
+
+### 3 November: fresh lexer font-context truth
+
+2d77b34ad792600f35245aaa6ec31b21ee9460e3 fixes a false Native pass: a
+pre-import String.slice hook made literal class="mono" read as "safe". The same
+2110-byte SVG now stays unverified with OUTPUT_SCOPE; safe stays passed. Fresh
+lexing reuses primitive UTF16 XML helpers; generic cached/visitor callbacks and
+all charges/caps remain. No layout or capacity gain claimed. Original9f519
+three-module owner replay is red, current green; all three actual SVGs remain
+byte-exact. Offline font substitution was not observed; no glyph-loss claim.
+
+Core typing/lint and40lexer/security tests pass. Full paint619P/3F; focused
+original/current controls reproduce all three400k failures with identical printed
+proofs apart from timings. Four fresh workers consume12cold/repeat/edit NativeP
+results; six before/after SVGs AND entire receipts match. N=1 ClassAM first
+274.24->199.06ms/RSS115448->102932KiB; ELK587.83->595.54ms/RSS135220->135792KiB
+is adverse. All timings/import/post-GC heap retained; no causal speedup claim.
+One RAM lazy-JS build/four compiled Class/Requirement engine bindings match fresh
+unbundled wholeSVG/raw receipts. ClassAM21requests/gzip292061/Brotli245565,
+ELK20/670121/523845; initial3/5855/5230. Class gzip is187B above the datede087
+measurement, not an exact9f519 payload delta. Evidence under
+/tmp/pr449-week-comparison-20261101/{native-font-lexer-9f519,native-font-lexer-fix-9f519,
+native-font-cost-2d77b34ad,recovery-payload/combined-2d77b34ad}.
+
+Stopped duplicate-group-parse prototype: both Class128/ER192 remain NativeU400k,
+including optimistic accounting; no handoff/registry API ships. Next: ER208's
+final label-query construction, investigating existing immutable ink-index reuse
+while retaining generic callback behavior. ER256 and Native proof limits remain.
