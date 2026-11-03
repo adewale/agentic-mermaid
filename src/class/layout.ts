@@ -1,4 +1,4 @@
-import { classRelationshipTerminalClearance, classEndpointTextCandidates } from './relationship-paint.ts'
+import { classRelationshipTerminalClearance, classEndpointTextCandidates, RELATION_LABEL_HALO_WIDTH } from './relationship-paint.ts'
 import { measuredRouteContactPairBudget, scoreMeasuredRouteCrossings, createOwnedMeasuredRouteContactValidator, type OwnedMeasuredRouteNumericSeed } from '../layout/measured-route-safety.ts'
 import type { MeasuredGraph } from '../layout/agentic-layered-core.ts'
 import { resolveDiagramColors } from '../color-resolver.ts'
@@ -316,7 +316,7 @@ function buildClassElkGraph(diagram: ClassDiagram, options: RenderOptions, class
       // Empty formatted text has no painted label. ELK can leave its label
       // box at the origin, which would invent off-canvas text geometry.
       if (metrics.lineBlocks.some(line => line.runs.some(run => run.text.trim().length > 0))) {
-        edge.labels = [{ text: metrics.text, width: metrics.width + 8, height: metrics.height + 6 }]
+        edge.labels = [{ text: metrics.text, width: metrics.width + 8, height: metrics.height + RELATION_LABEL_HALO_WIDTH }]
       }
     }
     const fromChain = namespaceOfClass.get(rel.from)?.ancestors ?? []
@@ -654,7 +654,7 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
       const indices = new Map(diagram.classes.map((cls, index) => [cls.id, index]))
       const labels = diagram.relationships.map(rel => {
         const block = rel.label ? classTextBlock(resolveLabelContent(rel.label, rel.labelContent), style, 'edge') : undefined
-        return block?.lineBlocks.some(line => line.runs.some(run => run.text.trim())) ? { width: block.width + 8, height: block.height + 6 } : undefined
+        return block?.lineBlocks.some(line => line.runs.some(run => run.text.trim())) ? { width: block.width + 8, height: block.height + RELATION_LABEL_HALO_WIDTH } : undefined
       })
       const markerTemplates = buildClassEndpointMarkerTemplates(diagram.relationships, style)
       // One Native placement, using copied minima. Extra vertical reservation

@@ -62,7 +62,7 @@ describe('Class layout backends', () => {
 
   test('seats a short loop caption beside the outer turn without extra terminal depth', () => {
     const source = 'classDiagram\ndirection TB\nclass A\nclass B\nclass Sink\nA --> Sink : input\nB --> Sink\nSink --> Sink : retry'
-    const rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'none' }, embedFontImport: false })
+    const rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'none' }, layerSpacing: 60, embedFontImport: false })
     const boxes = new Map<string, Record<string, string>>(), carriers: Array<Record<string, string>> = [], texts: Array<{ text: string; attrs: Record<string, string> }> = []
     let current: { text: string; attrs: Record<string, string> } | undefined
     const parser = new SaxesParser({ xmlns: true })
@@ -95,6 +95,10 @@ describe('Class layout backends', () => {
     expect(loop[1]![1]! - loop[0]![1]!).toBeLessThanOrEqual(24)
     expect(Number(retry.y)).toBe(loop[1]![1]!)
     expect(loop[0]).not.toEqual(loop[3])
+    const captionBottom = Number(retry.y) + Number(retry['font-size']) * 1.3 / 2 + 1.5
+    const canvasHeight = Number(rendered.svg.match(/^<svg\b[^>]*\bheight="([^"]+)"/)![1])
+    expect(canvasHeight, 'unpainted caption reservation exceeds its full halo plus padding').toBeLessThanOrEqual(captionBottom + 40)
+    expect(Number(boxes.get('Sink')!.y) - Number(boxes.get('A')!.y) - Number(boxes.get('A')!.height)).toBeGreaterThanOrEqual(60)
     expect(Number(retry.x) + Number(retry.textLength) / 2 + 1.5).toBeLessThan(loop[0]![0]!)
     expect(Number(retry.y) - 11 * 1.3 / 2 - 1.5).toBeGreaterThan(Number(boxes.get('Sink')!.y) + Number(boxes.get('Sink')!.height))
     const pixels = (svg: string) => Buffer.from(renderSvgPixels(prepareResvgMarkerOrientation(svg)).pixels), actual = pixels(rendered.svg)
