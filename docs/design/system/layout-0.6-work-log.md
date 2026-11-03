@@ -6239,3 +6239,28 @@ ER256 still refuses in final painted-shaft/body scanning; next fix needs genuine
 post-callback geometry custody before safe broadphase reuse. Native proof/Class128,
 sparse32, nonlinear quality and original-baseline/peer availability remain open.
 Prefix tails remain quadratic worst-case. Replacement24 sealed; local only.
+
+### 3 November: containment in the mixed Requirement interaction
+
+08336d29a extends the existing independent owner with worker-contains-gate beside
+parallel/reciprocal relations and a generated-ID-like card name. Four actual
+backend/drawing combinations retain five occurrence/caption owners, normal docks,
+source-only solid containment and its bounded circle-plus-cross resource. Moving
+that marker to the wrong endpoint fails all four owners. Eight offline pinned-Inter
+rasters find positive contributions from the circle and each cross bar, no changed
+pixels outside the resource region/viewport; lighter circle-control pixels remain
+recorded. Native/Scene SVGs match per backend. This is coverage, not a runtime fix.
+On this new development input, current Agentic/ELK areas249567.807/388233.811,
+shafts1073.078/2439.185 and bends0/10; no before/after improvement is inferred.
+All28Requirement backend owners, core typing and changed-file lint pass. No new
+cost sweep/build: production/build inputs are unchanged. Evidence is under
+/tmp/pr449-week-comparison-20261101/requirement-contains-{owner,independent}-7a8c58917.
+
+ER256 still refuses both backends. Fresh scalar body indexing was stopped: late
+stroke accessors/proxies can change1->10000 between shafts; raw and painted checks
+are distinct. Requirement font omission was falsified by actual custom-profile
+output (100px text advance,112px pill and normal docks), so no redundant property
+ships. Native rectangle-comparison headroom alone cannot establish capacity.
+Next: investigate cyclic-labelled-9-chains private label-band spacing against final
+caption envelopes, retaining requested spacing, lower crossings and all caps.
+All prior adverse/unknown cases remain; replacement24 sealed. Local only.
