@@ -64,7 +64,25 @@ export function layoutCyclicGraph(
     return countPolylineCrossings(candidate.edges.map((route, index) => ({ ...route, visible: edges[index]!.visible })))
   }
   let bestScore = score(best)
-  if (bestScore === undefined || bestScore === 0) return best
+  if (bestScore === undefined) return best
+  let opposite: Int32Array | undefined
+  if (bestScore === 0) {
+    let cut: MeasuredGraph['edges'][number] | undefined
+    for (const edge of edges) if (primary[edge.source]! > primary[edge.target]!) {
+      if (cut) return best
+      cut = edge
+    }
+    if (!cut) return best
+    search.rankPairs -= nodes.length + edges.length
+    if (search.rankPairs < 0) return best
+    opposite = Int32Array.from(primary)
+    const before = primary[cut.target]!, after = primary[cut.source]!
+    for (let node = 0; node < nodes.length; node++) if (primary[node]! >= before && primary[node]! < after) opposite[node] = primary[node]! + 1
+    opposite[cut.source] = before
+    // Compare one opposite single-edge cut through the existing placement and
+    // scoring path. A zero-crossing result does not by itself minimize bends.
+    if (feedbackCount(opposite) !== 1) return best
+  }
   const bendCount = (candidate: AgenticLayout): number => candidate.edges.reduce((sum, route, index) =>
     sum + (edges[index]!.visible === false ? 0 : Math.max(0, route.points.length - 2)), 0)
   let bestBends = bendCount(best), bestArea = best.width * best.height
@@ -72,9 +90,9 @@ export function layoutCyclicGraph(
     edges.map(edge => order[edge.source]! > order[edge.target]! ? 1 : 0).join('') + ':' + reverseNodes + ':' + reverseEdges
   // Larger compact candidates retain the primary plus two optional orders.
   // The normal producer keeps its full search; compact placement is optional.
-  let localAttempts = input.compactPrivateRanks && nodes.length > 16 ? 2 : 12
+  let localAttempts = opposite ? 1 : input.compactPrivateRanks && nodes.length > 16 ? 2 : 12
   const seen = new Set([key(primary, false, false)])
-  const starts = nodes.length <= 12 ? nodes.map((_, index) => index)
+  const starts = opposite ? [] : nodes.length <= 12 ? nodes.map((_, index) => index)
     : nodes.length <= 20 ? [0, Math.floor(nodes.length / 4), Math.floor(nodes.length / 2), Math.floor(3 * nodes.length / 4), nodes.length - 1] : []
   const shifted = starts.flatMap(start => {
     const remap = (index: number) => (index - start + nodes.length) % nodes.length
@@ -84,15 +102,15 @@ export function layoutCyclicGraph(
     return [Uint32Array.from(nodes, (_, index) => dfs[remap(index)]!), Uint32Array.from(nodes, (_, index) => otherGreedy[remap(index)]!)]
   })
   // Spend the two larger compact trials on distinct cuts before input variants.
-  const diversify = input.compactPrivateRanks && nodes.length > 16
+  const diversify = !opposite && input.compactPrivateRanks && nodes.length > 16
   // Scarce larger-graph trials should explore cuts beyond the same greedy
   // orientation. For nearly acyclic compact graphs, enumerate small cuts and
   // try opposite span extremes with authored node/edge order intact.
   const cuts = diversify && feedbackCount(primary) <= 3 ? smallFeedbackCuts(input, search, 3) : []
   cuts.sort((a, b) => b.span - a.span)
   const cutOrders = cuts.length > 1 ? [cuts[0]!.order, cuts.at(-1)!.order, ...cuts.slice(1, -1).map(cut => cut.order)] : cuts.map(cut => cut.order)
-  const orders = [...cutOrders, greedy, model, ...shifted, Uint32Array.from(nodes, (_, index) => index)]
-  const permutations = cuts.length ? [[false, false], [true, true], [true, false], [false, true]] as const
+  const orders = opposite ? [opposite] : [...cutOrders, greedy, model, ...shifted, Uint32Array.from(nodes, (_, index) => index)]
+  const permutations = opposite ? [[false, false]] as const : cuts.length ? [[false, false], [true, true], [true, false], [false, true]] as const
     : [[true, true], [true, false], [false, true], [false, false]] as const
   for (let trial = 0; trial < orders.length * permutations.length; trial++) {
     const order = orders[diversify ? trial % orders.length : Math.floor(trial / permutations.length)]!
