@@ -6148,3 +6148,30 @@ was stopped without code. Next: establish private final ER geometry after the
 last exposing callback before reconsidering redundant checks; preserve the
 generic path and caps. RequirementTB/BT area+9.53%, capacity/unknowns and extra
 forest requests remain open; replacement24 stays sealed. Local only.
+
+### 3 November: remove repeated ER terminal searches
+
+cc841a746 indexes actual first/last emitted shafts; fb9c0ee06 owns Agentic192.
+Baselinebb7492b44 fails the exact owners at400000; current AgenticLR192 and
+ELKLR207 deliver SVG. All geometry checks/caps remain. Both Native proofs stay
+unverified at the separate paint allowance; ER208/256 and Class128 remain open.
+Same-input LR192: Agentic area7513553.648 vsELK9240957.648 (-18.69%), written
+shaft28286.718 vs40988.218 (-30.99%), zero bends both. Literal192entities,
+191relationships/captions and382cardinality owners retained. Two pinned-Inter
+controls give every whole cardinality group/caption positive ink, zero outside,
+unattributed or borrowed changed pixels; no all-component/universal-font claim.
+
+ER owners99P plus192red/green, core typing/lint pass (old large-file warning).
+Eight fresh cache-off workers consume24cold/repeat/edit results/errors:21refusals,
+3ELK207NativeU deliveries. ELK207first1002.34ms refusal->1658.72ms delivery,
+peakRSS258528->332264KiB: unequal work, no speedup claim. LR192currentN=1:
+Agentic976.72ms/167332KiB, ELK1810.83ms/278340KiB; no causal ratio. All adverse
+cost/heap rows retained; ER payload not remeasured. Evidence:
+/tmp/pr449-week-comparison-20261101/{er-terminal-parts-bb749,er-terminal-cost-bb7492b44}.
+Class sharp-header/empty-divider probes both left all four128owners failing and
+were reverted. Retained process profile includes imports/eightNativeU renders;
+drawing capture/reflection and XML dominate, not another layout search.
+Next: reuse private writer/capture operands to remove source walks while keeping
+fresh receiver/getter/resource/CSS isolation; no cap repricing or stopped
+furniture/cycle replay. Original baseline/Trident/peer qualification unavailable;
+replacement24 sealed. Local only.
