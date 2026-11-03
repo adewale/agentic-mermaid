@@ -38,14 +38,16 @@ describe('ER layout backends', () => {
     expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk', fallback: 'none', attempts: [{ backend: 'elk', outcome: 'selected' }] })])
   })
 
-  test.each(['elk', 'agentic'].flatMap(backend => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ backend, direction }))))('finishes a 128-entity chain within the shared geometry allowance with $backend in $direction', ({ backend, direction }) => {
-    const source = `erDiagram\ndirection ${direction}\n` + Array.from({ length: 127 }, (_, i) => `N${i} ||--o{ N${i + 1} : owns`).join('\n')
+  test.each([...['elk', 'agentic'].flatMap(backend => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ backend, direction, size: 128 }))),
+    { backend: 'elk', direction: 'LR', size: 207 },
+  ])('finishes a $size-entity chain within the shared geometry allowance with $backend in $direction', ({ backend, direction, size }) => {
+    const source = `erDiagram\ndirection ${direction}\n` + Array.from({ length: size - 1 }, (_, i) => `N${i} ||--o{ N${i + 1} : owns`).join('\n')
     const options = { graphLayout: { backend: backend as 'elk' | 'agentic', fallback: 'none' as const } }
     let result!: ReturnType<typeof layoutMermaidWithReceipt>
     expect(() => { result = layoutMermaidWithReceipt(source, options) }).not.toThrow()
     const { layout, receipt } = result
-    expect(layout.nodes.map(node => node.id)).toEqual(Array.from({ length: 128 }, (_, i) => `N${i}`))
-    expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual(Array.from({ length: 127 }, (_, i) => [`N${i}`, `N${i + 1}`]))
+    expect(layout.nodes.map(node => node.id)).toEqual(Array.from({ length: size }, (_, i) => `N${i}`))
+    expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual(Array.from({ length: size - 1 }, (_, i) => [`N${i}`, `N${i + 1}`]))
     const quality = measureQuality(layout)
     expect(quality.edgeCrossings).toBe(0)
     expect(quality.routeOverlaps).toEqual({ parallel: 0, opposing: 0 })
@@ -53,7 +55,17 @@ describe('ER layout backends', () => {
     expect(receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: backend, fallback: 'none' })])
     const rendered = renderMermaidSVGWithReceipt(source, options)
     expect(rendered.receipt.layoutCertification?.status).toBe('passed')
-    expect(rendered.svg.match(/class="er-relationship"/g)).toHaveLength(127)
+    const dom = new JSDOM(rendered.svg, { contentType: 'image/svg+xml' })
+    try {
+      const document = dom.window.document as Document
+      expect([...document.querySelectorAll('.entity')].map(entity => entity.getAttribute('data-id'))).toEqual(Array.from({ length: size }, (_, i) => `N${i}`))
+      const carriers = [...document.querySelectorAll('.er-relationship')]
+      expect(carriers.map(carrier => ['data-from', 'data-to', 'data-cardinality1', 'data-cardinality2', 'data-identifying', 'data-label'].map(name => carrier.getAttribute(name)))).toEqual(
+        Array.from({ length: size - 1 }, (_, i) => [`N${i}`, `N${i + 1}`, 'one', 'zero-many', 'true', 'owns']),
+      )
+      expect(document.querySelectorAll('[data-role="cardinality"]')).toHaveLength((size - 1) * 2)
+      expect([...document.querySelectorAll('text')].filter(label => label.textContent === 'owns')).toHaveLength(size - 1)
+    } finally { dom.window.close() }
   })
 
   test.each(['TB', 'BT', 'LR', 'RL'])('reserves cardinality leads without crossing a neighbouring tree route in %s', direction => {

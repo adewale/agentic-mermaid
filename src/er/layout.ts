@@ -1536,11 +1536,23 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     if (other.index * 2 + other.end <= glyph.index * 2 + glyph.end) continue
     for (const piece of glyph.pieces) if (other.pieces.some(p => intersects(piece, p))) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
   }
+  // Keep the actual first/last emitted parts, including a corner without a
+  // straight line: terminal admission below must still reject that corner.
+  charge(allGlyphs.length)
+  const terminalShaftIndices = new Int32Array(allGlyphs.length)
+  for (let index = 0; index < allShafts.length; index++) {
+    charge()
+    const shaft = allShafts[index]!
+    if (shaft.first && terminalShaftIndices[shaft.index * 2] === 0) terminalShaftIndices[shaft.index * 2] = index + 1
+    if (shaft.last && terminalShaftIndices[shaft.index * 2 + 1] === 0) terminalShaftIndices[shaft.index * 2 + 1] = index + 1
+  }
   for (const glyph of allGlyphs) {
     const dx = glyph.toward.x - glyph.point.x, dy = glyph.toward.y - glyph.point.y
     const horizontal = dy === 0 && dx !== 0, vertical = dx === 0 && dy !== 0
     const sign = Math.sign(horizontal ? dx : dy)
-    const terminal = allShafts.find(shaft => { charge(); return shaft.index === glyph.index && (glyph.end ? shaft.last : shaft.first) })
+    charge()
+    const terminalIndex = terminalShaftIndices[glyph.index * 2 + glyph.end]!
+    const terminal = terminalIndex ? allShafts[terminalIndex - 1] : undefined
     const line = terminal?.line, far = line && (glyph.end ? line[0] : line[1]), at = line && (glyph.end ? line[1] : line[0])
     if ((!horizontal && !vertical) || !far || !at || (horizontal ? far.y !== at.y || Math.sign(far.x - at.x) !== sign : far.x !== at.x || Math.sign(far.y - at.y) !== sign)
       || sign * ((horizontal ? far.x : far.y) - (horizontal ? glyph.point.x : glyph.point.y)) < terminalDepth(glyph.pieces, glyph.point, horizontal, sign)) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
