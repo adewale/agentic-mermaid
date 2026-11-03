@@ -6203,3 +6203,39 @@ Stopped duplicate-group-parse prototype: both Class128/ER192 remain NativeU400k,
 including optimistic accounting; no handoff/registry API ships. Next: ER208's
 final label-query construction, investigating existing immutable ink-index reuse
 while retaining generic callback behavior. ER256 and Native proof limits remain.
+
+### 3 November: ER208 caption-prefix searches
+
+599bdf97811eb5e01a0a61b21e7accfa18e6a175 reuses the existing ink index for
+completed caption prefixes in canonical ER finishing. Standalone helpers keep
+their old planner; exact fallback, final checks and400000 caps remain. Against
+adb4633a0cda2c1e79222109ce576bc0486fc86f, both Agentic/ELK LR208 family
+refusals become complete SVG delivery. Native proof remains unverified400000.
+Two old-source owning failures become green;100ER owners plus two retained192/207
+controls, core typing and changed-file lint pass. Independent final vectors retain
+208entities/207relations/captions/414cardinality owners, normal docks and separation.
+ELK's two pinned-Inter controls find every whole caption/cardinality group contributes
+ink, zero outside/borrowed/unattributed changes; Agentic208 has vector evidence only.
+Current Agentic vsELK: area8140454.896vs10012562.896 (-18.70%), shaft30656.286vs
+44421.786 (-30.99%), zero bends both. No beforeSVG existed; this is a backend delta.
+
+48cache-off fully consumed cold/repeat/edit calls retain all adverse/refused rows.
+ER32 initial AM399.41/122.92/106.62->465.64/1017.12/287.72ms is adverse; one
+reversed-order control409.69/150.51/132.25->383.10/145.34/114.31ms disagrees.
+Exclusive family cold/repeat time rises in BOTH batches (81.93/29.48->94.28/79.66;
+68.42/23.64->96.80/27.93ms); attribution unresolved, no speedup/preservation claim.
+Followup AM peakRSS145188->163476KiB, ELK200272->202016KiB and some post-GC
+heap rows are adverse. ER208AM cold350.72ms refusal->742.86ms delivery/RSS141300->
+213004KiB; ELK1295.41->1900.01ms/250484->335172KiB: unequal work, no ratio.
+One RAM lazy-JS build/two compiled208bindings match entire source SVGs/raw receipts.
+ER closure AM23requests/gzip324888/Brotli274493B vsELK21/695868/546550;
+each+124gzip/+139BrotliB, unchanged requests versus production-equivalent2d77=adb.
+
+Stopped parent-sort reuse: live generic callbacks/Array.slice mutation defeat its
+custody assumption. Coarser leaf16 still refuses208 earlier; reverted. No variants
+ship. Evidence under /tmp/pr449-week-comparison-20261101/{er-label-prefix-adb463,
+er-prefix-cost-599bdf978,er-prefix-cost-followup32-599bdf978,recovery-payload/er208-prefix-599bdf978}.
+ER256 still refuses in final painted-shaft/body scanning; next fix needs genuine
+post-callback geometry custody before safe broadphase reuse. Native proof/Class128,
+sparse32, nonlinear quality and original-baseline/peer availability remain open.
+Prefix tails remain quadratic worst-case. Replacement24 sealed; local only.
