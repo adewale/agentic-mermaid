@@ -538,6 +538,68 @@ test.each(['custom-property', 'inherited-fill'] as const)('scoped %s paint remai
   expect(emitted.issues.some(issue => issue.code === 'OUTPUT_SCOPE')).toBe(true)
 })
 
+test('native group font scope reads actual class bytes through pre-import String hooks', async () => {
+  const child = await runTextReceiverChild(process.execPath, ['--eval', String.raw`
+const sliceDescriptor = Object.getOwnPropertyDescriptor(String.prototype, 'slice')
+const slice = sliceDescriptor.value
+let mode, hookCalls = 0
+// Install before importing the producer: capturing this method at module load
+// cannot turn the callback's substituted token into actual SVG authority.
+Object.defineProperty(String.prototype, 'slice', { ...sliceDescriptor, value: function(start, end) {
+  const actual = Reflect.apply(slice, this, [start, end])
+  if (mode === 'hooked-mono' && String(this) === '<g class="mono">' && actual === 'mono'
+    && new Error().stack?.includes('nativeGroup')) { hookCalls++; return 'safe' }
+  return actual
+} })
+const rows = []
+try {
+  const { drawNative } = await import('./src/scene/native-drawing.ts')
+  const { certifyNativePaint } = await import('./src/scene/paint-certification.ts')
+  const { preparePixelText, hasPreparedInterTextEnvelope } = await import('./src/shared/prepared-text.ts')
+  const { withTextMeasurementExecution } = await import('./src/text-measurement-profile.ts')
+  const { tipAnchoredArrow, serializeMarkerResource } = await import('./src/scene/marker-resources.ts')
+  const { svgOpenTag, buildStyleBlock } = await import('./src/theme.ts')
+  const width = 200, height = 120, colors = { bg: '#fff', fg: '#111', font: 'Inter' }
+  const context = { positioned: { width, height }, colors, resolved: { renderOptions: {} } }
+  const block = withTextMeasurementExecution(undefined, () => preparePixelText('Wiii', { fontSize: 20, fontWeight: 400 }), 'Inter')
+  const marker = tipAnchoredArrow('font-custody-arrow', { width: 8, height: 5 }, 'end', { fill: '#000' }, 'userSpaceOnUse')
+  for (mode of ['safe', 'mono', 'hooked-mono']) {
+    const producer = factory => ({ family: 'flowchart', width, height, colors, transparent: false, parts: [
+      factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: true }, svgOpenTag(width, height, colors) + '\n' + buildStyleBlock('Inter', true, false, false)),
+      factory.definitions({ id: 'markers' }, '<defs>' + serializeMarkerResource(marker) + '</defs>'),
+      factory.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 50, y2: 40 }, paint: { stroke: '#000' }, endpoints: { from: 'outside', to: 'cover' }, markers: { end: marker } }),
+      factory.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 90, y: 10, width: 35, height: 45 }, paint: { fill: '#fff' } }),
+      factory.group({ id: 'font-group', role: 'chrome', open: '<g class="' + (mode === 'safe' ? 'safe' : 'mono') + '">', close: '</g>', children: [{ node: factory.text({ id: 'font-text', role: 'label', text: block.text, block, x: 20, y: 90, fontSize: 20, anchor: 'start', paint: { fill: '#111' } }), indent: 2 }] }),
+      factory.documentClose(),
+    ] })
+    const drawing = drawNative(producer, context, 'flowchart')
+    rows.push({ mode, svg: drawing.svg, proof: certifyNativePaint(drawing.header, drawing.paint), preparedInter: hasPreparedInterTextEnvelope(block), ownFont: Object.hasOwn(block, 'fontFamily') })
+  }
+} finally { Object.defineProperty(String.prototype, 'slice', sliceDescriptor) }
+console.log(JSON.stringify({ rows, hookCalls, restored: String.prototype.slice === slice }))
+`], { cwd: fileURLToPath(new URL('../../', import.meta.url)), env: process.env })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  const packet = JSON.parse(child.stdout) as { rows: Array<{ mode: string; svg: string; proof: ReturnType<typeof certifyNativePaint>; preparedInter: boolean; ownFont: boolean }>; restored: boolean }
+  expect(packet.restored).toBe(true)
+  expect(packet.rows.map(row => row.mode)).toEqual(['safe', 'mono', 'hooked-mono'])
+  const [safe, mono, hooked] = packet.rows
+  expect(safe!.proof).toMatchObject({ status: 'passed', issues: [] })
+  expect(hooked!.svg).toBe(mono!.svg)
+  for (const row of packet.rows) {
+    expect({ preparedInter: row.preparedInter, ownFont: row.ownFont }).toEqual({ preparedInter: true, ownFont: false })
+    const elements = rectangleEmissionElements(row.svg)
+    expect(elements.filter(element => element.name === 'g').map(element => element.attributes.class)).toEqual([row.mode === 'safe' ? 'safe' : 'mono'])
+    expect(elements.filter(element => element.name === 'line').map(element => element.attributes)).toEqual([expect.objectContaining({ x1: '20', y1: '40', x2: '50', y2: '40', 'data-from': 'outside', 'data-to': 'cover', 'marker-end': 'url(#font-custody-arrow)' })])
+    expect(elements.filter(element => element.name === 'marker').map(element => element.attributes.id)).toEqual(['font-custody-arrow'])
+    expect(row.svg.match(/<text\b[^>]*>Wiii<\/text>/g)).toHaveLength(1)
+    expect(row.svg).toContain('.mono { font-family:')
+  }
+  for (const row of [mono!, hooked!]) {
+    expect(row.proof.status).toBe('unverified')
+    expect(row.proof.issues).toContainEqual(expect.objectContaining({ code: 'OUTPUT_SCOPE' }))
+  }
+})
+
 test.each(['first-after', 'second-before', 'second-after', 'union-gap', 'partial-first', 'outside'] as const)('sibling text query caching preserves exact %s paint obligations', mode => {
   const colors = { bg: '#fff', fg: '#111' }, context = { positioned: { width: 100, height: 80 }, colors, resolved: { renderOptions: {} } }
   const producer: DrawingProducer = factory => {

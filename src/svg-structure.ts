@@ -1,6 +1,6 @@
 import { decodeXML } from 'entities'
 import { createSvgInspector } from './svg-inspection-cache.ts'
-import { isAsciiXmlNameChar } from './shared/xml-name.ts'
+import { isAsciiXmlNameChar, xmlTokenAt, xmlIndexOf, xmlSlice } from './shared/xml-name.ts'
 
 export interface SvgAttributeToken {
   readonly name: string
@@ -21,38 +21,53 @@ export interface SvgStartTagToken {
 }
 
 /** Exactly JavaScript's `\s`, without a regex call per ASCII character. */
-function isWhitespace(char: string | undefined): boolean {
+function isWhitespace(char: string | undefined, fresh = false): boolean {
   if (char === undefined) return false
-  const code = char.charCodeAt(0)
-  if (code < 128) return code === 32 || (code >= 9 && code <= 13)
-  return /\s/.test(char)
+  if (!fresh) {
+    const code = char.charCodeAt(0)
+    if (code < 128) return code === 32 || (code >= 9 && code <= 13)
+    return /\s/.test(char)
+  }
+  return char === ' ' || char >= '\t' && char <= '\r' || char === '\u00a0' || char === '\u1680'
+    || char >= '\u2000' && char <= '\u200a' || char === '\u2028' || char === '\u2029'
+    || char === '\u202f' || char === '\u205f' || char === '\u3000' || char === '\ufeff'
 }
 
-function scanTagEnd(source: string, start: number): number {
-  let end = source.indexOf('>', start)
+function sourceIndexOf(source: string, token: string, start: number | undefined, fresh: boolean): number {
+  return fresh ? xmlIndexOf(source, token, start ?? 0) : start === undefined ? source.indexOf(token) : source.indexOf(token, start)
+}
+function sourceTokenAt(source: string, token: string, start: number, fresh: boolean): boolean {
+  return fresh ? xmlTokenAt(source, token, start) : source.startsWith(token, start)
+}
+function sourceSlice(source: string, start: number, end: number, fresh: boolean): string {
+  return fresh ? xmlSlice(source, start, end) : source.slice(start, end)
+}
+
+function scanTagEnd(source: string, start: number, fresh = false): number {
+  let end = sourceIndexOf(source, '>', start, fresh)
   if (end < 0) return -1
   for (let cursor = start; cursor < end; cursor++) {
     const char = source[cursor]
     if (char !== '"' && char !== "'") continue
-    const close = source.indexOf(char, cursor + 1)
+    const close = sourceIndexOf(source, char, cursor + 1, fresh)
     if (close < 0) return -1
     cursor = close
     if (close > end) {
-      end = source.indexOf('>', close + 1)
+      end = sourceIndexOf(source, '>', close + 1, fresh)
       if (end < 0) return -1
     }
   }
   return end + 1
 }
 
-function scanStyleClose(source: string, start: number): number {
-  for (let cursor = source.indexOf('<', start); cursor >= 0; cursor = source.indexOf('<', cursor + 1)) {
-    const comment = source.startsWith('<!--', cursor), cdata = source.startsWith('<![CDATA[', cursor)
+function scanStyleClose(source: string, start: number, fresh: boolean): number {
+  for (let cursor = sourceIndexOf(source, '<', start, fresh); cursor >= 0; cursor = sourceIndexOf(source, '<', cursor + 1, fresh)) {
+    const comment = sourceTokenAt(source, '<!--', cursor, fresh), cdata = sourceTokenAt(source, '<![CDATA[', cursor, fresh)
     if (comment || cdata) {
-      const end = source.indexOf(comment ? '-->' : ']]>', cursor + (comment ? 4 : 9))
+      const end = sourceIndexOf(source, comment ? '-->' : ']]>', cursor + (comment ? 4 : 9), fresh)
       if (end < 0) return -1
       cursor = end + 2
-    } else if (source.startsWith('</style', cursor) && (source[cursor + 7] === '>' || isWhitespace(source[cursor + 7]))) return cursor
+    } else if (sourceTokenAt(source, '</style', cursor, fresh) && (source[cursor + 7] === '>' || isWhitespace(source[cursor + 7], fresh))) return cursor
   }
   return -1
 }
@@ -61,7 +76,7 @@ function scanStyleClose(source: string, start: number): number {
  * Final XML admission remains the authority for well-formedness; this scanner
  * only supplies exact attribute/text ranges without ever interpreting text
  * nodes as markup or CSS. */
-const inspectStartTags = createSvgInspector('start-tags', scanSvgStartTagsFresh)
+const inspectStartTags = createSvgInspector('start-tags', source => scanStartTags(source)!)
 
 export function scanSvgStartTags(source: string): readonly SvgStartTagToken[] {
   return inspectStartTags(source)
@@ -70,7 +85,7 @@ export function scanSvgStartTags(source: string): readonly SvgStartTagToken[] {
 /** Private emission custody needs fresh lexical data, rather than a public
  * inspection-cache entry supplied by another caller. */
 export function scanSvgStartTagsFresh(source: string): readonly SvgStartTagToken[] {
-  return scanStartTags(source)!
+  return scanStartTags(source, undefined, undefined, undefined, true)!
 }
 
 /** Constructor checks need the first tag's values, not retained token objects. */
@@ -81,17 +96,17 @@ export function visitSvgFirstTagAttributes(source: string, expectedName: string,
 }
 
 // One lexical owner: inventory, CSS values/contexts, or style bodies only.
-function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: SvgRange[], first?: { attribute(name: string, value: string): void; expectedName: string; name: string | undefined }): readonly SvgStartTagToken[] | undefined {
+function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: SvgRange[], first?: { attribute(name: string, value: string): void; expectedName: string; name: string | undefined }, fresh = false): readonly SvgStartTagToken[] | undefined {
   const tags: SvgStartTagToken[] | undefined = cssRanges || styleContexts || first ? undefined : []
-  for (let start = source.indexOf('<'); start >= 0; start = source.indexOf('<', start + 1)) {
-    if (source.startsWith('<!--', start)) {
-      const end = source.indexOf('-->', start + 4)
+  for (let start = sourceIndexOf(source, '<', undefined, fresh); start >= 0; start = sourceIndexOf(source, '<', start + 1, fresh)) {
+    if (sourceTokenAt(source, '<!--', start, fresh)) {
+      const end = sourceIndexOf(source, '-->', start + 4, fresh)
       if (end < 0) break
       start = end + 2
       continue
     }
-    if (source.startsWith('<![CDATA[', start)) {
-      const end = source.indexOf(']]>', start + 9)
+    if (sourceTokenAt(source, '<![CDATA[', start, fresh)) {
+      const end = sourceIndexOf(source, ']]>', start + 9, fresh)
       if (end < 0) break
       start = end + 2
       continue
@@ -99,39 +114,39 @@ function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: S
     const initial = source[start + 1]
     if (!initial || initial === '/' || initial === '!' || initial === '?') continue
     let nameEnd = start + 1
-    while (isAsciiXmlNameChar(source[nameEnd])) nameEnd++
+    while (isAsciiXmlNameChar(source[nameEnd], fresh)) nameEnd++
     if (nameEnd === start + 1) continue
-    const end = scanTagEnd(source, nameEnd)
+    const end = scanTagEnd(source, nameEnd, fresh)
     if (end < 0) break
     // `/\s*>` at the end of the tag, read backwards without slicing it.
     let beforeClose = end - 2
-    while (beforeClose > start && isWhitespace(source[beforeClose])) beforeClose--
-    const name = source.slice(start + 1, nameEnd)
+    while (beforeClose > start && isWhitespace(source[beforeClose], fresh)) beforeClose--
+    const name = sourceSlice(source, start + 1, nameEnd, fresh)
     if (first) first.name = name
     const selfClosing = source[beforeClose] === '/'
     const attributes: SvgAttributeToken[] | undefined = tags ? [] : undefined
     if (tags || cssRanges || first) {
       let cursor = nameEnd
       while (cursor < end - 1) {
-        while (isWhitespace(source[cursor])) cursor++
+        while (isWhitespace(source[cursor], fresh)) cursor++
         if (source[cursor] === '>' || (source[cursor] === '/' && source[cursor + 1] === '>')) break
         const nameStart = cursor
-        while (isAsciiXmlNameChar(source[cursor])) cursor++
+        while (isAsciiXmlNameChar(source[cursor], fresh)) cursor++
         if (cursor === nameStart) break
-        const name = source.slice(nameStart, cursor)
-        while (isWhitespace(source[cursor])) cursor++
+        const name = sourceSlice(source, nameStart, cursor, fresh)
+        while (isWhitespace(source[cursor], fresh)) cursor++
         if (source[cursor] !== '=') break
         cursor++
-        while (isWhitespace(source[cursor])) cursor++
+        while (isWhitespace(source[cursor], fresh)) cursor++
         const quote = source[cursor]
         if (quote !== '"' && quote !== "'") break
         cursor++
         const valueStart = cursor
-        const valueEnd = source.indexOf(quote, cursor)
+        const valueEnd = sourceIndexOf(source, quote, cursor, fresh)
         if (valueEnd < 0 || valueEnd >= end - 1) break
         cursor = valueEnd
-        if (attributes) attributes.push(Object.freeze({ name, value: source.slice(valueStart, cursor), quote, nameStart, valueStart, valueEnd: cursor }))
-        else if (first && first.name === first.expectedName) first.attribute(name, source.slice(valueStart, cursor))
+        if (attributes) attributes.push(Object.freeze({ name, value: sourceSlice(source, valueStart, cursor, fresh), quote, nameStart, valueStart, valueEnd: cursor }))
+        else if (first && first.name === first.expectedName) first.attribute(name, sourceSlice(source, valueStart, cursor, fresh))
         else if (cssRanges && CSS_VALUE_ATTRIBUTES.has(name)) {
           const range = { start: valueStart, end: cursor }
           cssRanges.push(range)
@@ -143,7 +158,7 @@ function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: S
     if (tags) tags.push(Object.freeze({ name, start, end, attributes: Object.freeze(attributes!), selfClosing }))
     if (first) return undefined
     if (styleContexts && name === 'style' && !selfClosing) {
-      const close = scanStyleClose(source, end)
+      const close = scanStyleClose(source, end, fresh)
       if (close >= 0) {
         const range = { start: end, end: close }
         cssRanges?.push(range)

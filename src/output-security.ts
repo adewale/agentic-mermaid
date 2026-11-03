@@ -9,6 +9,7 @@
 // ============================================================================
 
 import { createSvgInspector } from './svg-inspection-cache.ts'
+import { xmlTokenAt, xmlSlice, xmlIndexOf as findXmlToken } from './shared/xml-name.ts'
 
 export const OUTPUT_SECURITY_POLICY_VERSION = 2 as const
 export type OutputSecurityMode = 'default' | 'strict'
@@ -81,11 +82,6 @@ const XML_NAMED_REFERENCES = new Set(['amp', 'lt', 'gt', 'quot', 'apos'])
 type XmlWork = (operations: number) => void
 const XML_WORK_EXHAUSTED = Symbol('xml-work-exhausted')
 
-function xmlTokenAt(source: string, token: string, start: number): boolean {
-  if (start < 0 || start + token.length > source.length) return false
-  for (let i = 0; i < token.length; i++) if (source[start + i] !== token[i]) return false
-  return true
-}
 function xmlHasColon(value: string): boolean { for (let i = 0; i < value.length; i++) if (value[i] === ':') return true; return false }
 function xmlAsciiLetter(character: string | undefined): boolean { return character !== undefined && (character >= 'A' && character <= 'Z' || character >= 'a' && character <= 'z') }
 function xmlNameCharacter(character: string | undefined): boolean { return xmlAsciiLetter(character) || character !== undefined && (character >= '0' && character <= '9' || character === '_' || character === '-' || character === '.' || character === ':') }
@@ -93,18 +89,7 @@ function xmlScalarCharacter(character: string): boolean { return character === '
 
 function xmlIndexOf(source: string, needle: string, start: number, work?: XmlWork): number {
   if (!work) return source.indexOf(needle, start)
-  for (let index = start; index <= source.length - needle.length; index++) {
-    work(needle.length)
-    if (xmlTokenAt(source, needle, index)) return index
-  }
-  return -1
-}
-
-function xmlSlice(source: string, start: number, end: number, work?: XmlWork): string {
-  work?.(Math.max(0, end - start))
-  let result = ''
-  for (let i = start; i < end; i++) result += source[i]!
-  return result
+  return findXmlToken(source, needle, start, work)
 }
 
 function isXmlWhitespace(char: string | undefined): boolean {
