@@ -93,6 +93,13 @@ export function compactMeasuredLoops(input: MeasuredGraph, placed: AgenticLayout
     }
   }
   if (!changed) return placed
+  return fitMeasuredLayout(input, placed)
+}
+
+/** Discard private placement margins after the final route and caption edits.
+ * Preserve the requested padding around every retained body and route. */
+export function fitMeasuredLayout(input: MeasuredGraph, placed: AgenticLayout): AgenticLayout {
+  if (input.groups?.length || !input.nodes.length || input.nodes.length > 256 || input.edges.length > 128 || placed.edges.reduce((n, e) => n + e.points.length, 0) > 2048) return placed
   let left = Infinity,
     top = Infinity,
     right = -Infinity,
@@ -103,7 +110,7 @@ export function compactMeasuredLoops(input: MeasuredGraph, placed: AgenticLayout
     right = Math.max(right, x + w)
     bottom = Math.max(bottom, y + h)
   }
-  boxes.forEach(box => include(box.x, box.y, box.width, box.height))
+  input.nodes.forEach((node, index) => include(placed.nodes[index]!.x, placed.nodes[index]!.y, node.width, node.height))
   placed.edges.forEach((edge, index) => {
     edge.points.forEach(p => include(p.x, p.y))
     const p = edge.labelPosition,

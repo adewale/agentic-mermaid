@@ -253,6 +253,23 @@ describe('Requirement layout backends', () => {
       const captions = [...document.querySelectorAll('g.requirement-edge-label')]
       expect(captions.map(caption => caption.getAttribute('data-edge-id'))).toEqual(ids)
       expect(captions.map(caption => caption.textContent!.trim())).toEqual(expectedRelations.map(([, , kind]) => `<<${kind}>>`))
+      if (backend === 'agentic') {
+        const frames = [...document.querySelectorAll('g.requirement-node > rect, g.requirement-edge-label > rect')].map(rect => ({
+          x: Number(rect.getAttribute('x')), y: Number(rect.getAttribute('y')), width: Number(rect.getAttribute('width')), height: Number(rect.getAttribute('height')),
+        }))
+        const corners = frames.flatMap(rect => [{ x: rect.x, y: rect.y }, { x: rect.x + rect.width, y: rect.y + rect.height }])
+        for (const { attrs } of relationships) for (const pair of attrs.points!.trim().split(/\s+/)) {
+          const [x, y] = pair.split(',').map(Number)
+          corners.push({ x: x!, y: y! })
+        }
+        const viewport = document.documentElement.getAttribute('viewBox')!.split(/\s+/).map(Number)
+        // The measured label reservation adds two pixels around its actual
+        // painted pill. Removed private corridors must not leave extra margin.
+        for (const margin of [Math.min(...corners.map(p => p.x)), Math.min(...corners.map(p => p.y)), viewport[2]! - Math.max(...corners.map(p => p.x)), viewport[3]! - Math.max(...corners.map(p => p.y))]) {
+          expect(margin).toBeGreaterThanOrEqual(32 - 1e-6)
+          expect(margin).toBeLessThanOrEqual(34 + 1e-6)
+        }
+      }
     } finally { dom.window.close() }
     for (const text of ['performance-1', 'Respond quickly', 'bench suite', 'verifies', 'traces', 'refines']) expect(rendered.svg).toContain(text)
   })
