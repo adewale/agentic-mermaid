@@ -6264,3 +6264,35 @@ ships. Native rectangle-comparison headroom alone cannot establish capacity.
 Next: investigate cyclic-labelled-9-chains private label-band spacing against final
 caption envelopes, retaining requested spacing, lower crossings and all caps.
 All prior adverse/unknown cases remain; replacement24 sealed. Local only.
+
+### 3 November: remove private graph canvas margins before cleanup
+
+fff8c38ef91346db200e991ddf4d3a5b53315da5 reuses fitMeasuredLayout before graph
+cleanup/certification; existing size/group guards and placement-only bypass remain.
+Against production-equivalent08336d29a, fixed cyclic9 area856370.526->668671.576
+(-21.92%); ELK669058.282. Area deficit+28.00% becomes-0.06%, with unchanged
+wire10804.272vs11585.585, bends36vs54, crossings1vs3 and9nodes/23routes/sixcaptions.
+Actual Native proofs pass; offline ink uniquely attributes21heads, leaving two
+pre-existing coincident heads ambiguous. This closes one measured canvas loss.
+
+Old producer fails owning regression;325graph/State owners, final focused height
+check, core typing/lint pass. Titled coverage remains. Padding uses existing
+nominal body/route bounds; a stricter all-ink margin gate would reject baseline.
+Zero-spacing control returns/P through viewport repair in both arms, with adverse
+width229->239.459. All36fully consumed cache-off/on cold/hit/edit calls return/P;
+four actual hits match own cold wholeSVG/entire receipts, edits miss. N=1/cell:
+cyclic Agentic off516.51/195.60/167.79->505.18/193.47/149.09ms, but cold Agentic
+stage83.22->104.43ms, small control183.90->195.04ms and cached57.59->264.74ms
+are adverse. The hit bypasses producer; drawing/security spikes remain unexplained.
+RSS falls191512->176612KiB off,185624->173192on; heap/ELK RSS have adverse rows.
+No causal speedup/allocation claim; full tables retained.
+
+One sandbox build fails EPERM; one permitted retry succeeds. Agentic Flowchart
+26requests/gzip364916/Brotli309425B (+10gzip/-36Brotli, unchanged requests),
+ELK24/735887/581499; initial3/5859/5233. Both compiledSVGs and same-Node entire
+receipts match; one calibration isolates Bun's2-operation difference271105vs271107,
+without normalization. Evidence: existing week directory flow-fit-{precleanup,owning}
+-7a8c58917, flowchart-fit-{cost,cache1-cost}-fff8c38ef, and recovery-payload/flowchart-fit-escalated-fff8c38ef.
+Next: requalify affected15-chains/19 canvas losses before changing routes. ER256,
+Class128/sparse32, Requirement area, request gap and original-baseline/peer
+availability remain open. Replacement24 sealed; local only.
