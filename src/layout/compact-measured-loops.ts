@@ -63,6 +63,17 @@ export function compactMeasuredLoops(input: MeasuredGraph, placed: AgenticLayout
           halfCross = (horizontal ? edge.label.height : edge.label.width) / 2
         const lower = halfMain + 16,
           upper = (lane - start[main]) * sign - halfMain - 8
+        let sideLabel: { width: number; height: number } | undefined
+        if (lower > upper) {
+          const label = Object.getOwnPropertyDescriptor(edge, 'label')?.value,
+            width = label && Object.getOwnPropertyDescriptor(label, 'width')?.value,
+            height = label && Object.getOwnPropertyDescriptor(label, 'height')?.value
+          // The optional new seat cannot depend on dimensions changing between
+          // placement and clearance. Keep legacy geometry for live accessors.
+          if (!Number.isFinite(width) || !Number.isFinite(height) || width < 0 || height < 0
+            || width !== 2 * (horizontal ? halfMain : halfCross) || height !== 2 * (horizontal ? halfCross : halfMain)) return placed
+          sideLabel = { width, height }
+        }
         // A caption beside the outer bend need not fit inside a terminal leg.
         // The same occupied-label, shaft and crossing checks below admit it.
         const m = lower > upper ? lane : start[main] + sign * Math.max(lower, Math.min(upper, (labelPosition[main] - start[main]) * sign))
@@ -70,7 +81,9 @@ export function compactMeasuredLoops(input: MeasuredGraph, placed: AgenticLayout
         candidates.sort((a, b) => Math.abs(a.x - route.labelPosition!.x) + Math.abs(a.y - route.labelPosition!.y) - Math.abs(b.x - route.labelPosition!.x) - Math.abs(b.y - route.labelPosition!.y))
         labelPosition = undefined
         for (const candidate of candidates) {
-          const box = { x: candidate.x - edge.label.width / 2 - 2, y: candidate.y - edge.label.height / 2 - 2, width: edge.label.width + 4, height: edge.label.height + 4 }
+          const box = sideLabel
+            ? { x: candidate.x - sideLabel.width / 2 - 2, y: candidate.y - sideLabel.height / 2 - 2, width: sideLabel.width + 4, height: sideLabel.height + 4 }
+            : { x: candidate.x - edge.label.width / 2 - 2, y: candidate.y - edge.label.height / 2 - 2, width: edge.label.width + 4, height: edge.label.height + 4 }
           work.loopPairs -= occupied.length + total
           if (work.loopPairs < 0) return placed
           if (box.x < input.padding || box.y < input.padding || box.x + box.width > placed.width - input.padding || box.y + box.height > placed.height - input.padding) continue

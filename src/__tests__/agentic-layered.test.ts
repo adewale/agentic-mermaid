@@ -17,6 +17,7 @@ import { createVisibilityGrid } from '../layout/compound-visibility.ts'
 import { createLazyVisibilityGrid } from '../layout/compound-lazy-visibility.ts'
 import { createCompoundObstacleIndex } from '../layout/compound-obstacle-index.ts'
 import { countPolylineCrossings } from '../shared/edge-crossings.ts'
+import { compactMeasuredLoops } from '../layout/compact-measured-loops.ts'
 
 function measured(overrides: Partial<MeasuredGraph> = {}): MeasuredGraph {
   return {
@@ -753,6 +754,20 @@ describe('owned measured layered layout', () => {
       expect(onOutline(edge.points[1]!, boxes[2]!)).toBe(true)
       for (const box of boxes) expect(crossesInterior(edge.points[0]!, edge.points[1]!, box)).toBe(false)
     }
+  })
+
+  test.each([-2, NaN, 80])('retains the original loop when live label width changes to %s', changed => {
+    let reads = 0
+    const label = { get width() { return ++reads <= 3 ? 200 : changed }, height: 20 }
+    const input = measured({ direction: 'TB', padding: 40,
+      nodes: [{ id: 'loop', width: 180, height: 60 }, { id: 'foreign', width: 20, height: 30 }],
+      edges: [{ source: 0, target: 0, minSpan: 1, label }],
+    })
+    const points = [{ x: 260, y: 100 }, { x: 260, y: 130 }, { x: 260, y: 200 }, { x: 360, y: 200 }, { x: 360, y: 130 }, { x: 360, y: 100 }]
+    const placed: AgenticLayout = { topology: 'layered', width: 600, height: 300, nodes: [{ x: 220, y: 40 }, { x: 220, y: 110 }], edges: [{ points, labelPosition: { x: 156, y: 160 } }] }
+    const before = structuredClone(placed)
+    expect(compactMeasuredLoops(input, placed, { loopPairs: 2_000_000 })).toEqual(before)
+    expect(placed.edges[0]!.points).toBe(points)
   })
 
   test('retains feasible loop routes when optional request work is exhausted', () => {
