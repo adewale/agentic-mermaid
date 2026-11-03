@@ -16,6 +16,13 @@ const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/require
 const source = (direction: string) => fixture.replace('direction TB', `direction ${direction}`)
 const runChild = useTestChildren(20_000)
 
+function normalContact(at: { x: number; y: number }, toward: { x: number; y: number }, card: Record<string, string | undefined>): boolean {
+  const x = Number(card.x), y = Number(card.y), right = x + Number(card.width), bottom = y + Number(card.height)
+  const dx = toward.x - at.x, dy = toward.y - at.y, near = (a: number, b: number) => Math.abs(a - b) < 1e-6
+  return dy === 0 && at.y > y && at.y < bottom && (near(at.x, x) && dx < 0 || near(at.x, right) && dx > 0)
+    || dx === 0 && at.x > x && at.x < right && (near(at.y, y) && dy < 0 || near(at.y, bottom) && dy > 0)
+}
+
 describe('Requirement layout backends', () => {
   test.each((['agentic', 'elk'] as const).flatMap(backend => (['scene', 'native'] as const).map(admission => ({ backend, admission }))))('retains parallel requirement occurrences and authored names with $backend through $admission', async ({ backend, admission }) => {
     // Authored relation-1 is a card name, independently of generated edge IDs;
@@ -195,13 +202,15 @@ describe('Requirement layout backends', () => {
     } finally { dom.window.close() }
   })
 
-  test.each(['TB', 'BT', 'LR', 'RL'])('retains measured cards, relationship labels and distinct routes natively in %s', direction => {
+  test.each((['TB', 'BT', 'LR', 'RL'] as const).flatMap(direction => (['agentic', 'elk'] as const).map(backend => ({ direction, backend }))))('retains measured cards, relationship labels and distinct routes in $direction with $backend', ({ direction, backend }) => {
+    const options = { graphLayout: { backend, fallback: 'none' as const } }
     const model = parseRequirementDiagram(source(direction)), original = structuredClone(model)
-    const placed = layoutRequirementDiagram(model, native)
+    const placed = layoutRequirementDiagram(model, options)
     expect(model).toEqual(original)
-    expect(layoutRequirementDiagram(model, native)).toEqual(placed)
+    expect(layoutRequirementDiagram(model, options)).toEqual(placed)
     expect(placed.nodes).toHaveLength(3)
-    expect(placed.edges.map(edge => [edge.src, edge.dst, edge.type])).toEqual(model.relations.map(edge => [edge.src, edge.dst, edge.type]))
+    const expectedRelations: string[][] = [['suite', 'fast', 'verifies'], ['suite', 'fast', 'traces'], ['fast', 'report', 'derives'], ['report', 'fast', 'satisfies'], ['fast', 'fast', 'refines']]
+    expect(placed.edges.map(edge => [edge.src, edge.dst, edge.type])).toEqual(expectedRelations)
     const rects = placed.edges.map(edge => ({ x: edge.labelPosition.x - edge.label.width / 2 - 6, y: edge.labelPosition.y - edge.label.height / 2 - 4, w: edge.label.width + 12, h: edge.label.height + 8 }))
     for (const [index, edge] of placed.edges.entries()) {
       expect(edge.points.length).toBeGreaterThanOrEqual(2)
@@ -213,9 +222,38 @@ describe('Requirement layout backends', () => {
         for (const [other, rect] of rects.entries()) if (other !== index) expect(segmentEntersLabelRect(a, b, rect)).toBe(false)
       }
     }
-    const rendered = renderMermaidSVGWithReceipt(source(direction), native)
-    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', role: 'primary' })])
+    const rendered = renderMermaidSVGWithReceipt(source(direction), options)
+    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: backend, role: 'primary' })])
     expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+    const tags = scanSvgStartTags(rendered.svg).map(tag => ({ name: tag.name, attrs: Object.fromEntries(tag.attributes.map(attribute => [attribute.name, attribute.value])) }))
+    const relationships = tags.filter(tag => tag.attrs['data-role'] === 'relationship')
+    expect(relationships.map(({ attrs }) => [attrs['data-from'], attrs['data-to'], attrs['data-relationship']])).toEqual(expectedRelations)
+    for (const { attrs } of relationships) {
+      expect(attrs['data-direction']).toBe('forward')
+      expect(attrs['marker-end']).toBe('url(#requirement-arrow)')
+      expect(attrs['marker-start']).toBeUndefined()
+    }
+    const ids = relationships.map(({ attrs }) => attrs['data-id']!)
+    expect(new Set(ids).size).toBe(5)
+    const { JSDOM } = createRequire(import.meta.url)('jsdom')
+    const dom = new JSDOM(rendered.svg, { contentType: 'image/svg+xml' })
+    try {
+      const document = dom.window.document as Document
+      const cards = new Map([...document.querySelectorAll('g.requirement-node')].map(card => {
+        const rect = card.querySelector('rect')!
+        return [card.getAttribute('data-id')!, Object.fromEntries(['x', 'y', 'width', 'height'].map(key => [key, rect.getAttribute(key)!]))] as const
+      }))
+      expect([...cards.keys()].sort()).toEqual(['fast', 'report', 'suite'])
+      for (const { attrs } of relationships) {
+        const points = attrs.points!.trim().split(/\s+/).map(pair => { const [x, y] = pair.split(',').map(Number); return { x: x!, y: y! } })
+        expect(normalContact(points[0]!, points[1]!, cards.get(attrs['data-from']!)!)).toBe(true)
+        expect(normalContact(points.at(-1)!, points.at(-2)!, cards.get(attrs['data-to']!)!)).toBe(true)
+        if (attrs['data-from'] === attrs['data-to']) expect(points[0]).not.toEqual(points.at(-1))
+      }
+      const captions = [...document.querySelectorAll('g.requirement-edge-label')]
+      expect(captions.map(caption => caption.getAttribute('data-edge-id'))).toEqual(ids)
+      expect(captions.map(caption => caption.textContent!.trim())).toEqual(expectedRelations.map(([, , kind]) => `<<${kind}>>`))
+    } finally { dom.window.close() }
     for (const text of ['performance-1', 'Respond quickly', 'bench suite', 'verifies', 'traces', 'refines']) expect(rendered.svg).toContain(text)
   })
 
@@ -250,16 +288,10 @@ describe('Requirement layout backends', () => {
         }
       }
       if (bendRadius > 0) expect(path.d).toContain('Q')
-      const normal = (at: { x: number; y: number }, toward: { x: number; y: number }) => {
-        const x = Number(card.x), y = Number(card.y), right = x + Number(card.width), bottom = y + Number(card.height)
-        const dx = toward.x - at.x, dy = toward.y - at.y, near = (a: number, b: number) => Math.abs(a - b) < 1e-6
-        return dy === 0 && at.y > y && at.y < bottom && (near(at.x, x) && dx < 0 || near(at.x, right) && dx > 0)
-          || dx === 0 && at.x > x && at.x < right && (near(at.y, y) && dy < 0 || near(at.y, bottom) && dy > 0)
-      }
       // Read the serialized legs, rather than trusting the positioned polyline:
       // marker auto-orientation follows this actual last leg too.
-      expect(normal(lines[0]![0], lines[0]![1])).toBe(true)
-      expect(normal(lines.at(-1)![1], lines.at(-1)![0])).toBe(true)
+      expect(normalContact(lines[0]![0], lines[0]![1], card)).toBe(true)
+      expect(normalContact(lines.at(-1)![1], lines.at(-1)![0], card)).toBe(true)
     }
   })
 
