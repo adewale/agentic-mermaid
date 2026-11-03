@@ -6104,3 +6104,42 @@ original-baseline/peer qualification, capacity/refusal/Unicode gaps stay open;
 replacement24 remains sealed. Next fix: find a smaller two-rank Requirement
 candidate without the stopped report-first bend/wire regression; retain the
 remaining Class area and forest-request deficits. No continuous run is claimed.
+
+### 3 November: Class halo and horizontal-caption fixes
+
+Against fixed local25e58c9c501b851427872ed5b4b6823b75c21774,
+0684c7d72a0393b9760cc20f91efdd9e80187f04 reserves the renderer's actual3px
+caption halo instead of6: ordinary Class area105210->103590 (ELK104010),
+wire248.6->242.6 (ELK325.2), two bends unchanged (ELKfour). Requested60px
+layer spacing and40px padding remain; actual body gap77.3 and final halo margin40.
+
+e0877c5ea81ffd482c9e65375a6d40e840b45a16 uses measured caption half-height in
+horizontal fallback seats, symmetric with vertical half-width. One ordinary
+nested source with four relationships, cardinalities and a note was6/8 delivered
+across directions/backends; ELKLR/RL refused. Now8/8 pass literal meaning, owned
+captions/heads and eight normal docks. Six earlier wholeSVGs/entire receipts
+remain byte-exact. Both newly delivered directions also pass native drawing;
+LR's caption/hollow-head pinned-Inter controls have no observed outside ink.
+Class owners264P/four known chain cases still open; core typing/lint pass with
+the old oversize evidence warning. Full repository typing still lacks Trident.
+
+Final one lazy-JS build/four compiled Class/Requirement engine calls exactly
+match fresh Node wholeSVGs/raw receipts. Class requests21vsELK20; gzip291874vs
+669934B, +4B each versus25e. Eight fresh Class workers/24 fully consumed calls
+separate first/repeat/edit and geometry cache off/on; all returned/P. N=1 only:
+Agentic cache-off262.22/46.52/46.44->202.68/34.50/24.25ms, peakRSS107072->108736KiB;
+ELK cache-off first551.08->646.59ms. All import/live-heap/adverse rows retained;
+no allocation, browser-latency or causal speedup claim. Evidence is under
+/tmp/pr449-week-comparison-20261101/{class-residual-25e,class-caption-seat-0684,
+class-halo-final,final-e087,recovery-payload/combined-e0877c5ea}.
+
+Stopped f0fad2635 (reverted93188db84): one opposite cut reduced RequirementTB
+area282094->230692 but raised wire645.46->671.20; LR/RL area244440->266673
+rose9.10% with six visible bends unchanged. Raw14->12 bend scoring and an
+extra raw-area guard failed to predict final geometry. No cycle policy ships.
+ER256ELKLR remains ER_ROUTE_WORK_LIMIT400000 in the final painted-body scan;
+raw-pass omission lacked post-callback custody/nondegenerate-box authority and
+was stopped without code. Next: establish private final ER geometry after the
+last exposing callback before reconsidering redundant checks; preserve the
+generic path and caps. RequirementTB/BT area+9.53%, capacity/unknowns and extra
+forest requests remain open; replacement24 stays sealed. Local only.
