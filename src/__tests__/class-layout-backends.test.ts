@@ -28,6 +28,56 @@ const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/class-b
 const compoundFixture = readFileSync(new URL('../../eval/layout-compare/fixtures/class-compound-backends.mmd', import.meta.url), 'utf8')
 
 describe('Class layout backends', () => {
+  test.each((['agentic', 'elk'] as const).flatMap(backend => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ backend, direction }))))('nested caption seats retain authored meaning and final contacts: $backend $direction', ({ backend, direction }) => {
+    const source = "classDiagram\ndirection DIRECTION\nnamespace Root {\n class Gateway {\n  +String key\n }\n namespace Domain {\n  class Draft {\n   +String token\n  }\n  class Sink {\n   +String id\n  }\n }\n}\nGateway \"1\" *-- Draft : opens\nGateway \"*\" ..> Sink : submits\nDraft \"1\" --> Sink : commits\nSink \"0..1\" ..|> Sink : retries\nnote for Gateway \"Keep authored Gateway note\"".replace('DIRECTION', direction)
+    const result = renderMermaidSVGWithReceipt(source, { graphLayout: { backend, fallback: 'none' } })
+    const boxes = new Map<string, Record<string, string>>(), frames = new Map<string, Record<string, string>>(), namespaces: Array<[string, string | undefined]> = [], carriers: Array<Record<string, string>> = [], textPrograms: Array<{ text: string; attrs: Record<string, string> }> = []
+    let current: { text: string; attrs: Record<string, string> } | undefined, noteOwner: string | undefined
+    const parser = new SaxesParser({ xmlns: true })
+    parser.on('opentag', tag => {
+      const a = Object.fromEntries(Object.entries(tag.attributes).map(([key, value]) => [key, value.value]))
+      if (tag.local === 'rect' && a['data-role'] === 'class-box') boxes.set(a['data-id']!.slice(6, -4), a)
+      if (tag.local === 'rect' && a['data-id']?.startsWith('namespace-rect:')) frames.set(a['data-id'].slice(15), a)
+      if (tag.local === 'g' && a.class === 'namespace') namespaces.push([a['data-id']!, a['data-parent-id']])
+      if (tag.local === 'g' && a.class === 'class-note') noteOwner = a['data-for']
+      if (tag.local === 'polyline' && a.class === 'class-relationship') carriers.push(a)
+      if (tag.local === 'text') current = { text: '', attrs: a }
+    })
+    parser.on('text', value => { if (current) current.text += value })
+    parser.on('closetag', tag => { if (tag.local === 'text' && current) { textPrograms.push(current); current = undefined } })
+    parser.write(result.svg).close()
+    expect([...boxes.keys()].sort()).toEqual(['Draft', 'Gateway', 'Sink'])
+    expect(namespaces).toEqual([['Root', undefined], ['Root.Domain', 'Root']])
+    expect(noteOwner).toBe('Gateway')
+    expect(textPrograms.map(t => t.text).sort()).toEqual(['Root', 'Domain', 'Gateway', 'Draft', 'Sink', '+String key', '+String token', '+String id', 'opens', 'submits', 'commits', 'retries', '1', '*', '1', '0..1', 'Keep authored Gateway note'].sort())
+    expect(carriers.map(e => [e['data-from'], e['data-to'], e['data-type'], e['data-marker-at'], e['data-from-cardinality'], e['data-label']])).toEqual([
+      ['Gateway', 'Draft', 'composition', 'from', '1', 'opens'], ['Gateway', 'Sink', 'dependency', 'to', '*', 'submits'],
+      ['Draft', 'Sink', 'association', 'to', '1', 'commits'], ['Sink', 'Sink', 'realization', 'to', '0..1', 'retries'],
+    ])
+    for (const [index, edge] of carriers.entries()) {
+      expect(edge[index === 0 ? 'marker-start' : 'marker-end']).toBe(`url(#${index === 0 ? 'cls-composition' : index === 3 ? 'cls-inherit' : 'cls-arrow'})`)
+      const points = edge.points!.split(/\s+/).map(pair => pair.split(',').map(Number))
+      for (const [id, p, next] of [[edge['data-from']!, points[0]!, points[1]!], [edge['data-to']!, points.at(-1)!, points.at(-2)!]] as const) {
+        const b = boxes.get(id)!, x = Number(b.x), y = Number(b.y), w = Number(b.width), h = Number(b.height), px = p[0]!, py = p[1]!, dx = next[0]! - px, dy = next[1]! - py
+        expect(px >= x - 1e-8 && px <= x + w + 1e-8 && py >= y - 1e-8 && py <= y + h + 1e-8).toBe(true)
+        expect((Math.abs(px - x) < 1e-8 && dx < 0 && dy === 0) || (Math.abs(px - x - w) < 1e-8 && dx > 0 && dy === 0) || (Math.abs(py - y) < 1e-8 && dy < 0 && dx === 0) || (Math.abs(py - y - h) < 1e-8 && dy > 0 && dx === 0)).toBe(true)
+      }
+      const a = textPrograms.find(t => t.text === edge['data-label'])!.attrs, width = Number(a.textLength), x = Number(a.x) - width / 2 - 9.5, y = Number(a.y) - Number(a['font-size']) * 1.3 / 2 - 9.5
+      const near = points.slice(1).some((b, i) => { const a = points[i]!; return a[0] === b[0] ? a[0]! > x && a[0]! < x + width + 19 && Math.max(a[1]!, b[1]!) > y && Math.min(a[1]!, b[1]!) < y + 11 * 1.3 + 19 : a[1] === b[1] && a[1]! > y && a[1]! < y + 11 * 1.3 + 19 && Math.max(a[0]!, b[0]!) > x && Math.min(a[0]!, b[0]!) < x + width + 19 })
+      expect(near, `${edge['data-label']} lost its own carrier`).toBe(true)
+    }
+    for (const [id, frameId] of [['Gateway', 'Root'], ['Draft', 'Root.Domain'], ['Sink', 'Root.Domain']]) {
+      const b = boxes.get(id!)!, f = frames.get(frameId!)!
+      expect(Number(b.x)).toBeGreaterThanOrEqual(Number(f.x))
+      expect(Number(b.y)).toBeGreaterThan(Number(f.y))
+      expect(Number(b.x) + Number(b.width)).toBeLessThanOrEqual(Number(f.x) + Number(f.width) + 1e-8)
+      expect(Number(b.y) + Number(b.height)).toBeLessThanOrEqual(Number(f.y) + Number(f.height) + 1e-8)
+    }
+    const loop = carriers[3]!.points!.split(/\s+/)
+    expect(loop[0]).not.toBe(loop.at(-1))
+    expect(result.receipt.layoutCertification?.status).toBe('passed')
+  })
+
   test.each([true, false])('retains every caption on its own final carrier after loop compaction (markers=%s)', marked => {
     const source = marked ? fixture : fixture.replaceAll('-->', '--').replaceAll('..>', '..').replaceAll('o--', '--')
     const rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'none' }, embedFontImport: false })
