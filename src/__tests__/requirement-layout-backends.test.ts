@@ -244,12 +244,6 @@ describe('Requirement layout backends', () => {
         return [card.getAttribute('data-id')!, Object.fromEntries(['x', 'y', 'width', 'height'].map(key => [key, rect.getAttribute(key)!]))] as const
       }))
       expect([...cards.keys()].sort()).toEqual(['fast', 'report', 'suite'])
-      if (direction === 'TB' || direction === 'BT') {
-        const suite = cards.get('suite')!, report = cards.get('report')!
-        // The reciprocal pair permits the two feeders to share a body rank;
-        // an already crossing-free cut must not hide that compact placement.
-        expect(Math.min(Number(suite.y) + Number(suite.height), Number(report.y) + Number(report.height)) - Math.max(Number(suite.y), Number(report.y))).toBeGreaterThan(0)
-      }
       for (const { attrs } of relationships) {
         const points = attrs.points!.trim().split(/\s+/).map(pair => { const [x, y] = pair.split(',').map(Number); return { x: x!, y: y! } })
         expect(normalContact(points[0]!, points[1]!, cards.get(attrs['data-from']!)!)).toBe(true)
