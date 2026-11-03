@@ -28,7 +28,7 @@ describe('Requirement layout backends', () => {
     // Authored relation-1 is a card name, independently of generated edge IDs;
     // the two satisfies declarations must retain separate caption owners.
     const interaction = {
-      source: 'requirementDiagram\ndirection LR\nrequirement "relation-1" {\n  id: "R-1"\n  text: "Authorize release"\n  risk: medium\n  verifymethod: test\n}\nfunctionalRequirement gate {\n  id: "F-2"\n  text: "Reject stale token"\n  risk: high\n  verifymethod: analysis\n}\nelement worker {\n  type: software\n  docRef: "Spec R-1"\n}\nworker - satisfies -> "relation-1"\nworker - satisfies -> "relation-1"\n"relation-1" - derives -> gate\ngate - traces -> "relation-1"',
+      source: 'requirementDiagram\ndirection LR\nrequirement "relation-1" {\n  id: "R-1"\n  text: "Authorize release"\n  risk: medium\n  verifymethod: test\n}\nfunctionalRequirement gate {\n  id: "F-2"\n  text: "Reject stale token"\n  risk: high\n  verifymethod: analysis\n}\nelement worker {\n  type: software\n  docRef: "Spec R-1"\n}\nworker - satisfies -> "relation-1"\nworker - satisfies -> "relation-1"\n"relation-1" - derives -> gate\ngate - traces -> "relation-1"\nworker - contains -> gate',
       direction: 'LR',
       requirements: [
         { name: 'relation-1', kind: 'requirement', requirementId: 'R-1', text: 'Authorize release', risk: 'medium', verifyMethod: 'test' },
@@ -42,6 +42,7 @@ describe('Requirement layout backends', () => {
         { from: 'worker', to: 'relation-1', kind: 'satisfies', displayLabel: '<<satisfies>>' },
         { from: 'relation-1', to: 'gate', kind: 'derives', displayLabel: '<<derives>>' },
         { from: 'gate', to: 'relation-1', kind: 'traces', displayLabel: '<<traces>>' },
+        { from: 'worker', to: 'gate', kind: 'contains', displayLabel: '<<contains>>' },
       ],
     } as const
 
@@ -76,7 +77,7 @@ describe('Requirement layout backends', () => {
       risk: requirement.risk.toLowerCase(), verifyMethod: requirement.verifyMethod.toLowerCase() }))).toEqual(interaction.requirements.map(requirement => ({ ...requirement, kind: normalized(requirement.kind) })))
     expect(body.elements.map(element => ({ name: element.name, type: element.type, docRef: element.docRef }))).toEqual([...interaction.elements])
     expect(body.relations.map(relation => ({ from: relation.src, to: relation.dst, kind: relation.type, displayLabel: `<<${relation.type}>>` }))).toEqual([...interaction.relations])
-    expect(new Set(body.relations.map(relation => relation.id)).size).toBe(4)
+    expect(new Set(body.relations.map(relation => relation.id)).size).toBe(5)
     const { JSDOM } = createRequire(import.meta.url)('jsdom')
     const dom = new JSDOM(packet.rendered.svg, { contentType: 'image/svg+xml' })
     try {
@@ -101,22 +102,73 @@ describe('Requirement layout backends', () => {
       const carriers = [...document.querySelectorAll('[data-role="relationship"][data-from]')]
       expect(carriers.map(carrier => ({ from: carrier.getAttribute('data-from'), to: carrier.getAttribute('data-to'), kind: carrier.getAttribute('data-relationship') })))
         .toEqual(interaction.relations.map(({ displayLabel: _label, ...relation }) => relation))
-      expect(new Set(carriers.map(carrier => carrier.getAttribute('data-id'))).size).toBe(4)
+      expect(new Set(carriers.map(carrier => carrier.getAttribute('data-id'))).size).toBe(5)
       expect(carriers.map(carrier => carrier.getAttribute('data-id'))).toEqual(body.relations.map(relation => relation.id))
-      for (const carrier of carriers) {
-        expect(carrier.getAttribute('stroke-dasharray')).toBe('6 4')
-        expect(carrier.getAttribute('marker-end')).toBe('url(#requirement-arrow)')
-        expect(carrier.hasAttribute('marker-start')).toBe(false)
+      const cardBoxes = new Map(cards.map(card => [card.getAttribute('data-id')!, Object.fromEntries(['x', 'y', 'width', 'height'].map(key => [key, card.querySelector('rect')!.getAttribute(key)!]))]))
+      for (const [index, carrier] of carriers.entries()) {
+        if (interaction.relations[index]!.kind === 'contains') {
+          expect(carrier.hasAttribute('stroke-dasharray')).toBe(false)
+          expect(carrier.getAttribute('marker-start')).toBe('url(#requirement-contains)')
+          expect(carrier.hasAttribute('marker-end')).toBe(false)
+        } else {
+          expect(carrier.getAttribute('stroke-dasharray')).toBe('6 4')
+          expect(carrier.getAttribute('marker-end')).toBe('url(#requirement-arrow)')
+          expect(carrier.hasAttribute('marker-start')).toBe(false)
+        }
         const route = carrier.getAttribute('points') ?? carrier.getAttribute('d')!
         expect(route).not.toMatch(/NaN|Infinity|undefined/)
         const coordinates = route.match(/[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi)!.map(Number)
         expect(coordinates.every(Number.isFinite)).toBe(true)
         expect(coordinates.length).toBeGreaterThanOrEqual(4)
+        const points = coordinates.reduce<Array<{ x: number; y: number }>>((points, coordinate, index) => { if (index % 2 === 0) points.push({ x: coordinate, y: coordinates[index + 1]! }); return points }, [])
+        expect(normalContact(points[0]!, points[1]!, cardBoxes.get(interaction.relations[index]!.from)!)).toBe(true)
+        expect(normalContact(points.at(-1)!, points.at(-2)!, cardBoxes.get(interaction.relations[index]!.to)!)).toBe(true)
       }
+      expect(carriers.filter(carrier => carrier.getAttribute('marker-start') === 'url(#requirement-contains)')).toEqual([carriers[4]!])
+      const containmentMarkers = [...document.querySelectorAll('marker#requirement-contains')]
+      expect(containmentMarkers).toHaveLength(1)
+      const containment = containmentMarkers[0]!
+      expect(containment.getAttribute('orient')).toBe('auto')
+      expect(containment.getAttribute('markerUnits')).toBe('userSpaceOnUse')
+      expect([...containment.children].map(child => child.localName)).toEqual(['circle', 'path'])
+      const circle = containment.querySelector('circle')!, cross = containment.querySelector('path')!
+      const cx = Number(circle.getAttribute('cx')), cy = Number(circle.getAttribute('cy')), radius = Number(circle.getAttribute('r'))
+      const viewport = containment.hasAttribute('viewBox') ? containment.getAttribute('viewBox')!.split(/[ ,]+/).map(Number) : [0, 0, Number(containment.getAttribute('markerWidth')), Number(containment.getAttribute('markerHeight'))]
+      expect(viewport.every(Number.isFinite)).toBe(true)
+      expect(viewport[2]!).toBeGreaterThan(0)
+      expect(viewport[3]!).toBeGreaterThan(0)
+      expect(radius).toBeGreaterThan(0)
+      expect(Number(containment.getAttribute('refY'))).toBe(cy)
+      expect(Number(containment.getAttribute('refX'))).toBeLessThanOrEqual(cx - radius)
+      expect(cx - radius - Number(containment.getAttribute('refX'))).toBeLessThanOrEqual(Number(circle.getAttribute('stroke-width')))
+      expect(cx - radius).toBeGreaterThanOrEqual(viewport[0]!)
+      expect(cy - radius).toBeGreaterThanOrEqual(viewport[1]!)
+      expect(cx + radius).toBeLessThanOrEqual(viewport[0]! + viewport[2]!)
+      expect(cy + radius).toBeLessThanOrEqual(viewport[1]! + viewport[3]!)
+      const number = '(-?(?:\\d+\\.?\\d*|\\.\\d+))'
+      const arms = [...cross.getAttribute('d')!.matchAll(new RegExp(`M\\s*${number}[ ,]+${number}\\s*([HV])\\s*${number}`, 'g'))].map(match => ({ x: Number(match[1]), y: Number(match[2]), axis: match[3], end: Number(match[4]) }))
+      expect(arms).toHaveLength(2)
+      expect(arms.map(arm => arm.axis).sort()).toEqual(['H', 'V'])
+      for (const arm of arms) {
+        const center = arm.axis === 'H' ? cx : cy, start = arm.axis === 'H' ? arm.x : arm.y
+        expect(arm.axis === 'H' ? arm.y : arm.x).toBe(arm.axis === 'H' ? cy : cx)
+        expect(Math.min(start, arm.end)).toBeLessThan(center)
+        expect(Math.max(start, arm.end)).toBeGreaterThan(center)
+        expect(Math.abs(start - center)).toBeLessThan(radius)
+        expect(Math.abs(arm.end - center)).toBeLessThan(radius)
+      }
+      for (const component of [circle, cross]) {
+        expect(Number(component.getAttribute('stroke-width'))).toBeGreaterThan(0)
+        expect(Number.isFinite(Number(component.getAttribute('stroke-width')))).toBe(true)
+        expect(component.getAttribute('stroke')).toBeTruthy()
+        expect(component.getAttribute('stroke')).not.toBe('none')
+      }
+      expect(circle.getAttribute('fill')).toBeTruthy()
+      expect(circle.getAttribute('fill')).not.toBe('none')
       const labelGroups = [...document.querySelectorAll('g.requirement-edge-label')]
       const labels = labelGroups.map(group => group.querySelector('text')!)
       expect(labels.map(label => label.textContent)).toEqual(interaction.relations.map(relation => relation.displayLabel))
-      expect(labelGroups).toHaveLength(4)
+      expect(labelGroups).toHaveLength(5)
       // A caption references the relationship, even when a card shares its ID.
       expect(labelGroups.map(group => group.getAttribute('data-edge-id')).sort()).toEqual(carriers.map(carrier => carrier.getAttribute('data-id')).sort())
       const captionRelations = carriers.map(carrier => {
