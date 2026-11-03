@@ -107,6 +107,7 @@ const src = {
   paintCertification: () => import('../../src/scene/paint-certification.ts'),
   builtinBackends: () => import('../../src/scene/builtin-backends.ts'),
   inspection: () => import('../../src/svg-inspection-cache.ts'),
+  emission: () => import('../../src/scene/native-paint-emission.ts'),
 }
 
 // Literal authored labels, independent of the parser/lowering being measured.
@@ -544,6 +545,29 @@ export function microCases(): readonly MicroCase[] {
         const { measureTextWidth } = await src.textMetrics()
         return () => measureTextWidth(ASCII_LABEL, 16, 500)
       },
+    },
+    {
+      id: 'scene:native-snapshot-points300',
+      description: 'Native emission capture of 300 mutable numeric point records, without result reuse',
+      async setup() {
+        const { createNativePaintEmission } = await src.emission()
+        const geometry = { kind: 'polygon', points: Array.from({ length: 300 }, (_, index) => ({ x: index * 0.1, y: index % 17 })) }
+        return { call: () => createNativePaintEmission(400_000).snapshot(geometry), input: inputText(geometry) }
+      },
+      check: result => {
+        const value = result as { points?: readonly { x: number; y: number }[] } | undefined
+        return value?.points?.length === 300 && value.points[299]?.y === 10 && Object.isFrozen(value.points[299])
+      },
+    },
+    {
+      id: 'text:prepare-ascii-churn',
+      description: 'Short ASCII label preparation with 1024 rotating keys, beyond both text caches',
+      async setup() {
+        const { preparePixelText } = await src.preparedText()
+        let counter = 0
+        return () => preparePixelText(`${String(counter++ % 1024).padStart(4, '0')} Authenticate request`, { fontSize: 16, fontWeight: 500 })
+      },
+      check: result => (result as { lines?: string[] }).lines?.length === 1,
     },
     ...[false, true].map(churn => ({
       id: `text:wrap-ascii-${churn ? 'churn' : 'repeat'}`,
