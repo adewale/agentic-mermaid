@@ -1298,7 +1298,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
       return { index, box, first: i === 0, last: i === rel.points.length - 2, line: [a, b] as const }
     })
   })
-  let failedCaptions = finalizeErRelationshipLabels(positioned, style, styleFace, work)
+  let failedCaptions = finalizeErRelationshipLabels(positioned, style, styleFace, work, 'indexed-prefix')
   let labels = retainedErRelationshipLabels(positioned) ?? separateRelationshipLabels(positioned, style, styleFace, work)
   const labelBoxes = (occupied: boolean) => relationships.flatMap((rel, index) => {
     charge()
@@ -1466,7 +1466,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
   }
   if (changed) {
     repairErFrameRoutes(positioned.entities, positioned.groups, relationships, relationships.map(rel => rel.labelBlock ?? erRelationshipBlock(rel, style, styleFace)), style, styleFace, work)
-    failedCaptions = finalizeErRelationshipLabels(positioned, style, styleFace, work)
+    failedCaptions = finalizeErRelationshipLabels(positioned, style, styleFace, work, 'indexed-prefix')
     labels = retainedErRelationshipLabels(positioned) ?? separateRelationshipLabels(positioned, style, styleFace, work)
   }
   if (failedCaptions.length) {
@@ -1477,7 +1477,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
       { indices, admit: (index, points) => erCandidateCaptionClear(positioned, index, points, style, styleFace, work) })
     positioned.width = Math.max(positioned.width, ...relationships.flatMap(rel => rel.points.map(point => point.x + ER.padding)))
     positioned.height = Math.max(positioned.height, ...relationships.flatMap(rel => rel.points.map(point => point.y + ER.padding)))
-    finalizeErRelationshipLabels(positioned, style, styleFace, work)
+    finalizeErRelationshipLabels(positioned, style, styleFace, work, 'indexed-prefix')
     labels = retainedErRelationshipLabels(positioned) ?? separateRelationshipLabels(positioned, style, styleFace, work)
   }
   const allGlyphs = glyphs(), allShafts = shafts(), allLabels = labelBoxes(false)

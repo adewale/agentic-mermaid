@@ -23,9 +23,9 @@ export function erRelationshipBlock(rel: Pick<PositionedErRelationship, 'label' 
 /** Completed ER labels belong to the exact artifact returned by family layout.
  * The producer reservation is only a preference; the final center is resolved
  * after every route/frame/title transform with the request's actual style. */
-export function finalizeErRelationshipLabels(diagram: PositionedErDiagram, style: ResolvedRenderStyle, styleFace?: Readonly<InternalStyleFace>, work?: ErGeometryWork): PositionedErRelationship[] {
+export function finalizeErRelationshipLabels(diagram: PositionedErDiagram, style: ResolvedRenderStyle, styleFace?: Readonly<InternalStyleFace>, work?: ErGeometryWork, planner?: 'indexed-prefix'): PositionedErRelationship[] {
   const failed: PositionedErRelationship[] = []
-  const positions = placeRelationshipLabels(diagram, style, styleFace, work ?? { operations: 0 }, true, failed)
+  const positions = placeRelationshipLabels(diagram, style, styleFace, work ?? { operations: 0 }, true, failed, planner)
   for (const rel of diagram.relationships) {
     const center = positions.get(rel)
     if (center) rel.finalLabelPosition = { ...center }
@@ -77,7 +77,7 @@ export function separateRelationshipLabels(
   return placeRelationshipLabels(diagram, style, styleFace, work, diagram.labelPlacement === 'shaft-aware')
 }
 
-function placeRelationshipLabels(diagram: PositionedErDiagram, style: ResolvedRenderStyle, styleFace: Readonly<InternalStyleFace> | undefined, work: ErGeometryWork, shaftAware: boolean, failed?: PositionedErRelationship[]): Map<PositionedErRelationship, { x: number; y: number }> {
+function placeRelationshipLabels(diagram: PositionedErDiagram, style: ResolvedRenderStyle, styleFace: Readonly<InternalStyleFace> | undefined, work: ErGeometryWork, shaftAware: boolean, failed?: PositionedErRelationship[], planner?: 'indexed-prefix'): Map<PositionedErRelationship, { x: number; y: number }> {
   interface Box { x0: number; y0: number; x1: number; y1: number }
   const out = new Map<PositionedErRelationship, { x: number; y: number }>()
   const charge = (count = 1) => { work.operations += count; if (work.operations > 400_000) throw new ErLabelWorkLimitError() }
@@ -116,6 +116,15 @@ function placeRelationshipLabels(diagram: PositionedErDiagram, style: ResolvedRe
     return [...legacy, ...pieces.flatMap(piece => piece ?? [])]
   })
   const placed: Box[] = []
+  let placedQuery: ((box: Box) => Box[]) | undefined, indexedCount = 0, nextPrefix = 16
+  const indexedPlacedCollides = (box: Box): boolean => {
+    if (placedQuery?.(box).some(other => { charge(); return intersects(box, other) })) return true
+    for (let index = indexedCount; index < placed.length; index++) {
+      charge()
+      if (intersects(box, placed[index]!)) return true
+    }
+    return false
+  }
   charge(entityBoxes.length + endpointBoxes.length)
   // Completed producer artifacts use final foreign-shaft separation. The
   // standalone helper preserves its legacy policy for unfinished diagrams.
@@ -160,7 +169,7 @@ function placeRelationshipLabels(diagram: PositionedErDiagram, style: ResolvedRe
     const collides = (b: Box): boolean => {
       charge()
       return b.x0 < 0 || b.y0 < 0 || b.x1 > diagram.width || b.y1 > diagram.height
-      || placed.some(o => { charge(); return intersects(b, o) })
+      || (planner === 'indexed-prefix' ? indexedPlacedCollides(b) : placed.some(o => { charge(); return intersects(b, o) }))
       || fixedQuery(b).some(item => { charge(); return item.owner !== rel && intersects(b, item.box) })
     }
     const pts = rel.points
@@ -256,6 +265,16 @@ function placeRelationshipLabels(diagram: PositionedErDiagram, style: ResolvedRe
     }
     if (needsSlot && failed) { charge(); failed.push(rel) }
     placed.push(chosenBox)
+    // Only the canonical producer opts into this search plan. Completed boxes
+    // remain in the full roster for exact interval subtraction and final ink
+    // admission still recomputes the actual captions after placement.
+    if (planner === 'indexed-prefix' && placed.length === nextPrefix && placed.length < labelled) {
+      charge(placed.length)
+      const prefix = placed.slice()
+      indexedCount = placed.length
+      placedQuery = erInkIndex(prefix, box => box, charge, labelled - indexedCount)
+      nextPrefix *= 2
+    }
     out.set(rel, chosen)
   }
   return out
