@@ -2,6 +2,7 @@ import { requirementArrow, requirementMarkerTerminal } from './markers.ts'
 import type { ElkExtendedEdge, ElkNode } from 'elkjs'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { alignElkRoundoff } from '../layout/elk-roundoff.ts'
+import { fitMeasuredLayout } from '../layout/compact-measured-loops.ts'
 import { layoutAgenticGraph, type AgenticLayout } from '../layout/agentic-layered.ts'
 import { runMeasuredGraphBackend } from '../layout/backend.ts'
 import { measureRenderStage } from '../render-stages.ts'
@@ -78,12 +79,15 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
   const terminalLead = model.relations.some(edge => edge.type !== 'contains') ? requirementMarkerTerminal(requirementArrow.id, style.lineWidth, 'end') + style.edgeBendRadius : 0
   type Placement = Pick<AgenticLayout, 'width' | 'height' | 'nodes' | 'edges'>
   const result = runMeasuredGraphBackend<Placement>(options, () => {
-    return measureRenderStage('agentic', () => layoutAgenticGraph({
-      nodes: nodes.map(node => ({ id: node.id, width: node.width, height: node.height })),
-      edges: model.relations.map((edge, index) => ({ source: indices.get(edge.src)!, target: indices.get(edge.dst)!, minSpan: 1,
-        label: { width: labels[index]!.width + 16, height: labels[index]!.height + 10 } })),
-      direction: model.direction, padding: pad, nodeSpacing, layerSpacing, ...(terminalLead ? { minimumTerminalLead: terminalLead } : {}), edgeSpacing: Math.max(6, style.lineWidth + 4),
-    }))
+    return measureRenderStage('agentic', () => {
+      const measured = {
+        nodes: nodes.map(node => ({ id: node.id, width: node.width, height: node.height })),
+        edges: model.relations.map((edge, index) => ({ source: indices.get(edge.src)!, target: indices.get(edge.dst)!, minSpan: 1,
+          label: { width: labels[index]!.width + 16, height: labels[index]!.height + 10 } })),
+        direction: model.direction, padding: pad, nodeSpacing, layerSpacing, ...(terminalLead ? { minimumTerminalLead: terminalLead } : {}), edgeSpacing: Math.max(6, style.lineWidth + 4),
+      }
+      return fitMeasuredLayout(measured, layoutAgenticGraph(measured))
+    })
   }, () => {
     const idMap = new Map(nodes.map((node, index) => [node.id, `n${index}`]))
     const elkEdges: ElkExtendedEdge[] = model.relations.map((edge, i) => ({ id: `e${i}`, sources: [idMap.get(edge.src)!], targets: [idMap.get(edge.dst)!], labels: [{ text: labels[i]!.text, width: labels[i]!.width + 16, height: labels[i]!.height + 10 }] }))

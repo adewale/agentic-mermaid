@@ -9,7 +9,6 @@ import type { AgenticGraphBindings, AgenticGraphOptions } from '../layout-engine
 import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
 import { MAX_EXPANDED_VERTICES, layoutLayeredGraph as layoutRawGraph } from './agentic-layered-core.ts'
 import { shortenMeasuredRoutes } from './shorten-measured-routes.ts'
-import { fitMeasuredLayout } from './compact-measured-loops.ts'
 export { improveArchitectureSiblingSlots } from './architecture-sibling-slots.ts'
 
 // Keep cache storage inside the optional solver chunk: importing shared
@@ -93,11 +92,7 @@ export function layoutLayeredGraph(input: MeasuredGraph, forest: (input: Measure
     routingWork = preparedGraphWork.get(input) ?? routingWork ?? { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }
     const placed = layoutRawGraph(input, forest, unsupported, routingWork)
     const final = input.placementOnly ? placed : finalizeFlatMeasuredMarkers(input, placed, routingWork, MAX_EXPANDED_VERTICES, unsupported)
-    if (input.placementOnly) return final
-    const shortened = shortenMeasuredRoutes(input, final)
-    // Physical contact proofs own their exact final coordinates. Family-only
-    // measured graphs can fit here before their drawing admission runs.
-    return final.boundaryRoutes?.length || input.maximumEdgeStrokeWidth !== undefined ? shortened : fitMeasuredLayout(input, shortened)
+    return input.placementOnly ? final : shortenMeasuredRoutes(input, final)
   } finally {
     if (prepared && explicit && explicit !== prepared) {
       explicit.pairs = prepared.pairs; explicit.arcs = prepared.arcs; explicit.swaps = prepared.swaps
