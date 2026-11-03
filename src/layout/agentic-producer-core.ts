@@ -9,6 +9,7 @@ import type { AgenticGraphBindings, AgenticGraphOptions } from '../layout-engine
 import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
 import { MAX_EXPANDED_VERTICES, layoutLayeredGraph as layoutRawGraph } from './agentic-layered-core.ts'
 import { shortenMeasuredRoutes } from './shorten-measured-routes.ts'
+import { fitMeasuredLayout } from './fit-measured-layout.ts'
 export { improveArchitectureSiblingSlots } from './architecture-sibling-slots.ts'
 
 // Keep cache storage inside the optional solver chunk: importing shared
@@ -344,6 +345,7 @@ function placeNativeGraphCandidate(
     || !placementOnly && geometry.edges.some((edge, index) => edge.points.length < 2 || (measured.edges[index]!.label && !edge.labelPosition))) {
     throw new TypeError('Agentic graph producer returned malformed geometry')
   }
+  if (!placementOnly) geometry = fitMeasuredLayout(measured, geometry)
   const nodes = measured.nodes.map((node, index): PositionedNode => {
     const authored = graph.nodes.get(node.id)!
     const assigned = graph.classAssignments.get(node.id)

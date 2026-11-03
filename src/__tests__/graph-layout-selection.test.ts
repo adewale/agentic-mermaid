@@ -265,8 +265,8 @@ GuardStart[G] guard@--> GuardEnd[H]`
     { nodes: 19, edges: 44, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-19.mmd', import.meta.url), 'utf8') },
     { nodes: 13, edges: 31, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-13.mmd', import.meta.url), 'utf8') },
     { nodes: 15, edges: 34, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-15-chains.mmd', import.meta.url), 'utf8') },
-    { nodes: 9, edges: 23, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-9-chains.mmd', import.meta.url), 'utf8') },
-  ])('reduces crossings in a cyclic $nodes-node labelled multigraph without merging routes', ({ source, nodes, edges }) => {
+    { nodes: 9, edges: 23, tight: true, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-9-chains.mmd', import.meta.url), 'utf8') },
+  ])('reduces crossings in a cyclic $nodes-node labelled multigraph without merging routes', ({ source, nodes, edges, tight = false }) => {
     const titledSource = '---\ntitle: Cyclic routes\n---\n' + source
     const svg = renderMermaidSVGWithReceipt(titledSource, AGENTIC)
     const native = layoutMermaidWithReceipt(titledSource, { ...AGENTIC, debug: true })
@@ -278,6 +278,40 @@ GuardStart[G] guard@--> GuardEnd[H]`
     expect(quality.labelConflicts?.total).toBe(0)
     expect(quality.routeOverlaps).toEqual({ opposing: 0, parallel: 0 })
     expect(svg.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
+    if (tight) {
+      const fitted = renderMermaidSVGWithReceipt(source, { ...AGENTIC, padding: 40, nodeSpacing: 28, layerSpacing: 48 })
+      const tags = scanSvgStartTags(fitted.svg.replace(/<defs>[\s\S]*?<\/defs>/g, ''))
+      const number = (tag: typeof tags[number], key: string) => Number(decodedSvgAttributeValue(tag, key))
+      const vertices = tags.flatMap(tag => {
+        const name = tag.name
+        if (name === 'rect') return [[number(tag, 'x'), number(tag, 'y')], [number(tag, 'x') + number(tag, 'width'), number(tag, 'y') + number(tag, 'height')]]
+        if (name === 'circle' || name === 'ellipse') {
+          const rx = number(tag, name === 'circle' ? 'r' : 'rx'), ry = number(tag, name === 'circle' ? 'r' : 'ry')
+          return [[number(tag, 'cx') - rx, number(tag, 'cy') - ry], [number(tag, 'cx') + rx, number(tag, 'cy') + ry]]
+        }
+        if (name === 'polygon' || name === 'polyline') return decodedSvgAttributeValue(tag, 'points')!.trim().split(/\s+/).map(pair => pair.split(',').map(Number))
+        if (name === 'line') return [[number(tag, 'x1'), number(tag, 'y1')], [number(tag, 'x2'), number(tag, 'y2')]]
+        return []
+      })
+      const viewport = decodedSvgAttributeValue(tags[0]!, 'viewBox')!.split(/\s+/).map(Number)
+      // This reproduction previously retained a 451px private canvas.
+      expect(viewport[3]!).toBeLessThan(451)
+      const left = Math.min(...vertices.map(point => point[0]!)), top = Math.min(...vertices.map(point => point[1]!))
+      const right = Math.max(...vertices.map(point => point[0]!)), bottom = Math.max(...vertices.map(point => point[1]!))
+      // Requested padding surrounds body outlines and route centerlines;
+      // ordinary strokes retain their existing half-width outside that support.
+      expect(left).toBeCloseTo(40, 6)
+      expect(top).toBeCloseTo(40, 6)
+      expect(viewport[2]! - right).toBeGreaterThanOrEqual(40 - 1e-6)
+      expect(viewport[3]! - bottom).toBeGreaterThanOrEqual(40 - 1e-6)
+      for (const halo of tags.filter(tag => decodedSvgAttributeValue(tag, 'class') === 'edge-label-halo')) {
+        expect(number(halo, 'x')).toBeGreaterThanOrEqual(0)
+        expect(number(halo, 'y')).toBeGreaterThanOrEqual(0)
+        expect(number(halo, 'x') + number(halo, 'width')).toBeLessThanOrEqual(viewport[2]!)
+        expect(number(halo, 'y') + number(halo, 'height')).toBeLessThanOrEqual(viewport[3]!)
+      }
+      expect(fitted.receipt.layoutCertification?.status).toBe('passed')
+    }
     JSON.stringify(svg.receipt)
     JSON.stringify(native.receipt)
   })
