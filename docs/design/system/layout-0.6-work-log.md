@@ -6120,6 +6120,11 @@ across directions/backends; ELKLR/RL refused. Now8/8 pass literal meaning, owned
 captions/heads and eight normal docks. Six earlier wholeSVGs/entire receipts
 remain byte-exact. Both newly delivered directions also pass native drawing;
 LR's caption/hollow-head pinned-Inter controls have no observed outside ink.
+Cause control with the old association rule/old8px fallback returns passed
+for both directions but leaves retries outside its own near8 carrier region.
+The earlier68ced association check exposed the incomplete pre-existing fallback;
+this repair fixes that geometry instead of weakening the check. These are
+current-branch refusal closures, not a claim about the lost November runtime.
 Class owners264P/four known chain cases still open; core typing/lint pass with
 the old oversize evidence warning. Full repository typing still lacks Trident.
 
