@@ -618,7 +618,7 @@ export function layoutLayeredGraph(
   for (const band of bands) band.forEach((vertex, index) => { slots[vertex] = index })
   const gap = Math.min(4, nodeSpacing)
   for (const chain of chains) {
-    if (chain.length < 4) continue
+    if (chain.length < 3) continue
     let start = 1
     while (start < chain.length - 1) {
       let lower = -Infinity, upper = Infinity, end = start
@@ -631,7 +631,7 @@ export function layoutLayeredGraph(
         if (nextLower > nextUpper) break
         lower = nextLower; upper = nextUpper; end++
       }
-      if (end > start + 1) {
+      if (end > start + 1 || (chain.length === 3 && end > start)) {
         const desired = (cross[chain[start - 1]!]! + cross[chain[end]!]!) / 2
         const lane = Math.max(lower, Math.min(upper, desired))
         for (let index = start; index < end; index++) cross[chain[index]!] = lane

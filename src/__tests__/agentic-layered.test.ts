@@ -737,6 +737,24 @@ describe('owned measured layered layout', () => {
     }
   })
 
+  test.each(['TB', 'BT', 'LR', 'RL'] as const)('aligns single private lanes between facing card ports in %s', direction => {
+    const horizontal = direction === 'LR' || direction === 'RL'
+    const input = measured({ direction, padding: 32, nodeSpacing: 40, layerSpacing: 72,
+      nodes: [160, 160, 120].map((cross, index) => ({ id: String(index), width: horizontal ? 40 : cross, height: horizontal ? cross : 40 })),
+      edges: [{ source: 0, target: 2, minSpan: 1, label: { width: horizontal ? 10 : 20, height: horizontal ? 20 : 10 } }, { source: 1, target: 2, minSpan: 1 }],
+    })
+    const original = structuredClone(input), output = layoutLayeredGraph(input, () => undefined, reason => { throw new GraphLayoutUnsupportedError(reason) })
+    expect(input).toEqual(original)
+    expect(countPolylineCrossings(output.edges)).toBe(0)
+    const boxes = output.nodes.map((node, index) => ({ ...node, width: input.nodes[index]!.width, height: input.nodes[index]!.height }))
+    for (const [index, edge] of output.edges.entries()) {
+      expect(edge.points).toHaveLength(2)
+      expect(onOutline(edge.points[0]!, boxes[index]!)).toBe(true)
+      expect(onOutline(edge.points[1]!, boxes[2]!)).toBe(true)
+      for (const box of boxes) expect(crossesInterior(edge.points[0]!, edge.points[1]!, box)).toBe(false)
+    }
+  })
+
   test('retains feasible loop routes when optional request work is exhausted', () => {
     const input = measured({ nodes: [{ id: 'loop', width: 120, height: 60 }], edges: [{ source: 0, target: 0, minSpan: 1, label: { width: 80, height: 20 } }] })
     const work = { attempts: 0, scorePairs: 0, loopPairs: 1, rankPairs: 0, routing: { pairs: 0, arcs: 0, swaps: 0 } }
