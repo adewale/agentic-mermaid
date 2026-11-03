@@ -93,7 +93,11 @@ export function layoutLayeredGraph(input: MeasuredGraph, forest: (input: Measure
     routingWork = preparedGraphWork.get(input) ?? routingWork ?? { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }
     const placed = layoutRawGraph(input, forest, unsupported, routingWork)
     const final = input.placementOnly ? placed : finalizeFlatMeasuredMarkers(input, placed, routingWork, MAX_EXPANDED_VERTICES, unsupported)
-    return input.placementOnly ? final : fitMeasuredLayout(input, shortenMeasuredRoutes(input, final))
+    if (input.placementOnly) return final
+    const shortened = shortenMeasuredRoutes(input, final)
+    // Physical contact proofs own their exact final coordinates. Family-only
+    // measured graphs can fit here before their drawing admission runs.
+    return final.boundaryRoutes?.length || input.maximumEdgeStrokeWidth !== undefined ? shortened : fitMeasuredLayout(input, shortened)
   } finally {
     if (prepared && explicit && explicit !== prepared) {
       explicit.pairs = prepared.pairs; explicit.arcs = prepared.arcs; explicit.swaps = prepared.swaps
