@@ -234,6 +234,49 @@ test('coalesced SVG consumers retain text, source, ownership and one default bac
   })
 })
 
+test('a loaded backend shares lane queries without another provider request', async () => {
+  const backend = JSON.stringify(join(root, 'src/layout/backend.ts'))
+  const lanes = JSON.stringify(join(root, 'src/shared/node-lane-index.ts'))
+  const entry = fixture('lane-provider/entry.ts', `export { DeferredDependencyError as OwnedError } from ${backend}; export const load = () => import('./producer.ts'); export const other = () => import('./other.ts');`)
+  const producer = fixture('lane-provider/producer.ts', `
+    import { DeferredDependencyError } from ${backend};
+    import { buildNodeLaneIndex, nodeLaneCell } from ${lanes};
+    export function run() {
+      const nodes = Array.from({ length: 32 }, (_, index) => ({ x: index * 128, y: 0, width: 32, height: 8 }));
+      return [nodeLaneCell(buildNodeLaneIndex(nodes, 'x', 0), 129), new DeferredDependencyError('owned', async () => {})];
+    }
+  `)
+  fixture('lane-provider/other.ts', `export { buildNodeLaneIndex } from ${lanes};`)
+  const result = await build({
+    absWorkingDir: temporary, entryPoints: [entry], outdir: join(temporary, 'lane-provider/output'),
+    bundle: true, format: 'esm', platform: 'node', splitting: true, write: false, metafile: true,
+    plugins: [runtimeRenderContractPlugin({ coalesceRuntimePrimitives: true })],
+  })
+  const outputs = result.metafile!.outputs
+  const entryOutput = Object.keys(outputs).find(path => outputs[path]!.entryPoint && resolve(temporary, outputs[path]!.entryPoint!) === entry)!
+  const producerOutput = Object.keys(outputs).find(path => outputs[path]!.entryPoint && resolve(temporary, outputs[path]!.entryPoint!) === producer)!
+  const closure = (start: string): Set<string> => {
+    const seen = new Set<string>()
+    const visit = (path: string): void => {
+      if (seen.has(path)) return
+      seen.add(path)
+      for (const edge of outputs[path]!.imports) if (edge.kind !== 'dynamic-import') visit(edge.path)
+    }
+    visit(start)
+    return seen
+  }
+  const initial = closure(entryOutput)
+  expect([...closure(producerOutput)].filter(path => !initial.has(path))).toHaveLength(1)
+  for (const file of result.outputFiles!) {
+    mkdirSync(dirname(file.path), { recursive: true })
+    writeFileSync(file.path, file.contents)
+  }
+  const consumer = await import(pathToFileURL(resolve(temporary, entryOutput)).href)
+  const [cell, error] = (await consumer.load()).run()
+  expect(cell).toBe(1)
+  expect(error).toBeInstanceOf(consumer.OwnedError)
+})
+
 test('compacted ESM preserves live bindings, observable getters, arity and recipe-addressed chunks', async () => {
   fixture('compact/shared.ts', `
     export let count = 0;
