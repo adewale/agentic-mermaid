@@ -202,7 +202,8 @@ function runtimeLayoutBackendSource(source: string, path: string): string {
   const gaps = readFileSync(resolve(dirname(path), 'link-rank-gap.ts'), 'utf8')
   const seeds = runtimeDeclarations(resolve(dirname(path), '../scene/seed.ts'), ['seedFrom', 'hashId', 'makeRng', 'nodeSeed', 'nodeRng'])
   const lanes = runtimeDeclarations(resolve(dirname(path), '../shared/node-lane-index.ts'), ['NodeLaneIndex', 'NodeLaneIndexes', 'CELL_WIDTH', 'LaneBox', 'IndexCharge', 'buildNodeLaneIndex', 'nodeLaneCell', 'nodeLaneIndexForQuery'])
-  return `${errors}\n${identities}\n${gaps}\n${seeds}\n${lanes}\n${ts.createPrinter().printFile(ts.factory.updateSourceFile(file, statements))}`
+  const fit = runtimeDeclarations(resolve(dirname(path), 'fit-measured-layout.ts'), ['fitMeasuredLayout'])
+  return `${errors}\n${identities}\n${gaps}\n${seeds}\n${lanes}\n${fit}\n${ts.createPrinter().printFile(ts.factory.updateSourceFile(file, statements))}`
 }
 
 /** Pipeline prose is for Node-side inspection and generated documentation.
@@ -338,9 +339,11 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
         const gapPath = resolve(dirname(backendPath), 'link-rank-gap.ts')
         const seedPath = resolve(dirname(backendPath), '../scene/seed.ts')
         const laneIndexPath = resolve(dirname(backendPath), '../shared/node-lane-index.ts')
+        const fitPath = resolve(dirname(backendPath), 'fit-measured-layout.ts')
         // Providers and family routes share this pure broad phase. Keep it in
         // their already-loaded backend instead of a separate solver request.
         build.onResolve({ filter: /[\\/]node-lane-index\.ts$/ }, args => resolve(args.resolveDir, args.path) === laneIndexPath ? { path: backendPath } : undefined)
+        build.onResolve({ filter: /[\\/]fit-measured-layout\.ts$/ }, args => resolve(args.resolveDir, args.path) === fitPath ? { path: backendPath } : undefined)
         build.onResolve({ filter: /[\\/]link-rank-gap\.ts$/ }, args => resolve(args.resolveDir, args.path) === gapPath ? { path: backendPath } : undefined)
         build.onResolve({ filter: /[\\/]generated-identity\.ts$/ }, args => resolve(args.resolveDir, args.path) === identityPath ? { path: backendPath } : undefined)
         build.onResolve({ filter: /[\\/]certification-error\.ts$/ }, args => resolve(args.resolveDir, args.path) === errorPath ? { path: backendPath } : undefined)
