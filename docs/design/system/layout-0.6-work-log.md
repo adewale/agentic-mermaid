@@ -477,3 +477,33 @@ N1 with GC/artifacts, no performance ratio. Evidence: week class-meaning-before-
 24b21fc43. Inactive ring-text and insufficient group-reuse hypotheses stopped before
 probes. Next: a sufficient shared capture subtraction; Class vertical proof capacity,
 Sparse32, ER256 and unavailable baseline/peers remain open. Replacement24 stays sealed.
+
+## Flat sharp Class vertical proof capacity — 2026-11-04
+
+11b3e5fcef07706ef002b828c8f4ac6578d2600e publishes completed private flat Class
+routes through the existing paid SVG-point projector before final contacts/markers.
+Ordinary Class128 TB/BT change U400000/53,61 checked heads to P388607/P393070,
+127 heads each; whole SVGs remain byte-exact, binding the prior independent head
+ink. The shared fix benefits both backends, not relative geometry. Published eligible
+raw point numbers become canonical. Generic/custom, rounded, synthetic interface,
+sketch and compound paths retain their old contract; all caps/paint fees remain.
+
+Old eight-row owner4P/4F, current8P; core types/lint pass. A broader candidate caused
+ten compound regressions: withdrawn before any added work on namespace layouts.
+Corrected two-file milestone170P/one ELK TB20s child timeout, still unresolved;
+earlier concurrent typechecking caused four timeouts, all logs retained. No deadline
+or assertion relaxed, no all-green broad claim. One current BT call789ms/RSS153204KiB.
+
+All12 current consumed cold/repeat/edit calls P; own repeats match whole SVG/ENTIRE
+receipts, cache hits skip layout, edits miss. Cache0 AM1709/1035/768ms, ELK1417/571/
+425ms; cache1 AM879/304/471, ELK1426/345/510. PeakRSS AM209212/206616KiB versus
+ELK306012/287980; N1, no timing/memory win or unequal old-U/new-P ratio. Edited backend
+SVGs differ, both P389269; caption glyph ink remains unqualified. Two fresh Node24
+source products and two compiled products match entire SVG/receipts after one RAM
+build. Class AM21requests/gzip294615/Br247635B versus ELK20/671829/525246; each adds
+180gzip/184BrB versus retained3ef; initial3/5856/5225, scratch removed.
+Evidence: week class-owned-sharp-spelling-2fee40016, its node24-11b3e5fce and
+recovery-payload/class-owned-sharp-spelling-11b3e5fce. Sparse32 copy/closure review
+found no sufficient safe subtraction: no new probe. Sparse32 proof, ER256 refusal,
+ELK timeout, missing baseline/peers remain open; replacement24 stays sealed.
+Next: establish a sufficient cause for an enrolled loss before another intervention.
