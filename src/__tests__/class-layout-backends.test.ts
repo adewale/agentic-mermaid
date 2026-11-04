@@ -6,10 +6,6 @@ import { layoutMermaidWithReceipt, parseRegisteredMermaid } from '../agent/core.
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import * as classLayoutModule from '../class/layout.ts'
-import { lowerClassDrawing } from '../class/renderer.ts'
-import { drawNative } from '../scene/native-drawing.ts'
-import { certifyNativePaint } from '../scene/paint-certification.ts'
-import { resolveDiagramColors } from '../color-resolver.ts'
 import { CLASS_STYLE_DEFAULTS, classTextBlock, finalizeClassOwnedSurfaces, layoutClassDiagram } from '../class/layout.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { assertClassElkSelfContactsClear, constructClassElkSelfContacts } from '../class/elk-contacts.ts'
@@ -22,7 +18,9 @@ import { measureQuality } from '../agent/quality.ts'
 import { graphStressSamples } from '../../eval/layout-compare/generated.ts'
 import { prepareResvgMarkerOrientation } from '../resvg-marker-orientation.ts'
 import { renderSvgPixels } from './helpers/raster.ts'
+import { useTestChildren } from './helpers/test-child.ts'
 
+const runPublicClassChild = useTestChildren(20_000)
 const native = { graphLayout: { backend: 'agentic' as const } }
 const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/class-backends.mmd', import.meta.url), 'utf8')
 const compoundFixture = readFileSync(new URL('../../eval/layout-compare/fixtures/class-compound-backends.mmd', import.meta.url), 'utf8')
@@ -213,22 +211,80 @@ describe('Class layout backends', () => {
     expect(rendered.receipt.layoutCertification?.status).toBe('passed')
   })
 
-  test.each(['TB', 'BT', 'LR', 'RL'])('renders a long native Class chain with exact card contacts in %s', direction => {
+  test.each(['TB', 'BT', 'LR', 'RL'])('renders a long native Class chain with exact card contacts in %s', async direction => {
     const source = `classDiagram\ndirection ${direction}\n` + Array.from({ length: 127 }, (_, i) => `N${i} --> N${i + 1}`).join('\n')
-    const options = { graphLayout: { backend: 'agentic' as const, fallback: 'none' as const } }
-    let rendered!: ReturnType<typeof renderMermaidSVGWithReceipt>
-    expect(() => { rendered = renderMermaidSVGWithReceipt(source, options) }).not.toThrow()
-    expect(rendered.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
+    const child = await runPublicClassChild(process.execPath, ['-e', `
+      import { renderMermaidSVGWithReceipt } from './src/index.ts'
+      import { withPerformanceObserver } from './src/performance-observations.ts'
+      const providers = []
+      const rendered = withPerformanceObserver(event => {
+        if (event.kind === 'cache' && event.owner === 'paint-certification') providers.push(event.detail)
+      }, () => renderMermaidSVGWithReceipt(${JSON.stringify(source)}, {
+        graphLayout: { backend: 'agentic', fallback: 'none' }, embedFontImport: false,
+      }))
+      console.log(JSON.stringify({ rendered, providers }))
+    `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+    expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+    const { rendered } = JSON.parse(child.stdout) as { rendered: ReturnType<typeof renderMermaidSVGWithReceipt> }
+    const proof = rendered.receipt.layoutCertification
+    if (!proof || !('checks' in proof)) throw new Error('Class SVG must retain paint certification')
+    expect(proof).toMatchObject({ status: 'passed', issues: [] })
+    expect(proof.checks.maxOperations).toBe(400000)
+    expect(proof.checks.operations).toBeLessThanOrEqual(400000)
     expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', fallback: 'none' })])
-    expect(rendered.svg.match(/class="class-node"/g)).toHaveLength(128)
-    expect(rendered.svg.match(/class="class-relationship"/g)).toHaveLength(127)
-    expect(rendered.svg).toContain('data-id="N127"')
-    // Unit-test scene assertions use the Scene adapter. Also consume the real
-    // native emission ledger used by plain Node and browser entry points.
-    const positioned = layoutClassDiagram(parseClassDiagram(toMermaidLines(source)), options)
-    const context = { positioned, colors: resolveDiagramColors(options, {}), resolved: { renderOptions: options } }
-    const drawing = drawNative(factory => lowerClassDrawing(factory, context), context, 'class')
-    expect(certifyNativePaint(drawing.header, drawing.paint)).toMatchObject({ status: 'passed', issues: [] })
+    const ids = Array.from({ length: 128 }, (_, index) => `N${index}`), classes: string[] = [], names: string[] = []
+    const boxes = new Map<string, Record<string, string>>(), carriers: Array<Record<string, string>> = [], overlays: Array<Record<string, string>> = []
+    let text: string | undefined, inArrow = false, marker: { attrs: Record<string, string>; pieces: Array<{ name: string; attrs: Record<string, string> }> } | undefined
+    const parser = new SaxesParser({ xmlns: true })
+    parser.on('opentag', tag => {
+      const attrs = Object.fromEntries(Object.entries(tag.attributes).map(([key, value]) => [key, value.value]))
+      if (tag.local === 'g' && attrs.class === 'class-node') classes.push(attrs['data-id']!)
+      if (tag.local === 'rect' && attrs['data-role'] === 'class-box') boxes.set(attrs['data-id']!.slice(6, -4), attrs)
+      if (tag.local === 'polyline' && attrs.class === 'class-relationship') carriers.push(attrs)
+      if (tag.local === 'polyline' && attrs.class === 'class-marker-overlay') overlays.push(attrs)
+      if (tag.local === 'text') text = ''
+      if (tag.local === 'marker') { inArrow = attrs.id === 'cls-arrow'; if (inArrow) marker = { attrs, pieces: [] } }
+      else if (inArrow) marker!.pieces.push({ name: tag.local, attrs })
+    })
+    parser.on('text', value => { if (text !== undefined) text += value })
+    parser.on('closetag', tag => {
+      if (tag.local === 'text') { names.push(text!); text = undefined }
+      if (tag.local === 'marker') inArrow = false
+    })
+    parser.write(rendered.svg).close()
+    expect(classes).toEqual(ids)
+    expect([...boxes.keys()]).toEqual(ids)
+    expect(names).toEqual(ids)
+    expect(carriers.map(edge => [edge['data-id'], edge['data-from'], edge['data-to'], edge['data-type'], edge['data-marker-at'], edge['data-label']])).toEqual(
+      Array.from({ length: 127 }, (_, index) => [`rel:N${index}->N${index + 1}#0`, `N${index}`, `N${index + 1}`, 'association', 'to', undefined]),
+    )
+    expect(overlays).toHaveLength(127)
+    expect(marker).toBeDefined()
+    expect(['auto', 'auto-start-reverse']).toContain(marker!.attrs.orient!)
+    expect(marker!.pieces).toHaveLength(1)
+    expect(marker!.pieces[0]!.name).toBe('polyline')
+    expect(marker!.pieces[0]!.attrs.fill).toBe('none')
+    expect(marker!.pieces[0]!.attrs.stroke ?? '').toMatch(/^#[0-9a-f]{6}$/i)
+    expect(Number(marker!.pieces[0]!.attrs['stroke-width'])).toBeGreaterThan(0)
+    expect(Number(marker!.attrs.opacity ?? 1)).toBeGreaterThan(0)
+    expect(Number(marker!.pieces[0]!.attrs.opacity ?? 1)).toBeGreaterThan(0)
+    expect(Number(marker!.pieces[0]!.attrs['stroke-opacity'] ?? 1)).toBeGreaterThan(0)
+    const arrow = marker!.pieces[0]!.attrs.points!.trim().split(/[\s,]+/).map(Number)
+    expect(arrow).toHaveLength(6)
+    expect(arrow.slice(2, 4)).toEqual([Number(marker!.attrs.refX), Number(marker!.attrs.refY)])
+    expect(arrow[0]! < arrow[2]! && arrow[4]! < arrow[2]! && arrow[1]! < arrow[3]! && arrow[5]! > arrow[3]!).toBe(true)
+    for (const [index, carrier] of carriers.entries()) {
+      expect(carrier['marker-start']).toBeUndefined()
+      expect(carrier['marker-end']).toBe('url(#cls-arrow)')
+      expect(overlays[index]!.points).toBe(carrier.points)
+      expect(overlays[index]!['marker-end']).toBe('url(#cls-arrow)')
+      const points = carrier.points!.split(/\s+/).map(pair => pair.split(',').map(Number))
+      for (const [id, p, next] of [[`N${index}`, points[0]!, points[1]!], [`N${index + 1}`, points.at(-1)!, points.at(-2)!]] as const) {
+        const box = boxes.get(id)!, x = Number(box.x), y = Number(box.y), w = Number(box.width), h = Number(box.height), px = p[0]!, py = p[1]!, dx = next[0]! - px, dy = next[1]! - py
+        expect(px >= x - 1e-8 && px <= x + w + 1e-8 && py >= y - 1e-8 && py <= y + h + 1e-8).toBe(true)
+        expect(Math.abs(px - x) < 1e-8 && dx < 0 && dy === 0 || Math.abs(px - x - w) < 1e-8 && dx > 0 && dy === 0 || Math.abs(py - y) < 1e-8 && dy < 0 && dx === 0 || Math.abs(py - y - h) < 1e-8 && dy > 0 && dx === 0).toBe(true)
+      }
+    }
   })
 
   test.each([4, 5].flatMap(children => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ children, direction }))))('reserves independent inheritance fan channels for $children siblings in $direction', ({ children, direction }) => {
