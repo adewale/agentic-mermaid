@@ -177,6 +177,33 @@ ELK20/671569/525028; counts unchanged, gzip+26/+25 and Br-95/-54 versus684/b823.
 Evidence: week text-plan-custody-684, native-text-plan-cost-684e42557-dirty and
 recovery-payload/native-text-plan-790ed4b85. No remote operations or CI.
 
+## Completed Requirement candidates — 2026-11-04
+
+15972c57eec554a9696d5d78abb2e31668ec2a48 compares eligible loop/cycle
+candidates after authored restoration, existing marker finalization, shortening
+and fitting. One opposite cut reuses the existing search; shortcut attempts and
+comparisons share their original 512/8M caps across candidates. Other scopes keep
+the old geometry path; eligible detection adds bounded work even on fallback.
+Fixed Requirement TB/BT actual SVG area282093.768→230692.459 (-18.22%): now10.43%
+below ELK257555.098. Wire645.458→671.198 (+3.99%, adverse), still30.34% below ELK;
+8turns unchanged. LR/RL whole SVG and current-d9e entire receipts remain exact.
+Independent authored fields/5relations/5heads/10normal docks survive all4dirs;
+pinned-Inter differential rasters show positive text/head ink and no clipping.
+Old four-module overlay: new owning controls6P/3F (vertical bands and spent quota);
+current focused196P/0F, broad1259P/3knownF (Sparse32, Class128TB/BT), core types/lint
+pass. Actual production4calls; cost24fully consumed cold/repeat/edit calls split
+cache0/1, allP, repeat entire products exact; cache1 repeat hits/edit misses.
+TB cache0 ms147/27/33→225/59/44, cache1 reverses direction; every current post-GC
+heap sample rises, RSS mixed. Keep the bounded quality/wire tradeoff; no speed or
+memory win claimed. Node24two source and two compiled products match whole SVG
+and entire receipts; one successful RAM build, first sandbox pipe failure kept.
+Requirement AM17requests/gzip264746/Br221970B (+624/+490 versusd9e); ELK14/
+633748/492341B (+2/+23). No request-count win; Node24 AM/ELK proofsP102013/102468.
+Evidence: week requirement-completed-cycle-d9e, its cache0/1-cost-d9e31feb9 and
+node24-15972c57e, recovery-payload/requirement-completed-cycle-access-15972c57e.
+The repeated raw-area guard was already falsified; its two duplicate probes are
+not progress. Remaining capacity/cyclic losses and missing baseline/peers stay open.
+
 ## Stopped hypotheses and next fix
 
 c323e9fd5 Native pure-forest acquisition was normally reverted by3e43badc5:
@@ -199,10 +226,13 @@ copyInner117.9ms self/materializeText106.5ms; XML checking12.1ms inclusive and
 Set insertion1.1ms. Stop the mask rewrite; these are one profiled run, not global
 project rankings or unprofiled runtime estimates. Evidence: week sparse32-cpu-b823.
 
-Next: inspect repeated Class projection at the post-snapshot writer boundary and
-reuse its written geometry operand if actual immutable identity permits. Early
-rounding of live points and merging shafts/marker overlays are ruled out: callback
-reads, conservative raw bounds and below-card/above-card painting must survive.
+Class post-snapshot identity reuse is stopped: existing projection reuse is
+active, while rekeying by shared points adds memoization and removes too little
+work. Early rounding and merging shafts/overlays violate live reads or paint order.
+One exact-SVG cyclic19 trace shows three distinct outward two-bend seats collapsed
+by the midpoint-only repair trigger; this is observation, not a fixed outcome.
+Next: replace that false trigger with existing exact-outline approach checking
+and requalify the final five heads plus legacy fan-in convergence controls.
 Keep Sparse32, Class vertical, ER256-chain and Requirement/cyclic losses open.
 ER256's old body-index trial later fails glyph-piece->shaft (Agentic) or label->shaft
 (ELK), not label->label. No unsafe indexing, fee repricing or another compiler.
