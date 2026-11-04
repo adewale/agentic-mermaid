@@ -2911,10 +2911,10 @@ for(const [style,animate,animation,dash] of [
  if(dash){expect(edge.points).toEqual(old);expect(after.svg).toBe(before.svg)}
  else{expect(edge.points).not.toEqual(old);expect(after.points.some(([,y])=>y!>123)).toBe(true)}
 })
-it('clears the final painted circle contact in a labelled reciprocal ELK graph',()=>{
+it.each(['elk', 'agentic'] as const)('clears the final painted circle contact in a labelled reciprocal %s graph',backend=>{
  const { JSDOM }=createRequire(import.meta.url)('jsdom')
  const source=readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-18-cuts.mmd',import.meta.url),'utf8')
- const rendered=renderMermaidSVGWithReceipt(source,{graphLayout:{backend:'elk',fallback:'none'},embedFontImport:false})
+ const rendered=renderMermaidSVGWithReceipt(source,{graphLayout:{backend,fallback:'none'},embedFontImport:false})
  const dom=new JSDOM(rendered.svg,{contentType:'image/svg+xml'})
  try{
   const document=dom.window.document as Document,circle=document.querySelector('[data-id="n1"] circle')!,shaft=document.querySelector('[data-role="edge"][data-from="n0"][data-to="n13"]')!
@@ -2923,8 +2923,25 @@ it('clears the final painted circle contact in a labelled reciprocal ELK graph',
   const points=shaft.getAttribute('points')!.split(/\s+/).map(pair=>pair.split(',').map(Number))
   const distance=Math.min(...points.slice(1).map((b,i)=>{const a=points[i]!,dx=b[0]!-a[0]!,dy=b[1]!-a[1]!,t=Math.max(0,Math.min(1,((cx-a[0]!)*dx+(cy-a[1]!)*dy)/(dx*dx+dy*dy)));return Math.hypot(a[0]!+t*dx-cx,a[1]!+t*dy-cy)}))
   expect(distance-r-n(circle,'stroke-width')/2-2*n(shaft,'stroke-width')).toBeGreaterThan(0)
-  expect(document.querySelectorAll('[data-role="edge"][data-from]')).toHaveLength(38)
+  const authoredPairs=[
+   ['n16','n10'],['n4','n6'],['n16','n8'],['n12','n11'],['n10','n9'],['n2','n6'],['n16','n8'],['n0','n11'],
+   ['n14','n9'],['n2','n7'],['n6','n12'],['n8','n13'],['n14','n5'],['n6','n10'],['n2','n16'],['n0','n3'],
+   ['n8','n12'],['n14','n9'],['n0','n2'],['n10','n7'],['n4','n6'],['n4','n10'],['n14','n0'],['n0','n13'],
+   ['n2','n16'],['n12','n7'],['n12','n4'],['n4','n16'],['n6','n8'],['n16','n7'],['n16','n14'],['n12','n5'],
+   ['n0','n1'],['n8','n1'],['n4','n15'],['n10','n13'],['n4','n10'],['n4','n17'],
+  ]
+  const carriers=[...document.querySelectorAll('[data-role="edge"][data-from]')]
+  expect(carriers).toHaveLength(38)
+  expect(carriers.map(edge=>`${edge.getAttribute('data-from')}->${edge.getAttribute('data-to')}`).sort()).toEqual(authoredPairs.map(([from,to])=>`${from}->${to}`).sort())
   expect([...document.querySelectorAll('text')].map(tag=>tag.textContent).sort()).toEqual([...Array.from({length:18},(_,i)=>`Node 296-${i}`),'edge 0 xxx','edge 4 xxxxxxx','edge 8 xxxxxxxxxxx','edge 12 xxxxxxxxxxxxxxx','edge 16 xxxxxxxxxxxxxxxxxxx','edge 20 xxxxxx','edge 24 xxxxxxxxxx','edge 28 xxxxxxxxxxxxxx','edge 32 xxxxxxxxxxxxxxxxxx','edge 36 xxxxx'].sort())
+  const authoredCaptions=[
+   ['n16','n10','edge 0 xxx'],['n10','n9','edge 4 xxxxxxx'],['n14','n9','edge 8 xxxxxxxxxxx'],
+   ['n14','n5','edge 12 xxxxxxxxxxxxxxx'],['n8','n12','edge 16 xxxxxxxxxxxxxxxxxxx'],['n4','n6','edge 20 xxxxxx'],
+   ['n2','n16','edge 24 xxxxxxxxxx'],['n6','n8','edge 28 xxxxxxxxxxxxxx'],['n0','n1','edge 32 xxxxxxxxxxxxxxxxxx'],['n4','n10','edge 36 xxxxx'],
+  ]
+  const captions=[...document.querySelectorAll('g.edge-label')]
+  expect(captions.map(caption=>JSON.stringify(['data-from','data-to','data-label'].map(key=>caption.getAttribute(key)))).sort()).toEqual(authoredCaptions.map(tuple=>JSON.stringify(tuple)).sort())
+  for(const caption of captions)expect([...caption.querySelectorAll('text')].map(text=>text.textContent?.trim())).toEqual([caption.getAttribute('data-label')!])
   const resource=shaft.getAttribute('marker-end')!.slice(5,-1)
   expect([...document.querySelectorAll('marker')].filter(marker=>marker.id===resource)).toHaveLength(1)
   expect(rendered.receipt.layoutCertification?.status).toBe('passed')
