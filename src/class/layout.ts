@@ -1,5 +1,5 @@
 import { classRelationshipTerminalClearance, classEndpointTextCandidates, RELATION_LABEL_HALO_WIDTH } from './relationship-paint.ts'
-import { measuredRouteContactPairBudget, scoreMeasuredRouteCrossings, createOwnedMeasuredRouteContactValidator, type OwnedMeasuredRouteNumericSeed } from '../layout/measured-route-safety.ts'
+import { measuredRouteContactPairBudget, scoreMeasuredRouteCrossings, createOwnedMeasuredRouteContactValidator, projectMeasuredRoutePoint, type OwnedMeasuredRouteNumericSeed } from '../layout/measured-route-safety.ts'
 import type { MeasuredGraph } from '../layout/agentic-layered-core.ts'
 import { resolveDiagramColors } from '../color-resolver.ts'
 import { connectorMarkerPaintRegions } from '../scene/bounds.ts'
@@ -57,6 +57,8 @@ import { diagramTitleBand, FONT_SIZES, FONT_WEIGHTS, positionDiagramTitle, resol
 import { LINE_HEIGHT_RATIO } from '../text-metrics.ts'
 import type { Point, RenderOptions } from '../types.ts'
 import type { ClassDiagram, ClassMember, ClassNamespace, ClassNode, PositionedClassDiagram, PositionedClassNamespace, PositionedClassNode, PositionedClassRelationship } from './types.ts'
+
+const defineFinalClassPoint = Object.defineProperty
 
 /** Layout constants for class diagrams */
 export const CLS = {
@@ -716,7 +718,7 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
           ]),
         ),
       }
-      return finishClassLayout(extractClassLayout(geometry, diagram, nativeClassSizes, style, hierarchicalNamespaces), diagram, style, markerAdmission, inkWork)
+      return finishClassLayout(extractClassLayout(geometry, diagram, nativeClassSizes, style, hierarchicalNamespaces), diagram, style, markerAdmission, inkWork, false, paintBackendId === undefined || paintBackendId === 'backend:default')
     },
     () => {
       // Wrapped namespace headers retain the existing bounded ELK sizing loop.
@@ -751,7 +753,7 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
   )
 }
 
-function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDiagram, style: ResolvedRenderStyle, markerAdmission?: { colors: ReturnType<typeof resolveDiagramColors>; work: ClassMarkerAdmissionWork }, inkWork?: ClassMarkerAdmissionWork, elk = false, literalRectangles = false): PositionedClassDiagram {
+function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDiagram, style: ResolvedRenderStyle, markerAdmission?: { colors: ReturnType<typeof resolveDiagramColors>; work: ClassMarkerAdmissionWork }, inkWork?: ClassMarkerAdmissionWork, elk = false, canonicalSvgGeometry = false): PositionedClassDiagram {
   for (const cls of positioned!.classes) {
     cls.labelBlock = classTextBlock(resolveLabelContent(cls.label, cls.labelContent), style, 'node')
     cls.attributeBlocks = cls.attributes.map(classMemberBlock)
@@ -767,7 +769,7 @@ function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDia
       if (text !== undefined) rel[`${side}CardinalityBlock`] = preparePixelText(resolveLabelContent(text, rel[`${side}CardinalityContent`]), { fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
     }
   }
-  const endpointChanges = elk && literalRectangles && inkWork ? constructClassElkSelfContacts(positioned, style, inkWork) : undefined
+  const endpointChanges = elk && canonicalSvgGeometry && inkWork ? constructClassElkSelfContacts(positioned, style, inkWork) : undefined
   const contacts = retainClassRectangleContacts(positioned, inkWork)
   const result = withClassTitle(positioned!, diagram.title, style)
   if (result.classes.some(node => node.isInterface)) {
@@ -788,7 +790,7 @@ function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDia
       }
     }
   }
-  finalizeClassSurfaces(result, style, inkWork, contacts, true, endpointChanges)
+  finalizeClassSurfaces(result, style, inkWork, contacts, true, endpointChanges, canonicalSvgGeometry)
   if (markerAdmission) assertClassMarkerMeaning(result, style, markerAdmission.colors, markerAdmission.work)
   return result
 }
@@ -798,7 +800,7 @@ export function finalizeClassOwnedSurfaces(result: PositionedClassDiagram, style
   finalizeClassSurfaces(result, style, inkWork, contacts)
 }
 
-function finalizeClassSurfaces(result: PositionedClassDiagram, style: ResolvedRenderStyle, inkWork?: ClassMarkerAdmissionWork, contacts?: readonly ClassRectangleContact[], stableGeometry = false, endpointChanges?: ReadonlySet<number>): void {
+function finalizeClassSurfaces(result: PositionedClassDiagram, style: ResolvedRenderStyle, inkWork?: ClassMarkerAdmissionWork, contacts?: readonly ClassRectangleContact[], stableGeometry = false, endpointChanges?: ReadonlySet<number>, canonicalSvgGeometry = false): void {
   if (contacts) projectClassRectangleContacts(contacts, inkWork)
   const peerWork=inkWork??createClassMarkerAdmissionWork()
   let numeric:ClassHeaderNumericCapture|undefined
@@ -820,6 +822,31 @@ function finalizeClassSurfaces(result: PositionedClassDiagram, style: ResolvedRe
     if (contacts && (result.classes[0]?.x !== oldLeft || result.classes[0]?.y !== oldTop)) projectClassRectangleContacts(contacts, inkWork)
   }
   if (!result.relationships.some(rel => rel.markerAt !== 'none') && changed.size) repairClassAnnotationSeats(result, style, inkWork ?? createClassMarkerAdmissionWork(), changed)
+  if (stableGeometry && canonicalSvgGeometry && style.edgeBendRadius === 0 && result.namespaces.length === 0) {
+    const pay = (amount = 1): void => {
+      for (let i = 0; i < amount; i++) if (!chargeClassMarkerAdmissionWork(peerWork)) throw new LayoutCertificationError([{ strategy: 'class-final-sharp-contacts', violations: ['Class final point projection work limit'] }])
+    }
+    pay(result.classes.length + 2)
+    // Interface bounds were prepared before this final producer step.
+    if (!result.classes.some(node => node.isInterface)) {
+      pay(6) // Null-prototype descriptor and its reusable own fields.
+      const slot = { __proto__: null, value: undefined as Point | undefined, writable: true, enumerable: true, configurable: true }
+      // Publish the owned sharp route in its actual SVG spelling, then run all
+      // final contact and marker checks on those same completed coordinates.
+      for (let owner = 0; owner < result.relationships.length; owner++) {
+        pay(4) // Route visit, array, local row and publication.
+        const rel = result.relationships[owner]!, points: Point[] = []
+        for (let index = 0; index < rel.points.length; index++) {
+          pay(4) // Point visit, indexed read, descriptor update and own store.
+          const point = projectMeasuredRoutePoint(rel.points[index]!, pay, pay)
+          if (!point) throw new LayoutCertificationError([{ strategy: 'class-final-sharp-contacts', violations: ['Unsupported final Class point projection'] }])
+          slot.value = point
+          defineFinalClassPoint(points, index, slot)
+        }
+        rel.points = points
+      }
+    }
+  }
   assertClassElkSelfContactsClear(result,style,endpointChanges,peerWork)
   const violations = classOwnedSurfaceViolations(result, style)
   if (violations.length) throw new LayoutCertificationError([{ strategy: 'class-owned-surfaces', violations }])

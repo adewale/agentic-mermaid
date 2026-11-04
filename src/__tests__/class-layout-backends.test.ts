@@ -211,7 +211,7 @@ describe('Class layout backends', () => {
     expect(rendered.receipt.layoutCertification?.status).toBe('passed')
   })
 
-  test.each(['TB', 'BT', 'LR', 'RL'])('renders a long native Class chain with exact card contacts in %s', async direction => {
+  test.each((['agentic', 'elk'] as const).flatMap(backend => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ backend, direction }))))('renders a long Class chain with exact card contacts with $backend in $direction', async ({ backend, direction }) => {
     const source = `classDiagram\ndirection ${direction}\n` + Array.from({ length: 127 }, (_, i) => `N${i} --> N${i + 1}`).join('\n')
     const child = await runPublicClassChild(process.execPath, ['-e', `
       import { renderMermaidSVGWithReceipt } from './src/index.ts'
@@ -220,7 +220,7 @@ describe('Class layout backends', () => {
       const rendered = withPerformanceObserver(event => {
         if (event.kind === 'cache' && event.owner === 'paint-certification') providers.push(event.detail)
       }, () => renderMermaidSVGWithReceipt(${JSON.stringify(source)}, {
-        graphLayout: { backend: 'agentic', fallback: 'none' }, embedFontImport: false,
+        graphLayout: { backend: ${JSON.stringify(backend)}, fallback: 'none' }, embedFontImport: false,
       }))
       console.log(JSON.stringify({ rendered, providers }))
     `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
@@ -230,7 +230,7 @@ describe('Class layout backends', () => {
     if (!proof || !('checks' in proof)) throw new Error('Class SVG must retain paint certification')
     expect(proof.checks.maxOperations).toBe(400000)
     expect(proof.checks.operations).toBeLessThanOrEqual(400000)
-    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', fallback: 'none' })])
+    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: backend, fallback: 'none' })])
     const ids = Array.from({ length: 128 }, (_, index) => `N${index}`), classes: string[] = [], names: string[] = []
     const groupOwners: Array<string | undefined> = [], ownedNames: Array<[string | undefined, string]> = []
     const boxes = new Map<string, Record<string, string>>(), carriers: Array<Record<string, string>> = [], overlays: Array<Record<string, string>> = []
