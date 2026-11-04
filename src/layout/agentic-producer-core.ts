@@ -11,6 +11,7 @@ import { MAX_EXPANDED_VERTICES, layoutLayeredGraph as layoutRawGraph } from './a
 import { shortenMeasuredRoutes } from './shorten-measured-routes.ts'
 import { fitMeasuredLayout } from './fit-measured-layout.ts'
 export { improveArchitectureSiblingSlots } from './architecture-sibling-slots.ts'
+export { layoutMeasuredForest } from './measured-forest.ts'
 
 // Keep cache storage inside the optional solver chunk: importing shared
 // request helpers here creates extra requests for families selecting ELK.

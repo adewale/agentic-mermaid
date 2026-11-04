@@ -1,5 +1,4 @@
 import type { AgenticLayout, MeasuredGraph } from './agentic-layered.ts'
-import { loadForest, readyForest } from './forest-loader.lazy.ts'
 import { GraphLayoutUnsupportedError, DeferredDependencyError } from './backend.ts'
 
 let implementation: {
@@ -11,13 +10,12 @@ let implementation: {
 let pending: Promise<void> | undefined
 
 async function load(): Promise<void> {
-  await (pending ??= Promise.all([import('./agentic-producer-core.ts'), loadForest()]).then(([module]) => {
-    const forest = readyForest()
+  await (pending ??= import('./agentic-producer-core.ts').then(module => {
     implementation = {
       candidate: module.layoutNativeGraphCandidate,
       placement: module.layoutNativeGraphPlacement,
       architectureSlots: module.improveArchitectureSiblingSlots,
-      graph: module.createMeasuredLayoutCache(input => module.layoutLayeredGraph(input, forest.layoutMeasuredForest, reason => { throw new GraphLayoutUnsupportedError(reason) })),
+      graph: module.createMeasuredLayoutCache(input => module.layoutLayeredGraph(input, module.layoutMeasuredForest, reason => { throw new GraphLayoutUnsupportedError(reason) })),
     }
   }).catch((error: unknown) => { pending = undefined; throw error }))
 }
