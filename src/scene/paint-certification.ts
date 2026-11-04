@@ -5,7 +5,7 @@ import { connectorMarkerPaintRegions, connectorStrokeHasJoins, expandSceneBounds
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
 import { createInlineColorAttributeResolver, resolveInlineColorAttribute } from '../theme.ts'
 import { tryParseCssColor, type RgbaColor } from '../shared/color-math.ts'
-import { nativeTextPaintWriteOf, ownedTextPaintRoster, hasOwnedTextPaintRoster, hasScenePathEmissionOccurrence, hasSceneWriteEmissionOccurrence, hasImmutablePaintRoster, inspectScenePaintGeometry, paintPrimitiveSource, scenePathEmissionWorkOf, scenePrimitiveMatrix, scenePrimitiveUntransformed, sceneGroupOpacity, type ScenePaintGeometryInspection, type NativeConnectorPaintSource, type ScenePaintGeometry as ScenePaintPrimitive } from './inspection.ts'
+import { appendPaintPrimitive, nativeTextPaintWriteOf, ownedTextPaintRoster, hasOwnedTextPaintRoster, hasScenePathEmissionOccurrence, hasSceneWriteEmissionOccurrence, hasImmutablePaintRoster, inspectScenePaintGeometry, paintPrimitiveSource, scenePathEmissionWorkOf, scenePrimitiveMatrix, scenePrimitiveUntransformed, sceneGroupOpacity, type ScenePaintGeometryInspection, type NativeConnectorPaintSource, type ScenePaintGeometry as ScenePaintPrimitive } from './inspection.ts'
 import type { SceneWriteReceipt } from './serialization.ts'
 import type { ConnectorContourSemantics, Geometry, MarkPaint, SceneDoc, SceneOwner, ScenePoint, SceneTransform, MarkerDescriptor } from './ir.ts'
 import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
@@ -1596,9 +1596,9 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
   // sharing a visibility exemption. Exact paint order and bounds remain per text.
   if (retainedRoster) for (const primitive of inspection.primitives) {
     if (!work()) break
-    if (primitive.kind === 'connector') connectors.push(primitive)
+    if (primitive.kind === 'connector') appendPaintPrimitive(connectors, primitive)
     if (primitive.kind !== 'text' || primitive.coverage !== 'measured' || primitive.visibility === 'conditional') continue
-    texts.push(primitive)
+    appendPaintPrimitive(texts, primitive)
     if (!primitive.ancestors.length) continue
     const batch = textBatches.get(primitive.ancestors)
     if (batch) { batch.bounds = unionSceneBounds(batch.bounds, primitive.bounds)!; batch.order = Math.min(batch.order, primitive.order); batch.count++ }

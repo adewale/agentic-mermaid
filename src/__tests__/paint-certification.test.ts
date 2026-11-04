@@ -2652,23 +2652,38 @@ test('final paint order catches fully hidden text, including artwork with the sa
   expect(drawing.proof.issues).toContainEqual(expect.objectContaining({ code: 'TEXT_OCCLUDED', id: 'text', by: 'cover' }))
   const bounds = drawing.paint.primitives.find(primitive => primitive.id === 'text')?.bounds
   if (!bounds || !drawing.admitted || !drawing.receipt) throw new Error('Expected an actual Scene text occurrence and write receipt')
-  const descriptor = Object.getOwnPropertyDescriptor(Object, 'freeze')!, freeze = Object.freeze
-  const define = Object.defineProperty, own = Object.getOwnPropertyDescriptor, isFrozen = Object.isFrozen
-  let hooked!: ReturnType<typeof certifyScenePaint>, hookCalls = 0
-  try {
-    define(Object, 'freeze', { ...descriptor, value(value: unknown) {
-      if (value && typeof value === 'object' && !isFrozen(value)
-        && own(value, 'x0')?.value === bounds.x0 && own(value, 'x1')?.value === bounds.x1
-        && own(value, 'y0')?.value === bounds.y0 && own(value, 'y1')?.value === bounds.y1) {
-        hookCalls++
-        Object.assign(value, { x0: 85, x1: 90, y0: 1, y1: 8 })
-      }
-      return freeze(value)
-    } })
-    hooked = certifyScenePaint(drawing.admitted, undefined, { sceneWriteReceipt: drawing.receipt })
-  } finally { define(Object, 'freeze', descriptor) }
+  const freeze = Object.freeze, push = Array.prototype.push
+  const define = Object.defineProperty, own = Object.getOwnPropertyDescriptor, isFrozen = Object.isFrozen, apply = Reflect.apply
+  const results: Array<{ mode: 'freeze' | 'append'; proof: ReturnType<typeof certifyScenePaint>; hookCalls: number }> = []
+  for (const mode of ['freeze', 'append'] as const) {
+    const prototype = mode === 'freeze' ? Object : Array.prototype, key = mode === 'freeze' ? 'freeze' : 'push'
+    const descriptor = own(prototype, key)!
+    let proof!: ReturnType<typeof certifyScenePaint>, hookCalls = 0
+    try {
+      define(prototype, key, { ...descriptor, value: mode === 'freeze' ? (value: unknown) => {
+        if (value && typeof value === 'object' && !isFrozen(value)
+          && own(value, 'x0')?.value === bounds.x0 && own(value, 'x1')?.value === bounds.x1
+          && own(value, 'y0')?.value === bounds.y0 && own(value, 'y1')?.value === bounds.y1) {
+          hookCalls++
+          Object.assign(value, { x0: 85, x1: 90, y0: 1, y1: 8 })
+        }
+        return freeze(value)
+      } : function (this: unknown[], ...values: unknown[]) {
+        const primitive = values.length === 1 ? values[0] : undefined
+        if (primitive && typeof primitive === 'object' && own(primitive, 'kind')?.value === 'text'
+          && own(primitive, 'id')?.value === 'text' && own(primitive, 'coverage')?.value === 'measured') {
+          hookCalls++
+          return this.length
+        }
+        return apply(push, this, values)
+      } })
+      proof = certifyScenePaint(drawing.admitted, undefined, { sceneWriteReceipt: drawing.receipt })
+    } finally { define(prototype, key, descriptor) }
+    results.push({ mode, proof, hookCalls })
+  }
 
   expect(Object.freeze).toBe(freeze)
+  expect(Array.prototype.push).toBe(push)
   expect(DefaultBackend.render(drawing.admitted, { seed: 0 })).toBe(drawing.svg)
   const textTags = drawing.svg.match(/<text\b[^>]*>Read<\/text>/g)!
   expect(textTags).toHaveLength(1)
@@ -2679,9 +2694,11 @@ test('final paint order catches fully hidden text, including artwork with the sa
   const pixels = (svg: string) => new Resvg(svg, { font, background: '#fff' }).render().pixels
   expect(Buffer.compare(pixels(drawing.svg), pixels(drawing.svg.replace(textTag, '')))).toBe(0)
   expect(Buffer.compare(pixels(uncovered), pixels(uncovered.replace(textTag, '')))).not.toBe(0)
-  expect(hooked.status, `Scene text bounds freeze hook ran ${hookCalls} times`).toBe('failed')
-  expect(hooked.issues).toContainEqual(expect.objectContaining({ code: 'TEXT_OCCLUDED', id: 'text', by: 'cover' }))
-  expect(hooked).toEqual(drawing.proof)
+  for (const { mode, proof, hookCalls } of results) {
+    expect(proof.status, `Scene text ${mode} hook ran ${hookCalls} times`).toBe('failed')
+    expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'TEXT_OCCLUDED', id: 'text', by: 'cover' }))
+    expect(proof).toEqual(drawing.proof)
+  }
 })
 
 test.each([

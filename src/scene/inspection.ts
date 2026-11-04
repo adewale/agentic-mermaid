@@ -63,6 +63,11 @@ const textPaintMap = WeakMap, textPaintSet = WeakSet, textPaintApply = Reflect.a
 const textPaintGet = WeakMap.prototype.get, textPaintPut = WeakMap.prototype.set
 const textPaintAdd = WeakSet.prototype.add, textPaintHas = WeakSet.prototype.has
 const textPaintFreeze = Object.freeze, textPaintDefine = Object.defineProperty
+
+/** Publish each private occurrence without caller-dispatched array callbacks. */
+export function appendPaintPrimitive(primitives: ScenePaintGeometry[], primitive: ScenePaintGeometry): void {
+  textPaintDefine(primitives, primitives.length, { __proto__: null, value: primitive, enumerable: true, writable: true, configurable: true } as PropertyDescriptor)
+}
 const nativeTextPaintWrites = new textPaintMap<ScenePaintGeometry, SvgTextPaintWrite>()
 const ownedTextPaintRosters = new textPaintMap<ScenePaintGeometryInspection, boolean>()
 export function nativeTextPaintWriteOf(primitive: ScenePaintGeometry): SvgTextPaintWrite | undefined { return textPaintApply(textPaintGet, nativeTextPaintWrites, [primitive]) }
@@ -234,12 +239,10 @@ function nativePaintSource(node: Exclude<SceneNode, { kind: 'group' }>, actualTe
 
 function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDetails, native = false, documentFont?: string, owning = false) {
   // Seal fresh inspection products without exposing writable proof facts.
-  // Source reads, walk callbacks and occurrence append behavior stay unchanged.
   const freeze = textPaintFreeze
   let hasActualPaint = false
   const append = (primitive: ScenePaintGeometry): void => {
-    if (owning) textPaintDefine(primitives, primitives.length, { value: primitive, enumerable: true, writable: true, configurable: true })
-    else primitives.push(primitive)
+    appendPaintPrimitive(primitives, primitive)
   }
   const primitives: ScenePaintGeometry[] = []
   const coverage = { measured: 0, unmeasured: 0, nonPainting: 0, preparedText: 0, fallbackText: 0 }
