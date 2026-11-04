@@ -120,3 +120,23 @@ scene-inspection-sealing-3c567e1e5. This closes a shared false pass, not a relat
 backend geometry/capacity gap. Sparse32, ER256 refusal, old timing/timeout uncertainty
 and unavailable baseline/peers remain. Next: a sufficient safe subtraction for an
 enrolled loss; do not treat normal-product identity as additional improvement.
+
+68a7d7ce93642fa514270b524c3a8afa5f88488e closes a second shared false paint pass:
+ambient push dropped covered text from private inspection (F91/4primitives→P86/3).
+Recorder-only repair still falseP87/4 at the downstream text list; failed partial
+retained. One captured own-slot publisher now serves recorder/text/connector lists.
+Exact original SVG and ENTIRE failed91 proof restored; existing owner red→green
+checks actual zero covered/positive uncovered Inter ink before freeze/append proof.
+Broad915P/knownSparse32F (194.63s/1012916KiB); core types59.23s/lintP. Source reads,
+traversal/fees/caps unchanged; wrapper callbacks remain outside this narrow claim.
+Normal consumed ELK Sparse256cards cold/repeat/edit1120/410/395ms, peak263280KiB,
+post-GC heap41.03/42.10/42.82MiB; all full SVG/ENTIRE receipts exact preceding run.
+Edit slower than preceding317ms; N1, no speedup claim. Two fresh Node24 witnesses
+and two compiled products match after one RAM build, scratch removed. ERAM23requests/
+gzip327370/Br276595B vsELK21/697504/547993; +3/+99B and+4/+81B versus3c567;
+initial3/5852/5234 (−3gzip/unchangedBr). Evidence: week scene-inspection-append-
+custody-cf689fd17, scene-inspection-append-cf689fd17, scene-inspection-append-node24-
+68a7d7ce9 and recovery-payload/scene-inspection-append-68a7d7ce9. No relative
+geometry/capacity win. Sparse32 subtraction review found no sufficient new lead.
+Next demonstrated quality loss: same Sparse256cards Native492.598×32140 versus
+ELK2300×1504; investigate disconnected placement before changing geometry.
