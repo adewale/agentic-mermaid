@@ -317,3 +317,31 @@ Inter rasters; no layout calls. Exact SVG/entire receipts and independent summar
 week cyclic9-requalification-954248001. Next code target remains Class vertical's
 212 actually changed polyline projections; aliases/rekeying cannot remove their
 work. No safe bounded producer subtraction identified yet; preserve caps/refusals.
+
+## Written marker facts stay private — 2026-11-04
+
+527ef75a3db9d9231f76cd6e0f69acc4598f3da7 fixes a confirmed false paint pass.
+An ambient freeze hook changed a private served point after its coordinates were
+written. Actual SVG stayed identical and its fully covered arrow had zero
+marker-removal ink, yet U17464 became P17139. Captured sealing/slot operations
+and private projection publication now preserve actual written facts. No source
+getter, formatting, geometry algorithm, fee or cap changes; no new cache.
+The corrected control restores the exact original SVG/entire U17464 proof.
+Old-code owning controls fail in Native and Scene; current22emitted-ink rows pass.
+Broad776P/1known sparse32 failure; Class128 requalification2P(LR/RL)/2knownF(TB/BT,
+U400000 with53/61markers). Core types/lint pass. This repairs proof soundness for
+both execution paths; it closes no relative layout/capacity gap against ELK.
+Six current consumed cache0 cold/repeat/edit calls match all retained complete
+SVG/receipts, AgenticP/ELKU. AM ms690/339/306→670/365/285, RSS234764→237072KiB;
+ELK1970/1209/558→1617/664/571, RSS326632→330784KiB. Heap mixed: AMrepeat26.66→27.40MiB,
+ELKedit52.73→52.91MiB. N=1 separate workers; retain adverse costs, no speed/memory ratio.
+Two fresh Node24 sources and two compiled products match entire SVG/receipts after
+one RAM build. Flow Native26requests/gzip367264/Br311437B (+77/+68B); ELK24/
+737526/582939B (+78/+60B). Counts unchanged. Evidence: week written-marker-custody-37f,
+written-fact-sealing-{agentic,elk}-cache0-cost-527ef75a3, written-fact-sealing-node24-
+527ef75a3 and recovery-payload/written-fact-sealing-527ef75a3.
+The separate WeakMap-tangent probe remained U/U and was stopped. Class's existing
+projection reuse is active; exact-center reuse does not address108.9-step drift.
+Next unresolved implementation target: ER256 final glyph/shaft index-query work;
+only producer-owned reuse can be attempted, with generic live reads retained.
+Class vertical/sparse32 refusals, missing original baseline/peers and sealed holdout remain.
