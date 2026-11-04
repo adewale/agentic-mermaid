@@ -151,6 +151,32 @@ versus ELK20/671544/525082; counts unchanged, gzip+132B both, Br+66/+39B versusf
 Evidence: week prepared-roster-{f1e,cost-f1e23e62f-dirty}, sparse32-capture-{ledger,
 roster}-f1e and recovery-payload/prepared-roster-b823ccd53. No CI or remote mutation.
 
+## 4 November: private text plans preserve authored content
+
+790ed4b85fd2c9ed898d90e8fb74bb0e48873ba0 closes a pre-existing private-plan escape.
+Three authored Read labels became Read/Read/Lost while paint remained P1979;
+the pre-cleanup f1e producer also reproduces it atP2252. Existing captured WeakMap
+construction/access and private slot definition now keep those instructions private;
+generic receiver copies and every charge/cap remain unchanged. No new cache/registry.
+All five old-code get/set/constructor/definition/descriptor cases fail on actual Lost
+ink despite P; all seven current cases retain Read, source, positions, glyph ink and P.
+The direct before/after ENTIRE P1979 receipt is identical: paint P is not author meaning.
+
+Twelve consumed ordinary calls keep all six whole SVG/ENTIRE proof pairs exact:
+Sparse0 P/P, Sparse32 U/U. N=1 cold/repeat/edit ms0:270/171/137->272/115/97;
+32:330/186/150->421/186/153. PeakRSS0:130072->124308KiB;32:139160->144360.
+Post-GC heap0:6.24/6.91/7.97->6.27/6.92/7.96MiB;32:7.17/13.37/8.71->7.19/9.12/8.63.
+Imports/setup excluded. Keep for corrected content despite adverse32 cold/RSS costs;
+no performance, memory, layout or capacity win is claimed.
+
+Core typing exit0/lint/diff pass; broad987P/4F retains the three capacity failures
+plus a strict ELK dense-compound timeout; isolated original-deadline run passes2.985s.
+Two fresh Node24 sources, one RAM build and two compiled calls returnP388447 and
+match whole SVG/ENTIRE receipts. Class AM21requests/gzip293519/Br246732B versus
+ELK20/671569/525028; counts unchanged, gzip+26/+25 and Br-95/-54 versus684/b823.
+Evidence: week text-plan-custody-684, native-text-plan-cost-684e42557-dirty and
+recovery-payload/native-text-plan-790ed4b85. No remote operations or CI.
+
 ## Stopped hypotheses and next fix
 
 c323e9fd5 Native pure-forest acquisition was normally reverted by3e43badc5:
@@ -168,12 +194,18 @@ A Requirement kind-order trial lowers TB area13.6% but raises wire23.7%/turns8->
 stopped. Caption-before-finalizer instead refuses owned path/contact reservation;
 stopped without variants. Those are observations, not shipped improvements.
 
-Next: subtract active typed XML duplicate-name work using the existing writer and
-value validation, after pricing its classification cost; a mask is not implemented
-or qualified. Keep Sparse32, Class vertical, ER256-chain refusal and the retained
-Requirement/cyclic quality losses open. ER256's old body-index trial later fails
-glyph-piece->shaft (Agentic) or label->shaft (ELK), not label->label. Do not revive
-unsafe body indexing, inactive foreground scans, fee repricing or another compiler.
+One current Native32 CPU profile atb823 has1037ms sampled draw/cert ancestry:
+copyInner117.9ms self/materializeText106.5ms; XML checking12.1ms inclusive and
+Set insertion1.1ms. Stop the mask rewrite; these are one profiled run, not global
+project rankings or unprofiled runtime estimates. Evidence: week sparse32-cpu-b823.
+
+Next: inspect repeated Class projection at the post-snapshot writer boundary and
+reuse its written geometry operand if actual immutable identity permits. Early
+rounding of live points and merging shafts/marker overlays are ruled out: callback
+reads, conservative raw bounds and below-card/above-card painting must survive.
+Keep Sparse32, Class vertical, ER256-chain and Requirement/cyclic losses open.
+ER256's old body-index trial later fails glyph-piece->shaft (Agentic) or label->shaft
+(ELK), not label->label. No unsafe indexing, fee repricing or another compiler.
 
 Lessons: test the ordinary public boundary, preserve exact inputs/defaults and
 actual output ownership, narrow partial claims, and price adverse results. Reuse
