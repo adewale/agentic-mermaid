@@ -662,6 +662,7 @@ export interface ValidationState {
     readonly artwork: Array<{ id: string; owner: SceneOwner; path: string }>
     readonly groups: Set<string>
     readonly enclosures: Map<string, SceneOwner>
+    readonly groupValidation?: (node: Extract<SceneNode, { kind: 'group' }>) => void
   }
   readonly paintReferences: Array<{ id: string; path: string }>
   readonly ids: Map<string, { path: string; kind: string }>
@@ -900,7 +901,11 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
         validateNode(child.node, `${path}.children[${index}].node`, state, depth + 1, subject)
       }
     }
-    try { assertInertGroup(value as unknown as import('./ir.ts').GroupMark) } catch (error) { add(state.diagnostics, 'SCENE_DOCUMENT', path, String(error)) }
+    try {
+      const group = value as unknown as import('./ir.ts').GroupMark
+      if (state.native?.groupValidation) state.native.groupValidation(group)
+      else assertInertGroup(group)
+    } catch (error) { add(state.diagnostics, 'SCENE_DOCUMENT', path, String(error)) }
     if (state.external && (typeof value.open !== 'string' || !/^<g(?:\s|>)/.test(value.open) || value.close !== '</g>')) {
       add(state.diagnostics, 'SCENE_SECURITY', path, 'external containers must use a generated <g> wrapper')
     }
@@ -1416,13 +1421,13 @@ export interface NativeSceneValidator {
 
 export function createNativeSceneValidator(
   header: Omit<SceneDoc, 'parts'>,
-  options: { readonly crossChecks?: boolean } = {},
+  options: { readonly crossChecks?: boolean; readonly groupValidation?: (node: Extract<SceneNode, { kind: 'group' }>) => void } = {},
 ): NativeSceneValidator {
   const diagnostics: MutableDiagnostic[] = []
   validateSceneHeader(header, false, diagnostics)
   if (sceneValidationMode(header) === 'external') add(diagnostics, 'SCENE_DOCUMENT', 'scene.family', 'native admission requires a built-in family')
   if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
-  const native = { artwork: [] as Array<{ id: string; owner: SceneOwner; path: string }>, groups: new Set<string>(), enclosures: new Map<string, SceneOwner>() }
+  const native = { artwork: [] as Array<{ id: string; owner: SceneOwner; path: string }>, groups: new Set<string>(), enclosures: new Map<string, SceneOwner>(), groupValidation: options.groupValidation }
   const state = { ...createValidationState(diagnostics, false, options.crossChecks ?? false, true), native }
   let result: SceneValidationResult | undefined
   const open = (): void => {

@@ -36,7 +36,7 @@ import {
 import { connectorInlineLabelText } from './bounds.ts'
 import { setConnectorTerminalProjection, copyDeferredTerminalProjection, deferredTerminalProjectionInput } from './deferred-terminal-projection.ts'
 import type { parseSvgTransform } from './transforms.ts'
-import { assertInertGroup } from './group-emission.ts'
+import { assertInertGroup, registerGroupEmission } from './group-emission.ts'
 import {
   admitWritableSceneNode,
   attachSceneNodeSerialization,
@@ -65,8 +65,7 @@ function assertMarkAttributes(id: string, attributes: MarkAttributes | undefined
   if (attributes.ariaLabel !== undefined && typeof attributes.ariaLabel !== 'string') throw new TypeError(`Mark "${id}" ariaLabel must be a string`)
 }
 
-const groupEmission = new WeakMap<object, { open: string; opacity: string | undefined; style: boolean; matrix: ReturnType<typeof parseSvgTransform> }>()
-export function retainedGroupEmission(node: object) { return groupEmission.get(node) }
+export { retainedGroupEmission } from './group-emission.ts'
 
 /** Typed identity: the explicit public identity, or the mark id with its
  * class tokens, which is what the writer emits as data-id and class. */
@@ -583,7 +582,7 @@ export function group(fields: {
   join?: string
   channels?: SemanticChannels
   paint?: GroupMark['paint']
-}): GroupMark {
+}, nativePay?: (operations: number) => boolean): GroupMark {
   const sourceOpen = fields.open, close = fields.close, join = fields.join ?? '\n'
   const emitted = assertInertGroup({ id: fields.id, open: sourceOpen, close, join, transform: fields.transform })
   const identity = semanticIdentityForSvg(sourceOpen, fields)
@@ -631,7 +630,7 @@ export function group(fields: {
     ...(fields.transform ? { transform: fields.transform } : {}),
     ...(paint ? { paint } : {}),
   })
-  groupEmission.set(result, Object.freeze({ open, opacity, ...emitted, style: emitted.style || fill !== undefined }))
+  registerGroupEmission(result, { open, opacity, ...emitted, style: emitted.style || fill !== undefined }, nativePay)
   return result
 }
 

@@ -538,18 +538,67 @@ test.each(['custom-property', 'inherited-fill'] as const)('scoped %s paint remai
   expect(emitted.issues.some(issue => issue.code === 'OUTPUT_SCOPE')).toBe(true)
 })
 
-test('native group font scope reads actual class bytes through pre-import String hooks', async () => {
+test('native group font scope reads actual class bytes through inherited hooks', async () => {
   const child = await runTextReceiverChild(process.execPath, ['--eval', String.raw`
 const sliceDescriptor = Object.getOwnPropertyDescriptor(String.prototype, 'slice')
 const slice = sliceDescriptor.value
+const findDescriptor = Object.getOwnPropertyDescriptor(Array.prototype, 'find')
+const pushDescriptor = Object.getOwnPropertyDescriptor(Array.prototype, 'push')
+const splitDescriptor = Object.getOwnPropertyDescriptor(String.prototype, 'split')
+const namesDescriptor = Object.getOwnPropertyDescriptor(Object, 'getOwnPropertyNames')
+const freezeDescriptor = Object.getOwnPropertyDescriptor(Object, 'freeze')
 let mode, hookCalls = 0
+let sourceGroup, writerMutation = false
+let freezeAttributeAttempts = 0, freezeAttributeRetainedAttempts = 0
 // Install before importing the producer: capturing this method at module load
 // cannot turn the callback's substituted token into actual SVG authority.
 Object.defineProperty(String.prototype, 'slice', { ...sliceDescriptor, value: function(start, end) {
   const actual = Reflect.apply(slice, this, [start, end])
-  if (mode === 'hooked-mono' && String(this) === '<g class="mono">' && actual === 'mono'
-    && new Error().stack?.includes('nativeGroup')) { hookCalls++; return 'safe' }
+  if ((mode === 'hooked-mono' || mode === 'validator-slice') && String(this) === '<g class="mono">' && actual === 'mono'
+    && new Error().stack?.includes(mode === 'validator-slice' ? 'assertInertGroup' : 'nativeGroup')) { hookCalls++; return 'safe' }
   return actual
+} })
+Object.defineProperty(Array.prototype, 'find', { ...findDescriptor, value: function(predicate, thisArg) {
+  const found = Reflect.apply(findDescriptor.value, this, [predicate, thisArg])
+  if (mode === 'attribute-find' && found?.name === 'class' && found.value === 'mono' && typeof found.valueStart === 'number') {
+    hookCalls++; return { ...found, value: 'safe' }
+  }
+  return found
+} })
+Object.defineProperty(Array.prototype, 'push', { ...pushDescriptor, value: function(...values) {
+  if (mode === 'attribute-push') for (let index = 0; index < values.length; index++) {
+    const value = values[index]
+    if (value?.name === 'class' && value.value === 'mono' && typeof value.valueStart === 'number') {
+      hookCalls++; values[index] = { ...value, value: 'safe' }
+    }
+  }
+  return Reflect.apply(pushDescriptor.value, this, values)
+} })
+Object.defineProperty(String.prototype, 'split', { ...splitDescriptor, value: function(separator, limit) {
+  const actual = Reflect.apply(splitDescriptor.value, this, [separator, limit])
+  if (mode === 'class-split' && String(this) === 'mono' && new Error().stack?.includes('emission-context')) {
+    hookCalls++; return ['safe']
+  }
+  return actual
+} })
+Object.defineProperty(Object, 'getOwnPropertyNames', { ...namesDescriptor, value: function(value) {
+  const actual = Reflect.apply(namesDescriptor.value, Object, [value])
+  if (mode === 'writer-mutation' && value?.kind === 'group' && value.id === 'font-group' && value.open === '<g class="safe">') sourceGroup = value
+  return actual
+} })
+Object.defineProperty(Object, 'freeze', { ...freezeDescriptor, value: function(value) {
+  if (mode === 'freeze-attribute' && value?.name === 'class' && value.value === 'mono' && typeof value.valueStart === 'number') {
+    const stack = new Error().stack ?? ''
+    freezeAttributeAttempts++
+    if (stack.includes('collectNativeGroup') || stack.includes('materialize')) freezeAttributeRetainedAttempts++
+    Reflect.set(value, 'value', 'safe')
+  }
+  if (mode === 'writer-mutation' && !writerMutation && sourceGroup && value
+    && Object.hasOwn(value, 'uncertain') && Object.hasOwn(value, 'matrix')) {
+    sourceGroup.open = '<g class="mono">'
+    writerMutation = true
+  }
+  return Reflect.apply(freezeDescriptor.value, Object, [value])
 } })
 const rows = []
 try {
@@ -563,38 +612,52 @@ try {
   const context = { positioned: { width, height }, colors, resolved: { renderOptions: {} } }
   const block = withTextMeasurementExecution(undefined, () => preparePixelText('Wiii', { fontSize: 20, fontWeight: 400 }), 'Inter')
   const marker = tipAnchoredArrow('font-custody-arrow', { width: 8, height: 5 }, 'end', { fill: '#000' }, 'userSpaceOnUse')
-  for (mode of ['safe', 'mono', 'hooked-mono']) {
+  for (mode of ['safe', 'mono', 'hooked-mono', 'validator-slice', 'attribute-find', 'attribute-push', 'class-split', 'freeze-attribute', 'writer-mutation']) {
     const producer = factory => ({ family: 'flowchart', width, height, colors, transparent: false, parts: [
       factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: true }, svgOpenTag(width, height, colors) + '\n' + buildStyleBlock('Inter', true, false, false)),
       factory.definitions({ id: 'markers' }, '<defs>' + serializeMarkerResource(marker) + '</defs>'),
       factory.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 50, y2: 40 }, paint: { stroke: '#000' }, endpoints: { from: 'outside', to: 'cover' }, markers: { end: marker } }),
       factory.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 90, y: 10, width: 35, height: 45 }, paint: { fill: '#fff' } }),
-      factory.group({ id: 'font-group', role: 'chrome', open: '<g class="' + (mode === 'safe' ? 'safe' : 'mono') + '">', close: '</g>', children: [{ node: factory.text({ id: 'font-text', role: 'label', text: block.text, block, x: 20, y: 90, fontSize: 20, anchor: 'start', paint: { fill: '#111' } }), indent: 2 }] }),
+      factory.group({ id: 'font-group', role: 'chrome', open: '<g class="' + (mode === 'safe' || mode === 'writer-mutation' ? 'safe' : 'mono') + '">', close: '</g>', children: [{ node: factory.text({ id: 'font-text', role: 'label', text: block.text, block, x: 20, y: 90, fontSize: 20, anchor: 'start', paint: { fill: '#111' } }), indent: 2 }] }),
       factory.documentClose(),
     ] })
     const drawing = drawNative(producer, context, 'flowchart')
-    rows.push({ mode, svg: drawing.svg, proof: certifyNativePaint(drawing.header, drawing.paint), preparedInter: hasPreparedInterTextEnvelope(block), ownFont: Object.hasOwn(block, 'fontFamily') })
+    rows.push({ mode, svg: drawing.svg, proof: certifyNativePaint(drawing.header, drawing.paint), preparedInter: hasPreparedInterTextEnvelope(block), ownFont: Object.hasOwn(block, 'fontFamily'), writerMutation, mutatedSourceOpen: sourceGroup?.open, freezeAttributeAttempts, freezeAttributeRetainedAttempts })
   }
-} finally { Object.defineProperty(String.prototype, 'slice', sliceDescriptor) }
-console.log(JSON.stringify({ rows, hookCalls, restored: String.prototype.slice === slice }))
+} finally {
+  Object.defineProperty(String.prototype, 'slice', sliceDescriptor)
+  Object.defineProperty(Array.prototype, 'find', findDescriptor)
+  Object.defineProperty(Array.prototype, 'push', pushDescriptor)
+  Object.defineProperty(String.prototype, 'split', splitDescriptor)
+  Object.defineProperty(Object, 'getOwnPropertyNames', namesDescriptor)
+  Object.defineProperty(Object, 'freeze', freezeDescriptor)
+}
+console.log(JSON.stringify({ rows, hookCalls, restored: String.prototype.slice === slice
+  && Array.prototype.find === findDescriptor.value && Array.prototype.push === pushDescriptor.value
+  && String.prototype.split === splitDescriptor.value && Object.getOwnPropertyNames === namesDescriptor.value
+  && Object.freeze === freezeDescriptor.value }))
 `], { cwd: fileURLToPath(new URL('../../', import.meta.url)), env: process.env })
   expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
-  const packet = JSON.parse(child.stdout) as { rows: Array<{ mode: string; svg: string; proof: ReturnType<typeof certifyNativePaint>; preparedInter: boolean; ownFont: boolean }>; restored: boolean }
+  const packet = JSON.parse(child.stdout) as { rows: Array<{ mode: string; svg: string; proof: ReturnType<typeof certifyNativePaint>; preparedInter: boolean; ownFont: boolean; writerMutation: boolean; mutatedSourceOpen?: string; freezeAttributeAttempts: number; freezeAttributeRetainedAttempts: number }>; restored: boolean }
   expect(packet.restored).toBe(true)
-  expect(packet.rows.map(row => row.mode)).toEqual(['safe', 'mono', 'hooked-mono'])
-  const [safe, mono, hooked] = packet.rows
+  expect(packet.rows.map(row => row.mode)).toEqual(['safe', 'mono', 'hooked-mono', 'validator-slice', 'attribute-find', 'attribute-push', 'class-split', 'freeze-attribute', 'writer-mutation'])
+  const [safe, mono] = packet.rows
   expect(safe!.proof).toMatchObject({ status: 'passed', issues: [] })
-  expect(hooked!.svg).toBe(mono!.svg)
+  const writer = packet.rows.at(-1)!
+  expect({ mutated: writer.writerMutation, sourceOpen: writer.mutatedSourceOpen }).toEqual({ mutated: true, sourceOpen: '<g class="mono">' })
+  expect(writer.svg).toBe(safe!.svg)
+  expect(writer.proof).toMatchObject({ status: 'passed', issues: [] })
   for (const row of packet.rows) {
     expect({ preparedInter: row.preparedInter, ownFont: row.ownFont }).toEqual({ preparedInter: true, ownFont: false })
     const elements = rectangleEmissionElements(row.svg)
-    expect(elements.filter(element => element.name === 'g').map(element => element.attributes.class)).toEqual([row.mode === 'safe' ? 'safe' : 'mono'])
+    expect(elements.filter(element => element.name === 'g').map(element => element.attributes.class)).toEqual([row.mode === 'safe' || row.mode === 'writer-mutation' ? 'safe' : 'mono'])
     expect(elements.filter(element => element.name === 'line').map(element => element.attributes)).toEqual([expect.objectContaining({ x1: '20', y1: '40', x2: '50', y2: '40', 'data-from': 'outside', 'data-to': 'cover', 'marker-end': 'url(#font-custody-arrow)' })])
     expect(elements.filter(element => element.name === 'marker').map(element => element.attributes.id)).toEqual(['font-custody-arrow'])
     expect(row.svg.match(/<text\b[^>]*>Wiii<\/text>/g)).toHaveLength(1)
     expect(row.svg).toContain('.mono { font-family:')
   }
-  for (const row of [mono!, hooked!]) {
+  for (const row of packet.rows.slice(1, -1)) {
+    expect(row.svg).toBe(mono!.svg)
     expect(row.proof.status).toBe('unverified')
     expect(row.proof.issues).toContainEqual(expect.objectContaining({ code: 'OUTPUT_SCOPE' }))
   }

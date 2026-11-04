@@ -5,11 +5,13 @@ import { isRetainedPixelText } from '../shared/prepared-text.ts'
 import { escapeXml } from '../multiline-utils.ts'
 import { isWellFormedSvgText } from '../output-security.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
-import { decodedSvgAttributeValue, scanSvgStartTags, scanSvgStartTagsFresh, type SvgStartTagToken } from '../svg-structure.ts'
+import { decodedSvgAttributeValue, scanSvgStartTags, svgClassHasTokenFresh, type SvgStartTagToken } from '../svg-structure.ts'
 import type { ConnectorMark, DocumentMark, MarkerDescriptor, SceneDoc, SceneNode, TextMark } from './ir.ts'
 import { serializeMarkerResource } from './marker-resources.ts'
 import { parseSvgTransform, transformMatrix, type AffineMatrix } from './transforms.ts'
 import { writtenLeafContextOf } from './svg-writer.ts'
+import { decodeXML } from 'entities'
+import { retainedGroupEmission, freshNativeGroupTags } from './group-emission.ts'
 
 type Header = Pick<SceneDoc, 'width' | 'height' | 'colors'>
 const emissionContextFreeze = Object.freeze
@@ -44,6 +46,21 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean; 
   const reserve = (count: number): boolean => {
     if (finished || !Number.isSafeInteger(count) || count < 0 || !pay(count)) { uncertain = true; return false }
     return true
+  }
+  // These tokens are freshly materialized from private primitive slots. No
+  // inherited find/push result can replace a literal used by Native proof.
+  // Prepay each slot visit and the raw decoding spans, separately from the
+  // removed lexer pass. Transform interpretation has its own variable fee.
+  const nativeAttributeValue = (tag: SvgStartTagToken, name: string): string | undefined => {
+    if (!reserve(2)) return undefined
+    for (let i = 0; i < tag.attributes.length; i++) {
+      if (!reserve(2)) return undefined
+      const attribute = tag.attributes[i]!
+      if (attribute.name !== name) continue
+      if (!reserve(attribute.value.length * 2 + 4)) return undefined
+      return decodeXML(attribute.value)
+    }
+    return undefined
   }
   const unsupportedFractionalLeaf = Symbol('unsupported-fractional-leaf')
   // The fractional ring slice reuses the checked canonical document context.
@@ -104,7 +121,7 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean; 
         'fill', 'id', 'role', 'class', 'xml:space'].includes(name) && !name.startsWith('data-') && !name.startsWith('aria-')) return false
       // Only canonical whitespace references can introduce class separators;
       // other escaped entities cannot spell letters or whitespace in "mono".
-      if (name === 'class' && (!reserve(raw.length + 8) || raw.split(/(?:\s|&#(?:9|10|13);)+/).includes('mono'))) return false
+      if (name === 'class' && (!reserve(raw.length * 3 + 12) || svgClassHasTokenFresh(decodeXML(raw), 'mono'))) return false
       attributes[name] = raw
       cursor = attribute.lastIndex
     }
@@ -151,7 +168,7 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean; 
     if (decodedSvgAttributeValue(root, 'width') !== width || decodedSvgAttributeValue(root, 'height') !== height) return false
     const viewBox = decodedSvgAttributeValue(root, 'viewBox')
     if (viewBox !== undefined && viewBox !== `0 0 ${width} ${height}`) return false
-    if (decodedSvgAttributeValue(root, 'class')?.split(/\s+/).includes('mono')) return false
+    if (svgClassHasTokenFresh(decodedSvgAttributeValue(root, 'class') ?? '', 'mono')) return false
     const names = new Set<string>()
     let cursor = root.start + 4
     for (const attribute of root.attributes) {
@@ -372,20 +389,32 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean; 
       const open = Object.getOwnPropertyDescriptor(shell, 'open')
       const pinned = !!open && Object.hasOwn(open, 'value') && typeof open.value === 'string' && !open.writable && !open.configurable && !Object.isExtensible(shell)
       const svg = pinned ? open.value as string : shell.open
-      if (!reserve(svg.length * 8 + 28)) return undefined
-      const tags = scanSvgStartTagsFresh(svg), tag = tags[0]
+      if (!reserve(4)) return undefined
+      const parsed = pinned ? retainedGroupEmission(shell)?.nativeParse : undefined
+      let tags: readonly SvgStartTagToken[] | undefined
+      if (parsed) {
+        if (!reserve(svg.length * 2 + 4)) return undefined
+        if (parsed.open === svg) tags = parsed.materialize(pay)
+      }
+      if (tags) {
+        if (!reserve(28)) return undefined
+      } else {
+        if (!reserve(svg.length * 8 + 28)) return undefined
+        tags = freshNativeGroupTags(svg, pay)
+      }
+      const tag = tags?.[0]
       const result = (invalid: boolean, matrix: AffineMatrix | undefined) => Object.freeze(Object.assign(Object.create(null), { uncertain: invalid, matrix }))
       if (!tag || tag.name !== 'g') return result(true, undefined)
-      const opacity = decodedSvgAttributeValue(tag, 'opacity')
-      const invalidPaint = opacity !== shell.paint?.opacity || shell.paint?.fill !== undefined || decodedSvgAttributeValue(tag, 'style') !== undefined
-      const transform = decodedSvgAttributeValue(tag, 'transform')
-      const matrix = transform === undefined ? undefined : parseSvgTransform(transform)
-      const invalid = invalidPaint || transform !== undefined && !matrix
+      const opacity = nativeAttributeValue(tag, 'opacity')
+      const invalidPaint = opacity !== shell.paint?.opacity || shell.paint?.fill !== undefined || nativeAttributeValue(tag, 'style') !== undefined
+      const transform = nativeAttributeValue(tag, 'transform')
+      const matrix = transform === undefined ? undefined : reserve(transform.length * 8 + 16) ? parseSvgTransform(transform) : undefined
+      const invalid = invalidPaint || transform !== undefined && !matrix || !pinned
       const frozenMatrix = matrix && Object.freeze(matrix)
       // Only an own pinned string can bind retained tokens to later checks.
       // Foreign/mutable records keep their original deferred context path.
       if (!invalid && pinned) {
-        nativeGroups.set(shell, { svg, tags, opacity, transform, matrix: frozenMatrix })
+        nativeGroups.set(shell, { svg, tags: tags!, opacity, transform, matrix: frozenMatrix })
       }
       return result(invalid, frozenMatrix)
     },
@@ -488,14 +517,32 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean; 
               || close.value !== '</g>' || /[^\t\n\r ]/.test(join.value)) fractionalCircleContext = false
           }
         }
-        if (!tag || tag.name !== 'g' || (!retained && decodedSvgAttributeValue(tag, 'style') !== undefined)
-          || (retained ? retained.opacity : decodedSvgAttributeValue(tag, 'opacity')) !== shell.paint?.opacity
+        if (retained) {
+          let invalidGroup = !tag || tag.name !== 'g' || retained.opacity !== shell.paint?.opacity
+            || nativeAttributeValue(tag, 'fill') !== undefined || shell.paint?.fill !== undefined
+          if (!invalidGroup) for (let index = 0; index < tag!.attributes.length; index++) {
+            if (!reserve(2)) break
+            if (tag!.attributes[index]!.name === 'id') { invalidGroup = true; break }
+          }
+          if (!invalidGroup) {
+            const className = nativeAttributeValue(tag!, 'class')
+            if (className !== undefined && svgClassHasTokenFresh(className, 'mono')) invalidGroup = true
+          }
+          if (invalidGroup) uncertain = true
+        } else if (!tag || tag.name !== 'g' || decodedSvgAttributeValue(tag, 'style') !== undefined
+          || decodedSvgAttributeValue(tag, 'opacity') !== shell.paint?.opacity
           || decodedSvgAttributeValue(tag, 'fill') !== undefined || shell.paint?.fill !== undefined
           || tag.attributes.some(attribute => attribute.name === 'id')
           || decodedSvgAttributeValue(tag, 'class')?.split(/\s+/).includes('mono')) uncertain = true
         if (!tag) continue
         const names = new Set<string>()
-        for (const attribute of tag.attributes) {
+        if (retained) {
+          for (let index = 0; index < tag.attributes.length; index++) {
+            const attribute = tag.attributes[index]!
+            if (names.has(attribute.name) || !/^(?:class|data-[a-z0-9-]+|role|aria-[a-z]+|tabindex|pointer-events|transform|opacity)$/.test(attribute.name)) uncertain = true
+            names.add(attribute.name)
+          }
+        } else for (const attribute of tag.attributes) {
           if (names.has(attribute.name) || !/^(?:class|data-[a-z0-9-]+|role|aria-[a-z]+|tabindex|pointer-events|transform|opacity)$/.test(attribute.name)) uncertain = true
           names.add(attribute.name)
         }

@@ -111,7 +111,7 @@ export function drawNative(
   const xml = emission.xml
   if (family.startsWith('family:')) emission.uncertain()
   let emittedHeader = emission.snapshot(header)
-  const validator = createNativeSceneValidator(header)
+  const validator = createNativeSceneValidator(header, { groupValidation: emission.groupValidation })
   const ownedFragments = new WeakSet<object>()
   const ownFragment = <T extends Fragment>(fragment: T): T => { if (emission.retainFragment()) ownedFragments.add(fragment); return Object.freeze(fragment) }
   const leaf = (node: LeafNode): Fragment => {
@@ -163,7 +163,7 @@ export function drawNative(
       }
       if (nodeCount > SCENE_VALIDATION_LIMITS.maxNodes) throw new RangeError('Native drawing contains too many emitted nodes')
       if (characters > SCENE_VALIDATION_LIMITS.maxSerializationBytesPerNode) throw new RangeError('Native group has an oversized SVG serialization')
-      const shell = marks.group({ ...shellFields, children: [] })
+      const shell = marks.group({ ...shellFields, children: [] }, emission.groupRegistration)
       validator.node(shell)
       validator.depth(depth)
       const capturedShell = emission.snapshot(shell)
@@ -174,14 +174,19 @@ export function drawNative(
         const child = children[index]!
         if (child.kind === 'leaf' && child.node.kind === 'shape' && !child.node.identity) validator.enclosure(child.node.id, capturedShell?.identity ?? shell.identity ?? own)
       }
+      // The captured shell supplies both lexical evidence and actual bytes.
+      // Later reflection hooks cannot rewrite the original private mark after
+      // its immutable opening has already been checked. Foreign composition
+      // keeps its legacy observations and remains outside owned proof.
+      const writtenShell = allOwned && capturedShell ? capturedShell : shell
       let xmlWrite: SvgXmlWrite
       if (allOwned) {
         xmlWrite = xml.join(privateValues(childParts.length + 2, index => {
-          if (index === 0) return xml.raw(shell.open)
-          if (index === childParts.length + 1) return xml.raw(shell.close)
+          if (index === 0) return xml.raw(writtenShell.open)
+          if (index === childParts.length + 1) return xml.raw(writtenShell.close)
           const child = childParts[index - 1]!
           return xml.indent(child.node.xmlWrite, child.indent)
-        }), shell.join)
+        }), writtenShell.join)
       } else {
         // Keep the legacy read/coercion order for foreign fragment values.
         const fragments = [shell.open]
@@ -192,8 +197,8 @@ export function drawNative(
       const svg = xmlWrite.svg
       validator.serialization(svg)
       return ownFragment({ kind: 'group', svg, xmlWrite, children: Object.freeze(children), matrix, own, owner: capturedShell?.owner,
-        conditional: !capturedShell || shell.visibility === 'conditional', opacity: sceneGroupOpacity(capturedShell?.paint?.opacity),
-        nodeCount, depth, prepared: !/<\s*text/i.test(shell.open + shell.close) && prepared })
+        conditional: !capturedShell || writtenShell.visibility === 'conditional', opacity: sceneGroupOpacity(capturedShell?.paint?.opacity),
+        nodeCount, depth, prepared: !/<\s*text/i.test(writtenShell.open + writtenShell.close) && prepared })
     },
     pathArtwork: fields => marks.drawPathArtwork(factory, fields),
   }

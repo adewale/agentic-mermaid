@@ -33,6 +33,18 @@ function isWhitespace(char: string | undefined, fresh = false): boolean {
     || char === '\u202f' || char === '\u205f' || char === '\u3000' || char === '\ufeff'
 }
 
+/** Private lexical membership must not borrow an inherited split/includes
+ * result as evidence about the actual class string. */
+export function svgClassHasTokenFresh(value: string, token: string): boolean {
+  let start = 0
+  for (let end = 0; end <= value.length; end++) {
+    if (end !== value.length && !isWhitespace(value[end], true)) continue
+    if (end - start === token.length && xmlTokenAt(value, token, start)) return true
+    start = end + 1
+  }
+  return false
+}
+
 function sourceIndexOf(source: string, token: string, start: number | undefined, fresh: boolean): number {
   return fresh ? xmlIndexOf(source, token, start ?? 0) : start === undefined ? source.indexOf(token) : source.indexOf(token, start)
 }
@@ -95,9 +107,18 @@ export function visitSvgFirstTagAttributes(source: string, expectedName: string,
   return visitor.name
 }
 
+/** Native validation can retain primitive operands without exposing the
+ * scanner's arrays to inherited push hooks. Generic visitors stay observable. */
+export function visitSvgStartTagsFresh(source: string, visitor: {
+  tag(name: string, start: number, end: number, selfClosing: boolean): void
+  attribute(name: string, value: string, quote: '"' | "'", nameStart: number, valueStart: number, valueEnd: number): void
+}): void {
+  scanStartTags(source, undefined, undefined, undefined, true, visitor)
+}
+
 // One lexical owner: inventory, CSS values/contexts, or style bodies only.
-function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: SvgRange[], first?: { attribute(name: string, value: string): void; expectedName: string; name: string | undefined }, fresh = false): readonly SvgStartTagToken[] | undefined {
-  const tags: SvgStartTagToken[] | undefined = cssRanges || styleContexts || first ? undefined : []
+function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: SvgRange[], first?: { attribute(name: string, value: string): void; expectedName: string; name: string | undefined }, fresh = false, primitive?: Parameters<typeof visitSvgStartTagsFresh>[1]): readonly SvgStartTagToken[] | undefined {
+  const tags: SvgStartTagToken[] | undefined = cssRanges || styleContexts || first || primitive ? undefined : []
   for (let start = sourceIndexOf(source, '<', undefined, fresh); start >= 0; start = sourceIndexOf(source, '<', start + 1, fresh)) {
     if (sourceTokenAt(source, '<!--', start, fresh)) {
       const end = sourceIndexOf(source, '-->', start + 4, fresh)
@@ -124,8 +145,9 @@ function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: S
     const name = sourceSlice(source, start + 1, nameEnd, fresh)
     if (first) first.name = name
     const selfClosing = source[beforeClose] === '/'
+    primitive?.tag(name, start, end, selfClosing)
     const attributes: SvgAttributeToken[] | undefined = tags ? [] : undefined
-    if (tags || cssRanges || first) {
+    if (tags || cssRanges || first || primitive) {
       let cursor = nameEnd
       while (cursor < end - 1) {
         while (isWhitespace(source[cursor], fresh)) cursor++
@@ -147,6 +169,7 @@ function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: S
         cursor = valueEnd
         if (attributes) attributes.push(Object.freeze({ name, value: sourceSlice(source, valueStart, cursor, fresh), quote, nameStart, valueStart, valueEnd: cursor }))
         else if (first && first.name === first.expectedName) first.attribute(name, sourceSlice(source, valueStart, cursor, fresh))
+        else if (primitive) primitive.attribute(name, sourceSlice(source, valueStart, cursor, fresh), quote, nameStart, valueStart, cursor)
         else if (cssRanges && CSS_VALUE_ATTRIBUTES.has(name)) {
           const range = { start: valueStart, end: cursor }
           cssRanges.push(range)

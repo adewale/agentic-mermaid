@@ -14,6 +14,7 @@ import { rectanglePaintFields, writtenPolylineProjectionOf, prepareWrittenCompou
 import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
 import { createEmissionContext, type EmissionColorResolver } from './emission-context.ts'
 import { verifySvgDocumentEnvelope } from '../output-security.ts'
+import { captureNativeGroupEmission, transferNativeGroupEmission } from './group-emission.ts'
 
 export { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
 
@@ -272,7 +273,11 @@ export function createNativePaintEmission(maxOperations: number) {
     return inherited
   }
   const snapshot = <T>(value: T): T | undefined => {
-    try { return copy(value) as T } catch { return undefined }
+    try {
+      const retained = copy(value) as T
+      if (value && typeof value === 'object' && retained && typeof retained === 'object') transferNativeGroupEmission(value, retained, pay)
+      return retained
+    } catch { return undefined }
   }
   // Overlay one field of an already captured record without reading getters
   // or losing optional/nonenumerable metadata. Pay before each shallow copy.
@@ -497,6 +502,8 @@ export function createNativePaintEmission(maxOperations: number) {
       }
       return captured
     },
+    groupRegistration: pay,
+    groupValidation(shell: Extract<SceneNode, { kind: 'group' }>) { captureNativeGroupEmission(shell, pay) },
     group(shell: Extract<SceneNode, { kind: 'group' }>) {
       closedMarkerContext = false
       const actual = context.nativeGroup(shell)
