@@ -59,7 +59,11 @@ function drawPaintControl(producer: DrawingProducer, context: Parameters<typeof 
   return { svg, header: admitted, paint: inspectScenePaintGeometry(admitted, receipt), proof: certifyScenePaint(admitted, undefined, { sceneWriteReceipt: receipt }), admitted, raw, receipt }
 }
 
-test('many ordinary prepared labels retain bounded Native paint proof without markers', () => {
+test.each([
+  { markerCount: 0, definitions: false },
+  { markerCount: 0, definitions: true },
+  { markerCount: 32, definitions: true },
+])('sparse decorative markers preserve completed direct and emitted text proof ($markerCount markers, definitions=$definitions)', ({ markerCount, definitions }) => {
   const width = 200, height = 31000, colors = { bg: '#fff', fg: '#111' }
   const block = preparePixelText('x', { fontSize: 12, fontWeight: 400 })
   const marker = tipAnchoredArrow('decorative-arrow', { width: 8, height: 5 }, 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.75' }, 'userSpaceOnUse')
@@ -67,18 +71,25 @@ test('many ordinary prepared labels retain bounded Native paint proof without ma
   const context = { positioned: { width, height }, colors, resolved: { renderOptions: {} } }
   const producer: DrawingProducer = factory => ({ family: 'flowchart', width, height, colors, transparent: false, parts: [
     factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, open),
-    factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    ...(definitions ? [factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(marker)}</defs>`)] : []),
+    ...Array.from({ length: markerCount }, (_, index) => factory.connector({ id: `chrome:${index}`, role: 'chrome', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40 + index * 20, x2: 60, y2: 40 + index * 20 }, paint: { stroke: '#111', strokeWidth: '1' }, markers: { end: marker } })),
     ...Array.from({ length: 1500 }, (_, index) => factory.text({ id: `text:${index}`, role: 'label', text: 'x', block, x: 20, y: 1000 + index * 20, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })),
     factory.documentClose(),
   ] })
   const drawing = drawNative(producer, context, 'flowchart')
   expect(drawing.paint.primitives.filter(primitive => primitive.kind === 'text').map(primitive => primitive.id)).toEqual(Array.from({ length: 1500 }, (_, index) => `text:${index}`))
   const labels: Array<{ attributes: Record<string, string>; text: string }> = []
+  const carriers: Array<Record<string, string>> = [], resources: Array<Record<string, string>> = [], polygons: Array<Record<string, string>> = []
   let current: typeof labels[number] | undefined
   const parser = new SaxesParser({ xmlns: true })
   parser.on('opentag', tag => {
+    const attributes = Object.fromEntries(Object.entries(tag.attributes).map(([name, value]) => [name, value.value]))
+    if (tag.local === 'svg') expect(attributes).toMatchObject({ width: '200', height: '31000' })
+    if (tag.local === 'line') carriers.push(attributes)
+    if (tag.local === 'marker') resources.push(attributes)
+    if (tag.local === 'polygon') polygons.push(attributes)
     if (tag.local === 'text') {
-      current = { attributes: Object.fromEntries(Object.entries(tag.attributes).map(([name, value]) => [name, value.value])), text: '' }
+      current = { attributes, text: '' }
       labels.push(current)
     }
   })
@@ -95,22 +106,55 @@ test('many ordinary prepared labels retain bounded Native paint proof without ma
     } })
   }
   expect(drawing.svg.split(open)).toHaveLength(2)
+  expect(drawing.svg.trimEnd()).toEndWith('</svg>')
+  expect(carriers).toHaveLength(markerCount)
+  for (const [index, carrier] of carriers.entries()) expect(carrier).toMatchObject({
+    x1: '20', y1: String(40 + index * 20), x2: '60', y2: String(40 + index * 20),
+    stroke: '#111', 'stroke-width': '1', 'marker-end': 'url(#decorative-arrow)',
+    'data-relationship': 'chrome', 'data-direction': 'forward',
+  })
+  expect(resources).toHaveLength(definitions ? 1 : 0)
+  expect(polygons).toHaveLength(definitions ? 1 : 0)
+  if (definitions) {
+    expect(resources[0]).toMatchObject({ id: 'decorative-arrow', markerWidth: '8', markerHeight: '5', refX: '8', refY: '2.5', orient: 'auto', markerUnits: 'userSpaceOnUse' })
+    expect(polygons[0]).toMatchObject({ fill: '#111', stroke: '#111', 'stroke-width': '0.75' })
+    expect(polygons[0]!.points!.trim().split(/[\s,]+/).map(Number)).toEqual([0, 0, 8, 2.5, 0, 5])
+  }
   const tags = drawing.svg.match(/<text\b[^>]*>[^<]*<\/text>/g)!
   expect(tags).toHaveLength(1500)
   const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
+  const full = new Resvg(drawing.svg, { font, background: '#fff' }).render(), fullPixels = full.pixels
+  expect([full.width, full.height]).toEqual([width, height])
   for (const index of [0, 1499]) {
-    // Crop the actual document to a 20px window; only the raster viewport
-    // changes. Removing that actual first/last tag must remove visible ink.
-    const cropped = drawing.svg.replace(open, `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="20" viewBox="0 ${990 + index * 20} 200 20">`)
-    const actual = new Resvg(cropped, { font, background: '#fff' }).render().pixels
-    const absent = new Resvg(cropped.replace(tags[index]!, ''), { font, background: '#fff' }).render().pixels
+    // Keep the original root and geometry. A native raster crop of the
+    // single-tag mask must differ from this same region of the full image.
+    const top = 990 + index * 20
+    const actual = fullPixels.subarray(top * width * 4, (top + 20) * width * 4)
+    const absent = new Resvg(drawing.svg.replace(tags[index]!, ''), { font, background: '#fff', crop: { left: 0, top, right: width, bottom: top + 20 } }).render().pixels
     expect(actual.length).toBe(200 * 20 * 4)
+    expect(absent.length).toBe(actual.length)
     expect(Buffer.compare(actual, absent)).not.toBe(0)
   }
+  const writtenCarriers = scanSvgStartTags(drawing.svg).filter(tag => tag.name === 'line')
+  expect(writtenCarriers).toHaveLength(markerCount)
+  for (const [index, tag] of writtenCarriers.entries()) {
+    const actualTag = drawing.svg.slice(tag.start, tag.end), reference = ' marker-end="url(#decorative-arrow)"'
+    expect(actualTag.split(reference)).toHaveLength(2)
+    const absentSvg = drawing.svg.slice(0, tag.start) + actualTag.replace(reference, '') + drawing.svg.slice(tag.end)
+    const top = 30 + index * 20
+    const actual = fullPixels.subarray(top * width * 4, (top + 20) * width * 4)
+    const absent = new Resvg(absentSvg, { font, background: '#fff', crop: { left: 0, top, right: width, bottom: top + 20 } }).render().pixels
+    expect(actual.length).toBe(200 * 20 * 4)
+    expect(absent.length).toBe(actual.length)
+    let darker = 0
+    for (let pixel = 0; pixel < actual.length; pixel += 4) if (actual[pixel]! + actual[pixel + 1]! + actual[pixel + 2]! < absent[pixel]! + absent[pixel + 1]! + absent[pixel + 2]! - 4) darker++
+    expect(darker, `Authored chrome:${index} at y=${40 + index * 20} lost its own marker ink`).toBeGreaterThan(0)
+  }
+  expect(certifyScenePaint(producer(marks, context))).toMatchObject({ status: 'passed', issues: [] })
   const proof = certifyNativePaint(drawing.header, drawing.paint)
   expect(proof.checks.maxOperations).toBe(400000)
   expect(proof.checks.operations).toBeLessThanOrEqual(400000)
-  expect(proof.status).toBe('passed')
+  expect(proof).toMatchObject({ status: 'passed', issues: [] })
 })
 
 test('an admitted cyclic labelled multigraph retains bounded public Native paint proof', async () => {
@@ -945,22 +989,6 @@ function distantMarkerTextPairs<T>(factory: DrawingFactory<T>, count: number, ma
     ]
   }).flat()
 }
-
-test.each([0, 32])('sparse decorative markers preserve completed direct and emitted text proof (%s markers)', markerCount => {
-  const width = 200, height = 31000, colors = { bg: '#fff', fg: '#111' }
-  const block = preparePixelText('x', { fontSize: 12, fontWeight: 400 })
-  const marker = tipAnchoredArrow('decorative-arrow', { width: 8, height: 5 }, 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.75' }, 'userSpaceOnUse')
-  const context = { positioned: { width, height }, colors, resolved: { renderOptions: {} } }
-  const producer: DrawingProducer = factory => ({ family: 'flowchart', width, height, colors, transparent: false, parts: [
-    factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">`),
-    ...(markerCount ? [factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(marker)}</defs>`)] : []),
-    ...Array.from({ length: markerCount }, (_, index) => factory.connector({ id: `chrome:${index}`, role: 'chrome', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40 + index * 20, x2: 60, y2: 40 + index * 20 }, paint: { stroke: '#111', strokeWidth: '1' }, markers: { end: marker } })),
-    ...Array.from({ length: 1500 }, (_, index) => factory.text({ id: `text:${index}`, role: 'label', text: 'x', block, x: 20, y: 1000 + index * 20, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })),
-    factory.documentClose(),
-  ] })
-  const drawing = drawNative(producer, context, 'flowchart')
-  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) expect(proof).toMatchObject({ status: 'passed', issues: [] })
-})
 
 test.each(['LR', 'RL', 'TB', 'BT'] as const)('rounded endpoint contacts retain strict paint proof in %s', direction => {
   const source = `flowchart ${direction}\nN0[n0]\nN1[n1]\nN2([n2])\nN3((n3))\nN2 --> N1\nN1 <==> N2\nN0 --> N2\nN2 --> N3\nN0 --> N2`
