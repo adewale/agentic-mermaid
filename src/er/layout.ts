@@ -6,7 +6,7 @@ import { resolveLabelContent, type DisplayTextInput } from '../shared/display-te
 import { assertErDiagramWork, DIAGRAM_WORK_LIMITS } from '../shared/diagram-limits.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
-import { visitTypedPathSegments } from '../scene/bounds.ts'
+import { paintedStrokeExtent, visitTypedPathSegments } from '../scene/bounds.ts'
 /**
  * ER measured layout adapters.
  *
@@ -444,6 +444,109 @@ interface ErPlacement {
   preserveTerminalNormals?: true
 }
 
+const defineErIsland = Object.defineProperty
+
+function erEntityStrokeHalf(entity: PositionedErEntity, style: ResolvedRenderStyle): number {
+  const authored = Number.parseFloat(entity.inlineStyle?.['stroke-width'] ?? '')
+  return (Number.isFinite(authored) && authored > 0 ? authored : style.nodeLineWidth) / 2
+}
+
+/** Only fresh flat Native cards move; connected paint keeps its exact seats. */
+function packErIslands(
+  entities: PositionedErEntity[], relationships: PositionedErRelationship[], labelBounds: readonly ErInkBox[],
+  result: ErPlacement, spacing: number, style: ResolvedRenderStyle,
+  styleFace: Readonly<InternalStyleFace> | undefined, work: ErGeometryWork,
+): { width: number; height: number } | undefined {
+  if (!Number.isFinite(spacing) || spacing < 0) return undefined
+  erCharge(work, 16)
+  const incident = new Set<string>()
+  const connected = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }
+  const original = { ...connected }
+  const include = (target: ErInkBox, box: ErInkBox): boolean => {
+    erCharge(work, 12)
+    if (!Number.isFinite(box.x0) || !Number.isFinite(box.y0) || !Number.isFinite(box.x1) || !Number.isFinite(box.y1)
+      || box.x1 < box.x0 || box.y1 < box.y0) return false
+    target.x0 = Math.min(target.x0, box.x0); target.y0 = Math.min(target.y0, box.y0)
+    target.x1 = Math.max(target.x1, box.x1); target.y1 = Math.max(target.y1, box.y1)
+    return true
+  }
+  for (let i = 0; i < relationships.length; i++) {
+    erCharge(work, 12)
+    const rel = relationships[i]!, points = rel.points
+    incident.add(rel.entity1); incident.add(rel.entity2)
+    if (points.length < 2) return undefined
+    const role = erRelationshipStyle(rel, styleFace)
+    const lineWidth = role?.lineWidth ?? style.lineWidth
+    erCharge(work, 80)
+    const extent = paintedStrokeExtent({ stroke: '#000', strokeWidth: String(lineWidth) }, points.length > 2)
+    if (extent === undefined) return undefined
+    for (let j = 0; j < points.length; j++) {
+      erCharge(work, 8)
+      const p = points[j]!
+      if (!include(connected, { x0: p.x - extent, y0: p.y - extent, x1: p.x + extent, y1: p.y + extent })) return undefined
+    }
+    // The shared cardinality producer includes circles, ticks and crow's feet.
+    for (let end = 0; end < 2; end++) {
+      erCharge(work, 160)
+      const pieces = erCardinalityInk(end === 0 ? points[0]! : points[points.length - 1]!,
+        end === 0 ? points[1]! : points[points.length - 2]!, end === 0 ? rel.cardinality1 : rel.cardinality2, style.lineWidth)
+      if (!pieces?.length) return undefined
+      for (let j = 0; j < pieces.length; j++) if (!include(connected, pieces[j]!)) return undefined
+    }
+  }
+  for (let i = 0; i < labelBounds.length; i++) {
+    erCharge(work, 2)
+    if (!include(connected, labelBounds[i]!)) return undefined
+  }
+  if (relationships.length && !include(original, connected)) return undefined
+  erCharge(work, 12)
+  const islands: Array<{ entity: PositionedErEntity; half: number; width: number; height: number; x: number; y: number }> = []
+  const slot = { __proto__: null, value: undefined as unknown, writable: true, configurable: true, enumerable: true }
+  let area = 0, widest = 0
+  for (let i = 0; i < entities.length; i++) {
+    erCharge(work, 32)
+    const entity = entities[i]!, half = erEntityStrokeHalf(entity, style)
+    if (!Number.isFinite(half) || half < 0 || !(entity.width > 0) || !(entity.height > 0)) return undefined
+    const box = { x0: entity.x - half, y0: entity.y - half, x1: entity.x + entity.width + half, y1: entity.y + entity.height + half }
+    if (!include(original, box)) return undefined
+    if (incident.has(entity.id)) {
+      if (!include(connected, box)) return undefined
+    } else {
+      erCharge(work, 18)
+      const width = entity.width + 2 * half, height = entity.height + 2 * half
+      slot.value = { entity, half, width, height, x: 0, y: 0 }
+      defineErIsland(islands, islands.length, slot)
+      area += (width + spacing) * (height + spacing)
+      widest = Math.max(widest, width)
+    }
+  }
+  if (islands.length < 2 || !Number.isFinite(area)) return undefined
+  erCharge(work, 16)
+  const hasConnected = connected.x1 !== -Infinity
+  const target = Math.max(Math.sqrt(area), widest, hasConnected ? connected.x1 - ER.padding : 0)
+  let x = ER.padding, y = hasConnected ? connected.y1 + spacing : ER.padding, rowHeight = 0
+  let right = hasConnected ? connected.x1 : ER.padding, bottom = hasConnected ? connected.y1 : ER.padding
+  for (let i = 0; i < islands.length; i++) {
+    erCharge(work, 24)
+    const island = islands[i]!
+    if (x > ER.padding && x + island.width > ER.padding + target) { x = ER.padding; y += rowHeight + spacing; rowHeight = 0 }
+    island.x = x + island.half; island.y = y + island.half
+    right = Math.max(right, x + island.width); bottom = Math.max(bottom, y + island.height)
+    rowHeight = Math.max(rowHeight, island.height); x += island.width + spacing
+  }
+  erCharge(work, 16)
+  const width = right + ER.padding, height = bottom + ER.padding
+  const oldWidth = Math.max(result.width ?? 600, original.x1 + ER.padding)
+  const oldHeight = Math.max(result.height ?? 400, original.y1 + ER.padding)
+  if (!Number.isFinite(width * height) || !Number.isFinite(oldWidth * oldHeight) || !(width * height < oldWidth * oldHeight)) return undefined
+  for (let i = 0; i < islands.length; i++) {
+    erCharge(work, 6)
+    const island = islands[i]!
+    island.entity.x = island.x; island.entity.y = island.y
+  }
+  return { width, height }
+}
+
 function measureErEntities(diagram: ErDiagram, style: ResolvedRenderStyle): EntitySizeMap {
   const entitySizes: EntitySizeMap = new Map()
 
@@ -545,6 +648,7 @@ function extractErLayout(
   style: ResolvedRenderStyle,
   styleFace?: Readonly<InternalStyleFace>,
   work: ErGeometryWork = { operations: 0 },
+  isolateSpacing?: number,
 ): PositionedErDiagram {
   const entityLookup = new Map<string, ErEntity>()
   for (const entity of diagram.entities) entityLookup.set(entity.id, entity)
@@ -625,6 +729,9 @@ function extractErLayout(
   }
 
   repairErFrameRoutes(positionedEntities, positionedGroups, relationships, relationshipBlocks, style, styleFace, work)
+  const labelBounds = erPreferredLabelBounds(relationships, relationshipBlocks)
+  const packed = isolateSpacing !== undefined && diagram.groups.length === 0 && positionedGroups.length === 0
+    ? packErIslands(positionedEntities, relationships, labelBounds, result, isolateSpacing, style, styleFace, work) : undefined
 
   // Nested group padding can extend left/top of ELK's entity-only canvas, and
   // group endpoints are routed after ELK. Translate the complete geometry as
@@ -640,7 +747,6 @@ function extractErLayout(
     ...positionedGroups.flatMap(group => [group.y, group.y + group.height]),
     ...relationships.flatMap(relationship => relationship.points.map(point => point.y)),
   ]
-  const labelBounds = erPreferredLabelBounds(relationships, relationshipBlocks)
   const dx = Math.max(0, xs.length ? ER.padding - Math.min(...xs) : 0, ...labelBounds.map(box => -box.x0))
   const dy = Math.max(0, ys.length ? ER.padding - Math.min(...ys) : 0, ...labelBounds.map(box => -box.y0))
   if (dx !== 0 || dy !== 0) {
@@ -652,14 +758,14 @@ function extractErLayout(
     }
   }
   const width = Math.max(
-    (result.width ?? 600) + dx,
+    (packed?.width ?? result.width ?? 600) + dx,
     ...positionedEntities.map(entity => entity.x + entity.width + ER.padding),
     ...positionedGroups.map(group => group.x + group.width + ER.padding),
     ...relationships.flatMap(relationship => relationship.points.map(point => point.x + ER.padding)),
     ...labelBounds.map(box => box.x1 + dx),
   )
   const height = Math.max(
-    (result.height ?? 400) + dy,
+    (packed?.height ?? result.height ?? 400) + dy,
     ...positionedEntities.map(entity => entity.y + entity.height + ER.padding),
     ...positionedGroups.map(group => group.y + group.height + ER.padding),
     ...relationships.flatMap(relationship => relationship.points.map(point => point.y + ER.padding)),
@@ -1126,6 +1232,7 @@ export function layoutErDiagram(
     return runMeasuredGraphBackend(options, () => nativeCandidate(frames), () => { erCharge(work, 0); return frames() }, true)
   }
   const entitySizes = measureErEntities(diagram, style)
+  let nativeIsolateSpacing: number | undefined
   const nativePlacement = (): ErPlacement => {
     const indices = new Map(diagram.entities.map((entity, index) => [entity.id, index]))
     const groupIds = new Set(diagram.groups.map(group => group.id))
@@ -1147,8 +1254,10 @@ export function layoutErDiagram(
         if (!groupIds.has(id)) spans.set(id, (spans.get(id) ?? 0) + bound.y1 - bound.y0 + style.lineWidth + .25)
       }
     }
+    let isolateCount = 0, nodeSpacing = 0
     const nativeSizes = new Map(diagram.entities.map(entity => {
-      const size = entitySizes.get(entity.id)!, span = (spans.get(entity.id) ?? 0) + 2 * Math.max(8, style.cornerRadius ?? 0)
+      const size = entitySizes.get(entity.id)!, reservedSpan = spans.get(entity.id), span = (reservedSpan ?? 0) + 2 * Math.max(8, style.cornerRadius ?? 0)
+      if (groupIds.size === 0 && reservedSpan === undefined) { erCharge(work); isolateCount++ }
       return [entity.id, { ...size, width: Math.max(size.width, span), height: Math.max(size.height, span) }] as const
     }))
     const edges = diagram.relationships.flatMap((rel, relationshipIndex) => {
@@ -1162,9 +1271,10 @@ export function layoutErDiagram(
     })
     const placed = measureRenderStage('agentic', () => layoutAgenticGraph({
       nodes: diagram.entities.map(entity => ({ id: entity.id, ...nativeSizes.get(entity.id)! })), edges,
-      direction: diagram.direction ?? 'LR', padding: ER.padding, nodeSpacing: options.nodeSpacing ?? ER.nodeSpacing,
+      direction: diagram.direction ?? 'LR', padding: ER.padding, nodeSpacing: nodeSpacing = options.nodeSpacing ?? ER.nodeSpacing,
       layerSpacing, ...(minimumTerminalLead > 0 ? { minimumTerminalLead } : {}), edgeSpacing: Math.max(6, style.lineWidth + 4),
     }))
+    nativeIsolateSpacing = groupIds.size === 0 && isolateCount >= 2 ? nodeSpacing : undefined
     return { width: placed.width, height: placed.height, preserveTerminalNormals: true, labelPlacement: 'shaft-aware',
       entities: placed.nodes.map((position, index) => ({ id: diagram.entities[index]!.id, ...position, ...nativeSizes.get(diagram.entities[index]!.id)! })),
       routes: new Map(placed.edges.map((route, index) => [edges[index]!.relationshipIndex, route.points])),
@@ -1182,7 +1292,8 @@ export function layoutErDiagram(
     })) }
   }
   const finish = (placement: ErPlacement): PositionedErDiagram => {
-    const positioned = withErTitle(prepareErText(extractErLayout(placement, diagram, entitySizes, style, styleFace, work), style, styleFace), diagram.title, style)
+    const positioned = withErTitle(prepareErText(extractErLayout(placement, diagram, entitySizes, style, styleFace, work,
+      placement.preserveTerminalNormals ? nativeIsolateSpacing : undefined), style, styleFace), diagram.title, style)
     return finishErGeometry(positioned, style, styleFace, work)
   }
   return runMeasuredGraphBackend(options, () => nativeCandidate(() => finish(nativePlacement())), () => finish(elkPlacement()), true)
@@ -1221,8 +1332,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
   canonicalErContacts(positioned.entities, positioned.groups, relationships, work)
   const obstacles: Array<{ id: string; box: ErInkBox; border?: boolean; group?: boolean }> = [
     ...positioned.entities.map(entity => {
-      const authored = Number.parseFloat(entity.inlineStyle?.['stroke-width'] ?? '')
-      const half = (Number.isFinite(authored) && authored > 0 ? authored : style.nodeLineWidth) / 2
+      const half = erEntityStrokeHalf(entity, style)
       return { id: entity.id, box: { x0: entity.x - half, y0: entity.y - half, x1: entity.x + entity.width + half, y1: entity.y + entity.height + half } }
     }),
     ...positioned.groups.flatMap(group => {

@@ -23,19 +23,81 @@ const compoundFixture = readFileSync(new URL('../../eval/layout-compare/fixtures
 const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/er-backends.mmd', import.meta.url), 'utf8')
 
 describe('ER layout backends', () => {
-  test.each([1, 4])('keeps %s relationships among thousands of isolated entities within its geometry allowance', count => {
-    const source = 'erDiagram\n' + Array.from({ length: count }, (_, i) => `N${i * 2} ||--|| N${i * 2 + 1} : owns`).join('\n')
-      + '\n' + Array.from({ length: 4096 }, (_, i) => `N${i}`).join('\n')
-    const options = { graphLayout: { backend: 'elk' as const, fallback: 'none' as const } }
+  test.each([
+    ...[1, 4].map(count => ({ count, size: 4096, backend: 'elk' as const, direction: undefined })),
+    ...(['TB', 'BT', 'LR', 'RL'] as const).map(direction => ({ count: 1, size: 256, backend: 'agentic' as const, direction })),
+  ])('keeps $count relationships among $size isolated entities within its geometry allowance with $backend in $direction', ({ count, size, backend, direction }) => {
+    const source = 'erDiagram\n' + (direction ? `direction ${direction}\n` : '') + Array.from({ length: count }, (_, i) => `N${i * 2} ||--|| N${i * 2 + 1} : owns`).join('\n')
+      + '\n' + Array.from({ length: size }, (_, i) => `N${i}`).join('\n')
+    const options = { graphLayout: { backend, fallback: 'none' as const } }
     let rendered!: ReturnType<typeof renderMermaidSVGWithReceipt>
     expect(() => { rendered = renderMermaidSVGWithReceipt(source, options) }).not.toThrow()
     const ids = [...rendered.svg.matchAll(/<g class="entity" data-id="([^"]+)"/g)].map(match => match[1]!)
-    expect(new Set(ids).size).toBe(4096)
-    expect(ids.toSorted()).toEqual(Array.from({ length: 4096 }, (_, i) => `N${i}`).toSorted())
+    expect(new Set(ids).size).toBe(size)
+    expect(ids.toSorted()).toEqual(Array.from({ length: size }, (_, i) => `N${i}`).toSorted())
     expect(rendered.svg.match(/class="er-relationship"/g)).toHaveLength(count)
     for (let i = 0; i < count; i++) expect(rendered.svg).toContain(`data-from="N${i * 2}" data-to="N${i * 2 + 1}"`)
     expect(rendered.svg).toContain('data-label="owns"')
-    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk', fallback: 'none', attempts: [{ backend: 'elk', outcome: 'selected' }] })])
+    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: backend, fallback: 'none', attempts: [{ backend, outcome: 'selected' }] })])
+    if (backend === 'agentic') {
+      const dom = new JSDOM(rendered.svg, { contentType: 'image/svg+xml' })
+      try {
+        const document = dom.window.document as Document, expectedIds = Array.from({ length: 256 }, (_, index) => `N${index}`)
+        const entities = [...document.querySelectorAll('g.entity')]
+        expect(entities.map(entity => entity.getAttribute('data-id'))).toEqual(expectedIds)
+        expect(entities.map(entity => entity.getAttribute('data-label'))).toEqual(expectedIds)
+        expect(entities.map(entity => entity.querySelector('text')?.textContent)).toEqual(expectedIds)
+        const boxes = entities.map((entity, index) => {
+          const rect = entity.querySelector(`rect[data-id="entity-rect:N${index}"]`)!
+          expect(rect).not.toBeNull()
+          const box = { x: Number(rect.getAttribute('x')), y: Number(rect.getAttribute('y')), width: Number(rect.getAttribute('width')), height: Number(rect.getAttribute('height')) }
+          expect(Object.values(box).every(Number.isFinite) && box.width > 0 && box.height > 0).toBe(true)
+          return box
+        })
+        const carriers = [...document.querySelectorAll('.er-relationship')]
+        expect(carriers).toHaveLength(1)
+        const carrier = carriers[0]!
+        for (const [name, value] of Object.entries({ 'data-id': 'rel:N0-N1#0', 'data-from': 'N0', 'data-to': 'N1', 'data-cardinality1': 'one', 'data-cardinality2': 'one', 'data-identifying': 'true', 'data-label': 'owns' })) expect(carrier.getAttribute(name)).toBe(value)
+        expect([...document.querySelectorAll('text')].filter(text => text.textContent === 'owns')).toHaveLength(1)
+        const points = carrier.getAttribute('points')!.trim().split(/\s+/).map(pair => pair.split(',').map(Number))
+        expect(points.length).toBeGreaterThanOrEqual(2)
+        const glyphs = [...document.querySelectorAll('g[data-role="cardinality"]')]
+        expect(glyphs).toHaveLength(2)
+        for (const [index, glyph] of glyphs.entries()) {
+          for (const [name, value] of Object.entries({ 'data-id': `card:N0-N1#0:${index + 1}`, 'data-owner-id': 'rel:N0-N1#0', 'data-owner-role': 'relationship', 'data-end': index ? 'end' : 'start', 'data-endpoint': `N${index}` })) expect(glyph.getAttribute(name)).toBe(value)
+          const at = index ? points.at(-1)! : points[0]!, next = index ? points.at(-2)! : points[1]!
+          const box = boxes[index]!, dx = next[0]! - at[0]!, dy = next[1]! - at[1]!, length = Math.hypot(dx, dy)
+          expect(at[0]! >= box.x - 1e-8 && at[0]! <= box.x + box.width + 1e-8 && at[1]! >= box.y - 1e-8 && at[1]! <= box.y + box.height + 1e-8).toBe(true)
+          expect(Math.abs(at[0]! - box.x) < 1e-8 && dx < 0 && dy === 0 || Math.abs(at[0]! - box.x - box.width) < 1e-8 && dx > 0 && dy === 0 || Math.abs(at[1]! - box.y) < 1e-8 && dy < 0 && dx === 0 || Math.abs(at[1]! - box.y - box.height) < 1e-8 && dy > 0 && dx === 0).toBe(true)
+          const bars = [...glyph.querySelectorAll('line')]
+          expect(bars).toHaveLength(2)
+          const depths = bars.map(bar => {
+            expect(Number(bar.getAttribute('stroke-width'))).toBeGreaterThan(0)
+            const local = ['1', '2'].map(end => {
+              const x = Number(bar.getAttribute(`x${end}`)) - at[0]!, y = Number(bar.getAttribute(`y${end}`)) - at[1]!
+              return [(x * dx + y * dy) / length, (-x * dy + y * dx) / length]
+            }).sort((a, b) => a[1]! - b[1]!)
+            expect(local[0]![0]).toBeCloseTo(local[1]![0]!, 6)
+            expect(local[0]![1]).toBeCloseTo(-6, 6)
+            expect(local[1]![1]).toBeCloseTo(6, 6)
+            return local[0]![0]!
+          }).sort((a, b) => a - b)
+          expect(depths[0]).toBeCloseTo(4, 6)
+          expect(depths[1]).toBeCloseTo(8, 6)
+        }
+        const horizontal = direction === 'LR' || direction === 'RL', reverse = direction === 'BT' || direction === 'RL'
+        const displacement = horizontal ? boxes[1]!.x + boxes[1]!.width / 2 - boxes[0]!.x - boxes[0]!.width / 2 : boxes[1]!.y + boxes[1]!.height / 2 - boxes[0]!.y - boxes[0]!.height / 2
+        expect(displacement * (reverse ? -1 : 1)).toBeGreaterThan(0)
+        for (let i = 0; i < boxes.length; i++) for (let j = 0; j < i; j++) {
+          const a = boxes[i]!, b = boxes[j]!
+          expect(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y, `N${i} overlaps N${j}`).toBe(true)
+        }
+        const isolates = boxes.slice(2)
+        expect(isolates.some(a => isolates.some(b => a.x + a.width <= b.x || b.x + b.width <= a.x)), 'isolates need more than one column').toBe(true)
+        expect(isolates.some(a => isolates.some(b => a.y + a.height <= b.y || b.y + b.height <= a.y)), 'isolates need more than one row').toBe(true)
+      } finally { dom.window.close() }
+      expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+    }
   })
 
   test.each([...['elk', 'agentic'].flatMap(backend => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ backend, direction, size: 128 }))),
