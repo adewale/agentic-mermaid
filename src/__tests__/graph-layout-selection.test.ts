@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, test } from 'bun:test'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { layoutMermaidWithReceipt, verifyMermaid } from '../agent/core.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/index.ts'
@@ -432,9 +433,11 @@ GuardStart[G] guard@--> GuardEnd[H]`
   })
 
   test.each([
-    { name: 'disconnected fan-out', source: 'flowchart TD\nn58 --> n66\nn58 --> n70\nn29 -->|label 37| n16\nn113 -->|label 38| n16', nodes: 6, edges: 4, parallel: undefined },
-    { name: 'duplicate lanes', source: 'flowchart BT\nn0 --> n6\nn0 -->|edge 4 xxxxxxx| n2\nn0 --> n6', nodes: 3, edges: 3, parallel: ['n0', 'n6'] },
-  ])('retains separate label corridors beside $name', ({ source, nodes, edges, parallel }) => {
+    { name: 'disconnected fan-out', source: 'flowchart TD\nn58 --> n66\nn58 --> n70\nn29 -->|label 37| n16\nn113 -->|label 38| n16', nodes: 6, edges: 4, parallel: undefined, lines: undefined },
+    { name: 'duplicate lanes', source: 'flowchart BT\nn0 --> n6\nn0 -->|edge 4 xxxxxxx| n2\nn0 --> n6', nodes: 3, edges: 3, parallel: ['n0', 'n6'], lines: undefined },
+    { name: 'independent height bands', source: 'flowchart TB\nA[A0<br/>A1<br/>A2<br/>A3<br/>A4<br/>A5<br/>A6<br/>A7] --> B[Branch B]\nA --> C[Branch C]\nD[Root D] --> E[E0<br/>E1<br/>E2<br/>E3<br/>E4<br/>E5<br/>E6<br/>E7]\nD --> F[Branch F]', nodes: 6, edges: 4, parallel: undefined,
+      lines: [['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7'], ['Branch B'], ['Branch C'], ['Root D'], ['E0', 'E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7'], ['Branch F']] },
+  ])('retains separate label corridors beside $name', ({ source, nodes, edges, parallel, lines }) => {
     // Reduced public counterexamples: a shared routing proposal must not
     // replace clear native corridors with crossings through a foreign pill.
     const result = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
@@ -447,6 +450,38 @@ GuardStart[G] guard@--> GuardEnd[H]`
       const routes = result.layout.edges.filter(edge => edge.from === parallel[0] && edge.to === parallel[1])
       expect(routes).toHaveLength(2)
       expect(routes[0]!.path).not.toEqual(routes[1]!.path)
+    }
+    if (lines) {
+      const rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'none' }, embedFontImport: false })
+      expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+      const { JSDOM } = createRequire(import.meta.url)('jsdom')
+      const dom = new JSDOM(rendered.svg, { contentType: 'image/svg+xml' })
+      try {
+        const document = dom.window.document as Document, cards = [...document.querySelectorAll('g.node')]
+        expect(cards.map(card => card.getAttribute('data-id'))).toEqual(['A', 'B', 'C', 'D', 'E', 'F'])
+        for (const [index, card] of cards.entries()) expect([...card.querySelectorAll('text')].flatMap(text => {
+          const runs = [...text.querySelectorAll('tspan')]
+          return (runs.length ? runs : [text]).map(run => run.textContent?.trim())
+        })).toEqual([...lines[index]!])
+        const carriers = [...document.querySelectorAll('[data-role="edge"][data-from]')]
+        expect(carriers.map(edge => [edge.getAttribute('data-from'), edge.getAttribute('data-to')])).toEqual([['A', 'B'], ['A', 'C'], ['D', 'E'], ['D', 'F']])
+        for (const carrier of carriers) {
+          const points = carrier.getAttribute('points')!.trim().split(/\s+/).map(pair => pair.split(',').map(Number))
+          for (const [id, point, adjacent] of [[carrier.getAttribute('data-from'), points[0]!, points[1]!], [carrier.getAttribute('data-to'), points.at(-1)!, points.at(-2)!]] as const) {
+            const rect = cards.find(card => card.getAttribute('data-id') === id)!.querySelector('rect')!
+            const x = Number(rect.getAttribute('x')), y = Number(rect.getAttribute('y')), width = Number(rect.getAttribute('width')), height = Number(rect.getAttribute('height'))
+            const dx = adjacent[0]! - point[0]!, dy = adjacent[1]! - point[1]!
+            expect(dy === 0 && point[1]! > y && point[1]! < y + height && (Math.abs(point[0]! - x) < 1e-8 && dx < 0 || Math.abs(point[0]! - x - width) < 1e-8 && dx > 0)
+              || dx === 0 && point[0]! > x && point[0]! < x + width && (Math.abs(point[1]! - y) < 1e-8 && dy < 0 || Math.abs(point[1]! - y - height) < 1e-8 && dy > 0)).toBe(true)
+          }
+          const reference = carrier.getAttribute('marker-end')!
+          expect(reference).toMatch(/^url\(#[^)]+\)$/)
+          const marker = document.getElementById(reference.slice(5, -1))!, polygon = marker.querySelector('polygon')!
+          expect(polygon.getAttribute('points')).toBe('0 0, 8 2.5, 0 5')
+          expect(polygon.getAttribute('fill')).toMatch(/^#[0-9a-f]{6}$/i)
+          expect(Number(polygon.getAttribute('stroke-width'))).toBeGreaterThan(0)
+        }
+      } finally { dom.window.close() }
     }
     JSON.stringify(result.receipt)
   })
