@@ -441,3 +441,19 @@ forest-independent-bands-node24-3efdf6236 and recovery-payload/forest-independen
 seating; ClassTB/BT, Sparse32, ER256, missing original baseline/peers remain open.
 Replacement24 stays sealed. Next: establish whether sibling-wire work has independent
 value without sacrificing readable depth alignment; stop if it merely chases ELK.
+
+## Leaf seating trial stopped at the shared consumer — 2026-11-04
+
+Atf934b86bec8867428822046be016e741039842d2, one five-line measured-forest trial
+shortened terminal-leaf seating. Its sole consumed Agentic output matches retained
+ELK SVG exactly, P98335, but area165355.6575→176727.21 (+6.88%): the fixed-body,
+unchanged-area hypothesis was false. Same-layer admission compares main starts;
+equalizePeerNodeDimensions and fanout normalization enlarge/repack aligned leaves.
+Both existing routes were already shortest for their docks. Most of the16.89%
+shaft difference reflects ELK's enlarged blank F body, not a routing detour.
+Trial371.80ms/RSS106172KiB/post-GC heap17.16MB versus dated235ms/103780KiB/16.94MB;
+N1/adverse, no speed ratio. No extra cost/Node/build/raster/test calls. Full source,
+test draft and patch retained in week forest-leaf-seating-3efdf6236/stopped-trial;
+production/tests restored byte-exact to3ef. No capacity or correctness gap closed.
+Next work must target an independently demonstrated failure, not bypass shared
+peer-sizing policy to erase a metric difference. Existing open limits remain.
