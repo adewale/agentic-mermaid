@@ -63,7 +63,7 @@ export function createNativePaintEmission(maxOperations: number) {
   type CaptureContext = 'leaf' | 'route' | 'geometry' | 'points' | 'point' | 'pixel-part' | 'text-paint'
   interface TextCopyPlan { readonly source: object; readonly array: boolean; readonly slots: readonly TextCopySlot[]; readonly length: number | undefined; readonly height: number }
   interface TextCopySlot { readonly key: string; readonly enumerable: boolean; readonly value: unknown; readonly child: TextCopyPlan | undefined }
-  const textPlans = new WeakMap<object, { plan: TextCopyPlan | undefined }>()
+  const textPlans = new textPaintMap<object, { plan: TextCopyPlan | undefined }>()
   let copyingFirstText = false
   let planningText: { readonly plans: WeakMap<object, TextCopyPlan>; pure: boolean } | undefined
   const capturedTextPaint = new textPaintMap<object, number>()
@@ -161,11 +161,14 @@ export function createNativePaintEmission(maxOperations: number) {
       const copied = copy(descriptor.value, depth + 1, parents, childContext)
       if (planSlots) {
         if (!pay(2)) throw failed
-        const child = copied && typeof copied === 'object' ? planningText!.plans.get(copied) : undefined
+        const child = copied && typeof copied === 'object' ? textPaintApply(textPaintGet, planningText!.plans, [copied]) as TextCopyPlan | undefined : undefined
         if (copied && typeof copied === 'object' && !child) throw failed
         const candidateHeight = 1 + (child?.height ?? 0)
         if (candidateHeight > planHeight) planHeight = candidateHeight
-        Object.defineProperty(planSlots, String(planSlots.length), { value: { key, enumerable: descriptor.enumerable!, value: child ? undefined : copied, child }, enumerable: true })
+        // Private instructions must not escape through caller-dispatched
+        // registration or inherited descriptor fields. Actual receiver copies
+        // below retain their ordinary observable definition operations.
+        textPaintDefine(planSlots, String(planSlots.length), { __proto__: null, value: { key, enumerable: descriptor.enumerable!, value: child ? undefined : copied, child }, enumerable: true } as PropertyDescriptor)
       }
       Object.defineProperty(result, key, { value: copied, enumerable: descriptor.enumerable, configurable: false, writable: false })
     }
@@ -196,7 +199,7 @@ export function createNativePaintEmission(maxOperations: number) {
     // the same fields a second time through Object.freeze.
     if (planSlots) {
       if (!pay(2)) throw failed
-      planningText!.plans.set(result, { source: value, array: Array.isArray(value), slots: planSlots, length: arrayLength?.value, height: planHeight })
+      textPaintApply(textPaintPut, planningText!.plans, [result, { source: value, array: Array.isArray(value), slots: planSlots, length: arrayLength?.value, height: planHeight }])
     }
     const retained = Object.preventExtensions(result)
     // Literal allocation and exact returned identity exclude an interposed proxy.
@@ -212,25 +215,25 @@ export function createNativePaintEmission(maxOperations: number) {
     if (!pay(2)) throw failed
     if (!isOwnedPixelTextPart(value)) return copyInner(value, depth, parents, context)
     if (!pay(2)) throw failed
-    const previous = textPlans.get(value)
+    const previous = textPaintApply(textPaintGet, textPlans, [value]) as { plan: TextCopyPlan | undefined } | undefined
     if (previous?.plan) return materializeText(previous.plan, depth)
     if (!previous) {
       copyingFirstText = true
       try {
         const result = copyInner(value, depth, parents, context)
         if (!pay(2)) throw failed
-        textPlans.set(value, { plan: undefined })
+        textPaintApply(textPaintPut, textPlans, [value, { plan: undefined }])
         return result
       } finally { copyingFirstText = false }
     }
     if (!pay(2)) throw failed
-    const planning = { plans: new WeakMap<object, TextCopyPlan>(), pure: true }
+    const planning = { plans: new textPaintMap<object, TextCopyPlan>(), pure: true }
     planningText = planning
     try {
       const result = copyInner(value, depth, parents, context)
       if (planning.pure) {
         if (!pay(2)) throw failed
-        const plan = planning.plans.get(result as object)
+        const plan = textPaintApply(textPaintGet, planning.plans, [result]) as TextCopyPlan | undefined
         if (!plan) throw failed
         previous.plan = plan
       }

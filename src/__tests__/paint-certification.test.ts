@@ -156,15 +156,30 @@ console.log(JSON.stringify({ rendered, stages: [...stages], provider }))
 const runTextReceiverChild = useTestChildren(20_000)
 const textReceiverProgram = String.raw`
 import { drawNative } from './src/scene/native-drawing.ts'
+import { certifyNativePaint } from './src/scene/paint-certification.ts'
 import { preparePixelText } from './src/shared/prepared-text.ts'
 const mode = process.env.AM_TEXT_RECEIVER_MODE
+const planMode = mode.startsWith('private-plan-')
 const block = preparePixelText('Read', { fontSize: 18, fontWeight: 400 })
 const nativeMap = Array.prototype.map
-const prototype = mode === 'fontFamily' ? Object.prototype : Array.prototype
-const key = mode === 'fontFamily' ? 'fontFamily' : 'map'
+const prototype = mode === 'fontFamily' || mode === 'private-plan-descriptor' ? Object.prototype : mode === 'private-plan-define' ? Object : mode === 'private-plan-constructor' ? globalThis : planMode ? WeakMap.prototype : Array.prototype
+const key = mode === 'fontFamily' ? 'fontFamily' : mode === 'private-plan-get' ? 'get' : mode === 'private-plan-set' ? 'set' : mode === 'private-plan-define' ? 'defineProperty' : mode === 'private-plan-constructor' ? 'WeakMap' : mode === 'private-plan-descriptor' ? 'writable' : 'map'
 const original = Object.getOwnPropertyDescriptor(prototype, key)
+const define = Object.defineProperty
+const mapGet = WeakMap.prototype.get, mapAliases = []
 const phases = new WeakMap(), trace = []
 let phase = 'before', drawing
+const own = (value, key) => value && typeof value === 'object' ? Object.getOwnPropertyDescriptor(value, key)?.value : undefined
+const alterPlan = plan => {
+  const slots = own(plan, 'slots')
+  if (!Array.isArray(slots)) return
+  for (let index = 0; index < slots.length; index++) {
+    const slot = slots[index]
+    if (own(slot, 'value') === 'Read') Reflect.set(slot, 'value', 'Lost')
+    const child = own(slot, 'child')
+    if (child) alterPlan(child)
+  }
+}
 const firstPhase = receiver => {
   if (!phases.has(receiver)) phases.set(receiver, phase)
   const first = phases.get(receiver)
@@ -176,7 +191,7 @@ try {
     configurable: true,
     get() { return firstPhase(this) === phase ? 'Inter' : 'DejaVuSansMono' },
   })
-  else Object.defineProperty(prototype, key, {
+  else if (mode === 'array-map') Object.defineProperty(prototype, key, {
     ...original,
     value(callback, thisArg) {
       const slot = Object.getOwnPropertyDescriptor(this, '0')
@@ -190,37 +205,84 @@ try {
       return first === phase ? mapped : nativeMap.call(mapped, value => typeof value === 'string' ? value.replaceAll('Read', 'Lost') : value)
     },
   })
-  const width = 300, height = 140, colors = { bg: '#fff', fg: '#111' }
+  if (mode === 'private-plan-get') define(prototype, key, { ...original, value(key) {
+    const entry = Reflect.apply(original.value, this, [key])
+    const plan = own(entry, 'plan')
+    if (key === block && plan) alterPlan(plan)
+    return entry
+  } })
+  if (mode === 'private-plan-set') define(prototype, key, { ...original, value(key, value) {
+    if (own(value, 'source') === block && Array.isArray(own(value, 'slots'))) alterPlan(value)
+    return Reflect.apply(original.value, this, [key, value])
+  } })
+  if (mode === 'private-plan-define') define(prototype, key, { ...original, value(target, key, descriptor) {
+    const slot = own(descriptor, 'value')
+    if (Array.isArray(target) && own(slot, 'key') === 'text' && own(slot, 'value') === 'Read') Reflect.set(slot, 'value', 'Lost')
+    return Reflect.apply(original.value, this, [target, key, descriptor])
+  } })
+  if (mode === 'private-plan-constructor') {
+    const wrapped = function(...args) {
+      if (!new.target) return Reflect.apply(original.value, this, args)
+      const map = Reflect.construct(original.value, args, new.target === wrapped ? original.value : new.target)
+      mapAliases.push(map)
+      return map
+    }
+    define(wrapped, 'prototype', { value: original.value.prototype })
+    define(prototype, key, { ...original, value: wrapped })
+  }
+  if (mode === 'private-plan-descriptor') define(prototype, key, { configurable: true, get() {
+    const slot = own(this, 'value')
+    if (own(slot, 'key') === 'text' && own(slot, 'value') === 'Read') Reflect.set(slot, 'value', 'Lost')
+    return false
+  } })
+  const width = 300, height = planMode ? 160 : 140, colors = { bg: '#fff', fg: '#111' }
   const producer = factory => {
-    const open = factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="140">')
+    const open = factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="' + height + '">')
     phase = 'first'
     const first = factory.text({ id: 'first', role: 'label', text: 'Read', block, x: 20, y: 40, fontSize: 18, anchor: 'start', paint: { fill: '#111' } })
     phase = 'second'
     const second = factory.text({ id: 'second', role: 'label', text: 'Read', block, x: 20, y: 90, fontSize: 18, anchor: 'start', paint: { fill: '#111' } })
-    return { family: 'flowchart', width, height, colors, transparent: false, parts: [open, first, second, factory.documentClose()] }
+    const parts = [open, first, second]
+    if (planMode) {
+      if (mode === 'private-plan-constructor') for (const map of mapAliases) {
+        const plan = own(Reflect.apply(mapGet, map, [block]), 'plan')
+        if (plan) alterPlan(plan)
+      }
+      phase = 'third'
+      parts.push(factory.text({ id: 'third', role: 'label', text: 'Read', block, x: 20, y: 140, fontSize: 18, anchor: 'start', paint: { fill: '#111' } }))
+    }
+    return { family: 'flowchart', width, height, colors, transparent: false, parts: [...parts, factory.documentClose()] }
   }
   drawing = drawNative(producer, { positioned: { width, height }, colors, resolved: { renderOptions: {} } }, 'flowchart')
 } finally {
-  if (original) Object.defineProperty(prototype, key, original)
+  if (original) define(prototype, key, original)
   else Reflect.deleteProperty(prototype, key)
 }
 console.log(JSON.stringify({
   svg: drawing.svg,
   ids: drawing.paint.primitives.filter(primitive => primitive.kind === 'text').map(primitive => primitive.id),
+  source: block.text, sourceLines: block.lineBlocks.map(line => line.runs.map(run => run.text).join('')),
+  proof: planMode ? certifyNativePaint(drawing.header, drawing.paint) : undefined,
   trace,
   prototypeRestored: original ? Object.getOwnPropertyDescriptor(prototype, key)?.value === original.value
     && Object.getOwnPropertyDescriptor(prototype, key)?.get === original.get : !Object.hasOwn(prototype, key),
 }))
 `
 
-test.each(['fontFamily', 'array-map'] as const)('shared owned text preserves receiver-sensitive inherited %s behavior per leaf', async mode => {
+test.each(['fontFamily', 'array-map', 'private-plan-get', 'private-plan-set', 'private-plan-define', 'private-plan-constructor', 'private-plan-descriptor'] as const)('shared owned text preserves receiver-sensitive inherited %s behavior per leaf', async mode => {
   const child = await runTextReceiverChild(process.execPath, ['--eval', textReceiverProgram], {
     cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env, AM_TEXT_RECEIVER_MODE: mode },
   })
   expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
-  const packet = JSON.parse(child.stdout) as { svg: string; ids: string[]; trace: Array<{ firstPhase: string; phase: string }>; prototypeRestored: boolean }
+  const packet = JSON.parse(child.stdout) as { svg: string; ids: string[]; source: string; sourceLines: string[]; proof?: ReturnType<typeof certifyNativePaint>; trace: Array<{ firstPhase: string; phase: string }>; prototypeRestored: boolean }
+  const planMode = mode.startsWith('private-plan-'), expectedIds = planMode ? ['first', 'second', 'third'] : ['first', 'second']
   expect(packet.prototypeRestored).toBe(true)
-  expect(packet.ids).toEqual(['first', 'second'])
+  expect(packet.ids).toEqual(expectedIds)
+  if (planMode) {
+    expect(packet.source).toBe('Read')
+    expect(packet.sourceLines).toEqual(['Read'])
+    expect(packet.proof).toMatchObject({ status: 'passed', issues: [] })
+  }
   const labels: Array<{ text: string; fontFamily: string | null; x: string | undefined; y: string | undefined }> = []
   let current: typeof labels[number] | undefined
   const parser = new SaxesParser({ xmlns: true })
@@ -233,21 +295,18 @@ test.each(['fontFamily', 'array-map'] as const)('shared owned text preserves rec
   parser.on('text', text => { if (current) current.text += text })
   parser.on('closetag', tag => { if (tag.local === 'text') current = undefined })
   parser.write(packet.svg).close()
-  expect(labels).toHaveLength(2)
-  expect(labels.map(({ x, y }) => ({ x, y }))).toEqual([{ x: '20', y: '40' }, { x: '20', y: '90' }])
+  expect(labels).toHaveLength(expectedIds.length)
+  expect(labels.map(({ x, y }) => ({ x, y }))).toEqual(planMode ? [{ x: '20', y: '40' }, { x: '20', y: '90' }, { x: '20', y: '140' }] : [{ x: '20', y: '40' }, { x: '20', y: '90' }])
   const tags = packet.svg.match(/<text\b[^>]*>[\s\S]*?<\/text>/g)!
-  expect(tags).toHaveLength(2)
+  expect(tags).toHaveLength(expectedIds.length)
   const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
   // These removals prove actual glyph presence. A missing DejaVuSansMono alias
   // may fall back to Inter here; the emitted family is checked independently.
   const pixels = (svg: string) => new Resvg(svg, { font, background: '#fff' }).render().pixels
   const actual = pixels(packet.svg)
   for (const tag of tags) expect(Buffer.compare(actual, pixels(packet.svg.replace(tag, '')))).not.toBe(0)
-  expect(new Set(packet.trace.map(read => read.phase))).toEqual(new Set(['first', 'second']))
-  expect(labels.map(({ text, fontFamily }) => ({ text, fontFamily }))).toEqual([
-    { text: 'Read', fontFamily: mode === 'fontFamily' ? 'Inter' : null },
-    { text: 'Read', fontFamily: mode === 'fontFamily' ? 'Inter' : null },
-  ])
+  if (!planMode) expect(new Set(packet.trace.map(read => read.phase))).toEqual(new Set(['first', 'second']))
+  expect(labels.map(({ text, fontFamily }) => ({ text, fontFamily }))).toEqual(expectedIds.map(() => ({ text: 'Read', fontFamily: mode === 'fontFamily' ? 'Inter' : null })))
 })
 
 const finalDocumentJoinProgram = String.raw`
