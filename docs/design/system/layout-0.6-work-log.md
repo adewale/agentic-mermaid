@@ -416,3 +416,28 @@ match retained f1e bytes. Evidence: week class-first-exhaustion-7299495bc/SOURCE
 including disclosed observational edits between runs; no production changes or tests.
 Small reviewed subtractions remain insufficient. Prioritize the shared producer;
 Class vertical, Sparse32, ER256 and missing baseline/peers stay open; holdout sealed.
+
+## Independent forest components stop paying unrelated bands — 2026-11-04
+
+3efdf6236c1074964ce2ac7c647e265af56de19b gives disconnected roots their own
+depth bands in the shared measured-forest producer, with O(N) scratch. The ordinary
+six-node mixed-height forest shrinks area226466.48→165355.6575px2 (-26.98%) and
+shaft700.0375→463.4375px (-33.80%); eight bends unchanged. Same-input ELK area
+176727.21/shaft396.4697: current Native has6.43%less area but16.89%more wire.
+Actual savedSVG preserves six authored cards/20 logical lines/four relationships,
+eight outward contacts and four positive, disjoint marker-removal ink contributions;
+six pinned-Inter rasters have no clipped/unattributed ink. Paint P97825→P97331,
+ELKP98335 is separate evidence. Owning old producer4F/current121P; final focused5P,
+broad996P/2known Class verticalF; core types/lint pass. No caps/getter/default changes.
+All18 consumed cold/repeat/edit cost calls pass. Native cache0 ms192/36/40→298/61/77
+is adverse; cache1 329/48/70→288/44/80 is mixed. RSS/heap mixed; N1, old-only loader
+overlay, no speed/memory claim. ELK cache1 cold4417ms remains enrolled, cause unknown.
+Two fresh Node24 source products and two compiled products match entire SVG/receipts
+after one RAM build. Flow Native26requests/gzip367395/Br311580B (+131/+143B versus527),
+ELK24/737526/582975B (+0/+36B); initial3/5858/5235 (+1/+4B). Build scratch removed.
+Evidence: week forest-independent-bands-7299495bc (including cost/SUMMARY),
+forest-independent-bands-node24-3efdf6236 and recovery-payload/forest-independent-bands-
+3efdf6236. Remaining short-sibling wire is a tradeoff to investigate before changing
+seating; ClassTB/BT, Sparse32, ER256, missing original baseline/peers remain open.
+Replacement24 stays sealed. Next: establish whether sibling-wire work has independent
+value without sacrificing readable depth alignment; stop if it merely chases ELK.
