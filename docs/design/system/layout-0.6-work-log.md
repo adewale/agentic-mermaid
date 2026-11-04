@@ -457,3 +457,23 @@ test draft and patch retained in week forest-leaf-seating-3efdf6236/stopped-tria
 production/tests restored byte-exact to3ef. No capacity or correctness gap closed.
 Next work must target an independently demonstrated failure, not bypass shared
 peer-sizing policy to erase a metric difference. Existing open limits remain.
+
+## Class vertical meaning runs before the proof failure — 2026-11-04
+
+4426876c7a64581cddaf470e4509ba23f8e21f48 repairs an existing coverage gap:
+Class128's early P assertion masked every later authored-meaning check in TB/BT.
+It now runs last, unchanged. Each label also binds to its actual owning class group;
+global ordered names alone did not establish that correspondence. All four directions
+check128 identities/owned names,127 ordered relationships/head references and254 normal
+contacts. LR/RL pass; TB/BT still fail at the final P assertion (U400000,53/61 checked
+markers). Core types/lint pass; no production changes or capacity gain.
+Two current vertical SVG/entire-receipt products and four offline full/head-removed
+rasters establish127/127 positive, disjoint arrow contributions per direction with
+pinned Inter/Resvg: no borrowed/unattributed/outside-viewport ink. Individual label
+ink and browser/font-universal correctness remain unqualified. TB SVG/ENTIRE receipt
+match the retained same-input record; its SVG also equals retained ELK, not a new win.
+Consumed TB/BT windows638/978ms, RSS153984/152540KiB, post-GC heap22.47/22.47MB;
+N1 with GC/artifacts, no performance ratio. Evidence: week class-meaning-before-proof-
+24b21fc43. Inactive ring-text and insufficient group-reuse hypotheses stopped before
+probes. Next: a sufficient shared capture subtraction; Class vertical proof capacity,
+Sparse32, ER256 and unavailable baseline/peers remain open. Replacement24 stays sealed.
