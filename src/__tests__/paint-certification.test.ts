@@ -137,27 +137,36 @@ console.log(JSON.stringify({ rendered, stages: [...stages], provider }))
   expect(nodes.map(node => node.attributes['data-id']).sort()).toEqual(Array.from({ length: 19 }, (_, index) => `n${index}`).sort())
   for (const [index, id] of Array.from({ length: 19 }, (_, index) => `n${index}`).entries()) expect(nodes.find(node => node.attributes['data-id'] === id)?.attributes['data-label']).toBe(`Node 76-${index}`)
   const edges = elements.filter(element => element.attributes['data-role'] === 'edge')
-  expect(edges).toHaveLength(44)
+  const authored = source.split(/\r?\n/).filter(line => line.includes('-->')).map(line => {
+    const match = /^(n\d+) -->(?:\|([^|]*)\|)? (n\d+)$/.exec(line)
+    expect(match, `Unsupported authored relationship: ${line}`).not.toBeNull()
+    return [match![1]!, match![3]!, match![2] ?? ''] as const
+  })
+  expect(authored).toHaveLength(44)
+  expect(edges.map(edge => [edge.attributes['data-from'], edge.attributes['data-to'], edge.attributes['data-label'] ?? ''])).toEqual(authored.map(row => [...row]))
+  expect(new Set(edges.map(edge => edge.attributes['data-id'])).size).toBe(44)
   for (const edge of edges) expect(edge.attributes).toMatchObject({ 'data-marker-end': 'arrow', 'marker-end': expect.stringMatching(/^url\(#[^)]+\)$/) })
   expect(edges.filter(edge => edge.attributes['data-from'] === 'n0' && edge.attributes['data-to'] === 'n4').map(edge => edge.attributes['data-label'] ?? '')).toEqual(['', 'edge 16 xxxxxxxxxxxxxxxxxxx', ''])
   expect(edges.filter(edge => edge.attributes['data-from'] === 'n9' && edge.attributes['data-to'] === 'n13')).toHaveLength(2)
   // These independently authored incoming relationships must keep separate
   // actual arrow seats, including the labelled n5→n13 carrier.
-  const targetSeats = ([[2, 'n9', 'n13'], [15, 'n18', 'n13'], [20, 'n5', 'n13'], [13, 'n2', 'n18'], [38, 'n16', 'n18']] as const).map(([index, from, to]) => {
-    const edge = edges[index]!
-    expect(edge.attributes).toMatchObject({ 'data-from': from, 'data-to': to })
+  const seats = edges.map((edge, index) => {
     expect(edge.name).toBe('polyline')
     const [x, y] = edge.attributes.points!.trim().split(/\s+/).at(-1)!.split(',').map(Number)
     expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true)
-    return { edge, x: x!, y: y! }
+    return { edge, index, x: x!, y: y! }
+  })
+  const targetSeats = ([[2, 'n9', 'n13'], [15, 'n18', 'n13'], [20, 'n5', 'n13'], [13, 'n2', 'n18'], [38, 'n16', 'n18']] as const).map(([index, from, to]) => {
+    const seat = seats[index]!
+    expect(seat.edge.attributes).toMatchObject({ 'data-from': from, 'data-to': to })
+    return seat
   })
   expect(new Set(targetSeats.slice(0, 3).map(seat => `${seat.x},${seat.y}`)).size).toBe(3)
   expect(new Set(targetSeats.slice(3).map(seat => `${seat.x},${seat.y}`)).size).toBe(2)
   const textTags = rendered.svg.match(/<text\b[^>]*>[^<]*<\/text>/g)!
   expect(textTags).toHaveLength(30)
   const texts = textTags.map(tag => tag.slice(tag.indexOf('>') + 1, -7))
-  for (let index = 0; index < 19; index++) expect(texts).toContain(`Node 76-${index}`)
-  for (const caption of ['edge 0 xxx', 'edge 16 xxxxxxxxxxxxxxxxxxx', 'edge 40 xxxxxxxxx']) expect(texts).toContain(caption)
+  expect(texts.toSorted()).toEqual([...Array.from({ length: 19 }, (_, index) => `Node 76-${index}`), ...authored.map(row => row[2]).filter(Boolean)].toSorted())
   const selected = textTags.find(tag => tag.endsWith('>Node 76-0</text>'))!
   const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
   const raster = (svg: string) => new Resvg(svg, { font, background: '#fff' }).render()
@@ -165,9 +174,12 @@ console.log(JSON.stringify({ rendered, stages: [...stages], provider }))
   expect(Buffer.compare(actualPixels, raster(rendered.svg.replace(selected, '')).pixels)).not.toBe(0)
   const [viewX, viewY, viewWidth, viewHeight] = elements.find(element => element.name === 'svg')!.attributes.viewBox!.split(/\s+/).map(Number)
   const writtenTags = scanSvgStartTags(rendered.svg)
-  for (const seat of targetSeats) {
-    const tag = writtenTags.find(tag => decodedSvgAttributeValue(tag, 'data-id') === seat.edge.attributes['data-id'])!
+  for (const seat of seats) {
+    const matchingTags = writtenTags.filter(tag => tag.name === 'polyline' && decodedSvgAttributeValue(tag, 'data-id') === seat.edge.attributes['data-id'])
+    expect(matchingTags).toHaveLength(1)
+    const tag = matchingTags[0]!
     const actualTag = rendered.svg.slice(tag.start, tag.end)
+    expect(actualTag.split(' marker-end=')).toHaveLength(2)
     const absent = raster(rendered.svg.replace(actualTag, actualTag.replace(/ marker-end="[^"]+"/, '')))
     expect([absent.width, absent.height]).toEqual([actual.width, actual.height])
     const absentPixels = absent.pixels
@@ -182,7 +194,7 @@ console.log(JSON.stringify({ rendered, stages: [...stages], provider }))
       const index = (y * actual.width + x) * 4
       if (actualPixels[index]! + actualPixels[index + 1]! + actualPixels[index + 2]! < absentPixels[index]! + absentPixels[index + 1]! + absentPixels[index + 2]! - 4) darker++
     }
-    expect(darker).toBeGreaterThan(0)
+    expect(darker, `authored relationship ${seat.index}: ${authored[seat.index]!.join(' → ')} lost its own head ink`).toBeGreaterThan(0)
   }
   expect(rendered.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [], checks: { maxOperations: 400000 } })
 })
