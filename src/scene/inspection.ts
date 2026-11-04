@@ -182,7 +182,7 @@ const emptyAncestors: readonly SceneOwner[] = textPaintFreeze([])
 textPaintApply(textPaintAdd, ownedAncestors, [emptyAncestors])
 
 function ownerSnapshot(owner: SceneOwner): SceneOwner {
-  return Object.freeze({ id: owner.id, role: owner.role })
+  return textPaintFreeze({ id: owner.id, role: owner.role })
 }
 
 /** An occurrence owns one inert ancestry snapshot, shared by its leaves. */
@@ -216,14 +216,14 @@ export function inspectNativePaintGeometry(header: PaintInspectionHeader, entrie
   let index = 0
   for (const entry of entries) {
     const ancestors = entry.ancestors === undefined ? emptyAncestors : ownedAncestors.has(entry.ancestors) ? entry.ancestors
-      : Object.freeze(Array.from(entry.ancestors, ownerSnapshot))
+      : textPaintFreeze(Array.from(entry.ancestors, ownerSnapshot))
     recorder.leaf(entry.node, entry.key ?? `native.${index}`, entry.parentMatrix, ancestors, entry.conditional ?? false, entry.groupOpacity ?? 1, entry.owner)
     index++
   }
   return recorder.finish()
 }
 
-function nativePaintSource(node: Exclude<SceneNode, { kind: 'group' }>, actualTextPaint?: MarkPaint, freeze = Object.freeze): NativePaintSource {
+function nativePaintSource(node: Exclude<SceneNode, { kind: 'group' }>, actualTextPaint?: MarkPaint, freeze = textPaintFreeze): NativePaintSource {
   switch (node.kind) {
     case 'shape': return freeze({ kind: node.kind, geometry: node.geometry, paint: node.paint, ...(node.childPaints ? { childPaints: node.childPaints } : {}), ...(node.transform ? { transform: node.transform } : {}) })
     case 'connector': return freeze({ kind: node.kind, lineStyle: node.lineStyle, endpoints: node.endpoints, route: node.route, stroke: node.stroke, markers: node.markers, ...(node.transform ? { transform: node.transform } : {}) })
@@ -233,7 +233,9 @@ function nativePaintSource(node: Exclude<SceneNode, { kind: 'group' }>, actualTe
 }
 
 function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDetails, native = false, documentFont?: string, owning = false) {
-  const freeze = owning ? textPaintFreeze : Object.freeze
+  // Seal fresh inspection products without exposing writable proof facts.
+  // Source reads, walk callbacks and occurrence append behavior stay unchanged.
+  const freeze = textPaintFreeze
   let hasActualPaint = false
   const append = (primitive: ScenePaintGeometry): void => {
     if (owning) textPaintDefine(primitives, primitives.length, { value: primitive, enumerable: true, writable: true, configurable: true })
@@ -330,7 +332,7 @@ function inspectScene(scene: SceneDoc, retainText?: TextDetails, writes?: Return
       if (node.kind === 'group') {
         const emitted = assertInertGroup(node)
         const own = node.identity ?? { id: node.id, role: node.role }
-        walk(node.children.map(child => child.node), key, composeMatrices(parent, transformMatrix(node.transform)), Object.freeze([...ancestors, ownerSnapshot(own)]), conditional || node.visibility === 'conditional' || emitted.style || node.paint?.fill !== undefined, multiplySceneOpacity(groupOpacity, sceneGroupOpacity(node.paint?.opacity)), untransformed && !node.transform)
+        walk(node.children.map(child => child.node), key, composeMatrices(parent, transformMatrix(node.transform)), textPaintFreeze([...ancestors, ownerSnapshot(own)]), conditional || node.visibility === 'conditional' || emitted.style || node.paint?.fill !== undefined, multiplySceneOpacity(groupOpacity, sceneGroupOpacity(node.paint?.opacity)), untransformed && !node.transform)
       } else {
         const written = writes?.node(node)
         // Without a receipt, unmarked legacy inspection still owns its inline
@@ -341,6 +343,6 @@ function inspectScene(scene: SceneDoc, retainText?: TextDetails, writes?: Return
       }
     })
   }
-  walk(scene.parts, 'scene', IDENTITY_MATRIX, Object.freeze([]))
+  walk(scene.parts, 'scene', IDENTITY_MATRIX, textPaintFreeze([]))
   return recorder.finish()
 }

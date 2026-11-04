@@ -2640,6 +2640,48 @@ test('final paint order catches fully hidden text, including artwork with the sa
   const composed = marks.group({ id: 'same-owner', role: 'node', open: '<g>', close: '</g>', children: [{ node: text, indent: 0 }, { node: cover, indent: 0 }] })
   expect(certifyScenePaint(scene([composed])).status).toBe('failed')
   expect(certifyScenePaint(scene([text, surface('rgba(255,255,255,0.5)')])).status).toBe('passed')
+
+  const colors = { bg: '#fff', fg: '#111' }
+  const context = { positioned: { width: 100, height: 80 }, colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ family: 'flowchart', width: 100, height: 80, colors, transparent: false, parts: [
+    factory.documentOpen({ id: 'root', width: 100, height: 80, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+    factory.text(text), factory.shape(cover), factory.documentClose(),
+  ] })
+  const drawing = drawPaintControl(producer, context, 'scene')
+  expect(drawing.proof.status).toBe('failed')
+  expect(drawing.proof.issues).toContainEqual(expect.objectContaining({ code: 'TEXT_OCCLUDED', id: 'text', by: 'cover' }))
+  const bounds = drawing.paint.primitives.find(primitive => primitive.id === 'text')?.bounds
+  if (!bounds || !drawing.admitted || !drawing.receipt) throw new Error('Expected an actual Scene text occurrence and write receipt')
+  const descriptor = Object.getOwnPropertyDescriptor(Object, 'freeze')!, freeze = Object.freeze
+  const define = Object.defineProperty, own = Object.getOwnPropertyDescriptor, isFrozen = Object.isFrozen
+  let hooked!: ReturnType<typeof certifyScenePaint>, hookCalls = 0
+  try {
+    define(Object, 'freeze', { ...descriptor, value(value: unknown) {
+      if (value && typeof value === 'object' && !isFrozen(value)
+        && own(value, 'x0')?.value === bounds.x0 && own(value, 'x1')?.value === bounds.x1
+        && own(value, 'y0')?.value === bounds.y0 && own(value, 'y1')?.value === bounds.y1) {
+        hookCalls++
+        Object.assign(value, { x0: 85, x1: 90, y0: 1, y1: 8 })
+      }
+      return freeze(value)
+    } })
+    hooked = certifyScenePaint(drawing.admitted, undefined, { sceneWriteReceipt: drawing.receipt })
+  } finally { define(Object, 'freeze', descriptor) }
+
+  expect(Object.freeze).toBe(freeze)
+  expect(DefaultBackend.render(drawing.admitted, { seed: 0 })).toBe(drawing.svg)
+  const textTags = drawing.svg.match(/<text\b[^>]*>Read<\/text>/g)!
+  expect(textTags).toHaveLength(1)
+  const textTag = textTags[0]!, writtenCovers = scanSvgStartTags(drawing.svg).filter(tag => tag.name === 'rect' && decodedSvgAttributeValue(tag, 'data-id') === 'cover')
+  expect(writtenCovers).toHaveLength(1)
+  const writtenCover = writtenCovers[0]!, uncovered = drawing.svg.slice(0, writtenCover.start) + drawing.svg.slice(writtenCover.end)
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
+  const pixels = (svg: string) => new Resvg(svg, { font, background: '#fff' }).render().pixels
+  expect(Buffer.compare(pixels(drawing.svg), pixels(drawing.svg.replace(textTag, '')))).toBe(0)
+  expect(Buffer.compare(pixels(uncovered), pixels(uncovered.replace(textTag, '')))).not.toBe(0)
+  expect(hooked.status, `Scene text bounds freeze hook ran ${hookCalls} times`).toBe('failed')
+  expect(hooked.issues).toContainEqual(expect.objectContaining({ code: 'TEXT_OCCLUDED', id: 'text', by: 'cover' }))
+  expect(hooked).toEqual(drawing.proof)
 })
 
 test.each([
