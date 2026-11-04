@@ -1,7 +1,7 @@
 import { createSceneWriteCapture, type SceneWriteReceipt } from './serialization.ts'
 import { MAX_OCCLUSION_OPERATIONS } from './native-paint-emission.ts'
 import { assertBackendConformance, isBuiltinDefaultBackend, isOriginalEnrolledDefaultBackend, getBackendDescriptor } from './backend.ts'
-import { nativeDrawingOf, originalNativeDrawingOf, type DrawingProducer } from './drawing.ts'
+import { nativeDrawingOf, originalNativeDrawingOf, preferSceneDrawing, type DrawingProducer } from './drawing.ts'
 import { drawNative, type NativeDrawing } from './native-drawing.ts'
 import type { FamilyLayoutResult } from '../agent/families.ts'
 import type { ResolvedRenderRequest } from '../render-contract.ts'
@@ -87,16 +87,21 @@ export function finishPositionedBackendEmission(request: ResolvedRenderRequest, 
  * alternate backends deliberately retain the extension-facing Scene adapter. */
 export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: FamilyLayoutResult): RenderableNativeDrawing | undefined {
   const plan = resolvedRenderExecutionPlanOf(request)
+  // Once ER lowered a Scene, later observers cannot switch its actual operand.
+  if (preferSceneDrawing(plan.family.id) && !native.get(layout)?.has(request) && retained.get(layout)?.has(request)) return undefined
   let bypass = sceneAssertionsEnabled(request) ? 'scene-assertions' : plan.family.id.startsWith('family:') ? 'external-family'
     : plan.backend && !isBuiltinDefaultBackend(plan.backend.backend) ? 'alternate-backend'
       : !(plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && plan.backend?.inputName === 'default') ? 'unsupported-mode' : undefined
   if (!bypass && plan.family.id === 'er' && (retainedFamilyProjection(layout)?.nodes.length ?? 0) > ER_NATIVE_PAINT_NODE_CAPACITY) bypass = 'paint-proof-capacity'
   let producer = bypass ? undefined : nativeDrawingOf(plan.family.lowerScene)
+  if (!bypass && preferSceneDrawing(plan.family.id) && producer && producer === originalNativeDrawingOf(plan.family.lowerScene)) bypass = 'owned-scene-geometry'
   if (!producer) bypass ??= 'no-native-producer'
   if (bypass) {
     observeCache('native-drawing', 'bypass', bypass)
     observeFallback('native-drawing', bypass)
-    return undefined
+    if (bypass !== 'owned-scene-geometry' || nativeDrawingOf(plan.family.lowerScene) === producer) return undefined
+    // An observer installed a different producer before either capture began.
+    producer = nativeDrawingOf(plan.family.lowerScene)
   }
   let requests = native.get(layout)
   if (!requests) { requests = new WeakMap(); native.set(layout, requests) }

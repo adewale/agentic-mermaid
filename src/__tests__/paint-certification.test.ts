@@ -724,20 +724,25 @@ test('the public ER custody boundary selects immutable Scene proof before native
     import {withPerformanceObserver} from ${entry('../performance-observations.ts')}
     import {resolveRenderRequestForExecution} from ${entry('../render-contract.ts')}
     import {positionResolvedFamily} from ${entry('../positioning.ts')}
-    import {renderPositionedMermaidSVG} from ${entry('../graphical-render.ts')}
+    import {renderPositionedMermaidSVG,lowerPositionedFamilyScene} from ${entry('../graphical-render.ts')}
     import {assertScenesOf} from ${entry('../scene/assertions.ts')}
+    import {getFamily} from ${entry('../agent/families.ts')}
+    import {sceneLowering,nativeDrawingOf,inheritNativeDrawing} from ${entry('../scene/drawing.ts')}
+    import {withRenderStageObserver} from ${entry('../render-stages.ts')}
+    import {certifyScenePaint} from ${entry('../scene/paint-certification.ts')}
     const rows=[];
-    for(const count of [256,257]) {
+    for(const count of [32,256,257]) {
       const source='erDiagram\\nN0 ||--|| N1 : owns\\n'+Array.from({length:count},(_,i)=>'N'+i).join('\\n');
       const options={graphLayout:{backend:'elk',fallback:'none'},embedFontImport:false};
       let previous;
       for(const phase of ['cold','warm']) {
         const events=[];
         const rendered=withPerformanceObserver(e=>events.push(e),()=>renderMermaidSVGWithReceipt(source,options));
-        rows.push({count,phase,sameSvg:previous===undefined||previous===rendered.svg,proof:rendered.receipt.layoutCertification,
+        rows.push({count,phase,svg:phase==='cold'?rendered.svg:undefined,sameSvg:previous===undefined||previous===rendered.svg,proof:rendered.receipt.layoutCertification,
           entities:(rendered.svg.match(/class="entity"/g)||[]).length,
-          preflight:events.some(e=>e.kind==='cache'&&e.owner==='native-drawing'&&e.outcome==='bypass'&&e.reason==='paint-proof-capacity'),
-          nativeAttempt:events.some(e=>e.kind==='cache'&&e.owner==='native-drawing'&&e.outcome==='miss')});
+          providers:events.filter(e=>e.kind==='cache'&&e.owner==='paint-certification').map(e=>e.detail),
+          preflight:events.some(e=>e.kind==='cache'&&e.owner==='native-drawing'&&e.outcome==='bypass'&&['owned-scene-geometry','paint-proof-capacity'].includes(e.reason)),
+          nativeAttempt:events.some(e=>e.kind==='cache'&&e.owner==='native-drawing'&&['miss','hit'].includes(e.outcome))});
         previous=rendered.svg;
       }
       const request=resolveRenderRequestForExecution(source,options,'svg');
@@ -745,21 +750,84 @@ test('the public ER custody boundary selects immutable Scene proof before native
       const scene=renderPositionedMermaidSVG(request,positionResolvedFamily('er',request),[]);
       rows.push({count,phase:'scene',sameSvg:previous===scene.svg,proof:scene.layoutCertification});
     }
-    console.log(JSON.stringify(rows));
+    const source='erDiagram\\nER_CUSTODY_A ||--|| ER_CUSTODY_B : holds\\nER_CUSTODY_Z';
+    const options={graphLayout:{backend:'elk',fallback:'none'},embedFontImport:false};
+    const lower=getFamily('er').lowerScene, original=nativeDrawingOf(lower);
+    if(!lower||!original)throw new Error('ER must retain its built-in drawing capability');
+    const restore=sceneLowering(original), clean=renderMermaidSVGWithReceipt(source,options);
+    let customCalls=0,held,installed=false,coveredCalls=0,retainedSceneProof,failed,escaped,providers=[];
+    const custom=sceneLowering((factory,context)=>{customCalls++;held=context.positioned;return original(factory,context)});
+    let controls;
+    try {
+      const observed=withRenderStageObserver(sample=>{
+        if(sample.stage==='drawing'&&!installed){installed=true;inheritNativeDrawing(custom,lower)}
+      },()=>renderMermaidSVGWithReceipt(source,options));
+      const callsDuringScene=customCalls, fresh=renderMermaidSVGWithReceipt(source,options);
+      const previousX=held.entities[0].x; held.entities[0].x=-10000;
+      const covered=sceneLowering((factory,context)=>{
+        coveredCalls++;const document=original(factory,context);
+        document.parts.splice(-1,0,factory.shape({id:'er-custody-cover',role:'chrome',geometry:{kind:'rect',x:0,y:0,width:document.width,height:document.height},paint:{fill:'#000'}}));
+        return document;
+      });
+      inheritNativeDrawing(covered,lower);
+      const request=resolveRenderRequestForExecution(source,options,'svg'), layout=positionResolvedFamily('er',request);
+      const detached=layout.positioned.entities[0].x===previousX;
+      try {escaped=withPerformanceObserver(e=>{if(e.kind==='cache'&&e.owner==='paint-certification')providers.push(e.detail)},()=>withRenderStageObserver(sample=>{
+        if(sample.stage==='drawing'){inheritNativeDrawing(restore,lower);retainedSceneProof=certifyScenePaint(lowerPositionedFamilyScene(request,layout))}
+      },()=>renderPositionedMermaidSVG(request,layout,[])))} catch(error){failed={name:error.name,proof:error.certification}}
+      controls={installed,callsDuringScene,customCalls,detached,coveredCalls,
+        sameSceneSvg:observed.svg===clean.svg,sameSceneProof:JSON.stringify(observed.receipt.layoutCertification)===JSON.stringify(clean.receipt.layoutCertification),
+        sameNativeSvg:fresh.svg===clean.svg,nativeStatus:fresh.receipt.layoutCertification.status,sceneStatus:clean.receipt.layoutCertification.status,
+        retainedSceneProof,failed,providers,escaped:escaped?{svg:escaped.svg,proof:escaped.layoutCertification}:undefined};
+    } finally {inheritNativeDrawing(restore,lower)}
+    console.log(JSON.stringify({rows,controls}));
   `)
   const result = Bun.spawnSync([process.execPath, probe], { env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' }, stdout: 'pipe', stderr: 'pipe' })
   expect({ status: result.exitCode, error: new TextDecoder().decode(result.stderr) }).toEqual({ status: 0, error: '' })
-  const rows = JSON.parse(new TextDecoder().decode(result.stdout))
-  expect(rows).toHaveLength(6)
+  const { rows, controls } = JSON.parse(new TextDecoder().decode(result.stdout))
+  expect(rows).toHaveLength(9)
   for (const row of rows) {
     expect({ count: row.count, phase: row.phase, sameSvg: row.sameSvg, proof: row.proof }).toMatchObject({ sameSvg: true, proof: { status: 'passed', issues: [] } })
     expect(row.proof.checks.operations).toBeLessThanOrEqual(400000)
+  }
+  for (const row of rows) {
     if (row.phase !== 'scene') {
       expect(row.entities).toBe(row.count)
-      expect(row.preflight).toBe(row.count > 256)
-      expect(row.nativeAttempt).toBe(row.count <= 256)
+      expect(new Set(row.providers)).toEqual(new Set(['scene']))
+      expect(row.preflight).toBe(true)
+      expect(row.nativeAttempt).toBe(false)
+    }
+    if (row.phase === 'cold') {
+      const elements = rectangleEmissionElements(row.svg)
+      const ids = Array.from({ length: row.count }, (_, index) => `N${index}`)
+      expect(elements.filter(element => element.attributes.class === 'entity').map(element => element.attributes['data-id'])).toEqual(ids)
+      const texts = [...row.svg.matchAll(/<text\b[^>]*>([^<]*)<\/text>/g)].map(match => match[1])
+      expect(texts.filter(text => /^N\d+$/.test(text!))).toEqual(ids)
+      expect(texts.filter(text => text === 'owns')).toEqual(['owns'])
+      const carriers = elements.filter(element => element.attributes.class === 'er-relationship')
+      expect(carriers).toHaveLength(1)
+      expect(carriers[0]!.attributes).toMatchObject({ 'data-id': 'rel:N0-N1#0', 'data-from': 'N0', 'data-to': 'N1', 'data-cardinality1': 'one', 'data-cardinality2': 'one', 'data-identifying': 'true', 'data-label': 'owns' })
+      expect(elements.filter(element => element.attributes['data-role'] === 'cardinality').map(element => element.attributes)).toEqual([
+        expect.objectContaining({ 'data-id': 'card:N0-N1#0:1', 'data-owner-id': 'rel:N0-N1#0', 'data-owner-role': 'relationship', 'data-end': 'start', 'data-endpoint': 'N0' }),
+        expect.objectContaining({ 'data-id': 'card:N0-N1#0:2', 'data-owner-id': 'rel:N0-N1#0', 'data-owner-role': 'relationship', 'data-end': 'end', 'data-endpoint': 'N1' }),
+      ])
+      const glyphs = [...row.svg.matchAll(/<g\b[^>]*data-role="cardinality"[^>]*>([\s\S]*?)<\/g>/g)]
+      expect(glyphs).toHaveLength(2)
+      for (const glyph of glyphs) {
+        const bars = rectangleEmissionElements(`<svg xmlns="http://www.w3.org/2000/svg">${glyph[1]}</svg>`).filter(element => element.name === 'line')
+        expect(bars).toHaveLength(2)
+        for (const { attributes } of bars) {
+          expect(Number(attributes['stroke-width'])).toBeGreaterThan(0)
+          expect([attributes.x1, attributes.y1, attributes.x2, attributes.y2].every(value => Number.isFinite(Number(value)))).toBe(true)
+          expect(attributes.x1 === attributes.x2 && attributes.y1 !== attributes.y2 || attributes.y1 === attributes.y2 && attributes.x1 !== attributes.x2).toBe(true)
+        }
+      }
     }
   }
+  expect(controls).toMatchObject({ installed: true, callsDuringScene: 0, customCalls: 1, detached: true, coveredCalls: 1, sameSceneSvg: true, sameSceneProof: true, sameNativeSvg: true, nativeStatus: 'passed', sceneStatus: 'passed', retainedSceneProof: { status: 'passed' }, failed: { name: 'PaintLayoutCertificationError', proof: { status: 'failed' } } })
+  expect(new Set(controls.providers)).toEqual(new Set(['native']))
+  expect(controls.escaped).toBeUndefined()
+  expect(controls.failed.proof.issues.some((issue: { code: string }) => issue.code === 'TEXT_OCCLUDED')).toBe(true)
 }, 15000)
 
 function distantMarkerTextPairs<T>(factory: DrawingFactory<T>, count: number, marker: MarkerDescriptor): T[] {
