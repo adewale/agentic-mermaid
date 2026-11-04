@@ -138,5 +138,28 @@ initial3/5852/5234 (−3gzip/unchangedBr). Evidence: week scene-inspection-appen
 custody-cf689fd17, scene-inspection-append-cf689fd17, scene-inspection-append-node24-
 68a7d7ce9 and recovery-payload/scene-inspection-append-68a7d7ce9. No relative
 geometry/capacity win. Sparse32 subtraction review found no sufficient new lead.
-Next demonstrated quality loss: same Sparse256cards Native492.598×32140 versus
-ELK2300×1504; investigate disconnected placement before changing geometry.
+
+ffbff7a20843098e97b664a7f13080cbf7b257ea removes the isolated-card strip in flat
+Native ER. Four direction owners red→green after actual identities, normal docks,
+cardinalities and non-overlap; connected geometry stays byte-exact. Shared preferred
+label bounds/body-stroke rules feed deterministic shelves and fresh canvas fitting;
+groups/ELK retain their paths, no cache or cap changes. Actual Sparse256cards area
+15,832,099.72→7,449,331(−52.95%), height32140→2930.5, width492.598→2542. VersusELK
+3,459,200area still+115.35%; shaft132.598 remains versus214.598, zero bends. Actual
+body gaps71px versusELK20 explain much of the remainder; explicit spacing retained.
+ER milestone144P/9files38.29s/1512996KiB; types51.84s/lintP. Offline10rasters9.81s/
+1588568KiB: first/last names and both cardinalities each have positive confined ink
+before/after; all256 identities and moved-card clearance pass. Initial matcher failed
+0rasters(0.62s/131280KiB); both attempts retained. Strict raw-style mismatch remains
+in the probe report; separate byte analysis establishes only a correctly bound root-
+scope rename, all connected markup/resources otherwise exact. No extra reraster.
+Same consumed3phase worker before/current, cache0 cold/repeat/edit500/218/211→
+491/225/201ms; cache1 516/185/240→516/189/225. N1, no speedup claim. PeakRSS cache0
+176424→176728KiB/cache1 170520→176400; heaps rise slightly; paint88361→90546ops.
+Repeats preserve entire SVG/receipts; real edits change output. Two fresh Node24 and
+two compiled products match; ELK entire SVG/receipt exact retained68a7. OneRAMbuild,
+scratch removed. ERAM23requests/gzip328288/Br277350B vsELK21/698422/548748, both
++918gzip/+755BrB; initial3/5852/5235 (+1Br). Evidence: week sparse256-isolate-
+085acd43d, sparse256-isolate-node24-ffbff7a20 and recovery-payload/sparse256-isolate-
+ffbff7a20. Sparse32/ER256, missing original baseline/peers and old timing uncertainty
+remain. Next: an evidenced capacity/contact subtraction; do not force spacing parity.
