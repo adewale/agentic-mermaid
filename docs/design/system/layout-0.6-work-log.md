@@ -363,3 +363,24 @@ not capacity evidence. No fees/caps relaxed, no new framework or cache, no gap c
 Do not retry these guarded glyph-union variants. ER256, Class128TB/BT and Sparse32
 remain refused/unverified; next work needs a different demonstrated subtraction.
 Original-baseline/peer comparisons remain unavailable; replacement24 stays sealed.
+
+
+## Nonlinear Agentic contact and authored caption coverage — 2026-11-04
+
+e1dc473c4f0daa5e5fd74cddd24d198f9fa826c1 extends the existing18-cuts ELK
+circle-contact owner to Agentic, asserting38 authored endpoint occurrences with
+duplicate multiplicities and10 caption-owner/text bindings. This closes a specific
+coverage gap, not a runtime failure. Both finalSVG arms pass; protected n0→n13/n1
+circle gaps11/6.8154px, separate paint proofsP301282/P308388 with38markers each.
+Current Agentic/ELK area1093800.559/1539411.367px2 (-28.95%), semantic shaft
+17477.809/19196.119px (-8.95%),90/99bends. Geometry is unchanged by this test commit;
+all-head individual ink and complete-contact correctness remain unqualified.
+Focused2P, owning route milestone494P, final core typing/lint pass. One initial
+wrong CLI ordering started package-wide imports/unintended website build; stopped
+before this owner, exit137/log retained. A nullable test assertion was corrected;
+no performance ratio, payload rebuild or runtime gain claimed. Evidence: week
+cyclic18-contact-owner-a36f81d23, complete products and offline independent vectors.
+Class vertical, Sparse32, ER256 and unavailable baseline/peers stay open; sealed
+holdout unchanged. Two-point line lowering breaks Class CSS/DOM and saves too little;
+textLayout elision loses occupied-band semantics. Next: different producer subtraction
+for Class vertical's written projections; no sufficient safe implementation found.
