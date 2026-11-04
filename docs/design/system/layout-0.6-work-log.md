@@ -507,3 +507,26 @@ recovery-payload/class-owned-sharp-spelling-11b3e5fce. Sparse32 copy/closure rev
 found no sufficient safe subtraction: no new probe. Sparse32 proof, ER256 refusal,
 ELK timeout, missing baseline/peers remain open; replacement24 stays sealed.
 Next: establish a sufficient cause for an enrolled loss before another intervention.
+
+## All authored cyclic heads contribute actual ink — 2026-11-04
+
+607b46353e638740f97b8f26d2acf11e579b0d83 extends the existing cyclic19 owner
+from five repaired heads to all44 individual marker-removal controls:39 previously
+unchecked head contributions, all44 ordered authored endpoint/caption occurrences
+and all11 actual SVG caption texts. It passes; no new runtime failure or geometry
+improvement. Five original seat controls and final400k proof assertion remain.
+Validation5.34s/max-childRSS588180KiB includes46 rasters, not product runtime cost.
+Core types/lint pass after an erased tuple annotation correction; failed typing log
+retained. No broad rerun, backend timing comparison or unchanged payload rebuild.
+
+A separate45-raster audit of exact retained d82c926cc0f6f1119a86e5079ba79fca1a2df0f9
+ELK output found all44 positive individual contributions (20–129 darker pixels at
+zoom2), none outside its actual-resource region. Its37 distinct tips/four coincident
+groups therefore do not establish missing heads. All19 owned node names,44 ordered
+relations and30 text literals match; source-vs-DOM order is incidental, with the
+initial ordered flags retained explicitly. ELK proofU400000 stays separate from ink.
+Evidence: week cyclic19-all-heads-ebf62dc2b and cyclic19-all-heads-retained-d82.
+Positive contribution does not prove full head recognizability, all contacts, every
+label's ink or browser/font universality. Sparse32 proof, ER256 refusal, intermittent
+ELK child timeout and missing baseline/peers remain open; replacement24 sealed.
+Next: a sufficient causal capacity subtraction; no topology change justified here.
