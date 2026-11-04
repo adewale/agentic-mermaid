@@ -24,18 +24,20 @@ export interface WrittenPolylineProjection {
   readonly rawEndTangent?: ScenePoint
 }
 
-const projections = new WeakMap<object, WrittenPolylineProjection>()
+const polylineFreeze = Object.freeze, polylineMap = WeakMap, polylineApply = Reflect.apply
+const polylineGet = WeakMap.prototype.get, polylinePut = WeakMap.prototype.set
+const projections = new polylineMap<object, WrittenPolylineProjection>()
 
 /** Only a fresh geometry receives metadata. Existing projections cannot be
  * overwritten, and this derived data alone supplies no write/context custody.
  * The writer transfers its prepaid, individually frozen points and contours. */
 export function createWrittenPolyline(points: ScenePoint[], projection: WrittenPolylineProjection): Extract<Geometry, { kind: 'polyline' }> {
-  const geometry = Object.freeze({ kind: 'polyline' as const, points })
-  projections.set(geometry, Object.freeze(projection))
+  const geometry = polylineFreeze({ kind: 'polyline' as const, points })
+  polylineApply(polylinePut, projections, [geometry, polylineFreeze(projection)])
   return geometry
 }
 
-export function writtenPolylineProjectionOf(geometry: object): WrittenPolylineProjection | undefined { return projections.get(geometry) }
+export function writtenPolylineProjectionOf(geometry: object): WrittenPolylineProjection | undefined { return polylineApply(polylineGet, projections, [geometry]) }
 
 type Pay = (count: number) => boolean
 interface Piece { readonly kind: 'rect' | 'line' | 'ellipse'; readonly geometry: Readonly<Record<string, number>>; readonly paint: MarkPaint }

@@ -20,6 +20,9 @@ import { indentLines } from './serialization.ts'
 import { verifySvgDocumentEnvelope, verifySvgDocumentDataPositions } from '../output-security.ts'
 import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
 
+// Fresh written facts must be sealed before ambient hooks can observe them.
+const writtenFactFreeze = Object.freeze, writtenFactDefine = Object.defineProperty, writtenFactSeal = Object.preventExtensions
+
 /** XML construction belongs to one actual writer transaction. Raw chunks and
  * cached bytes retain their full markup in the validation projection. */
 declare const svgXmlWrite: unique symbol
@@ -613,16 +616,16 @@ function geometryAttributes(out: SvgWriter, geometry: ElementGeometry, sink?: Sv
         if (!Number.isFinite(value) || !Number.isFinite(original)) { understood = false; return false }
         changed ||= value !== original
         if (tokens++ % 2 === 0) { x = value; rawX = original; return }
-        const point = Object.freeze({ x, y: value })
-        const rawPoint = Object.freeze({ x: rawX, y: original })
-        Object.defineProperty(projected, tokens / 2 - 1, { value: point, enumerable: true, writable: false, configurable: false })
+        const point = writtenFactFreeze({ x, y: value })
+        const rawPoint = writtenFactFreeze({ x: rawX, y: original })
+        writtenFactDefine(projected, tokens / 2 - 1, { __proto__: null, value: point, enumerable: true, writable: false, configurable: false } as PropertyDescriptor)
         if (previous) {
           const tangent = connectorUnitTangent(previous, point)
-          if (tangent) { lastTangent = Object.freeze(tangent); firstTangent ??= lastTangent }
+          if (tangent) { lastTangent = writtenFactFreeze(tangent); firstTangent ??= lastTangent }
         }
         if (rawPrevious) {
           const tangent = connectorUnitTangent(rawPrevious, rawPoint)
-          if (tangent) { rawLastTangent = Object.freeze(tangent); rawFirstTangent ??= rawLastTangent }
+          if (tangent) { rawLastTangent = writtenFactFreeze(tangent); rawFirstTangent ??= rawLastTangent }
         }
         previous = point
         rawPrevious = rawPoint
@@ -634,13 +637,13 @@ function geometryAttributes(out: SvgWriter, geometry: ElementGeometry, sink?: Sv
       if (observed) {
         let served: Geometry | undefined = literal === points ? geometry : undefined
         if (changed && understood && tokens === pointCount * 2 && projected?.length === pointCount) {
-          Object.defineProperty(projected, 'length', { writable: false })
-          Object.preventExtensions(projected)
-          const contour = Object.freeze({ start: projected[0]!, end: projected.at(-1)!, closed: false,
+          writtenFactDefine(projected, 'length', { __proto__: null, writable: false } as PropertyDescriptor)
+          writtenFactSeal(projected)
+          const contour = writtenFactFreeze({ start: projected[0]!, end: projected[projected.length - 1]!, closed: false,
             ...(firstTangent ? { startTangent: firstTangent } : {}), ...(lastTangent ? { endTangent: lastTangent } : {}) })
-          served = createWrittenPolyline(projected, { contours: Object.freeze([contour]), collapsed: !firstTangent,
-            rawBounds: Object.freeze({ x0: rawX0, y0: rawY0, x1: rawX1, y1: rawY1 }),
-            rawStart: Object.freeze({ x: rawStartX, y: rawStartY }), rawEnd: Object.freeze({ x: rawEndX, y: rawEndY }),
+          served = createWrittenPolyline(projected, { contours: writtenFactFreeze([contour]), collapsed: !firstTangent,
+            rawBounds: writtenFactFreeze({ x0: rawX0, y0: rawY0, x1: rawX1, y1: rawY1 }),
+            rawStart: writtenFactFreeze({ x: rawStartX, y: rawStartY }), rawEnd: writtenFactFreeze({ x: rawEndX, y: rawEndY }),
             ...(rawFirstTangent ? { rawStartTangent: rawFirstTangent } : {}), ...(rawLastTangent ? { rawEndTangent: rawLastTangent } : {}) })
         }
         observed(geometry, served)

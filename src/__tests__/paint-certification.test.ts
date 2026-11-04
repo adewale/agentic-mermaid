@@ -2898,13 +2898,15 @@ test.each([
   { kind: 'polyline' as const, mode: 'zero-last' as const },
   { kind: 'polyline' as const, mode: 'long-bent-fractional' as const },
   { kind: 'polyline' as const, mode: 'long-zero-last' as const },
+  { kind: 'polyline' as const, mode: 'private-seal' as const },
 ].flatMap(row => (['native', 'scene'] as const).map(execution => ({ ...row, execution }))))('the $mode emitted $kind must retain visible endpoint marker ink through $execution', ({ kind, mode, execution }) => {
   // The tiny northwest line writes as a zero-length line. Its SVG auto
   // orientation is then +x: the triangle (32,37.5),(40,40),(32,42.5)
   // lies wholly under the later white card. The raw northwest tangent instead
   // places that triangle southeast of the card and used to receive a pass.
-  const x1 = mode === 'rounded' ? 40.00000000000001 : mode === 'fractional' ? 41.00000000000001 : 41
-  const y1 = mode === 'exact' ? 41 : 40.00000000000001
+  const privateSeal = mode === 'private-seal'
+  const x1 = privateSeal ? 30.00000000000003 : mode === 'rounded' ? 40.00000000000001 : mode === 'fractional' ? 41.00000000000001 : 41
+  const y1 = privateSeal ? 40.00000000000003 : mode === 'exact' ? 41 : 40.00000000000001
   const long = mode === 'long-bent-fractional' || mode === 'long-zero-last'
   const bent = mode === 'bent-fractional' || mode === 'zero-last' || long
   const zeroLast = mode === 'zero-last' || mode === 'long-zero-last'
@@ -2921,14 +2923,26 @@ test.each([
       ? { kind: 'line', x1, y1, x2: 40, y2: 40 }
       : { kind: 'polyline', points: bent
         ? [...(long ? [{ x: 70.00000000000001, y: 70.00000000000001 }, { x: 60.00000000000001, y: 70.00000000000001 }] : []), { x: 60.00000000000001, y: 60.00000000000001 }, { x: 60.00000000000001, y: 40.00000000000001 }, { x: zeroLast ? 39.99999999999999 : 41.00000000000001, y: 40.00000000000001 }, { x: 40.00000000000001, y: 40.00000000000001 }]
-        : [{ x: x1, y: y1 }, { x: 40, y: 40 }] }, paint: { stroke: '#111', strokeWidth: '1' }, endpoints: { from: 'other', to: 'cover' }, markers: { end: marker } }),
+        : [{ x: x1, y: y1 }, { x: privateSeal ? 40.00000000000003 : 40, y: privateSeal ? 40.00000000000003 : 40 }] }, paint: { stroke: '#111', strokeWidth: '1' }, endpoints: { from: 'other', to: 'cover' }, markers: { end: marker } }),
     factory.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 30, y: 35, width: 10, height: 10 }, paint: { fill: '#fff' } }),
     factory.documentClose(),
   ] })
-  const drawing = drawPaintControl(producer, context, execution)
+  const freezeDescriptor = Object.getOwnPropertyDescriptor(Object, 'freeze')!, freeze = Object.freeze
+  const define = Object.defineProperty, own = Object.getOwnPropertyDescriptor
+  let drawing: ReturnType<typeof drawPaintControl>
+  try {
+    if (privateSeal) define(Object, 'freeze', { ...freezeDescriptor, value(value: unknown) {
+      // Raw source endpoints retain fractional tails. Only the fresh served
+      // point can match this integer pose after actual SVG tokens were written.
+      if (value && typeof value === 'object' && own(value, 'x')?.value === 40 && own(value, 'y')?.value === 40 && !Object.isFrozen(value)) Reflect.set(value, 'x', 90)
+      return freeze(value)
+    } })
+    drawing = drawPaintControl(producer, context, execution)
+  } finally { if (privateSeal) define(Object, 'freeze', freezeDescriptor) }
+
   expect(drawing.svg).toContain(kind === 'line'
     ? mode === 'rounded' ? '<line x1="40" y1="40" x2="40" y2="40"' : mode === 'fractional' ? '<line x1="41" y1="40" x2="40" y2="40"' : '<line x1="41" y1="41" x2="40" y2="40"'
-    : bent ? `<polyline points="${long ? '70,70 60,70 ' : ''}60,60 60,40 ${zeroLast ? '40' : '41'},40 40,40"` : mode === 'rounded' ? '<polyline points="40,40 40,40"' : mode === 'fractional' ? '<polyline points="41,40 40,40"' : '<polyline points="41,41 40,40"')
+    : privateSeal ? '<polyline points="30,40 40,40"' : bent ? `<polyline points="${long ? '70,70 60,70 ' : ''}60,60 60,40 ${zeroLast ? '40' : '41'},40 40,40"` : mode === 'rounded' ? '<polyline points="40,40 40,40"' : mode === 'fractional' ? '<polyline points="41,40 40,40"' : '<polyline points="41,41 40,40"')
   expect(drawing.svg).toContain('marker-end="url(#arrow)"')
   expect(drawing.svg).toContain('points="0 0, 8 2.5, 0 5" fill="#111"')
   const cover = '<rect x="30" y="35" width="10" height="10" fill="#fff" data-id="cover" data-role="node" />'
@@ -2947,8 +2961,8 @@ test.each([
   expect(Buffer.compare(raster(withoutCover), raster(withoutCover.replace(markerEnd, '')))).not.toBe(0)
   const markerChangesImage = Buffer.compare(raster(drawing.svg), raster(drawing.svg.replace(markerEnd, ''))) !== 0
   const proof = drawing.proof
-  if (mode === 'rounded' || zeroLast) {
-    if (mode === 'rounded') expect(darkPixels(drawing.svg)).toBe(0)
+  if (mode === 'rounded' || zeroLast || privateSeal) {
+    if (mode === 'rounded' || privateSeal) expect(darkPixels(drawing.svg)).toBe(0)
     else expect(darkPixels(drawing.svg)).toBeGreaterThan(0)
     expect(markerChangesImage).toBe(false)
     expect(proof.status).not.toBe('passed')
