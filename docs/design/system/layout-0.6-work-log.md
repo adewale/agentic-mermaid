@@ -302,6 +302,18 @@ old782ms cold remainder did not recur; attribution remains unknown. Existing
 indexes/early exits already serve lane queries. Marker selection, generic crossing
 reuse, ER glyph batching and Class wrapper reuse were stopped for live-read
 isolation or insufficient savings, without candidate runs. Profile evidence:
-week cyclic-contact-profile-cache0-38d3a89ce. Next: requalify the older cyclic9
-coincident-head witness against the changed endpoint producer; keep sparse32,
-Class128TB/BT, ER256-chain and unavailable original-baseline/peer comparisons open.
+week cyclic-contact-profile-cache0-38d3a89ce. Sparse32, Class128TB/BT, ER256-chain
+and unavailable original-baseline/peer comparisons remain open.
+
+At954248001, two current cyclic9 SVG calls requalify the dated coincident-head
+witness: both engines preserve9names/23relationships/6captions, P266980/P267160.
+Agentic has23distinct tips versus22ELK; the old pair now has individually visible
+123/122 dark pixels after removal controls, no out-of-region changes. All-head
+ROIs still share6pixels; no full normal-contact or all-head individual claim.
+AM area668671.576/wire10783.122/36turns versus currentELK669058.282/11585.585/54:
+area−0.058%, wire−6.93%,18fewerturns. Versus dated AM: same area/turns, wire−21.15px.
+This qualifies the existing endpoint repair, not another code fix. Four offline
+Inter rasters; no layout calls. Exact SVG/entire receipts and independent summary:
+week cyclic9-requalification-954248001. Next code target remains Class vertical's
+212 actually changed polyline projections; aliases/rekeying cannot remove their
+work. No safe bounded producer subtraction identified yet; preserve caps/refusals.
