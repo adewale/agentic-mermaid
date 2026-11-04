@@ -262,11 +262,11 @@ GuardStart[G] guard@--> GuardEnd[H]`
     { nodes: 11, edges: 24, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-11.mmd', import.meta.url), 'utf8') },
     { nodes: 10, edges: 20, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-10.mmd', import.meta.url), 'utf8') },
     { nodes: 15, edges: 31, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-15.mmd', import.meta.url), 'utf8') },
-    { nodes: 19, edges: 44, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-19.mmd', import.meta.url), 'utf8') },
+    { nodes: 19, edges: 44, tight: { maxArea: 1_350_000, allowPaintBudget: true }, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-19.mmd', import.meta.url), 'utf8') },
     { nodes: 13, edges: 31, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-13.mmd', import.meta.url), 'utf8') },
-    { nodes: 15, edges: 34, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-15-chains.mmd', import.meta.url), 'utf8') },
-    { nodes: 9, edges: 23, tight: true, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-9-chains.mmd', import.meta.url), 'utf8') },
-  ])('reduces crossings in a cyclic $nodes-node labelled multigraph without merging routes', ({ source, nodes, edges, tight = false }) => {
+    { nodes: 15, edges: 34, tight: { maxArea: 1_500_000 }, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-15-chains.mmd', import.meta.url), 'utf8') },
+    { nodes: 9, edges: 23, tight: { maxHeight: 451 }, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-9-chains.mmd', import.meta.url), 'utf8') },
+  ])('reduces crossings in a cyclic $nodes-node labelled multigraph without merging routes', ({ source, nodes, edges, tight }) => {
     const titledSource = '---\ntitle: Cyclic routes\n---\n' + source
     const svg = renderMermaidSVGWithReceipt(titledSource, AGENTIC)
     const native = layoutMermaidWithReceipt(titledSource, { ...AGENTIC, debug: true })
@@ -294,8 +294,9 @@ GuardStart[G] guard@--> GuardEnd[H]`
         return []
       })
       const viewport = decodedSvgAttributeValue(tags[0]!, 'viewBox')!.split(/\s+/).map(Number)
-      // This reproduction previously retained a 451px private canvas.
-      expect(viewport[3]!).toBeLessThan(451)
+      // Old private canvases retained 451px height / 1.57M and 1.41M px² area.
+      if (tight.maxHeight !== undefined) expect(viewport[3]!).toBeLessThan(tight.maxHeight)
+      if (tight.maxArea !== undefined) expect(viewport[2]! * viewport[3]!).toBeLessThan(tight.maxArea)
       const left = Math.min(...vertices.map(point => point[0]!)), top = Math.min(...vertices.map(point => point[1]!))
       const right = Math.max(...vertices.map(point => point[0]!)), bottom = Math.max(...vertices.map(point => point[1]!))
       // Requested padding surrounds body outlines and route centerlines;
@@ -310,7 +311,10 @@ GuardStart[G] guard@--> GuardEnd[H]`
         expect(number(halo, 'x') + number(halo, 'width')).toBeLessThanOrEqual(viewport[2]!)
         expect(number(halo, 'y') + number(halo, 'height')).toBeLessThanOrEqual(viewport[3]!)
       }
-      expect(fitted.receipt.layoutCertification?.status).toBe('passed')
+      const proof = fitted.receipt.layoutCertification
+      // The 19-node drawing is delivered even when advisory paint checking exhausts.
+      if (tight.allowPaintBudget && proof?.status === 'unverified') expect(proof.issues.map(issue => issue.code)).toEqual(['CHECK_BUDGET'])
+      else expect(proof?.status).toBe('passed')
     }
     JSON.stringify(svg.receipt)
     JSON.stringify(native.receipt)
