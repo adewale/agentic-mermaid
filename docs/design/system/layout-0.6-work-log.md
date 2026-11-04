@@ -116,6 +116,41 @@ Evidence: existing week class-scene-{preference-52a,cache0-cost-539407810,
 cache1-cost-539407810}, class128-TB-candidate-profile-52a and
 recovery-payload/class-scene-539407810; full tables/failed probes remain there.
 
+## 4 November: less Native text capture work, no delivery gap closed
+
+b823ccd5351b6d2e769407667e988750e36cc9aa stops retaining a duplicate run roster
+for constructor-owned prepared blocks under intrinsic array mapping. Generic blocks,
+map/constructor/species hooks and explicit legacy rosters retain their behavior;
+fidelity reads the canonical block when the optional roster is absent. Observable
+Scene detail: those generated preparedLines values are now undefined. No new cache,
+fee change, cap change or geometry change. A prototype skipped constructor hooks;
+an actual SVG paint control reproduced that regression before the fallback repair.
+
+Sparse0 remains P, operations344766->299688 (-45078,13.08%); only that proof field
+changes. All six cold/repeat/edit before/current SVG pairs are byte-exact and retain
+1500 texts, with the edited last text actually changing x->y. Sparse32 still has32
+actual marker references but U400000/zero certified markers; all three ENTIRE proofs
+are unchanged. Its foreground loop is inactive. Exact capture attribution moves
+pre-XML work382968->337890; typed XML leaf validation still exhausts. Bare Scene
+P8198 does not bind actual final composition and is not an equivalent delivery.
+Class128TB whole SVG/ENTIRE public receipt are unchanged: U400000,53/127 markers.
+
+Twelve fully consumed direct draw+certify calls, N=1/cell, no geometry cache:
+Sparse0 cold/repeat/edit331/149/125->198/155/105ms, peakRSS101084->128668KiB;
+post-GC heap6.27/6.91/7.05->6.60/7.27/7.94MiB. Sparse32 525/284/218->299/272/204ms,
+RSS133760->131080; heap7.13/8.74/8.59->7.12/7.96/9.16MiB. Imports/setup excluded.
+Adverse repeat/RSS/heap results remain; U/U reaches different amounts of internal
+checking. Keep this for removed copying, not a speed, allocation or memory claim.
+
+Focused115P; core typecheck exit0 and lint/diff pass. Broad979P/7F retains Sparse32,
+ClassTB/BT and four timeouts; those four pass isolated at unchanged deadlines.
+Shared receiver-sensitive/getter/iterator/CSS/ownership controls remain enrolled.
+Two fresh Node24.19 witnesses, one RAM build and two compiled calls returnP388447
+with whole SVG/ENTIRE raw receipt exact. Class AM21requests/gzip293493/Br246827B
+versus ELK20/671544/525082; counts unchanged, gzip+132B both, Br+66/+39B versusf1e.
+Evidence: week prepared-roster-{f1e,cost-f1e23e62f-dirty}, sparse32-capture-{ledger,
+roster}-f1e and recovery-payload/prepared-roster-b823ccd53. No CI or remote mutation.
+
 ## Stopped hypotheses and next fix
 
 c323e9fd5 Native pure-forest acquisition was normally reverted by3e43badc5:
@@ -126,15 +161,19 @@ scan subtraction is unsound under a stroke accessor changing1->10000. A bounded
 body-index trial still refused both256 chains later in the pipeline. ER glyph
 lookup profiling showed tiny sampled costs; no lookup rewrite shipped.
 
-Next: investigate the remaining vertical Class budget deficit. It is not
-explained by final backend composition alone. Source review
-finds circle-only marker preparation eagerly snapshots unsupported polygon/polyline
-resources. Existing immutable Scene membership might permit an early rejection;
-first instrument eligibility/attempt counts. Static gross244operations/attempt,
-at most about31k across127, is not observed savings or a closure claim. Keep existing
-producer facts, paid inquiries, generic getter/callback behavior and
-all caps; avoid a parallel compiler or cache. Existing written-polyline projection
-reuse is already active.
+The proposed Class circle-helper shortcut has zero eligible calls. TB/LR capture
+drift106372 comes mostly from212 changed two-point polylines; merely removing their
+reflective copies is insufficient, and existing written-projection reuse is active.
+A Requirement kind-order trial lowers TB area13.6% but raises wire23.7%/turns8->14;
+stopped. Caption-before-finalizer instead refuses owned path/contact reservation;
+stopped without variants. Those are observations, not shipped improvements.
+
+Next: subtract active typed XML duplicate-name work using the existing writer and
+value validation, after pricing its classification cost; a mask is not implemented
+or qualified. Keep Sparse32, Class vertical, ER256-chain refusal and the retained
+Requirement/cyclic quality losses open. ER256's old body-index trial later fails
+glyph-piece->shaft (Agentic) or label->shaft (ELK), not label->label. Do not revive
+unsafe body indexing, inactive foreground scans, fee repricing or another compiler.
 
 Lessons: test the ordinary public boundary, preserve exact inputs/defaults and
 actual output ownership, narrow partial claims, and price adverse results. Reuse
