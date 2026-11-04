@@ -6296,3 +6296,38 @@ without normalization. Evidence: existing week directory flow-fit-{precleanup,ow
 Next: requalify affected15-chains/19 canvas losses before changing routes. ER256,
 Class128/sparse32, Requirement area, request gap and original-baseline/peer
 availability remain open. Replacement24 sealed; local only.
+
+### 4 November: final Native group operands and emitted bytes agree
+
+25b6c43b02926e286d016d21fc701ee1d3663479 reuses final group validation's primitive
+operands with fresh consumer receivers, charging retention/materialization in the
+existing ledger. It moves the existing registry rather than adding a cache.
+Literal mono-font groups can no longer falsely pass through inherited find/push/
+split substitutions. Pinned operands survive the demonstrated freeze substitution;
+actual group emission uses the same captured opening as proof, despite a later
+source-shell mutation. Separate old-code controls fail; final font/Native19 owners,
+core typing, lint and seven affected cyclic rows pass. Broader checks retain exactly
+the two baseline ER/sparse proof failures (760 pass, 2 fail).
+
+Native19 now completes at 397396/400000 operations, with identical final SVG;
+ELK19 remains budget-unverified. This is proof availability, not complete authored
+ink: five coincident heads in two groups remain ambiguous. Requalification of the
+prior fff8c38ef fit finds 15-chains area 1570690.918->1220999.926, versus ELK 1424393.069
+(-14.28%); wire remains +0.383%. The19 canvas was already better, now 1233429.431
+versus ELK 2307940.919. a50bbd354 adds owning coverage for these fits, not a runtime fix.
+
+All 36 consumed cache-off/on cold/repeat/edit calls return; 18 before/current SVG
+pairs are exact, four actual layout hits match own cold SVG/entire receipts, edits
+miss. Adverse AM19 off times 769/392/508->880/476/456ms and peak RSS 218288->232572KiB;
+on 953/101/534->1010/117/487ms, RSS 210612->222944KiB. Small-control cold 189->211ms;
+heap has adverse rows. N=1 and unequal U->P proof work: no speedup/allocation claim.
+One Node preflight EPERM makes zero calls; retained retry supplies two witnesses.
+One RAM build/two compiled calls match same-Node whole SVG/entire receipts exactly.
+AM Flowchart 26 requests/gzip 366133/Brotli 310523 B (+1217/+1098), ELK 24/737102/582578
+(+1215/+1079); initial 3/5857/5235. Evidence: existing week native-group-*25b6c43b0,
+native-group-actual-b063/owner-final-* and cyclic15-19-b063.
+
+Next: ER256 final shaft/card geometry custody after the last label callback, before
+any index reuse. Its retained stroke accessor changes 1->10000, blocking the shortcut.
+ER256 remains a shared refusal; Class128/sparse32, Requirement losses and unavailable
+original baseline/pinned peers remain enrolled. Replacement24 sealed; local only.
