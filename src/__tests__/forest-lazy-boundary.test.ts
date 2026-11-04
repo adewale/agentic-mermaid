@@ -11,7 +11,7 @@ import type { Direction } from '../types.ts'
 const source = 'flowchart TD\nA[Wide root] --> B\nA --> C\nD[Disconnected]'
 
 describe('shared lazy forest boundary', () => {
-  test('rejects ineligible graphs and acquires Native before independent legacy Forest admission', async () => {
+  test('rejects ineligible graphs before loading and shares admitted forest/native acquisition', async () => {
     expect(admitted(parseMermaid('flowchart TD\nA --> B\nB --> A'))).toBe(false)
     expect(admitted(parseMermaid('flowchart TD\nA -- label --> B'))).toBe(false)
     let forest: unknown, native: unknown
@@ -26,16 +26,13 @@ describe('shared lazy forest boundary', () => {
     expect(native).toBeInstanceOf(DeferredDependencyError)
     expect((forest as DeferredDependencyError).dependency).toBe('Forest layout')
     expect((native as DeferredDependencyError).dependency).toBe('Agentic layout')
-    await (native as DeferredDependencyError).load()
+    await Promise.all([loadForest(), (forest as DeferredDependencyError).load(), (native as DeferredDependencyError).load()])
+    expect(admitted(parseMermaid(source))).toBe(true)
+    expect(readyForest().indexedForestLayout).toBe(canonicalLayout)
     expect(lazyNative(measured)).toEqual(canonicalNative(measured))
     const actual = lazyNative(measured)
     actual.nodes[0]!.x = -1000
     expect(lazyNative(measured)).toEqual(canonicalNative(measured))
-    expect(() => readyForest()).toThrow(DeferredDependencyError)
-    expect(() => admitted(parseMermaid(source))).toThrow(DeferredDependencyError)
-    await Promise.all([loadForest(), (forest as DeferredDependencyError).load()])
-    expect(admitted(parseMermaid(source))).toBe(true)
-    expect(readyForest().indexedForestLayout).toBe(canonicalLayout)
   })
 
   for (const direction of ['TD', 'BT', 'LR', 'RL'] satisfies Direction[]) {

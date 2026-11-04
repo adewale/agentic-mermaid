@@ -154,7 +154,7 @@ if (!MEASURE_ONLY && forestOutputs.some(output => initialFiles.includes(output) 
 }
 const agenticFamilyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id,
   agenticLoaders.some(loader => staticFamilyFiles[id].includes(loader))
-    ? staticClosure([entry, renderCore, familyOutputs[id], ...agenticOutputs]) : undefined,
+    ? staticClosure([entry, renderCore, familyOutputs[id], ...agenticOutputs, ...forestOutputs]) : undefined,
 ]))
 const implicitForestFiles = MEASURED_FAMILY_IDS.includes('flowchart') ? staticClosure([entry, renderCore, familyOutputs.flowchart, ...forestOutputs]) : undefined
 const implicitForestFallbackFiles = implicitForestFiles ? staticClosure([...implicitForestFiles, elkOutput]) : undefined
@@ -262,7 +262,7 @@ const report = {
   budgetedFamilyClosure: 'static imports plus complete YAML transfer for frontmatter/directives and ELK transfer for families that can demand its constructor',
   yamlChunks: yamlProviderOutputs,
   yamlTransfer: transferSize(yamlFiles),
-  familyCost: 'selected ELK includes its solver; nativeSolver includes the producer and its static pure-forest dependency; omitted-layout Flowchart indexed forest and its ELK fallback union are reported and budgeted separately; static excludes on-demand dependencies; HTML5 tables remain additional',
+  familyCost: 'selected ELK includes its solver; nativeSolver includes the shared forest implementation; omitted-layout Flowchart indexed forest and its ELK fallback union are reported and budgeted separately; static excludes on-demand dependencies; HTML5 tables remain additional',
   ...(implicitForestFiles && implicitForestFallbackFiles ? { omittedLayoutFlowchart: { indexedForest: { requests: implicitForestFiles.length, ...transferSize(implicitForestFiles) }, indexedForestThenElk: { requests: implicitForestFallbackFiles.length, ...transferSize(implicitForestFallbackFiles) } } } : {}),
   elkChunk: elkOutput,
   elkTransfer: transferSize(elkFiles),
