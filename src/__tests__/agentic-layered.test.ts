@@ -714,7 +714,7 @@ describe('owned measured layered layout', () => {
     }
   })
 
-  test.each([0, 310, 1_000_000])('retains feasible compact long-edge routes with joint-order budget %s', blockPairs => {
+  test.each([0, 310, 1_000_000].flatMap(blockPairs => [false, true].map(hostileSetter => ({ blockPairs, hostileSetter }))))('retains feasible compact long-edge routes with joint-order budget $blockPairs (hostile setter $hostileSetter)', ({ blockPairs, hostileSetter }) => {
     const input = measured({ compactPrivateRanks: true,
       nodes: Array.from({ length: 5 }, (_, index) => ({ id: String(index), width: 40, height: 40 })),
       edges: [0, 1].flatMap(source => [2, 3, 4].map(target => ({ source, target, minSpan: 3 }))),
@@ -723,7 +723,31 @@ describe('owned measured layered layout', () => {
     const place = (budget: number) => layoutLayeredGraph(input, () => undefined,
       reason => { throw new GraphLayoutUnsupportedError(reason) }, undefined,
       { attempts: 0, scorePairs: 0, loopPairs: 0, rankPairs: 200_000, blockPairs: budget, routing: { pairs: 0, arcs: 0, swaps: 0 } })
-    const baseline = place(0), output = place(blockPairs)
+    const baseline = place(0), expected = blockPairs === 0 ? baseline : place(blockPairs)
+    let output = expected
+    if (hostileSetter) {
+      const define = Object.defineProperty, own = Object.getOwnPropertyDescriptor, create = Object.create, array = Array.isArray
+      const previous = own(Array.prototype, '0')
+      const descriptor = create(null) as PropertyDescriptor
+      descriptor.configurable = true
+      descriptor.set = function (this: unknown[], value: unknown) {
+        if (array(value) && own(value, 'length')?.value === 2 && typeof own(value, '0')?.value === 'number' && array(own(value, '1')?.value)) {
+          throw new Error('Private rank order reached an inherited array setter')
+        }
+        // Other arrays retain ordinary indexed assignment. A null-prototype
+        // descriptor keeps inherited descriptor fields out of publication.
+        const slot = create(null) as PropertyDescriptor
+        slot.value = value; slot.enumerable = true; slot.configurable = true; slot.writable = true
+        define(this, '0', slot)
+      }
+      define(Array.prototype, '0', descriptor)
+      try { output = place(blockPairs) }
+      finally {
+        if (previous) define(Array.prototype, '0', previous)
+        else Reflect.deleteProperty(Array.prototype, '0')
+      }
+    }
+    expect(output).toEqual(expected)
     expect(input).toEqual(original)
     expect(output.nodes).toHaveLength(5)
     expect(output.edges).toHaveLength(6)

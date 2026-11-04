@@ -80,6 +80,7 @@ interface Vertex {
 export { MAX_EXPANDED_VERTICES }
 const SWEEP_PAIRS = 4
 const LABEL_GAP = 8
+const defineOrderSlot = Object.defineProperty
 
 function finiteSize(value: number, positive: boolean): boolean {
   return Number.isFinite(value) && (positive ? value > 0 : value >= 0)
@@ -535,19 +536,26 @@ export function layoutLayeredGraph(
   // Move a long edge's private vertices together. Single-rank switches can
   // stall when their temporary crossings conceal an improving joint move.
   if (input.compactPrivateRanks && nodes.length <= 20 && edges.length <= 64 && vertices.length <= 256) {
+    const slotDescriptor = { __proto__: null, value: undefined as [number, number[]] | undefined, writable: true, enumerable: true, configurable: true }
     let value = crossingScore(), trials = 128
     const blocks = chains.map(chain => chain.slice(1, -1)).filter(block => block.length > 1).sort((a, b) => b.length - a.length)
     for (const block of blocks) {
       if (value === 0) break
-      const saved = new Map(block.map(id => [vertices[id]!.rank, [...bands[vertices[id]!.rank]!]]))
-      let best = value, bestOrders: Map<number, number[]> | undefined, exhausted = false
+      const saved: Array<[number, number[]]> = []
+      for (let ordinal = 0; ordinal < block.length; ordinal++) {
+        const id = block[ordinal]!
+        slotDescriptor.value = [vertices[id]!.rank, [...bands[vertices[id]!.rank]!]]
+        defineOrderSlot(saved, ordinal, slotDescriptor)
+      }
+      let best = value, bestOrders: typeof saved | undefined, exhausted = false
       for (const fraction of [0, 1, .25, .5, .75]) {
         // Each expanded arc has at most eight Fenwick steps per query/update.
         const cost = bands.length + vertices.length + 16 * (vertices.length - nodes.length + edges.length)
         if (trials-- <= 0 || (searchWork.blockPairs ?? 2_000_000) < cost) { exhausted = true; break }
         searchWork.blockPairs = (searchWork.blockPairs ?? 2_000_000) - cost
-        for (const id of block) {
-          const rank = vertices[id]!.rank, band = bands[rank]!, original = saved.get(rank)!
+        for (let ordinal = 0; ordinal < block.length; ordinal++) {
+          const id = block[ordinal]!
+          const rank = vertices[id]!.rank, band = bands[rank]!, original = saved[ordinal]![1]
           for (let index = 0; index < band.length; index++) band[index] = original[index]!
           const from = band.indexOf(id), to = Math.floor((band.length - 1) * fraction)
           if (from < to) for (let index = from; index < to; index++) band[index] = band[index + 1]!
@@ -557,12 +565,21 @@ export function layoutLayeredGraph(
         const score = crossingScore()
         if (score < best) {
           best = score
-          bestOrders = new Map([...saved].map(([rank]) => [rank, [...bands[rank]!]]))
+          bestOrders = []
+          for (let ordinal = 0; ordinal < saved.length; ordinal++) {
+            const rank = saved[ordinal]![0]
+            slotDescriptor.value = [rank, [...bands[rank]!]]
+            defineOrderSlot(bestOrders, ordinal, slotDescriptor)
+          }
         }
       }
       // Restore a completed best order before leaving, including exhaustion
       // halfway through a block's proposals. No partial proposal escapes.
-      for (const [rank, band] of bestOrders ?? saved) bands[rank] = band
+      const orders = bestOrders ?? saved
+      for (let ordinal = 0; ordinal < orders.length; ordinal++) {
+        const order = orders[ordinal]!
+        bands[order[0]] = order[1]
+      }
       value = best
       if (exhausted) break
     }
