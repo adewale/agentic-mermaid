@@ -204,6 +204,31 @@ node24-15972c57e, recovery-payload/requirement-completed-cycle-access-15972c57e.
 The repeated raw-area guard was already falsified; its two duplicate probes are
 not progress. Remaining capacity/cyclic losses and missing baseline/peers stay open.
 
+## Clear producer endpoint seats — 2026-11-04
+
+d82c926cc0f6f1119a86e5079ba79fca1a2df0f9 generalizes the existing internal
+Native seat-preservation policy; default ELK port convergence stays unchanged.
+Only outward <=4-point routes with existing nominal lane clearance can retain
+floating seats, within64/128 and outside custom measurement. Final paint caps and
+checks remain authoritative. Cyclic19 retains all19nodes/44relations/11captions;
+41→44 distinct target tips, with individual surviving ink for all5 prior collision
+heads. Area1233429.431256 and102bends unchanged; wire16134.742→15849.613 (-1.77%).
+Same-input ELK: area2307940.919/wire27580.876/120bends/37distinct tips, all44edges
+returned but proofU400000; this does not establish incorrect ELK visible meaning.
+Old literal controls2F/grazeP→3P. Initial broad1999P/5F included2default-ELK policy
+regressions; corrected routing/mutation/fuzz770P/0F plus public head-ink ownerP,
+core types/lintP. Sparse32/Class128TB/BT remain open. No new full-suite pass claimed.
+18 consumed before/current calls: AgenticP, ELKU; repeat entire products exact,
+ELK before/current exact. AM cache0 ms881/467/464→1610/787/511; cache1
+736/90/375→812/112/344. RSS/heap mixed/adverse;782ms of current cold elapsed lies
+outside named stages, unattributed. Retain visible correctness; no speed/memory win.
+Two fresh Node24 sources and two compiled outputs match entire SVG/receipts after
+one RAM build. Flow AM26requests/gzip367106/Br311220B versusELK24/737452/582838;
+both closures add125gzip/11BrB, no request win. Evidence: week cyclic19-clear-lane-
+15972, cyclic-contact-{cache0,cache1,elk-cache0}-cost-cefbe4a73 and recovery-payload/
+cyclic-contact-d82c926cc. Failed outward-only guard (foreign rounded-border graze)
+and failed test raster attempts are preserved; the corrected owner reads pixels once.
+
 ## Stopped hypotheses and next fix
 
 c323e9fd5 Native pure-forest acquisition was normally reverted by3e43badc5:
@@ -229,10 +254,10 @@ project rankings or unprofiled runtime estimates. Evidence: week sparse32-cpu-b8
 Class post-snapshot identity reuse is stopped: existing projection reuse is
 active, while rekeying by shared points adds memoization and removes too little
 work. Early rounding and merging shafts/overlays violate live reads or paint order.
-One exact-SVG cyclic19 trace shows three distinct outward two-bend seats collapsed
-by the midpoint-only repair trigger; this is observation, not a fixed outcome.
-Next: replace that false trigger with existing exact-outline approach checking
-and requalify the final five heads plus legacy fan-in convergence controls.
+The cyclic19 midpoint-only repair loss is fixed above; endpoint validity alone
+was insufficient, so shared lane clearance and producer authority remain necessary.
+Next: profile the added live lane queries and unattributed fully-consumed time
+before a performance rewrite; reuse prepared producer geometry rather than caching.
 Keep Sparse32, Class vertical, ER256-chain and Requirement/cyclic losses open.
 ER256's old body-index trial later fails glyph-piece->shaft (Agentic) or label->shaft
 (ELK), not label->label. No unsafe indexing, fee repricing or another compiler.
