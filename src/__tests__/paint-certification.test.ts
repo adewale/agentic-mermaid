@@ -34,7 +34,7 @@ import { admitSceneDocument } from '../scene/external-data-snapshot.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { createNativePaintEmission, MAX_OCCLUSION_OPERATIONS } from '../scene/native-paint-emission.ts'
 import { inspectSvgOnce, withSvgInspectionCache } from '../svg-inspection-cache.ts'
-import { scanSvgStartTags } from '../svg-structure.ts'
+import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 
 const paintTemp = useTempDirs('am-paint-')
@@ -141,6 +141,18 @@ console.log(JSON.stringify({ rendered, stages: [...stages], provider }))
   for (const edge of edges) expect(edge.attributes).toMatchObject({ 'data-marker-end': 'arrow', 'marker-end': expect.stringMatching(/^url\(#[^)]+\)$/) })
   expect(edges.filter(edge => edge.attributes['data-from'] === 'n0' && edge.attributes['data-to'] === 'n4').map(edge => edge.attributes['data-label'] ?? '')).toEqual(['', 'edge 16 xxxxxxxxxxxxxxxxxxx', ''])
   expect(edges.filter(edge => edge.attributes['data-from'] === 'n9' && edge.attributes['data-to'] === 'n13')).toHaveLength(2)
+  // These independently authored incoming relationships must keep separate
+  // actual arrow seats, including the labelled n5→n13 carrier.
+  const targetSeats = ([[2, 'n9', 'n13'], [15, 'n18', 'n13'], [20, 'n5', 'n13'], [13, 'n2', 'n18'], [38, 'n16', 'n18']] as const).map(([index, from, to]) => {
+    const edge = edges[index]!
+    expect(edge.attributes).toMatchObject({ 'data-from': from, 'data-to': to })
+    expect(edge.name).toBe('polyline')
+    const [x, y] = edge.attributes.points!.trim().split(/\s+/).at(-1)!.split(',').map(Number)
+    expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true)
+    return { edge, x: x!, y: y! }
+  })
+  expect(new Set(targetSeats.slice(0, 3).map(seat => `${seat.x},${seat.y}`)).size).toBe(3)
+  expect(new Set(targetSeats.slice(3).map(seat => `${seat.x},${seat.y}`)).size).toBe(2)
   const textTags = rendered.svg.match(/<text\b[^>]*>[^<]*<\/text>/g)!
   expect(textTags).toHaveLength(30)
   const texts = textTags.map(tag => tag.slice(tag.indexOf('>') + 1, -7))
@@ -148,8 +160,30 @@ console.log(JSON.stringify({ rendered, stages: [...stages], provider }))
   for (const caption of ['edge 0 xxx', 'edge 16 xxxxxxxxxxxxxxxxxxx', 'edge 40 xxxxxxxxx']) expect(texts).toContain(caption)
   const selected = textTags.find(tag => tag.endsWith('>Node 76-0</text>'))!
   const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
-  const pixels = (svg: string) => new Resvg(svg, { font, background: '#fff' }).render().pixels
-  expect(Buffer.compare(pixels(rendered.svg), pixels(rendered.svg.replace(selected, '')))).not.toBe(0)
+  const raster = (svg: string) => new Resvg(svg, { font, background: '#fff' }).render()
+  const actual = raster(rendered.svg), actualPixels = actual.pixels
+  expect(Buffer.compare(actualPixels, raster(rendered.svg.replace(selected, '')).pixels)).not.toBe(0)
+  const [viewX, viewY, viewWidth, viewHeight] = elements.find(element => element.name === 'svg')!.attributes.viewBox!.split(/\s+/).map(Number)
+  const writtenTags = scanSvgStartTags(rendered.svg)
+  for (const seat of targetSeats) {
+    const tag = writtenTags.find(tag => decodedSvgAttributeValue(tag, 'data-id') === seat.edge.attributes['data-id'])!
+    const actualTag = rendered.svg.slice(tag.start, tag.end)
+    const absent = raster(rendered.svg.replace(actualTag, actualTag.replace(/ marker-end="[^"]+"/, '')))
+    expect([absent.width, absent.height]).toEqual([actual.width, actual.height])
+    const absentPixels = absent.pixels
+    // Keep the actual SVG viewport intact. Only the pixel scan is limited
+    // to this carrier's endpoint in the full-canvas marker-removal control.
+    const left = Math.max(0, Math.floor((seat.x - 14 - viewX!) / viewWidth! * actual.width))
+    const right = Math.min(actual.width, Math.ceil((seat.x + 14 - viewX!) / viewWidth! * actual.width))
+    const top = Math.max(0, Math.floor((seat.y - 14 - viewY!) / viewHeight! * actual.height))
+    const bottom = Math.min(actual.height, Math.ceil((seat.y + 14 - viewY!) / viewHeight! * actual.height))
+    let darker = 0
+    for (let y = top; y < bottom; y++) for (let x = left; x < right; x++) {
+      const index = (y * actual.width + x) * 4
+      if (actualPixels[index]! + actualPixels[index + 1]! + actualPixels[index + 2]! < absentPixels[index]! + absentPixels[index + 1]! + absentPixels[index + 2]! - 4) darker++
+    }
+    expect(darker).toBeGreaterThan(0)
+  }
   expect(rendered.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [], checks: { maxOperations: 400000 } })
 })
 

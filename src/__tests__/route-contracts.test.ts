@@ -116,6 +116,52 @@ describe('outward exact endpoint approaches', () => {
     expect(result.metrics.endpointApproaches).toBe(0)
   })
 
+  it.each(['subroutine', 'cylinder'] as const)('retains a clear native two-bend route with outward floating %s contacts', shape => {
+    const graph = parseMermaid(`flowchart TD\nA[A] --> ${shape === 'cylinder' ? 'B[(B)]' : 'B[[B]]'}`)
+    const nodes: PositionedNode[] = [
+      { ...graph.nodes.get('A')!, x: 0, y: 0, width: 80, height: 40 },
+      { ...graph.nodes.get('B')!, x: 200, y: 160, width: 80, height: shape === 'cylinder' ? 50 : 40 },
+    ]
+    const points = [{ x: 72, y: 40 }, { x: 72, y: 100 }, { x: 208, y: 100 }, { x: 208, y: shape === 'cylinder' ? 162.8 : 160 }]
+    const edge: PositionedEdge = { ...graph.edges[0]!, edgeIndex: 0, points: structuredClone(points) }
+    // Disjoint card spans rule out a straight lane. These floating contacts
+    // still leave the source and approach the target along outward rays.
+    expect(points[1]!.y).toBeGreaterThan(points[0]!.y)
+    expect(points[2]!.y).toBeLessThan(points[3]!.y)
+    if (shape === 'cylinder') expect(((points[3]!.x - 240) / 40) ** 2 + ((points[3]!.y - 167) / 7) ** 2).toBeCloseTo(1, 10)
+    else expect(points[3]!.y).toBe(160)
+    applyRouteContracts({ nodes, edges: [edge], groups: [] }, graph, new Set(), resolveRenderStyle(), { preserveEndpointSeats: true })
+    expect(edge.points).toEqual(points)
+    expect([edge.source, edge.target, edge.hasArrowEnd]).toEqual(['A', 'B', true])
+  })
+
+  it('repairs an outward floating route that grazes a foreign rounded card border', () => {
+    const graph = parseMermaid('flowchart TD\nA[A] --> B[[B]]\nC(C)')
+    const nodes: PositionedNode[] = [
+      { ...graph.nodes.get('A')!, x: 0, y: 0, width: 80, height: 40 },
+      { ...graph.nodes.get('B')!, x: 200, y: 160, width: 80, height: 40 },
+      { ...graph.nodes.get('C')!, x: 208, y: 120, width: 16, height: 24 },
+    ]
+    const points = [{ x: 72, y: 40 }, { x: 72, y: 100 }, { x: 208, y: 100 }, { x: 208, y: 160 }]
+    const edge: PositionedEdge = { ...graph.edges[0]!, edgeIndex: 0, points: structuredClone(points) }
+    expect(points[1]!.y - points[0]!.y).toBeGreaterThan(8)
+    expect(points[3]!.y - points[2]!.y).toBeGreaterThan(8)
+    expect(points[2]!.x).toBe(nodes[2]!.x)
+    applyRouteContracts({ nodes, edges: [edge], groups: [] }, graph, new Set(), resolveRenderStyle(), { preserveEndpointSeats: true })
+    expect(edge.points).not.toEqual(points)
+    // A half-pixel expansion conservatively covers the foreign card's
+    // painted border, including the straight west side between its corners.
+    for (let index = 1; index < edge.points.length; index++) {
+      const a = edge.points[index - 1]!, b = edge.points[index]!
+      expect(a.x === b.x || a.y === b.y).toBe(true)
+      const crosses = a.x === b.x
+        ? a.x >= 207.5 && a.x <= 224.5 && Math.max(a.y, b.y) >= 119.5 && Math.min(a.y, b.y) <= 144.5
+        : a.y >= 119.5 && a.y <= 144.5 && Math.max(a.x, b.x) >= 207.5 && Math.min(a.x, b.x) <= 224.5
+      expect(crosses).toBe(false)
+    }
+    expect([edge.source, edge.target, edge.hasArrowEnd]).toEqual(['A', 'B', true])
+  })
+
   it('feedback shortening retains a smooth source normal instead of replacing its exterior stub with a tangent', () => {
     const source = 'flowchart LR\nA[ok]\nB[ok]\nC[ok]\nD[warnings]\nE([process the input])\nA-->B\nB-->C\nA-->D\nC-->E\nB-->|yes|C\nE-->|no|A'
     const graph = parseMermaid(source), positioned = layoutGraphSync(graph)
@@ -189,7 +235,7 @@ it('keeps later fan-out repairs clear of a peer route moved earlier in the same 
     points: routes[edgeIndex]!.map(([x, y]) => ({ x: x!, y: y! })) }))
   const style = resolveRenderStyle()
   applyRouteContracts({ nodes, edges, groups: [] }, graph, new Set(), style,
-    { preserveSelfLoops: true, preserveLabels: true, preserveStraightRoutes: true })
+    { preserveSelfLoops: true, preserveLabels: true, preserveEndpointSeats: true })
   const later = edges[2]!, start = later.points[0]!, turn = later.points[1]!
   expect(turn.y - start.y).toBeGreaterThan(16)
   // Re-prove the returned first leg in a fresh borrowed context: it must not

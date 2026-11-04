@@ -114,7 +114,7 @@ export function applyRouteContracts(
   graph: MermaidGraph,
   bundled: ReadonlySet<PositionedEdge>,
   style: LabelMetricsStyle,
-  options?: { preserveSelfLoops?: boolean; preserveLabels?: boolean; preserveStraightRoutes?: boolean },
+  options?: { preserveSelfLoops?: boolean; preserveLabels?: boolean; preserveEndpointSeats?: boolean },
 ): RouteCertificate[] {
   const classes = classifyRoutes(graph)
   const { axis, ctx } = buildRouteLaneContext(
@@ -130,6 +130,21 @@ export function applyRouteContracts(
   const groupMap = flattenGroups(positioned.groups)
   const drafts: Array<{ edge: PositionedEdge; cert: DraftRouteCertificate }> = []
   let unlabelledContainerRepair: boolean | undefined
+
+  // Retain an outward off-midpoint contact with nominal lane clearance.
+  // Final paint certification remains required for the unchanged route.
+  const retainedContactClear = (edge: PositionedEdge, source: PositionedNode, target: PositionedNode): boolean => {
+    if (!options?.preserveEndpointSeats || edge.points.length > 4 || customTextMeasurementActive() || !withinLayoutPreferenceBudget(graph)
+      || invalidEndpointApproaches(edge, source, target) > 0) return false
+    for (let index = 1; index < edge.points.length; index++) {
+      const a = edge.points[index - 1]!, b = edge.points[index]!
+      if (a.x === b.x && a.y === b.y) continue
+      if (a.x !== b.x && a.y !== b.y) return false
+      const segmentAxis = axisFor(a.x === b.x ? a.y < b.y ? 'TB' : 'BT' : a.x < b.x ? 'LR' : 'RL')
+      if (hasDirectLaneBlocker(edge, a[segmentAxis.cross], Math.min(a[segmentAxis.main], b[segmentAxis.main]), Math.max(a[segmentAxis.main], b[segmentAxis.main]), ctx, segmentAxis)) return false
+    }
+    return true
+  }
 
   // Attempt one proof-carrying straightening; updates geometry + certificate.
   // `applied` means the route is straight; `mutated` means geometry moved this
@@ -155,7 +170,7 @@ export function applyRouteContracts(
     // A valid native contact need not move to a preferred diamond vertex.
     // Preserve its straight lane only after checking current obstacles and
     // actual endpoint approaches; blocked or invalid routes still need repair.
-    if (options?.preserveStraightRoutes && edge.points.length === 2) {
+    if (options?.preserveEndpointSeats && edge.points.length === 2) {
       const start = edge.points[0]!, end = edge.points[1]!, main = axis.main, cross = axis.cross
       if (start[cross] === end[cross] && invalidEndpointApproaches(edge, source!, target!) === 0
         && !hasDirectLaneBlocker(edge, start[cross], Math.min(start[main], end[main]), Math.max(start[main], end[main]), ctx, edgeAxis)) {
@@ -234,7 +249,7 @@ export function applyRouteContracts(
         cert.bendCount = bendCount(edge.points)
         mutated = true
       }
-    } else if (cert.invariant === 'explained-detour' && (cert.bendCount > 2 || hasDiagonalSegment(edge.points) || routeThroughNodeBBox(edge, ctx) || !portAt(source!, edge.points[0]!) || !portAt(target!, edge.points[edge.points.length - 1]!))) {
+    } else if (cert.invariant === 'explained-detour' && (cert.bendCount > 2 || hasDiagonalSegment(edge.points) || routeThroughNodeBBox(edge, ctx) || ((!portAt(source!, edge.points[0]!) || !portAt(target!, edge.points[edge.points.length - 1]!)) && !retainedContactClear(edge, source!, target!)))) {
       // Bend minimization (the Tamassia tradition): when the lane is
       // genuinely blocked, a 2-bend Z that terminates on the target's port
       // still beats ELK's multi-bend staircase. The same repair applies when

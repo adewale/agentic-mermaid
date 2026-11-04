@@ -168,7 +168,7 @@ for (const direction of ['RL', 'LR', 'BT', 'TB'] as const) {
     clear()
     const beforeNodes = structuredClone(nodes), identities = edges.map(edge => [edge.source, edge.target])
     const positioned = { width: 2000, height: 2000, nodes, edges, groups: [] }
-    applyRouteContracts(positioned, graph, new Set(), markerStyle, { preserveSelfLoops: true, preserveLabels: true, preserveStraightRoutes: true })
+    applyRouteContracts(positioned, graph, new Set(), markerStyle, { preserveSelfLoops: true, preserveLabels: true, preserveEndpointSeats: true })
     clear()
     closeRouteContracts(positioned, graph, markerStyle)
     clear()
