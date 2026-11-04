@@ -384,3 +384,19 @@ Class vertical, Sparse32, ER256 and unavailable baseline/peers stay open; sealed
 holdout unchanged. Two-point line lowering breaks Class CSS/DOM and saves too little;
 textLayout elision loses occupied-band semantics. Next: different producer subtraction
 for Class vertical's written projections; no sufficient safe implementation found.
+
+
+## Compensated Class band accumulation stopped — 2026-11-04
+
+Atdc7a1783860d80230f668fdf82061b7181faf2ba, one seven-line private forest
+prefix-sum trial still returns Class128TB U400000: CHECK_BUDGET plus OUTPUT_SCOPE,
+127marker checks/1520pairs reported versus retained53. This is diagnostic, not a
+qualified capacity gain. All limits/fees and generic writer code stayed intact.
+One fully consumed call216379B took1511.75ms, peakRSS151204KiB, post-GC heap21.48MB;
+N=1 with a dated f1e comparison, no speed ratio. Final SVG188650B/rootheight13959.2
+changes a few numeric coordinates; exact SVG equality was comparison, not a gate.
+Code/patch/full products remain in week class-band-sum-sufficiency-dc7a17838;
+production restored, no broad/Node/ELK/build calls. Color-identity-only alias work
+was statically falsified before execution by the earlier raw repaint-key check.
+Next: locate remaining charged paint tail without inferring it from marker counts;
+Class vertical, Sparse32, ER256, missing baseline/peers and sealed holdout remain.
