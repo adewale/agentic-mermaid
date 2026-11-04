@@ -400,3 +400,19 @@ production restored, no broad/Node/ELK/build calls. Color-identity-only alias wo
 was statically falsified before execution by the earlier raw repaint-key check.
 Next: locate remaining charged paint tail without inferring it from marker counts;
 Class vertical, Sparse32, ER256, missing baseline/peers and sealed holdout remain.
+
+
+## Class TB: ELK isolates a shared proof limit — 2026-11-04
+
+At7299495bca8fa0a78dcc9770a23d9a0ecd313f5e, the same128-chain input produces
+byte-identical189921B SVG with both engines; both U400000/53marker entries/1520pairs.
+First refusal is markerPaintIdentity's paid field-copy loop at ordinal52. Capture
+357300 +1024 receipt visits×16 =373684 (93.4% of cap) before paint checks; marker
+preparation starts381712. Later actual root pay(4) sees exhaustedBefore=true:
+OUTPUT_SCOPE is a symptom, not the first cause. No visible defect or fix established.
+Two instrumented full-product calls, observed614/1559ms and154600/223796KiB peakRSS;
+observers/artifacts/GC included, no performance ratio. Raw Agentic SVG/ENTIRE receipt
+match retained f1e bytes. Evidence: week class-first-exhaustion-7299495bc/SOURCE-CAUSE.md,
+including disclosed observational edits between runs; no production changes or tests.
+Small reviewed subtractions remain insufficient. Prioritize the shared producer;
+Class vertical, Sparse32, ER256 and missing baseline/peers stay open; holdout sealed.
