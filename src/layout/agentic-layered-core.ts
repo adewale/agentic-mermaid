@@ -67,6 +67,8 @@ export interface AgenticLayout {
   edges: { points: Point[]; labelPosition?: Point }[]
 }
 
+export type CompleteMeasuredCandidate = (candidate: AgenticLayout, fail: (reason: string) => never, work: ChannelWork) => AgenticLayout
+
 interface Vertex {
   rank: number
   crossSize: number
@@ -99,6 +101,7 @@ export function layoutLayeredGraph(
   unsupported: (reason: string) => never,
   routingWork: ChannelWork = { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 },
   searchWork: LayoutSearchWork = { attempts: 128, scorePairs: 8_000_000, loopPairs: 2_000_000, rankPairs: 200_000, blockPairs: 2_000_000, routing: { pairs: 500_000, arcs: 32768, swaps: 500_000 } },
+  complete?: CompleteMeasuredCandidate,
 ): AgenticLayout {
   const { nodes, edges, padding, nodeSpacing, layerSpacing } = input
   if (nodes.length > MAX_NODES || edges.length > MAX_EDGES) unsupported('agentic local graph-size limit')
@@ -168,6 +171,27 @@ export function layoutLayeredGraph(
     const placed = layoutLayeredGraph({ ...input, edges: edges.map((edge, index) => reversed[index]
       ? { ...edge, source: edge.target, target: edge.source } : edge) }, forestLayout, unsupported, routingWork, searchWork)
     return { ...placed, edges: placed.edges.map((edge, index) => reversed[index] ? { ...edge, points: [...edge.points].reverse() } : edge) }
+  }
+
+  // Root-only comparison sees authored loop routes, never private helpers.
+  if (complete && hasLoops && !partitioned && !hasModelOrder && !input.authoredCycleOrder && nodes.length <= 48 && edges.length <= 128
+    && searchWork.rankPairs >= nodes.length + 2 * edges.length) {
+    searchWork.rankPairs -= nodes.length + 2 * edges.length
+    let loopCount = 0, span = 0
+    for (const edge of edges) { const loop = edge.source === edge.target; loopCount += Number(loop); span += edge.minSpan * (loop ? 2 : 1) }
+    if (nodes.length + loopCount <= 48 && edges.length + loopCount <= 128 && span <= 128) {
+      const degrees = new Uint32Array(indegree), queue = new Uint32Array(nodes.length)
+      let tail = 0
+      for (let node = 0; node < nodes.length; node++) if (degrees[node] === 0) queue[tail++] = node
+      for (let cursor = 0; cursor < tail; cursor++) for (const index of outgoing[queue[cursor]!]!) {
+        const target = edges[index]!.target
+        degrees[target] = degrees[target]! - 1
+        if (degrees[target] === 0) queue[tail++] = target
+      }
+      if (tail !== nodes.length) return layoutCyclicGraph(input, incoming, outgoing,
+        (flat, fail, work) => layoutLayeredGraph(flat, forestLayout, fail, work, searchWork),
+        unsupported, routingWork, searchWork, complete)
+    }
   }
 
   if (hasLoops) {

@@ -18,6 +18,7 @@ import { createLazyVisibilityGrid } from '../layout/compound-lazy-visibility.ts'
 import { createCompoundObstacleIndex } from '../layout/compound-obstacle-index.ts'
 import { countPolylineCrossings } from '../shared/edge-crossings.ts'
 import { compactMeasuredLoops } from '../layout/compact-measured-loops.ts'
+import { shortenMeasuredRoutes } from '../layout/shorten-measured-routes.ts'
 
 function measured(overrides: Partial<MeasuredGraph> = {}): MeasuredGraph {
   return {
@@ -960,6 +961,35 @@ describe('owned measured layered layout', () => {
     expect(routes[0]!.points).not.toEqual(routes[1]!.points)
     expect(input).toEqual(original)
     expect(layoutAgenticGraph(input)).toEqual(placed)
+  })
+
+  test('retains feasible detours after the shared shortcut allowance is spent or lowered', () => {
+    const input: MeasuredGraph = {
+      nodes: [{ id: 'a', width: 20, height: 20 }, { id: 'b', width: 20, height: 20 }],
+      edges: [{ source: 0, target: 1, minSpan: 1 }],
+      direction: 'LR', padding: 0, nodeSpacing: 0, layerSpacing: 0,
+    }
+    const detour = [{ x: 20, y: 10 }, { x: 40, y: 10 }, { x: 40, y: 50 }, { x: 160, y: 50 }, { x: 160, y: 10 }, { x: 200, y: 10 }]
+    const fresh = (): AgenticLayout => ({ topology: 'layered', width: 220, height: 80,
+      nodes: [{ x: 0, y: 0 }, { x: 200, y: 0 }], edges: [{ points: detour.map(point => ({ ...point })) }] })
+    const shared = { attempts: 1, comparisons: 8_000_000 }
+    const first = shortenMeasuredRoutes(input, fresh(), shared)
+    expect(first.edges[0]!.points).toEqual([{ x: 20, y: 10 }, { x: 200, y: 10 }])
+    expect(shortenMeasuredRoutes(input, fresh(), shared).edges[0]!.points).toEqual(detour)
+    for (const work of [
+      { attempts: Number.NaN, comparisons: 8_000_000 }, { attempts: Infinity, comparisons: 8_000_000 },
+      { attempts: 1, comparisons: Number.NaN }, { attempts: 1, comparisons: Infinity },
+      { attempts: 0, comparisons: 8_000_000 }, { attempts: 1, comparisons: 0 }, { attempts: 1, comparisons: 5 },
+    ]) expect(shortenMeasuredRoutes(input, fresh(), work).edges[0]!.points).toEqual(detour)
+    let attempts = 2, comparisons = 8_000_000
+    const lowered = {
+      get attempts() { return attempts },
+      set attempts(value: number) { attempts = value; comparisons = 0 },
+      get comparisons() { return comparisons },
+      set comparisons(value: number) { comparisons = value },
+    }
+    expect(shortenMeasuredRoutes(input, fresh(), lowered).edges[0]!.points).toEqual([{ x: 20, y: 10 }, { x: 200, y: 10 }])
+    expect(shortenMeasuredRoutes(input, fresh(), lowered).edges[0]!.points).toEqual(detour)
   })
 
   test.each(['TD', 'BT', 'LR', 'RL'] as const)('keeps a labelled branch beside an unrelated wide root in %s', direction => {

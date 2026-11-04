@@ -91,9 +91,18 @@ export function layoutLayeredGraph(input: MeasuredGraph, forest: (input: Measure
       if (!Number.isFinite(prepared.pairs) || !Number.isFinite(prepared.arcs) || !Number.isFinite(prepared.swaps) || prepared.pairs < 0 || prepared.arcs < 0 || prepared.swaps < 0) unsupported('agentic marker preparation work limit')
     }
     routingWork = preparedGraphWork.get(input) ?? routingWork ?? { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }
-    const placed = layoutRawGraph(input, forest, unsupported, routingWork)
-    const final = input.placementOnly ? placed : finalizeFlatMeasuredMarkers(input, placed, routingWork, MAX_EXPANDED_VERTICES, unsupported)
-    return input.placementOnly ? final : shortenMeasuredRoutes(input, final)
+    const shortening = { attempts: 512, comparisons: 8_000_000 }
+    let completed = false
+    const finish = (candidate: AgenticLayout, fail: (reason: string) => never, work: ChannelWork): AgenticLayout => {
+      const final = finalizeFlatMeasuredMarkers(input, candidate, work, MAX_EXPANDED_VERTICES, fail)
+      const result = fitMeasuredLayout(input, shortenMeasuredRoutes(input, final, shortening))
+      completed = true
+      return result
+    }
+    const placed = layoutRawGraph(input, forest, unsupported, routingWork, undefined, input.placementOnly ? undefined : finish)
+    if (completed || input.placementOnly) return placed
+    const final = finalizeFlatMeasuredMarkers(input, placed, routingWork, MAX_EXPANDED_VERTICES, unsupported)
+    return shortenMeasuredRoutes(input, final, shortening)
   } finally {
     if (prepared && explicit && explicit !== prepared) {
       explicit.pairs = prepared.pairs; explicit.arcs = prepared.arcs; explicit.swaps = prepared.swaps

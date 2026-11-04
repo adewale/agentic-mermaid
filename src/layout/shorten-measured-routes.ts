@@ -15,10 +15,14 @@ function simplify(points: readonly Point[]): Point[] {
   return result
 }
 
+function remainingWork(value: unknown, maximum: number): number {
+  return typeof value === 'number' && value % 1 === 0 ? (value < maximum ? value : maximum) : 0
+}
+
 /** Shortcuts operate only on a completed measured graph. They retain endpoint
  * rays, clear every occupied box, and cannot increase any
  * crossing counts or introduce a shared shaft. Exhaustion leaves feasible routes intact. */
-export function shortenMeasuredRoutes(input: MeasuredGraph, placed: AgenticLayout): AgenticLayout {
+export function shortenMeasuredRoutes(input: MeasuredGraph, placed: AgenticLayout, work?: { attempts: number; comparisons: number }): AgenticLayout {
   if (placed.topology === 'forest' || placed.sharedEdges?.length || input.edges.length > 128
     || placed.edges.reduce((sum, edge) => sum + edge.points.length, 0) > 2048) return placed
   const boxes: MeasuredBox[] = input.nodes.map((node, index) => ({ ...placed.nodes[index]!, width: node.width, height: node.height }))
@@ -34,6 +38,9 @@ export function shortenMeasuredRoutes(input: MeasuredGraph, placed: AgenticLayou
   const length = (points: readonly Point[]): number => points.slice(1).reduce((sum, point, index) => sum + Math.abs(point.x - points[index]!.x) + Math.abs(point.y - points[index]!.y), 0)
   const ray = (a: Point, b: Point): string => `${Math.sign(b.x - a.x)},${Math.sign(b.y - a.y)}`
   let attempts = 512, comparisons = 8_000_000
+  if (work) { attempts = remainingWork(work.attempts, 512); comparisons = remainingWork(work.comparisons, 8_000_000) }
+  try {
+  if (work && (attempts <= 0 || comparisons <= 0)) return placed
   const chargeContact = (amount: number): boolean => (comparisons -= amount) >= 0
   for (const [index, edge] of input.edges.entries()) {
     if (placed.boundaryRoutes?.includes(index)) continue
@@ -122,4 +129,12 @@ export function shortenMeasuredRoutes(input: MeasuredGraph, placed: AgenticLayou
     }
   }
   return placed
+  } finally {
+    if (work) {
+      const liveAttempts = remainingWork(work.attempts, 512), leftAttempts = remainingWork(attempts, 512)
+      work.attempts = leftAttempts < liveAttempts ? leftAttempts : liveAttempts
+      const liveComparisons = remainingWork(work.comparisons, 8_000_000), leftComparisons = remainingWork(comparisons, 8_000_000)
+      work.comparisons = leftComparisons < liveComparisons ? leftComparisons : liveComparisons
+    }
+  }
 }

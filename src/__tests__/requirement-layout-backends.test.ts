@@ -315,6 +315,18 @@ describe('Requirement layout backends', () => {
           corners.push({ x: x!, y: y! })
         }
         const viewport = document.documentElement.getAttribute('viewBox')!.split(/\s+/).map(Number)
+        const vertical = direction === 'TB' || direction === 'BT'
+        const intervals = [...cards.values()].map(card => {
+          const start = Number(card[vertical ? 'y' : 'x'])
+          return { start, end: start + Number(card[vertical ? 'height' : 'width']) }
+        }).sort((a, b) => a.start - b.start)
+        let bands = 0, bandEnd = -Infinity
+        for (const interval of intervals) {
+          if (interval.start >= bandEnd - 1e-6) bands++
+          bandEnd = Math.max(bandEnd, interval.end)
+        }
+        expect(bands).toBe(vertical ? 2 : 3)
+        expect(viewport[2]! * viewport[3]!).toBeLessThan(260000)
         // The measured label reservation adds two pixels around its actual
         // painted pill. Removed private corridors must not leave extra margin.
         for (const margin of [Math.min(...corners.map(p => p.x)), Math.min(...corners.map(p => p.y)), viewport[2]! - Math.max(...corners.map(p => p.x)), viewport[3]! - Math.max(...corners.map(p => p.y))]) {
