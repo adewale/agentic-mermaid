@@ -259,8 +259,9 @@ was insufficient, so shared lane clearance and producer authority remain necessa
 Next: profile the added live lane queries and unattributed fully-consumed time
 before a performance rewrite; reuse prepared producer geometry rather than caching.
 Keep Sparse32, Class vertical, ER256-chain and Requirement/cyclic losses open.
-ER256's old body-index trial later fails glyph-piece->shaft (Agentic) or label->shaft
-(ELK), not label->label. No unsafe indexing, fee repricing or another compiler.
+ER256's old body-index trial exhausts ink-index query work at glyph-piece->shaft
+(Agentic) or label->shaft (ELK), before the exact predicate; no actual collision
+was established. No unsafe indexing, fee repricing or another compiler.
 
 Lessons: test the ordinary public boundary, preserve exact inputs/defaults and
 actual output ownership, narrow partial claims, and price adverse results. Reuse
@@ -271,3 +272,36 @@ Retained evidence is /tmp/pr449-week-comparison-20261101; coordination is
 commits, uncommitted candidate patches and complete evidence. No CI readiness or
 original-baseline parity is claimed. Tests and unchanged replays are validation;
 only removed failures, supported coverage and measured output changes are progress.
+
+## Private rank scratch subtraction — 2026-11-04
+
+9542480016e8a203659b413e2024a891da0e3271 replaces private long-edge rank
+snapshot Maps with ordinal tuples; generated chains have one vertex per increasing
+rank. Same proposals, scoring, caps and exhaustion restoration. Cyclic19 removes
+56 saved +13 best-order Maps and1,335 gets;1,335 ordinal reads instead. Captured
+own-slot definition and numeric loops preserve inherited-setter/iterator isolation.
+The unsafe intermediate fails3 hostile-setter controls; original and corrected
+versions pass6. Focused198P, core types/lintP; prior intermediate broad983P/2known
+Class vertical failures. Final three phases have byte-exact SVG/entire receipts.
+This removes work, not a functional/capacity failure. No new capacity pass claimed.
+Consumed cache0 cold/repeat/edit: retained38d1603/742/880ms, final690/339/306ms;
+peakRSS243276→234764KiB. N=1 separate workers, mixed intermediate results and
+heap retained; no causal speed/memory ratio. Two fresh Node24 sources and two
+compiled results match complete products (AgenticP/ELKU) after one RAM build.
+Flow Native26requests/gzip367187/Br311369B (+81/+149B); ELK24/737448/582879B
+(-4/+41B). This small payload cost is retained; no download/request win.
+Evidence: week joint-rank-arrays-38d, cyclic-longedge-final-safety-{cache0-cost,
+counter}-38d3a89ce, cyclic-longedge-final-safety-node24-954248001 and
+recovery-payload/cyclic-longedge-final-safety-954248001.
+
+The six-call lane diagnostic preserved all complete products. Its five current
+source self weights are53.7/48.5/46.0/33.9/32.7ms (lane blockers/crossings/layered
+core/measured crossing admission/bounds include); these are sampling weights,
+not measured CPU times. Long sampling gaps prevent causal speed estimates. The
+old782ms cold remainder did not recur; attribution remains unknown. Existing
+indexes/early exits already serve lane queries. Marker selection, generic crossing
+reuse, ER glyph batching and Class wrapper reuse were stopped for live-read
+isolation or insufficient savings, without candidate runs. Profile evidence:
+week cyclic-contact-profile-cache0-38d3a89ce. Next: requalify the older cyclic9
+coincident-head witness against the changed endpoint producer; keep sparse32,
+Class128TB/BT, ER256-chain and unavailable original-baseline/peer comparisons open.
