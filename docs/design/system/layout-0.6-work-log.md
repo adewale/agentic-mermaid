@@ -345,3 +345,21 @@ projection reuse is active; exact-center reuse does not address108.9-step drift.
 Next unresolved implementation target: ER256 final glyph/shaft index-query work;
 only producer-owned reuse can be attempted, with generic live reads retained.
 Class vertical/sparse32 refusals, missing original baseline/peers and sealed holdout remain.
+
+
+## ER256 guarded reuse stopped — 2026-11-04
+
+At5aa10b3c09add9713a17a7db75919b0c90fca160, the exact ordinary5924-byte LR
+chain still has no qualified delivery. One optimistic, explicitly unsafe reuse
+probe returned SVG/P341240 with family385508/400000; this was not production
+qualification. The guarded cross-phase artifact then refused at400000. A smaller
+layout-only numeric capture, body index and glyph-union query also refused at400000
+in the glyph broad phase (layout.ts:1700), despite removing semantic/renderer copies.
+Its one consumed error took373.85ms, peakRSS118688KiB; no SVG/receipt or speed ratio.
+Both candidates and complete patches are preserved under week er256-{production,
+numeric-final}-sufficiency-5aa10b3c0/stopped-trial; production was restored exactly.
+Three public probes total, zero ELK/Node/build calls; core typing/lint were diagnostic,
+not capacity evidence. No fees/caps relaxed, no new framework or cache, no gap closed.
+Do not retry these guarded glyph-union variants. ER256, Class128TB/BT and Sparse32
+remain refused/unverified; next work needs a different demonstrated subtraction.
+Original-baseline/peer comparisons remain unavailable; replacement24 stays sealed.
