@@ -451,7 +451,9 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[], 
         if (node.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join(' ').replace(/\s+/g, ' ').trim() !== actualBlockText) problems.push(`${path}(text:${node.id}).block: retained prepared text differs from actual SVG`)
       }
       if (node.prepared) {
-        const expected = (node.preparedLines ? node.preparedLines.map(line => line.map(run => run.text).join('')).join('\n') : displayText(node.text, node.display)).replace(/\s+/g, ' ').trim()
+        const expected = (node.preparedLines ? node.preparedLines.map(line => line.map(run => run.text).join('')).join('\n')
+          : node.block ? node.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n')
+            : displayText(node.text, node.display)).replace(/\s+/g, ' ').trim()
         const actual = unescapeXml(serialized
           .replace(/<tspan\b(?![^>]*\bdata-text-fragment=)[^>]*\s(?:x|dy)="[^"]*"[^>]*>/g, '\n')
           .replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()

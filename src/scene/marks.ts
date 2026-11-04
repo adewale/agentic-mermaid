@@ -24,7 +24,7 @@ import { relationAccessibility } from './accessibility.ts'
 import { displayText, escapeAttr, escapeXml } from '../multiline-utils.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
 import type { LabelDisplay } from '../multiline-utils.ts'
-import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
+import { preparePixelText, isOwnedPixelTextPart, type PixelTextBlock } from '../shared/prepared-text.ts'
 import {
   connectorContourSemantics,
   connectorGeometryHasCurves,
@@ -465,6 +465,25 @@ export function connector(fields: ConnectorFields): ConnectorMark {
   return admitWritableSceneNode(result)
 }
 
+const preparedRunMap = Array.prototype.map
+const preparedRunApply = Reflect.apply
+const preparedRunArray = Array, preparedRunPrototype = Array.prototype
+const preparedRunDescriptor = Object.getOwnPropertyDescriptor, preparedRunOwn = Object.hasOwn
+const preparedRunProto = Object.getPrototypeOf
+const preparedRunSpecies = preparedRunDescriptor(Array, Symbol.species)?.get
+function legacyPreparedRuns(block: PixelTextBlock): TextMark['preparedLines'] {
+  if (!isOwnedPixelTextPart(block)) return block.lineBlocks.map(line => line.runs)
+  const lines = block.lineBlocks, map = lines.map
+  // Owned blocks already retain these runs. Preserve caller array hooks while
+  // avoiding a second roster for the ordinary intrinsic mapping operation.
+  const constructor = preparedRunDescriptor(preparedRunPrototype, 'constructor')
+  const species = preparedRunDescriptor(preparedRunArray, Symbol.species)
+  const intrinsic = map === preparedRunMap && preparedRunProto(lines) === preparedRunPrototype && !preparedRunDescriptor(lines, 'constructor')
+    && constructor && preparedRunOwn(constructor, 'value') && constructor.value === preparedRunArray
+    && species && !preparedRunOwn(species, 'value') && preparedRunSpecies !== undefined && species.get === preparedRunSpecies
+  return intrinsic ? undefined : preparedRunApply(map, lines, [(line: PixelTextBlock['lineBlocks'][number]) => line.runs])
+}
+
 export function text(fields: {
   id: string
   role: SceneRole
@@ -524,7 +543,7 @@ export function text(fields: {
   if (accessibility && fields.attributes?.ariaLabel !== undefined) throw new TypeError(`Text "${fields.id}" takes its aria-label from typed relation accessibility`)
   return admitWritableSceneNode({
     kind: 'text', ...semantic, identity, accessibility, block: measured, measurement: block ? 'prepared' : 'fallback',
-    ...(block ? { prepared: true, preparedLines: block.lineBlocks.map(line => line.runs) } : {}),
+    ...(block ? { prepared: true, preparedLines: legacyPreparedRuns(block) } : {}),
     fontWeight: weight, letterSpacing: spacing, display,
     textLayout: { width: measured.width, height: measured.height, lineHeight: measured.lineHeight, offsetY },
   })
