@@ -228,33 +228,36 @@ describe('Class layout backends', () => {
     const { rendered } = JSON.parse(child.stdout) as { rendered: ReturnType<typeof renderMermaidSVGWithReceipt> }
     const proof = rendered.receipt.layoutCertification
     if (!proof || !('checks' in proof)) throw new Error('Class SVG must retain paint certification')
-    expect(proof).toMatchObject({ status: 'passed', issues: [] })
     expect(proof.checks.maxOperations).toBe(400000)
     expect(proof.checks.operations).toBeLessThanOrEqual(400000)
     expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', fallback: 'none' })])
     const ids = Array.from({ length: 128 }, (_, index) => `N${index}`), classes: string[] = [], names: string[] = []
+    const groupOwners: Array<string | undefined> = [], ownedNames: Array<[string | undefined, string]> = []
     const boxes = new Map<string, Record<string, string>>(), carriers: Array<Record<string, string>> = [], overlays: Array<Record<string, string>> = []
-    let text: string | undefined, inArrow = false, marker: { attrs: Record<string, string>; pieces: Array<{ name: string; attrs: Record<string, string> }> } | undefined
+    let text: string | undefined, textOwner: string | undefined, inArrow = false, marker: { attrs: Record<string, string>; pieces: Array<{ name: string; attrs: Record<string, string> }> } | undefined
     const parser = new SaxesParser({ xmlns: true })
     parser.on('opentag', tag => {
       const attrs = Object.fromEntries(Object.entries(tag.attributes).map(([key, value]) => [key, value.value]))
+      if (tag.local === 'g') groupOwners.push(attrs.class === 'class-node' ? attrs['data-id'] : groupOwners.at(-1))
       if (tag.local === 'g' && attrs.class === 'class-node') classes.push(attrs['data-id']!)
       if (tag.local === 'rect' && attrs['data-role'] === 'class-box') boxes.set(attrs['data-id']!.slice(6, -4), attrs)
       if (tag.local === 'polyline' && attrs.class === 'class-relationship') carriers.push(attrs)
       if (tag.local === 'polyline' && attrs.class === 'class-marker-overlay') overlays.push(attrs)
-      if (tag.local === 'text') text = ''
+      if (tag.local === 'text') { text = ''; textOwner = groupOwners.at(-1) }
       if (tag.local === 'marker') { inArrow = attrs.id === 'cls-arrow'; if (inArrow) marker = { attrs, pieces: [] } }
       else if (inArrow) marker!.pieces.push({ name: tag.local, attrs })
     })
     parser.on('text', value => { if (text !== undefined) text += value })
     parser.on('closetag', tag => {
-      if (tag.local === 'text') { names.push(text!); text = undefined }
+      if (tag.local === 'text') { names.push(text!); ownedNames.push([textOwner, text!]); text = undefined; textOwner = undefined }
+      if (tag.local === 'g') groupOwners.pop()
       if (tag.local === 'marker') inArrow = false
     })
     parser.write(rendered.svg).close()
     expect(classes).toEqual(ids)
     expect([...boxes.keys()]).toEqual(ids)
     expect(names).toEqual(ids)
+    expect(ownedNames).toEqual(ids.map(id => [id, id]))
     expect(carriers.map(edge => [edge['data-id'], edge['data-from'], edge['data-to'], edge['data-type'], edge['data-marker-at'], edge['data-label']])).toEqual(
       Array.from({ length: 127 }, (_, index) => [`rel:N${index}->N${index + 1}#0`, `N${index}`, `N${index + 1}`, 'association', 'to', undefined]),
     )
@@ -285,6 +288,7 @@ describe('Class layout backends', () => {
         expect(Math.abs(px - x) < 1e-8 && dx < 0 && dy === 0 || Math.abs(px - x - w) < 1e-8 && dx > 0 && dy === 0 || Math.abs(py - y) < 1e-8 && dy < 0 && dx === 0 || Math.abs(py - y - h) < 1e-8 && dy > 0 && dx === 0).toBe(true)
       }
     }
+    expect(proof).toMatchObject({ status: 'passed', issues: [] })
   })
 
   test.each([4, 5].flatMap(children => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ children, direction }))))('reserves independent inheritance fan channels for $children siblings in $direction', ({ children, direction }) => {
