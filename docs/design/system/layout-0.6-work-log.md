@@ -39,7 +39,7 @@ Earlier history is also retained at52a13881d0beafe2e7ebb4cfcfae349ab20ca1e2.
 - Requirement measured-cycle access15972c57e retains authored fields/relations/ink;
   TB/BT area remains+9.53% versusELK, LR/RL−1.44%. Adverse trial tradeoffs were stopped.
 
-Latest measured runtime revision11b3e5fce: Class128TB cache0 consumed cold/repeat/edit
+Class128TB measured at11b3e5fce: cache0 consumed cold/repeat/edit
 AM1709/1035/768ms versusELK1417/571/425; cache1 AM879/304/471 versus1426/345/510.
 N1, no speed/memory win or old-U/new-P timing ratio. Other retained adverse observations
 include Sparse256ELK18.6s repeat and mixed/rising heaps. Fresh Node24 source/compiled
@@ -81,9 +81,42 @@ geometry work, before final SVG/ink. An ELK ClassTB20s child timeout remains une
 despite successful bounded cost/Node calls. Missing baseline/peers prevent the original
 fixed four-engine comparison. No all-green broad claim or replacement readiness.
 
-No sufficient new subtraction found in this run: text reaches inspection without a
+Earlier stopped subtraction hypotheses: text reaches inspection without a
 second deep copy; streaming XML mostly moves checks and changes hook ordering; smaller
 ink-tree leaves add construction/dense-query costs without demonstrated ER256 savings.
 No runtime probes or production edits for those leads. Do not retry stopped numeric,
 mask, glyph-union/index or receiver-sharing variants. Next code needs a sufficient
 causal subtraction for an enrolled failure; unchanged comparisons are validation.
+
+
+## Private Scene inspection facts retain actual ink authority — 4 November
+
+3c567e1e5d0b4d50f61a00f1735edd226926820e captures sealing for newly allocated
+inspection bounds, primitive/matrix/owner/ancestry facts and the final roster.
+A post-import Object.freeze hook moved covered text's private bounds: same admitted
+Scene/write receipt/SVG changed clean Failed91/TEXT_OCCLUDED to falseP88. The repair
+restores the entire clean failure proof and exact SVG. The existing Read-text owner
+fails on old code and passes now; its actual Inter removal controls establish zero
+covered contribution and positive uncovered ink BEFORE asserting proof. Caller-source
+reads, geometry algorithms, caps/fees and append behavior remain; no new cache.
+Broad Scene/Class milestone915P/one knownSparse32F (202.86s/1062456KiB max-childRSS),
+all8Class128 casesP, core types/lintP. No all-hooks or cross-browser soundness claim.
+
+One exact pre-fix Sparse256ELK profile found repeat552ms/paint83.6ms, not the old
+18.6s/17.7s tail; all three complete SVG/receipt products match the retained52a phases.
+The largest source self bucket was one Scene-admission snapshot, not duplicate
+admission. No performance rewrite or repaired-tail claim. Five source hotspots,
+sampling-gap limits and cache review: week sparse256-elk-repeat-profile-30844276e.
+Post-fix unprofiled consumed cold/repeat/edit2281/855/317ms allP90857/90857/91361;
+every full SVG/ENTIRE receipt matches both profile and retained52a products. PeakRSS
+265632KiB; post-GC heap41.01/42.07/42.79MiB. Slower cold/repeat remain adverse; N1,
+different instrumentation, no timing/memory ratio. Two fresh Node24 witnesses and
+two compiled products match entire SVG/receipts after one RAM build. ERAM23requests/
+gzip327367/Br276496B versusELK21/697500/547912; deltas−14/−13B and−12/+8B versus
+production-equivalent11b; initial3/5855/5234 (−1gzip/+9Br), scratch removed.
+Evidence: week scene-inspection-bounds-custody-30844276e, scene-inspection-sealing-
+30844276e, scene-inspection-sealing-node24-3c567e1e5 and recovery-payload/
+scene-inspection-sealing-3c567e1e5. This closes a shared false pass, not a relative
+backend geometry/capacity gap. Sparse32, ER256 refusal, old timing/timeout uncertainty
+and unavailable baseline/peers remain. Next: a sufficient safe subtraction for an
+enrolled loss; do not treat normal-product identity as additional improvement.
