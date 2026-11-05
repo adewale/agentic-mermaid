@@ -12,7 +12,10 @@ bun run eval:mermaid-assertions
 bun run eval:mermaid-assertions --upstream ../mermaid --reference ../mermaid-reference --families er,sequence --out /tmp/mermaid-assertions
 ```
 
-Node runs Vitest; Bun runs the coordinator. The source checkout must have the
+Node runs Vitest; Bun runs the coordinator. One sequential worker reuses its
+jsdom realm and loaded runtime across files. Setup restores the host's initial
+`getBBox` descriptor after renderer fixtures, without supplying measurement
+values or changing original tests. The source checkout must have the
 exact policy pin and clean tracked files. The independently installed reference
 must match Mermaid 12.2.0 and parser 2.0.1. The normal reference setup uses jsdom
 26.1.0. Generated JSON, logs and the Markdown breakdown belong in the ignored

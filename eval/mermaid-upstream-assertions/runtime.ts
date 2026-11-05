@@ -18,6 +18,17 @@ interface ExecutedCheck { family: string; operation: string; targetType?: string
 let active: { file: string; name: string; path: string[]; inputs: ParsedInput[]; checks: ExecutedCheck[]; missing: Set<string> } | undefined
 
 export class AdapterBoundary extends Error {}
+
+const svgMeasurementHost = typeof SVGElement === 'undefined' ? undefined : SVGElement.prototype
+const initialSvgBBox = svgMeasurementHost && Object.getOwnPropertyDescriptor(svgMeasurementHost, 'getBBox')
+
+/** Pinned renderer fixtures replace this host method. Restore the original
+ * descriptor between files; the model adapter never supplies SVG geometry. */
+export function restoreSvgBBoxHost(): void {
+  if (!svgMeasurementHost) return
+  if (initialSvgBBox) Object.defineProperty(svgMeasurementHost, 'getBBox', initialSvgBBox)
+  else if (!Reflect.deleteProperty(svgMeasurementHost, 'getBBox')) throw Error('Cannot restore the initial SVG getBBox host descriptor')
+}
 export function noteUnavailable(name: string): void { active?.missing.add(name) }
 export function unavailable(name: string): never {
   active?.missing.add(name)
