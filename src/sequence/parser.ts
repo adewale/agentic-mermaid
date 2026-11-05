@@ -370,7 +370,10 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
   for (const [index, entry] of source.statements.entries()) {
     const line = entry.raw.trim()
     if (parserObservationActive('sequence')) observeParserStatement('sequence', entry.syntax?.kind ?? 'unrecognized', entry.raw, { line: entry.line + 2, column: entry.column + 1, unit: 'normalized' })
-    if (entry.error) throw locateSyntaxError(entry.error, { diagramType: 'sequence', line: lineOf(entry.line + 1), column: columnOf(entry.line + 1, entry.column) })
+    if (entry.error) {
+      if (!(entry.error instanceof MermaidSyntaxError)) throw entry.error
+      throw locateSyntaxError(entry.error, { diagramType: 'sequence', line: lineOf(entry.line + 1), column: columnOf(entry.line + 1, entry.column) })
+    }
     const statement = entry.syntax
     if (!statement) {
       // Sequence's existing generous universal-directive policy keeps valid
@@ -826,7 +829,12 @@ export function parseActorDeclaration(line: string): ParsedActorDeclaration | nu
     const { entries } = block
     const requestedType = entries.get('type')
     const requested = typeof requestedType === 'string' ? requestedType.toLowerCase() : baseType
-    if (!ACTOR_TYPES.has(requested as SequenceActorType)) throw new Error(`Unknown sequence actor type '${requested}'`)
+    if (!ACTOR_TYPES.has(requested as SequenceActorType)) throw syntaxError({
+      what: `Unknown sequence actor type '${requested}'`,
+      expectedForm: 'a supported actor type',
+      example: 'participant DB@{ type: database }',
+      known: [...ACTOR_TYPES],
+    })
     const type = requested as SequenceActorType
     // Upstream's `addActor`: a truthy metadata alias names the actor unless
     // `as` gives a text other than the id (`B@{ "alias": "Y" } as B` is Y).
