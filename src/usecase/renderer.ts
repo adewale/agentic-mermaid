@@ -40,7 +40,7 @@ export function lowerUsecaseDrawing<T>(marks: DrawingFactory<T>, { positioned: c
     let geometry: Geometry
     if (node?.kind === 'actor') {
       const cx = x + width / 2,
-        top = y + 8,
+        top = y + style.nodePaddingY,
         r = 7,
         shoulder = top + 24,
         foot = top + 50
@@ -57,7 +57,7 @@ export function lowerUsecaseDrawing<T>(marks: DrawingFactory<T>, { positioned: c
         inner.push(marks.text({ id: `icon:${node.id}`, role: 'label', owner, text: icon.text, block: icon, x: cx, y: y + height - 8, fontSize: icon.fontSize, fontWeight: icon.fontWeight, anchor: 'middle', paint: { fill: color } }))
       }
     } else {
-      geometry = node?.kind === 'usecase' && node.shape === 'ellipse' ? { kind: 'ellipse', cx: x + width / 2, cy: y + height / 2, rx: width / 2, ry: height / 2 } : { kind: 'rect', x, y, width, height, ...(note ? { rx: 2 } : {}) }
+      geometry = node?.kind === 'usecase' && node.shape === 'ellipse' ? { kind: 'ellipse', cx: x + width / 2, cy: y + height / 2, rx: width / 2, ry: height / 2 } : { kind: 'rect', x, y, width, height, rx: note ? Math.min(2, style.cornerRadius ?? 2) : style.cornerRadius }
       inner.push(marks.shape({ id: `shape:${placed.id}`, identity: false, role: 'node', owner, geometry, paint: { fill, stroke, strokeWidth: String(style.nodeLineWidth) }, channels: { category: node ? 'usecase' : note ? 'note' : 'data', ...(node?.business ? { emphasis: true } : {}) } }))
     }
     const block = placed.labelBlock!

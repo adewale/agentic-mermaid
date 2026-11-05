@@ -1,3 +1,4 @@
+import { nativeFamilyGraphLayout } from '../layout/native-family-policy.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
@@ -17,13 +18,13 @@ export function layoutUsecaseDiagram(body: UsecaseBody, options: RenderOptions =
     graph.nodes.get(node.id)!.labelBlock = block
     if (node.kind === 'actor') {
       const icon = node.icon ? preparePixelText(`[${node.icon}]`, { fontSize: Math.min(10, style.nodeLabelFontSize), fontWeight: style.nodeLabelFontWeight, display: 'literal' }) : undefined
-      nodeSizes.set(node.id, { width: Math.max(70, block.width + 24, (icon?.width ?? 0) + 24), height: block.height + (icon ? 92 : 76) })
+      nodeSizes.set(node.id, { width: Math.max(70, block.width + style.nodePaddingX * 2, (icon?.width ?? 0) + style.nodePaddingX * 2), height: block.height + (icon ? 76 : 60) + style.nodePaddingY * 2 })
     } else if (node.shape === 'ellipse') {
       graph.nodes.get(node.id)!.shape = 'rectangle'
-      nodeSizes.set(node.id, { width: Math.max(80, block.width * 1.5 + 32), height: Math.max(48, block.height * 1.5 + 24) })
+      nodeSizes.set(node.id, { width: Math.max(80, block.width * 1.5 + style.nodePaddingX * 2), height: Math.max(48, block.height * 1.5 + style.nodePaddingY * 2) })
     }
   }
-  const { certification: _placementCertificate, ...positioned } = layoutGraphSync(graph, { ...options, styleFace, nodeSizes, diagramTitle: body.title ?? title })
+  const { certification: _placementCertificate, ...positioned } = layoutGraphSync(graph, { ...options, styleFace, nodeSizes, graphLayout: nativeFamilyGraphLayout(graph, options), diagramTitle: body.title ?? title })
   const ellipses = new Set(body.nodes.filter(node => node.kind === 'usecase' && node.shape === 'ellipse').map(node => node.id))
   const byId = new Map(positioned.nodes.map(node => [node.id, node]))
   const contact = (id: string, endpoint: Point, adjacent: Point) => {
