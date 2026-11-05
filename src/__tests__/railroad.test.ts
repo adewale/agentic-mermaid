@@ -8,6 +8,7 @@ import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { terminalDocumentOf } from '../ascii/terminal-document.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { lowerRailroadScene } from '../railroad/renderer.ts'
+import { scanSvgStartTags } from '../svg-structure.ts'
 
 const grammars = [
   ['constructors', 'railroad-beta\nentry = sequence(terminal("start"), choice(nonterminal("item"), optional(terminal("end"))), zeroOrMore(terminal(",")));'],
@@ -101,6 +102,20 @@ test('ABNF exact-zero and exact-one repeats draw only the traversable track', ()
 test('Railroad rule groups contain every rounded leaf across styles', () => {
   const input = 'railroad-ebnf-beta\nentry = "start", [item], {",", item};\nitem = "word" | "number";'
   for (const style of knownStyles()) expect(() => renderMermaidSVG(input, { style })).not.toThrow()
+})
+
+test('Railroad paints group, node and annotation typography and nonterminal corners from their style roles', () => {
+  const svg = renderMermaidSVG('railroad-ebnf-beta\nentry = item, {"word"};', { style: { roles: {
+    group: { textColor: '#123456', fontSize: 20, textTransform: 'uppercase' },
+    node: { textColor: '#445566', fontSize: 18, textTransform: 'uppercase', cornerRadius: 17, paddingX: 30, paddingY: 20 },
+    edge: { textColor: '#778899', fontSize: 12, textTransform: 'uppercase' },
+  } } })
+  const elements: Array<Record<string, string>> = scanSvgStartTags(svg).map(tag => ({ name: tag.name, ...Object.fromEntries(tag.attributes.map(attribute => [attribute.name, attribute.value])) }))
+  expect(elements.find(element => element.name === 'text' && element.fill === '#123456')).toMatchObject({ fill: '#123456', 'font-size': '20' })
+  expect(elements.find(element => element.name === 'text' && element.fill === '#445566')).toMatchObject({ fill: '#445566', 'font-size': '18' })
+  expect(elements.find(element => element.name === 'text' && element.fill === '#778899')).toMatchObject({ fill: '#778899', 'font-size': '12' })
+  expect(elements.find(element => element['data-id'] === 'rule#0:entry/expression/0')).toMatchObject({ rx: '17' })
+  for (const text of ['ENTRY', 'ITEM', 'WORD', 'REPEAT 0..UNBOUNDED']) expect(svg).toContain(text)
 })
 
 test('Railroad writers retain grammar escapes and reject notation changes or injected numeric expressions', () => {

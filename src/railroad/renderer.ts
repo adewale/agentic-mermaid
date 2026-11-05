@@ -18,7 +18,7 @@ export function lowerRailroadDrawing<T>(marks: DrawingFactory<T>, { positioned: 
   for (const rule of chart.rules) {
     const children: T[] = []
     children.push(marks.text({ id: `label:${rule.id}`, role: 'label', owner: { id: rule.id, role: 'group' }, text: rule.name.text, block: rule.name,
-      x: rule.x, y: rule.y + rule.name.height / 2, fontSize: rule.name.fontSize, fontWeight: rule.name.fontWeight, anchor: 'start', paint: { fill: 'var(--_text)' } }))
+      x: rule.x, y: rule.y + rule.name.height / 2, fontSize: rule.name.fontSize, fontWeight: rule.name.fontWeight, anchor: 'start', paint: { fill: style.groupTextColor ?? 'var(--_text)' } }))
     // These are one production's decorative rails, not authored graph edges.
     // Explicit subpaths preserve every branch and prohibit joining separate
     // tracks while avoiding a full relation record for each two-point stub.
@@ -32,7 +32,7 @@ export function lowerRailroadDrawing<T>(marks: DrawingFactory<T>, { positioned: 
         geometry: { kind: 'rect', x: label.x, y: label.y, width: label.width, height: label.height, rx: label.kind === 'terminal' ? label.height / 2 : style.cornerRadius ?? 3 },
         paint: { fill: nodeFill, stroke: style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: String(style.nodeLineWidth) } }))
       children.push(marks.text({ id: `label:${label.id}`, role: 'label', owner: { id: label.kind === 'annotation' ? rule.id : label.id, role: label.kind === 'annotation' ? 'group' : 'node' }, text: label.block.text, block: label.block,
-        x: label.x + label.width / 2, y: label.y + label.height / 2, fontSize: label.block.fontSize, fontWeight: label.block.fontWeight, anchor: 'middle', paint: { fill: label.kind === 'annotation' ? text : nodeInk } }))
+        x: label.x + label.width / 2, y: label.y + label.height / 2, fontSize: label.block.fontSize, fontWeight: label.block.fontWeight, anchor: 'middle', paint: { fill: label.kind === 'annotation' ? style.edgeTextColor ?? 'var(--_text)' : nodeInk } }))
     }
     parts.push(marks.group({ id: rule.id, role: 'group', open: '<g>', close: '</g>', children: children.map(node => ({ node, indent: 2 })) }))
   }
