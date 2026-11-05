@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { parseWardleyBody, renderWardley, mutateWardley } from '../agent/wardley-body.ts'
 import { layoutWardley } from '../wardley/layout.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const source = `wardley-beta
 title Platform evolution
@@ -21,6 +22,19 @@ accelerator Demand [0.7, 0.2]
 deaccelerator Risk [0.3, 0.6]
 `
 describe('Wardley native source and geometry', () => {
+  test('canonical maps retain every native builder value through the pinned public Mermaid parser', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      const body = parseWardleyBody(source)
+      const { kind: _kind, title: _title, accessibilityTitle: _accTitle, accessibilityDescription: _accDescr, ...expected } = body
+      const actual = await upstream.project(renderWardley(body), diagram => diagram.db.getWardleyData())
+      expect(actual).toEqual({ ok: true, value: JSON.parse(JSON.stringify(expected)) })
+      const edited = mutateWardley(body, { kind: 'add_note', text: '%%{init: {}}%%\nKeep all text', x: 20, y: 30 })
+      if (!edited.ok) throw new Error(edited.error.message)
+      const notes = await upstream.project(renderWardley(edited.value), diagram => diagram.db.getWardleyData().notes)
+      expect(notes).toEqual({ ok: true, value: edited.value.notes })
+    } finally { upstream.close() }
+  })
   test('retains coordinates, pipelines, decorators, text and movement through writing', () => {
     const body = parseWardleyBody(source)
     expect(body.nodes.map(node => [node.id, node.x, node.y])).toEqual([['Customer', 10, 95], ['Service', 50, 60], ['Power', 80, 20], ['Service_Custom', 30, 60], ['Service_Utility', 70, 60]])
@@ -45,6 +59,19 @@ describe('Wardley native source and geometry', () => {
     expect(mutateWardley(body, { kind: 'set_component_position', id: 'Service_Custom', x: 50, y: 20 }).ok).toBe(false)
     expect(mutateWardley(body, { kind: 'set_component_position', id: 'Service', x: 101, y: 20 }).ok).toBe(false)
     expect(JSON.stringify(body)).toBe(before)
+  })
+  test('keeps authored annotation placement and negative label offsets inside the complete canvas', () => {
+    const body = parseWardleyBody(source.replace('label [-12, 8]', 'label [-900, -600]'))
+    const layout = layoutWardley(body), service = layout.nodes.find(node => node.id === 'Service')!
+    const legend = layout.labels.find(label => label.id === 'annotation-text:0')!
+    expect(legend.text).toBe('1. Adopt utility')
+    expect(legend.x).toBeCloseTo(layout.plot.x + layout.plot.width * 0.8)
+    expect(legend.y).toBeCloseTo(layout.plot.y + layout.plot.height * 0.9)
+    expect(layout.labels.find(label => label.id === 'strategy:Service')?.text).toBe('[build]')
+    expect(service.x - 900 - service.block.width / 2).toBeGreaterThanOrEqual(0)
+    expect(service.y - 600 - service.block.height / 2).toBeGreaterThanOrEqual(0)
+    expect(layout.width).toBeGreaterThan(900)
+    expect(layout.height).toBeGreaterThan(600)
   })
   test('quoted mutation text cannot become a preprocessor directive or new statement', () => {
     const body = parseWardleyBody('wardley-beta\ncomponent A [0.5,0.5]')

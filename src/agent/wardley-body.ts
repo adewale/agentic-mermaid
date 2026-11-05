@@ -79,7 +79,7 @@ export function renderWardley(body: WardleyBody): string {
     if (!nodes.has(link.source) || !nodes.has(link.target)) throw new Error('Wardley dependency endpoints must name existing components')
     if (link.label !== undefined && (/[\r\n]/.test(link.label) || link.label.includes('%%{'))) throw new Error('Wardley dependency labels must be single-line text without directive openers')
     const port = link.flow === 'bidirectional' ? '+<>' : link.flow === 'backward' ? '+<' : link.flow === 'forward' ? '+>' : ''
-    lines.push(`${quoted(link.source)} ${port} ${link.dashed ? '-.->' : link.flow ? '->' : ''} ${quoted(link.target)}${link.label !== undefined ? ` ;${link.label}` : ''}`)
+    lines.push(`${quoted(link.source)} ${port} ${link.dashed ? '-.->' : '->'} ${quoted(link.target)}${link.label !== undefined ? ` ;${link.label}` : ''}`)
   }
   for (const trend of body.trends) {
     if (!nodes.has(trend.nodeId) || trend.targetY !== nodes.get(trend.nodeId)!.y) throw new Error('Wardley evolution preserves component visibility')
@@ -127,7 +127,7 @@ export function mutateWardley(body: WardleyBody, op: WardleyMutationOp): Result<
         next.pipelines = next.pipelines.filter(pipeline => !removed.has(pipeline.nodeId)).map(pipeline => ({ ...pipeline, componentIds: pipeline.componentIds.filter(id => !removed.has(id)) }))
         break
       }
-      case 'add_dependency': find(op.source); find(op.target); next.links.push({ source: op.source, target: op.target, label: op.label, dashed: op.dashed ?? false, flow: op.flow ?? 'forward' }); break
+      case 'add_dependency': find(op.source); find(op.target); next.links.push({ source: op.source, target: op.target, label: op.label, dashed: op.dashed ?? false, flow: op.flow }); break
       case 'remove_dependency':
         if (!Number.isInteger(op.index) || !next.links[op.index]) throw new Error('Wardley dependency index was not found')
         next.links.splice(op.index, 1); break

@@ -22,8 +22,17 @@ export function layoutWardley(body: WardleyBody, options: Readonly<RenderOptions
     const right = body.axes.stageBoundaries?.[index] ?? (index + 1) / stages.length
     labels.push(label(`stage:${index}`, stage, x((left + right) * 50), plot.y + plot.height + 20))
   })
+  const stageHeight = Math.max(0, ...labels.filter(label => label.id.startsWith('stage:')).map(label => label.block.height))
+  for (const item of labels) if (item.id.startsWith('stage:')) item.y = plot.y + plot.height + 12 + stageHeight / 2
+  labels[1]!.y = plot.y + plot.height + stageHeight + 36
   body.notes.forEach((note, index) => labels.push(label(`note:${index}`, note.text, x(note.x), y(note.y))))
-  body.annotations.forEach((annotation, index) => annotation.coordinates.forEach((at, coordinate) => labels.push(label(`annotation:${index}:${coordinate}`, `[${annotation.number}] ${annotation.text ?? ''}`, x(at.x), y(at.y)))))
+  body.annotations.forEach((annotation, index) => annotation.coordinates.forEach((at, coordinate) => labels.push(label(`annotation:${index}:${coordinate}`, `[${annotation.number}]`, x(at.x), y(at.y)))))
+  let legendY = body.annotationsBox ? y(body.annotationsBox.y) : labels[1]!.y + labels[1]!.block.height + 24
+  for (const [index, annotation] of body.annotations.entries()) if (annotation.text) {
+    const legend = label(`annotation-text:${index}`, `${annotation.number}. ${annotation.text}`, body.annotationsBox ? x(body.annotationsBox.x) : plot.x + 110, legendY)
+    labels.push(legend); legendY += legend.block.height + 12
+  }
+  for (const node of nodes) if (node.node.sourceStrategy) labels.push(label(`strategy:${node.id}`, `[${node.node.sourceStrategy}]`, node.x, node.y + 24))
   body.accelerators.forEach((force, index) => labels.push(label(`accelerator:${index}`, `${force.name} >>`, x(force.x), y(force.y))))
   body.deaccelerators.forEach((force, index) => labels.push(label(`deaccelerator:${index}`, `${force.name} <<`, x(force.x), y(force.y))))
   const edges: PositionedWardley['edges'] = body.links.map((link, index) => {
@@ -44,10 +53,20 @@ export function layoutWardley(body: WardleyBody, options: Readonly<RenderOptions
   })
   // Label retention may grow the canvas beyond an authored plot size; it
   // never compresses the authored coordinate domain or clips content.
-  let width = plot.x + plot.width + pad, height = plot.y + plot.height + 64 + pad
+  let width = plot.x + plot.width + pad, height = plot.y + plot.height + 64 + pad, minX = pad, minY = pad + (titleBand?.height ?? 0)
   for (const item of [...labels, ...edges.flatMap(edge => edge.label ? [edge.label] : []), ...nodes.map(node => ({ ...node, x: node.x + (node.node.labelOffsetX ?? 14), y: node.y + (node.node.labelOffsetY ?? -14) }))]) {
     width = Math.max(width, item.x + item.block.width / 2 + pad)
     height = Math.max(height, item.y + item.block.height / 2 + pad)
+    minX = Math.min(minX, item.x - item.block.width / 2)
+    minY = Math.min(minY, item.y - item.block.height / 2)
+  }
+  const dx = Math.max(0, pad - minX), dy = Math.max(0, pad + (titleBand?.height ?? 0) - minY)
+  if (dx || dy) {
+    plot.x += dx; plot.y += dy
+    for (const item of [...nodes, ...labels, ...edges.flatMap(edge => edge.label ? [edge.label] : [])]) { item.x += dx; item.y += dy }
+    for (const edge of edges) for (const point of edge.points) { point.x += dx; point.y += dy }
+    for (const pipeline of pipelines) { pipeline.x += dx; pipeline.y += dy }
+    width += dx; height += dy
   }
   width = Math.max(width, (titleBand?.width ?? 0) + 2 * pad)
   return { width, height, plot, body, nodes, labels, edges, pipelines, options, ...(titleBand ? { title: positionDiagramTitle(titleBand, width, pad) } : {}) }

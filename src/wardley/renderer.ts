@@ -28,7 +28,7 @@ export function lowerWardleyDrawing<T>(marks: DrawingFactory<T>, { positioned: c
   }
   for (const item of chart.nodes) {
     const owner = { id: item.id, role: 'node' as const }
-    parts.push(marks.shape({ id: item.id, role: 'node', geometry: { kind: 'circle', cx: item.x, cy: item.y, r: item.node.className === 'anchor' ? 7 : 5 }, paint: { fill: item.node.className === 'anchor' ? stroke : fill, stroke, strokeWidth: String(style.nodeLineWidth) }, attributes: { data: { evolution: String(item.node.x), visibility: String(item.node.y), ...(item.node.sourceStrategy ? { strategy: item.node.sourceStrategy } : {}) } } }))
+    parts.push(marks.shape({ id: item.id, role: 'node', geometry: item.node.isPipelineParent ? { kind: 'rect', x: item.x - 6, y: item.y - 6, width: 12, height: 12 } : { kind: 'circle', cx: item.x, cy: item.y, r: item.node.className === 'anchor' ? 7 : 5 }, paint: { fill: item.node.className === 'anchor' ? stroke : fill, stroke, strokeWidth: String(style.nodeLineWidth) }, attributes: { data: { evolution: String(item.node.x), visibility: String(item.node.y), ...(item.node.sourceStrategy ? { strategy: item.node.sourceStrategy } : {}) } } }))
     if (item.node.inertia) parts.push(marks.shape({ id: `${item.id}:inertia`, identity: false, role: 'node', owner, geometry: { kind: 'circle', cx: item.x, cy: item.y, r: 9 }, paint: { fill: 'none', stroke, strokeWidth: '1' } }))
     parts.push(text({ ...item, x: item.x + (item.node.labelOffsetX ?? 14), y: item.y + (item.node.labelOffsetY ?? -14) }, owner))
   }
