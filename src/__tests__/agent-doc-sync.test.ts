@@ -307,6 +307,8 @@ const badWidth: SharedRenderOptions = { mermaidConfig: { sankey: { nodeWidth: '1
   test('every advertised family supports meaningful typed edits, read-back and rendering in Code Mode', async () => {
     // Exercise the trusted sandbox bridge, not just the declaration or a
     // callable narrower: family models can contain Maps and nested identities.
+    const advertised = new Set([...SDK_DECLARATION.matchAll(/\bas[A-Z]\w+/g)].map(match => match[0]))
+    expect(advertised).toEqual(new Set(BUILTIN_FAMILY_METADATA.map(family => family.narrower)))
     for (const family of BUILTIN_FAMILY_METADATA) {
       const witness = FAMILY_CONFORMANCE_PROFILES[family.id].citizenship
       const code = `
