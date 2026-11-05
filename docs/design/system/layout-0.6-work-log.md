@@ -1,198 +1,150 @@
 # Native layout 0.6 local work log
 
-Campaign ends2026-11-08T23:59:59Z. Entries describe bounded local runs, not continuous
-execution or replacement readiness. No default/version/remote/publication changes.
-All caps and isolation contracts remain; replacement24 stays sealed. Unknown,
-refused, unsupported and adverse outcomes remain enrolled.
+Campaign ends2026-11-08T23:59:59Z. Bounded local runs, not continuous execution or
+replacement readiness. Defaults/version/remotes/publication unchanged; all caps
+remain. Replacement24 stays sealed; failures, unknowns and adverse costs enrolled.
+Recovered base3b56da55e6570908beb5d96c25f4c03c1a828a22 is not original November.
+Campaign-baseline2dadf0dbc2685c8435df541de99f3edce841450d, Trident and pinned
+Mermaid12.2/Pele1.9 remain unavailable; Pele1.8 is not substituted.
+Full prior log is retained at8393d577f9245f62aa3a0f970cc7aaca2b4f5b9c and byte-backed
+week/requirement-compound-bounds-8393d577f/work-log-through-8393d577f.md.gz.
+Earlier full history remains at1e1bb29939352735b2df1346ede4e378549ec2ad,
+3df961f38156ddf993978440b8a71fe41c6b001b and52a13881d; no evidence deleted.
 
-Recovered base3b56da55e6570908beb5d96c25f4c03c1a828a22 is not the original November
-checkout. Campaign-baseline2dadf0dbc2685c8435df541de99f3edce841450d, Trident and
-Mermaid12.2/Pele1.9 peers remain unavailable; Pele1.8 is not substituted. Full prior
-log through1e1bb29939352735b2df1346ede4e378549ec2ad remains at that revision and
-week/work-log-before-shortening-1e1bb2993.md.gz (byte-verified). Older full history
-and failed trials remain in3df961f38156ddf993978440b8a71fe41c6b001b and52a13881d.
+## Retained delivery and quality
 
-## Retained delivery, quality and limits
-
-- Class caption0684c7d72/e0877c5ea: area105210→103590 vsELK104010,
-  wire248.6→242.6 vs325.2; nested-caption delivery6/8→8/8. Shared Scene reuse539407810
-  and flat-sharp SVG-point projection11b3e5fcef07706ef002b828c8f4ac6578d2600e close
-  Class128 all4dirs: TB/BT U400k→P388607/393070,127checkedheads, exact originalSVG.
-  Broader compound normalization caused10regressions and was withdrawn; generic,
-  compound, rounded, interface and sketch paths retain their contracts.
-- ER prefix/terminal reusecc841a746/599bdf978 delivers former192/207/208 refusals;
-  owned Scene reuse52a13881d makes208 Agentic/ELK P287124/280068 with exact priorSVG.
-  Dated208LR area−18.70%/wire−30.99% vsELK. The256-chain still refuses family work;
-  Sparse256cards/one relation is a different input, never its replacement.
-- Forest bands3efdf6236c1074964ce2ac7c647e265af56de19b: area−26.98%/wire−33.80%.
-  VsELK area−6.43%/wire+16.89%. Fixed-dock routes already shortest; leaf-seat trial
-  grew bodies/area6.88% and stopped. Requirement measured-cycle15972c57e retains
-  fields/relations/ink; TB/BT area+9.53% vsELK, LR/RL−1.44%; adverse trials stopped.
+- Class caption0684c7d72/e0877c5ea: nested-caption delivery6/8→8/8,
+  area103590/wire242.6 vsELK104010/325.2. Scene reuse539407810 and flat-sharp
+  projection11b3e5fcef07706ef002b828c8f4ac6578d2600e make Class128 all4dirs
+  P388607/393070 in TB/BT,127heads, exact originalSVG. Broader compound
+  normalization caused10regressions and was withdrawn; other paths not claimed.
+- ER cc841a746/599bdf978 delivers former192/207/208 refusals; Scene reuse52a13881d
+  makes208 Agentic/ELK P287124/280068 with exact priorSVG. Dated208LR area−18.70%/
+  wire−30.99% vsELK. ER256-chain still refuses; sparse256cards is a different case.
+- Forest bands3efdf6236c1074964ce2ac7c647e265af56de19b reduce area26.98%/wire33.80%.
+  VsELK area−6.43%/wire+16.89%. Fixed-dock routes already shortest; leaf-seat
+  trial area+6.88% stopped. Requirement cycle15972c57e retains fields/relations/
+  ink; TB/BT area+9.53% vsELK, LR/RL−1.44%; adverse trials stopped.
 - Cyclic endpointd82c926cc0f6f1119a86e5079ba79fca1a2df0f9 removes head collisions:
-  19node wire−1.77%, area/102bends unchanged; Native1233429area/15850wire vsELK
-  2307941/27581. ELK proofU remains separate from its44positive head contributions.
-- Flat Native ER isolate shelvesffbff7a20843098e97b664a7f13080cbf7b257ea preserve
-  connected geometry and explicit spacing. Sparse256cards area15,832,099.72→7,449,331
-  (−52.95%), height32140→2930.5,width492.598→2542; still+115.35%area vsELK3,459,200.
-  Shaft132.598 vs214.598,0bends. Body gaps71px vsELK20 explain much of the remainder.
-  Cost/cache/heap/adverse rows and +918gzip/+755BrB remain in the prior full log.
+  19node wire−1.77%, area/102bends unchanged. Native area1233429/wire15850 vsELK
+  2307941/27581; ELK proofU is separate from actual head contribution.
+- Isolate shelvesffbff7a20843098e97b664a7f13080cbf7b257ea reduce sparse256cards area
+  15,832,099.72→7,449,331 (−52.95%); still+115.35% vsELK3,459,200. Body gaps71px
+  vs20 explain much of remainder; explicit spacing and connected geometry remain.
+  Wire132.598 vs214.598/0bends; adverse costs/+918gzip/+755Br retained in full log.
 
-## Actual meaning is separate from proof availability
+## Meaning, authority and limits
 
 607b46353e638740f97b8f26d2acf11e579b0d83 checks all44 cyclic19 heads individually,
-44 ordered endpoint/caption occurrences and11actualcaptiontexts. RetainedELK also
-has44positive individual head contributions despite37distinct tips. This does not
-prove all contacts or recognizability. No runtime gain from unchanged comparisons.
-
-Sparse owner0cc8ea7aa17bc55cda461d17f6b2caf18f1aee34 retains0/no definitions,
-0/unused definitions and32/referenced definitions: all1500text records plus first/
-last glyph removals and all32 individual marker contributions. b67384c18fe591032b1fd9586c511ee4fdb8106a additionally checks dark ink in all1500 independently authored
-regions, reusing the same41rasters. All meaning controls pass before Native32's
-unchanged U400k OUTPUT_SCOPE/CHECK_BUDGET; both0armsP. Individual middle attribution,
+44 ordered endpoint/caption occurrences and11captiontexts. ELK also has44positive
+head contributions despite37distinct tips; no all-contact/recognizability claim.
+Sparse owners0cc8ea7aa17bc55cda461d17f6b2caf18f1aee34/b67384c18fe591032b1fd9586c511ee4fdb8106a
+retain all1500text records, first/last removal controls, all32marker contributions
+and dark ink in all1500authored regions (same41rasters). Native32 stillU400k
+OUTPUT_SCOPE/CHECK_BUDGET; both0marker armsP. Individual middle attribution,
 readability and arbitrary-font/browser ink remain unqualified; no capacity gain.
+Shared proof-authority527ef75a3/3c567e1e5/68a7d7ce936 remove actual false passes
+from private mutation/omission. Covered-text F91 became falseP88(freeze)/P86(push),
+partial repairP87; captured sealing/shared own-slot publishing restore wholeF91
+and exactSVG. Actual Inter controls establish zero covered/positive uncovered ink.
+No all-hooks claim; failed partials, custody distinctions and adverse costs retained.
 
-Shared proof-authority fixes527ef75a3,3c567e1e5d0b4d50f61a00f1735edd226926820e and
-68a7d7ce93642fa514270b524c3a8afa5f88488e remove actual false passes from private
-fact mutation/omission. Same covered-text Scene/receipt/SVG F91 became falseP88
-(freeze) orP86(push); recorder-only repair stillP87. Captured sealing and one shared
-own-slot publisher restore the entire clean failure proof/exactSVG. Actual Inter
-controls establish zero covered/positive uncovered contribution. No all-hooks claim.
-Full failed partials, source/read distinctions and cost increases remain retained.
+## Shared producer and contact fixes — 5 November
 
-## Shared producer fixes — 5 November
+c94c050b23ac795420aeed83f1349d59a6fc423d preserves closed inline styles across
+hard breaks: both backends formerly returnedP with second alias/caption rows plain.
+Shared prepared/raw interpretation preserves UTF16/unmatched-line behavior without
+new grammar/cache/common-case state.11rasters verify8word contributions and second
+caption bold effect; physical italic/emoji unknown. Wire+3.96; area+601.128/611.82.
+Evidence: week rich-line-format-1e1bb2993. Both backends benefit.
 
-c94c050b23ac795420aeed83f1349d59a6fc423d retains explicitly closed inline styles
-across hard breaks. Both backends previously returnedP while alias Top/Bottom🚀
-was italic/plain and caption first/second bold/plain. They now preserve both rows'
-authored styles, UTF16 ranges, literal text and unmatched-line behavior. Prepared,
-raw measurement and emission share interpretation. Standalone parsing keeps local
-flags; no new common-case state/spread allocation, duplicate split, grammar or cache.
-Fixed-Inter11rasters1.20s/177428KiB establish all8before/after word contributions
-and the corrected second caption's physical bold effect. Physical italic shape and
-emoji availability remain unknown. Correct measurement adds3.96wire and601.128/
-611.82area (AM/ELK); this cost is retained. Evidence: week rich-line-format-1e1bb2993.
+c0bba610212ba9b316e95dedab9699e06eccb428 resolves both backends' inward ER9 refusal:
+existing face allocation reserves both glyphs/leads for ancestry-proven frame→leaf
+contacts; guards/caps remain.9relations/18ownedheads deliver across public/direct/
+Scene, all actual head ink positive. AM450×869.45 vsELK448×869.45; area391252.5/
+389513.6, both5799.8wire/0bends. Evidence: week er-inward-ports-1e1bb2993.
+Text309P/isolation14P/Class128all8P/types/lint and24consumed calls/Node/RAM byte
+bindings retained in full log; no general performance or all-green broad claim.
 
-c0bba610212ba9b316e95dedab9699e06eccb428 closes an ordinary9-relation ER refusal
-in BOTHbackends: two zero-many G→A and seven one G→B frame/leaf incidences. Old code
-refused final glyph intersection at G→A; no served SVG/ink existed. Existing face
-allocation now admits ancestry-proven inward contacts, constrains the shared face,
-reserves both glyphs/leads and translates straight corridors together. Existing
-final guards/caps stay. Dense producer glyph indexing removes new scan overhead.
-All9relations/18ownedheads now deliver; every head contributes actual ink through
-public Native, direct Native and Scene output. CurrentAM450×869.45 vsELK448×869.45,
-area391252.5/389513.6; both5799.8wire,0bends. Evidence: week er-inward-ports-1e1bb2993.
+Native fan a949f8534b5a98e9c168fb61c406d64379fe23fb moves two overlapping circle
+pairs8→14px apart (11pxpaint/3pxgap), preserving all5relations and15component ink
+contributions. Descriptor reuse reserves pitch/face capacity; card growth publishes
+only after success. Six owners oldRED→P. Same canvas/14bends, wire+12/+1.09%.
+AM area224461.2304/wire1114.47 vsELK273191.776/1823.3947 (−17.84%/−38.88%).
+Native remainedU99183 at that revision;64Inter rasters and adverse costs retained.
+ELK fix1366d4de0ad0aee9b3b90395e1d56bd8ce2d55c5 moves a tangential fifth contains
+track off its card: raw ELK output, not emission, was wrong. Clearance0 caused the
+border track; one-option10px probe restored normal contact. Canonical17px terminal
+lead (plus bend radius) fixes all4dirs, with normal reciprocal sharp/rounded docks.
+16rasters retain15component contributions; same area/wire, bends13→14; separately
+U98904→P99199. NativeSVG/ENTIREreceipt unchanged.209P/styles6P/types/lint; original
+sandbox/reference failures retained. Two-loop overlap hypothesis falsified (56px
+centers vs11pxpaint), stopped. No general loop or recognizability claim.
 
-Both new owners oldRED→current3P. Early owner mistakes about serialized lines,
-optional empty-label metadata and span attribute order were corrected; artifacts
-retained. Combined20file milestone1143P/knownSparse32F,266.16s/2887224KiB preceded
-allocation subtraction; final affected text309P/isolation14P/Class128all8P requalify
-it. Core types52.57s/lintP. No all-green broad or capacity-closure claim.
+## Stopped drawing-tail investigation
 
-24 current fully consumed calls, cold/repeat/edit, both caches and backends allP.
-ER9 cache0 AM195/40/33ms vsELK442/61/49; cache1 158/24/29 vs503/25/53.
-Rich cache0 AM112/15/16 vsELK441/42/29; cache1 136/15/18 vs467/20/40.
-N1, no stable speed ratio; old refusals/wrong-meaning outputs are not equivalent
-benchmarks. PeakRSS ER9 AM105684/105208KiB vsELK135640/135628 (cache0/1), rich
-100148/98536 vs131544/130896. Per-phase RSS/heap are retained; heaps rise over the
-three retained products. All repeat entireSVG/receipts exact; real edits change them.
+8393d577f9245f62aa3a0f970cc7aaca2b4f5b9c records six CPU-profiled cache1 calls;
+all wholeSVG/ENTIREreceipts match prior products. Native repeat drawing42.60ms did
+not reproduce150.37ms; original173.47ms adverse call remains unexplained. Profile
+tails move to Native paint7555ms/ELK drawing4705ms. Sparse multi-second sample gaps
+cannot rank five CPU hotspots or justify a subtraction/speedup. Process CPU includes
+runtime/profiler/JIT/background work. Artifact/reference/explicitGC outside named
+windows; no code/cache/array/SoA/serializer rewrite justified. Evidence: week
+requirement-drawing-tail-146a2d496/FINDINGS.md and full log; no more favorable replay.
 
-Four fresh Node24 products match Bun wholeSVG/ENTIREreceipts; one canonical RAM
-build's four products match those Node witnesses, no normalization, scratch removed.
-ERAM23requests/raw1007140/gzip328924/Br277808B vsELK21/2281714/699052/549202.
-Adds636gzip/458BrB (AM),630/454(ELK) vsffb; initial3/5856/5233 (+4gzip/−2Br).
-Evidence: week contact-rich-cost-1e1bb2993, contact-rich-node24-c0bba6102 and
-recovery-payload/contact-rich-c0bba6102. These fixes improve both backends.
+## Compound-marker proof precision — 5 November
 
-## Requirement containment contacts — 5 November
+532eb2eba2fdc77e33cd888df430aa311ecd4538 replaces the whole compound's miter
+inflation with a union of painted child bounds: circle uses smooth support, while
+cross path and joined V controls retain conservative miter support. Local envelope
+14→12px justifies the actual separated fan. Numeric child bounds are retained in
+one original geometry walk before one paint parse; declared bounds/unknown CSS/
+pose mapping remain conservative. Private own-slot linked records avoid array hooks.
+A first candidate reordered cap evaluation; its new compatibility control failed
+0vs1, then the final expression restored original Math.max lookup/receiver before
+the getter. Raw getters changing radius/width, miter support and explicit-bound
+controls pass. Initial source snapshots, false start and zero-match Class selector
+are retained, not reported as qualification.
 
-a949f8534b5a98e9c168fb61c406d64379fe23fb closes Native five-fan circle overlap:
-two pairs8px apart versus11px paint become14px/3px gap, all five authored relations
-and15 component contributions retained. Descriptor reuse reserves port pitch and
-face capacity; growth publishes only with successful Native placement. Six owners
-oldRED→P (five/all4dirs; twelve/TB+LR). Canvas/14bends unchanged, wire+12/+1.09%.
-Native area224461.2304/wire1114.47 vsELK273191.776/1823.3947 (−17.84%/−38.88%).
-Native stillU99183/two conservative envelope contacts; no missing-ink or full
-recognizability claim. First64 fixed-Inter rasters,203P/styles6P/types/lint,12 cost
-calls and Node/build byte equality remain detailed at219a84f61 and the byte-backed
-week/requirement-elk-dock-219a84f61/work-log-before-dock-shortening-1366d4de0.md.gz.
-Prior +224gzip/+193Br per Requirement closure, adverse timings/reference-worker
-and sandbox failures remain retained, not repaired by the next change.
+Native5fan wholeSVG remains exact; only proof status/issues/pairs/operations change:
+U99183→P99181, pairs189→187, same400kcap; editU99372→P99370. Its actual15ink controls
+are reused by byte equality, not rerastered progress. Shared terminal support also
+reduces ELK lead17→16px: only internal tracks shift1px; cards/text/captions/resources/
+anchors stay unchanged. ELK remainsP99199 (edit99393).16freshInter rasters retain all
+15confined component contributions/all normal contacts. Both backends' area/wire/
+14bends unchanged. This is proof availability, not new visible quality or readiness.
 
-1366d4de0ad0aee9b3b90395e1d56bd8ce2d55c5 fixes ELK's actual tangential fifth
-contains contact. Raw ELK output already duplicates its start, then travels along
-the source bottom; emission is not responsible. Adapter clearance0 places ELK's
-first track on that border. One-option10px intervention restores normal docking;
-production reuses the canonical containment-start terminal17px (+bend radius) in
-ELK's existing spacing fields. No Native lead, routing grammar or certificate change.
-Four direction owners oldRED→P; nearby reciprocal BT sharp/rounded both backends
-retain ordered relations, cards/captions and normal source/target contacts.
+Final9file milestone973P/knownSparse32F,178.83s/1419920KiB; Class128all8P/20.27s,
+styles6P/2.03s, core types48.86s/2113636KiB, lintP. Initial973P/knownSparse32F before
+cap-order correction remains provisional evidence; final checks requalify correction.
+12 current consumed calls all returnP; repeat wholeSVG/ENTIREreceipts exact, real
+leaf-text edits. Cold/repeat/edit ms cache0 AM199/41/34 vsELK618/80/60;
+cache1 AM322/50/30 vsELK846/44/240. N1/no ratios; AM cache1 repeat and ELK240ms edit
+remain adverse. PeakRSS AM108752/109340KiB vsELK143568/143012; per-phase heaps retain
+3products plus caches and separately timed compression. No performance-win claim.
+Cold SVG gzip/Br AM1628/1353B (unchanged) vsELK1667/1401 (+0gzip/+4Br).
+Two freshNode24 and two compiled products match wholeSVG/ENTIREreceipts exactly;
+one RAM build22.49s/298012KiB, scratch removed. Requirement closures AM17requests/
+raw813303/gzip265806/Br222948B vsELK14/2084910/634592/493131. Adds197gzip/239Br
+(AM),199/275(ELK), requests unchanged; initial3/raw15408/gzip5852/Br5234 (−4/+3).
+Added callback/child-record work is retained in costs, not described as subtraction.
+Evidence: week requirement-compound-bounds-8393d577f, requirement-compound-cost-8393d577f,
+requirement-compound-ink-8393d577f, requirement-compound-node24-532eb2eba and
+recovery-payload/requirement-compound-532eb2eba.
 
-Actual five-fan source contacts are now all normal;16 new fixed-Inter rasters retain
-all15 confined component contributions, reusing baseline controls. Circle5 moves
-from a card-border pose to the outward side. Area273191.776/wire1823.3947 unchanged,
-nonzero bends13→14; separately ELK U98904→P99199/5measuredmarkers. Native fullSVG/
-ENTIREreceipt remain byte-identical to a949, includingU99183. Self-contained4files
-209P/27.66s/1020608KiB, styles6P/2.28s, core types61.34s/2200888KiB, lintP.
+## Remaining counterexample and next cause inquiry
 
-12 fully consumed current calls: all return, repeat fullSVG/ENTIREreceipts exact,
-real text edits. Cold/repeat/edit ms cache0 AM351/74/49 vsELK3148/82/63;
-cache1 AM391/173/59 vsELK602/36/70. N1/no ratios; AM cache0 import4174ms and
-ELK cold3148ms remain adverse. Cache1 AM repeat's drawing150.37ms dominates its
-173.47ms wall time; no CPU cause or stable regression established. PeakRSS AM
-108980/109268KiB vsELK141024/142788; per-phase heaps/three held products retained.
-Cold SVG gzip/Br AM1628/1353B vsELK1667/1397 (+4gzip/−2Br versus oldELK).
-Two Node24 and two compiled products match wholeSVG/ENTIREreceipts; one RAM build
-completed/19.44s/288192KiB, scratch removed. Code closure AM17requests/raw812907/
-gzip265609/Br222709B vsELK14/2084514/634393/492856: both +22gzip/+17Br, requests
-unchanged; initial3/5856/5231 (Br−1 only). No general performance-win claim.
-Evidence: week requirement-elk-dock-219a84f61, requirement-elk-dock-cost-219a84f61,
-requirement-dock-node24-1366d4de0, recovery-payload/requirement-dock-1366d4de0.
-One subsequent Native two-self-contains probe falsifies the suspected circle loss:
-centers56px apart versus11px paint, two authored occurrences, P69884. Stop that
-lead; no physical ink/recognizability or general loop claim follows. Evidence:
-week requirement-contains-loops-proposal-1366d4de0; no runtime fix from this probe.
-
-## Drawing-tail investigation — 5 November
-
-Runtime1366d4de0ad0aee9b3b90395e1d56bd8ce2d55c5, observed at146a2d4961e72b55d4329c9eaf8c952f7cf79013;
-no runtime change. Exactly six CPU-profiled cache1 calls retain wholeSVG/ENTIREreceipt
-byte equality against each matching prior cold/repeat/edit product, including the
-single leaf-text edit. No new visible-correctness or coverage gain from these
-unchanged outputs. Native remainsU99183/U99372; ELK P99199/P99393.
-The specific repeat drawing tail did not reproduce:42.60ms versus prior150.37.
-Stop that optimization lead; original173.47ms adverse call remains unexplained.
-
-Profile costs moved: Native cold/repeat/edit4669/7993/1318ms, ELK2840/4753/320ms.
-Native repeat paint7555ms and ELK repeat drawing4705ms remain adverse. Corresponding
-process CPU completion intervals7718.69/6427.58ms include profiler/runtime/JIT/
-background work, not exclusive function CPU. Largest Native cold XML self weight
-3276ms has only3samples (2282ms largest); Native repeat certify self4552ms has11
-(3363ms largest); ELK repeat string-budget611ms has2 (610ms largest). No reliable
-five-slowest-function ranking, removable operation or expected speedup established.
-All six named sample windows stay inside API-to-full-consumption markers; artifact
-writes/reference reads/explicit GC stay outside. Profile processes17.22/17.83s,
-worker peakRSS109948/145692KiB (outer peaks110672/149932). No new cache/array/SoA/
-serializer rewrite, source tests or build replay justified. Existing caps remain.
-Evidence and phase/gap accounting: week requirement-drawing-tail-146a2d496/FINDINGS.md,
-raw profiles, full products, source/options, CPU/heap/stage markers and sample tables.
-
-## Remaining uncertainty and next fix
-
-Sparse32 still exhausts same-write XML; ER256 still refuses family geometry.
-Original2dad/Trident/peers remain unavailable, replacement24 sealed. Historical
-ELK ClassTB20s timeout and Sparse256ELK18.6s repeat remain unexplained: the later
-exact3phase profile did not reproduce that tail, so it was not called repaired.
-Earlier Class128 timing/memory and full compressed-payload rows remain in the prior
-log; no general performance-win claim follows from the new small cases.
-Stopped numeric/mask/glyph-union/index/streaming/sharing and leaf-seat leads remain
-closed; current source has no sufficient new capacity subtraction. Pre-import slice
-owner also forbids replacing primitive XML reads with a captured caller method.
-ELK's recorded fan contact is fixed. Two-loop contact and repeat-drawing
-optimization hypotheses are stopped. Moving profile tails remain unexplained.
-Next concrete proof-availability witness: Native five-contains fan has actual3px
-circle clearance but two conservative compound-envelope U contacts. Inspect the
-first painted-bound producer and reuse existing per-child paint semantics if
-supported; preserve conservative fallback and requalify terminal/ELK consumers.
-This targets justified proof fidelity, not new visible quality or a replacement
-acceptance gate. Stopped ER256 glyph-union performance shortcuts remain closed;
-keep larger delivery/quality losses and all adverse costs enrolled.
+Sparse32/ER256 limits, forest excess wire and sparse256area remain. Original2dad/
+Trident/peers unavailable; replacement24 sealed. Historical ELK20s timeout/18.6s
+repeat and moving profile tails remain unexplained, not fixed by later fast calls.
+Numeric/mask/glyph-union/index/streaming/sharing and leaf-seat leads stay stopped;
+pre-import slice owner still forbids trusting a captured caller string method.
+Next actual ink loss is already in the final shared owner: stock wide-shaft
+`flowchart LR; A --o B` with `linkStyle 0 stroke:#000,stroke-width:10px` (authored
+newlines, not semicolons). Native/Scene products in BOTHbackends have one actual
+circle-marker reference whose removal changes no final pixels: the ring is absorbed
+by its own fat shaft and later opaque B paint. Strict variants honestly refuse/U.
+Reproduce that exact paired case only if retained products are absent, then isolate
+shaft-only/B-cover-only/both counterfactuals with resource/ref/anchor/viewport fixed.
+Preserve the authored10px stroke; use existing carrier/terminal/paint-order machinery
+only after the cause is demonstrated. Actual head signal is the target; P is separate.
