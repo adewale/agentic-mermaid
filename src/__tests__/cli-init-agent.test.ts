@@ -4,6 +4,7 @@ import { describe, test, expect } from 'bun:test'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { initAgentFiles, AGENTS_MARKER, MCP_CONFIG_SAMPLE } from '../cli/init-agent.ts'
+import { AGENT_INSTRUCTIONS } from '../cli/agent-instructions.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 import { useTestChildren } from './helpers/test-child.ts'
 
@@ -23,29 +24,34 @@ describe('initAgentFiles', () => {
     const r = initAgentFiles({ dir })
     const agents = join(dir, 'AGENTS.md')
     const skill = join(dir, 'skills', 'agentic-mermaid-diagram-workflow', 'SKILL.md')
+    const guide = join(dir, 'skills', 'agentic-mermaid-diagram-workflow', 'references', 'operating-guide.md')
     const mcp = join(dir, '.mcp.json')
     expect(existsSync(agents)).toBe(true)
     expect(existsSync(skill)).toBe(true)
     expect(existsSync(mcp)).toBe(true)
     expect(existsSync(join(dir, '.claude'))).toBe(false)
     expect(existsSync(join(dir, '.agents'))).toBe(false)
-    expect(r.written).toEqual([agents, skill, mcp])
+    expect(r.written).toEqual([agents, skill, guide, mcp])
     expect(r.appended).toEqual([])
     expect(r.skipped).toEqual([])
 
     const agentsText = readFileSync(agents, 'utf8')
     expect(agentsText).toContain(AGENTS_MARKER)
-    expect(agentsText).toContain('parse → narrow')
+    expect(agentsText).toContain('skills/agentic-mermaid-diagram-workflow/references/operating-guide.md')
     expect(agentsText).toContain('https://agentic-mermaid.dev/llms.txt')
     expect(agentsText).toContain('npx agentic-mermaid --agent-instructions')
 
     const skillText = readFileSync(skill, 'utf8')
     expect(skillText).toContain('name: agentic-mermaid-diagram-workflow')
-    expect(skillText).toContain('agentic-mermaid/agent')
-    expect(skillText).toContain('--format png --output')
+    const linkedGuide = [...skillText.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)]
+      .map(match => match[1]!)
+      .find(href => !href.includes('://') && !href.startsWith('#'))
+    expect(linkedGuide).toBeDefined()
+    expect(readFileSync(join(dir, 'skills', 'agentic-mermaid-diagram-workflow', linkedGuide!), 'utf8')).toBe(AGENT_INSTRUCTIONS)
 
     const mcpJson = JSON.parse(readFileSync(mcp, 'utf8'))
-    expect(mcpJson.mcpServers['agentic-mermaid'].args).toContain('agentic-mermaid-mcp')
+    const installedVersion = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8')).version
+    expect(mcpJson.mcpServers['agentic-mermaid'].args).toEqual(['-y', '--package', `agentic-mermaid@${installedVersion}`, 'agentic-mermaid-mcp'])
     expect(readFileSync(mcp, 'utf8')).toBe(MCP_CONFIG_SAMPLE)
   })
 
@@ -68,14 +74,19 @@ describe('initAgentFiles', () => {
     const dir = tmp()
     initAgentFiles({ dir })
     const skill = join(dir, 'skills', 'agentic-mermaid-diagram-workflow', 'SKILL.md')
+    const guide = join(dir, 'skills', 'agentic-mermaid-diagram-workflow', 'references', 'operating-guide.md')
+    writeFileSync(guide, 'Consumer-owned operating guide')
     const mcp = join(dir, '.mcp.json')
     const r2 = initAgentFiles({ dir })
     expect(r2.skipped).toContain(skill)
     expect(r2.skipped).toContain(mcp)
+    expect(r2.skipped).toContain(guide)
+    expect(readFileSync(guide, 'utf8')).toBe('Consumer-owned operating guide')
 
     const r3 = initAgentFiles({ dir, force: true })
     expect(r3.written).toContain(skill)
     expect(r3.written).toContain(mcp)
+    expect(readFileSync(guide, 'utf8')).toBe(AGENT_INSTRUCTIONS)
   })
 })
 

@@ -21,6 +21,14 @@ code/tests, not dated inventories.
 | [Conditional forest layout](conditional-forest-layout.md) | Opt-in forest eligibility, fallback boundary and reproducible qualification commands. |
 | [Staged replacement of ELK](layered-layout-proposal.md) | Proposed measured-graph adapter, Pele evaluation, staged scope and acceptance boundary for replacing ELK. |
 
+## Dated comparisons
+
+- [Upstream lessons — 30 October 2026](upstream-lessons-2026-10-30.md) records the
+  additional-project scan, candidate repairs, routing profile and contrast tests.
+- [Mathematical labels — 30 October 2026](math-labels-research-2026-10-30.md)
+  compares the scanned engines and integrations. It is research, not an
+  implementation proposal or a new backlog.
+
 ## Completed and superseded work
 
 The [release record](archive/releases.md) binds completed releases to their
@@ -29,6 +37,9 @@ source, CI, registry publication and verified production deployment.
 The [archive](archive/) retains dated evidence without claiming it describes
 today's build, protocol, CI or deployment. In particular:
 
+- The [30 October documentation audit](archive/documentation-audit-2026-10-30.md)
+  records the cleanup, five simplification decisions, implementation CI and
+  the boundary between prepared source and published releases.
 - The consumed [0.5 investigation](https://github.com/adewale/agentic-mermaid/blob/30f0af5d63e460c8bd3de88358414f2c7857a2c6/docs/project/0.5-performance-investigation.md)
   retains its original measurements and hypotheses in immutable history. Useful
   findings and remaining opportunities are consolidated in the benchmark evidence.

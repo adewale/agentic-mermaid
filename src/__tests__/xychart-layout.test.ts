@@ -8,6 +8,7 @@ import { describe, it, expect } from 'bun:test'
 import { preprocessMermaidSource } from '../mermaid-source.ts'
 import { applyXYChartFrontmatterConfig, parseXYChart } from '../xychart/parser.ts'
 import { layoutXYChart } from '../xychart/layout.ts'
+import { getDataXValues, linearTicks } from '../xychart/axis-utils.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { layoutMermaidWithReceipt } from '../agent/index.ts'
 import { projectXyChartPositioned } from '../positioned-views/xychart.ts'
@@ -228,5 +229,45 @@ xychart
     expect(chart.xAxis.ticks).toHaveLength(0)
     expect(chart.yAxis.config.showTitle).toBe(false)
     expect(chart.yAxis.title).toBeUndefined()
+  })
+})
+
+
+describe('XY finite ticks across numeric magnitudes', () => {
+  it('retains authored x-axis endpoints after interpolation', () => {
+    const values = getDataXValues({ xAxis: { range: { min: 0.1, max: 1 } }, series: [] }, 4)
+    expect(values[0]).toBe(0.1)
+    expect(values.at(-1)).toBe(1)
+  })
+  it('terminates when a requested tick density cannot be represented', () => {
+    expect(linearTicks(0, 1, Infinity)).toEqual([])
+    expect(linearTicks(0, 1, Number.MIN_VALUE)).toEqual([])
+  })
+  it.each([
+    [1e-14, 1e-13], [1e296, 1e297], [1e301, 1e302],
+    [-1e302, -1e301], [-1e-13, 1e-13], [-1e308, 1e308],
+    [1e-320, 1e-319], [1, 1 + 4 * Number.EPSILON],
+  ])('keeps finite ticks distinct and inside %s..%s in either direction', (min, max) => {
+    const ticks = linearTicks(min, max)
+    expect(ticks.length).toBeGreaterThan(1)
+    expect(ticks.every(Number.isFinite)).toBe(true)
+    expect(ticks.every((tick, index) => tick >= min && tick <= max && (index === 0 || tick > ticks[index - 1]!))).toBe(true)
+    expect(linearTicks(max, min)).toEqual([...ticks].reverse())
+  })
+
+  it.each([false, true])('lays out tiny and huge finite authored ranges (%s)', horizontal => {
+    for (const [lo, hi] of [
+      ['0.00000000000001', '0.0000000000001'],
+      ['1.000000000000001', '1.000000000000002'],
+      ['1' + '0'.repeat(301), '1' + '0'.repeat(302)],
+    ]) {
+      const source = `xychart${horizontal ? ' horizontal' : ''}\nx-axis [A, B]\ny-axis ${lo} --> ${hi}\nline [${lo}, ${hi}]`
+      const chart = layout(source)
+      const ticks = horizontal ? chart.xAxis.ticks : chart.yAxis.ticks
+      expect(new Set(ticks.map(tick => tick.label)).size).toBe(ticks.length)
+      expect(ticks.length).toBeGreaterThan(1)
+      expect(ticks.every(tick => Number.isFinite(tick.x) && Number.isFinite(tick.y))).toBe(true)
+      expect(renderMermaidSVG(source)).not.toMatch(/NaN|Infinity/)
+    }
   })
 })

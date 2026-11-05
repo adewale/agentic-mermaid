@@ -18,8 +18,9 @@ bun run bin/am.ts render examples/styles/readme-hero.mmd --format png \
   --seed 11 --fit-width 1600 --security strict --output assets/hero.png
 ```
 
-`bun run hero` uses the same source and options through `renderMermaidPNG` and
-updates the existing SVG freshness record. `bun run hero:check` checks that
-record against fresh renderer output; inspect the PNG after regeneration.
+`bun run hero` uses the same source and options through `renderMermaidPNG`.
+Refresh it when changes to this example or its rendered appearance warrant a new
+illustration, and inspect the PNG before committing it. It is a reviewed example,
+not a byte-exact rendering baseline.
 
 This is an illustrative login flow, not a complete authentication design.

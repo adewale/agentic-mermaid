@@ -124,7 +124,7 @@ describe('floating State notes', () => {
       { id: 'N1', text: '审查', scope: { parent: 'Outer', region: 1 } },
     ])
     expectErr(d, { kind: 'add_floating_note', id: 'Bad', text: 'x', parent: 'Missing' }, 'STATE_NOT_FOUND')
-    expectErr(d, { kind: 'add_floating_note', id: 'Bad', text: 'x', parent: 'Outer', region: 2 }, 'INVALID_OP')
+    expectErr(d, { kind: 'add_floating_note', id: 'Bad', text: 'x', parent: 'Outer', region: 3 }, 'INVALID_OP')
     expectErr(d, { kind: 'add_floating_note', id: 'Empty', text: '' }, 'INVALID_OP')
     expectErr(d, { kind: 'set_floating_note_text', id: 'N1', text: '' }, 'INVALID_OP')
     const blank = parseMermaid('stateDiagram-v2\nnote "" as Empty')

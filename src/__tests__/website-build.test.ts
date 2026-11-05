@@ -32,7 +32,8 @@ import { knownStyleDescriptors } from '../scene/style-registry.ts'
 import { resolveEditorRenderOptions } from '../editor-render-options.ts'
 import { useTestChildren } from './helpers/test-child.ts'
 
-const runChild = useTestChildren(20_000)
+const EDITOR_BUILD_TEST_TIMEOUT = 60_000
+const runChild = useTestChildren(EDITOR_BUILD_TEST_TIMEOUT - 5_000)
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -655,22 +656,15 @@ describe('Workers Static Assets website contract', () => {
     expect(existsSync(join(SITE, 'agents/workflow/index.html'))).toBe(false)
   })
 
-  test('served workflow skill closes repository-only references', () => {
-    const source = readRepo('skills/agentic-mermaid-diagram-workflow/SKILL.md')
+  test('served workflow skill routes to the delivered guide and channel references', () => {
     const served = read('skills/agentic-mermaid-diagram-workflow/SKILL.md')
-    const repoBlob = 'https://github.com/adewale/agentic-mermaid/blob/main'
-    const refs = Array.from(source.matchAll(/`((?:docs\/|references\/upstream\/)[^`]*)`/g), match => match[1]!)
-
-    expect(refs.length).toBeGreaterThan(0)
-    for (const ref of refs) {
-      const target = ref.startsWith('docs/')
-        ? `${repoBlob}/${ref}`
-        : `${repoBlob}/skills/agentic-mermaid-diagram-workflow/${ref}`
-      expect(served).toContain(`[${ref}](${target})`)
-    }
-    expect(Array.from(served.matchAll(/`(?:docs\/|references\/upstream\/)[^`]*`/g), match => match[0])).toEqual([])
+    const links = [...served.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)]
+      .map(match => new URL(match[1]!, 'https://agentic-mermaid.dev/skills/agentic-mermaid-diagram-workflow/SKILL.md'))
+      .filter(url => url.origin === 'https://agentic-mermaid.dev')
+    expect(links.some(url => url.pathname === '/agent-instructions.md')).toBe(true)
+    for (const url of links) expect(existsSync(join(SITE, url.pathname)), url.pathname).toBe(true)
+    expect(read('agent-instructions.md')).toBe(readRepo('Instructions_for_agents.md'))
   })
-
 
   test('sitemap.xml lists exactly the live HTML pages and no machine artifacts', () => {
     const locs = [...read('sitemap.xml').matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]!)
@@ -783,7 +777,7 @@ describe('Workers Static Assets website contract', () => {
     } finally {
       rmSync(parent, { recursive: true, force: true })
     }
-  }, 60_000)
+  }, EDITOR_BUILD_TEST_TIMEOUT)
 
   test('generated public text assets do not depend on external font imports', () => {
     const scanned = files().filter((f) => /\.(html|svg|css|md|txt|json)$/.test(f))
@@ -1535,7 +1529,6 @@ describe('Workers Static Assets website contract', () => {
     const unsupportedSyntax = read('warnings/UNSUPPORTED_SYNTAX/index.html')
     expect(unsupportedSyntax).toContain('syntax: "empty_layout"')
     expect(unsupportedSyntax).toContain('0×0 canvas with no nodes, edges, or groups')
-    expect(read('agent-instructions.md')).toContain('syntax: "empty_layout"')
     // Firing demos are build-time verified; DUPLICATE_EDGE reliably fires.
     const duplicateEdge = read('warnings/DUPLICATE_EDGE/index.html')
     expect(duplicateEdge).toContain('Minimal reproducer')

@@ -18,7 +18,7 @@ echo '{"async": true, "asyncTimeout": 300000}'
 # src/__tests__/bun-version.test.ts keeps these equal to MIN_BUN_VERSION and to
 # the Bun every workflow pins.
 MIN_BUN=1.4.0
-PIN_BUN=1.4.2
+PIN_BUN=1.4.4
 
 meets_minimum() { [ "$(printf '%s\n%s\n' "$MIN_BUN" "$1" | sort -V | head -n 1)" = "$MIN_BUN" ]; }
 

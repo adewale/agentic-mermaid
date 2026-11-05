@@ -14,8 +14,10 @@ retain their evidence. Candidate implementation does not establish merge,
 publication or deployment; a closed issue is not completion evidence when its
 acceptance conditions still fail. Plans supply design context, never additional
 queues. Retired IDs are not reused.
-Release 0.5.4 publication and production verification completed on 30 October;
-see the [release record](docs/project/archive/releases.md#054--2026-10-30).
+Completed publication and production verification are recorded in the
+[release record](docs/project/archive/releases.md), including retired release
+and agent-workflow tasks. AGENT-1 consolidation is delivered in 0.5.6;
+AGENT-2 remains deferred to 0.6.0.
 CONS-43 is retired: `src/layout/passes/index.ts` contains only re-exports;
 cohesive implementations already live in their owning pass modules. Further
 route-contract extraction preserves the existing pipeline manifest and order.
@@ -89,15 +91,6 @@ route-contract extraction preserves the existing pipeline manifest and order.
 
 ## Ready build backlog
 
-- [ ] **AGENT-1 — Consolidate the agent starting guide** (`todo`, owner
-  requested 2026-10-27; deferred to 0.6.0 by the owner on 2026-10-29).
-  Make `/start.md` a short task/channel
-  router into one maintained operating guide and version-matched references.
-  Generate overlapping instructions for the CLI, installed drop-in and website
-  from that guide. Preserve useful channel entry points while removing repeated
-  rules and competing mini-tutorials. Validate with fresh-agent tasks that choose
-  a channel once and reach the relevant operation details without reconciling
-  multiple guides.
 - [ ] **AGENT-2 — Reduce library import decisions** (`todo`, owner requested
   2026-10-27; deferred to 0.6.0 by the owner on 2026-10-29). Recommend one
   portable agent entry for parsing,
@@ -106,17 +99,6 @@ route-contract extraction preserves the existing pipeline manifest and order.
   import paths and aliases. Reuse the current entries rather than adding another
   SDK layer, and verify shipped declarations/runtime behavior in Node, Bun,
   browsers and Workers before changing the recommendation.
-- [ ] **AGENT-3 — Make resolved scenes discoverable and failures actionable**
-  (`todo`, owner requested 2026-10-27; deferred to 0.6.0 by the owner on
-  2026-10-29). Expose resolved-scene
-  support through existing agent discovery and the Code Mode SDK, with explicit
-  result-size/runtime limits. Give unsupported-artwork failures stable typed
-  fields such as `code`, `partId` and `feature`, preserving readable messages
-  and the prior artifact on failure. Test supported artwork and named unsupported
-  features such as gradients through installed library and agent boundaries.
-  Document released availability so agents can select a supported representation
-  or report the precise limitation without parsing English error messages.
-
 - [ ] **BUILD-27 — MCP Apps support** (`todo`). Expose an interactive
   in-agent diagram UI through MCP Apps: `ui://` resources, correct
   `text/html;profile=mcp-app` resource MIME type, tool `_meta.ui.resourceUri`
@@ -381,7 +363,7 @@ experiments are paused during this work.
 - [x] Test rank-first, detached band-snapshot reuse and ray views separately against accepted26. All three miss their primary target on all6required uncached tails, with18/16/18successful workers out of36 and no cached candidate results. Rank-first raises cyclic19allocation14.8%; band/ray whole27allocation is1.000648×/1.002351×. Keep these variants outside production, preserve missing controls/output comparisons and all failed deadlines; see [current cyclic experiments](docs/design/system/layout-followup-results.md#further-cyclic-attribution-on-frozen-runtime-26).
 - [x] Measure a separately predeclared combined ray-view/query-local-record prototype directly against accepted26 and current-artifactELK. All30memory workers and108exact fullSVG/receipt/certificate/layout/edit comparisons pass, but0/6uncached tails reach5%less allocation and whole27is0.998425×26, missing the0.98target. Reject the prototype; standalone/Architecture payload reserve would fall to306/108bytes. Keep accepted26 unchanged and preserve complete raw controls, failures, exact source patches and profile-premise correction in the [follow-up evidence](docs/design/system/layout-followup-results.md#combined-query-local-crossing-records-complete-negative-experiment).
 - [x] Test subtraction from Architecture refinement before retaining its cost. First-return preserves quality but misses its declared15% allocation target (14.7966% saving), so reject it. Complete single-crossing cleanup saves44.3% on source4 and4.5% on the whole13-input uncached pass versus25. Final direct26/24 whole13 allocation is1.001647×uncached/1.000278×cached, with healthy allocation controls: effectively flat, retaining0/5 repairs while surrendering4's costly partial improvement. The repaired0/5 occurrences themselves cost2.3%/4.7% more uncached allocation; drifting time controls establish no speedup.
-- [x] Freeze runtime26 artifacts and declare untouched Flowchart512–575 and Architecture0–63 cohorts before inspection, then qualify all enrolled outputs. Retain2418 known/new Flowchart observations with only the declared source4 rollback from25, seven unchanged ELK failures and234 unchanged original edits. The separately declared64 Architecture bases/edit/undo sequences produce1536 successful observations across24/25/26/ELK and both cache policies, with512 exact SVG/layout undos and no measured semantic discrepancies. Preserve every case and full proof evidence in [runtime26 quality](docs/design/system/layout-runtime26-quality.json.gz); this completes evaluation, not ELK parity.
+- [x] Freeze runtime26 artifacts and declare untouched Flowchart512–575 and Architecture0–63 cohorts before inspection, then qualify all enrolled outputs. Retain2418 known/new Flowchart observations with only the declared source4 rollback from25, seven unchanged ELK failures and234 unchanged original edits. The separately declared64 Architecture bases/edit/undo sequences produce1536 successful observations across24/25/26/ELK and both cache policies, with512 exact SVG/layout undos and no measured semantic discrepancies. Preserve every case and full proof evidence in [runtime26 quality](https://raw.githubusercontent.com/adewale/agentic-mermaid/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-runtime26-quality.json.gz); this completes evaluation, not ELK parity.
 - [ ] Close the prospective Architecture quality and threshold-coverage gaps without hiding adverse data. Fresh64 native bases have21 crossing,6 bend,32 length,13 area and4 opposing-overlap losses versus ELK; aligned edit motion is worse on48/128 transitions. The one observed cleanup removes a crossing but adds84 route-length units. Only1 base/3 edits meet inferred single-cross guard admission, no direct1↔2 edit occurs, and25/26 outputs tie throughout this cohort. Preserve these64 as evaluated data; require a separately declared future cohort for any new holdout claim. See [final quality results](docs/design/system/layout-followup-results.md#prospective-architecture-quality-and-edit-stability).
 - [ ] Compare candidate selection under explicit bend/area budgets and retain the crossing/bend/area frontier rather than claim all-metric domination.
 - [ ] Reduce repeated cyclic candidate/normalization cost using the current artifact's attribution and exact operation counters. Rank-first, band reuse, lazy orders, lane indexing and immediate proof reuse have already failed their declared experiments; do not relist them as untouched recommendations. Preserve relationships, fallback, search bounds/budgets and independent final proofs, and measure a new owning mechanism directly before adoption.

@@ -223,3 +223,26 @@ describe('resolved SVG values', () => {
     expect(() => resolve(`<svg>${fragment}</svg>`)).toThrow(new RegExp(`owned-ink.*${feature}`))
   })
 })
+
+
+test('unsupported resolved artwork exposes a stable code, part and feature', () => {
+  try {
+    renderResolvedScene('flowchart LR\n A --> B', { shadow: true })
+    throw new Error('expected refusal')
+  } catch (error) {
+    expect(error).toMatchObject({ code: 'RESOLVED_SCENE_UNSUPPORTED_ARTWORK', partId: 'node:A', feature: 'filter' })
+    expect((error as Error).message).toMatch(/part.*A.*filter/)
+  }
+})
+
+
+test('gradient refusal carries the consuming part and paint-server feature', () => {
+  const source = readFileSync(new URL('../../eval/layout-compare/fixtures/sankey-basic.mmd', import.meta.url), 'utf8')
+  const ordinary = renderMermaidSVG(source)
+  try { renderResolvedScene(source); throw new Error('expected gradient refusal') }
+  catch (error) {
+    expect(error).toMatchObject({ code: 'RESOLVED_SCENE_UNSUPPORTED_ARTWORK', feature: 'paint-server' })
+    expect((error as {partId:string}).partId).toMatch(/link/)
+    expect(renderMermaidSVG(source)).toBe(ordinary)
+  }
+})

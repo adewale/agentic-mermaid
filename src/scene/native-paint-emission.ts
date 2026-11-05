@@ -113,6 +113,35 @@ export function createNativePaintEmission(maxOperations: number) {
     // slots and subsequent descriptor/copy visits are distinct paid work.
     const keys = Object.getOwnPropertyNames(value)
     if (!pay(keys.length)) throw failed
+    const deferredProjection = deferredTerminalProjectionInput(value)
+    // Pay before reading caller data and reuse each descriptor if the typed
+    // constructor declines, so fallback cannot repeat uncharged proxy work.
+    let inspected = 0
+    let x: PropertyDescriptor | undefined, y: PropertyDescriptor | undefined
+    // Coordinate buffers dominate native geometry. Capture their fixed scalar
+    // records directly; descriptors still prove that no accessor or hidden
+    // field can acquire immutable authority through this constructor.
+    // A point shortcut may not skip leaf/geometry custody or a text plan's
+    // required child instructions. Exact x/y slots already prove point custody.
+    if (!planningText && (context === undefined || context === 'point')
+      && !deferredProjection && depth < 64 && keys.length === 2 && keys[0] === 'x' && keys[1] === 'y') {
+      if (!pay()) throw failed
+      x = Object.getOwnPropertyDescriptor(value, 'x')
+      inspected = 1
+      if (x && Object.hasOwn(x, 'value') && x.enumerable && typeof x.value === 'number') {
+        if (!pay()) throw failed
+        y = Object.getOwnPropertyDescriptor(value, 'y')
+        inspected = 2
+        if (y && Object.hasOwn(y, 'value') && y.enumerable && typeof y.value === 'number') {
+          // Keep the generic path's final validity check: the last descriptor
+          // trap may have revoked its source Proxy after returning the data.
+          if (Array.isArray(value)) throw failed
+          const point = Object.freeze({ x: x.value as number, y: y.value as number })
+          transferRetainedPixelText(value, point)
+          return point
+        }
+      }
+    }
     parents.add(value)
     const result: Record<string, unknown> | unknown[] = Array.isArray(value) ? [] : {}
     const kindSlot = context === 'leaf' || context === 'geometry' ? Object.getOwnPropertyDescriptor(value, 'kind') : undefined
@@ -122,12 +151,16 @@ export function createNativePaintEmission(maxOperations: number) {
     if (planningText) { if (!pay(2)) throw failed; planSlots = [] }
     let ownedFields = 0, ownedPointSlots = 0
     let arrayLength: PropertyDescriptor | undefined
-    const deferredProjection = deferredTerminalProjectionInput(value)
-    for (let keyIndex = 0; keyIndex < keys.length; keyIndex++) {
-      const key = keys[keyIndex]!
-      if (!pay()) throw failed
-      // This visit owns descriptor retention and scalar assignment.
-      const descriptor = Object.getOwnPropertyDescriptor(value, key)
+    for (let index = 0; index < keys.length; index++) {
+      const key = keys[index]!
+      // This property visit owns descriptor retention and scalar assignment;
+      // a primitive needs no second visit or numeric formatting/replay.
+      let descriptor: PropertyDescriptor | undefined
+      if (index < inspected) descriptor = index === 0 ? x : y
+      else {
+        if (!pay()) throw failed
+        descriptor = Object.getOwnPropertyDescriptor(value, key)
+      }
       if (!descriptor) continue
       if (key === 'length' && Array.isArray(value)) { arrayLength = descriptor; continue }
       // Deferred terminal geometry is neither read nor used by paint writing.

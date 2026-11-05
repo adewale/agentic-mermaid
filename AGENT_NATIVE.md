@@ -6,16 +6,12 @@ preserving the parts an operation does not own. For runnable examples, use the
 [Instructions_for_agents.md](Instructions_for_agents.md); contributors should
 read the [renderer architecture](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/README.md).
 
-## The edit workflow
+## Operating guide and architecture
 
-For an existing diagram, parse it with `parseRegisteredMermaid`, narrow it with
-its `as*` helper, and apply the smallest supported `mutate` operation. Inspect
-`verifyMermaid`, then save `serializeMermaid` output. A new diagram can be
-written directly as Mermaid source before parsing and verification.
-
-A successful edit must also match the request. Verification does not check
-whether an agent changed the intended label, retained a requested value or
-picked the right diagram family; read back those details before returning.
+The [operating guide](Instructions_for_agents.md) owns the diagram workflow,
+verification boundaries and channel selection. This document describes the
+architecture and generated warning catalog; it does not maintain another set
+of agent instructions.
 
 ## (1) Deterministic layout
 

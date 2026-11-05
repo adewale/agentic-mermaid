@@ -27,7 +27,7 @@ function findNodeBinary(): string | null {
 // Cross-runtime tests need a Node binary (and some the built dist/agent.js).
 // CI's `unit` job (ci.yml) builds dist and provides Node precisely for these
 // contracts, so a missing prerequisite there is a broken pipeline: fail loudly
-// instead of skipping. Elsewhere (local runs, the red-green job, which never
+// instead of skipping. Elsewhere (local runs, the optional base-comparison diagnostic, which never
 // builds dist) skip and say why in the test name.
 type TestBody = () => void | Promise<unknown>
 function testRequiring(prerequisites: Record<string, boolean>): (name: string, body: TestBody) => void {

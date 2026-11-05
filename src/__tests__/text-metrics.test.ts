@@ -316,3 +316,10 @@ describe('real-world text examples', () => {
     expect(percentDiff).toBeLessThan(0.05)
   })
 })
+
+
+it('gives unused discretionary line-break hints no glyph advance', () => {
+  expect(getCharWidth('\u00ad')).toBe(0)
+  expect(getCharWidth('\u200b')).toBe(0)
+  expect(measureTextWidth('ab\u00adcd', 14, 400)).toBe(measureTextWidth('abcd', 14, 400))
+})

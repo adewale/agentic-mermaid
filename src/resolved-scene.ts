@@ -1,3 +1,4 @@
+import { ResolvedSceneError } from './scene/resolved-error.ts'
 import type { ParsedDiagram } from './agent/types.ts'
 import type { RenderOptions } from './types.ts'
 import { prepareRenderInput } from './agent/render-input.ts'
@@ -21,13 +22,13 @@ export function renderResolvedScene(text: ParsedDiagram | string, options: Rende
     const input = prepareRenderInput(text)
     const request = resolveRenderRequestForExecution(input.source, options, 'svg', undefined, { expectedFamilyId: input.expectedFamilyId })
     const plan = resolvedRenderExecutionPlanOf(request)
-    if (plan.mode !== 'scene') throw new Error('Resolved Scene requires a family with Scene lowering')
+    if (plan.mode !== 'scene') throw new ResolvedSceneError('RESOLVED_SCENE_UNAVAILABLE', 'frame', 'scene-lowering', 'Resolved Scene requires a family with Scene lowering')
     emitResolvedConfigDiagnostics(request)
     const layout = positionFamilyForNativeRender(request)
     const capture = createScenePartCapture()
     const { svg, layoutCertification } = renderPositionedMermaidSVG(request, layout, [], capture)
-    if (!capture.scene || !capture.owners) throw new Error('Backend did not provide resolved Scene ownership')
-    if (scanSvgStartTags(svg).length !== capture.owners.length) throw new Error('Resolved Scene ownership changed during SVG postprocessing')
+    if (!capture.scene || !capture.owners) throw new ResolvedSceneError('RESOLVED_SCENE_UNAVAILABLE', 'frame', 'ownership', 'Backend did not provide resolved Scene ownership')
+    if (scanSvgStartTags(svg).length !== capture.owners.length) throw new ResolvedSceneError('RESOLVED_SCENE_UNAVAILABLE', 'frame', 'ownership', 'Resolved Scene ownership changed during SVG postprocessing')
     // Certification may expand the final SVG viewport around painted strokes.
     // Keep the reported canvas tied to that projection, not its pre-repair Scene.
     const viewport = plan.backend?.inputName === 'default' && layoutCertification?.repairs.length

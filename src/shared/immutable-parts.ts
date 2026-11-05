@@ -2,7 +2,7 @@
  * fields and accessors cannot become authority through a shallow freeze. */
 const immutableSet = WeakSet, immutableApply = Reflect.apply
 const immutableHas = WeakSet.prototype.has, immutableAdd = WeakSet.prototype.add
-const immutableFrozen = Object.isFrozen, immutableKeys = Reflect.ownKeys
+const immutableFreeze = Object.freeze, immutableFrozen = Object.isFrozen, immutableKeys = Reflect.ownKeys
 const immutableDescriptor = Object.getOwnPropertyDescriptor, immutableOwn = Object.hasOwn
 
 export function createImmutableParts(known: (value: object) => boolean = () => false, knownOwned: (value: object) => boolean = () => false) {
@@ -32,5 +32,17 @@ export function createImmutableParts(known: (value: object) => boolean = () => f
   // Only call at a known local allocation. Caller-dispatched map results and
   // other supplied objects may use freeze, but cannot mint this provenance.
   const freezeOwned = <T extends object>(value: T): Readonly<T> => qualify(value, true)
-  return { has, freeze, hasOwned, freezeOwned }
+  // Locally allocated scalar spans need no recursive field qualification. The
+  // captured freeze keeps an interposed public constructor from seeing or
+  // substituting this private allocation.
+  const sourceSpan = (text: string, sourceStart: number, sourceEnd: number) => {
+    if (typeof text !== 'string' || typeof sourceStart !== 'number' || typeof sourceEnd !== 'number') throw new TypeError('Source spans require scalar text and offsets')
+    const span = immutableFreeze({ text, sourceStart, sourceEnd })
+    if (immutableFrozen(span)) {
+      immutableApply(immutableAdd, parts, [span])
+      immutableApply(immutableAdd, ownedParts, [span])
+    }
+    return span
+  }
+  return { has, freeze, hasOwned, freezeOwned, sourceSpan }
 }

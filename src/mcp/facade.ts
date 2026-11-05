@@ -1,3 +1,4 @@
+import { ResolvedSceneError } from '../scene/resolved-error.ts'
 // Code Mode SDK facade — runtime-neutral. Shared by the node:vm sandbox
 // (sandbox.ts) and the hosted dynamic-worker harness: the hardened read-only
 // mermaid.* proxy, the sync-only code screen, and the expression-first code
@@ -63,7 +64,9 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     const carried = structuredErrorMetadata.get(error)
     if (carried) return carried
     let fields: Record<string, unknown> | undefined
-    if (error instanceof RenderCapabilityError) {
+    if (error instanceof ResolvedSceneError) {
+      fields = { name: error.name, code: error.code, partId: error.partId, feature: error.feature }
+    } else if (error instanceof RenderCapabilityError) {
       fields = {
         name: error.name,
         code: error.code,
@@ -411,6 +414,7 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     renderMermaidASCII: mermaid.renderMermaidASCII,
     renderMermaidASCIIWithReceipt: mermaid.renderMermaidASCIIWithReceipt,
     layoutMermaidWithReceipt: mermaid.layoutMermaidWithReceipt,
+    renderResolvedScene: mermaid.renderResolvedScene,
     // Read-only op discovery: field shapes / enum values / constraint notes and
     // compact signatures for a family's ops, so a Code Mode script can look up
     // exact op shapes at runtime instead of guessing (or triggering INVALID_OP).
@@ -578,7 +582,7 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
         push({ verb: 'serialize', diagram: idOf(d), source, fingerprint: fingerprint(d) })
         return source
       })
-    else if (prop === 'renderMermaidSVG' || prop === 'renderMermaidSVGWithReceipt' || prop === 'renderMermaidASCII' || prop === 'renderMermaidASCIIWithReceipt' || prop === 'layoutMermaidWithReceipt')
+    else if (prop === 'renderMermaidSVG' || prop === 'renderMermaidSVGWithReceipt' || prop === 'renderMermaidASCII' || prop === 'renderMermaidASCIIWithReceipt' || prop === 'layoutMermaidWithReceipt' || prop === 'renderResolvedScene')
       value = harden((input: any, opts?: any) => {
         assertOpen()
         if (input && typeof input === 'object') requireTrustedDiagram(input, String(prop))

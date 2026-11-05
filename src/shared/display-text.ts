@@ -2,7 +2,7 @@ import { performanceExperimentEnabled } from '../experimental-performance.ts'
 import { WeightedLru } from '../experimental/weighted-lru.ts'
 import type { LabelDisplay } from '../multiline-utils.ts'
 import type { TextTransform } from '../types.ts'
-import { parseMultilineFormatting, serializeStyledSegment, FORMAT_TAG_SOURCE, type StyledSegment } from './inline-format.ts'
+import { parseMultilineFormatting, serializeStyledSegment, FORMAT_TAG_SOURCE, HAS_FORMAT_TAGS, type StyledSegment } from './inline-format.ts'
 import { graphemes } from './graphemes.ts'
 import { createImmutableParts } from './immutable-parts.ts'
 import { sanitizeTextControls } from './text-controls.ts'
@@ -80,11 +80,9 @@ export function replaceDisplayTextTokens(prepared: PreparedDisplayText, pattern:
     const append = (text: string, start: number, end: number, decoded: boolean): void => {
       let offset = start
       for (const cluster of graphemes(text)) {
-        clusters.push(immutableDisplayParts.freeze({
-          text: sanitizeTextControls(cluster),
-          sourceStart: sourceStarts[decoded ? start : offset] ?? run.sourceStart,
-          sourceEnd: sourceEnds[decoded ? end - 1 : offset + cluster.length - 1] ?? run.sourceEnd,
-        }))
+        clusters.push(immutableDisplayParts.sourceSpan(sanitizeTextControls(cluster),
+          sourceStarts[decoded ? start : offset] ?? run.sourceStart,
+          sourceEnds[decoded ? end - 1 : offset + cluster.length - 1] ?? run.sourceEnd))
         offset += cluster.length
       }
     }
@@ -157,12 +155,12 @@ export function prepareDisplayText(source: DisplayTextInput, display: LabelDispl
   const empty = immutableDisplayParts.freezeOwned([]) as readonly DisplayRun[]
   const lines: Array<readonly DisplayRun[]> = []
   const sourceLines = source.split('\n')
-  const formattedLines = display === 'formatted' ? parseMultilineFormatting(sourceLines) : undefined
+  const formattedLines = display === 'formatted' && HAS_FORMAT_TAGS.test(source) ? parseMultilineFormatting(sourceLines) : undefined
   for (const line of sourceLines) {
     lineStarts.push(offset)
     if (line === '') { offset++; lines.push(empty); continue }
     let runs: DisplayRun[]
-    if (display === 'literal') {
+    if (!formattedLines) {
       runs = [{ text: line, bold: false, italic: false, underline: false, strikethrough: false, sourceStart: offset, sourceEnd: offset + line.length }]
     } else {
       const tags = new RegExp(FORMAT_TAG_SOURCE, 'gi')
@@ -180,7 +178,7 @@ export function prepareDisplayText(source: DisplayTextInput, display: LabelDispl
       let sourceAt = run.sourceStart
       const clusters: NonNullable<DisplayRun['clusters']>[number][] = []
       for (const cluster of graphemes(run.text)) {
-        const result = immutableDisplayParts.freezeOwned({ text: sanitizeTextControls(cluster), sourceStart: sourceAt, sourceEnd: sourceAt + cluster.length })
+        const result = immutableDisplayParts.sourceSpan(sanitizeTextControls(cluster), sourceAt, sourceAt + cluster.length)
         sourceAt += cluster.length
         clusters.push(result)
       }

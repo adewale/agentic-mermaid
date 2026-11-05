@@ -1,6 +1,6 @@
 # PR449: forest delivery boundary and the remaining ELK deficits
 
-[Portable evidence and verification](pr449-forest-boundary-2026-10-23-evidence.md)
+[Portable evidence and verification](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/pr449-forest-boundary-2026-10-23-evidence.md)
 
 The qualified source change is [678af21d](https://github.com/adewale/agentic-mermaid/commit/678af21d8f2fc4de62f6dcf98d7f0489c8cde9c0), based on d6a9a759 and main 861375d3. It moves the shared forest implementation behind one existing-demand browser loading boundary. Architecture with ELK downloads **1,002 fewer Brotli bytes**, retaining 34 module requests and all unchanged delivery caps. Native Architecture costs **296 additional Brotli bytes and one additional request**. No layout algorithm or default backend changes.
 

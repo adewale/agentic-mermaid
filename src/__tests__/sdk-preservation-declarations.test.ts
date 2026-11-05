@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import ts from 'typescript'
 import { CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS, CODE_MODE_RENDER_OPTION_DECLARATIONS, CODE_MODE_SHARED_RENDER_OPTIONS_DECLARATION, SDK_DECLARATION } from '../mcp/sdk-decl.ts'
-import { SDK_CORE_DECLARATION } from '../mcp/sdk-discovery.ts'
+import { SDK_CORE_DECLARATION, describeSdkPayload } from '../mcp/sdk-discovery.ts'
 import { SHARED_RENDER_OPTION_FIELDS } from '../render-contract.ts'
 
 const printer = ts.createPrinter({ removeComments: true })
@@ -51,9 +51,15 @@ describe('Code Mode preservation declarations', () => {
   test.each([
     ['full', SDK_DECLARATION],
     ['core', SDK_CORE_DECLARATION],
+    ['core with resolved-scene discovery', `${SDK_CORE_DECLARATION}\n${describeSdkPayload({ capability: 'resolved-scene' }).declaration}`],
   ])('a typed %s Code Mode client preserves advertised operation and read-back contracts', (label, declaration) => {
     const path = '/class-sdk-consumer.ts'
     const source = `${declaration}\n
+const scene = mermaid.renderResolvedScene('flowchart LR\\nA-->B')
+const resolvedVersion: 2 = scene.version
+${label !== 'core' ? `for (const primitive of scene.parts.flatMap(part => part.primitives)) {
+  const geometry: string = primitive.kind === 'path' ? primitive.d : primitive.text
+}` : ''}
 const op = {
   kind: 'add_relation', from: 'Port', to: 'Service', relKind: 'lollipop',
   markerAt: 'both', fromKind: 'lollipop', toKind: 'aggregation', lineStyle: 'dashed',

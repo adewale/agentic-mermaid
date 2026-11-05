@@ -2,7 +2,7 @@
 // backends here so direct native/browser/hosted imports do not depend on the
 // complete library entry having run first. SVG-only entries stay independent.
 import './scene/builtin-backends.ts'
-import { executeGraphicalRequest, type GraphicalSvgArtifact } from './graphical-render.ts'
+import { executeGraphicalRequest, type GraphicalSvgArtifact, type GraphicalLayoutConsumer } from './graphical-render.ts'
 import type { RenderOptions } from './types.ts'
 import type { RenderExecutionResolutionOptions } from './render-contract.ts'
 import {
@@ -49,8 +49,9 @@ function renderResolvedPngGraphicalProjection(
   renderOptions: RenderOptions,
   outputPolicy: ResolvedPngOutputPolicy,
   resolutionOptions: RenderExecutionResolutionOptions = {},
+  consumeLayout?: GraphicalLayoutConsumer,
 ): PngGraphicalProjection {
-  const graphical = executeGraphicalRequest(source, renderOptions, 'png', outputPolicy, resolutionOptions)
+  const graphical = executeGraphicalRequest(source, renderOptions, 'png', outputPolicy, resolutionOptions, consumeLayout)
   const rasterBackground = resolvePngRasterBackground(graphical.svg, outputPolicy)
   const rasterDimensions = assertPngRasterBudget(graphical.svg, outputPolicy)
   return {
@@ -68,12 +69,14 @@ export function renderPngGraphicalProjection(
   renderOptions: RenderOptions,
   outputOptions: PngOutputPolicyInput = {},
   resolutionOptions: RenderExecutionResolutionOptions = {},
+  consumeLayout?: GraphicalLayoutConsumer,
 ): PngGraphicalProjection {
   return renderResolvedPngGraphicalProjection(
     source,
     renderOptions,
     resolvePngOutputPolicy(outputOptions),
     resolutionOptions,
+    consumeLayout,
   )
 }
 

@@ -21,13 +21,15 @@
 // ============================================================================
 
 import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { Resvg } from '@resvg/resvg-js'
+import type { Resvg } from '@resvg/resvg-js'
 import type { ParsedDiagram } from './types.ts'
 import type { RenderOptions } from '../types.ts'
-import { prepareRenderInput } from './render-input.ts'
+import { prepareRenderInput, type PreparedRenderInput } from './render-input.ts'
+import type { GraphicalLayoutConsumer } from '../graphical-render.ts'
 import type { RenderRequestReceipt } from '../render-contract.ts'
 import { inlineFontVarForRaster } from '../theme.ts'
 import { prepareResvgMarkerOrientation } from '../resvg-marker-orientation.ts'
@@ -136,9 +138,8 @@ function resolveBundledFonts(): BundledFonts {
  * Deterministic within one runtime; cross-runtime parity is guarded for
  * same-machine Bun ≡ Node on x86_64/ARM64 when Node + built dist are present.
  *
- * Synchronous: resvg's `.render()` is native-sync, and static import keeps
- * the CLI/MCP integration straightforward. Library consumers can wrap in
- * `Promise.resolve()` if they want async semantics.
+ * Synchronous: the native rasterizer loads on the first PNG render. Importing
+ * the agent surface for parsing, verification or SVG does not load its addon.
  */
 export function renderMermaidPNG(input: ParsedDiagram | string, opts: PngOptions = {}): Uint8Array {
   return renderMermaidPNGWithReceipt(input, opts).png
@@ -183,15 +184,17 @@ export function createMermaidPNGRenderer(
   })
 }
 
-function renderMermaidPNGWithReceiptForHost(
+/** Internal action projection shares this native adapter's admitted request. */
+export function renderMermaidPNGWithReceiptForHost(
   input: ParsedDiagram | string,
   opts: PngOptions,
   hostOptions: MermaidPNGRendererHostOptions,
+  projection?: { input: PreparedRenderInput; consumeLayout: GraphicalLayoutConsumer },
 ): RenderedPng {
   // SVG input: embedFontImport=false so resvg doesn't try to fetch from
   // Google Fonts during rasterization. CSS-variable fonts (Loop 8 M2) means
   // the SVG still declares its font-family preference via --font.
-  const preparedInput = prepareRenderInput(input)
+  const preparedInput = projection?.input ?? prepareRenderInput(input)
   const source = preparedInput.source
   const onWarning = opts.onWarning
   if (onWarning !== undefined && typeof onWarning !== 'function') {
@@ -204,6 +207,7 @@ function renderMermaidPNGWithReceiptForHost(
     renderOptions,
     outputOptions,
     { backendPolicy: hostOptions.backendPolicy, textMeasurement: hostOptions.textMeasurement, expectedFamilyId: preparedInput.expectedFamilyId },
+    projection?.consumeLayout,
   )
   const outputPolicy = graphical.outputPolicy
   const svg = finalizePngRasterSvg(
@@ -244,7 +248,11 @@ function renderMermaidPNGWithReceiptForHost(
     },
   }
 
-  const resvg = new Resvg(svg, resvgOpts)
+  // Bun needs a literal require to embed the addon in the standalone CLI.
+  const { Resvg: NativeResvg } = (typeof Bun !== 'undefined'
+    ? require('@resvg/resvg-js')
+    : createRequire(import.meta.url)('@resvg/resvg-js')) as typeof import('@resvg/resvg-js')
+  const resvg = new NativeResvg(svg, resvgOpts)
   const png = applyPngColorProfile(resvg.render().asPng())
   const actualDimensions = inspectPngDimensions(png)
   if (actualDimensions.width !== graphical.rasterDimensions.width

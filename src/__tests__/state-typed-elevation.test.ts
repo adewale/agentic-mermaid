@@ -668,6 +668,20 @@ stateDiagram-v2
     expect(state(serialized).body.states[0]!.regions![1]!.transitions).toContainEqual({ from: 'Right', to: 'Audit' })
   })
 
+  test('writes inserted empty regions and collapsed scopes as accepted Mermaid', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      let d = state('stateDiagram-v2\nstate on {\ndirection LR\nidle --> busy\n}')
+      d = apply(d, { kind: 'add_region', parent: 'on', index: 0 })
+      const inserted = serializeMermaid(d)
+      expect(await upstream.accepts(inserted)).toBe(true)
+      expect(parseRenderGraph(inserted).subgraphs[0]!.children).toHaveLength(2)
+      d = apply(d, { kind: 'remove_region', parent: 'on', index: 0 })
+      expect(await upstream.accepts(serializeMermaid(d))).toBe(true)
+      expect(state(serializeMermaid(d)).body).toEqual(d.body)
+    } finally { upstream.close() }
+  })
+
   test('models classDef, class/cssClass, inline style, and linkStyle paint', () => {
     let diagram = state(`stateDiagram-v2
       A --> B

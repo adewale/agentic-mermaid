@@ -2,7 +2,6 @@
 
 import { describe, test, expect } from 'bun:test'
 import { buildLlmsTxt, buildCapabilities, COMMAND_FLAGS, runCli } from '../cli/index.ts'
-import { AGENTS_SNIPPET, INIT_SKILL_MD } from '../cli/init-agent.ts'
 import { knownStyleDescriptors } from '../scene/style-registry.ts'
 
 import pkg from '../../package.json'
@@ -34,16 +33,13 @@ describe('#6430 llms.txt', () => {
     }
   })
 
-  test('llms.txt and the init-agent bundle name the narrower of every family capabilities advertises', () => {
+  test('llms.txt names the narrower of every advertised family', () => {
     const narrowers = buildCapabilities().families.flatMap(family => family.narrower ? [family.narrower] : [])
     expect(narrowers.length).toBeGreaterThan(0)
-    for (const [surface, text] of [
-      ['llms.txt', buildLlmsTxt()],
-      ['init-agent AGENTS.md snippet', AGENTS_SNIPPET],
-      ['init-agent skill bundle', INIT_SKILL_MD],
-    ] as const) {
-      expect({ surface, missing: narrowers.filter(narrower => !text.includes(narrower)) }).toEqual({ surface, missing: [] })
-    }
+    const digest = buildLlmsTxt()
+    expect(narrowers.filter(narrower => !digest.includes(narrower))).toEqual([])
+    // Onboarding routers point to the installed guide and live discovery.
+    // cli-init-agent.test.ts owns that offline delivery contract.
   })
 
   test('lists every registered built-in look', () => {

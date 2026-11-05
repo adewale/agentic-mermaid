@@ -111,6 +111,29 @@ color or an explicit readable fill; the renderer reports that configuration
 limit. Unresolved and translucent inks retain their authored values without a
 contrast guarantee.
 
+### Host contrast preferences
+
+The renderer takes an explicit Style; it does not read OS preferences. A browser
+host can select the existing high-contrast look before rendering:
+
+```ts
+const preference = window.matchMedia('(prefers-contrast: more), (forced-colors: active)')
+const svg = renderMermaidSVG(source, {
+  style: preference.matches ? 'accessible-high-contrast' : undefined,
+  security: 'strict',
+})
+```
+
+The host owns preference-change handling and re-rendering. The SVG keeps its
+explicit palette when embedded as an image or exported to PNG/PDF, and identical
+source and options still produce identical bytes. Explicit authored paint
+remains authoritative; choosing this look is not a universal contrast guarantee.
+Check the selected paint with the existing contrast constraints.
+
+The [30 October evaluation](project/upstream-lessons-2026-10-30.md#contrast-preferences)
+checked inline SVG and image embedding with Chromium media emulation on Linux.
+It does not establish real Windows High Contrast or screen-reader behavior.
+
 ### Export and edit a built-in
 
 Built-ins dogfood this same record format. Export one with `getStyle`, validate

@@ -20,8 +20,9 @@ Choose the task, then use the matching surface:
 
 Agents with a shell can use `am capabilities --json` and `am styles --json` to
 discover installed support. In MCP, use `describe_sdk` for mutation fields and
-`execute` for the documented Code Mode functions. Resolved scenes are currently
-available from the main library entry only, not Code Mode.
+`execute` for the documented Code Mode functions. Resolved scenes are available
+from the library and Code Mode; use `describe_sdk` with
+`{ "capability": "resolved-scene" }` for their types and runtime limits.
 
 ## Vocabulary
 
@@ -56,7 +57,7 @@ The resolved-scene API's separate `marker-mid` limitation still applies.
 ## Versions
 
 <!-- BEGIN GENERATED: api-versions -->
-This reference describes source version **0.4.2**. The latest release recorded in the [changelog](../CHANGELOG.md) is **0.5.4** (2026-10-30). [Read that version's reference](https://github.com/adewale/agentic-mermaid/blob/v0.5.4/docs/api.md). Changes under **Unreleased**, including new exports, are not part of that recorded release.
+This reference describes source version **0.5.7**. The latest release recorded in the [changelog](../CHANGELOG.md) is **0.5.6** (2026-11-02). [Read that version's reference](https://github.com/adewale/agentic-mermaid/blob/v0.5.6/docs/api.md). Changes under **Unreleased**, including new exports, are not part of that recorded release.
 <!-- END GENERATED: api-versions -->
 
 ```bash
@@ -234,6 +235,69 @@ profiles. Its [types](https://github.com/adewale/agentic-mermaid/blob/main/src/s
 field; the [changelog](../CHANGELOG.md) records availability. Default Sankey
 gradients require a solid-color configuration under this version's paint-server
 limitation.
+
+### Agent discovery and failures
+
+The discovery additions and Code Mode method in this section are included in
+**0.5.5**. Check the installed `am capabilities --json`
+`resolvedScene` field, then call `describe_sdk` with
+`{ "capability": "resolved-scene" }` for painted primitive fields, error fields
+and limits. The existing family mutation discovery remains unchanged.
+
+Code Mode exposes the same synchronous `mermaid.renderResolvedScene` API.
+Library calls are runtime-neutral and do not fetch resources. Code Mode's
+default serialized result limit is 2 MiB; hosts may lower it. Return only needed
+parts rather than the complete SVG and Scene. Filtering the return value does
+not reduce the work of rendering the scene; existing host admission and CPU
+limits still apply.
+
+Unsupported artwork throws `ResolvedSceneError` with
+`code: 'RESOLVED_SCENE_UNSUPPORTED_ARTWORK'`, `partId`, `feature` and the existing
+readable `message`. `feature` distinguishes cases such as `filter` and
+`paint-server`. Missing Scene lowering or ownership uses
+`RESOLVED_SCENE_UNAVAILABLE`. A failure returns no partial scene and does not
+modify a previously returned artifact.
+
+Pass this JavaScript body to Code Mode's `execute` tool to return selected
+fields or a typed refusal:
+
+```js
+const source = 'flowchart LR; A-->B'
+try {
+  const scene = mermaid.renderResolvedScene(source)
+  return { version: scene.version, parts: scene.parts.map(p => ({ id: p.id, primitives: p.primitives })) }
+} catch (error) {
+  return { ok: false, code: error.code, partId: error.partId, feature: error.feature, message: error.message }
+}
+```
+
+Uncaught Code Mode failures retain the existing text error envelope. The on-demand
+declarations augment the compact SDK declaration with typed parts and primitives. Discovery
+keeps `part.node` opaque to bound its declaration size; library users can import
+the complete `ResolvedScene` type. A Scene part ID such as `node:A` is distinct
+from the authored node ID `A`.
+
+### Checking diagrams in Markdown
+
+```bash
+am verify README.md --markdown --json
+```
+
+This opt-in mode runs the existing verifier on top-level Mermaid code fences and
+returns `{ok,file,blocks}`. It checks all blocks even when one fails and uses
+the normal verification exit status. Backtick and tilde fences of three or more
+characters are supported, including longer fences around Markdown examples.
+Non-Mermaid fenced examples and HTML blocks/comments are skipped as whole blocks.
+Fences nested in lists or blockquotes require extraction by the host; this CLI
+mode does not provide a full Markdown AST or whole-document coverage of them.
+
+Each block reports its first physical source line. Warning lines are mapped to
+the Markdown file; `lineIsBlockStart: true` explicitly marks the fallback when
+no precise diagnostic location is available. CRLF files retain their physical
+line numbering. An unclosed fence extends to EOF in static Markdown; streaming
+hosts should decide when input is complete before invoking verification.
+`render-markdown` still continues past invalid diagrams; verification is the
+mode that fails for invalid blocks. No Markdown plugin is required.
 
 ## Editing
 

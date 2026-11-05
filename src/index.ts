@@ -1,3 +1,4 @@
+export { ResolvedSceneError, type ResolvedSceneFeature } from './scene/resolved-error.ts'
 export { PaintLayoutCertificationError, type PaintLayoutCertification } from './scene/paint-certification.ts'
 // ============================================================================
 // Agentic Mermaid — public API (published as agentic-mermaid)

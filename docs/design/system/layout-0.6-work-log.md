@@ -1,13 +1,15 @@
 # Native layout recovery: results and handoff
 
-The owner stopped the campaign on **5 November 2026 at 13:20:32 UTC**. Both the
-hourly campaign and deadline-report automations are disabled. Work ran in bounded
-sessions. This document records the stopped state; it does not schedule more work.
+The owner resumed the campaign on **5 November 2026 at 13:48 UTC**, authorizing
+regular commits and pushes to PR #602. The deadline remains **8 November 2026 at
+23:59:59 UTC**. Work runs in bounded sessions with a coordination lease; continuous
+execution is not claimed. The earlier stop and backup remain in Git history.
 
 Draft [PR #602](https://github.com/adewale/agentic-mermaid/pull/602) preserves the
-source on `work/pr449-reconstruct-20261103`. Its recovery base is
-`3b56da55e6570908beb5d96c25f4c03c1a828a22`; integration with current `main` remains
-unfinished. ELK is still the default. Versions, publication settings and caps are
+source on `work/pr449-reconstruct-20261103`. The recovery checkpoint is based on
+`3b56da55e6570908beb5d96c25f4c03c1a828a22`. Current-main integration retains the
+inherited PR449 foundation and recovery fixes; qualification is recorded below.
+ELK is still the default. Current-main versions, publication settings and caps are
 unchanged. Replacement24 remains sealed.
 
 ## Remaining differences from ELK
@@ -97,7 +99,7 @@ withdrawn. ER256 shortcuts failed the causal sufficiency test. The Node24 profil
 withdrew descriptor-Map causation; no cache/array/SoA rewrite or speedup forecast
 is justified by it. A reliable five-hotspot performance report remains unfinished.
 
-If the owner requests continuation, begin with one demonstrated loss and locate
+For each continuation, begin with one demonstrated loss and locate
 the first responsible stage. For the forest, investigate placement/terminal seats
 before routing. Keep adverse area/wire/runtime costs and unknowns visible. Unchanged
 replays are validation. Authored meaning and final ink decide correctness; ELK
@@ -116,3 +118,30 @@ The full pre-cleanup log remains at
 `0a4534ee814d0c380de138b845b0d8e3f5226132:docs/design/system/layout-0.6-work-log.md`;
 older full logs and failed trials are retained in Git history and the backup.
 This is recovered November 3–5 work, not restoration of the original lost campaign.
+
+## Resumed integration — 5 November
+
+Integrated current main `f9ec8c115de14020d3c182d5d7f2e7e70bfcdefb` with recovery
+head `e057d987ab8f73e84cf7d8a59b4c853dcf545249`, preserving both histories. The
+combined diff includes the inherited ownership/capture foundation: about 196 files,
+not the earlier 60-file recovery-only comparison. Main's release identity, pinned
+workflows and 1.4.4 CI runtime are retained; descriptors are regenerated from the
+resolved producers. No release or backend-default change is introduced.
+
+Conflict resolution keeps actual served-contour authority alongside main's optional
+marker hull query, and private copy/ownership checks alongside the guarded scalar
+point/source-span paths. Whole-source formatting detection retains a tagless middle
+line inside multiline emphasis. The per-line shortcut REDs the extended owning
+case; the merged guard GREENs, including uppercase expansion and UTF16 ranges.
+
+Retained metric rows above still refer to their historical revisions until the
+combined candidate's actual products are compared. Sparse32's proof cap remains
+enrolled. Subprocess stdin EPERM failures from the restricted sandbox are kept
+separately from rendering outcomes; the permitted execution control passes.
+
+Combined local checks: core typing and seven-file conflict lint pass on Node24 /
+Bun1.4.4. The two broad owner runs recorded 1,386 passes/18 failures and 366
+passes/5 failures. All subprocess/esbuild sandbox failures and loaded-run timeouts
+were requalified in permitted isolated runs (13/13 and 14/14 pass). Sparse32's
+unchanged 400k proof failure remains; full repository/CI readiness is not claimed.
+The owning multiline guard has a separate reproducible RED→GREEN.

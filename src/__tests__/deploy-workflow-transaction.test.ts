@@ -19,7 +19,7 @@ const temp = useTempDirs()
 const REPO = join(import.meta.dir, '..', '..')
 const WORKFLOW = parseYaml(readFileSync(join(REPO, '.github', 'workflows', 'deploy-cloudflare.yml'), 'utf8')) as {
   concurrency: Record<string, unknown>
-  jobs: { deploy: { permissions: Record<string, string>; env: Record<string, string>; steps: Step[] } }
+  jobs: { qualification: { uses: string; with: Record<string, string> }; deploy: { needs: string; if: string; permissions: Record<string, string>; env: Record<string, string>; steps: Step[] } }
 }
 const JOB = WORKFLOW.jobs.deploy
 const STEPS = JOB.steps
@@ -60,7 +60,7 @@ function guardAllows(condition: string | undefined, context: { event: string; ou
   const expression = (condition ?? 'success()').trim().replace(/^\$\{\{([\s\S]*)\}\}$/, '$1')
   if (!/\b(?:always|success|failure|cancelled)\(\)/.test(expression) && status !== 'success') return false
   const js = expression
-    .replace(/steps\.([\w-]+)\.outputs\.([\w-]+)/g, (_, id: string, key: string) => `(outputs[${JSON.stringify(id)}]?.[${JSON.stringify(key)}] ?? '')`)
+    .replace(/(?:steps|needs)\.([\w-]+)\.outputs\.([\w-]+)/g, (_, id: string, key: string) => `(outputs[${JSON.stringify(id)}]?.[${JSON.stringify(key)}] ?? '')`)
     .replace(/github\.event_name/g, 'event')
     .replace(/\balways\(\)/g, 'true')
     .replace(/\bsuccess\(\)/g, String(status === 'success'))
@@ -222,7 +222,6 @@ describe('deploy workflow ordering and guards', () => {
     const order = [
       'Check Cloudflare deployment secrets',
       'Require the exact current main commit',
-      'Require successful canonical CI for a manual deployment',
       'Require the site\'s exact package version on npm',
       'Install dependencies',
       'Verify every published browser artifact is byte-identical',
@@ -270,13 +269,6 @@ describe('deploy workflow ordering and guards', () => {
     }
   })
 
-  test('manual dispatch, and only manual dispatch, must prove canonical CI', () => {
-    const proof = step('Require successful canonical CI for a manual deployment')
-    const ready = { 'cloudflare-secrets': { available: 'true' } }
-    expect(guardAllows(proof.if, { event: 'workflow_dispatch', outputs: ready })).toBe(true)
-    expect(guardAllows(proof.if, { event: 'workflow_run', outputs: ready })).toBe(false)
-  })
-
   test('a failed gate stops every later production change', () => {
     const ready: Outputs = { 'cloudflare-secrets': { available: 'true' }, 'npm-version': { available: 'true' }, 'rollback-guard': { armed: 'true' } }
     for (const name of ['Attach the candidate at zero traffic', 'Promote the verified candidate to all traffic', 'Verify the promoted production version']) {
@@ -311,6 +303,17 @@ describe('deploy workflow ordering and guards', () => {
   })
 })
 
+test('deployment is gated by shared qualification before checkout, credentials or rollback', () => {
+  expect(JOB.needs).toBe('qualification')
+  expect(WORKFLOW.jobs.qualification.uses).toBe('./.github/workflows/qualify-ci.yml')
+  expect(WORKFLOW.jobs.qualification.with.required).toBe("${{ github.event_name == 'workflow_dispatch' }}")
+  expect(WORKFLOW.jobs.qualification.with.commit).toBe(JOB.env.EXPECTED_SHA)
+  for (const qualified of ['', 'false', 'true']) {
+    expect(guardAllows(JOB.if, { event: 'workflow_run', outputs: { qualification: { qualified } } })).toBe(qualified === 'true')
+  }
+  expect(guardAllows(JOB.if, { event: 'workflow_run', outputs: { qualification: { qualified: 'true' } }, jobStatus: 'failure' })).toBe(false)
+})
+
 describe('deploy workflow gates (executed with stubs)', () => {
   test('missing Cloudflare credentials fail the run loudly instead of skipping', () => {
     const missing = runStep('Check Cloudflare deployment secrets', { env: { CLOUDFLARE_API_TOKEN: '', CLOUDFLARE_ACCOUNT_ID: 'account' } })
@@ -320,26 +323,6 @@ describe('deploy workflow gates (executed with stubs)', () => {
     expect(missing.outputs).toEqual({})
     const present = runStep('Check Cloudflare deployment secrets', { env: { CLOUDFLARE_API_TOKEN: 'token', CLOUDFLARE_ACCOUNT_ID: 'account' } })
     expect({ status: present.status, outputs: present.outputs }).toEqual({ status: 0, outputs: { available: 'true' } })
-  })
-
-  test('a manual deploy requires a successful push CI run for the exact commit on main', () => {
-    const run = (overrides: Record<string, string>) => ({ head_sha: SHA, head_branch: 'main', event: 'push', conclusion: 'success', ...overrides })
-    const attempt = (runs: unknown[]) => runStep('Require successful canonical CI for a manual deployment', {
-      stubs: { gh: `cat "$MOCK_ROOT/runs.json"` },
-      files: { 'runs.json': JSON.stringify({ workflow_runs: runs }) },
-    })
-    const accepted = attempt([run({ head_sha: 'f'.repeat(40) }), run({})])
-    expect(accepted.status).toBe(0)
-    const query = accepted.calls.find(call => call.startsWith('gh api'))!
-    for (const filter of [`-f head_sha=${SHA}`, '-f branch=main', '-f event=push', '-f status=success']) expect(query).toContain(filter)
-    expect(query).toContain('repos/adewale/agentic-mermaid/actions/workflows/ci.yml/runs')
-
-    const mismatches: Array<Record<string, string>> = [{ head_sha: 'f'.repeat(40) }, { head_branch: 'release' }, { event: 'workflow_dispatch' }, { conclusion: 'failure' }]
-    for (const mismatch of mismatches) {
-      const refused = attempt([run(mismatch)])
-      expect({ mismatch, status: refused.status }).toEqual({ mismatch, status: 1 })
-      expect(refused.stdout).toContain('::error title=Canonical CI proof missing::')
-    }
   })
 
   test('the installed wrangler must be the version package.json locks', () => {

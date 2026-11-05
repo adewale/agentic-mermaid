@@ -85,3 +85,24 @@ describe('prepared cell text', () => {
     expect(prepareCellText('A  ', { maxWidth: 4 }).lines).toEqual(['A  '])
   })
 })
+
+
+describe('terminal discretionary Unicode breaks', () => {
+  it.each([
+    ['ab\u00adcd', 3, ['ab-', 'cd'], 'hyphen', '\u00ad'],
+    ['ab\u200bcd', 2, ['ab', 'cd'], 'wrap', '\u200b'],
+  ] as const)('retains the authored break in %s', (source, maxWidth, lines, kind, replacedText) => {
+    const block = prepareCellText(source, { maxWidth })
+    expect(block.lines).toEqual([...lines])
+    expect(block.breaks).toEqual([{ kind, sourceOffset: 3, replacedText }])
+    expect(block.lineWidths.every(width => width <= maxWidth)).toBe(true)
+    expect(block.prepared.source).toBe(source)
+  })
+
+  it('omits unused and leading hints while keeping blank authored lines', () => {
+    const source = '\u00adab\u200bcd\n\n\u200b'
+    expect(visualWidth('ab\u00adcd')).toBe(4)
+    expect(prepareCellText(source).lines).toEqual(['abcd', '', ''])
+    expect(prepareCellText(source, { maxWidth: 8 }).prepared.source).toBe(source)
+  })
+})

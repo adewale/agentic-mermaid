@@ -34,8 +34,9 @@ emitted on demand; no generated copy is committed.
 
 Leave a list hand-written when each item carries its own annotation, and
 mark it (see Registry lists); a deliberate subset needs neither.
-`website/source/start.md` stays hand-written because the agent-usage evals
-measure its exact wording.
+The protocol in `website/source/start.md` is authored because the agent-usage
+evals measure its wording. Shared factual definitions use generated blocks;
+the semantic-readback variant removes only its explicitly marked section.
 
 Do not paraphrase what a warning code means. Point at its page under
 `https://agentic-mermaid.dev/warnings/` or at the `AGENT_NATIVE.md` tier
@@ -50,7 +51,7 @@ audit knows it must stay complete:
 
 ```md
 <!-- complete: hosted-mcp-tools -->
-- `verify({ source })` returns structural `ok`, …
+- `verify({ source })` returns `ok`, detected `family`, …
 ```
 
 The registry ids are the doc-block ids where one exists (`family-ids`,

@@ -663,10 +663,12 @@ function inferredScopeWriteOrder(states: StateNode[], transitions: StateTransiti
 function scopeWriteOrder(states: StateNode[], transitions: StateTransition[]): { steps: ScopeStep[]; created: StateNode[] } {
   if (!states.some(state => state.declarationBeforeTransition !== undefined)) return inferredScopeWriteOrder(states, transitions)
   const fallback = new Map<StateNode, number>()
-  let index = 0
-  for (const step of inferredScopeWriteOrder(states, transitions).steps) {
-    if ('transition' in step) index++
-    else fallback.set(step.state, index)
+  if (states.some(state => hasDeclaration(state) && state.declarationBeforeTransition === undefined)) {
+    let index = 0
+    for (const step of inferredScopeWriteOrder(states, transitions).steps) {
+      if ('transition' in step) index++
+      else fallback.set(step.state, index)
+    }
   }
   const boundaries = new Map<number, StateNode[]>()
   const byId = new Map(states.map(state => [state.id, state]))
@@ -865,9 +867,12 @@ function stateWriteProblem(body: StateBody): string | undefined {
   const endpoint = body.transitions.find(item => item.label !== undefined && /^acc(?:Title|Descr)$/i.test(item.to))?.to
   let invalid = body.unresolvedStyles?.find(item => !portableStyleTarget(item.id))?.id
   let invalidBoundary = false
+  let invalidRegionDirection: string | undefined
   let invalidStyle = Object.keys(body.classDefDeclarations ?? {}).some(name => !Object.hasOwn(body.classDefs ?? {}, name)) || Object.entries(body.classDefs ?? {}).some(([name, style]) => !portableClassLikeStyleProps(style, ownStyleDeclarations(body.classDefDeclarations, name))) || body.unresolvedStyles?.some(item => !portableClassLikeStyleProps(item.style, item.styleDeclarations))
   const visit = (states: StateNode[], transitions: StateTransition[]): void => {
     for (const state of states) {
+      const firstDirection = state.regions?.[0]?.direction
+      if (firstDirection !== undefined && firstDirection !== state.direction) invalidRegionDirection ??= state.id
       if (state.declarationBeforeTransition !== undefined && (!Number.isInteger(state.declarationBeforeTransition) || state.declarationBeforeTransition < 0 || state.declarationBeforeTransition > transitions.length)) invalidBoundary = true
       if (state.style && !portableStyleTarget(state.id)) invalid ??= state.id
       if (state.styleDeclarations && !state.style || state.style && !portableClassLikeStyleProps(state.style, state.styleDeclarations)) invalidStyle = true
@@ -877,6 +882,7 @@ function stateWriteProblem(body: StateBody): string | undefined {
   }
   visit(body.states, body.transitions)
   if (invalidBoundary) return 'State declaration boundary must be an integer within its owning transition sequence'
+  if (invalidRegionDirection !== undefined) return `State '${invalidRegionDirection}' cannot preserve both composite and first-region directions in Mermaid source; direction before the first separator belongs to the composite`
   if (invalidStyle) return 'State style contains text outside the supported SVG attribute domain'
   if (endpoint !== undefined) return `A top-level labeled State transition to "${endpoint}" cannot be written in pinned Mermaid because the destination and colon start an accessibility directive; rename the destination or remove the label for typed editing`
   return invalid === undefined ? undefined : `State style target "${invalid}" cannot be written in pinned Mermaid; style targets must contain only letters, digits, or underscore`
@@ -1070,6 +1076,9 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
   const problem = stateWriteProblem(body)
   if (problem) return err({ code: 'INVALID_OP', message: problem })
   const next = cloneStateBody(body)
+  // Legacy/synthesized bodies may omit declaration positions. Materialize the
+  // serializer's schedule before any edit changes its inference inputs.
+  canonicalizeStateOrder(next.states, next.transitions)
 
   switch (op.kind) {
     case 'add_state': {
@@ -1086,7 +1095,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       }
       const node: StateNode = { id: id.value, ...(label !== undefined ? { label } : { declaredBare: true as const }) }
       if (op.parent !== undefined && op.parent !== null) {
-        const scope = resolveScope(next, op.parent, op.region)
+        const scope = resolveScope(next, op.parent, op.region, 'append')
         if (!scope.ok) return scope
         node.declarationBeforeTransition = scope.value.transitions.length
         scope.value.states.push(node)
@@ -1166,7 +1175,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       if (!toContext.ok) return toContext
       // Ordinary state endpoints remain ergonomic and may be auto-created;
       // pseudostate/history syntax is contextual and can never become a node.
-      const scope = resolveScope(next, op.parent, op.region)
+      const scope = resolveScope(next, op.parent, op.region, 'append')
       if (!scope.ok) return scope
       const target = scope.value
       let label: string | undefined
@@ -1235,7 +1244,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
         if (descendants.has(op.parent)) {
           return err({ code: 'INVALID_OP', message: `Cannot move '${op.id}' into '${op.parent}' — it is a descendant of '${op.id}'` })
         }
-        const targetScope = resolveScope(next, op.parent, op.region)
+        const targetScope = resolveScope(next, op.parent, op.region, 'append')
         if (!targetScope.ok) return targetScope
         // Detach, then attach (transitions stay where they are — state ids
         // are global in mermaid, so cross-boundary transitions remain legal).
@@ -1287,13 +1296,48 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       }
       break
     }
+    case 'add_region':
+    case 'remove_region': {
+      const loc = locate(next, op.parent)
+      if (!loc) return err({ code: 'STATE_NOT_FOUND', message: `Composite '${op.parent}' not found` })
+      if (!isComposite(loc.node)) return err({ code: 'INVALID_OP', message: `State '${op.parent}' is not a composite` })
+      const scopes = compositeScopes(loc.node)
+      const index = op.kind === 'add_region' ? op.index ?? scopes.length : op.index
+      const limit = op.kind === 'add_region' ? scopes.length : scopes.length - 1
+      if (!Number.isInteger(index) || index < 0 || index > limit) {
+        return err({ code: 'INVALID_OP', message: `Region ${index} is out of range for ${op.kind} on '${op.parent}'` })
+      }
+      if (op.kind === 'add_region') insertStateRegion(next, loc.node, index)
+      else {
+        if (scopes.length < 2) return err({ code: 'INVALID_OP', message: 'Cannot remove the sole scope of a composite' })
+        const region = scopes[index]!
+        if (region.states.length || region.transitions.length || next.floatingNotes?.some(note => note.scope?.parent === op.parent && (note.scope.region ?? 0) === index)) {
+          return err({ code: 'INVALID_OP', message: `Region ${index} of '${op.parent}' must be empty before removal; move or remove its states, transitions and floating notes first` })
+        }
+        scopes.splice(index, 1)
+        // Before the first separator, Mermaid reads direction as belonging
+        // to the composite. Drop a redundant override; the writer rejects
+        // conflicting directions when more than one region survives.
+        if (scopes[0]!.direction === loc.node.direction) delete scopes[0]!.direction
+        for (const note of next.floatingNotes ?? []) if (note.scope?.parent === op.parent && (note.scope.region ?? 0) > index) note.scope.region = (note.scope.region ?? 0) - 1
+        if (scopes.length === 1) {
+          const remaining = scopes[0]!
+          loc.node.states = remaining.states
+          loc.node.transitions = remaining.transitions
+          if (remaining.direction !== undefined) loc.node.direction = remaining.direction
+          delete loc.node.regions
+          for (const note of next.floatingNotes ?? []) if (note.scope?.parent === op.parent) delete note.scope.region
+        }
+      }
+      break
+    }
     case 'add_floating_note': {
       const id = validId(op.id, 'floating note id')
       if (!id.ok) return id
       if (next.floatingNotes?.some(note => note.id === id.value)) return err({ code: 'INVALID_OP', message: `Floating note '${id.value}' already exists` })
       const text = validFloatingNoteText(op.text)
       if (!text.ok) return text
-      const scope = resolveScope(next, op.parent, op.region)
+      const scope = resolveScope(next, op.parent, op.region, 'append')
       if (!scope.ok) return scope
       const parent = op.parent ? locate(next, op.parent)!.node : undefined
       const note: StateFloatingNote = { id: id.value, text: text.value,
@@ -1429,12 +1473,13 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       const remaining = next.states.filter(s => !memberSet.has(s.id))
       // Pull the matching top-level transitions (both endpoints moved) into the
       // composite; leave cross-boundary transitions at the top level.
-      const inner: StateTransition[] = []
-      const outer: StateTransition[] = []
-      for (const t of next.transitions) {
-        if (memberSet.has(t.from) && memberSet.has(t.to)) inner.push(t)
-        else outer.push(t)
-      }
+      const internal = (t: StateTransition): boolean => memberSet.has(t.from) && memberSet.has(t.to)
+      const inner = [...next.transitions]
+      const outer = [...next.transitions]
+      // Each partition has its own transition sequence. Rebase declarations
+      // in both scopes through the same survivor maps used for removal.
+      removeScopeTransitions(moved, inner, t => !internal(t))
+      removeScopeTransitions(remaining, outer, internal)
       let label: string | undefined
       if (op.label !== undefined && op.label !== null) {
         const l = validLabel(op.label, 'label')
@@ -1535,13 +1580,29 @@ function canonicalizeStateOrder(states: StateNode[], transitions: StateTransitio
 }
 
 /** Return a composite's editable scopes in authored region order. */
-function compositeScopes(node: StateNode): Array<{ states: StateNode[]; transitions: StateTransition[] }> {
+function compositeScopes(node: StateNode): StateRegion[] {
   if (node.regions) return node.regions
   return [{ states: node.states ?? [], transitions: node.transitions ?? [] }]
 }
 
+/** Insert a scope and rebase every region-addressed annotation together.
+ * A non-concurrent composite is region 0; its direction remains on the shell. */
+function insertStateRegion(body: StateBody, node: StateNode, index: number): StateRegion {
+  const regions = compositeScopes(node)
+  const added: StateRegion = { states: [], transitions: [] }
+  regions.splice(index, 0, added)
+  node.regions = regions
+  delete node.states
+  delete node.transitions
+  for (const note of body.floatingNotes ?? []) if (note.scope?.parent === node.id) {
+    const old = note.scope.region ?? 0
+    note.scope.region = old >= index ? old + 1 : old
+  }
+  return added
+}
+
 /** Resolve the scope (states+transitions) named by `parent`, or the root. */
-function resolveScope(body: StateBody, parent: string | null | undefined, region?: number): Result<{ states: StateNode[]; transitions: StateTransition[] }, MutationError> {
+function resolveScope(body: StateBody, parent: string | null | undefined, region?: number, mode: 'existing' | 'append' = 'existing'): Result<{ states: StateNode[]; transitions: StateTransition[] }, MutationError> {
   if (parent === undefined || parent === null) {
     if (region !== undefined) return err({ code: 'INVALID_OP', message: 'A region index requires a composite parent' })
     return ok({ states: body.states, transitions: body.transitions })
@@ -1555,6 +1616,7 @@ function resolveScope(body: StateBody, parent: string | null | undefined, region
   }
   const scopes = compositeScopes(loc.node)
   const index = region ?? 0
+  if (mode === 'append' && index === scopes.length) return ok(insertStateRegion(body, loc.node, index))
   if (!Number.isInteger(index) || index < 0 || index >= scopes.length) {
     return err({ code: 'INVALID_OP', message: `Composite '${parent}' has ${scopes.length} region/scope(s); region ${String(region)} is out of range` })
   }

@@ -1,3 +1,4 @@
+import { ResolvedSceneError } from './scene/resolved-error.ts'
 import { AsciiWidthError } from './ascii/index.ts'
 import {
   MermaidFamilyDetectionError,
@@ -45,7 +46,9 @@ export type RenderOptionColorDiagnostic = Readonly<{
   value: string
 }>
 
-export type KnownRenderErrorDiagnostic = FamilyDetectionDiagnostic | AsciiWidthErrorDiagnostic | AuthoredStyleColorDiagnostic | ThemeVariableColorDiagnostic | FamilyConfigColorDiagnostic | RenderOptionColorDiagnostic
+export type KnownRenderErrorDiagnostic = ResolvedSceneDiagnostic | FamilyDetectionDiagnostic | AsciiWidthErrorDiagnostic | AuthoredStyleColorDiagnostic | ThemeVariableColorDiagnostic | FamilyConfigColorDiagnostic | RenderOptionColorDiagnostic
+export type ResolvedSceneDiagnostic = Readonly<{ code: ResolvedSceneError['code']; message: string; partId: string; feature: ResolvedSceneError['feature'] }>
+
 export type RenderErrorDiagnostic = KnownRenderErrorDiagnostic
   | Readonly<{ code: 'RENDER_FAILED'; message: 'Rendering failed' }>
 
@@ -57,6 +60,8 @@ export type RenderErrorDiagnostic = KnownRenderErrorDiagnostic
  * transport-specific error vocabulary into a CLI/MCP response.
  */
 export function projectKnownRenderErrorDiagnostic(error: unknown): KnownRenderErrorDiagnostic | undefined {
+  if (error instanceof ResolvedSceneError) return { code: error.code, message: error.message, partId: error.partId, feature: error.feature }
+
   if (error instanceof MermaidFamilyDetectionError) {
     return {
       code: error.code,

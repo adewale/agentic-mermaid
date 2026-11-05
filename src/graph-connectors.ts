@@ -294,14 +294,18 @@ export function graphEdgePathProjection(edge: PositionedEdge, style: { edgeBendR
 
 /** Reserve painted endpoint resources before opaque labels are moved. These
  * are the renderer's marker factories, including fixed custom-width heads. */
-export function graphEdgeMarkerPaintRegions(edge: PositionedEdge, style: { lineWidth?: number; edgeStrokeColor?: string; edgeBendRadius?: number }): ConnectorMarkerPaintRegion[] {
+export function graphEdgeMarkerPaintRegions(edge: PositionedEdge, style: { lineWidth?: number; edgeStrokeColor?: string; edgeBendRadius?: number }, includeHull = true): ConnectorMarkerPaintRegion[] {
   if (edge.style === 'invisible' || edge.points.length < 2 || !edge.hasArrowStart && !edge.hasArrowEnd) return []
   const color = edge.inlineStyle?.stroke ?? style.edgeStrokeColor
   const fixed = !!edge.inlineStyle?.['stroke-width']
-  const resources = flowchartMarkerResources(new Set(color ? [color] : []), new Set(fixed ? [color] : []), edge.startMarker === 'circle' || edge.endMarker === 'circle', edge.startMarker === 'cross' || edge.endMarker === 'cross')
-  const suffix = `${color ? `-${markerSuffix(color)}` : ''}${fixed ? '-fixed' : ''}`
-  const start = edge.hasArrowStart ? resources.find(marker => marker.id === `${markerIdPrefix(edge.startMarker ?? 'arrow')}-start${suffix}`) : undefined
-  const end = edge.hasArrowEnd ? resources.find(marker => marker.id === `${markerIdPrefix(edge.endMarker ?? 'arrow')}${suffix}`) : undefined
+  // A query needs only its two endpoint resources, not every default, tinted
+  // and fixed-width variant that the definitions writer must publish.
+  const pair = (kind: EdgeMarker | undefined) => kind === 'circle' ? circleMarkerResources(fixed ? color : color || undefined, fixed)
+    : kind === 'cross' ? crossMarkerResources(fixed ? color : color || undefined, fixed)
+      : arrowMarkerResources(fixed ? color : color || undefined, fixed)
+  const startPair = edge.hasArrowStart ? pair(edge.startMarker) : undefined
+  const start = startPair?.[1]
+  const end = edge.hasArrowEnd ? (startPair && (edge.startMarker ?? 'arrow') === (edge.endMarker ?? 'arrow') ? startPair : pair(edge.endMarker))[0] : undefined
   const projection = graphEdgePathProjection(edge, style)
   const geometry = projection?.geometry ?? { kind: 'polyline' as const, points: edge.points }
   // This query owns only marker paint. Use the same resources, path and
@@ -311,5 +315,5 @@ export function graphEdgeMarkerPaintRegions(edge: PositionedEdge, style: { lineW
     route: { geometry, closed: false, contours: projection?.contours ?? connectorContourSemantics(geometry, false) },
     stroke: { width: edge.inlineStyle?.['stroke-width'] ?? String((style.lineWidth ?? 1) * (edge.style === 'thick' ? 2 : 1)) },
     markers: { start, mid: [], end },
-  })
+  }, undefined, undefined, includeHull)
 }

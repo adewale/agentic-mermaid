@@ -30,6 +30,7 @@ import { chromium, firefox, webkit, type Browser, type Page, type Route } from '
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
 import { registerStyle, resolveStyleStack, renderMermaidSVG, renderMermaidSVGWithReceipt, sharedRenderOptionsJsonSchema } from '../src/index.ts'
 import { serveWithAvailablePort } from './test-port.ts'
+import { compareScenes } from '../scripts/resolved-scene-oracle.ts'
 
 const REPO = join(import.meta.dir, '..')
 const BUNDLE = join(REPO, 'dist', 'browser.global.js')
@@ -166,6 +167,38 @@ describe('browser bundle', () => {
   test('preserves the complete public render-option schema in the IIFE', async () => {
     const schema = await page.evaluate(name => (globalThis as Record<string, any>)[name].sharedRenderOptionsJsonSchema(), GLOBAL)
     expect(schema).toEqual(sharedRenderOptionsJsonSchema())
+  })
+
+  test.each([
+    { name: 'closed path reversed', d: 'M10 10h95v47h-95Z', other: 'M105 57V10H10V57Z', dash: [7, 5], equal: false },
+    { name: 'closed path rotated', d: 'M10 10h95v47h-95Z', other: 'M105 57H10V10H105Z', dash: [7, 5], equal: false },
+    { name: 'open path reversed', d: 'M10 10H105', other: 'M105 10H10', dash: [7, 5], equal: false },
+    { name: 'commands rewritten', d: 'M10 10h95v47h-95Z', other: 'M10 10L105 10L105 57L10 57Z', dash: [7, 5], equal: true },
+    { name: 'symmetric dashes reversed', d: 'M10 10H29', other: 'M29 10H10', dash: [7, 5], equal: true },
+    { name: 'subpaths reordered', d: 'M10 10h19M10 30h17', other: 'M10 30h17M10 10h19', dash: [7, 5], equal: true },
+    { name: 'subpath dashes reversed', d: 'M10 10h19M10 30h17', other: 'M29 10H10M27 30H10', dash: [7, 5], equal: false },
+    { name: 'offset dashes reversed', d: 'M10 10H105', other: 'M105 10H10', dash: [7, 5], offset: 3, equal: false },
+    { name: 'round caps reversed', d: 'M10 10H105', other: 'M105 10H10', dash: [7, 5], cap: 'round', equal: false },
+    { name: 'nonuniform transform', d: 'M10 10h95v47h-95Z', other: 'M105 57V10H10V57Z', dash: [7, 5], sx: 2, sy: 0.5, equal: false },
+    { name: 'solid path reversed', d: 'M10 10h95v47h-95Z', other: 'M105 57V10H10V57Z', dash: [], equal: true },
+    { name: 'zero dash array', d: 'M10 10h95v47h-95Z', other: 'M105 57V10H10V57Z', dash: [0, 0], equal: true },
+  ])('resolved-scene comparer checks painted dashes: $name', async ({ d, other, dash, equal, offset = 0, cap = 'butt', sx = 1, sy = 1 }) => {
+    const reference: Parameters<typeof compareScenes>[1] = {
+      version: 2, family: 'flowchart', width: 240, height: 140, svg: '', colors: {}, parts: [],
+      frame: [{
+        kind: 'path', d, matrix: [sx, 0, 0, sy, 4, 3],
+        paint: {
+          fill: 'none', fillOpacity: 1, stroke: '#000000', strokeOpacity: 1, strokeWidth: 2,
+          opacity: 1, lineCap: cap, lineJoin: 'miter', miterLimit: 4, fillRule: 'nonzero',
+          paintOrder: 'normal', dashArray: [...dash], dashOffset: offset,
+        },
+      }],
+    }
+    const candidate = structuredClone(reference)
+    if (candidate.frame[0]!.kind === 'path') candidate.frame[0]!.d = other
+    const differences = await compareScenes(page, candidate, reference)
+    if (equal) expect(differences, `${d} vs ${other}`).toEqual([])
+    else expect(differences, `${d} vs ${other}`).not.toEqual([])
   })
 
   test.each(['elk', 'agentic'] as const)('IIFE preserves shape metadata SVG, receipt and diagnostics (%s)', async backend => {

@@ -141,6 +141,12 @@ describe('prepared display text', () => {
       { source: '<b>first\n\nsecond</b>', visible: 'first\n\nsecond', starts: [0, 9, 10],
         runs: [[['first', true, false]], [], [['second', true, false]]],
         styled: [/<tspan\b[^>]*\bfont-weight="(?:bold|700)"[^>]*>first<\/tspan>/, /<tspan\b[^>]*\bfont-weight="(?:bold|700)"[^>]*>second<\/tspan>/] },
+      { source: '<i>Top\nß🚀\nEnd</i>', visible: 'Top\nß🚀\nEnd', starts: [0, 7, 11],
+        runs: [[['Top', false, true]], [['ß🚀', false, true]], [['End', false, true]]],
+        styled: [/<tspan\b[^>]*\bfont-style="italic"[^>]*>ß🚀<\/tspan>/] },
+      { source: '<b>Top\nß🚀\nEnd</b>', visible: 'Top\nß🚀\nEnd', starts: [0, 7, 11],
+        runs: [[['Top', true, false]], [['ß🚀', true, false]], [['End', true, false]]],
+        styled: [/<tspan\b[^>]*\bfont-weight="(?:bold|700)"[^>]*>ß🚀<\/tspan>/] },
     ]) {
       const display = prepareDisplayText(example.source)
       expect(preparedDisplayTextValue(display)).toBe(example.visible)
@@ -159,6 +165,14 @@ describe('prepared display text', () => {
     }
     const alias = prepareDisplayText('<i>Top\nBottom 🚀</i>')
     expect(alias.lines[1]![0]!.clusters!.at(-1)).toEqual({ text: '🚀', sourceStart: 14, sourceEnd: 16 })
+    const middle = prepareDisplayText('<i>Top\nß🚀\nEnd</i>', 'formatted', 'uppercase')
+    expect(preparedDisplayTextValue(middle)).toBe('TOP\nSS🚀\nEND')
+    expect(middle.lineStarts).toEqual([0, 7, 11])
+    expect(middle.lines[1]!.map(run => [run.text, run.italic])).toEqual([['SS🚀', true]])
+    expect(middle.lines[1]![0]!.clusters).toEqual([
+      { text: 'SS', sourceStart: 7, sourceEnd: 8 },
+      { text: '🚀', sourceStart: 8, sourceEnd: 10 },
+    ])
     const literalAlias = prepareDisplayText('<i>Top\nBottom 🚀</i>', 'literal')
     expect(preparedDisplayTextValue(literalAlias)).toBe('<i>Top\nBottom 🚀</i>')
     expect(literalAlias.lines.every(line => line.every(run => !run.bold && !run.italic))).toBe(true)
@@ -651,4 +665,44 @@ describe('prepared text at the graphical boundary', () => {
     expect(node.fontWeight).toBe(800)
     expect(node.letterSpacing).toBe(2)
   })
+})
+
+
+describe('discretionary Unicode breaks', () => {
+  it('keeps hints invisible without a break and measures the visible text', () => {
+    const source = 'ab\u00adcd\u200bef'
+    const block = preparePixelText(source, { fontSize: 14, fontWeight: 400 })
+    expect(block.prepared.source).toBe(source)
+    expect(block.lines).toEqual(['abcdef'])
+    expect(block.width).toBe(preparePixelText('abcdef', { fontSize: 14, fontWeight: 400 }).width)
+  })
+
+  it.each([
+    ['ab\u00adcd', 23, ['ab-', 'cd'], 'hyphen', '\u00ad'],
+    ['ab\u200bcd', 20, ['ab', 'cd'], 'wrap', '\u200b'],
+  ] as const)('uses the authored hint in %s without a line of its own', (source, maxWidth, lines, kind, replacedText) => {
+    const block = preparePixelText(source, { fontSize: 14, fontWeight: 400, maxWidth })
+    expect(block.lines).toEqual([...lines])
+    expect(block.breaks).toEqual([{ kind, sourceOffset: 3, replacedText }])
+    expect(block.lineBlocks.every(line => line.width <= maxWidth)).toBe(true)
+  })
+
+  it('retains formatted source positions and the style of a selected hyphen', () => {
+    const source = '<b>ab\u00adcd</b>'
+    const block = preparePixelText(source, { fontSize: 14, fontWeight: 400, maxWidth: 27 })
+    expect(block.lineBlocks.map(line => line.runs.map(run => run.text).join(''))).toEqual(['ab-', 'cd'])
+    expect(block.lineBlocks.flatMap(line => line.runs).every(run => run.bold)).toBe(true)
+    expect(block.lineBlocks[0]!.runs.at(-1)).toMatchObject({ text: '-', sourceStart: 5, sourceEnd: 6 })
+    expect(block.breaks).toEqual([{ kind: 'hyphen', sourceOffset: 6, replacedText: '\u00ad' }])
+    expect(block.prepared.source).toBe(source)
+  })
+})
+
+
+it('retains all visible cluster source spans when unused hints join equal-style runs', () => {
+  const source = '<b>ab\u00ad</b><b>cd</b>'
+  const block = preparePixelText(source, { fontSize: 14, fontWeight: 400 })
+  expect(block.lineBlocks[0]!.runs.map(run => run.text).join('')).toBe('abcd')
+  expect(block.lineBlocks[0]!.runs.flatMap(run => run.clusters ?? []).map(cluster => [cluster.text, cluster.sourceStart, cluster.sourceEnd]))
+    .toEqual([['a', 3, 4], ['b', 4, 5], ['c', 13, 14], ['d', 14, 15]])
 })

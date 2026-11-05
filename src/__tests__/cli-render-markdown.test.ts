@@ -4,7 +4,8 @@
 import { describe, test, expect } from 'bun:test'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { renderMarkdownBlocks, runCli } from '../cli/index.ts'
+import * as cli from '../cli/index.ts'
+const { renderMarkdownBlocks, verifyMarkdownBlocks, runCli } = cli
 import { useTempDirs } from './helpers/temp-dir.ts'
 
 const temp = useTempDirs()
@@ -88,5 +89,59 @@ describe('#543 render-markdown skip-bad-diagrams', () => {
     const blocks = renderMarkdownBlocks(md, 'ascii')
     expect(blocks.length).toBe(2)
     expect(blocks.every(b => b.ok)).toBe(true)
+  })
+})
+
+
+describe('Markdown verification', () => {
+  test('checks tilde and long fences without interpreting fenced Markdown examples', () => {
+    const md = ['# Example', '````markdown', '```mermaid', 'not a diagram', '```', '````', '', '~~~mermaid', 'flowchart LR', 'A --> B', '~~~', '', '````mermaid', 'flowchart TD', 'A[bad', '````'].join('\r\n')
+    const blocks = verifyMarkdownBlocks(md)
+    expect(blocks.map(block => [block.startLine, block.ok])).toEqual([[9, true], [14, false]])
+    expect(blocks[1]!.warnings.find(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toMatchObject({ line: 15 })
+    expect(renderMarkdownBlocks(md, 'ascii').map(block => block.ok)).toEqual([true, false])
+  })
+
+  test('the CLI checks every block and fails verification without changing the file', () => {
+    const file = join(temp.dir('am-verify-md-'), 'doc.md')
+    writeFileSync(file, MD)
+    const chunks: string[] = []
+    const original = process.stdout.write
+    ;(process.stdout as any).write = (text: string) => { chunks.push(String(text)); return true }
+    try { expect(runCli(['verify', file, '--markdown', '--json'])).toBe(3) }
+    finally { process.stdout.write = original }
+    const result = JSON.parse(chunks.join(''))
+    expect(result).toMatchObject({ ok: false, file })
+    expect(result.blocks.map((block: {ok:boolean}) => block.ok)).toEqual([true, false, true])
+    expect(result.blocks[1].warnings[0]).toMatchObject({ line: 11, lineIsBlockStart: true })
+  })
+
+  test.each([
+    ['<!--', '-->'], ['<pre>', '</pre>'], ['<script>', '</script>'],
+    ['<style>', '</style>'], ['<textarea>', '</textarea>'],
+    ['<?instruction', '?>'], ['<!DOCTYPE', '>'], ['<![CDATA[', ']]>'],
+    ['<div>', ''], ['<custom-widget data-name="example">', ''],
+  ])('ignores fence-looking text inside the HTML block %s', (open, close) => {
+    const md = [open, '```mermaid', 'not a diagram', '```', close, '', '~~~mermaid', 'flowchart LR', 'A-->B', '~~~'].join('\n')
+    const blocks = verifyMarkdownBlocks(md)
+    expect(blocks.map(block => [block.startLine, block.ok])).toEqual([[8, true]])
+    expect(renderMarkdownBlocks(md, 'ascii').map(block => block.ok)).toEqual([true])
+  })
+
+  test.each([['    code', 9], ['\tcode', 9], [' \tcode', 9], ['1.', 9], ['1)', 9], ['>', 9], ['Paragraph\n>', 10]] as const)('the block boundary %s leaves following HTML outside a paragraph', (prefix, startLine) => {
+    const md = [prefix, '<custom-widget>', '```mermaid', 'not a diagram', '```', '</custom-widget>', '', '~~~mermaid', 'flowchart LR', 'A-->B', '~~~'].join('\n')
+    expect(verifyMarkdownBlocks(md).map(block => [block.startLine, block.ok])).toEqual([[startLine, true]])
+  })
+
+  test('HTML-looking text inside code and inline tags do not hide a later diagram', () => {
+    for (const prefix of ['```text\n<!--\n```', 'Paragraph\n<custom-widget>', 'Paragraph\n    continuation\n<custom-widget>', '```not`a-fence\n<custom-widget>', '=\n<custom-widget>', '====\n<custom-widget>', '--\n<custom-widget>', '# Heading\n<custom-widget>\nnot a diagram\n']) {
+      const md = `${prefix}\n~~~mermaid\nflowchart LR\nA-->B\n~~~`
+      expect(verifyMarkdownBlocks(md).map(block => block.ok)).toEqual([true])
+    }
+  })
+
+  test('empty Markdown and indented example fences contain no Mermaid blocks', () => {
+    expect(verifyMarkdownBlocks('No diagrams.')).toEqual([])
+    expect(verifyMarkdownBlocks('    ```mermaid\n    wrong\n    ```')).toEqual([])
   })
 })

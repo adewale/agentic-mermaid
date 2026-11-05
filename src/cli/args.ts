@@ -15,6 +15,7 @@ const FLAG_SPEC_TABLE = {
   // booleans
   'agent-instructions': {},
   ascii: {},
+  markdown: {},
   certificates: {},
   help: {},
   json: {},
@@ -103,7 +104,7 @@ export const PNG_RENDER_FLAGS = Object.freeze(Object.values(PNG_CLI_FLAG_BINDING
 // name globally is not permission to ignore it on an unrelated command.
 export const COMMAND_FLAGS = {
   render: ['help', 'json', 'certificates', 'watch', 'style', 'seed', 'options', 'graph-layout', 'graph-layout-fallback', 'output', 'format', 'security', 'gantt-today', 'target-width', ...PNG_RENDER_FLAGS, 'o'],
-  verify: ['help', 'json', 'suppress', 'label-cap', 'style'],
+  verify: ['help', 'json', 'suppress', 'label-cap', 'style', 'markdown'],
   parse: ['help', 'json'],
   serialize: ['help'],
   mutate: ['help', 'json', 'op', 'ops', 'preserve-source'],
