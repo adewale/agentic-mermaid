@@ -95,13 +95,15 @@ export function classDevelopmentCase(count: number, variant: number, directed = 
 
 export const FAMILY_CITIZENSHIP_GALLERY_OPTIONS = { style: 'publication-figure', seed: 17, security: 'strict', embedFontImport: false } as const satisfies RenderOptions
 
+type CitizenshipVisibleText = string | { readonly text: string; readonly role: 'node' | 'edge' | 'group' }
+
 export interface FamilyCitizenshipWitness {
   readonly source: string
   readonly options?: RenderOptions
   /** Hand-authored semantic expectations, never a source-length complexity score. */
   readonly count: Readonly<StructuralCount>
   readonly facts: readonly [string, ...string[]]
-  readonly visibleText: readonly [string, ...string[]]
+  readonly visibleText: readonly [CitizenshipVisibleText, ...CitizenshipVisibleText[]]
   readonly edit: { readonly op: AnyMutationOp; readonly beforeFacts: readonly [string, ...string[]]; readonly afterFacts: readonly [string, ...string[]] }
   /** Features not exposed by public atomic facts retain their own domain oracle. */
   readonly assertDomain?: (diagram: ParsedDiagram, layout: RenderedLayout) => void
@@ -235,7 +237,7 @@ export const FAMILY_CONFORMANCE_PROFILES: Readonly<Record<DiagramKind, FamilyCon
     family: 'railroad',
     citizenship: {
       source: readFileSync(join(EVAL_ROOT, 'layout-compare/fixtures/railroad-native.mmd'), 'utf8'), options: FAMILY_CITIZENSHIP_GALLERY_OPTIONS,
-      count: { nodes: 2, edges: 0, groups: 0 }, facts: ['notation railroad'], visibleText: ['entry', 'start', 'item', 'end'],
+      count: { nodes: 2, edges: 0, groups: 0 }, facts: ['notation railroad'], visibleText: [{ text: 'entry', role: 'group' }, 'start', 'item', 'end'],
       edit: { op: { kind: 'replace_rule', index: 1, definition: { type: 'terminal', value: 'datum' } }, beforeFacts: ['rule#1 item {"type":"terminal","value":"value"}'], afterFacts: ['rule#1 item {"type":"terminal","value":"datum"}'] },
       assertDomain: (diagram, layout) => {
         if (diagram.body.kind !== 'railroad') throw Error('Expected native Railroad')
