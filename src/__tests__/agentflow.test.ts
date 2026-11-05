@@ -1,11 +1,14 @@
 import { expect, test } from 'bun:test'
+import { decodeHTML } from 'entities'
 import { mutateAgentflow, parseAgentflowBody } from '../agent/agentflow-body.ts'
+import { parseRegisteredMermaid, renderMermaidASCII, serializeMermaid } from '../agent/core.ts'
 import { parseAgentflow } from '../agentflow/parser.ts'
 import { projectAgentflowGraph } from '../agentflow/projection.ts'
 import { renderAgentflow } from '../agentflow/source.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { terminalDocumentOf } from '../ascii/terminal-document.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const source = `agentflow-beta TB
 connector llm[LLM API]@{ protocol: http }
@@ -180,9 +183,45 @@ test('known out-of-catalogue shape metadata remains available with the domain de
 test('full-line comments cannot introduce semicolon statements while quoted percent labels stay literal', () => {
   const source = 'agentflow-beta TB\nflow team[Team]\nA[First]@{shape: task}\nB[Second]@{shape: tool}\nA --> B\nend'
   const commented = '%%a\n%%;phantom\n' + source.replace('A --> B', '  %%;second-phantom\nA --> B')
-  const original = parseAgentflow(source), parsed = parseAgentflow(commented)
+  const original = parseAgentflow(source),
+    parsed = parseAgentflow(commented)
   expect({ ...parsed, mappings: undefined }).toEqual({ ...original, mappings: undefined })
   expect(parsed.graph.nodes.has('phantom')).toBe(false)
   const literal = parseAgentflow('agentflow-beta\nA["First\n%%; still a label\nLast"]')
   expect(literal.graph.nodes.get('A')?.label).toContain('%%; still a label')
+})
+
+test('AgentFlow retains percent-pair label text while exporting the three pinned comment-spec witnesses portably', async () => {
+  const upstream = startUpstreamMermaid()
+  const logicalText = (value: string) => decodeHTML(value.replace(/ﬂ°°(\d+)¶ß/g, '&#$1;').replace(/<br\s*\/?\s*>/gi, '\n'))
+  try {
+    // Mermaid12.2 agentflow-comments.spec.ts's three unquoted label states.
+    for (const [statement, label] of [
+      ['a[Plain %% not part of the label\nlabel]', 'Plain %% not part of the label\nlabel'],
+      ['a(-ellipse %% not part of the label\nlabel-)', 'ellipse %% not part of the label\nlabel'],
+      ['a[/trap %% not part of the label\nlabel/]', 'trap %% not part of the label\nlabel'],
+    ]) {
+      const source = `agentflow-beta TB\n  ${statement}\n  b --> a`,
+        parsed = parseRegisteredMermaid(source)
+      if (!parsed.ok || parsed.value.body.kind !== 'agentflow') throw Error('Expected native AgentFlow')
+      expect(parsed.value.body.graph.nodes.get('a')!.label).toBe(label!)
+      const originalControl = await upstream.parse(source)
+      if (!originalControl.ok || !originalControl.flowchart) throw Error('Pinned Mermaid must accept the original witness')
+      expect(logicalText(originalControl.flowchart.vertices.find(node => node.id === 'a')!.text)).not.toContain('%%')
+      const written = serializeMermaid(parsed.value),
+        control = await upstream.parse(written)
+      if (!control.ok || !control.flowchart) throw Error(`Pinned Mermaid rejects AgentFlow export: ${JSON.stringify(control)}`)
+      expect(logicalText(control.flowchart.vertices.find(node => node.id === 'a')!.text)).toBe(label!)
+      const again = parseRegisteredMermaid(written)
+      if (!again.ok || again.value.body.kind !== 'agentflow') throw Error('Expected native AgentFlow export readback')
+      expect(again.value.body.graph.nodes.get('a')!.label).toBe(label!)
+      expect(renderMermaidSVG(parsed.value)).toBe(renderMermaidSVG(written))
+      expect(renderMermaidASCII(parsed.value)).toBe(renderMermaidASCII(source))
+      expect(renderMermaidASCII(again.value)).toBe(renderMermaidASCII(written))
+      expect(again.value.body.graph.edges.map(edge => [edge.source, edge.target, edge.style, edge.hasArrowStart, edge.hasArrowEnd])).toEqual(parsed.value.body.graph.edges.map(edge => [edge.source, edge.target, edge.style, edge.hasArrowStart, edge.hasArrowEnd]))
+      expect(renderMermaidASCII(written)).toContain('%%')
+    }
+  } finally {
+    upstream.close()
+  }
 })

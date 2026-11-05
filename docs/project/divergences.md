@@ -936,3 +936,17 @@ native message reading remains available with `UNSUPPORTED_SYNTAX`; typed
 editing stays unavailable for those sources. A leading `loop)` already starts
 a block and retains the block-boundary error when no `end` follows. Longer
 ordinary IDs such as `created)` remain writable.
+
+
+### AgentFlow retains literal percent pairs in labels
+
+Mermaid 12.2.0 accepts multiline unquoted square, ellipse and trapezoid labels
+but strips `%%` and the rest of that label line. Agentic retains those
+characters in the native model, SVG and ASCII. The three original
+`agentflow-comments.spec.ts` assertions expecting that truncation remain
+intentional reader divergences.
+
+Canonical AgentFlow export shields percent characters in classified label
+tokens with Mermaid's `#37;` escape. The pinned public parser accepts these
+writes and retains the complete logical label on readback. Full-line comments
+remain comments, including any semicolons they contain.
