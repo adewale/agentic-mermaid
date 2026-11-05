@@ -442,8 +442,9 @@ describe('hosted declarative mutate/build tools', () => {
     const execute = HOSTED_TOOLS.find(t => t.name === 'execute')!
     const mutate = HOSTED_TOOLS.find(t => t.name === 'mutate')!
     const build = HOSTED_TOOLS.find(t => t.name === 'build')!
-    // Structured parse-error positions stay in the common declaration; family schemas remain progressive.
-    expect(new TextEncoder().encode(execute.description).length).toBeLessThan(15_200)
+    // The compact declaration includes bundled metrics and graph quality/
+    // viewport selectors (15,199 bytes), without per-family edit schemas.
+    expect(new TextEncoder().encode(execute.description).length).toBeLessThan(15_250)
     expect(mutate.description).toContain('describe_sdk')
     expect(build.description).toContain('describe_sdk')
     expect(mutate.description).not.toContain('add_class(id, label?, generic?, members?, namespace?)')

@@ -715,7 +715,8 @@ describe('MCP — JSON-RPC happy + sad', () => {
     }
     expect(tools[0].description).toContain('interface RenderRequestReceipt')
     expect(tools[0].description).toMatch(/interface RenderRequestReceipt\s*\{\s*version:\s*2;/)
-    // Includes structured parse-error positions; family edit schemas stay progressively disclosed.
+    // Bundled metrics and graph quality/viewport selectors bring the compact
+    // contract to 15,139 bytes; family edit schemas stay progressively loaded.
     expect(new TextEncoder().encode(tools[0].description).length).toBeLessThan(15_150)
   })
   test('tools/call execute', async () => {
