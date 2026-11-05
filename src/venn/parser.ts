@@ -8,6 +8,26 @@ import type { VennBody } from './types.ts'
 export const isVennHeader = (line: string): boolean => /^venn-beta\s*(?:%%.*)?$/i.test(line.trim())
 export const vennRegionId = (sets: readonly string[]): string => JSON.stringify([...sets].sort())
 
+/** One identity per authored region across source maps and positioned output.
+ * Generated intersections must not collide with authored set or text IDs. */
+export function vennRegionIdentities(body: VennBody): Map<string, string> {
+  const used = new Set([...body.subsets.filter(subset => subset.sets.length === 1).map(subset => subset.sets[0]!), ...body.textNodes.map(node => node.id)])
+  const identities = new Map<string, string>()
+  let next = 0
+  for (const region of [...body.subsets, ...body.textNodes]) {
+    const key = vennRegionId(region.sets)
+    if (identities.has(key)) continue
+    if (region.sets.length === 1) identities.set(key, region.sets[0]!)
+    else {
+      while (used.has(`venn-region-${next}`)) next++
+      const id = `venn-region-${next++}`
+      used.add(id)
+      identities.set(key, id)
+    }
+  }
+  return identities
+}
+
 export function parseVennDiagram(input: string | readonly string[]): VennBody {
   const lines = typeof input === 'string' ? input.split(/\r?\n/) : input
   const scanned = scanAccessibilityDirectives(lines)

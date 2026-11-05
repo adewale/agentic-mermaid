@@ -1,6 +1,6 @@
 import { sameSourceMeaning } from './source-mutation.ts'
 import type { VennBody, VennMutationOp } from '../venn/types.ts'
-import { parseVennDiagram, validateVenn, vennRegionId } from '../venn/parser.ts'
+import { parseVennDiagram, validateVenn, vennRegionId, vennRegionIdentities } from '../venn/parser.ts'
 import { writeGrammarText, readGrammarText, readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
 import { appendNativeAccessibilityLines, accessibilityFields } from '../shared/accessibility-directives.ts'
 import { withParserObservation } from '../shared/parser-observation.ts'
@@ -157,6 +157,7 @@ export const VENN_SOURCE_HOOKS: FamilyOperations = {
   buildSourceMap: (body, source, context) => {
     const map: SourceMap = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
     if (body.kind !== 'venn') return map
+    const identities = vennRegionIdentities(body)
     const original = context?.originalText ?? source
     const prefix = context?.authoredWrapperLength ?? context?.wrapperSource?.length ?? 0
     const grammar = original.slice(prefix)
@@ -182,7 +183,7 @@ export const VENN_SOURCE_HOOKS: FamilyOperations = {
         if (event.kind === 'add-subset') {
           const subset = event.value as unknown as VennBody['subsets'][number]
           const sets = subset.sets.map(id => readGrammarText(id, '[]\r\n'))
-          const id = sets.length === 1 ? sets[0]! : vennRegionId(sets)
+          const id = identities.get(vennRegionId(sets))!
           add(id)
         } else if (event.kind === 'add-text') {
           const text = event.value as unknown as VennBody['textNodes'][number]

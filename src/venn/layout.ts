@@ -1,5 +1,5 @@
 import { layoutCircles, findSpot, regionPath } from './geometry.ts'
-import { validateVenn, vennRegionId } from './parser.ts'
+import { validateVenn, vennRegionId, vennRegionIdentities } from './parser.ts'
 import type { VennBody, PositionedVenn } from './types.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import type { RenderOptions } from '../types.ts'
@@ -26,7 +26,8 @@ export function layoutVennDiagram(body: VennBody, options: RenderOptions = {}, f
     maxY = Math.max(80, ...circles.map(circle => circle.y + circle.r))
   const labels: PositionedVenn['labels'] = [],
     regions: PositionedVenn['regions'] = []
-  const used = new Set([...circles.map(circle => circle.id), ...body.textNodes.map(node => node.id)])
+  const regionIds = vennRegionIdentities(body)
+  const used = new Set([...circles.map(circle => circle.id), ...body.textNodes.map(node => node.id), ...regionIds.values()])
   const allocate = (prefix: string): string => {
     let n = 0
     while (used.has(`${prefix}${n}`)) n++
@@ -34,7 +35,6 @@ export function layoutVennDiagram(body: VennBody, options: RenderOptions = {}, f
     used.add(id)
     return id
   }
-  const regionIds = new Map<string, string>()
   const regionLabels = new Map<string, { id: string; text: string; sets: string[] }[]>()
   for (const subset of body.subsets) regionLabels.set(vennRegionId(subset.sets), [{ id: allocate('venn-label-'), text: subset.label ?? subset.sets.join(' ∩ '), sets: subset.sets }])
   for (const node of body.textNodes) {
@@ -45,8 +45,7 @@ export function layoutVennDiagram(body: VennBody, options: RenderOptions = {}, f
   }
   for (const [key, values] of regionLabels) {
     const sets = values[0]!.sets
-    if (sets.length > 1) regionIds.set(key, allocate('venn-region-'))
-    const regionId = sets.length === 1 ? sets[0]! : regionIds.get(key)!
+    const regionId = regionIds.get(key)!
     const inside = circles.flatMap((circle, index) => (sets.includes(circle.id) ? [index] : []))
     const outside = circles.flatMap((circle, index) => (sets.includes(circle.id) ? [] : [index]))
     // Bound total circle checks as the number of authored regions grows.

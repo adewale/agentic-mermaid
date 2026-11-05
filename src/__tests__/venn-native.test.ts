@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test'
 import { parseVennDiagram } from '../venn/parser.ts'
 import { mutateVenn, renderVenn, verifyVenn } from '../agent/venn-body.ts'
 import { distanceForOverlap, layoutCircles, lensArea } from '../venn/geometry.ts'
-import { parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/core.ts'
+import { layoutMermaid, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/core.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const upstream = startUpstreamMermaid()
@@ -40,6 +40,26 @@ describe('native Venn', () => {
     if (!result.ok) throw Error(result.error.message)
     expect(parseVennDiagram(renderVenn(result.value)).subsets[0]!.label).toBe('A ["quoted"] #35; : label')
   })
+  test('extreme finite areas retain the same independently known two- and three-circle geometry', () => {
+    // Equal unit circles one radius apart have this lens area. Changing the
+    // authored unit must preserve distances and the equilateral triangle.
+    const overlap = 2 * Math.PI / 3 - Math.sqrt(3) / 2
+    for (const scale of [1e-300, 1, 1e300]) {
+      for (const ids of [['A', 'B'], ['A', 'B', 'C']]) {
+        const subsets = ids.map(id => ({ sets: [id], size: Math.PI * scale }))
+        for (let a = 0; a < ids.length; a++) for (let b = a + 1; b < ids.length; b++) subsets.push({ sets: [ids[a]!, ids[b]!], size: overlap * scale })
+        const circles = layoutCircles(subsets), unit = Math.sqrt(scale)
+        expect(circles.every(circle => [circle.x, circle.y, circle.r].every(Number.isFinite))).toBe(true)
+        expect(circles.map(circle => circle.r / unit)).toEqual(ids.map(() => expect.closeTo(1, 12)))
+        expect(circles[1]!.x / unit).toBeCloseTo(1, 11)
+        if (ids.length === 3) {
+          expect(circles[2]!.x / unit).toBeCloseTo(0.5, 11)
+          expect(circles[2]!.y / unit).toBeCloseTo(Math.sqrt(3) / 2, 11)
+        }
+      }
+      expect(lensArea(Math.sqrt(scale), Math.sqrt(scale), Math.sqrt(scale)) / scale).toBeCloseTo(overlap, 11)
+    }
+  })
   test('two-circle geometry preserves authored areas and requested pairwise overlap', () => {
     const circles = layoutCircles(parseVennDiagram(source).subsets)
     expect(Math.PI * circles[0]!.r ** 2).toBeCloseTo(20, 10)
@@ -64,6 +84,8 @@ describe('native Venn', () => {
     expect(result.value.body.title).toBe('Membership')
     expect(result.value.body.accessibilityTitle).toBe('A title')
     expect(result.value.source.spans?.nodes.get('A')?.start.line).toBe(6)
+    const intersection = layoutMermaid(result.value).nodes.find(node => node.id !== 'A' && node.id !== 'B')!
+    expect(result.value.source.spans?.nodes.get(intersection.id)?.start.line).toBe(8)
     expect(serializeMermaid(result.value)).toContain('Membership')
   })
   test('public output retains region text and safe native identities through edits', async () => {
@@ -74,6 +96,11 @@ describe('native Venn', () => {
     expect(verifyMermaid(source).ok).toBe(true)
     expect(await upstream.publicAccepts(serializeMermaid(parsed.value))).toBe(true)
     const collisions = 'venn-beta\nset "venn-label-0":20\nset "venn-region-0":20\nunion "venn-label-0","venn-region-0"["Intersection"]:3\ntext "venn-label-0" "venn-label-1"["Owned note"]'
+    const collisionDiagram = parseRegisteredMermaid(collisions)
+    if (!collisionDiagram.ok) throw Error('Expected collision-safe Venn source')
+    const intersection = layoutMermaid(collisionDiagram.value).nodes.find(node => node.label === 'Intersection')!
+    expect(intersection.id).not.toBe('venn-region-0')
+    expect(collisionDiagram.value.source.spans?.nodes.get(intersection.id)?.start.line).toBe(4)
     const svg = renderMermaidSVG(collisions)
     expect(svg).toContain('Intersection')
     expect(svg).toContain('Owned note')

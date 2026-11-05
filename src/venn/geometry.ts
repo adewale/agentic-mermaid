@@ -54,25 +54,33 @@ export function lensArea(r1: number, r2: number, d: number): number {
   if (d >= r1 + r2) return 0
   const small = Math.min(r1, r2)
   if (d <= Math.abs(r1 - r2)) return Math.PI * small * small
-  const a1 = r1 * r1 * Math.acos((d * d + r1 * r1 - r2 * r2) / (2 * d * r1))
-  const a2 = r2 * r2 * Math.acos((d * d + r2 * r2 - r1 * r1) / (2 * d * r2))
-  const a3 = 0.5 * Math.sqrt(Math.max((-d + r1 + r2) * (d + r1 - r2) * (d - r1 + r2) * (d + r1 + r2), 0))
-  return a1 + a2 - a3
+  // Work in units of the largest radius. Multiplying four authored-scale
+  // distances overflows for finite areas and underflows for tiny ones.
+  const scale = Math.max(r1, r2)
+  const a = r1 / scale, b = r2 / scale, separation = d / scale
+  const acos = (value: number) => Math.acos(Math.max(-1, Math.min(1, value)))
+  const first = a * a * acos((separation * separation + a * a - b * b) / (2 * separation * a))
+  const second = b * b * acos((separation * separation + b * b - a * a) / (2 * separation * b))
+  const triangle = 0.5 * Math.sqrt(Math.max((-separation + a + b) * (separation + a - b) * (separation - a + b) * (separation + a + b), 0))
+  return ((first + second - triangle) * scale) * scale
 }
 
 // How far apart two circles sit for their overlap to have the given area. The area falls as the
 // distance grows, so bisection finds it.
 export function distanceForOverlap(r1: number, r2: number, area: number): number {
-  let low = Math.abs(r1 - r2)
-  let high = r1 + r2
-  if (!(area > 0)) return high
-  if (area >= Math.PI * Math.min(r1, r2) ** 2) return low
+  const scale = Math.max(r1, r2)
+  if (!(scale > 0)) return 0
+  const a = r1 / scale, b = r2 / scale, normalizedArea = area / scale / scale
+  let low = Math.abs(a - b)
+  let high = a + b
+  if (!(area > 0)) return high * scale
+  if (normalizedArea >= Math.PI * Math.min(a, b) ** 2) return low * scale
   for (let i = 0; i < 48; i++) {
     const middle = (low + high) / 2
-    if (lensArea(r1, r2, middle) > area) low = middle
+    if (lensArea(a, b, middle) > normalizedArea) low = middle
     else high = middle
   }
-  return (low + high) / 2
+  return ((low + high) / 2) * scale
 }
 
 // How far a point is from the nearest outline it must stay within or without. Gives up, with
@@ -157,6 +165,14 @@ export function findSpot(circles: Circle[], inside: number[], outside: number[],
 // far apart as its overlap asks: one and two sets exactly, more by relaxing a ring of
 // circles toward those distances. Lengths are in units of the square root of a size.
 export function layoutCircles(subsets: VennSubset[]): Circle[] {
+  let areaScale = 0
+  for (const subset of subsets) if (Number.isFinite(subset.size)) areaScale = Math.max(areaScale, subset.size)
+  if (areaScale > 1e100 || areaScale > 0 && areaScale < 1e-100) {
+    const scale = Math.sqrt(areaScale)
+    return layoutCircles(subsets.map(subset => ({ ...subset, size: subset.size / areaScale })))
+      .map(circle => ({ ...circle, x: circle.x * scale, y: circle.y * scale, r: circle.r * scale }))
+  }
+
   const sizes = new Map<string, number>()
   for (const subset of subsets) for (const id of subset.sets) if (!sizes.has(id)) sizes.set(id, 10)
   for (const subset of subsets) if (subset.sets.length === 1) sizes.set(subset.sets[0]!, subset.size)
