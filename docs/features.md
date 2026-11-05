@@ -1,6 +1,6 @@
 # Features — capability inventory
 
-What Agentic Mermaid can do, organized by capability area. The npm import paths are `agentic-mermaid` and `agentic-mermaid/agent`; audit and trusted host-resource helpers remain repository tooling. Implementation history lives in [`project/divergences.md`](./project/divergences.md); active backlog is only [`../TODO.md`](../TODO.md).
+What Agentic Mermaid can do, organized by capability area. The npm import paths are `agentic-mermaid` and `agentic-mermaid/agent`; audit and trusted host-resource helpers remain repository tooling. Implementation history lives in [`project/divergences.md`](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/project/divergences.md); active backlog is only [`../TODO.md`](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/TODO.md).
 
 ## Core IR & editing loop
 

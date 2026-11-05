@@ -29,6 +29,7 @@ import '../src/__tests__/fc-seed.preload.ts'
 import { verifyMermaid, renderMermaidSVG, renderMermaidASCII, renderMermaidPNG, BUILTIN_FAMILY_METADATA } from '../src/agent/index.ts'
 import { runGettingStartedCommands } from './helpers/getting-started.ts'
 import { FAMILY_CONFORMANCE_PROFILES } from '../src/__tests__/helpers/family-conformance-profiles.ts'
+import { maintainedMarkdownFiles } from '../scripts/docs/maintained-docs.ts'
 
 const REPO = join(import.meta.dir, '..')
 const BUILD_TIMEOUT_MS = 180_000
@@ -276,21 +277,32 @@ console.log(JSON.stringify(entries.map(entry => Object.hasOwn(entry, 'TUFTE_STYL
     }
   })
 
-  test('published documentation entry points have no broken relative links', () => {
+  test('all maintained documentation shipped in the package resolves local link and image resources', async () => {
     expect(haveConsumer).toBe(true)
-    for (const relativeHubPath of ['README.md', 'docs/README.md', 'docs/api.md', 'docs/api-advanced.md', 'docs/diagram-families.md', 'docs/choosing-a-diagram.md']) {
-      const hubPath = join(packageDir, relativeHubPath)
-      const hub = readFileSync(hubPath, 'utf8')
-      const relativeLinks = [...hub.matchAll(/\]\(([^)]+)\)/g)]
-        .map(match => match[1]!.trim())
-        .filter(href => href !== '' && !href.startsWith('#') && !/^[a-z][a-z\d+.-]*:/i.test(href))
-        .map(href => href.split('#', 1)[0]!)
-
-      expect(relativeLinks.length).toBeGreaterThan(0)
-      for (const href of relativeLinks) {
-        expect({ hub: relativeHubPath, href, exists: existsSync(resolve(dirname(hubPath), href)) }).toEqual({ hub: relativeHubPath, href, exists: true })
+    const maintained = new Set(maintainedMarkdownFiles(REPO))
+    const documents = [...new Bun.Glob('**/*.md').scanSync({ cwd: packageDir, onlyFiles: true })]
+      .filter(file => maintained.has(file)).sort()
+    expect(documents.length).toBeGreaterThan(0)
+    const missing: Array<{ document: string; href: string }> = []
+    await Promise.all(documents.map(async document => {
+      const links: string[] = []
+      // Parse what readers see: code examples stay inert, reference links and
+      // raw HTML images are resolved by the existing Markdown/HTML parsers.
+      await new HTMLRewriter().on('[href], [src]', {
+        element(element) {
+          for (const name of ['href', 'src']) {
+            const href = element.getAttribute(name)
+            if (href !== null) links.push(href)
+          }
+        },
+      }).transform(new Response(Bun.markdown.html(readFileSync(join(packageDir, document), 'utf8')))).text()
+      for (const href of links) {
+        if (!href || href.startsWith('#') || href.startsWith('//') || /^[a-z][a-z\d+.-]*:/i.test(href)) continue
+        const path = decodeURIComponent(href.split(/[?#]/, 1)[0]!)
+        if (!existsSync(resolve(packageDir, dirname(document), path))) missing.push({ document, href })
       }
-    }
+    }))
+    expect(missing).toEqual([])
   })
 
   test('resolves all three entry points and renders every registered family identically to source', () => {
