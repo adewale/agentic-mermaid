@@ -157,7 +157,6 @@ export const TREEVIEW_SOURCE_HOOKS: FamilyOperations = {
     return renderTreeview(body)
   },
   renderSource: () => 'serialized',
-  mutate: (body, op) => (body.kind === 'treeview' ? mutateTreeview(body, op as TreeviewMutationOp) : err({ code: 'INVALID_OP', message: 'Expected TreeView body' })),
   verify: (body, options) => (body.kind === 'treeview' ? verifyTreeview(body, options) : []),
   extractLabels: source => {
     try {
@@ -186,4 +185,8 @@ export const TREEVIEW_SOURCE_HOOKS: FamilyOperations = {
     )
     return map
   },
+}
+
+export const TREEVIEW_MUTATION_HOOKS: Pick<FamilyOperations, 'mutate'> = {
+  mutate: (body, op) => (body.kind === 'treeview' ? mutateTreeview(body, op as TreeviewMutationOp) : err({ code: 'INVALID_OP', message: 'Expected TreeView body' })),
 }

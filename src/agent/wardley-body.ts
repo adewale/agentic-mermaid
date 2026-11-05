@@ -157,7 +157,10 @@ export const WARDLEY_SOURCE_HOOKS: FamilyOperations = {
   },
   serialize: body => { if (body.kind !== 'wardley') throw new Error('Expected Wardley body'); return renderWardley(body) },
   renderSource: () => 'serialized',
-  mutate: (body, op) => body.kind === 'wardley' ? mutateWardley(body, op as WardleyMutationOp) : err({ code: 'INVALID_OP', message: 'Expected Wardley body' }),
   verify: body => body.kind === 'wardley' ? verifyWardley(body) : [],
   extractLabels: source => { try { const body = parseWardleyBody(source); return [...body.nodes.map(node => ({ text: node.label, target: node.id })), ...body.notes.map((note, index) => ({ text: note.text, target: `note:${index}` }))] } catch { return [] } },
+}
+
+export const WARDLEY_MUTATION_HOOKS: Pick<FamilyOperations, 'mutate'> = {
+  mutate: (body, op) => body.kind === 'wardley' ? mutateWardley(body, op as WardleyMutationOp) : err({ code: 'INVALID_OP', message: 'Expected Wardley body' }),
 }

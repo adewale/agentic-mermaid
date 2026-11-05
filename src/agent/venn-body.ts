@@ -145,7 +145,6 @@ export const VENN_SOURCE_HOOKS: FamilyOperations = {
     return renderVenn(body)
   },
   renderSource: () => 'serialized',
-  mutate: (body, op) => (body.kind === 'venn' ? mutateVenn(body, op as VennMutationOp) : err({ code: 'INVALID_OP', message: 'Unmodeled Venn source remains preserved' })),
   verify: (body, options) => (body.kind === 'venn' ? verifyVenn(body, options) : []),
   extractLabels: source => {
     try {
@@ -197,4 +196,8 @@ export const VENN_SOURCE_HOOKS: FamilyOperations = {
     recordAuthoredSourceMapSpans(map, exact)
     return map
   },
+}
+
+export const VENN_MUTATION_HOOKS: Pick<FamilyOperations, 'mutate'> = {
+  mutate: (body, op) => (body.kind === 'venn' ? mutateVenn(body, op as VennMutationOp) : err({ code: 'INVALID_OP', message: 'Unmodeled Venn source remains preserved' })),
 }

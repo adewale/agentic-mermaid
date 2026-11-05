@@ -1,3 +1,4 @@
+import { unknownOpMessage } from './mutation-ops.ts'
 import type { FamilyOperations } from './families.ts'
 import type { DiagramBody, MutationError, ParseError, Result } from './types.ts'
 import { err, ok } from './types.ts'
@@ -26,7 +27,7 @@ export function mutateRailroad(body: RailroadBody, op: RailroadMutationOp): Resu
         else draft.rules[op.index] = { name: op.name ?? draft.rules[op.index]!.name, definition: structuredClone(op.definition) }
         break
       }
-      default: return err({ code: 'INVALID_OP', message: 'Unknown Railroad mutation operation' })
+      default: return err({ code: 'INVALID_OP', message: unknownOpMessage('railroad', op) })
     }
     return ok(parseRailroad(renderRailroad(draft)))
   } catch (error) { return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) }) }
@@ -51,7 +52,6 @@ export const RAILROAD_SOURCE_HOOKS = {
   extractLabels: source => { try { return railroadLabels(parseRailroad(source)) } catch { return [] } },
   parse: ctx => parseRailroadBody(ctx.source.familyBody, ctx.opaqueSource),
   serialize: body => { if (body.kind !== 'railroad') throw new Error(`Railroad serializer received ${body.kind}`); return renderRailroad(body) },
-  mutate: (body, op) => body.kind === 'railroad' ? mutateRailroad(body, op as RailroadMutationOp) : err({ code: 'INVALID_OP', message: 'Railroad source needs a native grammar expression model for typed edits' }),
   buildSourceMap: (body, source) => {
     const result = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
     if (body.kind === 'railroad') source.split(/\r?\n/).forEach((line, index) => {
@@ -61,3 +61,7 @@ export const RAILROAD_SOURCE_HOOKS = {
     return result
   },
 } satisfies Pick<FamilyOperations, 'renderSource' | 'parse' | 'serialize' | 'mutate' | 'buildSourceMap' | 'extractLabels'>
+
+export const RAILROAD_MUTATION_HOOKS: Pick<FamilyOperations, 'mutate'> = {
+  mutate: (body, op) => body.kind === 'railroad' ? mutateRailroad(body, op as RailroadMutationOp) : err({ code: 'INVALID_OP', message: 'Railroad source needs a native grammar expression model for typed edits' }),
+}

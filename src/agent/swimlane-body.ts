@@ -38,7 +38,10 @@ export const SWIMLANE_SOURCE_HOOKS = {
     ? buildFlowchartSourceMap({ kind: 'flowchart', graph: body.graph }, source)
     : { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() },
   verify: body => body.kind === 'opaque' ? flowchartUnsupportedSyntaxWarnings(swimlaneFlowchartSource(body.source)) : [],
+} satisfies Pick<FamilyOperations, 'renderSource' | 'parse' | 'serialize' | 'buildSourceMap' | 'verify' | 'mutate' | 'extractLabels'>
+
+export const SWIMLANE_MUTATION_HOOKS: Pick<FamilyOperations, 'mutate'> = {
   mutate: (body, op: AnyMutationOp) => body.kind === 'swimlane'
     ? mutateSwimlane(body, op as FlowchartMutationOp)
     : err({ code: 'INVALID_OP', message: 'Swimlane source contains constructs that cannot be changed through the typed graph model' }),
-} satisfies Pick<FamilyOperations, 'renderSource' | 'parse' | 'serialize' | 'buildSourceMap' | 'verify' | 'mutate' | 'extractLabels'>
+}

@@ -133,7 +133,6 @@ export const USECASE_SOURCE_HOOKS: FamilyOperations = {
     return serializeUsecase(body, false)
   },
   renderSource: () => 'serialized',
-  mutate: (body, op) => (body.kind === 'usecase' ? mutateUsecase(body, op as UsecaseMutationOp) : err({ code: 'INVALID_OP', message: 'Expected UseCase body' })),
   verify: (body, options) => (body.kind === 'usecase' ? verifyUsecase(body, options) : []),
   extractLabels: source => {
     try {
@@ -169,4 +168,8 @@ export const USECASE_SOURCE_HOOKS: FamilyOperations = {
 }
 export function usecaseUnsupportedSyntaxWarnings(_source: string): LayoutWarning[] {
   return []
+}
+
+export const USECASE_MUTATION_HOOKS: Pick<FamilyOperations, 'mutate'> = {
+  mutate: (body, op) => (body.kind === 'usecase' ? mutateUsecase(body, op as UsecaseMutationOp) : err({ code: 'INVALID_OP', message: 'Expected UseCase body' })),
 }

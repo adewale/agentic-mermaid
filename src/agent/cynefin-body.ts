@@ -85,7 +85,10 @@ export const CYNEFIN_SOURCE_HOOKS: FamilyOperations = {
   },
   serialize: body => { if (body.kind !== 'cynefin') throw new Error('Expected Cynefin body'); return renderCynefin(body) },
   renderSource: () => 'serialized',
-  mutate: (body, op) => body.kind === 'cynefin' ? mutateCynefin(body, op as CynefinMutationOp) : err({ code: 'INVALID_OP', message: 'Expected Cynefin body' }),
   verify: body => body.kind === 'cynefin' ? verifyCynefin(body) : [],
   extractLabels: source => { try { return parseCynefinBody(source).domains.flatMap(block => block.items.map((item, index) => ({ text: item.label, target: `${block.name}:${index}` }))) } catch { return [] } },
+}
+
+export const CYNEFIN_MUTATION_HOOKS: Pick<FamilyOperations, 'mutate'> = {
+  mutate: (body, op) => body.kind === 'cynefin' ? mutateCynefin(body, op as CynefinMutationOp) : err({ code: 'INVALID_OP', message: 'Expected Cynefin body' }),
 }
