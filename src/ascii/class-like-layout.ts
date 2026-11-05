@@ -126,7 +126,9 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
   const blocker = true
   // Route axes: 1 horizontal, 2 vertical, 3 a turn or an existing crossing.
   const occupied = new OccupancyMap(), cardCells = new Set<string>(), routeCells = new Map<string, number>()
-  const markerCells = new Set<string>()
+  // The low bit protects a physical approach; upper bits count pending
+  // caption-only escape reservations beyond those approaches.
+  const markerCells = new Map<string, number>()
   const textBounds: TerminalBounds[] = []
   const occupy = (bounds: TerminalBounds) => {
     for (let y = bounds.y; y < bounds.y + bounds.height; y++) for (let x = bounds.x; x < bounds.x + bounds.width; x++) occupied.set(`${x},${y}`, blocker)
@@ -143,7 +145,11 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
   for (const key of occupied.keys()) cardCells.add(key)
   for (const plan of plans) for (const point of [plan.source, plan.target]) {
     const d = delta[point.side]
-    for (let step = 0; step <= BOX_ROUTE_APPROACH_DISTANCE; step++) markerCells.add(`${point.x + d.x * step},${point.y + d.y * step}`)
+    for (let step = 0; step <= BOX_ROUTE_APPROACH_DISTANCE + 1; step++) {
+      const key = `${point.x + d.x * step},${point.y + d.y * step}`
+      const previous = markerCells.get(key) ?? 0
+      markerCells.set(key, step <= BOX_ROUTE_APPROACH_DISTANCE ? previous | 1 : previous + 2)
+    }
   }
   const text = (lines: readonly string[] | undefined, anchors: readonly GridCoord[]): BoxText | undefined => {
     if (!lines?.some(line => line.length > 0)) return undefined
@@ -151,8 +157,9 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     const free = (bounds: TerminalBounds) => {
       const clearance = { x: bounds.x - 1, y: bounds.y - 1, width: bounds.width + 2, height: bounds.height + 2 }
       if (bounds.x < 0 || bounds.y < 0 || textObstacles.some(box => overlaps(clearance, box)) || textBounds.some(other => overlaps(clearance, other))) return false
-      // A label beside an exit can seal it between neighboring face ports.
-      // Keep the same one-cell clearance around complete marker approaches.
+      // A later route may need to cross earlier ink before turning into its
+      // approach. Caption-only escape cells retain room on both sides of that
+      // crossing without extending the protected routing obstacle.
       for (let y = clearance.y; y < clearance.y + clearance.height; y++) for (let x = clearance.x; x < clearance.x + clearance.width; x++) if (markerCells.has(`${x},${y}`)) return false
       for (let y = bounds.y; y < bounds.y + height; y++) for (let x = bounds.x; x < bounds.x + width; x++) if (routeCells.has(`${x},${y}`)) return false
       return true
@@ -180,7 +187,7 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     const bounds = { x, y, width, height }; textBounds.push(bounds); occupy(bounds)
     return Object.freeze({ ...bounds, lines: Object.freeze([...lines]), text: measured })
   }
-  for (const key of markerCells) occupied.set(key, blocker)
+  for (const [key, reservation] of markerCells) if (reservation & 1) occupied.set(key, blocker)
   const routes: BoxRoute[] = []
   // R/B self-loop ports form nested pairs. Route their innermost pair first:
   // an outer shortest path can otherwise enclose and seal a later exit.
@@ -216,7 +223,7 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
       const removedRoutes: string[] = []
       // Cross line ink only; endpoint markers and their approaches stay
       // protected even where an earlier route also owns those cells.
-      for (const key of routeCells.keys()) if (occupied.has(key) && !cardCells.has(key) && !markerCells.has(key)) { occupied.delete(key); removedRoutes.push(key) }
+      for (const key of routeCells.keys()) if (occupied.has(key) && !cardCells.has(key) && !((markerCells.get(key) ?? 0) & 1)) { occupied.delete(key); removedRoutes.push(key) }
       // A crossing must enter and leave straight prior ink perpendicularly.
       // Removing occupancy alone admits shared runs and turns, which are not
       // crossings and cannot retain two independently connected route owners.
@@ -237,6 +244,14 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
       const point = points[index]!, previous = points[index - 1], next = points[index + 1], key = gridKey(point)
       const axis = (previous ? previous.x === point.x ? 2 : 1 : 0) | (next ? next.x === point.x ? 2 : 1 : 0)
       routeCells.set(key, (routeCells.get(key) ?? 0) | axis); occupied.set(key, blocker)
+    }
+    // Only unallocated routes need caption escape space. Retiring this route
+    // retains coincident physical approaches and other pending reservations.
+    for (const point of [source, target]) {
+      const d = delta[point.side], distance = BOX_ROUTE_APPROACH_DISTANCE + 1
+      const key = `${point.x + d.x * distance},${point.y + d.y * distance}`, remaining = markerCells.get(key)! - 2
+      if (remaining) markerCells.set(key, remaining)
+      else markerCells.delete(key)
     }
     const label = text(relation.lines, [points[Math.floor(points.length / 2)]!, source, target])
     routes[relationIndex] = sealRoute({ relation, source, target, points, ...(label ? { label } : {}), ...(fromLabel ? { fromLabel } : {}), ...(toLabel ? { toLabel } : {}) })
