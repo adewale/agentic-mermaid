@@ -3,12 +3,10 @@
 import { normalizeFamilyDetectionLine } from '../../mermaid-source-wrapper.ts'
 import * as familyDetection from '../../shared/builtin-family-detection.ts'
 
-export const BROWSER_BUILTIN_FAMILY_IDS = Object.freeze(["swimlane","treeview","flowchart","state","sequence","timeline","class","er","journey","architecture","xychart","pie","quadrant","gantt","mindmap","gitgraph","radar","sankey","c4","packet","kanban","requirement","treemap","ishikawa","block","eventmodeling","zenuml"] as const)
+export const BROWSER_BUILTIN_FAMILY_IDS = Object.freeze(["flowchart","state","sequence","timeline","class","er","journey","architecture","xychart","pie","quadrant","gantt","mindmap","gitgraph","radar","sankey","c4","packet","kanban","requirement","treemap","ishikawa","block","eventmodeling","zenuml","railroad","cynefin","agentflow","usecase","wardley","venn","swimlane","treeview"] as const)
 export type BrowserBuiltinFamilyId = (typeof BROWSER_BUILTIN_FAMILY_IDS)[number]
 
 const CATALOG = Object.freeze([
-  Object.freeze({ id: "swimlane", detect: familyDetection.detectsSwimlaneFamily }),
-  Object.freeze({ id: "treeview", detect: familyDetection.detectsTreeviewFamily }),
   Object.freeze({ id: "flowchart", detect: familyDetection.detectsFlowchartFamily }),
   Object.freeze({ id: "state", detect: familyDetection.detectsStateFamily }),
   Object.freeze({ id: "sequence", detect: familyDetection.detectsSequenceFamily }),
@@ -34,6 +32,14 @@ const CATALOG = Object.freeze([
   Object.freeze({ id: "block", detect: familyDetection.detectsBlockFamily }),
   Object.freeze({ id: "eventmodeling", detect: familyDetection.detectsEventmodelingFamily }),
   Object.freeze({ id: "zenuml", detect: familyDetection.detectsZenumlFamily }),
+  Object.freeze({ id: "railroad", detect: familyDetection.detectsRailroadFamily }),
+  Object.freeze({ id: "cynefin", detect: familyDetection.detectsCynefinFamily }),
+  Object.freeze({ id: "agentflow", detect: familyDetection.detectsAgentflowFamily }),
+  Object.freeze({ id: "usecase", detect: familyDetection.detectsUsecaseFamily }),
+  Object.freeze({ id: "wardley", detect: familyDetection.detectsWardleyFamily }),
+  Object.freeze({ id: "venn", detect: familyDetection.detectsVennFamily }),
+  Object.freeze({ id: "swimlane", detect: familyDetection.detectsSwimlaneFamily }),
+  Object.freeze({ id: "treeview", detect: familyDetection.detectsTreeviewFamily }),
 ])
 
 export function detectBrowserBuiltinFamilyFromFirstLine(firstLine: string): BrowserBuiltinFamilyId | null {

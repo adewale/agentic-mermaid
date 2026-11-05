@@ -1,3 +1,9 @@
+import { RAILROAD_SOURCE_HOOKS } from './railroad-body.ts'
+import { CYNEFIN_SOURCE_HOOKS } from './cynefin-body.ts'
+import { VENN_SOURCE_HOOKS } from './venn-body.ts'
+import { WARDLEY_SOURCE_HOOKS } from './wardley-body.ts'
+import { USECASE_SOURCE_HOOKS } from './usecase-body.ts'
+import { AGENTFLOW_SOURCE_HOOKS } from './agentflow-body.ts'
 import { TREEVIEW_SOURCE_HOOKS } from './treeview-body.ts'
 import { SWIMLANE_SOURCE_HOOKS } from './swimlane-body.ts'
 import { ZENUML_SOURCE_HOOKS } from './zenuml-body.ts'
@@ -169,6 +175,12 @@ export const ZENUML_AGENT_HOOKS: FamilyOperations = {
 export const BUILTIN_AGENT_HOOKS = /* @__PURE__ */ Object.freeze({
   flowchart: FLOWCHART_AGENT_HOOKS,
   treeview: TREEVIEW_SOURCE_HOOKS,
+  cynefin: CYNEFIN_SOURCE_HOOKS,
+  railroad: RAILROAD_SOURCE_HOOKS,
+  venn: VENN_SOURCE_HOOKS,
+  wardley: WARDLEY_SOURCE_HOOKS,
+  usecase: USECASE_SOURCE_HOOKS,
+  agentflow: AGENTFLOW_SOURCE_HOOKS,
   swimlane: SWIMLANE_SOURCE_HOOKS,
   state: STATE_AGENT_HOOKS,
   sequence: SEQUENCE_AGENT_HOOKS,

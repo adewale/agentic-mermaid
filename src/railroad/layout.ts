@@ -66,6 +66,9 @@ export function layoutRailroad(body: RailroadBody, options: RenderOptions = {}, 
       }
       return { width, height: Math.max(32, y - 24), baseline, labels, tracks }
     }
+    if (node.max === 0) return build({ type: 'sequence', elements: [] }, id, ruleId)
+    if (node.min === 1 && node.max === 1) return build(node.element, id, ruleId)
+    if (node.min === 0 && node.max === 1) return build({ type: 'optional', element: node.element }, id, ruleId)
     const child = build(node.element, `${id}/0`, ruleId), skip = node.min === 0 ? 32 : 0
     const block = measure(`repeat ${node.min}..${node.max ?? 'unbounded'}`)
     const width = Math.max(child.width + 64, block.width + 64), baseline = skip ? 16 : child.baseline, cy = skip + child.baseline

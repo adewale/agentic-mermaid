@@ -78,6 +78,18 @@ export type BuildError = MutationError & { opIndex: number }
 
 function emptyBody(kind: DiagramKind, opts: CreateMermaidOptions): Exclude<DiagramBody, { kind: 'opaque' }> {
   switch (kind) {
+    case 'agentflow':
+      return { kind: 'agentflow', graph: (emptyBody('flowchart', opts) as import('./types.ts').FlowchartValidDiagram['body']).graph, metadata: new Map(), roles: new Map(), connectors: new Set(), globals: new Set(), mappings: [] }
+    case 'usecase':
+      return { kind: 'usecase', direction: opts.direction === 'TD' ? 'TB' : opts.direction ?? 'TB', nodes: [], boundaries: [], relationships: [], notes: [], jsonNodes: [], classDefs: [] }
+    case 'wardley':
+      return { kind: 'wardley', nodes: [], links: [], trends: [], pipelines: [], annotations: [], notes: [], accelerators: [], deaccelerators: [], axes: {} }
+    case 'venn':
+      return { kind: 'venn', subsets: [], textNodes: [], styles: [] }
+    case 'railroad':
+      return { kind: 'railroad', notation: 'railroad', rules: [] }
+    case 'cynefin':
+      return { kind: 'cynefin', domains: [], transitions: [] }
     case 'swimlane':
       return { kind: 'swimlane', graph: (emptyBody('flowchart', opts) as import('./types.ts').FlowchartValidDiagram['body']).graph }
     case 'treeview':

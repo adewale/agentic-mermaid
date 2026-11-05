@@ -266,28 +266,27 @@ function rebuildFromPayload(payload: ValidDiagramPayload): Result<ValidDiagram, 
   }
 
   let body: DiagramBody
-  if (payload.body.kind === 'flowchart') {
+  if (payload.body.kind === 'flowchart' || payload.body.kind === 'swimlane' || payload.body.kind === 'agentflow') {
     const sg = payload.body.graph
-    // A flowchart payload with a missing/empty node map is malformed but not fatal: default to
-    // an empty map. Exotic shapes (a non-tuple array) fall through to the boundary's error net.
-    const nodesMap = Array.isArray(sg?.nodes) ? new Map(sg.nodes) : sg?.nodes ? new Map(Object.entries(sg.nodes)) : new Map()
-    body = {
-      kind: 'flowchart',
-      graph: {
-        direction: sg.direction,
-        nodes: nodesMap,
-        edges: sg.edges ?? [],
-        // Defensive: the SDK-declared subgraph shape omits `children`/`direction`.
-        // Normalize recursively so cloneSubgraph / findSubgraphById never hit
-        // `undefined.map`. (A crash reachable straight from the documented SDK.)
-        subgraphs: normalizeSubgraphs(sg.subgraphs),
-        // Round-trip styling too, so `am parse | am serialize` is lossless.
-        classDefs: toMap(sg.classDefs),
-        classAssignments: toMap(sg.classAssignments),
-        nodeStyles: toMap(sg.nodeStyles),
-        linkStyles: toLinkStyleMap(sg.linkStyles),
-      },
+    const graph: import('../types.ts').MermaidGraph = {
+      direction: sg.direction,
+      nodes: toMap(sg.nodes),
+      edges: sg.edges ?? [],
+      // Keep shared graph payload normalization identical across graph dialects.
+      subgraphs: normalizeSubgraphs(sg.subgraphs),
+      classDefs: toMap(sg.classDefs),
+      classAssignments: toMap(sg.classAssignments),
+      nodeStyles: toMap(sg.nodeStyles),
+      linkStyles: toLinkStyleMap(sg.linkStyles),
     }
+    body = payload.body.kind === 'agentflow' ? {
+      ...payload.body,
+      graph,
+      metadata: toMap(payload.body.metadata),
+      roles: toMap(payload.body.roles),
+      connectors: toStringSet(payload.body.connectors),
+      globals: toStringSet(payload.body.globals),
+    } : { kind: payload.body.kind, graph }
   } else if (payload.body.kind === 'radar') {
     const problem = radarBodyProblem(payload.body)
     if (problem) return err([{ code: 'INVALID_PAYLOAD', message: problem }])
@@ -343,6 +342,12 @@ function normalizeSubgraphs(input: unknown, seen: Set<unknown> = new Set()): imp
     seen.delete(sg)
   }
   return out
+}
+
+function toStringSet(input: unknown): Set<string> {
+  if (!(input instanceof Set) && !Array.isArray(input)) throw new Error('identity sets must be arrays or Sets')
+  if ([...input].some(value => typeof value !== 'string')) throw new Error('identity sets must contain strings')
+  return new Set(input as Iterable<string>)
 }
 
 function toMap<V>(input: unknown): Map<string, V> {

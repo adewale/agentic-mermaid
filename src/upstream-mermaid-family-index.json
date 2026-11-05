@@ -294,7 +294,7 @@
       "headers": [
         {
           "value": "venn-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -316,7 +316,7 @@
       "headers": [
         {
           "value": "wardley-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -325,7 +325,7 @@
       "headers": [
         {
           "value": "cynefin-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -343,19 +343,19 @@
       "headers": [
         {
           "value": "railroad-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "railroad-ebnf-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "railroad-abnf-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "railroad-peg-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -364,7 +364,7 @@
       "headers": [
         {
           "value": "agentflow-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -373,7 +373,7 @@
       "headers": [
         {
           "value": "usecase-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     }

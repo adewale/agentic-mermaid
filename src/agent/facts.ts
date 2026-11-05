@@ -61,8 +61,15 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
   if (d.meta.accessibility.descr) add(out, `accessibility descr ${clean(d.meta.accessibility.descr)}`)
 
   switch (d.body.kind) {
+    case 'agentflow':
     case 'swimlane':
     case 'flowchart': {
+      if (d.body.kind === 'agentflow') {
+        for (const [id, value] of d.body.metadata) add(out, `metadata ${clean(id)} ${clean(JSON.stringify(value))}`)
+        for (const [id, role] of d.body.roles) add(out, `role ${clean(id)} ${role}`)
+        for (const id of d.body.connectors) add(out, `connector ${clean(id)}`)
+        for (const id of d.body.globals) add(out, `global ${clean(id)}`)
+      }
       const g = d.body.graph
       add(out, `direction ${g.direction}`)
       for (const n of g.nodes.values()) {
@@ -87,6 +94,38 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
       })
       break
     }
+    case 'usecase':
+      add(out, `direction ${d.body.direction}`)
+      for (const node of d.body.nodes) add(out, `${node.kind} ${clean(node.id)} ${clean(JSON.stringify(node))}`)
+      for (const boundary of d.body.boundaries) add(out, `boundary ${clean(boundary.id)} ${clean(JSON.stringify(boundary))}`)
+      for (const relation of d.body.relationships) add(out, `relation ${clean(JSON.stringify(relation))}`)
+      for (const node of d.body.jsonNodes) add(out, `json ${clean(JSON.stringify(node))}`)
+      for (const note of d.body.notes) add(out, `note ${clean(JSON.stringify(note))}`)
+      for (const style of d.body.classDefs) add(out, `class ${clean(JSON.stringify(style))}`)
+      break
+    case 'wardley':
+      for (const node of d.body.nodes) add(out, `component ${clean(node.id)} visibility ${node.y} evolution ${node.x} ${clean(JSON.stringify(node))}`)
+      d.body.links.forEach((link,index) => add(out, `dependency#${index} ${clean(JSON.stringify(link))}`))
+      d.body.trends.forEach(trend => add(out, `evolution ${clean(JSON.stringify(trend))}`))
+      d.body.pipelines.forEach(pipeline => add(out, `pipeline ${clean(JSON.stringify(pipeline))}`))
+      for (const [kind, records] of [['note',d.body.notes],['annotation',d.body.annotations],['accelerator',d.body.accelerators],['deaccelerator',d.body.deaccelerators]] as const) records.forEach((value,index) => add(out, `${kind}#${index} ${clean(JSON.stringify(value))}`))
+      add(out, `axes ${clean(JSON.stringify(d.body.axes))}`)
+      if (d.body.size) add(out, `size ${clean(JSON.stringify(d.body.size))}`)
+      if (d.body.annotationsBox) add(out, `annotationsBox ${clean(JSON.stringify(d.body.annotationsBox))}`)
+      break
+    case 'venn':
+      for (const subset of d.body.subsets) add(out, `region ${clean(JSON.stringify(subset.sets))} size ${subset.size}${subset.label === undefined ? '' : ` : ${clean(subset.label)}`}`)
+      for (const node of d.body.textNodes) add(out, `text ${clean(node.id)} in ${clean(JSON.stringify(node.sets))} : ${clean(node.label ?? node.id)}`)
+      for (const style of d.body.styles) add(out, `style ${clean(JSON.stringify(style))}`)
+      break
+    case 'cynefin':
+      d.body.domains.forEach(domain => domain.items.forEach((item,index) => add(out, `domain ${domain.name} item#${index} : ${clean(item.label)}`)))
+      d.body.transitions.forEach((transition,index) => add(out, `transition#${index} ${transition.from} -> ${transition.to}${transition.label === undefined ? '' : ` : ${clean(transition.label)}`}`))
+      break
+    case 'railroad':
+      add(out, `notation ${d.body.notation}`)
+      d.body.rules.forEach((rule, index) => add(out, `rule#${index} ${clean(rule.name)} ${clean(JSON.stringify(rule.definition))}`))
+      break
     case 'treeview':
       d.body.nodes.forEach((node, index) => {
         add(out, `node#${index} ${clean(node.id)} ${node.nodeType} : ${clean(node.label)}`)

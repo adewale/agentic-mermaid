@@ -1,3 +1,15 @@
+import type { RailroadBody, RailroadMutationOp } from '../railroad/types.ts'
+export type { RailroadBody, RailroadMutationOp, RailroadNode, RailroadRule, Notation as RailroadNotation } from '../railroad/types.ts'
+import type { CynefinBody, CynefinMutationOp } from '../cynefin/types.ts'
+export type { CynefinBody, CynefinMutationOp } from '../cynefin/types.ts'
+import type { VennBody, VennMutationOp } from '../venn/types.ts'
+export type { VennBody, VennMutationOp } from '../venn/types.ts'
+import type { WardleyBody, WardleyMutationOp } from '../wardley/types.ts'
+export type { WardleyBody, WardleyMutationOp } from '../wardley/types.ts'
+import type { UsecaseBody, UsecaseMutationOp } from '../usecase/types.ts'
+export type { UsecaseBody, UsecaseMutationOp } from '../usecase/types.ts'
+import type { AgentflowBody, AgentflowMutationOp } from '../agentflow/types.ts'
+export type { AgentflowBody, AgentflowMutationOp } from '../agentflow/types.ts'
 import type { SwimlaneBody } from '../swimlane/types.ts'
 import type { TreeviewBody, TreeviewMutationOp } from '../treeview/types.ts'
 export type { SwimlaneBody } from '../swimlane/types.ts'
@@ -53,7 +65,7 @@ export function err<E, T = never>(error: E): Result<T, E> {
 
 // ---- Families -------------------------------------------------------------
 
-export type DiagramKind = 'flowchart' | 'state' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt' | 'mindmap' | 'gitgraph' | 'radar' | 'sankey' | 'c4' | 'packet' | 'kanban' | 'requirement' | 'treemap' | 'ishikawa' | 'block' | 'eventmodeling' | 'zenuml' | 'swimlane' | 'treeview'
+export type DiagramKind = 'flowchart' | 'state' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt' | 'mindmap' | 'gitgraph' | 'radar' | 'sankey' | 'c4' | 'packet' | 'kanban' | 'requirement' | 'treemap' | 'ishikawa' | 'block' | 'eventmodeling' | 'zenuml' | 'agentflow' | 'usecase' | 'wardley' | 'venn' | 'cynefin' | 'railroad' | 'swimlane' | 'treeview'
 
 /** Runtime extensions are open but must pass the registry's namespace validator. */
 export type ExternalFamilyId = `family:${string}`
@@ -936,6 +948,12 @@ export interface DiagramAnalysis {
 
 export type DiagramBody =
   | { kind: 'flowchart'; graph: MermaidGraph }
+  | AgentflowBody
+  | UsecaseBody
+  | WardleyBody
+  | VennBody
+  | CynefinBody
+  | RailroadBody
   | SwimlaneBody
   | TreeviewBody
   | StateBody
@@ -1112,6 +1130,12 @@ export type IshikawaValidDiagram = ValidDiagram & { body: IshikawaBody }
 export type BlockValidDiagram = ValidDiagram & { body: BlockBody }
 export type MutableValidDiagram =
   | FlowchartValidDiagram
+  | AgentflowValidDiagram
+  | UsecaseValidDiagram
+  | WardleyValidDiagram
+  | VennValidDiagram
+  | CynefinValidDiagram
+  | RailroadValidDiagram
   | SwimlaneValidDiagram
   | TreeviewValidDiagram
   | StateValidDiagram
@@ -1598,6 +1622,12 @@ export type GanttMutationOp =
 
 export type AnyMutationOp =
   | FlowchartMutationOp
+  | AgentflowMutationOp
+  | UsecaseMutationOp
+  | WardleyMutationOp
+  | VennMutationOp
+  | CynefinMutationOp
+  | RailroadMutationOp
   | TreeviewMutationOp
   | StateMutationOp
   | SequenceMutationOp
@@ -1653,6 +1683,7 @@ export type Tier3WarningCode =
   | 'UNREACHABLE_NODE'
   | 'DECISION_BRANCH_UNLABELED'
   | 'FLOW_IMBALANCE'
+  | 'VENN_APPROXIMATION'
   | 'COMMENT_DROPPED'
   | 'UNSUPPORTED_SYNTAX'
   | 'CONTENT_DROPPED_ON_ROUNDTRIP'
@@ -1667,6 +1698,7 @@ export type Tier3WarningCode =
 export type WarningCode = Tier1WarningCode | Tier2WarningCode | Tier3WarningCode | BrandConstraintWarningCode
 
 export type LayoutWarning =
+  | { code: 'VENN_APPROXIMATION'; message: string }
   | { code: 'EMPTY_DIAGRAM' }
   | { code: 'EDGE_MISANCHORED'; edge: EdgeId; from?: NodeId; to?: NodeId }
   | { code: 'OFF_CANVAS'; target: NodeId | EdgeId; axis: 'x' | 'y' }
@@ -1783,6 +1815,7 @@ export type LayoutWarning =
     }
 
 export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
+  VENN_APPROXIMATION: 'warning',
   EMPTY_DIAGRAM: 'error',
   UNRESOLVABLE_SCHEDULE: 'error',
   RENDER_FAILED: 'error',
@@ -1822,6 +1855,7 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
 }
 
 export const WARNING_TIER: Record<WarningCode, WarningTier> = {
+  VENN_APPROXIMATION: 'lint',
   EMPTY_DIAGRAM: 'structural',
   UNRESOLVABLE_SCHEDULE: 'structural',
   RENDER_FAILED: 'structural',
@@ -2014,7 +2048,19 @@ export interface ValidDiagramPayload {
   meta?: Partial<ValidDiagramMeta>
   body:
     | { kind: 'flowchart'; graph: SerializedFlowchartGraph }
-    | SwimlaneBody
+    | (Omit<AgentflowBody, 'graph' | 'metadata' | 'roles' | 'connectors' | 'globals'> & {
+        graph: SerializedFlowchartGraph | import('../types.ts').MermaidGraph
+        metadata: AgentflowBody['metadata'] | Record<string, Record<string, unknown>> | Array<[string, Record<string, unknown>]>
+        roles: AgentflowBody['roles'] | Record<string, import('../agentflow/types.ts').AgentflowRole> | Array<[string, import('../agentflow/types.ts').AgentflowRole]>
+        connectors: Set<string> | string[]
+        globals: Set<string> | string[]
+      })
+    | UsecaseBody
+    | WardleyBody
+    | VennBody
+    | CynefinBody
+    | RailroadBody
+    | { kind: 'swimlane'; graph: SerializedFlowchartGraph | import('../types.ts').MermaidGraph }
     | TreeviewBody
     | StateBody
     | SequenceBody
@@ -2051,3 +2097,29 @@ export function asEventModeling(d: ParsedDiagram): EventModelingValidDiagram | n
 export function asZenUML(d: ParsedDiagram): ZenUMLValidDiagram | null {
   return d.body.kind === 'zenuml' ? d as ZenUMLValidDiagram : null
 }
+
+export type AgentflowValidDiagram = ValidDiagram & { body: AgentflowBody }
+export function asAgentflow(d: ParsedDiagram): AgentflowValidDiagram | null {
+  return d.body.kind === 'agentflow' ? d as AgentflowValidDiagram : null
+}
+
+export type UsecaseValidDiagram = ValidDiagram & { body: UsecaseBody }
+export function asUsecase(d: ParsedDiagram): UsecaseValidDiagram | null {
+  return d.body.kind === 'usecase' ? d as UsecaseValidDiagram : null
+}
+
+export type WardleyValidDiagram = ValidDiagram & { body: WardleyBody }
+export function asWardley(d: ParsedDiagram): WardleyValidDiagram | null {
+  return d.body.kind === 'wardley' ? d as WardleyValidDiagram : null
+}
+
+export type VennValidDiagram = ValidDiagram & { body: VennBody }
+export function asVenn(d: ParsedDiagram): VennValidDiagram | null {
+  return d.body.kind === 'venn' ? d as VennValidDiagram : null
+}
+
+export type CynefinValidDiagram = ValidDiagram & { body: CynefinBody }
+export function asCynefin(d: ParsedDiagram): CynefinValidDiagram | null { return d.body.kind === 'cynefin' ? d as CynefinValidDiagram : null }
+
+export type RailroadValidDiagram = ValidDiagram & { body: RailroadBody }
+export function asRailroad(d: ParsedDiagram): RailroadValidDiagram | null { return d.body.kind === 'railroad' ? d as RailroadValidDiagram : null }

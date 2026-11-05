@@ -3,7 +3,7 @@ import type { DiagramBody, MutationError, ParseError, Result } from './types.ts'
 import { err, ok } from './types.ts'
 import { parseRailroad } from '../railroad/parser.ts'
 import { renderRailroad } from '../railroad/source.ts'
-import type { RailroadBody, RailroadMutationOp } from '../railroad/types.ts'
+import type { RailroadBody, RailroadMutationOp, RailroadNode } from '../railroad/types.ts'
 
 export function parseRailroadBody(source: string, opaqueSource = source): Result<RailroadBody | Extract<DiagramBody, { kind: 'opaque' }>, ParseError[]> {
   try { return ok(parseRailroad(source)) }
@@ -31,8 +31,24 @@ export function mutateRailroad(body: RailroadBody, op: RailroadMutationOp): Resu
     return ok(parseRailroad(renderRailroad(draft)))
   } catch (error) { return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) }) }
 }
+/** Labels follow the owned expression tree so grammar notation never enters prose checks. */
+function railroadLabels(body: RailroadBody): Array<{ text: string; target: string }> {
+  const labels: Array<{ text: string; target: string }> = []
+  const walk = (node: RailroadNode, target: string): void => {
+    if (node.type === 'terminal') labels.push({ text: node.value, target })
+    else if (node.type === 'nonterminal') labels.push({ text: node.name, target })
+    else if (node.type === 'special') labels.push({ text: node.text, target })
+    else if (node.type === 'sequence') node.elements.forEach((child, index) => walk(child, `${target}/${index}`))
+    else if (node.type === 'choice') node.alternatives.forEach((child, index) => walk(child, `${target}/${index}`))
+    else if (node.type === 'exception') { walk(node.base, `${target}/base`); walk(node.except, `${target}/except`) }
+    else if (node.type !== 'any') walk(node.element, `${target}/0`)
+  }
+  body.rules.forEach((rule, index) => { const id = `rule#${index}:${rule.name}`; labels.push({ text: rule.name, target: id }); walk(rule.definition, `${id}/expression`) })
+  return labels
+}
 export const RAILROAD_SOURCE_HOOKS = {
   renderSource: () => 'canonical',
+  extractLabels: source => { try { return railroadLabels(parseRailroad(source)) } catch { return [] } },
   parse: ctx => parseRailroadBody(ctx.source.familyBody, ctx.opaqueSource),
   serialize: body => { if (body.kind !== 'railroad') throw new Error(`Railroad serializer received ${body.kind}`); return renderRailroad(body) },
   mutate: (body, op) => body.kind === 'railroad' ? mutateRailroad(body, op as RailroadMutationOp) : err({ code: 'INVALID_OP', message: 'Railroad source needs a native grammar expression model for typed edits' }),
@@ -44,4 +60,4 @@ export const RAILROAD_SOURCE_HOOKS = {
     })
     return result
   },
-} satisfies Pick<FamilyOperations, 'renderSource' | 'parse' | 'serialize' | 'mutate' | 'buildSourceMap'>
+} satisfies Pick<FamilyOperations, 'renderSource' | 'parse' | 'serialize' | 'mutate' | 'buildSourceMap' | 'extractLabels'>

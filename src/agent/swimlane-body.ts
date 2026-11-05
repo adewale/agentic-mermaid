@@ -1,3 +1,4 @@
+import { graphLabels } from './graph-labels.ts'
 import type { FamilyOperations } from './families.ts'
 import type { AnyMutationOp, DiagramBody, FlowchartMutationOp, MutationError, ParseError, Result } from './types.ts'
 import { err, ok } from './types.ts'
@@ -27,6 +28,7 @@ export function mutateSwimlane(body: SwimlaneBody, op: FlowchartMutationOp): Res
 
 export const SWIMLANE_SOURCE_HOOKS = {
   renderSource: () => 'canonical',
+  extractLabels: source => { const parsed = parseSwimlaneBody(source); return parsed.ok && parsed.value.kind === 'swimlane' ? graphLabels(parsed.value.graph) : [] },
   parse: ctx => parseSwimlaneBody(ctx.source.familyBody, ctx.opaqueSource),
   serialize: body => {
     if (body.kind !== 'swimlane') throw new Error(`swimlane serializer received body kind ${body.kind}`)
@@ -39,4 +41,4 @@ export const SWIMLANE_SOURCE_HOOKS = {
   mutate: (body, op: AnyMutationOp) => body.kind === 'swimlane'
     ? mutateSwimlane(body, op as FlowchartMutationOp)
     : err({ code: 'INVALID_OP', message: 'Swimlane source contains constructs that cannot be changed through the typed graph model' }),
-} satisfies Pick<FamilyOperations, 'renderSource' | 'parse' | 'serialize' | 'buildSourceMap' | 'verify' | 'mutate'>
+} satisfies Pick<FamilyOperations, 'renderSource' | 'parse' | 'serialize' | 'buildSourceMap' | 'verify' | 'mutate' | 'extractLabels'>

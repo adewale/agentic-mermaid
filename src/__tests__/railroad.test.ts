@@ -68,3 +68,12 @@ test.each(grammars)('Railroad %s renders real SVG rails and explicitly diagnosed
   expect(document.diagnostics).toContainEqual(expect.objectContaining({ code: 'TERMINAL_FAMILY_PROJECTION', feature: 'railroad.expression-hierarchy' }))
   expect(document.regions().some(region => region.id === 'rule#0:entry/expression')).toBe(true)
 })
+
+test('ABNF exact-zero and exact-one repeats draw only the traversable track', () => {
+  const zero = layoutRailroad(parseRailroad('railroad-abnf-beta\nentry = 0"hidden";'))
+  expect(zero.labels).toHaveLength(0)
+  expect(zero.tracks).toHaveLength(3)
+  const one = layoutRailroad(parseRailroad('railroad-abnf-beta\nentry = 1"once";'))
+  expect(one.labels.map(label => label.block.text)).toEqual(['once'])
+  expect(one.tracks).toHaveLength(4)
+})

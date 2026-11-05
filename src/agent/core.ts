@@ -537,3 +537,21 @@ export type { EventModelingBody, EventModelingMutationOp, EventModelingValidDiag
 
 export { asSwimlane, asTreeview } from './types.ts'
 export type { SwimlaneBody, SwimlaneValidDiagram, TreeviewBody, TreeviewNode, TreeviewMutationOp, TreeviewValidDiagram } from './types.ts'
+
+export { asAgentflow } from './types.ts'
+export type { AgentflowBody, AgentflowMutationOp, AgentflowValidDiagram } from './types.ts'
+
+export { asUsecase } from './types.ts'
+export type { UsecaseBody, UsecaseMutationOp, UsecaseValidDiagram } from './types.ts'
+
+export { asWardley } from './types.ts'
+export type { WardleyBody, WardleyMutationOp, WardleyValidDiagram } from './types.ts'
+
+export { asVenn } from './types.ts'
+export type { VennBody, VennMutationOp, VennValidDiagram } from './types.ts'
+
+export { asCynefin } from './types.ts'
+export type { CynefinBody, CynefinMutationOp, CynefinValidDiagram } from './types.ts'
+
+export { asRailroad } from './types.ts'
+export type { RailroadBody, RailroadMutationOp, RailroadValidDiagram, RailroadNode, RailroadRule, RailroadNotation } from './types.ts'

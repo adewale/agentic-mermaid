@@ -1,3 +1,4 @@
+import { graphLabels } from './graph-labels.ts'
 import type { FamilyOperations } from './families.ts'
 import type { DiagramBody, MutationError, ParseError, Result } from './types.ts'
 import { err, ok } from './types.ts'
@@ -64,6 +65,7 @@ export function mutateAgentflow(body: AgentflowBody, op: AgentflowMutationOp): R
 
 export const AGENTFLOW_SOURCE_HOOKS = {
   renderSource: () => 'canonical',
+  extractLabels: source => { try { return graphLabels(parseAgentflow(source).graph) } catch { return [] } },
   parse: ctx => parseAgentflowBody(ctx.source.familyBody, ctx.opaqueSource),
   serialize: body => {
     if (body.kind !== 'agentflow') throw new Error(`AgentFlow serializer received ${body.kind}`)
@@ -79,4 +81,4 @@ export const AGENTFLOW_SOURCE_HOOKS = {
     return result
   },
   mutate: (body, op) => body.kind === 'agentflow' ? mutateAgentflow(body, op as AgentflowMutationOp) : err({ code: 'INVALID_OP', message: 'AgentFlow source needs a supported native model for typed edits' }),
-} satisfies Pick<FamilyOperations, 'renderSource' | 'parse' | 'serialize' | 'buildSourceMap' | 'mutate'>
+} satisfies Pick<FamilyOperations, 'renderSource' | 'parse' | 'serialize' | 'buildSourceMap' | 'mutate' | 'extractLabels'>
