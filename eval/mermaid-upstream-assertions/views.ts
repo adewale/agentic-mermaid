@@ -103,7 +103,7 @@ export function nativeGetters(db: NativeDb, key: string): any {
   if (key === 'getAccTitle') return () => model?.accessibilityTitle ?? normalizeMermaidSource(db.source).accessibility.title ?? ''
   if (key === 'getAccDescription') return () => model?.accessibilityDescription ?? normalizeMermaidSource(db.source).accessibility.descr ?? ''
   if (key === 'getDiagramTitle' || key === 'getChartTitle') return () => model?.title ?? ''
-  if (key === 'getDirection') return () => model?.direction ?? (family === 'er' ? 'LR' : 'TB')
+  if (key === 'getDirection') return () => model?.direction ?? (family === 'er' || family === 'timeline' ? 'LR' : 'TB')
   if (key === 'getData') return () => {
     if (family === 'kanban') return { nodes: kanbanNodes(model), sections: model?.columns ?? [], config: db.context.config.kanban ?? {} }
     return unavailable(`${family}.getData: renderer-specific node/edge schema has no adapter`)
@@ -203,7 +203,13 @@ export function nativeGetters(db: NativeDb, key: string): any {
     if (key === 'getCommitsArray') return () => model?.commits ?? []
   }
   if (family === 'gantt' && key === 'getTasks') return () => model?.tasks ?? []
-  if ((family === 'journey' || family === 'timeline') && key === 'getTasks') return () => (model?.sections ?? []).flatMap((section: any) => section.tasks ?? section.periods ?? [])
+  if (family === 'timeline' && key === 'getTasks') return () => (model?.sections ?? []).flatMap((section: any) => (section.periods ?? []).map((period: any) => ({
+    id: period.id,
+    task: period.label,
+    section: section.label ?? '',
+    events: period.events.map((event: any) => event.text),
+  })))
+  if (family === 'journey' && key === 'getTasks') return () => (model?.sections ?? []).flatMap((section: any) => section.tasks ?? [])
   if (key === 'getSections' && (family === 'gantt' || family === 'journey' || family === 'timeline')) return () => (model?.sections ?? []).map((section: any) => typeof section === 'string' ? section : section.name ?? section.label)
   if (family === 'kanban' && key === 'getNodes') return () => kanbanNodes(model)
   if (family === 'kanban' && key === 'getSections') return () => model?.columns ?? []
