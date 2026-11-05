@@ -5,17 +5,17 @@ import type { LabelMetricsStyle } from './route-geometry.ts'
 
 type MarkerRegion = ReturnType<typeof graphEdgeMarkerPaintRegions>[number]
 
-function markerView(edge: PositionedEdge, style: LabelMetricsStyle): { regions: MarkerRegion[]; points: Point[]; directional: boolean } {
+function markerView(edge: PositionedEdge, style: LabelMetricsStyle, includeHull = true): { regions: MarkerRegion[]; points: Point[]; directional: boolean } {
   const points = edge.points.map(point => ({ x: Number(formatSvgNumber(point.x)), y: Number(formatSvgNumber(point.y)) }))
   const multiple = edge.style === 'thick' ? 2 : 1
   const lineWidth = Number(formatSvgNumber((style.lineWidth ?? 1) * multiple)) / multiple
   const writtenStyle = { ...style, lineWidth }
   const directional = !edge.curve && !(style.edgeBendRadius && style.edgeBendRadius > 0)
-  if (directional) return { regions: graphEdgeMarkerPaintRegions({ ...edge, points }, writtenStyle), points, directional }
+  if (directional) return { regions: graphEdgeMarkerPaintRegions({ ...edge, points }, writtenStyle, includeHull), points, directional }
   // A rounded/cubic control can round independently of its endpoint. Keep an
   // orientation-independent complete envelope rather than infer its served
   // tangent from the raw polyline. This is only a rejection guard.
-  const regions = graphEdgeMarkerPaintRegions(edge, writtenStyle).map(region => {
+  const regions = graphEdgeMarkerPaintRegions(edge, writtenStyle, includeHull).map(region => {
     const anchor = region.position === 'start' ? points[0]! : points.at(-1)!
     const box = region.bounds
     if (!box) return { ...region, anchor }
@@ -68,6 +68,27 @@ function sameEndpointRay(before: readonly Point[], after: readonly Point[], posi
   return Math.sign(p.x - a.x) === Math.sign(q.x - a.x) && Math.sign(p.y - a.y) === Math.sign(q.y - a.y)
 }
 
+/** Read the two written terminal rays without materializing marker resources,
+ * hulls or the interior of either polyline. Cardinal equal rays paint the same
+ * resource at the same angle; unknown or curved mappings keep the full proof. */
+function sameWrittenEndpointRay(before: readonly Point[], after: readonly Point[], start: boolean): boolean {
+  const terminal = (points: readonly Point[]) => {
+    const anchor = points[start ? 0 : points.length - 1]
+    if (!anchor) return undefined
+    const x = Number(formatSvgNumber(anchor.x)), y = Number(formatSvgNumber(anchor.y))
+    for (let i = 1; i < points.length; i++) {
+      const point = points[start ? i : points.length - i - 1]!
+      const dx = Number(formatSvgNumber(point.x)) - x, dy = Number(formatSvgNumber(point.y)) - y
+      if (!Number.isFinite(dx) || !Number.isFinite(dy) || !Number.isFinite(Math.hypot(dx, dy))) return undefined
+      if (dx || dy) return { x, y, dx, dy }
+    }
+    return undefined
+  }
+  const a = terminal(before), b = terminal(after)
+  return !!a && !!b && a.x === b.x && a.y === b.y && !(a.dx && a.dy) && !(b.dx && b.dy)
+    && Math.sign(a.dx) === Math.sign(b.dx) && Math.sign(a.dy) === Math.sign(b.dy)
+}
+
 /** A rounded orthogonal route paints its endpoint marker along its final
  * straight segment; the corners before it never reach the marker's tangent. */
 function sameTerminalSegment(before: readonly Point[], after: readonly Point[], position: MarkerRegion['position']): boolean {
@@ -112,7 +133,12 @@ export function routeCandidateMarkerBlocker(edge: PositionedEdge, points: Point[
   if (!edge.hasArrowStart && !edge.hasArrowEnd || edge.style === 'invisible') return undefined
   const blocker = (owner: PositionedEdge, position: string, relation: string): RouteBlocker => ({ kind: 'port', id: `${relation}:${owner.id ?? `${owner.source}->${owner.target}[${owner.edgeIndex ?? peers.indexOf(owner)}]`}:${position}` })
   if (!mappingKnown({ ...edge, points }, style)) return blocker(peerOwner, 'mapping', 'marker')
-  const oldView = markerView(edge, style), newView = markerView({ ...edge, points }, style)
+  const knownMarker = (kind: PositionedEdge['startMarker']) => kind === undefined || kind === 'arrow' || kind === 'circle' || kind === 'cross'
+  if (!edge.curve && !(style.edgeBendRadius && style.edgeBendRadius > 0)
+    && knownMarker(edge.startMarker) && knownMarker(edge.endMarker)
+    && (!edge.hasArrowStart || sameWrittenEndpointRay(edge.points, points, true))
+    && (!edge.hasArrowEnd || sameWrittenEndpointRay(edge.points, points, false))) return undefined
+  const oldView = markerView(edge, style, false), newView = markerView({ ...edge, points }, style, false)
   const before = oldView.regions, after = newView.regions
   if (after.length !== Number(Boolean(edge.hasArrowStart)) + Number(Boolean(edge.hasArrowEnd))) return blocker(peerOwner, 'unmeasured', 'marker')
   for (const marker of after) {
@@ -127,7 +153,7 @@ export function routeCandidateMarkerBlocker(edge: PositionedEdge, points: Point[
     for (const peer of peers) {
       if (peer === peerOwner || peer.style === 'invisible' || !peer.hasArrowStart && !peer.hasArrowEnd) continue
       if (!mappingKnown(peer, style)) return blocker(peer, 'mapping', 'peer-marker')
-      const peerView = markerView(peer, style)
+      const peerView = markerView(peer, style, false)
       for (const occurrence of peerView.regions) {
         const ownNode = marker.position === 'start' ? edge.source : edge.target
         const peerNode = occurrence.position === 'start' ? peer.source : peer.target
