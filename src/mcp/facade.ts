@@ -517,7 +517,7 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
       value = harden((input: any, opts?: any) => {
         assertOpen()
         requireTrustedDiagram(input, 'verifyMermaid')
-        const r = hostCall(() => target.verifyMermaid(rawOf(input), opts))
+        const r = hostCall(() => target.verifyMermaid(rawOf(input), jsonClone(opts)))
         const diagram = idOf(input)
         push({ verb: 'verify', diagram, ok: r.ok, inspected: false, fingerprint: fingerprint(input) })
         return harden(
