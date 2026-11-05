@@ -108,3 +108,10 @@ test('Wardley separates ordinary dense component captions without changing map c
   expect(svg).toContain('data-id="Component29"')
   expect(svg).not.toContain('NaN')
 })
+
+test('Wardley dashed dependencies and evolution retain visible dash paint', () => {
+  const svg = renderMermaidSVG('wardley-beta\ncomponent A [0.6,0.2]\ncomponent B [0.2,0.8]\nA -.-> B\nevolve A 0.9')
+  const dependency = svg.match(/<polyline\b[^>]*data-id="dependency:0"[^>]*>/)?.[0], evolution = svg.match(/<polyline\b[^>]*data-id="evolve:0"[^>]*>/)?.[0]
+  expect(dependency!).toContain('stroke-dasharray=')
+  expect(evolution!).toContain('stroke-dasharray=')
+})

@@ -197,3 +197,10 @@ test('UseCase observation records consumed statements and actual publication wri
   expect(publications).toContainEqual(expect.objectContaining({ id: 'Browse', business: false }))
   expect(publications).toContainEqual(expect.objectContaining({ id: 'Browse', business: true }))
 })
+
+test('UseCase dependency stereotypes retain visibly dashed carrier paint', () => {
+  const svg = renderMermaidSVG('usecase-beta\nA("Checkout")\nB("Authorize payment")\nA ..> : include B')
+  const carrier = svg.match(/<polyline\b[^>]*data-relationship="include"[^>]*>/)?.[0]
+  expect(carrier).toBeDefined()
+  expect(carrier!).toContain('stroke-dasharray=')
+})
