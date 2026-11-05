@@ -856,7 +856,7 @@ test('the Ishikawa spine declares its actual effect-head contact', () => {
   expect(sceneNodeSerialization(spine)).toContain(`points="${first.x},${first.y} ${effect.x},${effect.y + effect.height / 2}"`)
 })
 
-test.each(['transparent', 'translucent', 'dashed', 'group-opacity', 'compound-piece'] as const)('%s outlines cannot certify the filled endpoint border band as visible', mode => {
+test.each((['transparent', 'translucent', 'dashed', 'group-opacity', 'compound-piece'] as const).flatMap(mode => [0, 12].map(distant => ({ mode, distant }))))('$mode outlines cannot certify the filled endpoint border band among $distant same-owner outlines', ({ mode, distant }) => {
   const marker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: '#111' }, 'userSpaceOnUse')
   const edge = marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 10, y1: 40, x2: 40.4, y2: 40 }, paint: { stroke: '#111' }, endpoints: { from: 'outside', to: 'node' }, markers: { end: marker } })
   const geometry = { kind: 'rect' as const, x: 40, y: 10, width: 50, height: 60 }
@@ -867,6 +867,8 @@ test.each(['transparent', 'translucent', 'dashed', 'group-opacity', 'compound-pi
     const outline = marks.shape({ id: 'outline', role: 'node', owner: { id: 'node', role: 'node' }, geometry, paint: { ...paint, fill: 'none' } })
     parts.push(marks.group({ id: 'translucent-outline', role: 'chrome', open: '<g>', close: '</g>', paint: { opacity: '0.5' }, children: [{ node: outline, indent: 0 }] }))
   }
+  for (let index = 0; index < distant; index++) parts.push(marks.shape({ id: `distant-outline:${index}`, role: 'node', owner: { id: 'node', role: 'node' },
+    geometry: { kind: 'rect', x: 200 + index * 20, y: 10, width: 10, height: 20 }, paint: { fill: 'none', stroke: '#111', strokeWidth: '10' } }))
   // The triangle tip enters the opaque fill by 0.4px. A transparent,
   // translucent or dashed outline supplies no continuous opaque border band.
   const emitted = parts.map(sceneNodeSerialization).join('\n')
