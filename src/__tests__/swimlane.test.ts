@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { parseRegisteredMermaid, serializeMermaid, mutate } from '../agent/core.ts'
+import { parseRegisteredMermaid, serializeMermaid, mutate, layoutMermaid, verifyMermaid } from '../agent/core.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { terminalDocumentOf } from '../ascii/terminal-document.ts'
@@ -46,10 +46,20 @@ test.each(['LR', 'RL', 'TD', 'BT'] as const)('Swimlane %s retains equal bands, o
   const axis = direction === 'LR' || direction === 'RL' ? 'width' : 'height'
   expect(pixel.groups[0]![axis]).toBe(pixel.groups[1]![axis])
   expect(pixel.edges[1]).toMatchObject({ id: 'handoff', source: 'B', target: 'C' })
+  expect(pixel.groups[1]?.children[0]).toMatchObject({ id: 'Dispatch', nodeIds: ['C', 'D'] })
   expect(pixel).toEqual(layoutSwimlane(parseSwimlane(input)))
+  const parsed = parseRegisteredMermaid(input)
+  if (!parsed.ok) throw new Error('expected native Swimlane')
+  const layout = layoutMermaid(parsed.value, { regions: true })
+  expect(layout.nodes.map(node => [node.id, node.parentId]).sort()).toEqual([
+    ['A', 'Customer'], ['B', 'Customer'], ['C', 'Dispatch'], ['D', 'Dispatch'],
+  ])
+  expect(layout.groups.find(group => group.id === 'Dispatch')).toMatchObject({ parentId: 'Warehouse', members: ['C', 'D'] })
+  expect(layout.regions?.find(region => region.id === 'node:C')).toMatchObject({ parentId: 'group:Dispatch' })
   const svg = renderMermaidSVG(input)
   expect(svg).toContain('data-id="handoff"')
   expect(svg).toContain('data-parent-id="Warehouse"')
+  expect(svg.match(/<g\b(?=[^>]*data-id="Dispatch")[^>]*>/)?.[0]).toContain('data-parent-id="Warehouse"')
   const terminal = renderMermaidASCIIWithReceipt(input, { colorMode: 'none', layoutSafety: 'strict' })
   expect(terminal.receipt.layoutCertification?.status).toBe('passed')
   const regions = terminalDocumentOf(terminal)!.regions()

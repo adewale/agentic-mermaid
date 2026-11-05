@@ -24,11 +24,11 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   const lanes = swimlanePartitions(graph)
   // Build lane inputs once. Filtering the entire graph for every lane makes
   // a diagram with many small lanes need quadratic ownership work.
-  const owners = new Map<string, number>()
+  const owners = new Map<string, number>(), sourceGroups = new Map<string, MermaidSubgraph>()
   const inputs = lanes.map((lane, index) => {
     for (const id of lane.nodes) owners.set(id, index)
     const groups = lane.source?.children ?? []
-    const visit = (group: MermaidSubgraph): void => { owners.set(group.id, index); group.children.forEach(visit) }
+    const visit = (group: MermaidSubgraph): void => { owners.set(group.id, index); sourceGroups.set(group.id, group); group.children.forEach(visit) }
     groups.forEach(visit)
     return { ...graph, nodes: new Map<string, typeof graph.nodes extends Map<string, infer N> ? N : never>(), edges: [] as MermaidGraph['edges'], subgraphs: groups }
   })
@@ -71,6 +71,8 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   const nodes: PositionedNode[] = [], groups: PositionedGroup[] = []
   let cursor = padding
   const shiftGroup = (group: PositionedGroup, dx: number, dy: number): void => {
+    const source = sourceGroups.get(group.id)
+    if (source) group.nodeIds = source.nodeIds.filter(id => graph.nodes.has(id))
     group.x += dx; group.y += dy
     group.children.forEach(child => shiftGroup(child, dx, dy))
   }
