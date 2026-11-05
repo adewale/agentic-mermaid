@@ -9,8 +9,49 @@ Draft [PR #602](https://github.com/adewale/agentic-mermaid/pull/602) preserves t
 source on `work/pr449-reconstruct-20261103`. The recovery checkpoint is based on
 `3b56da55e6570908beb5d96c25f4c03c1a828a22`. Current-main integration retains the
 inherited PR449 foundation and recovery fixes; qualification is recorded below.
-ELK is still the default. Current-main versions, publication settings and caps are
-unchanged. Replacement24 remains sealed.
+ELK remains the default backend setting; omitted Flowchart layout can use the
+existing forest fast path in both main and this PR. Current-main versions,
+publication settings and caps are unchanged. Replacement24 remains sealed.
+
+## What improves over current main
+
+Fixed source comparison: main `f9ec8c115de14020d3c182d5d7f2e7e70bfcdefb` versus
+PR `741b80dba91c0e1f4feba9a62695f7820bc79a23`. Six existing fixtures were frozen
+before outcomes. Each uses the same source/options and full public SVG/entire
+receipt consumer in fresh Node24 processes, with omitted, Native and ELK lanes.
+
+| Fixture | Omitted-backend main → PR | Explicit Native main → PR |
+| --- | --- | --- |
+| ER208 chain | Refusal at 400k geometry work → SVG delivered, proof passed | Same delivery gain; 208 identities, 207 ordered relationships and 414 normal contacts retained |
+| Nonlinear forest | Area −26.98%, wire −37.60%, eight bends unchanged | Same result; explicit ELK painted geometry is unchanged |
+| Raw hollow circle | Selected marker contribution 0→225 confined pixels | Same paint gain; proof stays unverified in all lanes |
+| Sparse256 | Painted geometry unchanged | Area 15,832,099.72→3,633,619.5 (−77.05%); connected wire unchanged |
+| Requirement TB cycle | Painted geometry unchanged | Area −22.95%, wire −8.56%, eight bends unchanged; all 15 text programs and ten normal contacts retained |
+| ER256 chain | Both revisions refuse at the unchanged 400k geometry cap | Both revisions refuse; separate from Sparse32 proof availability |
+
+This establishes selected main-relative benefits, including default-path gains.
+It is not a complete workload ranking or a runtime speedup claim. Of 36 actual
+calls, 27 return (21 proof-passed, six proof-unverified) and nine refuse. Six
+earlier zero-call dependency-loader failures remain separate tooling history.
+Exact SVG binding reuses the selected existing circle/forest ink evidence without
+another raster; whole-diagram glyph attribution/readability remain unqualified.
+
+Costs stay separate: forest omitted proof work 22,851→98,311; raw circle
+41,687→156,940; Requirement omitted 25,613→102,468 despite unchanged geometry.
+Sparse256 omitted proof work falls 102,610→90,857. Caps are unchanged. Fresh
+offline Node24 gzip9/Brotli11 sizes and N=1 descriptive costs are retained in
+`main-vs-pr-741` and `main-vs-pr-741-root-extension`; no timing ratio follows.
+
+Matched full production standalone builds on Bun1.4.4, identical dependencies and
+explicit production environment, measure main→PR **4,735,937→2,167,553 raw**,
+**1,420,933→1,419,207 gzip9**, **1,097,178→1,355,838 Brotli11 bytes**. Gzip is nearly
+flat; Brotli grows **258,660 bytes (+23.58%)**. Both measured gzip products exceed
+the existing 1,334,500 ceiling; this does not assert a main CI result. The lazy
+selected-ELK Flowchart closure separately grows 732,640→771,830 gzip bytes in CI.
+Both original editor products were restored byte-exactly. These matched costs
+replace neither the dated profiler nor its missing runtime/cold/cache evidence.
+Next causal probe: whether standalone worker precompression accounts for the
+Brotli loss, preserving decoded worker bytes, ownership and browser contracts.
 
 ## Remaining differences from ELK
 
@@ -21,7 +62,7 @@ ranking of current `main`. Unknowns and refusals remain part of the workload.
 | --- | --- | --- |
 | Sparse256: 256 cards, one relationship | Area 3,633,619.5 vs 3,459,200: **+5.04%**. Wire 132.598 vs 214.598. | The default isolate clearance fix removed 51.22% of the previous Native area. Residual shelf packing remains; connected geometry is unchanged. |
 | Nonlinear forest | Wire **+10.19%** (was +16.89%), area **−6.43%**. | Route-only spreading of center-aligned terminal peers shortens wire 5.74% without moving bodies; residual placement/terminal cost remains. The stopped leaf-seat trial increased area 6.88%. |
-| Requirement cycle | TB/BT area **+9.53%**; LR/RL **−1.44%**. | Directional placement loss remains. Fields, relations and observed ink were retained at `15972c57e`. |
+| Requirement cycle | Current TB Native area **−10.43%**, wire **−30.34%**, eight vs ten bends. | The historical TB/BT +9.53% area loss at `15972c57e` does not reproduce on PR741 TB; stop treating it as a current deficit. BT/LR/RL were not requalified in this comparison. |
 | ER256 relationship chain | **Both backends refuse.** | Distinct from Sparse256 above. Guarded shortcuts did not remove enough work. |
 | Sparse32 | Delivered 1,500 text records and 32 contributing markers; proof unverified at 400,000 operations. | Proof availability, middle-glyph attribution, readability and arbitrary fonts remain separate unknowns. |
 
@@ -265,5 +306,7 @@ pre-update candidate failed its Class dimensions assertion. No runtime source or
 tolerance changed in this PNG update. Evidence: `browser-rounded-review-3b`.
 CI3b tested merge `d13c5b4` into mainf9: shards1/2 pass; Sparse32, browser/payload
 fail; CLI failed downloading Bun with HTTP504 before tests. Latest-head CI still
-needs qualification. Remaining forest wire +10.19%, Requirement TB/BT area +9.53%,
-shared ER256 refusal and Sparse32 proof cap remain distinct next losses.
+needs qualification. Remaining forest wire +10.19%, shared ER256 refusal and
+Sparse32 proof cap remain distinct losses. The fixed main comparison above
+supersedes the carried-forward Requirement +9.53% as a current TB claim; other
+directions remain unqualified at the new checkpoint.
