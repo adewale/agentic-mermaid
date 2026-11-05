@@ -1,0 +1,24 @@
+{
+  "createdAt": "2026-11-05T14:48:44.403282+00:00",
+  "sourceHead": "49945278ffb96f925fa903a0819ee91952b1ceb3",
+  "profiledHead": "99ed1d23853661966448ee9ee47c560cab910e63",
+  "integratedMain": "f9ec8c115de14020d3c182d5d7f2e7e70bfcdefb",
+  "priorEvidenceCommit": "24f5f1ab972937d687691d5282b6cec04830c5b8",
+  "campaignEnd": "2026-11-08T23:59:59Z",
+  "campaignStatus": "resumed; bounded sessions, fresh lease; not continuous execution",
+  "archive": "evidence-resumed.tar.gz",
+  "sha256": "e16161c6b49b8adb05251f3156aa142a8fbd24e29190026d2ea4e4585834ff64",
+  "files": 192,
+  "rawBytes": 29785824,
+  "archiveBytes": 8586226,
+  "everyMemberByteVerified": true,
+  "roots": [
+    "/tmp/pr449-main-integration-20261105",
+    "/tmp/pr449-week-comparison-20261101/performance-review-main-integration",
+    "/tmp/pr449-week-comparison-20261101/pr602-main-reconcile-f9ec8c115",
+    "/tmp/pr449-week-comparison-20261101/rich-line-middle-integration-f9ec8c115",
+    "/tmp/pr449-week-comparison-20261101/native-fast-point-custody-fa85d8123",
+    "/tmp/pr449-week-comparison-20261101/text-admission-main-integration"
+  ],
+  "limits": "Source-runtime profile; cold/import/shipped-code costs not newly qualified. CI99ed failed knownproofcap/goldens/payload/dirtyprovenance and introducedtextadmission. Later captionfix/SDKrefresh qualified locally; final CI not established. Originallostcampaign/Trident/pinnedpeers remain unavailable; Replacement24 sealed."
+}
