@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "fb51685fcc73631b270046a22dcb8f895ea739d54e1723cb757c4fc7c5d06319",
-  "reviewedAt": "2026-10-29",
-  "reviewer": "Codex agent, PR #585 arrowhead clearance review",
-  "scope": "Agent review of all 13 changed cells at native size in the 1560x14024 sheet: Class, Architecture and Block across four variants, plus Event Modeling sentinel. Side-by-side old/current crops preserve cards, relationships, group membership, labels and marker meanings; extra lead/grid space separates corners from marker ink. All other cells are pixel-identical. This finite review is not human approval, deployed-site parity or exhaustive geometry proof.",
+  "artifactSha256": "fd80ff94aacdaa7d22c5e4040c9ac43be8d563d6f46d8985ae8998c27beacdae",
+  "reviewedAt": "2026-11-05",
+  "reviewer": "Codex agent, PR #601 native-family enrollment review",
+  "scope": "Agent review of all 32 added cells at native 520x380 size in the 1560x17064 sheet: Railroad, Cynefin, AgentFlow, UseCase, Wardley, Venn, Swimlane and TreeView across four variants. All 100 existing diagram bodies are pixel-identical after band alignment; 94 complete cells are pixel-identical, and six captions differ by eight antialiasing pixels in total at their moved positions. This finite review is not human approval, deployed-site parity or arbitrary-density proof.",
   "audit": "eval/section-b-brand-evidence/arrowhead-clearance-review.md"
 }
