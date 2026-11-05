@@ -1375,7 +1375,7 @@ gitGraph LR:
     editorLabel: 'Cynefin domains', editorDescription: 'Decision domains, retained items and directed domain transitions.',
     editorExampleId: 'cynefin-basic', editorGlyph: 'CY', config: { section: 'cynefin', keys: [], noopKeys: [] },
     semanticChannels: [], detect: familyDetection.detectsCynefinFamily,
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('edge', 'connector')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('group', 'shape'), nativeSceneRole('node', 'container'), nativeSceneRole('label', 'text'), nativeSceneRole('edge', 'connector')],
     example: 'cynefin-beta\ncomplex\n  "Explore"\nclear\n  "Operate"\ncomplex --> clear: "Learn"',
     editorExample: 'cynefin-beta\ncomplex\n  "Explore"\ncomplicated\n  "Analyse"\nclear\n  "Operate"\nchaotic\n  "Stabilise"\nconfusion\n  "Investigate"\ncomplex --> clear: "Learn"',
   },
@@ -1386,7 +1386,7 @@ gitGraph LR:
     editorDescription: 'Agent roles, tool metadata, attachments and directed workflow connections.', editorExampleId: 'agentflow-basic', editorGlyph: 'AF',
     config: { section: 'agentflow', keys: [], noopKeys: [] },
     semanticChannels: [], detect: familyDetection.detectsAgentflowFamily,
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('edge', 'connector'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('edge-label', 'container'), nativeSceneRole('icon', 'container', 'shape', 'text')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('edge', 'connector'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('edge-label', 'container')],
     example: 'agentflow-beta\n A[Plan]@{ shape: task }\n B[Search]@{ shape: tool }\n A --> B', editorExample: 'agentflow-beta\n A[Plan]@{ shape: task }\n B[Search]@{ shape: tool }\n A --> B',
   },
   {
@@ -1396,7 +1396,7 @@ gitGraph LR:
     editorDescription: 'Actors and use cases inside system boundaries with typed relationships.', editorExampleId: 'usecase-basic', editorGlyph: 'UC',
     config: { section: 'usecase', keys: [], noopKeys: [] },
     semanticChannels: ['category', 'emphasis'], detect: familyDetection.detectsUsecaseFamily,
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('edge', 'connector'), nativeSceneRole('group', 'container', 'shape')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('edge', 'connector'), nativeSceneRole('group', 'container', 'shape')],
     example: 'usecase-beta\nactor Customer\nCheckout("Checkout")\nCustomer --> Checkout', editorExample: 'usecase-beta\nactor Customer\nCheckout("Checkout")\nCustomer --> Checkout',
   },
   {

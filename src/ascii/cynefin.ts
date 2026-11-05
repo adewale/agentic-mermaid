@@ -1,5 +1,5 @@
 import type { AsciiContext } from '../agent/families.ts'
-import { parseCynefinBody } from '../agent/cynefin-body.ts'
+import { parseCynefinBody } from '../cynefin/body.ts'
 import { CYNEFIN_DOMAINS } from '../cynefin/types.ts'
 import { TerminalDocument } from './terminal-document.ts'
 import { terminalArtifact } from './terminal-artifact.ts'

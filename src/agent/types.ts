@@ -10,9 +10,9 @@ import type { UsecaseBody, UsecaseMutationOp } from '../usecase/types.ts'
 export type { UsecaseBody, UsecaseMutationOp } from '../usecase/types.ts'
 import type { AgentflowBody, AgentflowMutationOp } from '../agentflow/types.ts'
 export type { AgentflowBody, AgentflowMutationOp } from '../agentflow/types.ts'
-import type { SwimlaneBody } from '../swimlane/types.ts'
+import type { SwimlaneBody, SwimlaneMutationOp } from '../swimlane/types.ts'
 import type { TreeviewBody, TreeviewMutationOp } from '../treeview/types.ts'
-export type { SwimlaneBody } from '../swimlane/types.ts'
+export type { SwimlaneBody, SwimlaneMutationOp } from '../swimlane/types.ts'
 export type { TreeviewBody, TreeviewNode, TreeviewMutationOp } from '../treeview/types.ts'
 import type { ZenUMLBody, ZenUMLMutationOp } from '../zenuml/native-types.ts'
 export type { ZenUMLBody, ZenUMLMutationOp, ZenUMLParticipant, ZenUMLStatement, ZenUMLBranch } from '../zenuml/native-types.ts'
@@ -1621,7 +1621,7 @@ export type GanttMutationOp =
   | { kind: 'move_section'; from: number; to: number }
 
 export type AnyMutationOp =
-  | FlowchartMutationOp
+  | SwimlaneMutationOp | FlowchartMutationOp
   | AgentflowMutationOp
   | UsecaseMutationOp
   | WardleyMutationOp

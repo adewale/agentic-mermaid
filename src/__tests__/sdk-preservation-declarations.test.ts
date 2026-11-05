@@ -55,6 +55,7 @@ describe('Code Mode preservation declarations', () => {
   ])('a typed %s Code Mode client preserves advertised operation and read-back contracts', (label, declaration) => {
     const path = '/class-sdk-consumer.ts'
     const source = `${declaration}\n
+${label === 'full' ? `const vennGeometryWarning: WarningCode = 'VENN_APPROXIMATION';` : ''}
 const scene = mermaid.renderResolvedScene('flowchart LR\\nA-->B')
 const resolvedVersion: 2 = scene.version
 ${label !== 'core' ? `for (const primitive of scene.parts.flatMap(part => part.primitives)) {

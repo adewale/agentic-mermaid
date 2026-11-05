@@ -1,22 +1,16 @@
-import { parseWardley } from '../wardley/parser.ts'
-import { buildWardley } from '../wardley/model.ts'
+import { parseWardleyBody } from '../wardley/body.ts'
 import type { WardleyBody, WardleyMutationOp } from '../wardley/types.ts'
 import { mermaidNumber } from '../shared/mermaid-number.ts'
 import { sameSourceMeaning } from './source-mutation.ts'
 import { nativeAccessibilityText } from './accessibility-envelope.ts'
 import { accessibilityFields } from '../shared/accessibility-directives.ts'
 import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
-import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
 import type { FamilyOperations } from './families.ts'
 import { err, ok, type LayoutWarning, type MutationError, type Result } from './types.ts'
 export { WARDLEY_OP_SCHEMAS, WARDLEY_OP_KINDS } from '../wardley/ops.ts'
 
-export function parseWardleyBody(source: string): WardleyBody {
-  const { type: _type, accTitle, accDescr, ...model } = buildWardley(parseWardley(source), undefined)
-  assertDiagramWorkLimit('nodes', model.nodes.length + model.notes.length + model.annotations.length + model.accelerators.length + model.deaccelerators.length)
-  assertDiagramWorkLimit('edges', model.links.length + model.trends.length)
-  return { kind: 'wardley', ...model, accessibilityTitle: accTitle, accessibilityDescription: accDescr }
-}
+export { parseWardleyBody } from '../wardley/body.ts'
+
 
 const quoted = (value: string): string => JSON.stringify(value).replace(/%%\{/g, '\\%\\%{')
 function decimal(value: number): string {

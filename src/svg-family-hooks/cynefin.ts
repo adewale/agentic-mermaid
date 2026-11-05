@@ -1,5 +1,5 @@
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
-import { parseCynefinBody } from '../agent/cynefin-body.ts'
+import { parseCynefinBody } from '../cynefin/body.ts'
 import { layoutCynefin } from '../cynefin/layout.ts'
 import { projectCynefinPositioned } from '../cynefin/projection.ts'
 import { lowerCynefinScene } from '../cynefin/renderer.ts'

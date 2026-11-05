@@ -1,5 +1,5 @@
 import type { AsciiContext } from '../agent/families.ts'
-import { parseWardleyBody } from '../agent/wardley-body.ts'
+import { parseWardleyBody } from '../wardley/body.ts'
 import { TerminalDocument } from './terminal-document.ts'
 import { terminalArtifact } from './terminal-artifact.ts'
 import { wrapText } from './wrap.ts'

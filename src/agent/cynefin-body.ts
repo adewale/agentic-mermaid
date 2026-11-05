@@ -1,25 +1,15 @@
-import { parseCynefin } from '../cynefin/parser.ts'
+import { parseCynefinBody } from '../cynefin/body.ts'
 import { CYNEFIN_DOMAINS, type CynefinBody, type CynefinMutationOp, type DomainName } from '../cynefin/types.ts'
 import { sameSourceMeaning } from './source-mutation.ts'
 import { nativeAccessibilityText } from './accessibility-envelope.ts'
 import { accessibilityFields } from '../shared/accessibility-directives.ts'
 import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
-import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
 import type { FamilyOperations } from './families.ts'
 import { err, ok, type LayoutWarning, type MutationError, type Result } from './types.ts'
 export { CYNEFIN_OP_SCHEMAS, CYNEFIN_OP_KINDS } from '../cynefin/ops.ts'
 
-export function parseCynefinBody(source: string): CynefinBody {
-  const ast = parseCynefin(source), domains = new Map<DomainName, CynefinBody['domains'][number]>()
-  if (new Set(ast.domains.map(block => block.domain)).size !== ast.domains.length) throw new Error('Cynefin repeated domain declarations would discard earlier items in pinned Mermaid; the authored source is preserved, but rendering is refused')
-  if (ast.transitions.some(transition => transition.from === transition.to)) throw new Error('Cynefin self transitions would discard their labels in pinned Mermaid; the authored source is preserved, but rendering is refused')
-  for (const block of ast.domains) domains.set(block.domain, { name: block.domain, items: block.items.map(item => ({ label: item.label })) })
-  const body: CynefinBody = { kind: 'cynefin', title: ast.title || undefined, accessibilityTitle: ast.accTitle?.trimStart(), accessibilityDescription: ast.accDescr?.replace(/\n\s+/g, '\n'),
-    domains: [...domains.values()], transitions: ast.transitions.map(transition => ({ from: transition.from, to: transition.to, label: transition.label || undefined })) }
-  assertDiagramWorkLimit('nodes', body.domains.reduce((sum, domain) => sum + domain.items.length, 5))
-  assertDiagramWorkLimit('edges', body.transitions.length)
-  return body
-}
+export { parseCynefinBody } from '../cynefin/body.ts'
+
 function domain(value: string): asserts value is DomainName { if (!CYNEFIN_DOMAINS.includes(value as DomainName)) throw new Error(`Unknown Cynefin domain ${value}`) }
 export function renderCynefin(body: CynefinBody): string {
   const lines = ['cynefin-beta']

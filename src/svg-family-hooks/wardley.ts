@@ -1,5 +1,5 @@
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
-import { parseWardleyBody } from '../agent/wardley-body.ts'
+import { parseWardleyBody } from '../wardley/body.ts'
 import { layoutWardley } from '../wardley/layout.ts'
 import { projectWardleyPositioned } from '../wardley/projection.ts'
 import { lowerWardleyScene } from '../wardley/renderer.ts'

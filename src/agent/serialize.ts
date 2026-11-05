@@ -270,7 +270,7 @@ function rebuildFromPayload(payload: ValidDiagramPayload): Result<ValidDiagram, 
     const sg = payload.body.graph
     const graph: import('../types.ts').MermaidGraph = {
       direction: sg.direction,
-      nodes: toMap(sg.nodes),
+      nodes: sg.nodes instanceof Map ? new Map(sg.nodes) : Array.isArray(sg.nodes) ? new Map(sg.nodes) : new Map(Object.entries(sg.nodes ?? {})),
       edges: sg.edges ?? [],
       // Keep shared graph payload normalization identical across graph dialects.
       subgraphs: normalizeSubgraphs(sg.subgraphs),
