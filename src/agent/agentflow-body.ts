@@ -8,7 +8,7 @@ import { renderAgentflow } from '../agentflow/source.ts'
 import type { AgentflowBody, AgentflowMutationOp } from '../agentflow/types.ts'
 
 export function parseAgentflowBody(source: string, opaqueSource = source): Result<AgentflowBody | Extract<DiagramBody, { kind: 'opaque' }>, ParseError[]> {
-  try { return ok(parseAgentflow(source)) }
+  try { const body = parseAgentflow(source); renderAgentflow(body); return ok(body) }
   catch { return ok({ kind: 'opaque', family: 'agentflow', source: opaqueSource }) }
 }
 
@@ -38,12 +38,10 @@ export function mutateAgentflow(body: AgentflowBody, op: AgentflowMutationOp): R
       if (!result.ok) return result
       draft.graph = result.value.graph
       if (op.kind === 'rename_node') {
-        for (const records of [draft.metadata, draft.roles] as const) if (records.has(op.from)) {
-          const value = records.get(op.from)!
-          records.delete(op.from)
-          // These maps have different value types but preserve their own entry.
-          ;(records as Map<string, unknown>).set(op.to, value)
-        }
+        // Renaming keeps authored metadata positions in insertion order.
+        const renameKey = <T>(records: Map<string, T>): Map<string, T> => new Map([...records].map(([id, value]) => [id === op.from ? op.to : id, value]))
+        draft.metadata = renameKey(draft.metadata)
+        draft.roles = renameKey(draft.roles)
         for (const ids of [draft.connectors, draft.globals]) if (ids.delete(op.from)) ids.add(op.to)
         if (body.connectors.has(op.from)) for (const [id, data] of draft.metadata) {
           const ref = data.connectorRef

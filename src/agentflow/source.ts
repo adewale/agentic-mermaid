@@ -4,18 +4,18 @@ import type { AgentflowBody } from './types.ts'
 
 function metadataLines(value: Record<string, unknown>, indent = '  '): string[] {
   const scalar = (item: unknown): string => typeof item === 'string' ? quoteMetadataString(item) : JSON.stringify(item)
-  return Object.entries(value).flatMap(([key, item]) => {
-    const name = /^[A-Za-z_]\w*$/.test(key) ? key : quoteMetadataString(key)
+  const field = (prefix: string, item: unknown, padding: string): string[] => {
     if (item && typeof item === 'object' && !Array.isArray(item)) {
       if (!Object.keys(item).length) throw new Error('An empty nested metadata mapping has no portable AgentFlow spelling')
-      return [`${indent}${name}:`, ...metadataLines(item as Record<string, unknown>, indent + '  ')]
+      return [`${padding}${prefix}`, ...metadataLines(item as Record<string, unknown>, padding + '  ')]
     }
     if (Array.isArray(item)) {
-      if (item.some(child => child && typeof child === 'object')) throw new Error('Nested collection metadata cannot be written portably by the AgentFlow metadata lexer')
-      return [`${indent}${name}: [${item.map(scalar).join(', ')}]`]
+      if (item.some(child => child && typeof child === 'object')) return [`${padding}${prefix}`, ...item.flatMap(child => field('-', child, padding + '  '))]
+      return [`${padding}${prefix} [${item.map(scalar).join(', ')}]`]
     }
-    return [`${indent}${name}: ${scalar(item)}`]
-  })
+    return [`${padding}${prefix} ${scalar(item)}`]
+  }
+  return Object.entries(value).flatMap(([key, item]) => field(`${/^[A-Za-z_]\w*$/.test(key) ? key : quoteMetadataString(key)}:`, item, indent))
 }
 
 export function renderAgentflow(body: AgentflowBody): string {

@@ -96,3 +96,13 @@ test('AgentFlow native SVG and strict terminal preserve visible endpoints and ne
   expect(regions.find(region => region.id === 'guide')?.parentId).toBeUndefined()
   expect(regions.find(region => region.id === 'transfer')).toMatchObject({ from: 'write', to: 'publish' })
 })
+
+test('nested metadata sequences stay native and renaming retains source order', () => {
+  const input = `agentflow-beta\nA[Collect]@{ shape: tool }\nB[Publish]\nA@{\n  context:\n    -\n      name: \"First\"\n      values: [1, 2]\n    - [\"nested\", \"list\"]\n}`
+  const body = parseAgentflow(input)
+  expect(parseAgentflow(renderAgentflow(body)).metadata).toEqual(body.metadata)
+  const edited = mutateAgentflow(body, { kind: 'rename_node', from: 'A', to: 'Collect' })
+  if (!edited.ok) throw new Error(edited.error.message)
+  expect([...edited.value.metadata.keys()]).toEqual(['Collect'])
+  expect(edited.value.metadata.get('Collect')?.context).toEqual([{ name: 'First', values: [1, 2] }, ['nested', 'list']])
+})

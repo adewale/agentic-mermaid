@@ -51,6 +51,7 @@ export function parseAgentflow(source: string): AgentflowBody {
       const map = (id: string, type: AgentflowMapping['type']): void => { mappings.push({ id, type, line: at.line + 1, col: at.col + 1, endLine: end.line + 1, endCol: end.col + 1 }) }
       const scan = scanFlowchart(text)
       const blocks = scan.regions.filter(region => region.kind === 'metadata' && region.parent === -1)
+      let attachment = false
       for (const block of [...blocks].reverse()) {
         if (!block.closed) throw new Error('Unclosed AgentFlow metadata block')
         const prefix = text.slice(0, block.start).trimEnd()
@@ -60,6 +61,7 @@ export function parseAgentflow(source: string): AgentflowBody {
         if (!parsed.ok) throw new Error(`AgentFlow metadata for ${id}: ${parsed.message}`)
         metadata.set(id, { ...metadata.get(id), ...agentflowMetadata(Object.fromEntries(parsed.entries)) })
         if (prefix === id) {
+          attachment = true
           map(id, 'attachment')
           if (!attachmentScopes.has(id)) attachmentScopes.set(id, frames.at(-1)?.id)
         }
@@ -79,7 +81,7 @@ export function parseAgentflow(source: string): AgentflowBody {
       if (/^(?:subgraph|global|flow)\b/i.test(text)) throw new Error('Unsupported AgentFlow container declaration')
       const connector = text.match(/^connector\s+([\p{L}\p{N}_.:-]+)(.*)$/u)
       if (connector) { connectors.add(connector[1]!); globals.add(connector[1]!); map(connector[1]!, 'connector'); text = `${connector[1]}${connector[2]}` }
-      else if (!blocks.length || !mappings.some(mapping => mapping.line === at.line + 1 && mapping.type === 'attachment')) {
+      else if (!attachment) {
         const id = text.match(/^([\p{L}\p{N}_.:-]+)/u)?.[1]
         if (id) {
           const edge = /-->|-\.-|--x/.test(text)
@@ -88,7 +90,7 @@ export function parseAgentflow(source: string): AgentflowBody {
         }
       }
       // An attachment does not redeclare its target or move it into a flow.
-      if (blocks.length && /^[\p{L}\p{N}_.:-]+\s*$/u.test(text) && mappings.at(-1)?.type === 'attachment') continue
+      if (attachment && /^[\p{L}\p{N}_.:-]+\s*$/u.test(text)) continue
       grammar.push(text)
     }
   }
@@ -100,7 +102,8 @@ export function parseAgentflow(source: string): AgentflowBody {
   const allGroups = new Map<string, MermaidSubgraph>()
   const collect = (group: MermaidSubgraph): void => { allGroups.set(group.id, group); group.children.forEach(collect) }
   graph.subgraphs.forEach(collect)
-  for (const [id] of metadata) if (!graph.nodes.has(id) && !allGroups.has(id) && !graph.edges.some(edge => edge.id === id)) {
+  const edgeIds = new Set(graph.edges.flatMap(edge => edge.id ? [edge.id] : []))
+  for (const [id] of metadata) if (!graph.nodes.has(id) && !allGroups.has(id) && !edgeIds.has(id)) {
     graph.nodes.set(id, { id, label: id, shape: 'rectangle' })
     const scope = attachmentScopes.get(id)
     if (scope) allGroups.get(scope)?.nodeIds.push(id)
