@@ -9,33 +9,8 @@ import { shapeCardinalPorts } from '../shape-outline.ts'
 import { createSparseVisibilityGraph } from '../layout/compound-sparse-visibility.ts'
 import { simplifyOrthogonal, type Terminal } from '../layout/compound-visibility.ts'
 import type { MermaidGraph, MermaidSubgraph, Point, PositionedGraph, PositionedGroup, PositionedNode } from '../types.ts'
-
-export interface SwimlanePartition { id: string; label: string; source?: MermaidSubgraph; nodes: Set<string> }
-
-/** Semantic ownership is shared by output adapters; geometry stays with each
- * adapter. The implicit lane never steals an authored identifier. */
-export function swimlanePartitions(graph: MermaidGraph): SwimlanePartition[] {
-  const assigned = new Set<string>()
-  const descendants = (group: MermaidSubgraph, ids: Set<string>): void => {
-    for (const id of group.nodeIds) if (graph.nodes.has(id)) { ids.add(id); assigned.add(id) }
-    group.children.forEach(child => descendants(child, ids))
-  }
-  const lanes: SwimlanePartition[] = graph.subgraphs.map(source => {
-    const nodes = new Set<string>()
-    descendants(source, nodes)
-    return { id: source.id, label: source.label, source, nodes }
-  })
-  const groupIds = new Set<string>()
-  const visit = (group: MermaidSubgraph): void => { groupIds.add(group.id); group.children.forEach(visit) }
-  graph.subgraphs.forEach(visit)
-  const loose = new Set([...graph.nodes.keys()].filter(id => !assigned.has(id) && !groupIds.has(id)))
-  if (loose.size) {
-    let id = '__swimlane_default__'
-    while (graph.nodes.has(id) || groupIds.has(id)) id += '_'
-    lanes.push({ id, label: '', source: undefined, nodes: loose })
-  }
-  return lanes
-}
+import { swimlanePartitions } from './model.ts'
+export { swimlanePartitions } from './model.ts'
 
 /** Ordinary Flowchart prepares and measures each lane's compound contents.
  * Swimlane owns band placement and cross-lane routes; generic graph routing
