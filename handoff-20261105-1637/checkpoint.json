@@ -1,0 +1,10 @@
+{
+  "source_head": "741b80dba91c0e1f4feba9a62695f7820bc79a23",
+  "runtime_head": "69af97a12aefe1140095064312a7f32b3f5e5714",
+  "ci_run": 42064078938,
+  "ci_status": "in progress; confirmed CLI/rounded-header/shard2 pass, Sparse32/quality/payload fail; remaining lanes pending at snapshot",
+  "files": 9,
+  "raw_bytes": 1321743,
+  "archive_bytes": 263616,
+  "every_member_byte_verified": true
+}
