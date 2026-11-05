@@ -129,34 +129,28 @@ function possibleShapeStroke(piece: Geometry, paint: MarkPaint): boolean {
  */
 /** Common outline geometry is scalar. Compare those fields directly rather
  * than serializing the owner, geometry and transform twice for every surface. */
-function outlineGeometrySnapshot(geometry: Geometry): Geometry | string {
+type OutlineValues = readonly (number | string | undefined)[]
+function outlineGeometrySnapshot(geometry: Geometry): OutlineValues {
   switch (geometry.kind) {
-    case 'rect': return { kind: 'rect', x: geometry.x, y: geometry.y, width: geometry.width, height: geometry.height, rx: geometry.rx, ry: geometry.ry }
-    case 'circle': return { kind: 'circle', cx: geometry.cx, cy: geometry.cy, r: geometry.r }
-    case 'ellipse': return { kind: 'ellipse', cx: geometry.cx, cy: geometry.cy, rx: geometry.rx, ry: geometry.ry }
-    case 'line': return { kind: 'line', x1: geometry.x1, y1: geometry.y1, x2: geometry.x2, y2: geometry.y2 }
-    case 'path': return { kind: 'path', d: geometry.d }
-    default: return JSON.stringify(geometry)
+    case 'rect': return ['rect', geometry.x, geometry.y, geometry.width, geometry.height, geometry.rx, geometry.ry]
+    case 'circle': return ['circle', geometry.cx, geometry.cy, geometry.r]
+    case 'ellipse': return ['ellipse', geometry.cx, geometry.cy, geometry.rx, geometry.ry]
+    case 'line': return ['line', geometry.x1, geometry.y1, geometry.x2, geometry.y2]
+    case 'path': return ['path', geometry.d]
+    default: return [geometry.kind, JSON.stringify(geometry)]
   }
 }
 
-function sameOutlineGeometry(a: Geometry, b: Geometry | string): boolean {
-  if (typeof b === 'string') return JSON.stringify(a) === b
-  if (a.kind !== b.kind) return false
-  switch (a.kind) {
-    case 'rect': return b.kind === 'rect' && a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height && a.rx === b.rx && a.ry === b.ry
-    case 'circle': return b.kind === 'circle' && a.cx === b.cx && a.cy === b.cy && a.r === b.r
-    case 'ellipse': return b.kind === 'ellipse' && a.cx === b.cx && a.cy === b.cy && a.rx === b.rx && a.ry === b.ry
-    case 'line': return b.kind === 'line' && a.x1 === b.x1 && a.y1 === b.y1 && a.x2 === b.x2 && a.y2 === b.y2
-    case 'path': return b.kind === 'path' && a.d === b.d
-    default: return false
-  }
+function sameOutlineValues(a: readonly unknown[], b: readonly unknown[]): boolean {
+  if (a.length !== b.length) return false
+  for (let index = 0; index < a.length; index++) if (a[index] !== b[index]) return false
+  return true
 }
 
 function outlineWidths() {
   const heads = new Map<string, number>(), lookups: Array<Map<string, number> | undefined> = []
-  const roles: string[] = [], geometries: Array<Geometry | string> = [], matrices: Array<readonly number[]> = [], widths: number[] = [], next: number[] = [], counts: number[] = []
-  const key = (role: string, geometry: Geometry | string, matrix: readonly number[]) => JSON.stringify([role, geometry, matrix])
+  const roles: string[] = [], geometries: OutlineValues[] = [], matrices: Array<readonly number[]> = [], widths: number[] = [], next: number[] = [], counts: number[] = []
+  const key = (role: string, geometry: OutlineValues, matrix: readonly number[]) => JSON.stringify([role, geometry, matrix])
   return {
     set(primitive: ScenePaintPrimitive, geometry: Geometry, width: number): void {
       const { id, role } = primitive.owner, matrix = scenePrimitiveMatrix(primitive)!, captured = outlineGeometrySnapshot(geometry)
@@ -179,13 +173,13 @@ function outlineWidths() {
       heads.set(id, index)
     },
     get(primitive: ScenePaintPrimitive, geometry: Geometry): number | undefined {
-      const { id, role } = primitive.owner, matrix = scenePrimitiveMatrix(primitive)!
+      const { id, role } = primitive.owner, matrix = scenePrimitiveMatrix(primitive)!, captured = outlineGeometrySnapshot(geometry)
       const head = heads.get(id), lookup = head === undefined ? undefined : lookups[head]
-      if (lookup) return lookup.get(key(role, outlineGeometrySnapshot(geometry), matrix))
+      if (lookup) return lookup.get(key(role, captured, matrix))
       for (let index = head ?? -1; index !== -1; index = next[index]!) {
         if (roles[index] !== role) continue
         const other = matrices[index]!
-        if (matrix[0] === other[0] && matrix[1] === other[1] && matrix[2] === other[2] && matrix[3] === other[3] && matrix[4] === other[4] && matrix[5] === other[5] && sameOutlineGeometry(geometry, geometries[index]!)) return widths[index]
+        if (sameOutlineValues(matrix, other) && sameOutlineValues(captured, geometries[index]!)) return widths[index]
       }
       return undefined
     },
