@@ -127,6 +127,15 @@ const descriptorData = Object.freeze({
       "evidence": [
         "src/__tests__/section-a-family-descriptor-conformance.test.ts"
       ]
+    },
+    {
+      "role": "icon",
+      "primitive": "shape",
+      "applicability": "applicable",
+      "realization": "native",
+      "evidence": [
+        "src/__tests__/section-a-family-descriptor-conformance.test.ts"
+      ]
     }
   ],
   "example": "treeView-beta\n  \"src/\"\n    \"index.ts\"\n    \"parser.ts\""

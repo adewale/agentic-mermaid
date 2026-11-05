@@ -20,13 +20,12 @@ export function lowerRailroadDrawing<T>(marks: DrawingFactory<T>, { positioned: 
     children.push(marks.text({ id: `label:${rule.id}`, role: 'label', owner: { id: rule.id, role: 'group' }, text: rule.name.text, block: rule.name,
       x: rule.x, y: rule.y + rule.name.height / 2, fontSize: rule.name.fontSize, fontWeight: rule.name.fontWeight, anchor: 'start', paint: { fill: style.groupTextColor ?? 'var(--_text)' } }))
     // These are one production's decorative rails, not authored graph edges.
-    // Explicit subpaths preserve every branch and prohibit joining separate
-    // tracks while avoiding a full relation record for each two-point stub.
+    // Independent path moves preserve every branch. The enclosing production
+    // owns this artwork; no graph relation, hit route or endpoint is invented.
     const tracks = tracksByRule.get(rule.id) ?? []
-    if (tracks.length) children.push(marks.connector({ id: `rails:${rule.id}`, role: 'edge', owner: { id: rule.id, role: 'group' },
-      geometry: { kind: 'path', d: tracks.map(track => track.points.map((point, index) => `${index ? 'L' : 'M'}${formatSvgNumber(point.x)} ${formatSvgNumber(point.y)}`).join(' ')).join(' '),
-        points: tracks.flatMap(track => track.points), subpaths: tracks.map(track => ({ points: track.points, closed: false })) },
-      lineStyle: 'solid', paint: { stroke: style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(style.lineWidth) } }))
+    if (tracks.length) children.push(marks.shape({ id: `rails:${rule.id}`, role: 'group', identity: false, owner: { id: rule.id, role: 'group' },
+      geometry: { kind: 'path', d: tracks.map(track => track.points.map((point, index) => `${index ? 'L' : 'M'}${formatSvgNumber(point.x)} ${formatSvgNumber(point.y)}`).join(' ')).join(' ') },
+      paint: { fill: 'none', stroke: style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(style.lineWidth) } }))
     for (const label of labelsByRule.get(rule.id) ?? []) {
       if (label.kind !== 'annotation') children.push(marks.shape({ id: label.id, role: 'node', owner: { id: rule.id, role: 'group' },
         geometry: { kind: 'rect', x: label.x, y: label.y, width: label.width, height: label.height, rx: label.kind === 'terminal' ? label.height / 2 : style.cornerRadius ?? 3 },

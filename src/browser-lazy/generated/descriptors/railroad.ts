@@ -90,8 +90,7 @@ const descriptorData = Object.freeze({
     "title",
     "group",
     "node",
-    "label",
-    "edge"
+    "label"
   ],
   "scenePrimitiveEvidence": [
     {
@@ -123,6 +122,15 @@ const descriptorData = Object.freeze({
     },
     {
       "role": "group",
+      "primitive": "shape",
+      "applicability": "applicable",
+      "realization": "native",
+      "evidence": [
+        "src/__tests__/section-a-family-descriptor-conformance.test.ts"
+      ]
+    },
+    {
+      "role": "group",
       "primitive": "container",
       "applicability": "applicable",
       "realization": "native",
@@ -142,15 +150,6 @@ const descriptorData = Object.freeze({
     {
       "role": "label",
       "primitive": "text",
-      "applicability": "applicable",
-      "realization": "native",
-      "evidence": [
-        "src/__tests__/section-a-family-descriptor-conformance.test.ts"
-      ]
-    },
-    {
-      "role": "edge",
-      "primitive": "connector",
       "applicability": "applicable",
       "realization": "native",
       "evidence": [

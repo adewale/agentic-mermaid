@@ -9,6 +9,8 @@ import { terminalDocumentOf } from '../ascii/terminal-document.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { lowerRailroadScene } from '../railroad/renderer.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
+import { visitTypedPathSegments } from '../scene/bounds.ts'
+import type { Point } from '../types.ts'
 
 const grammars = [
   ['constructors', 'railroad-beta\nentry = sequence(terminal("start"), choice(nonterminal("item"), optional(terminal("end"))), zeroOrMore(terminal(",")));'],
@@ -55,16 +57,22 @@ test.each(grammars)('Railroad %s batches rails without losing contours or joinin
   const scene = lowerRailroadScene({ positioned: chart, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } })
   for (const part of scene.parts) {
     if (part.kind !== 'group') continue
-    const rails = part.children.map(child => child.node).filter(node => node.kind === 'connector')
+    const rails = part.children.map(child => child.node).filter(node => node.id.startsWith('rails:'))
     expect(rails).toHaveLength(1)
     const rail = rails[0]!
-    if (rail.kind !== 'connector' || rail.route.geometry.kind !== 'path') throw new Error('Expected batched rail path')
+    if (rail.kind !== 'shape' || rail.geometry.kind !== 'path') throw new Error('Expected owned rail artwork')
     const tracks = chart.tracks.filter(track => track.ruleId === part.id)
-    expect(rail.route.geometry.subpaths).toEqual(tracks.map(track => ({ points: track.points, closed: false })))
-    expect(rail.route.geometry.points).toEqual(tracks.flatMap(track => track.points))
-    expect(rail.route.geometry.d.match(/M/g)).toHaveLength(tracks.length)
-    expect(rail.endpoints.from).toBeUndefined()
-    expect(rail.endpoints.to).toBeUndefined()
+    const segments: Array<readonly [Point, Point]> = []
+    expect(visitTypedPathSegments(rail.geometry.d, segment => { if (segment.line) segments.push(segment.line); return true })).toBe(true)
+    const expected = tracks.flatMap(track => track.points.slice(1).map((point, index) => [track.points[index]!, point] as const))
+    expect(segments).toHaveLength(expected.length)
+    for (let index = 0; index < expected.length; index++) for (const endpoint of [0, 1] as const) {
+      expect(segments[index]![endpoint].x).toBeCloseTo(expected[index]![endpoint].x, 3)
+      expect(segments[index]![endpoint].y).toBeCloseTo(expected[index]![endpoint].y, 3)
+    }
+    expect(rail.geometry.d.match(/M/g)).toHaveLength(tracks.length)
+    expect(rail.owner).toEqual({ id: part.id, role: 'group' })
+    expect(rail.identity).toBeUndefined()
   }
 })
 
@@ -81,7 +89,7 @@ test('Railroad structural edits reject cycles, malformed input is preserved, and
 
 test.each(grammars)('Railroad %s renders real SVG rails and explicitly diagnosed complete terminal grammar', (_name, source) => {
   const svg = renderMermaidSVG(source)
-  expect(svg).toContain('data-id="rails:rule#0:entry"')
+  expect(svg).toContain('data-id="rule#0:entry"')
   expect(svg).toContain('<path')
   const terminal = renderMermaidASCIIWithReceipt(source, { colorMode: 'none', layoutSafety: 'strict' })
   expect(terminal.receipt.layoutCertification?.status).toBe('passed')

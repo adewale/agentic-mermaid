@@ -1022,7 +1022,7 @@ test.each([
   expect(textAt(source, spans.groups.get('rule#1:entry'))).toBe(second)
   expect(spans.groups.get('rule#0:entry')!.start.offset).toBe(source.indexOf('entry'))
   expect(spans.groups.get('rule#1:entry')!.start.offset).toBe(source.lastIndexOf('entry'))
-  expect(textAt(source, spans.edges.get('rails:rule#1:entry'))).toBe(second)
+  expect(textAt(source, spans.groups.get('rails:rule#1:entry'))).toBe(second)
   const leafIds = chart.labels.filter(label => label.kind !== 'annotation').map(label => label.id)
   expect([...map.nodes.keys()]).toEqual(leafIds)
   for (const id of leafIds) expect(textAt(source, spans.nodes.get(id))).toBe(id.startsWith('rule#0:') ? split : second)
