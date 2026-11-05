@@ -4,6 +4,7 @@ import { diagramTitleFields, resolveRenderStyle } from '../styles.ts'
 import { serializeMarkerResources, tipAnchoredArrow } from '../scene/marker-resources.ts'
 import type { RenderContext } from '../types.ts'
 import type { PositionedWardley, WardleyPlacedText } from './types.ts'
+import { wardleyNodeGeometry } from './layout.ts'
 
 export function lowerWardleyDrawing<T>(marks: DrawingFactory<T>, { positioned: chart, colors, resolved }: RenderContext<PositionedWardley>): DrawingDocument<T> {
   const style = resolveRenderStyle(resolved.renderOptions, undefined, resolved.styleFace), parts: T[] = []
@@ -31,9 +32,10 @@ export function lowerWardleyDrawing<T>(marks: DrawingFactory<T>, { positioned: c
   }
   for (const item of chart.nodes) {
     const owner = { id: item.id, role: 'node' as const }
+    const geometry = wardleyNodeGeometry(item)
     const children: T[] = []
-    children.push(marks.shape({ id: `${item.id}:mark`, identity: false, owner, role: 'node', geometry: item.node.isPipelineParent ? { kind: 'rect', x: item.x - 6, y: item.y - 6, width: 12, height: 12 } : { kind: 'circle', cx: item.x, cy: item.y, r: item.node.className === 'anchor' ? 7 : 5 }, paint: { fill: item.node.className === 'anchor' ? stroke : fill, stroke: nodeStroke, strokeWidth: String(style.nodeLineWidth) }, attributes: { data: { evolution: String(item.node.x), visibility: String(item.node.y), ...(item.node.sourceStrategy ? { strategy: item.node.sourceStrategy } : {}) } } }))
-    if (item.node.inertia) children.push(marks.shape({ id: `${item.id}:inertia`, identity: false, role: 'node', owner, geometry: { kind: 'circle', cx: item.x, cy: item.y, r: 9 }, paint: { fill: 'none', stroke: nodeStroke, strokeWidth: String(style.nodeLineWidth) } }))
+    children.push(marks.shape({ id: `${item.id}:mark`, identity: false, owner, role: 'node', geometry: geometry.mark, paint: { fill: item.node.className === 'anchor' ? stroke : fill, stroke: nodeStroke, strokeWidth: String(style.nodeLineWidth) }, attributes: { data: { evolution: String(item.node.x), visibility: String(item.node.y), ...(item.node.sourceStrategy ? { strategy: item.node.sourceStrategy } : {}) } } }))
+    if (geometry.inertia) children.push(marks.shape({ id: `${item.id}:inertia`, identity: false, role: 'node', owner, geometry: geometry.inertia, paint: { fill: 'none', stroke: nodeStroke, strokeWidth: String(style.nodeLineWidth) } }))
     if (item.leader) children.push(marks.shape({ id: `${item.id}:leader`, identity: false, role: 'node', owner, geometry: { kind: 'polyline', points: item.leader }, paint: { fill: 'none', stroke, strokeWidth: '1', opacity: '0.55' } }))
     children.push(text(item.label!, owner))
     parts.push(marks.group({ id: item.id, role: 'node', open: '<g>', close: '</g>', children: children.map(node => ({ node, indent: 2 })) }))

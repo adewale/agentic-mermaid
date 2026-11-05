@@ -4,6 +4,9 @@ import { parseWardleyBody, renderWardley, mutateWardley } from '../agent/wardley
 import { layoutWardley } from '../wardley/layout.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
+import { renderMermaidPNG } from '../agent/png.ts'
+import { decodePng } from './helpers/png-pixels.ts'
+import { resolveStyleStackWithFace } from '../scene/style-registry.ts'
 import type { RenderOptions } from '../types.ts'
 
 const source = `wardley-beta
@@ -141,10 +144,65 @@ test('Wardley paints arrow ink in the declared dependency direction', () => {
         const rotation = position === 'start' && marker.orient === 'auto-start-reverse' ? -1 : 1
         expect(['auto', 'auto-start-reverse']).toContain(marker.orient!)
         expect((values[2]! - values[0]!) * rotation * (position === 'start' ? -1 : 1), `${flow}/${a}/${position}: actual tip direction`).toBeGreaterThan(0)
-        expect([Number(marker.refX), Number(marker.refY)]).toEqual([values[2], values[3]])
+        expect([Number(marker.refX), Number(marker.refY)]).toEqual([values[2]!, values[3]!])
       }
     }
   }
+})
+
+test('Wardley arrowheads remain visible at each declared node surface', () => {
+  for (const [declaration, radius, pipeline] of [['anchor', 7, false], ['component', 5, false], ['component', 9, false], ['component', 6, true], ['component', 9, true]] as const) {
+    for (const style of ['accessible-high-contrast', 'crisp', { colors: { bg: '#ffffff', fg: '#000000' }, roles: { node: { lineWidth: 4 } } }] as const) {
+      const prefix = `wardley-beta\n${declaration} A [0.5,0.25]${radius === 9 ? ' inertia' : ''}\n${declaration} B [0.5,0.75]${radius === 9 ? ' inertia' : ''}\n${pipeline ? 'pipeline A {\ncomponent A1 [0.1]\n}\npipeline B {\ncomponent B1 [0.9]\n}\n' : ''}`
+      const options = { style, embedFontImport: false }
+      const plain = decodePng(renderMermaidPNG(`${prefix}A -> B`, { ...options, scale: 1 }))
+      const plainSvg = renderMermaidSVG(`${prefix}A -> B`, options)
+      const tags = scanSvgStartTags(plainSvg).map(tag => ({ name: tag.name, attrs: Object.fromEntries(tag.attributes.map(attribute => [attribute.name, attribute.value])) }))
+      const marks = ['25', '75'].map(value => tags.find(tag => tag.attrs['data-evolution'] === value)!)
+      const centers = marks.map(mark => mark.name === 'rect' ? { x: Number(mark.attrs.x) + Number(mark.attrs.width) / 2, y: Number(mark.attrs.y) + Number(mark.attrs.height) / 2 } : { x: Number(mark.attrs.cx), y: Number(mark.attrs.cy) })
+      const strokeHalf = Number(marks[0]!.attrs['stroke-width']) / 2
+      const route = tags.find(tag => tag.attrs['data-id'] === 'dependency:0')!.attrs.points!.replaceAll(',', ' ').trim().split(/\s+/).map(Number)
+      for (const [flow, heads] of [['+>', [false, true]], ['+<', [true, false]], ['+<>', [true, true]]] as const) {
+        const directed = decodePng(renderMermaidPNG(`${prefix}A ${flow} -> B`, { ...options, scale: 1 }))
+        expect([directed.width, directed.height]).toEqual([plain.width, plain.height])
+        for (const [index, center] of centers.entries()) {
+          let changed = 0
+          for (let y = Math.floor(center.y - 12); y <= Math.ceil(center.y + 12); y++) for (let x = Math.floor(center.x - 20); x <= Math.ceil(center.x + 20); x++) {
+            const offset = (y * plain.width + x) * 4
+            if ([0, 1, 2, 3].some(channel => plain.rgba[offset + channel] !== directed.rgba[offset + channel])) changed++
+          }
+          if (heads[index]) expect(changed, `${declaration}/${radius}/${String(style)}/${flow}/${index}: visible arrow ink`).toBeGreaterThan(4)
+          else expect(changed, `${declaration}/${radius}/${String(style)}/${flow}/${index}: no arrow ink`).toBe(0)
+        }
+      }
+      expect(route[0]! - centers[0]!.x).toBeCloseTo(radius + strokeHalf, 2)
+      expect(centers[1]!.x - route[2]!).toBeCloseTo(radius + strokeHalf, 2)
+    }
+  }
+})
+
+test('Wardley diagonal and vertical contacts follow painted surfaces without moving authored targets', () => {
+  for (const decoration of ['anchor', 'component', 'inertia', 'pipeline'] as const) for (const [ax, ay, bx, by] of [[0.2, 0.2, 0.8, 0.8], [0.8, 0.8, 0.2, 0.2], [0.5, 0.2, 0.5, 0.8], [0.5, 0.8, 0.5, 0.2]] as const) {
+    const body = parseWardleyBody(`wardley-beta\n${decoration === 'anchor' ? 'anchor' : 'component'} A [${ay},${ax}]${decoration === 'inertia' ? ' inertia' : ''}\ncomponent B [${by},${bx}]\n${decoration === 'pipeline' ? 'pipeline A {\ncomponent Child [0.1]\n}\n' : ''}A +<> -> B\nevolve A 0.95`)
+    const chart = layoutWardley(body, {}, { node: { lineWidth: 4 } }), a = chart.nodes[0]!, b = chart.nodes[1]!
+    for (const node of [a, b]) {
+      expect(node.x).toBeCloseTo(chart.plot.x + node.node.x! / 100 * chart.plot.width)
+      expect(node.y).toBeCloseTo(chart.plot.y + (1 - node.node.y! / 100) * chart.plot.height)
+    }
+    const first = chart.edges[0]!.points[0]!, last = chart.edges[0]!.points[1]!, dx = b.x - a.x, dy = b.y - a.y
+    // Independent ray/circle and ray/square distances include the outer half
+    // stroke. Both contacts must remain on the authored center-to-center ray.
+    const distance = decoration === 'pipeline' ? 8 * Math.hypot(dx, dy) / Math.max(Math.abs(dx), Math.abs(dy)) : decoration === 'inertia' ? 11 : decoration === 'anchor' ? 9 : 7
+    expect(Math.hypot(first.x - a.x, first.y - a.y)).toBeCloseTo(distance)
+    expect(Math.hypot(last.x - b.x, last.y - b.y)).toBeCloseTo(7)
+    expect((first.x - a.x) * dy - (first.y - a.y) * dx).toBeCloseTo(0)
+    expect((last.x - b.x) * dy - (last.y - b.y) * dx).toBeCloseTo(0)
+    const target = chart.edges[1]!.points[1]!
+    expect(target.x).toBeCloseTo(chart.plot.x + chart.plot.width * 0.95)
+    expect(target.y).toBeCloseTo(a.y)
+  }
+  const coincident = layoutWardley(parseWardleyBody('wardley-beta\ncomponent A [0.5,0.5]\ncomponent B [0.5,0.5]\nA +<> -> B\nevolve A 0.5'))
+  expect(coincident.edges.flatMap(edge => edge.points).every(point => Number.isFinite(point.x) && Number.isFinite(point.y))).toBe(true)
 })
 
 test('Wardley keeps clustered overflow captions clear of occupied legends and notes', () => {
@@ -154,13 +212,13 @@ test('Wardley keeps clustered overflow captions clear of occupied legends and no
     { source: clustered(30, 'annotation 1, [0.2,0.2] "First occupied legend"\nannotation 2, [0.1,0.1] "Second occupied legend"\nnote "An authored note" [0.45,0.25]').replace('" [0.5,0.5]', '" [0.5,0.5] label [-40,-20]'), options: { style: { roles: { node: { fontSize: 26, fontWeight: 700 } } } } },
   ]
   for (const { source, options } of cases) {
-    const body = parseWardleyBody(source), original = JSON.stringify(body), chart = layoutWardley(body, options)
+    const body = parseWardleyBody(source), original = JSON.stringify(body), chart = layoutWardley(body, options, resolveStyleStackWithFace(options.style).face)
     for (const node of chart.nodes) {
       expect(node.x).toBeCloseTo(chart.plot.x + node.node.x! / 100 * chart.plot.width)
       expect(node.y).toBeCloseTo(chart.plot.y + (1 - node.node.y! / 100) * chart.plot.height)
       if (node.node.labelOffsetX !== undefined) {
         expect(node.label!.x - node.x).toBe(node.node.labelOffsetX)
-        expect(node.label!.y - node.y).toBe(node.node.labelOffsetY)
+        expect(node.label!.y - node.y).toBe(node.node.labelOffsetY ?? -14)
         continue
       }
       for (const other of [...chart.labels, ...chart.nodes.filter(other => other !== node).map(other => other.label!)]) {

@@ -1,8 +1,44 @@
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { diagramTitleBand, positionDiagramTitle, resolveRenderStyle } from '../styles.ts'
-import type { RenderOptions } from '../types.ts'
+import type { Point, RenderOptions } from '../types.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
-import type { WardleyBody, PositionedWardley, WardleyPlacedText } from './types.ts'
+import type { Geometry } from '../scene/ir.ts'
+import { pointOnRoutingBoundary } from '../shape-outline.ts'
+import type { WardleyBody, PositionedWardley, WardleyPlacedText, WardleyPlacedNode } from './types.ts'
+
+type NodeMark = Extract<Geometry, { kind: 'circle' | 'rect' }>
+
+/** The painted marks also own dependency contact; authored centers stay exact. */
+export function wardleyNodeGeometry(item: WardleyPlacedNode): { mark: NodeMark; inertia?: Extract<NodeMark, { kind: 'circle' }> } {
+  return {
+    mark: item.node.isPipelineParent ? { kind: 'rect', x: item.x - 6, y: item.y - 6, width: 12, height: 12 } : { kind: 'circle', cx: item.x, cy: item.y, r: item.node.className === 'anchor' ? 7 : 5 },
+    ...(item.node.inertia ? { inertia: { kind: 'circle' as const, cx: item.x, cy: item.y, r: 9 } } : {}),
+  }
+}
+
+function nodeContact(item: WardleyPlacedNode, toward: Point, strokeWidth: number): Point {
+  const dx = toward.x - item.x, dy = toward.y - item.y, length = Math.hypot(dx, dy)
+  if (!length) return { x: item.x, y: item.y }
+  const geometry = wardleyNodeGeometry(item), halfStroke = Math.max(0, strokeWidth) / 2
+  let contact: Point = { x: item.x, y: item.y }, distance = 0
+  for (const mark of geometry.inertia ? [geometry.mark, geometry.inertia] : [geometry.mark]) {
+    let point: Point | null
+    if (mark.kind === 'circle') {
+      const radius = mark.r + halfStroke
+      point = pointOnRoutingBoundary({ kind: 'ellipse', cx: mark.cx, cy: mark.cy, rx: radius, ry: radius }, dx >= 0 ? 'E' : 'W', item.y + dy / length * radius)
+    } else {
+      const halfWidth = mark.width / 2 + halfStroke, halfHeight = mark.height / 2 + halfStroke
+      const horizontal = Math.abs(dx) / halfWidth >= Math.abs(dy) / halfHeight
+      const scale = horizontal ? halfWidth / Math.abs(dx) : halfHeight / Math.abs(dy)
+      point = pointOnRoutingBoundary({ kind: 'rect', x: mark.x - halfStroke, y: mark.y - halfStroke, width: mark.width + 2 * halfStroke, height: mark.height + 2 * halfStroke }, horizontal ? dx >= 0 ? 'E' : 'W' : dy >= 0 ? 'S' : 'N', horizontal ? item.y + dy * scale : item.x + dx * scale)
+    }
+    if (point) {
+      const candidate = Math.hypot(point.x - item.x, point.y - item.y)
+      if (candidate > distance) { contact = point; distance = candidate }
+    }
+  }
+  return contact
+}
 
 /** Wardley positions encode visibility and evolution; measuring labels never
  * changes their coordinate domain or their dependency endpoints. */
@@ -38,13 +74,14 @@ export function layoutWardley(body: WardleyBody, options: Readonly<RenderOptions
   const edges: PositionedWardley['edges'] = body.links.map((link, index) => {
     const from = byId.get(link.source), to = byId.get(link.target)
     if (!from || !to) throw new Error('Wardley dependency has no positioned endpoint')
-    return { id: `dependency:${index}`, from: link.source, to: link.target, points: [{ x: from.x, y: from.y }, { x: to.x, y: to.y }], flow: link.flow, dashed: link.dashed,
+    return { id: `dependency:${index}`, from: link.source, to: link.target, points: [nodeContact(from, to, style.nodeLineWidth), nodeContact(to, from, style.nodeLineWidth)], flow: link.flow, dashed: link.dashed,
       ...(link.label !== undefined ? { label: label(`dependency-label:${index}`, link.label, (from.x + to.x) / 2, (from.y + to.y) / 2, 'edge') } : {}) }
   })
   for (const [index, trend] of body.trends.entries()) {
     const from = byId.get(trend.nodeId)
     if (!from) throw new Error('Wardley evolution has no positioned component')
-    edges.push({ id: `evolve:${index}`, from: trend.nodeId, to: trend.nodeId, points: [{ x: from.x, y: from.y }, { x: x(trend.targetX), y: y(trend.targetY) }], dashed: true, flow: 'forward', trend: true })
+    const target = { x: x(trend.targetX), y: y(trend.targetY) }
+    edges.push({ id: `evolve:${index}`, from: trend.nodeId, to: trend.nodeId, points: [nodeContact(from, target, style.nodeLineWidth), target], dashed: true, flow: 'forward', trend: true })
   }
   const pipelines = body.pipelines.map(pipeline => {
     const members = pipeline.componentIds.map(id => byId.get(id)!)
