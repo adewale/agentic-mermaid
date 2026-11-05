@@ -41,6 +41,35 @@ export const MUTATION_OPS_BY_FAMILY = {
     "set_node_class",
     "set_node_style"
   ],
+  "swimlane": [
+    "add_node",
+    "remove_node",
+    "rename_node",
+    "set_label",
+    "add_edge",
+    "remove_edge",
+    "set_shape",
+    "set_direction",
+    "add_subgraph",
+    "remove_subgraph",
+    "move_node",
+    "define_class",
+    "set_node_class",
+    "set_node_style"
+  ],
+  "treeview": [
+    "add_node",
+    "remove_node",
+    "set_label",
+    "set_description",
+    "set_icon",
+    "set_class",
+    "set_node_type",
+    "move_node",
+    "set_title",
+    "set_accessibility_title",
+    "set_accessibility_description"
+  ],
   "state": [
     "add_region",
     "remove_region",

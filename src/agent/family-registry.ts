@@ -475,6 +475,41 @@ const SEQUENCE_SCENE_ROLES = [
 
 const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
   {
+    id: 'swimlane', upstreamId: 'swimlane', maturity: 'beta', label: 'Swimlane',
+    headers: ['swimlane-beta'], aliases: ['swimlane'], narrower: 'asSwimlane',
+    editorDiagramType: 'Swimlane', editorLabel: 'Swimlane workflow',
+    editorDescription: 'Responsibility lanes with source-ordered tasks and directed connections.',
+    editorExampleId: 'swimlane-workflow', editorGlyph: 'SL',
+    config: { section: 'swimlane', keys: [], noopKeys: [] },
+    semanticChannels: [], detect: familyDetection.detectsSwimlaneFamily,
+    sceneRoles: [
+      nativeSceneRole('prelude', 'document'), nativeSceneRole('title', 'text'),
+      nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'),
+      nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'),
+      nativeSceneRole('edge', 'connector'), nativeSceneRole('edge-label', 'container'),
+      nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text'),
+      nativeSceneRole('icon', 'container', 'shape', 'text'),
+    ],
+    example: 'swimlane-beta LR\n  subgraph customer[Customer]\n    request[Place order]\n  end\n  subgraph team[Team]\n    fulfill[Fulfil order]\n  end\n  request --> fulfill',
+    editorExample: 'swimlane-beta LR\n  subgraph customer[Customer]\n    request[Place order]\n    receive[Receive order]\n  end\n  subgraph team[Team]\n    check{In stock?}\n    fulfill[Fulfil order]\n  end\n  request --> check\n  check -->|Yes| fulfill\n  fulfill --> receive',
+  },
+  {
+    id: 'treeview', upstreamId: 'treeView', maturity: 'beta', label: 'TreeView',
+    headers: ['treeView-beta'], narrower: 'asTreeview',
+    editorDiagramType: 'TreeView', editorLabel: 'File tree',
+    editorDescription: 'Ordered folders and files with descriptions and hierarchy guides.',
+    editorExampleId: 'treeview-project', editorGlyph: 'TV',
+    config: { section: 'treeView', keys: ['rowIndent', 'paddingY', 'showIcons'], noopKeys: [] },
+    semanticChannels: [], detect: familyDetection.detectsTreeviewFamily,
+    sceneRoles: [
+      nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document', 'shape'),
+      nativeSceneRole('title', 'text'), nativeSceneRole('node', 'container', 'shape'),
+      nativeSceneRole('label', 'text'), nativeSceneRole('edge', 'connector'), nativeSceneRole('icon', 'text'),
+    ],
+    example: 'treeView-beta\n  "src/"\n    "index.ts"\n    "parser.ts"',
+    editorExample: 'treeView-beta\n  "project/"\n    "src/"\n      "index.ts"\n      "parser.ts"\n    "tests/"\n      "parser.test.ts"\n    "README.md"',
+  },
+  {
     id: 'flowchart',
     upstreamId: 'flowchart-v2',
     maturity: 'stable',
@@ -491,7 +526,6 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
       keys: ['nodeSpacing', 'rankSpacing', 'wrappingWidth', 'titleTopMargin', 'subGraphTitleMargin', 'arrowMarkerAbsolute', 'diagramPadding', 'htmlLabels', 'curve', 'padding', 'defaultRenderer', 'inheritDir', 'look', 'minNodeWidth', 'theme'],
       noopKeys: ['arrowMarkerAbsolute', 'curve', 'defaultRenderer', 'diagramPadding', 'htmlLabels', 'inheritDir', 'look', 'minNodeWidth', 'padding', 'subGraphTitleMargin', 'theme', 'titleTopMargin'],
     },
-    aliases: ['swimlane'],
     semanticChannels: [],
     detect: familyDetection.detectsFlowchartFamily,
     sceneRoles: [

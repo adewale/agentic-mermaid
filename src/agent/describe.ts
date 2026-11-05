@@ -94,6 +94,8 @@ export function describeMermaidSource(source: string, opts: DescribeOptions = {}
 export function describeMermaid(d: ParsedDiagram, opts: DescribeOptions = {}): string {
   if (opts.format === 'json') return JSON.stringify(describeMermaidTree(d))
   if (opts.format === 'facts') return describeMermaidFacts(d).join('\n')
+  if (d.body.kind === 'swimlane') return `A Swimlane diagram with ${d.body.graph.nodes.size} tasks and ${d.body.graph.subgraphs.length} lanes.`
+  if (d.body.kind === 'treeview') return `A file tree with ${d.body.nodes.length} ordered files and folders.`
   if (d.body.kind === 'flowchart') return describeFlowchart(d as FlowchartValidDiagram)
   if (d.body.kind === 'state') return describeState(d.body)
   if (d.body.kind === 'sequence') return describeSequence(d as SequenceValidDiagram)
@@ -151,10 +153,13 @@ export function describeMermaid(d: ParsedDiagram, opts: DescribeOptions = {}): s
  */
 export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
   const tree: DescribeTree = { kind: d.kind, nodes: [], edges: [], entryPoints: [], sinks: [] }
-  if (d.body.kind === 'flowchart') {
+  if (d.body.kind === 'flowchart' || d.body.kind === 'swimlane') {
     const g = d.body.graph
     for (const n of g.nodes.values()) tree.nodes.push({ id: n.id, label: n.label || n.id })
     for (const e of g.edges) tree.edges.push({ from: e.source, to: e.target, label: e.label || undefined })
+  } else if (d.body.kind === 'treeview') {
+    tree.nodes.push(...d.body.nodes.map(node => ({ id: node.id, label: node.label, ...(node.parentId ? { parentId: node.parentId } : {}) })))
+    tree.edges.push(...d.body.nodes.flatMap(node => node.parentId ? [{ from: node.parentId, to: node.id }] : []))
   } else if (d.body.kind === 'state') {
     const visit = (states: import('./types.ts').StateNode[], transitions: import('./types.ts').StateTransition[]) => {
       for (const s of states) {

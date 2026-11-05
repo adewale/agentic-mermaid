@@ -5,7 +5,7 @@
  * the complete family registry so direct graph-parser imports remain usable. */
 export function detectsFlowchartFamily(firstLine: string): boolean {
   const line = (firstLine.split(';')[0] ?? '').trim().toLowerCase()
-  return /^(?:flowchart|graph|swimlane)(?:\s|$)/.test(line)
+  return /^(?:flowchart|graph)(?:\s|$)/.test(line)
 }
 
 export function detectsStateFamily(firstLine: string): boolean {
@@ -53,3 +53,6 @@ export const detectsIshikawaFamily = (line: string) => /^ishikawa(?:-beta)?\s*$/
 export const detectsBlockFamily = (line: string) => /^block(?:-beta)?\s*$/.test(line)
 export const detectsZenumlFamily = (line: string) => /^zenuml\s*$/.test(line)
 export const detectsEventmodelingFamily = (line: string) => /^eventmodeling\s*$/.test(line)
+
+export const detectsSwimlaneFamily = (line: string) => /^swimlane(?:-beta)?(?:\s|$)/.test(line)
+export const detectsTreeviewFamily = (line: string) => /^treeview-beta(?:\s|$)/.test(line)

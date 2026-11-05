@@ -3,10 +3,12 @@
 import { normalizeFamilyDetectionLine } from '../../mermaid-source-wrapper.ts'
 import * as familyDetection from '../../shared/builtin-family-detection.ts'
 
-export const BROWSER_BUILTIN_FAMILY_IDS = Object.freeze(["flowchart","state","sequence","timeline","class","er","journey","architecture","xychart","pie","quadrant","gantt","mindmap","gitgraph","radar","sankey","c4","packet","kanban","requirement","treemap","ishikawa","block","eventmodeling","zenuml"] as const)
+export const BROWSER_BUILTIN_FAMILY_IDS = Object.freeze(["swimlane","treeview","flowchart","state","sequence","timeline","class","er","journey","architecture","xychart","pie","quadrant","gantt","mindmap","gitgraph","radar","sankey","c4","packet","kanban","requirement","treemap","ishikawa","block","eventmodeling","zenuml"] as const)
 export type BrowserBuiltinFamilyId = (typeof BROWSER_BUILTIN_FAMILY_IDS)[number]
 
 const CATALOG = Object.freeze([
+  Object.freeze({ id: "swimlane", detect: familyDetection.detectsSwimlaneFamily }),
+  Object.freeze({ id: "treeview", detect: familyDetection.detectsTreeviewFamily }),
   Object.freeze({ id: "flowchart", detect: familyDetection.detectsFlowchartFamily }),
   Object.freeze({ id: "state", detect: familyDetection.detectsStateFamily }),
   Object.freeze({ id: "sequence", detect: familyDetection.detectsSequenceFamily }),

@@ -1,3 +1,7 @@
+import type { SwimlaneBody } from '../swimlane/types.ts'
+import type { TreeviewBody, TreeviewMutationOp } from '../treeview/types.ts'
+export type { SwimlaneBody } from '../swimlane/types.ts'
+export type { TreeviewBody, TreeviewNode, TreeviewMutationOp } from '../treeview/types.ts'
 import type { ZenUMLBody, ZenUMLMutationOp } from '../zenuml/native-types.ts'
 export type { ZenUMLBody, ZenUMLMutationOp, ZenUMLParticipant, ZenUMLStatement, ZenUMLBranch } from '../zenuml/native-types.ts'
 import type { EventModelingBody, EventModelingMutationOp } from '../eventmodeling/types.ts'
@@ -49,7 +53,7 @@ export function err<E, T = never>(error: E): Result<T, E> {
 
 // ---- Families -------------------------------------------------------------
 
-export type DiagramKind = 'flowchart' | 'state' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt' | 'mindmap' | 'gitgraph' | 'radar' | 'sankey' | 'c4' | 'packet' | 'kanban' | 'requirement' | 'treemap' | 'ishikawa' | 'block' | 'eventmodeling' | 'zenuml'
+export type DiagramKind = 'flowchart' | 'state' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt' | 'mindmap' | 'gitgraph' | 'radar' | 'sankey' | 'c4' | 'packet' | 'kanban' | 'requirement' | 'treemap' | 'ishikawa' | 'block' | 'eventmodeling' | 'zenuml' | 'swimlane' | 'treeview'
 
 /** Runtime extensions are open but must pass the registry's namespace validator. */
 export type ExternalFamilyId = `family:${string}`
@@ -932,6 +936,8 @@ export interface DiagramAnalysis {
 
 export type DiagramBody =
   | { kind: 'flowchart'; graph: MermaidGraph }
+  | SwimlaneBody
+  | TreeviewBody
   | StateBody
   | SequenceBody
   | TimelineBody
@@ -1072,6 +1078,14 @@ export interface PreservedValidDiagram {
 export type ParsedDiagram = ValidDiagram | ExtensionValidDiagram | PreservedValidDiagram
 
 export type FlowchartValidDiagram = ValidDiagram & { body: { kind: 'flowchart'; graph: MermaidGraph } }
+export type SwimlaneValidDiagram = ValidDiagram & { body: SwimlaneBody }
+export type TreeviewValidDiagram = ValidDiagram & { body: TreeviewBody }
+export function asSwimlane(d: ParsedDiagram): SwimlaneValidDiagram | null {
+  return d.body.kind === 'swimlane' ? d as SwimlaneValidDiagram : null
+}
+export function asTreeview(d: ParsedDiagram): TreeviewValidDiagram | null {
+  return d.body.kind === 'treeview' ? d as TreeviewValidDiagram : null
+}
 export type StateValidDiagram = ValidDiagram & { body: StateBody }
 export type SequenceValidDiagram = ValidDiagram & { body: SequenceBody }
 export type TimelineValidDiagram = ValidDiagram & { body: TimelineBody }
@@ -1098,6 +1112,8 @@ export type IshikawaValidDiagram = ValidDiagram & { body: IshikawaBody }
 export type BlockValidDiagram = ValidDiagram & { body: BlockBody }
 export type MutableValidDiagram =
   | FlowchartValidDiagram
+  | SwimlaneValidDiagram
+  | TreeviewValidDiagram
   | StateValidDiagram
   | SequenceValidDiagram
   | TimelineValidDiagram
@@ -1582,6 +1598,7 @@ export type GanttMutationOp =
 
 export type AnyMutationOp =
   | FlowchartMutationOp
+  | TreeviewMutationOp
   | StateMutationOp
   | SequenceMutationOp
   | TimelineMutationOp
@@ -1997,6 +2014,8 @@ export interface ValidDiagramPayload {
   meta?: Partial<ValidDiagramMeta>
   body:
     | { kind: 'flowchart'; graph: SerializedFlowchartGraph }
+    | SwimlaneBody
+    | TreeviewBody
     | StateBody
     | SequenceBody
     | TimelineBody

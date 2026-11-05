@@ -1,3 +1,5 @@
+import { TREEVIEW_SOURCE_HOOKS } from './treeview-body.ts'
+import { SWIMLANE_SOURCE_HOOKS } from './swimlane-body.ts'
 import { ZENUML_SOURCE_HOOKS } from './zenuml-body.ts'
 import { EVENTMODELING_SOURCE_HOOKS } from './eventmodeling-body.ts'
 import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
@@ -1431,6 +1433,8 @@ export const C4_SOURCE_HOOKS = {
 
 export const BUILTIN_SOURCE_HOOKS = /* @__PURE__ */ Object.freeze({
   flowchart: FLOWCHART_SOURCE_HOOKS,
+  treeview: TREEVIEW_SOURCE_HOOKS,
+  swimlane: SWIMLANE_SOURCE_HOOKS,
   state: STATE_SOURCE_HOOKS,
   sequence: SEQUENCE_SOURCE_HOOKS,
   timeline: TIMELINE_SOURCE_HOOKS,
@@ -1453,3 +1457,7 @@ export const BUILTIN_SOURCE_HOOKS = /* @__PURE__ */ Object.freeze({
 }) satisfies Readonly<Record<DiagramKind, Omit<FamilyOperations, 'mutate'>>>
 export { EVENTMODELING_SOURCE_HOOKS } from './eventmodeling-body.ts'
 export { ZENUML_SOURCE_HOOKS } from './zenuml-body.ts'
+
+export { SWIMLANE_SOURCE_HOOKS } from './swimlane-body.ts'
+
+export { TREEVIEW_SOURCE_HOOKS } from './treeview-body.ts'

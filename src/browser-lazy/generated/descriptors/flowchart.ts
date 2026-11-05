@@ -12,9 +12,7 @@ const descriptorData = Object.freeze({
     "flowchart",
     "graph"
   ],
-  "aliases": [
-    "swimlane"
-  ],
+  "aliases": [],
   "config": {
     "section": "flowchart",
     "keys": [

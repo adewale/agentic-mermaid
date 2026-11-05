@@ -143,7 +143,7 @@ route-contract extraction preserves the existing pipeline manifest and order.
   add a failing fixture or capability-evidence case, name its owning TODO ID,
   and define the parity outcome. Unpromoted issue lists are deliberately not
   retained in this backlog.
-- [ ] **BUILD-6 — Native upstream Mermaid family adoption** (`todo`). Select
+- [ ] **BUILD-6 — Native upstream Mermaid family adoption** (`todo`).
   The owner requested delivery of Swimlane, TreeView, UseCase, AgentFlow,
   Wardley, Cynefin, Railroad and Venn in one PR on 5 November 2026, alongside
   SRC-1 source-preserving edits, production-backed Mermaid model projections

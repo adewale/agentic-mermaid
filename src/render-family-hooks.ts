@@ -1,3 +1,7 @@
+import { SWIMLANE_SVG_HOOKS } from './svg-family-hooks/swimlane.ts'
+import { renderSwimlaneTerminal } from './ascii/swimlane.ts'
+import { TREEVIEW_SVG_HOOKS } from './svg-family-hooks/treeview.ts'
+import { renderTreeviewTerminal } from './ascii/treeview.ts'
 import { ZENUML_SVG_HOOKS } from './svg-family-hooks/zenuml.ts'
 import { renderZenUMLTerminal } from './ascii/zenuml.ts'
 import { EVENTMODELING_SVG_HOOKS } from './svg-family-hooks/eventmodeling.ts'
@@ -265,6 +269,8 @@ export const BLOCK_RENDER_HOOKS = /* @__PURE__ */ { ...BLOCK_SVG_HOOKS, renderAs
 
 export const BUILTIN_RENDER_HOOKS = /* @__PURE__ */ Object.freeze({
   flowchart: FLOWCHART_RENDER_HOOKS,
+  swimlane: { ...SWIMLANE_SVG_HOOKS, renderAscii: nativeTerminalRenderer(renderSwimlaneTerminal) },
+  treeview: { ...TREEVIEW_SVG_HOOKS, renderAscii: nativeTerminalRenderer(renderTreeviewTerminal) },
   state: STATE_RENDER_HOOKS,
   sequence: SEQUENCE_RENDER_HOOKS,
   timeline: TIMELINE_RENDER_HOOKS,

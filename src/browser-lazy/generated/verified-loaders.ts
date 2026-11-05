@@ -4,6 +4,8 @@ import type { BrowserBuiltinFamilyId } from './catalog.ts'
 import type { FamilyDescriptor } from '../../agent/families.ts'
 
 export const VERIFIED_FAMILY_LOADERS = Object.freeze({
+  swimlane: () => import('./verified/swimlane.ts').then(module => module.default()),
+  treeview: () => import('./verified/treeview.ts').then(module => module.default()),
   flowchart: () => import('./verified/flowchart.ts').then(module => module.default()),
   state: () => import('./verified/state.ts').then(module => module.default()),
   sequence: () => import('./verified/sequence.ts').then(module => module.default()),

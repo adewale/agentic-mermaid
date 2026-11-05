@@ -1,3 +1,5 @@
+import { TREEVIEW_SOURCE_HOOKS } from './treeview-body.ts'
+import { SWIMLANE_SOURCE_HOOKS } from './swimlane-body.ts'
 import { ZENUML_SOURCE_HOOKS } from './zenuml-body.ts'
 import { EVENTMODELING_SOURCE_HOOKS } from './eventmodeling-body.ts'
 import { mutateZenUML } from '../zenuml/native-body.ts'
@@ -166,6 +168,8 @@ export const ZENUML_AGENT_HOOKS: FamilyOperations = {
 
 export const BUILTIN_AGENT_HOOKS = /* @__PURE__ */ Object.freeze({
   flowchart: FLOWCHART_AGENT_HOOKS,
+  treeview: TREEVIEW_SOURCE_HOOKS,
+  swimlane: SWIMLANE_SOURCE_HOOKS,
   state: STATE_AGENT_HOOKS,
   sequence: SEQUENCE_AGENT_HOOKS,
   timeline: TIMELINE_AGENT_HOOKS,

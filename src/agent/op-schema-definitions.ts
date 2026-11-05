@@ -1,3 +1,4 @@
+import { TREEVIEW_OP_SCHEMAS } from '../treeview/ops.ts'
 import { ZENUML_OP_SCHEMAS } from '../zenuml/native-ops.ts'
 import { EVENTMODELING_OP_SCHEMAS } from '../eventmodeling/ops.ts'
 import { KANBAN_OP_SCHEMAS } from '../kanban/ops.ts'
@@ -408,6 +409,8 @@ export const OP_SCHEMAS: Record<DiagramKind, Record<string, OpSpec>> = {
   zenuml: ZENUML_OP_SCHEMAS,
   eventmodeling: EVENTMODELING_OP_SCHEMAS,
   flowchart: FLOWCHART_SCHEMA,
+  swimlane: FLOWCHART_SCHEMA,
+  treeview: TREEVIEW_OP_SCHEMAS,
   state: STATE_SCHEMA,
   sequence: SEQUENCE_SCHEMA,
   timeline: TIMELINE_SCHEMA,

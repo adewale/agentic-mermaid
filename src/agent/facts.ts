@@ -61,6 +61,7 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
   if (d.meta.accessibility.descr) add(out, `accessibility descr ${clean(d.meta.accessibility.descr)}`)
 
   switch (d.body.kind) {
+    case 'swimlane':
     case 'flowchart': {
       const g = d.body.graph
       add(out, `direction ${g.direction}`)
@@ -86,6 +87,15 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
       })
       break
     }
+    case 'treeview':
+      d.body.nodes.forEach((node, index) => {
+        add(out, `node#${index} ${clean(node.id)} ${node.nodeType} : ${clean(node.label)}`)
+        if (node.parentId) add(out, `node ${clean(node.id)} parent ${clean(node.parentId)}`)
+        if (node.description !== undefined) add(out, `node ${clean(node.id)} description ${clean(node.description)}`)
+        if (node.icon !== undefined) add(out, `node ${clean(node.id)} icon ${clean(node.icon)}`)
+        if (node.className !== undefined) add(out, `node ${clean(node.id)} class ${clean(node.className)}`)
+      })
+      break
     case 'state':
       factsState(out, d.body)
       break

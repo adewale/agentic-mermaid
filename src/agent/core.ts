@@ -534,3 +534,6 @@ export { asZenUML } from './types.ts'
 export type { ZenUMLBody, ZenUMLMutationOp, ZenUMLValidDiagram, ZenUMLParticipant, ZenUMLStatement, ZenUMLBranch } from './types.ts'
 export { asEventModeling } from './types.ts'
 export type { EventModelingBody, EventModelingMutationOp, EventModelingValidDiagram, EventFrame, EventFrameType, EventData, EventSpecification } from './types.ts'
+
+export { asSwimlane, asTreeview } from './types.ts'
+export type { SwimlaneBody, SwimlaneValidDiagram, TreeviewBody, TreeviewNode, TreeviewMutationOp, TreeviewValidDiagram } from './types.ts'

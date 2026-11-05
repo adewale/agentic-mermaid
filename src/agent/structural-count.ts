@@ -75,10 +75,13 @@ function countSubgraphs(subgraphs: MermaidSubgraph[]): number {
 export function countStructuralElements(d: ParsedDiagram): StructuralCount | null {
   const body = d.body
   switch (body.kind) {
+    case 'swimlane':
     case 'flowchart': {
       const g = body.graph
       return { nodes: g.nodes.size, edges: g.edges.length, groups: countSubgraphs(g.subgraphs) }
     }
+    case 'treeview':
+      return { nodes: body.nodes.length, edges: body.nodes.filter(node => node.parentId !== undefined).length, groups: 0 }
     case 'sequence':
       return { nodes: body.participants.length, edges: sequenceMessages(body).length, groups: 0 }
     case 'state': {

@@ -26,7 +26,7 @@
       "headers": [
         {
           "value": "swimlane-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -334,7 +334,7 @@
       "headers": [
         {
           "value": "treeView-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
