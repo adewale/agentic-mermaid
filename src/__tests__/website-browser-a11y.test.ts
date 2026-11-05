@@ -767,8 +767,10 @@ describeBrowser('website browser accessibility smoke', () => {
   test('examples editor-state links survive editor initialization and load their source', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     await page.goto(baseUrl + '/examples/', { waitUntil: 'networkidle' })
-    const link = page.locator('.example-sample a[href^="/editor/#deflate:"]').first()
-    const article = link.locator('xpath=ancestor::article[1]')
+    await page.locator('a[data-example-deferred="diagrams"][href="/examples/diagrams/#flowchart"]').click()
+    await page.waitForURL(baseUrl + '/examples/#flowchart')
+    const article = page.locator('[data-example-fragment-root="diagrams"] article#flowchart')
+    const link = article.locator('a[href^="/editor/#deflate:"]')
     const expectedSource = (await article.locator('.example-source code').textContent())?.trim() ?? ''
     expect(expectedSource.length).toBeGreaterThan(0)
 
