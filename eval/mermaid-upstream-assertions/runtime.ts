@@ -123,7 +123,7 @@ class NativeDatabase {
     const input = recordInput(this.context.family, source)
     this.source = source
     this.events = []
-    if (this.context.family === 'eventmodeling') this.model = undefined
+    if (['eventmodeling', 'usecase'].includes(this.context.family)) this.model = undefined
     const configured = this.context.configured(source)
     try {
       this.model = withParserObservation(this.context.family, event => this.events.push(event), () => parseNativeModel(this.context.family, configured))
@@ -172,7 +172,7 @@ class AdapterContext {
       }
       // This pinned family exposes an asynchronous parser. Adapt completion,
       // never acceptance or error wording, around the actual synchronous native parse.
-      if (family === 'eventmodeling') return Promise.resolve().then(() => context.parser.yy.parse(source))
+      if (family === 'eventmodeling' || family === 'usecase') return Promise.resolve().then(() => context.parser.yy.parse(source))
       return context.parser.yy.parse(source)
     } }
     this.parser.parser = this.parser
@@ -217,7 +217,7 @@ class AdapterContext {
         recordInput(context.family, source)
         return context.referenceDefinition().constructor.fromText(source)
       }
-      const db = new NativeDatabase(context)
+      const db = ['usecase', 'treeview', 'wardley', 'cynefin', 'venn', 'railroad'].includes(context.family) ? context.singleton : new NativeDatabase(context)
       db.parse(source)
       const renderer = { draw() {
         return unavailable('Mermaid renderer.draw: pixel geometry and renderer bookkeeping are outside the native model adapter')
@@ -239,7 +239,8 @@ class AdapterContext {
       return { default: publicApi, mermaidAPI: publicApi, ...publicApi }
     }
     if (/config\.js$|diagramAPI\.js$/.test(specifier)) return { ...api, default: api }
-    if (/Diagram\.js$/.test(specifier)) return { Diagram }
+    if (/\/Diagram\.js$/.test(specifier)) return { Diagram }
+    if (/(?:Diagram|diagram)\.js$/.test(specifier)) return { diagram: { parser: referenceMode ? context.referenceDefinition().getParser() : context.parser, db: context.singleton } }
     if (/diagram-orchestration/.test(specifier)) return { addDiagrams() {} }
     if (/logger/.test(specifier)) return { log: Object.fromEntries(['info', 'warn', 'error', 'debug', 'trace', 'fatal'].map(name => [name, () => {}])), setLogLevel() {} }
     if (context.family === 'eventmodeling' && /event-modeling-validator\.js$/.test(specifier)) {
@@ -300,9 +301,9 @@ class AdapterContext {
         return { $type: key }
       } })
     }
-    if (/\.jison$|[Pp]arser\.[jt]s$|\/parser\.[jt]s$/.test(specifier)) {
+    if (/\.jison$|[Pp]arser\.[jt]s$|\/parser\.[jt]s$|\.chevrotain\.[jt]s$/.test(specifier)) {
       // The modern parser modules return promises; Jison's parse is synchronous.
-      const parser = !referenceMode && !specifier.endsWith('.jison') && ['architecture', 'packet', 'pie', 'radar', 'gitgraph', 'treemap'].includes(this.family)
+      const parser = !referenceMode && !specifier.endsWith('.jison') && ['architecture', 'packet', 'pie', 'radar', 'gitgraph', 'treemap', 'treeview', 'wardley', 'cynefin'].includes(this.family)
         ? new Proxy(this.parser, { get(target, key) { return key === 'parse' ? async (source: string) => target.parse(source) : target[key] } })
         : this.parser
       return { default: parser, parser }

@@ -75,7 +75,7 @@ export function parseTreeviewDiagram(input: string | readonly string[]): Treevie
       let match: RegExpExecArray | null
       if ((match = /^[\t ]+:::[\t ]*([A-Za-z_][\w-]*)/.exec(rest))) node.className = match[1]
       else if ((match = /^[\t ]+icon\(([\w-]*(?::[\w-]+)?)\)/.exec(rest))) node.icon = match[1] || 'none'
-      else if ((match = /^[\t ]+##([^\n\r]*)/.exec(rest))) node.description = read(match[1]!.trim())
+      else if ((match = /^[\t ]+##([^\n\r]*)/.exec(rest))) node.description = read(match[1]!.trim()) || undefined
       else if (/^\s*%%/.test(rest)) break
       else throw new Error(`Invalid TreeView annotation at line ${i + 1}: ${rest.trim()}`)
       rest = rest.slice(match[0].length)

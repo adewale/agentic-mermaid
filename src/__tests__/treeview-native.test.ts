@@ -110,3 +110,7 @@ README.md icon(none)`
     expect(map.nodes.get('treeview-1')).toEqual({ line: 4, col: 5 })
   })
 })
+
+test('empty TreeView description annotation has no description payload', () => {
+  expect(parseTreeviewDiagram('treeView-beta\nroot ##').nodes[0]!.description).toBeUndefined()
+})

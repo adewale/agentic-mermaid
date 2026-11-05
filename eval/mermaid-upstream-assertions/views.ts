@@ -1,3 +1,4 @@
+import { roadmapGetter } from './roadmap-views.ts'
 import { eventRelations, eventType } from '../../src/eventmodeling/parser.ts'
 import type { EventModelingBody } from '../../src/eventmodeling/types.ts'
 import type { NativeDb } from './runtime.ts'
@@ -87,6 +88,8 @@ function flattenTree(root: any): any[] { return root ? [root, ...(root.children 
 
 export function nativeGetters(db: NativeDb, key: string): any {
   const family = db.context.family, model = db.model
+  const roadmap = roadmapGetter(db, key)
+  if (roadmap !== undefined) return roadmap
   // A semantic relation projection of native state. No DOM boxes, positions,
   // text metrics or missing payloads are synthesized to imitate Mermaid.
   if (family === 'eventmodeling' && key === 'getState') return () => {
@@ -149,6 +152,7 @@ export function nativeGetters(db: NativeDb, key: string): any {
     if (key === 'getSections') return () => new Map((model?.entries ?? []).map((entry: any) => [entry.label, entry.value]))
     if (key === 'getShowData') return () => model?.showData ?? false
   }
+  if (family === 'swimlane' || family === 'agentflow') return nativeGetters({ ...db, context: { ...db.context, family: 'flowchart' }, model: model?.graph } as NativeDb, key)
   if (family === 'flowchart') {
     if (key === 'getVertices') return () => new Map([...(model?.nodes?.values() ?? [])].map((node: any) => [node.id, { id: node.id, text: node.label, type: ({ rectangle: 'square', rounded: 'round', 'trapezoid-alt': 'inv_trapezoid', asymmetric: 'odd' } as any)[node.shape] ?? node.shape, classes: (model.classAssignments.get(node.id) ?? '').split(/\s+/).filter(Boolean), styles: Object.entries(model.nodeStyles.get(node.id) ?? {}).map(([k, v]) => `${k}:${v}`), props: {} }]))
     if (key === 'getEdges') return () => (model?.edges ?? []).map((edge: any) => ({ start: edge.source, end: edge.target, text: edge.label ?? '', type: edge.hasArrowEnd ? `arrow_${edge.endMarker === 'arrow' ? 'point' : edge.endMarker}` : 'arrow_open', stroke: edge.style === 'dotted' ? 'dotted' : edge.style === 'thick' ? 'thick' : 'normal', length: edge.minLength ?? 1 }))
@@ -239,7 +243,7 @@ export function nativeGetters(db: NativeDb, key: string): any {
   return undefined
 }
 
-const AST_NAMES: Record<string, string> = { pie: 'Pie', packet: 'Packet', radar: 'Radar', architecture: 'Architecture', gitgraph: 'GitGraph', treemap: 'Treemap', eventmodeling: 'EventModel' }
+const AST_NAMES: Record<string, string> = { pie: 'Pie', packet: 'Packet', radar: 'Radar', architecture: 'Architecture', gitgraph: 'GitGraph', treemap: 'Treemap', eventmodeling: 'EventModel', treeview: 'TreeView' }
 function kanbanNodes(model: any): any[] { return (model?.columns ?? []).flatMap((column: any) => [{ ...column, level: 0 }, ...column.tasks.map((task: any) => ({ ...task, level: 1, parentId: column.id }))]) }
 export function nativeAst(name: string, source: string): any {
   const family = name.toLowerCase()
@@ -250,6 +254,18 @@ export function nativeAst(name: string, source: string): any {
     const common = { $type: AST_NAMES[family] ?? name, title: model.title, accTitle: model.accessibilityTitle ?? envelope.accessibility.title, accDescr: model.accessibilityDescription ?? envelope.accessibility.descr }
     let value: any
     if (family === 'pie') value = { ...common, showData: model.showData, sections: model.entries.map((entry: any) => ({ $type: 'PieSection', label: entry.label, value: entry.value })) }
+    else if (family === 'treeview') {
+      const consumed = events.filter(event => event.unit === 'statement' && event.kind === 'node')
+      value = {
+        ...common,
+        nodes: model.nodes.map((node: any, index: number) => {
+          const raw = consumed[index]?.text
+          if (raw === undefined) return unavailable('TreeView authored indentation was not observed')
+          const indent = raw.length - raw.trimStart().length
+          return { $type: 'TreeNode', name: node.label + (node.nodeType === 'directory' ? '/' : ''), indent: indent || undefined, classAnnotation: node.className, iconAnnotation: node.icon === 'none' && /\sicon\(\)/.test(raw) ? '' : node.icon, descAnnotation: node.description }
+        }),
+      }
+    }
     else if (family === 'packet') {
       const consumed = events.filter(event => event.unit === 'statement' && event.kind === 'field')
       value = { ...common, blocks: model.fields.map((field: any, index: number) => ({ $type: 'PacketBlock', label: field.label,

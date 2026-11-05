@@ -5,6 +5,8 @@ const directories: Record<string, string> = {
   gitgraph: 'mermaid/src/diagrams/git',
   journey: 'mermaid/src/diagrams/user-journey',
   quadrant: 'mermaid/src/diagrams/quadrant-chart',
+  treeview: 'mermaid/src/diagrams/treeView',
+  swimlane: 'mermaid/src/diagrams/swimlanes',
   zenuml: 'mermaid-zenuml/src',
 }
 
@@ -21,9 +23,10 @@ export function upstreamSpecFiles(upstream: string, families: readonly string[])
   }
   for (const family of families) {
     walk(join(upstream, 'packages', directories[family] ?? `mermaid/src/diagrams/${family}`), family)
-    const parser = join(upstream, 'packages/parser/tests', `${family === 'gitgraph' ? 'gitGraph' : family}.test.ts`)
+    const parser = join(upstream, 'packages/parser/tests', `${family === 'gitgraph' ? 'gitGraph' : family === 'treeview' ? 'treeView' : family}.test.ts`)
     const parent = join(upstream, 'packages/parser/tests')
     if (readdirSync(parent).includes(parser.slice(parent.length + 1))) files.push({ family, path: resolve(parser) })
+    if (family === 'treeview') files.push({ family, path: resolve(parent, 'treeViewValueConverter.test.ts') })
   }
   return files.sort((a, b) => a.path.localeCompare(b.path))
 }
