@@ -222,10 +222,12 @@ describe('resolved SVG values', () => {
     </marker></defs><polyline points="274,195.932846715 572,306.867153285" marker-end="url(#tip)" /></svg>`)
     const marker = primitives[1]!
     expect(marker).toMatchObject({ marker: true })
-    expect(marker.matrix[0]).toBeCloseTo(0.9372288123265863, 12)
-    expect(marker.matrix[1]).toBeCloseTo(0.3487150030395833, 12)
-    expect(marker.matrix[2]).toBeCloseTo(-0.3487150030395833, 12)
-    expect(marker.matrix[3]).toBeCloseTo(0.9372288123265863, 12)
+    const dx = 572 - 571.90625, dy = 306.8671569824219 - 306.832275390625
+    const length = Math.hypot(dx, dy)
+    expect(marker.matrix[0]).toBeCloseTo(dx / length, 12)
+    expect(marker.matrix[1]).toBeCloseTo(dy / length, 12)
+    expect(marker.matrix[2]).toBeCloseTo(-dy / length, 12)
+    expect(marker.matrix[3]).toBeCloseTo(dx / length, 12)
   })
 
   test('matches Chromium marker orientation for nearly vertical fractional routes', () => {
