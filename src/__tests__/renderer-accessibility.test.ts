@@ -84,6 +84,33 @@ test.each([
   }
 })
 
+test.each([
+  ['usecase-beta', 'actor A("A")'],
+  ['wardley-beta', 'component A [50.0, 50.0]'],
+  ['venn-beta', 'set A:10'],
+  ['cynefin-beta', 'complex\n  "Explore"'],
+  ['treeView-beta', '"file.ts"'],
+  ['railroad-beta', 'entry = terminal("a");'],
+] as const)('%s display title edits own the existing frontmatter scalar', (header, content) => {
+  const parsed = parseMermaid(`---\ntitle: Original display\nconfig:\n  theme: dark\n---\n%% wrapper rationale\n${header}\naccTitle: Accessible\n${content}`)
+  if (!parsed.ok || parsed.value.body.kind === 'opaque') throw new Error('Expected typed native family')
+  for (const edit of [mutate, mutateChecked]) for (const title of [null, 'Changed display']) {
+    const result = edit(parsed.value, { kind: 'set_title', title })
+    if (!result.ok) throw new Error(JSON.stringify(result.error))
+    expect((result.value.body as { title?: string }).title).toBe(title ?? undefined)
+    expect(result.value.meta.frontmatter?.title).toBe(title ?? undefined)
+    expect(result.value.meta.frontmatter?.theme).toBe('dark')
+    expect(result.value.meta.accessibility).toEqual({ title: 'Accessible' })
+    const saved = serializeMermaid(result.value)
+    expect(saved).toContain('%% wrapper rationale')
+    expect(saved).not.toContain('Original display')
+    const reload = parseMermaid(saved)
+    if (!reload.ok) throw new Error(JSON.stringify(reload.error))
+    expect((reload.value.body as { title?: string }).title).toBe(title ?? undefined)
+    expect(reload.value.meta.frontmatter).toEqual(result.value.meta.frontmatter)
+  }
+})
+
 describe('#7254/#7255 SVG accessibility', () => {
   test('literal directive openers in accessibility stay source-only and cannot escape through an edit', () => {
     const source = 'pie\naccDescr {\nReview %%{prose\n}\n"Share": 2'

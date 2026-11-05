@@ -1,3 +1,4 @@
+import { ownExistingBodyTitle } from './body-title-meta.ts'
 import { ownBodyAccessibility } from './accessibility-envelope.ts'
 export { TREEVIEW_OP_KINDS, TREEVIEW_OP_SCHEMAS } from '../treeview/ops.ts'
 
@@ -153,6 +154,7 @@ import type { FamilyOperations } from './families.ts'
 import type { SourceMap } from './types.ts'
 
 export const TREEVIEW_SOURCE_HOOKS: FamilyOperations = {
+  bodyMeta: ownExistingBodyTitle('treeview'),
   bodyAccessibility: ownBodyAccessibility('treeview'),
   parse: ctx => {
     try {

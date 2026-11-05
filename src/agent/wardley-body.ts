@@ -1,3 +1,4 @@
+import { ownExistingBodyTitle } from './body-title-meta.ts'
 import { withParserObservation } from '../shared/parser-observation.ts'
 import { mapObservedSource } from './source-map-spans.ts'
 import { ownBodyAccessibility } from './accessibility-envelope.ts'
@@ -148,6 +149,7 @@ export function verifyWardley(body: WardleyBody): LayoutWarning[] {
   try { renderWardley(body); return [] } catch (error) { return [{ code: 'UNSUPPORTED_SYNTAX', syntax: 'wardley_model', message: String(error) }] }
 }
 export const WARDLEY_SOURCE_HOOKS: FamilyOperations = {
+  bodyMeta: ownExistingBodyTitle('wardley'),
   bodyAccessibility: ownBodyAccessibility('wardley'),
   parse: ctx => {
     try {

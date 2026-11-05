@@ -186,6 +186,9 @@ function commitMutation(d: ParsedDiagram, body: ParsedDiagram['body']): Result<P
       message: `Mutation changed semantic family while reparsing: expected ${d.kind}/${body.kind}, got ${reparsed.value.kind}/${reparsed.value.body.kind}`,
     })
   }
+  if (plugin.bodyMeta && meta.frontmatter?.title !== reparsed.value.meta.frontmatter?.title) {
+    return err({ code: 'INVALID_OP', message: 'Mutation did not retain the requested title metadata through its final source envelope' })
+  }
   if (bodyAccessibility && (bodyAccessibility.title !== reparsed.value.meta.accessibility.title || bodyAccessibility.descr !== reparsed.value.meta.accessibility.descr)) {
     return err({
       code: 'INVALID_OP',

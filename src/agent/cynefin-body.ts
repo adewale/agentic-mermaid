@@ -1,3 +1,4 @@
+import { ownExistingBodyTitle } from './body-title-meta.ts'
 import { withParserObservation } from '../shared/parser-observation.ts'
 import { mapObservedSource } from './source-map-spans.ts'
 import { ownBodyAccessibility } from './accessibility-envelope.ts'
@@ -76,6 +77,7 @@ export function mutateCynefin(body: CynefinBody, op: CynefinMutationOp): Result<
 }
 export function verifyCynefin(body: CynefinBody): LayoutWarning[] { try { renderCynefin(body); return [] } catch (error) { return [{ code: 'UNSUPPORTED_SYNTAX', syntax: 'cynefin_model', message: String(error) }] } }
 export const CYNEFIN_SOURCE_HOOKS: FamilyOperations = {
+  bodyMeta: ownExistingBodyTitle('cynefin'),
   bodyAccessibility: ownBodyAccessibility('cynefin'),
   parse: ctx => {
     try {

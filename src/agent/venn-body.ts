@@ -1,3 +1,4 @@
+import { ownExistingBodyTitle } from './body-title-meta.ts'
 import { ownBodyAccessibility } from './accessibility-envelope.ts'
 import { mermaidNumber } from '../shared/mermaid-number.ts'
 import { sameSourceMeaning } from './source-mutation.ts'
@@ -128,6 +129,7 @@ export function verifyVenn(body: VennBody, options: VerifyOptions): LayoutWarnin
 }
 
 export const VENN_SOURCE_HOOKS: FamilyOperations = {
+  bodyMeta: ownExistingBodyTitle('venn'),
   bodyAccessibility: ownBodyAccessibility('venn', 'native'),
   parse: ctx => {
     try {

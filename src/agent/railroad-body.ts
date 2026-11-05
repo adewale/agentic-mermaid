@@ -1,3 +1,4 @@
+import { ownExistingBodyTitle } from './body-title-meta.ts'
 import { withParserObservation } from '../shared/parser-observation.ts'
 import { mapObservedSource } from './source-map-spans.ts'
 import { railroadRuleId, walkRailroadOwners } from '../railroad/identity.ts'
@@ -51,9 +52,14 @@ function railroadLabels(body: RailroadBody): Array<{ text: string; target: strin
   return labels
 }
 export const RAILROAD_SOURCE_HOOKS = {
+  bodyMeta: ownExistingBodyTitle('railroad'),
   renderSource: () => 'canonical',
   extractLabels: source => { try { return railroadLabels(parseRailroad(source)) } catch { return [] } },
-  parse: ctx => parseRailroadBody(ctx.source.familyBody, ctx.opaqueSource),
+  parse: ctx => {
+    const result = parseRailroadBody(ctx.source.familyBody, ctx.opaqueSource)
+    if (result.ok && result.value.kind === 'railroad' && result.value.title === undefined && typeof ctx.source.frontmatter.title === 'string') result.value.title = ctx.source.frontmatter.title
+    return result
+  },
   serialize: body => { if (body.kind !== 'railroad') throw new Error(`Railroad serializer received ${body.kind}`); return renderRailroad(body) },
   buildSourceMap: (body, source, context) => mapObservedSource(source, context, (text, record) => {
     if (body.kind !== 'railroad') return
@@ -75,7 +81,7 @@ export const RAILROAD_SOURCE_HOOKS = {
       })
     }, () => parseRailroad(text), { mutations: ['add-rule'] })
   }),
-} satisfies Pick<FamilyOperations, 'renderSource' | 'parse' | 'serialize' | 'mutate' | 'buildSourceMap' | 'extractLabels'>
+} satisfies Pick<FamilyOperations, 'bodyMeta' | 'renderSource' | 'parse' | 'serialize' | 'mutate' | 'buildSourceMap' | 'extractLabels'>
 
 export const RAILROAD_MUTATION_HOOKS: Pick<FamilyOperations, 'mutate'> = {
   mutate: (body, op) => body.kind === 'railroad' ? mutateRailroad(body, op as RailroadMutationOp) : err({ code: 'INVALID_OP', message: 'Railroad source needs a native grammar expression model for typed edits' }),
