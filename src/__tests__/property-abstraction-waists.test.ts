@@ -59,6 +59,15 @@ function sceneContext(
 
 function headerFor(kind: DiagramKind): string {
   switch (kind) {
+    case 'agentflow': return 'agentflow-beta'
+    case 'usecase': return 'usecase-beta'
+    case 'wardley': return 'wardley-beta'
+    case 'venn': return 'venn-beta'
+    case 'cynefin': return 'cynefin-beta'
+    case 'railroad': return 'railroad-beta'
+    case 'swimlane': return 'swimlane-beta'
+    case 'treeview': return 'treeView-beta'
+
     case 'packet':
       return 'packet'
     case 'kanban':

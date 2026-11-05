@@ -1,0 +1,17 @@
+wardley-beta
+title PLATFORM EVOLUTION
+anchor Customer [0.95, 0.1]
+component Service [0.6, 0.5] label [-12, 8] (build) inertia
+component Power [0.2, 0.8]
+pipeline Service {
+  component Custom [0.3]
+  component Utility [0.7]
+}
+Customer -> Service
+Service +<> -.-> Power ;delivery
+evolve Service 0.9
+note "Keep all note text" [0.3, 0.4]
+annotations [0.1, 0.8]
+annotation 1, [0.4, 0.7] "Adopt utility"
+accelerator Demand [0.7, 0.2]
+deaccelerator Risk [0.3, 0.6]

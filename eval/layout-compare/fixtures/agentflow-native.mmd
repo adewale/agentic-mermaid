@@ -1,0 +1,13 @@
+agentflow-beta TB
+connector llm[LLM API]@{ protocol: http }
+global
+  guide[Brand guide]@{ shape: refdoc }
+end
+flow team[PUBLISHING]
+  plan[Plan work]@{ shape: task }
+  search[Search documents]@{ shape: tool, connectorRef: llm.chat }
+  publish[Publish result]@{ shape: action }
+  plan --> search
+  search --> publish
+  search -.- guide
+end

@@ -1,3 +1,4 @@
+import { FAMILY_CONFORMANCE_PROFILES } from './helpers/family-conformance-profiles.ts'
 // Agent-facing docs and declarations stay true: their snippets and examples
 // run, `am --agent-instructions` is the committed guide, and the Code Mode SDK
 // declaration matches the runtime registries and sandbox.
@@ -26,6 +27,14 @@ const REPO = join(import.meta.dir, '..', '..')
 
 /** One declared, representative edit per built-in family; each introduces "zebra". */
 const TYPED_EDIT_BY_FAMILY: Record<DiagramKind, { kind: string } & Record<string, unknown>> = {
+  agentflow: { kind: 'add_node', id: 'Zebra', label: 'Zebra' },
+  usecase: { kind: 'add_actor', id: 'Zebra', label: 'Zebra' },
+  wardley: { kind: 'add_component', id: 'Zebra', x: 50, y: 50 },
+  venn: { kind: 'set_subset', sets: ['Zebra'], size: 5, label: 'Zebra' },
+  cynefin: { kind: 'add_item', domain: 'complex', label: 'Zebra' },
+  railroad: { kind: 'add_rule', name: 'Zebra', definition: { type: 'terminal', value: 'Zebra' } },
+  swimlane: { kind: 'add_node', id: 'Zebra', label: 'Zebra' },
+  treeview: { kind: 'add_node', label: 'Zebra', nodeType: 'file' },
   zenuml: { kind: 'upsert_participant', participant: { id: 'Zebra', label: 'Zebra', annotations: [] } },
   eventmodeling: { kind: 'insert_frame', frame: { id: '99', reset: true, type: 'event', entity: 'Zebra', sources: [] } },
   c4: { kind: 'add_element', element: { id: 'Zebra', label: 'Zebra', kind: 'system' } },
@@ -302,6 +311,15 @@ const badWidth: SharedRenderOptions = { mermaidConfig: { sankey: { nodeWidth: '1
     const advertised = [...new Set(Array.from(SDK_DECLARATION.matchAll(/\bas[A-Z]\w+/g), m => m[0]))]
     expect(advertised.length).toBeGreaterThanOrEqual(9)
     const SOURCES: Record<string, string> = {
+      asAgentflow: FAMILY_CONFORMANCE_PROFILES.agentflow.citizenship.source,
+      asUsecase: FAMILY_CONFORMANCE_PROFILES.usecase.citizenship.source,
+      asWardley: FAMILY_CONFORMANCE_PROFILES.wardley.citizenship.source,
+      asVenn: FAMILY_CONFORMANCE_PROFILES.venn.citizenship.source,
+      asCynefin: FAMILY_CONFORMANCE_PROFILES.cynefin.citizenship.source,
+      asRailroad: FAMILY_CONFORMANCE_PROFILES.railroad.citizenship.source,
+      asSwimlane: FAMILY_CONFORMANCE_PROFILES.swimlane.citizenship.source,
+      asTreeview: FAMILY_CONFORMANCE_PROFILES.treeview.citizenship.source,
+
       asC4: 'C4Context\\n  System(a, "A")',
       asFlowchart: 'flowchart TD\\n  A --> B',
       asState: 'stateDiagram-v2\\n  [*] --> A',
@@ -331,7 +349,7 @@ const badWidth: SharedRenderOptions = { mermaidConfig: { sankey: { nodeWidth: '1
     for (const narrower of advertised) {
       const source = SOURCES[narrower]
       expect({ narrower, known: Boolean(source) }).toEqual({ narrower, known: true })
-      const code = `const r = mermaid.parseRegisteredMermaid('${source}')\nif (!r.ok) return { narrower: '${narrower}', phase: 'parse' }\nconst n = mermaid.${narrower}(r.value)\nreturn { narrower: '${narrower}', narrowed: n !== null }`
+      const code = `const r = mermaid.parseRegisteredMermaid(${JSON.stringify(source!.replaceAll('\\n', '\n'))})\nif (!r.ok) return { narrower: '${narrower}', phase: 'parse' }\nconst n = mermaid.${narrower}(r.value)\nreturn { narrower: '${narrower}', narrowed: n !== null }`
       const result = await executeInSandbox(code, {})
       expect({ narrower, ok: result.ok, value: result.ok ? result.value : result.error }).toEqual({ narrower, ok: true, value: { narrower, narrowed: true } })
     }

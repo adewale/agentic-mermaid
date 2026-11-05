@@ -1,0 +1,3 @@
+railroad-beta
+entry = sequence(terminal("start"), choice(nonterminal("item"), optional(terminal("end"))), zeroOrMore(terminal(",")));
+item = terminal("value");

@@ -1,0 +1,9 @@
+usecase-beta
+direction LR
+actor Customer("Customer")
+systemBoundary Store["STOREFRONT"]
+  Browse("Browse catalogue")
+  Checkout("Checkout")
+end
+Customer --> Checkout
+Checkout ..> : include Browse

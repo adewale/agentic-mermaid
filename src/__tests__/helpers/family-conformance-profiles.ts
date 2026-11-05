@@ -126,6 +126,161 @@ export interface FamilyConformanceProfile {
  * particular test.
  */
 export const FAMILY_CONFORMANCE_PROFILES: Readonly<Record<DiagramKind, FamilyConformanceProfile>> = {
+  agentflow: {
+    family: 'agentflow',
+    citizenship: {
+      source: readFileSync(join(EVAL_ROOT, 'layout-compare/fixtures/agentflow-native.mmd'), 'utf8'), options: FAMILY_CITIZENSHIP_GALLERY_OPTIONS,
+      count: { nodes: 5, edges: 3, groups: 1 },
+      facts: ['role llm connector', 'role guide refdoc', 'edge plan -> search', 'edge search -> publish'],
+      visibleText: ['LLM API', 'Brand guide', 'Search documents', 'PUBLISHING'],
+      edit: { op: { kind: 'set_role', id: 'search', role: 'task' }, beforeFacts: ['role search tool'], afterFacts: ['role search task'] },
+      assertDomain: (diagram, layout) => {
+        if (diagram.body.kind !== 'agentflow') throw Error('Expected native AgentFlow')
+        expect([...diagram.body.connectors]).toEqual(['llm'])
+        expect([...diagram.body.globals]).toEqual(['llm', 'guide'])
+        expect(diagram.body.metadata.get('search')?.connectorRef).toBe('llm.chat')
+        expect(diagram.body.graph.subgraphs[0]?.nodeIds).toEqual(['plan', 'search', 'publish'])
+        expect(layout.nodes.find(node => node.id === 'search')?.parentId).toBe('team')
+        expect(layout.edges.map(edge => [edge.from, edge.to]).sort()).toEqual([['plan', 'search'], ['search', 'guide'], ['search', 'publish']])
+      },
+    },
+    outlines: { kind: 'automatic', roles: ['node', 'group'] },
+    riskFixture: '../../../eval/layout-compare/fixtures/agentflow-native.mmd', riskOptions: {},
+    textStressSource: 'agentflow-beta TB\nflow team[東京 café é 👩‍💻]\nA[שלום مرحبا]@{shape: task}\nend',
+  },
+  usecase: {
+    family: 'usecase',
+    citizenship: {
+      source: readFileSync(join(EVAL_ROOT, 'layout-compare/fixtures/usecase-native.mmd'), 'utf8'), options: FAMILY_CITIZENSHIP_GALLERY_OPTIONS,
+      count: { nodes: 3, edges: 2, groups: 1 }, facts: ['family usecase'], visibleText: ['Customer', 'STOREFRONT', 'Browse catalogue', 'Checkout'],
+      edit: { op: { kind: 'set_direction', direction: 'TB' }, beforeFacts: ['direction LR'], afterFacts: ['direction TB'] },
+      assertDomain: (diagram, layout) => {
+        if (diagram.body.kind !== 'usecase') throw Error('Expected native UseCase')
+        expect(diagram.body.nodes.map(node => [node.id, node.kind, node.parentId])).toEqual([['Customer', 'actor', undefined], ['Browse', 'usecase', 'Store'], ['Checkout', 'usecase', 'Store']])
+        expect(diagram.body.boundaries[0]?.members).toEqual(['Browse', 'Checkout'])
+        expect(diagram.body.relationships.map(edge => [edge.source, edge.target, edge.type])).toEqual([['Customer', 'Checkout', 'association'], ['Checkout', 'Browse', 'include']])
+        expect(layout.nodes.find(node => node.id === 'Browse')?.parentId).toBe('Store')
+        expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual([['Customer', 'Checkout'], ['Checkout', 'Browse']])
+      },
+    },
+    outlines: { kind: 'automatic', roles: ['node', 'group'] },
+    riskFixture: '../../../eval/layout-compare/fixtures/usecase-native.mmd', riskOptions: {},
+    textStressSource: 'usecase-beta\nactor A("東京 café é 👩‍💻")\nCase("שלום مرحبا")\nA --> Case',
+  },
+  wardley: {
+    family: 'wardley',
+    citizenship: {
+      source: readFileSync(join(EVAL_ROOT, 'layout-compare/fixtures/wardley-native.mmd'), 'utf8'), options: FAMILY_CITIZENSHIP_GALLERY_OPTIONS,
+      count: { nodes: 5, edges: 3, groups: 1 }, facts: ['pipeline {"nodeId":"Service","componentIds":["Service_Custom","Service_Utility"]}'],
+      visibleText: ['PLATFORM EVOLUTION', 'Customer', 'Service', 'Keep all note text', 'Adopt utility'],
+      edit: { op: { kind: 'set_evolution', id: 'Service', x: 95 }, beforeFacts: ['evolution {"nodeId":"Service","targetX":90,"targetY":60}'], afterFacts: ['evolution {"nodeId":"Service","targetX":95,"targetY":60}'] },
+      assertDomain: (diagram, layout) => {
+        if (diagram.body.kind !== 'wardley') throw Error('Expected native Wardley')
+        expect(diagram.body.nodes.map(node => [node.id, node.x, node.y])).toEqual([['Customer', 10, 95], ['Service', 50, 60], ['Power', 80, 20], ['Service_Custom', 30, 60], ['Service_Utility', 70, 60]])
+        expect(diagram.body.nodes[1]).toMatchObject({ labelOffsetX: -12, labelOffsetY: 8, sourceStrategy: 'build', inertia: true })
+        expect(diagram.body.links).toMatchObject([{ source: 'Customer', target: 'Service' }, { source: 'Service', target: 'Power', flow: 'bidirectional', dashed: true, label: 'delivery' }])
+        expect(diagram.body.annotations).toEqual([{ number: 1, coordinates: [{ x: 70, y: 40 }], text: 'Adopt utility' }])
+        expect(layout.nodes.find(node => node.id === 'Service_Custom')?.parentId).toBeDefined()
+        expect(layout.edges.slice(0, 2).map(edge => [edge.from, edge.to])).toEqual([['Customer', 'Service'], ['Service', 'Power']])
+      },
+    },
+    outlines: { kind: 'automatic', roles: ['node', 'group'] },
+    riskFixture: '../../../eval/layout-compare/fixtures/wardley-native.mmd', riskOptions: {},
+    textStressSource: 'wardley-beta\ncomponent "東京 café é 👩‍💻" [0.8,0.3]\nnote "שלום مرحبا" [0.4,0.6]',
+  },
+  venn: {
+    family: 'venn',
+    citizenship: {
+      source: readFileSync(join(EVAL_ROOT, 'layout-compare/fixtures/venn-native.mmd'), 'utf8'), options: FAMILY_CITIZENSHIP_GALLERY_OPTIONS,
+      count: { nodes: 4, edges: 0, groups: 0 }, facts: ['region ["A"] size 20 : Alpha', 'region ["B"] size 12 : Beta', 'text item in ["A"] : Owned note'], visibleText: ['Alpha', 'Beta', 'Shared', 'Owned note'],
+      edit: { op: { kind: 'set_subset', sets: ['A', 'B'], size: 4, label: 'Shared' }, beforeFacts: ['region ["A","B"] size 3 : Shared'], afterFacts: ['region ["A","B"] size 4 : Shared'] },
+      assertDomain: (diagram, layout) => {
+        if (diagram.body.kind !== 'venn') throw Error('Expected native Venn')
+        expect(diagram.body.subsets.map(subset => subset.sets)).toEqual([['A'], ['B'], ['A', 'B']])
+        expect(diagram.body.textNodes).toEqual([{ sets: ['A'], id: 'item', label: 'Owned note' }])
+        const a = layout.nodes.find(node => node.id === 'A')!, b = layout.nodes.find(node => node.id === 'B')!
+        expect(a).toBeDefined(); expect(b).toBeDefined()
+        expect((a.w / b.w) ** 2).toBeCloseTo(20 / 12, 2)
+        expect(a.x + a.w).toBeGreaterThan(b.x)
+      },
+    },
+    outlines: { kind: 'automatic', roles: ['node'] },
+    riskFixture: '../../../eval/layout-compare/fixtures/venn-native.mmd', riskOptions: {},
+    textStressSource: 'venn-beta\nset A["東京 café é 👩‍💻"]:20\nset B["שלום مرحبا"]:12\nunion A,B["Shared"]:3',
+  },
+  cynefin: {
+    family: 'cynefin',
+    citizenship: {
+      source: readFileSync(join(EVAL_ROOT, 'layout-compare/fixtures/cynefin-native.mmd'), 'utf8'), options: FAMILY_CITIZENSHIP_GALLERY_OPTIONS,
+      count: { nodes: 5, edges: 2, groups: 5 }, facts: ['domain complex item#0 : Explore', 'transition#0 complex -> clear : Learning', 'transition#1 chaotic -> confusion : Recover'], visibleText: ['Explore', 'Analyse', 'Stabilise', 'Investigate', 'Learning'],
+      edit: { op: { kind: 'set_item', domain: 'clear', index: 0, label: 'Automate' }, beforeFacts: ['domain clear item#0 : Operate'], afterFacts: ['domain clear item#0 : Automate'] },
+      assertDomain: (diagram, layout) => {
+        if (diagram.body.kind !== 'cynefin') throw Error('Expected native Cynefin')
+        expect(diagram.body.domains.map(domain => domain.name)).toEqual(['complex', 'complicated', 'clear', 'chaotic', 'confusion'])
+        expect(layout.groups.map(group => group.id)).toEqual(['complex', 'complicated', 'clear', 'chaotic', 'confusion'])
+        for (const node of layout.nodes) {
+          const group = layout.groups.find(group => group.id === node.parentId)!
+          expect(group.members).toContain(node.id)
+          expect(node.x).toBeGreaterThanOrEqual(group.x); expect(node.y).toBeGreaterThanOrEqual(group.y)
+          expect(node.x + node.w).toBeLessThanOrEqual(group.x + group.w); expect(node.y + node.h).toBeLessThanOrEqual(group.y + group.h)
+        }
+        expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual([['complex', 'clear'], ['chaotic', 'confusion']])
+      },
+    },
+    outlines: { kind: 'automatic', roles: ['group'] },
+    riskFixture: '../../../eval/layout-compare/fixtures/cynefin-native.mmd', riskOptions: {},
+    textStressSource: 'cynefin-beta\ncomplex\n  "東京 café é 👩‍💻 שלום مرحبا"',
+  },
+  railroad: {
+    family: 'railroad',
+    citizenship: {
+      source: readFileSync(join(EVAL_ROOT, 'layout-compare/fixtures/railroad-native.mmd'), 'utf8'), options: FAMILY_CITIZENSHIP_GALLERY_OPTIONS,
+      count: { nodes: 2, edges: 0, groups: 0 }, facts: ['notation railroad'], visibleText: ['entry', 'start', 'item', 'end'],
+      edit: { op: { kind: 'replace_rule', index: 1, definition: { type: 'terminal', value: 'datum' } }, beforeFacts: ['rule#1 item {"type":"terminal","value":"value"}'], afterFacts: ['rule#1 item {"type":"terminal","value":"datum"}'] },
+      assertDomain: (diagram, layout) => {
+        if (diagram.body.kind !== 'railroad') throw Error('Expected native Railroad')
+        expect(diagram.body.rules[0]).toEqual({ name: 'entry', definition: { type: 'sequence', elements: [{ type: 'terminal', value: 'start' }, { type: 'choice', alternatives: [{ type: 'nonterminal', name: 'item' }, { type: 'optional', element: { type: 'terminal', value: 'end' } }] }, { type: 'repetition', min: 0, max: null, element: { type: 'terminal', value: ',' } }] } })
+        expect(layout.groups.map(group => group.id)).toEqual(['rule#0:entry', 'rule#1:item'])
+        expect(layout.nodes.filter(node => node.label === 'start').map(node => node.parentId)).toEqual(['rule#0:entry'])
+      },
+    },
+    outlines: { kind: 'automatic', roles: ['node'] },
+    riskFixture: '../../../eval/layout-compare/fixtures/railroad-native.mmd', riskOptions: {},
+    textStressSource: 'railroad-beta\nentry = terminal("東京 café é 👩‍💻 שלום مرحبا");',
+  },
+  swimlane: {
+    family: 'swimlane',
+    citizenship: {
+      source: readFileSync(join(EVAL_ROOT, 'layout-compare/fixtures/swimlane-native.mmd'), 'utf8'), options: FAMILY_CITIZENSHIP_GALLERY_OPTIONS,
+      count: { nodes: 4, edges: 3, groups: 2 }, facts: ['group customer : CUSTOMER', 'group team : OPERATIONS', 'edge request -> check'], visibleText: ['Request order', 'Dispatch order', 'CUSTOMER', 'OPERATIONS'],
+      edit: { op: { kind: 'set_label', target: 'check', label: 'Available?' }, beforeFacts: ['node check : In stock?'], afterFacts: ['node check : Available?'] },
+      assertDomain: (diagram, layout) => {
+        if (diagram.body.kind !== 'swimlane') throw Error('Expected native Swimlane')
+        expect(diagram.body.graph.subgraphs.map(group => [group.id, group.nodeIds])).toEqual([['customer', ['request', 'receive']], ['team', ['check', 'fulfill']]])
+        expect(layout.nodes.map(node => [node.id, node.parentId]).sort()).toEqual([['check', 'team'], ['fulfill', 'team'], ['receive', 'customer'], ['request', 'customer']])
+        expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual([['request', 'check'], ['check', 'fulfill'], ['fulfill', 'receive']])
+      },
+    },
+    outlines: { kind: 'automatic', roles: ['node', 'group'] },
+    riskFixture: '../../../eval/layout-compare/fixtures/swimlane-native.mmd', riskOptions: {},
+    textStressSource: 'swimlane-beta LR\nsubgraph lane[東京 café é 👩‍💻]\nA[שלום مرحبا]\nend',
+  },
+  treeview: {
+    family: 'treeview',
+    citizenship: {
+      source: readFileSync(join(EVAL_ROOT, 'layout-compare/fixtures/treeview-native.mmd'), 'utf8'), options: FAMILY_CITIZENSHIP_GALLERY_OPTIONS,
+      count: { nodes: 5, edges: 3, groups: 0 }, facts: ['node treeview-1 parent treeview-0', 'node treeview-3 parent treeview-2', 'node treeview-1 class highlight', 'node treeview-1 icon logos:react', 'node treeview-1 description main component'], visibleText: ['PROJECT', 'src', 'widgets', '按钮.ts', 'README.md', 'main component'],
+      edit: { op: { kind: 'set_label', id: 'treeview-1', label: 'Application.tsx' }, beforeFacts: ['node#1 treeview-1 file : App.tsx'], afterFacts: ['node#1 treeview-1 file : Application.tsx'] },
+      assertDomain: (diagram, layout) => {
+        if (diagram.body.kind !== 'treeview') throw Error('Expected native TreeView')
+        expect(diagram.body.nodes.map(node => [node.id, node.parentId, node.nodeType])).toEqual([['treeview-0', undefined, 'directory'], ['treeview-1', 'treeview-0', 'file'], ['treeview-2', 'treeview-0', 'directory'], ['treeview-3', 'treeview-2', 'file'], ['treeview-4', undefined, 'file']])
+        expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual([['treeview-0', 'treeview-1'], ['treeview-0', 'treeview-2'], ['treeview-2', 'treeview-3']])
+      },
+    },
+    outlines: { kind: 'none', reason: 'Tree rows, connector guides and fill-only highlights do not draw automatic node outlines.' },
+    riskFixture: '../../../eval/layout-compare/fixtures/treeview-native.mmd', riskOptions: {},
+    textStressSource: 'treeView-beta\n"東京 café é 👩‍💻/"\n    "שלום مرحبا" :::highlight',
+  },
   zenuml: {
     family: 'zenuml',
     citizenship: {
