@@ -176,3 +176,10 @@ repair and passes for both backends after it. Text/property owners90P, final
 Unicode owner6P with the reduced CI counterexample retained, core types/lint pass.
 This removes an introduced refusal without relaxing admission/caps or adding a
 cache. Runtime/payload impact is unmeasured; remaining CI failures stay open.
+
+Generated SDK declarations were stale against merged line/fragment ink fields.
+The existing SDK generator updates its runtime-imported declaration string; 13 SDK
+and release-identity owners pass. This addresses the identified source of build
+dirty provenance without weakening the dirty marker or its assertion. No full
+website rebuild is claimed. CI99ed used synthetic merge7fbf into recovery3b56;
+its relative payload baseline is not current main. The PR now targets main.
