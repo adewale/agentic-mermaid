@@ -1,0 +1,30 @@
+{
+  "owner": "root-20261105-0404",
+  "updated_at": "2026-11-05T04:21:23.253309+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-08T23:59:59Z",
+  "note": "Fresh recovery baseline, not restored November runtime. Original checkout and reconstructed patch preserved.",
+  "writers": [],
+  "head": "8393d577f9245f62aa3a0f970cc7aaca2b4f5b9c",
+  "next_fix": "Next concrete proof-availability investigation: retained Native5containsfan has actual3pxcircleclearance/all15positivecomponentink yet2conservativecompound-envelope U contacts (99183); same-source ELK nowP99199. Locate first painted-bound producer, testing existing per-child geometry/paint reuse with conservative fallback for unsupported joins/transforms. No resource-ID specialcase/arbitrarymargin/P-seekingportgrowth/newgrammar/cache/framework. Success is justifiedproof under unchangedcaps and retainedNativeSVG, not visiblequality/speed/readiness gain; requalify shared terminal and ELK geometry consumers if bounds change. This is distinct from stopped ER256 glyph-union performance shortcuts. Originalrepeat-drawing optimization hypothesis closed absent fresh causal data; do not runmore favorableprofiles. Sparse32XML/ER256family/forestwire/Sparse256area andalladverse/unavailable outcomesremain; original2dad/Trident/Mermaid12.2/Pele1.9 unavailable, Replacement24sealed. Deadline2026-11-08T23:59:59Z.",
+  "status": "checkpointed",
+  "released_at": "2026-11-05T04:21:23.253309+00:00",
+  "checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-8393d577f.bundle",
+  "evidence": "/workspace/pr449-recovery-20261103-155750/evidence-5aa10b3c0.tar.gz",
+  "execution_note": "Bounded local profile investigation complete; lease released. Runtime remains1366d4de0ad0aee9b3b90395e1d56bd8ce2d55c5; findings committed8393d577f9245f62aa3a0f970cc7aaca2b4f5b9c. Exactly2fresh cache1 CPU-profile workers/6fully-consumed calls, no source overlays. All6 entire SVG+rawreceipt products independently byte-equal their matching prior cold/repeat/edit references; exact single leaf-text edit and authored3cards/5orderedrelations/caption ownership retained. Native U99183/U99372, ELK P99199/P99393 remain distinct work/outcomes. OriginalNative repeatdrawing150.37ms tail didnotreproduce42.60ms; optimization lead stopped, oldadverse173.47ms call not repaired/explained. Profiledelaysmoved toNative repeatpaint7555ms andELK repeatdrawing4705ms. Huge sparse sample deltas cannot rankfiveCPUhotspots or justifyremovablework/expectedspeedup; processCPU includes runtime/JIT/profiler/background work. All6 namedphase windows withinfull-consumption markers; artifact/reference/explicitGCoutside. RawCPU/stage/heap/cache markers and38evidencefiles byte-verified; incrementalbundleverified. Runtime unchanged, no cache/array/SoA/serialization rewrite/tests/build replay orperformancewinclaim. Fiveexistingagents withindependentscope reviewer used. No external/default/version/automationconfigchanges and no continuous-executionclaim.",
+  "evidence_verified": {
+    "files": 2632,
+    "uncompressed_bytes": 43354657,
+    "archive_bytes": 15312785,
+    "controllers": 121
+  },
+  "evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-8393d577f.tar.gz",
+  "evidence_delta_verified": {
+    "files": 38,
+    "uncompressed_bytes": 1336882,
+    "archive_bytes": 172480
+  },
+  "previous_owner": "root-20261105-0304"
+}

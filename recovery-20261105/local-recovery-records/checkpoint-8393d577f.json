@@ -1,0 +1,13 @@
+{
+  "head": "8393d577f9245f62aa3a0f970cc7aaca2b4f5b9c",
+  "runtimeHead": "1366d4de0ad0aee9b3b90395e1d56bd8ce2d55c5",
+  "bundle": "/workspace/pr449-recovery-20261103-155750/checkpoint-8393d577f.bundle",
+  "bundleBase": "146a2d4961e72b55d4329c9eaf8c952f7cf79013",
+  "bundleVerified": true,
+  "archive": "/workspace/pr449-recovery-20261103-155750/evidence-delta-8393d577f.tar.gz",
+  "byteVerifiedFiles": 38,
+  "uncompressedBytes": 1336882,
+  "archiveBytes": 172480,
+  "createdAt": "2026-11-05T04:20:49.202839+00:00",
+  "scope": "Bounded six-call phase-aligned CPU profile investigation. Complete prior-product bytes verified, specific Native repeat drawing tail not reproduced; unsupported optimization stopped. Moving adverse profile delays and sparse sample attribution retained. No runtime code, cache, tests or build changes."
+}

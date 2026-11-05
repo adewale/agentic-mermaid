@@ -1,0 +1,32 @@
+{
+  "owner": "root-20261105-0505",
+  "updated_at": "2026-11-05T06:41:02.062591+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-08T23:59:59Z",
+  "note": "Fresh recovery baseline, not restored November runtime. Original checkout and reconstructed patch preserved.",
+  "writers": [],
+  "head": "d089e94d072aca8689da09c96d5871b5658a64bc",
+  "next_fix": "Demonstratedfirst-stage meaningdeficit: standalone startcircleo-- enters unfinishedtext-arrow lexer state and joins followinglinkStyle using<br>; exactunsupportedsource/failure retained. Reproducelexer/parserownernext, preserveunmatched/multiline/UTF16 contracts. Currentwidecirclepaintrepair coversonlylongstraightsolidknowncustomwidth; othercurved/dashed/animated/thick/short/unknownwidth casesunchanged. ER256bothrefuse/Sparse32U400k/forestwire+16.89%/sparsearea+115.35%/RequirementTBarea+9.53% remain; originalbaseline/peersunavailable;holdoutsealed.",
+  "status": "idle",
+  "checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-d089e94d0.bundle",
+  "evidence": "/workspace/pr449-recovery-20261103-155750/evidence-5aa10b3c0.tar.gz",
+  "execution_note": "Boundedlocalruncomplete, releasedlease/notcontinuous. Sourcec7490d9b4+logd089e94d0: sharedwide10pxhollowcircle actual0->230ownpixels bothbackends, 536terminal-onlylightenedpixels; allwidth/resource/ref/anchor/text/body/route exact. ProofU149226->U148921sameissue/caps; strictrefusalhonest. EightactualinkRED->GREEN, unsupportedinitialstartfixture preserved; supportedo-->start+endarrow REDseparately. Failedconservative10.5pxcandidate preserved/stopped. 893P/knownSparse32F188.36s; finaltypes56.46s2121896KiB/lintP/affectedownerP.12consumedcostcallsallU/repeatexact/realedits/N1noratios, rawheaps/costadversitiesretained.2Node+2compiledwholeSVG/ENTIREreceiptexact;1RAMbuild19.36s303980KiB/scratchremoved; FlowchartNative26req368344gzip312317Br vsELK24req738474gzip583747Br, +431gzip/+297Brboth. No newcache/opaquehead/mask/carrier/gates; nofetch/push/CI/default/version/publication. Independentwholeproductbindingreviewcomplete. Gitbundleverifiedand259newfiles/871234rawB/531878archiveBbyte-backed; allpriorarchivesretained. Cleanlocald089e94d0;5agentscompleted/noCPUjobs/writers. Lease released; freshlease requirednextinvocation. Deadlineunchanged2026-11-08T23:59:59Z; automationnotdisabledbeforedeadline.",
+  "evidence_verified": {
+    "files": 2632,
+    "uncompressed_bytes": 43354657,
+    "archive_bytes": 15312785,
+    "controllers": 121
+  },
+  "evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-d089e94d0.tar.gz",
+  "evidence_delta_verified": {
+    "files": 259,
+    "uncompressed_bytes": 871234,
+    "archive_bytes": 531878
+  },
+  "previous_owner": "root-20261105-0404",
+  "released_at": "2026-11-05T06:41:02.062591+00:00",
+  "previous_checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-5417e088c.bundle",
+  "previous_evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-5417e088c.tar.gz"
+}

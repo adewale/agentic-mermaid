@@ -1,0 +1,44 @@
+{
+  "owner": "root-20261105-1139",
+  "updated_at": "2026-11-05T12:21:26.494065+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-08T23:59:59Z",
+  "note": "Fresh recovery baseline, not restored November runtime. Original checkout and reconstructed patch preserved.",
+  "writers": [],
+  "head": "8f9ef3da050f334f02aad6dd482942049dfe64b8",
+  "next_fix": "Sparse256 remaining+5.04%ELKarea: savedactualpaintedgeometry showsconnectedbbox[39.5,39.5]..[453.098,96.5], emptyheaderroom473.098..1791 fits8painted141x57cardsatspacing20; finalrowhasN255alone. Next smallest causal intervention: moveWHOLEfinalshelfrowonlyifitfitsright-of-connectedheight/widthwithresolvedpaintgap, alignpainttop39.5notcanvas40; retainallotherseats/connectedink andchargeexistingledger. Predictedremove77height/140987area(\u22123.88%)\u21923492632.5(+0.97%ELK); NOTexecuted/qualified. No paritygate/newpacker/knob, explicitspacing0/70/config/groups/caps preserved. Keepforestwire+16.89%,RequirementTB/BTarea+9.53%,ER256relationshipchainsharedrefusal/Sparse32proofcap,missingoriginal2dad/Trident/peers,sealedReplacement24 andallstopped/adverseprobes. Unchangedreplaysvalidationonly.",
+  "status": "idle",
+  "checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-8f9ef3da0.bundle",
+  "evidence": "/workspace/pr449-recovery-20261103-155750/evidence-5aa10b3c0.tar.gz",
+  "execution_note": "Bounded root1139 localruncompleted. c93e0c51f separatesNativeislanddefaultpaint20 fromconnected70, preservesexplicit0/70/config90/override0/groups andoldoptionobservation. SameinputSparse256area7449331\u21923633619.5(\u221251.22%),ELKexcess115.35%\u21925.04%,wire132.598unchanged/connectedmarkup+256names+dims+clearancesexact. Fiveafterinkrasters137/245/48/48positive/outside0; beforeinkreusedonlyafterfreshwholeproductbytebinding. P90546\u2192P91015(+469),same24pairs/caps.144P7filemilestone60.19s/types88.90s2154752KiB/lint2P;owningRED70<70\u2192GREEN.12currentcostcallsallP/repeatcachearmsentireproductsbyteexact/visiblecaptionedit;Node2+compiled2wholeproductexact/oneRAMbuildremoved. SVG\u2212665raw/\u2212267gzip/\u221257Br;ERcode+4raw/+6gzip/+15Brrequestsunchanged;adverseslowcache1samplesretained. 8f9ef3da0briefhandoff/fullpriorlogarchived. Preparedref39char typo caughtbeforeexecution/originalsretained. Two localcommitsnotpushed;PR602stillC74/noexternalactions; cleanHEAD/allnewevidencebytebacked; noongoingexecution.",
+  "evidence_verified": {
+    "files": 2632,
+    "uncompressed_bytes": 43354657,
+    "archive_bytes": 15312785,
+    "controllers": 121
+  },
+  "evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-8f9ef3da0.tar.gz",
+  "evidence_delta_verified": {
+    "files": 149,
+    "uncompressed_bytes": 1598980,
+    "archive_bytes": 1124253
+  },
+  "previous_owner": "root-20261105-1056",
+  "previous_checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-99723bb5d.bundle",
+  "previous_evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-99723bb5d.tar.gz",
+  "pull_request": {
+    "number": 602,
+    "url": "https://github.com/adewale/agentic-mermaid/pull/602",
+    "draft": true,
+    "head": "c74d826ca198f9204f8f79228ae0c3eb3323839c",
+    "head_branch": "work/pr449-reconstruct-20261103",
+    "base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+    "base_branch": "review/pr449-recovery-base-3b56da55",
+    "main_observed": "6996aac89601a436375a052150cbe3cd53c0946b",
+    "main_integration_qualified": false,
+    "visual_evidence_commit": "bcc799ccc362f71d63384eaa31a879d412cd74a2"
+  },
+  "pr_record_checkpoint": "/workspace/pr449-recovery-20261103-155750/pr602-preparation.tar.gz"
+}

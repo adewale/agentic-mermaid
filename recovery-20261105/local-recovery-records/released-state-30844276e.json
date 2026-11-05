@@ -1,0 +1,29 @@
+{
+  "owner": "root-20261104-2104",
+  "updated_at": "2026-11-04T21:22:19.919071+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-08T23:59:59Z",
+  "note": "Fresh recovery baseline, not restored November runtime. Original checkout and reconstructed patch preserved.",
+  "writers": [],
+  "head": "30844276eaa847cae206d1142bcfa83cf57862ff",
+  "next_fix": "Sparse32 actualhead/textmeaning is separatelyqualified for fixedInterfixture, but same-writeXMLproofstillU400k. ER256chainfamilyrefusal remains. Need an actually sufficient safe producer subtraction; do not retry absentsecondcopy,streaming-as-removal,leaf-sizeguess,numeric/mask/union/index/receiversharing variants. ELK20sClasschildtimeoutunknown; originalbaseline/Trident/Mermaid12.2/Pele1.9 unavailable. Replacement24sealed. Deadline2026-11-08T23:59:59Z unchanged.",
+  "status": "idle",
+  "released_at": "2026-11-04T21:22:19.919071+00:00",
+  "checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-30844276e.bundle",
+  "evidence": "/workspace/pr449-recovery-20261103-155750/evidence-5aa10b3c0.tar.gz",
+  "execution_note": "Bounded local run. Test0cc8ea7aa consolidates threeexistingSparseinputs(0nodefs,0unuseddefs,32defs), preservingallvariants/caps/Pgoals. All1500actualtextrecords/IDs/attrs,firstlastglyphink and32individuallyremovedactualhead contributions nowcheckBEFOREproof. Two0armsP;Native32onlyfailsLASTunchangedP400k. No runtime/capacityfixorELKspeedclaim. Correctedvalidation11.43s442196KiB includes41rasters. InitialmodifiedviewportcropcrashedResvgaftertwo0armsP(3.17s192780KiB);fullsource/logretained. Fiveofflinesmokerasters verifyoriginalrootnativecropdimensions/exactpixelalignment;onefullimageperarmreused. Coretypes/lintP. No broadreplay/backendtiming/Node/build. Stopped private-duplicatecopy(no secondcopy),streamingXML(moveschecks/hooks,insufficientcount),ink-treeleaf(tuningcostunproven) before runtimeprobes. Briefworklog88lines;completeprior37505B preservedGit3dfandgzipverified. Newbundle+17fileevidencearchive byteverified. Localonly; no automation/default/version/remotechanges, allchildrencompleted, no continuous-executionclaim.",
+  "evidence_verified": {
+    "files": 2632,
+    "uncompressed_bytes": 43354657,
+    "archive_bytes": 15312785,
+    "controllers": 121
+  },
+  "evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-30844276e.tar.gz",
+  "evidence_delta_verified": {
+    "files": 17,
+    "uncompressed_bytes": 1211112,
+    "archive_bytes": 262748
+  }
+}

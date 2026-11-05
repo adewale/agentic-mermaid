@@ -1,0 +1,23 @@
+{
+  "owner": "root-20261104-0856",
+  "updated_at": "2026-11-04T10:12:13.622429+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-08T23:59:59Z",
+  "note": "Fresh recovery baseline, not restored November runtime. Original checkout and reconstructed patch preserved.",
+  "writers": [],
+  "head": "37f74610f00a26e66d65278918247fe9eb46e874",
+  "next_fix": "Class128TB/BT212actuallychangedpolylineprojections remains nextcode target; existing aliases/rekeying/copycuts insufficient, no safe bounded producer subtraction identified yet. Sparse32/ER256chain remain enrolled. 954248001 scratch69Maps/1335gets removed, no causal speedclaim. Cyclic9 currentAM/ELK2SVG+4Interrasters requalify oldpair123/122individualpixels; AMwire6.93%shorter/18fewerturns, bothP; no general parity. Originalbaseline/peers unavailable; holdoutsealed.",
+  "status": "idle",
+  "released_at": "2026-11-04T10:12:13.622429+00:00",
+  "checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-37f74610f.bundle",
+  "evidence": "/workspace/pr449-recovery-20261103-155750/evidence-37f74610f.tar.gz",
+  "execution_note": "Completed bounded local run954248001 plus evidence commits ee7136474/37f74610f; no continuous execution between sessions claimed. No remote actions, no automation disabled before deadline2026-11-08T23:59:59Z.",
+  "evidence_verified": {
+    "files": 2547,
+    "uncompressed_bytes": 42892851,
+    "archive_bytes": 15047599,
+    "controllers": 114
+  }
+}

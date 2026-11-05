@@ -1,0 +1,12 @@
+{
+  "archive": "/workspace/pr449-recovery-20261103-155750/evidence-d9e31feb9.tar.gz",
+  "bytes": 10648679,
+  "files": 2016,
+  "uncompressedBytes": 35201654,
+  "symlinks": 0,
+  "controllers": 85,
+  "allMembersRead": true,
+  "gzipIntegrity": true,
+  "head": "d9e31feb9f18130c44d24ae25ec750e1d3bd4917",
+  "code": "790ed4b85fd2c9ed898d90e8fb74bb0e48873ba0"
+}

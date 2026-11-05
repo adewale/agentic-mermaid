@@ -1,0 +1,29 @@
+{
+  "owner": "root-20261104-2203",
+  "updated_at": "2026-11-04T22:41:25.651022+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-08T23:59:59Z",
+  "note": "Fresh recovery baseline, not restored November runtime. Original checkout and reconstructed patch preserved.",
+  "writers": [],
+  "head": "cf689fd17c9b6e86bc6b3a5062b4d85f9e27123c",
+  "next_fix": "Sharedpostimportfreeze-handoff falseP closed,norelativenative/ELKgeometrygain. KeepSparse32same-writeproofU400k/ER256familyrefusal/oldELKtimingandClasschildtimeoutunknown; unavailableoriginalbaseline/Trident/Mermaid12.2/Pele1.9 andsealedreplacement24 unchanged. Beforebounds-reuseperformancework, examineadjacentprivateScenepublicationauthority onlywithactual-write/ink counterexample; no all-hooksclaim. Need sufficient safe subtractionforenrolledcapacityloss; do notretryfalsifiedcopy/streaming/mask/leaf/union/index/receiversharing guesses oroldcostreplays. Deadline2026-11-08T23:59:59Zunchanged.",
+  "status": "idle",
+  "released_at": "2026-11-04T22:41:25.651022+00:00",
+  "checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-cf689fd17.bundle",
+  "evidence": "/workspace/pr449-recovery-20261103-155750/evidence-5aa10b3c0.tar.gz",
+  "execution_note": "Boundedlocalrun. Oneexact3phaseSparse256ELKCPUprofile at308:1533/552/502ms,P90857/90857/91361,wholeSVG/ENTIREreceipts exactold52a; old18.6s/17.7spainttail notreproduced,notexplained, no perfrewrite. Profiletop5source/self+samplegaps/cache review retained. NewSOURCEsharedsoundnessdefectconfirmed: sameScene/receipt/SVG cleanFailed91TEXT_OCCLUDED -> ambientfreeze corruptprivatebounds -> falseP88. Runtime3c567e1e5 capturessealingforsixmintedinspection/ancestrysites; no source-read/geometry/cap/fee/append/newcachechanges. ExistingReadowner oldred/currentgreen afteractualzero-covered/positive-uncovered Interink; LostartifactafterexactoriginalSVG/entirecleanFailedproof91 restored,hook0. Broad915P/knownSparse32F,all8Class128P;types/lintP. Normal3postfixELKcallsP2281/855/317ms,allwholeSVG/ENTIREreceipts exactprofile+old52a;peak265632KiB,heap41.01/42.07/42.79MiB. Differentinstrumentation/N1no speedmemoryratio.2freshNode24source+1RAMbuild/2compiled products entireSVG/receipts exact. ERclosuresAM23/gzip327367/Br276496 vsELK21/697500/547912;deltas-14/-13B,-12/+8B,initial-1gzip/+9Br,requestsunchanged,RAMremoved. Code+briefdoccommitted,incrementalbundle+100fileevidencearchive byteverified. Localonly,no defaults/version/remote/automationconfigchanges; allchildrencompleted,lease released,no continuousexecutionclaim.",
+  "evidence_verified": {
+    "files": 2632,
+    "uncompressed_bytes": 43354657,
+    "archive_bytes": 15312785,
+    "controllers": 121
+  },
+  "evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-cf689fd17.tar.gz",
+  "evidence_delta_verified": {
+    "files": 100,
+    "uncompressed_bytes": 2325841,
+    "archive_bytes": 548211
+  }
+}

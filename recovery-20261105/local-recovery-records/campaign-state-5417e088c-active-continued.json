@@ -1,0 +1,30 @@
+{
+  "owner": "root-20261105-0505",
+  "updated_at": "2026-11-05T05:57:59.354737+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-08T23:59:59Z",
+  "note": "Fresh recovery baseline, not restored November runtime. Original checkout and reconstructed patch preserved.",
+  "writers": [],
+  "head": "5417e088ccfef4fd0d9a7eccc1b98d10f761b438",
+  "next_fix": "Reproduce exact stockwide-shaft flowchart LR A --o B +linkStyle0 black10px inNative+ELKnon-strict, thencounterfactuals suppressonlyshaft/onlyBcover/both whilemarkerresource/ref/anchor/viewportstayfixed. Existingownercurrentfinal973P run provesoneactualmarkerref removal zero pixelsbothbackends; strictUrefusalhonest. Locatefirstemissioncause beforeproducerfix. Keep10pxauthoredstroke; reuseexistingterminal/carrier/paintorder machinery onlyifcausalsmallinterventionsupportsheadsignal, not P-seeking. Bounds/profiling hypotheses completed orstopped; capsand allotherlossesremain; deadline2026-11-08T23:59:59Z.",
+  "status": "active",
+  "released_at": "2026-11-05T04:21:23.253309+00:00",
+  "checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-5417e088c.bundle",
+  "evidence": "/workspace/pr449-recovery-20261103-155750/evidence-5aa10b3c0.tar.gz",
+  "execution_note": "Owner continued before release; SAMEroot0505lease renewed after clean5417e088c and no live runtime writers. Compoundprecision source532eb2eba committed/qualified/backed: NativeU99183\u2192P99181 with exactSVG; ELK1pxleadshift qualified16rasters/all15headcontrols andallnormals; final973P/knownSparse32F,Class1288P/styles6/types/lint;12costcalls/allP/Node+compiledwholeSVG+ENTIREreceiptexact. Adverse240msELKedit/Native50vs44msrepeat/additionalcodebytes retained;141filesbyte-backed. No continuous execution claim. Continue next bounded sharedactualcircle-ink deficit withfiveexistingagents; rootsoleCPU, no productionwriters yet.",
+  "evidence_verified": {
+    "files": 2632,
+    "uncompressed_bytes": 43354657,
+    "archive_bytes": 15312785,
+    "controllers": 121
+  },
+  "evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-5417e088c.tar.gz",
+  "evidence_delta_verified": {
+    "files": 141,
+    "uncompressed_bytes": 698667,
+    "archive_bytes": 316270
+  },
+  "previous_owner": "root-20261105-0404"
+}

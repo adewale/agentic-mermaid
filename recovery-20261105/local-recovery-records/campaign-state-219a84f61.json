@@ -1,0 +1,29 @@
+{
+  "owner": "root-20261105-0104",
+  "updated_at": "2026-11-05T02:21:53.795473+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-08T23:59:59Z",
+  "note": "Fresh recovery baseline, not restored November runtime. Original checkout and reconstructed patch preserved.",
+  "writers": [],
+  "head": "219a84f61ae3528d457afa740546f1ec08298b14",
+  "next_fix": "Next demonstrated contact counterexample: ELK Requirement contains fan relation-5 has duplicate leading point followed by horizontal travel along its source bottom edge. Locate first responsible producer route stage; deleting duplicates alone is falsified as a docking repair. Keep actual output/meaning separate from proof availability. Native loops/other dense cyclic combinations unqualified by this six-case fan fix. Sparse32 XML budget, ER256 family refusal, forest excess wire and Sparse256 area remain enrolled; exhausted capacity leads stay closed without new causal evidence. Original baseline2dad/Trident/Mermaid12.2/Pele1.9 remain unavailable; Replacement24 sealed. Deadline remains2026-11-08T23:59:59Z.",
+  "status": "checkpointed",
+  "released_at": "2026-11-05T02:21:53.795473+00:00",
+  "checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-219a84f61.bundle",
+  "evidence": "/workspace/pr449-recovery-20261103-155750/evidence-5aa10b3c0.tar.gz",
+  "execution_note": "Bounded local run completed and lease released. Runtime a949f8534b5a98e9c168fb61c406d64379fe23fb; brief log 219a84f61ae3528d457afa740546f1ec08298b14. Requirement fan actual circle-overlap pairs 2\u21920 with 8\u219214px centers and all authored meaning/component ink retained. Canvas unchanged, wire +12px/+1.09%; Native proof U99183 and unchanged ELK U98904 retained. Six new owning cases old RED\u2192P; self-contained milestone 203P, targeted styles6P, core types/lint pass. Initial sandbox stdin failures, stopped upstream-worker timeouts and failed sandbox build retained. 12 current fully consumed calls all returned U, entire repeat SVG/receipts exact; slower Native cache1 repeat and first import retained. Two fresh Node24 and two compiled products whole-SVG/ENTIRE-receipt exact; RAM retry completed, scratch removed. Real code payload +224gzip/+193Brotli bytes per Requirement closure, requests unchanged. 139 evidence files byte-verified and incremental bundle verified. Five existing agents used on disjoint roles with independent value reviewer. No external, default, version or automation configuration change; no continuous-execution claim.",
+  "evidence_verified": {
+    "files": 2632,
+    "uncompressed_bytes": 43354657,
+    "archive_bytes": 15312785,
+    "controllers": 121
+  },
+  "evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-219a84f61.tar.gz",
+  "evidence_delta_verified": {
+    "files": 139,
+    "uncompressed_bytes": 567435,
+    "archive_bytes": 421692
+  }
+}

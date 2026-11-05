@@ -1,0 +1,30 @@
+{
+  "owner": "root-20261105-0304",
+  "updated_at": "2026-11-05T03:22:30.877652+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-08T23:59:59Z",
+  "note": "Fresh recovery baseline, not restored November runtime. Original checkout and reconstructed patch preserved.",
+  "writers": [],
+  "head": "146a2d4961e72b55d4329c9eaf8c952f7cf79013",
+  "next_fix": "Next bounded cost investigation: reproduce Native cache1 repeat drawing tail150.37ms of173.47ms wall time using existing profiling tools and fully consumed equivalent products before any design change. This single sample is not stable/CPU-causal; unchanged Native whole output is exact and its layout code did not change in this ELK fix. Stop if not reproduced; no repeated unchanged inventories/comparisons as progress. Two-self-loop circle-overlap hypothesis falsified and stopped. Sparse32 XML cap, ER256 family refusal, forest excess wire and Sparse256 area remain enrolled; exhausted capacity leads stay closed absent new causal evidence. Original2dad/Trident/Mermaid12.2/Pele1.9 unavailable; Replacement24 sealed. Deadline remains2026-11-08T23:59:59Z.",
+  "status": "checkpointed",
+  "released_at": "2026-11-05T03:22:30.877652+00:00",
+  "checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-146a2d496.bundle",
+  "evidence": "/workspace/pr449-recovery-20261103-155750/evidence-5aa10b3c0.tar.gz",
+  "execution_note": "Bounded local run completed; fresh lease released. Runtime1366d4de0ad0aee9b3b90395e1d56bd8ce2d55c5; brief log146a2d4961e72b55d4329c9eaf8c952f7cf79013. ELK contains fan wrong source normal reproduced4directions. Raw graph locates defect before emission: zero between-layer edge-node spacing puts first track on card border. Single-option10 causal intervention restores actual normal; production reuses canonical contains-start17px terminal in existing ELK spacing fields. Four new owner RED\u2192P; nearby sharp/rounded reciprocal both directions preserve authored occurrence/card/caption meaning. Actual5normal contacts and15positive/confined component controls verified16rasters; area/wire unchanged, bends13\u219214, separate U98904\u2192P99199. Prior Native wholeSVG/ENTIREreceipt exact/U99183. Final4file209P/styles6P/core types61.34s/lint pass. Twelve fully consumed calls all returned, repeat entireSVG/receipts exact and edits real; adverse timings retained including Native cache1 repeat173.47ms (drawing150.37ms) vsELK36.39ms and ELK cold3148ms. No performance ratios or stable regression claim. Two Node24 source and two compiled products byte-exact; one RAM build completed, scratch removed; actual closures +22gzip/+17Br per Requirement arm, requests unchanged. One new two-self-contains Native probe found56px circle-center separation vs11px paint, falsifying/stopping that contact hypothesis. 143 evidence files byte-verified and incremental bundle verified. All five existing agents used on disjoint roles with independent value reviewer. No external/default/version/automation configuration changes and no continuous-execution claim.",
+  "evidence_verified": {
+    "files": 2632,
+    "uncompressed_bytes": 43354657,
+    "archive_bytes": 15312785,
+    "controllers": 121
+  },
+  "evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-146a2d496.tar.gz",
+  "evidence_delta_verified": {
+    "files": 143,
+    "uncompressed_bytes": 396606,
+    "archive_bytes": 277266
+  },
+  "previous_owner": "root-20261105-0104"
+}

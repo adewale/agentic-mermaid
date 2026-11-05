@@ -1,0 +1,135 @@
+{
+  "scope": "Independent saved-byte/XML review; no API, raster, test or build execution. After-default is same-input candidate, causal-spacing20 is explicitly changed options.",
+  "sourceBytes": 1199,
+  "sameExactSourceAndDefaultOptions": true,
+  "before": {
+    "ownedEntityNames": 256,
+    "emptyAttributeRows": 256,
+    "authoredRelationship": "N0 ||--|| N1 : owns",
+    "normalDockEndpoints": [
+      [
+        180.0,
+        68.0
+      ],
+      [
+        312.598,
+        68.0
+      ]
+    ],
+    "cardinalities": 2,
+    "barsPerCardinality": 2,
+    "barDepths": [
+      4,
+      8
+    ],
+    "width": 2542.0,
+    "height": 2930.5,
+    "area": 7449331.0,
+    "shaftWire": 132.598,
+    "isolateColumns": 12,
+    "isolateRows": 22,
+    "minHorizontalPaintGap": 70.0,
+    "minVerticalPaintGap": 70.0,
+    "paintedBodyOverlaps": 0,
+    "bodyPaintContained": true
+  },
+  "after": {
+    "ownedEntityNames": 256,
+    "emptyAttributeRows": 256,
+    "authoredRelationship": "N0 ||--|| N1 : owns",
+    "normalDockEndpoints": [
+      [
+        180.0,
+        68.0
+      ],
+      [
+        312.598,
+        68.0
+      ]
+    ],
+    "cardinalities": 2,
+    "barsPerCardinality": 2,
+    "barDepths": [
+      4,
+      8
+    ],
+    "width": 1831.0,
+    "height": 1984.5,
+    "area": 3633619.5,
+    "shaftWire": 132.598,
+    "isolateColumns": 11,
+    "isolateRows": 24,
+    "minHorizontalPaintGap": 20.0,
+    "minVerticalPaintGap": 20.0,
+    "paintedBodyOverlaps": 0,
+    "bodyPaintContained": true
+  },
+  "areaChangePercent": -51.222203711984335,
+  "areaResidualVsHistoricalElkPercent": 5.0421918362627105,
+  "afterWholeSvgExactCausalChangedOptionsProduct": true,
+  "afterEntireReceiptExactCausal": false,
+  "causalToDefaultEntireReceiptDifferences": [
+    {
+      "path": "/sharedRequestDigest",
+      "before": "fnv1a64:bf7cfa851d462be2",
+      "after": "fnv1a64:07a3ef8e68246833"
+    },
+    {
+      "path": "/requestDigest",
+      "before": "fnv1a64:4de399598839b652",
+      "after": "fnv1a64:6222986f9a849eaf"
+    }
+  ],
+  "beforeToAfterEntireReceiptDifferences": [
+    {
+      "path": "/graphicalProjectionDigest",
+      "before": "fnv1a64:7b5abb520e03e559",
+      "after": "fnv1a64:d044c1ed92e4ffc0"
+    },
+    {
+      "path": "/layoutCertification/viewport/width",
+      "before": 2542,
+      "after": 1831
+    },
+    {
+      "path": "/layoutCertification/viewport/height",
+      "before": 2930.5,
+      "after": 1984.5
+    },
+    {
+      "path": "/layoutCertification/checks/operations",
+      "before": 90546,
+      "after": 91015
+    },
+    {
+      "path": "/layoutCertification/outputDigest",
+      "before": "fnv1a64:7b5abb520e03e559",
+      "after": "fnv1a64:d044c1ed92e4ffc0"
+    }
+  ],
+  "connectedGroupsStructuralBytesExact": true,
+  "rawConnectedArtworkAndScopeChecks": "offline-ink.json retains raw connected group/carrier/label-tail equality and scope-only style rename:3 CSS/4 whole SVG occurrences.",
+  "actualInkFromRootFiveRasterRecord": {
+    "fontScope": "Manifest-pinned4Inter,zoom1,no system fonts",
+    "darkPixels": {
+      "N0": 137,
+      "N255": 245,
+      "card:N0-N1#0:1": 48,
+      "card:N0-N1#0:2": 48
+    },
+    "outsideRoi": {
+      "N0": 0,
+      "N255": 0,
+      "card:N0-N1#0:1": 0,
+      "card:N0-N1#0:2": 0
+    },
+    "newRasterCalls": 5
+  },
+  "limitations": [
+    "Only N0/N255 header and two whole cardinality groups independently masked; not all256 glyphs, caption glyphs or each bar separately.",
+    "Historical ELK product retained; not a new current backend replay.",
+    "P90546 to P91015 is469 more proof operations, no proof-capacity or performance gain.",
+    "The causal options probe is not the fixed-same-input qualification; after-default is.",
+    "Root owns all rendering/raster execution; this review reads retained products only."
+  ]
+}

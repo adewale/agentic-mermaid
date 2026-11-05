@@ -1,0 +1,17 @@
+{
+  "owner": "root-20261104-0058",
+  "updated_at": "2026-11-04T03:28:09.206192+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-08T23:59:59Z",
+  "note": "Fresh recovery baseline, not restored November runtime. Original checkout and reconstructed patch preserved.",
+  "writers": [],
+  "head": "f1e23e62fc30269827cef9765e70b67bd2d83296",
+  "next_fix": "ER52a and Class539 retained. Class128 LR SVG equals ELK: 188701B, area2972434, wire7620, bends/crossings0, 254 contacts. New LR/RL P388447/392910; TB/BT U400k markers53/61, sparse32 U, ER256-chain shared refusal, Requirement TB/BT area+9.53%, Class+1/ER+2 requests remain. All36 Class calls returned,18 current P;18 SVG pairs exact. Adverse target times/warm heap retained;2 Node+1 RAM build+2 compiled bindings exact. Core0/lintP; broad945P4F, timeout isolated P. Worklog147 lines; prior6333 preserved52a Git+gzip. Next: instrument immutable polyline eligibility before skipping circle-only prep; static244ops/max31k unproven, no new compiler/cache/free fees/cap raise. Verified checkpoint-f1e23e62f.bundle and tested evidence-f1e23e62f.tar.gz; clean worktree, lease released. Continue from these exact results without replaying completed comparisons. Deadline unchanged.",
+  "status": "idle",
+  "released_at": "2026-11-04T03:28:09.206192+00:00",
+  "checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-f1e23e62f.bundle",
+  "evidence": "/tmp/pr449-week-comparison-20261101/class-scene-cache0-cost-539407810/FINAL-EVIDENCE.json.gz",
+  "execution_note": "Bounded completed session only; no continuous execution claimed. No external mutations. Deadline remains 2026-11-08T23:59:59Z; automation is not disabled early."
+}

@@ -1,0 +1,29 @@
+{
+  "owner": "root-20261104-2304",
+  "updated_at": "2026-11-04T23:47:38.712376+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-08T23:59:59Z",
+  "note": "Fresh recovery baseline, not restored November runtime. Original checkout and reconstructed patch preserved.",
+  "writers": [],
+  "head": "179a394ef42c96a90a8f5347003c62c18bfc6d63",
+  "next_fix": "Next evidenced capacity/contact subtraction, not metric-zero spacing parity. Sparse32 same-write XML stillU400k; ER256chain still family-refused; no sufficient new duplicate-fact subtraction found. Sparse256 area residual is understood: Native71px bodygaps vsELK20, explicit spacing retained. Original2dad baseline/Trident/peers remain unavailable, replacement24sealed. No writer active.",
+  "status": "idle",
+  "released_at": "2026-11-04T23:47:38.712376+00:00",
+  "checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-179a394ef.bundle",
+  "evidence": "/workspace/pr449-recovery-20261103-155750/evidence-5aa10b3c0.tar.gz",
+  "execution_note": "Bounded local run, no continuous execution claim. Paint68a7d7ce9 closes fresh primitive omission through recorder/text/connector lists; actualcoveredtext falseP86 (partialP87) restoredF91 with exactoriginalSVG/wholeproof and positive/zero Inter controls. Broad915P/knownSparse32F; coretypes/lintP, normalcost/Node/RAM complete and preserved in085 incrementalbackup. ERffbff7a20 closes isolated-card strip in4directions without moving connectedmarkup. Actual same1199B source Native area15,832,099.72->7,449,331(-52.95%), height32140->2930.5,width492.598->2542; still+115.35%area vsELK3,459,200. Wire132.598 vsELK214.598,zero bends. Native71px bodygaps vsELK20 explain residual, no defaults/spacing change. Fouroldred/newgreen; ER144P/9files38.29s, types51.84s/lintP. FixedInter10rasters9.81s/1588568KiB: N0,N255 andeach2cardinality contributions positive/confined before/after; all256ownednames andmovedbodyclearance pass. Firstmatcherfailed0rasters retained; second strictstylebytes mismatch retained; supplemental verified root-scope rename explains CSS difference without reraster/normalizingproducts. Paired12consumed calls cache0 old500/218/211->491/225/201ms,cache1 516/185/240->516/189/225; N1 no speedup. PeakRSS0 176424->176728KiB,1 170520->176400;heaps slightlyhigher;paint88361->90546ops;repeatwholeSVG/ENTIREreceipts exact,editsreal.2freshNode24+1RAMbuild/2compiled exactwholeSVG/ENTIREreceipt;ELK exactretained;RAMremoved. ERAM23/gzip328288/Br277350 vsELK21/698422/548748;both+918gzip/+755Br,initial+1Br,requestsunchanged. Docs179committed,cleanworktree,107fileevidencearchive byteverified plusincrementalbundle. Localonly,nopush/fetch/default/version/publication/automationconfigchanges. All heavychildren completed; lease released.",
+  "evidence_verified": {
+    "files": 2632,
+    "uncompressed_bytes": 43354657,
+    "archive_bytes": 15312785,
+    "controllers": 121
+  },
+  "evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-179a394ef.tar.gz",
+  "evidence_delta_verified": {
+    "files": 107,
+    "uncompressed_bytes": 2745661,
+    "archive_bytes": 2255514
+  }
+}

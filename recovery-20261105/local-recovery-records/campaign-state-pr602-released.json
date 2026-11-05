@@ -1,0 +1,44 @@
+{
+  "owner": "root-20261105-pr-create",
+  "updated_at": "2026-11-05T10:18:46.254315+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-08T23:59:59Z",
+  "note": "Fresh recovery baseline, not restored November runtime. Original checkout and reconstructed patch preserved.",
+  "writers": [],
+  "head": "c74d826ca198f9204f8f79228ae0c3eb3323839c",
+  "next_fix": "Continue from actual STEP results, do not replay. Reproduce one public raw multi-leg wide-circle output before extending subtraction (raw3point helper is unchanged and ink unqualified); locate its first responsible stage. C/Q/closed/reversal/short-run paths remain outside fix. The independent performance report withdrew descriptor-Map causation; no broad optimization justified. Preserve Sparse256area+115.35%, forestwire+16.89%, RequirementTB/BTarea+9.53%, ER256shared refusal, Sparse32proofcap and missing originalbaseline/Trident/peers; Replacement24sealed. Retain added O(N), proof+109, SVG+18gzip/+18Br and codeclosurecosts.",
+  "status": "idle",
+  "checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-c74d826ca.bundle",
+  "evidence": "/workspace/pr449-recovery-20261103-155750/evidence-5aa10b3c0.tar.gz",
+  "execution_note": "Explicit owner PR request completed: DRAFT602 contains90campaigncommits/60files against pinned recoverybase3b56, keeping582legacy-historycommits out of main comparison. One atomic nonforce push published only recoverybase/campaignhead/evidence refs; no merge/default/version change or explicit CI dispatch. Both requested skills used from actual downloaded sources; independent scope review corrected certification/delivery and ER256chain wording. Actualbase one publicrender fullSVGexact priorbefore; raster reused by byte equality. Visual/readiness mechanical checks pass; largediff warning retained, consolematches alltestJSON. OriginalC74checkoutclean; no new runtimechanges, fullfinalsuite/currentmainintegration/CI unqualified. Campaign nextfix/end/retainedlosses unchanged; future campaign remains local unless ownerrequests publication again.",
+  "evidence_verified": {
+    "files": 2632,
+    "uncompressed_bytes": 43354657,
+    "archive_bytes": 15312785,
+    "controllers": 121
+  },
+  "evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-c74d826ca.tar.gz",
+  "evidence_delta_verified": {
+    "files": 450,
+    "uncompressed_bytes": 37561795,
+    "archive_bytes": 14258054
+  },
+  "previous_owner": "root-20261105-0856",
+  "previous_checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-bebf1d52f.bundle",
+  "previous_evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-bebf1d52f.tar.gz",
+  "pull_request": {
+    "number": 602,
+    "url": "https://github.com/adewale/agentic-mermaid/pull/602",
+    "draft": true,
+    "head": "c74d826ca198f9204f8f79228ae0c3eb3323839c",
+    "head_branch": "work/pr449-reconstruct-20261103",
+    "base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+    "base_branch": "review/pr449-recovery-base-3b56da55",
+    "main_observed": "6996aac89601a436375a052150cbe3cd53c0946b",
+    "main_integration_qualified": false,
+    "visual_evidence_commit": "bcc799ccc362f71d63384eaa31a879d412cd74a2"
+  },
+  "pr_record_checkpoint": "/workspace/pr449-recovery-20261103-155750/pr602-preparation.tar.gz"
+}

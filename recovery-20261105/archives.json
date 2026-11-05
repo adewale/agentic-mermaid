@@ -1,0 +1,195 @@
+{
+  "created_at": "2026-11-05T13:24:52.454591+00:00",
+  "source_checkpoint": "0a4534ee814d0c380de138b845b0d8e3f5226132",
+  "runtime_revision": "c93e0c51f37b1d9edabd81ad6404764eb1dff7e6",
+  "campaign_status": "stopped",
+  "archives_in_restore_order": [
+    {
+      "file": "evidence-5aa10b3c0.tar.gz",
+      "restore_root": "/tmp",
+      "bytes": 15312785,
+      "files": 2632,
+      "sha256": "4443a3819a96dc8af866042bb0d790960baacb8e6078c59f4471e124c975f8e9"
+    },
+    {
+      "file": "evidence-delta-a36f81d23.tar.gz",
+      "restore_root": "/tmp",
+      "bytes": 362995,
+      "files": 55,
+      "sha256": "8ee30a497c40150a86555532e03cff8a63a8d7712980b2e7b63eb4d5b0d73c3f"
+    },
+    {
+      "file": "evidence-delta-dc7a17838.tar.gz",
+      "restore_root": "/tmp",
+      "bytes": 143822,
+      "files": 22,
+      "sha256": "73653401c7c3a1c6baacc70c8431751f2f93bfcf40b587dd5514065a28700189"
+    },
+    {
+      "file": "evidence-delta-7299495bc.tar.gz",
+      "restore_root": "/tmp",
+      "bytes": 46928,
+      "files": 15,
+      "sha256": "8fa06434b01701d21535cc80b4303b8605992a9753c25903857c9ce5c985572c"
+    },
+    {
+      "file": "evidence-delta-f934b86be.tar.gz",
+      "restore_root": "/",
+      "bytes": 578721,
+      "files": 141,
+      "sha256": "f0e70eb88bd8cd99fb191315fea182c584069c67587a93241309733c0dc0111b"
+    },
+    {
+      "file": "evidence-delta-24b21fc43.tar.gz",
+      "restore_root": "/",
+      "bytes": 603067,
+      "files": 165,
+      "sha256": "e722da5842b18887a3838f8cd177607b1bf847de797e75b4f7026a0911b1b8d8"
+    },
+    {
+      "file": "evidence-delta-2fee40016.tar.gz",
+      "restore_root": "/",
+      "bytes": 905895,
+      "files": 29,
+      "sha256": "80a2b66f159cdda1ae3d9a119655ba19627d02c032345eb999731d2c9fbdcbb2"
+    },
+    {
+      "file": "evidence-delta-ebf62dc2b.tar.gz",
+      "restore_root": "/tmp",
+      "bytes": 494391,
+      "files": 100,
+      "sha256": "fabc381c060f279cc2aad99fe54768d048d1a86b2a98db58dd0653fbbe196685"
+    },
+    {
+      "file": "evidence-delta-3df961f38.tar.gz",
+      "restore_root": "/tmp",
+      "bytes": 345293,
+      "files": 21,
+      "sha256": "0aeeeed74ed6be69e4f23a2a4c87e3fa7c42013c7f4fe48e6658ba33db0ebd75"
+    },
+    {
+      "file": "evidence-delta-30844276e.tar.gz",
+      "restore_root": "/tmp",
+      "bytes": 262748,
+      "files": 17,
+      "sha256": "c3ed8882af77989600f259a41fc4557af11a0bca2b45b5bdd78f8d05c2538282"
+    },
+    {
+      "file": "evidence-delta-cf689fd17.tar.gz",
+      "restore_root": "/tmp",
+      "bytes": 548211,
+      "files": 100,
+      "sha256": "3ac4fff4f06cce567205563415994e82da94ebd2a21e0b10c9360af8a8f3d739"
+    },
+    {
+      "file": "evidence-delta-085acd43d.tar.gz",
+      "restore_root": "/tmp",
+      "bytes": 454574,
+      "files": 87,
+      "sha256": "885c69fc7d9f146e7408f5db8c97b77ba5c96c46284024768edb8911bc1ea97b"
+    },
+    {
+      "file": "evidence-delta-179a394ef.tar.gz",
+      "restore_root": "/tmp",
+      "bytes": 2255514,
+      "files": 107,
+      "sha256": "a6beb7a3dca64e1919a07b9eaa9d96e4e1066f8fe442f5c17de4465ed07d76ec"
+    },
+    {
+      "file": "evidence-delta-1e1bb2993.tar.gz",
+      "restore_root": "/tmp",
+      "bytes": 162972,
+      "files": 8,
+      "sha256": "1f42fc38dbe5566767e28843a133182948ca81c593ee3d9135994a1dcba42287"
+    },
+    {
+      "file": "evidence-delta-437b6d7c7.tar.gz",
+      "restore_root": "/tmp",
+      "bytes": 576677,
+      "files": 250,
+      "sha256": "3160f6d17a9b3ce63607116f91d8b69a5977a5a0c02d6260d1dbb66bceaeb762"
+    },
+    {
+      "file": "evidence-delta-219a84f61.tar.gz",
+      "restore_root": "/tmp",
+      "bytes": 421692,
+      "files": 139,
+      "sha256": "3948773a8c0be76a49c7118bf480ac7ed2bd9558bd6ecec9933a1de548c824a1"
+    },
+    {
+      "file": "evidence-delta-146a2d496.tar.gz",
+      "restore_root": "/tmp",
+      "bytes": 277266,
+      "files": 143,
+      "sha256": "c184738374eac2364a40b2070b17cd0f15dd7a07d9605fa32cfd88367f272e1d"
+    },
+    {
+      "file": "evidence-delta-8393d577f.tar.gz",
+      "restore_root": "/tmp",
+      "bytes": 172480,
+      "files": 38,
+      "sha256": "3ebe6e1c5c84bddb6b6c5bd313f0198ce97cd0801962889947ccf9ef063e6329"
+    },
+    {
+      "file": "evidence-delta-5417e088c.tar.gz",
+      "restore_root": "/tmp",
+      "bytes": 316270,
+      "files": 141,
+      "sha256": "cb98a964d98f2e43b45de487fafebae3a03b47a1ce56325732a6bebeae606b4f"
+    },
+    {
+      "file": "evidence-delta-d089e94d0.tar.gz",
+      "restore_root": "/",
+      "bytes": 531878,
+      "files": 259,
+      "sha256": "d2ce48052de9cc83dc7084dcd69ef60962aaa548441a8a2065b4edcd73d613ea"
+    },
+    {
+      "file": "evidence-delta-bebf1d52f.tar.gz",
+      "restore_root": "/",
+      "bytes": 367584,
+      "files": 215,
+      "sha256": "ce42fab0549f33888fd9a6eab41ce9d5c886216e2acfd6348e11f5b84135bc33"
+    },
+    {
+      "file": "evidence-delta-c74d826ca.tar.gz",
+      "restore_root": "/",
+      "bytes": 14258054,
+      "files": 450,
+      "sha256": "73710f8c6361a61f735712fd6ce6f53907feb0013841026e154100f0594bcdf5"
+    },
+    {
+      "file": "evidence-delta-99723bb5d.tar.gz",
+      "restore_root": "/",
+      "bytes": 309010,
+      "files": 181,
+      "sha256": "fc576844eeb158a3cd2196634733110614c1faa7b8ae0fb09587a39bc73a4b88"
+    },
+    {
+      "file": "evidence-delta-8f9ef3da0.tar.gz",
+      "restore_root": "/",
+      "bytes": 1124253,
+      "files": 149,
+      "sha256": "8981d1259bedda3b2707663f2b422f2c62363fd77b4718631e0384040e75e037"
+    },
+    {
+      "file": "evidence-delta-0a4534ee8.tar.gz",
+      "restore_root": "/",
+      "bytes": 118801,
+      "files": 23,
+      "sha256": "3c8992e2320e96a87e1dffdbf0c36daf0cb08c3016d1ebe1797dd8b031fffad9"
+    },
+    {
+      "file": "evidence-current-supplement.tar.gz",
+      "restore_root": "/",
+      "bytes": 660908,
+      "files": 41,
+      "sha256": "fc5f8ca4a8485e9b985b669c7abb47e9e7ae46a25b8ae3da00b3d30995bcbe47"
+    }
+  ],
+  "current_week_files_byte_verified": 5122,
+  "current_week_bytes": 79512616,
+  "supplement_files": 41,
+  "backup_bytes": 43518657,
+  "limit": "Preserves the recovered November 3\u20135 workspace and retained earlier artifacts; the original lost November campaign and missing peer tools remain unavailable."
+}

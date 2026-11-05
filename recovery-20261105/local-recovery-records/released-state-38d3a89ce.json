@@ -1,0 +1,23 @@
+{
+  "owner": "root-20261104-0656",
+  "updated_at": "2026-11-04T08:34:26.330992+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-08T23:59:59Z",
+  "note": "Fresh recovery baseline, not restored November runtime. Original checkout and reconstructed patch preserved.",
+  "writers": [],
+  "head": "38d3a89ce62343155589a465a7e52bc1c450b60d",
+  "next_fix": "Profile added live lane queries and the unattributed fully-consumed runtime before a performance rewrite; reuse producer-prepared geometry, no new caches. Keep Class128 TB/BT, sparse32 and ER256-chain enrolled. Original2dad/Trident/pinned peers unavailable; replacement24 sealed.",
+  "status": "idle",
+  "released_at": "2026-11-04T08:34:26.330992+00:00",
+  "checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-38d3a89ce.bundle",
+  "evidence": "/workspace/pr449-recovery-20261103-155750/evidence-38d3a89ce.tar.gz",
+  "execution_note": "Completed bounded local run; no continuous execution between runs claimed. Two verified code fixes15972c57e andd82c926cc plus docs commits, source clean. No push/fetch/rebase/CI/external mutation. Deadline stays2026-11-08T23:59:59Z; no automation disabled before deadline.",
+  "evidence_verified": {
+    "files": 2346,
+    "uncompressed_bytes": 39933992,
+    "archive_bytes": 13829873,
+    "controllers": 64
+  }
+}

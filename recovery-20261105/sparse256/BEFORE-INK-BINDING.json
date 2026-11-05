@@ -1,0 +1,15 @@
+{
+  "currentDefaultBeforeRevision": "99723bb5dd61762fc0a4e69eace569416ad8f9e0",
+  "beforeSourceExactFixture": true,
+  "beforeOptionsExactDefault": true,
+  "currentDefaultBeforeWholeSVGBytesExactHistoricalPacked": true,
+  "currentDefaultBeforeEntireRawReceiptBytesExactHistoricalPacked": true,
+  "historicalReferenceSvg": "/tmp/pr449-week-comparison-20261101/sparse256-isolate-085acd43d/cost/current-cold.svg.gz",
+  "historicalReceiptReference": "/tmp/pr449-week-comparison-20261101/sparse256-isolate-085acd43d/cost/current.json.gz rows[cold].receiptJSON",
+  "priorActualInkReport": "/tmp/pr449-week-comparison-20261101/sparse256-isolate-085acd43d/offline-ink.json",
+  "priorScopeCorrection": "/tmp/pr449-week-comparison-20261101/sparse256-isolate-085acd43d/style-scope-analysis.json",
+  "inkReusedScope": "Only N0/N255 headers and two whole cardinality groups, fixed4Inter/zoom1; not all256glyphs or allcaption ink.",
+  "priorFailuresRetained": true,
+  "newCallsByReview": 0,
+  "newRasters": 0
+}

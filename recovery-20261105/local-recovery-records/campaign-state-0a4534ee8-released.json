@@ -1,0 +1,44 @@
+{
+  "owner": "root-20261105-1256",
+  "updated_at": "2026-11-05T13:15:33.382074+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-08T23:59:59Z",
+  "note": "Fresh recovery baseline, not restored November runtime. Original checkout and reconstructed patch preserved.",
+  "writers": [],
+  "head": "0a4534ee814d0c380de138b845b0d8e3f5226132",
+  "next_fix": "Prioritize larger retained nonlinearforestwire+16.89% (Nativearea\u22126.43%). Useexistingexactsource andELKalternative to locate placement/terminal-seat cause; fixed-dockroutesalreadyshortest. Inspect retainedleaf-seat wholequality/costvector (knownarea+6.88%) before choosing a different bounded causal intervention; do not rerun same stoppedtrial, imposezero-delta/pareto gates or inventnewframework. Headerlast-rowbackfillisSTOPPEDonvisual-ordervalue: area3.88%gainrealbutN255aheadN2, no productionchange. PreserveSparsearea+5.04%,RequirementTB/BTarea+9.53%,ER256chainsharedrefusal/Sparse32proofcap,missingoriginal2dad/Trident/peers andsealedReplacement24; futurecampaignlocal/PR602frozen.",
+  "status": "idle",
+  "checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-0a4534ee8.bundle",
+  "evidence": "/workspace/pr449-recovery-20261103-155750/evidence-5aa10b3c0.tar.gz",
+  "execution_note": "Bounded root1256 completed one actualoffrepoheaderbackfillprobe+savedSVGcomparison, thenSTOPPEDonvalue. CandidateP90805/area3492632.5 (\u22123.88%,candidate+0.97%ELK), currentP91015/3633619.5(+5.04%ELK).256names/one relation/two glyphowners/connectedrawmarkup/253otherisolateseats/clearancespreserved, butN255moves(40.5,1888)\u2192(473.598,40) aboveN2(40.5,117). Independentvaluejudgmentkeepcurrentrow-majorpredictability; no authoredorderinggate or lostmeaningclaim. No production/testedit, newraster, type/unchangedtestrun, costmatrix, Node/build orremoteaction. One localdoccommit0a4534ee8 preservesrealunshippedtradeoff andnextpriority. Currentruntimec93unchanged;SparseELKgapstill+5.04. Allcandidate/results bytebacked, cleanHEAD/leaseidle; noongoingexecution.",
+  "evidence_verified": {
+    "files": 2632,
+    "uncompressed_bytes": 43354657,
+    "archive_bytes": 15312785,
+    "controllers": 121
+  },
+  "evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-0a4534ee8.tar.gz",
+  "evidence_delta_verified": {
+    "files": 23,
+    "uncompressed_bytes": 342648,
+    "archive_bytes": 118801
+  },
+  "previous_owner": "root-20261105-1139",
+  "previous_checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-8f9ef3da0.bundle",
+  "previous_evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-8f9ef3da0.tar.gz",
+  "pull_request": {
+    "number": 602,
+    "url": "https://github.com/adewale/agentic-mermaid/pull/602",
+    "draft": true,
+    "head": "c74d826ca198f9204f8f79228ae0c3eb3323839c",
+    "head_branch": "work/pr449-reconstruct-20261103",
+    "base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+    "base_branch": "review/pr449-recovery-base-3b56da55",
+    "main_observed": "6996aac89601a436375a052150cbe3cd53c0946b",
+    "main_integration_qualified": false,
+    "visual_evidence_commit": "bcc799ccc362f71d63384eaa31a879d412cd74a2"
+  },
+  "pr_record_checkpoint": "/workspace/pr449-recovery-20261103-155750/pr602-preparation.tar.gz"
+}

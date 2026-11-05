@@ -1,0 +1,155 @@
+{
+  "revision": "c93e0c51f37b1d9edabd81ad6404764eb1dff7e6",
+  "beforeRevision": "99723bb5dd61762fc0a4e69eace569416ad8f9e0",
+  "qualifiedSourceExactReviewedCandidate": true,
+  "publicCalls": {
+    "changedOptionsCausalProbe": 1,
+    "currentDefaultBeforeRevisionBindingOnly": 1,
+    "sameInputDefaultCandidateAfter": 1,
+    "currentCostCalls": 12,
+    "nodeSources": 2,
+    "compiled": 2
+  },
+  "newOfflineRasterCalls": 5,
+  "beforeInkReusedByWholeSVGAndEntireReceiptByteEquality": true,
+  "buildCalls": 1,
+  "ownedRamRemoved": true,
+  "defaultPolicyScope": "Only flat Native independent-card default paint clearance20; connected ER70 and explicitly requested0/70/frontmatter/group behavior preserved, public componentSpacing remains extension-only, selected backend/version unchanged.",
+  "meaningAndInk": {
+    "entityNames": 256,
+    "isolateCount": 254,
+    "bodyDimensions": [
+      140,
+      56
+    ],
+    "relation": "N0->N1 identifying/owns/one-one",
+    "connectedMarkupAndResourcesExact": true,
+    "normalDocks": 2,
+    "sampledOwnedDarkPixels": [
+      137,
+      245,
+      48,
+      48
+    ],
+    "sampledOutsideROI": 0,
+    "all256GlyphsReadabilityArbitraryFonts": "unqualified"
+  },
+  "quality": {
+    "beforeArea": 7449331,
+    "afterArea": 3633619.5,
+    "areaRemoved": 3815711.5,
+    "nativeAreaReductionPercent": 51.222203711984335,
+    "elkRetainedArea": 3459200,
+    "beforeExcessAreaVsElkPercent": 115.34837534690104,
+    "remainingExcessAreaVsElkPercent": 5.0421918362627105,
+    "wireUnchanged": 132.598,
+    "elkRetainedWire": 214.598,
+    "bodyGap": {
+      "before": 71,
+      "after": 21,
+      "elk": 20
+    },
+    "paintGap": {
+      "before": 70,
+      "after": 20
+    },
+    "isolateBands": {
+      "afterColumns": 11,
+      "afterRows": 24
+    }
+  },
+  "proof": {
+    "before": "passed",
+    "after": "passed",
+    "beforeOperations": 90546,
+    "afterOperations": 91015,
+    "addedOperations": 469,
+    "pairs": 24,
+    "capsIssuesAndCoverageUnchanged": true
+  },
+  "checks": {
+    "red": "owner final70<70 failure after all explicit/grouped controls;33,245asserts",
+    "green": "one owner passes/33,247asserts",
+    "milestone": "144pass/0fail/7files/60.19s",
+    "types": {
+      "exitCode": 0,
+      "wallSeconds": 88.90134207601659,
+      "maxRSSKiB": 2154752
+    },
+    "lint": "2files pass"
+  },
+  "costSummary": "../sparse256-default-gap-cost-99723bb5d/COST-SUMMARY.json",
+  "payload": {
+    "beforeRuntimeEquivalentToBase": true,
+    "beforeReference": "raw-fan-circle-b32489e19/report.json.gz family er",
+    "before": {
+      "initial": {
+        "requests": 3,
+        "raw": 15408,
+        "gzip": 5855,
+        "brotli": 5227
+      },
+      "native": {
+        "requests": 23,
+        "raw": 1011196,
+        "gzip": 330466,
+        "brotli": 279178
+      },
+      "elk": {
+        "requests": 21,
+        "raw": 2285770,
+        "gzip": 700594,
+        "brotli": 550598
+      }
+    },
+    "after": {
+      "initial": {
+        "requests": 3,
+        "raw": 15408,
+        "gzip": 5854,
+        "brotli": 5226
+      },
+      "native": {
+        "requests": 23,
+        "raw": 1011200,
+        "gzip": 330472,
+        "brotli": 279193
+      },
+      "elk": {
+        "requests": 21,
+        "raw": 2285774,
+        "gzip": 700600,
+        "brotli": 550613
+      }
+    },
+    "delta": {
+      "initial": {
+        "requests": 0,
+        "raw": 0,
+        "gzip": -1,
+        "brotli": -1
+      },
+      "native": {
+        "requests": 0,
+        "raw": 4,
+        "gzip": 6,
+        "brotli": 15
+      },
+      "elk": {
+        "requests": 0,
+        "raw": 4,
+        "gzip": 6,
+        "brotli": 15
+      }
+    },
+    "measuredBuildAndBinding": {
+      "exitCode": 0,
+      "wallSeconds": 31.96827066098922,
+      "maxRSSKiB": 289636
+    }
+  },
+  "retainedStaticPreparationCorrection": "39-character baseline reference caught before Node/build execution; corrected from git HEAD^, original six prepared files retained under cost/pre-ref-fix",
+  "remaining": "Native area+5.04% vs retained ELK. Forestwire+16.89%, RequirementTB/BTarea+9.53%, ER256chainsharedrefusal andSparse32proofcap remain. No causal speedup/parity/capacity/readiness claim; original2dad/Trident/peers unavailable and holdoutsealed.",
+  "nextHypothesis": "Saved geometry shows vacant header right of connected paint envelope fits8islands; final shelf row has onlyN255. A whole-final-row relocation may remove77pxheight without movingotherseats, predictedarea3492632.5/residual+0.97%; not executed/qualified. Preservemeasuredpaintspacing/connectedgeometry/explicitvalues/groups/ledger/finalvalidation.",
+  "createdAt": "2026-11-05T12:19:00.520866+00:00"
+}

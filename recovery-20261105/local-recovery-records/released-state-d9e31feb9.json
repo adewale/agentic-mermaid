@@ -1,0 +1,17 @@
+{
+  "owner": "root-20261104-0357",
+  "updated_at": "2026-11-04T06:13:30.199633+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-08T23:59:59Z",
+  "note": "Fresh recovery baseline, not restored November runtime. Original checkout and reconstructed patch preserved.",
+  "writers": [],
+  "head": "d9e31feb9f18130c44d24ae25ec750e1d3bd4917",
+  "next_fix": "Verified code b823 capturecleanup+790 privatecopyplan meaningfix; docs d9. 5oldprivatechannels actualReadReadLost/P\u2192currentReadReadRead/P; full7controlsP. Core0/lintP; broad987P4F retains3capacityFs+1timeout, timeoutisolatedP originaldeadline.12newordinarycostcalls6SVG/ENTIREproofexact, adverse32cold330\u2192421ms/RSS139160\u2192144360KiB. 1RAM4Node source/compiled ClassSVG/ENTIREreceipt exactP388447; ClassAM21/gzip293519/Br246732 vsELK20/671569/525028. MaskSTOPprofileSet1.1ms. EarlyClassrounding/one-carriermergerSTOP lackownership/paintphaseequivalence. Next inspect existingpost-snapshotClasswriter sharedgeometry operand; no candidateimplemented. Classvertical/Sparse32/ER256-chain/Requirement+9.53%area/cyclic15+.383%wire remain. Baseline2dad/Tridentpeersunavailable; replacement24sealed. DeadlineNov8unchanged.",
+  "status": "idle",
+  "released_at": "2026-11-04T06:13:30.199633+00:00",
+  "checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-d9e31feb9.bundle",
+  "evidence": "/workspace/pr449-recovery-20261103-155750/evidence-d9e31feb9.tar.gz",
+  "execution_note": "Completed bounded local run only; no continuous execution between runs claimed. Source/worktree clean. No push/fetch/rebase/CI/external mutation. Deadline stays2026-11-08T23:59:59Z; automation not disabled before deadline."
+}

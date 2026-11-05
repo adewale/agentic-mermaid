@@ -1,0 +1,90 @@
+PR449 RECOVERY NOTE — RECONSTRUCTED INTENT, NOT RESTORED SOURCE
+Created 2026-11-03 after workspace restoration exposed an older snapshot.
+
+The original campaign workspace /tmp/pr449-main-integration-20261029-762, campaign-state and week evidence remain unavailable.
+Last recorded campaign HEAD: ac2991715be02b948f315931894061eb0398abff.
+Last recorded runtime: d8e30f5b85ab5e40924a35305439f2d4e798c9b3.
+Last recorded separate Trident observer commit: 987f2b91ca5df451af1582898f8c50f8c1986f45 (AM dependency pin unchanged).
+Inspected restored checkout: /workspace/agentic-mermaid at adb8e7e9fd20a7c909115e4deac6e71d08521ad9.
+Local refs/reflogs/object checks and retained archive catalogs did not recover the November campaign.
+Newest located historical archive index binds a1890b6265fe48bc120735540e5830d0b19df904 on October 29; it is not the missing campaign.
+
+pending-requirement-coverage.reconstructed.patch reconstructs the TEST-ONLY changes from captured conversation tool calls.
+It uses apply_patch format and is intended for review against the true ac2991715 source.
+It is NOT a recovered Git diff, has NOT been applied to the older checkout, and has NOT been revalidated here.
+It must not be treated as byte-exact or verified source.
+No production runtime changes were pending before the outage.
+
+Historical pre-outage observations only: focused 20 owning checks passed; three new ELK direction acquisitions and six targeted raster controls passed scoped observations.
+Final full-file results, final type/lint checks and a coverage commit remain unconfirmed.
+The original proof/SVG/raster artifacts are unavailable here; no replacement proof files, work log or campaign-state have been synthesized.
+
+One initial local object lookup mistakenly attempted Git lazy fetching; the remote rejected the missing object. Subsequent recovery checks disabled lazy fetching.
+No code checkout, branch, dependency pin, package, default or release has changed.
+Space cleanup preserved repositories, dependency stores, evidence and uncommitted work; see /workspace/pr449-space-cleanup-20261103.json.
+Campaign end remains 2026-11-08T23:59:59Z; continuous execution is not claimed.
+Restore the actual November 3 workspace, Git object store and retained artifacts before resuming qualification, or obtain an explicit owner choice of a new baseline.
+
+NEW RECONSTRUCTED WORK (not restoration of old November bytes)
+Fresh base: 3b56da55e6570908beb5d96c25f4c03c1a828a22; branch work/pr449-reconstruct-20261103; head 25e58c9c501b851427872ed5b4b6823b75c21774
+Worktree: /tmp/pr449-main-integration-20261029-762. Commits are also in /workspace/agentic-mermaid/.git.
+reconstructed-work.bundle verified; requires published base 3b56da55e6570908beb5d96c25f4c03c1a828a22.
+reconstructed-evidence.tar.gz preserves the new measurements, counterexamples, source controls and released campaign state.
+No push/PR/CI/release/default/version change. Code and work log committed; latest measured code 16c736365a414ea3d659337ca5024b1159d1f77a.
+
+NEXT LOCAL CHECKPOINT bb7492b44ac5c95a16460fc00ef2c01a558305a1
+Code e0877c5ea81ffd482c9e65375a6d40e840b45a16; Class halo/seat fixes. f0fad cycle experiment reverted93188.
+Verified checkpoint-bb7492b44.bundle requires published3b56 base; evidence-bb7492b44.tar.gz preserves new evidence and prior counterexamples. Earlier bundles/archives preserved.
+Lease released; deadline2026-11-08T23:59:59Z unchanged. No push/CI/PR/default/version/publication.
+
+2026-11-03 local checkpoint 9f519bf00eced828e193fcbb80947dc20fd6c5c2:
+checkpoint-9f519bf00.bundle verified, requires retained3b56 base; branch work/pr449-reconstruct-20261103.
+evidence-9f519bf00.tar.gz preserves week evidence and released coordination state.
+New code cc841a746 removes repeated ER terminal-part searches; fb9c0ee06 owns Agentic192.
+AgenticLR192/ELKLR207 family refusal->SVG delivery; actualNative proofs stay unverified.
+Class128 andER208/256 limits remain; Class headerrect/emptydivider probes reverted.
+No external changes, retained original archives untouched. No continuous run claimed.
+
+2026-11-03 local checkpoint adb4633a0cda2c1e79222109ce576bc0486fc86f:
+checkpoint-adb4633a0.bundle verified, requires retained3b56 base; existing local branch unchanged.
+evidence-adb4633a0.tar.gz preserves week evidence and released coordination state.
+Production2d77b34ad repairs sharedfreshlexer String-method falseNativepass; actualmonoSVG unchanged nowU.
+Owningredgreen/40lexer-security/coretyping/lint pass; broadpaint619P3F, matchingbaseline/current3budgetfails.
+Mixed/adverse12call costs,1canonicalRAMbuild/4exactcompiledbindings, fullreceipts retained.
+Capacityprototype stopped; NativeClass128/ER192 andER208/256 limits open. No external mutations.
+
+2026-11-03 local checkpoint 7a8c58917c735e75ca87deb5a3b770445f2f63f5:
+Production599bdf978 uses existing ER caption-prefix index; both ER208 LR backends now deliver SVG, Native proof remains unverified.
+100 ER owners plus retained192/207 controls, core typing/lint and independent final vectors pass; scoped ELK ink only.
+48 fully consumed source calls retain contradictory total timings and adverse family-layout/RSS/heap costs; no speedup claim.
+One RAM lazy-JS build/two compiled ER208 bindings match entire source SVG/raw receipts. ER closures +124gzip/+139Brotli bytes, requests unchanged.
+checkpoint-7a8c58917.bundle verified, requires retained3b56 base; evidence-7a8c58917.tar.gz tested and preserves week evidence/released state. Earlier backups untouched.
+ER256, Native proof/Class128, sparse32 and nonlinear quality remain open; original baseline/Trident/peer availability unresolved.
+Lease released, deadline2026-11-08T23:59:59Z unchanged. No external mutations or continuous-execution claim.
+
+2026-11-03 local checkpoint b0633fab9412621efdb50e7effd5c269a75d6728:
+Codefff8c38ef removes private graph canvas margins using existing pre-cleanup fit; cyclic9 area856370.526->668671.576, ELK669058.282, unchanged paths/wire/crossings/bends.
+Coverage08336d29a extends existing Requirement interaction to contains circle+cross; component ink independently observed.
+325 graph/State owners + final focused margin, core typing/lint pass.36 fully consumed cache-off/on calls P; adverse cache-hit and small-control timings remain unresolved, no speedup claim.
+One initial sandbox build fails EPERM; permitted local retry succeeds. AgenticFlowchart gzip+10/Brotli-36, requests26unchanged vsELK24. Same-Node unbundled/compiled SVG/entire receipt exact; Bun retains2-operation difference.
+Verified checkpoint-b0633fab9.bundle requires retained3b56base; tested evidence-b0633fab9.tar.gz includes week evidence, coordination state and reusable local controllers. Older backups untouched.
+ER256/Class128/sparse32 and Requirement losses remain; next affected cyclic15chains/19 requalification. DeadlineNov8 23:59:59Z unchanged; lease released. Local only, no continuous execution claimed.
+
+2026-11-04 local checkpoint 843030a3229fe8533cd4a5486c93e36093fe29f5:
+Code25b6c43b0 fixes Native group font/primitive/writer custody; cyclic19P397396/400000 with exact SVG; ELK19 staysU.
+a50 adds larger cyclic owning coverage; priorfit15area requalified14.28%smallerELK,wire+0.383%.
+Core/lint/red-green/7affectedcyclic owners pass; broad760P2baselineER/sparseF.36 consumed costs preserve adversecold/RSS/heap, no speedup claim.
+2Node source witnesses and1RAMbuild/2compiled bindings exact wholeSVG/entire receipts. AMgzip366133/26requests vsELK737102/24; both about+1.2KB.
+Verified checkpoint-843030a32.bundle requires retained3b56base; tested evidence-843030a32.tar.gz includes week evidence, released state and current controllers. Earlier backups untouched.
+ER256 sharedrefusal/Class128/sparse32/Requirement/originalbaseline/peer gaps remain; next finalERgeometry custody after callback. DeadlineNov8 23:59:59Z unchanged; localonly, no continuous execution claimed.
+
+2026-11-04 local checkpoint f1e23e62fc30269827cef9765e70b67bd2d83296:
+Code52a13881d reuses owned ER Scene: LR208 both engines U400k->P287124/P280068, sparse256 one-rel U->P90857, exact SVG. ER256chain still refuses.
+Code539407810 extends shared choice to Class: LR/RL U400k->P388447/392910, exact SVG; TB/BT remain U400k(markers53/61), NativeSparse32 remains U.
+Class128LR Agentic/ELK wholeSVG188701B identical: area2972434, wire7620, zero bends/crossings,254 normal contacts. Layout parity was already present; new gain is proof availability.
+ER48 +Class36 fully consumed cost calls retained all adverse rows. ER/ELK256 repeat18.6s(17.742spaint) unresolved; Class target off latency/warmheap higher. No speed/memory claim.
+Each code change has2Node witnesses+1RAMbuild+2compiled bindings with exact same-Node wholeSVG/ENTIREreceipt. LatestClassAM21requests/gzip293361/Br246761 versusELK20/671412/525043.
+Coretyping0/lint/diff pass; Class broad945P4F, isolated timeoutP; TB/BT+Sparse32 retained. Crisp7P, genuine oldLR/oldER256 red controls.
+Worklog reduced6333->147lines; complete oldlog remains52aGit and weekgzip evidence. Next instrument unsupported fractional-circle prep eligibility before any subtraction; static244ops/max31k is UNPROVEN, no newcompiler/cache/cap change.
+Verified91,380-byte incremental bundle requires retained3b56base; tested9,321,500-byte evidence archive:1672files/28,781,004uncompressedbytes incl18currentcontrollers. Older backups/uncommitted patches untouched.
+Archive records active lease during backup; released-state-f1e23e62f.json is final idle coordination state. Clean worktree, lease released. Local only; deadlineNov8 unchanged, no continuous execution claim.

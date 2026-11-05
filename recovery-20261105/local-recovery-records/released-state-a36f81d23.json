@@ -1,0 +1,29 @@
+{
+  "owner": "root-20261104-1204",
+  "updated_at": "2026-11-04T13:42:05.824247+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-08T23:59:59Z",
+  "note": "Fresh recovery baseline, not restored November runtime. Original checkout and reconstructed patch preserved.",
+  "writers": [],
+  "head": "a36f81d2369cb923453434ae75b479ca377256c4",
+  "next_fix": "Both guarded ER256 reuse candidates refused unchanged 400000 family cap; all source/patch/evidence preserved and production restored to5aa10b3c0. No capacity closure; no fee/cap change. Stop guarded glyph-union variants. Seek materially different demonstrated deficit; baseline/peers unavailable and replacement24 sealed.",
+  "status": "idle",
+  "released_at": "2026-11-04T13:42:05.824247+00:00",
+  "checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-a36f81d23.bundle",
+  "evidence": "/workspace/pr449-recovery-20261103-155750/evidence-5aa10b3c0.tar.gz",
+  "execution_note": "Bounded local run completed: two guarded ER256 reuse candidates refused unchanged 400000 family cap; all sources and patches retained, production restored exactly to5aa10b3c0. Three public probes incl unsafe optimistic check; zero ELK/Node/build calls; no qualified closure. a36f81d23 records results. No continuous execution between runs; deadline unchanged; no remote actions or early automation disable.",
+  "evidence_verified": {
+    "files": 2632,
+    "uncompressed_bytes": 43354657,
+    "archive_bytes": 15312785,
+    "controllers": 121
+  },
+  "evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-a36f81d23.tar.gz",
+  "evidence_delta_verified": {
+    "files": 55,
+    "uncompressed_bytes": 863537,
+    "archive_bytes": 362995
+  }
+}

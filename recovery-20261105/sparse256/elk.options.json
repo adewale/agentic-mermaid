@@ -1,0 +1,7 @@
+{
+  "graphLayout": {
+    "backend": "elk",
+    "fallback": "none"
+  },
+  "embedFontImport": false
+}

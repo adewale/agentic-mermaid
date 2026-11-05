@@ -1,0 +1,418 @@
+{
+  "publicCalls": 0,
+  "offlineRasterCalls": 5,
+  "rasterLimit": 5,
+  "zoom": 1,
+  "paths": {
+    "before": "/tmp/pr449-week-comparison-20261101/sparse256-default-gap-99723bb5d/before-default/actual.svg.gz",
+    "after": "/tmp/pr449-week-comparison-20261101/sparse256-default-gap-99723bb5d/after-default/actual.svg.gz",
+    "elk": "/tmp/pr449-week-comparison-20261101/scene-inspection-append-node24-68a7d7ce9/elk/elk.svg.gz"
+  },
+  "checks": [
+    {
+      "name": "same source and unchanged default options",
+      "status": "passed",
+      "detail": {
+        "sourceBytes": 1199,
+        "noNodeSpacingOverride": true
+      }
+    },
+    {
+      "name": "before: authored ownership",
+      "status": "passed",
+      "detail": {
+        "entityIDsAndOwnedNames": 256,
+        "orderedRelationships": 1,
+        "individuallyOwnedCardinalities": 2
+      }
+    },
+    {
+      "name": "after: authored ownership",
+      "status": "passed",
+      "detail": {
+        "entityIDsAndOwnedNames": 256,
+        "orderedRelationships": 1,
+        "individuallyOwnedCardinalities": 2
+      }
+    },
+    {
+      "name": "connected actual bytes and resources unchanged",
+      "status": "passed",
+      "detail": {
+        "oldScope": "am-1rv5zqs07w5ztf",
+        "newScope": "am-0qcskgr1ab146j",
+        "rawStyleBytesExact": false,
+        "styleExactAfterOnlyActualScopeRename": true,
+        "oldStyleScopeOccurrences": [
+          3
+        ],
+        "newStyleScopeOccurrences": [
+          3
+        ],
+        "oldWholeSvgScopeOccurrences": 4,
+        "newWholeSvgScopeOccurrences": 4
+      }
+    },
+    {
+      "name": "after: moved isolate bodies clear actual connected ink envelopes",
+      "status": "passed",
+      "detail": {
+        "isolatedBodies": 254,
+        "connectedInkBoxes": 6
+      }
+    },
+    {
+      "name": "actual body paint spacing, intrinsic geometry and historical ELK residual",
+      "status": "passed",
+      "detail": {
+        "currentBefore": {
+          "entities": 256,
+          "isolates": 254,
+          "columns": 12,
+          "rows": 22,
+          "bodySizes": [
+            "140,56"
+          ],
+          "minSameRowBodyGap": 71,
+          "minSameRowPaintGap": 70,
+          "minSameColumnBodyGap": 71,
+          "minSameColumnPaintGap": 70,
+          "width": 2542,
+          "height": 2930.5,
+          "area": 7449331,
+          "wire": 132.598,
+          "allBodyPaintClear": true
+        },
+        "currentAfter": {
+          "entities": 256,
+          "isolates": 254,
+          "columns": 11,
+          "rows": 24,
+          "bodySizes": [
+            "140,56"
+          ],
+          "minSameRowBodyGap": 21,
+          "minSameRowPaintGap": 20,
+          "minSameColumnBodyGap": 21,
+          "minSameColumnPaintGap": 20,
+          "width": 1831,
+          "height": 1984.5,
+          "area": 3633619.5,
+          "wire": 132.598,
+          "allBodyPaintClear": true
+        },
+        "historicalElk": {
+          "entities": 256,
+          "isolates": 254,
+          "columns": 14,
+          "rows": 19,
+          "bodySizes": [
+            "140,56"
+          ],
+          "minSameRowBodyGap": 20,
+          "minSameRowPaintGap": 19,
+          "minSameColumnBodyGap": 20,
+          "minSameColumnPaintGap": 19,
+          "width": 2300,
+          "height": 1504,
+          "area": 3459200,
+          "wire": 214.59799999999996,
+          "allBodyPaintClear": true
+        },
+        "areaResidualVsHistoricalElkPercent": 5.0421918362627105,
+        "areaChangeVsCurrentBeforePercent": -51.222203711984335
+      }
+    }
+  ],
+  "arms": {
+    "before": {
+      "viewport": {
+        "width": 2542,
+        "height": 2930.5,
+        "viewBox": [
+          0,
+          0,
+          2542,
+          2930.5
+        ]
+      },
+      "removals": []
+    },
+    "after": {
+      "viewport": {
+        "width": 1831,
+        "height": 1984.5,
+        "viewBox": [
+          0,
+          0,
+          1831,
+          1984.5
+        ]
+      },
+      "removals": [
+        {
+          "id": "N0",
+          "roi": {
+            "x0": 98.445,
+            "y0": 40.05,
+            "x1": 121.555,
+            "y1": 70.05
+          },
+          "changedPixels": 137,
+          "darker": 137,
+          "lighter": 0,
+          "outside": 0,
+          "positiveConfinedContribution": true
+        },
+        {
+          "id": "N255",
+          "roi": {
+            "x0": 91.145,
+            "y0": 1888.05,
+            "x1": 129.85500000000002,
+            "y1": 1918.05
+          },
+          "changedPixels": 245,
+          "darker": 245,
+          "lighter": 0,
+          "outside": 0,
+          "positiveConfinedContribution": true
+        },
+        {
+          "id": "card:N0-N1#0:1",
+          "roi": {
+            "x0": 181.375,
+            "y0": 60,
+            "x1": 190.625,
+            "y1": 76
+          },
+          "changedPixels": 48,
+          "darker": 48,
+          "lighter": 0,
+          "outside": 0,
+          "positiveConfinedContribution": true
+        },
+        {
+          "id": "card:N0-N1#0:2",
+          "roi": {
+            "x0": 301.973,
+            "y0": 60,
+            "x1": 311.223,
+            "y1": 76
+          },
+          "changedPixels": 48,
+          "darker": 48,
+          "lighter": 0,
+          "outside": 0,
+          "positiveConfinedContribution": true
+        }
+      ]
+    }
+  },
+  "errors": [],
+  "verificationGitRevision": "99723bb5dd61762fc0a4e69eace569416ad8f9e0",
+  "scope": "Same-input default before/after saved actual SVGs. Candidate only: one full canvas plus N0/N255 headers and two whole cardinality group masks, five rasters. Existing before controls bound by BEFORE-INK-BINDING.json, no reraster. Fixed manifest-verified4Inter/zoom1/no systemfonts. Historical scope failures retained, actual root scope-only CSS rename handled explicitly. No universal-font/all256glyph/whole-ink/performance claim.",
+  "reusedBeforeControls": {
+    "binding": {
+      "currentDefaultBeforeRevision": "99723bb5dd61762fc0a4e69eace569416ad8f9e0",
+      "beforeSourceExactFixture": true,
+      "beforeOptionsExactDefault": true,
+      "currentDefaultBeforeWholeSVGBytesExactHistoricalPacked": true,
+      "currentDefaultBeforeEntireRawReceiptBytesExactHistoricalPacked": true,
+      "historicalReferenceSvg": "/tmp/pr449-week-comparison-20261101/sparse256-isolate-085acd43d/cost/current-cold.svg.gz",
+      "historicalReceiptReference": "/tmp/pr449-week-comparison-20261101/sparse256-isolate-085acd43d/cost/current.json.gz rows[cold].receiptJSON",
+      "priorActualInkReport": "/tmp/pr449-week-comparison-20261101/sparse256-isolate-085acd43d/offline-ink.json",
+      "priorScopeCorrection": "/tmp/pr449-week-comparison-20261101/sparse256-isolate-085acd43d/style-scope-analysis.json",
+      "inkReusedScope": "Only N0/N255 headers and two whole cardinality groups, fixed4Inter/zoom1; not all256glyphs or allcaption ink.",
+      "priorFailuresRetained": true,
+      "newCallsByReview": 0,
+      "newRasters": 0
+    },
+    "historicalInkReport": "/tmp/pr449-week-comparison-20261101/sparse256-isolate-085acd43d/offline-ink.json",
+    "historicalScopeCorrection": "/tmp/pr449-week-comparison-20261101/sparse256-isolate-085acd43d/style-scope-analysis.json",
+    "newBeforeRasters": 0
+  },
+  "publicProducts": [
+    {
+      "arm": "before-default",
+      "revision": "99723bb5dd61762fc0a4e69eace569416ad8f9e0",
+      "source": "erDiagram\nN0 ||--|| N1 : owns\nN0\nN1\nN2\nN3\nN4\nN5\nN6\nN7\nN8\nN9\nN10\nN11\nN12\nN13\nN14\nN15\nN16\nN17\nN18\nN19\nN20\nN21\nN22\nN23\nN24\nN25\nN26\nN27\nN28\nN29\nN30\nN31\nN32\nN33\nN34\nN35\nN36\nN37\nN38\nN39\nN40\nN41\nN42\nN43\nN44\nN45\nN46\nN47\nN48\nN49\nN50\nN51\nN52\nN53\nN54\nN55\nN56\nN57\nN58\nN59\nN60\nN61\nN62\nN63\nN64\nN65\nN66\nN67\nN68\nN69\nN70\nN71\nN72\nN73\nN74\nN75\nN76\nN77\nN78\nN79\nN80\nN81\nN82\nN83\nN84\nN85\nN86\nN87\nN88\nN89\nN90\nN91\nN92\nN93\nN94\nN95\nN96\nN97\nN98\nN99\nN100\nN101\nN102\nN103\nN104\nN105\nN106\nN107\nN108\nN109\nN110\nN111\nN112\nN113\nN114\nN115\nN116\nN117\nN118\nN119\nN120\nN121\nN122\nN123\nN124\nN125\nN126\nN127\nN128\nN129\nN130\nN131\nN132\nN133\nN134\nN135\nN136\nN137\nN138\nN139\nN140\nN141\nN142\nN143\nN144\nN145\nN146\nN147\nN148\nN149\nN150\nN151\nN152\nN153\nN154\nN155\nN156\nN157\nN158\nN159\nN160\nN161\nN162\nN163\nN164\nN165\nN166\nN167\nN168\nN169\nN170\nN171\nN172\nN173\nN174\nN175\nN176\nN177\nN178\nN179\nN180\nN181\nN182\nN183\nN184\nN185\nN186\nN187\nN188\nN189\nN190\nN191\nN192\nN193\nN194\nN195\nN196\nN197\nN198\nN199\nN200\nN201\nN202\nN203\nN204\nN205\nN206\nN207\nN208\nN209\nN210\nN211\nN212\nN213\nN214\nN215\nN216\nN217\nN218\nN219\nN220\nN221\nN222\nN223\nN224\nN225\nN226\nN227\nN228\nN229\nN230\nN231\nN232\nN233\nN234\nN235\nN236\nN237\nN238\nN239\nN240\nN241\nN242\nN243\nN244\nN245\nN246\nN247\nN248\nN249\nN250\nN251\nN252\nN253\nN254\nN255",
+      "options": {
+        "graphLayout": {
+          "backend": "agentic",
+          "fallback": "none"
+        },
+        "embedFontImport": false
+      },
+      "delivery": "returned",
+      "sameInputQualification": true,
+      "proof": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 2542,
+          "height": 2930.5
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 1285,
+          "unmeasured": 0,
+          "preparedText": 513,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 1288,
+          "labels": 256,
+          "occlusionPairs": 24,
+          "maxOcclusionPairs": 100000,
+          "operations": 90546,
+          "maxOperations": 400000,
+          "markers": 0
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:7b5abb520e03e559"
+      }
+    },
+    {
+      "arm": "after-default",
+      "revision": "99723bb5dd61762fc0a4e69eace569416ad8f9e0",
+      "source": "erDiagram\nN0 ||--|| N1 : owns\nN0\nN1\nN2\nN3\nN4\nN5\nN6\nN7\nN8\nN9\nN10\nN11\nN12\nN13\nN14\nN15\nN16\nN17\nN18\nN19\nN20\nN21\nN22\nN23\nN24\nN25\nN26\nN27\nN28\nN29\nN30\nN31\nN32\nN33\nN34\nN35\nN36\nN37\nN38\nN39\nN40\nN41\nN42\nN43\nN44\nN45\nN46\nN47\nN48\nN49\nN50\nN51\nN52\nN53\nN54\nN55\nN56\nN57\nN58\nN59\nN60\nN61\nN62\nN63\nN64\nN65\nN66\nN67\nN68\nN69\nN70\nN71\nN72\nN73\nN74\nN75\nN76\nN77\nN78\nN79\nN80\nN81\nN82\nN83\nN84\nN85\nN86\nN87\nN88\nN89\nN90\nN91\nN92\nN93\nN94\nN95\nN96\nN97\nN98\nN99\nN100\nN101\nN102\nN103\nN104\nN105\nN106\nN107\nN108\nN109\nN110\nN111\nN112\nN113\nN114\nN115\nN116\nN117\nN118\nN119\nN120\nN121\nN122\nN123\nN124\nN125\nN126\nN127\nN128\nN129\nN130\nN131\nN132\nN133\nN134\nN135\nN136\nN137\nN138\nN139\nN140\nN141\nN142\nN143\nN144\nN145\nN146\nN147\nN148\nN149\nN150\nN151\nN152\nN153\nN154\nN155\nN156\nN157\nN158\nN159\nN160\nN161\nN162\nN163\nN164\nN165\nN166\nN167\nN168\nN169\nN170\nN171\nN172\nN173\nN174\nN175\nN176\nN177\nN178\nN179\nN180\nN181\nN182\nN183\nN184\nN185\nN186\nN187\nN188\nN189\nN190\nN191\nN192\nN193\nN194\nN195\nN196\nN197\nN198\nN199\nN200\nN201\nN202\nN203\nN204\nN205\nN206\nN207\nN208\nN209\nN210\nN211\nN212\nN213\nN214\nN215\nN216\nN217\nN218\nN219\nN220\nN221\nN222\nN223\nN224\nN225\nN226\nN227\nN228\nN229\nN230\nN231\nN232\nN233\nN234\nN235\nN236\nN237\nN238\nN239\nN240\nN241\nN242\nN243\nN244\nN245\nN246\nN247\nN248\nN249\nN250\nN251\nN252\nN253\nN254\nN255",
+      "options": {
+        "graphLayout": {
+          "backend": "agentic",
+          "fallback": "none"
+        },
+        "embedFontImport": false
+      },
+      "delivery": "returned",
+      "sameInputQualification": true,
+      "proof": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1831,
+          "height": 1984.5
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 1285,
+          "unmeasured": 0,
+          "preparedText": 513,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 1288,
+          "labels": 256,
+          "occlusionPairs": 24,
+          "maxOcclusionPairs": 100000,
+          "operations": 91015,
+          "maxOperations": 400000,
+          "markers": 0
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:d044c1ed92e4ffc0"
+      }
+    }
+  ],
+  "geometry": {
+    "currentBefore": {
+      "entities": 256,
+      "isolates": 254,
+      "columns": 12,
+      "rows": 22,
+      "bodySizes": [
+        "140,56"
+      ],
+      "minSameRowBodyGap": 71,
+      "minSameRowPaintGap": 70,
+      "minSameColumnBodyGap": 71,
+      "minSameColumnPaintGap": 70,
+      "width": 2542,
+      "height": 2930.5,
+      "area": 7449331,
+      "wire": 132.598,
+      "allBodyPaintClear": true
+    },
+    "currentAfter": {
+      "entities": 256,
+      "isolates": 254,
+      "columns": 11,
+      "rows": 24,
+      "bodySizes": [
+        "140,56"
+      ],
+      "minSameRowBodyGap": 21,
+      "minSameRowPaintGap": 20,
+      "minSameColumnBodyGap": 21,
+      "minSameColumnPaintGap": 20,
+      "width": 1831,
+      "height": 1984.5,
+      "area": 3633619.5,
+      "wire": 132.598,
+      "allBodyPaintClear": true
+    },
+    "historicalElk": {
+      "entities": 256,
+      "isolates": 254,
+      "columns": 14,
+      "rows": 19,
+      "bodySizes": [
+        "140,56"
+      ],
+      "minSameRowBodyGap": 20,
+      "minSameRowPaintGap": 19,
+      "minSameColumnBodyGap": 20,
+      "minSameColumnPaintGap": 19,
+      "width": 2300,
+      "height": 1504,
+      "area": 3459200,
+      "wire": 214.59799999999996,
+      "allBodyPaintClear": true
+    },
+    "areaResidualVsHistoricalElkPercent": 5.0421918362627105,
+    "areaChangeVsCurrentBeforePercent": -51.222203711984335
+  },
+  "fonts": [
+    {
+      "file": "Inter-Regular.ttf",
+      "bytes": 324820,
+      "sha256": "1b08e7fc267a5c7e1d614100f604b83e7e8a0be241f0f288faa2b3ac93a683ba"
+    },
+    {
+      "file": "Inter-Medium.ttf",
+      "bytes": 325304,
+      "sha256": "8c883f63b2c4157d997319f2c8bc6995ed4357ef371940d31ca159004a4aae63"
+    },
+    {
+      "file": "Inter-SemiBold.ttf",
+      "bytes": 326048,
+      "sha256": "e7a1aaf7eda9f2fad4131725fa556265ec75ca7b2d756260173a040363e8d4f7"
+    },
+    {
+      "file": "Inter-Bold.ttf",
+      "bytes": 326468,
+      "sha256": "b37284b5701b6b168dfc770aa1a4ac492106422fd3ba76bc7641e37434e8019c"
+    }
+  ],
+  "status": "passed-fixed-font-offline-checks"
+}

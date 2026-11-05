@@ -1,0 +1,23 @@
+{
+  "owner": "root-20261104-1055",
+  "updated_at": "2026-11-04T11:21:57.716660+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-08T23:59:59Z",
+  "note": "Fresh recovery baseline, not restored November runtime. Original checkout and reconstructed patch preserved.",
+  "writers": [],
+  "head": "5aa10b3c09add9713a17a7db75919b0c90fca160",
+  "next_fix": "ER256 final glyph/shaft index-query work is next unresolved producer target; prior body-index shortcut insufficient, preserve generic live-read fallback and all caps. 527ef75a3 fixes confirmed private servedpoint freeze-hook falseP withidenticalSVG/zerohiddenheadink; Native+Scene old2F/current22P, broad776P/knownSparse32F, Class128LR/RLP TB/BTU400k. Sixordinarycostphases wholeSVG/ENTIREreceipt exact; no relativelayout/capacity/speedwin. Originalbaseline/peers unavailable; holdoutsealed.",
+  "status": "idle",
+  "released_at": "2026-11-04T11:21:57.716660+00:00",
+  "checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-5aa10b3c0.bundle",
+  "evidence": "/workspace/pr449-recovery-20261103-155750/evidence-5aa10b3c0.tar.gz",
+  "execution_note": "Completed bounded local run527ef75a3 plus5aa10b3c0 log. No continuous execution between sessions claimed. No push/fetch/rebase/CI/external actions. Deadline2026-11-08T23:59:59Z unchanged; automation not disabled before deadline.",
+  "evidence_verified": {
+    "files": 2632,
+    "uncompressed_bytes": 43354657,
+    "archive_bytes": 15312785,
+    "controllers": 121
+  }
+}

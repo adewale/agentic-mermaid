@@ -1,0 +1,29 @@
+{
+  "owner": "root-20261104-1856",
+  "updated_at": "2026-11-04T19:47:05.058363+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-08T23:59:59Z",
+  "note": "Fresh recovery baseline, not restored November runtime. Original checkout and reconstructed patch preserved.",
+  "writers": [],
+  "head": "ebf62dc2bc22257385446b0e42885643eb046cf7",
+  "next_fix": "Class vertical proof deficit closed at11b3e5fce, log/recoveryebf62dc2b. No new sufficient safe Sparse32 or ER256 subtraction established: retained sparse XML suffix unmeasured, fresh-receiver copies observable; guarded ER broadphase consumes400k before final paint, unsafe combined margin14492 not individual attribution. Do not repeat stopped rounding/union/index/mask probes. Next intervention needs a measured sufficient cause for an enrolled supported-input loss. ELK TB20s owner timeout remains unknown despite successful cost/Node calls; no deadline relaxation.",
+  "status": "idle",
+  "released_at": "2026-11-04T19:47:05.058363+00:00",
+  "checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-ebf62dc2b.bundle",
+  "evidence": "/workspace/pr449-recovery-20261103-155750/evidence-5aa10b3c0.tar.gz",
+  "execution_note": "Bounded local run: runtime11b3e5fce fixes Class128 vertical shared proof capacity via paid completed flat sharp producer projection. TB/BT P388607/393070, all127markers, byteexact priorSVG; prior physical head ink retained. Ownerold4F/current8P; corrected broad170P/ELKTB20s timeout unresolved. 12 currentcostcalls allP,N1 no old/new speedratio; 2Node24source+1RAMbuild/2compiled products wholeSVG/ENTIREreceipt exact. Compound failedtrial withdrawn and retained. Next readonlycause review; Sparse32 no safe sufficient subtraction, no newprobe. Localonly; no continuous execution claim; deadline unchanged. Final read-only Sparse32/ER reviews stopped unsupported variants without replay. All children completed, no active production writers; lease released for next bounded run. Automation remains enabled before November8 deadline.",
+  "evidence_verified": {
+    "files": 2632,
+    "uncompressed_bytes": 43354657,
+    "archive_bytes": 15312785,
+    "controllers": 121
+  },
+  "evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-ebf62dc2b.tar.gz",
+  "evidence_delta_verified": {
+    "files": 100,
+    "uncompressed_bytes": 1287873,
+    "archive_bytes": 494391
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "head": "179a394ef42c96a90a8f5347003c62c18bfc6d63",
+  "base": "085acd43d6a06e6231c94046d30f0d176ea1864c",
+  "bundle": "/workspace/pr449-recovery-20261103-155750/checkpoint-179a394ef.bundle",
+  "archive": "/workspace/pr449-recovery-20261103-155750/evidence-delta-179a394ef.tar.gz",
+  "files": 107,
+  "uncompressed_bytes": 2745661,
+  "archive_bytes": 2255514,
+  "byte_verified": true
+}

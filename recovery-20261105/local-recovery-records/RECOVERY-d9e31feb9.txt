@@ -1,0 +1,8 @@
+Local PR449 checkpoint d9e31feb9f18130c44d24ae25ec750e1d3bd4917
+Branch work/pr449-reconstruct-20261103; worktree /tmp/pr449-main-integration-20261029-762
+Code790ed4b85fd2c9ed898d90e8fb74bb0e48873ba0 preserves authored text across private plan hooks. Codeb823ccd5351b6d2e769407667e988750e36cc9aa removes duplicate prepared-run retention. Docs-only finalhead d9e31feb9.
+Verified checkpoint-d9e31feb9.bundle requires retained/published base3b56da55e6570908beb5d96c25f4c03c1a828a22; it is incremental, not an original2dad restoration.
+Verified evidence-d9e31feb9.tar.gz: all2016 file members read, gzip integrity checked; 35,201,654 uncompressed bytes, 10,648,679 archive bytes. Includes existing week evidence, 85 retained controller files and candidate patch history. Older backups and patches preserved.
+The archive captured active coordination; released-state-d9e31feb9.json is the final idle state. No task Bun/Node processes or production writers remain; source/worktree clean.
+Core typecheck0/lint pass; old5 private cases red/current7 green with actual source/SVG/glyph/P checks. Broad987P4F retains three capacity failures and one timeout, isolated at original deadlineP2.985s. Cost12 ordinary before/current pairs preserve all6SVG/ENTIREproof pairs; adverse cold/RSS costs retained. Normal4Node+1RAMbuild bindings exact; ClassAM21/gzip293519/Br246732 versusELK20/671569/525028.
+No ELK layout delta closed by these two changes. Original2dad/Trident/Mermaid12.2/Pele1.9 qualification remains unavailable; holdout stays sealed. No remote changes; campaign deadline2026-11-08T23:59:59Z remains, no continuous execution claim.

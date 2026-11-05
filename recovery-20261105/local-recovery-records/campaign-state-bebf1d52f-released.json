@@ -1,0 +1,32 @@
+{
+  "owner": "root-20261105-0704",
+  "updated_at": "2026-11-05T07:51:49.718412+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-08T23:59:59Z",
+  "note": "Fresh recovery baseline, not restored November runtime. Original checkout and reconstructed patch preserved.",
+  "writers": [],
+  "head": "bebf1d52f324d547cb511ee3f2e09eb3cf77b71e",
+  "next_fix": "The standalone start-marker parser shortcut is stopped: complete legacy multiline text-arrow meaning conflicts with early closed-pipe recognition. Preserve the unsupported source and all stopped WIP. Next qualify actual wide-circle ink on ONE supported nonlinear/multi-leg route before any arc-length subtraction; sampled endpoints alone are insufficient. Current fix covers actual single-M/L open two-point realizations only. ER256 both-backend refusal, Sparse32 proof cap, sparse256 area +115.35%, forest wire +16.89%, Requirement TB/BT area +9.53%, missing original baseline/peers remain; holdout sealed.",
+  "status": "idle",
+  "checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-bebf1d52f.bundle",
+  "evidence": "/workspace/pr449-recovery-20261103-155750/evidence-5aa10b3c0.tar.gz",
+  "execution_note": "Bounded local run complete; lease released, not continuous execution. Research 62006bccf stops a falsified parser shortcut; all 3 WIP tests, patch and production draft preserved byte-exactly then only our test work restored. Source cf67234e3 reuses captured one-line path projection in the existing terminal paint rule. Fresh paired linear products/raster controls restore 0 -> 230 owned marker pixels, 536 confined lighter pixels, with unchanged path, metadata, resources, anchors, width and body/text. Proof stays U; operations 149375 -> 149478 (+103), same issue/caps. Matched owners 2 positive/2 ink RED, corrected mutable RED, then all 8 targeted pass; initial getter admission-precondition failure retained. Seven relevant files 273P/24.63s/468416KiB; types62.69s/2132704KiB and lint pass. Twelve fully consumed current calls all U; repeat SVG/entire receipt exact, real edits; N1/no ratios, adverse ELK cache1 cold/edit retained. Two Node and two compiled full products exact; one RAM build20.85s/300028KiB, scratch removed. Flowchart closures Native26requests/368474gzip/312462Br versus ELK24/738604/583892; +130gzip/+145Br each. Source encoding metadata error corrected independently: actual LF in both fixtures. Clean log head bebf1d52f. Independent final binding note complete. Verified incremental git bundle and byte-backed 215 new files / 687943 raw bytes / 367584 archive bytes; all previous archives remain. Five agents completed, no runtime jobs or writers remain. Clean local bebf1d52f; next invocation must acquire a fresh lease. Deadline remains 2026-11-08T23:59:59Z; no continuous execution claim. No fetch/push/CI/default/version/publication.",
+  "evidence_verified": {
+    "files": 2632,
+    "uncompressed_bytes": 43354657,
+    "archive_bytes": 15312785,
+    "controllers": 121
+  },
+  "evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-bebf1d52f.tar.gz",
+  "evidence_delta_verified": {
+    "files": 215,
+    "uncompressed_bytes": 687943,
+    "archive_bytes": 367584
+  },
+  "previous_owner": "root-20261105-0505",
+  "previous_checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-d089e94d0.bundle",
+  "previous_evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-d089e94d0.tar.gz",
+  "released_at": "2026-11-05T07:51:49.718412+00:00"
+}

@@ -1,0 +1,25 @@
+{
+  "historicalNative": {
+    "svg": "/tmp/pr449-week-comparison-20261101/sparse256-isolate-085acd43d/cost/current-cold.svg.gz",
+    "receiptPacket": "/tmp/pr449-week-comparison-20261101/sparse256-isolate-085acd43d/cost/current.json.gz",
+    "receiptSelector": "rows[phase=cold].receiptJSON",
+    "viewport": [
+      2542,
+      2930.5
+    ],
+    "area": 7449331,
+    "paintStatus": "passed",
+    "paintOperations": 90546,
+    "provenance": "Historical packed Native artifact, not a current revision delivery claim."
+  },
+  "historicalElk": {
+    "svg": "/tmp/pr449-week-comparison-20261101/scene-inspection-append-node24-68a7d7ce9/elk/elk.svg.gz",
+    "receipt": "/tmp/pr449-week-comparison-20261101/scene-inspection-append-node24-68a7d7ce9/elk/elk.receipt.json.gz",
+    "sourceHead": "68a7d7ce93642fa514270b524c3a8afa5f88488e",
+    "area": 3459200,
+    "provenance": "Exact same retained1199Bsource/options except backend; no newELKcall authorized."
+  },
+  "fullPreviousInkReport": "/tmp/pr449-week-comparison-20261101/sparse256-isolate-085acd43d/offline-ink.json",
+  "previousStyleScopeCorrection": "/tmp/pr449-week-comparison-20261101/sparse256-isolate-085acd43d/style-scope-analysis.json",
+  "existingActualInkTool": "/tmp/pr449-week-comparison-20261101/sparse256-isolate-085acd43d/offline-ink.ts"
+}

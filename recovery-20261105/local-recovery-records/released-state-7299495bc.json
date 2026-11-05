@@ -1,0 +1,29 @@
+{
+  "owner": "root-20261104-1455",
+  "updated_at": "2026-11-04T15:21:44.046140+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-08T23:59:59Z",
+  "note": "Fresh recovery baseline, not restored November runtime. Original checkout and reconstructed patch preserved.",
+  "writers": [],
+  "head": "7299495bca8fa0a78dcc9770a23d9a0ecd313f5e",
+  "next_fix": "StoppedClassTBKahantrial remainsU400k CHECK_BUDGET+OUTPUT_SCOPE;127markerchecks/1520pairs reported vs53doesnotqualifycompleteproof. ActualSVGmaxdelta3.09e-11px/17ULPs;128names127carriers254normaldocks retainedoffline,noinkclaim. Trialsource/patch/fullproducts saved;productionrestoredexactlytodc7a17838. Nextlocateremainingchargedpainttail; firstexhaustionstageunknown,donotinferfrommarker127counter. No moreunqualifiedKahan/ERvariants. Coloridentity-onlyhypothesisstaticallyfalsifiedbeforecalls. Missingbaseline/peers, Classvertical/Sparse32/ER256 open; replacement24sealed.",
+  "status": "idle",
+  "released_at": "2026-11-04T15:21:44.046140+00:00",
+  "checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-7299495bc.bundle",
+  "evidence": "/workspace/pr449-recovery-20261103-155750/evidence-5aa10b3c0.tar.gz",
+  "execution_note": "Boundedlocalrun7299495bc completed withONEactualClass128TBsufficiencycall, no extraAPI/layout/ELK/Node/raster/profile/build calls.1511.75ms fullyconsumed216379B,RSS151204KiB,postGCheap21.48MB,N1datedcomparison/no speedratio. No qualifiedfailureclosed; productionclean, failedpatch/evidence preserved andverified. No continuous execution between runs claimed; deadline2026-11-08T23:59:59Z unchanged; no remoteactions or earlyautomationdisable.",
+  "evidence_verified": {
+    "files": 2632,
+    "uncompressed_bytes": 43354657,
+    "archive_bytes": 15312785,
+    "controllers": 121
+  },
+  "evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-7299495bc.tar.gz",
+  "evidence_delta_verified": {
+    "files": 15,
+    "uncompressed_bytes": 107248,
+    "archive_bytes": 46928
+  }
+}
