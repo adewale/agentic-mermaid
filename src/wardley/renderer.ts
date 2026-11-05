@@ -12,7 +12,7 @@ export function lowerWardleyDrawing<T>(marks: DrawingFactory<T>, { positioned: c
   const arrow = tipAnchoredArrow('wardley-arrow', { width: 7, height: 7 }, 'end', { fill: stroke }, 'userSpaceOnUse')
   parts.push(marks.definitions({ id: 'defs', markerResources: [arrow] }, `<defs>${serializeMarkerResources([arrow])}</defs>`))
   if (chart.title) parts.push(marks.text(diagramTitleFields(chart.title, style)))
-  const text = (item: WardleyPlacedText, owner?: { id: string; role: 'node' | 'edge' }) => marks.text({ id: `label:${item.id}`, role: 'label', ...(owner ? { owner } : {}), text: item.text, block: item.block, x: item.x, y: item.y, fontSize: item.block.fontSize, fontWeight: item.block.fontWeight, anchor: 'middle', paint: { fill: ink, stroke: 'var(--bg)', strokeWidth: '3', strokeLinejoin: 'round', paintOrder: 'stroke' } })
+  const text = (item: WardleyPlacedText, owner?: { id: string; role: 'node' | 'edge' }) => marks.text({ id: `label:${item.id}`, role: 'label', ...(owner ? { owner } : {}), text: item.block.text, block: item.block, x: item.x, y: item.y, fontSize: item.block.fontSize, fontWeight: item.block.fontWeight, anchor: 'middle', paint: { fill: item.textRole === 'group' ? style.groupTextColor ?? ink : item.textRole === 'edge' ? style.edgeTextColor ?? ink : ink, stroke: 'var(--bg)', strokeWidth: '3', strokeLinejoin: 'round', paintOrder: 'stroke' } })
   const p = chart.plot
   parts.push(marks.connector({ id: 'axes', role: 'rail', geometry: { kind: 'polyline', points: [{ x: p.x, y: p.y }, { x: p.x, y: p.y + p.height }, { x: p.x + p.width, y: p.y + p.height }] }, lineStyle: 'solid', paint: { stroke, strokeWidth: String(style.lineWidth) } }))
   const stages = chart.body.axes.stages ?? ['Genesis', 'Custom built', 'Product', 'Commodity']
@@ -32,7 +32,8 @@ export function lowerWardleyDrawing<T>(marks: DrawingFactory<T>, { positioned: c
     const children: T[] = []
     children.push(marks.shape({ id: `${item.id}:mark`, identity: false, owner, role: 'node', geometry: item.node.isPipelineParent ? { kind: 'rect', x: item.x - 6, y: item.y - 6, width: 12, height: 12 } : { kind: 'circle', cx: item.x, cy: item.y, r: item.node.className === 'anchor' ? 7 : 5 }, paint: { fill: item.node.className === 'anchor' ? stroke : fill, stroke: nodeStroke, strokeWidth: String(style.nodeLineWidth) }, attributes: { data: { evolution: String(item.node.x), visibility: String(item.node.y), ...(item.node.sourceStrategy ? { strategy: item.node.sourceStrategy } : {}) } } }))
     if (item.node.inertia) children.push(marks.shape({ id: `${item.id}:inertia`, identity: false, role: 'node', owner, geometry: { kind: 'circle', cx: item.x, cy: item.y, r: 9 }, paint: { fill: 'none', stroke: nodeStroke, strokeWidth: String(style.nodeLineWidth) } }))
-    children.push(text({ ...item, x: item.x + (item.node.labelOffsetX ?? 14), y: item.y + (item.node.labelOffsetY ?? -14) }, owner))
+    if (item.leader) children.push(marks.shape({ id: `${item.id}:leader`, identity: false, role: 'node', owner, geometry: { kind: 'polyline', points: item.leader }, paint: { fill: 'none', stroke, strokeWidth: '1', opacity: '0.55' } }))
+    children.push(text(item.label!, owner))
     parts.push(marks.group({ id: item.id, role: 'node', open: '<g>', close: '</g>', children: children.map(node => ({ node, indent: 2 })) }))
   }
   chart.labels.forEach(label => parts.push(text(label)))

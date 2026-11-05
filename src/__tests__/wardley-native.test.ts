@@ -90,3 +90,21 @@ describe('Wardley native source and geometry', () => {
     expect(parseWardleyBody(renderWardley(edited.value)).notes).toEqual([{ text: '%%{init: {}}%%\ncomponent Injected', x: 30, y: 40 }])
   })
 })
+
+// Text placement may adapt; authored map coordinates may not.
+test('Wardley separates ordinary dense component captions without changing map coordinates', () => {
+  const body = parseWardleyBody(['wardley-beta', ...Array.from({ length: 30 }, (_, i) => `component Component${i} [${0.1 + Math.floor(i / 10) * 0.35}, ${0.05 + i % 10 * 0.1}]`)].join('\n')), chart = layoutWardley(body)
+  for (const node of chart.nodes) {
+    expect(node.x).toBeCloseTo(chart.plot.x + node.node.x! / 100 * chart.plot.width)
+    expect(node.y).toBeCloseTo(chart.plot.y + (1 - node.node.y! / 100) * chart.plot.height)
+    expect(node.label?.text).toBe(node.node.label)
+  }
+  for (let i = 0; i < chart.nodes.length; i++) for (let j = i + 1; j < chart.nodes.length; j++) {
+    const a = chart.nodes[i]!.label!, b = chart.nodes[j]!.label!
+    expect(Math.abs(a.x - b.x) < (a.block.width + b.block.width) / 2 && Math.abs(a.y - b.y) < (a.block.height + b.block.height) / 2).toBe(false)
+  }
+  expect(chart.nodes.some(node => node.leader?.length === 2)).toBe(true)
+  const svg = renderMermaidSVG(renderWardley(body))
+  expect(svg).toContain('data-id="Component29"')
+  expect(svg).not.toContain('NaN')
+})

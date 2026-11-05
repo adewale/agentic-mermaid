@@ -20,8 +20,8 @@ export type WardleyMutationOp =
   | { kind: 'add_note'; text: string; x: number; y: number }
   | { kind: 'set_accessibility_title'; title: string | null }
   | { kind: 'set_accessibility_description'; description: string | null }
-export interface WardleyPlacedText { id: string; text: string; x: number; y: number; block: PixelTextBlock }
-export interface WardleyPlacedNode extends WardleyPlacedText { node: WardleyNode }
+export interface WardleyPlacedText { id: string; text: string; x: number; y: number; block: PixelTextBlock; textRole?: 'node' | 'group' | 'edge' }
+export interface WardleyPlacedNode extends WardleyPlacedText { node: WardleyNode; label?: WardleyPlacedText; leader?: Point[] }
 export interface PositionedWardley extends PositionedDiagram {
   body: WardleyBody
   plot: { x: number; y: number; width: number; height: number }
