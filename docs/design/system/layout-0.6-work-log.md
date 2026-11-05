@@ -20,7 +20,7 @@ ranking of current `main`. Unknowns and refusals remain part of the workload.
 | Workload | Native compared with ELK | Cause or remaining work |
 | --- | --- | --- |
 | Sparse256: 256 cards, one relationship | Area 3,633,619.5 vs 3,459,200: **+5.04%**. Wire 132.598 vs 214.598. | The default isolate clearance fix removed 51.22% of the previous Native area. Residual shelf packing remains; connected geometry is unchanged. |
-| Nonlinear forest | Wire **+16.89%**, area **−6.43%**. | Fixed-dock routes are already shortest. Inspect placement and terminal seating; the stopped leaf-seat trial increased area 6.88%. |
+| Nonlinear forest | Wire **+10.19%** (was +16.89%), area **−6.43%**. | Route-only spreading of center-aligned terminal peers shortens wire 5.74% without moving bodies; residual placement/terminal cost remains. The stopped leaf-seat trial increased area 6.88%. |
 | Requirement cycle | TB/BT area **+9.53%**; LR/RL **−1.44%**. | Directional placement loss remains. Fields, relations and observed ink were retained at `15972c57e`. |
 | ER256 relationship chain | **Both backends refuse.** | Distinct from Sparse256 above. Guarded shortcuts did not remove enough work. |
 | Sparse32 | Delivered 1,500 text records and 32 contributing markers; proof unverified at 400,000 operations. | Proof availability, middle-glyph attribution, readability and arbitrary fonts remain separate unknowns. |
@@ -221,3 +221,26 @@ candidate comparison does not attribute that proof cost to the spacing fix or
 establish a runtime ratio. The separate TB/BT cycle area +9.53% remains open.
 After updating the PNG, citizenship plus Requirement layout/native owners pass
 97/97 in 59.20s (before: one exact PNG failure). No runtime source changed.
+
+Forest intervention from `3b35c1b3d3387df2d61323071b3c9678b06f1445`: the late
+fanout producer rejected unequal terminal bodies sharing a measured center because
+their leading faces differed. Reuse its existing route-only fork path after
+bundling; retain all body positions and restrict the added branch to plain,
+unlabelled, distinct terminal peers. Native wire **463.4375→436.857166666 (−5.74%)**,
+area **165,355.6575** and eight bends unchanged. ELK remains byte-exact at wire
+396.469666666 and area 176,727.21; residual Native wire gap is +10.19%.
+Six identities, 20 logical text lines, four relations, eight normal contacts and
+all four head contributions remain. Both source runs contribute before and after;
+their new separation is a quality improvement, not recovered missing ink.
+
+Four directional owners fail before repair; the final nearby/corpus run passes
+44 tests (322 geometry records unchanged), plus 28 ownership/CSS owners, core types
+and two-file lint. Fresh Native repeat and ELK before/after SVGs are byte-exact.
+Adverse cost: proof **97,331→98,311 (+980)**; SVG **8,027→8,047 raw**,
+**1,462→1,483 gzip9**, **1,233→1,238 Brotli11 bytes**. Single-call candidate walls
+vary 276–795ms versus 365ms before, supporting no speed claim. A disposable raster
+diagnostic was killed after repeated pixel-getter allocations; its corrected
+single-buffer run and failed draft are retained separately from product outcomes.
+Evidence: `forest-source-ports-3b35c1b3d`. Full CI, browser visuals, payload ceilings
+and Sparse32 remain open. Next: qualify the browser Class spacing expectation and
+measure the standalone payload cost with equivalent builds.
