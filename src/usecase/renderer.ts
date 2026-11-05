@@ -2,6 +2,7 @@ import { escapeAttr } from '../multiline-utils.ts'
 import { type DrawingDocument, type DrawingFactory, sceneLowering } from '../scene/drawing.ts'
 import type { Geometry, MarkerDescriptor } from '../scene/ir.ts'
 import { serializeMarkerResources, tipAnchoredArrow } from '../scene/marker-resources.ts'
+import { LABEL_PILL_PADDING, labelHaloExtension } from '../shared/edge-label-geometry.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { drawingDocument } from '../shared/scene-document.ts'
 import { diagramTitleFields, resolveRenderStyle } from '../styles.ts'
@@ -122,8 +123,22 @@ export function lowerUsecaseDrawing<T>(marks: DrawingFactory<T>, { positioned: c
         markers: { ...(start ? { start } : {}), ...(end ? { end } : {}) },
       }),
     )
-    if (edge.labelBlock && edge.labelPosition)
+    if (edge.labelBlock && edge.labelPosition) {
+      const padding = LABEL_PILL_PADDING + labelHaloExtension(edge, style.lineWidth),
+        block = edge.labelBlock,
+        position = edge.labelPosition
+      parts.push(
+        marks.shape({
+          id: `label:${edge.id}:halo`,
+          role: 'chrome',
+          owner,
+          geometry: { kind: 'rect', x: position.x - block.width / 2 - padding, y: position.y - block.height / 2 - padding, width: block.width + padding * 2, height: block.height + padding * 2, rx: 4 },
+          paint: { fill: 'var(--bg)', stroke: 'none' },
+          attributes: { className: 'edge-label-halo' },
+        }),
+      )
       parts.push(marks.text({ id: `label:${edge.id}`, role: 'label', owner, text: edge.labelBlock.text, block: edge.labelBlock, x: edge.labelPosition.x, y: edge.labelPosition.y, fontSize: edge.labelBlock.fontSize, fontWeight: edge.labelBlock.fontWeight, anchor: 'middle', paint: { fill: style.edgeTextColor ?? ink } }))
+    }
   }
   const parentIds = new Set(body.nodes.filter(node => node.parentId).map(node => node.id))
   for (const [id, mark] of nodeMarks) if (!parentIds.has(id)) parts.push(mark)
