@@ -11,6 +11,7 @@ import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { prepareDisplayText, resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 import { observeFallback } from '../performance-observations.ts'
 import { graphTextBlock } from '../graph-text.ts'
+import { retainComparisonMetrics } from './non-regressing-alternative.ts'
 
 export { LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
 
@@ -310,6 +311,7 @@ function certifyCandidateForPurpose(graph: MermaidGraph, style: ResolvedRenderSt
     const violations = [...correspondence, ...(purpose === 'placement' ? positionedGeometryBaseViolations(positioned, style) : positionedGeometryViolations(positioned, style))]
     const rubric = violations.length === 0 ? assessLayout(graph, positioned, style) : undefined
     if (rubric) violations.push(...hardViolations(rubric).map(violation => `${violation.metric}: ${violation.detail}`))
+    if (rubric && violations.length === 0) retainComparisonMetrics(positioned, rubric.metrics)
     const preferNext = violations.length === 0 && (candidate.preferNext?.(positioned) ?? false)
     return {
       attempt: { strategy: candidate.strategy, violations },

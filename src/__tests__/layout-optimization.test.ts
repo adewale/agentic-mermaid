@@ -52,6 +52,16 @@ test('port-aware exploration skips a large graph with no rubric bends to improve
   expect(result.receipt.layoutOptimization?.additionalProducerCalls).toBe(0)
 })
 
+test.each([
+  'flowchart TD\nQ{Decision} -->|left| L[Left]\nQ -->|middle| M[Middle]\nQ -.->|right| R[Right]',
+  'flowchart LR\nSrc[Source] -->|top*| Top[Top Target]\nSrc -->|mid*| Mid[Middle Target]\nSrc -->|bot*| Bot[Bottom Target]',
+])('port-aware compaction retains label centring for %s', source => {
+  const before = layout(source, { graphLayout: { backend: 'agentic' } })
+  const after = layout(source, { graphLayout: { backend: 'agentic', quality: 'balanced' } })
+  expect(after.svg).toBe(before.svg)
+  expect(after.receipt.layoutOptimization?.selected).toEqual([])
+})
+
 const WIDE = 'flowchart LR\nA[Very wide authentication and authorization gateway] --> C[OK]\nB[Input] --> C\nA --> D[Persist the transaction and return a response]\nC --> E[Done]\nD --> E'
 test('viewport wrapping retains the primary when fitting requires more height or worse geometry', () => {
   const before = layout(WIDE, { graphLayout: { backend: 'elk' } })
