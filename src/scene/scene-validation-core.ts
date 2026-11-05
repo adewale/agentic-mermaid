@@ -668,11 +668,11 @@ class SubjectIndex {
   private readonly roles: unknown[] = []
   private readonly next: number[] = []
   private readonly flags: number[] = []
-  private readonly overflow = new Map<unknown, Map<unknown, number>>()
+  private readonly lookups: Array<Map<unknown, number> | undefined> = []
 
   handle(id: unknown, role: unknown): number {
     const head = this.heads.get(id)
-    const many = this.overflow.get(id)
+    let many = head === undefined ? undefined : this.lookups[head]
     if (many) {
       const existing = many.get(role)
       if (existing !== undefined) return existing
@@ -685,13 +685,13 @@ class SubjectIndex {
       if (count === 8) {
         const lookup = new Map<unknown, number>()
         for (let index = head!; index !== -1; index = this.next[index]!) lookup.set(this.roles[index], index)
-        this.overflow.set(id, lookup)
+        many = lookup
       }
     }
     const index = this.roles.length
-    this.roles.push(role); this.next.push(head ?? -1); this.flags.push(0)
+    this.roles.push(role); this.next.push(head ?? -1); this.flags.push(0); this.lookups.push(many)
     this.heads.set(id, index)
-    this.overflow.get(id)?.set(role, index)
+    many?.set(role, index)
     return index
   }
 
