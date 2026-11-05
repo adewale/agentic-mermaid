@@ -9,6 +9,7 @@
 
 import { MermaidFrontmatterError, normalizeMermaidSource, preservedMermaidFamilySource } from '../mermaid-source.ts'
 import { INIT_DIRECTIVE_REGEX, MERMAID_DIRECTIVE_REGEX, splitHeaderStatement } from '../mermaid-source-wrapper.ts'
+import { coalesceFlowchartLines } from '../flowchart-lexer.ts'
 import { stripStateComment } from '../state/comment.ts'
 import { stripMindmapComment } from '../mindmap/parser.ts'
 import { classCommentStart, readClassStatements, type ClassStatementNode } from '../class/parser.ts'
@@ -423,17 +424,26 @@ function attachUniversalAccessibility(body: import('./types.ts').DiagramBody, me
 function markDroppedComments(diagram: ValidDiagram, authoredSource: string, statementEnds?: (lines: readonly string[]) => readonly number[]): void {
   if (!authoredSource.includes('%%') || diagram.kind === 'sequence' || diagram.kind === 'c4' || diagram.body.kind === 'opaque') return
 
+  const flowchartGrammar = diagram.kind === 'flowchart' || diagram.kind === 'agentflow' || diagram.kind === 'swimlane'
   const commentsIn = (source: string, normalized: Pick<ValidDiagramMeta, 'comments' | 'wrapperSource'>): SourceComment[] => {
     // Directives configure the diagram; they are not comment casualties. Mask
     // their bytes while retaining physical lines for the owning grammar.
     const blank = (directive: string): string => directive.replace(/[^\r\n]/g, ' ')
     const withoutDirectives = source.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), blank).replace(MERMAID_DIRECTIVE_REGEX, blank)
     const lines = withoutDirectives.split(/\r\n?|\n/).map(line => line.trim())
+    // Graph dialects reuse the same production lexer. A percent-prefixed
+    // physical line inside a coalesced label or metadata block is payload,
+    // while a standalone comment group owns its whole physical line.
+    if (flowchartGrammar) {
+      const actual = new Set(coalesceFlowchartLines(withoutDirectives.split(/\r\n?|\n/))
+        .filter(group => !group.directive && group.text.trimStart().startsWith('%%')).map(group => group.line + 1))
+      return normalized.comments.filter(comment => actual.has(comment.line))
+    }
     const comments = [...normalized.comments]
     const knownLines = new Set(comments.map(comment => comment.line))
     // These grammars either expose every real comment in envelope metadata,
     // or keep percent pairs inside their statement text.
-    if (['flowchart', 'state', 'journey', 'timeline', 'ishikawa', 'sankey'].includes(diagram.kind)) return comments
+    if (['state', 'journey', 'timeline', 'ishikawa', 'sankey'].includes(diagram.kind)) return comments
     if (diagram.kind === 'gantt') {
       const wrapperLines = (normalized.wrapperSource?.match(/\n/g) ?? []).length
       for (const statement of readGanttStatements(lines.map((line, index) => index < wrapperLines ? '' : line))) {
@@ -510,6 +520,7 @@ function markDroppedComments(diagram: ValidDiagram, authoredSource: string, stat
     return comments.sort((a, b) => a.line - b.line)
   }
   const comments = commentsIn(authoredSource, diagram.meta)
+  if (flowchartGrammar) diagram.meta.comments = comments
   if (!comments.length) return
   const serialized = serializeMermaid(diagram)
   const owned = new Map<string, number>()
