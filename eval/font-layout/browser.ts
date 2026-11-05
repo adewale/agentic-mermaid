@@ -3,6 +3,9 @@ import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs'
 import { resolve, join, extname, sep } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { execFileSync } from 'node:child_process'
+import { assertLocalMeasurement } from '../trident/prepare.ts'
+
+assertLocalMeasurement()
 
 const args = process.argv.slice(2)
 const value = (flag: string, fallback: string) => args.includes(flag) ? args[args.indexOf(flag) + 1]! : fallback

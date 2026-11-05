@@ -4,6 +4,9 @@ import { resolve, join } from 'node:path'
 import { cpus, platform, release } from 'node:os'
 import { timingIds } from './catalog.ts'
 import { variants } from './configs.ts'
+import { assertLocalMeasurement } from '../trident/prepare.ts'
+
+assertLocalMeasurement()
 
 const args = process.argv.slice(2)
 const value = (flag: string, fallback: string) => args.includes(flag) ? args[args.indexOf(flag) + 1]! : fallback

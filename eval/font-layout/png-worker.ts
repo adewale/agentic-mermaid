@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { assertLocalMeasurement } from '../trident/prepare.ts'
+
+assertLocalMeasurement()
 const input = JSON.parse(readFileSync(0, 'utf8')) as { root: string; features: string[]; backend: 'elk' | 'agentic'; mode: string; item: { id: string; source: string } }
 const beforeImport = process.memoryUsage(), start = performance.now()
 const api = await import(pathToFileURL(join(input.root, 'dist/agent.js')).href)

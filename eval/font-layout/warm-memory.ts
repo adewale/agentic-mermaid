@@ -6,6 +6,9 @@ import { cpus, platform, release } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { variants } from './configs.ts'
 import type { RenderOptions } from '../../src/types.ts'
+import { assertLocalMeasurement } from '../trident/prepare.ts'
+
+assertLocalMeasurement()
 
 if (process.argv.includes('--child')) {
   const input = JSON.parse(readFileSync(0, 'utf8')) as { root: string; mode: string; features: string[]; backend: 'elk' | 'agentic'; item: { id: string; source: string } }

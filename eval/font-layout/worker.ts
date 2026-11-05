@@ -4,12 +4,14 @@ import { gzipSync, brotliCompressSync } from 'node:zlib'
 import { pathToFileURL } from 'node:url'
 import type { RenderOptions } from '../../src/types.ts'
 import type { TextMeasurementProfile } from '../../src/text-measurement-profile.ts'
+import { assertLocalMeasurement } from '../trident/prepare.ts'
 
 export interface ObservationInput {
   root: string; mode: 'latency' | 'startup' | 'memory' | 'quality'; out: string; features: string[];
   backend: 'elk' | 'agentic'; repetitions: number; item: { id: string; source: string; family: string };
 }
 export async function observe(input: ObservationInput) {
+assertLocalMeasurement()
 const root = resolve(input.root)
 const load = (path: string) => import(pathToFileURL(join(root, path)).href)
 const beforeImport = process.memoryUsage()
