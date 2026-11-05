@@ -37,10 +37,6 @@ const SYNTAX_LOSS = new Set(['UNSUPPORTED_SYNTAX', 'CONTENT_DROPPED_ON_ROUNDTRIP
 // listed: registered families default to [ Pass ], unsupported families to a
 // diagnosed UNSUPPORTED_FAMILY. Remove a line when its fence starts passing.
 const EXPECTATIONS = `
-# Class: whole-diagram opaque fallbacks.
-class:official-syntax/classDiagram.md#27 [ Opaque Unsupported ] # class-level 'direction RL' statement is not modelled
-class:official-syntax/classDiagram.md#30 [ Opaque Unsupported ] # 'callback' / 'click ... call' interaction lines are not modelled (callbacks never run offline)
-class:official-syntax/classDiagram.md#31 [ Opaque Unsupported ] # 'callback' / 'click ... call' interaction lines are not modelled (callbacks never run offline)
 # Flowchart
 flowchart:official-syntax/flowchart.md#3 [ Opaque Unsupported ] # markdown strings render styled runs but stay source-preserved
 flowchart:official-syntax/flowchart.md#68 [ Opaque Unsupported ] # '@{ icon: ... }' icon shapes are not modelled
