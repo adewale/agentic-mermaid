@@ -1,5 +1,6 @@
 // Adapted from Pele (MIT, copyright 2026 kepano), revision 3a2f075.
 // See LICENSES/pele-MIT.txt.
+import { observeParserStatement, observeParserMutation, parserObservationActive } from '../shared/parser-observation.ts'
 import {
   DIRECTIVE,
   Reader,
@@ -140,7 +141,16 @@ export function parseGrammar<Type extends string, Rule>(
       break;
     }
   }
-  while (r.kind !== -1) ast.rules.push(rule(r));
+  while (r.kind !== -1) {
+    const start = r.tokens.starts[r.i]!
+    const value = rule(r)
+    ast.rules.push(value)
+    if (parserObservationActive('railroad')) {
+      const end = r.tokens.ends[r.i - 1] ?? start
+      observeParserStatement('railroad', 'rule', src.slice(start, end), { offset: start, endOffset: end, unit: 'physical' })
+      observeParserMutation('railroad', 'append-rule', value)
+    }
+  }
   return ast;
 }
 

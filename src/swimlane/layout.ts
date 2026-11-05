@@ -1,4 +1,4 @@
-import { layoutNativeGraphPlacementSync } from '../layout-engine.ts'
+import { layoutNativeGraphPlacementSync, retainGraphText } from '../layout-engine.ts'
 import { resolveEdgeInlineStyle, resolveNodeInlineStyle } from '../color-resolver.ts'
 import { graphClassNames } from '../shared/graph-classes.ts'
 import { assertMermaidGraphWork } from '../shared/diagram-limits.ts'
@@ -42,6 +42,7 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   }
   const measured = lanes.map((lane, index) => {
     const local = layoutNativeGraphPlacementSync(inputs[index]!, { ...options, padding: inset, nodeSpacing: Math.max(gap, 32), layerSpacing: Math.max(options.layerSpacing ?? 64, 64) })
+    retainGraphText({ ...local, edges: [] }, style)
     const title = graphTextBlock(resolveLabelContent(lane.label, lane.source?.labelContent), style, 'group')
     const header = Math.max(40, title.height + 16)
     return { lane, local, title, header, width: Math.max(local.width, title.width + 2 * inset, 80), height: Math.max(local.height, 48) + header }
@@ -104,7 +105,7 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
       const points = simplifyOrthogonal([pair.source.port, ...middle, pair.target.port])
       const segment = points.slice(1).map((point, index) => ({ a: points[index]!, b: point }))
         .sort((a, b) => (Math.abs(b.a.x - b.b.x) + Math.abs(b.a.y - b.b.y)) - (Math.abs(a.a.x - a.b.x) + Math.abs(a.a.y - a.b.y)))[0]
-      return { ...edge, edgeIndex, points, inlineStyle: resolveEdgeInlineStyle(edgeIndex, graph),
+      return { ...edge, edgeIndex, points, ...(edge.label !== undefined ? { labelBlock: graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge') } : {}), inlineStyle: resolveEdgeInlineStyle(edgeIndex, graph),
         classNames: edge.id ? graphClassNames(graph.classAssignments.get(edge.id)) : [],
         ...(edge.label && segment ? { labelPosition: { x: (segment.a.x + segment.b.x) / 2, y: (segment.a.y + segment.b.y) / 2 } } : {}) }
     })

@@ -1,3 +1,4 @@
+import { withParserObservationGrammar } from '../shared/parser-observation.ts'
 import { parseFlowchartRenderSource, parseMermaid } from '../parser.ts'
 import type { MermaidGraph } from '../types.ts'
 
@@ -13,9 +14,9 @@ export function swimlaneFlowchartSource(source: string): string {
 }
 
 export function parseSwimlane(source: string): MermaidGraph {
-  return parseMermaid(swimlaneFlowchartSource(source))
+  return withParserObservationGrammar('swimlane', 'flowchart', () => parseMermaid(swimlaneFlowchartSource(source)))
 }
 
 export function parseSwimlaneRenderSource(authored: string, decoded = authored): MermaidGraph {
-  return parseFlowchartRenderSource(swimlaneFlowchartSource(authored), swimlaneFlowchartSource(decoded))
+  return withParserObservationGrammar('swimlane', 'flowchart', () => parseFlowchartRenderSource(swimlaneFlowchartSource(authored), swimlaneFlowchartSource(decoded)))
 }

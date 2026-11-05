@@ -58,6 +58,16 @@ export function withParserObservation<T>(family: string, observer: ParserObserve
   }
 }
 
+/** A dialect can reuse the actual shared grammar's consumption and writes.
+ * Forward those events under the dialect's observation scope; the grammar's
+ * normalized source coordinates and mutation snapshots remain unchanged. */
+export function withParserObservationGrammar<T>(family: string, grammar: string, parse: () => T): T {
+  const scope = active
+  if (scope?.family !== family) return parse()
+  return withParserObservation(grammar, event => scope.observer({ ...event, family }), parse,
+    scope.mutations ? { mutations: [...scope.mutations] } : undefined)
+}
+
 function snapshot(value: unknown, seen = new Map<object, string>(), path = '$'): ParserObservationValue {
   if (value === null || value === undefined) return null
   if (typeof value === 'number') return Number.isFinite(value) ? value : { $number: String(value) }

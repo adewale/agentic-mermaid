@@ -23,7 +23,7 @@ export function assertRailroadWork(rules: RailroadBody['rules']): void {
 }
 
 export function parseRailroad(source: string): RailroadBody {
-  const header = source.match(/^\s*railroad-(ebnf-|abnf-|peg-)?beta\b/i)
+  const header = source.match(/^[\t ]*railroad-(ebnf-|abnf-|peg-)?beta\b/im)
   if (!header) throw new Error('Expected a railroad-beta, railroad-ebnf-beta, railroad-abnf-beta or railroad-peg-beta header')
   const notation = header[1] === 'ebnf-' ? 'ebnf' : header[1] === 'abnf-' ? 'abnf' : header[1] === 'peg-' ? 'peg' : 'railroad'
   let parsed: { title?: string; accTitle?: string; accDescr?: string }, rules: RailroadBody['rules']

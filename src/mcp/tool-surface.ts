@@ -385,12 +385,10 @@ security:'strict', embedFontImport:false.
   const timeoutDescription = options.hosted
     ? 'Optional CPU-time budget (default 5000ms, max 30000ms).'
     : 'Optional hard timeout (default 5000ms).'
-  const runtime = options.hosted ? 'an isolated sandbox' : 'a sandboxed node:vm context'
   return {
     name: 'execute',
     title: 'Execute Mermaid SDK code',
-    description: `Run JavaScript in ${runtime}; return a value.
-No promises, async/await, dynamic import, or type annotations.
+    description: `Sandboxed JS; return a value. No async/promises, imports or type annotations.
 ${hostedNote}SDK:
 ${options.sdkDeclaration}`,
     inputSchema: {

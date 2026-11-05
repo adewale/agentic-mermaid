@@ -1,3 +1,4 @@
+import { observeParserStatement, observeParserMutation, parserObservationActive, withParserObservationGrammar } from '../shared/parser-observation.ts'
 import { coalesceFlowchartLines, flowchartGroupPosition, flowchartStatementSpans, scanFlowchart } from '../flowchart-lexer.ts'
 import { readAgentflowMetadata } from './metadata.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
@@ -49,6 +50,10 @@ export function parseAgentflow(source: string): AgentflowBody {
     for (const statement of flowchartStatementSpans(group.text)) {
       let text = statement.text.trim()
       if (!text || text.startsWith('%%')) continue
+      if (parserObservationActive('agentflow')) {
+        const at = flowchartGroupPosition(group, statement.start)
+        observeParserStatement('agentflow', first ? 'header' : 'statement', text, { line: at.line + 1, column: at.col + 1, unit: 'physical' })
+      }
       if (first) {
         const header = text.match(/^agentflow-beta(?:\s+(LR|RL|TB|TD|BT))?\s*$/i)
         if (!header) throw new Error('Expected agentflow-beta and a supported direction')
@@ -67,6 +72,7 @@ export function parseAgentflow(source: string): AgentflowBody {
         const parsed = readAgentflowMetadata(text.slice(text.indexOf('{', block.start) + 1, block.end - 1))
         if (!parsed.ok) throw new Error(`AgentFlow metadata for ${id}: ${parsed.message}`)
         metadata.set(id, { ...metadata.get(id), ...agentflowMetadata(Object.fromEntries(parsed.entries)) })
+        if (parserObservationActive('agentflow')) observeParserMutation('agentflow', 'set-metadata', { id, metadata: metadata.get(id) })
         if (prefix === id) {
           attachment = true
           map(id, 'attachment')
@@ -115,7 +121,7 @@ export function parseAgentflow(source: string): AgentflowBody {
   if (first) throw new Error('Empty AgentFlow diagram')
   const topology = grammar.join('\n')
   if (containsFlowchartOpaqueSyntax(topology)) throw new Error('AgentFlow contains source-preserved graph constructs')
-  const graph = parseMermaid(topology)
+  const graph = withParserObservationGrammar('agentflow', 'flowchart', () => parseMermaid(topology))
   const allGroups = new Map<string, MermaidSubgraph>()
   const collect = (group: MermaidSubgraph): void => { allGroups.set(group.id, group); group.children.forEach(collect) }
   graph.subgraphs.forEach(collect)
