@@ -175,6 +175,13 @@ const nativeFamilyFixtures: Fixture[] = nativeFamilyReview.map(([family, cue]) =
 }))
 const fixtures: Fixture[] = [
   ...nativeFamilyFixtures,
+  {
+    id: 'treemap-fixed-ink-halo', title: 'Treemap fixed ink on categorical fills',
+    source: 'treemap\n"Category A"\n  "Item A1":10\n  "Item A2":20\n"Category B"\n  "Item B1":15\n  "Item B2":25',
+    renderOptions: { style: ['accessible-high-contrast', 'one-dark'], transparent: true },
+    captureLayout: true,
+    cue: 'The base refuses this fixed-ink palette combination. The candidate retains all quantities and cell geometry while an opaque text halo keeps the authored ink readable. Inspect every item label and unchanged area ordering. This witness does not establish arbitrary CSS contrast or cross-platform font equivalence.',
+  },
   ...(['default', 'publication'] as const).map(style => ({
     id: `flowchart-lineage-${style}`,
     title: `Issue #566: exact lineage diagram, ${style} styling`,
