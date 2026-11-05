@@ -152,6 +152,30 @@ centers56px apart versus11px paint, two authored occurrences, P69884. Stop that
 lead; no physical ink/recognizability or general loop claim follows. Evidence:
 week requirement-contains-loops-proposal-1366d4de0; no runtime fix from this probe.
 
+## Drawing-tail investigation — 5 November
+
+Runtime1366d4de0ad0aee9b3b90395e1d56bd8ce2d55c5, observed at146a2d4961e72b55d4329c9eaf8c952f7cf79013;
+no runtime change. Exactly six CPU-profiled cache1 calls retain wholeSVG/ENTIREreceipt
+byte equality against each matching prior cold/repeat/edit product, including the
+single leaf-text edit. No new visible-correctness or coverage gain from these
+unchanged outputs. Native remainsU99183/U99372; ELK P99199/P99393.
+The specific repeat drawing tail did not reproduce:42.60ms versus prior150.37.
+Stop that optimization lead; original173.47ms adverse call remains unexplained.
+
+Profile costs moved: Native cold/repeat/edit4669/7993/1318ms, ELK2840/4753/320ms.
+Native repeat paint7555ms and ELK repeat drawing4705ms remain adverse. Corresponding
+process CPU completion intervals7718.69/6427.58ms include profiler/runtime/JIT/
+background work, not exclusive function CPU. Largest Native cold XML self weight
+3276ms has only3samples (2282ms largest); Native repeat certify self4552ms has11
+(3363ms largest); ELK repeat string-budget611ms has2 (610ms largest). No reliable
+five-slowest-function ranking, removable operation or expected speedup established.
+All six named sample windows stay inside API-to-full-consumption markers; artifact
+writes/reference reads/explicit GC stay outside. Profile processes17.22/17.83s,
+worker peakRSS109948/145692KiB (outer peaks110672/149932). No new cache/array/SoA/
+serializer rewrite, source tests or build replay justified. Existing caps remain.
+Evidence and phase/gap accounting: week requirement-drawing-tail-146a2d496/FINDINGS.md,
+raw profiles, full products, source/options, CPU/heap/stage markers and sample tables.
+
 ## Remaining uncertainty and next fix
 
 Sparse32 still exhausts same-write XML; ER256 still refuses family geometry.
@@ -163,9 +187,12 @@ log; no general performance-win claim follows from the new small cases.
 Stopped numeric/mask/glyph-union/index/streaming/sharing and leaf-seat leads remain
 closed; current source has no sufficient new capacity subtraction. Pre-import slice
 owner also forbids replacing primitive XML reads with a captured caller method.
-ELK's recorded fan contact is fixed. The two-loop contact hypothesis is stopped.
-Next bounded cost investigation: reproduce the Native cache1 repeat drawing tail
-(150.37ms of173.47ms) with the existing profiling tools before any optimization.
-Its prior whole output is exact and Native layout code did not change here;
-wall-time attribution alone is not a stable or causal performance regression.
-Keep the larger delivery/quality losses and all failed capacity leads enrolled.
+ELK's recorded fan contact is fixed. Two-loop contact and repeat-drawing
+optimization hypotheses are stopped. Moving profile tails remain unexplained.
+Next concrete proof-availability witness: Native five-contains fan has actual3px
+circle clearance but two conservative compound-envelope U contacts. Inspect the
+first painted-bound producer and reuse existing per-child paint semantics if
+supported; preserve conservative fallback and requalify terminal/ELK consumers.
+This targets justified proof fidelity, not new visible quality or a replacement
+acceptance gate. Stopped ER256 glyph-union performance shortcuts remain closed;
+keep larger delivery/quality losses and all adverse costs enrolled.
