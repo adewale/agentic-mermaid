@@ -1,0 +1,592 @@
+{
+  "scope": "Independent saved SVG/ENTIRE receipt/review-record audit and numeric M/L arclength calculation; zero new public calls, rasters, tests or repo edits.",
+  "rows": [
+    {
+      "backend": "agentic",
+      "rawWholeSVGExact": false,
+      "actualClassRename": {
+        "before": "am-120ee4e1d8v81m",
+        "after": "am-10nuszo1hb0d05",
+        "beforeOccurrences": 3,
+        "afterOccurrences": 3
+      },
+      "actualInsertedDash": "67.05 74.3",
+      "insertedDashOccurrences": 1,
+      "wholeSVGExactAfterOnlyActualClassRenameAndDashRemoval": true,
+      "allOtherGeometryDMetadataResourcesRefsWidthBodiesTextsAndOtherEdgeByteUnchanged": true,
+      "actualPathD": "M 100 84.75 L 112 84.75 L 112 84.75 L 124 84.75 L 124 58.45 L 136 58.45 L 136 58.45 L 148 58.45",
+      "pointsIncludingDuplicates": [
+        [
+          100.0,
+          84.75
+        ],
+        [
+          112.0,
+          84.75
+        ],
+        [
+          112.0,
+          84.75
+        ],
+        [
+          124.0,
+          84.75
+        ],
+        [
+          124.0,
+          58.45
+        ],
+        [
+          136.0,
+          58.45
+        ],
+        [
+          136.0,
+          58.45
+        ],
+        [
+          148.0,
+          58.45
+        ]
+      ],
+      "length": 74.3,
+      "paintedPrefixLength": 67.05,
+      "paintedPrefixEndpoint": [
+        140.75,
+        58.45
+      ],
+      "circleBackside": [
+        140.75,
+        58.45
+      ],
+      "vectorConnectedAtCircleBackside": true,
+      "terminalCollinearRun": 24.0,
+      "terminalGeometryUnchanged": true,
+      "terminalPaintedRun": 16.75,
+      "gapCrossesCorner": false,
+      "beforeInkControls": [
+        {
+          "control": "normal",
+          "changed": 0,
+          "darker": 0,
+          "lighter": 0,
+          "outsideRoi": 0,
+          "rgbaBytesEqual": true,
+          "rasterSize": [
+            744,
+            545
+          ],
+          "roi": {
+            "x0": 138.75,
+            "y0": 52.7,
+            "x1": 150.25,
+            "y1": 64.2
+          }
+        }
+      ],
+      "afterInkControls": [
+        {
+          "control": "normal",
+          "changed": 225,
+          "darker": 225,
+          "lighter": 0,
+          "outsideRoi": 0,
+          "rgbaBytesEqual": false,
+          "rasterSize": [
+            744,
+            545
+          ],
+          "roi": {
+            "x0": 138.75,
+            "y0": 52.7,
+            "x1": 150.25,
+            "y1": 64.2
+          }
+        }
+      ],
+      "afterContacts": [
+        {
+          "id": "e1",
+          "from": "A",
+          "to": "B",
+          "points": [
+            [
+              100,
+              84.75
+            ],
+            [
+              112,
+              84.75
+            ],
+            [
+              112,
+              84.75
+            ],
+            [
+              124,
+              84.75
+            ],
+            [
+              124,
+              58.45
+            ],
+            [
+              136,
+              58.45
+            ],
+            [
+              136,
+              58.45
+            ],
+            [
+              148,
+              58.45
+            ]
+          ],
+          "immediateStartDirectionKnown": true,
+          "immediateEndDirectionKnown": true,
+          "sourceNormal": true,
+          "targetNormal": true
+        },
+        {
+          "id": "edge:A->C#0",
+          "from": "A",
+          "to": "C",
+          "points": [
+            [
+              100,
+              97.05
+            ],
+            [
+              124,
+              97.05
+            ],
+            [
+              124,
+              123.35
+            ],
+            [
+              148,
+              123.35
+            ]
+          ],
+          "immediateStartDirectionKnown": true,
+          "immediateEndDirectionKnown": true,
+          "sourceNormal": true,
+          "targetNormal": true
+        }
+      ],
+      "entireReceiptChanges": [
+        {
+          "path": "/layoutCertification/checks/operations",
+          "before": 157982,
+          "after": 158091
+        },
+        {
+          "path": "/layoutCertification/outputDigest",
+          "before": "fnv1a64:85a1eeae12b32d6c",
+          "after": "fnv1a64:d4be4025d501cf72"
+        },
+        {
+          "path": "/graphicalProjectionDigest",
+          "before": "fnv1a64:85a1eeae12b32d6c",
+          "after": "fnv1a64:d4be4025d501cf72"
+        }
+      ],
+      "beforeProof": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "unverified",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 248,
+          "height": 181.8
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 8,
+          "unmeasured": 0,
+          "preparedText": 3,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 11,
+          "labels": 3,
+          "occlusionPairs": 32,
+          "maxOcclusionPairs": 100000,
+          "operations": 157982,
+          "maxOperations": 400000,
+          "markers": 2
+        },
+        "issues": [
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:A->B#0",
+            "by": "node-shape:B",
+            "message": "Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified"
+          }
+        ],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:85a1eeae12b32d6c"
+      },
+      "afterProof": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "unverified",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 248,
+          "height": 181.8
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 8,
+          "unmeasured": 0,
+          "preparedText": 3,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 11,
+          "labels": 3,
+          "occlusionPairs": 32,
+          "maxOcclusionPairs": 100000,
+          "operations": 158091,
+          "maxOperations": 400000,
+          "markers": 2
+        },
+        "issues": [
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:A->B#0",
+            "by": "node-shape:B",
+            "message": "Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified"
+          }
+        ],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:d4be4025d501cf72"
+      }
+    },
+    {
+      "backend": "elk",
+      "rawWholeSVGExact": false,
+      "actualClassRename": {
+        "before": "am-120ee4e1d8v81m",
+        "after": "am-10nuszo1hb0d05",
+        "beforeOccurrences": 3,
+        "afterOccurrences": 3
+      },
+      "actualInsertedDash": "67.05 74.3",
+      "insertedDashOccurrences": 1,
+      "wholeSVGExactAfterOnlyActualClassRenameAndDashRemoval": true,
+      "allOtherGeometryDMetadataResourcesRefsWidthBodiesTextsAndOtherEdgeByteUnchanged": true,
+      "actualPathD": "M 100 84.75 L 112 84.75 L 112 84.75 L 124 84.75 L 124 58.45 L 136 58.45 L 136 58.45 L 148 58.45",
+      "pointsIncludingDuplicates": [
+        [
+          100.0,
+          84.75
+        ],
+        [
+          112.0,
+          84.75
+        ],
+        [
+          112.0,
+          84.75
+        ],
+        [
+          124.0,
+          84.75
+        ],
+        [
+          124.0,
+          58.45
+        ],
+        [
+          136.0,
+          58.45
+        ],
+        [
+          136.0,
+          58.45
+        ],
+        [
+          148.0,
+          58.45
+        ]
+      ],
+      "length": 74.3,
+      "paintedPrefixLength": 67.05,
+      "paintedPrefixEndpoint": [
+        140.75,
+        58.45
+      ],
+      "circleBackside": [
+        140.75,
+        58.45
+      ],
+      "vectorConnectedAtCircleBackside": true,
+      "terminalCollinearRun": 24.0,
+      "terminalGeometryUnchanged": true,
+      "terminalPaintedRun": 16.75,
+      "gapCrossesCorner": false,
+      "beforeInkControls": [
+        {
+          "control": "normal",
+          "changed": 0,
+          "darker": 0,
+          "lighter": 0,
+          "outsideRoi": 0,
+          "rgbaBytesEqual": true,
+          "rasterSize": [
+            744,
+            545
+          ],
+          "roi": {
+            "x0": 138.75,
+            "y0": 52.7,
+            "x1": 150.25,
+            "y1": 64.2
+          }
+        }
+      ],
+      "afterInkControls": [
+        {
+          "control": "normal",
+          "changed": 225,
+          "darker": 225,
+          "lighter": 0,
+          "outsideRoi": 0,
+          "rgbaBytesEqual": false,
+          "rasterSize": [
+            744,
+            545
+          ],
+          "roi": {
+            "x0": 138.75,
+            "y0": 52.7,
+            "x1": 150.25,
+            "y1": 64.2
+          }
+        }
+      ],
+      "afterContacts": [
+        {
+          "id": "e1",
+          "from": "A",
+          "to": "B",
+          "points": [
+            [
+              100,
+              84.75
+            ],
+            [
+              112,
+              84.75
+            ],
+            [
+              112,
+              84.75
+            ],
+            [
+              124,
+              84.75
+            ],
+            [
+              124,
+              58.45
+            ],
+            [
+              136,
+              58.45
+            ],
+            [
+              136,
+              58.45
+            ],
+            [
+              148,
+              58.45
+            ]
+          ],
+          "immediateStartDirectionKnown": true,
+          "immediateEndDirectionKnown": true,
+          "sourceNormal": true,
+          "targetNormal": true
+        },
+        {
+          "id": "edge:A->C#0",
+          "from": "A",
+          "to": "C",
+          "points": [
+            [
+              100,
+              97.05
+            ],
+            [
+              124,
+              97.05
+            ],
+            [
+              124,
+              123.35
+            ],
+            [
+              148,
+              123.35
+            ]
+          ],
+          "immediateStartDirectionKnown": true,
+          "immediateEndDirectionKnown": true,
+          "sourceNormal": true,
+          "targetNormal": true
+        }
+      ],
+      "entireReceiptChanges": [
+        {
+          "path": "/layoutCertification/checks/operations",
+          "before": 157982,
+          "after": 158091
+        },
+        {
+          "path": "/layoutCertification/outputDigest",
+          "before": "fnv1a64:85a1eeae12b32d6c",
+          "after": "fnv1a64:d4be4025d501cf72"
+        },
+        {
+          "path": "/graphicalProjectionDigest",
+          "before": "fnv1a64:85a1eeae12b32d6c",
+          "after": "fnv1a64:d4be4025d501cf72"
+        }
+      ],
+      "beforeProof": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "unverified",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 248,
+          "height": 181.8
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 8,
+          "unmeasured": 0,
+          "preparedText": 3,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 11,
+          "labels": 3,
+          "occlusionPairs": 32,
+          "maxOcclusionPairs": 100000,
+          "operations": 157982,
+          "maxOperations": 400000,
+          "markers": 2
+        },
+        "issues": [
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:A->B#0",
+            "by": "node-shape:B",
+            "message": "Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified"
+          }
+        ],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:85a1eeae12b32d6c"
+      },
+      "afterProof": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "unverified",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 248,
+          "height": 181.8
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 8,
+          "unmeasured": 0,
+          "preparedText": 3,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 11,
+          "labels": 3,
+          "occlusionPairs": 32,
+          "maxOcclusionPairs": 100000,
+          "operations": 158091,
+          "maxOperations": 400000,
+          "markers": 2
+        },
+        "issues": [
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:A->B#0",
+            "by": "node-shape:B",
+            "message": "Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified"
+          }
+        ],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:d4be4025d501cf72"
+      }
+    }
+  ],
+  "crossBackend": {
+    "before": {
+      "wholeSVGBytesExact": true,
+      "entireRawReceiptBytesExact": false,
+      "receiptDifferentTopLevelFields": [
+        "sharedRequestDigest",
+        "requestDigest",
+        "layoutDecisions"
+      ],
+      "entireProofEqual": true
+    },
+    "after": {
+      "wholeSVGBytesExact": true,
+      "entireRawReceiptBytesExact": false,
+      "receiptDifferentTopLevelFields": [
+        "sharedRequestDigest",
+        "requestDigest",
+        "layoutDecisions"
+      ],
+      "entireProofEqual": true
+    }
+  },
+  "assessment": [
+    "Actual e1 marker contribution0\u2192225darker confined pixels under retained pinned-Inter controls; before and after are public products.",
+    "Served prefix endpoint equals actual canonical circle backside; geometric stroke support touches the ring. Raster connected-component/readability was not separately measured.",
+    "All3texts and2authored relations retained; other A-to-C arrow ink is not independently differentiated.",
+    "Proof remains U157982\u2192U158091, +109operations adverse; issue/caps unchanged. No P/performance/area/wire gain claim.",
+    "Counterfactual products and original-only proof provenance remain separate, unchanged."
+  ]
+}

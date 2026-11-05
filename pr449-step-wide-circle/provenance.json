@@ -1,0 +1,67 @@
+{
+  "case": "step-wide-circle",
+  "beforeRevision": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "afterRuntimeRevision": "ca8fb1221f56d5f57fe08972770ebb056a46b30f",
+  "campaignHead": "c74d826ca198f9204f8f79228ae0c3eb3323839c",
+  "productionBetweenRuntimeAndCampaignHead": "exact; documentation-only final commit",
+  "pngProvenance": "Existing saved production SVGs rasterized with Resvg pinned Inter at zoom3; copied without image edits. These are actual products, not counterfactual diagnostics. Both backend SVGs byte-identical for this fixture.",
+  "files": {
+    "FINAL-RESULT.json": {
+      "bytes": 2436,
+      "sha256": "453c2de986dcf33f33aa4f0d965d1834f15ec9df2a7675aa19a393fd38c1ef19"
+    },
+    "INDEPENDENT-DELTA-REVIEW.json": {
+      "bytes": 15176,
+      "sha256": "42c48c3a3c9e5c5d8cafa293fc2af463f2ae0fed513881f6c65759394b7f408c"
+    },
+    "elk.options.json": {
+      "bytes": 100,
+      "sha256": "61e21b5f31cf2eebc4bb46cf1e3729958554ca8138322ef0bd4361019f3e1239"
+    },
+    "agentic.options.json": {
+      "bytes": 104,
+      "sha256": "6ebd447e49a7b49165e562e38f03b21fe8eec9e95bc20d736108a31ed368c291"
+    },
+    "source.mmd": {
+      "bytes": 101,
+      "sha256": "61f5655222b61b7d2d1c16313904381bb23ddc62795bcff2afda6af52f3d73e7"
+    },
+    "after.proof.json": {
+      "bytes": 830,
+      "sha256": "ccf074e4d2b362b1d891717995d61bbdfe3e2935f9f2b1569905b458cf7d6602"
+    },
+    "after.receipt.json": {
+      "bytes": 8086,
+      "sha256": "95c5b117e2179fc2d0ba69518e1b550eb42f5f0d62b5a42380c0b8eb5d500840"
+    },
+    "after.svg": {
+      "bytes": 5857,
+      "sha256": "d575ac46043d8bf523ec136b706cd1e40d4f6f6f987c1cea7e4fc4f48a6b1319"
+    },
+    "after.png": {
+      "bytes": 9177,
+      "sha256": "ac69b98eebb62d87ccd8598de085630e5fa7ec59e282ba8a78643a3d4b811297"
+    },
+    "before.proof.json": {
+      "bytes": 830,
+      "sha256": "27d4d8d03642728260849c92259ebf8ddc29c36285380ce857727eeb0875ec48"
+    },
+    "before.receipt.json": {
+      "bytes": 8086,
+      "sha256": "5d1d363650dd02edc89cbad3264446f78a6195f643d50e3c07715e33c05a1a4b"
+    },
+    "before.svg": {
+      "bytes": 5827,
+      "sha256": "d131c193089408807154459787e347e4e4f686166a7dd3f66e1899dc41d4d3f8"
+    },
+    "before.png": {
+      "bytes": 8466,
+      "sha256": "e155ead6b0642164699764b3e1c45d33347b1815b56c5f970632d4b720db94b1"
+    }
+  },
+  "limitation": "The same-input visual pair is recovery-base Native to published campaign-head Native. Only this fixture is illustrated; proof remains unverified and all broader limits remain. The intermediate independent delta record covers bebf1d52f to ca8fb1221, not the whole campaign.",
+  "intermediateBeforeRevision": "bebf1d52f324d547cb511ee3f2e09eb3cf77b71e",
+  "freshRecoveryBasePublicCalls": 1,
+  "recoveryBaseWholeSVGExactIntermediateBeforeSVG": true,
+  "beforeRasterReuse": "Fresh recovery-base complete SVG bytes equal the previously rasterized intermediate before product exactly; reuse those pinned-font pixels and marker-removal observation by byte binding. No reraster represented as progress."
+}

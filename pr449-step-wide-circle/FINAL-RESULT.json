@@ -1,0 +1,71 @@
+{
+  "revision": "ca8fb1221f56d5f57fe08972770ebb056a46b30f",
+  "beforeRevision": "bebf1d52f324d547cb511ee3f2e09eb3cf77b71e",
+  "qualifiedSourceExactOffRepoCandidate": true,
+  "actualPublicBeforeCalls": 2,
+  "actualPublicAfterCalls": 2,
+  "offlineBeforeRasters": 4,
+  "offlineCausalRasters": 4,
+  "offlineAfterRasters": 4,
+  "currentCostCalls": 12,
+  "nodeSourceCalls": 2,
+  "compiledCalls": 2,
+  "buildCalls": 1,
+  "markerOwnedPixels": {
+    "before": 0,
+    "after": 225,
+    "bothBackends": true,
+    "outsideROI": 0
+  },
+  "proof": {
+    "before": "unverified",
+    "after": "unverified",
+    "beforeOperations": 157982,
+    "afterOperations": 158091,
+    "addedOperations": 109,
+    "capsChanged": false
+  },
+  "verification": {
+    "focused": "18 pass",
+    "milestone": "287 pass / 0 fail / 29.36s",
+    "finalProjectionAfterTestTypeCorrection": "61 pass / 0 fail / 1.68s",
+    "types": {
+      "exitCode": 0,
+      "wallSeconds": 67.19546981097665,
+      "maxRSSKiB": 2128180
+    },
+    "lint": "3 files pass"
+  },
+  "retainedFailedChecks": [
+    "owners-red: 6 fail / 12 pass; ELK real-turn assumption corrected while retaining its collinear nearby contract",
+    "types invocation: /usr/bin/time unavailable, no compiler ran",
+    "first compiler: test readonly-array errors; 107.71s / 2211324KiB; corrected shallow copies"
+  ],
+  "claim": "Witnessed shared served orthogonal M/L endpoint circle ink restored with unchanged complete path/geometry/resources/authored meaning; no general visibility, proof availability, layout-quality or speedup claim.",
+  "remaining": "Unprojected multi-point, C/Q, closed/subpath/reversal/short-run carriers remain outside change; first reproduce an actual raw-multileg public SVG before extending. Prior ELK losses and shared refusals/caps stay enrolled.",
+  "costEvidence": "../step-wide-circle-cost-bebf1d52f/COST-SUMMARY.json",
+  "payloadEvidence": "../recovery-payload/step-wide-circle-ca8fb1221/OUTCOME.json.gz",
+  "payloadDelta": {
+    "baselineRuntimeSameAsBefore": true,
+    "baseline": "cf67234e31bc16a82e3d64e209f592dc9a672326",
+    "native": {
+      "requests": 0,
+      "raw": 1497,
+      "gzip": 551,
+      "brotli": 507
+    },
+    "elk": {
+      "requests": 0,
+      "raw": 1497,
+      "gzip": 549,
+      "brotli": 497
+    },
+    "initial": {
+      "requests": 0,
+      "raw": 0,
+      "gzip": 4,
+      "brotli": -3
+    }
+  },
+  "createdAt": "2026-11-05T09:32:37.126014+00:00"
+}

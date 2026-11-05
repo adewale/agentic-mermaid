@@ -1,0 +1,7 @@
+{
+  "graphLayout": {
+    "backend": "agentic",
+    "fallback": "none"
+  },
+  "embedFontImport": false
+}
