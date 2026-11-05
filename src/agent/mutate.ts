@@ -158,6 +158,7 @@ function commitMutation(d: ParsedDiagram, body: ParsedDiagram['body']): Result<P
   let meta = accessibilityMeta
   try {
     if (body.kind === 'eventmodeling') meta = eventModelingMeta(body, accessibilityMeta)
+    if (body.kind === 'usecase') meta = withBodyTitleMeta(body.title, accessibilityMeta)
     if (body.kind === 'zenuml') meta = withBodyTitleMeta(body.title, accessibilityMeta, d.body.kind === 'zenuml' && body.title === d.body.title)
   } catch (error) {
     return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) })

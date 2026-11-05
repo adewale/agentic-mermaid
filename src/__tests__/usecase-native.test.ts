@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { buildMermaid, mutate, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/core.ts'
+import { readFileSync } from 'node:fs'
+import { buildMermaid, mutate, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, renderMermaidSVGWithReceipt, serializeMermaid, verifyMermaid } from '../agent/core.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { layoutUsecaseDiagram } from '../usecase/layout.ts'
 import { parseUsecaseDiagram } from '../usecase/parser.ts'
@@ -142,4 +143,30 @@ test('actors retain one measured wrapped label through layout, projection and SV
   const parsed = parseRegisteredMermaid(source)
   if (!parsed.ok) throw new Error('Expected UseCase')
   expect(renderMermaidSVG(parsed.value, { style: 'crisp', seed: 0, embedFontImport: false })).toContain('&lt;/text&gt;')
+})
+
+test('UseCase title edits survive the benchmark parse/edit/export/reparse strict-render path', async () => {
+  const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/usecase-native.mmd', import.meta.url), 'utf8')
+  for (const source of [fixture, '---\n# Keep the wrapper configuration\ntitle: Old family title\nconfig:\n  theme: default\n---\n' + fixture]) {
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok || parsed.value.body.kind !== 'usecase') throw new Error('Expected UseCase fixture')
+    const edited = mutate(parsed.value, { kind: 'set_title', title: 'Edited family title' })
+    if (!edited.ok || edited.value.body.kind !== 'usecase') throw new Error(JSON.stringify(edited))
+    const written = serializeMermaid(edited.value),
+      again = parseRegisteredMermaid(written)
+    expect(edited.value.meta.frontmatter?.title).toBe('Edited family title')
+    expect(edited.value.canonicalSource).toContain('Edited family title')
+    if (!again.ok || again.value.body.kind !== 'usecase') throw new Error('Expected native title roundtrip')
+    expect(again.value.body.title).toBe('Edited family title')
+    expect(renderMermaidSVGWithReceipt(written, { security: 'strict' }).svg).toContain('Edited family title')
+    expect(await upstream.publicAccepts(written)).toBe(true)
+    if (source.startsWith('---')) expect(written).toContain('# Keep the wrapper configuration')
+    const removed = mutate(edited.value, { kind: 'set_title', title: null })
+    if (!removed.ok || removed.value.body.kind !== 'usecase') throw new Error('Expected title removal')
+    const without = serializeMermaid(removed.value),
+      reloaded = parseRegisteredMermaid(without)
+    if (!reloaded.ok || reloaded.value.body.kind !== 'usecase') throw new Error('Expected native title removal roundtrip')
+    expect(reloaded.value.body.title).toBeUndefined()
+    expect(renderMermaidSVGWithReceipt(without, { security: 'strict' }).svg).not.toContain('Edited family title')
+  }
 })
