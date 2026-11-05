@@ -262,8 +262,15 @@ function ensureBgContrast(lch: Oklch, bg: string | undefined, darkBg: boolean, d
   return initial
 }
 
+export class CategoricalPaletteConstraintError extends Error {
+  constructor() {
+    super('Cannot derive categorical fills within bounded search with readable label ink, page visibility and distinct peer colors; select a different textColor or explicit fillColor')
+    this.name = 'CategoricalPaletteConstraintError'
+  }
+}
+
 function throwPaletteConstraint(): never {
-  throw new Error('Cannot derive categorical fills within bounded search with readable label ink, page visibility and distinct peer colors; select a different textColor or explicit fillColor')
+  throw new CategoricalPaletteConstraintError()
 }
 
 /**
