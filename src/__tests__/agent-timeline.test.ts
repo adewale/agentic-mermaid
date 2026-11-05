@@ -35,6 +35,10 @@ function timelineMeaning(body: TimelineBody) {
 }
 
 describe('timeline parsing — structured', () => {
+  test('native parsing accepts explicitly absent optional accessibility fields', () => {
+    const lines = ['timeline', '2024 : Launch']
+    expect(parseTimelineDiagram(lines, { title: undefined, descr: undefined })).toEqual(parseTimelineDiagram(lines))
+  })
   test('inline header comments keep neighboring source while typed edits address repeated occurrences', () => {
     const source = 'timeline TD # keep direction\r\n  title History\r\nsection Plan\r\n  2024 : Same\r\n% keep middle\r\n  2024 : Same\r\n# keep footer\r\n'
     const original = timeline(source), before = JSON.stringify(original)

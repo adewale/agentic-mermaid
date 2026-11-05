@@ -69,6 +69,7 @@ export function parseTimelineDiagram(
   const diagram: TimelineDiagram = {
     sections: [],
     ...accessibilityFields(Object.fromEntries(Object.entries({ ...accessibility, ...scanned.accessibility })
+      .filter((entry): entry is [string, string] => entry[1] !== undefined)
       .map(([key, value]) => [key, readTimelineText(toEntityMarkers(value), 'accessibility')]))),
   }
 
