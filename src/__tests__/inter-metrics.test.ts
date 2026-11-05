@@ -36,7 +36,7 @@ test('the serializable option selects the same profile for layout and paint', ()
 })
 
 test('partial metrics preserve fallback shaping envelopes and italic tracking padding', () => {
-  for (const text of ['مرحبا', '👩‍💻', '<i>WWW</i>']) {
+  for (const text of ['مرحبا', '👩‍💻', '<i>WWW</i>', 'WWWΩ', 'AVمرحبا', 'A👩‍💻', '<i>WWW</i>Ω', 'Á']) {
     const options = { fontSize: 16, fontWeight: 400, letterSpacing: 1 }
     const expected = preparePixelText(text, options)
     const execution = createTextMeasurementExecution(BUNDLED_INTER_TEXT_MEASUREMENT, 'Inter')

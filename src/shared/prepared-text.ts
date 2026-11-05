@@ -9,7 +9,7 @@ import { graphemes } from './graphemes.ts'
 import { serializeStyledSegment } from './inline-format.ts'
 import { isImmutableDisplayTextPart, prepareDisplayText, type DisplayRun, type DisplayTextInput, type PreparedDisplayText } from './display-text.ts'
 import { createImmutableParts } from './immutable-parts.ts'
-import { customTextMeasurementActive } from '../text-measurement-profile.ts'
+import { customTextMeasurementActive, withTextMeasurementExecution } from '../text-measurement-profile.ts'
 
 export interface PixelTextOptions {
   display?: LabelDisplay
@@ -120,7 +120,7 @@ function advance(runs: readonly DisplayRun[], options: PixelTextOptions): number
     // for Ω/Ш/etc. Count visible code points: a fallback can draw separate
     // glyphs for components of a flag or a ZWJ cluster. Zero-width marks stay
     // attached to their base. ASCII sharing this shaping run uses safe metrics.
-    const naturalWidth = grouped.reduce((sum, run) => sum + [...run.text].reduce((line, char) => line + (getCharWidth(char) === 0 ? 0 : /[^\x20-\x7e]/u.test(char) ? options.fontSize * 1.2 : measureSystemFontSafeTextWidth(char, options.fontSize, run.bold ? Math.max(700, options.fontWeight) : options.fontWeight)), 0), 0)
+    const naturalWidth = withTextMeasurementExecution(undefined, () => grouped.reduce((sum, run) => sum + [...run.text].reduce((line, char) => line + (getCharWidth(char) === 0 ? 0 : /[^\x20-\x7e]/u.test(char) ? options.fontSize * 1.2 : measureSystemFontSafeTextWidth(char, options.fontSize, run.bold ? Math.max(700, options.fontWeight) : options.fontWeight)), 0), 0))
     const orphanMarks = graphemes(text).filter(cluster => /\p{M}/u.test(cluster) && [...cluster].every(char => getCharWidth(char) === 0)).length
     return Math.max(width, naturalWidth + orphanMarks * options.fontSize * 1.2) + Math.max(0, [...text].length - 1) * Math.abs(options.letterSpacing ?? 0)
   }
