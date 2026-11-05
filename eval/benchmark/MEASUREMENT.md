@@ -29,6 +29,14 @@ with absolute per-case costs, control variation, interaction ablations and real
 rendered evidence. It audits missing, duplicate and unexpected cost rows. Keep
 earlier iterations when measurements motivate a follow-up optimization.
 
+`warm-memory.ts --baseline BASE --head HEAD --out DIRECTORY` is a separate
+follow-up lane for retained memory after the same call counts as latency:
+13 SVG or five PNG calls in each fresh child. It preserves first-call and
+warmed snapshots, held/released GC phases, alternating controls, all ten
+configurations, three rounds and the frozen memory cohorts. Run it only after
+timing exits. It does not saturate mixed-workload caches. The report merges
+this lane only when its base/head revisions match the selected paired campaign.
+
 The five primary questions are docs rendering, original upstream assertion
 compatibility, required-family coverage, entry startup and resource use. Keep
 their denominators, units and scopes visible. No weighted overall score ranks a
