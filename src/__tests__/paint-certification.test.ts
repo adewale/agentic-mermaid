@@ -3386,13 +3386,33 @@ test.each(['mutable', 'shallow-frozen', 'accessor'] as const)('a transferred tex
   }
 })
 
-test('native capture detaches sparse data and keeps prototype-like keys inert', () => {
+test.each(['ordinary', 'mutating-freeze', 'substituting-freeze'] as const)('native capture detaches sparse data and keeps prototype-like keys inert (%s)', mode => {
   const points = new Array(4)
-  points[2] = { x: 12, y: 34 }
+  const point = { x: 12, y: 34 }
+  points[2] = point
   const input = Object.create(null)
   Object.defineProperty(input, '__proto__', { value: { points }, enumerable: true })
   Object.defineProperty(input, 'hidden', { value: { color: '#fff' }, enumerable: false })
-  const captured = createNativePaintEmission(10000).snapshot(input)!
+  const define = Object.defineProperty, freeze = Object.freeze, freezeDescriptor = Object.getOwnPropertyDescriptor(Object, 'freeze')!
+  let escapedPrivatePoint = false
+  let captured: typeof input
+  try {
+    if (mode !== 'ordinary') define(Object, 'freeze', { ...freezeDescriptor, value(value: unknown) {
+      if (value && typeof value === 'object' && value !== point) {
+        const keys = Reflect.ownKeys(value), x = Object.getOwnPropertyDescriptor(value, 'x'), y = Object.getOwnPropertyDescriptor(value, 'y')
+        if (keys.length === 2 && x?.value === 12 && y?.value === 34) {
+          escapedPrivatePoint = true
+          if (mode === 'substituting-freeze') return freeze({ x: 90, y: 91 })
+          Object.assign(value, { x: 90, y: 91 })
+        }
+      }
+      return freeze(value)
+    } })
+    captured = createNativePaintEmission(10000).snapshot(input)
+  } finally { define(Object, 'freeze', freezeDescriptor) }
+  expect(Object.freeze).toBe(freeze)
+  expect(point).toEqual({ x: 12, y: 34 })
+  expect(captured).toBeDefined()
   points[2].x = 99
   input.hidden.color = '#000'
   expect(Object.hasOwn(captured, '__proto__')).toBe(true)
@@ -3400,6 +3420,10 @@ test('native capture detaches sparse data and keeps prototype-like keys inert', 
   expect(captured.__proto__.points).toHaveLength(4)
   expect(Object.hasOwn(captured.__proto__.points, 0)).toBe(false)
   expect(captured.__proto__.points[2]).toEqual({ x: 12, y: 34 })
+  expect(Object.getOwnPropertyDescriptor(captured.__proto__.points[2], 'x')).toEqual({ value: 12, enumerable: true, writable: false, configurable: false })
+  expect(Object.getOwnPropertyDescriptor(captured.__proto__.points[2], 'y')).toEqual({ value: 34, enumerable: true, writable: false, configurable: false })
+  expect(Object.isFrozen(captured.__proto__.points[2])).toBe(true)
+  expect(escapedPrivatePoint).toBe(false)
   expect(captured.hidden.color).toBe('#fff')
   expect(Object.getOwnPropertyDescriptor(captured, 'hidden')!.enumerable).toBe(false)
   expect(Object.isFrozen(captured.__proto__.points)).toBe(true)

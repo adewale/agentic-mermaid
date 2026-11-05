@@ -123,7 +123,7 @@ This is recovered November 3–5 work, not restoration of the original lost camp
 
 Integrated current main `f9ec8c115de14020d3c182d5d7f2e7e70bfcdefb` with recovery
 head `e057d987ab8f73e84cf7d8a59b4c853dcf545249`, preserving both histories. The
-combined diff includes the inherited ownership/capture foundation: about 196 files,
+combined diff includes the inherited ownership/capture foundation: 168 files,
 not the earlier 60-file recovery-only comparison. Main's release identity, pinned
 workflows and 1.4.4 CI runtime are retained; descriptors are regenerated from the
 resolved producers. No release or backend-default change is introduced.
@@ -145,3 +145,10 @@ passes/5 failures. All subprocess/esbuild sandbox failures and loaded-run timeou
 were requalified in permitted isolated runs (13/13 and 14/14 pass). Sparse32's
 unchanged 400k proof failure remains; full repository/CI readiness is not claimed.
 The owning multiline guard has a separate reproducible RED→GREEN.
+
+The integrated merge is `fa85d8123eebdbc1194298f3ae3fe17ce9711453`. Independent
+review reproduced one introduced point-constructor escape: ambient Object.freeze
+could mutate/substitute a private copied coordinate while leaving its source
+unchanged (two owning failures, ordinary control passes). The follow-up reuses
+the emitter's captured sealing function; no new cache or allowance. Snapshot
+custody is the demonstrated contract; this alone is not a final-ink claim.

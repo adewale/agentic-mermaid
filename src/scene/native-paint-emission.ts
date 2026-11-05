@@ -136,7 +136,7 @@ export function createNativePaintEmission(maxOperations: number) {
           // Keep the generic path's final validity check: the last descriptor
           // trap may have revoked its source Proxy after returning the data.
           if (Array.isArray(value)) throw failed
-          const point = Object.freeze({ x: x.value as number, y: y.value as number })
+          const point = textPaintFreeze({ x: x.value as number, y: y.value as number })
           transferRetainedPixelText(value, point)
           return point
         }
