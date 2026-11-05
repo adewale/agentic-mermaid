@@ -11,9 +11,7 @@ const descriptorData = Object.freeze({
   "headers": [
     "swimlane-beta"
   ],
-  "aliases": [
-    "swimlane"
-  ],
+  "aliases": [],
   "config": {
     "section": "swimlane",
     "keys": [],

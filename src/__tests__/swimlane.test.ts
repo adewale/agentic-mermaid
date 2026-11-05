@@ -70,3 +70,11 @@ test('implicit lane identities cannot collide with authored nodes and unsupporte
   expect(parsed.value.body).toMatchObject({ kind: 'opaque', family: 'swimlane' })
   expect(serializeMermaid(parsed.value).trimEnd()).toBe(unsafe)
 })
+
+test('the bare upstream graph keyword keeps its established Flowchart identity', () => {
+  const legacy = parseRegisteredMermaid('swimlane LR;A-->B;')
+  expect(legacy.ok && legacy.value.body.kind).toBe('flowchart')
+  expect(renderMermaidSVG('swimlane LR;A-->B;')).toContain('A')
+  const native = parseRegisteredMermaid('swimlane-beta LR;A-->B;')
+  expect(native.ok && native.value.body.kind).toBe('swimlane')
+})

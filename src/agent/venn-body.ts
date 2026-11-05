@@ -85,7 +85,7 @@ export function mutateVenn(body: VennBody, op: VennMutationOp): Result<VennBody,
       }
       case 'set_style':
         if (!op.styles || Array.isArray(op.styles)) throw Error('Venn styles require a property record')
-        next.styles.push({ targets: [...op.targets], styles: { ...op.styles } })
+        next.styles.push({ targets: [...op.targets].sort(), styles: { ...op.styles } })
         break
       case 'set_title':
         next.title = op.title ?? undefined

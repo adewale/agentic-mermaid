@@ -39,6 +39,9 @@ describe('native Venn', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) throw Error(result.error.message)
     expect(parseVennDiagram(renderVenn(result.value)).subsets[0]!.label).toBe('A ["quoted"] #35; : label')
+    const styled = mutateVenn(body, { kind: 'set_style', targets: ['B', 'A'], styles: { fill: 'var(--brand, #35; [literal])' } })
+    if (!styled.ok) throw Error(styled.error.message)
+    expect(parseVennDiagram(renderVenn(styled.value)).styles.at(-1)).toEqual({ targets: ['A', 'B'], styles: { fill: 'var(--brand, #35; [literal])' } })
   })
   test('tiny and huge decimal areas remain typed and portable rather than becoming opaque', async () => {
     for (const [decimal, expected] of [['0.' + '0'.repeat(299) + '1', 1e-300], ['1' + '0'.repeat(300), 1e300]] as const) {

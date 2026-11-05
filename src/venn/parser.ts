@@ -43,7 +43,7 @@ export function parseVennDiagram(input: string | readonly string[]): VennBody {
     kind: 'venn',
     subsets: db.subsets.map(subset => ({ sets: subset.sets.map(text => readGrammarText(text, '[]\r\n')).sort(), size: subset.size, ...(subset.label !== undefined ? { label: readGrammarText(subset.label, '[]\r\n') } : {}) })),
     textNodes: db.textNodes.map(node => ({ sets: node.sets.map(text => readGrammarText(text, '[]\r\n')).sort(), id: readGrammarText(node.id, '[]\r\n'), ...(node.label !== undefined ? { label: readGrammarText(node.label, '[]\r\n') } : {}) })),
-    styles: db.styles.map(style => ({ targets: style.targets.map(text => readGrammarText(text, '[]\r\n')), styles: Object.fromEntries(style.styles) })),
+    styles: db.styles.map(style => ({ targets: style.targets.map(text => readGrammarText(text, '[]\r\n')), styles: Object.fromEntries([...style.styles].map(([key, value]) => [key, readGrammarText(value, '[]\r\n')])) })),
     ...(db.title !== undefined ? { title: readGrammarText(db.title) } : {}),
     ...accessibilityFields(scanned.accessibility),
   }

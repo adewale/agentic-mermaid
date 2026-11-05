@@ -480,6 +480,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     maturity: 'stable',
     label: 'Flowchart',
     headers: ['flowchart', 'graph'],
+    aliases: ['swimlane'],
     narrower: 'asFlowchart',
     editorDiagramType: 'Flowchart',
     editorLabel: 'Flowchart',
@@ -1421,7 +1422,7 @@ gitGraph LR:
   },
   {
     id: 'swimlane', upstreamId: 'swimlane', maturity: 'beta', label: 'Swimlane',
-    headers: ['swimlane-beta'], aliases: ['swimlane'], narrower: 'asSwimlane',
+    headers: ['swimlane-beta'], narrower: 'asSwimlane',
     editorDiagramType: 'Swimlane', editorLabel: 'Swimlane workflow',
     editorDescription: 'Responsibility lanes with source-ordered tasks and directed connections.',
     editorExampleId: 'swimlane-workflow', editorGlyph: 'SL',

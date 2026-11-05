@@ -541,7 +541,7 @@ function nativeFamilyCases(): MicroCase[] {
       ? `Public strict SVG with serialized receipt and UTF-8 consumption, ${family}`
       : `Typed title edit, serialize, reparse and public strict SVG with consumed receipt, ${family}`,
     async setup() {
-      const source = readFileSync(new URL(`../layout-compare/fixtures/${family}-native.mmd`, import.meta.url), 'utf8')
+      const source = readFileSync(`eval/layout-compare/fixtures/${family}-native.mmd`, 'utf8')
       const [api, { Resvg }] = await Promise.all([src.agent(), import('@resvg/resvg-js')])
       const parsed = api.parseRegisteredMermaid(source)
       if (!parsed.ok || parsed.value.body.kind !== family) throw Error(`${family} has no native model at this revision`)
