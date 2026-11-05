@@ -763,7 +763,11 @@ export const CLASS_SOURCE_HOOKS = {
   // duplicate per-body branch). Single source of truth.
   verify: (body, opts) => (body.kind === 'class' ? verifyClass(body, opts) : []),
   buildSourceMap: buildClassSourceMap,
-  .../* @__PURE__ */ structuredFamilyHooks('class', { parseBody: parseClassBody, serialize: renderClass, }),
+  parse: ({ lines, opaqueSource }) => ok(parseClassBody(lines.slice(1), opaqueSource) ?? { kind: 'opaque', family: 'class', source: opaqueSource }),
+  serialize: body => {
+    if (body.kind !== 'class') throw new Error(`class serializer received body kind ${body.kind}`)
+    return renderClass(body)
+  },
 } satisfies Omit<FamilyOperations, 'mutate'>
 
 // ---- ER -------------------------------------------------------------------

@@ -321,6 +321,8 @@ export interface ClassNote {
 
 export interface ClassBody {
   kind: 'class'
+  /** Authored family source retaining unmodeled statements and their block ownership. */
+  source?: string
   title?: string
   classes: ClassNode[]
   relations: ClassRelation[]
