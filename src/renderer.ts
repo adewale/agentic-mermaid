@@ -405,7 +405,7 @@ function renderEdge<T>(
   // Section A output is static and active SVG is rejected in every security
   // mode. Preserve authored animation intent as typed metadata plus a stable
   // dashed projection; a future motion layer can consume the same metadata.
-  const effectiveDashArray = graphEdgeDashArray(edge)
+  const effectiveDashArray = graphEdgeDashArray(edge, undefined, pathProjection)
   const baseStrokeWidth = edge.style === 'thick' ? style.lineWidth * 2 : style.lineWidth
   const markerColor = edge.inlineStyle?.stroke ?? style.edgeStrokeColor
 

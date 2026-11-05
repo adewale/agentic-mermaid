@@ -86,10 +86,16 @@ describe('family-owned endpoint and visible-marker contact (#258)', () => {
     { from: 'store', to: 'edge__0', label: '取消', kind: 'cross', relation: 'store x-- 取消 --x edge__0', width: 1, direction: 'LR', execution: 'scene', backends: ['agentic', 'elk'], ends: ['start', 'end'] },
     { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 o-->|保存| store', otherEnd: 'arrow', width: 10, direction: 'LR', execution: 'native', backends: ['agentic'], ends: ['start'] },
     { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 --o|保存| store', width: 10, direction: 'LR', execution: 'scene', backends: ['elk'], ends: ['end'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 e1@--o|保存| store', namedId: 'e1', width: 10, direction: 'LR', execution: 'native', backends: ['agentic'], ends: ['end'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 e1@--o|保存| store', namedId: 'e1', curve: 'linear', width: 10, direction: 'LR', execution: 'native', backends: ['agentic'], ends: ['end'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 e1@--o|保存| store', namedId: 'e1', width: 10, direction: 'LR', execution: 'scene', backends: ['elk'], ends: ['end'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 e1@--o|保存| store', namedId: 'e1', curve: 'linear', width: 10, direction: 'LR', execution: 'scene', backends: ['elk'], ends: ['end'] },
     { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 o--o|保存| store', width: 10, direction: 'RL', execution: 'scene', backends: ['agentic'], ends: ['start', 'end'] },
     { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 o--o|保存| store', width: 10, direction: 'RL', execution: 'native', backends: ['elk'], ends: ['start', 'end'] },
-  ] as const) test.each([...authored.backends])(`Flowchart %s/${authored.execution} retains ${authored.width}px ${authored.kind} ${authored.ends.join('/')}${'otherEnd' in authored ? ' with end arrow' : ''} marks on the complete cylinder side in ${authored.direction}`, async backend => {
-    const source = `flowchart ${authored.direction}\nedge__0["依頼者 🧭"]\nstore[(記録庫 📦)]\n${authored.relation}${authored.width === 10 ? '\nlinkStyle 0 stroke:#ff0000,stroke-width:10px' : ''}`
+  ] as const) test.each([...authored.backends])(`Flowchart %s/${authored.execution} retains ${authored.width}px ${authored.kind} ${authored.ends.join('/')}${'otherEnd' in authored ? ' with end arrow' : ''}${'namedId' in authored ? ` named e1 ${'curve' in authored ? 'linear' : 'noCurve'}` : ''} marks on the complete cylinder side in ${authored.direction}`, async backend => {
+    const namedId = 'namedId' in authored ? authored.namedId : undefined
+    const curve = 'curve' in authored ? authored.curve : undefined
+    const source = `flowchart ${authored.direction}\nedge__0["依頼者 🧭"]\nstore[(記録庫 📦)]\n${authored.relation}${curve ? `\n${namedId}@{curve: ${curve}}` : ''}${authored.width === 10 ? '\nlinkStyle 0 stroke:#ff0000,stroke-width:10px' : ''}`
     const renderOptions = { ...options(1, false), graphLayout: { backend, fallback: 'none' as const } }
     let rendered: ReturnType<typeof renderMermaidSVGWithReceipt>
     const stages: string[] = []
@@ -158,9 +164,16 @@ describe('family-owned endpoint and visible-marker contact (#258)', () => {
       expect([carrier.getAttribute('data-from'), carrier.getAttribute('data-to')]).toEqual([authored.from, authored.to])
       const route: Tag = { name: carrier.localName, attrs: Object.fromEntries([...carrier.attributes].map(attr => [attr.name, attr.value])) }
       expect(Number.parseFloat(route.attrs['stroke-width']!)).toBe(authored.width)
-      expect(route.name).toBe('polyline')
+      expect(route.name).toBe(curve ? 'path' : 'polyline')
       const points = routePoints(route)
       expect(points.every(point => point.y === points[0]!.y)).toBe(true)
+      if (namedId !== undefined) {
+        expect(carrier.getAttribute('data-id')).toBe(namedId)
+        expect(carrier.getAttribute('data-curve')).toBe(curve ?? null)
+        expect(carrier.getAttribute('data-marker-end')).toBe('circle')
+        expect(points).toHaveLength(2)
+        if (curve) expect(route.attrs.d!.match(/[MLQCSHVTAZmlqcshvtaz]/g)).toEqual(['M', 'L'])
+      }
       for (const end of ['start', 'end'] as const) {
         if (!authored.ends.some(authoredEnd => authoredEnd === end)) {
           if (end === 'end' && 'otherEnd' in authored && authored.otherEnd !== undefined) {

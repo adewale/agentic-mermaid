@@ -347,6 +347,107 @@ describe('curved connector lowering projections', () => {
     expect(hitTestConnector(connector, { x: 95, y: 5 })).toBe(false)
   })
 
+  test('lowering retains captured straight terminal paint when later curve and point getters change', () => {
+    let curveReads = 0, pointReads = 0
+    const edge: PositionedEdge = {
+      id: 'e1', source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true, endMarker: 'circle',
+      label: 'kept', labelPosition: { x: 24, y: -12 }, inlineStyle: { stroke: '#000', 'stroke-width': '10px' },
+      get curve() { return ++curveReads === 1 ? 'linear' : 'step' },
+      // Admission checks the route length before the first projection captures it.
+      get points() { return ++pointReads <= 2 ? [{ x: 0, y: 0 }, { x: 48, y: 0 }] : [{ x: 100, y: 100 }, { x: 580, y: 100 }] },
+    }
+    const connector = onlyConnector(lowerGraphScene({
+      positioned: { width: 200, height: 160, nodes: [], groups: [], edges: [edge] },
+      colors: COLORS, resolved: { renderOptions: {}, styleFace: { edge: { bendRadius: 0 } } },
+    }))
+    const emitted = scanSvgStartTags(sceneNodeSerialization(connector))[0]!
+    const attributes = Object.fromEntries(emitted.attributes.map(attribute => [attribute.name, attribute.value]))
+    const path = writtenPath(attributes.d!)
+    expect(emitted.name).toBe('path')
+    expect(path.start).toEqual({ x: 0, y: 0 })
+    expect(path.ends).toEqual([{ x: 48, y: 0 }])
+    expect(path.cubics).toHaveLength(0)
+    expect(attributes).toMatchObject({ 'data-id': 'e1', 'data-from': 'A', 'data-to': 'B' })
+    expect(connector.route.contours).toEqual([{ start: { x: 0, y: 0 }, end: { x: 48, y: 0 }, closed: false, startTangent: { x: 1, y: 0 }, endTangent: { x: 1, y: 0 } }])
+    expect(connector.hit.geometry).toBe(connector.route.geometry)
+    expect(connector.terminalProjection.geometry).toBe(connector.route.geometry)
+    expect(connector.stroke.color).toBe('#000')
+    expect(Number.parseFloat(String(connector.stroke.width))).toBe(10)
+    const dash = connector.stroke.dash, marker = connector.markers.end
+    expect(dash).toBeDefined()
+    expect(marker?.geometry?.kind).toBe('circle')
+    if (!dash || marker?.geometry?.kind !== 'circle' || !marker.ref) return
+    expect(marker.units).toBe('userSpaceOnUse')
+    expect(attributes['marker-end']).toBe(`url(#${marker.id})`)
+    const intervals = typeof dash.array === 'string' ? dash.array.split(/[\s,]+/).map(Number) : [...dash.array]
+    expect(intervals.every(Number.isFinite)).toBe(true)
+    expect(intervals).toHaveLength(2)
+    const nearRing = 48 + marker.geometry.cx - marker.ref.x - marker.geometry.r - Number.parseFloat(marker.paint?.strokeWidth ?? '1') / 2
+    expect(intervals[0]!).toBeGreaterThan(0)
+    expect(intervals[0]!).toBeLessThanOrEqual(nearRing)
+    expect(intervals[0]! + intervals[1]!).toBeGreaterThan(48)
+    expect(attributes['stroke-dasharray']!.split(/[\s,]+/).map(Number)).toEqual(intervals)
+  })
+
+  test.each(['step', 'bumpX'])('lowering leaves a nonlinear two-point %s carrier stroke unmodified', curve => {
+    const connector = onlyConnector(lowerGraphScene({
+      positioned: { width: 200, height: 160, nodes: [], groups: [], edges: [{
+        id: 'e1', source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true, endMarker: 'circle', curve,
+        points: [{ x: 0, y: 0 }, { x: 90, y: 60 }], labelPosition: { x: 45, y: 30 }, inlineStyle: { stroke: '#000', 'stroke-width': '10px' },
+      }] },
+      colors: COLORS, resolved: { renderOptions: {}, styleFace: { edge: { bendRadius: 0 } } },
+    }))
+    const emitted = scanSvgStartTags(sceneNodeSerialization(connector))[0]!
+    const attributes = Object.fromEntries(emitted.attributes.map(attribute => [attribute.name, attribute.value]))
+    const path = writtenPath(attributes.d!)
+    expect(path.start).toEqual({ x: 0, y: 0 })
+    expect(path.ends.at(-1)).toEqual({ x: 90, y: 60 })
+    if (curve === 'step') { expect(path.ends).toHaveLength(3); expect(path.cubics).toHaveLength(0) }
+    else expect(path.cubics).toHaveLength(1)
+    expect(attributes).toMatchObject({ 'data-id': 'e1', 'data-from': 'A', 'data-to': 'B' })
+    expect(attributes['marker-end']).toBe(`url(#${connector.markers.end!.id})`)
+    expect(attributes['stroke-dasharray']).toBeUndefined()
+    expect(connector.stroke.dash).toBeUndefined()
+    expect(connector.stroke.color).toBe('#000')
+    expect(Number.parseFloat(String(connector.stroke.width))).toBe(10)
+    expect(connector.route.startTangent).toEqual({ x: 1, y: 0 })
+    expect(connector.route.endTangent).toEqual({ x: 1, y: 0 })
+    expect(connector.hit.geometry).toBe(connector.route.geometry)
+    expect(connector.terminalProjection.geometry).toBe(connector.route.geometry)
+  })
+
+  test('lowering preserves the plain rounded two-point terminal gap', () => {
+    const connector = onlyConnector(lowerGraphScene({
+      positioned: { width: 200, height: 160, nodes: [], groups: [], edges: [{
+        id: 'e1', source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true, endMarker: 'circle',
+        points: [{ x: 0, y: 0 }, { x: 48, y: 0 }], labelPosition: { x: 24, y: 0 }, inlineStyle: { stroke: '#000', 'stroke-width': '10px' },
+      }] },
+      colors: COLORS, resolved: { renderOptions: {}, styleFace: { edge: { bendRadius: 20 } } },
+    }))
+    const emitted = scanSvgStartTags(sceneNodeSerialization(connector))[0]!
+    const attributes = Object.fromEntries(emitted.attributes.map(attribute => [attribute.name, attribute.value]))
+    const path = writtenPath(attributes.d!)
+    expect(path.start).toEqual({ x: 0, y: 0 })
+    expect(path.ends).toEqual([{ x: 48, y: 0 }])
+    expect(path.cubics).toHaveLength(0)
+    expect(attributes).toMatchObject({ 'data-id': 'e1', 'data-from': 'A', 'data-to': 'B' })
+    expect(attributes['marker-end']).toBe(`url(#${connector.markers.end!.id})`)
+    const dash = connector.stroke.dash
+    expect(dash).toBeDefined()
+    if (!dash) return
+    const intervals = typeof dash.array === 'string' ? dash.array.split(/[\s,]+/).map(Number) : [...dash.array]
+    expect(intervals.every(Number.isFinite)).toBe(true)
+    expect(intervals).toHaveLength(2)
+    expect(intervals[0]!).toBeGreaterThan(0)
+    expect(intervals[0]!).toBeLessThan(48)
+    expect(intervals[0]! + intervals[1]!).toBeGreaterThan(48)
+    expect(attributes['stroke-dasharray']!.split(/[\s,]+/).map(Number)).toEqual(intervals)
+    expect(connector.route.startTangent).toEqual({ x: 1, y: 0 })
+    expect(connector.route.endTangent).toEqual({ x: 1, y: 0 })
+    expect(connector.hit.geometry).toBe(connector.route.geometry)
+    expect(connector.terminalProjection.geometry).toBe(connector.route.geometry)
+  })
+
   test.each(['bumpX', 'bumpY'])('%s retains its chosen parallel endpoint tangents', curve => {
     const connector = authoredConnector(curve, [{ x: 0, y: 0 }, { x: 90, y: 60 }])
     const path = writtenPath(connectorPath(connector)), cubic = path.cubics[0]!

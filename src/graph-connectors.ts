@@ -9,9 +9,9 @@ import { connectorMarkerPaintRegions, geometryBounds, paintedStrokeExtent, type 
 import { formatSvgNumber, formatSvgNumericAttribute } from './shared/svg-number.ts'
 import { canonicalTextDigest } from './render-contract.ts'
 
-/** Preserve authored dash intent. A straight solid carrier can leave a gap
+/** Preserve authored dash intent. A served one-leg solid carrier can leave a gap
  * beneath a fixed hollow circle without moving its marker attachment. */
-export function graphEdgeDashArray(edge: Pick<PositionedEdge, 'style' | 'animate'> & Partial<Pick<PositionedEdge, 'curve' | 'inlineStyle' | 'points' | 'hasArrowStart' | 'hasArrowEnd' | 'startMarker' | 'endMarker'>>, candidatePoints?: readonly Point[]): string | undefined {
+export function graphEdgeDashArray(edge: Pick<PositionedEdge, 'style' | 'animate'> & Partial<Pick<PositionedEdge, 'curve' | 'inlineStyle' | 'points' | 'hasArrowStart' | 'hasArrowEnd' | 'startMarker' | 'endMarker'>>, candidatePoints?: readonly Point[], pathProjection?: ConnectorPathProjection): string | undefined {
   const lineStyle = edge.style
   if (lineStyle === 'dotted') return `${FLOWCHART_DOTTED_DASH.dash} ${FLOWCHART_DOTTED_DASH.gap}`
   if (edge.animate) return '8 4'
@@ -22,8 +22,9 @@ export function graphEdgeDashArray(edge: Pick<PositionedEdge, 'style' | 'animate
   if (typeof rawWidth !== 'string') return undefined
   const startCircle = edge.hasArrowStart && edge.startMarker === 'circle'
   const endCircle = edge.hasArrowEnd && edge.endMarker === 'circle'
-  if (!startCircle && !endCircle || edge.curve) return undefined
-  const points = candidatePoints ?? edge.points
+  if (!startCircle && !endCircle || pathProjection === undefined && edge.curve) return undefined
+  const projectedGeometry = pathProjection?.geometry
+  const points = pathProjection === undefined ? candidatePoints ?? edge.points : projectedGeometry?.points
   if (!points || points.length !== 2) return undefined
   // Match the carrier's numeric/px spelling before measuring its width. This
   // uses the existing stroke parser; relative or unresolved widths stay out.
@@ -31,6 +32,17 @@ export function graphEdgeDashArray(edge: Pick<PositionedEdge, 'style' | 'animate
   if (halfWidth === undefined || !fixedCircleStart || !fixedCircleEnd || halfWidth * 2 < fixedCircleEnd.diameter) return undefined
   const ax = points[0]!.x, ay = points[0]!.y, bx = points[1]!.x, by = points[1]!.y
   if (![ax, ay, bx, by].every(Number.isFinite)) return undefined
+  if (pathProjection !== undefined) {
+    // Reuse the captured path that lowering will write. Any curve factory may
+    // realize one line; metadata alone cannot establish that physical shape.
+    if (!projectedGeometry || projectedGeometry.kind !== 'path' || projectedGeometry.subpaths !== undefined) return undefined
+    const d = projectedGeometry.d
+    if (d !== `M ${ax} ${ay} L ${bx} ${by}` && d !== `M${ax},${ay} L${bx},${by}`) return undefined
+    const contours = pathProjection.contours
+    if (contours.length !== 1) return undefined
+    const contour = contours[0]!
+    if (contour.closed !== false || contour.start.x !== ax || contour.start.y !== ay || contour.end.x !== bx || contour.end.y !== by) return undefined
+  }
   const length = Math.hypot(Number(formatSvgNumber(bx)) - Number(formatSvgNumber(ax)), Number(formatSvgNumber(by)) - Number(formatSvgNumber(ay)))
   const startGap = startCircle ? fixedCircleStart.start : 0, endGap = endCircle ? fixedCircleEnd.end : 0
   const visible = length - startGap - endGap
