@@ -4,6 +4,8 @@ import { BUNDLED_INTER_TEXT_MEASUREMENT } from '../inter-metrics.ts'
 import { measureTextWidth } from '../text-metrics.ts'
 import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
+import { withPerformanceObserver, type PerformanceObservation } from '../performance-observations.ts'
+import { withPerformanceExperiments, PERFORMANCE_EXPERIMENTS } from '../experimental-performance.ts'
 
 test('bundled Inter reserves natural digit and kerned word advances', () => {
   // Independent hb-shape observations from the shipped Regular face, 16px.
@@ -42,4 +44,31 @@ test('partial metrics preserve fallback shaping envelopes and italic tracking pa
     expect(actual.width).toBeCloseTo(expected.width, 6)
     expect(actual.height).toBe(expected.height)
   }
+})
+
+test('immutable bundled geometry reuses its own cache without trusting a host identity', () => {
+  const source = 'flowchart LR\nCacheDigits[11111111] --> CacheWord[AVATAR]'
+  const options = { fontMetrics: 'bundled-inter' as const, embedFontImport: false }
+  const events: PerformanceObservation[] = []
+  withPerformanceExperiments(PERFORMANCE_EXPERIMENTS, () => {
+    const estimated = renderMermaidSVG(source)
+    const first = withPerformanceObserver(event => events.push(event), () => renderMermaidSVG(source, options))
+    const second = withPerformanceObserver(event => events.push(event), () => renderMermaidSVG(source, options))
+    expect(first).toBe(second)
+    expect(first).not.toBe(estimated)
+    expect(renderMermaidSVG(source)).toBe(estimated)
+    expect(events).toContainEqual({ version: 1, kind: 'cache', owner: 'positioned-layout', outcome: 'hit' })
+    let width = 80
+    const host = createMermaidRenderer({ textMeasurement: {
+      id: BUNDLED_INTER_TEXT_MEASUREMENT.id, version: BUNDLED_INTER_TEXT_MEASUREMENT.version,
+      measure: () => width,
+    } })
+    const hostEvents: PerformanceObservation[] = []
+    const before = withPerformanceObserver(event => hostEvents.push(event), () => host.renderMermaidSVG(source))
+    width = 160
+    const after = withPerformanceObserver(event => hostEvents.push(event), () => host.renderMermaidSVG(source))
+    expect(after).not.toBe(before)
+    expect(hostEvents).toContainEqual({ version: 1, kind: 'cache', owner: 'positioned-layout', outcome: 'bypass', reason: 'custom-text-measurement' })
+    expect(hostEvents.some(event => event.kind === 'cache' && event.owner === 'positioned-layout' && event.outcome === 'hit')).toBe(false)
+  })
 })

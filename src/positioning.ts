@@ -20,7 +20,7 @@ import { graphLayoutDecisionsOf, retainGraphLayoutDecision, withGraphLayoutDecis
 import { withLayoutOptimizationBudget } from './layout/optimization-budget.ts'
 import type { NormalizedMermaidSource } from './mermaid-source.ts'
 import { type ResolvedRenderRequest, resolvedFamilyRenderContextOf, resolvedRenderExecutionPlanOf } from './render-contract.ts'
-import { withTextMeasurementExecution } from './text-measurement-profile.ts'
+import { withTextMeasurementExecution, textMeasurementCacheIdentity } from './text-measurement-profile.ts'
 import type { PositionedDiagram } from './types.ts'
 
 // A certification and its consumers use one projection of the same final
@@ -62,8 +62,9 @@ export function positionFamilyForNativeRender(request: ResolvedRenderRequest): F
   // independent copy, including on the call that first fills the cache, so a
   // later restored original producer never borrows caller-retained geometry.
   const producer = nativeDrawingOf(plan.family.lowerScene)
+  const reusableMetrics = !plan.textMeasurement || textMeasurementCacheIdentity(plan.textMeasurement) !== undefined
   const borrow = plan.mode === 'scene' && isOriginalEnrolledDefaultBackend(plan.backend?.backend)
-    && isOwnedFamily(plan.family) && !plan.textMeasurement
+    && isOwnedFamily(plan.family) && reusableMetrics
     && !!producer && producer === originalNativeDrawingOf(plan.family.lowerScene) && !sceneAssertionsEnabled(request)
   const result = positionFamily(plan.family.id, request, request.source, {}, borrow, true)
   if (borrow && isRetainedPositionedSnapshot(result)) borrowedNativeProducers.set(result, producer!)
@@ -94,17 +95,20 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
   }
   const resolved = resolvedFamilyRenderContextOf(request)
   const environment = (globalThis as { process?: { env?: Record<string, string | undefined> }; AGENTIC_MERMAID_ELK_CACHE?: unknown }).process?.env
-  const cacheEnabled = performanceExperimentEnabled('position-cache') && certifyFinal && familyId !== 'gantt' && !executionPlan.textMeasurement
+  const metricsIdentity = textMeasurementCacheIdentity(executionPlan.textMeasurement)
+  const reusableMetrics = !executionPlan.textMeasurement || metricsIdentity !== undefined
+  const cacheEnabled = performanceExperimentEnabled('position-cache') && certifyFinal && familyId !== 'gantt' && reusableMetrics
     && (environment?.AGENTIC_MERMAID_ELK_CACHE ?? (globalThis as { AGENTIC_MERMAID_ELK_CACHE?: unknown }).AGENTIC_MERMAID_ELK_CACHE) !== '0'
   // Admitted cleanup provenance is derived entirely from originalText. Keep
   // every authoritative field; explicit source overrides retain the full key.
   const cacheSource = cacheEnabled && source === request.source ? { ...source, cleanup: undefined } : source
   const cacheKey = cacheEnabled ? JSON.stringify([cacheSource, request.renderOptions, request.appearance, request.familyConfig, projectionOptions, familyId === 'class' ? resolved.paintBackendId ?? 'backend:default' : undefined,
-    Object.entries(environment ?? {}).filter(([key]) => key.startsWith('APL_')).sort(), PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled)]) : undefined
+    Object.entries(environment ?? {}).filter(([key]) => key.startsWith('APL_')).sort(), PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled),
+    ...(metricsIdentity === undefined ? [] : [metricsIdentity])]) : undefined
   const boundedKey = cacheKey !== undefined && cacheKey.length <= 65536 ? cacheKey : undefined
   if (boundedKey === undefined) observeCache('positioned-layout', 'bypass',
     !performanceExperimentEnabled('position-cache') ? 'disabled' : !certifyFinal ? 'external-family'
-      : familyId === 'gantt' ? 'time-dependent-family' : executionPlan.textMeasurement ? 'custom-text-measurement'
+      : familyId === 'gantt' ? 'time-dependent-family' : !reusableMetrics ? 'custom-text-measurement'
         : cacheKey === undefined ? 'elk-cache-disabled' : 'key-limit')
   return withLayoutOptimizationBudget(request, request.renderOptions.graphLayout, () => withTextMeasurementExecution(executionPlan.textMeasurement, () => {
     const role = request.output === 'ascii' || request.output === 'unicode' || request.output === 'html' ? 'companion' : 'primary'

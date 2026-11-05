@@ -123,9 +123,10 @@ This option does not load fonts. Make the matching faces available to the
 browser or rasterizer as described above. The lazy browser entry downloads
 the metrics only when selected. The default remains `fontMetrics: 'estimate'`.
 Do not combine `bundled-inter` with a host `textMeasurement` callback: choose
-one measurement authority. Repeated-render caches deliberately retain their
-existing conservative behavior for a measurement profile; include warm calls
-as well as first use when evaluating its cost.
+one measurement authority. Positioned-layout caches recognize the immutable
+built-in profile and include its versioned identity in their key. Host callback
+profiles retain their conservative cache bypass. Include warm calls as well as
+first use when evaluating costs.
 
 By default, graphical layout uses deterministic Inter-compatible width
 estimates and fits SVG advances to that geometry. To lay out using your own

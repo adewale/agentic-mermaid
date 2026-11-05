@@ -25,6 +25,14 @@ type MeasurementInput = Omit<ProfileTextMeasurementInput, 'fontFamily'> & { font
 // retain the estimator's padding and fallback-shaping protections as well as
 // its width. This capability never enters serialized or caller-owned data.
 const estimatedFallbacks = new WeakMap<TextMeasurementProfile, (input: Readonly<ProfileTextMeasurementInput>) => boolean>()
+// Only library-owned immutable producers may opt into persistent geometry
+// reuse. A host identity (even one spelling a built-in name) is not authority.
+const immutableProfiles = new WeakSet<TextMeasurementProfile>()
+const immutableExecutions = new WeakMap<TextMeasurementExecution, string>()
+export function registerImmutableTextMeasurement(profile: TextMeasurementProfile): void { immutableProfiles.add(profile) }
+export function textMeasurementCacheIdentity(execution: TextMeasurementExecution | undefined): string | undefined {
+  return execution === undefined ? undefined : immutableExecutions.get(execution)
+}
 export function registerEstimatedTextFallback(profile: TextMeasurementProfile, covers: (input: Readonly<ProfileTextMeasurementInput>) => boolean): void {
   estimatedFallbacks.set(profile, covers)
 }
@@ -50,6 +58,7 @@ export function snapshotTextMeasurementProfile(profile: TextMeasurementProfile |
   const snapshot = Object.freeze({ id, version, measure })
   const coverage = estimatedFallbacks.get(profile)
   if (coverage) estimatedFallbacks.set(snapshot, coverage)
+  if (immutableProfiles.has(profile)) immutableProfiles.add(snapshot)
   return snapshot
 }
 
@@ -73,7 +82,7 @@ export function createTextMeasurementExecution(
   const widths = new Map<string, number>()
   const coverage = estimatedFallbacks.get(snapshot)
   const covers = coverage ? (input: MeasurementInput) => coverage({ ...input, fontFamily: input.fontFamily ?? (input.monospace ? 'JetBrains Mono' : fontFamily) }) : undefined
-  return Object.freeze({
+  const execution: TextMeasurementExecution = Object.freeze({
     identity,
     ...(covers ? { covers } : {}),
     width(input: MeasurementInput): number | undefined {
@@ -95,6 +104,8 @@ export function createTextMeasurementExecution(
       return width
     },
   })
+  if (immutableProfiles.has(snapshot)) immutableExecutions.set(execution, JSON.stringify([identity.id, identity.version]))
+  return execution
 }
 
 // Graphical execution is synchronous in every runtime. A stack-scoped value
