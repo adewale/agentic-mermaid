@@ -132,14 +132,14 @@ class NativeDatabase {
   model: any
   events: ParserObservation[] = []
   source = ''
+  resetAfterParse = false
   constructor(readonly context: AdapterContext) {}
   clear(): void {
-    if (active?.inputs.some(input => input.family === this.context.family && input.accepted === true)) {
-      return unavailable(`${this.context.family}.db.clear after parse: the native API exposes parsed models, not a mutable database reset operation`)
-    }
+    this.resetAfterParse = Boolean(active?.inputs.some(input => input.family === this.context.family && input.accepted === true))
     this.model = undefined; this.events = []; this.source = ''
   }
   parse(source: string): void {
+    this.resetAfterParse = false
     const input = recordInput(this.context.family, source)
     this.source = source
     this.events = []
@@ -163,6 +163,7 @@ class NativeDatabase {
       if (/^get[A-Z]|^showSequenceNumbers$/.test(key)) return (...args: any[]) => {
         const current = nativeGetters(target, key)
         if (typeof current !== 'function') return unavailable(`${this.context.family}.db.${key}`)
+        if (target.resetAfterParse) return unavailable(`${this.context.family}.db.clear result: the native API exposes parsed models, not a mutable database reset operation`)
         return current(...args)
       }
       const value = nativeGetters(target, key)

@@ -52,7 +52,7 @@ Each case records its original name, file, actual input strings, admission resul
 and any unavailable API. An unavailable operation cannot pass accidentally when
 an original negative assertion catches its exception: the after-case guard
 records and fails that boundary. A case that never invokes a native parser is
-also marked outside the adapted input-language boundary. Clearing adapter state
+also marked outside the adapted input-language boundary. Inspecting cleared adapter state
 after a successful parse is unavailable: it cannot prove a production mutable
 database reset when the native interface exposes parsed models. Before-parse
 setup may clear the adapter to isolate cases.

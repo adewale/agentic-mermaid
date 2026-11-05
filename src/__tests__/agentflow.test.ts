@@ -227,7 +227,7 @@ test('AgentFlow retains percent-pair label text while exporting the three pinned
 })
 
 test('anonymous AgentFlow containers keep empty titles, global escape and collision-safe identities through edits', async () => {
-  const source = 'agentflow-beta\nglobal\n A\nend\nflow\n A --> B --> C\nend\n__agentflow_flow_0[Authored identity]'
+  const source = 'agentflow-beta\nglobal\n A\nend\nflow\n A --> B --> C\nend\n__agentflow_flow_1[Authored identity]'
   const upstream = startUpstreamMermaid()
   try {
     const control = await upstream.parse(source)
@@ -239,7 +239,7 @@ test('anonymous AgentFlow containers keep empty titles, global escape and collis
     if (!parsed.ok || parsed.value.body.kind !== 'agentflow') throw Error('Expected native anonymous AgentFlow')
     const body = parsed.value.body, flow = body.graph.subgraphs[0]!
     expect(flow.label).toBe('')
-    expect(flow.id).not.toBe('__agentflow_flow_0')
+    expect(flow.id).not.toBe('__agentflow_flow_1')
     expect(flow.nodeIds).toEqual(['B', 'C'])
     expect(body.globals.has('A')).toBe(true)
     expect(body.mappings.find(mapping => mapping.id === flow.id)).toMatchObject({ type: 'flow', line: 5, col: 1 })
