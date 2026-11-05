@@ -373,39 +373,7 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     parseRegisteredMermaid: mermaid.parseRegisteredMermaid,
     createMermaid: mermaid.createMermaid,
     buildMermaid: mermaid.buildMermaid,
-    asFlowchart: mermaid.asFlowchart,
-    asState: mermaid.asState,
-    asSequence: mermaid.asSequence,
-    asTimeline: mermaid.asTimeline,
-    asClass: mermaid.asClass,
-    asEr: mermaid.asEr,
-    asJourney: mermaid.asJourney,
-    asArchitecture: mermaid.asArchitecture,
-    asXyChart: mermaid.asXyChart,
-    asPie: mermaid.asPie,
-    asQuadrant: mermaid.asQuadrant,
-    asGantt: mermaid.asGantt,
-    asMindmap: mermaid.asMindmap,
-    asGitGraph: mermaid.asGitGraph,
-    asRadar: mermaid.asRadar,
-    asSankey: mermaid.asSankey,
-    asC4: mermaid.asC4,
-    asPacket: mermaid.asPacket,
-    asKanban: mermaid.asKanban,
-    asRequirement: mermaid.asRequirement,
-    asTreemap: mermaid.asTreemap,
-    asZenUML: mermaid.asZenUML,
-    asEventModeling: mermaid.asEventModeling,
-    asIshikawa: mermaid.asIshikawa,
-    asBlock: mermaid.asBlock,
-    asAgentflow: mermaid.asAgentflow,
-    asUsecase: mermaid.asUsecase,
-    asWardley: mermaid.asWardley,
-    asVenn: mermaid.asVenn,
-    asCynefin: mermaid.asCynefin,
-    asRailroad: mermaid.asRailroad,
-    asSwimlane: mermaid.asSwimlane,
-    asTreeview: mermaid.asTreeview,
+    ...SDK_NARROWERS,
 
     mutate: mermaid.mutate,
     mutatePreservingSource: mermaid.mutatePreservingSource,
@@ -738,6 +706,11 @@ function fingerprintDiagram(value: unknown): string | undefined {
 
 /** Kind/narrower lookup tables derived from the family metadata (single source of truth). */
 const FAMILY_KINDS: ReadonlySet<DiagramKind> = new Set(BUILTIN_FAMILY_METADATA.map(m => m.id))
+const SDK_NARROWERS = Object.fromEntries(BUILTIN_FAMILY_METADATA.map(({ narrower }) => {
+  const narrow = mermaid[narrower as keyof typeof mermaid]
+  if (typeof narrow !== 'function') throw new Error(`Missing public family narrower ${narrower}`)
+  return [narrower, narrow]
+}))
 const NARROWER_TO_FAMILY: ReadonlyMap<string, DiagramKind> = new Map(BUILTIN_FAMILY_METADATA.map(m => [m.narrower, m.id]))
 
 function narrowerFamily(prop: string | symbol): TraceNarrowFamily {
