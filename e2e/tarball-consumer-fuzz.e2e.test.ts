@@ -111,7 +111,7 @@ let binShimMcp = ''
 let haveConsumer = false
 
 beforeAll(() => {
-  work = mkdtempSync(join(tmpdir(), 'am-consumer-'))
+  work = mkdtempSync(join(tmpdir(), 'am consumer '))
   if (process.env.AM_TEST_TARBALL) {
     tarball = resolve(process.env.AM_TEST_TARBALL)
   } else {
@@ -484,6 +484,30 @@ describe('installed tarball — am bin', () => {
 // T3 — the `agentic-mermaid-mcp` bin under Node (stdio JSON-RPC).
 // ---------------------------------------------------------------------------
 describe('installed tarball — mcp bin', () => {
+  test.each([['Node', NODE!, [], {}], ['Node CLI heap flags', NODE!, ['--max-old-space-size=1024'], {}], ['Node environment heap flags', NODE!, [], { NODE_OPTIONS: '--max-old-space-size=1024' }], ['Bun', 'bun', [], {}]] as const)('ships the direct source-tool worker and returns structured results under %s', (_runtime, binary, flags, environment) => {
+    expect(haveConsumer).toBe(true)
+    const requests = ['render_svg', 'render_ascii', 'verify'].map((name, index) => ({
+      jsonrpc: '2.0', id: index + 1, method: 'tools/call', params: {
+        name, arguments: { source: 'sequenceDiagram\nA->>B: Packaged worker' },
+      },
+    }))
+    const result = spawnSync(binary, [...flags, mcpBin], {
+      cwd: work, env: { ...process.env, ...environment }, input: requests.map(request => JSON.stringify(request)).join('\n') + '\n',
+      encoding: 'utf8', timeout: RUN_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024,
+    })
+    expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' })
+    const responses = result.stdout.trim().split('\n').map(line => JSON.parse(line))
+    expect(responses).toHaveLength(3)
+    const byId = new Map(responses.map(response => [response.id, response.result]))
+    for (const response of responses) {
+      expect(response.result.isError).toBe(false)
+      expect(response.result.structuredContent).toEqual(JSON.parse(response.result.content[0].text))
+    }
+    expect(byId.get(1).structuredContent.svg).toContain('<svg')
+    expect(byId.get(2).structuredContent.text).toContain('Packaged worker')
+    expect(byId.get(3).structuredContent).toMatchObject({ ok: true, family: 'sequence' })
+  }, RUN_TIMEOUT_MS)
+
   test('default package binary routes the registry mcp argument', () => {
     expect(haveConsumer).toBe(true)
     const r = spawnSync(NODE!, [amBin, 'mcp', '--help'], { cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })

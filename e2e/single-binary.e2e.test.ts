@@ -4,19 +4,19 @@
 
 import { describe, test, expect } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { useTempDirs } from '../src/__tests__/helpers/temp-dir.ts'
 
 const REPO = join(import.meta.dir, '..')
-const ENTRY = join(REPO, 'bin', 'am.ts')
+const BUILD_SCRIPT = join(REPO, 'scripts', 'build', 'build-binary.ts')
 const BUILD_TIMEOUT_MS = 120_000
 const RUN_TIMEOUT_MS = 30_000
 
 // Build once into a temp dir so we don't fight the gitignored dist/am.
 const work = useTempDirs('am-bin-').dir()
 const BIN = join(work, 'am')
-const build = spawnSync('bun', ['build', ENTRY, '--compile', '--outfile', BIN], { encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
+const build = spawnSync('bun', ['run', BUILD_SCRIPT, '--outfile', BIN], { cwd: REPO, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
 const haveBinary = build.status === 0 && existsSync(BIN)
 if (!haveBinary) {
   throw new Error([
@@ -32,6 +32,43 @@ const fixture = join(work, 'd.mmd')
 writeFileSync(fixture, 'flowchart TD\n  A[Start] --> B[End]\n')
 
 describe('#1018 single-binary distribution', () => {
+  test('binary classifies an early old-Node exit before sending its embedded bundle', () => {
+    const oldNode = join(work, 'old-node')
+    mkdirSync(oldNode)
+    writeFileSync(join(oldNode, 'node'), '#!/bin/sh\nexit 3\n', { mode: 0o755 })
+    const request = { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'render_ascii', arguments: { source: 'sequenceDiagram\nA->>B: Hello' } } }
+    const result = spawnSync(BIN, ['mcp'], { cwd: work, env: { ...process.env, PATH: oldNode }, input: JSON.stringify(request) + '\n', encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
+    expect(result.status).toBe(0)
+    expect(JSON.parse(result.stdout).result.structuredContent).toMatchObject({ ok: false, error: { code: 'WORKER_RUNTIME_UNAVAILABLE' } })
+  })
+
+  test('binary refuses to silently drop the worker heap limit when Node is unavailable', () => {
+    const request = { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'render_ascii', arguments: { source: 'sequenceDiagram\nA->>B: Hello' } } }
+    const result = spawnSync(BIN, ['mcp'], { cwd: work, env: { ...process.env, PATH: work }, input: JSON.stringify(request) + '\n', encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
+    expect(result.status).toBe(0)
+    expect(JSON.parse(result.stdout).result.structuredContent).toMatchObject({ ok: false, error: { code: 'WORKER_RUNTIME_UNAVAILABLE' } })
+  })
+
+  test('binary embeds its MCP source worker and returns structured results from an unrelated cwd', () => {
+    const requests = ['render_svg', 'render_ascii', 'verify'].map((name, index) => ({
+      jsonrpc: '2.0', id: index + 1, method: 'tools/call', params: {
+        name, arguments: { source: 'sequenceDiagram\nA->>B: Embedded worker' },
+      },
+    }))
+    const result = spawnSync(BIN, ['mcp'], {
+      cwd: work, input: requests.map(request => JSON.stringify(request)).join('\n') + '\n',
+      encoding: 'utf8', timeout: RUN_TIMEOUT_MS,
+    })
+    expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' })
+    const responses = result.stdout.trim().split('\n').map(line => JSON.parse(line))
+    expect(responses).toHaveLength(3)
+    for (const response of responses) {
+      expect(response.result.isError).toBe(false)
+      expect(response.result.structuredContent.ok).toBe(true)
+      expect(response.result.structuredContent).toEqual(JSON.parse(response.result.content[0].text))
+    }
+  })
+
   test('binary renders SVG', () => {
     const r = spawnSync(BIN, ['render', fixture], { encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
     expect(r.status).toBe(0)

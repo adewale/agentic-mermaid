@@ -7,24 +7,19 @@
 // billable isolate, so common render/verify paths get direct pure tools that cost one ordinary
 // Worker invocation and are eligible for the private compute cache.
 
-import { parseRegisteredMermaid } from '../agent/parse.ts'
-import { configWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
+import { configWarningsForMermaid } from '../agent/verify.ts'
 import { EDIT_TOOLS, handleEditTool } from './edit-tools.ts'
-import { knownStyleDescriptors } from '../scene/style-registry.ts'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
-import { renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt } from '../agent/core.ts'
-import { verifyNoExternalRefs } from '../output-security.ts'
+import { TEXT_RENDER_TOOLS, VERIFY_TOOL } from './source-tool-definitions.ts'
+import { runSourceTool } from './source-tools.ts'
 import { unsupportedCodeReason } from './facade.ts'
 import { rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import {
   EXECUTE_TIMEOUT_ERROR,
-  PURE_COMPUTE_ANNOTATIONS,
   createDescribeTool,
   createExecuteTool,
   createRenderPngTool,
   dispatchAdmittedMcpRequest,
   isValidExecuteTimeout,
-  mcpRenderOptionSchemaProperties,
   projectMcpRenderOptions,
   validateMcpToolArguments,
   withClosedMcpInputSchema,
@@ -32,7 +27,7 @@ import {
   type McpServerSurface,
 } from './tool-surface.ts'
 import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
-import { mcpDescribePayload, mcpVerificationSummary } from './describe-payload.ts'
+import { mcpDescribePayload } from './describe-payload.ts'
 import { isDescribeFormat } from '../agent/describe.ts'
 import type { ExecuteResult } from './sandbox.ts'
 import type { PngRasterResult } from '../shared/png-font-warnings.ts'
@@ -45,14 +40,9 @@ import {
   resolvePortablePngOutputPolicy,
   type PortablePngOutputOptions,
 } from '../png-contract.ts'
-import {
-  familyDetectionDiagnosticFromPreservedBody,
-  MermaidFamilyDetectionError,
-} from '../family-detection.ts'
 import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { DEFAULT_EXECUTE_TIMEOUT_MS } from './execute-limits.ts'
-import { terminalOutputOptionSchema } from '../terminal-contract.ts'
 import {
   admitMcpMessage,
   type AdmittedMcpMessage,
@@ -92,7 +82,7 @@ export const SUPPORTED_PROTOCOL_VERSIONS = ['2025-03-26', '2025-06-18', '2025-11
 
 // Hosted server identity, distinct from the local stdio server's
 // MCP_SERVER_NAME: registries and clients cache tool lists by server identity,
-// and this surface (9 tools) must never shadow the local one (4 tools).
+// and their transports and execution policies differ.
 export const HOSTED_MCP_SERVER_NAME = 'agentic-mermaid-hosted'
 
 export const MAX_SOURCE_BYTES = 64 * 1024
@@ -104,77 +94,12 @@ const MAX_EXECUTE_TIMEOUT_MS = 30_000
 export const LOCAL_FALLBACK_HINT = 'run the local agentic-mermaid CLI or stdio MCP server instead (see https://agentic-mermaid.dev/docs/mcp/)'
 const TOO_LARGE_HINT = `input exceeds the hosted size cap; ${LOCAL_FALLBACK_HINT}`
 
-// Keep hosted discovery aligned with the style registry. This description is
-// the only built-in look menu available to clients that do not call execute.
-const BUILTIN_LOOK_NAMES = knownStyleDescriptors()
-  .filter(descriptor => descriptor.kind === 'look')
-  .map(descriptor => descriptor.inputName)
-const BUILTIN_PALETTE_NAMES = knownStyleDescriptors()
-  .filter(descriptor => descriptor.kind === 'palette')
-  .map(descriptor => descriptor.inputName)
-
-
 export const HOSTED_TOOLS = [
   createExecuteTool({ sdkDeclaration: SDK_CORE_DECLARATION, hosted: true }),
   withClosedMcpInputSchema(createDescribeSdkTool()),
-  {
-    name: 'render_svg',
-    title: 'Render Mermaid as SVG',
-    description: `Render a Mermaid source string to themeable SVG. Returns { ok, svg }.
-Layout is deterministic: identical input produces identical geometry. The hosted
-boundary forces security:'strict' and embedFontImport:false.`,
-    inputSchema: {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        source: { type: 'string', description: 'Mermaid source.' },
-        ...mcpRenderOptionSchemaProperties(
-          `Shared advanced RenderOptions object. Styles accept a registered Look (${BUILTIN_LOOK_NAMES.join(', ')}), Palette (${BUILTIN_PALETTE_NAMES.join(', ')}), inline record, or left-to-right stack.`,
-        ),
-      },
-      required: ['source'],
-    },
-    annotations: PURE_COMPUTE_ANNOTATIONS,
-  },
-  {
-    name: 'render_ascii',
-    title: 'Render Mermaid as text',
-    description: `Render a Mermaid source string to text. Returns { ok, text }.
-useAscii true → plain ASCII (+,-,|); false/absent → Unicode box drawing (┌,─,│).
-targetWidth sets a hard terminal display-cell bound; impossible bounds return a typed error.`,
-    inputSchema: {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        source: { type: 'string', description: 'Mermaid source.' },
-        useAscii: { ...terminalOutputOptionSchema('useAscii'), description: 'true = ASCII characters, false = Unicode (default).' },
-        targetWidth: { ...terminalOutputOptionSchema('targetWidth'), description: 'Hard maximum line width in terminal display cells.' },
-        ...mcpRenderOptionSchemaProperties('Shared advanced RenderOptions object, including style/palette/config/security.'),
-      },
-      required: ['source'],
-    },
-    annotations: PURE_COMPUTE_ANNOTATIONS,
-  },
+  ...TEXT_RENDER_TOOLS,
   createRenderPngTool('hosted'),
-  {
-    name: 'verify',
-    title: 'Verify Mermaid diagram',
-    description: `Parse and verify source, structure, and renderability. This runs the graphical pipeline. Returns
-{ ok, family, summary, warnings, layout: { bounds, nodes, edges } } for valid
-diagrams and { ok: false, errors } for parse failures. \`family\` is the detected
-diagram family and \`summary\` a one-line description — check them: ok:true only
-means the diagram is structurally valid, not that it is the kind you intended.
-Warnings use the layout-rubric codes.`,
-    inputSchema: {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        source: { type: 'string', description: 'Mermaid source.' },
-      },
-      required: ['source'],
-    },
-    annotations: PURE_COMPUTE_ANNOTATIONS,
-  },
+  VERIFY_TOOL,
   createDescribeTool(),
   ...EDIT_TOOLS,
 ]
@@ -238,58 +163,10 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
         return rpcError(id, -32602, e instanceof Error ? e.message : String(e))
       }
     }
-    case 'render_svg': return sourceTool(id, args, source => {
-      const rendered = renderMermaidSVGWithReceipt(source, svgOptions(args))
-      const safety = verifyNoExternalRefs(rendered.svg)
-      if (!safety.ok) throw new Error(`strict SVG safety invariant failed: ${safety.refs.join(', ')}`)
-      return {
-        ok: true as const,
-        svg: rendered.svg,
-        receipt: rendered.receipt,
-        warnings: sourceConfigWarnings(source),
-      }
-    })
-    case 'render_ascii': return sourceTool(id, args, source => {
-      const projectionWarnings: unknown[] = []
-      const rendered = renderMermaidASCIIWithReceipt(source, {
-        ...projectMcpRenderOptions(args),
-        ...HOSTED_RENDER_OPTIONS,
-        useAscii: args.useAscii === true,
-        targetWidth: args.targetWidth as number | undefined,
-        colorMode: 'none',
-        onProjectionDiagnostic: diagnostic => projectionWarnings.push(diagnostic),
-      })
-      return {
-        ok: true as const,
-        text: rendered.text,
-        receipt: rendered.receipt,
-        warnings: [...sourceConfigWarnings(source), ...projectionWarnings],
-      }
-    })
+    case 'render_svg':
+    case 'render_ascii':
+    case 'verify': return sourceTool(id, args, () => runSourceTool(name, args))
     case 'render_png': return handleRenderPng(id, args, context)
-    case 'verify': return sourceTool(id, args, source => {
-      const parsed = parseRegisteredMermaid(source)
-      if (!parsed.ok) {
-        // Self-describing tool: when the header names a known family, hand back
-        // that family's canonical example so a failed authoring attempt gets the
-        // correct dialect in the same response — no need to fetch capabilities.json.
-        const hint = familyExampleForSource(source)
-        return { ok: false as const, errors: parsed.error, ...(hint ?? {}) }
-      }
-      if (parsed.value.body.kind === 'preserved') {
-        throw new MermaidFamilyDetectionError(
-          familyDetectionDiagnosticFromPreservedBody(parsed.value.body),
-        )
-      }
-      const v = verifyMermaid(parsed.value)
-      const summary = mcpVerificationSummary(parsed.value)
-      // Echo the detected family + a one-line summary so `ok:true` is never a
-      // silent pass on the wrong kind of diagram: an agent that asked for an
-      // architecture diagram and reads `family:"flowchart"` here sees the
-      // mismatch in the same result it was already going to read, without
-      // having to know to call `describe` separately.
-      return { ok: v.ok, family: parsed.value.kind, summary, warnings: v.warnings, checks: v.checks, layout: { bounds: v.layout.bounds, nodes: v.layout.nodes.length, edges: v.layout.edges.length } }
-    })
     case 'describe': return sourceTool(id, args, source => mcpDescribePayload(source, args))
     case 'mutate': return handleEditTool(id, args, 'source', MAX_SOURCE_BYTES, TOO_LARGE_HINT)
     case 'build': return handleEditTool(id, args, 'family', MAX_SOURCE_BYTES, TOO_LARGE_HINT)
@@ -297,23 +174,8 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
   }
 }
 
-/**
- * When a source's header names a known family, return that family's id and its
- * canonical (verified) example so a parse failure can hand back the correct
- * dialect in the same response. Matched by the family's own header keyword, so a
- * `graph`/`flowchart`/`architecture-beta`/… first line resolves deterministically.
- */
 function sourceConfigWarnings(source: string) {
   return configWarningsForMermaid(source)
-}
-
-function familyExampleForSource(source: string): { family: string; example: string } | undefined {
-  const first = source.split('\n').map(l => l.trim()).find(l => l.length > 0) ?? ''
-  const header = first.split(/\s+/)[0] ?? ''
-  for (const f of BUILTIN_FAMILY_METADATA) {
-    if (f.headers.some(h => header === h)) return { family: f.id, example: f.example }
-  }
-  return undefined
 }
 
 function svgOptions(args: Record<string, unknown>): RenderOptions {

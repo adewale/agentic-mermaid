@@ -174,7 +174,7 @@
     "generate:browser-families": "bun run scripts/build/generate-browser-family-catalog.ts",
     "check:browser-families": "bun run scripts/build/generate-browser-family-catalog.ts --check",
     "check:output-identity": "bun eval/benchmark/commands.ts check:output-identity",
-    "build:binary": "bun build ./bin/am.ts --compile --outfile dist/am",
+    "build:binary": "bun run scripts/build/build-binary.ts",
     "website": "bun run generate:sdk && bun run website/build.ts",
     "website:check": "bun run website/build.ts --check",
     "website:payload:check": "bun run scripts/site/website-payload-report.ts --check",

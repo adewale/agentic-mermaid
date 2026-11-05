@@ -6,6 +6,8 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { URL } from 'node:url'
 import { EDIT_TOOLS, handleEditTool } from './edit-tools.ts'
 import { executeInSandbox } from './sandbox.ts'
+import { TEXT_RENDER_TOOLS, VERIFY_TOOL } from './source-tool-definitions.ts'
+import { runSourceToolIsolated } from './source-worker-client.ts'
 import { DEFAULT_EXECUTE_TIMEOUT_MS } from './execute-limits.ts'
 import { isJsonContentType, preserveExactJsonRpcIds, rpcError as error, stringifyJsonRpc, toolResult, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import {
@@ -109,7 +111,9 @@ class HttpStatusError extends Error {
 export const LOCAL_TOOLS = [
   createExecuteTool({ sdkDeclaration: SDK_CORE_DECLARATION }),
   withClosedMcpInputSchema(createDescribeSdkTool()),
+  ...TEXT_RENDER_TOOLS,
   createRenderPngTool('local'),
+  VERIFY_TOOL,
   createDescribeTool(),
   ...EDIT_TOOLS,
 ]
@@ -118,7 +122,7 @@ let defaultArtifactStore: ArtifactStore | undefined
 let defaultArtifactStoreExitHook = false
 const MCP_NARROWERS = BUILTIN_FAMILY_METADATA.map(f => f.narrower).join('/')
 
-const LOCAL_INSTRUCTIONS = `agentic-mermaid editing server. Prefer mutate/build for ordinary edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. describe_sdk progressively discloses one family's version-matched mutation schema; call it before authoring unfamiliar ops. render_png and describe are narrow helpers. render_png can return base64, managed file paths, or managed URLs when the transport config provides an artifact store. Prefer declarative mutate/build for structured edits; they accept ordered JSON ops and verify before emitting source. Reserve execute for custom logic; narrow via ${MCP_NARROWERS}. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry).`
+const LOCAL_INSTRUCTIONS = `agentic-mermaid editing server. Prefer mutate/build for ordinary edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. describe_sdk progressively discloses one family's version-matched mutation schema; call it before authoring unfamiliar ops. Direct render_svg, render_ascii and verify helpers return structured results from a worker with a 15s deadline and a 512 MB V8 heap budget; Bun uses a Node 22+ worker bridge to enforce it. render_png and describe are additional narrow helpers. render_png can return base64, managed file paths, or managed URLs when the transport config provides an artifact store. Prefer declarative mutate/build for structured edits; they accept ordered JSON ops and verify before emitting source. Reserve execute for custom logic; narrow via ${MCP_NARROWERS}. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry).`
 
 const LOCAL_SURFACE: McpServerSurface<McpRequestContext> = {
   protocolVersion: PROTOCOL_VERSION,
@@ -173,6 +177,12 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
   if (name === 'mutate') return handleEditTool(id, args, 'source')
   if (name === 'build') return handleEditTool(id, args, 'family')
   if (name === 'render_png') return handleRenderPng(id, args, context)
+  if (name === 'render_svg' || name === 'render_ascii' || name === 'verify') {
+    const payload = await runSourceToolIsolated(name, args, { signal: context.signal })
+    const response = toolResult(id, payload, !payload.ok)
+    Object.assign(response.result!, { structuredContent: payload })
+    return response
+  }
   if (name === 'describe') {
     const source = (args as { source?: string }).source
     if (typeof source !== 'string') return error(id, -32602, 'describe requires `source` (string)')

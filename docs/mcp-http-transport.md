@@ -48,6 +48,31 @@ HTTP endpoints:
 
 `/rpc` and `/message` require `content-type: application/json`; browser-simple `text/plain` form posts are rejected. Non-loopback hosts require `Authorization: Bearer <token>` on `/rpc`, `/sse`, `/message`, and `/artifacts/*`, and the same Origin check covers those routes. SSE sessions are capped (32 by default); an exhausted server returns `503` instead of retaining another session.
 
+## Direct rendering and verification
+
+The local stdio and HTTP servers expose `render_svg`, `render_ascii`, and
+`verify`, with the same input schemas and payloads as the hosted tools. Local
+responses include both MCP `structuredContent` and an equivalent JSON text
+block. Use `render_ascii` with `useAscii: true` for ASCII, or omit it for Unicode.
+`verify` checks parsing, structure and graphical renderability.
+
+These three local tools share one warm Node render process, with a 15-second
+wall-clock deadline per request, including queue and startup time. At most 32
+requests may wait; further calls receive `RENDER_BUSY`. Cancelling queued work
+leaves the active call intact. Cancelling or timing out active work kills its
+process; the next process starts after the previous one exits.
+
+The renderer has an enforced 512 MiB V8 heap ceiling and checks the actual
+limit before accepting work. This limits JavaScript heap, not native allocations
+or total process RSS. Inherited Node heap options cannot enlarge it. Node uses
+its current executable; Bun, including the standalone binary, requires Node 22
+or later on PATH. Otherwise these tools return `WORKER_RUNTIME_UNAVAILABLE`.
+The standalone binary embeds the render entry; installed packages use their
+built JavaScript entry without runtime bundling. The idle process stays warm
+under both runtimes and does not keep the server alive.
+The direct render helpers force strict output security and disable font imports.
+Local `execute` retains its existing sandbox and caller-selectable render policy.
+
 ## Direct JSON-RPC examples: `render_png`
 
 ### Base64 output (default)
