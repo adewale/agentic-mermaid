@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="846" height="467.4" viewBox="0 0 846 467.4" style="--bg:#17362f;--fg:#f5f1df;--line:#ece6cf;--accent:#ffe08a;--muted:#c7d2c4;--surface:#17362f;--border:#f3ecd5;--font:Caveat;background:#17362f" class="am-1fhvt48152jr6e">
+<style>
+  svg.am-1fhvt48152jr6e { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
+  svg.am-1fhvt48152jr6e {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #f5f1df;
+    --_text-sec:      #c7d2c4;
+    --_text-muted:    #c7d2c4;
+    --_text-faint:    #8f9b8e;
+    --_line:          #ece6cf;
+    --_arrow:         #ffe08a;
+    --_node-fill:     #17362f;
+    --_node-stroke:   #f3ecd5;
+    --_group-fill:    #17362f;
+    --_group-hdr:     #223f38;
+    --_inner-stroke:  #324c44;
+    --_key-badge:     #2d4941;
+  }
+</style>
+<rect width="846" height="467.4" fill="#17362f" data-backdrop="page" />
+<defs>  <marker id="cynefin-arrow" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+    <polygon points="0 0, 8 4, 0 8" fill="#f5f1df" />
+  </marker></defs>
+<text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="423" y="35.7" class="diagram-title" text-anchor="middle" font-size="18" font-weight="600" fill="#f5f1df" data-id="diagram-title" data-role="title" data-prepared-text="true" dy="6.3" textLength="207.9" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Decisions with feedback</text>
+<path d="M24.17 57.95 C124.4 60.07, 220.82 61.67, 274.25 60.67 M24.32 59.71 C123.07 61.74, 220.51 61.22, 273.47 60.21 M271.78 61.54 C271.21 96.31, 274.96 132.3, 273.95 240.85 M272.8 60.08 C274.35 126.51, 273.28 192.17, 274.43 240.12 M272.33 240.15 C174.79 241.99, 77.3 240.86, 23.81 238.09 M274.19 238.92 C175.91 239.3, 78.56 239.83, 24.99 239.14 M21.54 241.69 C24.2 192.35, 24.04 146.04, 25.86 60.77 M25.22 240.39 C22.13 183.64, 22.7 129.62, 25.12 59.57" fill="none" stroke="#f5f1df" stroke-width="3.23" stroke-linecap="round" stroke-linejoin="round" data-id="complex" data-role="group" />
+<text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="149" y="87.8" text-anchor="middle" font-family="Caveat" font-size="16" font-weight="700" fill="#f5f1df" data-prepared-text="true" dy="5.6" textLength="67.68" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Complex</text>
+<g data-parent="complex" data-id="complex:0" data-role="node">
+  <text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="149" y="126.6" text-anchor="middle" font-family="Caveat" font-size="16" font-weight="700" fill="#f5f1df" data-prepared-text="true" dy="5.6" textLength="63.84" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Explore</text>
+</g>
+<path d="M571.63 60.28 C656.11 55.42, 745.04 58.49, 820.31 59.32 M572.65 59.56 C649.92 61.31, 725.94 61.53, 822.81 58.78 M820.28 59.22 C821.94 126.5, 820.11 197.39, 820.49 237.53 M822.43 59.21 C822.18 125.76, 821.33 192.81, 822.35 238.55 M821.88 240.09 C765.76 240.42, 707.21 236.84, 573.99 239.5 M822.06 240.35 C723 237.5, 623.31 236.75, 571.91 239.69 M570.09 238.94 C572.24 183.73, 573.53 132.69, 569.93 61.42 M572.03 239.04 C570.96 189.73, 571.42 139.14, 570.82 60.61" fill="none" stroke="#f5f1df" stroke-width="3.23" stroke-linecap="round" stroke-linejoin="round" data-id="complicated" data-role="group" />
+<text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="697" y="87.8" text-anchor="middle" font-family="Caveat" font-size="16" font-weight="700" fill="#f5f1df" data-prepared-text="true" dy="5.6" textLength="94.56" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Complicated</text>
+<g data-parent="complicated" data-id="complicated:0" data-role="node">
+  <text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="697" y="126.6" text-anchor="middle" font-family="Caveat" font-size="16" font-weight="700" fill="#f5f1df" data-prepared-text="true" dy="5.6" textLength="65.76" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Analyse</text>
+</g>
+<path d="M571.38 262.58 C623.9 261.67, 680.23 261.96, 820.38 264.49 M572.14 262.48 C650.58 261.94, 729.39 260.71, 822.51 263.2 M823.1 265.03 C819.45 314.82, 822.88 368.19, 821.31 444.85 M820.78 262.64 C820.86 316.33, 820.78 367.02, 820.82 444.47 M822.49 443.21 C759.56 442.41, 698.87 444.81, 570.49 444.79 M822.04 442.7 C762.58 445.53, 705.19 446.8, 571.34 442.47 M573.57 443.92 C570.98 406.94, 571.94 365.99, 573.96 262.2 M572.24 442.24 C571.15 403.16, 571.32 365.31, 571.44 263.14" fill="none" stroke="#f5f1df" stroke-width="3.23" stroke-linecap="round" stroke-linejoin="round" data-id="clear" data-role="group" />
+<text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="697" y="291.8" text-anchor="middle" font-family="Caveat" font-size="16" font-weight="700" fill="#f5f1df" data-prepared-text="true" dy="5.6" textLength="44.64" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Clear</text>
+<g data-parent="clear" data-id="clear:0" data-role="node">
+  <text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="697" y="330.6" text-anchor="middle" font-family="Caveat" font-size="16" font-weight="700" fill="#f5f1df" data-prepared-text="true" dy="5.6" textLength="63.84" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Operate</text>
+</g>
+<path d="M22.4 262.45 C83.28 263.67, 146.87 261.91, 275.36 262 M23.85 263.67 C119.9 264.6, 214.99 265.26, 274.08 263.87 M276.02 264.15 C272.65 304.03, 273.38 342.65, 275.56 441.09 M273.81 263.86 C273.55 306.08, 273.99 348.98, 272.93 444.06 M275.86 444.61 C200.77 441.51, 129.35 443.08, 24.81 442.26 M273.99 442.49 C181.26 445.28, 88.94 444.17, 24.12 444.02 M23.72 440.96 C21.91 371.73, 24.41 300.41, 23.92 264.84 M25.01 444.2 C27.1 374.37, 26.25 307.32, 22.93 262.93" fill="none" stroke="#f5f1df" stroke-width="3.23" stroke-linecap="round" stroke-linejoin="round" data-id="chaotic" data-role="group" />
+<text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="149" y="291.8" text-anchor="middle" font-family="Caveat" font-size="16" font-weight="700" fill="#f5f1df" data-prepared-text="true" dy="5.6" textLength="60" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Chaotic</text>
+<g data-parent="chaotic" data-id="chaotic:0" data-role="node">
+  <text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="149" y="330.6" text-anchor="middle" font-family="Caveat" font-size="16" font-weight="700" fill="#f5f1df" data-prepared-text="true" dy="5.6" textLength="67.68" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Stabilise</text>
+</g>
+<path d="M296.64 60.15 C352.09 60.28, 408.41 62.48, 546.53 59.55 M297.55 59.37 C388.41 62.44, 477.92 61.67, 548.9 58.76 M547.96 60.83 C546.52 163.03, 547.99 266.57, 548.98 443.97 M548.2 59.84 C549.23 171.63, 548.82 284.41, 548.4 443.6 M549.45 442.68 C475.43 443.08, 406.34 441.78, 296.43 441.67 M547.31 443.12 C474.62 440.68, 403.01 440.36, 298.76 444.34 M299.45 443.03 C297.71 363.83, 299.04 284.18, 298.78 58.9 M297.8 443.37 C298.21 334.07, 298.72 225.65, 297.75 60.13" fill="none" stroke="#f5f1df" stroke-width="3.23" stroke-linecap="round" stroke-linejoin="round" data-id="confusion" data-role="group" />
+<text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="423" y="87.8" text-anchor="middle" font-family="Caveat" font-size="16" font-weight="700" fill="#f5f1df" data-prepared-text="true" dy="5.6" textLength="79.2" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Confusion</text>
+<g data-parent="confusion" data-id="confusion:0" data-role="node">
+  <text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="423" y="126.6" text-anchor="middle" font-family="Caveat" font-size="16" font-weight="700" fill="#f5f1df" data-prepared-text="true" dy="5.6" textLength="84.96" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Investigate</text>
+</g>
+<polyline stroke-opacity="0" points="274,195.932846715 572,306.867153285" fill="none" stroke="#f5f1df" stroke-width="1.8" marker-end="url(#cynefin-arrow)" data-relationship="domain-transition" data-direction="forward" data-id="transition:0" data-role="edge" data-from="complex" data-to="clear" role="graphics-symbol" aria-roledescription="relation" aria-label="complex to clear" />
+<path d="M272.84 197.67 C337.77 222.53, 400.12 244.61, 571.48 305.58 M274.62 195.76 C367.76 231.67, 462.37 265.65, 572.36 305.99" fill="none" stroke="#f5f1df" stroke-width="3.42" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
+<text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="423" y="251.4" text-anchor="middle" font-family="Caveat" font-size="16" font-weight="700" fill="#f5f1df" data-prepared-text="true" dy="5.6" textLength="73.44" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Learning</text>
+<polyline stroke-opacity="0" points="274,306.867153285 298,297.932846715" fill="none" stroke="#f5f1df" stroke-width="1.8" marker-end="url(#cynefin-arrow)" data-relationship="domain-transition" data-direction="forward" data-id="transition:1" data-role="edge" data-from="chaotic" data-to="confusion" role="graphics-symbol" aria-roledescription="relation" aria-label="chaotic to confusion" />
+<path d="M272.7 306.36 C279.03 303.43, 286.26 304.43, 298.29 295.78 M273.34 305.7 C280.47 304.58, 285.58 302.34, 298.88 298.05" fill="none" stroke="#f5f1df" stroke-width="3.42" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
+<text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="286" y="302.4" text-anchor="middle" font-family="Caveat" font-size="16" font-weight="700" fill="#f5f1df" data-prepared-text="true" dy="5.6" textLength="69.6" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Recover</text>
+</svg>

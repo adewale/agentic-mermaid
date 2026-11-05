@@ -10,7 +10,8 @@ export function renderVennTerminal(ctx: AsciiContext) {
   const line = (id: string, value: string) => {
     for (const text of wrapText(value, ctx.options.targetWidth)) document.line([{ text, role: 'text', owner: { id, kind: 'node' } }])
   }
-  if (body.title) line('title', body.title)
+  const title = body.title ?? (typeof ctx.source.frontmatter.title === 'string' ? ctx.source.frontmatter.title : undefined)
+  if (title) line('title', title)
   for (const subset of body.subsets) {
     const id = vennRegionId(subset.sets)
     line(id, `${subset.sets.join(ctx.config.useAscii ? ' & ' : ' ∩ ')}${subset.label === undefined ? '' : `: ${subset.label}`} (${subset.size})`)

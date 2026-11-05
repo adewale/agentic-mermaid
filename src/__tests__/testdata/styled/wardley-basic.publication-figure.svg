@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="830.825" height="552.65" viewBox="0 0 830.825 552.65" style="--bg:#fffdf8;--fg:#171512;--line:#24211d;--accent:#1d4ed8;--muted:#5f5a52;--surface:#faf5ea;--border:#24211d;--font:EB Garamond;background:#fffdf8" class="am-1nn6dnb1q65pi7">
+<style>
+  svg.am-1nn6dnb1q65pi7 { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
+  svg.am-1nn6dnb1q65pi7 {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #171512;
+    --_text-sec:      #5f5a52;
+    --_text-muted:    #5f5a52;
+    --_text-faint:    #82807c;
+    --_line:          #24211d;
+    --_arrow:         #1d4ed8;
+    --_node-fill:     #faf5ea;
+    --_node-stroke:   #24211d;
+    --_group-fill:    #fffdf8;
+    --_group-hdr:     #f3f1ed;
+    --_inner-stroke:  #e3e1dc;
+    --_key-badge:     #e8e6e1;
+  }
+</style>
+<rect width="830.825" height="552.65" fill="#fffdf8" data-backdrop="page" />
+<defs>  <marker id="wardley-arrow" markerWidth="7" markerHeight="7" refX="7" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
+    <polygon points="0 0, 7 3.5, 0 7" fill="#171512" />
+  </marker></defs>
+<text x="415.4125" y="43.7" class="diagram-title" text-anchor="middle" font-size="18" font-weight="600" letter-spacing="0.08" fill="#171512" data-id="diagram-title" data-role="title" data-prepared-text="true" dy="6.3"><tspan x="304.3025" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.96" lengthAdjust="spacingAndGlyphs">P</tspan><tspan x="317.3425" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.96" lengthAdjust="spacingAndGlyphs">L</tspan><tspan x="330.3825" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.96" lengthAdjust="spacingAndGlyphs">A</tspan><tspan x="343.4225" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.96" lengthAdjust="spacingAndGlyphs">T</tspan><tspan x="356.4625" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.96" lengthAdjust="spacingAndGlyphs">F</tspan><tspan x="369.5025" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.96" lengthAdjust="spacingAndGlyphs">O</tspan><tspan x="382.5425" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.96" lengthAdjust="spacingAndGlyphs">R</tspan><tspan x="395.5825" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="16.2" lengthAdjust="spacingAndGlyphs">M</tspan><tspan x="411.8625" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="3.24" lengthAdjust="spacingAndGlyphs" xml:space="preserve"> </tspan><tspan x="415.1825" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.96" lengthAdjust="spacingAndGlyphs">E</tspan><tspan x="428.2225" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.96" lengthAdjust="spacingAndGlyphs">V</tspan><tspan x="441.2625" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.96" lengthAdjust="spacingAndGlyphs">O</tspan><tspan x="454.3025" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.96" lengthAdjust="spacingAndGlyphs">L</tspan><tspan x="467.3425" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.96" lengthAdjust="spacingAndGlyphs">U</tspan><tspan x="480.3825" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.96" lengthAdjust="spacingAndGlyphs">T</tspan><tspan x="493.4225" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="4.32" lengthAdjust="spacingAndGlyphs">I</tspan><tspan x="497.8225" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.96" lengthAdjust="spacingAndGlyphs">O</tspan><tspan x="510.8625" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="15.66" lengthAdjust="spacingAndGlyphs">N</tspan></text>
+<polyline points="126.825,91.4 126.825,455.4 798.825,455.4" fill="none" stroke="#171512" stroke-width="1.45" data-relationship="rail" data-direction="undirected" />
+<polyline points="294.825,91.4 294.825,455.4" fill="none" stroke="#24211d" stroke-opacity="0.4" stroke-width="1" data-relationship="rail" data-direction="undirected" />
+<polyline points="462.825,91.4 462.825,455.4" fill="none" stroke="#24211d" stroke-opacity="0.4" stroke-width="1" data-relationship="rail" data-direction="undirected" />
+<polyline points="630.825,91.4 630.825,455.4" fill="none" stroke="#24211d" stroke-opacity="0.4" stroke-width="1" data-relationship="rail" data-direction="undirected" />
+<rect x="316.425" y="225" width="292.8" height="24" rx="12" fill="none" stroke="#171512" stroke-width="1.35" data-id="pipeline:Service" data-role="group" />
+<polyline points="194.025,109.6 462.825,237" fill="none" stroke="#171512" stroke-width="1.45" data-relationship="dependency" data-direction="undirected" data-id="dependency:0" data-role="edge" data-from="Customer" data-to="Service" role="graphics-symbol" aria-roledescription="relation" aria-label="Customer to Service" />
+<polyline points="462.825,237 664.425,382.6" fill="none" stroke="#171512" stroke-width="1.45" marker-start="url(#wardley-arrow)" marker-end="url(#wardley-arrow)" data-relationship="dependency" data-direction="bidirectional" data-id="dependency:1" data-role="edge" data-from="Service" data-to="Power" role="graphics-symbol" aria-roledescription="relation" aria-label="Service to Power" />
+<text x="563.625" y="309.8" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="5.25" textLength="61.65" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">delivery</text>
+<polyline points="462.825,237 731.625,237" fill="none" stroke="#171512" stroke-width="1.45" marker-end="url(#wardley-arrow)" data-relationship="evolution" data-direction="forward" data-id="evolve:0" data-role="edge" data-from="Service" data-to="Service" role="graphics-symbol" aria-roledescription="relation" aria-label="Service to Service" />
+<g data-id="Customer" data-role="node">
+  <circle data-evolution="10" data-visibility="95" cx="194.025" cy="109.6" r="7" fill="#171512" stroke="#171512" stroke-width="1.45" />
+  <text x="208.025" y="95.6" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="5.25" textLength="70.65" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Customer</text>
+</g>
+<g data-id="Service" data-role="node">
+  <rect data-evolution="50" data-visibility="60" data-strategy="build" x="456.825" y="231" width="12" height="12" fill="#faf5ea" stroke="#171512" stroke-width="1.45" />
+  <circle cx="462.825" cy="237" r="9" fill="none" stroke="#171512" stroke-width="1.45" />
+  <text x="450.825" y="245" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="5.25" textLength="59.85" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Service</text>
+</g>
+<g data-id="Power" data-role="node">
+  <circle data-evolution="80" data-visibility="20" cx="664.425" cy="382.6" r="5" fill="#faf5ea" stroke="#171512" stroke-width="1.45" />
+  <text x="678.425" y="368.6" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="5.25" textLength="49.05" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Power</text>
+</g>
+<g data-id="Service_Custom" data-role="node">
+  <circle data-evolution="30" data-visibility="60" cx="328.425" cy="237" r="5" fill="#faf5ea" stroke="#171512" stroke-width="1.45" />
+  <text x="342.425" y="223" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="5.25" textLength="54.45" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Custom</text>
+</g>
+<g data-id="Service_Utility" data-role="node">
+  <circle data-evolution="70" data-visibility="60" cx="597.225" cy="237" r="5" fill="#faf5ea" stroke="#171512" stroke-width="1.45" />
+  <text x="611.225" y="223" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="5.25" textLength="40.05" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Utility</text>
+</g>
+<text x="62.825" y="79.4" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="5.25" textLength="61.65" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Visibility</text>
+<text x="462.825" y="510.9" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="5.25" textLength="68.85" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Evolution</text>
+<text x="210.825" y="477.15" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="5.25" textLength="61.65" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Genesis</text>
+<text x="378.825" y="477.15" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="5.25" textLength="85.95" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Custom built</text>
+<text x="546.825" y="477.15" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="5.25" textLength="59.85" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Product</text>
+<text x="714.825" y="477.15" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="5.25" textLength="77.85" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Commodity</text>
+<text x="395.625" y="346.2" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="5.25" textLength="120.15" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Keep all note text</text>
+<text x="597.225" y="309.8" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="5.25" textLength="14.85" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">[1]</text>
+<text x="664.425" y="419" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="5.25" textLength="92.25" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">1. Adopt utility</text>
+<text x="462.825" y="261" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="5.25" textLength="45.45" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">[build]</text>
+<text x="261.225" y="200.6" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="5.25" textLength="80.55" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Demand &gt;&gt;</text>
+<text x="530.025" y="346.2" text-anchor="middle" font-family="EB Garamond" font-size="15" font-weight="700" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="5.25" textLength="55.35" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Risk &lt;&lt;</text>
+</svg>

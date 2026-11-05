@@ -7,6 +7,7 @@
 // reported as unavailable instead of preventing every other case from running.
 
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { decodeXML } from 'entities'
 import type { RenderedSvg } from '../../src/index.ts'
 import type { OutputSecurityDiagnostic } from '../../src/output-security.ts'
@@ -510,8 +511,72 @@ function sourceMutationCases(): MicroCase[] {
     }))))
 }
 
+// Reuse the authored citizenship fixtures. Unsupported baselines remain failed
+// qualification rows, so fast refusals cannot masquerade as render timings.
+function agentflowMetadataCases(): MicroCase[] {
+  return [250, 500, 1000].map(count => ({
+    id: `parse:agentflow-metadata-${count}`,
+    description: `Production AgentFlow reader with ${count} metadata-bearing tasks and named edges`,
+    async setup() {
+      const { parseAgentflow } = await import('../../src/agentflow/parser.ts')
+      const source = ['agentflow-beta LR',
+        ...Array.from({ length: count }, (_, i) => `N${i}[Task ${i}]@{ shape: task, model: worker, instruction: Process ${i} }`),
+        ...Array.from({ length: count - 1 }, (_, i) => `N${i} edge${i + 1}@--> N${i + 1}`),
+        ...Array.from({ length: count }, (_, i) => `N${i}@{ custom: retained }`),
+      ].join('\n')
+      return { call: () => parseAgentflow(source), input: source }
+    },
+    check: (value: unknown) => {
+      const body = value as { graph: { nodes: Map<string, unknown>; edges: unknown[] }; metadata: Map<string, Record<string, unknown>> }
+      return body.graph.nodes.size === count && body.graph.edges.length === count - 1 && body.metadata.get(`N${count - 1}`)?.custom === 'retained'
+    },
+  }))
+}
+
+function nativeFamilyCases(): MicroCase[] {
+  const families = ['swimlane', 'treeview', 'usecase', 'agentflow', 'wardley', 'cynefin', 'railroad', 'venn'] as const
+  return families.flatMap(family => (['render', 'edit'] as const).map(operation => ({
+    id: `native-family:${operation}-${family}`,
+    description: operation === 'render'
+      ? `Public strict SVG with serialized receipt and UTF-8 consumption, ${family}`
+      : `Typed title edit, serialize, reparse and public strict SVG with consumed receipt, ${family}`,
+    async setup() {
+      const source = readFileSync(new URL(`../layout-compare/fixtures/${family}-native.mmd`, import.meta.url), 'utf8')
+      const [api, { Resvg }] = await Promise.all([src.agent(), import('@resvg/resvg-js')])
+      const parsed = api.parseRegisteredMermaid(source)
+      if (!parsed.ok || parsed.value.body.kind !== family) throw Error(`${family} has no native model at this revision`)
+      const encoder = new TextEncoder()
+      const call = () => {
+        let input = source
+        if (operation === 'edit') {
+          const edited = api.mutate(parsed.value, { kind: 'set_title', title: 'Edited family title' })
+          if (!edited.ok) throw Error(edited.error.message)
+          input = api.serializeMermaid(edited.value)
+          const reloaded = api.parseRegisteredMermaid(input)
+          if (!reloaded.ok || reloaded.value.body.kind !== family) throw Error('Typed edit lost native admission')
+        }
+        const result = api.renderMermaidSVGWithReceipt(input, { security: 'strict' })
+        return { bytes: encoder.encode(result.svg), receipt: JSON.stringify(result.receipt) }
+      }
+      return {
+        call, input: source,
+        consume: (result: unknown) => {
+          const value = result as { bytes: Uint8Array; receipt: string }
+          const svg = new TextDecoder().decode(value.bytes)
+          const image = new Resvg(svg)
+          if (!(image.width > 0 && image.height > 0) || !value.receipt.includes('requestDigest')) throw Error('Incomplete public render')
+          if (operation === 'edit' && !svg.includes('Edited family title')) throw Error('Edited title was omitted')
+        },
+        evidence: { family, operation, source, security: 'strict', output: 'UTF-8 SVG and JSON receipt', nativeAdmission: true },
+      }
+    },
+  })))
+}
+
 export function microCases(): readonly MicroCase[] {
   return [
+    ...agentflowMetadataCases(),
+    ...nativeFamilyCases(),
     ...sourceMutationCases(),
     ...cleanupCases(),
     {

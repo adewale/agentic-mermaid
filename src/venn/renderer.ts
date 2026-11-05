@@ -51,7 +51,7 @@ export function lowerVennDrawing<T>(marks: DrawingFactory<T>, { positioned: char
     const paint = authored(target)
     append(
       label.ownerId,
-      marks.text({ id: label.id, role: 'label', text: label.block.text, block: label.block, x: label.x, y: label.y, fontSize: label.block.fontSize, fontWeight: label.block.fontWeight, anchor: 'middle', paint: { fill: paint.color ?? style.nodeTextColor ?? 'var(--_text)' }, owner: { id: label.ownerId, role: 'node' } }),
+      marks.text({ id: label.id, role: 'label', text: label.block.text, block: label.block, x: label.x, y: label.y, fontSize: label.block.fontSize, fontWeight: label.block.fontWeight, anchor: 'middle', paint: { fill: paint.color ?? style.nodeTextColor ?? 'var(--_text)', stroke: 'var(--bg)', strokeWidth: '4', strokeLinejoin: 'round', paintOrder: 'stroke' }, owner: { id: label.ownerId, role: 'node' } }),
     )
   }
   for (const [id, children] of subjects) parts.push(marks.group({ id, role: 'node', open: '<g>', close: '</g>', children: children.map(node => ({ node, indent: 2 })) }))

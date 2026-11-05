@@ -455,6 +455,15 @@ function renderRichExampleSvg(sample: any, id: string, request = richExampleRend
 // Examples page carries the agentic narrative — prompt, trace, render, deep
 // link — rather than a bare source dump. Keyed by family id.
 const FAMILY_AGENT_TASK: Record<BuiltinFamilyId, { prompt: string; trace: string }> = {
+  swimlane: { prompt: 'Rename the review task while keeping each handoff attached to its task.', trace: 'asSwimlane · mutate(set_label) · verify · serialize' },
+  treeview: { prompt: 'Add a test file beneath the widgets directory and keep the hierarchy intact.', trace: 'asTreeview · mutate(add_node) · verify · serialize' },
+  usecase: { prompt: 'Add a checkout use case inside the storefront and connect the customer actor.', trace: 'asUsecase · mutate(add_usecase/add_relationship) · verify · serialize' },
+  agentflow: { prompt: 'Change a task into a tool call while retaining its connector and reference document.', trace: 'asAgentflow · mutate(set_role/set_metadata) · verify · serialize' },
+  wardley: { prompt: 'Move a component toward commodity evolution without changing its dependencies.', trace: 'asWardley · mutate(set_component_position) · verify · serialize' },
+  cynefin: { prompt: 'Add a learning transition from Complex to Clear and preserve all domain items.', trace: 'asCynefin · mutate(add_transition) · verify · serialize' },
+  railroad: { prompt: 'Add an optional grammar branch without changing ordered choices or repetition bounds.', trace: 'asRailroad · mutate(replace_rule) · verify · serialize' },
+  venn: { prompt: 'Rename a set and keep intersection values and region notes attached to it.', trace: 'asVenn · mutate(rename_set) · verify · serialize' },
+
   flowchart: { prompt: 'Add a labeled failure branch and verify that every decision exit is named.', trace: 'asFlowchart · mutate(add_edge/set_label) · verify' },
   zenuml: { prompt: 'Model nested checkout calls with a stock decision and explicit replies.', trace: 'asZenUML · mutate(rename_participant/insert_statement) · verify' },
   eventmodeling: { prompt: 'Insert an event frame and keep explicit source references attached to their authored IDs.', trace: 'asEventModeling · mutate(insert_frame/set_frame) · verify' },
@@ -499,6 +508,15 @@ function exampleFamilyDescription(familyId: string, fallback: string) {
 }
 
 const STYLE_THEME_PAIR_BY_FAMILY: Record<BuiltinFamilyId, { look: string; theme: string; seed: number }> = {
+  swimlane: { look: 'ops-schematic', theme: 'github-light', seed: 21 },
+  treeview: { look: 'pen-and-ink', theme: 'paper', seed: 22 },
+  usecase: { look: 'architectural-plan', theme: 'github-light', seed: 23 },
+  agentflow: { look: 'status-dashboard', theme: 'nord', seed: 24 },
+  wardley: { look: 'publication-figure', theme: 'github-light', seed: 25 },
+  cynefin: { look: 'watercolor', theme: 'paper', seed: 26 },
+  railroad: { look: 'ops-schematic', theme: 'paper', seed: 27 },
+  venn: { look: 'hand-drawn', theme: 'catppuccin-latte', seed: 28 },
+
   flowchart: { look: 'watercolor', theme: 'paper', seed: 4 },
   zenuml: { look: 'hand-drawn', theme: 'dracula', seed: 17 },
   eventmodeling: { look: 'publication-figure', theme: 'github-light', seed: 0 },

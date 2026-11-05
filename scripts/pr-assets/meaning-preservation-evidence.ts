@@ -156,7 +156,25 @@ const chartFittingFixtures: Array<{ id: string; title: string; family: 'pie' | '
     cue: "Labeled derivative: expands title, five axis labels and three curve labels while retaining upstream IDs, order and distinct values. Inspect complete text and any naturally visible tick annotations. This deliberately infeasible 360px input may exceed the budget; do not treat a scaled review image as a fit. Pinned source: https://github.com/mermaid-js/mermaid/blob/1fb7869866dd619168d840291c9c54b4f129758b/packages/examples/src/examples/radar.ts#L26"
   },
 ]
+const nativeFamilyReview = [
+  ['swimlane', 'Inspect equal responsibility bands, all cross-lane routes and retained Customer/Operations ownership.'],
+  ['treeview', 'Inspect directory indentation, the App.tsx description, the CJK filename and icon(none) without a network dependency.'],
+  ['usecase', 'Inspect the Customer actor, both use-case ellipses inside Store and the include relationship.'],
+  ['agentflow', 'Inspect publishing tasks, tool/action shapes, connector reference and the global reference document.'],
+  ['wardley', 'Inspect authored coordinates, pipeline members, evolution, annotation legend, inertia and both strategy labels.'],
+  ['cynefin', 'Inspect every domain item and both labelled transitions; region bounds grow with their prepared text.'],
+  ['railroad', 'Follow the choice, optional branch and repetition loop; the item reference keeps its own rule identity.'],
+  ['venn', 'Inspect proportional set areas, the Shared intersection and the region-owned note. Three-plus-set circles are approximate, diagnosed separately.'],
+] as const
+const nativeFamilyFixtures: Fixture[] = nativeFamilyReview.map(([family, cue]) => ({
+  id: `native-family-${family}`,
+  title: `Native ${family}`,
+  source: readFileSync(join(ROOT, 'eval/layout-compare/fixtures', `${family}-native.mmd`), 'utf8'),
+  cue: `The base revision has no native ${family} renderer; its actual unsupported response is retained. ${cue} This finite witness does not certify every documented construct.`,
+  captureLayout: true,
+}))
 const fixtures: Fixture[] = [
+  ...nativeFamilyFixtures,
   ...(['default', 'publication'] as const).map(style => ({
     id: `flowchart-lineage-${style}`,
     title: `Issue #566: exact lineage diagram, ${style} styling`,
@@ -1126,6 +1144,7 @@ const fixtures: Fixture[] = [
   },
 ]
 const terminalFixtures = [
+  ...nativeFamilyFixtures.map(({ id, source, cue }) => ({ id: `terminal-${id}`, source, cue })),
   {
     id: 'terminal-class-notes-only',
     source: 'classDiagram\nnote "First freestanding note"\nnote "Second freestanding note"',
