@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test'
+import { layoutVennDiagram } from '../venn/layout.ts'
 import { parseVennDiagram } from '../venn/parser.ts'
 import { mutateVenn, renderVenn, verifyVenn } from '../agent/venn-body.ts'
 import { distanceForOverlap, layoutCircles, lensArea } from '../venn/geometry.ts'
@@ -124,4 +125,20 @@ describe('native Venn', () => {
     const ids = [...svg.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]!)
     expect(new Set(ids).size).toBe(ids.length)
   })
+})
+
+test('measured Venn captions fit their region or retain an owned outside leader without changing areas', () => {
+  const input = 'venn-beta\nset A["Product designers"]:40\nset B["Frontend engineers"]:35\nset C["Customer advocates"]:30\nunion A,B["Design systems"]:12\nunion A,C["Discovery"]:8\nunion B,C["Support tools"]:7\nunion A,B,C["Shared product discovery, accessible implementation, and customer support workflows"]:3', body = parseVennDiagram(input), chart = layoutVennDiagram(body)
+  const scale = chart.circles[0]!.r ** 2 / 40
+  for (const circle of chart.circles) expect(circle.r ** 2 / body.subsets.find(subset => subset.sets.length === 1 && subset.sets[0] === circle.id)!.size).toBeCloseTo(scale)
+  expect(chart.labels.some(label => label.leader)).toBe(true)
+  for (const label of chart.labels) {
+    const left = label.x - label.block.width / 2, right = label.x + label.block.width / 2, top = label.y - label.block.height / 2, bottom = label.y + label.block.height / 2
+    expect(left).toBeGreaterThanOrEqual(0); expect(right).toBeLessThanOrEqual(chart.width); expect(top).toBeGreaterThanOrEqual(0); expect(bottom).toBeLessThanOrEqual(chart.height)
+    if (label.leader) { expect(label.leader.at(-1)!.x).toBeLessThan(left); continue }
+    for (const circle of chart.circles) if (label.sets.includes(circle.id)) for (const x of [left, right]) for (const y of [top, bottom]) expect(Math.hypot(x - circle.x, y - circle.y)).toBeLessThanOrEqual(circle.r)
+  }
+  const svg = renderMermaidSVG(input)
+  expect(svg).toContain('customer support workflows')
+  expect(verifyMermaid(input).ok).toBe(true)
 })

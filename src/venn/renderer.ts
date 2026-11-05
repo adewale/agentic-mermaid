@@ -48,6 +48,7 @@ export function lowerVennDrawing<T>(marks: DrawingFactory<T>, { positioned: char
   for (const label of chart.labels) {
     const target = chart.body.textNodes.some(node => node.id === label.ownerId) ? [label.ownerId] : label.sets
     const paint = authored(target)
+    if (label.leader) append(label.ownerId, marks.shape({ id: `${label.id}:leader`, identity: false, role: 'node', owner: { id: label.ownerId, role: 'node' }, geometry: { kind: 'polyline', points: label.leader }, paint: { fill: 'none', stroke: style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(style.lineWidth), opacity: '0.65' } }))
     append(
       label.ownerId,
       marks.text({ id: label.id, role: 'label', text: label.block.text, block: label.block, x: label.x, y: label.y, fontSize: label.block.fontSize, fontWeight: label.block.fontWeight, anchor: 'middle', paint: { fill: paint.color ?? style.nodeTextColor ?? 'var(--_text)', stroke: 'var(--bg)', strokeWidth: '4', strokeLinejoin: 'round', paintOrder: 'stroke' }, owner: { id: label.ownerId, role: 'node' } }),

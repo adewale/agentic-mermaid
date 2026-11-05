@@ -1,4 +1,4 @@
-import type { PositionedDiagram, RenderOptions } from '../types.ts'
+import type { PositionedDiagram, RenderOptions, Point } from '../types.ts'
 import type { PositionedDiagramTitle } from '../styles.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import type { Circle } from './geometry.ts'
@@ -41,7 +41,7 @@ export interface PositionedVenn extends PositionedDiagram {
   body: VennBody
   circles: Circle[]
   regions: { id: string; sets: string[]; path: string; fill?: string }[]
-  labels: { id: string; text: string; block: PixelTextBlock; x: number; y: number; sets: string[]; ownerId: string }[]
+  labels: { id: string; text: string; block: PixelTextBlock; x: number; y: number; sets: string[]; ownerId: string; leader?: Point[] }[]
   title?: PositionedDiagramTitle
   options: Readonly<RenderOptions>
 }
