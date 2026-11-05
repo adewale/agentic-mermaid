@@ -58,6 +58,10 @@ test('AgentFlow typed metadata and identity edits keep family-owned records and 
   expect(parseAgentflow(renderAgentflow(edited.value)).metadata.get('draft')).toEqual({ shape: 'tool', instruction: 'Use cited sources', unknown: ['one', 'two'] })
   expect(original.graph.nodes.has('write')).toBe(true)
   expect(original.metadata.get('write')?.instruction).toBeUndefined()
+  const connector = mutateAgentflow(original, { kind: 'rename_node', from: 'llm', to: 'api' })
+  if (!connector.ok) throw new Error(connector.error.message)
+  expect(connector.value.connectors.has('api')).toBe(true)
+  expect(connector.value.metadata.get('write')?.connectorRef).toBe('api.chat')
 })
 
 test('collapsed flows retarget cross-boundary edges while the editable model keeps their children', () => {

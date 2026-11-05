@@ -44,6 +44,10 @@ export function mutateAgentflow(body: AgentflowBody, op: AgentflowMutationOp): R
           ;(records as Map<string, unknown>).set(op.to, value)
         }
         for (const ids of [draft.connectors, draft.globals]) if (ids.delete(op.from)) ids.add(op.to)
+        if (body.connectors.has(op.from)) for (const [id, data] of draft.metadata) {
+          const ref = data.connectorRef
+          if (typeof ref === 'string' && (ref === op.from || ref.startsWith(`${op.from}.`))) draft.metadata.set(id, { ...data, connectorRef: op.to + ref.slice(op.from.length) })
+        }
       }
       if (op.kind === 'move_node' && op.subgraph !== null) draft.globals.delete(op.id)
       if (op.kind === 'set_label' && draft.metadata.get(op.target)?.label !== undefined) draft.metadata.set(op.target, { ...draft.metadata.get(op.target), label: op.label.trim() })
