@@ -36,8 +36,7 @@ export function lowerVennDrawing<T>(marks: DrawingFactory<T>, { positioned: char
       append(
         region.id,
         marks.shape({
-          id: `region:${region.id}`,
-          identity: false,
+          id: region.id,
           owner: { id: region.id, role: 'node' },
           role: 'bar',
           geometry: { kind: 'path', d: region.path },

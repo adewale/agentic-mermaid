@@ -1,5 +1,5 @@
 import type { FamilyPositionedProjectionContext, FamilyPositionedView } from '../agent/family-registry.ts'
-import { f, retainedLabelBounds, labelRect, canvasOf } from '../positioned-views/geometry.ts'
+import { f, retainedLabelBounds, retainedLabelGeometry, labelRect, canvasOf } from '../positioned-views/geometry.ts'
 import type { PositionedVenn } from './types.ts'
 
 export function projectVennPositioned({ positioned: p }: FamilyPositionedProjectionContext<PositionedVenn>): FamilyPositionedView {
@@ -12,6 +12,7 @@ export function projectVennPositioned({ positioned: p }: FamilyPositionedProject
     shape: 'circle',
     role: 'labelled-mark',
     label: p.body.subsets.find(subset => subset.sets.length === 1 && subset.sets[0] === circle.id)?.label ?? circle.id,
+    ...(() => { const label = p.labels.find(label => label.ownerId === circle.id); return label ? retainedLabelGeometry(label.block, label.x, label.y, canvasOf(p)) : {} })(),
   }))
   for (const owner of [...p.regions.map(region => region.id), ...p.body.textNodes.map(node => node.id)]) {
     const labels = p.labels.filter(label => label.ownerId === owner)
@@ -21,7 +22,7 @@ export function projectVennPositioned({ positioned: p }: FamilyPositionedProject
       y = Math.min(...bounds.map(bound => bound.y))
     const right = Math.max(...bounds.map(bound => bound.x + bound.w)),
       bottom = Math.max(...bounds.map(bound => bound.y + bound.h))
-    nodes.push({ id: owner, x: f(x), y: f(y), w: f(right - x), h: f(bottom - y), shape: 'text', role: 'labelled-mark', label: labels.map(label => label.text).join('\n') })
+    nodes.push({ id: owner, x: f(x), y: f(y), w: f(right - x), h: f(bottom - y), shape: 'text', role: 'labelled-mark', label: labels.map(label => label.text).join('\n'), labelBounds: labelRect({x, y, width: right-x, height: bottom-y}), labelContainer: labelRect(canvasOf(p)) })
   }
   return {
     version: 1,

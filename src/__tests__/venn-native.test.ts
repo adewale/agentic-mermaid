@@ -109,6 +109,9 @@ describe('native Venn', () => {
     expect(renderMermaidASCII(source)).toContain('Shared')
     expect(verifyMermaid(source).ok).toBe(true)
     expect(await upstream.publicAccepts(serializeMermaid(parsed.value))).toBe(true)
+    const styled = renderMermaidSVG(`${source}\nstyle A,B fill:red`)
+    expect(styled).toContain('data-role="bar"')
+    expect(styled).toContain('fill="red"')
     const collisions = 'venn-beta\nset "venn-label-0":20\nset "venn-region-0":20\nunion "venn-label-0","venn-region-0"["Intersection"]:3\ntext "venn-label-0" "venn-label-1"["Owned note"]'
     const collisionDiagram = parseRegisteredMermaid(collisions)
     if (!collisionDiagram.ok) throw Error('Expected collision-safe Venn source')

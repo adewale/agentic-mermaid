@@ -309,10 +309,10 @@
     "title": "product loop — TD decision branch symmetry",
     "shell": {"version":1,"kind":"flowchart","bounds":{"w":295,"h":533}},
     "nodes": [
-      {"id":"A","x":72,"y":84,"w":138,"h":37,"shape":"rectangle","label":"Capture request"},
-      {"id":"B","x":85,"y":169,"w":112,"h":112,"shape":"diamond","label":"Ready?"},
-      {"id":"C","x":48,"y":440,"w":79,"h":37,"shape":"rectangle","label":"Ship"},
-      {"id":"D","x":155,"y":440,"w":79,"h":37,"shape":"rectangle","label":"Refine"}
+      {"id":"A","x":72,"y":84,"w":138,"h":37,"shape":"rectangle","label":"Capture request","parentId":"product"},
+      {"id":"B","x":85,"y":169,"w":112,"h":112,"shape":"diamond","label":"Ready?","parentId":"product"},
+      {"id":"C","x":48,"y":440,"w":79,"h":37,"shape":"rectangle","label":"Ship","parentId":"product"},
+      {"id":"D","x":155,"y":440,"w":79,"h":37,"shape":"rectangle","label":"Refine","parentId":"product"}
     ],
     "edges": [
       {"id":"A->B","from":"A","to":"B","path":[[141,121],[141,169]]},
