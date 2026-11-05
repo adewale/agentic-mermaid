@@ -97,7 +97,8 @@ The start-circle parser shortcut changed multiline one-edge meaning into two
 edges and was stopped. Broad normalization caused ten regressions and was
 withdrawn. ER256 shortcuts failed the causal sufficiency test. The Node24 profile
 withdrew descriptor-Map causation; no cache/array/SoA rewrite or speedup forecast
-is justified by it. A reliable five-hotspot performance report remains unfinished.
+is justified by it. The resumed five-hotspot report below replaces that incomplete
+historical profile.
 
 For each continuation, begin with one demonstrated loss and locate
 the first responsible stage. For the forest, investigate placement/terminal seats
@@ -183,3 +184,24 @@ and release-identity owners pass. This addresses the identified source of build
 dirty provenance without weakening the dirty marker or its assertion. No full
 website rebuild is claimed. CI99ed used synthetic merge7fbf into recovery3b56;
 its relative payload baseline is not current main. The PR now targets main.
+
+Reviewed Class geometry at `49945278ffb96f925fa903a0819ee91952b1ceb3` against main
+`f9ec8c115`: 18 actual SVG renders retain 50 class boxes plus the Protocol
+interface, 31 ordered relations, 29 captions and 61 rectangular endpoint normals
+per arm. Eight canvases lose 3–9px of excess height because measured label seating
+uses the actual 3px halo; Class25 moves captions while bodies, paths and canvas
+stay exact. Four fixed-Inter raster controls retain the selected carries caption's
+170 contributing pixels before/after. This does not qualify every glyph or font.
+Only the nine reviewed Class records were updated; the other 313 records remain
+exact. The owning geometry test passes without update mode (322 diagrams, 15.14s).
+Evidence: `class-golden-review-499` in the comparison directory. Runtime, caps and
+payload bytes are unchanged by this golden-only qualification.
+
+CI499 run42049508852 completed failed, testing merge `d247314` of 499 into mainf9.
+Unicode admission and build provenance now pass; Requirement complex PNG,
+Sparse32, browser visuals and payload ceilings remain open. The fetched current-main
+artifact measures Flowchart's complete selected-ELK closure at 732,640→771,710 gzip
+bytes (+39,070), despite 34→25 requests; initial transfer is 5,924→5,858 gzip bytes.
+These are download costs, not execution speed. No ceiling is raised. Next: review
+the Requirement PNG against authored meaning and actual ink before changing its
+golden; investigate shared emission's retained payload cost separately.
