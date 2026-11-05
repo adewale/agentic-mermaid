@@ -229,3 +229,35 @@ test.each(['LR', 'RL', 'TD', 'BT'] as const)('Swimlane %s keeps titled same-lane
     expect(renderMermaidSVG(input, { padding, style: ['hand-drawn', 'dracula'] })).toContain(title)
   }
 })
+
+test.each(['LR', 'RL', 'TD', 'BT'] as const)('Swimlane %s repeated self-loops retain separate shape contacts and titled captions', direction => {
+  for (const [shape, declaration] of [['rectangle', '[Review]'], ['diamond', '{Review?}'], ['circle', '((Review))']] as const) for (const titled of [false, true]) {
+    const title = 'Review choices remain visible beside their complete workflow title'
+    const input = `${titled ? `---\ntitle: ${title}\n---\n` : ''}swimlane-beta ${direction}
+subgraph Team
+  A${declaration}
+end
+A retry@-->|retry| A
+A revise@-->|revise| A`
+    const parsed = parseRegisteredMermaid(input)
+    if (!parsed.ok) throw new Error('expected native Swimlane')
+    const layout = layoutMermaid(parsed.value, { debug: true, regions: true })
+    expect(layout.edges.map(edge => [edge.id, edge.from, edge.to, edge.label?.text])).toEqual([
+      ['retry', 'A', 'A', 'retry'], ['revise', 'A', 'A', 'revise'],
+    ])
+    expect(new Set(layout.edges.map(edge => JSON.stringify(edge.path))).size).toBe(2)
+    const node = layout.nodes.find(node => node.id === 'A')!
+    expect(node.parentId).toBe('Team')
+    const contacts = layout.edges.flatMap(edge => [edge.path[0]!, edge.path.at(-1)!])
+    expect(new Set(contacts.map(point => JSON.stringify(point))).size).toBe(4)
+    for (const [x, y] of contacts) {
+      const dx = Math.abs((x - node.x - node.w / 2) / (node.w / 2)), dy = Math.abs((y - node.y - node.h / 2) / (node.h / 2))
+      expect(shape === 'circle' ? dx ** 2 + dy ** 2 : shape === 'diamond' ? dx + dy : Math.max(dx, dy)).toBeCloseTo(1, 6)
+    }
+    const a = layout.edges[0]!.label!.bounds!, b = layout.edges[1]!.label!.bounds!
+    expect(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y).toBe(true)
+    expect(layout.paintCertification?.status).toBe('passed')
+    expect(renderMermaidSVG(input, { layoutSafety: 'strict' })).toContain('data-id="revise"')
+    expect(renderMermaidSVG(input, { style: ['hand-drawn', 'dracula'] })).toContain('data-id="retry"')
+  }
+})

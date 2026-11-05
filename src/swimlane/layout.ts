@@ -215,7 +215,7 @@ type HandoffChannel = { points: Point[]; direction: Direction; caption?: Measure
 function parallelHandoffChannels(byId: ReadonlyMap<string, PositionedNode | PositionedGroup>, edges: PositionedEdge[], headers: MeasuredBox[], owners: ReadonlyMap<string, number>, horizontal: boolean, style: ReturnType<typeof resolveRenderStyle>): Map<PositionedEdge, HandoffChannel> {
   const pairs = new Map<string, PositionedEdge[]>()
   for (const edge of edges) {
-    if (edge.source === edge.target || edge.style === 'invisible' || !byId.has(edge.source) || !byId.has(edge.target)) continue
+    if (edge.style === 'invisible' || !byId.has(edge.source) || !byId.has(edge.target)) continue
     const key = [edge.source, edge.target].sort().join('\0'), pair = pairs.get(key) ?? []
     pair.push(edge); pairs.set(key, pair)
   }
