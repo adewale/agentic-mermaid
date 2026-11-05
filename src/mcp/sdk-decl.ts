@@ -18,7 +18,14 @@ const SDK_DIAGRAM_KIND_DECLARATION = `type DiagramKind = ${BUILTIN_FAMILY_METADA
 
 const SDK_DIAGRAM_BODY_MEMBERS = BUILTIN_FAMILY_METADATA.map(family => `    | ${sdkFamilyBodyType(family)}`).join('\n')
 
-const SDK_VALID_DIAGRAM_ALIASES = BUILTIN_FAMILY_METADATA.map(family => `type ${sdkFamilyTypeStem(family)}ValidDiagram = ValidDiagram & { body: ${sdkFamilyBodyType(family)} }`).join('\n')
+const SDK_VALID_DIAGRAM_ALIASES = BUILTIN_FAMILY_METADATA.map(family => `type ${sdkFamilyTypeStem(family)}ValidDiagram = Omit<ValidDiagram, 'kind' | 'body'> & { readonly kind: '${family.id}'; readonly body: ${sdkFamilyBodyType(family)} }`).join('\n')
+
+const SDK_FAMILY_TYPE_MAPS = `interface FamilyDiagrams {
+${BUILTIN_FAMILY_METADATA.map(family => `  ${JSON.stringify(family.id)}: ${sdkFamilyTypeStem(family)}ValidDiagram`).join('\n')}
+}
+interface FamilyMutationOps {
+${BUILTIN_FAMILY_METADATA.map(family => `  ${JSON.stringify(family.id)}: ${sdkFamilyTypeStem(family)}MutationOp`).join('\n')}
+}`
 
 const SDK_NARROWER_METHOD_DECLARATIONS = BUILTIN_FAMILY_METADATA.map(family => `  ${family.narrower}(d: ParsedDiagram): ${sdkFamilyTypeStem(family)}ValidDiagram | null`).join('\n')
 
@@ -292,6 +299,7 @@ type ParsedDiagram = ValidDiagram | ExtensionValidDiagram | PreservedValidDiagra
 ${SDK_MODEL_DECLARATIONS}
 
 ${SDK_VALID_DIAGRAM_ALIASES}
+${SDK_FAMILY_TYPE_MAPS}
 
 // Tier 1 (structural, reliable): EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS,
 //   GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW (rendered-line char count:
@@ -338,8 +346,8 @@ declare const mermaid: {
   // buildMermaid folds a typed op list over that empty diagram; on failure the
   // error carries opIndex of the op that failed. direction applies to
   // flowchart/state only.
-  createMermaid(kind: DiagramKind, opts?: CreateMermaidOptions): ValidDiagram
-  buildMermaid(kind: DiagramKind, ops: AnyMutationOp[], opts?: CreateMermaidOptions): Result<ValidDiagram, { code: string; message: string; opIndex: number }>
+  createMermaid<K extends DiagramKind>(kind: K, opts?: CreateMermaidOptions): FamilyDiagrams[K]
+  buildMermaid<K extends DiagramKind>(kind: K, ops: FamilyMutationOps[NoInfer<K>][], opts?: CreateMermaidOptions): Result<FamilyDiagrams[K], { code: string; message: string; opIndex: number }>
 ${SDK_NARROWER_METHOD_DECLARATIONS}
 ${SDK_MUTATE_METHOD_DECLARATIONS}
   verifyMermaid(input: ParsedDiagram | string, opts?: { suppress?: WarningCode[]; labelCharCap?: number; renderOptions?: SharedRenderOptions }): VerifyResult

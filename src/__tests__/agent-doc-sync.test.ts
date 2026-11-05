@@ -262,6 +262,44 @@ describe('Code Mode SDK declaration matches the runtime', () => {
     }
     expect(methods.has('mutate')).toBe(true)
     expect(sdkDeclarationTypeErrors(`
+const freshVenn = mermaid.createMermaid('venn');
+const vennKind: 'venn' = freshVenn.kind;
+const vennBody: VennBody = freshVenn.body;
+const editedVenn = mermaid.mutate(freshVenn, { kind: 'set_subset', sets: ['A'], size: 20 });
+if (editedVenn.ok) {
+  const retained: VennBody = editedVenn.value.body;
+}
+// @ts-expect-error a Venn diagram cannot receive actor operations.
+mermaid.mutate(freshVenn, { kind: 'add_actor', id: 'Customer' });
+const freshFlow = mermaid.createMermaid('flowchart');
+const editedFlow = mermaid.mutate(freshFlow, { kind: 'add_node', id: 'Start', label: 'Start' });
+if (editedFlow.ok) {
+  const graph: FlowchartGraph = editedFlow.value.body.graph;
+}
+// @ts-expect-error a flowchart cannot receive set quantities.
+mermaid.mutate(freshFlow, { kind: 'set_subset', sets: ['A'], size: 20 });
+const builtRailroad = mermaid.buildMermaid('railroad', [{ kind: 'add_rule', name: 'entry', definition: { type: 'terminal', value: 'word' } }]);
+if (builtRailroad.ok) {
+  const railroadKind: 'railroad' = builtRailroad.value.kind;
+  const rules: RailroadBody['rules'] = builtRailroad.value.body.rules;
+  mermaid.mutate(builtRailroad.value, { kind: 'replace_rule', index: 0, definition: { type: 'terminal', value: 'token' } });
+}
+// @ts-expect-error build must not widen its family to admit a foreign operation.
+mermaid.buildMermaid('venn', [{ kind: 'add_actor', id: 'Customer' }]);
+// @ts-expect-error grammar terminal values are text.
+mermaid.buildMermaid('railroad', [{ kind: 'add_rule', name: 'entry', definition: { type: 'terminal', value: 5 } }]);
+declare const selectedFamily: DiagramKind;
+const selected = mermaid.createMermaid(selectedFamily);
+mermaid.renderMermaidSVG(selected);
+if (selected.kind === 'venn') {
+  mermaid.mutate(selected, { kind: 'set_subset', sets: ['A'], size: 20 });
+}
+// @ts-expect-error an unresolved family cannot promise support for set quantities.
+mermaid.mutate(selected, { kind: 'set_subset', sets: ['A'], size: 20 });
+const genericBuild = mermaid.buildMermaid(selectedFamily, []);
+if (genericBuild.ok && genericBuild.value.kind === 'flowchart') {
+  mermaid.mutate(genericBuild.value, { kind: 'add_node', id: 'Reviewed', label: 'Reviewed' });
+}
 const radar = mermaid.asRadar(mermaid.createMermaid('radar'));
 if (radar) {
   const body: RadarBody = radar.body;
