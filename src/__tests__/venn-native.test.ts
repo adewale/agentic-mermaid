@@ -40,6 +40,17 @@ describe('native Venn', () => {
     if (!result.ok) throw Error(result.error.message)
     expect(parseVennDiagram(renderVenn(result.value)).subsets[0]!.label).toBe('A ["quoted"] #35; : label')
   })
+  test('tiny and huge decimal areas remain typed and portable rather than becoming opaque', async () => {
+    for (const [decimal, expected] of [['0.' + '0'.repeat(299) + '1', 1e-300], ['1' + '0'.repeat(300), 1e300]] as const) {
+      const parsed = parseRegisteredMermaid(`venn-beta\nset A["Authored quantity"]:${decimal}`)
+      if (!parsed.ok || parsed.value.body.kind !== 'venn') throw Error('Expected native finite Venn quantity')
+      expect(parsed.value.body.subsets).toEqual([{ sets: ['A'], size: expected, label: 'Authored quantity' }])
+      const source = serializeMermaid(parsed.value)
+      expect(source).toContain(`:${decimal}`)
+      expect(await upstream.publicAccepts(source)).toBe(true)
+      expect(renderMermaidSVG(parsed.value)).toContain('Authored quantity')
+    }
+  })
   test('extreme finite areas retain the same independently known two- and three-circle geometry', () => {
     // Equal unit circles one radius apart have this lens area. Changing the
     // authored unit must preserve distances and the equilateral triangle.

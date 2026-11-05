@@ -1,3 +1,4 @@
+import { mermaidNumber } from '../shared/mermaid-number.ts'
 import { sameSourceMeaning } from './source-mutation.ts'
 import type { VennBody, VennMutationOp } from '../venn/types.ts'
 import { parseVennDiagram, validateVenn, vennRegionId, vennRegionIdentities } from '../venn/parser.ts'
@@ -19,7 +20,7 @@ export function renderVenn(body: VennBody): string {
   const lines = ['venn-beta']
   appendNativeAccessibilityLines(lines, body)
   if (body.title !== undefined) lines.push(`title ${writeGrammarText(body.title, '%').replace(/\r/g, '#13;').replace(/\n/g, '#10;')}`)
-  for (const subset of body.subsets) lines.push(`${subset.sets.length === 1 ? 'set' : 'union'} ${subset.sets.map(quoted).join(',')}${subset.label === undefined ? '' : `[${quoted(subset.label)}]`}:${subset.size}`)
+  for (const subset of body.subsets) lines.push(`${subset.sets.length === 1 ? 'set' : 'union'} ${subset.sets.map(quoted).join(',')}${subset.label === undefined ? '' : `[${quoted(subset.label)}]`}:${mermaidNumber(subset.size)}`)
   for (const node of body.textNodes) lines.push(`text ${node.sets.map(quoted).join(',')} ${quoted(node.id)}${node.label === undefined ? '' : `[${quoted(node.label)}]`}`)
   for (const style of body.styles) {
     const values = Object.entries(style.styles)
