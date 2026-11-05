@@ -46,6 +46,7 @@ import {
 } from './serialization.ts'
 import { MARK_CLASS_TOKENS, MARK_DATA_KEY, WRITER_OWNED_DATA_KEYS } from './svg-writer.ts'
 import { LINE_HEIGHT_RATIO } from '../text-metrics.ts'
+import { FLOWCHART_DOTTED_DASH } from '../styles.ts'
 
 /** Hooks are inert by construction: class tokens and data-* values only, with
  * the keys the writer derives from typed fields reserved. */
@@ -326,7 +327,9 @@ export function connector(fields: ConnectorFields): ConnectorMark {
     ?? (fields.paint.strokeDasharray ? {
       array: fields.paint.strokeDasharray,
       ...(fields.paint.strokeDashoffset !== undefined ? { offset: fields.paint.strokeDashoffset } : {}),
-    } : undefined)
+    } : fields.lineStyle === 'dashed' ? { array: '6 4' }
+      : fields.lineStyle === 'dotted' ? { array: `${FLOWCHART_DOTTED_DASH.dash} ${FLOWCHART_DOTTED_DASH.gap}` }
+        : undefined)
   const opacity = fields.stroke?.opacity ?? fields.paint.opacity
   const paintOrder = fields.stroke?.paintOrder ?? fields.paint.paintOrder
   const mixBlendMode = fields.stroke?.mixBlendMode
