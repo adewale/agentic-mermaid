@@ -300,9 +300,7 @@ export const TIMELINE_SOURCE_HOOKS = {
   verify: body => verifyOpaqueTimeline(body),
   parse: ({ lines, opaqueSource, meta }) => {
     const header = parseTimelineHeader(lines[0] ?? '')
-    // Native rendering accepts inline header comments, but the structured
-    // serializer does not retain them. Preserve authored source instead.
-    const body = header?.kind === 'supported' && !header.hasInlineComment ? parseTimelineBody(lines.slice(1), meta.accessibility) : null
+    const body = header?.kind === 'supported' ? parseTimelineBody(lines.slice(1), meta.accessibility, header.hasInlineComment ? opaqueSource : undefined) : null
     if (body) meta.accessibility = {
       ...(body.accessibilityTitle !== undefined ? { title: body.accessibilityTitle } : {}),
       ...(body.accessibilityDescription !== undefined ? { descr: body.accessibilityDescription } : {}),

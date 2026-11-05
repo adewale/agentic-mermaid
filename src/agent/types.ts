@@ -196,6 +196,8 @@ export interface TimelineSection {
 
 export interface TimelineBody {
   kind: 'timeline'
+  /** Authored family source when statement spelling cannot be canonicalized safely. */
+  source?: string
   /** Explicit header direction token (`timeline TD` / `timeline LR`,
    *  upstream PR #7270). Undefined = bare header (LR default). */
   direction?: 'LR' | 'TD'

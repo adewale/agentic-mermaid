@@ -17,11 +17,14 @@ import {
   isTimelineCommentLine,
   normalizeTimelineBreaks,
   parseTimelineHeader,
+  readTimelineSection,
 } from '../timeline/parse-core.ts'
-import { parseTimelineDiagram } from '../timeline/parser.ts'
+import { parseTimelineDiagram, readTimelineStatements } from '../timeline/parser.ts'
 import { writeTimelineText } from '../timeline/text.ts'
 import { indexedIdAllocator, resolveInsertIndex, setOptionalField } from './body-utils.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
+import { sourceLineStarts } from '../shared/source-spans.ts'
+import { applySourceEdits, sameSourceMeaning, type SourceEdit } from './source-mutation.ts'
 
 // ---- Parser -----------------------------------------------------------------
 
@@ -42,10 +45,10 @@ function normalizeTimelineText(value: string): string {
 
 /** Both projections use the same reader; field writers protect delimiters
  * and keyword contexts without removing the author's typed structure. */
-export function parseTimelineBody(lines: string[], accessibility: Accessibility = {}): TimelineBody | null {
+export function parseTimelineBody(lines: string[], accessibility: Accessibility = {}, source?: string): TimelineBody | null {
   try {
     const diagram = parseTimelineDiagram(['timeline', ...lines], accessibility)
-    return { kind: 'timeline', ...diagram }
+    return { kind: 'timeline', ...diagram, ...(source !== undefined ? { source } : {}) }
   } catch {
     return null
   }
@@ -125,7 +128,7 @@ function renderTimelineUnchecked(body: TimelineBody): string {
 }
 
 export function renderTimeline(body: TimelineBody): string {
-  return renderTimelineUnchecked(body)
+  return body.source ?? renderTimelineUnchecked(body)
 }
 
 // ---- Mutator ----------------------------------------------------------------
@@ -210,6 +213,217 @@ function indexRangeHint(count: number): string {
 }
 
 export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Result<TimelineBody, MutationError> {
+  const result = mutateTimelineBody(input, op)
+  if (!result.ok || input.source === undefined) return result
+  try {
+    const edits = timelineSourceEdits(input, result.value, op)
+    const source = applySourceEdits(input.source, edits)
+    const actual = parseTimelineDiagram(source.split(/\r?\n/), { title: result.value.accessibilityTitle, descr: result.value.accessibilityDescription })
+    if (!sameSourceMeaning(timelineMeaning(actual), timelineMeaning(result.value))) {
+      return err({ code: 'INVALID_OP', message: 'Timeline edit would change statement ownership or meaning beyond the requested operation' })
+    }
+    result.value.source = source
+    return result
+  } catch (error) {
+    return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) })
+  }
+}
+
+/** Generated occurrence IDs are parse-local. Compare the complete ordered
+ * semantic projection, including accessibility and every event's owner. */
+function timelineMeaning(body: Omit<TimelineBody, 'kind'>): unknown {
+  return {
+    direction: body.direction, title: body.title,
+    accessibilityTitle: body.accessibilityTitle, accessibilityDescription: body.accessibilityDescription,
+    sections: body.sections.map(section => ({ label: section.label, periods: section.periods.map(period => ({
+      label: period.label, events: period.events.map(event => event.text),
+    })) })),
+  }
+}
+
+/** Patch only source owned by the edited occurrence. The native reader gives
+ * continuation ownership, including continuations after a section change. */
+function timelineSourceEdits(input: TimelineBody, next: TimelineBody, op: TimelineMutationOp): SourceEdit[] {
+  const source = input.source!, lines = source.split(/\r?\n/), starts = [...sourceLineStarts(source)]
+  const newline = source.includes('\r\n') ? '\r\n' : '\n'
+  const read = readTimelineStatements(lines, { title: input.accessibilityTitle, descr: input.accessibilityDescription })
+  if (!sameSourceMeaning(timelineMeaning(read.diagram), timelineMeaning(input))) throw new Error('Timeline source does not match its typed body')
+  // Rebase parse-local source IDs to the live body's stable occurrence IDs.
+  const sections = new Map<string, string>(), periods = new Map<string, string>()
+  read.diagram.sections.forEach((section, si) => {
+    const owner = input.sections[si]!
+    sections.set(section.id, owner.id)
+    section.periods.forEach((period, pi) => periods.set(period.id, owner.periods[pi]!.id))
+  })
+  const statements = read.statements.map(statement => ({ ...statement,
+    sectionId: statement.sectionId ? sections.get(statement.sectionId) : undefined,
+    periodId: statement.periodId ? periods.get(statement.periodId) : undefined,
+  }))
+  const ownedPeriods = new Map<string, typeof statements>(), periodDeclarations = new Map<string, number>(), sectionDeclarations = new Map<string, number>()
+  for (const statement of statements) {
+    if (statement.periodId) {
+      const owned = ownedPeriods.get(statement.periodId) ?? []
+      owned.push(statement)
+      ownedPeriods.set(statement.periodId, owned)
+      if (statement.kind === 'period') periodDeclarations.set(statement.periodId, statement.line)
+    }
+    if (statement.kind === 'section' && statement.sectionId) sectionDeclarations.set(statement.sectionId, statement.line)
+  }
+  const replacements = new Map<number, string>(), insertions = new Map<number, string>()
+  const rowText = (row: number): string => source.slice(starts[row]!, starts[row + 1] ?? source.length)
+  const replace = (row: number, text: string): void => {
+    const ending = rowText(row).match(/\r?\n$/)?.[0] ?? ''
+    replacements.set(row, text ? text.replace(/\r?\n/g, newline) + ending : '')
+  }
+  const insert = (row: number, text: string, verbatim = false): void => {
+    const prefix = starts[row] === source.length && source.length > 0 && !/[\r\n]$/.test(source) ? newline : ''
+    const payload = verbatim ? text + (/[\r\n]$/.test(text) ? '' : newline) : text.replace(/\r?\n/g, newline) + newline
+    insertions.set(row, (insertions.get(row) ?? '') + prefix + payload)
+  }
+  const main = (id: string): number | undefined => periodDeclarations.get(id)
+  const sectionRow = (id: string): number | undefined => sectionDeclarations.get(id)
+  const periodText = (period: TimelinePeriod): string => {
+    const label = `  ${writeTimelineText(period.label, 'period')}`
+    return period.events.length ? label + period.events.map(event => ` : ${writeTimelineText(event.text, 'event')}`).join('') : label
+  }
+  const removePeriod = (id: string): void => {
+    for (const statement of ownedPeriods.get(id) ?? []) {
+      if (statement.kind === 'section') {
+        // Its prefix still declares a different section. Only the event
+        // suffix belongs to the edited period.
+        const raw = lines[statement.line]!, colon = raw.indexOf(':')
+        if (colon < 0) throw new Error('Timeline section continuation has no owned delimiter')
+        replace(statement.line, raw.slice(0, colon).trimEnd())
+      } else replace(statement.line, '')
+    }
+  }
+  const updatePeriod = (period: TimelinePeriod): void => {
+    removePeriod(period.id)
+    replace(main(period.id)!, periodText(period))
+  }
+  const endRow = lines.length - 1
+  const destination = (section: TimelineSection, index: number): number => {
+    const following = section.periods.slice(index + 1).find(period => main(period.id) !== undefined)
+    if (following) return main(following.id)!
+    const si = next.sections.indexOf(section)
+    for (const later of next.sections.slice(si + 1)) {
+      const row = sectionRow(later.id)
+      if (row !== undefined) return row
+    }
+    // A final unterminated row cannot be an insertion boundary before itself.
+    return /[\r\n]$/.test(source) ? endRow : lines.length
+  }
+  const appendAt = (row: number, text: string, verbatim = false): void => {
+    if (row === lines.length) {
+      // Sentinel addresses EOF independently of the last physical line.
+      starts[row] = source.length
+      lines[row] = ''
+    }
+    insert(row, text, verbatim)
+  }
+
+  switch (op.kind) {
+    case 'set_title': {
+      const titles = statements.filter(statement => statement.kind === 'title')
+      titles.forEach(statement => replace(statement.line, ''))
+      if (next.title !== undefined) {
+        if (titles.length) replace(titles.at(-1)!.line, `  title ${writeTimelineText(next.title, 'title')}`)
+        else appendAt(1, `  title ${writeTimelineText(next.title, 'title')}`)
+      }
+      break
+    }
+    case 'set_accessibility_title':
+    case 'set_accessibility_description': {
+      const isTitle = op.kind === 'set_accessibility_title'
+      let last: number | undefined
+      for (let row = 1; row < lines.length; row++) {
+        const directive = parseAccessibilityDirective(lines, row)
+        if (!directive) continue
+        if (directive.title === isTitle) {
+          if (directive.suffixLine) throw new Error('Accessibility source shares its closing line with a Timeline statement')
+          last = row
+          for (let owned = row; owned <= directive.endIndex; owned++) replace(owned, '')
+        }
+        row = directive.endIndex
+      }
+      const value = isTitle ? next.accessibilityTitle : next.accessibilityDescription
+      if (value !== undefined) {
+        const text = isTitle ? `  accTitle: ${writeTimelineText(value, 'accessibility')}`
+          : value.includes('\n') ? `  accDescr {\n${value.split('\n').map(line => `    ${writeTimelineText(line, 'accessibility')}`).join('\n')}\n  }` : `  accDescr: ${writeTimelineText(value, 'accessibility')}`
+        if (last !== undefined) replace(last, text)
+        else appendAt(1, text)
+      }
+      break
+    }
+    case 'set_section_label': {
+      const section = next.sections[op.index]!, row = sectionRow(section.id)
+      if (row === undefined) appendAt(main(section.periods[0]!.id)!, `  section ${writeTimelineText(section.label!, 'section')}`)
+      else {
+        const raw = lines[row]!, parsed = readTimelineSection(raw.trimStart())!
+        replace(row, `  section ${writeTimelineText(section.label!, 'section')}${parsed.eventSource}`)
+      }
+      break
+    }
+    case 'set_period_label':
+    case 'add_event':
+    case 'remove_event':
+    case 'set_event_text':
+      updatePeriod(next.sections[op.sectionIndex]!.periods[op.periodIndex]!)
+      break
+    case 'move_event': {
+      const from = input.sections[op.fromSection]!.periods[op.fromPeriod]!, to = input.sections[op.toSection]!.periods[op.toPeriod]!
+      const touched = new Set([from.id, to.id])
+      next.sections.flatMap(section => section.periods).filter(period => touched.has(period.id)).forEach(updatePeriod)
+      break
+    }
+    case 'remove_period':
+      removePeriod(input.sections[op.sectionIndex]!.periods[op.periodIndex]!.id)
+      break
+    case 'add_period':
+    case 'move_period': {
+      if (op.kind === 'move_period') removePeriod(input.sections[op.fromSection]!.periods[op.fromIndex]!.id)
+      const section = next.sections[op.kind === 'add_period' ? op.sectionIndex : next.sections.findIndex(section => section.id === input.sections[op.toSection]!.id)]!
+      const period = op.kind === 'move_period' ? section.periods[op.toIndex]! : section.periods.find(period => !periodsHas(input, period.id))!
+      appendAt(destination(section, section.periods.indexOf(period)), periodText(period))
+      break
+    }
+    case 'add_section': {
+      const section = next.sections.find(section => !input.sections.some(before => before.id === section.id))!, index = next.sections.indexOf(section)
+      const following = next.sections[index + 1], row = following ? sectionRow(following.id) : undefined
+      appendAt(row ?? (/[\r\n]$/.test(source) ? endRow : lines.length), `  section ${writeTimelineText(section.label!, 'section')}`)
+      break
+    }
+    case 'remove_section': {
+      const section = input.sections[op.index]!, row = sectionRow(section.id)
+      section.periods.forEach(period => removePeriod(period.id))
+      if (row !== undefined) {
+        const raw = lines[row]!, continuation = readTimelineSection(raw.trimStart())?.eventSource
+        replace(row, continuation?.trim() ? `  ${continuation.trimStart()}` : '')
+      }
+      break
+    }
+    case 'move_section': {
+      const section = input.sections[op.from]!, row = sectionRow(section.id)
+      if (row === undefined) throw new Error('An implicit Timeline section has no movable source declaration')
+      const nextRow = input.sections.slice(op.from + 1).map(section => sectionRow(section.id)).find(row => row !== undefined) ?? lines.length
+      const block = source.slice(starts[row]!, starts[nextRow] ?? source.length)
+      for (let owned = row; owned < nextRow; owned++) replacements.set(owned, '')
+      const following = next.sections[op.to + 1], destinationRow = following ? sectionRow(following.id) : undefined
+      appendAt(destinationRow ?? (/[\r\n]$/.test(source) ? endRow : lines.length), block, true)
+      break
+    }
+  }
+  return [...new Set([...replacements.keys(), ...insertions.keys()])].map(row => ({
+    start: starts[row]!, end: starts[row + 1] ?? source.length,
+    text: (insertions.get(row) ?? '') + (replacements.get(row) ?? rowText(row)),
+  }))
+}
+
+function periodsHas(body: TimelineBody, id: string): boolean {
+  return body.sections.some(section => section.periods.some(period => period.id === id))
+}
+
+function mutateTimelineBody(input: TimelineBody, op: TimelineMutationOp): Result<TimelineBody, MutationError> {
   const body = cloneTimeline(input)
   const nextTimelineId = makeTimelineIdAllocator(body)
 

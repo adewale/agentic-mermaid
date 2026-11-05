@@ -35,6 +35,49 @@ function timelineMeaning(body: TimelineBody) {
 }
 
 describe('timeline parsing — structured', () => {
+  test('inline header comments keep neighboring source while typed edits address repeated occurrences', () => {
+    const source = 'timeline TD # keep direction\r\n  title History\r\nsection Plan\r\n  2024 : Same\r\n% keep middle\r\n  2024 : Same\r\n# keep footer\r\n'
+    const original = timeline(source), before = JSON.stringify(original)
+    expect(serializeMermaid(original)).toBe(source)
+    const edited = mutate(original, { kind: 'set_event_text', sectionIndex: 0, periodIndex: 1, eventIndex: 0, text: 'Revised' })
+    if (!edited.ok) throw new Error(edited.error.message)
+    expect(serializeMermaid(edited.value)).toBe(source.replace('  2024 : Same\r\n#', '  2024 : Revised\r\n#'))
+    expect(asTimeline(edited.value)!.body.sections[0]!.periods.map(period => period.events[0]!.text)).toEqual(['Same', 'Revised'])
+    expect(JSON.stringify(original)).toBe(before)
+  })
+
+  test('source continuations retain their native period owner after a section changes', () => {
+    const source = 'timeline LR %% keep header\nsection Earlier\n2024 : Launch\n% keep bridge\nsection Later : Follow up\n: Review\n2025 : Scale\n'
+    const original = timeline(source)
+    const edited = mutate(original, { kind: 'set_event_text', sectionIndex: 0, periodIndex: 0, eventIndex: 1, text: 'Revised' })
+    if (!edited.ok) throw new Error(edited.error.message)
+    expect(serializeMermaid(edited.value)).toBe('timeline LR %% keep header\nsection Earlier\n  2024 : Launch : Revised : Review\n% keep bridge\nsection Later\n2025 : Scale\n')
+    expect(timelineMeaning(timeline(serializeMermaid(edited.value)).body)).toEqual(timelineMeaning(asTimeline(edited.value)!.body))
+    const moved = mutate(original, { kind: 'move_section', from: 0, to: 1 })
+    expect(moved.ok).toBe(false)
+    if (!moved.ok) expect(moved.error.message).toContain('continuation')
+    expect(serializeMermaid(original)).toBe(source)
+  })
+
+  test('source-aware moves and insertions preserve comments and complete chronology', () => {
+    const source = 'timeline # keep header\nsection One\n2024 : A\n% owns One\n2025 : B\nsection Two\n2026 : C\n# owns Two\n'
+    const original = timeline(source)
+    const moved = mutate(original, { kind: 'move_period', fromSection: 0, fromIndex: 0, toSection: 1, toIndex: 1 })
+    if (!moved.ok) throw new Error(moved.error.message)
+    const inserted = mutate(moved.value, { kind: 'add_period', sectionIndex: 0, label: '2023', events: ['First'], index: 0 })
+    if (!inserted.ok) throw new Error(inserted.error.message)
+    const updated = asTimeline(inserted.value)!.body
+    expect(updated.sections.map(section => section.periods.map(period => period.label))).toEqual([['2023', '2025'], ['2026', '2024']])
+    const serialized = serializeMermaid(inserted.value)
+    expect(serialized).toContain('timeline # keep header\n')
+    expect(serialized).toContain('% owns One\n')
+    expect(serialized).toContain('# owns Two\n')
+    expect(timelineMeaning(timeline(serialized).body)).toEqual(timelineMeaning(updated))
+    const reordered = mutate(original, { kind: 'move_section', from: 0, to: 1 })
+    if (!reordered.ok) throw new Error(reordered.error.message)
+    expect(serializeMermaid(reordered.value)).toBe('timeline # keep header\nsection Two\n2026 : C\n# owns Two\nsection One\n2024 : A\n% owns One\n2025 : B\n')
+  })
+
   test.each([
     'timeline\nsection<br>A : event',
     'timeline section<br>A',
