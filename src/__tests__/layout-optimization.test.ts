@@ -1,7 +1,8 @@
 import { expect, test } from 'bun:test'
-import { renderMermaidSVGWithReceipt } from '../index.ts'
+import { renderMermaidSVGWithReceipt, createMermaidRenderer } from '../index.ts'
 import { executeGraphicalRequest } from '../graphical-render.ts'
 import type { PositionedGraph, RenderOptions } from '../types.ts'
+import { withPerformanceExperiments } from '../experimental-performance.ts'
 
 const CROSSING = 'flowchart TD\nA[One]\nB[Two]\nC[Three]\nD[Four]\nA --> D\nB --> C'
 function layout(source: string, options: RenderOptions) {
@@ -68,4 +69,19 @@ test('explicit wrapping wins over viewport search and authored line breaks survi
   const prepared = layout(source, { graphLayout: { backend: 'elk', viewport: { width: 400, height: 300 } } }).positioned.nodes.find(node => node.id === 'A')!.labelBlock!
   expect(prepared.breaks.filter(value => value.kind === 'authored')).toHaveLength(1)
   expect(prepared.prepared.lines).toHaveLength(2)
+})
+
+test('nested renders own independent optional work and restore the outer ledger', () => {
+  let nested = false
+  const renderer = createMermaidRenderer({ textMeasurement: { id: 'test:nested-layout', version: '1.0.0', measure: input => {
+    if (!nested) {
+      nested = true
+      const child = withPerformanceExperiments(['text-spans', 'indexed-layout'], () => renderMermaidSVGWithReceipt(CROSSING, { graphLayout: { backend: 'elk', quality: 'balanced' } }))
+      expect(child.receipt.layoutOptimization?.additionalProducerCalls).toBe(1)
+    }
+    return input.text.length * 8
+  } } })
+  const result = renderer.renderMermaidSVGWithReceipt('flowchart LR; A[Hello]-->B[World]', { graphLayout: { backend: 'elk', quality: 'balanced' } })
+  expect(result.receipt.layoutOptimization?.additionalProducerCalls).toBe(0)
+  expect(result.receipt.layoutOptimization?.primaryProducerCalls).toBe(1)
 })

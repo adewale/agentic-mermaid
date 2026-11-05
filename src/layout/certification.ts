@@ -1,4 +1,5 @@
 import { assessLayout, hardViolations, type RubricMetrics } from '../layout-rubric.ts'
+import { isOptionalLayoutBudgetExceeded } from './optimization-budget.ts'
 import { labelRect } from '../route-contracts.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import type { MermaidGraph, MermaidSubgraph, PositionedGraph, PositionedGroup, Point } from '../types.ts'
@@ -318,7 +319,7 @@ function certifyCandidateForPurpose(graph: MermaidGraph, style: ResolvedRenderSt
     }
   } catch (error) {
     // A successful alternative cannot hide a broken pass or exceeded input work limit.
-    if (strictProducer || error instanceof LayoutPassContractError || error instanceof DiagramWorkLimitError || error instanceof DeferredDependencyError) throw error
+    if (strictProducer || isOptionalLayoutBudgetExceeded(error) || error instanceof LayoutPassContractError || error instanceof DiagramWorkLimitError || error instanceof DeferredDependencyError) throw error
     return { attempt: { strategy: candidate.strategy, violations: [error instanceof Error ? error.message : String(error)] } }
   }
 }

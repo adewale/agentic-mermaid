@@ -11,6 +11,7 @@ interface Budget { extra: number; primary: number; attempts: number; optional: b
 let active: Budget | undefined
 const evidence = new WeakMap<object, LayoutOptimizationEvidence>()
 class OptionalLayoutBudgetExceeded extends Error {}
+export function isOptionalLayoutBudgetExceeded(error: unknown): boolean { return error instanceof OptionalLayoutBudgetExceeded }
 // Internal ablation switch, captured once before module startup. Public
 // requests still opt in through graphLayout; normal hosts enable every feature.
 const host = globalThis as { process?: { env?: Record<string, string | undefined> }; AGENTIC_MERMAID_LAYOUT_FEATURES?: string }
@@ -20,13 +21,19 @@ export function layoutOptimizationEnabled(name: 'elk-order' | 'ports' | 'wrap'):
 
 /** One deterministic optional allowance shared by wrapping, ordering and
  * placement. Existing mandatory fallback work remains separately accounted. */
-export function withLayoutOptimizationBudget<T>(owner: object, options: GraphLayoutOptions | undefined, run: () => T): T {
-  if (active || !options?.quality && !options?.viewport) return run()
+export function withLayoutOptimizationBudget<T>(owner: object, options: GraphLayoutOptions | undefined, run: () => T, isolate = false): T {
+  if (active && !isolate) return run()
+  const previous = active
+  if (!options?.quality && !options?.viewport) {
+    if (!isolate || !active) return run()
+    active = undefined
+    try { return run() } finally { active = previous }
+  }
   const budget: Budget = { extra: 0, primary: 0, attempts: 0, optional: false, selected: [] }
   active = budget
   try { return run() } finally {
     evidence.set(owner, Object.freeze({ additionalProducerLimit: 2, additionalProducerCalls: budget.extra, primaryProducerCalls: budget.primary, alternativesAttempted: budget.attempts, selected: Object.freeze([...budget.selected]) }))
-    active = undefined
+    active = previous
   }
 }
 

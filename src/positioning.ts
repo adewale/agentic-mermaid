@@ -158,5 +158,5 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
       retain(descriptor, boundedKey, result, retainedProjections.get(result))
     }
     return result
-  }))
+  }), true)
 }
