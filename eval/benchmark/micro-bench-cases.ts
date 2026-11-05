@@ -539,7 +539,7 @@ function nativeFamilyCases(): MicroCase[] {
     id: `native-family:${operation}-${family}`,
     description: operation === 'render'
       ? `Public strict SVG with serialized receipt and UTF-8 consumption, ${family}`
-      : `Typed title edit, serialize, reparse and public strict SVG with consumed receipt, ${family}`,
+      : `Typed family edit, serialize, reparse and public strict SVG with consumed receipt, ${family}`,
     async setup() {
       const source = readFileSync(`eval/layout-compare/fixtures/${family}-native.mmd`, 'utf8')
       const [api, { Resvg }] = await Promise.all([src.agent(), import('@resvg/resvg-js')])
@@ -549,7 +549,10 @@ function nativeFamilyCases(): MicroCase[] {
       const call = () => {
         let input = source
         if (operation === 'edit') {
-          const edited = api.mutate(parsed.value, { kind: 'set_title', title: 'Edited family title' })
+          const edit = family === 'swimlane' || family === 'agentflow'
+            ? { kind: 'set_label' as const, target: family === 'swimlane' ? 'request' : 'plan', label: 'Edited family title' }
+            : { kind: 'set_title' as const, title: 'Edited family title' }
+          const edited = api.mutate(parsed.value, edit)
           if (!edited.ok) throw Error(edited.error.message)
           input = api.serializeMermaid(edited.value)
           const reloaded = api.parseRegisteredMermaid(input)
@@ -565,7 +568,7 @@ function nativeFamilyCases(): MicroCase[] {
           const svg = new TextDecoder().decode(value.bytes)
           const image = new Resvg(svg)
           if (!(image.width > 0 && image.height > 0) || !value.receipt.includes('requestDigest')) throw Error('Incomplete public render')
-          if (operation === 'edit' && !svg.includes('Edited family title')) throw Error('Edited title was omitted')
+          if (operation === 'edit' && !svg.includes('Edited family title')) throw Error('Edited family text was omitted')
         },
         evidence: { family, operation, source, security: 'strict', output: 'UTF-8 SVG and JSON receipt', nativeAdmission: true },
       }
