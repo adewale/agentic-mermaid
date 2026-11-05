@@ -876,6 +876,21 @@ test.each((['transparent', 'translucent', 'dashed', 'group-opacity', 'compound-p
   expect(certifyScenePaint(scene(parts))).toMatchObject({ status: 'unverified', issues: [expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'edge', by: 'node' })] })
 })
 
+test.each([0, 6, 7, 8, 12])('outline matching keeps the last physical width across key order and %s distant same-owner outlines', distant => {
+  const marker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: '#111' }, 'userSpaceOnUse')
+  const edge = marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 10, y1: 40, x2: 44, y2: 40 }, paint: { stroke: '#111' }, endpoints: { from: 'outside', to: 'node' }, markers: { end: marker } })
+  const geometry = { kind: 'rect' as const, x: 40, y: 10, width: 50, height: 60 }
+  const reordered = { kind: 'rect' as const, y: 10, x: 40, width: 50, height: 60 }
+  const parts: SceneNode[] = [edge,
+    marks.shape({ id: 'node', role: 'node', geometry, paint: { fill: '#fff' } }),
+    marks.shape({ id: 'thick', role: 'node', owner: { id: 'node', role: 'node' }, geometry, paint: { fill: 'none', stroke: '#111', strokeWidth: '10' } }),
+    marks.shape({ id: 'thin', role: 'node', owner: { id: 'node', role: 'node' }, geometry: reordered, paint: { fill: 'none', stroke: '#111', strokeWidth: '2' } }),
+  ]
+  for (let index = 0; index < distant; index++) parts.push(marks.shape({ id: `distant:${index}`, role: 'node', owner: { id: 'node', role: 'node' }, geometry: { kind: 'rect', x: 200 + index * 20, y: 10, width: 10, height: 20 }, paint: { fill: 'none', stroke: '#111', strokeWidth: '10' } }))
+  const proof = certifyScenePaint({ ...scene(parts), width: 600, height: 100 })
+  expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'edge', by: 'node' }))
+})
+
 test.each(['before', 'after'] as const)('separated artwork painted %s text retains the actual traversal obligation', order => {
   const parts: SceneNode[] = [], count = 2048
   for (let i = 0; i < count; i++) {

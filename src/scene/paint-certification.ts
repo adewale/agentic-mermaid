@@ -129,7 +129,19 @@ function possibleShapeStroke(piece: Geometry, paint: MarkPaint): boolean {
  */
 /** Common outline geometry is scalar. Compare those fields directly rather
  * than serializing the owner, geometry and transform twice for every surface. */
-function sameOutlineGeometry(a: Geometry, b: Geometry): boolean {
+function outlineGeometrySnapshot(geometry: Geometry): Geometry | string {
+  switch (geometry.kind) {
+    case 'rect': return { kind: 'rect', x: geometry.x, y: geometry.y, width: geometry.width, height: geometry.height, rx: geometry.rx, ry: geometry.ry }
+    case 'circle': return { kind: 'circle', cx: geometry.cx, cy: geometry.cy, r: geometry.r }
+    case 'ellipse': return { kind: 'ellipse', cx: geometry.cx, cy: geometry.cy, rx: geometry.rx, ry: geometry.ry }
+    case 'line': return { kind: 'line', x1: geometry.x1, y1: geometry.y1, x2: geometry.x2, y2: geometry.y2 }
+    case 'path': return { kind: 'path', d: geometry.d }
+    default: return JSON.stringify(geometry)
+  }
+}
+
+function sameOutlineGeometry(a: Geometry, b: Geometry | string): boolean {
+  if (typeof b === 'string') return JSON.stringify(a) === b
   if (a.kind !== b.kind) return false
   switch (a.kind) {
     case 'rect': return b.kind === 'rect' && a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height && a.rx === b.rx && a.ry === b.ry
@@ -137,19 +149,19 @@ function sameOutlineGeometry(a: Geometry, b: Geometry): boolean {
     case 'ellipse': return b.kind === 'ellipse' && a.cx === b.cx && a.cy === b.cy && a.rx === b.rx && a.ry === b.ry
     case 'line': return b.kind === 'line' && a.x1 === b.x1 && a.y1 === b.y1 && a.x2 === b.x2 && a.y2 === b.y2
     case 'path': return b.kind === 'path' && a.d === b.d
-    default: return JSON.stringify(a) === JSON.stringify(b)
+    default: return false
   }
 }
 
 function outlineWidths() {
   const heads = new Map<string, number>(), lookups: Array<Map<string, number> | undefined> = []
-  const roles: string[] = [], geometries: Geometry[] = [], matrices: Array<readonly number[]> = [], widths: number[] = [], next: number[] = [], counts: number[] = []
-  const key = (role: string, geometry: Geometry, matrix: readonly number[]) => JSON.stringify([role, geometry, matrix])
+  const roles: string[] = [], geometries: Array<Geometry | string> = [], matrices: Array<readonly number[]> = [], widths: number[] = [], next: number[] = [], counts: number[] = []
+  const key = (role: string, geometry: Geometry | string, matrix: readonly number[]) => JSON.stringify([role, geometry, matrix])
   return {
     set(primitive: ScenePaintPrimitive, geometry: Geometry, width: number): void {
-      const { id, role } = primitive.owner, matrix = scenePrimitiveMatrix(primitive)!
+      const { id, role } = primitive.owner, matrix = scenePrimitiveMatrix(primitive)!, captured = outlineGeometrySnapshot(geometry)
       const head = heads.get(id), lookup = head === undefined ? undefined : lookups[head]
-      if (lookup) { lookup.set(key(role, geometry, matrix), width); return }
+      if (lookup) { lookup.set(key(role, captured, matrix), width); return }
       const count = head === undefined ? 0 : counts[head]!
       // Hostile compound shapes may share one owner. Keep scans bounded and
       // preserve the last matching outline's width, as the old index did.
@@ -159,17 +171,17 @@ function outlineWidths() {
           const signature = key(roles[index]!, geometries[index]!, matrices[index]!)
           if (!lookup.has(signature)) lookup.set(signature, widths[index]!)
         }
-        lookup.set(key(role, geometry, matrix), width); lookups[head!] = lookup
+        lookup.set(key(role, captured, matrix), width); lookups[head!] = lookup
         return
       }
       const index = widths.length
-      roles.push(role); geometries.push(geometry); matrices.push(matrix); widths.push(width); next.push(head ?? -1); counts.push(count + 1); lookups.push(undefined)
+      roles.push(role); geometries.push(captured); matrices.push([...matrix]); widths.push(width); next.push(head ?? -1); counts.push(count + 1); lookups.push(undefined)
       heads.set(id, index)
     },
     get(primitive: ScenePaintPrimitive, geometry: Geometry): number | undefined {
       const { id, role } = primitive.owner, matrix = scenePrimitiveMatrix(primitive)!
       const head = heads.get(id), lookup = head === undefined ? undefined : lookups[head]
-      if (lookup) return lookup.get(key(role, geometry, matrix))
+      if (lookup) return lookup.get(key(role, outlineGeometrySnapshot(geometry), matrix))
       for (let index = head ?? -1; index !== -1; index = next[index]!) {
         if (roles[index] !== role) continue
         const other = matrices[index]!
