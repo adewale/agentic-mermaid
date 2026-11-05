@@ -531,7 +531,7 @@ return {
     const responses = r.stdout.split('\n').filter(Boolean).map(line => JSON.parse(line) as any)
     expect(responses).toHaveLength(requests.length)
     const byId = new Map(responses.map(response => [response.id, response]))
-    BUILTIN_FAMILY_METADATA.forEach((family, index) => {
+    const outputs = BUILTIN_FAMILY_METADATA.map((family, index) => {
       const envelope = JSON.parse(byId.get(index + 1)!.result.content[0].text)
       expect(envelope.ok, family.id).toBe(true)
       const value = envelope.value
@@ -539,9 +539,29 @@ return {
         family: family.id, narrowed: true, missingFacts: [], verified: true, stable: true,
         source: expect.any(String), svg: expect.any(String), ascii: expect.any(String),
       })
-      const options = FAMILY_CONFORMANCE_PROFILES[family.id].citizenship.options ?? {}
-      expect(value.svg, family.id).toBe(renderMermaidSVG(value.source, options))
-      expect(value.ascii, family.id).toBe(renderMermaidASCII(value.source, { ...options, useAscii: true, colorMode: 'none' }))
+      return value as { family: string; source: string; svg: string; ascii: string }
+    })
+    const inputFile = join(work, 'mcp-render-inputs.json')
+    writeFileSync(inputFile, JSON.stringify(outputs.map(value => ({ source: value.source, options: FAMILY_CONFORMANCE_PROFILES[value.family as keyof typeof FAMILY_CONFORMANCE_PROFILES].citizenship.options ?? {} }))))
+    // Isolate the MCP adapter from engine rounding: both sides use the same
+    // installed package under Node. Independent facts above own edit meaning.
+    const reference = spawnSync(NODE!, ['--input-type=module', '-e', `
+import { readFileSync } from 'node:fs';
+import { renderMermaidSVG, renderMermaidASCII } from 'agentic-mermaid/agent';
+const inputs = JSON.parse(readFileSync(process.env.AM_MCP_INPUTS, 'utf8'));
+process.stdout.write(JSON.stringify(inputs.map(({ source, options }) => ({
+  svg: renderMermaidSVG(source, options),
+  ascii: renderMermaidASCII(source, { ...options, useAscii: true, colorMode: 'none' }),
+}))));`], {
+      cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024,
+      env: { ...process.env, AM_MCP_INPUTS: inputFile },
+    })
+    expect({ status: reference.status, stderr: reference.stderr }).toEqual({ status: 0, stderr: '' })
+    const rendered = JSON.parse(reference.stdout) as Array<{ svg: string; ascii: string }>
+    expect(rendered).toHaveLength(outputs.length)
+    outputs.forEach((value, index) => {
+      expect(value.svg, value.family).toBe(rendered[index]!.svg)
+      expect(value.ascii, value.family).toBe(rendered[index]!.ascii)
     })
   }, RUN_TIMEOUT_MS)
 
