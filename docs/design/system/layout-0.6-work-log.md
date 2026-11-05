@@ -1,242 +1,113 @@
 # Native layout 0.6 local work log
 
-Campaign ends2026-11-08T23:59:59Z. Bounded local runs, not continuous execution or
-replacement readiness. Defaults/version/remotes/publication unchanged; all caps
-remain. Replacement24 stays sealed; failures, unknowns and adverse costs enrolled.
-Recovered base3b56da55e6570908beb5d96c25f4c03c1a828a22 is not original November.
-Campaign-baseline2dadf0dbc2685c8435df541de99f3edce841450d, Trident and pinned
+Campaign ends **2026-11-08T23:59:59Z**. Work runs in bounded sessions; no continuous
+execution or replacement-readiness claim. ELK remains the default; version and
+publication settings stay unchanged. Replacement24 stays sealed.
+
+PR602 was created at the owner's explicit request, with published head
+c74d826ca198f9204f8f79228ae0c3eb3323839c against recovery base
+3b56da55e6570908beb5d96c25f4c03c1a828a22. Current-main integration is unfinished.
+Subsequent campaign work is local; do not update/push that PR without a new request.
+Original campaign-baseline2dadf0dbc2685c8435df541de99f3edce841450d, Trident and pinned
 Mermaid12.2/Pele1.9 remain unavailable; Pele1.8 is not substituted.
-Full prior log is retained at8393d577f9245f62aa3a0f970cc7aaca2b4f5b9c and byte-backed
-week/requirement-compound-bounds-8393d577f/work-log-through-8393d577f.md.gz.
-Earlier full history remains at1e1bb29939352735b2df1346ede4e378549ec2ad,
-3df961f38156ddf993978440b8a71fe41c6b001b and52a13881d; no evidence deleted.
 
-## Retained delivery and quality
+The full prior log is retained at c74d826ca198f9204f8f79228ae0c3eb3323839c and at
+week/raw-fan-circle-c74d826ca/work-log-through-c74d826ca.md.gz, byte-verified against
+that revision. Its older archive links, adverse trials and exact qualification
+records remain intact. No retained evidence or uncommitted work was deleted.
 
-- Class caption0684c7d72/e0877c5ea: nested-caption delivery6/8→8/8,
-  area103590/wire242.6 vsELK104010/325.2. Scene reuse539407810 and flat-sharp
-  projection11b3e5fcef07706ef002b828c8f4ac6578d2600e make Class128 all4dirs
-  P388607/393070 in TB/BT,127heads, exact originalSVG. Broader compound
-  normalization caused10regressions and was withdrawn; other paths not claimed.
-- ER cc841a746/599bdf978 delivers former192/207/208 refusals; Scene reuse52a13881d
-  makes208 Agentic/ELK P287124/280068 with exact priorSVG. Dated208LR area−18.70%/
-  wire−30.99% vsELK. ER256-chain still refuses; sparse256cards is a different case.
-- Forest bands3efdf6236c1074964ce2ac7c647e265af56de19b reduce area26.98%/wire33.80%.
-  VsELK area−6.43%/wire+16.89%. Fixed-dock routes already shortest; leaf-seat
-  trial area+6.88% stopped. Requirement cycle15972c57e retains fields/relations/
-  ink; TB/BT area+9.53% vsELK, LR/RL−1.44%; adverse trials stopped.
-- Cyclic endpointd82c926cc0f6f1119a86e5079ba79fca1a2df0f9 removes head collisions:
-  19node wire−1.77%, area/102bends unchanged. Native area1233429/wire15850 vsELK
-  2307941/27581; ELK proofU is separate from actual head contribution.
-- Isolate shelvesffbff7a20843098e97b664a7f13080cbf7b257ea reduce sparse256cards area
-  15,832,099.72→7,449,331 (−52.95%); still+115.35% vsELK3,459,200. Body gaps71px
-  vs20 explain much of remainder; explicit spacing and connected geometry remain.
-  Wire132.598 vs214.598/0bends; adverse costs/+918gzip/+755Br retained in full log.
+## Retained ELK deltas and delivery limits
 
-## Meaning, authority and limits
+| Enrolled workload | Retained result and remaining counterexample |
+| --- | --- |
+| Sparse256 cards | Native area7,449,331 vsELK3,459,200: +115.35%. Isolate shelvesffbff7a20843098e97b664a7f13080cbf7b257ea reduced prior Native area52.95%; body gaps remain71px vs20. Wire132.598 vs214.598; explicit spacing/connected geometry preserved. |
+| Nonlinear forest | Bands3efdf6236c1074964ce2ac7c647e265af56de19b reduced Native area26.98%/wire33.80%; stillwire+16.89% vsELK, area−6.43%. Fixed-dock routes already shortest. Leaf-seat trial area+6.88% stopped. |
+| Requirement cycle | 15972c57e retains authored fields/relations/ink; TB/BT area+9.53% vsELK, LR/RL−1.44%. Adverse trials remain stopped. |
+| ER256 relationship chain | Both backends still refuse; guarded shortcuts did not remove enough work. This is distinct from delivered Sparse256 cards. |
+| Sparse32 | All1,500 text records and32heads retained; dark ink in all1,500regions and all32marker contributions observed. Proof stillU400k; 0marker controlsP. Individual middle attribution/readability/arbitrary fonts remain unknown. |
 
-607b46353e638740f97b8f26d2acf11e579b0d83 checks all44 cyclic19 heads individually,
-44 ordered endpoint/caption occurrences and11captiontexts. ELK also has44positive
-head contributions despite37distinct tips; no all-contact/recognizability claim.
-Sparse owners0cc8ea7aa17bc55cda461d17f6b2caf18f1aee34/b67384c18fe591032b1fd9586c511ee4fdb8106a
-retain all1500text records, first/last removal controls, all32marker contributions
-and dark ink in all1500authored regions (same41rasters). Native32 stillU400k
-OUTPUT_SCOPE/CHECK_BUDGET; both0marker armsP. Individual middle attribution,
-readability and arbitrary-font/browser ink remain unqualified; no capacity gain.
-Shared proof-authority527ef75a3/3c567e1e5/68a7d7ce936 remove actual false passes
-from private mutation/omission. Covered-text F91 became falseP88(freeze)/P86(push),
-partial repairP87; captured sealing/shared own-slot publishing restore wholeF91
-and exactSVG. Actual Inter controls establish zero covered/positive uncovered ink.
-No all-hooks claim; failed partials, custody distinctions and adverse costs retained.
+## Earlier results carried forward
 
-## Shared producer and contact fixes — 5 November
+- Class nested captions0684c7d72/e0877c5ea deliver6/8→8/8. Scene reuse539407810 and
+  final sharp projection11b3e5fcef07706ef002b828c8f4ac6578d2600e give Class128 all4dirs
+  P388607/393070,127heads and exact originalSVG. Broader normalization caused10
+  regressions and was withdrawn.
+- ER capacitycc841a746/599bdf978 removes earlier192/207/208 refusals. Scene reuse
+  52a13881d completes208 certificationP287124/280068 without changing the priorSVG.
+  Dated208LR area−18.70%/wire−30.99% vsELK; no general ER256 delivery claim.
+- Cyclic contactd82c926cc0f6f1119a86e5079ba79fca1a2df0f9 removes head collisions;
+  wire−1.77%, same area/102bends.607b46353 verifies all44owned head contributions,
+  endpoint/caption occurrences and11texts; ELK also has44positive contributions.
+- Private inspection/occurrence fixes527ef75a3/3c567e1e5/68a7d7ce936 remove actual
+  false passes from mutation/omission. Covered text remainsF91 and exactSVG;
+  earlier falseP88/P86 and failed partialP87 remain evidence, not successes.
+- c94c050b23ac795420aeed83f1349d59a6fc423d preserves closed formatting across hard
+  breaks;11rasters retain8word contributions/bold effect. Both backends benefit;
+  wire+3.96 and area+601.128/611.82 remain adverse. Italic/emoji ink unqualified.
+- Inward ER9c0bba610212ba9b316e95dedab9699e06eccb428 now renders instead of refusing:
+  9relations/18ownedheads; area391252.5 vsELK389513.6, bothwire5799.8/0bends.
+- Requirement fana949f8534b5a98e9c168fb61c406d64379fe23fb separates circle pairs8→14px
+  and retains5relations/15component contributions; wire+12/+1.09%, same canvas.
+  ELK1366d4de0ad0aee9b3b90395e1d56bd8ce2d55c5 restores a normal fifth dock by reserving
+  canonical terminal lead; same area/wire, bends13→14. Compound support532eb2eba
+  subsequently gives NativeP99181 on exactSVG and ELKP99199,14bends; proof precision
+  is separate from the previously established ink. Getter/cap-order correction
+  and initial failed candidate remain recorded.
+- Wide-circle fixesc7490d9b4/cf67234e3/ca8fb1221 restore plain/linear/STEP selected
+  circle contribution0→230/230/225 pixels in both backends while preserving
+  geometry/resources/contacts. Proof remainsU. Their extra operations, payloads,
+  all costs and bounded scopes remain in the full prior log.
 
-c94c050b23ac795420aeed83f1349d59a6fc423d preserves closed inline styles across
-hard breaks: both backends formerly returnedP with second alias/caption rows plain.
-Shared prepared/raw interpretation preserves UTF16/unmatched-line behavior without
-new grammar/cache/common-case state.11rasters verify8word contributions and second
-caption bold effect; physical italic/emoji unknown. Wire+3.96; area+601.128/611.82.
-Evidence: week rich-line-format-1e1bb2993. Both backends benefit.
+## Raw polyline carrier capture — 5 November
 
-c0bba610212ba9b316e95dedab9699e06eccb428 resolves both backends' inward ER9 refusal:
-existing face allocation reserves both glyphs/leads for ancestry-proven frame→leaf
-contacts; guards/caps remain.9relations/18ownedheads deliver across public/direct/
-Scene, all actual head ink positive. AM450×869.45 vsELK448×869.45; area391252.5/
-389513.6, both5799.8wire/0bends. Evidence: week er-inward-ports-1e1bb2993.
-Text309P/isolation14P/Class128all8P/types/lint and24consumed calls/Node/RAM byte
-bindings retained in full log; no general performance or all-green broad claim.
+b32489e19e290f7e3327715678bb1b5c1f419249 fixes the first responsible emission handoff:
+newly eligible raw multi-point custom-width circles receive one bounded scalar
+capture, reused by both dash calculation and actual polyline lowering. The existing
+orthogonal served-arclength/runway logic is reused; no new parser/cache/registry.
+The legacy standalone raw query, two-point and supplied-path policies stay separate.
 
-Native fan a949f8534b5a98e9c168fb61c406d64379fe23fb moves two overlapping circle
-pairs8→14px apart (11pxpaint/3pxgap), preserving all5relations and15component ink
-contributions. Descriptor reuse reserves pitch/face capacity; card growth publishes
-only after success. Six owners oldRED→P. Same canvas/14bends, wire+12/+1.09%.
-AM area224461.2304/wire1114.47 vsELK273191.776/1823.3947 (−17.84%/−38.88%).
-Native remainedU99183 at that revision;64Inter rasters and adverse costs retained.
-ELK fix1366d4de0ad0aee9b3b90395e1d56bd8ce2d55c5 moves a tangential fifth contains
-track off its card: raw ELK output, not emission, was wrong. Clearance0 caused the
-border track; one-option10px probe restored normal contact. Canonical17px terminal
-lead (plus bend radius) fixes all4dirs, with normal reciprocal sharp/rounded docks.
-16rasters retain15component contributions; same area/wire, bends13→14; separately
-U98904→P99199. NativeSVG/ENTIREreceipt unchanged.209P/styles6P/types/lint; original
-sandbox/reference failures retained. Two-loop overlap hypothesis falsified (56px
-centers vs11pxpaint), stopped. No general loop or recognizability claim.
+Both backends' actual named A→B raw fan previously returnedU with zero selected
+circle pixels. Final products show225 confined pixels, all4normal docks and exact
+nodes/text/relations/four vertices/resources/refs/width10/248×181.8canvas. Only dash
+paint and3scoped class names change. Arc74.3px;24px terminal runway retains16.75px
+paint to the ring backside. Proof staysU156838→U156940 (+102operations adverse),
+same20pairs/issues/caps. No general all-head/readability/curve claim.
 
-## Stopped drawing-tail investigation
+Owning RED: Native publicrawfan0ink; nearby ELK two-point cylinder already passes its owner test and is
+validation. Two getter controls emit wrong vertices; raw3/raw4 lack the gap. A new
+candidate's inherited descriptor receiver causes a real TypeError; null-prototype
+own-slot descriptors remove that refusal. Earlier nonpath/slot/descriptor drafts
+remain off-repo. Nine focused owners and384tests/8files pass (76.11s); core types
+80.53s/2246748KiB and lint4files pass. Short-corner raw decline remains explicit.
 
-8393d577f9245f62aa3a0f970cc7aaca2b4f5b9c records six CPU-profiled cache1 calls;
-all wholeSVG/ENTIREreceipts match prior products. Native repeat drawing42.60ms did
-not reproduce150.37ms; original173.47ms adverse call remains unexplained. Profile
-tails move to Native paint7555ms/ELK drawing4705ms. Sparse multi-second sample gaps
-cannot rank five CPU hotspots or justify a subtraction/speedup. Process CPU includes
-runtime/profiler/JIT/background work. Artifact/reference/explicitGC outside named
-windows; no code/cache/array/SoA/serializer rewrite justified. Evidence: week
-requirement-drawing-tail-146a2d496/FINDINGS.md and full log; no more favorable replay.
+Costs: one carrier object per edge plus bounded eligible O(N) point/descriptor
+capture. Same-Bun SVG5762→5792raw,1259→1278gzip9,1070→1087Br11 (+30/+19/+17), both
+backends. Twelve current fullSVG/ENTIREreceipt calls allU; repeats/cache-arm products
+byte-exact; actual B-only edit visible. Cold/repeat/edit ms after imports, N1:
+cache0 Native212/29/39 vsELK575/64/56; cache1 Native212/29/47 vsELK613/19/76.
+All slower cache1 phases retained; no causal speedup ratios. PeakRSS Native104096/
+103408KiB vsELK142052/139584; phase heaps/imports/compression remain in cost summary.
+Two Node24 source and two compiled whole-product bindings exact; one owned RAM
+build/measure/bind20.80s/288856KiB, scratch removed. Flowchart native26requests/
+raw1125719/gzip369271/Br313154 vsELK24/2400293/739399/584574. Both add246gzip/185Br,
+667raw and0requests vs the pre-fix runtime. Initial3/raw15408/gzip5855/Br5227
+(−1gzip/0Br). New work is local; PR602 remains atC74.
 
-## Compound-marker proof precision — 5 November
+Evidence: week/raw-fan-circle-c74d826ca (independent before/after/causal controls,
+initial drafts/REDs/full prior log), raw-fan-circle-cost-c74d826ca/COST-SUMMARY.json,
+raw-fan-circle-node24-b32489e19 and recovery-payload/raw-fan-circle-b32489e19.
 
-532eb2eba2fdc77e33cd888df430aa311ecd4538 replaces the whole compound's miter
-inflation with a union of painted child bounds: circle uses smooth support, while
-cross path and joined V controls retain conservative miter support. Local envelope
-14→12px justifies the actual separated fan. Numeric child bounds are retained in
-one original geometry walk before one paint parse; declared bounds/unknown CSS/
-pose mapping remain conservative. Private own-slot linked records avoid array hooks.
-A first candidate reordered cap evaluation; its new compatibility control failed
-0vs1, then the final expression restored original Math.max lookup/receiver before
-the getter. Raw getters changing radius/width, miter support and explicit-bound
-controls pass. Initial source snapshots, false start and zero-match Class selector
-are retained, not reported as qualification.
+## Stopped causes and next fix
 
-Native5fan wholeSVG remains exact; only proof status/issues/pairs/operations change:
-U99183→P99181, pairs189→187, same400kcap; editU99372→P99370. Its actual15ink controls
-are reused by byte equality, not rerastered progress. Shared terminal support also
-reduces ELK lead17→16px: only internal tracks shift1px; cards/text/captions/resources/
-anchors stay unchanged. ELK remainsP99199 (edit99393).16freshInter rasters retain all
-15confined component contributions/all normal contacts. Both backends' area/wire/
-14bends unchanged. This is proof availability, not new visible quality or readiness.
+The standalone start-circle parser shortcut remains stopped: closed-pipe recognition
+turns valid multiline one-A→C meaning into two edges. Preserve unsupported `o--`
+and its8public/3parser REDs; no grammar patch shipped. ER256 guarded reuse/glyph
+shortcuts were insufficient. Moving profile tails/historical ELK timeout remain
+unexplained. The report-only Node24 profile withdrew descriptor-Map causation;
+no cache/array/SoA rewrite or speedup forecast follows from those samples.
 
-Final9file milestone973P/knownSparse32F,178.83s/1419920KiB; Class128all8P/20.27s,
-styles6P/2.03s, core types48.86s/2113636KiB, lintP. Initial973P/knownSparse32F before
-cap-order correction remains provisional evidence; final checks requalify correction.
-12 current consumed calls all returnP; repeat wholeSVG/ENTIREreceipts exact, real
-leaf-text edits. Cold/repeat/edit ms cache0 AM199/41/34 vsELK618/80/60;
-cache1 AM322/50/30 vsELK846/44/240. N1/no ratios; AM cache1 repeat and ELK240ms edit
-remain adverse. PeakRSS AM108752/109340KiB vsELK143568/143012; per-phase heaps retain
-3products plus caches and separately timed compression. No performance-win claim.
-Cold SVG gzip/Br AM1628/1353B (unchanged) vsELK1667/1401 (+0gzip/+4Br).
-Two freshNode24 and two compiled products match wholeSVG/ENTIREreceipts exactly;
-one RAM build22.49s/298012KiB, scratch removed. Requirement closures AM17requests/
-raw813303/gzip265806/Br222948B vsELK14/2084910/634592/493131. Adds197gzip/239Br
-(AM),199/275(ELK), requests unchanged; initial3/raw15408/gzip5852/Br5234 (−4/+3).
-Added callback/child-record work is retained in costs, not described as subtraction.
-Evidence: week requirement-compound-bounds-8393d577f, requirement-compound-cost-8393d577f,
-requirement-compound-ink-8393d577f, requirement-compound-node24-532eb2eba and
-recovery-payload/requirement-compound-532eb2eba.
-
-## Hollow circles on wide straight shafts — 5 November
-
-c7490d9b45dbf78ee77b165f3677581f971f9c6d restores the actual end-circle contribution
-0→230pixels on black10px `A --o B` in BOTHbackends. Shaft subtraction beneath the
-existing hollow ring changes536pixels, all lighter/confined to the terminal region;
-width/resource/ref/anchor/cards/text/route/248×116.9canvas stay exact. Only dash paint
-and3scoped class renamings change. Proof staysU149226→U148921, same issue/caps; strict
-refusal remains honest. Long straight solid known custom-width carriers only;
-authored dash/offset, dotted/animated/thick, curves, short and unknown widths unchanged.
-
-Eight actual-ink RED→GREEN owners cover Native/Scene, both backends and start/end/
-both-circle contacts. First endpoint run was3inkRED+1unsupported `o--` parse failure,
-not4inkRED; supported `o-->` with explicit end arrow separately REDs on old producer.
-`stroke:none` isolation drops markers too; opacity0/dash controls expose230pixels.
-First candidate mistook conservative10.5px proof support for actual7.5px circle and
-failed8owners; retained, then corrected with canonical geometry/smooth stroke support.
-No generic bound/cap relaxation, extra carrier, opaque fill, cache or readiness gate.
-
-Eight-file milestone893P/knownSparse32F,188.36s/1142588KiB; final types56.46s/2121896KiB,
-lintP/affected start ownerP. Failed scripts/candidates/test typings retained. Twelve
-fully consumed current calls allU; repeat wholeSVG/ENTIREreceipt exact, real B edits.
-Cold/repeat/edit ms cache0 AM175/24/18 vsELK514/42/33; cache1 AM171/11/25 vsELK551/25/56.
-N1/no ratios; slower cache-on edit observations retained. RSS AM101604/100348KiB vsELK
-136980/134612; phase heaps/compression separately retained. Onecall reproduction timers
-include artifact I/O/GC and are excluded from performance. SVG4855raw(+28)/1173gzip/
-1010BrB, equal backends. TwoNode24+two compiled wholeSVG/ENTIREreceipts exact; one RAM
-build+compiled run19.36s/303980KiB, scratch removed. Flowchart closure AM26requests/
-raw1123221/gzip368344/Br312317B vsELK24/2397795/738474/583747; BOTH add431gzip/297Br,
-requests unchanged. Initial3/raw15408/gzip5853/Br5235 (+1/+1). Evidence: week
-wide-circle-absorption-5417e088c/FINDINGS.md and adjacent cost/Node/payload directories.
-
-## Captured straight-path terminal paint — 5 November
-
-cf67234e31bc16a82e3d64e209f592dc9a672326 restores named `e1@{curve:linear}` end-circle
-ink0→230pixels in BOTHbackends. The renderer reuses its already captured projection;
-exact one-M/L, two-point, open-contour correspondence admits terminal shaft subtraction
-without rereading raw curve/points. Cubic/multi-leg and old rounded-line controls stay
-separate; no general curve claim. Path/metadata/width/resources/anchors/cards/text stay
-byte-exact except dash paint/3scoped class renamings.536pixels lighten, all terminalROI.
-Proof remainsU, work149375→149478 (+103 adverse), same issue/caps. Two matched linear
-inkREDs and a corrected mutable-projection RED turn green. Its first getter fixture
-failed an admission precondition, retained/corrected before genuine RED; no result lost.
-
-Seven relevant files273P/24.63s/468416KiB; types62.69s/2132704KiB, lintP. PriorSparse32F
-remains enrolled, not rerun/claimed fixed. Twelve valid fully consumed current calls allU;
-repeat wholeSVG/ENTIREreceipt exact, real B edits. Cold/repeat/edit ms cache0 AM170/23/19
-vsELK506/42/30; cache1 AM158/13/18 vsELK580/19/57. N1/no ratios; adverse ELKcache1 cold/edit
-retained. RSS AM103576/104908KiB vsELK140304/136988; raw phase heaps/compression retained.
-SVG raw4858/gzip1179/Br1012B, equal backends. TwoNode24+two compiled wholeSVG/ENTIREreceipts
-exact; one RAM build+compiled run20.85s/300028KiB, scratch removed. Flowchart closures
-AM26requests/raw1123555/gzip368474/Br312462B vsELK24/2398129/738604/583892; adds130gzip/
-145Br BOTH, requests unchanged. Initial3/raw15408/gzip5852/Br5230 (−1/−5); no download-win
-claim. Evidence: week linear-wide-circle-d089e94d0 (independent bytes/PNG notes),
-linear-wide-circle-cost-d089e94d0, linear-wide-circle-node24-cf67234e3 and
-recovery-payload/linear-wide-circle-cf67234e3. Prep newline claim was corrected by
-independent byte reads: both old/plain and new/linear fixtures contain actual LF.
-
-## Remaining losses and stopped parser cause
-
-Retained vsELK: sparse256area+115.35%; forestwire+16.89% (area−6.43%); Requirement-cycle
-TB/BTarea+9.53% (LR/RL−1.44%). ER256-chain refusal affects both; Sparse32 proof still
-exhausts400k. Profile tails/historical ELK timeout unexplained; stopped probes stay
-stopped. Original2dad/Trident/peers unavailable; replacement24 sealed.
-62006bccf records why standalone `o--|保存|` remains unsupported: the closed-pipe shortcut
-changes existing multiline `A o--|literal| B` + `extra --o C` from one A→C relationship
-(label `|literal| B\nextra`) into two edges. Same-line/multiline counterexamples,
-8public/3parser REDs and all3WIP tests/patch/draft retained before restoring only that
-work; no lexer/parser patch shipped. Evidence: week start-circle-standalone-c7490d9b4.
-Next: qualify actual wide-circle ink on one supported nonlinear/multi-leg route before
-choosing any arc-length subtraction; two sampled endpoints do not prove straightness.
-Keep the grammar decision and stopped ER256 shortcuts separate from that emission cause.
-
-
-## Captured STEP circle ink — 5 November
-
-ca8fb1221f56d5f57fe08972770ebb056a46b30f restores the selected hollow endcircle
-on the supported 10px STEP fan: both backends before0→after225 owned Inter pixels,
-all confined to its terminal region. Full SVG differs only by e1 dash and scoped
-class names; all8vertices/duplicates,3node texts,2relations, resources/anchors/
-width and4normal docks stay exact. Served arclength74.3px,24px terminal runway,
-16.75px still painted: shaft reaches the near ring without crossing a corner.
-Reuse captured projection; new bounded orthogonal M/L scan ignores duplicate legs,
-rejects reversals/curves/closed/short corner runways, preserves old2point/raw policy.
-No all-loop/font/readability claim. Evidence: week step-wide-circle-bebf1d52f.
-
-18focusedP;287P/0F relevant7file milestone29.36s; final projection61P after test-only
-readonly correction; types67.20s/2128180KiB, lintP. Retain6initialRED (including an
-invalid ELK-turn assumption), first test-type failure and missing time binary.
-Both stillU, same issue/caps; proof157982→158091 (+109), no quality/proof gain.
-New O(N) scan/temporary strings and SVG+30raw/+18gzip9/+18Br11 are adverse costs.
-12current consumed cold/repeat/edit calls allU; repeated wholeSVG/ENTIREreceipts
-exact and real B-text edit. Cache0 AM315/56/61ms vsELK806/81/60;
-cache1 AM195/18/40 vsELK1086/110/208. N1 after imports, no causal speedup ratios;
-ELK cache1 tails retained. PeakRSS AM106332/104888KiB vsELK143152/141576;
-raw per-phase heap/RSS/import/compression remain in cost summary.
-Two Node24 source plus two compiled full-product bindings exact; one RAM build/
-measure/bind24.75s/304972KiB, owned RAM scratch removed. Flowchart native26requests
-raw1125052/gzip369025/Br312969 vsELK24/2399626/739153/584389. Same pre-fix runtime
-cf67234e3→bebf1d52f adds native551gzip/507Br, ELK549/497; initial3requests/raw15408/
-gzip5856/Br5227 (+4gzip/−3Br), no request changes. No cross-source runtime ratio.
-Remaining: actual raw-multileg/cubic/short-run ink is unqualified; reproduce one
-public output before extending subtraction. Sparse256area+115.35%, forestwire
-+16.89%, RequirementTB/BTarea+9.53%, ER256shared refusal/Sparse32proofcap remain.
-
-Prior report-only Node24 performance evidence is retained at week performance-review-
-bebf1d52f and /tmp/pr449-performance-review-analysis-bebf1d52f. Descriptor-Map cause
-withdrawn; unresolved samples and no forecast speedup retained. No optimization
-from those samples; unchanged source comparisons are validation only.
+Raw diagonals/reversals/short corner runways and cubic/closed paths remain outside
+the latest paint fix. Next ordinary loss: isolate Sparse256's71px default body gap
+from authored spacing and marker allocation; test the smallest placement change
+before broad packing work. Preserve connected geometry, ink, caps and adverse
+wire/area/runtime effects. Unchanged replays are validation, not new coverage.
