@@ -103,6 +103,42 @@ Adds636gzip/458BrB (AM),630/454(ELK) vsffb; initial3/5856/5233 (+4gzip/−2Br).
 Evidence: week contact-rich-cost-1e1bb2993, contact-rich-node24-c0bba6102 and
 recovery-payload/contact-rich-c0bba6102. These fixes improve both backends.
 
+## Requirement containment contacts — 5 November
+
+a949f8534b5a98e9c168fb61c406d64379fe23fb closes Native fan circle overlap:
+four root→leaf contains occurrences plus one root→side retained meaning, but two
+pairs had8px centers versus11px painted diameter. The unchanged renderer descriptor
+now supplies Native's conservative14px port envelope and real face capacity.
+Capacity includes cycle-reversed incidences; card growth publishes only after
+successful placement, preserving ELK fallback isolation. Six owners oldRED→P
+(five/all4dirs; twelve/TB+LR). Actual five-fan overlap2→0, minimum painted gap3px,
+unchanged cards/canvas/14bends; wire1102.47→1114.47 (+1.09%).
+
+64 fixed-Inter offline rasters retain all five relations/captions and15 positive,
+confined whole/circle/cross contributions per arm. Both old arms already had ink;
+no recovered-marker/complete-recognizability claim. Native remainsU99183/two
+conservative envelope contacts. ELK remains byte-identicalU98904: fifth route has
+duplicate leading points then runs along the source bottom, so removing duplicates
+alone is insufficient. Native area224461.2304/wire1114.47 vsELK273191.776/1823.3947
+(−17.84%/−38.88%), bends14vs13. These are this input's quality vectors.
+
+Self-contained4files203P/48.70s/916676KiB, styles6P/2.89s, core types76.06s/
+2239588KiB, lintP. Initial child-pipe EPERM and subsequent upstream-worker timeouts
+remain retained; six-file run stopped126.68s, not an all-green broad result.
+12 current fully consumed calls all returnU; repeat fullSVG/ENTIREreceipts exact,
+real leaf-text edits. Cold/repeat/edit ms cache0 AM360/42/22 vsELK483/56/70;
+cache1 AM138/34/30 vsELK460/26/62. N1/no ratios; AM first import2791ms vs388 and
+slower cache1 repeat remain adverse. PeakRSS AM108672/110448KiB vs143420/143116;
+per-phase heaps retained (three products plus separately timed compression).
+Cold SVG gzip/Br1628/1353B vsELK1663/1399. Two freshNode24 and two compiled
+products match fullSVG/ENTIREreceipts. First sandbox build failed before renders;
+retained copy, successful RAM retry32.49s/291780KiB, scratches removed. Code closure
+AM17requests/raw812800/gzip265587/Br222692B vsELK14/2084407/634371/492839;
+both add224gzip/193Br, requests unchanged; initial3/5856/5232 (Br−1 only).
+Evidence: week requirement-contains-fan-proposal-c0bba6102,
+requirement-contains-fan-cost-437b6d7c7, requirement-fan-node24-a949f8534 and
+recovery-payload/requirement-fan-a949f8534; failed build in sibling attempt1.
+
 ## Remaining uncertainty and next fix
 
 Sparse32 still exhausts same-write XML; ER256 still refuses family geometry.
@@ -114,5 +150,7 @@ log; no general performance-win claim follows from the new small cases.
 Stopped numeric/mask/glyph-union/index/streaming/sharing and leaf-seat leads remain
 closed; current source has no sufficient new capacity subtraction. Pre-import slice
 owner also forbids replacing primitive XML reads with a captured caller method.
-Next concrete hypothesis: small Requirement contains fan port pitch versus actual
-circle-plus width. It is not yet rendered or a demonstrated failure.
+Next demonstrated contact counterexample: ELK Requirement fan relation-5 docks
+tangentially after a duplicate leading point. Locate the producer route cause; do
+not equate duplicate removal or a new proof pass with corrected docking. Native
+contains loops/other dense cyclic combinations remain outside this new fan claim.
