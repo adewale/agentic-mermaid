@@ -1,152 +1,118 @@
-# Native layout 0.6 local work log
+# Native layout recovery: results and handoff
 
-Campaign ends **2026-11-08T23:59:59Z**. Work runs in bounded sessions; no continuous
-execution or replacement-readiness claim. ELK remains the default; version and
-publication settings stay unchanged. Replacement24 stays sealed.
+The owner stopped the campaign on **5 November 2026 at 13:20:32 UTC**. Both the
+hourly campaign and deadline-report automations are disabled. Work ran in bounded
+sessions. This document records the stopped state; it does not schedule more work.
 
-PR602 was created at the owner's explicit request, with published head
-c74d826ca198f9204f8f79228ae0c3eb3323839c against recovery base
-3b56da55e6570908beb5d96c25f4c03c1a828a22. Current-main integration is unfinished.
-Subsequent campaign work is local; do not update/push that PR without a new request.
-Original campaign-baseline2dadf0dbc2685c8435df541de99f3edce841450d, Trident and pinned
-Mermaid12.2/Pele1.9 remain unavailable; Pele1.8 is not substituted.
+Draft [PR #602](https://github.com/adewale/agentic-mermaid/pull/602) preserves the
+source on `work/pr449-reconstruct-20261103`. Its recovery base is
+`3b56da55e6570908beb5d96c25f4c03c1a828a22`; integration with current `main` remains
+unfinished. ELK is still the default. Versions, publication settings and caps are
+unchanged. Replacement24 remains sealed.
 
-The full prior log is retained at 99723bb5dd61762fc0a4e69eace569416ad8f9e0 and at
-week/sparse256-default-gap-99723bb5d/work-log-through-99723bb5d.md.gz, byte-verified
-against that revision. The earlier full C74 log and its archive also remain. Its older archive links, adverse trials and exact qualification
-records remain intact. No retained evidence or uncommitted work was deleted.
+## Remaining differences from ELK
 
-## Retained ELK deltas and delivery limits
+These are retained same-input observations at their recorded revisions, not a
+ranking of current `main`. Unknowns and refusals remain part of the workload.
 
-| Enrolled workload | Retained result and remaining counterexample |
+| Workload | Native compared with ELK | Cause or remaining work |
+| --- | --- | --- |
+| Sparse256: 256 cards, one relationship | Area 3,633,619.5 vs 3,459,200: **+5.04%**. Wire 132.598 vs 214.598. | The default isolate clearance fix removed 51.22% of the previous Native area. Residual shelf packing remains; connected geometry is unchanged. |
+| Nonlinear forest | Wire **+16.89%**, area **−6.43%**. | Fixed-dock routes are already shortest. Inspect placement and terminal seating; the stopped leaf-seat trial increased area 6.88%. |
+| Requirement cycle | TB/BT area **+9.53%**; LR/RL **−1.44%**. | Directional placement loss remains. Fields, relations and observed ink were retained at `15972c57e`. |
+| ER256 relationship chain | **Both backends refuse.** | Distinct from Sparse256 above. Guarded shortcuts did not remove enough work. |
+| Sparse32 | Delivered 1,500 text records and 32 contributing markers; proof unverified at 400,000 operations. | Proof availability, middle-glyph attribution, readability and arbitrary fonts remain separate unknowns. |
+
+The original `campaign-baseline2dadf0dbc2685c8435df541de99f3edce841450d`, Trident and
+pinned Mermaid12.2/Pele1.9 were unavailable after recovery. The complete original
+four-way comparison is therefore unfinished. Pele1.8 was not substituted.
+
+## Latest implemented changes
+
+`c93e0c51f37b1d9edabd81ad6404764eb1dff7e6` uses the existing 20px ER component
+clearance for flat Native isolates when the author has not requested node spacing.
+Connected spacing stays 70px; explicit 0/70, frontmatter 90 with option 0 override,
+groups and getter behavior remain covered. On the same 1,199-byte source and default
+options, area fell from 7,449,331 to 3,633,619.5. The old **+115.35%** ELK deficit
+is historical. All 256 names, 140×56 bodies, the identifying N0→N1 relation and
+its two cardinality owners remain. Sampled N0/N255 header and cardinality ink is
+retained; this does not qualify every glyph or font. Proof passed before and after,
+with operations **90,546→91,015 (+469)**, unchanged pairs and caps.
+
+`b32489e19e290f7e3327715678bb1b5c1f419249` shares captured raw orthogonal carriers
+with terminal paint. The enrolled hollow circles in both backends changed from
+0 to 225 confined pixels. Geometry, resources and normal contacts were preserved.
+Two getter drifts and a descriptor refusal introduced during development were
+removed. Proof remains unverified, **156,838→156,940 (+102 operations)**. Earlier
+plain/linear/STEP repairs remain in history; cubic, closed, diagonal, reversal and
+insufficient-runway cases remain outside the demonstrated fix.
+
+Earlier gains include nested Class captions (6/8→8/8), ER192/207/208 delivery,
+ER208 scene reuse (proof 400k cap→287,124/280,068 with unchanged SVG), Class128
+certification in four directions, measured forest placement, Requirement marker
+clearance and shared multiline formatting. Inspection/emission ownership repairs
+remove reproduced false certification passes. These have distinct revisions and
+bounded evidence; shared-consumer repairs benefit both backends.
+
+## Qualification and costs
+
+The two runtime commits were qualified before this documentation cleanup:
+
+| Runtime revision | Recorded verification |
 | --- | --- |
-| Sparse256 cards | Native area3,633,619.5 vsELK3,459,200: +5.04%, reduced51.22% from7,449,331 (+115.35%). Painted/body gaps now20/21px vsELK body20. Wire remains132.598 vs214.598; connected geometry and authored spacing preserved. |
-| Nonlinear forest | Bands3efdf6236c1074964ce2ac7c647e265af56de19b reduced Native area26.98%/wire33.80%; stillwire+16.89% vsELK, area−6.43%. Fixed-dock routes already shortest. Leaf-seat trial area+6.88% stopped. |
-| Requirement cycle | 15972c57e retains authored fields/relations/ink; TB/BT area+9.53% vsELK, LR/RL−1.44%. Adverse trials remain stopped. |
-| ER256 relationship chain | Both backends still refuse; guarded shortcuts did not remove enough work. This is distinct from delivered Sparse256 cards. |
-| Sparse32 | All1,500 text records and32heads retained; dark ink in all1,500regions and all32marker contributions observed. Proof stillU400k; 0marker controlsP. Individual middle attribution/readability/arbitrary fonts remain unknown. |
+| `b32489e19` | Owning RED→GREEN; 384 tests in 8 files, core types and four-file lint passed. Initial descriptor regression and failed drafts retained. |
+| `c93e0c51f` | Owning default-spacing RED→GREEN; 144 tests in 7 files, core types and two-file lint passed. Two Node24 source and two compiled whole-SVG/entire-receipt bindings matched. |
 
-## Earlier results carried forward
+The whole repository suite and final-head CI are **not qualified**. Earlier broad
+checks retained 973 passes and the known Sparse32 failure at their own revision.
+Documentation/backup cleanup changes no runtime or tests and adds no delivery claim.
 
-- Class nested captions0684c7d72/e0877c5ea deliver6/8→8/8. Scene reuse539407810 and
-  final sharp projection11b3e5fcef07706ef002b828c8f4ac6578d2600e give Class128 all4dirs
-  P388607/393070,127heads and exact originalSVG. Broader normalization caused10
-  regressions and was withdrawn.
-- ER capacitycc841a746/599bdf978 removes earlier192/207/208 refusals. Scene reuse
-  52a13881d completes208 certificationP287124/280068 without changing the priorSVG.
-  Dated208LR area−18.70%/wire−30.99% vsELK; no general ER256 delivery claim.
-- Cyclic contactd82c926cc0f6f1119a86e5079ba79fca1a2df0f9 removes head collisions;
-  wire−1.77%, same area/102bends.607b46353 verifies all44owned head contributions,
-  endpoint/caption occurrences and11texts; ELK also has44positive contributions.
-- Private inspection/occurrence fixes527ef75a3/3c567e1e5/68a7d7ce936 remove actual
-  false passes from mutation/omission. Covered text remainsF91 and exactSVG;
-  earlier falseP88/P86 and failed partialP87 remain evidence, not successes.
-- c94c050b23ac795420aeed83f1349d59a6fc423d preserves closed formatting across hard
-  breaks;11rasters retain8word contributions/bold effect. Both backends benefit;
-  wire+3.96 and area+601.128/611.82 remain adverse. Italic/emoji ink unqualified.
-- Inward ER9c0bba610212ba9b316e95dedab9699e06eccb428 now renders instead of refusing:
-  9relations/18ownedheads; area391252.5 vsELK389513.6, bothwire5799.8/0bends.
-- Requirement fana949f8534b5a98e9c168fb61c406d64379fe23fb separates circle pairs8→14px
-  and retains5relations/15component contributions; wire+12/+1.09%, same canvas.
-  ELK1366d4de0ad0aee9b3b90395e1d56bd8ce2d55c5 restores a normal fifth dock by reserving
-  canonical terminal lead; same area/wire, bends13→14. Compound support532eb2eba
-  subsequently gives NativeP99181 on exactSVG and ELKP99199,14bends; proof precision
-  is separate from the previously established ink. Getter/cap-order correction
-  and initial failed candidate remain recorded.
-- Wide-circle fixesc7490d9b4/cf67234e3/ca8fb1221 restore plain/linear/STEP selected
-  circle contribution0→230/230/225 pixels in both backends while preserving
-  geometry/resources/contacts. Proof remainsU. Their extra operations, payloads,
-  all costs and bounded scopes remain in the full prior log.
+Sparse256 cost observations at `c93e0c51f` fully consume SVG and the entire receipt.
+Each cell is one sample per phase in a fresh backend/cache worker, after imports
+and initial GC. Imports, compression and memory counters are recorded separately.
 
-## Latest completed results — 5 November
+| Cache setting | Native cold / repeat / edit, ms | ELK cold / repeat / edit, ms |
+| --- | --- | --- |
+| 0 | 714 / 320 / 485 | 2,357 / 1,049 / 1,026 |
+| 1 | 784 / 256 / 668 | 4,625 / 395 / 1,145 |
 
-Raw captureb32489e19e290f7e3327715678bb1b5c1f419249 restores both enrolled raw-fan
-circles0→225confined pixels while sharing actual geometry with paint calculation.
-Two getter drifts and an introduced descriptor refusal are removed; earlier drafts
-retained. Proof remainsU156838→U156940 (+102),20pairs/caps/issues unchanged.
-384tests/types/lint pass; all measured costs and Node/compiled bindings remain in
-week/raw-fan-circle-c74d826ca and the full prior log. PR602 stays atC74.
+Peak RSS was Native 193,944/195,008 KiB and ELK 277,324/274,500 KiB for cache 0/1.
+Native SVG is 265,157 raw / 13,323 gzip9 / 6,638 Brotli11 bytes; ELK is
+260,973 / 12,762 / 6,836. The ER code closures are Native 23 requests / 330,472
+gzip / 279,193 Brotli bytes, versus ELK 21 / 700,600 / 550,613. The isolate fix
+adds 6 gzip / 15 Brotli code bytes; Native gzip SVG remains larger than ELK.
+These samples establish no causal runtime speedup or cache benefit. Raw heaps,
+slower samples, imports and stage observations remain in the backup.
 
-c93e0c51f37b1d9edabd81ad6404764eb1dff7e6 separates Native independent-card clearance from
-connected-node spacing. The20px private ER component convention applies only when
-no nodeSpacing was requested. Connected ER70, authored0/70, frontmatter90 and its
-option0 override, groups, work guards and limits stay intact. No public
-componentSpacing wiring, new parser/cache/framework or backend-default change.
+## Stopped experiments and missing work
 
-Same enrolled1199Bsource/defaultoptions: canvas2542×2930.5→1831×1984.5,
-area7,449,331→3,633,619.5 (−51.22%; ELK residual+5.04%). All256names/body dimensions,
-identifying N0→N1/owns, connected raw markup/resources and wire132.598 stay exact;
-254isolates now11columns×24rows. No painted-body overlap/clipping. Old+115.35%
-area loss is retained history, not the current result. Earlier isolate packing
-ffbff7a20843098e97b664a7f13080cbf7b257ea had already reduced area52.95%.
+Final-row backfill reduced Sparse256 area another 3.88% (candidate +0.97% vs ELK),
+but moved N255 above N2. It was stopped to retain predictable row-major packing;
+this is a value tradeoff, not an authored-order requirement or acceptance gate.
+It is **unshipped**; the implemented area deficit remains +5.04%.
 
-Five fresh fixed-Inter/zoom1rasters retain N0/N255 header contributions137/245dark
-pixels and both complete cardinality groups48/48, each outsideROI0. Before controls
-are reused only after fresh baseline wholeSVG/ENTIREreceipt byte equality. All256
-individual glyph contributions/readability/arbitrary fonts remain unqualified.
-Proof staysP90546→P91015 (+469operations adverse), same24pairs/coverage/issues/caps.
+The start-circle parser shortcut changed multiline one-edge meaning into two
+edges and was stopped. Broad normalization caused ten regressions and was
+withdrawn. ER256 shortcuts failed the causal sufficiency test. The Node24 profile
+withdrew descriptor-Map causation; no cache/array/SoA rewrite or speedup forecast
+is justified by it. A reliable five-hotspot performance report remains unfinished.
 
-The owning test REDs on default70<explicit70 after authored-spacing/group guards
-pass; final owner and144tests/7files pass (60.19s). Core types88.90s/2154752KiB,
-lint2filesP. Initial changed-options20probe is causal evidence only; final default
-candidate is the unchanged-input qualification. Prepared39-character revision typo
-was caught before Node/build execution; original files retained before correction.
+If the owner requests continuation, begin with one demonstrated loss and locate
+the first responsible stage. For the forest, investigate placement/terminal seats
+before routing. Keep adverse area/wire/runtime costs and unknowns visible. Unchanged
+replays are validation. Authored meaning and final ink decide correctness; ELK
+supplies counterexamples and alternative solutions, without requiring zero metric
+differences. Integrate with current `main` before claiming the PR is ready.
 
-Twelve current fullSVG/ENTIREreceipt calls allP; repeat/cache-arm products byte-exact,
-actual owns→revises edit visible, all256names/dimensions retained. N1 after imports,
-cold/repeat/edit ms: cache0 Native714/320/485 vsELK2357/1049/1026;
-cache1 Native784/256/668 vsELK4625/395/1145. All slower cache1 cold/edit samples and
-imports/stages are retained; no causal runtime speedup claim. PeakRSS Native193944/
-195008KiB vsELK277324/274500; raw phase heaps and separate compression retained.
-Native SVG265822→265157raw,13590→13323gzip9,6695→6638Br11 (−665/−267/−57), same
-Bunprovider. Current ELK SVG260973raw/12762gzip/6836Br; Native gzip remains larger.
+## Restore after environment loss
 
-Two freshNode24 and two compiled wholeSVG/ENTIREreceipt bindings exact. One owned
-RAM build/measure/bind31.97s/289636KiB, scratch removed. ER closures Native23requests/
-raw1011200/gzip330472/Br279193 vsELK21/2285774/700600/550613. Relative to the
-runtime-equivalent pre-fix ER report both add4raw/6gzip/15Br; requests unchanged.
-Initial3/raw15408/gzip5854/Br5226 (−1gzip/−1Br). Code growth/proof work remain adverse.
+The [backup and restore guide](https://github.com/adewale/agentic-mermaid/blob/24f5f1ab972937d687691d5282b6cec04830c5b8/recovery-20261105/README.md)
+on `review/pr449-evidence-20261105` preserves all 5,122 current comparison files,
+prior evidence snapshots, controllers, stopped patches and coordination records.
+Its archive reconstruction was byte-checked. Restore into empty scratch space;
+historical leases must not reactivate the stopped campaign.
 
-Evidence: week/sparse256-default-gap-99723bb5d (current before/default-after/cause,
-independent vectors/ink/binding, full prior log), sparse256-isolate-spacing-99723/
-production-draft, sparse256-default-gap-cost-99723bb5d/COST-SUMMARY.json,
-sparse256-default-gap-node24-c93e0c51f and recovery-payload/sparse256-default-gap-c93e0c51f.
-New commits stay local; PR602 remains unchanged.
-
-## Stopped causes and next fix
-
-The standalone start-circle parser shortcut remains stopped: closed-pipe recognition
-turns valid multiline one-A→C meaning into two edges. Preserve unsupported `o--`
-and its8public/3parser REDs; no grammar patch shipped. ER256 guarded reuse/glyph
-shortcuts were insufficient. Moving profile tails/historical ELK timeout remain
-unexplained. The report-only Node24 profile withdrew descriptor-Map causation;
-no cache/array/SoA rewrite or speedup forecast follows from those samples.
-
-Raw diagonals/reversals/short corner runways and cubic/closed paths remain outside
-the earlier paint fix. Forest/Requirement losses, ER256 refusal and Sparse32 proof
-cap remain. Unchanged replays are validation, not new coverage.
-
-### Stopped final-row backfill — 5 November
-
-At base8f9ef3da050f334f02aad6dd482942049dfe64b8, one uncommitted ER override probe
-moved the whole final isolate row into the measured right-hand header. Actual area
-3,633,619.5→3,492,632.5 (−3.88%; candidate ELK residual+0.97%), P91015→P90805.
-All256 names/relationships/cardinality ownership, connected raw artwork and253 other
-isolate seats remain intact; no painted overlaps/clips. Geometry hypothesis holds.
-The adverse visual tradeoff is explicit: N255 moves from body(40.5,1888) to
-(473.598,40), above N2 at(40.5,117). DOM/entity order is unchanged.
-
-Stop this approach: retain current row-major predictability rather than spending
-another qualification cycle on that modest area gain. This is a value judgment,
-not an authored ordering requirement, new acceptance gate or lost-meaning claim.
-No production/test edit, extra raster, unchanged test replay or build was performed;
-no performance/whole-ink/readiness claim. Current implemented result remains
-Sparse256+5.04% area vsELK. Preserve actual candidate and full receipts/comparison:
-week/sparse256-header-seat-8f9 and sparse256-header-row-8f9ef3da0/production-draft.
-
-Next priority: the larger retained forestwire+16.89% tradeoff (Native area−6.43%).
-Use the existing exact source to locate placement/terminal-seat causes; fixed-dock
-routes were already shortest. Retain the leaf-seat trial's area+6.88% and inspect
-its whole quality vector before choosing a different intervention. Do not rerun the
-same stopped trial or require every metric to improve; ELK supplies alternatives,
-while authored meaning, visible output and resource tradeoffs decide value.
+The full pre-cleanup log remains at
+`0a4534ee814d0c380de138b845b0d8e3f5226132:docs/design/system/layout-0.6-work-log.md`;
+older full logs and failed trials are retained in Git history and the backup.
+This is recovered November 3–5 work, not restoration of the original lost campaign.
