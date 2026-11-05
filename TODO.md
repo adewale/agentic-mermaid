@@ -144,6 +144,13 @@ route-contract extraction preserves the existing pipeline manifest and order.
   and define the parity outcome. Unpromoted issue lists are deliberately not
   retained in this backlog.
 - [ ] **BUILD-6 — Native upstream Mermaid family adoption** (`todo`). Select
+  The owner requested delivery of Swimlane, TreeView, UseCase, AgentFlow,
+  Wardley, Cynefin, Railroad and Venn in one PR on 5 November 2026, alongside
+  SRC-1 source-preserving edits, production-backed Mermaid model projections
+  and upstream assertions, and measured reuse under PERF-1. Start with Class
+  editing and Swimlane; reuse existing family registration, drawing and tests.
+  Keep implementation progress and evidence in that PR rather than new issues
+  or generated tracking documents. Select subsequent
   work from the pinned upstream syntax references, current family descriptors
   and `am capabilities --json`, using demand, maturity, syntax stability and
   semantic leverage; the former upstream manifest/report was removed in #361.
