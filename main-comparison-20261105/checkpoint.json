@@ -1,0 +1,15 @@
+{
+  "source_head": "63a32f5b972de9dea25834a746e441780acc01f2",
+  "tested_runtime_head": "741b80dba91c0e1f4feba9a62695f7820bc79a23",
+  "main_head": "f9ec8c115de14020d3c182d5d7f2e7e70bfcdefb",
+  "public_calls": 36,
+  "returned": 27,
+  "proof_passed": 21,
+  "proof_unverified": 6,
+  "refused": 9,
+  "initial_zero_call_unavailable_attempts": 6,
+  "files": 277,
+  "raw_bytes": 7689239,
+  "archive_bytes": 6324668,
+  "every_member_byte_verified": true
+}
