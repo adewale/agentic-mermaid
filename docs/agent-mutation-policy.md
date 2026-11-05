@@ -62,6 +62,20 @@ changing declaration order or state ownership.
 
 Structured mutation is exposed for every built-in renderable family when its modeled subset narrows. `am capabilities --json` lists each family's narrower and `mutationOps`, and `describeOps(family)` gives the exact op fields; this page does not keep a second roster.
 
+Class diagrams can retain direction and inert callback/link statements while
+remaining typed. Member and owned identity edits patch their source ranges and
+reparse the complete model; unmodeled dependent references refuse an unsafe
+rename or removal. A retained source must still match the supplied typed body.
+
+Timeline edits address section, period and event occurrences, so repeated labels
+remain distinct. Header comments and neighboring source survive these edits.
+Continuations retain their native period owner; a reorder that cannot preserve
+that ownership is refused.
+
+TreeView IDs are positional row addresses. After a structural edit, use the
+returned diagram's IDs: its canonical writer and reader may reassign positions
+while preserving the complete authored hierarchy, labels and metadata.
+
 Some families are segment-preserving rather than all-or-nothing: sequence keeps `alt`/`opt`/`loop`/`par` as typed fragments (with their own read-back and mutation ops) while Note/box/critical/activate/autonumber/title ride along verbatim, and its top-level message indices stay separate from fragment-message indices; gantt keeps calendar directives and click/comment lines as verbatim segments; ER keeps ordered typed and opaque-block segments. Only input that cannot be segmented (e.g. an unbalanced `end`) falls back to a whole-body opaque body.
 
 Opaque/source-level bodies:

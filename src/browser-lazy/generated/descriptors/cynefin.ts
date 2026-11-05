@@ -14,8 +14,22 @@ const descriptorData = Object.freeze({
   "aliases": [],
   "config": {
     "section": "cynefin",
-    "keys": [],
-    "noopKeys": []
+    "keys": [
+      "boundaryAmplitude",
+      "height",
+      "padding",
+      "seed",
+      "showDomainDescriptions",
+      "width"
+    ],
+    "noopKeys": [
+      "boundaryAmplitude",
+      "height",
+      "padding",
+      "seed",
+      "showDomainDescriptions",
+      "width"
+    ]
   },
   "identity": {
     "id": "family:cynefin",

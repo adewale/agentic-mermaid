@@ -14,8 +14,38 @@ const descriptorData = Object.freeze({
   "aliases": [],
   "config": {
     "section": "usecase",
-    "keys": [],
-    "noopKeys": []
+    "keys": [
+      "actorFontFamily",
+      "actorFontSize",
+      "actorFontWeight",
+      "colorScheme",
+      "diagramPadding",
+      "look",
+      "minNodeWidth",
+      "nodeSpacing",
+      "rankSpacing",
+      "theme",
+      "usecaseFontFamily",
+      "usecaseFontSize",
+      "usecaseFontWeight",
+      "wrappingWidth"
+    ],
+    "noopKeys": [
+      "actorFontFamily",
+      "actorFontSize",
+      "actorFontWeight",
+      "colorScheme",
+      "diagramPadding",
+      "look",
+      "minNodeWidth",
+      "nodeSpacing",
+      "rankSpacing",
+      "theme",
+      "usecaseFontFamily",
+      "usecaseFontSize",
+      "usecaseFontWeight",
+      "wrappingWidth"
+    ]
   },
   "identity": {
     "id": "family:usecase",

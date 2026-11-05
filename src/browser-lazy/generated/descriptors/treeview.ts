@@ -15,11 +15,22 @@ const descriptorData = Object.freeze({
   "config": {
     "section": "treeView",
     "keys": [
-      "rowIndent",
+      "defaultIconPack",
+      "extensionIcons",
+      "filenameIcons",
+      "lineThickness",
+      "paddingX",
       "paddingY",
+      "rowIndent",
       "showIcons"
     ],
-    "noopKeys": []
+    "noopKeys": [
+      "defaultIconPack",
+      "extensionIcons",
+      "filenameIcons",
+      "lineThickness",
+      "paddingX"
+    ]
   },
   "identity": {
     "id": "family:treeview",

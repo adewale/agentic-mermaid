@@ -14,8 +14,26 @@ const descriptorData = Object.freeze({
   "aliases": [],
   "config": {
     "section": "agentflow",
-    "keys": [],
-    "noopKeys": []
+    "keys": [
+      "diagramPadding",
+      "look",
+      "minNodeWidth",
+      "nodeSpacing",
+      "rankSpacing",
+      "theme",
+      "titleTopMargin",
+      "wrappingWidth"
+    ],
+    "noopKeys": [
+      "diagramPadding",
+      "look",
+      "minNodeWidth",
+      "nodeSpacing",
+      "rankSpacing",
+      "theme",
+      "titleTopMargin",
+      "wrappingWidth"
+    ]
   },
   "identity": {
     "id": "family:agentflow",

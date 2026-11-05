@@ -14,8 +14,24 @@ const descriptorData = Object.freeze({
   "aliases": [],
   "config": {
     "section": "swimlane",
-    "keys": [],
-    "noopKeys": []
+    "keys": [
+      "automaticLaneOrdering",
+      "ignoreCrossLaneEdges",
+      "layout",
+      "lineHops",
+      "look",
+      "optimizeRanksByCrossings",
+      "theme"
+    ],
+    "noopKeys": [
+      "automaticLaneOrdering",
+      "ignoreCrossLaneEdges",
+      "layout",
+      "lineHops",
+      "look",
+      "optimizeRanksByCrossings",
+      "theme"
+    ]
   },
   "identity": {
     "id": "family:swimlane",
