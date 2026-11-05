@@ -1,4 +1,5 @@
 import { applyLayoutHints } from './layout/layout-hints.ts'
+import { withLayoutOptimizationBudget, canExploreLayout, optionalLayout, recordLayoutProducer, selectedLayoutOptimization } from './layout/optimization-budget.ts'
 import { measureLabelConflicts } from './layout/label-conflicts.ts'
 import { resolveLabelContent, type DisplayTextInput } from './shared/display-text.ts'
 import { preparePixelText } from './shared/prepared-text.ts'
@@ -118,6 +119,8 @@ interface LayoutEngineOptions extends RenderOptions {
   /** @internal Lay compound nodes out separately, which honors their minimum
    * width; set when a group came back narrower than its title. */
   separateHierarchy?: boolean
+  /** Internal optional ELK candidate; explicit adjacency still owns its order. */
+  preferModelOrder?: boolean
   /** @internal The diagram's title (frontmatter `title:`), drawn in a band
    * above the graph. */
   diagramTitle?: string
@@ -131,7 +134,7 @@ interface LayoutEngineOptions extends RenderOptions {
 
 type MarkerPortDemand = { count: number; span: number }
 type ElkConversionOptions = Required<Pick<RenderOptions, 'font' | 'padding' | 'nodeSpacing' | 'layerSpacing'>> &
-  Pick<LayoutEngineOptions, 'preserveSubgraphChildOrder' | 'separateHierarchy' | 'disableCorankFanIn' | 'layoutHints' | 'nodeSizes'> & { stateVisual?: ResolvedStateVisualConfig; markerPortExtents?: ReadonlyMap<string, MarkerPortDemand> }
+  Pick<LayoutEngineOptions, 'preserveSubgraphChildOrder' | 'separateHierarchy' | 'disableCorankFanIn' | 'layoutHints' | 'nodeSizes' | 'preferModelOrder'> & { stateVisual?: ResolvedStateVisualConfig; markerPortExtents?: ReadonlyMap<string, MarkerPortDemand> }
 
 // ============================================================================
 // Layout options
@@ -708,7 +711,7 @@ function mermaidToElk(
       // al. TSE 1993). The route-contract pass still collapses an unlabeled
       // loop onto a parallel back-lane when one proves clear.
       'elk.layered.feedbackEdges': 'true',
-      'elk.layered.crossingMinimization.forceNodeModelOrder': 'true',
+      'elk.layered.crossingMinimization.forceNodeModelOrder': opts.preferModelOrder ? 'false' : 'true',
       'elk.layered.wrapping.strategy': 'OFF',
       // Use SEPARATE when subgraphs have direction overrides (enables proper direction handling)
       // Use INCLUDE_CHILDREN otherwise (simpler cross-hierarchy edge routing)
@@ -2007,6 +2010,10 @@ export function layoutGraphSync(
   graph: MermaidGraph,
   options: LayoutEngineOptions = {}
 ): PositionedGraph {
+  return withLayoutOptimizationBudget(graph, options.graphLayout, () => layoutGraphWithBudget(graph, options))
+}
+
+function layoutGraphWithBudget(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph {
   assertMermaidGraphWork(graph)
   const style = resolveRenderStyle(options, (options as StateRenderOptions).stateVisual?.styleDefaults, options.styleFace)
   const positioned = layoutUntitledGraph(graphWithDisplayCaptions(graph, style), options)
@@ -2120,6 +2127,7 @@ function layoutCandidate(
     if (Object.keys(overrides).length > 0) {
       attempt.layoutOptions = { ...attempt.layoutOptions, ...overrides }
     }
+    recordLayoutProducer()
     try {
       const candidate = elkLayoutSync(attempt)
       // ELK can occasionally return a nominally successful graph containing
@@ -2207,10 +2215,16 @@ function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpo
     ? (positioned, produce) => { routeAlternatives.set(positioned, produce) }
     : undefined
   const distinctHierarchy = graph.subgraphs.length > 0 && !usesSeparateHierarchy(graph, options)
+  let primary: PositionedGraph | undefined
   const candidates: LayoutCertificationCandidate[] = [{
-    strategy: 'default', produce: () => layoutCandidate(graph, options, rememberAlternative),
+    strategy: 'default', produce: () => primary = layoutCandidate(graph, options, rememberAlternative),
     preferNext: preferReadableTitles,
   }]
+  if (options.graphLayout?.quality === 'balanced' && canExploreLayout() && !options.preserveSubgraphChildOrder && !options.layoutHints?.adjacent?.length && !hasParallelPair(graph.edges)) {
+    candidates.push({ strategy: 'prefer-model-order', qualityAlternative: true, preferNext: preferReadableTitles,
+      produce: () => optionalLayout(() => layoutCandidate(graph, { ...options, preferModelOrder: true }, rememberAlternative)) ?? primary!,
+    })
+  }
   // One conditional producer before the complete established fallback list.
   // Projected Architecture graphs reserve authored child order and have
   // side-constrained placement of their own; keep their original producer.
@@ -2232,11 +2246,13 @@ function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpo
   // One preliminary forest, at most four ELK placements and one route pipeline;
   // the existing 16-ELK exceptional upper bound is unchanged.
   if (purpose === 'placement') return certifyLayoutPlacementCandidates(graph, style, candidates, preliminary)
-  return certifyLayoutWithRouteAlternative(graph, style, candidates, (placed, score) => {
+  const selected = certifyLayoutWithRouteAlternative(graph, style, candidates, (placed, score) => {
     const makeRoute = routeAlternatives.get(placed)
     if (!makeRoute || (score.edgeCrossings === 0 && score.labelConflicts === 0)) return undefined
     return { strategy: 'without-generic-bundling', produce: makeRoute, preferNext: preferReadableTitles }
   }, preliminary)
+  if (selected.certification?.strategy === 'prefer-model-order') selectedLayoutOptimization('prefer-model-order')
+  return selected
 }
 
 function groupsNarrowerThanTitles(groups: readonly PositionedGroup[], graph: MermaidGraph, style: ResolvedRenderStyle): boolean {

@@ -518,6 +518,10 @@ export interface GraphLayoutOptions {
   backend: 'elk' | 'agentic'
   /** Agentic may explicitly fall back to ELK; omitted means none. */
   fallback?: 'none' | 'elk'
+  /** Bounded certified alternatives; omitted preserves existing geometry. */
+  quality?: 'balanced'
+  /** Flowchart-only target for selecting wrapping, never output stretching. */
+  viewport?: { width: number; height: number }
 }
 
 export interface RenderOptions {

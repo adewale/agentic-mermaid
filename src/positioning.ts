@@ -17,6 +17,7 @@ import type { FamilyId } from './agent/types.ts'
 import { assessRenderedLayoutHardViolations } from './family-rubric.ts'
 import { LayoutCertificationError } from './layout/certification-error.ts'
 import { graphLayoutDecisionsOf, retainGraphLayoutDecision, withGraphLayoutDecisionObserver, type GraphLayoutDecision } from './layout/backend.ts'
+import { withLayoutOptimizationBudget } from './layout/optimization-budget.ts'
 import type { NormalizedMermaidSource } from './mermaid-source.ts'
 import { type ResolvedRenderRequest, resolvedFamilyRenderContextOf, resolvedRenderExecutionPlanOf } from './render-contract.ts'
 import { withTextMeasurementExecution } from './text-measurement-profile.ts'
@@ -105,7 +106,7 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
     !performanceExperimentEnabled('position-cache') ? 'disabled' : !certifyFinal ? 'external-family'
       : familyId === 'gantt' ? 'time-dependent-family' : executionPlan.textMeasurement ? 'custom-text-measurement'
         : cacheKey === undefined ? 'elk-cache-disabled' : 'key-limit')
-  return withTextMeasurementExecution(executionPlan.textMeasurement, () => {
+  return withLayoutOptimizationBudget(request, request.renderOptions.graphLayout, () => withTextMeasurementExecution(executionPlan.textMeasurement, () => {
     const role = request.output === 'ascii' || request.output === 'unicode' || request.output === 'html' ? 'companion' : 'primary'
     if (borrow && boundedKey !== undefined) {
       const snapshot = borrowedPositioned(descriptor, boundedKey, request.output === 'svg' ? request : undefined)
@@ -157,5 +158,5 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
       retain(descriptor, boundedKey, result, retainedProjections.get(result))
     }
     return result
-  })
+  }))
 }
