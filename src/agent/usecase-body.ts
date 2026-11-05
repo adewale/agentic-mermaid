@@ -58,8 +58,8 @@ export function mutateUsecase(body: UsecaseBody, op: UsecaseMutationOp): Result<
       case 'add_relationship': {
         if (!exists(op.from) || !exists(op.to)) throw new Error('UseCase relationships require existing endpoints')
         let index = 0
-        while (next.relationships.some(edge => edge.id === `relationship-${index}`) || exists(`relationship-${index}`)) index++
-        const id = op.id ?? `relationship-${index}`
+        while (next.relationships.some(edge => edge.id === `relationship_${index}`) || exists(`relationship_${index}`)) index++
+        const id = op.id ?? `relationship_${index}`
         if (exists(id) || next.relationships.some(edge => edge.id === id)) throw new Error(`Duplicate UseCase relationship ${id}`)
         const type = op.relation ?? 'association'
         next.relationships.push({

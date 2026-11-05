@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { mutate, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/core.ts'
+import { buildMermaid, mutate, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/core.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { layoutUsecaseDiagram } from '../usecase/layout.ts'
 import { parseUsecaseDiagram } from '../usecase/parser.ts'
@@ -118,4 +118,28 @@ describe('native UseCase meaning and editing', () => {
       { id: 'payment', explicitId: true, type: 'include' },
     ])
   })
+})
+
+test('public UseCase construction allocates portable relationship identities', async () => {
+  const built = buildMermaid('usecase', [
+    { kind: 'add_actor', id: 'Customer', label: 'Customer' },
+    { kind: 'add_usecase', id: 'Checkout', label: 'Checkout' },
+    { kind: 'add_relationship', from: 'Customer', to: 'Checkout' },
+  ])
+  if (!built.ok || built.value.body.kind !== 'usecase') throw new Error(JSON.stringify(built))
+  expect(built.value.body.relationships[0]!.id).toBe('relationship_0')
+  expect(await upstream.publicAccepts(serializeMermaid(built.value))).toBe(true)
+  expect(verifyMermaid(built.value).ok).toBe(true)
+})
+
+test('actors retain one measured wrapped label through layout, projection and SVG', () => {
+  const source = 'usecase-beta\nactor A("label </text><script>inert</script>\uE000")'
+  const body = parseUsecaseDiagram(source),
+    placed = layoutUsecaseDiagram(body, { style: 'crisp', seed: 0 })
+  const node = placed.nodes[0]!
+  expect(node.labelBlock!.width).toBeLessThan(node.width)
+  expect(node.labelBlock!.lines.length).toBeGreaterThan(1)
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok) throw new Error('Expected UseCase')
+  expect(renderMermaidSVG(parsed.value, { style: 'crisp', seed: 0, embedFontImport: false })).toContain('&lt;/text&gt;')
 })

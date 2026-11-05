@@ -14,6 +14,7 @@ export function layoutUsecaseDiagram(body: UsecaseBody, options: RenderOptions =
     nodeSizes = new Map<string, { width: number; height: number }>()
   for (const node of body.nodes) {
     const block = preparePixelText(usecaseNodeLabel(node), { fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, maxWidth: 240, display: node.labelType === 'markdown' ? 'formatted' : 'literal', letterSpacing: style.nodeLetterSpacing, transform: style.nodeTextTransform, fontFamily: options.font })
+    graph.nodes.get(node.id)!.labelBlock = block
     if (node.kind === 'actor') {
       const icon = node.icon ? preparePixelText(`[${node.icon}]`, { fontSize: Math.min(10, style.nodeLabelFontSize), fontWeight: style.nodeLabelFontWeight, display: 'literal' }) : undefined
       nodeSizes.set(node.id, { width: Math.max(70, block.width + 24, (icon?.width ?? 0) + 24), height: block.height + (icon ? 92 : 76) })
