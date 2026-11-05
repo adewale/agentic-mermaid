@@ -1,5 +1,6 @@
 // Adapted from Pele (MIT, copyright 2026 kepano), revision 3a2f075.
 // See LICENSES/pele-MIT.txt.
+import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts';
 import {
   ACC_DESCR,
   ACC_TITLE,
@@ -90,21 +91,26 @@ export function parseCynefin(src: string): CynefinAst {
   skipLines();
   if (r.kind !== T.keyword && r.kind !== T.keywordColon) r.fail("'cynefin-beta'");
   r.i++;
+  const observed = parserObservationActive('cynefin');
   while (r.kind !== -1) {
+    const kind = r.kind, start = r.tokens.starts[r.i]!;
     switch (r.kind) {
       case T.newline:
         r.i++;
         break;
       case T.accDescr:
         ast.accDescr = accDescrValue(r.take());
+        if (observed) observeParserMutation('cynefin', 'set-accessibility-description', ast.accDescr, { offset: start, unit: 'physical' });
         endOfLine();
         break;
       case T.accTitle:
         ast.accTitle = accTitleValue(r.take());
+        if (observed) observeParserMutation('cynefin', 'set-accessibility-title', ast.accTitle, { offset: start, unit: 'physical' });
         endOfLine();
         break;
       case T.title:
         ast.title = titleValue(r.take());
+        if (observed) observeParserMutation('cynefin', 'set-title', ast.title, { offset: start, unit: 'physical' });
         endOfLine();
         break;
       case T.domain: {
@@ -114,6 +120,7 @@ export function parseCynefin(src: string): CynefinAst {
           if (r.accept(T.colon)) transition.label = stringValue(r.expect(T.string));
           endOfLine();
           ast.transitions.push(transition);
+          if (observed) observeParserMutation('cynefin', 'add-transition', transition, { offset: start, unit: 'physical' });
           break;
         }
         const block: DomainBlockAst = { $type: 'DomainBlock', domain: name, items: [] };
@@ -123,10 +130,15 @@ export function parseCynefin(src: string): CynefinAst {
           skipLines();
         }
         ast.domains.push(block);
+        if (observed) observeParserMutation('cynefin', 'add-domain', block, { offset: start, unit: 'physical' });
         break;
       }
       default:
         r.fail('a domain, a transition, a title, or a line break');
+    }
+    if (observed && kind !== T.newline) {
+      const endOffset = r.tokens.starts[r.i] ?? src.length;
+      observeParserStatement('cynefin', CYNEFIN_TOKENS[kind]!.name, src.slice(start, endOffset), { offset: start, endOffset, unit: 'physical' });
     }
   }
   return ast;

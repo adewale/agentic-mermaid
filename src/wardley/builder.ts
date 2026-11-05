@@ -1,3 +1,4 @@
+import { observeParserMutation } from '../shared/parser-observation.ts'
 // Adapted from Pele (MIT, copyright 2026 kepano), revision 3a2f075.
 // See LICENSES/pele-MIT.txt.
 import { GrammarReadError } from '../shared/grammar-reader-error.ts'
@@ -105,54 +106,66 @@ export class WardleyBuilder {
       labelOffsetY: node.labelOffsetY ?? existing.labelOffsetY,
     })
     this.labels = undefined
+    observeParserMutation('wardley', 'add-node', this.nodes.get(node.id))
   }
 
   addLink(link: WardleyLink): void {
     this.links.push(link)
+    observeParserMutation('wardley', 'add-link', link)
   }
 
   addTrend(trend: WardleyTrend): void {
     this.trends.set(trend.nodeId, trend)
+    observeParserMutation('wardley', 'add-trend', trend)
   }
 
   startPipeline(nodeId: string): void {
     this.pipelines.set(nodeId, { nodeId, componentIds: [] })
     const node = this.nodes.get(nodeId)
     if (node) node.isPipelineParent = true
+    observeParserMutation('wardley', 'start-pipeline', this.pipelines.get(nodeId))
   }
 
   addPipelineComponent(pipelineNodeId: string, componentId: string): void {
     this.pipelines.get(pipelineNodeId)?.componentIds.push(componentId)
     const node = this.nodes.get(componentId)
     if (node) node.inPipeline = true
+    observeParserMutation('wardley', 'add-pipeline-component', this.pipelines.get(pipelineNodeId))
   }
 
   addAnnotation(annotation: WardleyAnnotation): void {
     this.annotations.push(annotation)
+    observeParserMutation('wardley', 'add-annotation', annotation)
   }
 
   addNote(note: WardleyNote): void {
     this.notes.push(note)
+    observeParserMutation('wardley', 'add-note', note)
   }
 
   addAccelerator(accelerator: WardleyForce): void {
     this.accelerators.push(accelerator)
+    observeParserMutation('wardley', 'add-accelerator', accelerator)
   }
 
   addDeaccelerator(deaccelerator: WardleyForce): void {
     this.deaccelerators.push(deaccelerator)
+    observeParserMutation('wardley', 'add-deaccelerator', deaccelerator)
   }
 
   setAnnotationsBox(x: number, y: number): void {
     this.annotationsBox = { x, y }
+    observeParserMutation('wardley', 'set-annotations-box', this.annotationsBox)
   }
 
   setAxes(partial: WardleyAxesConfig): void {
     this.axes = { ...this.axes, ...partial }
+    observeParserMutation('wardley', 'set-axes', this.axes)
   }
 
   setSize(width: number, height: number): void {
     this.size = { width, height }
+    observeParserMutation('wardley', 'set-size', this.size)
   }
 
   getNode(id: string): WardleyNode | undefined {

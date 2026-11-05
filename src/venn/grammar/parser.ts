@@ -3,7 +3,7 @@
 import { GrammarReadError, syntaxError } from '../../shared/grammar-reader-error.ts'
 import type { VennDb } from './db.ts'
 import { T, TOKEN_NAMES, VennLexer } from './lexer.ts'
-import { parserObservationActive, observeParserToken } from '../../shared/parser-observation.ts'
+import { parserObservationActive, observeParserToken, observeParserStatement } from '../../shared/parser-observation.ts'
 
 const STATEMENT = "'EOF', 'NEWLINE', 'TITLE', 'SET', 'UNION', 'TEXT', 'INDENT_TEXT', 'STYLE'"
 const VALUE = "'NUMERIC', 'IDENTIFIER', 'STRING', 'HEXCOLOR', 'RGBCOLOR', 'RGBACOLOR'"
@@ -110,7 +110,10 @@ export function parseVenn(src: string, db: VennDb): void {
     const statement = peek()
     if (statement === T.EOF) return
     if (statement < T.NEWLINE || statement > T.STYLE || statement === T.VENN) fail(STATEMENT)
-    if (observed && statement !== T.NEWLINE) db.statementSource = location(lexer.start)
+    if (observed && statement !== T.NEWLINE) {
+      db.statementSource = location(lexer.start)
+      observeParserStatement('venn', TOKEN_NAMES[statement] ?? String(statement), lexer.text, db.statementSource)
+    }
     take()
     if (statement === T.TITLE) db.setDiagramTitle(lexer.text.slice(6))
     else if (statement === T.SET) subset([identifier()], false)

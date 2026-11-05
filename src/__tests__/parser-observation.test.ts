@@ -6,6 +6,9 @@ import { parseMermaid } from '../parser.ts'
 import { withPerformanceExperiments } from '../experimental-performance.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { observeParserMutation, type ParserObservation, withParserObservation } from '../shared/parser-observation.ts'
+import { parseWardleyBody } from '../wardley/body.ts'
+import { parseCynefin } from '../cynefin/parser.ts'
+import { parseVennDiagram } from '../venn/parser.ts'
 import { parseZenUML } from '../zenuml/native-parser.ts'
 
 describe('native parser observation', () => {
@@ -39,6 +42,45 @@ describe('native parser observation', () => {
       expect(events.every(event => event.family === family)).toBe(true)
     })
   }
+  test('snapshots Wardley writes before a component is redeclared', () => {
+    const events: ParserObservation[] = []
+    const source = 'wardley-beta\ncomponent API [0.8,0.2]\ncomponent API [0.6,0.4]\ncomponent DB [0.3,0.7]\nAPI -> DB'
+    const body = withParserObservation('wardley', event => events.push(event), () => parseWardleyBody(source))
+    expect(body.nodes.find(node => node.id === 'API')).toMatchObject({ x: 40, y: 60 })
+    expect(events.filter(event => event.kind === 'add-node').map(event => event.value)).toEqual([
+      expect.objectContaining({ id: 'API', x: 20, y: 80 }),
+      expect.objectContaining({ id: 'API', x: 40, y: 60 }),
+      expect.objectContaining({ id: 'DB', x: 70, y: 30 }),
+    ])
+    expect(events.filter(event => event.kind === 'add-link').map(event => event.value)).toEqual([{ source: 'API', target: 'DB', dashed: false }])
+    for (const event of events.filter(event => event.unit === 'statement')) expect(source.slice(event.source!.offset, event.source!.endOffset)).toBe(event.text!)
+  })
+
+  test('records Cynefin domain items and transitions at their actual ordered writes', () => {
+    const events: ParserObservation[] = []
+    const source = 'cynefin-beta\ncomplex\n  "Explore"\nclear\n  "Operate"\ncomplex --> clear: "Learn"'
+    withParserObservation('cynefin', event => events.push(event), () => parseCynefin(source))
+    expect(events.filter(event => event.unit === 'mutation').map(event => [event.kind, event.value])).toEqual([
+      ['add-domain', { $type: 'DomainBlock', domain: 'complex', items: [{ $type: 'DomainItem', label: 'Explore' }] }],
+      ['add-domain', { $type: 'DomainBlock', domain: 'clear', items: [{ $type: 'DomainItem', label: 'Operate' }] }],
+      ['add-transition', { $type: 'Transition', from: 'complex', to: 'clear', label: 'Learn' }],
+    ])
+    for (const event of events.filter(event => event.unit === 'statement')) expect(source.slice(event.source!.offset, event.source!.endOffset)).toBe(event.text!)
+  })
+
+  test('Venn observation keeps authored subset values and style ownership', () => {
+    const events: ParserObservation[] = []
+    const source = 'venn-beta\nset A["Frontend"]:20\nset B["Backend"]:12\nunion A,B["Shared"]:3\nstyle A,B fill: "#fff"'
+    withParserObservation('venn', event => events.push(event), () => parseVennDiagram(source))
+    expect(events.filter(event => event.kind === 'add-subset').map(event => event.value)).toEqual([
+      { sets: ['A'], size: 20, label: 'Frontend' },
+      { sets: ['B'], size: 12, label: 'Backend' },
+      { sets: ['A', 'B'], size: 3, label: 'Shared' },
+    ])
+    expect(events.filter(event => event.kind === 'add-style').map(event => event.value)).toEqual([{ targets: ['A', 'B'], styles: [['fill', '#fff']] }])
+    expect(events.filter(event => event.unit === 'statement').map(event => event.source?.line)).toEqual([2, 3, 4, 5])
+  })
+
   test('snapshots actual Class writes before later member and label changes, keeping endpoint sides and namespace membership', () => {
     const source = ['classDiagram', 'namespace Outer {', 'class A', 'class A["Alpha"] {', '+String name', '}', 'A <-- B : calls', '}']
     const events: ParserObservation[] = []

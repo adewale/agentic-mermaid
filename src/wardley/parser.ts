@@ -1,5 +1,6 @@
 // Adapted from Pele (MIT, copyright 2026 kepano), revision 3a2f075.
 // See LICENSES/pele-MIT.txt.
+import { parserObservationActive, observeParserStatement } from '../shared/parser-observation.ts'
 import { accDescr } from '../shared/grammar-acc-descr.ts'
 import { ACC_TITLE, DIRECTIVE, NEWLINE, Reader, SINGLE_LINE_COMMENT, STRING, TITLE, WHITESPACE, YAML, accDescrValue, accTitleValue, stringValue, titleValue, tokenize, type Scanner, type TokenType } from '../shared/grammar-reader.ts'
 
@@ -247,7 +248,9 @@ export function parseWardley(src: string): WardleyAst {
 
   while (at(T.newline)) r.i++
   r.expect(T.wardley)
+  const observed = parserObservationActive('wardley')
   while (!at(-1)) {
+    const kind = r.kind, start = r.tokens.starts[r.i]!
     switch (r.kind) {
       case T.newline:
         r.i++
@@ -387,6 +390,10 @@ export function parseWardley(src: string): WardleyAst {
         endOfLine()
         ast.links.push(link)
       }
+    }
+    if (observed && kind !== T.newline) {
+      const endOffset = r.tokens.starts[r.i] ?? src.length
+      observeParserStatement('wardley', WARDLEY_TOKENS[kind]!.name, src.slice(start, endOffset), { offset: start, endOffset, unit: 'physical' })
     }
   }
   return ast
