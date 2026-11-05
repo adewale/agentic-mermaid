@@ -125,6 +125,15 @@ test.each([
   const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
   const full = new Resvg(drawing.svg, { font, background: '#fff' }).render(), fullPixels = full.pixels
   expect([full.width, full.height]).toEqual([width, height])
+  // This white fixture needs dark ink in every authored row, without claiming glyph attribution or readability.
+  for (let index = 0; index < 1500; index++) {
+    let dark = 0
+    for (let y = 990 + index * 20; y < 1010 + index * 20; y++) for (let x = 20; x < 32; x++) {
+      const pixel = (y * width + x) * 4
+      if (fullPixels[pixel]! < 128 && fullPixels[pixel + 1]! < 128 && fullPixels[pixel + 2]! < 128 && fullPixels[pixel + 3]! > 0) dark++
+    }
+    expect(dark, `Authored text:${index} has no dark ink in its declared row`).toBeGreaterThan(0)
+  }
   for (const index of [0, 1499]) {
     // Keep the original root and geometry. A native raster crop of the
     // single-tag mask must differ from this same region of the full image.
