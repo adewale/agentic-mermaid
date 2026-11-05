@@ -1,3 +1,5 @@
+CI completion observed2026-11-05T16:39:12Z: exact head741 completed failed. See CI-COMPLETION.json and pr-body-final.md. Shards1/2, semantic, CLI, browser scene checks and package consumers pass; shard3 retains only Sparse32, and quality/payload/advisory fail. Rounded-header screenshots pass. Earlier archive statuses are the preserved pre-completion snapshot.
+
 # Bounded-run handoff — 5 November 2026
 
 This metadata checkpoint descends from browser-spacing9a60e1cfd and forest-exits6b5ed8135. Those directories preserve the exact source inputs, actual SVG/PNG/receipts, complete paired editor builds, independent reviews and restore guides. Source/tests are on PR602 head741b80dba; runtime is69af97a12.

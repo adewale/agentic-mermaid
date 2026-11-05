@@ -1,0 +1,141 @@
+{
+  "head": "741b80dba91c0e1f4feba9a62695f7820bc79a23",
+  "run": 42064078938,
+  "observedAt": "2026-11-05T16:39:12Z",
+  "allTerminal": true,
+  "conclusion": "failure",
+  "jobs": [
+    {
+      "id": 127374167651,
+      "name": "Expire label approvals of earlier heads",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127374168132,
+      "name": "Select required checks",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127374394941,
+      "name": "Build portable test artifacts",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127374395073,
+      "name": "Generated layout diagnostic (advisory)",
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    {
+      "id": 127374395195,
+      "name": "CLI and single-binary tests",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127374395262,
+      "name": "Quality gates",
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    {
+      "id": 127374395441,
+      "name": "MCP conformance",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127374395450,
+      "name": "Independent semantic conformance / semantic",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127374395677,
+      "name": "Layout backend review evidence",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127374398999,
+      "name": "Documentation checks",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 127375588623,
+      "name": "Unit tests (1/3)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127375588673,
+      "name": "Unit tests (2/3)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127375588691,
+      "name": "Installed-package quickstarts",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127375588742,
+      "name": "Unit tests (3/3)",
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    {
+      "id": 127375588749,
+      "name": "E2E (browser)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127375588788,
+      "name": "E2E (dist-artifact)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127375588928,
+      "name": "E2E (payload)",
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    {
+      "id": 127375588947,
+      "name": "E2E (tarball-consumer-node22)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127375589026,
+      "name": "E2E (tarball-consumer)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127375589036,
+      "name": "E2E (browser-site)",
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    {
+      "id": 127381026653,
+      "name": "test",
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    {
+      "id": 127381089828,
+      "name": "CI complete",
+      "status": "completed",
+      "conclusion": "failure"
+    }
+  ]
+}
