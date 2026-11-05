@@ -653,6 +653,8 @@ jobs:
           native-family-wardley native-family-cynefin native-family-railroad native-family-venn
           terminal-native-family-swimlane terminal-native-family-treeview terminal-native-family-usecase terminal-native-family-agentflow
           terminal-native-family-wardley terminal-native-family-cynefin terminal-native-family-railroad terminal-native-family-venn
+          adversarial-swimlane-parallel adversarial-swimlane-nesting
+          adversarial-wardley-direction adversarial-wardley-overflow
 
       - name: Render shared capture and text preservation controls
         if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}
