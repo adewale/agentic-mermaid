@@ -1,3 +1,5 @@
+Human-readable main→PR summary: [REVIEW-OVERVIEW.md](REVIEW-OVERVIEW.md). The source report commit is63a32f5b9; runtime comparison stays pinned to741. The earlier archive is immutable.
+
 # Current-main → PR741 comparison — 5 November2026
 
 This recovery checkpoint descends from c93f9053f and its full restore guides. Source HEAD is recorded in checkpoint.json; the new sourcecommit changes only the worklog. All actual rendering comparisons freeze mainf9ec8c115de14020d3c182d5d7f2e7e70bfcdefb versus PR741b80dba91c0e1f4feba9a62695f7820bc79a23. This is current-main qualification, not restoration of originalbaseline2dad/Trident/pinnedfourway products. Replacement24 remainssealed.
