@@ -105,16 +105,17 @@ function advance(runs: readonly DisplayRun[], options: PixelTextOptions): number
   const measure = options.safeFont ? measureSystemFontSafeTextWidth : measureTextWidth
   const grouped = runs.length === 1 && !(runs[0] as WrapGlyph).fragments && stripDiscretionaryBreaks(runs[0]!.text) === runs[0]!.text ? runs : coalesce(runs)
   const text = grouped.length === 1 ? grouped[0]!.text : grouped.map(run => run.text).join('')
+  const custom = customTextMeasurementActive() && grouped.every(run => customTextMeasurementActive({ text: run.text, fontSize: options.fontSize, fontWeight: run.bold ? Math.max(700, options.fontWeight) : options.fontWeight, fontStyle: run.italic ? 'italic' : 'normal', fontFamily: options.fontFamily, monospace: options.monospace ?? false }))
   if ((options.letterSpacing ?? 0) !== 0 && !/[^\x20-\x7e]/u.test(text)) return trackedBounds(grouped, options).width
   const width = options.monospace
-    ? customTextMeasurementActive()
+    ? custom
       ? grouped.reduce((sum, run) => sum + measureMonospaceTextWidth(run.text, options.fontSize, 0, run.bold ? Math.max(700, options.fontWeight) : options.fontWeight, run.italic ? 'italic' : 'normal', options.fontFamily), 0)
       : measureMonospaceTextWidth(text, options.fontSize)
     : grouped.reduce((sum, run) => sum + measure(run.text, options.fontSize, run.bold ? Math.max(700, options.fontWeight) : options.fontWeight, run.italic ? 'italic' : 'normal', options.fontFamily), 0)
   // Native shaping may apply tracking to several code points in a cluster
   // (flags are a common example). Negative tracking can reverse occupied
   // intervals; reserve their envelope rather than shrinking to final advance.
-  if (!customTextMeasurementActive() && /[^\x20-\x7e]/u.test(text)) {
+  if (!custom && /[^\x20-\x7e]/u.test(text)) {
     // Unknown fallback faces need an em envelope, rather than the Latin bucket
     // for Ω/Ш/etc. Count visible code points: a fallback can draw separate
     // glyphs for components of a flag or a ZWJ cluster. Zero-width marks stay
@@ -170,7 +171,7 @@ function trackedGlyphWidth(text: string, run: DisplayRun, lastInStyle: boolean, 
   const fontStyle = run.italic ? 'italic' : 'normal'
   const measure = options.safeFont ? measureSystemFontSafeTextWidth : measureTextWidth
   return options.monospace ? measureMonospaceTextWidth(text, options.fontSize, 0, weight, fontStyle, options.fontFamily)
-    : measure(text, options.fontSize, weight, fontStyle, options.fontFamily) - (lastInStyle || customTextMeasurementActive() ? 0 : options.fontSize * 0.15)
+    : measure(text, options.fontSize, weight, fontStyle, options.fontFamily) - (lastInStyle || customTextMeasurementActive() && customTextMeasurementActive({ text, fontSize: options.fontSize, fontWeight: weight, fontStyle, fontFamily: options.fontFamily, monospace: false }) ? 0 : options.fontSize * 0.15)
 }
 
 /** With negative tracking, total advance can be zero while glyph intervals

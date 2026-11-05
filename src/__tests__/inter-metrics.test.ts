@@ -3,6 +3,7 @@ import { renderMermaidSVGWithReceipt, renderMermaidSVG, createMermaidRenderer, v
 import { BUNDLED_INTER_TEXT_MEASUREMENT } from '../inter-metrics.ts'
 import { measureTextWidth } from '../text-metrics.ts'
 import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
+import { preparePixelText } from '../shared/prepared-text.ts'
 
 test('bundled Inter reserves natural digit and kerned word advances', () => {
   // Independent hb-shape observations from the shipped Regular face, 16px.
@@ -30,4 +31,15 @@ test('the serializable option selects the same profile for layout and paint', ()
   const host = createMermaidRenderer({ textMeasurement: { id: 'test:host', version: '1.0.0', measure: () => 100 } })
   expect(() => host.renderMermaidSVG(source, options)).toThrow('cannot be combined')
   expect(renderMermaidSVG(source, { fontMetrics: 'estimate' })).toBe(renderMermaidSVG(source))
+})
+
+test('partial metrics preserve fallback shaping envelopes and italic tracking padding', () => {
+  for (const text of ['مرحبا', '👩‍💻', '<i>WWW</i>']) {
+    const options = { fontSize: 16, fontWeight: 400, letterSpacing: 1 }
+    const expected = preparePixelText(text, options)
+    const execution = createTextMeasurementExecution(BUNDLED_INTER_TEXT_MEASUREMENT, 'Inter')
+    const actual = withTextMeasurementExecution(execution, () => preparePixelText(text, options))
+    expect(actual.width).toBeCloseTo(expected.width, 6)
+    expect(actual.height).toBe(expected.height)
+  }
 })

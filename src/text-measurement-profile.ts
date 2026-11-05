@@ -20,6 +20,15 @@ export interface TextMeasurementProfile extends TextMeasurementProfileIdentity {
   readonly measure: (input: Readonly<ProfileTextMeasurementInput>) => number
 }
 
+type MeasurementInput = Omit<ProfileTextMeasurementInput, 'fontFamily'> & { fontFamily?: string }
+// Built-in partial profiles declare coverage privately. A declined run must
+// retain the estimator's padding and fallback-shaping protections as well as
+// its width. This capability never enters serialized or caller-owned data.
+const estimatedFallbacks = new WeakMap<TextMeasurementProfile, (input: Readonly<ProfileTextMeasurementInput>) => boolean>()
+export function registerEstimatedTextFallback(profile: TextMeasurementProfile, covers: (input: Readonly<ProfileTextMeasurementInput>) => boolean): void {
+  estimatedFallbacks.set(profile, covers)
+}
+
 export const DEFAULT_TEXT_MEASUREMENT_PROFILE: TextMeasurementProfileIdentity = Object.freeze({
   id: 'agentic-mermaid:inter-estimate',
   version: '4.0.0',
@@ -38,13 +47,17 @@ export function snapshotTextMeasurementProfile(profile: TextMeasurementProfile |
     throw new TypeError('textMeasurement.version must be a semantic version')
   }
   if (typeof measure !== 'function') throw new TypeError('textMeasurement.measure must be a function')
-  return Object.freeze({ id, version, measure })
+  const snapshot = Object.freeze({ id, version, measure })
+  const coverage = estimatedFallbacks.get(profile)
+  if (coverage) estimatedFallbacks.set(snapshot, coverage)
+  return snapshot
 }
 
 /** Per-request cache shared by layout and drawing, held only in the private plan. */
 export interface TextMeasurementExecution {
   readonly identity: TextMeasurementProfileIdentity
-  readonly width: (input: Omit<ProfileTextMeasurementInput, 'fontFamily'> & { fontFamily?: string }) => number
+  readonly width: (input: MeasurementInput) => number | undefined
+  readonly covers?: (input: MeasurementInput) => boolean
 }
 
 const MAX_WIDTH = 1_000_000
@@ -58,9 +71,13 @@ export function createTextMeasurementExecution(
   if (!snapshot) return undefined
   const identity = Object.freeze({ id: snapshot.id, version: snapshot.version })
   const widths = new Map<string, number>()
+  const coverage = estimatedFallbacks.get(snapshot)
+  const covers = coverage ? (input: MeasurementInput) => coverage({ ...input, fontFamily: input.fontFamily ?? (input.monospace ? 'JetBrains Mono' : fontFamily) }) : undefined
   return Object.freeze({
     identity,
-    width(input: Omit<ProfileTextMeasurementInput, 'fontFamily'> & { fontFamily?: string }): number {
+    ...(covers ? { covers } : {}),
+    width(input: MeasurementInput): number | undefined {
+      if (covers && !covers(input)) return undefined
       const selectedFont = input.fontFamily ?? (input.monospace ? 'JetBrains Mono' : fontFamily)
       const key = JSON.stringify([input.text, selectedFont, input.fontSize, input.fontWeight, input.fontStyle, input.monospace])
       const cached = widths.get(key)
@@ -96,8 +113,8 @@ export function withTextMeasurementExecution<T>(execution: TextMeasurementExecut
   }
 }
 
-export function customTextMeasurementActive(): boolean {
-  return activeExecution !== undefined
+export function customTextMeasurementActive(input?: MeasurementInput): boolean {
+  return activeExecution !== undefined && (input === undefined || activeExecution.covers === undefined || activeExecution.covers(input))
 }
 
 export function profileTextWidth(input: Omit<ProfileTextMeasurementInput, 'fontFamily'> & { fontFamily?: string }): number | undefined {

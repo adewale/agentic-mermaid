@@ -1,6 +1,7 @@
 import { INTER_METRICS_DATA } from './inter-metrics-data.ts'
 import { measureMonospaceTextWidth, measureTextWidth } from './text-metrics.ts'
 import type { ProfileTextMeasurementInput, TextMeasurementProfile } from './text-measurement-profile.ts'
+import { registerEstimatedTextFallback } from './text-measurement-profile.ts'
 
 type Face = { advances: readonly number[]; keys: Uint16Array; adjustments: Int16Array; upem: number }
 const faces = new Map<number, Face>()
@@ -54,3 +55,6 @@ function measure(input: Readonly<ProfileTextMeasurementInput>): number {
 export const BUNDLED_INTER_TEXT_MEASUREMENT: TextMeasurementProfile = Object.freeze({
   id: 'agentic-mermaid:bundled-inter-ascii', version: '1.0.0', measure,
 })
+registerEstimatedTextFallback(BUNDLED_INTER_TEXT_MEASUREMENT, input => !input.monospace && input.fontStyle === 'normal'
+  && input.fontFamily.split(',')[0]!.trim().replace(/^['"]|['"]$/g, '').toLowerCase() === 'inter'
+  && [400, 500, 600, 700].includes(input.fontWeight) && !/[^\x20-\x7e]/u.test(input.text))
