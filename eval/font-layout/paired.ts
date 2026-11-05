@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync } fr
 import { resolve, join } from 'node:path'
 import { cpus, platform, release } from 'node:os'
 import { timingIds } from './catalog.ts'
+import { variants } from './configs.ts'
 
 const args = process.argv.slice(2)
 const value = (flag: string, fallback: string) => args.includes(flag) ? args[args.indexOf(flag) + 1]! : fallback
@@ -11,15 +12,6 @@ const out = resolve(value('--out', '../measurements/paired'))
 const corpusPath = resolve(value('--corpus', '../measurements/baseline-fixed/corpus.json'))
 const rounds = Number(value('--rounds', '3'))
 const modes = value('--modes', 'recompute,cached,memory,png-latency,png-memory,startup').split(',')
-const variants = [
-  { id: 'shipped-off', features: [] }, { id: 'fonts', features: ['fonts'] },
-  { id: 'elk-order', features: ['elk-order'] }, { id: 'ports', features: ['ports'] },
-  { id: 'wrap', features: ['wrap'] }, { id: 'all', features: ['fonts', 'elk-order', 'ports', 'wrap'] },
-  { id: 'all-minus-fonts', features: ['elk-order', 'ports', 'wrap'] },
-  { id: 'all-minus-order', features: ['fonts', 'ports', 'wrap'] },
-  { id: 'all-minus-ports', features: ['fonts', 'elk-order', 'wrap'] },
-  { id: 'all-minus-wrap', features: ['fonts', 'elk-order', 'ports'] },
-]
 const corpus = JSON.parse(readFileSync(corpusPath, 'utf8')) as Array<{ id: string; source: string; family: string }>
 const selected = [...timingIds, 'contact-sheet/L', 'regression/mfa-login']
 mkdirSync(out, { recursive: true })

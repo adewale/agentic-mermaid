@@ -5,10 +5,11 @@ import { pathToFileURL } from 'node:url'
 import type { RenderOptions } from '../../src/types.ts'
 import type { TextMeasurementProfile } from '../../src/text-measurement-profile.ts'
 
-const input = JSON.parse(readFileSync(0, 'utf8')) as {
+export interface ObservationInput {
   root: string; mode: 'latency' | 'startup' | 'memory' | 'quality'; out: string; features: string[];
   backend: 'elk' | 'agentic'; repetitions: number; item: { id: string; source: string; family: string };
 }
+export async function observe(input: ObservationInput) {
 const root = resolve(input.root)
 const load = (path: string) => import(pathToFileURL(join(root, path)).href)
 const beforeImport = process.memoryUsage()
@@ -49,16 +50,16 @@ if (input.mode === 'latency' || input.mode === 'startup') {
       const start = performance.now(); render(); samples.push(performance.now() - start)
     }
   }
-  console.log(JSON.stringify({ ...base, samples, consumedBytes: held ? Buffer.byteLength(JSON.stringify(held)) : null, sink }))
+  return { ...base, samples, consumedBytes: held ? Buffer.byteLength(JSON.stringify(held)) : null, sink }
 } else if (input.mode === 'memory') {
   const outputHeld = process.memoryUsage()
   Bun.gc(true)
   const heldAfterGc = process.memoryUsage()
   held = undefined
   Bun.gc(true)
-  console.log(JSON.stringify({ ...base, outputHeld, heldAfterGc, releasedAfterGc: process.memoryUsage(), resourceUsage: process.resourceUsage(), sink }))
+  return { ...base, outputHeld, heldAfterGc, releasedAfterGc: process.memoryUsage(), resourceUsage: process.resourceUsage(), sink }
 } else if (failure || !held) {
-  console.log(JSON.stringify(base))
+  return base
 } else {
   // Quality/raster diagnostics are deliberately outside latency/resource runs.
   const { executeGraphicalRequest } = await load('src/graphical-render.ts')
@@ -135,9 +136,11 @@ if (input.mode === 'latency' || input.mode === 'startup') {
     }
     rendered.free(); image.free()
   } catch (error) { raster = { failure: String(error) } }
-  console.log(JSON.stringify({ ...base, width, height, viewportScale, graphQuality, familyQuality, stages, raster,
+  return { ...base, width, height, viewportScale, graphQuality, familyQuality, stages, raster,
     svgBytes: Buffer.byteLength(svg), svgGzipBytes: gzipSync(svg).length, svgBrotliBytes: brotliCompressSync(svg).length,
     receiptBytes: Buffer.byteLength(JSON.stringify(result.receipt)), receipt: result.receipt,
     lineCount: (svg.match(/<tspan\b[^>]*\sdy=/g) ?? []).length,
-  }))
+  }
 }
+}
+if (import.meta.main) console.log(JSON.stringify(await observe(JSON.parse(readFileSync(0, 'utf8')))))
