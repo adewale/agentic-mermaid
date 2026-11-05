@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "fd80ff94aacdaa7d22c5e4040c9ac43be8d563d6f46d8985ae8998c27beacdae",
+  "artifactSha256": "d612f44c4326ee75df65a29c25f7ee9b5e4cf11240815722e921f24011ff13f3",
   "reviewedAt": "2026-11-05",
-  "reviewer": "Codex agent, PR #601 native-family enrollment review",
-  "scope": "Agent review of all 32 added cells at native 520x380 size in the 1560x17064 sheet: Railroad, Cynefin, AgentFlow, UseCase, Wardley, Venn, Swimlane and TreeView across four variants. All 100 existing diagram bodies are pixel-identical after band alignment; 94 complete cells are pixel-identical, and six captions differ by eight antialiasing pixels in total at their moved positions. This finite review is not human approval, deployed-site parity or arbitrary-density proof.",
+  "reviewer": "Codex agent, PR #601 Venn accent review",
+  "scope": "Agent review at renderer revision 7e94fb9103894559072138de2b62da480919a6c5: inspected all four Venn cells at native 520x380 size and the full 132-cell sheet overview. Three Venn holdouts now use their requested accent fills; the sentinel and all 128 other cells are pixel-identical to the prior approved sheet. The earlier native-family review remains applicable to those unchanged cells. This finite review is not human approval, deployed-site parity or arbitrary-density proof.",
   "audit": "eval/section-b-brand-evidence/arrowhead-clearance-review.md"
 }

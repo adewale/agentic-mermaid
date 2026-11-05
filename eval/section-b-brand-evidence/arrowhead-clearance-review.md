@@ -36,3 +36,32 @@ Those differences are confined to the family captions above the diagrams.
 The updated existing approval record binds these exact PNG bytes. This is
 agent review of finite examples, not human approval, deployed-site parity or
 a general readability claim for arbitrary density, fonts or displays.
+
+
+## Venn accent correction, 5 November 2026
+
+At renderer revision `7e94fb9103894559072138de2b62da480919a6c5`, the Venn
+fallback fill uses the defined derived accent token instead of an undefined
+CSS variable. The existing production generator produced a 1560 × 17064 PNG
+with SHA-256
+`d612f44c4326ee75df65a29c25f7ee9b5e4cf11240815722e921f24011ff13f3`.
+It byte-matches the inspected candidate. The previous approved image had
+SHA-256 `fd80ff94aacdaa7d22c5e4040c9ac43be8d563d6f46d8985ae8998c27beacdae`.
+
+The Codex agent inspected all four Venn cells at native 520 × 380 size,
+compared the three changed holdouts against their previous cells, and reviewed
+the full 132-cell sheet overview. Warm editorial now has a terracotta tint;
+light technical and dark operations use their teal accents. Both circles,
+their shared region, and all three labels retain their positions and complete
+text. The explicitly filled sentinel and all 128 other cells are pixel-identical
+to the previous approved sheet, so their earlier review remains applicable.
+
+The Venn hand-drawn SVG golden changes only its two circle fills and the derived
+CSS scope identifier. Its reviewed PNG retains both outlines, the Alpha/Beta
+and Shared labels, and the Owned note. The existing Chromium resolved-scene
+oracle independently checked all 37 Venn styles: 37 diagrams, 331 primitives,
+zero failures. The focused regression also checks two custom accents alongside
+an authored fill, SVG parity and lossless JSON transport.
+
+This receipt records agent review of these finite examples. It does not claim
+human approval, deployed-site parity or readability at arbitrary density.
