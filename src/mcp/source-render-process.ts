@@ -1,51 +1,60 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { EventEmitter } from 'node:events'
-import { SOURCE_TOOL_NODE_FLAGS } from './source-worker-limits.ts'
+import { fileURLToPath } from 'node:url'
+import { SOURCE_TOOL_CHILD_ARG, SOURCE_TOOL_MEMORY_BYTES, SOURCE_TOOL_NODE_FLAGS } from './source-worker-limits.ts'
+import type { SourceToolRequest } from './source-tool-message.ts'
 
-// One capped process performs rendering directly. IPC avoids stdio framing and
-// remains unreferenceable under both Node and Bun while the renderer is idle.
-const BOOTSTRAP = `
-if (Number(process.versions.node.split('.')[0]) < 22) process.exit(3);
-process.once('message', async message => {
-  try {
-    await import(message.entry ?? ('data:text/javascript;base64,' + Buffer.from(message.source).toString('base64')));
-    process.send({ event: 'ready' });
-  } catch { process.exit(1); }
-});
-process.send({ event: 'bootstrap' });
-`
+declare const __AM_STANDALONE__: boolean
 
+export interface SourceRenderProcessOptions {
+  executable?: string
+  supervisor?: URL
+  worker?: URL
+  memoryBudgetBytes?: number
+  nodeFlags?: readonly string[]
+}
+
+/** The current runtime starts a supervisor and worker. Compiled Bun programs
+ * reexecute themselves; installed/source runs pass their actual script entry. */
 export class SourceRenderProcess extends EventEmitter {
   private readonly child: ChildProcess
   private ready = false
-  private readonly pending: object[] = []
+  private closed = false
+  private readonly pending: SourceToolRequest[] = []
 
-  constructor(source: string | URL, flags: readonly string[] = SOURCE_TOOL_NODE_FLAGS) {
+  constructor(options: SourceRenderProcessOptions = {}) {
     super()
     this.on('error', () => {})
-    this.child = spawn(process.versions.bun ? 'node' : process.execPath, [...flags, '--input-type=module', '--eval', BOOTSTRAP], {
-      stdio: ['ignore', 'ignore', 'ignore', 'ipc'], env: { ...process.env, NODE_OPTIONS: '' },
+    const standalone = typeof __AM_STANDALONE__ !== 'undefined' && __AM_STANDALONE__
+    const supervisor = options.supervisor ?? new URL(import.meta.url.endsWith('.ts') ? './source-supervisor.ts' : './source-supervisor.js', import.meta.url)
+    const args = standalone ? [SOURCE_TOOL_CHILD_ARG] : [fileURLToPath(supervisor)]
+    const flags = process.versions.bun ? [] : [...(options.nodeFlags ?? SOURCE_TOOL_NODE_FLAGS)]
+    this.child = spawn(options.executable ?? process.execPath, [...flags, ...args], {
+      stdio: ['ignore', 'ignore', 'ignore', 'ipc'], serialization: 'json', env: { ...process.env, NODE_OPTIONS: '' },
     })
-    // Reap the unreferenced idle process before natural parent shutdown.
     const shutdown = () => { this.ref(); this.terminate() }
     process.once('beforeExit', shutdown)
     this.child.on('message', (message: any) => {
-      if (message.event === 'bootstrap') this.send(typeof source === 'string' ? { source } : { entry: source.href })
-      else if (message.event === 'ready') {
+      if (this.closed) return
+      if (message.type === 'bootstrap') this.send({ type: 'initialize', worker: options.worker?.href, memoryBudgetBytes: options.memoryBudgetBytes ?? SOURCE_TOOL_MEMORY_BYTES })
+      else if (message.type === 'ready') {
         this.ready = true
+        this.emit('ready', message)
         for (const queued of this.pending.splice(0)) this.send(queued)
       } else this.emit('message', message)
     })
     this.child.on('error', error => this.emit('error', error))
-    // close also fires after a failed spawn, which has no exit event.
+    // Failed spawns emit close without exit. Release their occupied slot too.
     this.child.once('close', (code, signal) => {
+      this.closed = true
+      this.pending.length = 0
       process.removeListener('beforeExit', shutdown)
-      if (!this.ready && code === 3) this.emit('error', Object.assign(new Error('Node 22 or later is required'), { code: 'NODE_RUNTIME_UNSUPPORTED' }))
       this.emit('exit', code, signal)
     })
   }
 
-  postMessage(message: object): void {
+  postMessage(message: SourceToolRequest): void {
+    if (this.closed) throw new Error('Rendering process is closed')
     if (!this.ready) this.pending.push(message)
     else this.send(message)
   }
@@ -54,6 +63,7 @@ export class SourceRenderProcess extends EventEmitter {
   unref(): void { (this.child.channel as { unref?: () => void } | undefined)?.unref?.(); this.child.unref() }
 
   private send(message: object): void {
-    this.child.send(message, error => { if (error) this.emit('error', error) })
+    try { this.child.send(message, error => { if (error && !this.closed) this.emit('error', error) }) }
+    catch (error) { this.emit('error', error) }
   }
 }

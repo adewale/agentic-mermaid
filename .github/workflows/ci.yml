@@ -443,6 +443,30 @@ jobs:
         run: bun run quality:check
 
 
+  renderer-platforms:
+    needs: scope
+    if: needs.scope.outputs.full == 'true'
+    name: Renderer isolation (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.4.4
+          no-cache: true
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: bun install --frozen-lockfile
+      - name: Exercise process recovery and the standalone binary
+        run: bun test src/__tests__/mcp-source-tools.test.ts e2e/single-binary.e2e.test.ts --timeout 30000
+
   mcp-conformance:
     needs: scope
     if: needs.scope.outputs.full == 'true'
@@ -505,7 +529,7 @@ jobs:
   # proof that every runtime dependency passed, including installed consumers.
   test:
     runs-on: ubuntu-latest
-    needs: [scope, artifacts, unit, quality, mcp-conformance, cli, e2e, semantic, consumer-quickstarts]
+    needs: [scope, artifacts, unit, quality, mcp-conformance, renderer-platforms, cli, e2e, semantic, consumer-quickstarts]
     if: ${{ always() && needs.scope.outputs.full == 'true' }}
     timeout-minutes: 5
     steps:

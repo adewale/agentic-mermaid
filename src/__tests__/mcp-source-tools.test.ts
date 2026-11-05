@@ -1,13 +1,39 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, spyOn, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { EventEmitter } from 'node:events'
+import { pathToFileURL } from 'node:url'
 import { useTempDirs } from './helpers/temp-dir.ts'
 import { handleRequest } from '../mcp/server.ts'
-import { runSourceToolIsolated } from '../mcp/source-worker-client.ts'
+import { runSourceToolIsolated, SourceToolExecutor, type RenderProcess } from '../mcp/source-worker-client.ts'
+import { sourceToolMessage, SourceToolMessageLimitError, type SourceToolRequest } from '../mcp/source-tool-message.ts'
 import { SourceRenderProcess } from '../mcp/source-render-process.ts'
 
 const temp = useTempDirs('am-source-tools-')
+
+function workerFixture(code: string): URL {
+  return pathToFileURL(temp.file('renderer-fixture.mjs', `import { parentPort } from 'node:worker_threads';\n${code}`))
+}
+
+function rendererExit(renderer: SourceRenderProcess): Promise<{ code: number | null; signal: string | null }> {
+  return new Promise(resolve => renderer.once('exit', (code, signal) => resolve({ code, signal })))
+}
+
+function rendererReply(renderer: SourceRenderProcess, id: number): Promise<Record<string, any>> {
+  return new Promise(resolve => {
+    renderer.once('message', reply => { expect(reply.id).toBe(id); resolve(JSON.parse(reply.json)) })
+    renderer.postMessage({ type: 'request', id, json: '{}' })
+  })
+}
+
+class ControlledRenderer extends EventEmitter implements RenderProcess {
+  readonly sent: SourceToolRequest[] = []
+  terminations = 0
+  postMessage(message: SourceToolRequest): void { this.sent.push(message) }
+  terminate(): void { this.terminations++ }
+  ref(): void {}
+  unref(): void {}
+  reply(id: number, value: unknown): void { this.emit('message', { type: 'result', id, json: JSON.stringify(value) }) }
+}
 
 async function call(name: string, args: Record<string, unknown>) {
   const response = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } })
@@ -18,57 +44,150 @@ async function call(name: string, args: Record<string, unknown>) {
 }
 
 describe('local MCP direct source tools', () => {
-  test('inherited Node heap flags cannot enlarge the renderer heap', () => {
+  test('inherited Node flags cannot enlarge the optional V8 heap guard', () => {
+    const worker = workerFixture(`import { getHeapStatistics } from 'node:v8';
+parentPort.on('message', ({id}) => parentPort.postMessage({type:'result',id,json:JSON.stringify({heap:getHeapStatistics().heap_size_limit})}));
+parentPort.postMessage({type:'ready'});`)
     const entry = new URL('../mcp/source-render-process.ts', import.meta.url).href
-    const limits = new URL('../mcp/source-worker-limits.ts', import.meta.url).href
-    const code = `import {SourceRenderProcess} from ${JSON.stringify(entry)}; import {SOURCE_TOOL_NODE_FLAGS} from ${JSON.stringify(limits)}; const worker = new SourceRenderProcess("import {getHeapStatistics} from 'node:v8'; process.on('disconnect', () => process.exit()); process.on('message', () => process.send(getHeapStatistics().heap_size_limit));", SOURCE_TOOL_NODE_FLAGS); worker.on('error', error => { console.error(error); worker.terminate(); process.exitCode=1; }); worker.once('message', value => { console.log(value); worker.terminate(); }); worker.postMessage({});`
-    const child = spawnSync('bun', ['-e', code], { env: { ...process.env, NODE_OPTIONS: '--max-old-space-size=1024' }, encoding: 'utf8', timeout: 10_000 })
+    const code = `import {SourceRenderProcess} from ${JSON.stringify(entry)}; const renderer=new SourceRenderProcess({worker:new URL(${JSON.stringify(worker.href)})}); renderer.once('message', reply=>{console.log(reply.json);renderer.terminate()}); renderer.postMessage({type:'request',id:1,json:'{}'});`
+    const child = spawnSync('node', ['--max-old-space-size=1024', '--input-type=module', '-e', code], {
+      env: { ...process.env, NODE_OPTIONS: '--max-old-space-size=2048' }, encoding: 'utf8', timeout: 10_000,
+    })
     expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
-    expect(Number(child.stdout)).toBeGreaterThan(0)
-    expect(Number(child.stdout)).toBeLessThanOrEqual(512 * 1024 * 1024)
+    const { heap } = JSON.parse(child.stdout)
+    expect(heap).toBeGreaterThan(480 * 1024 * 1024)
+    expect(heap).toBeLessThanOrEqual(512 * 1024 * 1024)
   }, 15_000)
 
-  test('the render process aborts when its V8 heap is exhausted', async () => {
-    const worker = new SourceRenderProcess("process.on('message', () => { const values = []; while (true) values.push(new Array(100000).fill(42)); });", ['--max-old-space-size=16', '--max-semi-space-size=1'])
+  test('bounds native Buffer allocations with the whole-process watchdog', async () => {
+    const worker = workerFixture(`parentPort.on('message', () => { const held=[]; for(let i=0;i<32;i++) held.push(Buffer.alloc(8*1024*1024,42)); parentPort.postMessage({type:'result',id:1,json:'{}'}); }); parentPort.postMessage({type:'ready'});`)
+    const renderer = new SourceRenderProcess({ worker, memoryBudgetBytes: 96 * 1024 * 1024 })
+    const closed = rendererExit(renderer)
     try {
-      const failed = new Promise<string | null>(resolve => worker.once('exit', (_code, signal) => resolve(signal)))
-      worker.postMessage({})
-      expect(await failed).toBe('SIGABRT')
-    } finally { worker.terminate() }
+      const ready = await Promise.race([new Promise(resolve => renderer.once('ready', resolve)), closed])
+      expect(ready).toMatchObject({ type: 'ready' })
+      renderer.postMessage({ type: 'request', id: 1, json: '{}' })
+      expect(await closed).toMatchObject({ code: 72 })
+    } finally { renderer.terminate(); await closed }
   }, 10_000)
 
-  test('recovers when Node becomes available after a failed spawn', () => {
-    // Isolate PATH mutation and the executor singleton from the test runner.
-    const entry = new URL('../mcp/source-worker-client.ts', import.meta.url).href
-    const code = `import {runSourceToolIsolated as run} from ${JSON.stringify(entry)}; const savedPath = process.env.PATH; process.env.PATH = '/nonexistent'; console.log(JSON.stringify(await run('verify', {source:'sequenceDiagram\\nA->>B: Hello'}))); process.env.PATH = savedPath; console.log(JSON.stringify(await run('verify', {source:'sequenceDiagram\\nA->>B: Hello'}, {timeoutMs:3000})));`
-    const child = spawnSync('bun', ['-e', code], { encoding: 'utf8', timeout: 10_000 })
-    expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
-    const [unavailable, recovered] = child.stdout.trim().split('\n').map(line => JSON.parse(line))
-    expect(unavailable).toMatchObject({ ok: false, error: { code: 'WORKER_RUNTIME_UNAVAILABLE' } })
-    expect(recovered).toMatchObject({ ok: true, family: 'sequence' })
+  test('failed spawn produces a structured failure and releases the executor slot', async () => {
+    const broken = new SourceRenderProcess({ executable: '/nonexistent/am-renderer' })
+    const closed = rendererExit(broken)
+    let starts = 0
+    let recovered: SourceRenderProcess | undefined
+    let recoveredExit: ReturnType<typeof rendererExit> | undefined
+    const executor = new SourceToolExecutor(() => {
+      if (++starts === 1) return broken
+      recovered = new SourceRenderProcess()
+      recoveredExit = rendererExit(recovered)
+      return recovered
+    })
+    try {
+      expect(await executor.run('verify', { source: 'sequenceDiagram\nA->>B: Hello' })).toMatchObject({ ok: false, error: { code: 'RENDER_WORKER_FAILED' } })
+      await closed
+      expect(await executor.run('verify', { source: 'sequenceDiagram\nA->>B: Recovered' })).toMatchObject({ ok: true, family: 'sequence' })
+      expect(starts).toBe(2)
+    } finally { broken.terminate(); recovered?.terminate(); await Promise.all([closed, recoveredExit]) }
+  }, 15_000)
+
+  test.each(['before ready', 'after ready'])('worker failure %s terminates its supervisor', async phase => {
+    const worker = workerFixture(phase === 'before ready'
+      ? `throw new Error('fixture startup failure')`
+      : `parentPort.on('message',()=>{throw new Error('fixture request failure')}); parentPort.postMessage({type:'ready'});`)
+    const renderer = new SourceRenderProcess({ worker })
+    const closed = rendererExit(renderer)
+    try {
+      renderer.postMessage({ type: 'request', id: 1, json: '{}' })
+      expect(await closed).toMatchObject({ code: 73 })
+    } finally { renderer.terminate(); await closed }
+  }, 10_000)
+
+  test('supervisor rejects an oversized worker reply before forwarding it', async () => {
+    const worker = workerFixture(`parentPort.on('message', ({id}) => parentPort.postMessage({type:'result',id,json:'x'.repeat(16*1024*1024+1)}));parentPort.postMessage({type:'ready'});`)
+    const renderer = new SourceRenderProcess({ worker })
+    const closed = rendererExit(renderer)
+    let forwarded = false
+    renderer.on('message', () => { forwarded = true })
+    try {
+      renderer.postMessage({ type: 'request', id: 1, json: '{}' })
+      expect(await closed).toMatchObject({ code: 73 })
+      expect(forwarded).toBe(false)
+    } finally { renderer.terminate(); await closed }
+  }, 10_000)
+
+  test('a malformed source remains a typed result and leaves the renderer usable', async () => {
+    let starts = 0
+    let renderer: SourceRenderProcess | undefined
+    let closed: ReturnType<typeof rendererExit> | undefined
+    const executor = new SourceToolExecutor(() => {
+      starts++
+      renderer = new SourceRenderProcess()
+      closed = rendererExit(renderer)
+      return renderer
+    })
+    try {
+      expect(await executor.run('render_svg', { source: 'sequenceDiagram\ninvalid ???' })).toMatchObject({ ok: false, error: { code: 'MERMAID_SYNTAX_ERROR', diagramType: 'sequence', line: 2 } })
+      expect(await executor.run('verify', { source: 'sequenceDiagram\nA->>B: Recovered' })).toMatchObject({ ok: true, family: 'sequence' })
+      expect(starts).toBe(1)
+    } finally { renderer?.terminate(); await closed }
+  }, 15_000)
+
+  test('a busy worker times out and a fresh renderer accepts the next request', async () => {
+    const worker = workerFixture(`parentPort.on('message',({id})=>{parentPort.postMessage({type:'started',id});while(true){}});parentPort.postMessage({type:'ready'});`)
+    const busy = new SourceRenderProcess({ worker })
+    const busyExit = rendererExit(busy)
+    let fresh: SourceRenderProcess | undefined
+    let freshExit: ReturnType<typeof rendererExit> | undefined
+    let started = false
+    busy.on('message', message => { if (message.type === 'started') started = true })
+    const executor = new SourceToolExecutor(() => {
+      if (!started) return busy
+      fresh = new SourceRenderProcess()
+      freshExit = rendererExit(fresh)
+      return fresh
+    })
+    try {
+      await Promise.race([new Promise(resolve => busy.once('ready', resolve)), busyExit])
+      expect(await executor.run('verify', {}, { timeoutMs: 100 })).toMatchObject({ ok: false, error: { code: 'RENDER_TIMEOUT' } })
+      expect(started).toBe(true)
+      expect(await executor.run('verify', { source: 'sequenceDiagram\nA->>B: Recovered' })).toMatchObject({ ok: true, family: 'sequence' })
+    } finally { busy.terminate(); fresh?.terminate(); await Promise.all([busyExit, freshExit]) }
   }, 15_000)
 
   test('natural shutdown reaps the unreferenced idle renderer', () => {
+    const worker = workerFixture(`parentPort.on('message',({id})=>parentPort.postMessage({type:'result',id,json:JSON.stringify({pid:process.pid})}));parentPort.postMessage({type:'ready'});`)
     const entry = new URL('../mcp/source-render-process.ts', import.meta.url).href
-    const code = `import {SourceRenderProcess} from ${JSON.stringify(entry)}; const renderer = new SourceRenderProcess("process.on('message', () => process.send(process.pid));"); renderer.once('message', pid => { console.log(pid); renderer.unref(); }); renderer.postMessage({});`
-    const child = spawnSync('bun', ['-e', code], { encoding: 'utf8', timeout: 10_000 })
+    const code = `import {SourceRenderProcess} from ${JSON.stringify(entry)}; const renderer=new SourceRenderProcess({worker:new URL(${JSON.stringify(worker.href)})}); renderer.once('message', reply=>{console.log(reply.json);renderer.unref()});renderer.postMessage({type:'request',id:1,json:'{}'});`
+    const child = spawnSync(process.execPath, ['-e', code], { encoding: 'utf8', timeout: 10_000 })
     expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
-    const pid = Number(child.stdout.trim())
+    const { pid } = JSON.parse(child.stdout)
     expect(pid).toBeGreaterThan(0)
     expect(() => process.kill(pid, 0)).toThrow()
   }, 15_000)
 
-  test.skipIf(process.platform === 'win32')('keeps one renderer warm across successive Bun calls', () => {
-    const work = temp.dir()
-    const counter = join(work, 'starts')
-    const node = spawnSync('node', ['-p', 'process.execPath'], { encoding: 'utf8' }).stdout.trim()
-    writeFileSync(join(work, 'node'), '#!/bin/sh\nprintf x >> "$AM_RENDER_STARTS"\nexec "$AM_RENDER_NODE" "$@"\n', { mode: 0o755 })
+  test('Bun renders all three tools without Node on PATH', () => {
     const entry = new URL('../mcp/source-worker-client.ts', import.meta.url).href
-    const code = `import {runSourceToolIsolated as run} from ${JSON.stringify(entry)}; for (let index=0; index<4; index++) { const result=await run('render_ascii', {source:'sequenceDiagram\\nA->>B: Hello'}); if (!result.ok) throw Error(JSON.stringify(result)); }`
-    const child = spawnSync('bun', ['-e', code], { env: { ...process.env, PATH: `${work}:${process.env.PATH}`, AM_RENDER_STARTS: counter, AM_RENDER_NODE: node }, encoding: 'utf8', timeout: 10_000 })
+    const code = `import {runSourceToolIsolated as run} from ${JSON.stringify(entry)}; for (const name of ['render_svg','render_ascii','verify']) console.log(JSON.stringify(await run(name,{source:'sequenceDiagram\\nA->>B: Hello'})));`
+    const child = spawnSync(process.execPath, ['-e', code], { env: { ...process.env, PATH: '/nonexistent' }, encoding: 'utf8', timeout: 10_000 })
     expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
-    expect(readFileSync(counter, 'utf8')).toBe('x')
+    const [svg, ascii, verify] = child.stdout.trim().split('\n').map(line => JSON.parse(line))
+    expect(svg).toMatchObject({ ok: true, svg: expect.stringContaining('<svg') })
+    expect(ascii).toMatchObject({ ok: true, text: expect.stringContaining('Hello') })
+    expect(verify).toMatchObject({ ok: true, family: 'sequence' })
   }, 15_000)
+
+  test('successive calls reuse the same initialized renderer worker', async () => {
+    const worker = workerFixture(`const initialization=Math.random();parentPort.on('message',({id})=>parentPort.postMessage({type:'result',id,json:JSON.stringify({pid:process.pid,initialization})}));parentPort.postMessage({type:'ready'});`)
+    const renderer = new SourceRenderProcess({ worker })
+    const closed = rendererExit(renderer)
+    try {
+      const first = await rendererReply(renderer, 1)
+      const second = await rendererReply(renderer, 2)
+      expect(second).toEqual(first)
+      expect(first.pid).toBeGreaterThan(0)
+    } finally { renderer.terminate(); await closed }
+  }, 10_000)
 
   test('renders SVG and terminal text with structured receipts', async () => {
     const source = '---\ntitle: Greeting\n---\nsequenceDiagram\nA->>B: Hello'
@@ -142,4 +261,104 @@ describe('local MCP direct source tools', () => {
     expect(await pending).toMatchObject({ ok: false, error: { code: 'RENDER_CANCELLED' } })
     expect(await runSourceToolIsolated('render_ascii', { source: 'sequenceDiagram\nA->>B: Recovered' })).toMatchObject({ ok: true, text: expect.stringContaining('Recovered') })
   }, 30_000)
+})
+
+
+describe('render process message and generation boundaries', () => {
+  test('rejects oversized strings, escaped text and scalar-heavy results before IPC', () => {
+    const value = { text: 'Hello \u{1f30d}\n' }
+    expect(JSON.parse(sourceToolMessage(value, 128))).toEqual(value)
+    expect(() => sourceToolMessage({ text: 'x'.repeat(128) }, 64)).toThrow(SourceToolMessageLimitError)
+    expect(() => sourceToolMessage({ text: '\u0000'.repeat(16) }, 64)).toThrow(SourceToolMessageLimitError)
+    expect(() => sourceToolMessage(Array(64).fill(999999), 64)).toThrow(SourceToolMessageLimitError)
+  })
+
+  test.each(['null', '42', '[]', '{}', '{"ok":"false"}'])('retires malformed JSON result shapes and recovers: %s', async json => {
+    const renderers: ControlledRenderer[] = []
+    const executor = new SourceToolExecutor(() => { const renderer = new ControlledRenderer(); renderers.push(renderer); return renderer })
+    const failed = executor.run('verify', {})
+    const queued = executor.run('verify', {})
+    const old = renderers[0]!
+    old.emit('message', { type: 'result', id: old.sent[0]!.id, json })
+    expect(await failed).toMatchObject({ ok: false, error: { code: 'RENDER_WORKER_FAILED' } })
+    expect(old.terminations).toBe(1)
+    expect(renderers).toHaveLength(1)
+    old.emit('exit', 73)
+    const fresh = renderers[1]!
+    fresh.reply(fresh.sent[0]!.id, { ok: true, recovered: true })
+    expect(await queued).toEqual({ ok: true, recovered: true })
+  })
+
+  test('rejects an oversized request without starting a renderer', async () => {
+    let starts = 0
+    const executor = new SourceToolExecutor(() => { starts++; return new ControlledRenderer() })
+    expect(await executor.run('verify', { source: 'x'.repeat(4 * 1024 * 1024) })).toMatchObject({ ok: false, error: { code: 'RENDER_REQUEST_LIMIT' } })
+    expect(starts).toBe(0)
+  })
+
+  test('an already expired cold call never starts a renderer', async () => {
+    let starts = 0
+    const executor = new SourceToolExecutor(() => { starts++; return new ControlledRenderer() })
+    expect(await executor.run('verify', {}, { timeoutMs: 0 })).toMatchObject({ ok: false, error: { code: 'RENDER_TIMEOUT' } })
+    expect(starts).toBe(0)
+  })
+
+  test('enforces the deadline again after decoding a response', async () => {
+    const renderer = new ControlledRenderer()
+    const executor = new SourceToolExecutor(() => renderer)
+    const originalParse = JSON.parse
+    let now = 1000
+    const clock = spyOn(Date, 'now').mockImplementation(() => now)
+    const result = executor.run('verify', {}, { timeoutMs: 50 })
+    const json = JSON.stringify({ ok: true, marker: 'decoded too late' })
+    const decoder = spyOn(JSON, 'parse').mockImplementation((text, reviver) => {
+      const decoded = originalParse(text, reviver)
+      if (text === json) now = 1051
+      return decoded
+    })
+    try { renderer.emit('message', { type: 'result', id: renderer.sent[0]!.id, json }) }
+    finally { decoder.mockRestore(); clock.mockRestore() }
+    expect(await result).toMatchObject({ ok: false, error: { code: 'RENDER_TIMEOUT' } })
+    expect(renderer.terminations).toBe(1)
+  })
+
+  test('rejects late success and ignores retired generations and mismatched request IDs', async () => {
+    const renderers: ControlledRenderer[] = []
+    const executor = new SourceToolExecutor(() => { const renderer = new ControlledRenderer(); renderers.push(renderer); return renderer })
+    const first = executor.run('verify', {}, { timeoutMs: 10 })
+    const second = executor.run('verify', {}, { timeoutMs: 1000 })
+    const old = renderers[0]!
+    const oldId = old.sent[0]!.id
+    // Keep timer delivery pending while a late IPC message arrives.
+    const until = Date.now() + 20
+    while (Date.now() < until) {}
+    old.reply(oldId, { ok: true, marker: 'late' })
+    expect(await first).toMatchObject({ ok: false, error: { code: 'RENDER_TIMEOUT' } })
+    expect(old.terminations).toBe(1)
+    expect(renderers).toHaveLength(1)
+    old.emit('exit', null, 'SIGKILL')
+    expect(renderers).toHaveLength(2)
+    const fresh = renderers[1]!
+    const freshId = fresh.sent[0]!.id
+    let settled = false
+    void second.then(() => { settled = true })
+    old.reply(freshId, { ok: true, marker: 'retired' })
+    fresh.reply(oldId, { ok: true, marker: 'wrong ID' })
+    await Promise.resolve()
+    expect(settled).toBe(false)
+    fresh.reply(freshId, { ok: true, marker: 'fresh' })
+    expect(await second).toEqual({ ok: true, marker: 'fresh' })
+  })
+
+  test.each([[72, 'RENDER_MEMORY_LIMIT'], [73, 'RENDER_WORKER_FAILED'], [74, 'RENDER_LIMIT_UNAVAILABLE']] as const)('projects supervisor exit %s and permits recovery', async (code, expected) => {
+    const renderers: ControlledRenderer[] = []
+    const executor = new SourceToolExecutor(() => { const renderer = new ControlledRenderer(); renderers.push(renderer); return renderer })
+    const failed = executor.run('verify', {})
+    renderers[0]!.emit('exit', code, null)
+    expect(await failed).toMatchObject({ ok: false, error: { code: expected } })
+    const recovered = executor.run('verify', {})
+    const renderer = renderers[1]!
+    renderer.reply(renderer.sent[0]!.id, { ok: true })
+    expect(await recovered).toEqual({ ok: true })
+  })
 })
