@@ -47,6 +47,9 @@ export function parseAgentflow(source: string): AgentflowBody {
   let first = true, synthetic = 0
   const authoredIds = new Set(source.match(/[\p{L}\p{N}_-]+/gu) ?? [])
   for (const group of coalesceFlowchartLines(source.split(/\r?\n/))) {
+    // A full comment owns the rest of its physical line, including semicolons.
+    // Coalesced quoted labels and metadata still begin with their declaration.
+    if (group.text.trimStart().startsWith('%%')) continue
     for (const statement of flowchartStatementSpans(group.text)) {
       let text = statement.text.trim()
       if (!text || text.startsWith('%%')) continue

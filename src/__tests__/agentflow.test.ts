@@ -176,3 +176,13 @@ test('known out-of-catalogue shape metadata remains available with the domain de
   expect(body.roles.get('A')).toBe('task')
   expect(parseAgentflow(renderAgentflow(body)).metadata).toEqual(body.metadata)
 })
+
+test('full-line comments cannot introduce semicolon statements while quoted percent labels stay literal', () => {
+  const source = 'agentflow-beta TB\nflow team[Team]\nA[First]@{shape: task}\nB[Second]@{shape: tool}\nA --> B\nend'
+  const commented = '%%a\n%%;phantom\n' + source.replace('A --> B', '  %%;second-phantom\nA --> B')
+  const original = parseAgentflow(source), parsed = parseAgentflow(commented)
+  expect({ ...parsed, mappings: undefined }).toEqual({ ...original, mappings: undefined })
+  expect(parsed.graph.nodes.has('phantom')).toBe(false)
+  const literal = parseAgentflow('agentflow-beta\nA["First\n%%; still a label\nLast"]')
+  expect(literal.graph.nodes.get('A')?.label).toContain('%%; still a label')
+})
