@@ -1455,7 +1455,7 @@ gitGraph LR:
     semanticChannels: [], detect: familyDetection.detectsTreeviewFamily,
     sceneRoles: [
       nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'),       nativeSceneRole('title', 'text'), nativeSceneRole('node', 'container', 'shape'),
-      nativeSceneRole('label', 'text'), nativeSceneRole('edge', 'connector'), nativeSceneRole('icon', 'text'),
+      nativeSceneRole('label', 'text'), nativeSceneRole('edge', 'connector'), nativeSceneRole('icon', 'shape', 'text'),
     ],
     example: 'treeView-beta\n  "src/"\n    "index.ts"\n    "parser.ts"',
     editorExample: 'treeView-beta\n  "project/"\n    "src/"\n      "index.ts"\n      "parser.ts"\n    "tests/"\n      "parser.test.ts"\n    "README.md"',

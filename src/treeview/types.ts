@@ -42,6 +42,7 @@ export interface TreeviewRow {
   description?: PixelTextBlock
   descriptionX?: number
   icon?: PixelTextBlock
+  iconGraphic?: { path?: string; size: number; filled: boolean; kind: 'file' | 'folder' | 'bundled' | 'fallback' }
   labelX: number
 }
 export interface PositionedTreeview extends PositionedDiagram {

@@ -32,7 +32,15 @@ export function lowerTreeviewDrawing<T>(marks: DrawingFactory<T>, { positioned: 
       ink = inkOnNodeFill(undefined, colors, row.node.className === 'highlight' && style.nodeTextColor === undefined ? (style.nodeFillColor ?? 'var(--_node-fill)') : undefined)
     if (row.node.className === 'highlight')
       children.push(marks.shape({ id: `highlight:${row.node.id}`, identity: false, role: 'node', owner, geometry: { kind: 'rect', x: row.x - 3, y: row.y, width: row.width + 6, height: row.height, rx: style.cornerRadius ?? 3 }, paint: { fill: style.nodeFillColor ?? 'var(--_node-fill)', stroke: 'none' } }))
-    if (row.icon) children.push(marks.text({ id: `icon:${row.node.id}`, role: 'icon', owner, text: row.icon.text, block: row.icon, x: row.x, y: row.y + row.height / 2, fontSize: row.icon.fontSize, fontWeight: row.icon.fontWeight, anchor: 'start', paint: { fill: ink(style.nodeTextColor ?? 'var(--_text)') } }))
+    if (row.iconGraphic) {
+      const graphic = row.iconGraphic, color = ink(style.nodeTextColor ?? 'var(--_text)'), y = row.y + (row.height - graphic.size) / 2
+      children.push(marks.shape({ id: `icon:${row.node.id}`, role: 'icon', owner,
+        geometry: graphic.path ? { kind: 'path', d: graphic.path } : { kind: 'rect', x: 0, y: 0, width: 24, height: 24, rx: 4 },
+        transform: { kind: 'matrix', a: graphic.size / 24, b: 0, c: 0, d: graphic.size / 24, e: row.x, f: y },
+        paint: { fill: graphic.filled ? color : 'none', stroke: graphic.filled ? 'none' : color, strokeWidth: '1.6', strokeLinejoin: 'round' },
+        attributes: { data: { icon: row.node.icon ?? graphic.kind, 'icon-realization': graphic.kind } } }))
+      if (row.icon) children.push(marks.text({ id: `icon-label:${row.node.id}`, role: 'icon', owner, text: row.icon.text, block: row.icon, x: row.x + graphic.size / 2, y: row.y + row.height / 2, fontSize: row.icon.fontSize, fontWeight: row.icon.fontWeight, anchor: 'middle', paint: { fill: color } }))
+    }
     children.push(marks.text({ id: `label:${row.node.id}`, role: 'label', owner, text: row.label.text, block: row.label, x: row.labelX, y: row.y + row.height / 2, fontSize: row.label.fontSize, fontWeight: row.label.fontWeight, anchor: 'start', paint: { fill: ink(style.nodeTextColor ?? 'var(--_text)') } }))
     if (row.description)
       children.push(

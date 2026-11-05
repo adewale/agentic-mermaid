@@ -91,7 +91,8 @@ README.md icon(none)`
       if (row.description) expect(row.descriptionX!).toBeGreaterThan(row.labelX + row.label.width)
       if (index) expect(row.y).toBeGreaterThanOrEqual(chart.rows[index - 1]!.y + chart.rows[index - 1]!.height)
     }
-    expect(chart.rows[1]!.icon?.text).toBe('[logos:react]')
+    expect(chart.rows[1]!.icon?.text).toBe('R')
+    expect(chart.rows[1]!.iconGraphic?.kind).toBe('fallback')
   })
 
   test('terminal tree draws sibling continuation guides and publishes parent ownership', () => {
@@ -180,4 +181,16 @@ last.md icon(none)`
   }
   expect(renderMermaidSVG(removed.value)).toBe(renderMermaidSVG(saved))
   expect(renderMermaidASCII(removed.value)).toBe(renderMermaidASCII(saved))
+})
+
+test('TreeView renders offline icon artwork and compact honest fallbacks without token-sized layout', () => {
+  const input = 'treeView-beta\nassets/ icon(folder)\n    database.ts icon(mdi:database)\n    unknown.ts icon(logos:react)\n    plain.ts icon(file)', svg = renderMermaidSVG(input)
+  expect(svg).toContain('data-icon-realization="folder"')
+  expect(svg).toContain('data-icon-realization="file"')
+  expect(svg).toContain('data-icon-realization="bundled"')
+  expect(svg).toContain('data-icon-realization="fallback"')
+  expect(svg).toContain('data-icon="logos:react"')
+  expect(svg).not.toContain('[logos:react]')
+  expect(svg).not.toContain('[mdi:database]')
+  expect(renderMermaidASCII(input)).toContain('[logos:react]')
 })
