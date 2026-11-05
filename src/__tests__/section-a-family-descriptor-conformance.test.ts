@@ -23,7 +23,7 @@ const RICH_SCENE_FIXTURES: Partial<Record<BuiltinFamilyId, string>> = {
   agentflow: `---\ntitle: agentflow authored meaning\n---\n${FAMILY_CONFORMANCE_PROFILES.agentflow.citizenship.source}\nplan -->|Review| publish`,
   usecase: `---\ntitle: usecase authored meaning\n---\n${FAMILY_CONFORMANCE_PROFILES.usecase.citizenship.source}`,
   wardley: `---\ntitle: wardley authored meaning\n---\n${FAMILY_CONFORMANCE_PROFILES.wardley.citizenship.source}`,
-  venn: `---\ntitle: venn authored meaning\n---\n${FAMILY_CONFORMANCE_PROFILES.venn.citizenship.source}`,
+  venn: `---\ntitle: venn authored meaning\n---\n${FAMILY_CONFORMANCE_PROFILES.venn.citizenship.source}\nstyle A,B fill:red`,
   cynefin: `---\ntitle: cynefin authored meaning\n---\n${FAMILY_CONFORMANCE_PROFILES.cynefin.citizenship.source}`,
   railroad: `---\ntitle: railroad authored meaning\n---\n${FAMILY_CONFORMANCE_PROFILES.railroad.citizenship.source}`,
   swimlane: `---\ntitle: swimlane authored meaning\n---\n${FAMILY_CONFORMANCE_PROFILES.swimlane.citizenship.source}\ncheck -->|Recheck| request\nKnownIcon@{ icon: "fa fa-book", form: "circle", label: "Handbook" }\nUnknownIcon@{ icon: "acme:unknown", label: "Fallback" }`,

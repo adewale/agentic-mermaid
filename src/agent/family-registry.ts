@@ -1407,7 +1407,7 @@ gitGraph LR:
     editorDescription: 'Authored evolution and visibility coordinates, dependencies and pipelines.', editorExampleId: 'wardley-basic', editorGlyph: 'WM',
     config: { section: 'wardley', keys: [], noopKeys: [] },
     semanticChannels: [], detect: familyDetection.detectsWardleyFamily,
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('edge', 'connector'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('rail', 'connector')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('edge', 'connector'), nativeSceneRole('group', 'shape'), nativeSceneRole('rail', 'connector')],
     example: 'wardley-beta\ncomponent API [0.8, 0.3]\ncomponent Database [0.3, 0.8]\nAPI -> Database', editorExample: 'wardley-beta\ncomponent API [0.8, 0.3]\ncomponent Database [0.3, 0.8]\nAPI -> Database',
   },
   {
@@ -1417,7 +1417,7 @@ gitGraph LR:
     editorDescription: 'Sets, intersections, exact values and region-owned text.', editorExampleId: 'venn-basic', editorGlyph: 'VN',
     config: { section: 'venn', keys: ['height', 'look', 'padding', 'theme', 'useDebugLayout', 'width'], noopKeys: ['height', 'look', 'padding', 'theme', 'useDebugLayout', 'width'] },
     semanticChannels: ['category'], detect: familyDetection.detectsVennFamily,
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('bar', 'shape', 'data-mark')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('bar', 'shape')],
     example: 'venn-beta\nset A["Frontend"]:20\nset B["Backend"]:12\nunion A,B["Shared"]:3', editorExample: 'venn-beta\nset A["Frontend"]:20\nset B["Backend"]:12\nunion A,B["Shared"]:3',
   },
   {

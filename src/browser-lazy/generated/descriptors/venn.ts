@@ -14,8 +14,22 @@ const descriptorData = Object.freeze({
   "aliases": [],
   "config": {
     "section": "venn",
-    "keys": [],
-    "noopKeys": []
+    "keys": [
+      "height",
+      "look",
+      "padding",
+      "theme",
+      "useDebugLayout",
+      "width"
+    ],
+    "noopKeys": [
+      "height",
+      "look",
+      "padding",
+      "theme",
+      "useDebugLayout",
+      "width"
+    ]
   },
   "identity": {
     "id": "family:venn",
@@ -99,15 +113,6 @@ const descriptorData = Object.freeze({
     {
       "role": "bar",
       "primitive": "shape",
-      "applicability": "applicable",
-      "realization": "native",
-      "evidence": [
-        "src/__tests__/section-a-family-descriptor-conformance.test.ts"
-      ]
-    },
-    {
-      "role": "bar",
-      "primitive": "data-mark",
       "applicability": "applicable",
       "realization": "native",
       "evidence": [
