@@ -18,7 +18,7 @@ mkdirSync(out, { recursive: true })
 const protocolPath = join(out, 'protocol.json')
 if (existsSync(protocolPath)) throw Error('Refuse to overwrite paired measurements')
 const revision = (root: string) => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
-writeFileSync(protocolPath, JSON.stringify({ version: 2, baseline: revision(baseline), head: revision(head), date: new Date().toISOString(), bun: Bun.version,
+writeFileSync(protocolPath, JSON.stringify({ version: 2, baseline: revision(baseline), head: revision(head), harnessRevision: revision(resolve(import.meta.dir, '../..')), date: new Date().toISOString(), bun: Bun.version,
   environment: { os: platform() + ' ' + release(), cpu: cpus()[0]?.model }, variants, rounds, modes, selected,
   startup: '21 independent fresh processes for contact-sheet/A per configuration and backend; parent wall time includes startup through consumed output and child exit; OS/filesystem warm',
   sampling: 'Per input/backend/round: control-before, rotated feature configurations, control-after. Timings and memory in separate children. Controls retain both observations.',

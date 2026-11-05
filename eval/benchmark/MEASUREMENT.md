@@ -20,6 +20,15 @@ features, cache policy and cohort are recorded before execution. Results are
 append-only and the commands refuse an existing attempt destination. The
 original development workload remains exposed, not an independent holdout.
 
+`cache-replay.ts --root BUILT_CHECKOUT --reference QUALITY_DIRECTORY --out FILE`
+compares first and repeated public receipt calls with every retained quality
+SVG. Reuse raster evidence only for exact identical SVG bytes; retain the replay
+source and all mismatches. `python3 eval/font-layout/report.py MEASUREMENTS
+PAIRED_SUBDIRECTORY OUTPUT_STEM` generates matched JSON and an HTML comparison
+with absolute per-case costs, control variation, interaction ablations and real
+rendered evidence. It audits missing, duplicate and unexpected cost rows. Keep
+earlier iterations when measurements motivate a follow-up optimization.
+
 The five primary questions are docs rendering, original upstream assertion
 compatibility, required-family coverage, entry startup and resource use. Keep
 their denominators, units and scopes visible. No weighted overall score ranks a
