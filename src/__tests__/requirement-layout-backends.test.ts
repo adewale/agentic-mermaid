@@ -188,13 +188,14 @@ describe('Requirement layout backends', () => {
   })
 
   test.each([
-    { backend: 'agentic', direction: 'TB', fanSize: 5 }, { backend: 'agentic', direction: 'BT', fanSize: 5 },
+    { backend: 'agentic', direction: 'TB', fanSize: 5, expectedProof: 'passed' }, { backend: 'agentic', direction: 'BT', fanSize: 5 },
     { backend: 'agentic', direction: 'LR', fanSize: 5 }, { backend: 'agentic', direction: 'RL', fanSize: 5 },
     // Twelve contacts require real face capacity, beyond a port-pitch hint.
     { backend: 'agentic', direction: 'TB', fanSize: 12 }, { backend: 'agentic', direction: 'LR', fanSize: 12 },
     { backend: 'elk', direction: 'TB', fanSize: 5 }, { backend: 'elk', direction: 'BT', fanSize: 5 },
     { backend: 'elk', direction: 'LR', fanSize: 5 }, { backend: 'elk', direction: 'RL', fanSize: 5 },
-  ] as const)('separates actual contains circles in the parallel Requirement fan in $direction ($fanSize occurrences, $backend)', ({ backend, direction, fanSize }) => {
+  ] as const)('separates actual contains circles in the parallel Requirement fan in $direction ($fanSize occurrences, $backend)', testCase => {
+    const { backend, direction, fanSize } = testCase
     const input = `requirementDiagram
 direction ${direction}
 element root {
@@ -288,6 +289,9 @@ root - contains -> side`
         const a = poses[i]!, b = poses[j]!
         expect(Math.hypot(a.x - b.x, a.y - b.y) + 1e-7, `${a.id} and ${b.id} contain circles overlap`).toBeGreaterThanOrEqual(2 * outerRadius)
       }
+      // This canonical fan's meaning and actual circles are checked first;
+      // conservative envelopes must not withhold its public proof.
+      if ('expectedProof' in testCase) expect(rendered.receipt.layoutCertification?.status).toBe(testCase.expectedProof)
     } finally { dom.window.close() }
   })
 

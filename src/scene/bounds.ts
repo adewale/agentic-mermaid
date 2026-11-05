@@ -200,25 +200,34 @@ export function visitTypedPathSegments(d: string, visit: (segment: TypedPathSegm
 }
 
 export function geometryBounds(geometry: Geometry): AxisAlignedBox | undefined {
+  return measureGeometryBounds(geometry)
+}
+
+function measureGeometryBounds(geometry: Geometry, retain?: (bounds: AxisAlignedBox, joins: boolean) => void, compoundChild = false): AxisAlignedBox | undefined {
+  let bounds: AxisAlignedBox | undefined, joins = false
   switch (geometry.kind) {
-    case 'rect': return { x0: geometry.x, y0: geometry.y, x1: geometry.x + geometry.width, y1: geometry.y + geometry.height }
-    case 'circle': return { x0: geometry.cx - geometry.r, y0: geometry.cy - geometry.r, x1: geometry.cx + geometry.r, y1: geometry.cy + geometry.r }
-    case 'ellipse': return { x0: geometry.cx - geometry.rx, y0: geometry.cy - geometry.ry, x1: geometry.cx + geometry.rx, y1: geometry.cy + geometry.ry }
-    case 'line': return { x0: Math.min(geometry.x1, geometry.x2), y0: Math.min(geometry.y1, geometry.y2), x1: Math.max(geometry.x1, geometry.x2), y1: Math.max(geometry.y1, geometry.y2) }
-    case 'polygon': return pointsBounds(geometry.points)
-    case 'polyline': return unionSceneBounds(pointsBounds(geometry.points), writtenPolylineProjectionOf(geometry)?.rawBounds)
+    case 'rect': bounds = { x0: geometry.x, y0: geometry.y, x1: geometry.x + geometry.width, y1: geometry.y + geometry.height }; break
+    case 'circle': bounds = { x0: geometry.cx - geometry.r, y0: geometry.cy - geometry.r, x1: geometry.cx + geometry.r, y1: geometry.cy + geometry.r }; break
+    case 'ellipse': bounds = { x0: geometry.cx - geometry.rx, y0: geometry.cy - geometry.ry, x1: geometry.cx + geometry.rx, y1: geometry.cy + geometry.ry }; break
+    case 'line': bounds = { x0: Math.min(geometry.x1, geometry.x2), y0: Math.min(geometry.y1, geometry.y2), x1: Math.max(geometry.x1, geometry.x2), y1: Math.max(geometry.y1, geometry.y2) }; break
+    case 'polygon': bounds = pointsBounds(geometry.points); joins = true; break
+    case 'polyline': bounds = unionSceneBounds(pointsBounds(geometry.points), writtenPolylineProjectionOf(geometry)?.rawBounds); joins = true; break
     case 'compound': {
       let bounds: AxisAlignedBox | undefined
       for (const child of geometry.children) {
-        const measured = geometryBounds(child)
+        const measured = measureGeometryBounds(child, retain, true)
         if (!measured) return undefined
         bounds = unionSceneBounds(bounds, measured)
       }
       return bounds
     }
-    case 'path': return pathBounds(geometry.d)
+    case 'path': bounds = pathBounds(geometry.d); joins = true; break
   }
+  if (bounds && compoundChild && retain) retain(bounds, joins)
+  return bounds
 }
+
+interface MarkerPaintPart { bounds: AxisAlignedBox; joins: boolean; next: MarkerPaintPart | undefined }
 
 function markerBoundsAt(
   marker: MarkerDescriptor | undefined,
@@ -228,9 +237,19 @@ function markerBoundsAt(
   angle?: number,
 ): AxisAlignedBox | undefined {
   if (!marker || !anchor) return undefined
-  const geometry = marker.geometry ? geometryBounds(marker.geometry) : undefined
+  // Retain only numeric child bounds during the original geometry walk. Paint
+  // getters run afterward, once; they cannot change these retained operands.
+  let first: MarkerPaintPart | undefined, last: MarkerPaintPart | undefined
+  const retain = painted ? (bounds: AxisAlignedBox, joins: boolean) => {
+    const part: MarkerPaintPart = { bounds, joins, next: undefined }
+    if (last) last.next = part
+    else first = part
+    last = part
+  } : undefined
+  const geometry = marker.geometry ? measureGeometryBounds(marker.geometry, retain) : undefined
   if (painted && marker.geometry && !geometry) return undefined
-  let local = marker.bounds
+  const declared = marker.bounds
+  let local = declared
     ?? geometry
     ?? (marker.viewBox ? {
       x0: marker.viewBox.x,
@@ -241,10 +260,20 @@ function markerBoundsAt(
     ?? (marker.size ? { x0: 0, y0: 0, x1: marker.size.width, y1: marker.size.height } : undefined)
   if (!local) return undefined
   if (painted) {
-    local = unionSceneBounds(local, geometry)!
-    const extent = paintedStrokeExtent(marker.paint ?? {}, true)
-    if (extent === undefined) return undefined
-    local = expandSceneBounds(local, extent)
+    if (first && !declared) {
+      const supports = paintedStrokeExtent(marker.paint ?? {}, 'supports')
+      if (!supports) return undefined
+      let paintedLocal: AxisAlignedBox | undefined
+      for (let part: MarkerPaintPart | undefined = first; part; part = part.next) {
+        paintedLocal = unionSceneBounds(paintedLocal, expandSceneBounds(part.bounds, part.joins ? supports.joined : supports.smooth))
+      }
+      local = paintedLocal!
+    } else {
+      local = unionSceneBounds(local, geometry)!
+      const extent = paintedStrokeExtent(marker.paint ?? {}, true)
+      if (extent === undefined) return undefined
+      local = expandSceneBounds(local, extent)
+    }
   }
   let refX = marker.ref?.x ?? 0
   let refY = marker.ref?.y ?? 0
@@ -505,8 +534,10 @@ export function connectorStrokeHasJoins(route: Pick<ConnectorMark['route'], 'geo
 
 /** Numeric user-unit/px strokes have a typed extent. Relative and unresolved
  * CSS units do not: treating `1em` or `var(...)` as one pixel would undercount. */
-export function paintedStrokeExtent(paint: MarkPaint, hasJoins: boolean): number | undefined {
-  if (paint.stroke === undefined || paint.stroke === 'none' || paint.stroke === 'transparent' || tryParseCssColor(paint.stroke)?.[3] === 0) return 0
+export function paintedStrokeExtent(paint: MarkPaint, hasJoins: boolean): number | undefined
+export function paintedStrokeExtent(paint: MarkPaint, hasJoins: 'supports'): { joined: number; smooth: number } | undefined
+export function paintedStrokeExtent(paint: MarkPaint, hasJoins: boolean | 'supports'): number | { joined: number; smooth: number } | undefined {
+  if (paint.stroke === undefined || paint.stroke === 'none' || paint.stroke === 'transparent' || tryParseCssColor(paint.stroke)?.[3] === 0) return hasJoins === 'supports' ? { joined: 0, smooth: 0 } : 0
   const raw = paint.strokeWidth ?? '1'
   if (!/^\s*(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?(?:px)?\s*$/.test(raw)) return undefined
   const half = Number.parseFloat(raw) / 2
@@ -517,8 +548,9 @@ export function paintedStrokeExtent(paint: MarkPaint, hasJoins: boolean): number
   const join = hasJoins && (miter === 'miter' || miter === 'miter-clip') ? half * limit : half
   // A square cap rotated relative to the axes can extend sqrt(2)*half on
   // either axis. Round/butt caps stay inside the half-width envelope.
-  const extent = Math.max(join, paint.strokeLinecap === 'square' ? half * Math.SQRT2 : half)
-  return Number.isFinite(extent) ? extent : undefined
+  let cap: number
+  const extent = Math.max(join, cap = paint.strokeLinecap === 'square' ? half * Math.SQRT2 : half)
+  return Number.isFinite(extent) ? hasJoins === 'supports' ? { joined: extent, smooth: cap > half ? cap : half } : extent : undefined
 }
 
 function paintedBox(box: AxisAlignedBox, extent: number, nonScaling: boolean, transform?: SceneTransform): AxisAlignedBox | undefined {
