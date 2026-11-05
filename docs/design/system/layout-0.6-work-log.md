@@ -163,19 +163,43 @@ raw1123221/gzip368344/Br312317B vsELK24/2397795/738474/583747; BOTH add431gzip/2
 requests unchanged. Initial3/raw15408/gzip5853/Br5235 (+1/+1). Evidence: week
 wide-circle-absorption-5417e088c/FINDINGS.md and adjacent cost/Node/payload directories.
 
-## Remaining losses and next cause
+## Captured straight-path terminal paint — 5 November
+
+cf67234e31bc16a82e3d64e209f592dc9a672326 restores named `e1@{curve:linear}` end-circle
+ink0→230pixels in BOTHbackends. The renderer reuses its already captured projection;
+exact one-M/L, two-point, open-contour correspondence admits terminal shaft subtraction
+without rereading raw curve/points. Cubic/multi-leg and old rounded-line controls stay
+separate; no general curve claim. Path/metadata/width/resources/anchors/cards/text stay
+byte-exact except dash paint/3scoped class renamings.536pixels lighten, all terminalROI.
+Proof remainsU, work149375→149478 (+103 adverse), same issue/caps. Two matched linear
+inkREDs and a corrected mutable-projection RED turn green. Its first getter fixture
+failed an admission precondition, retained/corrected before genuine RED; no result lost.
+
+Seven relevant files273P/24.63s/468416KiB; types62.69s/2132704KiB, lintP. PriorSparse32F
+remains enrolled, not rerun/claimed fixed. Twelve valid fully consumed current calls allU;
+repeat wholeSVG/ENTIREreceipt exact, real B edits. Cold/repeat/edit ms cache0 AM170/23/19
+vsELK506/42/30; cache1 AM158/13/18 vsELK580/19/57. N1/no ratios; adverse ELKcache1 cold/edit
+retained. RSS AM103576/104908KiB vsELK140304/136988; raw phase heaps/compression retained.
+SVG raw4858/gzip1179/Br1012B, equal backends. TwoNode24+two compiled wholeSVG/ENTIREreceipts
+exact; one RAM build+compiled run20.85s/300028KiB, scratch removed. Flowchart closures
+AM26requests/raw1123555/gzip368474/Br312462B vsELK24/2398129/738604/583892; adds130gzip/
+145Br BOTH, requests unchanged. Initial3/raw15408/gzip5852/Br5230 (−1/−5); no download-win
+claim. Evidence: week linear-wide-circle-d089e94d0 (independent bytes/PNG notes),
+linear-wide-circle-cost-d089e94d0, linear-wide-circle-node24-cf67234e3 and
+recovery-payload/linear-wide-circle-cf67234e3. Prep newline claim was corrected by
+independent byte reads: both old/plain and new/linear fixtures contain actual LF.
+
+## Remaining losses and stopped parser cause
 
 Retained vsELK: sparse256area+115.35%; forestwire+16.89% (area−6.43%); Requirement-cycle
 TB/BTarea+9.53% (LR/RL−1.44%). ER256-chain refusal affects both; Sparse32 proof still
 exhausts400k. Profile tails/historical ELK timeout unexplained; stopped probes stay
 stopped. Original2dad/Trident/peers unavailable; replacement24 sealed.
-Standalone `o--|保存|` refusal is reproduced in both backends, but the proposed
-closed-pipe lexer shortcut is STOPPED: `A o--|literal| B` followed by `extra --o C`
-already means one A→C edge labelled `|literal| B\nextra`; the shortcut makes two
-edges. Same-line and multiline counterexamples,8public/3parser REDs and all3WIP
-test files/patch were byte-preserved before restoring only that work. No parser
-change or syntax-conformance claim. Evidence: week start-circle-standalone-c7490d9b4.
-Next confirmed loss at d089e94d0: supported named `e1@{curve:linear}` produces the
-same straight M/L48px carrier but both backends lose the wide-circle signal (0pixels,
-U149375). Two public products/four rasters plus matched owners2P/2inkRED establish
-that declaration-based exclusion; test captured producer geometry before extending.
+62006bccf records why standalone `o--|保存|` remains unsupported: the closed-pipe shortcut
+changes existing multiline `A o--|literal| B` + `extra --o C` from one A→C relationship
+(label `|literal| B\nextra`) into two edges. Same-line/multiline counterexamples,
+8public/3parser REDs and all3WIP tests/patch/draft retained before restoring only that
+work; no lexer/parser patch shipped. Evidence: week start-circle-standalone-c7490d9b4.
+Next: qualify actual wide-circle ink on one supported nonlinear/multi-leg route before
+choosing any arc-length subtraction; two sampled endpoints do not prove straightness.
+Keep the grammar decision and stopped ER256 shortcuts separate from that emission cause.
