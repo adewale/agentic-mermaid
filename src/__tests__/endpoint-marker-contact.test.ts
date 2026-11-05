@@ -1,10 +1,15 @@
 import { describe, expect, test } from 'bun:test'
 import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
 import { renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
 import { layoutMermaidWithReceipt } from '../agent/index.ts'
+import { withRenderStageObserver } from '../render-stages.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
 import type { RenderOptions } from '../types.ts'
 import { colorPixelBox, colorPixelCount, redPixel } from './helpers/raster.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runEndpointChild = useTestChildren(20_000)
 
 interface Point { x: number; y: number }
 interface Tag { name: string; attrs: Record<string, string> }
@@ -77,11 +82,35 @@ describe('family-owned endpoint and visible-marker contact (#258)', () => {
   // Development inputs: authored ends and multiplicities precede rendering.
   // The cylinder is respectively the target and source of stroke-only marks.
   for (const authored of [
-    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 o-- 保存 --o store' },
-    { from: 'store', to: 'edge__0', label: '取消', kind: 'cross', relation: 'store x-- 取消 --x edge__0' },
-  ] as const) test.each(['agentic', 'elk'] as const)(`Flowchart %s retains ${authored.kind} marks on the complete cylinder side`, backend => {
-    const source = `flowchart LR\nedge__0["依頼者 🧭"]\nstore[(記録庫 📦)]\n${authored.relation}`
-    const rendered = renderMermaidSVGWithReceipt(source, { ...options(1, false), graphLayout: { backend, fallback: 'none' } })
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 o-- 保存 --o store', width: 1, direction: 'LR', execution: 'scene', backends: ['agentic', 'elk'], ends: ['start', 'end'] },
+    { from: 'store', to: 'edge__0', label: '取消', kind: 'cross', relation: 'store x-- 取消 --x edge__0', width: 1, direction: 'LR', execution: 'scene', backends: ['agentic', 'elk'], ends: ['start', 'end'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 o-->|保存| store', otherEnd: 'arrow', width: 10, direction: 'LR', execution: 'native', backends: ['agentic'], ends: ['start'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 --o|保存| store', width: 10, direction: 'LR', execution: 'scene', backends: ['elk'], ends: ['end'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 o--o|保存| store', width: 10, direction: 'RL', execution: 'scene', backends: ['agentic'], ends: ['start', 'end'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 o--o|保存| store', width: 10, direction: 'RL', execution: 'native', backends: ['elk'], ends: ['start', 'end'] },
+  ] as const) test.each([...authored.backends])(`Flowchart %s/${authored.execution} retains ${authored.width}px ${authored.kind} ${authored.ends.join('/')}${'otherEnd' in authored ? ' with end arrow' : ''} marks on the complete cylinder side in ${authored.direction}`, async backend => {
+    const source = `flowchart ${authored.direction}\nedge__0["依頼者 🧭"]\nstore[(記録庫 📦)]\n${authored.relation}${authored.width === 10 ? '\nlinkStyle 0 stroke:#ff0000,stroke-width:10px' : ''}`
+    const renderOptions = { ...options(1, false), graphLayout: { backend, fallback: 'none' as const } }
+    let rendered: ReturnType<typeof renderMermaidSVGWithReceipt>
+    const stages: string[] = []
+    if (authored.execution === 'native') {
+      const child = await runEndpointChild(process.execPath, ['--eval', `
+        import { renderMermaidSVGWithReceipt } from './src/index.ts'
+        import { withRenderStageObserver } from './src/render-stages.ts'
+        const input = await Bun.stdin.text(), stages = []
+        const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(input, ${JSON.stringify(renderOptions)}))
+        console.log(JSON.stringify({ rendered, stages }))
+      `], { cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' }, input: source })
+      expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+      const packet = JSON.parse(child.stdout)
+      rendered = packet.rendered
+      stages.push(...packet.stages)
+      expect(stages).toContain('drawing')
+      expect(stages).not.toContain('scene')
+    } else {
+      rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, renderOptions))
+      expect(stages).toContain('scene')
+    }
     expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: backend, attempts: [{ backend, outcome: 'selected' }] })])
     const { JSDOM } = createRequire(import.meta.url)('jsdom')
     const dom = new JSDOM(rendered.svg, { contentType: 'image/svg+xml' })
@@ -128,22 +157,46 @@ describe('family-owned endpoint and visible-marker contact (#258)', () => {
       const carrier = occurrences[0]!
       expect([carrier.getAttribute('data-from'), carrier.getAttribute('data-to')]).toEqual([authored.from, authored.to])
       const route: Tag = { name: carrier.localName, attrs: Object.fromEntries([...carrier.attributes].map(attr => [attr.name, attr.value])) }
-      expect(route.attrs['stroke-width']).toBe('1')
+      expect(Number.parseFloat(route.attrs['stroke-width']!)).toBe(authored.width)
       expect(route.name).toBe('polyline')
       const points = routePoints(route)
       expect(points.every(point => point.y === points[0]!.y)).toBe(true)
       for (const end of ['start', 'end'] as const) {
+        if (!authored.ends.some(authoredEnd => authoredEnd === end)) {
+          if (end === 'end' && 'otherEnd' in authored && authored.otherEnd !== undefined) {
+            expect(carrier.getAttribute('data-marker-end')).toBe(authored.otherEnd)
+            const reference = carrier.getAttribute('marker-end')!.match(/^url\(#(.+)\)$/)![1]!
+            const arrow = document.getElementById(reference)!
+            expect([...arrow.children].map(piece => piece.localName)).toEqual(['polygon'])
+            expect(arrow.querySelector('polygon')!.getAttribute('fill')).toBe('#ff0000')
+          } else expect(carrier.hasAttribute(`marker-${end}`)).toBe(false)
+        }
+      }
+      for (const end of authored.ends) {
         const markerId = carrier.getAttribute(`marker-${end}`)!.match(/^url\(#(.+)\)$/)![1]!
         const marker = document.getElementById(markerId)!, ink = [...marker.children]
         expect(numeric(marker, 'markerWidth')).toBeGreaterThan(0)
         expect(numeric(marker, 'markerHeight')).toBeGreaterThan(0)
         expect(marker.getAttribute('orient')).toBe('auto')
         expect(marker.getAttribute('viewBox')).toBeNull()
+        if (authored.width === 10) {
+          expect(marker.getAttribute('markerUnits')).toBe('userSpaceOnUse')
+          expect(numeric(marker, 'markerWidth')).toBe(8)
+          expect(numeric(marker, 'markerHeight')).toBe(8)
+          expect(numeric(marker, 'refX')).toBe(end === 'start' ? 0.5 : 7.5)
+          expect(numeric(marker, 'refY')).toBe(4)
+        }
         expect(ink.map(piece => piece.localName)).toEqual(authored.kind === 'circle' ? ['circle'] : ['line', 'line'])
         for (const piece of ink) {
           if (piece.localName === 'circle') {
             expect(piece.getAttribute('fill')).toBe('none')
             expect(numeric(piece, 'r')).toBeGreaterThan(0)
+            if (authored.width === 10) {
+              expect(numeric(piece, 'cx')).toBe(4)
+              expect(numeric(piece, 'cy')).toBe(4)
+              expect(numeric(piece, 'r')).toBe(3.25)
+              expect(numeric(piece, 'stroke-width')).toBe(1)
+            }
           }
           expect(piece.getAttribute('stroke')).toBe('#ff0000')
           expect(numeric(piece, 'stroke-width')).toBeGreaterThan(0)
@@ -195,19 +248,28 @@ describe('family-owned endpoint and visible-marker contact (#258)', () => {
           contactError = Math.max(contactError, Math.min(...errors))
         }
 
-        // Isolate this occurrence's actual marker. A shaft or another marker
-        // cannot supply the positive raster witness; removing stroke must erase it.
-        const isolated = document.documentElement.cloneNode(true) as Element
-        for (const edge of isolated.querySelectorAll('[data-role="edge"][data-from]')) {
-          edge.setAttribute('stroke', '#000000')
-          for (const candidateEnd of ['start', 'end']) if (edge.getAttribute('data-id') !== carrier.getAttribute('data-id') || candidateEnd !== end) edge.removeAttribute(`marker-${candidateEnd}`)
+        if (authored.width === 10) {
+          // Preserve the actual same-color shaft: recoloring it would create
+          // contrast even when this authored circle contributes no ink.
+          const hidden = document.documentElement.cloneNode(true) as Element
+          hidden.querySelector('[data-role="edge"][data-from]')!.removeAttribute(`marker-${end}`)
+          const actualPixels = colorPixelCount(document.documentElement.outerHTML, redPixel)
+          const hiddenPixels = colorPixelCount(hidden.outerHTML, redPixel)
+          observations.push({ label: authored.label, end, owner, error: contactError, pixels: actualPixels - hiddenPixels, hiddenPixels })
+        } else {
+          // Isolate the existing thin marker witness from shafts/other ends.
+          const isolated = document.documentElement.cloneNode(true) as Element
+          for (const edge of isolated.querySelectorAll('[data-role="edge"][data-from]')) {
+            edge.setAttribute('stroke', '#000000')
+            for (const candidateEnd of ['start', 'end']) if (edge.getAttribute('data-id') !== carrier.getAttribute('data-id') || candidateEnd !== end) edge.removeAttribute(`marker-${candidateEnd}`)
+          }
+          const pixels = colorPixelCount(isolated.outerHTML, redPixel)
+          const hidden = isolated.cloneNode(true) as Element
+          for (const piece of hidden.querySelectorAll('marker > *')) piece.setAttribute('stroke', 'none')
+          const hiddenPixels = colorPixelCount(hidden.outerHTML, redPixel)
+          expect(hiddenPixels).toBe(0)
+          observations.push({ label: authored.label, end, owner, error: contactError, pixels, hiddenPixels })
         }
-        const pixels = colorPixelCount(isolated.outerHTML, redPixel)
-        const hidden = isolated.cloneNode(true) as Element
-        for (const piece of hidden.querySelectorAll('marker > *')) piece.setAttribute('stroke', 'none')
-        const hiddenPixels = colorPixelCount(hidden.outerHTML, redPixel)
-        expect(hiddenPixels).toBe(0)
-        observations.push({ label: authored.label, end, owner, error: contactError, pixels, hiddenPixels })
       }
       for (const observation of observations) {
         expect(observation.pixels, JSON.stringify(observations)).toBeGreaterThan(0)

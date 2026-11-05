@@ -110,7 +110,7 @@ export function circleShaftPaintContext(style: GraphPaintStyle, pay: (units: num
     if (!routes) { routes = new WeakMap(); shafts.set(edge, routes) }
     if (routes.has(points)) return routes.get(points)
     if (!pay(8) || points.length < 2 || points.length > MAX_PREFERENCE_NODES * MAX_PREFERENCE_EDGES
-      || edge.curve || graphEdgeDashArray(edge) !== undefined || (style.edgeBendRadius ?? 0) !== 0) return undefined
+      || edge.curve || graphEdgeDashArray(edge, points) !== undefined || (style.edgeBendRadius ?? 0) !== 0) return undefined
     if (edge.style === 'invisible') return []
     const half = paintedStrokeExtent(edgeShaftPaint(edge, style), false)
     if (half === undefined || !pay(points.length * 8 + 8)) return undefined

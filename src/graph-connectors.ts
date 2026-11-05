@@ -1,18 +1,43 @@
-import type { EdgeMarker, PositionedEdge } from './types.ts'
+import type { EdgeMarker, Point, PositionedEdge } from './types.ts'
 import { ARROW_HEAD, FLOWCHART_DOTTED_DASH } from './styles.ts'
 import type { MarkerDescriptor } from './scene/ir.ts'
 import { prepareMarkerTerminals } from './scene/marker-terminals.ts'
 import { tipAnchoredArrow } from './scene/marker-resources.ts'
 import { connectorContourSemantics, projectRoundedConnectorPath, type ConnectorPathProjection } from './scene/connector-geometry.ts'
 import { projectGraphCurve } from './graph-curve.ts'
-import { connectorMarkerPaintRegions, type ConnectorMarkerPaintRegion } from './scene/bounds.ts'
+import { connectorMarkerPaintRegions, geometryBounds, paintedStrokeExtent, type ConnectorMarkerPaintRegion } from './scene/bounds.ts'
+import { formatSvgNumber, formatSvgNumericAttribute } from './shared/svg-number.ts'
 import { canonicalTextDigest } from './render-contract.ts'
 
-/** Static SVG preserves animation intent as dashes; authored dotted style
- * takes precedence. Placement must use the same selected shaft paint. */
-export function graphEdgeDashArray(edge: Pick<PositionedEdge, 'style' | 'animate'>): string | undefined {
-  return edge.style === 'dotted' ? `${FLOWCHART_DOTTED_DASH.dash} ${FLOWCHART_DOTTED_DASH.gap}`
-    : edge.animate ? '8 4' : undefined
+/** Preserve authored dash intent. A straight solid carrier can leave a gap
+ * beneath a fixed hollow circle without moving its marker attachment. */
+export function graphEdgeDashArray(edge: Pick<PositionedEdge, 'style' | 'animate'> & Partial<Pick<PositionedEdge, 'curve' | 'inlineStyle' | 'points' | 'hasArrowStart' | 'hasArrowEnd' | 'startMarker' | 'endMarker'>>, candidatePoints?: readonly Point[]): string | undefined {
+  const lineStyle = edge.style
+  if (lineStyle === 'dotted') return `${FLOWCHART_DOTTED_DASH.dash} ${FLOWCHART_DOTTED_DASH.gap}`
+  if (edge.animate) return '8 4'
+  if (lineStyle !== 'solid') return undefined
+  const inline = edge.inlineStyle
+  if (!inline || 'stroke-dasharray' in inline || 'stroke-dashoffset' in inline) return undefined
+  const rawWidth = inline['stroke-width']
+  if (typeof rawWidth !== 'string') return undefined
+  const startCircle = edge.hasArrowStart && edge.startMarker === 'circle'
+  const endCircle = edge.hasArrowEnd && edge.endMarker === 'circle'
+  if (!startCircle && !endCircle || edge.curve) return undefined
+  const points = candidatePoints ?? edge.points
+  if (!points || points.length !== 2) return undefined
+  // Match the carrier's numeric/px spelling before measuring its width. This
+  // uses the existing stroke parser; relative or unresolved widths stay out.
+  const halfWidth = paintedStrokeExtent({ stroke: 'black', strokeWidth: formatSvgNumericAttribute('stroke-width', rawWidth) }, false)
+  if (halfWidth === undefined || !fixedCircleStart || !fixedCircleEnd || halfWidth * 2 < fixedCircleEnd.diameter) return undefined
+  const ax = points[0]!.x, ay = points[0]!.y, bx = points[1]!.x, by = points[1]!.y
+  if (![ax, ay, bx, by].every(Number.isFinite)) return undefined
+  const length = Math.hypot(Number(formatSvgNumber(bx)) - Number(formatSvgNumber(ax)), Number(formatSvgNumber(by)) - Number(formatSvgNumber(ay)))
+  const startGap = startCircle ? fixedCircleStart.start : 0, endGap = endCircle ? fixedCircleEnd.end : 0
+  const visible = length - startGap - endGap
+  if (!Number.isFinite(length) || !Number.isFinite(visible) || visible <= 0) return undefined
+  // Keep the original marker attachment sites on this same carrier. One long
+  // off interval prevents a new dash from starting at the terminal vertex.
+  return formatSvgNumericAttribute('stroke-dasharray', startGap ? `0 ${startGap} ${visible} ${length}` : `${visible} ${length}`)
 }
 
 /**
@@ -113,6 +138,17 @@ export function markerSuffix(color: string): string {
 
 const terminalResources = flowchartMarkerResources(new Set(), new Set([undefined]), true, true)
 const markerTerminal = prepareMarkerTerminals(terminalResources)
+// Absorption depends on the smooth circle's actual stroke, rather than the
+// conservative miter envelope retained by general marker certification.
+function fixedCirclePaintSupport(marker: MarkerDescriptor | undefined) {
+  if (!marker || marker.geometry?.kind !== 'circle' || marker.units !== 'userSpaceOnUse' || !marker.ref
+    || marker.viewBox || marker.scale !== undefined && marker.scale !== 1) return undefined
+  const bounds = geometryBounds(marker.geometry), extent = paintedStrokeExtent(marker.paint ?? {}, false)
+  if (!bounds || extent === undefined || ![bounds.x0, bounds.x1, extent, marker.ref.x].every(Number.isFinite)) return undefined
+  return { start: Math.max(0, bounds.x1 + extent - marker.ref.x), end: Math.max(0, marker.ref.x - bounds.x0 + extent), diameter: bounds.x1 - bounds.x0 + 2 * extent }
+}
+const fixedCircleEnd = fixedCirclePaintSupport(terminalResources.find(marker => marker.id === 'circlehead-fixed'))
+const fixedCircleStart = fixedCirclePaintSupport(terminalResources.find(marker => marker.id === 'circlehead-start-fixed'))
 
 export function graphEdgeTerminalClearance(edge: Pick<PositionedEdge, 'style' | 'inlineStyle' | 'hasArrowStart' | 'hasArrowEnd' | 'startMarker' | 'endMarker'>, style: { lineWidth?: number }) {
   const fixed = edge.inlineStyle?.['stroke-width'] ? '-fixed' : ''

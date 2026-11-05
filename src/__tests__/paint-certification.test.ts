@@ -1774,12 +1774,13 @@ test.each((['original', 'thin-border', 'wide-shaft'] as const).flatMap(mode =>
     const finiteShaftCoversRing = cx - radius >= points[0]![0]! && cy - radius >= points[1]![1]! - ownWidth / 2 && cy + radius <= points[1]![1]! + ownWidth / 2
     const laterBorderCoversTip = Number(body.x) === anchor && right <= inner && Number(body.y) <= cy - radius && Number(body.y) + Number(body.height) >= cy + radius
       && Number(body.rx ?? 0) === 0 && Number(body.ry ?? 0) === 0 && opaque(body.fill) && opaque(body.stroke)
-    const absorbed = marker.markerUnits === 'userSpaceOnUse' && radius <= ownWidth / 2 && black(edge.stroke) && black(circle.stroke)
+    const solidShaftWouldAbsorb = marker.markerUnits === 'userSpaceOnUse' && radius <= ownWidth / 2 && black(edge.stroke) && black(circle.stroke)
       && (edge['stroke-linecap'] === undefined || edge['stroke-linecap'] === 'butt') && finiteShaftCoversRing && laterBorderCoversTip
-    if (absorbed) {
-      expect(markerChanges).toBe(false)
-      expect(result.receipt.layoutCertification?.status).not.toBe('passed')
-    } else console.info('fractional-circle adverse precondition unavailable', JSON.stringify({ mode, backend, execution, units: marker.markerUnits, ownWidth, radius, edgeColor: edge.stroke, markerColor: circle.stroke, status: result.receipt.layoutCertification?.status }))
+    expect(solidShaftWouldAbsorb).toBe(true)
+    // Preserve the authored fat stroke and hollow resource while retaining
+    // the end circle's own visible contribution in the final served output.
+    expect(markerChanges).toBe(true)
+    expect(result.receipt.layoutCertification?.status).not.toBe('passed')
   }
   expect(result.receipt.layoutCertification?.outputDigest).toBe(renderedSvgDigest(result.svg))
 })
