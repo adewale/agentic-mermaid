@@ -3,7 +3,7 @@ import { parseRailroad } from '../railroad/parser.ts'
 import { renderRailroad } from '../railroad/source.ts'
 import { layoutRailroad } from '../railroad/layout.ts'
 import { mutateRailroad, parseRailroadBody } from '../agent/railroad-body.ts'
-import { renderMermaidSVG } from '../index.ts'
+import { knownStyles, renderMermaidSVG } from '../index.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { terminalDocumentOf } from '../ascii/terminal-document.ts'
 
@@ -76,4 +76,9 @@ test('ABNF exact-zero and exact-one repeats draw only the traversable track', ()
   const one = layoutRailroad(parseRailroad('railroad-abnf-beta\nentry = 1"once";'))
   expect(one.labels.map(label => label.block.text)).toEqual(['once'])
   expect(one.tracks).toHaveLength(4)
+})
+
+test('Railroad rule groups contain every rounded leaf across styles', () => {
+  const input = 'railroad-ebnf-beta\nentry = "start", [item], {",", item};\nitem = "word" | "number";'
+  for (const style of knownStyles()) expect(() => renderMermaidSVG(input, { style })).not.toThrow()
 })

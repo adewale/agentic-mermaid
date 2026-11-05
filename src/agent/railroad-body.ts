@@ -6,7 +6,7 @@ import { renderRailroad } from '../railroad/source.ts'
 import type { RailroadBody, RailroadMutationOp, RailroadNode } from '../railroad/types.ts'
 
 export function parseRailroadBody(source: string, opaqueSource = source): Result<RailroadBody | Extract<DiagramBody, { kind: 'opaque' }>, ParseError[]> {
-  try { return ok(parseRailroad(source)) }
+  try { const body = parseRailroad(source); renderRailroad(body); return ok(body) }
   catch { return ok({ kind: 'opaque', family: 'railroad', source: opaqueSource }) }
 }
 export function mutateRailroad(body: RailroadBody, op: RailroadMutationOp): Result<RailroadBody, MutationError> {

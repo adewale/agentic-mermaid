@@ -10,6 +10,6 @@ export function projectRailroadPositioned({ positioned: p }: FamilyPositionedPro
       x: f(label.x), y: f(label.y), w: fSpan(label.x, label.width), h: fSpan(label.y, label.height), ...retainedLabelGeometry(label.block, label.x + label.width / 2, label.y + label.height / 2, label) })),
     // Rails are grammar artwork with branches and return loops, not binary
     // authored relationships. Their owned geometry remains in the Scene.
-    edges: [], groups: p.rules.map(rule => ({ id: rule.id, label: rule.name.text, x: f(rule.x), y: f(rule.y), w: f(rule.width), h: f(rule.height),
+    edges: [], groups: p.rules.map(rule => ({ id: rule.id, label: rule.name.text, x: f(rule.x), y: f(rule.y), w: fSpan(rule.x, rule.width), h: fSpan(rule.y, rule.height),
       members: members.get(rule.id) ?? [] })) }
 }
