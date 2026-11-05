@@ -4,12 +4,23 @@
 import { describe, it, expect } from 'bun:test'
 import {
   getCharWidth,
+  isKnownMonospaceFontFamily,
+  MONO_FONT,
   measureMonospaceTextWidth,
   measureSystemFontSafeTextWidth,
   measureText,
   measureTextWidth,
   TEXT_MEASUREMENT_CONTRACT,
 } from '../text-metrics'
+
+describe('explicit font family classification', () => {
+  it.each([MONO_FONT, " 'Share Tech Mono' , sans-serif", '"JetBrains Mono", serif', 'SHARE   TECH MONO, sans-serif', 'monospace, sans-serif', 'ui-monospace'])('recognizes the selected known mono family %s', font => {
+    expect(isKnownMonospaceFontFamily(font)).toBe(true)
+  })
+  it.each(['Inter, monospace', 'Unknown Font, monospace', '"Unknown, JetBrains Mono", monospace', '"monospace", serif', '" Share Tech Mono ", monospace', '"Share  Tech Mono", monospace', '"JetBrains Mono" trailing, monospace', ''])('does not infer mono from an unknown name or fallback in %s', font => {
+    expect(isKnownMonospaceFontFamily(font)).toBe(false)
+  })
+})
 
 // ============================================================================
 // Shared contract
