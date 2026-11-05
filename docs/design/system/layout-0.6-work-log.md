@@ -203,3 +203,40 @@ work; no lexer/parser patch shipped. Evidence: week start-circle-standalone-c749
 Next: qualify actual wide-circle ink on one supported nonlinear/multi-leg route before
 choosing any arc-length subtraction; two sampled endpoints do not prove straightness.
 Keep the grammar decision and stopped ER256 shortcuts separate from that emission cause.
+
+
+## Captured STEP circle ink — 5 November
+
+ca8fb1221f56d5f57fe08972770ebb056a46b30f restores the selected hollow endcircle
+on the supported 10px STEP fan: both backends before0→after225 owned Inter pixels,
+all confined to its terminal region. Full SVG differs only by e1 dash and scoped
+class names; all8vertices/duplicates,3node texts,2relations, resources/anchors/
+width and4normal docks stay exact. Served arclength74.3px,24px terminal runway,
+16.75px still painted: shaft reaches the near ring without crossing a corner.
+Reuse captured projection; new bounded orthogonal M/L scan ignores duplicate legs,
+rejects reversals/curves/closed/short corner runways, preserves old2point/raw policy.
+No all-loop/font/readability claim. Evidence: week step-wide-circle-bebf1d52f.
+
+18focusedP;287P/0F relevant7file milestone29.36s; final projection61P after test-only
+readonly correction; types67.20s/2128180KiB, lintP. Retain6initialRED (including an
+invalid ELK-turn assumption), first test-type failure and missing time binary.
+Both stillU, same issue/caps; proof157982→158091 (+109), no quality/proof gain.
+New O(N) scan/temporary strings and SVG+30raw/+18gzip9/+18Br11 are adverse costs.
+12current consumed cold/repeat/edit calls allU; repeated wholeSVG/ENTIREreceipts
+exact and real B-text edit. Cache0 AM315/56/61ms vsELK806/81/60;
+cache1 AM195/18/40 vsELK1086/110/208. N1 after imports, no causal speedup ratios;
+ELK cache1 tails retained. PeakRSS AM106332/104888KiB vsELK143152/141576;
+raw per-phase heap/RSS/import/compression remain in cost summary.
+Two Node24 source plus two compiled full-product bindings exact; one RAM build/
+measure/bind24.75s/304972KiB, owned RAM scratch removed. Flowchart native26requests
+raw1125052/gzip369025/Br312969 vsELK24/2399626/739153/584389. Same pre-fix runtime
+cf67234e3→bebf1d52f adds native551gzip/507Br, ELK549/497; initial3requests/raw15408/
+gzip5856/Br5227 (+4gzip/−3Br), no request changes. No cross-source runtime ratio.
+Remaining: actual raw-multileg/cubic/short-run ink is unqualified; reproduce one
+public output before extending subtraction. Sparse256area+115.35%, forestwire
++16.89%, RequirementTB/BTarea+9.53%, ER256shared refusal/Sparse32proofcap remain.
+
+Prior report-only Node24 performance evidence is retained at week performance-review-
+bebf1d52f and /tmp/pr449-performance-review-analysis-bebf1d52f. Descriptor-Map cause
+withdrawn; unresolved samples and no forecast speedup retained. No optimization
+from those samples; unchanged source comparisons are validation only.
