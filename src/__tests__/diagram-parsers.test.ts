@@ -5,8 +5,8 @@ import * as agent from '../agent/core.ts'
 
 for (const [entry, parsers] of [['main', api], ['agent/core', agent]] as const) {
   describe(`typed renderer parsers through ${entry}`, () => {
-    test('class members and annotations stay separate, and links keep their arrow semantics', () => {
-      const diagram = parsers.parseClassDiagram('---\ntitle: Contracts\n---\nclassDiagram\nclass Reader {\n<<interface>>\n+String name\n+read(id: int) String$\n}\nReader -- Plain\nReader --> Directed')
+    test.each(['classDiagram', 'classDiagram-v2', 'CLASSDIAGRAM-V2'])('%s keeps class members, annotations and relationship markers', header => {
+      const diagram = parsers.parseClassDiagram(`---\ntitle: Contracts\n---\n${header}\nclass Reader {\n<<interface>>\n+String name\n+read(id: int) String$\n}\nReader -- Plain\nReader --> Directed`)
       expect(diagram.title).toBe('Contracts')
       expect(diagram.classes[0]).toMatchObject({
         id: 'Reader', annotation: 'interface',
@@ -69,8 +69,12 @@ for (const [entry, parsers] of [['main', api], ['agent/core', agent]] as const) 
       expect(failure).toMatchObject({ code: 'MERMAID_SYNTAX_ERROR', diagramType, line: 5, column })
     })
 
-    test('a different family cannot silently produce an empty typed model', () => {
-      expect(() => parsers.parseErDiagram('classDiagram\nclass User')).toThrow('Expected erDiagram header')
+    test.each([
+      [parsers.parseClassDiagram, 'sequenceDiagram\nA->>B: Hello', 'classDiagram'],
+      [parsers.parseErDiagram, 'classDiagram\nclass User', 'erDiagram'],
+      [parsers.parseSequenceDiagram, 'erDiagram\nUSER {\nint id\n}', 'sequenceDiagram'],
+    ] as const)('a different family cannot silently produce an empty typed model (%#)', (parse, source, header) => {
+      expect(() => parse(source)).toThrow(`Expected ${header} header`)
     })
 
     test('parse results and renderer errors expose the same authored malformed-edge position', () => {

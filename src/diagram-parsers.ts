@@ -5,7 +5,7 @@ import { parseErDiagram as parseErLines } from './er/parser.ts'
 import { authoredSequenceLine, parseSequenceDiagram as parseSequenceLines } from './sequence/parser.ts'
 import { sequenceFamilySource } from './sequence/family-source.ts'
 import { resolveSequenceConfig } from './sequence/config.ts'
-import { getFrontmatterScalar, normalizeMermaidSource, withFrontmatterTitle, type NormalizedMermaidSource } from './mermaid-source.ts'
+import { detectDiagramTypeFromFirstLine, getFrontmatterScalar, normalizeMermaidSource, withFrontmatterTitle, type NormalizedMermaidSource } from './mermaid-source.ts'
 import { withAccessibilityFields } from './shared/accessibility-directives.ts'
 import { MermaidSyntaxError } from './shared/syntax-error.ts'
 
@@ -21,7 +21,7 @@ export type { MermaidSyntaxErrorLocation } from './shared/syntax-error.ts'
 
 function sourceFor(source: string, diagramType: 'class' | 'er' | 'sequence', header: string) {
   const normalized = normalizeMermaidSource(source, {}, 'render')
-  if (normalized.firstLine.split(/[\s;]/, 1)[0] !== header.toLowerCase()) {
+  if (detectDiagramTypeFromFirstLine(normalized.firstLine) !== diagramType) {
     throw new MermaidSyntaxError(`Expected ${header} header`, { diagramType })
   }
   return normalized
