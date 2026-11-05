@@ -123,11 +123,30 @@ unexplained. The report-only Node24 profile withdrew descriptor-Map causation;
 no cache/array/SoA rewrite or speedup forecast follows from those samples.
 
 Raw diagonals/reversals/short corner runways and cubic/closed paths remain outside
-the earlier paint fix. Sparse256 still has+5.04% area vsELK: its last shelf holds
-onlyN255, while measured header space beside the fixed connected envelope fits8
-painted cards. Next bounded hypothesis: move the WHOLE final row only if it fits
-that existing rectangle and preserves paint spacing/width. It could remove77px
-height (unqualified prediction3,492,632.5area/+0.97%ELK); no new placement probe run.
-Preserve explicit spacing/groups, connected geometry, the existing work ledger and
-validation. Forest/Requirement losses, ER256 refusal and Sparse32 proof cap remain.
-Unchanged replays are validation, not new coverage.
+the earlier paint fix. Forest/Requirement losses, ER256 refusal and Sparse32 proof
+cap remain. Unchanged replays are validation, not new coverage.
+
+### Stopped final-row backfill — 5 November
+
+At base8f9ef3da050f334f02aad6dd482942049dfe64b8, one uncommitted ER override probe
+moved the whole final isolate row into the measured right-hand header. Actual area
+3,633,619.5→3,492,632.5 (−3.88%; candidate ELK residual+0.97%), P91015→P90805.
+All256 names/relationships/cardinality ownership, connected raw artwork and253 other
+isolate seats remain intact; no painted overlaps/clips. Geometry hypothesis holds.
+The adverse visual tradeoff is explicit: N255 moves from body(40.5,1888) to
+(473.598,40), above N2 at(40.5,117). DOM/entity order is unchanged.
+
+Stop this approach: retain current row-major predictability rather than spending
+another qualification cycle on that modest area gain. This is a value judgment,
+not an authored ordering requirement, new acceptance gate or lost-meaning claim.
+No production/test edit, extra raster, unchanged test replay or build was performed;
+no performance/whole-ink/readiness claim. Current implemented result remains
+Sparse256+5.04% area vsELK. Preserve actual candidate and full receipts/comparison:
+week/sparse256-header-seat-8f9 and sparse256-header-row-8f9ef3da0/production-draft.
+
+Next priority: the larger retained forestwire+16.89% tradeoff (Native area−6.43%).
+Use the existing exact source to locate placement/terminal-seat causes; fixed-dock
+routes were already shortest. Retain the leaf-seat trial's area+6.88% and inspect
+its whole quality vector before choosing a different intervention. Do not rerun the
+same stopped trial or require every metric to improve; ELK supplies alternatives,
+while authored meaning, visible output and resource tradeoffs decide value.
