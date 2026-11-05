@@ -205,3 +205,19 @@ bytes (+39,070), despite 34→25 requests; initial transfer is 5,924→5,858 gzi
 These are download costs, not execution speed. No ceiling is raised. Next: review
 the Requirement PNG against authored meaning and actual ink before changing its
 golden; investigate shared emission's retained payload cost separately.
+
+Requirement complex PNG at `d4bef7245` was reproduced RED locally. Mainf9's exact
+owning PNG matches its committed golden. Reverting only the two ELK edge-node
+spacing options in a temporary control reproduces main's complete layout and all
+eight carriers; the source was restored byte-exactly. The intentional contains-start
+clearance fix `1366d4de0` moves four interior tracks by 1px. All eight cards/relations,
+owned fields/captions, 16 endpoint normals and marker poses/resources remain exact.
+The 2,080 changed pixels lie within the interrank routing corridor; visual review
+found no new contact there. Update this one reviewed PNG, retaining 1207×952 size.
+Evidence: `requirement-png-review-499` (two SVG captures, one causal SVG control,
+two owning PNG calls). PNG cost is 87,007→87,046 bytes (+39); current SVG proof
+cost is 204,313 versus main's 40,698 operations, with caps unchanged. This whole
+candidate comparison does not attribute that proof cost to the spacing fix or
+establish a runtime ratio. The separate TB/BT cycle area +9.53% remains open.
+After updating the PNG, citizenship plus Requirement layout/native owners pass
+97/97 in 59.20s (before: one exact PNG failure). No runtime source changed.
