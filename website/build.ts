@@ -327,7 +327,7 @@ async function externalizeExecutableInlineScripts(html: string) {
 
 async function emitShell(rel: string, title: string, lead: string, body: string, currentHref = '', meta = '', actions = '') {
   let html = pageShell(title, lead, body, currentHref, meta, actions, '/' + rel.replace(/index\.html$/, ''))
-  if (rel === 'examples/index.html' || rel.startsWith('examples/style-palette/') || rel.startsWith('examples/corpus/')) {
+  if (rel === 'examples/index.html' || rel.startsWith('examples/diagrams/') || rel.startsWith('examples/style-palette/') || rel.startsWith('examples/corpus/')) {
     html = html.replace('</head>', `<link rel="stylesheet" href="/${EXAMPLES_STYLE_REL}">\n</head>`)
   }
   await emit(rel, await externalizeExecutableInlineScripts(html))
@@ -592,7 +592,7 @@ function styleThemeExampleRenderState(combo: ReturnType<typeof styleThemeExample
 // Examples is now the family-discovery surface: jump cards replace the removed
 // Diagram families page and the old search box.
 function exampleJumpCard(example: any, description: string) {
-  return `<a class="example-jump-card" href="#${escapeAttr(exampleAnchor(example))}"><strong>${escapeHtml(example.label)}</strong><span>${escapeHtml(description)}</span></a>`
+  return `<a class="example-jump-card" data-example-deferred="diagrams" href="/examples/diagrams/#${escapeAttr(exampleAnchor(example))}"><strong>${escapeHtml(example.label)}</strong><span>${escapeHtml(description)}</span></a>`
 }
 function examplesJumpHtml(groups: Map<string, any[]>, styleThemeCombos: ReturnType<typeof styleThemeExamples>, richExamples = RICH_EXAMPLES) {
   const sections: string[] = []
@@ -709,9 +709,11 @@ ${combos
 </section>`
 }
 
-type ExampleFragmentKind = 'style-palette' | 'corpus'
+type ExampleFragmentKind = 'diagrams' | 'style-palette' | 'corpus'
 interface ExamplesDeliveryProjection {
   main: string
+  diagramsStandalone: string
+  diagramsFragment: { rel: string; html: string }
   styleStandalone: string
   corpusStandalone: string
   styleFragment: { rel: string; html: string }
@@ -720,7 +722,7 @@ interface ExamplesDeliveryProjection {
 let examplesDeliveryProjectionCache: ExamplesDeliveryProjection | undefined
 
 function exampleAliasTarget(id: string, kind: ExampleFragmentKind, canonical: string, standalone: string) {
-  return `<div class="example-legacy-target" id="${escapeAttr(id)}" data-example-alias data-example-kind="${kind}" data-example-canonical="${escapeAttr(canonical)}"><p>This example moved to <a href="${standalone}#${escapeAttr(canonical)}">the complete ${kind === 'corpus' ? 'corpus' : 'Style × Palette'} page</a>.</p></div>`
+  return `<div class="example-legacy-target" id="${escapeAttr(id)}" data-example-alias data-example-kind="${kind}" data-example-canonical="${escapeAttr(canonical)}"><p>This example moved to <a href="${standalone}#${escapeAttr(canonical)}">the complete ${kind === 'corpus' ? 'corpus' : kind === 'diagrams' ? 'diagram examples' : 'Style × Palette'} page</a>.</p></div>`
 }
 
 function examplesDeliveryProjection(): ExamplesDeliveryProjection {
@@ -769,6 +771,10 @@ ${examples
 </section>`,
   ).join('\n')
 
+  const diagramsHtml = makePreFocusable(`<div data-example-fragment-root="diagrams">${familySections}</div>`)
+  const diagramsFragment = { rel: `examples/fragments/diagrams-${sha256(diagramsHtml).slice(0, 12)}.html`, html: diagramsHtml }
+  const diagramTargets = [...Array.from(groups.keys(), exampleCategoryId), ...editorExamples.map(exampleAnchor)]
+  const diagramsAliases = [...new Set(diagramTargets)].map(id => exampleAliasTarget(id, 'diagrams', id, '/examples/diagrams/')).join('\n')
   const styleHtml = makePreFocusable(styleThemeExamplesHtml(combos))
   const corpusHtml = makePreFocusable(richExamplesHtml(RICH_EXAMPLES))
   const styleFragment = { rel: `examples/fragments/style-palette-${sha256(styleHtml).slice(0, 12)}.html`, html: styleHtml }
@@ -782,7 +788,14 @@ ${examples
     .map(([id, canonical]) => exampleAliasTarget(id, 'corpus', canonical, '/examples/corpus/'))
     .join('\n')
   const script = `<script src="/${EXAMPLES_LOADER_REL}" defer></script>`
-  const deferred = `${styleAliases}\n${corpusCurrentAliases}\n${corpusLegacyAliases}
+  const deferred = `${diagramsAliases}\n${styleAliases}\n${corpusCurrentAliases}\n${corpusLegacyAliases}
+<section class="example-deferred" data-example-kind="diagrams" data-example-fragment="/${diagramsFragment.rel.replace(/\.html$/, '')}" data-example-state="idle" aria-labelledby="examples-diagrams-deferred-title">
+  <h2 id="examples-diagrams-deferred-title">Diagram family examples</h2>
+  <p>Choose a family above or load the complete set of build-time proofs, with their source and Editor links.</p>
+  <p data-example-status role="status" aria-live="polite">Examples are not loaded yet.</p>
+  <div class="example-deferred-actions"><button type="button" data-example-load hidden>Load examples</button><a href="/examples/diagrams/">Open complete diagram examples page</a></div>
+  <div data-example-content></div>
+</section>
 <section class="example-deferred" data-example-kind="style-palette" data-example-fragment="/${styleFragment.rel.replace(/\.html$/, '')}" data-example-state="idle" aria-labelledby="examples-style-palette-deferred-title">
   <h2 id="examples-style-palette-deferred-title">Style × Palette combinations</h2>
   <p>The complete rendered matrix is available on its standalone page and can also load here on request.</p>
@@ -798,7 +811,9 @@ ${examples
   <div data-example-content></div>
 </section>`
   examplesDeliveryProjectionCache = {
-    main: `<div class="example-showcase">${examplesJumpHtml(groups, combos, RICH_EXAMPLES)}${familySections}\n${deferred}\n${script}</div>`,
+    main: `<div class="example-showcase">${examplesJumpHtml(groups, combos, RICH_EXAMPLES)}\n${deferred}\n${script}</div>`,
+    diagramsStandalone: `<div class="example-showcase">${diagramsHtml}\n${script}</div>`,
+    diagramsFragment,
     styleStandalone: `<div class="example-showcase">${styleHtml}\n${script}</div>`,
     corpusStandalone: `<div class="example-showcase">${corpusLegacyAliases}\n${corpusHtml}\n${script}</div>`,
     styleFragment,
@@ -1907,10 +1922,10 @@ const examples = {
       description: example.description ?? example.label,
       headers: family.headers,
       source: String(example.source ?? '').trim(),
-      renderUrl: `/examples/#${exampleAnchor(example)}`,
+      renderUrl: `/examples/diagrams/#${exampleAnchor(example)}`,
       editorUrl: editorStateHref(request.editorState),
       outputs: capabilities.outputFormats,
-      docs: `/examples/#${family.id}`,
+      docs: `/examples/diagrams/#${family.id}`,
     }
   }),
   richExamples: RICH_EXAMPLES.map(sample => ({
@@ -2530,6 +2545,7 @@ const forkAddedFamilyList = BUILTIN_FAMILY_METADATA.filter(family => !BEAUTIFUL_
 const EXAMPLES_DELIVERY = examplesDeliveryProjection()
 await emit(EXAMPLES_LOADER_REL, EXAMPLES_LOADER_SOURCE)
 await emit(EXAMPLES_STYLE_REL, EXAMPLES_STYLE_SOURCE)
+await emit(EXAMPLES_DELIVERY.diagramsFragment.rel, EXAMPLES_DELIVERY.diagramsFragment.html)
 await emit(EXAMPLES_DELIVERY.styleFragment.rel, EXAMPLES_DELIVERY.styleFragment.html)
 await emit(EXAMPLES_DELIVERY.corpusFragment.rel, EXAMPLES_DELIVERY.corpusFragment.html)
 
@@ -2596,6 +2612,7 @@ const docPages: DocPage[] = [
       docsIndex,
   ],
   ['examples/index.html', 'Examples', examplesLead, EXAMPLES_DELIVERY.main, '/examples/'],
+  ['examples/diagrams/index.html', 'Diagram family examples', 'Every supported family with source, build-time proof and Editor links.', EXAMPLES_DELIVERY.diagramsStandalone, '/examples/'],
   ['examples/style-palette/index.html', 'Style × Palette examples', 'Every supported family rendered with a named style and palette.', EXAMPLES_DELIVERY.styleStandalone, '/examples/'],
   ['examples/corpus/index.html', 'Rich example corpus', 'The complete shared project corpus with stable links and Editor handoffs.', EXAMPLES_DELIVERY.corpusStandalone, '/examples/'],
   ['comparisons/index.html', 'Comparisons', 'One source per family, rendered three ways.', comparisonsHtml(), '/comparisons/'],

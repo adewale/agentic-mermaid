@@ -90,7 +90,7 @@ function fileForPath(pathname: string) {
   const abs = normalize(join(SITE, candidate))
   if (!abs.startsWith(SITE)) return null
   if (existsSync(abs)) return abs
-  if (/^examples\/fragments\/(?:style-palette|corpus)-[a-f0-9]{12}$/.test(rel)) {
+  if (/^examples\/fragments\/(?:diagrams|style-palette|corpus)-[a-f0-9]{12}$/.test(rel)) {
     const htmlAsset = normalize(join(SITE, `${rel}.html`))
     if (htmlAsset.startsWith(SITE) && existsSync(htmlAsset)) return htmlAsset
   }
@@ -344,7 +344,7 @@ describeBrowser('website browser accessibility smoke', () => {
     })
 
     const cards: Array<{ id: string, source: string, href: string }> = []
-    for (const route of ['/examples/', '/examples/style-palette/', '/examples/corpus/']) {
+    for (const route of ['/examples/diagrams/', '/examples/style-palette/', '/examples/corpus/']) {
       await page.goto(baseUrl + route, { waitUntil: 'networkidle' })
       cards.push(...await page.locator('article.example-sample').evaluateAll(articles => articles.map((article) => ({
         id: article.id,
@@ -449,7 +449,7 @@ describeBrowser('website browser accessibility smoke', () => {
     })
     await page.goto(baseUrl + '/examples/', { waitUntil: 'networkidle' })
     expect(fragmentRequests).toEqual([])
-    expect(await page.locator('article.example-sample').count()).toBe(EDITOR_EXAMPLES.length)
+    expect(await page.locator('article.example-sample').count()).toBe(0)
     const section = page.locator('[data-example-fragment][data-example-kind="style-palette"]')
     const button = section.locator('[data-example-load]')
     expect(await button.isVisible()).toBe(true)
@@ -458,7 +458,7 @@ describeBrowser('website browser accessibility smoke', () => {
     expect(fragmentRequests).toHaveLength(1)
     expect(await section.getAttribute('data-example-state')).toBe('loaded')
     expect(await section.locator('[data-example-status]').textContent()).toBe('Examples loaded.')
-    expect(await page.locator('article.example-sample').count()).toBe(EDITOR_EXAMPLES.length + BUILTIN_FAMILY_METADATA.length)
+    expect(await page.locator('article.example-sample').count()).toBe(BUILTIN_FAMILY_METADATA.length)
     await page.close()
   }, 30_000)
 
@@ -470,15 +470,18 @@ describeBrowser('website browser accessibility smoke', () => {
       if (path.startsWith('/examples/fragments/')) requests.push(path)
     })
     await page.goto(baseUrl + '/examples/', { waitUntil: 'networkidle' })
-    await page.locator('[data-example-fragment][data-example-kind="style-palette"]').scrollIntoViewIfNeeded()
-    await page.locator('[data-example-fragment-root="style-palette"]').waitFor({ state: 'attached' })
+    await page.locator('[data-example-fragment][data-example-kind="diagrams"]').scrollIntoViewIfNeeded()
+    await page.locator('[data-example-fragment-root="diagrams"]').waitFor({ state: 'attached' })
     expect(requests).toHaveLength(1)
-    expect(await page.locator('[data-example-fragment][data-example-kind="corpus"]').getAttribute('data-example-state')).toBe('idle')
+    expect(await page.locator('[data-example-fragment][data-example-kind="style-palette"]').getAttribute('data-example-state')).toBe('idle')
     await page.close()
   }, 30_000)
 
   test('Examples resolves current and frozen numeric deep links only after loading', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    await page.goto(baseUrl + '/examples/#railroad', { waitUntil: 'networkidle' })
+    await page.waitForFunction(() => document.activeElement?.id === 'railroad')
+    expect(await page.locator('#railroad article, article#railroad').count()).toBe(1)
     await page.goto(baseUrl + '/examples/#style-palette-flowchart', { waitUntil: 'networkidle' })
     await page.waitForFunction(() => document.activeElement?.id === 'style-palette-flowchart')
     expect(new URL(page.url()).hash).toBe('#style-palette-flowchart')
@@ -496,6 +499,8 @@ describeBrowser('website browser accessibility smoke', () => {
     const continuation = noJsPage.locator('#rich-1-agentic-mermaid a')
     expect(await continuation.isVisible()).toBe(true)
     expect(await continuation.getAttribute('href')).toBe('/examples/corpus/#rich-agentic-mermaid')
+    expect(await noJsPage.locator('article.example-sample').count()).toBe(0)
+    await noJsPage.goto(baseUrl + '/examples/diagrams/', { waitUntil: 'networkidle' })
     expect(await noJsPage.locator('article.example-sample').count()).toBe(EDITOR_EXAMPLES.length)
     await noJsPage.goto(baseUrl + '/examples/style-palette/', { waitUntil: 'networkidle' })
     expect(await noJsPage.locator('article.example-sample').count()).toBe(BUILTIN_FAMILY_METADATA.length)
