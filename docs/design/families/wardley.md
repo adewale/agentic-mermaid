@@ -24,6 +24,10 @@ rather than moving components to remove text collisions. Short owned leaders
 connect displaced captions to their components. Explicit label offsets remain
 authored constraints. Pipeline spans, axes and evolution/dependency artwork
 retain their distinct roles; dense caption avoidance can increase layout work.
+Dependency carriers meet visible component outlines, including stroke and inertia
+rings; evolution keeps its exact authored destination. Intentionally overlapping
+marks can still hide arrowheads. When overlap consumes a short carrier, it keeps
+the authored direction without moving the components or claiming visibility.
 
 ## Executable evidence
 
@@ -36,7 +40,8 @@ and annotation content before and after an evolution edit.
 [Wardley tests](../../../src/__tests__/wardley-native.test.ts) protect
 pipeline visibility, complete builder-value round-trips, negative authored label
 offsets, dense caption separation without coordinate changes, and dashed
-relationship paint. The [publication-figure golden](../../../src/__tests__/testdata/styled/wardley-basic.publication-figure.svg)
+relationship paint, visible directional arrowheads, legend clearance and short
+overlapping-carrier direction. The [publication-figure golden](../../../src/__tests__/testdata/styled/wardley-basic.publication-figure.svg)
 shows the map in the shared typographic system.
 
 For shared style/configuration rules and cross-output checks, see the
