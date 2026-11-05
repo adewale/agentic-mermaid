@@ -47,7 +47,8 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
   EDGE_MISANCHORED: {
     summary: 'Edge endpoint does not attach to a real node / participant',
     what: 'an edge, message, or dependency references an endpoint that is not in the diagram.',
-    triggers: 'A gantt <code>after</code>/<code>until</code> dependency naming a missing task, a class <code>note for</code> a class that does not exist, or a diagram body assembled outside the parser whose edges, messages, or commit parents name missing endpoints. The typed <code>remove_node</code> and <code>remove_participant</code> mutations drop the attached edges and messages themselves.',
+    triggers:
+      'A gantt <code>after</code>/<code>until</code> dependency naming a missing task, a class <code>note for</code> a class that does not exist, or a diagram body assembled outside the parser whose edges, messages, or commit parents name missing endpoints. The typed <code>remove_node</code> and <code>remove_participant</code> mutations drop the attached edges and messages themselves.',
     fix: 'Add the missing endpoint (<code>add_node</code>, <code>add_participant</code>, <code>add_task</code>) or retarget/remove the dangling edge (<code>remove_edge</code>, <code>remove_message</code>).',
     example: 'gantt\n  dateFormat YYYY-MM-DD\n  section Build\n    Design :design, 2026-01-01, 2d\n    Ship :ship, after review, 3d',
     origins: ['source'],
@@ -74,8 +75,10 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     origins: ['source'],
   },
   LABEL_OVERFLOW: {
-    summary: "A label's longest rendered line exceeds the character cap (default 40, `labelCharCap`): `<br>` and `\\n` split lines, XML entities count as one character, and formatting tags are stripped. Families that draw text literally (Pie, Timeline, Gantt, XYChart, GitGraph, Radar) count `<br>` and tags as characters, as drawn. Payload includes `charCount` and `limit`. Character-based, no font-table dependency.",
-    guideNote: "a label's longest displayed line is over the char cap — `<br>`/`\\n` split lines, XML entities decode to one char, formatting tags strip (families that draw text literally count them); default cap 40, raise via `labelCharCap` / `am verify --label-cap N` when long labels are intentional instead of truncating the user's text",
+    summary:
+      "A label's longest rendered line exceeds the character cap (default 40, `labelCharCap`): `<br>` and `\\n` split lines, XML entities count as one character, and formatting tags are stripped. Families that draw text literally (Pie, Timeline, Gantt, XYChart, GitGraph, Radar) count `<br>` and tags as characters, as drawn. Payload includes `charCount` and `limit`. Character-based, no font-table dependency.",
+    guideNote:
+      "a label's longest displayed line is over the char cap — `<br>`/`\\n` split lines, XML entities decode to one char, formatting tags strip (families that draw text literally count them); default cap 40, raise via `labelCharCap` / `am verify --label-cap N` when long labels are intentional instead of truncating the user's text",
     what: 'a label\u2019s longest rendered line exceeds the character cap (default 40), which hurts layout and readability. The count measures what the renderer draws: <code>&lt;br&gt;</code> starts a new line, XML entities like <code>&amp;#160;</code> count as one character, and formatting tags are stripped, except in the families that draw text literally (Pie, Timeline, Gantt, XYChart, GitGraph, Radar), where <code>&lt;br&gt;</code> and tags count as characters.',
     triggers: 'Prose sentences pasted into node labels, edge labels, message text, or section/period titles — common when an agent copies requirement text verbatim into the diagram. Multi-line labels fire only when a single rendered line exceeds the cap.',
     fix: 'Shorten the text with <code>set_label</code>, <code>set_message_text</code>, or the matching family mutation; raise <code>labelCharCap</code> in <code>VerifyOptions</code> only when long labels are genuinely intended.',
@@ -83,7 +86,8 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     origins: ['source'],
   },
   UNRESOLVABLE_SCHEDULE: {
-    summary: "The diagram parses and round-trips but its semantics cannot resolve, so rendering will fail loudly. Emitted for structured gantt bodies whose scheduler raises a named `GANTT_*` error (unknown task reference, bad calendar date, dependency cycle, everything-excluded calendar); the payload's `reason` carries that error.",
+    summary:
+      "The diagram parses and round-trips but its semantics cannot resolve, so rendering will fail loudly. Emitted for structured gantt bodies whose scheduler raises a named `GANTT_*` error (unknown task reference, bad calendar date, dependency cycle, everything-excluded calendar); the payload's `reason` carries that error.",
     guideNote: 'a gantt parses but its schedule cannot resolve, so render would fail; `reason` names the `GANTT_*` error',
     what: 'a gantt schedule cannot be resolved to concrete dates, so bars cannot be positioned.',
     triggers: 'A task whose <code>after</code>/<code>until</code> expression references a task id that does not exist, a start/end that cannot be parsed against the declared <code>dateFormat</code>, a dependency cycle, or <code>excludes</code> that leave no working day. The warning carries the engine reason string.',
@@ -92,18 +96,23 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     origins: ['source'],
   },
   RENDER_FAILED: {
-    summary: "Any family: the parser, the strict render parser, layout, or theme colors reject the source or its configuration, so rendering would fail; `origin` says which (`source` or `config`). Generalizes `UNRESOLVABLE_SCHEDULE`'s seam-closing — a clean verify proves the diagram actually renders; the payload's `reason` carries the renderer error. A defect in Agentic Mermaid itself is `INTERNAL_ERROR` instead.",
+    summary:
+      "Any family: the parser, the strict render parser, layout, or theme colors reject the source or its configuration, so rendering would fail; `origin` says which (`source` or `config`). Generalizes `UNRESOLVABLE_SCHEDULE`'s seam-closing — a clean verify proves the diagram actually renders; the payload's `reason` carries the renderer error. A defect in Agentic Mermaid itself is `INTERNAL_ERROR` instead.",
     guideNote: 'the parser, the strict render parser, layout, or theme colors reject the source or its configuration (any family; `origin` says which), so rendering would fail; `reason` carries the renderer error — a clean verify proves the diagram actually renders',
     what: 'the source or its configuration makes parsing or rendering throw, so <code>am render</code> would fail instead of producing an artifact.',
-    triggers: 'With <code>origin: "source"</code>, source the parser or the render path rejects: malformed frontmatter or statements, an unrecognized diagram header, a construct the strict render parser cannot handle, an invalid authored style color, or a diagram over a host work limit. With <code>origin: "config"</code>, configuration the render path rejects: an invalid theme or family config color, malformed config, or an invalid render option. The warning’s <code>reason</code> carries the renderer’s message. A failure caused by a defect in Agentic Mermaid is reported as <code>INTERNAL_ERROR</code>, not as this code.',
+    triggers:
+      'With <code>origin: "source"</code>, source the parser or the render path rejects: malformed frontmatter or statements, an unrecognized diagram header, a construct the strict render parser cannot handle, an invalid authored style color, or a diagram over a host work limit. With <code>origin: "config"</code>, configuration the render path rejects: an invalid theme or family config color, malformed config, or an invalid render option. The warning’s <code>reason</code> carries the renderer’s message. A failure caused by a defect in Agentic Mermaid is reported as <code>INTERNAL_ERROR</code>, not as this code.',
     fix: 'Return the structured error and the source rather than a fabricated artifact; fix what <code>reason</code> names, in the source or the configuration as <code>origin</code> says (for example the invalid color), or simplify, split, or drop the construct it points at. A reproducible failure on well-formed source is still a renderer bug worth reporting.',
     origins: ['source', 'config'],
   },
   INTERNAL_ERROR: {
-    summary: "Agentic Mermaid hit an internal defect while drawing this source; it is not caused by the source. `defaultRender` says whether an ordinary render still produces output: `succeeds-unchecked` — it does, but the extra consistency checks verify runs failed, so its layout evidence cannot be trusted; `fails` — rendering throws. The payload's `reason` carries the internal error. Do not rewrite the diagram to work around it; report it with the source.",
-    guideNote: 'Agentic Mermaid hit an internal defect, not caused by the source; `defaultRender` is `succeeds-unchecked` when an ordinary render still produces output that the failed consistency checks cannot vouch for, or `fails` when rendering throws — do not rewrite the diagram to work around it; report it with the source',
+    summary:
+      "Agentic Mermaid hit an internal defect while drawing this source; it is not caused by the source. `defaultRender` says whether an ordinary render still produces output: `succeeds-unchecked` — it does, but the extra consistency checks verify runs failed, so its layout evidence cannot be trusted; `fails` — rendering throws. The payload's `reason` carries the internal error. Do not rewrite the diagram to work around it; report it with the source.",
+    guideNote:
+      'Agentic Mermaid hit an internal defect, not caused by the source; `defaultRender` is `succeeds-unchecked` when an ordinary render still produces output that the failed consistency checks cannot vouch for, or `fails` when rendering throws — do not rewrite the diagram to work around it; report it with the source',
     what: 'Agentic Mermaid hit an internal defect while drawing this source; the failure is not caused by the source.',
-    triggers: 'A failed internal consistency check — a lowered Scene that disagrees with its own derivation, a broken layout-pass contract, a layout that could not be certified — or a runtime error such as a <code>TypeError</code> inside the engine. <code>defaultRender</code> says whether an ordinary render still produces output: <code>succeeds-unchecked</code> when it does, but the extra consistency checks verify runs failed, so its layout evidence cannot be trusted; <code>fails</code> when rendering throws.',
+    triggers:
+      'A failed internal consistency check — a lowered Scene that disagrees with its own derivation, a broken layout-pass contract, a layout that could not be certified — or a runtime error such as a <code>TypeError</code> inside the engine. <code>defaultRender</code> says whether an ordinary render still produces output: <code>succeeds-unchecked</code> when it does, but the extra consistency checks verify runs failed, so its layout evidence cannot be trusted; <code>fails</code> when rendering throws.',
     fix: 'Do not rewrite the diagram to work around it. Report it with the source and the warning’s <code>reason</code>; layout is deterministic, so the source reproduces it exactly. A typed edit to a diagram that already had this defect is still accepted.',
     origins: ['engine'],
   },
@@ -210,8 +219,10 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     origins: ['source'],
   },
   FLOW_IMBALANCE: {
-    summary: "A sankey intermediate node (one with both inflow and outflow) receives a different total than it emits. Conservation across stages is the domain's defining property — the ribbon widths are an account — and the layout silently renders `max(in, out)`, hiding the unaccounted quantity. Payload carries `node`, `inflow`, `outflow`, and a `message` naming the unaccounted amount. Balance the flows or add an explicit remainder link (e.g. a `Losses` sink).",
-    guideNote: "a sankey intermediate node receives a different total than it emits — conservation across stages is the domain's defining property, so the warning names the node, its inflow, its outflow, and the unaccounted amount (which otherwise renders silently as node height); balance the flows or add an explicit remainder link",
+    summary:
+      "A sankey intermediate node (one with both inflow and outflow) receives a different total than it emits. Conservation across stages is the domain's defining property — the ribbon widths are an account — and the layout silently renders `max(in, out)`, hiding the unaccounted quantity. Payload carries `node`, `inflow`, `outflow`, and a `message` naming the unaccounted amount. Balance the flows or add an explicit remainder link (e.g. a `Losses` sink).",
+    guideNote:
+      "a sankey intermediate node receives a different total than it emits — conservation across stages is the domain's defining property, so the warning names the node, its inflow, its outflow, and the unaccounted amount (which otherwise renders silently as node height); balance the flows or add an explicit remainder link",
     what: 'a Sankey intermediate node receives a different total flow than it emits, leaving part of its height without a matching ribbon.',
     triggers: 'A node appears as both a link target and source, but the sum of incoming values differs from the sum of outgoing values beyond floating-point tolerance.',
     fix: 'Balance the incoming and outgoing values, or add an explicit remainder link so every unit of flow has a named destination.',
@@ -219,24 +230,38 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     origins: ['source'],
   },
   COMMENT_DROPPED: {
-    summary: 'A parsed payload carries a known comment-loss receipt, including payloads produced by older serializers. Current built-in serializers retain detected comments; Flowchart and State anchor them to statements, and other structured families append unassociated comments. The warning carries occurrence count and original line numbers.',
+    summary:
+      'A parsed payload carries a known comment-loss receipt, including payloads produced by older serializers. Current built-in serializers retain detected comments; Flowchart and State anchor them to statements, and other structured families append unassociated comments. The warning carries occurrence count and original line numbers.',
     guideNote: 'a payload carries known comment loss; current serializers retain detected comments, but cannot recover text already omitted from an older payload',
     what: 'a record of comments already lost from a parsed artifact.',
     triggers: 'Parsed metadata records a missing comment occurrence. No current built-in source-only reproducer is known; legacy or externally assembled payloads can still carry this receipt.',
     fix: 'Recover the named comment text from the original source before committing the edit. Do not treat an ok flag as a losslessness certificate.',
     origins: ['source'],
   },
+  VENN_APPROXIMATION: {
+    summary: 'Venn circle overlap areas approximate authored intersection values when there are three or more sets, or when an intersection exceeds a containing set. The model and terminal output retain the exact values.',
+    guideNote: 'inspect the exact intersection values before using the circle areas as a quantitative comparison',
+    what: 'the circle geometry cannot promise every authored intersection area.',
+    triggers: 'Three or more sets, or an intersection larger than a containing set.',
+    fix: 'Use the exact model or terminal values for quantitative comparisons. For exact two-circle geometry, keep the overlap at or below the smaller set.',
+    example: 'venn-beta\nset A:10\nset B:5\nunion A,B:8',
+    origins: ['source'],
+  },
   UNSUPPORTED_SYNTAX: {
-    summary: 'The source uses Mermaid syntax that is preserved losslessly but not fully modeled by local structured mutation/render semantics (for example flowchart edge IDs, edge metadata, click/href directives, or markdown strings), or, with `syntax: "empty_layout"`, the source carries content but the local layout renders a 0x0 canvas with no nodes, edges, or groups. Payload includes `syntax`, optional `line`, and `message`.',
-    guideNote: 'either a Mermaid construct (for example flowchart edge IDs, edge metadata, click/href, or markdown strings) is preserved losslessly as source but is not fully modeled by local structured mutation/render semantics, or `syntax: "empty_layout"` means the source carries content but the local layout produced a 0x0 canvas with no nodes, edges, or groups. Inspect the warning message and `verify.layout` before accepting the artifact',
+    summary:
+      'The source uses Mermaid syntax that is preserved losslessly but not fully modeled by local structured mutation/render semantics (for example flowchart edge IDs, edge metadata, click/href directives, or markdown strings), or, with `syntax: "empty_layout"`, the source carries content but the local layout renders a 0x0 canvas with no nodes, edges, or groups. Payload includes `syntax`, optional `line`, and `message`.',
+    guideNote:
+      'either a Mermaid construct (for example flowchart edge IDs, edge metadata, click/href, or markdown strings) is preserved losslessly as source but is not fully modeled by local structured mutation/render semantics, or `syntax: "empty_layout"` means the source carries content but the local layout produced a 0x0 canvas with no nodes, edges, or groups. Inspect the warning message and `verify.layout` before accepting the artifact',
     what: 'the source uses syntax or content the local structured model cannot faithfully express.',
-    triggers: 'Flowchart <code>click</code>/<code>href</code> directives, edge IDs and edge metadata, v11 <code>@{ shape: … }</code> node metadata, markdown strings, unclosed delimiters that would silently drop content, or <code>syntax: "empty_layout"</code> when content-bearing source lays out to a 0×0 canvas with no nodes, edges, or groups.',
+    triggers:
+      'Flowchart <code>click</code>/<code>href</code> directives, edge IDs and edge metadata, v11 <code>@{ shape: … }</code> node metadata, markdown strings, unclosed delimiters that would silently drop content, or <code>syntax: "empty_layout"</code> when content-bearing source lays out to a 0×0 canvas with no nodes, edges, or groups.',
     fix: 'For preserved Mermaid syntax, remove the directive if local rendering fidelity matters, or keep it knowing the local renderer ignores it; edits touching those lines need source-level editing rather than typed mutations. For <code>empty_layout</code>, inspect the warning message and <code>verify.layout</code>, then repair the malformed or unsupported source before accepting the artifact.',
     example: 'flowchart LR\n  A[Start] --> B[Docs]\n  click B callCallback',
     origins: ['source'],
   },
   CONTENT_DROPPED_ON_ROUNDTRIP: {
-    summary: 'The structured `{nodes, edges, groups}` tally changed across a parse → serialize → re-parse cycle, so canonical serialization is silently dropping or duplicating content even though the bytes may re-parse (payload carries `before`/`after` counts). The faithfulness analogue of `COMMENT_DROPPED` — "100% parse success is not faithfulness". Runs on every verify, for every family; opaque bodies (byte-verbatim) are exempt.',
+    summary:
+      'The structured `{nodes, edges, groups}` tally changed across a parse → serialize → re-parse cycle, so canonical serialization is silently dropping or duplicating content even though the bytes may re-parse (payload carries `before`/`after` counts). The faithfulness analogue of `COMMENT_DROPPED` — "100% parse success is not faithfulness". Runs on every verify, for every family; opaque bodies (byte-verbatim) are exempt.',
     guideNote: 'the structured node/edge/group tally changed across a parse → serialize → re-parse cycle — canonical serialization is silently dropping or duplicating content even though the bytes may re-parse; treat it as a faithfulness bug to report',
     what: 'a parse → serialize → re-parse cycle lost nodes, edges, or groups by count.',
     triggers: 'A serializer defect on unusual syntax: the faithfulness tally before and after the round trip disagrees. This is a tripwire that guards every verify; it should not fire on supported syntax.',
@@ -253,7 +278,8 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     origins: ['source'],
   },
   INEFFECTIVE_CONFIG: {
-    summary: "A Mermaid config field has no effect on this family's geometry or paint: it is accepted for config-shape compatibility but not wired (e.g. Journey's sequence-era fields `boxMargin`, `rightAngles`, …), unknown to the family's config section, or given an invalid value. Payload names the `field`. Accepting-and-ignoring silently misleads migrating users; this lint says so.",
+    summary:
+      "A Mermaid config field has no effect on this family's geometry or paint: it is accepted for config-shape compatibility but not wired (e.g. Journey's sequence-era fields `boxMargin`, `rightAngles`, …), unknown to the family's config section, or given an invalid value. Payload names the `field`. Accepting-and-ignoring silently misleads migrating users; this lint says so.",
     guideNote: "a Mermaid config field has no effect on this family's output — it was accepted for compatibility but is not wired, is unknown to the family, or has an invalid value (the warning names the field)",
     what: 'a Mermaid config field has no effect on this family’s geometry or paint: it was accepted for compatibility but is not wired, is unknown to the family, or has an invalid value.',
     triggers: 'Copying configuration between diagram families, using a documented upstream option that this deterministic renderer has not wired, supplying an unknown field under a known family section, or giving a field a value of the wrong type or range. The warning names the exact field.',
@@ -262,7 +288,8 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     origins: ['config'],
   },
   LOW_CONTRAST: {
-    summary: 'A concrete authored paint remains authoritative but misses a measurable contrast threshold against the final resolved opaque background. Payload names the `field`, `foreground`, `background`, measured `ratio`, and required `minimum`; verification diagnoses without repainting authored intent. Transparent output is not measured because its host backdrop is unknown.',
+    summary:
+      'A concrete authored paint remains authoritative but misses a measurable contrast threshold against the final resolved opaque background. Payload names the `field`, `foreground`, `background`, measured `ratio`, and required `minimum`; verification diagnoses without repainting authored intent. Transparent output is not measured because its host backdrop is unknown.',
     guideNote: 'a concrete authored paint remains authoritative but misses a measurable contrast threshold against the final resolved opaque background; the warning reports both colors, the measured ratio, and the minimum without repainting. Transparent output is not measured because its host backdrop is unknown',
     what: 'a concrete authored paint remains in the output but misses a measurable contrast threshold against the final resolved page background.',
     triggers: 'An authored color such as <code>themeVariables.radar.axisColor</code> resolves to less than 4.5:1 against an opaque page. Transparent output is not measured because its host backdrop is unknown.',
@@ -271,10 +298,13 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     origins: ['config'],
   },
   LABELS_HIDDEN: {
-    summary: 'A chart\'s layout left out text the source asked for because it did not fit. XY chart: `target: "x-axis"` lists the authored category names the axis does not draw (tick labels thinned to avoid overlap, or the whole category axis dropped when its widest name does not fit); `target: "data-labels"` lists the bars (`category = value`) whose value label fits neither inside the bar nor in the plot beyond its end — shorten the names, flip with `set_orientation {horizontal: true}`, or widen the value range. Quadrant chart: `target: "point-labels"` lists the points whose label collides with labels placed first — spread the points, shorten the names, or enlarge the chart. The chart still renders; `describe` still lists every category and point, so this lint is the only signal that a reader cannot see them.',
-    guideNote: 'a chart left out text the source asked for because it did not fit: for an XY chart, `target: "x-axis"` lists the category names the axis does not draw (thinned or dropped) and `target: "data-labels"` lists the bars whose value label has no room (shorten the names, flip the chart with `set_orientation {horizontal: true}`, or widen the value range); for a quadrant chart, `target: "point-labels"` lists the points whose label collides with labels placed first (spread the points, shorten the names, or enlarge the chart)',
+    summary:
+      'A chart\'s layout left out text the source asked for because it did not fit. XY chart: `target: "x-axis"` lists the authored category names the axis does not draw (tick labels thinned to avoid overlap, or the whole category axis dropped when its widest name does not fit); `target: "data-labels"` lists the bars (`category = value`) whose value label fits neither inside the bar nor in the plot beyond its end — shorten the names, flip with `set_orientation {horizontal: true}`, or widen the value range. Quadrant chart: `target: "point-labels"` lists the points whose label collides with labels placed first — spread the points, shorten the names, or enlarge the chart. The chart still renders; `describe` still lists every category and point, so this lint is the only signal that a reader cannot see them.',
+    guideNote:
+      'a chart left out text the source asked for because it did not fit: for an XY chart, `target: "x-axis"` lists the category names the axis does not draw (thinned or dropped) and `target: "data-labels"` lists the bars whose value label has no room (shorten the names, flip the chart with `set_orientation {horizontal: true}`, or widen the value range); for a quadrant chart, `target: "point-labels"` lists the points whose label collides with labels placed first (spread the points, shorten the names, or enlarge the chart)',
     what: 'an XY or quadrant chart left out text the source asked for because it did not fit: category names on the x-axis, bar value labels, or quadrant point labels.',
-    triggers: 'Many or long category names under a vertical chart, where the axis thins its tick labels to avoid overlap or drops a category axis whose widest name does not fit; a bar whose value label fits neither inside the bar nor in the plot beyond its end; or a quadrant point whose label collides with labels placed before it. <code>target</code> says which, and <code>labels</code> lists exactly what is missing.',
+    triggers:
+      'Many or long category names under a vertical chart, where the axis thins its tick labels to avoid overlap or drops a category axis whose widest name does not fit; a bar whose value label fits neither inside the bar nor in the plot beyond its end; or a quadrant point whose label collides with labels placed before it. <code>target</code> says which, and <code>labels</code> lists exactly what is missing.',
     fix: 'Shorten the category names, flip the chart with <code>set_orientation {horizontal: true}</code> so categories run down the side, or widen the value range so labels have room beyond the bars. For a quadrant chart, spread the points, shorten the names, or enlarge the chart.',
     example: 'xychart-beta\n  x-axis ["North region", "South region", "East region", "West region", "Central region", "Coastal region", "Mountain region", "Desert region", "Island region", "Border region"]\n  bar [12, 18, 9, 22, 15, 11, 7, 5, 3, 8]',
     origins: ['source', 'config'],
@@ -288,7 +318,8 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     origins: ['source'],
   },
   BAR_RANGE_EXCLUDES_ZERO: {
-    summary: 'An XY chart with bar series has an authored y-axis range that excludes zero. Bars grow from zero clamped into the range, so they start at the reported `baseline` and their lengths stop being proportional to their values (a truncated axis). The authored range is kept. Include zero with `set_y_axis`, or draw the series as a line.',
+    summary:
+      'An XY chart with bar series has an authored y-axis range that excludes zero. Bars grow from zero clamped into the range, so they start at the reported `baseline` and their lengths stop being proportional to their values (a truncated axis). The authored range is kept. Include zero with `set_y_axis`, or draw the series as a line.',
     guideNote: 'an XY chart with bar series has an authored y-axis range that excludes zero, so bars start at the reported `baseline` and their lengths are not proportional to their values; include zero with `set_y_axis`, or draw the series as a line',
     what: 'an XY chart with bar series has an authored y-axis range that excludes zero, so bar lengths are not proportional to their values.',
     triggers: 'A <code>y-axis min --> max</code> range entirely above or below zero. Bars grow from zero clamped into the range, so every bar starts at the reported <code>baseline</code> and small differences look large.',
@@ -297,10 +328,12 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     origins: ['source'],
   },
   VALUES_OUTSIDE_RANGE: {
-    summary: 'An XY chart series has values outside the authored y-axis range. A bar stops at the edge of the range, so its length understates the value, and a line point is drawn past the plot. The warning names the `series`, the `values` outside the range, and the `range`; the range is kept. Widen it with `set_y_axis`, or remove it so the axis fits the data.',
+    summary:
+      'An XY chart series has values outside the authored y-axis range. A bar stops at the edge of the range, so its length understates the value, and a line point is drawn past the plot. The warning names the `series`, the `values` outside the range, and the `range`; the range is kept. Widen it with `set_y_axis`, or remove it so the axis fits the data.',
     guideNote: 'an XY chart series has values outside the authored y-axis range: a bar stops at the edge of the range, so its length understates the value, and a line point is drawn past the plot; the warning names the `series` and its `values` outside the `range`. Widen the range with `set_y_axis`, or remove it',
     what: 'an XY chart has values outside its authored y-axis range, so the chart misstates them: a bar stops at the edge of the range and a line point is drawn past the plot.',
-    triggers: 'A <code>y-axis min --> max</code> range that does not reach every value of a series. The warning names the <code>series</code>, the <code>values</code> outside the range, and the <code>range</code> itself; a bar chart drawn with <code>bar [5, 20]</code> on <code>0 --> 10</code> shows the two bars at a 1:2 length ratio instead of 1:4.',
+    triggers:
+      'A <code>y-axis min --> max</code> range that does not reach every value of a series. The warning names the <code>series</code>, the <code>values</code> outside the range, and the <code>range</code> itself; a bar chart drawn with <code>bar [5, 20]</code> on <code>0 --> 10</code> shows the two bars at a 1:2 length ratio instead of 1:4.',
     fix: 'Widen the range with <code>set_y_axis</code> so it reaches every value, or remove the range so the axis fits the data.',
     example: 'xychart-beta\n  x-axis [a, b]\n  y-axis 0 --> 10\n  bar [5, 20]',
     origins: ['source'],
