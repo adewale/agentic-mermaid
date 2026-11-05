@@ -2,6 +2,7 @@ import { roadmapGetter } from './roadmap-views.ts'
 import { eventRelations, eventType } from '../../src/eventmodeling/parser.ts'
 import type { EventModelingBody } from '../../src/eventmodeling/types.ts'
 import type { NativeDb } from './runtime.ts'
+import type { RailroadNode } from '../../src/railroad/types.ts'
 import { normalizeMermaidSource, parseForAst, unavailable } from './runtime.ts'
 import { readSequenceStatements } from '../../src/sequence/parser.ts'
 import { readSequenceText } from '../../src/sequence/text.ts'
@@ -257,6 +258,22 @@ export function nativeGetters(db: NativeDb, key: string): any {
   return undefined
 }
 
+/** The constructor grammar's Langium schema over the actual native IR. */
+function railroadAst(node: RailroadNode): any {
+  switch (node.type) {
+    case 'terminal': return { $type: 'RailroadTerminalExpr', value: node.value }
+    case 'nonterminal': return { $type: 'RailroadNonTerminalExpr', name: node.name }
+    case 'special': return { $type: 'RailroadSpecialExpr', text: node.text }
+    case 'sequence': return { $type: 'RailroadSequenceExpr', elements: node.elements.map(railroadAst) }
+    case 'choice': return { $type: 'RailroadChoiceExpr', alternatives: node.alternatives.map(railroadAst) }
+    case 'optional': return { $type: 'RailroadOptionalExpr', element: railroadAst(node.element) }
+    case 'repetition':
+      if (node.max === null && (node.min === 0 || node.min === 1)) return { $type: node.min === 0 ? 'RailroadZeroOrMoreExpr' : 'RailroadOneOrMoreExpr', element: railroadAst(node.element) }
+      return unavailable('Railroad constructor AST has no bounded repetition production')
+    default: return unavailable(`Railroad constructor AST has no ${node.type} production`)
+  }
+}
+
 const AST_NAMES: Record<string, string> = { pie: 'Pie', packet: 'Packet', radar: 'Radar', architecture: 'Architecture', gitgraph: 'GitGraph', treemap: 'Treemap', eventmodeling: 'EventModel', treeview: 'TreeView' }
 function kanbanNodes(model: any): any[] { return (model?.columns ?? []).flatMap((column: any) => [{ ...column, level: 0 }, ...column.tasks.map((task: any) => ({ ...task, level: 1, parentId: column.id }))]) }
 export function nativeAst(name: string, source: string): any {
@@ -268,6 +285,10 @@ export function nativeAst(name: string, source: string): any {
     const common = { $type: AST_NAMES[family] ?? name, title: model.title, accTitle: model.accessibilityTitle ?? envelope.accessibility.title, accDescr: model.accessibilityDescription ?? envelope.accessibility.descr }
     let value: any
     if (family === 'pie') value = { ...common, showData: model.showData, sections: model.entries.map((entry: any) => ({ $type: 'PieSection', label: entry.label, value: entry.value })) }
+    else if (family === 'railroad') {
+      if (model.notation !== 'railroad') return unavailable('Railroad constructor AST service does not describe another notation')
+      value = { ...common, rules: model.rules.map((rule: any) => ({ $type: 'RailroadRule', name: rule.name, definition: railroadAst(rule.definition) })) }
+    }
     else if (family === 'treeview') {
       const consumed = events.filter(event => event.unit === 'statement' && event.kind === 'node')
       value = {

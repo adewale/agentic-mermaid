@@ -48,7 +48,9 @@ a native semantic model and renderer bookkeeping remain explicit adapter gaps.
 Railroad controls select the independently registered constructor, EBNF, ABNF or
 PEG parser from the actual source header. Their database view translates the
 native grammar IR (including predicates and unbounded repeats); it does not
-change the native model or its JSON transport. A compound predicate whose
+change the native model or its JSON transport. The constructor-language AST
+view maps the retained rules and expressions to Langium vocabulary; grammar
+constructs absent from that AST remain explicit gaps. A compound predicate whose
 upstream display IR discards its grammar remains an explicit adapter gap.
 
 Each case records its original name, file, actual input strings, admission result
