@@ -11,6 +11,12 @@ interface Budget { extra: number; primary: number; attempts: number; optional: b
 let active: Budget | undefined
 const evidence = new WeakMap<object, LayoutOptimizationEvidence>()
 class OptionalLayoutBudgetExceeded extends Error {}
+// Internal ablation switch, captured once before module startup. Public
+// requests still opt in through graphLayout; normal hosts enable every feature.
+const host = globalThis as { process?: { env?: Record<string, string | undefined> }; AGENTIC_MERMAID_LAYOUT_FEATURES?: string }
+const configured = host.process?.env?.AGENTIC_MERMAID_LAYOUT_FEATURES ?? host.AGENTIC_MERMAID_LAYOUT_FEATURES
+const features = configured === undefined ? undefined : new Set(configured.split(',').filter(Boolean))
+export function layoutOptimizationEnabled(name: 'elk-order' | 'ports' | 'wrap'): boolean { return features === undefined || features.has(name) }
 
 /** One deterministic optional allowance shared by wrapping, ordering and
  * placement. Existing mandatory fallback work remains separately accounted. */

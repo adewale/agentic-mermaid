@@ -1,5 +1,5 @@
 import { applyLayoutHints } from './layout/layout-hints.ts'
-import { withLayoutOptimizationBudget, canExploreLayout, optionalLayout, recordLayoutProducer, selectedLayoutOptimization } from './layout/optimization-budget.ts'
+import { withLayoutOptimizationBudget, canExploreLayout, optionalLayout, recordLayoutProducer, selectedLayoutOptimization, layoutOptimizationEnabled } from './layout/optimization-budget.ts'
 import { measureLabelConflicts } from './layout/label-conflicts.ts'
 import { resolveLabelContent, type DisplayTextInput } from './shared/display-text.ts'
 import { preparePixelText } from './shared/prepared-text.ts'
@@ -2220,7 +2220,7 @@ function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpo
     strategy: 'default', produce: () => primary = layoutCandidate(graph, options, rememberAlternative),
     preferNext: preferReadableTitles,
   }]
-  if (options.graphLayout?.quality === 'balanced' && canExploreLayout() && !options.preserveSubgraphChildOrder && !options.layoutHints?.adjacent?.length && !hasParallelPair(graph.edges)) {
+  if (options.graphLayout?.quality === 'balanced' && layoutOptimizationEnabled('elk-order') && canExploreLayout() && !options.preserveSubgraphChildOrder && !options.layoutHints?.adjacent?.length && !hasParallelPair(graph.edges)) {
     candidates.push({ strategy: 'prefer-model-order', qualityAlternative: true, preferNext: preferReadableTitles,
       produce: () => optionalLayout(() => layoutCandidate(graph, { ...options, preferModelOrder: true }, rememberAlternative)) ?? primary!,
     })

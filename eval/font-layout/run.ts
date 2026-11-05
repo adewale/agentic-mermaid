@@ -40,7 +40,7 @@ for (const mode of modes) {
     const result = spawnSync(process.execPath, [join(import.meta.dir, 'worker.ts')], {
       cwd: root, encoding: 'utf8', timeout: 60_000, maxBuffer: 16 * 1024 * 1024,
       input: JSON.stringify({ root, mode, out: join(out, backend, 'artifacts'), features, backend, repetitions: 9, item }),
-      env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: '0', AGENTIC_MERMAID_EXPERIMENTS: 'text-spans,indexed-layout' },
+      env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: '0', AGENTIC_MERMAID_EXPERIMENTS: 'text-spans,indexed-layout', AGENTIC_MERMAID_LAYOUT_FEATURES: features.filter(name => name !== 'fonts').join(',') },
     })
     const elapsedMs = performance.now() - start
     let observation: unknown

@@ -34,6 +34,7 @@ try {
         return { url: new URL(resource.name).pathname, encodedBytes: resource.encodedBodySize, decodedBytes: resource.decodedBodySize, transferBytes: resource.transferSize }
       })
       const start = performance.now()
+      ;(globalThis as { AGENTIC_MERMAID_LAYOUT_FEATURES?: string }).AGENTIC_MERMAID_LAYOUT_FEATURES = features.filter(name => name !== 'fonts').join(',')
       // Runtime path is served from the selected checkout; no source bundler.
       const entry = '/dist/browser-lazy/index.js'
       const api = await import(entry)

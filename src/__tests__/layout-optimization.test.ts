@@ -30,3 +30,15 @@ test('explicit adjacency remains authoritative and an already clear diagram avoi
   const clear = renderMermaidSVGWithReceipt('flowchart LR; A-->B', { graphLayout: { backend: 'elk', quality: 'balanced' } })
   expect(clear.receipt.layoutOptimization?.additionalProducerCalls).toBe(0)
 })
+
+test('port-aware block placement can straighten a fan while retaining final route certification', () => {
+  const source = 'flowchart LR\nA((One)) --> T((Hub))\nB((Two)) --> T'
+  const before = layout(source, { graphLayout: { backend: 'agentic' } })
+  const after = layout(source, { graphLayout: { backend: 'agentic', quality: 'balanced' } })
+  expect(before.positioned.certification?.preference.selectedScore.totalBends).toBe(4)
+  expect(after.positioned.certification?.preference.selectedScore.totalBends).toBe(2)
+  expect(after.positioned.certification?.hardViolations).toBe(0)
+  expect(after.positioned.edges.map(edge => [edge.source, edge.target])).toEqual([['A', 'T'], ['B', 'T']])
+  expect(after.receipt.layoutOptimization?.additionalProducerCalls).toBe(1)
+  expect(after.receipt.layoutOptimization?.selected).toEqual(['port-aware-placement'])
+})

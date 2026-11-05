@@ -9,6 +9,7 @@ import type { AgenticGraphBindings, AgenticGraphOptions } from '../layout-engine
 import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
 import { MAX_EXPANDED_VERTICES, layoutLayeredGraph as layoutRawGraph } from './agentic-layered-core.ts'
 import { shortenMeasuredRoutes } from './shorten-measured-routes.ts'
+import { canExploreLayout, optionalLayout, recordLayoutProducer, selectedLayoutOptimization, layoutOptimizationEnabled } from './optimization-budget.ts'
 export { improveArchitectureSiblingSlots } from './architecture-sibling-slots.ts'
 
 // Keep cache storage inside the optional solver chunk: importing shared
@@ -50,7 +51,7 @@ function geometryInputKey(input: unknown): string {
   })
 }
 
-type NativeOrder = 'primary' | 'authored' | 'compact'
+type NativeOrder = 'primary' | 'authored' | 'compact' | 'ports'
 const orderChoices = new WeakMap<AgenticGraphBindings, NativeResults<NativeOrder>>()
 // Private preparation-to-solver handoff: never part of measured JSON or a
 // caller-supplied cache key, and never exposed by layoutAgenticGraph.
@@ -329,13 +330,14 @@ function placeNativeGraphCandidate(
       layerSpacing: Math.max(opts.layerSpacing, 2 * (doubleDepth + margin)), edgeSpacing,
       ...(minimumTerminalLead !== undefined ? { minimumTerminalLead } : {}),
       ...(order === 'authored' ? { authoredCycleOrder: true as const } : order === 'compact' ? { compactPrivateRanks: true } : {}),
+      ...(order === 'ports' ? { portAwarePlacement: true as const } : {}),
       ...(placementOnly ? { placementOnly: true as const } : {}) }
 
   })
   pay(0, 2)
   preparedGraphWork.set(measured, routingWork)
   let geometry: AgenticLayout
-  try { geometry = measureRenderStage('agentic', () => layoutAgenticGraph(measured)) }
+  try { recordLayoutProducer(); geometry = measureRenderStage('agentic', () => layoutAgenticGraph(measured)) }
   finally { preparedGraphWork.delete(measured) }
   // Missing subjects or non-finite geometry are engine defects, not an
   // eligibility refusal that can be concealed by running another producer.
@@ -471,7 +473,30 @@ export function layoutNativeGraphCandidate(
   layoutAgenticGraph: (input: MeasuredGraph) => AgenticLayout, bindings: AgenticGraphBindings,
 ): PositionedGraph {
   const candidate = selectNativeGraphCandidate(graph, options, style, layoutAgenticGraph, bindings)
-  return certifyOwnedLayoutCandidate(graph, style, { strategy: 'agentic-layered', produce: () => candidate }, bindings)
+  const first = certifyOwnedLayoutCandidate(graph, style, { strategy: 'agentic-layered', produce: () => candidate }, bindings)
+  if (options.graphLayout?.quality !== 'balanced' || !layoutOptimizationEnabled('ports') || !canExploreLayout()
+    || graph.nodes.size > 64 || graph.edges.length > 128 || graph.subgraphs.length || !first.edges.some(edge => edge.points.length > 2)) return first
+  let other: PositionedGraph | undefined
+  try {
+    other = optionalLayout(() => certifyOwnedLayoutCandidate(graph, style, { strategy: 'port-aware-placement',
+      produce: () => placeNativeGraphCandidate(graph, options, style, layoutAgenticGraph, bindings, false, 'ports'),
+    }, bindings))
+  } catch (error) {
+    if (!(error instanceof GraphLayoutUnsupportedError) && !(error instanceof LayoutCertificationError)) throw error
+    return first
+  }
+  if (!other) return first
+  const score = (positioned: PositionedGraph) => {
+    const value = positioned.certification!.preference.selectedScore
+    return [value.unreadableTitles, value.labelConflicts, value.edgeCrossings, value.totalBends, value.nonCanonicalEndpointRate, value.peerBarycenterDelta, value.area]
+  }
+  const before = score(first), after = score(other)
+  for (let i = 0; i < before.length; i++) {
+    const tolerance = i === 6 ? Math.max(1, before[i]! * 1e-8) : i === 5 ? 0.01 : i === 4 ? 1e-8 : 0
+    if (after[i]! < before[i]! - tolerance) { selectedLayoutOptimization('port-aware-placement'); return other }
+    if (after[i]! > before[i]! + tolerance) return first
+  }
+  return first
 }
 
 /** Internal family placement: all authored edges still constrain ranks/order.
