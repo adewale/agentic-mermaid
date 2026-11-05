@@ -1,0 +1,15 @@
+{
+  "source_head": "741b80dba91c0e1f4feba9a62695f7820bc79a23",
+  "runtime_head": "69af97a12aefe1140095064312a7f32b3f5e5714",
+  "main_head": "f9ec8c115de14020d3c182d5d7f2e7e70bfcdefb",
+  "files": 53,
+  "raw_bytes": 5647855,
+  "archive_bytes": 3444397,
+  "every_member_byte_verified": true,
+  "paired_editor_gzip": {
+    "before": 1418892,
+    "after": 1419207,
+    "delta": 315
+  },
+  "browser_owner": "5cases in1test pass,29assertions,13.99s"
+}
