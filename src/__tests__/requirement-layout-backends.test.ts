@@ -188,11 +188,13 @@ describe('Requirement layout backends', () => {
   })
 
   test.each([
-    { direction: 'TB', fanSize: 5 }, { direction: 'BT', fanSize: 5 },
-    { direction: 'LR', fanSize: 5 }, { direction: 'RL', fanSize: 5 },
+    { backend: 'agentic', direction: 'TB', fanSize: 5 }, { backend: 'agentic', direction: 'BT', fanSize: 5 },
+    { backend: 'agentic', direction: 'LR', fanSize: 5 }, { backend: 'agentic', direction: 'RL', fanSize: 5 },
     // Twelve contacts require real face capacity, beyond a port-pitch hint.
-    { direction: 'TB', fanSize: 12 }, { direction: 'LR', fanSize: 12 },
-  ] as const)('separates actual contains circles in the parallel Requirement fan in $direction ($fanSize occurrences)', ({ direction, fanSize }) => {
+    { backend: 'agentic', direction: 'TB', fanSize: 12 }, { backend: 'agentic', direction: 'LR', fanSize: 12 },
+    { backend: 'elk', direction: 'TB', fanSize: 5 }, { backend: 'elk', direction: 'BT', fanSize: 5 },
+    { backend: 'elk', direction: 'LR', fanSize: 5 }, { backend: 'elk', direction: 'RL', fanSize: 5 },
+  ] as const)('separates actual contains circles in the parallel Requirement fan in $direction ($fanSize occurrences, $backend)', ({ backend, direction, fanSize }) => {
     const input = `requirementDiagram
 direction ${direction}
 element root {
@@ -207,8 +209,8 @@ element side {
 }
 ${Array(fanSize - 1).fill('root - contains -> leaf').join('\n')}
 root - contains -> side`
-    const rendered = renderMermaidSVGWithReceipt(input, { graphLayout: { backend: 'agentic', fallback: 'none' }, embedFontImport: false })
-    expect(rendered.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
+    const rendered = renderMermaidSVGWithReceipt(input, { graphLayout: { backend, fallback: 'none' }, embedFontImport: false })
+    expect(rendered.receipt.layoutDecisions?.[0]?.selected).toBe(backend)
     const { JSDOM } = createRequire(import.meta.url)('jsdom')
     const dom = new JSDOM(rendered.svg, { contentType: 'image/svg+xml' })
     try {
@@ -440,41 +442,64 @@ root - contains -> side`
     for (const text of ['performance-1', 'Respond quickly', 'bench suite', 'verifies', 'traces', 'refines']) expect(rendered.svg).toContain(text)
   })
 
-  test.each(['TB', 'BT', 'LR', 'RL'].flatMap(direction => (['agentic', 'elk'] as const).map(backend => ({ direction, backend }))))('keeps emitted rounded self-loop contacts normal with fractional padding in $direction using $backend', ({ direction, backend }) => {
-    const input = `requirementDiagram\ndirection ${direction}\nrequirement r {\ntext: Card\n}\nr - traces -> r`
+  test.each([
+    ...['TB', 'BT', 'LR', 'RL'].flatMap(direction => (['agentic', 'elk'] as const).map(backend => ({ direction, backend, scenario: 'self-loop' as const }))),
+    ...(['agentic', 'elk'] as const).map(backend => ({ direction: 'BT', backend, scenario: 'reciprocal-contains' as const })),
+  ])('keeps emitted rounded $scenario contacts normal with fractional padding in $direction using $backend', ({ direction, backend, scenario }) => {
+    const input = scenario === 'self-loop'
+      ? `requirementDiagram\ndirection ${direction}\nrequirement r {\ntext: Card\n}\nr - traces -> r`
+      : 'requirementDiagram\ndirection BT\nrequirement r {\ntext: Card\n}\nelement peer {\ntype: evidence\n}\nr - contains -> peer\npeer - contains -> r'
+    const expectedRelations = scenario === 'self-loop' ? [['r', 'r', 'traces']] : [['r', 'peer', 'contains'], ['peer', 'r', 'contains']]
     for (const bendRadius of [0, 12]) {
       const result = renderMermaidSVGWithReceipt(input, { padding: 32.123456789, graphLayout: { backend, fallback: 'none' }, style: { roles: { relationship: { bendRadius } } } })
-      expect(result.receipt.layoutCertification?.status).toBe('passed')
+      if (scenario === 'self-loop') expect(result.receipt.layoutCertification?.status).toBe('passed')
       expect(result.receipt.layoutDecisions?.[0]?.selected).toBe(backend)
       const tags = scanSvgStartTags(result.svg).map(tag => ({ name: tag.name, attrs: Object.fromEntries(tag.attributes.map(attribute => [attribute.name, attribute.value])) }))
-      const card = tags.find(tag => tag.name === 'rect' && tag.attrs.x !== undefined && tag.attrs.stroke !== 'none')!.attrs
       const relationships = tags.filter(tag => tag.attrs['data-role'] === 'relationship')
-      expect(relationships).toHaveLength(1)
-      const path = relationships[0]!.attrs
-      expect(path['data-from']).toBe('r')
-      expect(path['data-to']).toBe('r')
-      expect(path['data-relationship']).toBe('traces')
-      expect(path['marker-end']).toBe('url(#requirement-arrow)')
-      expect(result.svg).toContain('Card')
-      expect(result.svg).toContain('&lt;&lt;traces&gt;&gt;')
-      const tokens = (path.d ?? ('M ' + path.points!.trim().split(/\s+/).join(' L '))).match(/[MLQ]|-?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?/ig)!
-      const lines: Array<readonly [{ x: number; y: number }, { x: number; y: number }]> = []
-      let point = { x: NaN, y: NaN }
-      for (let index = 0; index < tokens.length;) {
-        const command = tokens[index++]!
-        if (command === 'Q') { index += 2; point = { x: Number(tokens[index++]), y: Number(tokens[index++]) } }
-        else {
-          expect(['M', 'L']).toContain(command)
-          const next = { x: Number(tokens[index++]), y: Number(tokens[index++]) }
-          if (command === 'L') lines.push([point, next])
-          point = next
+      expect(relationships.map(({ attrs }) => [attrs['data-from'], attrs['data-to'], attrs['data-relationship']])).toEqual(expectedRelations)
+      const ids = relationships.map(({ attrs }) => attrs['data-id']!)
+      expect(new Set(ids).size).toBe(expectedRelations.length)
+      const { JSDOM } = createRequire(import.meta.url)('jsdom')
+      const dom = new JSDOM(result.svg, { contentType: 'image/svg+xml' })
+      try {
+        const document = dom.window.document as Document
+        const cards = [...document.querySelectorAll('g.requirement-node')]
+        expect(cards.map(card => card.getAttribute('data-id')).sort()).toEqual(scenario === 'self-loop' ? ['r'] : ['peer', 'r'])
+        const cardBoxes = new Map(cards.map(card => [card.getAttribute('data-id')!, Object.fromEntries(['x', 'y', 'width', 'height'].map(key => [key, card.querySelector('rect')!.getAttribute(key)!]))]))
+        for (const card of cards) {
+          const text = [...card.querySelectorAll('text')].map(item => item.textContent ?? '')
+          expect(text).toEqual(card.getAttribute('data-id') === 'r' ? ['<<Requirement>>r', 'Text: Card'] : ['<<Element>>peer', 'Type: evidence'])
         }
-      }
-      if (bendRadius > 0) expect(path.d).toContain('Q')
-      // Read the serialized legs, rather than trusting the positioned polyline:
-      // marker auto-orientation follows this actual last leg too.
-      expect(normalContact(lines[0]![0], lines[0]![1], card)).toBe(true)
-      expect(normalContact(lines.at(-1)![1], lines.at(-1)![0], card)).toBe(true)
+        const captions = [...document.querySelectorAll('g.requirement-edge-label')]
+        expect(captions.map(caption => caption.getAttribute('data-edge-id'))).toEqual(ids)
+        expect(captions.map(caption => caption.querySelector('text')!.textContent)).toEqual(expectedRelations.map(([, , kind]) => `<<${kind}>>`))
+        for (const { attrs: path } of relationships) {
+          if (scenario === 'self-loop') expect(path['marker-end']).toBe('url(#requirement-arrow)')
+          else {
+            expect(path['marker-start']).toBe('url(#requirement-contains)')
+            expect(path['marker-end']).toBeUndefined()
+          }
+          const tokens = (path.d ?? ('M ' + path.points!.trim().split(/\s+/).join(' L '))).match(/[MLQ]|-?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?/ig)!
+          const lines: Array<readonly [{ x: number; y: number }, { x: number; y: number }]> = []
+          let point = { x: NaN, y: NaN }
+          for (let index = 0; index < tokens.length;) {
+            const command = tokens[index++]!
+            if (command === 'Q') { index += 2; point = { x: Number(tokens[index++]), y: Number(tokens[index++]) } }
+            else {
+              expect(['M', 'L']).toContain(command)
+              const next = { x: Number(tokens[index++]), y: Number(tokens[index++]) }
+              if (command === 'L' && (next.x !== point.x || next.y !== point.y)) lines.push([point, next])
+              point = next
+            }
+          }
+          if (bendRadius > 0 && scenario === 'self-loop') expect(path.d).toContain('Q')
+          // Read actual first/last nonzero emitted legs, including feedback;
+          // neither layout direction nor an authored endpoint mandates a side.
+          expect(lines.length).toBeGreaterThan(0)
+          expect(normalContact(lines[0]![0], lines[0]![1], cardBoxes.get(path['data-from']!)!)).toBe(true)
+          expect(normalContact(lines.at(-1)![1], lines.at(-1)![0], cardBoxes.get(path['data-to']!)!)).toBe(true)
+        }
+      } finally { dom.window.close() }
     }
   })
 

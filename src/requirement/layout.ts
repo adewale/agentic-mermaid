@@ -1,4 +1,4 @@
-import { requirementArrow, requirementContainsPortSpan, requirementMarkerTerminal } from './markers.ts'
+import { requirementArrow, requirementContains, requirementContainsPortSpan, requirementMarkerTerminal } from './markers.ts'
 import type { ElkExtendedEdge, ElkNode } from 'elkjs'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { alignElkRoundoff } from '../layout/elk-roundoff.ts'
@@ -110,6 +110,9 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
       return placed
     })
   }, () => {
+    // Zero clearance lets ELK put the first routing track on the card border.
+    // Contains owns a source marker, so it needs its painted terminal lead too.
+    const elkTerminalLead = Math.max(terminalLead, model.relations.some(edge => edge.type === 'contains') ? requirementMarkerTerminal(requirementContains.id, style.lineWidth, 'start') + style.edgeBendRadius : 0)
     const idMap = new Map(nodes.map((node, index) => [node.id, `n${index}`]))
     const elkEdges: ElkExtendedEdge[] = model.relations.map((edge, i) => ({ id: `e${i}`, sources: [idMap.get(edge.src)!], targets: [idMap.get(edge.dst)!], labels: [{ text: labels[i]!.text, width: labels[i]!.width + 16, height: labels[i]!.height + 10 }] }))
     const graph: ElkNode = {
@@ -118,8 +121,8 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
         'elk.algorithm': 'layered',
         'elk.direction': ({ TB: 'DOWN', BT: 'UP', LR: 'RIGHT', RL: 'LEFT' } as const)[model.direction],
         'elk.edgeRouting': 'ORTHOGONAL',
-        'elk.spacing.edgeNode': String(terminalLead),
-        'elk.layered.spacing.edgeNodeBetweenLayers': String(terminalLead),
+        'elk.spacing.edgeNode': String(elkTerminalLead),
+        'elk.layered.spacing.edgeNodeBetweenLayers': String(elkTerminalLead),
         'elk.spacing.nodeNode': String(nodeSpacing),
         'elk.layered.spacing.nodeNodeBetweenLayers': String(layerSpacing),
         'elk.padding': `[top=${pad},left=${pad},bottom=${pad},right=${pad}]`,
