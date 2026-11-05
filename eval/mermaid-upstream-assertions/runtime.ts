@@ -75,9 +75,24 @@ export async function initializeReference(): Promise<void> {
       const diagram = family === 'zenuml' ? await zenReference.diagram(example) : await reference.mermaidAPI.getDiagramFromText(example)
       referenceDefinitions.set(family, diagram)
     } catch (error) { referenceDefinitions.set(family, error) }
+    if (family === 'railroad') for (const source of [
+      'railroad-ebnf-beta\nentry = "x";',
+      'railroad-abnf-beta\nentry = "x";',
+      'railroad-peg-beta\nentry <- "x";',
+    ]) {
+      const key = referenceKey(family, source)
+      try { referenceDefinitions.set(key, await reference.mermaidAPI.getDiagramFromText(source)) }
+      catch (error) { referenceDefinitions.set(key, error) }
+    }
   }
 }
 const referenceDefinitions = new Map<string, any>()
+
+/** A source family may have independently registered notation parsers. */
+function referenceKey(family: string, source = ''): string {
+  const notation = family === 'railroad' ? /^\s*railroad-(ebnf|abnf|peg)-beta\b/i.exec(source)?.[1]?.toLowerCase() : undefined
+  return notation ? `${family}:${notation}` : family
+}
 
 function taskPath(task: any): string[] {
   const names = [task.name]
@@ -118,7 +133,12 @@ class NativeDatabase {
   events: ParserObservation[] = []
   source = ''
   constructor(readonly context: AdapterContext) {}
-  clear(): void { this.model = undefined; this.events = []; this.source = '' }
+  clear(): void {
+    if (active?.inputs.some(input => input.family === this.context.family && input.accepted === true)) {
+      return unavailable(`${this.context.family}.db.clear after parse: the native API exposes parsed models, not a mutable database reset operation`)
+    }
+    this.model = undefined; this.events = []; this.source = ''
+  }
   parse(source: string): void {
     const input = recordInput(this.context.family, source)
     this.source = source
@@ -164,7 +184,7 @@ class AdapterContext {
     this.parser = { yy: this.singleton, parse(source: string) {
       if (referenceMode) {
         recordInput(family, source)
-        const definition = context.referenceDefinition()
+        const definition = context.referenceDefinition(source)
         const parser = definition.getParser()
         parser.yy = context.parser.yy
         if (parser.parser) parser.parser.yy = context.parser.yy
@@ -177,8 +197,8 @@ class AdapterContext {
     } }
     this.parser.parser = this.parser
   }
-  referenceDefinition(): any {
-    const definition = referenceDefinitions.get(this.family)
+  referenceDefinition(source?: string): any {
+    const definition = referenceDefinitions.get(referenceKey(this.family, source))
     if (!definition || definition instanceof Error) return unavailable(`${this.family}: pinned diagram bootstrap: ${definition?.message ?? 'unavailable'}`)
     return definition
   }

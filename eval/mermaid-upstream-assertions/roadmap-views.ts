@@ -1,5 +1,26 @@
+import type { RailroadNode } from '../../src/railroad/types.ts'
 import type { NativeDb } from './runtime.ts'
 import { unavailable } from './runtime.ts'
+
+/** The pinned database's display IR, projected from the richer native grammar.
+ * Native bodies retain predicates/ordering and JSON-safe unbounded repeats. */
+function railroadDefinition(node: RailroadNode): any {
+  switch (node.type) {
+    case 'terminal': return { type: 'terminal', value: node.value }
+    case 'any': return { type: 'special', text: '.' }
+    case 'predicate': {
+      const operand = railroadDefinition(node.element)
+      const text = operand.type === 'terminal' ? `"${operand.value}"` : operand.type === 'nonterminal' ? operand.name : operand.type === 'special' ? operand.text : undefined
+      if (text === undefined) return unavailable('Railroad compound predicate: the pinned display IR collapses its grammar to an ellipsis')
+      return { type: 'special', text: node.operator + text }
+    }
+    case 'sequence': return { type: 'sequence', elements: node.elements.map(railroadDefinition) }
+    case 'choice': return { type: 'choice', alternatives: node.alternatives.map(railroadDefinition) }
+    case 'optional': return { type: 'optional', element: railroadDefinition(node.element) }
+    case 'repetition': return { type: 'repetition', element: railroadDefinition(node.element), min: node.min, max: node.max ?? Infinity }
+    default: return node
+  }
+}
 
 /** Public database schemas over the actual family models. Builder calls and
  * renderer measurements remain unavailable; these views never parse test data. */
@@ -57,8 +78,11 @@ export function roadmapGetter(db: NativeDb, key: string): any {
     if (key === 'getStyleData') return () => model?.styles ?? []
   }
   if (family === 'railroad') {
-    if (key === 'getRules') return () => model?.rules ?? []
-    if (key === 'getRule') return (name: string) => [...(model?.rules ?? [])].reverse().find((rule: any) => rule.name === name)
+    if (key === 'getRules') return () => (model?.rules ?? []).map((rule: any) => ({ ...rule, definition: railroadDefinition(rule.definition) }))
+    if (key === 'getRule') return (name: string) => {
+      const rule = [...(model?.rules ?? [])].reverse().find((rule: any) => rule.name === name)
+      return rule && { ...rule, definition: railroadDefinition(rule.definition) }
+    }
     if (key === 'getTitle') return () => model?.title ?? ''
   }
   if (family === 'swimlane' || family === 'agentflow') {
