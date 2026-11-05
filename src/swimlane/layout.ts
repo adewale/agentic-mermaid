@@ -1,8 +1,9 @@
-import { layoutNativeGraphPlacementSync, retainGraphText, translatePositionedGraph } from '../layout-engine.ts'
+import { estimateNodeSize, layoutNativeGraphPlacementSync, retainGraphText, translatePositionedGraph } from '../layout-engine.ts'
 import { resolveEdgeInlineStyle, resolveNodeInlineStyle } from '../color-resolver.ts'
 import { graphClassNames } from '../shared/graph-classes.ts'
 import { assertMermaidGraphWork } from '../shared/diagram-limits.ts'
 import { graphTextBlock } from '../graph-text.ts'
+import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
 import { diagramTitleBand, positionDiagramTitle, resolveRenderStyle } from '../styles.ts'
 import { pointOnRoutingBoundary, shapeCardinalPorts, shapeRoutingProfile } from '../shape-outline.ts'
@@ -62,12 +63,20 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   // Independent caption seating needs genuine room between lanes for its
   // terminal markers and visible shaft, including ordinary hand-offs that
   // interact with an occurrence channel. Measure that space once, before packing.
-  let laneGap = gap
+  let laneGap = gap, contentGap = gap, layerGap = Math.max(options.layerSpacing ?? 64, 64)
   if (occurrences.size) for (const edge of edges) {
-    if (edge.style !== 'invisible' && owners.get(edge.source) !== owners.get(edge.target)) laneGap = Math.max(laneGap, terminalLabelCorridorLength(edge, horizontal ? 'TD' : 'LR', style))
+    if (edge.style === 'invisible' || edge.source === edge.target) continue
+    if (owners.get(edge.source) !== owners.get(edge.target)) laneGap = Math.max(laneGap, terminalLabelCorridorLength(edge, horizontal ? 'TD' : 'LR', style))
+    else {
+      const corridor = terminalLabelCorridorLength(edge, graph.direction, style)
+      contentGap = Math.max(contentGap, corridor); layerGap = Math.max(layerGap, corridor)
+    }
   }
+  const clearance = occurrences.size ? Math.max(8, (style.edgeBendRadius ?? 0) + style.lineWidth / 2) : 0
+  const stubGap = Math.max(12, clearance + 4)
+  const nodeSizes = occurrences.size ? occurrenceNodeSizes(graph, occurrences, owners, horizontal, style, options.nodeSizes) : options.nodeSizes
   const measured = lanes.map((lane, index) => {
-    const local = layoutNativeGraphPlacementSync(inputs[index]!, { ...options, padding: inset, nodeSpacing: Math.max(gap, 32), layerSpacing: Math.max(options.layerSpacing ?? 64, 64) })
+    const local = layoutNativeGraphPlacementSync(inputs[index]!, { ...options, padding: inset, nodeSpacing: contentGap, layerSpacing: layerGap, nodeSizes })
     // An isolated task is a complete component, not a new process row. Pack
     // independent components along the authored process direction inside the
     // lane so matching hand-offs retain separate, short crossing channels.
@@ -129,7 +138,7 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
       : { x: node.x + node.width / 2, y: node.y + node.height / 2 }
     const port = 'shape' in node ? actual : side === 'E' ? { x: node.x + node.width, y: actual.y }
       : side === 'W' ? { x: node.x, y: actual.y } : side === 'S' ? { x: actual.x, y: node.y + node.height } : { x: actual.x, y: node.y }
-    return { port, stub: { x: port.x + (side === 'E' ? 12 : side === 'W' ? -12 : 0), y: port.y + (side === 'S' ? 12 : side === 'N' ? -12 : 0) } }
+    return { port, stub: { x: port.x + (side === 'E' ? stubGap : side === 'W' ? -stubGap : 0), y: port.y + (side === 'S' ? stubGap : side === 'N' ? -stubGap : 0) } }
   }
   // Containers are transparent responsibility regions. Nodes and header ink
   // remain obstacles even when a connector crosses an unrelated lane.
@@ -143,7 +152,7 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   }
   groups.forEach(addHeader)
   const fail = (reason: string): never => { throw new Error(`Swimlane routing: ${reason}`) }
-  const channels = handoffChannels(byId, occurrences, headers, owners, horizontal, style)
+  const channels = handoffChannels(byId, occurrences, headers, owners, horizontal, style, stubGap)
   const terminals = edges.map(edge => {
     const channel = channels.get(edge)
     return channel ? { source: { port: channel.points[0]!, stub: channel.points[1]! }, target: { port: channel.points.at(-1)!, stub: channel.points.at(-2)! } }
@@ -163,7 +172,6 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   }
   // The visibility kernel admits obstacle boundaries. Occurrence detours can
   // graze a card on the way to an outside channel, so reserve painted clearance.
-  const clearance = channels.size ? Math.max(8, style.lineWidth * 2 + 2) : 0
   const obstacles = channels.size ? [...nodes.map(box => ({ x: box.x - clearance, y: box.y - clearance, width: box.width + clearance * 2, height: box.height + clearance * 2 })), ...headers.map(box => ({ x: box.x - 2, y: box.y - 2, width: box.width + 4, height: box.height + 4 }))] : [...nodes, ...headers]
   const grid = graph.edges.length ? createSparseVisibilityGraph({ x: left, y: top, width: right - left, height: bottom - top }, obstacles, routingTerminals, anchors,
     8, { pairs: 8_000_000, arcs: 8_000_000, swaps: 8_000_000 }, 200_000, fail) : undefined
@@ -223,12 +231,34 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   } finally { grid?.retire() }
 }
 
+/** Fractional occurrence contacts need enough physical face for their actual
+ * marker resources. Feed only crowded rectangular dimensions to placement. */
+function occurrenceNodeSizes(graph: MermaidGraph, pairs: ReadonlyMap<string, PositionedEdge[]>, owners: ReadonlyMap<string, number>, horizontal: boolean, style: ReturnType<typeof resolveRenderStyle>, existing?: ReadonlyMap<string, { width: number; height: number }>): ReadonlyMap<string, { width: number; height: number }> {
+  const sizes = new Map(existing)
+  for (const pair of pairs.values()) {
+    const first = pair[0]!, alongX = owners.get(first.source) !== owners.get(first.target) ? !horizontal : horizontal
+    let span = 0
+    for (const edge of pair) for (const marker of graphEdgeMarkerPaintRegions({ ...edge, curve: undefined, points: [{ x: 0, y: 0 }, { x: 100, y: 0 }] }, { ...style, edgeBendRadius: 0 })) {
+      if (marker.bounds) span = Math.max(span, marker.bounds.y1 - marker.bounds.y0)
+    }
+    if (!span) continue
+    const cross = alongX ? 'height' : 'width', minimum = (pair.length + 1) * (span + 1)
+    for (const id of first.source === first.target ? [first.source] : [first.source, first.target]) {
+      const node = graph.nodes.get(id)
+      if (!node || node.shape !== 'rectangle' || node.semanticShape) continue
+      const size = sizes.get(id) ?? estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, graph.direction, undefined, node.labelBlock)
+      if (size[cross] < minimum) sizes.set(id, { ...size, [cross]: minimum })
+    }
+  }
+  return sizes
+}
+
 /** Occurrences, including reverse hand-offs, need individual painted channels.
  * Reuse graph lane geometry while responsibility frames stay transparent. Each
  * approach is still routed by the shared obstacle graph, including nested ink. */
 type HandoffChannel = { points: Point[]; direction: Direction; caption?: MeasuredBox }
 
-function handoffChannels(byId: ReadonlyMap<string, PositionedNode | PositionedGroup>, pairs: ReadonlyMap<string, PositionedEdge[]>, headers: MeasuredBox[], owners: ReadonlyMap<string, number>, horizontal: boolean, style: ReturnType<typeof resolveRenderStyle>): Map<PositionedEdge, HandoffChannel> {
+function handoffChannels(byId: ReadonlyMap<string, PositionedNode | PositionedGroup>, pairs: ReadonlyMap<string, PositionedEdge[]>, headers: MeasuredBox[], owners: ReadonlyMap<string, number>, horizontal: boolean, style: ReturnType<typeof resolveRenderStyle>, stubGap: number): Map<PositionedEdge, HandoffChannel> {
   const channels = new Map<PositionedEdge, HandoffChannel>()
   let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity
   for (const box of [...byId.values(), ...headers]) {
@@ -263,9 +293,9 @@ function handoffChannels(byId: ReadonlyMap<string, PositionedNode | PositionedGr
         const port = pointOnRoutingBoundary(shapeRoutingProfile(node).boundary, side, points[at]![cross])
         if (port) {
           points[at] = port
-          points[at === 0 ? 1 : points.length - 2] = side === 'E' ? { x: node.x + node.width + 12, y: port.y }
-            : side === 'W' ? { x: node.x - 12, y: port.y }
-              : side === 'S' ? { x: port.x, y: node.y + node.height + 12 } : { x: port.x, y: node.y - 12 }
+          points[at === 0 ? 1 : points.length - 2] = side === 'E' ? { x: node.x + node.width + stubGap, y: port.y }
+            : side === 'W' ? { x: node.x - stubGap, y: port.y }
+              : side === 'S' ? { x: port.x, y: node.y + node.height + stubGap } : { x: port.x, y: node.y - stubGap }
         }
       }
       // Reserve a segment that fits the complete painted caption. Nearby

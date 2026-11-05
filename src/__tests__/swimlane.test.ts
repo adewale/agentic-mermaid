@@ -264,8 +264,7 @@ A retry@-->|retry| A${repeated ? '\nA revise@-->|revise| A' : ''}`
 })
 
 
-test.each(['LR', 'RL', 'TD', 'BT'] as const)('Swimlane %s ordinary captions stay clear of nested self-loop caption paint', direction => {
-  for (const declaration of ['[Review]', '{Review?}', '((Review))']) {
+test.each((['LR', 'RL', 'TD', 'BT'] as const).flatMap(direction => ['[Review]', '{Review?}', '((Review))'].flatMap(declaration => [1, 3].map(count => [direction, declaration, count] as const))))('Swimlane %s %s ordinary captions stay clear with %i nested self-loops', (direction, declaration, count) => {
     const input = `---
 title: Authored workflow with repeated decisions
 ---
@@ -281,18 +280,18 @@ subgraph Other
 end
 A next@-->|next| B
 B complete@-->|complete| C
-A retry@-->|retry| A
-A revise@-->|revise| A
-A reconsider@-->|reconsider| A`
+A retry@-->|retry| A${count === 3 ? '\nA revise@-->|revise| A\nA reconsider@-->|reconsider| A' : ''}`
     const parsed = parseRegisteredMermaid(input)
     if (!parsed.ok) throw new Error('expected native Swimlane')
     const layout = layoutMermaid(parsed.value, { debug: true, regions: true })
     expect(layout.edges.map(edge => [edge.id, edge.label?.text])).toEqual([
       ['next', 'next'], ['complete', 'complete'], ['retry', 'retry'], ['revise', 'revise'], ['reconsider', 'reconsider'],
-    ])
+    ].slice(0, count + 2))
     expect(layout.nodes.find(node => node.id === 'A')?.parentId).toBe('Inner')
     expect(layout.paintCertification?.status).toBe('passed')
     expect(renderMermaidSVG(input, { layoutSafety: 'strict' })).toContain('data-id="complete"')
     expect(renderMermaidSVG(input, { style: ['hand-drawn', 'dracula'] })).toContain('data-id="next"')
-  }
+    const contrast = layoutMermaid(parsed.value, { debug: true, style: 'accessible-high-contrast' })
+    expect(contrast.paintCertification?.status).toBe('passed')
+    expect(renderMermaidSVG(input, { style: 'accessible-high-contrast', layoutSafety: 'strict' })).toContain('data-id="next"')
 })
