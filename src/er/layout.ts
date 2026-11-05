@@ -52,6 +52,8 @@ const ER = {
   attrFontSize: 11,
   attrFontWeight: 400,
   nodeSpacing: 70,
+  // Match ER component clearance; connected siblings retain nodeSpacing.
+  isolateSpacing: 20,
   layerSpacing: 90,
 } as const
 
@@ -1254,7 +1256,7 @@ export function layoutErDiagram(
         if (!groupIds.has(id)) spans.set(id, (spans.get(id) ?? 0) + bound.y1 - bound.y0 + style.lineWidth + .25)
       }
     }
-    let isolateCount = 0, nodeSpacing = 0
+    let isolateCount = 0, requestedNodeSpacing: number | undefined
     const nativeSizes = new Map(diagram.entities.map(entity => {
       const size = entitySizes.get(entity.id)!, reservedSpan = spans.get(entity.id), span = (reservedSpan ?? 0) + 2 * Math.max(8, style.cornerRadius ?? 0)
       if (groupIds.size === 0 && reservedSpan === undefined) { erCharge(work); isolateCount++ }
@@ -1271,10 +1273,10 @@ export function layoutErDiagram(
     })
     const placed = measureRenderStage('agentic', () => layoutAgenticGraph({
       nodes: diagram.entities.map(entity => ({ id: entity.id, ...nativeSizes.get(entity.id)! })), edges,
-      direction: diagram.direction ?? 'LR', padding: ER.padding, nodeSpacing: nodeSpacing = options.nodeSpacing ?? ER.nodeSpacing,
+      direction: diagram.direction ?? 'LR', padding: ER.padding, nodeSpacing: (requestedNodeSpacing = options.nodeSpacing) ?? ER.nodeSpacing,
       layerSpacing, ...(minimumTerminalLead > 0 ? { minimumTerminalLead } : {}), edgeSpacing: Math.max(6, style.lineWidth + 4),
     }))
-    nativeIsolateSpacing = groupIds.size === 0 && isolateCount >= 2 ? nodeSpacing : undefined
+    nativeIsolateSpacing = groupIds.size === 0 && isolateCount >= 2 ? requestedNodeSpacing ?? ER.isolateSpacing : undefined
     return { width: placed.width, height: placed.height, preserveTerminalNormals: true, labelPlacement: 'shaft-aware',
       entities: placed.nodes.map((position, index) => ({ id: diagram.entities[index]!.id, ...position, ...nativeSizes.get(diagram.entities[index]!.id)! })),
       routes: new Map(placed.edges.map((route, index) => [edges[index]!.relationshipIndex, route.points])),

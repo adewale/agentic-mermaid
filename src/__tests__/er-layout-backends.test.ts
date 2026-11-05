@@ -95,6 +95,83 @@ describe('ER layout backends', () => {
         const isolates = boxes.slice(2)
         expect(isolates.some(a => isolates.some(b => a.x + a.width <= b.x || b.x + b.width <= a.x)), 'isolates need more than one column').toBe(true)
         expect(isolates.some(a => isolates.some(b => a.y + a.height <= b.y || b.y + b.height <= a.y)), 'isolates need more than one row').toBe(true)
+        if (direction === 'LR') {
+          const paintedIsolates = (doc: Document) => [...doc.querySelectorAll('g.entity')].slice(2).map(entity => {
+            const rect = entity.querySelector('rect')!, half = Number.parseFloat(rect.getAttribute('stroke-width')!) / 2
+            const x = Number(rect.getAttribute('x')), y = Number(rect.getAttribute('y'))
+            return { x0: x - half, y0: y - half, x1: x + Number(rect.getAttribute('width')) + half, y1: y + Number(rect.getAttribute('height')) + half }
+          })
+          const shelfGap = (doc: Document): number => {
+            const painted = paintedIsolates(doc)
+            let gap = Infinity
+            for (let i = 0; i < painted.length; i++) for (let j = 0; j < i; j++) {
+              const a = painted[i]!, b = painted[j]!
+              if (Math.min(a.y1, b.y1) > Math.max(a.y0, b.y0) + 1e-6) gap = Math.min(gap, Math.max(a.x0 - b.x1, b.x0 - a.x1))
+            }
+            expect(Number.isFinite(gap)).toBe(true)
+            return gap
+          }
+          const connectedMarkup = (doc: Document): string[] => {
+            const caption = [...doc.querySelectorAll('text')].find(text => text.textContent === 'owns')!
+            expect(caption.previousElementSibling?.localName).toBe('rect')
+            return [
+              ...['N0', 'N1'].map(id => doc.querySelector(`g.entity[data-id="${id}"]`)!.outerHTML),
+              doc.querySelector('.er-relationship')!.outerHTML,
+              ...[...doc.querySelectorAll('g[data-role="cardinality"]')].map(glyph => glyph.outerHTML),
+              caption.previousElementSibling!.outerHTML, caption.outerHTML,
+            ]
+          }
+          // Explicitly roomy spacing keeps its meaning. Default island
+          // packing need not reserve the connected graph's node lanes.
+          const roomy = renderMermaidSVGWithReceipt(source, { ...options, nodeSpacing: 70 })
+          const roomyDom = new JSDOM(roomy.svg, { contentType: 'image/svg+xml' })
+          let defaultGap = 0, roomyGap = 0, defaultArea = 0, roomyArea = 0
+          try {
+            const roomyDocument = roomyDom.window.document as Document
+            expect(connectedMarkup(document)).toEqual(connectedMarkup(roomyDocument))
+            defaultGap = shelfGap(document); roomyGap = shelfGap(roomyDocument)
+            expect(defaultGap + 1e-6).toBeGreaterThanOrEqual(0)
+            expect(roomyGap).toBeCloseTo(70, 6)
+            const area = (doc: Document) => Number(doc.documentElement.getAttribute('width')) * Number(doc.documentElement.getAttribute('height'))
+            defaultArea = area(document); roomyArea = area(roomyDocument)
+          } finally { roomyDom.window.close() }
+
+          const small = 'erDiagram\ndirection LR\nN0 ||--|| N1 : owns\n' + Array.from({ length: 16 }, (_, index) => `N${index}`).join('\n')
+          for (const spacing of [
+            { option: 0, configured: undefined, expected: 0 },
+            { option: 70, configured: undefined, expected: 70 },
+            { option: undefined, configured: 90, expected: 90 },
+            { option: 0, configured: 90, expected: 0 },
+          ]) {
+            const input = (spacing.configured === undefined ? '' : `---\nconfig:\n  er:\n    nodeSpacing: ${spacing.configured}\n---\n`) + small
+            const explicit = renderMermaidSVGWithReceipt(input, { ...options, ...(spacing.option === undefined ? {} : { nodeSpacing: spacing.option }) })
+            const explicitDom = new JSDOM(explicit.svg, { contentType: 'image/svg+xml' })
+            try {
+              const doc = explicitDom.window.document as Document
+              expect([...doc.querySelectorAll('g.entity')].map(entity => entity.getAttribute('data-id'))).toEqual(Array.from({ length: 16 }, (_, index) => `N${index}`))
+              expect(doc.querySelector('.er-relationship')!.getAttribute('data-from')).toBe('N0')
+              expect(doc.querySelector('.er-relationship')!.getAttribute('data-to')).toBe('N1')
+              expect(shelfGap(doc)).toBeCloseTo(spacing.expected, 6)
+            } finally { explicitDom.window.close() }
+          }
+          const grouped = small.replace('direction LR\n', 'direction LR\nsubgraph G [Owned cards]\n') + '\nend'
+          const groupedDefault = renderMermaidSVGWithReceipt(grouped, options)
+          const groupedRoomy = renderMermaidSVGWithReceipt(grouped, { ...options, nodeSpacing: 70 })
+          const groupedDoms = [groupedDefault, groupedRoomy].map(result => new JSDOM(result.svg, { contentType: 'image/svg+xml' }))
+          try {
+            const artwork = groupedDoms.map(dom => {
+              const doc = dom.window.document as Document
+              expect(doc.querySelectorAll('g.er-subgraph')).toHaveLength(1)
+              expect(doc.querySelectorAll('g.entity')).toHaveLength(16)
+              // Root scope/style provenance is outside this geometry guard.
+              return [...doc.documentElement.children].filter(element => element.localName !== 'style' && element.localName !== 'defs').map(element => element.outerHTML)
+            })
+            expect(artwork[0]).toEqual(artwork[1])
+          } finally { for (const dom of groupedDoms) dom.window.close() }
+          // Authored-spacing and grouped guards precede the default-only RED.
+          expect(defaultGap).toBeLessThan(roomyGap)
+          expect(defaultArea).toBeLessThan(roomyArea)
+        }
       } finally { dom.window.close() }
       expect(rendered.receipt.layoutCertification?.status).toBe('passed')
     }
