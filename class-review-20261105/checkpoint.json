@@ -1,0 +1,11 @@
+{
+  "source_head": "d4bef7245f44e01f4c6637938acc68dcc04bdc5d",
+  "observed_main": "f9ec8c115de14020d3c182d5d7f2e7e70bfcdefb",
+  "review_source": "49945278ffb96f925fa903a0819ee91952b1ceb3",
+  "ci_run": 42049508852,
+  "ci_result": "completed failure; golden update needs new CI",
+  "files": 196,
+  "raw_bytes": 5496726,
+  "archive_bytes": 1100637,
+  "every_member_byte_verified": true
+}
