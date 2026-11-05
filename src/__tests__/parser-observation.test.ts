@@ -61,7 +61,9 @@ describe('native parser observation', () => {
     const source = 'cynefin-beta\ncomplex\n  "Explore"\nclear\n  "Operate"\ncomplex --> clear: "Learn"'
     withParserObservation('cynefin', event => events.push(event), () => parseCynefin(source))
     expect(events.filter(event => event.unit === 'mutation').map(event => [event.kind, event.value])).toEqual([
+      ['add-item', { domain: 'complex', index: 0, item: { $type: 'DomainItem', label: 'Explore' } }],
       ['add-domain', { $type: 'DomainBlock', domain: 'complex', items: [{ $type: 'DomainItem', label: 'Explore' }] }],
+      ['add-item', { domain: 'clear', index: 0, item: { $type: 'DomainItem', label: 'Operate' } }],
       ['add-domain', { $type: 'DomainBlock', domain: 'clear', items: [{ $type: 'DomainItem', label: 'Operate' }] }],
       ['add-transition', { $type: 'Transition', from: 'complex', to: 'clear', label: 'Learn' }],
     ])

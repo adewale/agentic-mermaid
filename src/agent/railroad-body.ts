@@ -1,10 +1,13 @@
+import { withParserObservation } from '../shared/parser-observation.ts'
+import { mapObservedSource } from './source-map-spans.ts'
+import { railroadRuleId, walkRailroadOwners } from '../railroad/identity.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import type { FamilyOperations } from './families.ts'
 import type { DiagramBody, MutationError, ParseError, Result } from './types.ts'
 import { err, ok } from './types.ts'
 import { parseRailroad } from '../railroad/parser.ts'
 import { renderRailroad } from '../railroad/source.ts'
-import type { RailroadBody, RailroadMutationOp, RailroadNode } from '../railroad/types.ts'
+import type { RailroadBody, RailroadMutationOp } from '../railroad/types.ts'
 
 export function parseRailroadBody(source: string, opaqueSource = source): Result<RailroadBody | Extract<DiagramBody, { kind: 'opaque' }>, ParseError[]> {
   try { const body = parseRailroad(source); renderRailroad(body); return ok(body) }
@@ -35,16 +38,16 @@ export function mutateRailroad(body: RailroadBody, op: RailroadMutationOp): Resu
 /** Labels follow the owned expression tree so grammar notation never enters prose checks. */
 function railroadLabels(body: RailroadBody): Array<{ text: string; target: string }> {
   const labels: Array<{ text: string; target: string }> = []
-  const walk = (node: RailroadNode, target: string): void => {
-    if (node.type === 'terminal') labels.push({ text: node.value, target })
-    else if (node.type === 'nonterminal') labels.push({ text: node.name, target })
-    else if (node.type === 'special') labels.push({ text: node.text, target })
-    else if (node.type === 'sequence') node.elements.forEach((child, index) => walk(child, `${target}/${index}`))
-    else if (node.type === 'choice') node.alternatives.forEach((child, index) => walk(child, `${target}/${index}`))
-    else if (node.type === 'exception') { walk(node.base, `${target}/base`); walk(node.except, `${target}/except`) }
-    else if (node.type !== 'any') walk(node.element, `${target}/0`)
-  }
-  body.rules.forEach((rule, index) => { const id = `rule#${index}:${rule.name}`; labels.push({ text: rule.name, target: id }); walk(rule.definition, `${id}/expression`) })
+  body.rules.forEach((rule, index) => {
+    const id = railroadRuleId(index, rule.name)
+    labels.push({ text: rule.name, target: id })
+    walkRailroadOwners(rule.definition, `${id}/expression`, (node, target) => {
+      if (node.type === 'terminal') labels.push({ text: node.value, target })
+      else if (node.type === 'nonterminal') labels.push({ text: node.name, target })
+      else if (node.type === 'special') labels.push({ text: node.text, target })
+      else if (node.type === 'any') labels.push({ text: 'any character', target })
+    })
+  })
   return labels
 }
 export const RAILROAD_SOURCE_HOOKS = {
@@ -52,14 +55,26 @@ export const RAILROAD_SOURCE_HOOKS = {
   extractLabels: source => { try { return railroadLabels(parseRailroad(source)) } catch { return [] } },
   parse: ctx => parseRailroadBody(ctx.source.familyBody, ctx.opaqueSource),
   serialize: body => { if (body.kind !== 'railroad') throw new Error(`Railroad serializer received ${body.kind}`); return renderRailroad(body) },
-  buildSourceMap: (body, source) => {
-    const result = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
-    if (body.kind === 'railroad') source.split(/\r?\n/).forEach((line, index) => {
-      const name = line.match(/^\s*([A-Za-z_][\w-]*)\s*(?:=|<-|::=)/)?.[1]
-      if (name && !result.nodes.has(name)) result.nodes.set(name, { line: index + 1, col: line.indexOf(name) + 1 })
-    })
-    return result
-  },
+  buildSourceMap: (body, source, context) => mapObservedSource(source, context, (text, record) => {
+    if (body.kind !== 'railroad') return
+    withParserObservation('railroad', event => {
+      if (event.unit !== 'mutation' || event.kind !== 'add-rule' || event.source?.offset === undefined || event.source.endOffset === undefined) return
+      const value = event.value as unknown as { index: number; rule: RailroadBody['rules'][number] }
+      const id = railroadRuleId(value.index, value.rule.name), start = event.source.offset, end = event.source.endOffset
+      // Every rendered expression belongs to this actual authored production.
+      // Repeated names remain distinct and multiline productions retain their
+      // full source owner, rather than guessing at tokens in their spelling.
+      record('groups', id, start, end); record('labels', `group:${id}`, start, end)
+      record('edges', `rails:${id}`, start, end)
+      walkRailroadOwners(value.rule.definition, `${id}/expression`, (node, owner) => {
+        if (node.type === 'terminal' || node.type === 'nonterminal' || node.type === 'special' || node.type === 'any') {
+          record('nodes', owner, start, end); record('labels', `node:${owner}`, start, end)
+        }
+        if (node.type === 'choice' && node.ordered) record('labels', `${owner}/order`, start, end)
+        if (node.type === 'repetition') record('labels', `${owner}/count`, start, end)
+      })
+    }, () => parseRailroad(text), { mutations: ['add-rule'] })
+  }),
 } satisfies Pick<FamilyOperations, 'renderSource' | 'parse' | 'serialize' | 'mutate' | 'buildSourceMap' | 'extractLabels'>
 
 export const RAILROAD_MUTATION_HOOKS: Pick<FamilyOperations, 'mutate'> = {

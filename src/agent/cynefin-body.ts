@@ -1,3 +1,5 @@
+import { withParserObservation } from '../shared/parser-observation.ts'
+import { mapObservedSource } from './source-map-spans.ts'
 import { ownBodyAccessibility } from './accessibility-envelope.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import { parseCynefinBody } from '../cynefin/body.ts'
@@ -35,7 +37,6 @@ export function renderCynefin(body: CynefinBody): string {
   }
   for (const transition of body.transitions) {
     domain(transition.from); domain(transition.to)
-    if (transition.from === transition.to) throw new Error('Cynefin self transitions are not drawn by pinned Mermaid; retain their authored source')
     lines.push(`${transition.from} --> ${transition.to}${transition.label !== undefined ? `: ${quoted(transition.label)}` : ''}`)
   }
   return lines.join('\n') + '\n'
@@ -85,6 +86,26 @@ export const CYNEFIN_SOURCE_HOOKS: FamilyOperations = {
       return ok(body)
     } catch { return ok({ kind: 'opaque', family: 'cynefin', source: ctx.opaqueSource }) }
   },
+  buildSourceMap: (body, source, context) => mapObservedSource(source, context, (text, record) => {
+    if (body.kind !== 'cynefin') return
+    let transition = 0
+    withParserObservation('cynefin', event => {
+      if (event.unit !== 'mutation' || event.source?.offset === undefined || event.source.endOffset === undefined) return
+      const add = (kind: 'nodes' | 'edges' | 'groups' | 'labels', id: string) => record(kind, id, event.source!.offset!, event.source!.endOffset!)
+      if (event.kind === 'add-item') {
+        const value = event.value as unknown as { domain: DomainName; index: number }
+        const id = `${value.domain}:${value.index}`
+        add('nodes', id); add('labels', `node:${id}`)
+      } else if (event.kind === 'add-domain') {
+        const value = event.value as unknown as { domain: DomainName }
+        add('groups', value.domain); add('labels', `heading:${value.domain}`)
+      } else if (event.kind === 'add-transition') {
+        const id = `transition:${transition++}`, value = event.value as unknown as CynefinBody['transitions'][number]
+        add('edges', id)
+        if (value.label !== undefined) add('labels', id)
+      } else if (event.kind === 'set-title') add('labels', 'title')
+    }, () => parseCynefinBody(text), { mutations: ['add-item', 'add-domain', 'add-transition', 'set-title'] })
+  }),
   serialize: body => { if (body.kind !== 'cynefin') throw new Error('Expected Cynefin body'); return renderCynefin(body) },
   renderSource: () => 'serialized',
   verify: body => body.kind === 'cynefin' ? verifyCynefin(body) : [],

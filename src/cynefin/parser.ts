@@ -100,17 +100,17 @@ export function parseCynefin(src: string): CynefinAst {
         break;
       case T.accDescr:
         ast.accDescr = accDescrValue(r.take());
-        if (observed) observeParserMutation('cynefin', 'set-accessibility-description', ast.accDescr, { offset: start, unit: 'physical' });
+        if (observed) observeParserMutation('cynefin', 'set-accessibility-description', ast.accDescr, { offset: start, endOffset: r.tokens.ends[r.i - 1] ?? start, unit: 'physical' });
         endOfLine();
         break;
       case T.accTitle:
         ast.accTitle = accTitleValue(r.take());
-        if (observed) observeParserMutation('cynefin', 'set-accessibility-title', ast.accTitle, { offset: start, unit: 'physical' });
+        if (observed) observeParserMutation('cynefin', 'set-accessibility-title', ast.accTitle, { offset: start, endOffset: r.tokens.ends[r.i - 1] ?? start, unit: 'physical' });
         endOfLine();
         break;
       case T.title:
         ast.title = titleValue(r.take());
-        if (observed) observeParserMutation('cynefin', 'set-title', ast.title, { offset: start, unit: 'physical' });
+        if (observed) observeParserMutation('cynefin', 'set-title', ast.title, { offset: start, endOffset: r.tokens.ends[r.i - 1] ?? start, unit: 'physical' });
         endOfLine();
         break;
       case T.domain: {
@@ -118,19 +118,25 @@ export function parseCynefin(src: string): CynefinAst {
         if (r.accept(T.arrow)) {
           const transition: TransitionAst = { $type: 'Transition', from: name, to: r.expect(T.domain) as DomainName };
           if (r.accept(T.colon)) transition.label = stringValue(r.expect(T.string));
+          const endOffset = r.tokens.ends[r.i - 1]!;
           endOfLine();
           ast.transitions.push(transition);
-          if (observed) observeParserMutation('cynefin', 'add-transition', transition, { offset: start, unit: 'physical' });
+          if (observed) observeParserMutation('cynefin', 'add-transition', transition, { offset: start, endOffset, unit: 'physical' });
           break;
         }
         const block: DomainBlockAst = { $type: 'DomainBlock', domain: name, items: [] };
         skipLines();
         while (r.kinds[r.i] === T.string) {
-          block.items.push({ $type: 'DomainItem', label: stringValue(r.take()) });
+          const offset = r.tokens.starts[r.i]!;
+          const item = { $type: 'DomainItem' as const, label: stringValue(r.take()) };
+          block.items.push(item);
+          if (observed) observeParserMutation('cynefin', 'add-item', { domain: name, index: block.items.length - 1, item }, { offset, endOffset: r.tokens.ends[r.i - 1]!, unit: 'physical' });
           skipLines();
         }
+        let last = r.i - 1;
+        while (r.kinds[last] === T.newline) last--;
         ast.domains.push(block);
-        if (observed) observeParserMutation('cynefin', 'add-domain', block, { offset: start, unit: 'physical' });
+        if (observed) observeParserMutation('cynefin', 'add-domain', block, { offset: start, endOffset: r.tokens.ends[last]!, unit: 'physical' });
         break;
       }
       default:

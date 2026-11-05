@@ -1,6 +1,6 @@
 // Adapted from Pele (MIT, copyright 2026 kepano), revision 3a2f075.
 // See LICENSES/pele-MIT.txt.
-import { parserObservationActive, observeParserStatement } from '../shared/parser-observation.ts'
+import { parserObservationActive, observeParserStatement, observeParserMutation, type ParserObservationSource } from '../shared/parser-observation.ts'
 import { accDescr } from '../shared/grammar-acc-descr.ts'
 import { ACC_TITLE, DIRECTIVE, NEWLINE, Reader, SINGLE_LINE_COMMENT, STRING, TITLE, WHITESPACE, YAML, accDescrValue, accTitleValue, stringValue, titleValue, tokenize, type Scanner, type TokenType } from '../shared/grammar-reader.ts'
 
@@ -189,6 +189,9 @@ export interface WardleyAst {
   deaccelerators: ({ $type: 'Deaccelerator' } & Placed)[]
 }
 
+const authoredSources = new WeakMap<object, ParserObservationSource>()
+export const wardleyAstSource = (value: object): ParserObservationSource | undefined => authoredSources.get(value)
+
 export function parseWardley(src: string): WardleyAst {
   const r = new Reader(tokenize(src, WARDLEY_TOKENS, 'wardley'), WARDLEY_TOKENS, 'wardley')
   const ast: WardleyAst = {
@@ -249,6 +252,15 @@ export function parseWardley(src: string): WardleyAst {
   while (at(T.newline)) r.i++
   r.expect(T.wardley)
   const observed = parserObservationActive('wardley')
+  const consumedSource = (start: number): ParserObservationSource => {
+    let last = r.i - 1
+    while (r.kinds[last] === T.newline) last--
+    return { offset: start, endOffset: r.tokens.ends[last] ?? start, unit: 'physical' }
+  }
+  const located = <A extends object>(value: A, start: number): A => {
+    if (observed) authoredSources.set(value, consumedSource(start))
+    return value
+  }
   while (!at(-1)) {
     const kind = r.kind, start = r.tokens.starts[r.i]!
     switch (r.kind) {
@@ -265,13 +277,14 @@ export function parseWardley(src: string): WardleyAst {
         break
       case T.title:
         ast.title = titleValue(r.take())
+        if (observed) observeParserMutation('wardley', 'set-title', ast.title, consumedSource(start))
         endOfLine()
         break
       case T.size: {
         r.i++
         const [width, height] = pair(int)
         endOfLine()
-        ast.size = { $type: 'Size', width, height }
+        ast.size = located({ $type: 'Size' as const, width, height }, start)
         break
       }
       case T.evolution: {
@@ -281,7 +294,7 @@ export function parseWardley(src: string): WardleyAst {
         stages.push(stage())
         while (r.accept(T.arrow)) stages.push(stage())
         endOfLine()
-        ast.evolution = { $type: 'Evolution', stages }
+        ast.evolution = located({ $type: 'Evolution' as const, stages }, start)
         break
       }
       case T.anchor: {
@@ -289,7 +302,7 @@ export function parseWardley(src: string): WardleyAst {
         const anchor = name()
         const [visibility, evolution] = pair(number)
         endOfLine()
-        ast.anchors.push({ $type: 'Anchor', name: anchor, visibility, evolution })
+        ast.anchors.push(located({ $type: 'Anchor' as const, name: anchor, visibility, evolution }, start))
         break
       }
       case T.component: {
@@ -310,7 +323,7 @@ export function parseWardley(src: string): WardleyAst {
           component.inertia = true
         }
         endOfLine()
-        ast.components.push(component)
+        ast.components.push(located(component, start))
         break
       }
       case T.evolve: {
@@ -318,7 +331,7 @@ export function parseWardley(src: string): WardleyAst {
         const component = name()
         const target = number()
         endOfLine()
-        ast.evolves.push({ $type: 'Evolve', component, target })
+        ast.evolves.push(located({ $type: 'Evolve' as const, component, target }, start))
         break
       }
       case T.pipeline: {
@@ -329,6 +342,7 @@ export function parseWardley(src: string): WardleyAst {
         while (at(T.newline)) r.i++
         const components: PipelineComponentAst[] = []
         do {
+          const componentStart = r.tokens.starts[r.i]!
           r.expect(T.component)
           const component: PipelineComponentAst = { $type: 'PipelineComponent', name: name(), evolution: 0 }
           r.expect(T.lbracket)
@@ -336,11 +350,11 @@ export function parseWardley(src: string): WardleyAst {
           r.expect(T.rbracket)
           if (at(T.label)) component.label = label()
           endOfLine()
-          components.push(component)
+          components.push(located(component, componentStart))
         } while (at(T.component))
         r.expect(T.rbrace)
         endOfLine()
-        ast.pipelines.push({ $type: 'Pipeline', parent, components })
+        ast.pipelines.push(located({ $type: 'Pipeline' as const, parent, components }, start))
         break
       }
       case T.note: {
@@ -348,14 +362,14 @@ export function parseWardley(src: string): WardleyAst {
         const text = stringValue(r.expect(T.string))
         const [visibility, evolution] = pair(number)
         endOfLine()
-        ast.notes.push({ $type: 'Note', text, visibility, evolution })
+        ast.notes.push(located({ $type: 'Note' as const, text, visibility, evolution }, start))
         break
       }
       case T.annotations: {
         r.i++
         const [x, y] = pair(coordinate)
         endOfLine()
-        ast.annotations.push({ $type: 'Annotations', x, y })
+        ast.annotations.push(located({ $type: 'Annotations' as const, x, y }, start))
         break
       }
       case T.annotation: {
@@ -365,7 +379,7 @@ export function parseWardley(src: string): WardleyAst {
         const [x, y] = pair(coordinate)
         const text = stringValue(r.expect(T.string))
         endOfLine()
-        ast.annotation.push({ $type: 'Annotation', number: n, x, y, text })
+        ast.annotation.push(located({ $type: 'Annotation' as const, number: n, x, y, text }, start))
         break
       }
       case T.accelerator:
@@ -375,8 +389,8 @@ export function parseWardley(src: string): WardleyAst {
         const force = name()
         const [x, y] = pair(number)
         endOfLine()
-        if (slow) ast.deaccelerators.push({ $type: 'Deaccelerator', name: force, x, y })
-        else ast.accelerators.push({ $type: 'Accelerator', name: force, x, y })
+        if (slow) ast.deaccelerators.push(located({ $type: 'Deaccelerator' as const, name: force, x, y }, start))
+        else ast.accelerators.push(located({ $type: 'Accelerator' as const, name: force, x, y }, start))
         break
       }
       default: {
@@ -388,7 +402,7 @@ export function parseWardley(src: string): WardleyAst {
         if (at(T.linkPort)) link.toPort = r.take()
         if (at(T.linkLabel)) link.linkLabel = r.take().substring(1).trim()
         endOfLine()
-        ast.links.push(link)
+        ast.links.push(located(link, start))
       }
     }
     if (observed && kind !== T.newline) {

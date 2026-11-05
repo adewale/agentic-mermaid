@@ -2,7 +2,7 @@
 // See LICENSES/pele-MIT.txt.
 import { GrammarReadError } from '../shared/grammar-reader-error.ts'
 import { WardleyBuilder, type Flow, type SourceStrategy, type WardleyBuildResult } from './builder.ts'
-import type { LabelAst, WardleyAst } from './parser.ts'
+import { wardleyAstSource, type LabelAst, type WardleyAst } from './parser.ts'
 
 export interface WardleyModel extends WardleyBuildResult {
   type: 'wardley'
@@ -46,10 +46,10 @@ function offsets(label: LabelAst | undefined): [number | undefined, number | und
 
 // Mermaid's populateDb: fills the builder from the syntax tree, in Mermaid's order.
 export function populate(ast: WardleyAst, db: WardleyBuilder): void {
-  if (ast.size) db.setSize(ast.size.width, ast.size.height)
+  if (ast.size) db.atSource(wardleyAstSource(ast.size)).setSize(ast.size.width, ast.size.height)
 
   if (ast.evolution) {
-    db.setAxes({
+    db.atSource(wardleyAstSource(ast.evolution)).setAxes({
       stages: ast.evolution.stages.map(stage => (stage.secondName ? `${stage.name.trim()} / ${stage.secondName.trim()}` : stage.name.trim())),
       stageBoundaries: ast.evolution.stages.filter(stage => stage.boundary !== undefined).map(stage => stage.boundary!),
     })
@@ -57,13 +57,13 @@ export function populate(ast: WardleyAst, db: WardleyBuilder): void {
 
   for (const anchor of ast.anchors) {
     const at = toCoordinates(anchor.visibility, anchor.evolution, `Anchor "${anchor.name}"`)
-    db.addNode({ id: anchor.name, label: anchor.name, x: at.x, y: at.y, className: 'anchor' })
+    db.atSource(wardleyAstSource(anchor)).addNode({ id: anchor.name, label: anchor.name, x: at.x, y: at.y, className: 'anchor' })
   }
 
   for (const component of ast.components) {
     const at = toCoordinates(component.visibility, component.evolution, `Component "${component.name}"`)
     const [labelOffsetX, labelOffsetY] = offsets(component.label)
-    db.addNode({
+    db.atSource(wardleyAstSource(component)).addNode({
       id: component.name,
       label: component.name,
       x: at.x,
@@ -78,7 +78,7 @@ export function populate(ast: WardleyAst, db: WardleyBuilder): void {
 
   for (const note of ast.notes) {
     const at = toCoordinates(note.visibility, note.evolution, `Note "${note.text}"`)
-    db.addNote({ text: note.text, x: at.x, y: at.y })
+    db.atSource(wardleyAstSource(note)).addNote({ text: note.text, x: at.x, y: at.y })
   }
 
   for (const pipeline of ast.pipelines) {
@@ -89,12 +89,12 @@ export function populate(ast: WardleyAst, db: WardleyBuilder): void {
       })
     }
     const y = parent.y
-    db.startPipeline(pipeline.parent)
+    db.atSource(wardleyAstSource(pipeline)).startPipeline(pipeline.parent)
     for (const component of pipeline.components) {
       const id = `${pipeline.parent}_${component.name}`
       const [labelOffsetX, labelOffsetY] = offsets(component.label)
       const x = toPercent(component.evolution, `Pipeline component "${component.name}" evolution`)
-      db.addNode({
+      db.atSource(wardleyAstSource(component)).addNode({
         id,
         label: component.name,
         x,
@@ -105,7 +105,7 @@ export function populate(ast: WardleyAst, db: WardleyBuilder): void {
         inertia: undefined,
         sourceStrategy: undefined,
       })
-      db.addPipelineComponent(pipeline.parent, id)
+      db.atSource(wardleyAstSource(component)).addPipelineComponent(pipeline.parent, id)
     }
   }
 
@@ -113,7 +113,7 @@ export function populate(ast: WardleyAst, db: WardleyBuilder): void {
     const dashed = !!link.arrow && (link.arrow.includes('-.->') || link.arrow.includes('.-.'))
     const fromArrow = flowFromArrow(link.arrow)
     const flow = flowFromPort(link.fromPort) ?? flowFromPort(link.toPort) ?? fromArrow.flow
-    db.addLink({
+    db.atSource(wardleyAstSource(link)).addLink({
       source: db.resolveNodeId(link.from),
       target: db.resolveNodeId(link.to),
       dashed,
@@ -125,28 +125,28 @@ export function populate(ast: WardleyAst, db: WardleyBuilder): void {
   for (const evolve of ast.evolves) {
     const node = db.getNode(evolve.component)
     if (node?.y !== undefined) {
-      db.addTrend({ nodeId: evolve.component, targetX: toPercent(evolve.target, `Evolve target for "${evolve.component}"`), targetY: node.y })
+      db.atSource(wardleyAstSource(evolve)).addTrend({ nodeId: evolve.component, targetX: toPercent(evolve.target, `Evolve target for "${evolve.component}"`), targetY: node.y })
     }
   }
 
   if (ast.annotations.length > 0) {
     const at = toCoordinates(ast.annotations[0]!.x, ast.annotations[0]!.y, 'Annotations box')
-    db.setAnnotationsBox(at.x, at.y)
+    db.atSource(wardleyAstSource(ast.annotations[0]!)).setAnnotationsBox(at.x, at.y)
   }
 
   for (const annotation of ast.annotation) {
     const at = toCoordinates(annotation.x, annotation.y, `Annotation ${annotation.number}`)
-    db.addAnnotation({ number: annotation.number, coordinates: [{ x: at.x, y: at.y }], text: annotation.text })
+    db.atSource(wardleyAstSource(annotation)).addAnnotation({ number: annotation.number, coordinates: [{ x: at.x, y: at.y }], text: annotation.text })
   }
 
   for (const accelerator of ast.accelerators) {
     const at = toCoordinates(accelerator.x, accelerator.y, `Accelerator "${accelerator.name}"`)
-    db.addAccelerator({ name: accelerator.name, x: at.x, y: at.y })
+    db.atSource(wardleyAstSource(accelerator)).addAccelerator({ name: accelerator.name, x: at.x, y: at.y })
   }
 
   for (const deaccelerator of ast.deaccelerators) {
     const at = toCoordinates(deaccelerator.x, deaccelerator.y, `Deaccelerator "${deaccelerator.name}"`)
-    db.addDeaccelerator({ name: deaccelerator.name, x: at.x, y: at.y })
+    db.atSource(wardleyAstSource(deaccelerator)).addDeaccelerator({ name: deaccelerator.name, x: at.x, y: at.y })
   }
 }
 

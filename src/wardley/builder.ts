@@ -1,4 +1,4 @@
-import { observeParserMutation } from '../shared/parser-observation.ts'
+import { observeParserMutation, type ParserObservationSource } from '../shared/parser-observation.ts'
 // Adapted from Pele (MIT, copyright 2026 kepano), revision 3a2f075.
 // See LICENSES/pele-MIT.txt.
 import { GrammarReadError } from '../shared/grammar-reader-error.ts'
@@ -82,6 +82,10 @@ export interface WardleyBuildResult {
 }
 
 export class WardleyBuilder {
+  private observationSource?: ParserObservationSource
+  /** The model builder supplies the AST object that owns this actual write. */
+  atSource(source: ParserObservationSource | undefined): this { this.observationSource = source; return this }
+
   private nodes = new Map<string, WardleyNode>()
   private labels: Map<string, string> | undefined
   private links: WardleyLink[] = []
@@ -106,66 +110,66 @@ export class WardleyBuilder {
       labelOffsetY: node.labelOffsetY ?? existing.labelOffsetY,
     })
     this.labels = undefined
-    observeParserMutation('wardley', 'add-node', this.nodes.get(node.id))
+    observeParserMutation('wardley', 'add-node', this.nodes.get(node.id), this.observationSource)
   }
 
   addLink(link: WardleyLink): void {
     this.links.push(link)
-    observeParserMutation('wardley', 'add-link', link)
+    observeParserMutation('wardley', 'add-link', link, this.observationSource)
   }
 
   addTrend(trend: WardleyTrend): void {
     this.trends.set(trend.nodeId, trend)
-    observeParserMutation('wardley', 'add-trend', trend)
+    observeParserMutation('wardley', 'add-trend', trend, this.observationSource)
   }
 
   startPipeline(nodeId: string): void {
     this.pipelines.set(nodeId, { nodeId, componentIds: [] })
     const node = this.nodes.get(nodeId)
     if (node) node.isPipelineParent = true
-    observeParserMutation('wardley', 'start-pipeline', this.pipelines.get(nodeId))
+    observeParserMutation('wardley', 'start-pipeline', this.pipelines.get(nodeId), this.observationSource)
   }
 
   addPipelineComponent(pipelineNodeId: string, componentId: string): void {
     this.pipelines.get(pipelineNodeId)?.componentIds.push(componentId)
     const node = this.nodes.get(componentId)
     if (node) node.inPipeline = true
-    observeParserMutation('wardley', 'add-pipeline-component', this.pipelines.get(pipelineNodeId))
+    observeParserMutation('wardley', 'add-pipeline-component', this.pipelines.get(pipelineNodeId), this.observationSource)
   }
 
   addAnnotation(annotation: WardleyAnnotation): void {
     this.annotations.push(annotation)
-    observeParserMutation('wardley', 'add-annotation', annotation)
+    observeParserMutation('wardley', 'add-annotation', annotation, this.observationSource)
   }
 
   addNote(note: WardleyNote): void {
     this.notes.push(note)
-    observeParserMutation('wardley', 'add-note', note)
+    observeParserMutation('wardley', 'add-note', note, this.observationSource)
   }
 
   addAccelerator(accelerator: WardleyForce): void {
     this.accelerators.push(accelerator)
-    observeParserMutation('wardley', 'add-accelerator', accelerator)
+    observeParserMutation('wardley', 'add-accelerator', accelerator, this.observationSource)
   }
 
   addDeaccelerator(deaccelerator: WardleyForce): void {
     this.deaccelerators.push(deaccelerator)
-    observeParserMutation('wardley', 'add-deaccelerator', deaccelerator)
+    observeParserMutation('wardley', 'add-deaccelerator', deaccelerator, this.observationSource)
   }
 
   setAnnotationsBox(x: number, y: number): void {
     this.annotationsBox = { x, y }
-    observeParserMutation('wardley', 'set-annotations-box', this.annotationsBox)
+    observeParserMutation('wardley', 'set-annotations-box', this.annotationsBox, this.observationSource)
   }
 
   setAxes(partial: WardleyAxesConfig): void {
     this.axes = { ...this.axes, ...partial }
-    observeParserMutation('wardley', 'set-axes', this.axes)
+    observeParserMutation('wardley', 'set-axes', this.axes, this.observationSource)
   }
 
   setSize(width: number, height: number): void {
     this.size = { width, height }
-    observeParserMutation('wardley', 'set-size', this.size)
+    observeParserMutation('wardley', 'set-size', this.size, this.observationSource)
   }
 
   getNode(id: string): WardleyNode | undefined {

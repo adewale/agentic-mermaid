@@ -1,3 +1,4 @@
+import type { FamilySourceMapContext } from './family-registry.ts'
 import { coalesceFlowchartLines, type FlowchartScan, type FlowchartTextRange, flowchartTextArrowLabelRanges, scanFlowchart } from '../flowchart-lexer.ts'
 import { INIT_DIRECTIVE_REGEX, MERMAID_DIRECTIVE_REGEX, splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 import type { PreservedSourceSpans, SourceLocation, SourceMap, SourceMapSpans, SourceSpan } from './types.ts'
@@ -557,4 +558,32 @@ export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: stri
     { line: sourcePointAt(lineStarts, authoredLine.start).line, text: authoredLine.text },
   ])))
   return sourceMap
+}
+
+/** Convert actual parser-owned ranges to the two established map coordinate
+ * spaces. The parser callback owns grammar and identity; this helper owns only
+ * coordinates, including wrappers, indentation and multiline statements. */
+export function mapObservedSource(
+  source: string,
+  context: FamilySourceMapContext | undefined,
+  read: (text: string, record: (kind: 'nodes' | 'edges' | 'groups' | 'labels', id: string, start: number, end: number) => void) => void,
+): SourceMap {
+  const map: SourceMap = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
+  const starts = sourceLineStarts(source)
+  const ends = { nodes: new Map<string, SourceLocation>(), edges: new Map<string, SourceLocation>(), groups: new Map<string, SourceLocation>(), labels: new Map<string, SourceLocation>() }
+  read(source, (kind, id, start, end) => {
+    const point = sourcePointAt(starts, start), finish = sourcePointAt(starts, end)
+    map[kind].set(id, { line: point.line, col: point.col })
+    ends[kind].set(id, { line: finish.line, col: finish.col })
+  })
+  recordSourceMapEnds(map, ends)
+  if (context) {
+    const original = context.originalText
+    const prefix = context.authoredWrapperLength ?? context.wrapperSource?.length ?? 0
+    const authoredStarts = sourceLineStarts(original)
+    const exact = { nodes: new Map<string, SourceSpan>(), edges: new Map<string, SourceSpan>(), groups: new Map<string, SourceSpan>(), labels: new Map<string, SourceSpan>() }
+    read(original.slice(prefix), (kind, id, start, end) => exact[kind].set(id, sourceSpan(authoredStarts, prefix + start, prefix + end)))
+    recordAuthoredSourceMapSpans(map, exact)
+  }
+  return map
 }

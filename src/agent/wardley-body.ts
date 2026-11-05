@@ -1,3 +1,5 @@
+import { withParserObservation } from '../shared/parser-observation.ts'
+import { mapObservedSource } from './source-map-spans.ts'
 import { ownBodyAccessibility } from './accessibility-envelope.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import { parseWardleyBody } from '../wardley/body.ts'
@@ -157,6 +159,46 @@ export const WARDLEY_SOURCE_HOOKS: FamilyOperations = {
       return ok(body)
     } catch { return ok({ kind: 'opaque', family: 'wardley', source: ctx.opaqueSource }) }
   },
+  buildSourceMap: (body, source, context) => mapObservedSource(source, context, (text, record) => {
+    if (body.kind !== 'wardley') return
+    let link = 0, note = 0, annotation = 0, accelerator = 0, deaccelerator = 0
+    const trends = new Map(body.trends.map((trend, index) => [trend.nodeId, index]))
+    withParserObservation('wardley', event => {
+      if (event.unit !== 'mutation' || event.source?.offset === undefined || event.source.endOffset === undefined) return
+      const add = (kind: 'nodes' | 'edges' | 'groups' | 'labels', id: string) => record(kind, id, event.source!.offset!, event.source!.endOffset!)
+      switch (event.kind) {
+        case 'add-node': {
+          const node = event.value as unknown as WardleyBody['nodes'][number]
+          add('nodes', node.id); add('labels', `node:${node.id}`)
+          if (node.sourceStrategy) add('labels', `strategy:${node.id}`)
+          break
+        }
+        case 'add-link': {
+          const value = event.value as unknown as WardleyBody['links'][number]
+          add('edges', `dependency:${link}`)
+          if (value.label !== undefined) add('labels', `dependency-label:${link}`)
+          link++; break
+        }
+        case 'add-trend': {
+          const value = event.value as unknown as WardleyBody['trends'][number], index = trends.get(value.nodeId)
+          if (index !== undefined) add('edges', `evolve:${index}`)
+          break
+        }
+        case 'start-pipeline': add('groups', `pipeline:${(event.value as unknown as WardleyBody['pipelines'][number]).nodeId}`); break
+        case 'add-note': add('labels', `note:${note++}`); break
+        case 'add-annotation': {
+          const value = event.value as unknown as WardleyBody['annotations'][number]
+          value.coordinates.forEach((_, index) => add('labels', `annotation:${annotation}:${index}`))
+          if (value.text) add('labels', `annotation-text:${annotation}`)
+          annotation++; break
+        }
+        case 'add-accelerator': add('labels', `accelerator:${accelerator++}`); break
+        case 'add-deaccelerator': add('labels', `deaccelerator:${deaccelerator++}`); break
+        case 'set-axes': (event.value as unknown as WardleyBody['axes']).stages?.forEach((_, index) => add('labels', `stage:${index}`)); break
+        case 'set-title': add('labels', 'title'); break
+      }
+    }, () => parseWardleyBody(text), { mutations: ['add-node', 'add-link', 'add-trend', 'start-pipeline', 'add-note', 'add-annotation', 'add-accelerator', 'add-deaccelerator', 'set-axes', 'set-title'] })
+  }),
   serialize: body => { if (body.kind !== 'wardley') throw new Error('Expected Wardley body'); return renderWardley(body) },
   renderSource: () => 'serialized',
   verify: body => body.kind === 'wardley' ? verifyWardley(body) : [],

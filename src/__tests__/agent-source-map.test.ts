@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
-import { mutate } from '../agent/mutate.ts'
+import { serializeMermaid } from '../agent/serialize.ts'
+import { layoutWardley } from '../wardley/layout.ts'
+import { layoutCynefin } from '../cynefin/layout.ts'
+import { layoutRailroad } from '../railroad/layout.ts'
+import { getFamily } from '../agent/families.ts'
+import { mutate, mutateChecked } from '../agent/mutate.ts'
 import type { SourceSpan } from '../agent/types.ts'
 import { sourcePreservationSpans } from '../family-detection.ts'
 import { DIAGRAM_WORK_LIMITS } from '../shared/diagram-limits.ts'
@@ -932,4 +937,100 @@ foo[Node]`
       expect(textAt('erDiagram\nerDiagram', bare.value.source.spans?.nodes.get('erDiagram'))).toBe('erDiagram')
     }
   })
+})
+
+
+test('Wardley observed source maps follow final component writes, pipelines and native annotation owners', () => {
+  const source = [
+    '---', 'config:', '  theme: dark', '---', '%% wrapper', 'wardley-beta',
+    '  title Supply chain', '  evolution "Build" -> "Buy"',
+    '  component "Service API" [80.0, 30.0]',
+    '  component "Service API" [75.0, 35.0] (build)',
+    '  component Storage [30.0, 70.0]',
+    '  pipeline "Service API" {', '    component "Custom part" [40.0]', '    component Utility [60.0]', '  }',
+    '  "Custom part" -> Storage ;replicated', '  evolve Storage 90.0',
+    '  note "Review\n    exact text" [45.0, 55.0]',
+    '  annotation 1, [40, 60] "Risk"',
+    '  accelerator Demand [80.0, 80.0]', '  deaccelerator Drag [20.0, 20.0]',
+  ].join('\r\n')
+  const parsed = parseMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind !== 'wardley') throw new Error('Expected typed Wardley')
+  const map = parsed.value.source, spans = map.spans!
+  expect([...map.nodes.keys()]).toEqual(['Service API', 'Storage', 'Service API_Custom part', 'Service API_Utility'])
+  expect(map.nodes.get('Service API')).toEqual({ line: 5, col: 1 })
+  expect(textAt(source, spans.nodes.get('Service API'))).toBe('component "Service API" [75.0, 35.0] (build)')
+  expect(textAt(source, spans.nodes.get('Service API_Custom part'))).toBe('component "Custom part" [40.0]')
+  expect(textAt(source, spans.groups.get('pipeline:Service API'))).toBe('pipeline "Service API" {\r\n    component "Custom part" [40.0]\r\n    component Utility [60.0]\r\n  }')
+  expect(textAt(source, spans.edges.get('dependency:0'))).toBe('"Custom part" -> Storage ;replicated')
+  expect(textAt(source, spans.edges.get('evolve:0'))).toBe('evolve Storage 90.0')
+  expect(textAt(source, spans.labels.get('note:0'))).toBe('note "Review\n    exact text" [45.0, 55.0]')
+  expect(textAt(source, spans.labels.get('annotation-text:0'))).toBe('annotation 1, [40, 60] "Risk"')
+  expect(textAt(source, spans.labels.get('stage:0'))).toBe('evolution "Build" -> "Buy"')
+  expect(textAt(source, spans.labels.get('strategy:Service API'))).toBe('component "Service API" [75.0, 35.0] (build)')
+  const chart = layoutWardley(parsed.value.body)
+  expect(chart.nodes.every(node => spans.nodes.has(node.id))).toBe(true)
+  expect(chart.edges.every(edge => spans.edges.has(edge.id))).toBe(true)
+  expect(chart.pipelines.every(group => spans.groups.has(group.id))).toBe(true)
+  const edited = mutateChecked(parsed.value, { kind: 'set_component_position', id: 'Storage', x: 65, y: 25 })
+  if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+  const saved = serializeMermaid(edited.value)
+  expect(textAt(saved, edited.value.source.spans?.nodes.get('Storage'))).toBe('component "Storage" [25.0, 65.0]')
+})
+
+test('Cynefin observed maps retain multiline items, repeated transition occurrences and editable self loops', () => {
+  const source = '---\ntitle: Wrapper\n---\n%% retained\ncynefin-beta\n  complex\n    "Explore\n      with care"\n  clear\n    "Apply"\n  complex --> clear: "Learn"\n  clear --> clear: "Reassess"\n  complex --> clear: "Learn"'
+  const parsed = parseMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind !== 'cynefin') throw new Error('Expected typed Cynefin including self loop')
+  const map = parsed.value.source, spans = map.spans!
+  expect([...map.nodes.keys()]).toEqual(['complex:0', 'clear:0'])
+  expect([...map.groups.keys()]).toEqual(['complex', 'clear'])
+  expect(map.nodes.get('complex:0')).toEqual({ line: 3, col: 1 })
+  expect(textAt(source, spans.nodes.get('complex:0'))).toBe('"Explore\n      with care"')
+  expect(spans.nodes.get('complex:0')!.start).toEqual({ line: 7, col: 5, offset: source.indexOf('"Explore') })
+  expect(textAt(source, spans.edges.get('transition:1'))).toBe('clear --> clear: "Reassess"')
+  expect(spans.edges.get('transition:0')!.start.offset).toBe(source.indexOf('complex --> clear'))
+  expect(spans.edges.get('transition:2')!.start.offset).toBe(source.lastIndexOf('complex --> clear'))
+  const chart = layoutCynefin(parsed.value.body)
+  expect(chart.domains.flatMap(domain => domain.items).every(item => spans.nodes.has(item.id))).toBe(true)
+  expect(chart.transitions.every(transition => spans.edges.has(transition.id))).toBe(true)
+  const edited = mutate(parsed.value, { kind: 'add_transition', from: 'complex', to: 'complex', label: 'Probe again' })
+  if (!edited.ok || edited.value.body.kind !== 'cynefin') throw new Error(JSON.stringify(edited))
+  expect(edited.value.body.transitions.at(-1)).toEqual({ from: 'complex', to: 'complex', label: 'Probe again' })
+  const saved = serializeMermaid(edited.value)
+  expect(textAt(saved, edited.value.source.spans?.edges.get('transition:3'))).toBe('complex --> complex: "Probe again"')
+  const reload = parseMermaid(saved)
+  if (!reload.ok) throw new Error(JSON.stringify(reload.error))
+  expect(reload.value.body).toEqual(edited.value.body)
+})
+
+test.each([
+  ['railroad-beta', 'entry = sequence(terminal("a"), optional(nonterminal("item")));', 'entry = terminal("b");'],
+  ['railroad-ebnf-beta', 'entry = "a", [item];', 'entry = base - reserved;'],
+  ['railroad-abnf-beta', 'entry = 1*3("a" / item);', 'entry = %x41;'],
+  ['railroad-peg-beta', 'entry <- &item ("a" / .)*;', 'entry <- !"reserved" item;'],
+] as const)('%s maps actual rule occurrences and all rendered expression owners', (header, first, second) => {
+  // IR, EBNF and PEG permit two productions on one line; ABNF closes
+  // productions at line end. A wrapped first expression exercises each reader.
+  const split = first.indexOf(' = ') >= 0 ? first.replace(' = ', ' = \n    ') : first.replace(' <- ', ' <- \n    ')
+  const separator = header === 'railroad-abnf-beta' ? '\n  ' : ' '
+  const source = `---\ntitle: Grammar wrapper\n---\n%% retained\n${header}\n  ${split}${separator}${second}`
+  const parsed = parseMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind !== 'railroad') throw new Error('Expected typed Railroad')
+  const map = parsed.value.source, spans = map.spans!, chart = layoutRailroad(parsed.value.body)
+  expect([...map.groups.keys()]).toEqual(['rule#0:entry', 'rule#1:entry'])
+  expect(textAt(source, spans.groups.get('rule#0:entry'))).toBe(split)
+  expect(textAt(source, spans.groups.get('rule#1:entry'))).toBe(second)
+  expect(spans.groups.get('rule#0:entry')!.start.offset).toBe(source.indexOf('entry'))
+  expect(spans.groups.get('rule#1:entry')!.start.offset).toBe(source.lastIndexOf('entry'))
+  expect(textAt(source, spans.edges.get('rails:rule#1:entry'))).toBe(second)
+  const leafIds = chart.labels.filter(label => label.kind !== 'annotation').map(label => label.id)
+  expect([...map.nodes.keys()]).toEqual(leafIds)
+  for (const id of leafIds) expect(textAt(source, spans.nodes.get(id))).toBe(id.startsWith('rule#0:') ? split : second)
+  const extracted = getFamily('railroad')!.extractLabels!(source)
+  expect(extracted.map(label => label.target)).toEqual(chart.rules.flatMap(rule => [rule.id, ...chart.labels.filter(label => label.ruleId === rule.id && label.kind !== 'annotation').map(label => label.id)]))
+  const edited = mutateChecked(parsed.value, { kind: 'replace_rule', index: 1, definition: { type: 'terminal', value: 'changed' } })
+  if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+  const saved = serializeMermaid(edited.value)
+  expect(textAt(saved, edited.value.source.spans?.groups.get('rule#1:entry'))).toContain('changed')
+  expect(edited.value.source.groups.size).toBe(2)
 })

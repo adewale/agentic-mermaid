@@ -14,6 +14,7 @@ import {
   type Scanner,
   type TokenType,
 } from '../shared/grammar-reader.ts';
+import type { ParserObservationSource } from '../shared/parser-observation.ts'
 import type { RailroadNode, RailroadRule } from './types.ts';
 
 // What the four railroad grammars share: the title and accessibility tokens (which, unlike
@@ -114,6 +115,10 @@ export interface Grammar<Type extends string, Rule> {
   rules: Rule[];
 }
 
+// Provenance belongs to the objects actually accepted by a notation reader.
+// Weak ownership leaves the public AST/model unchanged and retains no source.
+const ruleSources = new WeakMap<object, ParserObservationSource>()
+
 // Parses the keyword, then any titles and accessibility statements, then rules to the end of the text.
 // Every table starts with its keyword and has TITLE, ACC_TITLE, and ACC_DESCR in a row from `meta`.
 export function parseGrammar<Type extends string, Rule>(
@@ -147,8 +152,10 @@ export function parseGrammar<Type extends string, Rule>(
     ast.rules.push(value)
     if (parserObservationActive('railroad')) {
       const end = r.tokens.ends[r.i - 1] ?? start
-      observeParserStatement('railroad', 'rule', src.slice(start, end), { offset: start, endOffset: end, unit: 'physical' })
-      observeParserMutation('railroad', 'append-rule', value)
+      const source: ParserObservationSource = { offset: start, endOffset: end, unit: 'physical' }
+      if (value !== null && typeof value === 'object') ruleSources.set(value, source)
+      observeParserStatement('railroad', 'rule', src.slice(start, end), source)
+      observeParserMutation('railroad', 'append-rule', value, source)
     }
   }
   return ast;
@@ -198,7 +205,11 @@ export function toRules<Part>(
   ast: { rules: { name: string; definition: Part }[] },
   build: (part: Part, kids: RailroadNode[]) => RailroadNode
 ): RailroadRule[] {
-  return ast.rules.map((rule) => ({ name: rule.name, definition: fold(rule.definition, parts, build) }));
+  return ast.rules.map((rule, index) => {
+    const value = { name: rule.name, definition: fold(rule.definition, parts, build) }
+    if (parserObservationActive('railroad')) observeParserMutation('railroad', 'add-rule', { index, rule: value }, ruleSources.get(rule))
+    return value
+  });
 }
 
 // Rebuilds a tree bottom-up without recursion, so that nesting depth is bounded by memory, not by the stack.
