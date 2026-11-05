@@ -1,3 +1,5 @@
+import { withBodyTitleMeta } from './body-title-meta.ts'
+import { ownBodyAccessibility } from './accessibility-envelope.ts'
 import { projectZenUMLSequence } from '../zenuml/native-sequence.ts'
 import type { FamilyOperations } from './family-registry.ts'
 import { ok, type SourceMap, type SourceLocation } from './types.ts'
@@ -8,6 +10,8 @@ import { parseZenUML } from '../zenuml/native-parser.ts'
 import { serializeZenUML } from '../zenuml/native-body.ts'
 
 export const ZENUML_SOURCE_HOOKS: Omit<FamilyOperations, 'mutate'> = {
+  bodyAccessibility: ownBodyAccessibility('zenuml', 'native'),
+  bodyMeta: (body, meta, previous) => body.kind === 'zenuml' ? withBodyTitleMeta(body.title, meta, previous === undefined || (previous.kind === 'zenuml' && body.title === previous.title)) : meta,
   parse: ctx => {
     try {
       const body = parseZenUML(preservedMermaidFamilyText(ctx.source))

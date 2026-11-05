@@ -1,3 +1,4 @@
+import { ownBodyAccessibility } from './accessibility-envelope.ts'
 export { TREEVIEW_OP_KINDS, TREEVIEW_OP_SCHEMAS } from '../treeview/ops.ts'
 
 import { writeGrammarText } from '../shared/grammar-text.ts'
@@ -152,6 +153,7 @@ import type { FamilyOperations } from './families.ts'
 import type { SourceMap } from './types.ts'
 
 export const TREEVIEW_SOURCE_HOOKS: FamilyOperations = {
+  bodyAccessibility: ownBodyAccessibility('treeview'),
   parse: ctx => {
     try {
       const body = parseTreeviewDiagram(ctx.source.authoredFamilyBody ?? ctx.source.familyBody)

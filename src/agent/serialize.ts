@@ -1,5 +1,3 @@
-import { withBodyTitleMeta } from './body-title-meta.ts'
-import { eventModelingMeta } from '../eventmodeling/body.ts'
 import { configDirective } from '../shared/pinned-mermaid-config/merge.js'
 import { canonicalWrapperConfig } from './wrapper-portability.ts'
 import { restoreBodyComments } from './body-comments.ts'
@@ -13,7 +11,7 @@ import { ok, err } from './types.ts'
 import { stringifyMermaidYaml } from '../shared/mermaid-yaml.ts'
 import { getFamily, knownFamilies } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
-import { accessibilitySerializationProblem, AccessibilityTextError, ensureAccessibilityLines } from './accessibility-envelope.ts'
+import { accessibilitySerializationProblem, AccessibilityTextError, metadataFromBody, ensureAccessibilityLines } from './accessibility-envelope.ts'
 import type { ExtensionIdentity } from '../shared/extension-identity.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 import { radarBodyProblem } from './radar-body.ts'
@@ -47,7 +45,7 @@ export interface SerializeOptions {
 export function serializeMermaid(d: ParsedDiagram, opts: SerializeOptions = {}): string {
   if (d.body.kind === 'preserved') return d.body.source
   const mode = opts.wrapper ?? 'verbatim'
-  const bodyMeta = d.body.kind === 'usecase' ? withBodyTitleMeta(d.body.title, d.meta) : d.body.kind === 'zenuml' ? withBodyTitleMeta(d.body.title, d.meta, true) : d.body.kind === 'eventmodeling' ? eventModelingMeta(d.body, d.meta) : d.meta
+  const bodyMeta = metadataFromBody(d.body, d.meta)
   const renderedBody = renderBody(d.body, d.kind, bodyMeta, d.body.kind === 'extension' && 'descriptorIdentity' in d ? d.descriptorIdentity : undefined)
   // Canonical mode folds universal config into renderMeta. Opaque bodies and
   // source-preserving extension serializers may still contain the authored

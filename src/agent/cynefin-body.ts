@@ -1,3 +1,4 @@
+import { ownBodyAccessibility } from './accessibility-envelope.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import { parseCynefinBody } from '../cynefin/body.ts'
 import { CYNEFIN_DOMAINS, type CynefinBody, type CynefinMutationOp, type DomainName } from '../cynefin/types.ts'
@@ -74,6 +75,7 @@ export function mutateCynefin(body: CynefinBody, op: CynefinMutationOp): Result<
 }
 export function verifyCynefin(body: CynefinBody): LayoutWarning[] { try { renderCynefin(body); return [] } catch (error) { return [{ code: 'UNSUPPORTED_SYNTAX', syntax: 'cynefin_model', message: String(error) }] } }
 export const CYNEFIN_SOURCE_HOOKS: FamilyOperations = {
+  bodyAccessibility: ownBodyAccessibility('cynefin'),
   parse: ctx => {
     try {
       const body = parseCynefinBody(ctx.source.authoredFamilyBody ?? ctx.source.familyBody), accessibility = readAuthoredGrammarAccessibility(ctx.meta.accessibility)

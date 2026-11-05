@@ -284,6 +284,12 @@ export interface FamilyConfigContract {
 }
 
 export interface FamilyOperations {
+  /** Body-owned accessibility fields and their writer's text transport. The
+   * shared envelope mirrors only bodies admitted by this family authority. */
+  bodyAccessibility?: (body: DiagramBody) => { fields: { accessibilityTitle?: string; accessibilityDescription?: string }; syntax: 'statement' | 'native' } | undefined
+  /** Synchronize body-owned wrapper fields before save or mutation commit. */
+  bodyMeta?: (body: DiagramBody, meta: ValidDiagramMeta, previousBody?: DiagramBody) => ValidDiagramMeta
+
   /** Parsed rendering uses the family's source authority. Omission preserves
    * legacy extension behavior; family admission still validates the result. */
   renderSource?: (body: Readonly<FamilyParsedBody>) => 'canonical' | 'serialized'
@@ -1542,6 +1548,8 @@ const FAMILY_DESCRIPTOR_FIELDS = Object.freeze([
   'capabilityEvidence',
   'example',
   'renderSource',
+  'bodyAccessibility',
+  'bodyMeta',
   'normalizeRequest',
   'configDiagnostics',
   'extractLabels',
@@ -1782,6 +1790,8 @@ function validateDescriptor(descriptor: FamilyDescriptor, replacingId?: FamilyId
   if (!Array.isArray(descriptor.headers) || descriptor.headers.length === 0 || descriptor.headers.some(header => !validDeclaredHeader(header))) {
     throw new Error(`Family "${descriptor.id}" must declare at least one canonical header without surrounding whitespace, controls, or semicolons`)
   }
+  if (descriptor.bodyAccessibility !== undefined && typeof descriptor.bodyAccessibility !== 'function') throw new TypeError(`Family ${descriptor.id} bodyAccessibility must be a function`)
+  if (descriptor.bodyMeta !== undefined && typeof descriptor.bodyMeta !== 'function') throw new TypeError(`Family ${descriptor.id} bodyMeta must be a function`)
   if (descriptor.renderSource !== undefined && typeof descriptor.renderSource !== 'function') throw new TypeError(`Family ${descriptor.id} renderSource must be a function`)
   if (descriptor.statementEnds !== undefined && typeof descriptor.statementEnds !== 'function') throw new TypeError(`Family ${descriptor.id} statementEnds must be a function`)
   if (typeof descriptor.detect !== 'function') throw new Error(`Family "${descriptor.id}" must declare a detector`)

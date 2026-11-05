@@ -49,7 +49,7 @@ import { splitSequenceStatementLines } from '../sequence/statements.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { joinQuotedTextLines, stripTrailingComment } from '../shared/trailing-comment.ts'
 import { isTimelineCommentLine, parseTimelineHeader } from '../timeline/parse-core.ts'
-import { adoptStatementAccessibility } from './accessibility-envelope.ts'
+import { adoptStatementAccessibility, ownBodyAccessibility } from './accessibility-envelope.ts'
 import { grammarAccessibilityFields } from '../shared/grammar-text.ts'
 import { parseArchitectureBody, renderArchitecture, verifyArchitecture, verifyOpaqueArchitectureIcons } from './architecture-body.ts'
 import { parseClassBody, renderClass, verifyClass } from './class-body.ts'
@@ -303,6 +303,7 @@ function verifyOpaqueTimeline(body: FamilyParsedBody): LayoutWarning[] {
 }
 
 export const TIMELINE_SOURCE_HOOKS = {
+  bodyAccessibility: ownBodyAccessibility('timeline'),
   renderSource: () => 'serialized',
   extractLabels: extractTimelineLabels,
   verify: body => verifyOpaqueTimeline(body),
@@ -877,6 +878,7 @@ function verifyOpaqueJourney(body: DiagramBody): LayoutWarning[] {
 }
 
 export const JOURNEY_SOURCE_HOOKS = {
+  bodyAccessibility: ownBodyAccessibility('journey'),
   renderSource: () => 'canonical',
   extractLabels: extractJourneyLabels,
   // BUILD-15: journey is structured-when-narrowed. The verify hook covers the
@@ -992,6 +994,7 @@ function splitXyLabelStatements(line: string): string[] {
 }
 
 export const XYCHART_SOURCE_HOOKS = {
+  bodyAccessibility: ownBodyAccessibility('xychart'),
   renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractXyChartLabels,
   // BUILD-16: xychart is structured-when-narrowed. The verify hook covers the
@@ -1073,6 +1076,7 @@ function parsePieHeader(header: string): { showData: boolean; title?: string } |
 }
 
 export const PIE_SOURCE_HOOKS = {
+  bodyAccessibility: ownBodyAccessibility('pie'),
   renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractPieLabels,
   // Pie is structured-when-narrowed. The verify hook covers the structured
@@ -1182,6 +1186,7 @@ function verifyOpaqueQuadrant(body: DiagramBody): LayoutWarning[] {
 }
 
 export const QUADRANT_SOURCE_HOOKS = {
+  bodyAccessibility: ownBodyAccessibility('quadrant'),
   renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractQuadrantLabels,
   // Quadrant is structured-when-narrowed. The verify hook covers the structured
@@ -1260,6 +1265,7 @@ function extractArchitectureLabels(source: string): ExtractedLabel[] {
 }
 
 export const ARCHITECTURE_SOURCE_HOOKS = {
+  bodyAccessibility: ownBodyAccessibility('architecture'),
   renderSource: () => 'canonical',
   extractLabels: extractArchitectureLabels,
   // BUILD-17: architecture is structured-when-narrowed. The verify hook covers
@@ -1275,6 +1281,7 @@ export const ARCHITECTURE_SOURCE_HOOKS = {
 
 // ---- Mindmap ---------------------------------------------------------------
 export const MINDMAP_SOURCE_HOOKS = {
+  bodyAccessibility: ownBodyAccessibility('mindmap', 'native'),
   renderSource: () => 'serialized',
   extractLabels: extractLabelsGeneric,
   parse: ({ source, opaqueSource, meta }) => {
@@ -1296,6 +1303,7 @@ export const MINDMAP_SOURCE_HOOKS = {
 
 // ---- GitGraph --------------------------------------------------------------
 export const GITGRAPH_SOURCE_HOOKS = {
+  bodyAccessibility: ownBodyAccessibility('gitgraph'),
   renderSource: () => 'serialized',
   extractLabels: extractLabelsGeneric,
   parse: ({ source, meta }) => {
@@ -1408,6 +1416,7 @@ export const SANKEY_SOURCE_HOOKS = {
 } satisfies Omit<FamilyOperations, 'mutate'>
 
 export const C4_SOURCE_HOOKS = {
+  bodyAccessibility: ownBodyAccessibility('c4'),
   renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   parse: ctx => {
     try { return ok(parseC4Body(ctx.opaqueSource, ctx.meta.accessibility) ?? { kind: 'opaque', family: 'c4', source: ctx.opaqueSource }) }

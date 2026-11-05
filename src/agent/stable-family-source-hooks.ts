@@ -1,3 +1,4 @@
+import { ownBodyAccessibility } from './accessibility-envelope.ts'
 import { tokenize as tokenizeBlock } from '../block/lexer.ts'
 import { parseBlockDiagram } from '../block/parser.ts'
 import { T as BlockToken } from '../block/tokens.ts'
@@ -419,6 +420,7 @@ function sourceAdapter<K extends StableBody['kind']>(
     readSource,
     serialize,
     operations: {
+      bodyAccessibility: ownBodyAccessibility(kind, kind === 'block' || kind === 'ishikawa' ? 'native' : 'statement'),
       parse: ctx => {
         const body = parseSource ? parseSource(ctx.source.familyBody, ctx.source, ctx.meta.accessibility) : parse(headerLines(ctx.source.familyBody), ctx.meta.accessibility)
         if (body && ownsAccessibility) {

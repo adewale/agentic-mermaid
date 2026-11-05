@@ -1,7 +1,5 @@
 import type { MutationOpForDiagram } from './family-mutation-types.ts'
 import type { AgentflowValidDiagram, AgentflowMutationOp, CynefinValidDiagram, CynefinMutationOp, RailroadValidDiagram, RailroadMutationOp, SwimlaneValidDiagram, SwimlaneMutationOp, TreeviewValidDiagram, TreeviewMutationOp, UsecaseValidDiagram, UsecaseMutationOp, VennValidDiagram, VennMutationOp, WardleyValidDiagram, WardleyMutationOp } from './types.ts'
-import { withBodyTitleMeta } from './body-title-meta.ts'
-import { eventModelingMeta } from '../eventmodeling/body.ts'
 import type { EventModelingValidDiagram, EventModelingMutationOp } from './types.ts'
 import { rebaseBodyComments, restoreBodyComments, snapshotBodyCommentAnchors } from './body-comments.ts'
 import { beginMutationDraft, type MutationDraft } from './mutation-draft.ts'
@@ -51,7 +49,7 @@ import { wrapperPrefix } from './serialize.ts'
 import { logToolInvocation } from './trace-log.ts'
 import { getFamily } from './families.ts'
 import { admitOpRecord, validateOp, hasOpSchema } from './op-schema.ts'
-import { AccessibilityTextError, accessibilityFromBody, ensureAccessibilityLines, normalizeBodyAccessibility } from './accessibility-envelope.ts'
+import { AccessibilityTextError, accessibilityFromBody, metadataFromBody, ensureAccessibilityLines, normalizeBodyAccessibility } from './accessibility-envelope.ts'
 import { parseRegisteredMermaid as parseMermaid } from './parse.ts'
 import { applySourceEdits, sameSourceMeaning } from './source-mutation.ts'
 
@@ -154,12 +152,9 @@ function commitMutation(d: ParsedDiagram, body: ParsedDiagram['body']): Result<P
   // 1C wrapper policy: a mutated diagram keeps its leading wrapper
   // (frontmatter/directives/comments) byte-verbatim; only the body changes.
   const bodyAccessibility = accessibilityFromBody(body)
-  const accessibilityMeta = bodyAccessibility === undefined ? d.meta : { ...d.meta, accessibility: bodyAccessibility }
-  let meta = accessibilityMeta
+  let meta = d.meta
   try {
-    if (body.kind === 'eventmodeling') meta = eventModelingMeta(body, accessibilityMeta)
-    if (body.kind === 'usecase') meta = withBodyTitleMeta(body.title, accessibilityMeta)
-    if (body.kind === 'zenuml') meta = withBodyTitleMeta(body.title, accessibilityMeta, d.body.kind === 'zenuml' && body.title === d.body.title)
+    meta = metadataFromBody(body, d.meta, d.body)
   } catch (error) {
     return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) })
   }

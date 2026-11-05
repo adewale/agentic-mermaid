@@ -1,3 +1,4 @@
+import { ownBodyAccessibility } from './accessibility-envelope.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import { parseWardleyBody } from '../wardley/body.ts'
 import type { WardleyBody, WardleyMutationOp } from '../wardley/types.ts'
@@ -145,6 +146,7 @@ export function verifyWardley(body: WardleyBody): LayoutWarning[] {
   try { renderWardley(body); return [] } catch (error) { return [{ code: 'UNSUPPORTED_SYNTAX', syntax: 'wardley_model', message: String(error) }] }
 }
 export const WARDLEY_SOURCE_HOOKS: FamilyOperations = {
+  bodyAccessibility: ownBodyAccessibility('wardley'),
   parse: ctx => {
     try {
       const body = parseWardleyBody(ctx.source.authoredFamilyBody ?? ctx.source.familyBody)

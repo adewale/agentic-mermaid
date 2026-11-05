@@ -1,3 +1,4 @@
+import { ownBodyAccessibility } from './accessibility-envelope.ts'
 import { mermaidNumber } from '../shared/mermaid-number.ts'
 import { sameSourceMeaning } from './source-mutation.ts'
 import type { VennBody, VennMutationOp } from '../venn/types.ts'
@@ -127,6 +128,7 @@ export function verifyVenn(body: VennBody, options: VerifyOptions): LayoutWarnin
 }
 
 export const VENN_SOURCE_HOOKS: FamilyOperations = {
+  bodyAccessibility: ownBodyAccessibility('venn', 'native'),
   parse: ctx => {
     try {
       const body = parseVennDiagram(ctx.source.authoredFamilyBody ?? ctx.source.familyBody)

@@ -5,7 +5,7 @@ import { describe, test, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
 import { describeMermaidSource, describeMermaidTree } from '../agent/describe.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
-import { mutate } from '../agent/mutate.ts'
+import { mutate, mutateChecked } from '../agent/mutate.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { startUpstreamMermaid, type UpstreamDiagram } from './helpers/upstream-mermaid.ts'
 import { synthesizeFromGraph } from '../agent/index.ts'
@@ -51,6 +51,37 @@ test('successful accessibility edits close through body, metadata and source wit
   }
   const control = mutate(parsed.value, { kind: 'set_accessibility_title', title: 'ordinary title' })
   expect(control.ok).toBe(true)
+})
+
+test.each([
+  ['usecase-beta', 'actor A("A")'],
+  ['wardley-beta', 'component A [50.0, 50.0]'],
+  ['venn-beta', 'set A:10'],
+  ['cynefin-beta', 'complex\n  "Explore"'],
+  ['treeView-beta', '"file.ts"'],
+] as const)('%s accessibility clears close through the final envelope and checked edits', (header, content) => {
+  const source = `---\ntitle: Preserved wrapper\n---\n%% authored wrapper\n${header}\naccTitle: Original\naccDescr: Preserve until cleared\n${content}`
+  const parsed = parseMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind === 'opaque') throw new Error('Expected editable native family')
+  const original = structuredClone(parsed.value)
+  for (const edit of [mutate, mutateChecked]) {
+    for (const op of [{ kind: 'set_accessibility_title', title: null }, { kind: 'set_accessibility_description', description: null }] as const) {
+      const result = edit(parsed.value, op)
+      if (!result.ok) throw new Error(JSON.stringify(result.error))
+      const expected = op.kind === 'set_accessibility_title' ? { descr: 'Preserve until cleared' } : { title: 'Original' }
+      expect(result.value.meta.accessibility).toEqual(expected)
+      const body = result.value.body as { accessibilityTitle?: string; accessibilityDescription?: string }
+      expect(body.accessibilityTitle).toBe(expected.title)
+      expect(body.accessibilityDescription).toBe(expected.descr)
+      const serialized = serializeMermaid(result.value)
+      expect(serialized.startsWith('---\ntitle: Preserved wrapper\n---\n%% authored wrapper\n')).toBe(true)
+      const reload = parseMermaid(serialized)
+      if (!reload.ok) throw new Error(JSON.stringify(reload.error))
+      expect(reload.value.meta.accessibility).toEqual(expected)
+      expect(reload.value.body).toEqual(result.value.body)
+      expect(parsed.value).toEqual(original)
+    }
+  }
 })
 
 describe('#7254/#7255 SVG accessibility', () => {

@@ -1,3 +1,5 @@
+import { withBodyTitleMeta } from './body-title-meta.ts'
+import { ownBodyAccessibility } from './accessibility-envelope.ts'
 export { USECASE_OP_KINDS, USECASE_OP_SCHEMAS } from '../usecase/ops.ts'
 
 import { accessibilityFields } from '../shared/accessibility-directives.ts'
@@ -115,6 +117,8 @@ export function verifyUsecase(body: UsecaseBody, options: VerifyOptions): Layout
   return warnings
 }
 export const USECASE_SOURCE_HOOKS: FamilyOperations = {
+  bodyAccessibility: ownBodyAccessibility('usecase'),
+  bodyMeta: (body, meta) => body.kind === 'usecase' ? withBodyTitleMeta(body.title, meta) : meta,
   parse: ctx => {
     try {
       const body = parseUsecaseDiagram(ctx.source.authoredFamilyBody ?? ctx.source.familyBody)
