@@ -10,7 +10,7 @@ import { createSparseVisibilityGraph } from '../layout/compound-sparse-visibilit
 import { simplifyOrthogonal, type Terminal } from '../layout/compound-visibility.ts'
 import { rectsOverlap } from '../layout/geometry.ts'
 import { segmentEntersMeasuredBox, type MeasuredBox } from '../layout/measured-route-safety.ts'
-import { bundledLabelCandidates, labelBoxAt } from '../layout/passes/bundled-labels.ts'
+import { bundledLabelCandidates, labelBoxAt, terminalLabelCorridorLength } from '../layout/passes/bundled-labels.ts'
 import { labelTouchesNeighborRoute, symmetricParallelOuterLanePoints } from '../layout/passes/parallel-lanes.ts'
 import { translateGeometryToNonNegativeOrigin } from '../layout/route-geometry.ts'
 import { labelHaloExtension } from '../shared/edge-label-geometry.ts'
@@ -26,6 +26,9 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   const horizontal = graph.direction === 'LR' || graph.direction === 'RL'
   const padding = options.padding ?? 40, inset = 24, gap = Math.max(48, options.nodeSpacing ?? 32)
   const style = resolveRenderStyle(options, undefined, options.styleFace)
+  const edges: PositionedEdge[] = graph.edges.map((edge, edgeIndex) => ({ ...edge, edgeIndex, points: [],
+    ...(edge.label !== undefined ? { labelBlock: graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge') } : {}),
+    inlineStyle: resolveEdgeInlineStyle(edgeIndex, graph), classNames: edge.id ? graphClassNames(graph.classAssignments.get(edge.id)) : [] }))
   const titleBand = diagramTitleBand(diagramTitle, style)
   const lanes = swimlanePartitions(graph)
   // Build lane inputs once. Filtering the entire graph for every lane makes
@@ -43,9 +46,25 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
     const owner = owners.get(id)
     if (owner !== undefined) inputs[owner]!.nodes.set(id, node)
   }
+  // Self-loops have no rank/order contribution. Swimlane owns their routes,
+  // so generic placement's loop-attachment capacity must not reject them.
   for (const edge of graph.edges) {
     const owner = owners.get(edge.source)
-    if (owner !== undefined && owner === owners.get(edge.target)) inputs[owner]!.edges.push(edge)
+    if (edge.source !== edge.target && owner !== undefined && owner === owners.get(edge.target)) inputs[owner]!.edges.push(edge)
+  }
+  const occurrences = new Map<string, PositionedEdge[]>()
+  for (const edge of edges) {
+    if (edge.style === 'invisible') continue
+    const key = [edge.source, edge.target].sort().join('\0'), pair = occurrences.get(key) ?? []
+    pair.push(edge); occurrences.set(key, pair)
+  }
+  for (const [key, pair] of occurrences) if (pair.length < 2 && pair[0]!.source !== pair[0]!.target) occurrences.delete(key)
+  // Independent caption seating needs genuine room between lanes for its
+  // terminal markers and visible shaft, including ordinary hand-offs that
+  // interact with an occurrence channel. Measure that space once, before packing.
+  let laneGap = gap
+  if (occurrences.size) for (const edge of edges) {
+    if (edge.style !== 'invisible' && owners.get(edge.source) !== owners.get(edge.target)) laneGap = Math.max(laneGap, terminalLabelCorridorLength(edge, horizontal ? 'TD' : 'LR', style))
   }
   const measured = lanes.map((lane, index) => {
     const local = layoutNativeGraphPlacementSync(inputs[index]!, { ...options, padding: inset, nodeSpacing: Math.max(gap, 32), layerSpacing: Math.max(options.layerSpacing ?? 64, 64) })
@@ -92,10 +111,10 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
     groups.push({ id: item.lane.id, label: item.lane.label, labelContent: item.lane.source?.labelContent,
       x, y, width, height, headerHeight: item.header, labelBlock: item.title, inlineStyle: resolveNodeInlineStyle(item.lane.id, graph),
       nodeIds: item.lane.source?.nodeIds.filter(id => graph.nodes.has(id)) ?? [...item.lane.nodes], children: item.local.groups })
-    cursor += (horizontal ? height : width) + gap
+    cursor += (horizontal ? height : width) + laneGap
   }
-  let width = Math.max(titleBand ? titleBand.width + 2 * padding : 0, horizontal ? extent + 2 * padding : Math.max(2 * padding, cursor - gap + padding))
-  let height = (horizontal ? Math.max(2 * padding, cursor - gap + padding) : extent + 2 * padding) + (titleBand?.height ?? 0)
+  let width = Math.max(titleBand ? titleBand.width + 2 * padding : 0, horizontal ? extent + 2 * padding : Math.max(2 * padding, cursor - laneGap + padding))
+  let height = (horizontal ? Math.max(2 * padding, cursor - laneGap + padding) : extent + 2 * padding) + (titleBand?.height ?? 0)
   const byId = new Map<string, PositionedNode | PositionedGroup>(nodes.map(node => [node.id, node]))
   const collect = (group: PositionedGroup): void => { byId.set(group.id, group); group.children.forEach(collect) }
   groups.forEach(collect)
@@ -124,10 +143,7 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   }
   groups.forEach(addHeader)
   const fail = (reason: string): never => { throw new Error(`Swimlane routing: ${reason}`) }
-  const edges: PositionedEdge[] = graph.edges.map((edge, edgeIndex) => ({ ...edge, edgeIndex, points: [],
-    ...(edge.label !== undefined ? { labelBlock: graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge') } : {}),
-    inlineStyle: resolveEdgeInlineStyle(edgeIndex, graph), classNames: edge.id ? graphClassNames(graph.classAssignments.get(edge.id)) : [] }))
-  const channels = parallelHandoffChannels(byId, edges, headers, owners, horizontal, style)
+  const channels = handoffChannels(byId, occurrences, headers, owners, horizontal, style)
   const terminals = edges.map(edge => {
     const channel = channels.get(edge)
     return channel ? { source: { port: channel.points[0]!, stub: channel.points[1]! }, target: { port: channel.points.at(-1)!, stub: channel.points.at(-2)! } }
@@ -168,7 +184,7 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
         if (segment) edge.labelPosition = { x: (segment.a.x + segment.b.x) / 2, y: (segment.a.y + segment.b.y) / 2 }
       }
     }
-    seatParallelHandoffLabels(nodes, edges, headers, channels, style, fail)
+    if (channels.size) seatHandoffLabels(nodes, edges, headers, channels, graph.direction, style, fail)
     if (channels.size) {
       let halo = 0
       for (const edge of edges) if (edge.label) halo = Math.max(halo, labelHaloExtension(edge, style.lineWidth))
@@ -212,13 +228,7 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
  * approach is still routed by the shared obstacle graph, including nested ink. */
 type HandoffChannel = { points: Point[]; direction: Direction; caption?: MeasuredBox }
 
-function parallelHandoffChannels(byId: ReadonlyMap<string, PositionedNode | PositionedGroup>, edges: PositionedEdge[], headers: MeasuredBox[], owners: ReadonlyMap<string, number>, horizontal: boolean, style: ReturnType<typeof resolveRenderStyle>): Map<PositionedEdge, HandoffChannel> {
-  const pairs = new Map<string, PositionedEdge[]>()
-  for (const edge of edges) {
-    if (edge.style === 'invisible' || !byId.has(edge.source) || !byId.has(edge.target)) continue
-    const key = [edge.source, edge.target].sort().join('\0'), pair = pairs.get(key) ?? []
-    pair.push(edge); pairs.set(key, pair)
-  }
+function handoffChannels(byId: ReadonlyMap<string, PositionedNode | PositionedGroup>, pairs: ReadonlyMap<string, PositionedEdge[]>, headers: MeasuredBox[], owners: ReadonlyMap<string, number>, horizontal: boolean, style: ReturnType<typeof resolveRenderStyle>): Map<PositionedEdge, HandoffChannel> {
   const channels = new Map<PositionedEdge, HandoffChannel>()
   let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity
   for (const box of [...byId.values(), ...headers]) {
@@ -226,14 +236,13 @@ function parallelHandoffChannels(byId: ReadonlyMap<string, PositionedNode | Posi
     right = Math.max(right, box.x + box.width); bottom = Math.max(bottom, box.y + box.height)
   }
   let pitchX = 24, pitchY = 24
-  for (const pair of pairs.values()) if (pair.length > 1) for (const edge of pair) {
+  for (const pair of pairs.values()) for (const edge of pair) {
     const halo = labelHaloExtension(edge, style.lineWidth)
     pitchX = Math.max(pitchX, (edge.labelBlock?.width ?? 0) + 24 + 2 * halo)
     pitchY = Math.max(pitchY, (edge.labelBlock?.height ?? 0) + 24 + 2 * halo)
   }
   let occurrence = 0
   for (const pair of pairs.values()) {
-    if (pair.length < 2) continue
     const first = pair[0]!, crossLane = owners.get(first.source) !== owners.get(first.target)
     const alongX = crossLane ? !horizontal : horizontal
     const cross = alongX ? 'y' : 'x'
@@ -279,17 +288,24 @@ function parallelHandoffChannels(byId: ReadonlyMap<string, PositionedNode | Posi
   return channels
 }
 
-function seatParallelHandoffLabels(nodes: PositionedNode[], edges: PositionedEdge[], headers: MeasuredBox[], channels: ReadonlyMap<PositionedEdge, { direction: Direction }>, style: ReturnType<typeof resolveRenderStyle>, fail: (reason: string) => never): void {
-  for (const [edge, channel] of channels) {
-    if (!edge.label) continue
+function seatHandoffLabels(nodes: PositionedNode[], edges: PositionedEdge[], headers: MeasuredBox[], channels: ReadonlyMap<PositionedEdge, { direction: Direction }>, direction: Direction, style: ReturnType<typeof resolveRenderStyle>, fail: (reason: string) => never): void {
+  // Every caption participates: an ordinary route can approach an occurrence
+  // channel, and two independent midpoint choices can cover each other's ink.
+  for (const edge of edges) delete edge.labelPosition
+  for (const edge of edges) {
+    if (!edge.label || edge.style === 'invisible') continue
     const halo = labelHaloExtension(edge, style.lineWidth)
-    const seat = bundledLabelCandidates(edge, edge.points, nodes, channel.direction, style, (_edge, point) => {
+    const seat = bundledLabelCandidates(edge, edge.points, nodes, channels.get(edge)?.direction ?? direction, style, (_edge, point) => {
       const pill = labelBoxAt(edge, point, style), box = { x: pill.x - halo, y: pill.y - halo, width: pill.width + halo * 2, height: pill.height + halo * 2 }
       if (headers.some(header => rectsOverlap(box, header, 2)) || nodes.some(node => rectsOverlap(box, node, 2))) return false
-      if (edges.some(other => other !== edge && other.label && other.labelPosition && rectsOverlap(box, labelBoxAt(other, other.labelPosition, style), halo + 2))) return false
+      if (edges.some(other => {
+        if (other === edge || !other.label || !other.labelPosition) return false
+        const pill = labelBoxAt(other, other.labelPosition, style), halo = labelHaloExtension(other, style.lineWidth)
+        return rectsOverlap(box, { x: pill.x - halo, y: pill.y - halo, width: pill.width + halo * 2, height: pill.height + halo * 2 }, 2)
+      })) return false
       return !labelTouchesNeighborRoute(edge, { x: box.x, y: box.y, w: box.width, h: box.height }, edges)
     })[0]
-    if (!seat) fail('parallel hand-off caption has no clear owned segment')
+    if (!seat) fail('hand-off caption has no clear owned segment')
     edge.labelPosition = seat.point
   }
 }
