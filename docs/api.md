@@ -153,6 +153,28 @@ without changing the semantic layout.
 
 ### Graph layout selection
 
+Graph callers can opt into bounded quality exploration with
+`graphLayout: { backend: 'elk', quality: 'balanced' }`. ELK may prefer source
+order instead of fixing it when the original result has crossings or label
+conflicts. Explicit adjacency and family-owned child order remain authoritative.
+The Agentic graph producer can compare port-aware coordinate blocks on flat
+graphs with at most 64 nodes and 128 edges. This may trade symmetry or area for
+fewer bends; the complete final geometry must still pass certification.
+
+For Flowchart, `graphLayout.viewport: { width: 800, height: 600 }` selects among
+the original layout and up to two measured wrapping widths using the complete
+diagram and title. It maximizes fit scale without increasing crossings or label
+conflicts from the primary result. It does not rescale the output, change font
+size, or replace an explicit `wrappingWidth`. Authored labels and hard line
+breaks retain their provenance. Large graphs retain the primary result.
+
+Ordering, port placement and wrapping share an allowance of two additional
+logical producer calls; existing mandatory fallbacks are separately accounted.
+`receipt.layoutOptimization` reports the work and strategies accepted during
+that execution. Cached positioned output can perform no new optional work.
+Nested public renders have separate allowances. All these choices are opt-in;
+omitting them preserves the existing layout policy.
+
 Omitting `graphLayout` retains the existing automatic policy, including the
 guarded forest optimization. Force ELK with `graphLayout: { backend: 'elk' }`,
 or opt into the owned producer:
@@ -393,8 +415,9 @@ for precedence and custom looks. This table is generated from runtime descriptor
 <!-- BEGIN GENERATED: render-options -->
 | Option | Type | Default | Meaning and applicability |
 |---|---|---|---|
+| `fontMetrics` | `'estimate' \| 'bundled-inter'` | `estimate` | Optional pinned Inter ASCII advances and pair corrections. Does not load fonts; unsupported runs retain estimates. Not consumed by terminal output. |
 | `layoutHints` | `{ ranks?: Record<string, number>; adjacent?: string[][]; shortEdges?: string[] }` | unset | Relative ranks, sibling adjacency and short-edge preferences. Built-in families: flowchart, state. Not consumed by terminal output. |
-| `graphLayout` | `{ backend: 'elk' \| 'agentic'; fallback?: 'none' \| 'elk' }` | `elk`, no fallback | Graph geometry producer and explicit Agentic fallback policy. Built-in families: flowchart, state, architecture, class, er, requirement. |
+| `graphLayout` | `{ backend: 'elk' \| 'agentic'; fallback?: 'none' \| 'elk'; quality?: 'balanced'; viewport?: { width: number; height: number } }` | `elk`, no fallback | Graph geometry producer and explicit Agentic fallback policy. Built-in families: flowchart, state, architecture, class, er, requirement. |
 | `layoutSafety` | `'report' \| 'strict'` | `report` | Report bounded layout evidence, or require a passed final certificate. Strict mode rejects missing or unverified evidence. |
 | `bg` | `string` | `#FFFFFF` | Background color or CSS variable. |
 | `fg` | `string` | `#27272A` | Primary foreground and text color. |

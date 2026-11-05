@@ -105,6 +105,28 @@ family is installed, present under `fontDirs`, or available to a browser.
 
 ## Trusted font measurement profiles
 
+For the pinned Inter resources shipped with the package, graphical callers can
+select a built-in partial profile without supplying executable callbacks:
+
+```ts
+const svg = renderMermaidSVG(source, { fontMetrics: 'bundled-inter' })
+```
+
+It uses natural advances and pair corrections for printable ASCII, normal
+Inter at weights 400, 500, 600 and 700. Other families, weights, italic runs,
+monospace and non-ASCII runs keep deterministic estimates and fallback shaping
+protection. Pair corrections approximate default shaping; this is not a full
+contextual shaping engine. Receipts identify
+`agentic-mermaid:bundled-inter-ascii@1.0.0`.
+
+This option does not load fonts. Make the matching faces available to the
+browser or rasterizer as described above. The lazy browser entry downloads
+the metrics only when selected. The default remains `fontMetrics: 'estimate'`.
+Do not combine `bundled-inter` with a host `textMeasurement` callback: choose
+one measurement authority. Repeated-render caches deliberately retain their
+existing conservative behavior for a measurement profile; include warm calls
+as well as first use when evaluating its cost.
+
 By default, graphical layout uses deterministic Inter-compatible width
 estimates and fits SVG advances to that geometry. To lay out using your own
 font metrics, bind an explicit profile to a trusted renderer:

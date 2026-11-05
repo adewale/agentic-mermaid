@@ -1,5 +1,23 @@
 # Benchmark measurement rules
 
+The focused font/layout cost campaign lives under `eval/font-layout/`.
+`run.ts --root CHECKOUT --out DIRECTORY --features fonts,elk-order,ports,wrap`
+records the fixed tracker/campaign corpus, per-case quality/raster artifacts,
+latency and separate resource observations. Run without features on the pinned
+base before changing production code. `font-oracle.py CHECKOUT CORPUS OUTPUT
+--bundled` compares advances with whole-run HarfBuzz; omit `--bundled` for base
+estimates. `browser.ts --root CHECKOUT --out FILE --features LIST` records real
+gzip HTTP requests and consumed browser receipts from an immutable built checkout.
+
+`paired.ts --baseline BASE --head HEAD --corpus CORPUS --out DIRECTORY` runs
+alternating controls and individual, combined and leave-one-feature-out
+configurations. It also measures the final shipped code with every feature
+disabled, cached and recomputed SVG calls, separate PNG resource/latency lanes,
+and 21 fresh-process samples of one named startup case. The source/OS/runtime,
+features, cache policy and cohort are recorded before execution. Results are
+append-only and the commands refuse an existing attempt destination. The
+original development workload remains exposed, not an independent holdout.
+
 The five primary questions are docs rendering, original upstream assertion
 compatibility, required-family coverage, entry startup and resource use. Keep
 their denominators, units and scopes visible. No weighted overall score ranks a
