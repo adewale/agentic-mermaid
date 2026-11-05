@@ -1,11 +1,11 @@
 import { expect, test } from 'bun:test'
-import { parseAgentflow } from '../agentflow/parser.ts'
-import { renderAgentflow } from '../agentflow/source.ts'
-import { projectAgentflowGraph } from '../agentflow/projection.ts'
 import { mutateAgentflow, parseAgentflowBody } from '../agent/agentflow-body.ts'
-import { renderMermaidSVG } from '../index.ts'
+import { parseAgentflow } from '../agentflow/parser.ts'
+import { projectAgentflowGraph } from '../agentflow/projection.ts'
+import { renderAgentflow } from '../agentflow/source.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { terminalDocumentOf } from '../ascii/terminal-document.ts'
+import { renderMermaidSVG } from '../index.ts'
 
 const source = `agentflow-beta TB
 connector llm[LLM API]@{ protocol: http }
@@ -32,7 +32,13 @@ writer@{
 
 test('AgentFlow preserves roles, connector and global ownership, arbitrary metadata, and attachment mappings', () => {
   const body = parseAgentflow(source)
-  expect([...body.roles]).toEqual([['llm', 'connector'], ['guide', 'refdoc'], ['brief', 'input'], ['write', 'tool'], ['publish', 'action']])
+  expect([...body.roles]).toEqual([
+    ['llm', 'connector'],
+    ['guide', 'refdoc'],
+    ['brief', 'input'],
+    ['write', 'tool'],
+    ['publish', 'action'],
+  ])
   expect(body.connectors.has('llm')).toBe(true)
   expect(body.globals.has('guide')).toBe(true)
   expect(body.graph.subgraphs[0]?.children[0]?.nodeIds).toEqual(['brief', 'write'])
@@ -105,4 +111,68 @@ test('nested metadata sequences stay native and renaming retains source order', 
   if (!edited.ok) throw new Error(edited.error.message)
   expect([...edited.value.metadata.keys()]).toEqual(['Collect'])
   expect(edited.value.metadata.get('Collect')?.context).toEqual([{ name: 'First', values: [1, 2] }, ['nested', 'list']])
+})
+
+test('global declarations after a flow release every referenced node without reading labels as identities', () => {
+  const body = parseAgentflow(`agentflow-beta
+flow pipeline[Pipeline]
+  A[Alpha] --> B[Beta]
+  C["A --> B"]
+end
+global
+  A --> B
+end`)
+  expect([...body.globals].sort()).toEqual(['A', 'B'])
+  expect(body.graph.subgraphs[0]!.nodeIds).toEqual(['C'])
+  const again = parseAgentflow(renderAgentflow(body))
+  expect([...again.globals].sort()).toEqual(['A', 'B'])
+  expect(again.graph.subgraphs[0]!.nodeIds).toEqual(['C'])
+})
+
+test('AgentFlow empty and comma-terminated metadata preserve YAML scalars and nested sequences', () => {
+  for (const blank of ['{}', '{\n}', '{\n\n}']) {
+    const body = parseAgentflow(`agentflow-beta\nA[Alpha]@${blank}`)
+    expect(body.graph.nodes.get('A')!.label).toBe('Alpha')
+  }
+  const body = parseAgentflow(`agentflow-beta
+A[Alpha]@{
+  tools: ["read",
+    "write"],
+  note: 'first,
+    second',
+  instruction: |
+    Do a thing,
+    then stop
+  protocol: "mcp", # an ordinary YAML comment
+}`)
+  expect(body.metadata.get('A')).toEqual({ tools: ['read', 'write'], note: 'first, second', instruction: 'Do a thing,\nthen stop\n', protocol: 'mcp' })
+  expect(parseAgentflow(renderAgentflow(body)).metadata).toEqual(body.metadata)
+})
+
+test('metadata labels replace retained prepared text, and framed rectangle aliases retain the tool role', () => {
+  const source = 'agentflow-beta\nA[Old caption]@{ label: "New caption", shape: framed-rectangle }'
+  const body = parseAgentflow(source)
+  expect(body.roles.get('A')).toBe('tool')
+  expect(body.graph.nodes.get('A')!.labelContent!.value).toBe('New caption')
+  const svg = renderMermaidSVG(source)
+  expect(svg).toContain('New caption')
+  expect(svg).not.toContain('Old caption')
+})
+
+test('unknown or nonlowercase shape metadata refuses typed interpretation while retaining exact source', () => {
+  for (const shape of ['Rounded', 'missing-shape', 'connector', 123]) {
+    const source = `agentflow-beta\nA[Alpha]@{ shape: ${JSON.stringify(shape)} }`
+    expect(() => parseAgentflow(source)).toThrow('No such shape')
+    expect(parseAgentflowBody(source)).toEqual({ ok: true, value: { kind: 'opaque', family: 'agentflow', source } })
+  }
+  const original = parseAgentflow('agentflow-beta\nA[Alpha]')
+  expect(mutateAgentflow(original, { kind: 'set_metadata', target: 'A', metadata: { shape: 'Rounded' } }).ok).toBe(false)
+  expect(original.metadata.size).toBe(0)
+})
+
+test('known out-of-catalogue shape metadata remains available with the domain default role', () => {
+  const body = parseAgentflow('agentflow-beta\nA[Alpha]@{ shape: icon, icon: "fa:bell" }')
+  expect(body.metadata.get('A')).toEqual({ shape: 'icon', icon: 'fa:bell' })
+  expect(body.roles.get('A')).toBe('task')
+  expect(parseAgentflow(renderAgentflow(body)).metadata).toEqual(body.metadata)
 })

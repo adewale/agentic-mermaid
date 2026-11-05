@@ -1,5 +1,7 @@
 import { coalesceFlowchartLines, flowchartGroupPosition, flowchartStatementSpans, scanFlowchart } from '../flowchart-lexer.ts'
-import { readMetadataBlock } from '../shared/metadata-yaml.ts'
+import { readAgentflowMetadata } from './metadata.ts'
+import { normalizeV11Shape } from '../flowchart-shapes.ts'
+import { prepareDisplayText } from '../shared/display-text.ts'
 import { parseMermaid } from '../parser.ts'
 import { assertMermaidGraphWork } from '../shared/diagram-limits.ts'
 import type { MermaidSubgraph } from '../types.ts'
@@ -7,6 +9,10 @@ import type { AgentflowBody, AgentflowMapping, AgentflowRole } from './types.ts'
 import { containsFlowchartOpaqueSyntax } from '../agent/flowchart-unsupported.ts'
 
 const roles = new Set<AgentflowRole>(['task', 'tool', 'action', 'input', 'refdoc', 'decision', 'connector'])
+// Lowercase names present in the pinned12.2 global shape registry beyond
+// the shared Flowchart vocabulary. AgentFlow retains these metadata values;
+// its renderer still derives only the family domain roles below.
+const additionalShapeNames = new Set(['anchor', 'browser', 'bucket', 'choice', 'composite', 'console', 'directory', 'doublecircle', 'folder', 'icon', 'note', 'person', 'state'])
 
 /** Metadata is data, including unknown nested keys. Prototype-shaped keys
  * are dropped before any model, projection or edit can consume the value. */
@@ -24,7 +30,7 @@ export function agentflowMetadata(value: unknown): Record<string, unknown> {
 
 export function agentflowRole(shape: unknown): AgentflowRole {
   if (typeof shape === 'string' && roles.has(shape as AgentflowRole)) return shape as AgentflowRole
-  return shape === 'subroutine' || shape === 'subprocess' || shape === 'subproc' ? 'tool'
+  return shape === 'subroutine' || shape === 'subprocess' || shape === 'subproc' || shape === 'framed-rectangle' ? 'tool'
     : shape === 'lean-right' || shape === 'lean-r' ? 'input' : shape === 'diamond' ? 'decision'
       : shape === 'lin-doc' || shape === 'lined-document' ? 'refdoc' : shape === 'hexagon' || shape === 'hex' ? 'action' : 'task'
 }
@@ -34,6 +40,7 @@ export function agentflowRole(shape: unknown): AgentflowRole {
 export function parseAgentflow(source: string): AgentflowBody {
   const metadata = new Map<string, Record<string, unknown>>(), connectors = new Set<string>(), globals = new Set<string>(), mappings: AgentflowMapping[] = []
   const grammar: string[] = [], frames: Array<{ global: boolean; id?: string }> = []
+  const globalMentions = new Set<string>()
   const attachmentScopes = new Map<string, string | undefined>()
   const globalScopes = new Set<string>()
   let first = true, synthetic = 0
@@ -57,7 +64,7 @@ export function parseAgentflow(source: string): AgentflowBody {
         const prefix = text.slice(0, block.start).trimEnd()
         const id = prefix.match(/^(?:flow\s+|connector\s+)?([\p{L}\p{N}_.:-]+)/u)?.[1]
         if (!id || /-->|-\.-|--x/.test(prefix)) throw new Error('AgentFlow inline metadata needs one declared node, connector or flow')
-        const parsed = readMetadataBlock(text, text.indexOf('{', block.start), 'flowchart')
+        const parsed = readAgentflowMetadata(text.slice(text.indexOf('{', block.start) + 1, block.end - 1))
         if (!parsed.ok) throw new Error(`AgentFlow metadata for ${id}: ${parsed.message}`)
         metadata.set(id, { ...metadata.get(id), ...agentflowMetadata(Object.fromEntries(parsed.entries)) })
         if (prefix === id) {
@@ -91,6 +98,16 @@ export function parseAgentflow(source: string): AgentflowBody {
       }
       // An attachment does not redeclare its target or move it into a flow.
       if (attachment && /^[\p{L}\p{N}_.:-]+\s*$/u.test(text)) continue
+      if (frames.at(-1)?.global && !/^(?:direction|classDef|class|style|linkStyle|click)\b/.test(text)) {
+        // Read only identifiers exposed by the shared production lexer. Match
+        // them against the parsed graph below; labels and metadata cannot
+        // become references. Capture before Flowchart's first-owner rule.
+        const syntax = scanFlowchart(text),
+          masked = text.split('')
+        for (let i = 0; i < masked.length; i++) if (!syntax.topLevel[i]) masked[i] = ' '
+        for (const link of syntax.links) for (let i = link.start; i < link.end; i++) masked[i] = ' '
+        for (const word of masked.join('').matchAll(/[\p{L}\p{N}_.:-]+/gu)) globalMentions.add(word[0])
+      }
       grammar.push(text)
     }
   }
@@ -108,6 +125,7 @@ export function parseAgentflow(source: string): AgentflowBody {
     const scope = attachmentScopes.get(id)
     if (scope) allGroups.get(scope)?.nodeIds.push(id)
   }
+  for (const id of globalMentions) if (graph.nodes.has(id)) globals.add(id)
   const escaped: MermaidSubgraph[] = []
   const hoist = (groups: MermaidSubgraph[], nested = false): MermaidSubgraph[] => groups.flatMap(group => {
     group.children = hoist(group.children, true)
@@ -122,8 +140,18 @@ export function parseAgentflow(source: string): AgentflowBody {
   const roleMap = new Map<string, AgentflowRole>()
   for (const [id, node] of graph.nodes) {
     const data = metadata.get(id)
+    if (
+      !connectors.has(id) && data?.shape &&
+      (typeof data.shape !== 'string' || data.shape !== data.shape.toLowerCase() || data.shape.includes('_') || ((!roles.has(data.shape as AgentflowRole) || data.shape === 'connector') && !additionalShapeNames.has(data.shape) && !normalizeV11Shape(data.shape)))
+    )
+      throw new Error(`No such shape: ${JSON.stringify(data.shape)}. AgentFlow shapes must be known lowercase names`)
     roleMap.set(id, connectors.has(id) ? 'connector' : agentflowRole(data?.shape ?? node.shape))
-    if (data?.label !== undefined) node.label = String(data.label)
+    if (data?.label !== undefined) {
+      node.label = String(data.label)
+      node.labelContent = { value: node.label, prepared: prepareDisplayText(node.label, data.labelType === 'markdown' ? 'formatted' : 'literal') }
+      if (data.labelType === 'markdown') node.markdownLabel = true
+      else delete node.markdownLabel
+    }
   }
   assertMermaidGraphWork(graph)
   return { kind: 'agentflow', graph, metadata, roles: roleMap, connectors, globals, mappings }

@@ -152,7 +152,21 @@ export function nativeGetters(db: NativeDb, key: string): any {
     if (key === 'getSections') return () => new Map((model?.entries ?? []).map((entry: any) => [entry.label, entry.value]))
     if (key === 'getShowData') return () => model?.showData ?? false
   }
-  if (family === 'swimlane' || family === 'agentflow') return nativeGetters({ ...db, context: { ...db.context, family: 'flowchart' }, model: model?.graph } as NativeDb, key)
+  if (family === 'swimlane' || family === 'agentflow') {
+    const graphGetter = nativeGetters({ ...db, context: { ...db.context, family: 'flowchart' }, model: model?.graph } as NativeDb, key)
+    if (family === 'agentflow') {
+      if (key === 'getVertices') return () => new Map([...graphGetter()].map(([id, vertex]: any) => [id, { ...vertex, metadata: model?.metadata.get(id), isConnector: model?.connectors.has(id) || undefined }]))
+      if (key === 'getEdges') return () => graphGetter().map((edge: any, index: number) => {
+        const authored = model.graph.edges[index], normal = authored.style === 'solid' || authored.style === undefined
+        const edgeSemantic = authored.style === 'dotted' && !authored.hasArrowStart && !authored.hasArrowEnd ? 'reference' : normal && !authored.hasArrowStart && authored.hasArrowEnd ? authored.endMarker === 'cross' ? 'failure' : !authored.endMarker || authored.endMarker === 'arrow' ? 'sequence' : undefined : undefined
+        return { ...edge, id: authored.id, metadata: authored.id ? model.metadata.get(authored.id) : undefined, edgeSemantic }
+      })
+      if (key === 'getSubGraphs') return () => graphGetter().map((group: any) => ({ ...group, type: 'flow', metadata: model?.metadata.get(group.id) }))
+      if (key === 'getTools') return () => [...nativeGetters(db, 'getVertices')().values()].filter((vertex: any) => model?.roles.get(vertex.id) === 'tool')
+      if (key === 'getConnectors') return () => [...nativeGetters(db, 'getVertices')().values()].filter((vertex: any) => model?.connectors.has(vertex.id))
+    }
+    return graphGetter
+  }
   if (family === 'flowchart') {
     if (key === 'getVertices') return () => new Map([...(model?.nodes?.values() ?? [])].map((node: any) => [node.id, { id: node.id, text: node.label, type: ({ rectangle: 'square', rounded: 'round', 'trapezoid-alt': 'inv_trapezoid', asymmetric: 'odd' } as any)[node.shape] ?? node.shape, classes: (model.classAssignments.get(node.id) ?? '').split(/\s+/).filter(Boolean), styles: Object.entries(model.nodeStyles.get(node.id) ?? {}).map(([k, v]) => `${k}:${v}`), props: {} }]))
     if (key === 'getEdges') return () => (model?.edges ?? []).map((edge: any) => ({ start: edge.source, end: edge.target, text: edge.label ?? '', type: edge.hasArrowEnd ? `arrow_${edge.endMarker === 'arrow' ? 'point' : edge.endMarker}` : 'arrow_open', stroke: edge.style === 'dotted' ? 'dotted' : edge.style === 'thick' ? 'thick' : 'normal', length: edge.minLength ?? 1 }))
