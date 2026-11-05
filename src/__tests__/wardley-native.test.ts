@@ -3,6 +3,8 @@ import { describe, expect, test } from 'bun:test'
 import { parseWardleyBody, renderWardley, mutateWardley } from '../agent/wardley-body.ts'
 import { layoutWardley } from '../wardley/layout.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { scanSvgStartTags } from '../svg-structure.ts'
+import type { RenderOptions } from '../types.ts'
 
 const source = `wardley-beta
 title Platform evolution
@@ -114,4 +116,60 @@ test('Wardley dashed dependencies and evolution retain visible dash paint', () =
   const dependency = svg.match(/<polyline\b[^>]*data-id="dependency:0"[^>]*>/)?.[0], evolution = svg.match(/<polyline\b[^>]*data-id="evolve:0"[^>]*>/)?.[0]
   expect(dependency!).toContain('stroke-dasharray=')
   expect(evolution!).toContain('stroke-dasharray=')
+})
+
+test('Wardley paints arrow ink in the declared dependency direction', () => {
+  for (const [flow, start, end] of [['+>', false, true], ['+<', true, false], ['+<>', true, true]] as const) {
+    for (const [a, b] of [[0.2, 0.8], [0.8, 0.2]]) {
+      const svg = renderMermaidSVG(`wardley-beta\ncomponent A [0.8,${a}]\ncomponent B [0.8,${b}]\nA ${flow} -> B`)
+      const tags = scanSvgStartTags(svg).map(tag => ({ name: tag.name, attrs: Object.fromEntries(tag.attributes.map(attribute => [attribute.name, attribute.value])) }))
+      const edge = tags.find(tag => tag.attrs['data-id'] === 'dependency:0')!
+      const route = edge.attrs.points!.replaceAll(',', ' ').trim().split(/\s+/).map(Number)
+      expect(Math.sign(route.at(-2)! - route[0]!)).toBe(Math.sign(b! - a!))
+      for (const [position, present] of [['start', start], ['end', end]] as const) {
+        const reference = edge.attrs[`marker-${position}`]
+        expect(Boolean(reference), `${flow}/${a}/${position}: painted arrow`).toBe(present)
+        if (!present) continue
+        const id = reference!.match(/^url\(#(.+)\)$/)![1]!
+        const index = tags.findIndex(tag => tag.name === 'marker' && tag.attrs.id === id)
+        const marker = tags[index]!.attrs, polygon = tags[index + 1]!
+        expect(polygon.name).toBe('polygon')
+        const values = polygon.attrs.points!.replaceAll(',', ' ').trim().split(/\s+/).map(Number)
+        // SVG auto orientation follows the forward path tangent at either
+        // endpoint. The triangle's tip is its second vertex; its back must
+        // extend into the shaft, independently of relationship metadata.
+        const rotation = position === 'start' && marker.orient === 'auto-start-reverse' ? -1 : 1
+        expect(['auto', 'auto-start-reverse']).toContain(marker.orient!)
+        expect((values[2]! - values[0]!) * rotation * (position === 'start' ? -1 : 1), `${flow}/${a}/${position}: actual tip direction`).toBeGreaterThan(0)
+        expect([Number(marker.refX), Number(marker.refY)]).toEqual([values[2], values[3]])
+      }
+    }
+  }
+})
+
+test('Wardley keeps clustered overflow captions clear of occupied legends and notes', () => {
+  const clustered = (count: number, extras: string) => ['wardley-beta', ...Array.from({ length: count }, (_, i) => `component "Component number ${i} with full caption" [0.5,0.5]`), extras].join('\n')
+  const cases: Array<{ source: string; options: RenderOptions }> = [
+    { source: clustered(23, 'annotation 1, [0.2,0.2] "Legend text occupying fallback captions"'), options: {} },
+    { source: clustered(30, 'annotation 1, [0.2,0.2] "First occupied legend"\nannotation 2, [0.1,0.1] "Second occupied legend"\nnote "An authored note" [0.45,0.25]').replace('" [0.5,0.5]', '" [0.5,0.5] label [-40,-20]'), options: { style: { roles: { node: { fontSize: 26, fontWeight: 700 } } } } },
+  ]
+  for (const { source, options } of cases) {
+    const body = parseWardleyBody(source), original = JSON.stringify(body), chart = layoutWardley(body, options)
+    for (const node of chart.nodes) {
+      expect(node.x).toBeCloseTo(chart.plot.x + node.node.x! / 100 * chart.plot.width)
+      expect(node.y).toBeCloseTo(chart.plot.y + (1 - node.node.y! / 100) * chart.plot.height)
+      if (node.node.labelOffsetX !== undefined) {
+        expect(node.label!.x - node.x).toBe(node.node.labelOffsetX)
+        expect(node.label!.y - node.y).toBe(node.node.labelOffsetY)
+        continue
+      }
+      for (const other of [...chart.labels, ...chart.nodes.filter(other => other !== node).map(other => other.label!)]) {
+        const caption = node.label!
+        expect(Math.abs(caption.x - other.x) < (caption.block.width + other.block.width) / 2 && Math.abs(caption.y - other.y) < (caption.block.height + other.block.height) / 2, `${node.id}/${other.id}: automatic text overlap`).toBe(false)
+      }
+    }
+    expect(JSON.stringify(body)).toBe(original)
+    expect(verifyMermaid(source, { renderOptions: options }).ok).toBe(true)
+    expect(renderMermaidSVG(source, options)).toContain('Component number 22 with full caption')
+  }
 })

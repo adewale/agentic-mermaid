@@ -55,9 +55,10 @@ export function layoutWardley(body: WardleyBody, options: Readonly<RenderOptions
   // explicitly authored offsets remain exact; short leaders retain ownership.
   type Box = { x: number; y: number; width: number; height: number }
   const cells = new Map<string, Box[]>(), cellSize = 64
+  let occupiedBottom = 0
   const box = (item: WardleyPlacedText): Box => ({ x: item.x - item.block.width / 2 - 4, y: item.y - item.block.height / 2 - 4, width: item.block.width + 8, height: item.block.height + 8 })
   const keys = (rect: Box): string[] => { const result: string[] = []; for (let x = Math.floor(rect.x / cellSize); x <= Math.floor((rect.x + rect.width) / cellSize); x++) for (let y = Math.floor(rect.y / cellSize); y <= Math.floor((rect.y + rect.height) / cellSize); y++) result.push(`${x}:${y}`); return result }
-  const add = (rect: Box): void => { for (const key of keys(rect)) { const values = cells.get(key) ?? []; values.push(rect); cells.set(key, values) } }
+  const add = (rect: Box): void => { occupiedBottom = Math.max(occupiedBottom, rect.y + rect.height); for (const key of keys(rect)) { const values = cells.get(key) ?? []; values.push(rect); cells.set(key, values) } }
   const intersects = (rect: Box): boolean => keys(rect).some(key => cells.get(key)?.some(other => rect.x < other.x + other.width && rect.x + rect.width > other.x && rect.y < other.y + other.height && rect.y + rect.height > other.y))
   for (const item of [...labels, ...edges.flatMap(edge => edge.label ? [edge.label] : [])]) add(box(item))
   for (const node of nodes) add({ x: node.x - 10, y: node.y - 10, width: 20, height: 20 })
@@ -73,7 +74,13 @@ export function layoutWardley(body: WardleyBody, options: Readonly<RenderOptions
       const candidates = ring === 0 ? [[0, 0]] : [[0, -ring * step], [0, ring * step], [-ring * 24, -ring * step], [ring * 24, -ring * step]]
       for (const [dx, dy] of candidates) { const candidate = { ...preferred, x: preferred.x + dx!, y: preferred.y + dy! }; if (!intersects(box(candidate))) { placed = candidate; break } }
     }
-    if (!placed) { placed = { ...preferred, x: plot.x + node.block.width / 2, y: overflowY + node.block.height / 2 }; overflowY += node.block.height + 12 }
+    if (!placed) {
+      // Continue below every occupied box, including legends and captions
+      // placed by an earlier successful search. No second search is needed.
+      overflowY = Math.max(overflowY, occupiedBottom + 4)
+      placed = { ...preferred, x: plot.x + node.block.width / 2, y: overflowY + node.block.height / 2 }
+      overflowY += node.block.height + 12
+    }
     node.label = placed; add(box(placed))
     if (Math.hypot(placed.x - preferred.x, placed.y - preferred.y) > 1) {
       const dx = node.x - placed.x, dy = node.y - placed.y, t = Math.min(dx ? placed.block.width / (2 * Math.abs(dx)) : Infinity, dy ? placed.block.height / (2 * Math.abs(dy)) : Infinity)

@@ -10,7 +10,9 @@ export function lowerWardleyDrawing<T>(marks: DrawingFactory<T>, { positioned: c
   const nodeStroke = style.nodeBorderColor ?? 'var(--_node-stroke)'
   const stroke = style.edgeStrokeColor ?? 'var(--_line)', ink = style.nodeTextColor ?? 'var(--_text)', fill = style.nodeFillColor ?? 'var(--_node-fill)'
   const arrow = tipAnchoredArrow('wardley-arrow', { width: 7, height: 7 }, 'end', { fill: stroke }, 'userSpaceOnUse')
-  parts.push(marks.definitions({ id: 'defs', markerResources: [arrow] }, `<defs>${serializeMarkerResources([arrow])}</defs>`))
+  const startArrow = tipAnchoredArrow('wardley-arrow-start', { width: 7, height: 7 }, 'start', { fill: stroke }, 'userSpaceOnUse')
+  const resources = chart.edges.some(edge => edge.flow === 'backward' || edge.flow === 'bidirectional') ? [arrow, startArrow] : [arrow]
+  parts.push(marks.definitions({ id: 'defs', markerResources: resources }, `<defs>${serializeMarkerResources(resources)}</defs>`))
   if (chart.title) parts.push(marks.text(diagramTitleFields(chart.title, style)))
   const text = (item: WardleyPlacedText, owner?: { id: string; role: 'node' | 'edge' }) => marks.text({ id: `label:${item.id}`, role: 'label', ...(owner ? { owner } : {}), text: item.block.text, block: item.block, x: item.x, y: item.y, fontSize: item.block.fontSize, fontWeight: item.block.fontWeight, anchor: 'middle', paint: { fill: item.textRole === 'group' ? style.groupTextColor ?? ink : item.textRole === 'edge' ? style.edgeTextColor ?? ink : ink, stroke: 'var(--bg)', strokeWidth: '3', strokeLinejoin: 'round', paintOrder: 'stroke' } })
   const p = chart.plot
@@ -24,7 +26,7 @@ export function lowerWardleyDrawing<T>(marks: DrawingFactory<T>, { positioned: c
   for (const edge of chart.edges) {
     parts.push(marks.connector({ id: edge.id, role: 'edge', geometry: { kind: 'polyline', points: edge.points }, lineStyle: edge.dashed ? 'dashed' : 'solid', paint: { stroke, strokeWidth: String(style.lineWidth) },
       endpoints: { from: edge.from, to: edge.to }, relationship: { kind: edge.trend ? 'evolution' : 'dependency', direction: edge.flow === 'backward' ? 'reverse' : edge.flow ?? 'undirected' },
-      ...(edge.flow ? { markers: { ...(edge.flow === 'backward' || edge.flow === 'bidirectional' ? { start: arrow } : {}), ...(edge.flow === 'forward' || edge.flow === 'bidirectional' ? { end: arrow } : {}) } } : {}) }))
+      ...(edge.flow ? { markers: { ...(edge.flow === 'backward' || edge.flow === 'bidirectional' ? { start: startArrow } : {}), ...(edge.flow === 'forward' || edge.flow === 'bidirectional' ? { end: arrow } : {}) } } : {}) }))
     if (edge.label) parts.push(text(edge.label, { id: edge.id, role: 'edge' }))
   }
   for (const item of chart.nodes) {
