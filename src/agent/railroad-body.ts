@@ -71,7 +71,6 @@ export const RAILROAD_SOURCE_HOOKS = {
       // Repeated names remain distinct and multiline productions retain their
       // full source owner, rather than guessing at tokens in their spelling.
       record('groups', id, start, end); record('labels', `group:${id}`, start, end)
-      record('groups', `rails:${id}`, start, end)
       walkRailroadOwners(value.rule.definition, `${id}/expression`, (node, owner) => {
         if (node.type === 'terminal' || node.type === 'nonterminal' || node.type === 'special' || node.type === 'any') {
           record('nodes', owner, start, end); record('labels', `node:${owner}`, start, end)
