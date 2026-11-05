@@ -1,6 +1,8 @@
 // Adapted from Pele (MIT, copyright 2026 kepano), revision 3a2f075.
 // See LICENSES/pele-MIT.txt.
 
+import { observeParserStatement, parserObservationActive } from '../../shared/parser-observation.ts'
+
 import { type DraftBoundary, type DraftElement, type DraftEndpoint, type DraftJson, type DraftLabel, type DraftProperty, type Drafts, emptyDrafts, resolveUsecase } from './db.ts'
 import { parseOrderedJson } from './json.ts'
 import { lineColumn, locationText, tokenize } from './lexer.ts'
@@ -643,19 +645,24 @@ function line(top: boolean): GraphStatement {
   const out = top ? topStatement() : type === T.ACTOR ? actors(false) : entity(false)
   out.span = [starts[k]!, lastEnd]
   if (out.edges) for (const edge of out.edges) edge.span = out.span
+  if (parserObservationActive('usecase')) {
+    const [line, column] = lineColumn(src, out.span[0]!)
+    observeParserStatement('usecase', out.kind, src.slice(out.span[0]!, out.span[1]!), { line, column, offset: out.span[0], endOffset: out.span[1], unit: 'normalized' })
+  }
   return out
 }
 
 export function parseUsecase(source: string, title?: string): UsecaseModel {
-  src = source
-  ;({ types, starts, ends } = tokenize(source))
-  p = 0
-  drafts = emptyDrafts()
-  parent = undefined
-  pendingJson = []
-  edgeCount = 0
-  noteCount = 0
+  const previous = { src, types, starts, ends, p, lastEnd, drafts, parent, pendingJson, edgeCount, noteCount }
   try {
+    src = source
+    ;({ types, starts, ends } = tokenize(source))
+    p = 0
+    drafts = emptyDrafts()
+    parent = undefined
+    pendingJson = []
+    edgeCount = 0
+    noteCount = 0
     const header = expect(T.USECASE)
     lineEnd()
     const statements: GraphStatement[] = []
@@ -669,7 +676,6 @@ export function parseUsecase(source: string, title?: string): UsecaseModel {
     }
     return resolveUsecase(source, drafts, span(header), statements, title)
   } finally {
-    src = ''
-    types = starts = ends = pendingJson = []
+    ;({ src, types, starts, ends, p, lastEnd, drafts, parent, pendingJson, edgeCount, noteCount } = previous)
   }
 }

@@ -1,3 +1,4 @@
+import { inkOnNodeFill } from '../color-resolver.ts'
 import { escapeAttr } from '../multiline-utils.ts'
 import { type DrawingDocument, type DrawingFactory, sceneLowering } from '../scene/drawing.ts'
 import { hierarchyChildren } from '../shared/hierarchy-model.ts'
@@ -27,11 +28,12 @@ export function lowerTreeviewDrawing<T>(marks: DrawingFactory<T>, { positioned: 
     groups = new Map<string, T>()
   for (const row of chart.rows) {
     const owner = { id: row.node.id, role: 'node' as const },
-      children: T[] = []
+      children: T[] = [],
+      ink = inkOnNodeFill(undefined, colors, row.node.className === 'highlight' && style.nodeTextColor === undefined ? (style.nodeFillColor ?? 'var(--_node-fill)') : undefined)
     if (row.node.className === 'highlight')
       children.push(marks.shape({ id: `highlight:${row.node.id}`, identity: false, role: 'node', owner, geometry: { kind: 'rect', x: row.x - 3, y: row.y, width: row.width + 6, height: row.height, rx: style.cornerRadius ?? 3 }, paint: { fill: style.nodeFillColor ?? 'var(--_node-fill)', stroke: 'none' } }))
-    if (row.icon) children.push(marks.text({ id: `icon:${row.node.id}`, role: 'label', owner, text: row.icon.text, block: row.icon, x: row.x, y: row.y + row.height / 2, fontSize: row.icon.fontSize, fontWeight: row.icon.fontWeight, anchor: 'start', paint: { fill: style.nodeTextColor ?? 'var(--_text)' } }))
-    children.push(marks.text({ id: `label:${row.node.id}`, role: 'label', owner, text: row.label.text, block: row.label, x: row.labelX, y: row.y + row.height / 2, fontSize: row.label.fontSize, fontWeight: row.label.fontWeight, anchor: 'start', paint: { fill: style.nodeTextColor ?? 'var(--_text)' } }))
+    if (row.icon) children.push(marks.text({ id: `icon:${row.node.id}`, role: 'icon', owner, text: row.icon.text, block: row.icon, x: row.x, y: row.y + row.height / 2, fontSize: row.icon.fontSize, fontWeight: row.icon.fontWeight, anchor: 'start', paint: { fill: ink(style.nodeTextColor ?? 'var(--_text)') } }))
+    children.push(marks.text({ id: `label:${row.node.id}`, role: 'label', owner, text: row.label.text, block: row.label, x: row.labelX, y: row.y + row.height / 2, fontSize: row.label.fontSize, fontWeight: row.label.fontWeight, anchor: 'start', paint: { fill: ink(style.nodeTextColor ?? 'var(--_text)') } }))
     if (row.description)
       children.push(
         marks.text({
@@ -45,7 +47,7 @@ export function lowerTreeviewDrawing<T>(marks: DrawingFactory<T>, { positioned: 
           fontSize: row.description.fontSize,
           fontWeight: row.description.fontWeight,
           anchor: 'start',
-          paint: { fill: style.nodeTextColor ?? 'var(--_text-muted)' },
+          paint: { fill: ink(style.nodeTextColor ?? 'var(--_text-muted)') },
         }),
       )
     contents.set(row.node.id, children)

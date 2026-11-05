@@ -1,6 +1,8 @@
 // Adapted from Pele (MIT, copyright 2026 kepano), revision 3a2f075.
 // See LICENSES/pele-MIT.txt.
 
+import { observeParserMutation, parserObservationActive } from '../../shared/parser-observation.ts'
+
 import { lineColumn, locationText } from './lexer.ts'
 import { PeleError } from './support.ts'
 import { type Actor, type ActorType, type Animation, type BoundaryType, type Direction, emptyModel, type GraphStatement, type LabelType, type MetadataOccurrence, type Relationship, type RelationshipType, type Span, type SymbolKind, type UseCase, type UseCaseShape, type UsecaseModel } from './types.ts'
@@ -280,6 +282,7 @@ export function resolveUsecase(src: string, drafts: Drafts, headerSpan: Span, st
     }
     if (state.stereotype) element.stereotype = state.stereotype
     if (state.parent?.id) element.parentId = state.parent.id
+    if (parserObservationActive('usecase')) observeParserMutation('usecase', `publish-${state.kind}`, element)
   }
 
   const declareElement = (draft: DraftElement): void => {
@@ -442,6 +445,7 @@ export function resolveUsecase(src: string, drafts: Drafts, headerSpan: Span, st
       relationship.labelType = draft.label.type
     }
     model.relationships.push(relationship)
+    if (parserObservationActive('usecase')) observeParserMutation('usecase', 'add-relationship', relationship)
     edges.set(id, relationship)
   }
 

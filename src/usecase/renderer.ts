@@ -1,3 +1,4 @@
+import { inkOnNodeFill } from '../color-resolver.ts'
 import { escapeAttr } from '../multiline-utils.ts'
 import { type DrawingDocument, type DrawingFactory, sceneLowering } from '../scene/drawing.ts'
 import type { Geometry, MarkerDescriptor } from '../scene/ir.ts'
@@ -35,7 +36,7 @@ export function lowerUsecaseDrawing<T>(marks: DrawingFactory<T>, { positioned: c
     const { x, y, width, height } = placed,
       stroke = placed.inlineStyle?.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)',
       fill = placed.inlineStyle?.fill ?? style.nodeFillColor ?? 'var(--_node-fill)',
-      color = placed.inlineStyle?.color ?? ink
+      color = node?.kind === 'actor' ? (placed.inlineStyle?.color ?? ink) : inkOnNodeFill(placed.inlineStyle, colors, style.nodeTextColor === undefined ? fill : undefined)(ink)
     let geometry: Geometry
     if (node?.kind === 'actor') {
       const cx = x + width / 2,

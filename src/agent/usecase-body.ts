@@ -7,6 +7,7 @@ import { parseUsecaseDiagram } from '../usecase/parser.ts'
 import { serializeUsecase } from '../usecase/serializer.ts'
 import type { UsecaseBody, UsecaseMutationOp, UsecaseNode } from '../usecase/types.ts'
 import { accessibilityDescriptionText, accessibilityTitleText } from './accessibility-envelope.ts'
+import { unknownOpMessage } from './mutation-ops.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import type { FamilyOperations } from './families.ts'
 import type { LayoutWarning, MutationError, Result, SourceMap, VerifyOptions } from './types.ts'
@@ -95,7 +96,7 @@ export function mutateUsecase(body: UsecaseBody, op: UsecaseMutationOp): Result<
         next.accessibilityDescription = op.description === null ? undefined : accessibilityDescriptionText(op.description)
         break
       default:
-        throw new Error('Unknown UseCase operation')
+        throw new Error(unknownOpMessage('usecase', op))
     }
     for (const boundary of next.boundaries) boundary.members = next.nodes.filter(node => node.parentId === boundary.id).map(node => node.id)
     const reparsed = parseUsecaseDiagram(serializeUsecase(next, false))

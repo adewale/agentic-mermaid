@@ -2,6 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { buildMermaid, mutate, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, renderMermaidSVGWithReceipt, serializeMermaid, verifyMermaid } from '../agent/core.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { type ParserObservation, withParserObservation } from '../shared/parser-observation.ts'
 import { layoutUsecaseDiagram } from '../usecase/layout.ts'
 import { parseUsecaseDiagram } from '../usecase/parser.ts'
 import { serializeUsecase } from '../usecase/serializer.ts'
@@ -169,4 +170,30 @@ test('UseCase title edits survive the benchmark parse/edit/export/reparse strict
     expect(reloaded.value.body.title).toBeUndefined()
     expect(renderMermaidSVGWithReceipt(without, { security: 'strict' }).svg).not.toContain('Edited family title')
   }
+})
+
+test('UseCase observation records consumed statements and actual publication writes without changing reentrant parsing', () => {
+  const source = 'usecase-beta\nactor A\nA --> Browse\nBrowse@{ business: true }',
+    events: ParserObservation[] = []
+  let nested = false
+  const body = withParserObservation(
+    'usecase',
+    event => {
+      events.push(event)
+      if (!nested && event.unit === 'statement') {
+        nested = true
+        expect(parseUsecaseDiagram('usecase-beta\nactor CallbackOnly').nodes[0]!.id).toBe('CallbackOnly')
+      }
+    },
+    () => parseUsecaseDiagram(source),
+  )
+  expect(nested).toBe(true)
+  expect(body).toEqual(parseUsecaseDiagram(source))
+  for (const event of events.filter(event => event.unit === 'statement')) {
+    if (event.text === undefined || event.source?.offset === undefined || event.source.endOffset === undefined) throw Error('UseCase statement observation lacks its consumed source span')
+    expect(source.slice(event.source.offset, event.source.endOffset)).toBe(event.text)
+  }
+  const publications = events.filter(event => event.kind === 'publish-usecase').map(event => event.value)
+  expect(publications).toContainEqual(expect.objectContaining({ id: 'Browse', business: false }))
+  expect(publications).toContainEqual(expect.objectContaining({ id: 'Browse', business: true }))
 })
