@@ -1,3 +1,5 @@
+import type { MutationOpForFamily } from './family-mutation-types.ts'
+import type { AgentflowValidDiagram, AgentflowMutationOp, CynefinValidDiagram, CynefinMutationOp, RailroadValidDiagram, RailroadMutationOp, SwimlaneValidDiagram, SwimlaneMutationOp, TreeviewValidDiagram, TreeviewMutationOp, UsecaseValidDiagram, UsecaseMutationOp, VennValidDiagram, VennMutationOp, WardleyValidDiagram, WardleyMutationOp } from './types.ts'
 import type { EventModelingValidDiagram, EventModelingMutationOp } from './types.ts'
 import type { PacketMutationOp, PacketValidDiagram, KanbanMutationOp, KanbanValidDiagram, RequirementMutationOp, RequirementValidDiagram, TreemapMutationOp, TreemapValidDiagram, IshikawaMutationOp, IshikawaValidDiagram, BlockMutationOp, BlockValidDiagram } from './types.ts'
 import { emptyC4Body } from '../c4/parser.ts'
@@ -191,6 +193,14 @@ export function createMermaid(kind: 'zenuml', opts?: CreateMermaidOptions): ZenU
 export function createMermaid(kind: 'eventmodeling', opts?: CreateMermaidOptions): EventModelingValidDiagram
 export function createMermaid(kind: 'ishikawa', opts?: CreateMermaidOptions): IshikawaValidDiagram
 export function createMermaid(kind: 'block', opts?: CreateMermaidOptions): BlockValidDiagram
+export function createMermaid(kind: 'agentflow', opts?: CreateMermaidOptions): AgentflowValidDiagram
+export function createMermaid(kind: 'cynefin', opts?: CreateMermaidOptions): CynefinValidDiagram
+export function createMermaid(kind: 'railroad', opts?: CreateMermaidOptions): RailroadValidDiagram
+export function createMermaid(kind: 'swimlane', opts?: CreateMermaidOptions): SwimlaneValidDiagram
+export function createMermaid(kind: 'treeview', opts?: CreateMermaidOptions): TreeviewValidDiagram
+export function createMermaid(kind: 'usecase', opts?: CreateMermaidOptions): UsecaseValidDiagram
+export function createMermaid(kind: 'venn', opts?: CreateMermaidOptions): VennValidDiagram
+export function createMermaid(kind: 'wardley', opts?: CreateMermaidOptions): WardleyValidDiagram
 export function createMermaid(kind: DiagramKind, opts?: CreateMermaidOptions): MutableValidDiagram
 export function createMermaid(kind: DiagramKind, opts: CreateMermaidOptions = {}): MutableValidDiagram {
   logToolInvocation('build') // also covers buildMermaid/buildChecked, which route through here
@@ -233,7 +243,15 @@ export function buildMermaid(kind: 'zenuml', ops: ZenUMLMutationOp[], opts?: Cre
 export function buildMermaid(kind: 'eventmodeling', ops: EventModelingMutationOp[], opts?: CreateMermaidOptions): Result<EventModelingValidDiagram, BuildError>
 export function buildMermaid(kind: 'ishikawa', ops: IshikawaMutationOp[], opts?: CreateMermaidOptions): Result<IshikawaValidDiagram, BuildError>
 export function buildMermaid(kind: 'block', ops: BlockMutationOp[], opts?: CreateMermaidOptions): Result<BlockValidDiagram, BuildError>
-export function buildMermaid(kind: DiagramKind, ops: AnyMutationOp[], opts?: CreateMermaidOptions): Result<MutableValidDiagram, BuildError>
+export function buildMermaid(kind: 'agentflow', ops: AgentflowMutationOp[], opts?: CreateMermaidOptions): Result<AgentflowValidDiagram, BuildError>
+export function buildMermaid(kind: 'cynefin', ops: CynefinMutationOp[], opts?: CreateMermaidOptions): Result<CynefinValidDiagram, BuildError>
+export function buildMermaid(kind: 'railroad', ops: RailroadMutationOp[], opts?: CreateMermaidOptions): Result<RailroadValidDiagram, BuildError>
+export function buildMermaid(kind: 'swimlane', ops: SwimlaneMutationOp[], opts?: CreateMermaidOptions): Result<SwimlaneValidDiagram, BuildError>
+export function buildMermaid(kind: 'treeview', ops: TreeviewMutationOp[], opts?: CreateMermaidOptions): Result<TreeviewValidDiagram, BuildError>
+export function buildMermaid(kind: 'usecase', ops: UsecaseMutationOp[], opts?: CreateMermaidOptions): Result<UsecaseValidDiagram, BuildError>
+export function buildMermaid(kind: 'venn', ops: VennMutationOp[], opts?: CreateMermaidOptions): Result<VennValidDiagram, BuildError>
+export function buildMermaid(kind: 'wardley', ops: WardleyMutationOp[], opts?: CreateMermaidOptions): Result<WardleyValidDiagram, BuildError>
+export function buildMermaid<K extends DiagramKind>(kind: K, ops: MutationOpForFamily<NoInfer<K>>[], opts?: CreateMermaidOptions): Result<MutableValidDiagram, BuildError>
 export function buildMermaid(kind: DiagramKind, ops: AnyMutationOp[], opts: CreateMermaidOptions = {}): Result<MutableValidDiagram, BuildError> {
   const d = createMermaid(kind, opts)
   return applyMutationBatch(d, ops) as Result<MutableValidDiagram, BuildError>

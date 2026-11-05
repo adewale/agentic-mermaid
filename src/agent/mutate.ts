@@ -1,3 +1,5 @@
+import type { MutationOpForDiagram } from './family-mutation-types.ts'
+import type { AgentflowValidDiagram, AgentflowMutationOp, CynefinValidDiagram, CynefinMutationOp, RailroadValidDiagram, RailroadMutationOp, SwimlaneValidDiagram, SwimlaneMutationOp, TreeviewValidDiagram, TreeviewMutationOp, UsecaseValidDiagram, UsecaseMutationOp, VennValidDiagram, VennMutationOp, WardleyValidDiagram, WardleyMutationOp } from './types.ts'
 import { withBodyTitleMeta } from './body-title-meta.ts'
 import { eventModelingMeta } from '../eventmodeling/body.ts'
 import type { EventModelingValidDiagram, EventModelingMutationOp } from './types.ts'
@@ -75,11 +77,18 @@ export function mutate(d: TreemapValidDiagram, op: TreemapMutationOp): Result<Tr
 export function mutate(d: EventModelingValidDiagram, op: EventModelingMutationOp): Result<EventModelingValidDiagram, MutationError>
 export function mutate(d: IshikawaValidDiagram, op: IshikawaMutationOp): Result<IshikawaValidDiagram, MutationError>
 export function mutate(d: BlockValidDiagram, op: BlockMutationOp): Result<BlockValidDiagram, MutationError>
+export function mutate(d: AgentflowValidDiagram, op: AgentflowMutationOp): Result<AgentflowValidDiagram, MutationError>
+export function mutate(d: CynefinValidDiagram, op: CynefinMutationOp): Result<CynefinValidDiagram, MutationError>
+export function mutate(d: RailroadValidDiagram, op: RailroadMutationOp): Result<RailroadValidDiagram, MutationError>
+export function mutate(d: SwimlaneValidDiagram, op: SwimlaneMutationOp): Result<SwimlaneValidDiagram, MutationError>
+export function mutate(d: TreeviewValidDiagram, op: TreeviewMutationOp): Result<TreeviewValidDiagram, MutationError>
+export function mutate(d: UsecaseValidDiagram, op: UsecaseMutationOp): Result<UsecaseValidDiagram, MutationError>
+export function mutate(d: VennValidDiagram, op: VennMutationOp): Result<VennValidDiagram, MutationError>
+export function mutate(d: WardleyValidDiagram, op: WardleyMutationOp): Result<WardleyValidDiagram, MutationError>
 // General form for callers holding the union (e.g. the CLI): dispatch is by
 // registry at runtime either way, so kind-agnostic call sites don't need a
 // per-family narrowing cascade.
-export function mutate(d: MutableValidDiagram, op: AnyMutationOp): Result<MutableValidDiagram, MutationError>
-export function mutate(d: ParsedDiagram, op: AnyMutationOp): Result<ParsedDiagram, MutationError>
+export function mutate<D extends ParsedDiagram>(d: D, op: MutationOpForDiagram<NoInfer<D>>): Result<D, MutationError>
 export function mutate(d: ParsedDiagram, op: AnyMutationOp): Result<ParsedDiagram, MutationError> {
   // Log the OUTCOME (not just the call): an `{ok:false}` trace line records a
   // failed op attempt — the observable signal the agent-usage eval reads to
@@ -233,8 +242,7 @@ export function applyMutationBatch(d: ParsedDiagram, ops: readonly unknown[]): R
  * runs second on a shape-proven op. Result shape is identical to `mutate`, so
  * this is a drop-in wherever the raw mutator was called with untyped ops.
  */
-export function mutateChecked(d: MutableValidDiagram, op: unknown): Result<MutableValidDiagram, MutationError>
-export function mutateChecked(d: ParsedDiagram, op: unknown): Result<ParsedDiagram, MutationError>
+export function mutateChecked<D extends ParsedDiagram>(d: D, op: unknown): Result<D, MutationError>
 export function mutateChecked(d: ParsedDiagram, op: unknown): Result<ParsedDiagram, MutationError> {
   return checkedMutation(d, op, false)
 }

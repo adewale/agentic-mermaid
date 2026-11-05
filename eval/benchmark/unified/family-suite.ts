@@ -3,7 +3,7 @@ import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { BUILTIN_FAMILY_METADATA } from '../../../src/agent/families.ts'
-import { type AnyMutationOp, type ParsedDiagram, WARNING_SEVERITY } from '../../../src/agent/types.ts'
+import { type AnyMutationOp, type DiagramKind, type MutableValidDiagram, type MutationError, type Result, type ParsedDiagram, WARNING_SEVERITY } from '../../../src/agent/types.ts'
 import type { Block, BlockBody } from '../../../src/block/types.ts'
 import { displayText } from '../../../src/multiline-utils.ts'
 import { qualifyOutput } from 'trident/unified/qualification.ts'
@@ -453,7 +453,8 @@ export async function runFamilySuite(options: UnifiedRunOptions): Promise<Unifie
       for (const method of ['buildMermaid', 'buildChecked'] as const)
         record(workload, `direct-api:${method}`, 'ir', () => {
           if (!operations || typeof api[method] !== 'function') return { status: 'blocked', detail: 'Target has no admitted authored build witness or this public builder' }
-          const result = api[method](workload.family as any, operations)
+          const dynamicBuilder = api[method] as (family: DiagramKind, ops: AnyMutationOp[]) => Result<MutableValidDiagram, MutationError>
+          const result = dynamicBuilder(workload.family as DiagramKind, operations)
           if (!result.ok) throw Error(JSON.stringify(result.error))
           const findings = result.value.kind === workload.family && result.value.body.kind === workload.family && typedBodyContains(result.value.body, 'UnifiedBenchmarkWitness') ? [] : ['Builder lost the independently authored value in the typed model']
           const source = api.serializeMermaid(result.value),
