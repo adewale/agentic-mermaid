@@ -351,6 +351,41 @@ function hasOwnedRoute(doc: TerminalDocument, edge: TerminalRegion): boolean {
   return seen.has(`${end!.x},${end!.y}`)
 }
 
+test.each(['TD', 'BT', 'LR', 'RL'].flatMap(direction => [false, true].map(useAscii => [direction, useAscii] as const)))('Swimlane self-loops retain distinct certified routes and captions (%s, ASCII=%s)', (direction, useAscii) => {
+  for (const labels of [['retry'], ['retry', 'revise'], ['retry', 'revise', 'recheck']]) {
+    for (const handoffs of [0, 1, 2]) for (const loopsFirst of handoffs ? [false, true] : [true]) {
+      const loops = labels.map(label => `A -->|${label}| A`).join('\n')
+      const transfers = handoffs ? `A -->|approve| B${handoffs === 2 ? '\nB -->|return| A' : ''}` : ''
+      const source = `---
+title: Review cycle
+---
+swimlane-beta ${direction}
+subgraph Team
+subgraph Work
+A[Review]
+end
+end
+${handoffs ? 'subgraph Next\nB[Accept]\nend\n' : ''}${loopsFirst ? `${loops}\n${transfers}` : `${transfers}\n${loops}`}`
+      const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' })
+      expect(result.receipt.layoutCertification, `${direction}/${labels.length}/${handoffs}`).toMatchObject({ status: 'passed', issues: [] })
+      expect(renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' }).text).toBe(result.text)
+      expect(result.text).toContain('Review cycle')
+      const doc = terminalDocumentOf(result)!, regions = doc.regions(), edges = regions.filter(region => region.kind === 'edge')
+      expect(regions.find(region => region.id === 'A')).toMatchObject({ parentId: 'Work', projectedText: 'Review' })
+      expect(regions.find(region => region.id === 'Work')).toMatchObject({ parentId: 'Team' })
+      expect(edges).toHaveLength(labels.length + handoffs)
+      for (const label of [...labels, ...(handoffs ? ['approve'] : []), ...(handoffs === 2 ? ['return'] : [])]) {
+        const edge = edges.find(region => region.projectedText === label)!
+        expect(edge, label).toBeDefined()
+        expect(edge.ports).toHaveLength(2)
+        expect(hasOwnedRoute(doc, edge), label).toBe(true)
+        expect(visibleEndpointMarkers(doc, edge).map(marker => marker.shape)).toEqual(['open-arrow'])
+        expect(result.text.split(label)).toHaveLength(2)
+      }
+    }
+  }
+})
+
 test.each(['TB', 'BT', 'LR', 'RL'])('Class routes avoid complete namespace headers in %s', direction => {
   const { output, doc } = render(`classDiagram
 direction ${direction}

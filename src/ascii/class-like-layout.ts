@@ -116,15 +116,16 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     const count = counts.get(id)![side]
     return allocateFacePort(box, side, index, count)
   }
-  const plans = relations.map(relation => {
+  const plans = relations.map((relation, index) => {
     if (!byId.has(relation.from) || !byId.has(relation.to)) throw new Error(`Terminal route ${relation.id} has no allocated endpoint box`)
     const [from, to] = sides(relation, direction, byId)
-    return { relation, source: port(relation.from, from), target: port(relation.to, to) }
+    return { relation, index, source: port(relation.from, from), target: port(relation.to, to) }
   })
   // The map is a search adapter over cell rectangles; its payload is unused by
   // getPath. No family-specific node store or dense output canvas is copied.
   const blocker = true
-  const occupied = new OccupancyMap(), cardCells = new Set<string>(), routeCells = new Set<string>()
+  // Route axes: 1 horizontal, 2 vertical, 3 a turn or an existing crossing.
+  const occupied = new OccupancyMap(), cardCells = new Set<string>(), routeCells = new Map<string, number>()
   const markerCells = new Set<string>()
   const textBounds: TerminalBounds[] = []
   const occupy = (bounds: TerminalBounds) => {
@@ -181,8 +182,15 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
   }
   for (const key of markerCells) occupied.set(key, blocker)
   const routes: BoxRoute[] = []
+  // R/B self-loop ports form nested pairs. Route their innermost pair first:
+  // an outer shortest path can otherwise enclose and seal a later exit.
+  // Ordinary handoffs follow the loops; returned routes retain authored order.
+  plans.sort((a, b) => {
+    const aLoop = a.relation.from === a.relation.to, bLoop = b.relation.from === b.relation.to
+    return aLoop !== bLoop ? (aLoop ? -1 : 1) : aLoop ? b.index - a.index : a.index - b.index
+  })
   for (const plan of plans) {
-    const { relation, source, target } = plan
+    const { relation, source, target, index: relationIndex } = plan
     const fromLabel = text(relation.fromLines, [source]), toLabel = text(relation.toLines, [target])
     const sourceExit = { x: source.x + delta[source.side].x * BOX_ROUTE_APPROACH_DISTANCE, y: source.y + delta[source.side].y * BOX_ROUTE_APPROACH_DISTANCE }
     const targetExit = { x: target.x + delta[target.side].x * BOX_ROUTE_APPROACH_DISTANCE, y: target.y + delta[target.side].y * BOX_ROUTE_APPROACH_DISTANCE }
@@ -208,17 +216,30 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
       const removedRoutes: string[] = []
       // Cross line ink only; endpoint markers and their approaches stay
       // protected even where an earlier route also owns those cells.
-      for (const key of routeCells) if (occupied.has(key) && !cardCells.has(key) && !markerCells.has(key)) { occupied.delete(key); removedRoutes.push(key) }
-      middle = exitsClear ? path() : null
+      for (const key of routeCells.keys()) if (occupied.has(key) && !cardCells.has(key) && !markerCells.has(key)) { occupied.delete(key); removedRoutes.push(key) }
+      // A crossing must enter and leave straight prior ink perpendicularly.
+      // Removing occupancy alone admits shared runs and turns, which are not
+      // crossings and cannot retain two independently connected route owners.
+      const canCross = (from: GridCoord, to: GridCoord): boolean => {
+        const axis = from.x === to.x ? 2 : 1
+        const fromAxis = routeCells.get(gridKey(from)), toAxis = routeCells.get(gridKey(to))
+        return (fromAxis === undefined || fromAxis === (axis === 1 ? 2 : 1))
+          && (toAxis === undefined || toAxis === (axis === 1 ? 2 : 1))
+      }
+      middle = exitsClear ? getPath(occupied, sourceExit, targetExit, preferred[source.side], canCross) : null
       for (const key of removedRoutes) occupied.set(key, blocker)
     }
     for (const [key, previous] of removed) occupied.set(key, previous)
     if (!middle) throw new TerminalBoxRouteUnavailable(`No feasible terminal route for ${relation.id}; move the related cards or reduce their label footprint`)
     const approach = (port: BoxPort) => Array.from({ length: BOX_ROUTE_APPROACH_DISTANCE }, (_, step) => step === 0 ? port : ({ x: port.x + delta[port.side].x * step, y: port.y + delta[port.side].y * step }))
     const points = [...approach(source), ...middle, ...approach(target).reverse()]
-    for (const point of points) { const key = gridKey(point); routeCells.add(key); occupied.set(key, blocker) }
+    for (let index = 0; index < points.length; index++) {
+      const point = points[index]!, previous = points[index - 1], next = points[index + 1], key = gridKey(point)
+      const axis = (previous ? previous.x === point.x ? 2 : 1 : 0) | (next ? next.x === point.x ? 2 : 1 : 0)
+      routeCells.set(key, (routeCells.get(key) ?? 0) | axis); occupied.set(key, blocker)
+    }
     const label = text(relation.lines, [points[Math.floor(points.length / 2)]!, source, target])
-    routes.push(sealRoute({ ...plan, points, ...(label ? { label } : {}), ...(fromLabel ? { fromLabel } : {}), ...(toLabel ? { toLabel } : {}) }))
+    routes[relationIndex] = sealRoute({ relation, source, target, points, ...(label ? { label } : {}), ...(fromLabel ? { fromLabel } : {}), ...(toLabel ? { toLabel } : {}) })
   }
   return routes
 }
