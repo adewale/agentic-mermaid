@@ -225,3 +225,64 @@ test('AgentFlow retains percent-pair label text while exporting the three pinned
     upstream.close()
   }
 })
+
+test('anonymous AgentFlow containers keep empty titles, global escape and collision-safe identities through edits', async () => {
+  const source = 'agentflow-beta\nglobal\n A\nend\nflow\n A --> B --> C\nend\n__agentflow_flow_0[Authored identity]'
+  const upstream = startUpstreamMermaid()
+  try {
+    const control = await upstream.parse(source)
+    if (!control.ok || !control.flowchart) throw Error('Pinned Mermaid must accept anonymous flows')
+    expect(control.flowchart.subgraphs).toHaveLength(1)
+    expect(control.flowchart.subgraphs[0]!.title).toBe('')
+    expect(control.flowchart.subgraphs[0]!.nodes.slice().sort()).toEqual(['B', 'C'])
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok || parsed.value.body.kind !== 'agentflow') throw Error('Expected native anonymous AgentFlow')
+    const body = parsed.value.body, flow = body.graph.subgraphs[0]!
+    expect(flow.label).toBe('')
+    expect(flow.id).not.toBe('__agentflow_flow_0')
+    expect(flow.nodeIds).toEqual(['B', 'C'])
+    expect(body.globals.has('A')).toBe(true)
+    expect(body.mappings.find(mapping => mapping.id === flow.id)).toMatchObject({ type: 'flow', line: 5, col: 1 })
+    const edited = mutateAgentflow(body, { kind: 'set_label', target: 'B', label: 'Reviewed' })
+    if (!edited.ok) throw Error(edited.error.message)
+    expect(edited.value.graph.subgraphs[0]!.id).toBe(flow.id)
+    expect(edited.value.graph.subgraphs[0]!.label).toBe('')
+    const canonical = renderAgentflow(edited.value)
+    expect(parseAgentflow(canonical).graph).toEqual(edited.value.graph)
+    const written = await upstream.parse(canonical)
+    if (!written.ok || !written.flowchart) throw Error('Anonymous-flow export must remain valid Mermaid')
+    expect(written.flowchart.subgraphs[0]).toMatchObject({ id: flow.id, title: '' })
+    expect(written.flowchart.subgraphs[0]!.nodes.slice().sort()).toEqual(['B', 'C'])
+    expect(renderMermaidSVG(parsed.value)).toContain(`data-id="${flow.id}"`)
+  } finally { upstream.close() }
+})
+
+test('inline metadata belongs to each destination declaration without losing links, mappings or editability', async () => {
+  const source = 'agentflow-beta TB\nflow pipeline[Pipeline]\n  x[Start] --> b["Beta"]@{\n    shape: tool\n    instruction: "hand off"\n  } --> c[Last]@{ shape: action }\nend'
+  const upstream = startUpstreamMermaid()
+  try {
+    const control = await upstream.project(source, diagram => ({ vertices: [...diagram.db.getVertices()].map(([id, vertex]: [string, any]) => ({ id, text: vertex.text, metadata: vertex.metadata })), edges: diagram.db.getEdges().map((edge: any) => [edge.start, edge.end]) }))
+    if (!control.ok) throw Error(`Pinned Mermaid must accept destination metadata: ${control.error}`)
+    expect(control.value.vertices.find(node => node.id === 'b')?.metadata).toEqual({ shape: 'subroutine', instruction: 'hand off' })
+    expect(control.value.edges).toEqual([['x', 'b'], ['b', 'c']])
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok || parsed.value.body.kind !== 'agentflow') throw Error('Expected native destination metadata')
+    const body = parsed.value.body
+    expect(body.metadata.get('b')).toEqual({ shape: 'tool', instruction: 'hand off' })
+    expect(body.metadata.get('c')).toEqual({ shape: 'action' })
+    expect([...body.metadata.keys()]).toEqual(['b', 'c'])
+    expect([...body.roles]).toEqual([['x', 'task'], ['b', 'tool'], ['c', 'action']])
+    expect(body.graph.edges.map(edge => [edge.source, edge.target])).toEqual([['x', 'b'], ['b', 'c']])
+    expect(body.graph.subgraphs[0]!.nodeIds).toEqual(['x', 'b', 'c'])
+    expect(body.mappings.find(mapping => mapping.id === 'b' && mapping.type === 'vertex')).toMatchObject({ line: 3, col: 16, endLine: 6, endCol: 4 })
+    const edited = mutateAgentflow(body, { kind: 'rename_node', from: 'b', to: 'handoff' })
+    if (!edited.ok) throw Error(edited.error.message)
+    expect(edited.value.metadata.get('handoff')?.instruction).toBe('hand off')
+    expect(edited.value.graph.edges.map(edge => [edge.source, edge.target])).toEqual([['x', 'handoff'], ['handoff', 'c']])
+    const canonical = renderAgentflow(edited.value)
+    expect(parseAgentflow(canonical).metadata).toEqual(edited.value.metadata)
+    expect(await upstream.publicAccepts(canonical)).toBe(true)
+    expect(renderMermaidSVG(parsed.value)).toContain('agentflow-tool')
+    expect(renderMermaidASCII(parsed.value)).toContain('Beta')
+  } finally { upstream.close() }
+})
