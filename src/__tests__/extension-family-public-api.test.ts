@@ -102,33 +102,33 @@ describe('registered family public layout and verify APIs', () => {
     expect(() =>
       registerFamily({
         ...alias,
-        aliases: ['swimlane-beta'],
-        detect: line => line === 'upstreamaliasdiagram' || line === 'swimlane-beta',
+        aliases: ['flowchart-elk'],
+        detect: line => line === 'upstreamaliasdiagram' || line === 'flowchart-elk',
       }),
-    ).toThrow(/alias "swimlane-beta" is an upstream public header/)
+    ).toThrow(/alias "flowchart-elk" is an upstream public header/)
 
     const hiddenStrict = extensionDescriptor('hidden-strict', 'hiddenStrictDiagram')
     const unregisterStrict = registerFamily({
       ...hiddenStrict,
-      detect: line => line === 'hiddenstrictdiagram' || line === 'swimlane-beta',
+      detect: line => line === 'hiddenstrictdiagram' || line === 'flowchart-elk',
     })
-    expect(detectRegisteredFamilyFromFirstLine('swimlane-beta')).toBeNull()
+    expect(detectRegisteredFamilyFromFirstLine('flowchart-elk')).toBeNull()
     unregisterStrict()
 
     const hiddenLoose = extensionDescriptor('hidden-loose', 'hiddenLooseDiagram')
     const unregisterLoose = registerFamily({
       ...hiddenLoose,
-      detectLoose: line => line === 'hiddenloosediagram' || line === 'swimlane-beta',
+      detectLoose: line => line === 'hiddenloosediagram' || line === 'flowchart-elk',
     })
-    expect(detectRegisteredFamilyFromFirstLine('swimlane-beta', 'loose')).toBeNull()
+    expect(detectRegisteredFamilyFromFirstLine('flowchart-elk', 'loose')).toBeNull()
     unregisterLoose()
 
-    const multiFamily = extensionDescriptor('multi-upstream', 'swimlane-beta')
+    const multiFamily = extensionDescriptor('multi-upstream', 'flowchart-elk')
     expect(() =>
       registerFamily({
         ...multiFamily,
-        headers: ['swimlane-beta', 'eventmodeling'],
-        detect: line => line === 'swimlane-beta' || line === 'eventmodeling',
+        headers: ['flowchart-elk', 'eventmodeling'],
+        detect: line => line === 'flowchart-elk' || line === 'eventmodeling',
       }),
     ).toThrow(/header "eventmodeling" is already owned/)
   })
