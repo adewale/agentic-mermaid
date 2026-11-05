@@ -25,7 +25,7 @@ export function lowerVennDrawing<T>(marks: DrawingFactory<T>, { positioned: char
         role: 'node',
         owner: { id: circle.id, role: 'node' },
         geometry: { kind: 'circle', cx: circle.x, cy: circle.y, r: circle.r },
-        paint: { fill: paint.fill ?? style.nodeFillColor ?? 'var(--_accent)', fillOpacity: paint['fill-opacity'] ?? '0.16', stroke: paint.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: paint['stroke-width'] ?? String(style.nodeLineWidth) },
+        paint: { fill: paint.fill ?? style.nodeFillColor ?? 'var(--_arrow)', fillOpacity: paint['fill-opacity'] ?? '0.16', stroke: paint.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: paint['stroke-width'] ?? String(style.nodeLineWidth) },
       }),
     )
   }

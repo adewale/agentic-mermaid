@@ -9,6 +9,19 @@ import raynerGroups from './testdata/rayner-528/architecture-groups.json'
 import { createScenePartCapture } from '../scene/part-capture.ts'
 
 describe('renderResolvedScene', () => {
+  test('Venn resolves the requested accent beside authored fill and retains lossless JSON paint', () => {
+    const source = 'venn-beta\nset A["Authored fill"]:20\nset B["Requested accent"]:12\nunion A,B["Shared"]:3\nstyle A fill:#e2e8f0'
+    for (const accent of ['#2b6cb0', '#b83280']) {
+      const options = { accent, bg: '#ffffff', fg: '#102030', seed: 7 }
+      const result = renderResolvedScene(source, options)
+      expect(result.svg).toBe(renderMermaidSVG(source, options))
+      const pathPaint = (id: string) => result.parts.find(part => part.id === id)?.primitives.find(primitive => primitive.kind === 'path')?.paint
+      expect(pathPaint('A')).toMatchObject({ fill: '#e2e8f0', fillOpacity: 0.16 })
+      expect(pathPaint('B')).toMatchObject({ fill: accent, fillOpacity: 0.16 })
+      expect(result).toEqual(JSON.parse(JSON.stringify(result)))
+    }
+  })
+
   test.each([...raynerTitles, ...raynerGroups])('keeps original Rayner $id as a resolved-scene acceptance case', ({ source, style }) => {
     const result = renderResolvedScene(source, { style })
     expect(result.svg).toBe(renderMermaidSVG(source, { style }))
@@ -198,6 +211,21 @@ describe('resolved SVG values', () => {
     expect(primitives[2]).toMatchObject({ marker: true, matrix: [2, 0, 0, 2, 22, 16] })
     expect(primitives[3]).toMatchObject({ kind: 'text', text: 'One', x: 5, y: 17, paint: { fill: '#0000ff' } })
     expect(primitives[4]).toMatchObject({ kind: 'text', text: 'Two', x: 8, y: 27, paint: { fill: '#ff0000' } })
+  })
+
+  test('keeps diagonal marker rotation aligned with float-distance endpoint samples', () => {
+    // Chromium SVGGeometryElement returns endpoint (572,306.8671569824219)
+    // and the point 0.1 units before it (571.90625,306.832275390625).
+    const primitives = resolve(`<svg><defs><marker id="tip" orient="auto"
+      markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" viewBox="0 0 8 8" refX="0" refY="0">
+      <path d="M0 0L8 4L0 8Z" />
+    </marker></defs><polyline points="274,195.932846715 572,306.867153285" marker-end="url(#tip)" /></svg>`)
+    const marker = primitives[1]!
+    expect(marker).toMatchObject({ marker: true })
+    expect(marker.matrix[0]).toBeCloseTo(0.9372288123265863, 12)
+    expect(marker.matrix[1]).toBeCloseTo(0.3487150030395833, 12)
+    expect(marker.matrix[2]).toBeCloseTo(-0.3487150030395833, 12)
+    expect(marker.matrix[3]).toBeCloseTo(0.9372288123265863, 12)
   })
 
   test('matches Chromium marker orientation for nearly vertical fractional routes', () => {
