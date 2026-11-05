@@ -163,3 +163,15 @@ scratch removed. ERAM23requests/gzip328288/Br277350B vsELK21/698422/548748, both
 085acd43d, sparse256-isolate-node24-ffbff7a20 and recovery-payload/sparse256-isolate-
 ffbff7a20. Sparse32/ER256, missing original baseline/peers and old timing uncertainty
 remain. Next: an evidenced capacity/contact subtraction; do not force spacing parity.
+
+b67384c18fe591032b1fd9586c511ee4fdb8106a closes the retained middle-row ink coverage gap in the
+existing Sparse owner: all1500 independently authored x/row regions contain dark
+ink in each of3controlled white/Inter arms (1498 middle positions newly checked).
+Same full pixel buffers and41rasters; source, XML/first-last removal/head controls
+and final P goal unchanged. Meaning checks pass before the known Native32U400k
+OUTPUT_SCOPE/CHECK_BUDGET failure; two0armsP. Check9.85s/420428KiB; core types
+67.86s/lintP. This proves occupied ink per region, not individual middle attribution,
+readability or arbitrary fonts. Runtime/ELK delta and payload unchanged; no replay
+or build. Evidence: week sparse-middle-ink-179a394ef. No sufficient new capacity
+subtraction found; pre-import slice owner rules out captured-slice optimization.
+Next: a demonstrated delivery/contact loss or sufficient safe capacity subtraction.
