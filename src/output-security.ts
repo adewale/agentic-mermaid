@@ -44,7 +44,9 @@ export function hasMarkerCss(value: string): boolean {
 }
 
 const ATTRIBUTE = /\s([^\s=<>]+)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/g
-const ANIMATION_TAG = /<(?:[^\s<>/:]+:)?(?:animate(?:Motion|Transform)?|set)\b/i
+const SECURITY_ELEMENT_TAG = /<(?:([^\s<>/:]+):)?(script|foreignObject|image|object|embed|iframe|animate(?:Motion|Transform)?|set)\b/gi
+const SECURITY_ELEMENT_NAME = /^(script|foreignObject|image|object|embed|iframe|animate(?:Motion|Transform)?|set)\b/i
+const SECURITY_ELEMENT_NAMES = ['script', 'foreignObject', 'image', 'object', 'embed', 'iframe'] as const
 const INLINE_EVENT_ATTRIBUTE = /^on[a-z]/
 const CSS_SECURITY_DELIMITERS = /[(:@\\&]/
 const ACTIVE_REFERENCE_SCHEME = /^(?:javascript|vbscript|data|file):/
@@ -160,6 +162,8 @@ export function verifySvgDocumentEnvelope(svg: string): boolean {
 function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, rawValue: string) => void): boolean {
   if (!hasOnlyXmlCharacters(svg)) return false
   const stack: XmlElementFrame[] = []
+  const shortAttributeNames: string[] = []
+  let longAttributeNames: Set<string> | undefined
   let rootSeen = false
   let rootClosed = false
   let cursor = 0
@@ -217,8 +221,9 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
     }
 
     let end = nameEnd
-    const rawAttributes = new Set<string>()
-    const namespaceAttributes: Array<{ readonly name: string; readonly prefix?: string; readonly local?: string; readonly value: string }> = []
+    let attributeCount = 0
+    let usingLongAttributes = false
+    let namespaceAttributes: Array<{ readonly name: string; readonly prefix?: string; readonly local?: string; readonly value: string }> | undefined
     let selfClosing = false
     for (;;) {
       const hadWhitespace = isXmlWhitespace(svg[end])
@@ -233,11 +238,25 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       const attributeEnd = readXmlNameEnd(svg, end)
       if (attributeEnd < 0) return false
       const attribute = svg.slice(end, attributeEnd)
-      if (rawAttributes.has(attribute)) return false
+      // Most SVG tags have few attributes. A bounded small-list scan avoids
+      // allocating a hash table per tag; large/untrusted tags retain linear
+      // lookup through one document-local scratch set. Neither survives a call.
+      if (attributeCount < 16) {
+        for (let index = 0; index < attributeCount; index++) if (shortAttributeNames[index] === attribute) return false
+        shortAttributeNames[attributeCount++] = attribute
+      } else {
+        if (!usingLongAttributes) {
+          longAttributeNames ??= new Set()
+          longAttributeNames.clear()
+          for (let index = 0; index < attributeCount; index++) longAttributeNames.add(shortAttributeNames[index]!)
+          usingLongAttributes = true
+        }
+        if (longAttributeNames!.has(attribute)) return false
+        longAttributeNames!.add(attribute)
+      }
       const prefixed = attribute.includes(':')
       const attributeName = prefixed ? parsePrefixedXmlName(attribute) : undefined
       if (prefixed && !attributeName) return false
-      rawAttributes.add(attribute)
       end = attributeEnd
       while (isXmlWhitespace(svg[end])) end++
       if (svg[end] !== '=') return false
@@ -254,6 +273,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       // their raw names already prove uniqueness. Still validate every value
       // and report its raw bytes to security in the original lexical order.
       if (attributeName || attribute === 'xmlns') {
+        namespaceAttributes ??= []
         namespaceAttributes.push({ name: attribute, ...attributeName, value: decodeXmlReferences(value) })
       }
       observeAttribute?.(attribute, value)
@@ -265,7 +285,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
     const inheritedNamespaces = stack.at(-1)?.namespaces
     let namespaces: ReadonlyMap<string, string> = inheritedNamespaces ?? new Map([['xml', XML_NAMESPACE]])
     let declaredNamespaces: Map<string, string> | undefined
-    for (const attribute of namespaceAttributes) {
+    if (namespaceAttributes) for (const attribute of namespaceAttributes) {
       const isDefaultDeclaration = attribute.name === 'xmlns'
       const isPrefixedDeclaration = attribute.prefix === 'xmlns'
       if (!isDefaultDeclaration && !isPrefixedDeclaration) continue
@@ -295,7 +315,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
     }
 
     let expandedAttributes: Set<string> | undefined
-    for (const attribute of namespaceAttributes) {
+    if (namespaceAttributes) for (const attribute of namespaceAttributes) {
       if (attribute.name === 'xmlns' || attribute.prefix === 'xmlns') continue
       // Raw-name uniqueness already proves unprefixed attributes unique.
       // A declared prefix always has a nonempty URI, so only prefixed names
@@ -470,13 +490,24 @@ function inspectSecurityTail(markup: string, refs: string[], active: string[]): 
     if (unsafeActiveCss(style[1]!)) active.push('active-css')
     refs.push(...unsafeCssReferences(style[1]!))
   }
-  for (const tag of ['script', 'foreignObject', 'image', 'object', 'embed', 'iframe']) {
-    if (new RegExp(`<(?:[^\\s<>/:]+:)?${tag}\\b`, 'i').test(markup)) {
-      refs.push(`<${tag}>`)
-      if (tag !== 'image') active.push(`<${tag}>`)
+  // Scan the union once, then preserve the established diagnostic order and
+  // one finding per tag kind even when hostile markup repeats an element.
+  let elementKinds = 0
+  for (const match of markup.matchAll(SECURITY_ELEMENT_TAG)) {
+    // The raw-reference API also accepts unvalidated markup. Preserve its
+    // conservative finding for an unsafe namespace prefix as well as the tag.
+    const prefix = match[1] && SECURITY_ELEMENT_NAME.exec(match[1])?.[1]
+    for (const value of [prefix, match[2]]) if (value) {
+      const name = value.toLowerCase()
+      const index = SECURITY_ELEMENT_NAMES.findIndex(tag => tag.toLowerCase() === name)
+      elementKinds |= 1 << (index < 0 ? SECURITY_ELEMENT_NAMES.length : index)
     }
   }
-  if (ANIMATION_TAG.test(markup)) { refs.push('<animation>'); active.push('<animation>') }
+  for (const [index, tag] of SECURITY_ELEMENT_NAMES.entries()) if (elementKinds & (1 << index)) {
+    refs.push(`<${tag}>`)
+    if (tag !== 'image') active.push(`<${tag}>`)
+  }
+  if (elementKinds & (1 << SECURITY_ELEMENT_NAMES.length)) { refs.push('<animation>'); active.push('<animation>') }
   return Object.freeze({ active: Object.freeze(active), refs: Object.freeze(refs) })
 }
 
