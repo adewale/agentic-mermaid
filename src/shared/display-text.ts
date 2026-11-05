@@ -2,7 +2,7 @@ import { performanceExperimentEnabled } from '../experimental-performance.ts'
 import { WeightedLru } from '../experimental/weighted-lru.ts'
 import type { LabelDisplay } from '../multiline-utils.ts'
 import type { TextTransform } from '../types.ts'
-import { parseInlineFormatting, serializeStyledSegment, FORMAT_TAG_SOURCE, type StyledSegment } from './inline-format.ts'
+import { parseMultilineFormatting, serializeStyledSegment, FORMAT_TAG_SOURCE, type StyledSegment } from './inline-format.ts'
 import { graphemes } from './graphemes.ts'
 import { createImmutableParts } from './immutable-parts.ts'
 import { sanitizeTextControls } from './text-controls.ts'
@@ -156,7 +156,9 @@ export function prepareDisplayText(source: DisplayTextInput, display: LabelDispl
   const lineStarts: number[] = []
   const empty = immutableDisplayParts.freezeOwned([]) as readonly DisplayRun[]
   const lines: Array<readonly DisplayRun[]> = []
-  for (const line of source.split('\n')) {
+  const sourceLines = source.split('\n')
+  const formattedLines = display === 'formatted' ? parseMultilineFormatting(sourceLines) : undefined
+  for (const line of sourceLines) {
     lineStarts.push(offset)
     if (line === '') { offset++; lines.push(empty); continue }
     let runs: DisplayRun[]
@@ -171,7 +173,7 @@ export function prepareDisplayText(source: DisplayTextInput, display: LabelDispl
         cursor = tag.index! + tag[0].length
       }
       if (cursor < line.length) spans.push({ start: cursor, end: line.length })
-      runs = parseInlineFormatting(line).map((run, i) => ({ ...run, sourceStart: offset + spans[i]!.start, sourceEnd: offset + spans[i]!.end }))
+      runs = formattedLines![lines.length]!.map((run, i) => ({ ...run, sourceStart: offset + spans[i]!.start, sourceEnd: offset + spans[i]!.end }))
     }
     const retainedRuns: DisplayRun[] = []
     for (const run of runs) {

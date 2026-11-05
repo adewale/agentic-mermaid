@@ -128,6 +128,44 @@ describe('prepared display text', () => {
     const content = { value: '<b>X</b>', prepared }
     expect(resolveLabelContent(content.value, content)).toBe(prepared)
     expect(resolveLabelContent('changed', content)).toBe('changed')
+
+    // Explicitly closed spans retain their authored style across hard breaks,
+    // including an empty row; source ranges still count UTF-16 code units.
+    for (const example of [
+      { source: '<i>Top\nBottom 🚀</i>', visible: 'Top\nBottom 🚀', starts: [0, 7],
+        runs: [[['Top', false, true]], [['Bottom 🚀', false, true]]],
+        styled: [/<tspan\b[^>]*\bfont-style="italic"[^>]*>Top<\/tspan>/, /<tspan\b[^>]*\bfont-style="italic"[^>]*>Bottom 🚀<\/tspan>/] },
+      { source: '<b>first\nsecond</b>', visible: 'first\nsecond', starts: [0, 9],
+        runs: [[['first', true, false]], [['second', true, false]]],
+        styled: [/<tspan\b[^>]*\bfont-weight="(?:bold|700)"[^>]*>first<\/tspan>/, /<tspan\b[^>]*\bfont-weight="(?:bold|700)"[^>]*>second<\/tspan>/] },
+      { source: '<b>first\n\nsecond</b>', visible: 'first\n\nsecond', starts: [0, 9, 10],
+        runs: [[['first', true, false]], [], [['second', true, false]]],
+        styled: [/<tspan\b[^>]*\bfont-weight="(?:bold|700)"[^>]*>first<\/tspan>/, /<tspan\b[^>]*\bfont-weight="(?:bold|700)"[^>]*>second<\/tspan>/] },
+    ]) {
+      const display = prepareDisplayText(example.source)
+      expect(preparedDisplayTextValue(display)).toBe(example.visible)
+      expect(display.lineStarts).toEqual(example.starts)
+      expect(display.lines.map(line => line.map(run => [run.text, run.bold, run.italic]))).toEqual(example.runs)
+      const fitted = preparePixelText(display, typography)
+      expect(fitted.lineBlocks.map(line => line.runs.map(run => run.text).join(''))).toEqual(example.visible.split('\n'))
+      expect(prepareCellText(display).lines.join('\n')).toBe(example.visible)
+      const styledMark = marks.text({ id: 'closed-multiline', role: 'label', text: fitted.text, block: fitted, x: 100, y: 50, fontSize: typography.fontSize, anchor: 'middle', paint: {} })
+      const styledProblems: string[] = []
+      nodeProblems(styledMark, 'closed-multiline', styledProblems)
+      expect(styledProblems).toEqual([])
+      for (const output of [renderMultilineText(fitted, 100, 50, typography.fontSize, ''), renderMultilineText(example.source, 100, 50, typography.fontSize, '')]) {
+        for (const span of example.styled) expect(output).toMatch(span)
+      }
+    }
+    const alias = prepareDisplayText('<i>Top\nBottom 🚀</i>')
+    expect(alias.lines[1]![0]!.clusters!.at(-1)).toEqual({ text: '🚀', sourceStart: 14, sourceEnd: 16 })
+    const literalAlias = prepareDisplayText('<i>Top\nBottom 🚀</i>', 'literal')
+    expect(preparedDisplayTextValue(literalAlias)).toBe('<i>Top\nBottom 🚀</i>')
+    expect(literalAlias.lines.every(line => line.every(run => !run.bold && !run.italic))).toBe(true)
+    // An unmatched opener keeps the existing line-local interpretation.
+    expect(prepareDisplayText('<i>Top\nBottom 🚀').lines.map(line => line.map(run => [run.text, run.italic]))).toEqual([
+      [['Top', true]], [['Bottom 🚀', false]],
+    ])
   })
 
   it('combines literal adornments with prepared content without losing source ranges or casing context', () => {

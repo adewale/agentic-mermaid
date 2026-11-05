@@ -245,6 +245,7 @@ export function renderMultilineText(
   const value = block ? block.text : text as string
   const lines = block ? block.lines : value.split('\n')
   const display = block?.prepared.display ?? (literalText ? 'literal' : 'formatted')
+  const formatted = !block && display === 'formatted' && HAS_FORMAT_TAGS.test(value) ? prepareDisplayText(value, display) : undefined
   const anchor = typedAnchor ?? textAnchorAttribute(attrs) ?? 'start'
   const inkGeometry = block && typedAnchor !== undefined && hasPreparedTextInk(block)
     ? block.lineBlocks.map((_, index) => preparedTextLineGeometry(block, index, cx, cy, anchor, baselineShift)) : undefined
@@ -253,7 +254,8 @@ export function renderMultilineText(
   const writtenAttributes: Array<{ name: string; value: string }> | undefined = observePreparedLine ? [] : undefined
   const renderLine = (line: string, index: number) => block
     ? renderPreparedLine(block, index, cx, anchor, undefined, inkGeometry?.[index])
-    : renderDisplayLine(line, display)
+    : formatted && (HAS_FORMAT_TAGS.test(line) || formatted.lines[index]!.some(run => run.bold || run.italic || run.underline || run.strikethrough))
+      ? renderDisplayRuns(formatted.lines[index]!) : renderDisplayLine(line, display)
   if (display === 'literal' && HAS_FORMAT_TAGS.test(value) && !attrs.includes('data-literal-text=')) { attrs += ' data-literal-text="true"'; if (writtenAttributes) Object.defineProperty(writtenAttributes, writtenAttributes.length, { value: { name: 'data-literal-text', value: 'true' }, enumerable: true, writable: true, configurable: true }) }
   const visible = block ? block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : displayText(value, display)
   if (/(?:^ | $| {2}|\t)/m.test(visible) && !attrs.includes('xml:space=')) { attrs += ' xml:space="preserve"'; if (writtenAttributes) Object.defineProperty(writtenAttributes, writtenAttributes.length, { value: { name: 'xml:space', value: 'preserve' }, enumerable: true, writable: true, configurable: true }) }
