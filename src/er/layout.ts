@@ -1329,6 +1329,20 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
   }
   const subjects = new Map([...positioned.entities, ...positioned.groups].map(box => [box.id, box]))
   const groupIds = new Set(positioned.groups.map(group => group.id))
+  const inwardBottom = (id: string, point: Point, toward: Point, descendant: string): boolean => {
+    const box = subjects.get(id)
+    if (!box || !groupIds.has(id) || point.y !== box.y + box.height || toward.x !== point.x || toward.y >= point.y) return false
+    for (let child = descendant, depth = 0; depth < DIAGRAM_WORK_LIMITS.nesting; depth++) {
+      charge()
+      const subject = subjects.get(child)
+      if (!subject) return false
+      const parent: string | undefined = groupIds.has(child) ? (subject as PositionedErDiagram['groups'][number]).parentId : (subject as PositionedErEntity).groupId
+      if (parent === undefined) return false
+      if (parent === id) return true
+      child = parent
+    }
+    return false
+  }
   canonicalErContacts(positioned.entities, positioned.groups, relationships, work)
   const obstacles: Array<{ id: string; box: ErInkBox; border?: boolean; group?: boolean }> = [
     ...positioned.entities.map(entity => {
@@ -1431,9 +1445,9 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
   }
   let retained = snapshot()
   let changed = false
-  // Allocate automatic entity and frame face contacts. The selected face and far
-  // contact remain fixed; the actual glyph, caption and foreign shaft ranges
-  // determine any required shift along that face, never an arbitrary pitch.
+  // Allocate entity and frame contacts from actual glyph and foreign shaft
+  // ranges. A straight ancestor corridor shares one seat at both endpoints;
+  // other routes retain their selected face and far contact.
   const faceGroups = new Map<string, Map<string, ReturnType<typeof glyphs>>>()
   for (const terminal of glyphs()) {
     charge()
@@ -1457,13 +1471,24 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     const horizontal = q.y === p.y && q.x !== p.x, vertical = q.x === p.x && q.y !== p.y
     const sign = horizontal ? Math.sign(q.x - p.x) : Math.sign(q.y - p.y)
     const onFace = horizontal ? p.x === (sign > 0 ? box.x + box.width : box.x) : p.y === (sign > 0 ? box.y + box.height : box.y)
-    // The deliberate bottom corridor of an ancestor points inward. It is not
-    // an automatic exterior port and remains owned by that existing producer.
-    if ((!horizontal && !vertical) || !onFace) continue
+    const otherId = terminal.end ? terminal.rel.entity1 : terminal.rel.entity2
+    const inward = !onFace && inwardBottom(terminal.id, p, q, otherId)
+    if ((!horizontal && !vertical) || !onFace && !inward) continue
     const current = horizontal ? p.y : p.x
     const corner = groupIds.has(terminal.id) ? 6 : Math.min(style.cornerRadius ?? 0, box.width / 2, box.height / 2)
     let low = (horizontal ? box.y : box.x) + corner, high = (horizontal ? box.y + box.height : box.x + box.width) - corner
-    const { currentGlyphs, glyphQuery, shaftQuery } = retained, thisGlyph = currentGlyphs.find(g => g.index === terminal.index && g.end === terminal.end)!
+    const { currentGlyphs, glyphQuery, shaftQuery } = retained, thisGlyph = currentGlyphs[terminal.index * 2 + terminal.end]!
+    const opposite = currentGlyphs[terminal.index * 2 + 1 - terminal.end]!
+    let sharedStraight = false
+    if (vertical && (inward || inwardBottom(opposite.id, opposite.point, opposite.toward, terminal.id))) {
+      charge(terminal.rel.points.length)
+      sharedStraight = terminal.rel.points.every(point => point.x === p.x)
+    }
+    if (inward || sharedStraight) {
+      const other = subjects.get(otherId)!, otherCorner = groupIds.has(otherId) ? 6 : Math.min(style.cornerRadius ?? 0, other.width / 2, other.height / 2)
+      low = Math.max(low, other.x + otherCorner)
+      high = Math.min(high, other.x + other.width - otherCorner)
+    }
     const laterOnFace = [...faceGroups.get(terminal.id)!.values()].flat().map(g => currentGlyphs[g.index * 2 + g.end]!).filter(glyph => {
       charge()
       if (glyph.id !== terminal.id || order.get(glyph.index * 2 + glyph.end)! <= order.get(terminal.index * 2 + terminal.end)!) return false
@@ -1474,15 +1499,20 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     charge(laterOnFace.length)
     const roleStyle = erRelationshipStyle(terminal.rel, styleFace)
     const half = (roleStyle?.lineWidth ?? style.lineWidth) / 2
-    const glyphDepth = terminalDepth(thisGlyph.pieces, p, horizontal, sign)
-    const protectedLength = glyphDepth + (roleStyle?.bendRadius ?? style.edgeBendRadius) + half + style.lineWidth + .25
-    const length = Math.min(Math.abs(horizontal ? q.x - p.x : q.y - p.y), protectedLength)
-    const endLead = horizontal ? { x: p.x + sign * length, y: p.y } : { x: p.x, y: p.y + sign * length }
-    const leadBox = { x0: Math.min(p.x, endLead.x) - (horizontal ? 0 : half), x1: Math.max(p.x, endLead.x) + (horizontal ? 0 : half),
-      y0: Math.min(p.y, endLead.y) - (horizontal ? half : 0), y1: Math.max(p.y, endLead.y) + (horizontal ? half : 0) }
+    const leadBoxFor = (glyph: typeof thisGlyph): ErInkBox => {
+      const at = glyph.point, toward = glyph.toward
+      const ray = Math.sign(horizontal ? toward.x - at.x : toward.y - at.y)
+      const depth = terminalDepth(glyph.pieces, at, horizontal, ray)
+      const protectedLength = depth + (roleStyle?.bendRadius ?? style.edgeBendRadius) + half + style.lineWidth + .25
+      const length = Math.min(Math.abs(horizontal ? toward.x - at.x : toward.y - at.y), protectedLength)
+      const end = horizontal ? { x: at.x + ray * length, y: at.y } : { x: at.x, y: at.y + ray * length }
+      return { x0: Math.min(at.x, end.x) - (horizontal ? 0 : half), x1: Math.max(at.x, end.x) + (horizontal ? 0 : half),
+        y0: Math.min(at.y, end.y) - (horizontal ? half : 0), y1: Math.max(at.y, end.y) + (horizontal ? half : 0) }
+    }
+    const leadBox = leadBoxFor(thisGlyph), oppositeLead = sharedStraight ? leadBoxFor(opposite) : undefined
     // Only ink that can meet this glyph or its lead anywhere on the owned
     // face can forbid a seat. Distant geometry keeps its final proof below.
-    const reach = [...thisGlyph.pieces, leadBox]
+    const reach = [...thisGlyph.pieces, leadBox, ...(oppositeLead ? [...opposite.pieces, oppositeLead] : [])]
     charge(reach.length)
     const window = { x0: Math.min(...reach.map(b => b.x0)), x1: Math.max(...reach.map(b => b.x1)), y0: Math.min(...reach.map(b => b.y0)), y1: Math.max(...reach.map(b => b.y1)) }
     if (horizontal) { window.y0 += low - current; window.y1 += high - current }
@@ -1493,7 +1523,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     if (horizontal) { window.y0 -= gap; window.y1 += gap }
     else { window.x0 -= gap; window.x1 += gap }
     const peers: ErInkBox[] = [
-      ...glyphQuery(window).filter(g => { charge(); return (g.index !== terminal.index || g.end !== terminal.end) && !laterGlyphs.has(g) }).flatMap(g => g.pieces),
+      ...glyphQuery(window).filter(g => { charge(); return (g.index !== terminal.index || !sharedStraight && g.end !== terminal.end) && !laterGlyphs.has(g) }).flatMap(g => g.pieces),
       // Caption centers are still movable; finalize them after fixed face slots.
       // They are not immutable obstacles for allocating those slots.
       ...shaftQuery(window).filter(shaft => shaft.index !== terminal.index && !laterOnFace.some(g => { charge(); return g.index === shaft.index && (g.end ? shaft.last : shaft.first) })).map(shaft => shaft.box),
@@ -1504,8 +1534,13 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     const leadObstacles = [...obstacleQuery(window).filter(o => (o.id !== terminal.id || !!o.group !== groupIds.has(terminal.id)) && !o.border).map(o => o.box), ...peers.filter(piece => !oppositePieces.has(piece))]
     const reservations = [...thisGlyph.pieces.map(piece => ({ piece, occupied })), { piece: leadBox, occupied: leadObstacles }]
     charge(occupied.length + leadObstacles.length + reservations.length)
+    if (oppositeLead) {
+      const oppositeOccupied = [...obstacleQuery(window).filter(o => o.id !== opposite.id || !!o.group !== groupIds.has(opposite.id)).map(o => o.box), ...peers]
+      const oppositeLeadObstacles = [...obstacleQuery(window).filter(o => (o.id !== opposite.id || !!o.group !== groupIds.has(opposite.id)) && !o.border).map(o => o.box), ...peers.filter(piece => !oppositePieces.has(piece))]
+      charge(oppositeOccupied.length + oppositeLeadObstacles.length + opposite.pieces.length + 1)
+      reservations.push(...opposite.pieces.map(piece => ({ piece, occupied: oppositeOccupied })), { piece: oppositeLead, occupied: oppositeLeadObstacles })
+    }
     if (current >= low && current <= high && !reservations.some(({piece, occupied}) => occupied.some(other => intersects(piece, other)))) continue
-    const opposite = currentGlyphs.find(g => g.index === terminal.index && g.end !== terminal.end)!
     const oppositeHorizontal = opposite.point.y === opposite.toward.y
     if (horizontal !== oppositeHorizontal) {
       const oppositeSign = Math.sign(oppositeHorizontal ? opposite.toward.x - opposite.point.x : opposite.toward.y - opposite.point.y)
@@ -1551,10 +1586,13 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     const cross = horizontal ? 'y' : 'x', old = p[cross], delta = candidate - old
     let last = first
     for (let i = first; i >= 0 && i < points.length && points[i]![cross] === old; i += step) { charge(); last = i }
-    if (last === (terminal.end ? 0 : points.length - 1)) {
+    if (sharedStraight) {
+      for (const point of points) { charge(); point[cross] += delta }
+      terminal.rel.points = points
+    } else if (last === (terminal.end ? 0 : points.length - 1)) {
       const start = points[0]!, end = points.at(-1)!
       points[first]![cross] = candidate
-      const a = currentGlyphs.find(g => g.index === terminal.index && g.end === 0)!, b = currentGlyphs.find(g => g.index === terminal.index && g.end === 1)!
+      const a = currentGlyphs[terminal.index * 2]!, b = currentGlyphs[terminal.index * 2 + 1]!
       const role = erRelationshipStyle(terminal.rel, styleFace)
       const needed = (glyph: typeof a) => {
         const ray = Math.sign(horizontal ? glyph.toward.x - glyph.point.x : glyph.toward.y - glyph.point.y)

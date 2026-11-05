@@ -145,12 +145,43 @@ c ||--|| p : reply`,
     ],
     entities: [['A', 'c'], ['B', 'p']],
     groups: [['p', undefined], ['c', 'p']],
+  }, {
+    name: 'repeated inward frame contacts across unequal descendant incidence counts',
+    source: `erDiagram
+direction TB
+subgraph G
+ direction LR
+ A
+ B
+end
+G }o--|| A : ""
+G }o--|| A : ""
+G ||--|| B : ""
+G ||--|| B : ""
+G ||--|| B : ""
+G ||--|| B : ""
+G ||--|| B : ""
+G ||--|| B : ""
+G ||--|| B : ""`,
+    authored: [
+      ['G', 'A', '', 'zero-many', 'one', 'rel:G-A#0'],
+      ['G', 'A', '', 'zero-many', 'one', 'rel:G-A#1'],
+      ['G', 'B', '', 'one', 'one', 'rel:G-B#0'],
+      ['G', 'B', '', 'one', 'one', 'rel:G-B#1'],
+      ['G', 'B', '', 'one', 'one', 'rel:G-B#2'],
+      ['G', 'B', '', 'one', 'one', 'rel:G-B#3'],
+      ['G', 'B', '', 'one', 'one', 'rel:G-B#4'],
+      ['G', 'B', '', 'one', 'one', 'rel:G-B#5'],
+      ['G', 'B', '', 'one', 'one', 'rel:G-B#6'],
+    ],
+    entities: [['A', 'G'], ['B', 'G']],
+    groups: [['G', undefined]],
   }] as const) it.each(['agentic', 'elk'] as const)(`%s emits every endpoint piece inside its own relationship occurrence through Native and Scene: ${name}`, backend => {
     const parsed = parseRegisteredMermaid(source)
     if (!parsed.ok || parsed.value.body.kind !== 'er') throw new Error('Expected structured ER')
     expect(parsed.value.body.entities.map(entity => [entity.id, entity.groupId])).toEqual(entities.map(entity => [...entity]))
     expect(parsed.value.body.groups?.map(group => [group.id, group.parentId]) ?? []).toEqual(groups.map(group => [...group]))
-    expect(parsed.value.body.relations.map(relation => [relation.from, relation.to, relation.label])).toEqual(authored.map(([from, to, label]) => [from, to, label]))
+    expect(parsed.value.body.relations.map(relation => [relation.from, relation.to, relation.label ?? ''])).toEqual(authored.map(([from, to, label]) => [from, to, label]))
     const options = { graphLayout: { backend, fallback: 'none' as const }, embedFontImport: false, font: 'Inter' }
     const rendered = renderMermaidSVGWithReceipt(source, options)
     expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: backend, attempts: [{ backend, outcome: 'selected' }] })])
@@ -198,18 +229,21 @@ c ||--|| p : reply`,
         expect(markers).toHaveLength(authored.length * 2)
         const identities = [...document.querySelectorAll('[data-id]')].map(element => element.getAttribute('data-id'))
         expect(new Set(identities).size).toBe(identities.length)
+        const frameInk: Array<{ id: string; x0: number; y0: number; x1: number; y1: number }> = []
         for (const [index, [from, to, label, startKind, endKind, edgeId]] of authored.entries()) {
           const carrier = carriers[index]!
-          expect([carrier.getAttribute('data-from'), carrier.getAttribute('data-to'), carrier.getAttribute('data-label'), carrier.getAttribute('data-id')]).toEqual([from, to, label, edgeId])
+          expect([carrier.getAttribute('data-from'), carrier.getAttribute('data-to'), carrier.getAttribute('data-label') ?? '', carrier.getAttribute('data-id')]).toEqual([from, to, label, edgeId])
           const captions = [...document.querySelectorAll('text')].filter(text => text.textContent === label)
-          expect(captions).toHaveLength(1)
-          const caption = captions[0]!, x = Number(caption.getAttribute('x')), y = Number(caption.getAttribute('y'))
+          expect(captions).toHaveLength(label ? 1 : 0)
           const points = carrier.getAttribute('points')!.split(/\s+/).map(pair => pair.split(',').map(Number))
-          expect(points.some((b, i) => {
-            const a = points[i - 1]
-            return a && (Math.abs(a[0]! - b[0]!) < .002 && Math.abs(x - a[0]!) < .002 && y >= Math.min(a[1]!, b[1]!) - .002 && y <= Math.max(a[1]!, b[1]!) + .002
-              || Math.abs(a[1]! - b[1]!) < .002 && Math.abs(y - a[1]!) < .002 && x >= Math.min(a[0]!, b[0]!) - .002 && x <= Math.max(a[0]!, b[0]!) + .002)
-          })).toBe(true)
+          if (label) {
+            const caption = captions[0]!, x = Number(caption.getAttribute('x')), y = Number(caption.getAttribute('y'))
+            expect(points.some((b, i) => {
+              const a = points[i - 1]
+              return a && (Math.abs(a[0]! - b[0]!) < .002 && Math.abs(x - a[0]!) < .002 && y >= Math.min(a[1]!, b[1]!) - .002 && y <= Math.max(a[1]!, b[1]!) + .002
+                || Math.abs(a[1]! - b[1]!) < .002 && Math.abs(y - a[1]!) < .002 && x >= Math.min(a[0]!, b[0]!) - .002 && x <= Math.max(a[0]!, b[0]!) + .002)
+            })).toBe(true)
+          }
           if (groups.length) {
             for (const [id, point] of [[from, points[0]!], [to, points.at(-1)!]] as const) {
               const [x, y, w, h] = box(id), [px, py] = point
@@ -226,6 +260,20 @@ c ||--|| p : reply`,
             expect([marker.getAttribute('data-owner-id'), marker.getAttribute('data-owner-role'), marker.getAttribute('data-end'), marker.getAttribute('data-endpoint')]).toEqual([edgeId, 'relationship', end, end === 'start' ? from : to])
             expect(marker.hasAttribute('data-from') || marker.hasAttribute('data-to')).toBe(false)
             expectOwnedGlyph(marker, carrier, end, kind)
+            if (groups.some(([groupId]) => groupId === (end === 'start' ? from : to))) {
+              for (const child of marker.children) {
+                const number = (name: string) => Number(child.getAttribute(name)), half = number('stroke-width') / 2
+                if (child.localName === 'circle') {
+                  const x = number('cx'), y = number('cy'), radius = number('r') + half
+                  frameInk.push({ id, x0: x - radius, y0: y - radius, x1: x + radius, y1: y + radius })
+                } else {
+                  expect(child.localName).toBe('line')
+                  const x1 = number('x1'), y1 = number('y1'), x2 = number('x2'), y2 = number('y2'), length = Math.hypot(x2 - x1, y2 - y1)
+                  const dx = Math.abs(y2 - y1) / length * half, dy = Math.abs(x2 - x1) / length * half
+                  frameInk.push({ id, x0: Math.min(x1, x2) - dx, y0: Math.min(y1, y2) - dy, x1: Math.max(x1, x2) + dx, y1: Math.max(y1, y2) + dy })
+                }
+              }
+            }
             marker.setAttribute('visibility', 'hidden')
             const removedPixels = raster()
             marker.removeAttribute('visibility')
@@ -233,6 +281,10 @@ c ||--|| p : reply`,
             for (let i = 0; i < originalPixels.length; i += 4) if (originalPixels[i]! + originalPixels[i + 1]! + originalPixels[i + 2]! < removedPixels[i]! + removedPixels[i + 1]! + removedPixels[i + 2]!) darker++
             expect({ edgeId, end, visible: darker > 0 }).toEqual({ edgeId, end, visible: true })
           }
+        }
+        for (const [index, piece] of frameInk.entries()) for (const other of frameInk.slice(index + 1)) {
+          if (piece.id === other.id) continue
+          expect({ first: piece.id, second: other.id, overlap: piece.x0 < other.x1 && piece.x1 > other.x0 && piece.y0 < other.y1 && piece.y1 > other.y0 }).toEqual({ first: piece.id, second: other.id, overlap: false })
         }
       } finally { dom.window.close() }
     }
