@@ -10,9 +10,28 @@ import { formatSvgNumber, formatSvgNumericAttribute } from './shared/svg-number.
 import { canonicalTextDigest } from './render-contract.ts'
 import { SCENE_VALIDATION_LIMITS } from './scene/scene-validation-limits.ts'
 
+type GraphEdgeDashInput = Pick<PositionedEdge, 'style' | 'animate'> & Partial<Pick<PositionedEdge, 'curve' | 'inlineStyle' | 'points' | 'hasArrowStart' | 'hasArrowEnd' | 'startMarker' | 'endMarker'>>
+interface GraphEdgeCarrierPaint {
+  dashArray: string | undefined
+  polyline: { kind: 'polyline'; points: Point[] } | undefined
+}
+const defineCarrierPoint = Object.defineProperty
+
 /** Preserve authored dash intent. A served one-leg solid carrier can leave a gap
  * beneath a fixed hollow circle without moving its marker attachment. */
-export function graphEdgeDashArray(edge: Pick<PositionedEdge, 'style' | 'animate'> & Partial<Pick<PositionedEdge, 'curve' | 'inlineStyle' | 'points' | 'hasArrowStart' | 'hasArrowEnd' | 'startMarker' | 'endMarker'>>, candidatePoints?: readonly Point[], pathProjection?: ConnectorPathProjection): string | undefined {
+export function graphEdgeDashArray(edge: GraphEdgeDashInput, candidatePoints?: readonly Point[], pathProjection?: ConnectorPathProjection): string | undefined {
+  return graphEdgeDashArrayImpl(edge, candidatePoints, pathProjection)
+}
+
+/** Capture a newly eligible raw carrier once for both its dash and lowering.
+ * Standalone dash queries retain their existing raw-point contract. */
+export function graphEdgeCarrierPaint(edge: GraphEdgeDashInput, pathProjection?: ConnectorPathProjection): GraphEdgeCarrierPaint {
+  const carrier: GraphEdgeCarrierPaint = { dashArray: undefined, polyline: undefined }
+  carrier.dashArray = graphEdgeDashArrayImpl(edge, undefined, pathProjection, carrier)
+  return carrier
+}
+
+function graphEdgeDashArrayImpl(edge: GraphEdgeDashInput, candidatePoints?: readonly Point[], pathProjection?: ConnectorPathProjection, carrier?: GraphEdgeCarrierPaint): string | undefined {
   const lineStyle = edge.style
   if (lineStyle === 'dotted') return `${FLOWCHART_DOTTED_DASH.dash} ${FLOWCHART_DOTTED_DASH.gap}`
   if (edge.animate) return '8 4'
@@ -27,8 +46,25 @@ export function graphEdgeDashArray(edge: Pick<PositionedEdge, 'style' | 'animate
   const projectedGeometry = pathProjection?.geometry
   const points = pathProjection === undefined ? candidatePoints ?? edge.points : projectedGeometry?.points
   if (!points || points.length !== 2) {
-    return points && pathProjection !== undefined && projectedGeometry
-      ? projectedCircleDashArray(projectedGeometry, pathProjection.contours, points, rawWidth, startCircle, endCircle) : undefined
+    if (points && pathProjection !== undefined && projectedGeometry) {
+      return projectedCircleDashArray(projectedGeometry, pathProjection.contours, points, rawWidth, startCircle, endCircle)
+    }
+    if (!carrier || !points || pathProjection !== undefined) return undefined
+    const count = points.length
+    if (!Number.isSafeInteger(count) || count <= 2 || count > SCENE_VALIDATION_LIMITS.maxPoints) return undefined
+    const halfWidth = paintedStrokeExtent({ stroke: 'black', strokeWidth: formatSvgNumericAttribute('stroke-width', rawWidth) }, false)
+    if (halfWidth === undefined || !fixedCircleStart || !fixedCircleEnd || halfWidth * 2 < fixedCircleEnd.diameter) return undefined
+    // Finish the bounded scalar capture before deciding whether this shape can
+    // use a gap. Even a declined shape lowers these same examined coordinates.
+    const captured: Point[] = []
+    for (let index = 0; index < count; index++) {
+      const point = points[index]!, x = point.x, y = point.y
+      const descriptor = { __proto__: null, value: { x, y }, enumerable: true, writable: true, configurable: true }
+      defineCarrierPoint(captured, index, descriptor)
+    }
+    const polyline = { kind: 'polyline' as const, points: captured }
+    carrier.polyline = polyline
+    return projectedCircleDashArray(polyline, undefined, captured, rawWidth, startCircle, endCircle, halfWidth)
   }
   // Match the carrier's numeric/px spelling before measuring its width. This
   // uses the existing stroke parser; relative or unresolved widths stay out.
@@ -56,16 +92,20 @@ export function graphEdgeDashArray(edge: Pick<PositionedEdge, 'style' | 'animate
   return formatSvgNumericAttribute('stroke-dasharray', startGap ? `0 ${startGap} ${visible} ${length}` : `${visible} ${length}`)
 }
 
-/** Only captured open orthogonal M/L paths extend the gap beyond one leg.
- * A terminal runway also reserves the adjacent wide corner's half-width reach;
- * the existing two-point carrier policy stays separate. */
-function projectedCircleDashArray(geometry: ConnectorPathProjection['geometry'], contours: ConnectorPathProjection['contours'], points: readonly Point[], rawWidth: string, startCircle: boolean | undefined, endCircle: boolean | undefined): string | undefined {
+/** Only captured open orthogonal polylines and M/L paths extend the gap beyond
+ * one leg. A terminal runway also reserves the adjacent wide corner's half-width
+ * reach; the existing two-point carrier policy stays separate. */
+function projectedCircleDashArray(geometry: ConnectorPathProjection['geometry'] | NonNullable<GraphEdgeCarrierPaint['polyline']>, contours: ConnectorPathProjection['contours'] | undefined, points: readonly Point[], rawWidth: string, startCircle: boolean | undefined, endCircle: boolean | undefined, capturedHalfWidth?: number): string | undefined {
   const count = points.length
-  if (!Number.isSafeInteger(count) || count <= 2 || count > SCENE_VALIDATION_LIMITS.maxPoints
-    || geometry.kind !== 'path' || geometry.subpaths !== undefined || contours.length !== 1) return undefined
-  const d = geometry.d, contour = contours[0]!
-  if (typeof d !== 'string' || d.length > SCENE_VALIDATION_LIMITS.maxSerializationBytesPerNode || contour.closed !== false) return undefined
-  const halfWidth = paintedStrokeExtent({ stroke: 'black', strokeWidth: formatSvgNumericAttribute('stroke-width', rawWidth) }, false)
+  if (!Number.isSafeInteger(count) || count <= 2 || count > SCENE_VALIDATION_LIMITS.maxPoints) return undefined
+  // Only the private raw-carrier call supplies a captured width. Public path
+  // projections must still establish their path kind with one observation.
+  const pathGeometry = capturedHalfWidth === undefined && geometry.kind === 'path' ? geometry : undefined
+  if (capturedHalfWidth === undefined && !pathGeometry
+    || pathGeometry && (pathGeometry.subpaths !== undefined || !contours || contours.length !== 1)) return undefined
+  const d = pathGeometry ? pathGeometry.d : '', contour = pathGeometry ? contours![0]! : undefined
+  if (pathGeometry && (typeof d !== 'string' || d.length > SCENE_VALIDATION_LIMITS.maxSerializationBytesPerNode || !contour || contour.closed !== false)) return undefined
+  const halfWidth = capturedHalfWidth ?? paintedStrokeExtent({ stroke: 'black', strokeWidth: formatSvgNumericAttribute('stroke-width', rawWidth) }, false)
   if (halfWidth === undefined || !fixedCircleStart || !fixedCircleEnd || halfWidth * 2 < fixedCircleEnd.diameter) return undefined
   const startGap = startCircle ? fixedCircleStart.start : 0, endGap = endCircle ? fixedCircleEnd.end : 0
   let cursor = 0, compact = false
@@ -81,15 +121,17 @@ function projectedCircleDashArray(geometry: ConnectorPathProjection['geometry'],
   for (let index = 0; index < count; index++) {
     const point = points[index]!, x = point.x, y = point.y
     if (!Number.isFinite(x) || !Number.isFinite(y)) return undefined
-    const rawX = `${x}`, rawY = `${y}`
-    if (index === 0) {
-      if (!consume(`M ${rawX} ${rawY}`)) {
-        if (!consume(`M${rawX},${rawY}`)) return undefined
-        compact = true
-      }
-      firstX = x; firstY = y
-    } else if (!consume(compact ? ` L${rawX},${rawY}` : ` L ${rawX} ${rawY}`)) return undefined
-    lastX = x; lastY = y
+    if (pathGeometry) {
+      const rawX = `${x}`, rawY = `${y}`
+      if (index === 0) {
+        if (!consume(`M ${rawX} ${rawY}`)) {
+          if (!consume(`M${rawX},${rawY}`)) return undefined
+          compact = true
+        }
+        firstX = x; firstY = y
+      } else if (!consume(compact ? ` L${rawX},${rawY}` : ` L ${rawX} ${rawY}`)) return undefined
+      lastX = x; lastY = y
+    }
     const servedX = Number(formatSvgNumber(x)), servedY = Number(formatSvgNumber(y))
     if (!Number.isFinite(servedX) || !Number.isFinite(servedY)) return undefined
     if (index > 0) {
@@ -117,7 +159,7 @@ function projectedCircleDashArray(geometry: ConnectorPathProjection['geometry'],
     }
     previousX = servedX; previousY = servedY
   }
-  if (cursor !== d.length || contour.start.x !== firstX || contour.start.y !== firstY || contour.end.x !== lastX || contour.end.y !== lastY) return undefined
+  if (pathGeometry && (cursor !== d.length || !contour || contour.start.x !== firstX || contour.start.y !== firstY || contour.end.x !== lastX || contour.end.y !== lastY)) return undefined
   const visible = length - startGap - endGap
   if (!Number.isFinite(length) || !Number.isFinite(visible) || visible <= 0
     || startCircle && startRun < startGap + halfWidth || endCircle && endRun < endGap + halfWidth) return undefined

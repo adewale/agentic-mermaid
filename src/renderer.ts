@@ -16,7 +16,7 @@ import { DefaultBackend } from './scene/backend.ts'
 import type { ResolvedStateVisualConfig } from './state/config.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
 import { serializeMarkerResources } from './scene/marker-resources.ts'
-import { flowchartMarkerResources, markerIdPrefix, markerSuffix, graphEdgePathProjection, graphEdgeDashArray } from './graph-connectors.ts'
+import { flowchartMarkerResources, markerIdPrefix, markerSuffix, graphEdgePathProjection, graphEdgeCarrierPaint } from './graph-connectors.ts'
 export { compactSvg, namespaceSvgIds } from './svg-postprocess.ts'
 import { paintsNodeFill, shapeOutline } from './shape-outline.ts'
 import { LABEL_PILL_PADDING, labelHaloExtension } from './shared/edge-label-geometry.ts'
@@ -405,7 +405,8 @@ function renderEdge<T>(
   // Section A output is static and active SVG is rejected in every security
   // mode. Preserve authored animation intent as typed metadata plus a stable
   // dashed projection; a future motion layer can consume the same metadata.
-  const effectiveDashArray = graphEdgeDashArray(edge, undefined, pathProjection)
+  const carrierPaint = graphEdgeCarrierPaint(edge, pathProjection)
+  const effectiveDashArray = carrierPaint.dashArray
   const baseStrokeWidth = edge.style === 'thick' ? style.lineWidth * 2 : style.lineWidth
   const markerColor = edge.inlineStyle?.stroke ?? style.edgeStrokeColor
 
@@ -466,7 +467,7 @@ function renderEdge<T>(
   return marks.connector({
     id: sceneId,
     role: 'edge',
-    geometry: { kind: 'polyline', points: edge.points },
+    geometry: carrierPaint.polyline ?? { kind: 'polyline', points: edge.points },
     lineStyle,
     paint,
     markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },

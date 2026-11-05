@@ -92,6 +92,8 @@ describe('family-owned endpoint and visible-marker contact (#258)', () => {
     { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 e1@--o|保存| store', namedId: 'e1', curve: 'linear', width: 10, direction: 'LR', execution: 'scene', backends: ['elk'], ends: ['end'] },
     { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 e1@--o|保存| store', namedId: 'e1', curve: 'step', fan: true, width: 10, direction: 'LR', execution: 'native', backends: ['agentic'], ends: ['end'] },
     { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 e1@--o|保存| store', namedId: 'e1', curve: 'step', fan: true, width: 10, direction: 'LR', execution: 'scene', backends: ['elk'], ends: ['end'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 e1@--o|保存| store', namedId: 'e1', fan: true, width: 10, direction: 'LR', execution: 'native', backends: ['agentic'], ends: ['end'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 e1@--o|保存| store', namedId: 'e1', fan: true, width: 10, direction: 'LR', execution: 'scene', backends: ['elk'], ends: ['end'] },
     { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 o--o|保存| store', width: 10, direction: 'RL', execution: 'scene', backends: ['agentic'], ends: ['start', 'end'] },
     { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 o--o|保存| store', width: 10, direction: 'RL', execution: 'native', backends: ['elk'], ends: ['start', 'end'] },
   ] as const) test.each([...authored.backends])(`Flowchart %s/${authored.execution} retains ${authored.width}px ${authored.kind} ${authored.ends.join('/')}${'otherEnd' in authored ? ' with end arrow' : ''}${'namedId' in authored ? ` named e1 ${'curve' in authored ? authored.curve : 'noCurve'}` : ''}${'fan' in authored ? ' fan' : ''} marks on the complete cylinder side in ${authored.direction}`, async backend => {
@@ -196,15 +198,18 @@ describe('family-owned endpoint and visible-marker contact (#258)', () => {
         expect(carrier.getAttribute('data-curve')).toBe(curve ?? null)
         expect(carrier.getAttribute('data-marker-end')).toBe('circle')
         if (fan) {
-          const commands = route.attrs.d!.match(/[MLQCSHVTAZmlqcshvtaz]/g)!
-          expect(commands[0]).toBe('M')
-          expect(commands.slice(1).every(command => command === 'L')).toBe(true)
+          if (route.name === 'path') {
+            const commands = route.attrs.d!.match(/[MLQCSHVTAZmlqcshvtaz]/g)!
+            expect(commands[0]).toBe('M')
+            expect(commands.slice(1).every(command => command === 'L')).toBe(true)
+          }
+          expect(points.every(point => Number.isFinite(point.x) && Number.isFinite(point.y))).toBe(true)
           const distinct = points.filter((point, index) => index === 0 || point.x !== points[index - 1]!.x || point.y !== points[index - 1]!.y)
-          expect(distinct.length).toBeGreaterThan(2)
+          expect(distinct.length).toBeGreaterThan(curve ? 2 : 1)
           for (let i = 1; i < distinct.length; i++) expect(distinct[i]!.x === distinct[i - 1]!.x || distinct[i]!.y === distinct[i - 1]!.y).toBe(true)
-          // Agentic supplies the turned witness; ELK serves this same authored
-          // cylinder fan as several distinct collinear M/L legs.
-          if (backend === 'agentic') expect(distinct.some((point, index) => index > 1 && (distinct[index - 1]!.x - distinct[index - 2]!.x) * (point.y - distinct[index - 1]!.y) !== (distinct[index - 1]!.y - distinct[index - 2]!.y) * (point.x - distinct[index - 1]!.x))).toBe(true)
+          // The Agentic STEP row supplies the turned witness; other served
+          // cylinder fans may be collinear without losing authored meaning.
+          if (backend === 'agentic' && curve === 'step') expect(distinct.some((point, index) => index > 1 && (distinct[index - 1]!.x - distinct[index - 2]!.x) * (point.y - distinct[index - 1]!.y) !== (distinct[index - 1]!.y - distinct[index - 2]!.y) * (point.x - distinct[index - 1]!.x))).toBe(true)
         } else {
           expect(points).toHaveLength(2)
           if (curve) expect(route.attrs.d!.match(/[MLQCSHVTAZmlqcshvtaz]/g)).toEqual(['M', 'L'])
@@ -300,7 +305,7 @@ describe('family-owned endpoint and visible-marker contact (#258)', () => {
         let shaftContactError: number | undefined
         if (fan) {
           // Locate the actual last painted shaft point by SVG dash phase over
-          // emitted M/L arclength, independent of the producer's dash scheme.
+          // emitted path/polyline arclength, independent of the dash scheme.
           const lengths = points.slice(1).map((point, index) => Math.hypot(point.x - points[index]!.x, point.y - points[index]!.y))
           const length = lengths.reduce((sum, value) => sum + value, 0)
           const declaredLength = carrier.getAttribute('pathLength')

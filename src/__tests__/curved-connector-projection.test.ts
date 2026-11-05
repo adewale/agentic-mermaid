@@ -433,6 +433,70 @@ describe('curved connector lowering projections', () => {
     expectConnectedCirclePaint(connector)
   })
 
+  test.each(['points array', 'point coordinates', 'descriptor receiver'])('lowering retains captured raw terminal paint when later %s getters change', mutation => {
+    const captured = [{ x: 0, y: 0 }, { x: 45, y: 0 }, { x: 45, y: 60 }, { x: 90, y: 60 }]
+    let pointReads = 0
+    const changingCoordinates = captured.map(point => {
+      let xReads = 0, yReads = 0
+      return {
+        get x() { return ++xReads === 1 ? point.x : point.x + 100 },
+        get y() { return ++yReads === 1 ? point.y : point.y + 100 },
+      }
+    })
+    const edge: PositionedEdge = {
+      id: 'e1', source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true, endMarker: 'circle',
+      labelPosition: { x: 24, y: -12 }, inlineStyle: { stroke: '#000', 'stroke-width': '10px' },
+      get points() {
+        if (mutation === 'point coordinates') return changingCoordinates
+        if (mutation === 'descriptor receiver') return captured.map(point => ({ ...point }))
+        // The outer admission reads length before the producer captures points.
+        return ++pointReads <= 2 ? captured.map(point => ({ ...point })) : [{ x: 100, y: 100 }, { x: 580, y: 100 }]
+      },
+    }
+    const previousGet = Object.getOwnPropertyDescriptor(Object.prototype, 'get')
+    if (mutation === 'descriptor receiver') Object.defineProperty(Object.prototype, 'get', Object.assign(Object.create(null), {
+      configurable: true,
+      get: function (this: object) {
+        const slot = Object.getOwnPropertyDescriptor(this, 'value')
+        if (!slot || !Object.hasOwn(slot, 'value') || typeof slot.value !== 'object' || slot.value === null) return undefined
+        const point = slot.value
+        const x = Object.getOwnPropertyDescriptor(point, 'x'), y = Object.getOwnPropertyDescriptor(point, 'y')
+        if (x && y && Object.hasOwn(x, 'value') && Object.hasOwn(y, 'value') && typeof x.value === 'number' && typeof y.value === 'number') point.x = x.value + 100
+        return undefined
+      },
+    }))
+    let doc: SceneDoc
+    try {
+      doc = lowerGraphScene({
+        positioned: { width: 200, height: 160, nodes: [], groups: [], edges: [edge] },
+        colors: COLORS, resolved: { renderOptions: {}, styleFace: { edge: { bendRadius: 0 } } },
+      })
+    } finally {
+      if (mutation === 'descriptor receiver') {
+        Reflect.deleteProperty(Object.prototype, 'get')
+        if (previousGet) Object.defineProperty(Object.prototype, 'get', previousGet)
+      }
+    }
+    const connector = onlyConnector(doc)
+    const emitted = scanSvgStartTags(sceneNodeSerialization(connector))[0]!
+    const attributes = Object.fromEntries(emitted.attributes.map(attribute => [attribute.name, attribute.value]))
+    expect(emitted.name).toBe('polyline')
+    expect(attributes.d).toBeUndefined()
+    const vertices = attributes.points!.trim().split(/\s+/).map(pair => {
+      const [x, y] = pair.split(',').map(Number)
+      return { x: x!, y: y! }
+    })
+    expect(vertices).toEqual(captured)
+    expect(attributes).toMatchObject({ 'data-id': 'e1', 'data-from': 'A', 'data-to': 'B' })
+    expect(connector.route.geometry.kind).toBe('polyline')
+    if (connector.route.geometry.kind === 'polyline') expect(connector.route.geometry.points).toEqual(captured)
+    expect(connector.route.startTangent).toEqual({ x: 1, y: 0 })
+    expect(connector.route.endTangent).toEqual({ x: 1, y: 0 })
+    expect(connector.stroke.color).toBe('#000')
+    expect(Number.parseFloat(String(connector.stroke.width))).toBe(10)
+    expectConnectedCirclePaint(connector)
+  })
+
   test.each([
     { name: 'STEP', curve: 'step', points: [{ x: 0, y: 0 }, { x: 90, y: 60 }], ends: [{ x: 45, y: 0 }, { x: 45, y: 60 }, { x: 90, y: 60 }], bothEnds: false },
     { name: 'reverse mixed turns with duplicate endpoints', curve: 'linear', points: [{ x: 100, y: 80 }, { x: 100, y: 80 }, { x: 40, y: 80 }, { x: 40, y: 20 }, { x: 10, y: 20 }, { x: 10, y: 20 }], ends: [{ x: 100, y: 80 }, { x: 40, y: 80 }, { x: 40, y: 20 }, { x: 10, y: 20 }, { x: 10, y: 20 }], bothEnds: true },
@@ -526,8 +590,10 @@ describe('curved connector lowering projections', () => {
   })
 
   test.each([
-    { name: 'two-point', points: [{ x: 0, y: 0 }, { x: 48, y: 0 }], gap: true },
-    { name: 'three-point', points: [{ x: 0, y: 0 }, { x: 24, y: 0 }, { x: 48, y: 0 }], gap: false },
+    { name: 'two-point', points: [{ x: 0, y: 0 }, { x: 48, y: 0 }], length: 48, gap: true },
+    { name: 'three-point collinear', points: [{ x: 0, y: 0 }, { x: 24, y: 0 }, { x: 48, y: 0 }], length: 48, gap: true },
+    { name: 'bent multi-point', points: [{ x: 0, y: 0 }, { x: 45, y: 0 }, { x: 45, y: 60 }, { x: 90, y: 60 }], length: 150, gap: true },
+    { name: 'short final corner', points: [{ x: 0, y: 0 }, { x: 48, y: 0 }, { x: 48, y: 10 }], length: 58, gap: false },
   ])('lowering preserves the unprojected $name carrier contract', row => {
     const connector = onlyConnector(lowerGraphScene({
       positioned: { width: 200, height: 160, nodes: [], groups: [], edges: [{
@@ -536,12 +602,39 @@ describe('curved connector lowering projections', () => {
       }] },
       colors: COLORS, resolved: { renderOptions: {}, styleFace: { edge: { bendRadius: 0 } } },
     }))
-    const attributes = Object.fromEntries(scanSvgStartTags(sceneNodeSerialization(connector))[0]!.attributes.map(attribute => [attribute.name, attribute.value]))
+    const emitted = scanSvgStartTags(sceneNodeSerialization(connector))[0]!
+    const attributes = Object.fromEntries(emitted.attributes.map(attribute => [attribute.name, attribute.value]))
+    expect(emitted.name).toBe('polyline')
     expect(attributes.d).toBeUndefined()
+    expect(attributes).toMatchObject({ 'data-id': 'e1', 'data-from': 'A', 'data-to': 'B' })
+    const vertices = attributes.points!.trim().split(/\s+/).map(pair => {
+      const [x, y] = pair.split(',').map(Number)
+      return { x: x!, y: y! }
+    })
+    expect(vertices).toEqual([...row.points])
+    const length = vertices.slice(1).reduce((sum, point, index) => sum + Math.hypot(point.x - vertices[index]!.x, point.y - vertices[index]!.y), 0)
+    expect(length).toBe(row.length)
+    if (row.length === 150) expect(length).toBeGreaterThan(Math.hypot(vertices.at(-1)!.x - vertices[0]!.x, vertices.at(-1)!.y - vertices[0]!.y))
     expect(connector.route.geometry.kind).toBe('polyline')
     if (connector.route.geometry.kind === 'polyline') expect(connector.route.geometry.points).toEqual([...row.points])
     if (row.gap) expectConnectedCirclePaint(connector)
-    else { expect(connector.stroke.dash).toBeUndefined(); expect(attributes['stroke-dasharray']).toBeUndefined() }
+    else {
+      expect(connector.stroke.dash).toBeUndefined()
+      expect(attributes['stroke-dasharray']).toBeUndefined()
+      const marker = connector.markers.end!
+      expect(attributes['marker-end']).toBe(`url(#${marker.id})`)
+      expect(marker.geometry?.kind).toBe('circle')
+      if (marker.geometry?.kind === 'circle' && marker.ref) {
+        const extent = Number.parseFloat(marker.paint?.strokeWidth ?? '1') / 2
+        const gap = marker.ref.x - marker.geometry.cx + marker.geometry.r + extent
+        const previous = vertices.at(-2)!, last = vertices.at(-1)!
+        const finalLeg = Math.hypot(last.x - previous.x, last.y - previous.y)
+        expect(finalLeg).toBeGreaterThan(gap)
+        expect(finalLeg).toBeLessThan(gap + Number.parseFloat(String(connector.stroke.width)) / 2)
+      }
+      expect(connector.hit.geometry).toBe(connector.route.geometry)
+      expect(connector.terminalProjection.geometry).toBe(connector.route.geometry)
+    }
   })
 
   test('lowering preserves the plain rounded two-point terminal gap', () => {
