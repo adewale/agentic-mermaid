@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 const input = JSON.parse(readFileSync(0, 'utf8')) as { root: string; features: string[]; backend: 'elk' | 'agentic'; mode: string; item: { id: string; source: string } }
 const beforeImport = process.memoryUsage(), start = performance.now()
-const api = await import(pathToFileURL(join(input.root, 'src/agent/png.ts')).href)
+const api = await import(pathToFileURL(join(input.root, 'dist/agent.js')).href)
 const renderer = api.createMermaidPNGRenderer()
 const importMs = performance.now() - start, afterImport = process.memoryUsage()
 const options = { embedFontImport: false, security: 'strict', ...(input.features.includes('fonts') ? { fontMetrics: 'bundled-inter' } : {}), graphLayout: {

@@ -14,9 +14,9 @@ const root = resolve(input.root)
 const load = (path: string) => import(pathToFileURL(join(root, path)).href)
 const beforeImport = process.memoryUsage()
 const startImport = performance.now()
-const api = await load('src/index.ts')
+const api = await load(input.mode === 'quality' ? 'src/index.ts' : 'dist/index.js')
 let profile: TextMeasurementProfile | undefined
-if (input.features.includes('fonts')) profile = (await load('src/inter-metrics.ts')).BUNDLED_INTER_TEXT_MEASUREMENT
+if (input.mode === 'quality' && input.features.includes('fonts')) profile = (await load('src/inter-metrics.ts')).BUNDLED_INTER_TEXT_MEASUREMENT
 const renderer = api.createMermaidRenderer()
 const importMs = performance.now() - startImport
 const afterImport = process.memoryUsage()

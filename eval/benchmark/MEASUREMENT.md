@@ -9,11 +9,13 @@ base before changing production code. `font-oracle.py CHECKOUT CORPUS OUTPUT
 estimates. `browser.ts --root CHECKOUT --out FILE --features LIST` records real
 gzip HTTP requests and consumed browser receipts from an immutable built checkout.
 
+Build both immutable checkouts with `bun run build` first. Then
 `paired.ts --baseline BASE --head HEAD --corpus CORPUS --out DIRECTORY` runs
 alternating controls and individual, combined and leave-one-feature-out
 configurations. It also measures the final shipped code with every feature
 disabled, cached and recomputed SVG calls, separate PNG resource/latency lanes,
-and 21 fresh-process samples of one named startup case. The source/OS/runtime,
+and 21 fresh-process samples of one named startup case. These cost lanes import
+the built public `dist/index.js` and `dist/agent.js` entries. The source/OS/runtime,
 features, cache policy and cohort are recorded before execution. Results are
 append-only and the commands refuse an existing attempt destination. The
 original development workload remains exposed, not an independent holdout.
