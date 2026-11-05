@@ -6,6 +6,7 @@ import { mutateRailroad, parseRailroadBody } from '../agent/railroad-body.ts'
 import { knownStyles, renderMermaidSVG } from '../index.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { terminalDocumentOf } from '../ascii/terminal-document.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const grammars = [
   ['constructors', 'railroad-beta\nentry = sequence(terminal("start"), choice(nonterminal("item"), optional(terminal("end"))), zeroOrMore(terminal(",")));'],
@@ -81,4 +82,29 @@ test('ABNF exact-zero and exact-one repeats draw only the traversable track', ()
 test('Railroad rule groups contain every rounded leaf across styles', () => {
   const input = 'railroad-ebnf-beta\nentry = "start", [item], {",", item};\nitem = "word" | "number";'
   for (const style of knownStyles()) expect(() => renderMermaidSVG(input, { style })).not.toThrow()
+})
+
+test('Railroad writers retain grammar escapes and reject notation changes or injected numeric expressions', () => {
+  for (const notation of ['railroad', 'ebnf', 'peg'] as const) {
+    const body = { kind: 'railroad' as const, notation, title: 'title \\ path', rules: [{ name: 'entry', definition: { type: 'terminal' as const, value: 'back\b form\f slash\\ quoted"\n\t' } }] }
+    const restored = parseRailroad(renderRailroad(body))
+    expect(restored.title).toBe(body.title)
+    expect(restored.rules).toEqual(body.rules)
+  }
+  const abnf = { kind: 'railroad' as const, notation: 'abnf' as const, title: 'title \\ path', rules: [{ name: 'entry', definition: { type: 'terminal' as const, value: 'value' } }] }
+  expect(parseRailroad(renderRailroad(abnf)).title).toBe(abnf.title)
+  expect(mutateRailroad(abnf, { kind: 'replace_rule', index: 0, definition: { type: 'terminal', literalKind: 'abnf-numeric', value: '%x41; injected = "wrong"' } }).ok).toBe(false)
+  expect(() => parseRailroad('railroad-abnf-beta\nentry = 3*1"invalid";')).toThrow('Repetition bounds')
+  expect(() => parseRailroad('railroad-abnf-beta\nentry = 999999999999999999999"unsafe";')).toThrow('Repetition bounds')
+  expect(mutateRailroad({ ...abnf, notation: 'ebnf' }, { kind: 'replace_rule', index: 0, definition: { type: 'choice', ordered: true, alternatives: [{ type: 'terminal', value: 'first' }, { type: 'terminal', value: 'second' }] } }).ok).toBe(false)
+})
+
+test('canonical Railroad string escapes remain accepted by the independent public Mermaid parser', async () => {
+  const upstream = startUpstreamMermaid()
+  try {
+    for (const notation of ['railroad', 'ebnf', 'abnf', 'peg'] as const) {
+      const body = { kind: 'railroad' as const, notation, title: 'title \\ path', rules: [{ name: 'entry', definition: { type: 'terminal' as const, value: notation === 'abnf' ? 'back\\slash' : 'quoted" back\\slash\nline' } }] }
+      expect(await upstream.publicAccepts(renderRailroad(body))).toBe(true)
+    }
+  } finally { upstream.close() }
 })

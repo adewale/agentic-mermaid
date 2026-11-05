@@ -15,6 +15,7 @@ export function assertRailroadWork(rules: RailroadBody['rules']): void {
     seen.add(node)
     assertDiagramWorkLimit('nodes', ++count)
     assertDiagramWorkLimit('nesting', depth)
+    if (node.type === 'repetition' && (!Number.isSafeInteger(node.min) || node.min < 0 || (node.max !== null && (!Number.isSafeInteger(node.max) || node.max < node.min)))) throw new Error('Repetition bounds must be ordered nonnegative safe integers, with null for an unbounded maximum')
     if (node.type === 'sequence' || node.type === 'choice') for (const child of node.type === 'sequence' ? node.elements : node.alternatives) pending.push({ node: child, depth: depth + 1 })
     else if (node.type === 'optional' || node.type === 'repetition' || node.type === 'predicate') pending.push({ node: node.element, depth: depth + 1 })
     else if (node.type === 'exception') { pending.push({ node: node.base, depth: depth + 1 }); pending.push({ node: node.except, depth: depth + 1 }) }
