@@ -4,6 +4,7 @@ import { sceneLowering, type DrawingDocument, type DrawingFactory } from '../sce
 import { diagramTitleFields, resolveRenderStyle } from '../styles.ts'
 import type { RenderContext } from '../types.ts'
 import type { PositionedRailroad } from './layout.ts'
+import { formatSvgNumber } from '../shared/svg-number.ts'
 
 export function lowerRailroadDrawing<T>(marks: DrawingFactory<T>, { positioned: chart, colors, resolved }: RenderContext<PositionedRailroad>): DrawingDocument<T> {
   const style = resolveRenderStyle(resolved.renderOptions, undefined, resolved.styleFace), parts: T[] = []
@@ -18,11 +19,17 @@ export function lowerRailroadDrawing<T>(marks: DrawingFactory<T>, { positioned: 
     const children: T[] = []
     children.push(marks.text({ id: `label:${rule.id}`, role: 'label', owner: { id: rule.id, role: 'group' }, text: rule.name.text, block: rule.name,
       x: rule.x, y: rule.y + rule.name.height / 2, fontSize: rule.name.fontSize, fontWeight: rule.name.fontWeight, anchor: 'start', paint: { fill: 'var(--_text)' } }))
-    for (const track of tracksByRule.get(rule.id) ?? []) children.push(marks.connector({ id: track.id, role: 'edge', owner: { id: rule.id, role: 'group' },
-      geometry: { kind: 'polyline', points: track.points }, lineStyle: 'solid', paint: { stroke: style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(style.lineWidth) } }))
+    // These are one production's decorative rails, not authored graph edges.
+    // Explicit subpaths preserve every branch and prohibit joining separate
+    // tracks while avoiding a full relation record for each two-point stub.
+    const tracks = tracksByRule.get(rule.id) ?? []
+    if (tracks.length) children.push(marks.connector({ id: `rails:${rule.id}`, role: 'edge', owner: { id: rule.id, role: 'group' },
+      geometry: { kind: 'path', d: tracks.map(track => track.points.map((point, index) => `${index ? 'L' : 'M'}${formatSvgNumber(point.x)} ${formatSvgNumber(point.y)}`).join(' ')).join(' '),
+        points: tracks.flatMap(track => track.points), subpaths: tracks.map(track => ({ points: track.points, closed: false })) },
+      lineStyle: 'solid', paint: { stroke: style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(style.lineWidth) } }))
     for (const label of labelsByRule.get(rule.id) ?? []) {
       if (label.kind !== 'annotation') children.push(marks.shape({ id: label.id, role: 'node', owner: { id: rule.id, role: 'group' },
-        geometry: { kind: 'rect', x: label.x, y: label.y, width: label.width, height: label.height, rx: label.kind === 'terminal' ? label.height / 2 : 3 },
+        geometry: { kind: 'rect', x: label.x, y: label.y, width: label.width, height: label.height, rx: label.kind === 'terminal' ? label.height / 2 : style.cornerRadius ?? 3 },
         paint: { fill: nodeFill, stroke: style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: String(style.nodeLineWidth) } }))
       children.push(marks.text({ id: `label:${label.id}`, role: 'label', owner: { id: label.kind === 'annotation' ? rule.id : label.id, role: label.kind === 'annotation' ? 'group' : 'node' }, text: label.block.text, block: label.block,
         x: label.x + label.width / 2, y: label.y + label.height / 2, fontSize: label.block.fontSize, fontWeight: label.block.fontWeight, anchor: 'middle', paint: { fill: label.kind === 'annotation' ? text : nodeInk } }))

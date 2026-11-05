@@ -7,6 +7,7 @@ import { knownStyles, renderMermaidSVG } from '../index.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { terminalDocumentOf } from '../ascii/terminal-document.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { lowerRailroadScene } from '../railroad/renderer.ts'
 
 const grammars = [
   ['constructors', 'railroad-beta\nentry = sequence(terminal("start"), choice(nonterminal("item"), optional(terminal("end"))), zeroOrMore(terminal(",")));'],
@@ -48,6 +49,24 @@ test('Railroad layout owns connected choice branches and repetition return track
   }
 })
 
+test.each(grammars)('Railroad %s batches rails without losing contours or joining separate tracks', (_name, source) => {
+  const chart = layoutRailroad(parseRailroad(source))
+  const scene = lowerRailroadScene({ positioned: chart, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } })
+  for (const part of scene.parts) {
+    if (part.kind !== 'group') continue
+    const rails = part.children.map(child => child.node).filter(node => node.kind === 'connector')
+    expect(rails).toHaveLength(1)
+    const rail = rails[0]!
+    if (rail.kind !== 'connector' || rail.route.geometry.kind !== 'path') throw new Error('Expected batched rail path')
+    const tracks = chart.tracks.filter(track => track.ruleId === part.id)
+    expect(rail.route.geometry.subpaths).toEqual(tracks.map(track => ({ points: track.points, closed: false })))
+    expect(rail.route.geometry.points).toEqual(tracks.flatMap(track => track.points))
+    expect(rail.route.geometry.d.match(/M/g)).toHaveLength(tracks.length)
+    expect(rail.endpoints.from).toBeUndefined()
+    expect(rail.endpoints.to).toBeUndefined()
+  }
+})
+
 test('Railroad structural edits reject cycles, malformed input is preserved, and repeated rule names remain distinct', () => {
   const body = parseRailroad('railroad-beta\nentry = terminal("a");\nentry = terminal("b");')
   expect(body.rules.map(rule => rule.name)).toEqual(['entry', 'entry'])
@@ -61,8 +80,8 @@ test('Railroad structural edits reject cycles, malformed input is preserved, and
 
 test.each(grammars)('Railroad %s renders real SVG rails and explicitly diagnosed complete terminal grammar', (_name, source) => {
   const svg = renderMermaidSVG(source)
-  expect(svg).toContain('data-id="entry:rule#0:entry"')
-  expect(svg).toContain('<polyline')
+  expect(svg).toContain('data-id="rails:rule#0:entry"')
+  expect(svg).toContain('<path')
   const terminal = renderMermaidASCIIWithReceipt(source, { colorMode: 'none', layoutSafety: 'strict' })
   expect(terminal.receipt.layoutCertification?.status).toBe('passed')
   const document = terminalDocumentOf(terminal)!
