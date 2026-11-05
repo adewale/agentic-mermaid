@@ -14,8 +14,13 @@ renders and what mutates is `am capabilities --json`, not this page.
 | The reader must | First choice | Reach for instead when |
 |---|---|---|
 | Follow steps and decisions to an outcome | Flowchart | The subject reacts to events rather than proceeding through steps: state |
+| Follow work as it passes between responsible teams or people | Swimlane | Responsibility is irrelevant: flowchart |
+| Trace agent tasks, tools, connectors and shared documents | AgentFlow | There are no agent roles or attachments: flowchart |
+| Identify actors and their goals within system boundaries | UseCase | The reader needs the order of individual steps: sequence or flowchart |
 | See how a system moves between modes | State | The path is a linear procedure: flowchart |
 | Read who sends what to whom, in order | Sequence | Only dependency matters, not order: flowchart |
+| Read nested calls and control scopes in code-like notation | ZenUML | Explicit message timing and sequence notation matter: sequence |
+| Trace UI actions, commands, events and read models across timeframes | Event Modeling | The concern is only message exchange: sequence |
 | Read how protocol fields occupy bit addresses and word rows | Packet | Message order between actors matters: sequence |
 | Compare dated work with durations and dependencies | Gantt | There are no dates, only eras: timeline |
 | Track work by workflow stage, assignee, ticket, and priority | Kanban | Dates, durations, and dependencies matter: gantt |
@@ -26,6 +31,9 @@ renders and what mutates is `am capabilities --json`, not this page.
 | Compare value proportions within a hierarchy | Treemap | There is no hierarchy: pie; precise comparisons matter more than area: xychart |
 | Compare measured values across categories or time | XY chart | The values are shares of a single whole: pie |
 | Place options on two independent axes | Quadrant | Each option is scored on three or more criteria: radar |
+| Compare capability dependencies by visibility and evolution | Wardley | The axes are arbitrary scores rather than visibility and evolution: quadrant |
+| Choose an approach for different decision contexts | Cynefin | The categories are measured numeric scores: quadrant or radar |
+| Inspect sets, their intersections and authored quantities | Venn | Exact flows between quantities matter: sankey |
 | Compare profiles across three or more shared criteria | Radar | There are exactly two criteria: quadrant |
 | See stored data and how records relate | ER | Behavior and methods matter, not storage: class |
 | See code structure, types, and inheritance | Class | Only the persistence shape matters: er |
@@ -35,6 +43,8 @@ renders and what mutates is `am capabilities --json`, not this page.
 | Explain people, software responsibilities and nested system or deployment boundaries | C4 | The reader needs infrastructure ports and physical links: architecture; protocol timing: sequence |
 | Follow commits, branches, and merges | GitGraph | — |
 | Explore ideas radiating from one center | Mindmap | Branches share children (the structure is a graph, not a tree): flowchart |
+| Scan ordered folders and files with hierarchy guides | TreeView | The hierarchy represents ideas rather than files: mindmap |
+| Follow the alternatives and repetition allowed by a grammar | Railroad | The subject is an execution process rather than accepted syntax: flowchart |
 | Investigate contributing causes of one effect | Ishikawa | The branches are ideas without a cause-and-effect claim: mindmap |
 
 ## Check the source shape first
