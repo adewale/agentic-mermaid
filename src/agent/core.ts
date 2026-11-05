@@ -536,7 +536,7 @@ export { asEventModeling } from './types.ts'
 export type { EventModelingBody, EventModelingMutationOp, EventModelingValidDiagram, EventFrame, EventFrameType, EventData, EventSpecification } from './types.ts'
 
 export { asSwimlane, asTreeview } from './types.ts'
-export type { SwimlaneBody, SwimlaneValidDiagram, TreeviewBody, TreeviewNode, TreeviewMutationOp, TreeviewValidDiagram } from './types.ts'
+export type { SwimlaneBody, SwimlaneMutationOp, SwimlaneValidDiagram, TreeviewBody, TreeviewNode, TreeviewMutationOp, TreeviewValidDiagram } from './types.ts'
 
 export { asAgentflow } from './types.ts'
 export type { AgentflowBody, AgentflowMutationOp, AgentflowValidDiagram } from './types.ts'
