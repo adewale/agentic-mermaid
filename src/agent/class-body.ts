@@ -679,6 +679,12 @@ function declareNamespaceOn(b: ClassBody, path: string): void {
 
 export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassBody, MutationError> {
   if (body.source !== undefined) {
+    const original = normalizeMermaidSource(body.source)
+    const baseline = parseClassBody(original.familyLines.slice(1), body.source)
+    if (!baseline || !sameSourceMeaning(baseline, body)) {
+      return err({ code: 'INVALID_OP', message: 'Class source does not match its typed body' })
+    }
+
     if (op.kind === 'rename_class' || op.kind === 'remove_class') {
       const id = op.kind === 'rename_class' ? op.from : op.id
       // Inert actions and future statements can still name this identity.

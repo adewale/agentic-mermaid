@@ -657,6 +657,18 @@ note for A "A \"quote\" and \\ path"`)
     expect(JSON.stringify(d)).toBe(before)
   })
 
+  test('source-preserving mutations refuse stale provenance instead of dropping live typed fields', () => {
+    const source = 'classDiagram\ndirection LR\nclass A {\n+read()\n}\n'
+    const diagram = asClass(parse(source))!
+    diagram.body.classes[0]!.members.push('+retained()')
+    const before = JSON.stringify(diagram)
+    const result = mutateChecked(diagram, { kind: 'add_member', class: 'A', text: '+next()' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.message).toContain('source does not match its typed body')
+    expect(JSON.stringify(diagram)).toBe(before)
+    expect(diagram.body.classes[0]!.members).toEqual(['+read()', '+retained()'])
+  })
+
   test('owned identity edits retain unrelated callback and direction statements', () => {
     const source = 'classDiagram\ndirection BT\nclass A {\n+read()\n}\nclass B\nA --> B : A label\nnote for A "A text"\ncallback B "inspect"\n'
     const original = parse(source)
