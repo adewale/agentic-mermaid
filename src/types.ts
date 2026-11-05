@@ -521,6 +521,8 @@ export interface GraphLayoutOptions {
 }
 
 export interface RenderOptions {
+  /** Opt-in pinned Inter ASCII advance/pair metrics; other faces/scripts use the estimator. Does not load fonts. */
+  fontMetrics?: 'estimate' | 'bundled-inter'
   /** Explicit deterministic Flowchart/State placement preferences; included in render receipts. */
   layoutHints?: GraphLayoutHints
   /** Graph geometry producer; omitted preserves the existing ELK pipeline. */

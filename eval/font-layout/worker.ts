@@ -16,11 +16,12 @@ const startImport = performance.now()
 const api = await load('src/index.ts')
 let profile: TextMeasurementProfile | undefined
 if (input.features.includes('fonts')) profile = (await load('src/inter-metrics.ts')).BUNDLED_INTER_TEXT_MEASUREMENT
-const renderer = api.createMermaidRenderer({ textMeasurement: profile })
+const renderer = api.createMermaidRenderer()
 const importMs = performance.now() - startImport
 const graphFamily = ['flowchart', 'state', 'class', 'er', 'requirement', 'architecture'].includes(input.item.family)
 const options: RenderOptions = {
   security: 'strict', embedFontImport: false,
+  ...(input.features.includes('fonts') ? { fontMetrics: 'bundled-inter' } : {}),
   ...(graphFamily ? { graphLayout: { backend: input.backend, fallback: input.backend === 'agentic' ? 'elk' : 'none',
     ...(input.features.includes('elk-order') && input.backend === 'elk' || input.features.includes('ports') && input.backend === 'agentic' ? { quality: 'balanced' } : {}),
     ...(input.features.includes('wrap') && input.item.family === 'flowchart' ? { viewport: { width: 800, height: 600 } } : {}),
@@ -67,7 +68,7 @@ if (input.mode === 'latency') {
   const measurement = await load('src/text-measurement-profile.ts')
   let graphQuality: unknown = null, layout: any
   const stages: unknown[] = []
-  const result = withRenderStageObserver((sample: unknown) => stages.push(sample), () => executeGraphicalRequest(input.item.source, options, 'svg', undefined, { textMeasurement: profile, onConfigDiagnostic: () => {} }, {
+  const result = withRenderStageObserver((sample: unknown) => stages.push(sample), () => executeGraphicalRequest(input.item.source, options, 'svg', undefined, { onConfigDiagnostic: () => {} }, {
     validate() {}, consume(_request: unknown, positioned: any) {
       layout = positioned.positioned
       if (input.item.family === 'flowchart') {
