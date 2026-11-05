@@ -35,9 +35,10 @@ CI's artifact job builds the portable bundles, website fixture and verified
 tarball once. Unit and E2E lanes consume those artifacts from the same checkout;
 the final `CI complete` gate waits for every selected lane. Package manifest and
 export/type checks inspect the packed artifact without rebuilding it in a unit
-shard. Browser contracts run in two disjoint file shards, with one test process
-per file. Payload measurement reuses the head build and builds the base website
-separately for comparison.
+shard. The `browser-site` job runs all canonical browser contracts, with one test
+process per file; the `browser` job runs resolved-scene comparisons. Payload
+measurement reuses the head build and builds the base website separately for
+comparison.
 
 The canonical unit collection is owned by `scripts/ci/unit-test-files.ts` and
 shared with the order finder. `bun run test` prepares website fixtures before
