@@ -3,6 +3,7 @@ import type { PositionedDiagramTitle } from '../styles.ts'
 import type { Point, PositionedDiagram, RenderOptions } from '../types.ts'
 
 export interface TreeviewNode {
+  /** Positional reader address; structural edits may renumber it. */
   id: string
   label: string
   parentId?: string

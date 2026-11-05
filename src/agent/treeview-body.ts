@@ -2,11 +2,13 @@ export { TREEVIEW_OP_KINDS, TREEVIEW_OP_SCHEMAS } from '../treeview/ops.ts'
 
 import { writeGrammarText } from '../shared/grammar-text.ts'
 import { hierarchyChildren, hierarchyDescendants, validateHierarchy } from '../shared/hierarchy-model.ts'
+import { treeviewRows } from '../treeview/hierarchy.ts'
 import { parseTreeviewDiagram } from '../treeview/parser.ts'
 import type { TreeviewBody, TreeviewMutationOp } from '../treeview/types.ts'
 import { accessibilityDescriptionText, accessibilityTitleText, appendAccessibilityLines } from './accessibility-envelope.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
+import { sameSourceMeaning } from './source-mutation.ts'
 import type { LayoutWarning, MutationError, Result, VerifyOptions } from './types.ts'
 import { err, ok } from './types.ts'
 
@@ -44,6 +46,15 @@ export function renderTreeview(body: TreeviewBody): string {
   }
   return lines.join('\n') + '\n'
 }
+/** Editing identities are positional reader addresses, never authored names.
+ * Compare all authored fields in traversal order while normalizing only those
+ * private addresses and parent references to the same row positions. */
+function treeviewMeaning(body: TreeviewBody): unknown {
+  const rows = treeviewRows(body.nodes),
+    positions = new Map(rows.map((row, index) => [row.node.id, index]))
+  return { ...body, nodes: rows.map(({ node }, index) => ({ ...node, id: index, parentId: node.parentId === undefined ? undefined : positions.get(node.parentId) })) }
+}
+
 export function mutateTreeview(body: TreeviewBody, op: TreeviewMutationOp): Result<TreeviewBody, MutationError> {
   try {
     const next = structuredClone(body)
@@ -106,8 +117,9 @@ export function mutateTreeview(body: TreeviewBody, op: TreeviewMutationOp): Resu
       default:
         throw new Error(unknownOpMessage('treeview', op))
     }
-    renderTreeview(next)
-    return ok(next)
+    const reparsed = parseTreeviewDiagram(renderTreeview(next))
+    if (!sameSourceMeaning(treeviewMeaning(next), treeviewMeaning(reparsed))) throw new Error('TreeView export would change authored hierarchy or metadata')
+    return ok(reparsed)
   } catch (error) {
     return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) })
   }
