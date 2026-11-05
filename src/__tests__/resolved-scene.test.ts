@@ -156,6 +156,13 @@ describe('resolved SVG values', () => {
     expect(primitives[1]).toMatchObject({ kind: 'text', text: 'Shown', paint: { fill: '#ff0000' } })
   })
 
+  test('copies an omitted corner radius before clamping each rectangle axis', () => {
+    // Native Chromium fill for width 20, height 30, rx 12 retains ry=12,
+    // while limiting rx to 10. Copying the limited rx would change its ink.
+    const [rounded] = resolve('<svg><rect width="20" height="30" rx="12" /></svg>')
+    expect(rounded).toMatchObject({ kind: 'path', d: 'M10 0H10A10 12 0 0 1 20 12V18A10 12 0 0 1 10 30H10A10 12 0 0 1 0 18V12A10 12 0 0 1 10 0Z' })
+  })
+
   test('keeps rem relative to the initial document font while em follows each element', () => {
     const [rect, text] = resolve('<svg font-size="20"><rect width="1rem" height="1em" /><text x="1rem" y="1em" font-size="10">Units</text></svg>')
     expect(rect).toMatchObject({ kind: 'path', d: 'M0 0h16v20h-16Z' })
