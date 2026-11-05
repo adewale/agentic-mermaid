@@ -46,7 +46,7 @@ The agent workflow is the guardrail behind the polish: agents should not guess f
 - **Render SVG without a browser** — the synchronous JavaScript API runs without a DOM or Puppeteer.
 - **Composable styles** — `{ style: ['hand-drawn', 'dracula'] }` combines a look with a palette. Set colors, fonts, strokes, fills and backdrops in a [JSON style](./docs/style-authoring.md). `seed` re-rolls the ink, never the layout.
 - **Match your editor's colors** — choose a built-in palette, theme from two colors, or adapt a VS Code theme with Shiki.
-- **Agent-native editing** — use typed operations for modeled syntax. Inputs with unmodeled syntax retain their source; [source-preserving edits](./docs/agent-mutation-policy.md) cover selected Class, Timeline and Flowchart operations.
+- **Agent-native editing** — use typed operations for modeled syntax. Class and Timeline retain unmodeled statements alongside typed edits; explicit [source-preserving mode](./docs/agent-mutation-policy.md) covers selected opaque Class and Flowchart operations.
 - **CLI + MCP + library** — use `am`, connect `agentic-mermaid-mcp`, or import `agentic-mermaid/agent` for rendering and editing. See the [API reference](./docs/api.md) for the other library and browser entry points.
 
 ## Installation
