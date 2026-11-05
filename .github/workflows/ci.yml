@@ -450,7 +450,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        # macos-latest selects ARM64, whose hosted pool can abandon queued jobs.
+        os: [macos-15-intel, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
