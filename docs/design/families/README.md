@@ -32,7 +32,7 @@ across several surfaces; this hub points at each.
 | Ishikawa | [ishikawa.md](./ishikawa.md) |
 | Block | [block.md](./block.md) |
 | Event Modeling | [eventmodeling.md](./eventmodeling.md) |
-| ZenUML | See the shared system and family contracts below. |
+| ZenUML | [zenuml.md](./zenuml.md) |
 | Railroad | [railroad.md](./railroad.md) |
 | Cynefin | [cynefin.md](./cynefin.md) |
 | AgentFlow | [agentflow.md](./agentflow.md) |
@@ -43,10 +43,13 @@ across several surfaces; this hub points at each.
 | TreeView | [treeview.md](./treeview.md) |
 <!-- END GENERATED: family-design-notes -->
 
-The registry supplies this index. Families without a dedicated note use the
-[system hub](../system/README.md) and the
-[shared implementation contract](stable-family-implementation.md). Related
-research and parser notes remain alongside each family document.
+The registry supplies this index. Generating it requires a dedicated note for
+each built-in family, so missing domain guidance cannot be replaced silently
+with another family's contract. Shared rules live in the
+[system hub](../system/README.md); the
+[stable-family implementation contract](stable-family-implementation.md) covers
+its named families. Related research and parser notes remain alongside each
+family document.
 See also the [Flowchart parser](flowchart-parser-conformance.md),
 [Gantt research](gantt-research.md), [GitGraph research](gitgraph-research.md),
 [Journey migration](journey-migration-parity.md) and
