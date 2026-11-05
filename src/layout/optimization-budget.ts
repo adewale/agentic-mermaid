@@ -33,6 +33,8 @@ export function withLayoutOptimizationBudget<T>(owner: object, options: GraphLay
 export function layoutOptimizationEvidenceOf(owner: object): LayoutOptimizationEvidence | undefined { return evidence.get(owner) }
 export function canExploreLayout(): boolean { return Boolean(active && !active.optional && active.extra < 2) }
 export function selectedLayoutOptimization(strategy: string): void { active?.selected.push(strategy) }
+export function layoutOptimizationSelections(): string[] { return [...active?.selected ?? []] }
+export function restoreLayoutOptimizationSelections(selected: readonly string[]): void { if (active) active.selected = [...selected] }
 
 /** Account logical producer invocations even when an engine cache hits, so
  * search decisions and geometry do not depend on cache warmth. */

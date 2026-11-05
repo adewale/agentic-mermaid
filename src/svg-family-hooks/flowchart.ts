@@ -4,7 +4,7 @@ import { projectGraphPositioned } from '../positioned-views/graph.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { resolveFlowchartRenderOptions, applyFlowchartLabelWrapping } from '../flowchart-config.ts'
 import { flowchartStatementEnds } from '../flowchart-lexer.ts'
-import { layoutGraphSync } from '../layout-engine.ts'
+import { layoutFlowchartViewport } from '../layout/flowchart-viewport.ts'
 import { parseFlowchartRenderSource } from '../parser.ts'
 import { lowerGraphScene } from '../renderer.ts'
 import { frontmatterTitle } from '../mermaid-source.ts'
@@ -28,11 +28,7 @@ export const FLOWCHART_SVG_HOOKS = {
     checkAllGraphAuthoredStyles(graph)
     applyFlowchartLabelWrapping(graph, ctx.renderOptions, ctx.styleFace)
     const diagramTitle = frontmatterTitle(ctx.source.frontmatter)
-    return layoutResult(layoutGraphSync(graph, {
-      ...ctx.renderOptions,
-      ...(ctx.styleFace ? { styleFace: ctx.styleFace } : {}),
-      ...(diagramTitle ? { diagramTitle } : {}),
-    }))
+    return layoutResult(layoutFlowchartViewport(graph, ctx.renderOptions, ctx.styleFace, diagramTitle))
   },
   projectPositioned: positionedView(projectGraphPositioned),
   lowerScene: scene(lowerGraphScene),

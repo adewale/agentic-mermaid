@@ -42,3 +42,30 @@ test('port-aware block placement can straighten a fan while retaining final rout
   expect(after.receipt.layoutOptimization?.additionalProducerCalls).toBe(1)
   expect(after.receipt.layoutOptimization?.selected).toEqual(['port-aware-placement'])
 })
+
+const WIDE = 'flowchart LR\nA[Very wide authentication and authorization gateway] --> C[OK]\nB[Input] --> C\nA --> D[Persist the transaction and return a response]\nC --> E[Done]\nD --> E'
+test('viewport wrapping selects a complete fitting graph within the shared producer allowance', () => {
+  const before = layout(WIDE, { graphLayout: { backend: 'elk' } })
+  const after = layout(WIDE, { graphLayout: { backend: 'elk', viewport: { width: 800, height: 600 } } })
+  const viewportScale = (graph: PositionedGraph) => Math.min(1, 800 / graph.width, 600 / graph.height)
+  expect(viewportScale(after.positioned)).toBeGreaterThan(viewportScale(before.positioned))
+  expect(after.receipt.layoutOptimization!.additionalProducerCalls).toBeLessThanOrEqual(2)
+  expect(after.positioned.nodes.map(node => [node.id, node.label])).toEqual(before.positioned.nodes.map(node => [node.id, node.label]))
+  expect(after.positioned.certification?.hardViolations).toBe(0)
+  const combined = layout(WIDE, { graphLayout: { backend: 'elk', quality: 'balanced', viewport: { width: 800, height: 600 } } })
+  const ordered = layout(WIDE, { graphLayout: { backend: 'elk', quality: 'balanced' } })
+  expect(viewportScale(combined.positioned)).toBeGreaterThanOrEqual(viewportScale(ordered.positioned))
+  expect(combined.receipt.layoutOptimization!.additionalProducerCalls).toBeLessThanOrEqual(2)
+})
+
+test('explicit wrapping wins over viewport search and authored line breaks survive alternatives', () => {
+  const fixed = { wrappingWidth: 140, graphLayout: { backend: 'elk' as const } }
+  const before = renderMermaidSVGWithReceipt(WIDE, fixed)
+  const after = renderMermaidSVGWithReceipt(WIDE, { ...fixed, graphLayout: { backend: 'elk', viewport: { width: 400, height: 300 } } })
+  expect(after.svg).toBe(before.svg)
+  expect(after.receipt.layoutOptimization?.additionalProducerCalls).toBe(0)
+  const source = 'flowchart LR\nA["Authentication<br/>must remain on this line"] --> B["Record request tracing and audit information"]'
+  const prepared = layout(source, { graphLayout: { backend: 'elk', viewport: { width: 400, height: 300 } } }).positioned.nodes.find(node => node.id === 'A')!.labelBlock!
+  expect(prepared.breaks.filter(value => value.kind === 'authored')).toHaveLength(1)
+  expect(prepared.prepared.lines).toHaveLength(2)
+})

@@ -97,7 +97,7 @@ function alignPortBlocks(
   const root = (id: number): number => {
     if (parent[id] === id) return id
     const previous = parent[id]!, found = root(previous)
-    offset[id] += offset[previous]!
+    offset[id] = offset[id]! + offset[previous]!
     parent[id] = found
     return found
   }
