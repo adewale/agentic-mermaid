@@ -244,3 +244,26 @@ single-buffer run and failed draft are retained separately from product outcomes
 Evidence: `forest-source-ports-3b35c1b3d`. Full CI, browser visuals, payload ceilings
 and Sparse32 remain open. Next: qualify the browser Class spacing expectation and
 measure the standalone payload cost with equivalent builds.
+
+Forest fix committed/pushed as `69af97a12aefe1140095064312a7f32b3f5e5714`.
+Paired complete standalone builds on Bun1.4.4, identical dependencies/recipe and
+only the fanout source reverted for the control, measure **1,418,892→1,419,207
+gzip9 bytes (+315)**, raw **2,167,221→2,167,553 (+332)**. The producer and candidate
+HTML were restored byte-exactly. This is an added download cost, not a speed
+measurement; existing payload ceilings remain failed and unchanged.
+
+Browser Class screenshot at `69af97a12`: mainf9's unchanged five-case owner passes.
+The current actual DOM retains both classes, three methods, the calls relationship,
+two normal contacts and all marker definitions. ApiService's body/header/contents
+translate −3px; caption −1.5px; canvas height 412→409. Inverting only those changes
+and the generated scope rename restores the entire main DOM. Both screenshots
+were inspected independently: rounded fills, readable text and arrow remain.
+Chrome's capture changes 215×412→215×410. Update only this reviewed Class PNG from
+the fetched CI3b artifact (verified digest); the other four goldens stay untouched.
+The unchanged five-case browser owner now passes (29 assertions, 13.99s); the
+pre-update candidate failed its Class dimensions assertion. No runtime source or
+tolerance changed in this PNG update. Evidence: `browser-rounded-review-3b`.
+CI3b tested merge `d13c5b4` into mainf9: shards1/2 pass; Sparse32, browser/payload
+fail; CLI failed downloading Bun with HTTP504 before tests. Latest-head CI still
+needs qualification. Remaining forest wire +10.19%, Requirement TB/BT area +9.53%,
+shared ER256 refusal and Sparse32 proof cap remain distinct next losses.
