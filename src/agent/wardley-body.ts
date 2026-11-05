@@ -1,3 +1,4 @@
+import { unknownOpMessage } from './mutation-ops.ts'
 import { parseWardleyBody } from '../wardley/body.ts'
 import type { WardleyBody, WardleyMutationOp } from '../wardley/types.ts'
 import { mermaidNumber } from '../shared/mermaid-number.ts'
@@ -132,7 +133,7 @@ export function mutateWardley(body: WardleyBody, op: WardleyMutationOp): Result<
         break
       }
       case 'add_note': next.notes.push({ text: op.text, x: op.x, y: op.y }); break
-      default: throw new Error('Unknown Wardley operation')
+      default: return err({ code: 'INVALID_OP', message: unknownOpMessage('wardley', op) })
     }
     const actual = parseWardleyBody(renderWardley(next))
     if (!sameSourceMeaning(actual, next)) throw new Error('Wardley edit cannot retain the requested complete map semantics in Mermaid source')

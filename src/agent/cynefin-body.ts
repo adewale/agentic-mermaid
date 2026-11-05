@@ -1,3 +1,4 @@
+import { unknownOpMessage } from './mutation-ops.ts'
 import { parseCynefinBody } from '../cynefin/body.ts'
 import { CYNEFIN_DOMAINS, type CynefinBody, type CynefinMutationOp, type DomainName } from '../cynefin/types.ts'
 import { sameSourceMeaning } from './source-mutation.ts'
@@ -64,7 +65,7 @@ export function mutateCynefin(body: CynefinBody, op: CynefinMutationOp): Result<
       case 'remove_transition':
         if (!Number.isInteger(op.index) || !next.transitions[op.index]) throw new Error('Cynefin transition index was not found')
         next.transitions.splice(op.index, 1); break
-      default: throw new Error('Unknown Cynefin operation')
+      default: return err({ code: 'INVALID_OP', message: unknownOpMessage('cynefin', op) })
     }
     const actual = parseCynefinBody(renderCynefin(next))
     if (!sameSourceMeaning(actual, next)) throw new Error('Cynefin edit cannot retain the complete requested domain semantics')
