@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "d612f44c4326ee75df65a29c25f7ee9b5e4cf11240815722e921f24011ff13f3",
+  "artifactSha256": "c29cf3c0b259adbe46a07cb2efc8ecc020270ae7f01d5281cb6ff2c9d13315c9",
   "reviewedAt": "2026-11-05",
-  "reviewer": "Codex agent, PR #601 Venn accent review",
-  "scope": "Agent review at renderer revision 7e94fb9103894559072138de2b62da480919a6c5: inspected all four Venn cells at native 520x380 size and the full 132-cell sheet overview. Three Venn holdouts now use their requested accent fills; the sentinel and all 128 other cells are pixel-identical to the prior approved sheet. The earlier native-family review remains applicable to those unchanged cells. This finite review is not human approval, deployed-site parity or arbitrary-density proof.",
+  "reviewer": "Codex agent, PR #601 native-family readability and mono typography review",
+  "scope": "Agent review at renderer revision b3015e10b0a1a682a2c282019051cec5f7a23432: inspected all 32 new-family cells across four variants at native 520\u00d7380 size, dense before/after captures, and original-family controls. Six original-family dark-operations cells change due to the shared mono metric correction (Packet, Kanban, Requirement, Treemap, Block, Event Modeling); the other 94 original-family cells remain pixel-identical. Dense routing and caption repairs have separate full-size witnesses. This finite review is not human approval, deployed-site parity, complete style-channel equivalence or arbitrary-density proof.",
   "audit": "eval/section-b-brand-evidence/arrowhead-clearance-review.md"
 }
