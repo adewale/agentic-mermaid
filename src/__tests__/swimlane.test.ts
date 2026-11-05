@@ -78,3 +78,24 @@ test('the bare upstream graph keyword keeps its established Flowchart identity',
   const native = parseRegisteredMermaid('swimlane-beta LR;A-->B;')
   expect(native.ok && native.value.body.kind).toBe('swimlane')
 })
+
+test('independent lane hand-offs keep separate short routes instead of an unlabelled shared bus', () => {
+  const input = ['swimlane-beta LR', ...Array.from({ length: 3 }, (_, lane) => [`subgraph L${lane}[Team ${lane}]`, ...Array.from({ length: 6 }, (_, item) => `n${lane}_${item}[Task ${lane}.${item}]`), 'end']), ...Array.from({ length: 6 }, (_, item) => [`n0_${item} --> n1_${item}`, `n1_${item} --> n2_${item}`])].flat().join('\n')
+  const chart = layoutSwimlane(parseSwimlane(input)), firstLane = chart.nodes.filter(node => node.id.startsWith('n0_'))
+  expect(new Set(firstLane.map(node => node.x)).size).toBe(6)
+  expect(new Set(firstLane.map(node => node.y)).size).toBe(1)
+  const segments = chart.edges.flatMap(edge => edge.points.slice(1).map((b, index) => ({ edge: edge.edgeIndex, a: edge.points[index]!, b })))
+  for (let i = 0; i < segments.length; i++) for (let j = i + 1; j < segments.length; j++) {
+    const a = segments[i]!, b = segments[j]!
+    if (a.edge === b.edge) continue
+    const sameVerticalTrack = a.a.x === a.b.x && b.a.x === b.b.x && a.a.x === b.a.x
+    const sameHorizontalTrack = a.a.y === a.b.y && b.a.y === b.b.y && a.a.y === b.a.y
+    const overlap = sameVerticalTrack ? Math.min(Math.max(a.a.y, a.b.y), Math.max(b.a.y, b.b.y)) - Math.max(Math.min(a.a.y, a.b.y), Math.min(b.a.y, b.b.y)) : sameHorizontalTrack ? Math.min(Math.max(a.a.x, a.b.x), Math.max(b.a.x, b.b.x)) - Math.max(Math.min(a.a.x, a.b.x), Math.min(b.a.x, b.b.x)) : 0
+    expect(overlap).toBeLessThanOrEqual(0)
+  }
+  for (const edge of chart.edges) {
+    const from = chart.nodes.find(node => node.id === edge.source)!, to = chart.nodes.find(node => node.id === edge.target)!
+    expect(edge.points[0]?.y).toBe(from.y + from.height)
+    expect(edge.points.at(-1)?.y).toBe(to.y)
+  }
+})

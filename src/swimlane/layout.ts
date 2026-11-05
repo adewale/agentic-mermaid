@@ -18,7 +18,7 @@ export { swimlanePartitions } from './model.ts'
 export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Parameters<typeof layoutNativeGraphPlacementSync>[1]> = {}, diagramTitle?: string): PositionedGraph {
   assertMermaidGraphWork(graph)
   const horizontal = graph.direction === 'LR' || graph.direction === 'RL'
-  const padding = options.padding ?? 40, inset = 24, gap = options.nodeSpacing ?? 32
+  const padding = options.padding ?? 40, inset = 24, gap = Math.max(48, options.nodeSpacing ?? 32)
   const style = resolveRenderStyle(options, undefined, options.styleFace)
   const titleBand = diagramTitleBand(diagramTitle, style)
   const lanes = swimlanePartitions(graph)
@@ -42,6 +42,26 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   }
   const measured = lanes.map((lane, index) => {
     const local = layoutNativeGraphPlacementSync(inputs[index]!, { ...options, padding: inset, nodeSpacing: Math.max(gap, 32), layerSpacing: Math.max(options.layerSpacing ?? 64, 64) })
+    // An isolated task is a complete component, not a new process row. Pack
+    // independent components along the authored process direction inside the
+    // lane so matching hand-offs retain separate, short crossing channels.
+    if (!local.groups.length && local.nodes.length > 1) {
+      const parent = new Map(local.nodes.map(node => [node.id, node.id]))
+      const find = (id: string): string => { let root = id; while (parent.get(root) !== root) root = parent.get(root)!; while (id !== root) { const next = parent.get(id)!; parent.set(id, root); id = next } return root }
+      for (const edge of inputs[index]!.edges) { const a = find(edge.source), b = find(edge.target); if (a !== b) parent.set(b, a) }
+      const components = new Map<string, PositionedNode[]>()
+      for (const node of local.nodes) { const key = find(node.id), members = components.get(key) ?? []; members.push(node); components.set(key, members) }
+      let cursor = inset, crossExtent = 0
+      for (const component of components.values()) {
+        const left = Math.min(...component.map(node => node.x)), top = Math.min(...component.map(node => node.y)), width = Math.max(...component.map(node => node.x + node.width)) - left, height = Math.max(...component.map(node => node.y + node.height)) - top
+        const dx = (horizontal ? cursor : inset) - left, dy = (horizontal ? inset : cursor) - top
+        for (const node of component) { node.x += dx; node.y += dy }
+        cursor += (horizontal ? width : height) + gap
+        crossExtent = Math.max(crossExtent, horizontal ? height : width)
+      }
+      local.width = horizontal ? cursor - gap + inset : crossExtent + inset * 2
+      local.height = horizontal ? crossExtent + inset * 2 : cursor - gap + inset
+    }
     retainGraphText({ ...local, edges: [] }, style)
     const title = graphTextBlock(resolveLabelContent(lane.label, lane.source?.labelContent), style, 'group')
     const header = Math.max(40, title.height + 16)
@@ -70,28 +90,30 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   const byId = new Map<string, PositionedNode | PositionedGroup>(nodes.map(node => [node.id, node]))
   const collect = (group: PositionedGroup): void => { byId.set(group.id, group); group.children.forEach(collect) }
   groups.forEach(collect)
-  const ports = (id: string, end: 'source' | 'target'): { port: Point; stub: Point } => {
+  const ports = (id: string, other: string, end: 'source' | 'target'): { port: Point; stub: Point } => {
     const node = byId.get(id)
     if (!node) throw new Error(`Swimlane edge ${end} "${id}" has no node or lane`)
     const forward = graph.direction !== 'RL' && graph.direction !== 'BT'
     const exiting = end === 'source' ? forward : !forward
-    const side = horizontal ? (exiting ? 'E' : 'W') : (exiting ? 'S' : 'N')
+    const ownLane = owners.get(id), otherLane = owners.get(other), crossing = ownLane !== undefined && otherLane !== undefined && ownLane !== otherLane
+    const side = crossing ? (horizontal ? (otherLane > ownLane ? 'S' : 'N') : (otherLane > ownLane ? 'E' : 'W')) : horizontal ? (exiting ? 'E' : 'W') : (exiting ? 'S' : 'N')
     const actual = 'shape' in node ? shapeCardinalPorts(node)[side]
       : { x: node.x + node.width / 2, y: node.y + node.height / 2 }
     const port = 'shape' in node ? actual : side === 'E' ? { x: node.x + node.width, y: actual.y }
       : side === 'W' ? { x: node.x, y: actual.y } : side === 'S' ? { x: actual.x, y: node.y + node.height } : { x: actual.x, y: node.y }
-    return { port, stub: horizontal
-      ? { x: exiting ? node.x + node.width + 12 : node.x - 12, y: port.y }
-      : { x: port.x, y: exiting ? node.y + node.height + 12 : node.y - 12 } }
+    return { port, stub: { x: port.x + (side === 'E' ? 12 : side === 'W' ? -12 : 0), y: port.y + (side === 'S' ? 12 : side === 'N' ? -12 : 0) } }
   }
-  const terminals = graph.edges.map(edge => ({ source: ports(edge.source, 'source'), target: ports(edge.target, 'target') }))
+  const terminals = graph.edges.map(edge => ({ source: ports(edge.source, edge.target, 'source'), target: ports(edge.target, edge.source, 'target') }))
   const anchors = terminals.flatMap(pair => [pair.source.stub, pair.target.stub])
   const routingTerminals: Terminal[] = anchors.map(point => ({ port: point, stub: point, penalty: 0 }))
   // Containers are transparent responsibility regions. Nodes and header ink
   // remain obstacles even when a connector crosses an unrelated lane.
   const headers: Array<{ x: number; y: number; width: number; height: number }> = []
   const addHeader = (group: PositionedGroup): void => {
-    headers.push({ x: group.x, y: group.y, width: group.width, height: group.headerHeight ?? 40 })
+    // Responsibility boundaries are crossed perpendicularly; only actual
+    // heading ink is an obstacle, not the entire width of an empty header.
+    const block = group.labelBlock, header = group.headerHeight ?? 40
+    headers.push({ x: group.x + 12, y: group.y + (header - (block?.height ?? 16)) / 2 - 6, width: (block?.width ?? group.width - 24) + 12, height: (block?.height ?? 16) + 12 })
     group.children.forEach(addHeader)
   }
   groups.forEach(addHeader)
