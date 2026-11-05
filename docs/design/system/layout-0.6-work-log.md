@@ -132,19 +132,44 @@ Evidence: week requirement-compound-bounds-8393d577f, requirement-compound-cost-
 requirement-compound-ink-8393d577f, requirement-compound-node24-532eb2eba and
 recovery-payload/requirement-compound-532eb2eba.
 
-## Remaining counterexample and next cause inquiry
+## Hollow circles on wide straight shafts — 5 November
 
-Sparse32/ER256 limits, forest excess wire and sparse256area remain. Original2dad/
-Trident/peers unavailable; replacement24 sealed. Historical ELK20s timeout/18.6s
-repeat and moving profile tails remain unexplained, not fixed by later fast calls.
-Numeric/mask/glyph-union/index/streaming/sharing and leaf-seat leads stay stopped;
-pre-import slice owner still forbids trusting a captured caller string method.
-Next actual ink loss is already in the final shared owner: stock wide-shaft
-`flowchart LR; A --o B` with `linkStyle 0 stroke:#000,stroke-width:10px` (authored
-newlines, not semicolons). Native/Scene products in BOTHbackends have one actual
-circle-marker reference whose removal changes no final pixels: the ring is absorbed
-by its own fat shaft and later opaque B paint. Strict variants honestly refuse/U.
-Reproduce that exact paired case only if retained products are absent, then isolate
-shaft-only/B-cover-only/both counterfactuals with resource/ref/anchor/viewport fixed.
-Preserve the authored10px stroke; use existing carrier/terminal/paint-order machinery
-only after the cause is demonstrated. Actual head signal is the target; P is separate.
+c7490d9b45dbf78ee77b165f3677581f971f9c6d restores the actual end-circle contribution
+0→230pixels on black10px `A --o B` in BOTHbackends. Shaft subtraction beneath the
+existing hollow ring changes536pixels, all lighter/confined to the terminal region;
+width/resource/ref/anchor/cards/text/route/248×116.9canvas stay exact. Only dash paint
+and3scoped class renamings change. Proof staysU149226→U148921, same issue/caps; strict
+refusal remains honest. Long straight solid known custom-width carriers only;
+authored dash/offset, dotted/animated/thick, curves, short and unknown widths unchanged.
+
+Eight actual-ink RED→GREEN owners cover Native/Scene, both backends and start/end/
+both-circle contacts. First endpoint run was3inkRED+1unsupported `o--` parse failure,
+not4inkRED; supported `o-->` with explicit end arrow separately REDs on old producer.
+`stroke:none` isolation drops markers too; opacity0/dash controls expose230pixels.
+First candidate mistook conservative10.5px proof support for actual7.5px circle and
+failed8owners; retained, then corrected with canonical geometry/smooth stroke support.
+No generic bound/cap relaxation, extra carrier, opaque fill, cache or readiness gate.
+
+Eight-file milestone893P/knownSparse32F,188.36s/1142588KiB; final types56.46s/2121896KiB,
+lintP/affected start ownerP. Failed scripts/candidates/test typings retained. Twelve
+fully consumed current calls allU; repeat wholeSVG/ENTIREreceipt exact, real B edits.
+Cold/repeat/edit ms cache0 AM175/24/18 vsELK514/42/33; cache1 AM171/11/25 vsELK551/25/56.
+N1/no ratios; slower cache-on edit observations retained. RSS AM101604/100348KiB vsELK
+136980/134612; phase heaps/compression separately retained. Onecall reproduction timers
+include artifact I/O/GC and are excluded from performance. SVG4855raw(+28)/1173gzip/
+1010BrB, equal backends. TwoNode24+two compiled wholeSVG/ENTIREreceipts exact; one RAM
+build+compiled run19.36s/303980KiB, scratch removed. Flowchart closure AM26requests/
+raw1123221/gzip368344/Br312317B vsELK24/2397795/738474/583747; BOTH add431gzip/297Br,
+requests unchanged. Initial3/raw15408/gzip5853/Br5235 (+1/+1). Evidence: week
+wide-circle-absorption-5417e088c/FINDINGS.md and adjacent cost/Node/payload directories.
+
+## Remaining losses and next cause
+
+Retained vsELK: sparse256area+115.35%; forestwire+16.89% (area−6.43%); Requirement-cycle
+TB/BTarea+9.53% (LR/RL−1.44%). ER256-chain refusal affects both; Sparse32 proof still
+exhausts400k. Profile tails/historical ELK timeout unexplained; stopped probes stay
+stopped. Original2dad/Trident/peers unavailable; replacement24 sealed.
+Next demonstrated first-stage deficit: standalone start-circle `o--` is treated as
+unfinished text-arrow text and absorbs following linkStyle with `<br>`. Exact failed
+source retained. Reproduce at lexer/parser owner before repairing that meaning
+boundary; do not claim unsupported syntax fixed by the shaft-paint correction.
