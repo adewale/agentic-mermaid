@@ -152,3 +152,18 @@ could mutate/substitute a private copied coordinate while leaving its source
 unchanged (two owning failures, ordinary control passes). The follow-up reuses
 the emitter's captured sealing function; no new cache or allowance. Snapshot
 custody is the demonstrated contract; this alone is not a final-ink claim.
+
+Profile report: [layout-0.6-performance-review.md](layout-0.6-performance-review.md),
+measured at published `99ed1d238` using the existing Node24 collector. Six warmups
+and 18 whole-SVG/entire-receipt calls returned/P; cache/repeat/edit, CPU/RSS/heap and
+real SVG gzip/Brotli costs remain separate. Largest Native Class self sample weight
+is snapshot.visit 147.9ms/call; no causal speedup is claimed or rewrite applied.
+The adverse cache-on edit is 2,393ms. Both fresh forest SVGs bind byte-exactly to
+the retained products: wire +16.89%, area −6.43%; validation, not a new gain.
+
+CI99ed [run 42043206824](https://github.com/adewale/agentic-mermaid/actions/runs/42043206824)
+failed: unused-discretionary-hint text admission, nine Class geometry baselines,
+Requirement complex PNG/browser visual baselines, Sparse32 cap, generated-artifact
+dirty provenance and payload ceilings. Semantic conformance, CLI, browser-contract
+and package-consumer lanes passed. Failures remain enrolled; no ceilings are raised
+and no unreviewed golden regeneration is treated as a fix.
