@@ -1,3 +1,4 @@
+import { renderMermaidSVG, verifyMermaid } from '../agent/core.ts'
 import { describe, expect, test } from 'bun:test'
 import { parseWardleyBody, renderWardley, mutateWardley } from '../agent/wardley-body.ts'
 import { layoutWardley } from '../wardley/layout.ts'
@@ -22,6 +23,14 @@ accelerator Demand [0.7, 0.2]
 deaccelerator Risk [0.3, 0.6]
 `
 describe('Wardley native source and geometry', () => {
+  test('public Scene validation retains an inertial component and all of its owned artwork', () => {
+    expect(verifyMermaid(source).ok).toBe(true)
+    const svg = renderMermaidSVG(source)
+    expect(svg).toContain('data-id="Service"')
+    expect(svg).toContain('data-strategy="build"')
+    expect(svg).toContain('Adopt utility')
+  })
+
   test('canonical maps retain every native builder value through the pinned public Mermaid parser', async () => {
     const upstream = startUpstreamMermaid()
     try {

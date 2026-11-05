@@ -28,9 +28,11 @@ export function lowerWardleyDrawing<T>(marks: DrawingFactory<T>, { positioned: c
   }
   for (const item of chart.nodes) {
     const owner = { id: item.id, role: 'node' as const }
-    parts.push(marks.shape({ id: item.id, role: 'node', geometry: item.node.isPipelineParent ? { kind: 'rect', x: item.x - 6, y: item.y - 6, width: 12, height: 12 } : { kind: 'circle', cx: item.x, cy: item.y, r: item.node.className === 'anchor' ? 7 : 5 }, paint: { fill: item.node.className === 'anchor' ? stroke : fill, stroke, strokeWidth: String(style.nodeLineWidth) }, attributes: { data: { evolution: String(item.node.x), visibility: String(item.node.y), ...(item.node.sourceStrategy ? { strategy: item.node.sourceStrategy } : {}) } } }))
-    if (item.node.inertia) parts.push(marks.shape({ id: `${item.id}:inertia`, identity: false, role: 'node', owner, geometry: { kind: 'circle', cx: item.x, cy: item.y, r: 9 }, paint: { fill: 'none', stroke, strokeWidth: '1' } }))
-    parts.push(text({ ...item, x: item.x + (item.node.labelOffsetX ?? 14), y: item.y + (item.node.labelOffsetY ?? -14) }, owner))
+    const children: T[] = []
+    children.push(marks.shape({ id: `${item.id}:mark`, identity: false, owner, role: 'node', geometry: item.node.isPipelineParent ? { kind: 'rect', x: item.x - 6, y: item.y - 6, width: 12, height: 12 } : { kind: 'circle', cx: item.x, cy: item.y, r: item.node.className === 'anchor' ? 7 : 5 }, paint: { fill: item.node.className === 'anchor' ? stroke : fill, stroke, strokeWidth: String(style.nodeLineWidth) }, attributes: { data: { evolution: String(item.node.x), visibility: String(item.node.y), ...(item.node.sourceStrategy ? { strategy: item.node.sourceStrategy } : {}) } } }))
+    if (item.node.inertia) children.push(marks.shape({ id: `${item.id}:inertia`, identity: false, role: 'node', owner, geometry: { kind: 'circle', cx: item.x, cy: item.y, r: 9 }, paint: { fill: 'none', stroke, strokeWidth: '1' } }))
+    children.push(text({ ...item, x: item.x + (item.node.labelOffsetX ?? 14), y: item.y + (item.node.labelOffsetY ?? -14) }, owner))
+    parts.push(marks.group({ id: item.id, role: 'node', open: '<g>', close: '</g>', children: children.map(node => ({ node, indent: 2 })) }))
   }
   chart.labels.forEach(label => parts.push(text(label)))
   return drawingDocument(marks, 'wardley', chart, colors, resolved.renderOptions.transparent ?? false, parts)
