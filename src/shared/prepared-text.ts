@@ -184,11 +184,11 @@ function coalesce(runs: readonly DisplayRun[]): DisplayRun[] {
   for (const input of runs.flatMap(run => (run as WrapGlyph).fragments ?? run)) {
     const text = stripDiscretionaryBreaks(input.text)
     if (!text) continue
-    const run = text === input.text ? input : { ...input, text, ...(input.clusters ? { clusters: input.clusters.filter(cluster => !discretionaryBreakKind(cluster.text)) } : {}) }
+    const run = text === input.text ? input : { ...input, text, ...(input.clusters ? { clusters: immutablePixelParts.freeze(input.clusters.filter(cluster => !discretionaryBreakKind(cluster.text))) } : {}) }
     if (prior && sameStyle(prior, run)) {
       // Only the newly copied accumulator is mutable; input runs stay retained.
       prior.text += run.text
-      prior.clusters = prior.clusters && run.clusters ? [...prior.clusters, ...run.clusters] : undefined
+      prior.clusters = prior.clusters && run.clusters ? immutablePixelParts.freezeOwned([...prior.clusters, ...run.clusters]) : undefined
       prior.sourceEnd = run.sourceEnd
     } else {
       prior = { ...run }

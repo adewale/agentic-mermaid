@@ -167,3 +167,12 @@ Requirement complex PNG/browser visual baselines, Sparse32 cap, generated-artifa
 dirty provenance and payload ceilings. Semantic conformance, CLI, browser-contract
 and package-consumer lanes passed. Failures remain enrolled; no ceilings are raised
 and no unreviewed golden regeneration is treated as a fix.
+
+Text-admission repair after that CI run: coalescing unused discretionary hints
+created unsealed cluster arrays, preventing actual PixelTextBlock qualification.
+Seal the filtered/concatenated arrays at their producer; retain generic versus
+owned allocation distinctions. The existing public caption owner REDs before
+repair and passes for both backends after it. Text/property owners90P, final
+Unicode owner6P with the reduced CI counterexample retained, core types/lint pass.
+This removes an introduced refusal without relaxing admission/caps or adding a
+cache. Runtime/payload impact is unmeasured; remaining CI failures stay open.
