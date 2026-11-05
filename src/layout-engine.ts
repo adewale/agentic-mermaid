@@ -62,6 +62,7 @@ import { runPipeline } from './layout/pass.ts'
 import type { LayoutPass, PassContextBase } from './layout/pass.ts'
 import type { PassMetrics, RubricMetric } from './layout/pass.ts'
 import { certifyCandidate, retainSelection, certifyLayoutWithRouteAlternative, certifyLayoutPlacementCandidates, positionedGeometryViolations, withinLayoutPreferenceBudget, LayoutCertificationError, type LayoutCertificationCandidate } from './layout/certification.ts'
+import { nonRegressingAlternative } from './layout/non-regressing-alternative.ts'
 import {
   DEFAULTS,
   flattenGroupBounds,
@@ -2215,16 +2216,10 @@ function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpo
     ? (positioned, produce) => { routeAlternatives.set(positioned, produce) }
     : undefined
   const distinctHierarchy = graph.subgraphs.length > 0 && !usesSeparateHierarchy(graph, options)
-  let primary: PositionedGraph | undefined
   const candidates: LayoutCertificationCandidate[] = [{
-    strategy: 'default', produce: () => primary = layoutCandidate(graph, options, rememberAlternative),
+    strategy: 'default', produce: () => layoutCandidate(graph, options, rememberAlternative),
     preferNext: preferReadableTitles,
   }]
-  if (options.graphLayout?.quality === 'balanced' && layoutOptimizationEnabled('elk-order') && canExploreLayout() && !options.preserveSubgraphChildOrder && !options.layoutHints?.adjacent?.length && !hasParallelPair(graph.edges)) {
-    candidates.push({ strategy: 'prefer-model-order', qualityAlternative: true, preferNext: preferReadableTitles,
-      produce: () => optionalLayout(() => layoutCandidate(graph, { ...options, preferModelOrder: true }, rememberAlternative)) ?? primary!,
-    })
-  }
   // One conditional producer before the complete established fallback list.
   // Projected Architecture graphs reserve authored child order and have
   // side-constrained placement of their own; keep their original producer.
@@ -2251,7 +2246,23 @@ function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpo
     if (!makeRoute || (score.edgeCrossings === 0 && score.labelConflicts === 0)) return undefined
     return { strategy: 'without-generic-bundling', produce: makeRoute, preferNext: preferReadableTitles }
   }, preliminary)
-  if (selected.certification?.strategy === 'prefer-model-order') selectedLayoutOptimization('prefer-model-order')
+  const before = selected.certification!.preference.selectedScore
+  if (options.graphLayout?.quality === 'balanced' && layoutOptimizationEnabled('elk-order') && canExploreLayout()
+    && (before.edgeCrossings > 0 || before.labelConflicts > 0) && withinLayoutPreferenceBudget(graph)
+    && !options.preserveSubgraphChildOrder && !options.layoutHints?.adjacent?.length && !hasParallelPair(graph.edges)) {
+    const result = certifyCandidate(graph, style, { strategy: 'prefer-model-order',
+      produce: () => optionalLayout(() => layoutCandidate(graph, { ...options, preferModelOrder: true }, rememberAlternative)) ?? selected,
+      preferNext: preferReadableTitles,
+    })
+    if (result.certified && nonRegressingAlternative(selected, result.certified.positioned, before, result.certified.score)) {
+      selectedLayoutOptimization('prefer-model-order')
+      const criterion = (Object.keys(before) as Array<keyof typeof before>).find(key => result.certified!.score[key] < before[key]) ?? 'candidate-order'
+      return retainSelection(graph, { selected: result.certified, reason: criterion,
+        attempts: selected.certification!.attempts + 1,
+        compared: [...selected.certification!.preference.compared, { strategy: result.certified.strategy, score: result.certified.score }],
+      })
+    }
+  }
   return selected
 }
 

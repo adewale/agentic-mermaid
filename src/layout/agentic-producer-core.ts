@@ -10,6 +10,7 @@ import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
 import { MAX_EXPANDED_VERTICES, layoutLayeredGraph as layoutRawGraph } from './agentic-layered-core.ts'
 import { shortenMeasuredRoutes } from './shorten-measured-routes.ts'
 import { canExploreLayout, optionalLayout, recordLayoutProducer, selectedLayoutOptimization, layoutOptimizationEnabled } from './optimization-budget.ts'
+import { nonRegressingAlternative } from './non-regressing-alternative.ts'
 export { improveArchitectureSiblingSlots } from './architecture-sibling-slots.ts'
 
 // Keep cache storage inside the optional solver chunk: importing shared
@@ -475,7 +476,7 @@ export function layoutNativeGraphCandidate(
   const candidate = selectNativeGraphCandidate(graph, options, style, layoutAgenticGraph, bindings)
   const first = certifyOwnedLayoutCandidate(graph, style, { strategy: 'agentic-layered', produce: () => candidate }, bindings)
   if (options.graphLayout?.quality !== 'balanced' || !layoutOptimizationEnabled('ports') || !canExploreLayout()
-    || graph.nodes.size > 64 || graph.edges.length > 128 || graph.subgraphs.length || !first.edges.some(edge => edge.points.length > 2)) return first
+    || graph.nodes.size > 64 || graph.edges.length > 128 || graph.subgraphs.length || first.certification!.preference.selectedScore.totalBends === 0) return first
   let other: PositionedGraph | undefined
   try {
     other = optionalLayout(() => certifyOwnedLayoutCandidate(graph, style, { strategy: 'port-aware-placement',
@@ -485,18 +486,9 @@ export function layoutNativeGraphCandidate(
     if (!(error instanceof GraphLayoutUnsupportedError) && !(error instanceof LayoutCertificationError)) throw error
     return first
   }
-  if (!other) return first
-  const score = (positioned: PositionedGraph) => {
-    const value = positioned.certification!.preference.selectedScore
-    return [value.unreadableTitles, value.labelConflicts, value.edgeCrossings, value.totalBends, value.nonCanonicalEndpointRate, value.peerBarycenterDelta, value.area]
-  }
-  const before = score(first), after = score(other)
-  for (let i = 0; i < before.length; i++) {
-    const tolerance = i === 6 ? Math.max(1, before[i]! * 1e-8) : i === 5 ? 0.01 : i === 4 ? 1e-8 : 0
-    if (after[i]! < before[i]! - tolerance) { selectedLayoutOptimization('port-aware-placement'); return other }
-    if (after[i]! > before[i]! + tolerance) return first
-  }
-  return first
+  if (!other || !nonRegressingAlternative(first, other)) return first
+  selectedLayoutOptimization('port-aware-placement')
+  return other
 }
 
 /** Internal family placement: all authored edges still constrain ranks/order.

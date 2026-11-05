@@ -4,6 +4,7 @@ import { applyFlowchartLabelWrapping } from '../flowchart-config.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { LayoutCertificationError, GraphLayoutUnsupportedError, emitGraphLayoutDecision, withGraphLayoutDecisionObserver, type GraphLayoutDecision } from './backend.ts'
 import { withinLayoutPreferenceBudget } from './route-geometry.ts'
+import { nonRegressingAlternative } from './non-regressing-alternative.ts'
 import { canExploreLayout, optionalLayout, selectedLayoutOptimization, layoutOptimizationEnabled, layoutOptimizationSelections, restoreLayoutOptimizationSelections } from './optimization-budget.ts'
 
 /** Select text dimensions using the complete final graph (including title),
@@ -39,6 +40,9 @@ export function layoutFlowchartViewport(graph: MermaidGraph, options: RenderOpti
       const alternative: MermaidGraph = { ...graph, nodes: new Map([...graph.nodes].map(([id, node]) => [id, { ...node }])) }
       const wrapped = { ...options, wrappingWidth: width }
       applyFlowchartLabelWrapping(alternative, wrapped, styleFace)
+      // A narrower reservation must not introduce discretionary word breaks.
+      if ([...alternative.nodes].some(([id, node]) => (node.labelBlock?.breaks.filter(value => value.kind === 'hyphen').length ?? 0)
+        > (graph.nodes.get(id)?.labelBlock?.breaks.filter(value => value.kind === 'hyphen').length ?? 0))) continue
       let candidate: ReturnType<typeof produce> | undefined
       try { candidate = optionalLayout(() => produce(alternative, wrapped)) } catch (error) {
         if (!(error instanceof LayoutCertificationError) && !(error instanceof GraphLayoutUnsupportedError)) throw error
@@ -47,6 +51,7 @@ export function layoutFlowchartViewport(graph: MermaidGraph, options: RenderOpti
       if (!candidate) continue
       const score = candidate.positioned.certification?.preference.selectedScore, fit = scale(candidate.positioned)
       if (!score || score.unreadableTitles > firstScore.unreadableTitles || score.edgeCrossings > firstScore.edgeCrossings || score.labelConflicts > firstScore.labelConflicts) continue
+      if (!nonRegressingAlternative(best.positioned, candidate.positioned)) continue
       if (fit > bestScale + 1e-4) { best = candidate; bestScale = fit; chosenWidth = width }
     }
   }

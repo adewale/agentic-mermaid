@@ -176,6 +176,27 @@ describe('bounded final layout certification', () => {
     }
   })
 
+  test.each([false, true])('optional order search preserves the fourth mandatory recovery with balanced=%s', balanced => {
+    const first = LAYOUT_PIPELINE[0]!, run = first.run
+    let mandatory = 0, optional = 0
+    first.run = context => {
+      const relaxed = context.elkResult?.layoutOptions?.['elk.layered.crossingMinimization.forceNodeModelOrder'] === 'false'
+      if (relaxed) optional++
+      else mandatory++
+      if (relaxed || mandatory < 4) throw new Error('rejected geometry candidate')
+      run(context)
+    }
+    try {
+      const result = withPerformanceExperiments([], () => renderMermaidSVGWithReceipt('flowchart LR\nA --> B', {
+        graphLayout: { backend: 'elk', ...(balanced ? { quality: 'balanced' as const } : {}) },
+      }))
+      expect(mandatory).toBe(4)
+      expect(optional).toBe(0)
+      expect(result.svg).toContain('data-id="A"')
+      if (balanced) expect(result.receipt.layoutOptimization?.additionalProducerCalls).toBe(0)
+    } finally { first.run = run }
+  })
+
   test('the public layout certifies actual styled label geometry', () => {
     const request = resolveRenderRequestForExecution(source, { style: { roles: { edge: { fontSize: 24 } } } }, 'svg')
     const { positioned } = positionResolvedFamily('flowchart', request) as { positioned: PositionedGraph }

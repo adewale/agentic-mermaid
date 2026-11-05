@@ -32,24 +32,32 @@ test('explicit adjacency remains authoritative and an already clear diagram avoi
   expect(clear.receipt.layoutOptimization?.additionalProducerCalls).toBe(0)
 })
 
-test('port-aware block placement can straighten a fan while retaining final route certification', () => {
+test('port-aware placement rejects a bend win that loses canonical ports or symmetry', () => {
   const source = 'flowchart LR\nA((One)) --> T((Hub))\nB((Two)) --> T'
   const before = layout(source, { graphLayout: { backend: 'agentic' } })
   const after = layout(source, { graphLayout: { backend: 'agentic', quality: 'balanced' } })
   expect(before.positioned.certification?.preference.selectedScore.totalBends).toBe(4)
-  expect(after.positioned.certification?.preference.selectedScore.totalBends).toBe(2)
+  expect(after.svg).toBe(before.svg)
   expect(after.positioned.certification?.hardViolations).toBe(0)
   expect(after.positioned.edges.map(edge => [edge.source, edge.target])).toEqual([['A', 'T'], ['B', 'T']])
   expect(after.receipt.layoutOptimization?.additionalProducerCalls).toBe(1)
-  expect(after.receipt.layoutOptimization?.selected).toEqual(['port-aware-placement'])
+  expect(after.receipt.layoutOptimization?.selected).toEqual([])
+})
+
+test('port-aware exploration skips a large graph with no rubric bends to improve', () => {
+  const source = 'flowchart TD\n' + Array.from({ length: 64 }, (_, index) =>
+    `N${index}[Step ${index}]${index ? `\nN${Math.floor((index - 1) / 2)} --> N${index}` : ''}`).join('\n')
+  const result = layout(source, { graphLayout: { backend: 'agentic', quality: 'balanced' } })
+  expect(result.positioned.certification?.preference.selectedScore.totalBends).toBe(0)
+  expect(result.receipt.layoutOptimization?.additionalProducerCalls).toBe(0)
 })
 
 const WIDE = 'flowchart LR\nA[Very wide authentication and authorization gateway] --> C[OK]\nB[Input] --> C\nA --> D[Persist the transaction and return a response]\nC --> E[Done]\nD --> E'
-test('viewport wrapping selects a complete fitting graph within the shared producer allowance', () => {
+test('viewport wrapping retains the primary when fitting requires more height or worse geometry', () => {
   const before = layout(WIDE, { graphLayout: { backend: 'elk' } })
   const after = layout(WIDE, { graphLayout: { backend: 'elk', viewport: { width: 800, height: 600 } } })
   const viewportScale = (graph: PositionedGraph) => Math.min(1, 800 / graph.width, 600 / graph.height)
-  expect(viewportScale(after.positioned)).toBeGreaterThan(viewportScale(before.positioned))
+  expect(after.svg).toBe(before.svg)
   expect(after.receipt.layoutOptimization!.additionalProducerCalls).toBeLessThanOrEqual(2)
   expect(after.positioned.nodes.map(node => [node.id, node.label])).toEqual(before.positioned.nodes.map(node => [node.id, node.label]))
   expect(after.positioned.certification?.hardViolations).toBe(0)

@@ -153,18 +153,29 @@ without changing the semantic layout.
 
 ### Graph layout selection
 
+For general use, retain the default layout policy. Treat `quality: 'balanced'`
+and viewport-guided wrapping as experimental opt-ins, evaluated on your own
+diagrams. Alternatives require additional computation and are accepted only
+when they improve complete geometry without worsening any certified preference,
+canvas width or height, routed wire length, or discretionary hyphen count.
+This conservative policy rejects improvements that require an aesthetic tradeoff.
+Combining the options does not guarantee that their gains compose.
+
 Graph callers can opt into bounded quality exploration with
 `graphLayout: { backend: 'elk', quality: 'balanced' }`. ELK may prefer source
 order instead of fixing it when the original result has crossings or label
 conflicts. Explicit adjacency and family-owned child order remain authoritative.
 The Agentic graph producer can compare port-aware coordinate blocks on flat
-graphs with at most 64 nodes and 128 edges. This may trade symmetry or area for
-fewer bends; the complete final geometry must still pass certification.
+graphs with at most 64 nodes and 128 edges when the primary has rubric bends.
+The complete final geometry must pass certification and the non-regression
+comparison. ELK exploration runs after the complete existing recovery policy;
+it cannot displace a mandatory fallback.
 
 For Flowchart, `graphLayout.viewport: { width: 800, height: 600 }` selects among
 the original layout and up to two measured wrapping widths using the complete
 diagram and title. It maximizes fit scale without increasing crossings or label
-conflicts from the primary result. It does not rescale the output, change font
+conflicts from the primary result, subject to the same non-regression comparison.
+It does not rescale the output, change font
 size, or replace an explicit `wrappingWidth`. Authored labels and hard line
 breaks retain their provenance. Large graphs retain the primary result.
 
