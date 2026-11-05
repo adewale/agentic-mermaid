@@ -10,7 +10,7 @@ import packetCases from '../mermaid-packet-bench/cases.json'
 import requirementCases from '../mermaid-requirement-bench/cases.json'
 import treemapCases from '../mermaid-treemap-bench/cases.json'
 import { inspectAgenticGrammar } from './grammar-agentic.ts'
-import { projectNativeOperations, projectReferenceOperations } from './grammar-native-operations.ts'
+import { projectNativeOperations, projectReferenceOperations, unavailableOrderedOperationScope } from './grammar-native-operations.ts'
 import { projectReferenceSemantic } from './grammar-native-semantics.ts'
 import { startGrammarReference } from './grammar-reference.ts'
 import { admitCurrentReference } from './reference.ts'
@@ -35,7 +35,8 @@ async function assertOperations(family: string, source: string, requireWrite = t
   const mutations = local.native.observation.mutations
   const native = mutations.status === 'available' ? projectNativeOperations(family, mutations.value) : undefined
   const expected = projectReferenceOperations(family, reference)
-  const operationComparison = preparation.actionInstrumentation.startsWith('unavailable:') ? { status: 'unavailable', reason: preparation.actionInstrumentation } : { status: 'compared' }
+  const missingNativeScope = unavailableOrderedOperationScope(family)
+  const operationComparison = missingNativeScope ? { status: 'unavailable', reason: missingNativeScope, boundary: 'native-ordered-projection' } : preparation.actionInstrumentation.startsWith('unavailable:') ? { status: 'unavailable', reason: preparation.actionInstrumentation } : { status: 'compared' }
   cases.push({ family, source, referenceAccepted: reference.accepted, nativeStatus: local.native.status, operationComparison,
     nativeObservation: mutations.status === 'available' ? { status: mutations.status, method: mutations.method, events: mutations.value.length } : mutations,
     referenceObservation: { actions: reference.actions.status, ast: reference.ast.status, parserIdentity: reference.parserIdentity },
@@ -45,6 +46,16 @@ async function assertOperations(family: string, source: string, requireWrite = t
   expect(local.native.status).toBe('accepted')
   expect(local.native.observation.instrumentationErrors ?? []).toEqual([])
   expect(local.native.observation.control?.same).toBe(true)
+  if (missingNativeScope) {
+    expect(operationComparison.status).toBe('unavailable')
+    expect(operationComparison.reason).toBe(missingNativeScope)
+    expect(native).toBeUndefined()
+    expect(expected).toBeUndefined()
+    // A returned-model comparison is independently available; it is never
+    // substituted for the ordered operation gap recorded above.
+    expect(local.native.observation.semantic?.value).toEqual(projectReferenceSemantic(family, reference)?.value)
+    return { native, reference: expected, nativeSemantic: local.native.observation.semantic, referenceReply: reference }
+  }
   if (operationComparison.status === 'unavailable') {
     // Syntax acceptance is still exercised by the same owning case. A public
     // pass/error API cannot supply ordered operation parity through its shim.
@@ -60,7 +71,7 @@ async function assertOperations(family: string, source: string, requireWrite = t
 }
 
 describe('native syntax and actual builder operations qualify against the declared reference boundary', () => {
-  for (const family of knownBuiltinFamilies()) test(`${family}: canonical syntax and declared operation observations qualify`, () => assertOperations(family, getFamily(family)!.example))
+  for (const family of knownBuiltinFamilies()) test(unavailableOrderedOperationScope(family) ? `${family}: native syntax and independent semantics qualify; ordered operation comparison remains unavailable` : `${family}: canonical syntax and declared operation observations qualify`, () => assertOperations(family, getFamily(family)!.example))
 
   const stableCorpora: Record<string, readonly { id: string; source: string }[]> = {
     packet: packetCases.filter(fixture => fixture.reference.ok),

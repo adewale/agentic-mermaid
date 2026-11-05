@@ -9,7 +9,7 @@ const upstream = process.env.MERMAID_UPSTREAM_DIR ?? resolve(import.meta.dir, '.
 const reference = process.env.MERMAID_REFERENCE_DIR ?? resolve(import.meta.dir, '../../../mermaid-reference')
 const oracle = startGrammarReference(reference, upstream)
 afterAll(() => oracle.close())
-for (const family of ['treeview', 'usecase', 'swimlane', 'agentflow', 'wardley', 'cynefin', 'venn'] as const) {
+for (const family of ['treeview', 'usecase', 'swimlane', 'agentflow', 'wardley', 'cynefin', 'venn', 'railroad'] as const) {
   test(`${family} production model agrees with pinned Mermaid's independent selected semantic scope`, async () => {
     const source = getFamily(family)!.example
     await oracle.prepare(family, source)

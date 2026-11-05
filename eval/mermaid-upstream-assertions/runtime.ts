@@ -240,7 +240,7 @@ class AdapterContext {
     }
     if (/config\.js$|diagramAPI\.js$/.test(specifier)) return { ...api, default: api }
     if (/\/Diagram\.js$/.test(specifier)) return { Diagram }
-    if (/(?:Diagram|diagram)\.js$/.test(specifier)) return { diagram: { parser: referenceMode ? context.referenceDefinition().getParser() : context.parser, db: context.singleton } }
+    if (/(?:Diagram|diagram)\.js$/.test(specifier)) return { diagram: { parser: context.parser, db: context.singleton } }
     if (/diagram-orchestration/.test(specifier)) return { addDiagrams() {} }
     if (/logger/.test(specifier)) return { log: Object.fromEntries(['info', 'warn', 'error', 'debug', 'trace', 'fatal'].map(name => [name, () => {}])), setLogLevel() {} }
     if (context.family === 'eventmodeling' && /event-modeling-validator\.js$/.test(specifier)) {
