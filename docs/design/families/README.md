@@ -33,14 +33,14 @@ across several surfaces; this hub points at each.
 | Block | [block.md](./block.md) |
 | Event Modeling | [eventmodeling.md](./eventmodeling.md) |
 | ZenUML | See the shared system and family contracts below. |
-| Railroad | See the shared system and family contracts below. |
-| Cynefin | See the shared system and family contracts below. |
-| AgentFlow | See the shared system and family contracts below. |
-| UseCase | See the shared system and family contracts below. |
-| Wardley | See the shared system and family contracts below. |
-| Venn | See the shared system and family contracts below. |
-| Swimlane | See the shared system and family contracts below. |
-| TreeView | See the shared system and family contracts below. |
+| Railroad | [railroad.md](./railroad.md) |
+| Cynefin | [cynefin.md](./cynefin.md) |
+| AgentFlow | [agentflow.md](./agentflow.md) |
+| UseCase | [usecase.md](./usecase.md) |
+| Wardley | [wardley.md](./wardley.md) |
+| Venn | [venn.md](./venn.md) |
+| Swimlane | [swimlane.md](./swimlane.md) |
+| TreeView | [treeview.md](./treeview.md) |
 <!-- END GENERATED: family-design-notes -->
 
 The registry supplies this index. Families without a dedicated note use the
