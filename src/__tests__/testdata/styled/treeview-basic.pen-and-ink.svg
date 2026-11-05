@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="308" height="190" viewBox="0 0 308 190" style="--bg:#faf6ec;--fg:#241f1a;--line:#2b241d;--accent:#2b241d;--border:#2b241d;--font:EB Garamond;background:#faf6ec" class="am-1mebk1y0wqdtnl">
+<svg xmlns="http://www.w3.org/2000/svg" width="249" height="190" viewBox="0 0 249 190" style="--bg:#faf6ec;--fg:#241f1a;--line:#2b241d;--accent:#2b241d;--border:#2b241d;--font:EB Garamond;background:#faf6ec" class="am-0ydorui1fxrhdg">
 <style>
-  svg.am-1mebk1y0wqdtnl { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
-  svg.am-1mebk1y0wqdtnl {
+  svg.am-0ydorui1fxrhdg { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
+  svg.am-0ydorui1fxrhdg {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #241f1a;
     --_text-sec:      #534e48;
@@ -17,8 +17,8 @@
     --_key-badge:     #e5e1d7;
   }
 </style>
-<rect width="308" height="190" fill="#faf6ec" data-backdrop="page" />
-<text paint-order="stroke" stroke="#faf6ec" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="153.6875" y="31.7" class="diagram-title" text-anchor="middle" font-size="18" font-weight="600" fill="#241f1a" data-id="diagram-title" data-role="title" data-prepared-text="true" dy="6.3" textLength="93.42" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">PROJECT</text>
+<rect width="249" height="190" fill="#faf6ec" data-backdrop="page" />
+<text paint-order="stroke" stroke="#faf6ec" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="124.1625" y="31.7" class="diagram-title" text-anchor="middle" font-size="18" font-weight="600" fill="#241f1a" data-id="diagram-title" data-role="title" data-prepared-text="true" dy="6.3" textLength="93.42" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">PROJECT</text>
 <polyline stroke-opacity="0" points="27,78.3 27,89.75 40,89.75" fill="none" stroke="#2b241d" stroke-width="1" data-relationship="parent-child" data-direction="forward" data-id="branch:treeview-1" data-role="edge" data-from="treeview-0" data-to="treeview-1" role="graphics-symbol" aria-roledescription="relation" aria-label="treeview-0 to treeview-1" />
 <path d="M26.43 77.95 C27.03 82.29, 26.58 85.67, 26.79 89.23 M27.55 90.32 C31.52 90.11, 35.44 90.14, 39.45 90.18" fill="none" stroke="#2b241d" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
 <polyline stroke-opacity="0" points="27,78.3 27,112.65 40,112.65" fill="none" stroke="#2b241d" stroke-width="1" data-relationship="parent-child" data-direction="forward" data-id="branch:treeview-2" data-role="edge" data-from="treeview-0" data-to="treeview-2" role="graphics-symbol" aria-roledescription="relation" aria-label="treeview-0 to treeview-2" />
@@ -28,10 +28,11 @@
 <g data-id="treeview-0" data-role="node">
   <text paint-order="stroke" stroke="#faf6ec" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="20" y="66.85" text-anchor="start" font-family="EB Garamond" font-size="13" font-weight="500" fill="#241f1a" data-prepared-text="true" dy="4.55" textLength="26.403" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">src/</text>
   <g data-parent="treeview-0" class="highlight" data-id="treeview-1" data-role="node">
-    <rect x="41" y="78.3" width="249.375" height="22.9" rx="3" fill="#f4f0e6" stroke="none" />
-    <text paint-order="stroke" stroke="#faf6ec" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="44" y="89.75" text-anchor="start" font-family="EB Garamond" font-size="13" font-weight="500" fill="#241f1a" data-prepared-text="true" dy="4.55" textLength="76.05" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">[logos:react]</text>
-    <text paint-order="stroke" stroke="#faf6ec" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="126.05" y="89.75" text-anchor="start" font-family="EB Garamond" font-size="13" font-weight="600" fill="#241f1a" data-prepared-text="true" dy="4.55" textLength="48.75" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">App.tsx</text>
-    <text paint-order="stroke" stroke="#faf6ec" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="192.8" y="89.75" text-anchor="start" font-family="EB Garamond" font-size="13" font-weight="500" fill="#68635d" data-prepared-text="true" dy="4.55" textLength="94.575" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">main component</text>
+    <rect x="41" y="78.3" width="190.325" height="22.9" rx="3" fill="#f4f0e6" stroke="none" />
+    <rect data-icon="logos:react" data-icon-realization="fallback" x="0" y="0" width="24" height="24" rx="4" fill="none" stroke="#241f1a" stroke-width="1.6" stroke-linejoin="round" transform="matrix(0.625 0 0 0.625 44 82.25)" />
+    <text paint-order="stroke" stroke="#faf6ec" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="51.5" y="89.75" text-anchor="middle" font-family="EB Garamond" font-size="9.3" font-weight="600" fill="#241f1a" data-prepared-text="true" dy="3.255" textLength="8.091" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">R</text>
+    <text paint-order="stroke" stroke="#faf6ec" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="67" y="89.75" text-anchor="start" font-family="EB Garamond" font-size="13" font-weight="600" fill="#241f1a" data-prepared-text="true" dy="4.55" textLength="48.75" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">App.tsx</text>
+    <text paint-order="stroke" stroke="#faf6ec" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="133.75" y="89.75" text-anchor="start" font-family="EB Garamond" font-size="13" font-weight="500" fill="#68635d" data-prepared-text="true" dy="4.55" textLength="94.575" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">main component</text>
   </g>
   <g data-parent="treeview-0" data-id="treeview-2" data-role="node">
     <text paint-order="stroke" stroke="#faf6ec" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="44" y="112.65" text-anchor="start" font-family="EB Garamond" font-size="13" font-weight="500" fill="#241f1a" data-prepared-text="true" dy="4.55" textLength="50.115" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">widgets/</text>

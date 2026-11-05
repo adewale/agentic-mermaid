@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { releaseBenchCases } from '../../eval/benchmark/release-bench-cases.ts'
 import { denseDag, diamondFan } from '../../eval/degenerate-etn/generators.ts'
 import { collectSamples } from '../../eval/layout-compare/run.ts'
 import { extractOfficialCorpus } from '../../eval/shared/official-fences.ts'
@@ -173,7 +174,49 @@ const nativeFamilyFixtures: Fixture[] = nativeFamilyReview.map(([family, cue]) =
   cue: `The base revision has no native ${family} renderer; its actual unsupported response is retained. ${cue} This finite witness does not certify every documented construct.`,
   captureLayout: true,
 }))
+const nativeReadabilityRepairs: Fixture[] = [
+  { id: 'roadmap-repair-cynefin-transitions', title: 'Cynefin: independent learning loops', source: `cynefin-beta
+title Product decisions and learning loops
+complex
+ "Run small reversible experiments with customers"
+ "Learn from unexpected outcomes before committing"
+complicated
+ "Ask domain experts to investigate a known problem"
+clear
+ "Apply the documented and repeatable procedure"
+chaotic
+ "Stabilise the incident before searching for causes"
+confusion
+ "Gather evidence to decide which domain applies"
+ "Reconsider assumptions as new signals emerge"
+complex --> clear: "Promote validated practice"
+chaotic --> complicated: "Investigate after stabilising"
+clear --> complex: "Challenge stale assumptions"`, renderOptions: { style: 'github-light' }, pngScale: 1, captureLayout: true, cue: 'Inspect three complete transition captions, reverse direction and domain contacts. The candidate gives transitions separate exterior channels rather than crossing Confusion or overprinting midpoint text. Domain items and authored transition endpoints are unchanged.' },
+  { id: 'roadmap-repair-swimlane-handoffs', title: 'Swimlane: forty tasks and independent hand-offs', source: releaseBenchCases().find(input => input.id === 'swimlane:4-lanes-40-tasks')!.source, renderOptions: { style: 'github-light' }, pngScale: 1, captureLayout: true, cue: 'Existing release workload: follow each Task0.i to Task1.i to Task2.i to Task3.i. Independent hand-offs must remain traceable rather than merging into unlabelled shared buses. Lane membership, node order and all thirty authored relationships are unchanged.' },
+  { id: 'roadmap-repair-wardley-labels', title: 'Wardley: thirty coordinate-preserving captions', source: releaseBenchCases().find(input => input.id === 'wardley:30-positioned-components')!.source, renderOptions: { style: 'github-light' }, pngScale: 1, captureLayout: true, cue: 'Existing release workload: all thirty regular grid coordinates remain fixed relative to the plot. Only automatic captions move, with short owned leaders where necessary; inspect readable labels rather than a continuous overprinted run. Explicit authored label offsets are a separate preservation constraint.' },
+  { id: 'roadmap-repair-venn-intersection', title: 'Venn: measured intersection caption and owned callout', source: `venn-beta
+set A["Product designers"]:40
+ text a["Research and prototyping"]
+set B["Frontend engineers"]:35
+ text b["Accessible implementation"]
+set C["Customer advocates"]:30
+ text c["Field feedback"]
+union A,B["Design systems"]:12
+union A,C["Discovery"]:8
+union B,C["Support tools"]:7
+union A,B,C["Shared product discovery, accessible implementation, and customer support workflows"]:3
+style A,B,C fill:#b2dfdb`, renderOptions: { style: 'github-light' }, pngScale: 1, captureLayout: true, cue: 'Inspect the complete long triple-intersection caption, all pair labels and the three owned notes. Measured text fits its true region or moves to an owned outside callout; set areas and intersection quantities are unchanged. The three-circle fit remains approximate, not an exact area proof.' },
+  { id: 'roadmap-repair-treeview-icons', title: 'TreeView: local icon artwork and honest compact fallback', source: `treeView-beta
+assets/ icon(folder)
+    database.ts icon(mdi:database)
+    App.tsx :::highlight icon(logos:react) ## Main component
+    plain.ts icon(file)`, renderOptions: { style: 'pen-and-ink' }, pngScale: 1, captureLayout: true, cue: 'Inspect bundled database artwork, native folder/file outlines and the compact R fallback badge for the unknown React icon. The authored icon name stays in model/source and SVG metadata; a fallback badge is not a fetched or exact React logo.' },
+  { id: 'roadmap-repair-railroad-tracks', title: 'Railroad: rule headings and nested tracks', source: readFileSync(join(ROOT, 'eval/layout-compare/fixtures/railroad-native.mmd'), 'utf8'), renderOptions: { style: 'ops-schematic' }, pngScale: 1, captureLayout: true, cue: 'Inspect legible rule headings, terminal/nonterminal labels, optional branches and the repetition loop in the same operations style. Track batching preserves one typed rule identity and individual segment topology. Compare native geometry and complete labels; the image does not establish arbitrary grammar readability.' },
+  { id: 'roadmap-repair-usecase-dashes', title: 'UseCase: visibly dashed include dependency', source: readFileSync(join(ROOT, 'eval/layout-compare/fixtures/usecase-native.mmd'), 'utf8'), renderOptions: { style: 'architectural-plan' }, pngScale: 1, captureLayout: true, cue: 'Inspect the dashed include shaft, open dependency arrow and complete stereotype text. The Customer actor and Store boundary retain their meanings; selected node padding also applies to the native ellipse/actor envelopes.' },
+  { id: 'roadmap-repair-agentflow-roles', title: 'AgentFlow: role and compound styling control', source: readFileSync(join(ROOT, 'eval/layout-compare/fixtures/agentflow-native.mmd'), 'utf8'), renderOptions: { style: 'risograph' }, pngScale: 1, captureLayout: true, cue: 'Preservation control: publishing tasks, tool/action silhouettes, connector and global document remain recognizable under the same risograph style. This compound graph intentionally retains ELK; native forest timing is qualified separately and is not inferred from this image.' },
+]
 const fixtures: Fixture[] = [
+  ...nativeReadabilityRepairs,
   ...nativeFamilyFixtures,
   {
     id: 'treemap-fixed-ink-halo', title: 'Treemap fixed ink on categorical fills',
