@@ -26,11 +26,6 @@ projection preserves typed endpoints. A qualified unconstrained forest can use
 the native producer; compounds, cycles and explicit choices keep their existing
 layout path.
 
-Rendering uses the shared style and palette system; Mermaid's pixels are not a
-layout target. Accepted Mermaid configuration keys and ineffective controls come
-from the [family registry](../../../src/agent/family-registry.ts), rather than an
-independent configuration list here.
-
 ## Executable evidence
 
 The [storefront scenario](../../../eval/layout-compare/fixtures/usecase-native.mmd)
@@ -45,10 +40,5 @@ property order, atomic edits and visible dashed dependency paint. The
 [architectural-plan golden](../../../src/__tests__/testdata/styled/usecase-basic.architectural-plan.svg)
 shows the actor, boundary and dependency artwork.
 
-The [citizenship test](../../../src/__tests__/diagram-family-citizenship.test.ts)
-checks the representative source through typed editing, canonical reload,
-verification, SVG, ASCII/Unicode, real regions and uncached determinism. The
-[render conformance portfolio](../../../src/__tests__/render-conformance-plan.test.ts)
-and [styled-output tests](../../../src/__tests__/styled-output.test.ts) exercise
-shared looks and palettes. These finite examples do not establish exhaustive
-syntax coverage or readability at arbitrary complexity.
+For shared style/configuration rules and cross-output checks, see the
+[common rendering and verification contract](README.md#shared-rendering-and-verification).

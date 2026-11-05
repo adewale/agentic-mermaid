@@ -80,6 +80,21 @@ bun run gallery:mermaid-docs
 bun run gallery:pie-highlight
 ```
 
+## Shared rendering and verification
+
+Family renderers use the shared style and palette system; Mermaid's pixels are
+not a layout target. Accepted configuration keys and ineffective controls come
+from the [family registry](../../../src/agent/family-registry.ts).
+
+The [citizenship test](../../../src/__tests__/diagram-family-citizenship.test.ts)
+checks each representative source through typed editing, canonical reload,
+verification, SVG, ASCII/Unicode, real regions and uncached determinism. The
+[render conformance portfolio](../../../src/__tests__/render-conformance-plan.test.ts)
+and [styled-output tests](../../../src/__tests__/styled-output.test.ts) exercise
+looks and palettes. Family pages identify the independent domain expectations
+and reviewed goldens. These finite examples do not establish exhaustive syntax
+coverage or readability at arbitrary complexity.
+
 ## Where every registered family is documented
 
 - **Canonical registry:** `FamilyDescriptor` registrations in `src/agent/families.ts`; use `am capabilities --json` for the generated roster.

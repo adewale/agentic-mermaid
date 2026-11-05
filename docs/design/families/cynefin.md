@@ -25,11 +25,6 @@ Repeated, reverse and self-transitions use separate exterior channels with
 owned captions. This trades canvas size for legibility and does not establish
 readability at arbitrary density.
 
-Rendering uses the shared style and palette system; Mermaid's pixels are not a
-layout target. Accepted Mermaid configuration keys and ineffective controls come
-from the [family registry](../../../src/agent/family-registry.ts), rather than an
-independent configuration list here.
-
 ## Executable evidence
 
 The [decision scenario](../../../eval/layout-compare/fixtures/cynefin-native.mmd)
@@ -43,10 +38,5 @@ check label-box separation, unrelated-domain avoidance, retained loop labels and
 large confusion-domain containment. The [chalkboard golden](../../../src/__tests__/testdata/styled/cynefin-basic.chalkboard.svg)
 shows the styled domain metaphor.
 
-The [citizenship test](../../../src/__tests__/diagram-family-citizenship.test.ts)
-checks the representative source through typed editing, canonical reload,
-verification, SVG, ASCII/Unicode, real regions and uncached determinism. The
-[render conformance portfolio](../../../src/__tests__/render-conformance-plan.test.ts)
-and [styled-output tests](../../../src/__tests__/styled-output.test.ts) exercise
-shared looks and palettes. These finite examples do not establish exhaustive
-syntax coverage or readability at arbitrary complexity.
+For shared style/configuration rules and cross-output checks, see the
+[common rendering and verification contract](README.md#shared-rendering-and-verification).

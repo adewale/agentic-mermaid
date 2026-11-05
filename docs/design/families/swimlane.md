@@ -24,11 +24,6 @@ tasks along the process direction. Independent handoffs retain distinct routes
 instead of sharing an unlabelled bus. Terminal layout owns cell-space lanes,
 parent regions and endpoint-connected handoffs independently of pixel placement.
 
-Rendering uses the shared style and palette system; Mermaid's pixels are not a
-layout target. Accepted Mermaid configuration keys and ineffective controls come
-from the [family registry](../../../src/agent/family-registry.ts), rather than an
-independent configuration list here.
-
 ## Executable evidence
 
 The [order-fulfilment scenario](../../../eval/layout-compare/fixtures/swimlane-native.mmd)
@@ -43,10 +38,5 @@ terminal endpoint ownership and absence of overlapping independent handoff
 segments. The [Excalidraw golden](../../../src/__tests__/testdata/styled/swimlane-basic.excalidraw.svg)
 shows the responsibility bands under a sketch style.
 
-The [citizenship test](../../../src/__tests__/diagram-family-citizenship.test.ts)
-checks the representative source through typed editing, canonical reload,
-verification, SVG, ASCII/Unicode, real regions and uncached determinism. The
-[render conformance portfolio](../../../src/__tests__/render-conformance-plan.test.ts)
-and [styled-output tests](../../../src/__tests__/styled-output.test.ts) exercise
-shared looks and palettes. These finite examples do not establish exhaustive
-syntax coverage or readability at arbitrary complexity.
+For shared style/configuration rules and cross-output checks, see the
+[common rendering and verification contract](README.md#shared-rendering-and-verification).
