@@ -950,3 +950,13 @@ Canonical AgentFlow export shields percent characters in classified label
 tokens with Mermaid's `#37;` escape. The pinned public parser accepts these
 writes and retains the complete logical label on readback. Full-line comments
 remain comments, including any semicolons they contain.
+
+### Cynefin retains authored self-transitions
+
+Mermaid 12.2.0 accepts Cynefin self-transitions but drops them from its database,
+including their labels. Agentic retains them in its native model, source maps,
+SVG, terminal output and checked edits. Each loop has its own routed contacts
+and caption. Canonical exports include the authored loop statements; Mermaid
+accepts that syntax and continues to discard those transitions on its readback.
+The two original `cynefin.integration.spec.ts` assertions expecting loops to
+vanish remain intentional data-retention divergences.
