@@ -28,6 +28,7 @@ import fc from 'fast-check'
 import '../src/__tests__/fc-seed.preload.ts'
 import { verifyMermaid, renderMermaidSVG, renderMermaidASCII, renderMermaidPNG, BUILTIN_FAMILY_METADATA } from '../src/agent/index.ts'
 import { runGettingStartedCommands } from './helpers/getting-started.ts'
+import { FAMILY_CONFORMANCE_PROFILES } from '../src/__tests__/helpers/family-conformance-profiles.ts'
 
 const REPO = join(import.meta.dir, '..')
 const BUILD_TIMEOUT_MS = 180_000
@@ -491,30 +492,56 @@ describe('installed tarball — mcp bin', () => {
     expect(r.stdout).toContain('agentic-mermaid-mcp [--transport stdio|http]')
   }, RUN_TIMEOUT_MS)
 
-  test('Mindmap and GitGraph stay structured and source-equal through the installed MCP', () => {
+  test('every registered family retains meaningful typed edits through the installed MCP', () => {
     expect(haveConsumer).toBe(true)
-    const requests = PACKAGE_FAMILY_FIXTURES.map((fixture, index) => ({
-      jsonrpc: '2.0', id: index + 1, method: 'tools/call', params: {
-        name: 'execute', arguments: {
-          code: `const source = ${JSON.stringify(fixture.source)}; const parsed = mermaid.parseRegisteredMermaid(source); return { ok: parsed.ok, kind: parsed.ok ? parsed.value.body.kind : null, svg: mermaid.renderMermaidSVG(source), ascii: mermaid.renderMermaidASCII(source) }`,
+    const requests = BUILTIN_FAMILY_METADATA.map((family, index) => {
+      const witness = FAMILY_CONFORMANCE_PROFILES[family.id].citizenship
+      return {
+        jsonrpc: '2.0', id: index + 1, method: 'tools/call', params: {
+          name: 'execute', arguments: {
+            code: `
+const parsed = mermaid.parseRegisteredMermaid(${JSON.stringify(witness.source)});
+if (!parsed.ok) return { phase: 'parse', error: parsed.error };
+const narrowed = mermaid.${family.narrower}(parsed.value);
+if (!narrowed) return { phase: 'narrow' };
+const edited = mermaid.mutate(narrowed, ${JSON.stringify(witness.edit.op)});
+if (!edited.ok) return { phase: 'edit', error: edited.error };
+const source = mermaid.serializeMermaid(edited.value);
+const reread = mermaid.parseRegisteredMermaid(source);
+if (!reread.ok) return { phase: 'read-back', error: reread.error };
+const options = ${JSON.stringify(witness.options ?? {})};
+return {
+  source, family: reread.value.body.kind,
+  narrowed: mermaid.${family.narrower}(reread.value) !== null,
+  missingFacts: mermaid.checkMermaid(reread.value, { include: ${JSON.stringify([...witness.facts, ...witness.edit.afterFacts])} }).missing,
+  verified: mermaid.verifyMermaid(reread.value, { renderOptions: options }).ok,
+  stable: mermaid.serializeMermaid(reread.value) === source,
+  svg: mermaid.renderMermaidSVG(reread.value, options),
+  ascii: mermaid.renderMermaidASCII(reread.value, { ...options, useAscii: true, colorMode: 'none' }),
+};`,
+          },
         },
-      },
-    }))
+      }
+    })
     const r = spawnSync(NODE!, [mcpBin], {
       cwd: work, input: requests.map(request => JSON.stringify(request)).join('\n') + '\n',
       encoding: 'utf8', timeout: RUN_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024,
     })
     expect({ status: r.status, stderr: r.stderr }).toEqual({ status: 0, stderr: '' })
     const responses = r.stdout.split('\n').filter(Boolean).map(line => JSON.parse(line) as any)
-    expect(responses).toHaveLength(PACKAGE_FAMILY_FIXTURES.length)
-    PACKAGE_FAMILY_FIXTURES.forEach((fixture, index) => {
-      const envelope = JSON.parse(responses[index]!.result.content[0].text)
-      expect(envelope.value).toEqual({
-        ok: true,
-        kind: fixture.family,
-        svg: renderMermaidSVG(fixture.source),
-        ascii: renderMermaidASCII(fixture.source),
+    expect(responses).toHaveLength(requests.length)
+    const byId = new Map(responses.map(response => [response.id, response]))
+    BUILTIN_FAMILY_METADATA.forEach((family, index) => {
+      const envelope = JSON.parse(byId.get(index + 1)!.result.content[0].text)
+      expect(envelope.ok, family.id).toBe(true)
+      const value = envelope.value
+      expect(value, family.id).toEqual({
+        family: family.id, narrowed: true, missingFacts: [], verified: true, stable: true,
+        source: expect.any(String), svg: expect.any(String), ascii: expect.any(String),
       })
+      const options = FAMILY_CONFORMANCE_PROFILES[family.id].citizenship.options ?? {}
+      expect(value.svg, family.id).toBe(renderMermaidSVG(value.source, options))
+      expect(value.ascii, family.id).toBe(renderMermaidASCII(value.source, { ...options, useAscii: true, colorMode: 'none' }))
     })
   }, RUN_TIMEOUT_MS)
 

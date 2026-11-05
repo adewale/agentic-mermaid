@@ -304,56 +304,38 @@ const badWidth: SharedRenderOptions = { mermaidConfig: { sankey: { nodeWidth: '1
 `)).toEqual([])
   })
 
-  test('every narrower advertised by the SDK declaration is callable in the Code Mode sandbox', async () => {
-    // Consistency-audit guard: the declaration once advertised narrowers the
-    // sandbox did not expose, so Code Mode scripts copying the declaration
-    // crashed. Drive each advertised narrower end-to-end through execute().
-    const advertised = [...new Set(Array.from(SDK_DECLARATION.matchAll(/\bas[A-Z]\w+/g), m => m[0]))]
-    expect(advertised.length).toBeGreaterThanOrEqual(9)
-    const SOURCES: Record<string, string> = {
-      asAgentflow: FAMILY_CONFORMANCE_PROFILES.agentflow.citizenship.source,
-      asUsecase: FAMILY_CONFORMANCE_PROFILES.usecase.citizenship.source,
-      asWardley: FAMILY_CONFORMANCE_PROFILES.wardley.citizenship.source,
-      asVenn: FAMILY_CONFORMANCE_PROFILES.venn.citizenship.source,
-      asCynefin: FAMILY_CONFORMANCE_PROFILES.cynefin.citizenship.source,
-      asRailroad: FAMILY_CONFORMANCE_PROFILES.railroad.citizenship.source,
-      asSwimlane: FAMILY_CONFORMANCE_PROFILES.swimlane.citizenship.source,
-      asTreeview: FAMILY_CONFORMANCE_PROFILES.treeview.citizenship.source,
-
-      asC4: 'C4Context\\n  System(a, "A")',
-      asFlowchart: 'flowchart TD\\n  A --> B',
-      asState: 'stateDiagram-v2\\n  [*] --> A',
-      asSequence: 'sequenceDiagram\\n  A->>B: hi',
-      asTimeline: 'timeline\\n  2020 : event',
-      asClass: 'classDiagram\\n  class A',
-      asEr: 'erDiagram\\n  A ||--o{ B : has',
-      asJourney: 'journey\\n  Wake: 3: Me',
-      asArchitecture: 'architecture-beta\\n  service a(server)[A]',
-      asXyChart: 'xychart-beta\\n  bar [1, 2]',
-      asPie: 'pie\\n  "Dogs" : 3',
-      asQuadrant: 'quadrantChart\\n  Campaign A: [0.3, 0.6]',
-      asGantt: 'gantt\\n  Task A :a1, 2024-01-01, 3d',
-      asMindmap: 'mindmap\\n  root\\n    child',
-      asGitGraph: 'gitGraph\\n  commit',
-      asRadar: 'radar-beta\\n  axis a, b, c\\n  curve x{1, 2, 3}',
-      asSankey: 'sankey-beta\\n  Coal,Electricity,127.93',
-      asPacket: 'packet\\n+8: "Byte"',
-      asKanban: 'kanban\\nTodo\\n  task[Write documentation]',
-      asRequirement: 'requirementDiagram\\nrequirement evidence {\\nid: R1\\ntext: "Retain evidence"\\nrisk: high\\nverifymethod: test\\n}',
-      asTreemap: 'treemap\\n"Build"\\n  "Engineering": 60',
-      asZenUML: 'zenuml\\nA->B: hello',
-      asEventModeling: 'eventmodeling\\ntf 01 ui CartUI',
-      asIshikawa: 'ishikawa\\nEffect\\nCause',
-      asBlock: 'block\\ncolumns 2\\nA B\\nA --> B',
-    }
-    for (const narrower of advertised) {
-      const source = SOURCES[narrower]
-      expect({ narrower, known: Boolean(source) }).toEqual({ narrower, known: true })
-      const code = `const r = mermaid.parseRegisteredMermaid(${JSON.stringify(source!.replaceAll('\\n', '\n'))})\nif (!r.ok) return { narrower: '${narrower}', phase: 'parse' }\nconst n = mermaid.${narrower}(r.value)\nreturn { narrower: '${narrower}', narrowed: n !== null }`
+  test('every advertised family supports meaningful typed edits, read-back and rendering in Code Mode', async () => {
+    // Exercise the trusted sandbox bridge, not just the declaration or a
+    // callable narrower: family models can contain Maps and nested identities.
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      const witness = FAMILY_CONFORMANCE_PROFILES[family.id].citizenship
+      const code = `
+const parsed = mermaid.parseRegisteredMermaid(${JSON.stringify(witness.source)});
+if (!parsed.ok) return { phase: 'parse', error: parsed.error };
+const narrowed = mermaid.${family.narrower}(parsed.value);
+if (!narrowed) return { phase: 'narrow' };
+const edited = mermaid.mutate(narrowed, ${JSON.stringify(witness.edit.op)});
+if (!edited.ok) return { phase: 'edit', error: edited.error };
+const source = mermaid.serializeMermaid(edited.value);
+const reread = mermaid.parseRegisteredMermaid(source);
+if (!reread.ok) return { phase: 'read-back', error: reread.error };
+const options = ${JSON.stringify(witness.options ?? {})};
+return {
+  family: reread.value.body.kind,
+  narrowed: mermaid.${family.narrower}(reread.value) !== null,
+  missingFacts: mermaid.checkMermaid(reread.value, { include: ${JSON.stringify([...witness.facts, ...witness.edit.afterFacts])} }).missing,
+  verified: mermaid.verifyMermaid(reread.value, { renderOptions: options }).ok,
+  stable: mermaid.serializeMermaid(reread.value) === source,
+  svg: mermaid.renderMermaidSVG(reread.value, options).includes('<svg'),
+  ascii: mermaid.renderMermaidASCII(reread.value, { ...options, useAscii: true, colorMode: 'none' }).trim().length > 0,
+};`
       const result = await executeInSandbox(code, {})
-      expect({ narrower, ok: result.ok, value: result.ok ? result.value : result.error }).toEqual({ narrower, ok: true, value: { narrower, narrowed: true } })
+      expect({ family: family.id, ok: result.ok, value: result.ok ? result.value : result.error }).toEqual({
+        family: family.id, ok: true,
+        value: { family: family.id, narrowed: true, missingFacts: [], verified: true, stable: true, svg: true, ascii: true },
+      })
     }
-  })
+  }, 30_000)
 
   test('every registered renderable family ships typed mutation (default-by-default enforcement)', () => {
     // Typed mutation is the enforced default: a new family cannot register
