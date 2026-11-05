@@ -40,6 +40,13 @@ function nodeContact(item: WardleyPlacedNode, toward: Point, strokeWidth: number
   return contact
 }
 
+function retainSegmentDirection(from: Point, to: Point, start: Point, end: Point): Point[] {
+  // Overlapping authored marks can consume the carrier. Keep its direction
+  // rather than turning it backwards; overlap still has no visibility proof.
+  return (end.x - start.x) * (to.x - from.x) + (end.y - start.y) * (to.y - from.y) > 0
+    ? [start, end] : [{ x: from.x, y: from.y }, { x: to.x, y: to.y }]
+}
+
 /** Wardley positions encode visibility and evolution; measuring labels never
  * changes their coordinate domain or their dependency endpoints. */
 export function layoutWardley(body: WardleyBody, options: Readonly<RenderOptions> = {}, styleFace?: InternalStyleFace): PositionedWardley {
@@ -74,14 +81,14 @@ export function layoutWardley(body: WardleyBody, options: Readonly<RenderOptions
   const edges: PositionedWardley['edges'] = body.links.map((link, index) => {
     const from = byId.get(link.source), to = byId.get(link.target)
     if (!from || !to) throw new Error('Wardley dependency has no positioned endpoint')
-    return { id: `dependency:${index}`, from: link.source, to: link.target, points: [nodeContact(from, to, style.nodeLineWidth), nodeContact(to, from, style.nodeLineWidth)], flow: link.flow, dashed: link.dashed,
+    return { id: `dependency:${index}`, from: link.source, to: link.target, points: retainSegmentDirection(from, to, nodeContact(from, to, style.nodeLineWidth), nodeContact(to, from, style.nodeLineWidth)), flow: link.flow, dashed: link.dashed,
       ...(link.label !== undefined ? { label: label(`dependency-label:${index}`, link.label, (from.x + to.x) / 2, (from.y + to.y) / 2, 'edge') } : {}) }
   })
   for (const [index, trend] of body.trends.entries()) {
     const from = byId.get(trend.nodeId)
     if (!from) throw new Error('Wardley evolution has no positioned component')
     const target = { x: x(trend.targetX), y: y(trend.targetY) }
-    edges.push({ id: `evolve:${index}`, from: trend.nodeId, to: trend.nodeId, points: [nodeContact(from, target, style.nodeLineWidth), target], dashed: true, flow: 'forward', trend: true })
+    edges.push({ id: `evolve:${index}`, from: trend.nodeId, to: trend.nodeId, points: retainSegmentDirection(from, target, nodeContact(from, target, style.nodeLineWidth), target), dashed: true, flow: 'forward', trend: true })
   }
   const pipelines = body.pipelines.map(pipeline => {
     const members = pipeline.componentIds.map(id => byId.get(id)!)

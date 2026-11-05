@@ -181,7 +181,7 @@ test('Wardley arrowheads remain visible at each declared node surface', () => {
   }
 })
 
-test('Wardley diagonal and vertical contacts follow painted surfaces without moving authored targets', () => {
+test('Wardley diagonal, vertical and overlapping contacts retain authored direction and targets', () => {
   for (const decoration of ['anchor', 'component', 'inertia', 'pipeline'] as const) for (const [ax, ay, bx, by] of [[0.2, 0.2, 0.8, 0.8], [0.8, 0.8, 0.2, 0.2], [0.5, 0.2, 0.5, 0.8], [0.5, 0.8, 0.5, 0.2]] as const) {
     const body = parseWardleyBody(`wardley-beta\n${decoration === 'anchor' ? 'anchor' : 'component'} A [${ay},${ax}]${decoration === 'inertia' ? ' inertia' : ''}\ncomponent B [${by},${bx}]\n${decoration === 'pipeline' ? 'pipeline A {\ncomponent Child [0.1]\n}\n' : ''}A +<> -> B\nevolve A 0.95`)
     const chart = layoutWardley(body, {}, { node: { lineWidth: 4 } }), a = chart.nodes[0]!, b = chart.nodes[1]!
@@ -200,6 +200,19 @@ test('Wardley diagonal and vertical contacts follow painted surfaces without mov
     const target = chart.edges[1]!.points[1]!
     expect(target.x).toBeCloseTo(chart.plot.x + chart.plot.width * 0.95)
     expect(target.y).toBeCloseTo(a.y)
+  }
+  for (const declaration of ['anchor', 'component'] as const) for (const [ax, ay, bx, by] of [[0.25, 0.5, 0.26, 0.5], [0.26, 0.5, 0.25, 0.5], [0.25, 0.5, 0.26, 0.51], [0.26, 0.51, 0.25, 0.5], [0.25, 0.5, 0.25, 0.51]] as const) {
+    const chart = layoutWardley(parseWardleyBody(`wardley-beta\n${declaration} A [${ay},${ax}]\n${declaration} B [${by},${bx}]\nA +<> -> B\nevolve A ${bx}`)), a = chart.nodes[0]!, b = chart.nodes[1]!
+    const [start, end] = chart.edges[0]!.points
+    expect((end!.x - start!.x) * (b.x - a.x) + (end!.y - start!.y) * (b.y - a.y), `${declaration}/${ax}/${ay}/${bx}/${by}: authored dependency direction`).toBeGreaterThan(0)
+    const trend = chart.edges[1]!.points, target = trend[1]!
+    expect(target.x).toBeCloseTo(chart.plot.x + chart.plot.width * bx)
+    expect(target.y).toBeCloseTo(a.y)
+    if (bx !== ax) expect((target.x - trend[0]!.x) * (bx - ax), `${declaration}: authored evolution direction`).toBeGreaterThan(0)
+    for (const node of [a, b]) {
+      expect(node.x).toBeCloseTo(chart.plot.x + node.node.x! / 100 * chart.plot.width)
+      expect(node.y).toBeCloseTo(chart.plot.y + (1 - node.node.y! / 100) * chart.plot.height)
+    }
   }
   const coincident = layoutWardley(parseWardleyBody('wardley-beta\ncomponent A [0.5,0.5]\ncomponent B [0.5,0.5]\nA +<> -> B\nevolve A 0.5'))
   expect(coincident.edges.flatMap(edge => edge.points).every(point => Number.isFinite(point.x) && Number.isFinite(point.y))).toBe(true)
