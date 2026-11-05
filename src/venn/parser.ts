@@ -1,7 +1,7 @@
 import { VennDb } from './grammar/db.ts'
 import { parseVenn } from './grammar/parser.ts'
 import { scanAccessibilityDirectives, requireClosedAccessibility, accessibilityFields } from '../shared/accessibility-directives.ts'
-import { readGrammarText } from '../shared/grammar-text.ts'
+import { readGrammarText, readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
 import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
 import type { VennBody } from './types.ts'
 
@@ -45,7 +45,7 @@ export function parseVennDiagram(input: string | readonly string[]): VennBody {
     textNodes: db.textNodes.map(node => ({ sets: node.sets.map(text => readGrammarText(text, '[]\r\n')).sort(), id: readGrammarText(node.id, '[]\r\n'), ...(node.label !== undefined ? { label: readGrammarText(node.label, '[]\r\n') } : {}) })),
     styles: db.styles.map(style => ({ targets: style.targets.map(text => readGrammarText(text, '[]\r\n')), styles: Object.fromEntries([...style.styles].map(([key, value]) => [key, readGrammarText(value, '[]\r\n')])) })),
     ...(db.title !== undefined ? { title: readGrammarText(db.title) } : {}),
-    ...accessibilityFields(scanned.accessibility),
+    ...accessibilityFields(readAuthoredGrammarAccessibility(scanned.accessibility)),
   }
   validateVenn(body)
   return body

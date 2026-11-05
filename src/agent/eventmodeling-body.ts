@@ -1,3 +1,5 @@
+import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
+import { accessibilityFields } from '../shared/accessibility-directives.ts'
 import { withBodyTitleMeta } from './body-title-meta.ts'
 import { ownBodyAccessibility } from './accessibility-envelope.ts'
 import { recordSourceMapEnds } from './source-map-spans.ts'
@@ -16,6 +18,9 @@ export const EVENTMODELING_SOURCE_HOOKS: Omit<FamilyOperations, 'mutate'> = {
   parse: ctx => {
     try {
       const body = parseEventModeling(ctx.source.familyBody)
+      const accessibility = readAuthoredGrammarAccessibility(ctx.meta.accessibility)
+      Object.assign(body, accessibilityFields(accessibility))
+      ctx.meta.accessibility = accessibility
       if (body.title === undefined && typeof ctx.source.frontmatter.title === 'string') body.title = ctx.source.frontmatter.title
       if (eventNonportableIdentifiers(body).length) return ok({ kind: 'opaque', family: 'eventmodeling', source: ctx.opaqueSource })
       return ok(body)

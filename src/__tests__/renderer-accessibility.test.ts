@@ -8,6 +8,10 @@ import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { mutate, mutateChecked } from '../agent/mutate.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { startUpstreamMermaid, type UpstreamDiagram } from './helpers/upstream-mermaid.ts'
+import { createMermaid } from '../agent/create.ts'
+import { parseEventModeling } from '../eventmodeling/parser.ts'
+import { parseVennDiagram } from '../venn/parser.ts'
+import { parseZenUML } from '../zenuml/native-parser.ts'
 import { synthesizeFromGraph } from '../agent/index.ts'
 import { parseMindmap } from '../mindmap/parser.ts'
 import { decodeXML } from 'entities'
@@ -108,6 +112,42 @@ test.each([
     if (!reload.ok) throw new Error(JSON.stringify(reload.error))
     expect((reload.value.body as { title?: string }).title).toBe(title ?? undefined)
     expect(reload.value.meta.frontmatter).toEqual(result.value.meta.frontmatter)
+  }
+})
+
+test.each([
+  ['eventmodeling', 'eventmodeling\n%% retained body comment\ntf 01 ui Main', parseEventModeling],
+  ['zenuml', 'zenuml\n%% retained body comment\nAlice->Bob: hello', parseZenUML],
+  ['venn', 'venn-beta\n%% retained body comment\nset A:10', parseVennDiagram],
+] as const)('%s native accessibility decodes protected punctuation once through checked edits and public reload', (family, source, readNative) => {
+  const parsed = parseMermaid('%% retained wrapper comment\n' + source)
+  if (!parsed.ok || parsed.value.body.kind !== family) throw new Error('Expected typed native metadata owner')
+  for (const initial of [createMermaid(family), parsed.value]) for (const text of ['https://example.com?a=1&b=2', 'Literal #58; &amp; #35; %% text', 'Control %%{init: {theme: dark}}%% and <b>literal</b>']) {
+    const original = structuredClone(initial), description = text + '\nSecond line'
+    const titled = mutateChecked(initial, { kind: 'set_accessibility_title', title: text })
+    if (!titled.ok) throw new Error(JSON.stringify(titled.error))
+    const changed = mutateChecked(titled.value, { kind: 'set_accessibility_description', description })
+    if (!changed.ok) throw new Error(JSON.stringify(changed.error))
+    if (changed.value.body.kind !== family) throw new Error('Metadata edit changed its native family')
+    expect(changed.value.meta.accessibility).toEqual({ title: text, descr: description })
+    const saved = serializeMermaid(changed.value), direct = readNative(saved), reload = parseMermaid(saved)
+    expect(direct.accessibilityTitle).toBe(text)
+    expect(direct.accessibilityDescription).toBe(description)
+    if (!reload.ok || reload.value.body.kind !== family) throw new Error('Expected typed public reload')
+    expect(reload.value.body).toEqual(changed.value.body)
+    expect(reload.value.meta.accessibility).toEqual({ title: text, descr: description })
+    expect(reload.value.meta.initDirectives).toEqual([])
+    if (initial === parsed.value) {
+      expect(saved.startsWith('%% retained wrapper comment\n')).toBe(true)
+      expect(saved.match(/^%% retained body comment$/gm)).toHaveLength(1)
+    }
+    const cleared = mutateChecked(changed.value, { kind: 'set_accessibility_title', ...(family === 'venn' ? { title: null } : {}) })
+    if (!cleared.ok) throw new Error(JSON.stringify(cleared.error))
+    expect(cleared.value.meta.accessibility).toEqual({ descr: description })
+    const clearReload = parseMermaid(serializeMermaid(cleared.value))
+    if (!clearReload.ok) throw new Error('Expected metadata clear reload')
+    expect(clearReload.value.meta.accessibility).toEqual({ descr: description })
+    expect(initial).toEqual(original)
   }
 })
 
