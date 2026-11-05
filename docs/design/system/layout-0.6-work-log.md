@@ -169,7 +169,13 @@ Retained vsELK: sparse256area+115.35%; forestwire+16.89% (area−6.43%); Require
 TB/BTarea+9.53% (LR/RL−1.44%). ER256-chain refusal affects both; Sparse32 proof still
 exhausts400k. Profile tails/historical ELK timeout unexplained; stopped probes stay
 stopped. Original2dad/Trident/peers unavailable; replacement24 sealed.
-Next demonstrated first-stage deficit: standalone start-circle `o--` is treated as
-unfinished text-arrow text and absorbs following linkStyle with `<br>`. Exact failed
-source retained. Reproduce at lexer/parser owner before repairing that meaning
-boundary; do not claim unsupported syntax fixed by the shaft-paint correction.
+Standalone `o--|保存|` refusal is reproduced in both backends, but the proposed
+closed-pipe lexer shortcut is STOPPED: `A o--|literal| B` followed by `extra --o C`
+already means one A→C edge labelled `|literal| B\nextra`; the shortcut makes two
+edges. Same-line and multiline counterexamples,8public/3parser REDs and all3WIP
+test files/patch were byte-preserved before restoring only that work. No parser
+change or syntax-conformance claim. Evidence: week start-circle-standalone-c7490d9b4.
+Next confirmed loss at d089e94d0: supported named `e1@{curve:linear}` produces the
+same straight M/L48px carrier but both backends lose the wide-circle signal (0pixels,
+U149375). Two public products/four rasters plus matched owners2P/2inkRED establish
+that declaration-based exclusion; test captured producer geometry before extending.
