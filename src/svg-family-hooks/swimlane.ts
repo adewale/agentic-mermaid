@@ -6,6 +6,7 @@ import { flowchartStatementEnds } from '../flowchart-lexer.ts'
 import { checkAllGraphAuthoredStyles } from '../shared/style-props.ts'
 import { parseSwimlaneRenderSource } from '../swimlane/parser.ts'
 import { layoutSwimlane } from '../swimlane/layout.ts'
+import { frontmatterTitle } from '../mermaid-source.ts'
 
 export const SWIMLANE_SVG_HOOKS = {
   statementEnds: flowchartStatementEnds,
@@ -14,7 +15,7 @@ export const SWIMLANE_SVG_HOOKS = {
     const graph = parseSwimlaneRenderSource(ctx.source.authoredFamilyBody ?? ctx.source.familyBody, ctx.source.familyBody)
     checkAllGraphAuthoredStyles(graph)
     applyFlowchartLabelWrapping(graph, ctx.renderOptions, ctx.styleFace)
-    return layoutResult(layoutSwimlane(graph, { ...ctx.renderOptions, ...(ctx.styleFace ? { styleFace: ctx.styleFace } : {}) }))
+    return layoutResult(layoutSwimlane(graph, { ...ctx.renderOptions, ...(ctx.styleFace ? { styleFace: ctx.styleFace } : {}) }, frontmatterTitle(ctx.source.frontmatter)))
   },
   projectPositioned: positionedView(projectGraphPositioned),
   lowerScene: scene(lowerGraphScene),
