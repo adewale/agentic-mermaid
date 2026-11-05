@@ -1,4 +1,4 @@
-import { requirementArrow, requirementMarkerTerminal } from './markers.ts'
+import { requirementArrow, requirementContainsPortSpan, requirementMarkerTerminal } from './markers.ts'
 import type { ElkExtendedEdge, ElkNode } from 'elkjs'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { alignElkRoundoff } from '../layout/elk-roundoff.ts'
@@ -80,13 +80,34 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
   type Placement = Pick<AgenticLayout, 'width' | 'height' | 'nodes' | 'edges'>
   const result = runMeasuredGraphBackend<Placement>(options, () => {
     return measureRenderStage('agentic', () => {
+      const incidences = new Uint32Array(nodes.length), containsSources = new Uint8Array(nodes.length)
+      for (const edge of model.relations) {
+        const source = indices.get(edge.src)!, target = indices.get(edge.dst)!
+        incidences[source] = incidences[source]! + 1
+        incidences[target] = incidences[target]! + 1
+        if (edge.type === 'contains') containsSources[source] = 1
+      }
+      const horizontal = model.direction === 'LR' || model.direction === 'RL'
       const measured = {
-        nodes: nodes.map(node => ({ id: node.id, width: node.width, height: node.height })),
+        nodes: nodes.map((node, index) => {
+          if (!containsSources[index] || incidences[index]! < 2) return { id: node.id, width: node.width, height: node.height }
+          // Feedback edges can share a face after private cycle reversal.
+          // Reserve every incidence plus the allocator's two 8px margins.
+          const minimum = (incidences[index]! - 1) * requirementContainsPortSpan + 16
+          return { id: node.id, width: horizontal ? node.width : Math.max(node.width, minimum), height: horizontal ? Math.max(node.height, minimum) : node.height, minimumPortSpacing: requirementContainsPortSpan }
+        }),
         edges: model.relations.map((edge, index) => ({ source: indices.get(edge.src)!, target: indices.get(edge.dst)!, minSpan: 1,
           label: { width: labels[index]!.width + 16, height: labels[index]!.height + 10 } })),
         direction: model.direction, padding: pad, nodeSpacing, layerSpacing, ...(terminalLead ? { minimumTerminalLead: terminalLead } : {}), edgeSpacing: Math.max(6, style.lineWidth + 4),
       }
-      return fitMeasuredLayout(measured, layoutAgenticGraph(measured))
+      const placed = fitMeasuredLayout(measured, layoutAgenticGraph(measured))
+      // A declined Native attempt must leave the ELK fallback's measured cards
+      // untouched. Publish capacity growth only with the successful placement.
+      for (const [index, node] of nodes.entries()) {
+        node.width = measured.nodes[index]!.width
+        node.height = measured.nodes[index]!.height
+      }
+      return placed
     })
   }, () => {
     const idMap = new Map(nodes.map((node, index) => [node.id, `n${index}`]))

@@ -187,6 +187,108 @@ describe('Requirement layout backends', () => {
     } finally { dom.window.close() }
   })
 
+  test.each([
+    { direction: 'TB', fanSize: 5 }, { direction: 'BT', fanSize: 5 },
+    { direction: 'LR', fanSize: 5 }, { direction: 'RL', fanSize: 5 },
+    // Twelve contacts require real face capacity, beyond a port-pitch hint.
+    { direction: 'TB', fanSize: 12 }, { direction: 'LR', fanSize: 12 },
+  ] as const)('separates actual contains circles in the parallel Requirement fan in $direction ($fanSize occurrences)', ({ direction, fanSize }) => {
+    const input = `requirementDiagram
+direction ${direction}
+element root {
+ type: software
+}
+requirement leaf {
+ id: R1
+ text: Dispatch
+}
+element side {
+ type: service
+}
+${Array(fanSize - 1).fill('root - contains -> leaf').join('\n')}
+root - contains -> side`
+    const rendered = renderMermaidSVGWithReceipt(input, { graphLayout: { backend: 'agentic', fallback: 'none' }, embedFontImport: false })
+    expect(rendered.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
+    const { JSDOM } = createRequire(import.meta.url)('jsdom')
+    const dom = new JSDOM(rendered.svg, { contentType: 'image/svg+xml' })
+    try {
+      const document = dom.window.document as Document
+      const cards = [...document.querySelectorAll('g.requirement-node')]
+      expect(cards.map(card => card.getAttribute('data-id')).sort()).toEqual(['leaf', 'root', 'side'])
+      for (const [id, kind, rows] of [
+        ['root', 'element', ['Type: software']],
+        ['leaf', 'requirement', ['ID: R1', 'Text: Dispatch']],
+        ['side', 'element', ['Type: service']],
+      ] as const) {
+        const card = cards.find(card => card.getAttribute('data-id') === id)!
+        const text = [...card.querySelectorAll('text')].map(item => item.textContent ?? '')
+        expect(text[0]!.toLowerCase().replace(/[^a-z]/g, '')).toBe(kind + id)
+        expect(text.slice(1)).toEqual([...rows])
+      }
+      const carriers = [...document.querySelectorAll('[data-role="relationship"][data-from]')]
+      expect(carriers.map(carrier => [carrier.getAttribute('data-from'), carrier.getAttribute('data-to'), carrier.getAttribute('data-relationship')])).toEqual([
+        ...Array.from({ length: fanSize - 1 }, () => ['root', 'leaf', 'contains']), ['root', 'side', 'contains'],
+      ])
+      const relationIds = carriers.map(carrier => carrier.getAttribute('data-id'))
+      expect(new Set(relationIds).size).toBe(fanSize)
+      expect(relationIds.every(id => typeof id === 'string' && id.length > 0)).toBe(true)
+      const captions = [...document.querySelectorAll('g.requirement-edge-label')]
+      expect(captions).toHaveLength(fanSize)
+      expect(captions.map(caption => caption.getAttribute('data-edge-id')).sort()).toEqual([...relationIds].sort())
+      expect(captions.map(caption => caption.querySelector('text')!.textContent)).toEqual(Array(fanSize).fill('<<contains>>'))
+
+      const markers = [...document.querySelectorAll('marker#requirement-contains')]
+      expect(markers).toHaveLength(1)
+      const marker = markers[0]!
+      expect(marker.getAttribute('orient')).toBe('auto')
+      expect(marker.getAttribute('markerUnits')).toBe('userSpaceOnUse')
+      expect(marker.hasAttribute('viewBox')).toBe(false)
+      expect([...marker.children].map(child => child.localName)).toEqual(['circle', 'path'])
+      const circle = marker.querySelector('circle')!, cross = marker.querySelector('path')!
+      expect(cross.getAttribute('d')).toBe('M2 6H10M6 2V10')
+      const radius = Number(circle.getAttribute('r')), stroke = Number(circle.getAttribute('stroke-width'))
+      expect(radius).toBeGreaterThan(0)
+      expect(stroke).toBeGreaterThan(0)
+      expect(circle.getAttribute('stroke')).toBeTruthy()
+      expect(circle.getAttribute('stroke')).not.toBe('none')
+      expect(circle.getAttribute('fill')).toBeTruthy()
+      expect(circle.getAttribute('fill')).not.toBe('none')
+      expect(cross.getAttribute('stroke')).toBeTruthy()
+      expect(cross.getAttribute('stroke')).not.toBe('none')
+      expect(Number(cross.getAttribute('stroke-width'))).toBeGreaterThan(0)
+      const localX = Number(circle.getAttribute('cx')) - Number(marker.getAttribute('refX'))
+      const localY = Number(circle.getAttribute('cy')) - Number(marker.getAttribute('refY'))
+      const outerRadius = radius + stroke / 2
+      const cardBoxes = new Map(cards.map(card => [card.getAttribute('data-id')!, Object.fromEntries(['x', 'y', 'width', 'height'].map(key => [key, card.querySelector('rect')!.getAttribute(key)!]))]))
+      const poses = carriers.map(carrier => {
+        expect(carrier.getAttribute('marker-start')).toBe('url(#requirement-contains)')
+        expect(carrier.hasAttribute('marker-end')).toBe(false)
+        expect(carrier.hasAttribute('stroke-dasharray')).toBe(false)
+        const points = carrier.getAttribute('points')!.trim().split(/\s+/).map(pair => {
+          const [x, y] = pair.split(',').map(Number)
+          expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true)
+          return { x: x!, y: y! }
+        })
+        const start = points[0]!, end = points.at(-1)!
+        const next = points.find(point => point.x !== start.x || point.y !== start.y)!
+        const previous = points.findLast(point => point.x !== end.x || point.y !== end.y)!
+        expect(next).toBeDefined()
+        expect(previous).toBeDefined()
+        expect(normalContact(start, next, cardBoxes.get('root')!)).toBe(true)
+        expect(normalContact(end, previous, cardBoxes.get(carrier.getAttribute('data-to')!)!)).toBe(true)
+        const length = Math.hypot(next.x - start.x, next.y - start.y)
+        const ux = (next.x - start.x) / length, uy = (next.y - start.y) / length
+        return { id: carrier.getAttribute('data-id'), x: start.x + ux * localX - uy * localY, y: start.y + uy * localX + ux * localY }
+      })
+      // Measure the actual written circle resource and actual first nonzero
+      // carrier tangents. This proves separation, not individual visible ink.
+      for (let i = 0; i < poses.length; i++) for (let j = i + 1; j < poses.length; j++) {
+        const a = poses[i]!, b = poses[j]!
+        expect(Math.hypot(a.x - b.x, a.y - b.y) + 1e-7, `${a.id} and ${b.id} contain circles overlap`).toBeGreaterThanOrEqual(2 * outerRadius)
+      }
+    } finally { dom.window.close() }
+  })
+
   test.each((['agentic', 'elk'] as const).flatMap(backend => (['scene', 'native'] as const).map(admission => ({ backend, admission }))))('retains all authored cards and traces in a 100-requirement chain with $backend through $admission admission', async ({ backend, admission }) => {
     const requirements = Array.from({ length: 100 }, (_, index) => ({ name: `r${index}`, id: `R${index}`, text: `Requirement ${index}` }))
     const relations = Array.from({ length: 99 }, (_, index) => [`r${index}`, `r${index + 1}`, 'traces'])
