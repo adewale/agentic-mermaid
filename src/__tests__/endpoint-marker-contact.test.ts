@@ -90,12 +90,15 @@ describe('family-owned endpoint and visible-marker contact (#258)', () => {
     { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 e1@--o|保存| store', namedId: 'e1', curve: 'linear', width: 10, direction: 'LR', execution: 'native', backends: ['agentic'], ends: ['end'] },
     { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 e1@--o|保存| store', namedId: 'e1', width: 10, direction: 'LR', execution: 'scene', backends: ['elk'], ends: ['end'] },
     { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 e1@--o|保存| store', namedId: 'e1', curve: 'linear', width: 10, direction: 'LR', execution: 'scene', backends: ['elk'], ends: ['end'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 e1@--o|保存| store', namedId: 'e1', curve: 'step', fan: true, width: 10, direction: 'LR', execution: 'native', backends: ['agentic'], ends: ['end'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 e1@--o|保存| store', namedId: 'e1', curve: 'step', fan: true, width: 10, direction: 'LR', execution: 'scene', backends: ['elk'], ends: ['end'] },
     { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 o--o|保存| store', width: 10, direction: 'RL', execution: 'scene', backends: ['agentic'], ends: ['start', 'end'] },
     { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 o--o|保存| store', width: 10, direction: 'RL', execution: 'native', backends: ['elk'], ends: ['start', 'end'] },
-  ] as const) test.each([...authored.backends])(`Flowchart %s/${authored.execution} retains ${authored.width}px ${authored.kind} ${authored.ends.join('/')}${'otherEnd' in authored ? ' with end arrow' : ''}${'namedId' in authored ? ` named e1 ${'curve' in authored ? 'linear' : 'noCurve'}` : ''} marks on the complete cylinder side in ${authored.direction}`, async backend => {
+  ] as const) test.each([...authored.backends])(`Flowchart %s/${authored.execution} retains ${authored.width}px ${authored.kind} ${authored.ends.join('/')}${'otherEnd' in authored ? ' with end arrow' : ''}${'namedId' in authored ? ` named e1 ${'curve' in authored ? authored.curve : 'noCurve'}` : ''}${'fan' in authored ? ' fan' : ''} marks on the complete cylinder side in ${authored.direction}`, async backend => {
     const namedId = 'namedId' in authored ? authored.namedId : undefined
     const curve = 'curve' in authored ? authored.curve : undefined
-    const source = `flowchart ${authored.direction}\nedge__0["依頼者 🧭"]\nstore[(記録庫 📦)]\n${authored.relation}${curve ? `\n${namedId}@{curve: ${curve}}` : ''}${authored.width === 10 ? '\nlinkStyle 0 stroke:#ff0000,stroke-width:10px' : ''}`
+    const fan = 'fan' in authored && authored.fan === true
+    const source = `flowchart ${authored.direction}\nedge__0["依頼者 🧭"]\nstore[(記録庫 📦)]\n${fan ? 'side["補助 🧩"]\n' : ''}${authored.relation}${fan ? '\nedge__0 e2@--> side' : ''}${curve ? `\n${namedId}@{curve: ${curve}}` : ''}${authored.width === 10 ? '\nlinkStyle 0 stroke:#ff0000,stroke-width:10px' : ''}`
     const renderOptions = { ...options(1, false), graphLayout: { backend, fallback: 'none' as const } }
     let rendered: ReturnType<typeof renderMermaidSVGWithReceipt>
     const stages: string[] = []
@@ -124,12 +127,33 @@ describe('family-owned endpoint and visible-marker contact (#258)', () => {
       const document = dom.window.document as Document
       expect(document.querySelectorAll('[transform]')).toHaveLength(0)
       const owners = [...document.querySelectorAll('g.node')]
-      expect(owners.map(owner => [owner.getAttribute('data-id'), owner.getAttribute('data-label')]).sort()).toEqual([['edge__0', '依頼者 🧭'], ['store', '記録庫 📦']])
+      expect(owners.map(owner => [owner.getAttribute('data-id'), owner.getAttribute('data-label')]).sort()).toEqual([['edge__0', '依頼者 🧭'], ['store', '記録庫 📦'], ...(fan ? [['side', '補助 🧩']] : [])].sort())
       const carriers = [...document.querySelectorAll('[data-role="edge"][data-from]')]
-      expect(carriers).toHaveLength(1)
+      expect(carriers).toHaveLength(fan ? 2 : 1)
+      if (fan) {
+        expect(carriers.map(edge => [edge.getAttribute('data-id'), edge.getAttribute('data-from'), edge.getAttribute('data-to'), edge.getAttribute('data-marker-end')])).toEqual([
+          ['e1', 'edge__0', 'store', 'circle'], ['e2', 'edge__0', 'side', 'arrow'],
+        ])
+        for (const edge of carriers) {
+          expect(edge.hasAttribute('marker-start')).toBe(false)
+          expect(edge.getAttribute('data-arrow-start')).toBe('false')
+          expect(edge.getAttribute('marker-end')).toMatch(/^url\(#.+\)$/)
+          const ps = routePoints({ name: edge.localName, attrs: Object.fromEntries([...edge.attributes].map(attr => [attr.name, attr.value])) })
+          for (const start of [true, false]) {
+            const at = start ? ps[0]! : ps.at(-1)!
+            const toward = (start ? ps : [...ps].reverse()).find(point => point.x !== at.x || point.y !== at.y)!
+            expect(toward).toBeDefined()
+            expect(toward.x === at.x || toward.y === at.y).toBe(true)
+            const owner = edge.getAttribute(start ? 'data-from' : 'data-to')!
+            const surface = owner === 'store' ? owners.find(node => node.getAttribute('data-id') === 'store')!.querySelector('rect')! : document.querySelector(`[data-id="node-shape:${owner}"]`)!
+            const side = toward.x < at.x ? 'L' : toward.x > at.x ? 'R' : toward.y < at.y ? 'T' : 'B'
+            expect(surfaceError(at, { name: surface.localName, attrs: Object.fromEntries([...surface.attributes].map(attr => [attr.name, attr.value])) }, side)).toBeLessThan(1e-6)
+          }
+        }
+      }
       const cylinder = owners.find(owner => owner.getAttribute('data-id') === 'store')!
       const pieces = [...cylinder.children].filter(child => child.localName !== 'text')
-      expect([...document.querySelectorAll('text')].map(text => text.textContent).sort()).toEqual(['依頼者 🧭', '記録庫 📦', authored.label].sort())
+      expect([...document.querySelectorAll('text')].map(text => text.textContent).sort()).toEqual(['依頼者 🧭', '記録庫 📦', authored.label, ...(fan ? ['補助 🧩'] : [])].sort())
       // Account for every painted body piece, including both side strokes.
       expect(pieces.map(piece => piece.localName)).toEqual(['rect', 'line', 'line', 'ellipse', 'ellipse'])
       const numeric = (element: Element, name: string) => Number(element.getAttribute(name) ?? 0)
@@ -157,7 +181,7 @@ describe('family-owned endpoint and visible-marker contact (#258)', () => {
       expect(numeric(top, 'ry')).toBe(numeric(bottom, 'ry'))
 
       const all = tags(rendered.svg)
-      const observations: Array<{ label: string; end: string; owner: string; error: number; pixels: number; hiddenPixels: number }> = []
+      const observations: Array<{ label: string; end: string; owner: string; error: number; pixels: number; hiddenPixels: number; shaftContactError?: number }> = []
       const occurrences = carriers.filter(carrier => carrier.getAttribute('data-label') === authored.label)
       expect(occurrences).toHaveLength(1)
       const carrier = occurrences[0]!
@@ -166,13 +190,25 @@ describe('family-owned endpoint and visible-marker contact (#258)', () => {
       expect(Number.parseFloat(route.attrs['stroke-width']!)).toBe(authored.width)
       expect(route.name).toBe(curve ? 'path' : 'polyline')
       const points = routePoints(route)
-      expect(points.every(point => point.y === points[0]!.y)).toBe(true)
+      if (!fan) expect(points.every(point => point.y === points[0]!.y)).toBe(true)
       if (namedId !== undefined) {
         expect(carrier.getAttribute('data-id')).toBe(namedId)
         expect(carrier.getAttribute('data-curve')).toBe(curve ?? null)
         expect(carrier.getAttribute('data-marker-end')).toBe('circle')
-        expect(points).toHaveLength(2)
-        if (curve) expect(route.attrs.d!.match(/[MLQCSHVTAZmlqcshvtaz]/g)).toEqual(['M', 'L'])
+        if (fan) {
+          const commands = route.attrs.d!.match(/[MLQCSHVTAZmlqcshvtaz]/g)!
+          expect(commands[0]).toBe('M')
+          expect(commands.slice(1).every(command => command === 'L')).toBe(true)
+          const distinct = points.filter((point, index) => index === 0 || point.x !== points[index - 1]!.x || point.y !== points[index - 1]!.y)
+          expect(distinct.length).toBeGreaterThan(2)
+          for (let i = 1; i < distinct.length; i++) expect(distinct[i]!.x === distinct[i - 1]!.x || distinct[i]!.y === distinct[i - 1]!.y).toBe(true)
+          // Agentic supplies the turned witness; ELK serves this same authored
+          // cylinder fan as several distinct collinear M/L legs.
+          if (backend === 'agentic') expect(distinct.some((point, index) => index > 1 && (distinct[index - 1]!.x - distinct[index - 2]!.x) * (point.y - distinct[index - 1]!.y) !== (distinct[index - 1]!.y - distinct[index - 2]!.y) * (point.x - distinct[index - 1]!.x))).toBe(true)
+        } else {
+          expect(points).toHaveLength(2)
+          if (curve) expect(route.attrs.d!.match(/[MLQCSHVTAZmlqcshvtaz]/g)).toEqual(['M', 'L'])
+        }
       }
       for (const end of ['start', 'end'] as const) {
         if (!authored.ends.some(authoredEnd => authoredEnd === end)) {
@@ -261,14 +297,62 @@ describe('family-owned endpoint and visible-marker contact (#258)', () => {
           contactError = Math.max(contactError, Math.min(...errors))
         }
 
+        let shaftContactError: number | undefined
+        if (fan) {
+          // Locate the actual last painted shaft point by SVG dash phase over
+          // emitted M/L arclength, independent of the producer's dash scheme.
+          const lengths = points.slice(1).map((point, index) => Math.hypot(point.x - points[index]!.x, point.y - points[index]!.y))
+          const length = lengths.reduce((sum, value) => sum + value, 0)
+          const declaredLength = carrier.getAttribute('pathLength')
+          const scale = declaredLength === null ? 1 : length / Number(declaredLength)
+          expect(Number.isFinite(scale) && scale > 0).toBe(true)
+          let pattern = numbers(carrier.getAttribute('stroke-dasharray') ?? '').map(value => value * scale)
+          expect(pattern.every(value => Number.isFinite(value) && value >= 0)).toBe(true)
+          if (pattern.length % 2) pattern = [...pattern, ...pattern]
+          const period = pattern.reduce((sum, value) => sum + value, 0)
+          let paintedEnd = length
+          if (period > 0) {
+            const rawOffset = Number.parseFloat(carrier.getAttribute('stroke-dashoffset') ?? '0') * scale
+            expect(Number.isFinite(rawOffset)).toBe(true)
+            const offset = ((rawOffset % period) + period) % period
+            const lastCycle = Math.floor((length + offset) / period)
+            paintedEnd = -Infinity
+            for (const cycle of [lastCycle - 1, lastCycle]) {
+              let cursor = cycle * period - offset
+              for (let i = 0; i < pattern.length; i++) {
+                const end = cursor + pattern[i]!
+                if (i % 2 === 0 && end > Math.max(0, cursor) && cursor < length) paintedEnd = Math.max(paintedEnd, Math.min(length, end))
+                cursor = end
+              }
+            }
+          }
+          expect(Number.isFinite(paintedEnd) && paintedEnd > 0).toBe(true)
+          let travelled = 0, lastPainted: Point | undefined
+          for (let i = 0; i < lengths.length; i++) {
+            const leg = lengths[i]!
+            if (leg > 0 && travelled + leg >= paintedEnd - 1e-7) {
+              const a = points[i]!, b = points[i + 1]!, t = Math.max(0, Math.min(1, (paintedEnd - travelled) / leg))
+              const cap = ['round', 'square'].includes(carrier.getAttribute('stroke-linecap') ?? 'butt') ? authored.width / 2 : 0
+              lastPainted = { x: a.x + (b.x - a.x) * (t + cap / leg), y: a.y + (b.y - a.y) * (t + cap / leg) }
+              break
+            }
+            travelled += leg
+          }
+          expect(lastPainted).toBeDefined()
+          const circle = ink[0]!, outerRadius = numeric(circle, 'r') + numeric(circle, 'stroke-width') / 2
+          const ringNearSide = visibleContact(all, route, end, { x: numeric(circle, 'cx') - outerRadius, y: numeric(circle, 'cy') })
+          shaftContactError = Math.hypot(lastPainted!.x - ringNearSide.x, lastPainted!.y - ringNearSide.y)
+        }
+
         if (authored.width === 10) {
           // Preserve the actual same-color shaft: recoloring it would create
           // contrast even when this authored circle contributes no ink.
           const hidden = document.documentElement.cloneNode(true) as Element
-          hidden.querySelector('[data-role="edge"][data-from]')!.removeAttribute(`marker-${end}`)
+          const hiddenCarrier = [...hidden.querySelectorAll('[data-role="edge"][data-from]')].find(edge => edge.getAttribute('data-id') === carrier.getAttribute('data-id'))!
+          hiddenCarrier.removeAttribute(`marker-${end}`)
           const actualPixels = colorPixelCount(document.documentElement.outerHTML, redPixel)
           const hiddenPixels = colorPixelCount(hidden.outerHTML, redPixel)
-          observations.push({ label: authored.label, end, owner, error: contactError, pixels: actualPixels - hiddenPixels, hiddenPixels })
+          observations.push({ label: authored.label, end, owner, error: contactError, pixels: actualPixels - hiddenPixels, hiddenPixels, ...(shaftContactError === undefined ? {} : { shaftContactError }) })
         } else {
           // Isolate the existing thin marker witness from shafts/other ends.
           const isolated = document.documentElement.cloneNode(true) as Element
@@ -287,6 +371,7 @@ describe('family-owned endpoint and visible-marker contact (#258)', () => {
       for (const observation of observations) {
         expect(observation.pixels, JSON.stringify(observations)).toBeGreaterThan(0)
         expect(observation.error, JSON.stringify(observations)).toBeLessThan(1e-6)
+        if (observation.shaftContactError !== undefined) expect(observation.shaftContactError, JSON.stringify(observations)).toBeLessThan(1e-6)
       }
     } finally { dom.window.close() }
   })

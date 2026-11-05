@@ -8,6 +8,7 @@ import { projectGraphCurve } from './graph-curve.ts'
 import { connectorMarkerPaintRegions, geometryBounds, paintedStrokeExtent, type ConnectorMarkerPaintRegion } from './scene/bounds.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from './shared/svg-number.ts'
 import { canonicalTextDigest } from './render-contract.ts'
+import { SCENE_VALIDATION_LIMITS } from './scene/scene-validation-limits.ts'
 
 /** Preserve authored dash intent. A served one-leg solid carrier can leave a gap
  * beneath a fixed hollow circle without moving its marker attachment. */
@@ -25,7 +26,10 @@ export function graphEdgeDashArray(edge: Pick<PositionedEdge, 'style' | 'animate
   if (!startCircle && !endCircle || pathProjection === undefined && edge.curve) return undefined
   const projectedGeometry = pathProjection?.geometry
   const points = pathProjection === undefined ? candidatePoints ?? edge.points : projectedGeometry?.points
-  if (!points || points.length !== 2) return undefined
+  if (!points || points.length !== 2) {
+    return points && pathProjection !== undefined && projectedGeometry
+      ? projectedCircleDashArray(projectedGeometry, pathProjection.contours, points, rawWidth, startCircle, endCircle) : undefined
+  }
   // Match the carrier's numeric/px spelling before measuring its width. This
   // uses the existing stroke parser; relative or unresolved widths stay out.
   const halfWidth = paintedStrokeExtent({ stroke: 'black', strokeWidth: formatSvgNumericAttribute('stroke-width', rawWidth) }, false)
@@ -49,6 +53,74 @@ export function graphEdgeDashArray(edge: Pick<PositionedEdge, 'style' | 'animate
   if (!Number.isFinite(length) || !Number.isFinite(visible) || visible <= 0) return undefined
   // Keep the original marker attachment sites on this same carrier. One long
   // off interval prevents a new dash from starting at the terminal vertex.
+  return formatSvgNumericAttribute('stroke-dasharray', startGap ? `0 ${startGap} ${visible} ${length}` : `${visible} ${length}`)
+}
+
+/** Only captured open orthogonal M/L paths extend the gap beyond one leg.
+ * A terminal runway also reserves the adjacent wide corner's half-width reach;
+ * the existing two-point carrier policy stays separate. */
+function projectedCircleDashArray(geometry: ConnectorPathProjection['geometry'], contours: ConnectorPathProjection['contours'], points: readonly Point[], rawWidth: string, startCircle: boolean | undefined, endCircle: boolean | undefined): string | undefined {
+  const count = points.length
+  if (!Number.isSafeInteger(count) || count <= 2 || count > SCENE_VALIDATION_LIMITS.maxPoints
+    || geometry.kind !== 'path' || geometry.subpaths !== undefined || contours.length !== 1) return undefined
+  const d = geometry.d, contour = contours[0]!
+  if (typeof d !== 'string' || d.length > SCENE_VALIDATION_LIMITS.maxSerializationBytesPerNode || contour.closed !== false) return undefined
+  const halfWidth = paintedStrokeExtent({ stroke: 'black', strokeWidth: formatSvgNumericAttribute('stroke-width', rawWidth) }, false)
+  if (halfWidth === undefined || !fixedCircleStart || !fixedCircleEnd || halfWidth * 2 < fixedCircleEnd.diameter) return undefined
+  const startGap = startCircle ? fixedCircleStart.start : 0, endGap = endCircle ? fixedCircleEnd.end : 0
+  let cursor = 0, compact = false
+  const consume = (expected: string): boolean => {
+    if (cursor + expected.length > d.length) return false
+    for (let index = 0; index < expected.length; index++) if (d[cursor + index] !== expected[index]) return false
+    cursor += expected.length
+    return true
+  }
+  let firstX = 0, firstY = 0, lastX = 0, lastY = 0, previousX = 0, previousY = 0
+  let previousDx = 0, previousDy = 0, length = 0, startRun = 0, endRun = 0
+  let hasDirection = false, startOpen = true
+  for (let index = 0; index < count; index++) {
+    const point = points[index]!, x = point.x, y = point.y
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return undefined
+    const rawX = `${x}`, rawY = `${y}`
+    if (index === 0) {
+      if (!consume(`M ${rawX} ${rawY}`)) {
+        if (!consume(`M${rawX},${rawY}`)) return undefined
+        compact = true
+      }
+      firstX = x; firstY = y
+    } else if (!consume(compact ? ` L${rawX},${rawY}` : ` L ${rawX} ${rawY}`)) return undefined
+    lastX = x; lastY = y
+    const servedX = Number(formatSvgNumber(x)), servedY = Number(formatSvgNumber(y))
+    if (!Number.isFinite(servedX) || !Number.isFinite(servedY)) return undefined
+    if (index > 0) {
+      const dx = servedX - previousX, dy = servedY - previousY, segment = Math.hypot(dx, dy)
+      if (!Number.isFinite(segment)) return undefined
+      length += segment
+      if (segment > 0) {
+        if (dx !== 0 && dy !== 0) return undefined
+        if (!hasDirection) {
+          hasDirection = true; startRun = segment; endRun = segment
+        } else {
+          const crossLeft = previousDx * dy, crossRight = previousDy * dx, along = previousDx * dx + previousDy * dy
+          if (!Number.isFinite(crossLeft) || !Number.isFinite(crossRight) || !Number.isFinite(along)) return undefined
+          const collinear = crossLeft === crossRight
+          if (collinear && along <= 0) return undefined
+          if (collinear) {
+            if (startOpen) startRun += segment
+            endRun += segment
+          } else {
+            startOpen = false; endRun = segment
+          }
+        }
+        previousDx = dx; previousDy = dy
+      }
+    }
+    previousX = servedX; previousY = servedY
+  }
+  if (cursor !== d.length || contour.start.x !== firstX || contour.start.y !== firstY || contour.end.x !== lastX || contour.end.y !== lastY) return undefined
+  const visible = length - startGap - endGap
+  if (!Number.isFinite(length) || !Number.isFinite(visible) || visible <= 0
+    || startCircle && startRun < startGap + halfWidth || endCircle && endRun < endGap + halfWidth) return undefined
   return formatSvgNumericAttribute('stroke-dasharray', startGap ? `0 ${startGap} ${visible} ${length}` : `${visible} ${length}`)
 }
 

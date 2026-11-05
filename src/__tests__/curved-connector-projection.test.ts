@@ -193,6 +193,63 @@ function connectorPath(connector: ConnectorMark): string {
   return /\bd="([^"]*)"/.exec(sceneNodeSerialization(connector))![1]!
 }
 
+function expectConnectedCirclePaint(connector: ConnectorMark): void {
+  const attributes = Object.fromEntries(scanSvgStartTags(sceneNodeSerialization(connector))[0]!.attributes.map(attribute => [attribute.name, attribute.value]))
+  const path = attributes.d !== undefined ? writtenPath(attributes.d) : (() => {
+    const points = attributes.points!.trim().split(/\s+/).map(pair => {
+      const [x, y] = pair.split(',').map(Number)
+      return { x: x!, y: y! }
+    })
+    return { start: points[0]!, ends: points.slice(1), cubics: [] }
+  })()
+  const vertices = [path.start, ...path.ends]
+  const length = vertices.slice(1).reduce((sum, point, index) => sum + Math.hypot(point.x - vertices[index]!.x, point.y - vertices[index]!.y), 0)
+  expect(path.cubics).toHaveLength(0)
+  expect(connector.stroke.lineCap).toBe('butt')
+  const dash = connector.stroke.dash
+  expect(dash).toBeDefined()
+  if (!dash) return
+  const intervals = typeof dash.array === 'string' ? dash.array.split(/[\s,]+/).map(Number) : [...dash.array]
+  expect(intervals.every(interval => Number.isFinite(interval) && interval >= 0)).toBe(true)
+  expect(attributes['stroke-dasharray']!.split(/[\s,]+/).map(Number)).toEqual(intervals)
+  const pattern = intervals.length % 2 ? [...intervals, ...intervals] : intervals
+  const period = pattern.reduce((sum, interval) => sum + interval, 0)
+  expect(period).toBeGreaterThan(length)
+  const offset = Number(dash.offset ?? 0)
+  const phase = ((offset % period) + period) % period
+  const runs: Array<{ start: number; end: number }> = []
+  for (const cycle of [-1, 0, 1]) {
+    let distance = cycle * period - phase
+    for (const [index, interval] of pattern.entries()) {
+      if (index % 2 === 0 && interval > 0 && distance < length && distance + interval > 0) {
+        runs.push({ start: Math.max(0, distance), end: Math.min(length, distance + interval) })
+      }
+      distance += interval
+    }
+  }
+  expect(runs).toHaveLength(1)
+  const run = runs[0]!
+  let startGap = 0, endGap = 0
+  for (const end of ['start', 'end'] as const) {
+    const marker = connector.markers[end]
+    if (!marker) continue
+    expect(marker.geometry?.kind).toBe('circle')
+    expect(marker.units).toBe('userSpaceOnUse')
+    expect(attributes[`marker-${end}`]).toBe(`url(#${marker.id})`)
+    if (marker.geometry?.kind !== 'circle' || !marker.ref) continue
+    const extent = Number.parseFloat(marker.paint?.strokeWidth ?? '1') / 2
+    if (end === 'start') startGap = marker.geometry.cx + marker.geometry.r + extent - marker.ref.x
+    else endGap = marker.ref.x - marker.geometry.cx + marker.geometry.r + extent
+  }
+  // The single connected shaft reaches each ring's near painted side. A
+  // shorter run would avoid absorption while leaving the terminal detached.
+  expect(run.start).toBeCloseTo(startGap, 9)
+  expect(run.end).toBeCloseTo(length - endGap, 9)
+  expect(run.end).toBeGreaterThan(run.start)
+  expect(connector.hit.geometry).toBe(connector.route.geometry)
+  expect(connector.terminalProjection.geometry).toBe(connector.route.geometry)
+}
+
 function expectNaturalJoins(cubics: Cubic[]): void {
   expect(cubics.length).toBeGreaterThan(1)
   for (let index = 1; index < cubics.length; index++) {
@@ -347,14 +404,14 @@ describe('curved connector lowering projections', () => {
     expect(hitTestConnector(connector, { x: 95, y: 5 })).toBe(false)
   })
 
-  test('lowering retains captured straight terminal paint when later curve and point getters change', () => {
+  test('lowering retains captured STEP terminal paint when later curve and point getters change', () => {
     let curveReads = 0, pointReads = 0
     const edge: PositionedEdge = {
       id: 'e1', source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true, endMarker: 'circle',
       label: 'kept', labelPosition: { x: 24, y: -12 }, inlineStyle: { stroke: '#000', 'stroke-width': '10px' },
-      get curve() { return ++curveReads === 1 ? 'linear' : 'step' },
+      get curve() { return ++curveReads === 1 ? 'step' : 'linear' },
       // Admission checks the route length before the first projection captures it.
-      get points() { return ++pointReads <= 2 ? [{ x: 0, y: 0 }, { x: 48, y: 0 }] : [{ x: 100, y: 100 }, { x: 580, y: 100 }] },
+      get points() { return ++pointReads <= 2 ? [{ x: 0, y: 0 }, { x: 90, y: 60 }] : [{ x: 100, y: 100 }, { x: 580, y: 100 }] },
     }
     const connector = onlyConnector(lowerGraphScene({
       positioned: { width: 200, height: 160, nodes: [], groups: [], edges: [edge] },
@@ -365,45 +422,53 @@ describe('curved connector lowering projections', () => {
     const path = writtenPath(attributes.d!)
     expect(emitted.name).toBe('path')
     expect(path.start).toEqual({ x: 0, y: 0 })
-    expect(path.ends).toEqual([{ x: 48, y: 0 }])
+    expect(path.ends).toEqual([{ x: 45, y: 0 }, { x: 45, y: 60 }, { x: 90, y: 60 }])
     expect(path.cubics).toHaveLength(0)
     expect(attributes).toMatchObject({ 'data-id': 'e1', 'data-from': 'A', 'data-to': 'B' })
-    expect(connector.route.contours).toEqual([{ start: { x: 0, y: 0 }, end: { x: 48, y: 0 }, closed: false, startTangent: { x: 1, y: 0 }, endTangent: { x: 1, y: 0 } }])
+    expect(connector.route.contours).toEqual([{ start: { x: 0, y: 0 }, end: { x: 90, y: 60 }, closed: false, startTangent: { x: 1, y: 0 }, endTangent: { x: 1, y: 0 } }])
     expect(connector.hit.geometry).toBe(connector.route.geometry)
     expect(connector.terminalProjection.geometry).toBe(connector.route.geometry)
     expect(connector.stroke.color).toBe('#000')
     expect(Number.parseFloat(String(connector.stroke.width))).toBe(10)
-    const dash = connector.stroke.dash, marker = connector.markers.end
-    expect(dash).toBeDefined()
-    expect(marker?.geometry?.kind).toBe('circle')
-    if (!dash || marker?.geometry?.kind !== 'circle' || !marker.ref) return
-    expect(marker.units).toBe('userSpaceOnUse')
-    expect(attributes['marker-end']).toBe(`url(#${marker.id})`)
-    const intervals = typeof dash.array === 'string' ? dash.array.split(/[\s,]+/).map(Number) : [...dash.array]
-    expect(intervals.every(Number.isFinite)).toBe(true)
-    expect(intervals).toHaveLength(2)
-    const nearRing = 48 + marker.geometry.cx - marker.ref.x - marker.geometry.r - Number.parseFloat(marker.paint?.strokeWidth ?? '1') / 2
-    expect(intervals[0]!).toBeGreaterThan(0)
-    expect(intervals[0]!).toBeLessThanOrEqual(nearRing)
-    expect(intervals[0]! + intervals[1]!).toBeGreaterThan(48)
-    expect(attributes['stroke-dasharray']!.split(/[\s,]+/).map(Number)).toEqual(intervals)
+    expectConnectedCirclePaint(connector)
   })
 
-  test.each(['step', 'bumpX'])('lowering leaves a nonlinear two-point %s carrier stroke unmodified', curve => {
+  test.each([
+    { name: 'STEP', curve: 'step', points: [{ x: 0, y: 0 }, { x: 90, y: 60 }], ends: [{ x: 45, y: 0 }, { x: 45, y: 60 }, { x: 90, y: 60 }], bothEnds: false },
+    { name: 'reverse mixed turns with duplicate endpoints', curve: 'linear', points: [{ x: 100, y: 80 }, { x: 100, y: 80 }, { x: 40, y: 80 }, { x: 40, y: 20 }, { x: 10, y: 20 }, { x: 10, y: 20 }], ends: [{ x: 100, y: 80 }, { x: 40, y: 80 }, { x: 40, y: 20 }, { x: 10, y: 20 }, { x: 10, y: 20 }], bothEnds: true },
+    { name: 'split co-directed terminal runs', curve: 'linear', points: [{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 16, y: 0 }, { x: 16, y: 118 }, { x: 28, y: 118 }, { x: 32, y: 118 }], ends: [{ x: 4, y: 0 }, { x: 16, y: 0 }, { x: 16, y: 118 }, { x: 28, y: 118 }, { x: 32, y: 118 }], bothEnds: true },
+  ])('lowering gaps $name by served arclength rather than the endpoint chord', row => {
     const connector = onlyConnector(lowerGraphScene({
       positioned: { width: 200, height: 160, nodes: [], groups: [], edges: [{
-        id: 'e1', source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true, endMarker: 'circle', curve,
-        points: [{ x: 0, y: 0 }, { x: 90, y: 60 }], labelPosition: { x: 45, y: 30 }, inlineStyle: { stroke: '#000', 'stroke-width': '10px' },
+        id: 'e1', source: 'A', target: 'B', style: 'solid', hasArrowStart: row.bothEnds, startMarker: 'circle', hasArrowEnd: true, endMarker: 'circle', curve: row.curve,
+        points: [...row.points], labelPosition: { x: 45, y: 30 }, inlineStyle: { stroke: '#000', 'stroke-width': '10px' },
       }] },
       colors: COLORS, resolved: { renderOptions: {}, styleFace: { edge: { bendRadius: 0 } } },
     }))
+    const path = writtenPath(connectorPath(connector))
+    expect(path.start).toEqual(row.points[0]!)
+    expect(path.ends).toEqual([...row.ends])
+    const vertices = [path.start, ...path.ends]
+    const length = vertices.slice(1).reduce((sum, point, index) => sum + Math.hypot(point.x - vertices[index]!.x, point.y - vertices[index]!.y), 0)
+    expect(length).toBe(150)
+    expect(length).toBeGreaterThan(Math.hypot(path.ends.at(-1)!.x - path.start.x, path.ends.at(-1)!.y - path.start.y))
+    expectConnectedCirclePaint(connector)
+  })
+
+  test.each([
+    { name: 'bumpX cubic', curve: 'bumpX', points: [{ x: 0, y: 0 }, { x: 90, y: 60 }], radius: 0, command: 'C' },
+    { name: 'rounded quadratic', curve: undefined, points: RIGHT_ANGLE_POINTS.map(point => ({ ...point })), radius: 20, command: 'Q' },
+  ])('lowering leaves a nonlinear $name carrier stroke unmodified', row => {
+    const connector = onlyConnector(lowerGraphScene({
+      positioned: { width: 200, height: 160, nodes: [], groups: [], edges: [{
+        id: 'e1', source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true, endMarker: 'circle', ...(row.curve ? { curve: row.curve } : {}),
+        points: [...row.points], labelPosition: { x: 45, y: 30 }, inlineStyle: { stroke: '#000', 'stroke-width': '10px' },
+      }] },
+      colors: COLORS, resolved: { renderOptions: {}, styleFace: { edge: { bendRadius: row.radius } } },
+    }))
     const emitted = scanSvgStartTags(sceneNodeSerialization(connector))[0]!
     const attributes = Object.fromEntries(emitted.attributes.map(attribute => [attribute.name, attribute.value]))
-    const path = writtenPath(attributes.d!)
-    expect(path.start).toEqual({ x: 0, y: 0 })
-    expect(path.ends.at(-1)).toEqual({ x: 90, y: 60 })
-    if (curve === 'step') { expect(path.ends).toHaveLength(3); expect(path.cubics).toHaveLength(0) }
-    else expect(path.cubics).toHaveLength(1)
+    expect(attributes.d).toContain(row.command)
     expect(attributes).toMatchObject({ 'data-id': 'e1', 'data-from': 'A', 'data-to': 'B' })
     expect(attributes['marker-end']).toBe(`url(#${connector.markers.end!.id})`)
     expect(attributes['stroke-dasharray']).toBeUndefined()
@@ -411,9 +476,72 @@ describe('curved connector lowering projections', () => {
     expect(connector.stroke.color).toBe('#000')
     expect(Number.parseFloat(String(connector.stroke.width))).toBe(10)
     expect(connector.route.startTangent).toEqual({ x: 1, y: 0 })
-    expect(connector.route.endTangent).toEqual({ x: 1, y: 0 })
+    expect(connector.route.endTangent).toEqual(row.command === 'Q' ? { x: 0, y: 1 } : { x: 1, y: 0 })
     expect(connector.hit.geometry).toBe(connector.route.geometry)
     expect(connector.terminalProjection.geometry).toBe(connector.route.geometry)
+  })
+
+  test.each([
+    { name: 'all duplicate points', points: [{ x: 0, y: 0 }, { x: 0, y: 0 }], bothEnds: false },
+    { name: 'route shorter than the circle gap', points: [{ x: 0, y: 0 }, { x: 6, y: 0 }], bothEnds: false },
+    { name: 'last leg turns within the circle gap', points: [{ x: 0, y: 0 }, { x: 48, y: 0 }, { x: 48, y: 4 }], bothEnds: false },
+    { name: 'first leg turns within the circle gap', points: [{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 4, y: 48 }], bothEnds: true },
+    { name: 'last leg reverses within the circle gap', points: [{ x: 0, y: 0 }, { x: 48, y: 0 }, { x: 44, y: 0 }], bothEnds: false },
+    { name: 'last perpendicular corner paint reaches the circle gap', points: [{ x: 0, y: 0 }, { x: 48, y: 0 }, { x: 48, y: 10 }], bothEnds: false, cornerInk: true },
+    { name: 'first perpendicular corner paint reaches the circle gap', points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 48 }], bothEnds: true, cornerInk: true },
+  ])('lowering leaves $name unmodified instead of gapping around a corner or reversal', row => {
+    const connector = onlyConnector(lowerGraphScene({
+      positioned: { width: 200, height: 160, nodes: [], groups: [], edges: [{
+        id: 'e1', source: 'A', target: 'B', style: 'solid', hasArrowStart: row.bothEnds, startMarker: 'circle', hasArrowEnd: true, endMarker: 'circle', curve: 'linear',
+        points: [...row.points], labelPosition: { x: 24, y: -12 }, inlineStyle: { stroke: '#000', 'stroke-width': '10px' },
+      }] },
+      colors: COLORS, resolved: { renderOptions: {}, styleFace: { edge: { bendRadius: 0 } } },
+    }))
+    const attributes = Object.fromEntries(scanSvgStartTags(sceneNodeSerialization(connector))[0]!.attributes.map(attribute => [attribute.name, attribute.value]))
+    const path = writtenPath(attributes.d!)
+    expect(path.start).toEqual(row.points[0]!)
+    expect(path.ends.at(-1) ?? path.start).toEqual(row.points.at(-1)!)
+    expect(path.cubics).toHaveLength(0)
+    expect(attributes['marker-end']).toBe(`url(#${connector.markers.end!.id})`)
+    if (row.bothEnds) expect(attributes['marker-start']).toBe(`url(#${connector.markers.start!.id})`)
+    if ('cornerInk' in row && row.cornerInk) {
+      const marker = connector.markers[row.bothEnds ? 'start' : 'end']!
+      expect(marker.geometry?.kind).toBe('circle')
+      if (marker.geometry?.kind === 'circle' && marker.ref) {
+        const extent = Number.parseFloat(marker.paint?.strokeWidth ?? '1') / 2
+        const gap = row.bothEnds ? marker.geometry.cx + marker.geometry.r + extent - marker.ref.x
+          : marker.ref.x - marker.geometry.cx + marker.geometry.r + extent
+        const terminalRun = row.bothEnds ? row.points.slice(0, 2) : row.points.slice(-2)
+        const runLength = Math.hypot(terminalRun[1]!.x - terminalRun[0]!.x, terminalRun[1]!.y - terminalRun[0]!.y)
+        // The centreline clears the ring, but the perpendicular 10px stroke
+        // reaches half its width back into the terminal's straight runway.
+        expect(runLength).toBeGreaterThan(gap)
+        expect(runLength).toBeLessThan(gap + Number.parseFloat(String(connector.stroke.width)) / 2)
+      }
+    }
+    expect(attributes['stroke-dasharray']).toBeUndefined()
+    expect(connector.stroke.dash).toBeUndefined()
+    expect(connector.hit.geometry).toBe(connector.route.geometry)
+    expect(connector.terminalProjection.geometry).toBe(connector.route.geometry)
+  })
+
+  test.each([
+    { name: 'two-point', points: [{ x: 0, y: 0 }, { x: 48, y: 0 }], gap: true },
+    { name: 'three-point', points: [{ x: 0, y: 0 }, { x: 24, y: 0 }, { x: 48, y: 0 }], gap: false },
+  ])('lowering preserves the unprojected $name carrier contract', row => {
+    const connector = onlyConnector(lowerGraphScene({
+      positioned: { width: 200, height: 160, nodes: [], groups: [], edges: [{
+        id: 'e1', source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true, endMarker: 'circle',
+        points: [...row.points], labelPosition: { x: 24, y: -12 }, inlineStyle: { stroke: '#000', 'stroke-width': '10px' },
+      }] },
+      colors: COLORS, resolved: { renderOptions: {}, styleFace: { edge: { bendRadius: 0 } } },
+    }))
+    const attributes = Object.fromEntries(scanSvgStartTags(sceneNodeSerialization(connector))[0]!.attributes.map(attribute => [attribute.name, attribute.value]))
+    expect(attributes.d).toBeUndefined()
+    expect(connector.route.geometry.kind).toBe('polyline')
+    if (connector.route.geometry.kind === 'polyline') expect(connector.route.geometry.points).toEqual([...row.points])
+    if (row.gap) expectConnectedCirclePaint(connector)
+    else { expect(connector.stroke.dash).toBeUndefined(); expect(attributes['stroke-dasharray']).toBeUndefined() }
   })
 
   test('lowering preserves the plain rounded two-point terminal gap', () => {
@@ -432,16 +560,7 @@ describe('curved connector lowering projections', () => {
     expect(path.cubics).toHaveLength(0)
     expect(attributes).toMatchObject({ 'data-id': 'e1', 'data-from': 'A', 'data-to': 'B' })
     expect(attributes['marker-end']).toBe(`url(#${connector.markers.end!.id})`)
-    const dash = connector.stroke.dash
-    expect(dash).toBeDefined()
-    if (!dash) return
-    const intervals = typeof dash.array === 'string' ? dash.array.split(/[\s,]+/).map(Number) : [...dash.array]
-    expect(intervals.every(Number.isFinite)).toBe(true)
-    expect(intervals).toHaveLength(2)
-    expect(intervals[0]!).toBeGreaterThan(0)
-    expect(intervals[0]!).toBeLessThan(48)
-    expect(intervals[0]! + intervals[1]!).toBeGreaterThan(48)
-    expect(attributes['stroke-dasharray']!.split(/[\s,]+/).map(Number)).toEqual(intervals)
+    expectConnectedCirclePaint(connector)
     expect(connector.route.startTangent).toEqual({ x: 1, y: 0 })
     expect(connector.route.endTangent).toEqual({ x: 1, y: 0 })
     expect(connector.hit.geometry).toBe(connector.route.geometry)
