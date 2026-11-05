@@ -6,172 +6,113 @@ All caps and isolation contracts remain; replacement24 stays sealed. Unknown,
 refused, unsupported and adverse outcomes remain enrolled.
 
 Recovered base3b56da55e6570908beb5d96c25f4c03c1a828a22 is not the original November
-checkout. Campaign-baseline2dadf0dbc2685c8435df541de99f3edce841450d, Trident and the
-requested Mermaid12.2/Pele1.9 peers remain unavailable; Pele1.8 is not substituted.
-Full preceding history, exact revisions, failed probes and complete cost tables remain
-in Git3df961f38156ddf993978440b8a71fe41c6b001b and week/
-work-log-before-shortening-3df961f38.md.gz (verified against that committed log).
-Earlier history is also retained at52a13881d0beafe2e7ebb4cfcfae349ab20ca1e2.
+checkout. Campaign-baseline2dadf0dbc2685c8435df541de99f3edce841450d, Trident and
+Mermaid12.2/Pele1.9 peers remain unavailable; Pele1.8 is not substituted. Full prior
+log through1e1bb29939352735b2df1346ede4e378549ec2ad remains at that revision and
+week/work-log-before-shortening-1e1bb2993.md.gz (byte-verified). Older full history
+and failed trials remain in3df961f38156ddf993978440b8a71fe41c6b001b and52a13881d.
 
-## Retained runtime results and comparative limits
+## Retained delivery, quality and limits
 
-- Class caption seats0684c7d72/e0877c5ea: ordinary area105210→103590 versus
-  ELK104010, wire248.6→242.6 versus325.2; nested-caption delivery6/8→8/8.
-  Original-producer Scene reuse539407810 and final flat-sharp SVG-point projection
-  11b3e5fcef07706ef002b828c8f4ac6578d2600e close Class128 proof limits in all4dirs.
-  TB/BT U400000→P388607/P393070,127 checked heads, byte-identical whole SVG.
-  Broader compound normalization caused10 regressions and was withdrawn. Generic,
-  compound, rounded, synthetic-interface and sketch paths keep their contracts;
-  eligible published raw point numbers intentionally become canonical.
-- ER prefix/terminal reusecc841a746/599bdf978 delivers former192/207/208 refusals.
-  Owned Scene reuse52a13881d makes208 Agentic/ELK proofs P287124/P280068 with exact
-  prior SVG. Sparse256 cards/one relationship P90857 is distinct from the still-
-  refused256-relationship chain. Dated208LR Agentic area−18.70%/wire−30.99% versusELK.
-- Shared forest bands3efdf6236c1074964ce2ac7c647e265af56de19b shrink the ordinary
-  mixed-height forest area26.98% and wire33.80%. Versus same-inputELK: area6.43%less,
-  wire16.89%more. Both routes were already shortest for their docks; the leaf-seat
-  trial instead enlarged bodies/area6.88% and was stopped.
-- Cyclic final endpoint policy d82c926cc0f6f1119a86e5079ba79fca1a2df0f9 removes
-  demonstrated head collisions without moving cards:19-node wire−1.77%, area/102bends
-  unchanged. Native area1233429/wire15850 versusELK2307941/27581; ELK proof remainsU.
-  Written-fact sealing527ef75a3 repairs an actual falseP under an ambient freeze hook,
-  with original SVG/entireU receipt restored. These are separate correctness changes.
-- Requirement measured-cycle access15972c57e retains authored fields/relations/ink;
-  TB/BT area remains+9.53% versusELK, LR/RL−1.44%. Adverse trial tradeoffs were stopped.
+- Class caption0684c7d72/e0877c5ea: area105210→103590 vsELK104010,
+  wire248.6→242.6 vs325.2; nested-caption delivery6/8→8/8. Shared Scene reuse539407810
+  and flat-sharp SVG-point projection11b3e5fcef07706ef002b828c8f4ac6578d2600e close
+  Class128 all4dirs: TB/BT U400k→P388607/393070,127checkedheads, exact originalSVG.
+  Broader compound normalization caused10regressions and was withdrawn; generic,
+  compound, rounded, interface and sketch paths retain their contracts.
+- ER prefix/terminal reusecc841a746/599bdf978 delivers former192/207/208 refusals;
+  owned Scene reuse52a13881d makes208 Agentic/ELK P287124/280068 with exact priorSVG.
+  Dated208LR area−18.70%/wire−30.99% vsELK. The256-chain still refuses family work;
+  Sparse256cards/one relation is a different input, never its replacement.
+- Forest bands3efdf6236c1074964ce2ac7c647e265af56de19b: area−26.98%/wire−33.80%.
+  VsELK area−6.43%/wire+16.89%. Fixed-dock routes already shortest; leaf-seat trial
+  grew bodies/area6.88% and stopped. Requirement measured-cycle15972c57e retains
+  fields/relations/ink; TB/BT area+9.53% vsELK, LR/RL−1.44%; adverse trials stopped.
+- Cyclic endpointd82c926cc0f6f1119a86e5079ba79fca1a2df0f9 removes head collisions:
+  19node wire−1.77%, area/102bends unchanged; Native1233429area/15850wire vsELK
+  2307941/27581. ELK proofU remains separate from its44positive head contributions.
+- Flat Native ER isolate shelvesffbff7a20843098e97b664a7f13080cbf7b257ea preserve
+  connected geometry and explicit spacing. Sparse256cards area15,832,099.72→7,449,331
+  (−52.95%), height32140→2930.5,width492.598→2542; still+115.35%area vsELK3,459,200.
+  Shaft132.598 vs214.598,0bends. Body gaps71px vsELK20 explain much of the remainder.
+  Cost/cache/heap/adverse rows and +918gzip/+755BrB remain in the prior full log.
 
-Class128TB measured at11b3e5fce: cache0 consumed cold/repeat/edit
-AM1709/1035/768ms versusELK1417/571/425; cache1 AM879/304/471 versus1426/345/510.
-N1, no speed/memory win or old-U/new-P timing ratio. Other retained adverse observations
-include Sparse256ELK18.6s repeat and mixed/rising heaps. Fresh Node24 source/compiled
-whole SVG and ENTIRE receipts match after one RAM build. Class closuresAM21requests/
-gzip294615/Br247635B versusELK20/671829/525246; each adds180gzip/184BrB versus3ef.
-No payload rebuild after test-only changes. Full products, per-phase RSS/heap, cold/
-cache/edit and adverse rows remain in the named week evidence and prior committed log.
+## Actual meaning is separate from proof availability
 
-## Actual meaning, separate from proof availability
+607b46353e638740f97b8f26d2acf11e579b0d83 checks all44 cyclic19 heads individually,
+44 ordered endpoint/caption occurrences and11actualcaptiontexts. RetainedELK also
+has44positive individual head contributions despite37distinct tips. This does not
+prove all contacts or recognizability. No runtime gain from unchanged comparisons.
 
-607b46353e638740f97b8f26d2acf11e579b0d83 checks all44 authored cyclic19 arrowheads
-individually (39 newly covered),44 ordered endpoint/caption occurrences and11actual
-SVG caption texts. It passes; no runtime/geometry improvement. Validation5.34s,
-588180KiB max-childRSS includes46rasters. Exact retained d82ELK also has44positive
-individual contributions (20–129 darker pixels atzoom2), zero out-of-region changes,
-all19 owned node names/44relations/30texts. Its37tipcoordinates/four coincident groups
-are not evidence of lost heads. DOM source order is incidental; original ordered flags
-remain explicitly retained. Evidence: cyclic19-all-heads-{ebf62dc2b,retained-d82}.
-Contribution does not prove full recognizability, every contact or every label's ink.
+Sparse owner0cc8ea7aa17bc55cda461d17f6b2caf18f1aee34 retains0/no definitions,
+0/unused definitions and32/referenced definitions: all1500text records plus first/
+last glyph removals and all32 individual marker contributions. b67384c18fe591032b1fd9586c511ee4fdb8106a additionally checks dark ink in all1500 independently authored
+regions, reusing the same41rasters. All meaning controls pass before Native32's
+unchanged U400k OUTPUT_SCOPE/CHECK_BUDGET; both0armsP. Individual middle attribution,
+readability and arbitrary-font/browser ink remain unqualified; no capacity gain.
 
-0cc8ea7aa17bc55cda461d17f6b2caf18f1aee34 consolidates the existing Sparse owners
-without dropping inputs:0/no definitions,0/unused definitions,32/referenced definitions.
-All1500 actual text records/IDs/attributes and first/last glyph contributions now run
-before proof; the marked arm also checks all32 actual carriers/resources and individual
-head contributions. All meaning controls pass. Two0armsP; Native32 still fails only
-at the final unchangedP400k goal. Bare SceneP is not equivalent actual-write proof.
-One corrected command11.43s/max-childRSS442196KiB includes41rasters; core types/lintP.
-The initial modified-viewport crop crashed Resvg after both0arms passed (3.17s,
-192780KiB); log/source retained. Five offline smoke rasters checked native-crop size
-and exact full-image region alignment. Native pixel crops keep the root unchanged;
-one full original raster per arm is reused. No runtime/capacity/ELK performance gain.
-Evidence: week sparse32-meaning-before-proof-3df961f38. Middle glyph ink, arbitrary
-fonts/browser behavior and the Native32 proof remain unqualified.
+Shared proof-authority fixes527ef75a3,3c567e1e5d0b4d50f61a00f1735edd226926820e and
+68a7d7ce93642fa514270b524c3a8afa5f88488e remove actual false passes from private
+fact mutation/omission. Same covered-text Scene/receipt/SVG F91 became falseP88
+(freeze) orP86(push); recorder-only repair stillP87. Captured sealing and one shared
+own-slot publisher restore the entire clean failure proof/exactSVG. Actual Inter
+controls establish zero covered/positive uncovered contribution. No all-hooks claim.
+Full failed partials, source/read distinctions and cost increases remain retained.
 
-## Remaining loss and next intervention
+## Shared producer fixes — 5 November
 
-Sparse32 exhausts during same-write XML validation; ER256 chain refuses during family
-geometry work, before final SVG/ink. An ELK ClassTB20s child timeout remains unexplained
-despite successful bounded cost/Node calls. Missing baseline/peers prevent the original
-fixed four-engine comparison. No all-green broad claim or replacement readiness.
+c94c050b23ac795420aeed83f1349d59a6fc423d retains explicitly closed inline styles
+across hard breaks. Both backends previously returnedP while alias Top/Bottom🚀
+was italic/plain and caption first/second bold/plain. They now preserve both rows'
+authored styles, UTF16 ranges, literal text and unmatched-line behavior. Prepared,
+raw measurement and emission share interpretation. Standalone parsing keeps local
+flags; no new common-case state/spread allocation, duplicate split, grammar or cache.
+Fixed-Inter11rasters1.20s/177428KiB establish all8before/after word contributions
+and the corrected second caption's physical bold effect. Physical italic shape and
+emoji availability remain unknown. Correct measurement adds3.96wire and601.128/
+611.82area (AM/ELK); this cost is retained. Evidence: week rich-line-format-1e1bb2993.
 
-Earlier stopped subtraction hypotheses: text reaches inspection without a
-second deep copy; streaming XML mostly moves checks and changes hook ordering; smaller
-ink-tree leaves add construction/dense-query costs without demonstrated ER256 savings.
-No runtime probes or production edits for those leads. Do not retry stopped numeric,
-mask, glyph-union/index or receiver-sharing variants. Next code needs a sufficient
-causal subtraction for an enrolled failure; unchanged comparisons are validation.
+c0bba610212ba9b316e95dedab9699e06eccb428 closes an ordinary9-relation ER refusal
+in BOTHbackends: two zero-many G→A and seven one G→B frame/leaf incidences. Old code
+refused final glyph intersection at G→A; no served SVG/ink existed. Existing face
+allocation now admits ancestry-proven inward contacts, constrains the shared face,
+reserves both glyphs/leads and translates straight corridors together. Existing
+final guards/caps stay. Dense producer glyph indexing removes new scan overhead.
+All9relations/18ownedheads now deliver; every head contributes actual ink through
+public Native, direct Native and Scene output. CurrentAM450×869.45 vsELK448×869.45,
+area391252.5/389513.6; both5799.8wire,0bends. Evidence: week er-inward-ports-1e1bb2993.
 
+Both new owners oldRED→current3P. Early owner mistakes about serialized lines,
+optional empty-label metadata and span attribute order were corrected; artifacts
+retained. Combined20file milestone1143P/knownSparse32F,266.16s/2887224KiB preceded
+allocation subtraction; final affected text309P/isolation14P/Class128all8P requalify
+it. Core types52.57s/lintP. No all-green broad or capacity-closure claim.
 
-## Private Scene inspection facts retain actual ink authority — 4 November
+24 current fully consumed calls, cold/repeat/edit, both caches and backends allP.
+ER9 cache0 AM195/40/33ms vsELK442/61/49; cache1 158/24/29 vs503/25/53.
+Rich cache0 AM112/15/16 vsELK441/42/29; cache1 136/15/18 vs467/20/40.
+N1, no stable speed ratio; old refusals/wrong-meaning outputs are not equivalent
+benchmarks. PeakRSS ER9 AM105684/105208KiB vsELK135640/135628 (cache0/1), rich
+100148/98536 vs131544/130896. Per-phase RSS/heap are retained; heaps rise over the
+three retained products. All repeat entireSVG/receipts exact; real edits change them.
 
-3c567e1e5d0b4d50f61a00f1735edd226926820e captures sealing for newly allocated
-inspection bounds, primitive/matrix/owner/ancestry facts and the final roster.
-A post-import Object.freeze hook moved covered text's private bounds: same admitted
-Scene/write receipt/SVG changed clean Failed91/TEXT_OCCLUDED to falseP88. The repair
-restores the entire clean failure proof and exact SVG. The existing Read-text owner
-fails on old code and passes now; its actual Inter removal controls establish zero
-covered contribution and positive uncovered ink BEFORE asserting proof. Caller-source
-reads, geometry algorithms, caps/fees and append behavior remain; no new cache.
-Broad Scene/Class milestone915P/one knownSparse32F (202.86s/1062456KiB max-childRSS),
-all8Class128 casesP, core types/lintP. No all-hooks or cross-browser soundness claim.
+Four fresh Node24 products match Bun wholeSVG/ENTIREreceipts; one canonical RAM
+build's four products match those Node witnesses, no normalization, scratch removed.
+ERAM23requests/raw1007140/gzip328924/Br277808B vsELK21/2281714/699052/549202.
+Adds636gzip/458BrB (AM),630/454(ELK) vsffb; initial3/5856/5233 (+4gzip/−2Br).
+Evidence: week contact-rich-cost-1e1bb2993, contact-rich-node24-c0bba6102 and
+recovery-payload/contact-rich-c0bba6102. These fixes improve both backends.
 
-One exact pre-fix Sparse256ELK profile found repeat552ms/paint83.6ms, not the old
-18.6s/17.7s tail; all three complete SVG/receipt products match the retained52a phases.
-The largest source self bucket was one Scene-admission snapshot, not duplicate
-admission. No performance rewrite or repaired-tail claim. Five source hotspots,
-sampling-gap limits and cache review: week sparse256-elk-repeat-profile-30844276e.
-Post-fix unprofiled consumed cold/repeat/edit2281/855/317ms allP90857/90857/91361;
-every full SVG/ENTIRE receipt matches both profile and retained52a products. PeakRSS
-265632KiB; post-GC heap41.01/42.07/42.79MiB. Slower cold/repeat remain adverse; N1,
-different instrumentation, no timing/memory ratio. Two fresh Node24 witnesses and
-two compiled products match entire SVG/receipts after one RAM build. ERAM23requests/
-gzip327367/Br276496B versusELK21/697500/547912; deltas−14/−13B and−12/+8B versus
-production-equivalent11b; initial3/5855/5234 (−1gzip/+9Br), scratch removed.
-Evidence: week scene-inspection-bounds-custody-30844276e, scene-inspection-sealing-
-30844276e, scene-inspection-sealing-node24-3c567e1e5 and recovery-payload/
-scene-inspection-sealing-3c567e1e5. This closes a shared false pass, not a relative
-backend geometry/capacity gap. Sparse32, ER256 refusal, old timing/timeout uncertainty
-and unavailable baseline/peers remain. Next: a sufficient safe subtraction for an
-enrolled loss; do not treat normal-product identity as additional improvement.
+## Remaining uncertainty and next fix
 
-68a7d7ce93642fa514270b524c3a8afa5f88488e closes a second shared false paint pass:
-ambient push dropped covered text from private inspection (F91/4primitives→P86/3).
-Recorder-only repair still falseP87/4 at the downstream text list; failed partial
-retained. One captured own-slot publisher now serves recorder/text/connector lists.
-Exact original SVG and ENTIRE failed91 proof restored; existing owner red→green
-checks actual zero covered/positive uncovered Inter ink before freeze/append proof.
-Broad915P/knownSparse32F (194.63s/1012916KiB); core types59.23s/lintP. Source reads,
-traversal/fees/caps unchanged; wrapper callbacks remain outside this narrow claim.
-Normal consumed ELK Sparse256cards cold/repeat/edit1120/410/395ms, peak263280KiB,
-post-GC heap41.03/42.10/42.82MiB; all full SVG/ENTIRE receipts exact preceding run.
-Edit slower than preceding317ms; N1, no speedup claim. Two fresh Node24 witnesses
-and two compiled products match after one RAM build, scratch removed. ERAM23requests/
-gzip327370/Br276595B vsELK21/697504/547993; +3/+99B and+4/+81B versus3c567;
-initial3/5852/5234 (−3gzip/unchangedBr). Evidence: week scene-inspection-append-
-custody-cf689fd17, scene-inspection-append-cf689fd17, scene-inspection-append-node24-
-68a7d7ce9 and recovery-payload/scene-inspection-append-68a7d7ce9. No relative
-geometry/capacity win. Sparse32 subtraction review found no sufficient new lead.
-
-ffbff7a20843098e97b664a7f13080cbf7b257ea removes the isolated-card strip in flat
-Native ER. Four direction owners red→green after actual identities, normal docks,
-cardinalities and non-overlap; connected geometry stays byte-exact. Shared preferred
-label bounds/body-stroke rules feed deterministic shelves and fresh canvas fitting;
-groups/ELK retain their paths, no cache or cap changes. Actual Sparse256cards area
-15,832,099.72→7,449,331(−52.95%), height32140→2930.5, width492.598→2542. VersusELK
-3,459,200area still+115.35%; shaft132.598 remains versus214.598, zero bends. Actual
-body gaps71px versusELK20 explain much of the remainder; explicit spacing retained.
-ER milestone144P/9files38.29s/1512996KiB; types51.84s/lintP. Offline10rasters9.81s/
-1588568KiB: first/last names and both cardinalities each have positive confined ink
-before/after; all256 identities and moved-card clearance pass. Initial matcher failed
-0rasters(0.62s/131280KiB); both attempts retained. Strict raw-style mismatch remains
-in the probe report; separate byte analysis establishes only a correctly bound root-
-scope rename, all connected markup/resources otherwise exact. No extra reraster.
-Same consumed3phase worker before/current, cache0 cold/repeat/edit500/218/211→
-491/225/201ms; cache1 516/185/240→516/189/225. N1, no speedup claim. PeakRSS cache0
-176424→176728KiB/cache1 170520→176400; heaps rise slightly; paint88361→90546ops.
-Repeats preserve entire SVG/receipts; real edits change output. Two fresh Node24 and
-two compiled products match; ELK entire SVG/receipt exact retained68a7. OneRAMbuild,
-scratch removed. ERAM23requests/gzip328288/Br277350B vsELK21/698422/548748, both
-+918gzip/+755BrB; initial3/5852/5235 (+1Br). Evidence: week sparse256-isolate-
-085acd43d, sparse256-isolate-node24-ffbff7a20 and recovery-payload/sparse256-isolate-
-ffbff7a20. Sparse32/ER256, missing original baseline/peers and old timing uncertainty
-remain. Next: an evidenced capacity/contact subtraction; do not force spacing parity.
-
-b67384c18fe591032b1fd9586c511ee4fdb8106a closes the retained middle-row ink coverage gap in the
-existing Sparse owner: all1500 independently authored x/row regions contain dark
-ink in each of3controlled white/Inter arms (1498 middle positions newly checked).
-Same full pixel buffers and41rasters; source, XML/first-last removal/head controls
-and final P goal unchanged. Meaning checks pass before the known Native32U400k
-OUTPUT_SCOPE/CHECK_BUDGET failure; two0armsP. Check9.85s/420428KiB; core types
-67.86s/lintP. This proves occupied ink per region, not individual middle attribution,
-readability or arbitrary fonts. Runtime/ELK delta and payload unchanged; no replay
-or build. Evidence: week sparse-middle-ink-179a394ef. No sufficient new capacity
-subtraction found; pre-import slice owner rules out captured-slice optimization.
-Next: a demonstrated delivery/contact loss or sufficient safe capacity subtraction.
+Sparse32 still exhausts same-write XML; ER256 still refuses family geometry.
+Original2dad/Trident/peers remain unavailable, replacement24 sealed. Historical
+ELK ClassTB20s timeout and Sparse256ELK18.6s repeat remain unexplained: the later
+exact3phase profile did not reproduce that tail, so it was not called repaired.
+Earlier Class128 timing/memory and full compressed-payload rows remain in the prior
+log; no general performance-win claim follows from the new small cases.
+Stopped numeric/mask/glyph-union/index/streaming/sharing and leaf-seat leads remain
+closed; current source has no sufficient new capacity subtraction. Pre-import slice
+owner also forbids replacing primitive XML reads with a captured caller method.
+Next concrete hypothesis: small Requirement contains fan port pitch versus actual
+circle-plus width. It is not yet rendered or a demonstrated failure.
