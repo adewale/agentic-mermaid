@@ -109,3 +109,105 @@ test('independent lane hand-offs keep separate short routes instead of an unlabe
     expect(edge.points.at(-1)?.y).toBe(to.y)
   }
 })
+
+test.each(['LR', 'RL', 'TD', 'BT'] as const)('parallel and reciprocal Swimlane %s hand-offs keep separate owned labels and contacts', direction => {
+  const input = `swimlane-beta ${direction}
+subgraph L[Requests]
+  subgraph Detail[Request handling]
+    A[Submit]
+  end
+end
+subgraph R[Operations]
+  B[Review]
+end
+A approve@-->|approve| B
+A reject@-->|reject| B
+B return@-->|reconsider| A`
+  const parsed = parseRegisteredMermaid(input)
+  if (!parsed.ok) throw new Error('expected native Swimlane')
+  const chart = layoutSwimlane(parseSwimlane(input))
+  expect(chart.edges.map(edge => [edge.id, edge.source, edge.target, edge.label])).toEqual([
+    ['approve', 'A', 'B', 'approve'], ['reject', 'A', 'B', 'reject'], ['return', 'B', 'A', 'reconsider'],
+  ])
+  expect(new Set(chart.edges.map(edge => JSON.stringify(edge.points))).size).toBe(3)
+  for (const edge of chart.edges) for (const [id, point] of [[edge.source, edge.points[0]!], [edge.target, edge.points.at(-1)!]] as const) {
+    const node = chart.nodes.find(node => node.id === id)!
+    expect(point.x).toBeGreaterThanOrEqual(node.x - 1e-6)
+    expect(point.x).toBeLessThanOrEqual(node.x + node.width + 1e-6)
+    expect(point.y).toBeGreaterThanOrEqual(node.y - 1e-6)
+    expect(point.y).toBeLessThanOrEqual(node.y + node.height + 1e-6)
+    expect(Math.min(Math.abs(point.x - node.x), Math.abs(point.x - node.x - node.width), Math.abs(point.y - node.y), Math.abs(point.y - node.y - node.height))).toBeLessThan(1e-6)
+  }
+  const layout = layoutMermaid(parsed.value, { regions: true })
+  expect(layout.nodes.find(node => node.id === 'A')?.parentId).toBe('Detail')
+  for (let i = 0; i < layout.edges.length; i++) for (let j = i + 1; j < layout.edges.length; j++) {
+    const a = layout.edges[i]!.label!.bounds!, b = layout.edges[j]!.label!.bounds!
+    expect(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y).toBe(true)
+  }
+  expect(verifyMermaid(parsed.value).warnings.filter(warning => warning.code === 'RENDER_FAILED' || warning.code === 'ROUTE_LABEL_ON_SHARED_TRUNK')).toEqual([])
+  expect(renderMermaidSVG(input, { layoutSafety: 'strict' })).toContain('reconsider')
+  expect(renderMermaidSVG(input, { style: ['hand-drawn', 'dracula'] })).toContain('reconsider')
+  expect(renderMermaidASCIIWithReceipt(input, { colorMode: 'none', layoutSafety: 'strict' }).receipt.layoutCertification?.status).toBe('passed')
+})
+
+test.each(['LR', 'RL', 'TD', 'BT'] as const)('Swimlane %s occurrence channels retain group endpoints, shaped contacts and long captions at zero padding', direction => {
+  for (const groupEndpoint of [true, false]) {
+    const endpoint = groupEndpoint ? 'Detail' : 'A'
+    const input = `swimlane-beta ${direction}
+subgraph L[Requests]
+  subgraph Detail[Request handling]
+    A${groupEndpoint ? '[Submit]' : '{Submit?}'}
+  end
+end
+subgraph R[Operations]
+  B((Review))
+end
+${endpoint} approval@-->|request approval with a detailed justification| B
+B return@-->|please reconsider the rejected submission| ${endpoint}`
+    const parsed = parseRegisteredMermaid(input)
+    if (!parsed.ok) throw new Error('expected native Swimlane')
+    const layout = layoutMermaid(parsed.value, { padding: 0, regions: true })
+    expect(layout.edges.map(edge => [edge.from, edge.to, edge.label?.text])).toEqual([
+      [endpoint, 'B', 'request approval with a detailed justification'],
+      ['B', endpoint, 'please reconsider the rejected submission'],
+    ])
+    for (const edge of layout.edges) {
+      const bounds = edge.label!.bounds!
+      expect(bounds.x).toBeGreaterThanOrEqual(0)
+      expect(bounds.y).toBeGreaterThanOrEqual(0)
+      expect(bounds.x + bounds.w).toBeLessThanOrEqual(layout.bounds.w)
+      expect(bounds.y + bounds.h).toBeLessThanOrEqual(layout.bounds.h)
+      const [x, y] = edge.from === 'B' ? edge.path[0]! : edge.path.at(-1)!
+      const circle = layout.nodes.find(node => node.id === 'B')!
+      expect(((x - circle.x - circle.w / 2) / (circle.w / 2)) ** 2 + ((y - circle.y - circle.h / 2) / (circle.h / 2)) ** 2).toBeCloseTo(1, 6)
+    }
+    expect(layout.groups.find(group => group.id === 'Detail')).toMatchObject({ parentId: 'L', members: ['A'] })
+    expect(renderMermaidSVG(input, { padding: 0, layoutSafety: 'strict' })).toContain('data-id="approval"')
+  }
+})
+
+test('unrelated Swimlane occurrence pairs cannot reuse the same outside caption channel', () => {
+  const input = `swimlane-beta TD
+subgraph Requests
+  A[First request]
+  C[Second request]
+end
+subgraph Operations
+  B[First review]
+  D[Second review]
+end
+A -->|approve| B
+A -->|reject| B
+B -->|reconsider| A
+C -->|approve| D
+D -->|reconsider| C`
+  const parsed = parseRegisteredMermaid(input)
+  if (!parsed.ok) throw new Error('expected native Swimlane')
+  const layout = layoutMermaid(parsed.value)
+  expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual([['A', 'B'], ['A', 'B'], ['B', 'A'], ['C', 'D'], ['D', 'C']])
+  for (let i = 0; i < layout.edges.length; i++) for (let j = i + 1; j < layout.edges.length; j++) {
+    const a = layout.edges[i]!.label!.bounds!, b = layout.edges[j]!.label!.bounds!
+    expect(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y).toBe(true)
+  }
+  expect(renderMermaidSVG(input, { layoutSafety: 'strict' })).toContain('Second request')
+})

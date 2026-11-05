@@ -650,8 +650,9 @@ function allocateRoutePortsImpl(
   return { byEdge, sideUse }
 }
 
-/** Translate all positioned geometry together so the public canvas origin is non-negative. */
-export function translateGeometryToNonNegativeOrigin(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], padding: number, style?: LabelMetricsStyle): void {
+/** Translate all positioned geometry together so the public canvas origin is non-negative.
+ * Optional label paint padding retains opaque halos beyond the measured pill. */
+export function translateGeometryToNonNegativeOrigin(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], padding: number, style?: LabelMetricsStyle, labelPaintPadding = 0): void {
   let minX = 0
   let minY = 0
   const visitGroup = (group: PositionedGroup): void => {
@@ -671,8 +672,8 @@ export function translateGeometryToNonNegativeOrigin(nodes: PositionedNode[], ed
     }
     const pill = style && edge.labelBlock ? labelRect(edge, style) : null
     if (pill) {
-      minX = Math.min(minX, pill.x)
-      minY = Math.min(minY, pill.y)
+      minX = Math.min(minX, pill.x - labelPaintPadding)
+      minY = Math.min(minY, pill.y - labelPaintPadding)
     } else if (edge.labelPosition) {
       minX = Math.min(minX, edge.labelPosition.x)
       minY = Math.min(minY, edge.labelPosition.y)
