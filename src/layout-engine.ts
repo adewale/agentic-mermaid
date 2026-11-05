@@ -2047,7 +2047,7 @@ export function layoutNativeGraphPlacementSync(
   return layoutAgenticPlacement(graph, options, style, agenticGraphBindings)
 }
 
-function translatePositionedGraph(positioned: PositionedGraph, dy: number): void {
+export function translatePositionedGraph(positioned: PositionedGraph, dy: number): void {
   const moveGroup = (group: PositionedGroup): void => {
     group.y += dy
     for (const child of group.children) moveGroup(child)

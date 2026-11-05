@@ -1,4 +1,4 @@
-import { layoutNativeGraphPlacementSync, retainGraphText } from '../layout-engine.ts'
+import { layoutNativeGraphPlacementSync, retainGraphText, translatePositionedGraph } from '../layout-engine.ts'
 import { resolveEdgeInlineStyle, resolveNodeInlineStyle } from '../color-resolver.ts'
 import { graphClassNames } from '../shared/graph-classes.ts'
 import { assertMermaidGraphWork } from '../shared/diagram-limits.ts'
@@ -173,6 +173,21 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
       let halo = 0
       for (const edge of edges) if (edge.label) halo = Math.max(halo, labelHaloExtension(edge, style.lineWidth))
       translateGeometryToNonNegativeOrigin(nodes, edges, groups, padding, style, halo)
+      if (titleBand) {
+        // Outside channels can normalize above the original lane placement,
+        // or stay positive while still entering the title band. Move all
+        // content together, reserving the complete caption paint envelope.
+        let contentTop = Infinity
+        for (const node of nodes) contentTop = Math.min(contentTop, node.y - style.lineWidth / 2)
+        for (const group of groups) contentTop = Math.min(contentTop, group.y - style.lineWidth / 2)
+        for (const edge of edges) {
+          const stroke = style.lineWidth * (edge.style === 'thick' ? 2 : 1)
+          for (const point of edge.points) contentTop = Math.min(contentTop, point.y - stroke / 2)
+          if (edge.label && edge.labelPosition) contentTop = Math.min(contentTop, labelBoxAt(edge, edge.labelPosition, style).y - labelHaloExtension(edge, style.lineWidth))
+        }
+        const shift = padding + titleBand.height - contentTop
+        if (shift > 0) translatePositionedGraph({ width, height, nodes, groups, edges }, shift)
+      }
       const grow = (box: MeasuredBox): void => {
         width = Math.max(width, box.x + box.width + padding)
         height = Math.max(height, box.y + box.height + padding)

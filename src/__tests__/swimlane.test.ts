@@ -211,3 +211,21 @@ D -->|reconsider| C`
   }
   expect(renderMermaidSVG(input, { layoutSafety: 'strict' })).toContain('Second request')
 })
+
+test.each(['LR', 'RL', 'TD', 'BT'] as const)('Swimlane %s keeps titled same-lane and nested reciprocal channels below the complete title band', direction => {
+  const title = 'A long authored diagram title spanning the workflow'
+  const bodies = [
+    `subgraph Team\nA[One]\nB[Two]\nend\nA -->|approve| B\nA -->|reject| B\nB -->|return| A`,
+    `subgraph Team\nsubgraph Detail[Request handling]\nA[One]\nend\nend\nsubgraph Reviewers\nB[Two]\nend\nDetail -->|approve| B\nDetail -->|reject| B\nB -->|return| Detail`,
+  ]
+  for (const body of bodies) for (const padding of [0, 40]) {
+    const input = `---\ntitle: ${title}\n---\nswimlane-beta ${direction}\n${body}`
+    const parsed = parseRegisteredMermaid(input)
+    if (!parsed.ok) throw new Error('expected native titled Swimlane')
+    const layout = layoutMermaid(parsed.value, { padding, debug: true })
+    expect(layout.edges.map(edge => edge.label?.text)).toEqual(['approve', 'reject', 'return'])
+    expect(layout.paintCertification?.status).toBe('passed')
+    expect(renderMermaidSVG(input, { padding, layoutSafety: 'strict' })).toContain(title)
+    expect(renderMermaidSVG(input, { padding, style: ['hand-drawn', 'dracula'] })).toContain(title)
+  }
+})
