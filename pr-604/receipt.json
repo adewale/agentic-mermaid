@@ -1,0 +1,39 @@
+{
+  "base": "f9ec8c115de14020d3c182d5d7f2e7e70bfcdefb",
+  "head": "23e5f2fce4ce399f4be0fc83425e542e0fc0f5e0",
+  "bun": "1.4.4",
+  "fixtures": [
+    "class-member-classifier-suffixes"
+  ],
+  "sources": {
+    "class-member-classifier-suffixes": "classDiagram\nclass Reader {\n+read(id: int) String$\n+estimate() Money*\n+plain(price: Money$, glob: *) Map~Money$~\n}"
+  },
+  "terminalFixtures": [],
+  "terminalOptions": {
+    "ascii": {
+      "colorMode": "none",
+      "useAscii": true
+    },
+    "unicode": {
+      "colorMode": "html",
+      "useAscii": false
+    }
+  },
+  "options": {
+    "security": "strict",
+    "style": "default unless fixtureOptions overrides it",
+    "fonts": "bundled"
+  },
+  "fixtureOptions": {
+    "class-member-classifier-suffixes": {
+      "svg": {
+        "security": "strict"
+      },
+      "png": {
+        "security": "strict",
+        "background": "#ffffff"
+      }
+    }
+  },
+  "baselineOptionRefusals": {}
+}

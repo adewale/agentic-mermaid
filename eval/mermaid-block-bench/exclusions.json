@@ -1,9 +1,0 @@
-[
-  { "test": "sanitizes labels with the current dompurify config", "reason": "implementation-owned-sanitizer", "rationale": "Agentic retains authored text for editing and lowers formatted text without DOMPurify; native display/security tests cover its output." },
-  { "test": "should call getConfig at sanitization time, not at module load time", "reason": "implementation-owned-global-config", "rationale": "Native parser has no singleton configuration or DOMPurify call; request-local configuration is tested at render/layout boundary." },
-  { "test": "should read block.padding from config at call time, not at import time", "reason": "implementation-owned-global-config", "rationale": "Native layout accepts request-local padding directly; dedicated native regression verifies this behavior." },
-  { "test": "emits one composite rule per palette entry under a colour theme", "reason": "implementation-owned-stylesheet", "rationale": "Agentic uses typed Scene paint and its own theme tokens instead of Mermaid's generated CSS." },
-  { "test": "leaves the simple shapes to the flat theme colour", "reason": "implementation-owned-stylesheet", "rationale": "Mermaid stylesheet selector assertions do not describe the native Scene contract." },
-  { "test": "emits nothing for a theme that carries no palette", "reason": "implementation-owned-stylesheet", "rationale": "Mermaid stylesheet selector assertions do not describe the native Scene contract." },
-  { "test": "rejects a look that would break out of the selector", "reason": "implementation-owned-stylesheet", "rationale": "Native Scene style admission and SVG output security own this boundary; Mermaid selector generation is absent." }
-]
