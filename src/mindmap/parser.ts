@@ -1,3 +1,4 @@
+import { LocatedParserError } from '../shared/syntax-error.ts'
 import { readAuthoredGrammarAccessibility, readGrammarAuthoredText, readGrammarText } from '../shared/grammar-text.ts'
 import { encodeMermaidEntities, mermaidEntityPrepass, protectMermaidEntityPrepass, toEntityMarkers } from '../shared/mermaid-entities.ts'
 import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
@@ -9,8 +10,8 @@ import {
   scanAccessibilityDirectives,
 } from '../shared/accessibility-directives.ts'
 
-export class MindmapParseError extends Error {
-  constructor(message: string, readonly line?: number) { super(message); this.name = 'MindmapParseError' }
+export class MindmapParseError extends LocatedParserError {
+  constructor(message: string, line?: number) { super(message, { line, diagramType: 'mindmap' }); this.name = 'MindmapParseError' }
 }
 
 export class MindmapDuplicateIdError extends MindmapParseError {

@@ -7,7 +7,7 @@ import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { observeParserMutation, observeParserStatement, parserObservationActive } from '../shared/parser-observation.ts'
 import { parseClassLikeStyleDeclarations, parseClassLikeStyleProps } from '../shared/class-like-style.ts'
 import { mergeStyleProps } from '../shared/style-props.ts'
-import { syntaxError } from '../shared/syntax-error.ts'
+import { locateSyntaxError, MermaidSyntaxError, syntaxError } from '../shared/syntax-error.ts'
 import { classInterfaceSide, createClassInterfaceAllocator } from './interface-occurrences.ts'
 import { classTextLabel, decodeClassText } from './text.ts'
 import type { ClassDiagram, ClassMember, ClassNamespace, ClassNode, ClassRelationship, RelationshipType } from './types.ts'
@@ -994,6 +994,7 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
     const diagnostic = tree.diagnostics[0]!
     throw syntaxError({
       what: `${diagnostic.reason} at line ${diagnostic.source.line}`,
+      location: { diagramType: 'class', line: diagnostic.source.line, column: diagnostic.source.column },
       expectedForm: 'supported class statements and balanced class/namespace blocks',
       example: 'class A\nA --> B : linked',
     })
@@ -1055,6 +1056,7 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
       if (parserObservationActive('class')) observeParserMutation('class', 'add-member', { id: node.id, method: member.isMethod, member: member.member })
     }
   }
+  let activeStatement: ClassStatementNode | undefined
   const visit = (nodes: ClassStatementNode[], path = '', owner?: ClassNode): void => {
     const frames = [{ nodes, path, owner, index: 0 }]
     while (frames.length) {
@@ -1064,6 +1066,7 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
         continue
       }
       const node = frame.nodes[frame.index++]!
+      activeStatement = node
       const { path, owner } = frame
       const value = node.value
       switch (value.kind) {
@@ -1191,7 +1194,10 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
       }
     }
   }
-  visit(tree.statements)
+  try { visit(tree.statements) } catch (error) {
+    if (error instanceof MermaidSyntaxError && activeStatement) throw locateSyntaxError(error, { diagramType: 'class', line: activeStatement.source.line, column: activeStatement.source.column })
+    throw error
+  }
   for (const { id, name } of laterCssClasses) {
     const cls = classMap.get(id)
     if (cls && cls.className === undefined) cls.className = name
@@ -1231,14 +1237,16 @@ export function parseClassMember(line: string): { member: ClassMember; isMethod:
   }
 
   // Check if it's a method (has parentheses)
-  const methodMatch = rest.match(/^(.+?)\(([^)]*)\)(?:\s*(.+))?$/)
+  const classifier = rest.match(/[$*]$/)?.[0]
+  const methodSource = classifier ? rest.slice(0, -1).trimEnd() : rest
+  const methodMatch = methodSource.match(/^(.+?)\(([^)]*)\)(?:\s*(.+))?$/)
   if (methodMatch) {
     const name = methodMatch[1]!.trim()
     const params = methodMatch[2]?.trim() || undefined // Store the parameter string
     const type = methodMatch[3]?.trim()
     // Check for static ($) or abstract (*) markers
-    const isStatic = name.endsWith('$') || rest.includes('$')
-    const isAbstract = name.endsWith('*') || rest.includes('*')
+    const isStatic = classifier === '$' || name.endsWith('$')
+    const isAbstract = classifier === '*' || name.endsWith('*')
     return {
       member: {
         visibility,

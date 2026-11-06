@@ -442,10 +442,8 @@ describe('hosted declarative mutate/build tools', () => {
     const execute = HOSTED_TOOLS.find(t => t.name === 'execute')!
     const mutate = HOSTED_TOOLS.find(t => t.name === 'mutate')!
     const build = HOSTED_TOOLS.find(t => t.name === 'build')!
-    // The compact declaration now includes the strict semantic StyleSpec
-    // contract and native Event/Zen narrowers (15,102 bytes); allow 48 bytes
-    // of headroom without embedding per-family edit schemas here.
-    expect(new TextEncoder().encode(execute.description).length).toBeLessThan(15_150)
+    // Structured parse-error positions stay in the common declaration; family schemas remain progressive.
+    expect(new TextEncoder().encode(execute.description).length).toBeLessThan(15_200)
     expect(mutate.description).toContain('describe_sdk')
     expect(build.description).toContain('describe_sdk')
     expect(mutate.description).not.toContain('add_class(id, label?, generic?, members?, namespace?)')

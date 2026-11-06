@@ -1,3 +1,4 @@
+import { LocatedParserError } from '../shared/syntax-error.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { generatedIds } from '../shared/generated-identity.ts'
 import { observeParserMutation, observeParserStatement, parserObservationActive } from '../shared/parser-observation.ts'
@@ -5,12 +6,12 @@ import { joinQuotedTextLines, type QuotedTextRule, quotedTextEnds, stripTrailing
 import type { GitGraphBranch, GitGraphCommit, GitGraphCommitType, GitGraphDiagram, GitGraphDirection, GitGraphStatement } from './types.ts'
 import { gitGraphCommitLabel } from './types.ts'
 
-export class GitGraphParseError extends Error {
+export class GitGraphParseError extends LocatedParserError {
   constructor(
     message: string,
-    readonly line?: number,
+    line?: number,
   ) {
-    super(message)
+    super(message, { line, diagramType: 'gitgraph' })
     this.name = 'GitGraphParseError'
   }
 }

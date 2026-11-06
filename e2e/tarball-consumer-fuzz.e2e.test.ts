@@ -111,7 +111,7 @@ let binShimMcp = ''
 let haveConsumer = false
 
 beforeAll(() => {
-  work = mkdtempSync(join(tmpdir(), 'am-consumer-'))
+  work = mkdtempSync(join(tmpdir(), 'am consumer '))
   if (process.env.AM_TEST_TARBALL) {
     tarball = resolve(process.env.AM_TEST_TARBALL)
   } else {
@@ -484,6 +484,43 @@ describe('installed tarball — am bin', () => {
 // T3 — the `agentic-mermaid-mcp` bin under Node (stdio JSON-RPC).
 // ---------------------------------------------------------------------------
 describe('installed tarball — mcp bin', () => {
+  test.each([
+    ['Node', NODE!, [], {}],
+    ['Node CLI heap flags', NODE!, ['--max-old-space-size=1024'], {}],
+    ['Node environment heap flags', NODE!, [], { NODE_OPTIONS: '--max-old-space-size=1024' }],
+    ['Bun', process.execPath, [], {}],
+    ['Bun without Node on PATH', process.execPath, [], { PATH: '' }],
+  ] as const)('ships the direct source-tool worker and returns structured results under %s', (_runtime, binary, flags, environment) => {
+    expect(haveConsumer).toBe(true)
+    const requests = [
+      ...['render_svg', 'render_ascii', 'verify'].map((name, index) => ({
+        jsonrpc: '2.0', id: index + 1, method: 'tools/call', params: {
+          name, arguments: { source: 'sequenceDiagram\nA->>B: Packaged renderer' },
+        },
+      })),
+      { jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'render_svg', arguments: { source: '---\ntitle: Broken\n---\nsequenceDiagram\n  invalid ???' } } },
+      { jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'render_ascii', arguments: { source: 'sequenceDiagram\nA->>B: Recovered' } } },
+    ]
+    const inheritedEnvironment = 'PATH' in environment
+      ? Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toUpperCase() !== 'PATH'))
+      : process.env
+    const result = spawnSync(binary, [...flags, mcpBin], {
+      cwd: work, env: { ...inheritedEnvironment, ...environment }, input: requests.map(request => JSON.stringify(request)).join('\n') + '\n',
+      encoding: 'utf8', timeout: RUN_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024,
+    })
+    expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' })
+    const responses = result.stdout.trim().split('\n').map(line => JSON.parse(line))
+    expect(responses).toHaveLength(5)
+    const byId = new Map(responses.map(response => [response.id, response.result]))
+    for (const response of responses) expect(response.result.structuredContent).toEqual(JSON.parse(response.result.content[0].text))
+    for (const id of [1, 2, 3, 5]) expect(byId.get(id)).toMatchObject({ isError: false, structuredContent: { ok: true } })
+    expect(byId.get(1).structuredContent.svg).toContain('<svg')
+    expect(byId.get(2).structuredContent.text).toContain('Packaged renderer')
+    expect(byId.get(3).structuredContent).toMatchObject({ family: 'sequence' })
+    expect(byId.get(4)).toMatchObject({ isError: true, structuredContent: { ok: false, error: { code: 'MERMAID_SYNTAX_ERROR', diagramType: 'sequence', line: 5, column: 3 } } })
+    expect(byId.get(5).structuredContent.text).toContain('Recovered')
+  }, RUN_TIMEOUT_MS)
+
   test('default package binary routes the registry mcp argument', () => {
     expect(haveConsumer).toBe(true)
     const r = spawnSync(NODE!, [amBin, 'mcp', '--help'], { cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })

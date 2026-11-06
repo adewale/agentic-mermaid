@@ -1,3 +1,4 @@
+import { withParserSource } from '../shared/parser-source.ts'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { parseFlowchartRenderSource, type parseMermaid } from '../parser.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
@@ -11,12 +12,13 @@ export function terminalInputModel(source: string, admittedFamilyText: string) {
     parsed: () => parsed ??= parseRegisteredMermaid(source),
     graph() {
       if (graph) return graph
-      const authored = normalizeMermaidSource(source).familyBody
+      const normalized = normalizeMermaidSource(source)
+      const authored = normalized.familyBody
       if (authored === admittedFamilyText) {
         const result = this.parsed()
         if (result.ok && result.value.body.kind === 'flowchart') return graph = result.value.body.graph
       }
-      return graph = parseFlowchartRenderSource(authored, admittedFamilyText)
+      return graph = withParserSource(normalized, () => admittedFamilyText.split('\n'), () => parseFlowchartRenderSource(authored, admittedFamilyText))
     },
   })
 }
