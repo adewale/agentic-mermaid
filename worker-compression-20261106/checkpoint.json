@@ -1,0 +1,12 @@
+{
+  "source_head": "970c9f807bd82b6c3e731aadef3585ee6b071523",
+  "source_parent": "63a32f5b972de9dea25834a746e441780acc01f2",
+  "prior_evidence": "dd7f8e9da23c90eb4f08462f0f08f84c66a68359",
+  "main": "f9ec8c115de14020d3c182d5d7f2e7e70bfcdefb",
+  "files": 72,
+  "raw_bytes": 24250623,
+  "archive_bytes": 11453482,
+  "every_member_byte_verified": true,
+  "symlink_targets_recorded_not_dereferenced": true,
+  "outcome": "Final one-pass complete HTML gzip-80895/Br-79153; peak buildRSS+137072KiB; actual browser workerP/coretypesP/lintP/2minifierP; payloadbudgetF12374over; sixpass deadlineF and raw lowerbound stopped."
+}
