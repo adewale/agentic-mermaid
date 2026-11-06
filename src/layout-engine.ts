@@ -2246,7 +2246,7 @@ function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpo
     if (!makeRoute || (score.edgeCrossings === 0 && score.labelConflicts === 0)) return undefined
     return { strategy: 'without-generic-bundling', produce: makeRoute, preferNext: preferReadableTitles }
   }, preliminary)
-  const before = selected.certification!.preference.selectedScore
+  const certification = selected.certification!, before = certification.preference.selectedScore
   if (options.graphLayout?.quality === 'balanced' && layoutOptimizationEnabled('elk-order') && canExploreLayout()
     && (before.edgeCrossings > 0 || before.labelConflicts > 0) && withinLayoutPreferenceBudget(graph)
     && !options.preserveSubgraphChildOrder && !options.layoutHints?.adjacent?.length && !hasParallelPair(graph.edges)) {
@@ -2254,12 +2254,11 @@ function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpo
       produce: () => optionalLayout(() => layoutCandidate(graph, { ...options, preferModelOrder: true }, rememberAlternative)) ?? selected,
       preferNext: preferReadableTitles,
     })
-    if (result.certified && nonRegressingAlternative(selected, result.certified.positioned, before, result.certified.score)) {
+    if (result.certified && nonRegressingAlternative(selected, result.certified.positioned)) {
       selectedLayoutOptimization('prefer-model-order')
-      const criterion = (Object.keys(before) as Array<keyof typeof before>).find(key => result.certified!.score[key] < before[key]) ?? 'candidate-order'
-      return retainSelection(graph, { selected: result.certified, reason: criterion,
-        attempts: selected.certification!.attempts + 1,
-        compared: [...selected.certification!.preference.compared, { strategy: result.certified.strategy, score: result.certified.score }],
+      return retainSelection(graph, { selected: result.certified, reason: 'non-regressing',
+        attempts: certification.attempts + 1,
+        compared: [...certification.preference.compared, { strategy: result.certified.strategy, score: result.certified.score }],
       })
     }
   }

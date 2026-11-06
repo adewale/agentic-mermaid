@@ -26,10 +26,9 @@ export function layoutFlowchartViewport(graph: MermaidGraph, options: RenderOpti
   }
   let best = produce(graph, options)
   const scale = (positioned: PositionedGraph) => Math.min(1, viewport.width / positioned.width, viewport.height / positioned.height)
-  const firstScore = best.positioned.certification?.preference.selectedScore
   let bestScale = scale(best.positioned), chosenWidth: number | undefined
   const widest = best.positioned.nodes.reduce((width, node) => Math.max(width, node.labelBlock?.width ?? 0), 0)
-  if (bestScale < 1 && firstScore && widest > 60) {
+  if (bestScale < 1 && widest > 60) {
     const firstWidth = Math.max(60, widest * Math.min(0.8, viewport.width / best.positioned.width))
     const widths = [...new Set([firstWidth, Math.max(60, firstWidth * 0.7)].map(width => Math.round(width)))]
     for (const width of widths) {
@@ -49,9 +48,8 @@ export function layoutFlowchartViewport(graph: MermaidGraph, options: RenderOpti
         continue
       }
       if (!candidate) continue
-      const score = candidate.positioned.certification?.preference.selectedScore, fit = scale(candidate.positioned)
-      if (!score || score.unreadableTitles > firstScore.unreadableTitles || score.edgeCrossings > firstScore.edgeCrossings || score.labelConflicts > firstScore.labelConflicts) continue
       if (!nonRegressingAlternative(best.positioned, candidate.positioned)) continue
+      const fit = scale(candidate.positioned)
       if (fit > bestScale + 1e-4) { best = candidate; bestScale = fit; chosenWidth = width }
     }
   }

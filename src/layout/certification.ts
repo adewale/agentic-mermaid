@@ -38,7 +38,7 @@ export interface LayoutPreferenceEvidence {
   /** Score of the returned geometry, including the optional final route choice. */
   selectedScore: LayoutPreferenceScore
   /** Placement-strategy decision, before the optional final route comparison. */
-  reason: PreferenceCriterion | 'candidate-order' | 'first-certified' | 'work-budget' | 'no-alternative' | 'alternative-invalid'
+  reason: PreferenceCriterion | 'candidate-order' | 'first-certified' | 'work-budget' | 'no-alternative' | 'alternative-invalid' | 'non-regressing'
   /** Certified placement scores before the optional final route comparison. */
   compared: readonly { strategy: string; score: LayoutPreferenceScore }[]
   /** Final bundled/unbundled decision using the selected placement's ELK result.
@@ -311,8 +311,8 @@ function certifyCandidateForPurpose(graph: MermaidGraph, style: ResolvedRenderSt
     const violations = [...correspondence, ...(purpose === 'placement' ? positionedGeometryBaseViolations(positioned, style) : positionedGeometryViolations(positioned, style))]
     const rubric = violations.length === 0 ? assessLayout(graph, positioned, style) : undefined
     if (rubric) violations.push(...hardViolations(rubric).map(violation => `${violation.metric}: ${violation.detail}`))
-    if (rubric && violations.length === 0) retainComparisonMetrics(positioned, rubric.metrics)
     const preferNext = violations.length === 0 && (candidate.preferNext?.(positioned) ?? false)
+    if (rubric && violations.length === 0) retainComparisonMetrics(positioned, rubric.metrics, preferNext)
     return {
       attempt: { strategy: candidate.strategy, violations },
       ...(violations.length === 0 && rubric ? {
