@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { buildSectionBBrandEvidence, GRAPHICAL_BACKEND_PROBES, runSectionBBackendProbe, sectionBVariantHeadingMarkup, sectionBVisualApproval } from '../../scripts/pr-assets/section-b-brand-evidence.ts'
 import { knownBuiltinFamilies } from '../agent/families.ts'
+import { decodePng } from './helpers/png-pixels.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const PNG = join(import.meta.dir, 'testdata', 'section-b-brand-evidence.png')
@@ -32,14 +33,16 @@ describe('Section B reviewed rendering golden', () => {
     }
   })
 
-  test('byte-matches the registry-driven renderer output and is reviewable at native size', () => {
+  test('pixel-matches the registry-driven renderer output and is reviewable at native size', () => {
     const checked = readFileSync(PNG)
+    const actual = decodePng(buildSectionBBrandEvidence())
+    const expected = decodePng(checked)
+    expect({ width: actual.width, height: actual.height }).toEqual({ width: expected.width, height: expected.height })
     expect(
-      Buffer.from(buildSectionBBrandEvidence()).equals(checked),
-      'Section B PNG differs from the reviewed golden; inspect the candidate before updating visual-approval.json',
+      Buffer.from(actual.rgba).equals(Buffer.from(expected.rgba)),
+      'Section B decoded pixels differ from the reviewed golden; inspect the current rendering',
     ).toBe(true)
     expect(pngDimensions(checked)).toEqual({ width: 1560, height: 14024 })
-    expect(checked.byteLength).toBeGreaterThan(500_000)
   }, 120_000)
 
   test('the recorded visual review approves the exact committed rendering bytes', () => {

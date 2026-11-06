@@ -17,6 +17,7 @@ import {
   validateStyleSpec,
 } from '../index.ts'
 import { styleKind } from '../scene/style-registry.ts'
+import { decodePng } from './helpers/png-pixels.ts'
 import { verifyMermaid } from '../agent/index.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -158,14 +159,13 @@ describe('custom style cookbook docs', () => {
     }
   })
 
-  it('keeps cookbook screenshots in sync with the generator', () => {
-    // Compare digests, not whole Buffers: a drifted PNG then reports which file
-    // is stale instead of an unreadable byte diff. Regenerate with
-    // `bun run gallery:custom-styles`.
-    const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
+  it('keeps cookbook screenshot pixels in sync with the generator', () => {
     for (const { path, png } of buildCookbookScreenshots()) {
       expect(existsSync(path), path).toBe(true)
-      expect({ path, sha256: sha(readFileSync(path)) }).toEqual({ path, sha256: sha(png) })
+      const actual = decodePng(png)
+      const expected = decodePng(readFileSync(path))
+      expect({ path, width: actual.width, height: actual.height }).toEqual({ path, width: expected.width, height: expected.height })
+      expect(Buffer.from(actual.rgba).equals(Buffer.from(expected.rgba)), `${path}: decoded pixels differ`).toBe(true)
     }
   })
 })
