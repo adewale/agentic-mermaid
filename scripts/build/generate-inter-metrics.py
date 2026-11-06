@@ -9,7 +9,6 @@ import ctypes.util
 import hashlib
 import json
 from pathlib import Path
-import struct
 
 root = Path(__file__).resolve().parents[2]
 hb = C.CDLL(ctypes.util.find_library('harfbuzz'))
@@ -69,9 +68,25 @@ for weight, filename in [(400, 'Inter-Regular.ttf'), (500, 'Inter-Medium.ttf'), 
             delta = width(chr(a + 32) + chr(b + 32)) - advances[a] - advances[b]
             if delta:
                 pairs.extend([a * 95 + b, delta])
-    # Sparse sorted pairs use two 16-bit lanes: key then signed adjustment.
-    packed = b''.join(struct.pack('<Hh', pairs[i], pairs[i + 1]) for i in range(0, len(pairs), 2))
-    faces.append({'weight': weight, 'file': filename, 'sha256': hashlib.sha256(path.read_bytes()).hexdigest(), 'upem': upem, 'advances': advances, 'pairs': base64.b64encode(packed).decode()})
+    # Sorted ASCII keys need at most two delta bytes. Repeated signed values
+    # share a one-byte palette index; decoding preserves the exact HB integers.
+    values = sorted(set(pairs[1::2]))
+    if len(values) > 256 or any(value < -32768 or value > 32767 for value in values):
+        raise RuntimeError('Inter pair adjustment palette exceeds its encoding')
+    indices = {value: index for index, value in enumerate(values)}
+    packed = bytearray()
+    previous = 0
+    for i in range(0, len(pairs), 2):
+        delta = pairs[i] - previous
+        previous = pairs[i]
+        if not 0 <= delta < 16384:
+            raise RuntimeError('Inter pair key exceeds its encoding')
+        if delta >= 128:
+            packed.extend([(delta & 127) | 128, delta >> 7])
+        else:
+            packed.append(delta)
+        packed.append(indices[pairs[i + 1]])
+    faces.append({'weight': weight, 'file': filename, 'sha256': hashlib.sha256(path.read_bytes()).hexdigest(), 'upem': upem, 'advances': advances, 'count': len(pairs) // 2, 'values': values, 'pairs': base64.b64encode(packed).decode()})
     print(weight, len(packed), 'pair bytes')
 output = root / 'src/inter-metrics-data.ts'
 output.write_text('// Runtime-consumed bundled Inter ASCII metrics. Regenerate with scripts/build/generate-inter-metrics.py.\n'

@@ -12,11 +12,13 @@ function faceFor(weight: number): Face | undefined {
   const data = INTER_METRICS_DATA.find(face => face.weight === weight)
   if (!data) return undefined
   const bytes = Uint8Array.from(atob(data.pairs), char => char.charCodeAt(0))
-  const view = new DataView(bytes.buffer)
-  const keys = new Uint16Array(bytes.length / 4), adjustments = new Int16Array(keys.length)
-  for (let i = 0; i < keys.length; i++) {
-    keys[i] = view.getUint16(i * 4, true)
-    adjustments[i] = view.getInt16(i * 4 + 2, true)
+  const keys = new Uint16Array(data.count), adjustments = new Int16Array(keys.length)
+  for (let i = 0, cursor = 0, key = 0; i < keys.length; i++) {
+    let delta = bytes[cursor++]!
+    if (delta & 128) delta = (delta & 127) | (bytes[cursor++]! << 7)
+    key += delta
+    keys[i] = key
+    adjustments[i] = data.values[bytes[cursor++]!]!
   }
   const face = { advances: data.advances, keys, adjustments, upem: data.upem }
   faces.set(weight, face)
