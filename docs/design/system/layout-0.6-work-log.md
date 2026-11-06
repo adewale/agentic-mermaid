@@ -53,6 +53,31 @@ replace neither the dated profiler nor its missing runtime/cold/cache evidence.
 Next causal probe: whether standalone worker precompression accounts for the
 Brotli loss, preserving decoded worker bytes, ownership and browser contracts.
 
+## Standalone delivery — 6 November
+
+From source `63a32f5b972de9dea25834a746e441780acc01f2`, reuse the existing
+browser compressor for the already Bun-minified worker, with one pass; other
+callers retain six. Matched Bun1.4.4 / ELK0.11.1 complete builds measure
+**1,427,769→1,346,874 gzip9 (−80,895)** and
+**1,360,667→1,281,514 Brotli11 bytes (−79,153)**; raw 2,194,300→2,089,396.
+Worker graph and notices remain exact; decoded JavaScript changes. This removes
+part of the payload cost, not a layout loss. The unchanged gzip ceiling still
+fails by **12,374 bytes**. Peak build RSS **554,312→691,384 KiB (+137,072)**;
+42.4/20.2s walls are single observations, not a speed ratio. Both complete inside
+the existing 55s child deadline. The six-pass worker trial timed out and is
+unshipped; the raw-insertion compression-only lower bound saved only 5,910
+Brotli bytes while worsening gzip.
+
+The replacement environment lost `/tmp`; source and prior evidence were recovered
+from pushed refs. A wrong ELK0.11.0 dependency was corrected before final checks.
+Symlinked dependency notices make these complete HTML bytes differ from November5;
+keep that earlier main comparison separately. Failed probes and deadlines remain
+in the evidence checkpoint. The two existing minifier cases and core types/lint
+pass. The actual emitted-worker browser owner passes (budget owner still fails);
+no full-suite readiness claim follows. Next: remove the remaining standalone
+cost through measured producer reuse, keeping the failed lazy/demo budgets,
+Sparse32 proof cap and shared ER256 refusal enrolled. No cache or ceiling change.
+
 ## Remaining differences from ELK
 
 These are retained same-input observations at their recorded revisions, not a

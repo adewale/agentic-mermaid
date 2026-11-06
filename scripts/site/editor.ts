@@ -259,8 +259,9 @@ async function generateEditorHtml(): Promise<string> {
     if (!workerBuild.success) throw new AggregateError(workerBuild.logs, 'Standalone preview worker build failed')
     const workerSource = await workerBuild.outputs[0]?.text()
     if (!workerSource) throw new Error('Standalone preview worker produced no module')
-    // Pack Bun's minified worker directly to preserve the isolated build deadline.
-    const worker = workerSource
+    // Bun has already minified this worker; one compressor pass avoids
+    // repeating the facade's six passes over the complete renderer.
+    const worker = await minifyBrowserRuntime(workerSource, undefined, 1)
     const packed = packStandaloneWorker(worker)
     workerPayload = packed.encoded
     workerBytes = packed.workerBytes
