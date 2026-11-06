@@ -442,8 +442,8 @@ describe('hosted declarative mutate/build tools', () => {
     const execute = HOSTED_TOOLS.find(t => t.name === 'execute')!
     const mutate = HOSTED_TOOLS.find(t => t.name === 'mutate')!
     const build = HOSTED_TOOLS.find(t => t.name === 'build')!
-    // The compact declaration includes bundled metrics and graph quality/
-    // viewport selectors (15,199 bytes), without per-family edit schemas.
+    // Include metrics, layout selectors and parse positions without increasing
+    // the context limit; family edit schemas stay progressively loaded.
     expect(new TextEncoder().encode(execute.description).length).toBeLessThan(15_250)
     expect(mutate.description).toContain('describe_sdk')
     expect(build.description).toContain('describe_sdk')

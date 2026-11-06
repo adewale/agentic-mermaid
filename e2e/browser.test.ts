@@ -397,8 +397,8 @@ it('resolved circle and ellipse paths preserve the native stroke traversal for d
 
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
-  // The single eager worker includes bundled Inter metrics and bounded layout
-  // search: 4,773,220 raw / 1,439,643 gzip bytes. Keep the relative-growth gate.
+  // Packed Inter metrics, bounded layout search and parser diagnostics must
+  // fit the existing raw/gzip limits. Keep the relative-growth gate too.
   expect(html.byteLength).toBeLessThanOrEqual(4_774_000)
   expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_440_000)
   const runtime = new TextDecoder().decode(html).match(/<script type="module" id="editor-runtime">([\s\S]*?)<\/script>/)?.[1]

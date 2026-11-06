@@ -8,10 +8,11 @@ import { withPerformanceObserver, type PerformanceObservation } from '../perform
 import { withPerformanceExperiments, PERFORMANCE_EXPERIMENTS } from '../experimental-performance.ts'
 
 test('bundled Inter reserves natural digit and kerned word advances', () => {
-  // Independent hb-shape observations from the shipped Regular face, 16px.
-  for (const [text, expected] of [['11111111', 52.0625], ['AVATAR', 59.875], ['Authentication', 109.5234375]] as const) {
+  // Independent whole-run hb-shape observations from the shipped faces, 16px.
+  for (const [text, weight, expected] of [['11111111', 400, 52.0625], ['AVATAR', 400, 59.875], ['Authentication', 400, 109.5234375],
+    ['AVATAR', 500, 61.125], ['AVATAR', 600, 62.359375], ['AVATAR', 700, 63.59375]] as const) {
     const execution = createTextMeasurementExecution(BUNDLED_INTER_TEXT_MEASUREMENT, 'Inter')
-    expect(withTextMeasurementExecution(execution, () => measureTextWidth(text, 16, 400))).toBeCloseTo(expected, 6)
+    expect(withTextMeasurementExecution(execution, () => measureTextWidth(text, 16, weight))).toBeCloseTo(expected, 6)
   }
 })
 
