@@ -1,0 +1,9 @@
+{
+  "observed_at": "2026-11-06T23:25:14.836874+00:00",
+  "main": "39a500425f6b74eb486b9add9e90d538fab6a914",
+  "qualified_main": "f9ec8c115de14020d3c182d5d7f2e7e70bfcdefb",
+  "source": "970c9f807bd82b6c3e731aadef3585ee6b071523",
+  "fetched": true,
+  "integrated": false,
+  "changes": "61files,+1724/-300; parser admission, render limits, local MCP isolation and browser consumers. Highest next priority is integration/affected qualification. Existing cost milestone remains valid at its recorded base."
+}
