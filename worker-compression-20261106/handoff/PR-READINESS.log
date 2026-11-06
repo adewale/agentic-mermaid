@@ -1,0 +1,23 @@
+PR Readiness Check (comparing against origin/main)
+=============================================
+
+⚠  Large diff: 182991 lines changed. Consider splitting into smaller PRs.
+✓  Test files modified: 553
+✓  Commits: 1326
+⚠  Possible secret assignment added; inspect the diff before publishing (value redacted)
+⚠  Possible debug statements added; inspect the diff before publishing
+⚠  8 UI-related files changed — include captioned before/after screenshots, or explain why pixels do not change
+
+Visual Evidence Lint (generated)
+==============================
+✓  visual-section: Dedicated visual-evidence section found.
+✓  visual-assets: Found 2 embedded visual asset(s).
+✓  alt-text: Every embedded asset has alt or link text.
+✓  immutable-urls: Repository-hosted URLs use full commit SHAs.
+✗  baseline-provenance: The labelled baseline SHA differs from the supplied merge-base.
+✓  current-provenance: A labelled current SHA is present and matches the supplied HEAD.
+
+Result: FAIL (1 error(s), 0 warning(s))
+✗  Visual-evidence lint found blocking issues
+
+Done. Address any ⚠ warnings and ✗ failures before submitting.
