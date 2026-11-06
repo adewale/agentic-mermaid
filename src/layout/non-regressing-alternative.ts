@@ -24,7 +24,9 @@ export function nonRegressingAlternative(first: PositionedGraph, other: Position
   const a = vector(first, firstMetrics), b = vector(other, otherMetrics)
   let improved = false
   for (let index = 0; index < a.length; index++) {
-    const tolerance = Math.max(1, Math.abs(a[index]!)) * 1e-8
+    // Raw peer offset (slot 7) also has a rounded public score. Even a tiny
+    // increase across a rounding boundary would worsen that published score.
+    const tolerance = index === 7 ? 0 : Math.max(1, Math.abs(a[index]!)) * 1e-8
     if (!Number.isFinite(b[index]) || b[index]! > a[index]! + tolerance) return false
     if (b[index]! < a[index]! - tolerance) improved = true
   }
