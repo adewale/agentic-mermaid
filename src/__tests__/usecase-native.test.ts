@@ -45,6 +45,26 @@ describe('pinned UseCase documentation', () => {
 })
 
 describe('native UseCase meaning and editing', () => {
+  test('first source occurrences order final node kinds across references, groups and repeated declarations', () => {
+    const body = parseUsecaseDiagram(`usecase-beta
+note for Later "First reference"
+Early --> Later
+systemBoundary Store["Store"]
+  Inside("Inside")
+  Other("Other")
+end
+actor Later("Person")@{ icon: "fa:user" }
+actor Start
+Inside("Inside")
+Later@{ icon: "fa:final" }
+Early --> Inside`)
+    expect(body.nodes.map(node => [node.id, node.kind, node.label, node.parentId])).toEqual([
+      ['Later', 'actor', 'Person', undefined], ['Early', 'usecase', 'Early', undefined],
+      ['Inside', 'usecase', 'Inside', 'Store'], ['Other', 'usecase', 'Other', 'Store'], ['Start', 'actor', 'Start', undefined],
+    ])
+    expect(body.nodes[0]).toMatchObject({ type: 'icon', icon: 'fa:final', business: false })
+    expect(body.boundaries[0]?.members).toEqual(['Inside', 'Other'])
+  })
   test('actors, boundary members, directed relationships and UML relation types remain distinct', () => {
     const body = parseUsecaseDiagram(source)
     expect(body.nodes.map(node => [node.id, node.kind, node.label, node.parentId])).toEqual([
