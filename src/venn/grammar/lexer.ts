@@ -42,6 +42,21 @@ const KEYWORDS: [string, number][] = [
   ['style', T.STYLE],
 ]
 
+/** End of a STRING or BRACKET_LABEL token, including its delimiters. */
+export function vennTextEnd(src: string, at: number): number {
+  if (src.charCodeAt(at) === 34) {
+    const close = src.indexOf('"', at + 1)
+    return close < 0 ? -1 : close + 1
+  }
+  if (src.charCodeAt(at + 1) === 34) {
+    const close = src.indexOf('"', at + 2)
+    return close < 0 || src.charCodeAt(close + 1) !== 93 ? -1 : close + 2
+  }
+  let end = at + 1
+  while (end < src.length && src.charCodeAt(end) !== 93 && src.charCodeAt(end) !== 34) end++
+  return end === at + 1 || src.charCodeAt(end) !== 93 ? -1 : end + 1
+}
+
 // Reads tokens one at a time, as Mermaid's Jison lexer for venn diagrams does: every rule
 // ignores case, the first rule that matches wins, and a keyword must end at a word boundary.
 export class VennLexer {
@@ -184,18 +199,10 @@ export class VennLexer {
         return this.token(T.IDENTIFIER, i)
       }
       if (c === 91) {
-        if (src.charCodeAt(i + 1) === 34) {
-          const quote = src.indexOf('"', i + 2)
-          if (quote === -1 || src.charCodeAt(quote + 1) !== 93) return T.ERROR
-          this.at = quote + 2
-          this.text = src.slice(i + 2, quote)
-          return T.BRACKET_LABEL
-        }
-        let end = i + 1
-        while (end < n && src.charCodeAt(end) !== 93 && src.charCodeAt(end) !== 34) end++
-        if (end === i + 1 || src.charCodeAt(end) !== 93) return T.ERROR
-        this.at = end + 1
-        this.text = src.slice(i + 1, end).trim()
+        const end = vennTextEnd(src, i)
+        if (end < 0) return T.ERROR
+        this.at = end
+        this.text = src.charCodeAt(i + 1) === 34 ? src.slice(i + 2, end - 2) : src.slice(i + 1, end - 1).trim()
         return T.BRACKET_LABEL
       }
       if (isDigit(c) || c === 46 || c === 43 || c === 45) {
@@ -219,8 +226,8 @@ export class VennLexer {
         return end >= i + 4 ? this.token(T.HEXCOLOR, end) : T.ERROR
       }
       if (c === 34) {
-        const quote = src.indexOf('"', i + 1)
-        return quote === -1 ? T.ERROR : this.token(T.STRING, quote + 1)
+        const end = vennTextEnd(src, i)
+        return end < 0 ? T.ERROR : this.token(T.STRING, end)
       }
       if (c === 44) return this.token(T.COMMA, i + 1)
       if (c === 58) return this.token(T.COLON, i + 1)

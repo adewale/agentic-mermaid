@@ -1,12 +1,40 @@
 import { VennDb } from './grammar/db.ts'
 import { parseVenn } from './grammar/parser.ts'
-import { scanAccessibilityDirectives, requireClosedAccessibility, accessibilityFields } from '../shared/accessibility-directives.ts'
+import { vennTextEnd } from './grammar/lexer.ts'
+import { parseAccessibilityDirective, scanAccessibilityDirectives, requireClosedAccessibility, accessibilityFields } from '../shared/accessibility-directives.ts'
 import { readGrammarText, readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
 import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
 import type { VennBody } from './types.ts'
 
 export const isVennHeader = (line: string): boolean => /^venn-beta\s*(?:%%.*)?$/i.test(line.trim())
 export const vennRegionId = (sets: readonly string[]): string => JSON.stringify([...sets].sort())
+
+/** Accessibility-looking lines inside the lexer's spanning text tokens are label data. */
+export function vennStatementEnds(lines: readonly string[]): number[] {
+  const source = lines.join('\n'), ends = lines.map((_, index) => index)
+  let line = 0, offset = 0
+  while (line < lines.length) {
+    const first = line, directive = parseAccessibilityDirective(lines, line)
+    if (directive === undefined) break
+    if (directive) {
+      while (line < directive.endIndex) offset += lines[line++]!.length + 1
+    } else if (!/^\s*(?:title\b|%%)/i.test(lines[line]!)) {
+      let at = offset
+      while (at < offset + lines[line]!.length) {
+        if (source.startsWith('%%', at)) break
+        const char = source.charCodeAt(at)
+        if (char !== 34 && char !== 91) { at++; continue }
+        const end = vennTextEnd(source, at)
+        if (end < 0) return ends
+        while (offset + lines[line]!.length < end) offset += lines[line++]!.length + 1
+        at = end
+      }
+    }
+    ends[first] = line
+    offset += lines[line++]!.length + 1
+  }
+  return ends
+}
 
 /** One identity per authored region across source maps and positioned output.
  * Generated intersections must not collide with authored set or text IDs. */
@@ -30,7 +58,7 @@ export function vennRegionIdentities(body: VennBody): Map<string, string> {
 
 export function parseVennDiagram(input: string | readonly string[]): VennBody {
   const lines = typeof input === 'string' ? input.split(/\r?\n/) : input
-  const scanned = scanAccessibilityDirectives(lines)
+  const scanned = scanAccessibilityDirectives(lines, vennStatementEnds(lines))
   requireClosedAccessibility(scanned)
   const db = new VennDb()
   const grammarLines = lines.map(() => '')

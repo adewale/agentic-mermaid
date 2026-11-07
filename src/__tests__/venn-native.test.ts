@@ -44,6 +44,24 @@ describe('native Venn', () => {
     if (!styled.ok) throw Error(styled.error.message)
     expect(parseVennDiagram(renderVenn(styled.value)).styles.at(-1)).toEqual({ targets: ['A', 'B'], styles: { fill: 'var(--brand, #35; [literal])' } })
   })
+  test.each(['quoted', 'bare'] as const)('keeps accessibility-looking lines inside a %s multiline label', form => {
+    const label = 'First\n  AccTitle: literal\n\naccDescr {\n  Not metadata\n}\nLast'
+    const input = `venn-beta\naccTitle: Real metadata\nset A[${form === 'quoted' ? `"${label}"` : label}]:10`
+    const body = parseVennDiagram(input)
+    expect(body.subsets).toEqual([{ sets: ['A'], size: 10, label }])
+    expect(body.accessibilityTitle).toBe('Real metadata')
+    expect(body.accessibilityDescription).toBeUndefined()
+    const parsed = parseRegisteredMermaid(input)
+    if (!parsed.ok || parsed.value.body.kind !== 'venn') throw Error('Expected editable multiline Venn label')
+    expect(parsed.value.body.subsets).toEqual(body.subsets)
+    const changed = mutateVenn(parsed.value.body, { kind: 'rename_set', from: 'A', to: 'Renamed' })
+    if (!changed.ok) throw Error(changed.error.message)
+    expect(parseVennDiagram(renderVenn(changed.value)).subsets).toEqual([{ sets: ['Renamed'], size: 10, label }])
+    expect(parseVennDiagram(serializeMermaid(parsed.value)).subsets).toEqual(body.subsets)
+    const svg = renderMermaidSVG(input)
+    expect(svg).toContain('AccTitle: literal')
+    expect(svg).toContain('accDescr {')
+  })
   test('tiny and huge decimal areas remain typed and portable rather than becoming opaque', async () => {
     for (const [decimal, expected] of [['0.' + '0'.repeat(299) + '1', 1e-300], ['1' + '0'.repeat(300), 1e300]] as const) {
       const parsed = parseRegisteredMermaid(`venn-beta\nset A["Authored quantity"]:${decimal}`)

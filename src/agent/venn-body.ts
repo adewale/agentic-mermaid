@@ -3,7 +3,7 @@ import { ownBodyAccessibility } from './accessibility-envelope.ts'
 import { mermaidNumber } from '../shared/mermaid-number.ts'
 import { sameSourceMeaning } from './source-mutation.ts'
 import type { VennBody, VennMutationOp } from '../venn/types.ts'
-import { parseVennDiagram, validateVenn, vennRegionId, vennRegionIdentities } from '../venn/parser.ts'
+import { parseVennDiagram, validateVenn, vennRegionId, vennRegionIdentities, vennStatementEnds } from '../venn/parser.ts'
 import { writeGrammarText, readGrammarText, readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
 import { appendNativeAccessibilityLines, accessibilityFields } from '../shared/accessibility-directives.ts'
 import { withParserObservation } from '../shared/parser-observation.ts'
@@ -129,6 +129,7 @@ export function verifyVenn(body: VennBody, options: VerifyOptions): LayoutWarnin
 }
 
 export const VENN_SOURCE_HOOKS: FamilyOperations = {
+  statementEnds: vennStatementEnds,
   bodyMeta: ownExistingBodyTitle('venn'),
   bodyAccessibility: ownBodyAccessibility('venn', 'native'),
   parse: ctx => {
