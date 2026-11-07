@@ -4,7 +4,7 @@ import { parseMermaid as parseGraph } from '../parser.ts'
 import { coalesceFlowchartLines, flowchartStatementEnds } from '../flowchart-lexer.ts'
 import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid, mutate, asFlowchart, renderMermaidASCII } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
-import { applyOps } from '../agent/core.ts'
+import { applyOps, mutateChecked } from '../agent/core.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { expectNearLinearGrowth } from './helpers/complexity.ts'
@@ -24,6 +24,27 @@ function parseAgent(source: string) {
 }
 
 describe('flowchart parser conformance safety floor (issue #36)', () => {
+  test('typed node, edge and group labels keep literal directive openers through export', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const label of ['a%%b', 'a%%{init: {}}%%b', 'slash\\%%{init: {}}%% literal #37;']) {
+        let diagram = parseAgent('flowchart TD\nA[Before] --> B')
+        for (const op of [{ kind: 'set_label', target: 'A', label }, { kind: 'set_label', target: 'A->B', label }, { kind: 'add_subgraph', id: 'G', label, members: ['A'] }]) {
+          const edited = mutateChecked(diagram, op)
+          if (!edited.ok) throw new Error(edited.error.message)
+          diagram = edited.value
+        }
+        const written = serializeMermaid(diagram), reread = parseAgent(written)
+        if (reread.body.kind !== 'flowchart') throw new Error('Expected editable Flowchart labels')
+        expect(reread.body.graph.nodes.get('A')?.label).toBe(label)
+        expect(reread.body.graph.edges[0]?.label).toBe(label)
+        expect(reread.body.graph.subgraphs[0]?.label).toBe(label)
+        expect(reread.body.graph.subgraphs[0]?.nodeIds).toEqual(['A'])
+        expect(await upstream.publicAccepts(written)).toBe(true)
+      }
+    } finally { upstream.close() }
+  })
+
   test.each([
     '%% keep this comment\nflowchart TD\nclass',
     'flowchart TD\nclassDef\nstyle',

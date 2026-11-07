@@ -1,10 +1,11 @@
 import { expect, test } from 'bun:test'
-import { parseRegisteredMermaid, serializeMermaid, mutate, layoutMermaid, verifyMermaid } from '../agent/core.ts'
+import { parseRegisteredMermaid, serializeMermaid, mutate, mutateChecked, layoutMermaid, verifyMermaid } from '../agent/core.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { terminalDocumentOf } from '../ascii/terminal-document.ts'
 import { parseSwimlane } from '../swimlane/parser.ts'
 import { layoutSwimlane, swimlanePartitions } from '../swimlane/layout.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const source = `swimlane-beta LR
 subgraph Customer[Customer 👩‍💻]
@@ -37,6 +38,22 @@ test('native Swimlane edits retain family, nested membership, shapes and cross-l
   expect(graph.nodes.get('B')).toMatchObject({ label: 'Paid?', shape: 'diamond' })
   expect(graph.edges[1]).toMatchObject({ id: 'handoff', source: 'B', target: 'C', label: 'paid' })
   expect(graph.subgraphs[1]?.children[0]).toMatchObject({ id: 'Dispatch', nodeIds: ['C', 'D'] })
+})
+
+test('checked Swimlane labels retain literal directive text in the body and reloaded source', async () => {
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind !== 'swimlane') throw new Error('Expected native Swimlane')
+  const label = 'slash\\%%{init: {}}%% literal #37;'
+  const edited = mutateChecked(parsed.value, { kind: 'set_label', target: 'B', label })
+  if (!edited.ok || edited.value.body.kind !== 'swimlane') throw new Error('Expected checked Swimlane edit')
+  expect(edited.value.body.graph.nodes.get('B')?.label).toBe(label)
+  expect(parsed.value.body.graph.nodes.get('B')?.label).toBe('Pay')
+  const written = serializeMermaid(edited.value), reread = parseRegisteredMermaid(written)
+  if (!reread.ok || reread.value.body.kind !== 'swimlane') throw new Error('Expected reloaded Swimlane')
+  expect(reread.value.body.graph.nodes.get('B')?.label).toBe(label)
+  expect(reread.value.body.graph.edges[1]).toMatchObject({ id: 'handoff', source: 'B', target: 'C', label: 'paid' })
+  const upstream = startUpstreamMermaid()
+  try { expect(await upstream.publicAccepts(written)).toBe(true) } finally { upstream.close() }
 })
 
 test.each(['LR', 'RL', 'TD', 'BT'] as const)('Swimlane %s retains equal bands, owned cards and connected terminal handoffs', direction => {
