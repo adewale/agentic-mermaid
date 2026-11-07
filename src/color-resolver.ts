@@ -136,7 +136,7 @@ export function resolveEdgeInlineStyle(
  * opaque color, so text on a data mark always clears WCAG AA; a brightness
  * threshold picks the weaker ink for mid-tone fills. */
 export function contrastTextColor(fill: string): string | undefined {
-  if (fill.trim().toLowerCase() === 'transparent') return undefined
+  if (/^\s*transparent\s*$/i.test(fill)) return undefined
   const luminance = relativeLuminance(fill)
   if (luminance === null) return undefined
   return (luminance + 0.05) / 0.05 >= 1.05 / (luminance + 0.05) ? '#000000' : '#FFFFFF'
