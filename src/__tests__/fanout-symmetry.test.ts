@@ -86,7 +86,7 @@ describe('fan-out peer symmetry', () => {
     })
   }
 
-  test('retains authored forest bands and distinct exits through final SVG emission', () => {
+  test('retains measured forest leaf seating and distinct exits through final SVG emission', () => {
     const source = 'flowchart TB\nA[A0<br/>A1<br/>A2<br/>A3<br/>A4<br/>A5<br/>A6<br/>A7] --> B[Branch B]\nA --> C[Branch C]\nD[Root D] --> E[E0<br/>E1<br/>E2<br/>E3<br/>E4<br/>E5<br/>E6<br/>E7]\nD --> F[Branch F]'
     const options = { graphLayout: { backend: 'agentic' as const, fallback: 'none' as const }, embedFontImport: false }
     const svg = renderMermaidSVG(source, options)
@@ -102,7 +102,9 @@ describe('fan-out peer symmetry', () => {
     const E = tags.find(tag => tag['data-id'] === 'node-shape:E')!, F = tags.find(tag => tag['data-id'] === 'node-shape:F')!
     expect(Number(E.height)).toBeGreaterThan(Number(F.height))
     expect(Number(E.width)).toBeLessThan(Number(F.width))
-    expect(Number(E.y) + Number(E.height) / 2).toBeCloseTo(Number(F.y) + Number(F.height) / 2, 8)
+    // Complete forest leaf seating aligns incoming faces. Centering the short
+    // sibling again would restore the extra wire removed by that producer.
+    expect(Number(E.y)).toBeCloseTo(Number(F.y), 8)
     const exits = routes.filter(tag => tag['data-from'] === 'D').map(tag => Number(tag.points!.split(/[ ,]/)[0]))
     expect(exits[0]!).toBeLessThan(exits[1]!)
   })

@@ -845,3 +845,15 @@ ceiling; cap is not raised. Browser first lacks bundled Chromium; system154 retr
 hits60s while concurrent corpus jobs run. These are not passes or speed results.
 Automations stay disabled; final qualification and remaining losses bind to the
 published source/evidence revisions, not this intermediate log entry.
+
+Final CI at93c6d75dc is failed: Sparse32, lazy/payload limits and generated
+advisory remain. It also exposes a stale public forest assertion: unchanged
+since d8c8ac879, it centers the short leaf despite the existing complete-forest
+incoming-face seating. Reproduce5P1F; assert the producer's face alignment while
+retaining labels, identities, determinism and distinct exits. Both forest owners
+now49P/867 assertions; runtime source is unchanged. Named main→PR forest wire
+700.04→397.71, Class2 area85,680→65,400 (height238→327). Fixed1,748 outcomes
+retain delivery/proof/route vectors; this is validation, not new layout progress.
+Final local HTMLgzip1,386,834/Brotli1,318,238 vs main1,517,563/1,170,181: adverse
+Brotli+148,057 and original gzip cap+52,334 remain. No new runtime/RSS claim.
+Keep automations off; reconsidered proposals defer a general solver framework.
