@@ -1,8 +1,9 @@
 import { containsFlowchartOpaqueSyntax } from '../agent/flowchart-unsupported.ts'
-import { coalesceFlowchartLines, type FlowchartScan, flowchartGroupPosition, flowchartStatementSpans, scanFlowchart } from '../flowchart-lexer.ts'
+import { coalesceFlowchartLines, type FlowchartScan, FLOWCHART_EDGE_ID_PREFIX_SOURCE, flowchartGroupPosition, flowchartNodeIdLength, flowchartStatementSpans, matchFlowchartLink, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import { parseMermaid } from '../parser.ts'
 import { assertMermaidGraphWork } from '../shared/diagram-limits.ts'
+import { consumeClassShorthandPrefix } from '../shared/mermaid-identifiers.ts'
 import { prepareDisplayText } from '../shared/display-text.ts'
 import { observeParserMutation, observeParserStatement, parserObservationActive, withParserObservationGrammar } from '../shared/parser-observation.ts'
 import { MermaidSyntaxError } from '../shared/syntax-error.ts'
@@ -59,6 +60,60 @@ function metadataDeclaration(text: string, scan: FlowchartScan, before: number):
   return { id: match[1]!, start }
 }
 
+const edgeIdPrefix = new RegExp(FLOWCHART_EDGE_ID_PREFIX_SOURCE, 'uy')
+
+/** Source occurrences precede graph deduplication. Reuse classified regions
+ * and the actual link/identifier primitives; label payload is never an ID. */
+function mapGraphOccurrences(text: string, scan: FlowchartScan, record: (id: string, type: AgentflowMapping['type'], start: number, end: number) => AgentflowMapping): void {
+  let at = 0, region = 0, groupStart = 0, sourceStart = 0
+  let firstId: string | undefined, edgeId: string | undefined, pending = false, edge: AgentflowMapping | undefined
+  while (at < text.length) {
+    if (/\s/.test(text[at]!)) { at++; continue }
+    if (text.startsWith('%%', at)) break
+    if (firstId && text[at] === '&') { at++; continue }
+    while (region < scan.regions.length && scan.regions[region]!.start < at) region++
+    const current = scan.regions[region]
+    if (current?.start === at) {
+      if (current.kind === 'edge-text') { pending = true; sourceStart = groupStart; edge = undefined }
+      at = current.end
+      continue
+    }
+    if (firstId && /[-=.<xo~]/.test(text[at]!)) {
+      const link = matchFlowchartLink(text, at) ?? matchTextArrow(text, at)
+      if (link) { pending = true; sourceStart = groupStart; edge = undefined; at = link.end; continue }
+    }
+    const length = flowchartNodeIdLength(text, at)
+    if (!length) { at++; continue }
+    const start = at, id = text.slice(at, at + length)
+    let end = at + length
+    if (text[end] === '@') {
+      edgeIdPrefix.lastIndex = at
+      const named = edgeIdPrefix.exec(text)
+      if (named) { edgeId = named[1]!; at += named[0].length; continue }
+    }
+    let next = region
+    const shape = scan.regions[next]
+    const shaped = shape?.start === end && shape.kind === 'shape'
+    if (shaped) end = shape.end
+    if (text.startsWith(':::', end)) end += consumeClassShorthandPrefix(text.slice(end))?.length ?? 0
+    let after = end
+    while (/\s/.test(text[after] ?? '') && after < text.length) after++
+    while (next < scan.regions.length && scan.regions[next]!.start < after) next++
+    const block = scan.regions[next]
+    const annotated = block?.start === after && block.kind === 'metadata'
+    if (annotated) end = block.end
+    const node = record(id, annotated && !shaped ? 'attachment' : 'vertex', start, end)
+    if (!firstId) { firstId = id; groupStart = start }
+    if (pending) {
+      edge = record(edgeId ?? firstId, 'edge', sourceStart, end)
+      edgeId = undefined
+      pending = false
+      groupStart = start
+    } else if (edge) { edge.endLine = node.endLine; edge.endCol = node.endCol }
+    at = end
+  }
+}
+
 /** Flowchart supplies overlapping vertex/link syntax only. Container and
  * metadata records are captured before that projection is parsed. */
 export function parseAgentflow(source: string): AgentflowBody {
@@ -99,14 +154,15 @@ export function parseAgentflow(source: string): AgentflowBody {
         if (!header) throw syntaxError('Expected agentflow-beta and a supported direction')
         grammar.push(`flowchart ${header[1] ?? 'TB'}`); first = false; continue
       }
-      const map = (id: string, type: AgentflowMapping['type'], start = 0, finish = statement.text.length): void => {
+      const map = (id: string, type: AgentflowMapping['type'], start = 0, finish = statement.text.length): AgentflowMapping => {
         const at = flowchartGroupPosition(group, statement.start + start), end = flowchartGroupPosition(group, statement.start + finish)
-        mappings.push({ id, type, line: at.line + 1, col: at.col + 1, endLine: end.line + 1, endCol: end.col + 1 })
+        const mapping = { id, type, line: at.line + 1, col: at.col + 1, endLine: end.line + 1, endCol: end.col + 1 }
+        mappings.push(mapping)
+        return mapping
       }
       const scan = scanFlowchart(text)
       const blocks = scan.regions.filter(region => region.kind === 'metadata' && region.parent === -1)
       let attachment = false, withoutMetadata = '', cursor = 0
-      const mappedVertices = new Set<string>()
       const anonymousFlow = /^flow\s*(?:@\s*\{|$)/i.test(text) ? syntheticIdentity('flow') : undefined
       for (const block of blocks) {
         if (!block.closed) throw syntaxError('Unclosed AgentFlow metadata block', flowchartGroupPosition(group, statement.start + block.start))
@@ -124,10 +180,8 @@ export function parseAgentflow(source: string): AgentflowBody {
         if (parserObservationActive('agentflow')) observeParserMutation('agentflow', 'set-metadata', { id, metadata: metadata.get(id) })
         if (prefix === id) {
           attachment = true
-          map(id, 'attachment')
           if (!attachmentScopes.has(id)) attachmentScopes.set(id, frames.at(-1)?.id)
         }
-        if (prefix !== id && !/^(?:flow|connector)\b/i.test(prefix)) { map(id, 'vertex', declaration.start, block.end); mappedVertices.add(id) }
         withoutMetadata += text.slice(cursor, block.start)
         cursor = block.end
       }
@@ -155,14 +209,7 @@ export function parseAgentflow(source: string): AgentflowBody {
       if (/^(?:subgraph|global|flow)\b/i.test(text)) throw syntaxError('Unsupported AgentFlow container declaration')
       const connector = text.match(/^connector\s+([\p{L}\p{N}_.:-]+)(.*)$/u)
       if (connector) { connectors.add(connector[1]!); globals.add(connector[1]!); map(connector[1]!, 'connector'); text = `${connector[1]}${connector[2]}` }
-      else if (!attachment) {
-        const id = text.match(/^([\p{L}\p{N}_.:-]+)/u)?.[1]
-        if (id) {
-          const edge = /-->|-\.-|--x/.test(text)
-          const edgeId = text.match(/\s([\p{L}\p{N}_.:-]+)@(?=[-=.ox<>])/u)?.[1]
-          if (edge || !mappedVertices.has(id)) map(edgeId ?? id, edge ? 'edge' : 'vertex')
-        }
-      }
+      else if (!/^(?:direction|classDef|class|style|linkStyle|click|href|accTitle|accDescr)(?:\s|$)/i.test(text)) mapGraphOccurrences(statement.text, scan, map)
       // An attachment does not redeclare its target or move it into a flow.
       if (attachment && /^[\p{L}\p{N}_.:-]+\s*$/u.test(text)) continue
       if (frames.at(-1)?.global && !/^(?:direction|classDef|class|style|linkStyle|click)\b/.test(text)) {

@@ -69,6 +69,34 @@ test.each(['\n', '\r\n'])('AgentFlow container mappings end at their own closing
 })
 
 test.each([
+  ['a --> b', ['a', 'b'], ['a', 'b'], 1],
+  ['a[A] --> b[B] --> c[C]', ['a', 'b', 'c'], ['a[A]', 'b[B]', 'c[C]'], 2],
+  ['a["x --> y @{ hidden }"] --> b[Done]', ['a', 'b'], ['a["x --> y @{ hidden }"]', 'b[Done]'], 1],
+  ['a x-- "pretend & d" --x b', ['a', 'b'], ['a', 'b'], 1],
+  ['a & b ==> c & d', ['a', 'b', 'c', 'd'], ['a', 'b', 'c', 'd'], 1],
+  ['a e1@--> b[B]@{ instruction: "x --> y" } --> c', ['a', 'b', 'c'], ['a', 'b[B]@{ instruction: "x --> y" }', 'c'], 2],
+  ['a:::hot --> b', ['a', 'b'], ['a:::hot', 'b'], 1],
+  ['a[A]; b[B] --> c', ['a', 'b', 'c'], ['a[A]', 'b[B]', 'c'], 1],
+  [`a["${'W'.repeat(1100)}"] --> b`, ['a', 'b'], [`a["${'W'.repeat(1100)}"]`, 'b'], 1],
+] as const)('AgentFlow retains each actual vertex occurrence independently of its links: %s', (statement, ids, texts, edges) => {
+  const body = parseAgentflow(`agentflow-beta TB\n  ${statement}`)
+  const vertices = body.mappings.filter(mapping => mapping.type === 'vertex')
+  expect(vertices.map(mapping => mapping.id)).toEqual(ids)
+  expect(vertices.map(mapping => statement.slice(mapping.col - 3, mapping.endCol - 3))).toEqual(texts)
+  expect(vertices.every(mapping => mapping.line === 2 && mapping.endLine === 2)).toBe(true)
+  expect([...body.graph.nodes.keys()]).toEqual(ids)
+  expect(body.mappings.filter(mapping => mapping.type === 'edge')).toHaveLength(edges)
+})
+
+test('AgentFlow attachments and paint directives cannot masquerade as vertex declarations', () => {
+  const body = parseAgentflow('agentflow-beta\na[A] --> b[B]\na@{ instruction: "c --> d" }\nstyle a fill:red\nclassDef hot color:blue\nclass a hot')
+  expect(body.mappings.filter(mapping => mapping.type === 'vertex').map(mapping => mapping.id)).toEqual(['a', 'b'])
+  expect(body.mappings.filter(mapping => mapping.type === 'attachment')).toEqual([{ id: 'a', type: 'attachment', line: 3, col: 1, endLine: 3, endCol: 29 }])
+  expect([...body.graph.nodes.keys()]).toEqual(['a', 'b'])
+  expect(body.graph.nodeStyles.get('a')).toEqual({ fill: 'red' })
+})
+
+test.each([
   [['agentflow-beta TB', 'a[Prior]@{ shape: task }', '', '  a[Alpha]@{ x: *, }'], 4, '*'],
   [['agentflow-beta TB', 'flow Outer', '  a[First]', '', '  b[Second]@{', '\tshape: rounded', '  }', 'end'], 6, '\t'],
   [['agentflow-beta TB', '  b[Beta]@{ x: *,', '    y: 1 }'], 2, '*'],
