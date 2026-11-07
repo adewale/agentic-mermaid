@@ -1,0 +1,15 @@
+{
+  "source_head": "62af995fafa5392364ab2567678f11e59fea9ea6",
+  "runtime_head": "14bec477578104a1eab5a279473aa77e747f8476",
+  "main": "39a500425f6b74eb486b9add9e90d538fab6a914",
+  "prior_evidence": "ab604f6741787b687b7733fdf9f5a44a769a2a05",
+  "files": 59,
+  "raw_bytes": 1982614,
+  "archive_bytes": 530976,
+  "every_member_byte_verified": true,
+  "rebase": "Completed preserving merges; head and runtime content unchanged; missing history repaired",
+  "candidate": "Seven-bit prepared attribute probe insufficient; saved and restored",
+  "loss_removed": false,
+  "capacity": "Sparse1500labels32markers stillunverified at400k; smaller points descriptive only",
+  "runtime_speedup": "unmeasured"
+}
