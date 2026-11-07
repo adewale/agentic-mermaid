@@ -53,6 +53,32 @@ replace neither the dated profiler nor its missing runtime/cold/cache evidence.
 Next causal probe: whether standalone worker precompression accounts for the
 Brotli loss, preserving decoded worker bytes, ownership and browser contracts.
 
+## Painted shaft clearance — 7 November
+
+From `dd365744603143f105c2a8c8accf36203096b1ac`, original CI case152's
+0.823px shaft/card overlap is removed. The existing ten-pixel detour crossed
+edge32's caption; its unchanged admission accepts a nearer written-paint lane.
+Reuse the synchronous body memo for filled sharp frames/subroutines and offer
+that clearance before the existing lanes. No caption solver, cache or cap added.
+Actual shaft x293.172→289.849; selected raster contribution61→183/183 pixels,
+fully hidden122→0. All17 identities/39 relations, text/CSS and marker/port
+attributes remain; only this shaft and its caption move (plus scope rename).
+Proof U353,905→P353,944. Area/70bends/16crossings unchanged; wire+6.646
+(+0.0484%). SVG+3raw/+16gzip/+7Brotli bytes. Complete standalone, same Bun1.4.4
+budget owner: +876raw/+442gzip9/+1,234Brotli11 bytes; original budget still passes.
+Build19.49s/617,132KiB RSS is descriptive; no speed/memory ratio.
+
+Original owner9RED→29GREEN; detector-only still1RED. Final route owner505P,
+8 missing-JSDOM loader failures; nearby92P, core types/lintP; actual standalone
+worker/budget2P504assertions. Eighteen affected public controls retain15 exact
+SVG/entire-receipt returns and3 exact ER256 refusals; six Requirement direction
+returns stay exact. Fresh152 repeat/ELK bind exactly. Cases372/102 remain exact U;
+276 remains exact P with six crossings versus ELK's four. This closes the selected
+visible loss, not every sharp-frame contact. Evidence: `joint-caption-dd365`.
+Next: trace372's first rejected proposal under the existing ledger. Sparse32,
+lazy payload costs, original comparator unavailability and sealed Replacement24
+remain unchanged; latest-head CI must still qualify the combined candidate.
+
 ## Painted contact probes stopped — 7 November
 
 At `deafff39d427082c233e8caf4917175404f6c248`, exact-head CI42337818688 fails.
