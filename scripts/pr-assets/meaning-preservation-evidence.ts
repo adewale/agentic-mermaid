@@ -403,6 +403,14 @@ const fixtures: Fixture[] = [
     cue: 'Inspect Flow A and Flow B as sibling containers after repair. Both authored tasks and both cross-container references remain; references must not reparent explicitly declared flows. The owning semantic regression also checks nested scopes, global escape, collapsed projection and canonical reload.',
   },
   {
+    id: 'agentflow-domain-shape-aliases',
+    title: 'AgentFlow shape aliases retain their domain roles',
+    source: 'agentflow-beta LR\nflow plan[Delivery]\n  collect[Collect]@{ shape: fr-rect, instruction: "Read sources" }\n  review[Review]@{ shape: question }\n  publish[Publish]@{ shape: prepare }\n  collect --> review\n  review --> publish\nend',
+    renderOptions: { style: ['hand-drawn', 'dracula'] },
+    captureLayout: true,
+    cue: 'Before, all three authored aliases draw as rounded tasks. After, inspect Collect as a tool/subroutine, Review as a decision/diamond and Publish as an action/hexagon. Delivery membership, both directed links, labels and instruction metadata remain controls. This named style/palette witness does not establish every possible alias or density.',
+  },
+  {
     id: 'native-er-unicode-identities',
     title: 'Unicode ER identities retain their entity and relationship labels',
     source: 'erDiagram\nÉQUIPE ||--o{ ÉTAPE : réalise\nÉQUIPE {\n string numéro\n}\nÉTAPE {\n string état\n}',
