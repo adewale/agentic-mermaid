@@ -9,7 +9,7 @@ import type { UsecaseModel } from '../usecase/grammar/types.ts'
 import { authoredParserPositions } from '../shared/parser-source.ts'
 import { sourceLineStarts, sourcePointAt } from '../shared/source-spans.ts'
 import { maskAccessibilityDirectivesForSourceMap } from '../family-detection.ts'
-import { parseUsecaseDiagram } from '../usecase/parser.ts'
+import { parseUsecaseDiagram, visitUsecaseStatements } from '../usecase/parser.ts'
 import { serializeUsecase } from '../usecase/serializer.ts'
 import type { UsecaseBody, UsecaseMutationOp, UsecaseNode } from '../usecase/types.ts'
 import { accessibilityDescriptionText, accessibilityTitleText } from './accessibility-envelope.ts'
@@ -37,18 +37,15 @@ function usecaseSourceMap(model: UsecaseModel, source: string): SourceMap | unde
     if (found.line === undefined || found.column === undefined) throw unaligned
     return { line: found.line, col: found.column }
   }
-  const statements = [...model.statements].reverse()
   try {
-    while (statements.length) {
-      const statement = statements.pop()!
+    visitUsecaseStatements(model.statements, statement => {
       if (statement.group && statement.idSpan) map.groups.set(statement.group, point(statement.idSpan[0]))
       for (const node of statement.nodes ?? []) {
         if (!map.nodes.has(node.id)) map.nodes.set(node.id, point(node.idSpan[0]))
         if (node.labelSpan) map.labels.set(`node:${node.id}`, point(node.labelSpan[0]))
       }
       for (const edge of statement.edges ?? []) map.edges.set(edge.id, point(edge.span[0]))
-      for (const child of [...(statement.children ?? [])].reverse()) statements.push(child)
-    }
+    })
     return map
   } catch (error) { if (error !== unaligned) throw error; return undefined }
 }

@@ -9,14 +9,22 @@ export const isUsecaseHeader = (line: string): boolean => /^usecase-beta\s*$/.te
 export const usecaseStatementEnds = (lines: readonly string[]) => quotedTextEnds(lines, { escapes: false, spanning: '"', opensAfter: /[\s([=:,]/ })
 const read = (text: string) => readGrammarText(readGrammarAuthoredText(text), '\r\n')
 
-export function usecaseBody(model: UsecaseModel): UsecaseBody {
-  const first = new Map<string, number>()
-  const pending: GraphStatement[] = [...model.statements].reverse()
+/** Visit source occurrences in preorder without copying each group's children. */
+export function visitUsecaseStatements(statements: readonly GraphStatement[], visit: (statement: GraphStatement) => void): void {
+  const pending = [...statements].reverse()
   while (pending.length) {
     const statement = pending.pop()!
-    for (const node of statement.nodes ?? []) if (!first.has(node.id)) first.set(node.id, node.span[0])
-    for (const child of [...(statement.children ?? [])].reverse()) pending.push(child)
+    visit(statement)
+    const children = statement.children
+    if (children) for (let index = children.length - 1; index >= 0; index--) pending.push(children[index]!)
   }
+}
+
+export function usecaseBody(model: UsecaseModel): UsecaseBody {
+  const first = new Map<string, number>()
+  visitUsecaseStatements(model.statements, statement => {
+    for (const node of statement.nodes ?? []) if (!first.has(node.id)) first.set(node.id, node.span[0])
+  })
   const nodes: UsecaseNode[] = [...model.actors.values()].map(actor => ({ ...actor, kind: 'actor' as const, label: read(actor.label), ...(actor.icon ? { icon: read(actor.icon) } : {}), ...(actor.stereotype ? { stereotype: read(actor.stereotype) } : {}) }))
   nodes.push(...[...model.useCases.values()].map(node => ({ ...node, kind: 'usecase' as const, label: read(node.label), ...(node.stereotype ? { stereotype: read(node.stereotype) } : {}) })))
   nodes.sort((a, b) => (first.get(a.id) ?? 0) - (first.get(b.id) ?? 0))
