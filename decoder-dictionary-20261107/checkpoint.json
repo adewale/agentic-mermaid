@@ -1,0 +1,28 @@
+{
+  "source_head": "bbda2112af8d791d8628a3769c86084e4cb962b3",
+  "before_head": "930faf846c6bec55e1f9b053844700e08281faf6",
+  "main": "39a500425f6b74eb486b9add9e90d538fab6a914",
+  "prior_evidence": "19fbe17aaeee45d5c01a5e953705ca1da13fc704",
+  "files": 39,
+  "raw_bytes": 10200306,
+  "archive_bytes": 5478791,
+  "every_member_byte_verified": true,
+  "worker_packed_and_decoded_exact": true,
+  "before_after": {
+    "raw": [
+      2091362,
+      2186915
+    ],
+    "gzip9": [
+      1348449,
+      1310748
+    ],
+    "brotli11": [
+      1282268,
+      1245137
+    ]
+  },
+  "runtimeSpeedup": "unmeasured",
+  "remaining_main_Brotli_increase": 146733,
+  "localChecks": "Existing budget/browser2P; preview/minifier46P; coretypes exit0; lint3P; original caps unchanged. Exact-head CI pending."
+}

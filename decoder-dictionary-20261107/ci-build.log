@@ -1,0 +1,541 @@
+﻿2026-11-07T01:26:18.1286687Z Current runner version: '2.338.2'
+2026-11-07T01:26:18.1307760Z ##[group]Runner Image Provisioner
+2026-11-07T01:26:18.1308549Z Hosted Compute Agent
+2026-11-07T01:26:18.1309055Z Version: 20261028.624
+2026-11-07T01:26:18.1309569Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-07T01:26:18.1310237Z Build Date: 2026-10-28T21:51:42Z
+2026-11-07T01:26:18.1310827Z Worker ID: {e0d77e4e-52e1-4cd6-b6e3-c7b21c9379d3}
+2026-11-07T01:26:18.1311403Z Region: westus2
+2026-11-07T01:26:18.1311951Z Cloud: Azure
+2026-11-07T01:26:18.1312427Z ##[endgroup]
+2026-11-07T01:26:18.1313602Z ##[group]Operating System
+2026-11-07T01:26:18.1314115Z Ubuntu
+2026-11-07T01:26:18.1314536Z 26.04.1
+2026-11-07T01:26:18.1315020Z LTS
+2026-11-07T01:26:18.1315464Z ##[endgroup]
+2026-11-07T01:26:18.1316016Z ##[group]Runner Image
+2026-11-07T01:26:18.1316544Z Image: ubuntu-26.04
+2026-11-07T01:26:18.1317026Z Version: 20261101.186.1
+2026-11-07T01:26:18.1318300Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-07T01:26:18.1319601Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261101.186
+2026-11-07T01:26:18.1320395Z ##[endgroup]
+2026-11-07T01:26:18.1322965Z ##[group]GITHUB_TOKEN Permissions
+2026-11-07T01:26:18.1324928Z Actions: write
+2026-11-07T01:26:18.1325459Z ArtifactMetadata: write
+2026-11-07T01:26:18.1326056Z Attestations: write
+2026-11-07T01:26:18.1326528Z Checks: write
+2026-11-07T01:26:18.1327012Z CodeQuality: write
+2026-11-07T01:26:18.1327497Z Contents: write
+2026-11-07T01:26:18.1328151Z CopilotRequests: write
+2026-11-07T01:26:18.1328698Z Deployments: write
+2026-11-07T01:26:18.1329161Z Discussions: write
+2026-11-07T01:26:18.1329642Z Drives: write
+2026-11-07T01:26:18.1330098Z Issues: write
+2026-11-07T01:26:18.1330636Z Metadata: read
+2026-11-07T01:26:18.1331123Z Models: read
+2026-11-07T01:26:18.1331569Z Packages: write
+2026-11-07T01:26:18.1332073Z Pages: write
+2026-11-07T01:26:18.1332563Z PullRequests: write
+2026-11-07T01:26:18.1333060Z RepositoryProjects: write
+2026-11-07T01:26:18.1333606Z SecurityEvents: write
+2026-11-07T01:26:18.1334081Z Statuses: write
+2026-11-07T01:26:18.1334540Z VulnerabilityAlerts: read
+2026-11-07T01:26:18.1335084Z ##[endgroup]
+2026-11-07T01:26:18.1336770Z Secret source: Actions
+2026-11-07T01:26:18.1337780Z Cache mode: write
+2026-11-07T01:26:18.1338643Z Prepare workflow directory
+2026-11-07T01:26:18.1598516Z Prepare all required actions
+2026-11-07T01:26:18.1636963Z Getting action download info
+2026-11-07T01:26:18.4988232Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-11-07T01:26:18.5854350Z Download action repository 'oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6' (SHA:0c5077e51419868618aeaa5fe8019c62421857d6)
+2026-11-07T01:26:18.7635008Z Download action repository 'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1' (SHA:949feb2413d6458794dcd2491c4babbbce0c15c1)
+2026-11-07T01:26:18.8344091Z Download action repository 'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9' (SHA:cf430e030ddbb5b0abf93d22962f4752f3646cd9)
+2026-11-07T01:26:19.0256193Z Complete job name: Build portable test artifacts
+2026-11-07T01:26:19.0962172Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-11-07T01:26:19.0962981Z with:
+2026-11-07T01:26:19.0963339Z   repository: adewale/agentic-mermaid
+2026-11-07T01:26:19.0966402Z   token: ***
+2026-11-07T01:26:19.0966753Z   ssh-strict: true
+2026-11-07T01:26:19.0967107Z   ssh-user: git
+2026-11-07T01:26:19.0967466Z   persist-credentials: true
+2026-11-07T01:26:19.0968002Z   clean: true
+2026-11-07T01:26:19.0968358Z   sparse-checkout-cone-mode: true
+2026-11-07T01:26:19.0968772Z   fetch-depth: 1
+2026-11-07T01:26:19.0969113Z   fetch-tags: false
+2026-11-07T01:26:19.0969461Z   show-progress: true
+2026-11-07T01:26:19.0969812Z   lfs: false
+2026-11-07T01:26:19.0970133Z   submodules: false
+2026-11-07T01:26:19.0970495Z   set-safe-directory: true
+2026-11-07T01:26:19.0971122Z   allow-unsafe-pr-checkout: false
+2026-11-07T01:26:19.0971757Z ##[endgroup]
+2026-11-07T01:26:20.0280914Z Syncing repository: adewale/agentic-mermaid
+2026-11-07T01:26:20.0284097Z ##[group]Getting Git version info
+2026-11-07T01:26:20.0285591Z Working directory is '/home/runner/work/agentic-mermaid/agentic-mermaid'
+2026-11-07T01:26:20.0288133Z [command]/usr/bin/git version
+2026-11-07T01:26:20.0289246Z git version 2.56.0
+2026-11-07T01:26:20.0299370Z ##[endgroup]
+2026-11-07T01:26:20.0312153Z Temporarily overriding HOME='/home/runner/work/_temp/15ad4dbb-327a-48fd-9d02-51f4b5c99b5c' before making global git config changes
+2026-11-07T01:26:20.0316019Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-07T01:26:20.0319725Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/agentic-mermaid/agentic-mermaid
+2026-11-07T01:26:20.0504611Z Deleting the contents of '/home/runner/work/agentic-mermaid/agentic-mermaid'
+2026-11-07T01:26:20.0508912Z ##[group]Determining repository object format
+2026-11-07T01:26:20.0511946Z ##[endgroup]
+2026-11-07T01:26:20.0514680Z ##[group]Initializing the repository
+2026-11-07T01:26:20.0517352Z [command]/usr/bin/git init /home/runner/work/agentic-mermaid/agentic-mermaid
+2026-11-07T01:26:20.0597166Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-07T01:26:20.0600608Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-07T01:26:20.0604086Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-07T01:26:20.0607257Z hint: call:
+2026-11-07T01:26:20.0609148Z hint:
+2026-11-07T01:26:20.0611145Z hint: 	git config --global init.defaultBranch <name>
+2026-11-07T01:26:20.0613484Z hint:
+2026-11-07T01:26:20.0615417Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-07T01:26:20.0619134Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-07T01:26:20.0621741Z hint:
+2026-11-07T01:26:20.0623249Z hint: 	git branch -m <name>
+2026-11-07T01:26:20.0625341Z hint:
+2026-11-07T01:26:20.0627871Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-07T01:26:20.0631977Z Initialized empty Git repository in /home/runner/work/agentic-mermaid/agentic-mermaid/.git/
+2026-11-07T01:26:20.0638705Z [command]/usr/bin/git remote add origin https://github.com/adewale/agentic-mermaid
+2026-11-07T01:26:20.0677330Z ##[endgroup]
+2026-11-07T01:26:20.0680597Z ##[group]Disabling automatic garbage collection
+2026-11-07T01:26:20.0683473Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-07T01:26:20.0712808Z ##[endgroup]
+2026-11-07T01:26:20.0714876Z ##[group]Setting up auth
+2026-11-07T01:26:20.0716581Z Removing SSH command configuration
+2026-11-07T01:26:20.0719030Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-07T01:26:20.0750166Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-07T01:26:20.1077968Z Removing HTTP extra header
+2026-11-07T01:26:20.1082904Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-07T01:26:20.1112707Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-07T01:26:20.1338985Z Removing includeIf entries pointing to credentials config files
+2026-11-07T01:26:20.1342445Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-07T01:26:20.1369919Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-07T01:26:20.1601857Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-3d14dc44-33c0-47f1-a1c8-e24a5d833a68.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-07T01:26:20.1634506Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git.path /home/runner/work/_temp/git-credentials-3d14dc44-33c0-47f1-a1c8-e24a5d833a68.config
+2026-11-07T01:26:20.1661608Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-3d14dc44-33c0-47f1-a1c8-e24a5d833a68.config
+2026-11-07T01:26:20.1691329Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-3d14dc44-33c0-47f1-a1c8-e24a5d833a68.config
+2026-11-07T01:26:20.1719537Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-3d14dc44-33c0-47f1-a1c8-e24a5d833a68.config
+2026-11-07T01:26:20.1745253Z ##[endgroup]
+2026-11-07T01:26:20.1747168Z ##[group]Fetching the repository
+2026-11-07T01:26:20.1751334Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +b64842fa9d79a8d01cbef182fec6ada6363ef875:refs/remotes/pull/602/merge
+2026-11-07T01:26:22.1145017Z From https://github.com/adewale/agentic-mermaid
+2026-11-07T01:26:22.1145908Z  * [new ref]         b64842fa9d79a8d01cbef182fec6ada6363ef875 -> pull/602/merge
+2026-11-07T01:26:22.1149617Z ##[endgroup]
+2026-11-07T01:26:22.1150295Z ##[group]Determining the checkout info
+2026-11-07T01:26:22.1150952Z ##[endgroup]
+2026-11-07T01:26:22.1154563Z [command]/usr/bin/git sparse-checkout disable
+2026-11-07T01:26:22.1197876Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-07T01:26:22.1223780Z ##[group]Checking out the ref
+2026-11-07T01:26:22.1226511Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/602/merge
+2026-11-07T01:26:22.4139030Z Note: switching to 'refs/remotes/pull/602/merge'.
+2026-11-07T01:26:22.4139402Z 
+2026-11-07T01:26:22.4139699Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-07T01:26:22.4140356Z changes and commit them, and you can discard any commits you make in this
+2026-11-07T01:26:22.4140993Z state without impacting any branches by switching back to a branch.
+2026-11-07T01:26:22.4141392Z 
+2026-11-07T01:26:22.4141667Z If you want to create a new branch to retain commits you create, you may
+2026-11-07T01:26:22.4142230Z do so (now or later) by using -c with the switch command. Example:
+2026-11-07T01:26:22.4142558Z 
+2026-11-07T01:26:22.4142694Z   git switch -c <new-branch-name>
+2026-11-07T01:26:22.4142917Z 
+2026-11-07T01:26:22.4143081Z Or undo this operation with:
+2026-11-07T01:26:22.4143296Z 
+2026-11-07T01:26:22.4143414Z   git switch -
+2026-11-07T01:26:22.4143648Z 
+2026-11-07T01:26:22.4144125Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-07T01:26:22.4148071Z 
+2026-11-07T01:26:22.4148608Z HEAD is now at b64842f Merge bbda2112af8d791d8628a3769c86084e4cb962b3 into 39a500425f6b74eb486b9add9e90d538fab6a914
+2026-11-07T01:26:22.4153408Z ##[endgroup]
+2026-11-07T01:26:22.4203398Z [command]/usr/bin/git log -1 --format=%H
+2026-11-07T01:26:22.4229391Z b64842fa9d79a8d01cbef182fec6ada6363ef875
+2026-11-07T01:26:22.4498038Z ##[group]Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+2026-11-07T01:26:22.4498366Z with:
+2026-11-07T01:26:22.4498546Z   bun-version: 1.4.4
+2026-11-07T01:26:22.4498728Z   no-cache: true
+2026-11-07T01:26:22.4500545Z   token: ***
+2026-11-07T01:26:22.4500714Z ##[endgroup]
+2026-11-07T01:26:22.6355910Z Downloading a new version of Bun: https://github.com/oven-sh/bun/releases/download/bun-v1.4.4/bun-linux-x64.zip
+2026-11-07T01:26:22.9284223Z [command]/usr/bin/unzip -o -q /home/runner/work/_temp/e8f14bfe-7d64-4458-b0c8-05b501393fbd.zip
+2026-11-07T01:26:23.6674709Z [command]/home/runner/.bun/bin/bun --revision
+2026-11-07T01:26:23.6718752Z 1.4.4+38afee6c8
+2026-11-07T01:26:23.6908010Z ##[group]Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+2026-11-07T01:26:23.6908503Z with:
+2026-11-07T01:26:23.6908675Z   node-version: 24
+2026-11-07T01:26:23.6908867Z   package-manager-cache: false
+2026-11-07T01:26:23.6909078Z   check-latest: false
+2026-11-07T01:26:23.6910941Z   token: ***
+2026-11-07T01:26:23.6911121Z ##[endgroup]
+2026-11-07T01:26:23.7930709Z Found in cache @ /opt/hostedtoolcache/node/24.22.2/x64
+2026-11-07T01:26:23.8466322Z ##[group]Environment details
+2026-11-07T01:26:24.3172408Z node: v24.22.2
+2026-11-07T01:26:24.3172713Z npm: 11.19.1
+2026-11-07T01:26:24.3172977Z yarn: 1.22.22
+2026-11-07T01:26:24.3173548Z ##[endgroup]
+2026-11-07T01:26:24.3291579Z ##[group]Run bun install --frozen-lockfile
+2026-11-07T01:26:24.3291921Z [36;1mbun install --frozen-lockfile[0m
+2026-11-07T01:26:24.3412470Z shell: /usr/bin/bash -e {0}
+2026-11-07T01:26:24.3412712Z ##[endgroup]
+2026-11-07T01:26:24.3521940Z bun install v1.4.4 (38afee6c8)
+2026-11-07T01:26:29.3149197Z 
+2026-11-07T01:26:29.3149894Z + @arethetypeswrong/cli@0.18.5
+2026-11-07T01:26:29.3150334Z + @biomejs/biome@2.5.5
+2026-11-07T01:26:29.3150765Z + @mermaid-js/mermaid-zenuml@1.0.1
+2026-11-07T01:26:29.3151194Z + @modelcontextprotocol/sdk@1.32.1
+2026-11-07T01:26:29.3151587Z + @resvg/resvg-wasm@2.6.2
+2026-11-07T01:26:29.3151898Z + @swc/core@1.15.8
+2026-11-07T01:26:29.3152177Z + @types/bun@1.3.9
+2026-11-07T01:26:29.3152474Z + @types/d3-format@3.0.4
+2026-11-07T01:26:29.3152793Z + @types/d3-sankey@0.12.5
+2026-11-07T01:26:29.3153116Z + @types/d3-shape@1.3.12
+2026-11-07T01:26:29.3153420Z + @zenuml/core@3.47.9
+2026-11-07T01:26:29.3153732Z + beautiful-mermaid@1.1.3
+2026-11-07T01:26:29.3154098Z + brotli@1.3.3
+2026-11-07T01:26:29.3154379Z + fast-check@4.6.0
+2026-11-07T01:26:29.3154658Z + jsdom@26.1.0
+2026-11-07T01:26:29.3154910Z + mermaid@12.2.0
+2026-11-07T01:26:29.3155190Z + mermaid-ast@0.8.2
+2026-11-07T01:26:29.3155501Z + perfect-freehand@1.2.3
+2026-11-07T01:26:29.3155823Z + playwright@1.58.2
+2026-11-07T01:26:29.3156102Z + publint@0.3.24
+2026-11-07T01:26:29.3156390Z + roughjs@4.6.6
+2026-11-07T01:26:29.3156645Z + saxes@6.0.0
+2026-11-07T01:26:29.3156959Z + shiki@3.21.0
+2026-11-07T01:26:29.3157219Z + tsup@8.5.1
+2026-11-07T01:26:29.3157507Z + typescript@5.9.3
+2026-11-07T01:26:29.3158055Z + upng-js@2.1.0
+2026-11-07T01:26:29.3158316Z + vitest@4.1.11
+2026-11-07T01:26:29.3158607Z + wrangler@4.149.0
+2026-11-07T01:26:29.3158912Z + @resvg/resvg-js@2.6.2
+2026-11-07T01:26:29.3159288Z + acorn@8.16.0
+2026-11-07T01:26:29.3159566Z + d3-format@3.1.0
+2026-11-07T01:26:29.3159855Z + d3-sankey@0.12.3
+2026-11-07T01:26:29.3160127Z + d3-shape@1.3.7
+2026-11-07T01:26:29.3160391Z + elkjs@0.11.1
+2026-11-07T01:26:29.3160661Z + entities@7.0.1
+2026-11-07T01:26:29.3160927Z + yaml@2.9.0
+2026-11-07T01:26:29.3161082Z 
+2026-11-07T01:26:29.3161292Z 615 packages installed [4.96s]
+2026-11-07T01:26:29.3249001Z ##[group]Run npm install -g npm@11.18.0 --ignore-scripts
+2026-11-07T01:26:29.3249395Z [36;1mnpm install -g npm@11.18.0 --ignore-scripts[0m
+2026-11-07T01:26:29.3322507Z shell: /usr/bin/bash -e {0}
+2026-11-07T01:26:29.3322730Z ##[endgroup]
+2026-11-07T01:26:33.3353148Z 
+2026-11-07T01:26:33.3353676Z changed 18 packages in 4s
+2026-11-07T01:26:33.3353878Z 
+2026-11-07T01:26:33.3354198Z 15 packages are looking for funding
+2026-11-07T01:26:33.3355646Z   run `npm fund` for details
+2026-11-07T01:26:33.3789108Z ##[group]Run bun run build
+2026-11-07T01:26:33.3789369Z [36;1mbun run build[0m
+2026-11-07T01:26:33.3789638Z [36;1mbun scripts/site/prepare-website-fixture.ts --reuse-lazy[0m
+2026-11-07T01:26:33.3834419Z shell: /usr/bin/bash -e {0}
+2026-11-07T01:26:33.3834634Z env:
+2026-11-07T01:26:33.3834843Z   AM_EDITOR_BUILD_METAFILE: ci-editor-metafile.json
+2026-11-07T01:26:33.3835105Z ##[endgroup]
+2026-11-07T01:26:33.3913943Z $ bun run generate:sdk && tsup && bun run build:browser && bun run build:browser:lazy && bun run build:zenuml
+2026-11-07T01:26:33.3942837Z $ bun run scripts/build/generate-sdk-declarations.ts
+2026-11-07T01:26:36.1451840Z generated SDK model declarations
+2026-11-07T01:26:36.4370206Z [34mCLI[39m Building entry: {"index":"src/index.ts","svg":"src/svg.ts","svg-styles":"src/svg-styles.ts","agent":"src/agent/index.ts","agent-core":"src/agent/core.ts","am":"src/cli/am-bin.ts","agentic-mermaid-mcp":"src/mcp/mcp-bin.ts","source-worker":"src/mcp/source-worker.ts","source-supervisor":"src/mcp/source-supervisor.ts","elk-constructor":"src/elk-constructor.ts"}
+2026-11-07T01:26:36.4372599Z [34mCLI[39m Using tsconfig: tsconfig.json
+2026-11-07T01:26:36.4373063Z [34mCLI[39m tsup v8.5.1
+2026-11-07T01:26:36.4373871Z [34mCLI[39m Using tsup config: /home/runner/work/agentic-mermaid/agentic-mermaid/tsup.config.ts
+2026-11-07T01:26:36.4438643Z [34mCLI[39m Target: es2022
+2026-11-07T01:26:36.4460695Z [34mCLI[39m Cleaning output folder
+2026-11-07T01:26:36.4467876Z [34mESM[39m Build start
+2026-11-07T01:26:36.8975709Z [34mDTS[39m Build start
+2026-11-07T01:26:37.9306222Z [32mESM[39m [1mdist/source-supervisor.js       [22m[32m1.49 KB[39m
+2026-11-07T01:26:37.9328634Z [32mESM[39m [1mdist/elk-constructor.js         [22m[32m162.00 B[39m
+2026-11-07T01:26:37.9358515Z [32mESM[39m [1mdist/server-LFFYR2G2.js         [22m[32m151.18 KB[39m
+2026-11-07T01:26:37.9359586Z [32mESM[39m [1mdist/mcp-cli-CZZKQSMV.js        [22m[32m227.00 B[39m
+2026-11-07T01:26:37.9388655Z [32mESM[39m [1mdist/jsonl-5N4DTV7P.js          [22m[32m881.00 B[39m
+2026-11-07T01:26:37.9418562Z [32mESM[39m [1mdist/cli-JO2DZWEC.js            [22m[32m72.96 KB[39m
+2026-11-07T01:26:37.9419565Z [32mESM[39m [1mdist/index.js                   [22m[32m7.00 KB[39m
+2026-11-07T01:26:37.9448571Z [32mESM[39m [1mdist/svg.js                     [22m[32m87.67 KB[39m
+2026-11-07T01:26:37.9478502Z [32mESM[39m [1mdist/svg-styles.js              [22m[32m273.00 B[39m
+2026-11-07T01:26:37.9508514Z [32mESM[39m [1mdist/agent.js                   [22m[32m7.77 KB[39m
+2026-11-07T01:26:37.9509460Z [32mESM[39m [1mdist/chunk-ESFSSKFG.js          [22m[32m3.16 KB[39m
+2026-11-07T01:26:37.9538542Z [32mESM[39m [1mdist/chunk-OUJQOKSU.js          [22m[32m13.84 KB[39m
+2026-11-07T01:26:37.9568722Z [32mESM[39m [1mdist/am.js                      [22m[32m499.00 B[39m
+2026-11-07T01:26:37.9569408Z [32mESM[39m [1mdist/agent-core.js              [22m[32m7.56 KB[39m
+2026-11-07T01:26:37.9570113Z [32mESM[39m [1mdist/chunk-BRT44IL6.js          [22m[32m26.58 KB[39m
+2026-11-07T01:26:37.9570870Z [32mESM[39m [1mdist/chunk-5BYN55G4.js          [22m[32m595.00 B[39m
+2026-11-07T01:26:37.9571505Z [32mESM[39m [1mdist/agentic-mermaid-mcp.js     [22m[32m226.00 B[39m
+2026-11-07T01:26:37.9572182Z [32mESM[39m [1mdist/chunk-45G3LVSU.js          [22m[32m4.44 KB[39m
+2026-11-07T01:26:37.9572901Z [32mESM[39m [1mdist/chunk-7PPW2BMO.js          [22m[32m454.00 B[39m
+2026-11-07T01:26:37.9573590Z [32mESM[39m [1mdist/source-worker.js           [22m[32m2.33 KB[39m
+2026-11-07T01:26:37.9574307Z [32mESM[39m [1mdist/chunk-KWRTZ2ZM.js          [22m[32m18.56 KB[39m
+2026-11-07T01:26:37.9575073Z [32mESM[39m [1mdist/chunk-SP6JIN5O.js          [22m[32m345.00 B[39m
+2026-11-07T01:26:37.9575849Z [32mESM[39m [1mdist/chunk-TRCGCSYQ.js          [22m[32m1.30 KB[39m
+2026-11-07T01:26:37.9576633Z [32mESM[39m [1mdist/chunk-JGJEIW4K.js          [22m[32m154.61 KB[39m
+2026-11-07T01:26:37.9578016Z [32mESM[39m [1mdist/chunk-ITKLPH2O.js          [22m[32m42.72 KB[39m
+2026-11-07T01:26:37.9578854Z [32mESM[39m [1mdist/chunk-WY7E4TMD.js          [22m[32m13.15 KB[39m
+2026-11-07T01:26:37.9579614Z [32mESM[39m [1mdist/chunk-3LGLPG33.js          [22m[32m1.40 KB[39m
+2026-11-07T01:26:37.9580364Z [32mESM[39m [1mdist/chunk-V5RFODN6.js          [22m[32m446.00 B[39m
+2026-11-07T01:26:37.9581132Z [32mESM[39m [1mdist/chunk-TBCE2NAI.js          [22m[32m362.76 KB[39m
+2026-11-07T01:26:37.9581890Z [32mESM[39m [1mdist/chunk-WCOFWETL.js          [22m[32m1.04 MB[39m
+2026-11-07T01:26:37.9582643Z [32mESM[39m [1mdist/chunk-S6OKF4B3.js          [22m[32m1.70 MB[39m
+2026-11-07T01:26:37.9583399Z [32mESM[39m [1mdist/source-supervisor.js.map   [22m[32m5.91 KB[39m
+2026-11-07T01:26:37.9584371Z [32mESM[39m [1mdist/elk-constructor.js.map     [22m[32m772.00 B[39m
+2026-11-07T01:26:37.9585151Z [32mESM[39m [1mdist/server-LFFYR2G2.js.map     [22m[32m309.66 KB[39m
+2026-11-07T01:26:37.9585888Z [32mESM[39m [1mdist/mcp-cli-CZZKQSMV.js.map    [22m[32m71.00 B[39m
+2026-11-07T01:26:37.9586622Z [32mESM[39m [1mdist/jsonl-5N4DTV7P.js.map      [22m[32m3.34 KB[39m
+2026-11-07T01:26:37.9587342Z [32mESM[39m [1mdist/index.js.map               [22m[32m71.00 B[39m
+2026-11-07T01:26:37.9588251Z [32mESM[39m [1mdist/cli-JO2DZWEC.js.map        [22m[32m166.62 KB[39m
+2026-11-07T01:26:37.9588994Z [32mESM[39m [1mdist/svg-styles.js.map          [22m[32m71.00 B[39m
+2026-11-07T01:26:37.9589719Z [32mESM[39m [1mdist/svg.js.map                 [22m[32m199.87 KB[39m
+2026-11-07T01:26:37.9590428Z [32mESM[39m [1mdist/agent.js.map               [22m[32m71.00 B[39m
+2026-11-07T01:26:37.9591177Z [32mESM[39m [1mdist/chunk-ESFSSKFG.js.map      [22m[32m14.59 KB[39m
+2026-11-07T01:26:37.9591932Z [32mESM[39m [1mdist/chunk-OUJQOKSU.js.map      [22m[32m64.55 KB[39m
+2026-11-07T01:26:37.9592666Z [32mESM[39m [1mdist/am.js.map                  [22m[32m1.40 KB[39m
+2026-11-07T01:26:37.9593389Z [32mESM[39m [1mdist/agent-core.js.map          [22m[32m71.00 B[39m
+2026-11-07T01:26:37.9594121Z [32mESM[39m [1mdist/chunk-BRT44IL6.js.map      [22m[32m42.48 KB[39m
+2026-11-07T01:26:37.9594863Z [32mESM[39m [1mdist/chunk-5BYN55G4.js.map      [22m[32m2.30 KB[39m
+2026-11-07T01:26:37.9595592Z [32mESM[39m [1mdist/agentic-mermaid-mcp.js.map [22m[32m356.00 B[39m
+2026-11-07T01:26:37.9596356Z [32mESM[39m [1mdist/chunk-45G3LVSU.js.map      [22m[32m11.75 KB[39m
+2026-11-07T01:26:37.9597101Z [32mESM[39m [1mdist/chunk-7PPW2BMO.js.map      [22m[32m1.83 KB[39m
+2026-11-07T01:26:37.9604454Z [32mESM[39m [1mdist/source-worker.js.map       [22m[32m10.08 KB[39m
+2026-11-07T01:26:37.9605330Z [32mESM[39m [1mdist/chunk-SP6JIN5O.js.map      [22m[32m1.46 KB[39m
+2026-11-07T01:26:37.9606118Z [32mESM[39m [1mdist/chunk-KWRTZ2ZM.js.map      [22m[32m82.46 KB[39m
+2026-11-07T01:26:37.9606873Z [32mESM[39m [1mdist/chunk-TRCGCSYQ.js.map      [22m[32m6.29 KB[39m
+2026-11-07T01:26:37.9607834Z [32mESM[39m [1mdist/chunk-ITKLPH2O.js.map      [22m[32m248.85 KB[39m
+2026-11-07T01:26:37.9608606Z [32mESM[39m [1mdist/chunk-WY7E4TMD.js.map      [22m[32m112.02 KB[39m
+2026-11-07T01:26:37.9609353Z [32mESM[39m [1mdist/chunk-3LGLPG33.js.map      [22m[32m5.79 KB[39m
+2026-11-07T01:26:37.9610069Z [32mESM[39m [1mdist/chunk-V5RFODN6.js.map      [22m[32m71.00 B[39m
+2026-11-07T01:26:37.9610791Z [32mESM[39m [1mdist/chunk-JGJEIW4K.js.map      [22m[32m619.44 KB[39m
+2026-11-07T01:26:37.9611521Z [32mESM[39m [1mdist/chunk-TBCE2NAI.js.map      [22m[32m1.37 MB[39m
+2026-11-07T01:26:37.9612256Z [32mESM[39m [1mdist/chunk-WCOFWETL.js.map      [22m[32m3.57 MB[39m
+2026-11-07T01:26:37.9612986Z [32mESM[39m [1mdist/chunk-S6OKF4B3.js.map      [22m[32m7.34 MB[39m
+2026-11-07T01:26:37.9613614Z [32mESM[39m ⚡️ Build success in 1484ms
+2026-11-07T01:27:21.1820023Z Export "SceneRole" of module "src/scene/roles.ts" was reexported through module "src/scene/ir.ts" while both modules are dependencies of each other and will end up in different chunks by current Rollup settings. This scenario is not well supported at the moment as it will produce a circular dependency between chunks and will likely lead to broken execution order.
+2026-11-07T01:27:21.1822506Z Either change the import in "src/terminal-style.ts" to point directly to the exporting module or reconfigure "output.manualChunks" to ensure these modules end up in the same chunk.
+2026-11-07T01:27:21.3062496Z Export "SceneRole" of module "src/scene/roles.ts" was reexported through module "src/scene/ir.ts" while both modules are dependencies of each other and will end up in different chunks by current Rollup settings. This scenario is not well supported at the moment as it will produce a circular dependency between chunks and will likely lead to broken execution order.
+2026-11-07T01:27:21.3065984Z Either change the import in "src/scene/resolved-types.ts" to point directly to the exporting module or reconfigure "output.manualChunks" to ensure these modules end up in the same chunk.
+2026-11-07T01:27:21.3069268Z Export "SceneRole" of module "src/scene/roles.ts" was reexported through module "src/scene/ir.ts" while both modules are dependencies of each other and will end up in different chunks by current Rollup settings. This scenario is not well supported at the moment as it will produce a circular dependency between chunks and will likely lead to broken execution order.
+2026-11-07T01:27:21.3072008Z Either change the import in "src/scene/external-scene.ts" to point directly to the exporting module or reconfigure "output.manualChunks" to ensure these modules end up in the same chunk.
+2026-11-07T01:27:21.3085714Z [32mDTS[39m ⚡️ Build success in 44415ms
+2026-11-07T01:27:21.3089124Z [32mDTS[39m [1mdist/svg.d.ts                          [22m[32m682.00 B[39m
+2026-11-07T01:27:21.3090016Z [32mDTS[39m [1mdist/zenuml.d.ts                       [22m[32m3.68 KB[39m
+2026-11-07T01:27:21.3090835Z [32mDTS[39m [1mdist/agent.d.ts                        [22m[32m19.40 KB[39m
+2026-11-07T01:27:21.3091612Z [32mDTS[39m [1mdist/agent-core.d.ts                   [22m[32m56.10 KB[39m
+2026-11-07T01:27:21.3092378Z [32mDTS[39m [1mdist/index.d.ts                        [22m[32m12.86 KB[39m
+2026-11-07T01:27:21.3093110Z [32mDTS[39m [1mdist/svg-styles.d.ts                   [22m[32m124.00 B[39m
+2026-11-07T01:27:21.3093778Z [32mDTS[39m [1mdist/types-Cg5R3ye3.d.ts               [22m[32m56.03 KB[39m
+2026-11-07T01:27:21.3094515Z [32mDTS[39m [1mdist/paint-certification-BHYxRFjx.d.ts [22m[32m231.65 KB[39m
+2026-11-07T01:27:21.3095279Z [32mDTS[39m [1mdist/index-dxc8uKKz.d.ts               [22m[32m72.88 KB[39m
+2026-11-07T01:27:21.3096016Z [32mDTS[39m [1mdist/svg-styles-D8fFXZTO.d.ts          [22m[32m33.10 KB[39m
+2026-11-07T01:27:21.6230350Z $ tsup --config tsup.browser.config.ts
+2026-11-07T01:27:21.9152409Z [34mCLI[39m Building entry: {"browser":"src/index.ts"}
+2026-11-07T01:27:21.9155257Z [34mCLI[39m Using tsconfig: tsconfig.json
+2026-11-07T01:27:21.9156062Z [34mCLI[39m tsup v8.5.1
+2026-11-07T01:27:21.9157172Z [34mCLI[39m Using tsup config: /home/runner/work/agentic-mermaid/agentic-mermaid/tsup.browser.config.ts
+2026-11-07T01:27:21.9176448Z [34mCLI[39m Target: es2022
+2026-11-07T01:27:21.9185182Z [34mIIFE[39m Build start
+2026-11-07T01:27:22.5942320Z [32mIIFE[39m [1mdist/browser.global.js [22m[32m4.51 MB[39m
+2026-11-07T01:27:22.5943107Z [32mIIFE[39m ⚡️ Build success in 676ms
+2026-11-07T01:27:22.6168719Z $ bun run scripts/build/clean-browser-lazy.ts && bun run generate:browser-families && tsup --config tsup.browser-lazy.config.ts
+2026-11-07T01:27:22.6254488Z $ bun run scripts/build/generate-browser-family-catalog.ts
+2026-11-07T01:27:22.9839206Z generated browser family catalog (25 families)
+2026-11-07T01:27:23.2877056Z [34mCLI[39m Building entry: {"browser-lazy/index":"src/browser-lazy.ts"}
+2026-11-07T01:27:23.2906202Z [34mCLI[39m Using tsconfig: tsconfig.json
+2026-11-07T01:27:23.2907514Z [34mCLI[39m tsup v8.5.1
+2026-11-07T01:27:23.2908989Z [34mCLI[39m Using tsup config: /home/runner/work/agentic-mermaid/agentic-mermaid/tsup.browser-lazy.config.ts
+2026-11-07T01:27:23.2989926Z [34mCLI[39m Target: es2022
+2026-11-07T01:27:23.3005630Z [34mESM[39m Build start
+2026-11-07T01:27:23.7179286Z [34mDTS[39m Build start
+2026-11-07T01:27:29.9216255Z [32mESM[39m [1mdist/browser-lazy/index.js                                 [22m[32m3.38 KB[39m
+2026-11-07T01:27:29.9217350Z [32mESM[39m [1mdist/browser-lazy/chunks/eventmodeling-YKGRQIEA.js         [22m[32m18.96 KB[39m
+2026-11-07T01:27:29.9218444Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-ZM3BPJX2.js                 [22m[32m336.00 B[39m
+2026-11-07T01:27:29.9219369Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-XQVEHTJY.js                 [22m[32m1.63 KB[39m
+2026-11-07T01:27:29.9220606Z [32mESM[39m [1mdist/browser-lazy/chunks/packet-HR7NSIS7.js                [22m[32m8.62 KB[39m
+2026-11-07T01:27:29.9221614Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-3JUE7W6U.js                 [22m[32m1.40 KB[39m
+2026-11-07T01:27:29.9222616Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-VH67IAOF.js                 [22m[32m1.70 KB[39m
+2026-11-07T01:27:29.9223611Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-3NMBMFMZ.js                 [22m[32m1.83 KB[39m
+2026-11-07T01:27:29.9224572Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-LTXU3LD4.js                 [22m[32m4.19 KB[39m
+2026-11-07T01:27:29.9225574Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-AQLXQ5PP.js                 [22m[32m6.32 KB[39m
+2026-11-07T01:27:29.9226583Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-ENURZMSN.js                 [22m[32m455.00 B[39m
+2026-11-07T01:27:29.9227748Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-MN43UFJL.js                 [22m[32m11.22 KB[39m
+2026-11-07T01:27:29.9228785Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-NUF2ASHV.js                 [22m[32m427.00 B[39m
+2026-11-07T01:27:29.9229798Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-H2TRKI47.js                 [22m[32m563.57 KB[39m
+2026-11-07T01:27:29.9230781Z [32mESM[39m [1mdist/browser-lazy/chunks/c4-NXPH7KFK.js                    [22m[32m70.28 KB[39m
+2026-11-07T01:27:29.9231757Z [32mESM[39m [1mdist/browser-lazy/chunks/pie-MVR7K2EJ.js                   [22m[32m22.20 KB[39m
+2026-11-07T01:27:29.9232745Z [32mESM[39m [1mdist/browser-lazy/chunks/xychart-R2RCQBS2.js               [22m[32m52.90 KB[39m
+2026-11-07T01:27:29.9233804Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-GL3F3BPR.js                 [22m[32m1.58 KB[39m
+2026-11-07T01:27:29.9234815Z [32mESM[39m [1mdist/browser-lazy/chunks/quadrant-LFWY7UBV.js              [22m[32m28.02 KB[39m
+2026-11-07T01:27:29.9235821Z [32mESM[39m [1mdist/browser-lazy/chunks/mindmap-RSNPW23A.js               [22m[32m19.95 KB[39m
+2026-11-07T01:27:29.9236509Z [32mESM[39m [1mdist/browser-lazy/chunks/gitgraph-QXQYPTXP.js              [22m[32m26.88 KB[39m
+2026-11-07T01:27:29.9237122Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-LXLBHF23.js                 [22m[32m286.00 B[39m
+2026-11-07T01:27:29.9239910Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-VRR7TXIZ.js                 [22m[32m388.00 B[39m
+2026-11-07T01:27:29.9241048Z [32mESM[39m [1mdist/browser-lazy/chunks/radar-OSCNACDQ.js                 [22m[32m29.98 KB[39m
+2026-11-07T01:27:29.9242066Z [32mESM[39m [1mdist/browser-lazy/chunks/flowchart-RKSWBVZB.js             [22m[32m5.84 KB[39m
+2026-11-07T01:27:29.9243089Z [32mESM[39m [1mdist/browser-lazy/chunks/state-3XDGKAQ3.js                 [22m[32m7.77 KB[39m
+2026-11-07T01:27:29.9243709Z [32mESM[39m [1mdist/browser-lazy/chunks/sankey-YXURZEQJ.js                [22m[32m24.58 KB[39m
+2026-11-07T01:27:29.9244322Z [32mESM[39m [1mdist/browser-lazy/chunks/sequence-JQ7L7L43.js              [22m[32m7.15 KB[39m
+2026-11-07T01:27:29.9244977Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-OVJAOK3V.js                 [22m[32m11.71 KB[39m
+2026-11-07T01:27:29.9245809Z [32mESM[39m [1mdist/browser-lazy/chunks/gantt-LFILUQMQ.js                 [22m[32m47.75 KB[39m
+2026-11-07T01:27:29.9246440Z [32mESM[39m [1mdist/browser-lazy/chunks/timeline-T7RXNUMA.js              [22m[32m21.29 KB[39m
+2026-11-07T01:27:29.9247041Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-NUZXDVFO.js                 [22m[32m57.18 KB[39m
+2026-11-07T01:27:29.9247830Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-63UHSOIW.js                 [22m[32m897.00 B[39m
+2026-11-07T01:27:29.9248819Z [32mESM[39m [1mdist/browser-lazy/chunks/class-RJUOC3SD.js                 [22m[32m114.73 KB[39m
+2026-11-07T01:27:29.9249425Z [32mESM[39m [1mdist/browser-lazy/chunks/journey-U76FUUZI.js               [22m[32m33.33 KB[39m
+2026-11-07T01:27:29.9250032Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-WCFADUBC.js                 [22m[32m267.00 B[39m
+2026-11-07T01:27:29.9250810Z [32mESM[39m [1mdist/browser-lazy/chunks/er-32NQRWDY.js                    [22m[32m82.41 KB[39m
+2026-11-07T01:27:29.9251413Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-Y35JLCCQ.js                 [22m[32m8.00 KB[39m
+2026-11-07T01:27:29.9252019Z [32mESM[39m [1mdist/browser-lazy/chunks/architecture-S3J7LLCM.js          [22m[32m56.57 KB[39m
+2026-11-07T01:27:29.9252616Z [32mESM[39m [1mdist/browser-lazy/chunks/kanban-LRI35OGP.js                [22m[32m14.98 KB[39m
+2026-11-07T01:27:29.9253224Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-MA644WO4.js                 [22m[32m112.42 KB[39m
+2026-11-07T01:27:29.9253828Z [32mESM[39m [1mdist/browser-lazy/chunks/forest-implementation-CXGGZZFN.js [22m[32m4.18 KB[39m
+2026-11-07T01:27:29.9254473Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-2ZIHAQE3.js                 [22m[32m20.69 KB[39m
+2026-11-07T01:27:29.9255076Z [32mESM[39m [1mdist/browser-lazy/chunks/requirement-IBCXQOXM.js           [22m[32m27.34 KB[39m
+2026-11-07T01:27:29.9255683Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-67FGE3VS.js                 [22m[32m2.50 KB[39m
+2026-11-07T01:27:29.9256316Z [32mESM[39m [1mdist/browser-lazy/chunks/agentic-producer-core-OKHFMDZ2.js [22m[32m143.99 KB[39m
+2026-11-07T01:27:29.9256932Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-U6OMMFDP.js                 [22m[32m8.38 KB[39m
+2026-11-07T01:27:29.9257912Z [32mESM[39m [1mdist/browser-lazy/chunks/treemap-UPSQ3FTB.js               [22m[32m17.64 KB[39m
+2026-11-07T01:27:29.9258912Z [32mESM[39m [1mdist/browser-lazy/chunks/ishikawa-VFDIIFXT.js              [22m[32m9.41 KB[39m
+2026-11-07T01:27:29.9259808Z [32mESM[39m [1mdist/browser-lazy/chunks/block-LSVSZISR.js                 [22m[32m33.95 KB[39m
+2026-11-07T01:27:29.9260416Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-LGDBREFX.js                 [22m[32m897.00 B[39m
+2026-11-07T01:27:29.9261013Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-AQTMJ75X.js                 [22m[32m2.90 KB[39m
+2026-11-07T01:27:29.9261614Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-WPSRNXBW.js                 [22m[32m128.91 KB[39m
+2026-11-07T01:27:29.9262222Z [32mESM[39m [1mdist/browser-lazy/chunks/decode-ETCD3YIS.js                [22m[32m39.57 KB[39m
+2026-11-07T01:27:29.9262840Z [32mESM[39m [1mdist/browser-lazy/chunks/mermaid-yaml-runtime-KGZ4MN6S.js  [22m[32m97.74 KB[39m
+2026-11-07T01:27:29.9263443Z [32mESM[39m [1mdist/browser-lazy/chunks/render-core-GFAOK6AS.js           [22m[32m178.00 B[39m
+2026-11-07T01:27:29.9264044Z [32mESM[39m [1mdist/browser-lazy/chunks/builtin-backends-YTLTYU46.js      [22m[32m38.82 KB[39m
+2026-11-07T01:27:29.9264631Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-F3JD6MBO.js                 [22m[32m7.50 KB[39m
+2026-11-07T01:27:29.9265218Z [32mESM[39m [1mdist/browser-lazy/chunks/zenuml-QBIZE2UC.js                [22m[32m22.45 KB[39m
+2026-11-07T01:27:29.9265828Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-FH4GIV56.js                 [22m[32m3.13 KB[39m
+2026-11-07T01:27:29.9266536Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-E44Y7TOI.js                 [22m[32m639.00 B[39m
+2026-11-07T01:27:29.9267408Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-T6FR3HPP.js                 [22m[32m2.04 KB[39m
+2026-11-07T01:27:29.9268660Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-CXS4M27B.js                 [22m[32m68.12 KB[39m
+2026-11-07T01:27:29.9269683Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-KFTWD66Q.js                 [22m[32m428.00 B[39m
+2026-11-07T01:27:29.9270723Z [32mESM[39m [1mdist/browser-lazy/chunks/chunk-MXU3UEEB.js                 [22m[32m770.00 B[39m
+2026-11-07T01:27:29.9271812Z [32mESM[39m [1mdist/browser-lazy/chunks/elk.bundled-EVFSQREZ.js           [22m[32m1.38 MB[39m
+2026-11-07T01:27:29.9272832Z [32mESM[39m ⚡️ Build success in 6625ms
+2026-11-07T01:27:35.6977076Z [32mDTS[39m ⚡️ Build success in 12051ms
+2026-11-07T01:27:35.6978563Z [32mDTS[39m [1mdist/browser-lazy/index.d.ts [22m[32m48.98 KB[39m
+2026-11-07T01:27:35.8238316Z $ tsup --config tsup.zenuml.config.ts
+2026-11-07T01:27:36.1248465Z [34mCLI[39m Building entry: {"zenuml":"src/zenuml/index.ts"}
+2026-11-07T01:27:36.1259272Z [34mCLI[39m Using tsconfig: tsconfig.json
+2026-11-07T01:27:36.1259727Z [34mCLI[39m Building entry: {"zenuml-frame":"src/zenuml/frame.ts"}
+2026-11-07T01:27:36.1260116Z [34mCLI[39m Using tsconfig: tsconfig.json
+2026-11-07T01:27:36.1260384Z [34mCLI[39m tsup v8.5.1
+2026-11-07T01:27:36.1260899Z [34mCLI[39m Using tsup config: /home/runner/work/agentic-mermaid/agentic-mermaid/tsup.zenuml.config.ts
+2026-11-07T01:27:36.1261339Z [34mCLI[39m tsup v8.5.1
+2026-11-07T01:27:36.1261831Z [34mCLI[39m Using tsup config: /home/runner/work/agentic-mermaid/agentic-mermaid/tsup.zenuml.config.ts
+2026-11-07T01:27:36.1285949Z [34mCLI[39m Target: es2022
+2026-11-07T01:27:36.1297182Z [34mESM[39m Build start
+2026-11-07T01:27:36.1332530Z [34mCLI[39m Target: es2022
+2026-11-07T01:27:36.1333313Z [34mIIFE[39m Build start
+2026-11-07T01:27:36.4539153Z [32mIIFE[39m [1mdist/zenuml-frame.global.js [22m[32m3.31 MB[39m
+2026-11-07T01:27:36.4561334Z [32mIIFE[39m ⚡️ Build success in 320ms
+2026-11-07T01:27:36.9448572Z [32mESM[39m [1mdist/zenuml.js                                      [22m[32m6.57 KB[39m
+2026-11-07T01:27:36.9449542Z [32mESM[39m [1mdist/zenuml/chunks/decode-VGDWCE4I.js               [22m[32m39.57 KB[39m
+2026-11-07T01:27:36.9450529Z [32mESM[39m [1mdist/zenuml/chunks/builtin-backends-U47JOFN4.js     [22m[32m38.85 KB[39m
+2026-11-07T01:27:36.9451495Z [32mESM[39m [1mdist/zenuml/chunks/appearance-NP2BBKON.js           [22m[32m1.29 KB[39m
+2026-11-07T01:27:36.9452207Z [32mESM[39m [1mdist/zenuml/chunks/zenuml-CKHSRIJD.js               [22m[32m76.68 KB[39m
+2026-11-07T01:27:36.9452772Z [32mESM[39m [1mdist/zenuml/chunks/chunk-UVI3ZZDA.js                [22m[32m137.95 KB[39m
+2026-11-07T01:27:36.9453412Z [32mESM[39m [1mdist/zenuml/chunks/chunk-LVHWIWIJ.js                [22m[32m199.00 B[39m
+2026-11-07T01:27:36.9454007Z [32mESM[39m [1mdist/zenuml/chunks/render-core-NOGXWEWO.js          [22m[32m204.00 B[39m
+2026-11-07T01:27:36.9458745Z [32mESM[39m [1mdist/zenuml/chunks/chunk-4COOKLIY.js                [22m[32m119.07 KB[39m
+2026-11-07T01:27:36.9459492Z [32mESM[39m [1mdist/zenuml/chunks/chunk-5VOBKSCX.js                [22m[32m297.85 KB[39m
+2026-11-07T01:27:36.9460099Z [32mESM[39m [1mdist/zenuml/chunks/mermaid-yaml-runtime-L6IYDXSV.js [22m[32m97.74 KB[39m
+2026-11-07T01:27:36.9460676Z [32mESM[39m ⚡️ Build success in 815ms
+2026-11-07T01:27:42.9814643Z website/build: 16/36 warning pages carry a build-time-verified firing demo
+2026-11-07T01:27:43.4659905Z website/build: wrote 414 files to website/public
+2026-11-07T01:27:43.5278226Z ##[group]Run mkdir -p skill-evals/private
+2026-11-07T01:27:43.5278554Z [36;1mmkdir -p skill-evals/private[0m
+2026-11-07T01:27:43.5278859Z [36;1mprobe=$(mktemp -d skill-evals/private/ci-pack-exclusion-XXXXXX)[0m
+2026-11-07T01:27:43.5279185Z [36;1mtrap 'rm -rf "$probe"' EXIT[0m
+2026-11-07T01:27:43.5279447Z [36;1mprintf 'must never ship\n' > "$probe/sentinel.txt"[0m
+2026-11-07T01:27:43.5279855Z [36;1mbun run scripts/ci/verify-publish-package.ts --pack-destination ci-release-artifact[0m
+2026-11-07T01:27:43.5324185Z shell: /usr/bin/bash -e {0}
+2026-11-07T01:27:43.5324399Z ##[endgroup]
+2026-11-07T01:27:44.9917989Z publish package verified: 241 exact files; package.tgz; sha256 2d5d8b62fb141084334adb8d0000f8ed511c6887c55aee4f0dd24c627a2ebd22
+2026-11-07T01:27:45.0000662Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+2026-11-07T01:27:45.0000999Z with:
+2026-11-07T01:27:45.0001189Z   name: portable-test-artifacts
+2026-11-07T01:27:45.0001495Z   path: dist/
+website/public/
+website/src/generated/
+ci-editor-metafile.json
+
+2026-11-07T01:27:45.0001813Z   include-hidden-files: true
+2026-11-07T01:27:45.0002012Z   retention-days: 7
+2026-11-07T01:27:45.0002354Z   if-no-files-found: error
+2026-11-07T01:27:45.0002549Z   compression-level: 6
+2026-11-07T01:27:45.0002733Z   overwrite: false
+2026-11-07T01:27:45.0002898Z   archive: true
+2026-11-07T01:27:45.0003063Z ##[endgroup]
+2026-11-07T01:27:45.2057205Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2026-11-07T01:27:45.2059522Z The least common ancestor is /home/runner/work/agentic-mermaid/agentic-mermaid. This will be the root directory of the artifact
+2026-11-07T01:27:45.2060392Z With the provided path, there will be 581 files uploaded
+2026-11-07T01:27:45.2063481Z Artifact name is valid!
+2026-11-07T01:27:45.2064184Z Root directory input is valid!
+2026-11-07T01:27:45.5918599Z Uploading artifact: portable-test-artifacts.zip
+2026-11-07T01:27:45.5940411Z Beginning upload of artifact content to blob storage
+2026-11-07T01:27:47.3754667Z Uploaded bytes 8388608
+2026-11-07T01:27:48.0893319Z Uploaded bytes 16777216
+2026-11-07T01:27:48.2932992Z Uploaded bytes 22006551
+2026-11-07T01:27:48.3640023Z Finished uploading artifact content to blob storage!
+2026-11-07T01:27:48.3645207Z SHA256 digest of uploaded artifact is 31225836cb5d256426a9bb383ed7f55251abf19838ea7412a27a0961e5fc5ea2
+2026-11-07T01:27:48.3646747Z Finalizing artifact upload
+2026-11-07T01:27:48.9161592Z Artifact portable-test-artifacts successfully finalized. Artifact ID 13554696291
+2026-11-07T01:27:48.9162326Z Artifact portable-test-artifacts has been successfully uploaded! Final size is 22006551 bytes. Artifact ID is 13554696291
+2026-11-07T01:27:48.9167417Z Artifact download URL: https://github.com/adewale/agentic-mermaid/actions/runs/42324034140/artifacts/13554696291
+2026-11-07T01:27:48.9343637Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+2026-11-07T01:27:48.9343976Z with:
+2026-11-07T01:27:48.9344155Z   name: verified-test-package
+2026-11-07T01:27:48.9344382Z   path: ci-release-artifact/
+2026-11-07T01:27:48.9344581Z   retention-days: 7
+2026-11-07T01:27:48.9344764Z   if-no-files-found: error
+2026-11-07T01:27:48.9344978Z   compression-level: 6
+2026-11-07T01:27:48.9345164Z   overwrite: false
+2026-11-07T01:27:48.9345344Z   include-hidden-files: false
+2026-11-07T01:27:48.9345539Z   archive: true
+2026-11-07T01:27:48.9345712Z ##[endgroup]
+2026-11-07T01:27:49.0537836Z With the provided path, there will be 3 files uploaded
+2026-11-07T01:27:49.0539393Z Artifact name is valid!
+2026-11-07T01:27:49.0539790Z Root directory input is valid!
+2026-11-07T01:27:49.4197971Z Uploading artifact: verified-test-package.zip
+2026-11-07T01:27:49.4227912Z Beginning upload of artifact content to blob storage
+2026-11-07T01:27:50.4790593Z Uploaded bytes 7555891
+2026-11-07T01:27:50.5486705Z Finished uploading artifact content to blob storage!
+2026-11-07T01:27:50.5488217Z SHA256 digest of uploaded artifact is b332fa97374ff7679f46eebeea1b054d4f176fbfaf3137ddfa73942d026c065c
+2026-11-07T01:27:50.5489168Z Finalizing artifact upload
+2026-11-07T01:27:51.1179551Z Artifact verified-test-package successfully finalized. Artifact ID 13554850944
+2026-11-07T01:27:51.1180350Z Artifact verified-test-package has been successfully uploaded! Final size is 7555891 bytes. Artifact ID is 13554850944
+2026-11-07T01:27:51.1183039Z Artifact download URL: https://github.com/adewale/agentic-mermaid/actions/runs/42324034140/artifacts/13554850944
+2026-11-07T01:27:51.1356839Z Post job cleanup.
+2026-11-07T01:27:51.2405943Z Post job cleanup.
+2026-11-07T01:27:51.3848635Z Post job cleanup.
+2026-11-07T01:27:51.4556606Z [command]/usr/bin/git version
+2026-11-07T01:27:51.4598559Z git version 2.56.0
+2026-11-07T01:27:51.4625778Z Temporarily overriding HOME='/home/runner/work/_temp/1e6e436b-5105-4478-8e74-b3f8ea1ebb7d' before making global git config changes
+2026-11-07T01:27:51.4626942Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-07T01:27:51.4629626Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/agentic-mermaid/agentic-mermaid
+2026-11-07T01:27:51.4660370Z Removing SSH command configuration
+2026-11-07T01:27:51.4665574Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-07T01:27:51.4699849Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-07T01:27:51.4972736Z Removing HTTP extra header
+2026-11-07T01:27:51.4977866Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-07T01:27:51.5012356Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-07T01:27:51.5270523Z Removing includeIf entries pointing to credentials config files
+2026-11-07T01:27:51.5276714Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-07T01:27:51.5301393Z includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git.path
+2026-11-07T01:27:51.5302260Z includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path
+2026-11-07T01:27:51.5302703Z includeif.gitdir:/github/workspace/.git.path
+2026-11-07T01:27:51.5303080Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-07T01:27:51.5308290Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git.path
+2026-11-07T01:27:51.5328305Z /home/runner/work/_temp/git-credentials-3d14dc44-33c0-47f1-a1c8-e24a5d833a68.config
+2026-11-07T01:27:51.5336011Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-3d14dc44\-33c0\-47f1\-a1c8\-e24a5d833a68\.config
+2026-11-07T01:27:51.5373411Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path
+2026-11-07T01:27:51.5393491Z /home/runner/work/_temp/git-credentials-3d14dc44-33c0-47f1-a1c8-e24a5d833a68.config
+2026-11-07T01:27:51.5400997Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-3d14dc44\-33c0\-47f1\-a1c8\-e24a5d833a68\.config
+2026-11-07T01:27:51.5429271Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-07T01:27:51.5448407Z /github/runner_temp/git-credentials-3d14dc44-33c0-47f1-a1c8-e24a5d833a68.config
+2026-11-07T01:27:51.5453964Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-3d14dc44\-33c0\-47f1\-a1c8\-e24a5d833a68\.config
+2026-11-07T01:27:51.5481356Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-07T01:27:51.5500680Z /github/runner_temp/git-credentials-3d14dc44-33c0-47f1-a1c8-e24a5d833a68.config
+2026-11-07T01:27:51.5506077Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-3d14dc44\-33c0\-47f1\-a1c8\-e24a5d833a68\.config
+2026-11-07T01:27:51.5534488Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-07T01:27:51.5768541Z Removing credentials config '/home/runner/work/_temp/git-credentials-3d14dc44-33c0-47f1-a1c8-e24a5d833a68.config'
+2026-11-07T01:27:51.5943495Z Cleaning up orphan processes
+
