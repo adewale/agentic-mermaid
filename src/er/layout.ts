@@ -1634,8 +1634,8 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
   for (const rel of relationships) if (!erSimpleRoute(rel.points, work)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
   // Strict body/header interiors apply to every raw segment, including an
   // incident card revisited later in a route. Legitimate outline contacts are
-  // on the open boundary and therefore do not enter these rectangles. The
-  // painted obstacle index is conservative; keep the exact interior predicate.
+  // on the open boundary and therefore do not enter these rectangles. Reuse
+  // the conservative painted-obstacle index, then retain the exact predicate.
   for (const rel of relationships) for (let i = 1; i < rel.points.length; i++) {
     const a = rel.points[i - 1]!, b = rel.points[i]!
     charge()
@@ -1670,8 +1670,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
       if (obstacle.border) continue
       const box = subjects.get(obstacle.id)!
       if (obstacle.group && (box as PositionedErDiagram['groups'][number]).headerHeight <= 0) continue
-      const authored = obstacle.group ? NaN : Number.parseFloat((box as PositionedErEntity).inlineStyle?.['stroke-width'] ?? '')
-      const half = obstacle.group ? .75 : (Number.isFinite(authored) && authored > 0 ? authored : style.nodeLineWidth) / 2
+      const half = obstacle.group ? .75 : erEntityStrokeHalf(box as PositionedErEntity, style)
       if (intersects(shaft.box, obstacle.box) && !terminalBorderContact(shaft, box.id, box, half, obstacle.group ? 6 : Math.min(style.cornerRadius ?? 0, box.width / 2, box.height / 2), !!obstacle.group)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
     }
   }

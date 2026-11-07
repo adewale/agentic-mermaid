@@ -188,7 +188,7 @@ describe('ER layout backends', () => {
     { backend: 'elk', direction: 'LR', size: 208 },
     { backend: 'agentic', direction: 'LR', size: 208 },
     ...['TB', 'BT', 'RL'].map(direction => ({ backend: 'elk', direction, size: 208 })),
-    ...['TB', 'LR'].map(direction => ({ backend: 'elk', direction, size: 256 })),
+    ...['elk', 'agentic'].flatMap(backend => ['LR', 'TB'].map(direction => ({ backend, direction, size: 256 }))),
   ])('finishes a $size-entity chain within the shared geometry allowance with $backend in $direction', ({ backend, direction, size }) => {
     const source = `erDiagram\ndirection ${direction}\n` + Array.from({ length: size - 1 }, (_, i) => `N${i} ||--o{ N${i + 1} : owns`).join('\n')
     const options = { graphLayout: { backend: backend as 'elk' | 'agentic', fallback: 'none' as const } }
