@@ -222,6 +222,18 @@ assets/ icon(folder)
   { id: 'roadmap-repair-agentflow-roles', title: 'AgentFlow: role and compound styling control', source: readFileSync(join(ROOT, 'eval/layout-compare/fixtures/agentflow-native.mmd'), 'utf8'), renderOptions: { style: 'risograph' }, pngScale: 1, captureLayout: true, cue: 'Preservation control: publishing tasks, tool/action silhouettes, connector and global document remain recognizable under the same risograph style. This compound graph intentionally retains ELK; native forest timing is qualified separately and is not inferred from this image.' },
 ]
 const fixtures: Fixture[] = [
+  {
+    id: 'class-ordered-style-membership',
+    title: 'Class retains paint from multiple authored style assignments',
+    source: 'classDiagram\nclassDef pink fill:#fce7f3,stroke:#be185d\nclassDef bold color:#166534\nclass Account:::pink\ncssClass Account bold',
+    cue: 'Inspect the pale pink Account fill and dark pink outline from pink alongside the green text from bold. The earlier implementation discarded pink when reading the later assignment. Membership, checked edits and both layout engines have independent owning regressions.',
+  },
+  {
+    id: 'flowchart-repeated-style-definition',
+    title: 'Repeated graph style definitions retain earlier paint',
+    source: 'flowchart LR\nclassDef service fill:#dbeafe,stroke:#1d4ed8\nclassDef service color:#166534\nA[Account]:::service --> B[Ledger]:::service',
+    cue: 'Inspect both blue fills and outlines together with green text. Reading the later service definition previously discarded its fill and stroke. The shared parser repair also covers AgentFlow and Swimlane; this image shows the Flowchart witness.',
+  },
   ...nativeReadabilityRepairs,
   ...nativeFamilyFixtures,
   {
