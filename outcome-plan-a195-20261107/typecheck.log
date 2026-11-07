@@ -1,0 +1,4 @@
+$ bun run typecheck:core && bun run typecheck:repo
+$ tsc --noEmit -p tsconfig.json
+$ bun eval/trident/prepare.ts && tsc --noEmit -p tsconfig.repo.json
+/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/trident

@@ -1,0 +1,36 @@
+{
+  "source": "00938cc04693fe5da7a02a5d226406c3c2848251",
+  "ready": false,
+  "workflow_runs": [
+    {
+      "id": 42418931638,
+      "name": "Ruff",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 3314,
+      "jobs_url": "https://api.github.com/repos/adewale/agentic-mermaid/actions/runs/42418931638/jobs",
+      "logs_url": "https://api.github.com/repos/adewale/agentic-mermaid/actions/runs/42418931638/logs",
+      "workflow_id": 320800112
+    },
+    {
+      "id": 42418931231,
+      "name": "Action pinning",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 193,
+      "jobs_url": "https://api.github.com/repos/adewale/agentic-mermaid/actions/runs/42418931231/jobs",
+      "logs_url": "https://api.github.com/repos/adewale/agentic-mermaid/actions/runs/42418931231/logs",
+      "workflow_id": 408103852
+    },
+    {
+      "id": 42418931335,
+      "name": "CI",
+      "status": "queued",
+      "conclusion": null,
+      "run_number": 3090,
+      "jobs_url": "https://api.github.com/repos/adewale/agentic-mermaid/actions/runs/42418931335/jobs",
+      "logs_url": "https://api.github.com/repos/adewale/agentic-mermaid/actions/runs/42418931335/logs",
+      "workflow_id": 246384063
+    }
+  ]
+}

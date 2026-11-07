@@ -1,0 +1,280 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/endpoint-marker-contact.test.ts:
+(pass) family-owned endpoint and visible-marker contact (#258) > Flowchart agentic/scene retains 1px circle start/end marks on the complete cylinder side in LR [1780.30ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Flowchart elk/scene retains 1px circle start/end marks on the complete cylinder side in LR [1089.74ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Flowchart agentic/scene retains 1px cross start/end marks on the complete cylinder side in LR [828.28ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Flowchart elk/scene retains 1px cross start/end marks on the complete cylinder side in LR [865.29ms]
+143 |       const attempt = terminate()
+144 |       failure ??= attempt.then(() => {
+145 |         // The owner already failed. Do not resume its abandoned async body.
+146 |         if (settled || ownerEnded) return
+147 |         settled = true
+148 |         reject(new Error(failureDiagnostic()))
+                         ^
+error: /tmp/pr449-tools-20261106/package/bin/bun --eval 
+        import { renderMermaidSVGWithReceipt } from './src/index.ts'
+        import { withRenderStageObserver } from './src/render-stages.ts'
+        const input = await Bun.stdin.text(), stages = []
+        const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(input, {"embedFontImport":false,"seed":7,"style":{"roles":{"edge":{"strokeColor":"#ff0000","lineWidth":1}}},"graphLayout":{"backend":"agentic","fallback":"none"}}))
+        console.log(JSON.stringify({ rendered, stages }))
+       [pid=78296, initialGroupLeader=78296, groupSignal=requested-for-live-leader, status=null, signal=SIGKILL, directExit=true, pipesClosed=true, cleanupConfirmed=true, ownerEnded=false]: stdin failed: EPERM: operation not permitted, write
+stdout:
+
+stderr:
+
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/helpers/test-child.ts:148:20)
+(fail) family-owned endpoint and visible-marker contact (#258) > Flowchart agentic/native retains 10px circle start with end arrow marks on the complete cylinder side in LR [16.61ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Flowchart elk/scene retains 10px circle end marks on the complete cylinder side in LR [493.97ms]
+143 |       const attempt = terminate()
+144 |       failure ??= attempt.then(() => {
+145 |         // The owner already failed. Do not resume its abandoned async body.
+146 |         if (settled || ownerEnded) return
+147 |         settled = true
+148 |         reject(new Error(failureDiagnostic()))
+                         ^
+error: /tmp/pr449-tools-20261106/package/bin/bun --eval 
+        import { renderMermaidSVGWithReceipt } from './src/index.ts'
+        import { withRenderStageObserver } from './src/render-stages.ts'
+        const input = await Bun.stdin.text(), stages = []
+        const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(input, {"embedFontImport":false,"seed":7,"style":{"roles":{"edge":{"strokeColor":"#ff0000","lineWidth":1}}},"graphLayout":{"backend":"agentic","fallback":"none"}}))
+        console.log(JSON.stringify({ rendered, stages }))
+       [pid=78297, initialGroupLeader=78297, groupSignal=requested-for-live-leader, status=null, signal=SIGKILL, directExit=true, pipesClosed=true, cleanupConfirmed=true, ownerEnded=false]: stdin failed: EPERM: operation not permitted, write
+stdout:
+
+stderr:
+
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/helpers/test-child.ts:148:20)
+(fail) family-owned endpoint and visible-marker contact (#258) > Flowchart agentic/native retains 10px circle end named e1 noCurve marks on the complete cylinder side in LR [6.20ms]
+143 |       const attempt = terminate()
+144 |       failure ??= attempt.then(() => {
+145 |         // The owner already failed. Do not resume its abandoned async body.
+146 |         if (settled || ownerEnded) return
+147 |         settled = true
+148 |         reject(new Error(failureDiagnostic()))
+                         ^
+error: /tmp/pr449-tools-20261106/package/bin/bun --eval 
+        import { renderMermaidSVGWithReceipt } from './src/index.ts'
+        import { withRenderStageObserver } from './src/render-stages.ts'
+        const input = await Bun.stdin.text(), stages = []
+        const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(input, {"embedFontImport":false,"seed":7,"style":{"roles":{"edge":{"strokeColor":"#ff0000","lineWidth":1}}},"graphLayout":{"backend":"agentic","fallback":"none"}}))
+        console.log(JSON.stringify({ rendered, stages }))
+       [pid=78298, initialGroupLeader=78298, groupSignal=requested-for-live-leader, status=null, signal=SIGKILL, directExit=true, pipesClosed=true, cleanupConfirmed=true, ownerEnded=false]: stdin failed: EPERM: operation not permitted, write
+stdout:
+
+stderr:
+
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/helpers/test-child.ts:148:20)
+(fail) family-owned endpoint and visible-marker contact (#258) > Flowchart agentic/native retains 10px circle end named e1 linear marks on the complete cylinder side in LR [1.53ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Flowchart elk/scene retains 10px circle end named e1 noCurve marks on the complete cylinder side in LR [427.15ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Flowchart elk/scene retains 10px circle end named e1 linear marks on the complete cylinder side in LR [452.84ms]
+143 |       const attempt = terminate()
+144 |       failure ??= attempt.then(() => {
+145 |         // The owner already failed. Do not resume its abandoned async body.
+146 |         if (settled || ownerEnded) return
+147 |         settled = true
+148 |         reject(new Error(failureDiagnostic()))
+                         ^
+error: /tmp/pr449-tools-20261106/package/bin/bun --eval 
+        import { renderMermaidSVGWithReceipt } from './src/index.ts'
+        import { withRenderStageObserver } from './src/render-stages.ts'
+        const input = await Bun.stdin.text(), stages = []
+        const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(input, {"embedFontImport":false,"seed":7,"style":{"roles":{"edge":{"strokeColor":"#ff0000","lineWidth":1}}},"graphLayout":{"backend":"agentic","fallback":"none"}}))
+        console.log(JSON.stringify({ rendered, stages }))
+       [pid=78299, initialGroupLeader=78299, groupSignal=requested-for-live-leader, status=null, signal=SIGKILL, directExit=true, pipesClosed=true, cleanupConfirmed=true, ownerEnded=false]: stdin failed: EPERM: operation not permitted, write
+stdout:
+
+stderr:
+
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/helpers/test-child.ts:148:20)
+(fail) family-owned endpoint and visible-marker contact (#258) > Flowchart agentic/native retains 10px circle end named e1 step fan marks on the complete cylinder side in LR [2.75ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Flowchart elk/scene retains 10px circle end named e1 step fan marks on the complete cylinder side in LR [674.24ms]
+143 |       const attempt = terminate()
+144 |       failure ??= attempt.then(() => {
+145 |         // The owner already failed. Do not resume its abandoned async body.
+146 |         if (settled || ownerEnded) return
+147 |         settled = true
+148 |         reject(new Error(failureDiagnostic()))
+                         ^
+error: /tmp/pr449-tools-20261106/package/bin/bun --eval 
+        import { renderMermaidSVGWithReceipt } from './src/index.ts'
+        import { withRenderStageObserver } from './src/render-stages.ts'
+        const input = await Bun.stdin.text(), stages = []
+        const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(input, {"embedFontImport":false,"seed":7,"style":{"roles":{"edge":{"strokeColor":"#ff0000","lineWidth":1}}},"graphLayout":{"backend":"agentic","fallback":"none"}}))
+        console.log(JSON.stringify({ rendered, stages }))
+       [pid=78300, initialGroupLeader=78300, groupSignal=requested-for-live-leader, status=null, signal=SIGKILL, directExit=true, pipesClosed=true, cleanupConfirmed=true, ownerEnded=false]: stdin failed: EPERM: operation not permitted, write
+stdout:
+
+stderr:
+
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/helpers/test-child.ts:148:20)
+(fail) family-owned endpoint and visible-marker contact (#258) > Flowchart agentic/native retains 10px circle end named e1 noCurve fan marks on the complete cylinder side in LR [5.20ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Flowchart elk/scene retains 10px circle end named e1 noCurve fan marks on the complete cylinder side in LR [650.10ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Flowchart agentic/scene retains 10px circle start/end marks on the complete cylinder side in RL [872.08ms]
+143 |       const attempt = terminate()
+144 |       failure ??= attempt.then(() => {
+145 |         // The owner already failed. Do not resume its abandoned async body.
+146 |         if (settled || ownerEnded) return
+147 |         settled = true
+148 |         reject(new Error(failureDiagnostic()))
+                         ^
+error: /tmp/pr449-tools-20261106/package/bin/bun --eval 
+        import { renderMermaidSVGWithReceipt } from './src/index.ts'
+        import { withRenderStageObserver } from './src/render-stages.ts'
+        const input = await Bun.stdin.text(), stages = []
+        const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(input, {"embedFontImport":false,"seed":7,"style":{"roles":{"edge":{"strokeColor":"#ff0000","lineWidth":1}}},"graphLayout":{"backend":"elk","fallback":"none"}}))
+        console.log(JSON.stringify({ rendered, stages }))
+       [pid=78325, initialGroupLeader=78325, groupSignal=requested-for-live-leader, status=null, signal=SIGKILL, directExit=true, pipesClosed=true, cleanupConfirmed=true, ownerEnded=false]: stdin failed: EPERM: operation not permitted, write
+stdout:
+
+stderr:
+
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/helpers/test-child.ts:148:20)
+(fail) family-owned endpoint and visible-marker contact (#258) > Flowchart elk/native retains 10px circle start/end marks on the complete cylinder side in RL [2.70ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture R/L, 1.5px, default retains both contacts [67.71ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture R/L, 1.5px, hand-drawn retains both contacts [69.23ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture R/L, 3px, default retains both contacts [24.96ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture R/L, 3px, hand-drawn retains both contacts [12.95ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture L/R, 1.5px, default retains both contacts [10.74ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture L/R, 1.5px, hand-drawn retains both contacts [12.25ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture L/R, 3px, default retains both contacts [9.67ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture L/R, 3px, hand-drawn retains both contacts [11.68ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture B/T, 1.5px, default retains both contacts [21.76ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture B/T, 1.5px, hand-drawn retains both contacts [10.92ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture B/T, 3px, default retains both contacts [23.09ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture B/T, 3px, hand-drawn retains both contacts [15.96ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture T/B, 1.5px, default retains both contacts [14.11ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture T/B, 1.5px, hand-drawn retains both contacts [12.96ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture T/B, 3px, default retains both contacts [13.08ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture T/B, 3px, hand-drawn retains both contacts [14.17ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture retains the declared group or junction surface: group-frame:g [48.47ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture junction start R/L, default [45.16ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture junction start R/L, nested, aligned, titled, custom radius [44.65ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture junction end R/L, default [35.10ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture junction end R/L, nested, aligned, titled, custom radius [50.25ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture junction start L/R, default [39.79ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture junction start L/R, nested, aligned, titled, custom radius [36.06ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture junction end L/R, default [23.01ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture junction end L/R, nested, aligned, titled, custom radius [33.29ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture junction start B/T, default [34.58ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture junction start B/T, nested, aligned, titled, custom radius [60.12ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture junction end B/T, default [35.36ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture junction end B/T, nested, aligned, titled, custom radius [59.04ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture junction start T/B, default [27.35ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture junction start T/B, nested, aligned, titled, custom radius [25.77ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture junction end T/B, default [14.78ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture junction end T/B, nested, aligned, titled, custom radius [24.44ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture native-size red ink reaches both card faces at 1.5px [102.23ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Architecture native-size red ink reaches both card faces at 3px [103.67ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > a shaft reaching the card cannot mask a clipped arrowhead [95.65ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > large configured junctions reserve placement space rather than overlap their painted rings [19.41ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > large Architecture ring binds shaft and visible marker contacts to actual paint: default/none/R [22.83ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > large Architecture ring binds shaft and visible marker contacts to actual paint: default/none/L [10.57ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > large Architecture ring binds shaft and visible marker contacts to actual paint: default/none/T [19.28ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > large Architecture ring binds shaft and visible marker contacts to actual paint: default/none/B [11.41ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > large Architecture ring binds shaft and visible marker contacts to actual paint: elk/none/R [9.10ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > large Architecture ring binds shaft and visible marker contacts to actual paint: elk/none/L [12.27ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > large Architecture ring binds shaft and visible marker contacts to actual paint: elk/none/T [10.77ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > large Architecture ring binds shaft and visible marker contacts to actual paint: elk/none/B [12.53ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > large Architecture ring binds shaft and visible marker contacts to actual paint: agentic/none/R [33.65ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > large Architecture ring binds shaft and visible marker contacts to actual paint: agentic/none/L [8.19ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > large Architecture ring binds shaft and visible marker contacts to actual paint: agentic/none/T [8.01ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > large Architecture ring binds shaft and visible marker contacts to actual paint: agentic/none/B [8.59ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > large Architecture ring binds shaft and visible marker contacts to actual paint: agentic/elk/R [8.51ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > large Architecture ring binds shaft and visible marker contacts to actual paint: agentic/elk/L [8.01ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > large Architecture ring binds shaft and visible marker contacts to actual paint: agentic/elk/T [8.58ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > large Architecture ring binds shaft and visible marker contacts to actual paint: agentic/elk/B [11.09ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Journey's free axis overhang is not a node-contact failure: 1.5px/false [46.00ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Journey's free axis overhang is not a node-contact failure: 1.5px/true [30.66ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Journey's free axis overhang is not a node-contact failure: 3px/false [40.12ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Journey's free axis overhang is not a node-contact failure: 3px/true [34.50ms]
+
+src/__tests__/er-crowsfoot.test.ts:
+(pass) crow's-foot marker vocabulary (upstream reference) > agentic emits every endpoint piece inside its own relationship occurrence through Native and Scene: entity endpoints [601.73ms]
+(pass) crow's-foot marker vocabulary (upstream reference) > elk emits every endpoint piece inside its own relationship occurrence through Native and Scene: entity endpoints [557.31ms]
+(pass) crow's-foot marker vocabulary (upstream reference) > agentic emits every endpoint piece inside its own relationship occurrence through Native and Scene: repeated ancestor and descendant frame endpoints [492.47ms]
+(pass) crow's-foot marker vocabulary (upstream reference) > elk emits every endpoint piece inside its own relationship occurrence through Native and Scene: repeated ancestor and descendant frame endpoints [407.33ms]
+(pass) crow's-foot marker vocabulary (upstream reference) > agentic emits every endpoint piece inside its own relationship occurrence through Native and Scene: repeated inward frame contacts across unequal descendant incidence counts [2423.60ms]
+(pass) crow's-foot marker vocabulary (upstream reference) > elk emits every endpoint piece inside its own relationship occurrence through Native and Scene: repeated inward frame contacts across unequal descendant incidence counts [2721.72ms]
+(pass) crow's-foot marker vocabulary (upstream reference) > keeps delimiter-bearing endpoint tuples independent of unrelated relationship insertion [135.06ms]
+(pass) crow's-foot marker vocabulary (upstream reference) > the parent endpoint remains distinct through parsing, editing, writing and both renderers [73.60ms]
+(pass) crow's-foot marker vocabulary (upstream reference) > || (exactly one) draws two ticks, no circle [15.42ms]
+(pass) crow's-foot marker vocabulary (upstream reference) > |o (zero or one) draws exactly one tick + one circle [13.78ms]
+(pass) crow's-foot marker vocabulary (upstream reference) > }| (one or more) draws the crow's foot + one tick [10.81ms]
+(pass) crow's-foot marker vocabulary (upstream reference) > }o (zero or more) draws the crow's foot + circle, no tick [12.13ms]
+
+src/__tests__/er-label-reservations.test.ts:
+(pass) ER label reservations and foreign shafts > keeps legacy placement when the selected producer did not opt into the new policy [0.76ms]
+(pass) ER label reservations and foreign shafts > moves a label clear of an unrelated shaft among %s distant routes [0.74ms]
+(pass) ER label reservations and foreign shafts > moves a label clear of an unrelated shaft among %s distant routes [4.12ms]
+(pass) ER label reservations and foreign shafts > retains a clear producer reservation and ignores one left off a changed route [0.43ms]
+(pass) ER label reservations and foreign shafts > rejects a reserved label that covers a cardinality endpoint or a foreign shaft [0.47ms]
+(pass) ER label reservations and foreign shafts > uses exact interval subtraction when every center-out sample meets a foreign shaft [0.81ms]
+(pass) ER label reservations and foreign shafts > translates producer reservations with the route and title in TB [4.75ms]
+(pass) ER label reservations and foreign shafts > translates producer reservations with the route and title in BT [2.99ms]
+(pass) ER label reservations and foreign shafts > translates producer reservations with the route and title in LR [2.05ms]
+(pass) ER label reservations and foreign shafts > translates producer reservations with the route and title in RL [2.44ms]
+(pass) ER label reservations and foreign shafts > does not opt ELK into native label placement [15.35ms]
+(pass) ER label reservations and foreign shafts > shares final native label centers between projection and paint with edge width and bend radius [10.64ms]
+(pass) ER label reservations and foreign shafts > shares final native label centers between projection and paint with relationship role override [7.52ms]
+(pass) ER label reservations and foreign shafts > shares final native label centers between projection and paint with identifying category override [15.71ms]
+(pass) ER label reservations and foreign shafts > clears the forty-entity qualification workload without changing relationship semantics [83.05ms]
+
+src/__tests__/er-typed-segments.test.ts:
+(pass) typed ER styling and ordered opaque segments (B09) > preserves outer comments and unknown source around a neighboring entity edit [22.49ms]
+(pass) typed ER styling and ordered opaque segments (B09) > rejects an unclosed attribute block rather than silently discarding authored syntax [1.74ms]
+(pass) typed ER styling and ordered opaque segments (B09) > rejects an unknown attribute qualifier rather than silently discarding authored syntax [1.63ms]
+(pass) typed ER styling and ordered opaque segments (B09) > rejects punctuation where an attribute name belongs rather than silently discarding authored syntax [1.75ms]
+(pass) typed ER styling and ordered opaque segments (B09) > rejects a partly invalid style target list rather than silently discarding authored syntax [2.11ms]
+(pass) typed ER styling and ordered opaque segments (B09) > rejects a parent marker after the connector rather than silently discarding authored syntax [1.79ms]
+(pass) typed ER styling and ordered opaque segments (B09) > keeps attribute-block comments in lossless opaque source instead of relocating them [0.96ms]
+(pass) typed ER styling and ordered opaque segments (B09) > models classDef, class, style, and endpoint shorthand and renders their paint [47.96ms]
+(pass) typed ER styling and ordered opaque segments (B09) > paint mutations reject line breaks that would create entities [1.77ms]
+(pass) typed ER styling and ordered opaque segments (B09) > keeps typed subgraph boundaries and scoped direction ordered with inner ER statements [4.41ms]
+(pass) typed ER styling and ordered opaque segments (B09) > typed subgraph membership survives identity edits without stale source references [2.41ms]
+(pass) typed ER styling and ordered opaque segments (B09) > models root direction and exposes a typed direction mutation [1.70ms]
+
+src/__tests__/er-word-cardinality.test.ts:
+(pass) ER word-form relationship aliases (Mermaid 11.16.0) > both projections recognize every pinned cardinality alias on either side [43.00ms]
+(pass) ER word-form relationship aliases (Mermaid 11.16.0) > identifying and non-identifying words and glyphs retain meaning and endpoint identity [230.24ms]
+(pass) ER word-form relationship aliases (Mermaid 11.16.0) > the pinned Mermaid DB agrees about word-form cardinality and identification [117.60ms]
+(pass) ER word-form relationship aliases (Mermaid 11.16.0) > numeric 1 requires adjacency to a glyph operator, matching Mermaid lexer [5.20ms]
+(pass) ER word-form relationship aliases (Mermaid 11.16.0) > numeric right-hand entity IDs remain endpoints, not cardinality fragments [5.11ms]
+(pass) ER word-form relationship aliases (Mermaid 11.16.0) > multiword aliases and operators use Mermaid literal single-space lexemes [9.61ms]
+(pass) ER word-form relationship aliases (Mermaid 11.16.0) > a typed mutation keeps surrounding relationships and canonical cardinalities [2.18ms]
+(pass) ER word-form relationship aliases (Mermaid 11.16.0) > a word-form relationship renders one edge carrying both word cardinalities [24.46ms]
+
+src/__tests__/er-public-paint.test.ts:
+(pass) public ER Scene paint projection > keeps the complete supported paint surface on rectangles, paths, lines and badges [29.42ms]
+(pass) public ER Scene paint projection > keeps the complete supported paint surface on prepared name, type, key and comment text [15.77ms]
+(pass) public ER Scene paint projection > projects accepted public transforms on shape and text marks [8.58ms]
+(pass) public ER Scene paint projection > keeps caller-authored inert hooks on native shape and text marks [12.78ms]
+(pass) public ER Scene paint projection > continues to reject unsafe public paint before rendering [9.30ms]
+
+src/__tests__/er-direction-config.test.ts:
+(pass) er direction statement > parses direction into the diagram model [0.63ms]
+(pass) er direction statement > default stays left-right (B right of A) [9.50ms]
+(pass) er direction statement > TB puts B below A [9.93ms]
+(pass) er direction statement > RL puts B left of A [10.52ms]
+(pass) er direction statement > BT puts B above A [11.50ms]
+(pass) er direction statement > a direction-RL ER diagram renders end-to-end with the target left of the source [18.58ms]
+(pass) er spacing render options > layerSpacing widens the gap between layers [11.15ms]
+(pass) er spacing render options > nodeSpacing widens the gap between siblings [35.79ms]
+(pass) er config section — wire-or-warn > er.layoutDirection is wired (TB flows downward) [35.30ms]
+(pass) er config section — wire-or-warn > the direction statement wins over er.layoutDirection config [10.58ms]
+(pass) er config section — wire-or-warn > er.nodeSpacing/rankSpacing are wired into the rendered geometry [60.10ms]
+(pass) er config section — wire-or-warn > documented-but-unwired er config keys emit INEFFECTIVE_CONFIG [78.61ms]
+(pass) er config section — wire-or-warn > wired er config keys never warn [53.67ms]
+
+6 tests failed:
+(fail) family-owned endpoint and visible-marker contact (#258) > Flowchart agentic/native retains 10px circle start with end arrow marks on the complete cylinder side in LR [16.61ms]
+(fail) family-owned endpoint and visible-marker contact (#258) > Flowchart agentic/native retains 10px circle end named e1 noCurve marks on the complete cylinder side in LR [6.20ms]
+(fail) family-owned endpoint and visible-marker contact (#258) > Flowchart agentic/native retains 10px circle end named e1 linear marks on the complete cylinder side in LR [1.53ms]
+(fail) family-owned endpoint and visible-marker contact (#258) > Flowchart agentic/native retains 10px circle end named e1 step fan marks on the complete cylinder side in LR [2.75ms]
+(fail) family-owned endpoint and visible-marker contact (#258) > Flowchart agentic/native retains 10px circle end named e1 noCurve fan marks on the complete cylinder side in LR [5.20ms]
+(fail) family-owned endpoint and visible-marker contact (#258) > Flowchart elk/native retains 10px circle start/end marks on the complete cylinder side in RL [2.70ms]
+
+ 132 pass
+ 6 fail
+ 8896 expect() calls
+Ran 138 tests across 7 files. [19.42s]

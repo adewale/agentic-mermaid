@@ -1,0 +1,38 @@
+{
+  "scope": "Node24 source; ER208 BT Native; layout cache0, derived caches may be warm; one warmup then two repeats and edit; entire SVG and receipt consumed. After profile overlapped supplemental raster process. No causal timing, memory ratio or p95 estimate.",
+  "rows": [
+    {
+      "phase": "repeat1",
+      "beforeWallMs": 672.970973,
+      "afterWallMs": 595.7303089999996,
+      "beforeCpuMs": 1118.309,
+      "afterCpuMs": 1009.577,
+      "beforePeakRssKiB": 327596,
+      "afterPeakRssKiB": 319668,
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "phase": "repeat2",
+      "beforeWallMs": 609.185418,
+      "afterWallMs": 662.826712,
+      "beforeCpuMs": 962.782,
+      "afterCpuMs": 1137.225,
+      "beforePeakRssKiB": 327724,
+      "afterPeakRssKiB": 324392,
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "phase": "edit",
+      "beforeWallMs": 612.1611320000002,
+      "afterWallMs": 585.1707300000007,
+      "beforeCpuMs": 919.729,
+      "afterCpuMs": 1056.255,
+      "beforePeakRssKiB": 327724,
+      "afterPeakRssKiB": 328912,
+      "svgExact": true,
+      "receiptExact": true
+    }
+  ]
+}

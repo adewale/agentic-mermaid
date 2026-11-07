@@ -1,0 +1,15 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/endpoint-marker-contact.test.ts:
+(pass) family-owned endpoint and visible-marker contact (#258) > Flowchart agentic/native retains 10px circle start with end arrow marks on the complete cylinder side in LR [1830.61ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Flowchart agentic/native retains 10px circle end named e1 noCurve marks on the complete cylinder side in LR [1110.70ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Flowchart agentic/native retains 10px circle end named e1 linear marks on the complete cylinder side in LR [1190.14ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Flowchart agentic/native retains 10px circle end named e1 step fan marks on the complete cylinder side in LR [1528.50ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Flowchart agentic/native retains 10px circle end named e1 noCurve fan marks on the complete cylinder side in LR [1844.43ms]
+(pass) family-owned endpoint and visible-marker contact (#258) > Flowchart elk/native retains 10px circle start/end marks on the complete cylinder side in RL [3481.14ms]
+
+ 6 pass
+ 67 filtered out
+ 0 fail
+ 531 expect() calls
+Ran 6 tests across 1 file. [11.46s]

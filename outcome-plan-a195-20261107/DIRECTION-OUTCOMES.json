@@ -1,0 +1,98 @@
+[
+  {
+    "backend": "agentic",
+    "direction": "TB",
+    "before": "returned",
+    "after": "returned",
+    "proof": "passed",
+    "geometryWork": 343421,
+    "cap": 400000,
+    "viewport": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"220\" height=\"49045.00000000016\" viewBox=\"0 0 220 49045.00000000016\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" class=\"am-1c0rh5818ostls\">",
+    "previousSVGExact": true,
+    "traceSVGExactTrial": true
+  },
+  {
+    "backend": "agentic",
+    "direction": "BT",
+    "before": "refused",
+    "after": "returned",
+    "proof": "passed",
+    "geometryWork": 385344,
+    "cap": 400000,
+    "viewport": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"220\" height=\"49045.00000000016\" viewBox=\"0 0 220 49045.00000000016\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" class=\"am-1kxx96j1qdgnpb\">",
+    "previousSVGExact": null,
+    "traceSVGExactTrial": true
+  },
+  {
+    "backend": "agentic",
+    "direction": "LR",
+    "before": "returned",
+    "after": "returned",
+    "proof": "passed",
+    "geometryWork": 343421,
+    "cap": 400000,
+    "viewport": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"73684.98999999985\" height=\"136\" viewBox=\"0 0 73684.98999999985 136\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" class=\"am-16qd5ss02te9d8\">",
+    "previousSVGExact": true,
+    "traceSVGExactTrial": true
+  },
+  {
+    "backend": "agentic",
+    "direction": "RL",
+    "before": "refused",
+    "after": "returned",
+    "proof": "passed",
+    "geometryWork": 385344,
+    "cap": 400000,
+    "viewport": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"73684.98999999985\" height=\"136\" viewBox=\"0 0 73684.98999999985 136\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" class=\"am-0q185rb1snsg30\">",
+    "previousSVGExact": null,
+    "traceSVGExactTrial": true
+  },
+  {
+    "backend": "elk",
+    "direction": "TB",
+    "before": "returned",
+    "after": "returned",
+    "proof": "passed",
+    "geometryWork": 330681,
+    "cap": 400000,
+    "viewport": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"220\" height=\"65492.5\" viewBox=\"0 0 220 65492.5\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" class=\"am-06d9r4d1nnyobw\">",
+    "previousSVGExact": true,
+    "traceSVGExactTrial": true
+  },
+  {
+    "backend": "elk",
+    "direction": "BT",
+    "before": "refused",
+    "after": "returned",
+    "proof": "passed",
+    "geometryWork": 371874,
+    "cap": 400000,
+    "viewport": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"220\" height=\"65492.5\" viewBox=\"0 0 220 65492.5\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" class=\"am-0t1bqc912cs4s3\">",
+    "previousSVGExact": null,
+    "traceSVGExactTrial": true
+  },
+  {
+    "backend": "elk",
+    "direction": "LR",
+    "before": "returned",
+    "after": "returned",
+    "proof": "passed",
+    "geometryWork": 330681,
+    "cap": 400000,
+    "viewport": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"90642.48999999977\" height=\"136\" viewBox=\"0 0 90642.48999999977 136\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" class=\"am-1dipshm0ydxws6\">",
+    "previousSVGExact": true,
+    "traceSVGExactTrial": true
+  },
+  {
+    "backend": "elk",
+    "direction": "RL",
+    "before": "refused",
+    "after": "returned",
+    "proof": "passed",
+    "geometryWork": 371874,
+    "cap": 400000,
+    "viewport": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"90642.48999999977\" height=\"136\" viewBox=\"0 0 90642.48999999977 136\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" class=\"am-0yjy4r714q3px0\">",
+    "previousSVGExact": null,
+    "traceSVGExactTrial": true
+  }
+]

@@ -1,0 +1,10 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/er-layout-backends.test.ts:
+(pass) ER layout backends > keeps 1 relationships among 4096 isolated entities within its geometry allowance with elk in $direction [5652.22ms]
+
+ 1 pass
+ 67 filtered out
+ 0 fail
+ 7 expect() calls
+Ran 1 test across 1 file. [6.58s]

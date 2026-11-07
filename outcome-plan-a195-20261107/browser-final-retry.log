@@ -1,0 +1,24 @@
+bun test v1.4.4 (38afee6c8)
+
+e2e/browser.test.ts:
+398 | it('standalone editor stays within its single-renderer payload budget', async () => {
+399 |   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
+400 |   // Keep this campaign's original ceilings while integrating Main's delivery
+401 |   // changes. One renderer serves both realms; relative growth is checked too.
+402 |   expect(html.byteLength).toBeLessThanOrEqual(4_429_400)
+403 |   expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_334_500)
+                                                        ^
+error: expect(received).toBeLessThanOrEqual(expected)
+
+Expected: <= 1334500
+Received: 1386827
+
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/e2e/browser.test.ts:403:51)
+(fail) standalone editor stays within its single-renderer payload budget [114.89ms]
+(pass) standalone editor renders and verifies with one persistent Blob worker [68548.24ms]
+
+ 1 pass
+ 20 filtered out
+ 1 fail
+ 652 expect() calls
+Ran 2 tests across 1 file. [73.27s]

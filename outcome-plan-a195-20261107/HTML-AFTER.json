@@ -1,0 +1,22 @@
+{
+  "before": {
+    "source": "a195262036dbb07c7ce4919505d4ff47dea09e63",
+    "raw": 2287688,
+    "gzip9": 1386834,
+    "brotli11": 1318238,
+    "sha256": "cb24d4d4dcbd762f73ff794e2fb5812b9961170d78067886b5e2ec62bf0e9c7a"
+  },
+  "after": {
+    "source": "a19526203 plus current ER diff",
+    "raw": 2287540,
+    "gzip9": 1386827,
+    "brotli11": 1318081,
+    "sha256": "bbfeabc29496dd8f29bb13bcc08d5d8eb28561c938714184fc203030a9d7b0fd"
+  },
+  "delta": {
+    "raw": -148,
+    "gzip9": -7,
+    "brotli11": -157
+  },
+  "originalGzipCeiling": 1334500
+}

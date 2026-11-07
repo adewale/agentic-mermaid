@@ -1,0 +1,86 @@
+[
+  {
+    "name": "ER256-agentic-BT-middle-integer-crop",
+    "logicalCrop": {
+      "left": 15,
+      "top": 24373.6,
+      "right": 205,
+      "bottom": 24671.4
+    },
+    "crop": {
+      "left": 30,
+      "top": 48747,
+      "right": 410,
+      "bottom": 49343
+    },
+    "svgSHA256": "e1126f6954d94690d968ce1df522e4564e1ed1911857a5b71f74b31c2d98a055",
+    "font": "manifest-verified Inter; system fonts disabled",
+    "claim": "Actual finalSVG crop of N127/N128 and their labelled relationship; earlier result is a refusal. Not full-diagram glyph attribution or readability qualification.",
+    "source": "00938cc04693fe5da7a02a5d226406c3c2848251",
+    "inspected": true,
+    "scope": "N127/N128 middle relationship crop only; all original SVG elements/styles retained. Integer output-pixel crop at zoom2, manifest-verified Inter. No full-diagram glyph attribution/readability claim."
+  },
+  {
+    "name": "ER256-agentic-RL-middle-integer-crop",
+    "logicalCrop": {
+      "left": 36603.44599999977,
+      "top": 15,
+      "right": 37081.54399999977,
+      "bottom": 121
+    },
+    "crop": {
+      "left": 73206,
+      "top": 30,
+      "right": 74164,
+      "bottom": 242
+    },
+    "svgSHA256": "59b61c295f29b4cd82588d1e6dffed587120e65458f7b6fc1d91c2a7d5d1e381",
+    "font": "manifest-verified Inter; system fonts disabled",
+    "claim": "Actual finalSVG crop of N127/N128 and their labelled relationship; earlier result is a refusal. Not full-diagram glyph attribution or readability qualification.",
+    "source": "00938cc04693fe5da7a02a5d226406c3c2848251",
+    "inspected": true,
+    "scope": "N127/N128 middle relationship crop only; all original SVG elements/styles retained. Integer output-pixel crop at zoom2, manifest-verified Inter. No full-diagram glyph attribution/readability claim."
+  },
+  {
+    "name": "ER256-elk-BT-middle-integer-crop",
+    "logicalCrop": {
+      "left": 15,
+      "top": 32565.10000000037,
+      "right": 205,
+      "bottom": 32927.40000000037
+    },
+    "crop": {
+      "left": 30,
+      "top": 65130,
+      "right": 410,
+      "bottom": 65855
+    },
+    "svgSHA256": "fe84b7d7addf24812465f2e771b976694a2d5483429a18be7ea8d431cccdb2a1",
+    "font": "manifest-verified Inter; system fonts disabled",
+    "claim": "Actual finalSVG crop of N127/N128 and their labelled relationship; earlier result is a refusal. Not full-diagram glyph attribution or readability qualification.",
+    "source": "00938cc04693fe5da7a02a5d226406c3c2848251",
+    "inspected": true,
+    "scope": "N127/N128 middle relationship crop only; all original SVG elements/styles retained. Integer output-pixel crop at zoom2, manifest-verified Inter. No full-diagram glyph attribution/readability claim."
+  },
+  {
+    "name": "ER256-elk-RL-middle-integer-crop",
+    "logicalCrop": {
+      "left": 45048.94599999976,
+      "top": 15,
+      "right": 45593.54399999976,
+      "bottom": 121
+    },
+    "crop": {
+      "left": 90097,
+      "top": 30,
+      "right": 91188,
+      "bottom": 242
+    },
+    "svgSHA256": "56176a35616953969a2b53675857f12c762ebf4c229af1e2bda58708ad8300b3",
+    "font": "manifest-verified Inter; system fonts disabled",
+    "claim": "Actual finalSVG crop of N127/N128 and their labelled relationship; earlier result is a refusal. Not full-diagram glyph attribution or readability qualification.",
+    "source": "00938cc04693fe5da7a02a5d226406c3c2848251",
+    "inspected": true,
+    "scope": "N127/N128 middle relationship crop only; all original SVG elements/styles retained. Integer output-pixel crop at zoom2, manifest-verified Inter. No full-diagram glyph attribution/readability claim."
+  }
+]

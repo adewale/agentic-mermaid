@@ -1,0 +1,164 @@
+{
+  "source": "00938cc04693fe5da7a02a5d226406c3c2848251",
+  "before": "a195262036dbb07c7ce4919505d4ff47dea09e63",
+  "baseMain": "c366de0d137e33e123acd84fc99164417c0f3917",
+  "contract": "Shared ER final geometry reuses an unchanged route snapshot, invalidates after face/frame/caption route repair, and uses glyph union broad phases plus original exact piece predicates. No new cache/default/version/cap.",
+  "directions": [
+    {
+      "backend": "agentic",
+      "direction": "TB",
+      "before": "returned",
+      "after": "returned",
+      "proof": "passed",
+      "geometryWork": 343421,
+      "cap": 400000,
+      "viewport": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"220\" height=\"49045.00000000016\" viewBox=\"0 0 220 49045.00000000016\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" class=\"am-1c0rh5818ostls\">",
+      "previousSVGExact": true,
+      "traceSVGExactTrial": true
+    },
+    {
+      "backend": "agentic",
+      "direction": "BT",
+      "before": "refused",
+      "after": "returned",
+      "proof": "passed",
+      "geometryWork": 385344,
+      "cap": 400000,
+      "viewport": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"220\" height=\"49045.00000000016\" viewBox=\"0 0 220 49045.00000000016\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" class=\"am-1kxx96j1qdgnpb\">",
+      "previousSVGExact": null,
+      "traceSVGExactTrial": true
+    },
+    {
+      "backend": "agentic",
+      "direction": "LR",
+      "before": "returned",
+      "after": "returned",
+      "proof": "passed",
+      "geometryWork": 343421,
+      "cap": 400000,
+      "viewport": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"73684.98999999985\" height=\"136\" viewBox=\"0 0 73684.98999999985 136\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" class=\"am-16qd5ss02te9d8\">",
+      "previousSVGExact": true,
+      "traceSVGExactTrial": true
+    },
+    {
+      "backend": "agentic",
+      "direction": "RL",
+      "before": "refused",
+      "after": "returned",
+      "proof": "passed",
+      "geometryWork": 385344,
+      "cap": 400000,
+      "viewport": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"73684.98999999985\" height=\"136\" viewBox=\"0 0 73684.98999999985 136\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" class=\"am-0q185rb1snsg30\">",
+      "previousSVGExact": null,
+      "traceSVGExactTrial": true
+    },
+    {
+      "backend": "elk",
+      "direction": "TB",
+      "before": "returned",
+      "after": "returned",
+      "proof": "passed",
+      "geometryWork": 330681,
+      "cap": 400000,
+      "viewport": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"220\" height=\"65492.5\" viewBox=\"0 0 220 65492.5\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" class=\"am-06d9r4d1nnyobw\">",
+      "previousSVGExact": true,
+      "traceSVGExactTrial": true
+    },
+    {
+      "backend": "elk",
+      "direction": "BT",
+      "before": "refused",
+      "after": "returned",
+      "proof": "passed",
+      "geometryWork": 371874,
+      "cap": 400000,
+      "viewport": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"220\" height=\"65492.5\" viewBox=\"0 0 220 65492.5\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" class=\"am-0t1bqc912cs4s3\">",
+      "previousSVGExact": null,
+      "traceSVGExactTrial": true
+    },
+    {
+      "backend": "elk",
+      "direction": "LR",
+      "before": "returned",
+      "after": "returned",
+      "proof": "passed",
+      "geometryWork": 330681,
+      "cap": 400000,
+      "viewport": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"90642.48999999977\" height=\"136\" viewBox=\"0 0 90642.48999999977 136\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" class=\"am-1dipshm0ydxws6\">",
+      "previousSVGExact": true,
+      "traceSVGExactTrial": true
+    },
+    {
+      "backend": "elk",
+      "direction": "RL",
+      "before": "refused",
+      "after": "returned",
+      "proof": "passed",
+      "geometryWork": 371874,
+      "cap": 400000,
+      "viewport": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"90642.48999999977\" height=\"136\" viewBox=\"0 0 90642.48999999977 136\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" class=\"am-0yjy4r714q3px0\">",
+      "previousSVGExact": null,
+      "traceSVGExactTrial": true
+    }
+  ],
+  "corpus": {
+    "agentic": {
+      "count": 874,
+      "changes": [],
+      "proof": {
+        "passed": 740,
+        "unverified": 134
+      }
+    },
+    "elk": {
+      "count": 874,
+      "changes": [],
+      "proof": {
+        "passed": 696,
+        "unverified": 178
+      }
+    }
+  },
+  "cost": {
+    "before": {
+      "source": "a195262036dbb07c7ce4919505d4ff47dea09e63",
+      "raw": 2287688,
+      "gzip9": 1386834,
+      "brotli11": 1318238,
+      "sha256": "cb24d4d4dcbd762f73ff794e2fb5812b9961170d78067886b5e2ec62bf0e9c7a"
+    },
+    "after": {
+      "source": "a19526203 plus current ER diff",
+      "raw": 2287540,
+      "gzip9": 1386827,
+      "brotli11": 1318081,
+      "sha256": "bbfeabc29496dd8f29bb13bcc08d5d8eb28561c938714184fc203030a9d7b0fd"
+    },
+    "delta": {
+      "raw": -148,
+      "gzip9": -7,
+      "brotli11": -157
+    },
+    "originalGzipCeiling": 1334500
+  },
+  "checks": {
+    "chainMatrix": "baseline4P4F; final8P",
+    "owningBackendFile": "67P1 default-5s timeout; isolated retry1P using existing30s repository timeout",
+    "adjacentOwners": "132P6sandbox-child-stdinEPERM; six exact child retriesP531assertions",
+    "typecheck": "canonical core and repo passed",
+    "lint": "canonical passed",
+    "browserWorker": "passed650assertions on rebuilt standalone using installedChromium154",
+    "standaloneOriginalGzipBudget": "failed; not raised",
+    "independentReview": "no blocking finding; query heuristic/union gap candidate costs can regress on other geometries",
+    "runtimeMemory": "no causal speedup/RSS claim; admitted repeated/edit samples mixed, final overlapped supplemental raster"
+  },
+  "remaining": [
+    "Sparse32 proof cap",
+    "visible contacts152/372/201/241",
+    "crossing276",
+    "Sparse256 historical area+5.04%; alternatives unshipped",
+    "standalone/lazy/website payload failures",
+    "cold/cache/edit p50/p95 and settled/peak memory not newly qualified"
+  ],
+  "automation": "disabled; bounded manual run only"
+}
