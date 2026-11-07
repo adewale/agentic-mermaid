@@ -19,6 +19,10 @@ fresh module state and defaults. The generated loop counter stops after 100000
 executed loop bodies; this is a validation work limit, not a claim that Mermaid
 rejects the source. Both normal return and failure discard the entire instance.
 
+`config-keys.js` shares the pinned key literal between these independent programs.
+Each factory constructs a fresh Set at its original initialization position, with
+the same loop budget. The merge program imports no appearance or theme code.
+
 Generate with the repository Bun version after `bun run reference:mermaid`:
 
 ```

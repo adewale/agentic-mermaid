@@ -63,13 +63,13 @@ The revision-bound oracle vendors two upstream Mermaid test specifications at
 
 `src/shared/pinned-mermaid-config/runtime.js` contains the pure configuration,
 merge, appearance, theme and color programs from Mermaid 12.2.0 source
-`1fb7869866dd619168d840291c9c54b4f129758b`, Khroma 2.1.0 and lodash-es 4.18.1.
+`1fb7869866dd619168d840291c9c54b4f129758b`, Khroma 2.1.0 and es-toolkit 1.53.0.
 It has no diagram parser, renderer or DOM implementation. Regenerate it with
 `scripts/build/generate-mermaid-config-runtime.ts` and the policy reference.
 
 - Mermaid: MIT, copyright 2014–2022 Knut Sveidqvist; `LICENSES/Mermaid-MIT.txt`.
 - Khroma: MIT, copyright 2019-present Fabio Spampinato, Andrew Maney; `LICENSES/Khroma-MIT.txt`.
-- lodash-es: MIT, copyright JS Foundation and other contributors; `LICENSES/lodash-MIT.txt`.
+- es-toolkit: MIT, copyright 2024 Viva Republica, Inc.; `LICENSES/es-toolkit-MIT.txt`.
 
 ## Optional ZenUML browser backend
 
@@ -87,3 +87,34 @@ control; the product backend calls the same core native SVG API directly.
 Event Modeling tests and syntax investigation use the pinned Mermaid reference
 identified above. Its layout, text measurement and drawing implementation are
 Agentic Mermaid's.
+
+## Standalone editor payload decoder
+
+The standalone HTML uses a bounded, build-only projection of `brotli` 1.3.3
+(<https://github.com/devongovett/brotli.js/tree/e36051345f6d27a56e5f39ea70d2f789b8574046>).
+Package metadata and README declare MIT and name Devon Govett; the published
+package and pinned tree contain no LICENSE/COPYING/NOTICE file. Standard MIT
+terms are reproduced in `LICENSES/Brotli-MIT.txt` without inventing a copyright
+year. Actual decoder files retain **Copyright 2013 Google Inc. All Rights
+Reserved.** and Apache License 2.0 headers; full terms are in
+`LICENSES/Apache-2.0.txt`. The build adds loop, output-allocation and window
+limits. For each private worker it also zeros unread dictionary bytes at their
+original offsets and verifies the complete decoded worker; dictionary length
+and transforms remain unchanged. It does not change the compressed format or
+expose a decoder API.
+
+The emitted HTML also includes the full MIT notice of `base64-js` 1.5.1 and
+Pako 1.0.11's MIT license and Zlib CRC header (Jean-loup Gailly, Mark Adler,
+Vitaly Puzrin and Andrey Tupitsin). Decoder notices stay outside the opaque
+worker payload. These dependencies do not enter the public Node/Scene API.
+
+## D3 named connector interpolation
+
+The shared named-curve projection uses **d3-shape 1.3.7**. Its installed
+dependency closure includes **d3-path 1.0.9**. Both licenses are reproduced.
+
+- d3-shape: <https://github.com/d3/d3-shape/tree/v1.3.7>; BSD-3-Clause, copyright 2010–2015 Mike Bostock; `LICENSES/d3-shape-BSD-3-Clause.txt`.
+- d3-path: <https://github.com/d3/d3-path/tree/v1.0.9>; BSD-3-Clause, copyright 2015–2016 Mike Bostock; `LICENSES/d3-path-BSD-3-Clause.txt`.
+
+The exact installed license terms are reproduced in the listed files and
+included in the npm package.

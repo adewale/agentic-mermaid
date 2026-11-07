@@ -92,61 +92,65 @@ export interface EssentialScenePrimitiveCapability {
   readonly operation: CoreSceneOperation
 }
 
+function essentialCapability(primitive: CoreScenePrimitive, feature: CoreSceneFeature, operation: CoreSceneOperation): EssentialScenePrimitiveCapability {
+  return Object.freeze({ primitive, feature, operation })
+}
+
 /** Minimum feature-level contract required before a backend can truthfully
  * accept a family that emits a primitive. This is intentionally stricter than
  * checking that any claim exists for a primitive/operation pair: geometry
  * support alone must not silently discard paint, identity, markers, relation,
  * accessibility, or hit semantics. */
-export const ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES: readonly EssentialScenePrimitiveCapability[] = Object.freeze(([
-  { primitive: 'document', feature: 'identity', operation: 'serialize' },
-  { primitive: 'document', feature: 'resources', operation: 'serialize' },
-  { primitive: 'document', feature: 'interaction', operation: 'accessibility' },
-  { primitive: 'text', feature: 'geometry', operation: 'render' },
-  { primitive: 'text', feature: 'paint', operation: 'render' },
-  { primitive: 'text', feature: 'labels', operation: 'accessibility' },
-  { primitive: 'text', feature: 'identity', operation: 'serialize' },
-  { primitive: 'shape', feature: 'geometry', operation: 'render' },
-  { primitive: 'shape', feature: 'paint', operation: 'render' },
-  { primitive: 'shape', feature: 'identity', operation: 'serialize' },
-  { primitive: 'container', feature: 'geometry', operation: 'render' },
-  { primitive: 'container', feature: 'paint', operation: 'render' },
-  { primitive: 'container', feature: 'identity', operation: 'serialize' },
-  { primitive: 'connector', feature: 'geometry', operation: 'render' },
-  { primitive: 'connector', feature: 'stroke', operation: 'render' },
-  { primitive: 'connector', feature: 'transform', operation: 'render' },
-  { primitive: 'connector', feature: 'topology', operation: 'render' },
-  { primitive: 'connector', feature: 'subpaths', operation: 'render' },
-  { primitive: 'connector', feature: 'closedness', operation: 'render' },
-  { primitive: 'connector', feature: 'bend-radius', operation: 'render' },
-  { primitive: 'connector', feature: 'stroke-opacity', operation: 'render' },
-  { primitive: 'connector', feature: 'stroke-cap', operation: 'render' },
-  { primitive: 'connector', feature: 'stroke-join', operation: 'render' },
-  { primitive: 'connector', feature: 'stroke-miter', operation: 'render' },
-  { primitive: 'connector', feature: 'dash-array', operation: 'render' },
-  { primitive: 'connector', feature: 'dash-offset', operation: 'render' },
-  { primitive: 'connector', feature: 'dash-restart', operation: 'render' },
-  { primitive: 'connector', feature: 'path-length', operation: 'render' },
-  { primitive: 'connector', feature: 'paint-order', operation: 'render' },
-  { primitive: 'connector', feature: 'compositing', operation: 'render' },
-  { primitive: 'connector', feature: 'non-scaling-stroke', operation: 'render' },
-  { primitive: 'connector', feature: 'marker-orientation', operation: 'render' },
-  { primitive: 'connector', feature: 'marker-overflow', operation: 'render' },
-  { primitive: 'connector', feature: 'endpoints', operation: 'serialize' },
-  { primitive: 'connector', feature: 'direction', operation: 'serialize' },
-  { primitive: 'connector', feature: 'labels', operation: 'render' },
-  { primitive: 'connector', feature: 'labels', operation: 'accessibility' },
-  { primitive: 'connector', feature: 'markers', operation: 'render' },
-  { primitive: 'connector', feature: 'relation', operation: 'accessibility' },
-  { primitive: 'connector', feature: 'interaction', operation: 'hit-test' },
-  { primitive: 'connector', feature: 'hit-geometry', operation: 'hit-test' },
-  { primitive: 'connector', feature: 'identity', operation: 'serialize' },
-  { primitive: 'marker', feature: 'geometry', operation: 'render' },
-  { primitive: 'marker', feature: 'paint', operation: 'render' },
-  { primitive: 'marker', feature: 'identity', operation: 'serialize' },
-  { primitive: 'data-mark', feature: 'geometry', operation: 'render' },
-  { primitive: 'data-mark', feature: 'paint', operation: 'render' },
-  { primitive: 'data-mark', feature: 'identity', operation: 'serialize' },
-] as const satisfies readonly EssentialScenePrimitiveCapability[]).map(requirement => Object.freeze(requirement)))
+export const ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES: readonly EssentialScenePrimitiveCapability[] = Object.freeze([
+  essentialCapability('document', 'identity', 'serialize'),
+  essentialCapability('document', 'resources', 'serialize'),
+  essentialCapability('document', 'interaction', 'accessibility'),
+  essentialCapability('text', 'geometry', 'render'),
+  essentialCapability('text', 'paint', 'render'),
+  essentialCapability('text', 'labels', 'accessibility'),
+  essentialCapability('text', 'identity', 'serialize'),
+  essentialCapability('shape', 'geometry', 'render'),
+  essentialCapability('shape', 'paint', 'render'),
+  essentialCapability('shape', 'identity', 'serialize'),
+  essentialCapability('container', 'geometry', 'render'),
+  essentialCapability('container', 'paint', 'render'),
+  essentialCapability('container', 'identity', 'serialize'),
+  essentialCapability('connector', 'geometry', 'render'),
+  essentialCapability('connector', 'stroke', 'render'),
+  essentialCapability('connector', 'transform', 'render'),
+  essentialCapability('connector', 'topology', 'render'),
+  essentialCapability('connector', 'subpaths', 'render'),
+  essentialCapability('connector', 'closedness', 'render'),
+  essentialCapability('connector', 'bend-radius', 'render'),
+  essentialCapability('connector', 'stroke-opacity', 'render'),
+  essentialCapability('connector', 'stroke-cap', 'render'),
+  essentialCapability('connector', 'stroke-join', 'render'),
+  essentialCapability('connector', 'stroke-miter', 'render'),
+  essentialCapability('connector', 'dash-array', 'render'),
+  essentialCapability('connector', 'dash-offset', 'render'),
+  essentialCapability('connector', 'dash-restart', 'render'),
+  essentialCapability('connector', 'path-length', 'render'),
+  essentialCapability('connector', 'paint-order', 'render'),
+  essentialCapability('connector', 'compositing', 'render'),
+  essentialCapability('connector', 'non-scaling-stroke', 'render'),
+  essentialCapability('connector', 'marker-orientation', 'render'),
+  essentialCapability('connector', 'marker-overflow', 'render'),
+  essentialCapability('connector', 'endpoints', 'serialize'),
+  essentialCapability('connector', 'direction', 'serialize'),
+  essentialCapability('connector', 'labels', 'render'),
+  essentialCapability('connector', 'labels', 'accessibility'),
+  essentialCapability('connector', 'markers', 'render'),
+  essentialCapability('connector', 'relation', 'accessibility'),
+  essentialCapability('connector', 'interaction', 'hit-test'),
+  essentialCapability('connector', 'hit-geometry', 'hit-test'),
+  essentialCapability('connector', 'identity', 'serialize'),
+  essentialCapability('marker', 'geometry', 'render'),
+  essentialCapability('marker', 'paint', 'render'),
+  essentialCapability('marker', 'identity', 'serialize'),
+  essentialCapability('data-mark', 'geometry', 'render'),
+  essentialCapability('data-mark', 'paint', 'render'),
+  essentialCapability('data-mark', 'identity', 'serialize'),
+])
 
 export const PRIMITIVE_REALIZATIONS = [
   'native',
@@ -242,57 +246,32 @@ export function graphicalBackendCapabilityClaims(
     }
     return { realization: 'emulated' }
   }
-  const detailedConnectorFeatures = [
-    'transform', 'topology', 'subpaths', 'closedness', 'bend-radius', 'stroke-opacity', 'stroke-cap', 'stroke-join',
-    'stroke-miter', 'dash-array', 'dash-offset', 'dash-restart', 'path-length',
-    'paint-order', 'compositing', 'non-scaling-stroke', 'marker-orientation', 'marker-overflow',
-  ] as const satisfies readonly CoreSceneFeature[]
-  const claims: PrimitiveCapabilityClaim[] = [
-    { target, primitive: 'document', feature: 'identity', operation: 'serialize', realization: 'native', evidence },
-    { target, primitive: 'document', feature: 'resources', operation: 'serialize', realization: 'native', evidence },
-    { target, primitive: 'document', feature: 'interaction', operation: 'accessibility', realization: 'native', evidence },
-    { target, primitive: 'text', feature: 'geometry', operation: 'render', realization: 'native', evidence },
-    { target, primitive: 'text', feature: 'paint', operation: 'render', realization: 'native', evidence },
-    { target, primitive: 'text', feature: 'labels', operation: 'accessibility', realization: 'native', evidence },
-    { target, primitive: 'text', feature: 'identity', operation: 'serialize', realization: 'native', evidence },
-    { target, primitive: 'shape', feature: 'geometry', operation: 'render', realization: visual, evidence },
-    { target, primitive: 'shape', feature: 'paint', operation: 'render', realization: visual, evidence },
-    { target, primitive: 'shape', feature: 'identity', operation: 'serialize', realization: 'native', evidence },
-    // Group wrappers are not redrawn by sketch backends. Their transform and
-    // paint cascade are preserved natively while eligible children are
-    // independently re-realized.
-    { target, primitive: 'container', feature: 'geometry', operation: 'render', realization: 'native', evidence },
-    { target, primitive: 'container', feature: 'paint', operation: 'render', realization: 'native', evidence },
-    { target, primitive: 'container', feature: 'identity', operation: 'serialize', realization: 'native', evidence },
-    { target, primitive: 'connector', feature: 'geometry', operation: 'render', ...connectorRealization('geometry'), evidence },
-    { target, primitive: 'connector', feature: 'stroke', operation: 'render', realization: visual, evidence },
-    ...detailedConnectorFeatures.map(feature => ({
-      target,
-      primitive: 'connector' as const,
-      feature,
-      operation: 'render' as const,
-      ...connectorRealization(feature),
-      evidence,
-    })),
-    { target, primitive: 'connector', feature: 'relation', operation: 'accessibility', realization: 'native', evidence },
-    { target, primitive: 'connector', feature: 'endpoints', operation: 'serialize', realization: 'native', evidence },
-    { target, primitive: 'connector', feature: 'direction', operation: 'serialize', realization: 'native', evidence },
-    { target, primitive: 'connector', feature: 'labels', operation: 'render', realization: 'native', evidence },
-    { target, primitive: 'connector', feature: 'labels', operation: 'accessibility', realization: 'native', evidence },
-    { target, primitive: 'connector', feature: 'markers', operation: 'render', realization: markerVisual, evidence },
-    { target, primitive: 'connector', feature: 'interaction', operation: 'hit-test', realization: 'native', evidence },
-    { target, primitive: 'connector', feature: 'hit-geometry', operation: 'hit-test', realization: 'native', evidence },
-    { target, primitive: 'connector', feature: 'identity', operation: 'serialize', realization: 'native', evidence },
-    { target, primitive: 'marker', feature: 'geometry', operation: 'render', realization: markerVisual, evidence },
-    { target, primitive: 'marker', feature: 'paint', operation: 'render', realization: markerVisual, evidence },
-    { target, primitive: 'marker', feature: 'identity', operation: 'serialize', realization: 'native', evidence },
-    { target, primitive: 'data-mark', feature: 'geometry', operation: 'render', realization: visual, evidence },
-    { target, primitive: 'data-mark', feature: 'paint', operation: 'render', realization: visual, evidence },
-    { target, primitive: 'data-mark', feature: 'identity', operation: 'serialize', realization: 'native', evidence },
-  ]
+  const claims = ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES.map(({ primitive, feature, operation }) => {
+    const claim: PrimitiveCapabilityClaim = { target, primitive, feature, operation, realization: 'native' }
+    if (primitive === 'connector' && operation === 'render' && feature !== 'labels' && feature !== 'markers' && feature !== 'stroke') {
+      const projection = connectorRealization(feature)
+      claim.realization = projection.realization
+      if (projection.diagnostic !== undefined) claim.diagnostic = projection.diagnostic
+    } else if ((primitive === 'shape' || primitive === 'data-mark') && (feature === 'geometry' || feature === 'paint')
+      || primitive === 'connector' && feature === 'stroke') {
+      claim.realization = visual
+    } else if (primitive === 'marker' && (feature === 'geometry' || feature === 'paint')
+      || primitive === 'connector' && feature === 'markers') {
+      claim.realization = markerVisual
+    }
+    claim.evidence = evidence
+    return claim
+  })
+  // Preserve the established graphical claim order while sharing the canonical
+  // capability cells: relation precedes the connector's serialized endpoints.
+  const relation = claims.findIndex(claim => claim.primitive === 'connector' && claim.feature === 'relation')
+  const [relationClaim] = claims.splice(relation, 1)
+  const endpoints = claims.findIndex(claim => claim.primitive === 'connector' && claim.feature === 'endpoints')
+  claims.splice(endpoints, 0, relationClaim!)
   const validation = validatePrimitiveCapabilities(claims)
   if (!validation.valid) throw new Error(`Invalid graphical backend capability contract: ${validation.diagnostics.join('; ')}`)
-  return Object.freeze(claims.map(claim => Object.freeze({ ...claim })))
+  for (const claim of claims) Object.freeze(claim)
+  return Object.freeze(claims)
 }
 
 /** Claim-keyed contract for the typed Scene -> terminal evidence adapter.
@@ -330,7 +309,8 @@ export function terminalConnectorCapabilityClaims(
   }))
   const validation = validatePrimitiveCapabilities(claims)
   if (!validation.valid) throw new Error(`Invalid terminal connector capability contract: ${validation.diagnostics.join('; ')}`)
-  return Object.freeze(claims.map(claim => Object.freeze({ ...claim })))
+  for (const claim of claims) Object.freeze(claim)
+  return Object.freeze(claims)
 }
 
 export interface CapabilityValidationResult {

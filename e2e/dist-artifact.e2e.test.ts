@@ -55,14 +55,15 @@ describe('built artifact bundler and deferred dependency contracts', () => {
     const probe = `
       import { createRequire } from 'node:module'
       const require = createRequire(import.meta.url)
-      const loaded = () => { const files = Object.keys(require.cache); return [files.some(path => path.includes('/elkjs/')), files.some(path => path.endsWith('/inter-metrics-kernel.cjs')), files.some(path => path.endsWith('/layout-optimization.cjs'))] }
+      const elkImplementation = require.resolve('elkjs/lib/elk.bundled.js')
+      const loaded = () => { const files = Object.keys(require.cache); return [files.includes(elkImplementation), files.some(path => path.endsWith('/inter-metrics-kernel.cjs')), files.some(path => path.endsWith('/layout-optimization.cjs'))] }
       const { renderMermaidSVG } = await import(${JSON.stringify(DIST_CORE)})
       const states = [loaded()]
       renderMermaidSVG('sequenceDiagram\\n  A->>B: hi')
       states.push(loaded())
       renderMermaidSVG('flowchart TD\\n  A --> B')
       states.push(loaded())
-      renderMermaidSVG('flowchart TD\\n  A -->|needs ELK| B')
+      renderMermaidSVG('flowchart TD\\n  A -->|needs ELK| B\\n  B --> A', { graphLayout: { backend: 'elk' } })
       states.push(loaded())
       renderMermaidSVG('flowchart TD\\n A --> B', { fontMetrics: 'bundled-inter' })
       states.push(loaded())
@@ -71,7 +72,7 @@ describe('built artifact bundler and deferred dependency contracts', () => {
       console.log(JSON.stringify(states))`
     const run = spawnSync(NODE, ['--input-type=module', '--eval', probe], { cwd: REPO, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
     expect({ status: run.status, stderr: run.stderr }).toEqual({ status: 0, stderr: '' })
-    // Import, sequence, certified forest, then an ineligible labelled edge.
+    // Import, sequence, certified forest, then an explicit ELK request.
     expect(JSON.parse(run.stdout)).toEqual([[false, false, false], [false, false, false], [false, false, false], [true, false, false], [true, true, false], [true, true, true]])
   }, RUN_TIMEOUT_MS)
 

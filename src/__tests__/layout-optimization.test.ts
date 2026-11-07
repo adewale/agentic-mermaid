@@ -32,15 +32,17 @@ test('explicit adjacency remains authoritative and an already clear diagram avoi
   expect(clear.receipt.layoutOptimization?.additionalProducerCalls).toBe(0)
 })
 
-test('port-aware placement rejects a bend win that loses canonical ports or symmetry', () => {
-  const source = 'flowchart LR\nA((One)) --> T((Hub))\nB((Two)) --> T'
+test.each([
+  { source: 'flowchart LR\nA((One)) --> T((Hub))\nB((Two)) --> T', bends: 0, calls: 0, edges: [['A', 'T'], ['B', 'T']] },
+  { source: 'flowchart LR\nA((One)) --> T((Hub))\nB((Two)) --> T\nA --> B', bends: 4, calls: 1, edges: [['A', 'T'], ['B', 'T'], ['A', 'B']] },
+])('port-aware exploration retains canonical fan routes without a strict improvement ($calls optional calls)', ({ source, bends, calls, edges }) => {
   const before = layout(source, { graphLayout: { backend: 'agentic' } })
   const after = layout(source, { graphLayout: { backend: 'agentic', quality: 'balanced' } })
-  expect(before.positioned.certification?.preference.selectedScore.totalBends).toBe(4)
+  expect(before.positioned.certification?.preference.selectedScore.totalBends).toBe(bends)
   expect(after.svg).toBe(before.svg)
   expect(after.positioned.certification?.hardViolations).toBe(0)
-  expect(after.positioned.edges.map(edge => [edge.source, edge.target])).toEqual([['A', 'T'], ['B', 'T']])
-  expect(after.receipt.layoutOptimization?.additionalProducerCalls).toBe(1)
+  expect(after.positioned.edges.map(edge => [edge.source, edge.target])).toEqual(edges.map(edge => [...edge]))
+  expect(after.receipt.layoutOptimization?.additionalProducerCalls).toBe(calls)
   expect(after.receipt.layoutOptimization?.selected).toEqual([])
 })
 

@@ -1,22 +1,26 @@
 import { expect, test } from 'bun:test'
+import { Resvg } from '@resvg/resvg-js'
 import * as marks from '../scene/marks.ts'
+import { withRenderStageObserver } from '../render-stages.ts'
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { connectorMarkerPaintRegions, nodePaintBounds } from '../scene/bounds.ts'
 import { certifyNativePaint, certifyScenePaint, prepareMarkerPolygonInk, compareMarkerStrokeInk } from '../scene/paint-certification.ts'
 import type { Geometry, MarkPaint, SceneDoc, SceneNode, SceneTransform, MarkerDescriptor } from '../scene/ir.ts'
 import { preparePixelText, transferRetainedPixelText } from '../shared/prepared-text.ts'
 import { admitFamilyScene } from '../scene/admission.ts'
-import { createNativePaintEmission } from '../scene/native-paint-emission.ts'
 import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
 import { layoutMermaidWithReceipt, verifyMermaid } from '../agent/core.ts'
 import { renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt } from '../index.ts'
 import { lowerPositionedFamilyScene, renderedSvgDigest } from '../graphical-render.ts'
 import { resolveRenderRequestForExecution, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
 import { positionResolvedFamily } from '../positioning.ts'
-import { inspectScenePrimitives, scenePrimitiveSource, inspectNativePaintGeometry } from '../scene/inspection.ts'
-import { sceneNodeSerialization } from '../scene/serialization.ts'
+import { inspectScenePrimitives, scenePrimitiveSource, inspectNativePaintGeometry, paintPrimitiveSource, inspectScenePaintGeometry } from '../scene/inspection.ts'
+import { sceneNodeSerialization, createSceneWriteCapture } from '../scene/serialization.ts'
 import { serializeMarkerResource, tipAnchoredArrow } from '../scene/marker-resources.ts'
 import { drawNative } from '../scene/native-drawing.ts'
+import { SaxesParser } from 'saxes'
+import { useTestChildren } from './helpers/test-child.ts'
 import type { DrawingFactory, DrawingProducer } from '../scene/drawing.ts'
 import { measureQuality } from '../agent/quality.ts'
 import { replaceFamilyForTest } from '../agent/families.ts'
@@ -24,6 +28,13 @@ import type { PositionedArchitectureDiagram } from '../architecture/types.ts'
 import type { PositionedErDiagram } from '../er/types.ts'
 import type { PositionedIshikawa } from '../ishikawa/types.ts'
 import { classMarkerResources } from '../class/relationship-paint.ts'
+import { inlineResolvedColors } from '../theme.ts'
+import { projectConnectorPath } from '../scene/connector-geometry.ts'
+import { admitSceneDocument } from '../scene/external-data-snapshot.ts'
+import { DefaultBackend } from '../scene/backend.ts'
+import { createNativePaintEmission, MAX_OCCLUSION_OPERATIONS } from '../scene/native-paint-emission.ts'
+import { inspectSvgOnce, withSvgInspectionCache } from '../svg-inspection-cache.ts'
+import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 
 const paintTemp = useTempDirs('am-paint-')
@@ -34,6 +45,616 @@ const label = () => {
   return marks.text({ id: 'text', role: 'label', text: 'Read', block, x: 20, y: 30, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })
 }
 const surface = (fill = '#fff') => marks.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 80, height: 60 }, paint: { fill } })
+
+function drawPaintControl(producer: DrawingProducer, context: Parameters<typeof drawNative>[1], execution: 'native' | 'scene', captureOptions: Parameters<typeof createSceneWriteCapture>[1] = {}) {
+  if (execution === 'native') {
+    const drawing = drawNative(producer, context, 'flowchart')
+    return { ...drawing, proof: certifyNativePaint(drawing.header, drawing.paint), admitted: undefined, raw: undefined, receipt: undefined }
+  }
+  const raw = producer<SceneNode>(marks, context)
+  const capture = createSceneWriteCapture(MAX_OCCLUSION_OPERATIONS, captureOptions)
+  const admitted = admitSceneDocument(raw, 'internal', true, capture.observe)
+  const receipt = capture.finish(admitted)
+  const svg = DefaultBackend.render(admitted, { seed: 0 })
+  return { svg, header: admitted, paint: inspectScenePaintGeometry(admitted, receipt), proof: certifyScenePaint(admitted, undefined, { sceneWriteReceipt: receipt }), admitted, raw, receipt }
+}
+
+test.each([
+  { markerCount: 0, definitions: false },
+  { markerCount: 0, definitions: true },
+  { markerCount: 32, definitions: true },
+])('sparse decorative markers preserve completed direct and emitted text proof ($markerCount markers, definitions=$definitions)', ({ markerCount, definitions }) => {
+  const width = 200, height = 31000, colors = { bg: '#fff', fg: '#111' }
+  const block = preparePixelText('x', { fontSize: 12, fontWeight: 400 })
+  const marker = tipAnchoredArrow('decorative-arrow', { width: 8, height: 5 }, 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.75' }, 'userSpaceOnUse')
+  const open = '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="31000">'
+  const context = { positioned: { width, height }, colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ family: 'flowchart', width, height, colors, transparent: false, parts: [
+    factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, open),
+    ...(definitions ? [factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(marker)}</defs>`)] : []),
+    ...Array.from({ length: markerCount }, (_, index) => factory.connector({ id: `chrome:${index}`, role: 'chrome', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40 + index * 20, x2: 60, y2: 40 + index * 20 }, paint: { stroke: '#111', strokeWidth: '1' }, markers: { end: marker } })),
+    ...Array.from({ length: 1500 }, (_, index) => factory.text({ id: `text:${index}`, role: 'label', text: 'x', block, x: 20, y: 1000 + index * 20, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })),
+    factory.documentClose(),
+  ] })
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(drawing.paint.primitives.filter(primitive => primitive.kind === 'text').map(primitive => primitive.id)).toEqual(Array.from({ length: 1500 }, (_, index) => `text:${index}`))
+  const labels: Array<{ attributes: Record<string, string>; text: string }> = []
+  const carriers: Array<Record<string, string>> = [], resources: Array<Record<string, string>> = [], polygons: Array<Record<string, string>> = []
+  let current: typeof labels[number] | undefined
+  const parser = new SaxesParser({ xmlns: true })
+  parser.on('opentag', tag => {
+    const attributes = Object.fromEntries(Object.entries(tag.attributes).map(([name, value]) => [name, value.value]))
+    if (tag.local === 'svg') expect(attributes).toMatchObject({ width: '200', height: '31000' })
+    if (tag.local === 'line') carriers.push(attributes)
+    if (tag.local === 'marker') resources.push(attributes)
+    if (tag.local === 'polygon') polygons.push(attributes)
+    if (tag.local === 'text') {
+      current = { attributes, text: '' }
+      labels.push(current)
+    }
+  })
+  parser.on('text', value => { if (current) current.text += value })
+  parser.on('closetag', tag => { if (tag.local === 'text') current = undefined })
+  parser.write(drawing.svg).close()
+  expect(labels).toHaveLength(1500)
+  for (const [index, label] of labels.entries()) {
+    const { textLength, ...attributes } = label.attributes
+    expect(Number.isFinite(Number(textLength)) && Number(textLength) > 0).toBe(true)
+    expect({ text: label.text, attributes }).toEqual({ text: 'x', attributes: {
+      x: '20', y: String(1000 + index * 20), 'text-anchor': 'start', 'font-size': '12', 'font-weight': '400', fill: '#111',
+      'data-prepared-text': 'true', dy: '4.2', lengthAdjust: 'spacingAndGlyphs', 'data-font-metrics': 'deterministic-fit',
+    } })
+  }
+  expect(drawing.svg.split(open)).toHaveLength(2)
+  expect(drawing.svg.trimEnd()).toEndWith('</svg>')
+  expect(carriers).toHaveLength(markerCount)
+  for (const [index, carrier] of carriers.entries()) expect(carrier).toMatchObject({
+    x1: '20', y1: String(40 + index * 20), x2: '60', y2: String(40 + index * 20),
+    stroke: '#111', 'stroke-width': '1', 'marker-end': 'url(#decorative-arrow)',
+    'data-relationship': 'chrome', 'data-direction': 'forward',
+  })
+  expect(resources).toHaveLength(definitions ? 1 : 0)
+  expect(polygons).toHaveLength(definitions ? 1 : 0)
+  if (definitions) {
+    expect(resources[0]).toMatchObject({ id: 'decorative-arrow', markerWidth: '8', markerHeight: '5', refX: '8', refY: '2.5', orient: 'auto', markerUnits: 'userSpaceOnUse' })
+    expect(polygons[0]).toMatchObject({ fill: '#111', stroke: '#111', 'stroke-width': '0.75' })
+    expect(polygons[0]!.points!.trim().split(/[\s,]+/).map(Number)).toEqual([0, 0, 8, 2.5, 0, 5])
+  }
+  const tags = drawing.svg.match(/<text\b[^>]*>[^<]*<\/text>/g)!
+  expect(tags).toHaveLength(1500)
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
+  const full = new Resvg(drawing.svg, { font, background: '#fff' }).render(), fullPixels = full.pixels
+  expect([full.width, full.height]).toEqual([width, height])
+  // This white fixture needs dark ink in every authored row, without claiming glyph attribution or readability.
+  for (let index = 0; index < 1500; index++) {
+    let dark = 0
+    for (let y = 990 + index * 20; y < 1010 + index * 20; y++) for (let x = 20; x < 32; x++) {
+      const pixel = (y * width + x) * 4
+      if (fullPixels[pixel]! < 128 && fullPixels[pixel + 1]! < 128 && fullPixels[pixel + 2]! < 128 && fullPixels[pixel + 3]! > 0) dark++
+    }
+    expect(dark, `Authored text:${index} has no dark ink in its declared row`).toBeGreaterThan(0)
+  }
+  for (const index of [0, 1499]) {
+    // Keep the original root and geometry. A native raster crop of the
+    // single-tag mask must differ from this same region of the full image.
+    const top = 990 + index * 20
+    const actual = fullPixels.subarray(top * width * 4, (top + 20) * width * 4)
+    const absent = new Resvg(drawing.svg.replace(tags[index]!, ''), { font, background: '#fff', crop: { left: 0, top, right: width, bottom: top + 20 } }).render().pixels
+    expect(actual.length).toBe(200 * 20 * 4)
+    expect(absent.length).toBe(actual.length)
+    expect(Buffer.compare(actual, absent)).not.toBe(0)
+  }
+  const writtenCarriers = scanSvgStartTags(drawing.svg).filter(tag => tag.name === 'line')
+  expect(writtenCarriers).toHaveLength(markerCount)
+  for (const [index, tag] of writtenCarriers.entries()) {
+    const actualTag = drawing.svg.slice(tag.start, tag.end), reference = ' marker-end="url(#decorative-arrow)"'
+    expect(actualTag.split(reference)).toHaveLength(2)
+    const absentSvg = drawing.svg.slice(0, tag.start) + actualTag.replace(reference, '') + drawing.svg.slice(tag.end)
+    const top = 30 + index * 20
+    const actual = fullPixels.subarray(top * width * 4, (top + 20) * width * 4)
+    const absent = new Resvg(absentSvg, { font, background: '#fff', crop: { left: 0, top, right: width, bottom: top + 20 } }).render().pixels
+    expect(actual.length).toBe(200 * 20 * 4)
+    expect(absent.length).toBe(actual.length)
+    let darker = 0
+    for (let pixel = 0; pixel < actual.length; pixel += 4) if (actual[pixel]! + actual[pixel + 1]! + actual[pixel + 2]! < absent[pixel]! + absent[pixel + 1]! + absent[pixel + 2]! - 4) darker++
+    expect(darker, `Authored chrome:${index} at y=${40 + index * 20} lost its own marker ink`).toBeGreaterThan(0)
+  }
+  expect(certifyScenePaint(producer(marks, context))).toMatchObject({ status: 'passed', issues: [] })
+  const proof = certifyNativePaint(drawing.header, drawing.paint)
+  expect(proof.checks.maxOperations).toBe(400000)
+  expect(proof.checks.operations).toBeLessThanOrEqual(400000)
+  expect(proof).toMatchObject({ status: 'passed', issues: [] })
+})
+
+test('an admitted cyclic labelled multigraph retains bounded public Native paint proof', async () => {
+  const source = readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-19.mmd', import.meta.url), 'utf8')
+  const child = await runTextReceiverChild(process.execPath, ['--eval', String.raw`
+process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS = '0'
+const { readFileSync } = await import('node:fs')
+const { renderMermaidSVGWithReceipt } = await import('./src/index.ts')
+const { withRenderStageObserver } = await import('./src/render-stages.ts')
+const { withPerformanceObserver } = await import('./src/performance-observations.ts')
+const stages = new Set(); let provider
+const rendered = withPerformanceObserver(event => {
+  if (event.kind === 'cache' && event.owner === 'paint-certification') provider = event.detail
+}, () => withRenderStageObserver(sample => stages.add(sample.stage), () => renderMermaidSVGWithReceipt(readFileSync(0, 'utf8'), { graphLayout: { backend: 'agentic', fallback: 'none' }, embedFontImport: false })))
+console.log(JSON.stringify({ rendered, stages: [...stages], provider }))
+`], { cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' }, input: source })
+  expect({ status: child.status, error: child.stderr }).toEqual({ status: 0, error: '' })
+  const { rendered, stages, provider } = JSON.parse(child.stdout) as { rendered: ReturnType<typeof renderMermaidSVGWithReceipt>; stages: string[]; provider: string }
+  expect(stages).toContain('drawing')
+  expect(stages).not.toContain('scene')
+  expect(provider).toBe('native')
+  const elements = rectangleEmissionElements(rendered.svg)
+  const nodes = elements.filter(element => element.name === 'g' && element.attributes.class === 'node')
+  expect(nodes.map(node => node.attributes['data-id']).sort()).toEqual(Array.from({ length: 19 }, (_, index) => `n${index}`).sort())
+  for (const [index, id] of Array.from({ length: 19 }, (_, index) => `n${index}`).entries()) expect(nodes.find(node => node.attributes['data-id'] === id)?.attributes['data-label']).toBe(`Node 76-${index}`)
+  const edges = elements.filter(element => element.attributes['data-role'] === 'edge')
+  const authored = source.split(/\r?\n/).filter(line => line.includes('-->')).map(line => {
+    const match = /^(n\d+) -->(?:\|([^|]*)\|)? (n\d+)$/.exec(line)
+    expect(match, `Unsupported authored relationship: ${line}`).not.toBeNull()
+    return [match![1]!, match![3]!, match![2] ?? ''] as const
+  })
+  expect(authored).toHaveLength(44)
+  expect(edges.map(edge => [edge.attributes['data-from'], edge.attributes['data-to'], edge.attributes['data-label'] ?? ''])).toEqual(authored.map(row => [...row]))
+  expect(new Set(edges.map(edge => edge.attributes['data-id'])).size).toBe(44)
+  for (const edge of edges) expect(edge.attributes).toMatchObject({ 'data-marker-end': 'arrow', 'marker-end': expect.stringMatching(/^url\(#[^)]+\)$/) })
+  expect(edges.filter(edge => edge.attributes['data-from'] === 'n0' && edge.attributes['data-to'] === 'n4').map(edge => edge.attributes['data-label'] ?? '')).toEqual(['', 'edge 16 xxxxxxxxxxxxxxxxxxx', ''])
+  expect(edges.filter(edge => edge.attributes['data-from'] === 'n9' && edge.attributes['data-to'] === 'n13')).toHaveLength(2)
+  // These independently authored incoming relationships must keep separate
+  // actual arrow seats, including the labelled n5→n13 carrier.
+  const seats = edges.map((edge, index) => {
+    expect(edge.name).toBe('polyline')
+    const [x, y] = edge.attributes.points!.trim().split(/\s+/).at(-1)!.split(',').map(Number)
+    expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true)
+    return { edge, index, x: x!, y: y! }
+  })
+  const targetSeats = ([[2, 'n9', 'n13'], [15, 'n18', 'n13'], [20, 'n5', 'n13'], [13, 'n2', 'n18'], [38, 'n16', 'n18']] as const).map(([index, from, to]) => {
+    const seat = seats[index]!
+    expect(seat.edge.attributes).toMatchObject({ 'data-from': from, 'data-to': to })
+    return seat
+  })
+  expect(new Set(targetSeats.slice(0, 3).map(seat => `${seat.x},${seat.y}`)).size).toBe(3)
+  expect(new Set(targetSeats.slice(3).map(seat => `${seat.x},${seat.y}`)).size).toBe(2)
+  const textTags = rendered.svg.match(/<text\b[^>]*>[^<]*<\/text>/g)!
+  expect(textTags).toHaveLength(30)
+  const texts = textTags.map(tag => tag.slice(tag.indexOf('>') + 1, -7))
+  expect(texts.toSorted()).toEqual([...Array.from({ length: 19 }, (_, index) => `Node 76-${index}`), ...authored.map(row => row[2]).filter(Boolean)].toSorted())
+  const selected = textTags.find(tag => tag.endsWith('>Node 76-0</text>'))!
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
+  const raster = (svg: string) => new Resvg(svg, { font, background: '#fff' }).render()
+  const actual = raster(rendered.svg), actualPixels = actual.pixels
+  expect(Buffer.compare(actualPixels, raster(rendered.svg.replace(selected, '')).pixels)).not.toBe(0)
+  const [viewX, viewY, viewWidth, viewHeight] = elements.find(element => element.name === 'svg')!.attributes.viewBox!.split(/\s+/).map(Number)
+  const writtenTags = scanSvgStartTags(rendered.svg)
+  for (const seat of seats) {
+    const matchingTags = writtenTags.filter(tag => tag.name === 'polyline' && decodedSvgAttributeValue(tag, 'data-id') === seat.edge.attributes['data-id'])
+    expect(matchingTags).toHaveLength(1)
+    const tag = matchingTags[0]!
+    const actualTag = rendered.svg.slice(tag.start, tag.end)
+    expect(actualTag.split(' marker-end=')).toHaveLength(2)
+    const absent = raster(rendered.svg.replace(actualTag, actualTag.replace(/ marker-end="[^"]+"/, '')))
+    expect([absent.width, absent.height]).toEqual([actual.width, actual.height])
+    const absentPixels = absent.pixels
+    // Keep the actual SVG viewport intact. Only the pixel scan is limited
+    // to this carrier's endpoint in the full-canvas marker-removal control.
+    const left = Math.max(0, Math.floor((seat.x - 14 - viewX!) / viewWidth! * actual.width))
+    const right = Math.min(actual.width, Math.ceil((seat.x + 14 - viewX!) / viewWidth! * actual.width))
+    const top = Math.max(0, Math.floor((seat.y - 14 - viewY!) / viewHeight! * actual.height))
+    const bottom = Math.min(actual.height, Math.ceil((seat.y + 14 - viewY!) / viewHeight! * actual.height))
+    let darker = 0
+    for (let y = top; y < bottom; y++) for (let x = left; x < right; x++) {
+      const index = (y * actual.width + x) * 4
+      if (actualPixels[index]! + actualPixels[index + 1]! + actualPixels[index + 2]! < absentPixels[index]! + absentPixels[index + 1]! + absentPixels[index + 2]! - 4) darker++
+    }
+    expect(darker, `authored relationship ${seat.index}: ${authored[seat.index]!.join(' → ')} lost its own head ink`).toBeGreaterThan(0)
+  }
+  expect(rendered.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [], checks: { maxOperations: 400000 } })
+})
+
+const runTextReceiverChild = useTestChildren(20_000)
+const textReceiverProgram = String.raw`
+import { drawNative } from './src/scene/native-drawing.ts'
+import { certifyNativePaint } from './src/scene/paint-certification.ts'
+import { preparePixelText } from './src/shared/prepared-text.ts'
+const mode = process.env.AM_TEXT_RECEIVER_MODE
+const planMode = mode.startsWith('private-plan-')
+const block = preparePixelText('Read', { fontSize: 18, fontWeight: 400 })
+const nativeMap = Array.prototype.map
+const prototype = mode === 'fontFamily' || mode === 'private-plan-descriptor' ? Object.prototype : mode === 'private-plan-define' ? Object : mode === 'private-plan-constructor' ? globalThis : planMode ? WeakMap.prototype : Array.prototype
+const key = mode === 'fontFamily' ? 'fontFamily' : mode === 'private-plan-get' ? 'get' : mode === 'private-plan-set' ? 'set' : mode === 'private-plan-define' ? 'defineProperty' : mode === 'private-plan-constructor' ? 'WeakMap' : mode === 'private-plan-descriptor' ? 'writable' : 'map'
+const original = Object.getOwnPropertyDescriptor(prototype, key)
+const define = Object.defineProperty
+const mapGet = WeakMap.prototype.get, mapAliases = []
+const phases = new WeakMap(), trace = []
+let phase = 'before', drawing
+const own = (value, key) => value && typeof value === 'object' ? Object.getOwnPropertyDescriptor(value, key)?.value : undefined
+const alterPlan = plan => {
+  const slots = own(plan, 'slots')
+  if (!Array.isArray(slots)) return
+  for (let index = 0; index < slots.length; index++) {
+    const slot = slots[index]
+    if (own(slot, 'value') === 'Read') Reflect.set(slot, 'value', 'Lost')
+    const child = own(slot, 'child')
+    if (child) alterPlan(child)
+  }
+}
+const firstPhase = receiver => {
+  if (!phases.has(receiver)) phases.set(receiver, phase)
+  const first = phases.get(receiver)
+  trace.push({ firstPhase: first, phase })
+  return first
+}
+try {
+  if (mode === 'fontFamily') Object.defineProperty(prototype, key, {
+    configurable: true,
+    get() { return firstPhase(this) === phase ? 'Inter' : 'DejaVuSansMono' },
+  })
+  else if (mode === 'array-map') Object.defineProperty(prototype, key, {
+    ...original,
+    value(callback, thisArg) {
+      const slot = Object.getOwnPropertyDescriptor(this, '0')
+      const run = slot && Object.hasOwn(slot, 'value') ? slot.value : undefined
+      const text = run && typeof run === 'object' ? Object.getOwnPropertyDescriptor(run, 'text') : undefined
+      const bold = run && typeof run === 'object' ? Object.getOwnPropertyDescriptor(run, 'bold') : undefined
+      if (!text || !Object.hasOwn(text, 'value') || text.value !== 'Read'
+        || !bold || !Object.hasOwn(bold, 'value') || typeof bold.value !== 'boolean') return nativeMap.call(this, callback, thisArg)
+      const first = firstPhase(this)
+      const mapped = nativeMap.call(this, callback, thisArg)
+      return first === phase ? mapped : nativeMap.call(mapped, value => typeof value === 'string' ? value.replaceAll('Read', 'Lost') : value)
+    },
+  })
+  if (mode === 'private-plan-get') define(prototype, key, { ...original, value(key) {
+    const entry = Reflect.apply(original.value, this, [key])
+    const plan = own(entry, 'plan')
+    if (key === block && plan) alterPlan(plan)
+    return entry
+  } })
+  if (mode === 'private-plan-set') define(prototype, key, { ...original, value(key, value) {
+    if (own(value, 'source') === block && Array.isArray(own(value, 'slots'))) alterPlan(value)
+    return Reflect.apply(original.value, this, [key, value])
+  } })
+  if (mode === 'private-plan-define') define(prototype, key, { ...original, value(target, key, descriptor) {
+    const slot = own(descriptor, 'value')
+    if (Array.isArray(target) && own(slot, 'key') === 'text' && own(slot, 'value') === 'Read') Reflect.set(slot, 'value', 'Lost')
+    return Reflect.apply(original.value, this, [target, key, descriptor])
+  } })
+  if (mode === 'private-plan-constructor') {
+    const wrapped = function(...args) {
+      if (!new.target) return Reflect.apply(original.value, this, args)
+      const map = Reflect.construct(original.value, args, new.target === wrapped ? original.value : new.target)
+      mapAliases.push(map)
+      return map
+    }
+    define(wrapped, 'prototype', { value: original.value.prototype })
+    define(prototype, key, { ...original, value: wrapped })
+  }
+  if (mode === 'private-plan-descriptor') define(prototype, key, { configurable: true, get() {
+    const slot = own(this, 'value')
+    if (own(slot, 'key') === 'text' && own(slot, 'value') === 'Read') Reflect.set(slot, 'value', 'Lost')
+    return false
+  } })
+  const width = 300, height = planMode ? 160 : 140, colors = { bg: '#fff', fg: '#111' }
+  const producer = factory => {
+    const open = factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="' + height + '">')
+    phase = 'first'
+    const first = factory.text({ id: 'first', role: 'label', text: 'Read', block, x: 20, y: 40, fontSize: 18, anchor: 'start', paint: { fill: '#111' } })
+    phase = 'second'
+    const second = factory.text({ id: 'second', role: 'label', text: 'Read', block, x: 20, y: 90, fontSize: 18, anchor: 'start', paint: { fill: '#111' } })
+    const parts = [open, first, second]
+    if (planMode) {
+      if (mode === 'private-plan-constructor') for (const map of mapAliases) {
+        const plan = own(Reflect.apply(mapGet, map, [block]), 'plan')
+        if (plan) alterPlan(plan)
+      }
+      phase = 'third'
+      parts.push(factory.text({ id: 'third', role: 'label', text: 'Read', block, x: 20, y: 140, fontSize: 18, anchor: 'start', paint: { fill: '#111' } }))
+    }
+    return { family: 'flowchart', width, height, colors, transparent: false, parts: [...parts, factory.documentClose()] }
+  }
+  drawing = drawNative(producer, { positioned: { width, height }, colors, resolved: { renderOptions: {} } }, 'flowchart')
+} finally {
+  if (original) define(prototype, key, original)
+  else Reflect.deleteProperty(prototype, key)
+}
+console.log(JSON.stringify({
+  svg: drawing.svg,
+  ids: drawing.paint.primitives.filter(primitive => primitive.kind === 'text').map(primitive => primitive.id),
+  source: block.text, sourceLines: block.lineBlocks.map(line => line.runs.map(run => run.text).join('')),
+  proof: planMode ? certifyNativePaint(drawing.header, drawing.paint) : undefined,
+  trace,
+  prototypeRestored: original ? Object.getOwnPropertyDescriptor(prototype, key)?.value === original.value
+    && Object.getOwnPropertyDescriptor(prototype, key)?.get === original.get : !Object.hasOwn(prototype, key),
+}))
+`
+
+test.each(['fontFamily', 'array-map', 'private-plan-get', 'private-plan-set', 'private-plan-define', 'private-plan-constructor', 'private-plan-descriptor'] as const)('shared owned text preserves receiver-sensitive inherited %s behavior per leaf', async mode => {
+  const child = await runTextReceiverChild(process.execPath, ['--eval', textReceiverProgram], {
+    cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env, AM_TEXT_RECEIVER_MODE: mode },
+  })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  const packet = JSON.parse(child.stdout) as { svg: string; ids: string[]; source: string; sourceLines: string[]; proof?: ReturnType<typeof certifyNativePaint>; trace: Array<{ firstPhase: string; phase: string }>; prototypeRestored: boolean }
+  const planMode = mode.startsWith('private-plan-'), expectedIds = planMode ? ['first', 'second', 'third'] : ['first', 'second']
+  expect(packet.prototypeRestored).toBe(true)
+  expect(packet.ids).toEqual(expectedIds)
+  if (planMode) {
+    expect(packet.source).toBe('Read')
+    expect(packet.sourceLines).toEqual(['Read'])
+    expect(packet.proof).toMatchObject({ status: 'passed', issues: [] })
+  }
+  const labels: Array<{ text: string; fontFamily: string | null; x: string | undefined; y: string | undefined }> = []
+  let current: typeof labels[number] | undefined
+  const parser = new SaxesParser({ xmlns: true })
+  parser.on('opentag', tag => {
+    if (tag.local !== 'text') return
+    const attributes = Object.fromEntries(Object.entries(tag.attributes).map(([name, value]) => [name, value.value]))
+    current = { text: '', fontFamily: attributes['font-family'] ?? null, x: attributes.x, y: attributes.y }
+    labels.push(current)
+  })
+  parser.on('text', text => { if (current) current.text += text })
+  parser.on('closetag', tag => { if (tag.local === 'text') current = undefined })
+  parser.write(packet.svg).close()
+  expect(labels).toHaveLength(expectedIds.length)
+  expect(labels.map(({ x, y }) => ({ x, y }))).toEqual(planMode ? [{ x: '20', y: '40' }, { x: '20', y: '90' }, { x: '20', y: '140' }] : [{ x: '20', y: '40' }, { x: '20', y: '90' }])
+  const tags = packet.svg.match(/<text\b[^>]*>[\s\S]*?<\/text>/g)!
+  expect(tags).toHaveLength(expectedIds.length)
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
+  // These removals prove actual glyph presence. A missing DejaVuSansMono alias
+  // may fall back to Inter here; the emitted family is checked independently.
+  const pixels = (svg: string) => new Resvg(svg, { font, background: '#fff' }).render().pixels
+  const actual = pixels(packet.svg)
+  for (const tag of tags) expect(Buffer.compare(actual, pixels(packet.svg.replace(tag, '')))).not.toBe(0)
+  if (!planMode) expect(new Set(packet.trace.map(read => read.phase))).toEqual(new Set(['first', 'second']))
+  expect(labels.map(({ text, fontFamily }) => ({ text, fontFamily }))).toEqual(expectedIds.map(() => ({ text: 'Read', fontFamily: mode === 'fontFamily' ? 'Inter' : null })))
+})
+
+const finalDocumentJoinProgram = String.raw`
+import { drawNative } from './src/scene/native-drawing.ts'
+import { certifyNativePaint } from './src/scene/paint-certification.ts'
+import { preparePixelText } from './src/shared/prepared-text.ts'
+import { serializeMarkerResource } from './src/scene/marker-resources.ts'
+const width = 200, height = 100, colors = { bg: '#fff', fg: '#111' }
+const block = preparePixelText('Route', { fontSize: 12, fontWeight: 400 })
+const marker = { id: 'xml-array-arrow', shape: 'arrow', geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: 8, y: 4 }, { x: 0, y: 8 }] }, size: { width: 8, height: 8 }, ref: { x: 8, y: 4 }, units: 'userSpaceOnUse', orient: 'auto', overflow: 'visible', paint: { fill: '#111' } }
+const render = () => drawNative(factory => ({ family: 'flowchart', width, height, colors, transparent: false, parts: [
+  factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">'),
+  factory.definitions({ id: 'defs', markerResources: [marker] }, '<defs>' + serializeMarkerResource(marker) + '</defs>'),
+  factory.connector({ id: 'xml-edge', role: 'edge', geometry: { kind: 'polyline', points: [{ x: 20, y: 50 }, { x: 160, y: 50 }] }, lineStyle: 'solid', paint: { stroke: '#111', strokeWidth: '1.5', fill: 'none' }, markers: { end: marker } }),
+  factory.text({ id: 'route-label', role: 'label', text: 'Route', block, x: 90, y: 25, fontSize: 12, anchor: 'middle', paint: { fill: '#111' } }),
+  factory.documentClose(),
+] }), { positioned: { width, height }, colors, resolved: { renderOptions: {} } }, 'flowchart')
+const clean = render(), original = Object.getOwnPropertyDescriptor(Array.prototype, 'join'), trace = []
+let changed
+try {
+  Object.defineProperty(Array.prototype, 'join', { ...original, value(separator) {
+    let open = false, polyline = false, close = false
+    for (let index = 0; index < this.length; index++) {
+      const descriptor = Object.getOwnPropertyDescriptor(this, String(index))
+      if (!descriptor || !Object.hasOwn(descriptor, 'value') || typeof descriptor.value !== 'string') continue
+      open ||= descriptor.value.startsWith('<svg ')
+      polyline ||= descriptor.value.includes('<polyline ')
+      close ||= descriptor.value === '</svg>'
+    }
+    const value = Reflect.apply(original.value, this, [separator])
+    if (!open || !polyline || !close) return value
+    trace.push(this.length)
+    return value + '</g>'
+  } })
+  changed = render()
+} finally { Object.defineProperty(Array.prototype, 'join', original) }
+console.log(JSON.stringify({
+  clean: { svg: clean.svg, proof: certifyNativePaint(clean.header, clean.paint) },
+  changed: { svg: changed.svg, proof: certifyNativePaint(changed.header, changed.paint) },
+  trace, prototypeRestored: Array.prototype.join === original.value,
+}))
+`
+
+test('Native XML proof follows actual final document composition under an inherited join hook', async () => {
+  const child = await runTextReceiverChild(process.execPath, ['--eval', finalDocumentJoinProgram], {
+    cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env },
+  })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  type Output = { svg: string; proof: ReturnType<typeof certifyNativePaint> }
+  const packet = JSON.parse(child.stdout) as { clean: Output; changed: Output; trace: number[]; prototypeRestored: boolean }
+  expect(packet.prototypeRestored).toBe(true)
+  const wellFormed = (svg: string): boolean => {
+    try { new SaxesParser({ xmlns: true }).write(svg).close(); return true } catch { return false }
+  }
+  expect(wellFormed(packet.clean.svg)).toBe(true)
+  expect(packet.clean.proof.status).toBe('passed')
+  const elements = rectangleEmissionElements(packet.clean.svg)
+  expect(elements.find(element => element.attributes['data-id'] === 'xml-edge')!.attributes).toMatchObject({ points: '20,50 160,50', stroke: '#111', 'stroke-width': '1.5', 'marker-end': 'url(#xml-array-arrow)' })
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
+  const pixels = (svg: string) => new Resvg(svg, { font, background: '#fff' }).render().pixels
+  const actual = pixels(packet.clean.svg), marker = ' marker-end="url(#xml-array-arrow)"'
+  expect(packet.clean.svg.split(marker)).toHaveLength(2)
+  const withoutMarker = pixels(packet.clean.svg.replace(marker, ''))
+  let offShaftForeground = 0
+  for (let offset = 0; offset < actual.length; offset += 4) {
+    if (Math.abs(Math.floor(offset / 4 / 200) + 0.5 - 50) <= 0.75) continue
+    if (actual[offset]! + 2 < withoutMarker[offset]!) offShaftForeground++
+  }
+  expect(offShaftForeground).toBeGreaterThan(0)
+  const label = packet.clean.svg.match(/<text\b[^>]*>Route<\/text>/)![0]
+  expect(Buffer.compare(actual, pixels(packet.clean.svg.replace(label, '')))).not.toBe(0)
+  expect(wellFormed(packet.changed.svg) || packet.changed.proof.status !== 'passed').toBe(true)
+})
+
+const ownTextKeysProgram = String.raw`
+import { drawNative } from './src/scene/native-drawing.ts'
+import { preparePixelText, transferRetainedPixelText } from './src/shared/prepared-text.ts'
+const mode = process.env.AM_OWN_TEXT_KEYS_MODE, prepared = preparePixelText('x', { fontSize: 12, fontWeight: 400 })
+let phase = 'before', trace = []
+const block = mode === 'proxy' ? new Proxy({ ...prepared, sourceStart: 7 }, {
+  ownKeys(target) { trace.push([phase, 'ownKeys']); return Reflect.ownKeys(target) },
+  getOwnPropertyDescriptor(target, key) { trace.push([phase, 'descriptor', String(key)]); return Reflect.getOwnPropertyDescriptor(target, key) },
+}) : prepared
+if (mode === 'proxy') transferRetainedPixelText(prepared, block)
+const colors = { bg: '#fff', fg: '#111' }, width = 200, height = 160
+const original = Object.getOwnPropertyDescriptor(Array.prototype, Symbol.iterator), iterate = original.value
+let removed = 0, thirdOwnSourceStart, thirdSourceStart
+const render = () => {
+  trace = []
+  const drawing = drawNative(factory => {
+    const open = factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="160">')
+    const make = (id, y) => factory.text({ id, role: 'label', text: 'x', block, x: 20, y, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })
+    phase = 'first'; const first = make('first', 30)
+    phase = 'second'; const second = make('second', 60)
+    phase = 'third'; const third = make('third', 90)
+    const retained = mode === 'proxy' ? third.node.block : third.node.block.lineBlocks[0].runs[0]
+    thirdOwnSourceStart = Object.hasOwn(retained, 'sourceStart'); thirdSourceStart = retained.sourceStart
+    phase = 'after'
+    const result = factory.shape({ id: 'own-key-result', role: 'chrome', geometry: { kind: 'rect', x: 140, y: 120, width: 20, height: 20 }, paint: { fill: thirdOwnSourceStart ? '#000' : '#fff' } })
+    return { family: 'flowchart', width, height, colors, transparent: false, parts: [open, first, second, third, result, factory.documentClose()] }
+  }, { positioned: { width, height }, colors, resolved: { renderOptions: {} } }, 'flowchart')
+  return { svg: drawing.svg, thirdOwnSourceStart, thirdSourceStart, trace }
+}
+const clean = render()
+let changed
+try {
+  Object.defineProperty(Array.prototype, Symbol.iterator, { ...original, value() {
+    const iterator = Reflect.apply(iterate, this, [])
+    const skip = phase === 'third' && typeof this[0] === 'string' && this.includes('sourceStart')
+    return { next() {
+      let result = iterator.next()
+      if (skip && !result.done && result.value === 'sourceStart') { removed++; result = iterator.next() }
+      return result
+    } }
+  } })
+  changed = render()
+} finally { Object.defineProperty(Array.prototype, Symbol.iterator, original) }
+console.log(JSON.stringify({ clean, changed, removed, prototypeRestored: Object.getOwnPropertyDescriptor(Array.prototype, Symbol.iterator).value === iterate }))
+`
+
+test.each(['owned', 'proxy'] as const)('Native text snapshots retain %s own data when an inherited iterator filters reflection keys', async mode => {
+  const child = await runTextReceiverChild(process.execPath, ['--eval', ownTextKeysProgram], {
+    cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env, AM_OWN_TEXT_KEYS_MODE: mode },
+  })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  type Capture = { svg: string; thirdOwnSourceStart: boolean; thirdSourceStart?: number; trace: unknown[] }
+  const packet = JSON.parse(child.stdout) as { clean: Capture; changed: Capture; removed: number; prototypeRestored: boolean }
+  expect(packet.prototypeRestored).toBe(true)
+  const clean = packet.clean, changed = packet.changed, svg = changed.svg
+  expect({ own: clean.thirdOwnSourceStart, sourceStart: clean.thirdSourceStart }).toEqual({ own: true, sourceStart: mode === 'owned' ? 0 : 7 })
+  new SaxesParser({ xmlns: true }).write(svg).close()
+  const texts = [...svg.matchAll(/<text\b[^>]*>x<\/text>/g)].map(match => match[0])
+  expect(texts).toHaveLength(3)
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
+  const pixels = (svg: string) => new Resvg(svg, { font, background: '#fff' }).render().pixels
+  const actual = pixels(svg)
+  expect(actual).toHaveLength(200 * 160 * 4)
+  for (const text of texts) expect(Buffer.compare(actual, pixels(svg.replace(text, '')))).not.toBe(0)
+  const result = rectangleEmissionElements(svg).find(element => element.name === 'rect' && element.attributes.x === '140' && element.attributes.y === '120')!
+  expect(result.attributes).toMatchObject({ x: '140', y: '120', width: '20', height: '20' })
+  expect({ own: changed.thirdOwnSourceStart, sourceStart: changed.thirdSourceStart, trace: changed.trace, fill: result.attributes.fill, actualCenterPixel: [...actual.subarray((130 * 200 + 150) * 4, (130 * 200 + 150) * 4 + 4)] }).toEqual({ own: true, sourceStart: mode === 'owned' ? 0 : 7, trace: clean.trace, fill: '#000', actualCenterPixel: [0, 0, 0, 255] })
+})
+
+const ownedFragmentRosterProgram = String.raw`
+import { drawNative } from './src/scene/native-drawing.ts'
+import { certifyNativePaint } from './src/scene/paint-certification.ts'
+import { preparePixelText } from './src/shared/prepared-text.ts'
+import { serializeMarkerResource } from './src/scene/marker-resources.ts'
+const mode = process.env.AM_FRAGMENT_ROSTER_MODE, width = 200, height = 100, colors = { bg: '#fff', fg: '#111' }
+const block = preparePixelText('Route', { fontSize: 12, fontWeight: 400 })
+const marker = { id: 'roster-arrow', shape: 'arrow', geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: 8, y: 4 }, { x: 0, y: 8 }] }, size: { width: 8, height: 8 }, ref: { x: 8, y: 4 }, units: 'userSpaceOnUse', orient: 'auto', overflow: 'visible', paint: { fill: '#111' } }
+const callerChildren = new WeakSet()
+const render = () => {
+  const drawing = drawNative(factory => {
+    const open = factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">')
+    const defs = factory.definitions({ id: 'defs', markerResources: [marker] }, '<defs>' + serializeMarkerResource(marker) + '</defs>')
+    const source = factory.shape({ id: 'A', role: 'node', geometry: { kind: 'rect', x: 10, y: 40, width: 20, height: 20 }, paint: { fill: '#fff', stroke: '#111', strokeWidth: '1' } })
+    const target = factory.shape({ id: 'B', role: 'node', geometry: { kind: 'rect', x: 160, y: 40, width: 20, height: 20 }, paint: { fill: '#fff', stroke: '#111', strokeWidth: '1' } })
+    const edge = factory.connector({ id: 'semantic-edge', role: 'edge', endpoints: { from: 'A', to: 'B' }, geometry: { kind: 'polyline', points: [{ x: 30, y: 50 }, { x: 160, y: 50 }] }, lineStyle: 'solid', paint: { stroke: '#111', strokeWidth: '1.5', fill: 'none' }, markers: { end: marker } })
+    const children = [{ node: edge, indent: 0 }]; callerChildren.add(children)
+    const submitted = mode === 'root' ? edge : factory.group({ id: 'connector-group', role: 'chrome', open: '<g>', close: '</g>', children })
+    const label = factory.text({ id: 'route-label', role: 'label', text: 'Route', block, x: 90, y: 25, fontSize: 12, anchor: 'middle', paint: { fill: '#111' } })
+    return { family: 'flowchart', width, height, colors, transparent: false, parts: [open, defs, source, target, submitted, label, factory.documentClose()] }
+  }, { positioned: { width, height }, colors, resolved: { renderOptions: {} } }, 'flowchart')
+  return { svg: drawing.svg, proof: certifyNativePaint(drawing.header, drawing.paint), inspectedConnectorIDs: drawing.paint.primitives.filter(p => p.kind === 'connector').map(p => p.id) }
+}
+const clean = render(), hookKey = mode === 'group-children' ? Symbol.iterator : 'map', original = Object.getOwnPropertyDescriptor(Array.prototype, hookKey), nativeMethod = original.value, trace = []
+let changed
+try {
+  Object.defineProperty(Array.prototype, hookKey, { ...original, value(callback, thisArg) {
+    if (mode === 'group-children') {
+      const iterator = Reflect.apply(nativeMethod, this, [])
+      if (callerChildren.has(this)) return iterator
+      let wrappers = this.length > 0, selected = -1
+      for (let index = 0; index < this.length; index++) {
+        const slot = Object.getOwnPropertyDescriptor(this, String(index))
+        const wrapper = slot && Object.hasOwn(slot, 'value') ? slot.value : undefined
+        const node = wrapper && typeof wrapper === 'object' ? Object.getOwnPropertyDescriptor(wrapper, 'node') : undefined
+        const fragment = node && Object.hasOwn(node, 'value') ? node.value : undefined
+        const kind = fragment && typeof fragment === 'object' ? Object.getOwnPropertyDescriptor(fragment, 'kind') : undefined
+        const svg = fragment && typeof fragment === 'object' ? Object.getOwnPropertyDescriptor(fragment, 'svg') : undefined
+        if (!kind || !Object.hasOwn(kind, 'value') || !['leaf', 'group'].includes(kind.value) || !svg || !Object.hasOwn(svg, 'value') || typeof svg.value !== 'string') { wrappers = false; break }
+        if (svg.value.includes('data-id="semantic-edge"')) selected = index
+      }
+      if (!wrappers || selected < 0) return iterator
+      trace.push({ length: this.length, selected, kind: 'private-child-wrapper' })
+      let index = 0
+      return { next() { let result = iterator.next(); const position = index++; if (!result.done && position === selected) { result = iterator.next(); index++ } return result } }
+    }
+
+    const mapped = Reflect.apply(nativeMethod, this, [callback, thisArg])
+    let fragments = this.length > 0, selected = -1
+    for (let index = 0; index < this.length; index++) {
+      const slot = Object.getOwnPropertyDescriptor(this, String(index))
+      const value = slot && Object.hasOwn(slot, 'value') ? slot.value : undefined
+      const kind = value && typeof value === 'object' ? Object.getOwnPropertyDescriptor(value, 'kind') : undefined
+      const svg = value && typeof value === 'object' ? Object.getOwnPropertyDescriptor(value, 'svg') : undefined
+      if (!kind || !Object.hasOwn(kind, 'value') || !['leaf', 'group'].includes(kind.value) || !svg || !Object.hasOwn(svg, 'value') || typeof svg.value !== 'string') { fragments = false; break }
+      if (svg.value.includes('data-id="semantic-edge"')) selected = index
+    }
+    if (!fragments || selected < 0) return mapped
+    trace.push({ length: this.length, selected, kind: this[selected].kind })
+    const retained = []
+    for (let index = 0; index < mapped.length; index++) if (index !== selected) retained.push(mapped[index])
+    return retained
+  } })
+  changed = render()
+} finally { Object.defineProperty(Array.prototype, hookKey, original) }
+console.log(JSON.stringify({ clean, changed, trace, prototypeRestored: Object.getOwnPropertyDescriptor(Array.prototype, hookKey).value === nativeMethod }))
+`
+
+test.each(['root', 'group', 'group-children'] as const)('Native actual output retains the submitted %s connector occurrence under an inherited private roster hook', async mode => {
+  const child = await runTextReceiverChild(process.execPath, ['--eval', ownedFragmentRosterProgram], {
+    cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env, AM_FRAGMENT_ROSTER_MODE: mode },
+  })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  type Capture = { svg: string; proof: ReturnType<typeof certifyNativePaint>; inspectedConnectorIDs: string[] }
+  const packet = JSON.parse(child.stdout) as { clean: Capture; changed: Capture; trace: unknown[]; prototypeRestored: boolean }
+  expect(packet.prototypeRestored).toBe(true)
+  const clean = rectangleEmissionElements(packet.clean.svg), changed = rectangleEmissionElements(packet.changed.svg)
+  expect(packet.clean.proof.status).toBe('passed')
+  const carrier = clean.filter(element => element.attributes['data-id'] === 'semantic-edge')
+  expect(carrier).toHaveLength(1)
+  expect(carrier[0]!.attributes).toMatchObject({ points: '30,50 160,50', 'data-from': 'A', 'data-to': 'B', 'marker-end': 'url(#roster-arrow)', stroke: '#111', 'stroke-width': '1.5' })
+  const source = clean.find(element => element.attributes['data-id'] === 'A')!.attributes
+  const target = clean.find(element => element.attributes['data-id'] === 'B')!.attributes
+  expect(source).toMatchObject({ x: '10', y: '40', width: '20', height: '20', stroke: '#111', 'stroke-width': '1' })
+  expect(target).toMatchObject({ x: '160', y: '40', width: '20', height: '20', stroke: '#111', 'stroke-width': '1' })
+  // Actual written rectangle boundaries, not metadata alone, own both tips.
+  expect([Number(source.x) + Number(source.width), Number(target.x)]).toEqual([30, 160])
+  expect(Number(source.y) < 50 && Number(source.y) + Number(source.height) > 50 && Number(target.y) < 50 && Number(target.y) + Number(target.height) > 50).toBe(true)
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
+  const pixels = (svg: string) => new Resvg(svg, { font, background: '#fff' }).render().pixels
+  const actual = pixels(packet.clean.svg), marker = ' marker-end="url(#roster-arrow)"'
+  expect(actual).toHaveLength(200 * 100 * 4)
+  expect(packet.clean.svg.split(marker)).toHaveLength(2)
+  const withoutHead = pixels(packet.clean.svg.replace(marker, ''))
+  let offShaftForeground = 0
+  for (let offset = 0; offset < actual.length; offset += 4) {
+    if (Math.abs(Math.floor(offset / 4 / 200) + 0.5 - 50) <= 0.75) continue
+    if (actual[offset]! + 2 < withoutHead[offset]!) offShaftForeground++
+  }
+  expect(offShaftForeground).toBeGreaterThan(0)
+  const glyph = packet.clean.svg.match(/<text\b[^>]*>Route<\/text>/)![0]
+  expect(Buffer.compare(actual, pixels(packet.clean.svg.replace(glyph, '')))).not.toBe(0)
+  expect(packet.changed.svg).toBe(packet.clean.svg)
+  expect(packet.changed.proof.status).toBe('passed')
+  expect({ nodes: changed.filter(element => element.attributes['data-role'] === 'node').map(element => element.attributes['data-id']), carriers: changed.filter(element => element.attributes['data-id'] === 'semantic-edge').map(element => element.attributes), inspected: packet.changed.inspectedConnectorIDs, routeLabels: packet.changed.svg.match(/<text\b[^>]*>Route<\/text>/g)?.length }).toEqual({ nodes: ['A', 'B'], carriers: [carrier[0]!.attributes], inspected: ['semantic-edge'], routeLabels: 1 })
+})
 
 test.each(['close', 'join'] as const)('group %s cannot emit uninspected covering artwork', field => {
   const colors = { bg: '#fff', fg: '#111' }, artwork = '<rect x="10" y="10" width="80" height="60" fill="#fff"/>'
@@ -73,6 +694,131 @@ test.each(['custom-property', 'inherited-fill'] as const)('scoped %s paint remai
   expect(direct).toMatchObject({ status: 'unverified', issues: [expect.objectContaining({ code: 'CONDITIONAL_PAINT' })] })
   expect(emitted.status).toBe('unverified')
   expect(emitted.issues.some(issue => issue.code === 'OUTPUT_SCOPE')).toBe(true)
+})
+
+test('native group font scope reads actual class bytes through inherited hooks', async () => {
+  const child = await runTextReceiverChild(process.execPath, ['--eval', String.raw`
+const sliceDescriptor = Object.getOwnPropertyDescriptor(String.prototype, 'slice')
+const slice = sliceDescriptor.value
+const findDescriptor = Object.getOwnPropertyDescriptor(Array.prototype, 'find')
+const pushDescriptor = Object.getOwnPropertyDescriptor(Array.prototype, 'push')
+const splitDescriptor = Object.getOwnPropertyDescriptor(String.prototype, 'split')
+const namesDescriptor = Object.getOwnPropertyDescriptor(Object, 'getOwnPropertyNames')
+const freezeDescriptor = Object.getOwnPropertyDescriptor(Object, 'freeze')
+let mode, hookCalls = 0
+let sourceGroup, writerMutation = false
+let freezeAttributeAttempts = 0, freezeAttributeRetainedAttempts = 0
+// Install before importing the producer: capturing this method at module load
+// cannot turn the callback's substituted token into actual SVG authority.
+Object.defineProperty(String.prototype, 'slice', { ...sliceDescriptor, value: function(start, end) {
+  const actual = Reflect.apply(slice, this, [start, end])
+  if ((mode === 'hooked-mono' || mode === 'validator-slice') && String(this) === '<g class="mono">' && actual === 'mono'
+    && new Error().stack?.includes(mode === 'validator-slice' ? 'assertInertGroup' : 'nativeGroup')) { hookCalls++; return 'safe' }
+  return actual
+} })
+Object.defineProperty(Array.prototype, 'find', { ...findDescriptor, value: function(predicate, thisArg) {
+  const found = Reflect.apply(findDescriptor.value, this, [predicate, thisArg])
+  if (mode === 'attribute-find' && found?.name === 'class' && found.value === 'mono' && typeof found.valueStart === 'number') {
+    hookCalls++; return { ...found, value: 'safe' }
+  }
+  return found
+} })
+Object.defineProperty(Array.prototype, 'push', { ...pushDescriptor, value: function(...values) {
+  if (mode === 'attribute-push') for (let index = 0; index < values.length; index++) {
+    const value = values[index]
+    if (value?.name === 'class' && value.value === 'mono' && typeof value.valueStart === 'number') {
+      hookCalls++; values[index] = { ...value, value: 'safe' }
+    }
+  }
+  return Reflect.apply(pushDescriptor.value, this, values)
+} })
+Object.defineProperty(String.prototype, 'split', { ...splitDescriptor, value: function(separator, limit) {
+  const actual = Reflect.apply(splitDescriptor.value, this, [separator, limit])
+  if (mode === 'class-split' && String(this) === 'mono' && new Error().stack?.includes('emission-context')) {
+    hookCalls++; return ['safe']
+  }
+  return actual
+} })
+Object.defineProperty(Object, 'getOwnPropertyNames', { ...namesDescriptor, value: function(value) {
+  const actual = Reflect.apply(namesDescriptor.value, Object, [value])
+  if (mode === 'writer-mutation' && value?.kind === 'group' && value.id === 'font-group' && value.open === '<g class="safe">') sourceGroup = value
+  return actual
+} })
+Object.defineProperty(Object, 'freeze', { ...freezeDescriptor, value: function(value) {
+  if (mode === 'freeze-attribute' && value?.name === 'class' && value.value === 'mono' && typeof value.valueStart === 'number') {
+    const stack = new Error().stack ?? ''
+    freezeAttributeAttempts++
+    if (stack.includes('collectNativeGroup') || stack.includes('materialize')) freezeAttributeRetainedAttempts++
+    Reflect.set(value, 'value', 'safe')
+  }
+  if (mode === 'writer-mutation' && !writerMutation && sourceGroup && value
+    && Object.hasOwn(value, 'uncertain') && Object.hasOwn(value, 'matrix')) {
+    sourceGroup.open = '<g class="mono">'
+    writerMutation = true
+  }
+  return Reflect.apply(freezeDescriptor.value, Object, [value])
+} })
+const rows = []
+try {
+  const { drawNative } = await import('./src/scene/native-drawing.ts')
+  const { certifyNativePaint } = await import('./src/scene/paint-certification.ts')
+  const { preparePixelText, hasPreparedInterTextEnvelope } = await import('./src/shared/prepared-text.ts')
+  const { withTextMeasurementExecution } = await import('./src/text-measurement-profile.ts')
+  const { tipAnchoredArrow, serializeMarkerResource } = await import('./src/scene/marker-resources.ts')
+  const { svgOpenTag, buildStyleBlock } = await import('./src/theme.ts')
+  const width = 200, height = 120, colors = { bg: '#fff', fg: '#111', font: 'Inter' }
+  const context = { positioned: { width, height }, colors, resolved: { renderOptions: {} } }
+  const block = withTextMeasurementExecution(undefined, () => preparePixelText('Wiii', { fontSize: 20, fontWeight: 400 }), 'Inter')
+  const marker = tipAnchoredArrow('font-custody-arrow', { width: 8, height: 5 }, 'end', { fill: '#000' }, 'userSpaceOnUse')
+  for (mode of ['safe', 'mono', 'hooked-mono', 'validator-slice', 'attribute-find', 'attribute-push', 'class-split', 'freeze-attribute', 'writer-mutation']) {
+    const producer = factory => ({ family: 'flowchart', width, height, colors, transparent: false, parts: [
+      factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: true }, svgOpenTag(width, height, colors) + '\n' + buildStyleBlock('Inter', true, false, false)),
+      factory.definitions({ id: 'markers' }, '<defs>' + serializeMarkerResource(marker) + '</defs>'),
+      factory.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 50, y2: 40 }, paint: { stroke: '#000' }, endpoints: { from: 'outside', to: 'cover' }, markers: { end: marker } }),
+      factory.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 90, y: 10, width: 35, height: 45 }, paint: { fill: '#fff' } }),
+      factory.group({ id: 'font-group', role: 'chrome', open: '<g class="' + (mode === 'safe' || mode === 'writer-mutation' ? 'safe' : 'mono') + '">', close: '</g>', children: [{ node: factory.text({ id: 'font-text', role: 'label', text: block.text, block, x: 20, y: 90, fontSize: 20, anchor: 'start', paint: { fill: '#111' } }), indent: 2 }] }),
+      factory.documentClose(),
+    ] })
+    const drawing = drawNative(producer, context, 'flowchart')
+    rows.push({ mode, svg: drawing.svg, proof: certifyNativePaint(drawing.header, drawing.paint), preparedInter: hasPreparedInterTextEnvelope(block), ownFont: Object.hasOwn(block, 'fontFamily'), writerMutation, mutatedSourceOpen: sourceGroup?.open, freezeAttributeAttempts, freezeAttributeRetainedAttempts })
+  }
+} finally {
+  Object.defineProperty(String.prototype, 'slice', sliceDescriptor)
+  Object.defineProperty(Array.prototype, 'find', findDescriptor)
+  Object.defineProperty(Array.prototype, 'push', pushDescriptor)
+  Object.defineProperty(String.prototype, 'split', splitDescriptor)
+  Object.defineProperty(Object, 'getOwnPropertyNames', namesDescriptor)
+  Object.defineProperty(Object, 'freeze', freezeDescriptor)
+}
+console.log(JSON.stringify({ rows, hookCalls, restored: String.prototype.slice === slice
+  && Array.prototype.find === findDescriptor.value && Array.prototype.push === pushDescriptor.value
+  && String.prototype.split === splitDescriptor.value && Object.getOwnPropertyNames === namesDescriptor.value
+  && Object.freeze === freezeDescriptor.value }))
+`], { cwd: fileURLToPath(new URL('../../', import.meta.url)), env: process.env })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  const packet = JSON.parse(child.stdout) as { rows: Array<{ mode: string; svg: string; proof: ReturnType<typeof certifyNativePaint>; preparedInter: boolean; ownFont: boolean; writerMutation: boolean; mutatedSourceOpen?: string; freezeAttributeAttempts: number; freezeAttributeRetainedAttempts: number }>; restored: boolean }
+  expect(packet.restored).toBe(true)
+  expect(packet.rows.map(row => row.mode)).toEqual(['safe', 'mono', 'hooked-mono', 'validator-slice', 'attribute-find', 'attribute-push', 'class-split', 'freeze-attribute', 'writer-mutation'])
+  const [safe, mono] = packet.rows
+  expect(safe!.proof).toMatchObject({ status: 'passed', issues: [] })
+  const writer = packet.rows.at(-1)!
+  expect({ mutated: writer.writerMutation, sourceOpen: writer.mutatedSourceOpen }).toEqual({ mutated: true, sourceOpen: '<g class="mono">' })
+  expect(writer.svg).toBe(safe!.svg)
+  expect(writer.proof).toMatchObject({ status: 'passed', issues: [] })
+  for (const row of packet.rows) {
+    expect({ preparedInter: row.preparedInter, ownFont: row.ownFont }).toEqual({ preparedInter: true, ownFont: false })
+    const elements = rectangleEmissionElements(row.svg)
+    expect(elements.filter(element => element.name === 'g').map(element => element.attributes.class)).toEqual([row.mode === 'safe' || row.mode === 'writer-mutation' ? 'safe' : 'mono'])
+    expect(elements.filter(element => element.name === 'line').map(element => element.attributes)).toEqual([expect.objectContaining({ x1: '20', y1: '40', x2: '50', y2: '40', 'data-from': 'outside', 'data-to': 'cover', 'marker-end': 'url(#font-custody-arrow)' })])
+    expect(elements.filter(element => element.name === 'marker').map(element => element.attributes.id)).toEqual(['font-custody-arrow'])
+    expect(row.svg.match(/<text\b[^>]*>Wiii<\/text>/g)).toHaveLength(1)
+    expect(row.svg).toContain('.mono { font-family:')
+  }
+  for (const row of packet.rows.slice(1, -1)) {
+    expect(row.svg).toBe(mono!.svg)
+    expect(row.proof.status).toBe('unverified')
+    expect(row.proof.issues).toContainEqual(expect.objectContaining({ code: 'OUTPUT_SCOPE' }))
+  }
 })
 
 test.each(['first-after', 'second-before', 'second-after', 'union-gap', 'partial-first', 'outside'] as const)('sibling text query caching preserves exact %s paint obligations', mode => {
@@ -136,20 +882,25 @@ test('the public ER custody boundary selects immutable Scene proof before native
     import {withPerformanceObserver} from ${entry('../performance-observations.ts')}
     import {resolveRenderRequestForExecution} from ${entry('../render-contract.ts')}
     import {positionResolvedFamily} from ${entry('../positioning.ts')}
-    import {renderPositionedMermaidSVG} from ${entry('../graphical-render.ts')}
+    import {renderPositionedMermaidSVG,lowerPositionedFamilyScene} from ${entry('../graphical-render.ts')}
     import {assertScenesOf} from ${entry('../scene/assertions.ts')}
+    import {getFamily} from ${entry('../agent/families.ts')}
+    import {sceneLowering,nativeDrawingOf,inheritNativeDrawing} from ${entry('../scene/drawing.ts')}
+    import {withRenderStageObserver} from ${entry('../render-stages.ts')}
+    import {certifyScenePaint} from ${entry('../scene/paint-certification.ts')}
     const rows=[];
-    for(const count of [256,257]) {
+    for(const count of [32,256,257]) {
       const source='erDiagram\\nN0 ||--|| N1 : owns\\n'+Array.from({length:count},(_,i)=>'N'+i).join('\\n');
       const options={graphLayout:{backend:'elk',fallback:'none'},embedFontImport:false};
       let previous;
       for(const phase of ['cold','warm']) {
         const events=[];
         const rendered=withPerformanceObserver(e=>events.push(e),()=>renderMermaidSVGWithReceipt(source,options));
-        rows.push({count,phase,sameSvg:previous===undefined||previous===rendered.svg,proof:rendered.receipt.layoutCertification,
+        rows.push({count,phase,svg:phase==='cold'?rendered.svg:undefined,sameSvg:previous===undefined||previous===rendered.svg,proof:rendered.receipt.layoutCertification,
           entities:(rendered.svg.match(/class="entity"/g)||[]).length,
-          preflight:events.some(e=>e.kind==='cache'&&e.owner==='native-drawing'&&e.outcome==='bypass'&&e.reason==='paint-proof-capacity'),
-          nativeAttempt:events.some(e=>e.kind==='cache'&&e.owner==='native-drawing'&&e.outcome==='miss')});
+          providers:events.filter(e=>e.kind==='cache'&&e.owner==='paint-certification').map(e=>e.detail),
+          preflight:events.some(e=>e.kind==='cache'&&e.owner==='native-drawing'&&e.outcome==='bypass'&&['owned-scene-geometry','paint-proof-capacity'].includes(e.reason)),
+          nativeAttempt:events.some(e=>e.kind==='cache'&&e.owner==='native-drawing'&&['miss','hit'].includes(e.outcome))});
         previous=rendered.svg;
       }
       const request=resolveRenderRequestForExecution(source,options,'svg');
@@ -157,21 +908,84 @@ test('the public ER custody boundary selects immutable Scene proof before native
       const scene=renderPositionedMermaidSVG(request,positionResolvedFamily('er',request),[]);
       rows.push({count,phase:'scene',sameSvg:previous===scene.svg,proof:scene.layoutCertification});
     }
-    console.log(JSON.stringify(rows));
+    const source='erDiagram\\nER_CUSTODY_A ||--|| ER_CUSTODY_B : holds\\nER_CUSTODY_Z';
+    const options={graphLayout:{backend:'elk',fallback:'none'},embedFontImport:false};
+    const lower=getFamily('er').lowerScene, original=nativeDrawingOf(lower);
+    if(!lower||!original)throw new Error('ER must retain its built-in drawing capability');
+    const restore=sceneLowering(original), clean=renderMermaidSVGWithReceipt(source,options);
+    let customCalls=0,held,installed=false,coveredCalls=0,retainedSceneProof,failed,escaped,providers=[];
+    const custom=sceneLowering((factory,context)=>{customCalls++;held=context.positioned;return original(factory,context)});
+    let controls;
+    try {
+      const observed=withRenderStageObserver(sample=>{
+        if(sample.stage==='drawing'&&!installed){installed=true;inheritNativeDrawing(custom,lower)}
+      },()=>renderMermaidSVGWithReceipt(source,options));
+      const callsDuringScene=customCalls, fresh=renderMermaidSVGWithReceipt(source,options);
+      const previousX=held.entities[0].x; held.entities[0].x=-10000;
+      const covered=sceneLowering((factory,context)=>{
+        coveredCalls++;const document=original(factory,context);
+        document.parts.splice(-1,0,factory.shape({id:'er-custody-cover',role:'chrome',geometry:{kind:'rect',x:0,y:0,width:document.width,height:document.height},paint:{fill:'#000'}}));
+        return document;
+      });
+      inheritNativeDrawing(covered,lower);
+      const request=resolveRenderRequestForExecution(source,options,'svg'), layout=positionResolvedFamily('er',request);
+      const detached=layout.positioned.entities[0].x===previousX;
+      try {escaped=withPerformanceObserver(e=>{if(e.kind==='cache'&&e.owner==='paint-certification')providers.push(e.detail)},()=>withRenderStageObserver(sample=>{
+        if(sample.stage==='drawing'){inheritNativeDrawing(restore,lower);retainedSceneProof=certifyScenePaint(lowerPositionedFamilyScene(request,layout))}
+      },()=>renderPositionedMermaidSVG(request,layout,[])))} catch(error){failed={name:error.name,proof:error.certification}}
+      controls={installed,callsDuringScene,customCalls,detached,coveredCalls,
+        sameSceneSvg:observed.svg===clean.svg,sameSceneProof:JSON.stringify(observed.receipt.layoutCertification)===JSON.stringify(clean.receipt.layoutCertification),
+        sameNativeSvg:fresh.svg===clean.svg,nativeStatus:fresh.receipt.layoutCertification.status,sceneStatus:clean.receipt.layoutCertification.status,
+        retainedSceneProof,failed,providers,escaped:escaped?{svg:escaped.svg,proof:escaped.layoutCertification}:undefined};
+    } finally {inheritNativeDrawing(restore,lower)}
+    console.log(JSON.stringify({rows,controls}));
   `)
   const result = Bun.spawnSync([process.execPath, probe], { env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' }, stdout: 'pipe', stderr: 'pipe' })
   expect({ status: result.exitCode, error: new TextDecoder().decode(result.stderr) }).toEqual({ status: 0, error: '' })
-  const rows = JSON.parse(new TextDecoder().decode(result.stdout))
-  expect(rows).toHaveLength(6)
+  const { rows, controls } = JSON.parse(new TextDecoder().decode(result.stdout))
+  expect(rows).toHaveLength(9)
   for (const row of rows) {
     expect({ count: row.count, phase: row.phase, sameSvg: row.sameSvg, proof: row.proof }).toMatchObject({ sameSvg: true, proof: { status: 'passed', issues: [] } })
     expect(row.proof.checks.operations).toBeLessThanOrEqual(400000)
+  }
+  for (const row of rows) {
     if (row.phase !== 'scene') {
       expect(row.entities).toBe(row.count)
-      expect(row.preflight).toBe(row.count > 256)
-      expect(row.nativeAttempt).toBe(row.count <= 256)
+      expect(new Set(row.providers)).toEqual(new Set(['scene']))
+      expect(row.preflight).toBe(true)
+      expect(row.nativeAttempt).toBe(false)
+    }
+    if (row.phase === 'cold') {
+      const elements = rectangleEmissionElements(row.svg)
+      const ids = Array.from({ length: row.count }, (_, index) => `N${index}`)
+      expect(elements.filter(element => element.attributes.class === 'entity').map(element => element.attributes['data-id'])).toEqual(ids)
+      const texts = [...row.svg.matchAll(/<text\b[^>]*>([^<]*)<\/text>/g)].map(match => match[1])
+      expect(texts.filter(text => /^N\d+$/.test(text!))).toEqual(ids)
+      expect(texts.filter(text => text === 'owns')).toEqual(['owns'])
+      const carriers = elements.filter(element => element.attributes.class === 'er-relationship')
+      expect(carriers).toHaveLength(1)
+      expect(carriers[0]!.attributes).toMatchObject({ 'data-id': 'rel:N0-N1#0', 'data-from': 'N0', 'data-to': 'N1', 'data-cardinality1': 'one', 'data-cardinality2': 'one', 'data-identifying': 'true', 'data-label': 'owns' })
+      expect(elements.filter(element => element.attributes['data-role'] === 'cardinality').map(element => element.attributes)).toEqual([
+        expect.objectContaining({ 'data-id': 'card:N0-N1#0:1', 'data-owner-id': 'rel:N0-N1#0', 'data-owner-role': 'relationship', 'data-end': 'start', 'data-endpoint': 'N0' }),
+        expect.objectContaining({ 'data-id': 'card:N0-N1#0:2', 'data-owner-id': 'rel:N0-N1#0', 'data-owner-role': 'relationship', 'data-end': 'end', 'data-endpoint': 'N1' }),
+      ])
+      const glyphs = [...row.svg.matchAll(/<g\b[^>]*data-role="cardinality"[^>]*>([\s\S]*?)<\/g>/g)]
+      expect(glyphs).toHaveLength(2)
+      for (const glyph of glyphs) {
+        const bars = rectangleEmissionElements(`<svg xmlns="http://www.w3.org/2000/svg">${glyph[1]}</svg>`).filter(element => element.name === 'line')
+        expect(bars).toHaveLength(2)
+        for (const { attributes } of bars) {
+          expect(Number(attributes['stroke-width'])).toBeGreaterThan(0)
+          expect([attributes.x1, attributes.y1, attributes.x2, attributes.y2].every(value => Number.isFinite(Number(value)))).toBe(true)
+          expect(attributes.x1 === attributes.x2 && attributes.y1 !== attributes.y2 || attributes.y1 === attributes.y2 && attributes.x1 !== attributes.x2).toBe(true)
+        }
+      }
     }
   }
+  expect(controls).toMatchObject({ installed: true, callsDuringScene: 0, customCalls: 1, detached: true, coveredCalls: 1, sameSceneSvg: true, sameSceneProof: true, sameNativeSvg: true, nativeStatus: 'passed', sceneStatus: 'passed', retainedSceneProof: { status: 'passed' }, failed: { name: 'PaintLayoutCertificationError', proof: { status: 'failed' } } })
+  expect(new Set(controls.providers)).toEqual(new Set(['native']))
+  expect(controls.escaped).toBeUndefined()
+  expect(controls.failed.proof.issues.some((issue: { code: string }) => issue.code === 'TEXT_OCCLUDED')).toBe(true)
 }, 15000)
 
 function distantMarkerTextPairs<T>(factory: DrawingFactory<T>, count: number, marker: MarkerDescriptor): T[] {
@@ -184,22 +998,6 @@ function distantMarkerTextPairs<T>(factory: DrawingFactory<T>, count: number, ma
     ]
   }).flat()
 }
-
-test.each([0, 32])('sparse decorative markers preserve completed direct and emitted text proof (%s markers)', markerCount => {
-  const width = 200, height = 31000, colors = { bg: '#fff', fg: '#111' }
-  const block = preparePixelText('x', { fontSize: 12, fontWeight: 400 })
-  const marker = tipAnchoredArrow('decorative-arrow', { width: 8, height: 5 }, 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.75' }, 'userSpaceOnUse')
-  const context = { positioned: { width, height }, colors, resolved: { renderOptions: {} } }
-  const producer: DrawingProducer = factory => ({ family: 'flowchart', width, height, colors, transparent: false, parts: [
-    factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">`),
-    ...(markerCount ? [factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(marker)}</defs>`)] : []),
-    ...Array.from({ length: markerCount }, (_, index) => factory.connector({ id: `chrome:${index}`, role: 'chrome', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40 + index * 20, x2: 60, y2: 40 + index * 20 }, paint: { stroke: '#111', strokeWidth: '1' }, markers: { end: marker } })),
-    ...Array.from({ length: 1500 }, (_, index) => factory.text({ id: `text:${index}`, role: 'label', text: 'x', block, x: 20, y: 1000 + index * 20, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })),
-    factory.documentClose(),
-  ] })
-  const drawing = drawNative(producer, context, 'flowchart')
-  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) expect(proof).toMatchObject({ status: 'passed', issues: [] })
-})
 
 test.each(['LR', 'RL', 'TB', 'BT'] as const)('rounded endpoint contacts retain strict paint proof in %s', direction => {
   const source = `flowchart ${direction}\nN0[n0]\nN1[n1]\nN2([n2])\nN3((n3))\nN2 --> N1\nN1 <==> N2\nN0 --> N2\nN2 --> N3\nN0 --> N2`
@@ -302,6 +1100,1496 @@ test.each(['plain', 'transformed', 'cancelled'] as const)('the added axial marke
   }
 })
 
+test.each(['clear', 'covered', 'inherited-separated', 'uncaptured-group-eraser', 'wrong-ref', 'clipped', 'unknown-width', 'dashed', 'mutated', 'css', 'inner-child', 'resource-coordinate', 'resource-width', 'body-width', 'own-white-carrier', 'later-white-carrier', 'same-black-carrier', 'earlier-black-carrier', 'black-backdrop'] as const)('a stroke-only circle retains actual emitted ink authority for %s', mode => {
+  const context = { positioned: { width: 100, height: 80 }, colors: mode === 'black-backdrop' ? { bg: '#000', fg: '#000' } : { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  let uncapturedOwnerReads = 0
+  const marker: MarkerDescriptor = {
+    id: 'ring', shape: 'circle', units: 'userSpaceOnUse', orient: 'auto',
+    size: mode === 'clipped' ? { width: 1, height: 1 } : { width: 6, height: 6 },
+    ref: { x: mode === 'wrong-ref' ? 3 : 5, y: 3 },
+    geometry: { kind: 'circle', cx: mode === 'resource-coordinate' ? 3.00000000000001 : 3, cy: 3, r: 2 },
+    paint: { fill: 'none', stroke: mode === 'same-black-carrier' || mode === 'earlier-black-carrier' || mode === 'black-backdrop' ? '#000' : '#111', strokeWidth: mode === 'unknown-width' ? 'var(--host)' : mode === 'resource-width' ? '1.00000000000001' : '1', ...(mode === 'dashed' ? { strokeDasharray: '1 1' } : {}) },
+  }
+  const producer: DrawingProducer = factory => {
+    const open = factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">')
+    const definitions = factory.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}${mode === 'css' ? '<style>marker circle { stroke: none }</style>' : ''}</defs>`)
+    if (mode === 'mutated') marker.paint!.stroke = 'none'
+    const earlier = mode === 'earlier-black-carrier' ? [factory.connector({ id: 'earlier-shaft', role: 'chrome', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 60, y2: 40 }, paint: { stroke: '#000', strokeWidth: '20' } })] : []
+    const edge = factory.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', endpoints: { from: 'outside', to: 'card' }, geometry: { kind: 'line', x1: 20, y1: 40, x2: 60, y2: 40 },
+      paint: { stroke: mode === 'own-white-carrier' ? '#fff' : mode === 'same-black-carrier' || mode === 'earlier-black-carrier' || mode === 'black-backdrop' ? '#000' : '#111', strokeWidth: mode === 'own-white-carrier' || mode === 'same-black-carrier' ? '20' : '1', ...(mode === 'own-white-carrier' ? { paintOrder: 'markers stroke fill' } : {}) }, markers: { end: marker } })
+    const later = mode === 'later-white-carrier' ? [factory.connector({ id: 'later-eraser', role: 'chrome', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 60, y2: 40 }, paint: { stroke: '#fff', strokeWidth: '20' } })] : []
+    const card = factory.shape({ id: 'card', role: 'node',
+      geometry: mode === 'covered' || mode === 'inherited-separated' ? { kind: 'rect', x: 53, y: 34, width: 14, height: 12 }
+        : mode === 'inner-child' ? { kind: 'compound', children: [{ kind: 'rect', x: 60, y: 20, width: 30, height: 40 }, { kind: 'line', x1: 54, y1: 38, x2: 60, y2: 38 }] }
+          : { kind: 'rect', x: 60, y: 20, width: 30, height: 40 },
+      paint: { fill: '#fff', stroke: '#888', strokeWidth: mode === 'body-width' ? '1.00000000000001' : '1' },
+      ...(mode === 'inner-child' ? { childPaints: [{ fill: '#fff', stroke: '#888', strokeWidth: '1' }, { fill: 'none', stroke: '#111', strokeWidth: '2' }] } : {}),
+    })
+    const unrecorded = mode === 'uncaptured-group-eraser' ? [factory.group({ id: 'uncaptured-shell', role: 'chrome', owner: { get id() { uncapturedOwnerReads++; return 'card' }, role: 'node' }, open: '<g>', close: '<rect x="53" y="34" width="14" height="12" fill="#fff"/></g>', children: [] })] : []
+    return { ...scene([]), colors: context.colors, parts: [open, definitions, ...earlier, edge, ...later, card, ...unrecorded, factory.documentClose()] }
+  }
+  if (mode === 'uncaptured-group-eraser') {
+    // Untyped trailing artwork is rejected before either adapter can publish it.
+    const message = 'Group "uncaptured-shell" close and join must not add artwork'
+    expect(() => producer(marks, context)).toThrow(message)
+    expect(() => drawNative(producer, context, 'flowchart')).toThrow(message)
+    return
+  }
+  const native = drawNative(producer, context, 'flowchart', mode === 'black-backdrop' ? { colors: { bg: '#000' } } : undefined)
+  const drawing = mode === 'black-backdrop' ? { ...native, svg: inlineResolvedColors(native.svg, native.header.colors) } : native
+  expect(drawing.svg).toContain('<line x1="20" y1="40" x2="60" y2="40"')
+  expect(drawing.svg).toContain('marker-end="url(#ring)"')
+  expect(drawing.svg).toContain(mode === 'resource-coordinate' ? '<circle cx="3.00000000000001" cy="3" r="2" fill="none" stroke="#111"' : mode === 'same-black-carrier' || mode === 'earlier-black-carrier' || mode === 'black-backdrop' ? '<circle cx="3" cy="3" r="2" fill="none" stroke="#000"' : '<circle cx="3" cy="3" r="2" fill="none" stroke="#111"')
+  if (mode === 'resource-width') expect(drawing.svg).toContain('stroke-width="1.00000000000001"')
+  if (mode === 'own-white-carrier' || mode === 'later-white-carrier') expect(drawing.svg).toContain('<line x1="20" y1="40" x2="60" y2="40" stroke="#fff" stroke-width="20"')
+  if (mode === 'own-white-carrier') expect(drawing.svg).toContain('paint-order="markers stroke fill"')
+  if (mode === 'same-black-carrier' || mode === 'earlier-black-carrier' || mode === 'black-backdrop') {
+    if (mode !== 'black-backdrop') expect(drawing.svg).toContain('<line x1="20" y1="40" x2="60" y2="40" stroke="#000" stroke-width="20"')
+    if (mode !== 'same-black-carrier') expect(drawing.svg).toContain('<line x1="20" y1="40" x2="60" y2="40" stroke="#000" stroke-width="1" marker-end="url(#ring)"')
+    if (mode === 'black-backdrop') expect(drawing.svg).toContain('<rect width="100" height="80" fill="#000" data-backdrop="page" />')
+    expect(drawing.svg).not.toContain('paint-order=')
+    const markerEnd = ' marker-end="url(#ring)"'
+    expect(drawing.svg.split(markerEnd)).toHaveLength(2)
+    // Pure black avoids raster rounding noise: the circle has no visible
+    // effect when its whole surviving ring lies over existing opaque ink.
+    const withMarker = new Resvg(drawing.svg).render().pixels
+    const withoutMarker = new Resvg(drawing.svg.replace(markerEnd, '')).render().pixels
+    expect(Buffer.compare(withMarker, withoutMarker)).toBe(0)
+  }
+  if (['clear', 'covered', 'inherited-separated', 'clipped', 'css', 'own-white-carrier', 'later-white-carrier'].includes(mode)) {
+    // The top ring point (58,38) is real stroke ink, away from the carrier
+    // shaft at y40 and the attached card's leftmost stroke at x59.5.
+    const render = new Resvg(drawing.svg).render(), pixels = render.pixels
+    let topInk = 0
+    for (let y = 37; y < 39; y++) for (let x = 57; x < 59; x++) {
+      const index = (y * render.width + x) * 4
+      if (pixels[index + 3]! > 0 && pixels[index]! < 96 && pixels[index + 1]! < 96 && pixels[index + 2]! < 96) topInk++
+    }
+    if (mode === 'clear') expect(topInk).toBeGreaterThan(0)
+    else expect(topInk).toBe(0)
+  }
+  if (mode === 'inherited-separated') {
+    // The complete ring [55.5,60.5]x[37.5,42.5] is inside the later
+    // opaque card fill. Observe actual output before the host mutation.
+    expect(drawing.svg).toContain('<rect x="53" y="34" width="14" height="12" fill="#fff" stroke="#888" stroke-width="1"')
+    const reference = ' marker-end="url(#ring)"'
+    expect(drawing.svg.split(reference)).toHaveLength(2)
+    const actual = new Resvg(drawing.svg).render().pixels
+    const absent = new Resvg(drawing.svg.replace(reference, '')).render().pixels
+    expect(Buffer.compare(actual, absent)).toBe(0)
+  }
+  const descriptor = Object.getOwnPropertyDescriptor(Object.prototype, 'separated')
+  let proof: ReturnType<typeof certifyNativePaint>
+  try {
+    if (mode === 'inherited-separated') Object.defineProperty(Object.prototype, 'separated', { configurable: true, value: true })
+    proof = certifyNativePaint(drawing.header, drawing.paint)
+  } finally {
+    if (mode === 'inherited-separated') {
+      if (descriptor) Object.defineProperty(Object.prototype, 'separated', descriptor)
+      else delete (Object.prototype as { separated?: boolean }).separated
+    }
+  }
+  if (mode === 'inherited-separated') {
+    expect(Object.getOwnPropertyDescriptor(Object.prototype, 'separated')).toEqual(descriptor)
+    expect(proof.status).toBe('unverified')
+  }
+
+  if (mode === 'clear') {
+    expect(drawing.svg).toContain('markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto" markerUnits="userSpaceOnUse"')
+    expect(drawing.svg).toContain('<rect x="60" y="20" width="30" height="40" fill="#fff" stroke="#888" stroke-width="1"')
+    expect(proof.status).toBe('passed')
+    expect(proof.issues).toEqual([])
+  } else expect(proof.status).not.toBe('passed')
+})
+
+test('an opposite endpoint marker cannot borrow a mutated supplied line tangent to erase visible ink', () => {
+  const colors = { bg: '#fff', fg: '#111' }
+  const context = { positioned: { width: 160, height: 160 }, colors, resolved: { renderOptions: {} } }
+  const start: MarkerDescriptor = { id: 'start-ring', shape: 'circle', units: 'userSpaceOnUse', orient: 'auto', size: { width: 6, height: 6 }, ref: { x: 5, y: 3 }, geometry: { kind: 'circle', cx: 3, cy: 3, r: 2 }, paint: { fill: 'none', stroke: '#111', strokeWidth: '1' } }
+  const end: MarkerDescriptor = { id: 'end-eraser', shape: 'diamond', units: 'userSpaceOnUse', orient: 'auto', size: { width: 80, height: 80 }, ref: { x: 60, y: 40 }, geometry: { kind: 'rect', x: 14, y: 34, width: 14, height: 12 }, paint: { fill: '#fff', stroke: 'none' } }
+  const endTangent = { x: 1, y: 0 }, trace: string[] = []
+  const producer: DrawingProducer = factory => ({ family: 'flowchart', width: 160, height: 160, transparent: false, colors, parts: [
+    factory.documentOpen({ id: 'root', width: 160, height: 160, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">'),
+    factory.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(start)}${serializeMarkerResource(end)}</defs>`),
+    factory.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 60, x2: 60, y2: 60 }, paint: { stroke: '#111', strokeWidth: '1' }, endpoints: { from: 'outside', to: 'card' }, markers: { start, end }, route: {
+      contours: [{ start: { x: 20, y: 60 }, end: { x: 60, y: 60 }, closed: false, startTangent: { x: 1, y: 0 }, endTangent }],
+      get labelAnchors() { trace.push('labelAnchors-mutates-endTangent'); endTangent.x = 0; endTangent.y = 1; return [] },
+    } }),
+    factory.shape({ id: 'card', role: 'node', geometry: { kind: 'rect', x: 60, y: 40, width: 30, height: 40 }, paint: { fill: '#fff', stroke: '#888', strokeWidth: '1' } }),
+    factory.documentClose(),
+  ] })
+  const drawing = drawPaintControl(producer, context, 'native')
+  const elements = rectangleEmissionElements(drawing.svg)
+  expect(elements.find(element => element.name === 'svg')!.attributes.viewBox).toBe('0 0 160 160')
+  expect(elements.find(element => element.attributes['data-id'] === 'edge')!.attributes).toMatchObject({ x1: '20', y1: '60', x2: '60', y2: '60', stroke: '#111', 'stroke-width': '1', 'marker-start': 'url(#start-ring)', 'marker-end': 'url(#end-eraser)' })
+  expect(elements.find(element => element.name === 'marker' && element.attributes.id === 'start-ring')!.attributes).toMatchObject({ markerWidth: '6', markerHeight: '6', refX: '5', refY: '3', orient: 'auto', markerUnits: 'userSpaceOnUse' })
+  expect(elements.find(element => element.name === 'circle')!.attributes).toMatchObject({ cx: '3', cy: '3', r: '2', fill: 'none', stroke: '#111', 'stroke-width': '1' })
+  expect(elements.find(element => element.name === 'marker' && element.attributes.id === 'end-eraser')!.attributes).toMatchObject({ markerWidth: '80', markerHeight: '80', refX: '60', refY: '40', orient: 'auto', markerUnits: 'userSpaceOnUse' })
+  expect(elements.find(element => element.name === 'rect' && element.attributes.x === '14')!.attributes).toEqual({ x: '14', y: '34', width: '14', height: '12', fill: '#fff', stroke: 'none' })
+  expect(elements.some(element => element.attributes.transform !== undefined)).toBe(false)
+  expect(trace).toContain('labelAnchors-mutates-endTangent')
+  expect(endTangent).toEqual({ x: 0, y: 1 })
+  // The actual east-facing line places the full start ring at
+  // [15.5,20.5]×[57.5,62.5]. The actual opposite marker's white rectangle
+  // maps to [14,28]×[54,66], wholly erasing that ring. Supplied tangent
+  // metadata cannot rotate this rectangle away from the actual SVG line.
+  const startToken = ' marker-start="url(#start-ring)"', endToken = ' marker-end="url(#end-eraser)"'
+  expect(drawing.svg.split(startToken)).toHaveLength(2)
+  expect(drawing.svg.split(endToken)).toHaveLength(2)
+  const pixels = (svg: string) => new Resvg(svg, { font: { loadSystemFonts: false } }).render().pixels
+  expect(Buffer.compare(pixels(drawing.svg), pixels(drawing.svg.replace(startToken, '')))).toBe(0)
+  const withoutEraser = drawing.svg.replace(endToken, '')
+  expect(Buffer.compare(pixels(withoutEraser), pixels(withoutEraser.replace(startToken, '')))).not.toBe(0)
+  expect(drawing.proof.status).not.toBe('passed')
+})
+
+const runRectangleChild = useTestChildren(20_000)
+const ownDescriptorSlotProgram = String.raw`
+import { drawNative } from './src/scene/native-drawing.ts'
+import { certifyNativePaint } from './src/scene/paint-certification.ts'
+import { DefaultBackend } from './src/scene/backend.ts'
+import * as marks from './src/scene/marks.ts'
+const boundary = process.env.AM_DESCRIPTOR_SLOT_BOUNDARY
+const colors = { bg: '#fff', fg: '#111' }, context = { positioned: { width: 120, height: 100 }, colors, resolved: { renderOptions: {} } }
+if (Object.hasOwn(Object.prototype, 'value')) throw new Error('Expected a clean isolated prototype')
+const fixture = () => {
+  let reads = 0
+  const paint = { fill: '#f00', stroke: '#111', strokeWidth: '1' }
+  Object.defineProperty(paint, 'opacity', { enumerable: true, configurable: true, get() { reads++; return '0' } })
+  const producer = factory => ({ family: 'flowchart', width: 120, height: 100, colors, transparent: false, parts: [
+    factory.documentOpen({ id: 'root', width: 120, height: 100, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="100" viewBox="0 0 120 100">'),
+    factory.shape({ id: 'authored-card', role: 'node', geometry: { kind: 'rect', x: 20, y: 20, width: 80, height: 60, rx: 0, ry: 0 }, paint }),
+    factory.documentClose(),
+  ] })
+  return { producer, document: boundary === 'external' ? producer(marks) : undefined, reads: () => reads }
+}
+// Accessors, external documents and the null-prototype pollution descriptor
+// all exist before any inherited descriptor slot is introduced.
+const clean = fixture(), polluted = fixture()
+const pollution = Object.assign(Object.create(null), { value: '1', writable: true, configurable: true, enumerable: false })
+const run = input => boundary === 'external' ? DefaultBackend.render(input.document, { seed: 0 }) : drawNative(input.producer, context, 'flowchart')
+let cleanOutput, pollutedOutput, cleanError, pollutedError
+try { cleanOutput = run(clean) } catch (error) { cleanError = error }
+try {
+  Object.defineProperty(Object.prototype, 'value', pollution)
+  pollutedOutput = run(polluted)
+} catch (error) { pollutedError = error } finally { delete Object.prototype.value }
+const observe = (output, error, input) => ({
+  svg: boundary === 'external' ? output : output?.svg,
+  proof: boundary === 'native' && output ? certifyNativePaint(output.header, output.paint) : undefined,
+  error: error ? { name: error.name, message: error.message } : undefined,
+  getterReads: input.reads(),
+})
+console.log(JSON.stringify({ boundary, prototypeRestored: !Object.hasOwn(Object.prototype, 'value'), clean: observe(cleanOutput, cleanError, clean), polluted: observe(pollutedOutput, pollutedError, polluted) }))
+`
+
+test.each(['native', 'external'] as const)('an inherited descriptor value cannot replace authored opacity at the %s boundary', async boundary => {
+  const child = await runRectangleChild(process.execPath, ['--eval', ownDescriptorSlotProgram], {
+    cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env, AM_DESCRIPTOR_SLOT_BOUNDARY: boundary },
+  })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  type Observation = { svg?: string; proof?: ReturnType<typeof certifyNativePaint>; error?: { name: string; message: string }; getterReads: number }
+  const packet = JSON.parse(child.stdout) as { boundary: string; prototypeRestored: boolean; clean: Observation; polluted: Observation }
+  expect(packet.boundary).toBe(boundary)
+  expect(packet.prototypeRestored).toBe(true)
+  const actual = (observation: Observation) => {
+    if (!observation.svg) return undefined
+    const elements = rectangleEmissionElements(observation.svg)
+    expect(elements.find(element => element.name === 'svg')!.attributes).toMatchObject({ width: '120', height: '100', viewBox: '0 0 120 100' })
+    const card = elements.find(element => element.attributes['data-id'] === 'authored-card')!.attributes
+    expect(card).toMatchObject({ x: '20', y: '20', width: '80', height: '60', rx: '0', ry: '0', fill: '#f00', stroke: '#111', 'stroke-width': '1' })
+    const pixels = new Resvg(observation.svg, { background: '#fff', font: { loadSystemFonts: false } }).render().pixels
+    let red = 0
+    for (let offset = 0; offset < pixels.length; offset += 4) if (pixels[offset]! > 200 && pixels[offset + 1]! < 50 && pixels[offset + 2]! < 50 && pixels[offset + 3]! > 200) red++
+    return { opacity: card.opacity, red }
+  }
+  const clean = actual(packet.clean), polluted = actual(packet.polluted)
+  if (polluted?.opacity !== '0' && packet.polluted.svg) console.info('inherited descriptor actual authored-opacity violation', JSON.stringify({ boundary, packet, clean, polluted }))
+  if (boundary === 'native') {
+    expect(packet.clean.error).toBeUndefined()
+    expect(clean).toEqual({ opacity: '0', red: 0 })
+    expect(packet.clean.getterReads).toBeGreaterThan(0)
+    expect(packet.polluted.error).toBeUndefined()
+    expect(polluted).toEqual({ opacity: '0', red: 0 })
+    expect(packet.polluted.getterReads).toBe(packet.clean.getterReads)
+    expect(packet.polluted.svg).toBe(packet.clean.svg)
+    expect(packet.polluted.proof?.status).not.toBe('passed')
+  } else {
+    expect(packet.clean.error).toMatchObject({ name: 'TypeError', message: expect.stringContaining('paint.opacity must be an enumerable data property') })
+    expect(packet.clean.getterReads).toBe(0)
+    expect(packet.polluted.error).toMatchObject({ name: 'TypeError', message: expect.stringContaining('paint.opacity must be an enumerable data property') })
+    expect(packet.polluted.getterReads).toBe(0)
+    expect(packet.polluted.svg).toBeUndefined()
+  }
+})
+
+const publicSharpRectangleProgram = String.raw`
+import { getFamily, replaceFamilyForTest } from './src/agent/families.ts'
+import { sceneLowering } from './src/scene/drawing.ts'
+import { serializeMarkerResource } from './src/scene/marker-resources.ts'
+import { renderMermaidSVGWithReceipt } from './src/index.ts'
+function publicSharpRectangle(x, width = 30, mode = 'plain') {
+  const family = getFamily('flowchart')!
+  const marker = {
+    id: 'served-ring', shape: 'circle', units: 'userSpaceOnUse', orient: 'auto',
+    size: { width: 6, height: 6 },
+    ref: { x: 5, y: 3 }, geometry: { kind: 'circle', cx: 3, cy: 3, r: 2 },
+    paint: { fill: 'none', stroke: '#111', strokeWidth: '1' },
+  }
+  if (mode === 'late-inherited-width') {
+    marker.size = { width: 10, height: 10 }
+    marker.ref = { x: 8, y: 5 }
+    marker.geometry = { kind: 'circle', cx: 5, cy: 5, r: 4 }
+  }
+  let getterReads = 0
+  const emissionTrace = []
+  const prototypeTrace = []
+  const inheritedWidthBefore = Object.getOwnPropertyDescriptor(Object.prototype, 'strokeWidth')
+  const producer = (factory, context) => {
+    const { width: pageWidth, height } = context.positioned
+    const geometry = { kind: 'rect', x, y: 20, width, height: 40 }
+    if (mode === 'getter') Object.defineProperty(geometry, 'x', { enumerable: true, get() { getterReads++; return x } })
+    if (mode === 'inherited-coordinate') { delete geometry.x; Object.setPrototypeOf(geometry, { x }) }
+    if (mode === 'rounded-unmarked') geometry.rx = 3
+    const paint = { fill: mode === 'unknown-css' ? 'var(--host,#fff)' : '#fff', stroke: '#888', strokeWidth: mode === 'unstable-width' ? '1.00000000000001' : '1', ...(mode === 'unstable-opacity' ? { opacity: '0.99999999999999' } : {}) }
+    const card = () => {
+      if (mode === 'transient-inherited-width') {
+        delete paint.strokeWidth
+        Object.defineProperty(Object.prototype, 'strokeWidth', { configurable: true, get() {
+          prototypeTrace.push(prototypeTrace.length + 1)
+          if (prototypeTrace.length === 3) delete Object.prototype.strokeWidth
+          return '0.25'
+        } })
+      }
+      if (mode === 'late-inherited-width') delete paint.strokeWidth
+      emissionTrace.push('body-write-begin')
+      const first = factory.shape({ id: 'served-card', role: 'node', geometry, paint, ...(mode === 'transform' ? { transform: { kind: 'matrix', a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 } } : {}) })
+      emissionTrace.push('body-write-end')
+      if (mode === 'late-inherited-width') {
+        Object.defineProperty(Object.prototype, 'strokeWidth', { configurable: true, writable: true, value: '4' })
+        emissionTrace.push('late-width-installed')
+      }
+      if (mode !== 'reused-owned-cover') return [first]
+      geometry.x = 53.004
+      return [first, factory.shape({ id: 'foreign-cover', role: 'node', owner: { id: 'served-card', role: 'node' }, geometry, paint })]
+    }
+    return { family: 'flowchart', width: pageWidth, height, colors: context.colors, transparent: false, parts: [
+      factory.documentOpen({ id: 'root', width: pageWidth, height, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="' + pageWidth + '" height="' + height + '">' ),
+      ...(mode === 'rounded-unmarked' ? [] : [
+        factory.definitions({ id: 'defs' }, '<defs>' + serializeMarkerResource(marker) + '</defs>'),
+        factory.connector({ id: 'served-edge', role: 'edge', lineStyle: 'solid', endpoints: { from: 'outside', to: 'served-card' },
+          geometry: { kind: 'line', x1: 20, y1: 40, x2: 60, y2: 40 }, paint: { stroke: '#111', strokeWidth: '1' }, markers: { end: marker } }),
+      ]),
+      ...card(),
+      factory.documentClose(),
+    ] }
+  }
+  const restore = replaceFamilyForTest('flowchart', { ...family, lowerScene: sceneLowering(producer) })
+  try {
+    return { ...renderMermaidSVGWithReceipt('flowchart LR\nA["Left<br/>upper<br/>lower"] --> B[Right]', { embedFontImport: false, security: 'strict' }), getterReads, prototypeTrace, emissionTrace }
+  } finally {
+    if (inheritedWidthBefore) Object.defineProperty(Object.prototype, 'strokeWidth', inheritedWidthBefore)
+    else delete Object.prototype.strokeWidth
+    restore()
+  }
+}
+
+console.log(JSON.stringify({ integer: process.env.AM_RECT_SINGLE === '1' ? undefined : publicSharpRectangle(60), rounded: publicSharpRectangle(Number(process.env.AM_RECT_X), Number(process.env.AM_RECT_WIDTH), process.env.AM_RECT_MODE), prototypeRestored: !Object.hasOwn(Object.prototype, 'strokeWidth') }))
+`
+
+async function publicSharpRectanglePair(x: number, width: number, assertions = '0', mode = 'plain', single = false) {
+  const result = await runRectangleChild(process.execPath, ['--eval', publicSharpRectangleProgram], {
+    cwd: fileURLToPath(new URL('../../', import.meta.url)),
+    env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: assertions, AM_RECT_X: String(x), AM_RECT_WIDTH: String(width), AM_RECT_MODE: mode, AM_RECT_SINGLE: single ? '1' : '0' },
+  })
+  expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' })
+  return JSON.parse(result.stdout) as { integer: ReturnType<typeof renderMermaidSVGWithReceipt>; rounded: ReturnType<typeof renderMermaidSVGWithReceipt> & { getterReads: number; prototypeTrace: number[]; emissionTrace: string[] }; prototypeRestored: boolean }
+}
+
+function rectangleEmissionElements(svg: string) {
+  const elements: Array<{ name: string; attributes: Record<string, string> }> = []
+  const parser = new SaxesParser({ xmlns: true })
+  parser.on('opentag', tag => elements.push({ name: tag.name, attributes: Object.fromEntries(Object.entries(tag.attributes).map(([key, value]) => [key, value.value])) }))
+  parser.write(svg).close()
+  return elements
+}
+
+test.each([
+  { field: 'x', x: 60.00000000000001, width: 30 },
+  { field: 'width', x: 60, width: 30.00000000000001 },
+])('public same-emission rectangle $field proof uses the served integer body', async ({ x, width }) => {
+  const { integer, rounded } = await publicSharpRectanglePair(x, width)
+  expect(rounded.svg).toBe(integer.svg)
+  const elements = rectangleEmissionElements(rounded.svg)
+  const card = elements.find(element => element.attributes['data-id'] === 'served-card')!
+  expect(card).toEqual({ name: 'rect', attributes: { x: '60', y: '20', width: '30', height: '40', fill: '#fff', stroke: '#888', 'stroke-width': '1', 'data-id': 'served-card', 'data-role': 'node' } })
+  const resource = elements.find(element => element.name === 'marker')!
+  expect(resource.attributes).toMatchObject({ id: 'served-ring', markerWidth: '6', markerHeight: '6', refX: '5', refY: '3', orient: 'auto', markerUnits: 'userSpaceOnUse' })
+  const circle = elements.find(element => element.name === 'circle')!.attributes
+  expect(circle).toMatchObject({ cx: '3', cy: '3', r: '2', fill: 'none', stroke: '#111', 'stroke-width': '1' })
+  expect(resource.attributes.viewBox).toBeUndefined()
+  expect(elements.some(element => element.attributes.transform !== undefined)).toBe(false)
+  const outerRadius = Number(circle.r) + Number(circle['stroke-width']) / 2
+  const worldCenter = { x: 60 + Number(circle.cx) - Number(resource.attributes.refX), y: 40 + Number(circle.cy) - Number(resource.attributes.refY) }
+  expect({ ...worldCenter, outerRadius, ringRight: worldCenter.x + outerRadius, bodyInnerLeft: Number(card.attributes.x) + Number(card.attributes['stroke-width']) / 2 }).toEqual({ x: 58, y: 40, outerRadius: 2.5, ringRight: 60.5, bodyInnerLeft: 60.5 })
+  expect(elements.find(element => element.attributes['data-id'] === 'served-edge')!.attributes).toMatchObject({ x1: '20', y1: '40', x2: '60', y2: '40', stroke: '#111', 'stroke-width': '1', 'marker-end': 'url(#served-ring)', 'data-from': 'outside', 'data-to': 'served-card' })
+  // The full ring is centered at (58,40), outer radius2.5. Its rightmost
+  // x60.5 equals the card's inner border edge60.5: only the owned outline
+  // band is touched, never its fill interior. The top witness(58,38) also
+  // clears the entire shaft strip y39.5..40.5 and card border x59.5..60.5.
+  const rendered = new Resvg(rounded.svg, { font: { loadSystemFonts: false } }).render()
+  const removed = rounded.svg.replace(' marker-end="url(#served-ring)"', '')
+  expect(removed).not.toBe(rounded.svg)
+  const absent = new Resvg(removed, { font: { loadSystemFonts: false } }).render()
+  const presentPixels = rendered.pixels, absentPixels = absent.pixels
+  let topInk = 0, changed = 0
+  for (let y = 37; y < 39; y++) for (let px = 57; px < 59; px++) {
+    const index = (y * rendered.width + px) * 4
+    if (presentPixels[index]! < 96 && presentPixels[index + 1]! < 96 && presentPixels[index + 2]! < 96 && presentPixels[index + 3]! > 0) topInk++
+    if (!presentPixels.subarray(index, index + 4).equals(absentPixels.subarray(index, index + 4))) changed++
+  }
+  expect(topInk).toBeGreaterThan(0)
+  expect(changed).toBeGreaterThan(0)
+  expect(integer.receipt.layoutCertification?.status).toBe('passed')
+  expect(rounded.receipt.layoutCertification?.status).toBe('passed')
+  expect(rounded.receipt.layoutCertification?.outputDigest).toBe(renderedSvgDigest(rounded.svg))
+})
+
+test.each([
+  { mode: 'plain', x: 60.004, width: 30, served: '60.004', expected: 'passed' as const },
+  { mode: 'plain', x: 60, width: 30.004, served: '60', expected: 'passed' as const },
+  ...['getter', 'inherited-coordinate', 'reused-owned-cover', 'unknown-css', 'unstable-width', 'unstable-opacity', 'transform'].map(mode => ({ mode, x: 60.00000000000001, width: 30, served: '60', expected: 'unverified' as const })),
+])('public same-emission rectangle preserves $expected scope for $mode at $x/$width', async ({ mode, x, width, served, expected }) => {
+  const { integer, rounded } = await publicSharpRectanglePair(x, width, '0', mode)
+  const elements = rectangleEmissionElements(rounded.svg)
+  const card = elements.find(element => element.attributes['data-id'] === 'served-card')!
+  expect(card.attributes.x).toBe(served)
+  expect(card.attributes.width).toBe(String(width))
+  expect(rounded.receipt.layoutCertification?.status).toBe(expected)
+  if (expected === 'passed') {
+    const circle = elements.find(element => element.name === 'circle')!.attributes
+    expect(circle).toMatchObject({ cx: '3', cy: '3', r: '2', fill: 'none', stroke: '#111', 'stroke-width': '1' })
+    const ringRight = 60 + Number(circle.cx) - 5 + Number(circle.r) + Number(circle['stroke-width']) / 2
+    const inner = Number(card.attributes.x) + Number(card.attributes['stroke-width']) / 2
+    expect(ringRight).toBe(60.5)
+    expect(inner).toBe(x === 60.004 ? 60.504 : 60.5)
+    expect(ringRight).toBeLessThanOrEqual(inner)
+    expectRectangleMarkerContributes(rounded.svg)
+  }
+  expect(integer.receipt.layoutCertification?.status).toBe('passed')
+  if (mode === 'getter') expect(rounded.getterReads).toBeGreaterThan(0)
+  if (mode === 'reused-owned-cover') {
+    // The same mutable geometry supplies two distinct writes with one owner.
+    // Its later occurrence at53.004 covers the whole ring; neither the earlier
+    // clear x60 body nor endpoint ownership can excuse that filled intrusion.
+    const foreign = elements.find(element => element.attributes['data-id'] === 'foreign-cover')!
+    expect(foreign.attributes).toMatchObject({ x: '53.004', y: '20', width: '30', height: '40', fill: '#fff' })
+    const rendered = new Resvg(rounded.svg, { font: { loadSystemFonts: false } }).render().pixels
+    const absent = new Resvg(rounded.svg.replace(' marker-end="url(#served-ring)"', ''), { font: { loadSystemFonts: false } }).render().pixels
+    expect(Buffer.compare(rendered, absent)).toBe(0)
+  }
+  // Final color resolution uses the fallback; caller CSS never supplies new
+  // same-emission authority merely because these particular bytes look opaque.
+  if (mode === 'unknown-css') expect(card.attributes.fill).toBe('#fff')
+  if (mode === 'unstable-width') expect(card.attributes['stroke-width']).toBe('1')
+  if (mode === 'unstable-opacity') expect(card.attributes.opacity).toBe('1')
+  if (mode === 'transform') expect(card.attributes.transform).toBe('matrix(1 0 0 1 0 0)')
+})
+
+function expectRectangleMarkerContributes(svg: string): void {
+  const reference = ' marker-end="url(#served-ring)"'
+  expect(svg.split(reference)).toHaveLength(2)
+  const actual = new Resvg(svg, { font: { loadSystemFonts: false } }).render().pixels
+  const absent = new Resvg(svg.replace(reference, ''), { font: { loadSystemFonts: false } }).render().pixels
+  expect(Buffer.compare(actual, absent)).not.toBe(0)
+}
+
+test.each([{ operand: 'rounded', x: 60.00000000000001 }, { operand: 'integer', x: 60 }])('public same-emission rectangle cannot borrow a $operand vanished inherited stroke width', async ({ x }) => {
+  const { rounded, prototypeRestored } = await publicSharpRectanglePair(x, 30, '0', 'transient-inherited-width', x === 60)
+  const elements = rectangleEmissionElements(rounded.svg)
+  const card = elements.find(element => element.attributes['data-id'] === 'served-card')!.attributes
+  expect(card).toMatchObject({ x: '60', y: '20', width: '30', height: '40', fill: '#fff', stroke: '#888', 'stroke-width': '0.25' })
+  expect(rounded.prototypeTrace).toEqual([1, 2, 3])
+  expect(prototypeRestored).toBe(true)
+  // The served outline's inner edge is60.125, leaving0.375 of the ring's
+  // full x60.5 extent inside actual fill. A later absent property/default1
+  // cannot authorize the earlier emitted quarter-pixel border.
+  const circle = elements.find(element => element.name === 'circle')!.attributes
+  const resource = elements.find(element => element.name === 'marker')!.attributes
+  const carrier = elements.find(element => element.attributes['data-id'] === 'served-edge')!.attributes
+  expect(circle).toMatchObject({ cx: '3', cy: '3', r: '2', fill: 'none', stroke: '#111', 'stroke-width': '1' })
+  expect(resource).toMatchObject({ refX: '5', refY: '3', markerWidth: '6', markerHeight: '6', markerUnits: 'userSpaceOnUse', orient: 'auto' })
+  expect(carrier).toMatchObject({ x2: '60', y2: '40', 'marker-end': 'url(#served-ring)' })
+  const ringRight = Number(carrier.x2) + Number(circle.cx) - Number(resource.refX) + Number(circle.r) + Number(circle['stroke-width']) / 2
+  expect(ringRight).toBe(60.5)
+  expect(Number(card.x) + Number(card['stroke-width']) / 2).toBe(60.125)
+  expect(ringRight - (Number(card.x) + Number(card['stroke-width']) / 2)).toBe(0.375)
+  expectRectangleMarkerContributes(rounded.svg)
+  expect(rounded.receipt.layoutCertification?.status).toBe('unverified')
+})
+
+test('public same-emission rectangle cannot borrow a late inherited width after its unchanged write', async () => {
+  const { rounded, prototypeRestored } = await publicSharpRectanglePair(60, 30, '0', 'late-inherited-width', true)
+  const elements = rectangleEmissionElements(rounded.svg)
+  const card = elements.find(element => element.attributes['data-id'] === 'served-card')!.attributes
+  const circle = elements.find(element => element.name === 'circle')!.attributes
+  const marker = elements.find(element => element.name === 'marker')!.attributes
+  expect(card).toMatchObject({ x: '60', y: '20', width: '30', height: '40', fill: '#fff', stroke: '#888' })
+  expect(card['stroke-width']).toBeUndefined()
+  expect(circle).toMatchObject({ cx: '5', cy: '5', r: '4', fill: 'none', stroke: '#111', 'stroke-width': '1' })
+  expect(marker).toMatchObject({ markerWidth: '10', markerHeight: '10', refX: '8', refY: '5', orient: 'auto', markerUnits: 'userSpaceOnUse' })
+  expect(rounded.emissionTrace).toEqual(['body-write-begin', 'body-write-end', 'late-width-installed'])
+  expect(prototypeRestored).toBe(true)
+  // SVG's omitted stroke-width is1: innerfillx60.5. The actual circle is
+  // centered at57,40 with outerradius4.5, reaching61.5: one whole unit
+  // enters fill. A later prototype width4 would invent innerfillx62.
+  const carrier = elements.find(element => element.attributes['data-id'] === 'served-edge')!.attributes
+  expect(carrier).toMatchObject({ x1: '20', y1: '40', x2: '60', y2: '40', stroke: '#111', 'stroke-width': '1', 'marker-end': 'url(#served-ring)' })
+  const ringRight = Number(carrier.x2) + Number(circle.cx) - Number(marker.refX) + Number(circle.r) + Number(circle['stroke-width']) / 2
+  expect(ringRight).toBe(61.5)
+  expect(ringRight - (Number(card.x) + 0.5)).toBe(1)
+  expectRectangleMarkerContributes(rounded.svg)
+  expect(rounded.receipt.layoutCertification?.status).toBe('unverified')
+})
+
+test('public same-emission rectangle leaves ordinary rounded non-marker proof eligible', async () => {
+  const { rounded } = await publicSharpRectanglePair(60.00000000000001, 30, '0', 'rounded-unmarked')
+  const elements = rectangleEmissionElements(rounded.svg)
+  expect(elements.find(element => element.attributes['data-id'] === 'served-card')!.attributes).toMatchObject({ x: '60', y: '20', width: '30', height: '40', rx: '3', fill: '#fff', stroke: '#888', 'stroke-width': '1' })
+  expect(elements.some(element => element.name === 'marker' || element.attributes['marker-end'] !== undefined)).toBe(false)
+  expect(rounded.receipt.layoutCertification?.status).toBe('passed')
+})
+
+test('public fresh Scene same-emission rectangle retains actual circle authority', async () => {
+  const { integer, rounded } = await publicSharpRectanglePair(60.00000000000001, 30, '1')
+  expect(rounded.svg).toBe(integer.svg)
+  const elements = rectangleEmissionElements(rounded.svg)
+  const viewport = elements.find(element => element.name === 'svg')!.attributes
+  expect(viewport).toMatchObject({ width: '277.108', height: '150.7' })
+  expect(elements.find(element => element.name === 'marker')!.attributes).toMatchObject({ id: 'served-ring', markerWidth: '6', markerHeight: '6', refX: '5', refY: '3', orient: 'auto', markerUnits: 'userSpaceOnUse' })
+  expect(elements.find(element => element.name === 'marker')!.attributes.viewBox).toBeUndefined()
+  expect(elements.find(element => element.name === 'circle')!.attributes).toMatchObject({ cx: '3', cy: '3', r: '2', fill: 'none', stroke: '#111', 'stroke-width': '1' })
+  expect(elements.find(element => element.attributes['data-id'] === 'served-edge')!.attributes).toMatchObject({ x1: '20', y1: '40', x2: '60', y2: '40', stroke: '#111', 'stroke-width': '1', 'marker-end': 'url(#served-ring)' })
+  const body = elements.find(element => element.attributes['data-id'] === 'served-card')!.attributes
+  expect(body).toMatchObject({ x: '60', y: '20', width: '30', height: '40', fill: '#fff', stroke: '#888', 'stroke-width': '1' })
+  expect(elements.some(element => element.attributes.transform !== undefined)).toBe(false)
+  // Complete ring: center(58,40), outer radius2.5, final bounds
+  // [55.5,37.5,60.5,42.5], local bounds[.5,.5,5.5,5.5]. Right60.5
+  // equals the filled body's inner edge60.5, so only its outline is touched.
+  // North ink(58,38) clears both shaft y39.5..40.5 and body outer x59.5.
+  expect(Number(body.x) + Number(body['stroke-width']) / 2).toBe(60.5)
+  expect(Number(viewport.width)).toBeGreaterThan(60.5)
+  expect(Number(viewport.height)).toBeGreaterThan(42.5)
+  expectRectangleMarkerContributes(rounded.svg)
+  expect(integer.receipt.layoutCertification?.status).toBe('passed')
+  expect(rounded.receipt.layoutCertification?.status).toBe('passed')
+})
+
+const duplicateMarkerPaintProgram = String.raw`
+import { getFamily, replaceFamilyForTest } from './src/agent/families.ts'
+import { sceneLowering } from './src/scene/drawing.ts'
+import { serializeMarkerResource } from './src/scene/marker-resources.ts'
+import { renderMermaidSVGWithReceipt } from './src/index.ts'
+const mode = process.env.AM_DUPLICATE_MARKER_MODE
+const family = getFamily('flowchart')
+const paint = mode === 'literal' ? '#111' : 'context-stroke'
+const marker = { id: 'duplicate-resource', shape: 'diamond', units: 'userSpaceOnUse', orient: 'auto-start-reverse',
+  size: { width: 14, height: 12 }, viewBox: { x: 0, y: 0, width: 14, height: 12 }, ref: { x: 13, y: 6 },
+  geometry: { kind: 'polygon', points: [{ x: 7, y: 1 }, { x: 13, y: 6 }, { x: 7, y: 11 }, { x: 1, y: 6 }] },
+  paint: { fill: paint, stroke: paint, strokeWidth: '1.5' } }
+const producer = (factory, context) => {
+  const { width, height } = context.positioned
+  const carrier = (id, stroke) => factory.connector({ id, role: id === 'later' && mode === 'owned-overlay' ? 'chrome' : 'edge',
+    owner: { id: id === 'later' && ['same-owner', 'owned-overlay'].includes(mode) ? 'earlier' : id, role: 'edge' },
+    lineStyle: 'solid', endpoints: { from: 'shared-source', to: id }, geometry: { kind: 'line', x1: 70, y1: 30, x2: 20, y2: 30 },
+    paint: { stroke, strokeWidth: '1' }, markers: { start: marker }, attributes: { className: 'duplicate-' + id } })
+  return { family: 'flowchart', width, height, colors: context.colors, transparent: false, parts: [
+    factory.documentOpen({ id: 'root', width, height, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + height + '">'),
+    factory.definitions({ id: 'resources' }, '<defs>' + serializeMarkerResource(marker) + '</defs>'),
+    carrier('earlier', '#111'), carrier('later', '#fff'), factory.documentClose(),
+  ] }
+}
+// This synthetic producer actually emits a chrome connector in this arm.
+// Declare that test-only capability while retaining the complete role ledger.
+const scenePrimitiveEvidence = mode === 'owned-overlay' ? family.scenePrimitiveEvidence.map(cell =>
+  cell.role === 'chrome' && cell.primitive === 'connector'
+    ? { ...cell, applicability: 'applicable', realization: 'native', evidence: ['src/__tests__/paint-certification.test.ts'], diagnostic: undefined }
+    : cell) : family.scenePrimitiveEvidence
+const restore = replaceFamilyForTest('flowchart', { ...family, scenePrimitiveEvidence, lowerScene: sceneLowering(producer) })
+try { console.log(JSON.stringify(renderMermaidSVGWithReceipt('flowchart LR\nA["Left<br/>upper<br/>lower"] --> B[Right]', { embedFontImport: false, security: 'strict', bg: '#fff' }))) }
+finally { restore() }
+`
+
+test.each((['literal', 'distinct-owner', 'same-owner', 'owned-overlay'] as const).flatMap(mode =>
+  (['native', 'scene'] as const).map(execution => ({ mode, execution })),
+))('public duplicate marker paint retains $mode obligations through $execution', async ({ mode, execution }) => {
+  const child = await runRectangleChild(process.execPath, ['--eval', duplicateMarkerPaintProgram], {
+    cwd: fileURLToPath(new URL('../../', import.meta.url)),
+    env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: execution === 'native' ? '0' : '1', AM_DUPLICATE_MARKER_MODE: mode },
+  })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  const result = JSON.parse(child.stdout) as ReturnType<typeof renderMermaidSVGWithReceipt>
+  const elements = rectangleEmissionElements(result.svg)
+  const resources = elements.filter(element => element.name === 'marker')
+  expect(resources).toHaveLength(1)
+  expect(resources[0]!.attributes).toMatchObject({ id: 'duplicate-resource', markerWidth: '14', markerHeight: '12', viewBox: '0 0 14 12', refX: '13', refY: '6', orient: 'auto-start-reverse', markerUnits: 'userSpaceOnUse' })
+  const polygon = elements.find(element => element.name === 'polygon')!.attributes
+  expect(polygon).toMatchObject({ fill: mode === 'literal' ? '#111' : 'context-stroke', stroke: mode === 'literal' ? '#111' : 'context-stroke', 'stroke-width': '1.5' })
+  const vertices = polygon.points!.match(/[-+]?(?:\d+\.?\d*|\.\d+)/g)!.map(Number)
+  expect(vertices).toEqual([7, 1, 13, 6, 7, 11, 1, 6])
+  const carriers = elements.filter(element => ['duplicate-earlier', 'duplicate-later'].includes(element.attributes.class ?? ''))
+  expect(carriers).toHaveLength(2)
+  expect(carriers.map(element => element.attributes.class)).toEqual(['duplicate-earlier', 'duplicate-later'])
+  expect(carriers.map(element => [element.attributes.x1, element.attributes.y1, element.attributes.x2, element.attributes.y2, element.attributes.stroke, element.attributes['stroke-width'], element.attributes['marker-start']])).toEqual([
+    ['70', '30', '20', '30', '#111', '1', 'url(#duplicate-resource)'],
+    ['70', '30', '20', '30', '#fff', '1', 'url(#duplicate-resource)'],
+  ])
+  expect(elements.some(element => element.attributes.transform !== undefined)).toBe(false)
+  // Cardinal start + auto-start-reverse maps the diamond to (64,25),
+  // (70,30),(64,35),(58,30). Point(64,27) is strict fill interior and
+  // three units off the shaft: contextual paint there belongs to the marker.
+  // Actual consumer support/erasure is separately observed; this test never
+  // replaces context-stroke with a guessed color or infers ink from a P flag.
+  expect(result.receipt.layoutCertification?.status).toBe(mode === 'literal' ? 'passed' : 'unverified')
+  expect(result.receipt.layoutCertification?.outputDigest).toBe(renderedSvgDigest(result.svg))
+})
+
+const publicFractionalCircleProgram = String.raw`
+import { renderMermaidSVGWithReceipt } from './src/index.ts'
+const original = process.env.AM_FRACTIONAL_MARKER_SOURCE ?? 'flowchart LR\n    A --o B'
+const mode = process.env.AM_FRACTIONAL_CIRCLE_MODE
+const source = original + (mode === 'thin-border' ? '\nstyle B stroke-width:0.1px' : mode === 'wide-shaft' ? '\nlinkStyle 0 stroke:#000,stroke-width:10px' : '')
+try { console.log(JSON.stringify({ source, result: renderMermaidSVGWithReceipt(source, { graphLayout: { backend: process.env.AM_FRACTIONAL_CIRCLE_BACKEND, fallback: 'none' }, embedFontImport: false, ...(process.env.AM_FRACTIONAL_CIRCLE_EXECUTION === 'strict' ? { layoutSafety: 'strict' } : {}) }) })) }
+catch (error) { console.log(JSON.stringify({ source, failure: { name: error.name, code: error.code, message: error.message, certification: error.certification } })) }
+`
+
+test.each((['original', 'thin-border', 'wide-shaft'] as const).flatMap(mode =>
+  (['agentic', 'elk'] as const).flatMap(backend =>
+    (['native', 'scene', 'strict'] as const).map(execution => ({ mode, backend, execution })),
+  ),
+))('stock fractional circle $mode preserves complete emitted obligations under $backend/$execution', async ({ mode, backend, execution }) => {
+  const child = await runRectangleChild(process.execPath, ['--eval', publicFractionalCircleProgram], {
+    cwd: fileURLToPath(new URL('../../', import.meta.url)),
+    env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: execution === 'scene' ? '1' : '0', AM_FRACTIONAL_CIRCLE_MODE: mode, AM_FRACTIONAL_CIRCLE_BACKEND: backend, AM_FRACTIONAL_CIRCLE_EXECUTION: execution },
+  })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  const packet = JSON.parse(child.stdout) as { source: string; result?: ReturnType<typeof renderMermaidSVGWithReceipt>; failure?: { name: string; certification?: { status: string; issues: Array<{ id?: string }> } } }
+  expect(packet.source).toBe('flowchart LR\n    A --o B' + (mode === 'thin-border' ? '\nstyle B stroke-width:0.1px' : mode === 'wide-shaft' ? '\nlinkStyle 0 stroke:#000,stroke-width:10px' : ''))
+  if (packet.failure) {
+    expect(mode).not.toBe('original')
+    expect(packet.failure.name).toBe('PaintLayoutCertificationError')
+    const status = packet.failure.certification?.status
+    if (status === undefined) throw new Error('Expected a typed refusal with a certification status')
+    if (execution === 'strict') expect(['failed', 'unverified']).toContain(status)
+    else expect(status).toBe('failed')
+    expect(packet.failure.certification?.issues.some(issue => issue.id === 'edge:A->B#0')).toBe(true)
+    console.info('fractional-circle typed refusal; final SVG/preconditions unavailable', JSON.stringify({ mode, backend, execution, failure: packet.failure }))
+    return
+  }
+  const result = packet.result!
+  const elements = rectangleEmissionElements(result.svg)
+  expect(elements.filter(element => element.attributes.class === 'node').map(element => element.attributes['data-id'])).toEqual(['A', 'B'])
+  // Text spelling is checked from actual XML character data, independently of
+  // the product's model/certificate. Namespace expansion does not change it.
+  const text: string[] = []
+  let inText = false, current = ''
+  const parser = new SaxesParser({ xmlns: true })
+  parser.on('opentag', tag => { if (tag.local === 'text') { inText = true; current = '' } })
+  parser.on('text', value => { if (inText) current += value })
+  parser.on('closetag', tag => { if (tag.local === 'text') { text.push(current); inText = false } })
+  parser.write(result.svg).close()
+  expect(text).toEqual(['A', 'B'])
+  const edges = elements.filter(element => element.attributes['data-role'] === 'edge')
+  expect(edges).toHaveLength(1)
+  const edge = edges[0]!.attributes
+  expect(edge).toMatchObject({ 'data-id': 'edge:A->B#0', 'data-from': 'A', 'data-to': 'B', 'data-direction': 'forward', 'data-marker-end': 'circle' })
+  expect(edge['marker-start']).toBeUndefined()
+  const reference = edge['marker-end']!, id = /^url\(#([^)]*)\)$/.exec(reference)![1]!
+  const marker = elements.find(element => element.name === 'marker' && element.attributes.id === id)!.attributes
+  const xml = new SaxesParser({ xmlns: true })
+  let selected = false
+  const resourceChildren: Array<{ name: string; attributes: Record<string, string> }> = []
+  xml.on('opentag', tag => {
+    if (tag.local === 'marker') selected = Object.values(tag.attributes).some(attribute => attribute.local === 'id' && attribute.value === id)
+    else if (selected) resourceChildren.push({ name: tag.local, attributes: Object.fromEntries(Object.entries(tag.attributes).map(([key, value]) => [key, value.value])) })
+  })
+  xml.on('closetag', tag => { if (tag.local === 'marker') selected = false })
+  xml.write(result.svg).close()
+  expect(resourceChildren).toHaveLength(1)
+  expect(resourceChildren[0]!.name).toBe('circle')
+  const circle = resourceChildren[0]!.attributes
+  expect(circle).toMatchObject({ cx: '4', cy: '4', r: '3.25', fill: 'none', 'stroke-width': '1' })
+  expect(marker).toMatchObject({ markerWidth: '8', markerHeight: '8', refX: '7.5', refY: '4', orient: 'auto' })
+  expect(marker.viewBox).toBeUndefined()
+  expect(elements.some(element => element.attributes.transform !== undefined)).toBe(false)
+  const points = edge.points!.split(/\s+/).map(point => point.split(',').map(Number))
+  expect(points).toHaveLength(2)
+  expect(points[0]![1]).toBe(points[1]![1]!)
+  expect(points[1]![0]!).toBeGreaterThan(points[0]![0]!)
+  const body = elements.find(element => element.attributes['data-id'] === 'node-shape:B')!.attributes
+  const firstBody = elements.find(element => element.attributes['data-id'] === 'node-shape:A')!.attributes
+  const ownWidth = Number.parseFloat(edge['stroke-width']!), bodyWidth = Number.parseFloat(body['stroke-width']!)
+  const scale = marker.markerUnits === 'userSpaceOnUse' ? 1 : ownWidth
+  const radius = (Number(circle.r) + Number(circle['stroke-width']) / 2) * scale
+  const cx = points[1]![0]! + (Number(circle.cx) - Number(marker.refX)) * scale
+  const cy = points[1]![1]! + (Number(circle.cy) - Number(marker.refY)) * scale
+  const right = cx + radius, inner = Number(body.x) + bodyWidth / 2
+  expect(Number(circle.cx) - Number(circle.r) - Number(circle['stroke-width']) / 2).toBe(0.25)
+  expect(Number(circle.cx) + Number(circle.r) + Number(circle['stroke-width']) / 2).toBe(7.75)
+  const token = ` marker-end="${reference}"`
+  expect(result.svg.split(token)).toHaveLength(2)
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url)), fileURLToPath(new URL('../../assets/fonts/Inter-Medium.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
+  const actual = new Resvg(result.svg, { font }).render().pixels
+  const absent = new Resvg(result.svg.replace(token, ''), { font }).render().pixels
+  const markerChanges = Buffer.compare(actual, absent) !== 0
+  if (mode === 'original') {
+    expect(edge.points).toBe('100,58.45 148,58.45')
+    expect(ownWidth).toBe(1)
+    expect(marker.markerUnits).toBeUndefined()
+    expect(circle.stroke).toBe('#47474a')
+    expect(body).toMatchObject({ x: '148', y: '40', width: '60', height: '36.9', rx: '0', ry: '0', fill: '#f9f9f9', stroke: '#949495', 'stroke-width': '0.75' })
+    expect({ cx, cy, radius, right, inner }).toEqual({ cx: 144.5, cy: 58.45, radius: 3.75, right: 148.25, inner: 148.375 })
+    expect(inner - right).toBe(0.125)
+    expect(Number(firstBody.x) + Number(firstBody.width) + Number.parseFloat(firstBody['stroke-width']!) / 2).toBe(100.375)
+    expect(cx - radius).toBeGreaterThan(100.375)
+    expect(Number(circle.r) * scale).toBeGreaterThan(ownWidth / 2)
+    const root = elements.find(element => element.name === 'svg')!.attributes
+    expect(root.viewBox).toBe('0 0 248 116.9')
+    expect(cx - radius).toBeGreaterThan(0); expect(cy - radius).toBeGreaterThan(0)
+    expect(cx + radius).toBeLessThan(248); expect(cy + radius).toBeLessThan(116.9)
+    expect(markerChanges).toBe(true)
+    expect(result.receipt.layoutCertification?.status).toBe('passed')
+  } else if (mode === 'thin-border') {
+    expect(bodyWidth).toBe(0.1)
+    const intrusion = right - inner
+    if (intrusion > 0) {
+      expect(markerChanges).toBe(true)
+      expect(result.receipt.layoutCertification?.status).not.toBe('passed')
+    } else console.info('fractional-circle adverse precondition unavailable', JSON.stringify({ mode, backend, execution, right, inner, intrusion, status: result.receipt.layoutCertification?.status }))
+  } else {
+    expect(ownWidth).toBe(10)
+    const black = (value: string | undefined): boolean => value === 'black' || /^#(?:000|000000)$/i.test(value ?? '')
+    const opaque = (value: string | undefined): boolean => /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(value ?? '')
+    const anchor = points[1]![0]!
+    const finiteShaftCoversRing = cx - radius >= points[0]![0]! && cy - radius >= points[1]![1]! - ownWidth / 2 && cy + radius <= points[1]![1]! + ownWidth / 2
+    const laterBorderCoversTip = Number(body.x) === anchor && right <= inner && Number(body.y) <= cy - radius && Number(body.y) + Number(body.height) >= cy + radius
+      && Number(body.rx ?? 0) === 0 && Number(body.ry ?? 0) === 0 && opaque(body.fill) && opaque(body.stroke)
+    const solidShaftWouldAbsorb = marker.markerUnits === 'userSpaceOnUse' && radius <= ownWidth / 2 && black(edge.stroke) && black(circle.stroke)
+      && (edge['stroke-linecap'] === undefined || edge['stroke-linecap'] === 'butt') && finiteShaftCoversRing && laterBorderCoversTip
+    expect(solidShaftWouldAbsorb).toBe(true)
+    // Preserve the authored fat stroke and hollow resource while retaining
+    // the end circle's own visible contribution in the final served output.
+    expect(markerChanges).toBe(true)
+    expect(result.receipt.layoutCertification?.status).not.toBe('passed')
+  }
+  expect(result.receipt.layoutCertification?.outputDigest).toBe(renderedSvgDigest(result.svg))
+})
+
+test.each((['cross', 'mixed'] as const).flatMap(kind =>
+  (['agentic', 'elk'] as const).flatMap(backend =>
+    (['native', 'scene', 'strict'] as const).map(execution => ({ kind, backend, execution })),
+  ),
+))('stock endpoint $kind preserves complete authored marker ink under $backend/$execution', async ({ kind, backend, execution }) => {
+  const source = kind === 'cross' ? 'flowchart LR\n    A --x B' : 'flowchart LR\n    A o--o B\n    B <--> C\n    C x--x D'
+  const child = await runRectangleChild(process.execPath, ['--eval', publicFractionalCircleProgram], {
+    cwd: fileURLToPath(new URL('../../', import.meta.url)),
+    env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: execution === 'scene' ? '1' : '0', AM_FRACTIONAL_CIRCLE_MODE: 'original', AM_FRACTIONAL_CIRCLE_BACKEND: backend, AM_FRACTIONAL_CIRCLE_EXECUTION: execution, AM_FRACTIONAL_MARKER_SOURCE: source },
+  })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  const packet = JSON.parse(child.stdout) as { source: string; result?: ReturnType<typeof renderMermaidSVGWithReceipt>; failure?: { name: string; message: string } }
+  expect(packet.source).toBe(source)
+  if (packet.failure) console.info('stock endpoint original refusal; final SVG/ink unavailable', JSON.stringify({ kind, backend, execution, failure: packet.failure }))
+  expect(packet.failure).toBeUndefined()
+  const result = packet.result!
+  const elements = rectangleEmissionElements(result.svg)
+  const labels = kind === 'cross' ? ['A', 'B'] : ['A', 'B', 'C', 'D']
+  expect(elements.filter(element => element.attributes.class === 'node').map(element => element.attributes['data-id'])).toEqual(labels)
+  expect(elements.find(element => element.name === 'svg')!.attributes.viewBox).toBe(kind === 'cross' ? '0 0 248 116.9' : '0 0 464 116.9')
+  expect(elements.some(element => element.attributes.transform !== undefined)).toBe(false)
+  const resources = new Map<string, { attributes: Record<string, string>; children: Array<{ name: string; attributes: Record<string, string> }> }>()
+  const texts: string[] = []
+  let resource: ReturnType<typeof resources.get>, inText = false, text = ''
+  const parser = new SaxesParser({ xmlns: true })
+  parser.on('opentag', tag => {
+    const attributes = Object.fromEntries(Object.entries(tag.attributes).map(([key, value]) => [key, value.value]))
+    if (tag.local === 'marker') { resource = { attributes, children: [] }; resources.set(attributes.id!, resource) }
+    else if (resource) resource.children.push({ name: tag.local, attributes })
+    if (tag.local === 'text') { inText = true; text = '' }
+  })
+  parser.on('text', value => { if (inText) text += value })
+  parser.on('closetag', tag => { if (tag.local === 'marker') resource = undefined; if (tag.local === 'text') { texts.push(text); inText = false } })
+  parser.write(result.svg).close()
+  expect(texts).toEqual(labels)
+  const edges = elements.filter(element => element.attributes['data-role'] === 'edge')
+  const expected = kind === 'cross' ? [['A', 'B', undefined, 'cross']] : [['A', 'B', 'circle', 'circle'], ['B', 'C', 'arrow', 'arrow'], ['C', 'D', 'cross', 'cross']]
+  expect(edges.map(element => [element.attributes['data-from'], element.attributes['data-to'], element.attributes['data-marker-start'], element.attributes['data-marker-end']])).toEqual(expected)
+  const tags = [...result.svg.matchAll(/<(?:line|polyline|path)\b[^>]*>/g)].map(match => match[0]).filter(tag => tag.includes(' data-role="edge"'))
+  expect(tags).toHaveLength(edges.length)
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url)), fileURLToPath(new URL('../../assets/fonts/Inter-Medium.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
+  const rendered = new Resvg(result.svg, { font }).render(), pixels = rendered.pixels
+  let occurrences = 0
+  for (const [index, element] of edges.entries()) {
+    const edge = element.attributes, start = 100 + index * 108, end = 148 + index * 108
+    expect(edge).toMatchObject({ points: `${start},58.45 ${end},58.45`, stroke: '#939395', 'stroke-width': '1', 'data-direction': kind === 'cross' ? 'forward' : 'bidirectional' })
+    for (const position of ['start', 'end'] as const) {
+      const reference = edge[`marker-${position}`]
+      if (reference === undefined) continue
+      occurrences++
+      const id = /^url\(#([^)]*)\)$/.exec(reference)![1]!, marker = resources.get(id)!
+      const markerKind = edge[`data-marker-${position}`], isStart = position === 'start'
+      expect(marker.attributes).toMatchObject({ markerWidth: '8', markerHeight: markerKind === 'arrow' ? '5' : '8', refY: markerKind === 'arrow' ? '2.5' : '4', orient: 'auto' })
+      expect(marker.attributes.markerUnits).toBeUndefined()
+      expect(marker.attributes.viewBox).toBeUndefined()
+      if (markerKind === 'cross') {
+        expect(marker.attributes.refX).toBe(isStart ? '0.625' : '7.375')
+        expect(marker.children).toEqual([
+          { name: 'line', attributes: { x1: '1.25', y1: '1.25', x2: '6.75', y2: '6.75', stroke: '#47474a', 'stroke-width': '1.25', 'stroke-linecap': 'round' } },
+          { name: 'line', attributes: { x1: '1.25', y1: '6.75', x2: '6.75', y2: '1.25', stroke: '#47474a', 'stroke-width': '1.25', 'stroke-linecap': 'round' } },
+        ])
+        // The complete two round-capped diagonals fit [.625,7.375]^2.
+        // End ref7.375 puts their right edge at the target anchor; start
+        // ref.625 puts their left edge at the source anchor. Filled bodies
+        // begin .375 further inward, never hiding any cross interior.
+        const anchor = isStart ? start : end, ref = Number(marker.attributes.refX)
+        expect(isStart ? anchor + 0.625 - ref : anchor + 7.375 - ref).toBe(anchor)
+      } else if (markerKind === 'circle') {
+        expect(marker.attributes.refX).toBe(isStart ? '0.5' : '7.5')
+        expect(marker.children).toEqual([{ name: 'circle', attributes: { cx: '4', cy: '4', r: '3.25', fill: 'none', stroke: '#47474a', 'stroke-width': '1' } }])
+      } else {
+        expect(marker.attributes.refX).toBe(isStart ? '0' : '8')
+        expect(marker.children).toEqual([{ name: 'polygon', attributes: { points: isStart ? '8 0, 0 2.5, 8 5' : '0 0, 8 2.5, 0 5', fill: '#47474a', stroke: '#47474a', 'stroke-width': '0.75', 'stroke-linejoin': 'round' } }])
+      }
+      const token = ` marker-${position}="${reference}"`, tag = tags[index]!
+      expect(tag.split(token)).toHaveLength(2)
+      const absent = new Resvg(result.svg.replace(tag, tag.replace(token, '')), { font }).render().pixels
+      let offSupport = 0
+      for (let y = 0; y < rendered.height; y++) if (Math.abs(y + 0.5 - 58.45) > 1.25) for (let x = 0; x < rendered.width; x++) {
+        const offset = (y * rendered.width + x) * 4
+        if (!pixels.subarray(offset, offset + 4).equals(absent.subarray(offset, offset + 4))) offSupport++
+      }
+      expect(offSupport).toBeGreaterThan(0)
+    }
+  }
+  expect(occurrences).toBe(kind === 'cross' ? 1 : 6)
+  for (const [index, label] of labels.entries()) expect(elements.find(element => element.attributes['data-id'] === `node-shape:${label}`)!.attributes).toMatchObject({ x: String(40 + index * 108), y: '40', width: '60', height: '36.9', rx: '0', ry: '0', fill: '#f9f9f9', stroke: '#949495', 'stroke-width': '0.75' })
+  expect(result.receipt.layoutCertification?.outputDigest).toBe(renderedSvgDigest(result.svg))
+  expect(result.receipt.layoutCertification?.status).toBe('passed')
+})
+
+test.each((['curves', 'cylinder15', 'cylinder9'] as const).flatMap(kind =>
+  (['agentic', 'elk'] as const).flatMap(backend =>
+    (['native', 'scene', 'strict'] as const).map(execution => ({ kind, backend, execution })),
+  ),
+))('stock curve and body $kind preserves complete authored final ink under $backend/$execution', async ({ kind, backend, execution }) => {
+  const source = kind === 'curves' ? 'flowchart LR\n    A e1@==> B\n    A e2@--> C\n    e1@{ curve: linear }\n    e2@{ curve: natural }'
+    : readFileSync(new URL(kind === 'cylinder15' ? '../../eval/layout-compare/fixtures/cyclic-labelled-15.mmd' : '../../eval/layout-compare/fixtures/cyclic-labelled-9-chains.mmd', import.meta.url), 'utf8')
+  const child = await runRectangleChild(process.execPath, ['--eval', publicFractionalCircleProgram], {
+    cwd: fileURLToPath(new URL('../../', import.meta.url)),
+    env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: execution === 'scene' ? '1' : '0', AM_FRACTIONAL_CIRCLE_MODE: 'original', AM_FRACTIONAL_CIRCLE_BACKEND: backend, AM_FRACTIONAL_CIRCLE_EXECUTION: execution, AM_FRACTIONAL_MARKER_SOURCE: source },
+  })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  const packet = JSON.parse(child.stdout) as { source: string; result?: ReturnType<typeof renderMermaidSVGWithReceipt>; failure?: { name: string; message: string } }
+  expect(packet.source).toBe(source)
+  if (packet.failure) console.info('stock curve/body original refusal; final SVG/ink unavailable', JSON.stringify({ kind, backend, execution, failure: packet.failure }))
+  expect(packet.failure).toBeUndefined()
+  const result = packet.result!, elements = rectangleEmissionElements(result.svg)
+  type Part = { name: string; attributes: Record<string, string> }
+  const nodes = new Map<string, { attributes: Record<string, string>; paints: Part[]; depth: number }>()
+  const resources = new Map<string, { attributes: Record<string, string>; children: Part[] }>()
+  const texts: string[] = []
+  let node: ReturnType<typeof nodes.get>, resource: ReturnType<typeof resources.get>, depth = 0, inText = false, text = ''
+  const parser = new SaxesParser({ xmlns: true })
+  parser.on('opentag', tag => {
+    depth++
+    const attributes = Object.fromEntries(Object.entries(tag.attributes).map(([key, value]) => [key, value.value]))
+    if (tag.local === 'g' && attributes.class === 'node') { node = { attributes, paints: [], depth }; nodes.set(attributes['data-id']!, node) }
+    else if (node && ['rect', 'line', 'ellipse', 'circle', 'polygon', 'polyline', 'path'].includes(tag.local)) node.paints.push({ name: tag.local, attributes })
+    if (tag.local === 'marker') { resource = { attributes, children: [] }; resources.set(attributes.id!, resource) }
+    else if (resource) resource.children.push({ name: tag.local, attributes })
+    if (tag.local === 'text') { inText = true; text = '' }
+  })
+  parser.on('text', value => { if (inText) text += value })
+  parser.on('closetag', tag => {
+    if (node?.depth === depth) node = undefined
+    if (tag.local === 'marker') resource = undefined
+    if (tag.local === 'text') { texts.push(text); inText = false }
+    depth--
+  })
+  parser.write(result.svg).close()
+  expect(elements.some(element => element.attributes.transform !== undefined)).toBe(false)
+  const edges = elements.filter(element => element.attributes['data-role'] === 'edge')
+  const tags = [...result.svg.matchAll(/<(?:line|polyline|path)\b[^>]*>/g)].map(match => match[0]).filter(tag => tag.includes(' data-role="edge"'))
+  expect(tags).toHaveLength(edges.length)
+  const arrow = resources.get('arrowhead')!
+  expect(arrow.attributes).toMatchObject({ markerWidth: '8', markerHeight: '5', refX: '8', refY: '2.5', orient: 'auto' })
+  expect(arrow.attributes.markerUnits).toBeUndefined()
+  expect(arrow.attributes.viewBox).toBeUndefined()
+  expect(arrow.children).toEqual([{ name: 'polygon', attributes: { points: '0 0, 8 2.5, 0 5', fill: '#47474a', stroke: '#47474a', 'stroke-width': '0.75', 'stroke-linejoin': 'round' } }])
+  const poses = new Map<string, { x: number; y: number; dx: number; dy: number; target: string; index: number }>()
+  let selected: string[]
+  if (kind === 'curves') {
+    expect([...nodes.keys()].sort()).toEqual(['A', 'B', 'C'])
+    expect(texts).toEqual(['A', 'B', 'C'])
+    expect(edges.map(element => [element.attributes['data-id'], element.attributes['data-from'], element.attributes['data-to'], element.attributes['data-curve'], element.attributes['stroke-width']])).toEqual([['e1', 'A', 'B', 'linear', '2'], ['e2', 'A', 'C', 'natural', '1']])
+    expect(elements.find(element => element.name === 'svg')!.attributes.viewBox).toBe('0 0 248 181.8')
+    const sourceBody = nodes.get('A')!.paints[0]!.attributes
+    expect(sourceBody).toMatchObject({ x: '40', width: '60', height: '36.9', fill: '#f9f9f9', stroke: '#949495', 'stroke-width': '0.75' })
+    for (const [index, element] of edges.entries()) {
+      const target = index === 0 ? 'B' : 'C', targetBody = nodes.get(target)!.paints[0]!.attributes
+      // Authored A fans out in source order from symmetric right-side ports;
+      // each arrow enters its own target's left-side centre. Translation of
+      // every node and path preserves these contacts, unlike a misplaced tip.
+      // This fixture's served node operands are exact hundredths; integer
+      // arithmetic keeps its port equality independent of float tails.
+      for (const value of [sourceBody.y, sourceBody.height, targetBody.y, targetBody.height]) expect(Number.isSafeInteger(Number(value) * 100)).toBe(true)
+      const startY = (Number(sourceBody.y) * 100 + Number(sourceBody.height) * 100 * (index === 0 ? 1 : 2) / 3) / 100
+      const endY = (Number(targetBody.y) * 100 + Number(targetBody.height) * 50) / 100
+      expect(element.name).toBe('path')
+      const commands = [...element.attributes.d!.matchAll(/([MLC])([^MLC]*)/g)].map(match => ({ command: match[1], values: match[2]!.match(/[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi)!.map(Number) }))
+      const knots = [[100, startY], [124, startY], [124, endY], [148, endY]]
+      expect(commands.map(command => command.values.slice(-2))).toEqual(knots)
+      let dx = 1, dy = 0
+      if (index === 0) {
+        expect(commands.map(command => command.command)).toEqual(['M', 'L', 'L', 'L'])
+        expect(commands.every(command => command.values.length === 2)).toBe(true)
+      } else {
+        expect(commands.map(command => command.command)).toEqual(['M', 'C', 'C', 'C'])
+        for (let segment = 1; segment < commands.length; segment++) {
+          const values = commands[segment]!.values
+          expect(values).toHaveLength(6)
+          for (const axis of [0, 1]) {
+            // A natural spline interpolates these independently authored
+            // knots, has zero endpoint curvature and shares first/second
+            // derivatives at each unit-parameter knot. The old mid-X
+            // cubics fail at both noncollinear interior joins.
+            if (segment === 1) expect(knots[0]![axis]! - 2 * values[axis]! + values[axis + 2]!).toBeCloseTo(0, 7)
+            if (segment === commands.length - 1) expect(values[axis + 4]! - 2 * values[axis + 2]! + values[axis]!).toBeCloseTo(0, 7)
+            if (segment > 1) {
+              const previous = commands[segment - 1]!.values, knot = knots[segment - 1]![axis]!
+              expect(knot - previous[axis + 2]!).toBeCloseTo(values[axis]! - knot, 7)
+              expect(knot - 2 * previous[axis + 2]! + previous[axis]!).toBeCloseTo(values[axis + 2]! - 2 * values[axis]! + knot, 7)
+            }
+          }
+        }
+        const last = commands.at(-1)!.values, length = Math.hypot(last[4]! - last[2]!, last[5]! - last[3]!)
+        expect(length).toBeGreaterThan(0)
+        dx = (last[4]! - last[2]!) / length; dy = (last[5]! - last[3]!) / length
+        expect(Math.abs(dy)).toBeGreaterThan(0.1)
+      }
+      expect(targetBody).toMatchObject({ x: '148', width: '60', height: '36.9', fill: '#f9f9f9', stroke: '#949495', 'stroke-width': '0.75' })
+      // The same actual derivative maps default-unit arrow-fill patches;
+      // each remains outside the target's actual left-side fill.
+      const width = Number(element.attributes['stroke-width'])
+      for (const sign of [-1, 1]) expect(148 - 4 * width * dx - sign * width * dy).toBeLessThan(148)
+      poses.set(element.attributes['data-id']!, { x: 148, y: endY, dx, dy, target, index })
+    }
+    selected = ['e1', 'e2']
+  } else {
+    // This deliberately small author grammar reads the committed fixture,
+    // not our parser/model: preserve each declaration and duplicate relation.
+    const authoredNodes = source.split('\n').flatMap(line => {
+      const match = /^(n\d+)([\[({].*)$/.exec(line)
+      if (!match) return []
+      const spelling = match[2]!, label = /Node \d+-\d+/.exec(spelling)![0]
+      const shape = spelling.startsWith('[(') ? 'cylinder' : spelling.startsWith('[[') ? 'subroutine' : spelling.startsWith('((') ? 'circle' : spelling.startsWith('(') ? 'rounded' : spelling.startsWith('{') ? 'diamond' : 'rectangle'
+      return [{ id: match[1]!, label, shape }]
+    })
+    const counts = new Map<string, number>()
+    const authoredEdges = source.split('\n').flatMap(line => {
+      const match = /^(n\d+) -->(?:\|([^|]+)\|)? (n\d+)$/.exec(line)
+      if (!match) return []
+      const from = match[1]!, to = match[3]!, pair = `${from}->${to}`, occurrence = counts.get(pair) ?? 0
+      counts.set(pair, occurrence + 1)
+      return [[`edge:${pair}#${occurrence}`, from, to, match[2]]]
+    })
+    expect(authoredNodes).toHaveLength(kind === 'cylinder15' ? 15 : 9)
+    expect(authoredEdges).toHaveLength(kind === 'cylinder15' ? 31 : 23)
+    expect([...nodes.keys()].sort()).toEqual(authoredNodes.map(item => item.id).sort())
+    for (const item of authoredNodes) {
+      expect(nodes.get(item.id)!.attributes).toMatchObject({ 'data-label': item.label, 'data-shape': item.shape })
+      expect(texts.filter(text => text === item.label)).toHaveLength(1)
+    }
+    expect(edges.map(element => [element.attributes['data-id'], element.attributes['data-from'], element.attributes['data-to'], element.attributes['data-label']])).toEqual(authoredEdges)
+    for (const edge of authoredEdges) if (edge[3] !== undefined) expect(texts.filter(text => text === edge[3])).toHaveLength(1)
+    const cylinders = authoredNodes.filter(item => item.shape === 'cylinder')
+    expect(cylinders).toHaveLength(2)
+    for (const item of cylinders) {
+      const pieces = nodes.get(item.id)!.paints
+      expect(pieces.map(piece => piece.name)).toEqual(['rect', 'line', 'line', 'ellipse', 'ellipse'])
+      const [rect, left, right, bottom, top] = pieces.map(piece => piece.attributes)
+      expect(rect!).toMatchObject({ height: '36.9', fill: '#f9f9f9', stroke: 'none' })
+      for (const side of [left!, right!]) { expect(side).toMatchObject({ stroke: '#949495', 'stroke-width': '0.75' }); expect(side.x1).toBe(side.x2); expect(side.y1).toBe(rect!.y) }
+      expect(left!.x1).toBe(rect!.x)
+      expect(left!.y2).toBe(right!.y2)
+      expect(Number(right!.x1)).toBeGreaterThan(Number(left!.x1))
+      for (const cap of [bottom!, top!]) { expect(cap).toMatchObject({ ry: '7', fill: '#f9f9f9', stroke: '#949495', 'stroke-width': '0.75' }); expect(Number(cap.rx)).toBeGreaterThan(0) }
+      expect(bottom!.cx).toBe(top!.cx); expect(bottom!.rx).toBe(top!.rx)
+      expect(top!.cy).toBe(rect!.y); expect(bottom!.cy).toBe(left!.y2)
+      // Do not replace the actual five independently rounded pieces with an
+      // idealized y+height cylinder. Check contact patches against their union.
+      const filled = (x: number, y: number): boolean => pieces.some(piece => {
+        const a = piece.attributes
+        if (piece.name === 'rect') return x > Number(a.x) && x < Number(a.x) + Number(a.width) && y > Number(a.y) && y < Number(a.y) + Number(a.height)
+        return piece.name === 'ellipse' && ((x - Number(a.cx)) / Number(a.rx)) ** 2 + ((y - Number(a.cy)) / Number(a.ry)) ** 2 < 1
+      })
+      for (const [index, element] of edges.entries()) if (element.attributes['data-to'] === item.id) {
+        expect(element.attributes.points).toBeDefined()
+        const points = element.attributes.points!.split(/\s+/).map(point => point.split(',').map(Number)), tip = points.at(-1)!
+        const previous = points.slice(0, -1).reverse().find(point => point[0] !== tip[0] || point[1] !== tip[1])!
+        const dx = Math.sign(tip[0]! - previous[0]!), dy = Math.sign(tip[1]! - previous[1]!)
+        expect(Math.abs(dx) + Math.abs(dy)).toBe(1)
+        // Local triangle points(4,1.5)/(4,3.5) are strict arrow-fill
+        // patches, off a width1 shaft. Neither may enter any actual fill piece.
+        for (const sign of [-1, 1]) expect(filled(tip[0]! - 4 * dx - sign * dy, tip[1]! - 4 * dy + sign * dx)).toBe(false)
+        poses.set(element.attributes['data-id']!, { x: tip[0]!, y: tip[1]!, dx, dy, target: item.id, index })
+      }
+    }
+    expect(poses.size).toBe(9)
+    selected = kind === 'cylinder15' ? ['edge:n6->n4#0', 'edge:n8->n4#0', 'edge:n9->n10#0'] : ['edge:n3->n6#0', 'edge:n4->n0#0', 'edge:n8->n0#0']
+  }
+  for (const edge of edges) expect(edge.attributes).toMatchObject({ 'data-marker-end': 'arrow', 'marker-end': 'url(#arrowhead)', 'data-direction': 'forward', ...(kind === 'curves' ? {} : { 'stroke-width': '1' }) })
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url)), fileURLToPath(new URL('../../assets/fonts/Inter-Medium.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
+  const rendered = new Resvg(result.svg, { font }).render(), pixels = rendered.pixels
+  const observed = new Set<string>()
+  for (const id of selected) {
+    const pose = poses.get(id)!, key = JSON.stringify([pose.x, pose.y, pose.dx, pose.dy, pose.target])
+    if (observed.has(key)) continue
+    observed.add(key)
+    let without = result.svg
+    // Coincident authored occurrences share one visible pose; remove all
+    // identical references together, retaining all source relationships above.
+    for (const other of poses.values()) if (other.x === pose.x && other.y === pose.y && other.dx === pose.dx && other.dy === pose.dy && other.target === pose.target) {
+      const tag = tags[other.index]!, token = ' marker-end="url(#arrowhead)"'
+      expect(tag.split(token)).toHaveLength(2)
+      without = without.replace(tag, tag.replace(token, ''))
+    }
+    const absent = new Resvg(without, { font }).render().pixels
+    let offSupport = 0
+    const halfShaft = Number(edges[pose.index]!.attributes['stroke-width']) / 2
+    for (let y = 0; y < rendered.height; y++) for (let x = 0; x < rendered.width; x++) if (Math.abs((x + 0.5 - pose.x) * -pose.dy + (y + 0.5 - pose.y) * pose.dx) > halfShaft + 0.75) {
+      const offset = (y * rendered.width + x) * 4
+      if (!pixels.subarray(offset, offset + 4).equals(absent.subarray(offset, offset + 4))) offSupport++
+    }
+    expect(offSupport).toBeGreaterThan(0)
+  }
+  expect(observed.size).toBeGreaterThanOrEqual(2)
+  expect(result.receipt.layoutCertification?.outputDigest).toBe(renderedSvgDigest(result.svg))
+  expect(result.receipt.layoutCertification?.status).toBe('passed')
+})
+
+test.each((['covered', 'dashed', 'unknown-width', 'scaled', 'mutated', 'own-shaft-zero'] as const).flatMap(mode => (['native', 'scene'] as const).map(execution => ({ mode, execution }))))('cross marker $mode retains conservative actual-write authority through $execution', ({ mode, execution }) => {
+  const absorbed = mode === 'own-shaft-zero'
+  const colors = { bg: '#fff', fg: absorbed ? '#000' : '#111' }
+  const context = { positioned: { width: 248, height: 116.9 }, colors, resolved: { renderOptions: {} } }
+  const marker: MarkerDescriptor = { id: 'controlled-cross', shape: 'cross', orient: 'auto', size: { width: 8, height: 8 }, ref: { x: 7.375, y: 4 }, ...(absorbed ? { units: 'userSpaceOnUse' as const } : mode === 'scaled' ? { units: 'strokeWidth' as const } : {}),
+    geometry: { kind: 'compound', children: absorbed ? [{ kind: 'line', x1: 3.99, y1: 3.99, x2: 4.01, y2: 4.01 }, { kind: 'line', x1: 3.99, y1: 4.01, x2: 4.01, y2: 3.99 }] : [{ kind: 'line', x1: 1.25, y1: 1.25, x2: 6.75, y2: 6.75 }, { kind: 'line', x1: 1.25, y1: 6.75, x2: 6.75, y2: 1.25 }] },
+    paint: absorbed ? { stroke: '#000', strokeWidth: '.5', strokeLinecap: 'butt' } : { fill: 'none', stroke: '#111', strokeWidth: mode === 'unknown-width' ? 'var(--host)' : '1.25', strokeLinecap: 'round', ...(mode === 'dashed' ? { strokeDasharray: '1 100' } : {}) },
+  }
+  const producer: DrawingProducer = factory => {
+    const open = factory.documentOpen({ id: 'root', width: 248, height: 116.9, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="248" height="116.9" viewBox="0 0 248 116.9">')
+    const definitions = factory.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}</defs>`)
+    if (mode === 'mutated') marker.paint!.stroke = 'none'
+    return { family: 'flowchart', width: 248, height: 116.9, transparent: false, colors, parts: [open, definitions,
+      factory.connector({ id: 'controlled-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'polyline', points: [{ x: 100, y: 58.45 }, { x: 148, y: 58.45 }] }, paint: { stroke: absorbed ? '#000' : '#111', strokeWidth: absorbed ? '32' : mode === 'scaled' ? '2' : '1' }, endpoints: { from: 'A', to: 'B' }, markers: { end: marker } }),
+      factory.shape({ id: 'A', role: 'node', geometry: { kind: 'rect', x: 40, y: 40, width: 60, height: 36.9, rx: 0, ry: 0 }, paint: { fill: '#fff', stroke: '#888', strokeWidth: '0.75' } }),
+      factory.shape({ id: 'B', role: 'node', geometry: { kind: 'rect', x: 148, y: 40, width: 60, height: 36.9, rx: 0, ry: 0 }, paint: { fill: '#fff', stroke: '#888', strokeWidth: '0.75' } }),
+      ...(mode === 'covered' ? [factory.shape({ id: 'cover', role: 'chrome', geometry: { kind: 'rect', x: 138, y: 52, width: 13, height: 13 }, paint: { fill: '#fff', stroke: '#fff', strokeWidth: '1' } })] : []),
+      factory.documentClose(),
+    ] }
+  }
+  const drawing = drawPaintControl(producer, context, execution, { fractionalCircleOutput: true })
+  const elements = rectangleEmissionElements(drawing.svg)
+  expect(elements.find(element => element.name === 'svg')!.attributes.viewBox).toBe('0 0 248 116.9')
+  const resource = elements.find(element => element.name === 'marker')!.attributes
+  expect(resource).toMatchObject({ id: 'controlled-cross', markerWidth: '8', markerHeight: '8', refX: '7.375', refY: '4', orient: 'auto' })
+  expect(resource.markerUnits).toBe(absorbed ? 'userSpaceOnUse' : mode === 'scaled' ? 'strokeWidth' : undefined)
+  expect(resource.viewBox).toBeUndefined()
+  const lines = elements.filter(element => element.name === 'line')
+  expect(lines.map(element => [element.attributes.x1, element.attributes.y1, element.attributes.x2, element.attributes.y2])).toEqual(absorbed ? [['3.99', '3.99', '4.01', '4.01'], ['3.99', '4.01', '4.01', '3.99']] : [['1.25', '1.25', '6.75', '6.75'], ['1.25', '6.75', '6.75', '1.25']])
+  for (const line of lines) {
+    expect(line.attributes).toMatchObject({ stroke: absorbed ? '#000' : '#111', 'stroke-width': absorbed ? '.5' : mode === 'unknown-width' ? 'var(--host)' : '1.25', 'stroke-linecap': absorbed ? 'butt' : 'round', ...(mode === 'dashed' ? { 'stroke-dasharray': '1 100' } : {}) })
+    if (absorbed) expect(line.attributes.fill).toBeUndefined()
+  }
+  expect(elements.find(element => element.attributes['data-id'] === 'controlled-edge')!.attributes).toMatchObject({ points: '100,58.45 148,58.45', 'data-from': 'A', 'data-to': 'B', stroke: absorbed ? '#000' : '#111', 'stroke-width': absorbed ? '32' : mode === 'scaled' ? '2' : '1', 'marker-end': 'url(#controlled-cross)' })
+  expect(elements.find(element => element.attributes['data-id'] === 'B')!.attributes).toMatchObject({ x: '148', y: '40', width: '60', height: '36.9', fill: '#fff', stroke: '#888', 'stroke-width': '0.75' })
+  expect(elements.some(element => element.attributes.transform !== undefined)).toBe(false)
+  const token = ' marker-end="url(#controlled-cross)"'
+  expect(drawing.svg.split(token)).toHaveLength(2)
+  const rendered = new Resvg(drawing.svg).render(), pixels = rendered.pixels
+  const absent = new Resvg(drawing.svg.replace(token, '')).render().pixels
+  const changed = Buffer.compare(pixels, absent) !== 0
+  if (absorbed) {
+    expect(elements.find(element => element.attributes['data-id'] === 'A')!.attributes).toMatchObject({ x: '40', y: '40', width: '60', height: '36.9', fill: '#fff', stroke: '#888', 'stroke-width': '0.75' })
+    // Both tiny diagonals lie wholly inside the opaque own shaft. Resource
+    // stroke existence cannot establish a surviving endpoint distinction.
+    expect(changed).toBe(false)
+    expect(drawing.proof.status).not.toBe('passed')
+    return
+  }
+  if (mode === 'covered') {
+    expect(elements.find(element => element.name === 'rect' && element.attributes.x === '138')!.attributes).toMatchObject({ x: '138', y: '52', width: '13', height: '13', fill: '#fff' })
+    // Complete cross bounds[141.25,148]×[55.075,61.825] lie under
+    // the actual later opaque cover[138,151]×[52,65].
+    expect(changed).toBe(false)
+  } else if (mode === 'unknown-width') console.info('cross marker unresolved width retains consumer observation', JSON.stringify({ execution, markerChangesImage: changed }))
+  else {
+    expect(changed).toBe(true)
+    let offSupport = 0
+    const halfShaft = mode === 'scaled' ? 1 : 0.5
+    for (let y = 0; y < rendered.height; y++) if (Math.abs(y + 0.5 - 58.45) > halfShaft + 0.75) for (let x = 0; x < rendered.width; x++) {
+      const offset = (y * rendered.width + x) * 4
+      if (!pixels.subarray(offset, offset + 4).equals(absent.subarray(offset, offset + 4))) offSupport++
+    }
+    expect(offSupport).toBeGreaterThan(0)
+  }
+  if (mode === 'mutated') expect(marker.paint!.stroke).toBe('none')
+  expect(drawing.proof.status).not.toBe('passed')
+})
+
+function drawCylinderWriteControl(mode: 'clear' | 'inward' | 'extra-piece' | 'getter' | 'inherited' | 'fallback-fill' | 'fallback-stroke' | 'background-stroke' | 'foreground-stroke' | 'background-stroke4' | 'foreground-stroke4' | 'background-fill-foreground-stroke4' | 'background-fill-background-stroke4' | 'hollow-circle' | 'inherited-prepared-body', execution: 'native' | 'scene', bodyKind: 'cylinder' | 'rectangle' | 'borderless-rectangle' = 'cylinder', rootMarkup?: string, nonPaintContent?: string) {
+  const colors = { bg: '#fff', fg: '#111' }, reads: string[] = []
+  const wideStroke = mode === 'background-stroke' || mode === 'foreground-stroke' || mode === 'background-stroke4' || mode === 'foreground-stroke4' || mode === 'background-fill-foreground-stroke4' || mode === 'background-fill-background-stroke4' || mode === 'hollow-circle'
+  const width = wideStroke ? 800 : 160, height = wideStroke ? 800 : 100, offset = wideStroke ? 240 : 0
+  const context = { positioned: { width, height }, colors, resolved: { renderOptions: {} } }
+  const marker: MarkerDescriptor = mode === 'hollow-circle'
+    ? { id: 'cylinder-tip', shape: 'circle', size: { width: 8, height: 5 }, ref: { x: 8, y: 2.5 }, orient: 'auto', geometry: { kind: 'circle', cx: 4, cy: 2.5, r: 2 }, paint: { fill: '#fff', stroke: '#111', strokeWidth: '0.75' } }
+    : tipAnchoredArrow('cylinder-tip', { width: 8, height: 5 }, 'end', wideStroke
+    ? { fill: mode === 'background-fill-foreground-stroke4' || mode === 'background-fill-background-stroke4' ? '#fff' : '#111', stroke: mode === 'background-stroke' || mode === 'background-stroke4' || mode === 'background-fill-background-stroke4' ? '#fff' : '#111', strokeWidth: mode.endsWith('stroke4') ? '4' : '64', strokeLinejoin: 'round', paintOrder: 'normal' }
+    : { fill: '#111', stroke: 'none' })
+  if (wideStroke) marker.overflow = 'hidden'
+  const childPaints: MarkPaint[] = [{ fill: '#fff', stroke: 'none' }, { stroke: '#111', strokeWidth: '1' }, { stroke: '#111', strokeWidth: '1' }, { fill: '#fff', stroke: '#111', strokeWidth: '1' }, { fill: '#fff', stroke: '#111', strokeWidth: '1' }]
+  // A visible default rendering cannot establish an unbound host variable's
+  // opacity; contact authority must preserve that unresolved CSS distinction.
+  if (mode === 'fallback-fill') childPaints[0]!.fill = 'var(--host,#fff)'
+  if (mode === 'fallback-stroke') childPaints[1]!.stroke = 'var(--host,#111)'
+  if (mode === 'getter') Object.defineProperty(childPaints[1], 'strokeWidth', { enumerable: true, get() { reads.push('side-width'); return '1' } })
+  if (mode === 'inherited') { delete childPaints[1]!.strokeWidth; Object.setPrototypeOf(childPaints[1], { strokeWidth: '1' }) }
+  const children: Geometry[] = [{ kind: 'rect', x: 60 + offset, y: 20 + offset, width: 60, height: 40 }, { kind: 'line', x1: 60 + offset, y1: 20 + offset, x2: 60 + offset, y2: 60 + offset }, { kind: 'line', x1: 120 + offset, y1: 20 + offset, x2: 120 + offset, y2: 60 + offset }, { kind: 'ellipse', cx: 90 + offset, cy: 60 + offset, rx: 30, ry: 7 }, { kind: 'ellipse', cx: 90 + offset, cy: 20 + offset, rx: 30, ry: 7 }]
+  if (mode === 'extra-piece') { children.push({ kind: 'rect', x: 51, y: 36, width: 10, height: 8 }); childPaints.push({ fill: '#fff', stroke: 'none' }) }
+  const tip = mode === 'inherited-prepared-body' ? 70 : mode === 'inward' ? 61 : 60
+  const producer: DrawingProducer = factory => ({ family: 'flowchart', width, height, transparent: false, colors, parts: [
+    factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, rootMarkup ?? `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`),
+    factory.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    factory.connector({ id: 'cylinder-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 20 + offset, y1: 40 + offset, x2: tip + offset, y2: 40 + offset }, paint: { stroke: '#111', strokeWidth: '1' }, endpoints: { from: 'outside', to: 'body' }, markers: { end: marker } }),
+    factory.shape({ id: 'body', role: 'node', geometry: bodyKind !== 'cylinder' ? children[0]! : { kind: 'compound', children }, paint: { fill: '#fff', stroke: bodyKind === 'borderless-rectangle' ? 'none' : '#111', strokeWidth: '1' }, ...(bodyKind === 'cylinder' ? { childPaints } : {}) }),
+    ...(nonPaintContent === undefined ? [] : [factory.documentContent({ id: 'metadata-cover', role: 'chrome', nonPaint: 'accessibility' }, nonPaintContent)]),
+    factory.documentClose(),
+  ] })
+  return { ...drawPaintControl(producer, context, execution, { fractionalCircleOutput: true }), reads }
+}
+
+function expectCylinderWriteInk(drawing: ReturnType<typeof drawCylinderWriteControl>, mode: 'clear' | 'inward' | 'extra-piece' | 'getter' | 'inherited' | 'fallback-fill' | 'fallback-stroke' | 'background-stroke' | 'foreground-stroke' | 'background-stroke4' | 'foreground-stroke4' | 'background-fill-foreground-stroke4' | 'background-fill-background-stroke4' | 'hollow-circle' | 'inherited-prepared-body', bodyKind: 'cylinder' | 'rectangle' | 'borderless-rectangle' = 'cylinder') {
+  const elements = rectangleEmissionElements(drawing.svg)
+  const wideStroke = mode === 'background-stroke' || mode === 'foreground-stroke' || mode === 'background-stroke4' || mode === 'foreground-stroke4' || mode === 'background-fill-foreground-stroke4' || mode === 'background-fill-background-stroke4' || mode === 'hollow-circle'
+  expect(elements.find(element => element.name === 'svg')!.attributes.viewBox).toBe(wideStroke ? '0 0 800 800' : '0 0 160 100')
+  expect(elements.find(element => element.name === 'marker')!.attributes).toMatchObject({ markerWidth: '8', markerHeight: '5', refX: '8', refY: '2.5', orient: 'auto' })
+  expect(elements.find(element => element.name === 'marker')!.attributes.markerUnits).toBeUndefined()
+  if (mode === 'hollow-circle') {
+    expect(elements.filter(element => element.name === 'polygon')).toHaveLength(0)
+    expect(elements.find(element => element.name === 'circle')!.attributes).toEqual({ cx: '4', cy: '2.5', r: '2', fill: '#fff', stroke: '#111', 'stroke-width': '0.75' })
+    // The complete ring lies[293.625,298.375]×[277.625,282.375],
+    // outside the actual rectangle and inside the local8×5 clipping viewport.
+    expect(298.375).toBeLessThan(300)
+  } else expect(elements.find(element => element.name === 'polygon')!.attributes).toMatchObject({ points: '0 0, 8 2.5, 0 5', fill: mode === 'background-fill-foreground-stroke4' || mode === 'background-fill-background-stroke4' ? '#fff' : '#111', ...(wideStroke
+      ? { stroke: mode === 'background-stroke' || mode === 'background-stroke4' || mode === 'background-fill-background-stroke4' ? '#fff' : '#111', 'stroke-width': mode.endsWith('stroke4') ? '4' : '64', 'stroke-linejoin': 'round', 'paint-order': 'normal' }
+      : { stroke: 'none' }) })
+  if (wideStroke) expect(elements.find(element => element.name === 'marker')!.attributes.overflow).toBe('hidden')
+  expect(elements.find(element => element.attributes['data-id'] === 'cylinder-edge')!.attributes).toMatchObject({ x1: wideStroke ? '260' : '20', y1: wideStroke ? '280' : '40', x2: wideStroke ? '300' : mode === 'inherited-prepared-body' ? '70' : mode === 'inward' ? '61' : '60', y2: wideStroke ? '280' : '40', 'stroke-width': '1', 'marker-end': 'url(#cylinder-tip)' })
+  const index = elements.findIndex(element => element.attributes['data-id'] === 'body')
+  const pieces = elements.slice(index, index + (bodyKind !== 'cylinder' ? 1 : mode === 'extra-piece' ? 6 : 5))
+  expect(pieces.map(piece => piece.name)).toEqual(bodyKind !== 'cylinder' ? ['rect'] : mode === 'extra-piece' ? ['rect', 'line', 'line', 'ellipse', 'ellipse', 'rect'] : ['rect', 'line', 'line', 'ellipse', 'ellipse'])
+  expect(pieces[0]!.attributes).toMatchObject({ x: wideStroke ? '300' : '60', y: wideStroke ? '260' : '20', width: '60', height: '40', fill: mode === 'fallback-fill' ? 'var(--host,#fff)' : '#fff', ...(bodyKind !== 'cylinder' ? { stroke: bodyKind === 'borderless-rectangle' ? 'none' : '#111', 'stroke-width': '1' } : { stroke: 'none' }) })
+  if (bodyKind === 'cylinder') {
+    expect(pieces[1]!.attributes).toMatchObject({ x1: wideStroke ? '300' : '60', y1: wideStroke ? '260' : '20', x2: wideStroke ? '300' : '60', y2: wideStroke ? '300' : '60', stroke: mode === 'fallback-stroke' ? 'var(--host,#111)' : '#111', 'stroke-width': '1' })
+    expect(pieces[2]!.attributes).toMatchObject({ x1: wideStroke ? '360' : '120', y1: wideStroke ? '260' : '20', x2: wideStroke ? '360' : '120', y2: wideStroke ? '300' : '60', stroke: '#111', 'stroke-width': '1' })
+    expect(pieces[3]!.attributes).toMatchObject({ cx: wideStroke ? '330' : '90', cy: wideStroke ? '300' : '60', rx: '30', ry: '7', fill: '#fff', stroke: '#111', 'stroke-width': '1' })
+    expect(pieces[4]!.attributes).toMatchObject({ cx: wideStroke ? '330' : '90', cy: wideStroke ? '260' : '20', rx: '30', ry: '7', fill: '#fff', stroke: '#111', 'stroke-width': '1' })
+  }
+  expect(elements.some(element => element.attributes.transform !== undefined)).toBe(false)
+  if (mode === 'inward') {
+    // Actual triangle(53,37.5),(61,40),(53,42.5) contains a positive
+    // patch about(60.75,40). It lies beyond the side's inner edge60.5,
+    // inside the opaque rectangle, and clear of both ellipse stroke bands.
+    expect(60.75).toBeGreaterThan(Number(pieces[1]!.attributes.x1) + 0.5)
+    expect(60.75).toBeLessThan(61)
+    expect(40).toBeGreaterThan(Number(pieces[4]!.attributes.cy) + 7 + 0.5)
+    expect(40).toBeLessThan(Number(pieces[3]!.attributes.cy) - 7 - 0.5)
+  }
+  const token = ' marker-end="url(#cylinder-tip)"'
+  expect(drawing.svg.split(token)).toHaveLength(2)
+  // The paired wide-stroke observations use the same explicit white viewing
+  // backdrop. The original SVG above remains the actual certification source.
+  const root = '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800">'
+  if (wideStroke) expect(drawing.svg.split(root)).toHaveLength(2)
+  const viewedSvg = wideStroke ? drawing.svg.replace(root, `${root}<rect x="0" y="0" width="800" height="800" fill="#fff" />`) : drawing.svg
+  const rendered = new Resvg(viewedSvg).render(), pixels = rendered.pixels
+  const absent = new Resvg(viewedSvg.replace(token, '')).render().pixels
+  if (wideStroke) {
+    // The triangle's area20 and semiperimeter2.5+sqrt(70.25) give inradius
+    // <2. Thus even width4's white stroke covers its complete fill after normal
+    // painting. Its shaft erasure is distinct from the paired dark marker ink.
+    if (mode !== 'hollow-circle') expect(20 / (2.5 + Math.sqrt(70.25))).toBeLessThan(2)
+    let contrastingOffSupport = 0, nonOpaque = 0
+    const samples: Array<{ x: number; y: number; actual: number[]; absent: number[] }> = []
+    for (let offset = 3; offset < pixels.length; offset += 4) if (pixels[offset] !== 255 || absent[offset] !== 255) nonOpaque++
+    expect(nonOpaque).toBe(0)
+    for (let y = 0; y < rendered.height; y++) if (Math.abs(y + 0.5 - 280) > 1.25) for (let x = 0; x < rendered.width; x++) {
+      const offset = (y * rendered.width + x) * 4
+      for (let channel = 0; channel < 3; channel++) if (pixels[offset + channel]! < absent[offset + channel]!) {
+        contrastingOffSupport++
+        if (samples.length < 16) samples.push({ x, y, actual: [...pixels.subarray(offset, offset + 4)], absent: [...absent.subarray(offset, offset + 4)] })
+        break
+      }
+    }
+    if (mode === 'background-stroke' || mode === 'background-stroke4' || mode === 'background-fill-background-stroke4') {
+      if (contrastingOffSupport !== 0) console.info('background stroke physical precondition unavailable', JSON.stringify({ contrastingOffSupport, samples }))
+      expect(contrastingOffSupport).toBe(0)
+    } else expect(contrastingOffSupport).toBeGreaterThan(0)
+  } else if (mode === 'inherited-prepared-body') {
+    // The authored triangle[62,70]×[37.5,42.5] is wholly inside the later
+    // opaque body[60,120]×[20,60], away from both cap stroke bands.
+    expect(62).toBeGreaterThan(Number(pieces[0]!.attributes.x))
+    expect(70).toBeLessThan(Number(pieces[0]!.attributes.x) + Number(pieces[0]!.attributes.width))
+    expect(37.5).toBeGreaterThan(Number(pieces[4]!.attributes.cy) + 7 + 0.5)
+    expect(42.5).toBeLessThan(Number(pieces[3]!.attributes.cy) - 7 - 0.5)
+    const opaquePixels = (svg: string) => new Resvg(svg, { background: '#fff' }).render().pixels
+    expect(Buffer.compare(opaquePixels(drawing.svg), opaquePixels(drawing.svg.replace(token, '')))).toBe(0)
+    const bodyStart = drawing.svg.indexOf('<rect x="60" y="20" width="60" height="40" fill="#fff" stroke="none" data-id="body" data-role="node" />')
+    expect(bodyStart).toBeGreaterThan(drawing.svg.indexOf('marker-end="url(#cylinder-tip)"'))
+    const bodyXml = drawing.svg.slice(bodyStart, drawing.svg.indexOf('</svg>'))
+    expect(bodyXml.match(/<(?:rect|line|ellipse)\b/g)).toHaveLength(5)
+    const exposed = drawing.svg.replace(bodyXml, '')
+    expect(Buffer.compare(opaquePixels(exposed), opaquePixels(exposed.replace(token, '')))).not.toBe(0)
+  } else if (mode === 'extra-piece') {
+    expect(pieces[5]!.attributes).toMatchObject({ x: '51', y: '36', width: '10', height: '8', fill: '#fff', stroke: 'none' })
+    expect(Buffer.compare(pixels, absent)).toBe(0)
+  } else {
+    let offSupport = 0
+    for (let y = 0; y < rendered.height; y++) if (Math.abs(y + 0.5 - 40) > 1.25) for (let x = 0; x < rendered.width; x++) {
+      const offset = (y * rendered.width + x) * 4
+      if (!pixels.subarray(offset, offset + 4).equals(absent.subarray(offset, offset + 4))) offSupport++
+    }
+    expect(offSupport).toBeGreaterThan(0)
+  }
+}
+
+test.each([
+  ...(['clear', 'inward', 'extra-piece', 'inherited-prepared-body', 'fallback-fill', 'fallback-stroke', 'background-stroke', 'foreground-stroke'] as const).flatMap(mode => (['native', 'scene'] as const).map(execution => ({ mode, execution, bodyKind: 'cylinder' as const }))),
+  ...(['background-stroke4', 'foreground-stroke4'] as const).flatMap(mode => (['cylinder', 'rectangle'] as const).flatMap(bodyKind => (['native', 'scene'] as const).map(execution => ({ mode, execution, bodyKind })))),
+  ...(['native', 'scene'] as const).map(execution => ({ mode: 'background-fill-foreground-stroke4' as const, execution, bodyKind: 'rectangle' as const })),
+  ...(['native', 'scene'] as const).map(execution => ({ mode: 'background-fill-background-stroke4' as const, execution, bodyKind: 'rectangle' as const })),
+  ...(['native', 'scene'] as const).map(execution => ({ mode: 'hollow-circle' as const, execution, bodyKind: 'rectangle' as const })),
+  ...(['native', 'scene'] as const).map(execution => ({ mode: 'background-stroke4' as const, execution, bodyKind: 'borderless-rectangle' as const })),
+  { mode: 'getter' as const, execution: 'native' as const, bodyKind: 'cylinder' as const },
+  { mode: 'inherited' as const, execution: 'native' as const, bodyKind: 'cylinder' as const },
+])('cylinder write $mode keeps complete actual paint authority through $execution ($bodyKind)', ({ mode, execution, bodyKind }) => {
+  const inheritedBody = Object.getOwnPropertyDescriptor(Object.prototype, 'preparedBody')
+  let preparedBodyCalls = 0
+  let drawing: ReturnType<typeof drawCylinderWriteControl>
+  try {
+    if (mode === 'inherited-prepared-body') {
+      const descriptor = Object.assign(Object.create(null), { configurable: true, writable: true, value: () => { preparedBodyCalls++; return { x: 0, y: 0 } } })
+      Object.defineProperty(Object.prototype, 'preparedBody', descriptor)
+    }
+    drawing = drawCylinderWriteControl(mode, execution, bodyKind)
+  } finally {
+    if (mode === 'inherited-prepared-body') {
+      if (inheritedBody) Object.defineProperty(Object.prototype, 'preparedBody', inheritedBody)
+      else delete (Object.prototype as { preparedBody?: unknown }).preparedBody
+    }
+  }
+  if (mode === 'inherited-prepared-body') expect(Object.getOwnPropertyDescriptor(Object.prototype, 'preparedBody')).toEqual(inheritedBody)
+  expectCylinderWriteInk(drawing, mode, bodyKind)
+  if (mode === 'inherited-prepared-body') {
+    if (preparedBodyCalls !== 0 || drawing.proof.status === 'passed') console.info('introduced prepared-body draft physical violation', JSON.stringify({ execution, preparedBodyCalls, svg: drawing.svg, proof: drawing.proof }))
+    expect(preparedBodyCalls).toBe(0)
+  }
+  if (mode === 'getter') expect(drawing.reads.length).toBeGreaterThan(0)
+  if (mode === 'clear' || mode === 'foreground-stroke' || mode === 'foreground-stroke4' || mode === 'background-fill-foreground-stroke4' || mode === 'hollow-circle') expect(drawing.proof.status).toBe('passed')
+  else expect(drawing.proof.status).not.toBe('passed')
+})
+
+test('cylinder write cached replay cannot borrow first-write compound facts', () => {
+  const drawing = drawCylinderWriteControl('clear', 'scene')
+  expectCylinderWriteInk(drawing, 'clear')
+  expect(drawing.proof.status).toBe('passed')
+  if (!drawing.admitted) throw new Error('Expected an admitted cylinder Scene')
+  const cached = createSceneWriteCapture(MAX_OCCLUSION_OPERATIONS, { fractionalCircleOutput: true })
+  expect(admitSceneDocument(drawing.admitted, 'internal', true, cached.observe)).toBe(drawing.admitted)
+  expect(DefaultBackend.render(drawing.admitted, { seed: 0 })).toBe(drawing.svg)
+  expect(certifyScenePaint(drawing.admitted, undefined, { sceneWriteReceipt: cached.finish(drawing.admitted) }).status).not.toBe('passed')
+})
+
+test.each((['opacity', 'viewBox'] as const).flatMap(mode => (['native', 'scene'] as const).map(execution => ({ mode, execution }))))('public cached root $mode values cannot certify hidden actual marker ink through $execution', ({ mode, execution }) => {
+  const clear = drawCylinderWriteControl('clear', execution)
+  expectCylinderWriteInk(clear, 'clear')
+  expect(clear.proof.status).toBe('passed')
+  const root = '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="100" viewBox="0 0 160 100">'
+  const actualRoot = mode === 'opacity' ? root.replace('>', ' style="opacity:0">') : root.replace('0 0 160 100', '100 0 160 100')
+  const tokens = scanSvgStartTags(actualRoot)
+  const forged = tokens.map(tag => ({ ...tag, attributes: tag.attributes.map(attribute => ({ ...attribute,
+    value: attribute.name === (mode === 'opacity' ? 'style' : 'viewBox') ? mode === 'opacity' ? '' : '0 0 160 100' : attribute.value,
+  })) }))
+  withSvgInspectionCache(() => {
+    // The public cache accepts caller data. Preserve genuine token spans and
+    // forge only the value that this transaction must read from actual bytes.
+    inspectSvgOnce('start-tags', actualRoot, () => forged)
+    const drawing = drawCylinderWriteControl('clear', execution, 'cylinder', actualRoot)
+    expect(clear.svg.split(root)).toHaveLength(2)
+    expect(drawing.svg).toBe(clear.svg.replace(root, actualRoot))
+    const attributes = rectangleEmissionElements(drawing.svg).find(element => element.name === 'svg')!.attributes
+    expect(attributes).toMatchObject({ width: '160', height: '100', viewBox: mode === 'viewBox' ? '100 0 160 100' : '0 0 160 100' })
+    if (mode === 'opacity') expect(attributes.style).toBe('opacity:0')
+    const reference = ' marker-end="url(#cylinder-tip)"'
+    expect(drawing.svg.split(reference)).toHaveLength(2)
+    // The renderer's white viewing background leaves every served root byte
+    // unchanged. Opacity hides everything; the pan hides the marker while
+    // retaining part of the body, so a blank raster cannot satisfy that case.
+    const pixels = new Resvg(drawing.svg, { background: '#fff' }).render().pixels
+    const absent = new Resvg(drawing.svg.replace(reference, ''), { background: '#fff' }).render().pixels
+    expect(Buffer.compare(pixels, absent)).toBe(0)
+    let nonWhite = 0, nonOpaque = 0, offShaftContrast = 0
+    for (let offset = 0; offset < pixels.length; offset += 4) {
+      if (pixels[offset + 3] !== 255 || absent[offset + 3] !== 255) nonOpaque++
+      if (pixels[offset] !== 255 || pixels[offset + 1] !== 255 || pixels[offset + 2] !== 255) nonWhite++
+      const y = Math.floor(offset / 4 / 160)
+      if (Math.abs(y + 0.5 - 40) > 1.25 && (pixels[offset]! < absent[offset]! || pixels[offset + 1]! < absent[offset + 1]! || pixels[offset + 2]! < absent[offset + 2]!)) offShaftContrast++
+    }
+    expect(nonOpaque).toBe(0)
+    expect(offShaftContrast).toBe(0)
+    if (mode === 'opacity') expect(nonWhite).toBe(0)
+    else {
+      // Actual marker ink[52,60]×[37.5,42.5] is wholly left of viewBoxx100.
+      // The right body side(worldx120,y40) still paints at viewportx20.
+      expect(60).toBeLessThan(Number(attributes.viewBox!.split(' ')[0]))
+      expect(nonWhite).toBeGreaterThan(0)
+      expect(pixels[(40 * 160 + 19) * 4]).toBeLessThan(255)
+    }
+    if (drawing.proof.status === 'passed') console.info('public cached root actual false-pass observation', JSON.stringify({ mode, execution, svg: drawing.svg, proof: drawing.proof, nonWhite, offShaftContrast }))
+    expect(drawing.proof.status).not.toBe('passed')
+  })
+})
+
+test.each(['native', 'scene'] as const)('public cached metadata inventory cannot hide actual opaque marker erasure through %s', execution => {
+  const clear = drawCylinderWriteControl('clear', execution)
+  expectCylinderWriteInk(clear, 'clear')
+  expect(clear.proof.status).toBe('passed')
+  const cover = '<rect x="51" y="36" width="10" height="8" fill="#fff" />'
+  const reference = ' marker-end="url(#cylinder-tip)"'
+  expect(clear.svg.split('</svg>')).toHaveLength(2)
+  const covered = clear.svg.replace('</svg>', `${cover}\n</svg>`)
+  expect(rectangleEmissionElements(covered).find(element => element.name === 'rect' && element.attributes.x === '51')!.attributes).toEqual({ x: '51', y: '36', width: '10', height: '8', fill: '#fff' })
+  // This exact authored cover contains the complete triangle[52,60]×[37.5,42.5].
+  // The positive's actual marker ink reappears when that later cover is removed.
+  const pixels = (svg: string) => new Resvg(svg, { background: '#fff' }).render().pixels
+  expect(Buffer.compare(pixels(covered), pixels(covered.replace(reference, '')))).toBe(0)
+  const exposed = covered.replace(`${cover}\n`, '')
+  expect(exposed).toBe(clear.svg)
+  expect(Buffer.compare(pixels(exposed), pixels(exposed.replace(reference, '')))).not.toBe(0)
+  withSvgInspectionCache(() => {
+    inspectSvgOnce('start-tags', cover, () => [])
+    let drawing: ReturnType<typeof drawCylinderWriteControl>
+    try { drawing = drawCylinderWriteControl('clear', execution, 'cylinder', undefined, cover) } catch (error) {
+      expect(error).toMatchObject({ name: 'SceneValidationError' })
+      expect((error as Error).message).toContain('nonPaint')
+      console.info('public cached metadata typed admission refusal', JSON.stringify({ execution, name: (error as Error).name, message: (error as Error).message, returnedSvg: false }))
+      return
+    }
+    expect(drawing.svg).toBe(covered)
+    if (drawing.proof.status === 'passed') console.info('public cached metadata actual false-pass observation', JSON.stringify({ execution, svg: drawing.svg, proof: drawing.proof }))
+    expect(drawing.proof.status).not.toBe('passed')
+  })
+})
+
+function drawFractionalSceneReceiptControl(alias?: 'shape' | 'text', captureOptions: Parameters<typeof createSceneWriteCapture>[1] = { fractionalCircleOutput: true }, variant: { execution?: 'native' | 'scene'; group?: 'plain' | 'close' | 'join' | 'lost-shell' | 'style'; ownerReads?: string[] } = {}) {
+  const colors = { bg: '#fff', fg: '#111' }
+  const context = { positioned: { width: 248, height: 116.9 }, colors, resolved: { renderOptions: {} } }
+  const marker: MarkerDescriptor = { id: 'receipt-ring', shape: 'circle', orient: 'auto', size: { width: 8, height: 8 }, ref: { x: 7.5, y: 4 }, geometry: { kind: 'circle', cx: 4, cy: 4, r: 3.25 }, paint: { fill: 'none', stroke: '#111', strokeWidth: '1' } }
+  const producer: DrawingProducer = factory => {
+    const first = factory.shape({ id: 'A', role: 'node', geometry: { kind: 'rect', x: 40, y: 40, width: 60, height: 36.9 }, paint: { fill: '#fff', stroke: '#888', strokeWidth: '0.75' } })
+    const text = factory.text({ id: 'receipt-label:A', role: 'label', owner: { id: 'A', role: 'node' }, text: 'A', block: preparePixelText('A', { fontSize: 13, fontWeight: 500 }), x: 70, y: 58.45, fontSize: 13, anchor: 'middle', paint: { fill: '#111' } })
+    return { family: 'flowchart', width: 248, height: 116.9, transparent: false, colors, parts: [
+      factory.documentOpen({ id: 'root', width: 248, height: 116.9, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="248" height="116.9" viewBox="0 0 248 116.9">'),
+      factory.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+      factory.connector({ id: 'receipt-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'polyline', points: [{ x: 100, y: 58.45 }, { x: 148, y: 58.45 }] }, paint: { stroke: '#111', strokeWidth: '1' }, endpoints: { from: 'A', to: 'B' }, markers: { end: marker } }),
+      first, ...(alias === 'shape' ? [first] : []),
+      factory.shape({ id: 'B', role: 'node', geometry: { kind: 'rect', x: 148, y: 40, width: 60, height: 36.9 }, paint: { fill: '#fff', stroke: '#888', strokeWidth: '0.75' } }),
+      text, ...(alias === 'text' ? [text] : []),
+      factory.text({ id: 'receipt-label:B', role: 'label', owner: { id: 'B', role: 'node' }, text: 'B', block: preparePixelText('B', { fontSize: 13, fontWeight: 500 }), x: 178, y: 58.45, fontSize: 13, anchor: 'middle', paint: { fill: '#111' } }),
+      ...(variant.group ? [factory.group({ id: 'receipt-shell', role: 'chrome', open: variant.group === 'style' ? '<g style="--fg:#fff">' : '<g>',
+        ...(variant.group === 'lost-shell' ? { owner: { get id() { variant.ownerReads?.push('owner-id:A'); return 'A' }, role: 'node' as const } } : {}),
+        close: variant.group === 'close' || variant.group === 'lost-shell' ? '<rect x="138" y="52" width="13" height="13" fill="#fff"/></g>' : '</g>',
+        join: variant.group === 'join' ? '<rect x="138" y="52" width="13" height="13" fill="#fff"/>' : '\n',
+        children: variant.group === 'lost-shell' ? [] : [
+          { node: factory.shape({ id: 'receipt-safe-left', role: 'chrome', geometry: { kind: 'rect', x: 5, y: 5, width: 2, height: 2, rx: 0, ry: 0 }, paint: { fill: '#fff', stroke: '#888', strokeWidth: '1' } }), indent: 0 },
+          { node: factory.shape({ id: 'receipt-safe-right', role: 'chrome', geometry: { kind: 'rect', x: 10, y: 5, width: 2, height: 2, rx: 0, ry: 0 }, paint: { fill: '#fff', stroke: '#888', strokeWidth: '1' } }), indent: 0 },
+        ],
+      })] : []),
+      factory.documentClose(),
+    ] }
+  }
+  return drawPaintControl(producer, context, variant.execution ?? 'scene', captureOptions)
+}
+
+function expectFractionalSceneReceiptInk(svg: string, alias?: 'shape' | 'text', group?: 'plain' | 'close' | 'join' | 'lost-shell') {
+  const elements = rectangleEmissionElements(svg)
+  expect(elements.find(element => element.name === 'svg')!.attributes).toMatchObject({ width: '248', height: '116.9', viewBox: '0 0 248 116.9' })
+  const rectangleIds: Array<string | undefined> = alias === 'shape' ? ['A', 'A', 'B'] : ['A', 'B']
+  if (group) {
+    if (group === 'lost-shell') rectangleIds.push(undefined)
+    else {
+      rectangleIds.push(...(group === 'join' ? [undefined, undefined, undefined, undefined, undefined] : group === 'close' ? [undefined, undefined, undefined] : [undefined, undefined]))
+      for (const x of ['5', '10']) {
+        const child = elements.find(element => element.name === 'rect' && element.attributes.x === x)!.attributes
+        expect(child).toMatchObject({ y: '5', width: '2', height: '2', rx: '0', ry: '0', fill: '#fff', stroke: '#888', 'stroke-width': '1' })
+        expect(child['data-id']).toBeUndefined()
+      }
+    }
+    expect(elements.filter(element => element.name === 'rect').map(element => element.attributes.x)).toEqual(group === 'lost-shell' ? ['40', '148', '138'] : group === 'close' ? ['40', '148', '5', '10', '138'] : group === 'join' ? ['40', '148', '138', '5', '138', '10', '138'] : ['40', '148', '5', '10'])
+  }
+  expect(elements.filter(element => element.name === 'rect').map(element => element.attributes['data-id'])).toEqual(rectangleIds)
+  expect(elements.find(element => element.attributes['data-id'] === 'B')!.attributes).toMatchObject({ x: '148', y: '40', width: '60', height: '36.9', fill: '#fff', stroke: '#888', 'stroke-width': '0.75' })
+  const edge = elements.find(element => element.attributes['data-id'] === 'receipt-edge')!.attributes
+  expect(edge).toMatchObject({ points: '100,58.45 148,58.45', 'data-from': 'A', 'data-to': 'B', stroke: '#111', 'stroke-width': '1', 'marker-end': 'url(#receipt-ring)' })
+  expect(edge['marker-start']).toBeUndefined()
+  const marker = elements.find(element => element.name === 'marker')!.attributes
+  expect(marker).toMatchObject({ id: 'receipt-ring', markerWidth: '8', markerHeight: '8', refX: '7.5', refY: '4', orient: 'auto' })
+  expect(marker.markerUnits).toBeUndefined()
+  expect(marker.viewBox).toBeUndefined()
+  expect(elements.find(element => element.name === 'circle')!.attributes).toMatchObject({ cx: '4', cy: '4', r: '3.25', fill: 'none', stroke: '#111', 'stroke-width': '1' })
+  expect(elements.some(element => element.attributes.transform !== undefined)).toBe(false)
+  // Authored cardinal pose gives center(144.5,58.45), outer radius3.75:
+  // [140.75,54.7,148.25,62.2] fits the final viewport and local [.25,7.75]
+  // marker viewport. Its entire right edge148.25 clears B's fill148.375;
+  // A ends100.375. Point(144.5,55.2) is ring ink off the shaft58.45±.5.
+  const inner = Number(elements.find(element => element.attributes['data-id'] === 'B')!.attributes.x) + 0.75 / 2
+  expect(inner).toBe(148.375)
+  expect(inner - 148.25).toBe(0.125)
+  const texts: string[] = []
+  const parser = new SaxesParser({ xmlns: true })
+  let inText = false, current = ''
+  parser.on('opentag', tag => { if (tag.local === 'text') { inText = true; current = '' } })
+  parser.on('text', value => { if (inText) current += value })
+  parser.on('closetag', tag => { if (tag.local === 'text') { texts.push(current); inText = false } })
+  parser.write(svg).close()
+  expect(texts).toEqual(alias === 'text' ? ['A', 'A', 'B'] : ['A', 'B'])
+  for (const text of elements.filter(element => element.name === 'text')) {
+    expect(text.attributes).toMatchObject({ y: '58.45', 'text-anchor': 'middle', 'data-prepared-text': 'true', lengthAdjust: 'spacingAndGlyphs' })
+    const x = Number(text.attributes.x), width = Number(text.attributes.textLength)
+    expect(width).toBeGreaterThan(0)
+    if (x === 70) expect(x + width / 2).toBeLessThan(140.75)
+    else { expect(x).toBe(178); expect(x - width / 2).toBeGreaterThan(148.25) }
+  }
+  const token = ' marker-end="url(#receipt-ring)"'
+  expect(svg.split(token)).toHaveLength(2)
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
+  const actual = new Resvg(svg, { font }).render().pixels
+  const absent = new Resvg(svg.replace(token, ''), { font }).render().pixels
+  if (group === 'close' || group === 'join' || group === 'lost-shell') {
+    const eraser = { name: 'rect', attributes: { x: '138', y: '52', width: '13', height: '13', fill: '#fff' } }
+    expect(elements.filter(element => element.name === 'rect' && element.attributes.x === '138')).toEqual(group === 'join' ? [eraser, eraser, eraser] : [eraser])
+    // Actual erased area[138,151]×[52,65] contains the complete ring
+    // [140.75,148.25]×[54.7,62.2]; absence of marker changes no pixel.
+    expect(Buffer.compare(actual, absent)).toBe(0)
+  } else expect(Buffer.compare(actual, absent)).not.toBe(0)
+}
+
+test('a fresh Scene fractional circle receipt retains actual shape and text occurrence authority', () => {
+  const drawing = drawFractionalSceneReceiptControl()
+  expectFractionalSceneReceiptInk(drawing.svg)
+  expect(drawing.proof.status).toBe('passed')
+})
+
+test.each((['close', 'join'] as const).flatMap(group => (['native', 'scene'] as const).map(execution => ({ group, execution }))))('fractional group $group cannot erase recorded marker ink through $execution', ({ group, execution }) => {
+  const plain = drawFractionalSceneReceiptControl(undefined, undefined, { execution, group: 'plain' })
+  expectFractionalSceneReceiptInk(plain.svg, undefined, 'plain')
+  expect(plain.proof.status).toBe('passed')
+  expect(() => drawFractionalSceneReceiptControl(undefined, undefined, { execution, group })).toThrow('Group "receipt-shell" close and join must not add artwork')
+})
+
+test('fractional group failed Native shell capture cannot omit an empty painted group', () => {
+  const reads: string[] = []
+  const plain = drawFractionalSceneReceiptControl(undefined, undefined, { execution: 'native', group: 'plain' })
+  expectFractionalSceneReceiptInk(plain.svg, undefined, 'plain')
+  expect(plain.proof.status).toBe('passed')
+  expect(() => drawFractionalSceneReceiptControl(undefined, undefined, { execution: 'native', group: 'lost-shell', ownerReads: reads })).toThrow('Group "receipt-shell" close and join must not add artwork')
+})
+
+test.each(['native', 'scene'] as const)('caller-owned cached group tokens cannot erase actual %s group style', execution => {
+  const plain = drawFractionalSceneReceiptControl(undefined, undefined, { execution, group: 'plain' })
+  expect(plain.proof.status).toBe('passed')
+  const styled = drawFractionalSceneReceiptControl(undefined, undefined, { execution, group: 'style' })
+  expect(styled.proof.status).not.toBe('passed')
+  const start = styled.svg.indexOf('<g '), end = styled.svg.indexOf('>', start) + 1
+  expect(start).toBeGreaterThan(0)
+  const open = styled.svg.slice(start, end)
+  expect(open).toContain('style="--fg:#fff"')
+  withSvgInspectionCache(() => {
+    const attributes = [{ name: 'style', value: '--fg:#fff', quote: '"' as const, nameStart: 3, valueStart: 10, valueEnd: 19 }]
+    inspectSvgOnce('start-tags', open, () => [{ name: 'g', start: 0, end: open.length, attributes, selfClosing: false }])
+    // The public cache deliberately retains caller-owned mutable results.
+    // Removing its style cannot replace the private actual group parse.
+    attributes.length = 0
+    const repeated = drawFractionalSceneReceiptControl(undefined, undefined, { execution, group: 'style' })
+    expect(repeated.svg).toBe(styled.svg)
+    expect(repeated.proof.status).not.toBe('passed')
+  })
+})
+
+test.each(['inherited', 'accessor'] as const)('Scene fractional capture option %s cannot acquire explicit output authority', mode => {
+  const explicit = drawFractionalSceneReceiptControl()
+  const reads: string[] = []
+  const options: NonNullable<Parameters<typeof createSceneWriteCapture>[1]> = {}
+  if (mode === 'accessor') Object.defineProperty(options, 'fractionalCircleOutput', { get() { reads.push('fractionalCircleOutput'); return true } })
+  const descriptor = Object.getOwnPropertyDescriptor(Object.prototype, 'fractionalCircleOutput')
+  const drawing = (() => {
+    try {
+      if (mode === 'inherited') Object.defineProperty(Object.prototype, 'fractionalCircleOutput', { configurable: true, value: true })
+      return drawFractionalSceneReceiptControl(undefined, options)
+    } finally {
+      if (mode === 'inherited') {
+        if (descriptor) Object.defineProperty(Object.prototype, 'fractionalCircleOutput', descriptor)
+        else delete (Object.prototype as { fractionalCircleOutput?: boolean }).fractionalCircleOutput
+      }
+    }
+  })()
+  expect(Object.getOwnPropertyDescriptor(Object.prototype, 'fractionalCircleOutput')).toEqual(descriptor)
+  expect(drawing.svg).toBe(explicit.svg)
+  expectFractionalSceneReceiptInk(drawing.svg)
+  expect(explicit.proof.status).toBe('passed')
+  expect({ status: drawing.proof.status, reads }).toEqual({ status: 'unverified', reads: [] })
+})
+
+test('cached Scene replay cannot borrow fresh fractional shape and text writes', () => {
+  const drawing = drawFractionalSceneReceiptControl()
+  expectFractionalSceneReceiptInk(drawing.svg)
+  if (!drawing.admitted) throw new Error('Expected an admitted Scene')
+  const cached = createSceneWriteCapture(MAX_OCCLUSION_OPERATIONS, { fractionalCircleOutput: true })
+  expect(admitSceneDocument(drawing.admitted, 'internal', true, cached.observe)).toBe(drawing.admitted)
+  expect(DefaultBackend.render(drawing.admitted, { seed: 0 })).toBe(drawing.svg)
+  expect(certifyScenePaint(drawing.admitted, undefined, { sceneWriteReceipt: cached.finish(drawing.admitted) }).status).toBe('unverified')
+})
+
+test('foreign and forged Scene receipts cannot certify byte-identical fractional circle output', () => {
+  const drawing = drawFractionalSceneReceiptControl(), foreign = drawFractionalSceneReceiptControl()
+  expectFractionalSceneReceiptInk(drawing.svg)
+  if (!drawing.admitted || !drawing.receipt || !foreign.receipt) throw new Error('Expected independently issued Scene receipts')
+  expect(foreign.svg).toBe(drawing.svg)
+  expect(certifyScenePaint(drawing.admitted, undefined, { sceneWriteReceipt: foreign.receipt }).status).toBe('unverified')
+  const forged = Object.freeze(Object.create(Object.getPrototypeOf(drawing.receipt), Object.getOwnPropertyDescriptors(drawing.receipt))) as typeof drawing.receipt
+  expect(certifyScenePaint(drawing.admitted, undefined, { sceneWriteReceipt: forged }).status).toBe('unverified')
+})
+
+test.each(['shape', 'text'] as const)('aliased Scene %s occurrences cannot borrow one fractional write fact', alias => {
+  const drawing = drawFractionalSceneReceiptControl(alias)
+  expectFractionalSceneReceiptInk(drawing.svg, alias)
+  if (!drawing.admitted) throw new Error('Expected an admitted Scene')
+  const repeated = drawing.admitted.parts.filter(node => node.id === (alias === 'shape' ? 'A' : 'receipt-label:A'))
+  expect(repeated).toHaveLength(2)
+  expect(repeated[0]).toBe(repeated[1])
+  expect(drawing.proof.status).toBe('unverified')
+})
+
 test.each(['agentic', 'elk'] as const)('public %s thick-arrow and borderless-state markers retain clipping and actual meaning', backend => {
   for (const source of ['flowchart LR\nA ==> B', 'stateDiagram-v2\nstate fork_state <<fork>>\n[*] --> fork_state\nfork_state --> State2\nfork_state --> State3\nstate join_state <<join>>\nState2 --> join_state\nState3 --> join_state\njoin_state --> State4\nState4 --> [*]']) {
     const result = renderMermaidSVGWithReceipt(source, { graphLayout: { backend, fallback: 'none' } })
@@ -313,18 +2601,24 @@ test.each(['agentic', 'elk'] as const)('public %s thick-arrow and borderless-sta
       expect(result.svg).toContain('data-id="edge:A-&gt;B#0"')
       expect(result.svg).toContain('stroke-width="2"')
     } else {
-      expect(result.svg).toContain('data-id="edge:_start-&gt;fork_state#0"')
-      expect(result.svg).toContain('data-id="edge:State3-&gt;join_state#0"')
+      const authoredPairs = [['_start', 'fork_state'], ['fork_state', 'State2'], ['fork_state', 'State3'], ['State2', 'join_state'], ['State3', 'join_state'], ['join_state', 'State4'], ['State4', '_end']]
+      const edgeTags = [...result.svg.matchAll(/<(?:line|polyline|path)\b[^>]*>/g)].map(match => match[0]).filter(tag => tag.includes(' data-role="edge"'))
+      expect(edgeTags.map(tag => [tag.match(/ data-from="([^"]*)"/)?.[1], tag.match(/ data-to="([^"]*)"/)?.[1]])).toEqual(authoredPairs)
+      expect(edgeTags.map(tag => tag.match(/ data-id="([^"]*)"/)?.[1])).toEqual(authoredPairs.map(([from, to]) => `edge:${from}-&gt;${to}#0`))
       if (backend === 'elk') {
-        const join = result.svg.match(/<rect\b[^>]*data-id="node-shape:join_state"[^>]*>/)![0]
-        const top = Number(join.match(/\by="([^"]+)"/)![1])
-        expect(join).toContain('stroke="none"')
-        for (const from of ['State2', 'State3']) {
-          const edge = result.svg.match(new RegExp(`<polyline\\b[^>]*data-id="edge:${from}-&gt;join_state#0"[^>]*>`))![0]
-          const points = edge.match(/\bpoints="([^"]+)"/)![1]!.split(' ').map(point => point.split(',').map(Number))
-          expect(points.at(-1)![1]).toBe(top)
-          expect(points.at(-2)![0]).toBe(points.at(-1)![0]!)
-          expect(points.at(-2)![1]!).toBeLessThan(top)
+        const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url)), fileURLToPath(new URL('../../assets/fonts/Inter-Medium.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
+        const actual = new Resvg(result.svg, { font }).render().pixels
+        // The two incoming join routes share one terminal pose. Remove both
+        // references together; the six distinct poses each retain actual ink.
+        for (const indices of [[0], [1], [2], [3, 4], [5], [6]]) {
+          let absent = result.svg
+          for (const index of indices) {
+            const tag = edgeTags[index]!
+            const markerEnd = ' marker-end="url(#arrowhead)"'
+            expect(tag.split(markerEnd)).toHaveLength(2)
+            absent = absent.replace(tag, tag.replace(markerEnd, ''))
+          }
+          expect(Buffer.compare(actual, new Resvg(absent, { font }).render().pixels)).not.toBe(0)
         }
       }
     }
@@ -356,6 +2650,65 @@ test('final paint order catches fully hidden text, including artwork with the sa
   const composed = marks.group({ id: 'same-owner', role: 'node', open: '<g>', close: '</g>', children: [{ node: text, indent: 0 }, { node: cover, indent: 0 }] })
   expect(certifyScenePaint(scene([composed])).status).toBe('failed')
   expect(certifyScenePaint(scene([text, surface('rgba(255,255,255,0.5)')])).status).toBe('passed')
+
+  const colors = { bg: '#fff', fg: '#111' }
+  const context = { positioned: { width: 100, height: 80 }, colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ family: 'flowchart', width: 100, height: 80, colors, transparent: false, parts: [
+    factory.documentOpen({ id: 'root', width: 100, height: 80, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+    factory.text(text), factory.shape(cover), factory.documentClose(),
+  ] })
+  const drawing = drawPaintControl(producer, context, 'scene')
+  expect(drawing.proof.status).toBe('failed')
+  expect(drawing.proof.issues).toContainEqual(expect.objectContaining({ code: 'TEXT_OCCLUDED', id: 'text', by: 'cover' }))
+  const bounds = drawing.paint.primitives.find(primitive => primitive.id === 'text')?.bounds
+  if (!bounds || !drawing.admitted || !drawing.receipt) throw new Error('Expected an actual Scene text occurrence and write receipt')
+  const freeze = Object.freeze, push = Array.prototype.push
+  const define = Object.defineProperty, own = Object.getOwnPropertyDescriptor, isFrozen = Object.isFrozen, apply = Reflect.apply
+  const results: Array<{ mode: 'freeze' | 'append'; proof: ReturnType<typeof certifyScenePaint>; hookCalls: number }> = []
+  for (const mode of ['freeze', 'append'] as const) {
+    const prototype = mode === 'freeze' ? Object : Array.prototype, key = mode === 'freeze' ? 'freeze' : 'push'
+    const descriptor = own(prototype, key)!
+    let proof!: ReturnType<typeof certifyScenePaint>, hookCalls = 0
+    try {
+      define(prototype, key, { ...descriptor, value: mode === 'freeze' ? (value: unknown) => {
+        if (value && typeof value === 'object' && !isFrozen(value)
+          && own(value, 'x0')?.value === bounds.x0 && own(value, 'x1')?.value === bounds.x1
+          && own(value, 'y0')?.value === bounds.y0 && own(value, 'y1')?.value === bounds.y1) {
+          hookCalls++
+          Object.assign(value, { x0: 85, x1: 90, y0: 1, y1: 8 })
+        }
+        return freeze(value)
+      } : function (this: unknown[], ...values: unknown[]) {
+        const primitive = values.length === 1 ? values[0] : undefined
+        if (primitive && typeof primitive === 'object' && own(primitive, 'kind')?.value === 'text'
+          && own(primitive, 'id')?.value === 'text' && own(primitive, 'coverage')?.value === 'measured') {
+          hookCalls++
+          return this.length
+        }
+        return apply(push, this, values)
+      } })
+      proof = certifyScenePaint(drawing.admitted, undefined, { sceneWriteReceipt: drawing.receipt })
+    } finally { define(prototype, key, descriptor) }
+    results.push({ mode, proof, hookCalls })
+  }
+
+  expect(Object.freeze).toBe(freeze)
+  expect(Array.prototype.push).toBe(push)
+  expect(DefaultBackend.render(drawing.admitted, { seed: 0 })).toBe(drawing.svg)
+  const textTags = drawing.svg.match(/<text\b[^>]*>Read<\/text>/g)!
+  expect(textTags).toHaveLength(1)
+  const textTag = textTags[0]!, writtenCovers = scanSvgStartTags(drawing.svg).filter(tag => tag.name === 'rect' && decodedSvgAttributeValue(tag, 'data-id') === 'cover')
+  expect(writtenCovers).toHaveLength(1)
+  const writtenCover = writtenCovers[0]!, uncovered = drawing.svg.slice(0, writtenCover.start) + drawing.svg.slice(writtenCover.end)
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' }
+  const pixels = (svg: string) => new Resvg(svg, { font, background: '#fff' }).render().pixels
+  expect(Buffer.compare(pixels(drawing.svg), pixels(drawing.svg.replace(textTag, '')))).toBe(0)
+  expect(Buffer.compare(pixels(uncovered), pixels(uncovered.replace(textTag, '')))).not.toBe(0)
+  for (const { mode, proof, hookCalls } of results) {
+    expect(proof.status, `Scene text ${mode} hook ran ${hookCalls} times`).toBe('failed')
+    expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'TEXT_OCCLUDED', id: 'text', by: 'cover' }))
+    expect(proof).toEqual(drawing.proof)
+  }
 })
 
 test.each([
@@ -423,7 +2776,8 @@ test('endpoint symbols use final owned repaint order rather than marker counts',
 })
 
 test('one viewport repair contains negative coordinates, stroke and endpoint artwork without moving identities', () => {
-  const edge = marks.connector({ id: 'authored->edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: -10, y1: 20, x2: 110, y2: 20 }, paint: { stroke: '#111', strokeWidth: '4' }, endpoints: { from: 'authored', to: 'edge' }, markers: { end: { id: 'arrow', shape: 'arrow', bounds: { x0: -5, y0: -5, x1: 5, y1: 5 }, units: 'userSpaceOnUse' } } })
+  const marker: MarkerDescriptor = { id: 'arrow', shape: 'arrow', units: 'userSpaceOnUse', size: { width: 10, height: 10 }, ref: { x: 0, y: 0 }, viewBox: { x: -5, y: -5, width: 10, height: 10 }, overflow: 'visible', bounds: { x0: -5, y0: -5, x1: 5, y1: 5 }, geometry: { kind: 'polygon', points: [{ x: -5, y: -5 }, { x: 5, y: 0 }, { x: -5, y: 5 }] }, paint: { fill: '#111', stroke: '#111', strokeWidth: '4', strokeLinejoin: 'round' } }
+  const edge = marks.connector({ id: 'authored->edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: -10, y1: 20, x2: 110, y2: 20 }, paint: { stroke: '#111', strokeWidth: '4' }, endpoints: { from: 'authored', to: 'edge' }, markers: { end: marker } })
   const proof = certifyScenePaint(scene([edge]))
   expect(proof.status).toBe('passed')
   expect(proof.attempts).toBe(2)
@@ -432,6 +2786,38 @@ test('one viewport repair contains negative coordinates, stroke and endpoint art
   expect(proof.viewport.x).toBeLessThanOrEqual(-12)
   expect(proof.viewport.x + proof.viewport.width).toBeGreaterThanOrEqual(117)
   expect(edge.endpoints).toMatchObject({ from: 'authored', to: 'edge' })
+  const boundsOnly = marks.connector({ id: 'bounds-only', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: -10, y1: 20, x2: 110, y2: 20 }, paint: { stroke: '#111', strokeWidth: '4' }, endpoints: { from: 'authored', to: 'edge' }, markers: { end: { id: 'arrow', shape: 'arrow', bounds: marker.bounds, units: 'userSpaceOnUse' } } })
+  expect(certifyScenePaint(scene([boundsOnly])).status).toBe('unverified')
+  const family = getFamily('flowchart')!
+  const restore = replaceFamilyForTest('flowchart', { ...family, lowerScene() {
+    return { ...scene([]), parts: [
+      marks.documentOpen({ id: 'root', width: 100, height: 80, colors: { bg: '#fff', fg: '#111' }, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80" viewBox="0 0 100 80" style="--bg:#fff;--fg:#111">'),
+      marks.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(marker)}</defs>`), edge, marks.documentClose(),
+    ] }
+  } })
+  let rendered: ReturnType<typeof renderMermaidSVGWithReceipt>
+  try { rendered = renderMermaidSVGWithReceipt('flowchart LR\nauthored --> edge', { layoutSafety: 'strict', embedFontImport: false }) }
+  finally { restore() }
+  expect(rendered.receipt.layoutCertification).toMatchObject({ status: 'passed', attempts: 2, repairs: ['expand-viewport'] })
+  const svg = rendered.svg
+  const elements = rectangleEmissionElements(svg)
+  const viewport = elements.find(element => element.name === 'svg')!.attributes.viewBox!.split(/\s+/).map(Number)
+  expect(viewport[0]).toBeLessThanOrEqual(-12)
+  expect(viewport[0]! + viewport[2]!).toBeGreaterThanOrEqual(117)
+  expect(elements.find(element => element.name === 'polygon')!.attributes.points).toBe('-5 -5, 5 0, -5 5')
+  expect(elements.find(element => element.name === 'line')!.attributes).toMatchObject({ x1: '-10', x2: '110', 'stroke-width': '4', 'data-from': 'authored', 'data-to': 'edge' })
+  const raster = new Resvg(svg, { background: '#fff' }).render(), actual = raster.pixels
+  const absent = new Resvg(svg.replace(' marker-end="url(#arrow)"', ''), { background: '#fff' }).render().pixels
+  expect(Buffer.compare(actual, absent)).not.toBe(0)
+  let offShaft = 0
+  for (let y = 0; y < raster.height; y++) for (let x = 0; x < raster.width; x++) {
+    const worldY = viewport[1]! + (y + 0.5) * viewport[3]! / raster.height
+    if (Math.abs(worldY - 20) <= 2) continue
+    const offset = (y * raster.width + x) * 4
+    if (actual[offset]! < absent[offset]! || actual[offset + 1]! < absent[offset + 1]! || actual[offset + 2]! < absent[offset + 2]!) offShaft++
+  }
+  expect(offShaft).toBeGreaterThan(0)
+
 })
 
 test('missing preparation, opaque content and conditional output remain unverified', () => {
@@ -584,6 +2970,406 @@ test('private emission custody cannot be discarded while fresh generic Native in
   expect(certifyNativePaint({ ...drawing.header }, drawing.paint).status).toBe('unverified')
 })
 
+test.each(['cache-prime', 'finish-reissue'] as const)('malformed Native XML cannot borrow admission through %s', mode => {
+  const marker = tipAnchoredArrow('xml-admission-arrow', { width: 8, height: 5 }, 'end', { fill: '#111' }, 'userSpaceOnUse')
+  const header = scene([])
+  const context = { positioned: { width: 100, height: 80 }, colors: header.colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...header, parts: [
+    factory.documentOpen({ id: 'root', width: 100, height: 80, colors: header.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80" data-note="&unbound;">'),
+    factory.definitions({ id: 'markers' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    factory.connector({ id: 'xml-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 50, y2: 40 }, paint: { stroke: '#111' }, markers: { end: marker } }),
+    factory.documentClose(),
+  ] })
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(() => new Resvg(drawing.svg, { font: { loadSystemFonts: false } })).toThrow()
+  const validSvg = drawing.svg.replace(' data-note="&unbound;"', '')
+  expect(() => new Resvg(validSvg, { font: { loadSystemFonts: false } })).not.toThrow()
+  if (mode === 'cache-prime') {
+    withSvgInspectionCache(() => {
+      // A caller can populate the generic cache, but its boolean cannot
+      // become XML authority for a fresh drawing with the same malformed bytes.
+      inspectSvgOnce('xml-envelope', drawing.svg, () => true)
+      const repeated = drawNative(producer, context, 'flowchart')
+      expect(repeated.svg).toBe(drawing.svg)
+      expect(certifyNativePaint(repeated.header, repeated.paint).status).not.toBe('passed')
+    })
+  } else {
+    // An unrelated valid serialization cannot replace the admission belonging
+    // to this already emitted inspection, even with the exact retained header.
+    createNativePaintEmission(MAX_OCCLUSION_OPERATIONS).finish(drawing.paint, drawing.header, validSvg)
+    expect(certifyNativePaint(drawing.header, drawing.paint).status).not.toBe('passed')
+  }
+})
+
+test.each([
+  ...(['line', 'polyline'] as const).flatMap(kind => (['exact', 'rounded', 'fractional'] as const).map(mode => ({ kind, mode }))),
+  { kind: 'polyline' as const, mode: 'bent-fractional' as const },
+  { kind: 'polyline' as const, mode: 'zero-last' as const },
+  { kind: 'polyline' as const, mode: 'long-bent-fractional' as const },
+  { kind: 'polyline' as const, mode: 'long-zero-last' as const },
+  { kind: 'polyline' as const, mode: 'private-seal' as const },
+].flatMap(row => (['native', 'scene'] as const).map(execution => ({ ...row, execution }))))('the $mode emitted $kind must retain visible endpoint marker ink through $execution', ({ kind, mode, execution }) => {
+  // The tiny northwest line writes as a zero-length line. Its SVG auto
+  // orientation is then +x: the triangle (32,37.5),(40,40),(32,42.5)
+  // lies wholly under the later white card. The raw northwest tangent instead
+  // places that triangle southeast of the card and used to receive a pass.
+  const privateSeal = mode === 'private-seal'
+  const x1 = privateSeal ? 30.00000000000003 : mode === 'rounded' ? 40.00000000000001 : mode === 'fractional' ? 41.00000000000001 : 41
+  const y1 = privateSeal ? 40.00000000000003 : mode === 'exact' ? 41 : 40.00000000000001
+  const long = mode === 'long-bent-fractional' || mode === 'long-zero-last'
+  const bent = mode === 'bent-fractional' || mode === 'zero-last' || long
+  const zeroLast = mode === 'zero-last' || mode === 'long-zero-last'
+  const servedBentPoints = [
+    ...(long ? [{ x: 70, y: 70 }, { x: 60, y: 70 }] : []),
+    { x: 60, y: 60 }, { x: 60, y: 40 }, { x: zeroLast ? 40 : 41, y: 40 }, { x: 40, y: 40 },
+  ]
+  const marker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: '#111' }, 'userSpaceOnUse')
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...scene([]), parts: [
+    factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+    factory.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    factory.connector({ id: 'arrow-edge', role: 'edge', lineStyle: 'solid', geometry: kind === 'line'
+      ? { kind: 'line', x1, y1, x2: 40, y2: 40 }
+      : { kind: 'polyline', points: bent
+        ? [...(long ? [{ x: 70.00000000000001, y: 70.00000000000001 }, { x: 60.00000000000001, y: 70.00000000000001 }] : []), { x: 60.00000000000001, y: 60.00000000000001 }, { x: 60.00000000000001, y: 40.00000000000001 }, { x: zeroLast ? 39.99999999999999 : 41.00000000000001, y: 40.00000000000001 }, { x: 40.00000000000001, y: 40.00000000000001 }]
+        : [{ x: x1, y: y1 }, { x: privateSeal ? 40.00000000000003 : 40, y: privateSeal ? 40.00000000000003 : 40 }] }, paint: { stroke: '#111', strokeWidth: '1' }, endpoints: { from: 'other', to: 'cover' }, markers: { end: marker } }),
+    factory.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 30, y: 35, width: 10, height: 10 }, paint: { fill: '#fff' } }),
+    factory.documentClose(),
+  ] })
+  const freezeDescriptor = Object.getOwnPropertyDescriptor(Object, 'freeze')!, freeze = Object.freeze
+  const define = Object.defineProperty, own = Object.getOwnPropertyDescriptor
+  let drawing: ReturnType<typeof drawPaintControl>
+  try {
+    if (privateSeal) define(Object, 'freeze', { ...freezeDescriptor, value(value: unknown) {
+      // Raw source endpoints retain fractional tails. Only the fresh served
+      // point can match this integer pose after actual SVG tokens were written.
+      if (value && typeof value === 'object' && own(value, 'x')?.value === 40 && own(value, 'y')?.value === 40 && !Object.isFrozen(value)) Reflect.set(value, 'x', 90)
+      return freeze(value)
+    } })
+    drawing = drawPaintControl(producer, context, execution)
+  } finally { if (privateSeal) define(Object, 'freeze', freezeDescriptor) }
+
+  expect(drawing.svg).toContain(kind === 'line'
+    ? mode === 'rounded' ? '<line x1="40" y1="40" x2="40" y2="40"' : mode === 'fractional' ? '<line x1="41" y1="40" x2="40" y2="40"' : '<line x1="41" y1="41" x2="40" y2="40"'
+    : privateSeal ? '<polyline points="30,40 40,40"' : bent ? `<polyline points="${long ? '70,70 60,70 ' : ''}60,60 60,40 ${zeroLast ? '40' : '41'},40 40,40"` : mode === 'rounded' ? '<polyline points="40,40 40,40"' : mode === 'fractional' ? '<polyline points="41,40 40,40"' : '<polyline points="41,41 40,40"')
+  expect(drawing.svg).toContain('marker-end="url(#arrow)"')
+  expect(drawing.svg).toContain('points="0 0, 8 2.5, 0 5" fill="#111"')
+  const cover = '<rect x="30" y="35" width="10" height="10" fill="#fff" data-id="cover" data-role="node" />'
+  expect(drawing.svg).toContain(cover)
+  const markerEnd = ' marker-end="url(#arrow)"'
+  expect(drawing.svg.split(markerEnd)).toHaveLength(2)
+  const fontFiles = [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))]
+  const raster = (svg: string) => new Resvg(svg, { font: { fontFiles, loadSystemFonts: false, defaultFontFamily: 'Inter' } }).render().pixels
+  const darkPixels = (svg: string): number => {
+    const pixels = raster(svg)
+    let count = 0
+    for (let index = 0; index < pixels.length; index += 4) if (pixels[index + 3]! > 0 && pixels[index]! < 128) count++
+    return count
+  }
+  const withoutCover = drawing.svg.replace(cover, '')
+  expect(Buffer.compare(raster(withoutCover), raster(withoutCover.replace(markerEnd, '')))).not.toBe(0)
+  const markerChangesImage = Buffer.compare(raster(drawing.svg), raster(drawing.svg.replace(markerEnd, ''))) !== 0
+  const proof = drawing.proof
+  if (mode === 'rounded' || zeroLast || privateSeal) {
+    if (mode === 'rounded' || privateSeal) expect(darkPixels(drawing.svg)).toBe(0)
+    else expect(darkPixels(drawing.svg)).toBeGreaterThan(0)
+    expect(markerChangesImage).toBe(false)
+    expect(proof.status).not.toBe('passed')
+    if (drawing.admitted) {
+      expect(certifyScenePaint(drawing.admitted).status).not.toBe('passed')
+      const cached = createSceneWriteCapture(MAX_OCCLUSION_OPERATIONS)
+      expect(admitSceneDocument(drawing.admitted, 'internal', true, cached.observe)).toBe(drawing.admitted)
+      expect(DefaultBackend.render(drawing.admitted, { seed: 0 })).toBe(drawing.svg)
+      expect(certifyScenePaint(drawing.admitted, undefined, { sceneWriteReceipt: cached.finish(drawing.admitted) }).status).not.toBe('passed')
+    }
+  } else {
+    expect(darkPixels(drawing.svg)).toBeGreaterThan(0)
+    expect(markerChangesImage).toBe(true)
+    expect(proof.status).toBe('passed')
+    expect(proof.issues).toEqual([])
+    if (mode === 'fractional' || bent) {
+      const source = paintPrimitiveSource(drawing.paint.primitives.find(primitive => primitive.id === 'arrow-edge')!)
+      expect(source?.kind).toBe('connector')
+      if (source?.kind !== 'connector') throw new Error('Expected retained connector paint')
+      expect(source.route.geometry).toEqual(kind === 'line'
+        ? { kind: 'line', x1: 41, y1: 40, x2: 40, y2: 40 }
+        : bent ? { kind: 'polyline', points: servedBentPoints }
+          : { kind: 'polyline', points: [{ x: 41, y: 40 }, { x: 40, y: 40 }] })
+      expect(source.route.contours).toEqual(bent
+        ? [{ start: long ? { x: 70, y: 70 } : { x: 60, y: 60 }, end: { x: 40, y: 40 }, closed: false, startTangent: long ? { x: -1, y: 0 } : { x: 0, y: -1 }, endTangent: { x: -1, y: 0 } }]
+        : [{ start: { x: 41, y: 40 }, end: { x: 40, y: 40 }, closed: false, startTangent: { x: -1, y: 0 }, endTangent: { x: -1, y: 0 } }])
+      expect(source.route.startTangent).toEqual(bent && !long ? { x: 0, y: -1 } : { x: -1, y: 0 })
+      expect(source.route.endTangent).toEqual({ x: -1, y: 0 })
+    }
+  }
+})
+
+test.each((['chord-only', 'default-unit-chord-only', 'rounded-derivative', 'far-covered', 'far-viewport'] as const).flatMap(mode => (['native', 'scene'] as const).map(execution => ({ mode, execution }))))('a $mode cubic cannot certify hidden or clipped final marker ink through $execution', ({ mode, execution }) => {
+  const chordOnly = mode === 'chord-only' || mode === 'default-unit-chord-only'
+  const marker = tipAnchoredArrow('terminal', { width: 8, height: 5 }, 'end', { fill: '#000', stroke: 'none' }, mode === 'default-unit-chord-only' ? undefined : 'userSpaceOnUse')
+  const rawPath = chordOnly ? 'M20 40 C20 40 60.1 40 60 40'
+    : mode === 'rounded-derivative' ? 'M20 40 C20 40 60.00000000000001 40 60 40'
+      : mode === 'far-covered' ? 'M20 40 C20 40 91 40 90 40' : 'M20 40 C20 40 96 40 95 40'
+  const projection = mode === 'rounded-derivative' ? projectConnectorPath(rawPath, { x: 20, y: 40 }, [
+    { kind: 'cubic', control1: { x: 20, y: 40 }, control2: { x: 60.00000000000001, y: 40 }, end: { x: 60, y: 40 } },
+  ]) : undefined
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#000' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...scene([]), colors: context.colors, parts: [
+    factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+    factory.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    factory.connector({ id: 'edge', role: 'edge', lineStyle: 'solid',
+      geometry: projection?.geometry ?? { kind: 'path', d: rawPath, points: [{ x: 20, y: 40 }, { x: 60, y: 40 }] },
+      ...(projection ? { route: { contours: projection.contours } } : {}),
+      paint: { stroke: '#000', strokeWidth: '1', strokeLinecap: 'butt', strokeLinejoin: 'round' },
+      endpoints: { from: 'outside', to: 'cover' }, markers: { end: marker } }),
+    factory.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: chordOnly ? 60 : mode === 'far-covered' ? 90 : mode === 'far-viewport' ? 10 : 30, y: mode === 'far-viewport' ? 10 : 20, width: mode === 'far-covered' ? 9 : mode === 'far-viewport' ? 10 : 30, height: mode === 'far-viewport' ? 10 : 40 }, paint: { fill: '#fff', stroke: '#888', strokeWidth: '1' } }),
+    factory.documentClose(),
+  ] })
+  const drawing = drawPaintControl(producer, context, execution)
+  expect(drawing.svg).toContain(chordOnly ? 'd="M20 40 C20 40 60.1 40 60 40"'
+    : mode === 'rounded-derivative' ? 'd="M20 40 C20 40 60 40 60 40"'
+      : mode === 'far-covered' ? 'd="M20 40 C20 40 91 40 90 40"' : 'd="M20 40 C20 40 96 40 95 40"')
+  expect(drawing.svg).toContain('points="0 0, 8 2.5, 0 5" fill="#000" stroke="none"')
+  const markerEnd = ' marker-end="url(#terminal)"'
+  const cover = chordOnly
+    ? '<rect x="60" y="20" width="30" height="40" fill="#fff" stroke="#888" stroke-width="1" data-id="cover" data-role="node" />'
+    : mode === 'far-covered' ? '<rect x="90" y="20" width="9" height="40" fill="#fff" stroke="#888" stroke-width="1" data-id="cover" data-role="node" />'
+      : mode === 'far-viewport' ? '<rect x="10" y="10" width="10" height="10" fill="#fff" stroke="#888" stroke-width="1" data-id="cover" data-role="node" />'
+        : '<rect x="30" y="20" width="30" height="40" fill="#fff" stroke="#888" stroke-width="1" data-id="cover" data-role="node" />'
+  expect(drawing.svg.split(markerEnd)).toHaveLength(2)
+  expect(drawing.svg).toContain(cover)
+  if (mode === 'default-unit-chord-only') expect(rectangleEmissionElements(drawing.svg).find(element => element.name === 'marker')!.attributes.markerUnits).toBeUndefined()
+  const fontFiles = [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))]
+  const raster = (svg: string) => new Resvg(svg, { font: { fontFiles, loadSystemFonts: false, defaultFontFamily: 'Inter' } }).render().pixels
+  const withoutCover = drawing.svg.replace(cover, '')
+  expect(Buffer.compare(raster(withoutCover), raster(withoutCover.replace(markerEnd, '')))).not.toBe(0)
+  if (mode === 'far-viewport') {
+    // The shaft/control hull ends before x98, but the actual westward arrow
+    // at x95 extends to x103. The harmless card stays within x9.5..20.5.
+    // A viewport-only diagnostic exposes clipped ink; every comparison still
+    // uses the whole image and its own same-size marker-absent companion.
+    const markerPixels = (svg: string) => {
+      const actual = raster(svg), absent = raster(svg.replace(markerEnd, ''))
+      let count = 0
+      for (let index = 0; index < actual.length; index += 4) if (actual[index] !== absent[index] || actual[index + 1] !== absent[index + 1] || actual[index + 2] !== absent[index + 2] || actual[index + 3] !== absent[index + 3]) count++
+      return count
+    }
+    const root = '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'
+    expect(drawing.svg.split(root)).toHaveLength(2)
+    const expanded = drawing.svg.replace(root, '<svg xmlns="http://www.w3.org/2000/svg" width="110" height="80">')
+    expect(markerPixels(drawing.svg)).toBeGreaterThan(0)
+    expect(markerPixels(expanded)).toBeGreaterThan(markerPixels(drawing.svg))
+  } else {
+    // The later card removes every contribution from the nonempty marker.
+    expect(Buffer.compare(raster(drawing.svg), raster(drawing.svg.replace(markerEnd, '')))).toBe(0)
+  }
+  expect(drawing.proof.status).not.toBe('passed')
+  if (drawing.admitted && mode === 'chord-only') {
+    const node = drawing.admitted.parts.find(part => part.kind === 'connector')
+    if (node?.kind !== 'connector' || node.route.geometry.kind !== 'path') throw new Error('Expected the actual admitted cubic')
+    const forged = createSceneWriteCapture(MAX_OCCLUSION_OPERATIONS)
+    // An arbitrary caller cannot turn the cached hidden cubic into a claimed
+    // eastward line by supplying a fabricated geometry-write event.
+    const observer: unknown = Reflect.get(forged, 'observe')
+    if (typeof observer === 'function') {
+      try {
+        Reflect.apply(observer, undefined, [node, node.route.geometry, { ...node.route.geometry, d: 'M20 40 L60 40' }, sceneNodeSerialization(node)])
+      } catch {
+        // Refusing direct invocation before a receipt exists is also sound.
+      }
+    }
+    expect(certifyScenePaint(drawing.admitted, undefined, { sceneWriteReceipt: forged.finish(drawing.admitted) }).status).not.toBe('passed')
+  }
+})
+
+test.each(([
+  { name: 'cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'default-unit-collapsed-cubic', d: 'M20.00000000000001 40 C20 40 60 40 60 40', start: { x: 20.00000000000001, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'unstable-default-unit-cubic', d: 'M20.00000000000001 40 C20 40 60 40 60 40', start: { x: 20.00000000000001, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'collapsed-last-control', d: 'M20 40 C20 40 60 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'reversed-cubic', d: 'M80 40 C80 40 60 40 40 40', start: { x: 80, y: 40 }, end: { x: 40, y: 40 }, tangent: { x: -1, y: 0 }, cardX: 10, witnessX: 46 },
+  { name: 'quadratic', d: 'M20 40 Q40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'smooth-cubic', d: 'M20 40 C20 40 30 40 40 40 S50 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'smooth-quadratic', d: 'M20 40 Q30 40 40 40 T60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'relative-cubic', d: 'M20 40 c0 0 20 0 40 0', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'stylesheet-hidden-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'resource-hidden-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'undefined-root-color-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'custom-root-color-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'custom-root-cover-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'custom-root-unused-resource-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'legacy-unused-resource-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'declared-unused-resource-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'unused-child-id-shadow-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'unused-primitive-id-shadow-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'earlier-title-id-shadow-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'earlier-description-id-shadow-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'distinct-title-id-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'distinct-description-id-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'optional-palette-transparent-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+] as const).flatMap(row => (['native', 'scene'] as const).map(execution => ({ ...row, execution }))))('a $name binds emitted endpoint certification to actual ink through $execution', ({ name, d, start, end, tangent, cardX, witnessX, execution }) => {
+  // These authored open paths all end due east, except the reversed cubic.
+  // The exact terminal triangle is (52,37.5),(60,40),(52,42.5), or
+  // (48,42.5),(40,40),(48,37.5) when reversed. It lies outside the card.
+  const undefinedRootColor = name === 'undefined-root-color-cubic'
+  const unusedRootResource = name === 'custom-root-unused-resource-cubic', optionalPaletteTransparent = name === 'optional-palette-transparent-cubic'
+  const legacyUnusedResource = name === 'legacy-unused-resource-cubic', declaredUnusedResource = name === 'declared-unused-resource-cubic'
+  const unusedResource = unusedRootResource || legacyUnusedResource || declaredUnusedResource
+  const shadowPolygon = '<polygon id="visible-terminal" points="0 0, 1 0, 0 1" fill="#000" />'
+  const shadow = name === 'unused-child-id-shadow-cubic' ? `<marker id="unused-terminal" markerWidth="1" markerHeight="1" refX="0" refY="0">${shadowPolygon}</marker>`
+    : name === 'unused-primitive-id-shadow-cubic' ? shadowPolygon : ''
+  const documentElement = name === 'earlier-title-id-shadow-cubic' || name === 'distinct-title-id-cubic' ? 'title' : name === 'earlier-description-id-shadow-cubic' || name === 'distinct-description-id-cubic' ? 'description' : undefined
+  const documentIdCollision = name === 'earlier-title-id-shadow-cubic' || name === 'earlier-description-id-shadow-cubic'
+  const documentDomId = documentIdCollision ? 'visible-terminal' : 'document-accessibility'
+  const documentTag = documentElement === 'title' ? 'title' : 'desc'
+  const documentMarkup = documentElement ? `<${documentTag} id="${documentDomId}">Accessible drawing</${documentTag}>` : ''
+  const customRootColor = name === 'custom-root-color-cubic' || unusedRootResource, customRootCover = name === 'custom-root-cover-cubic'
+  const customRoot = customRootColor || customRootCover
+  const defaultUnit = name === 'default-unit-collapsed-cubic' || name === 'unstable-default-unit-cubic'
+  const unstableDefaultUnit = name === 'unstable-default-unit-cubic'
+  const hidden = name === 'stylesheet-hidden-cubic' || name === 'resource-hidden-cubic' || undefinedRootColor || customRootCover || optionalPaletteTransparent || shadow !== ''
+  const stylesheet = '<style>path{marker-end:none !important}</style>'
+  const markerFill = customRootColor ? 'var(--ink, #000)' : optionalPaletteTransparent ? 'var(--accent, #000)' : legacyUnusedResource || declaredUnusedResource ? '#f00' : '#000'
+  const marker = tipAnchoredArrow('visible-terminal', { width: 8, height: 5 }, 'end', undefinedRootColor ? { fill: 'none', stroke: 'var(--fg)', strokeWidth: '1' } : { fill: markerFill, stroke: 'none' }, defaultUnit ? undefined : 'userSpaceOnUse')
+  const unusedMarker = { ...marker, id: 'unused-terminal' }
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#000', ...(optionalPaletteTransparent ? { accent: 'transparent' } : {}) }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...scene([]), colors: context.colors, parts: [
+    factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80"${customRoot || optionalPaletteTransparent ? ` style="--bg:#fff;--fg:#000;${customRootColor ? '--ink:#f00' : customRootCover ? '--cover:#fff' : '--accent:transparent'}"` : ''}>`),
+    ...(documentElement ? [factory.documentText({ id: 'document-accessibility', element: documentElement, text: 'Accessible drawing', domId: documentDomId })] : []),
+    factory.definitions({ id: 'defs', ...(declaredUnusedResource ? { markerResources: [marker, unusedMarker] } : {}) }, `<defs>${name === 'resource-hidden-cubic' ? serializeMarkerResource(marker).replace('<polygon ', '<polygon opacity="0" ') : serializeMarkerResource(marker)}${unusedResource ? serializeMarkerResource(unusedMarker) : ''}${shadow}</defs>`),
+    ...(name === 'stylesheet-hidden-cubic' ? [factory.documentContent({ id: 'css', role: 'chrome', nonPaint: 'stylesheet' }, stylesheet)] : []),
+    factory.connector({ id: 'visible-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'path', d, points: [start, end] },
+      paint: { stroke: '#000', strokeWidth: unstableDefaultUnit ? '1.00000000000001' : '1', strokeLinecap: 'butt', strokeLinejoin: 'round' }, endpoints: { from: 'outside', to: 'card' }, markers: { end: marker } }),
+    factory.shape({ id: 'card', role: 'node', geometry: { kind: 'rect', x: cardX, y: 20, width: 30, height: 40 }, paint: { fill: '#fff', stroke: '#888', strokeWidth: '1' } }),
+    ...(customRootCover ? [factory.shape({ id: 'foreign-cover', role: 'node', geometry: { kind: 'rect', x: 50, y: 34, width: 12, height: 12 }, paint: { fill: 'var(--cover, transparent)' } })] : []),
+    factory.documentClose(),
+  ] })
+  const drawing = drawPaintControl(producer, context, execution)
+  expect(drawing.svg).toContain(`d="${defaultUnit ? 'M20 40 C20 40 60 40 60 40' : d}"`)
+  if (defaultUnit) {
+    const elements = rectangleEmissionElements(drawing.svg)
+    expect(elements.find(element => element.name === 'marker')!.attributes.markerUnits).toBeUndefined()
+    expect(elements.find(element => element.attributes['data-id'] === 'visible-edge')!.attributes['stroke-width']).toBe('1')
+  }
+  if (documentMarkup) {
+    expect(drawing.svg.split(documentMarkup)).toHaveLength(2)
+    expect(drawing.svg.split(' id="visible-terminal"')).toHaveLength(documentIdCollision ? 3 : 2)
+    expect(drawing.svg.indexOf(documentMarkup)).toBeLessThan(drawing.svg.indexOf('<defs>'))
+  }
+  const markerEnd = ' marker-end="url(#visible-terminal)"'
+  const markerPolygon = undefinedRootColor ? 'points="0 0, 8 2.5, 0 5" fill="none" stroke="var(--fg)" stroke-width="1"' : `points="0 0, 8 2.5, 0 5" fill="${markerFill}" stroke="none"`
+  expect(drawing.svg.split(markerEnd)).toHaveLength(2)
+  expect(drawing.svg.split(markerPolygon)).toHaveLength(unusedResource ? 3 : 2)
+  if (unusedResource || shadow) {
+    if (shadow) expect(drawing.svg.split(shadow)).toHaveLength(2)
+    if (name !== 'unused-primitive-id-shadow-cubic') expect(drawing.svg).toContain('<marker id="unused-terminal"')
+    expect(drawing.svg).not.toContain('url(#unused-terminal)')
+  }
+  expect(drawing.svg).toContain(`<rect x="${cardX}" y="20" width="30" height="40" fill="#fff" stroke="#888" stroke-width="1"`)
+  if (customRootColor) expect(marker.paint?.fill).toBe('var(--ink, #000)')
+  if (customRootCover) expect(drawing.svg).toContain('fill="var(--cover, transparent)"')
+  // Public graphical rendering applies this real postpass after certification.
+  // Keep typed variables intact while observing the actual served colors.
+  const svg = customRoot || optionalPaletteTransparent ? inlineResolvedColors(drawing.svg, context.colors) : drawing.svg
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter' }
+  const actual = new Resvg(svg, { font }).render()
+  const markerRemoved = new Resvg(svg.replace(markerEnd, ''), { font }).render()
+  if (hidden) {
+    expect(Buffer.compare(actual.pixels, markerRemoved.pixels)).toBe(0)
+    const covers = [...svg.matchAll(/<rect\b[^>]*>/g)].map(match => match[0]).filter(tag => tag.includes(' data-id="foreign-cover"'))
+    if (customRootCover) expect(covers).toHaveLength(1)
+    const transparentPolygon = 'points="0 0, 8 2.5, 0 5" fill="transparent" stroke="none"'
+    if (optionalPaletteTransparent) expect(svg).toContain(transparentPolygon)
+    const exposed = shadow ? svg.replace(shadow, '') : customRootCover ? svg.replace(covers[0]!, '') : optionalPaletteTransparent ? svg.replace(transparentPolygon, 'points="0 0, 8 2.5, 0 5" fill="#000" stroke="none"') : svg.replace(stylesheet, '').replace('<polygon opacity="0" ', '<polygon ').replace('stroke="var(--fg)"', 'stroke="#000"')
+    expect(Buffer.compare(new Resvg(exposed, { font }).render().pixels, new Resvg(exposed.replace(markerEnd, ''), { font }).render().pixels)).not.toBe(0)
+    if (shadow) {
+      const restored = new Resvg(exposed.replace(markerPolygon, 'points="0 0, 8 2.5, 0 5" fill="#f00" stroke="none"'), { font }).render()
+      const witness = (40 * restored.width + witnessX) * 4
+      expect(restored.pixels[witness]).toBeGreaterThan(128)
+      expect(restored.pixels[witness + 1]).toBeLessThan(64)
+      expect(restored.pixels[witness + 2]).toBeLessThan(64)
+    }
+  } else expect(Buffer.compare(actual.pixels, markerRemoved.pixels)).not.toBe(0)
+  if (customRootColor || legacyUnusedResource || declaredUnusedResource) {
+    const pixels = actual.pixels, witness = (40 * actual.width + witnessX) * 4
+    expect(pixels[witness]).toBeGreaterThan(128)
+    expect(pixels[witness + 1]).toBeLessThan(64)
+    expect(pixels[witness + 2]).toBeLessThan(64)
+  } else if (!undefinedRootColor && !optionalPaletteTransparent) {
+    const red = new Resvg(svg.replace(markerPolygon, 'points="0 0, 8 2.5, 0 5" fill="#f00" stroke="none"'), { font }).render()
+    const pixels = red.pixels
+    const witness = (40 * red.width + witnessX) * 4
+    if (hidden) {
+      let redPixels = 0
+      for (let index = 0; index < pixels.length; index += 4) if (pixels[index]! > 128 && pixels[index + 1]! < 64 && pixels[index + 2]! < 64 && pixels[index + 3]! > 0) redPixels++
+      expect(redPixels).toBe(0)
+    } else {
+      expect(pixels[witness]).toBeGreaterThan(128)
+      expect(pixels[witness + 1]).toBeLessThan(64)
+      expect(pixels[witness + 2]).toBeLessThan(64)
+    }
+  }
+  const source = paintPrimitiveSource(drawing.paint.primitives.find(primitive => primitive.id === 'visible-edge')!)
+  if (source?.kind !== 'connector') throw new Error('Expected retained visible connector')
+  // Retained metadata must preserve this authored route. Actual served pose
+  // is checked independently by full-image marker removal and red ink above.
+  expect(source.route.contours[0]?.end).toEqual(end)
+  expect(source.route.endTangent).toEqual(tangent)
+  const proof = drawing.proof
+  if (customRootCover) {
+    expect(proof.status).toBe('failed')
+    expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'MARKER_OCCLUDED', id: 'visible-edge', by: 'foreign-cover' }))
+  } else if (unusedRootResource || legacyUnusedResource || shadow || documentIdCollision) {
+    // Document IDs also own URL lookup: earlier title/desc collisions hide
+    // these heads in Chromium, although Resvg retains their visible ink.
+    // Declared canonical unused resources retain their own authority.
+    expect(proof.status).toBe('unverified')
+    expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'OUTPUT_SCOPE' }))
+  } else if (hidden || unstableDefaultUnit) expect(proof.status).not.toBe('passed')
+  else {
+    expect(proof.status).toBe('passed')
+    expect(proof.issues).toEqual([])
+  }
+  if (execution === 'scene' && name === 'cubic') {
+    const { admitted, raw, receipt } = drawing
+    if (!admitted || !raw || !receipt) throw new Error('Expected an actual admitted Scene write')
+    expect(certifyScenePaint(admitted).status).not.toBe('passed')
+    expect(certifyScenePaint({ ...admitted, width: 101 }, undefined, { sceneWriteReceipt: receipt }).status).not.toBe('passed')
+    const foreign = drawPaintControl(producer, context, 'scene')
+    if (!foreign.admitted || !foreign.receipt) throw new Error('Expected an independently admitted Scene write')
+    expect(foreign.svg).toBe(drawing.svg)
+    expect(certifyScenePaint(admitted, undefined, { sceneWriteReceipt: foreign.receipt }).status).not.toBe('passed')
+    expect(certifyScenePaint(foreign.admitted, undefined, { sceneWriteReceipt: receipt }).status).not.toBe('passed')
+    const cached = createSceneWriteCapture(MAX_OCCLUSION_OPERATIONS)
+    expect(admitSceneDocument(admitted, 'internal', true, cached.observe)).toBe(admitted)
+    expect(DefaultBackend.render(admitted, { seed: 0 })).toBe(drawing.svg)
+    expect(certifyScenePaint(admitted, undefined, { sceneWriteReceipt: cached.finish(admitted) }).status).not.toBe('passed')
+    const mutable = raw.parts.find(node => node.kind === 'connector')
+    if (mutable?.kind !== 'connector' || mutable.route.geometry.kind !== 'path') throw new Error('Expected the authored source path')
+    mutable.route.geometry.d = 'M20 40 C20 40 60.1 40 60 40'
+    expect(DefaultBackend.render(admitted, { seed: 0 })).toBe(drawing.svg)
+    expect(certifyScenePaint(admitted, undefined, { sceneWriteReceipt: receipt }).status).toBe('passed')
+    expect(certifyScenePaint(raw, undefined, { sceneWriteReceipt: receipt }).status).not.toBe('passed')
+  }
+})
+
+test('an unsupported arc keeps emitted terminal ink and refuses an unproved path tangent', () => {
+  const marker = tipAnchoredArrow('arc-terminal', { width: 8, height: 5 }, 'end', { fill: '#000', stroke: 'none' }, 'userSpaceOnUse')
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#000' }, resolved: { renderOptions: {} } }
+  const drawing = drawNative(factory => ({ ...scene([]), colors: context.colors, parts: [
+    factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+    factory.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    factory.connector({ id: 'arc-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'path', d: 'M20 40 A20 20 0 0 1 60 40', points: [{ x: 20, y: 40 }, { x: 60, y: 40 }] }, paint: { stroke: '#000', strokeWidth: '1' }, markers: { end: marker } }),
+    factory.documentClose(),
+  ] }), context, 'flowchart')
+  expect(drawing.svg).toContain('d="M20 40 A20 20 0 0 1 60 40"')
+  const markerEnd = ' marker-end="url(#arc-terminal)"'
+  expect(drawing.svg.split(markerEnd)).toHaveLength(2)
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter' }
+  expect(Buffer.compare(new Resvg(drawing.svg, { font }).render().pixels, new Resvg(drawing.svg.replace(markerEnd, ''), { font }).render().pixels)).not.toBe(0)
+  expect(certifyNativePaint(drawing.header, drawing.paint).status).toBe('unverified')
+})
+
 test.each(['mutable', 'shallow-frozen', 'accessor'] as const)('a transferred text measurement brand cannot bypass %s emission custody', mode => {
   const block = preparePixelText('Read', { fontSize: 12, fontWeight: 400 })
   const alias: any = structuredClone(block)
@@ -600,13 +3386,33 @@ test.each(['mutable', 'shallow-frozen', 'accessor'] as const)('a transferred tex
   }
 })
 
-test('native capture detaches sparse data and keeps prototype-like keys inert', () => {
+test.each(['ordinary', 'mutating-freeze', 'substituting-freeze'] as const)('native capture detaches sparse data and keeps prototype-like keys inert (%s)', mode => {
   const points = new Array(4)
-  points[2] = { x: 12, y: 34 }
+  const point = { x: 12, y: 34 }
+  points[2] = point
   const input = Object.create(null)
   Object.defineProperty(input, '__proto__', { value: { points }, enumerable: true })
   Object.defineProperty(input, 'hidden', { value: { color: '#fff' }, enumerable: false })
-  const captured = createNativePaintEmission(10000).snapshot(input)!
+  const define = Object.defineProperty, freeze = Object.freeze, freezeDescriptor = Object.getOwnPropertyDescriptor(Object, 'freeze')!
+  let escapedPrivatePoint = false
+  let captured: typeof input
+  try {
+    if (mode !== 'ordinary') define(Object, 'freeze', { ...freezeDescriptor, value(value: unknown) {
+      if (value && typeof value === 'object' && value !== point) {
+        const keys = Reflect.ownKeys(value), x = Object.getOwnPropertyDescriptor(value, 'x'), y = Object.getOwnPropertyDescriptor(value, 'y')
+        if (keys.length === 2 && x?.value === 12 && y?.value === 34) {
+          escapedPrivatePoint = true
+          if (mode === 'substituting-freeze') return freeze({ x: 90, y: 91 })
+          Object.assign(value, { x: 90, y: 91 })
+        }
+      }
+      return freeze(value)
+    } })
+    captured = createNativePaintEmission(10000).snapshot(input)
+  } finally { define(Object, 'freeze', freezeDescriptor) }
+  expect(Object.freeze).toBe(freeze)
+  expect(point).toEqual({ x: 12, y: 34 })
+  expect(captured).toBeDefined()
   points[2].x = 99
   input.hidden.color = '#000'
   expect(Object.hasOwn(captured, '__proto__')).toBe(true)
@@ -614,6 +3420,10 @@ test('native capture detaches sparse data and keeps prototype-like keys inert', 
   expect(captured.__proto__.points).toHaveLength(4)
   expect(Object.hasOwn(captured.__proto__.points, 0)).toBe(false)
   expect(captured.__proto__.points[2]).toEqual({ x: 12, y: 34 })
+  expect(Object.getOwnPropertyDescriptor(captured.__proto__.points[2], 'x')).toEqual({ value: 12, enumerable: true, writable: false, configurable: false })
+  expect(Object.getOwnPropertyDescriptor(captured.__proto__.points[2], 'y')).toEqual({ value: 34, enumerable: true, writable: false, configurable: false })
+  expect(Object.isFrozen(captured.__proto__.points[2])).toBe(true)
+  expect(escapedPrivatePoint).toBe(false)
   expect(captured.hidden.color).toBe('#fff')
   expect(Object.getOwnPropertyDescriptor(captured, 'hidden')!.enumerable).toBe(false)
   expect(Object.isFrozen(captured.__proto__.points)).toBe(true)
@@ -836,6 +3646,18 @@ test.each(['unfilled-rect', 'filled-rect', 'unfilled-polygon', 'stroke-only-comp
   // Marker x=31..39 lies wholly in the left stroke band x=30..50,
   // although it is outside the rectangle's fill beginning at x=40. Exact
   // continuous rectangle bands prove coverage; polygon/line bounds alone do not.
+  if (mode === 'unfilled-rect') {
+    const reference = ' marker-end="url(#arrow)"'
+    const cover = '<rect x="40" y="10" width="30" height="60" fill="none" stroke="#111" stroke-width="20" />'
+    expect(drawing.svg.split(reference)).toHaveLength(2)
+    expect(drawing.svg.split(cover)).toHaveLength(2)
+    expect(rectangleEmissionElements(drawing.svg).find(element => element.attributes['marker-end'] === 'url(#arrow)')!.attributes).toMatchObject({ x1: '5', y1: '30', x2: '39', y2: '30', stroke: '#111', 'stroke-width': '1' })
+    expect(drawing.paint.primitives.find(primitive => primitive.id === 'edge')!.role).toBe('chrome')
+    const pixels = (svg: string) => new Resvg(svg).render().pixels
+    expect(Buffer.compare(pixels(drawing.svg), pixels(drawing.svg.replace(reference, '')))).toBe(0)
+    const withoutCover = drawing.svg.replace(cover, '')
+    expect(Buffer.compare(pixels(withoutCover), pixels(withoutCover.replace(reference, '')))).not.toBe(0)
+  }
   const expected = clear ? 'passed' : mode === 'unfilled-polygon' || mode === 'standalone-line' ? 'unverified' : 'failed'
   expect(certifyScenePaint(producer(marks, context)).status).toBe(expected)
   expect(certifyNativePaint(drawing.header, drawing.paint).status).toBe(expected)
@@ -1257,38 +4079,78 @@ test('a cap-entering marker stays unverified', () => {
 })
 
 test.each(['right-end', 'left-end', 'right-start', 'left-start', 'entering', 'tiny-entering', 'extra-line', 'translucent', 'dashed', 'unknown-width', 'non-scaling', 'transformed', 'covered', 'borrowed-outline', 'borrowed-body-outline', 'reordered'] as const)('a side-attached cylinder marker requires its actual opaque boundary (%s)', mode => {
-  const left = mode.startsWith('left'), start = mode.endsWith('start')
-  const x = left ? 20 : 80 - (mode === 'entering' ? 1 : mode === 'tiny-entering' ? 1e-9 : 0)
-  const sidePaint: MarkPaint = { stroke: '#111', strokeWidth: mode === 'covered' ? '40' : mode === 'unknown-width' ? '1em' : '0.75',
-    ...(mode === 'translucent' || mode === 'borrowed-outline' ? { strokeOpacity: '0.5' } : {}), ...(mode === 'dashed' ? { strokeDasharray: '1 100' } : {}), ...(mode === 'non-scaling' ? { vectorEffect: 'non-scaling-stroke' } : {}) }
-  const marker = tipAnchoredArrow('side-arrow', { width: 8, height: 5 }, start ? 'start' : 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.75', strokeLinejoin: 'round' }, 'userSpaceOnUse')
-  if (mode === 'borrowed-outline' || mode === 'borrowed-body-outline') marker.ref = { x: 7, y: 2.5 }
-  const children: Geometry[] = [
-    { kind: 'rect', x: 20, y: 27, width: 60, height: 26 },
-    { kind: 'line', x1: 20, y1: 27, x2: 20, y2: 53 },
-    { kind: 'line', x1: 80, y1: 27, x2: 80, y2: 53 },
-    { kind: 'ellipse', cx: 50, cy: 53, rx: 30, ry: 7 },
-    { kind: 'ellipse', cx: 50, cy: 27, rx: 30, ry: 7 },
-    ...(mode === 'extra-line' ? [{ kind: 'line' as const, x1: 82, y1: 40, x2: 90, y2: 40 }] : []),
-  ]
-  const childPaints: MarkPaint[] = [
-    { fill: '#fff', stroke: 'none' }, sidePaint, sidePaint,
-    { fill: '#fff', stroke: '#111', strokeWidth: '0.75' }, { fill: '#fff', stroke: '#111', strokeWidth: '0.75' },
-    ...(mode === 'extra-line' ? [{ stroke: '#111', strokeWidth: '4' }] : []),
-  ]
-  if (mode === 'reordered') {
-    children.splice(0, 2, ...children.slice(0, 2).reverse())
-    childPaints.splice(0, 2, ...childPaints.slice(0, 2).reverse())
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => {
+    const left = mode.startsWith('left'), start = mode.endsWith('start')
+    const x = left ? 20 : 80 - (mode === 'entering' ? 1 : mode === 'tiny-entering' ? 1e-9 : 0)
+    const sidePaint: MarkPaint = { stroke: '#111', strokeWidth: mode === 'covered' ? '40' : mode === 'unknown-width' ? '1em' : '0.75',
+      ...(mode === 'translucent' || mode === 'borrowed-outline' ? { strokeOpacity: '0.5' } : {}), ...(mode === 'dashed' ? { strokeDasharray: '1 100' } : {}), ...(mode === 'non-scaling' ? { vectorEffect: 'non-scaling-stroke' } : {}) }
+    const marker = tipAnchoredArrow('side-arrow', { width: 8, height: 5 }, start ? 'start' : 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.75', strokeLinejoin: 'round' }, 'userSpaceOnUse')
+    if (mode === 'borrowed-outline' || mode === 'borrowed-body-outline') marker.ref = { x: 7, y: 2.5 }
+    const children: Geometry[] = [
+      { kind: 'rect', x: 20, y: 27, width: 60, height: 26 },
+      { kind: 'line', x1: 20, y1: 27, x2: 20, y2: 53 },
+      { kind: 'line', x1: 80, y1: 27, x2: 80, y2: 53 },
+      { kind: 'ellipse', cx: 50, cy: 53, rx: 30, ry: 7 },
+      { kind: 'ellipse', cx: 50, cy: 27, rx: 30, ry: 7 },
+      ...(mode === 'extra-line' ? [{ kind: 'line' as const, x1: 82, y1: 40, x2: 90, y2: 40 }] : []),
+    ]
+    const childPaints: MarkPaint[] = [
+      { fill: '#fff', stroke: 'none' }, sidePaint, sidePaint,
+      { fill: '#fff', stroke: '#111', strokeWidth: '0.75' }, { fill: '#fff', stroke: '#111', strokeWidth: '0.75' },
+      ...(mode === 'extra-line' ? [{ stroke: '#111', strokeWidth: '4' }] : []),
+    ]
+    if (mode === 'reordered') {
+      children.splice(0, 2, ...children.slice(0, 2).reverse())
+      childPaints.splice(0, 2, ...childPaints.slice(0, 2).reverse())
+    }
+    const card = factory.shape({ id: 'cylinder', role: 'node', geometry: { kind: 'compound', children }, paint: { fill: '#fff', stroke: '#111', strokeWidth: '0.75' }, childPaints,
+      ...(mode === 'transformed' ? { transform: { kind: 'matrix' as const, a: 1, b: 0, c: 0, d: 1, e: 0.25, f: 0 } } : {}) })
+    const outside = left ? 2 : 98
+    const edge = factory.connector({ id: 'side-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: start ? x : outside, y1: 40, x2: start ? outside : x, y2: 40 }, paint: { stroke: '#111', strokeWidth: '1' },
+      endpoints: start ? { from: 'cylinder', to: 'outside' } : { from: 'outside', to: 'cylinder' }, markers: start ? { start: marker } : { end: marker } })
+    const oldOutline = factory.shape({ id: 'old-outline', role: 'node', owner: { id: 'cylinder', role: 'node' }, geometry: mode === 'borrowed-body-outline' ? { kind: 'rect', x: 20, y: 27, width: 60, height: 26 } : { kind: 'line', x1: 80, y1: 27, x2: 80, y2: 53 }, paint: { fill: 'none', stroke: '#111', strokeWidth: '40' } })
+
+    return { ...scene([]), parts: [
+      factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80" style="--bg:#fff;--fg:#111">'),
+      factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+      ...(mode === 'borrowed-outline' || mode === 'borrowed-body-outline' ? [oldOutline] : []), edge, card, factory.documentClose(),
+    ] }
   }
-  const card = marks.shape({ id: 'cylinder', role: 'node', geometry: { kind: 'compound', children }, paint: { fill: '#fff', stroke: '#111', strokeWidth: '0.75' }, childPaints,
-    ...(mode === 'transformed' ? { transform: { kind: 'matrix' as const, a: 1, b: 0, c: 0, d: 1, e: 0.25, f: 0 } } : {}) })
-  const outside = left ? 2 : 98
-  const edge = marks.connector({ id: 'side-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: start ? x : outside, y1: 40, x2: start ? outside : x, y2: 40 }, paint: { stroke: '#111', strokeWidth: '1' },
-    endpoints: start ? { from: 'cylinder', to: 'outside' } : { from: 'outside', to: 'cylinder' }, markers: start ? { start: marker } : { end: marker } })
-  const oldOutline = marks.shape({ id: 'old-outline', role: 'node', owner: { id: 'cylinder', role: 'node' }, geometry: mode === 'borrowed-body-outline' ? { kind: 'rect', x: 20, y: 27, width: 60, height: 26 } : { kind: 'line', x1: 80, y1: 27, x2: 80, y2: 53 }, paint: { fill: 'none', stroke: '#111', strokeWidth: '40' } })
-  const proof = certifyScenePaint(scene([...(mode === 'borrowed-outline' || mode === 'borrowed-body-outline' ? [oldOutline] : []), edge, card]))
-  if (mode.endsWith('end') || mode.endsWith('start')) expect(proof.status).toBe('passed')
-  else expect(proof.status).not.toBe('passed')
+  const positive = mode.endsWith('end') || mode.endsWith('start')
+  // Raw typed bodies do not carry the actual five-piece write authority.
+  const raw = certifyScenePaint(producer(marks, context))
+  if (positive) {
+    expect(raw.status).toBe('unverified')
+    expect(drawPaintControl(producer, context, 'scene').proof.status).toBe('unverified')
+  } else expect(raw.status).not.toBe('passed')
+  for (const execution of ['native', 'scene'] as const) {
+    if (mode === 'unknown-width') {
+      expect(() => drawPaintControl(producer, context, execution, { fractionalCircleOutput: true })).toThrow('strokeWidth: must be a finite number or safe numeric custom-property reference')
+      continue
+    }
+    const drawing = drawPaintControl(producer, context, execution, { fractionalCircleOutput: true })
+    if (positive) {
+      const elements = rectangleEmissionElements(drawing.svg)
+      expect(elements.find(element => element.name === 'marker')!.attributes).toMatchObject({ markerUnits: 'userSpaceOnUse', markerWidth: '8', markerHeight: '5', refX: mode.endsWith('start') ? '0' : '8', refY: '2.5' })
+      expect(elements.find(element => element.name === 'polygon')!.attributes).toMatchObject({ fill: '#111', stroke: '#111', 'stroke-width': '0.75' })
+      expect(elements.filter(element => element.name === 'line').slice(1).map(element => element.attributes)).toContainEqual(expect.objectContaining({ x1: mode.startsWith('left') ? '20' : '80', y1: '27', y2: '53', stroke: '#111', 'stroke-width': '0.75' }))
+      const token = ` marker-${mode.endsWith('start') ? 'start' : 'end'}="url(#side-arrow)"`
+      expect(drawing.svg.split(token)).toHaveLength(2)
+      const actual = new Resvg(drawing.svg, { background: '#fff', fitTo: { mode: 'zoom', value: 4 } }).render()
+      const absent = new Resvg(drawing.svg.replace(token, ''), { background: '#fff', fitTo: { mode: 'zoom', value: 4 } }).render().pixels
+      const pixels = actual.pixels
+      let offShaft = 0
+      for (let y = 0; y < actual.height; y++) for (let x = 0; x < actual.width; x++) {
+        if (Math.abs((y + 0.5) / 4 - 40) <= 1) continue
+        const offset = (y * actual.width + x) * 4
+        if (pixels[offset]! < absent[offset]! || pixels[offset + 1]! < absent[offset + 1]! || pixels[offset + 2]! < absent[offset + 2]!) offShaft++
+      }
+      expect(offShaft).toBeGreaterThan(0)
+      expect(drawing.proof.status).toBe('passed')
+    } else expect(drawing.proof.status).not.toBe('passed')
+  }
+
 })
 
 test.each(['butt', 'round', 'square'] as const)('%s line-child stroke through marker cannot be excluded with its zero-area fill', strokeLinecap => {
@@ -1489,9 +4351,10 @@ test.each((['covered', 'separate', 'aabb-corner', 'coincident', 'rounded-tangent
     expect(compareMarkerStrokeInk(prepareMarkerPolygonInk({ colors: context.colors }, connectors[0]!, first, 'start', () => true), prepareMarkerPolygonInk({ colors: context.colors }, connectors[1]!, later, 'start', () => true), () => true)).toBe('clear')
   }
   const expected = ['covered', 'different-coincident', 'same-owner-cover', 'unemitted-opacity', 'overlay-repaint', 'early-open-covered', 'string-marker-units', 'vertex-only-cover', 'partial-restoration'].includes(mode) ? 'failed' : ['unknown-fill', 'affine', 'clipped', 'later-restoration', 'same-color', 'thick-outline', 'unmeasured-restoration', 'no-closing-stroke', 'no-earlier-stroke', 'transparent-fill', 'late-open', 'written-tangent', 'written-anchor', 'rounded-transform', 'rounded-opacity', 'rounded-dash', 'rounded-width', 'rounded-fill', 'rounded-stroke', 'collapsed-terminal', 'rounded-mid'].includes(mode) ? 'unverified' : 'passed'
-  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
+  for (const [execution, proof] of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)].entries()) {
     expect(proof.status).toBe(expected)
     if (expected === 'failed') expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'MARKER_OCCLUDED', id: mode === 'overlay-repaint' ? 'overlay:earlier' : 'earlier', by: mode === 'overlay-repaint' ? 'overlay:later' : 'later' }))
+    else if (expected === 'unverified' && execution === 1 && ['rounded-transform', 'collapsed-terminal', 'rounded-mid'].includes(mode)) expect(proof.issues).toEqual([{ code: 'CONDITIONAL_PAINT', message: '1 primitives depend on unresolved paint or interaction state' }])
     else if (expected === 'unverified') expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'earlier', by: 'later' }))
     else expect(proof.issues).toEqual([])
   }
@@ -1527,18 +4390,24 @@ test.each((['foreign', 'owned', 'separated', 'nonpainting', 'transparent', 'same
   const block = preparePixelText('0..1', { fontSize: 11, fontWeight: 400 })
   const width = distant ? 6000 : 100
   const context = { positioned: { width, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
-  const producer: DrawingProducer = factory => {
+  const producerWithRoot = (bindRoot: boolean): DrawingProducer => factory => {
     const carrier = () => factory.connector({ id: 'relation', role: 'relationship', endpoints: { from: 'A', to: 'B' }, lineStyle: 'solid', geometry: { kind: 'line', x1: 70, y1: 40, x2: 20, y2: 40 }, paint: { stroke: '#47474a', strokeWidth: '1' }, markers: { start: marker } })
     const label = () => factory.text({ id: 'count', role: 'cardinality', ...(mode === 'owned' || mode === 'owned-repaint' ? { owner: { id: 'relation', role: 'relationship' } } : {}), text: '0..1', block, x: 61, y: mode === 'separated' ? 65 : 40, fontSize: 11, anchor: 'middle', paint: { fill: mode === 'nonpainting' ? 'none' : mode === 'same-paint' ? '#47474a' : '#69696c', stroke: mode === 'nonpainting' ? 'none' : mode === 'same-paint' ? '#47474a' : '#fff', strokeWidth: '3', strokeLinejoin: 'round', paintOrder: 'stroke', ...(mode === 'transparent' ? { opacity: '0' } : {}) } })
-    const parts = [factory.documentOpen({ id: 'root', width, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="80">`), factory.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}</defs>`), ...(mode === 'before' ? [label(), carrier()] : [carrier(), label()])]
+    const parts = [factory.documentOpen({ id: 'root', width, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="80"${bindRoot ? ' style="--bg:#fff;--fg:#111"' : ''}>`), factory.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}</defs>`), ...(mode === 'before' ? [label(), carrier()] : [carrier(), label()])]
     if (mode === 'owned-repaint') parts.push(factory.connector({ id: 'repaint', role: 'chrome', owner: { id: 'relation', role: 'relationship' }, lineStyle: 'solid', geometry: { kind: 'line', x1: 70, y1: 40, x2: 20, y2: 40 }, paint: { stroke: '#47474a', strokeWidth: '1' }, stroke: { opacity: 0 }, markers: { start: marker } }))
     parts.push(...distantMarkerTextPairs(factory, distant, marker), factory.documentClose())
     return { ...scene([]), width, parts }
   }
+  const producer = producerWithRoot(false)
   const drawing = drawNative(producer, context, 'class')
+  const boundDrawing = drawNative(producerWithRoot(true), context, 'class')
+  expect(boundDrawing.svg.replace(' style="--bg:#fff;--fg:#111"', '')).toBe(drawing.svg)
   expect(drawing.svg).toContain('marker-start="url(#cls-inherit)"')
   const clear = ['separated', 'nonpainting', 'transparent', 'empty-marker'].includes(mode)
-  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
+  const bareProof = certifyNativePaint(drawing.header, drawing.paint)
+  expect(bareProof.status).toBe(mode === 'empty-marker' ? 'passed' : 'unverified')
+  if (mode !== 'empty-marker') expect(bareProof.issues).toContainEqual(expect.objectContaining({ code: 'OUTPUT_SCOPE' }))
+  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(boundDrawing.header, boundDrawing.paint)]) {
     expect(proof.status).toBe(clear ? 'passed' : 'unverified')
     if (clear) expect(proof.issues).toEqual([])
     else {
@@ -1647,19 +4516,25 @@ test.each(['overlap', 'separated', 'empty', 'sharing', 'unknown'] as const)('str
   }
   const context = { positioned: { width: 2300, height: 300 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
   const sharing = mode === 'sharing', y = mode === 'separated' ? 186.9 : 166.9
-  const producer: DrawingProducer = factory => ({
+  const producerWithRoot = (bindRoot: boolean): DrawingProducer => factory => ({
     ...scene([]), width: 2300, height: 300,
     parts: [
-      factory.documentOpen({ id: 'root', width: 2300, height: 300, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="2300" height="300">'),
+      factory.documentOpen({ id: 'root', width: 2300, height: 300, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, `<svg xmlns="http://www.w3.org/2000/svg" width="2300" height="300"${bindRoot ? ' style="--bg:#fff;--fg:#111"' : ''}>`),
       factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(earlier)}${sharing ? '' : serializeMarkerResource(later)}</defs>`),
       factory.connector({ id: 'earlier', role: 'relationship', owner: { id: 'earlier', role: 'relationship' }, endpoints: { from: 'A', to: 'B' }, lineStyle: 'solid', geometry: { kind: 'line', x1: 2098.968, y1: 158.9, x2: 2083.968, y2: 158.9 }, paint: { stroke: '#939395', strokeWidth: '1' }, stroke: { opacity: 0 }, markers: { start: earlier } }),
       factory.connector({ id: 'later', role: 'relationship', owner: { id: 'later', role: 'relationship' }, endpoints: { from: 'C', to: 'D' }, lineStyle: 'solid', geometry: sharing ? { kind: 'line', x1: 2098.968, y1: 158.9, x2: 2083.968, y2: 158.9 } : { kind: 'line', x1: 2083.968, y1: y, x2: 2098.968, y2: y }, paint: { stroke: '#939395', strokeWidth: '1' }, stroke: { opacity: 0 }, markers: sharing ? { start: later } : { end: later } }),
       factory.documentClose(),
     ],
   })
+  const producer = producerWithRoot(false)
   const drawing = drawNative(producer, context, 'class')
+  const boundDrawing = drawNative(producerWithRoot(true), context, 'class')
+  expect(boundDrawing.svg.replace(' style="--bg:#fff;--fg:#111"', '')).toBe(drawing.svg)
   expect(drawing.svg).toContain(sharing ? 'marker-start="url(#earlier-resource)"' : 'marker-end="url(#later-resource)"')
-  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
+  const bareProof = certifyNativePaint(drawing.header, drawing.paint)
+  expect(bareProof.status).toBe('unverified')
+  expect(bareProof.issues).toContainEqual(expect.objectContaining({ code: 'OUTPUT_SCOPE' }))
+  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(boundDrawing.header, boundDrawing.paint)]) {
     const clear = mode === 'separated' || mode === 'empty' || sharing
     expect(proof.status).toBe(clear ? 'passed' : 'unverified')
     if (clear) expect(proof.issues).toEqual([])
@@ -1683,15 +4558,18 @@ test.each(['clear', 'hidden-overlap', 'unknown-view', 'aspect-mismatch', 'round-
   const later: MarkerDescriptor = { ...resources.find(marker => marker.id === (covered ? 'cls-inherit' : 'cls-arrow'))!, id: 'later-resource' }
   const y = covered ? 167.315217391 : mode === 'hidden-overlap' ? 171.45 : 176.294264046
   const context = { positioned: { width: 2300, height: 300 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
-  const producer: DrawingProducer = factory => ({ ...scene([]), width: 2300, height: 300, parts: [
-    factory.documentOpen({ id: 'root', width: 2300, height: 300, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="2300" height="300">'),
+  const producerWithRoot = (bindRoot: boolean): DrawingProducer => factory => ({ ...scene([]), width: 2300, height: 300, parts: [
+    factory.documentOpen({ id: 'root', width: 2300, height: 300, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, `<svg xmlns="http://www.w3.org/2000/svg" width="2300" height="300"${bindRoot ? ' style="--bg:#fff;--fg:#111"' : ''}>`),
     factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(earlier)}${serializeMarkerResource(later)}</defs>`),
     factory.connector({ id: 'earlier', role: 'relationship', owner: { id: 'earlier', role: 'relationship' }, endpoints: { from: 'A', to: 'B' }, lineStyle: 'solid', geometry: { kind: 'line', x1: 2098.968, y1: 163.45, x2: 2083.968, y2: 163.45 }, paint: { stroke: '#939395', strokeWidth: '1' }, stroke: { opacity: 0 }, markers: { start: earlier } }),
     factory.connector({ id: 'later', role: 'relationship', owner: { id: 'later', role: 'relationship' }, endpoints: { from: 'C', to: 'D' }, lineStyle: 'solid', geometry: covered ? { kind: 'line', x1: 2098.968, y1: y, x2: 2083.968, y2: y } : { kind: 'line', x1: 2083.968, y1: y, x2: 2098.968, y2: y }, paint: { stroke: '#939395', strokeWidth: '1' }, stroke: { opacity: 0 }, markers: covered ? { start: later } : { end: later } }),
     factory.documentClose(),
   ] })
+  const producer = producerWithRoot(false)
   const originalResource = JSON.stringify(earlier)
   const drawing = drawNative(producer, context, 'class')
+  const boundDrawing = drawNative(producerWithRoot(true), context, 'class')
+  expect(boundDrawing.svg.replace(' style="--bg:#fff;--fg:#111"', '')).toBe(drawing.svg)
   expect(drawing.svg).toContain('overflow="hidden"')
   expect(drawing.svg).toContain('markerWidth="14"')
   if (mode === 'clear') {
@@ -1703,7 +4581,10 @@ test.each(['clear', 'hidden-overlap', 'unknown-view', 'aspect-mismatch', 'round-
     expect(calls).toBe(1)
     expect(JSON.stringify(earlier)).toBe(before)
   }
-  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
+  const bareProof = certifyNativePaint(drawing.header, drawing.paint)
+  expect(bareProof.status).toBe(mode === 'round-join-separated' ? 'passed' : covered ? 'failed' : 'unverified')
+  if (mode !== 'round-join-separated') expect(bareProof.issues).toContainEqual(expect.objectContaining({ code: 'OUTPUT_SCOPE' }))
+  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(boundDrawing.header, boundDrawing.paint)]) {
     // Round-join padding already proves these particular envelopes separate;
     // unsupported extra stencil proof must not erase that earlier authority.
     const clear = mode === 'clear' || mode === 'round-join-separated'
@@ -1741,7 +4622,7 @@ test.each(['exact', 'rounded'].flatMap(pose => ['known', 'known-vars', 'known-tr
   const marker: MarkerDescriptor = { id: 'shared-resource', shape: 'diamond', units: 'userSpaceOnUse', orient: 'auto-start-reverse', overflow: 'visible', size: { width: 14, height: 12 }, viewBox: { x: 0, y: 0, width: 14, height: 12 }, ref: { x: 13, y: 6 }, geometry: { kind: 'polygon', points: [{ x: 7, y: 1 }, { x: 13, y: 6 }, { x: 7, y: 11 }, { x: 1, y: 6 }] }, paint }
   const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
   const producer: DrawingProducer = factory => ({ ...scene([]), parts: [
-    factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+    factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80"${mode === 'known-vars' ? ' style="--bg:#fff;--fg:#111"' : ''}>`),
     factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
     ...['earlier', 'later'].map(id => factory.connector({ id, role: 'edge', owner: { id, role: 'edge' }, lineStyle: 'solid', endpoints: { from: 'shared-source', to: id }, geometry: { kind: 'line', x1: 70, y1: 30, x2: 20, y2: pose === 'rounded' && id === 'later' ? 30 + 1e-13 : 30 }, paint: { stroke: id === 'earlier' ? '#111' : '#fff', strokeWidth: '1' }, ...(mode === 'known-transform' ? { transform: { kind: 'matrix' as const, a: 1, b: 0, c: 0, d: 1, e: 1, f: 0 } } : {}), markers: { start: marker } })),
     factory.documentClose(),
@@ -1750,9 +4631,260 @@ test.each(['exact', 'rounded'].flatMap(pose => ['known', 'known-vars', 'known-tr
   expect(drawing.svg.match(/id="shared-resource"/g)).toHaveLength(1)
   expect(drawing.svg.match(/<line x1="70" y1="30" x2="20" y2="30"/g)).toHaveLength(2)
   const expected = ['known', 'known-vars'].includes(mode) || mode === 'known-transform' && pose === 'exact' ? 'passed' : 'unverified'
-  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
+  for (const [execution, proof] of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)].entries()) {
     expect(proof.status).toBe(expected)
-    if (expected === 'unverified') expect(proof.issues.some(issue => issue.code === 'POTENTIAL_OCCLUSION' || issue.code === 'UNMEASURED_PAINT')).toBe(true)
+    if (expected === 'unverified' && execution === 1 && mode === 'known-transform' && pose === 'rounded') expect(proof.issues).toEqual([{ code: 'CONDITIONAL_PAINT', message: '1 primitives depend on unresolved paint or interaction state' }])
+    else if (expected === 'unverified') expect(proof.issues.some(issue => issue.code === 'POTENTIAL_OCCLUSION' || issue.code === 'UNMEASURED_PAINT')).toBe(true)
     else expect(proof.issues).toEqual([])
+  }
+  if (mode === 'known-vars') {
+    const unbound: DrawingProducer = (factory, ctx) => producer({ ...factory, documentOpen: (fields, svg) => factory.documentOpen(fields, svg.replace(' style="--bg:#fff;--fg:#111"', '')) }, ctx)
+    const absent = drawNative(unbound, context, 'flowchart')
+    expect(absent.svg).toBe(drawing.svg.replace(' style="--bg:#fff;--fg:#111"', ''))
+    const proof = certifyNativePaint(absent.header, absent.paint)
+    expect(proof.status).toBe('unverified')
+    expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'OUTPUT_SCOPE' }))
+  }
+  if (mode === 'omitted-stroke') for (const served of [drawing, drawPaintControl(producer, context, 'scene')]) {
+    const polygon = rectangleEmissionElements(served.svg).find(element => element.name === 'polygon')!.attributes
+    expect(polygon.fill).toBe('#fff')
+    expect(polygon.stroke).toBeUndefined()
+    const removed = served.svg.replace(/ marker-start="url\(#shared-resource\)"/g, '')
+    const foreground = served.svg.replace('fill="#fff" stroke-width="1.5"', 'fill="#fff" stroke="#111" stroke-width="1.5"')
+    const raster = (svg: string) => new Resvg(svg, { background: '#fff', fitTo: { mode: 'zoom', value: 4 } }).render()
+    const actual = raster(served.svg), absent = raster(removed).pixels, contrasting = raster(foreground).pixels
+    const pixels = actual.pixels
+    let offShaft = 0, positive = 0
+    for (let y = 22 * 4; y < 38 * 4; y++) for (let x = 54 * 4; x < 75 * 4; x++) {
+      if (Math.abs((y + 0.5) / 4 - 30) <= 1.5) continue
+      const offset = (y * actual.width + x) * 4
+      if (!pixels.subarray(offset, offset + 4).equals(absent.subarray(offset, offset + 4))) offShaft++
+      if (contrasting[offset]! < absent[offset]! || contrasting[offset + 1]! < absent[offset + 1]! || contrasting[offset + 2]! < absent[offset + 2]!) positive++
+    }
+    expect(offShaft).toBe(0)
+    expect(positive).toBeGreaterThan(0)
+    const proof = 'proof' in served ? served.proof : certifyNativePaint(served.header, served.paint)
+    expect(proof.status).toBe('unverified')
+  }
+
+})
+
+const actualCompositionFont = fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))
+const actualCompositionPixels = (svg: string) => new Resvg(svg, { background: '#fff', font: { fontFiles: [actualCompositionFont], loadSystemFonts: false, defaultFontFamily: 'Inter' } }).render().pixels
+function actualCompositionMarkerPixels(svg: string): number {
+  const a = actualCompositionPixels(svg), b = actualCompositionPixels(svg.replace(/\smarker-end="[^"]*"/g, ''))
+  let count = 0
+  for (let offset = 0; offset < a.length; offset += 4) if (a[offset] !== b[offset] || a[offset + 1] !== b[offset + 1] || a[offset + 2] !== b[offset + 2]) count++
+  return count
+}
+
+test('actual composition distinguishes exhausted authority from an observed byte difference', () => {
+  const marker = tipAnchoredArrow('actual-budget-arrow', { width: 8, height: 5 }, 'end', { fill: '#111', stroke: 'none' }, 'userSpaceOnUse')
+  const capture = createSceneWriteCapture(MAX_OCCLUSION_OPERATIONS, {}, true)
+  const admitted = admitSceneDocument(scene([
+    marks.documentOpen({ id: 'root', width: 100, height: 80, colors: { bg: '#fff', fg: '#111' }, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+    marks.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 80, y2: 40 }, paint: { stroke: '#111', strokeWidth: '1' }, markers: { end: marker } }),
+    marks.documentClose(),
+  ]), 'internal', true, capture.observe)
+  const receipt = capture.prepare(admitted)
+  const proof = certifyScenePaint(admitted, undefined, { sceneWriteReceipt: receipt })
+  expect(proof.status).toBe('passed')
+  const exhausted = { ...proof, status: 'unverified' as const,
+    checks: { ...proof.checks, operations: MAX_OCCLUSION_OPERATIONS },
+    issues: [{ code: 'CHECK_BUDGET' as const, message: 'Paint-work allowance exhausted before backend composition' }],
+  }
+  const context = { seed: 0 }
+  capture.beginBackendEmission(admitted, context, exhausted)
+  const svg = DefaultBackend.render(admitted, context)
+  expect(() => capture.finishActual({ ...exhausted })).toThrow('Invalid Scene actual-write completion')
+  const closed = capture.finishActual(exhausted)
+  expect(svg).toBe(DefaultBackend.render(admitted, { seed: 0 }))
+  expect(actualCompositionMarkerPixels(svg)).toBeGreaterThan(0)
+  expect(closed.status).toBe('unverified')
+  expect(closed.checks.operations).toBe(MAX_OCCLUSION_OPERATIONS)
+  expect(closed.checks.maxOperations).toBe(MAX_OCCLUSION_OPERATIONS)
+  expect(closed.issues.map(issue => issue.code)).toEqual(['CHECK_BUDGET', 'OUTPUT_SCOPE'])
+  expect(closed.issues.find(issue => issue.code === 'OUTPUT_SCOPE')?.message).toBe('Actual backend composition could not be established within the paint-work allowance')
+})
+
+for (const backend of ['agentic', 'elk'] as const) test.each(['root-map-join', 'root-map-skip'] as const)(`actual ${backend} composition refuses hidden marker after scene admission: %s`, mode => {
+  const oldAssertions = process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS
+  const originalJoin = Object.getOwnPropertyDescriptor(Array.prototype, 'join')!, join = originalJoin.value
+  const originalMap = Object.getOwnPropertyDescriptor(Array.prototype, 'map')!, map = originalMap.value
+  let installed = false, mutations = 0, callbacks = 0
+  const source = 'flowchart LR\nA-->B'
+  const options = { graphLayout: { backend, fallback: 'none' as const } }
+  const rootParts = (value: unknown[]) => {
+    const first = Object.getOwnPropertyDescriptor(value, '0')?.value
+    return first && typeof first === 'object' && first.kind === 'document' && first.element === 'open'
+  }
+  const installJoin = (root: boolean) => Object.defineProperty(Array.prototype, 'join', { ...originalJoin, value: function(this: unknown[], separator: string) {
+    const result: string = Reflect.apply(join, this, [separator])
+    if (result.includes('marker-end=') && (root ? result.includes('</svg>') : typeof this[0] === 'string' && this[0].startsWith('<g '))) {
+      mutations++
+      if (root) Object.defineProperty(Array.prototype, 'join', originalJoin)
+      return root ? result.replace(/(<svg\b[^>]*>)/, '$1<g opacity="0">').replace('</svg>', '</g></svg>') : result.replace('<g ', '<g opacity="0" ')
+    }
+    return result
+  } })
+  try {
+    process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS = '1'
+    const plain = renderMermaidSVGWithReceipt(source, options)
+    const attacked = withRenderStageObserver(sample => {
+      if (sample.stage !== 'scene' || installed) return
+      installed = true
+      Object.defineProperty(Array.prototype, 'map', { ...originalMap, value: function(this: unknown[], callback: (value: unknown, index: number, source: unknown[]) => unknown, thisArg: unknown) {
+        if (!rootParts(this)) return Reflect.apply(map, this, [callback, thisArg])
+        const result = Reflect.apply(map, this, [function(this: unknown, value: { kind?: string }, index: number, source: unknown[]) {
+          if (mode === 'root-map-skip' && value.kind !== 'document') { mutations++; return '' }
+          callbacks++
+          return Reflect.apply(callback, this, [value, index, source])
+        }, thisArg])
+        if (mode === 'root-map-join') installJoin(true)
+        return result
+      } })
+    }, () => renderMermaidSVGWithReceipt(source, options))
+    Object.defineProperty(Array.prototype, 'join', originalJoin)
+    Object.defineProperty(Array.prototype, 'map', originalMap)
+    expect(installed).toBe(true)
+    expect(mutations).toBeGreaterThan(0)
+    expect(callbacks).toBeGreaterThan(0)
+    expect(plain.receipt.layoutCertification?.status).toBe('passed')
+    expect(actualCompositionMarkerPixels(plain.svg)).toBeGreaterThan(0)
+    expect(actualCompositionMarkerPixels(attacked.svg)).toBe(0)
+    expect(attacked.receipt.layoutCertification?.status).not.toBe('passed')
+    expect(attacked.receipt.layoutCertification?.issues.some(issue => issue.code === 'OUTPUT_SCOPE')).toBe(true)
+  } finally {
+    Object.defineProperty(Array.prototype, 'join', originalJoin)
+    Object.defineProperty(Array.prototype, 'map', originalMap)
+    if (oldAssertions === undefined) delete process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS
+    else process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS = oldAssertions
+  }
+})
+
+
+for (const backend of ['agentic', 'elk'] as const) test(`actual ${backend} cached connector pin survives recorder registration hooks`, () => {
+  const oldAssertions = process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS
+  const setSlot = Object.getOwnPropertyDescriptor(WeakMap.prototype, 'set')!, set = setSlot.value
+  const getSlot = Object.getOwnPropertyDescriptor(WeakMap.prototype, 'get')!, get = getSlot.value
+  let recorder: { string: () => void } | undefined, installed = false, mutations = 0
+  const source = 'flowchart LR\nA-->B'
+  const options = { graphLayout: { backend, fallback: 'none' as const } }
+  try {
+    process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS = '1'
+    const plain = renderMermaidSVGWithReceipt(source, options)
+    Object.defineProperty(WeakMap.prototype, 'set', { ...setSlot, value: function(this: WeakMap<object, unknown>, key: object, value: unknown) {
+      if (value && typeof value === 'object' && typeof Object.getOwnPropertyDescriptor(value, 'string')?.value === 'function'
+        && typeof Object.getOwnPropertyDescriptor(value, 'root')?.value === 'function') recorder = value as typeof recorder
+      return Reflect.apply(set, this, [key, value])
+    } })
+    const attacked = withRenderStageObserver(sample => {
+      if (sample.stage !== 'paint-certification' || installed) return
+      installed = true
+      if (recorder && !Object.isFrozen(recorder)) recorder.string = () => {}
+      Object.defineProperty(WeakMap.prototype, 'get', { ...getSlot, value: function(this: WeakMap<object, unknown>, key: unknown) {
+        const value = Reflect.apply(get, this, [key])
+        if (typeof value === 'string' && key && typeof key === 'object' && Object.getOwnPropertyDescriptor(key, 'kind')?.value === 'connector' && value.includes('marker-end=')) {
+          mutations++
+          Object.defineProperty(WeakMap.prototype, 'get', getSlot)
+          return value.replace(/<(?:polyline|path|line)\b/, '$& opacity="0"')
+        }
+        return value
+      } })
+    }, () => renderMermaidSVGWithReceipt(source, options))
+    Object.defineProperty(WeakMap.prototype, 'set', setSlot)
+    Object.defineProperty(WeakMap.prototype, 'get', getSlot)
+    expect(installed).toBe(true)
+    expect(mutations).toBe(1)
+    expect(plain.receipt.layoutCertification?.status).toBe('passed')
+    expect(actualCompositionMarkerPixels(plain.svg)).toBeGreaterThan(0)
+    expect(actualCompositionMarkerPixels(attacked.svg)).toBe(0)
+    expect(attacked.receipt.layoutCertification?.status).not.toBe('passed')
+    expect(attacked.receipt.layoutCertification?.issues.some(issue => issue.code === 'OUTPUT_SCOPE')).toBe(true)
+  } finally {
+    Object.defineProperty(WeakMap.prototype, 'set', setSlot)
+    Object.defineProperty(WeakMap.prototype, 'get', getSlot)
+    if (oldAssertions === undefined) delete process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS
+    else process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS = oldAssertions
+  }
+})
+
+for (const backend of ['agentic', 'elk'] as const) test(`actual ${backend} styled underlay binds its returned size to the served prelude`, () => {
+  const oldAssertions = process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS
+  const getSlot = Object.getOwnPropertyDescriptor(Map.prototype, 'get')!, get = getSlot.value
+  let installed = false, mutations = 0
+  const source = 'requirementDiagram\ndirection TB\nrequirement r {\ntext: Card\n}\nr - traces -> r'
+  const options = { padding: 32.123456789, graphLayout: { backend, fallback: 'none' as const }, style: { roles: { relationship: { bendRadius: 12 } } } }
+  try {
+    process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS = '1'
+    const plain = renderMermaidSVGWithReceipt(source, options)
+    const attacked = withRenderStageObserver(sample => {
+      if (sample.stage !== 'paint-certification' || installed) return
+      installed = true
+      Object.defineProperty(Map.prototype, 'get', { ...getSlot, value: function(this: Map<unknown, unknown>, key: unknown) {
+        const value = Reflect.apply(get, this, [key])
+        if (typeof key === 'number' && typeof value === 'string') {
+          mutations++
+          Object.defineProperty(Map.prototype, 'get', getSlot)
+          return '0'
+        }
+        return value
+      } })
+    }, () => renderMermaidSVGWithReceipt(source, options))
+    Object.defineProperty(Map.prototype, 'get', getSlot)
+    expect(installed).toBe(true)
+    expect(mutations).toBe(1)
+    expect(plain.receipt.layoutCertification?.status).toBe('passed')
+    expect(actualCompositionMarkerPixels(plain.svg)).toBeGreaterThan(0)
+    expect(attacked.svg).toContain('<rect width="0"')
+    expect(attacked.receipt.layoutCertification?.status).not.toBe('passed')
+    expect(attacked.receipt.layoutCertification?.issues.some(issue => issue.code === 'OUTPUT_SCOPE')).toBe(true)
+  } finally {
+    Object.defineProperty(Map.prototype, 'get', getSlot)
+    if (oldAssertions === undefined) delete process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS
+    else process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS = oldAssertions
+  }
+})
+
+
+for (const backend of ['agentic', 'elk'] as const) test(`actual ${backend} snapshot allocation cannot interpose a receiver after the composition seal`, () => {
+  const oldAssertions = process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS
+  const createSlot = Object.getOwnPropertyDescriptor(Object, 'create')!, create = createSlot.value
+  const mapSlot = Object.getOwnPropertyDescriptor(Array.prototype, 'map')!, map = mapSlot.value
+  let armed = false, rootPartsReads = 0
+  const options = { graphLayout: { backend, fallback: 'none' as const }, embedFontImport: false }
+  try {
+    process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS = '1'
+    const plain = renderMermaidSVGWithReceipt('flowchart LR\nA-->B', options)
+    Object.defineProperty(Object, 'create', { ...createSlot, value: function(this: unknown, prototype: object | null, descriptors?: PropertyDescriptorMap) {
+      const target = Reflect.apply(create, this, [prototype, descriptors]) as object
+      if (prototype !== null) return target
+      return new Proxy(target, { get(object, key, receiver) {
+        if (armed && key === 'parts' && Object.isFrozen(object) && ++rootPartsReads === 2) {
+          Object.defineProperty(Array.prototype, 'map', { ...mapSlot, value: function(this: unknown[], callback: (value: unknown) => unknown, thisArg: unknown) {
+            Object.defineProperty(Array.prototype, 'map', mapSlot)
+            const mapped = Reflect.apply(map, this, [callback, thisArg])
+            return Reflect.apply(map, mapped, [(svg: unknown) => typeof svg === 'string'
+              ? svg.replace(/<(?:path|polyline|line)\b[^>]*\bmarker-end="[^"]*"[^>]*\/>/g, '<g opacity="0">$&</g>') : svg])
+          } })
+        }
+        return Reflect.get(object, key, receiver)
+      } })
+    } })
+    const attacked = withRenderStageObserver(sample => { if (sample.stage === 'paint-certification') armed = true },
+      () => renderMermaidSVGWithReceipt('flowchart LR\nA-->B', options))
+    Object.defineProperty(Object, 'create', createSlot)
+    Object.defineProperty(Array.prototype, 'map', mapSlot)
+    expect(armed).toBe(true)
+    expect(plain.receipt.layoutCertification?.status).toBe('passed')
+    expect(actualCompositionMarkerPixels(plain.svg)).toBeGreaterThan(0)
+    const remaining = actualCompositionMarkerPixels(attacked.svg)
+    expect(remaining > 0 || attacked.receipt.layoutCertification?.status !== 'passed').toBe(true)
+  } finally {
+    Object.defineProperty(Object, 'create', createSlot)
+    Object.defineProperty(Array.prototype, 'map', mapSlot)
+    if (oldAssertions === undefined) delete process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS
+    else process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS = oldAssertions
   }
 })

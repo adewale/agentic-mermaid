@@ -96,6 +96,44 @@ f:R --> L:g`
         edges: [{ source: 0, target: 1, minSpan: 1 }, { source: 0, target: 2, minSpan: 1 }],
         direction, padding: 40, nodeSpacing: 28, layerSpacing: 48,
       }
+      test(`keeps disconnected fan bands local to their own measured roots in ${direction}`, () => {
+        const graph: MeasuredGraph = {
+          nodes: [160, 40, 40, 40, 160, 40].map((height, index) => ({ id: 'ABCDEF'[index]!, width: horizontal ? height : 60, height: horizontal ? 60 : height })),
+          edges: [{ source: 0, target: 1, minSpan: 1 }, { source: 0, target: 2, minSpan: 1 }, { source: 3, target: 4, minSpan: 1 }, { source: 3, target: 5, minSpan: 1 }],
+          direction, padding: 20, nodeSpacing: 40, layerSpacing: 50,
+        }
+        const before = structuredClone(graph), output = layoutMeasuredForest(graph)!
+        expect(graph).toEqual(before)
+        expect(layoutMeasuredForest(graph)).toEqual(output)
+        // Each fan needs 160 + 50 + 40 main units. Unrelated tall cards
+        // at different depths must not become two shared 160-unit bands.
+        expect(horizontal ? output.width : output.height).toBe(290)
+        expect(horizontal ? output.height : output.width).toBe(400)
+        const boxes = output.nodes.map((point, index) => ({ ...graph.nodes[index]!, label: graph.nodes[index]!.id, shape: 'rectangle' as const, ...point }))
+        const main = (index: number) => horizontal ? boxes[index]!.x : boxes[index]!.y
+        const mainEnd = (index: number) => main(index) + (horizontal ? boxes[index]!.width : boxes[index]!.height)
+        const cross = (index: number) => horizontal ? boxes[index]!.y : boxes[index]!.x
+        const crossEnd = (index: number) => cross(index) + (horizontal ? boxes[index]!.height : boxes[index]!.width)
+        for (const component of [[0, 1, 2], [3, 4, 5]]) expect(Math.max(...component.map(mainEnd)) - Math.min(...component.map(main))).toBe(250)
+        expect(Math.min(...[3, 4, 5].map(cross)) - Math.max(...[0, 1, 2].map(crossEnd))).toBe(40)
+        for (const [index, edge] of graph.edges.entries()) {
+          const source = boxes[edge.source]!, target = boxes[edge.target]!, path = output.edges[index]!.points
+          expect(onShapeOutline(source, path[0]!, 1e-8)).toBe(true)
+          expect(onShapeOutline(target, path.at(-1)!, 1e-8)).toBe(true)
+          const gap = direction === 'BT' || direction === 'RL' ? main(edge.source) - mainEnd(edge.target) : main(edge.target) - mainEnd(edge.source)
+          expect(gap).toBeGreaterThanOrEqual(50)
+          for (let cursor = 1; cursor < path.length; cursor++) {
+            const a = path[cursor - 1]!, b = path[cursor]!
+            expect(a.x === b.x || a.y === b.y).toBe(true)
+            for (const box of boxes) {
+              const enters = a.x === b.x
+                ? a.x > box.x && a.x < box.x + box.width && Math.max(a.y, b.y) > box.y && Math.min(a.y, b.y) < box.y + box.height
+                : a.y > box.y && a.y < box.y + box.height && Math.max(a.x, b.x) > box.x && Math.min(a.x, b.x) < box.x + box.width
+              expect(enters).toBe(false)
+            }
+          }
+        }
+      })
       test(`keeps unequal sibling bands clear with outward ports in ${direction}`, () => {
         const before = structuredClone(input), output = layoutMeasuredForest(input)!
         expect(input).toEqual(before)

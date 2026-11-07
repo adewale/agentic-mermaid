@@ -1588,7 +1588,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
       bends: { worsenBy: 4, whenImproves: ['hard', 'crossings', 'endpointApproaches'], perImprovement: true },
       portRate: { worsenBy: 1, whenImproves: ['hard', 'crossings', 'bends', 'endpointApproaches', 'opposingOverlaps'] },
     },
-    run: c => { applyRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.bundled, c.style, c.elkResult ? undefined : { preserveSelfLoops: true, preserveLabels: true, preserveStraightRoutes: true }) },
+    run: c => { applyRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.bundled, c.style, c.elkResult ? undefined : { preserveSelfLoops: true, preserveLabels: true, preserveEndpointSeats: true }) },
   },
   {
     id: 'reanchorOffOutlineEndpoints', doc: 're-route an edge whose endpoint dangles off a moved node onto that node\'s flow port (edge-only, freeze-safe)',
@@ -1598,7 +1598,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'rerouteEdgesThroughNodes', doc: 're-route an edge left running through a node by a node-mover (honorLinkRankDistance/alignPortLanes) around the obstacle and restore protected marker leads before label placement (edge-only, freeze-safe)',
     after: ['reanchorOffOutlineEndpoints'], mutates: ['edges'],
-    run: c => { rerouteEdgesThroughNodes(c.nodes, c.edges, c.graph, undefined, c.groups); repairMarkerTerminals({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
+    run: c => { rerouteEdgesThroughNodes(c.nodes, c.edges, c.graph, undefined, c.groups, c.style); repairMarkerTerminals({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
   },
   {
     id: 'repairLabelsOnSharedTrunks', doc: 'give a shared-trunk label a clear seat or a proved private channel (edge-only, freeze-safe)',

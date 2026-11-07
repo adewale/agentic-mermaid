@@ -1,9 +1,15 @@
 import { describe, expect, test } from 'bun:test'
+import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
 import { renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
 import { layoutMermaidWithReceipt } from '../agent/index.ts'
+import { withRenderStageObserver } from '../render-stages.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
 import type { RenderOptions } from '../types.ts'
-import { colorPixelBox, redPixel } from './helpers/raster.ts'
+import { colorPixelBox, colorPixelCount, redPixel } from './helpers/raster.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runEndpointChild = useTestChildren(20_000)
 
 interface Point { x: number; y: number }
 interface Tag { name: string; attrs: Record<string, string> }
@@ -73,6 +79,308 @@ function architectureContacts(svg: string, fromSurface = 'service-card:a', toSur
 }
 
 describe('family-owned endpoint and visible-marker contact (#258)', () => {
+  // Development inputs: authored ends and multiplicities precede rendering.
+  // The cylinder is respectively the target and source of stroke-only marks.
+  for (const authored of [
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 o-- 保存 --o store', width: 1, direction: 'LR', execution: 'scene', backends: ['agentic', 'elk'], ends: ['start', 'end'] },
+    { from: 'store', to: 'edge__0', label: '取消', kind: 'cross', relation: 'store x-- 取消 --x edge__0', width: 1, direction: 'LR', execution: 'scene', backends: ['agentic', 'elk'], ends: ['start', 'end'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 o-->|保存| store', otherEnd: 'arrow', width: 10, direction: 'LR', execution: 'native', backends: ['agentic'], ends: ['start'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 --o|保存| store', width: 10, direction: 'LR', execution: 'scene', backends: ['elk'], ends: ['end'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 e1@--o|保存| store', namedId: 'e1', width: 10, direction: 'LR', execution: 'native', backends: ['agentic'], ends: ['end'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 e1@--o|保存| store', namedId: 'e1', curve: 'linear', width: 10, direction: 'LR', execution: 'native', backends: ['agentic'], ends: ['end'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 e1@--o|保存| store', namedId: 'e1', width: 10, direction: 'LR', execution: 'scene', backends: ['elk'], ends: ['end'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 e1@--o|保存| store', namedId: 'e1', curve: 'linear', width: 10, direction: 'LR', execution: 'scene', backends: ['elk'], ends: ['end'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 e1@--o|保存| store', namedId: 'e1', curve: 'step', fan: true, width: 10, direction: 'LR', execution: 'native', backends: ['agentic'], ends: ['end'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 e1@--o|保存| store', namedId: 'e1', curve: 'step', fan: true, width: 10, direction: 'LR', execution: 'scene', backends: ['elk'], ends: ['end'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 e1@--o|保存| store', namedId: 'e1', fan: true, width: 10, direction: 'LR', execution: 'native', backends: ['agentic'], ends: ['end'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 e1@--o|保存| store', namedId: 'e1', fan: true, width: 10, direction: 'LR', execution: 'scene', backends: ['elk'], ends: ['end'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 o--o|保存| store', width: 10, direction: 'RL', execution: 'scene', backends: ['agentic'], ends: ['start', 'end'] },
+    { from: 'edge__0', to: 'store', label: '保存', kind: 'circle', relation: 'edge__0 o--o|保存| store', width: 10, direction: 'RL', execution: 'native', backends: ['elk'], ends: ['start', 'end'] },
+  ] as const) test.each([...authored.backends])(`Flowchart %s/${authored.execution} retains ${authored.width}px ${authored.kind} ${authored.ends.join('/')}${'otherEnd' in authored ? ' with end arrow' : ''}${'namedId' in authored ? ` named e1 ${'curve' in authored ? authored.curve : 'noCurve'}` : ''}${'fan' in authored ? ' fan' : ''} marks on the complete cylinder side in ${authored.direction}`, async backend => {
+    const namedId = 'namedId' in authored ? authored.namedId : undefined
+    const curve = 'curve' in authored ? authored.curve : undefined
+    const fan = 'fan' in authored && authored.fan === true
+    const source = `flowchart ${authored.direction}\nedge__0["依頼者 🧭"]\nstore[(記録庫 📦)]\n${fan ? 'side["補助 🧩"]\n' : ''}${authored.relation}${fan ? '\nedge__0 e2@--> side' : ''}${curve ? `\n${namedId}@{curve: ${curve}}` : ''}${authored.width === 10 ? '\nlinkStyle 0 stroke:#ff0000,stroke-width:10px' : ''}`
+    const renderOptions = { ...options(1, false), graphLayout: { backend, fallback: 'none' as const } }
+    let rendered: ReturnType<typeof renderMermaidSVGWithReceipt>
+    const stages: string[] = []
+    if (authored.execution === 'native') {
+      const child = await runEndpointChild(process.execPath, ['--eval', `
+        import { renderMermaidSVGWithReceipt } from './src/index.ts'
+        import { withRenderStageObserver } from './src/render-stages.ts'
+        const input = await Bun.stdin.text(), stages = []
+        const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(input, ${JSON.stringify(renderOptions)}))
+        console.log(JSON.stringify({ rendered, stages }))
+      `], { cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' }, input: source })
+      expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+      const packet = JSON.parse(child.stdout)
+      rendered = packet.rendered
+      stages.push(...packet.stages)
+      expect(stages).toContain('drawing')
+      expect(stages).not.toContain('scene')
+    } else {
+      rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, renderOptions))
+      expect(stages).toContain('scene')
+    }
+    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: backend, attempts: [{ backend, outcome: 'selected' }] })])
+    const { JSDOM } = createRequire(import.meta.url)('jsdom')
+    const dom = new JSDOM(rendered.svg, { contentType: 'image/svg+xml' })
+    try {
+      const document = dom.window.document as Document
+      expect(document.querySelectorAll('[transform]')).toHaveLength(0)
+      const owners = [...document.querySelectorAll('g.node')]
+      expect(owners.map(owner => [owner.getAttribute('data-id'), owner.getAttribute('data-label')]).sort()).toEqual([['edge__0', '依頼者 🧭'], ['store', '記録庫 📦'], ...(fan ? [['side', '補助 🧩']] : [])].sort())
+      const carriers = [...document.querySelectorAll('[data-role="edge"][data-from]')]
+      expect(carriers).toHaveLength(fan ? 2 : 1)
+      if (fan) {
+        expect(carriers.map(edge => [edge.getAttribute('data-id'), edge.getAttribute('data-from'), edge.getAttribute('data-to'), edge.getAttribute('data-marker-end')])).toEqual([
+          ['e1', 'edge__0', 'store', 'circle'], ['e2', 'edge__0', 'side', 'arrow'],
+        ])
+        for (const edge of carriers) {
+          expect(edge.hasAttribute('marker-start')).toBe(false)
+          expect(edge.getAttribute('data-arrow-start')).toBe('false')
+          expect(edge.getAttribute('marker-end')).toMatch(/^url\(#.+\)$/)
+          const ps = routePoints({ name: edge.localName, attrs: Object.fromEntries([...edge.attributes].map(attr => [attr.name, attr.value])) })
+          for (const start of [true, false]) {
+            const at = start ? ps[0]! : ps.at(-1)!
+            const toward = (start ? ps : [...ps].reverse()).find(point => point.x !== at.x || point.y !== at.y)!
+            expect(toward).toBeDefined()
+            expect(toward.x === at.x || toward.y === at.y).toBe(true)
+            const owner = edge.getAttribute(start ? 'data-from' : 'data-to')!
+            const surface = owner === 'store' ? owners.find(node => node.getAttribute('data-id') === 'store')!.querySelector('rect')! : document.querySelector(`[data-id="node-shape:${owner}"]`)!
+            const side = toward.x < at.x ? 'L' : toward.x > at.x ? 'R' : toward.y < at.y ? 'T' : 'B'
+            expect(surfaceError(at, { name: surface.localName, attrs: Object.fromEntries([...surface.attributes].map(attr => [attr.name, attr.value])) }, side)).toBeLessThan(1e-6)
+          }
+        }
+      }
+      const cylinder = owners.find(owner => owner.getAttribute('data-id') === 'store')!
+      const pieces = [...cylinder.children].filter(child => child.localName !== 'text')
+      expect([...document.querySelectorAll('text')].map(text => text.textContent).sort()).toEqual(['依頼者 🧭', '記録庫 📦', authored.label, ...(fan ? ['補助 🧩'] : [])].sort())
+      // Account for every painted body piece, including both side strokes.
+      expect(pieces.map(piece => piece.localName)).toEqual(['rect', 'line', 'line', 'ellipse', 'ellipse'])
+      const numeric = (element: Element, name: string) => Number(element.getAttribute(name) ?? 0)
+      const [body, left, right, bottom, top] = pieces as [Element, Element, Element, Element, Element]
+      expect(numeric(body, 'width')).toBeGreaterThan(0)
+      expect(numeric(body, 'height')).toBeGreaterThan(0)
+      expect(body.getAttribute('stroke')).toBe('none')
+      expect(body.getAttribute('fill')).not.toBe('none')
+      for (const [side, x] of [[left, numeric(body, 'x')], [right, numeric(body, 'x') + numeric(body, 'width')]] as const) {
+        expect(numeric(side, 'x1')).toBeCloseTo(x, 9)
+        expect(numeric(side, 'x2')).toBeCloseTo(x, 9)
+        expect(numeric(side, 'y1')).toBeCloseTo(numeric(body, 'y'), 9)
+        expect(numeric(side, 'y2')).toBeCloseTo(numeric(body, 'y') + numeric(body, 'height'), 9)
+        expect(side.getAttribute('stroke')).not.toBe('none')
+        expect(numeric(side, 'stroke-width')).toBeGreaterThan(0)
+      }
+      for (const [cap, cy] of [[top, numeric(body, 'y')], [bottom, numeric(body, 'y') + numeric(body, 'height')]] as const) {
+        expect(numeric(cap, 'cx')).toBeCloseTo(numeric(body, 'x') + numeric(body, 'width') / 2, 9)
+        expect(numeric(cap, 'cy')).toBeCloseTo(cy, 9)
+        expect(numeric(cap, 'rx')).toBeCloseTo(numeric(body, 'width') / 2, 9)
+        expect(numeric(cap, 'ry')).toBeGreaterThan(0)
+        expect(cap.getAttribute('fill')).not.toBe('none')
+        expect(cap.getAttribute('stroke')).not.toBe('none')
+      }
+      expect(numeric(top, 'ry')).toBe(numeric(bottom, 'ry'))
+
+      const all = tags(rendered.svg)
+      const observations: Array<{ label: string; end: string; owner: string; error: number; pixels: number; hiddenPixels: number; shaftContactError?: number }> = []
+      const occurrences = carriers.filter(carrier => carrier.getAttribute('data-label') === authored.label)
+      expect(occurrences).toHaveLength(1)
+      const carrier = occurrences[0]!
+      expect([carrier.getAttribute('data-from'), carrier.getAttribute('data-to')]).toEqual([authored.from, authored.to])
+      const route: Tag = { name: carrier.localName, attrs: Object.fromEntries([...carrier.attributes].map(attr => [attr.name, attr.value])) }
+      expect(Number.parseFloat(route.attrs['stroke-width']!)).toBe(authored.width)
+      expect(route.name).toBe(curve ? 'path' : 'polyline')
+      const points = routePoints(route)
+      if (!fan) expect(points.every(point => point.y === points[0]!.y)).toBe(true)
+      if (namedId !== undefined) {
+        expect(carrier.getAttribute('data-id')).toBe(namedId)
+        expect(carrier.getAttribute('data-curve')).toBe(curve ?? null)
+        expect(carrier.getAttribute('data-marker-end')).toBe('circle')
+        if (fan) {
+          if (route.name === 'path') {
+            const commands = route.attrs.d!.match(/[MLQCSHVTAZmlqcshvtaz]/g)!
+            expect(commands[0]).toBe('M')
+            expect(commands.slice(1).every(command => command === 'L')).toBe(true)
+          }
+          expect(points.every(point => Number.isFinite(point.x) && Number.isFinite(point.y))).toBe(true)
+          const distinct = points.filter((point, index) => index === 0 || point.x !== points[index - 1]!.x || point.y !== points[index - 1]!.y)
+          expect(distinct.length).toBeGreaterThan(curve ? 2 : 1)
+          for (let i = 1; i < distinct.length; i++) expect(distinct[i]!.x === distinct[i - 1]!.x || distinct[i]!.y === distinct[i - 1]!.y).toBe(true)
+          // The Agentic STEP row supplies the turned witness; other served
+          // cylinder fans may be collinear without losing authored meaning.
+          if (backend === 'agentic' && curve === 'step') expect(distinct.some((point, index) => index > 1 && (distinct[index - 1]!.x - distinct[index - 2]!.x) * (point.y - distinct[index - 1]!.y) !== (distinct[index - 1]!.y - distinct[index - 2]!.y) * (point.x - distinct[index - 1]!.x))).toBe(true)
+        } else {
+          expect(points).toHaveLength(2)
+          if (curve) expect(route.attrs.d!.match(/[MLQCSHVTAZmlqcshvtaz]/g)).toEqual(['M', 'L'])
+        }
+      }
+      for (const end of ['start', 'end'] as const) {
+        if (!authored.ends.some(authoredEnd => authoredEnd === end)) {
+          if (end === 'end' && 'otherEnd' in authored && authored.otherEnd !== undefined) {
+            expect(carrier.getAttribute('data-marker-end')).toBe(authored.otherEnd)
+            const reference = carrier.getAttribute('marker-end')!.match(/^url\(#(.+)\)$/)![1]!
+            const arrow = document.getElementById(reference)!
+            expect([...arrow.children].map(piece => piece.localName)).toEqual(['polygon'])
+            expect(arrow.querySelector('polygon')!.getAttribute('fill')).toBe('#ff0000')
+          } else expect(carrier.hasAttribute(`marker-${end}`)).toBe(false)
+        }
+      }
+      for (const end of authored.ends) {
+        const markerId = carrier.getAttribute(`marker-${end}`)!.match(/^url\(#(.+)\)$/)![1]!
+        const marker = document.getElementById(markerId)!, ink = [...marker.children]
+        expect(numeric(marker, 'markerWidth')).toBeGreaterThan(0)
+        expect(numeric(marker, 'markerHeight')).toBeGreaterThan(0)
+        expect(marker.getAttribute('orient')).toBe('auto')
+        expect(marker.getAttribute('viewBox')).toBeNull()
+        if (authored.width === 10) {
+          expect(marker.getAttribute('markerUnits')).toBe('userSpaceOnUse')
+          expect(numeric(marker, 'markerWidth')).toBe(8)
+          expect(numeric(marker, 'markerHeight')).toBe(8)
+          expect(numeric(marker, 'refX')).toBe(end === 'start' ? 0.5 : 7.5)
+          expect(numeric(marker, 'refY')).toBe(4)
+        }
+        expect(ink.map(piece => piece.localName)).toEqual(authored.kind === 'circle' ? ['circle'] : ['line', 'line'])
+        for (const piece of ink) {
+          if (piece.localName === 'circle') {
+            expect(piece.getAttribute('fill')).toBe('none')
+            expect(numeric(piece, 'r')).toBeGreaterThan(0)
+            if (authored.width === 10) {
+              expect(numeric(piece, 'cx')).toBe(4)
+              expect(numeric(piece, 'cy')).toBe(4)
+              expect(numeric(piece, 'r')).toBe(3.25)
+              expect(numeric(piece, 'stroke-width')).toBe(1)
+            }
+          }
+          expect(piece.getAttribute('stroke')).toBe('#ff0000')
+          expect(numeric(piece, 'stroke-width')).toBeGreaterThan(0)
+          const halfStroke = numeric(piece, 'stroke-width') / 2
+          const xs = piece.localName === 'circle'
+            ? [numeric(piece, 'cx') - numeric(piece, 'r'), numeric(piece, 'cx') + numeric(piece, 'r')]
+            : [numeric(piece, 'x1'), numeric(piece, 'x2')]
+          const ys = piece.localName === 'circle'
+            ? [numeric(piece, 'cy') - numeric(piece, 'r'), numeric(piece, 'cy') + numeric(piece, 'r')]
+            : [numeric(piece, 'y1'), numeric(piece, 'y2')]
+          expect(Math.min(...xs) - halfStroke).toBeGreaterThanOrEqual(0)
+          expect(Math.max(...xs) + halfStroke).toBeLessThanOrEqual(numeric(marker, 'markerWidth'))
+          expect(Math.min(...ys) - halfStroke).toBeGreaterThanOrEqual(0)
+          expect(Math.max(...ys) + halfStroke).toBeLessThanOrEqual(numeric(marker, 'markerHeight'))
+        }
+        if (authored.kind === 'cross') {
+          // Opposite nonzero diagonals share extents and therefore cross at
+          // their common interior midpoint, rather than merely drawing two lines.
+          const [a, b] = ink as [Element, Element]
+          expect(numeric(a, 'x1')).toBeLessThan(numeric(a, 'x2'))
+          expect(numeric(a, 'y1')).toBeLessThan(numeric(a, 'y2'))
+          expect([numeric(b, 'x1'), numeric(b, 'x2'), numeric(b, 'y1'), numeric(b, 'y2')]).toEqual([numeric(a, 'x1'), numeric(a, 'x2'), numeric(a, 'y2'), numeric(a, 'y1')])
+        }
+        const localContacts: Point[] = authored.kind === 'circle'
+          ? [{ x: numeric(ink[0]!, 'cx') + (end === 'end' ? 1 : -1) * (numeric(ink[0]!, 'r') + numeric(ink[0]!, 'stroke-width') / 2), y: numeric(ink[0]!, 'cy') }]
+          : ink.map(line => {
+            expect(line.getAttribute('stroke-linecap')).toBe('round')
+            const first = (numeric(line, 'x1') < numeric(line, 'x2')) === (end === 'start')
+            return { x: numeric(line, first ? 'x1' : 'x2') + (end === 'end' ? 1 : -1) * numeric(line, 'stroke-width') / 2, y: numeric(line, first ? 'y1' : 'y2') }
+          })
+        const owner = end === 'start' ? authored.from : authored.to
+        if (owner === 'store') for (const corner of [{ x: 0, y: 0 }, { x: numeric(marker, 'markerWidth'), y: numeric(marker, 'markerHeight') }]) {
+          const point = visibleContact(all, route, end, corner)
+          // The whole marker viewport is beside the straight side, clear of
+          // both complete cap ellipses and their independently emitted strokes.
+          expect(point.y).toBeGreaterThan(numeric(top, 'cy') + numeric(top, 'ry') + numeric(top, 'stroke-width') / 2)
+          expect(point.y).toBeLessThan(numeric(bottom, 'cy') - numeric(bottom, 'ry') - numeric(bottom, 'stroke-width') / 2)
+        }
+        const surfaces = owner === 'store' ? [left, right] : [document.querySelector('[data-id="node-shape:edge__0"]')!]
+        let contactError = 0
+        for (const local of localContacts) {
+          const contact = visibleContact(all, route, end, local)
+          const errors = surfaces.flatMap(surface => {
+            const a = surface.localName === 'line'
+              ? { xs: [numeric(surface, 'x1')], top: numeric(surface, 'y1'), bottom: numeric(surface, 'y2') }
+              : { xs: [numeric(surface, 'x'), numeric(surface, 'x') + numeric(surface, 'width')], top: numeric(surface, 'y') + numeric(surface, 'ry'), bottom: numeric(surface, 'y') + numeric(surface, 'height') - numeric(surface, 'ry') }
+            return a.xs.map(x => Math.hypot(Math.max(Math.abs(contact.x - x) - numeric(surface, 'stroke-width') / 2, 0), Math.max(a.top - contact.y, contact.y - a.bottom, 0)))
+          })
+          contactError = Math.max(contactError, Math.min(...errors))
+        }
+
+        let shaftContactError: number | undefined
+        if (fan) {
+          // Locate the actual last painted shaft point by SVG dash phase over
+          // emitted path/polyline arclength, independent of the dash scheme.
+          const lengths = points.slice(1).map((point, index) => Math.hypot(point.x - points[index]!.x, point.y - points[index]!.y))
+          const length = lengths.reduce((sum, value) => sum + value, 0)
+          const declaredLength = carrier.getAttribute('pathLength')
+          const scale = declaredLength === null ? 1 : length / Number(declaredLength)
+          expect(Number.isFinite(scale) && scale > 0).toBe(true)
+          let pattern = numbers(carrier.getAttribute('stroke-dasharray') ?? '').map(value => value * scale)
+          expect(pattern.every(value => Number.isFinite(value) && value >= 0)).toBe(true)
+          if (pattern.length % 2) pattern = [...pattern, ...pattern]
+          const period = pattern.reduce((sum, value) => sum + value, 0)
+          let paintedEnd = length
+          if (period > 0) {
+            const rawOffset = Number.parseFloat(carrier.getAttribute('stroke-dashoffset') ?? '0') * scale
+            expect(Number.isFinite(rawOffset)).toBe(true)
+            const offset = ((rawOffset % period) + period) % period
+            const lastCycle = Math.floor((length + offset) / period)
+            paintedEnd = -Infinity
+            for (const cycle of [lastCycle - 1, lastCycle]) {
+              let cursor = cycle * period - offset
+              for (let i = 0; i < pattern.length; i++) {
+                const end = cursor + pattern[i]!
+                if (i % 2 === 0 && end > Math.max(0, cursor) && cursor < length) paintedEnd = Math.max(paintedEnd, Math.min(length, end))
+                cursor = end
+              }
+            }
+          }
+          expect(Number.isFinite(paintedEnd) && paintedEnd > 0).toBe(true)
+          let travelled = 0, lastPainted: Point | undefined
+          for (let i = 0; i < lengths.length; i++) {
+            const leg = lengths[i]!
+            if (leg > 0 && travelled + leg >= paintedEnd - 1e-7) {
+              const a = points[i]!, b = points[i + 1]!, t = Math.max(0, Math.min(1, (paintedEnd - travelled) / leg))
+              const cap = ['round', 'square'].includes(carrier.getAttribute('stroke-linecap') ?? 'butt') ? authored.width / 2 : 0
+              lastPainted = { x: a.x + (b.x - a.x) * (t + cap / leg), y: a.y + (b.y - a.y) * (t + cap / leg) }
+              break
+            }
+            travelled += leg
+          }
+          expect(lastPainted).toBeDefined()
+          const circle = ink[0]!, outerRadius = numeric(circle, 'r') + numeric(circle, 'stroke-width') / 2
+          const ringNearSide = visibleContact(all, route, end, { x: numeric(circle, 'cx') - outerRadius, y: numeric(circle, 'cy') })
+          shaftContactError = Math.hypot(lastPainted!.x - ringNearSide.x, lastPainted!.y - ringNearSide.y)
+        }
+
+        if (authored.width === 10) {
+          // Preserve the actual same-color shaft: recoloring it would create
+          // contrast even when this authored circle contributes no ink.
+          const hidden = document.documentElement.cloneNode(true) as Element
+          const hiddenCarrier = [...hidden.querySelectorAll('[data-role="edge"][data-from]')].find(edge => edge.getAttribute('data-id') === carrier.getAttribute('data-id'))!
+          hiddenCarrier.removeAttribute(`marker-${end}`)
+          const actualPixels = colorPixelCount(document.documentElement.outerHTML, redPixel)
+          const hiddenPixels = colorPixelCount(hidden.outerHTML, redPixel)
+          observations.push({ label: authored.label, end, owner, error: contactError, pixels: actualPixels - hiddenPixels, hiddenPixels, ...(shaftContactError === undefined ? {} : { shaftContactError }) })
+        } else {
+          // Isolate the existing thin marker witness from shafts/other ends.
+          const isolated = document.documentElement.cloneNode(true) as Element
+          for (const edge of isolated.querySelectorAll('[data-role="edge"][data-from]')) {
+            edge.setAttribute('stroke', '#000000')
+            for (const candidateEnd of ['start', 'end']) if (edge.getAttribute('data-id') !== carrier.getAttribute('data-id') || candidateEnd !== end) edge.removeAttribute(`marker-${candidateEnd}`)
+          }
+          const pixels = colorPixelCount(isolated.outerHTML, redPixel)
+          const hidden = isolated.cloneNode(true) as Element
+          for (const piece of hidden.querySelectorAll('marker > *')) piece.setAttribute('stroke', 'none')
+          const hiddenPixels = colorPixelCount(hidden.outerHTML, redPixel)
+          expect(hiddenPixels).toBe(0)
+          observations.push({ label: authored.label, end, owner, error: contactError, pixels, hiddenPixels })
+        }
+      }
+      for (const observation of observations) {
+        expect(observation.pixels, JSON.stringify(observations)).toBeGreaterThan(0)
+        expect(observation.error, JSON.stringify(observations)).toBeLessThan(1e-6)
+        if (observation.shaftContactError !== undefined) expect(observation.shaftContactError, JSON.stringify(observations)).toBeLessThan(1e-6)
+      }
+    } finally { dom.window.close() }
+  })
+
   for (const [from, to] of [['R', 'L'], ['L', 'R'], ['B', 'T'], ['T', 'B']]) {
     for (const width of [1.5, 3]) for (const rough of [false, true]) {
       test(`Architecture ${from}/${to}, ${width}px, ${rough ? 'hand-drawn' : 'default'} retains both contacts`, () => {

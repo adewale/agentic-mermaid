@@ -17,6 +17,8 @@ import { createVisibilityGrid } from '../layout/compound-visibility.ts'
 import { createLazyVisibilityGrid } from '../layout/compound-lazy-visibility.ts'
 import { createCompoundObstacleIndex } from '../layout/compound-obstacle-index.ts'
 import { countPolylineCrossings } from '../shared/edge-crossings.ts'
+import { compactMeasuredLoops } from '../layout/compact-measured-loops.ts'
+import { shortenMeasuredRoutes } from '../layout/shorten-measured-routes.ts'
 
 function measured(overrides: Partial<MeasuredGraph> = {}): MeasuredGraph {
   return {
@@ -712,7 +714,7 @@ describe('owned measured layered layout', () => {
     }
   })
 
-  test.each([0, 310, 1_000_000])('retains feasible compact long-edge routes with joint-order budget %s', blockPairs => {
+  test.each([0, 310, 1_000_000].flatMap(blockPairs => [false, true].map(hostileSetter => ({ blockPairs, hostileSetter }))))('retains feasible compact long-edge routes with joint-order budget $blockPairs (hostile setter $hostileSetter)', ({ blockPairs, hostileSetter }) => {
     const input = measured({ compactPrivateRanks: true,
       nodes: Array.from({ length: 5 }, (_, index) => ({ id: String(index), width: 40, height: 40 })),
       edges: [0, 1].flatMap(source => [2, 3, 4].map(target => ({ source, target, minSpan: 3 }))),
@@ -721,7 +723,31 @@ describe('owned measured layered layout', () => {
     const place = (budget: number) => layoutLayeredGraph(input, () => undefined,
       reason => { throw new GraphLayoutUnsupportedError(reason) }, undefined,
       { attempts: 0, scorePairs: 0, loopPairs: 0, rankPairs: 200_000, blockPairs: budget, routing: { pairs: 0, arcs: 0, swaps: 0 } })
-    const baseline = place(0), output = place(blockPairs)
+    const baseline = place(0), expected = blockPairs === 0 ? baseline : place(blockPairs)
+    let output = expected
+    if (hostileSetter) {
+      const define = Object.defineProperty, own = Object.getOwnPropertyDescriptor, create = Object.create, array = Array.isArray
+      const previous = own(Array.prototype, '0')
+      const descriptor = create(null) as PropertyDescriptor
+      descriptor.configurable = true
+      descriptor.set = function (this: unknown[], value: unknown) {
+        if (array(value) && own(value, 'length')?.value === 2 && typeof own(value, '0')?.value === 'number' && array(own(value, '1')?.value)) {
+          throw new Error('Private rank order reached an inherited array setter')
+        }
+        // Other arrays retain ordinary indexed assignment. A null-prototype
+        // descriptor keeps inherited descriptor fields out of publication.
+        const slot = create(null) as PropertyDescriptor
+        slot.value = value; slot.enumerable = true; slot.configurable = true; slot.writable = true
+        define(this, '0', slot)
+      }
+      define(Array.prototype, '0', descriptor)
+      try { output = place(blockPairs) }
+      finally {
+        if (previous) define(Array.prototype, '0', previous)
+        else Reflect.deleteProperty(Array.prototype, '0')
+      }
+    }
+    expect(output).toEqual(expected)
     expect(input).toEqual(original)
     expect(output.nodes).toHaveLength(5)
     expect(output.edges).toHaveLength(6)
@@ -735,6 +761,38 @@ describe('owned measured layered layout', () => {
         expect(crossesInterior(route.points[segment - 1]!, route.points[segment]!, box)).toBe(false)
       }
     }
+  })
+
+  test.each(['TB', 'BT', 'LR', 'RL'] as const)('aligns single private lanes between facing card ports in %s', direction => {
+    const horizontal = direction === 'LR' || direction === 'RL'
+    const input = measured({ direction, padding: 32, nodeSpacing: 40, layerSpacing: 72,
+      nodes: [160, 160, 120].map((cross, index) => ({ id: String(index), width: horizontal ? 40 : cross, height: horizontal ? cross : 40 })),
+      edges: [{ source: 0, target: 2, minSpan: 1, label: { width: horizontal ? 10 : 20, height: horizontal ? 20 : 10 } }, { source: 1, target: 2, minSpan: 1 }],
+    })
+    const original = structuredClone(input), output = layoutLayeredGraph(input, () => undefined, reason => { throw new GraphLayoutUnsupportedError(reason) })
+    expect(input).toEqual(original)
+    expect(countPolylineCrossings(output.edges)).toBe(0)
+    const boxes = output.nodes.map((node, index) => ({ ...node, width: input.nodes[index]!.width, height: input.nodes[index]!.height }))
+    for (const [index, edge] of output.edges.entries()) {
+      expect(edge.points).toHaveLength(2)
+      expect(onOutline(edge.points[0]!, boxes[index]!)).toBe(true)
+      expect(onOutline(edge.points[1]!, boxes[2]!)).toBe(true)
+      for (const box of boxes) expect(crossesInterior(edge.points[0]!, edge.points[1]!, box)).toBe(false)
+    }
+  })
+
+  test.each([-2, NaN, 80])('retains the original loop when live label width changes to %s', changed => {
+    let reads = 0
+    const label = { get width() { return ++reads <= 3 ? 200 : changed }, height: 20 }
+    const input = measured({ direction: 'TB', padding: 40,
+      nodes: [{ id: 'loop', width: 180, height: 60 }, { id: 'foreign', width: 20, height: 30 }],
+      edges: [{ source: 0, target: 0, minSpan: 1, label }],
+    })
+    const points = [{ x: 260, y: 100 }, { x: 260, y: 130 }, { x: 260, y: 200 }, { x: 360, y: 200 }, { x: 360, y: 130 }, { x: 360, y: 100 }]
+    const placed: AgenticLayout = { topology: 'layered', width: 600, height: 300, nodes: [{ x: 220, y: 40 }, { x: 220, y: 110 }], edges: [{ points, labelPosition: { x: 156, y: 160 } }] }
+    const before = structuredClone(placed)
+    expect(compactMeasuredLoops(input, placed, { loopPairs: 2_000_000 })).toEqual(before)
+    expect(placed.edges[0]!.points).toBe(points)
   })
 
   test('retains feasible loop routes when optional request work is exhausted', () => {
@@ -927,6 +985,35 @@ describe('owned measured layered layout', () => {
     expect(routes[0]!.points).not.toEqual(routes[1]!.points)
     expect(input).toEqual(original)
     expect(layoutAgenticGraph(input)).toEqual(placed)
+  })
+
+  test('retains feasible detours after the shared shortcut allowance is spent or lowered', () => {
+    const input: MeasuredGraph = {
+      nodes: [{ id: 'a', width: 20, height: 20 }, { id: 'b', width: 20, height: 20 }],
+      edges: [{ source: 0, target: 1, minSpan: 1 }],
+      direction: 'LR', padding: 0, nodeSpacing: 0, layerSpacing: 0,
+    }
+    const detour = [{ x: 20, y: 10 }, { x: 40, y: 10 }, { x: 40, y: 50 }, { x: 160, y: 50 }, { x: 160, y: 10 }, { x: 200, y: 10 }]
+    const fresh = (): AgenticLayout => ({ topology: 'layered', width: 220, height: 80,
+      nodes: [{ x: 0, y: 0 }, { x: 200, y: 0 }], edges: [{ points: detour.map(point => ({ ...point })) }] })
+    const shared = { attempts: 1, comparisons: 8_000_000 }
+    const first = shortenMeasuredRoutes(input, fresh(), shared)
+    expect(first.edges[0]!.points).toEqual([{ x: 20, y: 10 }, { x: 200, y: 10 }])
+    expect(shortenMeasuredRoutes(input, fresh(), shared).edges[0]!.points).toEqual(detour)
+    for (const work of [
+      { attempts: Number.NaN, comparisons: 8_000_000 }, { attempts: Infinity, comparisons: 8_000_000 },
+      { attempts: 1, comparisons: Number.NaN }, { attempts: 1, comparisons: Infinity },
+      { attempts: 0, comparisons: 8_000_000 }, { attempts: 1, comparisons: 0 }, { attempts: 1, comparisons: 5 },
+    ]) expect(shortenMeasuredRoutes(input, fresh(), work).edges[0]!.points).toEqual(detour)
+    let attempts = 2, comparisons = 8_000_000
+    const lowered = {
+      get attempts() { return attempts },
+      set attempts(value: number) { attempts = value; comparisons = 0 },
+      get comparisons() { return comparisons },
+      set comparisons(value: number) { comparisons = value },
+    }
+    expect(shortenMeasuredRoutes(input, fresh(), lowered).edges[0]!.points).toEqual([{ x: 20, y: 10 }, { x: 200, y: 10 }])
+    expect(shortenMeasuredRoutes(input, fresh(), lowered).edges[0]!.points).toEqual(detour)
   })
 
   test.each(['TD', 'BT', 'LR', 'RL'] as const)('keeps a labelled branch beside an unrelated wide root in %s', direction => {

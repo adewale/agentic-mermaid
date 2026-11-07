@@ -201,12 +201,14 @@ function runtimeLayoutBackendSource(source: string, path: string, lazyLayoutOpti
   }
   const gaps = readFileSync(resolve(dirname(path), 'link-rank-gap.ts'), 'utf8')
   const seeds = runtimeDeclarations(resolve(dirname(path), '../scene/seed.ts'), ['seedFrom', 'hashId', 'makeRng', 'nodeSeed', 'nodeRng'])
+  const lanes = runtimeDeclarations(resolve(dirname(path), '../shared/node-lane-index.ts'), ['NodeLaneIndex', 'NodeLaneIndexes', 'CELL_WIDTH', 'LaneBox', 'IndexCharge', 'buildNodeLaneIndex', 'nodeLaneCell', 'nodeLaneIndexForQuery'])
+  const fit = runtimeDeclarations(resolve(dirname(path), 'fit-measured-layout.ts'), ['fitMeasuredLayout'])
   const order = runtimeDeclarations(resolve(dirname(path), '../shared/deterministic-order.ts'), ['compareCodePointStrings'])
   const plainData = runtimeDeclarations(resolve(dirname(path), '../shared/plain-data.ts'), ['isPlainRecord', 'deepFreeze'])
   const utf8 = runtimeDeclarations(resolve(dirname(path), '../shared/utf8.ts'), ['boundedUtf8ByteLength'])
   const ink = runtimeDeclarations(resolve(dirname(path), '../shared/ink-index.ts'), ['InkBounds', 'InkTree', 'chargeInkSort', 'buildInkTree', 'createInkIndex'])
   const optimization = lazyLayoutOptimization ? withoutRuntimeImport(readFileSync(resolve(dirname(path), 'optimization-context.lazy.ts'), 'utf8'), path, './certification-error.ts', ['DeferredDependencyError']) : ''
-  return `${errors}\n${identities}\n${gaps}\n${seeds}\n${order}\n${plainData}\n${utf8}\n${ink}\n${optimization}\n${ts.createPrinter().printFile(ts.factory.updateSourceFile(file, statements))}`
+  return `${errors}\n${identities}\n${gaps}\n${seeds}\n${lanes}\n${fit}\n${order}\n${plainData}\n${utf8}\n${ink}\n${optimization}\n${ts.createPrinter().printFile(ts.factory.updateSourceFile(file, statements))}`
 }
 
 /** Pipeline prose is for Node-side inspection and generated documentation.
@@ -377,7 +379,7 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
         const postprocessPath = resolve(dirname(structurePath), 'svg-postprocess.ts')
         build.onResolve({ filter: /[\\/]svg-postprocess\.ts$/ }, args => resolve(args.resolveDir, args.path) === postprocessPath ? { path: structurePath } : undefined)
         build.onLoad({ filter: /[\\/]src[\\/]svg-structure\.ts$/ }, ({ path }) => path !== structurePath ? undefined : ({
-          contents: `${readFileSync(path, 'utf8')}\n${withoutRuntimeImport(readFileSync(postprocessPath, 'utf8'), path, './svg-structure.ts', ['scanSvgStartTags', 'transformSvgAttributes', 'transformSvgCssValues'])}`, loader: 'ts', resolveDir: dirname(path),
+          contents: `${readFileSync(path, 'utf8')}\n${withoutRuntimeImport(readFileSync(postprocessPath, 'utf8'), path, './svg-structure.ts', ['projectSvgCss', 'scanSvgStartTags', 'transformSvgAttributes', 'transformSvgCssValues'])}`, loader: 'ts', resolveDir: dirname(path),
         }))
         const grammarPath = fileURLToPath(new URL('../../src/shared/grammar-text.ts', import.meta.url))
         const syntaxPath = resolve(dirname(grammarPath), 'syntax-error.ts')
@@ -396,6 +398,12 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
         const identityPath = resolve(dirname(backendPath), '../shared/generated-identity.ts')
         const gapPath = resolve(dirname(backendPath), 'link-rank-gap.ts')
         const seedPath = resolve(dirname(backendPath), '../scene/seed.ts')
+        const laneIndexPath = resolve(dirname(backendPath), '../shared/node-lane-index.ts')
+        const fitPath = resolve(dirname(backendPath), 'fit-measured-layout.ts')
+        // Providers and family routes share this pure broad phase. Keep it in
+        // their already-loaded backend instead of a separate solver request.
+        build.onResolve({ filter: /[\\/]node-lane-index\.ts$/ }, args => resolve(args.resolveDir, args.path) === laneIndexPath ? { path: backendPath } : undefined)
+        build.onResolve({ filter: /[\\/]fit-measured-layout\.ts$/ }, args => resolve(args.resolveDir, args.path) === fitPath ? { path: backendPath } : undefined)
         const orderPath = resolve(dirname(backendPath), '../shared/deterministic-order.ts')
         const inkPath = resolve(dirname(backendPath), '../shared/ink-index.ts')
         build.onResolve({ filter: /[\\/]ink-index\.ts$/ }, args => resolve(args.resolveDir, args.path) === inkPath ? { path: backendPath } : undefined)

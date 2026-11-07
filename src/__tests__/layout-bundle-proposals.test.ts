@@ -145,11 +145,13 @@ describe('bounded generic bundle proposals', () => {
     expect(selected.certification!.preference.selectedScore.edgeCrossings).toBeLessThan(
       baseline.certification!.preference.selectedScore.edgeCrossings)
     expect(selected.certification?.preference.routing).toMatchObject({
-      strategy: 'without-generic-bundling',
-      preference: { reason: 'edgeCrossings' },
+      strategy: 'bundled',
+      preference: { reason: 'totalBends' },
     })
     const alternatives = selected.certification!.preference.routing!.preference.compared
-    expect(alternatives).toHaveLength(2)
+    expect(alternatives.map(({ strategy, score }) => [strategy, score.edgeCrossings, score.totalBends])).toEqual([
+      ['bundled', 57, 135], ['without-generic-bundling', 57, 139],
+    ])
     expect(alternatives[1]!.score.totalBends).toBeGreaterThan(alternatives[0]!.score.totalBends)
     expect(alternatives[1]!.score.nonCanonicalEndpointRate).toBeGreaterThan(alternatives[0]!.score.nonCanonicalEndpointRate)
   })

@@ -104,7 +104,8 @@ test('constructor text custody excludes mutable, accessor and function descendan
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
     import { preparePixelText } from './src/shared/prepared-text.ts'
-    import { clonePositioned } from './src/experimental/position-cache.ts'
+    import { clonePositioned, retainPositioned, cachedPositioned } from './src/experimental/position-cache.ts'
+    import { prepareDisplayText, preparedDisplayTextValue } from './src/shared/display-text.ts'
     import { createNativePaintEmission } from './src/scene/native-paint-emission.ts'
     for (const mode of ['mutable', 'shallow-frozen', 'accessor', 'function']) {
       const extra = mode === 'accessor' ? Object.freeze({ get value() { throw Error('uncaptured accessor') } })
@@ -124,6 +125,31 @@ test('constructor text custody excludes mutable, accessor and function descendan
         assert.equal(captured.prepared.lines[0][0].extra.nested.value, 'before')
       }
     }
+    // A caller's map override can return an accessor-bearing array. Freezing
+    // that array does not turn its live element into constructor-owned data.
+    let line = [{ text: 'Read', sourceStart: 0, sourceEnd: 4 }]
+    const liveLines = []
+    Object.defineProperty(liveLines, '0', { configurable: true, enumerable: true, get: () => line })
+    const suppliedLines = new Proxy([], {
+      get: (target, key, receiver) => key === 'map' ? () => liveLines : Reflect.get(target, key, receiver),
+    })
+    const previous = Object.getOwnPropertyDescriptor(Object.prototype, 'value')
+    let plan
+    try {
+      Object.defineProperty(Object.prototype, 'value', { configurable: true, writable: true, value: 0 })
+      plan = prepareDisplayText({ source: 'Read', display: 'literal', lineStarts: [0], lines: suppliedLines })
+    } finally {
+      delete Object.prototype.value
+      if (previous) Object.defineProperty(Object.prototype, 'value', previous)
+    }
+    const block = preparePixelText(plan, { fontSize: 12, fontWeight: 400 }), family = {}
+    retainPositioned(family, 'accessor-plan', { positioned: { width: 100, height: 80, block } })
+    line = [{ text: 'Lost', sourceStart: 0, sourceEnd: 4 }]
+    assert.equal(preparedDisplayTextValue(block.prepared), 'Lost')
+    const retained = cachedPositioned(family, 'accessor-plan', false, true).positioned.block
+    assert.equal(preparedDisplayTextValue(retained.prepared), 'Read')
+    assert.notEqual(retained, block)
+    assert.equal(retained.lineBlocks[0].text, 'Read')
   `], { cwd: `${import.meta.dir}/../..` })
   expect(child.stderr).toBe('')
   expect(child.status).toBe(0)
@@ -348,7 +374,7 @@ test('a producer changed between drawing and certification cannot publish a reta
     import { withRenderStageObserver } from './src/render-stages.ts'
     import { resolveRenderRequestForExecution } from './src/render-contract.ts'
     import { positionFamilyForNativeRender } from './src/positioning.ts'
-    import { retainedNativeDrawing } from './src/scene/positioned.ts'
+    import { retainedNativeDrawing, positionedPaintCertification } from './src/scene/positioned.ts'
     import { borrowedPositioned, cachedNativeDrawing, retainNativeDrawing, retainOwnedNativeSvgPositioned } from './src/experimental/position-cache.ts'
     const lower = getFamily('sequence').lowerScene
     const original = nativeDrawingOf(lower)
@@ -446,6 +472,25 @@ test('a producer changed between drawing and certification cannot publish a reta
     for (const key of pressureKeys.slice(3)) {
       assert.equal(pressureProbe(key).hit, undefined, 'changed-producer probes must not age drawing admission')
     }
+
+    const ownedRequest = resolveRenderRequestForExecution(source + String.fromCharCode(10) + ' ProducerB->>ProducerA: reentrant ownership', {}, 'svg')
+    const ownedLayout = positionFamilyForNativeRender(ownedRequest)
+    assert.ok(retainedNativeDrawing(ownedRequest, ownedLayout))
+    let replacement
+    globalThis[symbol] = event => {
+      if (!replacement && event.owner === 'paint-certification' && event.outcome === 'miss' && event.detail === 'native') {
+        inheritNativeDrawing(customSource, lower)
+        replacement = retainedNativeDrawing(ownedRequest, ownedLayout)
+      }
+    }
+    const beforeReentrantCalls = customCalls
+    positionedPaintCertification(ownedRequest, ownedLayout)
+    delete globalThis[symbol]
+    assert.ok(replacement)
+    assert.equal(retainedNativeDrawing(ownedRequest, ownedLayout), replacement,
+      'an earlier certification must not overwrite a newer reentrant drawing')
+    assert.equal(customCalls, beforeReentrantCalls + 1)
+    inheritNativeDrawing(originalSource, lower)
   `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
   expect(child.stderr).toBe('')
   expect(child.status).toBe(0)
@@ -457,6 +502,7 @@ test('family ownership follows constructed identities and backend ownership foll
     const child = await runChild(process.execPath, ['-e', `
       import assert from 'node:assert/strict'
       import { isOwnedFamily } from './src/experimental/owned-family.ts'
+      import { KNOWN_EXTENSION_CONTRACT_VERSIONS } from './src/shared/extension-identity.ts'
       import { DefaultBackend, isOriginalEnrolledDefaultBackend, registerBackend, registerBuiltInBackend } from './src/scene/backend.ts'
       const mode = ${JSON.stringify(mode)}
       const fail = () => { throw new Error('backend query touched a proxy') }
@@ -466,7 +512,7 @@ test('family ownership follows constructed identities and backend ownership foll
       assert.equal(isOriginalEnrolledDefaultBackend(proxy), false)
       if (mode === 'changed-before-enrollment') DefaultBackend.drawNode = () => { throw new Error('unexpected rendering') }
       if (mode === 'failed-enrollment') {
-        registerBackend({ ...DefaultBackend, id: 'backend:default' }, { compatibility: { core: '^0.5.0', scene: '^2.0.0' } })
+        registerBackend({ ...DefaultBackend, id: 'backend:default' }, { compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core, scene: '^2.0.0' } })
         assert.throws(() => registerBuiltInBackend(DefaultBackend), { name: 'ExtensionCollisionError' })
         assert.equal(Object.isFrozen(DefaultBackend), true)
         assert.equal(isOriginalEnrolledDefaultBackend(DefaultBackend), false)
@@ -806,3 +852,30 @@ test('Architecture cached rings stay isolated from mutable public layouts across
   expect(child.stderr).toBe('')
   expect(child.status).toBe(0)
 }, 30_000)
+
+test('certified Native requests release construction paint while retaining repeatable output', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import './src/index.ts'
+    import assert from 'node:assert/strict'
+    import { setImmediate } from 'node:timers/promises'
+    import { resolveRenderRequestForExecution } from './src/render-contract.ts'
+    import { positionFamilyForNativeRender } from './src/positioning.ts'
+    import { retainedNativeDrawing, positionedPaintCertification } from './src/scene/positioned.ts'
+    const request = resolveRenderRequestForExecution('flowchart LR\\nStart --> Finish', { graphLayout: { backend: 'agentic' } }, 'svg')
+    const layout = positionFamilyForNativeRender(request)
+    let initial = retainedNativeDrawing(request, layout)
+    assert.ok(initial && initial.paint)
+    const paint = new WeakRef(initial.paint), expected = initial.svg
+    const proof = positionedPaintCertification(request, layout)
+    initial = undefined
+    const retained = retainedNativeDrawing(request, layout)
+    assert.equal(retained.svg, expected)
+    assert.equal('paint' in retained, false)
+    assert.equal(positionedPaintCertification(request, layout), proof)
+    for (let i = 0; i < 8; i++) { await setImmediate(); Bun.gc(true) }
+    assert.equal(paint.deref(), undefined, 'held request and layout must not retain completed paint evidence')
+    assert.equal(retainedNativeDrawing(request, layout).svg, expected)
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})

@@ -1,7 +1,7 @@
 import { expect, spyOn, test } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
 import { withPerformanceObserver, type PerformanceObservation } from '../performance-observations.ts'
-import { inspectSvgOnce, withSvgInspectionCache } from '../svg-inspection-cache.ts'
+import { createSvgInspector, inspectSvgOnce, withSvgInspectionCache } from '../svg-inspection-cache.ts'
 import { cachedPositioned, retainPositioned } from '../experimental/position-cache.ts'
 import { withPerformanceExperiments } from '../experimental-performance.ts'
 import { certifyLayoutCandidates } from '../layout/certification.ts'
@@ -75,6 +75,30 @@ test('inspection observations distinguish actual reuse, rewritten bytes and bypa
   ])
   expect(JSON.stringify(events)).not.toContain('private source')
   expect(events.every(Object.isFrozen)).toBe(true)
+})
+
+test('owned inspections isolate equal labels and diagnostic reentry across nested scopes', () => {
+  const source = '<svg>private owned source</svg>', events: PerformanceObservation[] = []
+  let calls = 0, primed = false
+  const owned = createSvgInspector('owned-probe', () => ++calls)
+  const foreign = createSvgInspector('owned-probe', () => -1)
+  withPerformanceObserver(event => {
+    events.push(event)
+    if (!primed && event.kind === 'cache' && event.owner === 'svg-inspection' && event.outcome === 'miss') {
+      primed = true
+      inspectSvgOnce('owned-probe', source, () => -2)
+      foreign(source)
+    }
+  }, () => withSvgInspectionCache(() => {
+    expect(owned(source)).toBe(1)
+    expect(owned(source)).toBe(1)
+    expect(foreign(source)).toBe(-1)
+    withSvgInspectionCache(() => expect(owned(source)).toBe(2))
+    expect(owned(source)).toBe(1)
+  }))
+  expect(calls).toBe(2)
+  expect(JSON.stringify(events)).not.toContain('private owned source')
+  expect(events.filter(event => event.kind === 'cache').every(event => event.detail === 'owned-probe')).toBe(true)
 })
 
 test('positioned cache reports real lookup results and an uncached uncloneable artifact', () => {

@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import * as marks from '../scene/marks.ts'
 import { nodeProblems } from '../scene/fidelity.ts'
-import { geometryBounds, nodePaintBounds, nodeWorldBounds, transformedBounds, visitTypedPathSegments } from '../scene/bounds.ts'
+import { connectorMarkerPaintRegions, geometryBounds, nodePaintBounds, nodeWorldBounds, paintedStrokeExtent, transformedBounds, visitTypedPathSegments } from '../scene/bounds.ts'
+import type { MarkerDescriptor } from '../scene/ir.ts'
 import { RoughBackend } from '../scene/rough-backend.ts'
 import { sceneNodeSerialization } from '../scene/serialization.ts'
 
@@ -115,6 +116,21 @@ describe('Scene transforms are typed semantic geometry', () => {
     const bounds = nodePaintBounds(diagonal)!
     expect(bounds.x0).toBeLessThanOrEqual(-Math.SQRT2 * 2)
     expect(bounds.x1).toBeGreaterThanOrEqual(10 + Math.SQRT2 * 2)
+
+
+    const originalMax = Math.max
+    for (const supports of [false, true]) {
+      const paint = { stroke: '#000', strokeWidth: '2', get strokeLinecap() {
+        Math.max = () => 0
+        return 'butt' as const
+      } }
+      let observed: ReturnType<typeof paintedStrokeExtent> | number
+      try {
+        observed = supports ? paintedStrokeExtent(paint, 'supports') : paintedStrokeExtent(paint, false)
+      } finally { Math.max = originalMax }
+      // The max callee is selected before evaluating its cap argument.
+      expect(observed).toEqual(supports ? { joined: 4, smooth: 1 } : 1)
+    }
   })
 
   test('nested matrix transforms preserve SVG bytes and enclose transformed child stroke', () => {
@@ -160,6 +176,49 @@ describe('Scene transforms are typed semantic geometry', () => {
     expect(bounds.x1).toBeGreaterThanOrEqual(100 + Math.hypot(10, 10))
     // Existing route/hit geometry remains the original sampled projection.
     expect(nodeWorldBounds(connector)!.y1).toBe(10)
+
+    const terminalBounds = (marker: MarkerDescriptor) => connectorMarkerPaintRegions(marks.connector({
+      id: 'compound-marker', role: 'edge', lineStyle: 'solid',
+      geometry: { kind: 'line', x1: 10, y1: 20, x2: 20, y2: 20 },
+      paint: { stroke: '#000', strokeWidth: '1' }, markers: { end: marker },
+    }))[0]!.bounds
+    const circleCross: MarkerDescriptor = {
+      id: 'circle-cross', shape: 'circle', units: 'userSpaceOnUse', orient: 0,
+      size: { width: 12, height: 12 }, ref: { x: 0, y: 6 },
+      geometry: { kind: 'compound', children: [
+        { kind: 'circle', cx: 6, cy: 6, r: 5 },
+        { kind: 'path', d: 'M2 6H10M6 2V10' },
+      ] }, paint: { fill: '#fff', stroke: '#000', strokeWidth: '1' },
+    }
+    // Circle support is .5..11.5. The cross retains a conservative 2 px
+    // path allowance, giving 0..12 before the reference/anchor translation.
+    expect(terminalBounds(circleCross)).toEqual({ x0: 20, y0: 14, x1: 32, y1: 26 })
+    const acute: MarkerDescriptor = { ...circleCross, id: 'acute', geometry: { kind: 'compound', children: [
+      { kind: 'circle', cx: 6, cy: 6, r: 1 },
+      { kind: 'polyline', points: [{ x: 0, y: 10 }, { x: 10, y: 0 }, { x: 20, y: 10 }] },
+    ] }, paint: { stroke: '#000', strokeWidth: '4', strokeLinejoin: 'miter', strokeMiterlimit: '4' } }
+    // The two 45-degree V legs meet at an actual miter tip y=-2√2;
+    // replacing every child support with a smooth half-width loses that ink.
+    expect(terminalBounds(acute)!.y0).toBeLessThanOrEqual(14 - 2 * Math.SQRT2)
+    expect(terminalBounds({ ...circleCross, paint: { ...circleCross.paint, strokeWidth: '1em' } })).toBeUndefined()
+    expect(terminalBounds({ ...circleCross, bounds: { x0: -20, y0: -20, x1: 20, y1: 20 } }))
+      .toEqual({ x0: -2, y0: -8, x1: 42, y1: 36 })
+
+
+    let radius = 5, width = '1'
+    const liveMarker: MarkerDescriptor = { ...circleCross, geometry: { kind: 'compound', children: [
+      { kind: 'circle', cx: 6, cy: 6, get r() { return radius } },
+      { kind: 'path', d: 'M2 6H10M6 2V10' },
+    ] }, paint: { stroke: '#000', get strokeWidth() { radius = 50; const observed = width; width = '10000'; return observed } } }
+    // Raw layout queries have not admitted this descriptor. Paint changes the
+    // source after geometry was read; repaint serialization may read it later.
+    const live = connectorMarkerPaintRegions({
+      route: { geometry: { kind: 'line', x1: 10, y1: 20, x2: 20, y2: 20 }, closed: false,
+        contours: [{ start: { x: 10, y: 20 }, end: { x: 20, y: 20 }, startTangent: { x: 1, y: 0 }, endTangent: { x: 1, y: 0 }, closed: false }] },
+      stroke: { width: 1 }, markers: { start: undefined, mid: [], end: liveMarker },
+    })[0]!
+    expect(radius).toBe(50)
+    expect(live.bounds).toEqual({ x0: 20, y0: 14, x1: 32, y1: 26 })
   })
 
   test('unmeasured artwork cannot disappear from a compound or group bound', () => {

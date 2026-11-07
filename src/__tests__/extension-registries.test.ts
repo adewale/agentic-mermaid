@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   ExtensionCollisionError,
+  KNOWN_EXTENSION_CONTRACT_VERSIONS,
   canonicalExtensionId,
   createExtensionIdentity,
   evaluateExtensionCompatibility,
@@ -37,7 +38,7 @@ import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(20_000)
 
-const BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.5.0', scene: '^2.0.0' })
+const BACKEND_COMPATIBILITY = Object.freeze({ core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core, scene: '^2.0.0' })
 const BACKEND_REGISTRATION_OPTIONS = Object.freeze({ compatibility: BACKEND_COMPATIBILITY })
 const PACKAGE_VERSION = JSON.parse(readFileSync(join(import.meta.dir, '..', '..', 'package.json'), 'utf8')).version as string
 const ESCAPED_PACKAGE_VERSION = PACKAGE_VERSION.replaceAll('.', '\\.')
@@ -127,25 +128,27 @@ describe('shared extension identity', () => {
       compatibility: { core: '^99.0.0' },
       provenance: { owner: 'test', source: 'test' },
     })).toThrow(new RegExp(`core.*\\^99\\.0\\.0.*host version ${ESCAPED_PACKAGE_VERSION}`, 'i'))
+    const [hostMajor, hostMinor] = PACKAGE_VERSION.split('.').map(Number)
+    const incompatibleMinorRange = `^${hostMajor}.${hostMinor! + 1}.0`
     expect(() => createExtensionIdentity({
-      id: 'family:test/previous-core-line',
+      id: 'family:test/adjacent-core-line',
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.4.0' },
+      compatibility: { core: incompatibleMinorRange },
       provenance: { owner: 'test', source: 'test' },
-    })).toThrow(new RegExp(`core.*\\^0\\.4\\.0.*host version ${ESCAPED_PACKAGE_VERSION}`, 'i'))
+    })).toThrow(`Compatibility requirement "core" range "${incompatibleMinorRange}" does not include host version ${PACKAGE_VERSION}.`)
 
     const forwardCompatible = createExtensionIdentity({
       id: 'look:test/future-contract',
       kind: 'look',
       version: '1.0.0',
-      compatibility: { core: '^0.5.0', 'acme:future-scene': '^99.0.0' },
+      compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core, 'acme:future-scene': '^99.0.0' },
       provenance: { owner: 'test', source: 'test' },
     })
     expect(evaluateExtensionCompatibility(forwardCompatible)).toEqual({
       accepted: true,
       resolutions: [
-        { contract: 'core', range: '^0.5.0', status: 'compatible', version: PACKAGE_VERSION },
+        { contract: 'core', range: KNOWN_EXTENSION_CONTRACT_VERSIONS.core, status: 'compatible', version: PACKAGE_VERSION },
         { contract: 'acme:future-scene', range: '^99.0.0', status: 'deferred' },
       ],
     })
@@ -158,7 +161,7 @@ describe('shared extension identity', () => {
       enumerable: true,
       get() {
         reads.core++
-        return reads.core === 1 ? '^0.5.0' : '^99.0.0'
+        return reads.core === 1 ? KNOWN_EXTENSION_CONTRACT_VERSIONS.core : '^99.0.0'
       },
     })
     const provenance: Record<string, unknown> = { source: 'test' }
@@ -207,7 +210,7 @@ describe('shared extension identity', () => {
       id: 'look:test/identity-snapshot',
       kind: 'look',
       version: '1.2.3',
-      compatibility: { core: '^0.5.0' },
+      compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core },
       provenance: { owner: 'snapshot-owner', source: 'test' },
     })
   })
@@ -466,7 +469,7 @@ describe('canonical style identities', () => {
       enumerable: true,
       get() {
         reads.core++
-        return reads.core === 1 ? '^0.5.0' : '^99.0.0'
+        return reads.core === 1 ? KNOWN_EXTENSION_CONTRACT_VERSIONS.core : '^99.0.0'
       },
     })
     const provenance: Record<string, unknown> = { source: 'test' }
@@ -526,7 +529,7 @@ describe('canonical style identities', () => {
       const descriptor = knownStyleDescriptors().find(candidate => candidate.identity.id === id)!
       expect(descriptor.identity).toMatchObject({
         version: '1.2.3',
-        compatibility: { core: '^0.5.0' },
+        compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core },
         provenance: { owner: 'style-snapshot-test', source: 'test' },
       })
       expect(Object.isFrozen(descriptor.spec)).toBe(true)
@@ -748,7 +751,7 @@ describe('backend registration and host policy', () => {
         incompatibleWitnessCalls++
         return DefaultBackend.render(document, context)
       },
-    }, { compatibility: { core: '^0.5.0', scene: '^99.0.0' } }))
+    }, { compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core, scene: '^99.0.0' } }))
       .toThrow(/scene.*\^99\.0\.0.*host version 2\.0\.0/i)
     expect(incompatibleWitnessCalls).toBe(0)
     expect(() => registerBackendFromJs({
@@ -758,7 +761,7 @@ describe('backend registration and host policy', () => {
         ...claim,
         target: 'backend:test/scene-v1',
       })),
-    }, { compatibility: { core: '^0.5.0', scene: '^1.0.0' } }))
+    }, { compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core, scene: '^1.0.0' } }))
       .toThrow(/scene.*\^1\.0\.0.*host version 2\.0\.0/i)
   })
 
@@ -777,7 +780,7 @@ describe('backend registration and host policy', () => {
         witnessCalls++
         return DefaultBackend.render(document, context)
       },
-    }, { compatibility: { core: '^0.5.0' } }))
+    }, { compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core } }))
       .toThrow(/must declare an explicit compatible "scene" range/i)
     expect(witnessCalls).toBe(0)
     expect(getBackend(id)).toBeUndefined()

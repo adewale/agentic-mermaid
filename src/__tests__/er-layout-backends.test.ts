@@ -1,5 +1,6 @@
 import { describe, expect, spyOn, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { layoutMermaidWithReceipt, parseRegisteredMermaid } from '../agent/core.ts'
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
@@ -15,34 +16,180 @@ import * as elkProducer from '../elk-instance.ts'
 import * as erLabels from '../er/label-layout.ts'
 import { ErRouteGeometryError } from '../er/errors.ts'
 
+const { JSDOM } = createRequire(import.meta.url)('jsdom')
+
 const native = { graphLayout: { backend: 'agentic' as const } }
 const compoundFixture = readFileSync(new URL('../../eval/layout-compare/fixtures/er-compound-backends.mmd', import.meta.url), 'utf8')
 const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/er-backends.mmd', import.meta.url), 'utf8')
 
 describe('ER layout backends', () => {
-  test.each([1, 4])('keeps %s relationships among thousands of isolated entities within its geometry allowance', count => {
-    const source = 'erDiagram\n' + Array.from({ length: count }, (_, i) => `N${i * 2} ||--|| N${i * 2 + 1} : owns`).join('\n')
-      + '\n' + Array.from({ length: 4096 }, (_, i) => `N${i}`).join('\n')
-    const options = { graphLayout: { backend: 'elk' as const, fallback: 'none' as const } }
+  test.each([
+    ...[1, 4].map(count => ({ count, size: 4096, backend: 'elk' as const, direction: undefined })),
+    ...(['TB', 'BT', 'LR', 'RL'] as const).map(direction => ({ count: 1, size: 256, backend: 'agentic' as const, direction })),
+  ])('keeps $count relationships among $size isolated entities within its geometry allowance with $backend in $direction', ({ count, size, backend, direction }) => {
+    const source = 'erDiagram\n' + (direction ? `direction ${direction}\n` : '') + Array.from({ length: count }, (_, i) => `N${i * 2} ||--|| N${i * 2 + 1} : owns`).join('\n')
+      + '\n' + Array.from({ length: size }, (_, i) => `N${i}`).join('\n')
+    const options = { graphLayout: { backend, fallback: 'none' as const } }
     let rendered!: ReturnType<typeof renderMermaidSVGWithReceipt>
     expect(() => { rendered = renderMermaidSVGWithReceipt(source, options) }).not.toThrow()
     const ids = [...rendered.svg.matchAll(/<g class="entity" data-id="([^"]+)"/g)].map(match => match[1]!)
-    expect(new Set(ids).size).toBe(4096)
-    expect(ids.toSorted()).toEqual(Array.from({ length: 4096 }, (_, i) => `N${i}`).toSorted())
+    expect(new Set(ids).size).toBe(size)
+    expect(ids.toSorted()).toEqual(Array.from({ length: size }, (_, i) => `N${i}`).toSorted())
     expect(rendered.svg.match(/class="er-relationship"/g)).toHaveLength(count)
     for (let i = 0; i < count; i++) expect(rendered.svg).toContain(`data-from="N${i * 2}" data-to="N${i * 2 + 1}"`)
     expect(rendered.svg).toContain('data-label="owns"')
-    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk', fallback: 'none', attempts: [{ backend: 'elk', outcome: 'selected' }] })])
+    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: backend, fallback: 'none', attempts: [{ backend, outcome: 'selected' }] })])
+    if (backend === 'agentic') {
+      const dom = new JSDOM(rendered.svg, { contentType: 'image/svg+xml' })
+      try {
+        const document = dom.window.document as Document, expectedIds = Array.from({ length: 256 }, (_, index) => `N${index}`)
+        const entities = [...document.querySelectorAll('g.entity')]
+        expect(entities.map(entity => entity.getAttribute('data-id'))).toEqual(expectedIds)
+        expect(entities.map(entity => entity.getAttribute('data-label'))).toEqual(expectedIds)
+        expect(entities.map(entity => entity.querySelector('text')?.textContent)).toEqual(expectedIds)
+        const boxes = entities.map((entity, index) => {
+          const rect = entity.querySelector(`rect[data-id="entity-rect:N${index}"]`)!
+          expect(rect).not.toBeNull()
+          const box = { x: Number(rect.getAttribute('x')), y: Number(rect.getAttribute('y')), width: Number(rect.getAttribute('width')), height: Number(rect.getAttribute('height')) }
+          expect(Object.values(box).every(Number.isFinite) && box.width > 0 && box.height > 0).toBe(true)
+          return box
+        })
+        const carriers = [...document.querySelectorAll('.er-relationship')]
+        expect(carriers).toHaveLength(1)
+        const carrier = carriers[0]!
+        for (const [name, value] of Object.entries({ 'data-id': 'rel:N0-N1#0', 'data-from': 'N0', 'data-to': 'N1', 'data-cardinality1': 'one', 'data-cardinality2': 'one', 'data-identifying': 'true', 'data-label': 'owns' })) expect(carrier.getAttribute(name)).toBe(value)
+        expect([...document.querySelectorAll('text')].filter(text => text.textContent === 'owns')).toHaveLength(1)
+        const points = carrier.getAttribute('points')!.trim().split(/\s+/).map(pair => pair.split(',').map(Number))
+        expect(points.length).toBeGreaterThanOrEqual(2)
+        const glyphs = [...document.querySelectorAll('g[data-role="cardinality"]')]
+        expect(glyphs).toHaveLength(2)
+        for (const [index, glyph] of glyphs.entries()) {
+          for (const [name, value] of Object.entries({ 'data-id': `card:N0-N1#0:${index + 1}`, 'data-owner-id': 'rel:N0-N1#0', 'data-owner-role': 'relationship', 'data-end': index ? 'end' : 'start', 'data-endpoint': `N${index}` })) expect(glyph.getAttribute(name)).toBe(value)
+          const at = index ? points.at(-1)! : points[0]!, next = index ? points.at(-2)! : points[1]!
+          const box = boxes[index]!, dx = next[0]! - at[0]!, dy = next[1]! - at[1]!, length = Math.hypot(dx, dy)
+          expect(at[0]! >= box.x - 1e-8 && at[0]! <= box.x + box.width + 1e-8 && at[1]! >= box.y - 1e-8 && at[1]! <= box.y + box.height + 1e-8).toBe(true)
+          expect(Math.abs(at[0]! - box.x) < 1e-8 && dx < 0 && dy === 0 || Math.abs(at[0]! - box.x - box.width) < 1e-8 && dx > 0 && dy === 0 || Math.abs(at[1]! - box.y) < 1e-8 && dy < 0 && dx === 0 || Math.abs(at[1]! - box.y - box.height) < 1e-8 && dy > 0 && dx === 0).toBe(true)
+          const bars = [...glyph.querySelectorAll('line')]
+          expect(bars).toHaveLength(2)
+          const depths = bars.map(bar => {
+            expect(Number(bar.getAttribute('stroke-width'))).toBeGreaterThan(0)
+            const local = ['1', '2'].map(end => {
+              const x = Number(bar.getAttribute(`x${end}`)) - at[0]!, y = Number(bar.getAttribute(`y${end}`)) - at[1]!
+              return [(x * dx + y * dy) / length, (-x * dy + y * dx) / length]
+            }).sort((a, b) => a[1]! - b[1]!)
+            expect(local[0]![0]).toBeCloseTo(local[1]![0]!, 6)
+            expect(local[0]![1]).toBeCloseTo(-6, 6)
+            expect(local[1]![1]).toBeCloseTo(6, 6)
+            return local[0]![0]!
+          }).sort((a, b) => a - b)
+          expect(depths[0]).toBeCloseTo(4, 6)
+          expect(depths[1]).toBeCloseTo(8, 6)
+        }
+        const horizontal = direction === 'LR' || direction === 'RL', reverse = direction === 'BT' || direction === 'RL'
+        const displacement = horizontal ? boxes[1]!.x + boxes[1]!.width / 2 - boxes[0]!.x - boxes[0]!.width / 2 : boxes[1]!.y + boxes[1]!.height / 2 - boxes[0]!.y - boxes[0]!.height / 2
+        expect(displacement * (reverse ? -1 : 1)).toBeGreaterThan(0)
+        for (let i = 0; i < boxes.length; i++) for (let j = 0; j < i; j++) {
+          const a = boxes[i]!, b = boxes[j]!
+          expect(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y, `N${i} overlaps N${j}`).toBe(true)
+        }
+        const isolates = boxes.slice(2)
+        expect(isolates.some(a => isolates.some(b => a.x + a.width <= b.x || b.x + b.width <= a.x)), 'isolates need more than one column').toBe(true)
+        expect(isolates.some(a => isolates.some(b => a.y + a.height <= b.y || b.y + b.height <= a.y)), 'isolates need more than one row').toBe(true)
+        if (direction === 'LR') {
+          const paintedIsolates = (doc: Document) => [...doc.querySelectorAll('g.entity')].slice(2).map(entity => {
+            const rect = entity.querySelector('rect')!, half = Number.parseFloat(rect.getAttribute('stroke-width')!) / 2
+            const x = Number(rect.getAttribute('x')), y = Number(rect.getAttribute('y'))
+            return { x0: x - half, y0: y - half, x1: x + Number(rect.getAttribute('width')) + half, y1: y + Number(rect.getAttribute('height')) + half }
+          })
+          const shelfGap = (doc: Document): number => {
+            const painted = paintedIsolates(doc)
+            let gap = Infinity
+            for (let i = 0; i < painted.length; i++) for (let j = 0; j < i; j++) {
+              const a = painted[i]!, b = painted[j]!
+              if (Math.min(a.y1, b.y1) > Math.max(a.y0, b.y0) + 1e-6) gap = Math.min(gap, Math.max(a.x0 - b.x1, b.x0 - a.x1))
+            }
+            expect(Number.isFinite(gap)).toBe(true)
+            return gap
+          }
+          const connectedMarkup = (doc: Document): string[] => {
+            const caption = [...doc.querySelectorAll('text')].find(text => text.textContent === 'owns')!
+            expect(caption.previousElementSibling?.localName).toBe('rect')
+            return [
+              ...['N0', 'N1'].map(id => doc.querySelector(`g.entity[data-id="${id}"]`)!.outerHTML),
+              doc.querySelector('.er-relationship')!.outerHTML,
+              ...[...doc.querySelectorAll('g[data-role="cardinality"]')].map(glyph => glyph.outerHTML),
+              caption.previousElementSibling!.outerHTML, caption.outerHTML,
+            ]
+          }
+          // Explicitly roomy spacing keeps its meaning. Default island
+          // packing need not reserve the connected graph's node lanes.
+          const roomy = renderMermaidSVGWithReceipt(source, { ...options, nodeSpacing: 70 })
+          const roomyDom = new JSDOM(roomy.svg, { contentType: 'image/svg+xml' })
+          let defaultGap = 0, roomyGap = 0, defaultArea = 0, roomyArea = 0
+          try {
+            const roomyDocument = roomyDom.window.document as Document
+            expect(connectedMarkup(document)).toEqual(connectedMarkup(roomyDocument))
+            defaultGap = shelfGap(document); roomyGap = shelfGap(roomyDocument)
+            expect(defaultGap + 1e-6).toBeGreaterThanOrEqual(0)
+            expect(roomyGap).toBeCloseTo(70, 6)
+            const area = (doc: Document) => Number(doc.documentElement.getAttribute('width')) * Number(doc.documentElement.getAttribute('height'))
+            defaultArea = area(document); roomyArea = area(roomyDocument)
+          } finally { roomyDom.window.close() }
+
+          const small = 'erDiagram\ndirection LR\nN0 ||--|| N1 : owns\n' + Array.from({ length: 16 }, (_, index) => `N${index}`).join('\n')
+          for (const spacing of [
+            { option: 0, configured: undefined, expected: 0 },
+            { option: 70, configured: undefined, expected: 70 },
+            { option: undefined, configured: 90, expected: 90 },
+            { option: 0, configured: 90, expected: 0 },
+          ]) {
+            const input = (spacing.configured === undefined ? '' : `---\nconfig:\n  er:\n    nodeSpacing: ${spacing.configured}\n---\n`) + small
+            const explicit = renderMermaidSVGWithReceipt(input, { ...options, ...(spacing.option === undefined ? {} : { nodeSpacing: spacing.option }) })
+            const explicitDom = new JSDOM(explicit.svg, { contentType: 'image/svg+xml' })
+            try {
+              const doc = explicitDom.window.document as Document
+              expect([...doc.querySelectorAll('g.entity')].map(entity => entity.getAttribute('data-id'))).toEqual(Array.from({ length: 16 }, (_, index) => `N${index}`))
+              expect(doc.querySelector('.er-relationship')!.getAttribute('data-from')).toBe('N0')
+              expect(doc.querySelector('.er-relationship')!.getAttribute('data-to')).toBe('N1')
+              expect(shelfGap(doc)).toBeCloseTo(spacing.expected, 6)
+            } finally { explicitDom.window.close() }
+          }
+          const grouped = small.replace('direction LR\n', 'direction LR\nsubgraph G [Owned cards]\n') + '\nend'
+          const groupedDefault = renderMermaidSVGWithReceipt(grouped, options)
+          const groupedRoomy = renderMermaidSVGWithReceipt(grouped, { ...options, nodeSpacing: 70 })
+          const groupedDoms = [groupedDefault, groupedRoomy].map(result => new JSDOM(result.svg, { contentType: 'image/svg+xml' }))
+          try {
+            const artwork = groupedDoms.map(dom => {
+              const doc = dom.window.document as Document
+              expect(doc.querySelectorAll('g.er-subgraph')).toHaveLength(1)
+              expect(doc.querySelectorAll('g.entity')).toHaveLength(16)
+              // Root scope/style provenance is outside this geometry guard.
+              return [...doc.documentElement.children].filter(element => element.localName !== 'style' && element.localName !== 'defs').map(element => element.outerHTML)
+            })
+            expect(artwork[0]).toEqual(artwork[1])
+          } finally { for (const dom of groupedDoms) dom.window.close() }
+          // Authored-spacing and grouped guards precede the default-only RED.
+          expect(defaultGap).toBeLessThan(roomyGap)
+          expect(defaultArea).toBeLessThan(roomyArea)
+        }
+      } finally { dom.window.close() }
+      expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+    }
   })
 
-  test.each(['elk', 'agentic'].flatMap(backend => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ backend, direction }))))('finishes a 128-entity chain within the shared geometry allowance with $backend in $direction', ({ backend, direction }) => {
-    const source = `erDiagram\ndirection ${direction}\n` + Array.from({ length: 127 }, (_, i) => `N${i} ||--o{ N${i + 1} : owns`).join('\n')
+  test.each([...['elk', 'agentic'].flatMap(backend => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ backend, direction, size: 128 }))),
+    { backend: 'elk', direction: 'LR', size: 207 },
+    { backend: 'agentic', direction: 'LR', size: 192 },
+    { backend: 'elk', direction: 'LR', size: 208 },
+    { backend: 'agentic', direction: 'LR', size: 208 },
+  ])('finishes a $size-entity chain within the shared geometry allowance with $backend in $direction', ({ backend, direction, size }) => {
+    const source = `erDiagram\ndirection ${direction}\n` + Array.from({ length: size - 1 }, (_, i) => `N${i} ||--o{ N${i + 1} : owns`).join('\n')
     const options = { graphLayout: { backend: backend as 'elk' | 'agentic', fallback: 'none' as const } }
     let result!: ReturnType<typeof layoutMermaidWithReceipt>
     expect(() => { result = layoutMermaidWithReceipt(source, options) }).not.toThrow()
     const { layout, receipt } = result
-    expect(layout.nodes.map(node => node.id)).toEqual(Array.from({ length: 128 }, (_, i) => `N${i}`))
-    expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual(Array.from({ length: 127 }, (_, i) => [`N${i}`, `N${i + 1}`]))
+    expect(layout.nodes.map(node => node.id)).toEqual(Array.from({ length: size }, (_, i) => `N${i}`))
+    expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual(Array.from({ length: size - 1 }, (_, i) => [`N${i}`, `N${i + 1}`]))
     const quality = measureQuality(layout)
     expect(quality.edgeCrossings).toBe(0)
     expect(quality.routeOverlaps).toEqual({ parallel: 0, opposing: 0 })
@@ -50,7 +197,17 @@ describe('ER layout backends', () => {
     expect(receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: backend, fallback: 'none' })])
     const rendered = renderMermaidSVGWithReceipt(source, options)
     expect(rendered.receipt.layoutCertification?.status).toBe('passed')
-    expect(rendered.svg.match(/class="er-relationship"/g)).toHaveLength(127)
+    const dom = new JSDOM(rendered.svg, { contentType: 'image/svg+xml' })
+    try {
+      const document = dom.window.document as Document
+      expect([...document.querySelectorAll('.entity')].map(entity => entity.getAttribute('data-id'))).toEqual(Array.from({ length: size }, (_, i) => `N${i}`))
+      const carriers = [...document.querySelectorAll('.er-relationship')]
+      expect(carriers.map(carrier => ['data-from', 'data-to', 'data-cardinality1', 'data-cardinality2', 'data-identifying', 'data-label'].map(name => carrier.getAttribute(name)))).toEqual(
+        Array.from({ length: size - 1 }, (_, i) => [`N${i}`, `N${i + 1}`, 'one', 'zero-many', 'true', 'owns']),
+      )
+      expect(document.querySelectorAll('[data-role="cardinality"]')).toHaveLength((size - 1) * 2)
+      expect([...document.querySelectorAll('text')].filter(label => label.textContent === 'owns')).toHaveLength(size - 1)
+    } finally { dom.window.close() }
   })
 
   test.each(['TB', 'BT', 'LR', 'RL'])('reserves cardinality leads without crossing a neighbouring tree route in %s', direction => {
@@ -293,13 +450,18 @@ test.each([...['TB', 'BT', 'LR', 'RL'].flatMap(direction => ['agentic', 'elk'].m
   const rect = (attrs: Record<string, string>): InkBox => ({ x: Number(attrs.x), y: Number(attrs.y), width: Number(attrs.width), height: Number(attrs.height) })
   const headers = new Map(rectangles.flatMap(attrs => attrs['data-id']?.startsWith('er-group:') && attrs['data-id'].endsWith(':header') ? [[attrs['data-id'].slice('er-group:'.length, -7), rect(attrs)] as const] : []))
   const glyphPieces = new Map<string, InkBox[]>()
-  let currentGlyph: string | undefined
   const tags = [...rendered.svg.matchAll(/<(line|circle|polygon|rect|polyline|path|text)\b[^>]*>/g)]
-  for (const match of tags) {
-    const attrs = attributes(match[0]), tag = match[1]!
-    if (attrs['data-id']) currentGlyph = attrs['data-id'].startsWith('card:') ? attrs['data-id'] : undefined
-    if (!['line', 'circle', 'polygon'].includes(tag)) currentGlyph = undefined
-    if (!currentGlyph) continue
+  const dom = new JSDOM(rendered.svg, { contentType: 'image/svg+xml' })
+  let glyphs: Array<{ id: string; tag: string; attrs: Record<string, string> }>
+  try {
+    const groups = [...(dom.window.document as Document).querySelectorAll('g[data-role="cardinality"]')]
+    expect(groups).toHaveLength(relationships.length * 2)
+    glyphs = groups.flatMap(group => [...group.children].map(piece => ({
+      id: group.getAttribute('data-id')!, tag: piece.localName, attrs: attributes(piece.outerHTML),
+    })))
+  } finally { dom.window.close() }
+  for (const { id, tag, attrs } of glyphs) {
+    expect(['line', 'circle', 'polygon']).toContain(tag)
     const half = Number(attrs['stroke-width'] ?? 0) / 2
     let box: InkBox
     if (tag === 'line') {
@@ -317,8 +479,8 @@ test.each([...['TB', 'BT', 'LR', 'RL'].flatMap(direction => ['agentic', 'elk'].m
       const vertices = attrs.points!.split(/\s+/).map(pair => pair.split(',').map(Number)), xs = vertices.map(p => p[0]!), ys = vertices.map(p => p[1]!)
       box = inflated({ x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) }, half * Number(attrs['stroke-miterlimit'] ?? 4))
     }
-    const pieces = glyphPieces.get(currentGlyph) ?? []
-    pieces.push(box); glyphPieces.set(currentGlyph, pieces)
+    const pieces = glyphPieces.get(id) ?? []
+    pieces.push(box); glyphPieces.set(id, pieces)
   }
   const paths = relationships.map(rel => rel.points!.split(/\s+/).map(pair => { const [x, y] = pair.split(',').map(Number); return { x: x!, y: y! } }))
   const marks = relationships.flatMap((rel, index) => ['1', '2'].map((end, i) => {

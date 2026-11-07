@@ -1,5 +1,7 @@
-import { assertBackendConformance, isBuiltinDefaultBackend } from './backend.ts'
-import { nativeDrawingOf, originalNativeDrawingOf, type DrawingProducer } from './drawing.ts'
+import { createSceneWriteCapture, type SceneWriteReceipt } from './serialization.ts'
+import { MAX_OCCLUSION_OPERATIONS } from './native-paint-emission.ts'
+import { assertBackendConformance, isBuiltinDefaultBackend, isOriginalEnrolledDefaultBackend, getBackendDescriptor } from './backend.ts'
+import { nativeDrawingOf, originalNativeDrawingOf, preferSceneDrawing, type DrawingProducer } from './drawing.ts'
 import { drawNative, type NativeDrawing } from './native-drawing.ts'
 import type { FamilyLayoutResult } from '../agent/families.ts'
 import type { ResolvedRenderRequest } from '../render-contract.ts'
@@ -14,15 +16,27 @@ import { certifyNativePaint, certifyScenePaint, type PaintLayoutCertification } 
 import { observeCache, observeFallback } from '../performance-observations.ts'
 import { cachedNativeDrawing, retainNativeDrawing, type RetainedNativeDrawing } from '../experimental/position-cache.ts'
 
-interface PositionedScene { scene: SceneDoc; crossChecks: boolean; certification?: PaintLayoutCertification }
+interface PositionedScene { scene: SceneDoc; crossChecks: boolean; writes?: SceneWriteReceipt; pendingWrites?: ReturnType<typeof createSceneWriteCapture>; certification?: PaintLayoutCertification }
 type RenderableNativeDrawing = Pick<NativeDrawing, 'svg' | 'preparedText'>
-interface PositionedNative { drawing: RenderableNativeDrawing; producer: DrawingProducer; evidence?: NativeDrawing; certification?: PaintLayoutCertification }
+type PositionedNative = { producer: DrawingProducer } & (
+  { phase: 'captured'; drawing: NativeDrawing; evidence: NativeDrawing }
+  | { phase: 'certified'; drawing: RenderableNativeDrawing; certification: PaintLayoutCertification }
+)
+const positionedWeakGet = WeakMap.prototype.get, positionedApply = Reflect.apply
 const native = new WeakMap<FamilyLayoutResult, WeakMap<ResolvedRenderRequest, PositionedNative>>()
 const retained = new WeakMap<FamilyLayoutResult, WeakMap<ResolvedRenderRequest, PositionedScene>>()
 // Above this conservative native custody capacity, retain one immutable Scene
 // before drawing. This avoids spending the paint allowance on an abandoned
 // native capture; both adapters certify under the same unchanged limits.
 const ER_NATIVE_PAINT_NODE_CAPACITY = 256
+
+/** Resolve the transaction kind before the first Scene consumer. Verification
+ * can inspect/certify before rendering; it must retain that same open receipt. */
+export function actualPositionedSceneWriteEligible(request: ResolvedRenderRequest): boolean {
+  const plan = resolvedRenderExecutionPlanOf(request)
+  return plan.mode === 'scene' && !plan.family.id.startsWith('family:') && !!plan.backend
+    && isBuiltinDefaultBackend(plan.backend.backend) && isOriginalEnrolledDefaultBackend(plan.backend.backend)
+}
 
 /** Lower once from the actual positioned artifact, shared by SVG, layout,
  * verification and receipt consumers. No source parse or layout is repeated. */
@@ -43,28 +57,55 @@ export function retainedPositionedScene(request: ResolvedRenderRequest, layout: 
   if (!plan.family.lowerScene) throw new Error(`Resolved ${request.output} family has no Scene lowering`)
   const colors = request.output === 'png' && request.appearance.colors.embedFontImport !== false
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
+  const actualBackendWrite = actualPositionedSceneWriteEligible(request)
   const assertions = sceneAssertionsEnabled(request)
+  const writer = plan.backend ?? (plan.mode === 'layout' && request.appearance.inferredBackend === 'default' ? getBackendDescriptor('default') : undefined)
+  const writes = !plan.family.id.startsWith('family:') && writer && isBuiltinDefaultBackend(writer.backend) && isOriginalEnrolledDefaultBackend(writer.backend)
+    ? createSceneWriteCapture(MAX_OCCLUSION_OPERATIONS, { fractionalCircleOutput: !request.appearance.styled && !request.appearance.colors.shadow, pageUnderlay: request.appearance.styled }, actualBackendWrite) : undefined
   const lower = () => plan.family.lowerScene!({ positioned: layout.positioned, colors, resolved: resolvedFamilyRenderContextOf(request) })
   const scene = withTextMeasurementExecution(plan.textMeasurement, () => admitFamilyScene(plan.family,
-    !assertions && !plan.family.id.startsWith('family:') ? withDeferredTerminalProjections(lower) : lower(), assertions))
-  requests.set(request, { scene, crossChecks: assertions })
+    !assertions && !plan.family.id.startsWith('family:') ? withDeferredTerminalProjections(lower) : lower(), assertions, writes?.observe))
+  requests.set(request, { scene, crossChecks: assertions, ...(actualBackendWrite && writes ? { pendingWrites: writes, writes: writes.prepare(scene) } : { writes: writes?.finish(scene) }) })
   return scene
+}
+
+export function beginPositionedBackendEmission(request: ResolvedRenderRequest, layout: FamilyLayoutResult, context: object, proof: PaintLayoutCertification): boolean {
+  const requests = positionedApply(positionedWeakGet, retained, [layout]) as WeakMap<ResolvedRenderRequest, PositionedScene> | undefined
+  const entry = requests && positionedApply(positionedWeakGet, requests, [request]) as PositionedScene | undefined
+  if (!entry?.pendingWrites) return false
+  if (proof !== entry.certification) throw new Error('Scene proof belongs to a different positioned transaction')
+  entry.pendingWrites.beginBackendEmission(entry.scene, context, proof)
+  return true
+}
+export function finishPositionedBackendEmission(request: ResolvedRenderRequest, layout: FamilyLayoutResult, result: { kind: 'complete'; proof: PaintLayoutCertification } | { kind: 'abort' }): PaintLayoutCertification | undefined {
+  const requests = positionedApply(positionedWeakGet, retained, [layout]) as WeakMap<ResolvedRenderRequest, PositionedScene> | undefined
+  const entry = requests && positionedApply(positionedWeakGet, requests, [request]) as PositionedScene | undefined
+  if (!entry?.pendingWrites) return undefined
+  if (result.kind === 'abort') entry.pendingWrites.abortBackendEmission()
+  else entry.certification = entry.pendingWrites.finishActual(result.proof)
+  entry.pendingWrites = undefined
+  return entry.certification
 }
 
 /** Native crisp work has no Scene document/group tree. Strong evidence and
  * alternate backends deliberately retain the extension-facing Scene adapter. */
 export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: FamilyLayoutResult): RenderableNativeDrawing | undefined {
   const plan = resolvedRenderExecutionPlanOf(request)
+  // Once ER lowered a Scene, later observers cannot switch its actual operand.
+  if (preferSceneDrawing(plan.family.id) && !native.get(layout)?.has(request) && retained.get(layout)?.has(request)) return undefined
   let bypass = sceneAssertionsEnabled(request) ? 'scene-assertions' : plan.family.id.startsWith('family:') ? 'external-family'
     : plan.backend && !isBuiltinDefaultBackend(plan.backend.backend) ? 'alternate-backend'
       : !(plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && plan.backend?.inputName === 'default') ? 'unsupported-mode' : undefined
   if (!bypass && plan.family.id === 'er' && (retainedFamilyProjection(layout)?.nodes.length ?? 0) > ER_NATIVE_PAINT_NODE_CAPACITY) bypass = 'paint-proof-capacity'
   let producer = bypass ? undefined : nativeDrawingOf(plan.family.lowerScene)
+  if (!bypass && preferSceneDrawing(plan.family.id) && producer && producer === originalNativeDrawingOf(plan.family.lowerScene)) bypass = 'owned-scene-geometry'
   if (!producer) bypass ??= 'no-native-producer'
   if (bypass) {
     observeCache('native-drawing', 'bypass', bypass)
     observeFallback('native-drawing', bypass)
-    return undefined
+    if (bypass !== 'owned-scene-geometry' || nativeDrawingOf(plan.family.lowerScene) === producer) return undefined
+    // An observer installed a different producer before either capture began.
+    producer = nativeDrawingOf(plan.family.lowerScene)
   }
   let requests = native.get(layout)
   if (!requests) { requests = new WeakMap(); native.set(layout, requests) }
@@ -86,7 +127,7 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
     observeCache('native-drawing', 'hit', undefined, 'positioned-owner')
     const cachedProducer = producer
     if (cachedProducer && cachedProducer === nativeDrawingOf(plan.family.lowerScene) && cachedProducer === originalNativeDrawingOf(plan.family.lowerScene)) {
-      requests.set(request, { drawing: cached, producer: cachedProducer, certification: cached.certification })
+      requests.set(request, { phase: 'certified', drawing: cached, producer: cachedProducer, certification: cached.certification })
       return cached
     }
     // An observation callback changed the producer after the lookup. Revoke
@@ -107,7 +148,7 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
   const drawing = withTextMeasurementExecution(plan.textMeasurement, () => drawNative(drawingProducer,
     { positioned: positionedForNativeProducer(layout, drawingProducer), colors, resolved: resolvedFamilyRenderContextOf(request) }, plan.family.id, request.appearance.styled ? request.appearance.style : undefined))
-  requests.set(request, { drawing, producer: drawingProducer, evidence: drawing })
+  requests.set(request, { phase: 'captured', drawing, producer: drawingProducer, evidence: drawing })
   return drawing
 }
 
@@ -115,13 +156,16 @@ export function positionedPaintCertification(request: ResolvedRenderRequest, lay
   const existing = native.get(layout)?.get(request)
   const drawing = existing?.drawing ?? retainedNativeDrawing(request, layout)
   if (drawing) {
-    const entry = native.get(layout)!.get(request)!
-    observeCache('paint-certification', entry.certification ? 'hit' : 'miss', undefined, 'native')
-    if (entry.certification) return entry.certification
-    const evidence = entry.evidence!
+    const requests = native.get(layout)!
+    const entry = requests.get(request)!
+    observeCache('paint-certification', entry.phase === 'certified' ? 'hit' : 'miss', undefined, 'native')
+    if (entry.phase === 'certified') return entry.certification
+    const evidence = entry.evidence
     const certification = certifyNativePaint(evidence.header, evidence.paint, retainedFamilyProjection(layout), { outputSupported: !request.appearance.colors.shadow })
-    entry.certification = certification
     const retained: RetainedNativeDrawing = Object.freeze({ svg: drawing.svg, preparedText: drawing.preparedText, certification })
+    if (positionedApply(positionedWeakGet, requests, [request]) === entry) {
+      requests.set(request, { phase: 'certified', drawing: retained, producer: entry.producer, certification })
+    }
     const lower = resolvedRenderExecutionPlanOf(request).family.lowerScene
     if (entry.producer === nativeDrawingOf(lower) && entry.producer === originalNativeDrawingOf(lower)) retainNativeDrawing(request, layout, retained)
     else {
@@ -136,5 +180,7 @@ export function positionedPaintCertification(request: ResolvedRenderRequest, lay
   if (entry.certification) return entry.certification
   const plan = resolvedRenderExecutionPlanOf(request)
   const supported = !request.appearance.colors.shadow && (plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && plan.backend?.inputName === 'default')
-  return entry.certification = certifyScenePaint(scene, retainedFamilyProjection(layout), { outputSupported: supported })
+  const writer = plan.backend ?? (plan.mode === 'layout' && request.appearance.inferredBackend === 'default' ? getBackendDescriptor('default') : undefined)
+  const written = supported && writer && isBuiltinDefaultBackend(writer.backend) && isOriginalEnrolledDefaultBackend(writer.backend)
+  return entry.certification = certifyScenePaint(scene, retainedFamilyProjection(layout), { outputSupported: supported, sceneWriteReceipt: written ? entry.writes : undefined })
 }

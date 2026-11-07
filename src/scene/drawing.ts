@@ -13,6 +13,9 @@ export type DrawingFactory<T> = {
 export type DrawingProducer<P extends PositionedDiagram = PositionedDiagram> = <T>(factory: DrawingFactory<T>, context: RenderContext<P>) => DrawingDocument<T>
 const nativeDrawings = new WeakMap<object, { readonly original: DrawingProducer; current: DrawingProducer }>()
 
+/** ER and Class reuse their immutable Scene as the geometry and actual-write operand. */
+export function preferSceneDrawing(familyId: string): boolean { return familyId === 'er' || familyId === 'class' }
+
 export function sceneLowering<P extends PositionedDiagram>(draw: DrawingProducer<P>): (context: RenderContext<P>) => SceneDoc {
   const lower = (context: RenderContext<P>): SceneDoc => draw<SceneNode>(marks, context)
   nativeDrawings.set(lower, { original: draw as DrawingProducer, current: draw as DrawingProducer })

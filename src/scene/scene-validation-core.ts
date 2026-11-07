@@ -5,10 +5,12 @@
  * reference, and non-fetching checks before a backend can observe them.
  */
 
+import { SCENE_VALIDATION_LIMITS } from './scene-validation-limits.ts'
+export { SCENE_VALIDATION_LIMITS } from './scene-validation-limits.ts'
 import { assertInertGroup } from './group-emission.ts'
 import { isRetainedPixelText } from '../shared/prepared-text.ts'
-import { scanSvgStartTags } from '../svg-structure.ts'
-import { applyOutputSecurityPolicy } from '../output-security.ts'
+import { scanSvgStartTags, scanSvgStartTagsFresh } from '../svg-structure.ts'
+import { applyOutputSecurityPolicy, verifySvgDocumentEnvelope } from '../output-security.ts'
 import { safeCssPaint } from '../shared/css-color.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
 import { parseExtensionId } from '../shared/extension-identity.ts'
@@ -37,23 +39,12 @@ import { assertRenderableMarker, serializeMarkerResources } from './marker-resou
 import { assertRenderableLinearGradient, LINEAR_GRADIENT_LIMITS, serializeLinearGradientResources } from './gradient-resources.ts'
 import { BUILTIN_SCENE_ROLE_TRAITS, sceneRoleTraits } from './roles.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
-import { inspectSvgOnce } from '../svg-inspection-cache.ts'
-import { canonicalizeSceneNodeSerialization, sceneNodeSerialization } from './serialization.ts'
+import { createSvgInspector } from '../svg-inspection-cache.ts'
+import type { SvgGeometryWriteSink, SvgXmlCapture, SvgXmlWrite } from './svg-writer.ts'
+import { canonicalizeSceneNodeSerialization, sceneNodeWrite, sceneNodeSerialization, sceneNodeSerializationObserved, type SceneSerializationObserver } from './serialization.ts'
 import { MARK_CLASS_TOKENS, MARK_DATA_KEY, WRITER_OWNED_DATA_KEYS } from './svg-writer.ts'
 
 export const SCENE_VALIDATION_VERSION = 2 as const
-export const SCENE_VALIDATION_LIMITS = Object.freeze({
-  maxExtent: 1_000_000,
-  maxNodes: 100_000,
-  maxDepth: 64,
-  maxTextLength: 1_000_000,
-  maxTextBytes: 2_000_000,
-  maxPoints: 50_000,
-  maxSerializationBytesPerNode: 5_000_000,
-  maxAggregateSerializationBytes: 16_000_000,
-  maxFinalSvgBytes: 8_000_000,
-} as const)
-
 export type SceneValidationDiagnosticCode =
   | 'SCENE_DOCUMENT'
   | 'SCENE_FINITE'
@@ -124,6 +115,8 @@ const PAINT_FIELDS = [
 
 type MutableDiagnostic = SceneValidationDiagnostic
 
+const withinFinalSvgByteBudget = createSvgInspector('final-svg-budget', (value: string) => boundedUtf8ByteLength(value, MAX_FINAL_SVG_BYTES) <= MAX_FINAL_SVG_BYTES)
+
 /** Enforce the one post-backend/family SVG artifact budget without allocating
  * an encoded copy. Callers apply this both before and after SVG transforms so
  * neither extension output nor namespace/accessibility expansion can bypass it. */
@@ -132,7 +125,7 @@ export function assertFinalSvgByteBudget(value: unknown, stage = 'final SVG'): a
   // A UTF-16 code unit encodes to at most three UTF-8 bytes, so a string this
   // short is within the budget without counting.
   if (value.length * 3 <= MAX_FINAL_SVG_BYTES) return
-  if (!inspectSvgOnce('final-svg-budget', value, () => boundedUtf8ByteLength(value, MAX_FINAL_SVG_BYTES) <= MAX_FINAL_SVG_BYTES)) {
+  if (!withinFinalSvgByteBudget(value)) {
     throw new RangeError(`${stage} exceeds the ${MAX_FINAL_SVG_BYTES}-byte final SVG limit`)
   }
 }
@@ -661,6 +654,7 @@ function validateMarker(
 }
 
 export interface ValidationState {
+  readonly serializationObserver?: SceneSerializationObserver
   readonly diagnostics: MutableDiagnostic[]
   readonly external: boolean
   readonly aggregateBudgets: boolean
@@ -668,6 +662,7 @@ export interface ValidationState {
     readonly artwork: Array<{ id: string; owner: SceneOwner; path: string }>
     readonly groups: Set<string>
     readonly enclosures: Map<string, SceneOwner>
+    readonly groupValidation?: (node: Extract<SceneNode, { kind: 'group' }>) => void
   }
   readonly paintReferences: Array<{ id: string; path: string }>
   readonly ids: Map<string, { path: string; kind: string }>
@@ -701,10 +696,10 @@ function validateRole(kind: string, value: unknown, path: string, state: Validat
   return true
 }
 
-function validateNodeSerialization(value: SceneNode, path: string, state: ValidationState): string | undefined {
+function validateNodeSerialization(value: SceneNode, path: string, state: ValidationState, sink?: SvgGeometryWriteSink): string | undefined {
   let serialized: string | undefined
   try {
-    serialized = sceneNodeSerialization(value)
+    serialized = sink || state.serializationObserver ? sceneNodeSerializationObserved(value, sink, state.serializationObserver) : sceneNodeSerialization(value)
     if (boundedUtf8ByteLength(serialized, MAX_SERIALIZATION_BYTES_PER_NODE) > MAX_SERIALIZATION_BYTES_PER_NODE) {
       add(state.diagnostics, 'SCENE_DOCUMENT', path, 'has an oversized SVG serialization')
     }
@@ -906,7 +901,11 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
         validateNode(child.node, `${path}.children[${index}].node`, state, depth + 1, subject)
       }
     }
-    try { assertInertGroup(value as unknown as import('./ir.ts').GroupMark) } catch (error) { add(state.diagnostics, 'SCENE_DOCUMENT', path, String(error)) }
+    try {
+      const group = value as unknown as import('./ir.ts').GroupMark
+      if (state.native?.groupValidation) state.native.groupValidation(group)
+      else assertInertGroup(group)
+    } catch (error) { add(state.diagnostics, 'SCENE_DOCUMENT', path, String(error)) }
     if (state.external && (typeof value.open !== 'string' || !/^<g(?:\s|>)/.test(value.open) || value.close !== '</g>')) {
       add(state.diagnostics, 'SCENE_SECURITY', path, 'external containers must use a generated <g> wrapper')
     }
@@ -916,7 +915,12 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     if (value.nonPaint !== undefined) {
       const tags: Record<string, readonly string[]> = { accessibility: ['title', 'desc'], stylesheet: ['style'], 'interaction-metadata': ['title', 'desc'] }
       const allowed = tags[String(value.nonPaint)]
-      if (value.element !== 'content' || !allowed || serialized === undefined || scanSvgStartTags(serialized).some(tag => !allowed.includes(tag.name))) {
+      // Metadata must close its own scope. Separate fragments cannot capture
+      // later typed artwork inside a nonpainting title, description or style.
+      // Admission checks fresh bytes; public inspection caches grant no authority.
+      if (value.element !== 'content' || !allowed || serialized === undefined
+        || scanSvgStartTagsFresh(serialized).some(tag => !allowed.includes(tag.name))
+        || !verifySvgDocumentEnvelope(`<svg xmlns="http://www.w3.org/2000/svg">${serialized}</svg>`, () => true)) {
         add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.nonPaint`, 'must describe only closed non-painting metadata elements')
       }
     }
@@ -1406,7 +1410,8 @@ export function sceneValidationMode(value: unknown, options: SceneValidationOpti
  */
 export interface NativeSceneValidator {
   /** Rejects invalid source fields before writing; groups must have children: []. */
-  node(node: SceneNode, depth?: number): string
+  node(node: SceneNode, depth?: number, sink?: SvgGeometryWriteSink): string
+  write(node: SceneNode, capture: SvgXmlCapture, depth?: number, sink?: SvgGeometryWriteSink): SvgXmlWrite
   depth(depth: number): void
   enclosure(artworkId: string, owner: SceneOwner): void
   /** Checks the full composed group limit without recounting its child bytes. */
@@ -1416,13 +1421,13 @@ export interface NativeSceneValidator {
 
 export function createNativeSceneValidator(
   header: Omit<SceneDoc, 'parts'>,
-  options: { readonly crossChecks?: boolean } = {},
+  options: { readonly crossChecks?: boolean; readonly groupValidation?: (node: Extract<SceneNode, { kind: 'group' }>) => void } = {},
 ): NativeSceneValidator {
   const diagnostics: MutableDiagnostic[] = []
   validateSceneHeader(header, false, diagnostics)
   if (sceneValidationMode(header) === 'external') add(diagnostics, 'SCENE_DOCUMENT', 'scene.family', 'native admission requires a built-in family')
   if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
-  const native = { artwork: [] as Array<{ id: string; owner: SceneOwner; path: string }>, groups: new Set<string>(), enclosures: new Map<string, SceneOwner>() }
+  const native = { artwork: [] as Array<{ id: string; owner: SceneOwner; path: string }>, groups: new Set<string>(), enclosures: new Map<string, SceneOwner>(), groupValidation: options.groupValidation }
   const state = { ...createValidationState(diagnostics, false, options.crossChecks ?? false, true), native }
   let result: SceneValidationResult | undefined
   const open = (): void => {
@@ -1437,7 +1442,7 @@ export function createNativeSceneValidator(
     }
   }
   return {
-    node(node, nesting = 0) {
+    node(node, nesting = 0, sink) {
       open()
       depth(nesting)
       if (node.kind === 'group' && (!Array.isArray(node.children) || node.children.length !== 0)) {
@@ -1448,9 +1453,34 @@ export function createNativeSceneValidator(
       validateNode(node, path, state, nesting)
       // Typed leaves must be structurally admissible before any writer runs.
       if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
-      const serialized = node.kind === 'document' ? sceneNodeSerialization(node) : validateNodeSerialization(node, path, state)
+      const serialized = node.kind === 'document' ? sceneNodeSerialization(node) : validateNodeSerialization(node, path, state, sink)
       if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
       return serialized!
+    },
+    write(node, capture, nesting = 0, sink) {
+      open()
+      depth(nesting)
+      if (node.kind === 'group' && (!Array.isArray(node.children) || node.children.length !== 0)) {
+        add(diagnostics, 'SCENE_DOCUMENT', 'scene.parts', 'native groups must be shallow headers with separately submitted children')
+        throw new SceneValidationError(diagnostics)
+      }
+      const path = `scene.parts[${state.nodeCount}]`
+      validateNode(node, path, state, nesting)
+      if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
+      let written: SvgXmlWrite | undefined
+      try {
+        written = sceneNodeWrite(node, capture, sink, state.serializationObserver)
+        if (node.kind !== 'document' && boundedUtf8ByteLength(written.svg, MAX_SERIALIZATION_BYTES_PER_NODE) > MAX_SERIALIZATION_BYTES_PER_NODE) {
+          add(diagnostics, 'SCENE_DOCUMENT', path, 'has an oversized SVG serialization')
+        }
+      } catch (error) {
+        add(diagnostics, 'SCENE_DOCUMENT', path, error instanceof Error ? error.message : String(error))
+      }
+      if (state.aggregateBudgets && written !== undefined) {
+        consumeStringBudget(state.budget, 'serializationBytes', 'serializationExceeded', written.svg, path, diagnostics, MAX_AGGREGATE_SERIALIZATION_BYTES, 'Scene serializations')
+      }
+      if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
+      return written!
     },
     depth,
     enclosure(artworkId, owner) {
@@ -1567,7 +1597,7 @@ export interface ExternalSceneDocumentChecks {
   canonical(scene: SceneDoc, diagnostics: SceneValidationDiagnostic[]): void
 }
 
-export function validateSceneDocument(value: unknown, options: SceneValidationOptions, crossChecks: boolean, externalChecks?: ExternalSceneDocumentChecks): SceneValidationResult {
+export function validateSceneDocument(value: unknown, options: SceneValidationOptions, crossChecks: boolean, externalChecks?: ExternalSceneDocumentChecks, serializationObserver?: SceneSerializationObserver): SceneValidationResult {
   const diagnostics: MutableDiagnostic[] = []
   if (!record(value)) {
     return Object.freeze({
@@ -1585,7 +1615,7 @@ export function validateSceneDocument(value: unknown, options: SceneValidationOp
   if (!Array.isArray(value.parts)) {
     add(diagnostics, 'SCENE_DOCUMENT', 'scene.parts', 'must be an array')
   } else {
-    const state = createValidationState(diagnostics, external, crossChecks)
+    const state = { ...createValidationState(diagnostics, external, crossChecks), serializationObserver }
     if (value.parts.length > MAX_SCENE_NODES) add(diagnostics, 'SCENE_BOUNDS', 'scene.parts', 'contains too many top-level Scene nodes')
     for (let index = 0; index < Math.min(value.parts.length, MAX_SCENE_NODES); index++) {
       validateNode(value.parts[index], `scene.parts[${index}]`, state, 0)

@@ -1,6 +1,6 @@
 import { isOwnedFamily } from './experimental/owned-family.ts'
 import { isOriginalEnrolledDefaultBackend } from './scene/backend.ts'
-import { nativeDrawingOf, originalNativeDrawingOf, type DrawingProducer } from './scene/drawing.ts'
+import { nativeDrawingOf, originalNativeDrawingOf, preferSceneDrawing, type DrawingProducer } from './scene/drawing.ts'
 import { sceneAssertionsEnabled } from './scene/assertions.ts'
 import { PERFORMANCE_EXPERIMENTS, performanceExperimentEnabled } from './experimental-performance.ts'
 import { borrowedPositioned, cachedPositioned, clonePositioned, isRetainedPositionedSnapshot, retainOwnedNativeSvgPositioned, retainPositioned } from './experimental/position-cache.ts'
@@ -64,7 +64,7 @@ export function positionFamilyForNativeRender(request: ResolvedRenderRequest): F
   const producer = nativeDrawingOf(plan.family.lowerScene)
   const reusableMetrics = !plan.textMeasurement || textMeasurementCacheIdentity(plan.textMeasurement) !== undefined
   const borrow = plan.mode === 'scene' && isOriginalEnrolledDefaultBackend(plan.backend?.backend)
-    && isOwnedFamily(plan.family) && reusableMetrics
+    && isOwnedFamily(plan.family) && !preferSceneDrawing(plan.family.id) && reusableMetrics
     && !!producer && producer === originalNativeDrawingOf(plan.family.lowerScene) && !sceneAssertionsEnabled(request)
   const result = positionFamily(plan.family.id, request, request.source, {}, borrow, true)
   if (borrow && isRetainedPositionedSnapshot(result)) borrowedNativeProducers.set(result, producer!)
@@ -163,7 +163,7 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
       retain(descriptor, boundedKey, result, retainedProjections.get(result))
     }
     return result
-  })
+  }, request.appearance.font)
   const optimization = layoutOptimization(Boolean(request.renderOptions.graphLayout?.quality || request.renderOptions.graphLayout?.viewport))
   return optimization ? optimization.withLayoutOptimizationBudget(request, request.renderOptions.graphLayout, position, true) : position()
 }

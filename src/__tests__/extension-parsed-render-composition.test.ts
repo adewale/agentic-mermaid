@@ -1,3 +1,4 @@
+import { KNOWN_EXTENSION_CONTRACT_VERSIONS } from '../shared/extension-identity.ts'
 import { describe, expect, test } from 'bun:test'
 
 import {
@@ -33,7 +34,7 @@ function descriptor(): FamilyDescriptor {
       id: FAMILY_ID,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.5.0' },
+      compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core },
       provenance: { owner: 'parsed-render-composition-test', source: 'test' },
     }),
     id: FAMILY_ID,

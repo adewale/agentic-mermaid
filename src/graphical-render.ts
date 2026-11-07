@@ -28,11 +28,11 @@ import {
 } from './render-contract.ts'
 import { applyOutputSecurityPolicy } from './output-security.ts'
 import type { OutputSecurityDiagnostic } from './output-security.ts'
-import { replaceSvgRootStartTag, svgAttribute, svgRootStartTag } from './svg-structure.ts'
+import { decodedSvgAttributeValue, replaceSvgRootStartTag, scanSvgStartTags, svgAttribute, svgRootStartTag } from './svg-structure.ts'
 import { scopeSvgStyles } from './svg-style-scope.ts'
 import { emitResolvedConfigDiagnostics } from './render-config-diagnostics.ts'
-import { retainedPositionedScene, retainedNativeDrawing, positionedPaintCertification } from './scene/positioned.ts'
-import { PaintLayoutCertificationError, type PaintLayoutCertification, type PaintViewport } from './scene/paint-certification.ts'
+import { retainedPositionedScene, actualPositionedSceneWriteEligible, retainedNativeDrawing, positionedPaintCertification, beginPositionedBackendEmission, finishPositionedBackendEmission } from './scene/positioned.ts'
+import { PaintLayoutCertificationError, MAX_OCCLUSION_OPERATIONS, MAX_OCCLUSION_PAIRS, type PaintLayoutCertification, type PaintViewport } from './scene/paint-certification.ts'
 import { assertFinalSvgByteBudget } from './scene/scene-validation-core.ts'
 import type { SceneDoc } from './scene/ir.ts'
 import { sceneHasOnlyPreparedText } from './scene/serialization.ts'
@@ -105,8 +105,23 @@ function injectAccessibility(
   idPrefix: string,
   fallbackName?: string,
 ): string {
-  const titleId = `${idPrefix}svg-title`
-  const descId = `${idPrefix}svg-desc`
+  if (!accessibility.title && !accessibility.descr && !fallbackName) return svg
+  const root = svgRootStartTag(svg)
+  if (!root) return svg
+  if (svgAttribute(root, 'aria-labelledby') || svgAttribute(root, 'aria-describedby')) return svg
+  const ids = new Set<string>()
+  if (accessibility.title || accessibility.descr) for (const tag of scanSvgStartTags(svg)) {
+    const id = decodedSvgAttributeValue(tag, 'id')
+    if (id !== undefined) ids.add(id)
+  }
+  const allocate = (base: string): string => {
+    let id = base, suffix = 0
+    while (ids.has(id)) id = `${base}-${++suffix}`
+    ids.add(id)
+    return id
+  }
+  const titleId = accessibility.title ? allocate(`${idPrefix}svg-title`) : ''
+  const descId = accessibility.descr ? allocate(`${idPrefix}svg-desc`) : ''
   const rootAttrs: string[] = []
   const children: string[] = []
   if (accessibility.title) {
@@ -117,10 +132,6 @@ function injectAccessibility(
     rootAttrs.push(`aria-describedby="${descId}"`)
     children.push(`<desc id="${descId}">${escapeXmlText(accessibility.descr)}</desc>`)
   }
-  if (children.length === 0 && !fallbackName) return svg
-  const root = svgRootStartTag(svg)
-  if (!root) return svg
-  if (svgAttribute(root, 'aria-labelledby') || svgAttribute(root, 'aria-describedby')) return svg
   if (fallbackName && !accessibility.title && !svgAttribute(root, 'aria-label')) rootAttrs.push(`aria-label="${escapeXmlText(fallbackName).replace(/"/g, '&quot;')}"`)
   const add = `${svgAttribute(root, 'role') ? '' : ' role="img"'} ${rootAttrs.join(' ')}`
   const open = svg.slice(root.start, root.end)
@@ -144,7 +155,18 @@ export function renderPositionedMermaidSVG(
   capture?: ScenePartCapture,
 ): ResolvedGraphicalExecution {
   return withTextMeasurementExecution(resolvedRenderExecutionPlanOf(request).textMeasurement, () =>
-    renderPositionedWithTextMeasurement(request, layout, securityDiagnostics, capture))
+    renderPositionedWithTextMeasurement(request, layout, securityDiagnostics, capture), request.appearance.font)
+}
+
+// A previously closed request cannot lend its proof to a new actual write.
+// Refuse before another proof attempt; no allowance or leaf facts are reset.
+function unavailableActualBackendWrite(scene: SceneDoc): PaintLayoutCertification {
+  return Object.freeze({ version: 1, unit: 'px', scope: 'native-scene', status: 'unverified',
+    viewport: { x: 0, y: 0, width: scene.width, height: scene.height }, attempts: 1, repairs: [],
+    coverage: { measured: 0, unmeasured: 0, preparedText: 0, fallbackText: 0, conditional: 0 },
+    checks: { primitives: 0, labels: 0, occlusionPairs: 0, maxOcclusionPairs: MAX_OCCLUSION_PAIRS, operations: 8, maxOperations: MAX_OCCLUSION_OPERATIONS, markers: 0 },
+    issues: [{ code: 'OUTPUT_SCOPE', message: 'This actual backend write has no open same-emission receipt' }], limitations: [],
+  } as const)
 }
 
 function renderPositionedWithTextMeasurement(
@@ -165,17 +187,32 @@ function renderPositionedWithTextMeasurement(
   let layoutCertification: PaintLayoutCertification | undefined
   if (executionPlan.mode === 'scene') {
     const drawing = capture ? undefined : measureRenderStage('drawing', () => retainedNativeDrawing(request, layout))
+    const actualWrite = !drawing && !capture && actualPositionedSceneWriteEligible(request)
     const scene = drawing ? undefined : measureRenderStage('scene', () => lowerPositionedFamilyScene(request, layout))
     layoutCertification = measureRenderStage('paint-certification', () => positionedPaintCertification(request, layout))
-    if ((effectiveOptions.layoutSafety === 'strict' && layoutCertification.status !== 'passed') || (layoutCertification.status === 'failed' && executionPlan.backend?.inputName === 'default')) throw new PaintLayoutCertificationError(layoutCertification)
+    if (layoutCertification && ((effectiveOptions.layoutSafety === 'strict' && layoutCertification.status !== 'passed') || (layoutCertification.status === 'failed' && executionPlan.backend?.inputName === 'default'))) throw new PaintLayoutCertificationError(layoutCertification)
+    let actualWriteBound = false
     rawSvg = drawing?.svg ?? measureRenderStage('backend', () => {
       const backendContext = {
         seed: effectiveOptions.seed ?? 0,
         ...(request.appearance.styled ? { style: request.appearance.style } : {}),
       }
       capture?.begin(backendContext, scene!)
-      return executionPlan.backend!.backend.render(scene!, backendContext)
+      if (actualWrite) actualWriteBound = beginPositionedBackendEmission(request, layout, backendContext, layoutCertification!)
+      let completed = false
+      try {
+        const svg = executionPlan.backend!.backend.render(scene!, backendContext)
+        if (actualWriteBound) layoutCertification = finishPositionedBackendEmission(request, layout, { kind: 'complete', proof: layoutCertification! }) ?? unavailableActualBackendWrite(scene!)
+        completed = true
+        return svg
+      } finally {
+        if (actualWriteBound && !completed) finishPositionedBackendEmission(request, layout, { kind: 'abort' })
+      }
     })
+    if (actualWrite) {
+      if (!actualWriteBound) layoutCertification = unavailableActualBackendWrite(scene!)
+      if ((effectiveOptions.layoutSafety === 'strict' && layoutCertification.status !== 'passed') || layoutCertification.status === 'failed') throw new PaintLayoutCertificationError(layoutCertification)
+    }
     preparedText = executionPlan.backend?.inputName === 'default'
       && !family.id.startsWith('family:') && (drawing?.preparedText ?? sceneHasOnlyPreparedText(scene!))
   } else {

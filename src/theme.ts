@@ -306,6 +306,27 @@ function inlineFontVarInCss(svg: string): string {
   }
 }
 
+/** Canonical declarations shared by the style writer and emission checks. */
+export const SVG_STYLE_DECLARATIONS = Object.freeze({
+  fontPrefix: '  svg { font-family: var(--font, ',
+  fontSuffix: '), system-ui, sans-serif; }',
+  mono: "  .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }",
+  derived: `
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) ${MIX.textSec}%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) ${MIX.textMuted}%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) ${MIX.textFaint}%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) ${MIX.line}%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) ${MIX.arrow}%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) ${MIX.nodeFill}%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) ${MIX.nodeStroke}%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) ${MIX.groupHeader}%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) ${MIX.innerStroke}%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) ${MIX.keyBadge}%, var(--bg));`,
+})
+
 export function buildStyleBlock(font: string, hasMonoFont: boolean, shadow?: boolean, embedFontImport: boolean = false): string {
   font = requireSafeCssFontFamily(font)
   // Font imports are opt-in. The family import is additionally suppressed for
@@ -322,23 +343,6 @@ export function buildStyleBlock(font: string, hasMonoFont: boolean, shadow?: boo
       ]
     : []
 
-  // Derived CSS variables: use override if set, else mix from bg+fg.
-  // The --_ prefix signals "private/derived" — not meant for external override.
-  const derivedVars = `
-    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
-    --_text:          var(--fg);
-    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) ${MIX.textSec}%, var(--bg)));
-    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) ${MIX.textMuted}%, var(--bg)));
-    --_text-faint:    color-mix(in srgb, var(--fg) ${MIX.textFaint}%, var(--bg));
-    --_line:          var(--line, color-mix(in srgb, var(--fg) ${MIX.line}%, var(--bg)));
-    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) ${MIX.arrow}%, var(--bg)));
-    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) ${MIX.nodeFill}%, var(--bg)));
-    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) ${MIX.nodeStroke}%, var(--bg)));
-    --_group-fill:    var(--bg);
-    --_group-hdr:     color-mix(in srgb, var(--fg) ${MIX.groupHeader}%, var(--bg));
-    --_inner-stroke:  color-mix(in srgb, var(--fg) ${MIX.innerStroke}%, var(--bg));
-    --_key-badge:     color-mix(in srgb, var(--fg) ${MIX.keyBadge}%, var(--bg));`
-
   // Shadow CSS — applies drop shadow to node/box groups when enabled
   const shadowRules = shadow
     ? '\n  .node, .class-node, .entity, .actor[data-type="participant"], .note, .block, .timeline-event, .journey-task, .sankey-node { filter: url(#bm-shadow); }'
@@ -351,7 +355,7 @@ export function buildStyleBlock(font: string, hasMonoFont: boolean, shadow?: boo
   // multi-family stacks pass through unquoted — quoting those would make the
   // fallback a bogus single family literally named e.g. "var(--brand-font)".
   const fontFallback = isPlainFontFamily(font) ? `'${font}'` : font
-  const fontFamilyDecl = `  svg { font-family: var(--font, ${fontFallback}), system-ui, sans-serif; }`
+  const fontFamilyDecl = `${SVG_STYLE_DECLARATIONS.fontPrefix}${fontFallback}${SVG_STYLE_DECLARATIONS.fontSuffix}`
 
   // Only emit @import lines when there are any (embedFontImport=false, or the
   // family import was suppressed for a non-plain font and no mono face is
@@ -364,8 +368,8 @@ export function buildStyleBlock(font: string, hasMonoFont: boolean, shadow?: boo
   return [
     '<style>',
     ...styleHead,
-    ...(hasMonoFont ? [`  .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }`] : []),
-    `  svg {${derivedVars}`,
+    ...(hasMonoFont ? [SVG_STYLE_DECLARATIONS.mono] : []),
+    `  svg {${SVG_STYLE_DECLARATIONS.derived}`,
     `  }${shadowRules}`,
     '</style>',
   ].join('\n')
@@ -665,6 +669,16 @@ export function createInlineColorAttributeResolver(): typeof resolveInlineColorA
   }
 }
 
+/** Bind one immutable emission's retained paint variables to the same kernel
+ * used by SVG colour finalization. Definitions are copied into private state. */
+export function createInlineColorAttributeResolverForVariables(
+  colors: DiagramColors,
+  definitions: ReadonlyMap<string, string>,
+): ((value: string) => string | undefined) | undefined {
+  const resolution = colorResolution(colors, undefined, definitions)
+  return resolution ? value => resolvedInlineColorAttribute(escapeAttr(value), resolution) : undefined
+}
+
 function resolvedInlineColorAttribute(escaped: string, resolution: ReturnType<typeof colorResolution>): string | undefined {
   const resolved = resolution ? resolution.resolveCss(escaped, resolution.vars, 10) : escaped
   // Scene admission excludes context-breaking palette values. Preserve the
@@ -676,7 +690,7 @@ function resolvedInlineColorAttribute(escaped: string, resolution: ReturnType<ty
   return decodeXML(resolved)
 }
 
-function colorResolution(colors: DiagramColors, svg?: string) {
+function colorResolution(colors: DiagramColors, svg?: string, definitions?: ReadonlyMap<string, string>) {
   const palette = diagramColorVariables(colors)
   if (!palette) return undefined
   const rc = resolveColors(colors)
@@ -685,7 +699,7 @@ function colorResolution(colors: DiagramColors, svg?: string) {
   // before using them in style-block fallbacks. Learn those up front so
   // var(--family-token, fallback) prefers the authored token over fallback.
   const projection = svg === undefined ? undefined : projectSvgCss(svg)
-  const vars = projection ? cssPaintDefinitions(projection) : new Map<string, string>()
+  const vars = definitions ? new Map(definitions) : projection ? cssPaintDefinitions(projection) : new Map<string, string>()
   for (const [name, value] of palette) if (name.startsWith('_') || value !== undefined && !vars.has(name)) vars.set(name, value)
   // Literal RGB/named pages were normalized for concrete color-mix math;
   // their authored root tokens must not undo that internal normalization.

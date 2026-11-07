@@ -1,3 +1,4 @@
+import { fitMeasuredLayout } from './fit-measured-layout.ts'
 import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
 import type { Point } from '../types.ts'
 import { countPolylineCrossings } from '../shared/edge-crossings.ts'
@@ -16,9 +17,11 @@ export function compactMeasuredLoops(input: MeasuredGraph, placed: AgenticLayout
     cross = horizontal ? 'y' : 'x'
   const point = (m: number, c: number): Point => (horizontal ? { x: m, y: c } : { x: c, y: m })
   const boxes = input.nodes.map((node, index) => ({ ...placed.nodes[index]!, width: node.width, height: node.height }))
+  // Final route admission reserves the caption's two-pixel halo too. A
+  // cosmetic shortcut must not erase a jog that keeps another halo clear.
   const labels = input.edges.map((edge, index) => {
     const p = placed.edges[index]!.labelPosition
-    return edge.label && p ? { x: p.x - edge.label.width / 2, y: p.y - edge.label.height / 2, width: edge.label.width, height: edge.label.height } : undefined
+    return edge.label && p ? { x: p.x - edge.label.width / 2 - 2, y: p.y - edge.label.height / 2 - 2, width: edge.label.width + 4, height: edge.label.height + 4 } : undefined
   })
   const ink = placed.edges.map((edge, index) => ({ points: edge.points, style: input.edges[index]!.visible === false ? 'invisible' : 'solid' }))
   const visible = () => ink.map(edge => ({ points: edge.points, visible: edge.style !== 'invisible' }))
@@ -61,13 +64,27 @@ export function compactMeasuredLoops(input: MeasuredGraph, placed: AgenticLayout
           halfCross = (horizontal ? edge.label.height : edge.label.width) / 2
         const lower = halfMain + 16,
           upper = (lane - start[main]) * sign - halfMain - 8
-        if (lower > upper) continue
-        const m = start[main] + sign * Math.max(lower, Math.min(upper, (labelPosition[main] - start[main]) * sign))
+        let sideLabel: { width: number; height: number } | undefined
+        if (lower > upper) {
+          const label = Object.getOwnPropertyDescriptor(edge, 'label')?.value,
+            width = label && Object.getOwnPropertyDescriptor(label, 'width')?.value,
+            height = label && Object.getOwnPropertyDescriptor(label, 'height')?.value
+          // The optional new seat cannot depend on dimensions changing between
+          // placement and clearance. Keep legacy geometry for live accessors.
+          if (!Number.isFinite(width) || !Number.isFinite(height) || width < 0 || height < 0
+            || width !== 2 * (horizontal ? halfMain : halfCross) || height !== 2 * (horizontal ? halfCross : halfMain)) return placed
+          sideLabel = { width, height }
+        }
+        // A caption beside the outer bend need not fit inside a terminal leg.
+        // The same occupied-label, shaft and crossing checks below admit it.
+        const m = lower > upper ? lane : start[main] + sign * Math.max(lower, Math.min(upper, (labelPosition[main] - start[main]) * sign))
         const candidates = [point(m, Math.min(start[cross], end[cross]) - halfCross - 4), point(m, Math.max(start[cross], end[cross]) + halfCross + 4)]
         candidates.sort((a, b) => Math.abs(a.x - route.labelPosition!.x) + Math.abs(a.y - route.labelPosition!.y) - Math.abs(b.x - route.labelPosition!.x) - Math.abs(b.y - route.labelPosition!.y))
         labelPosition = undefined
         for (const candidate of candidates) {
-          const box = { x: candidate.x - edge.label.width / 2, y: candidate.y - edge.label.height / 2, width: edge.label.width, height: edge.label.height }
+          const box = sideLabel
+            ? { x: candidate.x - sideLabel.width / 2 - 2, y: candidate.y - sideLabel.height / 2 - 2, width: sideLabel.width + 4, height: sideLabel.height + 4 }
+            : { x: candidate.x - edge.label.width / 2 - 2, y: candidate.y - edge.label.height / 2 - 2, width: edge.label.width + 4, height: edge.label.height + 4 }
           work.loopPairs -= occupied.length + total
           if (work.loopPairs < 0) return placed
           if (box.x < input.padding || box.y < input.padding || box.x + box.width > placed.width - input.padding || box.y + box.height > placed.height - input.padding) continue
@@ -90,28 +107,5 @@ export function compactMeasuredLoops(input: MeasuredGraph, placed: AgenticLayout
     }
   }
   if (!changed) return placed
-  let left = Infinity,
-    top = Infinity,
-    right = -Infinity,
-    bottom = -Infinity
-  const include = (x: number, y: number, w = 0, h = 0) => {
-    left = Math.min(left, x)
-    top = Math.min(top, y)
-    right = Math.max(right, x + w)
-    bottom = Math.max(bottom, y + h)
-  }
-  boxes.forEach(box => include(box.x, box.y, box.width, box.height))
-  placed.edges.forEach((edge, index) => {
-    edge.points.forEach(p => include(p.x, p.y))
-    const p = edge.labelPosition,
-      label = input.edges[index]!.label
-    if (p && label) include(p.x - label.width / 2, p.y - label.height / 2, label.width, label.height)
-  })
-  const dx = input.padding - left,
-    dy = input.padding - top
-  placed.nodes = placed.nodes.map(p => ({ x: p.x + dx, y: p.y + dy }))
-  placed.edges = placed.edges.map(edge => ({ ...edge, points: edge.points.map(p => ({ x: p.x + dx, y: p.y + dy })), ...(edge.labelPosition ? { labelPosition: { x: edge.labelPosition.x + dx, y: edge.labelPosition.y + dy } } : {}) }))
-  placed.width = right - left + 2 * input.padding
-  placed.height = bottom - top + 2 * input.padding
-  return placed
+  return fitMeasuredLayout(input, placed)
 }

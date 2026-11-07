@@ -156,6 +156,24 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     }
   })
 
+  test('mixed solid markers survive typed export beside formatted Unicode labels', async () => {
+    const source = 'flowchart LR\nA["<b>Read</b> 界 é"] o-->|queue 界| B[Store]\nB x---> C[Done]'
+    const diagram = parseAgent(source)
+    expect(diagram.body.kind).toBe('flowchart')
+    const written = serializeMermaid(diagram)
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(true)
+      expect(await upstream.accepts(written)).toBe(true)
+    } finally { upstream.close() }
+    const reread = parseGraph(written)
+    expect(reread.nodes.get('A')?.label).toBe('<b>Read</b> 界 é')
+    expect(reread.edges.map(edge => [edge.source, edge.target, edge.label, edge.startMarker, edge.endMarker, edge.length])).toEqual([
+      ['A', 'B', 'queue 界', 'circle', 'arrow', undefined],
+      ['B', 'C', undefined, 'cross', 'arrow', 2],
+    ])
+  })
+
   // A title holding whitespace or a line break names no group: upstream draws
   // each such block as its own `subGraphN`, as it does a title spelled apart.
   test.each([

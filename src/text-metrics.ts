@@ -16,7 +16,7 @@
 import { isWideRange, isZeroWidth, VS_EMOJI, VS_TEXT } from './shared/unicode-ranges.ts'
 import { HAS_FORMAT_TAGS, parseInlineFormatting } from './shared/inline-format.ts'
 import { graphemes } from './shared/graphemes.ts'
-import type { DisplayTextInput } from './shared/display-text.ts'
+import { prepareDisplayText, type DisplayTextInput } from './shared/display-text.ts'
 import { customTextMeasurementActive, profileTextWidth } from './text-measurement-profile.ts'
 
 /**
@@ -261,6 +261,17 @@ export function measureFormattedTextWidth(
   fontFamily?: string,
 ): number {
   const segments = HAS_FORMAT_TAGS.test(text) ? parseInlineFormatting(text) : [{ text, bold: false }]
+  return measureStyledTextWidth(segments, fontSize, fontWeight, letterSpacing, fontStyle, fontFamily)
+}
+
+function measureStyledTextWidth(
+  segments: readonly { text: string; bold: boolean; italic?: boolean }[],
+  fontSize: number,
+  fontWeight: number,
+  letterSpacing: number,
+  fontStyle: 'normal' | 'italic' = 'normal',
+  fontFamily?: string,
+): number {
   const glyphText = segments.map(segment => segment.text).join('')
   // Untracked text (the common case) needs no grapheme segmentation.
   const tracking = letterSpacing === 0 ? 0 : Math.max(0, graphemes(glyphText).length - 1) * letterSpacing
@@ -319,11 +330,16 @@ export function measureMultilineText(
   const lines = text.split('\n')
   const lineHeight = fontSize * LINE_HEIGHT_RATIO
 
-  // Width = max of all line widths
+  const prepared = HAS_FORMAT_TAGS.test(text) ? prepareDisplayText(text) : undefined
   let maxWidth = 0
-  for (const line of lines) {
-    const w = measureFormattedTextWidth(line, fontSize, fontWeight, letterSpacing)
-    if (w > maxWidth) maxWidth = w
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index]!, runs = prepared?.lines[index]
+    // Raw callers retain their text and italic measurement parameters; source
+    // ranges recover the unsanitized payload under the shared style reading.
+    const width = runs && (HAS_FORMAT_TAGS.test(line) || runs.some(run => run.bold || run.italic || run.underline || run.strikethrough))
+      ? measureStyledTextWidth(runs.map(run => ({ ...run, text: text.slice(run.sourceStart, run.sourceEnd) })), fontSize, fontWeight, letterSpacing)
+      : measureFormattedTextWidth(line, fontSize, fontWeight, letterSpacing)
+    if (width > maxWidth) maxWidth = width
   }
 
   return {

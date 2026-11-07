@@ -1,3 +1,5 @@
+import { createRequire } from 'node:module'
+import { useTestChildren } from './helpers/test-child.ts'
 import { describe, expect, spyOn, test } from 'bun:test'
 import * as graphPlacement from '../layout-engine.ts'
 import { withGraphLayoutDecisionObserver, type GraphLayoutDecision } from '../layout/backend.ts'
@@ -11,6 +13,8 @@ import { parseArchitectureDiagram } from '../architecture/parser.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 import { withRenderStageObserver } from '../render-stages.ts'
 
+const runInteractionChild = useTestChildren(20_000)
+
 const native = { graphLayout: { backend: 'agentic' as const } }
 const highContrastElk = { graphLayout: { backend: 'elk' as const, fallback: 'none' as const }, style: ['accessible-high-contrast', 'catppuccin-latte'], bg: '#111827', transparent: false, seed: 19, security: 'default' as const, embedFontImport: false }
 const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/architecture-backends.mmd', import.meta.url), 'utf8')
@@ -18,6 +22,117 @@ const faces = 'architecture-beta\nservice left(disk)[Left]\nservice top(disk)[To
 const literalIcons = 'architecture-beta\nservice a "<b>日本 API</b>\\nSecond line" [Backend]\nservice b(database)[Storage]\na:R-->L:b'
 
 describe('Architecture layout backends', () => {
+  test.each((['agentic', 'elk'] as const).flatMap(backend => (['scene', 'native'] as const).map(admission => ({ backend, admission }))))('retains nested junction and group-boundary meanings with $backend through $admission', async ({ backend, admission }) => {
+    // Hand-authored before parser/render calls: leaf sink remains the endpoint
+    // identity while its group boundary supplies the physical bottom port.
+    const interaction = {
+      source: 'architecture-beta\ngroup outer(cloud)[Control]\ngroup inner(database)[Data] in outer\nservice edge-1(server)[Ingress] in outer\nservice sink(database)[Archive] in inner\nservice probe(server)[Monitor]\njunction relay in outer\nedge-1:R -[handoff]-> L:relay\nrelay:R -[handoff]-> L:sink\nsink{group}:B --> T:probe',
+      groups: [
+        { id: 'outer', label: 'Control', parent: null },
+        { id: 'inner', label: 'Data', parent: 'outer' },
+      ],
+      services: [
+        { id: 'edge-1', label: 'Ingress', parent: 'outer', icon: 'server' },
+        { id: 'sink', label: 'Archive', parent: 'inner', icon: 'database' },
+        { id: 'probe', label: 'Monitor', parent: null, icon: 'server' },
+      ],
+      junctions: [
+        { id: 'relay', parent: 'outer' },
+      ],
+      relations: [
+        { from: 'edge-1', to: 'relay', fromSide: 'R', toSide: 'L', fromBoundary: 'item', toBoundary: 'item', start: 'none', end: 'arrow', label: 'handoff' },
+        { from: 'relay', to: 'sink', fromSide: 'R', toSide: 'L', fromBoundary: 'item', toBoundary: 'item', start: 'none', end: 'arrow', label: 'handoff' },
+        { from: 'sink', to: 'probe', fromSide: 'B', toSide: 'T', fromBoundary: 'group', toBoundary: 'item', start: 'none', end: 'arrow', label: null },
+      ],
+    } as const
+
+    const options = { graphLayout: { backend, fallback: 'none' as const }, embedFontImport: false }
+    let packet: { rendered: ReturnType<typeof renderMermaidSVGWithReceipt>; parsed: ReturnType<typeof parseRegisteredMermaid>; stages: string[] }
+    if (admission === 'native') {
+      const child = await runInteractionChild(process.execPath, ['-e', `
+        import { renderMermaidSVGWithReceipt, parseRegisteredMermaid } from './src/index.ts'
+        import { withRenderStageObserver } from './src/render-stages.ts'
+        const input = await Bun.stdin.text(), options = ${JSON.stringify(options)}, stages = []
+        const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(input, options))
+        console.log(JSON.stringify({ rendered, parsed: parseRegisteredMermaid(input), stages }))
+      `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' }, input: interaction.source })
+      expect(child.status, child.stderr).toBe(0)
+      packet = JSON.parse(child.stdout)
+      expect(packet.stages).toContain('drawing')
+      expect(packet.stages).not.toContain('scene')
+    } else {
+      const stages: string[] = []
+      const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(interaction.source, options))
+      packet = { rendered, parsed: parseRegisteredMermaid(interaction.source), stages }
+      expect(stages).toContain('scene')
+    }
+    expect(packet.rendered.receipt.layoutDecisions?.[0]?.selected).toBe(backend)
+    if (!packet.parsed.ok) throw new Error('The independently authored interaction must parse')
+    const body = packet.parsed.value.body
+
+    if (body.kind !== 'architecture') throw new Error('Expected public structured Architecture')
+    expect(body.groups.map(group => ({ id: group.id, label: group.label, parent: group.parentId ?? null }))).toEqual([...interaction.groups])
+    expect(body.services.map(service => ({ id: service.id, label: service.label, parent: service.parentId ?? null, icon: service.icon }))).toEqual([...interaction.services])
+    expect(body.junctions.map(junction => ({ id: junction.id, parent: junction.parentId ?? null }))).toEqual([...interaction.junctions])
+    expect(body.edges.map(edge => ({ from: edge.source.id, to: edge.target.id, fromSide: edge.source.side, toSide: edge.target.side,
+      fromBoundary: edge.source.boundary ?? 'item', toBoundary: edge.target.boundary ?? 'item', start: edge.hasArrowStart ? 'arrow' : 'none', end: edge.hasArrowEnd ? 'arrow' : 'none', label: edge.label ?? null }))).toEqual([...interaction.relations])
+    const { JSDOM } = createRequire(import.meta.url)('jsdom')
+    const dom = new JSDOM(packet.rendered.svg, { contentType: 'image/svg+xml' })
+    try {
+      const document = dom.window.document as Document
+      const groups = [...document.querySelectorAll('g.architecture-group')], services = [...document.querySelectorAll('g.architecture-service')], junctions = [...document.querySelectorAll('g.architecture-junction')]
+      expect(groups.map(group => group.getAttribute('data-id')).sort()).toEqual(interaction.groups.map(group => group.id).sort())
+      expect(services.map(service => service.getAttribute('data-id')).sort()).toEqual(interaction.services.map(service => service.id).sort())
+      expect(junctions.map(junction => junction.getAttribute('data-id'))).toEqual(interaction.junctions.map(junction => junction.id))
+      const actualBoxes = new Map<string, { x: number; y: number; w: number; h: number }>()
+      const rectangle = (element: Element) => ({ x: Number(element.getAttribute('x')), y: Number(element.getAttribute('y')), w: Number(element.getAttribute('width')), h: Number(element.getAttribute('height')) })
+      for (const expected of interaction.groups) {
+        const group = groups.find(element => element.getAttribute('data-id') === expected.id)!
+        expect(group.querySelector(':scope > text.architecture-group-label')?.textContent).toBe(expected.label)
+        actualBoxes.set(expected.id, rectangle(group.querySelector(':scope > rect.architecture-group-frame')!))
+      }
+      for (const expected of interaction.services) {
+        const group = services.find(element => element.getAttribute('data-id') === expected.id)!
+        expect(group.querySelector(':scope > text.architecture-service-label')?.textContent).toBe(expected.label)
+        actualBoxes.set(expected.id, rectangle(group.querySelector(':scope > rect.architecture-service-card')!))
+      }
+      for (const expected of interaction.junctions) {
+        const circle = junctions.find(element => element.getAttribute('data-id') === expected.id)!.querySelector('circle.architecture-junction-ring')!
+        const radius = Number(circle.getAttribute('r'))
+        actualBoxes.set(expected.id, { x: Number(circle.getAttribute('cx')) - radius, y: Number(circle.getAttribute('cy')) - radius, w: 2 * radius, h: 2 * radius })
+      }
+      for (const expected of [...interaction.groups, ...interaction.services, ...interaction.junctions]) {
+        const box = actualBoxes.get(expected.id)!
+        expect(box.w).toBeGreaterThan(0); expect(box.h).toBeGreaterThan(0)
+        if (expected.parent) {
+          const parent = actualBoxes.get(expected.parent)!
+          expect(box.x).toBeGreaterThanOrEqual(parent.x); expect(box.y).toBeGreaterThanOrEqual(parent.y)
+          expect(box.x + box.w).toBeLessThanOrEqual(parent.x + parent.w); expect(box.y + box.h).toBeLessThanOrEqual(parent.y + parent.h)
+        }
+      }
+      const carriers = [...document.querySelectorAll('[data-role="edge"][data-from]')]
+      expect(carriers.map(carrier => ({ from: carrier.getAttribute('data-from'), to: carrier.getAttribute('data-to'),
+        fromSide: carrier.getAttribute('data-from-side'), toSide: carrier.getAttribute('data-to-side'), fromBoundary: carrier.getAttribute('data-from-boundary'), toBoundary: carrier.getAttribute('data-to-boundary'),
+        start: carrier.hasAttribute('marker-start') ? 'arrow' : 'none', end: carrier.hasAttribute('marker-end') ? 'arrow' : 'none', label: carrier.getAttribute('data-label') }))).toEqual([...interaction.relations])
+      expect(new Set(carriers.map(carrier => carrier.getAttribute('data-id'))).size).toBe(interaction.relations.length)
+      for (const [index, carrier] of carriers.entries()) {
+        const numbers = (carrier.getAttribute('points') ?? carrier.getAttribute('d')!).match(/[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi)!.map(Number)
+        const relation = interaction.relations[index]!
+        for (const [id, side, boundary, x, y] of [[relation.from, relation.fromSide, relation.fromBoundary, numbers[0]!, numbers[1]!], [relation.to, relation.toSide, relation.toBoundary, numbers.at(-2)!, numbers.at(-1)!]] as const) {
+          const owner = boundary === 'group' ? interaction.services.find(service => service.id === id)!.parent! : id
+          const box = actualBoxes.get(owner)!
+          expect(x).toBeCloseTo(side === 'L' ? box.x : side === 'R' ? box.x + box.w : box.x + box.w / 2, 5)
+          expect(y).toBeCloseTo(side === 'T' ? box.y : side === 'B' ? box.y + box.h : box.y + box.h / 2, 5)
+        }
+      }
+      const captions = [...document.querySelectorAll('text.architecture-edge-label-text')]
+      expect(captions.map(text => text.textContent)).toEqual(['handoff', 'handoff'])
+      expect(new Set(captions.map(text => [text.getAttribute('x'), text.getAttribute('y')].join(','))).size).toBe(2)
+      // Parent/port/model and owned-output checks do not promote a paint
+      // certificate or infer actual glyph visibility from element presence.
+    } finally { dom.window.close() }
+  })
+
   test.each([['alignment', fixture, native, 'agentic'], ['four faces', faces, native, 'agentic'], ['literal icons', literalIcons, native, 'agentic'], ['high-contrast stock alignment', fixture, highContrastElk, 'elk']] as const)('retains authored ports, junctions, alignments and complete routes: %s', (_name, source, options, backend) => {
     const model = parseArchitectureDiagram(toMermaidLines(source)), original = structuredClone(model)
     const placed = layoutArchitectureDiagram(model, options)

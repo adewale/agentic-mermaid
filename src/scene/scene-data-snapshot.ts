@@ -1,3 +1,5 @@
+import { admittedSceneRecord, recordAdmittedScene } from './scene-admission-state.ts'
+export { recordAdmittedScene } from './scene-admission-state.ts'
 /**
  * One bounded immutable snapshot for external Scene data.
  *
@@ -9,10 +11,26 @@
 
 import { transferRetainedPixelText } from '../shared/prepared-text.ts'
 import type { SceneDoc } from './ir.ts'
-import { SCENE_VALIDATION_LIMITS, SceneValidationError, sceneValidationMode } from './scene-validation-core.ts'
+import { SceneValidationError, sceneValidationMode } from './scene-validation-core.ts'
+import { SCENE_VALIDATION_LIMITS } from './scene-validation-limits.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
-import { transferSceneNodeSerialization } from './serialization.ts'
+import { transferSceneNodeSerialization, type SceneSerializationObserver } from './serialization.ts'
 import { materializeOwnTerminalProjection } from './deferred-terminal-projection.ts'
+
+// Allocation provenance only. Semantic admission and each actual write remain
+// separate obligations; a caller-created frozen object cannot join this set.
+const snapshotCreate = Object.create, SnapshotArray = Array, SnapshotWeakMap = WeakMap, SnapshotWeakSet = WeakSet
+const snapshotDefine = Object.defineProperty, snapshotFreeze = Object.freeze
+const inertSnapshotHas = WeakSet.prototype.has, inertSnapshotAdd = WeakSet.prototype.add, inertSnapshotDelete = WeakSet.prototype.delete
+const snapshotGet = WeakMap.prototype.get, snapshotSet = WeakMap.prototype.set
+const inertSnapshotApply = Reflect.apply
+const ownDataSnapshots = new SnapshotWeakSet<object>()
+const ownDataArrays = new SnapshotWeakSet<object>()
+/** Dense own-index arrays allocated, filled and frozen before any output alias
+ * escapes. Semantic admission separately proves their Scene role and order. */
+export function isOwnDataSceneArrayInert(value: object): boolean { return inertSnapshotApply(inertSnapshotHas, ownDataArrays, [value]) }
+export function isOwnDataSceneSnapshotInert(value: object): boolean { return inertSnapshotApply(inertSnapshotHas, ownDataSnapshots, [value]) }
+export function isOwnDataSceneSnapshot(value: object): boolean { return ownDataSnapshots.has(value) }
 
 export interface ExternalDataSnapshotLimits {
   readonly maxObjects: number
@@ -69,8 +87,8 @@ export function snapshotBoundedExternalData(
   limits: ExternalDataSnapshotLimits,
   rootPath = 'input',
 ): unknown {
-  const active = new WeakSet<object>()
-  const snapshots = new WeakMap<object, unknown>()
+  const active = new SnapshotWeakSet<object>()
+  const snapshots = new SnapshotWeakMap<object, unknown>()
   let objects = 0
   let textBytes = 0
   let arrayEntries = 0
@@ -99,17 +117,17 @@ export function snapshotBoundedExternalData(
     if (++objects > limits.maxObjects) {
       throw new Error('External Scene input object graph is too large')
     }
-    if (active.has(candidate)) throw new Error('External Scene input must be acyclic')
-    const existing = snapshots.get(candidate)
+    if (inertSnapshotApply(inertSnapshotHas, active, [candidate])) throw new Error('External Scene input must be acyclic')
+    const existing = inertSnapshotApply(snapshotGet, snapshots, [candidate])
     if (existing !== undefined) return existing
-    active.add(candidate)
+    inertSnapshotApply(inertSnapshotAdd, active, [candidate])
     try {
       if (Array.isArray(candidate)) {
         if (Object.getPrototypeOf(candidate) !== Array.prototype) {
           throw new TypeError(`External Scene ${path} must be a plain array`)
         }
         const lengthDescriptor = Reflect.getOwnPropertyDescriptor(candidate, 'length')
-        if (!lengthDescriptor || !('value' in lengthDescriptor)
+        if (!lengthDescriptor || !Object.hasOwn(lengthDescriptor, 'value')
           || typeof lengthDescriptor.value !== 'number'
           || !Number.isSafeInteger(lengthDescriptor.value) || lengthDescriptor.value < 0) {
           throw new TypeError(`External Scene ${path}.length must be a non-negative integer data property`)
@@ -143,18 +161,19 @@ export function snapshotBoundedExternalData(
             throw new TypeError(`External Scene ${path} must not define custom array properties or iterators`)
           }
         }
-        const snapshot = new Array<unknown>(length)
-        snapshots.set(candidate, snapshot)
-        transferSceneNodeSerialization(candidate, snapshot)
+        const snapshot = new SnapshotArray<unknown>(length)
+        inertSnapshotApply(snapshotSet, snapshots, [candidate, snapshot])
         for (let index = 0; index < length; index++) {
           const descriptor = descriptors.get(String(index))
           if (!descriptor) throw new TypeError(`External Scene ${path} must not be sparse`)
-          if (!('value' in descriptor) || !descriptor.enumerable) {
+          if (!Object.hasOwn(descriptor, 'value') || !descriptor.enumerable) {
             throw new TypeError(`External Scene ${path}[${index}] must be an enumerable data property`)
           }
-          snapshot[index] = visit(descriptor.value, depth + 1, `${path}[${index}]`)
+          snapshotDefine(snapshot, index, { value: visit(descriptor.value, depth + 1, `${path}[${index}]`), enumerable: true })
         }
-        return Object.freeze(snapshot)
+        snapshotFreeze(snapshot)
+        inertSnapshotApply(inertSnapshotAdd, ownDataArrays, [snapshot])
+        return snapshot
       }
 
       const prototype = Object.getPrototypeOf(candidate)
@@ -184,9 +203,8 @@ export function snapshotBoundedExternalData(
       // Never retain Object.prototype as a second, live data authority.
       // External Scene is an own-data contract: inherited metadata, parts,
       // getters, or later prototype mutation must not survive admission.
-      const snapshot = Object.create(null) as Record<string, unknown>
-      snapshots.set(candidate, snapshot)
-      transferSceneNodeSerialization(candidate, snapshot)
+      const snapshot = snapshotCreate(null) as Record<string, unknown>
+      inertSnapshotApply(snapshotSet, snapshots, [candidate, snapshot])
       for (const key of keys) {
         if (typeof key !== 'string') throw new TypeError(`External Scene ${path} must not contain symbol keys`)
         const descriptor = Reflect.getOwnPropertyDescriptor(candidate, key)
@@ -194,22 +212,27 @@ export function snapshotBoundedExternalData(
           throw new TypeError(`External Scene ${path}.${key} must be an enumerable data property`)
         }
         let captured: unknown
-        if ('value' in descriptor) captured = descriptor.value
+        if (Object.hasOwn(descriptor, 'value')) captured = descriptor.value
         else {
           captured = materializeOwnTerminalProjection(candidate, key, descriptor)
           if (captured === undefined) throw new TypeError(`External Scene ${path}.${key} must be an enumerable data property`)
         }
-        Object.defineProperty(snapshot, key, {
+        snapshotDefine(snapshot, key, {
           value: visit(captured, depth + 1, `${path}.${key}`),
           enumerable: true,
           configurable: false,
           writable: false,
         })
       }
+      snapshotFreeze(snapshot)
+      // Metadata hooks can retain the receiver, so publish it only after all
+      // own fields and its prototype have become immutable.
+      transferSceneNodeSerialization(candidate, snapshot)
       transferRetainedPixelText(candidate, snapshot)
-      return Object.freeze(snapshot)
+      inertSnapshotApply(inertSnapshotAdd, ownDataSnapshots, [snapshot])
+      return snapshot
     } finally {
-      active.delete(candidate)
+      inertSnapshotApply(inertSnapshotDelete, active, [candidate])
     }
   }
 
@@ -223,35 +246,28 @@ export function snapshotBoundedExternalData(
  * another admission gate re-proves nothing. Only this module records documents,
  * so a caller cannot forge membership.
  */
-const ADMITTED_SCENES = new WeakMap<object, { mode: 'internal' | 'external'; crossChecks: boolean }>()
-
-/** Record a document this module froze that passed `mode` admission. */
-export function recordAdmittedScene(scene: SceneDoc, mode: 'internal' | 'external', crossChecks = true): void {
-  ADMITTED_SCENES.set(scene, { mode, crossChecks })
-}
-
-export type SceneAdmissionValidator = (value: unknown, mode: 'internal' | 'external' | undefined, crossChecks: boolean) => asserts value is SceneDoc
+export type SceneAdmissionValidator = (value: unknown, mode: 'internal' | 'external' | undefined, crossChecks: boolean, serializationObserver?: SceneSerializationObserver) => asserts value is SceneDoc
 
 function refuseExternalBrowserScene(): never {
   throw new SceneValidationError([{ code: 'SCENE_DOCUMENT', path: 'scene.family', message: 'source-only browser admission requires a built-in family' }])
 }
 
-export function admitSceneDocumentWith(value: unknown, mode: 'internal' | 'external' | undefined, crossChecks: boolean, validate: SceneAdmissionValidator, internalOnly = false): SceneDoc {
+export function admitSceneDocumentWith(value: unknown, mode: 'internal' | 'external' | undefined, crossChecks: boolean, validate: SceneAdmissionValidator, internalOnly = false, serializationObserver?: SceneSerializationObserver): SceneDoc {
   // Look up before reading any property: a caller Proxy sees no trap here.
-  const prior = typeof value === 'object' && value !== null ? ADMITTED_SCENES.get(value) : undefined
+  const prior = typeof value === 'object' && value !== null ? admittedSceneRecord(value) : undefined
   if (internalOnly && (mode === 'external' || prior !== undefined && (prior.mode === 'external' || sceneValidationMode(value) === 'external'))) refuseExternalBrowserScene()
   const requiredChecks = mode !== 'internal' || crossChecks
   if (prior !== undefined && prior.mode === (mode ?? sceneValidationMode(value))) {
     // A prior cheap admission cannot stand in for a later strict request.
     if ((prior.mode === 'external' || crossChecks) && !prior.crossChecks) {
-      validate(value, prior.mode, true)
+      validate(value, prior.mode, true, serializationObserver)
       recordAdmittedScene(value as SceneDoc, prior.mode, true)
     }
     return value as SceneDoc
   }
   const admitted = snapshotBoundedExternalData(value, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene')
   if (internalOnly && sceneValidationMode(admitted) === 'external') refuseExternalBrowserScene()
-  validate(admitted, mode, mode !== 'internal' || crossChecks)
+  validate(admitted, mode, mode !== 'internal' || crossChecks, serializationObserver)
   recordAdmittedScene(admitted as SceneDoc, mode ?? sceneValidationMode(admitted), requiredChecks)
   return admitted as SceneDoc
 }

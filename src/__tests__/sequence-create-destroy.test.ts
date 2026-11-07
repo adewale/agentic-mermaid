@@ -7,9 +7,19 @@
  * the next message the actor sends or receives, drawn as an X cross.
  */
 import { describe, it, expect } from 'bun:test'
+import { Resvg } from '@resvg/resvg-js'
+import { fileURLToPath } from 'node:url'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { layoutSequenceDiagram } from '../sequence/layout.ts'
 import { renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
+import { resolveRenderRequest } from '../render-contract.ts'
+import { positionResolvedFamily } from '../positioning.ts'
+import { lowerPositionedFamilyScene } from '../graphical-render.ts'
+import { inspectScenePrimitives } from '../scene/inspection.ts'
+import { prepareResvgMarkerOrientation } from '../resvg-marker-orientation.ts'
+import { PaintLayoutCertificationError } from '../scene/paint-certification.ts'
+import type { PositionedSequenceDiagram } from '../sequence/types.ts'
+import type { RenderOptions } from '../types.ts'
 
 function parse(text: string) {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
@@ -97,17 +107,100 @@ describe('sequence create/destroy layout', () => {
     ['right', 'participant A\ncreate participant C as Created\nA->>C: Welcome'],
     ['left', 'create participant C as Created\nA->>C: Welcome'],
   ])('creation arrows meet the %s participant header without losing their labels', (_direction, body) => {
-    const p = layoutSequenceDiagram(parse(`sequenceDiagram\n${body}`))
-    const message = p.messages[0]!, source = p.actors.find(actor => actor.id === 'A')!, target = p.actors.find(actor => actor.id === 'C')!
-    const attachment = source.x < target.x ? target.bounds.x : target.bounds.x + target.bounds.width
-    expect(message.x1).toBe(source.x)
-    expect(message.x2).toBe(attachment)
-    expect(message.x2).not.toBe(target.x)
-    expect(message.points.at(-1)).toEqual({ x: attachment, y: message.y })
-    expect(message).toMatchObject({ from: 'A', to: 'C', endHead: 'filled', label: 'Welcome' })
-    expect(renderMermaidSVGWithReceipt(`sequenceDiagram\n${body}`, { layoutSafety: 'strict' }).receipt.layoutCertification?.status).toBe('passed')
-    expect(message.labelPosition.bounds.x).toBeGreaterThanOrEqual(Math.min(message.x1, message.x2))
-    expect(message.labelPosition.bounds.x + message.labelPosition.bounds.width).toBeLessThanOrEqual(Math.max(message.x1, message.x2))
+    const sourceText = `sequenceDiagram\n${body}`
+    const certifications: Array<string | undefined> = []
+    const backgroundCertifications: Array<string | undefined> = []
+    const literalCertifications: Array<string | undefined> = []
+    for (const lineWidth of [1, 3]) {
+      const options: RenderOptions = lineWidth === 1 ? {} : { style: { roles: { edge: { lineWidth } } } }
+      const request = resolveRenderRequest(sourceText, options)
+      const layout = positionResolvedFamily('sequence', request)
+      const p = layout.positioned as PositionedSequenceDiagram
+      const message = p.messages[0]!, source = p.actors.find(actor => actor.id === 'A')!, target = p.actors.find(actor => actor.id === 'C')!
+      const attachment = source.x < target.x ? target.bounds.x : target.bounds.x + target.bounds.width
+      expect(message.x1).toBe(source.x)
+      expect(message.x2).toBe(attachment)
+      expect(message.x2).not.toBe(target.x)
+      expect(message.points.at(-1)).toEqual({ x: attachment, y: message.y })
+      expect(message).toMatchObject({ from: 'A', to: 'C', endHead: 'filled', label: 'Welcome' })
+      expect(message.labelPosition.bounds.x).toBeGreaterThanOrEqual(Math.min(message.x1, message.x2))
+      expect(message.labelPosition.bounds.x + message.labelPosition.bounds.width).toBeLessThanOrEqual(Math.max(message.x1, message.x2))
+
+      const inspection = inspectScenePrimitives(lowerPositionedFamilyScene(request, layout))
+      const header = inspection.primitives.find(primitive => primitive.id === 'actor:C:box')!
+      const connector = inspection.primitives.find(primitive => primitive.id === 'message:A->C#0:line')!
+      expect(header.owner).toEqual({ id: 'C', role: 'actor' })
+      expect(header.order).toBeGreaterThan(connector.order)
+
+      const { svg, receipt } = renderMermaidSVGWithReceipt(sourceText, options)
+      const lines = svg.match(/<line\b[^>]*data-from="A"[^>]*data-to="C"[^>]*>/g)!
+      expect(lines).toHaveLength(1)
+      const line = lines[0]!
+      const numberAttr = (tag: string, name: string): number => Number(tag.match(new RegExp(`\\b${name}="([^"]+)"`))?.[1])
+      const box = svg.match(/<g\b[^>]*class="actor"[^>]*data-id="C"[^>]*>\s*(<rect\b[^>]*>)/)![1]!
+      const boundary = source.x < target.x ? numberAttr(box, 'x') : numberAttr(box, 'x') + numberAttr(box, 'width')
+      expect(numberAttr(line, 'x1')).toBeCloseTo(source.x, 3)
+      expect(numberAttr(line, 'x2')).toBeCloseTo(boundary, 3)
+      expect(numberAttr(line, 'y1')).toBeCloseTo(message.y, 3)
+      expect(numberAttr(line, 'y2')).toBeCloseTo(message.y, 3)
+      expect(numberAttr(line, 'stroke-width')).toBe(lineWidth)
+      expect(line).toContain('data-direction="forward"')
+      const markerToken = ' marker-end="url(#seq-arrow)"'
+      expect(line).toContain(markerToken)
+      const marker = svg.match(/<marker\b[^>]*id="seq-arrow"[^>]*>[\s\S]*?<\/marker>/)![0]
+      expect(marker).toContain('refX="8" refY="2.5"')
+      expect(marker).toContain('points="0 0, 8 2.5, 0 5"')
+      const label = svg.match(/<g\b[^>]*class="message"[^>]*>[\s\S]*?(<text\b[^>]*>Welcome<\/text>)/)![1]!
+      expect(label).toContain('data-prepared-text="true"')
+      expect(numberAttr(label, 'textLength')).toBeGreaterThan(0)
+
+      // Keep the actual document's resources, header, label and paint order.
+      // A small pinned-font crop must lose off-shaft ink when its marker is removed.
+      const left = Math.min(message.x1, message.x2) - 2
+      const top = message.labelPosition.bounds.y - 2
+      const width = Math.abs(message.x2 - message.x1) + 4
+      const height = message.y + 2.5 * lineWidth + 2 - top
+      const crop = (document: string) => document.replace(/<svg\b[^>]*>/, root => root
+        .replace(/\bwidth="[^"]*"/, `width="${width}"`)
+        .replace(/\bheight="[^"]*"/, `height="${height}"`)
+        .replace(/\bviewBox="[^"]*"/, `viewBox="${left} ${top} ${width} ${height}"`))
+      const raster = (document: string) => new Resvg(prepareResvgMarkerOrientation(document), {
+        background: '#fff', fitTo: { mode: 'zoom', value: 4 },
+        font: { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter' },
+      }).render()
+      const cropped = crop(svg)
+      const actual = raster(cropped), absent = raster(cropped.replace(line, line.replace(markerToken, '')))
+      const actualPixels = actual.pixels, absentPixels = absent.pixels
+      let offShaft = 0
+      for (let y = 0; y < actual.height; y++) for (let x = 0; x < actual.width; x++) {
+        if (Math.abs(top + (y + 0.5) / 4 - message.y) <= lineWidth / 2) continue
+        const offset = (y * actual.width + x) * 4
+        if (actualPixels[offset]! < absentPixels[offset]! || actualPixels[offset + 1]! < absentPixels[offset + 1]! || actualPixels[offset + 2]! < absentPixels[offset + 2]!) offShaft++
+      }
+      expect(offShaft).toBeGreaterThan(0)
+      const withoutLabel = raster(cropped.replace(label, '')).pixels
+      expect(Buffer.compare(actualPixels, withoutLabel)).not.toBe(0)
+      certifications.push(receipt.layoutCertification?.status)
+
+      const background = renderMermaidSVGWithReceipt(sourceText, { style: { roles: { edge: { lineWidth, strokeColor: '#ffffff' } } } })
+      const backgroundLine = background.svg.match(/<line\b[^>]*data-from="A"[^>]*data-to="C"[^>]*>/)![0]
+      const backgroundCrop = crop(background.svg)
+      expect(Buffer.compare(raster(backgroundCrop).pixels, raster(backgroundCrop.replace(backgroundLine, backgroundLine.replace(markerToken, ''))).pixels)).toBe(0)
+      backgroundCertifications.push(background.receipt.layoutCertification?.status)
+
+      const literal = renderMermaidSVGWithReceipt(sourceText, { style: { roles: { edge: { lineWidth, strokeColor: '#111111' } } } })
+      const literalLine = literal.svg.match(/<line\b[^>]*data-from="A"[^>]*data-to="C"[^>]*>/)![0]
+      const literalCrop = crop(literal.svg)
+      expect(literal.svg.match(/<marker\b[^>]*id="seq-arrow"[^>]*>[\s\S]*?<\/marker>/)![0]).toContain('fill="#111111"')
+      expect(Buffer.compare(raster(literalCrop).pixels, raster(literalCrop.replace(literalLine, literalLine.replace(markerToken, ''))).pixels)).not.toBe(0)
+      literalCertifications.push(literal.receipt.layoutCertification?.status)
+    }
+    expect({ visible: certifications, literal: literalCertifications, backgroundVisible: backgroundCertifications.map(status => status === 'passed') }).toEqual({ visible: ['passed', 'passed'], literal: ['passed', 'passed'], backgroundVisible: [false, false] })
+    for (const lineWidth of [1, 3]) {
+      expect(renderMermaidSVGWithReceipt(sourceText, { style: { roles: { edge: { lineWidth } } }, layoutSafety: 'strict' }).receipt.layoutCertification?.status).toBe('passed')
+      expect(renderMermaidSVGWithReceipt(sourceText, { style: { roles: { edge: { lineWidth, strokeColor: '#111111' } } }, layoutSafety: 'strict' }).receipt.layoutCertification?.status).toBe('passed')
+      expect(() => renderMermaidSVGWithReceipt(sourceText, { style: { roles: { edge: { lineWidth, strokeColor: '#ffffff' } } }, layoutSafety: 'strict' })).toThrow(PaintLayoutCertificationError)
+    }
   })
 
   it('emits an X cross at the destroy point', () => {

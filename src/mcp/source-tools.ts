@@ -90,4 +90,3 @@ function svgOptions(args: Record<string, unknown>): RenderOptions {
   // weaken it even though the same canonical request fields are accepted.
   return { ...opts, ...HOSTED_RENDER_OPTIONS }
 }
-

@@ -9,6 +9,7 @@ import type { AgenticGraphBindings, AgenticGraphOptions } from '../layout-engine
 import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
 import { MAX_EXPANDED_VERTICES, layoutLayeredGraph as layoutRawGraph } from './agentic-layered-core.ts'
 import { shortenMeasuredRoutes } from './shorten-measured-routes.ts'
+import { fitMeasuredLayout } from './fit-measured-layout.ts'
 import { layoutOptimization } from './optimization-context.ts'
 export { improveArchitectureSiblingSlots } from './architecture-sibling-slots.ts'
 
@@ -91,9 +92,18 @@ export function layoutLayeredGraph(input: MeasuredGraph, forest: (input: Measure
       if (!Number.isFinite(prepared.pairs) || !Number.isFinite(prepared.arcs) || !Number.isFinite(prepared.swaps) || prepared.pairs < 0 || prepared.arcs < 0 || prepared.swaps < 0) unsupported('agentic marker preparation work limit')
     }
     routingWork = preparedGraphWork.get(input) ?? routingWork ?? { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }
-    const placed = layoutRawGraph(input, forest, unsupported, routingWork)
-    const final = input.placementOnly ? placed : finalizeFlatMeasuredMarkers(input, placed, routingWork, MAX_EXPANDED_VERTICES, unsupported)
-    return input.placementOnly ? final : shortenMeasuredRoutes(input, final)
+    const shortening = { attempts: 512, comparisons: 8_000_000 }
+    let completed = false
+    const finish = (candidate: AgenticLayout, fail: (reason: string) => never, work: ChannelWork): AgenticLayout => {
+      const final = finalizeFlatMeasuredMarkers(input, candidate, work, MAX_EXPANDED_VERTICES, fail)
+      const result = fitMeasuredLayout(input, shortenMeasuredRoutes(input, final, shortening))
+      completed = true
+      return result
+    }
+    const placed = layoutRawGraph(input, forest, unsupported, routingWork, undefined, input.placementOnly ? undefined : finish)
+    if (completed || input.placementOnly) return placed
+    const final = finalizeFlatMeasuredMarkers(input, placed, routingWork, MAX_EXPANDED_VERTICES, unsupported)
+    return shortenMeasuredRoutes(input, final, shortening)
   } finally {
     if (prepared && explicit && explicit !== prepared) {
       explicit.pairs = prepared.pairs; explicit.arcs = prepared.arcs; explicit.swaps = prepared.swaps
@@ -137,7 +147,11 @@ function placeNativeGraphCandidate(
       source.children.forEach(child => visit(child, index, direction))
     }
     graph.subgraphs.forEach(group => visit(group, undefined, graph.direction))
-    const nodes: MeasuredGraph['nodes'][number][] = [...graph.nodes].map(([id, node]) => {
+    const measurePortFaces = !groups.length && !placementOnly && !options.stateVisual
+    if (measurePortFaces) pay(0, graph.nodes.size + 1)
+    const portFaces = measurePortFaces ? new Uint8Array(graph.nodes.size) : undefined
+    const nodes: MeasuredGraph['nodes'][number][] = [...graph.nodes].map(([id, node], index) => {
+      if (portFaces) portFaces[index] = Number(!node.semanticShape && (node.shape === 'rectangle' || node.shape === 'subroutine'))
       if (groupIndices.has(id)) bindings.unsupported('overlapping node and frame identities')
       const owner = membership.get(id)
       return { id, ...(owner ? { parent: owner.parent } : {}), ...(options.nodeSizes?.get(id) ?? estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, owner?.direction ?? graph.direction, options.stateVisual, node.labelBlock)) }
@@ -212,10 +226,10 @@ function placeNativeGraphCandidate(
       if (target >= nodes.length && encloses(target - nodes.length, source)) return 'end'
       return undefined
     } : undefined
-    let lead = 0, doubleDepth = 0, maximumStroke = 0
+    let lead = 0, doubleDepth = 0, maximumStroke = 0, knownClearance = true
     pay(0, 3 * nodes.length + 5)
     const portSpans = new Float64Array(nodes.length), incoming = new Uint32Array(nodes.length), outgoing = new Uint32Array(nodes.length)
-    type MarkerRoom = { start: number; end: number; span: number; boundaryInset: number; boundaryHeight: number; boundaryCount: number }
+    type MarkerRoom = { start: number; end: number; startSpan: number; endSpan: number; span: number; boundaryInset: number; boundaryHeight: number; boundaryCount: number }
     const footprints = new Map<string, MarkerRoom>()
     const numericWidth = (value: string | number): number | undefined => {
       pay(4 + (typeof value === 'string' ? value.length : 0), 1)
@@ -232,6 +246,7 @@ function placeNativeGraphCandidate(
       const inline = resolveEdgeInlineStyle(index, graph)
       const marked = !placementOnly && edge.style !== 'invisible' && (edge.hasArrowStart || edge.hasArrowEnd)
       const shaft = numericWidth(inline?.['stroke-width'] ?? style.lineWidth * (edge.style === 'thick' ? 2 : 1))
+      if (edge.style !== 'invisible' && shaft === undefined) knownClearance = false
       if (edge.style !== 'invisible' && shaft !== undefined) maximumStroke = Math.max(maximumStroke, shaft)
       let footprint: MarkerRoom | undefined
       if ((marked || boundaryEnd) && shaft !== undefined) {
@@ -252,14 +267,14 @@ function placeNativeGraphCandidate(
           const markers = graphEdgeMarkerPaintRegions({ ...edge, id: 'marker-room', source: '', target: '', points,
             inlineStyle: fixed ? { 'stroke-width': '1' } : undefined },
           { lineWidth: style.lineWidth, ...(emptyStroke ? { edgeStrokeColor: 'none' } : {}) })
-          let start = 0, end = 0, span = 0, boundaryInset = 0, boundaryHeight = 0, boundaryCount = 0
+          let start = 0, end = 0, startSpan = 0, endSpan = 0, span = 0, boundaryInset = 0, boundaryHeight = 0, boundaryCount = 0
           for (const marker of markers) {
             pay(18)
             const box = marker.bounds
             if (!box || !Number.isFinite(box.x0) || !Number.isFinite(box.x1) || !Number.isFinite(box.y0) || !Number.isFinite(box.y1) || box.x0 > box.x1 || box.y0 > box.y1) bindings.unsupported('agentic marker paint bounds')
             const depth = marker.position === 'start' ? (boundaryEnd === 'end' ? 1 - box.x0 : box.x1) : (boundaryEnd === 'end' ? box.x1 : 1 - box.x0)
-            if (marker.position === 'start') start = Math.max(start, depth)
-            else if (marker.position === 'end') end = Math.max(end, depth)
+            if (marker.position === 'start') { start = Math.max(start, depth); startSpan = Math.max(startSpan, 2 * Math.max(Math.abs(box.y0), Math.abs(box.y1))) }
+            else if (marker.position === 'end') { end = Math.max(end, depth); endSpan = Math.max(endSpan, 2 * Math.max(Math.abs(box.y0), Math.abs(box.y1))) }
             span = Math.max(span, box.y1 - box.y0)
             if (marker.position === boundaryEnd) {
               boundaryCount++
@@ -267,8 +282,8 @@ function placeNativeGraphCandidate(
               boundaryHeight = Math.max(boundaryHeight, 2 * Math.max(Math.abs(box.y0), Math.abs(box.y1)))
             }
           }
-          pay(0, 7)
-          footprint = { start, end, span, boundaryInset, boundaryHeight, boundaryCount }
+          pay(0, 9)
+          footprint = { start, end, startSpan, endSpan, span, boundaryInset, boundaryHeight, boundaryCount }
           footprints.set(key, footprint)
         }
         const { start: startDepth, end: endDepth, span } = footprint
@@ -292,7 +307,12 @@ function placeNativeGraphCandidate(
       // Match renderEdgeLabel's actual opaque halo only for the newly reserved
       // ancestor corridor. Existing measured geometry keeps its prior sizes.
       const halo = boundaryEnd && block ? Math.max(4, style.lineWidth * (edge.style === 'thick' ? 2 : 1) * 2) : 0
-      return { source, target, minSpan: edge.length ?? 1, ...(preferred?.has(index) ? { short: true as const } : {}), ...(boundaryMarker ? { boundaryMarker } : {}), ...(edge.style === 'invisible' ? { visible: false } : {}), ...(block ? { label: { width: block.width + 2 * LABEL_PILL_PADDING + 2 * halo, height: block.height + 2 * LABEL_PILL_PADDING + 2 * halo } } : {}) }
+      pay(0, 2)
+      const endpointSpans = shaft !== undefined && source !== target ? {
+        ...(portFaces?.[source] ? { sourcePortSpan: Math.max(shaft, footprint?.startSpan ?? 0) } : {}),
+        ...(portFaces?.[target] ? { targetPortSpan: Math.max(shaft, footprint?.endSpan ?? 0) } : {}),
+      } : {}
+      return { source, target, ...endpointSpans, minSpan: edge.length ?? 1, ...(preferred?.has(index) ? { short: true as const } : {}), ...(boundaryMarker ? { boundaryMarker } : {}), ...(edge.style === 'invisible' ? { visible: false } : {}), ...(block ? { label: { width: block.width + 2 * LABEL_PILL_PADDING + 2 * halo, height: block.height + 2 * LABEL_PILL_PADDING + 2 * halo } } : {}) }
     })
     const shareCompleteFans = !options.stateVisual && !groups.length && [...graph.nodes.values()].every(node => node.shape === 'rectangle' && !node.semanticShape)
       && graph.edges.every((edge, index) => {
@@ -305,13 +325,16 @@ function placeNativeGraphCandidate(
       const width = numericWidth(resolveNodeInlineStyle(id, graph)?.['stroke-width'] ?? style.nodeLineWidth)
       pay(3)
       if (width !== undefined) border = Math.max(border, width / 2)
+      else knownClearance = false
     }
     for (const source of groupSources) if (source.stateComposite) {
       const width = numericWidth(resolveClassInlineStyle(source.id, graph)?.['stroke-width'] ?? style.groupLineWidth)
       if (width !== undefined) border = Math.max(border, width / 2)
+      else knownClearance = false
     }
     const margin = border + maximumStroke / 2
     const edgeSpacing = Math.max(6, style.lineWidth + 4)
+    if (portFaces && knownClearance) pay(0, 1)
     const minimumTerminalLead = lead + margin > Math.max(12, edgeSpacing) ? lead + margin : undefined
     for (let index = 0; index < nodes.length; index++) {
       pay(6)
@@ -329,6 +352,7 @@ function placeNativeGraphCandidate(
     return { nodes, groups, edges, shareCompleteFans, direction: graph.direction, padding: opts.padding, nodeSpacing: opts.nodeSpacing,
       layerSpacing: Math.max(opts.layerSpacing, 2 * (doubleDepth + margin)), edgeSpacing,
       ...(minimumTerminalLead !== undefined ? { minimumTerminalLead } : {}),
+      ...(portFaces && knownClearance ? { nodeClearance: margin } : {}),
       ...(order === 'authored' ? { authoredCycleOrder: true as const } : order === 'compact' ? { compactPrivateRanks: true } : {}),
       ...(order === 'ports' ? { portAwarePlacement: true as const } : {}),
       ...(placementOnly ? { placementOnly: true as const } : {}) }
@@ -346,6 +370,7 @@ function placeNativeGraphCandidate(
     || !placementOnly && geometry.edges.some((edge, index) => edge.points.length < 2 || (measured.edges[index]!.label && !edge.labelPosition))) {
     throw new TypeError('Agentic graph producer returned malformed geometry')
   }
+  if (!placementOnly) geometry = fitMeasuredLayout(measured, geometry)
   const nodes = measured.nodes.map((node, index): PositionedNode => {
     const authored = graph.nodes.get(node.id)!
     const assigned = graph.classAssignments.get(node.id)

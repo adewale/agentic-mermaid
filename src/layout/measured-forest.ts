@@ -2,8 +2,9 @@ import type { AgenticLayout, MeasuredGraph } from './agentic-layered.ts'
 
 /** Variable-size ordered forests need subtree spans, not crossing sweeps.
  * This is shared by the native producer and the legacy forest experiment.
- * Keep each subtree in its own interval and reserve a global band per depth,
- * so incomplete levels cannot interleave unrelated branches. */
+ * Keep each subtree in its own interval and reserve depth bands within each
+ * root, so incomplete levels cannot interleave related branches. Disconnected
+ * roots already have separate cross-axis intervals and need no shared bands. */
 export function layoutMeasuredForest(input: MeasuredGraph): AgenticLayout | undefined {
   const { nodes, edges, padding, nodeSpacing, layerSpacing } = input
   if (nodes.length < 2 || edges.length >= nodes.length || nodeSpacing <= 0 || layerSpacing <= 0
@@ -21,10 +22,15 @@ export function layoutMeasuredForest(input: MeasuredGraph): AgenticLayout | unde
   }
   const roots = nodes.flatMap((_, index) => indegree[index] === 0 ? [index] : [])
   const traversal = [...roots]
-  const depth = new Uint32Array(nodes.length)
+  const depth = new Uint32Array(nodes.length), rootOrdinal = new Uint32Array(depth.length), rootDepth = new Uint32Array(roots.length)
+  for (let ordinal = 0; ordinal < roots.length; ordinal++) rootOrdinal[roots[ordinal]!] = ordinal
   for (let cursor = 0; cursor < traversal.length; cursor++) {
-    const parent = traversal[cursor]!
-    for (const child of outgoing[parent]!) { depth[child] = depth[parent]! + 1; traversal.push(child) }
+    const parent = traversal[cursor]!, ordinal = rootOrdinal[parent]!
+    for (const child of outgoing[parent]!) {
+      depth[child] = depth[parent]! + 1; rootOrdinal[child] = ordinal
+      if (depth[child]! > rootDepth[ordinal]!) rootDepth[ordinal] = depth[child]!
+      traversal.push(child)
+    }
   }
   if (traversal.length !== nodes.length) return undefined
   const horizontal = input.direction === 'LR' || input.direction === 'RL'
@@ -33,19 +39,29 @@ export function layoutMeasuredForest(input: MeasuredGraph): AgenticLayout | unde
   const crossSize = (index: number): number => horizontal ? nodes[index]!.height : nodes[index]!.width
   if (nodes.some((node, index) => node.minimumPortSpacing !== undefined
     && (outgoing[index]!.length - 1) * node.minimumPortSpacing > crossSize(index) - 2 * (node.paintCornerRadius ?? 0))) return undefined
-  const span = new Float64Array(nodes.length), bands: number[] = []
+  // Each root's depth count is at most its node count, so these flat bands
+  // together have at most nodes.length entries even for uneven components.
+  const bandOffset = new Uint32Array(roots.length + 1)
+  for (let ordinal = 0; ordinal < roots.length; ordinal++) bandOffset[ordinal + 1] = bandOffset[ordinal]! + rootDepth[ordinal]! + 1
+  const span = new Float64Array(nodes.length), bands = new Float64Array(bandOffset[roots.length]!)
   for (let cursor = traversal.length - 1; cursor >= 0; cursor--) {
     const id = traversal[cursor]!, peers = outgoing[id]!
     let descendants = Math.max(0, peers.length - 1) * nodeSpacing
     for (const child of peers) descendants += span[child]!
     span[id] = Math.max(crossSize(id), descendants)
-    bands[depth[id]!] = Math.max(bands[depth[id]!] ?? 0, mainSize(id))
+    const band = bandOffset[rootOrdinal[id]!]! + depth[id]!
+    bands[band] = Math.max(bands[band]!, mainSize(id))
   }
-  const bandStart: number[] = []
+  const bandStart = new Float64Array(bands.length)
   let mainExtent = 0
-  for (let band = 0; band < bands.length; band++) {
-    bandStart.push(mainExtent)
-    mainExtent += bands[band]! + (band + 1 < bands.length ? layerSpacing : 0)
+  for (let ordinal = 0; ordinal < roots.length; ordinal++) {
+    let extent = 0
+    const end = bandOffset[ordinal + 1]!
+    for (let band = bandOffset[ordinal]!; band < end; band++) {
+      bandStart[band] = extent
+      extent += bands[band]! + (band + 1 < end ? layerSpacing : 0)
+    }
+    if (extent > mainExtent || extent !== extent) mainExtent = extent
   }
   const starts = new Float64Array(nodes.length)
   let crossExtent = 0
@@ -56,7 +72,8 @@ export function layoutMeasuredForest(input: MeasuredGraph): AgenticLayout | unde
   for (const id of traversal) {
     const peers = outgoing[id]!
     const cross = padding + starts[id]! + (span[id]! - crossSize(id)) / 2
-    let main = bandStart[depth[id]!]! + (bands[depth[id]!]! - mainSize(id)) / 2
+    const band = bandOffset[rootOrdinal[id]!]! + depth[id]!
+    let main = bandStart[band]! + (bands[band]! - mainSize(id)) / 2
     if (reverse) main = mainExtent - main - mainSize(id)
     main += padding
     positioned[id] = horizontal ? { x: main, y: cross } : { x: cross, y: main }
@@ -116,7 +133,7 @@ export function layoutMeasuredForest(input: MeasuredGraph): AgenticLayout | unde
       // Unequal main-axis sizes center faces inside their depth bands. An
       // individual face midpoint can therefore enter a taller sibling box.
       // Keep existing clear band-gap bends exact; move only an out-of-gap bend.
-      const band = depth[edge.source]!
+      const sourceId = edge.source, band = bandOffset[rootOrdinal[sourceId]!]! + depth[sourceId]!
       const exit = padding + (reverse ? mainExtent - (bandStart[band]! + bands[band]!) : bandStart[band]! + bands[band]!)
       const entry = padding + (reverse ? mainExtent - bandStart[band + 1]! : bandStart[band + 1]!)
       if (mid <= Math.min(exit, entry) || mid >= Math.max(exit, entry)) mid = exit + (entry - exit) / 2
