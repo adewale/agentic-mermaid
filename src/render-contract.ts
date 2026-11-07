@@ -13,6 +13,7 @@ import type { ArchitectureVisualConfig } from './architecture/config.ts'
 import type { DiagramColors } from './theme.ts'
 import type { NormalizedMermaidSource } from './mermaid-source.ts'
 import { normalizeMermaidRenderSource } from './mermaid-source.ts'
+import { admitParsedModelHandoff, type ParsedRenderModelHandoff } from './agent/owned-render-model.ts'
 import { observeCache } from './performance-observations.ts'
 import { CHANNEL_THEME_KEYS, readThemeValue, resolveDiagramColors } from './color-resolver.ts'
 import { checkArchitectureRenderOptionColors, checkFamilyConfigColors, checkThemeVariableColors } from './theme-color-admission.ts'
@@ -593,6 +594,8 @@ export interface RenderExecutionResolutionOptions {
   readonly textMeasurement?: TextMeasurementProfile
   /** Internal identity assertion carried by ParsedDiagram adapters. */
   readonly expectedFamilyId?: FamilyId
+  /** Internal source-bound custody from native parsing; public objects cannot forge it. */
+  readonly parsedModelHandoff?: ParsedRenderModelHandoff
   /** Internal browser-lazy seam: one already-classified, already-loaded family. */
   readonly familyDescriptor?: FamilyDescriptor
 }
@@ -1871,5 +1874,6 @@ export function resolveRenderRequestForExecution(
     get requestDigest() { return requestDigest() },
   })
   EXECUTION_PLAN_BY_REQUEST.set(request, executionPlan)
+  admitParsedModelHandoff(resolutionOptions.parsedModelHandoff, request.source, family)
   return request
 }

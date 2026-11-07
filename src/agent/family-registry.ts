@@ -16,6 +16,7 @@ import { STABLE_FAMILY_DESCRIPTOR_SEEDS } from './stable-family-metadata.ts'
 // ============================================================================
 
 import type { DiagramKind, DiagramBody, FamilyParsedBody, ValidDiagramMeta, ParseError, SourceMap, FamilyId, ExternalFamilyId, AnyMutationOp, MutationError, LayoutWarning, VerifyOptions, Result, RenderedLayout } from './types.ts'
+import type { SourceSpanGrammar } from './source-map-spans.ts'
 import type { ConfigDiagnostic, PositionedDiagram, RenderContext, RenderOptions, ResolvedFamilyRenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import type { InternalStyleFace, StyleSpec } from '../scene/style-registry.ts'
@@ -37,7 +38,10 @@ import { normalizeFamilyDetectionLine } from '../mermaid-source-wrapper.ts'
 export { extractLabelsGeneric } from './family-labels.ts'
 
 /** Frozen source provenance for map builders; no runtime config authority. */
-export type FamilySourceMapContext = Readonly<Pick<NormalizedMermaidSource, 'originalText' | 'wrapperSource' | 'authoredWrapperLength' | 'cleanup'>>
+export type FamilySourceMapContext = Readonly<Pick<NormalizedMermaidSource, 'originalText' | 'wrapperSource' | 'authoredWrapperLength' | 'cleanup'> & {
+  /** Published canonical bytes before the legacy universal accessibility mask. */
+  canonicalSource?: string
+}>
 
 export interface ExtractedLabel {
   /** The label text, with quotes stripped. */
@@ -284,9 +288,17 @@ export interface FamilyConfigContract {
 }
 
 export interface FamilyOperations {
+  /** Body-owned accessibility fields and their writer's text transport. The
+   * shared envelope mirrors only bodies admitted by this family authority. */
+  bodyAccessibility?: (body: DiagramBody) => { fields: { accessibilityTitle?: string; accessibilityDescription?: string }; syntax: 'statement' | 'native' } | undefined
+  /** Synchronize body-owned wrapper fields before save or mutation commit. */
+  bodyMeta?: (body: DiagramBody, meta: ValidDiagramMeta, previousBody?: DiagramBody) => ValidDiagramMeta
+
   /** Parsed rendering uses the family's source authority. Omission preserves
    * legacy extension behavior; family admission still validates the result. */
   renderSource?: (body: Readonly<FamilyParsedBody>) => 'canonical' | 'serialized'
+  /** Preserve executable physical source where indentation is family grammar. */
+  canonicalSource?: 'preserved'
 
   /** Diagnose one authored or explicit config root. Common dispatch preserves
    * root boundaries, deterministic ordering and duplicate suppression. */
@@ -326,6 +338,8 @@ export interface FamilyOperations {
    * Optional source-map builder, run after a successful parse. The frozen
    * provenance context preserves authored payloads and original source spans.
    */
+  /** Grammar owned by the map producer for multiline authored statement spans. */
+  sourceMapGrammar?: SourceSpanGrammar
   buildSourceMap?: (body: DiagramBody, canonicalSource: string, source?: FamilySourceMapContext) => SourceMap
   /** Optional: family-specific serializer. Public save/edit callers pass the
    * wrapper metadata so body-owned overrides need not duplicate its fields. */
@@ -480,6 +494,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     maturity: 'stable',
     label: 'Flowchart',
     headers: ['flowchart', 'graph'],
+    aliases: ['swimlane'],
     narrower: 'asFlowchart',
     editorDiagramType: 'Flowchart',
     editorLabel: 'Flowchart',
@@ -491,7 +506,6 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
       keys: ['nodeSpacing', 'rankSpacing', 'wrappingWidth', 'titleTopMargin', 'subGraphTitleMargin', 'arrowMarkerAbsolute', 'diagramPadding', 'htmlLabels', 'curve', 'padding', 'defaultRenderer', 'inheritDir', 'look', 'minNodeWidth', 'theme'],
       noopKeys: ['arrowMarkerAbsolute', 'curve', 'defaultRenderer', 'diagramPadding', 'htmlLabels', 'inheritDir', 'look', 'minNodeWidth', 'padding', 'subGraphTitleMargin', 'theme', 'titleTopMargin'],
     },
-    aliases: ['swimlane'],
     semanticChannels: [],
     detect: familyDetection.detectsFlowchartFamily,
     sceneRoles: [
@@ -1360,6 +1374,100 @@ gitGraph LR:
     example: 'zenuml\nAlice->Bob: Hello\nBob->Alice: Reply',
     editorExample: 'zenuml\ntitle Checkout\nBuyer as Customer\nAPI\nStore\nBuyer->API.placeOrder() {\n  Store.reserve()\n  if (inStock) {\n    return confirmation\n  } else {\n    return unavailable\n  }\n}\nAPI->Buyer: accepted',
   },
+  {
+    id: 'railroad', upstreamId: 'railroad', maturity: 'beta', label: 'Railroad',
+    headers: ['railroad-beta', 'railroad-ebnf-beta', 'railroad-abnf-beta', 'railroad-peg-beta'], narrower: 'asRailroad',
+    editorDiagramType: 'Railroad', editorLabel: 'Railroad grammars',
+    editorDescription: 'Grammar sequences, choices, optional branches, repetition tracks and lookahead.', editorExampleId: 'railroad-basic', editorGlyph: 'RR',
+    config: { section: 'railroad', keys: ['arcRadius', 'commentFill', 'commentStroke', 'commentTextColor', 'compactMode', 'fontFamily', 'fontSize', 'horizontalSeparation', 'lineColor', 'markerFill', 'markerRadius', 'nonTerminalFill', 'nonTerminalStroke', 'nonTerminalTextColor', 'padding', 'ruleNameColor', 'showMarkers', 'specialFill', 'specialStroke', 'strokeWidth', 'terminalFill', 'terminalStroke', 'terminalTextColor', 'verticalSeparation'], noopKeys: ['arcRadius', 'commentFill', 'commentStroke', 'commentTextColor', 'compactMode', 'fontFamily', 'fontSize', 'horizontalSeparation', 'lineColor', 'markerFill', 'markerRadius', 'nonTerminalFill', 'nonTerminalStroke', 'nonTerminalTextColor', 'padding', 'ruleNameColor', 'showMarkers', 'specialFill', 'specialStroke', 'strokeWidth', 'terminalFill', 'terminalStroke', 'terminalTextColor', 'verticalSeparation'] }, semanticChannels: [], detect: familyDetection.detectsRailroadFamily,
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('node', 'shape'), nativeSceneRole('label', 'text')],
+    example: 'railroad-beta\nentry = sequence(terminal("start"), optional(nonterminal("item")));',
+    editorExample: 'railroad-ebnf-beta\nentry = "start", [item], {",", item};\nitem = "word" | "number";',
+  },
+  {
+    id: 'cynefin', upstreamId: 'cynefin', maturity: 'beta', label: 'Cynefin',
+    headers: ['cynefin-beta'], narrower: 'asCynefin', editorDiagramType: 'Cynefin',
+    editorLabel: 'Cynefin domains', editorDescription: 'Decision domains, retained items and directed domain transitions.',
+    editorExampleId: 'cynefin-basic', editorGlyph: 'CY', config: { section: 'cynefin', keys: ['boundaryAmplitude', 'height', 'padding', 'seed', 'showDomainDescriptions', 'width'], noopKeys: ['boundaryAmplitude', 'height', 'padding', 'seed', 'showDomainDescriptions', 'width'] },
+    semanticChannels: [], detect: familyDetection.detectsCynefinFamily,
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('group', 'shape'), nativeSceneRole('node', 'container'), nativeSceneRole('label', 'text'), nativeSceneRole('edge', 'connector')],
+    example: 'cynefin-beta\ncomplex\n  "Explore"\nclear\n  "Operate"\ncomplex --> clear: "Learn"',
+    editorExample: 'cynefin-beta\ncomplex\n  "Explore"\ncomplicated\n  "Analyse"\nclear\n  "Operate"\nchaotic\n  "Stabilise"\nconfusion\n  "Investigate"\ncomplex --> clear: "Learn"',
+  },
+  {
+    id: 'agentflow', upstreamId: 'agentflow', maturity: 'beta', label: 'AgentFlow',
+    headers: ['agentflow-beta'], narrower: 'asAgentflow',
+    editorDiagramType: 'AgentFlow', editorLabel: 'Agent workflows',
+    editorDescription: 'Agent roles, tool metadata, attachments and directed workflow connections.', editorExampleId: 'agentflow-basic', editorGlyph: 'AF',
+    config: { section: 'agentflow', keys: ['diagramPadding', 'look', 'minNodeWidth', 'nodeSpacing', 'rankSpacing', 'theme', 'titleTopMargin', 'wrappingWidth'], noopKeys: ['diagramPadding', 'look', 'minNodeWidth', 'nodeSpacing', 'rankSpacing', 'theme', 'titleTopMargin', 'wrappingWidth'] },
+    semanticChannels: [], detect: familyDetection.detectsAgentflowFamily,
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('edge', 'connector'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('edge-label', 'container')],
+    example: 'agentflow-beta\n A[Plan]@{ shape: task }\n B[Search]@{ shape: tool }\n A --> B', editorExample: 'agentflow-beta\n A[Plan]@{ shape: task }\n B[Search]@{ shape: tool }\n A --> B',
+  },
+  {
+    id: 'usecase', upstreamId: 'usecase', maturity: 'beta', label: 'UseCase',
+    headers: ['usecase-beta'], narrower: 'asUsecase',
+    editorDiagramType: 'UseCase', editorLabel: 'Use cases',
+    editorDescription: 'Actors and use cases inside system boundaries with typed relationships.', editorExampleId: 'usecase-basic', editorGlyph: 'UC',
+    config: { section: 'usecase', keys: ['actorFontFamily', 'actorFontSize', 'actorFontWeight', 'colorScheme', 'diagramPadding', 'look', 'minNodeWidth', 'nodeSpacing', 'rankSpacing', 'theme', 'usecaseFontFamily', 'usecaseFontSize', 'usecaseFontWeight', 'wrappingWidth'], noopKeys: ['actorFontFamily', 'actorFontSize', 'actorFontWeight', 'colorScheme', 'diagramPadding', 'look', 'minNodeWidth', 'nodeSpacing', 'rankSpacing', 'theme', 'usecaseFontFamily', 'usecaseFontSize', 'usecaseFontWeight', 'wrappingWidth'] },
+    semanticChannels: ['category', 'emphasis'], detect: familyDetection.detectsUsecaseFamily,
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('edge', 'connector'), nativeSceneRole('group', 'container', 'shape')],
+    example: 'usecase-beta\nactor Customer\nCheckout("Checkout")\nCustomer --> Checkout', editorExample: 'usecase-beta\nactor Customer\nCheckout("Checkout")\nCustomer --> Checkout',
+  },
+  {
+    id: 'wardley', upstreamId: 'wardley', maturity: 'beta', label: 'Wardley',
+    headers: ['wardley-beta'], narrower: 'asWardley',
+    editorDiagramType: 'Wardley', editorLabel: 'Wardley map',
+    editorDescription: 'Authored evolution and visibility coordinates, dependencies and pipelines.', editorExampleId: 'wardley-basic', editorGlyph: 'WM',
+    config: { section: 'wardley', keys: [], noopKeys: [] },
+    semanticChannels: [], detect: familyDetection.detectsWardleyFamily,
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('edge', 'connector'), nativeSceneRole('group', 'shape'), nativeSceneRole('rail', 'connector')],
+    example: 'wardley-beta\ncomponent API [0.8, 0.3]\ncomponent Database [0.3, 0.8]\nAPI -> Database', editorExample: 'wardley-beta\ncomponent API [0.8, 0.3]\ncomponent Database [0.3, 0.8]\nAPI -> Database',
+  },
+  {
+    id: 'venn', upstreamId: 'venn', maturity: 'beta', label: 'Venn',
+    headers: ['venn-beta'], narrower: 'asVenn',
+    editorDiagramType: 'Venn', editorLabel: 'Venn intersections',
+    editorDescription: 'Sets, intersections, exact values and region-owned text.', editorExampleId: 'venn-basic', editorGlyph: 'VN',
+    config: { section: 'venn', keys: ['height', 'look', 'padding', 'theme', 'useDebugLayout', 'width'], noopKeys: ['height', 'look', 'padding', 'theme', 'useDebugLayout', 'width'] },
+    semanticChannels: ['category'], detect: familyDetection.detectsVennFamily,
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text')],
+    example: 'venn-beta\nset A["Frontend"]:20\nset B["Backend"]:12\nunion A,B["Shared"]:3', editorExample: 'venn-beta\nset A["Frontend"]:20\nset B["Backend"]:12\nunion A,B["Shared"]:3',
+  },
+  {
+    id: 'swimlane', upstreamId: 'swimlane', maturity: 'beta', label: 'Swimlane',
+    headers: ['swimlane-beta'], narrower: 'asSwimlane',
+    editorDiagramType: 'Swimlane', editorLabel: 'Swimlane workflow',
+    editorDescription: 'Responsibility lanes with source-ordered tasks and directed connections.',
+    editorExampleId: 'swimlane-workflow', editorGlyph: 'SL',
+    config: { section: 'swimlane', keys: ['automaticLaneOrdering', 'ignoreCrossLaneEdges', 'layout', 'lineHops', 'look', 'optimizeRanksByCrossings', 'theme'], noopKeys: ['automaticLaneOrdering', 'ignoreCrossLaneEdges', 'layout', 'lineHops', 'look', 'optimizeRanksByCrossings', 'theme'] },
+    semanticChannels: [], detect: familyDetection.detectsSwimlaneFamily,
+    sceneRoles: [
+      nativeSceneRole('prelude', 'document'), nativeSceneRole('title', 'text'),
+      nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'),
+      nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'),
+      nativeSceneRole('edge', 'connector'), nativeSceneRole('edge-label', 'container'),
+      nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text'),
+      nativeSceneRole('icon', 'container', 'shape', 'text'),
+    ],
+    example: 'swimlane-beta LR\n  subgraph customer[Customer]\n    request[Place order]\n  end\n  subgraph team[Team]\n    fulfill[Fulfil order]\n  end\n  request --> fulfill',
+    editorExample: 'swimlane-beta LR\n  subgraph customer[Customer]\n    request[Place order]\n    receive[Receive order]\n  end\n  subgraph team[Team]\n    check{In stock?}\n    fulfill[Fulfil order]\n  end\n  request --> check\n  check -->|Yes| fulfill\n  fulfill --> receive',
+  },
+  {
+    id: 'treeview', upstreamId: 'treeView', maturity: 'beta', label: 'TreeView',
+    headers: ['treeView-beta'], narrower: 'asTreeview',
+    editorDiagramType: 'TreeView', editorLabel: 'File tree',
+    editorDescription: 'Ordered folders and files with descriptions and hierarchy guides.',
+    editorExampleId: 'treeview-project', editorGlyph: 'TV',
+    config: { section: 'treeView', keys: ['defaultIconPack', 'extensionIcons', 'filenameIcons', 'lineThickness', 'paddingX', 'paddingY', 'rowIndent', 'showIcons'], noopKeys: ['defaultIconPack', 'extensionIcons', 'filenameIcons', 'lineThickness', 'paddingX'] },
+    semanticChannels: [], detect: familyDetection.detectsTreeviewFamily,
+    sceneRoles: [
+      nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'),       nativeSceneRole('title', 'text'), nativeSceneRole('node', 'container', 'shape'),
+      nativeSceneRole('label', 'text'), nativeSceneRole('edge', 'connector'), nativeSceneRole('icon', 'shape', 'text'),
+    ],
+    example: 'treeView-beta\n  "src/"\n    "index.ts"\n    "parser.ts"',
+    editorExample: 'treeView-beta\n  "project/"\n    "src/"\n      "index.ts"\n      "parser.ts"\n    "tests/"\n      "parser.test.ts"\n    "README.md"',
+  },
 ] as const satisfies readonly BuiltinFamilyDescriptorSeed[]
 
 export type BuiltinFamilyId = (typeof BUILTIN_FAMILY_DESCRIPTOR_SEEDS)[number]['id']
@@ -1448,12 +1556,16 @@ const FAMILY_DESCRIPTOR_FIELDS = Object.freeze([
   'capabilityEvidence',
   'example',
   'renderSource',
+  'canonicalSource',
+  'bodyAccessibility',
+  'bodyMeta',
   'normalizeRequest',
   'configDiagnostics',
   'extractLabels',
   'statementEnds',
   'parse',
   'buildSourceMap',
+  'sourceMapGrammar',
   'serialize',
   'mutate',
   'mutateSource',
@@ -1688,7 +1800,11 @@ function validateDescriptor(descriptor: FamilyDescriptor, replacingId?: FamilyId
   if (!Array.isArray(descriptor.headers) || descriptor.headers.length === 0 || descriptor.headers.some(header => !validDeclaredHeader(header))) {
     throw new Error(`Family "${descriptor.id}" must declare at least one canonical header without surrounding whitespace, controls, or semicolons`)
   }
+  if (descriptor.bodyAccessibility !== undefined && typeof descriptor.bodyAccessibility !== 'function') throw new TypeError(`Family ${descriptor.id} bodyAccessibility must be a function`)
+  if (descriptor.bodyMeta !== undefined && typeof descriptor.bodyMeta !== 'function') throw new TypeError(`Family ${descriptor.id} bodyMeta must be a function`)
   if (descriptor.renderSource !== undefined && typeof descriptor.renderSource !== 'function') throw new TypeError(`Family ${descriptor.id} renderSource must be a function`)
+  if (descriptor.canonicalSource !== undefined && descriptor.canonicalSource !== 'preserved') throw new TypeError(`Family ${descriptor.id} canonicalSource must name the preserved source policy`)
+  if (descriptor.sourceMapGrammar !== undefined && descriptor.sourceMapGrammar !== 'generic' && descriptor.sourceMapGrammar !== 'flowchart') throw new TypeError(`Family ${descriptor.id} sourceMapGrammar must name a supported source-map grammar`)
   if (descriptor.statementEnds !== undefined && typeof descriptor.statementEnds !== 'function') throw new TypeError(`Family ${descriptor.id} statementEnds must be a function`)
   if (typeof descriptor.detect !== 'function') throw new Error(`Family "${descriptor.id}" must declare a detector`)
   if (!Number.isSafeInteger(descriptor.collisionPriority)) throw new Error(`Family "${descriptor.id}" must declare an integer collisionPriority`)

@@ -193,7 +193,7 @@ describe('Class default paint cascade', () => {
     expect(paint(svg, 'Mineral').fill).toBe('#f96')
     expect(paint(svg, 'Mineral').text).toEqual(['red'])
   })
-  it.each(['agentic', 'elk'] as const)('uses the last assigned class then inline paint without losing defaults with %s', backend => {
+  it.each(['agentic', 'elk'] as const)('composes assigned classes then inline paint without losing defaults with %s', backend => {
     const source = `classDiagram
 class Animal {
  +String name
@@ -201,17 +201,17 @@ class Animal {
 }
 class Mineral
 classDef default fill:#f96,color:red,stroke:#111,stroke-width:6
-classDef pink color:#f9f,stroke-width:4
+classDef pink color:#f9f,stroke:#330066,stroke-width:4
 classDef blue color:blue
 class Animal pink
 class Animal blue
 style Animal fill:#afa,stroke-width:2`
     const options = { graphLayout: { backend, fallback: 'none' as const } }, model = parseClassDiagram(source.split('\n')), before = structuredClone(model)
-    expect(model.classes[0]!.className).toBe('blue')
+    expect(model.classes[0]!.className).toBe('pink blue')
     const positioned = layoutClassDiagram(model, options), svg = renderMermaidSVG(source, options)
     expect(model).toEqual(before)
-    expect(positioned.classes[0]!.inlineStyle).toEqual({ fill: '#afa', color: 'blue', stroke: '#111', 'stroke-width': '2' })
-    expect(paint(svg, 'Animal')).toEqual({ fill: '#afa', stroke: '#111', width: '2', text: ['blue', 'blue', 'blue'] })
+    expect(positioned.classes[0]!.inlineStyle).toEqual({ fill: '#afa', color: 'blue', stroke: '#330066', 'stroke-width': '2' })
+    expect(paint(svg, 'Animal')).toEqual({ fill: '#afa', stroke: '#330066', width: '2', text: ['blue', 'blue', 'blue'] })
     expect(paint(svg, 'Mineral')).toEqual({ fill: '#f96', stroke: '#111', width: '6', text: ['red'] })
   })
   it('measures the same inherited border widths used by Native SVG paint', async () => {

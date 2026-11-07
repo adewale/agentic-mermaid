@@ -1,3 +1,4 @@
+import { FAMILY_CONFORMANCE_PROFILES } from './helpers/family-conformance-profiles.ts'
 import { describe, expect, test } from 'bun:test'
 import { layoutMermaid } from '../agent/core.ts'
 import { type BuiltinFamilyId, FAMILY_CAPABILITY_COLUMNS, type FamilyDescriptor, getFamily, knownBuiltinFamilies, replaceFamilyForTest } from '../agent/families.ts'
@@ -19,6 +20,15 @@ import type { PositionedDiagram, RenderContext, RenderOptions } from '../types.t
 /** Extra syntax broadens role coverage beyond each descriptor's minimal
  * discovery example. This is test stimulus, not a family/capability roster. */
 const RICH_SCENE_FIXTURES: Partial<Record<BuiltinFamilyId, string>> = {
+  agentflow: `---\ntitle: agentflow authored meaning\n---\n${FAMILY_CONFORMANCE_PROFILES.agentflow.citizenship.source}\nplan -->|Review| publish`,
+  usecase: `---\ntitle: usecase authored meaning\n---\n${FAMILY_CONFORMANCE_PROFILES.usecase.citizenship.source}`,
+  wardley: `---\ntitle: wardley authored meaning\n---\n${FAMILY_CONFORMANCE_PROFILES.wardley.citizenship.source}`,
+  venn: `---\ntitle: venn authored meaning\n---\n${FAMILY_CONFORMANCE_PROFILES.venn.citizenship.source}\nstyle A,B fill:red`,
+  cynefin: `---\ntitle: cynefin authored meaning\n---\n${FAMILY_CONFORMANCE_PROFILES.cynefin.citizenship.source}`,
+  railroad: `---\ntitle: railroad authored meaning\n---\n${FAMILY_CONFORMANCE_PROFILES.railroad.citizenship.source}`,
+  swimlane: `---\ntitle: swimlane authored meaning\n---\n${FAMILY_CONFORMANCE_PROFILES.swimlane.citizenship.source}\ncheck -->|Recheck| request\nKnownIcon@{ icon: "fa fa-book", form: "circle", label: "Handbook" }\nUnknownIcon@{ icon: "acme:unknown", label: "Fallback" }`,
+  treeview: `---\ntitle: treeview authored meaning\n---\n${FAMILY_CONFORMANCE_PROFILES.treeview.citizenship.source}`,
+
   zenuml: `zenuml
 title Request lifecycle
 @Actor User as Customer
@@ -206,6 +216,14 @@ sankey-beta
 }
 
 const CAPABILITY_MUTATIONS: Readonly<Record<BuiltinFamilyId, AnyMutationOp>> = {
+  agentflow: { kind: 'add_node', id: 'CapabilityWitness', label: 'Capability witness' },
+  usecase: { kind: 'add_actor', id: 'CapabilityWitness', label: 'Capability witness' },
+  wardley: { kind: 'add_component', id: 'CapabilityWitness', x: 50, y: 50 },
+  venn: { kind: 'set_subset', sets: ['CapabilityWitness'], size: 7, label: 'Capability witness' },
+  cynefin: { kind: 'add_item', domain: 'complex', label: 'Capability witness' },
+  railroad: { kind: 'add_rule', name: 'CapabilityWitness', definition: { type: 'terminal', value: 'Capability witness' } },
+  swimlane: { kind: 'add_node', id: 'CapabilityWitness', label: 'Capability witness' },
+  treeview: { kind: 'add_node', label: 'Capability witness', nodeType: 'file' },
   zenuml: { kind: 'insert_statement', statement: { kind: 'message', id: 'added', from: 'B', to: 'A', label: 'acknowledged', reply: false } },
   eventmodeling: { kind: 'insert_frame', frame: { id: '99', reset: true, type: 'event', entity: 'Created', sources: [] } },
   packet: { kind: 'add_field', label: 'Capability witness', bits: 8 },

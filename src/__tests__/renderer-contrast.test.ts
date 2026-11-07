@@ -79,6 +79,15 @@ describe('auto-contrast ink contract', () => {
     expect(wcagContrastRatio(ink('#ffffff', '#000000', true), '#000000')!).toBeGreaterThanOrEqual(4.5)
     expect(createFillInkResolver({ bg: 'var(--page)', fg: 'var(--ink)' })('var(--_text)', 'var(--surface)')).toBe('var(--_text)')
   })
+  test('automatic ink reads admitted CSS color forms through the shared color parser', () => {
+    for (const [fill, hex] of [['midnightblue', '#191970'], ['hsl(240 100% 10%)', '#000033'], ['rgb(0% 0% 20%)', '#000033'], ['rgba(0,0,51,1)', '#000033']] as const) {
+      expect(contrastTextColor(fill)).toBe('#FFFFFF')
+      expect(wcagContrastRatio(contrastTextColor(fill)!, hex)!).toBeGreaterThanOrEqual(4.5)
+    }
+    expect(contrastTextColor('ivory')).toBe('#000000')
+    for (const unresolved of ['transparent', 'var(--surface)', 'currentColor', 'not-a-color']) expect(contrastTextColor(unresolved)).toBeUndefined()
+  })
+
   const hexArb = fc.integer({ min: 0, max: 0xffffff }).map(value => `#${value.toString(16).padStart(6, '0')}`)
 
   test('picks the higher-contrast ink, at least 4.5:1, for any opaque fill', () => {

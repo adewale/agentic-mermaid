@@ -53,3 +53,10 @@ test('browser module compression preserves observable calls, getters, coercion a
   expect(module.increment()).toBe(1)
   expect(module.count).toBe(1)
 })
+
+test('browser compression retains a valid empty ESM module when all declarations are unused', async () => {
+  const compressed = await minifyBrowserRuntime('/* generated type-only boundary */ const unused = 1;')
+  expect(compressed).toBe('')
+  const module = await import(`data:text/javascript;base64,${Buffer.from(compressed).toString('base64')}`)
+  expect(Object.keys(module)).toEqual([])
+})

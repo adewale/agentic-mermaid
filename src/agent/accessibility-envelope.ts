@@ -1,5 +1,7 @@
 import { appendNativeAccessibilityLines, parseAccessibilityDirective, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
-import type { Accessibility, DiagramBody } from './types.ts'
+import type { Accessibility, DiagramBody, FamilyParsedBody, ValidDiagramMeta } from './types.ts'
+import type { FamilyOperations } from './family-registry.ts'
+import { getInstalledFamilyDescriptor } from './family-router.ts'
 
 export class AccessibilityTextError extends Error {}
 
@@ -38,11 +40,13 @@ export function accessibilityDescriptionText(value: string): string {
 
 /** Canonicalize the same physical lines the envelope parser consumes before
  * publishing a mutated body or deriving comments and source locations. */
-export function normalizeBodyAccessibility<T extends DiagramBody>(body: T): T {
-  if (body.kind === 'mindmap' || body.kind === 'ishikawa' || body.kind === 'block') return body
+export function normalizeBodyAccessibility<T extends DiagramBody>(body: T, retainEmptyTitle = false): T {
+  if (bodyAccessibility(body)?.syntax === 'native') return body
   const fields = accessibilityFromBody(body)
   if (!fields) return body
-  const title = fields.title === undefined ? undefined : accessibilityTitleText(fields.title)
+  // An unrelated edit can retain a parsed empty title; a title setter still
+  // validates new text through the same non-empty field authority.
+  const title = fields.title === undefined || retainEmptyTitle && fields.title === '' ? fields.title : accessibilityTitleText(fields.title)
   // Empty parsed blocks are valid retained values; setters validate new text.
   const descr = fields.descr === undefined || fields.descr === '' ? fields.descr : accessibilityDescriptionText(fields.descr)
   return title === fields.title && descr === fields.descr
@@ -134,57 +138,45 @@ export function adoptStatementAccessibility(meta: { accessibility: Accessibility
   return true
 }
 
-/** Accessibility-capable structured bodies mirror the universal envelope so
- * typed mutation APIs can edit it. Undefined means the body has no such
- * fields and the metadata envelope remains the sole authority. */
+type AccessibilityBody<B = DiagramBody> = B extends DiagramBody ? 'accessibilityTitle' extends keyof B ? 'accessibilityDescription' extends keyof B ? B : never : never : never
+
+/** Declare ownership where the family's reader and writer are assembled. The
+ * kind is constrained to body types that actually expose both fields. */
+export function ownBodyAccessibility<K extends AccessibilityBody['kind']>(kind: K, syntax: 'statement' | 'native' = 'statement'): NonNullable<FamilyOperations['bodyAccessibility']> {
+  return body => body.kind === kind ? { fields: body as Extract<AccessibilityBody, { kind: K }>, syntax } : undefined
+}
+
+function bodyAccessibility(body: DiagramBody): ReturnType<NonNullable<FamilyOperations['bodyAccessibility']>> {
+  return getInstalledFamilyDescriptor(body.kind)?.bodyAccessibility?.(body)
+}
+
+/** Undefined leaves the envelope as authority; an empty object deliberately
+ * clears the metadata owned by this structured body. */
 export function accessibilityFromBody(body: DiagramBody): Accessibility | undefined {
-  switch (body.kind) {
-    case 'zenuml':
-    case 'timeline':
-    case 'journey':
-    case 'architecture':
-    case 'xychart':
-    case 'pie':
-    case 'quadrant':
-    case 'mindmap':
-    case 'gitgraph':
-    case 'c4':
-    case 'packet':
-    case 'kanban':
-    case 'requirement':
-    case 'treemap':
-    case 'ishikawa':
-    case 'block':
-      return {
-        ...(body.accessibilityTitle !== undefined ? { title: body.accessibilityTitle } : {}),
-        ...(body.accessibilityDescription !== undefined ? { descr: body.accessibilityDescription } : {}),
-      }
-    default:
-      return undefined
+  const owned = bodyAccessibility(body)
+  if (!owned) return undefined
+  const { fields } = owned
+  return {
+    ...(fields.accessibilityTitle !== undefined ? { title: fields.accessibilityTitle } : {}),
+    ...(fields.accessibilityDescription !== undefined ? { descr: fields.accessibilityDescription } : {}),
   }
 }
 
-/** Mirror envelope metadata onto the structured body shapes that expose typed
- * accessibility mutation. Family grammar parsers never re-scan directives. */
+/** Mirror envelope metadata only onto fields owned by the family descriptor.
+ * Grammar-consumed values remain authoritative when the envelope has none. */
 export function attachAccessibilityToBody(body: DiagramBody, accessibility: Accessibility): void {
-  switch (body.kind) {
-    case 'timeline':
-    case 'journey':
-    case 'architecture':
-    case 'xychart':
-    case 'pie':
-    case 'quadrant':
-    case 'mindmap':
-    case 'gitgraph':
-    case 'c4':
-    case 'packet':
-    case 'kanban':
-    case 'requirement':
-    case 'treemap':
-    case 'ishikawa':
-    case 'block':
-      if (accessibility.title !== undefined) body.accessibilityTitle = accessibility.title
-      if (accessibility.descr !== undefined) body.accessibilityDescription = accessibility.descr
-      break
-  }
+  const fields = bodyAccessibility(body)?.fields
+  if (!fields) return
+  if (accessibility.title !== undefined) fields.accessibilityTitle = accessibility.title
+  if (accessibility.descr !== undefined) fields.accessibilityDescription = accessibility.descr
+}
+
+/** Resolve all body-owned metadata through the same descriptor used to parse
+ * and write it. Save and mutation commit must not restore stale envelope values. */
+export function metadataFromBody(body: FamilyParsedBody, meta: ValidDiagramMeta, previousBody?: FamilyParsedBody): ValidDiagramMeta {
+  if (body.kind === 'extension' || body.kind === 'preserved') return meta
+  const previous = previousBody?.kind === 'extension' || previousBody?.kind === 'preserved' ? undefined : previousBody
+  const accessibility = accessibilityFromBody(body)
+  const mirrored = accessibility === undefined ? meta : { ...meta, accessibility }
+  return getInstalledFamilyDescriptor(body.kind)?.bodyMeta?.(body, mirrored, previous) ?? mirrored
 }

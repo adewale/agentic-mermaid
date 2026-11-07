@@ -28,6 +28,8 @@ import fc from 'fast-check'
 import '../src/__tests__/fc-seed.preload.ts'
 import { verifyMermaid, renderMermaidSVG, renderMermaidASCII, renderMermaidPNG, BUILTIN_FAMILY_METADATA } from '../src/agent/index.ts'
 import { runGettingStartedCommands } from './helpers/getting-started.ts'
+import { FAMILY_CONFORMANCE_PROFILES } from '../src/__tests__/helpers/family-conformance-profiles.ts'
+import { maintainedMarkdownFiles } from '../scripts/docs/maintained-docs.ts'
 
 const REPO = join(import.meta.dir, '..')
 const BUILD_TIMEOUT_MS = 180_000
@@ -195,6 +197,45 @@ process.stdout.write(JSON.stringify({ resolved, results, pngResults }))
 `
 
 describe('installed tarball — library', () => {
+  test('copied AgentFlow models keep executable YAML across public entries', () => {
+    expect(haveConsumer).toBe(true)
+    const consumer = join(work, 'agentflow-copy.mjs')
+    const source = `agentflow-beta LR
+  A[Collect]@{ shape: tool }
+  B[Publish]
+  A --> B
+  A@{
+    context:
+      -
+        name: First
+        values: [1, 2]
+      - [nested, list]
+  }`
+    writeFileSync(consumer, `
+import assert from 'node:assert/strict'
+import * as root from 'agentic-mermaid'
+import * as agent from 'agentic-mermaid/agent'
+import * as core from 'agentic-mermaid/agent/core'
+const source = ${JSON.stringify(source)}
+const expected = [{ name: 'First', values: [1, 2] }, ['nested', 'list']]
+const svg = root.renderMermaidSVG(source)
+assert.match(svg, /Collect/)
+assert.match(svg, /Publish/)
+for (const entry of [agent, core]) {
+  const parsed = entry.parseRegisteredMermaid(source)
+  assert.equal(parsed.ok, true)
+  for (const diagram of [parsed.value, { ...parsed.value }, structuredClone(parsed.value)]) {
+    assert.equal(root.renderMermaidSVG(diagram), svg)
+    const reloaded = entry.parseRegisteredMermaid(diagram.canonicalSource)
+    assert.equal(reloaded.ok, true)
+    assert.deepEqual(reloaded.value.body.metadata.get('A').context, expected)
+  }
+}
+`)
+    const result = spawnSync(NODE!, [consumer], { cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
+    expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' })
+  }, RUN_TIMEOUT_MS)
+
   test('canonical API examples typecheck and run against the installed package', () => {
     expect(haveConsumer).toBe(true)
     const markdown = readFileSync(join(REPO, 'docs/api.md'), 'utf8')
@@ -275,21 +316,32 @@ console.log(JSON.stringify(entries.map(entry => Object.hasOwn(entry, 'TUFTE_STYL
     }
   })
 
-  test('published documentation entry points have no broken relative links', () => {
+  test('all maintained documentation shipped in the package resolves local link and image resources', async () => {
     expect(haveConsumer).toBe(true)
-    for (const relativeHubPath of ['README.md', 'docs/README.md', 'docs/api.md', 'docs/api-advanced.md']) {
-      const hubPath = join(packageDir, relativeHubPath)
-      const hub = readFileSync(hubPath, 'utf8')
-      const relativeLinks = [...hub.matchAll(/\]\(([^)]+)\)/g)]
-        .map(match => match[1]!.trim())
-        .filter(href => href !== '' && !href.startsWith('#') && !/^[a-z][a-z\d+.-]*:/i.test(href))
-        .map(href => href.split('#', 1)[0]!)
-
-      expect(relativeLinks.length).toBeGreaterThan(0)
-      for (const href of relativeLinks) {
-        expect({ hub: relativeHubPath, href, exists: existsSync(resolve(dirname(hubPath), href)) }).toEqual({ hub: relativeHubPath, href, exists: true })
+    const maintained = new Set(maintainedMarkdownFiles(REPO))
+    const documents = [...new Bun.Glob('**/*.md').scanSync({ cwd: packageDir, onlyFiles: true })]
+      .filter(file => maintained.has(file)).sort()
+    expect(documents.length).toBeGreaterThan(0)
+    const missing: Array<{ document: string; href: string }> = []
+    await Promise.all(documents.map(async document => {
+      const links: string[] = []
+      // Parse what readers see: code examples stay inert, reference links and
+      // raw HTML images are resolved by the existing Markdown/HTML parsers.
+      await new HTMLRewriter().on('[href], [src]', {
+        element(element) {
+          for (const name of ['href', 'src']) {
+            const href = element.getAttribute(name)
+            if (href !== null) links.push(href)
+          }
+        },
+      }).transform(new Response(Bun.markdown.html(readFileSync(join(packageDir, document), 'utf8')))).text()
+      for (const href of links) {
+        if (!href || href.startsWith('#') || href.startsWith('//') || /^[a-z][a-z\d+.-]*:/i.test(href)) continue
+        const path = decodeURIComponent(href.split(/[?#]/, 1)[0]!)
+        if (!existsSync(resolve(packageDir, dirname(document), path))) missing.push({ document, href })
       }
-    }
+    }))
+    expect(missing).toEqual([])
   })
 
   test('resolves all three entry points and renders every registered family identically to source', () => {
@@ -528,30 +580,76 @@ describe('installed tarball — mcp bin', () => {
     expect(r.stdout).toContain('agentic-mermaid-mcp [--transport stdio|http]')
   }, RUN_TIMEOUT_MS)
 
-  test('Mindmap and GitGraph stay structured and source-equal through the installed MCP', () => {
+  test('every registered family retains meaningful typed edits through the installed MCP', () => {
     expect(haveConsumer).toBe(true)
-    const requests = PACKAGE_FAMILY_FIXTURES.map((fixture, index) => ({
-      jsonrpc: '2.0', id: index + 1, method: 'tools/call', params: {
-        name: 'execute', arguments: {
-          code: `const source = ${JSON.stringify(fixture.source)}; const parsed = mermaid.parseRegisteredMermaid(source); return { ok: parsed.ok, kind: parsed.ok ? parsed.value.body.kind : null, svg: mermaid.renderMermaidSVG(source), ascii: mermaid.renderMermaidASCII(source) }`,
+    const requests = BUILTIN_FAMILY_METADATA.map((family, index) => {
+      const witness = FAMILY_CONFORMANCE_PROFILES[family.id].citizenship
+      return {
+        jsonrpc: '2.0', id: index + 1, method: 'tools/call', params: {
+          name: 'execute', arguments: {
+            code: `
+const parsed = mermaid.parseRegisteredMermaid(${JSON.stringify(witness.source)});
+if (!parsed.ok) return { phase: 'parse', error: parsed.error };
+const narrowed = mermaid.${family.narrower}(parsed.value);
+if (!narrowed) return { phase: 'narrow' };
+const edited = mermaid.mutate(narrowed, ${JSON.stringify(witness.edit.op)});
+if (!edited.ok) return { phase: 'edit', error: edited.error };
+const source = mermaid.serializeMermaid(edited.value);
+const reread = mermaid.parseRegisteredMermaid(source);
+if (!reread.ok) return { phase: 'read-back', error: reread.error };
+const options = ${JSON.stringify(witness.options ?? {})};
+return {
+  source, family: reread.value.body.kind,
+  narrowed: mermaid.${family.narrower}(reread.value) !== null,
+  missingFacts: mermaid.checkMermaid(reread.value, { include: ${JSON.stringify([...witness.facts, ...witness.edit.afterFacts])} }).missing,
+  verified: mermaid.verifyMermaid(reread.value, { renderOptions: options }).ok,
+  stable: mermaid.serializeMermaid(reread.value) === source,
+  svg: mermaid.renderMermaidSVG(reread.value, options),
+  ascii: mermaid.renderMermaidASCII(reread.value, { ...options, useAscii: true, colorMode: 'none' }),
+};`,
+          },
         },
-      },
-    }))
+      }
+    })
     const r = spawnSync(NODE!, [mcpBin], {
       cwd: work, input: requests.map(request => JSON.stringify(request)).join('\n') + '\n',
       encoding: 'utf8', timeout: RUN_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024,
     })
     expect({ status: r.status, stderr: r.stderr }).toEqual({ status: 0, stderr: '' })
     const responses = r.stdout.split('\n').filter(Boolean).map(line => JSON.parse(line) as any)
-    expect(responses).toHaveLength(PACKAGE_FAMILY_FIXTURES.length)
-    PACKAGE_FAMILY_FIXTURES.forEach((fixture, index) => {
-      const envelope = JSON.parse(responses[index]!.result.content[0].text)
-      expect(envelope.value).toEqual({
-        ok: true,
-        kind: fixture.family,
-        svg: renderMermaidSVG(fixture.source),
-        ascii: renderMermaidASCII(fixture.source),
+    expect(responses).toHaveLength(requests.length)
+    const byId = new Map(responses.map(response => [response.id, response]))
+    const outputs = BUILTIN_FAMILY_METADATA.map((family, index) => {
+      const envelope = JSON.parse(byId.get(index + 1)!.result.content[0].text)
+      expect(envelope.ok, family.id).toBe(true)
+      const value = envelope.value
+      expect(value, family.id).toEqual({
+        family: family.id, narrowed: true, missingFacts: [], verified: true, stable: true,
+        source: expect.any(String), svg: expect.any(String), ascii: expect.any(String),
       })
+      return value as { family: string; source: string; svg: string; ascii: string }
+    })
+    const inputFile = join(work, 'mcp-render-inputs.json')
+    writeFileSync(inputFile, JSON.stringify(outputs.map(value => ({ source: value.source, options: FAMILY_CONFORMANCE_PROFILES[value.family as keyof typeof FAMILY_CONFORMANCE_PROFILES].citizenship.options ?? {} }))))
+    // Isolate the MCP adapter from engine rounding: both sides use the same
+    // installed package under Node. Independent facts above own edit meaning.
+    const reference = spawnSync(NODE!, ['--input-type=module', '-e', `
+import { readFileSync } from 'node:fs';
+import { renderMermaidSVG, renderMermaidASCII } from 'agentic-mermaid/agent';
+const inputs = JSON.parse(readFileSync(process.env.AM_MCP_INPUTS, 'utf8'));
+process.stdout.write(JSON.stringify(inputs.map(({ source, options }) => ({
+  svg: renderMermaidSVG(source, options),
+  ascii: renderMermaidASCII(source, { ...options, useAscii: true, colorMode: 'none' }),
+}))));`], {
+      cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024,
+      env: { ...process.env, AM_MCP_INPUTS: inputFile },
+    })
+    expect({ status: reference.status, stderr: reference.stderr }).toEqual({ status: 0, stderr: '' })
+    const rendered = JSON.parse(reference.stdout) as Array<{ svg: string; ascii: string }>
+    expect(rendered).toHaveLength(outputs.length)
+    outputs.forEach((value, index) => {
+      expect(value.svg, value.family).toBe(rendered[index]!.svg)
+      expect(value.ascii, value.family).toBe(rendered[index]!.ascii)
     })
   }, RUN_TIMEOUT_MS)
 

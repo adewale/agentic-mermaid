@@ -47,7 +47,7 @@ export interface ClassNode {
   attributes: ClassMember[]
   /** Class methods (functions) */
   methods: ClassMember[]
-  /** Assigned classDef name (`A:::hot`, `class`, or `cssClass`). */
+  /** Ordered, space-separated classDef names (`A:::hot`, `class`, `cssClass`). */
   className?: string
   /** Inline `style A ...` paint. */
   inlineStyle?: Record<string, string>

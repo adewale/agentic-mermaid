@@ -12,7 +12,10 @@ bun run eval:mermaid-assertions
 bun run eval:mermaid-assertions --upstream ../mermaid --reference ../mermaid-reference --families er,sequence --out /tmp/mermaid-assertions
 ```
 
-Node runs Vitest; Bun runs the coordinator. The source checkout must have the
+Node runs Vitest; Bun runs the coordinator. One sequential worker reuses its
+jsdom realm and loaded runtime across files. Setup restores the host's initial
+`getBBox` descriptor after renderer fixtures, without supplying measurement
+values or changing original tests. The source checkout must have the
 exact policy pin and clean tracked files. The independently installed reference
 must match Mermaid 12.2.0 and parser 2.0.1. The normal reference setup uses jsdom
 26.1.0. Generated JSON, logs and the Markdown breakdown belong in the ignored
@@ -42,11 +45,22 @@ and central-connection fields expand into the pinned database event protocol,
 and lifecycle indexes follow that expanded event list. Actor properties without
 a native semantic model and renderer bookkeeping remain explicit adapter gaps.
 
+Railroad controls select the independently registered constructor, EBNF, ABNF or
+PEG parser from the actual source header. Their database view translates the
+native grammar IR (including predicates and unbounded repeats); it does not
+change the native model or its JSON transport. The constructor-language AST
+view maps the retained rules and expressions to Langium vocabulary; grammar
+constructs absent from that AST remain explicit gaps. A compound predicate whose
+upstream display IR discards its grammar remains an explicit adapter gap.
+
 Each case records its original name, file, actual input strings, admission result
 and any unavailable API. An unavailable operation cannot pass accidentally when
 an original negative assertion catches its exception: the after-case guard
 records and fails that boundary. A case that never invokes a native parser is
-also marked outside the adapted input-language boundary.
+also marked outside the adapted input-language boundary. Inspecting cleared adapter state
+after a successful parse is unavailable: it cannot prove a production mutable
+database reset when the native interface exposes parsed models. Before-parse
+setup may clear the adapter to isolate cases.
 
 `report.json` and `report.md` show all registered cases by family and disjoint
 cause:

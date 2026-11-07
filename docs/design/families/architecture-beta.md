@@ -14,7 +14,8 @@ Current scope covers:
 - visible `title ...` header furniture, including title-only diagrams
 - `align row|column` directives (upstream v11.16.0) — parsed, modeled,
   round-tripped losslessly, and honored as placement constraints
-- multi-line labels via `<br>` / `\n`
+- multi-line labels via `<br>` / `\n`, and quoted physical lines that retain
+  internal indentation and blank rows through parsing, typed edits and export
 - SVG, PNG, and ASCII output (PNG via the shared SVG rasterization pipeline)
 
 ## Pipeline

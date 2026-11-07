@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { releaseBenchCases } from '../../eval/benchmark/release-bench-cases.ts'
 import { denseDag, diamondFan } from '../../eval/degenerate-etn/generators.ts'
 import { collectSamples } from '../../eval/layout-compare/run.ts'
 import { extractOfficialCorpus } from '../../eval/shared/official-fences.ts'
@@ -156,7 +157,101 @@ const chartFittingFixtures: Array<{ id: string; title: string; family: 'pie' | '
     cue: "Labeled derivative: expands title, five axis labels and three curve labels while retaining upstream IDs, order and distinct values. Inspect complete text and any naturally visible tick annotations. This deliberately infeasible 360px input may exceed the budget; do not treat a scaled review image as a fit. Pinned source: https://github.com/mermaid-js/mermaid/blob/1fb7869866dd619168d840291c9c54b4f129758b/packages/examples/src/examples/radar.ts#L26"
   },
 ]
+const nativeFamilyReview = [
+  ['swimlane', 'Inspect equal responsibility bands, all cross-lane routes and retained Customer/Operations ownership.'],
+  ['treeview', 'Inspect directory indentation, the App.tsx description, the CJK filename and icon(none) without a network dependency.'],
+  ['usecase', 'Inspect the Customer actor, both use-case ellipses inside Store and the include relationship.'],
+  ['agentflow', 'Inspect publishing tasks, tool/action shapes, connector reference and the global reference document.'],
+  ['wardley', 'Inspect authored coordinates, pipeline members, evolution, annotation legend, inertia and both strategy labels.'],
+  ['cynefin', 'Inspect every domain item and both labelled transitions; region bounds grow with their prepared text.'],
+  ['railroad', 'Follow the choice, optional branch and repetition loop; the item reference keeps its own rule identity.'],
+  ['venn', 'Inspect proportional set areas, the Shared intersection and the region-owned note. Three-plus-set circles are approximate, diagnosed separately.'],
+] as const
+const nativeFamilyFixtures: Fixture[] = nativeFamilyReview.map(([family, cue]) => ({
+  id: `native-family-${family}`,
+  title: `Native ${family}`,
+  source: readFileSync(join(ROOT, 'eval/layout-compare/fixtures', `${family}-native.mmd`), 'utf8'),
+  cue: `The base revision has no native ${family} renderer; its actual unsupported response is retained. ${cue} This finite witness does not certify every documented construct.`,
+  captureLayout: true,
+}))
+const nativeReadabilityRepairs: Fixture[] = [
+  ...(['github-light', 'hand-drawn', 'architectural-plan'] as const).map(style => ({ id: `adversarial-usecase-actor-${style}`, title: `UseCase: painted actor contacts (${style})`, source: 'usecase-beta\ndirection LR\nactor A("Person responsible for customer support and escalation")\nB("Resolve request")\nA --> B\nB --> A', renderOptions: { style }, pngScale: 1, captureLayout: true as const, cue: 'Follow both directions to the painted person rather than its wide caption envelope. Native contacts use the outside stroke boundary; exact rough-backend jitter and arbitrary-degree port separation are not certified. The original main baseline has no UseCase renderer and retains its actual error; use a pre-audit native revision for the floating-link comparison.' })),
+  { id: 'adversarial-wardley-namespace', title: 'Wardley: authored and generated identities coexist', source: 'wardley-beta\ncomponent Service [0.8,0.3]\ncomponent Service_Custom [0.2,0.9]\ncomponent "pipeline:Service" [0.3,0.8]\npipeline Service {\n component Custom [0.4]\n}\nService -> Service_Custom\nService -> Custom', renderOptions: { style: 'publication-figure' }, pngScale: 1, captureLayout: true, cue: 'Inspect four separate authored/child captions, the low Service_Custom coordinate and both distinct targets. The layout sidecar and owning regression establish unique pipeline/group identities; pixels alone cannot. Mermaid accepts the source but overwrites the authored Service_Custom component.' },
+  { id: 'adversarial-swimlane-parallel', title: 'Swimlane: parallel labeled handoffs', source: 'swimlane-beta LR\nsubgraph L[Requests]\n A[Submit]\nend\nsubgraph R[Operations]\n B[Review]\nend\nA -->|approve| B\nA -->|reject| B', renderOptions: { style: 'github-light' }, pngScale: 1, captureLayout: true, cue: 'The audited native implementation refused this input after placing both labels on one route. Retain that actual error when comparing against it. Inspect two complete labels, distinct owned routes and unchanged endpoint identities; do not infer parallel-edge separation from a source count alone.' },
+  { id: 'adversarial-swimlane-loops', title: 'Swimlane: repeated owned self-loops', source: '---\ntitle: Review and retry decisions\n---\nswimlane-beta LR\nsubgraph Team\n A[Review]\nend\nA -->|retry| A\nA -->|revise| A', renderOptions: { style: 'github-light' }, pngScale: 1, captureLayout: true, cue: 'The audited native implementation refused repeated labeled self-loops after placing both captions on one route. Inspect two distinct owned loops, both complete captions, unchanged A-to-A identities and clearance beneath the authored title.' },
+  { id: 'adversarial-swimlane-title', title: 'Swimlane: repeated handoffs beneath an authored title', source: '---\ntitle: A long authored diagram title spanning the workflow\n---\nswimlane-beta LR\nsubgraph Team\n A[One]\n B[Two]\nend\nA -->|approve| B\nA -->|reject| B\nB -->|return| A', renderOptions: { style: 'github-light' }, pngScale: 1, captureLayout: true, cue: 'Inspect the complete diagram title and all three caption pills. Outside occurrence channels must stay below the title band, including after translation; source text and warning counts alone cannot establish the absence of overpaint.' },
+  { id: 'adversarial-swimlane-nesting', title: 'Swimlane: authored immediate parent', source: 'swimlane-beta LR\nsubgraph lane[Team]\n subgraph inner[Nested]\n A[One]\n end\n B[Two]\nend\nA --> B', renderOptions: { style: 'github-light' }, pngScale: 1, captureLayout: true, cue: 'Inspect the layout sidecar: A belongs immediately to inner, inner belongs to lane, and group members and regions agree. This is an ownership repair; identical pixels alone cannot prove the public parent metadata.' },
+  { id: 'adversarial-wardley-direction', title: 'Wardley: backward and bidirectional marker ink', source: 'wardley-beta\nanchor A [0.8,0.2]\nanchor B [0.8,0.8]\nanchor C [0.4,0.2]\nanchor D [0.4,0.8]\nA +< -> B\nC +<> -> D', renderOptions: { style: 'accessible-high-contrast' }, pngScale: 1, captureLayout: true, cue: 'Inspect actual start arrowheads: the upper dependency points back to A and the lower dependency points toward both endpoints. Relationship metadata and ASCII already retained the directions; this comparison checks the painted marker orientation.' },
+  { id: 'adversarial-wardley-overflow', title: 'Wardley: overflow captions clear annotation legends', source: 'wardley-beta\n' + Array.from({ length: 23 }, (_, index) => `component "Component number ${index} with full caption" [0.5,0.5]`).join('\n') + '\nannotation 1, [0.2,0.2] "Legend text occupying fallback captions"', renderOptions: { style: 'github-light' }, pngScale: 1, captureLayout: true, cue: 'The coincident component positions are authored and remain coincident. Inspect the automatic overflow caption and the complete annotation legend below the plot: their text bands must remain disjoint. This finite crowded example does not establish arbitrary-density readability.' },
+  { id: 'roadmap-repair-cynefin-transitions', title: 'Cynefin: independent learning loops', source: `cynefin-beta
+title Product decisions and learning loops
+complex
+ "Run small reversible experiments with customers"
+ "Learn from unexpected outcomes before committing"
+complicated
+ "Ask domain experts to investigate a known problem"
+clear
+ "Apply the documented and repeatable procedure"
+chaotic
+ "Stabilise the incident before searching for causes"
+confusion
+ "Gather evidence to decide which domain applies"
+ "Reconsider assumptions as new signals emerge"
+complex --> clear: "Promote validated practice"
+chaotic --> complicated: "Investigate after stabilising"
+clear --> complex: "Challenge stale assumptions"`, renderOptions: { style: 'github-light' }, pngScale: 1, captureLayout: true, cue: 'Inspect three complete transition captions, reverse direction and domain contacts. The candidate gives transitions separate exterior channels rather than crossing Confusion or overprinting midpoint text. Domain items and authored transition endpoints are unchanged.' },
+  { id: 'roadmap-repair-swimlane-handoffs', title: 'Swimlane: forty tasks and independent hand-offs', source: releaseBenchCases().find(input => input.id === 'swimlane:4-lanes-40-tasks')!.source, renderOptions: { style: 'github-light' }, pngScale: 1, captureLayout: true, cue: 'Existing release workload: follow each Task0.i to Task1.i to Task2.i to Task3.i. Independent hand-offs must remain traceable rather than merging into unlabelled shared buses. Lane membership, node order and all thirty authored relationships are unchanged.' },
+  { id: 'roadmap-repair-wardley-labels', title: 'Wardley: thirty coordinate-preserving captions', source: releaseBenchCases().find(input => input.id === 'wardley:30-positioned-components')!.source, renderOptions: { style: 'github-light' }, pngScale: 1, captureLayout: true, cue: 'Existing release workload: all thirty regular grid coordinates remain fixed relative to the plot. Only automatic captions move, with short owned leaders where necessary; inspect readable labels rather than a continuous overprinted run. Explicit authored label offsets are a separate preservation constraint.' },
+  { id: 'roadmap-repair-venn-intersection', title: 'Venn: measured intersection caption and owned callout', source: `venn-beta
+set A["Product designers"]:40
+ text a["Research and prototyping"]
+set B["Frontend engineers"]:35
+ text b["Accessible implementation"]
+set C["Customer advocates"]:30
+ text c["Field feedback"]
+union A,B["Design systems"]:12
+union A,C["Discovery"]:8
+union B,C["Support tools"]:7
+union A,B,C["Shared product discovery, accessible implementation, and customer support workflows"]:3
+style A,B,C fill:#b2dfdb`, renderOptions: { style: 'github-light' }, pngScale: 1, captureLayout: true, cue: 'Inspect the complete long triple-intersection caption, all pair labels and the three owned notes. Measured text fits its true region or moves to an owned outside callout; set areas and intersection quantities are unchanged. The three-circle fit remains approximate, not an exact area proof.' },
+  { id: 'roadmap-repair-treeview-icons', title: 'TreeView: local icon artwork and honest compact fallback', source: `treeView-beta
+assets/ icon(folder)
+    database.ts icon(mdi:database)
+    App.tsx :::highlight icon(logos:react) ## Main component
+    plain.ts icon(file)`, renderOptions: { style: 'pen-and-ink' }, pngScale: 1, captureLayout: true, cue: 'Inspect bundled database artwork, native folder/file outlines and the compact R fallback badge for the unknown React icon. The authored icon name stays in model/source and SVG metadata; a fallback badge is not a fetched or exact React logo.' },
+  { id: 'roadmap-repair-railroad-tracks', title: 'Railroad: rule headings and nested tracks', source: readFileSync(join(ROOT, 'eval/layout-compare/fixtures/railroad-native.mmd'), 'utf8'), renderOptions: { style: 'ops-schematic' }, pngScale: 1, captureLayout: true, cue: 'Inspect legible rule headings, terminal/nonterminal labels, optional branches and the repetition loop in the same operations style. Track batching preserves one typed rule identity and individual segment topology. Compare native geometry and complete labels; the image does not establish arbitrary grammar readability.' },
+  { id: 'roadmap-repair-usecase-dashes', title: 'UseCase: visibly dashed include dependency', source: readFileSync(join(ROOT, 'eval/layout-compare/fixtures/usecase-native.mmd'), 'utf8'), renderOptions: { style: 'architectural-plan' }, pngScale: 1, captureLayout: true, cue: 'Inspect the dashed include shaft, open dependency arrow and complete stereotype text. The Customer actor and Store boundary retain their meanings; selected node padding also applies to the native ellipse/actor envelopes.' },
+  { id: 'roadmap-repair-agentflow-roles', title: 'AgentFlow: role and compound styling control', source: readFileSync(join(ROOT, 'eval/layout-compare/fixtures/agentflow-native.mmd'), 'utf8'), renderOptions: { style: 'risograph' }, pngScale: 1, captureLayout: true, cue: 'Preservation control: publishing tasks, tool/action silhouettes, connector and global document remain recognizable under the same risograph style. This compound graph intentionally retains ELK; native forest timing is qualified separately and is not inferred from this image.' },
+]
 const fixtures: Fixture[] = [
+  {
+    id: 'venn-literal-accessibility-label',
+    title: 'Venn retains directive-looking text inside a multiline label',
+    source: 'venn-beta\naccTitle: Actual diagram title\nset A["First\naccTitle: literal label text\n\n  Last"]: 10',
+    renderOptions: { style: ['hand-drawn', 'dracula'] },
+    cue: 'Inspect the complete literal accTitle line inside the set label under the same look and palette. Model checks also retain the authored blank row; displayed text uses the existing compact line spacing. The earlier native renderer consumed that line as accessibility metadata. Real external accessibility metadata stays separate; model, edit, canonical-source and source-range regressions provide the semantic checks. A baseline without Venn retains its real unsupported result.',
+  },
+  {
+    id: 'class-ordered-style-membership',
+    title: 'Class retains paint from multiple authored style assignments',
+    source: 'classDiagram\nclassDef pink fill:#fce7f3,stroke:#be185d\nclassDef bold color:#166534\nclass Account:::pink\ncssClass Account bold',
+    cue: 'Inspect the pale pink Account fill and dark pink outline from pink alongside the green text from bold. The earlier implementation discarded pink when reading the later assignment. Membership, checked edits and both layout engines have independent owning regressions.',
+  },
+  {
+    id: 'flowchart-repeated-style-definition',
+    title: 'Repeated graph style definitions retain earlier paint',
+    source: 'flowchart LR\nclassDef service fill:#dbeafe,stroke:#1d4ed8\nclassDef service color:#166534\nA[Account]:::service --> B[Ledger]:::service',
+    cue: 'Inspect both blue fills and outlines together with green text. Reading the later service definition previously discarded its fill and stroke. The shared parser repair also covers AgentFlow and Swimlane; this image shows the Flowchart witness.',
+  },
+  ...nativeReadabilityRepairs,
+  ...nativeFamilyFixtures,
+  {
+    id: 'treemap-fixed-ink-halo', title: 'Treemap fixed ink on categorical fills',
+    source: 'treemap\n"Category A"\n  "Item A1":10\n  "Item A2":20\n"Category B"\n  "Item B1":15\n  "Item B2":25',
+    renderOptions: { style: ['accessible-high-contrast', 'one-dark'], transparent: true },
+    captureLayout: true,
+    cue: 'The base refuses this fixed-ink palette combination. The candidate retains all quantities and cell geometry while an opaque text halo keeps the authored ink readable. Inspect every item label and unchanged area ordering. This witness does not establish arbitrary CSS contrast or cross-platform font equivalence.',
+  },
   ...(['default', 'publication'] as const).map(style => ({
     id: `flowchart-lineage-${style}`,
     title: `Issue #566: exact lineage diagram, ${style} styling`,
@@ -302,6 +397,33 @@ const fixtures: Fixture[] = [
     cue: 'Follow the no feedback edge from E. Before, shortening replaces its rightward source stub with a vertical tangent to the rounded cap. After, the existing outward stub and exterior route remain. All five authored nodes, six edge identities, labels and markers must remain; inspect the geometry sidecar alongside the render. This proves the shown shortening case, not arbitrary routing completeness.',
   },
 
+  {
+    id: 'native-agentflow-authored-siblings',
+    title: 'Explicit AgentFlow siblings keep their declared scopes',
+    source: 'agentflow-beta TB\nflow A["Flow A"]\n a1["Task A1"]\n a1 --> B\nend\nflow B["Flow B"]\n b1["Task B1"]\n b1 --> A\nend',
+    captureLayout: true,
+    cue: 'Inspect Flow A and Flow B as sibling containers after repair. Both authored tasks and both cross-container references remain; references must not reparent explicitly declared flows. The owning semantic regression also checks nested scopes, global escape, collapsed projection and canonical reload.',
+  },
+  {
+    id: 'agentflow-domain-shape-aliases',
+    title: 'AgentFlow shape aliases retain their domain roles',
+    source: 'agentflow-beta LR\nflow plan[Delivery]\n  collect[Collect]@{ shape: fr-rect, instruction: "Read sources" }\n  review[Review]@{ shape: question }\n  publish[Publish]@{ shape: prepare }\n  collect --> review\n  review --> publish\nend',
+    renderOptions: { style: ['hand-drawn', 'dracula'] },
+    captureLayout: true,
+    cue: 'Before, all three authored aliases draw as rounded tasks. After, inspect Collect as a tool/subroutine, Review as a decision/diamond and Publish as an action/hexagon. Delivery membership, both directed links, labels and instruction metadata remain controls. This named style/palette witness does not establish every possible alias or density.',
+  },
+  {
+    id: 'native-er-unicode-identities',
+    title: 'Unicode ER identities retain their entity and relationship labels',
+    source: 'erDiagram\nÉQUIPE ||--o{ ÉTAPE : réalise\nÉQUIPE {\n string numéro\n}\nÉTAPE {\n string état\n}',
+    cue: 'The baseline reports its real parser refusal. Inspect both accented entity names, the relationship label and both attribute names after repair. CJK identities are checked separately at the source/SVG boundary; their PNG glyphs require a covering font supplied by the host.',
+  },
+  {
+    id: 'native-state-combining-identities',
+    title: 'Combining marks remain part of State identities',
+    source: 'stateDiagram-v2\n[*] --> שָלוֹם\nשָלוֹם --> [*]',
+    cue: 'The baseline reports its real parser refusal. Inspect the complete Hebrew identity and both authored transitions after repair. Glyph shaping depends on the host font; the owning regression checks the stored identity, endpoints and emitted text.',
+  },
   {
     id: 'compat-er-attribute-quotes',
     title: 'ER attribute delimiters stay out of displayed values',
@@ -1132,6 +1254,7 @@ const fixtures: Fixture[] = [
   },
 ]
 const terminalFixtures = [
+  ...nativeFamilyFixtures.map(({ id, source, cue }) => ({ id: `terminal-${id}`, source, cue })),
   {
     id: 'terminal-class-notes-only',
     source: 'classDiagram\nnote "First freestanding note"\nnote "Second freestanding note"',

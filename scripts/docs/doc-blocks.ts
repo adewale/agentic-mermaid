@@ -9,6 +9,7 @@
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { decodeXML } from 'entities'
 import { BUILTIN_FAMILY_METADATA, getFamily } from '../../src/agent/families.ts'
 import { WARNING_SEVERITY, WARNING_TIER, type WarningCode, type WarningTier } from '../../src/agent/types.ts'
 import { WARNING_CATALOG } from '../../src/agent/warning-catalog.ts'
@@ -90,7 +91,25 @@ const familyDesignNotes = (): string => {
     '| --- | --- |',
     ...BUILTIN_FAMILY_METADATA.map(family => {
       const file = `${family.id === 'architecture' ? 'architecture-beta' : family.id}.md`
-      return `| ${family.label} | ${existsSync(join(root, file)) ? `[${file}](./${file})` : 'See the shared system and family contracts below.'} |`
+      if (!existsSync(join(root, file))) throw new Error(`Missing family design note: docs/design/families/${file}`)
+      return `| ${family.label} | [${file}](./${file}) |`
+    }),
+  ].join('\n')
+}
+
+const familyDiscovery = (): string => {
+  const guide = readFileSync(new URL('../../docs/diagram-families.md', import.meta.url), 'utf8')
+  const html = Bun.markdown.html(guide, { headings: { ids: true } })
+  const headingKey = (value: string): string => decodeXML(value.replace(/<[^>]*>/g, '')).replace(/\s+/g, ' ').toLowerCase()
+  const headings = new Map([...html.matchAll(/<h2\b[^>]*\bid="([^"]+)"[^>]*>([\s\S]*?)<\/h2>/g)]
+    .map(match => [headingKey(match[2]!), match[1]!]))
+  return [
+    '| Family and example | What the editor example shows | Typed narrower |',
+    '| --- | --- | --- |',
+    ...BUILTIN_FAMILY_METADATA.map(family => {
+      const anchor = headings.get(headingKey(family.label))
+      if (!anchor) throw new Error(`Missing family guide section: ${family.label} in docs/diagram-families.md`)
+      return `| [${family.label}](./diagram-families.md#${anchor}) | ${family.editorDescription.replace(/\|/g, '\\|')} | \`${family.narrower}\` |`
     }),
   ].join('\n')
 }
@@ -106,6 +125,7 @@ export const DOC_BLOCKS: Readonly<Record<string, (argument?: string) => string>>
   'graph-layout-limits': graphLayoutLimits,
   'verify-result': () => VERIFY_RESULT_MEANING,
   'family-design-notes': familyDesignNotes,
+  'family-discovery': familyDiscovery,
   'render-options': renderOptionsTable,
   'agent-workflow': () => `${NEW_DIAGRAM_POLICY} ${EXISTING_DIAGRAM_WORKFLOW}`,
   'new-diagram-policy': () => NEW_DIAGRAM_POLICY,

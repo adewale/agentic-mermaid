@@ -206,7 +206,7 @@ export function renderMermaidPNGWithReceiptForHost(
     source,
     renderOptions,
     outputOptions,
-    { backendPolicy: hostOptions.backendPolicy, textMeasurement: hostOptions.textMeasurement, expectedFamilyId: preparedInput.expectedFamilyId },
+    { backendPolicy: hostOptions.backendPolicy, textMeasurement: hostOptions.textMeasurement, ...preparedInput.resolutionOptions },
     projection?.consumeLayout,
   )
   const outputPolicy = graphical.outputPolicy

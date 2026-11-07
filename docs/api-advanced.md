@@ -187,6 +187,10 @@ builder writes. Each event names its native kind, family and unit
 (`statement`, `token` or `mutation`). Source coordinates explicitly distinguish
 physical input from a parser's normalized view. Mutation operands are copied at
 the call boundary, retaining identities, parent and membership fields.
+Sequence statement events also include the consumed structured syntax in
+`value`, including authored autonumber controls. These detached snapshots let
+an observer distinguish omitted fields without reparsing statement text;
+ordinary parsing without an observation scope creates no event snapshots.
 
 ```ts
 import { parseRegisteredMermaid, withParserObservation } from 'agentic-mermaid'
@@ -353,6 +357,16 @@ This is the current authoritative inventory. See the
 | Scene semantics | `SceneDoc`, typed connectors/markers/hit geometry, namespaced `SceneRole` | Lets a family/backend exchange identity, relationship, accessibility, geometry, and terminal-projection intent | This is a versioned typed contract, not a raw SVG hook. Unknown namespaced roles deliberately receive inert identity-only traits and cannot acquire core behavior by local-name collision. There is no public arbitrary Scene primitive/trait mutation registry. |
 | Browser PNG host adapter | `renderMermaidPNGInBrowserWithReceipt(..., rasterize)` or reusable `createMermaidBrowserPNGRenderer({ rasterize, backendPolicy? })` | Supplies Canvas/OffscreenCanvas rasterization and reports font provenance | Trusted callback receives only the admitted, secured canonical SVG; the library re-applies the PNG color-profile gate and retains the same logical receipt as the native PNG path. |
 | Identity plumbing | `canonicalExtensionId`, `parseExtensionId`, `createExtensionIdentity`, `registerExtension`, `ExtensionCollisionError` | Gives kind-specific registries stable names, parsing, versions, provenance, compatibility ranges, and collision rejection | Low-level plumbing, not a stand-alone extension registry or rendering hook. Stable short inputs belong to kind-specific descriptors. |
+
+Family descriptors can opt into `canonicalSource: 'preserved'` when indentation
+is part of their grammar. This keeps the authored post-wrapper body executable
+after copying, while universal init configuration remains owned by the envelope.
+Omitting the field keeps the default canonical projection; other values fail
+registration. Use this policy for grammar-owned indentation, including YAML,
+tree hierarchy and indented owned text.
+`buildSourceMap` also receives the published, unmasked bytes as
+`context.canonicalSource`; its existing source argument keeps universal
+accessibility masking for compatibility with older source-map producers.
 
 There is currently no BrandPack registry, public role-trait registration,
 arbitrary SVG/CSS hook, or Treatment hook. Semantic slots and the closed V1

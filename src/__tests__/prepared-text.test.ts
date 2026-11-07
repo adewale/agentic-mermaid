@@ -18,7 +18,7 @@ import { validateSceneDoc } from '../scene/scene-validation.ts'
 import { measureRenderedText, renderedTextReady } from './helpers/rendered-text.ts'
 import { Resvg } from '@resvg/resvg-js'
 import { join } from 'node:path'
-import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
+import { createTextMeasurementExecution, withTextMeasurementExecution, type ProfileTextMeasurementInput } from '../text-measurement-profile.ts'
 
 beforeAll(() => renderedTextReady())
 const typography = { fontSize: 18, fontWeight: 600 }
@@ -185,6 +185,47 @@ describe('prepared display text', () => {
     const block = preparePixelText('iii界', { ...typography, display: 'literal', monospace: true })
     expect(block.width).toBe(5 * 18 * 0.6)
     expect(block.unit).toBe('px')
+  })
+
+  it.each(["'Share Tech Mono', sans-serif", '"JetBrains Mono", monospace', 'monospace', 'ui-monospace'])('uses uniform tracked glyph allocations for explicit %s', fontFamily => {
+    const block = preparePixelText('IMI', { fontSize: 13.2, fontWeight: 400, fontFamily, letterSpacing: 2 })
+    expect(block.monospace).toBe(true)
+    expect(block.fontFamily).toBe(fontFamily)
+    expect(block.lineBlocks[0]!.fragments).toHaveLength(3)
+    for (const fragment of block.lineBlocks[0]!.fragments!) expect(fragment.width).toBeCloseTo(7.92, 10)
+    expect(block.width).toBeCloseTo(27.76, 10)
+    const svg = renderMultilineText(block, 0, 20, 13.2, 'font-size="13.2" letter-spacing="2"')
+    expect([...svg.matchAll(/textLength="([^"]+)"/g)].map(match => Number(match[1]))).toEqual([7.92, 7.92, 7.92])
+    const proportional = preparePixelText('IMI', { fontSize: 13.2, fontWeight: 400, fontFamily, letterSpacing: 2, monospace: false })
+    expect(proportional.monospace).toBe(false)
+    expect(proportional.lineBlocks[0]!.fragments![0]!.width).toBeLessThan(proportional.lineBlocks[0]!.fragments![1]!.width)
+  })
+
+  it.each(['Inter, monospace', 'Unknown Font, monospace', '"Unknown, monospace", monospace'])('keeps proportional and unknown primary font %s unchanged', fontFamily => {
+    const block = preparePixelText('IM', { fontSize: 13.2, fontWeight: 400, fontFamily, letterSpacing: 2 })
+    expect(block.monospace).toBe(false)
+    expect(block.lineBlocks[0]!.fragments![0]!.width).toBeLessThan(block.lineBlocks[0]!.fragments![1]!.width)
+  })
+
+  it('keeps known mono font family, weight and host profile advances at the tracked glyph boundary', () => {
+    const inputs: ProfileTextMeasurementInput[] = [], fontFamily = "'Share Tech Mono', monospace"
+    const execution = createTextMeasurementExecution({ id: 'test:known-mono-profile', version: '1.0.0', measure: input => {
+      inputs.push(input)
+      return [...input.text].reduce((sum, character) => sum + (character === 'I' ? 11 : 17), 0)
+    } }, 'Inter')
+    const options = { fontSize: 13.2, fontWeight: 400, fontFamily, letterSpacing: 2 }
+    const block = withTextMeasurementExecution(execution, () => preparePixelText('I<b>M</b>', options))
+    expect(block.monospace).toBe(true)
+    expect(block.lineBlocks[0]!.fragments!.map(fragment => fragment.width)).toEqual([11, 17])
+    expect(block.width).toBe(30)
+    expect(inputs.every(input => input.fontFamily === fontFamily && input.monospace)).toBe(true)
+    expect(inputs).toContainEqual({ text: 'I', fontFamily, fontSize: 13.2, fontWeight: 400, fontStyle: 'normal', monospace: true })
+    expect(inputs).toContainEqual({ text: 'M', fontFamily, fontSize: 13.2, fontWeight: 700, fontStyle: 'normal', monospace: true })
+    inputs.length = 0
+    const overridden = withTextMeasurementExecution(execution, () => preparePixelText('I<b>M</b>', { ...options, monospace: false }))
+    expect(overridden.width).toBe(30)
+    expect(inputs.every(input => input.fontFamily === fontFamily && !input.monospace)).toBe(true)
+    expect(inputs.length).toBeGreaterThan(0)
   })
 
   it('keeps a visible grapheme atomic across formatting boundaries', () => {

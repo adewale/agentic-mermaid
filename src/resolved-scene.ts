@@ -20,7 +20,7 @@ import { scanSvgStartTags } from './svg-structure.ts'
 export function renderResolvedScene(text: ParsedDiagram | string, options: RenderOptions = {}): ResolvedScene {
   return withSvgInspectionCache(() => {
     const input = prepareRenderInput(text)
-    const request = resolveRenderRequestForExecution(input.source, options, 'svg', undefined, { expectedFamilyId: input.expectedFamilyId })
+    const request = resolveRenderRequestForExecution(input.source, options, 'svg', undefined, input.resolutionOptions)
     const plan = resolvedRenderExecutionPlanOf(request)
     if (plan.mode !== 'scene') throw new ResolvedSceneError('RESOLVED_SCENE_UNAVAILABLE', 'frame', 'scene-lowering', 'Resolved Scene requires a family with Scene lowering')
     emitResolvedConfigDiagnostics(request)

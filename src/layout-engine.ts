@@ -229,7 +229,7 @@ function sourceAwareNodeOrder(nodeIds: string[], edges: Array<Pick<MermaidEdge, 
 // Node sizing (same logic as Dagre adapter)
 // ============================================================================
 
-function estimateNodeSize(id: string, label: DisplayTextInput, shape: string, style: ResolvedRenderStyle, direction: Direction = 'TB', stateVisual?: ResolvedStateVisualConfig, labelBlock?: PixelTextBlock): { width: number; height: number } {
+export function estimateNodeSize(id: string, label: DisplayTextInput, shape: string, style: ResolvedRenderStyle, direction: Direction = 'TB', stateVisual?: ResolvedStateVisualConfig, labelBlock?: PixelTextBlock): { width: number; height: number } {
   void id
   const metrics = labelBlock ?? graphTextBlock(label, style, 'node')
 
@@ -1640,7 +1640,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
 ]
 
 /** Prepared text survives all subsequent geometry-only passes. */
-function retainGraphText(positioned: Pick<PositionedGraph, 'nodes' | 'edges' | 'groups'>, style: ResolvedRenderStyle): void {
+export function retainGraphText(positioned: Pick<PositionedGraph, 'nodes' | 'edges' | 'groups'>, style: ResolvedRenderStyle): void {
   for (const node of positioned.nodes) {
     node.labelBlock ??= graphTextBlock(resolveLabelContent(node.label, node.labelContent), style, 'node')
     if (node.icon && !node.iconFallbackBlock && !resolveMindmapIcon(node.icon)) node.iconFallbackBlock = preparePixelText(iconFallbackToken(node.icon), { fontSize: 10, fontWeight: 400 })
@@ -2055,7 +2055,7 @@ export function layoutNativeGraphPlacementSync(
   return layoutAgenticPlacement(graph, options, style, agenticGraphBindings)
 }
 
-function translatePositionedGraph(positioned: PositionedGraph, dy: number): void {
+export function translatePositionedGraph(positioned: PositionedGraph, dy: number): void {
   const moveGroup = (group: PositionedGroup): void => {
     group.y += dy
     for (const child of group.children) moveGroup(child)

@@ -1,5 +1,21 @@
+import { RAILROAD_SVG_HOOKS } from './svg-family-hooks/railroad.ts'
+import { renderRailroadTerminal } from './ascii/railroad.ts'
+import { CYNEFIN_SVG_HOOKS } from './svg-family-hooks/cynefin.ts'
+import { renderCynefinTerminal } from './ascii/cynefin.ts'
+import { VENN_SVG_HOOKS } from './svg-family-hooks/venn.ts'
+import { renderVennTerminal } from './ascii/venn.ts'
+import { WARDLEY_SVG_HOOKS } from './svg-family-hooks/wardley.ts'
+import { renderWardleyTerminal } from './ascii/wardley.ts'
+import { USECASE_SVG_HOOKS } from './svg-family-hooks/usecase.ts'
+import { renderUsecaseTerminal } from './ascii/usecase.ts'
+import { AGENTFLOW_SVG_HOOKS } from './svg-family-hooks/agentflow.ts'
+import { renderAgentflowTerminal } from './ascii/agentflow.ts'
+import { SWIMLANE_SVG_HOOKS } from './svg-family-hooks/swimlane.ts'
+import { renderSwimlaneTerminal } from './ascii/swimlane.ts'
+import { TREEVIEW_SVG_HOOKS } from './svg-family-hooks/treeview.ts'
+import { renderTreeviewTerminal } from './ascii/treeview.ts'
 import { expandInlineNamespaceStatement } from './class/parser.ts'
-import { authoredParserColumn, withParserSource } from './shared/parser-source.ts'
+import { withParserSource } from './shared/parser-source.ts'
 import { ZENUML_SVG_HOOKS } from './svg-family-hooks/zenuml.ts'
 import { renderZenUMLTerminal } from './ascii/zenuml.ts'
 import { EVENTMODELING_SVG_HOOKS } from './svg-family-hooks/eventmodeling.ts'
@@ -55,7 +71,7 @@ import { resolveSankeyVisualConfig } from './sankey/config.ts'
 import { sankeyFamilyLines } from './sankey/source.ts'
 import { resolveSequenceConfig } from './sequence/config.ts'
 import { sequenceFamilySource } from './sequence/family-source.ts'
-import { authoredSequenceLine } from './sequence/parser.ts'
+import { authoredSequenceColumn, authoredSequenceLine } from './sequence/parser.ts'
 import { withAccessibilityFields } from './shared/accessibility-directives.ts'
 import { checkAllGraphAuthoredStyles } from './shared/style-props.ts'
 import { resolveXYChartConfig, resolveXYChartTheme } from './xychart/parser.ts'
@@ -146,7 +162,7 @@ export const SEQUENCE_RENDER_HOOKS = {
   renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => {
     const family = sequenceFamilySource(ctx.source, 'decoded')
     const coordinates = family === ctx.source ? family : { ...ctx.source, familyLines: family.familyLines }
-    return renderSequenceTerminal(family.familyText, ctx.config, ctx.colorMode, ctx.theme, (ctx.familyConfig as { sequence?: ReturnType<typeof resolveSequenceConfig> } | undefined)?.sequence ?? {}, ctx.options.targetWidth, authoredSequenceLine(coordinates), authoredParserColumn(coordinates))
+    return renderSequenceTerminal(family.familyText, ctx.config, ctx.colorMode, ctx.theme, (ctx.familyConfig as { sequence?: ReturnType<typeof resolveSequenceConfig> } | undefined)?.sequence ?? {}, ctx.options.targetWidth, authoredSequenceLine(coordinates), authoredSequenceColumn(coordinates))
   }),
 } satisfies BuiltinRenderHooks
 
@@ -266,8 +282,25 @@ export const ISHIKAWA_RENDER_HOOKS = /* @__PURE__ */ { ...ISHIKAWA_SVG_HOOKS, re
 
 export const BLOCK_RENDER_HOOKS = /* @__PURE__ */ { ...BLOCK_SVG_HOOKS, renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderBlockTerminal(ctx.source.familyBody, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth)) }
 
+export const CYNEFIN_RENDER_HOOKS = { ...CYNEFIN_SVG_HOOKS, renderAscii: nativeTerminalRenderer(renderCynefinTerminal) }
+export const VENN_RENDER_HOOKS = { ...VENN_SVG_HOOKS, renderAscii: nativeTerminalRenderer(renderVennTerminal) }
+export const WARDLEY_RENDER_HOOKS = { ...WARDLEY_SVG_HOOKS, renderAscii: nativeTerminalRenderer(renderWardleyTerminal) }
+export const USECASE_RENDER_HOOKS = { ...USECASE_SVG_HOOKS, renderAscii: nativeTerminalRenderer(renderUsecaseTerminal) }
+export const AGENTFLOW_RENDER_HOOKS = { ...AGENTFLOW_SVG_HOOKS, renderAscii: nativeTerminalRenderer(renderAgentflowTerminal) }
+export const SWIMLANE_RENDER_HOOKS = { ...SWIMLANE_SVG_HOOKS, renderAscii: nativeTerminalRenderer(renderSwimlaneTerminal) }
+export const TREEVIEW_RENDER_HOOKS = { ...TREEVIEW_SVG_HOOKS, renderAscii: nativeTerminalRenderer(renderTreeviewTerminal) }
+export const RAILROAD_RENDER_HOOKS = { ...RAILROAD_SVG_HOOKS, renderAscii: nativeTerminalRenderer(renderRailroadTerminal) }
+
 export const BUILTIN_RENDER_HOOKS = /* @__PURE__ */ Object.freeze({
   flowchart: FLOWCHART_RENDER_HOOKS,
+  railroad: RAILROAD_RENDER_HOOKS,
+  cynefin: CYNEFIN_RENDER_HOOKS,
+  venn: VENN_RENDER_HOOKS,
+  wardley: WARDLEY_RENDER_HOOKS,
+  usecase: USECASE_RENDER_HOOKS,
+  agentflow: AGENTFLOW_RENDER_HOOKS,
+  swimlane: SWIMLANE_RENDER_HOOKS,
+  treeview: TREEVIEW_RENDER_HOOKS,
   state: STATE_RENDER_HOOKS,
   sequence: SEQUENCE_RENDER_HOOKS,
   timeline: TIMELINE_RENDER_HOOKS,

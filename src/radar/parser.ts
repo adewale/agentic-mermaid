@@ -36,7 +36,7 @@ const CURVE_ITEM_RE = new RegExp(String.raw`^(${ID_TOKEN})\s*(?:\[\s*(${QUOTED_T
 const KEYED_ENTRY_RE = new RegExp(String.raw`^(${ID_TOKEN})(?:\s*:\s*|\s+)(.+)$`)
 /** A "…" or '…' label runs to its closing quote across line breaks; a title
  * or accessibility directive runs to the end of its line. */
-const RADAR_QUOTED_TEXT: QuotedTextRule = { spanning: `"'`, wholeLine: line => /^(?:title|accTitle|accDescr)(?=[\s:{]|$)/i.test(line) }
+const RADAR_QUOTED_TEXT: QuotedTextRule = { preserveWhitespace: true, spanning: `"'`, wholeLine: line => /^(?:title|accTitle|accDescr)(?=[\s:{]|$)/i.test(line) }
 
 /** For each line, the last line of the statement that starts there. */
 export function radarStatementEnds(lines: readonly string[]): number[] {

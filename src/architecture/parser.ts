@@ -4,7 +4,7 @@ import type { MermaidGraph, MermaidSubgraph, Direction } from '../types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import { parseAccessibilityDirective, type ParsedAccessibilityDirective } from '../shared/accessibility-directives.ts'
-import { quotedTextEnds, statementText, stripTrailingComment } from '../shared/trailing-comment.ts'
+import { quotedTextEnds, stripTrailingComment } from '../shared/trailing-comment.ts'
 import { ALIGN_DIRECTIVE_RE, parseAlignDirective } from './align.ts'
 import { ARCHITECTURE_GROUP_ICON_TITLE_OFFSET } from './config.ts'
 import type { ArchitectureAlignment } from './align.ts'
@@ -62,12 +62,7 @@ export function architectureStatementEnds(lines: readonly string[]): number[] {
   return quotedTextEnds(lines, QUOTED_TEXT)
 }
 
-/** Keep physical STRING whitespace through normalized public entry points. */
-export function architectureSourceLines(source: { familyBody: string; familyLines: readonly string[] }): string[] {
-  const raw = source.familyBody.split(/\r?\n/)
-  const header = raw.findIndex(line => line.trim() === source.familyLines[0])
-  return [raw[header]?.trim() ?? source.familyLines[0] ?? '', ...raw.slice(header + 1)]
-}
+export { familyParserLines as architectureSourceLines } from '../shared/parser-source.ts'
 
 // Mermaid's architecture lexer terminals. An id is word characters with
 // dashes only inside (ID); an icon is word characters, `-` and `:`
@@ -229,8 +224,7 @@ export function readArchitectureStatements(lines: readonly string[]): Architectu
       continue
     }
     index = ends[index]!
-    const hasTextIcon = /^service\s+[\w-]+\s*["']/.test(rawText)
-    const line = stripTrailingComment((hasTextIcon ? lines.slice(start, index + 1).join('\n') : statementText(lines, start, index)).trim())
+    const line = stripTrailingComment(lines.slice(start, index + 1).join('\n').trim())
     try {
       const title = line.match(/^title\s+(.+)$/i)
       const group = line.match(GROUP_RE)

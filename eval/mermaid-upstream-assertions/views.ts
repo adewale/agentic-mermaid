@@ -1,6 +1,8 @@
+import { roadmapGetter } from './roadmap-views.ts'
 import { eventRelations, eventType } from '../../src/eventmodeling/parser.ts'
 import type { EventModelingBody } from '../../src/eventmodeling/types.ts'
 import type { NativeDb } from './runtime.ts'
+import type { RailroadNode } from '../../src/railroad/types.ts'
 import { normalizeMermaidSource, parseForAst, unavailable } from './runtime.ts'
 import { readSequenceStatements } from '../../src/sequence/parser.ts'
 import { readSequenceText } from '../../src/sequence/text.ts'
@@ -87,6 +89,8 @@ function flattenTree(root: any): any[] { return root ? [root, ...(root.children 
 
 export function nativeGetters(db: NativeDb, key: string): any {
   const family = db.context.family, model = db.model
+  const roadmap = roadmapGetter(db, key)
+  if (roadmap !== undefined) return roadmap
   // A semantic relation projection of native state. No DOM boxes, positions,
   // text metrics or missing payloads are synthesized to imitate Mermaid.
   if (family === 'eventmodeling' && key === 'getState') return () => {
@@ -103,7 +107,7 @@ export function nativeGetters(db: NativeDb, key: string): any {
   if (key === 'getAccTitle') return () => model?.accessibilityTitle ?? normalizeMermaidSource(db.source).accessibility.title ?? ''
   if (key === 'getAccDescription') return () => model?.accessibilityDescription ?? normalizeMermaidSource(db.source).accessibility.descr ?? ''
   if (key === 'getDiagramTitle' || key === 'getChartTitle') return () => model?.title ?? ''
-  if (key === 'getDirection') return () => model?.direction ?? (family === 'er' ? 'LR' : 'TB')
+  if (key === 'getDirection') return () => model?.direction ?? (family === 'er' || family === 'timeline' ? 'LR' : 'TB')
   if (key === 'getData') return () => {
     if (family === 'kanban') return { nodes: kanbanNodes(model), sections: model?.columns ?? [], config: db.context.config.kanban ?? {} }
     return unavailable(`${family}.getData: renderer-specific node/edge schema has no adapter`)
@@ -149,9 +153,24 @@ export function nativeGetters(db: NativeDb, key: string): any {
     if (key === 'getSections') return () => new Map((model?.entries ?? []).map((entry: any) => [entry.label, entry.value]))
     if (key === 'getShowData') return () => model?.showData ?? false
   }
+  if (family === 'swimlane' || family === 'agentflow') {
+    const graphGetter = nativeGetters({ ...db, context: { ...db.context, family: 'flowchart' }, model: model?.graph } as NativeDb, key)
+    if (family === 'agentflow') {
+      if (key === 'getVertices') return () => new Map([...graphGetter()].map(([id, vertex]: any) => [id, { ...vertex, metadata: model?.metadata.get(id), isConnector: model?.connectors.has(id) || undefined }]))
+      if (key === 'getEdges') return () => graphGetter().map((edge: any, index: number) => {
+        const authored = model.graph.edges[index], normal = authored.style === 'solid' || authored.style === undefined
+        const edgeSemantic = authored.style === 'dotted' && !authored.hasArrowStart && !authored.hasArrowEnd ? 'reference' : normal && !authored.hasArrowStart && authored.hasArrowEnd ? authored.endMarker === 'cross' ? 'failure' : !authored.endMarker || authored.endMarker === 'arrow' ? 'sequence' : undefined : undefined
+        return { ...edge, id: authored.id, metadata: authored.id ? model.metadata.get(authored.id) : undefined, edgeSemantic }
+      })
+      if (key === 'getSubGraphs') return () => graphGetter().map((group: any) => ({ ...group, type: 'flow', metadata: model?.metadata.get(group.id) }))
+      if (key === 'getTools') return () => [...nativeGetters(db, 'getVertices')().values()].filter((vertex: any) => model?.roles.get(vertex.id) === 'tool')
+      if (key === 'getConnectors') return () => [...nativeGetters(db, 'getVertices')().values()].filter((vertex: any) => model?.connectors.has(vertex.id))
+    }
+    return graphGetter
+  }
   if (family === 'flowchart') {
-    if (key === 'getVertices') return () => new Map([...(model?.nodes?.values() ?? [])].map((node: any) => [node.id, { id: node.id, text: node.label, type: ({ rectangle: 'square', rounded: 'round', 'trapezoid-alt': 'inv_trapezoid', asymmetric: 'odd' } as any)[node.shape] ?? node.shape, classes: (model.classAssignments.get(node.id) ?? '').split(/\s+/).filter(Boolean), styles: Object.entries(model.nodeStyles.get(node.id) ?? {}).map(([k, v]) => `${k}:${v}`), props: {} }]))
-    if (key === 'getEdges') return () => (model?.edges ?? []).map((edge: any) => ({ start: edge.source, end: edge.target, text: edge.label ?? '', type: edge.hasArrowEnd ? `arrow_${edge.endMarker === 'arrow' ? 'point' : edge.endMarker}` : 'arrow_open', stroke: edge.style === 'dotted' ? 'dotted' : edge.style === 'thick' ? 'thick' : 'normal', length: edge.minLength ?? 1 }))
+    if (key === 'getVertices') return () => new Map([...(model?.nodes?.values() ?? [])].map((node: any) => [node.id, { id: node.id, text: node.label, type: node.authoredShape ?? ({ rectangle: 'square', rounded: 'round', 'trapezoid-alt': 'inv_trapezoid', asymmetric: 'odd', 'lean-r': 'lean_right', 'lean-l': 'lean_left' } as any)[node.shape] ?? node.shape, classes: (model.classAssignments.get(node.id) ?? '').split(/\s+/).filter(Boolean), styles: Object.entries(model.nodeStyles.get(node.id) ?? {}).map(([k, v]) => `${k}:${v}`), props: {} }]))
+    if (key === 'getEdges') return () => (model?.edges ?? []).map((edge: any) => ({ start: edge.source, end: edge.target, text: edge.label ?? '', type: edge.hasArrowEnd ? `${edge.hasArrowStart && (edge.startMarker ?? 'arrow') === (edge.endMarker ?? 'arrow') ? 'double_' : ''}arrow_${!edge.endMarker || edge.endMarker === 'arrow' ? 'point' : edge.endMarker}` : 'arrow_open', stroke: edge.style === 'dotted' ? 'dotted' : edge.style === 'thick' ? 'thick' : 'normal', length: edge.length ?? 1, ...(edge.id === undefined ? {} : { id: edge.id }), isUserDefinedId: edge.id !== undefined, ...(edge.curve === undefined ? {} : { interpolate: edge.curve }), ...(edge.animate === undefined ? {} : { animate: edge.animate }), ...(edge.animation === undefined ? {} : { animation: edge.animation }) }))
     if (key === 'getSubGraphs') return () => groups(model?.subgraphs ?? [])
     if (key === 'getClasses') return () => model?.classDefs ?? new Map()
   }
@@ -203,7 +222,13 @@ export function nativeGetters(db: NativeDb, key: string): any {
     if (key === 'getCommitsArray') return () => model?.commits ?? []
   }
   if (family === 'gantt' && key === 'getTasks') return () => model?.tasks ?? []
-  if ((family === 'journey' || family === 'timeline') && key === 'getTasks') return () => (model?.sections ?? []).flatMap((section: any) => section.tasks ?? section.periods ?? [])
+  if (family === 'timeline' && key === 'getTasks') return () => (model?.sections ?? []).flatMap((section: any) => (section.periods ?? []).map((period: any) => ({
+    id: period.id,
+    task: period.label,
+    section: section.label ?? '',
+    events: period.events.map((event: any) => event.text),
+  })))
+  if (family === 'journey' && key === 'getTasks') return () => (model?.sections ?? []).flatMap((section: any) => section.tasks ?? [])
   if (key === 'getSections' && (family === 'gantt' || family === 'journey' || family === 'timeline')) return () => (model?.sections ?? []).map((section: any) => typeof section === 'string' ? section : section.name ?? section.label)
   if (family === 'kanban' && key === 'getNodes') return () => kanbanNodes(model)
   if (family === 'kanban' && key === 'getSections') return () => model?.columns ?? []
@@ -233,7 +258,23 @@ export function nativeGetters(db: NativeDb, key: string): any {
   return undefined
 }
 
-const AST_NAMES: Record<string, string> = { pie: 'Pie', packet: 'Packet', radar: 'Radar', architecture: 'Architecture', gitgraph: 'GitGraph', treemap: 'Treemap', eventmodeling: 'EventModel' }
+/** The constructor grammar's Langium schema over the actual native IR. */
+function railroadAst(node: RailroadNode): any {
+  switch (node.type) {
+    case 'terminal': return { $type: 'RailroadTerminalExpr', value: node.value }
+    case 'nonterminal': return { $type: 'RailroadNonTerminalExpr', name: node.name }
+    case 'special': return { $type: 'RailroadSpecialExpr', text: node.text }
+    case 'sequence': return { $type: 'RailroadSequenceExpr', elements: node.elements.map(railroadAst) }
+    case 'choice': return { $type: 'RailroadChoiceExpr', alternatives: node.alternatives.map(railroadAst) }
+    case 'optional': return { $type: 'RailroadOptionalExpr', element: railroadAst(node.element) }
+    case 'repetition':
+      if (node.max === null && (node.min === 0 || node.min === 1)) return { $type: node.min === 0 ? 'RailroadZeroOrMoreExpr' : 'RailroadOneOrMoreExpr', element: railroadAst(node.element) }
+      return unavailable('Railroad constructor AST has no bounded repetition production')
+    default: return unavailable(`Railroad constructor AST has no ${node.type} production`)
+  }
+}
+
+const AST_NAMES: Record<string, string> = { pie: 'Pie', packet: 'Packet', radar: 'Radar', architecture: 'Architecture', gitgraph: 'GitGraph', treemap: 'Treemap', eventmodeling: 'EventModel', treeview: 'TreeView' }
 function kanbanNodes(model: any): any[] { return (model?.columns ?? []).flatMap((column: any) => [{ ...column, level: 0 }, ...column.tasks.map((task: any) => ({ ...task, level: 1, parentId: column.id }))]) }
 export function nativeAst(name: string, source: string): any {
   const family = name.toLowerCase()
@@ -244,6 +285,22 @@ export function nativeAst(name: string, source: string): any {
     const common = { $type: AST_NAMES[family] ?? name, title: model.title, accTitle: model.accessibilityTitle ?? envelope.accessibility.title, accDescr: model.accessibilityDescription ?? envelope.accessibility.descr }
     let value: any
     if (family === 'pie') value = { ...common, showData: model.showData, sections: model.entries.map((entry: any) => ({ $type: 'PieSection', label: entry.label, value: entry.value })) }
+    else if (family === 'railroad') {
+      if (model.notation !== 'railroad') return unavailable('Railroad constructor AST service does not describe another notation')
+      value = { ...common, rules: model.rules.map((rule: any) => ({ $type: 'RailroadRule', name: rule.name, definition: railroadAst(rule.definition) })) }
+    }
+    else if (family === 'treeview') {
+      const consumed = events.filter(event => event.unit === 'statement' && event.kind === 'node')
+      value = {
+        ...common,
+        nodes: model.nodes.map((node: any, index: number) => {
+          const raw = consumed[index]?.text
+          if (raw === undefined) return unavailable('TreeView authored indentation was not observed')
+          const indent = raw.length - raw.trimStart().length
+          return { $type: 'TreeNode', name: node.label + (node.nodeType === 'directory' ? '/' : ''), indent: indent || undefined, classAnnotation: node.className, iconAnnotation: node.icon === 'none' && /\sicon\(\)/.test(raw) ? '' : node.icon, descAnnotation: node.description }
+        }),
+      }
+    }
     else if (family === 'packet') {
       const consumed = events.filter(event => event.unit === 'statement' && event.kind === 'field')
       value = { ...common, blocks: model.fields.map((field: any, index: number) => ({ $type: 'PacketBlock', label: field.label,

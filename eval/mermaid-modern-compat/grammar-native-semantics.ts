@@ -1,3 +1,4 @@
+import { projectNativeRoadmap, projectReferenceRoadmap } from './grammar-native-roadmap.ts'
 import { projectNativeEventModeling, projectReferenceEventModeling } from './grammar-native-eventmodeling.ts'
 import type { ParserObservation } from '../../src/shared/parser-observation.ts'
 import { projectNativeC4, projectReferenceC4 } from './grammar-native-c4.ts'
@@ -17,9 +18,9 @@ export function projectNativeSemantic(family: string, model: unknown, events: re
   // Editing addresses are not authored grammar. This native-only comparison
   // retains the actual recursive model; the public core exposes no AST oracle.
   if (family === 'zenuml') return { fields: ['participants', 'starter', 'statements', 'metadata'], value: JSON.parse(zenUMLMeaning(model as ZenUMLBody)) }
-  return projectNativeEventModeling(family, model) ?? projectNativeC4(family, model) ?? projectNativeGraphs(family, model) ?? projectNativeSequence(family, model) ?? projectNativeNumeric(family, model) ?? projectNativeLines(family, model) ?? projectNativeStable(family, model, events)
+  return projectNativeRoadmap(family, model) ?? projectNativeEventModeling(family, model) ?? projectNativeC4(family, model) ?? projectNativeGraphs(family, model) ?? projectNativeSequence(family, model) ?? projectNativeNumeric(family, model) ?? projectNativeLines(family, model) ?? projectNativeStable(family, model, events)
 }
 
 export function projectReferenceSemantic(family: string, reply: GrammarReferenceReply): NativeSemanticProjection | undefined {
-  return projectReferenceEventModeling(family, reply) ?? projectReferenceC4(family, reply) ?? projectReferenceGraphs(family, reply) ?? projectReferenceSequence(family, reply) ?? projectReferenceNumeric(family, reply) ?? projectReferenceLines(family, reply) ?? projectReferenceStable(family, reply)
+  return projectReferenceRoadmap(family, reply) ?? projectReferenceEventModeling(family, reply) ?? projectReferenceC4(family, reply) ?? projectReferenceGraphs(family, reply) ?? projectReferenceSequence(family, reply) ?? projectReferenceNumeric(family, reply) ?? projectReferenceLines(family, reply) ?? projectReferenceStable(family, reply)
 }

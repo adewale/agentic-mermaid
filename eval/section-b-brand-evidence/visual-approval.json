@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "fb51685fcc73631b270046a22dcb8f895ea739d54e1723cb757c4fc7c5d06319",
-  "reviewedAt": "2026-10-29",
-  "reviewer": "Codex agent, PR #585 arrowhead clearance review",
-  "scope": "Agent review of all 13 changed cells at native size in the 1560x14024 sheet: Class, Architecture and Block across four variants, plus Event Modeling sentinel. Side-by-side old/current crops preserve cards, relationships, group membership, labels and marker meanings; extra lead/grid space separates corners from marker ink. All other cells are pixel-identical. This finite review is not human approval, deployed-site parity or exhaustive geometry proof.",
+  "artifactSha256": "51ef16ebc622d8ba49529b9c74c06c76d51f4cb09b02b8f38b102c95aa52dc38",
+  "reviewedAt": "2026-11-07",
+  "reviewer": "Codex agent, PR #601 actor contact and integration review",
+  "scope": "Retains the prior finite palette reviews. At renderer 6b9726dec35eb65f69fdf1aed19baf7e6d31443b, inspected all four changed UseCase cells at native 520\u00d7380: the Customer connector reaches the painted person in sentinel, editorial, technical and dark-operations variants, with captions and ellipse contacts retained. The other 128 cells are pixel-identical to the preceding approved sheet. The Venn role declaration cleanup does not change paint. Separate owned-ink regressions cover parallel, reciprocal and self links in four directions with six-pixel strokes. This is agent review, not human approval, deployed-site parity or an arbitrary-density guarantee.",
   "audit": "eval/section-b-brand-evidence/arrowhead-clearance-review.md"
 }

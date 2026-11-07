@@ -11,7 +11,7 @@ import { prepareDisplayText, type DisplayTextInput, type PreparedDisplayText } f
 
 import type { TextMark } from './scene/ir.ts'
 import * as marks from './scene/marks.ts'
-import { measureMonospaceTextWidth, measureMultilineText, measureTextWidth } from './text-metrics'
+import { MONO_FONT, measureMonospaceTextWidth, measureMultilineText, measureTextWidth } from './text-metrics'
 import type { InternalStyleFace, StyleInput } from './scene/style-registry.ts'
 import type { TextTransform } from './types.ts'
 import { FORMAT_TAG_SOURCE } from './shared/inline-format.ts'
@@ -30,7 +30,7 @@ export function estimateMonoTextWidth(text: string, fontSize: number): number {
 }
 
 /** Monospace font family used for code-like text (class members, types) */
-export const MONO_FONT = "'JetBrains Mono'" as const
+export { MONO_FONT } from './text-metrics.ts'
 
 /** Full CSS fallback chain for monospace text */
 export const MONO_FONT_STACK = `${MONO_FONT}, 'SF Mono', 'Fira Code', ui-monospace, monospace` as const

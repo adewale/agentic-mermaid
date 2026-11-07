@@ -38,6 +38,41 @@ for (const [entry, parsers] of [['main', api], ['agent/core', agent]] as const) 
       ])
     })
 
+    test('UseCase models retain declarations and occurrence spans without editor fallback', () => {
+      const parse = (parsers as Partial<typeof api>).parseUsecaseModel
+      expect(parse).toBeFunction()
+      if (!parse) throw new Error('Missing strict UseCase model parser')
+      const model = parse('---\ntitle: Catalogue\n---\nusecase-beta\naccTitle: Access\naccDescr: Browse products\nactor User("Customer")\nsystemBoundary Store["Store"]\n  Browse("Catalogue")\nend\nUser --> Browse')
+      expect(model).toMatchObject({ type: 'usecase', title: 'Catalogue', direction: 'LR', accTitle: 'Access', accDescr: 'Browse products' })
+      expect(model.actors.get('User')).toMatchObject({ id: 'User', label: 'Customer' })
+      expect(model.systemBoundaries.get('Store')?.members).toEqual(['Browse'])
+      expect(model.relationships).toMatchObject([{ source: 'User', target: 'Browse' }])
+      const user = model.statements.flatMap(statement => statement.nodes ?? []).find(node => node.id === 'User')!
+      expect(model.source.slice(...user.idSpan)).toBe('User')
+      expect(model.source.slice(...user.labelSpan!)).toContain('Customer')
+      expect(() => parse('usecase-beta\nactor Shared\nShared("Use case")')).toThrow(/both actor and usecase/)
+      expect(() => parse('usecase-beta\nactor "Unclosed')).toThrow()
+      let failure: unknown
+      try { parse('---\ntitle: Broken\n---\nusecase-beta\nactor "Unclosed') } catch (error) { failure = error }
+      expect(failure).toMatchObject({ name: 'MermaidSyntaxError', diagramType: 'usecase', line: 5, column: 7 })
+      expect(() => parse(`usecase-beta\njson Input@${'{"child":'.repeat(65)}0${'}'.repeat(65)}`)).toThrow(/DIAGRAM_WORK_LIMIT.*nesting/)
+      expect(parse('usecase-beta\nactor Clean').actors.size).toBe(1)
+    })
+
+    test('AgentFlow models preserve nested YAML and full family-relative container ranges', () => {
+      const parse = (parsers as Partial<typeof api>).parseAgentflowModel
+      expect(parse).toBeFunction()
+      if (!parse) throw new Error('Missing strict AgentFlow model parser')
+      const model = parse('---\ntitle: Team\n---\nagentflow-beta LR\nflow Team[Team]\n  A[Work]@{ shape: tool }\n  A@{\n    context:\n      -\n        name: First\n        values: [1, 2]\n      - [nested, list]\n  }\nend')
+      expect(model.graph.direction).toBe('LR')
+      expect(model.metadata.get('A')?.context).toEqual([{ name: 'First', values: [1, 2] }, ['nested', 'list']])
+      expect(model.roles.get('A')).toBe('tool')
+      expect(model.mappings.find(mapping => mapping.id === 'Team')).toEqual({ id: 'Team', type: 'flow', line: 2, col: 1, endLine: 11, endCol: 4 })
+      expect(() => parse('agentflow-beta TB\nA@{ shape: definitely-unknown }')).toThrow(/No such shape/)
+      expect(() => parse('agentflow-beta TB\nA@{ incomplete: [ }')).toThrow(/metadata/)
+      expect(parse('agentflow-beta TB\nB[Clean]').graph.nodes.has('B')).toBe(true)
+    })
+
     test('sequence models expose notes, activations, boxes and lifecycle boundaries', () => {
       const diagram = parsers.parseSequenceDiagram('---\ntitle: Fallback\nconfig:\n  sequence:\n    showSequenceNumbers: true\n---\nsequenceDiagram\ntitle Conversation\nbox aqua Clients\nparticipant A\nend\nNote over A: Ready\nactivate A\ncreate participant B\nA->>B: Hello\ndestroy B\nB-->>A: Goodbye\ndeactivate A')
       expect(diagram.title).toBe('Conversation')

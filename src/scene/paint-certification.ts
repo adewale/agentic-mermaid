@@ -127,6 +127,65 @@ function possibleShapeStroke(piece: Geometry, paint: MarkPaint): boolean {
 /** A filled rectangle's inset is known to be solid, unlike an arbitrary path's
  * conservative envelope. Rounded corners are excluded before transformation.
  */
+/** Common outline geometry is scalar. Compare those fields directly rather
+ * than serializing the owner, geometry and transform twice for every surface. */
+type OutlineValues = readonly (number | string | undefined)[]
+function outlineGeometrySnapshot(geometry: Geometry): OutlineValues {
+  switch (geometry.kind) {
+    case 'rect': return ['rect', geometry.x, geometry.y, geometry.width, geometry.height, geometry.rx, geometry.ry]
+    case 'circle': return ['circle', geometry.cx, geometry.cy, geometry.r]
+    case 'ellipse': return ['ellipse', geometry.cx, geometry.cy, geometry.rx, geometry.ry]
+    case 'line': return ['line', geometry.x1, geometry.y1, geometry.x2, geometry.y2]
+    case 'path': return ['path', geometry.d]
+    default: return [geometry.kind, JSON.stringify(geometry)]
+  }
+}
+
+function sameOutlineValues(a: readonly unknown[], b: readonly unknown[]): boolean {
+  if (a.length !== b.length) return false
+  for (let index = 0; index < a.length; index++) if (a[index] !== b[index]) return false
+  return true
+}
+
+function outlineWidths() {
+  const heads = new Map<string, number>(), lookups: Array<Map<string, number> | undefined> = []
+  const roles: string[] = [], geometries: OutlineValues[] = [], matrices: Array<readonly number[]> = [], widths: number[] = [], next: number[] = [], counts: number[] = []
+  const key = (role: string, geometry: OutlineValues, matrix: readonly number[]) => JSON.stringify([role, geometry, matrix])
+  return {
+    set(primitive: ScenePaintPrimitive, geometry: Geometry, width: number): void {
+      const { id, role } = primitive.owner, matrix = scenePrimitiveMatrix(primitive)!, captured = outlineGeometrySnapshot(geometry)
+      const head = heads.get(id), lookup = head === undefined ? undefined : lookups[head]
+      if (lookup) { lookup.set(key(role, captured, matrix), width); return }
+      const count = head === undefined ? 0 : counts[head]!
+      // Hostile compound shapes may share one owner. Keep scans bounded and
+      // preserve the last matching outline's width, as the old index did.
+      if (count === 8) {
+        const lookup = new Map<string, number>()
+        for (let index = head!; index !== -1; index = next[index]!) {
+          const signature = key(roles[index]!, geometries[index]!, matrices[index]!)
+          if (!lookup.has(signature)) lookup.set(signature, widths[index]!)
+        }
+        lookup.set(key(role, captured, matrix), width); lookups[head!] = lookup
+        return
+      }
+      const index = widths.length
+      roles.push(role); geometries.push(captured); matrices.push([...matrix]); widths.push(width); next.push(head ?? -1); counts.push(count + 1); lookups.push(undefined)
+      heads.set(id, index)
+    },
+    get(primitive: ScenePaintPrimitive, geometry: Geometry): number | undefined {
+      const { id, role } = primitive.owner, matrix = scenePrimitiveMatrix(primitive)!, captured = outlineGeometrySnapshot(geometry)
+      const head = heads.get(id), lookup = head === undefined ? undefined : lookups[head]
+      if (lookup) return lookup.get(key(role, captured, matrix))
+      for (let index = head ?? -1; index !== -1; index = next[index]!) {
+        if (roles[index] !== role) continue
+        const other = matrices[index]!
+        if (sameOutlineValues(matrix, other) && sameOutlineValues(captured, geometries[index]!)) return widths[index]
+      }
+      return undefined
+    },
+  }
+}
+
 function solidInteriors(scene: NativePaintHeader, primitives: readonly ScenePaintPrimitive[]): Surface[] {
   const resolved = new Map<string, boolean>()
   const opaque = (fill: string): boolean => {
@@ -141,8 +200,7 @@ function solidInteriors(scene: NativePaintHeader, primitives: readonly ScenePain
     const width = Number(paint.strokeWidth?.replace(/px$/, '') ?? 1)
     return Number.isFinite(width) && width > 0 ? width : 0
   }
-  const outlines = new Map<string, number>()
-  const outlineKey = (primitive: ScenePaintPrimitive, geometry: Geometry) => JSON.stringify([primitive.owner, geometry, scenePrimitiveMatrix(primitive)])
+  const outlines = outlineWidths()
   for (const primitive of primitives) {
     const node = paintPrimitiveSource(primitive)
     if (node?.kind !== 'shape' || primitive.coverage !== 'measured' || primitive.visibility === 'conditional' || primitive.groupOpacity !== undefined) continue
@@ -152,7 +210,7 @@ function solidInteriors(scene: NativePaintHeader, primitives: readonly ScenePain
     for (let index = 0; index < pieces.length; index++) {
       const paint = node.geometry.kind === 'compound' ? node.childPaints?.[index] ?? node.paint : node.paint
       const width = opaqueOutlineWidth(paint)
-      if (width > 0) outlines.set(outlineKey(primitive, pieces[index]!), width)
+      if (width > 0) outlines.set(primitive, pieces[index]!, width)
     }
   }
   const surfaces: Surface[] = []
@@ -189,8 +247,8 @@ function solidInteriors(scene: NativePaintHeader, primitives: readonly ScenePain
       bounds = unionSceneBounds(bounds, part)
     }
     if (!bounds) continue
-    const candidate = { primitive, bounds, borderWidth: outlines.get(outlineKey(primitive, geometry)), ...(pieces ? {
-      partBorderWidths: pieces.map(child => outlines.get(outlineKey(primitive, child)) ?? 0),
+    const candidate = { primitive, bounds, borderWidth: outlines.get(primitive, geometry), ...(pieces ? {
+      partBorderWidths: pieces.map(child => outlines.get(primitive, child) ?? 0),
       partOwnBorderWidths: paints!.map(opaqueOutlineWidth),
       partFilled: filled!, partBounds: partBounds!,
     } : {}) }

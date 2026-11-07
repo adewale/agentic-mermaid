@@ -314,11 +314,11 @@ export function createMermaidRenderer(hostOptions: MermaidRendererHostOptions = 
   return Object.freeze({
     renderMermaidSVG(text: ParsedDiagram | string, options: RenderOptions = {}): string {
       const input = prepareRenderInput(text)
-      return executeGraphicalRequest(input.source, options, 'svg', undefined, { ...host, expectedFamilyId: input.expectedFamilyId }).svg
+      return executeGraphicalRequest(input.source, options, 'svg', undefined, { ...host, ...input.resolutionOptions }).svg
     },
     renderMermaidSVGWithReceipt(text: ParsedDiagram | string, options: RenderOptions = {}): RenderedSvg {
       const input = prepareRenderInput(text)
-      return executeGraphicalRequest(input.source, options, 'svg', undefined, { ...host, expectedFamilyId: input.expectedFamilyId })
+      return executeGraphicalRequest(input.source, options, 'svg', undefined, { ...host, ...input.resolutionOptions })
     },
   })
 }
@@ -328,7 +328,7 @@ export function renderMermaidSVGWithReceipt(
   options: RenderOptions = {},
 ): RenderedSvg {
   const input = prepareRenderInput(text)
-  return executeGraphicalRequest(input.source, options, 'svg', undefined, { expectedFamilyId: input.expectedFamilyId })
+  return executeGraphicalRequest(input.source, options, 'svg', undefined, input.resolutionOptions)
 }
 
 /**

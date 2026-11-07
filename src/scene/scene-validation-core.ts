@@ -660,19 +660,62 @@ function validateMarker(
   return typeof value.id === 'string'
 }
 
+/** Intern each identity/role pair once. References keep flat handles rather
+ * than allocating and hashing a JSON tuple on every validation pass. Most
+ * identities have one role; promote unusually many roles to a bounded lookup. */
+class SubjectIndex {
+  private readonly heads = new Map<unknown, number>()
+  private readonly roles: unknown[] = []
+  private readonly next: number[] = []
+  private readonly flags: number[] = []
+  private readonly lookups: Array<Map<unknown, number> | undefined> = []
+
+  handle(id: unknown, role: unknown): number {
+    const head = this.heads.get(id)
+    let many = head === undefined ? undefined : this.lookups[head]
+    if (many) {
+      const existing = many.get(role)
+      if (existing !== undefined) return existing
+    } else {
+      let count = 0
+      for (let index = head ?? -1; index !== -1; index = this.next[index]!) {
+        if (this.roles[index] === role) return index
+        count++
+      }
+      if (count === 8) {
+        const lookup = new Map<unknown, number>()
+        for (let index = head!; index !== -1; index = this.next[index]!) lookup.set(this.roles[index], index)
+        many = lookup
+      }
+    }
+    const index = this.roles.length
+    this.roles.push(role); this.next.push(head ?? -1); this.flags.push(0); this.lookups.push(many)
+    this.heads.set(id, index)
+    many?.set(role, index)
+    return index
+  }
+
+  declare(id: unknown, role: unknown, group = false): void {
+    const handle = this.handle(id, role)
+    this.flags[handle] = this.flags[handle]! | (group ? 3 : 1)
+  }
+
+  declared(handle: number): boolean { return (this.flags[handle]! & 1) !== 0 }
+  group(id: unknown, role: unknown): boolean { return (this.flags[this.handle(id, role)]! & 2) !== 0 }
+}
+
 export interface ValidationState {
   readonly diagnostics: MutableDiagnostic[]
   readonly external: boolean
   readonly aggregateBudgets: boolean
   readonly native?: {
     readonly artwork: Array<{ id: string; owner: SceneOwner; path: string }>
-    readonly groups: Set<string>
     readonly enclosures: Map<string, SceneOwner>
   }
   readonly paintReferences: Array<{ id: string; path: string }>
   readonly ids: Map<string, { path: string; kind: string }>
-  readonly subjects: Set<string>
-  readonly ownerReferences: Array<{ key: string; path: string }>
+  readonly subjects: SubjectIndex
+  readonly ownerReferences: Array<{ handle: number; path: string }>
   readonly domIds: Map<string, string>
   readonly markerIds: Map<string, MarkerDescriptor>
   readonly gradientIds: Map<string, LinearGradientDescriptor>
@@ -777,9 +820,9 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     else state.domIds.set(value.domId, `${path}.domId`)
   }
   validateRole(kind, value.role, `${path}.role`, state)
-  if (typeof value.id === 'string' && typeof value.role === 'string') state.subjects.add(JSON.stringify([value.id, value.role]))
-  if (record(value.identity) && typeof value.identity.id === 'string' && typeof value.identity.role === 'string') state.subjects.add(JSON.stringify([value.identity.id, value.identity.role]))
-  if (record(value.owner) && typeof value.owner.id === 'string' && typeof value.owner.role === 'string') state.ownerReferences.push({ key: JSON.stringify([value.owner.id, value.owner.role]), path: `${path}.owner` })
+  if (typeof value.id === 'string' && typeof value.role === 'string') state.subjects.declare(value.id, value.role)
+  if (record(value.identity) && typeof value.identity.id === 'string' && typeof value.identity.role === 'string') state.subjects.declare(value.identity.id, value.identity.role)
+  if (record(value.owner) && typeof value.owner.id === 'string' && typeof value.owner.role === 'string') state.ownerReferences.push({ handle: state.subjects.handle(value.owner.id, value.owner.role), path: `${path}.owner` })
   validateChannels(value.channels, `${path}.channels`, state.diagnostics)
   const serialized = !state.native || kind === 'document'
     ? validateNodeSerialization(value as unknown as SceneNode, path, state)
@@ -883,7 +926,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
   if (kind === 'group') {
     if (state.native && typeof value.role === 'string' && hasDomSvgIdentityRole(value.role as SceneRole)
       && record(value.identity) && typeof value.identity.id === 'string' && value.identity.role === value.role) {
-      state.native.groups.add(JSON.stringify([value.identity.id, value.role]))
+      state.subjects.declare(value.identity.id, value.role, true)
     }
     if (value.paint !== undefined) {
       validatePaint(value.paint, `${path}.paint`, state.diagnostics, state.external)
@@ -1033,7 +1076,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
             if (typeof endpoint.owner.role !== 'string' || (!Object.hasOwn(BUILTIN_SCENE_ROLE_TRAITS, endpoint.owner.role) && !NAMESPACED_ROLE.test(endpoint.owner.role))) add(state.diagnostics, 'SCENE_ROLE', `${ownerPath}.role`, 'must be a Scene role')
             const id = value.endpoints[field === 'start' ? 'from' : 'to']
             if (id !== undefined && endpoint.owner.id !== id) add(state.diagnostics, 'SCENE_FIDELITY', ownerPath, 'must retain the authored endpoint identity')
-            state.ownerReferences.push({ key: JSON.stringify([endpoint.owner.id, endpoint.owner.role]), path: ownerPath })
+            state.ownerReferences.push({ handle: state.subjects.handle(endpoint.owner.id, endpoint.owner.role), path: ownerPath })
           }
         }
       }
@@ -1422,7 +1465,7 @@ export function createNativeSceneValidator(
   validateSceneHeader(header, false, diagnostics)
   if (sceneValidationMode(header) === 'external') add(diagnostics, 'SCENE_DOCUMENT', 'scene.family', 'native admission requires a built-in family')
   if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
-  const native = { artwork: [] as Array<{ id: string; owner: SceneOwner; path: string }>, groups: new Set<string>(), enclosures: new Map<string, SceneOwner>() }
+  const native = { artwork: [] as Array<{ id: string; owner: SceneOwner; path: string }>, enclosures: new Map<string, SceneOwner>() }
   const state = { ...createValidationState(diagnostics, false, options.crossChecks ?? false, true), native }
   let result: SceneValidationResult | undefined
   const open = (): void => {
@@ -1478,7 +1521,7 @@ export function createNativeSceneValidator(
       for (const artwork of native.artwork) {
         const enclosing = native.enclosures.get(artwork.id)
         if (!enclosing || enclosing.id !== artwork.owner.id || enclosing.role !== artwork.owner.role
-          || !native.groups.has(JSON.stringify([enclosing.id, enclosing.role]))) {
+          || !state.subjects.group(enclosing.id, enclosing.role)) {
           add(diagnostics, 'SCENE_FIDELITY', artwork.path, 'owned artwork without DOM identity must be inside its matching semantic group')
         }
       }
@@ -1492,7 +1535,7 @@ function validateAggregateReferences(state: ValidationState): void {
   for (const reference of state.paintReferences) {
     if (!state.gradientIds.has(reference.id)) add(state.diagnostics, 'SCENE_REFERENCE', reference.path, `references undeclared gradient "${reference.id}"`)
   }
-  for (const reference of state.ownerReferences) if (!state.subjects.has(reference.key)) add(state.diagnostics, 'SCENE_REFERENCE', reference.path, 'must reference an actual Scene subject identity and role')
+  for (const reference of state.ownerReferences) if (!state.subjects.declared(reference.handle)) add(state.diagnostics, 'SCENE_REFERENCE', reference.path, 'must reference an actual Scene subject identity and role')
   for (const reference of state.companionLabelReferences) {
     const target = state.ids.get(reference.id)
     if (!target) add(state.diagnostics, 'SCENE_REFERENCE', reference.path, `references unknown companion Text mark "${reference.id}"`)
@@ -1507,7 +1550,7 @@ function createValidationState(diagnostics: MutableDiagnostic[], external: boole
     aggregateBudgets,
     paintReferences: [],
     ids: new Map(),
-    subjects: new Set(),
+    subjects: new SubjectIndex(),
     ownerReferences: [],
     domIds: new Map(),
     markerIds: new Map(),

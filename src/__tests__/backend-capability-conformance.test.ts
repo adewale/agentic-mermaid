@@ -183,7 +183,11 @@ describe('claim-keyed backend capability conformance', () => {
     // Child bindings are inherited by descendants, then restored for siblings.
     expect(verifySvgDocumentEnvelope(`<svg ${xmlns} xmlns:a="urn:outer" xmlns:b="urn:inner"><g xmlns:a="urn:inner"><rect a:x="1" /></g><rect a:x="1" b:x="2" /></svg>`)).toBe(true)
     expect(verifySvgDocumentEnvelope(`<svg ${xmlns} xmlns:a="urn:outer" xmlns:b="urn:inner" xml:lang="en"><g xmlns:a="urn:inner" /><rect x="0" a:x="1" b:x="2" /></svg>`)).toBe(true)
+    const manyAttributes = Array.from({ length: 32 }, (_, index) => `data-${index}="${index}"`).join(' ')
+    expect(verifySvgDocumentEnvelope(`<svg ${xmlns}><rect ${manyAttributes}/><g data-0="sibling"><rect ${manyAttributes}/></g></svg>`)).toBe(true)
     const malformedDocuments = [
+      `<svg ${xmlns}><rect ${manyAttributes} data-0="duplicate"/></svg>`,
+      `<svg ${xmlns}><rect ${manyAttributes} data-last="one" data-last="two"/></svg>`,
       '<svg><rect /></svg>',
       `<svg ${xmlns}><text>&</text></svg>`,
       `<svg ${xmlns}><rect broken /></svg>`,

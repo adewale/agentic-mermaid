@@ -1,5 +1,5 @@
 import type { MermaidGraph, RenderOptions } from './types.ts'
-import { compositeCssColor, legibleInk, relativeLuminance, toHex, tryParseHex, WCAG_AA_NON_TEXT_CONTRAST, WCAG_AA_TEXT_CONTRAST } from './shared/color-math.ts'
+import { compositeCssColor, legibleInk, relativeLuminance, toHex, WCAG_AA_NON_TEXT_CONTRAST, WCAG_AA_TEXT_CONTRAST } from './shared/color-math.ts'
 import type { DiagramColors } from './theme.ts'
 import { DEFAULTS, resolvedColorValue } from './theme.ts'
 import type { MermaidRuntimeConfig, MermaidThemeVariables } from './mermaid-source.ts'
@@ -88,12 +88,7 @@ export function resolveNodeInlineStyle(
   nodeId: string,
   graph: MermaidGraph,
 ): Record<string, string> | undefined {
-  let result: Record<string, string> | undefined
-
-  for (const className of graphClassNames(graph.classAssignments.get(nodeId))) {
-    const classDef = checkedAuthoredStyle(graph.classDefs.get(className), `classDef ${className}`)
-    if (classDef) result = { ...result, ...classDef }
-  }
+  let result = resolveClassInlineStyle(nodeId, graph)
 
   const nodeStyle = checkedAuthoredStyle(graph.nodeStyles.get(nodeId), `style ${nodeId}`)
   if (nodeStyle) result = result ? { ...result, ...nodeStyle } : { ...nodeStyle }
@@ -106,8 +101,10 @@ export function resolveNodeInlineStyle(
  * `style` paint: what Mermaid draws on a State composite's body.
  */
 export function resolveClassInlineStyle(id: string, graph: MermaidGraph): Record<string, string> | undefined {
+  const names = graph.classAssignments.get(id)
+  if (!names) return undefined
   let result: Record<string, string> | undefined
-  for (const className of graphClassNames(graph.classAssignments.get(id))) {
+  for (const className of graphClassNames(names)) {
     const classDef = checkedAuthoredStyle(graph.classDefs.get(className), `classDef ${className}`)
     if (classDef) result = { ...result, ...classDef }
   }
@@ -122,13 +119,8 @@ export function resolveEdgeInlineStyle(
   edgeIndex: number,
   graph: MermaidGraph,
 ): Record<string, string> | undefined {
-  let result: Record<string, string> | undefined
-
   const edgeId = graph.edges[edgeIndex]?.id
-  for (const className of graphClassNames(edgeId ? graph.classAssignments.get(edgeId) : undefined)) {
-    const classDef = checkedAuthoredStyle(graph.classDefs.get(className), `classDef ${className}`)
-    if (classDef) result = { ...result, ...classDef }
-  }
+  let result = edgeId ? resolveClassInlineStyle(edgeId, graph) : undefined
 
   const defaultStyle = checkedAuthoredStyle(graph.linkStyles.get('default'), 'linkStyle default')
   if (defaultStyle) result = result ? { ...result, ...defaultStyle } : { ...defaultStyle }
@@ -139,30 +131,14 @@ export function resolveEdgeInlineStyle(
   return result
 }
 
-function parseHexToRgb(hex: string): { r: number; g: number; b: number } | null {
-  const rgb = tryParseHex(hex)
-  return rgb ? { r: rgb[0], g: rgb[1], b: rgb[2] } : null
-}
-
-function parseRgbFunction(color: string): { r: number; g: number; b: number } | null {
-  const match = color.match(/^rgba?\(\s*(\d{1,3})(?:\s*,\s*|\s+)(\d{1,3})(?:\s*,\s*|\s+)(\d{1,3})/i)
-  if (!match) return null
-  const rgb = {
-    r: Number.parseInt(match[1]!, 10),
-    g: Number.parseInt(match[2]!, 10),
-    b: Number.parseInt(match[3]!, 10),
-  }
-  return Object.values(rgb).every(v => v >= 0 && v <= 255) ? rgb : null
-}
-
 /** Ink for text drawn on an opaque fill: whichever of black and white has the
  * higher WCAG contrast. The better of the two is at least 4.58:1 against any
  * opaque color, so text on a data mark always clears WCAG AA; a brightness
  * threshold picks the weaker ink for mid-tone fills. */
 export function contrastTextColor(fill: string): string | undefined {
-  const rgb = parseHexToRgb(fill) ?? parseRgbFunction(fill)
-  if (!rgb) return undefined
-  const luminance = relativeLuminance(`rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`)!
+  if (/^\s*transparent\s*$/i.test(fill)) return undefined
+  const luminance = relativeLuminance(fill)
+  if (luminance === null) return undefined
   return (luminance + 0.05) / 0.05 >= 1.05 / (luminance + 0.05) ? '#000000' : '#FFFFFF'
 }
 

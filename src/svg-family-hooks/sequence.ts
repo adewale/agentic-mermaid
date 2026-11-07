@@ -1,4 +1,3 @@
-import { authoredParserColumn } from '../shared/parser-source.ts'
 import { diagnoseSequenceConfig } from '../sequence/config-diagnostics.ts'
 import { projectSequencePositioned } from '../positioned-views/sequence.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
@@ -6,7 +5,7 @@ import { withFrontmatterTitle } from '../mermaid-source.ts'
 import { resolveSequenceConfig } from '../sequence/config.ts'
 import { layoutSequenceDiagram } from '../sequence/layout.ts'
 import { sequenceFamilySource } from '../sequence/family-source.ts'
-import { authoredSequenceLine, parseSequenceDiagram } from '../sequence/parser.ts'
+import { authoredSequenceColumn, authoredSequenceLine, parseSequenceDiagram } from '../sequence/parser.ts'
 import { lowerSequenceScene } from '../sequence/renderer.ts'
 import { withAccessibilityFields } from '../shared/accessibility-directives.ts'
 
@@ -29,7 +28,7 @@ export const SEQUENCE_SVG_HOOKS = {
     const family = sequenceFamilySource(ctx.source, 'decoded')
     const coordinates = family === ctx.source ? family : { ...ctx.source, familyLines: family.familyLines }
     const diagram = withFrontmatterTitle(withAccessibilityFields(
-      parseSequenceDiagram(family.familyLines, { ...seqConfig, authoredLine: authoredSequenceLine(coordinates), authoredColumn: authoredParserColumn(coordinates) }),
+      parseSequenceDiagram(family.familyLines, { ...seqConfig, authoredLine: authoredSequenceLine(coordinates), authoredColumn: authoredSequenceColumn(coordinates) }),
       ctx.source.accessibility,
     ), ctx.source.frontmatter)
     return layoutResult(layoutSequenceDiagram(diagram, ctx.renderOptions, seqConfig, ctx.styleFace))

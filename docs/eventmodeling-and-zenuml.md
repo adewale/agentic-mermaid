@@ -156,7 +156,7 @@ Historical benchmark results retain their recorded implementation and
 configuration. Native default-entry results, explicit upstream results and
 configured Mermaid reference results are separate measurements.
 
-See [Event Modeling composition and visual contract](design/families/eventmodeling.md)
+See [Event Modeling composition and visual contract](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/design/families/eventmodeling.md)
 for the #409 reuse trace and Event style witnesses. Generous Event reads of
 missing or reordered Given/When/Then markers report `UNSUPPORTED_SYNTAX`;
 export writes the portable clause order. `EVENT_SOURCE_TYPE` warns when an

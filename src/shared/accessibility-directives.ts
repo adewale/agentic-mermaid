@@ -71,11 +71,11 @@ export function parseAccessibilityDirective(
       const content = index === startIndex ? description.slice(1) : lines[index]!
       const closing = content.indexOf('}')
       if (closing < 0) {
-        if (content.trim()) parts.push(content.trim())
+        parts.push(content.trim())
         continue
       }
       const beforeClosing = content.slice(0, closing).trim()
-      if (beforeClosing) parts.push(beforeClosing)
+      parts.push(beforeClosing)
       const suffix = content.slice(closing + 1)
       const indent = lines[index]!.match(/^\s*/)?.[0] ?? ''
       return {

@@ -129,6 +129,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
   if (identities.issue) return null
   const stateById = new Map<string, StateNode>()
   const root = newScope(stateById)
+  const layoutDirectives: string[] = []
   const stack: ParseScope[] = [root]
   // Discover composite declarations before materializing transition endpoints.
   // Mermaid state IDs are global even when the declaration is nested, so a
@@ -446,6 +447,14 @@ export function parseStateBody(lines: string[]): StateBody | null {
       continue
     }
 
+    if (matchStateLayoutDirective(line)) {
+      // A nested hint cannot move to the root when canonicalizing the body.
+      // Retain that source until the editable model carries scoped hints.
+      if (stack.length !== 1) return null
+      layoutDirectives.push(line)
+      continue
+    }
+
     // Unmodeled line → opaque.
     return null
   }
@@ -511,6 +520,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
   canonicalizeStateOrder(root.states, root.transitions)
   const body: StateBody = {
     kind: 'state',
+    ...(layoutDirectives.length > 0 ? { layoutDirectives } : {}),
     states: root.states,
     transitions: root.transitions,
     ...(notes.length > 0 ? { notes } : {}),
@@ -782,6 +792,10 @@ export function renderState(body: StateBody): string {
     notesByScope.set(key, notes)
   }
   const out: string[] = ['stateDiagram-v2']
+  for (const directive of body.layoutDirectives ?? []) {
+    if (!matchStateLayoutDirective(directive)) throw new Error(`Invalid State layout directive ${JSON.stringify(directive)}`)
+    out.push(`  ${directive}`)
+  }
   renderScope(body.states, body.transitions, body.direction, '  ', out, notesByScope)
   // An inline note requires text. Empty, multiline and punctuation-bearing
   // annotations use the block form; colons and semicolons end inline notes.
@@ -934,6 +948,7 @@ function cloneState(s: StateNode): StateNode {
 function cloneStateBody(b: StateBody): StateBody {
   return {
     kind: 'state',
+    ...(b.layoutDirectives ? { layoutDirectives: [...b.layoutDirectives] } : {}),
     states: b.states.map(cloneState),
     transitions: b.transitions.map(cloneTransition),
     ...(b.notes !== undefined ? { notes: b.notes.map(n => ({ ...n })) } : {}),
@@ -1962,17 +1977,21 @@ export function verifyOpaqueState(source: string): LayoutWarning[] {
     if (!matchStateLayoutDirective(line)) continue
     directives.add(line)
   }
-  return directives.size === 0 ? [] : [{
+  return stateLayoutWarnings([...directives], true)
+}
+
+function stateLayoutWarnings(directives: readonly string[], opaque = false): LayoutWarning[] {
+  return directives.length === 0 ? [] : [{
     code: 'UNSUPPORTED_SYNTAX',
     syntax: 'state_layout_directive',
-    message: `State layout directives ${[...directives].map(directive => `"${directive}"`).join(', ')} are preserved in source but have no effect on local rendering; Agentic Mermaid uses its own layout. Typed mutation is unavailable for this preserved source.`,
+    message: `State layout directives ${directives.map(directive => `"${directive}"`).join(', ')} are preserved in source but have no effect on local rendering; Agentic Mermaid uses its own layout.${opaque ? ' Typed mutation is unavailable for this preserved source.' : ''}`,
   }]
 }
 
 export function verifyState(body: StateBody, opts: VerifyOptions): LayoutWarning[] {
-  const warnings: LayoutWarning[] = []
+  const warnings: LayoutWarning[] = stateLayoutWarnings(body.layoutDirectives ?? [])
   if (body.states.length === 0 && body.transitions.length === 0 && (body.notes ?? []).length === 0 && !body.floatingNotes?.length) {
-    return [{ code: 'EMPTY_DIAGRAM' }]
+    return [...warnings, { code: 'EMPTY_DIAGRAM' }]
   }
   const overflow = labelOverflowCollector(warnings, opts)
   // A transition endpoint may reference ANY state in the tree (cross-boundary
@@ -1984,7 +2003,7 @@ export function verifyState(body: StateBody, opts: VerifyOptions): LayoutWarning
   // anchors to the enclosing composite, so it is always structurally valid).
   const anchors = (endpoint: string): boolean => {
     if (known.has(endpoint)) return true
-    const h = endpoint.match(/^([\w\p{L}-]*)\[H\*?\]$/u)
+    const h = endpoint.match(/^([\w\p{L}\p{N}\p{M}-]*)\[H\*?\]$/u)
     if (!h) return false
     return h[1] === '' || known.has(h[1]!)
   }

@@ -112,7 +112,7 @@ export function createMermaidBrowserPNGRenderer(
         input.source,
         options,
         portablePngOptions(output),
-        { ...host, expectedFamilyId: input.expectedFamilyId },
+        { ...host, ...input.resolutionOptions },
       )).png
     },
     renderMermaidPNGWithReceipt(
@@ -125,7 +125,7 @@ export function createMermaidBrowserPNGRenderer(
         input.source,
         options,
         portablePngOptions(output),
-        { ...host, expectedFamilyId: input.expectedFamilyId },
+        { ...host, ...input.resolutionOptions },
       )
     },
   })
@@ -142,7 +142,7 @@ export async function renderMermaidPNGInBrowserWithReceipt(
     input.source,
     options,
     portablePngOptions(output),
-    { rasterize, expectedFamilyId: input.expectedFamilyId },
+    { rasterize, ...input.resolutionOptions },
   )
 }
 
@@ -150,14 +150,14 @@ async function renderMermaidPNGInBrowserWithReceiptForHost(
   source: string,
   options: RenderOptions,
   output: PortablePngOutputOptions,
-  hostOptions: MermaidBrowserPNGRendererHostOptions & Pick<RenderExecutionResolutionOptions, 'expectedFamilyId'>,
+  hostOptions: MermaidBrowserPNGRendererHostOptions & Pick<RenderExecutionResolutionOptions, 'expectedFamilyId' | 'parsedModelHandoff'>,
 ): Promise<RenderedBrowserPng> {
   if (typeof hostOptions.rasterize !== 'function') throw new TypeError('browser PNG rasterizer must be a function')
   const graphical = renderPortablePngGraphicalProjection(
     source,
     options,
     output,
-    { backendPolicy: hostOptions.backendPolicy, textMeasurement: hostOptions.textMeasurement, expectedFamilyId: hostOptions.expectedFamilyId },
+    { backendPolicy: hostOptions.backendPolicy, textMeasurement: hostOptions.textMeasurement, expectedFamilyId: hostOptions.expectedFamilyId, parsedModelHandoff: hostOptions.parsedModelHandoff },
   )
   if (graphical.receipt.output !== 'png') throw new Error('browser PNG adapter received a non-PNG receipt')
   const rasterSvg = finalizePngRasterSvg(
