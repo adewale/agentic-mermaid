@@ -15,7 +15,7 @@ export const AGENTFLOW_SVG_HOOKS = {
   statementEnds: flowchartStatementEnds,
   normalizeRequest: ctx => ({ renderOptions: resolveFlowchartRenderOptions(ctx.source.frontmatter, ctx.renderOptions) }),
   layout: ctx => {
-    const graph = ownedAgentflowRenderGraph(ctx.source) ?? projectAgentflowGraph(parseAgentflow(ctx.source.authoredFamilyBody ?? ctx.source.familyBody))
+    const graph = ownedAgentflowRenderGraph(ctx.source) ?? projectAgentflowGraph(parseAgentflow(ctx.source.authoredFamilyBody ?? ctx.source.familyBody, false))
     checkAllGraphAuthoredStyles(graph)
     applyFlowchartLabelWrapping(graph, ctx.renderOptions, ctx.styleFace)
     const positioned = layoutGraphSync(graph, { ...ctx.renderOptions, graphLayout: nativeFamilyGraphLayout(graph, ctx.renderOptions), ...(ctx.styleFace ? { styleFace: ctx.styleFace } : {}), diagramTitle: frontmatterTitle(ctx.source.frontmatter) })

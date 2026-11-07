@@ -7,7 +7,7 @@ import { projectAgentflowGraph } from '../agentflow/projection.ts'
 import { renderAgentflow } from '../agentflow/source.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { terminalDocumentOf } from '../ascii/terminal-document.ts'
-import { MermaidSyntaxError, parseAgentflowModel, renderMermaidSVG } from '../index.ts'
+import { MermaidSyntaxError, parseAgentflowModel, renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const source = `agentflow-beta TB
@@ -81,10 +81,10 @@ test.each([
 ] as const)('AgentFlow retains each actual vertex occurrence independently of its links: %s', (statement, ids, texts, edges) => {
   const body = parseAgentflow(`agentflow-beta TB\n  ${statement}`)
   const vertices = body.mappings.filter(mapping => mapping.type === 'vertex')
-  expect(vertices.map(mapping => mapping.id)).toEqual(ids)
-  expect(vertices.map(mapping => statement.slice(mapping.col - 3, mapping.endCol - 3))).toEqual(texts)
+  expect(vertices.map(mapping => mapping.id)).toEqual([...ids])
+  expect(vertices.map(mapping => statement.slice(mapping.col - 3, mapping.endCol - 3))).toEqual([...texts])
   expect(vertices.every(mapping => mapping.line === 2 && mapping.endLine === 2)).toBe(true)
-  expect([...body.graph.nodes.keys()]).toEqual(ids)
+  expect([...body.graph.nodes.keys()]).toEqual([...ids])
   expect(body.mappings.filter(mapping => mapping.type === 'edge')).toHaveLength(edges)
 })
 
@@ -223,6 +223,35 @@ test('AgentFlow metadata host nesting refusal remains distinct from authored syn
   expect(failure).toBeInstanceOf(Error)
   expect(failure).not.toBeInstanceOf(MermaidSyntaxError)
   expect(failure).toMatchObject({ message: 'AgentFlow metadata nesting exceeds the host limit' })
+})
+
+test('AgentFlow graph-only consumers omit occurrence records without changing complete output receipts', () => {
+  const complete = parseAgentflow(source)
+  const { mappings, ...domain } = complete
+  const { mappings: omitted, ...renderDomain } = parseAgentflow(source, false)
+  expect(mappings.length).toBeGreaterThan(0)
+  expect(omitted).toEqual([])
+  expect(renderDomain).toEqual(domain)
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+  const direct = renderMermaidSVGWithReceipt(source)
+  const owned = renderMermaidSVGWithReceipt(parsed.value)
+  expect(direct.svg).toBe(owned.svg)
+  expect(JSON.parse(JSON.stringify(direct.receipt))).toEqual(JSON.parse(JSON.stringify(owned.receipt)))
+  const terminal = renderMermaidASCIIWithReceipt(source, { colorMode: 'none', layoutSafety: 'strict' })
+  const ownedTerminal = renderMermaidASCIIWithReceipt(parsed.value, { colorMode: 'none', layoutSafety: 'strict' })
+  expect(terminal.text).toBe(ownedTerminal.text)
+  expect(JSON.parse(JSON.stringify(terminal.receipt))).toEqual(JSON.parse(JSON.stringify(ownedTerminal.receipt)))
+  for (const invalid of ['agentflow-beta\na@{ x: *, }', 'agentflow-beta\na@{ shape: Rounded }']) {
+    const failures = [true, false].map(collect => {
+      try { parseAgentflow(invalid, collect) } catch (error) {
+        if (!(error instanceof MermaidSyntaxError)) throw error
+        return { name: error.name, code: error.code, message: error.message, line: error.line, column: error.column }
+      }
+      throw new Error('Expected the malformed source to fail')
+    })
+    expect(failures[0]).toEqual(failures[1])
+  }
 })
 
 test('AgentFlow native SVG and strict terminal preserve visible endpoints and nested roles', () => {

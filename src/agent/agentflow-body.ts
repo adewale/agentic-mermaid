@@ -65,7 +65,7 @@ export function mutateAgentflow(body: AgentflowBody, op: AgentflowMutationOp): R
 
 export const AGENTFLOW_SOURCE_HOOKS = {
   renderSource: () => 'canonical',
-  extractLabels: source => { try { return graphLabels(parseAgentflow(source).graph) } catch { return [] } },
+  extractLabels: source => { try { return graphLabels(parseAgentflow(source, false).graph) } catch { return [] } },
   parse: ctx => {
     const result = parseAgentflowBody(ctx.source.familyBody, ctx.opaqueSource)
     if (result.ok && result.value.kind === 'agentflow') retainParsedAgentflowModel(result.value, ctx.source.familyBody, projectAgentflowGraph(result.value))

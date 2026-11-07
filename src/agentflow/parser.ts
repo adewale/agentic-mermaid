@@ -47,7 +47,7 @@ export function agentflowRole(shape: unknown): AgentflowRole {
 /** Locate the declaration immediately before a classified metadata block.
  * Shape payloads and earlier links come from the shared lexer, so label text
  * cannot become a metadata target in a compound node/link statement. */
-function metadataDeclaration(text: string, scan: FlowchartScan, before: number): { id: string; start: number } {
+function metadataDeclaration(text: string, scan: FlowchartScan, before: number): string {
   const end = text.slice(0, before).trimEnd().length
   const shape = scan.regions.find(region => region.parent === -1 && region.kind === 'shape' && region.end === end)
   const nameEnd = shape?.start ?? end
@@ -57,7 +57,7 @@ function metadataDeclaration(text: string, scan: FlowchartScan, before: number):
   if (!match) throw syntaxError('AgentFlow inline metadata needs a declared node, connector or flow')
   const start = afterLink + match.index
   if (!scan.topLevel[start]) throw syntaxError('AgentFlow metadata target must be outside label text')
-  return { id: match[1]!, start }
+  return match[1]!
 }
 
 const edgeIdPrefix = new RegExp(FLOWCHART_EDGE_ID_PREFIX_SOURCE, 'uy')
@@ -115,14 +115,15 @@ function mapGraphOccurrences(text: string, scan: FlowchartScan, record: (id: str
 }
 
 /** Flowchart supplies overlapping vertex/link syntax only. Container and
- * metadata records are captured before that projection is parsed. */
-export function parseAgentflow(source: string): AgentflowBody {
+ * metadata records are captured before that projection is parsed. Source-only
+ * render/label consumers omit occurrence publication; native/edit APIs keep it. */
+export function parseAgentflow(source: string, collectMappings = true): AgentflowBody {
   const metadata = new Map<string, Record<string, unknown>>(), connectors = new Set<string>(), globals = new Set<string>(), mappings: AgentflowMapping[] = []
   const grammar: string[] = [], frames: Array<{ global: boolean; id?: string; mapping?: number }> = []
   const declaredParents = new Map<string, string | undefined>()
   const openScope = (id: string, global: boolean): void => {
     if (!declaredParents.has(id)) declaredParents.set(id, frames.at(-1)?.id)
-    frames.push({ global, id, ...(global ? {} : { mapping: mappings.length }) })
+    frames.push({ global, id, ...(!global && collectMappings ? { mapping: mappings.length } : {}) })
   }
   const globalMentions = new Set<string>()
   const attachmentScopes = new Map<string, string | undefined>()
@@ -154,12 +155,12 @@ export function parseAgentflow(source: string): AgentflowBody {
         if (!header) throw syntaxError('Expected agentflow-beta and a supported direction')
         grammar.push(`flowchart ${header[1] ?? 'TB'}`); first = false; continue
       }
-      const map = (id: string, type: AgentflowMapping['type'], start = 0, finish = statement.text.length): AgentflowMapping => {
+      const map = collectMappings ? (id: string, type: AgentflowMapping['type'], start = 0, finish = statement.text.length): AgentflowMapping => {
         const at = flowchartGroupPosition(group, statement.start + start), end = flowchartGroupPosition(group, statement.start + finish)
         const mapping = { id, type, line: at.line + 1, col: at.col + 1, endLine: end.line + 1, endCol: end.col + 1 }
         mappings.push(mapping)
         return mapping
-      }
+      } : undefined
       const scan = scanFlowchart(text)
       const blocks = scan.regions.filter(region => region.kind === 'metadata' && region.parent === -1)
       let attachment = false, withoutMetadata = '', cursor = 0
@@ -168,7 +169,7 @@ export function parseAgentflow(source: string): AgentflowBody {
         if (!block.closed) throw syntaxError('Unclosed AgentFlow metadata block', flowchartGroupPosition(group, statement.start + block.start))
         const prefix = text.slice(0, block.start).trimEnd()
         const declaration = metadataDeclaration(text, scan, block.start)
-        const id = anonymousFlow && prefix === 'flow' ? anonymousFlow : declaration.id
+        const id = anonymousFlow && prefix === 'flow' ? anonymousFlow : declaration
         const parsed = readAgentflowMetadata(text.slice(block.contentStart, block.contentEnd))
         if (!parsed.ok) throw syntaxError(`AgentFlow metadata for ${id}: ${parsed.message}`, flowchartGroupPosition(group, statement.start + block.contentStart + (parsed.offset ?? 0)))
         const data = agentflowMetadata(Object.fromEntries(parsed.entries))
@@ -188,7 +189,7 @@ export function parseAgentflow(source: string): AgentflowBody {
       text = withoutMetadata + text.slice(cursor)
       if (/^flow\s*$/i.test(text)) {
         const id = anonymousFlow!
-        openScope(id, false); map(id, 'flow'); grammar.push(`subgraph ${id}[""]`); continue
+        openScope(id, false); map?.(id, 'flow'); grammar.push(`subgraph ${id}[""]`); continue
       }
       if (/^global\s*$/i.test(text)) {
         const id = syntheticIdentity('global')
@@ -205,11 +206,11 @@ export function parseAgentflow(source: string): AgentflowBody {
         grammar.push('end'); continue
       }
       const flow = text.match(/^flow\s+([\p{L}\p{N}_.:-]+)(.*)$/u)
-      if (flow) { openScope(flow[1]!, false); map(flow[1]!, 'flow'); grammar.push(`subgraph ${flow[1]}${flow[2]}`); continue }
+      if (flow) { openScope(flow[1]!, false); map?.(flow[1]!, 'flow'); grammar.push(`subgraph ${flow[1]}${flow[2]}`); continue }
       if (/^(?:subgraph|global|flow)\b/i.test(text)) throw syntaxError('Unsupported AgentFlow container declaration')
       const connector = text.match(/^connector\s+([\p{L}\p{N}_.:-]+)(.*)$/u)
-      if (connector) { connectors.add(connector[1]!); globals.add(connector[1]!); map(connector[1]!, 'connector'); text = `${connector[1]}${connector[2]}` }
-      else if (!/^(?:direction|classDef|class|style|linkStyle|click|href|accTitle|accDescr)(?:\s|$)/i.test(text)) mapGraphOccurrences(statement.text, scan, map)
+      if (connector) { connectors.add(connector[1]!); globals.add(connector[1]!); map?.(connector[1]!, 'connector'); text = `${connector[1]}${connector[2]}` }
+      else if (map && !/^(?:direction|classDef|class|style|linkStyle|click|href|accTitle|accDescr)(?:\s|$)/i.test(text)) mapGraphOccurrences(statement.text, scan, map)
       // An attachment does not redeclare its target or move it into a flow.
       if (attachment && /^[\p{L}\p{N}_.:-]+\s*$/u.test(text)) continue
       if (frames.at(-1)?.global && !/^(?:direction|classDef|class|style|linkStyle|click)\b/.test(text)) {
@@ -276,7 +277,9 @@ export function parseAgentflow(source: string): AgentflowBody {
     }
   }
   assertMermaidGraphWork(graph)
-  const byPosition = (left: AgentflowMapping, right: AgentflowMapping) => left.line - right.line || left.col - right.col
-  if (mappings.some((mapping, index) => index > 0 && byPosition(mappings[index - 1]!, mapping) > 0)) mappings.sort(byPosition)
+  if (collectMappings) {
+    const byPosition = (left: AgentflowMapping, right: AgentflowMapping) => left.line - right.line || left.col - right.col
+    if (mappings.some((mapping, index) => index > 0 && byPosition(mappings[index - 1]!, mapping) > 0)) mappings.sort(byPosition)
+  }
   return { kind: 'agentflow', graph, metadata, roles: roleMap, connectors, globals, mappings }
 }
