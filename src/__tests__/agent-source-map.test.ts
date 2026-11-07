@@ -9,7 +9,7 @@ import { layoutCynefin } from '../cynefin/layout.ts'
 import { layoutRailroad } from '../railroad/layout.ts'
 import { getFamily } from '../agent/families.ts'
 import { mutate, mutateChecked } from '../agent/mutate.ts'
-import type { SourceSpan } from '../agent/types.ts'
+import type { SourceMapSpans, SourceSpan } from '../agent/types.ts'
 import { sourceLineStarts, sourcePreservationSpans, sourceSpan } from '../family-detection.ts'
 import { DIAGRAM_WORK_LIMITS } from '../shared/diagram-limits.ts'
 import { expectNearLinearGrowth, LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/complexity.ts'
@@ -954,7 +954,7 @@ test('exact span categories including empty maps retain authority while absent c
     ['B', sourceSpan(starts, source.indexOf('B[Done]'), source.indexOf('B[Done]') + 7)],
   ])
   const exactLabels = new Map<string, SourceSpan>()
-  const metadata = new Map([['owner', exactNodes.get('A')!]])
+  const metadata: NonNullable<SourceMapSpans['metadata']> = new Map()
   recordAuthoredSourceMapSpans(map, { nodes: exactNodes, labels: exactLabels, metadata })
   attachSourceMapSpans(map, source, source, sourcePreservationSpans(source, 'flowchart LR'), 'flowchart')
   expect(map.spans!.nodes).toBe(exactNodes)
