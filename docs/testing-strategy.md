@@ -77,7 +77,8 @@ gates: regenerate one with its `gallery:*` command when the rendering is
 reviewed again. Where an evidence script carried a real assertion, the unit
 suite now runs it against current code (for example the issue #87 link-rank
 gaps and the Section B sheet, which is regenerated in memory and
-byte-compared). Generated runtime modules and published reference documentation are committed
+compared by decoded pixels, independent of PNG compression/metadata; exact
+artifact hashes still bind the historical visual approval). Generated runtime modules and published reference documentation are committed
 when one maintained source owns them. Other derived discovery views are generated
 at delivery: `am llms-txt` and the website use current registries, while the
 repository's authored `llms.txt` points readers to those sources. A second
