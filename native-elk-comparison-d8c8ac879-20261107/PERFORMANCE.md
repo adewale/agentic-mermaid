@@ -8,6 +8,8 @@ Native has lower uncached-repeat medians in five of six fixed workloads. Crossin
 
 Six frozen source/edit pairs, cache 0 and 1, four fresh sequential processes per backend/cache/input, with alternating backend order: 96 processes. Each times its first render after imports, four original-source repeats, a real label edit, and an edited repeat: 672 timed calls. Every call consumes the full SVG and serializes the entire receipt/product. All 672 return with passed final proofs. Every source repeat matches its complete first SVG/receipt, all edits change the SVG, and all 96 edited outputs contain their expected actual text. All 96 processes record the requested backend with fallback none.
 
+Cache-off means the configured positioned-layout/ELK cache is disabled via AGENTIC_MERMAID_ELK_CACHE=0. Derived text, numeric and style caches can remain warm; these repeated calls are not an all-cache-disabled experiment.
+
 V8 sampling and timed observers are off. Common module import is recorded separately. Explicit GC, file writes and compression are outside render timing. One post-timed cache audit per process confirms real hits/bypasses. Original SVG retained for determinism and the source harness affect memory. Four process replicates, with four within-process repeat samples each, are a limited sample; JSON retains ranges and paired process medians.
 
 ## First render after import
