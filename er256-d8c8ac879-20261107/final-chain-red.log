@@ -1,0 +1,65 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/er-layout-backends.test.ts:
+185 |     ...['elk', 'agentic'].flatMap(backend => ['LR', 'TB'].map(direction => ({ backend, direction, size: 256 }))),
+186 |   ])('finishes a $size-entity chain within the shared geometry allowance with $backend in $direction', ({ backend, direction, size }) => {
+187 |     const source = `erDiagram\ndirection ${direction}\n` + Array.from({ length: size - 1 }, (_, i) => `N${i} ||--o{ N${i + 1} : owns`).join('\n')
+188 |     const options = { graphLayout: { backend: backend as 'elk' | 'agentic', fallback: 'none' as const } }
+189 |     let result!: ReturnType<typeof layoutMermaidWithReceipt>
+190 |     expect(() => { result = layoutMermaidWithReceipt(source, options) }).not.toThrow()
+                                                                                   ^
+error: expect(received).not.toThrow()
+
+Error name: "FamilyLayoutError"
+Error message: "Mermaid family \"er\" layout hook failed: ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships"
+
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/er-layout-backends.test.ts:190:78)
+(fail) ER layout backends > finishes a 256-entity chain within the shared geometry allowance with elk in LR [1158.95ms]
+185 |     ...['elk', 'agentic'].flatMap(backend => ['LR', 'TB'].map(direction => ({ backend, direction, size: 256 }))),
+186 |   ])('finishes a $size-entity chain within the shared geometry allowance with $backend in $direction', ({ backend, direction, size }) => {
+187 |     const source = `erDiagram\ndirection ${direction}\n` + Array.from({ length: size - 1 }, (_, i) => `N${i} ||--o{ N${i + 1} : owns`).join('\n')
+188 |     const options = { graphLayout: { backend: backend as 'elk' | 'agentic', fallback: 'none' as const } }
+189 |     let result!: ReturnType<typeof layoutMermaidWithReceipt>
+190 |     expect(() => { result = layoutMermaidWithReceipt(source, options) }).not.toThrow()
+                                                                                   ^
+error: expect(received).not.toThrow()
+
+Error name: "FamilyLayoutError"
+Error message: "Mermaid family \"er\" layout hook failed: ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships"
+
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/er-layout-backends.test.ts:190:78)
+(fail) ER layout backends > finishes a 256-entity chain within the shared geometry allowance with elk in TB [580.80ms]
+185 |     ...['elk', 'agentic'].flatMap(backend => ['LR', 'TB'].map(direction => ({ backend, direction, size: 256 }))),
+186 |   ])('finishes a $size-entity chain within the shared geometry allowance with $backend in $direction', ({ backend, direction, size }) => {
+187 |     const source = `erDiagram\ndirection ${direction}\n` + Array.from({ length: size - 1 }, (_, i) => `N${i} ||--o{ N${i + 1} : owns`).join('\n')
+188 |     const options = { graphLayout: { backend: backend as 'elk' | 'agentic', fallback: 'none' as const } }
+189 |     let result!: ReturnType<typeof layoutMermaidWithReceipt>
+190 |     expect(() => { result = layoutMermaidWithReceipt(source, options) }).not.toThrow()
+                                                                                   ^
+error: expect(received).not.toThrow()
+
+Error name: "FamilyLayoutError"
+Error message: "Mermaid family \"er\" layout hook failed: ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships"
+
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/er-layout-backends.test.ts:190:78)
+(fail) ER layout backends > finishes a 256-entity chain within the shared geometry allowance with agentic in LR [174.34ms]
+185 |     ...['elk', 'agentic'].flatMap(backend => ['LR', 'TB'].map(direction => ({ backend, direction, size: 256 }))),
+186 |   ])('finishes a $size-entity chain within the shared geometry allowance with $backend in $direction', ({ backend, direction, size }) => {
+187 |     const source = `erDiagram\ndirection ${direction}\n` + Array.from({ length: size - 1 }, (_, i) => `N${i} ||--o{ N${i + 1} : owns`).join('\n')
+188 |     const options = { graphLayout: { backend: backend as 'elk' | 'agentic', fallback: 'none' as const } }
+189 |     let result!: ReturnType<typeof layoutMermaidWithReceipt>
+190 |     expect(() => { result = layoutMermaidWithReceipt(source, options) }).not.toThrow()
+                                                                                   ^
+error: expect(received).not.toThrow()
+
+Error name: "FamilyLayoutError"
+Error message: "Mermaid family \"er\" layout hook failed: ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships"
+
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/er-layout-backends.test.ts:190:78)
+(fail) ER layout backends > finishes a 256-entity chain within the shared geometry allowance with agentic in TB [177.07ms]
+
+ 0 pass
+ 57 filtered out
+ 4 fail
+ 4 expect() calls
+Ran 4 tests across 1 file. [3.24s]

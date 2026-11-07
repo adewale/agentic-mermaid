@@ -1,0 +1,13 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/er-layout-backends.test.ts:
+(pass) ER layout backends > finishes a 256-entity chain within the shared geometry allowance with elk in LR [3540.80ms]
+(pass) ER layout backends > finishes a 256-entity chain within the shared geometry allowance with elk in TB [2363.64ms]
+(pass) ER layout backends > finishes a 256-entity chain within the shared geometry allowance with agentic in LR [1327.06ms]
+(pass) ER layout backends > finishes a 256-entity chain within the shared geometry allowance with agentic in TB [1368.19ms]
+
+ 4 pass
+ 57 filtered out
+ 0 fail
+ 48 expect() calls
+Ran 4 tests across 1 file. [9.76s]

@@ -1,0 +1,10 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/paint-certification.test.ts:
+(pass) an admitted cyclic labelled multigraph retains bounded public Native paint proof [5022.73ms]
+
+ 1 pass
+ 641 filtered out
+ 0 fail
+ 392 expect() calls
+Ran 1 test across 1 file. [6.12s]

@@ -1,0 +1,5 @@
+Source head: d8c8ac879793a586b4b741c178b89d7900bd27ed
+Parent: dda69ef2287da0ad569d334f0b200cc186de8c05
+Integrated main: 9fb35b8bf8dc654a19612de3cc6a50144d68b0a7
+Node24.19.0 / Bun1.4.4 / pinned ELK0.11.1
+No cap/default/version/cache change. Source and evidence remain separate branches.

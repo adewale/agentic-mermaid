@@ -1,0 +1,1622 @@
+[
+  {
+    "n": 0,
+    "count": 458,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 6018,
+    "newWork": 3790
+  },
+  {
+    "n": 1,
+    "count": 227,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 7031,
+    "newWork": 6153
+  },
+  {
+    "n": 2,
+    "count": 221,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 8797,
+    "newWork": 8404
+  },
+  {
+    "n": 3,
+    "count": 376,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 13148,
+    "newWork": 11330
+  },
+  {
+    "n": 4,
+    "count": 219,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 2441,
+    "newWork": 1595
+  },
+  {
+    "n": 5,
+    "count": 477,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 24129,
+    "newWork": 22721
+  },
+  {
+    "n": 6,
+    "count": 248,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 2760,
+    "newWork": 1798
+  },
+  {
+    "n": 7,
+    "count": 123,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 3273,
+    "newWork": 2918
+  },
+  {
+    "n": 8,
+    "count": 69,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 2192,
+    "newWork": 2144
+  },
+  {
+    "n": 9,
+    "count": 384,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 13440,
+    "newWork": 11582
+  },
+  {
+    "n": 10,
+    "count": 379,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 4991,
+    "newWork": 3158
+  },
+  {
+    "n": 11,
+    "count": 117,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 4602,
+    "newWork": 4464
+  },
+  {
+    "n": 12,
+    "count": 272,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 3382,
+    "newWork": 2204
+  },
+  {
+    "n": 13,
+    "count": 227,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 7031,
+    "newWork": 6153
+  },
+  {
+    "n": 14,
+    "count": 413,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 18491,
+    "newWork": 17205
+  },
+  {
+    "n": 15,
+    "count": 112,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 2960,
+    "newWork": 2638
+  },
+  {
+    "n": 16,
+    "count": 123,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 1123,
+    "newWork": 768
+  },
+  {
+    "n": 17,
+    "count": 229,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 10382,
+    "newWork": 9919
+  },
+  {
+    "n": 18,
+    "count": 384,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 5056,
+    "newWork": 3198
+  },
+  {
+    "n": 19,
+    "count": 307,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 10930,
+    "newWork": 9505
+  },
+  {
+    "n": 20,
+    "count": 493,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 22430,
+    "newWork": 21096
+  },
+  {
+    "n": 21,
+    "count": 40,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 836,
+    "newWork": 762
+  },
+  {
+    "n": 22,
+    "count": 43,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 309,
+    "newWork": 229
+  },
+  {
+    "n": 23,
+    "count": 45,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 1477,
+    "newWork": 1457
+  },
+  {
+    "n": 24,
+    "count": 384,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 5056,
+    "newWork": 3198
+  },
+  {
+    "n": 25,
+    "count": 435,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 15395,
+    "newWork": 13282
+  },
+  {
+    "n": 26,
+    "count": 509,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 23866,
+    "newWork": 22486
+  },
+  {
+    "n": 27,
+    "count": 184,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 5596,
+    "newWork": 4890
+  },
+  {
+    "n": 28,
+    "count": 507,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 6655,
+    "newWork": 4182
+  },
+  {
+    "n": 29,
+    "count": 357,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 17718,
+    "newWork": 16678
+  },
+  {
+    "n": 30,
+    "count": 208,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 2320,
+    "newWork": 1518
+  },
+  {
+    "n": 31,
+    "count": 35,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 694,
+    "newWork": 637
+  },
+  {
+    "n": 32,
+    "count": 477,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 21583,
+    "newWork": 20293
+  },
+  {
+    "n": 33,
+    "count": 200,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 6132,
+    "newWork": 5362
+  },
+  {
+    "n": 34,
+    "count": 227,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 2529,
+    "newWork": 1651
+  },
+  {
+    "n": 35,
+    "count": 29,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 766,
+    "newWork": 766
+  },
+  {
+    "n": 36,
+    "count": 312,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 4198,
+    "newWork": 2708
+  },
+  {
+    "n": 37,
+    "count": 67,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 1629,
+    "newWork": 1485
+  },
+  {
+    "n": 38,
+    "count": 365,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 16121,
+    "newWork": 15147
+  },
+  {
+    "n": 39,
+    "count": 64,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 1416,
+    "newWork": 1294
+  },
+  {
+    "n": 40,
+    "count": 347,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 4575,
+    "newWork": 2902
+  },
+  {
+    "n": 41,
+    "count": 77,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 2894,
+    "newWork": 2806
+  },
+  {
+    "n": 42,
+    "count": 504,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 6616,
+    "newWork": 4158
+  },
+  {
+    "n": 43,
+    "count": 115,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 3048,
+    "newWork": 2717
+  },
+  {
+    "n": 44,
+    "count": 293,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 12722,
+    "newWork": 11950
+  },
+  {
+    "n": 45,
+    "count": 136,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 3882,
+    "newWork": 3432
+  },
+  {
+    "n": 46,
+    "count": 123,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 1123,
+    "newWork": 768
+  },
+  {
+    "n": 47,
+    "count": 325,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 15245,
+    "newWork": 14383
+  },
+  {
+    "n": 48,
+    "count": 144,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 1756,
+    "newWork": 1226
+  },
+  {
+    "n": 49,
+    "count": 75,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 1961,
+    "newWork": 1758
+  },
+  {
+    "n": 50,
+    "count": 229,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 9487,
+    "newWork": 9024
+  },
+  {
+    "n": 51,
+    "count": 424,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 14980,
+    "newWork": 12922
+  },
+  {
+    "n": 52,
+    "count": 291,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 3915,
+    "newWork": 2530
+  },
+  {
+    "n": 53,
+    "count": 373,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 17714,
+    "newWork": 16718
+  },
+  {
+    "n": 54,
+    "count": 360,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 4744,
+    "newWork": 3006
+  },
+  {
+    "n": 55,
+    "count": 459,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 16295,
+    "newWork": 14062
+  },
+  {
+    "n": 56,
+    "count": 229,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 9680,
+    "newWork": 9217
+  },
+  {
+    "n": 57,
+    "count": 384,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 13440,
+    "newWork": 11582
+  },
+  {
+    "n": 58,
+    "count": 483,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 6343,
+    "newWork": 3990
+  },
+  {
+    "n": 59,
+    "count": 445,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 22434,
+    "newWork": 21124
+  },
+  {
+    "n": 60,
+    "count": 72,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 808,
+    "newWork": 622
+  },
+  {
+    "n": 61,
+    "count": 115,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 3048,
+    "newWork": 2717
+  },
+  {
+    "n": 62,
+    "count": 437,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 19608,
+    "newWork": 18244
+  },
+  {
+    "n": 63,
+    "count": 416,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 14672,
+    "newWork": 12654
+  },
+  {
+    "n": 64,
+    "count": 43,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 309,
+    "newWork": 229
+  },
+  {
+    "n": 65,
+    "count": 53,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 1768,
+    "newWork": 1744
+  },
+  {
+    "n": 66,
+    "count": 432,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 5680,
+    "newWork": 3582
+  },
+  {
+    "n": 67,
+    "count": 283,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 9711,
+    "newWork": 8417
+  },
+  {
+    "n": 68,
+    "count": 29,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 653,
+    "newWork": 653
+  },
+  {
+    "n": 69,
+    "count": 312,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 10782,
+    "newWork": 9292
+  },
+  {
+    "n": 70,
+    "count": 299,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 4156,
+    "newWork": 2747
+  },
+  {
+    "n": 71,
+    "count": 309,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 14856,
+    "newWork": 13964
+  },
+  {
+    "n": 72,
+    "count": 256,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 2848,
+    "newWork": 1854
+  },
+  {
+    "n": 73,
+    "count": 219,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 6768,
+    "newWork": 5922
+  },
+  {
+    "n": 74,
+    "count": 221,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 9295,
+    "newWork": 8848
+  },
+  {
+    "n": 75,
+    "count": 240,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 7456,
+    "newWork": 6526
+  },
+  {
+    "n": 76,
+    "count": 387,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 5095,
+    "newWork": 3222
+  },
+  {
+    "n": 77,
+    "count": 181,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 7659,
+    "newWork": 7342
+  },
+  {
+    "n": 78,
+    "count": 216,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 2408,
+    "newWork": 1574
+  },
+  {
+    "n": 79,
+    "count": 435,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 15395,
+    "newWork": 13282
+  },
+  {
+    "n": 80,
+    "count": 149,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 5742,
+    "newWork": 5431
+  },
+  {
+    "n": 81,
+    "count": 504,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 17956,
+    "newWork": 15498
+  },
+  {
+    "n": 82,
+    "count": 123,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 1123,
+    "newWork": 768
+  },
+  {
+    "n": 83,
+    "count": 413,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 20398,
+    "newWork": 19186
+  },
+  {
+    "n": 84,
+    "count": 336,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 4432,
+    "newWork": 2814
+  },
+  {
+    "n": 85,
+    "count": 155,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 4619,
+    "newWork": 4029
+  },
+  {
+    "n": 86,
+    "count": 93,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 3193,
+    "newWork": 3107
+  },
+  {
+    "n": 87,
+    "count": 464,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 16480,
+    "newWork": 14222
+  },
+  {
+    "n": 88,
+    "count": 59,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 421,
+    "newWork": 309
+  },
+  {
+    "n": 89,
+    "count": 173,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 7309,
+    "newWork": 6944
+  },
+  {
+    "n": 90,
+    "count": 184,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 2056,
+    "newWork": 1350
+  },
+  {
+    "n": 91,
+    "count": 467,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 16595,
+    "newWork": 14322
+  },
+  {
+    "n": 92,
+    "count": 445,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 20992,
+    "newWork": 19682
+  },
+  {
+    "n": 93,
+    "count": 272,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 9032,
+    "newWork": 7862
+  },
+  {
+    "n": 94,
+    "count": 171,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 1913,
+    "newWork": 1259
+  },
+  {
+    "n": 95,
+    "count": 245,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 10641,
+    "newWork": 10114
+  },
+  {
+    "n": 96,
+    "count": 464,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 6096,
+    "newWork": 3838
+  },
+  {
+    "n": 97,
+    "count": 115,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 3048,
+    "newWork": 2717
+  },
+  {
+    "n": 98,
+    "count": 69,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 2213,
+    "newWork": 2149
+  },
+  {
+    "n": 99,
+    "count": 512,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 18240,
+    "newWork": 15742
+  },
+  {
+    "n": 100,
+    "count": 83,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 763,
+    "newWork": 528
+  },
+  {
+    "n": 101,
+    "count": 77,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 2894,
+    "newWork": 2806
+  },
+  {
+    "n": 102,
+    "count": 360,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 4744,
+    "newWork": 3006
+  },
+  {
+    "n": 103,
+    "count": 11,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 135,
+    "newWork": 135
+  },
+  {
+    "n": 104,
+    "count": 493,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 22407,
+    "newWork": 20861
+  },
+  {
+    "n": 105,
+    "count": 24,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 408,
+    "newWork": 386
+  },
+  {
+    "n": 106,
+    "count": 139,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 1607,
+    "newWork": 1132
+  },
+  {
+    "n": 107,
+    "count": 365,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 17379,
+    "newWork": 16249
+  },
+  {
+    "n": 108,
+    "count": 272,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 3612,
+    "newWork": 2458
+  },
+  {
+    "n": 109,
+    "count": 259,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 8143,
+    "newWork": 7113
+  },
+  {
+    "n": 110,
+    "count": 437,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 20286,
+    "newWork": 19002
+  },
+  {
+    "n": 111,
+    "count": 80,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 2032,
+    "newWork": 1806
+  },
+  {
+    "n": 112,
+    "count": 387,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 5095,
+    "newWork": 3222
+  },
+  {
+    "n": 113,
+    "count": 301,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 14047,
+    "newWork": 13125
+  },
+  {
+    "n": 114,
+    "count": 56,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 400,
+    "newWork": 294
+  },
+  {
+    "n": 115,
+    "count": 155,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 4619,
+    "newWork": 4029
+  },
+  {
+    "n": 116,
+    "count": 261,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 10958,
+    "newWork": 10387
+  },
+  {
+    "n": 117,
+    "count": 96,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 2496,
+    "newWork": 2222
+  },
+  {
+    "n": 118,
+    "count": 331,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 4367,
+    "newWork": 2774
+  },
+  {
+    "n": 119,
+    "count": 181,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 7659,
+    "newWork": 7342
+  },
+  {
+    "n": 120,
+    "count": 480,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 6304,
+    "newWork": 3966
+  },
+  {
+    "n": 121,
+    "count": 251,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 7813,
+    "newWork": 6839
+  },
+  {
+    "n": 122,
+    "count": 341,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 15456,
+    "newWork": 14466
+  },
+  {
+    "n": 123,
+    "count": 280,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 9554,
+    "newWork": 8296
+  },
+  {
+    "n": 124,
+    "count": 299,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 4156,
+    "newWork": 2747
+  },
+  {
+    "n": 125,
+    "count": 245,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 10947,
+    "newWork": 10450
+  },
+  {
+    "n": 126,
+    "count": 408,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 5368,
+    "newWork": 3390
+  },
+  {
+    "n": 127,
+    "count": 43,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 912,
+    "newWork": 832
+  },
+  {
+    "n": 128,
+    "count": 37,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 1024,
+    "newWork": 1008
+  },
+  {
+    "n": 129,
+    "count": 248,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 7716,
+    "newWork": 6754
+  },
+  {
+    "n": 130,
+    "count": 339,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 4471,
+    "newWork": 2838
+  },
+  {
+    "n": 131,
+    "count": 157,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 6546,
+    "newWork": 6273
+  },
+  {
+    "n": 132,
+    "count": 264,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 3088,
+    "newWork": 1998
+  },
+  {
+    "n": 133,
+    "count": 155,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 4619,
+    "newWork": 4029
+  },
+  {
+    "n": 134,
+    "count": 341,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 14671,
+    "newWork": 13765
+  },
+  {
+    "n": 135,
+    "count": 400,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 14064,
+    "newWork": 12126
+  },
+  {
+    "n": 136,
+    "count": 475,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 6239,
+    "newWork": 3926
+  },
+  {
+    "n": 137,
+    "count": 389,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 18634,
+    "newWork": 17426
+  },
+  {
+    "n": 138,
+    "count": 376,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 4952,
+    "newWork": 3134
+  },
+  {
+    "n": 139,
+    "count": 211,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 6503,
+    "newWork": 5689
+  },
+  {
+    "n": 140,
+    "count": 269,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 11832,
+    "newWork": 11195
+  },
+  {
+    "n": 141,
+    "count": 200,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 6132,
+    "newWork": 5362
+  },
+  {
+    "n": 142,
+    "count": 299,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 4338,
+    "newWork": 2953
+  },
+  {
+    "n": 143,
+    "count": 317,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 14829,
+    "newWork": 13989
+  },
+  {
+    "n": 144,
+    "count": 424,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 5576,
+    "newWork": 3518
+  },
+  {
+    "n": 145,
+    "count": 123,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 3273,
+    "newWork": 2918
+  },
+  {
+    "n": 146,
+    "count": 437,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 19583,
+    "newWork": 18407
+  },
+  {
+    "n": 147,
+    "count": 400,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 14064,
+    "newWork": 12126
+  },
+  {
+    "n": 148,
+    "count": 131,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 1377,
+    "newWork": 990
+  },
+  {
+    "n": 149,
+    "count": 293,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 14252,
+    "newWork": 13408
+  },
+  {
+    "n": 150,
+    "count": 408,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 5368,
+    "newWork": 3390
+  },
+  {
+    "n": 151,
+    "count": 459,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 16295,
+    "newWork": 14062
+  },
+  {
+    "n": 152,
+    "count": 301,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 13810,
+    "newWork": 12942
+  },
+  {
+    "n": 153,
+    "count": 40,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 836,
+    "newWork": 762
+  },
+  {
+    "n": 154,
+    "count": 395,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 5199,
+    "newWork": 3286
+  },
+  {
+    "n": 155,
+    "count": 245,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 10597,
+    "newWork": 10160
+  },
+  {
+    "n": 156,
+    "count": 400,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 5264,
+    "newWork": 3326
+  },
+  {
+    "n": 157,
+    "count": 339,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 11750,
+    "newWork": 10117
+  },
+  {
+    "n": 158,
+    "count": 189,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 7462,
+    "newWork": 7129
+  },
+  {
+    "n": 159,
+    "count": 208,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 6400,
+    "newWork": 5598
+  },
+  {
+    "n": 160,
+    "count": 123,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 1123,
+    "newWork": 768
+  },
+  {
+    "n": 161,
+    "count": 261,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 11508,
+    "newWork": 10905
+  },
+  {
+    "n": 162,
+    "count": 400,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 5264,
+    "newWork": 3326
+  },
+  {
+    "n": 163,
+    "count": 443,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 15692,
+    "newWork": 13539
+  },
+  {
+    "n": 164,
+    "count": 101,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 3698,
+    "newWork": 3580
+  },
+  {
+    "n": 165,
+    "count": 216,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 6668,
+    "newWork": 5834
+  },
+  {
+    "n": 166,
+    "count": 75,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 691,
+    "newWork": 480
+  },
+  {
+    "n": 167,
+    "count": 157,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 6891,
+    "newWork": 6580
+  },
+  {
+    "n": 168,
+    "count": 80,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 736,
+    "newWork": 510
+  },
+  {
+    "n": 169,
+    "count": 171,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 5163,
+    "newWork": 4509
+  },
+  {
+    "n": 170,
+    "count": 397,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 17700,
+    "newWork": 16466
+  },
+  {
+    "n": 171,
+    "count": 96,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 2496,
+    "newWork": 2222
+  },
+  {
+    "n": 172,
+    "count": 507,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 6655,
+    "newWork": 4182
+  },
+  {
+    "n": 173,
+    "count": 349,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 16486,
+    "newWork": 15556
+  },
+  {
+    "n": 174,
+    "count": 288,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 4146,
+    "newWork": 2808
+  },
+  {
+    "n": 175,
+    "count": 499,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 17776,
+    "newWork": 15343
+  },
+  {
+    "n": 176,
+    "count": 61,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 1919,
+    "newWork": 1891
+  },
+  {
+    "n": 177,
+    "count": 200,
+    "axis": 0,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 6132,
+    "newWork": 5362
+  },
+  {
+    "n": 178,
+    "count": 35,
+    "axis": 1,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 304,
+    "newWork": 255
+  },
+  {
+    "n": 179,
+    "count": 293,
+    "axis": 2,
+    "treeExact": true,
+    "queryExact": 16,
+    "oldWork": 14013,
+    "newWork": 13169
+  }
+]

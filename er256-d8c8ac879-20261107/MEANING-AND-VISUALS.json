@@ -1,0 +1,104 @@
+[
+  {
+    "backend": "agentic",
+    "name": "start",
+    "crop": {
+      "x": 0,
+      "y": 0,
+      "width": 880,
+      "height": 136
+    },
+    "svgSHA256": "a7f4bf4e220e8ce133eb2e67eb750d979fb51c2bd5631c4788d1bbcc453136a8",
+    "entities": 256,
+    "relationships": 255,
+    "cardinalityCarriers": 510,
+    "captionOccurrences": 255,
+    "font": "manifest-verified Inter; system fonts disabled",
+    "limitation": "Viewport crop of actual finalSVG. Counts and selected crops do not establish whole-diagram glyph attribution/readability."
+  },
+  {
+    "backend": "agentic",
+    "name": "middle",
+    "crop": {
+      "x": 36258.446,
+      "y": 0,
+      "width": 880,
+      "height": 136
+    },
+    "svgSHA256": "a7f4bf4e220e8ce133eb2e67eb750d979fb51c2bd5631c4788d1bbcc453136a8",
+    "entities": 256,
+    "relationships": 255,
+    "cardinalityCarriers": 510,
+    "captionOccurrences": 255,
+    "font": "manifest-verified Inter; system fonts disabled",
+    "limitation": "Viewport crop of actual finalSVG. Counts and selected crops do not establish whole-diagram glyph attribution/readability."
+  },
+  {
+    "backend": "agentic",
+    "name": "end",
+    "crop": {
+      "x": 72804.98999999985,
+      "y": 0,
+      "width": 880,
+      "height": 136
+    },
+    "svgSHA256": "a7f4bf4e220e8ce133eb2e67eb750d979fb51c2bd5631c4788d1bbcc453136a8",
+    "entities": 256,
+    "relationships": 255,
+    "cardinalityCarriers": 510,
+    "captionOccurrences": 255,
+    "font": "manifest-verified Inter; system fonts disabled",
+    "limitation": "Viewport crop of actual finalSVG. Counts and selected crops do not establish whole-diagram glyph attribution/readability."
+  },
+  {
+    "backend": "elk",
+    "name": "start",
+    "crop": {
+      "x": 0,
+      "y": 0,
+      "width": 880,
+      "height": 136
+    },
+    "svgSHA256": "d793834fb513979dcc26c542245fd35d7a3d9bfa2704a23bf05c3f1cb5efbf63",
+    "entities": 256,
+    "relationships": 255,
+    "cardinalityCarriers": 510,
+    "captionOccurrences": 255,
+    "font": "manifest-verified Inter; system fonts disabled",
+    "limitation": "Viewport crop of actual finalSVG. Counts and selected crops do not establish whole-diagram glyph attribution/readability."
+  },
+  {
+    "backend": "elk",
+    "name": "middle",
+    "crop": {
+      "x": 44703.94600000001,
+      "y": 0,
+      "width": 880,
+      "height": 136
+    },
+    "svgSHA256": "d793834fb513979dcc26c542245fd35d7a3d9bfa2704a23bf05c3f1cb5efbf63",
+    "entities": 256,
+    "relationships": 255,
+    "cardinalityCarriers": 510,
+    "captionOccurrences": 255,
+    "font": "manifest-verified Inter; system fonts disabled",
+    "limitation": "Viewport crop of actual finalSVG. Counts and selected crops do not establish whole-diagram glyph attribution/readability."
+  },
+  {
+    "backend": "elk",
+    "name": "end",
+    "crop": {
+      "x": 89762.48999999977,
+      "y": 0,
+      "width": 880,
+      "height": 136
+    },
+    "svgSHA256": "d793834fb513979dcc26c542245fd35d7a3d9bfa2704a23bf05c3f1cb5efbf63",
+    "entities": 256,
+    "relationships": 255,
+    "cardinalityCarriers": 510,
+    "captionOccurrences": 255,
+    "font": "manifest-verified Inter; system fonts disabled",
+    "limitation": "Viewport crop of actual finalSVG. Counts and selected crops do not establish whole-diagram glyph attribution/readability."
+  }
+]

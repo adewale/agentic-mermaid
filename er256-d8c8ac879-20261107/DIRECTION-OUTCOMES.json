@@ -1,0 +1,134 @@
+[
+  {
+    "case": "agentic-BT",
+    "status": "refused",
+    "wallMs": 249.0973509999999,
+    "proof": null,
+    "viewport": null,
+    "failure": "ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships",
+    "stack": "ErRouteWorkLimitError: ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships\n    at erCharge (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:218:42)\n    at charge (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1994:33)\n    at overlaps (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:73:13)\n    at visit (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:77:18)\n    at visit (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:79:17)\n    at visit (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:79:17)\n    at visit (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:80:17)\n    at file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:92:9\n    at finishErGeometry (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:2651:33)\n    at finish (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1964:16)",
+    "sizes": null,
+    "peakRssKiB": 247452
+  },
+  {
+    "case": "agentic-LR",
+    "status": "returned",
+    "wallMs": 2194.875463,
+    "proof": "passed",
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "width": 73684.98999999985,
+      "height": 136
+    },
+    "failure": null,
+    "stack": null,
+    "sizes": {
+      "svgRawBytes": 718510,
+      "svgGzipBytes": 49628,
+      "svgBrotliBytes": 30727,
+      "entireReceiptRawBytes": 7553,
+      "wholeProductRawBytes": 802221
+    },
+    "peakRssKiB": 335396
+  },
+  {
+    "case": "agentic-RL",
+    "status": "refused",
+    "wallMs": 473.5283220000001,
+    "proof": null,
+    "viewport": null,
+    "failure": "ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships",
+    "stack": "ErRouteWorkLimitError: ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships\n    at erCharge (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:218:42)\n    at charge (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1994:33)\n    at overlaps (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:73:13)\n    at visit (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:77:18)\n    at visit (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:79:17)\n    at visit (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:79:17)\n    at visit (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:80:17)\n    at file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:92:9\n    at finishErGeometry (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:2651:33)\n    at finish (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1964:16)",
+    "sizes": null,
+    "peakRssKiB": 208364
+  },
+  {
+    "case": "agentic-TB",
+    "status": "returned",
+    "wallMs": 1433.2895869999993,
+    "proof": "passed",
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "width": 220,
+      "height": 49045.00000000016
+    },
+    "failure": null,
+    "stack": null,
+    "sizes": {
+      "svgRawBytes": 704578,
+      "svgGzipBytes": 43596,
+      "svgBrotliBytes": 26167,
+      "entireReceiptRawBytes": 7553,
+      "wholeProductRawBytes": 788289
+    },
+    "peakRssKiB": 335604
+  },
+  {
+    "case": "elk-BT",
+    "status": "refused",
+    "wallMs": 1317.682452,
+    "proof": null,
+    "viewport": null,
+    "failure": "ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships",
+    "stack": "ErRouteWorkLimitError: ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships\n    at erCharge (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:218:42)\n    at charge (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1994:33)\n    at overlaps (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:73:13)\n    at visit (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:81:57)\n    at visit (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:79:17)\n    at visit (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:79:17)\n    at visit (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:79:17)\n    at visit (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:80:17)\n    at visit (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:79:17)\n    at file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:92:9\n    at finishErGeometry (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:2650:36)\n    at finish (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1964:16)\n    at file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1966:101\n    at runMeasuredGraphBackend (file:///tmp/pr449-main-integration-20261029-762/src/layout/backend.ts:89:18)\n    at layoutErDiagram (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1966:12)\n    at Object.layout (file:///tmp/pr449-main-integration-20261029-762/src/svg-family-hooks/er.ts:23:29)\n    at file:///tmp/pr449-main-integration-20261029-762/src/positioning.ts:126:31\n    at withGraphLayoutDecisionObserver (file:///tmp/pr449-main-integration-20261029-762/src/layout/backend.ts:20:16)\n    at file:///tmp/pr449-main-integration-20261029-762/src/positioning.ts:123:63\n    at withTextMeasurementExecution (file:///tmp/pr449-main-integration-20261029-762/src/text-measurement-profile.ts:164:16)\n    at position (file:///tmp/pr449-main-integration-20261029-762/src/positioning.ts:109:26)\n    at Module.withLayoutOptimizationBudget (file:///tmp/pr449-main-integration-20261029-762/src/layout/optimization-budget.ts:22:41)\n    at positionFamily (file:///tmp/pr449-main-integration-20261029-762/src/positioning.ts:185:40)\n    at positionFamilyForNativeRender (file:///tmp/pr449-main-integration-20261029-762/src/positioning.ts:53:20)\n    at file:///tmp/pr449-main-integration-20261029-762/src/graphical-render.ts:237:53\n    at measureRenderStage (file:///tmp/pr449-main-integration-20261029-762/src/render-stages.ts:20:26)\n    at renderResolvedMermaidSVG (file:///tmp/pr449-main-integration-20261029-762/src/graphical-render.ts:237:20)\n    at consumeResolvedGraphicalRequest (file:///tmp/pr449-main-integration-20261029-762/src/graphical-render.ts:260:22)\n    at executeInspectedGraphicalRequest (file:///tmp/pr449-main-integration-20261029-762/src/graphical-render.ts:250:12)\n    at file:///tmp/pr449-main-integration-20261029-762/src/graphical-render.ts:246:39\n    at withSvgInspectionCache (file:///tmp/pr449-main-integration-20261029-762/src/svg-inspection-cache.ts:19:16)\n    at executeGraphicalRequest (file:///tmp/pr449-main-integration-20261029-762/src/graphical-render.ts:246:12)\n    at Module.renderMermaidSVGWithReceipt (file:///tmp/pr449-main-integration-20261029-762/src/index.ts:132:12)\n    at file:///tmp/pr449-week-comparison-20261101/ranked-losses-ce15/er-probe/capture-overrides.mjs:41:14",
+    "sizes": null,
+    "peakRssKiB": 331724
+  },
+  {
+    "case": "elk-LR",
+    "status": "returned",
+    "wallMs": 2636.644312,
+    "proof": "passed",
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "width": 90642.48999999977,
+      "height": 136
+    },
+    "failure": null,
+    "stack": null,
+    "sizes": {
+      "svgRawBytes": 722588,
+      "svgGzipBytes": 49540,
+      "svgBrotliBytes": 30314,
+      "entireReceiptRawBytes": 7536,
+      "wholeProductRawBytes": 806282
+    },
+    "peakRssKiB": 412164
+  },
+  {
+    "case": "elk-RL",
+    "status": "refused",
+    "wallMs": 951.0346400000003,
+    "proof": null,
+    "viewport": null,
+    "failure": "ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships",
+    "stack": "ErRouteWorkLimitError: ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships\n    at erCharge (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:218:42)\n    at charge (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1994:33)\n    at overlaps (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:73:13)\n    at visit (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:81:57)\n    at visit (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:79:17)\n    at visit (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:79:17)\n    at visit (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:79:17)\n    at visit (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:80:17)\n    at visit (file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:79:17)\n    at file:///tmp/pr449-main-integration-20261029-762/src/shared/ink-index.ts:92:9\n    at finishErGeometry (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:2650:36)\n    at finish (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1964:16)\n    at file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1966:101\n    at runMeasuredGraphBackend (file:///tmp/pr449-main-integration-20261029-762/src/layout/backend.ts:89:18)\n    at layoutErDiagram (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1966:12)\n    at Object.layout (file:///tmp/pr449-main-integration-20261029-762/src/svg-family-hooks/er.ts:23:29)\n    at file:///tmp/pr449-main-integration-20261029-762/src/positioning.ts:126:31\n    at withGraphLayoutDecisionObserver (file:///tmp/pr449-main-integration-20261029-762/src/layout/backend.ts:20:16)\n    at file:///tmp/pr449-main-integration-20261029-762/src/positioning.ts:123:63\n    at withTextMeasurementExecution (file:///tmp/pr449-main-integration-20261029-762/src/text-measurement-profile.ts:164:16)\n    at position (file:///tmp/pr449-main-integration-20261029-762/src/positioning.ts:109:26)\n    at Module.withLayoutOptimizationBudget (file:///tmp/pr449-main-integration-20261029-762/src/layout/optimization-budget.ts:22:41)\n    at positionFamily (file:///tmp/pr449-main-integration-20261029-762/src/positioning.ts:185:40)\n    at positionFamilyForNativeRender (file:///tmp/pr449-main-integration-20261029-762/src/positioning.ts:53:20)\n    at file:///tmp/pr449-main-integration-20261029-762/src/graphical-render.ts:237:53\n    at measureRenderStage (file:///tmp/pr449-main-integration-20261029-762/src/render-stages.ts:20:26)\n    at renderResolvedMermaidSVG (file:///tmp/pr449-main-integration-20261029-762/src/graphical-render.ts:237:20)\n    at consumeResolvedGraphicalRequest (file:///tmp/pr449-main-integration-20261029-762/src/graphical-render.ts:260:22)\n    at executeInspectedGraphicalRequest (file:///tmp/pr449-main-integration-20261029-762/src/graphical-render.ts:250:12)\n    at file:///tmp/pr449-main-integration-20261029-762/src/graphical-render.ts:246:39\n    at withSvgInspectionCache (file:///tmp/pr449-main-integration-20261029-762/src/svg-inspection-cache.ts:19:16)\n    at executeGraphicalRequest (file:///tmp/pr449-main-integration-20261029-762/src/graphical-render.ts:246:12)\n    at Module.renderMermaidSVGWithReceipt (file:///tmp/pr449-main-integration-20261029-762/src/index.ts:132:12)\n    at file:///tmp/pr449-week-comparison-20261101/ranked-losses-ce15/er-probe/capture-overrides.mjs:41:14",
+    "sizes": null,
+    "peakRssKiB": 463524
+  },
+  {
+    "case": "elk-TB",
+    "status": "returned",
+    "wallMs": 5659.176283,
+    "proof": "passed",
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "width": 220,
+      "height": 65492.500000000306
+    },
+    "failure": null,
+    "stack": null,
+    "sizes": {
+      "svgRawBytes": 711041,
+      "svgGzipBytes": 44693,
+      "svgBrotliBytes": 27035,
+      "entireReceiptRawBytes": 7537,
+      "wholeProductRawBytes": 794736
+    },
+    "peakRssKiB": 373148
+  }
+]

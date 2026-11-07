@@ -1,0 +1,11 @@
+bun test v1.4.4 (38afee6c8)
+
+e2e/browser.test.ts:
+(pass) standalone editor stays within its single-renderer payload budget [534.24ms]
+(pass) standalone editor renders and verifies with one persistent Blob worker [114349.84ms]
+
+ 2 pass
+ 20 filtered out
+ 0 fail
+ 505 expect() calls
+Ran 2 tests across 1 file. [124.21s]

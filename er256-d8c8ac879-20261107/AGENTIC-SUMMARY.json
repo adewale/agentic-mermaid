@@ -1,0 +1,63 @@
+{
+  "counts": {
+    "pairs": 874,
+    "svgExact": 874,
+    "layoutGeometryExact": 874,
+    "routeGeometryExact": 874,
+    "deliveryExact": 874,
+    "proof ('passed', 'passed')": 740,
+    "proof ('unverified', 'unverified')": 134
+  },
+  "changedSVG": [],
+  "otherMetricChanges": [
+    {
+      "case": "generated-cyclic:117",
+      "metric": "labelEdgeProximity",
+      "before": 16.817924961183532,
+      "after": 16.81792496118353
+    },
+    {
+      "case": "generated-cyclic:164",
+      "metric": "minimumNodeSpacing",
+      "before": 26.91326996111768,
+      "after": 26.913269961117678
+    },
+    {
+      "case": "generated-cyclic:273",
+      "metric": "labelEdgeProximity",
+      "before": 25.083018976989262,
+      "after": 25.083018976989266
+    },
+    {
+      "case": "generated-sha256-counter-v1:24",
+      "metric": "labelEdgeProximity",
+      "before": 20.94637498470791,
+      "after": 20.946374984707905
+    },
+    {
+      "case": "generated-sha256-counter-v1:31",
+      "metric": "labelEdgeProximity",
+      "before": 16.817924961183532,
+      "after": 16.81792496118353
+    },
+    {
+      "case": "generated-sha256-counter-v1:197",
+      "metric": "labelEdgeProximity",
+      "before": 16.81792496118346,
+      "after": 16.817924961183458
+    },
+    {
+      "case": "generated-sha256-counter-v1:252",
+      "metric": "labelEdgeProximity",
+      "before": 17.585111209486477,
+      "after": 17.58511120948648
+    },
+    {
+      "case": "generated-sha256-counter-v1:104",
+      "metric": "minimumNodeSpacing",
+      "before": 27.44785966154738,
+      "after": 27.447859661547376
+    }
+  ],
+  "qualification": "874 fresh outputs versus retained preceding-source controls; private proof work counters excluded only from layout geometry comparison"
+}
