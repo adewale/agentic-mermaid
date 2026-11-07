@@ -10,7 +10,9 @@ import { terminalArtifact } from './terminal-artifact.ts'
 export function renderUsecaseTerminal(ctx: AsciiContext) {
   const body = parseUsecaseDiagram(ctx.source.authoredFamilyBody ?? ctx.source.familyBody),
     model = projectUsecaseGraph(body, true)
-  const graph = convertToAsciiGraph(model, { ...ctx.config, title: body.title ?? ctx.config.title }, 'cluster')
+  const graph = convertToAsciiGraph(model, { ...ctx.config, title: body.title ?? ctx.config.title,
+    graphDirection: body.direction === 'LR' || body.direction === 'RL' ? 'LR' : 'TD', reverseDirection: body.direction === 'RL',
+  }, 'cluster')
   createMapping(graph)
   drawGraph(graph)
   if (body.direction === 'BT') flipCanvasVertically(graph.canvas)

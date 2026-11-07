@@ -81,6 +81,19 @@ Early --> Inside`)
       ['Admin', 'Customer', 'generalization'],
     ])
   })
+  test('terminal placement honors the authored direction while retaining actor roles and associations', () => {
+    for (const direction of ['LR', 'RL', 'TB', 'BT']) {
+      const text = renderMermaidASCII(`usecase-beta\ndirection ${direction}\nactor A("Alpha")\nB("Beta")\nA --> B`),
+        lines = text.split('\n'),
+        alphaY = lines.findIndex(line => line.includes('Alpha')), betaY = lines.findIndex(line => line.includes('Beta')),
+        alphaX = lines[alphaY]!.indexOf('Alpha'), betaX = lines[betaY]!.indexOf('Beta')
+      expect(text).toContain('[actor]')
+      if (direction === 'LR') expect(alphaX).toBeLessThan(betaX)
+      else if (direction === 'RL') expect(alphaX).toBeGreaterThan(betaX)
+      else if (direction === 'TB') expect(alphaY).toBeLessThan(betaY)
+      else expect(alphaY).toBeGreaterThan(betaY)
+    }
+  })
   test('source grammar rejects unsupported constructs and clears failed parse state', () => {
     for (const unknown of ['package Foo', 'actor User\nnewpage', 'systemBoundary Store\nA\n', 'actor User@{ unexpected: true }', '"actor"']) {
       const source = `usecase-beta\n${unknown}`,
