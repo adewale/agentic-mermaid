@@ -1,0 +1,324 @@
+{
+  "before": "deafff39d",
+  "after": "3234fb318",
+  "scope": "Existing CI snapshots; matched source/options/identities per backend. Comparison validation, not new rendering calls or a general workload ranking. Full adverse metrics and proof/delivery transitions retained.",
+  "totals": [
+    {
+      "snapshot": "agentic.json",
+      "cases": 256,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "corpus/agentic.json",
+      "cases": 234,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "corpus/elk.json",
+      "cases": 234,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "development-256-319/agentic.json",
+      "cases": 64,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "development-256-319/elk.json",
+      "cases": 64,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "development-320-383/agentic.json",
+      "cases": 64,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "development-320-383/elk.json",
+      "cases": 64,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "elk.json",
+      "cases": 256,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "independent-sha256-counter-v1-0-63/agentic.json",
+      "cases": 64,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "independent-sha256-counter-v1-0-63/elk.json",
+      "cases": 64,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "independent-sha256-counter-v1-128-191/agentic.json",
+      "cases": 64,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "independent-sha256-counter-v1-128-191/elk.json",
+      "cases": 64,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "independent-sha256-counter-v1-192-255/agentic.json",
+      "cases": 64,
+      "svgChanged": 1,
+      "layoutChanged": 1,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 1
+    },
+    {
+      "snapshot": "independent-sha256-counter-v1-192-255/elk.json",
+      "cases": 64,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "independent-sha256-counter-v1-64-127/agentic.json",
+      "cases": 64,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "independent-sha256-counter-v1-64-127/elk.json",
+      "cases": 64,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    }
+  ],
+  "changed": [
+    {
+      "snapshot": "independent-sha256-counter-v1-192-255/agentic.json",
+      "id": "generated-sha256-counter-v1:230",
+      "delivery": [
+        true,
+        true
+      ],
+      "svgChanged": true,
+      "layoutChanged": true,
+      "proof": [
+        "unverified",
+        "passed"
+      ],
+      "beforeMetrics": {
+        "paintCertification": {
+          "version": 1,
+          "unit": "px",
+          "scope": "native-scene",
+          "status": "unverified",
+          "viewport": {
+            "x": 0,
+            "y": 0,
+            "width": 806.712,
+            "height": 1577.048
+          },
+          "attempts": 1,
+          "repairs": [],
+          "coverage": {
+            "measured": 104,
+            "unmeasured": 0,
+            "preparedText": 27,
+            "fallbackText": 0,
+            "conditional": 0
+          },
+          "checks": {
+            "primitives": 107,
+            "labels": 17,
+            "occlusionPairs": 827,
+            "maxOcclusionPairs": 100000,
+            "operations": 362041,
+            "maxOperations": 400000,
+            "markers": 40
+          },
+          "issues": [
+            {
+              "code": "POTENTIAL_OCCLUSION",
+              "id": "edge:n10->n16#0",
+              "by": "node-shape:n1",
+              "message": "Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified"
+            }
+          ],
+          "limitations": [
+            "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+            "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+          ]
+        },
+        "edgeCrossings": 17,
+        "labelLegibility": 1,
+        "labelMeasurement": {
+          "measuredNodes": 17,
+          "unmeasuredNodes": 0,
+          "hiddenNodes": 0,
+          "semanticNodes": 0,
+          "measuredEdges": 10,
+          "unmeasuredEdges": 0,
+          "measuredLabels": 0,
+          "unmeasuredLabels": 0,
+          "hiddenLabels": 0,
+          "semanticLabels": 0
+        },
+        "whitespaceBalance": 0.10471337129738238,
+        "labelEdgeProximity": 17.59999999999991,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "routeOverlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 104,
+          "length": 18868.544527860886,
+          "area": 1272223.5461760003
+        },
+        "minimumNodeSpacing": 32.75,
+        "elementDensity": 0.44803446824521026,
+        "minimumTextContrast": 14.894588477600598,
+        "aspectRatio": 0.5115329400246535,
+        "nodeCount": 17,
+        "edgeCount": 40
+      },
+      "afterMetrics": {
+        "paintCertification": {
+          "version": 1,
+          "unit": "px",
+          "scope": "native-scene",
+          "status": "passed",
+          "viewport": {
+            "x": 0,
+            "y": 0,
+            "width": 806.712,
+            "height": 1577.048
+          },
+          "attempts": 1,
+          "repairs": [],
+          "coverage": {
+            "measured": 104,
+            "unmeasured": 0,
+            "preparedText": 27,
+            "fallbackText": 0,
+            "conditional": 0
+          },
+          "checks": {
+            "primitives": 107,
+            "labels": 17,
+            "occlusionPairs": 837,
+            "maxOcclusionPairs": 100000,
+            "operations": 362293,
+            "maxOperations": 400000,
+            "markers": 40
+          },
+          "issues": [],
+          "limitations": [
+            "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+            "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+          ]
+        },
+        "edgeCrossings": 17,
+        "labelLegibility": 1,
+        "labelMeasurement": {
+          "measuredNodes": 17,
+          "unmeasuredNodes": 0,
+          "hiddenNodes": 0,
+          "semanticNodes": 0,
+          "measuredEdges": 10,
+          "unmeasuredEdges": 0,
+          "measuredLabels": 0,
+          "unmeasuredLabels": 0,
+          "hiddenLabels": 0,
+          "semanticLabels": 0
+        },
+        "whitespaceBalance": 0.10471337129738238,
+        "labelEdgeProximity": 17.59999999999991,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "routeOverlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 106,
+          "length": 18887.70052786089,
+          "area": 1272223.5461760003
+        },
+        "minimumNodeSpacing": 32.75,
+        "elementDensity": 0.44803446824521026,
+        "minimumTextContrast": 14.894588477600598,
+        "aspectRatio": 0.5115329400246535,
+        "nodeCount": 17,
+        "edgeCount": 40
+      },
+      "beforeSHA256": "d40465a275571449b708df67f00d811f4f2ec703c991eeafda3ce930cc30a54f",
+      "afterSHA256": "9698ce9999161d77a1da348961d3533f391457e2ed07836388d226d36412815d"
+    }
+  ]
+}
