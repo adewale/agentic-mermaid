@@ -53,6 +53,32 @@ replace neither the dated profiler nor its missing runtime/cold/cache evidence.
 Next causal probe: whether standalone worker precompression accounts for the
 Brotli loss, preserving decoded worker bytes, ownership and browser contracts.
 
+## Lazy delivery diagnosis — 7 November
+
+At `bbda2112af8d791d8628a3769c86084e4cb962b3` versus main
+`39a500425f6b74eb486b9add9e90d538fab6a914`, matched Node24/tsup builds and the
+existing transfer reporter measure Packet's complete budgeted closure at
+**196,160→230,648 gzip9 bytes (+34,488)**, despite 22→13 requests. Flowchart
+selected ELK grows 734,953→774,077; ER 693,457→734,901; Requirement 631,964→666,689.
+Initial transfer falls 5,919→5,854. These local recovered-topology products do not
+replace CI sizes or measure execution speed. Original dependency-label reporter
+failures and Bun/tsup startup failures are retained; Node24 builds pass, and only
+copied metafile input labels are normalized for the existing reporter.
+
+A compression-only Packet static-closure probe concatenates all emitted bytes:
+PR summed gzip 198,715→196,279 (−2,436), still 32,035 above main's summed 164,244.
+This is not executable ESM or an optimization claim; stop chunk fragmentation as
+a sufficient remedy on this case. The largest pre-compaction source increments
+are paint certification 33,674B, emission context 14,557B, serialization 14,341B,
+native emission 13,249B and SVG writer 12,655B. These contributions are neither
+compressed attribution nor CPU hotspots. Independent review finds that removing
+these checks changes receipts/refusals/custody; terminal projection adds only 58B
+in its owning module and is not the common growth cause. No runtime subtraction,
+cache, cap or budget change is justified. The existing lazy-budget owner still
+fails. Evidence: `lazy-payload-bbda`; next isolate redundant emission machinery
+at its producer before proposing an ownership-preserving rewrite. No new layout
+or runtime performance improvement is claimed by this diagnosis.
+
 ## Private decoder data — 7 November
 
 From `930faf846c6bec55e1f9b053844700e08281faf6`, profile the exact build-owned
