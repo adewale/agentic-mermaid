@@ -227,7 +227,7 @@ export function measureTextWidth(text: string, fontSize: number, fontWeight: num
  */
 export function measureSystemFontSafeTextWidth(text: string, fontSize: number, fontWeight: number, fontStyle: 'normal' | 'italic' = 'normal', fontFamily?: string): number {
   const measured = measureText({ text, fontSize, fontWeight, fontStyle, fontFamily })
-  if (customTextMeasurementActive()) return measured.width
+  if (customTextMeasurementActive() && customTextMeasurementActive({ text, fontSize, fontWeight, fontStyle, fontFamily, monospace: false })) return measured.width
   let extraVeryWideUnits = 0
   for (const char of text) {
     if (VERY_WIDE_CHARS.has(char)) extraVeryWideUnits += 1.85 - 1.5

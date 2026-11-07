@@ -397,9 +397,9 @@ it('resolved circle and ellipse paths preserve the native stroke traversal for d
 
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
-  // The 25-family artifact used 4,735,733 raw / 1,420,742 gzip bytes.
-  // The complete 33-family worker measures 4,950,275 / 1,485,876 with
-  // Bun1.4.4; retain 5% byte headroom and the separate per-PR growth gate.
+  // Keep the 33-family standalone budget and the per-PR growth gate.
+  // Packed Inter metrics, bounded layout search and parser diagnostics must
+  // fit within these limits.
   expect(html.byteLength).toBeLessThanOrEqual(5_198_000)
   expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_561_000)
   const runtime = new TextDecoder().decode(html).match(/<script type="module" id="editor-runtime">([\s\S]*?)<\/script>/)?.[1]

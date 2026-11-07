@@ -278,7 +278,7 @@ test('compacted ESM preserves live bindings, observable getters, arity and recip
     }
     const compaction = (result.metafile as typeof result.metafile & { browserCompaction: { inputContributions: string; outputBytes: string } })!.browserCompaction
     expect(compaction.inputContributions).toBe('esbuild-before-compaction')
-    expect(compaction.outputBytes).toBe('after-compaction')
+    expect(compaction.outputBytes).toBe('final-emitted-modules')
     const entryOutput = Object.entries(result.metafile!.outputs).find(([, value]) => value.entryPoint && resolve(temporary, value.entryPoint) === entry)![0]
     // A fresh consumer sees the completed artifact without the build process's
     // directory-resolution cache, which can predate newly written chunks.
