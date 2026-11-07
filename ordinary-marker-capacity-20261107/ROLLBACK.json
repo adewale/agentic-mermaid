@@ -1,0 +1,8 @@
+{
+  "baseline": "6edd3fd3bb70bfa4232d61aba6cd0822b5adc82d",
+  "baseline_src_tree": "f58954ef7ba16f55c57943a4c5d545716c048094",
+  "restored_all_src_byte_exact": true,
+  "editorSHA256": "b61126c28fea8f1294b9e169e5d5b3c2c443d929b851bd0941958f2ba1681448",
+  "trial": "4db9d6db226c5957c1b003b5ad58b56af4b55480",
+  "trial_qualification": "Four introduced actual vector contacts; fifth warning conservative; stopped on actual geometry, not proof-count acceptance gate. Raster/readability unknown."
+}

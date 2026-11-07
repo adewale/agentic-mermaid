@@ -1,0 +1,19 @@
+{
+  "trial_head": "4db9d6db226c5957c1b003b5ad58b56af4b55480",
+  "base_runtime": "6edd3fd3bb70bfa4232d61aba6cd0822b5adc82d",
+  "trial_run": 42364119631,
+  "status": "completed",
+  "conclusion": "failure",
+  "tested_merge": "bf29aaa6ba961e6b121c237d97e0f841f218aa04",
+  "tested_tree": "f34c73c81aa4c5dbc64df7791b86d0513773c350",
+  "tested_tree_equal_trial_head": true,
+  "unit2": "6413pass/1knownSparse32CHECK_BUDGETfailure",
+  "quality": "lazyFlow774125>761500gzip;lazyXY774082>654000raw;implicitforestELK775975>761500gzip",
+  "payload": "demo310157>302500gzip;per-PRgrowthlimitsfailed",
+  "passing": "Unit1/3,browser,browser-site,CLI,package/Node22,dist,semantic,MCP,Windows/macOS,originalstandalonebudget",
+  "generated_layouts": "completed failure advisory; full1748records retained",
+  "rollback": "0ff57be43892519224ebff3c3f72169cf12f01b9",
+  "rollback_ci_run": 42365417593,
+  "rollback_ci_status": "in_progress, not ready",
+  "observed_at": "2026-11-07T10:48:00.294703+00:00"
+}
