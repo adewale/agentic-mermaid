@@ -377,6 +377,18 @@ const fixtures: Fixture[] = [
   },
 
   {
+    id: 'native-er-unicode-identities',
+    title: 'Unicode ER identities retain their entity and relationship labels',
+    source: 'erDiagram\n顧客 ||--o{ 注文 : 発注\n顧客 {\n string 番号\n}\n注文 {\n string 状態\n}',
+    cue: 'The baseline reports its real parser refusal. Inspect both CJK entity names, the relationship label and both attribute names in the SVG after repair. This checks source meaning and rendering, not font coverage on every host.',
+  },
+  {
+    id: 'native-state-combining-identities',
+    title: 'Combining marks remain part of State identities',
+    source: 'stateDiagram-v2\n[*] --> שָלוֹם\nשָלוֹם --> [*]',
+    cue: 'The baseline reports its real parser refusal. Inspect the complete Hebrew identity and both authored transitions after repair. Glyph shaping depends on the host font; the owning regression checks the stored identity, endpoints and emitted text.',
+  },
+  {
     id: 'compat-er-attribute-quotes',
     title: 'ER attribute delimiters stay out of displayed values',
     source: 'erDiagram\nHOTEL {\n `my.type`? `geo.accuracy` UK "literal `ticks`"\n}',
