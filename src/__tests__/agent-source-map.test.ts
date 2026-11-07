@@ -1047,6 +1047,29 @@ test.each([
   expect(serializeMermaid(parsed.value)).toContain('First')
 })
 
+test.each([
+  ['railroad-beta', 'entry = terminal("a");', 'groups', ['rule#0:entry'], true, false],
+  ['railroad-beta', 'entry = terminal("a");', 'groups', ['rule#0:entry'], false, true],
+  ['venn-beta', 'set A:10', 'nodes', ['A'], true, true],
+  ['wardley-beta', 'component A [80.0, 30.0]', 'nodes', ['A'], true, true],
+  ['railroad-beta', 'entry = sequence(terminal("a"), optional(terminal("b")));', 'groups', ['rule#0:entry', 'rule#1:entry'], true, true],
+] as const)('%s observed token boundaries exclude adjacent init directives (%s)', (header, token, category, ids, leading, trailing) => {
+  const directive = '%%{init: {"theme":"dark"}}%%'
+  const statement = (leading ? directive + directive : '') + token + (trailing ? directive : '')
+  const source = ['---', 'title: Wrapper', '---', header, ...ids.map(() => statement)].join('\r\n')
+  const parsed = parseMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind === 'opaque') throw Error('Expected admitted native source')
+  let cursor = 0
+  for (const [index, id] of ids.entries()) {
+    const span = parsed.value.source.spans![category].get(id)!
+    const start = source.indexOf(token, cursor)
+    expect(textAt(source, span)).toBe(token)
+    expect(span.start).toEqual({ offset: start, line: index + 5, col: leading ? directive.length * 2 + 1 : 1 })
+    expect(span.end.offset).toBe(start + token.length)
+    cursor = start + token.length
+  }
+})
+
 test('Wardley observed source maps follow final component writes, pipelines and native annotation owners', () => {
   const source = [
     '---', 'config:', '  theme: dark', '---', '%% wrapper', 'wardley-beta',

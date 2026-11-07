@@ -8,7 +8,7 @@ import { writeGrammarText, readGrammarText, readAuthoredGrammarAccessibility } f
 import { appendNativeAccessibilityLines, accessibilityFields } from '../shared/accessibility-directives.ts'
 import { withParserObservation } from '../shared/parser-observation.ts'
 import { sourceLineStarts, sourceSpan } from '../family-detection.ts'
-import { recordAuthoredSourceMapSpans } from './source-map-spans.ts'
+import { familySourceSpan, recordAuthoredSourceMapSpans } from './source-map-spans.ts'
 import { preservedMermaidFamilySource } from '../mermaid-source.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
@@ -180,7 +180,7 @@ export const VENN_SOURCE_HOOKS: FamilyOperations = {
         const start = grammarStarts[event.source.line - 1]! + col - 1
         const endLine = statementEnds[event.source.line - 1]!
         const end = grammarStarts[endLine]! + grammarLines[endLine]!.length
-        const span = sourceSpan(originalStarts, projection?.sourceOffset(start) ?? start, projection?.sourceOffset(end, 'end') ?? end)
+        const span = projection ? familySourceSpan(projection, originalStarts, start, end) : sourceSpan(originalStarts, start, end)
         const location = { line: event.source.line, col: 1 }
         const add = (id: string) => {
           map.nodes.set(id, location)

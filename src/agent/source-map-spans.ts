@@ -48,6 +48,12 @@ export function recordAuthoredSourceMapSpans(sourceMap: SourceMap, spans: Author
   authoredSourceMapSpans.set(sourceMap, spans)
 }
 
+/** Tokens exclude adjacent removed init directives while cleanup/entity bounds
+ * keep their own affinity. Directives inside an occurrence remain included. */
+export function familySourceSpan(payload: ReturnType<typeof preservedMermaidFamilySource>, starts: readonly number[], start: number, end: number): SourceSpan {
+  return sourceSpan(starts, payload.sourceOffset(start, 'start', 'end'), payload.sourceOffset(end, 'end', 'start'))
+}
+
 /** Internal provenance for diagnostics; keep the public SourceMap shape stable. */
 export function authoredLineForCanonical(sourceMap: SourceMap, canonicalLine: number): number {
   return authoredLinesBySourceMap.get(sourceMap)?.get(canonicalLine)?.line ?? canonicalLine
@@ -587,11 +593,11 @@ export function mapObservedSource(
     const point = sourcePointAt(starts, start), finish = sourcePointAt(starts, end)
     map[kind].set(id, { line: point.line, col: point.col })
     ends[kind].set(id, { line: finish.line, col: finish.col })
-    if (identical && exact) exact[kind].set(id, projected ? sourceSpan(authoredStarts!, projected.sourceOffset(start), projected.sourceOffset(end, 'end')) : prefix === 0 ? Object.freeze({ start: point, end: finish }) : sourceSpan(authoredStarts!, prefix + start, prefix + end))
+    if (identical && exact) exact[kind].set(id, projected ? familySourceSpan(projected, authoredStarts!, start, end) : prefix === 0 ? Object.freeze({ start: point, end: finish }) : sourceSpan(authoredStarts!, prefix + start, prefix + end))
   })
   recordSourceMapEnds(map, ends)
   if (exact) {
-    if (!identical) read(authored!, (kind, id, start, end) => exact[kind].set(id, sourceSpan(authoredStarts!, projected!.sourceOffset(start), projected!.sourceOffset(end, 'end'))))
+    if (!identical) read(authored!, (kind, id, start, end) => exact[kind].set(id, familySourceSpan(projected!, authoredStarts!, start, end)))
     recordAuthoredSourceMapSpans(map, exact)
   }
   return map

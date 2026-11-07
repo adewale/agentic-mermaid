@@ -12,12 +12,29 @@ import {
   mermaidInitDirectiveIdentity,
   mermaidInitDirectives,
   normalizeMermaidSource,
+  preservedMermaidFamilySource,
   preprocessMermaidSource,
   stripMermaidInitDirectives,
 } from '../mermaid-source.ts'
 import { mermaidFirstLine } from '../mermaid-source-wrapper.ts'
 
 describe('preprocessMermaidSource', () => {
+  it.each(['\n', '\r\n'])('maps token boundaries independently of init-deletion and entity affinity with %j rows', newline => {
+    const directive = '%%{init: {"theme":"dark"}}%%'
+    const token = 'entry = terminal("a");'
+    const source = ['---', 'title: T', '---', 'railroad-beta', directive + directive + token + directive].join(newline)
+    const payload = preservedMermaidFamilySource(normalizeMermaidSource(source))
+    const start = payload.text.indexOf(token), end = start + token.length
+    expect(payload.sourceOffset(start)).toBe(source.indexOf(directive))
+    expect(payload.sourceOffset(end, 'end')).toBe(source.length)
+    expect(payload.sourceOffset(start, 'start', 'end')).toBe(source.indexOf(token))
+    expect(payload.sourceOffset(end, 'end', 'start')).toBe(source.indexOf(token) + token.length)
+    const entitySource = 'railroad-beta\n' + directive + '&#x1f600;'
+    const entity = preservedMermaidFamilySource(normalizeMermaidSource(entitySource))
+    const middle = entity.text.indexOf('😀') + 1
+    expect(entity.sourceOffset(middle, 'start', 'end')).toBe(entitySource.indexOf('&#'))
+    expect(entity.sourceOffset(middle, 'end', 'start')).toBe(entitySource.length)
+  })
   it('canonical source retains grammar-owned continuation whitespace while parser line views stay normalized', () => {
     const source = '---\ntitle: Wrapper\n---\n%%{init: {theme: dark}}%%\narchitecture-beta\n  service api["First  \n  \n    Last"]'
     const normalized = normalizeMermaidSource(source)
