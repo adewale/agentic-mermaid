@@ -55,23 +55,27 @@ Brotli loss, preserving decoded worker bytes, ownership and browser contracts.
 
 ## Main integration — 7 November
 
-Normal merge of main `39a500425f6b74eb486b9add9e90d538fab6a914` into
-`970c9f807bd82b6c3e731aadef3585ee6b071523` retains typed parser inspection,
-authored UTF16 diagnostics and bounded source-MCP processes alongside PR449
-capture/ownership. The sole manual conflict keeps the campaign's original
-standalone ceilings (4,429,400 raw / 1,334,500 gzip); main's increase is not adopted.
-SDK regeneration reproduces the merged declaration string exactly. Parser/MCP
-owners273P; four foundation files146P, two SAXES owners requalified after restoring
-missing xmlchars. Core typing and 52-file lint pass. Independent position/admission
-probes find no integration defect; no new layout gain follows. Actual SVG/receipt
-bindings and final-head CI are qualified separately in the evidence checkpoint.
+Merge `1693c2a2b7fd93cb5da11f1a358d162180fa19cc` combines main
+`39a500425f6b74eb486b9add9e90d538fab6a914` with PR970, retaining typed parsers,
+authored UTF16 diagnostics and source-MCP isolation beside PR449 capture/ownership.
+The sole conflict keeps the original standalone ceilings; no default/version/cap
+change. SDK regeneration is exact. Main owners273P; foundation146P+103P after
+missing xmlchars recovery; core typing and 52-file lint pass. Independent source
+position/admission probes reproduce no defect. All 36 frozen public calls are
+requalified: 27 return (21P/6U), nine refuse; all 27 SVGs and entire receipts bind
+byte-exactly to retained products. This preserves known gains, not new layout work.
 
-Prior head970 CI42311014876 completed failed on merge672f436 into mainf9:
-standalone gzip1,337,753 (3,253 over the unchanged ceiling), Sparse32, lazy/demo
-payloads and advisory diagnostic remain. This observed CI product is separate
-from the recovered symlink-notice HTML. Existing performance ratios are not
-reinterpreted. Next: requalify affected frozen outputs on the combined candidate
-and inspect its actual production build; retain all refused/unverified cases.
+Matched full production builds, main39→PR1693: gzip **1,423,188→1,348,449
+(−5.25%)**, Brotli **1,098,404→1,282,268 (+16.74%)**; raw4,742,588→2,091,362.
+Peak build RSS430,832→683,124KiB; 12.1/20.8s are single observations, not a speed
+ratio. Both finish within55s. The actual emitted-worker owner passes499assertions
+across its paired budget/worker run; the budget still fails by13,949gzip bytes in
+the symlink-notice environment. Prior970CI gzip1,337,753 is a separate build.
+CI1693 run42316449234 tests mergea785d98 into main39: lazy budgets fail, other
+jobs remain in progress. Sparse32, shared ER256 refusal and stopped six-pass/raw
+trials remain enrolled. Evidence: `main-integration-39a-970`. Next: finish exact-head
+CI qualification, then target one demonstrated resource loss without changing
+ceilings or replaying unchanged layout comparisons as progress.
 
 ## Standalone delivery — 6 November
 
