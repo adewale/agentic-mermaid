@@ -154,6 +154,7 @@ import type { FamilyOperations } from './families.ts'
 import type { SourceMap } from './types.ts'
 
 export const TREEVIEW_SOURCE_HOOKS: FamilyOperations = {
+  canonicalSource: 'preserved',
   bodyMeta: ownExistingBodyTitle('treeview'),
   bodyAccessibility: ownBodyAccessibility('treeview'),
   parse: ctx => {
