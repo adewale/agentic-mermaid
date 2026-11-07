@@ -10,13 +10,17 @@ import type { MermaidSubgraph } from '../types.ts'
 import { readAgentflowMetadata } from './metadata.ts'
 import type { AgentflowBody, AgentflowMapping, AgentflowRole } from './types.ts'
 
-const syntaxError = (message: string): MermaidSyntaxError => new MermaidSyntaxError(message, { diagramType: 'agentflow' })
+const syntaxError = (message: string, at?: { line: number; col: number }): MermaidSyntaxError => new MermaidSyntaxError(message, { diagramType: 'agentflow', ...(at ? { line: at.line + 1, column: at.col + 1 } : {}) })
 
 const roles = new Set<AgentflowRole>(['task', 'tool', 'action', 'input', 'refdoc', 'decision', 'connector'])
 // Lowercase names present in the pinned12.2 global shape registry beyond
 // the shared Flowchart vocabulary. AgentFlow retains these metadata values;
 // its renderer still derives only the family domain roles below.
 const additionalShapeNames = new Set(['anchor', 'browser', 'bucket', 'choice', 'composite', 'console', 'directory', 'doublecircle', 'folder', 'icon', 'note', 'person', 'state'])
+
+function invalidShape(shape: unknown): boolean {
+  return !!shape && (typeof shape !== 'string' || shape !== shape.toLowerCase() || shape.includes('_') || ((!roles.has(shape as AgentflowRole) || shape === 'connector') && !additionalShapeNames.has(shape) && !normalizeV11Shape(shape)))
+}
 
 /** Metadata is data, including unknown nested keys. Prototype-shaped keys
  * are dropped before any model, projection or edit can consume the value. */
@@ -69,6 +73,9 @@ export function parseAgentflow(source: string): AgentflowBody {
   const attachmentScopes = new Map<string, string | undefined>()
   const globalScopes = new Set<string>()
   let first = true, synthetic = 0
+  // Only malformed shape assignments need an error origin; ordinary models
+  // retain no second position map. A later valid assignment may supersede one.
+  let invalidShapeSources: Map<string, { line: number; col: number }> | undefined
   const authoredIds = new Set(source.match(/[\p{L}\p{N}_-]+/gu) ?? [])
   const syntheticIdentity = (kind: 'global' | 'flow'): string => {
     let id = `__agentflow_${kind}_${synthetic++}`
@@ -102,13 +109,18 @@ export function parseAgentflow(source: string): AgentflowBody {
       const mappedVertices = new Set<string>()
       const anonymousFlow = /^flow\s*(?:@\s*\{|$)/i.test(text) ? syntheticIdentity('flow') : undefined
       for (const block of blocks) {
-        if (!block.closed) throw syntaxError('Unclosed AgentFlow metadata block')
+        if (!block.closed) throw syntaxError('Unclosed AgentFlow metadata block', flowchartGroupPosition(group, statement.start + block.start))
         const prefix = text.slice(0, block.start).trimEnd()
         const declaration = metadataDeclaration(text, scan, block.start)
         const id = anonymousFlow && prefix === 'flow' ? anonymousFlow : declaration.id
-        const parsed = readAgentflowMetadata(text.slice(text.indexOf('{', block.start) + 1, block.end - 1))
-        if (!parsed.ok) throw syntaxError(`AgentFlow metadata for ${id}: ${parsed.message}`)
-        metadata.set(id, { ...metadata.get(id), ...agentflowMetadata(Object.fromEntries(parsed.entries)) })
+        const parsed = readAgentflowMetadata(text.slice(block.contentStart, block.contentEnd))
+        if (!parsed.ok) throw syntaxError(`AgentFlow metadata for ${id}: ${parsed.message}`, flowchartGroupPosition(group, statement.start + block.contentStart + (parsed.offset ?? 0)))
+        const data = agentflowMetadata(Object.fromEntries(parsed.entries))
+        if (Object.hasOwn(data, 'shape')) {
+          if (invalidShape(data.shape)) (invalidShapeSources ??= new Map()).set(id, flowchartGroupPosition(group, statement.start + block.start))
+          else invalidShapeSources?.delete(id)
+        }
+        metadata.set(id, { ...metadata.get(id), ...data })
         if (parserObservationActive('agentflow')) observeParserMutation('agentflow', 'set-metadata', { id, metadata: metadata.get(id) })
         if (prefix === id) {
           attachment = true
@@ -205,11 +217,9 @@ export function parseAgentflow(source: string): AgentflowBody {
   const roleMap = new Map<string, AgentflowRole>()
   for (const [id, node] of graph.nodes) {
     const data = metadata.get(id)
-    if (
-      !connectors.has(id) && data?.shape &&
-      (typeof data.shape !== 'string' || data.shape !== data.shape.toLowerCase() || data.shape.includes('_') || ((!roles.has(data.shape as AgentflowRole) || data.shape === 'connector') && !additionalShapeNames.has(data.shape) && !normalizeV11Shape(data.shape)))
-    )
-      throw syntaxError(`No such shape: ${JSON.stringify(data.shape)}. AgentFlow shapes must be known lowercase names`)
+    const invalidAt = invalidShapeSources?.get(id)
+    if (!connectors.has(id) && invalidAt)
+      throw syntaxError(`No such shape: ${JSON.stringify(data!.shape)}. AgentFlow shapes must be known lowercase names`, invalidAt)
     roleMap.set(id, connectors.has(id) ? 'connector' : agentflowRole(data?.shape ?? node.shape))
     if (data?.label !== undefined) {
       node.label = String(data.label)

@@ -59,7 +59,18 @@ export function parseUsecaseModel(source: string) {
  * coordinates address the authored family payload after wrapper/init removal. */
 export function parseAgentflowModel(source: string) {
   const normalized = sourceFor(source, 'agentflow', 'agentflow-beta')
-  return parseAgentflow(preservedMermaidFamilySource(normalized, 'authored').text)
+  const payload = preservedMermaidFamilySource(normalized, 'authored')
+  try { return parseAgentflow(payload.text) } catch (error) {
+    if (error instanceof MermaidSyntaxError && error.line !== undefined) {
+      const start = sourceLineStarts(payload.text)[error.line - 1]
+      if (start !== undefined) {
+        const point = sourcePointAt(sourceLineStarts(source), payload.sourceOffset(start + (error.column ?? 1) - 1))
+        Object.defineProperty(error, 'line', { value: point.line })
+        if (error.column !== undefined) Object.defineProperty(error, 'column', { value: point.col })
+      }
+    }
+    throw error
+  }
 }
 
 function parseAtSource<T>(source: NormalizedMermaidSource, diagramType: 'class' | 'er', parse: () => T): T {

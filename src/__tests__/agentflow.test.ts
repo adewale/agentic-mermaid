@@ -68,6 +68,34 @@ test.each(['\n', '\r\n'])('AgentFlow container mappings end at their own closing
   expect(body.graph.subgraphs.map(group => [group.id, group.children.map(child => child.id)])).toEqual([['Outer', ['Inner']], ['Right', []]])
 })
 
+test.each([
+  [['agentflow-beta TB', 'a[Prior]@{ shape: task }', '', '  a[Alpha]@{ x: *, }'], 4, '*'],
+  [['agentflow-beta TB', 'flow Outer', '  a[First]', '', '  b[Second]@{', '\tshape: rounded', '  }', 'end'], 6, '\t'],
+  [['agentflow-beta TB', '  b[Beta]@{ x: *,', '    y: 1 }'], 2, '*'],
+  [['agentflow-beta TB', '  节点[🙂Alpha]@{ label: "#quot;A#quot;", x: *, }'], 2, '*'],
+  [['agentflow-beta TB', '  a[Alpha]@{ shape: Rounded }', 'a@{ instruction: Later }'], 2, '@{'],
+] as const)('AgentFlow metadata refusals point to their physical source: %j', (lines, line, marker) => {
+  for (const newline of ['\n', '\r\n']) {
+    let failure: unknown
+    try { parseAgentflow(lines.join(newline)) } catch (error) { failure = error }
+    expect(failure).toBeInstanceOf(MermaidSyntaxError)
+    expect(failure).toMatchObject({ diagramType: 'agentflow', line, column: lines[line - 1]!.indexOf(marker) + 1 })
+  }
+})
+
+test('strict AgentFlow errors retain their class and source coordinates through wrappers', () => {
+  const source = 'agentflow-beta TB\n\n  a[Alpha]@{ x: *, }'
+  const wrapper = '---\ntitle: Wrapped\n---\n%%{init: {"theme":"dark"}}%%\n'
+  let failure: unknown
+  try { parseAgentflowModel(wrapper + source) } catch (error) { failure = error }
+  expect(failure).toBeInstanceOf(MermaidSyntaxError)
+  expect(failure).toMatchObject({ code: 'MERMAID_SYNTAX_ERROR', name: 'MermaidSyntaxError', diagramType: 'agentflow', line: 7, column: 17 })
+  // A superseded invalid shape is not an invalid final model, and connector
+  // metadata does not inherit the task-role shape policy.
+  expect(parseAgentflow('agentflow-beta\na@{ shape: Rounded }\na@{ shape: tool }').roles.get('a')).toBe('tool')
+  expect(parseAgentflow('agentflow-beta\na@{ shape: Rounded }\nconnector a[API]').roles.get('a')).toBe('connector')
+})
+
 test('AgentFlow typed metadata and identity edits keep family-owned records and portable source in agreement', () => {
   const original = parseAgentflow(source)
   const renamed = mutateAgentflow(original, { kind: 'rename_node', from: 'write', to: 'draft' })
