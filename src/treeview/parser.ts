@@ -37,7 +37,7 @@ export function treeviewIndentLines(lines: readonly string[]): string[] {
 }
 
 export function parseTreeviewDiagram(input: string | readonly string[]): TreeviewBody {
-  const original = typeof input === 'string' ? input.split(/\r?\n/) : [...input]
+  const original = typeof input === 'string' ? input.split(/\r\n?|\n/) : [...input]
   const scanned = scanAccessibilityDirectives(original)
   requireClosedAccessibility(scanned)
   const lines = treeviewIndentLines(scanned.familyLines)

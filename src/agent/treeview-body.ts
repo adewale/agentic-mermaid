@@ -140,7 +140,7 @@ export function treeviewUnsupportedSyntaxWarnings(source: string): LayoutWarning
   try {
     parseTreeviewDiagram(source)
     return source
-      .split(/\r?\n/)
+      .split(/\r\n?|\n/)
       .flatMap((line, index) => (/^(?:\s*)treeView-beta\s+%%/.test(line) ? [{ code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'treeview_header_comment', line: index + 1, message: 'TreeView header comments are read as comments. Canonical export puts the pinned Mermaid header on its own line.' }] : []))
   } catch {
     return []
@@ -150,8 +150,9 @@ export function treeviewUnsupportedSyntaxWarnings(source: string): LayoutWarning
 import { accessibilityFields } from '../shared/accessibility-directives.ts'
 import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
 import { withParserObservation } from '../shared/parser-observation.ts'
+import { mapObservedSource } from './source-map-spans.ts'
+import { sourceLineStarts } from '../family-detection.ts'
 import type { FamilyOperations } from './families.ts'
-import type { SourceMap } from './types.ts'
 
 export const TREEVIEW_SOURCE_HOOKS: FamilyOperations = {
   canonicalSource: 'preserved',
@@ -182,26 +183,24 @@ export const TREEVIEW_SOURCE_HOOKS: FamilyOperations = {
       return []
     }
   },
-  buildSourceMap: (body, source) => {
-    const map: SourceMap = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
-    if (body.kind !== 'treeview') return map
-    const lines = source.split(/\r?\n/)
+  buildSourceMap: (body, source, context) => mapObservedSource(source, context, (source, range) => {
+    if (body.kind !== 'treeview') return
+    const starts = sourceLineStarts(source)
     withParserObservation(
       'treeview',
       event => {
         if (event.unit !== 'mutation' || event.kind !== 'add-node' || !event.source?.line) return
-        const node = event.value as unknown as TreeviewBody['nodes'][number],
-          line = event.source.line
-        const raw = lines[line - 1] ?? '',
-          col = raw.length - raw.trimStart().length + 1
-        map.nodes.set(node.id, { line, col })
-        map.labels.set(`node:${node.id}`, { line, col })
-        if (node.parentId) map.edges.set(`branch:${node.id}`, { line, col })
+        const offset = starts[event.source.line - 1]!, raw = source.slice(offset, starts[event.source.line] ?? source.length)
+        const node = event.value as unknown as TreeviewBody['nodes'][number]
+        const record = range(offset + raw.length - raw.trimStart().length, offset + raw.trimEnd().length)
+        record('nodes', node.id)
+        record('labels', `node:${node.id}`)
+        if (node.parentId) record('edges', `branch:${node.id}`)
       },
       () => parseTreeviewDiagram(source),
+      { mutations: ['add-node'] },
     )
-    return map
-  },
+  }),
 }
 
 export const TREEVIEW_MUTATION_HOOKS: Pick<FamilyOperations, 'mutate'> = {

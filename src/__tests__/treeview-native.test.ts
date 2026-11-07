@@ -116,6 +116,60 @@ README.md icon(none)`
     expect(map.nodes.get('treeview-0')).toEqual({ line: 3, col: 1 })
     expect(map.nodes.get('treeview-1')).toEqual({ line: 4, col: 5 })
   })
+
+  test.each([
+    ['    "same.txt" ## first', '    "same.txt" icon(none)', '"same.txt" ## first', 5],
+    ['├── "same.txt" ## first', '└── leaf/', '├── "same.txt" ## first', 1],
+  ] as const)('source owners retain complete TreeView productions: %s', (first, second, statement, col) => {
+    const authored = ['---', 'theme: dark', '---', '%%{init: {"theme":"dark"}}%%', 'treeView-beta', 'accTitle: Files', 'root/', first, second].join('\r\n')
+    const parsed = parseRegisteredMermaid(authored)
+    if (!parsed.ok || parsed.value.body.kind !== 'treeview') throw Error('Expected wrapped TreeView')
+    expect(parsed.value.source.nodes.size).toBe(3)
+    expect(parsed.value.source.edges.size).toBe(2)
+    for (const [kind, id] of [['nodes', 'treeview-1'], ['labels', 'node:treeview-1'], ['edges', 'branch:treeview-1']] as const) {
+      const span = parsed.value.source.spans![kind].get(id)!
+      expect(authored.slice(span.start.offset, span.end.offset)).toBe(statement)
+      expect(span.start).toEqual({ line: 8, col, offset: authored.indexOf(statement) })
+      expect(Object.isFrozen(span)).toBe(true)
+      expect(Object.isFrozen(span.start)).toBe(true)
+      expect(Object.isFrozen(span.end)).toBe(true)
+    }
+    const nodeLocation = parsed.value.source.nodes.get('treeview-1')!, labelLocation = parsed.value.source.labels.get('node:treeview-1')!, branchLocation = parsed.value.source.edges.get('branch:treeview-1')!
+    expect(nodeLocation).toEqual(labelLocation)
+    expect(nodeLocation).toEqual(branchLocation)
+    nodeLocation.col = 999
+    expect(labelLocation.col).toBe(col)
+    expect(branchLocation.col).toBe(col)
+    const copied = parseRegisteredMermaid(parsed.value.canonicalSource)
+    if (!copied.ok) throw Error('Expected copied TreeView')
+    expect(copied.value.body).toEqual(parsed.value.body)
+  })
+
+  test.each([
+    ['LF', ['\n', '\n', '\n']],
+    ['CRLF', ['\r\n', '\r\n', '\r\n']],
+    ['CR', ['\r', '\r', '\r']],
+    ['mixed', ['\r\n', '\r', '\n']],
+  ] as const)('TreeView native and public coordinates retain %s physical rows', (_name, endings) => {
+    const authored = `treeView-beta${endings[0]}src/${endings[1]}  child/${endings[2]}    "leaf.txt" ## Note`
+    const native = parseTreeviewDiagram(authored)
+    expect(native.nodes.map(({ label, parentId }) => ({ label, parentId }))).toEqual([
+      { label: 'src', parentId: undefined }, { label: 'child', parentId: 'treeview-0' }, { label: 'leaf.txt', parentId: 'treeview-1' },
+    ])
+    const parsed = parseRegisteredMermaid(authored)
+    if (!parsed.ok || parsed.value.body.kind !== 'treeview') throw Error('Expected TreeView physical rows')
+    expect(parsed.value.body).toEqual(native)
+    expect(parsed.value.source.edges.size).toBe(2)
+    expect(parsed.value.source.nodes.get('treeview-2')).toEqual({ line: 4, col: 5 })
+    for (const [kind, id] of [['nodes', 'treeview-2'], ['labels', 'node:treeview-2'], ['edges', 'branch:treeview-2']] as const) {
+      const span = parsed.value.source.spans![kind].get(id)!
+      expect(authored.slice(span.start.offset, span.end.offset)).toBe('"leaf.txt" ## Note')
+      expect(span.start).toEqual({ line: 4, col: 5, offset: authored.indexOf('"leaf.txt"') })
+    }
+    const copied = parseRegisteredMermaid(parsed.value.canonicalSource)
+    if (!copied.ok) throw Error('Expected copied TreeView physical rows')
+    expect(copied.value.body).toEqual(native)
+  })
 })
 
 test('empty TreeView description annotation has no description payload', () => {
