@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
-import { attachSourceMapSpans, mapObservedSource } from '../agent/source-map-spans.ts'
+import { attachSourceMapSpans, mapObservedSource, recordAuthoredSourceMapSpans } from '../agent/source-map-spans.ts'
 import { withParserObservation } from '../shared/parser-observation.ts'
 import { parseWardleyBody } from '../wardley/body.ts'
 import { layoutWardley } from '../wardley/layout.ts'
@@ -10,7 +10,7 @@ import { layoutRailroad } from '../railroad/layout.ts'
 import { getFamily } from '../agent/families.ts'
 import { mutate, mutateChecked } from '../agent/mutate.ts'
 import type { SourceSpan } from '../agent/types.ts'
-import { sourcePreservationSpans } from '../family-detection.ts'
+import { sourceLineStarts, sourcePreservationSpans, sourceSpan } from '../family-detection.ts'
 import { DIAGRAM_WORK_LIMITS } from '../shared/diagram-limits.ts'
 import { expectNearLinearGrowth, LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/complexity.ts'
 
@@ -942,6 +942,31 @@ foo[Node]`
   })
 })
 
+
+test('exact span categories including empty maps retain authority while absent categories fall back', () => {
+  const source = 'flowchart LR\nsubgraph S[Group]\nA[Login] -->|yes| B[Done]\nend'
+  const parsed = parseMermaid(source)
+  if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+  const map = parsed.value.source
+  const starts = sourceLineStarts(source)
+  const exactNodes = new Map([
+    ['A', sourceSpan(starts, source.indexOf('A[Login]'), source.indexOf('A[Login]') + 8)],
+    ['B', sourceSpan(starts, source.indexOf('B[Done]'), source.indexOf('B[Done]') + 7)],
+  ])
+  const exactLabels = new Map<string, SourceSpan>()
+  const metadata = new Map([['owner', exactNodes.get('A')!]])
+  recordAuthoredSourceMapSpans(map, { nodes: exactNodes, labels: exactLabels, metadata })
+  attachSourceMapSpans(map, source, source, sourcePreservationSpans(source, 'flowchart LR'), 'flowchart')
+  expect(map.spans!.nodes).toBe(exactNodes)
+  expect([...map.spans!.nodes].map(([id, span]) => [id, textAt(source, span)])).toEqual([['A', 'A[Login]'], ['B', 'B[Done]']])
+  expect(map.spans!.labels).toBe(exactLabels)
+  expect([...map.spans!.labels]).toEqual([])
+  expect([...map.labels.keys()]).toEqual(['node:A', 'node:B', 'group:S', 'edge#0:A->B'])
+  expect([...map.spans!.edges].map(([id, span]) => [id, textAt(source, span)])).toEqual([['edge#0:A->B', 'A[Login] -->|yes| B[Done]'], ['A->B', 'A[Login] -->|yes| B[Done]']])
+  expect([...map.spans!.groups].map(([id, span]) => [id, textAt(source, span)])).toEqual([['S', 'subgraph S[Group]']])
+  expect(map.spans!.metadata).toBe(metadata)
+  expect([...map.nodes]).toEqual([['A', { line: 3, col: 1 }], ['B', { line: 3, col: 19 }]])
+})
 
 test.each([
   ['without authored context', '', false, 1, false],

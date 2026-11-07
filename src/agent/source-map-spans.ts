@@ -469,6 +469,7 @@ function mapStatementSpans(locations: Map<string, SourceLocation>, lineStarts: r
 
 /** Add exact authored spans without changing the legacy canonical locations. */
 export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: string, authoredSource: string, preserved: PreservedSourceSpans, grammar: SourceSpanGrammar = 'generic'): SourceMap {
+  const authored = authoredSourceMapSpans.get(sourceMap)
   const lineStarts = sourceLineStarts(authoredSource)
   const lines = authoredLineMap(canonicalSource, authoredSource, preserved)
   const canonicalLines = physicalLines(canonicalSource)
@@ -506,8 +507,9 @@ export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: stri
     lineAnalysisCache.set(line, analysis)
     return analysis
   }
-  const labels = new Map<string, SourceSpan>()
-  for (const [key, location] of sourceMap.labels) {
+  // Exact categories, including empty maps, need no heuristic reconstruction.
+  const labels = authored?.labels ?? new Map<string, SourceSpan>()
+  if (!authored?.labels) for (const [key, location] of sourceMap.labels) {
     const position = positionOf(location)
     const located = labelSpan(lineStarts, position, key, position ? analysisFor(position.line) : undefined)
     if (located) labels.set(key, located)
@@ -528,12 +530,11 @@ export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: stri
   }
   const spans: SourceMapSpans = {
     preserved,
-    nodes: withEnds(mapStatementSpans(sourceMap.nodes, lineStarts, positionOf, analysisFor), sourceMap.nodes, ends?.nodes),
-    edges: withEnds(mapStatementSpans(sourceMap.edges, lineStarts, positionOf, analysisFor), sourceMap.edges, ends?.edges),
-    groups: withEnds(mapStatementSpans(sourceMap.groups, lineStarts, positionOf, analysisFor), sourceMap.groups, ends?.groups),
-    labels: withEnds(labels, sourceMap.labels, ends?.labels),
+    nodes: authored?.nodes ?? withEnds(mapStatementSpans(sourceMap.nodes, lineStarts, positionOf, analysisFor), sourceMap.nodes, ends?.nodes),
+    edges: authored?.edges ?? withEnds(mapStatementSpans(sourceMap.edges, lineStarts, positionOf, analysisFor), sourceMap.edges, ends?.edges),
+    groups: authored?.groups ?? withEnds(mapStatementSpans(sourceMap.groups, lineStarts, positionOf, analysisFor), sourceMap.groups, ends?.groups),
+    labels: authored?.labels ?? withEnds(labels, sourceMap.labels, ends?.labels),
   }
-  const authored = authoredSourceMapSpans.get(sourceMap)
   if (authored) {
     const canonicalAt = new Map([...lines].map(([line, authored]) => [authored.start, line]))
     const authoredLines = physicalLines(authoredSource)
