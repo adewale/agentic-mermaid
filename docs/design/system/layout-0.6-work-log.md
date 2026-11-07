@@ -69,10 +69,13 @@ and bends70→80. Native17 changesP→U with three actual arrowfill intersection
 0.120125px² each, despite wire−29.06%/area−7.37%; tips remain distinct, raster/
 readability unknown. Stop this isolated probe too. Logical-gap monotonicity alone
 does not preserve head capacity under candidate selection. All14 fully consumed
-calls, selected-arm traces, positive/adverse outcomes and failed drafts retained
-in `sha37-stage-0ff57`; no runtime/test changes, new build or speed ratio.
-Next intervention must preserve actual face seating and foreign-route clearance
-together; do not retry an absolute or relative clearance veto alone.
+calls plus two exact-output Native17 selection traces retained in
+`sha37-stage-0ff57`; no runtime/test changes, new build or speed ratio.
+Native17 compact pitch4.6125px is already compressed at raw routing in both
+arms. Relative veto changes its finished crossings12→4, beating primary10;
+the old scorer consequently exposes this latent bad candidate. Primary pitch8px
+stays clear. Next: repair actual compact-face allocation before selection;
+preserve foreign-route clearance too, rather than retrying a clearance-only veto.
 
 ## Ordinary marker capacity trial stopped — 7 November
 
