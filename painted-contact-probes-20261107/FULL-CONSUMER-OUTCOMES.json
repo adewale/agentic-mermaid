@@ -1,0 +1,255 @@
+[
+  {
+    "case": "generated-276",
+    "arm": "before",
+    "delivered": "returned",
+    "proofStatus": "passed",
+    "proofOperations": 241486,
+    "issues": [],
+    "viewportArea": 867904.039134,
+    "wire": 10689.740079762003,
+    "bends": 63,
+    "sizes": {
+      "svgRawBytes": 24284,
+      "svgGzipBytes": 3172,
+      "svgBrotliBytes": 2579,
+      "entireReceiptRawBytes": 7921,
+      "wholeProductRawBytes": 34503
+    },
+    "wallMs": 496.81878000000006,
+    "cpu": {
+      "user": 808687,
+      "system": 96872
+    },
+    "peakRssKiB": 272016
+  },
+  {
+    "case": "generated-276",
+    "arm": "distinct-cuts",
+    "delivered": "returned",
+    "proofStatus": "unverified",
+    "proofOperations": 238887,
+    "issues": [
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n1->n9#0",
+        "by": "node-shape:n4",
+        "message": "Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified"
+      },
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n1->n9#0",
+        "by": "node-shape:n10",
+        "message": "Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified"
+      },
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n1->n9#0",
+        "by": "node-shape:n4",
+        "message": "Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified"
+      }
+    ],
+    "viewportArea": 688626.795074,
+    "wire": 8306.832254198202,
+    "bends": 50,
+    "sizes": {
+      "svgRawBytes": 24105,
+      "svgGzipBytes": 3147,
+      "svgBrotliBytes": 2566,
+      "entireReceiptRawBytes": 8505,
+      "wholeProductRawBytes": 34908
+    },
+    "wallMs": 556.5230730000003,
+    "cpu": {
+      "user": 953807,
+      "system": 81253
+    },
+    "peakRssKiB": 277768
+  },
+  {
+    "case": "shaft-card-152",
+    "arm": "before",
+    "delivered": "returned",
+    "proofStatus": "unverified",
+    "proofOperations": 353905,
+    "issues": [
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n16->n12#0",
+        "by": "node-shape:n4",
+        "message": "Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified"
+      }
+    ],
+    "viewportArea": 1240320.169728,
+    "wire": 13731.682989944999,
+    "bends": 70,
+    "sizes": {
+      "svgRawBytes": 37014,
+      "svgGzipBytes": 4350,
+      "svgBrotliBytes": 3506,
+      "entireReceiptRawBytes": 8122,
+      "wholeProductRawBytes": 48667
+    },
+    "wallMs": 578.6178519999999,
+    "cpu": {
+      "user": 1063219,
+      "system": 91110
+    },
+    "peakRssKiB": 315468
+  },
+  {
+    "case": "shaft-card-152",
+    "arm": "after",
+    "delivered": "returned",
+    "proofStatus": "unverified",
+    "proofOperations": 353905,
+    "issues": [
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n16->n12#0",
+        "by": "node-shape:n4",
+        "message": "Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified"
+      }
+    ],
+    "viewportArea": 1240320.169728,
+    "wire": 13731.682989944999,
+    "bends": 70,
+    "sizes": {
+      "svgRawBytes": 37014,
+      "svgGzipBytes": 4350,
+      "svgBrotliBytes": 3506,
+      "entireReceiptRawBytes": 8122,
+      "wholeProductRawBytes": 48667
+    },
+    "wallMs": 760.8502269999999,
+    "cpu": {
+      "user": 1325775,
+      "system": 114429
+    },
+    "peakRssKiB": 292284
+  },
+  {
+    "case": "shaft-card-152",
+    "arm": "label-lanes",
+    "delivered": "returned",
+    "proofStatus": "unverified",
+    "proofOperations": 353905,
+    "issues": [
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n16->n12#0",
+        "by": "node-shape:n4",
+        "message": "Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified"
+      }
+    ],
+    "viewportArea": 1240320.169728,
+    "wire": 13731.682989944999,
+    "bends": 70,
+    "sizes": {
+      "svgRawBytes": 37014,
+      "svgGzipBytes": 4350,
+      "svgBrotliBytes": 3506,
+      "entireReceiptRawBytes": 8122,
+      "wholeProductRawBytes": 48667
+    },
+    "wallMs": 589.1197699999998,
+    "cpu": {
+      "user": 1089141,
+      "system": 131696
+    },
+    "peakRssKiB": 293652
+  },
+  {
+    "case": "shaft-card-152",
+    "arm": "retained-caption",
+    "delivered": "returned",
+    "proofStatus": "unverified",
+    "proofOperations": 353905,
+    "issues": [
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n16->n12#0",
+        "by": "node-shape:n4",
+        "message": "Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified"
+      }
+    ],
+    "viewportArea": 1240320.169728,
+    "wire": 13731.682989944999,
+    "bends": 70,
+    "sizes": {
+      "svgRawBytes": 37014,
+      "svgGzipBytes": 4350,
+      "svgBrotliBytes": 3506,
+      "entireReceiptRawBytes": 8122,
+      "wholeProductRawBytes": 48667
+    },
+    "wallMs": 808.0345499999999,
+    "cpu": {
+      "user": 1659419,
+      "system": 142857
+    },
+    "peakRssKiB": 313016
+  },
+  {
+    "case": "shaft-card-372",
+    "arm": "after",
+    "delivered": "returned",
+    "proofStatus": "unverified",
+    "proofOperations": 313219,
+    "issues": [
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n4->n11#0",
+        "by": "node-shape:n0",
+        "message": "Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified"
+      }
+    ],
+    "viewportArea": 1029590.8208960001,
+    "wire": 16696.784098118,
+    "bends": 82,
+    "sizes": {
+      "svgRawBytes": 32622,
+      "svgGzipBytes": 3886,
+      "svgBrotliBytes": 3113,
+      "entireReceiptRawBytes": 8119,
+      "wholeProductRawBytes": 43821
+    },
+    "wallMs": 625.1560760000002,
+    "cpu": {
+      "user": 1195612,
+      "system": 98845
+    },
+    "peakRssKiB": 305028
+  },
+  {
+    "case": "shaft-card-102",
+    "arm": "after",
+    "delivered": "returned",
+    "proofStatus": "unverified",
+    "proofOperations": 385874,
+    "issues": [
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n16->n2#0",
+        "by": "node-shape:n10",
+        "message": "Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified"
+      }
+    ],
+    "viewportArea": 1587586.0844999999,
+    "wire": 23394.844193525994,
+    "bends": 112,
+    "sizes": {
+      "svgRawBytes": 40728,
+      "svgGzipBytes": 4784,
+      "svgBrotliBytes": 3803,
+      "entireReceiptRawBytes": 8122,
+      "wholeProductRawBytes": 52677
+    },
+    "wallMs": 730.5473149999998,
+    "cpu": {
+      "user": 1592128,
+      "system": 102293
+    },
+    "peakRssKiB": 294024
+  }
+]

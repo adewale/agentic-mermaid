@@ -1,0 +1,38 @@
+{
+  "head": "deafff39d427082c233e8caf4917175404f6c248",
+  "shippedRuntimeEdits": 0,
+  "probes": [
+    {
+      "name": "distinct compact cuts withinunchangedtrialcap",
+      "before": "276P6crossings63bends",
+      "after": "U3crossings50bends;real0.580pxpaintoverlap",
+      "status": "reverted"
+    },
+    {
+      "name": "existingpaintedobstaclecontext extendedtosharprect/subroutine",
+      "owningBoundary": "8realcontact failures;28candidate passes includescircle/clearcontrols",
+      "actualPublicOutcomes": "152/372/102allremainCI-byteexactU; no actual workload failure removed",
+      "status": "reverted"
+    },
+    {
+      "name": "existingcaption-boundary lane choices",
+      "actualPublicOutcome": "152stillCI-byteexactU",
+      "status": "reverted"
+    },
+    {
+      "name": "retaincaptionnearestprojectioninsteadwhole-route-midpoint",
+      "actualPublicOutcome": "152stillCIbyteexactU",
+      "status": "reverted"
+    }
+  ],
+  "firstResponsibleStages": "276selectedmeasuredrouting;152finitepaint recognition then label-safe routegeneration/admission",
+  "refusal": "Noneofthese callsrefuses; availabilitydelivered andproofUremainseparate",
+  "noNewCacheOrCaps": true,
+  "remaining": "Sameoriginalpaintcontacts remain152/372/102; nearestadmissiblegeometrydetourfailslabelinkseparation. Neitherbodydetectionalone, captionlaneboundaries, norretainedcaptionprojectionclosesoriginalcase. No moreprobesinthisrun.",
+  "originalPublicCalls": 8,
+  "layoutTraceCalls": 4,
+  "restoredAt": "2026-11-07T05:31:47.676298+00:00",
+  "documentationHead": "dd365744603143f105c2a8c8accf36203096b1ac",
+  "runtimeHead": "14bec477578104a1eab5a279473aa77e747f8476",
+  "codeTreeUnchangedFromDeafff": true
+}

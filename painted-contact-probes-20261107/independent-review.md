@@ -1,0 +1,13 @@
+# Independent stop review
+
+At 2026-11-07 05:32:02 UTC, `git diff --name-only` was empty. A separate fresh `git diff --exit-code deafff39d -- src/layout/cycle-layout-search.ts src/layout/graph-paint-support.ts src/layout/passes/obstacle-routing.ts src/__tests__/route-contracts.test.ts` exited 0 with no output. All four trial files match the shipped `deafff39d427082c233e8caf4917175404f6c248` source. This reviewer made no source edits or render/test calls.
+
+The original generated-cyclic:276 SVGs independently contain six proper interior carrier intersections for Agentic versus four for ELK. The distinct-cut trial reduced crossings/bends but downgraded proof to unverified and introduced real shaft/card paint contact. It is reverted, not a layout improvement delivered to users.
+
+The sharp-body helper extension had a genuine isolated boundary RED (8 pass/8 fail) and candidate GREEN (28 pass, 282 assertions), including existing circle and positive-gap controls. Those results establish helper-domain behavior only. Public cases 152, 372 and 102 retain byte-identical CI SVGs and their original unverified proofs; no actual workload failure was closed. The bounded caption-boundary and retained-caption projection trials also leave case 152 unchanged. All candidates and the test-table changes are unshipped/reverted. The original CSS, defaults, cache and cap policies remain in force.
+
+Independently read the final retained-caption result: returned, CI-byte-exact SVG SHA-256 `960d89b522ab5441cd28e55c624441e2223c9443ccf1d7f50b238c2582790515`, unverified, 353905 operations, with the same `edge:n16->n12#0` versus `node-shape:n4` POTENTIAL_OCCLUSION issue. Earlier before/after/lane SVG comparisons and the 372/102 comparisons were likewise independently checked against their retained CI SVGs.
+
+Read original152 `INK.json`, bound to that same SVG hash: four offline rasters, no public calls, manifest-verified Inter with system fonts disabled at zoom 2. In the selected shaft/card border interval it records 183 exposed shaft pixels without the card, 61 contributing with the card, 122 fully hidden, and all 183 attenuated. This supports a real local painted contact rather than dismissing the issue as merely a conservative envelope; it does not establish whole-diagram readability or complete glyph attribution.
+
+`STOP-DECISION.json` correctly retains each insufficient probe and separates output delivery from proof availability. Detecting the contact alone did not produce a label-safe admitted repair; both bounded caption attempts were insufficient. No speed, overall quality, new layout gain, or public failure closure is claimed. The state-machine inventory remains a read-only audit.
