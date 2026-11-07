@@ -1,0 +1,12 @@
+{
+  "measured_source": "bbda2112af8d791d8628a3769c86084e4cb962b3",
+  "source_head": "c9dabb20c67aa18587063ea0268fa4e5ebdf7c40",
+  "main": "39a500425f6b74eb486b9add9e90d538fab6a914",
+  "prior_evidence": "5b16222ffcb8c3b77008ab9ac6155be50b94b6b5",
+  "files": 167,
+  "raw_bytes": 9318505,
+  "archive_bytes": 2451805,
+  "every_member_byte_verified": true,
+  "runtime_change": false,
+  "result": "Common transfer growth located; concatenation probe insufficient; no safe subtraction implemented."
+}
