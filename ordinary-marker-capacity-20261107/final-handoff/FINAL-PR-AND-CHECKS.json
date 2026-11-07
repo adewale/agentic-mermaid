@@ -1,0 +1,2373 @@
+{
+  "head": "0ff57be43892519224ebff3c3f72169cf12f01b9",
+  "base": "39a500425f6b74eb486b9add9e90d538fab6a914",
+  "merge": "a069437dfdeff9ef3babed5e80beed63eaa67d37",
+  "draft": true,
+  "body_exact_last_update": true,
+  "description": "Compared with main `39a500425`, this PR delivers the selected ER208 chain that main refuses, reduces the default forest's area and wire, and restores a hollow-circle marker. The retained standalone build is smaller under gzip and larger under Brotli. **This is a draft: remaining proof, layout and payload failures prevent a readiness claim.**\n\nCurrent head `0ff57be43892519224ebff3c3f72169cf12f01b9` restores the entire source/test tree to runtime3234/6edd. The latest ordinary-marker capacity trial repaired two selected arrowheads but introduced four actual contacts elsewhere, so it was withdrawn. Its positive results, adverse cases and costs remain in evidence. No runtime gain from that trial ships.\n\n## Demonstrated behavior against main\n\nThe same six sources and options were frozen before outcomes. Each comparison consumes the complete public SVG and entire receipt in omitted-backend, Native and ELK lanes.\n\n| Input | Omitted backend: main \u2192 PR | Explicit Native: main \u2192 PR |\n| --- | --- | --- |\n| ER208 relationship chain | **400k geometry-work refusal \u2192 SVG delivered**, proof passed | Same gain:208 identities,207 ordered relationships and414 normal contacts |\n| Nonlinear forest | **Area\u221226.98%, wire\u221237.60%**, eight bends unchanged | Same gain; explicit ELK painted geometry unchanged |\n| Raw hollow circle | **0 \u2192225 confined marker pixels** | Same paint gain; proof remains unverified in every mode |\n| Sparse256 | Painted geometry unchanged | **Area\u221277.05%**, connected wire unchanged |\n| Requirement TB cycle | Painted geometry unchanged | **Area\u221222.95%, wire\u22128.56%**, eight bends unchanged |\n| ER256 relationship chain | Both revisions still refuse at the unchanged400k geometry cap | Both still refuse |\n\nAcross the36 main/PR calls,27 products return:21 proof-passed and six unverified; nine calls refuse. At runtime3234, all18 PR calls were requalified:15 SVGs and entire receipts are byte-exact to integrated PR1693, and three ER256 refusals retain their names/codes/messages. This validates preservation, not another layout gain.\n\nELK remains the default backend setting. Omitted Flowchart layout can use the existing forest fast path in both revisions. These selected cases do not establish a general workload ranking or whole-diagram readability across arbitrary fonts. [Matched main comparison and original pictures](https://github.com/adewale/agentic-mermaid/tree/a073858f2d9a51b6ddcfb55fb2effae394b18793/main-comparison-20261105) and [current-main integration evidence](https://github.com/adewale/agentic-mermaid/tree/19fbe17aaeee45d5c01a5e953705ca1da13fc704/main-integration-20261107) are recoverable.\n\n## Why the runtime changes\n\nThe PR preserves the PR449 ownership/capture foundation, then fixes bounded delivery, measured geometry and actual SVG paint at their owning producer/consumer. Current-main integration retains UTF16 diagnostics, parser/source-MCP isolation and mutable/getter/CSS/definition ownership. ELK remains the configured default; main's0.5.7 identity, publication settings and all caps are unchanged.\n\nOne additional retained repair clears Native230's shaft/circle overlap through the existing terminal detour after a band fails ink admission. Actual pinned-Inter masks show **41 hidden selected shaft pixels\u21920**. ProofU362,041\u2192P362,293; area/crossings stay fixed, wire+19.156 (+0.102%), bends104\u2192106. All17 nodes,40 relationships,27 text programs, ten caption owners, geometry/resources/ports/CSS remain. The complete1,748-record comparison changes only this SVG:1,747 others and all874 ELK outputs exact, no delivery transition or proof downgrade. [Actual pictures, masks, adverse intermediate crossing cost and complete qualification](https://github.com/adewale/agentic-mermaid/tree/ca23753c6326112a1564a05b95c5e300277ae78a/local-circle-detour-20261107/final-3234) remain available. Selected ink does not prove whole-diagram readability.\n\n## Costs\n\nMatched complete HTML builds use the same Bun1.4.4/dependencies/builder and gzip9/Brotli11. The retained PR product is runtime3234, byte-exactly restored by current head; it is not a newly timed rollback build.\n\n| Complete HTML | Main39 | Retained PR |\n| --- | ---: | ---: |\n| Raw bytes |4,742,588|2,187,091|\n| Gzip9 bytes |1,423,188|1,310,630 (\u22127.91%)|\n| Brotli11 bytes |1,098,404|1,245,111 (+13.36%)|\n| Observed peak build RSS, KiB |430,832|722,140|\n\nPR build16.08s is a single observation, not a speed or memory ratio. The unchanged1,334,500-byte standalone gzip ceiling passes; the actual emitted-worker browser owner passes2 tests/504 assertions. Delivery reuses one compressor pass and specializes the existing bounded decoder dictionary from build-owned bytes; all decoded bytes and existing resource/CRC/cancellation limits are checked. No cache is added.\n\nLazy transfer remains worse: Packet plus complete YAML196,160\u2192230,648 gzip bytes despite22\u219213 requests. Retained Flowchart ELK closure774,124 exceeds761,500 gzip. Lazy/demo/editor-empty limits remain failed. Concatenation saved only2,416 bytes and six-pass compression timed out; both insufficient probes are stopped. Proof work also rises on default forest22,851\u219298,311, raw circle41,687\u2192156,940 and Requirement25,613\u2192102,468; Sparse256 falls102,610\u219290,857. These counts are not CPU time.\n\nThe [report-first performance review](https://github.com/adewale/agentic-mermaid/blob/0ff57be43892519224ebff3c3f72169cf12f01b9/docs/design/system/layout-0.6-performance-review.md) records five measured hotspots with self/inclusive times, source lines, matching design cases and the existing cache inventory. Unmeasured speedups remain unknown. The retained unused-marker-hull subtraction preserves full Class SVGs/receipts; no end-to-end speedup is established. Later bounded profiles do not measure cold/import/cache1 behavior.\n\n## Remaining losses and tradeoffs\n\n| Case | Current outcome |\n| --- | --- |\n| Forest Native vs ELK | Wire+10.19%, area\u22126.43%, eight bends in both. Fixed-dock routes already shortest; remaining gap is placement/terminal cost. |\n| Sparse256 Native vs ELK | Implemented historical area+5.04%; +0.97% candidate unshipped. +115.35% is obsolete. |\n| Requirement cycle Native vs ELK | TB/BT area\u221210.43%, wire\u221230.34%; LR/RL area\u22121.44%, wire\u221220.25%. LR/RL wider/shorter970.194\u00d7251.95 vs753.144\u00d7329.3; no readability ranking. Old+9.53% TB/BT loss does not reproduce on this fixture. |\n| ER256 | Both backends refuse at unchanged400k geometry cap. |\n| Sparse32 | Delivers1,500 text records and32 contributing markers; direct Scene proof passes, emitted XML proof exhausts400k. Distinct from ER256 delivery refusal. |\n| Native152/372 | Existing contacts remain unverified. Case152 hides122 selected shaft pixels; first loss occurs in measured shortening,5.125px clear route\u21920.823px stroke overlap. |\n\n[Requirement directional ink](https://github.com/adewale/agentic-mermaid/tree/2b02e8d5970d3e3f695677d0e2fc9620ce064544/requirement-directions-20261107) and [Sparse32 stage trace/insufficient probe](https://github.com/adewale/agentic-mermaid/tree/a5c343e6600185b53679411a2f85575447454d50/rebase-sparse32-20261107) are preserved. Original2dad baseline, Trident and pinned Mermaid12.2/Pele1.9 products remain unavailable; Pele1.8 is not substituted. Replacement24 stays sealed.\n\n## Latest intervention withdrawn\n\nTrial `4db9d6db226c5957c1b003b5ad58b56af4b55480` locates actual201/241 crowded arrowheads: seven privately oriented slots share36.9px, giving4.6125px pitch for5.75px supports. Reusing existing measured span/minimum pitch and served-body sizing fixes both selected heads: hidden4\u21920 each, attenuation12\u21920, proofU\u2192P. Area+3.46%/\u22120.59%, wire\u22123.00%/\u22121.62%, bends73\u219265/61\u219260. Exposed raster totals differ; no visibility ratio follows.\n\nThe full1,748-record comparison changes303 Native SVGs,58U\u2192P,5P\u2192U, with no delivery transitions and874 exact ELK SVGs. **Proof upgrades are not visible repair counts.** Independent actual written-SVG review finds:\n\n| Newly adverse case | Geometry | Other changes |\n| --- | --- | --- |\n| Cyclic229 | Shaft touches diamond fill/stroke | Wire+3.13%, bends+16, area\u22120.16% |\n| Cyclic319 | Shaft intersects diamond miter stroke | Wire+0.38%, area+3.30%, bends\u22126 |\n| Cyclic381 | Arrowfill overlap0.648px\u00b2, distinct tips | Wire+3.76%, area\u22122.54%, bends+13, crossings6\u21925 |\n| SHA37 | Shaft/border stroke overlap0.625px along roughly100px | Wire+0.16%, area+0.27%, bends unchanged |\n| SHA191 | Named pair remains clear by0.514px | Conservative envelope warning, not demonstrated contact |\n\nAdverse raster/readability impact remains unknown. Body expansion alone introduces actual neighboring contacts, so the trial is withdrawn; there is no proof-count or metric-zero acceptance gate. **Current0ff57 restores the entire src tree and owning test exactly6edd/3234**, removing these introduced changes and restoring the original201/241 head contacts too. No runtime gain from the capacity trial ships.\n\nThe trial had6RED\u219210GREEN/410 assertions,701 broader passes/18 known missing-JSDOM loader failures, final types/lint and actual standalone browser2P/504. Those local checks did not establish workload preservation. Its acyclic hub body grew36.9\u219249.75; full HTML added79raw/81gzip/55Brotli bytes;20.20s build/RSS664,124KiB is descriptive. All costs, failed probes, complete CI,16 ink rasters and restored editor bytes are retained in the [verified recovery checkpoint](https://github.com/adewale/agentic-mermaid/tree/c95d1761915df02cc3de0812b9f67912330434ee/ordinary-marker-capacity-20261107).\n\nThe preceding clearance-floor trial2f641 also remains withdrawn: it removed152's122 hidden pixels but introduced three Native17 arrowfill contacts while reducing that drawing's wire29.87%/area7.37%. Its partial1,428-record comparison leaves320 unknown, not assumed passes. [Positive/adverse products, profile and rollback](https://github.com/adewale/agentic-mermaid/tree/a44f4123b35ac1f5c03f9458de3821aa55c4fb0b/shortcut-origin-stop-20261107) remain. Next observation: trace SHA37 card/shaft clearance through placement, marker finalization, shortening and shared cleanup before another capacity intervention; do not assume152's cause applies.\n\n## Visual evidence\n\nPR baseline SHA: `39a500425f6b74eb486b9add9e90d538fab6a914`.\nCurrent PR head SHA: `0ff57be43892519224ebff3c3f72169cf12f01b9`.\n\nThe forest pictures were captured at mainf9/PR741. Main39/PR1693 complete SVGs and entire receipts bind to those products, and all15 returned frozen PR products bind again at3234. Current source is byte-exact to3234. The pictures retain their selected-ink limits; no image was edited.\n\n| Main before | PR after | What to inspect |\n| --- | --- | --- |\n| <img alt=\"Main: six forest cards have large vertical gaps and a shared exit below Root D\" src=\"https://raw.githubusercontent.com/adewale/agentic-mermaid/a073858f2d9a51b6ddcfb55fb2effae394b18793/main-comparison-20261105/forest-main.png\" width=\"340\"> | <img alt=\"PR: the same cards and arrows use less vertical space and separate exits below Root D\" src=\"https://raw.githubusercontent.com/adewale/agentic-mermaid/a073858f2d9a51b6ddcfb55fb2effae394b18793/main-comparison-20261105/forest-pr.png\" width=\"340\"> | Equal scale, retained card text and four arrows; compare empty vertical spans and source exits. |\n\n## Verification and readiness\n\nCurrent head: `0ff57be43892519224ebff3c3f72169cf12f01b9`; base: `39a500425f6b74eb486b9add9e90d538fab6a914`. Entire src tree `f58954ef7ba16f55c57943a4c5d545716c048094` equals6edd/3234. Current changes beyond that runtime are the brief stopped-trial log. Restored products and the18 frozen calls (15 exact returned SVGs/entire receipts, three same ER256 refusals) establish preservation, not new gains.\n\n[Retained rollback CI42359691358](https://github.com/adewale/agentic-mermaid/actions/runs/42359691358) completed **failed** on Sparse32, lazy/payload ceilings and generated-layout advisory; other runtime lanes pass. [Withdrawn capacity CI42364119631](https://github.com/adewale/agentic-mermaid/actions/runs/42364119631) also completed **failed**: Unit2 has6,413 passes/one Sparse32 failure; lazy/demo/per-PR payload/advisory failures remain. Browser/browser-site and other runtime lanes pass. Its tested merge `bf29aaa6ba961e6b121c237d97e0f841f218aa04` has tree `f34c73c81aa4c5dbc64df7791b86d0513773c350`, equal to4db9.\n\n[Current rollback CI42365417593](https://github.com/adewale/agentic-mermaid/actions/runs/42365417593) is **in progress**, with quality gates and the generated-layout advisory already failed. Pending and failed runs are not ready; no ceiling, waiver or manual CI dispatch is used.\n\nReproduce retained owners with Bun1.4.4:\n\n```sh\nbun test src/__tests__/route-contracts.test.ts --test-name-pattern 'final painted circle contact|retains an admitted shortest circle-clear band' --timeout 60000\nbun run typecheck:core\nNODE_ENV=production AGENTIC_MERMAID_SCENE_ASSERTIONS=0 bun run scripts/site/editor.ts\nbun test e2e/browser.test.ts --test-name-pattern 'standalone editor' --timeout 120000\n```\n\n[Work log](https://github.com/adewale/agentic-mermaid/blob/0ff57be43892519224ebff3c3f72169cf12f01b9/docs/design/system/layout-0.6-work-log.md). Source/evidence branches are pushed without rewriting history. Bounded continuation is authorized through2026-11-08T23:59:59Z; archived leases never authorize another writer.\n",
+  "ci_jobs": {
+    "jobs": [
+      {
+        "id": 128382335621,
+        "name": "Select required checks",
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 42365417593,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Classify the changes in the tested checkout",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Post Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9
+          }
+        ]
+      },
+      {
+        "id": 128382335737,
+        "name": "Expire label approvals of earlier heads",
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 42365417593,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Setup Bun",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Remove approval labels applied to an earlier head",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Post Setup Bun",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9
+          }
+        ]
+      },
+      {
+        "id": 128382410148,
+        "name": "MCP conformance",
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 42365417593,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Setup Bun",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Setup Node for the official conformance CLI",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Install dependencies",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5
+          },
+          {
+            "name": "Run pinned official MCP conformance scenarios",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6
+          },
+          {
+            "name": "Post Setup Node for the official conformance CLI",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 10
+          },
+          {
+            "name": "Post Setup Bun",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 11
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 12
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 13
+          }
+        ]
+      },
+      {
+        "id": 128382410150,
+        "name": "Build portable test artifacts",
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 42365417593,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Run bun install --frozen-lockfile",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5
+          },
+          {
+            "name": "Install the publishing npm used for the package manifest",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6
+          },
+          {
+            "name": "Build the portable bundles and website fixture once",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7
+          },
+          {
+            "name": "Verify the package, including private-file exclusion",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8
+          },
+          {
+            "name": "Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9
+          },
+          {
+            "name": "Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 10
+          },
+          {
+            "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 18
+          },
+          {
+            "name": "Post Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 19
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 20
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 21
+          }
+        ]
+      },
+      {
+        "id": 128382410162,
+        "name": "Layout backend review evidence",
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 42365417593,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Run bun install --frozen-lockfile",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Prepare the immutable base for layout review",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5
+          },
+          {
+            "name": "Render graph backend comparison",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6
+          },
+          {
+            "name": "Render source-preserving edit review",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7
+          },
+          {
+            "name": "Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8
+          },
+          {
+            "name": "Post Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 15
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 16
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 17
+          }
+        ]
+      },
+      {
+        "id": 128382410164,
+        "name": "Renderer isolation (windows-latest)",
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 42365417593,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Run bun install --frozen-lockfile",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5
+          },
+          {
+            "name": "Exercise process recovery and the standalone binary",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6
+          },
+          {
+            "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 10
+          },
+          {
+            "name": "Post Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 11
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 12
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 13
+          }
+        ]
+      },
+      {
+        "id": 128382410196,
+        "name": "Generated layout diagnostic (advisory)",
+        "status": "completed",
+        "conclusion": "failure",
+        "run_id": 42365417593,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Run bun install --frozen-lockfile",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Record every generated input and backend outcome",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5
+          },
+          {
+            "name": "Compare backend readability and retain geometric tradeoffs",
+            "status": "completed",
+            "conclusion": "failure",
+            "number": 6
+          },
+          {
+            "name": "Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7
+          },
+          {
+            "name": "Post Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 13
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 14
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 15
+          }
+        ]
+      },
+      {
+        "id": 128382410211,
+        "name": "Renderer isolation (macos-15-intel)",
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 42365417593,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Run bun install --frozen-lockfile",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5
+          },
+          {
+            "name": "Exercise process recovery and the standalone binary",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6
+          },
+          {
+            "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 10
+          },
+          {
+            "name": "Post Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 11
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 12
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 13
+          }
+        ]
+      },
+      {
+        "id": 128382410232,
+        "name": "CLI and single-binary tests",
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 42365417593,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Run bun install --frozen-lockfile",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Run CLI and native binary contracts",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5
+          },
+          {
+            "name": "Post Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 10
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 11
+          }
+        ]
+      },
+      {
+        "id": 128382410243,
+        "name": "Quality gates",
+        "status": "completed",
+        "conclusion": "failure",
+        "run_id": 42365417593,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Setup Bun",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Run the complete local and CI quality suite",
+            "status": "completed",
+            "conclusion": "failure",
+            "number": 4
+          },
+          {
+            "name": "Post Setup Bun",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 7
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9
+          }
+        ]
+      },
+      {
+        "id": 128382410280,
+        "name": "Independent semantic conformance / semantic",
+        "status": "in_progress",
+        "conclusion": null,
+        "run_id": 42365417593,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Install project dependencies",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5
+          },
+          {
+            "name": "Install the independent pinned reference",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6
+          },
+          {
+            "name": "Assert public semantic preservation against the current Mermaid pin",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7
+          },
+          {
+            "name": "Replay reviewed grammar finder witnesses",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8
+          },
+          {
+            "name": "Record modern documentation and seeded mutation diagnostics",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9
+          },
+          {
+            "name": "Run original pinned assertions and record adapter coverage",
+            "status": "in_progress",
+            "conclusion": null,
+            "number": 10
+          },
+          {
+            "name": "Compare all-family native admission and real grammar round trips",
+            "status": "pending",
+            "conclusion": null,
+            "number": 11
+          },
+          {
+            "name": "Retain assertions and separate diagnostic gaps",
+            "status": "pending",
+            "conclusion": null,
+            "number": 12
+          },
+          {
+            "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "pending",
+            "conclusion": null,
+            "number": 22
+          },
+          {
+            "name": "Post Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+            "status": "pending",
+            "conclusion": null,
+            "number": 23
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "pending",
+            "conclusion": null,
+            "number": 24
+          }
+        ]
+      },
+      {
+        "id": 128382410743,
+        "name": "Documentation checks",
+        "status": "completed",
+        "conclusion": "skipped",
+        "run_id": 42365417593,
+        "logs_url": null,
+        "steps": null
+      },
+      {
+        "id": 128382802454,
+        "name": "Installed-package quickstarts",
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 42365417593,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Run bun install --frozen-lockfile",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6
+          },
+          {
+            "name": "Run node scripts/ci/installed-quickstarts.mjs",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7
+          },
+          {
+            "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 12
+          },
+          {
+            "name": "Post Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 13
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 14
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 15
+          }
+        ]
+      },
+      {
+        "id": 128382802509,
+        "name": "Unit tests (3/3)",
+        "status": "in_progress",
+        "conclusion": null,
+        "run_id": 42365417593,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Setup Bun",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Install dependencies",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Install the CJK coverage fixture",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6
+          },
+          {
+            "name": "Verify the transferred website fixture is usable",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7
+          },
+          {
+            "name": "Run test shard",
+            "status": "in_progress",
+            "conclusion": null,
+            "number": 8
+          },
+          {
+            "name": "Post Setup Bun",
+            "status": "pending",
+            "conclusion": null,
+            "number": 15
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "pending",
+            "conclusion": null,
+            "number": 16
+          }
+        ]
+      },
+      {
+        "id": 128382802516,
+        "name": "Unit tests (1/3)",
+        "status": "in_progress",
+        "conclusion": null,
+        "run_id": 42365417593,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Setup Bun",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Install dependencies",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Install the CJK coverage fixture",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6
+          },
+          {
+            "name": "Verify the transferred website fixture is usable",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7
+          },
+          {
+            "name": "Run test shard",
+            "status": "in_progress",
+            "conclusion": null,
+            "number": 8
+          },
+          {
+            "name": "Post Setup Bun",
+            "status": "pending",
+            "conclusion": null,
+            "number": 15
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "pending",
+            "conclusion": null,
+            "number": 16
+          }
+        ]
+      },
+      {
+        "id": 128382802524,
+        "name": "E2E (tarball-consumer-node22)",
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 42365417593,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Align the browser container session with its user",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 3
+          },
+          {
+            "name": "Install the editor's requested monospace font",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 4
+          },
+          {
+            "name": "Install Bun in the browser environment",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 5
+          },
+          {
+            "name": "Setup Bun",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6
+          },
+          {
+            "name": "Setup Node for shipped-artifact gates",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7
+          },
+          {
+            "name": "Install dependencies",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 10
+          },
+          {
+            "name": "Install GitHub CLI for head-bound payload approvals",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 11
+          },
+          {
+            "name": "Check the Playwright environment matches the installed package",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 12
+          },
+          {
+            "name": "Resolve tested PR revisions",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 13
+          },
+          {
+            "name": "Render affected label and category witnesses before and after",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 14
+          },
+          {
+            "name": "Render shared capture and text preservation controls",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 15
+          },
+          {
+            "name": "Render bounded chart fitting witnesses",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 16
+          },
+          {
+            "name": "Capture native ZenUML Looks and configured browser controls",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 17
+          },
+          {
+            "name": "Retain diagram review images",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 18
+          },
+          {
+            "name": "Verify built artifacts and bundler compatibility",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 19
+          },
+          {
+            "name": "Install the pinned publishing npm for manifest verification",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 20
+          },
+          {
+            "name": "Run tarball consumer and Getting Started commands under Node",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 21
+          },
+          {
+            "name": "Reject a divergent already-published immutable npm version",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 22
+          },
+          {
+            "name": "Lint the packed package's exports and types",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 23
+          },
+          {
+            "name": "Run canonical browser contracts",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 24
+          },
+          {
+            "name": "Compare resolved scenes with Chromium",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 25
+          },
+          {
+            "name": "Retain resolved-scene comparisons",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 26
+          },
+          {
+            "name": "Retain Editor interaction review images",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 27
+          },
+          {
+            "name": "Retain standalone editor module graph and byte counts",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 28
+          },
+          {
+            "name": "Verify website payload request graphs and budgets",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 29
+          },
+          {
+            "name": "Compare payload with the base branch",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 30
+          },
+          {
+            "name": "Retain payload reports and module graphs",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 31
+          },
+          {
+            "name": "Post Setup Node for shipped-artifact gates",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 60
+          },
+          {
+            "name": "Post Setup Bun",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 61
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 62
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 63
+          }
+        ]
+      },
+      {
+        "id": 128382802565,
+        "name": "E2E (browser)",
+        "status": "in_progress",
+        "conclusion": null,
+        "run_id": 42365417593,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Initialize containers",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Align the browser container session with its user",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Install the editor's requested monospace font",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5
+          },
+          {
+            "name": "Install Bun in the browser environment",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6
+          },
+          {
+            "name": "Setup Bun",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 7
+          },
+          {
+            "name": "Setup Node for shipped-artifact gates",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 8
+          },
+          {
+            "name": "Install dependencies",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 10
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 11
+          },
+          {
+            "name": "Install GitHub CLI for head-bound payload approvals",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 12
+          },
+          {
+            "name": "Check the Playwright environment matches the installed package",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 13
+          },
+          {
+            "name": "Resolve tested PR revisions",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 14
+          },
+          {
+            "name": "Render affected label and category witnesses before and after",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 15
+          },
+          {
+            "name": "Render shared capture and text preservation controls",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 16
+          },
+          {
+            "name": "Render bounded chart fitting witnesses",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 17
+          },
+          {
+            "name": "Capture native ZenUML Looks and configured browser controls",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 18
+          },
+          {
+            "name": "Retain diagram review images",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 19
+          },
+          {
+            "name": "Verify built artifacts and bundler compatibility",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 20
+          },
+          {
+            "name": "Install the pinned publishing npm for manifest verification",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 21
+          },
+          {
+            "name": "Run tarball consumer and Getting Started commands under Node",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 22
+          },
+          {
+            "name": "Reject a divergent already-published immutable npm version",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 23
+          },
+          {
+            "name": "Lint the packed package's exports and types",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 24
+          },
+          {
+            "name": "Run canonical browser contracts",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 25
+          },
+          {
+            "name": "Compare resolved scenes with Chromium",
+            "status": "in_progress",
+            "conclusion": null,
+            "number": 26
+          },
+          {
+            "name": "Retain resolved-scene comparisons",
+            "status": "pending",
+            "conclusion": null,
+            "number": 27
+          },
+          {
+            "name": "Retain Editor interaction review images",
+            "status": "pending",
+            "conclusion": null,
+            "number": 28
+          },
+          {
+            "name": "Retain standalone editor module graph and byte counts",
+            "status": "pending",
+            "conclusion": null,
+            "number": 29
+          },
+          {
+            "name": "Verify website payload request graphs and budgets",
+            "status": "pending",
+            "conclusion": null,
+            "number": 30
+          },
+          {
+            "name": "Compare payload with the base branch",
+            "status": "pending",
+            "conclusion": null,
+            "number": 31
+          },
+          {
+            "name": "Retain payload reports and module graphs",
+            "status": "pending",
+            "conclusion": null,
+            "number": 32
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "pending",
+            "conclusion": null,
+            "number": 63
+          },
+          {
+            "name": "Stop containers",
+            "status": "pending",
+            "conclusion": null,
+            "number": 64
+          }
+        ]
+      },
+      {
+        "id": 128382802605,
+        "name": "E2E (tarball-consumer)",
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 42365417593,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Align the browser container session with its user",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 3
+          },
+          {
+            "name": "Install the editor's requested monospace font",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 4
+          },
+          {
+            "name": "Install Bun in the browser environment",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 5
+          },
+          {
+            "name": "Setup Bun",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6
+          },
+          {
+            "name": "Setup Node for shipped-artifact gates",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7
+          },
+          {
+            "name": "Install dependencies",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 10
+          },
+          {
+            "name": "Install GitHub CLI for head-bound payload approvals",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 11
+          },
+          {
+            "name": "Check the Playwright environment matches the installed package",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 12
+          },
+          {
+            "name": "Resolve tested PR revisions",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 13
+          },
+          {
+            "name": "Render affected label and category witnesses before and after",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 14
+          },
+          {
+            "name": "Render shared capture and text preservation controls",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 15
+          },
+          {
+            "name": "Render bounded chart fitting witnesses",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 16
+          },
+          {
+            "name": "Capture native ZenUML Looks and configured browser controls",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 17
+          },
+          {
+            "name": "Retain diagram review images",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 18
+          },
+          {
+            "name": "Verify built artifacts and bundler compatibility",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 19
+          },
+          {
+            "name": "Install the pinned publishing npm for manifest verification",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 20
+          },
+          {
+            "name": "Run tarball consumer and Getting Started commands under Node",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 21
+          },
+          {
+            "name": "Reject a divergent already-published immutable npm version",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 22
+          },
+          {
+            "name": "Lint the packed package's exports and types",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 23
+          },
+          {
+            "name": "Run canonical browser contracts",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 24
+          },
+          {
+            "name": "Compare resolved scenes with Chromium",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 25
+          },
+          {
+            "name": "Retain resolved-scene comparisons",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 26
+          },
+          {
+            "name": "Retain Editor interaction review images",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 27
+          },
+          {
+            "name": "Retain standalone editor module graph and byte counts",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 28
+          },
+          {
+            "name": "Verify website payload request graphs and budgets",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 29
+          },
+          {
+            "name": "Compare payload with the base branch",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 30
+          },
+          {
+            "name": "Retain payload reports and module graphs",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 31
+          },
+          {
+            "name": "Post Setup Node for shipped-artifact gates",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 60
+          },
+          {
+            "name": "Post Setup Bun",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 61
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 62
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 63
+          }
+        ]
+      },
+      {
+        "id": 128382802616,
+        "name": "E2E (dist-artifact)",
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 42365417593,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Align the browser container session with its user",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 3
+          },
+          {
+            "name": "Install the editor's requested monospace font",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 4
+          },
+          {
+            "name": "Install Bun in the browser environment",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 5
+          },
+          {
+            "name": "Setup Bun",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6
+          },
+          {
+            "name": "Setup Node for shipped-artifact gates",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7
+          },
+          {
+            "name": "Install dependencies",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 10
+          },
+          {
+            "name": "Install GitHub CLI for head-bound payload approvals",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 11
+          },
+          {
+            "name": "Check the Playwright environment matches the installed package",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 12
+          },
+          {
+            "name": "Resolve tested PR revisions",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 13
+          },
+          {
+            "name": "Render affected label and category witnesses before and after",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 14
+          },
+          {
+            "name": "Render shared capture and text preservation controls",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 15
+          },
+          {
+            "name": "Render bounded chart fitting witnesses",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 16
+          },
+          {
+            "name": "Capture native ZenUML Looks and configured browser controls",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 17
+          },
+          {
+            "name": "Retain diagram review images",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 18
+          },
+          {
+            "name": "Verify built artifacts and bundler compatibility",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 19
+          },
+          {
+            "name": "Install the pinned publishing npm for manifest verification",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 20
+          },
+          {
+            "name": "Run tarball consumer and Getting Started commands under Node",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 21
+          },
+          {
+            "name": "Reject a divergent already-published immutable npm version",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 22
+          },
+          {
+            "name": "Lint the packed package's exports and types",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 23
+          },
+          {
+            "name": "Run canonical browser contracts",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 24
+          },
+          {
+            "name": "Compare resolved scenes with Chromium",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 25
+          },
+          {
+            "name": "Retain resolved-scene comparisons",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 26
+          },
+          {
+            "name": "Retain Editor interaction review images",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 27
+          },
+          {
+            "name": "Retain standalone editor module graph and byte counts",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 28
+          },
+          {
+            "name": "Verify website payload request graphs and budgets",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 29
+          },
+          {
+            "name": "Compare payload with the base branch",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 30
+          },
+          {
+            "name": "Retain payload reports and module graphs",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 31
+          },
+          {
+            "name": "Post Setup Node for shipped-artifact gates",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 60
+          },
+          {
+            "name": "Post Setup Bun",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 61
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 62
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 63
+          }
+        ]
+      },
+      {
+        "id": 128382802622,
+        "name": "E2E (payload)",
+        "status": "in_progress",
+        "conclusion": null,
+        "run_id": 42365417593,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Initialize containers",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Align the browser container session with its user",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Install the editor's requested monospace font",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5
+          },
+          {
+            "name": "Install Bun in the browser environment",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6
+          },
+          {
+            "name": "Setup Bun",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 7
+          },
+          {
+            "name": "Setup Node for shipped-artifact gates",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 8
+          },
+          {
+            "name": "Install dependencies",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 10
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 11
+          },
+          {
+            "name": "Install GitHub CLI for head-bound payload approvals",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 12
+          },
+          {
+            "name": "Check the Playwright environment matches the installed package",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 13
+          },
+          {
+            "name": "Resolve tested PR revisions",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 14
+          },
+          {
+            "name": "Render affected label and category witnesses before and after",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 15
+          },
+          {
+            "name": "Render shared capture and text preservation controls",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 16
+          },
+          {
+            "name": "Render bounded chart fitting witnesses",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 17
+          },
+          {
+            "name": "Capture native ZenUML Looks and configured browser controls",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 18
+          },
+          {
+            "name": "Retain diagram review images",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 19
+          },
+          {
+            "name": "Verify built artifacts and bundler compatibility",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 20
+          },
+          {
+            "name": "Install the pinned publishing npm for manifest verification",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 21
+          },
+          {
+            "name": "Run tarball consumer and Getting Started commands under Node",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 22
+          },
+          {
+            "name": "Reject a divergent already-published immutable npm version",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 23
+          },
+          {
+            "name": "Lint the packed package's exports and types",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 24
+          },
+          {
+            "name": "Run canonical browser contracts",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 25
+          },
+          {
+            "name": "Compare resolved scenes with Chromium",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 26
+          },
+          {
+            "name": "Retain resolved-scene comparisons",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 27
+          },
+          {
+            "name": "Retain Editor interaction review images",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 28
+          },
+          {
+            "name": "Retain standalone editor module graph and byte counts",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 29
+          },
+          {
+            "name": "Verify website payload request graphs and budgets",
+            "status": "completed",
+            "conclusion": "failure",
+            "number": 30
+          },
+          {
+            "name": "Compare payload with the base branch",
+            "status": "in_progress",
+            "conclusion": null,
+            "number": 31
+          },
+          {
+            "name": "Retain payload reports and module graphs",
+            "status": "pending",
+            "conclusion": null,
+            "number": 32
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "pending",
+            "conclusion": null,
+            "number": 63
+          },
+          {
+            "name": "Stop containers",
+            "status": "pending",
+            "conclusion": null,
+            "number": 64
+          }
+        ]
+      },
+      {
+        "id": 128382802624,
+        "name": "E2E (browser-site)",
+        "status": "in_progress",
+        "conclusion": null,
+        "run_id": 42365417593,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Initialize containers",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Align the browser container session with its user",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Install the editor's requested monospace font",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5
+          },
+          {
+            "name": "Install Bun in the browser environment",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6
+          },
+          {
+            "name": "Setup Bun",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 7
+          },
+          {
+            "name": "Setup Node for shipped-artifact gates",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 8
+          },
+          {
+            "name": "Install dependencies",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 10
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 11
+          },
+          {
+            "name": "Install GitHub CLI for head-bound payload approvals",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 12
+          },
+          {
+            "name": "Check the Playwright environment matches the installed package",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 13
+          },
+          {
+            "name": "Resolve tested PR revisions",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 14
+          },
+          {
+            "name": "Render affected label and category witnesses before and after",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 15
+          },
+          {
+            "name": "Render shared capture and text preservation controls",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 16
+          },
+          {
+            "name": "Render bounded chart fitting witnesses",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 17
+          },
+          {
+            "name": "Capture native ZenUML Looks and configured browser controls",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 18
+          },
+          {
+            "name": "Retain diagram review images",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 19
+          },
+          {
+            "name": "Verify built artifacts and bundler compatibility",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 20
+          },
+          {
+            "name": "Install the pinned publishing npm for manifest verification",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 21
+          },
+          {
+            "name": "Run tarball consumer and Getting Started commands under Node",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 22
+          },
+          {
+            "name": "Reject a divergent already-published immutable npm version",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 23
+          },
+          {
+            "name": "Lint the packed package's exports and types",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 24
+          },
+          {
+            "name": "Run canonical browser contracts",
+            "status": "in_progress",
+            "conclusion": null,
+            "number": 25
+          },
+          {
+            "name": "Compare resolved scenes with Chromium",
+            "status": "pending",
+            "conclusion": null,
+            "number": 26
+          },
+          {
+            "name": "Retain resolved-scene comparisons",
+            "status": "pending",
+            "conclusion": null,
+            "number": 27
+          },
+          {
+            "name": "Retain Editor interaction review images",
+            "status": "pending",
+            "conclusion": null,
+            "number": 28
+          },
+          {
+            "name": "Retain standalone editor module graph and byte counts",
+            "status": "pending",
+            "conclusion": null,
+            "number": 29
+          },
+          {
+            "name": "Verify website payload request graphs and budgets",
+            "status": "pending",
+            "conclusion": null,
+            "number": 30
+          },
+          {
+            "name": "Compare payload with the base branch",
+            "status": "pending",
+            "conclusion": null,
+            "number": 31
+          },
+          {
+            "name": "Retain payload reports and module graphs",
+            "status": "pending",
+            "conclusion": null,
+            "number": 32
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "pending",
+            "conclusion": null,
+            "number": 63
+          },
+          {
+            "name": "Stop containers",
+            "status": "pending",
+            "conclusion": null,
+            "number": 64
+          }
+        ]
+      },
+      {
+        "id": 128382802629,
+        "name": "Unit tests (2/3)",
+        "status": "in_progress",
+        "conclusion": null,
+        "run_id": 42365417593,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Setup Bun",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Install dependencies",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Install the CJK coverage fixture",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6
+          },
+          {
+            "name": "Verify the transferred website fixture is usable",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7
+          },
+          {
+            "name": "Run test shard",
+            "status": "in_progress",
+            "conclusion": null,
+            "number": 8
+          },
+          {
+            "name": "Post Setup Bun",
+            "status": "pending",
+            "conclusion": null,
+            "number": 15
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "pending",
+            "conclusion": null,
+            "number": 16
+          }
+        ]
+      }
+    ]
+  }
+}

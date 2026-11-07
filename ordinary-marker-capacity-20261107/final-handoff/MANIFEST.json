@@ -1,0 +1,37 @@
+[
+  {
+    "name": "EVIDENCE-CORE.json",
+    "bytes": 302,
+    "sha256": "8c55882e042cfba13ed307736df379a1c3ab4c3d2c8f6ff608494159ea24818f"
+  },
+  {
+    "name": "FINAL-PR-AND-CHECKS.json",
+    "bytes": 86334,
+    "sha256": "4bcf53b8eea8b8bda2fa88e5c5abdbc522f769331a89fc93bb48aa44826e7966"
+  },
+  {
+    "name": "PR-BODY-EXTENDED-DRAFT.md",
+    "bytes": 20036,
+    "sha256": "456025913e193f3005e0a3e53d70c6859f723b3662834b35787069be3425ca2b"
+  },
+  {
+    "name": "PR-BODY-FINAL.md",
+    "bytes": 13402,
+    "sha256": "a2f79a9852ed95c1c9337d12c3f1398e69f666cba7d7ca4026b351b7b11c1437"
+  },
+  {
+    "name": "README.md",
+    "bytes": 1589,
+    "sha256": "3082e999ad53fb2c692252d8364ae55b99d830e7f2f1ce1802cf4f4dce6a2d14"
+  },
+  {
+    "name": "campaign-state-release-prepared.json",
+    "bytes": 20386,
+    "sha256": "9e32a84a4ac96bc1565f47b716638c61ebe8e1872bce92b4ddfd7ab38ad4b58d"
+  },
+  {
+    "name": "pr-readiness.log",
+    "bytes": 1047,
+    "sha256": "fb4209cc9fb6971c7659d5afef8f3b6887730eea7f8b7a722b7373c0e9cfe749"
+  }
+]
