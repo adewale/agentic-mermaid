@@ -52,8 +52,17 @@ line distinctions, including `--` versus `-->`. Sequence actors carry
 standalone activations carry message-boundary indices. Titles are available on
 each model. Class and ER style definitions are `Map` values.
 
+The same entry points export `parseUsecaseModel(source)` and
+`parseAgentflowModel(source)` for strict grammar inspection. UseCase returns
+declaration Maps, relationships, JSON nodes and source statements; AgentFlow
+returns its graph, metadata and source mappings, including complete container
+ranges. UseCase spans index the returned `source`; AgentFlow mappings address
+the family payload after frontmatter and init removal. Neither helper uses the
+editor's opaque fallback. AgentFlow preserves its native parser errors;
+UseCase reports located `MermaidSyntaxError` failures against the original input.
+
 These models are inspection data. Continue using `parseRegisteredMermaid` and
-`as*` helpers for mutation and serialization. Syntax failures use
+`as*` helpers for mutation and serialization. Class, ER and Sequence syntax failures use
 `MermaidSyntaxError`; statement failures expose `diagramType`, `line` and
 `column` when known. Public source parsers map known positions back to the input;
 positions that cannot be mapped are omitted.
