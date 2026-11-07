@@ -18,6 +18,14 @@ opaque body; they do not become partially editable graphs. Literal `%%` inside
 labels is retained even where the pinned Mermaid parser truncates it; see the
 [recorded divergence](../../project/divergences.md).
 
+Rendering a parsed AgentFlow diagram preserves the authored body's YAML
+indentation and uses a privately retained graph from the shared projector.
+Each render receives its own graph draft. Source, body-envelope or family
+registration changes invalidate that handoff; configuration and appearance
+still pass through ordinary request admission. Use checked mutations to edit
+the diagram: direct changes to its mutable body do not override AgentFlow's
+canonical-source rendering authority.
+
 ## Placement and limitations
 
 The renderer reuses the graph pipeline while preserving AgentFlow role shapes
