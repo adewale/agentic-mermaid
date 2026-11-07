@@ -4,6 +4,16 @@ Current implementation decisions that differ from, or materially narrow, the bro
 
 ## What still matters
 
+Top-level State layout hints (`scale N width`, `hide empty description`) remain visible
+in verification as unapplied renderer settings. They now survive typed edits
+and serialization as `layoutDirectives`, without making the complete state
+machine opaque. Their source spelling does not control local geometry.
+Nested hints remain source-only until the typed model can retain their scope.
+State identities keep combining marks instead of splitting a Hebrew or
+decomposed Latin name; ER declarations and relationship endpoints accept
+Unicode names through the shared entity lexer. Neither reader normalizes an
+authored identity to a different Unicode sequence.
+
 ### Grammar finder triage (#461)
 
 The triage covers all 1,283 distinct inputs retained in four linked workflow

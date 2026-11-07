@@ -781,6 +781,8 @@ export interface StateNote {
 }
 
 export interface StateBody {
+  /** Authored Mermaid layout hints retained through editing; geometry remains renderer-owned. */
+  layoutDirectives?: string[]
   /** Class assignments awaiting an actual state declaration; they never create a state. */
   unresolvedClasses?: Array<{ id: string; className: string }>
   /** Inline styles awaiting an actual state declaration. */
