@@ -1,0 +1,19 @@
+{
+  "caseId": "raw-fan-circle",
+  "revision": "433b523b86f9017960d8004f3c776d9d8d82dbce",
+  "root": "/tmp/pr449-main-integration-20261029-762",
+  "expectedHead": "433b523b86f9017960d8004f3c776d9d8d82dbce",
+  "arm": "agentic",
+  "source": "flowchart LR\n    A e1@--o B\n    A --> C\nlinkStyle 0 stroke:#000,stroke-width:10px\n",
+  "options": {
+    "embedFontImport": false,
+    "graphLayout": {
+      "backend": "agentic",
+      "fallback": "none"
+    }
+  },
+  "out": "/tmp/pr449-week-comparison-20261101/current-execution-c9/affected-public-products/raw-fan-circle/agentic",
+  "bindingReference": null,
+  "priorReference": "/tmp/pr449-week-comparison-20261101/main-integration-39a-970/products/raw-fan-circle/pr/agentic",
+  "backend": "agentic"
+}

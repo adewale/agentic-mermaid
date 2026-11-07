@@ -1,0 +1,20 @@
+{
+  "caseId": "requirement-cycle-TB",
+  "source": "requirementDiagram\ndirection TB\nrequirement fast {\nid: \"performance-1\"\ntext: \"Respond quickly with retained measured fields\"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\ndocref: \"bench suite\"\n}\nelement report {\ntype: artifact\n}\nsuite - verifies -> fast\nsuite - traces -> fast\nfast - derives -> report\nreport - satisfies -> fast\nfast - refines -> fast\n",
+  "sourceReference": "requirement-completed-cycle-node24-15972c57e/bindings-requirementTB-node24.json",
+  "root": "/tmp/pr449-main-integration-20261029-762",
+  "revision": "433b523b86f9017960d8004f3c776d9d8d82dbce",
+  "expectedHead": "433b523b86f9017960d8004f3c776d9d8d82dbce",
+  "arm": "agentic",
+  "backend": "agentic",
+  "options": {
+    "embedFontImport": false,
+    "graphLayout": {
+      "backend": "agentic",
+      "fallback": "none"
+    }
+  },
+  "priorReference": "/tmp/pr449-week-comparison-20261101/main-integration-39a-970/products/requirement-cycle-TB/pr/agentic",
+  "out": "/tmp/pr449-week-comparison-20261101/current-execution-c9/affected-public-products/requirement-cycle-TB/agentic",
+  "bindingReference": null
+}

@@ -1,0 +1,55 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/verified-preview.test.ts:
+(pass) one positioned artifact for preview and verification > source hook delivery omits mutation dispatch data while the SDK keeps native edits [201.03ms]
+(pass) one positioned artifact for preview and verification > the source-only flowchart worker preserves typed round trips and diagnoses unavailable mutation [420.59ms]
+(pass) one positioned artifact for preview and verification > the source-only state worker preserves typed round trips and diagnoses unavailable mutation [403.32ms]
+(pass) one positioned artifact for preview and verification > the source-only packet worker preserves typed round trips and diagnoses unavailable mutation [119.62ms]
+(pass) one positioned artifact for preview and verification > the source-only eventmodeling worker preserves typed round trips and diagnoses unavailable mutation [150.57ms]
+(pass) one positioned artifact for preview and verification > the source-only zenuml worker preserves typed round trips and diagnoses unavailable mutation [235.02ms]
+(pass) one positioned artifact for preview and verification > verification preserves a suspended provider through a family layout wrapper [75.28ms]
+(pass) one positioned artifact for preview and verification > retains ELK selection while positioning and verifying a preview once [603.06ms]
+(pass) one positioned artifact for preview and verification > retains native selection while positioning and verifying a preview once [124.66ms]
+(pass) one positioned artifact for preview and verification > retains native frame terminal selection while positioning and verifying a preview once [70.69ms]
+Agentic graph layout declined this input; using the requested ELK fallback: agentic local rank-expansion limit
+Agentic graph layout declined this input; using the requested ELK fallback: agentic local rank-expansion limit
+Agentic graph layout declined this input; using the requested ELK fallback: agentic local rank-expansion limit
+(pass) one positioned artifact for preview and verification > retains explicit fallback selection while positioning and verifying a preview once [69.62ms]
+(pass) one positioned artifact for preview and verification > positions once while keeping canonical SVG, receipt and verification for every built-in example [1984.37ms]
+(pass) one positioned artifact for preview and verification > preserves authored config, accessibility, strict output security and source warnings [188.03ms]
+(pass) standalone worker payload lifecycle > the actual bounded Brotli, dictionary and CRC closure returns exact worker bytes for 123456789 [316.57ms]
+(pass) standalone worker payload lifecycle > the actual bounded Brotli, dictionary and CRC closure returns exact worker bytes for const label = "international compression dictionary 🌍"; const safe = "</script>"; [140.59ms]
+(pass) standalone worker payload lifecycle > captures bytes before publication and reuses one immutable Blob across crashes and BFCache [106.49ms]
+(pass) standalone worker payload lifecycle > a page hidden before decode cannot create a late worker or clear a restored load [18.00ms]
+(pass) standalone worker payload lifecycle > rejects a missing payload before any Worker or URL and retains a typed reload failure [18.94ms]
+(pass) standalone worker payload lifecycle > rejects a packed payload before any Worker or URL and retains a typed reload failure [15.48ms]
+(pass) standalone worker payload lifecycle > rejects a decoded payload before any Worker or URL and retains a typed reload failure [15.24ms]
+(pass) persistent preview worker queue > keeps option snapshots and supersession while the worker client is still loading [3.29ms]
+(pass) persistent preview worker queue > preparing opt-in editor fitting keeps the worker idle and preserves authored budgets [2.37ms]
+(pass) persistent preview worker queue > editor source edits use the queued worker and discard results after the draft changes [1.76ms]
+(pass) persistent preview worker queue > editor worker performs source edits through the real mutation pipeline [2190.46ms]
+(pass) persistent preview worker queue > reports runtime availability across a failed dependency import and successful retry [8.58ms]
+(pass) persistent preview worker queue > reports runtime availability across a failed worker error and successful retry [3.11ms]
+(pass) persistent preview worker queue > does not show runtime recovery for a superseded preview failure [2.29ms]
+(pass) persistent preview worker queue > replaces a failed dependency worker even when its ascii request was superseded [0.80ms]
+(pass) persistent preview worker queue > replaces a failed dependency worker even when its png request was superseded [0.33ms]
+(pass) persistent preview worker queue > orders text exports with the newest preview and bounds pending exports [1.22ms]
+(pass) persistent preview worker queue > PNG raster transport snapshots bytes and host metadata without detaching the caller buffer [2.00ms]
+(pass) persistent preview worker queue > rejects oversized raster buffers before copying and ignores callback completion after a crash [5.63ms]
+(pass) persistent preview worker queue > a wrong output receipt terminates the transaction and rejects queued callers [2.65ms]
+(pass) persistent preview worker queue > a new source releases a PNG awaiting Canvas so the preview can proceed [1.82ms]
+(pass) persistent preview worker queue > keeps only the newest pending edit and ignores unmatched replies [1.55ms]
+(pass) persistent preview worker queue > a worker crash rejects all waiting callers, and the next edit starts a new worker [1.39ms]
+(pass) persistent preview worker queue > a hung job terminates its worker instead of leaving a permanent pending preview [5.78ms]
+(pass) codec admission shares one nested work budget and cannot swallow exhaustion [286.66ms]
+(pass) codec admission retains a caught output refusal [0.41ms]
+(pass) codec admission retains a caught window refusal [0.04ms]
+(pass) codec admission retains a caught asynchronous work refusal [0.03ms]
+(pass) the docs replay changes one label and preserves the authored identities and directed connections [76.68ms]
+(pass) codec charging preserves labelled continue, unbraced loops and strict directives [3.30ms]
+(pass) standalone notices retain actual legal comments after regex quotes without promoting string contents [5.12ms]
+
+ 44 pass
+ 0 fail
+ 296 expect() calls
+Ran 44 tests across 1 file. [8.87s]

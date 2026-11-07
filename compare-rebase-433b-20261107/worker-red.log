@@ -1,0 +1,53 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/verified-preview.test.ts:
+(pass) standalone worker payload lifecycle > the actual bounded Brotli, dictionary and CRC closure returns exact worker bytes for 123456789 [488.74ms]
+(pass) standalone worker payload lifecycle > the actual bounded Brotli, dictionary and CRC closure returns exact worker bytes for const label = "international compression dictionary 🌍"; const safe = "</script>"; [138.06ms]
+276 |     try {
+277 |       h.node.textContent = 'changed after bootstrap'
+278 |       const first = h.adapter.renderMermaidSVGWithReceipt('first', {})
+279 |       await h.flush()
+280 |       expect(h.context.codecCalls).toBe(1)
+281 |       const initial = h.workers[0]!, blob = h.blobs.get(initial.url)!
+                                                              ^
+TypeError: undefined is not an object (evaluating 'initial.url')
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/verified-preview.test.ts:281:57)
+(fail) standalone worker payload lifecycle > captures bytes before publication and reuses one immutable Blob across crashes and BFCache [90.87ms]
+PreviewRuntimeLoadError: Background renderer could not load; reload the editor to retry
+      at <anonymous> (evalmachine.<anonymous>:14744:21)
+
+TypeError: document.getElementById("editor-worker-payload")?.remove is not a function. (In 'document.getElementById("editor-worker-payload")?.remove()', 'document.getElementById("editor-worker-payload")?.remove' is undefined)
+      at <anonymous> (evalmachine.<anonymous>:14742:67)
+PreviewRuntimeLoadError: Background renderer could not load; reload the editor to retry
+      at <anonymous> (evalmachine.<anonymous>:14744:21)
+
+TypeError: document.getElementById("editor-worker-payload")?.remove is not a function. (In 'document.getElementById("editor-worker-payload")?.remove()', 'document.getElementById("editor-worker-payload")?.remove' is undefined)
+      at <anonymous> (evalmachine.<anonymous>:14742:67)
+307 |       const stale = h.adapter.renderMermaidSVGWithReceipt('old', {}).catch(error => error)
+308 |       h.dispatch('pagehide'); h.dispatch('pageshow')
+309 |       const current = h.adapter.renderMermaidSVGWithReceipt('current', {})
+310 |       await h.flush()
+311 |       expect((await stale).name).toBe('PreviewSupersededError')
+312 |       expect(h.sent.map(request => request.source)).toEqual(['current'])
+                                                          ^
+error: expect(received).toEqual(expected)
+
+- [
+-   "current",
+- ]
++ []
+
+- Expected  - 3
++ Received  + 1
+
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/verified-preview.test.ts:312:53)
+(fail) standalone worker payload lifecycle > a page hidden before decode cannot create a late worker or clear a restored load [15.41ms]
+(pass) standalone worker payload lifecycle > rejects a missing payload before any Worker or URL and retains a typed reload failure [14.55ms]
+(pass) standalone worker payload lifecycle > rejects a packed payload before any Worker or URL and retains a typed reload failure [14.54ms]
+(pass) standalone worker payload lifecycle > rejects a decoded payload before any Worker or URL and retains a typed reload failure [20.38ms]
+
+ 5 pass
+ 37 filtered out
+ 2 fail
+ 22 expect() calls
+Ran 7 tests across 1 file. [1.84s]

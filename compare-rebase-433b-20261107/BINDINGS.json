@@ -1,0 +1,72 @@
+[
+  {
+    "case": "ER208-chain",
+    "backend": "agentic",
+    "svgExact": true,
+    "svgSHA256": "5d2cfe47073bafe18de78b2f2bf3c8d24d4db291e464d55b3bc832d2b0f4e095",
+    "reference": "/tmp/pr449-week-comparison-20261101/main-9fb-integration/frozen-controls-refined/ER208-chain/agentic/actual.svg.gz"
+  },
+  {
+    "case": "ER208-chain",
+    "backend": "elk",
+    "svgExact": true,
+    "svgSHA256": "092a6fbbe2fd6b0c2cc8341244827ea6bbaeaeb395bb7908453624e0935836aa",
+    "reference": "/tmp/pr449-week-comparison-20261101/main-9fb-integration/frozen-controls-refined/ER208-chain/elk/actual.svg.gz"
+  },
+  {
+    "case": "Sparse256-default-gap",
+    "backend": "agentic",
+    "svgExact": true,
+    "svgSHA256": "da70e62c00d40d67c2a78e5b3e30cf9980ae12afca153e7d4f75b287348f9353",
+    "reference": "/tmp/pr449-week-comparison-20261101/main-9fb-integration/frozen-controls-refined/Sparse256-default-gap/agentic/actual.svg.gz"
+  },
+  {
+    "case": "Sparse256-default-gap",
+    "backend": "elk",
+    "svgExact": true,
+    "svgSHA256": "28ed471dbbb27c317d837dbce3d18103d55d1e301a7a6c312c2c1ade137f5101",
+    "reference": "/tmp/pr449-week-comparison-20261101/main-9fb-integration/frozen-controls-refined/Sparse256-default-gap/elk/actual.svg.gz"
+  },
+  {
+    "case": "nonlinear-forest",
+    "backend": "agentic",
+    "svgExact": true,
+    "svgSHA256": "7b8bac6abe40e552f0cd8b7d7c36ab50e9ec8074492b3be571650e9c24ee3dd1",
+    "reference": "/tmp/pr449-week-comparison-20261101/main-9fb-integration/frozen-controls-refined/nonlinear-forest/agentic/actual.svg.gz"
+  },
+  {
+    "case": "nonlinear-forest",
+    "backend": "elk",
+    "svgExact": true,
+    "svgSHA256": "674d578fdbd9e338cd11a8ff4ca81bfaca1df7e18c967c20630840ddbb83e9eb",
+    "reference": "/tmp/pr449-week-comparison-20261101/main-9fb-integration/frozen-controls-refined/nonlinear-forest/elk/actual.svg.gz"
+  },
+  {
+    "case": "raw-fan-circle",
+    "backend": "agentic",
+    "svgExact": true,
+    "svgSHA256": "888d3876836fc7faf29f016434a42e40e86b2231010593aa2e239c255eeed95f",
+    "reference": "/tmp/pr449-week-comparison-20261101/main-9fb-integration/frozen-controls-refined/raw-fan-circle/agentic/actual.svg.gz"
+  },
+  {
+    "case": "raw-fan-circle",
+    "backend": "elk",
+    "svgExact": true,
+    "svgSHA256": "888d3876836fc7faf29f016434a42e40e86b2231010593aa2e239c255eeed95f",
+    "reference": "/tmp/pr449-week-comparison-20261101/main-9fb-integration/frozen-controls-refined/raw-fan-circle/elk/actual.svg.gz"
+  },
+  {
+    "case": "requirement-cycle-TB",
+    "backend": "agentic",
+    "svgExact": true,
+    "svgSHA256": "784cd149859794c69905c778acfc4939257a70347961662dd01043e6da02e9a0",
+    "reference": "/tmp/pr449-week-comparison-20261101/main-9fb-integration/frozen-controls-refined/requirement-cycle-TB/agentic/actual.svg.gz"
+  },
+  {
+    "case": "requirement-cycle-TB",
+    "backend": "elk",
+    "svgExact": true,
+    "svgSHA256": "82591e860ec833028e7224038adc196c741f41ef0df3349d0a82b960feeb4d0b",
+    "reference": "/tmp/pr449-week-comparison-20261101/main-9fb-integration/frozen-controls-refined/requirement-cycle-TB/elk/actual.svg.gz"
+  }
+]

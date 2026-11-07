@@ -1,0 +1,332 @@
+[
+  {
+    "case": "nonlinear-forest",
+    "backend": "agentic",
+    "status": "returned",
+    "exit": 0,
+    "proof": "passed",
+    "failure": null,
+    "sizes": {
+      "svgRawBytes": 8047,
+      "svgGzipBytes": 1496,
+      "svgBrotliBytes": 1238,
+      "entireReceiptRawBytes": 7914,
+      "wholeProductRawBytes": 16713
+    },
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ]
+  },
+  {
+    "case": "nonlinear-forest",
+    "backend": "elk",
+    "status": "returned",
+    "exit": 0,
+    "proof": "passed",
+    "failure": null,
+    "sizes": {
+      "svgRawBytes": 8069,
+      "svgGzipBytes": 1495,
+      "svgBrotliBytes": 1229,
+      "entireReceiptRawBytes": 7895,
+      "wholeProductRawBytes": 16716
+    },
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ]
+  },
+  {
+    "case": "requirement-cycle-TB",
+    "backend": "agentic",
+    "status": "returned",
+    "exit": 0,
+    "proof": "passed",
+    "failure": null,
+    "sizes": {
+      "svgRawBytes": 9912,
+      "svgGzipBytes": 1998,
+      "svgBrotliBytes": 1641,
+      "entireReceiptRawBytes": 7922,
+      "wholeProductRawBytes": 18735
+    },
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ]
+  },
+  {
+    "case": "requirement-cycle-TB",
+    "backend": "elk",
+    "status": "returned",
+    "exit": 0,
+    "proof": "passed",
+    "failure": null,
+    "sizes": {
+      "svgRawBytes": 10068,
+      "svgGzipBytes": 2021,
+      "svgBrotliBytes": 1693,
+      "entireReceiptRawBytes": 7906,
+      "wholeProductRawBytes": 18875
+    },
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ]
+  },
+  {
+    "case": "Sparse256-default-gap",
+    "backend": "agentic",
+    "status": "returned",
+    "exit": 0,
+    "proof": "passed",
+    "failure": null,
+    "sizes": {
+      "svgRawBytes": 265157,
+      "svgGzipBytes": 14620,
+      "svgBrotliBytes": 6638,
+      "entireReceiptRawBytes": 7540,
+      "wholeProductRawBytes": 301839
+    },
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ]
+  },
+  {
+    "case": "Sparse256-default-gap",
+    "backend": "elk",
+    "status": "returned",
+    "exit": 0,
+    "proof": "passed",
+    "failure": null,
+    "sizes": {
+      "svgRawBytes": 260973,
+      "svgGzipBytes": 14079,
+      "svgBrotliBytes": 6836,
+      "entireReceiptRawBytes": 7521,
+      "wholeProductRawBytes": 297636
+    },
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ]
+  },
+  {
+    "case": "ER208-chain",
+    "backend": "agentic",
+    "status": "returned",
+    "exit": 0,
+    "proof": "passed",
+    "failure": null,
+    "sizes": {
+      "svgRawBytes": 579579,
+      "svgGzipBytes": 40641,
+      "svgBrotliBytes": 25193,
+      "entireReceiptRawBytes": 7553,
+      "wholeProductRawBytes": 648986
+    },
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ]
+  },
+  {
+    "case": "ER208-chain",
+    "backend": "elk",
+    "status": "returned",
+    "exit": 0,
+    "proof": "passed",
+    "failure": null,
+    "sizes": {
+      "svgRawBytes": 582524,
+      "svgGzipBytes": 40765,
+      "svgBrotliBytes": 25326,
+      "entireReceiptRawBytes": 7536,
+      "wholeProductRawBytes": 651914
+    },
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ]
+  },
+  {
+    "case": "er256-chain",
+    "backend": "agentic",
+    "status": "refused",
+    "exit": 1,
+    "proof": null,
+    "failure": {
+      "name": "ErRouteWorkLimitError",
+      "message": "ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships",
+      "stack": "ErRouteWorkLimitError: ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships\n    at erCharge (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:218:42)\n    at charge (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1994:33)\n    at intersects (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1996:9)\n    at finishErGeometry (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:2603:17)\n    at finish (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1964:16)\n    at file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1966:69\n    at nativeCandidate (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1793:20)\n    at file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1966:49\n    at runMeasuredGraphBackend (file:///tmp/pr449-main-integration-20261029-762/src/layout/backend.ts:75:22)\n    at layoutErDiagram (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1966:12)",
+      "code": "ER_ROUTE_WORK_LIMIT"
+    },
+    "sizes": null,
+    "decisions": null
+  },
+  {
+    "case": "er256-chain",
+    "backend": "elk",
+    "status": "refused",
+    "exit": 1,
+    "proof": null,
+    "failure": {
+      "name": "ErRouteWorkLimitError",
+      "message": "ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships",
+      "stack": "ErRouteWorkLimitError: ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships\n    at erCharge (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:218:42)\n    at charge (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1994:33)\n    at intersects (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1996:9)\n    at finishErGeometry (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:2603:17)\n    at finish (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1964:16)\n    at file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1966:101\n    at runMeasuredGraphBackend (file:///tmp/pr449-main-integration-20261029-762/src/layout/backend.ts:89:18)\n    at layoutErDiagram (file:///tmp/pr449-main-integration-20261029-762/src/er/layout.ts:1966:12)\n    at Object.layout (file:///tmp/pr449-main-integration-20261029-762/src/svg-family-hooks/er.ts:23:29)\n    at file:///tmp/pr449-main-integration-20261029-762/src/positioning.ts:126:31\n    at withGraphLayoutDecisionObserver (file:///tmp/pr449-main-integration-20261029-762/src/layout/backend.ts:20:16)\n    at file:///tmp/pr449-main-integration-20261029-762/src/positioning.ts:123:63\n    at withTextMeasurementExecution (file:///tmp/pr449-main-integration-20261029-762/src/text-measurement-profile.ts:164:16)\n    at position (file:///tmp/pr449-main-integration-20261029-762/src/positioning.ts:109:26)\n    at Module.withLayoutOptimizationBudget (file:///tmp/pr449-main-integration-20261029-762/src/layout/optimization-budget.ts:22:41)\n    at positionFamily (file:///tmp/pr449-main-integration-20261029-762/src/positioning.ts:185:40)\n    at positionFamilyForNativeRender (file:///tmp/pr449-main-integration-20261029-762/src/positioning.ts:53:20)\n    at file:///tmp/pr449-main-integration-20261029-762/src/graphical-render.ts:237:53\n    at measureRenderStage (file:///tmp/pr449-main-integration-20261029-762/src/render-stages.ts:20:26)\n    at renderResolvedMermaidSVG (file:///tmp/pr449-main-integration-20261029-762/src/graphical-render.ts:237:20)\n    at consumeResolvedGraphicalRequest (file:///tmp/pr449-main-integration-20261029-762/src/graphical-render.ts:260:22)\n    at executeInspectedGraphicalRequest (file:///tmp/pr449-main-integration-20261029-762/src/graphical-render.ts:250:12)\n    at file:///tmp/pr449-main-integration-20261029-762/src/graphical-render.ts:246:39\n    at withSvgInspectionCache (file:///tmp/pr449-main-integration-20261029-762/src/svg-inspection-cache.ts:19:16)\n    at executeGraphicalRequest (file:///tmp/pr449-main-integration-20261029-762/src/graphical-render.ts:246:12)\n    at Module.renderMermaidSVGWithReceipt (file:///tmp/pr449-main-integration-20261029-762/src/index.ts:132:12)\n    at file:///tmp/pr449-week-comparison-20261101/requirement-directions-62af/capture.mjs:41:14",
+      "code": "ER_ROUTE_WORK_LIMIT"
+    },
+    "sizes": null,
+    "decisions": null
+  },
+  {
+    "case": "raw-fan-circle",
+    "backend": "agentic",
+    "status": "returned",
+    "exit": 0,
+    "proof": "unverified",
+    "failure": null,
+    "sizes": {
+      "svgRawBytes": 5792,
+      "svgGzipBytes": 1290,
+      "svgBrotliBytes": 1087,
+      "entireReceiptRawBytes": 8086,
+      "wholeProductRawBytes": 14506
+    },
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ]
+  },
+  {
+    "case": "raw-fan-circle",
+    "backend": "elk",
+    "status": "returned",
+    "exit": 0,
+    "proof": "unverified",
+    "failure": null,
+    "sizes": {
+      "svgRawBytes": 5792,
+      "svgGzipBytes": 1290,
+      "svgBrotliBytes": 1087,
+      "entireReceiptRawBytes": 8069,
+      "wholeProductRawBytes": 14489
+    },
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ]
+  }
+]

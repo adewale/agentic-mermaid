@@ -1,0 +1,3 @@
+{"status":"returned","actualPublicCalls":1,"wallMs":244.9203980000002,"sizes":{"svgRawBytes":8047,"svgGzipBytes":1496,"svgBrotliBytes":1238,"entireReceiptRawBytes":7914,"wholeProductRawBytes":16713},"proofStatus":"passed"}
+(node:49218) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)

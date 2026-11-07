@@ -1,0 +1,16 @@
+Compared source: 433b523b86f9017960d8004f3c776d9d8d82dbce
+Workflow: https://github.com/adewale/agentic-mermaid/actions/runs/42380534166
+Conclusion: completed failure, not ready.
+Unit 1: Sparse32 emitted SVG proof-cap failure retained.
+Unit 3: two introduced standalone lifecycle failures, reproduced locally:
+document.getElementById("editor-worker-payload")?.remove is not a function
+The VM harness mocked textContent but omitted Element.remove(). This prevents
+worker creation in the harness after the production payload release succeeds.
+The repaired harness models removal; success, cancellation and failed decode
+check DOM retention/removal separately. Entire verified-preview owner:44P,0F.
+Quality: browser-lazy payload budget failures. Typecheck, lint and ugly-layout
+audit passed in that job; ugly audit:513 diagrams,2052 format audits,0 hard,
+0 soft,0 render errors. It is distinct from the paired backend population.
+Unit 2, browser/site, dist/CLI/MCP/semantic/package/Node22/platform lanes passed
+at the compared head. Other advisory/payload failures remain; no readiness claim.
+New push will require its own completed CI result.

@@ -1,0 +1,237 @@
+{
+  "scope": "Node24.19.0 Linux, one fresh process/case/arm, layout cache0, entire SVG and receipt consumed. Imports/compression excluded from wall, heap not captured. First-render observations; no sampled profiler or repeat/edit/cache1 inference.",
+  "rows": [
+    {
+      "case": "ER208-chain",
+      "backend": "agentic",
+      "status": "returned",
+      "firstRenderAfterImportWallMs": 804.4404460000001,
+      "processCpuMs": 2281.163,
+      "processPeakRssKiB": 320400,
+      "heap": "unmeasured",
+      "cacheMode": 0,
+      "proof": "passed",
+      "svg": {
+        "raw": 579579,
+        "gzip9": 39671,
+        "brotli11": 25193
+      },
+      "fullProduct": {
+        "raw": 648986,
+        "gzip9": 41685,
+        "brotli11": 26828
+      }
+    },
+    {
+      "case": "ER208-chain",
+      "backend": "elk",
+      "status": "returned",
+      "firstRenderAfterImportWallMs": 2199.6362179999996,
+      "processCpuMs": 6269.932,
+      "processPeakRssKiB": 554412,
+      "heap": "unmeasured",
+      "cacheMode": 0,
+      "proof": "passed",
+      "svg": {
+        "raw": 582524,
+        "gzip9": 39720,
+        "brotli11": 25326
+      },
+      "fullProduct": {
+        "raw": 651914,
+        "gzip9": 41770,
+        "brotli11": 26856
+      }
+    },
+    {
+      "case": "Sparse256-default-gap",
+      "backend": "agentic",
+      "status": "returned",
+      "firstRenderAfterImportWallMs": 454.45160699999997,
+      "processCpuMs": 792.073,
+      "processPeakRssKiB": 258856,
+      "heap": "unmeasured",
+      "cacheMode": 0,
+      "proof": "passed",
+      "svg": {
+        "raw": 265157,
+        "gzip9": 13306,
+        "brotli11": 6638
+      },
+      "fullProduct": {
+        "raw": 301839,
+        "gzip9": 14902,
+        "brotli11": 7712
+      }
+    },
+    {
+      "case": "Sparse256-default-gap",
+      "backend": "elk",
+      "status": "returned",
+      "firstRenderAfterImportWallMs": 927.8363810000001,
+      "processCpuMs": 1704.171,
+      "processPeakRssKiB": 327152,
+      "heap": "unmeasured",
+      "cacheMode": 0,
+      "proof": "passed",
+      "svg": {
+        "raw": 260973,
+        "gzip9": 12747,
+        "brotli11": 6836
+      },
+      "fullProduct": {
+        "raw": 297636,
+        "gzip9": 14477,
+        "brotli11": 7744
+      }
+    },
+    {
+      "case": "er256-chain",
+      "backend": "agentic",
+      "status": "refused",
+      "firstRenderAfterImportWallMs": 246.8953019999999,
+      "processCpuMs": 401.714,
+      "processPeakRssKiB": 262304,
+      "heap": "unmeasured",
+      "cacheMode": 0,
+      "proof": "not-delivered"
+    },
+    {
+      "case": "er256-chain",
+      "backend": "elk",
+      "status": "refused",
+      "firstRenderAfterImportWallMs": 1026.7450820000004,
+      "processCpuMs": 1840.835,
+      "processPeakRssKiB": 304692,
+      "heap": "unmeasured",
+      "cacheMode": 0,
+      "proof": "not-delivered"
+    },
+    {
+      "case": "nonlinear-forest",
+      "backend": "agentic",
+      "status": "returned",
+      "firstRenderAfterImportWallMs": 244.9203980000002,
+      "processCpuMs": 300.197,
+      "processPeakRssKiB": 197920,
+      "heap": "unmeasured",
+      "cacheMode": 0,
+      "proof": "passed",
+      "svg": {
+        "raw": 8047,
+        "gzip9": 1483,
+        "brotli11": 1238
+      },
+      "fullProduct": {
+        "raw": 16713,
+        "gzip9": 2685,
+        "brotli11": 2271
+      }
+    },
+    {
+      "case": "nonlinear-forest",
+      "backend": "elk",
+      "status": "returned",
+      "firstRenderAfterImportWallMs": 494.38144799999964,
+      "processCpuMs": 642.709,
+      "processPeakRssKiB": 214768,
+      "heap": "unmeasured",
+      "cacheMode": 0,
+      "proof": "passed",
+      "svg": {
+        "raw": 8069,
+        "gzip9": 1482,
+        "brotli11": 1229
+      },
+      "fullProduct": {
+        "raw": 16716,
+        "gzip9": 2681,
+        "brotli11": 2269
+      }
+    },
+    {
+      "case": "raw-fan-circle",
+      "backend": "agentic",
+      "status": "returned",
+      "firstRenderAfterImportWallMs": 208.47714399999995,
+      "processCpuMs": 244.106,
+      "processPeakRssKiB": 198572,
+      "heap": "unmeasured",
+      "cacheMode": 0,
+      "proof": "unverified",
+      "svg": {
+        "raw": 5792,
+        "gzip9": 1285,
+        "brotli11": 1087
+      },
+      "fullProduct": {
+        "raw": 14506,
+        "gzip9": 2547,
+        "brotli11": 2203
+      }
+    },
+    {
+      "case": "raw-fan-circle",
+      "backend": "elk",
+      "status": "returned",
+      "firstRenderAfterImportWallMs": 440.1889550000001,
+      "processCpuMs": 525.135,
+      "processPeakRssKiB": 213644,
+      "heap": "unmeasured",
+      "cacheMode": 0,
+      "proof": "unverified",
+      "svg": {
+        "raw": 5792,
+        "gzip9": 1285,
+        "brotli11": 1087
+      },
+      "fullProduct": {
+        "raw": 14489,
+        "gzip9": 2546,
+        "brotli11": 2200
+      }
+    },
+    {
+      "case": "requirement-cycle-TB",
+      "backend": "agentic",
+      "status": "returned",
+      "firstRenderAfterImportWallMs": 183.69118600000002,
+      "processCpuMs": 238.597,
+      "processPeakRssKiB": 203592,
+      "heap": "unmeasured",
+      "cacheMode": 0,
+      "proof": "passed",
+      "svg": {
+        "raw": 9912,
+        "gzip9": 1993,
+        "brotli11": 1641
+      },
+      "fullProduct": {
+        "raw": 18735,
+        "gzip9": 3177,
+        "brotli11": 2693
+      }
+    },
+    {
+      "case": "requirement-cycle-TB",
+      "backend": "elk",
+      "status": "returned",
+      "firstRenderAfterImportWallMs": 289.4900869999997,
+      "processCpuMs": 389.736,
+      "processPeakRssKiB": 215432,
+      "heap": "unmeasured",
+      "cacheMode": 0,
+      "proof": "passed",
+      "svg": {
+        "raw": 10068,
+        "gzip9": 2018,
+        "brotli11": 1693
+      },
+      "fullProduct": {
+        "raw": 18875,
+        "gzip9": 3210,
+        "brotli11": 2748
+      }
+    }
+  ]
+}

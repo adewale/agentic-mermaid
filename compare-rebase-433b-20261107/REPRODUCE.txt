@@ -1,0 +1,7 @@
+Original comparison revision:433b523b86f9017960d8004f3c776d9d8d82dbce
+python3 paired-current.py
+From the source checkout, with evidence directory as $EVIDENCE_DIR:
+bun eval/layout-compare/run.ts report --before "$EVIDENCE_DIR/elk.json" --after "$EVIDENCE_DIR/agentic.json" --out "$EVIDENCE_DIR/native-vs-elk.html" --comparison backend
+The HTML is80MiB; regenerate rather than retaining another full copy.
+Current-calls.py requires the existing week evidence jobs and requirement-directions-62af/capture.mjs. Each fresh-products literal job is retained and can be passed directly to that collector; the job out field is historical and the CLI output-directory argument owns output.
+Bun1.4.4: bun test src/__tests__/verified-preview.test.ts

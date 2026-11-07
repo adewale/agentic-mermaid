@@ -1,0 +1,19 @@
+{
+  "caseId": "Sparse256-default-gap",
+  "revision": "433b523b86f9017960d8004f3c776d9d8d82dbce",
+  "root": "/tmp/pr449-main-integration-20261029-762",
+  "expectedHead": "433b523b86f9017960d8004f3c776d9d8d82dbce",
+  "arm": "agentic",
+  "source": "erDiagram\nN0 ||--|| N1 : owns\nN0\nN1\nN2\nN3\nN4\nN5\nN6\nN7\nN8\nN9\nN10\nN11\nN12\nN13\nN14\nN15\nN16\nN17\nN18\nN19\nN20\nN21\nN22\nN23\nN24\nN25\nN26\nN27\nN28\nN29\nN30\nN31\nN32\nN33\nN34\nN35\nN36\nN37\nN38\nN39\nN40\nN41\nN42\nN43\nN44\nN45\nN46\nN47\nN48\nN49\nN50\nN51\nN52\nN53\nN54\nN55\nN56\nN57\nN58\nN59\nN60\nN61\nN62\nN63\nN64\nN65\nN66\nN67\nN68\nN69\nN70\nN71\nN72\nN73\nN74\nN75\nN76\nN77\nN78\nN79\nN80\nN81\nN82\nN83\nN84\nN85\nN86\nN87\nN88\nN89\nN90\nN91\nN92\nN93\nN94\nN95\nN96\nN97\nN98\nN99\nN100\nN101\nN102\nN103\nN104\nN105\nN106\nN107\nN108\nN109\nN110\nN111\nN112\nN113\nN114\nN115\nN116\nN117\nN118\nN119\nN120\nN121\nN122\nN123\nN124\nN125\nN126\nN127\nN128\nN129\nN130\nN131\nN132\nN133\nN134\nN135\nN136\nN137\nN138\nN139\nN140\nN141\nN142\nN143\nN144\nN145\nN146\nN147\nN148\nN149\nN150\nN151\nN152\nN153\nN154\nN155\nN156\nN157\nN158\nN159\nN160\nN161\nN162\nN163\nN164\nN165\nN166\nN167\nN168\nN169\nN170\nN171\nN172\nN173\nN174\nN175\nN176\nN177\nN178\nN179\nN180\nN181\nN182\nN183\nN184\nN185\nN186\nN187\nN188\nN189\nN190\nN191\nN192\nN193\nN194\nN195\nN196\nN197\nN198\nN199\nN200\nN201\nN202\nN203\nN204\nN205\nN206\nN207\nN208\nN209\nN210\nN211\nN212\nN213\nN214\nN215\nN216\nN217\nN218\nN219\nN220\nN221\nN222\nN223\nN224\nN225\nN226\nN227\nN228\nN229\nN230\nN231\nN232\nN233\nN234\nN235\nN236\nN237\nN238\nN239\nN240\nN241\nN242\nN243\nN244\nN245\nN246\nN247\nN248\nN249\nN250\nN251\nN252\nN253\nN254\nN255",
+  "options": {
+    "embedFontImport": false,
+    "graphLayout": {
+      "backend": "agentic",
+      "fallback": "none"
+    }
+  },
+  "out": "/tmp/pr449-week-comparison-20261101/current-execution-c9/affected-public-products/Sparse256-default-gap/agentic",
+  "bindingReference": null,
+  "priorReference": "/tmp/pr449-week-comparison-20261101/main-integration-39a-970/products/Sparse256-default-gap/pr/agentic",
+  "backend": "agentic"
+}

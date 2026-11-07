@@ -1,0 +1,3 @@
+Compared source433b523b86f9017960d8004f3c776d9d8d82dbce; fetched main9fb35b8bf8dc654a19612de3cc6a50144d68b0a7; successful merge-preserving rebase leaves source unchanged.
+Final ce15c91b929ccfdfe338e79df8b6a97aaee2e8fa changes test harness and brief log only; runtime source identical. Core types/lint pass. Worker owner44P/0F/296assertions.
+Existing public collector: requirement-directions-62af/capture.mjs, Node24.19.0, whole SVG and receipt consumed.
