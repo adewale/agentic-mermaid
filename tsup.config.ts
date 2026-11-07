@@ -57,8 +57,12 @@ export default defineConfig({
     }
   },
   esbuildPlugins: [{
-    name: 'conditional-elk-constructor',
+    name: 'conditional-runtime-providers',
     setup(build) {
+      // Reuse the pure kernels for synchronous non-Node consumers too.
+      // Their bundler resolves CJS; installed Node still defers its require.
+      build.onResolve({ filter: /\/inter-metrics-kernel\.ts$/ }, () => ({ path: './inter-metrics-kernel.cjs', external: true }))
+      build.onResolve({ filter: /\/optimization-runtime\.ts$/ }, () => ({ path: './layout-optimization.cjs', external: true }))
       build.onResolve({ filter: /\/optional-kernels\.node\.js$/ }, () => ({ path: '#optional-kernels', external: true }))
       build.onResolve({ filter: /\/builtin-font-metrics\.ts$/ }, args =>
         args.kind === 'entry-point' ? undefined : { path: '#builtin-font-metrics', external: true })

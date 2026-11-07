@@ -778,7 +778,7 @@ describe('async family-loaded browser renderer', () => {
         const api = await import(entry)
         await api.renderMermaidSVGWithReceiptAsync('flowchart TD\nA --> B', { security: 'strict' })
       }, `${base}/dist/browser-lazy/index.js`)
-      const positions = lazyImplementationChunk('src/shared/parser-source-kernel.ts')
+      const positions = lazyImplementationChunk('src/shared/parser-source.ts')
       expect(requests.filter(path => path === positions)).toHaveLength(0)
       const actual = await page.evaluate(async ({ entry, source }) => {
         const api = await import(entry)

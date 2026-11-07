@@ -102,9 +102,10 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
   // Admitted cleanup provenance is derived entirely from originalText. Keep
   // every authoritative field; explicit source overrides retain the full key.
   const cacheSource = cacheEnabled && source === request.source ? { ...source, cleanup: undefined } : source
-  const cacheKey = cacheEnabled ? JSON.stringify([cacheSource, request.renderOptions, request.appearance, request.familyConfig, projectionOptions, familyId === 'class' ? resolved.paintBackendId ?? 'backend:default' : undefined,
-    Object.entries(environment ?? {}).filter(([key]) => key.startsWith('APL_')).sort(), PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled),
-    ...(metricsIdentity === undefined ? [] : [metricsIdentity])]) : undefined
+  const cacheParts = cacheEnabled ? [cacheSource, request.renderOptions, request.appearance, request.familyConfig, projectionOptions, familyId === 'class' ? resolved.paintBackendId ?? 'backend:default' : undefined,
+    Object.entries(environment ?? {}).filter(([key]) => key.startsWith('APL_')).sort(), PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled)] : undefined
+  if (metricsIdentity !== undefined) cacheParts?.push(metricsIdentity)
+  const cacheKey = cacheParts === undefined ? undefined : JSON.stringify(cacheParts)
   const boundedKey = cacheKey !== undefined && cacheKey.length <= 65536 ? cacheKey : undefined
   if (boundedKey === undefined) observeCache('positioned-layout', 'bypass',
     !performanceExperimentEnabled('position-cache') ? 'disabled' : !certifyFinal ? 'external-family'

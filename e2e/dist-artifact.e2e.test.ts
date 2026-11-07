@@ -47,7 +47,7 @@ describe('built artifact bundler and deferred dependency contracts', () => {
     expect(existsSync(outfile)).toBe(true)
     // A browser bundler resolves `#elk-constructor` to the bundled ELK, so an
     // ELK family lays out synchronously with no Node module loader.
-    const rendered = spawnSync('bun', ['--eval', `const { renderMermaidSVG } = await import(${JSON.stringify(outfile)}); console.log(renderMermaidSVG('flowchart TD\\n  A -->|needs ELK| B').startsWith('<svg'))`], { cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
+    const rendered = spawnSync('bun', ['--eval', `const { renderMermaidSVG } = await import(${JSON.stringify(outfile)}); console.log(renderMermaidSVG('flowchart TD\\n  A -->|needs ELK| B', { fontMetrics: 'bundled-inter', graphLayout: { backend: 'elk', quality: 'balanced' } }).startsWith('<svg'))`], { cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
     expect({ status: rendered.status, stdout: rendered.stdout.trim(), stderr: rendered.stderr }).toEqual({ status: 0, stdout: 'true', stderr: '' })
   }, BUILD_TIMEOUT_MS + RUN_TIMEOUT_MS)
 
