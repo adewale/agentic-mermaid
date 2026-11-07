@@ -981,12 +981,12 @@ test.each([
   const authored = different ? source.replace('component A [60.0, 40.0]', 'component "A" [60.0, 40.0]') : source
   const original = wrapper + authored
   const reads: string[] = []
-  const map = mapObservedSource(source, withContext ? { originalText: original, wrapperSource: wrapper } : undefined, (text, record) => {
+  const map = mapObservedSource(source, withContext ? { originalText: original, wrapperSource: wrapper } : undefined, (text, range) => {
     reads.push(text)
     let link = 0
     withParserObservation('wardley', event => {
       if (event.unit !== 'mutation' || event.source?.offset === undefined || event.source.endOffset === undefined) return
-      const add = (kind: 'nodes' | 'edges' | 'groups' | 'labels', id: string) => record(kind, id, event.source!.offset!, event.source!.endOffset!)
+      const add = range(event.source.offset, event.source.endOffset)
       if (event.kind === 'add-node') {
         const { id } = event.value as { id: string }
         add('nodes', id); add('labels', `node:${id}`)
@@ -1014,11 +1014,18 @@ test.each([
   ])
   const point = spans.nodes.get('A')!
   expect(point.start).toEqual({ offset: original.indexOf(different ? 'component "A"' : 'component A [60'), line: wrapper ? 7 : 4, col: 1 })
-  expect(Object.isFrozen(point)).toBe(true)
-  expect(Object.isFrozen(point.start)).toBe(true)
-  expect(Object.isFrozen(point.end)).toBe(true)
+  for (const span of [point, spans.labels.get('node:A')!]) {
+    expect(Object.isFrozen(span)).toBe(true)
+    expect(Object.isFrozen(span.start)).toBe(true)
+    expect(Object.isFrozen(span.end)).toBe(true)
+    expect(Reflect.set(span.start, 'col', 77)).toBe(false)
+  }
   canonicalLocation.col = 99
   expect(point.start.col).toBe(1)
+  expect(map.labels.get('node:A')!.col).toBe(1)
+  map.labels.get('node:A')!.line = 77
+  expect(canonicalLocation.line).toBe(4)
+  expect(spans.labels.get('node:A')!.start.col).toBe(1)
 })
 
 test('observed source readers preserve native refusals in either coordinate input', () => {

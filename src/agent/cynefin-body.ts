@@ -88,12 +88,12 @@ export const CYNEFIN_SOURCE_HOOKS: FamilyOperations = {
       return ok(body)
     } catch { return ok({ kind: 'opaque', family: 'cynefin', source: ctx.opaqueSource }) }
   },
-  buildSourceMap: (body, source, context) => mapObservedSource(source, context, (text, record) => {
+  buildSourceMap: (body, source, context) => mapObservedSource(source, context, (text, range) => {
     if (body.kind !== 'cynefin') return
     let transition = 0
     withParserObservation('cynefin', event => {
       if (event.unit !== 'mutation' || event.source?.offset === undefined || event.source.endOffset === undefined) return
-      const add = (kind: 'nodes' | 'edges' | 'groups' | 'labels', id: string) => record(kind, id, event.source!.offset!, event.source!.endOffset!)
+      const add = range(event.source.offset, event.source.endOffset)
       if (event.kind === 'add-item') {
         const value = event.value as unknown as { domain: DomainName; index: number }
         const id = `${value.domain}:${value.index}`

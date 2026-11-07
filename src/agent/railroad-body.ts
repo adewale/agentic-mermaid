@@ -61,22 +61,22 @@ export const RAILROAD_SOURCE_HOOKS = {
     return result
   },
   serialize: body => { if (body.kind !== 'railroad') throw new Error(`Railroad serializer received ${body.kind}`); return renderRailroad(body) },
-  buildSourceMap: (body, source, context) => mapObservedSource(source, context, (text, record) => {
+  buildSourceMap: (body, source, context) => mapObservedSource(source, context, (text, range) => {
     if (body.kind !== 'railroad') return
     withParserObservation('railroad', event => {
       if (event.unit !== 'mutation' || event.kind !== 'add-rule' || event.source?.offset === undefined || event.source.endOffset === undefined) return
       const value = event.value as unknown as { index: number; rule: RailroadBody['rules'][number] }
-      const id = railroadRuleId(value.index, value.rule.name), start = event.source.offset, end = event.source.endOffset
+      const id = railroadRuleId(value.index, value.rule.name), record = range(event.source.offset, event.source.endOffset)
       // Every rendered expression belongs to this actual authored production.
       // Repeated names remain distinct and multiline productions retain their
       // full source owner, rather than guessing at tokens in their spelling.
-      record('groups', id, start, end); record('labels', `group:${id}`, start, end)
+      record('groups', id); record('labels', `group:${id}`)
       walkRailroadOwners(value.rule.definition, `${id}/expression`, (node, owner) => {
         if (node.type === 'terminal' || node.type === 'nonterminal' || node.type === 'special' || node.type === 'any') {
-          record('nodes', owner, start, end); record('labels', `node:${owner}`, start, end)
+          record('nodes', owner); record('labels', `node:${owner}`)
         }
-        if (node.type === 'choice' && node.ordered) record('labels', `${owner}/order`, start, end)
-        if (node.type === 'repetition') record('labels', `${owner}/count`, start, end)
+        if (node.type === 'choice' && node.ordered) record('labels', `${owner}/order`)
+        if (node.type === 'repetition') record('labels', `${owner}/count`)
       })
     }, () => parseRailroad(text), { mutations: ['add-rule'] })
   }),

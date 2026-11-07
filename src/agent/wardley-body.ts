@@ -161,13 +161,13 @@ export const WARDLEY_SOURCE_HOOKS: FamilyOperations = {
       return ok(body)
     } catch { return ok({ kind: 'opaque', family: 'wardley', source: ctx.opaqueSource }) }
   },
-  buildSourceMap: (body, source, context) => mapObservedSource(source, context, (text, record) => {
+  buildSourceMap: (body, source, context) => mapObservedSource(source, context, (text, range) => {
     if (body.kind !== 'wardley') return
     let link = 0, note = 0, annotation = 0, accelerator = 0, deaccelerator = 0
     const trends = new Map(body.trends.map((trend, index) => [trend.nodeId, index]))
     withParserObservation('wardley', event => {
       if (event.unit !== 'mutation' || event.source?.offset === undefined || event.source.endOffset === undefined) return
-      const add = (kind: 'nodes' | 'edges' | 'groups' | 'labels', id: string) => record(kind, id, event.source!.offset!, event.source!.endOffset!)
+      const add = range(event.source.offset, event.source.endOffset)
       switch (event.kind) {
         case 'add-node': {
           const node = event.value as unknown as WardleyBody['nodes'][number]

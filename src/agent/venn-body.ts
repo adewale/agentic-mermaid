@@ -164,7 +164,7 @@ export const VENN_SOURCE_HOOKS: FamilyOperations = {
     const identities = vennRegionIdentities(body)
     // Venn owns accessibility grammar: universal space masking would change
     // a suffix's TEXT/INDENT_TEXT token. Its preserved source policy owns bytes.
-    return mapObservedSource(context?.canonicalSource ?? source, context, (text, record) => withParserObservation('venn', event => {
+    return mapObservedSource(context?.canonicalSource ?? source, context, (text, range) => withParserObservation('venn', event => {
       if (event.unit !== 'mutation' || event.source?.offset === undefined || event.source.endOffset === undefined) return
       let id: string
       if (event.kind === 'add-subset') {
@@ -174,8 +174,9 @@ export const VENN_SOURCE_HOOKS: FamilyOperations = {
         const node = event.value as unknown as VennBody['textNodes'][number]
         id = readGrammarText(node.id, '[]\r\n')
       } else return
-      record('nodes', id, event.source.offset, event.source.endOffset)
-      record('labels', `node:${id}`, event.source.offset, event.source.endOffset)
+      const record = range(event.source.offset, event.source.endOffset)
+      record('nodes', id)
+      record('labels', `node:${id}`)
     }, () => parseVennDiagram(text), { mutations: ['add-subset', 'add-text'] }))
   },
 }
