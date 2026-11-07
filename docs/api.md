@@ -58,8 +58,9 @@ declaration Maps, relationships, JSON nodes and source statements; AgentFlow
 returns its graph, metadata and source mappings, including complete container
 ranges. UseCase spans index the returned `source`; AgentFlow mappings address
 the family payload after frontmatter and init removal. Neither helper uses the
-editor's opaque fallback. AgentFlow preserves its native parser errors;
-UseCase reports located `MermaidSyntaxError` failures against the original input.
+editor's opaque fallback. Both use `MermaidSyntaxError` for authored-input
+refusals; UseCase maps known error positions against the original input.
+AgentFlow does not yet supply authored positions on all syntax failures.
 
 These models are inspection data. Continue using `parseRegisteredMermaid` and
 `as*` helpers for mutation and serialization. Class, ER and Sequence syntax failures use

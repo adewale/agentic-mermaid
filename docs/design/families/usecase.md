@@ -17,6 +17,13 @@ operation schema. A parsed feature is not necessarily a dedicated mutation
 operation; inspect that schema before editing it. Source outside the native
 grammar remains opaque rather than being rewritten as a partial model.
 
+For strict grammar inspection, `parseUsecaseModel` exposes the actual native
+model and statement occurrences; see the [typed parser API](../../api.md#typed-parsers)
+for source-coordinate units. Editable parsing computes its source map from that
+same grammar result. Body nodes follow their first authored occurrence while
+using the final resolved declaration, including references before declarations.
+The serializer's independent portability check remains in place.
+
 ## Placement and limitations
 
 Actors retain their person silhouette and use cases their ellipses, with labels
