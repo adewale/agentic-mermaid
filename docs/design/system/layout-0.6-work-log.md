@@ -53,6 +53,27 @@ replace neither the dated profiler nor its missing runtime/cold/cache evidence.
 Next causal probe: whether standalone worker precompression accounts for the
 Brotli loss, preserving decoded worker bytes, ownership and browser contracts.
 
+## Enlarged-card shortcut cause — 7 November
+
+At `0ff57be43892519224ebff3c3f72169cf12f01b9`, isolate withdrawn4db9's
+SHA37 producer without changing source. Both traced finalSVGs bind exactly to
+their saved6edd/4db9 CI products. Selected compact arm has5.125px painted
+clearance at raw routing and marker finalization; measured shortening changes
+it to−0.625px, shared cleanup preserves it. Flowchart's stroke-aware finalizer
+is inactive on this measured input; wholesale activation changes other contracts.
+
+Test a distinct relative-clearance veto: preserve each incoming route's minimum
+logical-body gap from existing geometry, charging the same8M ledger; no new
+paint metadata/cache. It repairs152's named contact/proofU→P but costs wire+0.087%
+and bends70→80. Native17 changesP→U with three actual arrowfill intersections
+0.120125px² each, despite wire−29.06%/area−7.37%; tips remain distinct, raster/
+readability unknown. Stop this isolated probe too. Logical-gap monotonicity alone
+does not preserve head capacity under candidate selection. All14 fully consumed
+calls, selected-arm traces, positive/adverse outcomes and failed drafts retained
+in `sha37-stage-0ff57`; no runtime/test changes, new build or speed ratio.
+Next intervention must preserve actual face seating and foreign-route clearance
+together; do not retry an absolute or relative clearance veto alone.
+
 ## Ordinary marker capacity trial stopped — 7 November
 
 Trial `4db9d6db226c5957c1b003b5ad58b56af4b55480` locates actual201/241 head
