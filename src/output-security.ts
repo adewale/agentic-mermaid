@@ -47,7 +47,6 @@ const ATTRIBUTE = /\s([^\s=<>]+)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/g
 const SECURITY_ELEMENT_TAG = /<(?:([^\s<>/:]+):)?(script|foreignObject|image|object|embed|iframe|animate(?:Motion|Transform)?|set)\b/gi
 const SECURITY_ELEMENT_NAME = /^(script|foreignObject|image|object|embed|iframe|animate(?:Motion|Transform)?|set)\b/i
 const SECURITY_ELEMENT_NAMES = ['script', 'foreignObject', 'image', 'object', 'embed', 'iframe'] as const
-const INLINE_EVENT_ATTRIBUTE = /^on[a-z]/
 const CSS_SECURITY_DELIMITERS = /[(:@\\&]/
 const ACTIVE_REFERENCE_SCHEME = /^(?:javascript|vbscript|data|file):/
 const ACTIVE_CSS_SCHEME = /(?:javascript|vbscript|data|file)\s*:/i
@@ -421,11 +420,6 @@ function unsafeActiveCssScan(scan: string): boolean {
   return false
 }
 
-const CSS_VALUE_ATTRIBUTES = new Set([
-  'clip-path', 'cursor', 'fill', 'filter', 'marker-end', 'marker-mid',
-  'marker-start', 'mask', 'stroke', 'style',
-])
-
 /** Raw Mermaid themeCSS is compatibility input, not a safe extensibility API. */
 export function validateRawThemeCss(value: unknown, mode: OutputSecurityMode): string | undefined {
   if (value === undefined || value === '') return undefined
@@ -443,30 +437,35 @@ function securityFindings(svg: string): SecurityFindings {
 }
 
 function inspectAttributeSecurity(qualified: string, value: string, refs: string[], active: string[]): void {
-  const name = qualified.slice(qualified.lastIndexOf(':') + 1).toLowerCase()
-  if (INLINE_EVENT_ATTRIBUTE.test(name)) { refs.push('inline-event-handler'); active.push('inline-event-handler') }
-  // A fragment is same-document only in the absence of XML Base. With an
-  // external xml:base, href="#mark" and url(#mark) resolve against that
-  // external document and can fetch after DOM insertion. Reject the base
-  // semantic itself so every local-reference check below remains sound.
-  if (qualified.toLowerCase() === 'xml:base') refs.push(`xml:base=${value}`)
-  if (name === 'href' || name === 'src' || name === 'data') {
-    const normalized = normalizedReference(value)
-    // Only same-document fragments are inert after import into a host SVG.
-    if (normalized !== '' && !normalized.startsWith('#')) refs.push(normalized.startsWith('javascript:') ? 'javascript-url' : value)
-    if (ACTIVE_REFERENCE_SCHEME.test(normalized)) active.push(`${qualified}=${value}`)
+  const lower = qualified.toLowerCase()
+  const colon = lower.lastIndexOf(':')
+  const name = colon < 0 ? lower : lower.slice(colon + 1)
+  if (name.startsWith('on') && name.length > 2 && name.charCodeAt(2) >= 97 && name.charCodeAt(2) <= 122) {
+    refs.push('inline-event-handler'); active.push('inline-event-handler')
   }
-  if (CSS_VALUE_ATTRIBUTES.has(name) || name === 'values' || name === 'from' || name === 'to') {
-    // Without a function, scheme, at-rule, escape or entity delimiter, CSS
-    // normalization cannot introduce any of the active/fetching forms below.
-    // Escaped and encoded inputs retain full reference/active classification.
-    if (!CSS_SECURITY_DELIMITERS.test(value)) return
-    const scan = normalizeCssObfuscation(decodeXmlReferences(value))
-    if (unsafeCssReferences(scan).length > 0
-      || ACTIVE_CSS_SCHEME.test(scan)
-      || ACTIVE_CSS_FUNCTION.test(scan)) refs.push(`${qualified}=${value}`)
-    if (unsafeActiveCssScan(scan)) active.push(`${qualified}=${value}`)
+  // XML Base changes even fragment references into external fetches.
+  if (lower === 'xml:base') refs.push(`xml:base=${value}`)
+  switch (name) {
+    case 'href': case 'src': case 'data': {
+      const normalized = normalizedReference(value)
+      if (normalized !== '' && !normalized.startsWith('#')) refs.push(normalized.startsWith('javascript:') ? 'javascript-url' : value)
+      if (ACTIVE_REFERENCE_SCHEME.test(normalized)) active.push(`${qualified}=${value}`)
+      return
+    }
+    case 'clip-path': case 'cursor': case 'fill': case 'filter':
+    case 'marker-end': case 'marker-mid': case 'marker-start': case 'mask':
+    case 'stroke': case 'style': case 'values': case 'from': case 'to':
+      break
+    default: return
   }
+  // Ordinary scalar paint needs no CSS normalization. Encoded/escaped values
+  // retain the same complete reference and active-content inspection.
+  if (!CSS_SECURITY_DELIMITERS.test(value)) return
+  const scan = normalizeCssObfuscation(decodeXmlReferences(value))
+  if (unsafeCssReferences(scan).length > 0
+    || ACTIVE_CSS_SCHEME.test(scan)
+    || ACTIVE_CSS_FUNCTION.test(scan)) refs.push(`${qualified}=${value}`)
+  if (unsafeActiveCssScan(scan)) active.push(`${qualified}=${value}`)
 }
 
 function inspectSecurity(svg: string): SecurityFindings {

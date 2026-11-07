@@ -33,11 +33,11 @@ export function createNativePaintEmission(maxOperations: number) {
     return true
   }
   const failed = Symbol('unsupported-emission')
-  const copy = (value: unknown, depth = 0, parents = new Set<object>()): unknown => {
+  const copy = (value: unknown, depth = 0, parents: object[] = []): unknown => {
     if (depth > 64) throw failed
     if (value === null || value === undefined || typeof value === 'boolean') return value
     if (typeof value === 'number' || typeof value === 'string') return value
-    if (typeof value !== 'object' || !pay() || parents.has(value)) throw failed
+    if (typeof value !== 'object' || !pay() || parents.includes(value)) throw failed
     if (isImmutablePixelTextPart(value)) return value
     const prototype = Object.getPrototypeOf(value)
     if (prototype !== Object.prototype && prototype !== null && prototype !== Array.prototype) throw failed
@@ -71,7 +71,7 @@ export function createNativePaintEmission(maxOperations: number) {
         }
       }
     }
-    parents.add(value)
+    parents.push(value)
     const result: Record<string, unknown> | unknown[] = Array.isArray(value) ? [] : {}
     let arrayLength: PropertyDescriptor | undefined
     for (let index = 0; index < keys.length; index++) {
@@ -89,7 +89,12 @@ export function createNativePaintEmission(maxOperations: number) {
       // Deferred terminal geometry is neither read nor used by paint writing.
       if (key === 'terminalProjection' && deferredProjection) continue
       if (!('value' in descriptor)) throw failed
-      Object.defineProperty(result, key, { value: copy(descriptor.value, depth + 1, parents), enumerable: descriptor.enumerable, configurable: false, writable: false })
+      const captured = copy(descriptor.value, depth + 1, parents)
+      // Own data keys cannot invoke inherited setters. Keep descriptor writes
+      // for arrays, hidden fields and names installed on Object.prototype.
+      if (!Array.isArray(result) && descriptor.enumerable && !Object.hasOwn(Object.prototype, key)) {
+        (result as Record<string, unknown>)[key] = captured
+      } else Object.defineProperty(result, key, { value: captured, enumerable: descriptor.enumerable, configurable: true, writable: true })
     }
     if (Array.isArray(value)) {
       if (!arrayLength || !('value' in arrayLength)) throw failed
@@ -101,8 +106,8 @@ export function createNativePaintEmission(maxOperations: number) {
       Object.defineProperty(result, 'terminalProjection', { ...descriptor, configurable: false })
     }
     transferRetainedPixelText(value, result)
-    parents.delete(value)
-    return Object.preventExtensions(result)
+    parents.pop()
+    return Object.freeze(result)
   }
   const snapshot = <T>(value: T): T | undefined => {
     try { return copy(value) as T } catch { return undefined }
