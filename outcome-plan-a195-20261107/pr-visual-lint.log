@@ -1,0 +1,10 @@
+Visual Evidence Lint (generated)
+==============================
+✓  visual-section: Dedicated visual-evidence section found.
+✓  visual-assets: Found 2 embedded visual asset(s).
+✓  alt-text: Every embedded asset has alt or link text.
+✓  immutable-urls: Repository-hosted URLs use full commit SHAs.
+✓  baseline-provenance: A labelled baseline SHA is present and matches the supplied merge-base.
+✓  current-provenance: A labelled current SHA is present and matches the supplied HEAD.
+
+Result: PASS (0 error(s), 0 warning(s))

@@ -1,0 +1,160 @@
+{
+  "commit": "bd731d1d8d72448d9e008cf97bacaa993b42cd22",
+  "parent": "9ba35c25f245a3264537b1f58d298e37ce43e5cf",
+  "source": "00938cc04693fe5da7a02a5d226406c3c2848251",
+  "files": [
+    {
+      "path": "outcome-plan-a195-20261107/README.md",
+      "bytes": 5669,
+      "sha256": "93cf0d43b0dfc25e38cd8f3753af9ad4c48eeb5e8e25180700588a65724fa73f",
+      "gitBlob": "b75b6071cfdbd8878f69f245c473aa6bb56639b7"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/FINAL-RESULTS.json",
+      "bytes": 6380,
+      "sha256": "ab99ed16652b4da34634c991cba03f00a32f1e0cf5bf8b00df0275ad940b80e8",
+      "gitBlob": "a471e8621305ca1133b5d356db861ab540b31d56"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/DIRECTION-OUTCOMES.json",
+      "bytes": 3775,
+      "sha256": "77da8b027d81ffbec84cf247f55c3dbc971e28930bb51cd0ef70f2bf5c01eca8",
+      "gitBlob": "2adf9f9f0251e8a913c5cef3647e3d04f9207b46"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/CORPUS-SUMMARY.json",
+      "bytes": 245,
+      "sha256": "b5497449b03af3f1bdfb66e494192b305a40dbcb2d90f1a8566e90c8496982fa",
+      "gitBlob": "9e405d40909b891bb7e90f451838d7cc0770af4f"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/HTML-AFTER.json",
+      "bytes": 548,
+      "sha256": "0598427045465a75a7416de99054588eaf73a490f57fa36392715ddd81e0a687",
+      "gitBlob": "afdb78332a20a07c5f0971a99079d5d232c2d7c8"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/ADMITTED-COST-OBSERVATIONS.json",
+      "bytes": 1152,
+      "sha256": "ee9ac71f09134fe7ff22343d148cbd0489fec69b14feea02a97b84d2be490cf6",
+      "gitBlob": "be24ffd059a1eda8e8746b5c3feedea8ad24b500"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/VISUALS.json",
+      "bytes": 3623,
+      "sha256": "4a451b54954b3ac4bb42fbaf2ea73c4ee13145819c0f6cfef97a99ca2f2acdfc",
+      "gitBlob": "099ef347bb6b782c71d95f1f62e9a7657b70cd9c"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/ARCHIVE.json",
+      "bytes": 285,
+      "sha256": "f1e7e000361a4efa85eadb43ff0daf2ca11244ccdf4edf9d7026a571c1ea1146",
+      "gitBlob": "acdf0565c6918db4be24cb9f78baefcffcdd79ab"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/ARCHIVE-MEMBERS.json",
+      "bytes": 51311,
+      "sha256": "0ff90ab9d643ad7e5dbafbf2922a2001cc399b2bf8b221a1bfefd1205ecf5cbd",
+      "gitBlob": "f3b29a1bd450381ff8a964b3c5edfa378cfd9802"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/independent-review.md",
+      "bytes": 4304,
+      "sha256": "2b38eca8ae216d74ff1ebe64cc01873621b3f829dfd338f926c333bb8fbac7ea",
+      "gitBlob": "e965c9f11a1a362a9585a2b77ba042a3d52f8b3a"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/chain-red.log",
+      "bytes": 5661,
+      "sha256": "0024a38f616091b441a2fd1a779b80a7624ff7cee348be355c93c74e5a800665",
+      "gitBlob": "50c412d12cca5ca87cfd894a7d140de9ba133ab0"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/er-owner-green.log",
+      "bytes": 9077,
+      "sha256": "39e80d4661d6c40f6488d54068f969ec2509b8c4e768377673561da791503716",
+      "gitBlob": "3b59f40493dd54b2d664224b282eeda79bed358c"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/isolate-timeout-retry.log",
+      "bytes": 301,
+      "sha256": "c4c984cbdd85de88f8f61d29b2c60fe5d879dcb669244eb00f06dc4062fcaf3f",
+      "gitBlob": "2534f0d683078f5b25a35f4aafc1e442ff591c62"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/adjacent-owners.log",
+      "bytes": 29158,
+      "sha256": "ee96abbe6626fb932f73e9249963ab8b9b0735639637674c68aadb8a12b18fed",
+      "gitBlob": "422cff2cba88614f96ec6d550d455c9afd8dc98a"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/contact-children-retry.log",
+      "bytes": 1265,
+      "sha256": "4e2468eb368208e78ed66040061f746256218fd36f625d64696f59f87bd399ae",
+      "gitBlob": "17edb351975d61bf76e88f6d0cd3837afebfc9c8"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/typecheck.log",
+      "bytes": 225,
+      "sha256": "f24f29e2837198be597c614681ebf33d0fb50d3aeb28485c1e6f6fb5301c91dd",
+      "gitBlob": "cbc01af088247878e5cb74baca9c160aaa37a6de"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/lint-final.log",
+      "bytes": 63,
+      "sha256": "2b6bc45c43e2183e8db64d9e9cde69d360e7cfaa5906e02b4c65a8abfe5f7823",
+      "gitBlob": "f379d63d566e9fe1d14c9f86f61ed7d2b6843d32"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/browser-final-retry.log",
+      "bytes": 1063,
+      "sha256": "e77369f585caf8f88acf3c5a2cc8094755f3a7cbec566c0617dd7ef67365d2a7",
+      "gitBlob": "035b0b60df9dd03c2d9ee7810b0cace236188250"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/CI-OBSERVED.json",
+      "bytes": 1256,
+      "sha256": "180c38088174db8886a682aaf7d773a227d52bbf74b59fb745e84602362cd3c3",
+      "gitBlob": "df5abfac14e1b289014e705c9465cfe02cc8a498"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/ER256-elk-RL-middle-integer-crop.png",
+      "bytes": 12466,
+      "sha256": "e58f215ced1a63698fa2a3e6cda8eb4979fd13daf685b537e052adb5fd9c8f54",
+      "gitBlob": "f3b6f219f8b61a829f482240b6235a3dea6e5299"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/ER256-elk-BT-middle-integer-crop.png",
+      "bytes": 14629,
+      "sha256": "42de0c8568fae55477fcb2945c925585e94cbe9225e8a2bd8833cb912117a541",
+      "gitBlob": "c197d057379ba7ae3c6ff16b785934925292c332"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/ER256-agentic-RL-middle-integer-crop.png",
+      "bytes": 12085,
+      "sha256": "dccfd66a82faedfc32b6b40b32a0c5e1306c466e738353ed1321b73a00f67df0",
+      "gitBlob": "f2bad38d02a820ab15338821bfaa58fb954311ce"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/ER256-agentic-BT-middle-integer-crop.png",
+      "bytes": 13808,
+      "sha256": "5aa3446955b7a9221805fedab6beae0206a9afba45d1b38ef0c18b744d29b626",
+      "gitBlob": "2efb721b58eb7f0f3ea2c50783123992c29309aa"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/PROFILE-ANALYSIS.json",
+      "bytes": 111962,
+      "sha256": "188b2066159313f0addc27d872a6e84aab177e731f5d280ed120e684987bb02f",
+      "gitBlob": "a9e2036e78b9e68172bfa622c01b6cd32a187d87"
+    },
+    {
+      "path": "outcome-plan-a195-20261107/outcome-plan-a195-20261107.tar.gz",
+      "bytes": 35251799,
+      "sha256": "877114012bdde1d01b0f8ae28a31dd77794be29989ec7f24e1bf04f7d5e05d6d",
+      "gitBlob": "b06b72a01023de32fc0875e4619a4ba6545a0048"
+    }
+  ],
+  "contentVerified": true,
+  "pushed": true,
+  "remoteVerified": true
+}
