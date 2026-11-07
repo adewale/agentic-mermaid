@@ -699,3 +699,22 @@ The proposed Native/Scene custody merge is not retained: read order, rejection
 policy and work charging differ; shared written geometry already has one issuer.
 Next is the bounded flat-segment trial, retained only with equivalent-work
 benefit; no further campaign or inventory is scheduled.
+
+Finite cleanup after `b9502e98793c34c82cc397409e935550eefa4e0b`: extend the route
+commit boundary to the remaining shared late repairs, including channel-memo
+invalidation. Reproduce/fix an introduced reentrant-publication loss: completing
+an older certification cannot overwrite a newer drawing installed by an observer.
+Its owner fails before and passes after; final retention/write owners52P. Route /
+context owners779P,18 missing-jsdom checks; core types/lint and standalone2P/505
+assertions pass. All eight final SVGs/entire receipts still bind exactly to62d.
+Final net HTML cost versus62d: **+222 raw /+372 gzip9 /+202 Brotli11**.
+
+Withdraw the generic async-return guard: it duplicates public return validation
+and risks extra observation/diagnostic changes. Same-ledger proof identity and
+write-phase enforcement remain. The separately profiled flat-storage candidate
+preserves products but loses the fully consumed ABBA comparison; it is unshipped.
+Keep existing solver index views; the retained change centralizes endpoint
+orientation rather than adding another graph representation or phase-brand layer.
+The finite plan is complete with these rejected hypotheses recorded. Automated
+campaign stays stopped; no next intervention is scheduled. No CPU/RSS saving or
+bundle reduction is claimed. Evidence: `invariant-plan-62d`.

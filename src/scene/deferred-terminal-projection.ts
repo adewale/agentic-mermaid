@@ -1,4 +1,3 @@
-import { synchronousResult } from '../shared/synchronous.ts'
 /** Defer terminal-only derived data during trusted native drawing. Retained
  * Scenes materialize it into their bounded immutable admission snapshot. */
 import type { ConnectorMark } from './ir.ts'
@@ -14,7 +13,7 @@ let loweringDepth = 0
  * families retain their eager constructor and admission behavior. */
 export function withDeferredTerminalProjections<T>(lower: () => T): T {
   loweringDepth++
-  try { return synchronousResult(lower()) } finally { loweringDepth-- }
+  try { return lower() } finally { loweringDepth-- }
 }
 
 // The receiver's private entry owns the captured input. Sharing accessors does

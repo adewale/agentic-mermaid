@@ -5,7 +5,7 @@ import { bendCount } from '../layout/route-geometry.ts'
 import { routeCandidateMarkerBlocker } from '../layout/route-marker-clearance.ts'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { applyRouteContracts, auditRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, straightLaneFor, recertifyReroutedEdge, shapePorts, simplifyPolyline, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills } from '../route-contracts.ts'
+import { applyRouteContracts, auditRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, straightLaneFor, commitReroutedEdge, shapePorts, simplifyPolyline, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills } from '../route-contracts.ts'
 import { assessLayout, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline, segmentThroughShape } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { layoutMermaid, parseRegisteredMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
@@ -1105,13 +1105,15 @@ describe('bundle exemptions belong to constructed routes (#265)', () => {
     expect(findRouteHitches(positioned, graph)).toContainEqual(expect.objectContaining({ edge: 'A->B' }))
   })
 
-  it('reissuing a certificate cannot inherit a bundle exemption after changing its lane', () => {
+  it('a committed lane change revokes its old channel geometry and bundle exemption', () => {
     const graph = parseMermaid('flowchart LR\nA --> B\nA --> C'), positioned = layoutGraphSync(graph)
     const edge = positioned.edges.find(edge => edge.points.length > 2)!, saved = edge.routeCertificate!
     expect(saved.invariant).toBe('bundle')
-    for (let i = 1; i < edge.points.length - 1; i++) edge.points[i]!.x += 6
+    const points = edge.points.map((point, index) => ({ ...point, x: point.x + (index > 0 && index < edge.points.length - 1 ? 6 : 0) }))
+    const routeChannelGeometry = new WeakMap<PositionedEdge, null>([[edge, null]])
+    commitReroutedEdge(edge, { points, labelPosition: edge.labelPosition }, positioned.nodes.find(node => node.id === edge.source), positioned.nodes.find(node => node.id === edge.target), { routeChannelGeometry })
+    expect(routeChannelGeometry.has(edge)).toBe(false)
     expect(assessLayout(graph, positioned).metrics.totalBends).toBeGreaterThan(0)
-    recertifyReroutedEdge(edge, saved, positioned.nodes.find(node => node.id === edge.source), positioned.nodes.find(node => node.id === edge.target))
     expect(edge.routeCertificate?.invariant).toBe('explained-detour')
   })
 })
