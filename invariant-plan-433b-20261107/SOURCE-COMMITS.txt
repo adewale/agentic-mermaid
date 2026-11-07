@@ -1,0 +1,48 @@
+commit 433b523b86f9017960d8004f3c776d9d8d82dbce
+Author:     Ade Oshineye <adewale@gmail.com>
+AuthorDate: Sat Nov 7 14:11:51 2026 +0000
+Commit:     Ade Oshineye <adewale@gmail.com>
+CommitDate: Sat Nov 7 14:11:51 2026 +0000
+
+    Complete route publication and discard unhelpful scope guards
+
+ docs/design/system/layout-0.6-performance-review.md | 12 ++++++++++++
+ docs/design/system/layout-0.6-work-log.md           | 19 +++++++++++++++++++
+ src/__tests__/host-text-measurement.test.ts         | 14 +-------------
+ src/__tests__/position-cache-ownership.test.ts      | 21 ++++++++++++++++++++-
+ src/__tests__/route-contracts.test.ts               | 10 ++++++----
+ src/route-contracts.ts                              | 17 ++++++-----------
+ src/scene/deferred-terminal-projection.ts           |  3 +--
+ src/scene/positioned.ts                             |  7 +++++--
+ src/shared/synchronous.ts                           |  8 --------
+ src/svg-inspection-cache.ts                         |  3 +--
+ src/text-measurement-profile.ts                     |  5 +----
+ 11 files changed, 72 insertions(+), 47 deletions(-)
+
+commit b9502e98793c34c82cc397409e935550eefa4e0b
+Author:     Ade Oshineye <adewale@gmail.com>
+AuthorDate: Sat Nov 7 13:52:24 2026 +0000
+Commit:     Ade Oshineye <adewale@gmail.com>
+CommitDate: Sat Nov 7 13:52:24 2026 +0000
+
+    Release completed render evidence and enforce phase handoffs
+
+ docs/design/system/layout-0.6-work-log.md      | 20 +++++++++
+ e2e/browser.test.ts                            |  1 +
+ src/__tests__/host-text-measurement.test.ts    | 14 ++++++-
+ src/__tests__/paint-certification.test.ts      |  1 +
+ src/__tests__/position-cache-ownership.test.ts | 27 +++++++++++++
+ src/browser-standalone.ts                      |  8 +++-
+ src/graphical-render.ts                        |  4 +-
+ src/layout/agentic-layered-core.ts             |  6 +--
+ src/layout/cycle-layout-search.ts              |  7 +++-
+ src/layout/passes/obstacle-routing.ts          | 12 ++----
+ src/route-contracts.ts                         |  9 +++++
+ src/scene/deferred-terminal-projection.ts      |  3 +-
+ src/scene/positioned.ts                        | 24 ++++++-----
+ src/scene/serialization.ts                     | 56 ++++++++++++++------------
+ src/scene/svg-writer.ts                        | 10 ++---
+ src/shared/synchronous.ts                      |  8 ++++
+ src/svg-inspection-cache.ts                    |  3 +-
+ src/text-measurement-profile.ts                |  5 ++-
+ 18 files changed, 156 insertions(+), 62 deletions(-)

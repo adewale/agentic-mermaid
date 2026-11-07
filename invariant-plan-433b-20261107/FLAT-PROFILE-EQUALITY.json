@@ -1,0 +1,22 @@
+[
+  {
+    "phase": "warmup",
+    "svg": true,
+    "receipt.json": true
+  },
+  {
+    "phase": "repeat1",
+    "svg": true,
+    "receipt.json": true
+  },
+  {
+    "phase": "repeat2",
+    "svg": true,
+    "receipt.json": true
+  },
+  {
+    "phase": "edit",
+    "svg": true,
+    "receipt.json": true
+  }
+]

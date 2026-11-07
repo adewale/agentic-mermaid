@@ -1,0 +1,90 @@
+[
+  {
+    "case": "17",
+    "actual.svg.gz": {
+      "exact": true,
+      "sha256": "eccc5420c81b9517277fafa75c1261c40b4b9ee1cfa952e9910f46e5ddb50eb6"
+    },
+    "actual.receipt.json.gz": {
+      "exact": true,
+      "sha256": "d2c92f677adf893d1548263b9b8a15bb160f87fbf06cbecc3f4fe2a5c6ab5e4c"
+    }
+  },
+  {
+    "case": "159",
+    "actual.svg.gz": {
+      "exact": true,
+      "sha256": "286a105bc0621186e9de2cafd02c2332ea4ab16fc173e12cd506466594cf2be3"
+    },
+    "actual.receipt.json.gz": {
+      "exact": true,
+      "sha256": "4e2fffbbb3409cdc0a6c48ce78080b50287682c75a31dfe99e74dc88f34371b5"
+    }
+  },
+  {
+    "case": "152",
+    "actual.svg.gz": {
+      "exact": true,
+      "sha256": "cdf8473e783406dd17af2d3fd42504f49f186f500ed6e74d980f40164104a239"
+    },
+    "actual.receipt.json.gz": {
+      "exact": true,
+      "sha256": "9c9134675a83a49fa1928d389ac9e2639a307d286387a5757f7a35acaef0b99f"
+    }
+  },
+  {
+    "case": "230",
+    "actual.svg.gz": {
+      "exact": true,
+      "sha256": "72483fe512141d7cf0fa5e7d3dc600a0f37e99b13a43687bc2f16206f0bd5a75"
+    },
+    "actual.receipt.json.gz": {
+      "exact": true,
+      "sha256": "0e9ca40b2c7ee19354db2b988c4870ab610dad1506ca801bb23eec5cc84bc26d"
+    }
+  },
+  {
+    "case": "201",
+    "actual.svg.gz": {
+      "exact": true,
+      "sha256": "b459b6ac0c52a2a32bfd7e9ddf0e4522842c467007adb1ed05d0774999cce73d"
+    },
+    "actual.receipt.json.gz": {
+      "exact": true,
+      "sha256": "96c1380eadddaf0e2ad358caac3466564599d69cf9911257cda04790fe09c392"
+    }
+  },
+  {
+    "case": "241",
+    "actual.svg.gz": {
+      "exact": true,
+      "sha256": "90284183e6de52a52e1cdaa7cd8f28fab10f8dd45e39516596d3b5e786f08187"
+    },
+    "actual.receipt.json.gz": {
+      "exact": true,
+      "sha256": "08e4bf12bdedf0be4864aa843f7b113ed05af8ea4e58764680cfdc75188e1848"
+    }
+  },
+  {
+    "case": "sha152",
+    "actual.svg.gz": {
+      "exact": true,
+      "sha256": "211c322ee2d3710fc97286e6143909b156bf79cb1e1c102e0d4bcc4e05da6e0f"
+    },
+    "actual.receipt.json.gz": {
+      "exact": true,
+      "sha256": "bdda81fe697036da5a8a935b7c2a69047d2e86771d70820559e0e6a52b233c09"
+    }
+  },
+  {
+    "case": "sha230",
+    "actual.svg.gz": {
+      "exact": true,
+      "sha256": "3b462df6c84b467a17dda1db1e11a1bbbecae02cc043bbb135b64908fcdabec1"
+    },
+    "actual.receipt.json.gz": {
+      "exact": true,
+      "sha256": "ed4323bbfd5f5719628881a5cfceb7eb480706c5fef2c2221049da18c73f2776"
+    }
+  }
+]

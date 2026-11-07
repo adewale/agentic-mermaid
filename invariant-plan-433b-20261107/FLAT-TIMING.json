@@ -1,0 +1,143 @@
+{
+  "scope": "ABBA fresh Node24 processes; one complete warmup per process; six repeats/three edits, cache0; complete SVG and entire receipt consumed; profiler sampling disabled. RSS is process peak including imports.",
+  "runs": {
+    "before": [
+      {
+        "directory": "timing-before-1794059694",
+        "repeatMedian": 179.30243100000007,
+        "editMedian": 202.77497100000073,
+        "peakRssKiB": 353068
+      },
+      {
+        "directory": "timing-before-1794059719",
+        "repeatMedian": 321.6317640000002,
+        "editMedian": 248.23094299999957,
+        "peakRssKiB": 293140
+      }
+    ],
+    "flat": [
+      {
+        "directory": "timing-flat-1794059699",
+        "repeatMedian": 439.92802600000005,
+        "editMedian": 286.6030119999996,
+        "peakRssKiB": 312056
+      },
+      {
+        "directory": "timing-flat-1794059708",
+        "repeatMedian": 483.5409335000004,
+        "editMedian": 342.882431,
+        "peakRssKiB": 301496
+      }
+    ]
+  },
+  "equalProducts": [
+    {
+      "run": "timing-flat-1794059699",
+      "phase": "repeat1",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "run": "timing-flat-1794059699",
+      "phase": "repeat2",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "run": "timing-flat-1794059699",
+      "phase": "repeat3",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "run": "timing-flat-1794059699",
+      "phase": "repeat4",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "run": "timing-flat-1794059699",
+      "phase": "repeat5",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "run": "timing-flat-1794059699",
+      "phase": "repeat6",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "run": "timing-flat-1794059699",
+      "phase": "edit1",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "run": "timing-flat-1794059699",
+      "phase": "edit2",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "run": "timing-flat-1794059699",
+      "phase": "edit3",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "run": "timing-flat-1794059708",
+      "phase": "repeat1",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "run": "timing-flat-1794059708",
+      "phase": "repeat2",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "run": "timing-flat-1794059708",
+      "phase": "repeat3",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "run": "timing-flat-1794059708",
+      "phase": "repeat4",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "run": "timing-flat-1794059708",
+      "phase": "repeat5",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "run": "timing-flat-1794059708",
+      "phase": "repeat6",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "run": "timing-flat-1794059708",
+      "phase": "edit1",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "run": "timing-flat-1794059708",
+      "phase": "edit2",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "run": "timing-flat-1794059708",
+      "phase": "edit3",
+      "svg": true,
+      "receipt": true
+    }
+  ]
+}

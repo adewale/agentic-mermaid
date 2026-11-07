@@ -1,0 +1,272 @@
+{
+  "owner": "root-explicit-invariant-plan-20261107",
+  "updated_at": "2026-11-07T14:13:36.601289+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-08T23:59:59Z",
+  "note": "Fresh recovery baseline, not restored November runtime. Original checkout and reconstructed patch preserved.",
+  "writers": [],
+  "head": "433b523b86f9017960d8004f3c776d9d8d82dbce",
+  "next_fix": "None scheduled. Further implementation requires a new owner instruction.",
+  "status": "stopped",
+  "checkpoint": "ea679ead2a78f8e312e04b01f7762ba7c96451f0",
+  "evidence": "/workspace/pr449-recovery-20261103-155750/evidence-5aa10b3c0.tar.gz",
+  "execution_note": "Manual finite plan: retained lifetime/write/route/orientation cleanup; withdrew scope-return guard and custody merge; rejected profiled flat-storage candidate on equivalent-work evidence. Both automations remain disabled.",
+  "evidence_verified": true,
+  "evidence_delta": "ea679ead2a78f8e312e04b01f7762ba7c96451f0",
+  "evidence_delta_verified": true,
+  "previous_owner": "root-sha37-stage-20261107-1105",
+  "previous_checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-8f9ef3da0.bundle",
+  "previous_evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-8f9ef3da0.tar.gz",
+  "pull_request": {
+    "number": 602,
+    "url": "https://github.com/adewale/agentic-mermaid/pull/602",
+    "draft": true,
+    "head": "780b5f1b04ac7ac5db35cdd442d98df652daf17d",
+    "head_branch": "work/pr449-reconstruct-20261103",
+    "base": "9fb35b8bf8dc654a19612de3cc6a50144d68b0a7",
+    "base_branch": "main",
+    "main_observed": "9fb35b8bf8dc654a19612de3cc6a50144d68b0a7",
+    "main_integration_qualified": false,
+    "visual_evidence_commit": "bcc799ccc362f71d63384eaa31a879d412cd74a2",
+    "title": "Recover layout delivery and SVG paint; compact ER cards and forest routes",
+    "main_observed_at": "2026-11-07T11:41:41.254283+00:00",
+    "current_ci_run": 42368944274,
+    "current_ci_status": "780b5 CI42368944274 inprogress; quality/payload/advisory alreadyfailed, otherlanespending. CIpairedmain9fb Flow+45316/Packet+40380gzip adverse. Notready.",
+    "description_updated_at": "2026-11-07T11:46:26.407227+00:00",
+    "current_ci_base_note": "Main9fb normalmerge; boundedsource/builtconsumerqualification passed, exactnewmain12+PR15products. CIstillpending, no readiness. Originalcapsstricterthanmainretained."
+  },
+  "pr_record_checkpoint": "a2dd5640279dfaa78937ac4490aedcf148fafea7/main-9fb-integration-20261107/final-handoff",
+  "scheduled_end": "2026-11-08T23:59:59Z",
+  "automations_disabled": true,
+  "maintenance": {
+    "owner": "root-pr-cleanup-20261105",
+    "scope": "Owner-authorized PR cleanup and GitHub backup; campaign remains stopped",
+    "started_at": "2026-11-05T13:24:03.573057+00:00",
+    "completed_at": "2026-11-05T13:35:34.412315+00:00",
+    "result": "Committed readable stopped-state handoff and pushed both branches atomically. PR602 description/visuals updated; remote branch SHAs and archive index verified. Runtime/tests unchanged during cleanup. Corrected unrelated upstream tracking. Campaign and deadline-report automations remain disabled."
+  },
+  "remote_checkpoint": "433b523b86f9017960d8004f3c776d9d8d82dbce",
+  "resumed_at": "2026-11-05T13:48:28.000357+00:00",
+  "lease_expires_at": "2026-11-07T14:13:36.601289+00:00",
+  "authorization": "Owner: Execute that campaign. Make sure we regularly commit and push to the PR on Github.",
+  "automation_resume_note": "Owner explicitly resumed campaign. Hourly continuation resumes 2026-11-05T15:00 Europe/London through original Nov8 deadline; fresh-lease coordination required; pushes to PR602 authorized.",
+  "released_at": "2026-11-07T14:13:36.601289+00:00",
+  "stop_history": [
+    {
+      "stopped_at": "2026-11-05T13:20:32.667409+00:00",
+      "stop_reason": "Owner explicitly requested: Stop the campaign",
+      "stop_note": "Campaign and deadline-report automations disabled successfully. All five campaign agents completed; no live git/node/bun/python campaign workers found. Worktree clean at 0a4534ee814d0c380de138b845b0d8e3f5226132. All work, trial drafts and evidence preserved. No further implementation, tests, builds, publication or PR changes performed."
+    },
+    {
+      "at": "2026-11-07T12:50:56.826817+00:00",
+      "reason": "Owner requested cutting waste/drift and stopping if the campaign did not establish worthwhile improvement. Latest patch has three selected ink repairs; broad replacement value is not established. Stop open-ended work.",
+      "source": "62d521fbce155cdd3de928ec62fc5222fa3a8482",
+      "automations_disabled": [
+        "6ae0b82853508191843a984cfb468d5b",
+        "6ae5e528d93881918a13186253dbae8e"
+      ]
+    }
+  ],
+  "profile_report": "/tmp/pr449-week-comparison-20261101/weighted-face-780/PROFILE-FIRST.md",
+  "payload_diagnostic": "Main9fb merge completeHTML2203365raw/1323398gzip9/1257035Br11; vspriorPR+16274/+12768/+11924. Original1334500gzipcapP,actualbrowser2P504. LazyFlowbudgeted773456gzip>761500,implicitforestELK775309>761500, otherlimitsretainedinLAZY-PAYLOAD andbudgetlog. Freshmain9fbwholeHTML notbuilt: no currentmainpayloadratio. No timing/memoryratio.",
+  "deadline_report_schedule": "2026-11-08T23:59:59 Europe/London (UTC); stop/disable and report at the original deadline",
+  "previous_ci": {
+    "head": "3b35c1b3d3387df2d61323071b3c9678b06f1445",
+    "run": 42057059999,
+    "tested_checkout": "d13c5b4f751934c13c46e5ee11fb7ba018df27ed; synthetic merge into mainf9",
+    "result": "completed failure",
+    "passing_repairs": "shards1/2, both reviewedClass/Requirementgoldens",
+    "remaining": "Sparse32 proofcap; payloadceilings; browserClassgolden nowlocallyqualified; CLI Bun download504 before tests"
+  },
+  "campaign_status": "Automated campaign remains stopped; finite owner-authorized invariant plan completed.",
+  "qualification_milestones": [
+    {
+      "commit": "d4bef7245f44e01f4c6637938acc68dcc04bdc5d",
+      "change": "9 reviewed Class geometry goldens; no runtime change",
+      "verification": "322 records, owning2P; CI42055078526shard1success, overallfailure",
+      "evidence": "5de73796a993e4abee23ad6ee90f85baf4693e34"
+    },
+    {
+      "commit": "3b35c1b3d3387df2d61323071b3c9678b06f1445",
+      "change": "one reviewed Requirement PNG; no runtime change",
+      "verification": "local1RED\u219297P0F in3owningfiles; latestCIpending",
+      "adverse": "PNG+39B, priorwholecandidateproof40698\u2192204313ops",
+      "evidence": "1a8297b9d98b2d7f22e97b59746f56a01ac56668"
+    },
+    {
+      "commit": "69af97a12aefe1140095064312a7f32b3f5e5714",
+      "change": "route-only separated source docks for centered unequal terminal peers",
+      "before_after": "wire463.4375\u2192436.857166666; area165355.6575/bends8 unchanged; residualwire+10.19%ELK",
+      "verification": "4directionalRED\u219244nearby/corpusP+28ownership/CSSP, coretypes/lint; Nativefreshrepeat and ELKbyteexact",
+      "adverse": "proof+980ops, SVG+21gzip/+5Br, pairedstandalone+315gzip",
+      "evidence": "6b5ed81355e05954b11b8a47b10c13627493bd20"
+    },
+    {
+      "commit": "741b80dba91c0e1f4feba9a62695f7820bc79a23",
+      "change": "one reviewed browser Class PNG baseline",
+      "verification": "exactmain/currentDOM+independentreview; onlyClassPNGupdated; unchanged5casebrowserowner1P29assert13.99s",
+      "adverse": "no runtime change in PNGcommit; payloadceilings remain failed",
+      "evidence": "9a60e1cfdd76f635515d17e9a56ba3fd9ccb125d"
+    },
+    {
+      "commit": "970c9f807bd82b6c3e731aadef3585ee6b071523",
+      "change": "One-pass worker compression at existing build producer",
+      "before_after": "HTMLgzip1427769\u21921346874; Brotli1360667\u21921281514; raw2194300\u21922089396",
+      "verification": "Matched complete Bun1.4.4/ELK0.11.1 builds; emitted-worker browser ownerP, minifier2P, coretypesP, lint3filesP; independent scope/value review",
+      "adverse": "Peak buildRSS554312\u2192691384KiB; gzip budget still12374over; six-pass candidate timed out55s and is unshipped",
+      "evidence": "d5db3cea94a798aaa1010b14c6fbbbea597e4b28"
+    },
+    {
+      "commit": "1693c2a2b7fd93cb5da11f1a358d162180fa19cc",
+      "change": "Normal current-main integration; existing ownership/capture and original caps retained",
+      "verification": "522local owner passes, core typing/lint; independent boundary probes.36fresh calls;27returned products exact,9namedrefusals unchanged. Actualemitted workerP/budgetF. Final930CI terminalfailed withsameenrolled loss classes.",
+      "adverse": "Main39\u2192PR1693 completeHTML gzip-74739/Br+183864bytes; peakbuildRSS+252292KiB; CIgzip still4886over. No timingratio.",
+      "evidence": "5958c1c2b42e8e08d0a95d5563688c9976d459f3"
+    },
+    {
+      "commit": "bbda2112af8d791d8628a3769c86084e4cb962b3",
+      "change": "Specialize private standalone dictionary from actual consumed bytes; no renderer or cap change",
+      "before_after": "HTML gzip1348449 to1310748; Brotli1282268 to1245137; raw2091362 to2186915",
+      "verification": "Byte-identical packed/full worker; existing browser/budget2P504assert; focused46P314assert; coretypes0/lintP; exact-head CI original standalone budget and browser-siteP",
+      "adverse": "Raw+95553; main39Brotli still+146733; buildRSS674760KiB, no speed/memory ratio. CI remains failed on Sparse32/lazy/demo/advisory.",
+      "evidence": "9c0e14b18394925a0160812f4bc85e3df07bedcc"
+    },
+    {
+      "commit": "c9dabb20c67aa18587063ea0268fa4e5ebdf7c40",
+      "change": "Document bounded causal profile and stop insufficient packing/terminal shortcuts; no runtime change",
+      "before_after": "No new shipped performance gain. Packet+YAML main196160 toPR230648gzip; matching Bun static sum164917 to199406, concat196990 saves2416 leaves32073.",
+      "verification": "Matched Node24 tsup/ESM+DTS builds; existing reporter on actual bytes; independent review; existing budget gate still fails; diff/visual-lint pass. Python predecessor retained separately.",
+      "adverse": "Common family transfer still larger, despite fewer requests. Newly profiled source contribution counts are not CPU/gzip attribution; new-head CIpending.",
+      "evidence": "8e0adbe90360b6d0bcd4cef07d8381ada6076fff"
+    },
+    {
+      "commit": "14bec477578104a1eab5a279473aa77e747f8476",
+      "change": "Omit unused original marker hull; full served hull/bounds/resource encoding/charges retained",
+      "before_after": "Marker active2ms self/incl7.697/12.499 to6.964/11.241ms; no causal endtoend speedup. AllClass products/receipts exact. ActualHTMLgzip-61/Br-209/raw-156.",
+      "verification": "Profilebeforecode;742owner cases740P pluspermittedchildretry1P, knownSparse32F. Coretypes/lintP; ESM/DTS0; actualstandalonebrowser2P504.18publicsourcecalls15exactreturns/3sameER256refusals. CIterminalfailedonlyknownclasses.",
+      "adverse": "Classlazy+3gzip/Flow+14/raw+10; initialBr+1. MainHTMLBrstill+146524; buildRSS673272KiB. Confounded earlierprofiles retained; no speed/memoryratio. Ambientcallback-count qualification explicit; no reproducedregression.",
+      "evidence": "1635a0ae0acfe1bc9bebc57fc59feb45de5a73ac"
+    },
+    {
+      "commit": "62af995fafa5392364ab2567678f11e59fea9ea6",
+      "change": "Document merge-preserving rebase and Sparse32 first exhausted stage; runtimeunchanged",
+      "before_after": "Rebasehead14bec unchanged; source62af worklog-only. NativeXML firstfailedcharge7 at399994 afterclean337890. BitsetstillU400k andrestored; nofailure removed.",
+      "verification": "ExistingSparseowner2P1F includingactualinkchecks beforelastfailure; all3before/bitsetSVGs exact. Independentreview confirmsrevert.1000/1250labelPpoints descriptiveonly. Docdiff/lintP; no unchangedfullsuite replay.",
+      "adverse": "Original1500label32marker proofcapfailure remains; no speedup, quota increase, acceptance waiver or payload change. DocsCIpending/qualityF; last14runtimeCI remainsfailed.",
+      "evidence": "a5c343e6600185b53679411a2f85575447454d50"
+    },
+    {
+      "commit": "deafff39d427082c233e8caf4917175404f6c248",
+      "change": "Qualify existing Requirement cycle BT/LR/RL actual finalSVG and independent per-occurrence ink; docs-only, no new runtime gain",
+      "before_after": "Historical BT+9.53% doesnotreproduce; currentNative/ELK BTarea-10.4299%,wire-30.3353%,8vs10bends; LR/RLarea-1.4394%,wire-20.2462%,6vs8bends. TBpriorqualificationretained.",
+      "verification": "Sixnewfrozen public Node24 fullSVG/entirereceipt calls allreturnP; each3authoredcards/5orderedrelations+captionowners/10normalcontacts;90textprogram+30arrowcontributions in126offlineInterrasters. Independentread-onlyreview; docdiff/readinessvisual-lintP.",
+      "adverse": "LR/RLwider/shorter970.194x251.95vsELK753.144x329.3; no readability/speedratio. Sparse32notfixed; enlargedname-maskestimate insufficientandstoppedbeforecode. NewCIpending; priorCIfailed.",
+      "evidence": "2b02e8d5970d3e3f695677d0e2fc9620ce064544"
+    },
+    {
+      "commit": "dd365744603143f105c2a8c8accf36203096b1ac",
+      "change": "Record originalCIpaintedcontactcounterexample andstopfourinsufficientrouting/captionprobes; docs-only",
+      "before_after": "Nooriginalfailureclosed. Case276trial6to3crossingsbutPtoUandnew0.580pxcontact, restored. Original1520.823pxpaintoverlap/U353905 unchangedbyallrepairprobes;372/102unchangedU. Selectedoriginal152raster183exposed/61visible/122fullyhidden.",
+      "verification": "Eightnewfullyconsumedpubliccalls; directpassstageandinkrefusaltraces; actualfixedInterfour-maskpixels. OwnerrealRED8P8Fandcandidate28P282diagnosticonly; typecheckP; all4trialfilesrevertedverifiedindependently05:32. Sourceandvisual-lintP.",
+      "adverse": "Noactualworkloadrepair despitehelperpasses. CasesoriginalstillU; crossing-onlycandidateworsepaint. N1costsconfounded/descriptive; no speedratios orpayloadclaim. JSDOMmissing andnpmcacheinstallationautoreviewrejected; usedalreadyinstalledSaxes, noinstall.",
+      "evidence": "84520892f10d78f0c97d05a08e1647c9b138d888"
+    },
+    {
+      "commit": "6aa0ee45d9b6052addcb77036c1f7ba4c13b2cb4",
+      "change": "Revert5ac after whole-CI circle regressions; runtime/tests restored, no net renderer gain.",
+      "before_after": "Selected152 contact fixed in withdrawn5ac, but five P-to-U records/four sources include actual circle overlap0.875/0.125/0.5px. Same-ledger circle-first restores17/33 but leaves152 unfixed. Both stopped.",
+      "verification": "1748 matched CI backend/case records,10changedSVGs retained.42 comparison captures plusowners. Restored17/33/ELK296 SVGexact oldCI/P with correct prefixes;152 SVG/entire receipt exact oldU. Source/tests byteexact dd365; no unchanged broad-suite replay.",
+      "adverse": "Withdrawn wire+6.646/SVG+16gzip/HTML+442gzip+1234Br.505owner passes/8JSDOMloader failures,92nearbyP,types/lint/browser2P504 didnotestablish preservation. RollbackCIpending/qualityF; priorfailed.",
+      "evidence": "62d61e5cc41211f4aa3d5f50c0d8d05c0748e284"
+    },
+    {
+      "commit": "3234fb3183e78840321ab41fe6881b31a0f5d4b2",
+      "change": "Clear one existing circle/shaft contact through existing terminal detour after first ink-rejected band; retain admitted band preference.47aed intermediate crossing cost corrected.",
+      "before_after": "Case230 selectedhiddenpixels41to0/proofU362041toP362293;area/crossingsunchanged;wire+19.156/bends+2.",
+      "verification": "1748matchedCIrecords only1changedSVG/1747exact/all874ELKexact;0newrefusal/0PtoU/1UtoP.18frozen15SVG+receipt exact/3sameER256refusals.4directionalRED47a/GREEN3234,focused8P94assert,full576P18localJSDOMloaderfails,types/lint/actualbrowser2P504. FinalCIterminalfailedonlyretainedclasses. Independent review.",
+      "adverse": "SelectedSVG+7gzip/+0Br; finalHTMLvs14+332raw/-57gzip/+183Br; buildRSS722140KiB descriptive. Sharedrectanglecontacts/Sparse32/ER256/lazy/advisoryremain.",
+      "evidence": "ca23753c6326112a1564a05b95c5e300277ae78a"
+    },
+    {
+      "commit": "6edd3fd3bb70bfa4232d61aba6cd0822b5adc82d",
+      "change": "Stop/revert2f641clearancefloor andintroduced-onlynarrowing; actualfirstcause152foundatmeasuredshortener. No netruntimegain.",
+      "before_after": "Unshipped152 selectedhidden122to0,wire+11.896; Native17actual3markerfillcontactsbutwire-29.87%/area-7.37%,distincttips/readabilityunknown. Rolledbackentiresrctree/4SVG+receipts exact3234.",
+      "verification": "7RED20P328assert;706ownerP18JSDOMloaderfails/types/lintP; independentreview. Partialtrial1428records23changed10UtoP1PtoU0delivery/320unknown; finalrollback1748SVG+layout/proof/deliveryexact3234. FinalCIterminalfailedretainedclassesonly.",
+      "adverse": "UnshippedHTML+560raw/+357gzip/+477Br; build18.98s/RSS658496KiB descriptive. No speedratio/automaticacceptancegate. Original152/372U remain, earlier230repairretained.",
+      "evidence": "a44f4123b35ac1f5c03f9458de3821aa55c4fb0b; finalCIb1964173b298061aea98bb80a4581432d0d7fe5d"
+    },
+    {
+      "commit": "0ff57be43892519224ebff3c3f72169cf12f01b9",
+      "change": "Stop ordinary marker capacity4db9 after introduced actual contacts; entire source/test tree restored6edd/3234. No netruntimegain.",
+      "before_after": "Selected201/241hidden4to0/proofUtoP in withdrawntrial;area+3.46%/-.59%,wire-3%/-1.62%. Whole1748:303NativeSVGchanges58UtoP5PtoU0delivery/all874ELKexact. Fouractualnewcontacts;SHA191conservativewarningonly.",
+      "verification": "6RED10GREEN410assert;701broadP18JSDOMloaderfails;types/lintP;actualstandalonebrowser2P504. FullactualSVG independentadversegeometry review. Rollbackentiresrc treeexact6edd; retained230repair remains, no newgain.",
+      "adverse": "SHA37.625pxstrokecontactalong~100px;381headfill.648px2;229tip/319mitercontacts;trialHTML+79raw/+81gzip/+55Br. All trial outputs restored; original152/372/201/241remain. No speedratio.",
+      "evidence": "c95d1761915df02cc3de0812b9f67912330434ee"
+    },
+    {
+      "commit": "96990f17b36af1dd05c1ce140d3ddf44aedfa8de",
+      "change": "LocateSHA37 firstcontactatshortener; traceNative17 latentrawheadcompression exposedbycandidate ranking. Isolatedrelativefloor stopped; no runtimegain.",
+      "before_after": "SHA37 selectedcompactgap5.125to-.625 atshortener. Relative152P,wire+.087%,bends70to80;17PtoU3actualfillcontacts.120125px2 each,wire-29.06%,area-7.37%. Existingcompact12crossings becomes4 beatingprimary10; headpitchalready4.6125raw.",
+      "verification": "16fullSVG/entirereceiptcalls; exactfullCI37before/trialbinding andexact17before/relativebinding; actualtriangleintersection; independentread-onlyscope/value review; docdiffandvisual-lintP. Runtimeentiresrctreeexact0ff57; no unchangedbroadreplay.",
+      "adverse": "Original152/372/201/241losses remain; no newraster/readability orspeedratio; globalno-op37stillUotherwarning. Relativeveto doesnotensurephysicalclearance andisnotretained.",
+      "evidence": "29eec22e58f4ab9eae3e61e767a604b37656cabe;selection ef90d34b31c2211ce4e2bf4e75b66804703754b7"
+    },
+    {
+      "commit": "780b5f1b04ac7ac5db35cdd442d98df652daf17d",
+      "change": "Normalcurrentmain9fb integration retainingPRink/custody/fit+mainopt-inprofiles/search; no cap/default/versionwaiver.",
+      "before_after": "36newpubliccalls:12main+15PRexactreturnedproducts and6main/3PRsamerefusals;9namedcontrolsSVGexact. Selectedmainrelativegains preserved, notnewgain. HTML+12768gzip/+11924Br to1323398/1257035.",
+      "verification": "Coretypes/lintP; sourceowners908P25initialF then repairedprojection11P/opt10P;18knownJSDOMremain. ESM/DTS/lazy/IIFE/ZenuP,standalone2P504,lazyoptins2P38,dist3P9,actualtar257files publicinventory192/nohelperproblems. Independentboundaryreview no blocker.",
+      "adverse": "LazyceilingsstillF; original152/372/201/241losses/ER256/Sparse32persist. No freshcurrentmainHTMLratio, CPU/RSSspeedup,whole1748comparison ornewrasterqualification. Bunnpmwrapperstdoutfailure retained. CIpending.",
+      "evidence": "bd4ee0eee70227a19e49d661935981bd9e6321e2"
+    }
+  ],
+  "restored_from": "dd7f8e9da:handoff-20261105-1637/handoff.tar.gz; historical lease expired and not reactivated",
+  "integration_status": "Normalmerge780b5 retainsPR969+newmain9fb; actualtestedPRmerge9cb3 treeaf5bf424c93bd9acccd63ca034c3385d2feb7db5 equalshead. Eightconflictsunionink/width/ownership/fit/buildidentities; strictcapsunchanged. Localboundedqualificationpassed; CI42368944274 pending, notready.",
+  "current_ci_status": {
+    "head": "433b523b86f9017960d8004f3c776d9d8d82dbce",
+    "status": "not-yet-qualified",
+    "ready": false
+  },
+  "last_completed_runtime_ci": {
+    "head": "0ff57be43892519224ebff3c3f72169cf12f01b9",
+    "run": 42365417593,
+    "status": "completed",
+    "conclusion": "failure",
+    "tested_checkout": "a069437dfdeff9ef3babed5e80beed63eaa67d37",
+    "tree": "12db30fe001c7ef6adb08fbcfab042cc0be73610",
+    "source_tree_equal": true,
+    "remaining": "Sparse32 emittedXMLproofcap (Unit2 6413P1F),lazy/payloadceilings,generated-layoutadvisory; allother runtime lanes includingbothbrowsers pass",
+    "standalone_budget": "passed"
+  },
+  "rebase_authorization": "Owner 7 November: Rebase and continue; supersedes prior no-rebase instruction for this requested integration.",
+  "rebase_result": {
+    "request": "Owner: Rebase and continue",
+    "strategy": "--rebase-merges origin/main",
+    "before": "14bec477578104a1eab5a279473aa77e747f8476",
+    "after": "14bec477578104a1eab5a279473aa77e747f8476",
+    "main": "39a500425f6b74eb486b9add9e90d538fab6a914",
+    "tree_unchanged": true,
+    "force_push": false,
+    "missing_history_repaired": true,
+    "backup_ref": "backup/pr449-before-rebase-20261107-0335"
+  },
+  "evidence_core": "ecfc69324aabf41fa39dca4e831f6cce08c42169",
+  "lease_note": "Lease released: production and research stopped; completion only preserves the checkpoint and records the stop.",
+  "manual_plan": {
+    "base": "62d521fbce155cdd3de928ec62fc5222fa3a8482",
+    "commits": [
+      "b9502e98793c34c82cc397409e935550eefa4e0b",
+      "433b523b86f9017960d8004f3c776d9d8d82dbce"
+    ],
+    "completed_at": "2026-11-07T14:13:36.601289+00:00",
+    "evidence_directory": "/tmp/pr449-week-comparison-20261101/invariant-plan-62d",
+    "new_cpu_or_rss_claim": false,
+    "final_html_delta": {
+      "raw": 222,
+      "gzip9": 372,
+      "brotli11": 202
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "runtime": "1.4.4",
+  "rows": [
+    {
+      "tag": "before",
+      "raw": 2203909,
+      "gzip9": 1323609,
+      "brotli11": 1257241,
+      "sha256": "5dad1d0f1fa032a77c17df27f1c08fa1ac0accbee11ee19c81c2d9d47953c865"
+    },
+    {
+      "tag": "after",
+      "raw": 2204131,
+      "gzip9": 1323981,
+      "brotli11": 1257443,
+      "sha256": "d4a9ff1a6be5ce67418db16bc013457359017089e87f5ffbdc4152abc914c3a4"
+    }
+  ],
+  "comparison": "SameBun1.4.4/nodezlib constants; completeHTML62d versus finite invariant cleanup; notmain-relative bytes or performance ratio"
+}
