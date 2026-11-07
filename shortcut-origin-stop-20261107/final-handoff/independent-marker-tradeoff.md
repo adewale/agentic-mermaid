@@ -1,0 +1,9 @@
+Read-only GPT-6.1 Sol High review by /root/joint_caption_review from saved actual SVGs, 7 November.
+
+Before: /tmp/pr449-week-comparison-20261101/contact-producer-6aa/controls/Native17/actual.svg.gz. Trial: contact-origin-3234/controls/Native17/actual.svg.gz. No new renders, tests, captures, writes or external actions were performed by the reviewer.
+
+All three warned pairs have actual opaque triangle-fill contact, beyond envelope-only uncertainty. Trial n1 heads face west at tipx132.338; neighboring tips have pitch4.6125. Each arrow fill is8px long and5px wide. Their fills overlap0.120125px² per pair inside both viewports, over the last0.62px of the base. Strict interior witnesses are x140.138 and y326.89825 /331.51075 /336.12325. Stroke adds contact but is unnecessary to establish the fill intersection. Before the relevant pairs are separated (n3#0/#1 pitch8, n3#0/n4 pitch16.6, n0 arrives from the opposite face).
+
+All tips remain distinct. This proves geometric ink contact, not loss of raster visibility or readability. The trial retains27 relations and improves Native17: canvas2281.126×319.042→1453.344×463.834, area727775.001292→674110.360896 (−7.37%), wire13254.789298154→9295.406991529 (−29.87%), interior vertices55→52. Proof passes before and is unverified after with three marker-envelope warnings.
+
+These are real tradeoffs, not an automatic acceptance/rejection gate. The coordinator provisionally restored3234 runtime while full trial qualification and interaction with marker seating remain unresolved. The partial retained trial artifact has1428 matched records with23 SVG changes,10 proof upgrades,one downgrade andzero delivery changes;320 outcomes are unavailable. Proof upgrades do not establish visible gains. Actual selected152 mask repair remains unshipped, and the introduced-segments-only narrowing also retains Native17's marker contacts.
