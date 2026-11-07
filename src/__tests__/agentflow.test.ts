@@ -83,6 +83,43 @@ test('collapsed flows retarget cross-boundary edges while the editable model kee
   expect(projected.edges.find(edge => edge.id === 'transfer')).toMatchObject({ source: 'writer', target: 'publish' })
 })
 
+test.each([
+  { name: 'siblings', prefix: '', between: '', suffix: '', parents: { A: null, B: null } },
+  { name: 'nested siblings', prefix: 'flow Outer\n', between: '', suffix: 'end\n', parents: { Outer: null, A: 'Outer', B: 'Outer' } },
+  { name: 'separate nested scopes', prefix: 'flow Left\n', between: 'end\nflow Right\n', suffix: 'end\n', parents: { Left: null, A: 'Left', Right: null, B: 'Right' } },
+  { name: 'flow escaping a nested global block', prefix: 'flow Left\nglobal\n', between: 'guide["B is a label"]\nend\nend\n', suffix: '', parents: { Left: null, A: null, B: null } },
+])('AgentFlow $name retain declared ownership through mutual flow references and collapsed display', ({ prefix, between, suffix, parents }) => {
+  const source = `agentflow-beta TB\n${prefix}flow A["Flow A"]\n a1["Task A1"]\n a1 --> B\nend\n${between}flow B["Flow B"]\n b1["Task B1"]\n b1 --> A\nend\n${suffix}`
+  const ownership = (groups: ReturnType<typeof parseAgentflow>['graph']['subgraphs']) => {
+    const parents: Record<string, string | null> = {}
+    const visit = (items: typeof groups, parent: string | null): void => {
+      for (const group of items) { parents[group.id] = parent; visit(group.children, group.id) }
+    }
+    visit(groups, null)
+    return parents
+  }
+  for (const collapsed of [false, true]) {
+    const body = parseAgentflow(source + (collapsed ? 'A@{ view: collapsed }\n' : ''))
+    expect(ownership(body.graph.subgraphs)).toEqual(parents)
+    expect(body.graph.edges.map(edge => [edge.source, edge.target])).toEqual([['a1', 'B'], ['b1', 'A']])
+    expect(body.graph.nodes.has('A')).toBe(false)
+    expect(body.graph.nodes.has('B')).toBe(false)
+    const reloaded = parseAgentflow(renderAgentflow(body))
+    expect(ownership(reloaded.graph.subgraphs)).toEqual(parents)
+    expect(reloaded.graph).toEqual(body.graph)
+    const projected = projectAgentflowGraph(body)
+    if (collapsed) {
+      const { A: _collapsedParent, ...visibleParents } = parents
+      expect(ownership(projected.subgraphs)).toEqual(visibleParents)
+      expect(projected.nodes.has('a1')).toBe(false)
+      expect(projected.nodes.has('A')).toBe(true)
+      expect(projected.edges.map(edge => [edge.source, edge.target])).toEqual([['A', 'B'], ['b1', 'A']])
+    } else expect(ownership(projected.subgraphs)).toEqual(parents)
+    // Projection must never change the editable source's container authority.
+    expect(ownership(body.graph.subgraphs)).toEqual(parents)
+  }
+})
+
 test('standalone metadata can define a scoped task; malformed and unsafe constructs retain source', () => {
   const body = parseAgentflow('agentflow-beta LR\nflow team\nworker@{ shape: tool, label: "Lookup" }\nend')
   expect(body.graph.nodes.get('worker')?.label).toBe('Lookup')

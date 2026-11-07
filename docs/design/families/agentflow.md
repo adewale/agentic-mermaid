@@ -21,7 +21,9 @@ labels is retained even where the pinned Mermaid parser truncates it; see the
 ## Placement and limitations
 
 The renderer reuses the graph pipeline while preserving AgentFlow role shapes
-and scope ownership. Collapsed display can retarget visible links without
+and scope ownership. A flow keeps its first declared parent; a link to a sibling
+or forward-declared flow cannot move that container into the referring scope.
+Collapsed display can retarget visible links without
 removing children from the editable body. Explicit layout choices and compound
 graphs retain their producer; native forest placement is a bounded optimization,
 not a replacement for every graph layout.

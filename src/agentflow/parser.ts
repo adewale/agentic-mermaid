@@ -57,6 +57,11 @@ function metadataDeclaration(text: string, scan: FlowchartScan, before: number):
 export function parseAgentflow(source: string): AgentflowBody {
   const metadata = new Map<string, Record<string, unknown>>(), connectors = new Set<string>(), globals = new Set<string>(), mappings: AgentflowMapping[] = []
   const grammar: string[] = [], frames: Array<{ global: boolean; id?: string }> = []
+  const declaredParents = new Map<string, string | undefined>()
+  const openScope = (id: string, global: boolean): void => {
+    if (!declaredParents.has(id)) declaredParents.set(id, frames.at(-1)?.id)
+    frames.push({ global, id })
+  }
   const globalMentions = new Set<string>()
   const attachmentScopes = new Map<string, string | undefined>()
   const globalScopes = new Set<string>()
@@ -114,18 +119,18 @@ export function parseAgentflow(source: string): AgentflowBody {
       text = withoutMetadata + text.slice(cursor)
       if (/^flow\s*$/i.test(text)) {
         const id = anonymousFlow!
-        frames.push({ global: false, id }); map(id, 'flow'); grammar.push(`subgraph ${id}[""]`); continue
+        openScope(id, false); map(id, 'flow'); grammar.push(`subgraph ${id}[""]`); continue
       }
       if (/^global\s*$/i.test(text)) {
         const id = syntheticIdentity('global')
-        globalScopes.add(id); frames.push({ global: true, id }); grammar.push(`subgraph ${id}`); continue
+        globalScopes.add(id); openScope(id, true); grammar.push(`subgraph ${id}`); continue
       }
       if (/^end\s*$/i.test(text)) {
         if (!frames.pop()) throw new Error('AgentFlow end has no open flow or global block')
         grammar.push('end'); continue
       }
       const flow = text.match(/^flow\s+([\p{L}\p{N}_.:-]+)(.*)$/u)
-      if (flow) { frames.push({ global: false, id: flow[1]! }); map(flow[1]!, 'flow'); grammar.push(`subgraph ${flow[1]}${flow[2]}`); continue }
+      if (flow) { openScope(flow[1]!, false); map(flow[1]!, 'flow'); grammar.push(`subgraph ${flow[1]}${flow[2]}`); continue }
       if (/^(?:subgraph|global|flow)\b/i.test(text)) throw new Error('Unsupported AgentFlow container declaration')
       const connector = text.match(/^connector\s+([\p{L}\p{N}_.:-]+)(.*)$/u)
       if (connector) { connectors.add(connector[1]!); globals.add(connector[1]!); map(connector[1]!, 'connector'); text = `${connector[1]}${connector[2]}` }
@@ -160,6 +165,16 @@ export function parseAgentflow(source: string): AgentflowBody {
   const allGroups = new Map<string, MermaidSubgraph>()
   const collect = (group: MermaidSubgraph): void => { allGroups.set(group.id, group); group.children.forEach(collect) }
   graph.subgraphs.forEach(collect)
+  // AgentFlow declarations own containment. Flowchart also treats a link to
+  // a root subgraph as membership; that reference cannot move a declared flow.
+  for (const group of allGroups.values()) group.children = []
+  graph.subgraphs = []
+  for (const [id, parentId] of declaredParents) {
+    const group = allGroups.get(id)!
+    if (parentId === undefined) graph.subgraphs.push(group)
+    else allGroups.get(parentId)!.children.push(group)
+    if (parserObservationActive('agentflow')) observeParserMutation('agentflow', 'attach-flow', { id, parent: parentId })
+  }
   const edgeIds = new Set(graph.edges.flatMap(edge => edge.id ? [edge.id] : []))
   for (const [id] of metadata) if (!graph.nodes.has(id) && !allGroups.has(id) && !edgeIds.has(id)) {
     graph.nodes.set(id, { id, label: id, shape: 'rectangle' })
