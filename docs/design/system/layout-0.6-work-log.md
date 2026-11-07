@@ -857,3 +857,19 @@ retain delivery/proof/route vectors; this is validation, not new layout progress
 Final local HTMLgzip1,386,834/Brotli1,318,238 vs main1,517,563/1,170,181: adverse
 Brotli+148,057 and original gzip cap+52,334 remain. No new runtime/RSS claim.
 Keep automations off; reconsidered proposals defer a general solver framework.
+
+
+From a19526203, remove shared ER256 BT/RL refusal by reusing the unchanged
+final glyph/shaft snapshot and querying each cardinality union before the same
+exact piece checks. Face/frame/caption route repair prevents reuse. Snapshot-only
+and union-only still refuse; combined Native385,344 /ELK371,874 stay under400k.
+TB/LR SVGs exact; Native work397,206→343,421, ELK384,466→330,681. Owning chain
+matrix4RED→8GREEN;67 owner passes plus isolated timeout retryP, adjacent132P plus
+six sandbox-child retriesP. Core/repo types and lintP;1,748 corpus SVGs and
+route/delivery/proof outcomes exact. Independent review found no blocker; retained
+query heuristics can cost more for other geometries. Browser worker650assertionsP;
+original gzip limit remainsF. ActualHTML raw−148/gzip−7/Brotli−157bytes. Mixed
+profiled admitted costs establish no runtime/RSS ratio. Shorten the existing
+plan, rank remaining proposals and separate optimization metrics. Sparse32,
+visible contacts, crossing276, Sparse256 and payload losses remain. Next:
+Sparse32's first exhausted XML/capture stage; automation stays disabled.

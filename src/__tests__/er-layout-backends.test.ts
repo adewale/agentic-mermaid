@@ -23,11 +23,6 @@ const compoundFixture = readFileSync(new URL('../../eval/layout-compare/fixtures
 const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/er-backends.mmd', import.meta.url), 'utf8')
 
 describe('ER layout backends', () => {
-  test.each(['BT', 'RL'])('still refuses an unproved 256-entity ELK chain in %s at the original limit', direction => {
-    const source = `erDiagram\ndirection ${direction}\n` + Array.from({ length: 255 }, (_, i) => `N${i} ||--o{ N${i + 1} : owns`).join('\n')
-    expect(() => renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk', fallback: 'none' } })).toThrow('ER_ROUTE_WORK_LIMIT')
-  })
-
   test.each([
     ...[1, 4].map(count => ({ count, size: 4096, backend: 'elk' as const, direction: undefined })),
     ...(['TB', 'BT', 'LR', 'RL'] as const).map(direction => ({ count: 1, size: 256, backend: 'agentic' as const, direction })),
@@ -188,7 +183,7 @@ describe('ER layout backends', () => {
     { backend: 'elk', direction: 'LR', size: 208 },
     { backend: 'agentic', direction: 'LR', size: 208 },
     ...['TB', 'BT', 'RL'].map(direction => ({ backend: 'elk', direction, size: 208 })),
-    ...['elk', 'agentic'].flatMap(backend => ['LR', 'TB'].map(direction => ({ backend, direction, size: 256 }))),
+    ...['elk', 'agentic'].flatMap(backend => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ backend, direction, size: 256 }))),
   ])('finishes a $size-entity chain within the shared geometry allowance with $backend in $direction', ({ backend, direction, size }) => {
     const source = `erDiagram\ndirection ${direction}\n` + Array.from({ length: size - 1 }, (_, i) => `N${i} ||--o{ N${i + 1} : owns`).join('\n')
     const options = { graphLayout: { backend: backend as 'elk' | 'agentic', fallback: 'none' as const } }

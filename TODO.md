@@ -333,8 +333,10 @@ named revision. Keep the feature
 opt-in while qualifying it; this deferral does not change package versions,
 publish a release or authorize a default switch.
 
-Correctness implementation is the focus through Friday 30 October; performance
-experiments are paused during this work.
+Current bounded priorities and optimization metrics are in the linked plan.
+Shared ER delivery comes first, followed by Sparse32 proof work, distribution
+closures and demonstrated visible contacts. Automation remains off; current
+manual work and evidence use exact revisions in the work log.
 
 - [x] Add independent Class development models over 8–24 cards and full public-SVG occurrence checks for six 8-card engine/wrapper arms. Repair the two new Native TB refusals by retrying a blocked content domain inside a known canonical host outline; retain rounded-corner, unknown-shape and cumulative-budget controls. These are development inputs, not held-out qualification or broad parity.
 - [x] Extend independent ER development coverage with 12-entity BT and 18-entity RL cases combining aliased display collisions, distinct Unicode identities, nested frames, long attributes and parallel/reciprocal/self relationships. Four strict-backend OFF SVG calls on `3344f753` preserve authored models and actual XML occurrences, with passing certificates and zero Native ELK calls. Independent physical review binds all 144 endpoint roles to their own carriers and intended painted borders, checks 420 glyph pieces, 72 relationship pills and 732 prepared-text bands; four proper crossings remain explicit. Two ELK endpoints meet the actual border band rather than the nominal face. This is finite development evidence, not held-out, cache/repeat/terminal, font-outline, aesthetic/performance or original-seven-U qualification.

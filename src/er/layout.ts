@@ -1443,7 +1443,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
   const snapshot = () => {
     const currentGlyphs = glyphs(), currentShafts = shafts()
     const bounds = new Map(currentGlyphs.map(g => [g, glyphBox(g)]))
-    return { currentGlyphs, glyphQuery: erInkIndex(currentGlyphs, g => bounds.get(g)!, charge, currentGlyphs.length), shaftQuery: erInkIndex(currentShafts, s => s.box, charge, currentGlyphs.length) }
+    return { currentGlyphs, currentShafts, bounds, glyphQuery: erInkIndex(currentGlyphs, g => bounds.get(g)!, charge, currentGlyphs.length), shaftQuery: erInkIndex(currentShafts, s => s.box, charge, currentGlyphs.length) }
   }
   let retained = snapshot()
   let changed = false
@@ -1630,7 +1630,10 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     finalizeErRelationshipLabels(positioned, style, styleFace, work, 'indexed-prefix')
     labels = retainedErRelationshipLabels(positioned) ?? separateRelationshipLabels(positioned, style, styleFace, work)
   }
-  const allGlyphs = glyphs(), allShafts = shafts(), allLabels = labelBoxes(false)
+  // Frame/caption repairs may move routes after the last face snapshot.
+  // Only the unchanged epoch can share those exact glyphs, shafts and indexes.
+  const finalSnapshot = changed || failedCaptions.length ? undefined : retained
+  const allGlyphs = finalSnapshot?.currentGlyphs ?? glyphs(), allShafts = finalSnapshot?.currentShafts ?? shafts(), allLabels = labelBoxes(false)
   for (const rel of relationships) if (!erSimpleRoute(rel.points, work)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
   // Strict body/header interiors apply to every raw segment, including an
   // incident card revisited later in a route. Legitimate outline contacts are
@@ -1674,12 +1677,12 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
       if (intersects(shaft.box, obstacle.box) && !terminalBorderContact(shaft, box.id, box, half, obstacle.group ? 6 : Math.min(style.cornerRadius ?? 0, box.width / 2, box.height / 2), !!obstacle.group)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
     }
   }
-  const glyphBounds = new Map(allGlyphs.map(glyph => {
+  const glyphBounds = finalSnapshot?.bounds ?? new Map(allGlyphs.map(glyph => {
     charge(glyph.pieces.length * 4 + 1)
     return [glyph, { x0: Math.min(...glyph.pieces.map(p => p.x0)), y0: Math.min(...glyph.pieces.map(p => p.y0)), x1: Math.max(...glyph.pieces.map(p => p.x1)), y1: Math.max(...glyph.pieces.map(p => p.y1)) }] as const
   }))
-  const glyphQuery = erInkIndex(allGlyphs, glyph => glyphBounds.get(glyph)!, charge, allGlyphs.length + allLabels.length)
-  const shaftQuery = erInkIndex(allShafts, shaft => shaft.box, charge, allGlyphs.length * 4 + allLabels.length)
+  const glyphQuery = finalSnapshot?.glyphQuery ?? erInkIndex(allGlyphs, glyph => glyphBounds.get(glyph)!, charge, allGlyphs.length + allLabels.length)
+  const shaftQuery = finalSnapshot?.shaftQuery ?? erInkIndex(allShafts, shaft => shaft.box, charge, allGlyphs.length * 4 + allLabels.length)
   const labelQuery = erInkIndex(allLabels, label => label.box, charge, allLabels.length)
   for (const glyph of allGlyphs) for (const other of glyphQuery(glyphBounds.get(glyph)!)) {
     charge()
@@ -1706,10 +1709,11 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     const line = terminal?.line, far = line && (glyph.end ? line[0] : line[1]), at = line && (glyph.end ? line[1] : line[0])
     if ((!horizontal && !vertical) || !far || !at || (horizontal ? far.y !== at.y || Math.sign(far.x - at.x) !== sign : far.x !== at.x || Math.sign(far.y - at.y) !== sign)
       || sign * ((horizontal ? far.x : far.y) - (horizontal ? glyph.point.x : glyph.point.y)) < terminalDepth(glyph.pieces, glyph.point, horizontal, sign)) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
-    for (const piece of glyph.pieces) {
-      for (const obstacle of obstacleQuery(piece)) if ((obstacle.id !== glyph.id || !!obstacle.group !== groupIds.has(glyph.id)) && intersects(piece, obstacle.box)) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
-      for (const shaft of shaftQuery(piece)) if ((shaft.index !== glyph.index || !(glyph.end ? shaft.last : shaft.first)) && intersects(piece, shaft.box)) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
-    }
+    // The retained union is only a broad phase. Every candidate still meets
+    // the same exact piece predicates and incident-terminal exclusions.
+    const bounds = glyphBounds.get(glyph)!
+    for (const obstacle of obstacleQuery(bounds)) if ((obstacle.id !== glyph.id || !!obstacle.group !== groupIds.has(glyph.id)) && glyph.pieces.some(piece => intersects(piece, obstacle.box))) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
+    for (const shaft of shaftQuery(bounds)) if ((shaft.index !== glyph.index || !(glyph.end ? shaft.last : shaft.first)) && glyph.pieces.some(piece => intersects(piece, shaft.box))) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
   }
   for (const label of allLabels) {
     const rel = relationships[label.index]!

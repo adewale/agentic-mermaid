@@ -209,3 +209,43 @@ ABBA processes then gave repeat medians179/322ms for controls versus440/484ms
 for candidates; edit medians203/248 versus287/343ms. Process peak RSS overlaps
 without a consistent win. Retain no flat-storage rewrite and claim no speedup.
 Raw profiles, equal products and adverse costs remain in `invariant-plan-62d`.
+
+
+## ER snapshot and glyph-query reuse — 7 November
+
+Profile before implementation at a19526203, Node24.19.0, strict Native ER256 BT,
+layout cache0: one refusal warmup, two repeated refusals and one caption edit.
+The existing collector consumes complete public products when returned; here all
+three calls refuse before delivery. Imports, compression and explicit GC are
+outside the measured windows. Sample weights below are per call across those
+three windows; self is leaf weight and inclusive is overlapping stack presence,
+not exclusive CPU time or independently removable time.
+
+| Source spot | Self / inclusive ms | Matching case and decision |
+| --- | ---: | --- |
+| `build`, `shared/ink-index.ts:23` |8.767 /13.105|Data-oriented reuse: retain the existing call-local index while geometry is unchanged; avoid querying it once per glyph piece.|
+| `finishErGeometry`, `er/layout.ts:1324` |7.687 /63.648|Data-oriented subtraction: reuse exact glyphs, shafts and bounds; invalidate after face/frame/caption route repair.|
+| `qualify`, `shared/immutable-parts.ts:12` |7.652 /7.757|No sufficient removable work demonstrated; preserve ownership/admission.|
+| `tryParseCssColor`, `shared/color-math.ts:160` |7.535 /7.535|No causal intervention demonstrated; add no cache.|
+| `resolveRoleStyle`, `scene/roles.ts:238` |5.700 /7.129|No causal intervention demonstrated; preserve role semantics.|
+
+The cache inventory above remains applicable. This change extends neither a
+cross-request cache nor proof authority. Snapshot bounds remain a broad phase;
+exact charged piece intersections and incident-terminal exclusions still run.
+Snapshot-only and union-only BT trials still refuse. The combination returns all
+eight ER256 direction/backend products with passed proof. Native BT/RL use385,344
+geometry operations, ELK371,874, against the unchanged400k cap. Native TB/LR work
+falls397,206→343,421; ELK384,466→330,681, preserving exact prior SVGs. This is a
+work/delivery improvement; refusal and completed delivery are unequal CPU work.
+
+An admitted ER208 BT Native before/final probe retains exact SVGs and entire
+receipts for both repeats and the edit. Wall observations672.97/609.19/612.16→
+595.73/662.83/585.17ms and CPU1118.31/962.78/919.73→1009.58/1137.23/1056.26ms
+are mixed. The final probe overlapped supplemental raster work; peak RSS also
+mixes process lifetime and retained profiler products. No causal timing/memory
+ratio, cold/cache1 result or p95 estimate follows. Preserve these adverse samples.
+A reused small-query heuristic and gap-only union candidates can cost more on
+other geometries; all visits and exact checks remain metered. The existing874
+inputs/backend retain exact SVGs, route vectors, delivery and proof statuses.
+
+Evidence: `outcome-plan-a195-20261107` on the existing review evidence branch.
