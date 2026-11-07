@@ -1,7 +1,8 @@
 import type { StyleInput } from '../scene/style-registry.ts'
-import type { ZenUMLAppearance } from './appearance.ts'
 import { snapshotDeclarativeStyleValue, withStyleAdmission } from '../shared/declarative-style.ts'
 import { assertJsonConfigAdmission } from '../shared/json-config-admission.ts'
+import { createSettlement } from '../shared/settlement.ts'
+import type { ZenUMLAppearance } from './appearance.ts'
 
 /** Optional browser-only backend. No ZenUML dependency enters the default graph. */
 export class ZenUMLBackendError extends Error {
@@ -158,25 +159,23 @@ export function createUpstreamZenUMLRenderer(options: UpstreamZenUMLOptions): Up
       let rejectCancelled!: (error: ZenUMLBackendError) => void
       const cancelled = new Promise<never>((_, no) => { rejectCancelled = no })
       void cancelled.catch(() => {})
-      let settled = false
+      const completion = createSettlement<{ ok: true; svg: string } | { ok: false; error: unknown }>(outcome => outcome.ok ? resolve(outcome.svg) : reject(outcome.error))
       const release = () => {
-        settled = true
         pending--
         cancelPending.delete(cancel)
         const index = queue.indexOf(job)
         if (index >= 0) queue.splice(index, 1)
       }
+      completion.onCleanup(release)
       const fail = (error: unknown) => {
-        if (settled) return
-        release()
-        reject(error)
+        completion.finish({ ok: false, error })
       }
       const cancel = (error: ZenUMLBackendError) => {
         rejectCancelled(error)
         fail(error)
       }
       const job = async () => {
-        if (settled) return
+        if (!completion.pending) return
         try {
           if (disposed) throw unavailable('The ZenUML renderer has been disposed.')
           let svg: string
@@ -193,7 +192,7 @@ export function createUpstreamZenUMLRenderer(options: UpstreamZenUMLOptions): Up
             if (disposed) throw unavailable('The ZenUML renderer has been disposed.')
             svg = await request(source, admitted, Math.max(0, timeout - (performance.now() - started)))
           }
-          if (!settled) { release(); resolve(svg) }
+          completion.finish({ ok: true, svg })
         } catch (error) { fail(error) }
       }
       cancelPending.add(cancel)
@@ -203,7 +202,7 @@ export function createUpstreamZenUMLRenderer(options: UpstreamZenUMLOptions): Up
         if (!Number.isFinite(timeout) || timeout <= 0) throw unavailable('timeoutMs must be positive and finite.')
         const input = 'style' in renderOptions ? renderOptions.style : defaultStyle
         style = input === undefined ? undefined : captureStyle(input)
-        if (!settled) {
+        if (completion.pending) {
           // The shared style registry is fetched only for a paint request.
           appearance = style === undefined ? Promise.resolve(undefined) : import('./appearance.ts')
             .then(api => {

@@ -7,7 +7,7 @@ import { editorHasUnsavedWork, markActiveExample, setExamplesSidebarOpen } from 
 import { clearPopupClosing, createPopupController, emptyPreviewHtml, setEditorErrorLine } from './helpers.js';
 import { discardEditorDraft } from './sharing.js';
 import { updateCursorPos, updateLineNumbers } from './editor-helpers.js';
-import { ensureTextOutputs, fitUnicodeOutput, hasCurrentVerifiedSvgArtifact, lastRenderedTextArtifacts, markTextOutputsDirty, resetVerifyPanel, setTextOutputs } from './rendering.js';
+import { ensureTextOutputs, fitUnicodeOutput, hasCurrentVerifiedSvgArtifact, currentVerifiedRender, scheduleRender, lastRenderedTextArtifacts, markTextOutputsDirty, resetVerifyPanel, setTextOutputs } from './rendering.js';
 import { refreshC4Navigation } from './c4-navigation.js';
 import { EditorMotion } from './motion.js';
 export var copySourceBtn, currentCanvasFormat, CANVAS_FORMATS, shortcutsDialog, shortcutsDialogClose, shortcutsReturnFocus, shortcutsInertSiblings, shortcutsHomeParent, shortcutsHomeNextSibling, shortcutsExitTail, shortcutsExitTimer, shortcutsPopup;
@@ -48,7 +48,7 @@ export function clearEditor() {
   delete previewInner.dataset.sharedRequestDigest;
   delete previewInner.dataset.renderRequestDigest;
   delete previewInner.dataset.appearanceDigest;
-  ui.lastRenderedSvgArtifact = null;
+  scheduleRender(0);
   if (typeof markTextOutputsDirty === 'function') markTextOutputsDirty();
   if (typeof setTextOutputs === 'function') setTextOutputs('', '');
   statusText.textContent = 'Ready';
@@ -216,7 +216,7 @@ if (copyTextOutputBtn) copyTextOutputBtn.addEventListener('click', function() {
       showToast('Render and verify a diagram before copying its SVG.');
       return;
     }
-    writeClipboardText(ui.lastRenderedSvgArtifact.svg, 'SVG markup copied.', 'Copy SVG failed.', copyTextOutputBtn);
+    writeClipboardText(currentVerifiedRender().artifact.svg, 'SVG markup copied.', 'Copy SVG failed.', copyTextOutputBtn);
     return;
   }
   var name = currentCanvasFormat === 'ascii' ? 'ASCII' : 'Unicode';

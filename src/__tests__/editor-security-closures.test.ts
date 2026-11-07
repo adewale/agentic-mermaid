@@ -36,6 +36,7 @@ function sharingHarness(options: {
       ],
     },
   }
+  const record = {}
   const api = evaluateBrowserScript<any>(sharingSource, {
     window, localStorage, sessionStorage, editor, state,
     document: { getElementById() { return null } },
@@ -43,6 +44,8 @@ function sharingHarness(options: {
     CompressionStream: Object.prototype.hasOwnProperty.call(options, 'compression') ? options.compression : globalThis.CompressionStream,
     DecompressionStream: Object.prototype.hasOwnProperty.call(options, 'decompression') ? options.decompression : globalThis.DecompressionStream,
     hasCurrentVerifiedSvgArtifact: () => options.verified !== false,
+    currentVerifiedRender: () => options.verified !== false ? record : null,
+    isCurrentVerifiedRender: (candidate: unknown) => candidate === record && options.verified !== false,
     DEFAULT_EDITOR_PALETTE: 'paper',
   }, `{
     decodeSource, encodeSourceCompressed, updateHash, readEditorDraft, saveEditorDraft, discardEditorDraft,

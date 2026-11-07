@@ -1,5 +1,5 @@
 import { ui } from './context.js';
-import { activeCanvasFormat, currentEditorSource, hasCurrentVerifiedSvgArtifact, scheduleRender } from './rendering.js';
+import { activeCanvasFormat, currentEditorSource, hasCurrentVerifiedSvgArtifact, currentVerifiedRender, scheduleRender } from './rendering.js';
 import { applyZoom } from './zoom.js';
 import { previewBody, previewInner } from './elements.js';
 import { state } from './state.js';
@@ -31,7 +31,7 @@ export function refreshDiagramTools() {
   var available = hasCurrentVerifiedSvgArtifact();
   if (available) {
     diagramToolsSource = currentEditorSource();
-    var execution = ui.lastRenderedSvgArtifact.receipt.executionDecision;
+    var execution = currentVerifiedRender().artifact.receipt.executionDecision;
     diagramToolsFamily = execution ? execution.family.id.split(':').pop() : '';
   } else if (diagramToolsSource !== currentEditorSource()) {
     diagramToolsFamily = '';

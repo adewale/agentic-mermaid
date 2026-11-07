@@ -718,7 +718,10 @@ table here, which would drift. In broad strokes:
   font/Canvas callback and transfers an allocation-bounded copy of its bytes
   back for canonical PNG validation. Callback buffers are never detached.
   One operation is active, with one replaceable preview and four queued exports;
-  source/config changes cancel stale work, including a PNG awaiting font/Canvas
+  waiting exports share a 16 MiB payload residency estimate, while preview
+  admission has a separate 12 MiB estimate. These are admission estimates, not
+  process heap limits.
+  Source/config changes cancel stale work, including a PNG awaiting font/Canvas
   I/O, so a new preview can proceed. Timeouts and crashes reject all waiters and
   the next operation starts a fresh worker.
 

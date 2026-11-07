@@ -11,7 +11,7 @@ import { emptyPreviewHtml, escAttr, escHtml, extractErrorLocation, formatRenderE
 import { cancelPreviewMotion } from './pan.js';
 import { applyZoom, fitToView } from './zoom.js';
 import { updateHash } from './sharing.js';
-export var renderTimer, renderSpinnerTimer, renderRequestVersion, lastSuccessfulUiMs, autoFitPending, lastRenderedSvgSource, lastRenderedTextArtifacts, textOutputCacheKey, VERIFY_TIER_BY_CODE, VERIFY_SEVERITY_BY_CODE, lastVerifyTierCounts, TEXT_RENDER_MAX_LINES;
+export var renderTimer, renderSpinnerTimer, renderRequestVersion, lastSuccessfulUiMs, autoFitPending, lastRenderedTextArtifacts, textOutputCacheKey, VERIFY_TIER_BY_CODE, VERIFY_SEVERITY_BY_CODE, lastVerifyTierCounts, TEXT_RENDER_MAX_LINES;
 var paneWidthObserver, lastPaneWidth, lastPaneFitKey, paneFitPresentationPending;
 
 
@@ -25,12 +25,21 @@ export function isCurrentRender(version, source) {
 }
 
 
+export function currentVerifiedRender() {
+  var record = ui.verifiedRender;
+  if (!record || record.generation !== renderRequestVersion || record.source !== currentEditorSource()
+      || previewInner.querySelector('svg') === null
+      || previewInner.dataset.sharedRequestDigest !== record.artifact.receipt.sharedRequestDigest
+      || (state.fitLabelsToPane && JSON.stringify(record.options) !== JSON.stringify(buildOptions()))) return null;
+  return record;
+}
+
+export function isCurrentVerifiedRender(record) {
+  return !!record && currentVerifiedRender() === record;
+}
+
 export function hasCurrentVerifiedSvgArtifact() {
-  return !!ui.lastRenderedSvgArtifact
-    && lastRenderedSvgSource === currentEditorSource()
-    && previewInner.querySelector('svg') !== null
-    && previewInner.dataset.sharedRequestDigest === ui.lastRenderedSvgArtifact.receipt.sharedRequestDigest
-    && (!state.fitLabelsToPane || !ui.lastRenderedSvgOptions || JSON.stringify(ui.lastRenderedSvgOptions) === JSON.stringify(buildOptions()));
+  return currentVerifiedRender() !== null;
 }
 
 
@@ -42,9 +51,7 @@ export function clearRenderSpinner() {
 
 
 export function invalidateRenderedArtifacts() {
-  ui.lastRenderedSvgArtifact = null;
-  ui.lastRenderedSvgOptions = null;
-  lastRenderedSvgSource = null;
+  ui.verifiedRender = null;
   markTextOutputsDirty();
   delete previewInner.dataset.sharedRequestDigest;
   delete previewInner.dataset.renderRequestDigest;
@@ -227,10 +234,10 @@ export function retainTextOutputArtifact(format, artifact) {
   if (!hasCurrentVerifiedSvgArtifact()) {
     throw new Error(format + " output requires a current verified SVG preview");
   }
-  if (artifact.receipt.sharedRequestDigest !== ui.lastRenderedSvgArtifact.receipt.sharedRequestDigest) {
+  if (artifact.receipt.sharedRequestDigest !== ui.verifiedRender.artifact.receipt.sharedRequestDigest) {
     throw new Error(format + " output and SVG preview do not describe the same render request");
   }
-  if (artifact.receipt.appearanceDigest !== ui.lastRenderedSvgArtifact.receipt.appearanceDigest) {
+  if (artifact.receipt.appearanceDigest !== ui.verifiedRender.artifact.receipt.appearanceDigest) {
     throw new Error(format + " output and SVG preview do not describe the same appearance");
   }
   lastRenderedTextArtifacts[format] = artifact;
@@ -241,7 +248,7 @@ export function retainTextOutputArtifact(format, artifact) {
 
 
 export function textOutputKey(source) {
-  return source + "\n" + JSON.stringify(ui.lastRenderedSvgOptions || buildOptions());
+  return source + "\n" + JSON.stringify(ui.verifiedRender ? ui.verifiedRender.options : buildOptions());
 }
 
 
@@ -431,7 +438,7 @@ export async function renderTextOutputs(source) {
     return;
   }
   var key = textOutputKey(source);
-  var svgArtifactAtStart = ui.lastRenderedSvgArtifact;
+  var verifiedAtStart = currentVerifiedRender();
   if (textOutputCacheKey === key) {
     if (activeCanvasFormat() === "unicode") fitUnicodeOutput();
     return;
@@ -446,12 +453,12 @@ export async function renderTextOutputs(source) {
     return;
   }
   try {
-    var opts = Object.assign({}, ui.lastRenderedSvgOptions || buildOptions(), { colorMode: "none" });
+    var opts = Object.assign({}, verifiedAtStart.options, { colorMode: "none" });
     var artifacts = await Promise.all([
       renderMermaidUnicodeWithReceipt(source, opts),
       renderMermaidAsciiWithReceipt(source, Object.assign({}, opts, { useAscii: true }))
     ]);
-    if (source !== currentEditorSource() || ui.lastRenderedSvgArtifact !== svgArtifactAtStart) return;
+    if (!isCurrentVerifiedRender(verifiedAtStart)) return;
     var unicodeArtifact = artifacts[0];
     var asciiArtifact = artifacts[1];
     retainTextOutputArtifact("unicode", unicodeArtifact);
@@ -463,7 +470,7 @@ export async function renderTextOutputs(source) {
     textOutputCacheKey = key;
     if (activeCanvasFormat() === "unicode") fitUnicodeOutput();
   } catch (err) {
-    if (source !== currentEditorSource() || ui.lastRenderedSvgArtifact !== svgArtifactAtStart) return;
+    if (!isCurrentVerifiedRender(verifiedAtStart)) return;
     textOutputCacheKey = "";
     clearTextOutputReceipts();
     setTextOutputs("Text output failed: " + String(err || "unknown error"), "Text output failed: " + String(err || "unknown error"));
@@ -504,7 +511,7 @@ export async function doRender(version) {
     delete previewInner.dataset.sharedRequestDigest;
     delete previewInner.dataset.renderRequestDigest;
     delete previewInner.dataset.appearanceDigest;
-    ui.lastRenderedSvgArtifact = null;
+    ui.verifiedRender = null;
     resetVerifyPanel("Waiting for source");
     if (typeof updateExportAvailability === "function") updateExportAvailability();
     if (typeof refreshC4Navigation === "function") refreshC4Navigation();
@@ -550,9 +557,7 @@ export async function doRender(version) {
     renderTime.textContent = "Rendered and verified in " + renderMs.toFixed(0) + "ms";
     markTextOutputsDirty();
     if (verification && verification.ok) {
-      ui.lastRenderedSvgArtifact = rendered;
-      ui.lastRenderedSvgOptions = renderOptions;
-      lastRenderedSvgSource = source;
+      ui.verifiedRender = Object.freeze({ generation: version, source, options: renderOptions, artifact: rendered });
       previewInner.dataset.sharedRequestDigest = rendered.receipt.sharedRequestDigest;
       previewInner.dataset.renderRequestDigest = rendered.receipt.requestDigest;
       previewInner.dataset.appearanceDigest = rendered.receipt.appearanceDigest;
@@ -561,8 +566,7 @@ export async function doRender(version) {
       statusDot.className = "status-dot ok";
       if (activeCanvasFormat() !== "diagram") renderTextOutputs(source);
     } else {
-      ui.lastRenderedSvgArtifact = null;
-      lastRenderedSvgSource = null;
+      ui.verifiedRender = null;
       delete previewInner.dataset.sharedRequestDigest;
       delete previewInner.dataset.renderRequestDigest;
       delete previewInner.dataset.appearanceDigest;
@@ -582,8 +586,7 @@ export async function doRender(version) {
     delete previewInner.dataset.sharedRequestDigest;
     delete previewInner.dataset.renderRequestDigest;
     delete previewInner.dataset.appearanceDigest;
-    ui.lastRenderedSvgArtifact = null;
-    lastRenderedSvgSource = null;
+    ui.verifiedRender = null;
     var errorLoc = extractErrorLocation(String(err || ""));
     setEditorErrorLine(errorLoc ? errorLoc.line : 0);
     statusText.textContent = "Error";
@@ -620,8 +623,7 @@ autoFitPending = true;
 
 // Exact canonical artifact inserted into the preview. Export adapters derive
 // from this record/source, never from a host-mutated preview DOM.
-ui.lastRenderedSvgArtifact = null;
-ui.lastRenderedSvgOptions = null;
+ui.verifiedRender = null;
 lastPaneWidth = undefined;
 lastPaneFitKey = null;
 paneFitPresentationPending = true;
@@ -633,7 +635,6 @@ if (typeof previewBody !== 'undefined' && previewBody && typeof ResizeObserver !
   window.addEventListener('resize', refreshPaneFitting);
 }
 
-lastRenderedSvgSource = null;
 
 // Text views and their copy/export action retain the same receipt-bearing
 // artifacts as SVG/PNG instead of reducing them to strings at render time.
