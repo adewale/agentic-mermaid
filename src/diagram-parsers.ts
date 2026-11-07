@@ -1,8 +1,8 @@
-import { authoredParserColumn, withParserSource } from './shared/parser-source.ts'
+import { withParserSource } from './shared/parser-source.ts'
 // Public, layout-free access to the same typed models used by the renderers.
 import { expandInlineNamespaceStatement, parseClassDiagram as parseClassLines } from './class/parser.ts'
 import { parseErDiagram as parseErLines } from './er/parser.ts'
-import { authoredSequenceLine, parseSequenceDiagram as parseSequenceLines } from './sequence/parser.ts'
+import { authoredSequenceColumn, authoredSequenceLine, parseSequenceDiagram as parseSequenceLines } from './sequence/parser.ts'
 import { sequenceFamilySource } from './sequence/family-source.ts'
 import { resolveSequenceConfig } from './sequence/config.ts'
 import { detectDiagramTypeFromFirstLine, getFrontmatterScalar, normalizeMermaidSource, withFrontmatterTitle, type NormalizedMermaidSource } from './mermaid-source.ts'
@@ -56,6 +56,6 @@ export function parseSequenceDiagram(source: string) {
   const family = sequenceFamilySource(normalized, 'decoded')
   const coordinates = family === normalized ? family : { ...normalized, familyLines: family.familyLines }
   return withFrontmatterTitle(withAccessibilityFields(parseSequenceLines(family.familyLines, {
-    ...resolveSequenceConfig(normalized.frontmatter), authoredLine: authoredSequenceLine(coordinates), authoredColumn: authoredParserColumn(coordinates),
+    ...resolveSequenceConfig(normalized.frontmatter), authoredLine: authoredSequenceLine(coordinates), authoredColumn: authoredSequenceColumn(coordinates),
   }), normalized.accessibility), normalized.frontmatter)
 }

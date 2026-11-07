@@ -1,5 +1,7 @@
 import { normalizeBrTags } from '../multiline-utils.ts'
 import type { NormalizedMermaidSource } from '../mermaid-source.ts'
+import { authoredParserColumn, authoredParserLine } from '../shared/parser-source.ts'
+import { sequenceGrammarTrace } from './family-source.ts'
 import { splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
@@ -597,7 +599,13 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
 /** The authored line of `source.familyLines[index]`, matched in order from
  * the family header as verify matches canonical lines to authored ones, so a
  * renderer's error names the line verify reports. Computed on first use. */
-export { authoredParserLine as authoredSequenceLine } from '../shared/parser-source.ts'
+export function authoredSequenceLine(source: NormalizedMermaidSource): (index: number) => number | undefined {
+  return authoredParserLine(source, sequenceGrammarTrace)
+}
+
+export function authoredSequenceColumn(source: NormalizedMermaidSource): (index: number, column: number) => number | undefined {
+  return authoredParserColumn(source, sequenceGrammarTrace)
+}
 
 /** One sequence statement, classified by the grammar the renderer parser and
  * the typed body both read. Context (which block is open) is the caller's. */

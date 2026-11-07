@@ -15,7 +15,7 @@ import { renderSwimlaneTerminal } from './ascii/swimlane.ts'
 import { TREEVIEW_SVG_HOOKS } from './svg-family-hooks/treeview.ts'
 import { renderTreeviewTerminal } from './ascii/treeview.ts'
 import { expandInlineNamespaceStatement } from './class/parser.ts'
-import { authoredParserColumn, withParserSource } from './shared/parser-source.ts'
+import { withParserSource } from './shared/parser-source.ts'
 import { ZENUML_SVG_HOOKS } from './svg-family-hooks/zenuml.ts'
 import { renderZenUMLTerminal } from './ascii/zenuml.ts'
 import { EVENTMODELING_SVG_HOOKS } from './svg-family-hooks/eventmodeling.ts'
@@ -71,7 +71,7 @@ import { resolveSankeyVisualConfig } from './sankey/config.ts'
 import { sankeyFamilyLines } from './sankey/source.ts'
 import { resolveSequenceConfig } from './sequence/config.ts'
 import { sequenceFamilySource } from './sequence/family-source.ts'
-import { authoredSequenceLine } from './sequence/parser.ts'
+import { authoredSequenceColumn, authoredSequenceLine } from './sequence/parser.ts'
 import { withAccessibilityFields } from './shared/accessibility-directives.ts'
 import { checkAllGraphAuthoredStyles } from './shared/style-props.ts'
 import { resolveXYChartConfig, resolveXYChartTheme } from './xychart/parser.ts'
@@ -162,7 +162,7 @@ export const SEQUENCE_RENDER_HOOKS = {
   renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => {
     const family = sequenceFamilySource(ctx.source, 'decoded')
     const coordinates = family === ctx.source ? family : { ...ctx.source, familyLines: family.familyLines }
-    return renderSequenceTerminal(family.familyText, ctx.config, ctx.colorMode, ctx.theme, (ctx.familyConfig as { sequence?: ReturnType<typeof resolveSequenceConfig> } | undefined)?.sequence ?? {}, ctx.options.targetWidth, authoredSequenceLine(coordinates), authoredParserColumn(coordinates))
+    return renderSequenceTerminal(family.familyText, ctx.config, ctx.colorMode, ctx.theme, (ctx.familyConfig as { sequence?: ReturnType<typeof resolveSequenceConfig> } | undefined)?.sequence ?? {}, ctx.options.targetWidth, authoredSequenceLine(coordinates), authoredSequenceColumn(coordinates))
   }),
 } satisfies BuiltinRenderHooks
 

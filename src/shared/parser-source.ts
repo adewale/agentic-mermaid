@@ -1,21 +1,23 @@
-import { sequenceGrammarSource } from '../sequence/family-source.ts'
 import { preservedMermaidFamilySource, type NormalizedMermaidSource } from '../mermaid-source.ts'
 import { splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 import { installedFamilyStatementEnds } from '../agent/family-router.ts'
 import { scanAccessibilityDirectives } from './accessibility-directives.ts'
-import { scanSequenceStatementLines } from '../sequence/statements.ts'
 import { sourceLineStarts, sourcePointAt } from './source-spans.ts'
 import { LocatedParserError, type MermaidSyntaxErrorLocation } from './syntax-error.ts'
 
 type Source = Pick<NormalizedMermaidSource, 'familyLines' | 'originalText' | 'wrapperSource' | 'authoredWrapperLength' | 'cleanup'>
-interface GrammarRow { text: string; offset: number }
+export interface GrammarRow { text: string; offset: number }
+export interface ParserGrammarTrace {
+  project(text: string): { text: string; sourceOffset: (offset: number) => number }
+  statements(rows: readonly GrammarRow[], text: string): readonly GrammarRow[]
+}
 
 /** Reconstruct the grammar's eligible spans only on failure. Universal fields
  * and comments cannot impersonate statements; cleanup owns encoded offsets. */
-function grammarRows(source: Source, view: 'authored' | 'render' | 'sequence') {
-  const preserved = preservedMermaidFamilySource(source, view === 'sequence' ? 'authored' : view)
-  const sequenceView = view === 'sequence' ? sequenceGrammarSource(preserved.text) : undefined
-  const payload = sequenceView ? { text: sequenceView.text, sourceOffset: (offset: number) => preserved.sourceOffset(sequenceView.sourceOffset(offset)) } : preserved
+function grammarRows(source: Source, view: 'authored' | 'render' | 'grammar', trace?: ParserGrammarTrace) {
+  const preserved = preservedMermaidFamilySource(source, view === 'grammar' ? 'authored' : view)
+  const projected = view === 'grammar' ? trace?.project(preserved.text) : undefined
+  const payload = projected ? { text: projected.text, sourceOffset: (offset: number) => preserved.sourceOffset(projected.sourceOffset(offset)) } : preserved
   const rows: GrammarRow[] = []
   let offset = 0
   for (const match of payload.text.matchAll(/([^\r\n]*)(\r\n?|\n|$)/g)) {
@@ -30,10 +32,7 @@ function grammarRows(source: Source, view: 'authored' | 'render' | 'sequence') {
     }
     offset += match[0].length
   }
-  const sequence = /^sequenceDiagram\b/i.test(rows[0]?.text.trim() ?? '')
-  const input = sequence && /;\s*acc(?:Title|Descr)\b/i.test(payload.text)
-    ? scanSequenceStatementLines(rows.map(row => row.text)).map(span => ({ text: span.raw, offset: rows[span.line]!.offset + span.column }))
-    : rows
+  const input = trace ? trace.statements(rows, payload.text) : rows
   const texts = input.map(row => row.text)
   const scan = scanAccessibilityDirectives(texts, installedFamilyStatementEnds(texts[0] ?? '', texts))
   const eligible = scan.familyLines.flatMap((text, index): GrammarRow[] => {
@@ -45,14 +44,14 @@ function grammarRows(source: Source, view: 'authored' | 'render' | 'sequence') {
   return { rows: eligible, sourceOffset: payload.sourceOffset }
 }
 
-function authoredPositions(source: Source, grammar: readonly string[]) {
+function authoredPositions(source: Source, grammar: readonly string[], trace?: ParserGrammarTrace) {
   const starts = sourceLineStarts(source.originalText)
   let matches: Array<{ offset: number; lead: number; sourceOffset: (offset: number) => number } | undefined> = []
   // A render view may decode XML; authored flowchart parsing preserves it.
   // Select a complete monotone alignment, rather than searching removed text.
-  const views = /^sequenceDiagram\b/i.test(source.familyLines[0] ?? '') ? ['sequence', 'render', 'authored'] as const : ['render', 'authored'] as const
+  const views = trace ? ['grammar', 'render', 'authored'] as const : ['render', 'authored'] as const
   for (const view of views) {
-    const traced = grammarRows(source, view)
+    const traced = grammarRows(source, view, trace)
     let rowIndex = 0, column = 0
     const found: typeof matches = []
     for (const text of grammar) {
@@ -83,9 +82,9 @@ function authoredPositions(source: Source, grammar: readonly string[]) {
   }
 }
 
-export function authoredParserLine(source: Source): (index: number) => number | undefined {
+export function authoredParserLine(source: Source, trace?: ParserGrammarTrace): (index: number) => number | undefined {
   let position: ReturnType<typeof authoredPositions> | undefined
-  return index => (position ??= authoredPositions(source, source.familyLines))(index).line
+  return index => (position ??= authoredPositions(source, source.familyLines, trace))(index).line
 }
 
 export function authoredSyntaxLocation(source: Source, grammar: readonly string[], location: MermaidSyntaxErrorLocation): MermaidSyntaxErrorLocation {
@@ -104,7 +103,7 @@ export function withParserSource<T>(source: Source, grammar: () => readonly stri
   }
 }
 
-export function authoredParserColumn(source: Source): (index: number, column: number) => number | undefined {
+export function authoredParserColumn(source: Source, trace?: ParserGrammarTrace): (index: number, column: number) => number | undefined {
   let position: ReturnType<typeof authoredPositions> | undefined
-  return (index, column) => (position ??= authoredPositions(source, source.familyLines))(index, column + 1).column
+  return (index, column) => (position ??= authoredPositions(source, source.familyLines, trace))(index, column + 1).column
 }
