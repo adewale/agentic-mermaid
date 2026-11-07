@@ -1634,15 +1634,18 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
   for (const rel of relationships) if (!erSimpleRoute(rel.points, work)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
   // Strict body/header interiors apply to every raw segment, including an
   // incident card revisited later in a route. Legitimate outline contacts are
-  // on the open boundary and therefore do not enter these rectangles.
+  // on the open boundary and therefore do not enter these rectangles. The
+  // painted obstacle index is conservative; keep the exact interior predicate.
   for (const rel of relationships) for (let i = 1; i < rel.points.length; i++) {
-    for (const entity of positioned.entities) {
+    const a = rel.points[i - 1]!, b = rel.points[i]!
+    charge()
+    for (const obstacle of obstacleQuery({ x0: Math.min(a.x, b.x), y0: Math.min(a.y, b.y), x1: Math.max(a.x, b.x), y1: Math.max(a.y, b.y) })) {
+      if (obstacle.border) continue
+      const box = subjects.get(obstacle.id)!
+      const height = obstacle.group ? (box as PositionedErDiagram['groups'][number]).headerHeight : box.height
+      if (obstacle.group && height <= 0) continue
       charge()
-      if (segmentThroughShape(rel.points[i - 1]!, rel.points[i]!, { ...entity, label: '', shape: 'rectangle' })) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
-    }
-    for (const group of positioned.groups) {
-      charge()
-      if (group.headerHeight > 0 && segmentThroughShape(rel.points[i - 1]!, rel.points[i]!, { ...group, height: group.headerHeight, label: '', shape: 'rectangle' })) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
+      if (segmentThroughShape(a, b, { ...box, height, label: '', shape: 'rectangle' })) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
     }
   }
   const terminalBorderContact = (shaft: typeof allShafts[number], id: string, box: { x: number; y: number; width: number; height: number }, borderHalf: number, radius: number, group: boolean): boolean => {
@@ -1663,15 +1666,13 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
   }
   for (const shaft of allShafts) {
     const rel = relationships[shaft.index]!
-    for (const entity of positioned.entities) {
-      const authored = Number.parseFloat(entity.inlineStyle?.['stroke-width'] ?? '')
-      const half = (Number.isFinite(authored) && authored > 0 ? authored : style.nodeLineWidth) / 2
-      const box = { x0: entity.x - half, y0: entity.y - half, x1: entity.x + entity.width + half, y1: entity.y + entity.height + half }
-      if (intersects(shaft.box, box) && !terminalBorderContact(shaft, entity.id, entity, half, Math.min(style.cornerRadius ?? 0, entity.width / 2, entity.height / 2), false)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
-    }
-    for (const group of positioned.groups) {
-      const header = { x0: group.x, y0: group.y, x1: group.x + group.width, y1: group.y + group.headerHeight }
-      if (group.headerHeight > 0 && intersects(shaft.box, header) && !terminalBorderContact(shaft, group.id, group, .75, 6, true)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
+    for (const obstacle of obstacleQuery(shaft.box)) {
+      if (obstacle.border) continue
+      const box = subjects.get(obstacle.id)!
+      if (obstacle.group && (box as PositionedErDiagram['groups'][number]).headerHeight <= 0) continue
+      const authored = obstacle.group ? NaN : Number.parseFloat((box as PositionedErEntity).inlineStyle?.['stroke-width'] ?? '')
+      const half = obstacle.group ? .75 : (Number.isFinite(authored) && authored > 0 ? authored : style.nodeLineWidth) / 2
+      if (intersects(shaft.box, obstacle.box) && !terminalBorderContact(shaft, box.id, box, half, obstacle.group ? 6 : Math.min(style.cornerRadius ?? 0, box.width / 2, box.height / 2), !!obstacle.group)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
     }
   }
   const glyphBounds = new Map(allGlyphs.map(glyph => {

@@ -1,4 +1,4 @@
-import { SDK_COMMON_DECLARATIONS, SDK_MODEL_DECLARATIONS, SDK_TEXT_DECLARATIONS, SDK_RESOLVED_SCENE_DECLARATIONS } from './generated/sdk-types.ts'
+import { SDK_COMMON_DECLARATIONS, SDK_MODEL_DECLARATIONS, SDK_TEXT_DECLARATIONS, SDK_RESOLVED_SCENE_DECLARATIONS, SDK_WARNING_CODE_DECLARATIONS } from './generated/sdk-types.ts'
 import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyMetadata } from '../agent/families.ts'
 import { architectureVisualOverridesTypeScriptDeclaration, RENDER_CONTRACT_VERSION, RENDER_OUTPUT_DESCRIPTORS, sharedRenderOptionsTypeScriptDeclaration } from '../render-contract.ts'
 import { styleSpecTypeScriptDeclaration } from '../scene/style-spec.ts'
@@ -18,7 +18,14 @@ const SDK_DIAGRAM_KIND_DECLARATION = `type DiagramKind = ${BUILTIN_FAMILY_METADA
 
 const SDK_DIAGRAM_BODY_MEMBERS = BUILTIN_FAMILY_METADATA.map(family => `    | ${sdkFamilyBodyType(family)}`).join('\n')
 
-const SDK_VALID_DIAGRAM_ALIASES = BUILTIN_FAMILY_METADATA.map(family => `type ${sdkFamilyTypeStem(family)}ValidDiagram = ValidDiagram & { body: ${sdkFamilyBodyType(family)} }`).join('\n')
+const SDK_VALID_DIAGRAM_ALIASES = BUILTIN_FAMILY_METADATA.map(family => `type ${sdkFamilyTypeStem(family)}ValidDiagram = Omit<ValidDiagram, 'kind' | 'body'> & { readonly kind: '${family.id}'; readonly body: ${sdkFamilyBodyType(family)} }`).join('\n')
+
+const SDK_FAMILY_TYPE_MAPS = `interface FamilyDiagrams {
+${BUILTIN_FAMILY_METADATA.map(family => `  ${JSON.stringify(family.id)}: ${sdkFamilyTypeStem(family)}ValidDiagram`).join('\n')}
+}
+interface FamilyMutationOps {
+${BUILTIN_FAMILY_METADATA.map(family => `  ${JSON.stringify(family.id)}: ${sdkFamilyTypeStem(family)}MutationOp`).join('\n')}
+}`
 
 const SDK_NARROWER_METHOD_DECLARATIONS = BUILTIN_FAMILY_METADATA.map(family => `  ${family.narrower}(d: ParsedDiagram): ${sdkFamilyTypeStem(family)}ValidDiagram | null`).join('\n')
 
@@ -182,7 +189,7 @@ ${CODE_MODE_CORE_RENDER_RECEIPT_DECLARATIONS}
 
 interface RenderedSvg { svg: string; receipt: RenderRequestReceipt }
 interface RenderedAscii { text: string; receipt: RenderRequestReceipt; terminalStyle: Record<string, unknown>; outputPolicy: Record<string, unknown> }
-interface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: RenderRequestReceipt }`.replace(/; +/g, ';').replace(/: +/g, ':'))
+interface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: RenderRequestReceipt }`.replace(/; +/g, ';').replace(/: +/g, ':')).replaceAll('Record<string,unknown>', 'Fields')
 
 export const CODE_MODE_LAYOUT_SUMMARY_DECLARATION = `interface RenderedLayout { version: 1; kind: DiagramKind | ExternalFamilyId; nodes: unknown[]; edges: unknown[]; groups: unknown[]; labels?: Array<{ id: string; text: string; bounds?: LayoutRect; container?: LayoutRect; visibility?: 'visible' | 'hidden' | 'semantic' }>; regions?: RenderedRegion[]; actions?: DiagramActionRecord[]; bounds: { w: number; h: number } }`
 
@@ -292,6 +299,7 @@ type ParsedDiagram = ValidDiagram | ExtensionValidDiagram | PreservedValidDiagra
 ${SDK_MODEL_DECLARATIONS}
 
 ${SDK_VALID_DIAGRAM_ALIASES}
+${SDK_FAMILY_TYPE_MAPS}
 
 // Tier 1 (structural, reliable): EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS,
 //   GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW (rendered-line char count:
@@ -314,16 +322,7 @@ ${SDK_VALID_DIAGRAM_ALIASES}
 // selected explicitly by a Style constraint with action "error".
 ${CODE_MODE_LAYOUT_SUMMARY_DECLARATION}
 
-type WarningCode =
-  | 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS' | 'GROUP_BREACH'
-  | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'UNRESOLVABLE_SCHEDULE' | 'RENDER_FAILED' | 'INTERNAL_ERROR'
-  | 'NODE_OVERLAP' | 'CONTENT_OCCLUDED' | 'LAYOUT_LIMIT_EXCEEDED' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH'
-  | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK' | 'ROUTE_SELF_LOOP_OCCUPANCY' | 'ROUTE_CONTAINER_MISANCHOR'
-  | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'
-  | 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'FLOW_IMBALANCE' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX'
-  | 'CONTENT_DROPPED_ON_ROUNDTRIP' | 'EVENT_SOURCE_TYPE' | 'INEFFECTIVE_CONFIG' | 'LOW_CONTRAST' | 'LABELS_HIDDEN' | 'BAR_RANGE_EXCLUDES_ZERO'
-  | 'SCALE_RANGE_EXCLUDES_ZERO' | 'VALUES_OUTSIDE_RANGE'
-  | 'BRAND_CONSTRAINT_WARNING' | 'BRAND_CONSTRAINT_ERROR'
+${SDK_WARNING_CODE_DECLARATIONS}
 
 interface VerifyResult {
   checks?: { renderability: 'passed' | 'failed' | 'not-checked'; sourceLoss: 'detected' | 'not-detected'; taskCorrectness: 'not-checked' }
@@ -347,8 +346,8 @@ declare const mermaid: {
   // buildMermaid folds a typed op list over that empty diagram; on failure the
   // error carries opIndex of the op that failed. direction applies to
   // flowchart/state only.
-  createMermaid(kind: DiagramKind, opts?: CreateMermaidOptions): ValidDiagram
-  buildMermaid(kind: DiagramKind, ops: AnyMutationOp[], opts?: CreateMermaidOptions): Result<ValidDiagram, { code: string; message: string; opIndex: number }>
+  createMermaid<K extends DiagramKind>(kind: K, opts?: CreateMermaidOptions): FamilyDiagrams[K]
+  buildMermaid<K extends DiagramKind>(kind: K, ops: FamilyMutationOps[NoInfer<K>][], opts?: CreateMermaidOptions): Result<FamilyDiagrams[K], { code: string; message: string; opIndex: number }>
 ${SDK_NARROWER_METHOD_DECLARATIONS}
 ${SDK_MUTATE_METHOD_DECLARATIONS}
   verifyMermaid(input: ParsedDiagram | string, opts?: { suppress?: WarningCode[]; labelCharCap?: number; renderOptions?: SharedRenderOptions }): VerifyResult

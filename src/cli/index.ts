@@ -104,7 +104,7 @@ function readSourceArg(arg: string | undefined): string {
 }
 
 function replacer(_k: string, v: unknown): unknown {
-  return v instanceof Map ? Object.fromEntries(v) : v
+  return v instanceof Map ? Object.fromEntries(v) : v instanceof Set ? Array.from(v) : v
 }
 
 export function runCli(argv: string[]): number | Promise<number> {

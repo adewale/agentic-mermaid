@@ -9,7 +9,7 @@ import { layoutClassDiagram } from '../class/layout.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { measureMultilineText } from '../text-metrics.ts'
-import { renderMermaidSVG as renderAgentSVG } from '../agent/core.ts'
+import { mutateChecked, renderMermaidSVG as renderAgentSVG } from '../agent/core.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const lines = (source: string) => source.split('\n').map(line => line.trim()).filter(Boolean)
@@ -29,6 +29,53 @@ function apply(diagram: ClassValidDiagram, op: ClassMutationOp): ClassValidDiagr
 }
 
 describe('Class residual elevation (B08/B10)', () => {
+  test('preserves ordered class assignments and their SVG/terminal paint through a checked edit', async () => {
+    const source = `classDiagram
+class Account:::pink
+cssClass "Account" bold
+classDef pink fill:#ffeedd,stroke:#220011
+classDef bold color:#112233,stroke-width:3px
+style Account fill:#aabbcc`
+    const original = classDiagram(source)
+    const renamed = mutateChecked(original, { kind: 'rename_class', from: 'Account', to: 'Ledger' })
+    if (!renamed.ok) throw new Error(renamed.error.message)
+    const written = serializeMermaid(renamed.value)
+    const reloaded = classDiagram(written)
+    expect(original.body.classes[0]!.className).toBe('pink bold')
+    for (const diagram of [renamed.value, reloaded]) {
+      expect(asClass(diagram)!.body.classes[0]).toMatchObject({ id: 'Ledger', className: 'pink bold' })
+      const svg = renderAgentSVG(diagram)
+      expect(svg).toContain('data-class="pink bold"')
+      expect(svg).toContain('fill="#aabbcc"')
+      expect(svg).toContain('stroke="#220011"')
+      expect(svg).toContain('fill="#112233"')
+      const terminal = renderMermaidASCII(diagram, { colorMode: 'html' })
+      expect(terminal).toContain('Ledger')
+      expect(terminal).toContain('#220011')
+      expect(terminal).toContain('#112233')
+    }
+    const replaced = apply(reloaded, { kind: 'set_css_class', class: 'Ledger', className: 'pink' })
+    expect(replaced.body.classes[0]!.className).toBe('pink')
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.project(written, diagram => diagram.db.getClasses().get('Ledger').cssClasses)).toEqual({ ok: true, value: 'default pink bold' })
+    } finally { upstream.close() }
+  })
+
+  test.each([
+    ['cssClass "A" pink\ncssClass "A" bold\nclass A', 'pink bold'],
+    ['cssClass "A" pink\nclass A:::bold', 'pink bold'],
+    ['class A:::pink\nclass A:::bold\ncssClass "A" pink', 'pink bold pink'],
+    ['cssClass "Missing" pink\nclass A:::bold', 'bold'],
+  ])('keeps assignment order without declaring phantom targets: %s', (declarations, expected) => {
+    const source = `classDiagram\n${declarations}\nclassDef pink fill:#ffeedd\nclassDef bold color:#112233`
+    const parsed = classDiagram(source)
+    const written = serializeMermaid(parsed)
+    for (const classes of [parseClassDiagram(lines(source)).classes, parsed.body.classes, classDiagram(written).body.classes]) {
+      expect(classes.map(node => [node.id, node.className])).toEqual([['A', expected]])
+    }
+  })
+
   test('keeps class definitions and lone hyphenated inline paint editable through unrelated edits', async () => {
     const source = `classDiagram
       class A

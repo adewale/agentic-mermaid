@@ -9,17 +9,39 @@ import { renderMermaidSVG } from '../index.ts'
 import { DeferredDependencyError, LayoutCertificationError } from '../layout/certification-error.ts'
 import { DeferredDependencyError as BackendDeferredDependencyError } from '../layout/backend.ts'
 import { HtmlEntityTableNotLoadedError } from '../shared/html-entity-table.ts'
-import { detectDiagramTypeFromFirstLine } from '../mermaid-source.ts'
+import { detectDiagramTypeFromFirstLine, normalizeMermaidSource } from '../mermaid-source.ts'
+import { sequenceFamilySource, sequenceGrammarTrace } from '../sequence/family-source.ts'
 import type { ConfigDiagnostic } from '../types.ts'
 import type { MermaidRuntimeConfig } from '../mermaid-source.ts'
 
 describe('async browser SVG entry', () => {
+  test('deferred authored positions replay the real Sequence grammar trace', async () => {
+    const facade = await import('../shared/parser-source.lazy.ts')
+    const source = normalizeMermaidSource('---\ntitle: T\n---\nsequenceDiagram\n  A->>B: &amp;nbsp;; accDescr { Meta\n};  A->>B: second')
+    const family = sequenceFamilySource(source, 'decoded')
+    const coordinates = { ...source, familyLines: family.familyLines }
+    const line = facade.authoredParserLine(coordinates, sequenceGrammarTrace)
+    let suspension: unknown
+    try { line(1) } catch (error) { suspension = error }
+    expect(suspension).toBeInstanceOf(DeferredDependencyError)
+    if (!(suspension instanceof DeferredDependencyError)) throw Error('Expected deferred authored positions')
+    await suspension.load()
+    expect(line(1)).toBe(5)
+    expect(line(2)).toBe(6)
+    const column = facade.authoredParserColumn(coordinates, sequenceGrammarTrace)
+    expect(column(1, 0)).toBe(3)
+    expect(column(2, 0)).toBe(5)
+    const position = facade.authoredParserPositions(coordinates, family.familyLines, sequenceGrammarTrace)
+    expect(position(0, 1)).toEqual({ line: 4, column: 1 })
+    expect(position(1, 5)).toEqual({ line: 5, column: 7 })
+    expect(position(2, 3)).toEqual({ line: 6, column: 7 })
+  })
   test.each(['Agentic layout', 'Forest layout'])('replays YAML, %s, ELK and entities without changing the admitted request', async producer => {
     const { default: descriptor } = await import('../browser-lazy/families/pie.ts')
     const source = 'pie\n "One" : 1'
     const expected = await renderLoadedFamilySvgWithReceipt(source, {}, descriptor)
     const loaded: string[] = []
-    const names = ['YAML', producer, 'ELK', 'HTML entities']
+    const names = ['YAML', producer, 'ELK', 'HTML entities', 'Layout optimization', 'Authored parser positions']
     const dependencies = names.map(name => {
       const load = async () => { loaded.push(name) }
       return name === 'HTML entities' ? new HtmlEntityTableNotLoadedError('&hearts;', load)

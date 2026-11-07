@@ -4,12 +4,12 @@ import { performanceExperimentEnabled } from '../experimental-performance.ts'
 import { WeightedLru } from '../experimental/weighted-lru.ts'
 import type { LabelDisplay } from '../multiline-utils.ts'
 import type { TextTransform } from '../types.ts'
-import { LINE_HEIGHT_RATIO, measureTextWidth, measureSystemFontSafeTextWidth, measureMonospaceTextWidth, getCharWidth } from '../text-metrics.ts'
+import { LINE_HEIGHT_RATIO, measureTextWidth, measureSystemFontSafeTextWidth, measureMonospaceTextWidth, getCharWidth, isKnownMonospaceFontFamily } from '../text-metrics.ts'
 import { graphemes } from './graphemes.ts'
 import { serializeStyledSegment } from './inline-format.ts'
 import { isImmutableDisplayTextPart, isOwnedDisplayTextPart, prepareDisplayText, type DisplayRun, type DisplayTextInput, type PreparedDisplayText } from './display-text.ts'
 import { createImmutableParts } from './immutable-parts.ts'
-import { customTextMeasurementActive, customTextInkActive, profileTextInk, profileTextFontFamily, type ProfileTextInkMeasurement } from '../text-measurement-profile.ts'
+import { customTextMeasurementActive, withTextMeasurementExecution, customTextInkActive, profileTextInk, profileTextFontFamily, type ProfileTextInkMeasurement } from '../text-measurement-profile.ts'
 import { formatSvgNumber } from './svg-number.ts'
 import type { AxisAlignedBox } from './transformed-bounds.ts'
 import { interTextEnvelope } from './inter-text-envelope.ts'
@@ -203,21 +203,22 @@ function advance(runs: readonly DisplayRun[], options: PixelTextOptions): number
   const measure = options.safeFont ? measureSystemFontSafeTextWidth : measureTextWidth
   const grouped = runs.length === 1 && !(runs[0] as WrapGlyph).fragments && stripDiscretionaryBreaks(runs[0]!.text) === runs[0]!.text ? runs : coalesce(runs)
   const text = grouped.length === 1 ? grouped[0]!.text : grouped.map(run => run.text).join('')
+  const custom = customTextMeasurementActive() && grouped.every(run => customTextMeasurementActive({ text: run.text, fontSize: options.fontSize, fontWeight: run.bold ? Math.max(700, options.fontWeight) : options.fontWeight, fontStyle: run.italic ? 'italic' : 'normal', fontFamily: options.fontFamily, monospace: options.monospace ?? false }))
   if ((options.letterSpacing ?? 0) !== 0 && !/[^\x20-\x7e]/u.test(text)) return trackedBounds(grouped, options).width
   const width = options.monospace
-    ? customTextMeasurementActive()
+    ? custom
       ? grouped.reduce((sum, run) => sum + measureMonospaceTextWidth(run.text, options.fontSize, 0, run.bold ? Math.max(700, options.fontWeight) : options.fontWeight, run.italic ? 'italic' : 'normal', options.fontFamily), 0)
       : measureMonospaceTextWidth(text, options.fontSize)
     : grouped.reduce((sum, run) => sum + measure(run.text, options.fontSize, run.bold ? Math.max(700, options.fontWeight) : options.fontWeight, run.italic ? 'italic' : 'normal', options.fontFamily), 0)
   // Native shaping may apply tracking to several code points in a cluster
   // (flags are a common example). Negative tracking can reverse occupied
   // intervals; reserve their envelope rather than shrinking to final advance.
-  if (!customTextMeasurementActive() && /[^\x20-\x7e]/u.test(text)) {
+  if (!custom && /[^\x20-\x7e]/u.test(text)) {
     // Unknown fallback faces need an em envelope, rather than the Latin bucket
     // for Ω/Ш/etc. Count visible code points: a fallback can draw separate
     // glyphs for components of a flag or a ZWJ cluster. Zero-width marks stay
     // attached to their base. ASCII sharing this shaping run uses safe metrics.
-    const naturalWidth = grouped.reduce((sum, run) => sum + [...run.text].reduce((line, char) => line + (getCharWidth(char) === 0 ? 0 : /[^\x20-\x7e]/u.test(char) ? options.fontSize * 1.2 : measureSystemFontSafeTextWidth(char, options.fontSize, run.bold ? Math.max(700, options.fontWeight) : options.fontWeight)), 0), 0)
+    const naturalWidth = withTextMeasurementExecution(undefined, () => grouped.reduce((sum, run) => sum + [...run.text].reduce((line, char) => line + (getCharWidth(char) === 0 ? 0 : /[^\x20-\x7e]/u.test(char) ? options.fontSize * 1.2 : measureSystemFontSafeTextWidth(char, options.fontSize, run.bold ? Math.max(700, options.fontWeight) : options.fontWeight)), 0), 0))
     const orphanMarks = graphemes(text).filter(cluster => /\p{M}/u.test(cluster) && [...cluster].every(char => getCharWidth(char) === 0)).length
     return Math.max(width, naturalWidth + orphanMarks * options.fontSize * 1.2) + Math.max(0, [...text].length - 1) * Math.abs(options.letterSpacing ?? 0)
   }
@@ -268,7 +269,7 @@ function trackedGlyphWidth(text: string, run: DisplayRun, lastInStyle: boolean, 
   const fontStyle = run.italic ? 'italic' : 'normal'
   const measure = options.safeFont ? measureSystemFontSafeTextWidth : measureTextWidth
   return options.monospace ? measureMonospaceTextWidth(text, options.fontSize, 0, weight, fontStyle, options.fontFamily)
-    : measure(text, options.fontSize, weight, fontStyle, options.fontFamily) - (lastInStyle || customTextMeasurementActive() ? 0 : options.fontSize * 0.15)
+    : measure(text, options.fontSize, weight, fontStyle, options.fontFamily) - (lastInStyle || customTextMeasurementActive() && customTextMeasurementActive({ text, fontSize: options.fontSize, fontWeight: weight, fontStyle, fontFamily: options.fontFamily, monospace: false }) ? 0 : options.fontSize * 0.15)
 }
 
 /** With negative tracking, total advance can be zero while glyph intervals
@@ -321,6 +322,7 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
     display: options.display, transform: options.transform, fontSize: options.fontSize, fontWeight: options.fontWeight,
     letterSpacing: options.letterSpacing, maxWidth: options.maxWidth, safeFont: options.safeFont, monospace: options.monospace, fontFamily: options.fontFamily,
   }
+  if (options.monospace === undefined && options.fontFamily && isKnownMonospaceFontFamily(options.fontFamily)) options = { ...options, monospace: true }
   if (!Number.isFinite(options.fontSize) || options.fontSize <= 0 || !Number.isFinite(options.fontWeight) || !Number.isFinite(options.letterSpacing ?? 0)) throw new RangeError('Prepared text requires finite typography and a positive font size')
   const cacheKey = performanceExperimentEnabled('text-spans') && !customTextMeasurementActive() && typeof source === 'string' && source.length <= 16384
     ? JSON.stringify([source, options, profileTextFontFamily()]) : undefined

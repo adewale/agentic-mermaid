@@ -243,6 +243,13 @@ describe('scanMetadataBlock delimits a block by the family\'s upstream lexer', (
   })
 })
 
+test.each([' x: *,', ' label: "#quot;A#quot;", x: *,', '\n\tshape: rounded\n'])('metadata failures retain the offending authored offset through YAML preparation: %j', body => {
+  const parsed = parseMetadataBody(body, 'flowchart')
+  expect(parsed.ok).toBe(false)
+  if (parsed.ok) throw new Error('Expected malformed metadata to fail')
+  expect(parsed.offset).toBe(body.includes('\t') ? body.indexOf('\t') : body.indexOf('*'))
+})
+
 test('metadata entity protection stays proportional when one private-use candidate dominates', () => {
   const alphabet = Array.from({ length: 0x1900 }, (_, index) => String.fromCharCode(0xe000 + index)).join('')
   for (const heavy of ['\uE000', '\uF8FF']) {

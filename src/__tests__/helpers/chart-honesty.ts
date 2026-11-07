@@ -7,6 +7,7 @@
 // authored fills, labels on data marks, and text declared after first use.
 // HONESTY_SAMPLES is a Record over DiagramKind, so a new family does not
 // compile until it brings its own samples.
+import { FAMILY_CONFORMANCE_PROFILES } from './family-conformance-profiles.ts'
 import { BUILTIN_FAMILY_METADATA } from '../../agent/families.ts'
 import { verifyMermaid } from '../../agent/index.ts'
 import type { DiagramKind } from '../../agent/types.ts'
@@ -25,6 +26,15 @@ export interface HonestySample {
 const titled = (title: string, body: string): string => `---\ntitle: ${title}\n---\n${body}`
 
 export const HONESTY_SAMPLES: Record<DiagramKind, readonly HonestySample[]> = {
+  agentflow: [{ name: 'authored identities and domain ownership', source: FAMILY_CONFORMANCE_PROFILES.agentflow.citizenship.source, expectText: ['PUBLISHING', 'Brand guide', 'Search documents'] }],
+  usecase: [{ name: 'authored identities and domain ownership', source: FAMILY_CONFORMANCE_PROFILES.usecase.citizenship.source, expectText: ['Customer', 'STOREFRONT', 'Browse catalogue'] }],
+  wardley: [{ name: 'authored identities and domain ownership', source: FAMILY_CONFORMANCE_PROFILES.wardley.citizenship.source, expectText: ['PLATFORM EVOLUTION', 'Keep all note text', 'Adopt utility'] }],
+  venn: [{ name: 'authored identities and domain ownership', source: FAMILY_CONFORMANCE_PROFILES.venn.citizenship.source, expectText: ['Alpha', 'Beta', 'Shared', 'Owned note'] }],
+  cynefin: [{ name: 'authored identities and domain ownership', source: FAMILY_CONFORMANCE_PROFILES.cynefin.citizenship.source, expectText: ['Decisions with feedback', 'Explore', 'Investigate', 'Learning'] }],
+  railroad: [{ name: 'authored identities and domain ownership', source: FAMILY_CONFORMANCE_PROFILES.railroad.citizenship.source, expectText: ['entry', 'start', 'item', 'end'] }],
+  swimlane: [{ name: 'authored identities and domain ownership', source: FAMILY_CONFORMANCE_PROFILES.swimlane.citizenship.source, expectText: ['CUSTOMER', 'OPERATIONS', 'Dispatch order'] }],
+  treeview: [{ name: 'authored identities and domain ownership', source: FAMILY_CONFORMANCE_PROFILES.treeview.citizenship.source, expectText: ['PROJECT', 'App.tsx', 'main component', '按钮.ts'] }],
+
   zenuml: [{ name: 'nested calls and branch returns', source: 'zenuml\nBuyer->API.checkout() {\n  Store.reserve() {\n    return confirmation\n  }\n}\nAPI->Buyer: accepted', expectText: ['Buyer', 'checkout()', 'reserve()', 'confirmation', 'accepted'] }],
   eventmodeling: [{ name: 'namespace return and full inline data', source: 'eventmodeling\ntf 01 ui Cart.UI\ntf 02 cmd Cart.AddItem { description: string }\ntf 03 evt Stock.Changed\ntf 04 evt Cart.ItemAdded', expectText: ['Cart.UI', 'description: string', 'Cart.ItemAdded'] }],
   packet: [

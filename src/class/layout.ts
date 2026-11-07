@@ -51,7 +51,8 @@ import { getFrontmatterScalar } from '../mermaid-source.ts'
 import { measureRenderStage } from '../render-stages.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { generatedIds } from '../shared/generated-identity.ts'
-import { checkedAuthoredStyle } from '../shared/style-props.ts'
+import { checkedAuthoredStyle, mergeStyleProps } from '../shared/style-props.ts'
+import { graphClassNames } from '../shared/graph-classes.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { diagramTitleBand, FONT_SIZES, FONT_WEIGHTS, positionDiagramTitle, resolveRenderStyle, STROKE_WIDTHS, titleOnlyCanvas } from '../styles.ts'
 import { LINE_HEIGHT_RATIO } from '../text-metrics.ts'
@@ -381,13 +382,19 @@ function projectClassElkPlacement(result: ElkNode, namespaceLayouts: ReadonlyMap
 }
 
 /** Project either measured placement through Class-owned card/marker rules. */
-/** Renderer class cards inherit default paint, then their one assigned class,
- * then inline paint. The source grammar stores a single assigned class name;
- * repeated assignments already resolve to the last one in the parser.
+/** Renderer class cards inherit default paint, their ordered assigned classes,
+ * then inline paint. Single-class and unstyled cards need no class-list draft.
  * Generated interface occurrences use their separate circle/label renderer. */
 function classNodePaint(diagram: ClassDiagram, cls: ClassNode): Record<string, string> | undefined {
-  const defaults = cls.isInterface ? undefined : diagram.classDefs.get('default'),
-    named = cls.className ? diagram.classDefs.get(cls.className) : undefined
+  if (!diagram.classDefs.size && !cls.inlineStyle) return undefined
+  const defaults = cls.isInterface ? undefined : diagram.classDefs.get('default')
+  let named = cls.className ? diagram.classDefs.get(cls.className) : undefined
+  if (cls.className && !named && /\s/.test(cls.className)) {
+    for (const name of graphClassNames(cls.className)) {
+      const next = checkedAuthoredStyle(diagram.classDefs.get(name), `classDef ${name}`)
+      if (next) named = named ? mergeStyleProps(named, next) : next
+    }
+  }
   if (!defaults && !named && !cls.inlineStyle) return undefined
   return {
     ...checkedAuthoredStyle(defaults, 'classDef default'),

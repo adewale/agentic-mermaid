@@ -53,3 +53,18 @@ export const detectsIshikawaFamily = (line: string) => /^ishikawa(?:-beta)?\s*$/
 export const detectsBlockFamily = (line: string) => /^block(?:-beta)?\s*$/.test(line)
 export const detectsZenumlFamily = (line: string) => /^zenuml\s*$/.test(line)
 export const detectsEventmodelingFamily = (line: string) => /^eventmodeling\s*$/.test(line)
+
+export const detectsSwimlaneFamily = (line: string) => /^swimlane-beta(?:[\s;]|$)/.test(line)
+export const detectsTreeviewFamily = (line: string) => /^treeview-beta(?:\s|$)/.test(line)
+
+export const detectsAgentflowFamily = (line: string) => /^agentflow-beta(?:\s|$)/.test(line)
+
+export const detectsUsecaseFamily = (line: string) => /^usecase-beta(?:\s|$)/.test(line)
+
+export const detectsWardleyFamily = (line: string) => /^wardley-beta(?:\s|$)/.test(line)
+
+export const detectsVennFamily = (line: string) => /^venn-beta(?:\s|$)/.test(line)
+
+export const detectsCynefinFamily = (line: string) => /^cynefin-beta(?:\s|:|$)/.test(line)
+
+export const detectsRailroadFamily = (line: string) => /^railroad-(?:(?:ebnf|abnf|peg)-)?beta(?:\s|$)/.test(line)

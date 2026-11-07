@@ -10,6 +10,14 @@ measurement, Scene, styling and output contracts applied locally.
 - Copyright: © 2026 kepano
 - License: **MIT**, reproduced in [`LICENSES/pele-MIT.txt`](LICENSES/pele-MIT.txt).
 
+The native UseCase, Wardley, Cynefin, Railroad and Venn grammar readers also
+adapt Pele revision `3a2f075ee0c3d914f0fad3545fc0f193693975ac` under the same
+MIT license. Shared grammar tokenization and Venn circle geometry are adapted
+from that revision. Each adapted source file names its provenance; native
+models, checked edits, prepared text and Scene output use local contracts.
+
+- Source: <https://github.com/kepano/pele/tree/3a2f075ee0c3d914f0fad3545fc0f193693975ac>
+
 ## Mermaid 12.2.0 stable-family tests
 
 The six new family compatibility benches preserve pinned Mermaid test cases and

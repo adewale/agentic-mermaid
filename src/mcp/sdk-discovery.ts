@@ -16,7 +16,7 @@ const NARROWERS = BUILTIN_FAMILY_METADATA.map(family => `'${family.narrower}'`).
  * of initial model context; describe_sdk returns the one family schema needed
  * by the task. SDK_DECLARATION remains the full reference used by docs/evals.
  */
-export const SDK_CORE_DECLARATION = compactSdkDeclaration(`type DiagramKind = ${DIAGRAM_KIND.replaceAll(' | ', '|')}
+export const SDK_CORE_DECLARATION = 'type Fields=Record<string,unknown>\n' + compactSdkDeclaration(`type DiagramKind = ${DIAGRAM_KIND.replaceAll(' | ', '|')}
 type MutationOp = { kind: string; [field: string]: unknown }
 type Result<T, E = { code: string; message: string }> = { ok: true; value: T } | { ok: false; error: E }
 ${SDK_COMMON_CORE_DECLARATIONS}
@@ -58,7 +58,6 @@ declare const mermaid: Record<${NARROWERS}, Narrow> & {
   createMermaid(kind: DiagramKind, opts?: CreateMermaidOptions): ValidDiagram
   buildMermaid(kind: DiagramKind, ops: MutationOp[], opts?: CreateMermaidOptions): Result<ValidDiagram, { code: string; message: string; opIndex: number }>
   mutate(diagram: ValidDiagram, op: MutationOp): Result<ValidDiagram>
-  // Opaque Class:add_member/remove_member;Flowchart:set_label/rename_node. Save source;warnings remain.
   mutatePreservingSource(d: ParsedDiagram, op: MutationOp): Result<{source:string;diagram:ParsedDiagram}>
   verifyMermaid(input: ParsedDiagram | string, opts?: { suppress?: string[]; labelCharCap?: number; renderOptions?: SharedRenderOptions }): VerifyResult
   analyzeMermaid(diagram: ValidDiagram): Record<string, unknown>
@@ -76,7 +75,7 @@ declare const mermaid: Record<${NARROWERS}, Narrow> & {
   layoutMermaidWithReceipt(input: ParsedDiagram | string, opts?: LayoutRenderOptions): RenderedLayoutArtifact
   describeOps(family: DiagramKind): Record<string, { name: string; required: boolean; type: string; note?: string }[]>
   opSignatures(family: DiagramKind): string[]
-}`.replace(/^[ \t]+/gm, '').replace(/; +/g, ';').replace(/: +/g, ':'))
+}`.replace(/^[ \t]+/gm, '').replace(/; +/g, ';').replace(/: +/g, ':')).replaceAll('Record<string,unknown>', 'Fields')
 
 export type DescribeSdkDetail = 'signatures' | 'fields'
 

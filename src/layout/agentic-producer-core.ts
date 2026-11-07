@@ -10,6 +10,7 @@ import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
 import { MAX_EXPANDED_VERTICES, layoutLayeredGraph as layoutRawGraph } from './agentic-layered-core.ts'
 import { shortenMeasuredRoutes } from './shorten-measured-routes.ts'
 import { fitMeasuredLayout } from './fit-measured-layout.ts'
+import { layoutOptimization } from './optimization-context.ts'
 export { improveArchitectureSiblingSlots } from './architecture-sibling-slots.ts'
 
 // Keep cache storage inside the optional solver chunk: importing shared
@@ -51,7 +52,7 @@ function geometryInputKey(input: unknown): string {
   })
 }
 
-type NativeOrder = 'primary' | 'authored' | 'compact'
+type NativeOrder = 'primary' | 'authored' | 'compact' | 'ports'
 const orderChoices = new WeakMap<AgenticGraphBindings, NativeResults<NativeOrder>>()
 // Private preparation-to-solver handoff: never part of measured JSON or a
 // caller-supplied cache key, and never exposed by layoutAgenticGraph.
@@ -339,13 +340,14 @@ function placeNativeGraphCandidate(
       layerSpacing: Math.max(opts.layerSpacing, 2 * (doubleDepth + margin)), edgeSpacing,
       ...(minimumTerminalLead !== undefined ? { minimumTerminalLead } : {}),
       ...(order === 'authored' ? { authoredCycleOrder: true as const } : order === 'compact' ? { compactPrivateRanks: true } : {}),
+      ...(order === 'ports' ? { portAwarePlacement: true as const } : {}),
       ...(placementOnly ? { placementOnly: true as const } : {}) }
 
   })
   pay(0, 2)
   preparedGraphWork.set(measured, routingWork)
   let geometry: AgenticLayout
-  try { geometry = measureRenderStage('agentic', () => layoutAgenticGraph(measured)) }
+  try { layoutOptimization()?.recordLayoutProducer(); geometry = measureRenderStage('agentic', () => layoutAgenticGraph(measured)) }
   finally { preparedGraphWork.delete(measured) }
   // Missing subjects or non-finite geometry are engine defects, not an
   // eligibility refusal that can be concealed by running another producer.
@@ -482,7 +484,22 @@ export function layoutNativeGraphCandidate(
   layoutAgenticGraph: (input: MeasuredGraph) => AgenticLayout, bindings: AgenticGraphBindings,
 ): PositionedGraph {
   const candidate = selectNativeGraphCandidate(graph, options, style, layoutAgenticGraph, bindings)
-  return certifyOwnedLayoutCandidate(graph, style, { strategy: 'agentic-layered', produce: () => candidate }, bindings)
+  const first = certifyOwnedLayoutCandidate(graph, style, { strategy: 'agentic-layered', produce: () => candidate }, bindings)
+  const optimization = layoutOptimization()
+  if (options.graphLayout?.quality !== 'balanced' || !optimization?.layoutOptimizationEnabled('ports') || !optimization.canExploreLayout()
+    || graph.nodes.size > 64 || graph.edges.length > 128 || graph.subgraphs.length || first.certification!.preference.selectedScore.totalBends === 0) return first
+  let other: PositionedGraph | undefined
+  try {
+    other = optimization.optionalLayout(() => certifyOwnedLayoutCandidate(graph, style, { strategy: 'port-aware-placement',
+      produce: () => placeNativeGraphCandidate(graph, options, style, layoutAgenticGraph, bindings, false, 'ports'),
+    }, bindings))
+  } catch (error) {
+    if (!(error instanceof GraphLayoutUnsupportedError) && !(error instanceof LayoutCertificationError)) throw error
+    return first
+  }
+  if (!other || !optimization.nonRegressingAlternative(first, other)) return first
+  optimization.selectedLayoutOptimization('port-aware-placement')
+  return other
 }
 
 /** Internal family placement: all authored edges still constrain ranks/order.

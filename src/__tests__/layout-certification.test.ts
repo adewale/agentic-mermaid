@@ -16,6 +16,8 @@ import { resolveRenderStyle } from '../styles.ts'
 import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
 import { graphTextBlock } from '../graph-text.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
+import { retainComparisonMetrics, nonRegressingAlternative } from '../layout/non-regressing-alternative.ts'
+import { withLayoutOptimizationBudget } from '../layout/optimization-budget.ts'
 import { invalidEndpointApproaches, laneContextFor, directLaneBlockers } from '../route-contracts.ts'
 import type { MermaidGraph, PositionedGraph, PositionedGroup } from '../types.ts'
 
@@ -174,6 +176,38 @@ describe('bounded final layout certification', () => {
     } finally {
       firstPass.run = run
     }
+  })
+
+  test.each([false, true])('optional order search preserves the fourth mandatory recovery with balanced=%s', balanced => {
+    const first = LAYOUT_PIPELINE[0]!, run = first.run
+    let mandatory = 0, optional = 0
+    first.run = context => {
+      const relaxed = context.elkResult?.layoutOptions?.['elk.layered.crossingMinimization.forceNodeModelOrder'] === 'false'
+      if (relaxed) optional++
+      else mandatory++
+      if (relaxed || mandatory < 4) throw new Error('rejected geometry candidate')
+      run(context)
+    }
+    try {
+      const result = withPerformanceExperiments([], () => renderMermaidSVGWithReceipt('flowchart LR\nA --> B', {
+        graphLayout: { backend: 'elk', ...(balanced ? { quality: 'balanced' as const } : {}) },
+      }))
+      expect(mandatory).toBe(4)
+      expect(optional).toBe(0)
+      expect(result.svg).toContain('data-id="A"')
+      if (balanced) expect(result.receipt.layoutOptimization?.additionalProducerCalls).toBe(0)
+    } finally { first.run = run }
+  })
+
+  test('optional geometry cannot cross a published symmetry rounding boundary', () => {
+    const { graph, first, style } = crossingWitness()
+    const other = { ...first, width: first.width - 1 }
+    const metrics = assessLayout(graph, first, style).metrics
+    withLayoutOptimizationBudget({}, { backend: 'elk', quality: 'balanced' }, () => {
+      retainComparisonMetrics(first, { ...metrics, peerBarycenterDelta: 1.0004999999 }, false)
+      retainComparisonMetrics(other, { ...metrics, peerBarycenterDelta: 1.0005000001 }, false)
+      expect(nonRegressingAlternative(first, other)).toBe(false)
+    })
   })
 
   test('the public layout certifies actual styled label geometry', () => {

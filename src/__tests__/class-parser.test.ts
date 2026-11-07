@@ -5,7 +5,7 @@
  * relationships (all 6 types), cardinality, labels, inline attributes.
  */
 import { describe, it, expect } from 'bun:test'
-import { parseClassDiagram } from '../class/parser.ts'
+import { classStatementEnds, parseClassDiagram } from '../class/parser.ts'
 import { asClass, mutate, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { expectNearLinearGrowth } from './helpers/complexity.ts'
 
@@ -20,6 +20,34 @@ function parse(text: string) {
 // ============================================================================
 
 describe('parseClassDiagram – class definitions', () => {
+  it('keeps unquoted class rows independent while retaining namespace, member and metadata meaning', () => {
+    const lines = ['classDiagram', 'namespace N {', 'class A {', 'String name', '}', 'class B', 'A --> B: calls', '}', 'accTitle: Actual']
+    expect(classStatementEnds(lines)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8])
+    const diagram = parseClassDiagram(lines)
+    expect(diagram.accessibilityTitle).toBe('Actual')
+    expect(diagram.namespaces[0]?.classIds).toEqual(['A', 'B'])
+    expect(diagram.classes[0]?.attributes[0]?.sourceText).toBe('String name')
+    expect(diagram.relationships[0]).toMatchObject({ from: 'A', to: 'B', label: 'calls' })
+    expect(() => parseClassDiagram(['classDiagram', 'class A {', 'String name'])).toThrow('Unclosed class block')
+  })
+
+  it('projects physical text scopes without swallowing class members or envelope metadata', () => {
+    const lines = ['classDiagram', 'namespace N {', 'class A {', 'String name', '}', 'note for A "First', 'accTitle: literal', 'Last"', '}', 'accTitle: Accessible']
+    expect(classStatementEnds(lines)).toEqual([0, 1, 2, 3, 4, 7, 6, 7, 8, 9])
+    const diagram = parseClassDiagram(lines)
+    expect(diagram.accessibilityTitle).toBe('Accessible')
+    expect(diagram.notes).toEqual([{ for: 'A', text: 'First\naccTitle: literal\nLast' }])
+    expect(diagram.classes[0]?.attributes[0]?.sourceText).toBe('String name')
+  })
+
+  it.each([
+    [['classDiagram', 'namespace N { class A {+x} }', 'note "First', 'accDescr: literal', 'Last"', 'accDescr: Accessible'], [0, 1, 4, 3, 4, 5]],
+    [['classDiagram', 'class A {', '+x {', 'note "Not spanning', 'accTitle: Metadata', '}', 'note "First', 'Last"'], [0, 1, 2, 3, 4, 5, 7, 7]],
+    [['classDiagram', 'A "many', 'items" --> "one', 'or more" B'], [0, 3, 2, 3]],
+  ] as const)('keeps class scope boundaries for compact, malformed and repeated quoted productions: %j', (lines, ends) => {
+    expect(classStatementEnds(lines)).toEqual([...ends])
+  })
+
   it('compact namespace URL percent pairs retain meaning with near-linear parse cost', () => {
     for (const manyLinks of [false, true]) {
       expectNearLinearGrowth(manyLinks ? 'many compact links' : 'one long compact link', size => {

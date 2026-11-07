@@ -42,12 +42,12 @@ export interface StateStereotypeMatch {
   label?: string
 }
 
-const NOTE_LINE_RE = /^note\s+(left|right)\s+of\s+([\w\p{L}-]+)\s*:\s*(.+)$/iu
-const STEREOTYPE_RE = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}-]+)\s*<<\s*(fork|join|choice|history|deephistory|H\*|H)\s*>>$/iu
+const NOTE_LINE_RE = /^note\s+(left|right)\s+of\s+([\w\p{L}\p{N}\p{M}-]+)\s*:\s*(.+)$/iu
+const STEREOTYPE_RE = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}\p{N}\p{M}-]+)\s*<<\s*(fork|join|choice|history|deephistory|H\*|H)\s*>>$/iu
 const SEPARATOR_RE = /^-{2,}$/
 /** History transition endpoints: bare `[H]`/`[H*]` or suffixed `Base[H]`/`Base[H*]`. */
-const HISTORY_ENDPOINT_RE = /^([\w\p{L}-]*)\[(H\*?)\]$/u
-const STATE_NODE_ID_RE = /^[\w\p{L}-]+$/u
+const HISTORY_ENDPOINT_RE = /^([\w\p{L}\p{N}\p{M}-]*)\[(H\*?)\]$/u
+const STATE_NODE_ID_RE = /^[\w\p{L}\p{N}\p{M}-]+$/u
 
 /** Ordinary simple-state/note identifier grammar (hyphens allowed). */
 export function isStateNodeId(id: string): boolean {
@@ -56,12 +56,12 @@ export function isStateNodeId(id: string): boolean {
 
 /** Simple declarations accept both `Idle` and `state Idle`. */
 export function matchStateDeclarationLine(line: string): string | null {
-  const explicit = line.match(/^state\s+([\w\p{L}-]+)$/u)
+  const explicit = line.match(/^state\s+([\w\p{L}\p{N}\p{M}-]+)$/u)
   return explicit?.[1] ?? (isStateNodeId(line) ? line : null)
 }
 
 /** Upstream accepts these layout directives without declaring states/edges.
- * Preserve them in opaque source; our renderer uses its own layout policy. */
+ * Preserve them through typed editing; our renderer uses its own layout policy. */
 export function matchStateLayoutDirective(line: string): 'scale' | 'hide_empty_description' | null {
   if (/^scale\s+\d+\s+width$/i.test(line)) return 'scale'
   if (/^hide empty description$/i.test(line)) return 'hide_empty_description'
@@ -102,7 +102,7 @@ export function matchNoteOpen(line: string): StateNoteOpenMatch | null {
 /** The quoted payload can span physical lines; readStateStatements has
  * already joined the string without interpreting its note-like contents. */
 export function matchFloatingNote(line: string): { id: string; text: string } | null {
-  const match = /^note\s+"([^"]*)"\s+as\s+([\w\p{L}-]+)\s*$/iu.exec(line)
+  const match = /^note\s+"([^"]*)"\s+as\s+([\w\p{L}\p{N}\p{M}-]+)\s*$/iu.exec(line)
   return match ? { id: match[2]!, text: match[1]! } : null
 }
 
@@ -150,7 +150,7 @@ export function historyLabel(deep: boolean): 'H' | 'H*' {
 /** Transition-line matcher shared by both parsers. Endpoints accept `[*]`,
  *  plain ids, and the history forms. Returns null when the line is not a
  *  transition. */
-const TRANSITION_ENDPOINT = String.raw`\[\*\]|[\w\p{L}-]+\[H\*?\]|\[H\*?\]|[\w\p{L}-]+`
+const TRANSITION_ENDPOINT = String.raw`\[\*\]|[\w\p{L}\p{N}\p{M}-]+\[H\*?\]|\[H\*?\]|[\w\p{L}\p{N}\p{M}-]+`
 const TRANSITION_RE = new RegExp(
   `^(${TRANSITION_ENDPOINT})(?::::([\\w-]+))?\\s*-->\\s*(${TRANSITION_ENDPOINT})(?::::([\\w-]+))?(?:\\s*:\\s*(.+))?$`,
   'u',
@@ -189,11 +189,11 @@ export function stereotypeMarker(stereotype: StateStereotype): string {
 
 // Residual statement grammar shared by the render and editable projections.
 export const STATE_DIRECTION_RE = /^direction\s+(TD|TB|LR|BT|RL)\s*$/i
-export const STATE_ALIAS_RE = /^state\s+"([^"]+)"\s+as\s+([\w\p{L}-]+)\s*$/u
-export const STATE_COMPOSITE_OPEN_RE = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}-]+)\s*\{$/u
-export const STATE_DESCRIPTION_RE = /^([\w\p{L}-]+)\s*:\s*(.+)$/u
+export const STATE_ALIAS_RE = /^state\s+"([^"]+)"\s+as\s+([\w\p{L}\p{N}\p{M}-]+)\s*$/u
+export const STATE_COMPOSITE_OPEN_RE = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}\p{N}\p{M}-]+)\s*\{$/u
+export const STATE_DESCRIPTION_RE = /^([\w\p{L}\p{N}\p{M}-]+)\s*:\s*(.+)$/u
 export const STATE_CLASS_DEF_RE = /^classDef\s+([\w,-]+)\s+(.+)$/i
-export const STATE_STYLE_RE = /^style\s+([\w\p{L},-]+)\s+(.+)$/iu
+export const STATE_STYLE_RE = /^style\s+([\w\p{L}\p{N}\p{M},-]+)\s+(.+)$/iu
 export const STATE_LINK_STYLE_RE = /^linkStyle\s+(default|[\d,\s]+)\s+(.+)$/
 
 // ---- Statements -------------------------------------------------------------
@@ -265,7 +265,7 @@ export interface StateStatementScan {
 
 // A name starts with a letter or digit; a hyphen continues it unless it
 // starts an arrow (`A-->B`), as in a class name after `:::`.
-const STATEMENT_ENDPOINT_AT = /\[\*\]|\[H\*?\]|[\w\p{L}](?:[\w\p{L}]|-(?!->))*(?:\[H\*?\])?/uy
+const STATEMENT_ENDPOINT_AT = /\[\*\]|\[H\*?\]|[\w\p{L}\p{N}\p{M}](?:[\w\p{L}\p{N}\p{M}]|-(?!->))*(?:\[H\*?\])?/uy
 const ENDPOINT_CLASS_AT = /(?:\w|-(?!->))+/y
 // Mermaid's State lexer is case-insensitive, so its keywords are read in any
 // case. `end` and `hide` are keywords only in `end note` and `hide empty
@@ -275,7 +275,7 @@ const ENDPOINT_CLASS_AT = /(?:\w|-(?!->))+/y
 const STATEMENT_KEYWORD_AT = /(?:(?:classDef|class|style|note|scale|click|direction)(?=[ \t]|$)|end(?=[ \t]+note(?:[ \t]|$))|hide(?=[ \t]+empty[ \t]+description(?:[ \t]|$)))/iy
 const OWN_KEYWORD_AT = /(?:cssClass|linkStyle)(?=[ \t]|$)/y
 const STATE_KEYWORD_AT = /state[ \t]+/iy
-const STATE_ID_AT = /[\w\p{L}-]+/uy
+const STATE_ID_AT = /[\w\p{L}\p{N}\p{M}-]+/uy
 const STATE_AS_AT = /[ \t]+as[ \t]+/iy
 const STATE_AS_WORD_AT = /[ \t]+as(?=[ \t]|$)/iy
 const STEREOTYPE_AT = /[ \t]*(?:<<[^>\n]*>>|\[\[(fork|join|choice)\]\])/iy
@@ -306,11 +306,16 @@ function quotedRunEnd(lines: readonly StateSourceLine[], start: number): number 
   return end
 }
 
+const STATE_SPANNING_TOKEN_RE = /"|note/i
+
 /** For each source line, the last line of the statement that starts there:
  *  Mermaid's State lexer reads a quoted name or note text to its closing
  *  quote, and block-note text to its `end note`, across line breaks. Source
  *  normalization reads no line inside one as an accTitle/accDescr. */
 export function stateStatementEnds(source: readonly string[]): number[] {
+  // A spanning string needs a quote; both shared block-note openers need
+  // `note`. This only selects candidates: the scanner still owns grammar.
+  if (!source.some(line => STATE_SPANNING_TOKEN_RE.test(line))) return source.map((_, index) => index)
   const lines = scanStateComments(source)
   return lines.map((line, index) => {
     if (!line.noteOpen) return quotedRunEnd(lines, index)

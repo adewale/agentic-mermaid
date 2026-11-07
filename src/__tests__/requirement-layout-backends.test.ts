@@ -24,6 +24,27 @@ function normalContact(at: { x: number; y: number }, toward: { x: number; y: num
 }
 
 describe('Requirement layout backends', () => {
+  test.each(['TB', 'BT', 'LR', 'RL'])('reserves the painted containment marker before the first ELK bend in %s', direction => {
+    const input = `requirementDiagram\ndirection ${direction}\nelement root {\n type: software\n}\nrequirement leaf {\n id: R1\n text: Dispatch\n}\nelement side {\n type: service\n}\n${Array(4).fill('root - contains -> leaf').join('\n')}\nroot - contains -> side`
+    for (const bendRadius of [0, 12]) {
+      const result = renderMermaidSVGWithReceipt(input, { graphLayout: { backend: 'elk', fallback: 'none' }, style: { roles: { relationship: { bendRadius } } } })
+      const attrs = (tag: ReturnType<typeof scanSvgStartTags>[number]) => Object.fromEntries(tag.attributes.map(attr => [attr.name, attr.value]))
+      const marker = result.svg.match(/<marker\b[^>]*id="requirement-contains"[\s\S]*?<\/marker>/)![0]
+      const resource = scanSvgStartTags(marker), reference = attrs(resource[0]!), circle = attrs(resource.find(tag => tag.name === 'circle')!)
+      const markerDepth = Number(circle.cx) + Number(circle.r) + Number(circle['stroke-width']) / 2 - Number(reference.refX)
+      const carriers = scanSvgStartTags(result.svg).map(attrs).filter(tag => tag['data-role'] === 'relationship')
+      expect(carriers.map(edge => [edge['data-from'], edge['data-to']])).toEqual([...Array(4).fill(['root', 'leaf']), ['root', 'side']])
+      for (const carrier of carriers) {
+        expect(carrier['marker-start']).toBe('url(#requirement-contains)')
+        expect(carrier['marker-end']).toBeUndefined()
+        if (carrier.d) expect(carrier.d).toMatch(/^M\s*[-\d.]+[ ,]+[-\d.]+\s*L/)
+        const points = (carrier.points ?? carrier.d)!.match(/[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi)!.map(Number)
+        expect(Math.hypot(points[2]! - points[0]!, points[3]! - points[1]!) + 1e-7).toBeGreaterThanOrEqual(markerDepth)
+      }
+      expect(result.receipt.layoutDecisions?.[0]?.selected).toBe('elk')
+    }
+  })
+
   test.each((['agentic', 'elk'] as const).flatMap(backend => (['scene', 'native'] as const).map(admission => ({ backend, admission }))))('retains parallel requirement occurrences and authored names with $backend through $admission', async ({ backend, admission }) => {
     // Authored relation-1 is a card name, independently of generated edge IDs;
     // the two satisfies declarations must retain separate caption owners.

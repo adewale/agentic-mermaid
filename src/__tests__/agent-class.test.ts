@@ -752,9 +752,50 @@ note for A "A \"quote\" and \\ path"`)
     expect(d.body.title).toBe('Animal Kingdom')
   })
 
-  test('unmodeled syntax → opaque fallback', () => {
-    const d = parse('classDiagram\n  direction TB\n  class A')
-    expect(d.body.kind).toBe('opaque')
+  test('direction and inert callbacks retain their source while class members remain editable', () => {
+    const source = 'classDiagram\r\n  direction LR\r\nnamespace API {\r\n  class A {\r\n    +int count\r\n  }\r\n  callback A "inspect"\r\n}\r\n%% keep footer\r\n'
+    const d = parse(source)
+    expect(d.body.kind).toBe('class')
+    expect(serializeMermaid(d)).toBe(source)
+    const added = mutateChecked(d, { kind: 'add_member', class: 'A', text: '+read()' })
+    if (!added.ok) throw new Error(added.error.message)
+    expect(serializeMermaid(added.value).startsWith(source)).toBe(true)
+    expect(asClass(added.value)!.body.classes[0]!.members).toEqual(['+int count', '+read()'])
+    const removed = mutateChecked(added.value, { kind: 'remove_member', class: 'A', index: 0 })
+    if (!removed.ok) throw new Error(removed.error.message)
+    expect(serializeMermaid(removed.value)).toContain('  callback A "inspect"\r\n}\r\n%% keep footer\r\n')
+    expect(asClass(removed.value)!.body.classes[0]!.members).toEqual(['+read()'])
+    const before = JSON.stringify(d)
+    for (const op of [{ kind: 'rename_class', from: 'A', to: 'B' }, { kind: 'remove_class', id: 'A' }] as const) {
+      const refused = mutateChecked(d, op)
+      expect(refused.ok).toBe(false)
+      if (!refused.ok) expect(refused.error.message).toContain('unmodeled statement')
+    }
+    expect(JSON.stringify(d)).toBe(before)
+  })
+
+  test('source-preserving mutations refuse stale provenance instead of dropping live typed fields', () => {
+    const source = 'classDiagram\ndirection LR\nclass A {\n+read()\n}\n'
+    const diagram = asClass(parse(source))!
+    diagram.body.classes[0]!.members.push('+retained()')
+    const before = JSON.stringify(diagram)
+    const result = mutateChecked(diagram, { kind: 'add_member', class: 'A', text: '+next()' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.message).toContain('source does not match its typed body')
+    expect(JSON.stringify(diagram)).toBe(before)
+    expect(diagram.body.classes[0]!.members).toEqual(['+read()', '+retained()'])
+  })
+
+  test('owned identity edits retain unrelated callback and direction statements', () => {
+    const source = 'classDiagram\ndirection BT\nclass A {\n+read()\n}\nclass B\nA --> B : A label\nnote for A "A text"\ncallback B "inspect"\n'
+    const original = parse(source)
+    const renamed = mutateChecked(original, { kind: 'rename_class', from: 'A', to: 'Renamed' })
+    if (!renamed.ok) throw new Error(renamed.error.message)
+    expect(serializeMermaid(renamed.value)).toBe(source.replace('class A {', 'class Renamed {').replace('A --> B', 'Renamed --> B').replace('note for A', 'note for Renamed'))
+    const removed = mutateChecked(renamed.value, { kind: 'remove_class', id: 'Renamed' })
+    if (!removed.ok) throw new Error(removed.error.message)
+    expect(serializeMermaid(removed.value)).toBe('classDiagram\ndirection BT\nclass B\ncallback B "inspect"\n')
+    expect(serializeMermaid(original)).toBe(source)
   })
 })
 

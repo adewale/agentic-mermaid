@@ -198,7 +198,11 @@ describe('claim-keyed backend capability conformance', () => {
       }), document).toBe(true)
       expect(applyOutputSecurityPolicy(document, 'strict')).toEqual({ svg: document, diagnostics: [] })
     }
+    const manyAttributes = Array.from({ length: 32 }, (_, index) => `data-${index}="${index}"`).join(' ')
+    expect(verifySvgDocumentEnvelope(`<svg ${xmlns}><rect ${manyAttributes}/><g data-0="sibling"><rect ${manyAttributes}/></g></svg>`)).toBe(true)
     const malformedDocuments = [
+      `<svg ${xmlns}><rect ${manyAttributes} data-0="duplicate"/></svg>`,
+      `<svg ${xmlns}><rect ${manyAttributes} data-last="one" data-last="two"/></svg>`,
       '<svg><rect /></svg>',
       `<svg ${xmlns}><text>&</text></svg>`,
       `<svg ${xmlns}><rect broken /></svg>`,

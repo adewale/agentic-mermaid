@@ -1,0 +1,12 @@
+swimlane-beta LR
+subgraph customer[CUSTOMER]
+  request[Request order]
+  receive[Receive order]
+end
+subgraph team[OPERATIONS]
+  check{In stock?}
+  fulfill[Dispatch order]
+end
+request --> check
+check -->|Yes| fulfill
+fulfill --> receive

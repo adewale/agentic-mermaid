@@ -2,6 +2,8 @@ import { decodeXML } from 'entities'
 import { normalizeMermaidSource, type NormalizedMermaidSource } from '../mermaid-source.ts'
 import { isHtmlEntityName } from '../shared/html-entity-table.ts'
 import { XML_NAMED_ENTITIES } from '../shared/mermaid-entities.ts'
+import type { ParserGrammarTrace } from '../shared/parser-source.ts'
+import { scanSequenceStatementLines } from './statements.ts'
 
 /** A double-encoded reference (`&amp;nbsp;`), or a numeric or named one. */
 const REFERENCE = /&amp;(#\d+|#[xX][0-9a-fA-F]+|[a-zA-Z][a-zA-Z\d]{0,31});|&(#\d+|#[xX][0-9a-fA-F]+|[a-zA-Z][a-zA-Z\d]{0,31});/g
@@ -60,6 +62,15 @@ export function sequenceGrammarSource(authored: string): { text: string; sourceO
     const edit = edits[low - 1]
     return !edit ? offset : offset < edit.end ? edit.originalStart : edit.originalEnd + offset - edit.end
   } }
+}
+
+/** Sequence owns entity and inline-accessibility provenance; other families
+ * can align generic source errors without loading this grammar's scanner. */
+export const sequenceGrammarTrace: ParserGrammarTrace = {
+  project: sequenceGrammarSource,
+  statements: (rows, text) => /^sequenceDiagram\b/i.test(rows[0]?.text.trim() ?? '') && /;\s*acc(?:Title|Descr)\b/i.test(text)
+    ? scanSequenceStatementLines(rows.map(row => row.text)).map(span => ({ text: span.raw, offset: rows[span.line]!.offset + span.column }))
+    : rows,
 }
 
 /**

@@ -16,6 +16,17 @@ import { getFamily } from '../agent/families.ts'
 import type { SceneDoc } from '../scene/ir.ts'
 
 describe('typed Scene connector contract', () => {
+  test('line semantics paint their default dash and preserve explicit stroke overrides', () => {
+    const create = (lineStyle: 'solid' | 'dashed' | 'dotted', paint = {}, stroke = {}) => marks.connector({
+      id: 'styled', role: 'edge', geometry: { kind: 'line', x1: 0, y1: 0, x2: 30, y2: 0 },
+      lineStyle, paint: { stroke: '#111', ...paint }, stroke,
+    })
+    expect(sceneNodeSerialization(create('dashed'))).toContain('stroke-dasharray="6 4"')
+    expect(sceneNodeSerialization(create('dotted'))).toContain('stroke-dasharray="4 4"')
+    expect(sceneNodeSerialization(create('solid'))).not.toContain('stroke-dasharray')
+    expect(sceneNodeSerialization(create('dashed', { strokeDasharray: 'none' }))).toContain('stroke-dasharray="none"')
+    expect(sceneNodeSerialization(create('dashed', { strokeDasharray: '8 3', strokeDashoffset: '2' }, { dash: { array: '1 5', offset: 4 } }))).toContain('stroke-dasharray="1 5" stroke-dashoffset="4"')
+  })
   test('typed endpoint owners survive admission and terminal projection without mutable aliases', () => {
     const p = marks.shape({ id: 'p', role: 'entity', geometry: { kind: 'rect', x: 1, y: 1, width: 2, height: 2 }, paint: { fill: '#fff' } })
     const q = marks.shape({ id: 'q', role: 'group', geometry: { kind: 'rect', x: 5, y: 5, width: 90, height: 70 }, paint: { fill: 'none', stroke: '#111' } })

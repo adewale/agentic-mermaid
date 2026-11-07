@@ -53,6 +53,36 @@ replace neither the dated profiler nor its missing runtime/cold/cache evidence.
 Next causal probe: whether standalone worker precompression accounts for the
 Brotli loss, preserving decoded worker bytes, ownership and browser contracts.
 
+## Current main9fb integration — 7 November
+
+Integrate `9fb35b8bf8dc654a19612de3cc6a50144d68b0a7` normally after remote
+main advances during this run. Combine main's opt-in Inter metrics/search with
+PR449 ink callbacks, font context, ownership/borrow guards and completed-route
+fitting. Preserve stricter original standalone/Gantt caps and backend/version.
+Repair coalesced CSS import admission; identify ELK by resolved dependency path
+for symlinked local checks. Refresh public package inventory from actual tar.
+
+Both18-call main/PR cohorts requalified: main12 exact SVG/entire receipts and six
+same refusals; PR15 exact products and three same ER256 refusals. Thus the prior
+selected main-relative gains persist; unchanged products are validation. Nine
+named controls also retain exact SVGs, including230P and152/372U.
+Core types/lint pass. Initial owners908P/25F; targeted repaired owners21P resolve
+one obsolete bend fixture and six local esbuild failures,18 JSDOM loaders remain.
+The original two-source fan now needs0bends/0optional calls; a three-edge fixture
+retains the no-strict-improvement guard, not a new visible gain. ESM/DTS, lazy,
+IIFE/Zenu builds, actual standalone2P/504, lazy font/search2P/38 and Node/bundler
+3P/9 pass. Existing package helpers admit all257 actual tar files; original npm
+wrapper stdout failure is retained separately. No full-suite/readiness claim.
+
+CompleteHTML before→merged gzip1,310,630→1,323,398 (+12,768), Brotli1,245,111→
+1,257,035 (+11,924), raw2,187,091→2,203,365. Original gzip ceiling1,334,500 passes.
+These are preceding-PR/merged costs, not current-main payload ratios. Lazy limits
+and proof/layout losses remain; final CI must be followed separately. Prior CPU
+profiles stay dated to pre-integration source; no speed ratio or new cache added
+by this integration. Main's private immutable-profile authority is preserved.
+Next: qualify final combined CI and repair compact-face seating before any new
+clearance intervention. Evidence: `main-9fb-integration`.
+
 ## Enlarged-card shortcut cause — 7 November
 
 At `0ff57be43892519224ebff3c3f72169cf12f01b9`, isolate withdrawn4db9's

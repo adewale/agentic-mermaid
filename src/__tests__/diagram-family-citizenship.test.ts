@@ -2,6 +2,8 @@ import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { decodeXML } from 'entities'
+import { resolveRenderRequest } from '../render-contract.ts'
+import { applyTextTransform, resolveRenderStyle } from '../styles.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import * as agentApi from '../agent/index.ts'
 import { checkMermaid, describeMermaidFacts, layoutMermaid, mutate, parseRegisteredMermaid as parseMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
@@ -67,8 +69,11 @@ function assertMeaning(family: DiagramKind, artifact: ReturnType<typeof assertCi
     .replace(/<[^>]+>/g, ''))).join(' ').replace(/\s+/g, ' ')
   const asciiText = artifact.ascii.replace(/\s+/g, ' ')
   const unicodeText = artifact.unicode.replace(/\s+/g, ' ')
-  for (const text of witness.visibleText) {
-    expect(svgText, `${family}: SVG retains ${text}`).toContain(text)
+  const request = resolveRenderRequest(witness.source, witness.options, 'svg'), style = resolveRenderStyle(request.renderOptions, undefined, request.appearance.face)
+  for (const expected of witness.visibleText) {
+    const text = typeof expected === 'string' ? expected : expected.text
+    const transform = typeof expected === 'string' ? undefined : expected.role === 'group' ? style.groupTextTransform : expected.role === 'edge' ? style.edgeTextTransform : style.nodeTextTransform
+    expect(svgText, `${family}: SVG retains ${text} with its authorized role transform`).toContain(applyTextTransform(text, transform))
     expect(asciiText, `${family}: ASCII retains ${text}`).toContain(text)
     expect(unicodeText, `${family}: Unicode retains ${text}`).toContain(text)
   }

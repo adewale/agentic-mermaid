@@ -145,23 +145,24 @@ describe('forward-compatible family classification', () => {
     }
   })
 
+  test('adopted AgentFlow, UseCase and Swimlane grammar renders through its native model', () => {
+    for (const fixture of [
+      { family: 'agentflow', source: 'agentflow-beta TB\n  changes["Gather changes"]@{ shape: input }\n', text: 'Gather changes' },
+      { family: 'usecase', source: 'usecase-beta\nactor Customer("Customer")\nCheckout("Place order")\nCustomer --> Checkout\n', text: 'Place order' },
+      { family: 'swimlane', source: 'swimlane-beta LR\nsubgraph team[Team]\nA[Review] --> B[Publish]\nend', text: 'Review' },
+    ] as const) {
+      const parsed = parseRegisteredMermaid(fixture.source)
+      expect(parsed).toMatchObject({ ok: true, value: { kind: fixture.family, body: { kind: fixture.family } } })
+      expect(renderMermaidSVG(fixture.source)).toContain(fixture.text)
+      expect(renderMermaidASCII(fixture.source, { colorMode: 'none' })).toContain(fixture.text)
+    }
+  })
+
   test('SVG and ASCII expose the same stable unsupported/unknown diagnostic without Flowchart fallback', () => {
     const cases = [
       {
-        source: 'agentflow-beta TB\n  changes["Gather changes"]@{ shape: input }\n',
-        expected: { code: 'UNSUPPORTED_FAMILY', classification: 'unsupported', family: 'agentflow', header: 'agentflow-beta' },
-      },
-      {
-        source: 'usecase-beta\nactor Customer("Customer")\nCheckout("Place order")\nCustomer --> Checkout\n',
-        expected: { code: 'UNSUPPORTED_FAMILY', classification: 'unsupported', family: 'usecase', header: 'usecase-beta' },
-      },
-      {
-        source: 'swimlane-beta\n  preserved future payload\n',
-        expected: { code: 'UNSUPPORTED_FAMILY', classification: 'unsupported', family: 'swimlane', header: 'swimlane-beta' },
-      },
-      {
-        source: 'swimlane-beta\n  preserve external grammar\n',
-        expected: { code: 'UNSUPPORTED_FAMILY', classification: 'unsupported', family: 'swimlane', header: 'swimlane-beta' },
+        source: 'flowchart-elk\n  A[Alpha] --> B[Beta]\n',
+        expected: { code: 'UNSUPPORTED_FAMILY', classification: 'unsupported', family: 'flowchart', header: 'flowchart-elk' },
       },
       {
         source: 'c4-beta\n  preserve the future dialect\n',
@@ -191,7 +192,7 @@ describe('forward-compatible family classification', () => {
             header: detection.preservation.header,
             source: detection.preservation.source,
           }).toEqual({ ...expected, source })
-          expect(detection.message.toLowerCase()).not.toContain('flowchart')
+          expect(detection.message).toContain(expected.family ?? expected.header)
         }
       }
     }

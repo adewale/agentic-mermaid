@@ -29,4 +29,12 @@ export const VERIFIED_FAMILY_LOADERS = Object.freeze({
   block: () => import('./verified/block.ts').then(module => module.default()),
   eventmodeling: () => import('./verified/eventmodeling.ts').then(module => module.default()),
   zenuml: () => import('./verified/zenuml.ts').then(module => module.default()),
+  railroad: () => import('./verified/railroad.ts').then(module => module.default()),
+  cynefin: () => import('./verified/cynefin.ts').then(module => module.default()),
+  agentflow: () => import('./verified/agentflow.ts').then(module => module.default()),
+  usecase: () => import('./verified/usecase.ts').then(module => module.default()),
+  wardley: () => import('./verified/wardley.ts').then(module => module.default()),
+  venn: () => import('./verified/venn.ts').then(module => module.default()),
+  swimlane: () => import('./verified/swimlane.ts').then(module => module.default()),
+  treeview: () => import('./verified/treeview.ts').then(module => module.default()),
 } satisfies Record<BrowserBuiltinFamilyId, () => Promise<FamilyDescriptor>>)

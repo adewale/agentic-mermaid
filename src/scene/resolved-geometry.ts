@@ -74,12 +74,20 @@ export function pathEndpoints(d: string): [Endpoint, Endpoint] {
     // Chromium's SVGGeometryElement API, including almost-axis-aligned lines.
     const ax = Math.fround(start.x), ay = Math.fround(start.y)
     const bx = Math.fround(end.x), by = Math.fround(end.y)
-    const size = Math.hypot(bx - ax, by - ay)
+    const dx = Math.fround(bx - ax), dy = Math.fround(by - ay)
+    const size = Math.fround(Math.hypot(dx, dy))
     if (!size) return [undefined, undefined]
-    const t = Math.min(0.1, size) / size
+    // SVGGeometryElement takes a float distance along a float-length segment.
+    // Interpolate from its start at that ratio: subtracting a short distance
+    // from the endpoint first rounds a different nearpoint on diagonal lines.
+    const sample = Math.min(0.1, size)
+    const startRatio = Math.fround(Math.fround(sample) / size)
+    const endRatio = Math.fround(Math.fround(size - sample) / size)
+    const x = (ratio: number) => Math.fround(ax + Math.fround(dx * ratio))
+    const y = (ratio: number) => Math.fround(ay + Math.fround(dy * ratio))
     return [
-      Math.atan2(Math.fround(ay + (by - ay) * t) - ay, Math.fround(ax + (bx - ax) * t) - ax) * 180 / Math.PI,
-      Math.atan2(by - Math.fround(by - (by - ay) * t), bx - Math.fround(bx - (bx - ax) * t)) * 180 / Math.PI,
+      Math.atan2(y(startRatio) - ay, x(startRatio) - ax) * 180 / Math.PI,
+      Math.atan2(by - y(endRatio), bx - x(endRatio)) * 180 / Math.PI,
     ]
   }
   const segment = (end: Point, startAngle: number | undefined, endAngle: number | undefined) => {

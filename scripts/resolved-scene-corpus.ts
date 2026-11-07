@@ -1,16 +1,21 @@
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { knownStyles } from '../src/index.ts'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
+import { knownStyles } from '../src/index.ts'
 
-interface Spec { source: string; style?: string }
+interface Spec {
+  source: string
+  style?: string
+}
 const [mode, ...args] = process.argv.slice(2)
 let corpus: Spec[]
 let output: string
 if (mode === 'families' && args[0]) {
   output = args[0]
   corpus = BUILTIN_FAMILY_METADATA.flatMap(family => {
-    let source = readFileSync(resolve(import.meta.dir, '..', 'eval/layout-compare/fixtures', `${family.id}-basic.mmd`), 'utf8')
+    const fixtures = resolve(import.meta.dir, '..', 'eval/layout-compare/fixtures')
+    const basic = resolve(fixtures, `${family.id}-basic.mmd`)
+    let source = readFileSync(existsSync(basic) ? basic : resolve(fixtures, `${family.id}-native.mmd`), 'utf8')
     // The default Sankey fixture uses gradients, explicitly outside version 1.
     // Exercise its solid-color mode; refusal of gradients has its own unit test.
     if (family.id === 'sankey') source = `---\nconfig:\n  sankey:\n    linkColor: source\n---\n${source}`

@@ -41,6 +41,14 @@ const optionsArb = fc.record({
 })
 
 const FAMILY_SOURCES: Record<DiagramKind, (label: string) => string> = {
+  agentflow: label => `agentflow-beta TB\nA[${JSON.stringify(label)}]@{shape: task}`,
+  usecase: label => `usecase-beta\nactor A(${JSON.stringify(label)})`,
+  wardley: label => `wardley-beta\ncomponent A [0.5,0.5]\nnote ${JSON.stringify(label)} [0.3,0.7]`,
+  venn: label => `venn-beta\nset A[${JSON.stringify(label)}]:10`,
+  cynefin: label => `cynefin-beta\ncomplex\n  ${JSON.stringify(label)}`,
+  railroad: label => `railroad-beta\nentry = terminal(${JSON.stringify(label)});`,
+  swimlane: label => `swimlane-beta LR\nsubgraph lane[Team]\nA[${JSON.stringify(label)}]\nend`,
+  treeview: label => `treeView-beta\n"${label.replaceAll('"', '#34;')}" :::highlight`,
   zenuml: label => `zenuml\nA->B: ${label.replace(/[\r\n]/g, ' ')}`,
   eventmodeling: label => `eventmodeling\ntf 01 ui CartUI {${label.replace(/[\r\n]/g, ' ')}}`,
   packet: label => `packet\n+16: ${JSON.stringify(label)}`,
@@ -86,7 +94,9 @@ describe('SVG is well-formed XML for labels full of XML metacharacters', () => {
         examples: family === 'pie'
           ? [['label \u2028a', { compact: false, transparent: false, style: 'crisp', seed: 0, embedFontImport: false }],
             ['label <br/>', { compact: false, transparent: false, style: 'hand-drawn', seed: 0, embedFontImport: false }]]
-          : [['label <br/>', { compact: false, transparent: false, style: 'hand-drawn', seed: 0, embedFontImport: false }]],
+          : family === 'usecase'
+            ? [['label </text><script>inert</script>\uE000', { compact: false, transparent: false, style: 'crisp', seed: 0, embedFontImport: false }]]
+            : [['label <br/>', { compact: false, transparent: false, style: 'hand-drawn', seed: 0, embedFontImport: false }]],
       }),
     )
     // Keep fast-check's shrunk replay details while exposing an assertion to

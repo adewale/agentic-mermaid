@@ -90,6 +90,10 @@ export const FLOWCHART_LINK_SOURCE = `<?(?:${FLOWCHART_LINK_BODY})`
  * blank (`x--e1@--x` is the label `e1@` between `x--` and `--x` there).
  */
 export const FLOWCHART_EDGE_ID_SOURCE = String.raw`(?!${FLOWCHART_LINK_SOURCE}|[xo]?(?:-{2,}|-\.|={2,}))[^\s"@[\](){}|<>;]+`
+/** Identify an ID before a possible link, including compact text labels.
+ * The link/text lexer validates the complete operator once. Metadata ownership
+ * uses this same prefix rather than a second, narrower operator grammar. */
+export const FLOWCHART_EDGE_ID_PREFIX_SOURCE = String.raw`(${FLOWCHART_EDGE_ID_SOURCE})@\s*(?=[<xo]?(?:--|==|-?\.|~~~))`
 /** A text-arrow label's opening link, with its start marker (`<`, or `x` or
  * `o` in upstream's `x-- a --x`). */
 const TEXT_ARROW_OPEN_RE = /([<xo])?(-{2,}|-\.+|={2,})/y

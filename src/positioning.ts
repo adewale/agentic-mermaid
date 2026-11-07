@@ -17,9 +17,10 @@ import type { FamilyId } from './agent/types.ts'
 import { assessRenderedLayoutHardViolations } from './family-rubric.ts'
 import { LayoutCertificationError } from './layout/certification-error.ts'
 import { graphLayoutDecisionsOf, retainGraphLayoutDecision, withGraphLayoutDecisionObserver, type GraphLayoutDecision } from './layout/backend.ts'
+import { layoutOptimization } from './layout/optimization-context.ts'
 import type { NormalizedMermaidSource } from './mermaid-source.ts'
 import { type ResolvedRenderRequest, resolvedFamilyRenderContextOf, resolvedRenderExecutionPlanOf } from './render-contract.ts'
-import { withTextMeasurementExecution } from './text-measurement-profile.ts'
+import { withTextMeasurementExecution, textMeasurementCacheIdentity } from './text-measurement-profile.ts'
 import type { PositionedDiagram } from './types.ts'
 
 // A certification and its consumers use one projection of the same final
@@ -61,8 +62,9 @@ export function positionFamilyForNativeRender(request: ResolvedRenderRequest): F
   // independent copy, including on the call that first fills the cache, so a
   // later restored original producer never borrows caller-retained geometry.
   const producer = nativeDrawingOf(plan.family.lowerScene)
+  const reusableMetrics = !plan.textMeasurement || textMeasurementCacheIdentity(plan.textMeasurement) !== undefined
   const borrow = plan.mode === 'scene' && isOriginalEnrolledDefaultBackend(plan.backend?.backend)
-    && isOwnedFamily(plan.family) && !preferSceneDrawing(plan.family.id) && !plan.textMeasurement
+    && isOwnedFamily(plan.family) && !preferSceneDrawing(plan.family.id) && reusableMetrics
     && !!producer && producer === originalNativeDrawingOf(plan.family.lowerScene) && !sceneAssertionsEnabled(request)
   const result = positionFamily(plan.family.id, request, request.source, {}, borrow, true)
   if (borrow && isRetainedPositionedSnapshot(result)) borrowedNativeProducers.set(result, producer!)
@@ -93,19 +95,23 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
   }
   const resolved = resolvedFamilyRenderContextOf(request)
   const environment = (globalThis as { process?: { env?: Record<string, string | undefined> }; AGENTIC_MERMAID_ELK_CACHE?: unknown }).process?.env
-  const cacheEnabled = performanceExperimentEnabled('position-cache') && certifyFinal && familyId !== 'gantt' && !executionPlan.textMeasurement
+  const metricsIdentity = textMeasurementCacheIdentity(executionPlan.textMeasurement)
+  const reusableMetrics = !executionPlan.textMeasurement || metricsIdentity !== undefined
+  const cacheEnabled = performanceExperimentEnabled('position-cache') && certifyFinal && familyId !== 'gantt' && reusableMetrics
     && (environment?.AGENTIC_MERMAID_ELK_CACHE ?? (globalThis as { AGENTIC_MERMAID_ELK_CACHE?: unknown }).AGENTIC_MERMAID_ELK_CACHE) !== '0'
   // Admitted cleanup provenance is derived entirely from originalText. Keep
   // every authoritative field; explicit source overrides retain the full key.
   const cacheSource = cacheEnabled && source === request.source ? { ...source, cleanup: undefined } : source
-  const cacheKey = cacheEnabled ? JSON.stringify([cacheSource, request.renderOptions, request.appearance, request.familyConfig, projectionOptions, familyId === 'class' ? resolved.paintBackendId ?? 'backend:default' : undefined,
-    Object.entries(environment ?? {}).filter(([key]) => key.startsWith('APL_')).sort(), PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled)]) : undefined
+  const cacheParts = cacheEnabled ? [cacheSource, request.renderOptions, request.appearance, request.familyConfig, projectionOptions, familyId === 'class' ? resolved.paintBackendId ?? 'backend:default' : undefined,
+    Object.entries(environment ?? {}).filter(([key]) => key.startsWith('APL_')).sort(), PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled)] : undefined
+  if (metricsIdentity !== undefined) cacheParts?.push(metricsIdentity)
+  const cacheKey = cacheParts === undefined ? undefined : JSON.stringify(cacheParts)
   const boundedKey = cacheKey !== undefined && cacheKey.length <= 65536 ? cacheKey : undefined
   if (boundedKey === undefined) observeCache('positioned-layout', 'bypass',
     !performanceExperimentEnabled('position-cache') ? 'disabled' : !certifyFinal ? 'external-family'
-      : familyId === 'gantt' ? 'time-dependent-family' : executionPlan.textMeasurement ? 'custom-text-measurement'
+      : familyId === 'gantt' ? 'time-dependent-family' : !reusableMetrics ? 'custom-text-measurement'
         : cacheKey === undefined ? 'elk-cache-disabled' : 'key-limit')
-  return withTextMeasurementExecution(executionPlan.textMeasurement, () => {
+  const position = () => withTextMeasurementExecution(executionPlan.textMeasurement, () => {
     const role = request.output === 'ascii' || request.output === 'unicode' || request.output === 'html' ? 'companion' : 'primary'
     if (borrow && boundedKey !== undefined) {
       const snapshot = borrowedPositioned(descriptor, boundedKey, request.output === 'svg' ? request : undefined)
@@ -158,4 +164,6 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
     }
     return result
   }, request.appearance.font)
+  const optimization = layoutOptimization(Boolean(request.renderOptions.graphLayout?.quality || request.renderOptions.graphLayout?.viewport))
+  return optimization ? optimization.withLayoutOptimizationBudget(request, request.renderOptions.graphLayout, position, true) : position()
 }

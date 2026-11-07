@@ -2,6 +2,10 @@ import { expect, test } from 'bun:test'
 import * as api from '../../../src/agent/index.ts'
 import { runOperationDiagnostics, runOperationWitnesses, typedBodyContains, type OperationWitnessApi } from '../unified/operation-witnesses.ts'
 
+// This test deliberately substitutes a family-agnostic dynamic API. Keep
+// that boundary explicit instead of selecting an overload with any operands.
+const mutateDynamic: OperationWitnessApi['mutate'] = api.mutate
+
 function parsed(source: string) {
   const result = api.parseRegisteredMermaid(source)
   if (!result.ok) throw Error(JSON.stringify(result.error))
@@ -38,7 +42,7 @@ test('renaming preserves endpoint identities and parallel-edge multiplicity', ()
   const broken: OperationWitnessApi = {
     ...api,
     mutate: (value, operation) => {
-      const result = api.mutate(value, operation)
+      const result = mutateDynamic(value, operation)
       if (result.ok && operation.kind === 'rename_node' && value.body.kind === 'flowchart' && result.value.body.kind === 'flowchart') result.value.body.graph.edges = value.body.graph.edges
       return result
     },

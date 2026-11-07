@@ -1,3 +1,4 @@
+import { scanSvgStartTags } from '../svg-structure.ts'
 
 import { describe, expect, spyOn, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
@@ -26,6 +27,30 @@ const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/class-b
 const compoundFixture = readFileSync(new URL('../../eval/layout-compare/fixtures/class-compound-backends.mmd', import.meta.url), 'utf8')
 
 describe('Class layout backends', () => {
+  test.each(['LR', 'RL', 'TB', 'BT'])('keeps nested ELK captions associated with their own final carrier in %s', direction => {
+    const source = `classDiagram\ndirection ${direction}\nnamespace Root {\n class Gateway {\n  +String key\n }\n namespace Domain {\n  class Draft {\n   +String token\n  }\n  class Sink {\n   +String id\n  }\n }\n}\nGateway "1" *-- Draft : opens\nGateway "*" ..> Sink : submits\nDraft "1" --> Sink : commits\nSink "0..1" ..|> Sink : retries\nnote for Gateway "Keep authored Gateway note"`
+    const rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk', fallback: 'none' }, style: { roles: { relationship: { bendRadius: 0 } } } })
+    const attributes = (svg: string) => Object.fromEntries(scanSvgStartTags(svg)[0]!.attributes.map(attr => [attr.name, attr.value]))
+    const carriers = scanSvgStartTags(rendered.svg).map(tag => Object.fromEntries(tag.attributes.map(attr => [attr.name, attr.value]))).filter(attrs => attrs.class === 'class-relationship')
+    expect(carriers.map(edge => [edge['data-from'], edge['data-to'], edge['data-label']])).toEqual([
+      ['Gateway', 'Draft', 'opens'], ['Gateway', 'Sink', 'submits'], ['Draft', 'Sink', 'commits'], ['Sink', 'Sink', 'retries'],
+    ])
+    for (const edge of carriers) {
+      const label = attributes(rendered.svg.match(new RegExp(`<text\\b[^>]*>${edge['data-label']}</text>`))![0])
+      const halfHalo = Number(label['stroke-width']) / 2
+      const x = Number(label.x) - Number(label.textLength) / 2 - halfHalo - 8, y = Number(label.y) - Number(label['font-size']) * 1.3 / 2 - halfHalo - 8
+      const width = Number(label.textLength) + 2 * halfHalo + 16, height = Number(label['font-size']) * 1.3 + 2 * halfHalo + 16
+      const points = edge.points!.split(/\s+/).map(pair => pair.split(',').map(Number))
+      expect(points.slice(1).some((b, index) => {
+        const a = points[index]!
+        return a[0] === b[0] ? x < a[0]! && a[0]! < x + width && Math.min(a[1]!, b[1]!) < y + height && Math.max(a[1]!, b[1]!) > y
+          : a[1] === b[1] && y < a[1]! && a[1]! < y + height && Math.min(a[0]!, b[0]!) < x + width && Math.max(a[0]!, b[0]!) > x
+      }), `${edge['data-label']} is detached from its own carrier`).toBe(true)
+    }
+    expect(rendered.svg).toContain('Keep authored Gateway note')
+    expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+  })
+
   test.each((['agentic', 'elk'] as const).flatMap(backend => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ backend, direction }))))('nested caption seats retain authored meaning and final contacts: $backend $direction', ({ backend, direction }) => {
     const source = "classDiagram\ndirection DIRECTION\nnamespace Root {\n class Gateway {\n  +String key\n }\n namespace Domain {\n  class Draft {\n   +String token\n  }\n  class Sink {\n   +String id\n  }\n }\n}\nGateway \"1\" *-- Draft : opens\nGateway \"*\" ..> Sink : submits\nDraft \"1\" --> Sink : commits\nSink \"0..1\" ..|> Sink : retries\nnote for Gateway \"Keep authored Gateway note\"".replace('DIRECTION', direction)
     const result = renderMermaidSVGWithReceipt(source, { graphLayout: { backend, fallback: 'none' } })

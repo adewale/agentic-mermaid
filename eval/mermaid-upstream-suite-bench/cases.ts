@@ -30,6 +30,11 @@ export function reviewedUpstreamCases(root: string): ReviewedUpstreamCase[] {
     // its native reading and historical source without admitting a typed style.
     if (entry.id === 'quadrant-upstream-should-be-able-to-handle-constructor-as-a-classname') entry.assertions.expectStructured = false
     if (entry.id === 'flowchart-upstream-should-handle-text-in-ellipse-vertices') entry.assertions.labelsContain = ['this is an ellipse', 'B']
+    // These twelve original State witnesses retain top-level layout hints in
+    // their typed body. Direction-word arrows remain outside this elevation.
+    if (/^state-upstream-(?:description-after-second-state|hide-empty-description|scale|shall-handle-descriptions-including-minus-signs|should-handle-multiple-recursive-state-definitions|should-state-definition-with-quotes)(?:-2)?$/.test(entry.id)) {
+      entry.assertions.expectStructured = true
+    }
     if (entry.id === 'sequence-upstream-it-should-handle-par-over-statements') {
       entry.assertions.expectStructured = true
       entry.assertions.labelsContain = ['Alice', 'Bob', 'Alice note', 'Bob note', 'Message', 'Parallel overlap']

@@ -18,8 +18,8 @@ const NUM_RUNS = 400
 // Every registered built-in family, from the registry (a hand-written list had
 // silently left sankey out of this untrusted boundary).
 const FAMILIES = BUILTIN_FAMILY_METADATA.map(family => family.id) as DiagramKind[]
-/** The `am parse` JSON wire shape: Maps become records, as the CLI's replacer does. */
-const toWire = (value: unknown) => JSON.parse(JSON.stringify(value, (_key, v) => v instanceof Map ? Object.fromEntries(v) : v))
+/** The `am parse` JSON wire shape: Maps become records and Sets become arrays, as the CLI's replacer does. */
+const toWire = (value: unknown) => JSON.parse(JSON.stringify(value, (_key, v) => v instanceof Map ? Object.fromEntries(v) : v instanceof Set ? [...v] : v))
 // Real payloads (the `am parse` JSON shape) for every family — the round-trip seed corpus.
 const REAL_PAYLOADS = FAMILIES.map(fam => ({ family: fam, payload: toWire(createMermaid(fam)) }))
 

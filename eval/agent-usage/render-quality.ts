@@ -34,6 +34,22 @@ export interface AgentUsageRenderQualitySummary {
 }
 
 const EXPECTED_VISIBLE_LABELS: Record<string, string[]> = {
+  agentflow_set_search_role: ["LLM API", "Brand guide", "Plan work", "Search documents", "Publish result", "PUBLISHING"],
+  author_agentflow_source: ["LLM API", "Brand guide", "Plan work", "Search documents", "Publish result", "PUBLISHING"],
+  usecase_set_vertical_direction: ["Customer", "STOREFRONT", "Browse catalogue", "Checkout"],
+  author_usecase_source: ["Customer", "STOREFRONT", "Browse catalogue", "Checkout"],
+  wardley_evolve_service: ["PLATFORM EVOLUTION", "Customer", "Service", "Power", "Custom", "Utility", "Keep all note text", "Adopt utility"],
+  author_wardley_source: ["PLATFORM EVOLUTION", "Customer", "Service", "Power", "Custom", "Utility", "Keep all note text", "Adopt utility"],
+  venn_update_overlap: ["Alpha", "Beta", "Shared", "Owned note"],
+  author_venn_source: ["Alpha", "Beta", "Shared", "Owned note"],
+  cynefin_automate_clear_domain: ["Decisions with feedback", "Explore", "Analyse", "Automate", "Stabilise", "Investigate", "Learning", "Recover"],
+  author_cynefin_source: ["Decisions with feedback", "Explore", "Analyse", "Automate", "Stabilise", "Investigate", "Learning", "Recover"],
+  railroad_replace_item_literal: ["entry", "start", "item", "end", "datum"],
+  author_railroad_source: ["entry", "start", "item", "end", "datum"],
+  swimlane_rename_dispatch: ["CUSTOMER", "OPERATIONS", "Request order", "Receive order", "In stock?", "Ship parcel", "Yes"],
+  author_swimlane_source: ["CUSTOMER", "OPERATIONS", "Request order", "Receive order", "In stock?", "Ship parcel", "Yes"],
+  treeview_rename_component: ["PROJECT", "src/", "Application.tsx", "widgets/", "按钮.ts", "README.md", "main component"],
+  author_treeview_source: ["PROJECT", "src/", "Application.tsx", "widgets/", "按钮.ts", "README.md", "main component"],
   zenuml_rename_inventory: ['Customer', 'API', 'Inventory', 'checkout()', 'reserve()'],
   author_zenuml_source: ['Customer', 'API', 'Inventory', 'checkout()', 'reserve()'],
   eventmodeling_add_read_model: ['Cart.UI', 'Cart.AddItem', 'Cart.ItemAdded', 'Cart.Items', 'description: string'],

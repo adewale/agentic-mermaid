@@ -13,6 +13,7 @@ import type { ArchitectureVisualConfig } from './architecture/config.ts'
 import type { DiagramColors } from './theme.ts'
 import type { NormalizedMermaidSource } from './mermaid-source.ts'
 import { normalizeMermaidRenderSource } from './mermaid-source.ts'
+import { admitParsedModelHandoff, type ParsedRenderModelHandoff } from './agent/owned-render-model.ts'
 import { observeCache } from './performance-observations.ts'
 import { CHANNEL_THEME_KEYS, readThemeValue, resolveDiagramColors } from './color-resolver.ts'
 import { checkArchitectureRenderOptionColors, checkFamilyConfigColors, checkThemeVariableColors } from './theme-color-admission.ts'
@@ -60,6 +61,8 @@ import { RENDER_OUTPUTS, type RenderOutput } from './render-outputs.ts'
 import { explicitFamilyConfigDiagnostics } from './shared/family-config-diagnostics.ts'
 import { deepFreeze, isPlainRecord } from './shared/plain-data.ts'
 import { graphLayoutDecisionsOf, type GraphLayoutDecision } from './layout/backend.ts'
+import { bundledInterMetrics } from './builtin-font-metrics.ts'
+import { layoutOptimization, type LayoutOptimizationEvidence } from './layout/optimization-context.ts'
 import { assertDiagramWorkLimit, DiagramWorkLimitError } from './shared/diagram-limits.ts'
 import {
   createTextMeasurementExecution,
@@ -252,9 +255,12 @@ const SHADOW_OPTION_FAMILIES = [
  * Output adapters may add their own fields (PNG scale/fontDirs, terminal
  * width/encoding), but must not re-declare or hand-forward this set.
  */
+const GRAPH_LAYOUT_QUALITY_FIELDS = { quality: { type: 'string', enum: ['balanced'] }, viewport: closedObjectSchema({ width: positiveNumberSchema('Target viewport width.'), height: positiveNumberSchema('Target viewport height.') }, 'Flowchart target viewport.', ['width', 'height']) } as const
+
 export const SHARED_RENDER_OPTION_FIELD_DESCRIPTORS = deepFreeze({
+  fontMetrics: { typeScript: "'estimate' | 'bundled-inter'", description: 'Optional pinned Inter ASCII advances and pair corrections. Does not load fonts; unsupported runs retain estimates.', defaultLabel: '`estimate`', validationExpectation: 'be estimate or bundled-inter', schema: { type: 'string', enum: ['estimate', 'bundled-inter'] }, terminal: 'not-applicable', terminalNote: 'terminal cells do not use font advances' },
   layoutHints: { typeScript: '{ ranks?: Record<string, number>; adjacent?: string[][]; shortEdges?: string[] }', description: 'Relative ranks, sibling adjacency and short-edge preferences.', defaultLabel: 'unset', validationExpectation: 'contain integer ranks, node groups and edge IDs', schema: { type: 'object', additionalProperties: false, properties: { ranks: { type: 'object', additionalProperties: { type: 'integer', minimum: 0, maximum: 10000 } }, adjacent: { type: 'array', items: { type: 'array', minItems: 2, items: { type: 'string' } } }, shortEdges: { type: 'array', items: { type: 'string' } } } }, terminal: 'not-applicable', terminalNote: 'not used by terminals', applicableBuiltinFamilies: ['flowchart', 'state'] },
-  graphLayout: { typeScript: "{ backend: 'elk' | 'agentic'; fallback?: 'none' | 'elk' }", description: 'Graph geometry producer and explicit Agentic fallback policy.', defaultLabel: '`elk`, no fallback', validationExpectation: 'be a graph layout selection object', schema: { anyOf: [closedObjectSchema({ backend: { type: 'string', const: 'elk' }, fallback: { type: 'string', enum: ['none'] } }, 'ELK graph layout.', ['backend']), closedObjectSchema({ backend: { type: 'string', const: 'agentic' }, fallback: { type: 'string', enum: ['none', 'elk'] } }, 'Owned graph layout with optional ELK fallback.', ['backend'])] }, terminal: 'projected', terminalNote: 'selects pixel placement and optional graphical companion evidence, not terminal-cell placement', applicableBuiltinFamilies: ['flowchart', 'state', 'architecture', 'class', 'er', 'requirement'] },
+  graphLayout: { typeScript: "{ backend: 'elk' | 'agentic'; fallback?: 'none' | 'elk'; quality?: 'balanced'; viewport?: { width: number; height: number } }", description: 'Graph geometry producer and explicit Agentic fallback policy.', defaultLabel: '`elk`, no fallback', validationExpectation: 'be a graph layout selection object', schema: { anyOf: [closedObjectSchema({ ...GRAPH_LAYOUT_QUALITY_FIELDS, backend: { type: 'string', const: 'elk' }, fallback: { type: 'string', enum: ['none'] } }, 'ELK graph layout.', ['backend']), closedObjectSchema({ ...GRAPH_LAYOUT_QUALITY_FIELDS, backend: { type: 'string', const: 'agentic' }, fallback: { type: 'string', enum: ['none', 'elk'] } }, 'Owned graph layout with optional ELK fallback.', ['backend'])] }, terminal: 'projected', terminalNote: 'selects pixel placement and optional graphical companion evidence, not terminal-cell placement', applicableBuiltinFamilies: ['flowchart', 'state', 'architecture', 'class', 'er', 'requirement'] },
   layoutSafety: { typeScript: "'report' | 'strict'", description: 'Report bounded layout evidence, or require a passed final certificate. Strict mode rejects missing or unverified evidence.', defaultLabel: '`report`', validationExpectation: 'be report or strict', schema: { type: 'string', enum: ['report', 'strict'], default: 'report', description: 'Require a passed final native layout certificate.' }, terminal: 'consumed' },
   bg: { typeScript: 'string', description: 'Background color or CSS variable.', defaultLabel: '`#FFFFFF`', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Background color or CSS variable.', '#FFFFFF'), terminal: 'consumed' },
   fg: { typeScript: 'string', description: 'Primary foreground and text color.', defaultLabel: '`#27272A`', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Primary foreground and text color.', '#27272A'), terminal: 'consumed' },
@@ -569,6 +575,8 @@ export interface RenderRequestReceipt {
   executionDecision?: RenderExecutionDecision
   /** Pixel metrics used by graphical outputs; contains no executable host inputs. */
   textMeasurement?: TextMeasurementProfileIdentity
+  /** Actual bounded optional layout work, separate from mandatory fallbacks. */
+  layoutOptimization?: LayoutOptimizationEvidence
 }
 
 export interface RenderExecutionDecision {
@@ -586,6 +594,8 @@ export interface RenderExecutionResolutionOptions {
   readonly textMeasurement?: TextMeasurementProfile
   /** Internal identity assertion carried by ParsedDiagram adapters. */
   readonly expectedFamilyId?: FamilyId
+  /** Internal source-bound custody from native parsing; public objects cannot forge it. */
+  readonly parsedModelHandoff?: ParsedRenderModelHandoff
   /** Internal browser-lazy seam: one already-classified, already-loaded family. */
   readonly familyDescriptor?: FamilyDescriptor
 }
@@ -761,6 +771,7 @@ export function receiptOf(
     diagnostics: receiptDiagnostics(request, diagnostics),
     ...(executionDecision ? { executionDecision } : {}),
     ...(textMeasurement ? { textMeasurement: textMeasurement.identity } : {}),
+    ...(layoutOptimization()?.layoutOptimizationEvidenceOf(request) ? { layoutOptimization: layoutOptimization()?.layoutOptimizationEvidenceOf(request) } : {}),
     ...(graphLayoutDecisionsOf(request).length ? { layoutDecisions: graphLayoutDecisionsOf(request) } : {}),
   })
 }
@@ -1554,6 +1565,7 @@ function resolveExecutionPlan(
   resolutionOptions: RenderExecutionResolutionOptions,
   explicitMermaidConfig?: NonNullable<RenderOptions['mermaidConfig']>,
   onConfigDiagnostic?: NonNullable<RenderOptions['onConfigDiagnostic']>,
+  fontMetrics?: RenderOptions['fontMetrics'],
 ): InternalRenderExecutionPlan {
   let mode: InternalRenderExecutionPlan['mode']
   let backend: BackendDescriptor | undefined
@@ -1575,9 +1587,10 @@ function resolveExecutionPlan(
     throw executionCapabilityError(output, family, appearance, mode, backend, capabilityDecision)
   }
 
+  if (mode !== 'terminal' && resolutionOptions.textMeasurement && fontMetrics === 'bundled-inter') throw new RenderConfigError('fontMetrics cannot be combined with a host textMeasurement profile')
   const textMeasurement = mode === 'terminal'
     ? undefined
-    : createTextMeasurementExecution(resolutionOptions.textMeasurement, appearance.font)
+    : createTextMeasurementExecution(resolutionOptions.textMeasurement ?? (fontMetrics === 'bundled-inter' ? bundledInterMetrics() : undefined), appearance.font)
   let executionDecision: RenderExecutionDecision | undefined
   if (mode === 'scene' || mode === 'family-svg') {
     const backendDecision: RenderExecutionDecision['backend'] = mode === 'scene'
@@ -1814,6 +1827,7 @@ export function resolveRenderRequestForExecution(
     resolutionOptions,
     admittedOptions.mermaidConfig,
     admitted.onConfigDiagnostic,
+    admittedOptions.fontMetrics,
   )
   const capabilityDecision = executionPlan.capabilityDecision
 
@@ -1860,5 +1874,6 @@ export function resolveRenderRequestForExecution(
     get requestDigest() { return requestDigest() },
   })
   EXECUTION_PLAN_BY_REQUEST.set(request, executionPlan)
+  admitParsedModelHandoff(resolutionOptions.parsedModelHandoff, request.source, family)
   return request
 }

@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { decodeXML } from 'entities'
@@ -46,6 +47,9 @@ const rootFlag = process.argv.indexOf('--root')
 const ROOT = rootFlag >= 0 ? resolve(process.argv[rootFlag + 1]!) : join(import.meta.dir, '../..')
 const MEASURE_ONLY = process.argv.includes('--measure-only')
 const META_PATH = join(ROOT, 'dist/metafile-esm.json')
+// The eight native families added in PR601 use measured full family closures
+// plus 5% rounded to the next 1,000 bytes and two requests of headroom. The
+// existing initial and 25-family limits retain their prior ceilings.
 const BUDGET_PATH = join(import.meta.dir, 'browser-lazy-budgets.json')
 const metafile = JSON.parse(readFileSync(META_PATH, 'utf8')) as Metafile
 const budgets = JSON.parse(readFileSync(BUDGET_PATH, 'utf8')) as Budgets
@@ -128,8 +132,9 @@ if (forbiddenInputs.length > 0) {
   throw new Error(`SVG-only browser graph contains forbidden capabilities:\n${forbiddenInputs.join('\n')}`)
 }
 
+const elkImplementation = realpathSync(createRequire(join(ROOT, 'package.json')).resolve('elkjs/lib/elk.bundled.js'))
 const elkOutputs = outputNames.filter(path =>
-  Object.keys(metafile.outputs[path]!.inputs).some(input => input.includes('node_modules/elkjs/')))
+  Object.keys(metafile.outputs[path]!.inputs).some(input => input.includes('node_modules/elkjs/') || resolve(ROOT, input) === elkImplementation))
 const elkOutput = requireOne(elkOutputs, 'ELK implementation chunk')
 const elkLoaders = outputNames.filter(path =>
   Object.keys(metafile.outputs[path]!.inputs).some(input => input.endsWith('/elk-constructor.lazy.ts')))

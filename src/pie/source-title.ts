@@ -1,10 +1,11 @@
 import { decodeXML } from 'entities'
 import { type NormalizedMermaidSource, normalizeMermaidSource } from '../mermaid-source.ts'
 import { joinQuotedTextLines, type QuotedTextRule } from '../shared/trailing-comment.ts'
+import { familyParserLines } from '../shared/parser-source.ts'
 
 /** A "…" label runs to its closing quote across line breaks, which it keeps;
  * a title runs to the end of its line. */
-export const PIE_QUOTED_TEXT: QuotedTextRule = { wholeLine: line => /^(?:pie(?:\s+showData)?\s+)?title(?:\s|$)/i.test(line) }
+export const PIE_QUOTED_TEXT: QuotedTextRule = { preserveWhitespace: true, wholeLine: line => /^(?:pie(?:\s+showData)?\s+)?title(?:\s|$)/i.test(line) }
 
 /**
  * Pie's grammar lines for a render request. The request decodes entities in
@@ -13,9 +14,9 @@ export const PIE_QUOTED_TEXT: QuotedTextRule = { wholeLine: line => /^(?:pie(?:\
  * put authored label and title text back before Pie's own display projection.
  */
 export function pieFamilyLines(source: NormalizedMermaidSource): string[] {
-  if (!source.authoredFamilyLines) return source.familyLines
+  if (!source.authoredFamilyLines) return familyParserLines(source)
   const quotedLabel = /^\s*"(?:[^"\\]|\\.)*"/
-  const hybrid = joinQuotedTextLines(source.authoredFamilyLines, PIE_QUOTED_TEXT).map((line, index) => {
+  const hybrid = joinQuotedTextLines(familyParserLines({ familyBody: source.authoredFamilyBody ?? source.familyBody, familyLines: source.authoredFamilyLines }), PIE_QUOTED_TEXT).map((line, index) => {
     // Pie titles are display text, not grammar separators. Keep their entity
     // spelling for the family-owned projection just as with quoted labels.
     const title = splitAuthoredPieTitleLine(line, index === 0 ? 'header' : 'body')
@@ -25,7 +26,7 @@ export function pieFamilyLines(source: NormalizedMermaidSource): string[] {
   }).join('\n')
   // Reapply normal comment/line normalization after decoding; an entity may
   // itself spell a comment opener or a grammar newline outside a label.
-  return normalizeMermaidSource(hybrid).familyLines
+  return familyParserLines(normalizeMermaidSource(hybrid))
 }
 
 /** Split the authored Pie title suffix from the directive grammar, even when

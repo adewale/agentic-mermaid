@@ -27,6 +27,7 @@ import type { LayoutWarning, StateValidDiagram, StateMutationOp, StateNode, Stat
 import { parseMermaid as parseLegacy } from '../parser.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
 import { describeMermaid, describeMermaidTree } from '../agent/describe.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const SRC = `stateDiagram-v2
   [*] --> Idle
@@ -58,6 +59,25 @@ function expectErr(d: StateValidDiagram, op: StateMutationOp, code: MutationErro
 
 // ---------------------------------------------------------------------------
 describe('state structured parse', () => {
+  test('retains combining marks in state identities, nested ownership, transitions and notes', async () => {
+    const source = 'stateDiagram-v2\nstate שָלוֹם {\n [*] --> café\n café --> [*]\n note right of café : done\n}\n[*] --> שָלוֹם'
+    const diagram = state(source)
+    const composite = diagram.body.states.find(node => node.id === 'שָלוֹם')!
+    expect(composite.states?.map(node => node.id)).toEqual(['café'])
+    expect(composite.transitions).toContainEqual({ from: '[*]', to: 'café' })
+    expect(diagram.body.notes).toContainEqual(expect.objectContaining({ target: 'café', text: 'done' }))
+    const graph = parseLegacy(source)
+    expect(graph.subgraphs.map(group => group.id)).toEqual(['שָלוֹם'])
+    expect(graph.nodes.has('café')).toBe(true)
+    const edited = apply(diagram, { kind: 'rename_state', from: 'café', to: 'שָׁלוֹם' })
+    const output = serializeMermaid(edited)
+    expect(state(output).body).toEqual(edited.body)
+    expect(parseLegacy(output).nodes.has('שָׁלוֹם')).toBe(true)
+    const upstream = startUpstreamMermaid()
+    try { expect(await upstream.accepts(output)).toBe(true) }
+    finally { upstream.close() }
+  })
+
   test('class assignment to a hyphenated identity stays source-only and typed assignment fails atomically', () => {
     const source = 'stateDiagram-v2\n-:::-'
     const parsed = parseMermaid(source)

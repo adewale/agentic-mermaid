@@ -37,6 +37,7 @@ import { parseDirectiveYaml, parseMermaidYaml } from './shared/mermaid-yaml.ts'
 import { syntaxError } from './shared/syntax-error.ts'
 import { authoredMermaidSlice, cleanedMermaidOffset, cleanupMermaidSource, originalMermaidOffset, type MermaidCleanup, type MermaidCleanupBias } from './shared/mermaid-cleanup.ts'
 import { matchMermaidFrontmatter, mermaidFirstLine, INIT_DIRECTIVE_REGEX, stripMermaidDirectives, splitHeaderStatement, toMermaidLines } from './mermaid-source-wrapper.ts'
+import { joinStatementLines } from './shared/trailing-comment.ts'
 
 export { toMermaidLines }
 
@@ -496,8 +497,10 @@ function withoutMermaidInitDirectives(text: string, removed?: (offset: number, l
 }
 
 /** The preserved native grammar payload and its exact authored boundaries.
- * Sparse directive deletions compose with the shared cleanup receipt. */
-export function preservedMermaidFamilySource(source: Readonly<Pick<NormalizedMermaidSource, 'originalText' | 'wrapperSource' | 'authoredWrapperLength' | 'cleanup'>>, view: 'authored' | 'render' = 'render'): { text: string; sourceOffset: (offset: number, bias?: MermaidCleanupBias) => number; familyOffset: (offset: number, bias?: MermaidCleanupBias) => number } {
+ * Sparse directive deletions compose with the shared cleanup receipt. The
+ * optional deletion bias controls collapsed init boundaries independently of
+ * XML/cleanup bias; the existing enclosing-range defaults remain unchanged. */
+export function preservedMermaidFamilySource(source: Readonly<Pick<NormalizedMermaidSource, 'originalText' | 'wrapperSource' | 'authoredWrapperLength' | 'cleanup'>>, view: 'authored' | 'render' = 'render'): { text: string; sourceOffset: (offset: number, bias?: MermaidCleanupBias, deletionBias?: MermaidCleanupBias) => number; familyOffset: (offset: number, bias?: MermaidCleanupBias) => number } {
   const cleanup = source.cleanup ?? cleanupMermaidSource(source.originalText)
   const wrapperLength = source.wrapperSource?.length ?? 0
   const authoredStart = source.cleanup && source.authoredWrapperLength !== undefined
@@ -514,7 +517,7 @@ export function preservedMermaidFamilySource(source: Readonly<Pick<NormalizedMer
     else (deletions ??= []).push({ at, before: offset, after: offset + length })
     removedLength += length
   })
-  return { text, sourceOffset: (offset, bias = 'start') => {
+  return { text, sourceOffset: (offset, bias = 'start', deletionBias = bias) => {
     if (!Number.isInteger(offset) || offset < 0 || offset > text.length) throw new RangeError('Family source offset is outside the preserved payload')
     let low = 0, high = deletions?.length ?? 0
     while (low < high) {
@@ -523,7 +526,7 @@ export function preservedMermaidFamilySource(source: Readonly<Pick<NormalizedMer
       else high = middle
     }
     const deletion = deletions?.[low - 1]
-    const payloadOffset = deletion ? offset === deletion.at ? bias === 'start' ? deletion.before : deletion.after : offset + deletion.after - deletion.at : offset
+    const payloadOffset = deletion ? offset === deletion.at ? deletionBias === 'start' ? deletion.before : deletion.after : offset + deletion.after - deletion.at : offset
     return originalMermaidOffset(cleanup, start + payloadOffset, bias, selectedView)
   }, familyOffset: (offset, bias = 'start') => {
     const position = cleanedMermaidOffset(cleanup, offset, bias, selectedView) - start
@@ -691,10 +694,15 @@ function normalizeSource(
   const accessibilityLines = sequence && /;\s*acc(?:Title|Descr)\b/i.test(processed.body)
     ? splitSequenceStatementLines(physicalLines)
     : physicalLines
+  const statementEnds = family?.statementEnds?.(accessibilityLines)
+  const physicalStatementEnds = accessibilityLines === physicalLines ? statementEnds : family?.statementEnds?.(physicalLines)
+  const canonicalLines = physicalStatementEnds?.some((end, index) => end > index)
+    ? toMermaidLines(joinStatementLines(physicalLines, physicalStatementEnds, true))
+    : processed.lines
   // A line inside a statement's quoted text is the family's, whatever it holds.
   const accessibilityScan = scanAccessibilityDirectives(
     accessibilityLines,
-    installedFamilyStatementEnds(decodeXML(processed.lines[0] ?? ''), accessibilityLines, family),
+    statementEnds,
     // Ordinary fields already passed global XML cleanup; native JSON fields
     // own their transport references and decode them only after classification.
     view === 'render' ? directive => (directive.form === 'native' ? readAuthoredGrammarAccessibility : readGrammarAccessibility)({ title: directive.value }).title! : undefined,
@@ -734,7 +742,9 @@ function normalizeSource(
       authoredHeader: authored.lines[0] ?? '',
       authoredWrapperLength: authored.wrapperSource?.length ?? 0,
     } : {}),
-    text: processed.lines.join('\n'),
+    // Canonical source must not dedent or filter physical rows inside a
+    // grammar-owned spanning token. The parser line views remain separate.
+    text: canonicalLines.join('\n'),
     body: processed.body,
     lines: processed.lines,
     familyBody,

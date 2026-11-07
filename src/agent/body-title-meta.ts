@@ -1,6 +1,7 @@
 import { parseMermaidYaml, readYamlMappingRanges } from '../shared/mermaid-yaml.ts'
 import { matchMermaidFrontmatter } from '../mermaid-source-wrapper.ts'
-import type { ValidDiagramMeta } from './types.ts'
+import type { FamilyOperations } from './family-registry.ts'
+import type { DiagramBody, ValidDiagramMeta } from './types.ts'
 
 /** Change only the owned title scalar; keep unrelated wrapper bytes intact. */
 export function withBodyTitleMeta(title: string | undefined, meta: ValidDiagramMeta, preserveCoupledTitle = false): ValidDiagramMeta {
@@ -52,4 +53,17 @@ export function withBodyTitleMeta(title: string | undefined, meta: ValidDiagramM
   }
   const yamlStart = match.source.indexOf('\n') + 1
   return { ...meta, frontmatter, wrapperSource: wrapper.slice(0, yamlStart) + yaml + wrapper.slice(yamlStart + match.yaml.length) }
+}
+
+type TitledBody<B = DiagramBody> = B extends DiagramBody ? 'title' extends keyof B ? B : never : never
+
+/** Native title statements keep their body spelling. When a wrapper already
+ * owns a title scalar, typed edits must update or remove that scalar as well. */
+export function ownExistingBodyTitle<K extends TitledBody['kind']>(kind: K): NonNullable<FamilyOperations['bodyMeta']> {
+  return (body, meta, previous) => {
+    if (body.kind !== kind || typeof meta.frontmatter?.title !== 'string') return meta
+    const title = (body as Extract<TitledBody, { kind: K }>).title
+    const unchanged = previous === undefined || (previous.kind === kind && title === (previous as Extract<TitledBody, { kind: K }>).title)
+    return withBodyTitleMeta(title, meta, unchanged)
+  }
 }

@@ -357,6 +357,10 @@ xychart
       expect(verifyNoExternalRefs(svg)).toEqual({ ok: false, refs })
       expect(applyOutputSecurityPolicy(svg).diagnostics).toEqual(refs.map(reference => ({ code: 'EXTERNAL_REFERENCE', reference })))
     })
+    const activeElements = svgDocument('<set/><iframe/><SCRIPT/><image/><animateMotion/><foreignObject/><object/><script/><embed/>')
+    expect(verifyNoExternalRefs(activeElements)).toEqual({ ok: false, refs: ['<script>', '<foreignObject>', '<image>', '<object>', '<embed>', '<iframe>', '<animation>'] })
+    expect(verifyNoExternalRefs('<script:iframe/><set:image/>')).toEqual({ ok: false, refs: ['<script>', '<image>', '<iframe>', '<animation>'] })
+    expect(() => applyOutputSecurityPolicy(activeElements)).toThrow('rejected active content: <script>, <foreignObject>, <object>, <embed>, <iframe>, <animation>')
   })
 
   test('retains distinct attribute and stylesheet handling when escaped CSS reveals a comment', () => {

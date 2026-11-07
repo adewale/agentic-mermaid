@@ -26,6 +26,21 @@ const header: Omit<SceneDoc, 'parts'> = { family: 'flowchart', width: 200, heigh
 const shape = (id = 'A') => marks.shape({ id, role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 20, height: 20 }, paint: { fill: '#111' } })
 const label = (text: string, id = 'label') => marks.text({ id, role: 'label', text, x: 10, y: 20, fontSize: 0.1, anchor: 'start', paint: { fill: '#111' } })
 
+test('native subject references retain exact roles, forward declarations and many roles per identity', () => {
+  for (const missing of [false, true]) {
+    const validator = createNativeSceneValidator(header)
+    for (let index = 0; index < 12; index++) {
+      validator.node(marks.text({ id: `label:${index}`, role: 'label', owner: { id: 'shared', role: `vendor:role${index}` },
+        text: 'owned', x: 10, y: 20, fontSize: 10, anchor: 'start', paint: { fill: '#111' } }))
+    }
+    for (let index = 0; index < (missing ? 11 : 12); index++) validator.node(marks.shape({ id: 'shared', role: `vendor:role${index}`,
+      geometry: { kind: 'rect', x: 10, y: 10, width: 20, height: 20 }, paint: { fill: '#111' } }))
+    const result = validator.finish()
+    expect(result.valid).toBe(!missing)
+    expect(result.diagnostics).toEqual(missing ? [expect.objectContaining({ code: 'SCENE_REFERENCE', path: 'scene.parts[11].owner' })] : [])
+  }
+})
+
 test.each(['clear', 'covered', 'non-enumerable-paint', 'mutate-after-emission', 'getter-after-emission', 'same-object-two-writes'] as const)('native paint certifies actual emitted occurrences for %s', mode => {
   const marker = tipAnchoredArrow('occurrence-arrow', { width: 8, height: 5 }, 'end', { fill: '#000' }, 'userSpaceOnUse')
   const context = { positioned: { width: 200, height: 100 }, colors: header.colors, resolved: { renderOptions: {} } }

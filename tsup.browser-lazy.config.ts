@@ -29,7 +29,7 @@ export default defineConfig({
   external: [],
   // ELK, YAML and the HTML5 entity table load only when a diagram needs them.
   // Build-only facade twins preserve the synchronous source/Node APIs.
-  esbuildPlugins: [runtimeRenderContractPlugin({ schemaDocumentation: false, terminalAdapter: false, conformanceObservations: false, coalesceRuntimePrimitives: true, sourceOnlySceneAdmission: true }), {
+  esbuildPlugins: [runtimeRenderContractPlugin({ schemaDocumentation: false, terminalAdapter: false, conformanceObservations: false, coalesceRuntimePrimitives: true, sourceOnlySceneAdmission: true, lazyLayoutOptimization: true }), {
     name: 'lazy-browser-dependencies',
     setup(build) {
       // Every public render awaits this core together with its selected family.
@@ -56,6 +56,8 @@ export default defineConfig({
         contents: (await readFile(args.path, 'utf8')).replace(/\b(doc|description): '(?:\\.|[^'\\])*'/g, "$1: ''"),
         loader: 'ts',
       }))
+      build.onResolve({ filter: /\/parser-source\.ts$/ }, args =>
+        args.kind === 'dynamic-import' ? undefined : { path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) })
       build.onResolve({ filter: /\/html-entity-table\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
       build.onResolve({ filter: /\/mermaid-yaml\.ts$/ }, args =>
@@ -68,6 +70,8 @@ export default defineConfig({
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
       build.onResolve({ filter: /\/agentic-layered\.ts$/ }, args =>
         args.kind === 'dynamic-import' ? undefined : { path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) })
+      build.onResolve({ filter: /\/builtin-font-metrics\.ts$/ }, args =>
+        ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
     },
   }, compactBrowserModulesPlugin()],
   esbuildOptions(options) {

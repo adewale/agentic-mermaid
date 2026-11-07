@@ -44,8 +44,9 @@ export function hasMarkerCss(value: string): boolean {
 }
 
 const ATTRIBUTE = /\s([^\s=<>]+)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/g
-const ANIMATION_TAG = /<(?:[^\s<>/:]+:)?(?:animate(?:Motion|Transform)?|set)\b/i
-const INLINE_EVENT_ATTRIBUTE = /^on[a-z]/
+const SECURITY_ELEMENT_TAG = /<(?:([^\s<>/:]+):)?(script|foreignObject|image|object|embed|iframe|animate(?:Motion|Transform)?|set)\b/gi
+const SECURITY_ELEMENT_NAME = /^(script|foreignObject|image|object|embed|iframe|animate(?:Motion|Transform)?|set)\b/i
+const SECURITY_ELEMENT_NAMES = ['script', 'foreignObject', 'image', 'object', 'embed', 'iframe'] as const
 const CSS_SECURITY_DELIMITERS = /[(:@\\&]/
 const ACTIVE_REFERENCE_SCHEME = /^(?:javascript|vbscript|data|file):/
 const ACTIVE_CSS_SCHEME = /(?:javascript|vbscript|data|file)\s*:/i
@@ -323,6 +324,8 @@ export function verifySvgDocumentDataPositions(svg: string, positions: Readonly<
 
 function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, rawValue: string) => void, work?: XmlWork, observeData?: (start: number, end: number, inside: boolean) => boolean): boolean {
   const stack = xmlParserList<XmlElementFrame>()
+  const shortAttributeNames = xmlParserList<string>()
+  let longAttributeNames: Set<string> | undefined
   let rootSeen = false
   let rootClosed = false
   // A leading decoded byte-order mark is legal XML; elsewhere it is text,
@@ -386,7 +389,8 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
     }
 
     let end = nameEnd
-    const rawAttributes = new Set<string>()
+    let attributeCount = 0
+    let usingLongAttributes = false
     const namespaceAttributes = xmlParserList<{ readonly name: string; readonly prefix?: string; readonly local?: string; readonly value: string }>()
     let selfClosing = false
     for (;;) {
@@ -404,11 +408,26 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       if (attributeEnd < 0) return false
       const attribute = xmlSlice(svg, end, attributeEnd, work)
       work?.(attribute.length * 3 + 2)
-      if (rawAttributes.has(attribute)) return false
+      if (attributeCount < 16) {
+        for (let index = 0; index < attributeCount; index++) {
+          work?.(1)
+          if (shortAttributeNames[index] === attribute) return false
+        }
+        shortAttributeNames[attributeCount++] = attribute
+      } else {
+        if (!usingLongAttributes) {
+          longAttributeNames ??= new Set()
+          longAttributeNames.clear()
+          for (let index = 0; index < attributeCount; index++) { work?.(1); longAttributeNames.add(shortAttributeNames[index]!) }
+          usingLongAttributes = true
+        }
+        work?.(2)
+        if (longAttributeNames!.has(attribute)) return false
+        longAttributeNames!.add(attribute)
+      }
       const prefixed = xmlHasColon(attribute)
       const attributeName = prefixed ? parsePrefixedXmlName(attribute, work) : undefined
       if (prefixed && !attributeName) return false
-      rawAttributes.add(attribute)
       end = attributeEnd
       while (isXmlWhitespace(svg[end])) { work?.(1); end++ }
       if (svg[end] !== '=') return false
@@ -620,11 +639,6 @@ function unsafeActiveCssScan(scan: string): boolean {
   return false
 }
 
-const CSS_VALUE_ATTRIBUTES = new Set([
-  'clip-path', 'cursor', 'fill', 'filter', 'marker-end', 'marker-mid',
-  'marker-start', 'mask', 'stroke', 'style',
-])
-
 /** Raw Mermaid themeCSS is compatibility input, not a safe extensibility API. */
 export function validateRawThemeCss(value: unknown, mode: OutputSecurityMode): string | undefined {
   if (value === undefined || value === '') return undefined
@@ -640,30 +654,35 @@ interface SecurityFindings {
 const securityFindings = createSvgInspector('security', inspectSecurity)
 
 function inspectAttributeSecurity(qualified: string, value: string, refs: string[], active: string[]): void {
-  const name = qualified.slice(qualified.lastIndexOf(':') + 1).toLowerCase()
-  if (INLINE_EVENT_ATTRIBUTE.test(name)) { refs.push('inline-event-handler'); active.push('inline-event-handler') }
-  // A fragment is same-document only in the absence of XML Base. With an
-  // external xml:base, href="#mark" and url(#mark) resolve against that
-  // external document and can fetch after DOM insertion. Reject the base
-  // semantic itself so every local-reference check below remains sound.
-  if (qualified.toLowerCase() === 'xml:base') refs.push(`xml:base=${value}`)
-  if (name === 'href' || name === 'src' || name === 'data') {
-    const normalized = normalizedReference(value)
-    // Only same-document fragments are inert after import into a host SVG.
-    if (normalized !== '' && !normalized.startsWith('#')) refs.push(normalized.startsWith('javascript:') ? 'javascript-url' : value)
-    if (ACTIVE_REFERENCE_SCHEME.test(normalized)) active.push(`${qualified}=${value}`)
+  const lower = qualified.toLowerCase()
+  const colon = lower.lastIndexOf(':')
+  const name = colon < 0 ? lower : lower.slice(colon + 1)
+  if (name.startsWith('on') && name.length > 2 && name.charCodeAt(2) >= 97 && name.charCodeAt(2) <= 122) {
+    refs.push('inline-event-handler'); active.push('inline-event-handler')
   }
-  if (CSS_VALUE_ATTRIBUTES.has(name) || name === 'values' || name === 'from' || name === 'to') {
-    // Without a function, scheme, at-rule, escape or entity delimiter, CSS
-    // normalization cannot introduce any of the active/fetching forms below.
-    // Escaped and encoded inputs retain full reference/active classification.
-    if (!CSS_SECURITY_DELIMITERS.test(value)) return
-    const scan = normalizeCssObfuscation(decodeXmlReferences(value))
-    if (unsafeCssReferences(scan).length > 0
-      || ACTIVE_CSS_SCHEME.test(scan)
-      || ACTIVE_CSS_FUNCTION.test(scan)) refs.push(`${qualified}=${value}`)
-    if (unsafeActiveCssScan(scan)) active.push(`${qualified}=${value}`)
+  // XML Base changes even fragment references into external fetches.
+  if (lower === 'xml:base') refs.push(`xml:base=${value}`)
+  switch (name) {
+    case 'href': case 'src': case 'data': {
+      const normalized = normalizedReference(value)
+      if (normalized !== '' && !normalized.startsWith('#')) refs.push(normalized.startsWith('javascript:') ? 'javascript-url' : value)
+      if (ACTIVE_REFERENCE_SCHEME.test(normalized)) active.push(`${qualified}=${value}`)
+      return
+    }
+    case 'clip-path': case 'cursor': case 'fill': case 'filter':
+    case 'marker-end': case 'marker-mid': case 'marker-start': case 'mask':
+    case 'stroke': case 'style': case 'values': case 'from': case 'to':
+      break
+    default: return
   }
+  // Ordinary scalar paint needs no CSS normalization. Encoded/escaped values
+  // retain the same complete reference and active-content inspection.
+  if (!CSS_SECURITY_DELIMITERS.test(value)) return
+  const scan = normalizeCssObfuscation(decodeXmlReferences(value))
+  if (unsafeCssReferences(scan).length > 0
+    || ACTIVE_CSS_SCHEME.test(scan)
+    || ACTIVE_CSS_FUNCTION.test(scan)) refs.push(`${qualified}=${value}`)
+  if (unsafeActiveCssScan(scan)) active.push(`${qualified}=${value}`)
 }
 
 function inspectSecurity(svg: string): SecurityFindings {
@@ -687,13 +706,24 @@ function inspectSecurityTail(markup: string, refs: string[], active: string[]): 
     if (unsafeActiveCss(style[1]!)) active.push('active-css')
     refs.push(...unsafeCssReferences(style[1]!))
   }
-  for (const tag of ['script', 'foreignObject', 'image', 'object', 'embed', 'iframe']) {
-    if (new RegExp(`<(?:[^\\s<>/:]+:)?${tag}\\b`, 'i').test(markup)) {
-      refs.push(`<${tag}>`)
-      if (tag !== 'image') active.push(`<${tag}>`)
+  // Scan the union once, then preserve the established diagnostic order and
+  // one finding per tag kind even when hostile markup repeats an element.
+  let elementKinds = 0
+  for (const match of markup.matchAll(SECURITY_ELEMENT_TAG)) {
+    // The raw-reference API also accepts unvalidated markup. Preserve its
+    // conservative finding for an unsafe namespace prefix as well as the tag.
+    const prefix = match[1] && SECURITY_ELEMENT_NAME.exec(match[1])?.[1]
+    for (const value of [prefix, match[2]]) if (value) {
+      const name = value.toLowerCase()
+      const index = SECURITY_ELEMENT_NAMES.findIndex(tag => tag.toLowerCase() === name)
+      elementKinds |= 1 << (index < 0 ? SECURITY_ELEMENT_NAMES.length : index)
     }
   }
-  if (ANIMATION_TAG.test(markup)) { refs.push('<animation>'); active.push('<animation>') }
+  for (const [index, tag] of SECURITY_ELEMENT_NAMES.entries()) if (elementKinds & (1 << index)) {
+    refs.push(`<${tag}>`)
+    if (tag !== 'image') active.push(`<${tag}>`)
+  }
+  if (elementKinds & (1 << SECURITY_ELEMENT_NAMES.length)) { refs.push('<animation>'); active.push('<animation>') }
   return Object.freeze({ active: Object.freeze(active), refs: Object.freeze(refs) })
 }
 

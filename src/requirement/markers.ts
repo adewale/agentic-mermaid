@@ -1,7 +1,7 @@
+import type { MarkerDescriptor } from '../scene/ir.ts'
 import { tipAnchoredArrow } from '../scene/marker-resources.ts'
 import { prepareMarkerTerminals } from '../scene/marker-terminals.ts'
 import { geometryBounds, paintedStrokeExtent } from '../scene/bounds.ts'
-import type { MarkerDescriptor } from '../scene/ir.ts'
 export const requirementArrow = tipAnchoredArrow('requirement-arrow', { width: 9, height: 7 }, 'end', { fill: 'none', stroke: 'var(--_arrow)', strokeWidth: '1' }, 'userSpaceOnUse')
 export const requirementContains: MarkerDescriptor = {
   id: 'requirement-contains',

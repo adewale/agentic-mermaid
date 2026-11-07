@@ -112,7 +112,8 @@ function readInBrowser(svgText: string) {
       }
       case 'rect': {
         const x = n('x'), y = n('y'), w = n('width'), h = n('height')
-        const rx = Math.min(n('rx', n('ry')), w / 2), ry = Math.min(n('ry', rx), h / 2)
+        // An omitted radius inherits the authored other radius before either axis is clamped.
+        const rx = Math.min(n('rx', n('ry')), w / 2), ry = Math.min(n('ry', n('rx')), h / 2)
         return rx && ry
           ? `M${x + rx} ${y}H${x + w - rx}A${rx} ${ry} 0 0 1 ${x + w} ${y + ry}V${y + h - ry}A${rx} ${ry} 0 0 1 ${x + w - rx} ${y + h}H${x + rx}A${rx} ${ry} 0 0 1 ${x} ${y + h - ry}V${y + ry}A${rx} ${ry} 0 0 1 ${x + rx} ${y}Z`
           : `M${x} ${y}h${w}v${h}h${-w}Z`

@@ -1,3 +1,4 @@
+import { asAgentflow, asUsecase, asWardley, asVenn, asCynefin, asRailroad, asSwimlane, asTreeview } from '../agent/types.ts'
 import { asZenUML, asEventModeling } from '../agent/types.ts'
 import { describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
@@ -44,6 +45,15 @@ const ROOT = process.cwd()
 const cases: BenchCase[] = reviewedUpstreamCases(ROOT)
 const exclusions = JSON.parse(readFileSync(join(ROOT, 'eval/mermaid-upstream-suite-bench/exclusions.json'), 'utf8')) as Exclusion[]
 const narrowerByFamily: Record<DiagramKind, (d: ParsedDiagram) => ValidDiagram | null> = {
+  agentflow: asAgentflow,
+  usecase: asUsecase,
+  wardley: asWardley,
+  venn: asVenn,
+  cynefin: asCynefin,
+  railroad: asRailroad,
+  swimlane: asSwimlane,
+  treeview: asTreeview,
+
   zenuml: asZenUML,
   eventmodeling: asEventModeling,
   packet: asPacket,
