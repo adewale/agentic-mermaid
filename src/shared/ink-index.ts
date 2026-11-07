@@ -20,7 +20,7 @@ export function chargeInkSort<T>(items: T[], compare: (a: T, b: T) => number, ch
 
 /** The caller owns these arrays and chooses its accounting and tie order. */
 export function buildInkTree<T>(items: T[], bounds: (item: T) => InkBounds, charge?: (count?: number) => void, tie?: (a: T, b: T) => number): InkTree<T> | undefined {
-  const build = (rows: T[]): InkTree<T> => {
+  const build = (rows: T[], sortedAxis?: 'x0' | 'y0'): InkTree<T> => {
     charge?.(rows.length + 1)
     const box = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }
     for (const row of rows) {
@@ -31,10 +31,14 @@ export function buildInkTree<T>(items: T[], bounds: (item: T) => InkBounds, char
     if (rows.length <= 8) return { bounds: box, leaves: rows }
     const axis = box.x1 - box.x0 >= box.y1 - box.y0 ? 'x0' : 'y0'
     const compare = (a: T, b: T) => bounds(a)[axis] - bounds(b)[axis] || tie?.(a, b) || 0
-    if (charge) chargeInkSort(rows, compare, charge)
-    else rows.sort(compare)
+    // A child keeps its parent's order while the immutable bounds use the
+    // same axis and tie rule; no comparison scan or sort is needed again.
+    if (axis !== sortedAxis) {
+      if (charge) chargeInkSort(rows, compare, charge)
+      else rows.sort(compare)
+    }
     const middle = Math.floor(rows.length / 2)
-    return { bounds: box, left: build(rows.slice(0, middle)), right: build(rows.slice(middle)) }
+    return { bounds: box, left: build(rows.slice(0, middle), axis), right: build(rows.slice(middle), axis) }
   }
   return items.length ? build(items) : undefined
 }

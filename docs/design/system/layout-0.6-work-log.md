@@ -797,3 +797,24 @@ Final built standalone browser2P/505assertions, including worker reuse/restart a
 payload release; original size ceilings unchanged. Initial sandbox-port and
 short-timeout harness failures are retained separately. PR remains draft; CI for
 the pushed source must complete before any readiness claim.
+
+
+From `dda69ef2287da0ad569d334f0b200cc186de8c05`, ER256 LR/TB chains change from
+400k geometry refusal to complete, proof-passed SVG delivery in both backends.
+Reuse the existing fixed-body/header index and same-axis parent sort order;
+retain exact collision predicates and caps. Either change alone still refuses.
+Native LR finishes geometry at397,206. Four owning cases fail before and pass
+after, retaining256 entities,255 ordered labelled relations and510 cardinality
+carriers. Selected finalSVG crops were inspected; whole-diagram glyph attribution
+remains unqualified. The independent review found no demonstrated defect.
+
+All1,748 corpus SVGs, layout geometry, route vectors and delivery/proof statuses
+stay exact. Work counts decrease;27 other numeric diagnostics differ by at most
+7.11e-15. Broad owners918P, known Sparse32F and sandbox-childF; child retryP.
+Final ER owners104P plus expanded chain table4P; core types/lint and standalone
+2P/505assertions pass. Pinnedjsdom restored under/tmp, without lockfile changes.
+CompleteHTML costs raw−576/gzip9−334/Brotli11+201bytes; no CPU/RSS gain claimed.
+The reversed-sort trial still refuses and is stopped. ER256 BT/RL, Sparse32,
+crossing276 and Sparse256 tradeoffs remain. Evidence: `er256-dda69`.
+Next: attribute remaining BT/RL final-ink work before another intervention;
+automated work stays disabled.
