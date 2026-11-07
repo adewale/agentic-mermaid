@@ -224,6 +224,26 @@ assets/ icon(folder)
   { id: 'roadmap-repair-agentflow-roles', title: 'AgentFlow: role and compound styling control', source: readFileSync(join(ROOT, 'eval/layout-compare/fixtures/agentflow-native.mmd'), 'utf8'), renderOptions: { style: 'risograph' }, pngScale: 1, captureLayout: true, cue: 'Preservation control: publishing tasks, tool/action silhouettes, connector and global document remain recognizable under the same risograph style. This compound graph intentionally retains ELK; native forest timing is qualified separately and is not inferred from this image.' },
 ]
 const fixtures: Fixture[] = [
+  ...(['LR', 'RL'] as const).map((direction): Fixture => ({
+    id: `elk-class-caption-${direction.toLowerCase()}`,
+    title: `Class: nested ELK captions stay with their carriers (${direction})`,
+    source: `classDiagram\ndirection ${direction}\nnamespace Root {\n class Gateway {\n  +String key\n }\n namespace Domain {\n  class Draft {\n   +String token\n  }\n  class Sink {\n   +String id\n  }\n }\n}\nGateway "1" *-- Draft : opens\nGateway "*" ..> Sink : submits\nDraft "1" --> Sink : commits\nSink "0..1" ..|> Sink : retries\nnote for Gateway "Keep authored Gateway note"`,
+    renderOptions: { graphLayout: { backend: 'elk' as const, fallback: 'none' as const }, style: ['github-light', { roles: { relationship: { bendRadius: 0 } } }] },
+    captureLayout: true as const,
+    cue: 'Follow opens, commits and retries to their own final carriers. Retain all four relationship kinds, both namespaces and the Gateway note. The smaller reservation matches the three-pixel caption halo. The owning test checks carrier association; this finite image does not prove arbitrary-density readability.',
+  })),
+  {
+    id: 'elk-requirement-containment', title: 'Requirement: containment circles clear the first ELK bend',
+    source: 'requirementDiagram\ndirection LR\nelement root {\n type: software\n}\nrequirement leaf {\n id: R1\n text: Dispatch\n}\nelement side {\n type: service\n}\n' + Array(4).fill('root - contains -> leaf').join('\n') + '\nroot - contains -> side',
+    renderOptions: { graphLayout: { backend: 'elk', fallback: 'none' }, style: 'github-light' }, captureLayout: true,
+    cue: 'Inspect each source containment circle and the first routing bend. The straight lead now includes the actual marker depth even in a contains-only diagram. The five authored relationships are retained. This does not establish capacity for arbitrarily many circles on one face.',
+  },
+  {
+    id: 'elk-er256-delivery', title: 'ER: 256 authored entities delivered through ELK',
+    source: 'erDiagram\ndirection LR\n' + Array.from({ length: 255 }, (_, i) => `N${i} ||--o{ N${i + 1} : owns`).join('\n'),
+    renderOptions: { graphLayout: { backend: 'elk', fallback: 'none' } }, captureLayout: true, pngWidth: 1600,
+    cue: 'The base refuses at the original 400,000-operation geometry limit; retain that actual error. The complete SVG and layout sidecar retain 256 identities, 255 ordered relationships and 510 cardinality carriers. The PNG is a scaled overview and cannot establish text readability. BT/RL remain refused at the same limit.',
+  },
   {
     id: 'venn-literal-accessibility-label',
     title: 'Venn retains directive-looking text inside a multiline label',
