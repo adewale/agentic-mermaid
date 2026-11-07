@@ -1940,7 +1940,8 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     }
     if (!reserved) continue
     const servedContours = contours ?? servedLineContours
-    const originalRegions = servedContours ? connectorMarkerPaintRegions(node, parent) : undefined
+    // Original poses supply only conservative bounds, never an ink hull.
+    const originalRegions = servedContours ? connectorMarkerPaintRegions(node, parent, undefined, false) : undefined
     const regions = connectorMarkerPaintRegions(node, parent, servedContours)
     for (let markerIndex = 0; markerIndex < regions.length; markerIndex++) {
       const marker = regions[markerIndex]!

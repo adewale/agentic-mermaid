@@ -98,5 +98,66 @@ area −6.43%, wire +16.89%, both eight bends. This is validation, not a new gai
 
 Evidence is retained under `performance-review-main-integration` in the campaign
 week directory and the resumed GitHub evidence checkpoint. No performance rewrite
-has been applied. The next causal work remains forest placement/terminal seating;
+was applied in this dated review. The next causal work remains forest placement/terminal seating;
 the profile's narrow resource-encoding hypothesis can be tested separately.
+
+## Current Class128 probe — 7 November
+
+Measured source `c9dabb20c67aa18587063ea0268fa4e5ebdf7c40`, followed by the narrow
+bounds-only original-marker query below. The recovered existing Node24 collector
+consumes the complete SVG and entire receipt after an untimed warmup, then records
+two repeats and one caption edit with layout cache0. Its original run failed before
+rendering on extensionless RoughJS imports; only the collector's recovery loader
+was adjusted. Source maps, errors and products remain in `current-execution-c9`.
+
+The initial three-call profile, before editing code, ranks these sampled source
+frames at the analyzer's existing2ms sensitivity. Self is leaf presence; inclusive
+includes descendants and overlaps other rows. These are elapsed sample-delta
+weights per call, not exclusive CPU durations or removable time.
+
+| Source spot | Self / inclusive ms | Matching case and decision | Expected speedup |
+| --- | ---: | --- | --- |
+| Snapshot `visit`, `scene-data-snapshot.ts:98` |100.5 /114.6|None/data-oriented. This is the first admission of mutable Class Scene data. Alias reuse and already-admitted bypass already exist; no safe traversal subtraction was found.|Unmeasured; do not skip admission.|
+| `validateNode`, `scene-validation-core.ts:724` |13.8 /45.7|None/data-oriented. Identity, ownership, resource and diagnostic checks remain required; no redundant pass demonstrated.|Unmeasured.|
+| `certifyNativePaint`, `paint-certification.ts:1432` |11.3 /67.1|None/data-oriented. Narrow only a demonstrated unused projection; retain all proof obligations.|Unmeasured.|
+| Marker `include`, `bounds.ts:358` |10.0 /17.1|None/data-oriented. The original-pose query's consumers read only bounds, so omit its unused hull; retain the served-pose hull and resource/pose encoding.|No established end-to-end speedup.|
+| Final-security callback, `output-security.ts:705` |8.6 /23.6|None/data-oriented. Actual SVG security remains a separate obligation; no duplicate authoritative scan established.|Unmeasured.|
+
+Class's Native-labelled request uses its Scene adapter and first Scene admission;
+the label does not imply the snapshot traversal is redundant. Existing caches in
+the inventory above remain, including derived text data after warmup. No cache is
+added, no hot hash-table primitive is isolated, no one-field pass justifies SoA,
+and no independent awaits occur in these synchronous frames. Marker JSON cannot
+be replaced by a resource ID/SVG string without changing its equality domain and
+raw observation behavior; that broader hypothesis remains unimplemented.
+
+The consumer change at `paint-certification.ts:1943` requests `includeHull=false`
+only for original poses.
+Every original-region consumer uses bounds; served regions retain their full hull.
+Explicit work charges and caps remain unchanged. Issued write occurrences own
+this path; ordinary raw callers do not gain an admission shortcut. Nearby tests
+exercise mutable/prototype/CSS/marker/resource interactions; no general claim about
+preserving every ambient callback count follows from removing dead computation.
+
+An ordered, sequential before/candidate pair retains byte-exact warmup, repeat1,
+repeat2 and edit SVGs and entire receipts. Repeats use388,607/400,000 proof operations;
+edit389,269, all127markers and passed proof, unchanged. Marker-region sample weights
+are7.697/12.499→6.964/11.241ms self/inclusive in this pair. Unchanged code also moves
+in these samples, so this does not establish a causal runtime ratio. Instrumented
+wall observations are448/440/419→387/343/379ms; CPU782/768/837→716/597/829ms.
+Earlier candidate profiles overlapped tests and are retained as confounded evidence.
+Cold/import latency, cache1 and uninstrumented throughput were not measured here.
+
+Owning paint/transform/curved suites:740passed, known Sparse32 failed, and one child
+stdin permission failure occurred before rendering. That child owner passes on its
+permitted retry (392assertions). Core typing and changed-file lint pass. These are
+regression guards for a behavior-preserving subtraction, not a bug-fix RED claim.
+Sparse32 and ER256 remain distinct losses; no proof ceiling changed.
+
+Rebuilt ESM/declarations succeed. The same Bun transfer reporter on actual emitted
+bytes adds10 raw bytes per complete family closure; Class gzip+3 and Flowchart+14.
+Initial gzip5,854→5,852, Brotli5,226→5,227. Other compressed deltas are retained in
+`lazy-delivery-delta.json`; no lazy budget pass follows. Complete standalone HTML
+for this latest source still requires measurement; the earlier dictionary sizes
+remain measurements of their own revision. Raw per-phase RSS/heap counters are
+retained; this single instrumented pair is not a memory/leak comparison.

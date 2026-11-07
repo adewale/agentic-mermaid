@@ -53,6 +53,26 @@ replace neither the dated profiler nor its missing runtime/cold/cache evidence.
 Next causal probe: whether standalone worker precompression accounts for the
 Brotli loss, preserving decoded worker bytes, ownership and browser contracts.
 
+## Original marker bounds — 7 November
+
+At `c9dabb20c67aa18587063ea0268fa4e5ebdf7c40`, the existing full-SVG/full-receipt
+Node24 profiler finds marker-region construction at 10.0/17.1ms sampled self/
+inclusive per Class128 call. Its original-pose query feeds only bounds consumers;
+use the existing `includeHull=false` argument there, keeping the served hull,
+resource/pose encoding and every charge/cap. Four before/candidate phases retain
+byte-exact SVGs/entire receipts: 388,607 proof operations on repeats, 389,269 on edit,
+127 markers and passed proof unchanged. Sequential marker sample weights
+7.697/12.499→6.964/11.241ms support no causal end-to-end speedup ratio. Earlier
+profiles overlapping tests remain confounded evidence, not discarded samples.
+
+Owning paint/transform/curved suites 740P, known Sparse32 F, one child stdin EPERM
+before rendering; permitted retry 1P/392 assertions. Core types/lint pass; independent
+review confirms bounds-only consumption. Rebuilt ESM/DTS pass. Lazy closures add
+10 raw bytes; Class gzip+3, Flowchart+14; initial gzip−2/Brotli+1. No budget waiver,
+cache or new trust shortcut. The current five-frame report retains the necessary
+first Scene admission as its largest spot. Evidence: `current-execution-c9`.
+Sparse32, ER256 and main-relative payload losses remain; requalify exact-head CI.
+
 ## Lazy delivery diagnosis — 7 November
 
 At `bbda2112af8d791d8628a3769c86084e4cb962b3` versus main
