@@ -904,6 +904,23 @@ describe('parseMermaid – classDef and class', () => {
     expect(props['stroke']).toBe('#333')
   })
 
+  it.each(['flowchart', 'agentflow-beta', 'swimlane-beta'])('%s keeps earlier paint when a class definition is extended', header => {
+    const source = `${header} TD
+      classDef first,second fill:#f96,stroke:#333,stroke-width:2px
+      classDef first stroke:#036
+      A:::first --> B:::second`
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const reloaded = parseRegisteredMermaid(serializeMermaid(parsed.value))
+    if (!reloaded.ok) throw new Error(JSON.stringify(reloaded.error))
+    for (const diagram of [parsed.value, reloaded.value]) {
+      const body = diagram.body
+      if (body.kind !== 'flowchart' && body.kind !== 'agentflow' && body.kind !== 'swimlane') throw new Error('Expected a shared graph body')
+      expect(body.graph.classDefs.get('first')).toEqual({ fill: '#f96', stroke: '#036', 'stroke-width': '2px' })
+      expect(body.graph.classDefs.get('second')).toEqual({ fill: '#f96', stroke: '#333', 'stroke-width': '2px' })
+    }
+  })
+
   it('parses class assignments to single node', () => {
     const g = parseMermaid(`graph TD
       A --> B

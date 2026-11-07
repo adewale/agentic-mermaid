@@ -404,7 +404,8 @@ function parseFlowchart(lines: string[], breaks: ReadonlyArray<readonly number[]
         const props = checkedFlowchartStyleProps(parseStyleProps(classDefMatch[2]!))
         if (Object.keys(props).length === 0) continue
         for (const name of names) {
-          graph.classDefs.set(name, props)
+          const prior = graph.classDefs.get(name)
+          graph.classDefs.set(name, prior ? mergeStyleProps(prior, props) : props)
           if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'define-class', { name, props })
         }
         continue
