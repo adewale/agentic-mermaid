@@ -1,0 +1,21 @@
+PR Readiness Check (comparing against origin/main)
+=============================================
+
+⚠  Large diff: 20183 lines changed. Consider splitting into smaller PRs.
+✓  Test files modified: 73
+✓  Commits: 620
+⚠  Possible secret assignment added; inspect the diff before publishing (value redacted)
+⚠  Possible debug statements added; inspect the diff before publishing
+✓  No UI files changed
+
+Visual Evidence Lint (generated)
+==============================
+✓  visual-section: Dedicated visual-evidence section found.
+✗  visual-assets: Embed at least one screenshot, recording, or rendered artifact.
+✗  baseline-provenance: The labelled baseline SHA differs from the supplied merge-base.
+✓  current-provenance: A labelled current SHA is present and matches the supplied HEAD.
+
+Result: FAIL (2 error(s), 0 warning(s))
+✗  Visual-evidence lint found blocking issues
+
+Done. Address any ⚠ warnings and ✗ failures before submitting.

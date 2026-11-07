@@ -1,0 +1,20 @@
+{
+  "source": "62d521fbce155cdd3de928ec62fc5222fa3a8482",
+  "verifiedEvidenceCore": "ecfc69324aabf41fa39dca4e831f6cce08c42169",
+  "sourceRemoteVerified": true,
+  "evidenceRemoteVerified": true,
+  "campaign": "stopped",
+  "writers": [],
+  "automationsDisabled": true,
+  "pr": 602,
+  "draft": true,
+  "prDescription": "Replaced13305-character account with about6000 characters; historical comparisons distinguished from latest repair. Prior description retained in archive.",
+  "ciAtStop": {
+    "run": 42374173275,
+    "status": "in_progress",
+    "ready": false
+  },
+  "visualReadinessDiagnostic": "Initial diagnostic flags embedding and whole-PR baseline. Baseline label corrected; small-overlap evidence remains linked quantitative full-raster evidence, not a manufactured screenshot gate. No readiness claim.",
+  "remainingAction": "None scheduled. Future work requires an owner decision.",
+  "warning": "Archived campaign-state is historical recovery evidence, not a fresh lease."
+}
