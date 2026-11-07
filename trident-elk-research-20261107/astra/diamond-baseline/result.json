@@ -1,0 +1,1424 @@
+{
+  "job": {
+    "root": "/tmp/pr449-main-integration-20261029-762",
+    "source": "flowchart TB\nn0 --> n1\nn0 --> n2\nn1 --> n3\nn2 --> n3",
+    "options": {
+      "graphLayout": {
+        "backend": "agentic"
+      },
+      "layoutSafety": "strict",
+      "padding": 0,
+      "nodeSpacing": 40,
+      "layerSpacing": 48,
+      "style": {
+        "roles": {
+          "node": {
+            "fontSize": 10,
+            "paddingX": 0,
+            "paddingY": 13.5
+          }
+        }
+      }
+    },
+    "moduleOverrides": {
+      "/tmp/pr449-main-integration-20261029-762/src/layout/agentic-layered-core.ts": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/astra/diamond-core-observe.ts"
+    }
+  },
+  "raw": {
+    "topology": "layered",
+    "expandedVertices": 8,
+    "width": 160,
+    "height": 248,
+    "nodes": [
+      {
+        "x": 100,
+        "y": 0
+      },
+      {
+        "x": 0,
+        "y": 104
+      },
+      {
+        "x": 100,
+        "y": 104
+      },
+      {
+        "x": 50,
+        "y": 208
+      }
+    ],
+    "edges": [
+      {
+        "points": [
+          {
+            "x": 108,
+            "y": 40
+          },
+          {
+            "x": 108,
+            "y": 88
+          },
+          {
+            "x": 52,
+            "y": 88
+          },
+          {
+            "x": 52,
+            "y": 104
+          }
+        ]
+      },
+      {
+        "points": [
+          {
+            "x": 130,
+            "y": 40
+          },
+          {
+            "x": 130,
+            "y": 104
+          }
+        ]
+      },
+      {
+        "points": [
+          {
+            "x": 52,
+            "y": 144
+          },
+          {
+            "x": 52,
+            "y": 192
+          },
+          {
+            "x": 58,
+            "y": 192
+          },
+          {
+            "x": 58,
+            "y": 208
+          }
+        ]
+      },
+      {
+        "points": [
+          {
+            "x": 108,
+            "y": 144
+          },
+          {
+            "x": 108,
+            "y": 192
+          },
+          {
+            "x": 102,
+            "y": 192
+          },
+          {
+            "x": 102,
+            "y": 208
+          }
+        ]
+      }
+    ]
+  },
+  "rawTrace": [
+    {
+      "input": {
+        "nodes": [
+          {
+            "id": "n0",
+            "width": 60,
+            "height": 40
+          },
+          {
+            "id": "n1",
+            "width": 60,
+            "height": 40
+          },
+          {
+            "id": "n2",
+            "width": 60,
+            "height": 40
+          },
+          {
+            "id": "n3",
+            "width": 60,
+            "height": 40
+          }
+        ],
+        "edges": [
+          {
+            "source": 0,
+            "target": 1,
+            "minSpan": 1
+          },
+          {
+            "source": 0,
+            "target": 2,
+            "minSpan": 1
+          },
+          {
+            "source": 1,
+            "target": 3,
+            "minSpan": 1
+          },
+          {
+            "source": 2,
+            "target": 3,
+            "minSpan": 1
+          }
+        ],
+        "direction": "TB",
+        "padding": 0,
+        "nodeSpacing": 40,
+        "layerSpacing": 48,
+        "edgeSpacing": 16
+      },
+      "rank": [
+        0,
+        2,
+        2,
+        4
+      ],
+      "bandHeights": [
+        40,
+        0,
+        40,
+        0,
+        40
+      ],
+      "gaps": [
+        32,
+        32,
+        32,
+        32
+      ],
+      "channels": [
+        [
+          {
+            "sourceCross": 108,
+            "targetCross": 80,
+            "offset": 16,
+            "track": 0
+          },
+          {
+            "sourceCross": 130,
+            "targetCross": 130,
+            "offset": 16,
+            "track": 0
+          }
+        ],
+        [
+          {
+            "sourceCross": 80,
+            "targetCross": 52,
+            "offset": 16,
+            "track": 0
+          },
+          {
+            "sourceCross": 130,
+            "targetCross": 130,
+            "offset": 16,
+            "track": 0
+          }
+        ],
+        [
+          {
+            "sourceCross": 52,
+            "targetCross": 55,
+            "offset": 16,
+            "track": 0
+          },
+          {
+            "sourceCross": 108,
+            "targetCross": 105,
+            "offset": 16,
+            "track": 0
+          }
+        ],
+        [
+          {
+            "sourceCross": 55,
+            "targetCross": 58,
+            "offset": 16,
+            "track": 0
+          },
+          {
+            "sourceCross": 105,
+            "targetCross": 102,
+            "offset": 16,
+            "track": 0
+          }
+        ]
+      ]
+    }
+  ],
+  "publicTrace": [
+    {
+      "input": {
+        "nodes": [
+          {
+            "id": "n0",
+            "width": 60,
+            "height": 40
+          },
+          {
+            "id": "n1",
+            "width": 60,
+            "height": 40
+          },
+          {
+            "id": "n2",
+            "width": 60,
+            "height": 40
+          },
+          {
+            "id": "n3",
+            "width": 60,
+            "height": 40
+          }
+        ],
+        "groups": [],
+        "edges": [
+          {
+            "source": 0,
+            "target": 1,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 0,
+            "target": 2,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 1,
+            "target": 3,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 2,
+            "target": 3,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          }
+        ],
+        "shareCompleteFans": true,
+        "direction": "TB",
+        "padding": 0,
+        "nodeSpacing": 40,
+        "layerSpacing": 48,
+        "edgeSpacing": 6,
+        "minimumTerminalLead": 13.375,
+        "nodeClearance": 1
+      },
+      "rank": [
+        0,
+        2,
+        2,
+        4
+      ],
+      "bandHeights": [
+        40,
+        0,
+        40,
+        0,
+        40
+      ],
+      "gaps": [
+        26.75,
+        26.75,
+        26.75,
+        26.75
+      ],
+      "channels": [
+        [
+          {
+            "sourceCross": 108,
+            "targetCross": 80,
+            "offset": 13.375,
+            "track": 0
+          },
+          {
+            "sourceCross": 130,
+            "targetCross": 130,
+            "offset": 13.375,
+            "track": 0
+          }
+        ],
+        [
+          {
+            "sourceCross": 80,
+            "targetCross": 52,
+            "offset": 13.375,
+            "track": 0
+          },
+          {
+            "sourceCross": 130,
+            "targetCross": 130,
+            "offset": 13.375,
+            "track": 0
+          }
+        ],
+        [
+          {
+            "sourceCross": 52,
+            "targetCross": 55,
+            "offset": 13.375,
+            "track": 0
+          },
+          {
+            "sourceCross": 108,
+            "targetCross": 105,
+            "offset": 13.375,
+            "track": 0
+          }
+        ],
+        [
+          {
+            "sourceCross": 55,
+            "targetCross": 58,
+            "offset": 13.375,
+            "track": 0
+          },
+          {
+            "sourceCross": 105,
+            "targetCross": 102,
+            "offset": 13.375,
+            "track": 0
+          }
+        ]
+      ]
+    }
+  ],
+  "layout": {
+    "layout": {
+      "version": 1,
+      "kind": "flowchart",
+      "nodes": [
+        {
+          "id": "n0",
+          "x": 100,
+          "y": 0,
+          "w": 60,
+          "h": 40,
+          "shape": "rectangle",
+          "label": "n0",
+          "labelBounds": {
+            "x": 123.55,
+            "y": 13.5,
+            "w": 12.899999999999999,
+            "h": 13
+          },
+          "labelContainer": {
+            "x": 100,
+            "y": 0,
+            "w": 60,
+            "h": 40
+          }
+        },
+        {
+          "id": "n1",
+          "x": 0,
+          "y": 93.5,
+          "w": 60,
+          "h": 40,
+          "shape": "rectangle",
+          "label": "n1",
+          "labelBounds": {
+            "x": 25.259999999999998,
+            "y": 107,
+            "w": 9.48,
+            "h": 13
+          },
+          "labelContainer": {
+            "x": 0,
+            "y": 93.5,
+            "w": 60,
+            "h": 40
+          }
+        },
+        {
+          "id": "n2",
+          "x": 100,
+          "y": 93.5,
+          "w": 60,
+          "h": 40,
+          "shape": "rectangle",
+          "label": "n2",
+          "labelBounds": {
+            "x": 123.55,
+            "y": 107,
+            "w": 12.899999999999999,
+            "h": 13
+          },
+          "labelContainer": {
+            "x": 100,
+            "y": 93.5,
+            "w": 60,
+            "h": 40
+          }
+        },
+        {
+          "id": "n3",
+          "x": 50,
+          "y": 187,
+          "w": 60,
+          "h": 40,
+          "shape": "rectangle",
+          "label": "n3",
+          "labelBounds": {
+            "x": 73.55,
+            "y": 200.5,
+            "w": 12.899999999999999,
+            "h": 13
+          },
+          "labelContainer": {
+            "x": 50,
+            "y": 187,
+            "w": 60,
+            "h": 40
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "n0->n1",
+          "from": "n0",
+          "to": "n1",
+          "path": [
+            [
+              108,
+              40
+            ],
+            [
+              108,
+              80.125
+            ],
+            [
+              52,
+              80.125
+            ],
+            [
+              52,
+              93.5
+            ]
+          ],
+          "route": {
+            "edgeIndex": 0,
+            "routeClass": "primary-forward",
+            "bendCount": 2,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n0->n1"
+              }
+            ],
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 2,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-target"
+            },
+            "invariant": "explained-detour"
+          }
+        },
+        {
+          "id": "n0->n2",
+          "from": "n0",
+          "to": "n2",
+          "path": [
+            [
+              130,
+              40
+            ],
+            [
+              130,
+              93.5
+            ]
+          ],
+          "route": {
+            "edgeIndex": 1,
+            "routeClass": "primary-forward",
+            "bendCount": 0,
+            "sourcePort": "S",
+            "targetPort": "N",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 1,
+              "slotCount": 2,
+              "role": "flow-source",
+              "port": "S"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-target",
+              "port": "N"
+            },
+            "invariant": "straight"
+          }
+        },
+        {
+          "id": "n1->n3",
+          "from": "n1",
+          "to": "n3",
+          "path": [
+            [
+              55,
+              133.5
+            ],
+            [
+              55,
+              187
+            ]
+          ],
+          "route": {
+            "edgeIndex": 2,
+            "routeClass": "primary-forward",
+            "bendCount": 0,
+            "directLaneClear": true,
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 0,
+              "slotCount": 2,
+              "role": "flow-target"
+            },
+            "invariant": "straight",
+            "straightened": true
+          }
+        },
+        {
+          "id": "n2->n3",
+          "from": "n2",
+          "to": "n3",
+          "path": [
+            [
+              105,
+              133.5
+            ],
+            [
+              105,
+              187
+            ]
+          ],
+          "route": {
+            "edgeIndex": 3,
+            "routeClass": "primary-forward",
+            "bendCount": 0,
+            "directLaneClear": true,
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 1,
+              "slotCount": 2,
+              "role": "flow-target"
+            },
+            "invariant": "straight",
+            "straightened": true
+          }
+        }
+      ],
+      "groups": [],
+      "bounds": {
+        "w": 160,
+        "h": 227
+      },
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": -1,
+          "y": -1,
+          "width": 162,
+          "height": 229.83749999999998
+        },
+        "attempts": 2,
+        "repairs": [
+          "expand-viewport"
+        ],
+        "coverage": {
+          "measured": 12,
+          "unmeasured": 0,
+          "preparedText": 4,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 15,
+          "labels": 4,
+          "occlusionPairs": 28,
+          "maxOcclusionPairs": 100000,
+          "operations": 33523,
+          "maxOperations": 400000,
+          "markers": 4
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "regions": [
+        {
+          "id": "canvas",
+          "kind": "canvas",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 160,
+            "h": 227
+          }
+        },
+        {
+          "id": "node:n0",
+          "kind": "node",
+          "elementId": "n0",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 100,
+            "y": 0,
+            "w": 60,
+            "h": 40
+          },
+          "sourceLine": 2
+        },
+        {
+          "id": "node:n1",
+          "kind": "node",
+          "elementId": "n1",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 0,
+            "y": 93.5,
+            "w": 60,
+            "h": 40
+          },
+          "sourceLine": 2
+        },
+        {
+          "id": "node:n2",
+          "kind": "node",
+          "elementId": "n2",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 100,
+            "y": 93.5,
+            "w": 60,
+            "h": 40
+          },
+          "sourceLine": 3
+        },
+        {
+          "id": "node:n3",
+          "kind": "node",
+          "elementId": "n3",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 50,
+            "y": 187,
+            "w": 60,
+            "h": 40
+          },
+          "sourceLine": 4
+        },
+        {
+          "id": "edge:n0->n1",
+          "kind": "edge",
+          "elementId": "n0->n1",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 52,
+            "y": 40,
+            "w": 56,
+            "h": 53.5
+          }
+        },
+        {
+          "id": "edge:n0->n2",
+          "kind": "edge",
+          "elementId": "n0->n2",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 130,
+            "y": 40,
+            "w": 1,
+            "h": 53.5
+          }
+        },
+        {
+          "id": "edge:n1->n3",
+          "kind": "edge",
+          "elementId": "n1->n3",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 55,
+            "y": 133.5,
+            "w": 1,
+            "h": 53.5
+          }
+        },
+        {
+          "id": "edge:n2->n3",
+          "kind": "edge",
+          "elementId": "n2->n3",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 105,
+            "y": 133.5,
+            "w": 1,
+            "h": 53.5
+          }
+        }
+      ],
+      "actions": []
+    },
+    "receipt": {
+      "version": 2,
+      "output": "layout",
+      "sharedRequestDigest": "fnv1a64:b120ff6fb9e3d4a7",
+      "requestDigest": "fnv1a64:0194fbb5f32c123f",
+      "appearanceDigest": "fnv1a64:2a52b9c69591fcb1",
+      "capabilityDecision": {
+        "version": 1,
+        "accepted": true,
+        "resolutions": [
+          {
+            "id": "core:render-request",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:family-descriptor",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "family:flowchart",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:layout",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:project-positioned",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "output:layout",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          }
+        ]
+      },
+      "diagnostics": [],
+      "layoutDecisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "layoutCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": -1,
+          "y": -1,
+          "width": 162,
+          "height": 229.83749999999998
+        },
+        "attempts": 2,
+        "repairs": [
+          "expand-viewport"
+        ],
+        "coverage": {
+          "measured": 12,
+          "unmeasured": 0,
+          "preparedText": 4,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 15,
+          "labels": 4,
+          "occlusionPairs": 28,
+          "maxOcclusionPairs": 100000,
+          "operations": 33523,
+          "maxOperations": 400000,
+          "markers": 4
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      }
+    }
+  },
+  "checks": {
+    "meaning": true,
+    "nodeIdentities": [
+      "n0",
+      "n1",
+      "n2",
+      "n3"
+    ],
+    "gaps": [
+      53.5,
+      53.5,
+      53.5,
+      53.5
+    ],
+    "allGapsAtLeast48": true,
+    "boxes60x40": true,
+    "paintProof": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": -1,
+        "y": -1,
+        "width": 162,
+        "height": 229.83749999999998
+      },
+      "attempts": 2,
+      "repairs": [
+        "expand-viewport"
+      ],
+      "coverage": {
+        "measured": 12,
+        "unmeasured": 0,
+        "preparedText": 4,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 15,
+        "labels": 4,
+        "occlusionPairs": 28,
+        "maxOcclusionPairs": 100000,
+        "operations": 34014,
+        "maxOperations": 400000,
+        "markers": 4
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:50463f56ced97994"
+    }
+  },
+  "product": {
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"160\" height=\"227\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" viewBox=\"-1 -1 162 229.8375\" class=\"am-100oiff1earln6\">\n<style>\n  svg.am-100oiff1earln6 { font-family: var(--font, 'Inter'), system-ui, sans-serif; }\n  svg.am-100oiff1earln6 {\n    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */\n    --_text:          #27272A;\n    --_text-sec:      #575759;\n    --_text-muted:    #707072;\n    --_text-faint:    #8a8a8c;\n    --_line:          #939395;\n    --_arrow:         #47474a;\n    --_node-fill:     #f9f9f9;\n    --_node-stroke:   #d4d4d4;\n    --_group-fill:    #FFFFFF;\n    --_group-hdr:     #f4f4f4;\n    --_inner-stroke:  #e5e5e5;\n    --_key-badge:     #e9e9ea;\n  }\n</style>\n<rect width=\"160\" height=\"227\" fill=\"#FFFFFF\" data-backdrop=\"page\" />\n<defs>\n  <marker id=\"arrowhead\" markerWidth=\"8\" markerHeight=\"5\" refX=\"8\" refY=\"2.5\" orient=\"auto\">\n    <polygon points=\"0 0, 8 2.5, 0 5\" fill=\"#47474a\" stroke=\"#47474a\" stroke-width=\"0.75\" stroke-linejoin=\"round\" />\n  </marker>\n  <marker id=\"arrowhead-start\" markerWidth=\"8\" markerHeight=\"5\" refX=\"0\" refY=\"2.5\" orient=\"auto\">\n    <polygon points=\"8 0, 0 2.5, 8 5\" fill=\"#47474a\" stroke=\"#47474a\" stroke-width=\"0.75\" stroke-linejoin=\"round\" />\n  </marker>\n</defs>\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"108,40 108,80.125 52,80.125 52,93.5\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n0-&gt;n1#0\" data-role=\"edge\" data-from=\"n0\" data-to=\"n1\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n0 to n1\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"130,40 130,93.5\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n0-&gt;n2#0\" data-role=\"edge\" data-from=\"n0\" data-to=\"n2\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n0 to n2\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"55,133.5 55,187\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n1-&gt;n3#0\" data-role=\"edge\" data-from=\"n1\" data-to=\"n3\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n1 to n3\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"105,133.5 105,187\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n2-&gt;n3#0\" data-role=\"edge\" data-from=\"n2\" data-to=\"n3\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n2 to n3\" />\n<g class=\"node\" data-id=\"n0\" data-label=\"n0\" data-shape=\"rectangle\" data-role=\"node\">\n  <rect x=\"100\" y=\"0\" width=\"60\" height=\"40\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:n0\" data-role=\"node\" />\n  <text x=\"130\" y=\"20\" text-anchor=\"middle\" font-size=\"10\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"3.5\" textLength=\"12.9\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">n0</text>\n</g>\n<g class=\"node\" data-id=\"n1\" data-label=\"n1\" data-shape=\"rectangle\" data-role=\"node\">\n  <rect x=\"0\" y=\"93.5\" width=\"60\" height=\"40\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:n1\" data-role=\"node\" />\n  <text x=\"30\" y=\"113.5\" text-anchor=\"middle\" font-size=\"10\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"3.5\" textLength=\"9.48\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">n1</text>\n</g>\n<g class=\"node\" data-id=\"n2\" data-label=\"n2\" data-shape=\"rectangle\" data-role=\"node\">\n  <rect x=\"100\" y=\"93.5\" width=\"60\" height=\"40\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:n2\" data-role=\"node\" />\n  <text x=\"130\" y=\"113.5\" text-anchor=\"middle\" font-size=\"10\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"3.5\" textLength=\"12.9\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">n2</text>\n</g>\n<g class=\"node\" data-id=\"n3\" data-label=\"n3\" data-shape=\"rectangle\" data-role=\"node\">\n  <rect x=\"50\" y=\"187\" width=\"60\" height=\"40\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:n3\" data-role=\"node\" />\n  <text x=\"80\" y=\"207\" text-anchor=\"middle\" font-size=\"10\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"3.5\" textLength=\"12.9\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">n3</text>\n</g>\n</svg>",
+    "receipt": {
+      "version": 2,
+      "output": "svg",
+      "sharedRequestDigest": "fnv1a64:b120ff6fb9e3d4a7",
+      "requestDigest": "fnv1a64:91e4395fec86db35",
+      "appearanceDigest": "fnv1a64:2a52b9c69591fcb1",
+      "capabilityDecision": {
+        "version": 1,
+        "accepted": true,
+        "resolutions": [
+          {
+            "id": "core:render-request",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:family-descriptor",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "family:flowchart",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:layout",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:lower-scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "backend:scene-renderer",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/resources/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/interaction/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/labels/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/transform/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/topology/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/subpaths/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/closedness/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/bend-radius/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-opacity/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-cap/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-join/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-miter/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-array/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-offset/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-restart/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/path-length/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/paint-order/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/compositing/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/non-scaling-stroke/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/marker-orientation/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/marker-overflow/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/endpoints/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/direction/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/labels/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/labels/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/markers/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/relation/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/interaction/hit-test",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/hit-geometry/hit-test",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:marker/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:marker/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:marker/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "output:svg",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          }
+        ]
+      },
+      "diagnostics": [],
+      "executionDecision": {
+        "family": {
+          "id": "family:flowchart",
+          "version": "1.0.0"
+        },
+        "backend": {
+          "mode": "scene",
+          "requestedId": "default",
+          "selectedId": "backend:default",
+          "version": "1.0.0",
+          "hostPolicy": false
+        },
+        "digest": "fnv1a64:086cc5e1e80cddcb"
+      },
+      "layoutDecisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "graphicalProjectionDigest": "fnv1a64:50463f56ced97994",
+      "layoutCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": -1,
+          "y": -1,
+          "width": 162,
+          "height": 229.83749999999998
+        },
+        "attempts": 2,
+        "repairs": [
+          "expand-viewport"
+        ],
+        "coverage": {
+          "measured": 12,
+          "unmeasured": 0,
+          "preparedText": 4,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 15,
+          "labels": 4,
+          "occlusionPairs": 28,
+          "maxOcclusionPairs": 100000,
+          "operations": 34014,
+          "maxOperations": 400000,
+          "markers": 4
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:50463f56ced97994"
+      }
+    }
+  }
+}

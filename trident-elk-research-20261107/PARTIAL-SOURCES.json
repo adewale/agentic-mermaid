@@ -1,0 +1,74 @@
+[
+  {
+    "id": "Dicklesworthstone/frankenmermaid",
+    "revision": "29536a1308acd1bae4da8b72b4cebffb39709ae0",
+    "head": "29536a1308acd1bae4da8b72b4cebffb39709ae0",
+    "gitRoot": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/partial-sources/Dicklesworthstone--frankenmermaid",
+    "files": 5466,
+    "status": "tree-recovered"
+  },
+  {
+    "id": "wevm/ondine",
+    "revision": "439fc64aefdb06e3451fac6c44266e5965ea7265",
+    "head": "439fc64aefdb06e3451fac6c44266e5965ea7265",
+    "gitRoot": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/partial-sources/wevm--ondine",
+    "files": 635,
+    "status": "tree-recovered"
+  },
+  {
+    "id": "dfadler/zombie-mermaid",
+    "revision": "8cc982128bed11d976fb38164c4cdb47be7bd34d",
+    "head": "8cc982128bed11d976fb38164c4cdb47be7bd34d",
+    "gitRoot": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/partial-sources/dfadler--zombie-mermaid",
+    "files": 3211,
+    "status": "tree-recovered"
+  },
+  {
+    "id": "1jehuang/mermaid-rs-renderer",
+    "revision": "3726ccbffe0e8032361eb9668694b24f77858060",
+    "head": "3726ccbffe0e8032361eb9668694b24f77858060",
+    "gitRoot": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/partial-sources/1jehuang--mermaid-rs-renderer",
+    "files": 1137,
+    "status": "tree-recovered"
+  },
+  {
+    "id": "Latias94/merman",
+    "revision": "252752f7029b67f6a6f22a35230ef2bdf9c605d0",
+    "head": "252752f7029b67f6a6f22a35230ef2bdf9c605d0",
+    "gitRoot": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/partial-sources/Latias94--merman",
+    "files": 21266,
+    "status": "tree-recovered"
+  },
+  {
+    "id": "lukilabs/beautiful-mermaid",
+    "revision": "2ac8bbbb060ca0a65a6a21f3200bd99b1587b488",
+    "head": "2ac8bbbb060ca0a65a6a21f3200bd99b1587b488",
+    "gitRoot": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/partial-sources/lukilabs--beautiful-mermaid",
+    "files": 238,
+    "status": "tree-recovered"
+  },
+  {
+    "id": "crabtalk/bezel",
+    "revision": "25b1da54115d3253d457d6c1fb3f62c05261dd13",
+    "head": "25b1da54115d3253d457d6c1fb3f62c05261dd13",
+    "gitRoot": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/partial-sources/crabtalk--bezel",
+    "files": 1001,
+    "status": "tree-recovered"
+  },
+  {
+    "id": "mermaid-js/mermaid",
+    "revision": "1fb7869866dd619168d840291c9c54b4f129758b",
+    "head": "1fb7869866dd619168d840291c9c54b4f129758b",
+    "gitRoot": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/partial-sources/mermaid-js--mermaid",
+    "files": 4270,
+    "status": "tree-recovered"
+  },
+  {
+    "id": "eclipse-elk/elk",
+    "revision": "v0.11.0",
+    "head": "54123e884b1ae743b453260f713b20c9bf5787f2",
+    "gitRoot": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/partial-sources/eclipse-elk--elk",
+    "files": 2199,
+    "status": "tree-recovered"
+  }
+]

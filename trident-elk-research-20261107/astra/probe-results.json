@@ -1,0 +1,1337 @@
+[
+  {
+    "name": "diamond",
+    "source": "flowchart TB\nn0 --> n1\nn0 --> n2\nn1 --> n3\nn2 --> n3",
+    "input": {
+      "nodes": [
+        {
+          "id": "n0",
+          "width": 60,
+          "height": 40
+        },
+        {
+          "id": "n1",
+          "width": 60,
+          "height": 40
+        },
+        {
+          "id": "n2",
+          "width": 60,
+          "height": 40
+        },
+        {
+          "id": "n3",
+          "width": 60,
+          "height": 40
+        }
+      ],
+      "edges": [
+        {
+          "source": 0,
+          "target": 1,
+          "minSpan": 1
+        },
+        {
+          "source": 0,
+          "target": 2,
+          "minSpan": 1
+        },
+        {
+          "source": 1,
+          "target": 3,
+          "minSpan": 1
+        },
+        {
+          "source": 2,
+          "target": 3,
+          "minSpan": 1
+        }
+      ],
+      "direction": "TB",
+      "padding": 0,
+      "nodeSpacing": 40,
+      "layerSpacing": 48,
+      "edgeSpacing": 16
+    },
+    "native": [
+      {
+        "compactPrivateRanks": false,
+        "topology": "layered",
+        "expandedVertices": 8,
+        "width": 160,
+        "height": 248,
+        "nodes": [
+          {
+            "x": 100,
+            "y": 0
+          },
+          {
+            "x": 0,
+            "y": 104
+          },
+          {
+            "x": 100,
+            "y": 104
+          },
+          {
+            "x": 50,
+            "y": 208
+          }
+        ],
+        "edges": [
+          {
+            "points": [
+              {
+                "x": 108,
+                "y": 40
+              },
+              {
+                "x": 108,
+                "y": 88
+              },
+              {
+                "x": 52,
+                "y": 88
+              },
+              {
+                "x": 52,
+                "y": 104
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 130,
+                "y": 40
+              },
+              {
+                "x": 130,
+                "y": 104
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 52,
+                "y": 144
+              },
+              {
+                "x": 52,
+                "y": 192
+              },
+              {
+                "x": 58,
+                "y": 192
+              },
+              {
+                "x": 58,
+                "y": 208
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 108,
+                "y": 144
+              },
+              {
+                "x": 108,
+                "y": 192
+              },
+              {
+                "x": 102,
+                "y": 192
+              },
+              {
+                "x": 102,
+                "y": 208
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "compactPrivateRanks": true,
+        "topology": "layered",
+        "expandedVertices": 4,
+        "width": 160,
+        "height": 184,
+        "nodes": [
+          {
+            "x": 100,
+            "y": 0
+          },
+          {
+            "x": 0,
+            "y": 72
+          },
+          {
+            "x": 100,
+            "y": 72
+          },
+          {
+            "x": 100,
+            "y": 144
+          }
+        ],
+        "edges": [
+          {
+            "points": [
+              {
+                "x": 108,
+                "y": 40
+              },
+              {
+                "x": 108,
+                "y": 56
+              },
+              {
+                "x": 52,
+                "y": 56
+              },
+              {
+                "x": 52,
+                "y": 72
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 130,
+                "y": 40
+              },
+              {
+                "x": 130,
+                "y": 72
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 52,
+                "y": 112
+              },
+              {
+                "x": 52,
+                "y": 128
+              },
+              {
+                "x": 108,
+                "y": 128
+              },
+              {
+                "x": 108,
+                "y": 144
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 130,
+                "y": 112
+              },
+              {
+                "x": 130,
+                "y": 144
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "pele": {
+      "width": 160,
+      "height": 216,
+      "nodes": [
+        {
+          "w": 60,
+          "h": 40,
+          "kind": 0,
+          "pin": 0,
+          "hint": null,
+          "key": null,
+          "span": 0,
+          "x": 80,
+          "y": 20,
+          "rank": 0
+        },
+        {
+          "w": 60,
+          "h": 40,
+          "kind": 0,
+          "pin": 0,
+          "hint": null,
+          "key": null,
+          "span": 0,
+          "x": 30,
+          "y": 108,
+          "rank": 1
+        },
+        {
+          "w": 60,
+          "h": 40,
+          "kind": 0,
+          "pin": 0,
+          "hint": null,
+          "key": null,
+          "span": 0,
+          "x": 130,
+          "y": 108,
+          "rank": 1
+        },
+        {
+          "w": 60,
+          "h": 40,
+          "kind": 0,
+          "pin": 0,
+          "hint": null,
+          "key": null,
+          "span": 0,
+          "x": 80,
+          "y": 196,
+          "rank": 2
+        }
+      ],
+      "edges": [
+        {
+          "tail": 0,
+          "head": 1,
+          "minlen": 1,
+          "labelW": 0,
+          "labelH": 0,
+          "tailDx": 0,
+          "headDx": 0,
+          "tailFixed": false,
+          "headFixed": false,
+          "reversed": false,
+          "points": [
+            80,
+            40,
+            80,
+            64,
+            30,
+            64,
+            30,
+            88
+          ],
+          "labelX": 0,
+          "labelY": 0
+        },
+        {
+          "tail": 0,
+          "head": 2,
+          "minlen": 1,
+          "labelW": 0,
+          "labelH": 0,
+          "tailDx": 0,
+          "headDx": 0,
+          "tailFixed": false,
+          "headFixed": false,
+          "reversed": false,
+          "points": [
+            80,
+            40,
+            80,
+            64,
+            130,
+            64,
+            130,
+            88
+          ],
+          "labelX": 0,
+          "labelY": 0
+        },
+        {
+          "tail": 1,
+          "head": 3,
+          "minlen": 1,
+          "labelW": 0,
+          "labelH": 0,
+          "tailDx": 0,
+          "headDx": 0,
+          "tailFixed": false,
+          "headFixed": false,
+          "reversed": false,
+          "points": [
+            30,
+            128,
+            30,
+            152,
+            80,
+            152,
+            80,
+            176
+          ],
+          "labelX": 0,
+          "labelY": 0
+        },
+        {
+          "tail": 2,
+          "head": 3,
+          "minlen": 1,
+          "labelW": 0,
+          "labelH": 0,
+          "tailDx": 0,
+          "headDx": 0,
+          "tailFixed": false,
+          "headFixed": false,
+          "reversed": false,
+          "points": [
+            130,
+            128,
+            130,
+            152,
+            80,
+            152,
+            80,
+            176
+          ],
+          "labelX": 0,
+          "labelY": 0
+        }
+      ]
+    },
+    "publicNative": {
+      "width": 228,
+      "height": 292.20000000000005,
+      "crossings": 0,
+      "certification": {
+        "status": "passed",
+        "strategy": "agentic-layered",
+        "attempts": 1,
+        "hardViolations": 0,
+        "preference": {
+          "selectedScore": {
+            "unreadableTitles": 0,
+            "labelConflicts": 0,
+            "edgeCrossings": 0,
+            "totalBends": 2,
+            "nonCanonicalEndpointRate": 0.75,
+            "peerBarycenterDelta": 44,
+            "area": 66621.6
+          },
+          "reason": "first-certified",
+          "compared": [
+            {
+              "strategy": "agentic-layered",
+              "score": {
+                "unreadableTitles": 0,
+                "labelConflicts": 0,
+                "edgeCrossings": 0,
+                "totalBends": 2,
+                "nonCanonicalEndpointRate": 0.75,
+                "peerBarycenterDelta": 44,
+                "area": 66621.6
+              }
+            }
+          ]
+        }
+      },
+      "stages": [
+        "graph-preparation",
+        "agentic"
+      ]
+    },
+    "pelePublic": [
+      {
+        "width": 164,
+        "height": 256,
+        "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"pele pele-flowchart\" viewBox=\"0 0 164 256\" width=\"164\" height=\"256\" style=\"max-width:100%;height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_r:var(--pele-radius,4px);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,sans-serif)\" fill=\"var(--_fg)\" role=\"graphics-document document\" aria-roledescription=\"flowchart\"><g class=\"pele-edges\" fill=\"none\" stroke=\"var(--_l)\" stroke-linecap=\"round\"><g class=\"pele-edge\" data-id=\"L_n0_n1_0\"><path d=\"M73.79,56C73.79,73.5 34.9,73.5 34.9,91L34.9,97\"/><path class=\"pele-marker\" d=\"M34.9,104L31.54,96L38.26,96Z\" fill=\"var(--_l)\" stroke=\"none\"/></g><g class=\"pele-edge\" data-id=\"L_n0_n2_0\"><path d=\"M89.79,56C89.79,73.5 128.69,73.5 128.69,91L128.69,97\"/><path class=\"pele-marker\" d=\"M128.69,104L125.33,96L132.05,96Z\" fill=\"var(--_l)\" stroke=\"none\"/></g><g class=\"pele-edge\" data-id=\"L_n1_n3_0\"><path d=\"M34.9,152C34.9,169.5 73.79,169.5 73.79,187L73.79,193\"/><path class=\"pele-marker\" d=\"M73.79,200L70.43,192L77.15,192Z\" fill=\"var(--_l)\" stroke=\"none\"/></g><g class=\"pele-edge\" data-id=\"L_n2_n3_0\"><path d=\"M128.69,152C128.69,169.5 89.79,169.5 89.79,187L89.79,193\"/><path class=\"pele-marker\" d=\"M89.79,200L86.43,192L93.15,192Z\" fill=\"var(--_l)\" stroke=\"none\"/></g></g><g class=\"pele-nodes\"><g class=\"pele-node pele-shape-rect\" data-id=\"n0\" transform=\"translate(81.79,32)\"><rect x=\"-26.9\" y=\"-24\" width=\"53.79\" height=\"48\" fill=\"var(--_s)\" stroke=\"var(--_b)\" style=\"rx:var(--_r)\"/><text class=\"pele-label\" x=\"0\" y=\"5.6\" text-anchor=\"middle\">n0</text></g><g class=\"pele-node pele-shape-rect\" data-id=\"n1\" transform=\"translate(34.9,128)\"><rect x=\"-26.9\" y=\"-24\" width=\"53.79\" height=\"48\" fill=\"var(--_s)\" stroke=\"var(--_b)\" style=\"rx:var(--_r)\"/><text class=\"pele-label\" x=\"0\" y=\"5.6\" text-anchor=\"middle\">n1</text></g><g class=\"pele-node pele-shape-rect\" data-id=\"n2\" transform=\"translate(128.69,128)\"><rect x=\"-26.9\" y=\"-24\" width=\"53.79\" height=\"48\" fill=\"var(--_s)\" stroke=\"var(--_b)\" style=\"rx:var(--_r)\"/><text class=\"pele-label\" x=\"0\" y=\"5.6\" text-anchor=\"middle\">n2</text></g><g class=\"pele-node pele-shape-rect\" data-id=\"n3\" transform=\"translate(81.79,224)\"><rect x=\"-26.9\" y=\"-24\" width=\"53.79\" height=\"48\" fill=\"var(--_s)\" stroke=\"var(--_b)\" style=\"rx:var(--_r)\"/><text class=\"pele-label\" x=\"0\" y=\"5.6\" text-anchor=\"middle\">n3</text></g></g></svg>"
+      },
+      {
+        "width": 164,
+        "height": 256,
+        "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"pele pele-flowchart\" viewBox=\"0 0 164 256\" width=\"164\" height=\"256\" style=\"max-width:100%;height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_r:var(--pele-radius,4px);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,sans-serif)\" fill=\"var(--_fg)\" role=\"graphics-document document\" aria-roledescription=\"flowchart\"><g class=\"pele-edges\" fill=\"none\" stroke=\"var(--_l)\" stroke-linecap=\"round\"><g class=\"pele-edge\" data-id=\"L_n0_n1_0\"><path d=\"M73.79,56C73.79,73.5 34.9,73.5 34.9,91L34.9,97\"/><path class=\"pele-marker\" d=\"M34.9,104L31.54,96L38.26,96Z\" fill=\"var(--_l)\" stroke=\"none\"/></g><g class=\"pele-edge\" data-id=\"L_n0_n2_0\"><path d=\"M89.79,56C89.79,73.5 128.69,73.5 128.69,91L128.69,97\"/><path class=\"pele-marker\" d=\"M128.69,104L125.33,96L132.05,96Z\" fill=\"var(--_l)\" stroke=\"none\"/></g><g class=\"pele-edge\" data-id=\"L_n1_n3_0\"><path d=\"M34.9,152C34.9,169.5 73.79,169.5 73.79,187L73.79,193\"/><path class=\"pele-marker\" d=\"M73.79,200L70.43,192L77.15,192Z\" fill=\"var(--_l)\" stroke=\"none\"/></g><g class=\"pele-edge\" data-id=\"L_n2_n3_0\"><path d=\"M128.69,152C128.69,169.5 89.79,169.5 89.79,187L89.79,193\"/><path class=\"pele-marker\" d=\"M89.79,200L86.43,192L93.15,192Z\" fill=\"var(--_l)\" stroke=\"none\"/></g></g><g class=\"pele-nodes\"><g class=\"pele-node pele-shape-rect\" data-id=\"n0\" transform=\"translate(81.79,32)\"><rect x=\"-26.9\" y=\"-24\" width=\"53.79\" height=\"48\" fill=\"var(--_s)\" stroke=\"var(--_b)\" style=\"rx:var(--_r)\"/><text class=\"pele-label\" x=\"0\" y=\"5.6\" text-anchor=\"middle\">n0</text></g><g class=\"pele-node pele-shape-rect\" data-id=\"n1\" transform=\"translate(34.9,128)\"><rect x=\"-26.9\" y=\"-24\" width=\"53.79\" height=\"48\" fill=\"var(--_s)\" stroke=\"var(--_b)\" style=\"rx:var(--_r)\"/><text class=\"pele-label\" x=\"0\" y=\"5.6\" text-anchor=\"middle\">n1</text></g><g class=\"pele-node pele-shape-rect\" data-id=\"n2\" transform=\"translate(128.69,128)\"><rect x=\"-26.9\" y=\"-24\" width=\"53.79\" height=\"48\" fill=\"var(--_s)\" stroke=\"var(--_b)\" style=\"rx:var(--_r)\"/><text class=\"pele-label\" x=\"0\" y=\"5.6\" text-anchor=\"middle\">n2</text></g><g class=\"pele-node pele-shape-rect\" data-id=\"n3\" transform=\"translate(81.79,224)\"><rect x=\"-26.9\" y=\"-24\" width=\"53.79\" height=\"48\" fill=\"var(--_s)\" stroke=\"var(--_b)\" style=\"rx:var(--_r)\"/><text class=\"pele-label\" x=\"0\" y=\"5.6\" text-anchor=\"middle\">n3</text></g></g></svg>"
+      }
+    ]
+  },
+  {
+    "name": "shortcut",
+    "source": "flowchart TB\nn0 --> n1\nn1 --> n2\nn0 --> n2",
+    "input": {
+      "nodes": [
+        {
+          "id": "n0",
+          "width": 60,
+          "height": 40
+        },
+        {
+          "id": "n1",
+          "width": 60,
+          "height": 40
+        },
+        {
+          "id": "n2",
+          "width": 60,
+          "height": 40
+        }
+      ],
+      "edges": [
+        {
+          "source": 0,
+          "target": 1,
+          "minSpan": 1
+        },
+        {
+          "source": 1,
+          "target": 2,
+          "minSpan": 1
+        },
+        {
+          "source": 0,
+          "target": 2,
+          "minSpan": 1
+        }
+      ],
+      "direction": "TB",
+      "padding": 0,
+      "nodeSpacing": 40,
+      "layerSpacing": 48,
+      "edgeSpacing": 16
+    },
+    "native": [
+      {
+        "compactPrivateRanks": false,
+        "topology": "layered",
+        "expandedVertices": 8,
+        "width": 104,
+        "height": 216,
+        "nodes": [
+          {
+            "x": 36,
+            "y": 0
+          },
+          {
+            "x": 0,
+            "y": 88
+          },
+          {
+            "x": 22,
+            "y": 176
+          }
+        ],
+        "edges": [
+          {
+            "points": [
+              {
+                "x": 48,
+                "y": 40
+              },
+              {
+                "x": 48,
+                "y": 88
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 41,
+                "y": 128
+              },
+              {
+                "x": 41,
+                "y": 176
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 66,
+                "y": 40
+              },
+              {
+                "x": 66,
+                "y": 176
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "compactPrivateRanks": true,
+        "topology": "layered",
+        "expandedVertices": 4,
+        "width": 104,
+        "height": 184,
+        "nodes": [
+          {
+            "x": 36,
+            "y": 0
+          },
+          {
+            "x": 0,
+            "y": 72
+          },
+          {
+            "x": 36,
+            "y": 144
+          }
+        ],
+        "edges": [
+          {
+            "points": [
+              {
+                "x": 44,
+                "y": 40
+              },
+              {
+                "x": 44,
+                "y": 56
+              },
+              {
+                "x": 52,
+                "y": 56
+              },
+              {
+                "x": 52,
+                "y": 72
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 52,
+                "y": 112
+              },
+              {
+                "x": 52,
+                "y": 128
+              },
+              {
+                "x": 44,
+                "y": 128
+              },
+              {
+                "x": 44,
+                "y": 144
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 66,
+                "y": 40
+              },
+              {
+                "x": 66,
+                "y": 144
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "pele": {
+      "width": 89,
+      "height": 216,
+      "nodes": [
+        {
+          "w": 60,
+          "h": 40,
+          "kind": 0,
+          "pin": 0,
+          "hint": null,
+          "key": null,
+          "span": 0,
+          "x": 59,
+          "y": 20,
+          "rank": 0
+        },
+        {
+          "w": 60,
+          "h": 40,
+          "kind": 0,
+          "pin": 0,
+          "hint": null,
+          "key": null,
+          "span": 0,
+          "x": 30,
+          "y": 108,
+          "rank": 1
+        },
+        {
+          "w": 60,
+          "h": 40,
+          "kind": 0,
+          "pin": 0,
+          "hint": null,
+          "key": null,
+          "span": 0,
+          "x": 59,
+          "y": 196,
+          "rank": 2
+        }
+      ],
+      "edges": [
+        {
+          "tail": 0,
+          "head": 1,
+          "minlen": 1,
+          "labelW": 0,
+          "labelH": 0,
+          "tailDx": 0,
+          "headDx": 0,
+          "tailFixed": false,
+          "headFixed": false,
+          "reversed": false,
+          "points": [
+            59,
+            40,
+            59,
+            64,
+            30,
+            64,
+            30,
+            88
+          ],
+          "labelX": 0,
+          "labelY": 0
+        },
+        {
+          "tail": 1,
+          "head": 2,
+          "minlen": 1,
+          "labelW": 0,
+          "labelH": 0,
+          "tailDx": 0,
+          "headDx": 0,
+          "tailFixed": false,
+          "headFixed": false,
+          "reversed": false,
+          "points": [
+            30,
+            128,
+            30,
+            152,
+            59,
+            152,
+            59,
+            176
+          ],
+          "labelX": 0,
+          "labelY": 0
+        },
+        {
+          "tail": 0,
+          "head": 2,
+          "minlen": 1,
+          "labelW": 0,
+          "labelH": 0,
+          "tailDx": 0,
+          "headDx": 0,
+          "tailFixed": false,
+          "headFixed": false,
+          "reversed": false,
+          "points": [
+            59,
+            40,
+            59,
+            64,
+            88,
+            64,
+            88,
+            88,
+            88,
+            128,
+            88,
+            152,
+            59,
+            152,
+            59,
+            176
+          ],
+          "labelX": 0,
+          "labelY": 0
+        }
+      ]
+    },
+    "publicNative": {
+      "width": 172,
+      "height": 286.70000000000005,
+      "crossings": 0,
+      "certification": {
+        "status": "passed",
+        "strategy": "agentic-layered",
+        "attempts": 1,
+        "hardViolations": 0,
+        "preference": {
+          "selectedScore": {
+            "unreadableTitles": 0,
+            "labelConflicts": 0,
+            "edgeCrossings": 0,
+            "totalBends": 0,
+            "nonCanonicalEndpointRate": 1,
+            "peerBarycenterDelta": 0,
+            "area": 49312.40000000001
+          },
+          "reason": "first-certified",
+          "compared": [
+            {
+              "strategy": "agentic-layered",
+              "score": {
+                "unreadableTitles": 0,
+                "labelConflicts": 0,
+                "edgeCrossings": 0,
+                "totalBends": 0,
+                "nonCanonicalEndpointRate": 1,
+                "peerBarycenterDelta": 0,
+                "area": 49312.40000000001
+              }
+            }
+          ]
+        }
+      },
+      "stages": [
+        "graph-preparation",
+        "agentic"
+      ]
+    },
+    "pelePublic": [
+      {
+        "width": 98,
+        "height": 256,
+        "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"pele pele-flowchart\" viewBox=\"0 0 98 256\" width=\"98\" height=\"256\" style=\"max-width:100%;height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_r:var(--pele-radius,4px);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,sans-serif)\" fill=\"var(--_fg)\" role=\"graphics-document document\" aria-roledescription=\"flowchart\"><g class=\"pele-edges\" fill=\"none\" stroke=\"var(--_l)\" stroke-linecap=\"round\"><g class=\"pele-edge\" data-id=\"L_n0_n1_0\"><path d=\"M54.34,56C54.34,73.5 34.9,73.5 34.9,91L34.9,97\"/><path class=\"pele-marker\" d=\"M34.9,104L31.54,96L38.26,96Z\" fill=\"var(--_l)\" stroke=\"none\"/></g><g class=\"pele-edge\" data-id=\"L_n1_n2_0\"><path d=\"M34.9,152C34.9,169.5 54.34,169.5 54.34,187L54.34,193\"/><path class=\"pele-marker\" d=\"M54.34,200L50.98,192L57.7,192Z\" fill=\"var(--_l)\" stroke=\"none\"/></g><g class=\"pele-edge\" data-id=\"L_n0_n2_0\"><path d=\"M70.34,56C70.34,80 89.79,80 89.79,104L89.79,152C89.79,169.5 70.34,169.5 70.34,187L70.34,193\"/><path class=\"pele-marker\" d=\"M70.34,200L66.98,192L73.7,192Z\" fill=\"var(--_l)\" stroke=\"none\"/></g></g><g class=\"pele-nodes\"><g class=\"pele-node pele-shape-rect\" data-id=\"n0\" transform=\"translate(62.34,32)\"><rect x=\"-26.9\" y=\"-24\" width=\"53.79\" height=\"48\" fill=\"var(--_s)\" stroke=\"var(--_b)\" style=\"rx:var(--_r)\"/><text class=\"pele-label\" x=\"0\" y=\"5.6\" text-anchor=\"middle\">n0</text></g><g class=\"pele-node pele-shape-rect\" data-id=\"n1\" transform=\"translate(34.9,128)\"><rect x=\"-26.9\" y=\"-24\" width=\"53.79\" height=\"48\" fill=\"var(--_s)\" stroke=\"var(--_b)\" style=\"rx:var(--_r)\"/><text class=\"pele-label\" x=\"0\" y=\"5.6\" text-anchor=\"middle\">n1</text></g><g class=\"pele-node pele-shape-rect\" data-id=\"n2\" transform=\"translate(62.34,224)\"><rect x=\"-26.9\" y=\"-24\" width=\"53.79\" height=\"48\" fill=\"var(--_s)\" stroke=\"var(--_b)\" style=\"rx:var(--_r)\"/><text class=\"pele-label\" x=\"0\" y=\"5.6\" text-anchor=\"middle\">n2</text></g></g></svg>"
+      },
+      {
+        "width": 98,
+        "height": 256,
+        "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"pele pele-flowchart\" viewBox=\"0 0 98 256\" width=\"98\" height=\"256\" style=\"max-width:100%;height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_r:var(--pele-radius,4px);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,sans-serif)\" fill=\"var(--_fg)\" role=\"graphics-document document\" aria-roledescription=\"flowchart\"><g class=\"pele-edges\" fill=\"none\" stroke=\"var(--_l)\" stroke-linecap=\"round\"><g class=\"pele-edge\" data-id=\"L_n0_n1_0\"><path d=\"M54.34,56C54.34,73.5 34.9,73.5 34.9,91L34.9,97\"/><path class=\"pele-marker\" d=\"M34.9,104L31.54,96L38.26,96Z\" fill=\"var(--_l)\" stroke=\"none\"/></g><g class=\"pele-edge\" data-id=\"L_n1_n2_0\"><path d=\"M34.9,152C34.9,169.5 54.34,169.5 54.34,187L54.34,193\"/><path class=\"pele-marker\" d=\"M54.34,200L50.98,192L57.7,192Z\" fill=\"var(--_l)\" stroke=\"none\"/></g><g class=\"pele-edge\" data-id=\"L_n0_n2_0\"><path d=\"M70.34,56C70.34,80 89.79,80 89.79,104L89.79,152C89.79,169.5 70.34,169.5 70.34,187L70.34,193\"/><path class=\"pele-marker\" d=\"M70.34,200L66.98,192L73.7,192Z\" fill=\"var(--_l)\" stroke=\"none\"/></g></g><g class=\"pele-nodes\"><g class=\"pele-node pele-shape-rect\" data-id=\"n0\" transform=\"translate(62.34,32)\"><rect x=\"-26.9\" y=\"-24\" width=\"53.79\" height=\"48\" fill=\"var(--_s)\" stroke=\"var(--_b)\" style=\"rx:var(--_r)\"/><text class=\"pele-label\" x=\"0\" y=\"5.6\" text-anchor=\"middle\">n0</text></g><g class=\"pele-node pele-shape-rect\" data-id=\"n1\" transform=\"translate(34.9,128)\"><rect x=\"-26.9\" y=\"-24\" width=\"53.79\" height=\"48\" fill=\"var(--_s)\" stroke=\"var(--_b)\" style=\"rx:var(--_r)\"/><text class=\"pele-label\" x=\"0\" y=\"5.6\" text-anchor=\"middle\">n1</text></g><g class=\"pele-node pele-shape-rect\" data-id=\"n2\" transform=\"translate(62.34,224)\"><rect x=\"-26.9\" y=\"-24\" width=\"53.79\" height=\"48\" fill=\"var(--_s)\" stroke=\"var(--_b)\" style=\"rx:var(--_r)\"/><text class=\"pele-label\" x=\"0\" y=\"5.6\" text-anchor=\"middle\">n2</text></g></g></svg>"
+      }
+    ]
+  },
+  {
+    "name": "ladder",
+    "source": "flowchart TB\nn0 --> n1\nn1 --> n2\nn2 --> n3\nn0 --> n2\nn1 --> n3",
+    "input": {
+      "nodes": [
+        {
+          "id": "n0",
+          "width": 60,
+          "height": 40
+        },
+        {
+          "id": "n1",
+          "width": 60,
+          "height": 40
+        },
+        {
+          "id": "n2",
+          "width": 60,
+          "height": 40
+        },
+        {
+          "id": "n3",
+          "width": 60,
+          "height": 40
+        }
+      ],
+      "edges": [
+        {
+          "source": 0,
+          "target": 1,
+          "minSpan": 1
+        },
+        {
+          "source": 1,
+          "target": 2,
+          "minSpan": 1
+        },
+        {
+          "source": 2,
+          "target": 3,
+          "minSpan": 1
+        },
+        {
+          "source": 0,
+          "target": 2,
+          "minSpan": 1
+        },
+        {
+          "source": 1,
+          "target": 3,
+          "minSpan": 1
+        }
+      ],
+      "direction": "TB",
+      "padding": 0,
+      "nodeSpacing": 40,
+      "layerSpacing": 48,
+      "edgeSpacing": 16
+    },
+    "native": [
+      {
+        "compactPrivateRanks": false,
+        "topology": "layered",
+        "expandedVertices": 13,
+        "width": 104,
+        "height": 336,
+        "nodes": [
+          {
+            "x": 36,
+            "y": 0
+          },
+          {
+            "x": 0,
+            "y": 88
+          },
+          {
+            "x": 0,
+            "y": 208
+          },
+          {
+            "x": 22,
+            "y": 296
+          }
+        ],
+        "edges": [
+          {
+            "points": [
+              {
+                "x": 48,
+                "y": 40
+              },
+              {
+                "x": 48,
+                "y": 88
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 30,
+                "y": 128
+              },
+              {
+                "x": 30,
+                "y": 208
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 41,
+                "y": 248
+              },
+              {
+                "x": 41,
+                "y": 296
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 66,
+                "y": 40
+              },
+              {
+                "x": 66,
+                "y": 144
+              },
+              {
+                "x": 58,
+                "y": 144
+              },
+              {
+                "x": 58,
+                "y": 192
+              },
+              {
+                "x": 52,
+                "y": 192
+              },
+              {
+                "x": 52,
+                "y": 208
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 52,
+                "y": 128
+              },
+              {
+                "x": 52,
+                "y": 160
+              },
+              {
+                "x": 66,
+                "y": 160
+              },
+              {
+                "x": 66,
+                "y": 296
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "compactPrivateRanks": true,
+        "topology": "layered",
+        "expandedVertices": 6,
+        "width": 104,
+        "height": 256,
+        "nodes": [
+          {
+            "x": 36,
+            "y": 0
+          },
+          {
+            "x": 0,
+            "y": 72
+          },
+          {
+            "x": 36,
+            "y": 144
+          },
+          {
+            "x": 36,
+            "y": 216
+          }
+        ],
+        "edges": [
+          {
+            "points": [
+              {
+                "x": 44,
+                "y": 40
+              },
+              {
+                "x": 44,
+                "y": 56
+              },
+              {
+                "x": 52,
+                "y": 56
+              },
+              {
+                "x": 52,
+                "y": 72
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 52,
+                "y": 112
+              },
+              {
+                "x": 52,
+                "y": 128
+              },
+              {
+                "x": 44,
+                "y": 128
+              },
+              {
+                "x": 44,
+                "y": 144
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 66,
+                "y": 184
+              },
+              {
+                "x": 66,
+                "y": 216
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 66,
+                "y": 40
+              },
+              {
+                "x": 66,
+                "y": 144
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 30,
+                "y": 112
+              },
+              {
+                "x": 30,
+                "y": 200
+              },
+              {
+                "x": 44,
+                "y": 200
+              },
+              {
+                "x": 44,
+                "y": 216
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "pele": {
+      "width": 118,
+      "height": 304,
+      "nodes": [
+        {
+          "w": 60,
+          "h": 40,
+          "kind": 0,
+          "pin": 0,
+          "hint": null,
+          "key": null,
+          "span": 0,
+          "x": 59,
+          "y": 20,
+          "rank": 0
+        },
+        {
+          "w": 60,
+          "h": 40,
+          "kind": 0,
+          "pin": 0,
+          "hint": null,
+          "key": null,
+          "span": 0,
+          "x": 30,
+          "y": 108,
+          "rank": 1
+        },
+        {
+          "w": 60,
+          "h": 40,
+          "kind": 0,
+          "pin": 0,
+          "hint": null,
+          "key": null,
+          "span": 0,
+          "x": 88,
+          "y": 196,
+          "rank": 2
+        },
+        {
+          "w": 60,
+          "h": 40,
+          "kind": 0,
+          "pin": 0,
+          "hint": null,
+          "key": null,
+          "span": 0,
+          "x": 59,
+          "y": 284,
+          "rank": 3
+        }
+      ],
+      "edges": [
+        {
+          "tail": 0,
+          "head": 1,
+          "minlen": 1,
+          "labelW": 0,
+          "labelH": 0,
+          "tailDx": 0,
+          "headDx": 0,
+          "tailFixed": false,
+          "headFixed": false,
+          "reversed": false,
+          "points": [
+            59,
+            40,
+            59,
+            64,
+            30,
+            64,
+            30,
+            88
+          ],
+          "labelX": 0,
+          "labelY": 0
+        },
+        {
+          "tail": 1,
+          "head": 2,
+          "minlen": 1,
+          "labelW": 0,
+          "labelH": 0,
+          "tailDx": 0,
+          "headDx": 0,
+          "tailFixed": false,
+          "headFixed": false,
+          "reversed": false,
+          "points": [
+            30,
+            128,
+            30,
+            152,
+            88,
+            152,
+            88,
+            176
+          ],
+          "labelX": 0,
+          "labelY": 0
+        },
+        {
+          "tail": 2,
+          "head": 3,
+          "minlen": 1,
+          "labelW": 0,
+          "labelH": 0,
+          "tailDx": 0,
+          "headDx": 0,
+          "tailFixed": false,
+          "headFixed": false,
+          "reversed": false,
+          "points": [
+            88,
+            216,
+            88,
+            240,
+            59,
+            240,
+            59,
+            264
+          ],
+          "labelX": 0,
+          "labelY": 0
+        },
+        {
+          "tail": 0,
+          "head": 2,
+          "minlen": 1,
+          "labelW": 0,
+          "labelH": 0,
+          "tailDx": 0,
+          "headDx": 0,
+          "tailFixed": false,
+          "headFixed": false,
+          "reversed": false,
+          "points": [
+            59,
+            40,
+            59,
+            64,
+            88,
+            64,
+            88,
+            88,
+            88,
+            128,
+            88,
+            176
+          ],
+          "labelX": 0,
+          "labelY": 0
+        },
+        {
+          "tail": 1,
+          "head": 3,
+          "minlen": 1,
+          "labelW": 0,
+          "labelH": 0,
+          "tailDx": 0,
+          "headDx": 0,
+          "tailFixed": false,
+          "headFixed": false,
+          "reversed": false,
+          "points": [
+            30,
+            128,
+            30,
+            176,
+            30,
+            216,
+            30,
+            240,
+            59,
+            240,
+            59,
+            264
+          ],
+          "labelX": 0,
+          "labelY": 0
+        }
+      ]
+    },
+    "publicNative": {
+      "width": 172,
+      "height": 307.85,
+      "crossings": 0,
+      "certification": {
+        "status": "passed",
+        "strategy": "agentic-layered",
+        "attempts": 1,
+        "hardViolations": 0,
+        "preference": {
+          "selectedScore": {
+            "unreadableTitles": 0,
+            "labelConflicts": 0,
+            "edgeCrossings": 0,
+            "totalBends": 2,
+            "nonCanonicalEndpointRate": 0.8,
+            "peerBarycenterDelta": 0,
+            "area": 52950.200000000004
+          },
+          "reason": "first-certified",
+          "compared": [
+            {
+              "strategy": "agentic-layered",
+              "score": {
+                "unreadableTitles": 0,
+                "labelConflicts": 0,
+                "edgeCrossings": 0,
+                "totalBends": 2,
+                "nonCanonicalEndpointRate": 0.8,
+                "peerBarycenterDelta": 0,
+                "area": 52950.200000000004
+              }
+            }
+          ]
+        }
+      },
+      "stages": [
+        "graph-preparation",
+        "agentic",
+        "graph-preparation",
+        "agentic",
+        "graph-preparation",
+        "agentic"
+      ]
+    },
+    "pelePublic": [
+      {
+        "width": 113,
+        "height": 352,
+        "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"pele pele-flowchart\" viewBox=\"0 0 113 352\" width=\"113\" height=\"352\" style=\"max-width:100%;height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_r:var(--pele-radius,4px);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,sans-serif)\" fill=\"var(--_fg)\" role=\"graphics-document document\" aria-roledescription=\"flowchart\"><g class=\"pele-edges\" fill=\"none\" stroke=\"var(--_l)\" stroke-linecap=\"round\"><g class=\"pele-edge\" data-id=\"L_n0_n1_0\"><path d=\"M50.34,56C50.34,73.5 34.9,73.5 34.9,91L34.9,97\"/><path class=\"pele-marker\" d=\"M34.9,104L31.54,96L38.26,96Z\" fill=\"var(--_l)\" stroke=\"none\"/></g><g class=\"pele-edge\" data-id=\"L_n1_n2_0\"><path d=\"M38.9,152C38.9,169.5 73.79,169.5 73.79,187L73.79,193\"/><path class=\"pele-marker\" d=\"M73.79,200L70.43,192L77.15,192Z\" fill=\"var(--_l)\" stroke=\"none\"/></g><g class=\"pele-edge\" data-id=\"L_n2_n3_0\"><path d=\"M77.79,248C77.79,265.5 58.34,265.5 58.34,283L58.34,289\"/><path class=\"pele-marker\" d=\"M58.34,296L54.98,288L61.7,288Z\" fill=\"var(--_l)\" stroke=\"none\"/></g><g class=\"pele-edge\" data-id=\"L_n0_n2_0\"><path d=\"M66.34,56C66.34,80 89.79,80 89.79,104L89.79,193\"/><path class=\"pele-marker\" d=\"M89.79,200L86.43,192L93.15,192Z\" fill=\"var(--_l)\" stroke=\"none\"/></g><g class=\"pele-edge\" data-id=\"L_n1_n3_0\"><path d=\"M22.9,152L22.9,248C22.9,265.5 42.34,265.5 42.34,283L42.34,289\"/><path class=\"pele-marker\" d=\"M42.34,296L38.98,288L45.7,288Z\" fill=\"var(--_l)\" stroke=\"none\"/></g></g><g class=\"pele-nodes\"><g class=\"pele-node pele-shape-rect\" data-id=\"n0\" transform=\"translate(58.34,32)\"><rect x=\"-26.9\" y=\"-24\" width=\"53.79\" height=\"48\" fill=\"var(--_s)\" stroke=\"var(--_b)\" style=\"rx:var(--_r)\"/><text class=\"pele-label\" x=\"0\" y=\"5.6\" text-anchor=\"middle\">n0</text></g><g class=\"pele-node pele-shape-rect\" data-id=\"n1\" transform=\"translate(34.9,128)\"><rect x=\"-26.9\" y=\"-24\" width=\"53.79\" height=\"48\" fill=\"var(--_s)\" stroke=\"var(--_b)\" style=\"rx:var(--_r)\"/><text class=\"pele-label\" x=\"0\" y=\"5.6\" text-anchor=\"middle\">n1</text></g><g class=\"pele-node pele-shape-rect\" data-id=\"n2\" transform=\"translate(77.79,224)\"><rect x=\"-26.9\" y=\"-24\" width=\"53.79\" height=\"48\" fill=\"var(--_s)\" stroke=\"var(--_b)\" style=\"rx:var(--_r)\"/><text class=\"pele-label\" x=\"0\" y=\"5.6\" text-anchor=\"middle\">n2</text></g><g class=\"pele-node pele-shape-rect\" data-id=\"n3\" transform=\"translate(50.34,320)\"><rect x=\"-26.9\" y=\"-24\" width=\"53.79\" height=\"48\" fill=\"var(--_s)\" stroke=\"var(--_b)\" style=\"rx:var(--_r)\"/><text class=\"pele-label\" x=\"0\" y=\"5.6\" text-anchor=\"middle\">n3</text></g></g></svg>"
+      },
+      {
+        "width": 113,
+        "height": 352,
+        "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"pele pele-flowchart\" viewBox=\"0 0 113 352\" width=\"113\" height=\"352\" style=\"max-width:100%;height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_r:var(--pele-radius,4px);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,sans-serif)\" fill=\"var(--_fg)\" role=\"graphics-document document\" aria-roledescription=\"flowchart\"><g class=\"pele-edges\" fill=\"none\" stroke=\"var(--_l)\" stroke-linecap=\"round\"><g class=\"pele-edge\" data-id=\"L_n0_n1_0\"><path d=\"M50.34,56C50.34,73.5 34.9,73.5 34.9,91L34.9,97\"/><path class=\"pele-marker\" d=\"M34.9,104L31.54,96L38.26,96Z\" fill=\"var(--_l)\" stroke=\"none\"/></g><g class=\"pele-edge\" data-id=\"L_n1_n2_0\"><path d=\"M38.9,152C38.9,169.5 73.79,169.5 73.79,187L73.79,193\"/><path class=\"pele-marker\" d=\"M73.79,200L70.43,192L77.15,192Z\" fill=\"var(--_l)\" stroke=\"none\"/></g><g class=\"pele-edge\" data-id=\"L_n2_n3_0\"><path d=\"M77.79,248C77.79,265.5 58.34,265.5 58.34,283L58.34,289\"/><path class=\"pele-marker\" d=\"M58.34,296L54.98,288L61.7,288Z\" fill=\"var(--_l)\" stroke=\"none\"/></g><g class=\"pele-edge\" data-id=\"L_n0_n2_0\"><path d=\"M66.34,56C66.34,80 89.79,80 89.79,104L89.79,193\"/><path class=\"pele-marker\" d=\"M89.79,200L86.43,192L93.15,192Z\" fill=\"var(--_l)\" stroke=\"none\"/></g><g class=\"pele-edge\" data-id=\"L_n1_n3_0\"><path d=\"M22.9,152L22.9,248C22.9,265.5 42.34,265.5 42.34,283L42.34,289\"/><path class=\"pele-marker\" d=\"M42.34,296L38.98,288L45.7,288Z\" fill=\"var(--_l)\" stroke=\"none\"/></g></g><g class=\"pele-nodes\"><g class=\"pele-node pele-shape-rect\" data-id=\"n0\" transform=\"translate(58.34,32)\"><rect x=\"-26.9\" y=\"-24\" width=\"53.79\" height=\"48\" fill=\"var(--_s)\" stroke=\"var(--_b)\" style=\"rx:var(--_r)\"/><text class=\"pele-label\" x=\"0\" y=\"5.6\" text-anchor=\"middle\">n0</text></g><g class=\"pele-node pele-shape-rect\" data-id=\"n1\" transform=\"translate(34.9,128)\"><rect x=\"-26.9\" y=\"-24\" width=\"53.79\" height=\"48\" fill=\"var(--_s)\" stroke=\"var(--_b)\" style=\"rx:var(--_r)\"/><text class=\"pele-label\" x=\"0\" y=\"5.6\" text-anchor=\"middle\">n1</text></g><g class=\"pele-node pele-shape-rect\" data-id=\"n2\" transform=\"translate(77.79,224)\"><rect x=\"-26.9\" y=\"-24\" width=\"53.79\" height=\"48\" fill=\"var(--_s)\" stroke=\"var(--_b)\" style=\"rx:var(--_r)\"/><text class=\"pele-label\" x=\"0\" y=\"5.6\" text-anchor=\"middle\">n2</text></g><g class=\"pele-node pele-shape-rect\" data-id=\"n3\" transform=\"translate(50.34,320)\"><rect x=\"-26.9\" y=\"-24\" width=\"53.79\" height=\"48\" fill=\"var(--_s)\" stroke=\"var(--_b)\" style=\"rx:var(--_r)\"/><text class=\"pele-label\" x=\"0\" y=\"5.6\" text-anchor=\"middle\">n3</text></g></g></svg>"
+      }
+    ]
+  }
+]

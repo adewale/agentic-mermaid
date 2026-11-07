@@ -1,0 +1,559 @@
+{
+  "tridentPin": "f080278e31e4202ca89d524e4ee9e4cf3cbff038",
+  "nodes": [
+    {
+      "id": "Dicklesworthstone/frankenmermaid",
+      "categories": [
+        "renderer",
+        "parser"
+      ],
+      "relation": "independent",
+      "repo": "https://github.com/Dicklesworthstone/frankenmermaid",
+      "homepage": "https://frankenmermaid.com/",
+      "checkedAt": "2026-10-20",
+      "branch": "main",
+      "head": "29536a1308acd1bae4da8b72b4cebffb39709ae0",
+      "lastCommit": "2026-10-19T21:51:40-04:00",
+      "rootCommits": [
+        "a4877939105eb405add227d48e0f5f5d054fcfec"
+      ],
+      "license": "MIT License (with OpenAI/Anthropic Rider)",
+      "runtime": "Rust 2024; distributed WASM in Node and browser; native CLI",
+      "outputs": [
+        "svg",
+        "ascii-unicode",
+        "ast",
+        "diagnostics",
+        "mermaid-text"
+      ],
+      "roles": [
+        "peer",
+        "terminal-peer",
+        "parser-peer"
+      ],
+      "distribution": {
+        "kind": "github-directory",
+        "path": "pkg/",
+        "name": "@frankenmermaid/core",
+        "version": "0.4.0",
+        "revision": "29536a1308acd1bae4da8b72b4cebffb39709ae0",
+        "lastUpdatedCommit": "f85cf30d16918b5819f27e5eb1f962b324390c13",
+        "wasmSha256": "c2ba665b60abdd57d9c357fc6e28891b4bed7b62bcfc75d714fb059c87af3ea1"
+      },
+      "notes": "Separate git root; README describes a ground-up implementation. Checked-in pkg/ 0.4.0 distribution is pinned and individually hash-verified for Node/browser benchmarks. The advertised @frankenmermaid/core npm name returns 404. Distributed WASM predates current Rust source changes and differs from live-site JS/WASM bytes; no build-from-current-source or deployment parity is claimed. Public WASM exposes SVG, Canvas2D, parse/diagnostics, source-lens edits and deck manifests; native terminal rendering has no exported WASM terminal function. License includes the named restrictive rider and is not recorded as plain MIT. Published native v0.4.0 CLI was benchmarked separately, including startup; its release predates the measured WASM. Parser recovery returned SVG for the full browser inventory, with warnings/partial detections recorded separately from acceptance.",
+      "nativeRelease": {
+        "tag": "v0.4.0",
+        "commit": "d5ade10ac414a8c9eb07bd42b3df6a62c6474f6f",
+        "publishedAt": "2026-10-08T15:52:13Z",
+        "url": "https://github.com/Dicklesworthstone/frankenmermaid/releases/tag/v0.4.0",
+        "measuredArchive": "frankenmermaid-darwin-arm64.tar.xz",
+        "archiveSha256": "0fadb3939fcbe1760ba7278ef03ef96251127b88181a3f2abf2af704b0311909"
+      },
+      "benchmark": {
+        "adapter": "franken",
+        "outputs": [
+          "svg",
+          "parse"
+        ]
+      },
+      "benchmarkEligibility": {
+        "classification": "independently-rooted-implementation",
+        "engineScope": "independent-engine-candidate",
+        "adapterReview": "existing-adapter; outcomes remain independent",
+        "reason": "Catalog declares svg, terminal, parse, diagnostics, source operations with adapter franken. Actual artifact/API availability, family coverage, correctness and timing are determined by execution, not role selection or configuration."
+      }
+    },
+    {
+      "id": "wevm/ondine",
+      "categories": [
+        "renderer"
+      ],
+      "relation": "port",
+      "repo": "https://github.com/wevm/ondine",
+      "homepage": "https://ondine.sh/",
+      "checkedAt": "2026-10-20",
+      "branch": "main",
+      "head": "439fc64aefdb06e3451fac6c44266e5965ea7265",
+      "lastCommit": "2026-10-20T13:31:21+11:00",
+      "license": "MIT",
+      "runtime": "Rust -> WASM (Node, browser, edge); build-time Vite/remark compiler",
+      "outputs": [
+        "svg",
+        "ascii-unicode"
+      ],
+      "packages": [
+        {
+          "registry": "npm",
+          "name": "ondine",
+          "version": "0.0.1",
+          "license": "MIT",
+          "provenanceCommit": "f662aa795b91bf2dfc7162f48035be3884201193",
+          "publishedFromDefaultBranch": true
+        }
+      ],
+      "roles": [
+        "peer"
+      ],
+      "notes": "Rust port of Pele: source comments explicitly attribute the flowchart, sequence, class, layered/compound layout and SVG builder implementations. Separate git root from Pele. Targets Mermaid 12.1.0 syntax. Node uses a speed-optimized all-types WASM module; browsers can load size-optimized per-family or all-types WASM. The mount-only runtime inserts precompiled SVG and is not a renderer. Image Worker also serves PNG via rasterization. Published 0.0.1 is pinned for benchmarks; source manifest is already 0.0.2. npm provenance commit was verified as an ancestor of the inspected main. Inspected 0.0.2 source adds CLI --ascii by projecting compiled SVG to cells; this unpublished terminal surface was not benchmarked.",
+      "parent": "obsidianmd/pele",
+      "rootCommits": [
+        "d6b8e4a44e512272f925e3b370ff28439f266fd0"
+      ],
+      "benchmark": {
+        "adapter": "ondine",
+        "package": "ondine",
+        "subpath": "compiler",
+        "outputs": [
+          "svg"
+        ]
+      },
+      "benchmarkEligibility": {
+        "classification": "port-implementation",
+        "engineScope": "derived-code-independent-runtime-implementation",
+        "adapterReview": "existing-adapter; outcomes remain independent",
+        "reason": "Catalog declares svg, terminal operations with adapter ondine. Actual artifact/API availability, family coverage, correctness and timing are determined by execution, not role selection or configuration."
+      }
+    },
+    {
+      "id": "dfadler/zombie-mermaid",
+      "categories": [
+        "renderer"
+      ],
+      "relation": "fork",
+      "parent": "lukilabs/beautiful-mermaid",
+      "repo": "https://github.com/dfadler/zombie-mermaid",
+      "branch": "main",
+      "head": "8cc982128bed11d976fb38164c4cdb47be7bd34d",
+      "lastCommit": "2026-10-18T14:19:47-05:00",
+      "rootCommits": [
+        "3185b9b6911e3b0a9f0d51fcebda5e0f69785ff0"
+      ],
+      "vsParent": {
+        "ahead": 4042,
+        "behind": 0
+      },
+      "license": "MIT",
+      "runtime": "TypeScript (Node, browser)",
+      "outputs": [
+        "svg",
+        "ascii-unicode"
+      ],
+      "packages": [
+        {
+          "registry": "npm",
+          "name": "zombie-mermaid",
+          "version": "5.7.1",
+          "license": "MIT",
+          "provenanceCommit": "3e688e4e5e00ec9f92444af4757e0ec7c449e84b",
+          "publishedFromDefaultBranch": true
+        }
+      ],
+      "roles": [
+        "peer",
+        "terminal-peer"
+      ],
+      "notes": "README: \"A maintained fork of beautiful-mermaid\". Also publishes @zombie-mermaid/{core,mermaid-parser,svg-renderer,ascii-renderer,mcp}. Main moved past the 631b1b4c pin in docs/comparison.md.",
+      "benchmark": {
+        "adapter": "beautiful",
+        "package": "zombie-mermaid",
+        "terminalSubpath": "ascii",
+        "outputs": [
+          "svg",
+          "terminal"
+        ]
+      },
+      "benchmarkEligibility": {
+        "classification": "diverged-fork",
+        "engineScope": "unreviewed-fork-delta",
+        "adapterReview": "existing-adapter; outcomes remain independent",
+        "reason": "Recorded fork of lukilabs/beautiful-mermaid: 4042 commits ahead/0 behind; exact head 8cc982128bed11d976fb38164c4cdb47be7bd34d. A source delta requires actual renderer/API review; shared lineage does not establish output or artifact equivalence. README: \"A maintained fork of beautiful-mermaid\". Also publishes @zombie-mermaid/{core,mermaid-parser,svg-renderer,ascii-renderer,mcp}. Main moved past the 631b1b4c pin in docs/comparison.md."
+      }
+    },
+    {
+      "id": "1jehuang/mermaid-rs-renderer",
+      "categories": [
+        "renderer"
+      ],
+      "relation": "independent",
+      "repo": "https://github.com/1jehuang/mermaid-rs-renderer",
+      "branch": "master",
+      "head": "3726ccbffe0e8032361eb9668694b24f77858060",
+      "lastCommit": "2026-09-06T19:26:16-07:00",
+      "rootCommits": [
+        "c22609881c0fa606f23036715e8623f66e779a26"
+      ],
+      "license": "MIT",
+      "release": {
+        "tag": "v0.3.1",
+        "commit": "2f993bd79a55235eb59a34d807852276ba25bea7"
+      },
+      "runtime": "Rust",
+      "outputs": [
+        "svg",
+        "png"
+      ],
+      "roles": [
+        "peer"
+      ],
+      "notes": "Crate and CLI \"mmdr\"; no npm package of its own (npm \"mmdr\" is an unrelated 2024 package). See the binding nodes.",
+      "benchmark": {
+        "adapter": "source-cli",
+        "outputs": [
+          "svg",
+          "png"
+        ]
+      },
+      "benchmarkEligibility": {
+        "classification": "independently-rooted-implementation",
+        "engineScope": "independent-engine-candidate",
+        "adapterReview": "existing-adapter; outcomes remain independent",
+        "reason": "Catalog declares svg, png operations with adapter source-cli. Actual artifact/API availability, family coverage, correctness and timing are determined by execution, not role selection or configuration."
+      }
+    },
+    {
+      "id": "AlexanderGrooff/mermaid-ascii",
+      "categories": [
+        "renderer"
+      ],
+      "relation": "independent",
+      "repo": "https://github.com/AlexanderGrooff/mermaid-ascii",
+      "branch": "master",
+      "head": "5f00e3d9ac9fc96a19859d502333e35b87d2ffea",
+      "lastCommit": "2026-09-08T23:38:47+02:00",
+      "rootCommits": [
+        "cb28264cf4b3261836de8f6af2d8dc2e7d459552"
+      ],
+      "license": "MIT",
+      "release": {
+        "tag": "1.6.1",
+        "commit": "5f00e3d9ac9fc96a19859d502333e35b87d2ffea"
+      },
+      "runtime": "Go",
+      "outputs": [
+        "ascii-unicode"
+      ],
+      "roles": [
+        "ancestor",
+        "terminal-peer"
+      ],
+      "notes": "docs/comparison.md records 1.4.0; latest tag is newer. Ancestor of the Beautiful/Agentic ASCII engine by port.",
+      "benchmark": {
+        "adapter": "source-cli",
+        "outputs": [
+          "terminal"
+        ]
+      },
+      "benchmarkEligibility": {
+        "classification": "independently-rooted-implementation",
+        "engineScope": "independent-engine-candidate",
+        "adapterReview": "existing-adapter; outcomes remain independent",
+        "reason": "Catalog declares terminal operations with adapter source-cli. Actual artifact/API availability, family coverage, correctness and timing are determined by execution, not role selection or configuration."
+      }
+    },
+    {
+      "id": "emtyty/merslim",
+      "categories": [
+        "renderer"
+      ],
+      "relation": "independent",
+      "repo": "https://github.com/emtyty/merslim",
+      "branch": "main",
+      "head": "746ddb4e71d7ebecbcfc98540dbf4dd9b5b54a61",
+      "lastCommit": "2026-08-19T21:36:02+07:00",
+      "rootCommits": [
+        "4e4fc2c24516c04135a0a04b2f80dbdffb23b2bb"
+      ],
+      "license": "MIT",
+      "runtime": "TypeScript (React, browser)",
+      "outputs": [
+        "svg",
+        "png",
+        "ascii-unicode"
+      ],
+      "packages": [
+        {
+          "registry": "npm",
+          "name": "merslim",
+          "version": "0.2.3",
+          "license": "MIT",
+          "gitHead": "4514215108d79a5bc8d7d9215b41b70b8d2b1cc2",
+          "publishedFromDefaultBranch": true
+        }
+      ],
+      "roles": [
+        "observed"
+      ],
+      "benchmark": {
+        "adapter": "published-extra",
+        "package": "merslim",
+        "version": "0.2.3",
+        "versionPolicy": "recorded",
+        "outputs": [
+          "svg",
+          "png",
+          "terminal"
+        ]
+      },
+      "benchmarkEligibility": {
+        "classification": "independently-rooted-implementation",
+        "engineScope": "independent-engine-candidate",
+        "adapterReview": "candidate-awaiting-public-API/artifact-attempt",
+        "reason": "Published merslim@0.2.3 declares React/browser SVG, PNG and terminal outputs. Browser/React harness review is needed. Browser dependence is a boundary choice, not an N/A renderer verdict."
+      }
+    },
+    {
+      "id": "Latias94/merman",
+      "categories": [
+        "renderer"
+      ],
+      "relation": "independent",
+      "repo": "https://github.com/Latias94/merman",
+      "branch": "main",
+      "head": "252752f7029b67f6a6f22a35230ef2bdf9c605d0",
+      "lastCommit": "2026-10-18T20:14:25+08:00",
+      "rootCommits": [
+        "2c88bcc786cdb91f4c7c394398e10effbccae3b7"
+      ],
+      "license": "MIT OR Apache-2.0",
+      "release": {
+        "tag": "v0.9.1",
+        "commit": "f6202f702dbde0a75049b1a62b3124feae709b3d"
+      },
+      "runtime": "Rust (+ WASM, napi, Python bindings)",
+      "outputs": [
+        "svg",
+        "png",
+        "jpeg",
+        "pdf",
+        "ascii-unicode"
+      ],
+      "packages": [
+        {
+          "registry": "npm",
+          "name": "@mermanjs/node",
+          "version": "0.9.1",
+          "license": "MIT OR Apache-2.0",
+          "provenanceCommit": "f6202f702dbde0a75049b1a62b3124feae709b3d",
+          "publishedFromDefaultBranch": false
+        },
+        {
+          "registry": "npm",
+          "name": "@mermanjs/web",
+          "version": "0.9.1",
+          "license": "MIT OR Apache-2.0",
+          "provenanceCommit": "f6202f702dbde0a75049b1a62b3124feae709b3d",
+          "publishedFromDefaultBranch": false
+        },
+        {
+          "registry": "pypi",
+          "name": "merman",
+          "version": "0.9.1",
+          "license": "MIT OR Apache-2.0"
+        }
+      ],
+      "roles": [
+        "peer",
+        "terminal-peer"
+      ],
+      "notes": "docs/comparison.md records 0.9.0; 0.9.1 was published from branch release/0.9.1 on the check date. Cargo.toml at main head still says 0.9.0.",
+      "benchmark": {
+        "adapter": "merman",
+        "package": "@mermanjs/node",
+        "outputs": [
+          "svg",
+          "png"
+        ]
+      },
+      "benchmarkEligibility": {
+        "classification": "independently-rooted-implementation",
+        "engineScope": "independent-engine-candidate",
+        "adapterReview": "existing-adapter; outcomes remain independent",
+        "reason": "Catalog declares svg, png, jpeg, pdf, terminal operations with adapter merman. Actual artifact/API availability, family coverage, correctness and timing are determined by execution, not role selection or configuration."
+      }
+    },
+    {
+      "id": "lukilabs/beautiful-mermaid",
+      "categories": [
+        "renderer"
+      ],
+      "relation": "independent",
+      "repo": "https://github.com/lukilabs/beautiful-mermaid",
+      "branch": "main",
+      "head": "2ac8bbbb060ca0a65a6a21f3200bd99b1587b488",
+      "lastCommit": "2026-05-06T12:53:19+02:00",
+      "rootCommits": [
+        "3185b9b6911e3b0a9f0d51fcebda5e0f69785ff0"
+      ],
+      "license": "MIT",
+      "runtime": "TypeScript (Node, Bun, browser)",
+      "outputs": [
+        "svg",
+        "ascii-unicode"
+      ],
+      "packages": [
+        {
+          "registry": "npm",
+          "name": "beautiful-mermaid",
+          "version": "1.1.3",
+          "license": "MIT",
+          "gitHead": "65f4e0ab8c289e9691a9e5bc4f9eac7108cf449b",
+          "publishedFromDefaultBranch": true
+        }
+      ],
+      "roles": [
+        "ancestor",
+        "peer"
+      ],
+      "notes": "SVG renderer is its own; ASCII engine is a port of AlexanderGrooff/mermaid-ascii (see edges).",
+      "benchmark": {
+        "adapter": "beautiful",
+        "package": "beautiful-mermaid",
+        "outputs": [
+          "svg",
+          "terminal"
+        ]
+      },
+      "benchmarkEligibility": {
+        "classification": "independently-rooted-implementation",
+        "engineScope": "independent-engine-candidate",
+        "adapterReview": "existing-adapter; outcomes remain independent",
+        "reason": "Catalog declares svg, terminal operations with adapter beautiful. Actual artifact/API availability, family coverage, correctness and timing are determined by execution, not role selection or configuration."
+      }
+    },
+    {
+      "id": "obsidianmd/pele",
+      "categories": [
+        "renderer"
+      ],
+      "relation": "independent",
+      "repo": "https://github.com/obsidianmd/pele",
+      "branch": "main",
+      "head": "44da152bbb79b91f03e68016f42499bb25bf6e82",
+      "lastCommit": "2026-10-18T09:34:29-07:00",
+      "rootCommits": [
+        "77647fe50695cf92f06ca3d1f8ecfe81cc0ff6c3"
+      ],
+      "license": "MIT",
+      "runtime": "TypeScript (Node >=20, browser)",
+      "outputs": [
+        "svg"
+      ],
+      "packages": [
+        {
+          "registry": "npm",
+          "name": "pele",
+          "version": "1.9.0",
+          "license": "MIT",
+          "provenanceCommit": "e7f092a4de147cc32210913c20e36eaa5fcd0ef1",
+          "publishedFromDefaultBranch": true
+        }
+      ],
+      "roles": [
+        "peer"
+      ],
+      "notes": "Main moved past the 458322a5 pin in docs/comparison.md. Targets Mermaid 12.1.0 syntax (README.md:5, :87) and vendors Mermaid's parser specs and grammar files (README.md:113) beside its own parser, layout and renderer. Packages that only wrap it (comark-pele, streamdown-pele and others) are excluded.",
+      "benchmark": {
+        "adapter": "pele",
+        "package": "pele",
+        "outputs": [
+          "svg"
+        ],
+        "version": "1.9.0"
+      },
+      "benchmarkEligibility": {
+        "classification": "independently-rooted-implementation",
+        "engineScope": "independent-engine-candidate",
+        "adapterReview": "existing-adapter; outcomes remain independent",
+        "reason": "Catalog declares svg operations with adapter pele. Actual artifact/API availability, family coverage, correctness and timing are determined by execution, not role selection or configuration."
+      }
+    },
+    {
+      "id": "mermaid-js/mermaid",
+      "categories": [
+        "renderer",
+        "parser"
+      ],
+      "relation": "root",
+      "repo": "https://github.com/mermaid-js/mermaid",
+      "branch": "develop",
+      "head": "e28fbd9ded0a07ba9569e51be4764c1ad4daa8f6",
+      "lastCommit": "2026-10-14T08:44:56+00:00",
+      "rootCommits": [
+        "e26c2a252789a456a30f1f150f1c513b49454363"
+      ],
+      "license": "MIT",
+      "runtime": "TypeScript (browser DOM)",
+      "outputs": [
+        "svg"
+      ],
+      "packages": [
+        {
+          "registry": "npm",
+          "name": "mermaid",
+          "version": "12.2.0",
+          "license": "MIT",
+          "provenanceCommit": "1fb7869866dd619168d840291c9c54b4f129758b",
+          "publishedFromDefaultBranch": true
+        }
+      ],
+      "roles": [
+        "language-reference"
+      ],
+      "notes": "knsv/mermaid resolves to the same head (legacy name). Default branch is develop; 12.2.0 provenance names master.",
+      "benchmark": {
+        "adapter": "mermaid",
+        "package": "mermaid",
+        "outputs": [
+          "svg",
+          "parse"
+        ]
+      },
+      "benchmarkEligibility": {
+        "classification": "language-reference",
+        "engineScope": "pinned-reference-version",
+        "adapterReview": "existing-adapter; outcomes remain independent",
+        "reason": "Catalog declares svg operations with adapter mermaid. Actual artifact/API availability, family coverage, correctness and timing are determined by execution, not role selection or configuration."
+      }
+    },
+    {
+      "id": "crabtalk/bezel",
+      "relation": "port",
+      "repo": "https://github.com/crabtalk/bezel",
+      "homepage": "https://github.com/crabtalk/bezel",
+      "checkedAt": "2026-10-22",
+      "branch": "main",
+      "head": "25b1da54115d3253d457d6c1fb3f62c05261dd13",
+      "lastCommit": "2026-10-21T23:29:21+08:00",
+      "license": "MIT",
+      "runtime": "Rust; benchmark adapter compiled to wasm32-unknown-unknown with Rust 1.99.1 and wasm-bindgen 0.2.104",
+      "outputs": [
+        "svg"
+      ],
+      "packages": [
+        {
+          "registry": "crates.io",
+          "name": "bezel-mermaid",
+          "version": "0.2.19",
+          "license": "MIT"
+        }
+      ],
+      "roles": [
+        "peer"
+      ],
+      "benchmarkCommit": "25b1da54115d3253d457d6c1fb3f62c05261dd13",
+      "notes": "Published crate describes its Mermaid-to-SVG renderer as a port of Pele. The benchmark uses the repository adapter around unmodified render(source, Options::default(), Metrics).svg at the published crate VCS revision, with opt-level=3, LTO and embedded WASM; this is not GPUI or native Rust execution. Published archive checksum is verified; its Rust sources match the pinned Git checkout directly. The observed main head is recorded separately from the benchmark pin.",
+      "benchmark": {
+        "adapter": "bezel",
+        "outputs": [
+          "svg"
+        ]
+      },
+      "benchmarkEligibility": {
+        "classification": "port-implementation",
+        "engineScope": "derived-code-independent-runtime-implementation",
+        "adapterReview": "existing-adapter; outcomes remain independent",
+        "reason": "Catalog declares svg operations with adapter bezel. Actual artifact/API availability, family coverage, correctness and timing are determined by execution, not role selection or configuration."
+      }
+    }
+  ]
+}

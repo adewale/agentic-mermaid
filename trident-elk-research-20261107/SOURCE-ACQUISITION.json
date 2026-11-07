@@ -1,0 +1,101 @@
+[
+  {
+    "id": "Dicklesworthstone/frankenmermaid",
+    "revision": "29536a1308acd1bae4da8b72b4cebffb39709ae0",
+    "url": "https://codeload.github.com/Dicklesworthstone/frankenmermaid/tar.gz/29536a1308acd1bae4da8b72b4cebffb39709ae0",
+    "archive": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/sources/Dicklesworthstone--frankenmermaid-29536a1308ac.tar.gz",
+    "directory": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/sources/Dicklesworthstone--frankenmermaid",
+    "status": "source-unavailable",
+    "failure": "bounded archive exceeds32MiB; retain partial"
+  },
+  {
+    "id": "wevm/ondine",
+    "revision": "439fc64aefdb06e3451fac6c44266e5965ea7265",
+    "url": "https://codeload.github.com/wevm/ondine/tar.gz/439fc64aefdb06e3451fac6c44266e5965ea7265",
+    "archive": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/sources/wevm--ondine-439fc64aefdb.tar.gz",
+    "directory": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/sources/wevm--ondine",
+    "status": "source-unavailable",
+    "failure": "bounded archive exceeds32MiB; retain partial"
+  },
+  {
+    "id": "dfadler/zombie-mermaid",
+    "revision": "8cc982128bed11d976fb38164c4cdb47be7bd34d",
+    "url": "https://codeload.github.com/dfadler/zombie-mermaid/tar.gz/8cc982128bed11d976fb38164c4cdb47be7bd34d",
+    "archive": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/sources/dfadler--zombie-mermaid-8cc982128bed.tar.gz",
+    "directory": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/sources/dfadler--zombie-mermaid",
+    "archiveBytes": 18853762,
+    "sha256": "8f50b1e982e704586c58625deb09272a2288b3b5912b6f229cc2299fa8bb160c",
+    "status": "source-recovered",
+    "extractedFiles": 1964,
+    "extractedBytes": 10653002
+  },
+  {
+    "id": "1jehuang/mermaid-rs-renderer",
+    "revision": "3726ccbffe0e8032361eb9668694b24f77858060",
+    "url": "https://codeload.github.com/1jehuang/mermaid-rs-renderer/tar.gz/3726ccbffe0e8032361eb9668694b24f77858060",
+    "archive": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/sources/1jehuang--mermaid-rs-renderer-3726ccbffe0e.tar.gz",
+    "directory": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/sources/1jehuang--mermaid-rs-renderer",
+    "archiveBytes": 11060479,
+    "sha256": "8bedf9632b455e829998e0ae9f6429b7a5e6fc8460e0a4ccf7df85b08ff94066",
+    "status": "source-recovered",
+    "extractedFiles": 113,
+    "extractedBytes": 4236699
+  },
+  {
+    "id": "Latias94/merman",
+    "revision": "252752f7029b67f6a6f22a35230ef2bdf9c605d0",
+    "url": "https://codeload.github.com/Latias94/merman/tar.gz/252752f7029b67f6a6f22a35230ef2bdf9c605d0",
+    "archive": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/sources/Latias94--merman-252752f7029b.tar.gz",
+    "directory": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/sources/Latias94--merman",
+    "status": "source-unavailable",
+    "failure": "bounded archive exceeds32MiB; retain partial"
+  },
+  {
+    "id": "lukilabs/beautiful-mermaid",
+    "revision": "2ac8bbbb060ca0a65a6a21f3200bd99b1587b488",
+    "url": "https://codeload.github.com/lukilabs/beautiful-mermaid/tar.gz/2ac8bbbb060ca0a65a6a21f3200bd99b1587b488",
+    "archive": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/sources/lukilabs--beautiful-mermaid-2ac8bbbb060c.tar.gz",
+    "directory": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/sources/lukilabs--beautiful-mermaid",
+    "archiveBytes": 771340,
+    "sha256": "4685d66a86f75847b71c9a8a41ea2c00bd4061a39308cc263a05ad4c71a24dc6",
+    "status": "source-recovered",
+    "extractedFiles": 215,
+    "extractedBytes": 1213021
+  },
+  {
+    "id": "crabtalk/bezel",
+    "revision": "25b1da54115d3253d457d6c1fb3f62c05261dd13",
+    "url": "https://codeload.github.com/crabtalk/bezel/tar.gz/25b1da54115d3253d457d6c1fb3f62c05261dd13",
+    "archive": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/sources/crabtalk--bezel-25b1da54115d.tar.gz",
+    "directory": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/sources/crabtalk--bezel",
+    "archiveBytes": 2867549,
+    "sha256": "f6a77a50416a6cee48a5f9d3383e6aeda471eb5a7c777475885c77daed1e8a09",
+    "status": "source-recovered",
+    "extractedFiles": 960,
+    "extractedBytes": 8128674
+  },
+  {
+    "id": "mermaid-js/mermaid",
+    "revision": "1fb7869866dd619168d840291c9c54b4f129758b",
+    "url": "https://codeload.github.com/mermaid-js/mermaid/tar.gz/1fb7869866dd619168d840291c9c54b4f129758b",
+    "archive": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/sources/mermaid-js--mermaid-1fb7869866dd.tar.gz",
+    "directory": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/sources/mermaid-js--mermaid",
+    "archiveBytes": 7537080,
+    "sha256": "cc9efe255ea61aa2e991ea4c9c0c49f286b3f81e590fa58d04750723da758476",
+    "status": "source-recovered",
+    "extractedFiles": 1452,
+    "extractedBytes": 10294070
+  },
+  {
+    "id": "eclipse-elk/elk",
+    "revision": "v0.11.0",
+    "url": "https://codeload.github.com/eclipse-elk/elk/tar.gz/v0.11.0",
+    "archive": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/sources/eclipse-elk--elk-v0.11.0.tar.gz",
+    "directory": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/sources/eclipse-elk--elk",
+    "archiveBytes": 9391391,
+    "sha256": "a9379851c0ad3b404f9e7846965973da37136925f6b8d2926b8a4c13b42e6a5f",
+    "status": "source-recovered",
+    "extractedFiles": 1280,
+    "extractedBytes": 14018470
+  }
+]

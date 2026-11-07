@@ -1,0 +1,2 @@
+bun install v1.4.4 (38afee6c8)
+error: cannot write files to cache directory "/home/agent/.bun/install/cache/": EROFS

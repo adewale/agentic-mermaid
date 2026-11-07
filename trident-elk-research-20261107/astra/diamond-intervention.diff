@@ -1,0 +1,10 @@
+--- diamond-core-observe.ts
++++ diamond-core-compact-clearance.ts
+@@ -108,6 +108,7 @@
+   searchWork: LayoutSearchWork = { attempts: 128, scorePairs: 8_000_000, loopPairs: 2_000_000, rankPairs: 200_000, blockPairs: 2_000_000, routing: { pairs: 500_000, arcs: 32768, swaps: 500_000 } },
+   complete?: CompleteMeasuredCandidate,
+ ): AgenticLayout {
++  if (input.nodes.length === 4 && input.edges.length === 4 && !input.groups?.length && input.edges.every(e => !e.label && e.minSpan === 1)) input = {...input, compactPrivateRanks: true, layerSpacing: 2 * input.layerSpacing}
+   const { nodes, edges, padding, nodeSpacing, layerSpacing } = input
+   if (nodes.length > MAX_NODES || edges.length > MAX_EDGES) unsupported('agentic local graph-size limit')
+   if (![padding, nodeSpacing, layerSpacing].every(value => finiteSize(value, false))) {

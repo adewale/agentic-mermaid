@@ -1,0 +1,240 @@
+{
+  "files": [
+    {
+      "path": "1jehuang--mermaid-rs-renderer-partial-fetch.log",
+      "bytes": 129,
+      "sha256": "d1acb62d89c387d9f7589343fab4e599715ffc9688561e98fcdce6167f1a6878"
+    },
+    {
+      "path": "Dicklesworthstone--frankenmermaid-partial-fetch.log",
+      "bytes": 133,
+      "sha256": "3f431ba4d6fe4a5937f17bdf8df6753f29fdf9b791ee5d6797b5cb58e836aaf7"
+    },
+    {
+      "path": "IMPLEMENTATION-MAP.md",
+      "bytes": 12828,
+      "sha256": "9b08e222d2909d052cfb930a5d33689d37a188c755478527da8e126d2c12acb6"
+    },
+    {
+      "path": "LITERATURE.md",
+      "bytes": 9044,
+      "sha256": "e399a7adaa7256a3c800f349bf101ccab1947fdf1c60adeb814fc7835ad5b93b"
+    },
+    {
+      "path": "Latias94--merman-partial-fetch.log",
+      "bytes": 116,
+      "sha256": "7695238334789f7dec2503020cdb2e7f9a80e7b89369b33ede12eae25be6f6c2"
+    },
+    {
+      "path": "PARTIAL-SOURCES.json",
+      "bytes": 2950,
+      "sha256": "3bc765ae024141ee8decbb47b0c638ee3c5d4c74b16615f14e29dc551cefcc08"
+    },
+    {
+      "path": "README.md",
+      "bytes": 10499,
+      "sha256": "36190966a123ef802dd7ebda8d3ea47532bf8ed40e2e70acd9bce5a258292131"
+    },
+    {
+      "path": "REVIEW.txt",
+      "bytes": 463,
+      "sha256": "e142755a4627532ca03f028c5d2cf9b1326afe12e67b65da50f8b47d35034b7f"
+    },
+    {
+      "path": "SELECTED-CATALOG.json",
+      "bytes": 21214,
+      "sha256": "9c4143aba7e8c350df76ae746e09afe4eeba953d1e3e87a66bc6a9b29885ebfa"
+    },
+    {
+      "path": "SELECTED-SOURCE-RECEIPTS-initial.json",
+      "bytes": 8253,
+      "sha256": "c039f7cefaad2b364c7930ea8d1c0552ae1ec081da047508ff4f1c9ce94353e9"
+    },
+    {
+      "path": "SELECTED-SOURCE-RECEIPTS.json",
+      "bytes": 1723,
+      "sha256": "76cdd7585564abc9d4f8042f15059b1bc676e0da5e45f27cf1e7ecf8798c096f"
+    },
+    {
+      "path": "SOURCE-ACQUISITION.json",
+      "bytes": 5625,
+      "sha256": "8cd5851c2441b7cad018e11a31fd88d9b12a785a28d53b78df9694ad80a1df16"
+    },
+    {
+      "path": "VERIFICATION.json",
+      "bytes": 903,
+      "sha256": "25409f69daeb2ce461224d4ca0833a5db230a990529a47e658b77e874237bf42"
+    },
+    {
+      "path": "acquire-sources.py",
+      "bytes": 2640,
+      "sha256": "88969992a70effce57861c0eebdaa37076277dbe67a9868e43c9ab43c29e2a76"
+    },
+    {
+      "path": "astra/ASTRA-PELE-ADDENDUM.md",
+      "bytes": 11021,
+      "sha256": "c79011b4a635fea937c6eb44e54322098e5ad24edecba1b59976fdeebe101f86"
+    },
+    {
+      "path": "astra/ASTRA-PELE-REVIEW.md",
+      "bytes": 25561,
+      "sha256": "a8b9d0f617a92bf35298f939dfd6b6fbde60fcacb13658d3c6d9518071eca2ee"
+    },
+    {
+      "path": "astra/check-diamond-svg.py",
+      "bytes": 2858,
+      "sha256": "96b019313360d91ca8f9cd7870cd084dd3d4e0ec34f68c94a0229ab4ca0e5c81"
+    },
+    {
+      "path": "astra/diamond-baseline/actual.svg",
+      "bytes": 4927,
+      "sha256": "b69ee4ebdc13ca59a243e1502bcce90077ae2bdeb7cf7e9757f28af430d4f362"
+    },
+    {
+      "path": "astra/diamond-baseline/result.json",
+      "bytes": 40145,
+      "sha256": "6a5600b5abfba1bc3b1b326ad91f24a9a098d5529da3d02d722076eb6a3f93c4"
+    },
+    {
+      "path": "astra/diamond-baseline-job.json",
+      "bytes": 659,
+      "sha256": "36f2b70bb1a145f246170493fdfc38bb9e035f93b4e945a0830e701d825008bf"
+    },
+    {
+      "path": "astra/diamond-clearance.mjs",
+      "bytes": 3353,
+      "sha256": "bb6802f4b989adde205e42d40d0211adcbde01c07e2d41ba37581581d559e56a"
+    },
+    {
+      "path": "astra/diamond-compact-clearance/actual.svg",
+      "bytes": 4918,
+      "sha256": "9e8f917cdf713a28f4322a2fec020115db0052de951689e679e72261e678733c"
+    },
+    {
+      "path": "astra/diamond-compact-clearance/result.json",
+      "bytes": 39033,
+      "sha256": "93787391a0aa9e877dc2248a25602117674cb17dc57bd3bcab857a4811527b7a"
+    },
+    {
+      "path": "astra/diamond-compact-clearance-job.json",
+      "bytes": 669,
+      "sha256": "9d4a0b1ed3060699acc2d91d505f3bec08fcbb0aad16a242edde2a98cee7f451"
+    },
+    {
+      "path": "astra/diamond-core-compact-clearance.ts",
+      "bytes": 52445,
+      "sha256": "b12393b9a2568ea5b4be0758b47bc9b17e03f8fb82c8f24dd2b0a164c31b5197"
+    },
+    {
+      "path": "astra/diamond-core-observe.ts",
+      "bytes": 52221,
+      "sha256": "df64c35725bbced2ed83f3007068c3be3da586d3d51728976ea8c21f4226e643"
+    },
+    {
+      "path": "astra/diamond-intervention.diff",
+      "bytes": 837,
+      "sha256": "751603e56d35c1245df0928996c043d6c70095e2cf9a06a4805d32fc8fe5ba8e"
+    },
+    {
+      "path": "astra/diamond-literal-checks.json",
+      "bytes": 3517,
+      "sha256": "4bca64661f3f86afe054fcb3f51e2378d712814e9abe3e1037c4e4eb0f6d8f5d"
+    },
+    {
+      "path": "astra/make-diamond-probe.py",
+      "bytes": 3448,
+      "sha256": "cbc4092063410dfab54f0e3daa4252760f973c51cdb61697b74ae82d51aa6dfd"
+    },
+    {
+      "path": "astra/probe-results.json",
+      "bytes": 42937,
+      "sha256": "b13c13165c3558c3aae7a0651981e2cc163e5bd08875953384dc79142e691cf7"
+    },
+    {
+      "path": "astra/probe.ts",
+      "bytes": 2467,
+      "sha256": "0a4fe804f5094fb22e8908192b14011ede134f4225700946b55d13c3410ce718"
+    },
+    {
+      "path": "crabtalk--bezel-partial-fetch.log",
+      "bytes": 115,
+      "sha256": "b60d6ef782d1c21c290aaef4e9395959772be12c0ec3fdb36fd27f35d6ee511f"
+    },
+    {
+      "path": "dfadler--zombie-mermaid-partial-fetch.log",
+      "bytes": 123,
+      "sha256": "9b45035f61ac1b1960b78fb31becd792e6ae39fce75c794985c075c74325e61a"
+    },
+    {
+      "path": "eclipse-elk--elk-partial-fetch.log",
+      "bytes": 86,
+      "sha256": "a07349c368f8851fee53fbf1f9b2b6825004b7d71b16ece0c62a6fcc3deaec37"
+    },
+    {
+      "path": "fetch-selected.py",
+      "bytes": 1138,
+      "sha256": "f1760ff7ffa292619c92e7de390b0677752fe8e6ae52cdeb7a7235ef92d48057"
+    },
+    {
+      "path": "lukilabs--beautiful-mermaid-partial-fetch.log",
+      "bytes": 127,
+      "sha256": "8aee96704e967393f646b8b18c8b52ad751b01cbf3680fb05e8d95a8bb803ee1"
+    },
+    {
+      "path": "mermaid-js--mermaid-partial-fetch.log",
+      "bytes": 119,
+      "sha256": "9e206a017d9df5602058474184ab65492ab5ebff5abed562ed2fcb9f5899f389"
+    },
+    {
+      "path": "partial-source-progress.log",
+      "bytes": 2668,
+      "sha256": "53f815101fba472df90171834ca6b5d655dd8d788c606a99da2452246fedaaaa"
+    },
+    {
+      "path": "partial-sources.py",
+      "bytes": 1766,
+      "sha256": "0d3fe2173e41862e9eb57498b2b1136102694ecb714650bca33fa42bad1a583a"
+    },
+    {
+      "path": "selected-source-jobs.json",
+      "bytes": 329,
+      "sha256": "2c02987099b747312971e73693c00a297a0e04bc323b607747b1c235ce09cbcb"
+    },
+    {
+      "path": "source-acquisition.log",
+      "bytes": 596,
+      "sha256": "6c29fbaacbf04a001abb809ce70415ba4c0f63411565f31bc2b05f760a473d67"
+    },
+    {
+      "path": "trident-acquisition.log",
+      "bytes": 247,
+      "sha256": "96e5e4827883b914f15cb10568bcf0dbc843bea883a10ba6550519c6c75eafef"
+    },
+    {
+      "path": "trident-install-tmp-cache.log",
+      "bytes": 229,
+      "sha256": "917824d6107de1185300366c10b71a0ca3fe3672c4c9c0a7c56740edfb008439"
+    },
+    {
+      "path": "trident-install.log",
+      "bytes": 117,
+      "sha256": "9b044ba5486f994716b5b2c550a1987db0ceb67fc18dcbb8262ae0c5c4aa08ac"
+    },
+    {
+      "path": "trident-list-recovered.log",
+      "bytes": 434,
+      "sha256": "fd7dc8a29db02468f1de993a25af903fc0bc7f44ad081f149a9d5878c7b6c93c"
+    },
+    {
+      "path": "trident-list.log",
+      "bytes": 171,
+      "sha256": "b85db38c9a848ae3ddc3b565728065a98f499afa385ca0ade75da4618a177e3c"
+    },
+    {
+      "path": "wevm--ondine-partial-fetch.log",
+      "bytes": 112,
+      "sha256": "c125b061b05b8dd4766d0e55c1882b304cf4c924f91cd9bab81a103e5c48d6cb"
+    }
+  ],
+  "excluded": "Upstream archives/partial archives, upstream checkouts, Git object stores, node_modules and official website copies remain local; immutable source URLs/revisions are in receipts. No retained evidence deleted."
+}

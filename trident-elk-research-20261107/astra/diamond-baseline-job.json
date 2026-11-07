@@ -1,0 +1,25 @@
+{
+  "root": "/tmp/pr449-main-integration-20261029-762",
+  "source": "flowchart TB\nn0 --> n1\nn0 --> n2\nn1 --> n3\nn2 --> n3",
+  "options": {
+    "graphLayout": {
+      "backend": "agentic"
+    },
+    "layoutSafety": "strict",
+    "padding": 0,
+    "nodeSpacing": 40,
+    "layerSpacing": 48,
+    "style": {
+      "roles": {
+        "node": {
+          "fontSize": 10,
+          "paddingX": 0,
+          "paddingY": 13.5
+        }
+      }
+    }
+  },
+  "moduleOverrides": {
+    "/tmp/pr449-main-integration-20261029-762/src/layout/agentic-layered-core.ts": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/astra/diamond-core-observe.ts"
+  }
+}

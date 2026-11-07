@@ -1,0 +1,23 @@
+{
+  "suites": [
+    "community",
+    "docs",
+    "fidelity",
+    "native-fidelity",
+    "upstream-fidelity",
+    "upstream-original",
+    "portable"
+  ],
+  "projects": [
+    "Dicklesworthstone/frankenmermaid",
+    "wevm/ondine",
+    "1jehuang/mermaid-rs-renderer",
+    "Latias94/merman",
+    "lukilabs/beautiful-mermaid",
+    "obsidianmd/pele",
+    "mermaid-js/mermaid",
+    "crabtalk/bezel"
+  ],
+  "profile": "full",
+  "rounds": 5
+}

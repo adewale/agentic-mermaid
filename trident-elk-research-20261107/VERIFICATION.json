@@ -1,0 +1,38 @@
+{
+  "nativeSource": "d8c8ac879793a586b4b741c178b89d7900bd27ed",
+  "nativeWorktreeClean": true,
+  "tridentSource": "f080278e31e4202ca89d524e4ee9e4cf3cbff038",
+  "tridentListExecuted": true,
+  "peerBenchmarkExecuted": false,
+  "upstreamSuitesExecuted": false,
+  "astraPublicSvgObservations": {
+    "baseline": {
+      "passed": true,
+      "bends": 2,
+      "svgWidth": "160",
+      "svgHeight": "227",
+      "paintProofStatus": "passed",
+      "realNodeGaps": [
+        53.5,
+        53.5,
+        53.5,
+        53.5
+      ]
+    },
+    "compact-clearance": {
+      "passed": true,
+      "bends": 4,
+      "svgWidth": "160",
+      "svgHeight": "216",
+      "paintProofStatus": "passed",
+      "realNodeGaps": [
+        48.0,
+        48.0,
+        48.0,
+        48.0
+      ]
+    }
+  },
+  "review": "GPT-6 Astra read-only factual review; intermediate-rank wording corrected",
+  "productionChanges": false
+}
