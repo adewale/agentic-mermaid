@@ -1,0 +1,27 @@
+{
+  "source_head": "14bec477578104a1eab5a279473aa77e747f8476",
+  "before_head": "c9dabb20c67aa18587063ea0268fa4e5ebdf7c40",
+  "main": "39a500425f6b74eb486b9add9e90d538fab6a914",
+  "prior_evidence": "625561ee004bb5f1bb50dc460204ab31495ce41d",
+  "files": 207,
+  "raw_bytes": 31027862,
+  "archive_bytes": 10376478,
+  "every_member_byte_verified": true,
+  "change": "Avoid unused original hull while preserving bounds/full served hull and all charges.",
+  "full_products": "Class128 warmup/repeats/edit SVG and entire receipt exact",
+  "runtime_speedup": "unestablished",
+  "standalone_before_after": {
+    "raw": [
+      2186915,
+      2186759
+    ],
+    "gzip9": [
+      1310748,
+      1310687
+    ],
+    "brotli11": [
+      1245137,
+      1244928
+    ]
+  }
+}
