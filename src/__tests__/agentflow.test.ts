@@ -83,7 +83,7 @@ test('collapsed flows retarget cross-boundary edges while the editable model kee
   expect(projected.edges.find(edge => edge.id === 'transfer')).toMatchObject({ source: 'writer', target: 'publish' })
 })
 
-test.each([
+test.each<{ name: string; prefix: string; between: string; suffix: string; parents: Record<string, string | null> }>([
   { name: 'siblings', prefix: '', between: '', suffix: '', parents: { A: null, B: null } },
   { name: 'nested siblings', prefix: 'flow Outer\n', between: '', suffix: 'end\n', parents: { Outer: null, A: 'Outer', B: 'Outer' } },
   { name: 'separate nested scopes', prefix: 'flow Left\n', between: 'end\nflow Right\n', suffix: 'end\n', parents: { Left: null, A: 'Left', Right: null, B: 'Right' } },

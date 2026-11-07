@@ -377,10 +377,17 @@ const fixtures: Fixture[] = [
   },
 
   {
+    id: 'native-agentflow-authored-siblings',
+    title: 'Explicit AgentFlow siblings keep their declared scopes',
+    source: 'agentflow-beta TB\nflow A["Flow A"]\n a1["Task A1"]\n a1 --> B\nend\nflow B["Flow B"]\n b1["Task B1"]\n b1 --> A\nend',
+    captureLayout: true,
+    cue: 'Inspect Flow A and Flow B as sibling containers after repair. Both authored tasks and both cross-container references remain; references must not reparent explicitly declared flows. The owning semantic regression also checks nested scopes, global escape, collapsed projection and canonical reload.',
+  },
+  {
     id: 'native-er-unicode-identities',
     title: 'Unicode ER identities retain their entity and relationship labels',
-    source: 'erDiagram\n顧客 ||--o{ 注文 : 発注\n顧客 {\n string 番号\n}\n注文 {\n string 状態\n}',
-    cue: 'The baseline reports its real parser refusal. Inspect both CJK entity names, the relationship label and both attribute names in the SVG after repair. This checks source meaning and rendering, not font coverage on every host.',
+    source: 'erDiagram\nÉQUIPE ||--o{ ÉTAPE : réalise\nÉQUIPE {\n string numéro\n}\nÉTAPE {\n string état\n}',
+    cue: 'The baseline reports its real parser refusal. Inspect both accented entity names, the relationship label and both attribute names after repair. CJK identities are checked separately at the source/SVG boundary; their PNG glyphs require a covering font supplied by the host.',
   },
   {
     id: 'native-state-combining-identities',
