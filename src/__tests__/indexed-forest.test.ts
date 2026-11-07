@@ -9,6 +9,25 @@ import { layoutMeasuredForest } from '../layout/measured-forest.ts'
 import type { MeasuredGraph } from '../layout/agentic-layered-core.ts'
 
 describe('certified indexed forest layout', () => {
+  test.each(['TD', 'BT', 'LR', 'RL'] as const)('packs disconnected components without changing their internal geometry in %s', direction => {
+    const horizontal = direction === 'LR' || direction === 'RL'
+    const input: MeasuredGraph = {
+      direction, padding: 20, nodeSpacing: 20, layerSpacing: 60,
+      nodes: Array.from({ length: 3 }, (_, index) => ({ id: String(index), width: horizontal ? 40 : 100, height: horizontal ? 100 : 40 })),
+      edges: [{ source: 1, target: 2, minSpan: 1 }],
+    }
+    const before = structuredClone(input), output = layoutMeasuredForest(input)!
+    expect(input).toEqual(before)
+    expect(output.nodes).toHaveLength(3)
+    expect(horizontal ? output.height : output.width).toBe(140)
+    expect(horizontal ? output.width : output.height).toBe(240)
+    const source = output.nodes[1]!, target = output.nodes[2]!
+    expect(Math.abs(horizontal ? target.x - source.x : target.y - source.y)).toBe(100)
+    expect(horizontal ? source.y : source.x).toBe(horizontal ? target.y : target.x)
+    const points = output.edges[0]!.points
+    expect(points.reduce((length, point, index) => index ? length + Math.abs(point.x - points[index - 1]!.x) + Math.abs(point.y - points[index - 1]!.y) : 0, 0)).toBe(60)
+  })
+
   test.each([
     { nodeSpacing: 0, layerSpacing: 0, padding: 0 },
     { nodeSpacing: 1, layerSpacing: 0, padding: 0 },

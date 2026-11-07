@@ -102,7 +102,7 @@ function finiteSize(value: number, positive: boolean): boolean {
 // chunk without splitting shared family code into more startup requests.
 export function layoutLayeredGraph(
   input: MeasuredGraph,
-  forestLayout: (input: MeasuredGraph) => AgenticLayout | undefined,
+  forestLayout: (input: MeasuredGraph, packComponents?: boolean) => AgenticLayout | undefined,
   unsupported: (reason: string) => never,
   routingWork: ChannelWork = { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 },
   searchWork: LayoutSearchWork = { attempts: 128, scorePairs: 8_000_000, loopPairs: 2_000_000, rankPairs: 200_000, blockPairs: 2_000_000, routing: { pairs: 500_000, arcs: 32768, swaps: 500_000 } },
@@ -127,7 +127,9 @@ export function layoutLayeredGraph(
   if (!['TD', 'TB', 'BT', 'LR', 'RL'].includes(input.direction)) throw new TypeError('Invalid measured graph direction')
   if (input.groups?.length) {
     if (nodes.length + input.groups.length > MAX_NODES) unsupported('agentic local compound-size limit')
-    return layoutCompoundGraph(input, flat => layoutLayeredGraph(flat, forestLayout, unsupported, routingWork, searchWork), unsupported, MAX_EXPANDED_VERTICES, routingWork)
+    // Local components can have authored contacts outside this projection.
+    // Preserve their corridor arrangement until the parent restores those edges.
+    return layoutCompoundGraph(input, flat => layoutLayeredGraph(flat, local => forestLayout(local, false), unsupported, routingWork, searchWork), unsupported, MAX_EXPANDED_VERTICES, routingWork)
   }
   const horizontal = input.direction === 'LR' || input.direction === 'RL'
   const reverse = input.direction === 'BT' || input.direction === 'RL'
