@@ -718,3 +718,23 @@ orientation rather than adding another graph representation or phase-brand layer
 The finite plan is complete with these rejected hypotheses recorded. Automated
 campaign stays stopped; no next intervention is scheduled. No CPU/RSS saving or
 bundle reduction is claimed. Evidence: `invariant-plan-62d`.
+
+Owner-requested comparison at `433b523b86f9017960d8004f3c776d9d8d82dbce`:
+exact-head CI supplies874 fixed pairs, both delivered, fallback none. Native has
+less/more area667/66, shorter/longer wire644/80, fewer/more crossings645/1;
+`generated-cyclic:276` retains6 versus4 crossings. Final SVG proof740/696 passed,
+134/178 unverified; projected metrics do not prove authored meaning or ink.
+Class area is adverse in13/40 cases and improved in8. Twelve new full-product
+calls retain sharedER256 refusal and the unverified raw-circle output; all ten
+returned SVGs bind exactly to their retained9fb-integration controls. Single-call
+costs are observations, not speedup ratios. Evidence: `compare-rebase-433b`.
+
+Fetch main9fb and merge-preserving rebase complete with unchanged433b head/tree;
+no force push. Reproduce two introduced worker-owner failures: its VM DOM omitted
+`Element.remove()`. Model removal and assert success/cancellation/failed-decode
+retention separately:44P/0F,296 assertions; core types/lint pass. Runtime unchanged.
+Pipeline review keeps the existing common geometry/owned-write boundaries and
+prioritizes shared ER work, candidate-input preparation and measured consumer
+subtraction. Existing indexed storage and lazy receipts already cover those ideas;
+no new cache, optimizer or framework is introduced. Original limits and remaining
+Sparse32, unverified output and lazy-payload/advisory failures stay visible.

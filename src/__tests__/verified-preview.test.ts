@@ -202,7 +202,8 @@ function standaloneSubjectScript(): Promise<string> {
 }
 
 async function standaloneHarness(payload: string | null = 'MTIzNDU2Nzg5', damageDecoded = false) {
-  const node = { textContent: payload }, events = new Map<string, Array<() => void>>()
+  let removed = false
+  const node = { textContent: payload, remove() { removed = true } }, events = new Map<string, Array<() => void>>()
   const sent: Array<{ id: number; source: string }> = [], workers: StandaloneWorker[] = []
   const blobs = new Map<string, Blob>(), revoked: string[] = []
   let nextUrl = 0
@@ -236,7 +237,7 @@ async function standaloneHarness(payload: string | null = 'MTIzNDU2Nzg5', damage
     },
   }
   const context = {
-    window, document: { getElementById: () => payload === null ? null : node },
+    window, document: { getElementById: () => payload === null || removed ? null : node },
     Blob, Uint8Array, atob, structuredClone, performance, setTimeout, clearTimeout,
     Worker: StandaloneWorker, codecCalls: 0, damageDecoded,
     URL: {
@@ -278,6 +279,7 @@ describe('standalone worker payload lifecycle', () => {
       const first = h.adapter.renderMermaidSVGWithReceipt('first', {})
       await h.flush()
       expect(h.context.codecCalls).toBe(1)
+      expect(h.context.document.getElementById()).toBeNull()
       const initial = h.workers[0]!, blob = h.blobs.get(initial.url)!
       expect(await blob.text()).toBe('123456789')
       initial.reply(1); await first
@@ -305,12 +307,15 @@ describe('standalone worker payload lifecycle', () => {
     const h = await standaloneHarness()
     try {
       const stale = h.adapter.renderMermaidSVGWithReceipt('old', {}).catch(error => error)
-      h.dispatch('pagehide'); h.dispatch('pageshow')
+      h.dispatch('pagehide')
+      expect(h.context.document.getElementById()).toBe(h.node)
+      h.dispatch('pageshow')
       const current = h.adapter.renderMermaidSVGWithReceipt('current', {})
       await h.flush()
       expect((await stale).name).toBe('PreviewSupersededError')
       expect(h.sent.map(request => request.source)).toEqual(['current'])
       expect(h.context.codecCalls).toBe(1)
+      expect(h.context.document.getElementById()).toBeNull()
       h.workers[0]!.reply(1); await current
       expect(h.workers).toHaveLength(1)
     } finally { h.dispatch('pagehide') }
@@ -326,6 +331,7 @@ describe('standalone worker payload lifecycle', () => {
       expect(h.workers).toHaveLength(0)
       expect(h.blobs.size).toBe(0)
       expect(h.context.codecCalls).toBe(corruption === 'decoded' ? 1 : 0)
+      expect(h.context.document.getElementById()).toBe(corruption === 'missing' ? null : h.node)
     } finally { h.dispatch('pagehide') }
   })
 })
