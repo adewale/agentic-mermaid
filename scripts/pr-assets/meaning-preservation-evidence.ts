@@ -223,6 +223,13 @@ assets/ icon(folder)
 ]
 const fixtures: Fixture[] = [
   {
+    id: 'venn-literal-accessibility-label',
+    title: 'Venn retains directive-looking text inside a multiline label',
+    source: 'venn-beta\naccTitle: Actual diagram title\nset A["First\naccTitle: literal label text\n\n  Last"]: 10',
+    renderOptions: { style: ['hand-drawn', 'dracula'] },
+    cue: 'Inspect the complete literal accTitle line and blank row inside the set label under the same look and palette. The earlier native renderer consumed that line as accessibility metadata. Real external accessibility metadata stays separate; model, edit, canonical-source and source-range regressions provide the semantic checks. A baseline without Venn retains its real unsupported result.',
+  },
+  {
     id: 'class-ordered-style-membership',
     title: 'Class retains paint from multiple authored style assignments',
     source: 'classDiagram\nclassDef pink fill:#fce7f3,stroke:#be185d\nclassDef bold color:#166534\nclass Account:::pink\ncssClass Account bold',
