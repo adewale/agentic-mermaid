@@ -8,7 +8,7 @@ import { authoredSyntaxLocation } from '../shared/parser-source.ts'
 // than silently dropping the unrecognized construct.
 // ============================================================================
 
-import { MermaidFrontmatterError, normalizeMermaidSource, preservedMermaidFamilySource } from '../mermaid-source.ts'
+import { MermaidFrontmatterError, normalizeMermaidSource, preservedMermaidFamilySource, stripMermaidInitDirectives } from '../mermaid-source.ts'
 import { INIT_DIRECTIVE_REGEX, MERMAID_DIRECTIVE_REGEX, splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 import { coalesceFlowchartLines } from '../flowchart-lexer.ts'
 import { stripStateComment } from '../state/comment.ts'
@@ -238,7 +238,13 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
   // source with no wrapper” from synthesized payloads, which omit
   // wrapperSource and therefore request canonical wrapper synthesis.
   const meta = extractMeta(authoredEnvelope)
-  const canonicalSource = authoredEnvelope.text
+  // AgentFlow's public source must remain executable after copying or
+  // transporting a diagram without private model custody. YAML indentation
+  // is grammar; the shared source-map builder uses this exact published body.
+  // The envelope remains the single owner of init configuration layers.
+  const canonicalSource = capturedFamily?.id === 'agentflow'
+    ? stripMermaidInitDirectives(familyLine.source.slice(familyLineBoundary))
+    : authoredEnvelope.text
   const sourceMapCanonicalSource = maskAccessibilityDirectivesForSourceMap(canonicalSource, capturedFamily)
   const documentSpans = sourcePreservationSpans(
     source,

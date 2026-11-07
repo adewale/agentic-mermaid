@@ -5,6 +5,7 @@ import { renderMermaidSVGWithReceipt as renderRootSVG } from '../index.ts'
 import { renderMermaidPNGInBrowserWithReceipt } from '../browser-png.ts'
 import { getFamily, replaceFamilyForTest } from '../agent/families.ts'
 import { withParserObservation } from '../shared/parser-observation.ts'
+import { withPerformanceExperiments } from '../experimental-performance.ts'
 import { pngFixture } from './helpers/png-fixture.ts'
 
 const source = `---
@@ -43,6 +44,29 @@ test('parsed AgentFlow retains indentation-sensitive source and the same palette
     expect(renderMermaidSVGWithReceipt(diagram, appearance)).toEqual(expected)
   }
   expect(serializeMermaid(diagram, { wrapper: 'verbatim' })).toBe(preserved)
+})
+
+test('copied public diagrams retain executable YAML and style semantics without native custody', () => {
+  const diagram = parsed()
+  const reopened = parsed(diagram.canonicalSource)
+  if (reopened.body.kind !== 'agentflow') throw new Error('Expected native AgentFlow after reopening public source')
+  expect(reopened.body.metadata.get('A')?.context).toEqual([{ name: 'First', values: [1, 2] }, ['nested', 'list']])
+  for (const copy of [{ ...diagram }, structuredClone(diagram)]) {
+    for (const style of [undefined, 'hand-drawn'] as const) {
+      const appearance = { ...options, ...(style ? { style } : {}) }
+      const expected = renderRootSVG(source, appearance)
+      const actual = renderRootSVG(copy, appearance)
+      expect(actual.svg).toBe(expected.svg)
+      expect(actual.receipt.appearanceDigest).toBe(expected.receipt.appearanceDigest)
+    }
+  }
+})
+
+test('AgentFlow source-map locations address its published indentation-preserving canonical source', () => {
+  const diagram = parsed('agentflow-beta LR\n\n  A[Collect]@{ shape: tool }\n  B[Publish]\n  A --> B')
+  const location = diagram.source.nodes.get('A')!
+  expect(location).toEqual({ line: 3, col: 3 })
+  expect(diagram.canonicalSource.split('\n')[location.line - 1]!.slice(location.col - 1, location.col)).toBe('A')
 })
 
 test('source edits invalidate an owned handoff; public body edits retain the family canonical-source authority', () => {
@@ -97,9 +121,9 @@ test('only a source-bound model owned by the current producer skips parser work'
   const diagram = parsed()
   const render = (value: ParsedDiagram) => {
     let statements = 0
-    const rendered = withParserObservation('agentflow', event => {
+    const rendered = withPerformanceExperiments([], () => withParserObservation('agentflow', event => {
       if (event.unit === 'statement') statements++
-    }, () => renderRootSVG(value, options))
+    }, () => renderRootSVG(value, options)))
     return { statements, rendered }
   }
   const owned = render(diagram)
@@ -130,13 +154,15 @@ test('wrapper edits still control configuration and source receipts', () => {
 })
 
 test('editing the directive envelope cannot leave an older body-authored config layer active', () => {
-  const diagram = parsed('agentflow-beta LR\n%%{init: {"themeVariables":{"primaryColor":"#f0b0b0"}}}%%\nA[Collect] --> B[Publish]')
-  diagram.meta.initDirectives.length = 0
-  const body = 'agentflow-beta LR\nA[Collect] --> B[Publish]'
-  expect(renderRootSVG(diagram, options)).toEqual(renderRootSVG(body, options))
-  const directive = '%%{init: {"themeVariables":{"primaryColor":"#c0ffd0"}}}%%'
-  diagram.meta.initDirectives.push({ raw: directive, parsed: { themeVariables: { primaryColor: '#c0ffd0' } } })
-  expect(renderRootSVG(diagram, options)).toEqual(renderRootSVG(`${directive}\n${body}`, options))
+  const authored = 'agentflow-beta LR\n%%{init: {"themeVariables":{"primaryColor":"#f0b0b0"}}}%%\nA[Collect] --> B[Publish]'
+  for (const diagram of [parsed(authored), structuredClone(parsed(authored))]) {
+    diagram.meta.initDirectives.length = 0
+    const body = 'agentflow-beta LR\nA[Collect] --> B[Publish]'
+    expect(renderRootSVG(diagram, options)).toEqual(renderRootSVG(body, options))
+    const directive = '%%{init: {"themeVariables":{"primaryColor":"#c0ffd0"}}}%%'
+    diagram.meta.initDirectives.push({ raw: directive, parsed: { themeVariables: { primaryColor: '#c0ffd0' } } })
+    expect(renderRootSVG(diagram, options)).toEqual(renderRootSVG(`${directive}\n${body}`, options))
+  }
 })
 
 test('unowned and cross-realm parsed objects use current source, and wrong family cannot borrow a native model', () => {

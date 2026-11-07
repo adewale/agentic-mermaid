@@ -1049,12 +1049,13 @@ describe('graph dialect source-map coordinate ownership', () => {
     expect(textAt(source, parsed.value.source.spans?.groups.get(id))).toBe(declaration)
   })
 
-  test.each(['\n', '\r\n'])('AgentFlow maps declarations after wrapper/blank-line normalization with %j endings', newline => {
+  test.each(['\n', '\r\n'])('AgentFlow maps declarations in its executable post-wrapper source with %j endings', newline => {
     const source = ['---', 'title: Workflow', '---', '%% wrapper', 'agentflow-beta TB', '', 'flow demo', '  helper["Helper"]', 'end', '', 'helper@{ instruction: "Answer precisely." }'].join(newline)
     const result = parseMermaid(source)
     if (!result.ok || result.value.body.kind !== 'agentflow') throw Error('Expected native AgentFlow')
     const map = result.value.source
-    expect(map.nodes.get('helper')).toEqual({ line: 3, col: 1 })
+    expect(map.nodes.get('helper')).toEqual({ line: 4, col: 3 })
+    expect(result.value.canonicalSource.split(/\r?\n/)[3]!.slice(2)).toBe('helper["Helper"]')
     expect(textAt(source, map.spans?.nodes.get('helper'))).toBe('helper["Helper"]')
     expect(textAt(source, map.spans?.groups.get('demo'))).toBe('flow demo')
     expect(textAt(source, map.spans?.labels.get('node:helper'))).toBe('Helper')
