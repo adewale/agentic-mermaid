@@ -53,28 +53,37 @@ replace neither the dated profiler nor its missing runtime/cold/cache evidence.
 Next causal probe: whether standalone worker precompression accounts for the
 Brotli loss, preserving decoded worker bytes, ownership and browser contracts.
 
-## Native shortcut clearance — 7 November
+## Shortcut clearance trial stopped — 7 November
 
-From `3234fb3183e78840321ab41fe6881b31a0f5d4b2`, case152 reproduces the actual
-0.823px rectangle/shaft overlap. Stage tracing locates its first cause before
-shared cleanup: the compact measured shortener changes a 5.125px clear route
-into that contact. Reuse preparation's existing border/shaft margin as an
-explicit measured input, so the existing geometry cache also distinguishes it.
-Veto shortcuts against expanded foreign node boxes; retain endpoint contacts,
-raw caption/header constraints, finite bounds, serialization guard and all caps.
-Unknown widths omit the added floor. It is not a full semantic/acute-shape paint
-bound or a new certificate; the final mandatory proof remains authoritative.
+At `3234fb3183e78840321ab41fe6881b31a0f5d4b2`, trace case152 before shared cleanup:
+compact measured shortening changes a 5.125px clear route into the existing
+0.823px stroke overlap. This is its first responsible stage. A new before-profile
+uses the existing Node24 full-SVG/entire-receipt collector; no speed ratio follows.
 
-Actual152 proof U353,905→P353,896. Eight fixed-Inter masks show selected shaft
-contribution61→183/183 pixels, hidden122→0 and attenuated183→0. Area/bends stay
-fixed; wire+11.896. One other shaft and a caption move; all155 finalSVG tags,
-authored identities/relations/text/resources and normalized CSS are compared.
-Focused owner7RED→20GREEN/328 assertions, including rounding, finite overflow,
-endpoint rays, real cache clearance toggles and a nearby still-shortened route.
-Before-profile uses the existing Node24 collector; no speed ratio follows.
-Full-corpus/payload qualification remains pending at this commit. Evidence:
-`contact-origin-3234`. Keep original152/372 counterexamples and every changed
-quality/proof outcome until actual combined qualification; no new cache/quota.
+Trial `2f6417c9b37ff61a1f9618124b87b5b349ed5176` reuses preparation's border/shaft
+margin as a JSON-keyed measured input to veto shortcuts near foreign node boxes.
+It fixes152: proof U353,905→P353,896; fixed-Inter selected shaft contribution
+61→183/183 pixels, hidden122→0, attenuated183→0. Area/bends/crossings stay fixed;
+wire+11.896, SVG+1gzip/−18Brotli bytes. One other shaft and a caption also move.
+But Native17 changes P→U with three endpoint-marker-envelope warnings. Its actual
+marker-ink impact remains unqualified. An introduced-segments-only narrowing
+retains the same loss, so stop both and restore all six runtime/test files exactly
+to3234. No net runtime gain ships from this trial; caps/caches/defaults remain.
+
+Before discovering that loss: focused7RED→20GREEN/328 assertions, broad706P with
+18 missing-JSDOM loader failures, core types/lint and independent review passed.
+All18 frozen PR calls retain15 exact SVGs/entire receipts and three ER256 refusals.
+These do not establish preservation of other Native candidates. New full CI is
+still pending at rollback; its positive/adverse outcomes, initial failed drafts,
+profiles, saved products, eight masks, actual SVG screenshots and build bytes stay
+in `contact-origin-3234`. Next: account for shortcut-induced candidate/marker
+changes at their owning producer before another clearance proposal. Do not replay
+the failed shared-frame, trailing-budget or whole-box-margin remedies.
+
+The retained3234 circle repair is qualified by its completed1,748-record CI:
+only230's SVG changes; the other1,747 SVGs remain byte-exact, with no delivery
+change or proof downgrade. Overall CI still fails the enrolled Sparse32,
+lazy/payload ceilings and generated-layout advisory. Replacement24 stays sealed.
 
 ## Local circle detour — 7 November
 

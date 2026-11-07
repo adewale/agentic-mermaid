@@ -221,7 +221,7 @@ function placeNativeGraphCandidate(
       if (target >= nodes.length && encloses(target - nodes.length, source)) return 'end'
       return undefined
     } : undefined
-    let lead = 0, doubleDepth = 0, maximumStroke = 0, knownClearance = true
+    let lead = 0, doubleDepth = 0, maximumStroke = 0
     pay(0, 3 * nodes.length + 5)
     const portSpans = new Float64Array(nodes.length), incoming = new Uint32Array(nodes.length), outgoing = new Uint32Array(nodes.length)
     type MarkerRoom = { start: number; end: number; span: number; boundaryInset: number; boundaryHeight: number; boundaryCount: number }
@@ -241,7 +241,6 @@ function placeNativeGraphCandidate(
       const inline = resolveEdgeInlineStyle(index, graph)
       const marked = !placementOnly && edge.style !== 'invisible' && (edge.hasArrowStart || edge.hasArrowEnd)
       const shaft = numericWidth(inline?.['stroke-width'] ?? style.lineWidth * (edge.style === 'thick' ? 2 : 1))
-      if (edge.style !== 'invisible' && shaft === undefined) knownClearance = false
       if (edge.style !== 'invisible' && shaft !== undefined) maximumStroke = Math.max(maximumStroke, shaft)
       let footprint: MarkerRoom | undefined
       if ((marked || boundaryEnd) && shaft !== undefined) {
@@ -315,7 +314,6 @@ function placeNativeGraphCandidate(
       const width = numericWidth(resolveNodeInlineStyle(id, graph)?.['stroke-width'] ?? style.nodeLineWidth)
       pay(3)
       if (width !== undefined) border = Math.max(border, width / 2)
-      else knownClearance = false
     }
     for (const source of groupSources) if (source.stateComposite) {
       const width = numericWidth(resolveClassInlineStyle(source.id, graph)?.['stroke-width'] ?? style.groupLineWidth)
@@ -338,7 +336,6 @@ function placeNativeGraphCandidate(
     }
     if (!Number.isFinite(doubleDepth + margin) || !Number.isFinite(minimumTerminalLead ?? 0) || !Number.isFinite(2 * (doubleDepth + margin))) bindings.unsupported('agentic marker spacing range')
     return { nodes, groups, edges, shareCompleteFans, direction: graph.direction, padding: opts.padding, nodeSpacing: opts.nodeSpacing,
-      ...(knownClearance ? { nodeClearance: margin } : {}),
       layerSpacing: Math.max(opts.layerSpacing, 2 * (doubleDepth + margin)), edgeSpacing,
       ...(minimumTerminalLead !== undefined ? { minimumTerminalLead } : {}),
       ...(order === 'authored' ? { authoredCycleOrder: true as const } : order === 'compact' ? { compactPrivateRanks: true } : {}),

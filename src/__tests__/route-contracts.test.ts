@@ -2936,66 +2936,9 @@ for (const transpose of [false, true]) for (const reverse of [false, true]) it(`
  expect(distance - Number(circle.r) - Number(circle['stroke-width'])/2 - Number(shaft['stroke-width'])/2).toBeGreaterThan(0)
  expect([shaft['data-from'],shaft['data-to']]).toEqual([edge.source,edge.target])
 })
-it.each((['elk', 'agentic'] as const).flatMap(backend => (['labelled reciprocal', 'bounded terminal', 'measured shortcut'] as const).map(witness => [backend, witness] as const)))('clears the final painted body contact in %s / %s', (backend, witness) => {
+it.each((['elk', 'agentic'] as const).flatMap(backend => (['labelled reciprocal', 'bounded terminal'] as const).map(witness => [backend, witness] as const)))('clears the final painted circle contact in %s / %s', (backend, witness) => {
  const source = witness === 'labelled reciprocal'
   ? readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-18-cuts.mmd', import.meta.url), 'utf8')
-  : witness === 'measured shortcut' ? `flowchart TD
-n0(Node 152-0)
-n1((Node 152-1))
-n2[[Node 152-2]]
-n3[(Node 152-3)]
-n4[Node 152-4]
-n5{Node 152-5}
-n6(Node 152-6)
-n7((Node 152-7))
-n8[[Node 152-8]]
-n9[(Node 152-9)]
-n10[Node 152-10]
-n11{Node 152-11}
-n12(Node 152-12)
-n13((Node 152-13))
-n14[[Node 152-14]]
-n15[(Node 152-15)]
-n16[Node 152-16]
-n3 -->|edge 0 xxx| n16
-n4 --> n6
-n5 --> n6
-n2 --> n14
-n7 -->|edge 4 xxxxxxx| n15
-n6 --> n14
-n5 --> n13
-n15 --> n3
-n3 -->|edge 8 xxxxxxxxxxx| n8
-n10 --> n12
-n8 --> n3
-n2 --> n13
-n16 -->|edge 12 xxxxxxxxxxxxxxx| n5
-n16 --> n4
-n6 --> n14
-n10 --> n8
-n16 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n12
-n1 --> n7
-n4 --> n3
-n15 --> n11
-n2 -->|edge 20 xxxxxx| n9
-n5 --> n10
-n2 --> n13
-n7 --> n1
-n0 -->|edge 24 xxxxxxxxxx| n7
-n11 --> n15
-n7 --> n2
-n14 --> n10
-n1 -->|edge 28 xxxxxxxxxxxxxx| n7
-n6 --> n12
-n3 --> n13
-n5 --> n15
-n5 -->|edge 32 xxxxxxxxxxxxxxxxxx| n8
-n2 --> n6
-n0 --> n16
-n4 --> n10
-n14 -->|edge 36 xxxxx| n12
-n6 --> n7
-n3 --> n8`
   : `flowchart BT
 n0(Node 230-0)
 n1((Node 230-1))
@@ -3065,35 +3008,21 @@ n15 --> n9`
  parser.on('text', text => { for (const parent of stack) parent.text += text })
  parser.on('closetag', () => { stack.pop() })
  parser.write(rendered.svg).close()
- const circle = tags.find(tag => tag.name === (witness === 'measured shortcut' ? 'rect' : 'circle') && tag.attrs['data-id'] === (witness === 'measured shortcut' ? 'node-shape:n4' : 'node-shape:n1'))!
- const [from, to] = witness === 'labelled reciprocal' ? ['n0', 'n13'] : witness === 'measured shortcut' ? ['n16', 'n12'] : ['n10', 'n16']
+ const circle = tags.find(tag => tag.name === 'circle' && tag.attrs['data-id'] === 'node-shape:n1')!
+ const [from, to] = witness === 'labelled reciprocal' ? ['n0', 'n13'] : ['n10', 'n16']
  const shaft = tags.find(tag => tag.attrs['data-role'] === 'edge' && tag.attrs['data-from'] === from && tag.attrs['data-to'] === to)!
  const n = (tag: (typeof tags)[number], key: string) => Number(tag.attrs[key])
+ const cx = n(circle, 'cx'), cy = n(circle, 'cy'), radius = n(circle, 'r')
+ expect([circle.name, n(circle, 'stroke-width'), n(shaft, 'stroke-width')]).toEqual(['circle', .75, 1])
+ expect(radius).toBeGreaterThan(0)
  const points = shaft.attrs.points!.split(/\s+/).map(pair => pair.split(',').map(Number))
- expect([n(circle, 'stroke-width'), n(shaft, 'stroke-width')]).toEqual([.75, 1])
- if (witness === 'measured shortcut') {
-  // Independent written rectangle/shaft strips; a 0.052px logical gap used
-  // to overlap the combined 0.875px half-strokes after optional shortening.
-  const x = n(circle, 'x'), y = n(circle, 'y'), width = n(circle, 'width'), height = n(circle, 'height')
-  expect([width > 0, height > 0]).toEqual([true, true])
-  const gaps = points.slice(1).map((b, i) => {
-   const a = points[i]!
-   expect(a[0] === b[0] || a[1] === b[1]).toBe(true)
-   return Math.max(x - Math.max(a[0]!, b[0]!), Math.min(a[0]!, b[0]!) - x - width,
-    y - Math.max(a[1]!, b[1]!), Math.min(a[1]!, b[1]!) - y - height) - .875
-  })
-  expect(Math.min(...gaps)).toBeGreaterThan(0)
- } else {
-  const cx = n(circle, 'cx'), cy = n(circle, 'cy'), radius = n(circle, 'r')
-  expect(radius).toBeGreaterThan(0)
-  const distance = Math.min(...points.slice(1).map((b, i) => {
-   const a = points[i]!, dx = b[0]! - a[0]!, dy = b[1]! - a[1]!
-   const t = Math.max(0, Math.min(1, ((cx - a[0]!) * dx + (cy - a[1]!) * dy) / (dx * dx + dy * dy)))
-   return Math.hypot(a[0]! + t * dx - cx, a[1]! + t * dy - cy)
-  }))
-  // Independent written-circle/shaft clearance, including the conservative join extent.
-  expect(distance - radius - n(circle, 'stroke-width') / 2 - 2 * n(shaft, 'stroke-width')).toBeGreaterThan(0)
- }
+ const distance = Math.min(...points.slice(1).map((b, i) => {
+  const a = points[i]!, dx = b[0]! - a[0]!, dy = b[1]! - a[1]!
+  const t = Math.max(0, Math.min(1, ((cx - a[0]!) * dx + (cy - a[1]!) * dy) / (dx * dx + dy * dy)))
+  return Math.hypot(a[0]! + t * dx - cx, a[1]! + t * dy - cy)
+ }))
+ // Independent written-circle/shaft clearance, including the conservative join extent.
+ expect(distance - radius - n(circle, 'stroke-width') / 2 - 2 * n(shaft, 'stroke-width')).toBeGreaterThan(0)
  const authored = [...source.matchAll(/^(n\d+) -->(?:\|([^|]+)\|)? (n\d+)$/gm)]
  const carriers = tags.filter(tag => tag.attrs['data-role'] === 'edge' && tag.attrs['data-from'])
  expect(carriers.map(tag => `${tag.attrs['data-from']}->${tag.attrs['data-to']}`).sort()).toEqual(authored.map(match => `${match[1]}->${match[3]}`).sort())

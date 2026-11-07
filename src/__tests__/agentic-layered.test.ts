@@ -19,7 +19,6 @@ import { createCompoundObstacleIndex } from '../layout/compound-obstacle-index.t
 import { countPolylineCrossings } from '../shared/edge-crossings.ts'
 import { compactMeasuredLoops } from '../layout/compact-measured-loops.ts'
 import { shortenMeasuredRoutes } from '../layout/shorten-measured-routes.ts'
-import { createMeasuredLayoutCache } from '../layout/agentic-producer-core.ts'
 
 function measured(overrides: Partial<MeasuredGraph> = {}): MeasuredGraph {
   return {
@@ -988,48 +987,6 @@ describe('owned measured layered layout', () => {
     expect(layoutAgenticGraph(input)).toEqual(placed)
   })
 
-  test.each([false, true].flatMap(transpose => [false, true].flatMap(reverse => ['contact', 'clear', 'rounding'].map(kind => ({ transpose, reverse, kind })))))('shortcuts retain foreign border clearance and endpoint rays: %j', ({ transpose, reverse, kind }) => {
-    const clear = kind === 'clear', rounding = kind === 'rounding'
-    const p = (x: number, y: number): Point => transpose ? { x: y, y: x } : { x, y }
-    const input = measured({ nodes: [{ id: 'S', width: 20, height: 20 }, { id: 'T', width: 20, height: 20 },
-      { id: 'C', width: transpose ? 20 : 40, height: transpose ? 40 : 20 },
-      { id: 'R', width: transpose ? 20 : 40, height: transpose ? 40 : 20 }],
-      edges: [{ source: reverse ? 1 : 0, target: reverse ? 0 : 1, minSpan: 1, label: { width: 8, height: 8 } }], nodeClearance: .875 })
-    const nodeX = rounding ? 20.123456789499 : 20
-    const lane = clear ? 18 : rounding ? 19.248456789498 : 19.948
-    const original = [[40, 20], [40, 35], [14, 35], [14, 110], [lane, 110], [lane, 165], [90, 165], [90, 180]].map(([x, y]) => p(x!, y!))
-    if (reverse) original.reverse()
-    const fresh = (): AgenticLayout => ({ topology: 'layered', width: 220, height: 220,
-      nodes: [p(30, 0), p(80, 180), p(nodeX, 50), p(70, 50)], edges: [{ points: structuredClone(original), labelPosition: p(lane, 140) }] })
-    const cached = createMeasuredLayoutCache(value => shortenMeasuredRoutes(value, fresh()))
-    const gap = (points: Point[]): number => Math.min(...points.slice(1).map((point, index) => {
-      const a = points[index]!, b = point
-      // Independent twelve-significant-digit projection for the long-tail
-      // witness: its raw gap is positive but its written gap is nonpositive.
-      const written = (value: number) => rounding ? Number(value.toPrecision(12)) : value
-      const ax = written(transpose ? a.y : a.x), ay = written(transpose ? a.x : a.y), bx = written(transpose ? b.y : b.x), by = written(transpose ? b.x : b.y)
-      return Math.max(written(nodeX) - Math.max(ax, bx), Math.min(ax, bx) - written(nodeX) - 40, 50 - Math.max(ay, by), Math.min(ay, by) - 70) - .875
-    }))
-    const ray = (a: Point, b: Point) => [Math.sign(b.x - a.x), Math.sign(b.y - a.y)]
-    for (const nodeClearance of [.875, 0, .875]) {
-      const result = cached({ ...input, nodeClearance }), route = result.edges[0]!
-      expect([route.points[0], route.points.at(-1)]).toEqual([original[0], original.at(-1)])
-      expect(ray(route.points[0]!, route.points[1]!)).toEqual(ray(original[0]!, original[1]!))
-      expect(ray(route.points.at(-1)!, route.points.at(-2)!)).toEqual(ray(original.at(-1)!, original.at(-2)!))
-      const label = route.labelPosition!
-      expect(route.points.slice(1).some((b, index) => {
-        const a = route.points[index]!
-        return (a.x === b.x ? label.x === a.x : label.y === a.y)
-          && label.x >= Math.min(a.x, b.x) && label.x <= Math.max(a.x, b.x)
-          && label.y >= Math.min(a.y, b.y) && label.y <= Math.max(a.y, b.y)
-      })).toBe(true)
-      if (nodeClearance > 0 || clear) expect(gap(route.points)).toBeGreaterThan(0)
-      else if (!reverse) expect(gap(route.points)).toBeLessThanOrEqual(0)
-      if (clear) expect(route.points.length).toBeLessThan(original.length)
-      route.points[0]!.x = -999 // Returned arrays cannot corrupt the cached geometry.
-    }
-  })
-
   test('retains feasible detours after the shared shortcut allowance is spent or lowered', () => {
     const input: MeasuredGraph = {
       nodes: [{ id: 'a', width: 20, height: 20 }, { id: 'b', width: 20, height: 20 }],
@@ -1043,9 +1000,6 @@ describe('owned measured layered layout', () => {
     const first = shortenMeasuredRoutes(input, fresh(), shared)
     expect(first.edges[0]!.points).toEqual([{ x: 20, y: 10 }, { x: 200, y: 10 }])
     expect(shortenMeasuredRoutes(input, fresh(), shared).edges[0]!.points).toEqual(detour)
-    for (const nodeClearance of [Number.MAX_VALUE, Infinity, NaN, -1]) {
-      expect(shortenMeasuredRoutes({ ...input, nodeClearance }, fresh()).edges[0]!.points).toEqual(detour)
-    }
     for (const work of [
       { attempts: Number.NaN, comparisons: 8_000_000 }, { attempts: Infinity, comparisons: 8_000_000 },
       { attempts: 1, comparisons: Number.NaN }, { attempts: 1, comparisons: Infinity },

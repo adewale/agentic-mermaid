@@ -146,12 +146,11 @@ describe('native measured geometry reuse', () => {
 
 describe('measured physical metadata dependencies', () => {
 const base=()=>({nodes:[{id:'A',width:20,height:20,paintStrokeWidth:1},{id:'B',width:20,height:20,paintStrokeWidth:1}],edges:[{source:0,target:1,minSpan:1,markerPaint:{start:[{kind:'circle' as const,cx:6,cy:0,r:3}]}}],direction:'TD' as const,padding:4,nodeSpacing:4,layerSpacing:8})
-for(const kind of ['marker','node','group','corner','clearance'])test(`measured admission rejects invalid ${kind} physical metadata`,()=>{
+for(const kind of ['marker','node','group','corner'])test(`measured admission rejects invalid ${kind} physical metadata`,()=>{
  const input:any=base()
  if(kind==='marker')input.edges[0].markerPaint.start[0].r=NaN
  if(kind==='node')input.nodes[0].paintStrokeWidth=Infinity
  if(kind==='corner')input.nodes[0].paintCornerRadius=-1
- if(kind==='clearance')input.nodeClearance=-1
  if(kind==='group')input.groups=[{id:'G',minWidth:20,padding:{top:10,right:5,bottom:5,left:5},paintStrokeWidth:0}]
  expect(()=>layoutAgenticGraph(input)).toThrow(TypeError)
 })
