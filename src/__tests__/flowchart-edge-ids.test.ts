@@ -60,14 +60,23 @@ describe('flowchart edge IDs — parse', () => {
     ['<==', '==>', 'arrow', 'thick'],
     ['<-.', '.->', 'arrow', 'dotted'],
   ] as const)('keeps an explicit ID and label between %s and %s', (open, close, marker, style) => {
-    const source = `flowchart LR\n  A e1@${open} label ${close} B`
-    const diagram = parseAgent(source)
-    expect(diagram.body.kind).toBe('flowchart')
-    for (const graph of [parseGraph(source), parseGraph(serializeMermaid(diagram))]) {
-      expect([...graph.nodes.keys()]).toEqual(['A', 'B'])
-      expect(graph.edges).toHaveLength(1)
-      expect(graph.edges[0]).toMatchObject({ id: 'e1', source: 'A', target: 'B', label: 'label', style,
-        hasArrowStart: true, hasArrowEnd: true, startMarker: marker, endMarker: marker })
+    for (const label of [' label ', 'label']) {
+      const source = `flowchart LR\n  A e1@${open}${label}${close} B`
+      const diagram = parseAgent(source)
+      expect(diagram.body.kind).toBe('flowchart')
+      for (const graph of [parseGraph(source), parseGraph(serializeMermaid(diagram))]) {
+        expect([...graph.nodes.keys()]).toEqual(['A', 'B'])
+        expect(graph.edges).toHaveLength(1)
+        expect(graph.edges[0]).toMatchObject({ id: 'e1', source: 'A', target: 'B', label: 'label', style,
+          hasArrowStart: true, hasArrowEnd: true, startMarker: marker, endMarker: marker })
+      }
+      const metadata = parseAgent(`${source}\n  e1@{ animate: true, curve: basis }`)
+      if (metadata.body.kind !== 'flowchart') throw new Error('Expected modeled edge metadata')
+      expect(metadata.body.graph.edges[0]).toMatchObject({ id: 'e1', animate: true, curve: 'basis' })
+      const preservedSource = `${source}\n  e1@{ label: "Unmodeled edge metadata" }\n`
+      const preserved = parseAgent(preservedSource)
+      expect(preserved.body.kind).toBe('opaque')
+      expect(serializeMermaid(preserved)).toBe(preservedSource)
     }
   })
 
@@ -80,6 +89,12 @@ describe('flowchart edge IDs — parse', () => {
         startMarker: 'cross', endMarker: 'cross' })
     }
     expect(renderMermaidSVG(source)).toContain('data-id="e1"')
+  })
+
+  it.each(['e1@x--dangling', 'e1@x~~~B', 'e1@.-'])('requires a complete link after the candidate prefix %s', prefix => {
+    const source = `flowchart LR\n  A ${prefix}`
+    expect(() => parseGraph(source)).toThrow()
+    expect(parseMermaid(source).ok).toBe(false)
   })
 
   // Upstream's LINK_ID is any run of non-space, non-`"` characters before

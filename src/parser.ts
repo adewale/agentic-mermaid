@@ -29,7 +29,7 @@ import type { Direction, EdgeMarker, EdgeStyle, MermaidEdge, MermaidGraph, Merma
 export { parseStyleProps } from './shared/style-props.ts'
 import { detectCompatibilityGraphFamilyFromFirstLine } from './agent/family-router.ts'
 import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
-import { checkedFlowchartStyleProps, coalesceFlowchartLines, flowchartGroupPosition, type FlowchartLineGroup, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, labelReferencesAsEntityCodes, labelTextHoldsDelimiter, matchFlowchartLink, matchTextArrow, subgraphTitleUnreadable } from './flowchart-lexer.ts'
+import { checkedFlowchartStyleProps, coalesceFlowchartLines, flowchartGroupPosition, type FlowchartLineGroup, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_PREFIX_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, labelReferencesAsEntityCodes, labelTextHoldsDelimiter, matchFlowchartLink, matchTextArrow, subgraphTitleUnreadable } from './flowchart-lexer.ts'
 import { consumeClassShorthandPrefix,
   MERMAID_IDENTIFIER_SOURCE, parseClassShorthandStatement } from './shared/mermaid-identifiers.ts'
 import { metadataText, readMetadataBlock } from './shared/metadata-yaml.ts'
@@ -1411,7 +1411,7 @@ function consumeBareNodeId(text: string): { id: string; length: number } | null 
   return length > 0 ? { id: text.slice(0, length), length } : null
 }
 
-const EDGE_ID_PREFIX_REGEX = new RegExp(String.raw`^(${FLOWCHART_EDGE_ID_SOURCE})@\s*(?=${FLOWCHART_LINK_SOURCE}|[<xo]?(?:-{2,}|-\.+|={2,})\s+)`, 'u')
+const EDGE_ID_PREFIX_REGEX = new RegExp(`^${FLOWCHART_EDGE_ID_PREFIX_SOURCE}`, 'u')
 
 /** Where a statement's parse stopped expecting a link, a link label opened
  * with an `x` or `o` start marker and closed by a link with another end
