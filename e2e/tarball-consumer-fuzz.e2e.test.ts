@@ -197,6 +197,45 @@ process.stdout.write(JSON.stringify({ resolved, results, pngResults }))
 `
 
 describe('installed tarball — library', () => {
+  test('copied AgentFlow models keep executable YAML across public entries', () => {
+    expect(haveConsumer).toBe(true)
+    const consumer = join(work, 'agentflow-copy.mjs')
+    const source = `agentflow-beta LR
+  A[Collect]@{ shape: tool }
+  B[Publish]
+  A --> B
+  A@{
+    context:
+      -
+        name: First
+        values: [1, 2]
+      - [nested, list]
+  }`
+    writeFileSync(consumer, `
+import assert from 'node:assert/strict'
+import * as root from 'agentic-mermaid'
+import * as agent from 'agentic-mermaid/agent'
+import * as core from 'agentic-mermaid/agent/core'
+const source = ${JSON.stringify(source)}
+const expected = [{ name: 'First', values: [1, 2] }, ['nested', 'list']]
+const svg = root.renderMermaidSVG(source)
+assert.match(svg, /Collect/)
+assert.match(svg, /Publish/)
+for (const entry of [agent, core]) {
+  const parsed = entry.parseRegisteredMermaid(source)
+  assert.equal(parsed.ok, true)
+  for (const diagram of [parsed.value, { ...parsed.value }, structuredClone(parsed.value)]) {
+    assert.equal(root.renderMermaidSVG(diagram), svg)
+    const reloaded = entry.parseRegisteredMermaid(diagram.canonicalSource)
+    assert.equal(reloaded.ok, true)
+    assert.deepEqual(reloaded.value.body.metadata.get('A').context, expected)
+  }
+}
+`)
+    const result = spawnSync(NODE!, [consumer], { cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
+    expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' })
+  }, RUN_TIMEOUT_MS)
+
   test('canonical API examples typecheck and run against the installed package', () => {
     expect(haveConsumer).toBe(true)
     const markdown = readFileSync(join(REPO, 'docs/api.md'), 'utf8')

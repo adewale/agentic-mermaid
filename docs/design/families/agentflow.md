@@ -18,8 +18,9 @@ opaque body; they do not become partially editable graphs. Literal `%%` inside
 labels is retained even where the pinned Mermaid parser truncates it; see the
 [recorded divergence](../../project/divergences.md).
 
-Rendering a parsed AgentFlow diagram preserves the authored body's YAML
-indentation and uses a privately retained graph from the shared projector.
+AgentFlow's `canonicalSource` preserves YAML indentation so copied parsed
+diagrams remain executable. Owned parsed diagrams also reuse a privately
+retained graph from the shared projector; other inputs reparse their source.
 Each render receives its own graph draft. Source, body-envelope or family
 registration changes invalidate that handoff; configuration and appearance
 still pass through ordinary request admission. Use checked mutations to edit

@@ -1061,8 +1061,8 @@ export interface ValidDiagram {
    * (`normalized.text` from `mermaid-source.ts`) — used by `renderMermaidSVG`
    * + the legacy parser for the flowchart pathway. After `serializeMermaid`,
    * the re-emitted source is rebuilt from the structured body.
-   * AgentFlow also retains its indentation-sensitive authored body privately
-   * while this source authority is unchanged; rendering must not flatten YAML.
+   * AgentFlow preserves indentation in this source because flattening YAML
+   * changes its meaning; copied parsed envelopes must remain executable.
    *
    * For OPAQUE bodies, the serializer emits `body.source` directly (NOT
    * `canonicalSource`) so original indentation and blank lines round-trip
