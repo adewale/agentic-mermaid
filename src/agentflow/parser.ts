@@ -56,11 +56,11 @@ function metadataDeclaration(text: string, scan: FlowchartScan, before: number):
  * metadata records are captured before that projection is parsed. */
 export function parseAgentflow(source: string): AgentflowBody {
   const metadata = new Map<string, Record<string, unknown>>(), connectors = new Set<string>(), globals = new Set<string>(), mappings: AgentflowMapping[] = []
-  const grammar: string[] = [], frames: Array<{ global: boolean; id?: string }> = []
+  const grammar: string[] = [], frames: Array<{ global: boolean; id?: string; mapping?: number }> = []
   const declaredParents = new Map<string, string | undefined>()
   const openScope = (id: string, global: boolean): void => {
     if (!declaredParents.has(id)) declaredParents.set(id, frames.at(-1)?.id)
-    frames.push({ global, id })
+    frames.push({ global, id, ...(global ? {} : { mapping: mappings.length }) })
   }
   const globalMentions = new Set<string>()
   const attachmentScopes = new Map<string, string | undefined>()
@@ -126,7 +126,13 @@ export function parseAgentflow(source: string): AgentflowBody {
         globalScopes.add(id); openScope(id, true); grammar.push(`subgraph ${id}`); continue
       }
       if (/^end\s*$/i.test(text)) {
-        if (!frames.pop()) throw new Error('AgentFlow end has no open flow or global block')
+        const frame = frames.pop()
+        if (!frame) throw new Error('AgentFlow end has no open flow or global block')
+        if (frame.mapping !== undefined) {
+          const mapping = mappings[frame.mapping]!, end = flowchartGroupPosition(group, statement.start + statement.text.length)
+          mapping.endLine = end.line + 1
+          mapping.endCol = end.col + 1
+        }
         grammar.push('end'); continue
       }
       const flow = text.match(/^flow\s+([\p{L}\p{N}_.:-]+)(.*)$/u)

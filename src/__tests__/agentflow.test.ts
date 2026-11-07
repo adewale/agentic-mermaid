@@ -55,6 +55,19 @@ test('AgentFlow preserves roles, connector and global ownership, arbitrary metad
   expect(reparsed.roles).toEqual(body.roles)
 })
 
+test.each(['\n', '\r\n'])('AgentFlow container mappings end at their own closing token with %j lines', newline => {
+  const body = parseAgentflow([
+    'agentflow-beta TB', 'flow Outer[Outer]', '  flow Inner[Inner]',
+    '    a[A]', '  end', '  after[After]', 'end', 'flow Right[Right]', '  b[B]', 'end',
+  ].join(newline))
+  expect(body.mappings.filter(mapping => mapping.type === 'flow')).toEqual([
+    { id: 'Outer', type: 'flow', line: 2, col: 1, endLine: 7, endCol: 4 },
+    { id: 'Inner', type: 'flow', line: 3, col: 3, endLine: 5, endCol: 6 },
+    { id: 'Right', type: 'flow', line: 8, col: 1, endLine: 10, endCol: 4 },
+  ])
+  expect(body.graph.subgraphs.map(group => [group.id, group.children.map(child => child.id)])).toEqual([['Outer', ['Inner']], ['Right', []]])
+})
+
 test('AgentFlow typed metadata and identity edits keep family-owned records and portable source in agreement', () => {
   const original = parseAgentflow(source)
   const renamed = mutateAgentflow(original, { kind: 'rename_node', from: 'write', to: 'draft' })
