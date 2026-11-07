@@ -12,7 +12,7 @@ import { lowerRailroadScene } from '../railroad/renderer.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
 import { visitTypedPathSegments } from '../scene/bounds.ts'
 import type { Point } from '../types.ts'
-import { mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/core.ts'
+import { mutate, mutateChecked, parseRegisteredMermaid, serializeMermaid } from '../agent/core.ts'
 
 const grammars = [
   ['constructors', 'railroad-beta\nentry = sequence(terminal("start"), choice(nonterminal("item"), optional(terminal("end"))), zeroOrMore(terminal(",")));'],
@@ -20,6 +20,37 @@ const grammars = [
   ['ABNF', 'railroad-abnf-beta\nentry = 1*3"a" / %x41;'],
   ['PEG', 'railroad-peg-beta\nentry <- &item ("a" / .)*;\nitem <- !"reserved" name;'],
 ] as const
+
+test.each(grammars)('Railroad %s title edits retain field punctuation and whitespace or fail atomically', async (_name, source) => {
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind !== 'railroad') throw new Error('Expected editable Railroad')
+  const upstream = startUpstreamMermaid()
+  try {
+    for (const [title, escapedTitle, abnfTitle] of [
+      ['a%%b', true, false],
+      ['slash\\%%{init: {}}%% literal #37;', true, false],
+      ['two  spaces', true, false],
+      ['quoted "title" \\ path', true, true],
+      ['東京 title', true, true],
+      ['line\nbreak', true, false],
+      ['', false, false],
+    ] as const) {
+      const before = structuredClone(parsed.value)
+      const edited = mutateChecked(parsed.value, { kind: 'set_title', title })
+      const representable = parsed.value.body.notation === 'abnf' ? abnfTitle : escapedTitle
+      expect(edited.ok).toBe(representable)
+      expect(parsed.value).toEqual(before)
+      if (!edited.ok) continue
+      if (edited.value.body.kind !== 'railroad') throw new Error('Expected edited Railroad')
+      expect(edited.value.body.title).toBe(title)
+      const written = serializeMermaid(edited.value), reread = parseRegisteredMermaid(written)
+      if (!reread.ok || reread.value.body.kind !== 'railroad') throw new Error('Expected reloaded Railroad')
+      expect(reread.value.body.title).toBe(title)
+      expect(reread.value.body.rules).toEqual(parsed.value.body.rules)
+      expect(await upstream.publicAccepts(written)).toBe(true)
+    }
+  } finally { upstream.close() }
+})
 
 test.each(grammars)('Railroad %s keeps accessibility fields through native and public writes and edits', async (_name, source) => {
   const authored = source.replace('\n', '\naccTitle: Accessible "quoted"\naccDescr {\nFirst  paragraph\n\nSecond paragraph\n}\n')

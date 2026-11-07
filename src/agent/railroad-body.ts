@@ -36,7 +36,9 @@ export function mutateRailroad(body: RailroadBody, op: RailroadMutationOp): Resu
       }
       default: return err({ code: 'INVALID_OP', message: unknownOpMessage('railroad', op) })
     }
-    return ok(parseRailroad(renderRailroad(draft)))
+    const reparsed = parseRailroad(renderRailroad(draft))
+    if (reparsed.title !== draft.title) throw new Error('Railroad export would change the requested title')
+    return ok(reparsed)
   } catch (error) { return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) }) }
 }
 /** Labels follow the owned expression tree so grammar notation never enters prose checks. */

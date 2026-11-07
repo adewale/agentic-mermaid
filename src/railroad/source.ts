@@ -5,9 +5,10 @@ import { writeGrammarText } from '../shared/grammar-text.ts'
 
 /** Mermaid's grammar converter recognizes backslash, quotes and n/r/t;
  * JSON's b/f/u escapes would silently change literal values. */
-function grammarString(value: string): string {
-  const shieldDirective = value.includes('%%{')
-  return '"' + value.replace(/[\\"\n\r\t%]/g, character => character === '\\' ? '\\\\' : character === '"' ? '\\"' : character === '\n' ? '\\n' : character === '\r' ? '\\r' : character === '\t' ? '\\t' : shieldDirective ? '\\%' : '%') + '"'
+function grammarString(value: string, title = false): string {
+  // Title tokens cut comments and fold raw whitespace before unescaping.
+  const shieldPercent = title || value.includes('%%{')
+  return '"' + value.replace(/[\\"\n\r\t% ]/g, character => character === '\\' ? '\\\\' : character === '"' ? '\\"' : character === '\n' ? '\\n' : character === '\r' ? '\\r' : character === '\t' ? '\\t' : character === ' ' ? title ? '\\ ' : ' ' : shieldPercent ? '\\%' : '%') + '"'
 }
 
 function expression(node: RailroadNode, notation: Notation): string {
@@ -72,8 +73,8 @@ export function renderRailroad(body: RailroadBody): string {
     if (body.accessibilityDescription === '') lines.push('accDescr {}')
   }
   if (body.title !== undefined) {
-    if (body.notation === 'abnf' && (/[\r\n]/.test(body.title) || body.title.includes('%%'))) throw new Error('ABNF titles cannot contain line breaks or comment openers')
-    lines.push(`title ${body.notation === 'abnf' ? `"${body.title}"` : grammarString(body.title)}`)
+    if (body.notation === 'abnf' && (/[\r\n]|[\t ]{2}/.test(body.title) || body.title.includes('%%'))) throw new Error('ABNF titles cannot contain line breaks, repeated whitespace or comment openers')
+    lines.push(`title ${body.notation === 'abnf' ? `"${body.title}"` : grammarString(body.title, true)}`)
   }
   for (const rule of body.rules) {
     if (!/^[A-Za-z_][\w-]*$/.test(rule.name)) throw new Error('A rule name must be a portable grammar identifier')
