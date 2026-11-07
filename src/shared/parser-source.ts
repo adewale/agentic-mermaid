@@ -44,7 +44,7 @@ function grammarRows(source: Source, view: 'authored' | 'render' | 'grammar', tr
   return { rows: eligible, sourceOffset: payload.sourceOffset }
 }
 
-function authoredPositions(source: Source, grammar: readonly string[], trace?: ParserGrammarTrace) {
+export function authoredParserPositions(source: Source, grammar: readonly string[], trace?: ParserGrammarTrace) {
   const starts = sourceLineStarts(source.originalText)
   let matches: Array<{ offset: number; lead: number; sourceOffset: (offset: number) => number } | undefined> = []
   // A render view may decode XML; authored flowchart parsing preserves it.
@@ -83,13 +83,13 @@ function authoredPositions(source: Source, grammar: readonly string[], trace?: P
 }
 
 export function authoredParserLine(source: Source, trace?: ParserGrammarTrace): (index: number) => number | undefined {
-  let position: ReturnType<typeof authoredPositions> | undefined
-  return index => (position ??= authoredPositions(source, source.familyLines, trace))(index).line
+  let position: ReturnType<typeof authoredParserPositions> | undefined
+  return index => (position ??= authoredParserPositions(source, source.familyLines, trace))(index).line
 }
 
 export function authoredSyntaxLocation(source: Source, grammar: readonly string[], location: MermaidSyntaxErrorLocation): MermaidSyntaxErrorLocation {
   if (location.line === undefined) return { diagramType: location.diagramType }
-  return { diagramType: location.diagramType, ...authoredPositions(source, grammar)(location.line - 1, location.column), ...(location.column === undefined ? { column: undefined } : {}) }
+  return { diagramType: location.diagramType, ...authoredParserPositions(source, grammar)(location.line - 1, location.column), ...(location.column === undefined ? { column: undefined } : {}) }
 }
 
 export function withParserSource<T>(source: Source, grammar: () => readonly string[], parse: () => T): T {
@@ -104,6 +104,6 @@ export function withParserSource<T>(source: Source, grammar: () => readonly stri
 }
 
 export function authoredParserColumn(source: Source, trace?: ParserGrammarTrace): (index: number, column: number) => number | undefined {
-  let position: ReturnType<typeof authoredPositions> | undefined
-  return (index, column) => (position ??= authoredPositions(source, source.familyLines, trace))(index, column + 1).column
+  let position: ReturnType<typeof authoredParserPositions> | undefined
+  return (index, column) => (position ??= authoredParserPositions(source, source.familyLines, trace))(index, column + 1).column
 }

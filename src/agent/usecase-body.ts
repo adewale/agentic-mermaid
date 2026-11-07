@@ -5,6 +5,10 @@ export { USECASE_OP_KINDS, USECASE_OP_SCHEMAS } from '../usecase/ops.ts'
 import { accessibilityFields } from '../shared/accessibility-directives.ts'
 import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
 import { parseUsecase } from '../usecase/grammar/parser.ts'
+import type { UsecaseModel } from '../usecase/grammar/types.ts'
+import { authoredParserPositions } from '../shared/parser-source.ts'
+import { sourceLineStarts, sourcePointAt } from '../shared/source-spans.ts'
+import { maskAccessibilityDirectivesForSourceMap } from '../family-detection.ts'
 import { parseUsecaseDiagram } from '../usecase/parser.ts'
 import { serializeUsecase } from '../usecase/serializer.ts'
 import type { UsecaseBody, UsecaseMutationOp, UsecaseNode } from '../usecase/types.ts'
@@ -14,6 +18,40 @@ import { labelOverflowCollector } from './body-utils.ts'
 import type { FamilyOperations } from './families.ts'
 import type { LayoutWarning, MutationError, Result, SourceMap, VerifyOptions } from './types.ts'
 import { err, ok } from './types.ts'
+
+// One synchronous publication transfers only its computed source map. The AST
+// is released after parsing; rendering and edits retain no second model.
+const parsedMaps = new WeakMap<UsecaseBody, { source: string; map: SourceMap }>()
+const unaligned = Symbol('unaligned usecase source')
+
+function usecaseSourceMap(model: UsecaseModel, source: string): SourceMap | undefined {
+  const map: SourceMap = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
+  const first = source.indexOf('usecase-beta'), starts = sourceLineStarts(source)
+  const direct = source.slice(first).trimEnd() === model.source.trimEnd()
+  const grammar = direct ? undefined : model.source.split('\n')
+  const locate = grammar ? authoredParserPositions({ originalText: source, familyLines: grammar }, grammar) : undefined
+  const modelStarts = direct ? starts : sourceLineStarts(model.source)
+  const point = (offset: number) => {
+    if (direct) { const at = sourcePointAt(starts, first + offset); return { line: at.line, col: at.col } }
+    const at = sourcePointAt(modelStarts, offset), found = locate!(at.line - 1, at.col)
+    if (found.line === undefined || found.column === undefined) throw unaligned
+    return { line: found.line, col: found.column }
+  }
+  const statements = [...model.statements].reverse()
+  try {
+    while (statements.length) {
+      const statement = statements.pop()!
+      if (statement.group && statement.idSpan) map.groups.set(statement.group, point(statement.idSpan[0]))
+      for (const node of statement.nodes ?? []) {
+        if (!map.nodes.has(node.id)) map.nodes.set(node.id, point(node.idSpan[0]))
+        if (node.labelSpan) map.labels.set(`node:${node.id}`, point(node.labelSpan[0]))
+      }
+      for (const edge of statement.edges ?? []) map.edges.set(edge.id, point(edge.span[0]))
+      for (const child of [...(statement.children ?? [])].reverse()) statements.push(child)
+    }
+    return map
+  } catch (error) { if (error !== unaligned) throw error; return undefined }
+}
 
 export function mutateUsecase(body: UsecaseBody, op: UsecaseMutationOp): Result<UsecaseBody, MutationError> {
   try {
@@ -121,12 +159,14 @@ export const USECASE_SOURCE_HOOKS: FamilyOperations = {
   bodyMeta: (body, meta) => body.kind === 'usecase' ? withBodyTitleMeta(body.title, meta) : meta,
   parse: ctx => {
     try {
-      const body = parseUsecaseDiagram(ctx.source.authoredFamilyBody ?? ctx.source.familyBody)
+      let map: SourceMap | undefined
+      const body = parseUsecaseDiagram(ctx.source.authoredFamilyBody ?? ctx.source.familyBody, model => { map = usecaseSourceMap(model, ctx.canonicalSource) })
       serializeUsecase(body, false)
       const accessibility = readAuthoredGrammarAccessibility(ctx.meta.accessibility)
       Object.assign(body, accessibilityFields(accessibility))
       ctx.meta.accessibility = accessibility
       if (typeof ctx.source.frontmatter.title === 'string') body.title = ctx.source.frontmatter.title
+      if (map) parsedMaps.set(body, { source: ctx.canonicalSource, map })
       return ok(body)
     } catch {
       return ok({ kind: 'opaque', family: 'usecase', source: ctx.opaqueSource })
@@ -147,27 +187,11 @@ export const USECASE_SOURCE_HOOKS: FamilyOperations = {
     }
   },
   buildSourceMap: (body, source) => {
-    const map: SourceMap = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
-    if (body.kind !== 'usecase') return map
-    const first = source.indexOf('usecase-beta'),
-      model = parseUsecase(source.slice(first)),
-      statements = [...model.statements].reverse()
-    const point = (offset: number) => {
-      const prefix = source.slice(0, first + offset),
-        lines = prefix.split('\n')
-      return { line: lines.length, col: lines.at(-1)!.length + 1 }
-    }
-    while (statements.length) {
-      const statement = statements.pop()!
-      if (statement.group && statement.idSpan) map.groups.set(statement.group, point(statement.idSpan[0]))
-      for (const node of statement.nodes ?? []) {
-        if (!map.nodes.has(node.id)) map.nodes.set(node.id, point(node.idSpan[0]))
-        if (node.labelSpan) map.labels.set(`node:${node.id}`, point(node.labelSpan[0]))
-      }
-      for (const edge of statement.edges ?? []) map.edges.set(edge.id, point(edge.span[0]))
-      for (const child of [...(statement.children ?? [])].reverse()) statements.push(child)
-    }
-    return map
+    if (body.kind !== 'usecase') return { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
+    const retained = parsedMaps.get(body)
+    parsedMaps.delete(body)
+    if (retained && (source === retained.source || source === maskAccessibilityDirectivesForSourceMap(retained.source))) return retained.map
+    return usecaseSourceMap(parseUsecase(source.slice(source.indexOf('usecase-beta'))), source)!
   },
 }
 export function usecaseUnsupportedSyntaxWarnings(_source: string): LayoutWarning[] {

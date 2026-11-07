@@ -34,7 +34,21 @@ export function usecaseBody(model: UsecaseModel): UsecaseBody {
     ...(model.accDescription ? { accessibilityDescription: read(model.accDescription) } : {}),
   }
 }
-export function parseUsecaseDiagram(input: string | readonly string[]): UsecaseBody {
+
+/** Admission is shared by the native model and its editable projection. */
+export function assertUsecaseWork(model: UsecaseModel): void {
+  assertDiagramWorkLimit('nodes', model.actors.size + model.useCases.size + model.systemBoundaries.size + model.notes.size + model.jsonNodes.size)
+  assertDiagramWorkLimit('edges', model.relationships.length)
+  const pending: Array<{ value: unknown; depth: number }> = []
+  for (const node of model.jsonNodes.values()) pending.push({ value: node.value, depth: 0 })
+  while (pending.length) {
+    const { value, depth } = pending.pop()!
+    assertDiagramWorkLimit('nesting', depth)
+    if (value && typeof value === 'object') for (const child of Object.values(value)) pending.push({ value: child, depth: depth + 1 })
+  }
+}
+
+export function parseUsecaseDiagram(input: string | readonly string[], observeModel?: (model: UsecaseModel) => void): UsecaseBody {
   const original = typeof input === 'string' ? input.split(/\r?\n/) : [...input]
   assertDiagramWorkLimit(
     'sourceCharacters',
@@ -44,15 +58,10 @@ export function parseUsecaseDiagram(input: string | readonly string[]): UsecaseB
   requireClosedAccessibility(scanned)
   const first = scanned.familyLines.findIndex(line => line.trim() && !line.trim().startsWith('%%'))
   if (!isUsecaseHeader(scanned.familyLines[first] ?? '')) throw new Error('UseCase source must start with usecase-beta')
-  const body = usecaseBody(parseUsecase(scanned.familyLines.slice(first).join('\n')))
+  const model = parseUsecase(scanned.familyLines.slice(first).join('\n'))
+  assertUsecaseWork(model)
+  const body = usecaseBody(model)
   Object.assign(body, accessibilityFields(readAuthoredGrammarAccessibility(scanned.accessibility)))
-  assertDiagramWorkLimit('nodes', body.nodes.length + body.boundaries.length + body.notes.length + body.jsonNodes.length)
-  assertDiagramWorkLimit('edges', body.relationships.length)
-  const pending = body.jsonNodes.map(node => ({ value: node.value as unknown, depth: 0 }))
-  while (pending.length) {
-    const { value, depth } = pending.pop()!
-    assertDiagramWorkLimit('nesting', depth)
-    if (value && typeof value === 'object') for (const child of Object.values(value)) pending.push({ value: child, depth: depth + 1 })
-  }
+  observeModel?.(model)
   return body
 }

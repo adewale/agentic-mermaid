@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
-import { buildMermaid, mutate, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, renderMermaidSVGWithReceipt, serializeMermaid, verifyMermaid } from '../agent/core.ts'
+import { buildMermaid, mutate, parseRegisteredMermaid, parseUsecaseModel, renderMermaidASCII, renderMermaidSVG, renderMermaidSVGWithReceipt, serializeMermaid, verifyMermaid } from '../agent/core.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { type ParserObservation, withParserObservation } from '../shared/parser-observation.ts'
 import { layoutUsecaseDiagram } from '../usecase/layout.ts'
@@ -182,7 +182,7 @@ test('UseCase observation records consumed statements and actual publication wri
       events.push(event)
       if (!nested && event.unit === 'statement') {
         nested = true
-        expect(parseUsecaseDiagram('usecase-beta\nactor CallbackOnly').nodes[0]!.id).toBe('CallbackOnly')
+        expect(parseUsecaseModel('usecase-beta\nactor CallbackOnly').actors.get('CallbackOnly')?.id).toBe('CallbackOnly')
       }
     },
     () => parseUsecaseDiagram(source),
@@ -196,6 +196,27 @@ test('UseCase observation records consumed statements and actual publication wri
   const publications = events.filter(event => event.kind === 'publish-usecase').map(event => event.value)
   expect(publications).toContainEqual(expect.objectContaining({ id: 'Browse', business: false }))
   expect(publications).toContainEqual(expect.objectContaining({ id: 'Browse', business: true }))
+})
+
+test.each(['\n', '\r\n'])('UseCase source-map reuse keeps canonical and authored positions with %j lines', newline => {
+  const source = ['---', 'title: Positions', '---', 'usecase-beta', '', 'accTitle: Plan', 'accDescr {', '  Accessible', '  catalogue', '}',
+    'actor User("`Customer', '  member`")', 'systemBoundary Store["Store"]', '  Browse("Catalogue")', 'end', 'User transfer@--> Browse'].join(newline)
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind !== 'usecase') throw new Error('Expected native UseCase source map')
+  const { source: map, canonicalSource } = parsed.value
+  const tokenAt = (point: { line: number; col: number } | undefined, token: string) => {
+    if (!point) throw new Error(`Missing source location for ${token}`)
+    return canonicalSource.split('\n')[point.line - 1]!.slice(point.col - 1, point.col - 1 + token.length)
+  }
+  expect(tokenAt(map.nodes.get('User'), 'User')).toBe('User')
+  expect(tokenAt(map.nodes.get('Browse'), 'Browse')).toBe('Browse')
+  expect(tokenAt(map.groups.get('Store'), 'Store')).toBe('Store')
+  expect(tokenAt(map.edges.get('transfer'), 'User')).toBe('User')
+  expect(source.slice(map.spans!.nodes.get('User')!.start.offset, map.spans!.nodes.get('User')!.end.offset)).toContain('User')
+  expect(parsed.value.body.nodes.find(node => node.id === 'User')?.label).toBe('Customer\n  member')
+  const again = parseRegisteredMermaid(source)
+  if (!again.ok) throw new Error('Expected repeat source parse')
+  expect(again.value.source).toEqual(map)
 })
 
 test('UseCase dependency stereotypes retain visibly dashed carrier paint', () => {
