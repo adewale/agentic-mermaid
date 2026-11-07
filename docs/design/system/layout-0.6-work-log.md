@@ -53,6 +53,25 @@ replace neither the dated profiler nor its missing runtime/cold/cache evidence.
 Next causal probe: whether standalone worker precompression accounts for the
 Brotli loss, preserving decoded worker bytes, ownership and browser contracts.
 
+## Rebase and Sparse32 boundary — 7 November
+
+Owner-requested `rebase --rebase-merges` onto main39 completes at the same
+`14bec477578104a1eab5a279473aa77e747f8476` head/tree; no force push is needed.
+The plain flattening attempt was aborted. Restore 14 hash-verified historical
+blobs, then refetch missing reachable history (322→0); retain intermediate files.
+This repairs checkout history and establishes no runtime/layout improvement.
+
+The existing Sparse32 owner reproduces 2P/1F. Native emission is clean at 337,890
+operations before XML projection; its first refused charge is 7 at 399,994 inside
+`XmlLeafWrite.check`→literal validation. Geometry checks have not started. The
+same 1,500-label SVG retains actual row/marker ink and direct Scene proof passes;
+Native emitted proof remains unverified at 400,000. A seven-bit fixed-attribute
+probe keeps literal checks/caps but still exhausts, so it is stopped and restored;
+all three control SVGs remain exact. Descriptive 1,000/1,250-label controls pass at
+328,063/395,813 operations; these are not maximums or acceptance gates. No cap,
+cache, default or runtime code changes. Evidence: `rebase-sparse32-14bec`. Next:
+reduce required capture/closure work at its producer, not the failed bitset alone.
+
 ## Original marker bounds — 7 November
 
 At `c9dabb20c67aa18587063ea0268fa4e5ebdf7c40`, the existing full-SVG/full-receipt
