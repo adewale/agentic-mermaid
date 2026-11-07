@@ -24,17 +24,42 @@ export function isCharacterReference(body: string): boolean {
  * literal text, its `&`, `#` and `;` written as entities so no later read
  * takes it for a reference.
  */
+function sequenceGrammarReference(reference: string, doubled: string | undefined, body: string | undefined): string {
+  if (doubled !== undefined) {
+    if (!isCharacterReference(doubled)) return `&${doubled};`
+    return `#38;${doubled.replace('#', '#35;')}#59;`
+  }
+  if (!body!.startsWith('#') && !XML_NAMED_ENTITIES.has(body!)) return isHtmlEntityName(body!) ? `#${body};` : reference
+  const decoded = decodeXML(reference)
+  return decoded === '#' ? '#35;' : decoded === ';' ? '#59;' : decoded
+}
+
 export function sequenceGrammarText(authored: string): string {
-  if (!authored.includes('&')) return authored
-  return authored.replace(REFERENCE, (reference, doubled: string | undefined, body: string | undefined) => {
-    if (doubled !== undefined) {
-      if (!isCharacterReference(doubled)) return `&${doubled};`
-      return `#38;${doubled.replace('#', '#35;')}#59;`
+  return authored.includes('&') ? authored.replace(REFERENCE, sequenceGrammarReference) : authored
+}
+
+/** The same entity projection with boundary provenance, used only on failure. */
+export function sequenceGrammarSource(authored: string): { text: string; sourceOffset: (offset: number) => number } {
+  const edits: Array<{ start: number; end: number; originalStart: number; originalEnd: number }> = []
+  let delta = 0
+  const text = authored.replace(REFERENCE, (reference, doubled: string | undefined, body: string | undefined, offset: number) => {
+    const replacement = sequenceGrammarReference(reference, doubled, body)
+    if (reference !== replacement) {
+      edits.push({ start: offset + delta, end: offset + delta + replacement.length, originalStart: offset, originalEnd: offset + reference.length })
+      delta += replacement.length - reference.length
     }
-    if (!body!.startsWith('#') && !XML_NAMED_ENTITIES.has(body!)) return isHtmlEntityName(body!) ? `#${body};` : reference
-    const decoded = decodeXML(reference)
-    return decoded === '#' ? '#35;' : decoded === ';' ? '#59;' : decoded
+    return replacement
   })
+  return { text, sourceOffset(offset) {
+    let low = 0, high = edits.length
+    while (low < high) {
+      const middle = low + Math.floor((high - low) / 2)
+      if (edits[middle]!.start <= offset) low = middle + 1
+      else high = middle
+    }
+    const edit = edits[low - 1]
+    return !edit ? offset : offset < edit.end ? edit.originalStart : edit.originalEnd + offset - edit.end
+  } }
 }
 
 /**

@@ -11,6 +11,8 @@ export default defineConfig({
     // Node-runnable bins for npm consumers (shebang preserved from source).
     am: 'src/cli/am-bin.ts',
     'agentic-mermaid-mcp': 'src/mcp/mcp-bin.ts',
+    'source-worker': 'src/mcp/source-worker.ts',
+    'source-supervisor': 'src/mcp/source-supervisor.ts',
     // The default target of package.json `#elk-constructor`; see the plugin below.
     'elk-constructor': 'src/elk-constructor.ts',
   },

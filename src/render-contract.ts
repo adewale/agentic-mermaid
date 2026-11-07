@@ -1458,29 +1458,28 @@ function executionCapabilityDecision(output: RenderOutput, offers: readonly Capa
   return decision
 }
 
-function resolveExecutionPlan(
-  family: FamilyDescriptor,
-  appearance: ResolvedAppearance,
-  output: RenderOutput,
-  resolutionOptions: RenderExecutionResolutionOptions,
-  explicitMermaidConfig?: NonNullable<RenderOptions['mermaidConfig']>,
-  onConfigDiagnostic?: NonNullable<RenderOptions['onConfigDiagnostic']>,
-): InternalRenderExecutionPlan {
-  let mode: InternalRenderExecutionPlan['mode']
-  let backend: BackendDescriptor | undefined
-  let requestedBackendId: string | undefined
-  if (output === 'svg' || output === 'png') {
-    mode = appearance.styled || family.lowerScene ? 'scene' : 'family-svg'
-    if (mode === 'scene') {
-      requestedBackendId = appearance.styled ? appearance.inferredBackend : 'default'
-      backend = getBackendDescriptor(requestedBackendId, resolutionOptions.backendPolicy)
-    }
-  } else if (output === 'layout') {
-    mode = 'layout'
-  } else {
-    mode = 'terminal'
-  }
+// Descriptor identities own the executable capability tuple. Replacing a
+// family/backend naturally invalidates it; per-request policy selection and
+// measurement/config remain outside this cache.
+const DESCRIPTOR_CAPABILITY_DECISIONS = new WeakMap<FamilyDescriptor, WeakMap<object, Map<string, CapabilityDecision>>>()
+const NO_EXECUTION_BACKEND = Object.freeze({})
 
+function descriptorCapabilityDecision(family: FamilyDescriptor, backend: BackendDescriptor | undefined, mode: InternalRenderExecutionPlan['mode'], output: RenderOutput): CapabilityDecision {
+  const cacheable = Object.isFrozen(family) && (backend === undefined || Object.isFrozen(backend))
+  let decisions: Map<string, CapabilityDecision> | undefined
+  const key = `${mode}:${output}`
+  if (cacheable) {
+    let backends = DESCRIPTOR_CAPABILITY_DECISIONS.get(family)
+    if (!backends) DESCRIPTOR_CAPABILITY_DECISIONS.set(family, backends = new WeakMap())
+    const owner = backend ?? NO_EXECUTION_BACKEND
+    decisions = backends.get(owner)
+    if (!decisions) backends.set(owner, decisions = new Map())
+    const retained = decisions.get(key)
+    if (retained) {
+      observeCache('capability-decision', 'hit')
+      return retained
+    }
+  }
   const backendCapabilityRequirements = mode === 'scene'
     ? requiredBackendCapabilities(family)
     : []
@@ -1544,6 +1543,34 @@ function resolveExecutionPlan(
   }
 
   const capabilityDecision = executionCapabilityDecision(output, offers, requirements, outputAvailable)
+  decisions?.set(key, capabilityDecision)
+  return capabilityDecision
+}
+
+function resolveExecutionPlan(
+  family: FamilyDescriptor,
+  appearance: ResolvedAppearance,
+  output: RenderOutput,
+  resolutionOptions: RenderExecutionResolutionOptions,
+  explicitMermaidConfig?: NonNullable<RenderOptions['mermaidConfig']>,
+  onConfigDiagnostic?: NonNullable<RenderOptions['onConfigDiagnostic']>,
+): InternalRenderExecutionPlan {
+  let mode: InternalRenderExecutionPlan['mode']
+  let backend: BackendDescriptor | undefined
+  let requestedBackendId: string | undefined
+  if (output === 'svg' || output === 'png') {
+    mode = appearance.styled || family.lowerScene ? 'scene' : 'family-svg'
+    if (mode === 'scene') {
+      requestedBackendId = appearance.styled ? appearance.inferredBackend : 'default'
+      backend = getBackendDescriptor(requestedBackendId, resolutionOptions.backendPolicy)
+    }
+  } else if (output === 'layout') {
+    mode = 'layout'
+  } else {
+    mode = 'terminal'
+  }
+
+  const capabilityDecision = descriptorCapabilityDecision(family, backend, mode, output)
   if (!capabilityDecision.accepted) {
     throw executionCapabilityError(output, family, appearance, mode, backend, capabilityDecision)
   }
