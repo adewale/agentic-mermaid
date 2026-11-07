@@ -652,3 +652,30 @@ needs qualification. Remaining forest wire +10.19%, shared ER256 refusal and
 Sparse32 proof cap remain distinct losses. The fixed main comparison above
 supersedes the carried-forward Requirement +9.53% as a current TB claim; other
 directions remain unqualified at the new checkpoint.
+
+From `780b5f1b04ac7ac5db35cdd442d98df652daf17d`, endpoint packing now reuses
+separate measured marker/shaft supports on crowded ordinary rectangle/subroutine
+faces; the shortener retains the producer’s known numeric foreign-node clearance.
+No body growth, new cache or cap increase. Actual SHA201/241 selected heads each
+go **4 hidden /12 attenuated→0/0 pixels**; SHA152 selected shaft **122 hidden→0**.
+Weighted-only cyclic159 introduced a real contact; the joint candidate routes
+above its foreign card (5.125px painted gap), costing +.860714 wire and two bends
+against780. SHA230’s earlier selected circle repair remains clear.
+
+Full same-input874 Native:271 SVG changes,76 U→P, zero P→U or delivery changes.
+These are76 proof upgrades, not76 visible repairs. Area increases34/decreases43;
+wire increases85/decreases178; bends increase71/decrease24. All874 ELK SVGs and
+geometry remain exact;172 receipts change, including171 operation increases of
+2–20. New measured fields remain charged through the shared ownership path.
+Actual standalone **1,323,398→1,323,609 gzip9 (+211)**, raw +544, Brotli11 +206;
+original1,334,500 ceiling unchanged. No equal-work speed ratio is claimed.
+
+Five supported actual-output cases fail on780; the final nearby owners pass
+223/223, core types and canonical five-file lint pass. Standalone browser2/2
+(504 assertions) passes. Broader801-test run:783P/18 missing-jsdom loader failures,
+retained as unavailable checks. Fresh profile/source maps precede this change;
+five self/inclusive hotspots and cache inventory remain review evidence.
+Evidence: `weighted-face-780`. Remaining: oversubscribed SHA201+three invisible
+constraints, other U→U cases, Sparse32 proof cap, sharedER256 refusal and existing
+CI payload/quality failures. Next: qualify exact pushed-head CI and select one
+remaining actual-output counterexample; do not resume the failed body-growth probe.

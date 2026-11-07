@@ -43,7 +43,7 @@ export function layoutCyclicGraph(
       nodes: permutation.map(index => nodes[index]!),
       edges: edgeOrder.map(original => {
         const edge = edges[original]!, source = reversed[original] ? edge.target : edge.source, target = reversed[original] ? edge.source : edge.target
-        return { ...edge, source: indices[source]!, target: indices[target]! }
+        return { ...edge, source: indices[source]!, target: indices[target]!, ...(reversed[original] ? { sourcePortSpan: edge.targetPortSpan, targetPortSpan: edge.sourcePortSpan } : {}) }
       }),
       loopPorts: input.loopPorts?.map(([a, b]) => [edgeIndices[a]!, edgeIndices[b]!] as const),
     }, fail, work)

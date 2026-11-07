@@ -27,7 +27,7 @@ export interface MeasuredGraph {
   /** Label dimensions include the occupied painted body. Its own shaft is
    * masked by that body; foreign routes must stay outside it. Loop expansion
    * reserves additional space beside the arc instead of masking its shaft. */
-  edges: readonly { source: number; target: number; minSpan: number; short?: true; boundaryMarker?: { inset: number; height: number }; markerPaint?: MarkerPaint; visible?: boolean; label?: { width: number; height: number } }[]
+  edges: readonly { source: number; target: number; minSpan: number; sourcePortSpan?: number; targetPortSpan?: number; short?: true; boundaryMarker?: { inset: number; height: number }; markerPaint?: MarkerPaint; visible?: boolean; label?: { width: number; height: number } }[]
   direction: Direction
   padding: number
   nodeSpacing: number
@@ -35,6 +35,7 @@ export interface MeasuredGraph {
   edgeSpacing?: number
   /** Actual endpoint artwork lead reserved independently of peer-obstacle clearance. */
   minimumTerminalLead?: number
+  nodeClearance?: number
   /** Actual maximum painted edge stroke, supplied by the producer. Absence keeps legacy routing. */
   maximumEdgeStrokeWidth?: number
   maximumEdgeBendRadius?: number
@@ -114,6 +115,7 @@ export function layoutLayeredGraph(
   }
   if (input.edgeSpacing !== undefined && !finiteSize(input.edgeSpacing, true)) throw new TypeError('Measured edge spacing must be finite and positive')
   if (input.minimumTerminalLead !== undefined && !finiteSize(input.minimumTerminalLead, true)) throw new TypeError('Measured terminal lead must be finite and positive')
+  if (input.nodeClearance !== undefined && !finiteSize(input.nodeClearance, false)) throw new TypeError('Invalid measured node clearance')
   if (input.maximumEdgeStrokeWidth !== undefined && !finiteSize(input.maximumEdgeStrokeWidth, true)) throw new TypeError('Measured maximum edge stroke width must be finite and positive')
   if (input.maximumEdgeBendRadius !== undefined && !finiteSize(input.maximumEdgeBendRadius,false)) throw new TypeError('Invalid measured edge bend radius')
   for (const node of input.nodes) if (node.paintStrokeWidth !== undefined && !finiteSize(node.paintStrokeWidth,true)) throw new TypeError('Invalid measured node paint stroke')
@@ -145,6 +147,7 @@ export function layoutLayeredGraph(
   const incoming: number[][] = nodes.map(() => [])
   const outgoing: number[][] = nodes.map(() => [])
   const indegree = new Uint32Array(nodes.length)
+  let sourcePortSpans: Float64Array | undefined, targetPortSpans: Float64Array | undefined
   let hasLoops = false, hasShortEdges = false
   for (let index = 0; index < edges.length; index++) {
     const edge = edges[index]!
@@ -154,6 +157,16 @@ export function layoutLayeredGraph(
     }
     if (!Number.isSafeInteger(edge.minSpan) || edge.minSpan < 1) throw new TypeError('Measured edge minimum span must be a positive integer')
     if (edge.short !== undefined && edge.short !== true) throw new TypeError('Invalid measured short-edge preference')
+    const sourceSpan = edge.sourcePortSpan, targetSpan = edge.targetPortSpan
+    if (sourceSpan !== undefined || targetSpan !== undefined) {
+      if (sourceSpan !== undefined && !finiteSize(sourceSpan, true) || targetSpan !== undefined && !finiteSize(targetSpan, true)) throw new TypeError('Invalid measured endpoint port span')
+      if (!sourcePortSpans) {
+        routingWork.arcs -= 2 * edges.length; routingWork.pairs -= 2 * edges.length
+        if (routingWork.arcs < 0 || routingWork.pairs < 0) unsupported('agentic endpoint port-span work limit')
+        sourcePortSpans = new Float64Array(edges.length); targetPortSpans = new Float64Array(edges.length)
+      }
+      sourcePortSpans[index] = sourceSpan ?? 0; targetPortSpans![index] = targetSpan ?? 0
+    }
     if (edge.boundaryMarker !== undefined && (![edge.boundaryMarker.inset, edge.boundaryMarker.height].every(value => Number.isFinite(value) && value >= 0))) throw new TypeError('Invalid measured ancestor marker dimensions')
     hasShortEdges ||= edge.short === true
     if (edge.label && (!finiteSize(edge.label.width, false) || !finiteSize(edge.label.height, false))) {
@@ -173,7 +186,7 @@ export function layoutLayeredGraph(
     // the private placement graph, then restore each authored route occurrence.
     const reversed = edges.map(edge => (nodes[edge.source]!.partition ?? 0) > (nodes[edge.target]!.partition ?? 0))
     const placed = layoutLayeredGraph({ ...input, edges: edges.map((edge, index) => reversed[index]
-      ? { ...edge, source: edge.target, target: edge.source } : edge) }, forestLayout, unsupported, routingWork, searchWork)
+      ? { ...edge, source: edge.target, target: edge.source, sourcePortSpan: edge.targetPortSpan, targetPortSpan: edge.sourcePortSpan } : edge) }, forestLayout, unsupported, routingWork, searchWork)
     return { ...placed, edges: placed.edges.map((edge, index) => reversed[index] ? { ...edge, points: [...edge.points].reverse() } : edge) }
   }
 
@@ -215,12 +228,12 @@ export function layoutLayeredGraph(
       ids.add(id)
       const target = expandedNodes.length
       expandedNodes.push({ id, width: horizontal ? 1 : 40, height: horizontal ? 40 : 1, ...(partitioned ? { partition: nodes[edge.source]!.partition ?? 0 } : {}) })
-      expandedEdges[index] = { ...edge, target, ...(edge.label ? { label: horizontal
+      expandedEdges[index] = { ...edge, target, ...(edge.targetPortSpan !== undefined ? { targetPortSpan: undefined } : {}), ...(edge.label ? { label: horizontal
         ? { width: edge.label.width, height: 2 * edge.label.height + 8 }
         : { width: 2 * edge.label.width + 8, height: edge.label.height } } : {}) }
       returns[index] = expandedEdges.length
       loopPorts.push([index, expandedEdges.length])
-      expandedEdges.push({ source: edge.source, target, minSpan: edge.minSpan })
+      expandedEdges.push({ source: edge.source, target, minSpan: edge.minSpan, ...(edge.targetPortSpan !== undefined ? { sourcePortSpan: edge.targetPortSpan } : {}) })
     }
     const placed = layoutLayeredGraph({ ...input, nodes: expandedNodes, edges: expandedEdges, loopPorts }, forestLayout, unsupported, routingWork, searchWork)
     const projected: AgenticLayout = { ...placed, topology: 'layered', nodes: placed.nodes.slice(0, nodes.length), edges: placed.edges.slice(0, edges.length).map((route, index) => {
@@ -274,7 +287,7 @@ export function layoutLayeredGraph(
       const order = input.authoredCycleOrder ? Uint32Array.from(nodes, (_, index) => index) : feedbackOrder(incoming, outgoing, edges)
       const reversed = edges.map(edge => (nodes[edge.source]!.partition ?? 0) === (nodes[edge.target]!.partition ?? 0) && order[edge.source]! > order[edge.target]!)
       const placed = layoutLayeredGraph({ ...input, cycleOriented: true, edges: edges.map((edge, index) => reversed[index]
-        ? { ...edge, source: edge.target, target: edge.source } : edge) }, forestLayout, unsupported, routingWork, searchWork)
+        ? { ...edge, source: edge.target, target: edge.source, sourcePortSpan: edge.targetPortSpan, targetPortSpan: edge.sourcePortSpan } : edge) }, forestLayout, unsupported, routingWork, searchWork)
       return { ...placed, edges: placed.edges.map((edge, index) => reversed[index] ? { ...edge, points: [...edge.points].reverse() } : edge) }
     }
     return layoutCyclicGraph(input, incoming, outgoing,
@@ -736,6 +749,23 @@ export function layoutLayeredGraph(
         for (let slot = 1; slot < positions.length; slot++) positions[slot] = Math.max(positions[slot]!, positions[slot - 1]! + separation)
         peers.forEach((edge, slot) => { (source ? sourcePort : targetPort)[edge] = positions[slot]! })
         return
+      }
+      const spans = source ? sourcePortSpans : targetPortSpans
+      if (!pairs?.length && nodes[nodeIndex]!.minimumPortSpacing === undefined && spans && peers.length > 1) {
+        routingWork.pairs -= 4 * peers.length
+        if (routingWork.pairs < 0) unsupported('agentic endpoint port-span work limit')
+        let used = 0, known = true
+        for (const edge of peers) { const span = spans[edge]!; used += span; known &&= span > 0 }
+        const gap = (width - used) / (peers.length + 1)
+        if (known && gap > (Math.abs(cross[nodeIndex]!) + width + used) * 1e-10 + 1e-9) {
+          let cursor = cross[nodeIndex]! - width / 2 + gap
+          for (const edge of peers) {
+            const span = spans[edge]!
+            ;(source ? sourcePort : targetPort)[edge] = cursor + span / 2
+            cursor += span + gap
+          }
+          return
+        }
       }
       for (let index = 0; index < peers.length; index++) {
         const position = cross[nodeIndex]! - width / 2 + width * (index + 1) / (peers.length + 1)
