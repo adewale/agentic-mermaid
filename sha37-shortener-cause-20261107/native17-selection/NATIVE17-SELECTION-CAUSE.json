@@ -1,0 +1,540 @@
+[
+  {
+    "arm": "before",
+    "fullSVGExact": true,
+    "scoreOrder": [
+      "labelConflicts",
+      "opposingOverlap",
+      "parallelOverlap",
+      "crossings",
+      "bends",
+      "area"
+    ],
+    "choices": [
+      {
+        "strategy": "agentic-layered",
+        "score": [
+          0,
+          0,
+          0,
+          10,
+          55,
+          727775.0012920002
+        ],
+        "faceYs": [
+          56.849999999999994,
+          65.44999999999999,
+          73.44999999999999
+        ],
+        "minimumPitch": 8.0,
+        "canvas": [
+          2281.1260000000007,
+          319.042
+        ]
+      },
+      {
+        "strategy": "agentic-authored-order",
+        "score": [
+          0,
+          0,
+          0,
+          10,
+          78,
+          813794.615316
+        ],
+        "faceYs": [
+          257.97142857142853,
+          263.24285714285713,
+          268.51428571428573,
+          273.7857142857143
+        ],
+        "minimumPitch": 5.271428571428544,
+        "canvas": [
+          1998.7979999999998,
+          407.142
+        ]
+      },
+      {
+        "strategy": "agentic-compact-ranks",
+        "score": [
+          0,
+          0,
+          0,
+          12,
+          50,
+          679923.736896
+        ],
+        "faceYs": [
+          315.367,
+          324.592,
+          329.2045,
+          333.817,
+          338.4295
+        ],
+        "minimumPitch": 4.612500000000011,
+        "canvas": [
+          1453.344,
+          467.834
+        ]
+      },
+      {
+        "strategy": "selected",
+        "score": [
+          0,
+          0,
+          0,
+          10,
+          55,
+          727775.0012920002
+        ],
+        "faceYs": [
+          56.849999999999994,
+          65.44999999999999,
+          73.44999999999999
+        ],
+        "minimumPitch": 8.0,
+        "canvas": [
+          2281.1260000000007,
+          319.042
+        ]
+      }
+    ],
+    "stages": [
+      {
+        "stage": "root-raw",
+        "order": "primary",
+        "faceYs": [
+          130.29999999999998,
+          138.89999999999998,
+          146.89999999999998
+        ],
+        "minimumPitch": 8.0
+      },
+      {
+        "stage": "root-markers",
+        "order": "primary",
+        "faceYs": [
+          130.29999999999998,
+          138.89999999999998,
+          146.89999999999998
+        ],
+        "minimumPitch": 8.0
+      },
+      {
+        "stage": "root-shortened",
+        "order": "primary",
+        "faceYs": [
+          130.29999999999998,
+          138.89999999999998,
+          146.89999999999998
+        ],
+        "minimumPitch": 8.0
+      },
+      {
+        "stage": "pre-shared",
+        "order": "primary",
+        "faceYs": [
+          56.849999999999994,
+          65.44999999999999,
+          73.44999999999999
+        ],
+        "minimumPitch": 8.0
+      },
+      {
+        "stage": "post-shared",
+        "order": "primary",
+        "faceYs": [
+          56.849999999999994,
+          65.44999999999999,
+          73.44999999999999
+        ],
+        "minimumPitch": 8.0
+      },
+      {
+        "stage": "root-raw",
+        "order": "authored",
+        "faceYs": [
+          257.97142857142853,
+          263.24285714285713,
+          268.51428571428573,
+          273.7857142857143
+        ],
+        "minimumPitch": 5.271428571428544
+      },
+      {
+        "stage": "root-markers",
+        "order": "authored",
+        "faceYs": [
+          257.97142857142853,
+          263.24285714285713,
+          268.51428571428573,
+          273.7857142857143
+        ],
+        "minimumPitch": 5.271428571428544
+      },
+      {
+        "stage": "root-shortened",
+        "order": "authored",
+        "faceYs": [
+          257.97142857142853,
+          263.24285714285713,
+          268.51428571428573,
+          273.7857142857143
+        ],
+        "minimumPitch": 5.271428571428544
+      },
+      {
+        "stage": "pre-shared",
+        "order": "authored",
+        "faceYs": [
+          257.97142857142853,
+          263.24285714285713,
+          268.51428571428573,
+          273.7857142857143
+        ],
+        "minimumPitch": 5.271428571428544
+      },
+      {
+        "stage": "post-shared",
+        "order": "authored",
+        "faceYs": [
+          257.97142857142853,
+          263.24285714285713,
+          268.51428571428573,
+          273.7857142857143
+        ],
+        "minimumPitch": 5.271428571428544
+      },
+      {
+        "stage": "root-raw",
+        "order": "compact",
+        "faceYs": [
+          315.367,
+          324.592,
+          329.2045,
+          333.817,
+          338.4295
+        ],
+        "minimumPitch": 4.612500000000011
+      },
+      {
+        "stage": "root-markers",
+        "order": "compact",
+        "faceYs": [
+          315.367,
+          324.592,
+          329.2045,
+          333.817,
+          338.4295
+        ],
+        "minimumPitch": 4.612500000000011
+      },
+      {
+        "stage": "root-shortened",
+        "order": "compact",
+        "faceYs": [
+          315.367,
+          324.592,
+          329.2045,
+          333.817,
+          338.4295
+        ],
+        "minimumPitch": 4.612500000000011
+      },
+      {
+        "stage": "pre-shared",
+        "order": "compact",
+        "faceYs": [
+          315.367,
+          324.592,
+          329.2045,
+          333.817,
+          338.4295
+        ],
+        "minimumPitch": 4.612500000000011
+      },
+      {
+        "stage": "post-shared",
+        "order": "compact",
+        "faceYs": [
+          315.367,
+          324.592,
+          329.2045,
+          333.817,
+          338.4295
+        ],
+        "minimumPitch": 4.612500000000011
+      }
+    ]
+  },
+  {
+    "arm": "relative",
+    "fullSVGExact": true,
+    "scoreOrder": [
+      "labelConflicts",
+      "opposingOverlap",
+      "parallelOverlap",
+      "crossings",
+      "bends",
+      "area"
+    ],
+    "choices": [
+      {
+        "strategy": "agentic-layered",
+        "score": [
+          0,
+          0,
+          0,
+          10,
+          63,
+          727775.0012920002
+        ],
+        "faceYs": [
+          56.849999999999994,
+          65.44999999999999,
+          73.44999999999999
+        ],
+        "minimumPitch": 8.0,
+        "canvas": [
+          2281.1260000000007,
+          319.042
+        ]
+      },
+      {
+        "strategy": "agentic-authored-order",
+        "score": [
+          0,
+          0,
+          0,
+          10,
+          90,
+          813794.615316
+        ],
+        "faceYs": [
+          257.97142857142853,
+          263.24285714285713,
+          268.51428571428573,
+          273.7857142857143
+        ],
+        "minimumPitch": 5.271428571428544,
+        "canvas": [
+          1998.7979999999998,
+          407.142
+        ]
+      },
+      {
+        "strategy": "agentic-compact-ranks",
+        "score": [
+          0,
+          0,
+          0,
+          4,
+          56,
+          674110.360896
+        ],
+        "faceYs": [
+          315.367,
+          324.592,
+          329.2045,
+          333.817,
+          338.4295
+        ],
+        "minimumPitch": 4.612500000000011,
+        "canvas": [
+          1453.344,
+          463.834
+        ]
+      },
+      {
+        "strategy": "selected",
+        "score": [
+          0,
+          0,
+          0,
+          4,
+          56,
+          674110.360896
+        ],
+        "faceYs": [
+          315.367,
+          324.592,
+          329.2045,
+          333.817,
+          338.4295
+        ],
+        "minimumPitch": 4.612500000000011,
+        "canvas": [
+          1453.344,
+          463.834
+        ]
+      }
+    ],
+    "stages": [
+      {
+        "stage": "root-raw",
+        "order": "primary",
+        "faceYs": [
+          130.29999999999998,
+          138.89999999999998,
+          146.89999999999998
+        ],
+        "minimumPitch": 8.0
+      },
+      {
+        "stage": "root-markers",
+        "order": "primary",
+        "faceYs": [
+          130.29999999999998,
+          138.89999999999998,
+          146.89999999999998
+        ],
+        "minimumPitch": 8.0
+      },
+      {
+        "stage": "root-shortened",
+        "order": "primary",
+        "faceYs": [
+          130.29999999999998,
+          138.89999999999998,
+          146.89999999999998
+        ],
+        "minimumPitch": 8.0
+      },
+      {
+        "stage": "pre-shared",
+        "order": "primary",
+        "faceYs": [
+          56.849999999999994,
+          65.44999999999999,
+          73.44999999999999
+        ],
+        "minimumPitch": 8.0
+      },
+      {
+        "stage": "post-shared",
+        "order": "primary",
+        "faceYs": [
+          56.849999999999994,
+          65.44999999999999,
+          73.44999999999999
+        ],
+        "minimumPitch": 8.0
+      },
+      {
+        "stage": "root-raw",
+        "order": "authored",
+        "faceYs": [
+          257.97142857142853,
+          263.24285714285713,
+          268.51428571428573,
+          273.7857142857143
+        ],
+        "minimumPitch": 5.271428571428544
+      },
+      {
+        "stage": "root-markers",
+        "order": "authored",
+        "faceYs": [
+          257.97142857142853,
+          263.24285714285713,
+          268.51428571428573,
+          273.7857142857143
+        ],
+        "minimumPitch": 5.271428571428544
+      },
+      {
+        "stage": "root-shortened",
+        "order": "authored",
+        "faceYs": [
+          257.97142857142853,
+          263.24285714285713,
+          268.51428571428573,
+          273.7857142857143
+        ],
+        "minimumPitch": 5.271428571428544
+      },
+      {
+        "stage": "pre-shared",
+        "order": "authored",
+        "faceYs": [
+          257.97142857142853,
+          263.24285714285713,
+          268.51428571428573,
+          273.7857142857143
+        ],
+        "minimumPitch": 5.271428571428544
+      },
+      {
+        "stage": "post-shared",
+        "order": "authored",
+        "faceYs": [
+          257.97142857142853,
+          263.24285714285713,
+          268.51428571428573,
+          273.7857142857143
+        ],
+        "minimumPitch": 5.271428571428544
+      },
+      {
+        "stage": "root-raw",
+        "order": "compact",
+        "faceYs": [
+          315.367,
+          324.592,
+          329.2045,
+          333.817,
+          338.4295
+        ],
+        "minimumPitch": 4.612500000000011
+      },
+      {
+        "stage": "root-markers",
+        "order": "compact",
+        "faceYs": [
+          315.367,
+          324.592,
+          329.2045,
+          333.817,
+          338.4295
+        ],
+        "minimumPitch": 4.612500000000011
+      },
+      {
+        "stage": "root-shortened",
+        "order": "compact",
+        "faceYs": [
+          315.367,
+          324.592,
+          329.2045,
+          333.817,
+          338.4295
+        ],
+        "minimumPitch": 4.612500000000011
+      },
+      {
+        "stage": "pre-shared",
+        "order": "compact",
+        "faceYs": [
+          315.367,
+          324.592,
+          329.2045,
+          333.817,
+          338.4295
+        ],
+        "minimumPitch": 4.612500000000011
+      },
+      {
+        "stage": "post-shared",
+        "order": "compact",
+        "faceYs": [
+          315.367,
+          324.592,
+          329.2045,
+          333.817,
+          338.4295
+        ],
+        "minimumPitch": 4.612500000000011
+      }
+    ]
+  }
+]
