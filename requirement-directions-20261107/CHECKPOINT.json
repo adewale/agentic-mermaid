@@ -1,0 +1,34 @@
+{
+  "sourceHead": "deafff39d427082c233e8caf4917175404f6c248",
+  "runtimeHead": "14bec477578104a1eab5a279473aa77e747f8476",
+  "capturedHead": "62af995fafa5392364ab2567678f11e59fea9ea6",
+  "main": "39a500425f6b74eb486b9add9e90d538fab6a914",
+  "runtimeSourceChanged": false,
+  "newCalls": 6,
+  "allReturned": true,
+  "allProofPassed": true,
+  "independentSVGs": 6,
+  "authoredCardsEach": 3,
+  "orderedRelationsEach": 5,
+  "normalContactsEach": 10,
+  "textProgramsWithInk": 90,
+  "markerOccurrencesWithInk": 30,
+  "fonts": "manifest-pinned Inter, no system fonts",
+  "noNewRuntimeGain": true,
+  "remaining": [
+    "Sparse32 proof cap",
+    "ER256 shared geometry refusal",
+    "Forest Native wire+10.19% versus ELK",
+    "Sparse256 Native area+5.04%",
+    "main-relative standalone Brotli/build RSS and lazy/demo/payload losses"
+  ],
+  "unavailable": [
+    "original2dad baseline",
+    "Trident",
+    "pinnedMermaid12.2",
+    "Pele1.9"
+  ],
+  "sealed": "Replacement24",
+  "ci62af": "42336119035 completed failed; exactly1unit2failureSparse32; quality/advisory/payload alsofailed",
+  "captureSHA256": "025b6bbdc06b3078fb3b6b62814f8c755fd522d469a18e69d4fb26fd48c949bf"
+}

@@ -1,0 +1,242 @@
+[
+  {
+    "direction": "BT",
+    "backend": "agentic",
+    "head": "62af995fafa5392364ab2567678f11e59fea9ea6",
+    "svgSHA256": "dae18e8bb4333e7a413b55350edfbd8d7c613306963bfa30cd1c3313659717c7",
+    "delivery": "returned",
+    "proof": "passed",
+    "operations": 101660,
+    "authoredCards": 3,
+    "authoredRelations": 5,
+    "ownedCaptionOccurrences": 5,
+    "normalContacts": 10,
+    "width": 461.893,
+    "height": 499.45,
+    "viewportArea": 230692.45885,
+    "routeWire": 671.197666666,
+    "bends": 8,
+    "sizes": {
+      "svgRawBytes": 9921,
+      "svgGzipBytes": 1990,
+      "svgBrotliBytes": 1639,
+      "entireReceiptRawBytes": 7922,
+      "wholeProductRawBytes": 18744
+    },
+    "cost": {
+      "wallMs": 139.403139,
+      "cpu": {
+        "user": 177414,
+        "system": 6430
+      },
+      "peakRssKiB": 206452
+    },
+    "ink": {
+      "raster": "Inter manifest weights, zoom2, system fonts off",
+      "textProgramsContributing": 15,
+      "markerOccurrencesContributing": 5,
+      "limits": "Program/occurrence contribution only; not individual glyph attribution, font-independent readability or complete occlusion proof."
+    },
+    "qualityLimit": "viewport area and carrier wire, not glyph readability or optimal placement"
+  },
+  {
+    "direction": "BT",
+    "backend": "elk",
+    "head": "62af995fafa5392364ab2567678f11e59fea9ea6",
+    "svgSHA256": "bdb3c537f55f9456db50dbc858c2cf362fad8996ca5088c77e87d301d3343c38",
+    "delivery": "returned",
+    "proof": "passed",
+    "operations": 102470,
+    "authoredCards": 3,
+    "authoredRelations": 5,
+    "ownedCaptionOccurrences": 5,
+    "normalContacts": 10,
+    "width": 481.1416,
+    "height": 535.3,
+    "viewportArea": 257555.09847999996,
+    "routeWire": 963.4685333334,
+    "bends": 10,
+    "sizes": {
+      "svgRawBytes": 10070,
+      "svgGzipBytes": 2007,
+      "svgBrotliBytes": 1672,
+      "entireReceiptRawBytes": 7906,
+      "wholeProductRawBytes": 18877
+    },
+    "cost": {
+      "wallMs": 411.4037450000001,
+      "cpu": {
+        "user": 519849,
+        "system": 29863
+      },
+      "peakRssKiB": 222508
+    },
+    "ink": {
+      "raster": "Inter manifest weights, zoom2, system fonts off",
+      "textProgramsContributing": 15,
+      "markerOccurrencesContributing": 5,
+      "limits": "Program/occurrence contribution only; not individual glyph attribution, font-independent readability or complete occlusion proof."
+    },
+    "qualityLimit": "viewport area and carrier wire, not glyph readability or optimal placement"
+  },
+  {
+    "direction": "LR",
+    "backend": "agentic",
+    "head": "62af995fafa5392364ab2567678f11e59fea9ea6",
+    "svgSHA256": "de615748f0ae89d70a9c1fce2772d74dcaab2347459805e2fbfd1122b7025c37",
+    "delivery": "returned",
+    "proof": "passed",
+    "operations": 101806,
+    "authoredCards": 3,
+    "authoredRelations": 5,
+    "ownedCaptionOccurrences": 5,
+    "normalContacts": 10,
+    "width": 970.194,
+    "height": 251.95,
+    "viewportArea": 244440.37829999998,
+    "routeWire": 947.5999999999997,
+    "bends": 6,
+    "sizes": {
+      "svgRawBytes": 9825,
+      "svgGzipBytes": 1964,
+      "svgBrotliBytes": 1615,
+      "entireReceiptRawBytes": 7922,
+      "wholeProductRawBytes": 18648
+    },
+    "cost": {
+      "wallMs": 147.8383490000001,
+      "cpu": {
+        "user": 184386,
+        "system": 7033
+      },
+      "peakRssKiB": 193900
+    },
+    "ink": {
+      "raster": "Inter manifest weights, zoom2, system fonts off",
+      "textProgramsContributing": 15,
+      "markerOccurrencesContributing": 5,
+      "limits": "Program/occurrence contribution only; not individual glyph attribution, font-independent readability or complete occlusion proof."
+    },
+    "qualityLimit": "viewport area and carrier wire, not glyph readability or optimal placement"
+  },
+  {
+    "direction": "LR",
+    "backend": "elk",
+    "head": "62af995fafa5392364ab2567678f11e59fea9ea6",
+    "svgSHA256": "d93c5c1375fbfda5603fe7c45583d1ef56f75b105c81e85d0e831981175a07bd",
+    "delivery": "returned",
+    "proof": "passed",
+    "operations": 102285,
+    "authoredCards": 3,
+    "authoredRelations": 5,
+    "ownedCaptionOccurrences": 5,
+    "normalContacts": 10,
+    "width": 753.144,
+    "height": 329.3,
+    "viewportArea": 248010.3192,
+    "routeWire": 1188.1566666666,
+    "bends": 8,
+    "sizes": {
+      "svgRawBytes": 10161,
+      "svgGzipBytes": 2005,
+      "svgBrotliBytes": 1658,
+      "entireReceiptRawBytes": 7904,
+      "wholeProductRawBytes": 18966
+    },
+    "cost": {
+      "wallMs": 306.88381900000013,
+      "cpu": {
+        "user": 370541,
+        "system": 34246
+      },
+      "peakRssKiB": 213196
+    },
+    "ink": {
+      "raster": "Inter manifest weights, zoom2, system fonts off",
+      "textProgramsContributing": 15,
+      "markerOccurrencesContributing": 5,
+      "limits": "Program/occurrence contribution only; not individual glyph attribution, font-independent readability or complete occlusion proof."
+    },
+    "qualityLimit": "viewport area and carrier wire, not glyph readability or optimal placement"
+  },
+  {
+    "direction": "RL",
+    "backend": "agentic",
+    "head": "62af995fafa5392364ab2567678f11e59fea9ea6",
+    "svgSHA256": "458e1c375b05adf35f634b8cf5888b8b2477406cd4571692c5f3b8fd82110902",
+    "delivery": "returned",
+    "proof": "passed",
+    "operations": 101657,
+    "authoredCards": 3,
+    "authoredRelations": 5,
+    "ownedCaptionOccurrences": 5,
+    "normalContacts": 10,
+    "width": 970.194,
+    "height": 251.95,
+    "viewportArea": 244440.37829999998,
+    "routeWire": 947.5999999999997,
+    "bends": 6,
+    "sizes": {
+      "svgRawBytes": 9809,
+      "svgGzipBytes": 1968,
+      "svgBrotliBytes": 1626,
+      "entireReceiptRawBytes": 7922,
+      "wholeProductRawBytes": 18632
+    },
+    "cost": {
+      "wallMs": 140.71295099999998,
+      "cpu": {
+        "user": 163465,
+        "system": 20425
+      },
+      "peakRssKiB": 206472
+    },
+    "ink": {
+      "raster": "Inter manifest weights, zoom2, system fonts off",
+      "textProgramsContributing": 15,
+      "markerOccurrencesContributing": 5,
+      "limits": "Program/occurrence contribution only; not individual glyph attribution, font-independent readability or complete occlusion proof."
+    },
+    "qualityLimit": "viewport area and carrier wire, not glyph readability or optimal placement"
+  },
+  {
+    "direction": "RL",
+    "backend": "elk",
+    "head": "62af995fafa5392364ab2567678f11e59fea9ea6",
+    "svgSHA256": "cf172c81e36adcb42434b248a7fab5517bc1aede188d4486466f693563d5f9c1",
+    "delivery": "returned",
+    "proof": "passed",
+    "operations": 102247,
+    "authoredCards": 3,
+    "authoredRelations": 5,
+    "ownedCaptionOccurrences": 5,
+    "normalContacts": 10,
+    "width": 753.144,
+    "height": 329.3,
+    "viewportArea": 248010.3192,
+    "routeWire": 1188.1566666666001,
+    "bends": 8,
+    "sizes": {
+      "svgRawBytes": 10150,
+      "svgGzipBytes": 2008,
+      "svgBrotliBytes": 1649,
+      "entireReceiptRawBytes": 7904,
+      "wholeProductRawBytes": 18955
+    },
+    "cost": {
+      "wallMs": 304.55726300000015,
+      "cpu": {
+        "user": 384218,
+        "system": 17850
+      },
+      "peakRssKiB": 221044
+    },
+    "ink": {
+      "raster": "Inter manifest weights, zoom2, system fonts off",
+      "textProgramsContributing": 15,
+      "markerOccurrencesContributing": 5,
+      "limits": "Program/occurrence contribution only; not individual glyph attribution, font-independent readability or complete occlusion proof."
+    },
+    "qualityLimit": "viewport area and carrier wire, not glyph readability or optimal placement"
+  }
+]

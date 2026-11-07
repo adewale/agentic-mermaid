@@ -1,0 +1,10 @@
+{
+  "status": "stopped-before-implementation",
+  "hypothesis": "Widen the prior seven-prepared-name bitset to repeated fixed attribute names",
+  "reason": "Only four ordinary attributes per text; at most about12000 repeated name-lookup charges plus prior18000 prepared-name charges before replacement index cost. Not a measured speedup, and insufficient against remaining1500-label proof deficit.",
+  "runtimeEdits": 0,
+  "probeReplays": 0,
+  "cap": 400000,
+  "existingFailure": "Sparse32 proof unverified, direct proof and visible output retained",
+  "priorEvidence": "rebase-sparse32-14bec/CAUSAL-RESULT.json"
+}
