@@ -58,9 +58,9 @@ export interface FlowchartRegion {
 export interface FlowchartScan {
   /** Every region, in the order it opens. */
   readonly regions: readonly FlowchartRegion[]
-  /** For each character, whether it lies at statement level (in no region
-   * and not a region delimiter). Links and separators are statement level. */
-  readonly topLevel: readonly boolean[]
+  /** One nonzero flag per statement-level character (in no region and not a
+   * region delimiter). Links and separators are statement level. */
+  readonly topLevel: Readonly<Uint8Array>
   /** Offsets of the `;` characters that end statements. */
   readonly separators: readonly number[]
   /** The statement-level links, in order: each link, and the opening and
@@ -403,10 +403,12 @@ export function flowchartRegionAt(text: string, at: number): FlowchartRegion | u
 /** `labelStrings`: a `"` in shape text opens a string only where the text
  * begins; elsewhere it is text, as the parser's shape patterns read it. A
  * `"` at `textQuote` is text wherever it is. */
+const EMPTY_LEVEL_FLAGS = new Uint8Array(0)
+
 function lex(text: string, from: number, single: boolean, labelStrings: boolean, textQuote = -1): FlowchartScan {
   const regions: MutableRegion[] = []
   // A single region needs no statement-level map, and must not pay for one.
-  const topLevel = single ? [] : Array<boolean>(text.length).fill(false)
+  const topLevel = single ? EMPTY_LEVEL_FLAGS : new Uint8Array(text.length)
   const separators: number[] = []
   const links: FlowchartTextRange[] = []
   // Open regions, innermost last (indices into `regions`).
@@ -481,7 +483,7 @@ function lex(text: string, from: number, single: boolean, labelStrings: boolean,
       const link = matchFlowchartLink(text, index)
       if (link) {
         links.push({ start: index, end: link.end })
-        topLevel.fill(true, index, link.end)
+        topLevel.fill(1, index, link.end)
         index = link.end - 1
         continue
       }
@@ -495,17 +497,17 @@ function lex(text: string, from: number, single: boolean, labelStrings: boolean,
           regions.push({ kind: 'string', start: arrow.quote.open, end: arrow.quote.close + 1, contentStart: arrow.quote.open + 1, contentEnd: arrow.quote.close, closed: true, parent: regionIndex })
         }
         // The operators around the label are statement level; the label is not.
-        topLevel.fill(true, index, arrow.labelStart)
+        topLevel.fill(1, index, arrow.labelStart)
         const closeStart = arrow.end - arrow.closeOp.length
-        topLevel.fill(true, closeStart, arrow.end)
-        if (!single) for (let cursor = arrow.labelEnd; cursor < closeStart; cursor++) topLevel[cursor] = true
+        topLevel.fill(1, closeStart, arrow.end)
+        if (!single) for (let cursor = arrow.labelEnd; cursor < closeStart; cursor++) topLevel[cursor] = 1
         links.push({ start: index, end: index + opener![0].length }, { start: closeStart, end: arrow.end })
         index = arrow.end - 1
         continue
       }
       if (opener) {
         links.push({ start: index, end: index + opener[0].length })
-        topLevel.fill(true, index, index + opener[0].length)
+        topLevel.fill(1, index, index + opener[0].length)
         // A label upstream rejects (findTextArrow) neither closes nor runs on
         // to the next line: what follows its opener is lexed as written.
         if (found) {
@@ -518,7 +520,7 @@ function lex(text: string, from: number, single: boolean, labelStrings: boolean,
     }
     // A `>` that no link consumed opens asymmetric shape text (`A>x]`).
     if (char === '>') { open('shape', index, index + 1); continue }
-    if (!single) topLevel[index] = true
+    if (!single) topLevel[index] = 1
     if (char === ';') separators.push(index)
   }
 
