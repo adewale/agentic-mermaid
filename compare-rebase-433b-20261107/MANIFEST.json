@@ -46,8 +46,8 @@
   },
   {
     "path": "paired-current.py",
-    "bytes": 4220,
-    "sha256": "1a6457fda9b7c175b20c95519ab97bf2de089262207dbc734e5ffb5d2475ecff"
+    "bytes": 4320,
+    "sha256": "9c487dabe4c5a8168e18d022259d41f16cc42582a445338c1bd9769b06839722"
   },
   {
     "path": "current-calls.py",

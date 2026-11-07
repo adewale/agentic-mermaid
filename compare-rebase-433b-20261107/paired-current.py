@@ -4,9 +4,10 @@ for n in sorted(x for x in z.namelist() if x.endswith('/agentic.json') or x=='ag
  a=json.loads(z.read(n));b=json.loads(z.read(n.replace('agentic.json','elk.json')));assert a['rev']==b['rev']==head and not a['dirty'] and not b['dirty'];assert len(a['samples'])==len(b['samples']);assert {k:v for k,v in a['renderOptions'].items() if k!='graphLayout'}=={k:v for k,v in b['renderOptions'].items() if k!='graphLayout'}
  for x,y in zip(a['samples'],b['samples']):assert all(x[k]==y[k] for k in ['id','family','source'])
  samples['agentic']+=a['samples'];samples['elk']+=b['samples'];cohorts.append({'path':n,'count':len(a['samples'])})
+created_at=json.loads(z.read('agentic.json'))['createdAt']
 for arm,rows in samples.items():
  assert len(rows)==len({s['id'] for s in rows})
- (r/(arm+'.json')).write_text(json.dumps({'label':arm+' at433b','rev':head,'dirty':False,'renderOptions':{'graphLayout':{'backend':arm}},'samples':rows}))
+ (r/(arm+'.json')).write_text(json.dumps({'label':arm+' at433b','rev':head,'createdAt':created_at,'dirty':False,'renderOptions':{'graphLayout':{'backend':arm,'fallback':'none'}},'samples':rows}))
 proof=lambda s:s.get('svgReceipt',{}).get('layoutCertification',{}).get('status','unavailable' if s.get('svg') else 'not-delivered')
 family={};rows=[];pairs=collections.Counter();proofpairs=collections.Counter();vectors=collections.defaultdict(lambda:collections.Counter());pct=collections.defaultdict(list)
 for a,b in zip(samples['agentic'],samples['elk']):
