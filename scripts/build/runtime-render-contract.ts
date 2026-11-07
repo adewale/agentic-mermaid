@@ -209,6 +209,23 @@ function runtimeLayoutBackendSource(source: string, path: string, lazyLayoutOpti
   return `${errors}\n${identities}\n${gaps}\n${seeds}\n${order}\n${plainData}\n${utf8}\n${ink}\n${optimization}\n${ts.createPrinter().printFile(ts.factory.updateSourceFile(file, statements))}`
 }
 
+/** Marker-terminal supports use the same resource bank in the browser; keep
+ * this small canonical leaf beside its bounds implementation instead of another request. */
+function runtimeMarkerBoundsSource(source: string, path: string): string {
+  const leafPath = resolve(dirname(path), 'marker-terminals.ts')
+  const leaf = ts.createSourceFile(leafPath, readFileSync(leafPath, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  const declarations = leaf.statements.filter(statement => !ts.isImportDeclaration(statement))
+  if (declarations.length !== 1 || !ts.isFunctionDeclaration(declarations[0]!) || declarations[0]!.name?.text !== 'prepareMarkerTerminals') throw new Error('Unsupported canonical marker-terminal declarations')
+  const imports = leaf.statements.filter(ts.isImportDeclaration)
+  const expected = ['../shared/edge-label-geometry.ts', './bounds.ts', './ir.ts']
+  if (imports.length !== expected.length || imports.some((statement, index) => !ts.isStringLiteral(statement.moduleSpecifier) || statement.moduleSpecifier.text !== expected[index])) throw new Error('Unsupported canonical marker-terminal imports')
+  const labelPath = resolve(dirname(path), '../shared/edge-label-geometry.ts')
+  const labels = ts.createSourceFile(labelPath, readFileSync(labelPath, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  const shaft = labels.statements.find(statement => ts.isVariableStatement(statement) && statement.declarationList.declarations.length === 1 && ts.isIdentifier(statement.declarationList.declarations[0]!.name) && statement.declarationList.declarations[0]!.name.text === 'VISIBLE_SHAFT')
+  if (!shaft || !ts.isVariableStatement(shaft) || !shaft.declarationList.declarations[0]!.initializer || !ts.isNumericLiteral(shaft.declarationList.declarations[0]!.initializer!)) throw new Error('Unsupported canonical visible-shaft constant')
+  return `${source}\n${ts.createPrinter().printNode(ts.EmitHint.Unspecified, shaft, labels)}\n${ts.createPrinter().printNode(ts.EmitHint.Unspecified, declarations[0]!, leaf)}`
+}
+
 /** Pipeline prose is for Node-side inspection and generated documentation.
  * Keep the executable pass contracts intact in the browser renderer. */
 function runtimeLayoutSource(source: string, path: string): string {
@@ -360,6 +377,12 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
           resolve(args.resolveDir, args.path) === admission ? { path: sourceAdmission } : undefined)
       }
       if (coalesceRuntimePrimitives) {
+        const markerBoundsPath = fileURLToPath(new URL('../../src/scene/bounds.ts', import.meta.url))
+        const markerTerminalsPath = resolve(dirname(markerBoundsPath), 'marker-terminals.ts')
+        build.onResolve({ filter: /[\\/]marker-terminals\.ts$/ }, args => resolve(args.resolveDir, args.path) === markerTerminalsPath ? { path: markerBoundsPath } : undefined)
+        build.onLoad({ filter: /[\\/]src[\\/]scene[\\/]bounds\.ts$/ }, ({ path }) => path !== markerBoundsPath ? undefined : ({
+          contents: runtimeMarkerBoundsSource(readFileSync(path, 'utf8'), path), loader: 'ts', resolveDir: dirname(path),
+        }))
         if (lazyLayoutOptimization) {
           // Marker interpretation and the lazy HTML decoder are one owner.
           // Keeping their imports together avoids extra default SVG requests.

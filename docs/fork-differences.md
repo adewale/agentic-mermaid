@@ -14,7 +14,7 @@ and historical-version qualifications are in [`comparison.md`](./comparison.md#z
 
 ## Live site
 
-The canonical live site is **[agentic-mermaid.dev](https://agentic-mermaid.dev/)** — a Cloudflare Workers Static Assets deployment built from [`website/`](../website):
+The canonical live site is **[agentic-mermaid.dev](https://agentic-mermaid.dev/)** — a Cloudflare Workers Static Assets deployment built from [`website/`](https://github.com/adewale/agentic-mermaid/tree/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/website):
 
 - Home & docs: <https://agentic-mermaid.dev/>
 - Live editor: <https://agentic-mermaid.dev/editor>
@@ -182,7 +182,7 @@ The [Flowchart candidate collector](https://github.com/adewale/agentic-mermaid/b
 and [ER public-boundary regressions](https://github.com/adewale/agentic-mermaid/blob/3ef2fb8beff21359fb6e3b798e025a3d69311539/src/__tests__/er-subgraph-membership.test.ts)
 record this rule. Agreement on this grammar decision is not a promise of
 Mermaid pixel/layout parity. Current deliberate reader extensions and source
-preservation limits live in [`project/divergences.md`](./project/divergences.md).
+preservation limits live in [`project/divergences.md`](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/project/divergences.md).
 
 State resolves authored identities and scopes before building either the
 editable body or the render graph. A reference inside a composite can establish
@@ -233,7 +233,7 @@ The fork should continue extracting small upstreamable PRs from broad fork work.
 
 ## Original upstream assertion runs
 
-The [original assertion runner](../eval/mermaid-upstream-assertions/README.md)
+The [original assertion runner](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/eval/mermaid-upstream-assertions/README.md)
 executes pinned source test bodies rather than harvested input samples. Its
 family breakdown distinguishes native refusals, assertion mismatches, unmapped
 APIs, reference-control failures, skips and collection errors.

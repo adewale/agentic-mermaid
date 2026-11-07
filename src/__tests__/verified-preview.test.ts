@@ -28,6 +28,10 @@ describe('one positioned artifact for preview and verification', () => {
     const sourceModule = await import(`data:text/javascript;base64,${Buffer.from(text).toString('base64')}`) as {
       BUILTIN_SOURCE_HOOKS: Record<string, { parse?: unknown; serialize?: unknown; buildSourceMap?: unknown; mutate?: unknown }>
     }
+    for (const family of knownBuiltinFamilies()) {
+      expect(sourceModule.BUILTIN_SOURCE_HOOKS[family]?.mutate, family).toBeUndefined()
+      expect(typeof getFamily(family)!.mutate, family).toBe('function')
+    }
     for (const family of ['eventmodeling', 'zenuml']) {
       const hook = sourceModule.BUILTIN_SOURCE_HOOKS[family]!
       expect(typeof hook.parse).toBe('function')

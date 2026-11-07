@@ -62,7 +62,7 @@ function editorScriptRel(editorHtml = read('editor/index.html')) {
 }
 
 function examplesCatalogHtml() {
-  return [read('examples/index.html'), read('examples/style-palette/index.html'), read('examples/corpus/index.html')].join('\n')
+  return [read('examples/index.html'), read('examples/diagrams/index.html'), read('examples/style-palette/index.html'), read('examples/corpus/index.html')].join('\n')
 }
 
 function exampleFragmentRels(index = read('examples/index.html')) {
@@ -406,7 +406,7 @@ describe('Workers Static Assets website contract', () => {
       expect.stringMatching(/^editor\/editor-[a-f0-9]{12}\.js$/),
       expect.stringMatching(/^examples-[a-f0-9]{12}\.css$/),
       expect.stringMatching(/^examples-[a-f0-9]{12}\.js$/),
-      expect.stringMatching(/^examples\/fragments\/(?:style-palette|corpus)-[a-f0-9]{12}\.html$/),
+      expect.stringMatching(/^examples\/fragments\/(?:diagrams|style-palette|corpus)-[a-f0-9]{12}\.html$/),
       expect.stringMatching(/^generated\/inline-[a-f0-9]{12}\.js$/),
       expect.stringMatching(/^vendor\/mermaid-[a-f0-9]{12}\.min\.js$/),
     ]))
@@ -886,7 +886,7 @@ describe('Workers Static Assets website contract', () => {
       expect(Object.prototype.hasOwnProperty.call(state, 'seed'), `${id}: explicit seed`).toBe(true)
       expect((state.config as Record<string, unknown>)?.compact, `${id}: compact parity`).toBe(true)
 
-      const basic = catalog.examples.find((entry: any) => entry.renderUrl === `/examples/#${id}`)
+      const basic = catalog.examples.find((entry: any) => entry.renderUrl === `/examples/diagrams/#${id}`)
       const idPrefix = `example-${basic?.id ?? id}-`
       const editorSvg = renderWebsiteSVG(state.source as string, {
         ...editorRenderOptionsFromState(state),
@@ -913,12 +913,17 @@ describe('Workers Static Assets website contract', () => {
     expect(catalogEntries).toHaveLength(articles.length)
   })
 
-  test('Examples keeps family proofs initial and projects exact retryable standalone fragments', () => {
+  test('Examples loads family proofs on intent and projects exact retryable standalone fragments', () => {
     const index = read('examples/index.html')
     const stylePage = read('examples/style-palette/index.html')
     const corpusPage = read('examples/corpus/index.html')
     const fragments = exampleFragmentRels(index)
-    expect(fragments).toHaveLength(2)
+    const diagramsPage = read('examples/diagrams/index.html')
+    const diagramsRel = fragments.find(rel => rel.includes('diagrams-'))!
+    const diagramsFragment = read(diagramsRel)
+    expect(fragments).toHaveLength(3)
+    expect(diagramsPage).toContain(diagramsFragment)
+    expect(diagramsRel).toContain(createHash('sha256').update(diagramsFragment).digest('hex').slice(0, 12))
     expect(index).not.toMatch(/data-example-fragment="[^"]+\.html"/)
     expect(fragments).toEqual(expect.arrayContaining([
       expect.stringMatching(/^examples\/fragments\/style-palette-[a-f0-9]{12}\.html$/),
@@ -935,7 +940,8 @@ describe('Workers Static Assets website contract', () => {
     expect(corpusPage).toContain(corpusFragment)
     expect(styleFragment.match(/data-example-fragment-root="style-palette"/g)).toHaveLength(1)
     expect(corpusFragment.match(/data-example-fragment-root="corpus"/g)).toHaveLength(1)
-    expect(index.match(/<article class="example-sample"/g)).toHaveLength(EDITOR_EXAMPLES.length)
+    expect(index.match(/<article class="example-sample"/g) ?? []).toHaveLength(0)
+    expect(diagramsFragment.match(/<article class="example-sample"/g)).toHaveLength(EDITOR_EXAMPLES.length)
     expect(styleFragment.match(/<article class="example-sample"/g)).toHaveLength(BUILTIN_FAMILY_METADATA.length)
     expect(corpusFragment.match(/<article class="example-sample/g)).toHaveLength(RICH_EXAMPLES.length)
     expect(index).not.toContain('<article class="example-sample" id="style-palette-flowchart">')
@@ -1234,7 +1240,8 @@ describe('Workers Static Assets website contract', () => {
   })
 
   test('examples pages carry an agent task, trace, and render anchor for every family', () => {
-    const examples = read('examples/index.html')
+    const examples = read('examples/diagrams/index.html')
+    const index = read('examples/index.html')
     const allExamples = examplesCatalogHtml()
     // Registry-exact: adding a family without a prompt/trace or supported render
     // must fail this generated-site citizenship gate.
@@ -1255,9 +1262,9 @@ describe('Workers Static Assets website contract', () => {
     expect(examples).not.toContain('id="styled-flowchart"')
     const styles = read('styles.css')
     expect(styles).toContain('.example-prompt, .example-trace')
-    expect(examples).toContain('class="example-jump"')
-    expect(examples).toContain('Jump to a diagram family')
-    const jump = examples.match(/<nav class="example-jump"[\s\S]*?<\/nav>/)?.[0] ?? ''
+    expect(index).toContain('class="example-jump"')
+    expect(index).toContain('Jump to a diagram family')
+    const jump = index.match(/<nav class="example-jump"[\s\S]*?<\/nav>/)?.[0] ?? ''
     expect(jump).not.toContain('examples-role-style-presets-jump')
     expect(jump).toContain('<p class="example-jump-title" id="examples-style-palette-combinations-jump">Style × palette combinations</p>')
     expect(jump).toContain('<p class="example-jump-title" id="examples-rich-gallery-jump">Rich shared example gallery</p>')
@@ -1391,9 +1398,9 @@ describe('Workers Static Assets website contract', () => {
     for (const example of examplesIndex.examples) {
       const renderAnchor = example.renderUrl.split('#')[1]
       const docsAnchor = example.docs.split('#')[1]
-      expect(example.renderUrl.startsWith('/examples/#')).toBe(true)
+      expect(example.renderUrl.startsWith('/examples/diagrams/#')).toBe(true)
       expect(examplesHtml).toContain(`id="${renderAnchor}"`)
-      expect(example.docs.startsWith('/examples/#')).toBe(true)
+      expect(example.docs.startsWith('/examples/diagrams/#')).toBe(true)
       expect(examplesHtml).toContain(`id="${docsAnchor}"`)
       expect(example.editorUrl).toContain('/editor/#deflate:')
     }
@@ -1603,7 +1610,7 @@ describe('Workers Static Assets website contract', () => {
 
   test('audit fixes give public proof diagrams accessible names and immutable editor assets', () => {
     const home = read('index.html')
-    const examples = read('examples/index.html')
+    const examples = read('examples/diagrams/index.html')
     expect(home).toContain('role="img" aria-labelledby="edit-loop-svg-title edit-loop-svg-desc"')
     expect(home).toContain('<title id="edit-loop-svg-title">Agentic Mermaid edit loop</title>')
     expect(examples).toContain('role="img" aria-labelledby="example-flowchart-basic-svg-title example-flowchart-basic-svg-desc"')

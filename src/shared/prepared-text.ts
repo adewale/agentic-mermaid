@@ -4,7 +4,7 @@ import { performanceExperimentEnabled } from '../experimental-performance.ts'
 import { WeightedLru } from '../experimental/weighted-lru.ts'
 import type { LabelDisplay } from '../multiline-utils.ts'
 import type { TextTransform } from '../types.ts'
-import { LINE_HEIGHT_RATIO, measureTextWidth, measureSystemFontSafeTextWidth, measureMonospaceTextWidth, getCharWidth } from '../text-metrics.ts'
+import { LINE_HEIGHT_RATIO, measureTextWidth, measureSystemFontSafeTextWidth, measureMonospaceTextWidth, getCharWidth, isKnownMonospaceFontFamily } from '../text-metrics.ts'
 import { graphemes } from './graphemes.ts'
 import { serializeStyledSegment } from './inline-format.ts'
 import { isImmutableDisplayTextPart, prepareDisplayText, type DisplayRun, type DisplayTextInput, type PreparedDisplayText } from './display-text.ts'
@@ -224,6 +224,7 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
     display: options.display, transform: options.transform, fontSize: options.fontSize, fontWeight: options.fontWeight,
     letterSpacing: options.letterSpacing, maxWidth: options.maxWidth, safeFont: options.safeFont, monospace: options.monospace, fontFamily: options.fontFamily,
   }
+  if (options.monospace === undefined && options.fontFamily && isKnownMonospaceFontFamily(options.fontFamily)) options = { ...options, monospace: true }
   if (!Number.isFinite(options.fontSize) || options.fontSize <= 0 || !Number.isFinite(options.fontWeight) || !Number.isFinite(options.letterSpacing ?? 0)) throw new RangeError('Prepared text requires finite typography and a positive font size')
   const cacheKey = performanceExperimentEnabled('text-spans') && !customTextMeasurementActive() && typeof source === 'string' && source.length <= 16384
     ? JSON.stringify([source, options]) : undefined

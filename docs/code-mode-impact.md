@@ -59,7 +59,7 @@ the operation list cannot express.
 Local and hosted Code Mode share the same `mermaid.*` facade. Differential
 tests compare result envelopes, errors, trace behaviour, read-only enforcement,
 and serialization across both runtimes. The
-[hosted MCP as-built record](./project/archive/hosted-mcp-cloudflare-plan.md) documents
+[hosted MCP as-built record](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/project/archive/hosted-mcp-cloudflare-plan.md) documents
 the remaining runtime differences and abuse controls.
 
 ## Measured effect

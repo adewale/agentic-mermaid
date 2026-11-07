@@ -4,6 +4,16 @@ Current implementation decisions that differ from, or materially narrow, the bro
 
 ## What still matters
 
+Top-level State layout hints (`scale N width`, `hide empty description`) remain visible
+in verification as unapplied renderer settings. They now survive typed edits
+and serialization as `layoutDirectives`, without making the complete state
+machine opaque. Their source spelling does not control local geometry.
+Nested hints remain source-only until the typed model can retain their scope.
+State identities keep combining marks instead of splitting a Hebrew or
+decomposed Latin name; ER declarations and relationship endpoints accept
+Unicode names through the shared entity lexer. Neither reader normalizes an
+authored identity to a different Unicode sequence.
+
 ### Grammar finder triage (#461)
 
 The triage covers all 1,283 distinct inputs retained in four linked workflow
@@ -936,3 +946,27 @@ native message reading remains available with `UNSUPPORTED_SYNTAX`; typed
 editing stays unavailable for those sources. A leading `loop)` already starts
 a block and retains the block-boundary error when no `end` follows. Longer
 ordinary IDs such as `created)` remain writable.
+
+
+### AgentFlow retains literal percent pairs in labels
+
+Mermaid 12.2.0 accepts multiline unquoted square, ellipse and trapezoid labels
+but strips `%%` and the rest of that label line. Agentic retains those
+characters in the native model, SVG and ASCII. The three original
+`agentflow-comments.spec.ts` assertions expecting that truncation remain
+intentional reader divergences.
+
+Canonical AgentFlow export shields percent characters in classified label
+tokens with Mermaid's `#37;` escape. The pinned public parser accepts these
+writes and retains the complete logical label on readback. Full-line comments
+remain comments, including any semicolons they contain.
+
+### Cynefin retains authored self-transitions
+
+Mermaid 12.2.0 accepts Cynefin self-transitions but drops them from its database,
+including their labels. Agentic retains them in its native model, source maps,
+SVG, terminal output and checked edits. Each loop has its own routed contacts
+and caption. Canonical exports include the authored loop statements; Mermaid
+accepts that syntax and continues to discard those transitions on its readback.
+The two original `cynefin.integration.spec.ts` assertions expecting loops to
+vanish remain intentional data-retention divergences.

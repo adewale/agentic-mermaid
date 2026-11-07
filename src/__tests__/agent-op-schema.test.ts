@@ -254,6 +254,14 @@ describe('schema covers every mutable family (§11)', () => {
   // A representative op per family that must pass shape validation and build.
   const REPRESENTATIVE: Record<string, Record<string, unknown> | Record<string, unknown>[]> = {
     flowchart: { kind: 'add_node', id: 'a', label: 'A' },
+    swimlane: { kind: 'add_node', id: 'a', label: 'A' },
+    agentflow: { kind: 'add_node', id: 'a', label: 'A' },
+    usecase: { kind: 'add_actor', id: 'customer', label: 'Customer' },
+    wardley: { kind: 'add_component', id: 'API', x: 30, y: 60 },
+    venn: { kind: 'set_subset', sets: ['A'], size: 10 },
+    cynefin: { kind: 'add_item', domain: 'clear', label: 'Operate' },
+    railroad: { kind: 'add_rule', name: 'entry', definition: { type: 'terminal', value: 'start' } },
+    treeview: { kind: 'add_node', label: 'src', nodeType: 'directory' },
     state: { kind: 'add_state', id: 's' },
     sequence: { kind: 'add_participant', id: 'A' },
     timeline: { kind: 'add_section', label: 'S' },

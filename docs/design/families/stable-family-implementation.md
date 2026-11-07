@@ -69,6 +69,13 @@ intentional Mermaid divergences. The follow-up uses the existing authorities:
 | Accessibility, security and output correspondence | The universal source envelope, output security policy, retained text, stable SVG identities and family descriptor contracts remain shared. Their existing all-family tests exercise the new families; family-specific terminal projections retain their explicit limitations above. |
 | Determinism and request isolation | Child, row, relation and obstacle indexes retain authored iteration order. Number formatters and resolved fill-ink values are reused only within one request; no cache survives into a differently styled diagram. Parser observation can select mutations before snapshotting, while ordinary full observation retains its lossless model snapshots. |
 
+Source maps use one native read for identical canonical and post-wrapper
+authored text. Different bytes retain separate reads. Parser-owned authored
+span categories, including explicitly empty maps, take precedence over generic
+reconstruction; missing categories retain the existing fallback. Both paths
+preserve coordinate units, original ranges and canonical identity ordering
+without retaining a second parser model.
+
 The performance comparison uses both the original candidate and a separate
 merge-only baseline (`2199c535`) so improvements already on main are not
 attributed to the native-family optimizations. Stage measurements use the

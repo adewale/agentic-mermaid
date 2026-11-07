@@ -32,13 +32,24 @@ across several surfaces; this hub points at each.
 | Ishikawa | [ishikawa.md](./ishikawa.md) |
 | Block | [block.md](./block.md) |
 | Event Modeling | [eventmodeling.md](./eventmodeling.md) |
-| ZenUML | See the shared system and family contracts below. |
+| ZenUML | [zenuml.md](./zenuml.md) |
+| Railroad | [railroad.md](./railroad.md) |
+| Cynefin | [cynefin.md](./cynefin.md) |
+| AgentFlow | [agentflow.md](./agentflow.md) |
+| UseCase | [usecase.md](./usecase.md) |
+| Wardley | [wardley.md](./wardley.md) |
+| Venn | [venn.md](./venn.md) |
+| Swimlane | [swimlane.md](./swimlane.md) |
+| TreeView | [treeview.md](./treeview.md) |
 <!-- END GENERATED: family-design-notes -->
 
-The registry supplies this index. Families without a dedicated note use the
-[system hub](../system/README.md) and the
-[shared implementation contract](stable-family-implementation.md). Related
-research and parser notes remain alongside each family document.
+The registry supplies this index. Generating it requires a dedicated note for
+each built-in family, so missing domain guidance cannot be replaced silently
+with another family's contract. Shared rules live in the
+[system hub](../system/README.md); the
+[stable-family implementation contract](stable-family-implementation.md) covers
+its named families. Related research and parser notes remain alongside each
+family document.
 See also the [Flowchart parser](flowchart-parser-conformance.md),
 [Gantt research](gantt-research.md), [GitGraph research](gitgraph-research.md),
 [Journey migration](journey-migration-parity.md) and
@@ -71,6 +82,21 @@ bun run gallery:mindmap-gitgraph
 bun run gallery:mermaid-docs
 bun run gallery:pie-highlight
 ```
+
+## Shared rendering and verification
+
+Family renderers use the shared style and palette system; Mermaid's pixels are
+not a layout target. Accepted configuration keys and ineffective controls come
+from the [family registry](../../../src/agent/family-registry.ts).
+
+The [citizenship test](../../../src/__tests__/diagram-family-citizenship.test.ts)
+checks each representative source through typed editing, canonical reload,
+verification, SVG, ASCII/Unicode, real regions and uncached determinism. The
+[render conformance portfolio](../../../src/__tests__/render-conformance-plan.test.ts)
+and [styled-output tests](../../../src/__tests__/styled-output.test.ts) exercise
+looks and palettes. Family pages identify the independent domain expectations
+and reviewed goldens. These finite examples do not establish exhaustive syntax
+coverage or readability at arbitrary complexity.
 
 ## Where every registered family is documented
 

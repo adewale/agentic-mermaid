@@ -1,3 +1,4 @@
+import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
 import { matchMermaidFrontmatter } from '../mermaid-source-wrapper.ts'
 import { parseMermaidYaml } from '../shared/mermaid-yaml.ts'
 import { accessibilityFields, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
@@ -144,7 +145,7 @@ export function parseZenUML(source: string | readonly string[], observe?: (event
     return (originalStarts[originalLine] ?? authored.length) + point.col - 1
   }
   const report = (kind: ZenUMLSourceObservation['kind'], id: string, token: Token) => { if (observe) observations.push({ kind, id, start: originalOffset(token.start), end: originalOffset(token.end) }) }
-  const body: ZenUMLBody = { kind: 'zenuml', participants: [], statements: [], ...accessibilityFields(accessibility.accessibility), ...(title === undefined ? {} : { title }) }
+  const body: ZenUMLBody = { kind: 'zenuml', participants: [], statements: [], ...accessibilityFields(readAuthoredGrammarAccessibility(accessibility.accessibility)), ...(title === undefined ? {} : { title }) }
   let cursor = 0, serial = 0, depth = 0, inHead = true
   const id = () => `statement:${++serial}`
   const sourceOf = (token: Token) => ({ offset: originalOffset(token.start), endOffset: originalOffset(token.end), unit: 'physical' as const })

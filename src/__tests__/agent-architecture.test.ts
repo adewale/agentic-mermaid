@@ -119,12 +119,18 @@ describe('architecture structured parse', () => {
     })
   })
 
-  test('a quoted title across lines keeps its line break through the writer', () => {
-    const d = architecture('architecture-beta\n  group g(cloud)["G\n    H"]\n  service a(server)[\'line1\n    line2\'] in g\n  service b(server)[B] in g\n  a:R -["multi\n    line"]- L:b')
-    expect(d.body.groups.map(g => g.label)).toEqual(['G\nH'])
-    expect(d.body.services.map(s => s.label)).toEqual(['line1\nline2', 'B'])
-    expect(d.body.edges.map(e => e.label)).toEqual(['multi\nline'])
-    expect(architecture(serializeMermaid(d)).body).toEqual(d.body)
+  test('quoted titles keep interior whitespace through native parsing, edits and export', () => {
+    const label = 'First\n  Indented\n\nLast'
+    const source = `architecture-beta\ngroup g["${label}"]\nservice a['${label}'] in g\nservice b[Peer]\na:R -["${label}"]-> L:b`
+    const native = parseArchitectureDiagram(source.split('\n'))
+    expect([native.groups[0]?.label, native.services[0]?.label, native.edges[0]?.label]).toEqual([label, label, label])
+    const d = architecture(source)
+    expect([d.body.groups[0]?.label, d.body.services[0]?.label, d.body.edges[0]?.label]).toEqual([label, label, label])
+    const changedLabel = 'Updated\n  Peer\n\nDone'
+    const changed = apply(d, { kind: 'set_service_label', id: 'b', label: changedLabel })
+    const body = architecture(serializeMermaid(changed)).body
+    expect([body.groups[0]?.label, body.services[0]?.label, body.edges[0]?.label]).toEqual([label, label, label])
+    expect(body.services[1]?.label).toBe(changedLabel)
   })
 
   test('junctions and nested groups parse structurally', () => {

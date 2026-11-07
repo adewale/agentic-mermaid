@@ -25,6 +25,17 @@ function radar(src: string): RadarValidDiagram {
 }
 
 describe('radar agent surface', () => {
+  test('quoted axis and curve text keeps physical whitespace through native parsing and export', () => {
+    const label = 'First\n  Indented\n\nLast'
+    const source = `radar-beta\naxis a["${label}"],b\ncurve x["${label}"]{1,2}`
+    const native = parseRadarChart(source.split('\n'))
+    expect([native.axes[0]?.label, native.curves[0]?.label]).toEqual([label, label])
+    const d = radar(source)
+    expect([d.body.axes[0]?.label, d.body.curves[0]?.label]).toEqual([label, label])
+    const again = radar(serializeMermaid(d))
+    expect([again.body.axes[0]?.label, again.body.curves[0]?.label]).toEqual([label, label])
+    expect(renderMermaidSVG(source)).toContain('  Indented')
+  })
   test('a repeated Radar header stays source-only and reports its raw rendering failure', () => {
     for (const source of ['radar-beta radar-beta\naxis A["A"],B', 'radar-beta\nradar-beta\naxis A["A"],B']) {
       const parsed = parseMermaid(source)

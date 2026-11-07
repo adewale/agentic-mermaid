@@ -1,7 +1,7 @@
 /** Unicode-aware Mermaid identifier primitives shared by family parsers. */
 
-/** Letters/numbers from any script, underscore, and hyphen. */
-export const MERMAID_IDENTIFIER_SOURCE = String.raw`[\p{L}\p{N}_-]+`
+/** Letters/numbers and combining marks from any script, underscore, and hyphen. */
+export const MERMAID_IDENTIFIER_SOURCE = String.raw`[\p{L}\p{N}\p{M}_-]+`
 
 const COMPLETE_IDENTIFIER_RE = new RegExp(`^${MERMAID_IDENTIFIER_SOURCE}$`, 'u')
 const LEADING_IDENTIFIER_RE = new RegExp(`^(${MERMAID_IDENTIFIER_SOURCE})`, 'u')

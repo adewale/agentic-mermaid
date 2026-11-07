@@ -24,12 +24,17 @@ export function markerContact(family: string, marker: MarkerDescriptor): MarkerC
     throw new Error(`${family}/${marker.id}: uncharacterized tip geometry`)
   }
   switch (family) {
-    case 'flowchart': case 'state': case 'c4':
+    case 'flowchart': case 'state': case 'c4': case 'agentflow': case 'swimlane':
       if (marker.shape === 'arrow') return tip('surface-bound')
       if (marker.shape === 'circle' || marker.shape === 'cross') return { intent: 'surface-bound', attachment: 'envelope' }
       break
-    case 'eventmodeling': case 'architecture': case 'gantt': case 'ishikawa':
+    case 'eventmodeling': case 'architecture': case 'gantt': case 'ishikawa': case 'wardley': case 'cynefin':
       if (marker.shape === 'arrow') return tip('surface-bound')
+      break
+    case 'usecase':
+      if (marker.shape === 'arrow' || marker.shape === 'triangle') return tip('surface-bound')
+      if (marker.shape === 'circle' && geometry?.kind === 'circle') return { intent: 'surface-bound', attachment: 'center', point: { x: geometry.cx, y: geometry.cy } }
+      if (marker.shape === 'cross' && marker.size) return { intent: 'surface-bound', attachment: 'center', point: { x: marker.size.width / 2, y: marker.size.height / 2 } }
       break
     case 'class':
       if (marker.id === 'cls-lollipop' && geometry?.kind === 'circle') return { intent: 'surface-bound', attachment: 'tangent', point: { x: geometry.cx + geometry.r, y: geometry.cy } }

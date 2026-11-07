@@ -8,10 +8,10 @@ flattering one.
 
 For the *definition* of "good looking" and the determinism guarantees, see
 [`quality.md`](./quality.md). For the layout/visual
-contracts, see [`layout-characterization/README.md`](./layout-characterization/README.md).
+contracts, see [`layout-characterization/README.md`](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/layout-characterization/README.md).
 The complexity-aware and registry-derived interaction portfolio is implemented
 in `src/__tests__/render-conformance-plan.test.ts` and its helpers. The
-[July migration record](./project/archive/complexity-aware-test-portfolio-plan.md)
+[July migration record](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/project/archive/complexity-aware-test-portfolio-plan.md)
 is historical; its removed reports and receipts are not current requirements.
 
 ## Local CI parity
@@ -146,7 +146,7 @@ rendering, layout regions and uncached determinism. This closes the former gap
 where a minimal count fixture passed citizenship while richer inputs appeared
 only in the separate rendering portfolio. Source length and node counts do not
 establish representativeness; the interacting domain features do. See the
-[citizenship review contract](./contributing/diagram-family-citizenship.md#representative-examples-are-mandatory).
+[citizenship review contract](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/contributing/diagram-family-citizenship.md#representative-examples-are-mandatory).
 
 **Runs:** every PR (`bun run test`, including the canonical 30-second per-test budget).
 **Does not prove:** that the diagram is *visually* good.
@@ -342,7 +342,7 @@ reference projections to close that gap for the covered behavior.
 **Runs:** every PR (corpus + seqbench + upstream-suite ratchet); a separate CI
 job installs the pinned modern reference for the selected semantic gate when
 its code inputs change. Its broader
-[`eval/mermaid-modern-compat`](../eval/mermaid-modern-compat/README.md) runner
+[`eval/mermaid-modern-compat`](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/eval/mermaid-modern-compat/README.md) runner
 reports documentation coverage across every modern core family, including
 unsupported families. Optional extracted spec literals and seeded mutations
 remain diagnostic seed corpora. Extracted test titles, CSS fragments and empty
@@ -561,7 +561,7 @@ This is where we approximate aesthetics deterministically:
   registered style, rasterized by resvg: WCAG contrast against the pixels
   around its glyphs, glyphs on the canvas, authored text drawn or reported by
   `verify`, and the same reading in every style
-  ([`design/system/chart-honesty.md`](design/system/chart-honesty.md)).
+  ([`design/system/chart-honesty.md`](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/design/system/chart-honesty.md)).
 
 **Runs:** `measureQuality`, ugly-detector, the layout rubric, the
 heuristic-tracker ratchet, and the chart-honesty oracle all gate per PR.
@@ -609,7 +609,7 @@ table here, which would drift. In broad strokes:
   checks must pass; additional passing checks do not invalidate the run.
 - **Layout review:** relevant PR changes select the advisory image and generated
   layout campaigns. A full manual dispatch can request them with `layout_evidence`.
-- **Release and deployment:** follow the [release guide](contributing/releasing.md)
+- **Release and deployment:** follow the [release guide](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/contributing/releasing.md)
   for full qualification and the distinction between CI success and delivery.
 - **Weekly (`contract-discovery.yml`):** one bounded model/grammar discovery job;
   findings remain replay artifacts for human triage, without automated issues.
@@ -627,7 +627,7 @@ table here, which would drift. In broad strokes:
   tests live in [Trident](https://github.com/adewale/trident) and run through `bun run bench:test`.
   Normal product correctness, distribution and pinned-Mermaid semantic tests
   remain CI gates. See [Trident](https://github.com/adewale/trident/blob/main/README.md), its
-  [unified runner](https://github.com/adewale/trident/blob/main/unified/README.md) and [the launcher](../eval/trident/README.md) for invocation coverage,
+  [unified runner](https://github.com/adewale/trident/blob/main/unified/README.md) and [the launcher](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/eval/trident/README.md) for invocation coverage,
   project updates and explicit gaps.
 - **Normal local benchmarks:** `bun run bench` runs the bounded unified smoke
   profile; `bun run bench:all` selects the full maintained catalog.
@@ -846,7 +846,7 @@ boundaries where TypeScript cannot enforce the wire contract.
 
 The dated provenance and prevention analysis, including the reviews of PRs
 #157 and #160, is recorded in
-[`project/agent-interface-contract-audit-2026-07.md`](./project/agent-interface-contract-audit-2026-07.md).
+[`project/agent-interface-contract-audit-2026-07.md`](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/project/agent-interface-contract-audit-2026-07.md).
 
 The validation rule for future cross-surface changes is: enumerate every
 public consumer first, then require at least one non-vacuous proof at the

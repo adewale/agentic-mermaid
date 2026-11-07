@@ -14,6 +14,8 @@ export async function minifyBrowserRuntime(source: string, preserveDeclarations?
     },
     format: { comments: 'some', inlineScript: true },
   })
-  if (!result.code) throw new Error('Browser runtime compression produced no module')
+  // A side-effect-free generated chunk may legitimately compress to an empty
+  // ESM module. Missing output and empty output are different results.
+  if (typeof result.code !== 'string') throw new Error('Browser runtime compression produced no module')
   return result.code
 }

@@ -59,7 +59,9 @@ function fixtureSources(): Array<{ name: string; source: string }> {
 const GOLDEN_CASES = [...Array.from({ length: Math.max(BUILTIN_FAMILY_METADATA.length, LOOKS.length) }, (_, i) => {
   const family = BUILTIN_FAMILY_METADATA[i % BUILTIN_FAMILY_METADATA.length]!.id
   const style = LOOKS[i % LOOKS.length]!
-  return { family, style, fixture: `${family}-basic.mmd`, golden: `${family}-basic.${style.replace(/[^a-z0-9-]/g, '-')}.svg` }
+  const nativeFixture = `${family}-native.mmd`
+  const fixture = existsSync(join(FIXTURES, nativeFixture)) ? nativeFixture : `${family}-basic.mmd`
+  return { family, style, fixture, golden: `${family}-basic.${style.replace(/[^a-z0-9-]/g, '-')}.svg` }
 }),
   // Selected reviewed combinations expose actual style/palette consumption;
   // the registry-derived conformance portfolio owns broader interaction coverage.

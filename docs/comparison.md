@@ -1,13 +1,13 @@
 # Mermaid renderers and Agentic Mermaid
 
-The [Modern Mermaid application benchmark](./comparisons/modern-mermaid.md)
+The [Modern Mermaid application benchmark](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/comparisons/modern-mermaid.md)
 (23 October 2026) covers its editor, themes, exports, sharing and dependency
 engine. Modern Mermaid wraps upstream Mermaid; it is recorded in the community
 inventory as an application, outside the browserless renderer peer ranking.
-The [community discovery and categories](../eval/fork-graph/README.md#community-discovery-and-categories)
+The [community discovery and categories](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/eval/fork-graph/README.md#community-discovery-and-categories)
 include editors and integrations independently of renderer benchmark eligibility.
 
-The [22 October owned-layout community comparison](design/system/layout-community-comparison.md)
+The [22 October owned-layout community comparison](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/design/system/layout-community-comparison.md)
 compares the six-family native backend with ELK and the community approaches,
 using a separately versioned, fully consumed public-SVG experiment. The older
 measurements below retain their original renderer revisions and protocols.
@@ -126,7 +126,7 @@ distinguishes implemented outputs from preserved source and proposals.
 This dated comparison used a Mermaid 11.16 syntax/fixture baseline. The current
 writing/reference target is Mermaid 12.2.0 (source commit
 `1fb7869866dd619168d840291c9c54b4f129758b`), recorded in the
-[upstream policy](./project/upstream-mermaid-policy.json); imported fixtures and
+[upstream policy](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/project/upstream-mermaid-policy.json); imported fixtures and
 comparison renders retain their recorded provenance. The Beautiful package comparator
 is **1.1.3**, not every unmerged contribution. Its inspected main is
 [`2ac8bbbb`](https://github.com/lukilabs/beautiful-mermaid/tree/2ac8bbbb060ca0a65a6a21f3200bd99b1587b488).
@@ -230,7 +230,7 @@ remain in the [18 October record](https://github.com/adewale/agentic-mermaid/blo
 They establish bounded warm-path observations, not current package startup,
 whole-product or competitor claims. Source diagnostics still require
 `verifyMermaid`: a successful render/receipt alone does not expose every
-`INEFFECTIVE_CONFIG` warning. The [C4 design](./design/families/c4.md) owns the
+`INEFFECTIVE_CONFIG` warning. The [C4 design](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/design/families/c4.md) owns the
 current native feature and readability limits.
 
 ## Zombie Mermaid and C4 bloodlines
@@ -263,7 +263,7 @@ registries are the capability evidence; this page is not a second full roster.
 
 The current working source adds native C4, including all five legacy dialects,
 typed edits, nested boundaries, distinct repeated interactions and connected
-terminal output. The [C4 design](./design/families/c4.md) records current
+terminal output. The [C4 design](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/design/families/c4.md) records current
 dispositions and refreshed peer pins. This is a source change, not evidence of
 an npm release or live deployment; the dated comparison above remains historical.
 
@@ -284,7 +284,7 @@ measurements or claim a fresh cross-product benchmark.
 
 ## Mindmap/GitGraph and the terminal ecosystem
 
-The checked fixtures follow the official [Mindmap](https://mermaid.ai/open-source/syntax/mindmap.html) and [GitGraph](https://mermaid.ai/open-source/syntax/gitgraph.html) syntax pages and render from the same authored source in Mermaid 11.16.0 and Agentic Mermaid. See the captioned [Mindmap comparison](./design/families/mindmap.md#visual-evidence) and [GitGraph comparison](./design/families/gitgraph.md#visual-evidence). Compare semantic structure—labels, shapes, hierarchy, lanes, commits, parentage, tags, and bounds—not pixels, because the layout/style engines differ.
+The checked fixtures follow the official [Mindmap](https://mermaid.ai/open-source/syntax/mindmap.html) and [GitGraph](https://mermaid.ai/open-source/syntax/gitgraph.html) syntax pages and render from the same authored source in Mermaid 11.16.0 and Agentic Mermaid. See the captioned [Mindmap comparison](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/design/families/mindmap.md#visual-evidence) and [GitGraph comparison](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/design/families/gitgraph.md#visual-evidence). Compare semantic structure—labels, shapes, hierarchy, lanes, commits, parentage, tags, and bounds—not pixels, because the layout/style engines differ.
 
 The recorded fixture comparison used
 [AlexanderGrooff/mermaid-ascii](https://github.com/AlexanderGrooff/mermaid-ascii)
@@ -316,7 +316,7 @@ reject input whose meaning cannot be determined. Display/layout choices remain
 ours. Preserving source does not imply native rendering or structural
 verification: unsupported families receive an explicit diagnostic, and opaque
 bodies do not gain typed editing merely because their bytes survive. See the
-[preservation contract](./project/divergences.md#structured-or-opaque-is-load-bearing).
+[preservation contract](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/project/divergences.md#structured-or-opaque-is-load-bearing).
 Upstream-relevant fixes are extracted into small PRs back to
 `lukilabs/beautiful-mermaid` per the
 [upstreaming strategy](./fork-differences.md#upstreaming-strategy).

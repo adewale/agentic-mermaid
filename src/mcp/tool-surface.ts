@@ -389,9 +389,8 @@ security:'strict', embedFontImport:false.
   return {
     name: 'execute',
     title: 'Execute Mermaid SDK code',
-    description: `JS sandbox (${runtime}). Return value.
-No Promise/async/await/import()/TypeScript.
-${hostedNote}SDK:
+    description: `Sync ${runtime} JS; return a value. No imports/TS.
+${hostedNote}
 ${options.sdkDeclaration}`,
     inputSchema: {
       type: 'object',

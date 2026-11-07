@@ -78,7 +78,7 @@ config:
     expect(diagram.edges[0]!.label).toBe('reads\nwrites')
 
     // A quoted title runs to its closing quote across lines: the line break
-    // is kept, not the indentation.
+    // is kept; this preprocessed line view has already removed indentation.
     const authored = parseArchitectureDiagram(prep(`architecture-beta
       group edge(cloud)["Edge
         Layer"]

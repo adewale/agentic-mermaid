@@ -745,7 +745,7 @@ function expandXYChartStatements(lines: string[], strict: boolean, starts?: numb
       // which it keeps.
       const end = ends[lineIndex]!
       if (end > lineIndex) {
-        line = statementText(lines, lineIndex, end).trim()
+        line = statementText(lines, lineIndex, end, true).trim()
         lineIndex = end
       }
     }

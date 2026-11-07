@@ -19,6 +19,19 @@ import { graphemes } from './shared/graphemes.ts'
 import type { DisplayTextInput } from './shared/display-text.ts'
 import { customTextMeasurementActive, profileTextWidth } from './text-measurement-profile.ts'
 
+/** Monospace family used for code-like text; styles re-export this authority. */
+export const MONO_FONT = "'JetBrains Mono'" as const
+
+/** Classify the selected CSS family, not a later fallback whose availability
+ * we cannot know. Quoted commas belong to a family name, never the stack. */
+export function isKnownMonospaceFontFamily(fontFamily: string): boolean {
+  const first = /^\s*(?:"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|([^,'"]+?))\s*(?:,|$)/.exec(fontFamily)
+  if (!first) return false
+  const name = (first[3] === undefined ? first[1] ?? first[2]! : first[3].trim().replace(/\s+/g, ' ')).toLowerCase()
+  return name === MONO_FONT.slice(1, -1).toLowerCase() || name === 'share tech mono'
+    || (first[3] !== undefined && (name === 'monospace' || name === 'ui-monospace'))
+}
+
 /**
  * Narrow characters - visually thin glyphs.
  * Note: '1' is included because in proportional fonts (like Inter), it's

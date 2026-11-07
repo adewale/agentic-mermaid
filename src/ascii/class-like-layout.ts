@@ -8,6 +8,7 @@ import { allocateFacePort, countFaceDemand, faceSize } from './terminal-geometry
 import { tryParseCssColor, toHex } from '../shared/color-math.ts'
 import { measuredText, type MeasuredTerminalText, type TerminalBounds, type TerminalDocument, type TerminalOwner } from './terminal-document.ts'
 import { allocateTerminalRoute, paintTerminalRoute, type TerminalRoute } from './terminal-route.ts'
+import { drawMultiBox } from './draw.ts'
 
 export type BoxSide = 'T' | 'B' | 'L' | 'R'
 /** Distance from the exterior port to the first freely routed cell. The
@@ -116,16 +117,19 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     const count = counts.get(id)![side]
     return allocateFacePort(box, side, index, count)
   }
-  const plans = relations.map(relation => {
+  const plans = relations.map((relation, index) => {
     if (!byId.has(relation.from) || !byId.has(relation.to)) throw new Error(`Terminal route ${relation.id} has no allocated endpoint box`)
     const [from, to] = sides(relation, direction, byId)
-    return { relation, source: port(relation.from, from), target: port(relation.to, to) }
+    return { relation, index, source: port(relation.from, from), target: port(relation.to, to) }
   })
   // The map is a search adapter over cell rectangles; its payload is unused by
   // getPath. No family-specific node store or dense output canvas is copied.
   const blocker = true
-  const occupied = new OccupancyMap(), cardCells = new Set<string>(), routeCells = new Set<string>()
-  const markerCells = new Set<string>()
+  // Route axes: 1 horizontal, 2 vertical, 3 a turn or an existing crossing.
+  const occupied = new OccupancyMap(), cardCells = new Set<string>(), routeCells = new Map<string, number>()
+  // The low bit protects a physical approach; upper bits count pending
+  // caption-only escape reservations beyond those approaches.
+  const markerCells = new Map<string, number>()
   const textBounds: TerminalBounds[] = []
   const occupy = (bounds: TerminalBounds) => {
     for (let y = bounds.y; y < bounds.y + bounds.height; y++) for (let x = bounds.x; x < bounds.x + bounds.width; x++) occupied.set(`${x},${y}`, blocker)
@@ -142,7 +146,11 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
   for (const key of occupied.keys()) cardCells.add(key)
   for (const plan of plans) for (const point of [plan.source, plan.target]) {
     const d = delta[point.side]
-    for (let step = 0; step <= BOX_ROUTE_APPROACH_DISTANCE; step++) markerCells.add(`${point.x + d.x * step},${point.y + d.y * step}`)
+    for (let step = 0; step <= BOX_ROUTE_APPROACH_DISTANCE + 1; step++) {
+      const key = `${point.x + d.x * step},${point.y + d.y * step}`
+      const previous = markerCells.get(key) ?? 0
+      markerCells.set(key, step <= BOX_ROUTE_APPROACH_DISTANCE ? previous | 1 : previous + 2)
+    }
   }
   const text = (lines: readonly string[] | undefined, anchors: readonly GridCoord[]): BoxText | undefined => {
     if (!lines?.some(line => line.length > 0)) return undefined
@@ -150,8 +158,9 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     const free = (bounds: TerminalBounds) => {
       const clearance = { x: bounds.x - 1, y: bounds.y - 1, width: bounds.width + 2, height: bounds.height + 2 }
       if (bounds.x < 0 || bounds.y < 0 || textObstacles.some(box => overlaps(clearance, box)) || textBounds.some(other => overlaps(clearance, other))) return false
-      // A label beside an exit can seal it between neighboring face ports.
-      // Keep the same one-cell clearance around complete marker approaches.
+      // A later route may need to cross earlier ink before turning into its
+      // approach. Caption-only escape cells retain room on both sides of that
+      // crossing without extending the protected routing obstacle.
       for (let y = clearance.y; y < clearance.y + clearance.height; y++) for (let x = clearance.x; x < clearance.x + clearance.width; x++) if (markerCells.has(`${x},${y}`)) return false
       for (let y = bounds.y; y < bounds.y + height; y++) for (let x = bounds.x; x < bounds.x + width; x++) if (routeCells.has(`${x},${y}`)) return false
       return true
@@ -179,10 +188,17 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     const bounds = { x, y, width, height }; textBounds.push(bounds); occupy(bounds)
     return Object.freeze({ ...bounds, lines: Object.freeze([...lines]), text: measured })
   }
-  for (const key of markerCells) occupied.set(key, blocker)
+  for (const [key, reservation] of markerCells) if (reservation & 1) occupied.set(key, blocker)
   const routes: BoxRoute[] = []
+  // R/B self-loop ports form nested pairs. Route their innermost pair first:
+  // an outer shortest path can otherwise enclose and seal a later exit.
+  // Ordinary handoffs follow the loops; returned routes retain authored order.
+  plans.sort((a, b) => {
+    const aLoop = a.relation.from === a.relation.to, bLoop = b.relation.from === b.relation.to
+    return aLoop !== bLoop ? (aLoop ? -1 : 1) : aLoop ? b.index - a.index : a.index - b.index
+  })
   for (const plan of plans) {
-    const { relation, source, target } = plan
+    const { relation, source, target, index: relationIndex } = plan
     const fromLabel = text(relation.fromLines, [source]), toLabel = text(relation.toLines, [target])
     const sourceExit = { x: source.x + delta[source.side].x * BOX_ROUTE_APPROACH_DISTANCE, y: source.y + delta[source.side].y * BOX_ROUTE_APPROACH_DISTANCE }
     const targetExit = { x: target.x + delta[target.side].x * BOX_ROUTE_APPROACH_DISTANCE, y: target.y + delta[target.side].y * BOX_ROUTE_APPROACH_DISTANCE }
@@ -208,17 +224,38 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
       const removedRoutes: string[] = []
       // Cross line ink only; endpoint markers and their approaches stay
       // protected even where an earlier route also owns those cells.
-      for (const key of routeCells) if (occupied.has(key) && !cardCells.has(key) && !markerCells.has(key)) { occupied.delete(key); removedRoutes.push(key) }
-      middle = exitsClear ? path() : null
+      for (const key of routeCells.keys()) if (occupied.has(key) && !cardCells.has(key) && !((markerCells.get(key) ?? 0) & 1)) { occupied.delete(key); removedRoutes.push(key) }
+      // A crossing must enter and leave straight prior ink perpendicularly.
+      // Removing occupancy alone admits shared runs and turns, which are not
+      // crossings and cannot retain two independently connected route owners.
+      const canCross = (from: GridCoord, to: GridCoord): boolean => {
+        const axis = from.x === to.x ? 2 : 1
+        const fromAxis = routeCells.get(gridKey(from)), toAxis = routeCells.get(gridKey(to))
+        return (fromAxis === undefined || fromAxis === (axis === 1 ? 2 : 1))
+          && (toAxis === undefined || toAxis === (axis === 1 ? 2 : 1))
+      }
+      middle = exitsClear ? getPath(occupied, sourceExit, targetExit, preferred[source.side], canCross) : null
       for (const key of removedRoutes) occupied.set(key, blocker)
     }
     for (const [key, previous] of removed) occupied.set(key, previous)
     if (!middle) throw new TerminalBoxRouteUnavailable(`No feasible terminal route for ${relation.id}; move the related cards or reduce their label footprint`)
     const approach = (port: BoxPort) => Array.from({ length: BOX_ROUTE_APPROACH_DISTANCE }, (_, step) => step === 0 ? port : ({ x: port.x + delta[port.side].x * step, y: port.y + delta[port.side].y * step }))
     const points = [...approach(source), ...middle, ...approach(target).reverse()]
-    for (const point of points) { const key = gridKey(point); routeCells.add(key); occupied.set(key, blocker) }
+    for (let index = 0; index < points.length; index++) {
+      const point = points[index]!, previous = points[index - 1], next = points[index + 1], key = gridKey(point)
+      const axis = (previous ? previous.x === point.x ? 2 : 1 : 0) | (next ? next.x === point.x ? 2 : 1 : 0)
+      routeCells.set(key, (routeCells.get(key) ?? 0) | axis); occupied.set(key, blocker)
+    }
+    // Only unallocated routes need caption escape space. Retiring this route
+    // retains coincident physical approaches and other pending reservations.
+    for (const point of [source, target]) {
+      const d = delta[point.side], distance = BOX_ROUTE_APPROACH_DISTANCE + 1
+      const key = `${point.x + d.x * distance},${point.y + d.y * distance}`, remaining = markerCells.get(key)! - 2
+      if (remaining) markerCells.set(key, remaining)
+      else markerCells.delete(key)
+    }
     const label = text(relation.lines, [points[Math.floor(points.length / 2)]!, source, target])
-    routes.push(sealRoute({ ...plan, points, ...(label ? { label } : {}), ...(fromLabel ? { fromLabel } : {}), ...(toLabel ? { toLabel } : {}) }))
+    routes[relationIndex] = sealRoute({ relation, source, target, points, ...(label ? { label } : {}), ...(fromLabel ? { fromLabel } : {}), ...(toLabel ? { toLabel } : {}) })
   }
   return routes
 }
@@ -233,6 +270,41 @@ export function paintBoxRoute(doc: TerminalDocument, route: BoxRoute, owner: Ter
 export function paintBoxText(doc: TerminalDocument, text: BoxText | undefined, owner: TerminalOwner): void {
   owner = doc.element(owner)
   if (text) doc.textBlock(text.x, text.y, text.text, { owner, role: 'text', kind: 'text' })
+}
+
+/** Class and ER share card ink and compartment ownership after family layout. */
+export function paintClassLikeCard(
+  doc: TerminalDocument,
+  box: TerminalBox & { sections: string[][] },
+  owner: TerminalOwner,
+  family: 'class' | 'er',
+  ascii: boolean,
+  classDefs: ReadonlyMap<string, Readonly<Record<string, string>>>,
+  node: { className?: string; inlineStyle?: Readonly<Record<string, string>> },
+  generated: (name: string) => string,
+): void {
+  doc.region(owner, { x: box.x, y: box.y, width: box.width, height: box.height })
+  doc.fill(box.x, box.y, box.width, box.height, { owner, kind: 'surface' })
+  const card = drawMultiBox(box.sections, ascii, 1, { width: box.width, height: box.height })
+  if (classDefs.size || node.inlineStyle) {
+    const style = Object.assign({}, classDefs.get('default'))
+    for (const name of (node.className ?? '').split(/\s+/)) Object.assign(style, classDefs.get(name))
+    Object.assign(style, node.inlineStyle)
+    const paint = classLikePaint(doc, family, box.id, style)
+    if (paint.text || paint.stroke) for (const [, , cell] of card.entries()) {
+      const color = cell.kind === 'text' ? paint.text : paint.stroke
+      if (color) cell.color = color
+    }
+  }
+  let y = 1
+  box.sections.forEach((section, index) => {
+    const bounds = { x: 1, y, width: box.width - 2, height: Math.max(1, section.length) },
+      compartment: TerminalOwner = { id: generated(`${box.id}:compartment:${index}`), kind: 'compartment', parent: { id: box.id, kind: 'node' } }
+    card.attributeWithin(compartment, bounds)
+    card.region(compartment, bounds)
+    y += bounds.height + 1
+  })
+  doc.scope(owner, () => doc.overlay(card, box.x, box.y))
 }
 
 /** Report only authored style properties whose terminal realization is lossy. */

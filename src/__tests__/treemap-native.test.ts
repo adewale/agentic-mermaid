@@ -364,7 +364,16 @@ describe('native Treemap', () => {
     // above remains exact and is never changed to repair a paint constraint.
     expect(Number(layout.bounds.w)).toBeCloseTo(chart.width, 0)
     expect(Number(layout.bounds.h)).toBeCloseTo(chart.height, 0)
-    expect(() => createMermaidRenderer({ backendPolicy: { selectBackend: () => 'default' } }).renderMermaidSVG(source, options)).toThrow(/within bounded search/)
+    const defaultSvg = createMermaidRenderer({ backendPolicy: { selectBackend: () => 'default' } }).renderMermaidSVG(source, options)
+    const defaultLabels = [...defaultSvg.matchAll(/<text\b[^>]*>/g)].map(match => match[0]).filter(text => !text.includes('diagram-title'))
+    expect(defaultLabels.length).toBeGreaterThan(14)
+    for (const text of defaultLabels) {
+      expect(text).toContain(`fill="${colors.fg}"`)
+      const halo = text.match(/\bstroke="([^"]+)"/)?.[1]
+      expect(halo).toBeDefined()
+      expect(contrastRatio(colors.fg!, halo!)!).toBeGreaterThanOrEqual(4.5)
+      expect(text).toContain('paint-order="stroke"')
+    }
   })
 
   test('readable numeric separators retain quantity and disclose pinned portability', () => {

@@ -1,3 +1,10 @@
+import { RAILROAD_OP_SCHEMAS } from '../railroad/ops.ts'
+import { CYNEFIN_OP_SCHEMAS } from '../cynefin/ops.ts'
+import { VENN_OP_SCHEMAS } from '../venn/ops.ts'
+import { WARDLEY_OP_SCHEMAS } from '../wardley/ops.ts'
+import { USECASE_OP_SCHEMAS } from '../usecase/ops.ts'
+import { AGENTFLOW_EXTRA_OP_SCHEMAS } from '../agentflow/ops.ts'
+import { TREEVIEW_OP_SCHEMAS } from '../treeview/ops.ts'
 import { ZENUML_OP_SCHEMAS } from '../zenuml/native-ops.ts'
 import { EVENTMODELING_OP_SCHEMAS } from '../eventmodeling/ops.ts'
 import { KANBAN_OP_SCHEMAS } from '../kanban/ops.ts'
@@ -408,6 +415,14 @@ export const OP_SCHEMAS: Record<DiagramKind, Record<string, OpSpec>> = {
   zenuml: ZENUML_OP_SCHEMAS,
   eventmodeling: EVENTMODELING_OP_SCHEMAS,
   flowchart: FLOWCHART_SCHEMA,
+  swimlane: FLOWCHART_SCHEMA,
+  treeview: TREEVIEW_OP_SCHEMAS,
+  cynefin: CYNEFIN_OP_SCHEMAS,
+  railroad: RAILROAD_OP_SCHEMAS,
+  venn: VENN_OP_SCHEMAS,
+  wardley: WARDLEY_OP_SCHEMAS,
+  usecase: USECASE_OP_SCHEMAS,
+  agentflow: { ...FLOWCHART_SCHEMA, ...AGENTFLOW_EXTRA_OP_SCHEMAS },
   state: STATE_SCHEMA,
   sequence: SEQUENCE_SCHEMA,
   timeline: TIMELINE_SCHEMA,

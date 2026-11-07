@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
 import { parseMermaid as parseGraph } from '../parser.ts'
-import { coalesceFlowchartLines } from '../flowchart-lexer.ts'
+import { coalesceFlowchartLines, flowchartStatementEnds } from '../flowchart-lexer.ts'
 import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid, mutate, asFlowchart, renderMermaidASCII } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { applyOps } from '../agent/core.ts'
@@ -388,6 +388,17 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
   test('a text-arrow label runs on to no line that puts a `--` into it', () => {
     expect(coalesceFlowchartLines(['A -- x', '  A-- y --> B', 'C -- z', '  D --> E']).map(group => group.text))
       .toEqual(['A -- x', '  A-- y --> B', 'C -- z<br>D --> E'])
+  })
+
+  test.each([
+    [['flowchart TD', 'A["first', '', '%% skipped', '  last"]', 'B'], [0, 4, 2, 3, 4, 5]],
+    [['A@{', '  shape: rect', '  label: "x"', '}', 'A --> B'], [3, 1, 2, 3, 4]],
+    [['A -->', '', '%% skipped', '  B', 'C', '  --> D'], [3, 1, 2, 3, 5, 5]],
+    [['subgraph S["Stage', '  One"]', 'A --> B', 'end'], [1, 1, 2, 3]],
+    [['accDescr {', 'owned', '}', 'A --> B'], [2, 1, 2, 3]],
+    [['subgraph S[unclosed', 'A --> B', 'end'], [0, 1, 2]],
+  ] as const)('statement boundaries retain physical indices without materialized group output: %j', (lines, expected) => {
+    expect(flowchartStatementEnds(lines)).toEqual([...expected])
   })
 
   // Upstream nests no shape text, so a line left deeper ends where it ends;

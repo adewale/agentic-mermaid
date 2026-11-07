@@ -26,5 +26,13 @@ import family_ishikawa from '../families/ishikawa.ts'
 import family_block from '../families/block.ts'
 import family_eventmodeling from '../families/eventmodeling.ts'
 import family_zenuml from '../families/zenuml.ts'
+import family_railroad from '../families/railroad.ts'
+import family_cynefin from '../families/cynefin.ts'
+import family_agentflow from '../families/agentflow.ts'
+import family_usecase from '../families/usecase.ts'
+import family_wardley from '../families/wardley.ts'
+import family_venn from '../families/venn.ts'
+import family_swimlane from '../families/swimlane.ts'
+import family_treeview from '../families/treeview.ts'
 
-for (const family of [family_flowchart, family_state, family_sequence, family_timeline, family_class, family_er, family_journey, family_architecture, family_xychart, family_pie, family_quadrant, family_gantt, family_mindmap, family_gitgraph, family_radar, family_sankey, family_c4, family_packet, family_kanban, family_requirement, family_treemap, family_ishikawa, family_block, family_eventmodeling, family_zenuml]) installLoadedFamilyDescriptor(family)
+for (const family of [family_flowchart, family_state, family_sequence, family_timeline, family_class, family_er, family_journey, family_architecture, family_xychart, family_pie, family_quadrant, family_gantt, family_mindmap, family_gitgraph, family_radar, family_sankey, family_c4, family_packet, family_kanban, family_requirement, family_treemap, family_ishikawa, family_block, family_eventmodeling, family_zenuml, family_railroad, family_cynefin, family_agentflow, family_usecase, family_wardley, family_venn, family_swimlane, family_treeview]) installLoadedFamilyDescriptor(family)

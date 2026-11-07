@@ -1,8 +1,10 @@
+import type { FamilySourceMapContext } from './family-registry.ts'
 import { coalesceFlowchartLines, type FlowchartScan, type FlowchartTextRange, flowchartTextArrowLabelRanges, scanFlowchart } from '../flowchart-lexer.ts'
 import { INIT_DIRECTIVE_REGEX, MERMAID_DIRECTIVE_REGEX, splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 import type { PreservedSourceSpans, SourceLocation, SourceMap, SourceMapSpans, SourceSpan } from './types.ts'
 import type { MermaidCleanup } from '../shared/mermaid-cleanup.ts'
 import { sourceLineStarts, sourcePointAt, sourceSpan } from '../family-detection.ts'
+import { preservedMermaidFamilySource } from '../mermaid-source.ts'
 
 interface PhysicalLine {
   text: string
@@ -25,6 +27,8 @@ export function sourceCleanup(sourceMap: SourceMap): MermaidCleanup | undefined 
  * entry's span runs from its location to its end, in place of the bounds
  * read from its line. */
 export interface SourceMapEnds {
+  /** Actual canonical parser positions need no authored-row reconstruction. */
+  canonicalPositions?: true
   nodes?: Map<string, SourceLocation>
   edges?: Map<string, SourceLocation>
   groups?: Map<string, SourceLocation>
@@ -44,6 +48,12 @@ const authoredSourceMapSpans = new WeakMap<SourceMap, AuthoredSourceMapSpans>()
  * receipt instead of recovering them from canonical, trimmed lines. */
 export function recordAuthoredSourceMapSpans(sourceMap: SourceMap, spans: AuthoredSourceMapSpans): void {
   authoredSourceMapSpans.set(sourceMap, spans)
+}
+
+/** Tokens exclude adjacent removed init directives while cleanup/entity bounds
+ * keep their own affinity. Directives inside an occurrence remain included. */
+export function familySourceSpan(payload: ReturnType<typeof preservedMermaidFamilySource>, starts: readonly number[], start: number, end: number): SourceSpan {
+  return sourceSpan(starts, payload.sourceOffset(start, 'start', 'end'), payload.sourceOffset(end, 'end', 'start'))
 }
 
 /** Internal provenance for diagnostics; keep the public SourceMap shape stable. */
@@ -468,6 +478,7 @@ function mapStatementSpans(locations: Map<string, SourceLocation>, lineStarts: r
 
 /** Add exact authored spans without changing the legacy canonical locations. */
 export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: string, authoredSource: string, preserved: PreservedSourceSpans, grammar: SourceSpanGrammar = 'generic'): SourceMap {
+  const authored = authoredSourceMapSpans.get(sourceMap)
   const lineStarts = sourceLineStarts(authoredSource)
   const lines = authoredLineMap(canonicalSource, authoredSource, preserved)
   const canonicalLines = physicalLines(canonicalSource)
@@ -505,8 +516,9 @@ export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: stri
     lineAnalysisCache.set(line, analysis)
     return analysis
   }
-  const labels = new Map<string, SourceSpan>()
-  for (const [key, location] of sourceMap.labels) {
+  // Exact categories, including empty maps, need no heuristic reconstruction.
+  const labels = authored?.labels ?? new Map<string, SourceSpan>()
+  if (!authored?.labels) for (const [key, location] of sourceMap.labels) {
     const position = positionOf(location)
     const located = labelSpan(lineStarts, position, key, position ? analysisFor(position.line) : undefined)
     if (located) labels.set(key, located)
@@ -527,22 +539,22 @@ export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: stri
   }
   const spans: SourceMapSpans = {
     preserved,
-    nodes: withEnds(mapStatementSpans(sourceMap.nodes, lineStarts, positionOf, analysisFor), sourceMap.nodes, ends?.nodes),
-    edges: withEnds(mapStatementSpans(sourceMap.edges, lineStarts, positionOf, analysisFor), sourceMap.edges, ends?.edges),
-    groups: withEnds(mapStatementSpans(sourceMap.groups, lineStarts, positionOf, analysisFor), sourceMap.groups, ends?.groups),
-    labels: withEnds(labels, sourceMap.labels, ends?.labels),
+    nodes: authored?.nodes ?? withEnds(mapStatementSpans(sourceMap.nodes, lineStarts, positionOf, analysisFor), sourceMap.nodes, ends?.nodes),
+    edges: authored?.edges ?? withEnds(mapStatementSpans(sourceMap.edges, lineStarts, positionOf, analysisFor), sourceMap.edges, ends?.edges),
+    groups: authored?.groups ?? withEnds(mapStatementSpans(sourceMap.groups, lineStarts, positionOf, analysisFor), sourceMap.groups, ends?.groups),
+    labels: authored?.labels ?? withEnds(labels, sourceMap.labels, ends?.labels),
   }
-  const authored = authoredSourceMapSpans.get(sourceMap)
   if (authored) {
-    const canonicalAt = new Map([...lines].map(([line, authored]) => [authored.start, line]))
-    const authoredLines = physicalLines(authoredSource)
+    const canonicalAt = ends?.canonicalPositions ? undefined : new Map([...lines].map(([line, authored]) => [authored.start, line]))
+    const authoredLines = ends?.canonicalPositions ? undefined : physicalLines(authoredSource)
     for (const category of ['nodes', 'edges', 'groups', 'labels'] as const) {
       const exact = authored[category]
       if (!exact) continue
       spans[category] = exact
+      if (ends?.canonicalPositions) continue
       for (const [key, span] of exact) {
-        const row = authoredLines[span.start.line - 1]
-        const canonicalLine = row && canonicalAt.get(row.start)
+        const row = authoredLines![span.start.line - 1]
+        const canonicalLine = row && canonicalAt!.get(row.start)
         const canonical = canonicalLine && canonicalLines[canonicalLine - 1]
         const location = sourceMap[category].get(key)
         if (canonical && location) sourceMap[category].set(key, { line: canonicalLine, col: location.col + indentationWidth(canonical.text) })
@@ -557,4 +569,47 @@ export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: stri
     { line: sourcePointAt(lineStarts, authoredLine.start).line, text: authoredLine.text },
   ])))
   return sourceMap
+}
+
+/** Convert actual parser-owned ranges to the two established map coordinate
+ * spaces. The parser callback owns grammar and identity; this helper owns only
+ * coordinates, including wrappers, indentation and multiline statements. Equal
+ * family bytes publish both projections in one read. Authored reads use the
+ * same universal cleanup and directive projection as the admitted grammar.
+ * A consumed range publishes one immutable authored span to all its owners;
+ * public locations remain independently mutable. */
+export function mapObservedSource(
+  source: string,
+  context: FamilySourceMapContext | undefined,
+  read: (text: string, range: (start: number, end: number) => (kind: 'nodes' | 'edges' | 'groups' | 'labels', id: string) => void) => void,
+): SourceMap {
+  const map: SourceMap = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
+  const starts = sourceLineStarts(source)
+  const ends: SourceMapEnds = context ? { canonicalPositions: true } : { canonicalPositions: true, nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
+  const original = context?.originalText
+  const prefix = context?.authoredWrapperLength ?? context?.wrapperSource?.length ?? 0
+  const rawAuthored = original?.slice(prefix)
+  const projected = context && source !== rawAuthored ? preservedMermaidFamilySource(context, 'authored') : undefined
+  const authored = projected?.text ?? rawAuthored
+  const identical = source === authored
+  const authoredStarts = original === undefined ? undefined : original === source ? starts : sourceLineStarts(original)
+  const exact = context ? { nodes: new Map<string, SourceSpan>(), edges: new Map<string, SourceSpan>(), groups: new Map<string, SourceSpan>(), labels: new Map<string, SourceSpan>() } : undefined
+  read(source, (start, end) => {
+    const point = sourcePointAt(starts, start), finish = context ? undefined : sourcePointAt(starts, end)
+    const span = identical && exact ? projected ? familySourceSpan(projected, authoredStarts!, start, end) : prefix === 0 ? Object.freeze({ start: point, end: sourcePointAt(starts, end) }) : sourceSpan(authoredStarts!, prefix + start, prefix + end) : undefined
+    return (kind, id) => {
+      map[kind].set(id, { line: point.line, col: point.col })
+      if (finish) ends[kind]!.set(id, { line: finish.line, col: finish.col })
+      if (span) exact![kind].set(id, span)
+    }
+  })
+  recordSourceMapEnds(map, ends)
+  if (exact) {
+    if (!identical) read(authored!, (start, end) => {
+      const span = familySourceSpan(projected!, authoredStarts!, start, end)
+      return (kind, id) => exact[kind].set(id, span)
+    })
+    recordAuthoredSourceMapSpans(map, exact)
+  }
+  return map
 }

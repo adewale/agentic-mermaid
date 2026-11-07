@@ -5,9 +5,13 @@ import { describe, test, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
 import { describeMermaidSource, describeMermaidTree } from '../agent/describe.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
-import { mutate } from '../agent/mutate.ts'
+import { mutate, mutateChecked } from '../agent/mutate.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { startUpstreamMermaid, type UpstreamDiagram } from './helpers/upstream-mermaid.ts'
+import { createMermaid } from '../agent/create.ts'
+import { parseEventModeling } from '../eventmodeling/parser.ts'
+import { parseVennDiagram } from '../venn/parser.ts'
+import { parseZenUML } from '../zenuml/native-parser.ts'
 import { synthesizeFromGraph } from '../agent/index.ts'
 import { parseMindmap } from '../mindmap/parser.ts'
 import { decodeXML } from 'entities'
@@ -51,6 +55,100 @@ test('successful accessibility edits close through body, metadata and source wit
   }
   const control = mutate(parsed.value, { kind: 'set_accessibility_title', title: 'ordinary title' })
   expect(control.ok).toBe(true)
+})
+
+test.each([
+  ['usecase-beta', 'actor A("A")'],
+  ['wardley-beta', 'component A [50.0, 50.0]'],
+  ['venn-beta', 'set A:10'],
+  ['cynefin-beta', 'complex\n  "Explore"'],
+  ['treeView-beta', '"file.ts"'],
+] as const)('%s accessibility clears close through the final envelope and checked edits', (header, content) => {
+  const source = `---\ntitle: Preserved wrapper\n---\n%% authored wrapper\n${header}\naccTitle: Original\naccDescr: Preserve until cleared\n${content}`
+  const parsed = parseMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind === 'opaque') throw new Error('Expected editable native family')
+  const original = structuredClone(parsed.value)
+  for (const edit of [mutate, mutateChecked]) {
+    for (const op of [{ kind: 'set_accessibility_title', title: null }, { kind: 'set_accessibility_description', description: null }] as const) {
+      const result = edit(parsed.value, op)
+      if (!result.ok) throw new Error(JSON.stringify(result.error))
+      const expected = op.kind === 'set_accessibility_title' ? { descr: 'Preserve until cleared' } : { title: 'Original' }
+      expect(result.value.meta.accessibility).toEqual(expected)
+      const body = result.value.body as { accessibilityTitle?: string; accessibilityDescription?: string }
+      expect(body.accessibilityTitle).toBe(expected.title)
+      expect(body.accessibilityDescription).toBe(expected.descr)
+      const serialized = serializeMermaid(result.value)
+      expect(serialized.startsWith('---\ntitle: Preserved wrapper\n---\n%% authored wrapper\n')).toBe(true)
+      const reload = parseMermaid(serialized)
+      if (!reload.ok) throw new Error(JSON.stringify(reload.error))
+      expect(reload.value.meta.accessibility).toEqual(expected)
+      expect(reload.value.body).toEqual(result.value.body)
+      expect(parsed.value).toEqual(original)
+    }
+  }
+})
+
+test.each([
+  ['usecase-beta', 'actor A("A")'],
+  ['wardley-beta', 'component A [50.0, 50.0]'],
+  ['venn-beta', 'set A:10'],
+  ['cynefin-beta', 'complex\n  "Explore"'],
+  ['treeView-beta', '"file.ts"'],
+  ['railroad-beta', 'entry = terminal("a");'],
+] as const)('%s display title edits own the existing frontmatter scalar', (header, content) => {
+  const parsed = parseMermaid(`---\ntitle: Original display\nconfig:\n  theme: dark\n---\n%% wrapper rationale\n${header}\naccTitle: Accessible\n${content}`)
+  if (!parsed.ok || parsed.value.body.kind === 'opaque') throw new Error('Expected typed native family')
+  for (const edit of [mutate, mutateChecked]) for (const title of [null, 'Changed display']) {
+    const result = edit(parsed.value, { kind: 'set_title', title })
+    if (!result.ok) throw new Error(JSON.stringify(result.error))
+    expect((result.value.body as { title?: string }).title).toBe(title ?? undefined)
+    expect(result.value.meta.frontmatter?.title).toBe(title ?? undefined)
+    expect(result.value.meta.frontmatter?.theme).toBe('dark')
+    expect(result.value.meta.accessibility).toEqual({ title: 'Accessible' })
+    const saved = serializeMermaid(result.value)
+    expect(saved).toContain('%% wrapper rationale')
+    expect(saved).not.toContain('Original display')
+    const reload = parseMermaid(saved)
+    if (!reload.ok) throw new Error(JSON.stringify(reload.error))
+    expect((reload.value.body as { title?: string }).title).toBe(title ?? undefined)
+    expect(reload.value.meta.frontmatter).toEqual(result.value.meta.frontmatter)
+  }
+})
+
+test.each([
+  ['eventmodeling', 'eventmodeling\n%% retained body comment\ntf 01 ui Main', parseEventModeling],
+  ['zenuml', 'zenuml\n%% retained body comment\nAlice->Bob: hello', parseZenUML],
+  ['venn', 'venn-beta\n%% retained body comment\nset A:10', parseVennDiagram],
+] as const)('%s native accessibility decodes protected punctuation once through checked edits and public reload', (family, source, readNative) => {
+  const parsed = parseMermaid('%% retained wrapper comment\n' + source)
+  if (!parsed.ok || parsed.value.body.kind !== family) throw new Error('Expected typed native metadata owner')
+  for (const initial of [createMermaid(family), parsed.value]) for (const text of ['https://example.com?a=1&b=2', 'Literal #58; &amp; #35; %% text', 'Control %%{init: {theme: dark}}%% and <b>literal</b>']) {
+    const original = structuredClone(initial), description = text + '\nSecond line'
+    const titled = mutateChecked(initial, { kind: 'set_accessibility_title', title: text })
+    if (!titled.ok) throw new Error(JSON.stringify(titled.error))
+    const changed = mutateChecked(titled.value, { kind: 'set_accessibility_description', description })
+    if (!changed.ok) throw new Error(JSON.stringify(changed.error))
+    if (changed.value.body.kind !== family) throw new Error('Metadata edit changed its native family')
+    expect(changed.value.meta.accessibility).toEqual({ title: text, descr: description })
+    const saved = serializeMermaid(changed.value), direct = readNative(saved), reload = parseMermaid(saved)
+    expect(direct.accessibilityTitle).toBe(text)
+    expect(direct.accessibilityDescription).toBe(description)
+    if (!reload.ok || reload.value.body.kind !== family) throw new Error('Expected typed public reload')
+    expect(reload.value.body).toEqual(changed.value.body)
+    expect(reload.value.meta.accessibility).toEqual({ title: text, descr: description })
+    expect(reload.value.meta.initDirectives).toEqual([])
+    if (initial === parsed.value) {
+      expect(saved.startsWith('%% retained wrapper comment\n')).toBe(true)
+      expect(saved.match(/^%% retained body comment$/gm)).toHaveLength(1)
+    }
+    const cleared = mutateChecked(changed.value, { kind: 'set_accessibility_title', ...(family === 'venn' ? { title: null } : {}) })
+    if (!cleared.ok) throw new Error(JSON.stringify(cleared.error))
+    expect(cleared.value.meta.accessibility).toEqual({ descr: description })
+    const clearReload = parseMermaid(serializeMermaid(cleared.value))
+    if (!clearReload.ok) throw new Error('Expected metadata clear reload')
+    expect(clearReload.value.meta.accessibility).toEqual({ descr: description })
+    expect(initial).toEqual(original)
+  }
 })
 
 describe('#7254/#7255 SVG accessibility', () => {

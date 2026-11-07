@@ -43,6 +43,16 @@ Do not paraphrase what a warning code means. Point at its page under
 tables, both generated from the catalog. Keep a sentence only when it says
 something the catalog does not, such as which codes a family can raise.
 
+## Links in packaged guides
+
+The npm package ships the root `docs/*.md` guides, not the repository's design
+notes, research, tests or review images. Link relatively to resources that ship
+together. For repository-only evidence, use a commit-pinned GitHub link; use a
+raw image URL when the guide embeds the image. Keep runnable code examples
+unchanged. The installed-tarball test discovers every shipped maintained
+Markdown document and checks its rendered local links and images, including
+reference-style links, rather than maintaining a list of guide entry points.
+
 ## Registry lists
 
 A hand-written unit that names every member of a registry declares itself

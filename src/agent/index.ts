@@ -206,7 +206,7 @@ export function renderMermaidWithActions(
   }
   const actions = collectActionRecords(parsed.value)
   if (request.format === 'svg') {
-    const output = executeGraphicalRequest(source, options, 'svg', undefined, { expectedFamilyId: prepared.expectedFamilyId }, consumeLayout).svg
+    const output = executeGraphicalRequest(source, options, 'svg', undefined, prepared.resolutionOptions, consumeLayout).svg
     return {
       format: 'svg',
       output,

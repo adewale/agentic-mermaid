@@ -1,3 +1,7 @@
+import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
+import { accessibilityFields } from '../shared/accessibility-directives.ts'
+import { withBodyTitleMeta } from './body-title-meta.ts'
+import { ownBodyAccessibility } from './accessibility-envelope.ts'
 import { projectZenUMLSequence } from '../zenuml/native-sequence.ts'
 import type { FamilyOperations } from './family-registry.ts'
 import { ok, type SourceMap, type SourceLocation } from './types.ts'
@@ -8,9 +12,14 @@ import { parseZenUML } from '../zenuml/native-parser.ts'
 import { serializeZenUML } from '../zenuml/native-body.ts'
 
 export const ZENUML_SOURCE_HOOKS: Omit<FamilyOperations, 'mutate'> = {
+  bodyAccessibility: ownBodyAccessibility('zenuml', 'native'),
+  bodyMeta: (body, meta, previous) => body.kind === 'zenuml' ? withBodyTitleMeta(body.title, meta, previous === undefined || (previous.kind === 'zenuml' && body.title === previous.title)) : meta,
   parse: ctx => {
     try {
       const body = parseZenUML(preservedMermaidFamilyText(ctx.source))
+      const accessibility = readAuthoredGrammarAccessibility(ctx.meta.accessibility)
+      Object.assign(body, accessibilityFields(accessibility))
+      ctx.meta.accessibility = accessibility
       if (body.unsupportedSource !== undefined) return ok({ kind: 'opaque', family: 'zenuml', source: ctx.opaqueSource })
       if (body.title === undefined && typeof ctx.source.frontmatter.title === 'string') body.title = ctx.source.frontmatter.title
       return ok(body)

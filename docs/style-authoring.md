@@ -130,7 +130,7 @@ source and options still produce identical bytes. Explicit authored paint
 remains authoritative; choosing this look is not a universal contrast guarantee.
 Check the selected paint with the existing contrast constraints.
 
-The [30 October evaluation](project/upstream-lessons-2026-10-30.md#contrast-preferences)
+The [30 October evaluation](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/project/upstream-lessons-2026-10-30.md#contrast-preferences)
 checked inline SVG and image embedding with Chromium media emulation on Linux.
 It does not establish real Windows High Contrast or screen-reader behavior.
 
@@ -166,7 +166,7 @@ BrandPack registry is deliberately **not promoted**. Render-time semver ranges,
 dependency solving, ambient resource loading, and a second inheritance system
 remain absent.
 
-The [reviewed all-family rendering golden](../src/__tests__/testdata/section-b-brand-evidence.png)
+The [reviewed all-family rendering golden](https://raw.githubusercontent.com/adewale/agentic-mermaid/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/src/__tests__/testdata/section-b-brand-evidence.png)
 shows one deliberately distinctive sentinel plus three holdout styles; its review record
 and honest hard-error baseline live in `eval/section-b-brand-evidence/`.
 

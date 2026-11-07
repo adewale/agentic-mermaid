@@ -52,6 +52,8 @@ export type FlowchartBody = Extract<DiagramBody, { kind: 'flowchart' }>
 
 interface SourceStatementSegment {
   readonly text: string
+  /** A dialect-owned declaration prefix is not a vertex occurrence. */
+  readonly nodePrefixEnd?: number
   /** Where the statement begins in its group's text. */
   readonly start: number
   /** The lines the parser reads as one (coalesceFlowchartLines). */
@@ -140,12 +142,16 @@ function flowchartSourceSegments(lines: readonly string[]): SourceStatementSegme
     }))
 }
 
-export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: string): SourceMap {
+export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: string, groupKeyword: 'subgraph' | 'flow' = 'subgraph'): SourceMap {
   const map: SourceMap = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
   const lines = canonicalSource.split(/\r?\n/)
   // Statements as the parser reads them: a label, string or link may run on
   // across lines. Each location is placed on the line its text came from.
-  const sourceSegments = flowchartSourceSegments(lines)
+  const sourceSegments = flowchartSourceSegments(lines).slice(1).filter(segment => groupKeyword !== 'flow' || !/^\s*(?:flow(?=\s|@|$)|global\s*$)/.test(segment.text))
+  if (groupKeyword === 'flow') for (const segment of sourceSegments) {
+    const prefix = /^\s*connector\s+/.exec(segment.text)
+    if (prefix) Object.assign(segment, { nodePrefixEnd: prefix[0].length })
+  }
 
   const nodeIdTrie = buildNodeIdTrie(body.graph.nodes.keys())
   const nodeSegments = new Map<string, SourceStatementSegment[]>()
@@ -171,7 +177,7 @@ export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: st
     }
   }
 
-  for (const sg of body.graph.subgraphs) mapSubgraphSource(sg, lines, map)
+  for (const sg of body.graph.subgraphs) mapSubgraphSource(sg, lines, map, groupKeyword)
 
   const edgeOccurrences = new Map<string, number>()
   const edgeMatches = new Map<string, Array<{
@@ -303,7 +309,7 @@ function nodeTokenAt(
   start: number,
 ): boolean {
   const { text: line, topLevel, textLabelRanges: labelRanges, operatorStarts, operatorEnds } = segment
-  if (nonNodeStatement(line) || !topLevel[start]) return false
+  if (nonNodeStatement(line) || !topLevel[start] || start < (segment.nodePrefixEnd ?? 0)) return false
   if (labelRanges.some(range => start >= range.start && start < range.end)) return false
   const before = line[start - 1]
   const idEnd = start + id.length
@@ -482,18 +488,19 @@ function nodeLabelColumn(segment: SourceStatementSegment, label: string, afterCo
   return labelColumnInRanges(segment.text, label, ranges.reverse())
 }
 
-function mapSubgraphSource(sg: MermaidSubgraph, lines: string[], map: SourceMap): void {
-  const re = new RegExp(`^\\s*subgraph\\s+${escapeRegex(sg.id)}(?=\\s|\\[|$)`, 'i')
+function mapSubgraphSource(sg: MermaidSubgraph, lines: string[], map: SourceMap, groupKeyword: 'subgraph' | 'flow'): void {
+  const re = new RegExp(`^(\\s*${groupKeyword}\\s+)${escapeRegex(sg.id)}(?=\\s|\\[|$)`, 'i')
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!
-    if (!re.test(line)) continue
-    const col = line.indexOf(sg.id)
+    const declaration = re.exec(line)
+    if (!declaration) continue
+    const col = declaration[1]!.length
     map.groups.set(sg.id, { line: i + 1, col: col + 1 })
     const labelCol = sg.label && sg.label !== sg.id ? titleColumn(line, sg.label, col + sg.id.length) : -1
     if (labelCol >= 0) map.labels.set(`group:${sg.id}`, { line: i + 1, col: labelCol + 1 })
     break
   }
-  for (const child of sg.children) mapSubgraphSource(child, lines, map)
+  for (const child of sg.children) mapSubgraphSource(child, lines, map, groupKeyword)
 }
 
 function escapeRegex(s: string): string { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') }

@@ -57,6 +57,21 @@ describe('source-preserving edits across agent channels', () => {
 })
 
 describe('sandbox — happy', () => {
+  test('verification snapshots nested render options across the sandbox boundary', async () => {
+    const source = 'venn-beta\nset A["Alpha"]:20\nset B["Beta"]:12\nunion A,B["Shared"]:3'
+    for (const [options, expected] of [
+      [undefined, { ok: true, warningCodes: [] }],
+      [{ renderOptions: { style: { colors: { bg: '#ffffff', fg: '#111111' }, roles: { node: { fontSize: 18 } } } } }, { ok: true, warningCodes: [] }],
+      [{ renderOptions: { style: { roles: { node: { fontSize: 'wide' } } } } }, { ok: false, warningCodes: ['RENDER_FAILED'] }],
+    ] as const) {
+      const result = await executeInSandbox(`
+const parsed = mermaid.parseRegisteredMermaid(${JSON.stringify(source)});
+const verified = mermaid.verifyMermaid(parsed.value, ${JSON.stringify(options) ?? 'undefined'});
+return { ok: verified.ok, warningCodes: verified.warnings.map(warning => warning.code) };`)
+      expect(result).toMatchObject({ ok: true, value: expected })
+    }
+  })
+
   test('flowchart workflow', async () => {
     const r = await executeInSandbox(`
       const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')

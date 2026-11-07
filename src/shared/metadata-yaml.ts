@@ -26,7 +26,7 @@ import { assertDiagramWorkLimit } from './diagram-limits.ts'
 
 export type MetadataEntries =
   | { ok: true; entries: ReadonlyMap<string, unknown> }
-  | { ok: false; message: string }
+  | { ok: false; message: string; offset?: number }
 
 /** Protect authored codes from YAML comments without conflating them with
  * literal Mermaid markers, including markers produced by YAML escapes.
@@ -91,8 +91,9 @@ export function protectMetadataEntities(source: string) {
 export function parseMetadataBody(body: string, grammar: MetadataGrammar): MetadataEntries {
   const protectedBody = protectMetadataEntities(body)
   const marked = protectedBody.text
-  const parsed = parseMermaidYaml(marked.includes('\n') ? `${marked}\n` : `{\n${marked}\n}`)
-  if (!parsed.ok) return parsed
+  const multiline = marked.includes('\n')
+  const parsed = parseMermaidYaml(multiline ? `${marked}\n` : `{\n${marked}\n}`)
+  if (!parsed.ok) return parsed.offset === undefined ? parsed : { ...parsed, offset: Math.max(0, Math.min(body.length, protectedBody.sourceOffset(parsed.offset - (multiline ? 0 : 2)))) }
   const value = parsed.value
   if (grammar === 'flowchart' && (value === null || value === undefined)) {
     return { ok: false, message: 'empty @{} metadata document' }

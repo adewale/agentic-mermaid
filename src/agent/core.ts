@@ -470,9 +470,7 @@ export function layoutMermaidWithReceipt(input: ParsedDiagram | string, opts: La
   const layoutOptions = { debug, regions, actions }
   const preparedInput = prepareRenderInput(input)
   const source = preparedInput.source
-  const request = _resolveRenderRequest(source, renderOptions, 'layout', layoutOptions, {
-    expectedFamilyId: preparedInput.expectedFamilyId,
-  })
+  const request = _resolveRenderRequest(source, renderOptions, 'layout', layoutOptions, preparedInput.resolutionOptions)
   emitResolvedConfigDiagnostics(request)
   let diagram: ParsedDiagram
   if (typeof input === 'string') {
@@ -535,3 +533,24 @@ export { asZenUML } from './types.ts'
 export type { ZenUMLBody, ZenUMLMutationOp, ZenUMLValidDiagram, ZenUMLParticipant, ZenUMLStatement, ZenUMLBranch } from './types.ts'
 export { asEventModeling } from './types.ts'
 export type { EventModelingBody, EventModelingMutationOp, EventModelingValidDiagram, EventFrame, EventFrameType, EventData, EventSpecification } from './types.ts'
+
+export { asSwimlane, asTreeview } from './types.ts'
+export type { SwimlaneBody, SwimlaneMutationOp, SwimlaneValidDiagram, TreeviewBody, TreeviewNode, TreeviewMutationOp, TreeviewValidDiagram } from './types.ts'
+
+export { asAgentflow } from './types.ts'
+export type { AgentflowBody, AgentflowMutationOp, AgentflowValidDiagram } from './types.ts'
+
+export { asUsecase } from './types.ts'
+export type { UsecaseBody, UsecaseMutationOp, UsecaseValidDiagram } from './types.ts'
+
+export { asWardley } from './types.ts'
+export type { WardleyBody, WardleyMutationOp, WardleyValidDiagram } from './types.ts'
+
+export { asVenn } from './types.ts'
+export type { VennBody, VennMutationOp, VennValidDiagram } from './types.ts'
+
+export { asCynefin } from './types.ts'
+export type { CynefinBody, CynefinMutationOp, CynefinValidDiagram } from './types.ts'
+
+export { asRailroad } from './types.ts'
+export type { RailroadBody, RailroadMutationOp, RailroadValidDiagram, RailroadNode, RailroadRule, RailroadNotation } from './types.ts'

@@ -8,34 +8,66 @@ family. Syntax and per-family caveats live in
 [`diagram-families.md`](./diagram-families.md); the authoritative list of what
 renders and what mutates is `am capabilities --json`, not this page.
 
-## Start from the reader's task
+## Discover the built-in families
 
-<!-- complete: family-ids -->
-| The reader must | First choice | Reach for instead when |
+This table uses the editor's current family descriptions and public narrowers.
+The linked guides provide runnable source and caveats. These descriptions are
+not claims of exhaustive syntax support.
+
+<!-- BEGIN GENERATED: family-discovery -->
+| Family and example | What the editor example shows | Typed narrower |
+| --- | --- | --- |
+| [Flowchart](./diagram-families.md#flowchart) | Decision flow with labeled branches. | `asFlowchart` |
+| [State](./diagram-families.md#state) | Lifecycle using Mermaid stateDiagram-v2 syntax. | `asState` |
+| [Sequence](./diagram-families.md#sequence) | Request/response messages between participants. | `asSequence` |
+| [Timeline](./diagram-families.md#timeline) | Chronological milestones with sections. | `asTimeline` |
+| [Class](./diagram-families.md#class) | Classes with members, inheritance, and composition. | `asClass` |
+| [ER](./diagram-families.md#er) | Entities, attributes, keys, and cardinality markers. | `asEr` |
+| [Journey](./diagram-families.md#journey) | Scored user tasks grouped by section. | `asJourney` |
+| [Architecture](./diagram-families.md#architecture) | Services, groups, icons, and routed connections. | `asArchitecture` |
+| [XY chart](./diagram-families.md#xy-chart) | Bar and line series using xychart syntax. | `asXyChart` |
+| [Pie](./diagram-families.md#pie) | Proportional slices with values shown in the legend. | `asPie` |
+| [Quadrant](./diagram-families.md#quadrant) | Two-axis priority map with labeled regions and points. | `asQuadrant` |
+| [Gantt](./diagram-families.md#gantt) | Sections, dependencies, status tags, and a milestone. | `asGantt` |
+| [Mindmap](./diagram-families.md#mindmap) | A centered, bilateral hierarchy with shapes, Markdown, Unicode, accessibility, and deep quality branches. | `asMindmap` |
+| [GitGraph](./diagram-families.md#gitgraph) | Ordered branches, commit types, tags, a semantic merge, and a merge-parent backport. | `asGitGraph` |
+| [Radar](./diagram-families.md#radar) | Multivariate profiles compared across shared axes — the silhouette is the message. | `asRadar` |
+| [Sankey](./diagram-families.md#sankey) | Conserved flows between layered stages — ribbon width is the quantity. | `asSankey` |
+| [C4](./diagram-families.md#c4) | People, software systems, containers and components within nested architecture boundaries. | `asC4` |
+| [Packet](./diagram-families.md#packet) | Bit-accurate packet fields with wrapping word rows. | `asPacket` |
+| [Kanban](./diagram-families.md#kanban) | Ordered workflow columns and task cards with assignees and tickets. | `asKanban` |
+| [Requirement](./diagram-families.md#requirement) | Requirements, evidence elements and typed traceability relationships. | `asRequirement` |
+| [Treemap](./diagram-families.md#treemap) | Value-proportional nested rectangles for hierarchical data. | `asTreemap` |
+| [Ishikawa](./diagram-families.md#ishikawa) | Cause-and-effect fishbone with nested contributing causes. | `asIshikawa` |
+| [Block](./diagram-families.md#block) | Authored grid placement with column spans and nested composites. | `asBlock` |
+| [Event Modeling](./diagram-families.md#event-modeling) | Time frames, swimlanes and directed information flow. | `asEventModeling` |
+| [ZenUML](./diagram-families.md#zenuml) | Nested calls, replies and control scopes with checked native edits. | `asZenUML` |
+| [Railroad](./diagram-families.md#railroad) | Grammar sequences, choices, optional branches, repetition tracks and lookahead. | `asRailroad` |
+| [Cynefin](./diagram-families.md#cynefin) | Decision domains, retained items and directed domain transitions. | `asCynefin` |
+| [AgentFlow](./diagram-families.md#agentflow) | Agent roles, tool metadata, attachments and directed workflow connections. | `asAgentflow` |
+| [UseCase](./diagram-families.md#usecase) | Actors and use cases inside system boundaries with typed relationships. | `asUsecase` |
+| [Wardley](./diagram-families.md#wardley) | Authored evolution and visibility coordinates, dependencies and pipelines. | `asWardley` |
+| [Venn](./diagram-families.md#venn) | Sets, intersections, exact values and region-owned text. | `asVenn` |
+| [Swimlane](./diagram-families.md#swimlane) | Responsibility lanes with source-ordered tasks and directed connections. | `asSwimlane` |
+| [TreeView](./diagram-families.md#treeview) | Ordered folders and files with descriptions and hierarchy guides. | `asTreeview` |
+<!-- END GENERATED: family-discovery -->
+
+## Resolve close choices from the reader's task
+
+These examples distinguish neighboring metaphors; the generated table above
+owns the complete roster.
+
+| The reader must | Prefer | Choose another family when |
 |---|---|---|
-| Follow steps and decisions to an outcome | Flowchart | The subject reacts to events rather than proceeding through steps: state |
-| See how a system moves between modes | State | The path is a linear procedure: flowchart |
-| Read who sends what to whom, in order | Sequence | Only dependency matters, not order: flowchart |
-| Read how protocol fields occupy bit addresses and word rows | Packet | Message order between actors matters: sequence |
-| Compare dated work with durations and dependencies | Gantt | There are no dates, only eras: timeline |
-| Track work by workflow stage, assignee, ticket, and priority | Kanban | Dates, durations, and dependencies matter: gantt |
-| Scan periods and what happened in each | Timeline | The story is one person's scored experience: journey; the history is commits and branches: gitGraph |
-| Judge how a process felt to the person in it | Journey | No actors or sentiment scores exist: timeline |
-| Trace where quantities go from stage to stage | Sankey | The amounts don't need to balance: flowchart with labeled edges |
-| Judge parts of one whole at one moment | Pie | Slices are many or nearly equal, or values change over time: xychart |
-| Compare value proportions within a hierarchy | Treemap | There is no hierarchy: pie; precise comparisons matter more than area: xychart |
-| Compare measured values across categories or time | XY chart | The values are shares of a single whole: pie |
-| Place options on two independent axes | Quadrant | Each option is scored on three or more criteria: radar |
-| Compare profiles across three or more shared criteria | Radar | There are exactly two criteria: quadrant |
-| See stored data and how records relate | ER | Behavior and methods matter, not storage: class |
-| See code structure, types, and inheritance | Class | Only the persistence shape matters: er |
-| Trace requirements to supporting elements and verification evidence | Requirement | The subject is software types and inheritance: class |
-| See services, their grouping, and physical links | Architecture | The flow is logical rather than deployed: flowchart |
-| Read a deliberately arranged grid of components and nested groups | Block | Connectivity should choose placement: flowchart; infrastructure ports matter: architecture |
-| Explain people, software responsibilities and nested system or deployment boundaries | C4 | The reader needs infrastructure ports and physical links: architecture; protocol timing: sequence |
-| Follow commits, branches, and merges | GitGraph | — |
-| Explore ideas radiating from one center | Mindmap | Branches share children (the structure is a graph, not a tree): flowchart |
-| Investigate contributing causes of one effect | Ishikawa | The branches are ideas without a cause-and-effect claim: mindmap |
+| Follow steps and decisions to an outcome | Flowchart | The subject reacts to events rather than proceeding through steps: State |
+| Follow handoffs between responsible teams or people | Swimlane | Message order matters more than responsibility: Sequence |
+| Trace agent tasks, tools, connectors and shared documents | AgentFlow | There are no agent roles or attachments: Flowchart |
+| Identify actors and their goals within system boundaries | UseCase | The reader needs the order of individual calls: Sequence or ZenUML |
+| Compare parts of a whole or hierarchy | Pie or Treemap | Precise comparisons matter more than area: XY chart |
+| Compare dependencies by visibility and evolution | Wardley | The axes are arbitrary scores rather than visibility and evolution: Quadrant |
+| Choose an approach for different decision contexts | Cynefin | The categories are measured numeric profiles: Radar |
+| Scan ordered folders and files with hierarchy guides | TreeView | The hierarchy represents ideas rather than files: Mindmap |
+| Follow alternatives and repetition allowed by a grammar | Railroad | The subject is an execution process rather than accepted syntax: Flowchart |
 
 ## Check the source shape first
 

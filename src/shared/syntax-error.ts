@@ -30,7 +30,7 @@ export class LocatedParserError extends Error {
 }
 
 export class MermaidSyntaxError extends LocatedParserError {
-  readonly code = 'MERMAID_SYNTAX_ERROR'
+  readonly code: string = 'MERMAID_SYNTAX_ERROR'
   constructor(message: string, location: MermaidSyntaxErrorLocation = {}) {
     super(message, location)
     this.name = 'MermaidSyntaxError'

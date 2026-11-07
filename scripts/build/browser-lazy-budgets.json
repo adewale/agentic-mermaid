@@ -156,6 +156,54 @@
       "raw": 719000,
       "gzip": 239250,
       "brotli": 213000
+    },
+    "railroad": {
+      "requests": 31,
+      "raw": 642000,
+      "gzip": 212000,
+      "brotli": 188000
+    },
+    "cynefin": {
+      "requests": 31,
+      "raw": 629000,
+      "gzip": 208000,
+      "brotli": 185000
+    },
+    "agentflow": {
+      "requests": 42,
+      "raw": 2492000,
+      "gzip": 774000,
+      "brotli": 624000
+    },
+    "usecase": {
+      "requests": 37,
+      "raw": 2448000,
+      "gzip": 758000,
+      "brotli": 609000
+    },
+    "wardley": {
+      "requests": 31,
+      "raw": 641000,
+      "gzip": 212000,
+      "brotli": 188000
+    },
+    "venn": {
+      "requests": 31,
+      "raw": 640000,
+      "gzip": 212000,
+      "brotli": 188000
+    },
+    "swimlane": {
+      "requests": 44,
+      "raw": 2524000,
+      "gzip": 785000,
+      "brotli": 634000
+    },
+    "treeview": {
+      "requests": 31,
+      "raw": 628000,
+      "gzip": 208000,
+      "brotli": 184000
     }
   }
 }

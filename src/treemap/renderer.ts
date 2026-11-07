@@ -3,7 +3,7 @@ import { createFillInkResolver } from '../color-resolver.ts'
 import { escapeAttr } from '../multiline-utils.ts'
 import type { SceneNode } from '../scene/ir.ts'
 import { resolveRoleStyle, sceneRoleTraits } from '../scene/roles.ts'
-import { categoricalPalette } from '../shared/categorical-palette.ts'
+import { categoricalPalette, CategoricalPaletteConstraintError } from '../shared/categorical-palette.ts'
 import { contrastRatio, toHex, tryParseCssColor, WCAG_AA_TEXT_CONTRAST } from '../shared/color-math.ts'
 import { hierarchyChildren } from '../shared/hierarchy-model.ts'
 import { drawingDocument } from '../shared/scene-document.ts'
@@ -22,7 +22,7 @@ export function lowerTreemapDrawing<T>(marks: DrawingFactory<T>, { positioned: c
   const inkForFill = createFillInkResolver(colors)
   // At most the two Style role inks add a palette. Source-class inks never
   // multiply palette work and retain their authored-paint limitations.
-  const inkPalettes = new Map<string, string[]>(),
+  const inkPalettes = new Map<string, string[]>(), inkHalos = new Map<string, string>(),
     pageHalo = (resolved.paintBackendId === 'backend:rough' || resolved.paintBackendId === 'backend:hybrid') && sceneRoleTraits('label').textHalo,
     page = pageHalo ? tryParseCssColor(resolvedColorValue('var(--bg)', colors) ?? colors.bg) : undefined
   const paletteForInk = (ink: string | undefined): string[] => {
@@ -33,8 +33,18 @@ export function lowerTreemapDrawing<T>(marks: DrawingFactory<T>, { positioned: c
     // The selected sketch backend puts label glyphs on its page-colored halo.
     // A page-readable ink therefore does not constrain the rectangle beneath.
     const concreteInk = parsed?.[3] === 1 ? toHex(parsed[0], parsed[1], parsed[2]) : undefined,
-      readsOnHalo = concreteInk !== undefined && page?.[3] === 1 && contrastRatio(concreteInk, toHex(page[0], page[1], page[2]))! >= WCAG_AA_TEXT_CONTRAST,
-      derived = concreteInk !== undefined && !readsOnHalo ? categoricalPalette(categoryCount, { ...paletteInputs, labelInk: concreteInk }) : palette
+      readsOnHalo = concreteInk !== undefined && page?.[3] === 1 && contrastRatio(concreteInk, toHex(page[0], page[1], page[2]))! >= WCAG_AA_TEXT_CONTRAST
+    let derived = palette
+    if (concreteInk !== undefined && !readsOnHalo) {
+      try { derived = categoricalPalette(categoryCount, { ...paletteInputs, labelInk: concreteInk }) }
+      catch (error) {
+        if (!(error instanceof CategoricalPaletteConstraintError)) throw error
+        // A fixed ink and page can leave no jointly visible, distinct palette.
+        // Keep the quantitative fills and authored ink; give glyphs a separate
+        // opaque surface rather than weakening either contrast requirement.
+        inkHalos.set(ink, contrastRatio(concreteInk, '#000000')! >= contrastRatio(concreteInk, '#ffffff')! ? '#000000' : '#ffffff')
+      }
+    }
     inkPalettes.set(ink, derived)
     return derived
   }
@@ -64,6 +74,8 @@ export function lowerTreemapDrawing<T>(marks: DrawingFactory<T>, { positioned: c
     // too. Only the family's derived text tone is contrast-adapted.
     const textFill = headerFill ?? fill
     const ink = explicitInk ?? inkForFill('var(--_text)', textFill, Boolean(authored?.fill || roleStyle?.fillColor || headerFill || !roleFill))
+    const halo = explicitInk === roleInk && roleInk !== undefined ? inkHalos.get(roleInk) : undefined
+    const labelPaint = { fill: ink, ...(halo ? { stroke: halo, strokeWidth: '3', strokeLinejoin: 'round' as const, paintOrder: 'stroke' } : {}) }
     const owner = { id: cell.node.id, role: section ? ('group' as const) : ('node' as const) }
     const children: T[] = []
     if (cell.width > 0 && cell.height > 0)
@@ -97,8 +109,8 @@ export function lowerTreemapDrawing<T>(marks: DrawingFactory<T>, { positioned: c
           }),
         )
     }
-    if (cell.label) children.push(marks.text({ id: `label:${cell.node.id}`, role: 'label', owner, text: cell.label.text, block: cell.label, x: cell.x + cell.width / 2, y: cell.labelY!, fontSize: cell.label.fontSize, fontWeight: cell.label.fontWeight, anchor: 'middle', paint: { fill: ink } }))
-    if (cell.valueLabel) children.push(marks.text({ id: `value:${cell.node.id}`, role: 'label', owner, text: cell.valueLabel.text, block: cell.valueLabel, x: cell.x + cell.width / 2, y: cell.valueY!, fontSize: cell.valueLabel.fontSize, fontWeight: cell.valueLabel.fontWeight, anchor: 'middle', paint: { fill: ink } }))
+    if (cell.label) children.push(marks.text({ id: `label:${cell.node.id}`, role: 'label', owner, text: cell.label.text, block: cell.label, x: cell.x + cell.width / 2, y: cell.labelY!, fontSize: cell.label.fontSize, fontWeight: cell.label.fontWeight, anchor: 'middle', paint: labelPaint }))
+    if (cell.valueLabel) children.push(marks.text({ id: `value:${cell.node.id}`, role: 'label', owner, text: cell.valueLabel.text, block: cell.valueLabel, x: cell.x + cell.width / 2, y: cell.valueY!, fontSize: cell.valueLabel.fontSize, fontWeight: cell.valueLabel.fontWeight, anchor: 'middle', paint: labelPaint }))
     contents.set(cell.node.id, children)
   }
   // Actual Scene containment follows the authored hierarchy. Quantitative
