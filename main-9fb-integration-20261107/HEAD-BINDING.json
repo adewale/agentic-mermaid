@@ -1,0 +1,16 @@
+{
+  "head": "780b5f1b04ac7ac5db35cdd442d98df652daf17d",
+  "parents": [
+    "96990f17b36af1dd05c1ce140d3ddf44aedfa8de",
+    "9fb35b8bf8dc654a19612de3cc6a50144d68b0a7"
+  ],
+  "srcTree": "f443cb79732d6af90727b25524be5b913f78b096",
+  "main": "9fb35b8bf8dc654a19612de3cc6a50144d68b0a7",
+  "testedPRMerge": "9cb3c650441a09f4ad52bec50ef59bd92d73e243",
+  "testedPRMergeTree": "af5bf424c93bd9acccd63ca034c3385d2feb7db5",
+  "mergeTreeEqualsHead": true,
+  "CI": 42368944274,
+  "CIStatus": "in_progress, not ready",
+  "caps": "Stricter campaign original4,429,400raw/1,334,500gzip standalone andGantt originallimits retained; newmain0.5.7/backenddefault unchanged",
+  "archiveTarSHA256": "f2dda87229d825f3037f18b4b826c8492425e66c9fad11c9e2bf22f087051dc6"
+}

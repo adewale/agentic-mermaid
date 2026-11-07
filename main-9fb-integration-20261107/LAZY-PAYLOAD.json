@@ -1,0 +1,581 @@
+{
+  "schemaVersion": 1,
+  "compression": "sum of each fetched file; gzip level 9; Brotli quality 11",
+  "familyClosure": "selected ELK transfer; static excludes on-demand providers; YAML and HTML entity downloads remain explicit",
+  "budgetedFamilyClosure": "static imports plus complete YAML transfer for frontmatter/directives and ELK transfer for families that can demand its constructor",
+  "yamlChunks": [
+    "dist/browser-lazy/chunks/mermaid-yaml-runtime-JOJHX36J.js"
+  ],
+  "yamlTransfer": {
+    "raw": 100532,
+    "gzip": 31527,
+    "brotli": 28130
+  },
+  "familyCost": "selected ELK includes its solver; nativeSolver includes the shared forest implementation; omitted-layout Flowchart indexed forest and its ELK fallback union are reported and budgeted separately; static excludes on-demand dependencies; HTML5 tables remain additional",
+  "omittedLayoutFlowchart": {
+    "indexedForest": {
+      "requests": 22,
+      "raw": 965000,
+      "gzip": 315631,
+      "brotli": 266631
+    },
+    "indexedForestThenElk": {
+      "requests": 23,
+      "raw": 2412491,
+      "gzip": 744066,
+      "brotli": 588189
+    }
+  },
+  "elkChunk": "dist/browser-lazy/chunks/elk.bundled-6B6W3IFH.js",
+  "elkTransfer": {
+    "raw": 1447931,
+    "gzip": 428719,
+    "brotli": 321787
+  },
+  "initial": {
+    "requests": 3,
+    "raw": 15258,
+    "gzip": 5788,
+    "brotli": 5200
+  },
+  "budgetedFamilies": {
+    "flowchart": {
+      "requests": 23,
+      "elk": true,
+      "raw": 2508299,
+      "gzip": 773456,
+      "brotli": 614370
+    },
+    "state": {
+      "requests": 21,
+      "elk": true,
+      "raw": 2507665,
+      "gzip": 772870,
+      "brotli": 613808
+    },
+    "sequence": {
+      "requests": 13,
+      "elk": false,
+      "raw": 790735,
+      "gzip": 252362,
+      "brotli": 212441
+    },
+    "timeline": {
+      "requests": 9,
+      "elk": false,
+      "raw": 731960,
+      "gzip": 233575,
+      "brotli": 195460
+    },
+    "class": {
+      "requests": 19,
+      "elk": true,
+      "raw": 2306159,
+      "gzip": 704840,
+      "brotli": 554261
+    },
+    "er": {
+      "requests": 20,
+      "elk": true,
+      "raw": 2392163,
+      "gzip": 733608,
+      "brotli": 579521
+    },
+    "journey": {
+      "requests": 10,
+      "elk": false,
+      "raw": 752884,
+      "gzip": 240910,
+      "brotli": 202123
+    },
+    "architecture": {
+      "requests": 20,
+      "elk": true,
+      "raw": 2489252,
+      "gzip": 764966,
+      "brotli": 606439
+    },
+    "xychart": {
+      "requests": 12,
+      "elk": false,
+      "raw": 775909,
+      "gzip": 248796,
+      "brotli": 208992
+    },
+    "pie": {
+      "requests": 14,
+      "elk": false,
+      "raw": 745120,
+      "gzip": 240621,
+      "brotli": 201777
+    },
+    "quadrant": {
+      "requests": 11,
+      "elk": false,
+      "raw": 741925,
+      "gzip": 238171,
+      "brotli": 199568
+    },
+    "gantt": {
+      "requests": 12,
+      "elk": false,
+      "raw": 762427,
+      "gzip": 244674,
+      "brotli": 205487
+    },
+    "mindmap": {
+      "requests": 12,
+      "elk": false,
+      "raw": 747849,
+      "gzip": 242179,
+      "brotli": 203182
+    },
+    "gitgraph": {
+      "requests": 12,
+      "elk": false,
+      "raw": 748169,
+      "gzip": 241023,
+      "brotli": 202109
+    },
+    "radar": {
+      "requests": 13,
+      "elk": false,
+      "raw": 751544,
+      "gzip": 242456,
+      "brotli": 203464
+    },
+    "sankey": {
+      "requests": 12,
+      "elk": false,
+      "raw": 751961,
+      "gzip": 241385,
+      "brotli": 202537
+    },
+    "c4": {
+      "requests": 17,
+      "elk": false,
+      "raw": 947712,
+      "gzip": 304807,
+      "brotli": 257867
+    },
+    "packet": {
+      "requests": 11,
+      "elk": false,
+      "raw": 720894,
+      "gzip": 231269,
+      "brotli": 193449
+    },
+    "kanban": {
+      "requests": 12,
+      "elk": false,
+      "raw": 729416,
+      "gzip": 234725,
+      "brotli": 196515
+    },
+    "requirement": {
+      "requests": 13,
+      "elk": true,
+      "raw": 2190214,
+      "gzip": 667311,
+      "brotli": 521786
+    },
+    "treemap": {
+      "requests": 13,
+      "elk": false,
+      "raw": 739450,
+      "gzip": 239048,
+      "brotli": 200496
+    },
+    "ishikawa": {
+      "requests": 11,
+      "elk": false,
+      "raw": 721043,
+      "gzip": 231024,
+      "brotli": 193239
+    },
+    "block": {
+      "requests": 15,
+      "elk": false,
+      "raw": 890363,
+      "gzip": 286825,
+      "brotli": 242020
+    },
+    "eventmodeling": {
+      "requests": 11,
+      "elk": false,
+      "raw": 730342,
+      "gzip": 234010,
+      "brotli": 195942
+    },
+    "zenuml": {
+      "requests": 12,
+      "elk": false,
+      "raw": 804729,
+      "gzip": 257554,
+      "brotli": 217186
+    }
+  },
+  "families": {
+    "flowchart": {
+      "requests": 22,
+      "elk": true,
+      "raw": 2408207,
+      "gzip": 742213,
+      "brotli": 586469,
+      "static": {
+        "requests": 21,
+        "raw": 960716,
+        "gzip": 313778,
+        "brotli": 264911
+      },
+      "nativeSolver": {
+        "requests": 24,
+        "raw": 1134273,
+        "gzip": 372282,
+        "brotli": 315151
+      }
+    },
+    "state": {
+      "requests": 20,
+      "elk": true,
+      "raw": 2407573,
+      "gzip": 741627,
+      "brotli": 585907,
+      "static": {
+        "requests": 19,
+        "raw": 960082,
+        "gzip": 313192,
+        "brotli": 264349
+      },
+      "nativeSolver": {
+        "requests": 22,
+        "raw": 1133639,
+        "gzip": 371696,
+        "brotli": 314589
+      }
+    },
+    "sequence": {
+      "requests": 12,
+      "elk": false,
+      "raw": 690643,
+      "gzip": 221119,
+      "brotli": 184540,
+      "static": {
+        "requests": 12,
+        "raw": 690643,
+        "gzip": 221119,
+        "brotli": 184540
+      }
+    },
+    "timeline": {
+      "requests": 8,
+      "elk": false,
+      "raw": 631868,
+      "gzip": 202332,
+      "brotli": 167559,
+      "static": {
+        "requests": 8,
+        "raw": 631868,
+        "gzip": 202332,
+        "brotli": 167559
+      }
+    },
+    "class": {
+      "requests": 18,
+      "elk": true,
+      "raw": 2206067,
+      "gzip": 673597,
+      "brotli": 526360,
+      "static": {
+        "requests": 17,
+        "raw": 758576,
+        "gzip": 245162,
+        "brotli": 204802
+      },
+      "nativeSolver": {
+        "requests": 19,
+        "raw": 910992,
+        "gzip": 296609,
+        "brotli": 248846
+      }
+    },
+    "er": {
+      "requests": 19,
+      "elk": true,
+      "raw": 2292071,
+      "gzip": 702365,
+      "brotli": 551620,
+      "static": {
+        "requests": 18,
+        "raw": 844580,
+        "gzip": 273930,
+        "brotli": 230062
+      },
+      "nativeSolver": {
+        "requests": 21,
+        "raw": 1018137,
+        "gzip": 332434,
+        "brotli": 280302
+      }
+    },
+    "journey": {
+      "requests": 9,
+      "elk": false,
+      "raw": 652792,
+      "gzip": 209667,
+      "brotli": 174222,
+      "static": {
+        "requests": 9,
+        "raw": 652792,
+        "gzip": 209667,
+        "brotli": 174222
+      }
+    },
+    "architecture": {
+      "requests": 19,
+      "elk": true,
+      "raw": 2389160,
+      "gzip": 733723,
+      "brotli": 578538,
+      "static": {
+        "requests": 18,
+        "raw": 941669,
+        "gzip": 305288,
+        "brotli": 256980
+      },
+      "nativeSolver": {
+        "requests": 21,
+        "raw": 1115226,
+        "gzip": 363792,
+        "brotli": 307220
+      }
+    },
+    "xychart": {
+      "requests": 11,
+      "elk": false,
+      "raw": 675817,
+      "gzip": 217553,
+      "brotli": 181091,
+      "static": {
+        "requests": 11,
+        "raw": 675817,
+        "gzip": 217553,
+        "brotli": 181091
+      }
+    },
+    "pie": {
+      "requests": 13,
+      "elk": false,
+      "raw": 645028,
+      "gzip": 209378,
+      "brotli": 173876,
+      "static": {
+        "requests": 13,
+        "raw": 645028,
+        "gzip": 209378,
+        "brotli": 173876
+      }
+    },
+    "quadrant": {
+      "requests": 10,
+      "elk": false,
+      "raw": 641833,
+      "gzip": 206928,
+      "brotli": 171667,
+      "static": {
+        "requests": 10,
+        "raw": 641833,
+        "gzip": 206928,
+        "brotli": 171667
+      }
+    },
+    "gantt": {
+      "requests": 11,
+      "elk": false,
+      "raw": 662335,
+      "gzip": 213431,
+      "brotli": 177586,
+      "static": {
+        "requests": 11,
+        "raw": 662335,
+        "gzip": 213431,
+        "brotli": 177586
+      }
+    },
+    "mindmap": {
+      "requests": 11,
+      "elk": false,
+      "raw": 647757,
+      "gzip": 210936,
+      "brotli": 175281,
+      "static": {
+        "requests": 11,
+        "raw": 647757,
+        "gzip": 210936,
+        "brotli": 175281
+      }
+    },
+    "gitgraph": {
+      "requests": 11,
+      "elk": false,
+      "raw": 648077,
+      "gzip": 209780,
+      "brotli": 174208,
+      "static": {
+        "requests": 11,
+        "raw": 648077,
+        "gzip": 209780,
+        "brotli": 174208
+      }
+    },
+    "radar": {
+      "requests": 12,
+      "elk": false,
+      "raw": 651452,
+      "gzip": 211213,
+      "brotli": 175563,
+      "static": {
+        "requests": 12,
+        "raw": 651452,
+        "gzip": 211213,
+        "brotli": 175563
+      }
+    },
+    "sankey": {
+      "requests": 11,
+      "elk": false,
+      "raw": 651869,
+      "gzip": 210142,
+      "brotli": 174636,
+      "static": {
+        "requests": 11,
+        "raw": 651869,
+        "gzip": 210142,
+        "brotli": 174636
+      }
+    },
+    "c4": {
+      "requests": 16,
+      "elk": false,
+      "raw": 847620,
+      "gzip": 273564,
+      "brotli": 229966,
+      "static": {
+        "requests": 16,
+        "raw": 847620,
+        "gzip": 273564,
+        "brotli": 229966
+      }
+    },
+    "packet": {
+      "requests": 10,
+      "elk": false,
+      "raw": 620802,
+      "gzip": 200026,
+      "brotli": 165548,
+      "static": {
+        "requests": 10,
+        "raw": 620802,
+        "gzip": 200026,
+        "brotli": 165548
+      }
+    },
+    "kanban": {
+      "requests": 11,
+      "elk": false,
+      "raw": 629324,
+      "gzip": 203482,
+      "brotli": 168614,
+      "static": {
+        "requests": 11,
+        "raw": 629324,
+        "gzip": 203482,
+        "brotli": 168614
+      }
+    },
+    "requirement": {
+      "requests": 12,
+      "elk": true,
+      "raw": 2090122,
+      "gzip": 636068,
+      "brotli": 493885,
+      "static": {
+        "requests": 11,
+        "raw": 642631,
+        "gzip": 207633,
+        "brotli": 172327
+      },
+      "nativeSolver": {
+        "requests": 15,
+        "raw": 819135,
+        "gzip": 267469,
+        "brotli": 223805
+      }
+    },
+    "treemap": {
+      "requests": 12,
+      "elk": false,
+      "raw": 639358,
+      "gzip": 207805,
+      "brotli": 172595,
+      "static": {
+        "requests": 12,
+        "raw": 639358,
+        "gzip": 207805,
+        "brotli": 172595
+      }
+    },
+    "ishikawa": {
+      "requests": 10,
+      "elk": false,
+      "raw": 620951,
+      "gzip": 199781,
+      "brotli": 165338,
+      "static": {
+        "requests": 10,
+        "raw": 620951,
+        "gzip": 199781,
+        "brotli": 165338
+      }
+    },
+    "block": {
+      "requests": 14,
+      "elk": false,
+      "raw": 790271,
+      "gzip": 255582,
+      "brotli": 214119,
+      "static": {
+        "requests": 14,
+        "raw": 790271,
+        "gzip": 255582,
+        "brotli": 214119
+      }
+    },
+    "eventmodeling": {
+      "requests": 10,
+      "elk": false,
+      "raw": 630250,
+      "gzip": 202767,
+      "brotli": 168041,
+      "static": {
+        "requests": 10,
+        "raw": 630250,
+        "gzip": 202767,
+        "brotli": 168041
+      }
+    },
+    "zenuml": {
+      "requests": 11,
+      "elk": false,
+      "raw": 704637,
+      "gzip": 226311,
+      "brotli": 189285,
+      "static": {
+        "requests": 11,
+        "raw": 704637,
+        "gzip": 226311,
+        "brotli": 189285
+      }
+    }
+  }
+}

@@ -1,0 +1,140 @@
+[
+  {
+    "case": "ER208-chain",
+    "mode": "agentic",
+    "oldMainStatus": "refused",
+    "newMainStatus": "refused",
+    "failureExact": true
+  },
+  {
+    "case": "ER208-chain",
+    "mode": "elk",
+    "oldMainStatus": "refused",
+    "newMainStatus": "refused",
+    "failureExact": true
+  },
+  {
+    "case": "ER208-chain",
+    "mode": "omitted",
+    "oldMainStatus": "refused",
+    "newMainStatus": "refused",
+    "failureExact": true
+  },
+  {
+    "case": "Sparse256-default-gap",
+    "mode": "agentic",
+    "oldMainStatus": "returned",
+    "newMainStatus": "returned",
+    "mainSVGExact": true,
+    "mainReceiptExact": true
+  },
+  {
+    "case": "Sparse256-default-gap",
+    "mode": "elk",
+    "oldMainStatus": "returned",
+    "newMainStatus": "returned",
+    "mainSVGExact": true,
+    "mainReceiptExact": true
+  },
+  {
+    "case": "Sparse256-default-gap",
+    "mode": "omitted",
+    "oldMainStatus": "returned",
+    "newMainStatus": "returned",
+    "mainSVGExact": true,
+    "mainReceiptExact": true
+  },
+  {
+    "case": "er256-chain",
+    "mode": "agentic",
+    "oldMainStatus": "refused",
+    "newMainStatus": "refused",
+    "failureExact": true
+  },
+  {
+    "case": "er256-chain",
+    "mode": "elk",
+    "oldMainStatus": "refused",
+    "newMainStatus": "refused",
+    "failureExact": true
+  },
+  {
+    "case": "er256-chain",
+    "mode": "omitted",
+    "oldMainStatus": "refused",
+    "newMainStatus": "refused",
+    "failureExact": true
+  },
+  {
+    "case": "nonlinear-forest",
+    "mode": "agentic",
+    "oldMainStatus": "returned",
+    "newMainStatus": "returned",
+    "mainSVGExact": true,
+    "mainReceiptExact": true
+  },
+  {
+    "case": "nonlinear-forest",
+    "mode": "elk",
+    "oldMainStatus": "returned",
+    "newMainStatus": "returned",
+    "mainSVGExact": true,
+    "mainReceiptExact": true
+  },
+  {
+    "case": "nonlinear-forest",
+    "mode": "omitted",
+    "oldMainStatus": "returned",
+    "newMainStatus": "returned",
+    "mainSVGExact": true,
+    "mainReceiptExact": true
+  },
+  {
+    "case": "raw-fan-circle",
+    "mode": "agentic",
+    "oldMainStatus": "returned",
+    "newMainStatus": "returned",
+    "mainSVGExact": true,
+    "mainReceiptExact": true
+  },
+  {
+    "case": "raw-fan-circle",
+    "mode": "elk",
+    "oldMainStatus": "returned",
+    "newMainStatus": "returned",
+    "mainSVGExact": true,
+    "mainReceiptExact": true
+  },
+  {
+    "case": "raw-fan-circle",
+    "mode": "omitted",
+    "oldMainStatus": "returned",
+    "newMainStatus": "returned",
+    "mainSVGExact": true,
+    "mainReceiptExact": true
+  },
+  {
+    "case": "requirement-cycle-TB",
+    "mode": "agentic",
+    "oldMainStatus": "returned",
+    "newMainStatus": "returned",
+    "mainSVGExact": true,
+    "mainReceiptExact": true
+  },
+  {
+    "case": "requirement-cycle-TB",
+    "mode": "elk",
+    "oldMainStatus": "returned",
+    "newMainStatus": "returned",
+    "mainSVGExact": true,
+    "mainReceiptExact": true
+  },
+  {
+    "case": "requirement-cycle-TB",
+    "mode": "omitted",
+    "oldMainStatus": "returned",
+    "newMainStatus": "returned",
+    "mainSVGExact": true,
+    "mainReceiptExact": true
+  }
+]
