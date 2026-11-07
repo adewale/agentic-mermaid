@@ -227,7 +227,7 @@ const fixtures: Fixture[] = [
     title: 'Venn retains directive-looking text inside a multiline label',
     source: 'venn-beta\naccTitle: Actual diagram title\nset A["First\naccTitle: literal label text\n\n  Last"]: 10',
     renderOptions: { style: ['hand-drawn', 'dracula'] },
-    cue: 'Inspect the complete literal accTitle line and blank row inside the set label under the same look and palette. The earlier native renderer consumed that line as accessibility metadata. Real external accessibility metadata stays separate; model, edit, canonical-source and source-range regressions provide the semantic checks. A baseline without Venn retains its real unsupported result.',
+    cue: 'Inspect the complete literal accTitle line inside the set label under the same look and palette. Model checks also retain the authored blank row; displayed text uses the existing compact line spacing. The earlier native renderer consumed that line as accessibility metadata. Real external accessibility metadata stays separate; model, edit, canonical-source and source-range regressions provide the semantic checks. A baseline without Venn retains its real unsupported result.',
   },
   {
     id: 'class-ordered-style-membership',
