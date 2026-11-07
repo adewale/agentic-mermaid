@@ -1,0 +1,74 @@
+{
+  "sourceHead": "3234fb3183e78840321ab41fe6881b31a0f5d4b2",
+  "base": "6aa0ee45d9b6052addcb77036c1f7ba4c13b2cb4",
+  "main": "39a500425f6b74eb486b9add9e90d538fab6a914",
+  "CI": {
+    "run": 42352233778,
+    "status": "completed",
+    "conclusion": "failure",
+    "checkout": "e848a44ac8f0c99e2fb299513b877fd3798cfb9e",
+    "tree": "1896f0868fce5f58edb28dc523c50f27b52ee1dd",
+    "parents": [
+      "39a500425f6b74eb486b9add9e90d538fab6a914",
+      "3234fb3183e78840321ab41fe6881b31a0f5d4b2"
+    ],
+    "treeEqualsHead": true,
+    "remaining": "Sparse32 only unit2 failure; lazy/payload/advisory failures; notready"
+  },
+  "matchedRecords": 1748,
+  "changedSVGs": 1,
+  "unchangedSVGs": 1747,
+  "proofDowngrades": 0,
+  "proofUpgrades": 1,
+  "deliveryChanges": 0,
+  "selected230": {
+    "status": "delivered before and after",
+    "strokeGapPx": [
+      -0.453,
+      9.125
+    ],
+    "hiddenSelectedPixels": [
+      41,
+      0
+    ],
+    "visibleSelectedPixels": [
+      323,
+      364
+    ],
+    "exposedSelectedPixels": [
+      364,
+      364
+    ],
+    "proof": [
+      "unverified",
+      "passed"
+    ],
+    "operations": [
+      362041,
+      362293
+    ],
+    "wireDelta": 19.156,
+    "bendDelta": 2,
+    "areaUnchanged": true,
+    "crossings": [
+      17,
+      17
+    ],
+    "SVGDeltaRawGzipBr": [
+      32,
+      7,
+      0
+    ]
+  },
+  "frozenControls": "15 completeSVG/receipt exact;3sameER256refusals; unchanged comparisons are validation",
+  "partial47aed": "9 changedSVG,0newcircleloss but201crossing+1/wire\u2212147.1; current201 restoredexact to before",
+  "bodyDomain": "originalcircles only; no newframe domain/cache/caps/default/version",
+  "nextCounterexample": "152/372 rect/subroutine contact remains;63 proofbudget/201 and241 markerwarnings unchanged; Sparse32 and sharedER256 refusal separate",
+  "determinism": "fresh3234 SVG/entire receipt exact repaired47aed product; images/masks reused only bycompleteSVG binding",
+  "captureCalls": {
+    "beforeProfile": 8,
+    "oneCallCaptures": 49,
+    "owningTestsAndCISeparate": true
+  },
+  "noPerformanceRatio": "Outcome/proofwork differs; timings,heap,RSS retained asdescriptive only"
+}

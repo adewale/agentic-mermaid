@@ -1,0 +1,13 @@
+{
+  "number": 602,
+  "head": "3234fb3183e78840321ab41fe6881b31a0f5d4b2",
+  "base": "39a500425f6b74eb486b9add9e90d538fab6a914",
+  "draft": true,
+  "updated_at": "2026-11-07T08:02:51Z",
+  "bodyMatchesSaved": true,
+  "CI": {
+    "run": 42352233778,
+    "conclusion": "failure"
+  },
+  "evidenceCore": "ca23753c6326112a1564a05b95c5e300277ae78a"
+}
