@@ -40,11 +40,13 @@ export function accessibilityDescriptionText(value: string): string {
 
 /** Canonicalize the same physical lines the envelope parser consumes before
  * publishing a mutated body or deriving comments and source locations. */
-export function normalizeBodyAccessibility<T extends DiagramBody>(body: T): T {
+export function normalizeBodyAccessibility<T extends DiagramBody>(body: T, retainEmptyTitle = false): T {
   if (bodyAccessibility(body)?.syntax === 'native') return body
   const fields = accessibilityFromBody(body)
   if (!fields) return body
-  const title = fields.title === undefined ? undefined : accessibilityTitleText(fields.title)
+  // An unrelated edit can retain a parsed empty title; a title setter still
+  // validates new text through the same non-empty field authority.
+  const title = fields.title === undefined || retainEmptyTitle && fields.title === '' ? fields.title : accessibilityTitleText(fields.title)
   // Empty parsed blocks are valid retained values; setters validate new text.
   const descr = fields.descr === undefined || fields.descr === '' ? fields.descr : accessibilityDescriptionText(fields.descr)
   return title === fields.title && descr === fields.descr

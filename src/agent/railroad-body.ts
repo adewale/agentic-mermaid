@@ -1,4 +1,7 @@
 import { ownExistingBodyTitle } from './body-title-meta.ts'
+import { ownBodyAccessibility } from './accessibility-envelope.ts'
+import { accessibilityFields } from '../shared/accessibility-directives.ts'
+import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
 import { withParserObservation } from '../shared/parser-observation.ts'
 import { mapObservedSource } from './source-map-spans.ts'
 import { railroadRuleId, walkRailroadOwners } from '../railroad/identity.ts'
@@ -53,11 +56,19 @@ function railroadLabels(body: RailroadBody): Array<{ text: string; target: strin
 }
 export const RAILROAD_SOURCE_HOOKS = {
   bodyMeta: ownExistingBodyTitle('railroad'),
+  bodyAccessibility: ownBodyAccessibility('railroad'),
   renderSource: () => 'canonical',
   extractLabels: source => { try { return railroadLabels(parseRailroad(source)) } catch { return [] } },
   parse: ctx => {
     const result = parseRailroadBody(ctx.source.familyBody, ctx.opaqueSource)
-    if (result.ok && result.value.kind === 'railroad' && result.value.title === undefined && typeof ctx.source.frontmatter.title === 'string') result.value.title = ctx.source.frontmatter.title
+    if (result.ok && result.value.kind === 'railroad') {
+      if (ctx.meta.accessibility.title !== undefined || ctx.meta.accessibility.descr !== undefined) {
+        const accessibility = readAuthoredGrammarAccessibility(ctx.meta.accessibility)
+        Object.assign(result.value, accessibilityFields(accessibility))
+        ctx.meta.accessibility = accessibility
+      }
+      if (result.value.title === undefined && typeof ctx.source.frontmatter.title === 'string') result.value.title = ctx.source.frontmatter.title
+    }
     return result
   },
   serialize: body => { if (body.kind !== 'railroad') throw new Error(`Railroad serializer received ${body.kind}`); return renderRailroad(body) },
@@ -80,7 +91,7 @@ export const RAILROAD_SOURCE_HOOKS = {
       })
     }, () => parseRailroad(text), { mutations: ['add-rule'] })
   }),
-} satisfies Pick<FamilyOperations, 'bodyMeta' | 'renderSource' | 'parse' | 'serialize' | 'mutate' | 'buildSourceMap' | 'extractLabels'>
+} satisfies Pick<FamilyOperations, 'bodyMeta' | 'bodyAccessibility' | 'renderSource' | 'parse' | 'serialize' | 'mutate' | 'buildSourceMap' | 'extractLabels'>
 
 export const RAILROAD_MUTATION_HOOKS: Pick<FamilyOperations, 'mutate'> = {
   mutate: (body, op) => body.kind === 'railroad' ? mutateRailroad(body, op as RailroadMutationOp) : err({ code: 'INVALID_OP', message: 'Railroad source needs a native grammar expression model for typed edits' }),

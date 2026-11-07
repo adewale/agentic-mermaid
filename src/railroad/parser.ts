@@ -3,6 +3,7 @@ import { parseEbnf, ebnfRules } from './ebnf.ts'
 import { parseIr, irRules } from './ir.ts'
 import { parsePeg, pegRules } from './peg.ts'
 import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
+import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
 import type { RailroadBody, RailroadNode } from './types.ts'
 
 export function assertRailroadWork(rules: RailroadBody['rules']): void {
@@ -32,5 +33,6 @@ export function parseRailroad(source: string): RailroadBody {
   else if (notation === 'peg') { const ast = parsePeg(source); parsed = ast; rules = pegRules(ast) }
   else { const ast = parseIr(source); parsed = ast; rules = irRules(ast) }
   assertRailroadWork(rules)
-  return { kind: 'railroad', notation, rules, ...(parsed.title ? { title: parsed.title } : {}), ...(parsed.accTitle ? { accessibilityTitle: parsed.accTitle } : {}), ...(parsed.accDescr ? { accessibilityDescription: parsed.accDescr } : {}) }
+  const accessibility = parsed.accTitle !== undefined || parsed.accDescr !== undefined ? readAuthoredGrammarAccessibility({ title: parsed.accTitle, descr: parsed.accDescr }) : undefined
+  return { kind: 'railroad', notation, rules, ...(parsed.title ? { title: parsed.title } : {}), ...(accessibility?.title !== undefined ? { accessibilityTitle: accessibility.title } : {}), ...(accessibility?.descr !== undefined ? { accessibilityDescription: accessibility.descr } : {}) }
 }

@@ -133,7 +133,7 @@ function applyOneMutation(d: ParsedDiagram, op: AnyMutationOp, deferSerializatio
     const r = draft?.apply ? draft.apply(op) : plugin.mutate(d.body, op)
     if (!r.ok) return r
     try {
-      r.value = normalizeBodyAccessibility(r.value)
+      r.value = normalizeBodyAccessibility(r.value, op.kind !== 'set_accessibility_title')
     } catch (error) {
       if (!(error instanceof AccessibilityTextError)) throw error
       return err({ code: 'INVALID_OP', message: error.message })
@@ -159,7 +159,13 @@ function commitMutation(d: ParsedDiagram, body: ParsedDiagram['body']): Result<P
   } catch (error) {
     return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) })
   }
-  const bodySource = restoreBodyComments(ensureAccessibilityLines(plugin.serialize!(body, meta), meta.accessibility), d.kind, body, meta)
+  let bodySource: string
+  try {
+    bodySource = restoreBodyComments(ensureAccessibilityLines(plugin.serialize!(body, meta), meta.accessibility), d.kind, body, meta)
+  } catch (error) {
+    if (!(error instanceof AccessibilityTextError)) throw error
+    return err({ code: 'INVALID_OP', message: error.message })
+  }
   const canonicalSource = wrapperPrefix(meta, 'verbatim', bodySource, d.kind) + bodySource
   // Source locations, exact authored spans, and wrapper ownership describe a
   // particular source artifact. Rebuild all three from the mutated

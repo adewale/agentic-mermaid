@@ -1,5 +1,7 @@
 import { assertRailroadWork } from './parser.ts'
 import type { Notation, RailroadBody, RailroadNode } from './types.ts'
+import { accessibilityDescriptionText, accessibilityTitleText, appendAccessibilityLines } from '../agent/accessibility-envelope.ts'
+import { writeGrammarText } from '../shared/grammar-text.ts'
 
 /** Mermaid's grammar converter recognizes backslash, quotes and n/r/t;
  * JSON's b/f/u escapes would silently change literal values. */
@@ -59,6 +61,16 @@ export function renderRailroad(body: RailroadBody): string {
   assertRailroadWork(body.rules)
   const header = `railroad-${body.notation === 'railroad' ? '' : `${body.notation}-`}beta`
   const lines = [header]
+  if (body.accessibilityTitle !== undefined || body.accessibilityDescription !== undefined) {
+    if (body.accessibilityTitle && accessibilityTitleText(body.accessibilityTitle) !== body.accessibilityTitle) throw new Error('Railroad accessibility title cannot have surrounding whitespace')
+    if (body.accessibilityDescription && accessibilityDescriptionText(body.accessibilityDescription) !== body.accessibilityDescription) throw new Error('Railroad accessibility description must use normalized line endings and indentation')
+    appendAccessibilityLines(lines, {
+      ...(body.accessibilityTitle ? { accessibilityTitle: writeGrammarText(body.accessibilityTitle, '%}') } : {}),
+      ...(body.accessibilityDescription ? { accessibilityDescription: writeGrammarText(body.accessibilityDescription, '%}') } : {}),
+    })
+    if (body.accessibilityTitle === '') lines.push('accTitle: ')
+    if (body.accessibilityDescription === '') lines.push('accDescr {}')
+  }
   if (body.title !== undefined) {
     if (body.notation === 'abnf' && (/[\r\n]/.test(body.title) || body.title.includes('%%'))) throw new Error('ABNF titles cannot contain line breaks or comment openers')
     lines.push(`title ${body.notation === 'abnf' ? `"${body.title}"` : grammarString(body.title)}`)

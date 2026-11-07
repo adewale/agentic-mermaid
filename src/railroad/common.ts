@@ -139,9 +139,9 @@ export function parseGrammar<Type extends string, Rule>(
       const quote = title[0];
       ast.title = (quote === '"' || quote === "'") && title.endsWith(quote) ? unquote(title) : title;
     } else if (kind === meta + 1) {
-      ast.accTitle = accTitleValue(r.take());
+      ast.accTitle = accTitleValue(r.take(), true);
     } else if (kind === meta + 2) {
-      ast.accDescr = accDescrValue(r.take());
+      ast.accDescr = accDescrValue(r.take(), true);
     } else {
       break;
     }

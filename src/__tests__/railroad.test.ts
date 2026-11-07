@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test'
+import { decodeXML } from 'entities'
 import { parseRailroad } from '../railroad/parser.ts'
 import { renderRailroad } from '../railroad/source.ts'
 import { layoutRailroad } from '../railroad/layout.ts'
@@ -11,6 +12,7 @@ import { lowerRailroadScene } from '../railroad/renderer.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
 import { visitTypedPathSegments } from '../scene/bounds.ts'
 import type { Point } from '../types.ts'
+import { mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/core.ts'
 
 const grammars = [
   ['constructors', 'railroad-beta\nentry = sequence(terminal("start"), choice(nonterminal("item"), optional(terminal("end"))), zeroOrMore(terminal(",")));'],
@@ -18,6 +20,44 @@ const grammars = [
   ['ABNF', 'railroad-abnf-beta\nentry = 1*3"a" / %x41;'],
   ['PEG', 'railroad-peg-beta\nentry <- &item ("a" / .)*;\nitem <- !"reserved" name;'],
 ] as const
+
+test.each(grammars)('Railroad %s keeps accessibility fields through native and public writes and edits', async (_name, source) => {
+  const authored = source.replace('\n', '\naccTitle: Accessible "quoted"\naccDescr {\nFirst  paragraph\n\nSecond paragraph\n}\n')
+  const native = parseRailroad(authored)
+  expect(native.accessibilityTitle).toBe('Accessible "quoted"')
+  expect(native.accessibilityDescription).toBe('First  paragraph\n\nSecond paragraph')
+  const upstream = startUpstreamMermaid()
+  try {
+    for (const title of ['Read  "quoted" %%{ literal #35; &amp;', '']) for (const description of ['First  paragraph\n\nSecond } paragraph #10; %%{ literal\n"quoted" &amp;', 'One  paragraph', '']) {
+      const body = { ...native, accessibilityTitle: title, accessibilityDescription: description }
+      const written = renderRailroad(body)
+      expect(parseRailroad(written)).toEqual(body)
+      const nativeEdit = mutateRailroad(body, { kind: 'set_title', title: 'Edited' })
+      if (!nativeEdit.ok) throw Error(nativeEdit.error.message)
+      expect(nativeEdit.value).toEqual({ ...body, title: 'Edited' })
+      const parsed = parseRegisteredMermaid(written)
+      if (!parsed.ok || parsed.value.body.kind !== 'railroad') throw Error('Expected editable Railroad metadata')
+      expect(parsed.value.body).toEqual(body)
+      expect(parsed.value.meta.accessibility).toEqual({ title, descr: description })
+      const edited = mutate(parsed.value, { kind: 'set_title', title: 'Edited' })
+      if (!edited.ok || edited.value.body.kind !== 'railroad') throw Error('Expected Railroad title edit')
+      expect(edited.value.body).toEqual({ ...body, title: 'Edited' })
+      const output = serializeMermaid(edited.value)
+      expect(output.match(/accTitle\s*:/g)).toHaveLength(1)
+      expect(output.match(/accDescr\s*[:{]/g)).toHaveLength(1)
+      const reopened = parseRegisteredMermaid(output)
+      if (!reopened.ok) throw Error('Expected exported Railroad source')
+      expect(reopened.value.body).toEqual(edited.value.body)
+      const svg = renderMermaidSVG(edited.value)
+      if (title) expect(decodeXML(svg.match(/<title\b[^>]*>([\s\S]*?)<\/title>/)![1]!)).toBe(title)
+      if (description) expect(decodeXML(svg.match(/<desc\b[^>]*>([\s\S]*?)<\/desc>/)![1]!)).toBe(description)
+      expect(await upstream.publicAccepts(output)).toBe(true)
+    }
+    const rejected = mutateRailroad({ ...native, accessibilityTitle: 'First\nSecond' }, { kind: 'set_title', title: 'Edited' })
+    expect(rejected.ok).toBe(false)
+    expect(native.title).toBeUndefined()
+  } finally { upstream.close() }
+})
 
 test.each(grammars)('Railroad %s retains its notation and complete expression model through native edits', (_name, source) => {
   const body = parseRailroad(source), serialized = renderRailroad(body)

@@ -38,8 +38,9 @@ test('successful accessibility edits close through body, metadata and source wit
     }
     expect(parsed.value).toEqual(original)
   }
-  for (const title of ['%%{init: {"theme":"dark"}}%%', 'ordinary title']) {
+  for (const title of ['', ' \t', '%%{init: {"theme":"dark"}}%%', 'ordinary title']) {
     const result = mutate(parsed.value, { kind: 'set_accessibility_title', title })
+    if (!title.trim()) expect(result.ok).toBe(false)
     if (!result.ok) {
       expect(result.error.code).toBe('INVALID_OP')
     } else {
@@ -55,6 +56,13 @@ test('successful accessibility edits close through body, metadata and source wit
   }
   const control = mutate(parsed.value, { kind: 'set_accessibility_title', title: 'ordinary title' })
   expect(control.ok).toBe(true)
+  const emptyTitle = parseMermaid('packet\naccTitle: \n0-7: "Payload"')
+  if (!emptyTitle.ok || emptyTitle.value.body.kind !== 'packet') throw new Error('Expected Packet with an empty title')
+  const emptyOriginal = structuredClone(emptyTitle.value)
+  const refused = mutate(emptyTitle.value, { kind: 'set_title', title: 'Edited' })
+  expect(refused.ok).toBe(false)
+  if (!refused.ok) expect(refused.error.code).toBe('INVALID_OP')
+  expect(emptyTitle.value).toEqual(emptyOriginal)
 })
 
 test.each([
@@ -209,9 +217,9 @@ describe('#7254/#7255 SVG accessibility', () => {
   })
 
   test('accDescr block form is captured', () => {
-    const svg = renderMermaidSVG('flowchart TD\n accTitle: T\n accDescr {\n   multi line\n   description\n }\n A --> B')
+    const svg = renderMermaidSVG('flowchart TD\n accTitle: T\n accDescr {\n   multi  line\n\n   description\n }\n A --> B')
     expect(svg).toContain('<title id="svg-title">T</title>')
-    expect(svg).toContain('multi line\ndescription')
+    expect(svg).toContain('multi  line\n\ndescription')
     expect(svg).not.toContain('data-id="accTitle"')
     expect(svg).not.toContain('data-id="accDescr"')
   })

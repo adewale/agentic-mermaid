@@ -188,13 +188,15 @@ export function titleValue(text: string): string {
   return single(RE_TITLE.exec(text)![1]!)
 }
 
-export function accTitleValue(text: string): string {
-  return single(RE_ACC_TITLE.exec(text)![1]!)
+export function accTitleValue(text: string, preserveSpaces = false): string {
+  const value = RE_ACC_TITLE.exec(text)![1]!
+  return preserveSpaces ? value.trim() : single(value)
 }
 
-export function accDescrValue(text: string): string {
+export function accDescrValue(text: string, preserveLines = false): string {
   const m = RE_ACC_DESCR.exec(text)!
-  if (m[1] !== undefined) return single(m[1])
+  if (m[1] !== undefined) return preserveLines ? m[1].trim() : single(m[1])
+  if (preserveLines) return m[2]!.replace(/\r\n?/g, '\n').split('\n').map(line => line.trim()).join('\n').trim()
   return m[2]!
     .replace(/^\s*/gm, '')
     .replace(/\s+$/gm, '')
