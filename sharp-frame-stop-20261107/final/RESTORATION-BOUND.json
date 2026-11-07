@@ -1,0 +1,20 @@
+[
+  {
+    "case": "restored17-bound",
+    "proof": "passed",
+    "CIbeforeSVGExact": true,
+    "idPrefix": "lc17-"
+  },
+  {
+    "case": "restored33-bound",
+    "proof": "passed",
+    "CIbeforeSVGExact": true,
+    "idPrefix": "lc33-"
+  },
+  {
+    "case": "restored296-bound",
+    "proof": "passed",
+    "CIbeforeSVGExact": true,
+    "idPrefix": "lc40-"
+  }
+]

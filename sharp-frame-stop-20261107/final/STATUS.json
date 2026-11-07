@@ -1,0 +1,17 @@
+{
+  "sourceHead": "6aa0ee45d9b6052addcb77036c1f7ba4c13b2cb4",
+  "evidenceCore": "62d61e5cc41211f4aa3d5f50c0d8d05c0748e284",
+  "main": "39a500425f6b74eb486b9add9e90d538fab6a914",
+  "sourceRuntimeAndTestsRestored": true,
+  "netSourceDelta": "22worklog lines",
+  "CI": {
+    "run": 42347646535,
+    "status": "in_progress",
+    "qualityJob": "failed",
+    "ready": false
+  },
+  "sourceAndEvidencePushesAcknowledged": true,
+  "leaseSnapshot": "Idle archival snapshot; live coordination is external campaign-state.json; archived leases never authorize writers.",
+  "localToolingAddendum": "One final metadata exec was rejected before execution for argument-list length; payload was split into structured file writes. No approval or dependency installation needed.",
+  "deadline": "2026-11-08T23:59:59Z"
+}

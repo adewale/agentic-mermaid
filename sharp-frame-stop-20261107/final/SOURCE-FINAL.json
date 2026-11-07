@@ -1,0 +1,10 @@
+{
+  "head": "6aa0ee45d9b6052addcb77036c1f7ba4c13b2cb4",
+  "base": "dd365744603143f105c2a8c8accf36203096b1ac",
+  "runtimeRestoredTo": "14bec477578104a1eab5a279473aa77e747f8476",
+  "srcAndTestsByteExactBefore": true,
+  "currentSourceDiff": "22 work-log lines only",
+  "stoppedCandidate": "5ac52ad3f4909d4e498a04db1b04e01bd2c027f7",
+  "comparisonCaptureCalls": 43,
+  "noContinuousExecution": true
+}
