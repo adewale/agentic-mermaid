@@ -55,9 +55,12 @@ changing the product:
 - Copying an English error message, caret layout, Jison `.hash` or YAML
   library `.mark`. Our declared error class and authored coordinates still
   have to be correct.
-- Reproducing Mermaid's layout, sanitizer losses, shape-name aliases or
+- Reproducing Mermaid's layout, sanitizer losses, equivalent internal shape
+  vocabulary (`square` versus `rect`) or
   incidental ordering. Our own rendering, safety and ordering contracts remain
-  testable.
+  testable. An authored shape alias that changes a domain role or silhouette
+  must retain that meaning; AgentFlow's tool/decision/action aliases are an
+  example of a legitimate repair.
 - Dropping authored content because upstream drops it. Retained State floating
   notes and Cynefin self-transitions are examples of deliberate preservation.
 - Rejecting clear input merely because Mermaid rejects its spelling. Read
@@ -92,7 +95,7 @@ in those records retain their historical revisions.
 
 | Earlier decision | Correctness obligation | Difference we deliberately allow |
 |---|---|---|
-| Flowchart, Class, State and ER identity/text/style repairs | Keep Unicode identities, repeated paint and unrelated editable content. | Shape-name aliases, sanitized HTML and exact diagnostic prose. |
+| Flowchart, Class, State and ER identity/text/style repairs | Keep Unicode identities, repeated paint and unrelated editable content. | Equivalent internal shape vocabulary, sanitized HTML and exact diagnostic prose. |
 | Sequence and ZenUML interactions | Keep participants, calls, returns, messages and control scopes; shield field text from becoming syntax. | Different lifeline geometry and renderer configuration timing. |
 | Architecture and Event Modeling ownership | Keep declared containers, endpoint sides, frame sources and reset semantics. | Container placement and generated drawing IDs can differ. |
 | Mindmap and Ishikawa hierarchy; Timeline and Journey grouping | Keep parents, cause/effect, periods, events and actor assignments through edits and reload. | Indentation width and display whitespace can normalize when the relationships and text remain intact. |
@@ -155,9 +158,11 @@ The review found defects beyond the first blocked benchmark assertion:
   body and native SVG, and an unrelated title edit discarded them. Its existing
   body metadata adapter and field writer now retain those fields. The shared
   accessibility block reader preserves internal paragraph breaks, matching the
-  existing mutation normalizer. Railroad's classified description token uses
-  that retained-line interpretation; other grammar callers keep their default.
-  Unrepresentable writes fail atomically instead of silently dropping text.
+  existing mutation normalizer. Railroad's classified metadata tokens retain
+  internal spacing, paragraphs and explicit empty fields; other grammar callers
+  keep their default. Unrelated edits retain parsed empty titles, while title
+  setters keep their non-empty input rule. Writers that cannot represent a
+  retained field refuse the edit atomically instead of throwing or dropping it.
 - AgentFlow delegated grammar errors used folded Flowchart positions after
   metadata removal. They now retain the error type while reporting the actual
   AgentFlow family and authored location, through wrappers and line endings.
