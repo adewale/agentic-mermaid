@@ -1,0 +1,3 @@
+2026-11-07T00:20:34.2680845Z (fail) sparse decorative markers preserve completed direct and emitted text proof (32 markers, definitions=true) [7196.14ms]
+2026-11-07T00:25:57.1209818Z 1 tests failed:
+2026-11-07T00:25:57.1210303Z (fail) sparse decorative markers preserve completed direct and emitted text proof (32 markers, definitions=true) [7196.14ms]

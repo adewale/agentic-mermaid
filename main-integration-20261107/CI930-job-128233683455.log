@@ -1,0 +1,531 @@
+﻿2026-11-07T00:19:31.1952405Z Current runner version: '2.338.2'
+2026-11-07T00:19:31.1980913Z ##[group]Runner Image Provisioner
+2026-11-07T00:19:31.1981810Z Hosted Compute Agent
+2026-11-07T00:19:31.1982433Z Version: 20261028.624
+2026-11-07T00:19:31.1983255Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-07T00:19:31.1984048Z Build Date: 2026-10-28T21:51:42Z
+2026-11-07T00:19:31.1984814Z Worker ID: {41711b41-de1b-465e-8863-f371d29da9af}
+2026-11-07T00:19:31.1985634Z Region: westus3
+2026-11-07T00:19:31.1986593Z Cloud: Azure
+2026-11-07T00:19:31.1987266Z ##[endgroup]
+2026-11-07T00:19:31.1988775Z ##[group]Operating System
+2026-11-07T00:19:31.1989513Z Ubuntu
+2026-11-07T00:19:31.1990091Z 26.04.1
+2026-11-07T00:19:31.1990692Z LTS
+2026-11-07T00:19:31.1991302Z ##[endgroup]
+2026-11-07T00:19:31.1991893Z ##[group]Runner Image
+2026-11-07T00:19:31.1992509Z Image: ubuntu-26.04
+2026-11-07T00:19:31.1993228Z Version: 20261101.186.1
+2026-11-07T00:19:31.1994521Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-07T00:19:31.1996365Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261101.186
+2026-11-07T00:19:31.1997429Z ##[endgroup]
+2026-11-07T00:19:31.1998844Z ##[group]GITHUB_TOKEN Permissions
+2026-11-07T00:19:31.2000978Z Actions: read
+2026-11-07T00:19:31.2001625Z Contents: read
+2026-11-07T00:19:31.2002231Z Issues: read
+2026-11-07T00:19:31.2002882Z Metadata: read
+2026-11-07T00:19:31.2003488Z PullRequests: read
+2026-11-07T00:19:31.2004112Z ##[endgroup]
+2026-11-07T00:19:31.2006801Z Secret source: Actions
+2026-11-07T00:19:31.2007784Z Cache mode: write
+2026-11-07T00:19:31.2008622Z Prepare workflow directory
+2026-11-07T00:19:31.2664608Z Prepare all required actions
+2026-11-07T00:19:31.2712108Z Getting action download info
+2026-11-07T00:19:31.5911698Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-11-07T00:19:31.7097088Z Download action repository 'oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6' (SHA:0c5077e51419868618aeaa5fe8019c62421857d6)
+2026-11-07T00:19:32.2613021Z Download action repository 'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1' (SHA:949feb2413d6458794dcd2491c4babbbce0c15c1)
+2026-11-07T00:19:32.3230479Z Download action repository 'actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333' (SHA:9000827ccba6bdab643e8b6fd33ac0654aef8333)
+2026-11-07T00:19:32.9326192Z Download action repository 'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9' (SHA:cf430e030ddbb5b0abf93d22962f4752f3646cd9)
+2026-11-07T00:19:33.1856619Z Complete job name: E2E (browser-site)
+2026-11-07T00:19:33.2708357Z ##[group]Checking docker version
+2026-11-07T00:19:33.2722445Z ##[command]/usr/bin/docker version --format '{{.Server.APIVersion}}'
+2026-11-07T00:19:33.3548677Z '1.54'
+2026-11-07T00:19:33.3571646Z Docker daemon API version: '1.54'
+2026-11-07T00:19:33.3573519Z ##[command]/usr/bin/docker version --format '{{.Client.APIVersion}}'
+2026-11-07T00:19:33.3784614Z '1.54'
+2026-11-07T00:19:33.3802555Z Docker client API version: '1.54'
+2026-11-07T00:19:33.3810033Z ##[endgroup]
+2026-11-07T00:19:33.3812936Z ##[group]Clean up resources from previous jobs
+2026-11-07T00:19:33.3819394Z ##[command]/usr/bin/docker ps --all --quiet --no-trunc --filter "label=31cce3"
+2026-11-07T00:19:33.4014953Z ##[command]/usr/bin/docker network prune --force --filter "label=31cce3"
+2026-11-07T00:19:33.4189184Z ##[endgroup]
+2026-11-07T00:19:33.4190197Z ##[group]Create local container network
+2026-11-07T00:19:33.4201548Z ##[command]/usr/bin/docker network create --label 31cce3 github_network_a66f5e608a734409900d42107cf30e53
+2026-11-07T00:19:33.4729760Z 65d78708df6db282bef37d5f96ff9ecfdf15d5897c7957219110b311053f3577
+2026-11-07T00:19:33.4744986Z ##[endgroup]
+2026-11-07T00:19:33.4771397Z ##[group]Starting job container
+2026-11-07T00:19:33.4796460Z ##[command]/usr/bin/docker pull mcr.microsoft.com/playwright:v1.58.2-noble@sha256:65cefd09a5e943921ecd3a6e5414c603db2eb161e9eb48f2e2ccc63486dc7dc0
+2026-11-07T00:19:33.5974305Z mcr.microsoft.com/playwright@sha256:65cefd09a5e943921ecd3a6e5414c603db2eb161e9eb48f2e2ccc63486dc7dc0: Pulling from playwright
+2026-11-07T00:19:34.0232492Z a9f762cbf2c0: Pulling fs layer
+2026-11-07T00:19:34.0233032Z 2f544baf4e5f: Pulling fs layer
+2026-11-07T00:19:34.0233467Z ca6ba77a7dd1: Pulling fs layer
+2026-11-07T00:19:34.0233848Z e93fce65fb9f: Pulling fs layer
+2026-11-07T00:19:34.3008302Z a9f762cbf2c0: Download complete
+2026-11-07T00:19:34.3013080Z e93fce65fb9f: Download complete
+2026-11-07T00:19:34.7977336Z 2f544baf4e5f: Download complete
+2026-11-07T00:19:35.4026231Z e93fce65fb9f: Pull complete
+2026-11-07T00:19:38.6974008Z ca6ba77a7dd1: Download complete
+2026-11-07T00:19:38.7005099Z 2f544baf4e5f: Pull complete
+2026-11-07T00:19:38.7984415Z a9f762cbf2c0: Pull complete
+2026-11-07T00:19:49.4826776Z ca6ba77a7dd1: Pull complete
+2026-11-07T00:19:49.4827734Z Digest: sha256:65cefd09a5e943921ecd3a6e5414c603db2eb161e9eb48f2e2ccc63486dc7dc0
+2026-11-07T00:19:49.4828885Z Status: Downloaded newer image for mcr.microsoft.com/playwright@sha256:65cefd09a5e943921ecd3a6e5414c603db2eb161e9eb48f2e2ccc63486dc7dc0
+2026-11-07T00:19:49.4837618Z mcr.microsoft.com/playwright:v1.58.2-noble@sha256:65cefd09a5e943921ecd3a6e5414c603db2eb161e9eb48f2e2ccc63486dc7dc0
+2026-11-07T00:19:49.4948409Z ##[command]/usr/bin/docker create --name 3ae821c028904b47a46971a8dc26134e_mcrmicrosoftcomplaywrightv1582noblesha25665cefd09a5e943921ecd3a6e5414c603db2eb161e9eb48f2e2ccc63486dc7dc0_a2cea5 --label 31cce3 --workdir /__w/agentic-mermaid/agentic-mermaid --network github_network_a66f5e608a734409900d42107cf30e53 --init --ipc=host -e "HOME=/github/home" -e GITHUB_ACTIONS=true -e CI=true -v "/var/run/docker.sock":"/var/run/docker.sock" -v "/home/runner/work":"/__w" -v "/home/runner/actions-runner/cached/2.338.2/externals":"/__e":ro -v "/home/runner/work/_temp":"/__w/_temp" -v "/home/runner/work/_actions":"/__w/_actions" -v "/opt/hostedtoolcache":"/__t" -v "/home/runner/work/_temp/_github_home":"/github/home" -v "/home/runner/work/_temp/_github_workflow":"/github/workflow" --entrypoint "tail" mcr.microsoft.com/playwright:v1.58.2-noble@sha256:65cefd09a5e943921ecd3a6e5414c603db2eb161e9eb48f2e2ccc63486dc7dc0 "-f" "/dev/null"
+2026-11-07T00:19:52.1898086Z 8126525c89f0b3f6f066d0b265e64a764ec4d85999fd44aa372e95b5ccd883f4
+2026-11-07T00:19:52.1929612Z ##[command]/usr/bin/docker start 8126525c89f0b3f6f066d0b265e64a764ec4d85999fd44aa372e95b5ccd883f4
+2026-11-07T00:19:52.3806193Z 8126525c89f0b3f6f066d0b265e64a764ec4d85999fd44aa372e95b5ccd883f4
+2026-11-07T00:19:52.3830634Z ##[command]/usr/bin/docker ps --all --filter id=8126525c89f0b3f6f066d0b265e64a764ec4d85999fd44aa372e95b5ccd883f4 --filter status=running --no-trunc --format "{{.ID}} {{.Status}}"
+2026-11-07T00:19:52.4009645Z 8126525c89f0b3f6f066d0b265e64a764ec4d85999fd44aa372e95b5ccd883f4 Up Less than a second
+2026-11-07T00:19:52.4033702Z ##[command]/usr/bin/docker inspect --format "{{range .Config.Env}}{{println .}}{{end}}" 8126525c89f0b3f6f066d0b265e64a764ec4d85999fd44aa372e95b5ccd883f4
+2026-11-07T00:19:52.4183377Z GITHUB_ACTIONS=true
+2026-11-07T00:19:52.4183778Z CI=true
+2026-11-07T00:19:52.4184127Z HOME=/github/home
+2026-11-07T00:19:52.4184507Z PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+2026-11-07T00:19:52.4184907Z LANG=C.UTF-8
+2026-11-07T00:19:52.4185122Z LC_ALL=C.UTF-8
+2026-11-07T00:19:52.4185359Z PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+2026-11-07T00:19:52.4211747Z ##[endgroup]
+2026-11-07T00:19:52.4221830Z ##[group]Waiting for all services to be ready
+2026-11-07T00:19:52.4223731Z ##[endgroup]
+2026-11-07T00:19:52.4506132Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-11-07T00:19:52.4506831Z with:
+2026-11-07T00:19:52.4507077Z   repository: adewale/agentic-mermaid
+2026-11-07T00:19:52.4509481Z   token: ***
+2026-11-07T00:19:52.4509709Z   ssh-strict: true
+2026-11-07T00:19:52.4539428Z   ssh-user: git
+2026-11-07T00:19:52.4539859Z   persist-credentials: true
+2026-11-07T00:19:52.4540215Z   clean: true
+2026-11-07T00:19:52.4540536Z   sparse-checkout-cone-mode: true
+2026-11-07T00:19:52.4541240Z   fetch-depth: 1
+2026-11-07T00:19:52.4541534Z   fetch-tags: false
+2026-11-07T00:19:52.4541844Z   show-progress: true
+2026-11-07T00:19:52.4542184Z   lfs: false
+2026-11-07T00:19:52.4542495Z   submodules: false
+2026-11-07T00:19:52.4542840Z   set-safe-directory: true
+2026-11-07T00:19:52.4543265Z   allow-unsafe-pr-checkout: false
+2026-11-07T00:19:52.4544054Z env:
+2026-11-07T00:19:52.4544358Z   AM_CI_ARTIFACTS: 1
+2026-11-07T00:19:52.4544694Z ##[endgroup]
+2026-11-07T00:19:52.4610751Z ##[command]/usr/bin/docker exec  8126525c89f0b3f6f066d0b265e64a764ec4d85999fd44aa372e95b5ccd883f4 sh -c "cat /etc/*release | grep ^ID"
+2026-11-07T00:19:52.8048653Z Syncing repository: adewale/agentic-mermaid
+2026-11-07T00:19:52.8051009Z ##[group]Getting Git version info
+2026-11-07T00:19:52.8051658Z Working directory is '/__w/agentic-mermaid/agentic-mermaid'
+2026-11-07T00:19:52.8052896Z [command]/usr/bin/git version
+2026-11-07T00:19:52.8053336Z git version 2.43.0
+2026-11-07T00:19:52.8087434Z ##[endgroup]
+2026-11-07T00:19:52.8093548Z Temporarily overriding HOME='/__w/_temp/7e95de46-7288-4a21-97f7-5935ff8a7c32' before making global git config changes
+2026-11-07T00:19:52.8094676Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-07T00:19:52.8095632Z [command]/usr/bin/git config --global --add safe.directory /__w/agentic-mermaid/agentic-mermaid
+2026-11-07T00:19:52.8121528Z Deleting the contents of '/__w/agentic-mermaid/agentic-mermaid'
+2026-11-07T00:19:52.8122732Z ##[group]Determining repository object format
+2026-11-07T00:19:52.8123540Z ##[endgroup]
+2026-11-07T00:19:52.8124213Z ##[group]Initializing the repository
+2026-11-07T00:19:52.8126569Z [command]/usr/bin/git init /__w/agentic-mermaid/agentic-mermaid
+2026-11-07T00:19:52.8177180Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-07T00:19:52.8179518Z hint: is subject to change. To configure the initial branch name to use in all
+2026-11-07T00:19:52.8180367Z hint: of your new repositories, which will suppress this warning, call:
+2026-11-07T00:19:52.8180867Z hint: 
+2026-11-07T00:19:52.8181259Z hint: 	git config --global init.defaultBranch <name>
+2026-11-07T00:19:52.8181615Z hint: 
+2026-11-07T00:19:52.8181944Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-07T00:19:52.8182464Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-07T00:19:52.8182876Z hint: 
+2026-11-07T00:19:52.8183213Z hint: 	git branch -m <name>
+2026-11-07T00:19:52.8188413Z Initialized empty Git repository in /__w/agentic-mermaid/agentic-mermaid/.git/
+2026-11-07T00:19:52.8199324Z [command]/usr/bin/git remote add origin https://github.com/adewale/agentic-mermaid
+2026-11-07T00:19:52.8239135Z ##[endgroup]
+2026-11-07T00:19:52.8239610Z ##[group]Disabling automatic garbage collection
+2026-11-07T00:19:52.8244501Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-07T00:19:52.8284231Z ##[endgroup]
+2026-11-07T00:19:52.8284823Z ##[group]Setting up auth
+2026-11-07T00:19:52.8285356Z Removing SSH command configuration
+2026-11-07T00:19:52.8292179Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-07T00:19:52.8331598Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-07T00:19:52.8639520Z Removing HTTP extra header
+2026-11-07T00:19:52.8645595Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-07T00:19:52.8684224Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-07T00:19:52.9008960Z Removing includeIf entries pointing to credentials config files
+2026-11-07T00:19:52.9013902Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-07T00:19:52.9077403Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-07T00:19:52.9370273Z [command]/usr/bin/git config --file /__w/_temp/git-credentials-667a8f06-b13d-4088-9aeb-dd675824161e.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-07T00:19:52.9424990Z [command]/usr/bin/git config --local includeIf.gitdir:/__w/agentic-mermaid/agentic-mermaid/.git.path /__w/_temp/git-credentials-667a8f06-b13d-4088-9aeb-dd675824161e.config
+2026-11-07T00:19:52.9474681Z [command]/usr/bin/git config --local includeIf.gitdir:/__w/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path /__w/_temp/git-credentials-667a8f06-b13d-4088-9aeb-dd675824161e.config
+2026-11-07T00:19:52.9521443Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-667a8f06-b13d-4088-9aeb-dd675824161e.config
+2026-11-07T00:19:52.9567899Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-667a8f06-b13d-4088-9aeb-dd675824161e.config
+2026-11-07T00:19:52.9611277Z ##[endgroup]
+2026-11-07T00:19:52.9611778Z ##[group]Fetching the repository
+2026-11-07T00:19:52.9618199Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +302cc19179afd925d8c5cd21f0d9a0502befebbf:refs/remotes/pull/602/merge
+2026-11-07T00:19:54.3108713Z From https://github.com/adewale/agentic-mermaid
+2026-11-07T00:19:54.3109362Z  * [new ref]         302cc19179afd925d8c5cd21f0d9a0502befebbf -> pull/602/merge
+2026-11-07T00:19:54.3138458Z ##[endgroup]
+2026-11-07T00:19:54.3139096Z ##[group]Determining the checkout info
+2026-11-07T00:19:54.3139721Z ##[endgroup]
+2026-11-07T00:19:54.3146665Z [command]/usr/bin/git sparse-checkout disable
+2026-11-07T00:19:54.3195122Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-07T00:19:54.3239396Z ##[group]Checking out the ref
+2026-11-07T00:19:54.3243648Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/602/merge
+2026-11-07T00:19:54.6982778Z Note: switching to 'refs/remotes/pull/602/merge'.
+2026-11-07T00:19:54.6983160Z 
+2026-11-07T00:19:54.6983466Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-07T00:19:54.6984146Z changes and commit them, and you can discard any commits you make in this
+2026-11-07T00:19:54.6984854Z state without impacting any branches by switching back to a branch.
+2026-11-07T00:19:54.6985298Z 
+2026-11-07T00:19:54.6985596Z If you want to create a new branch to retain commits you create, you may
+2026-11-07T00:19:54.6986490Z do so (now or later) by using -c with the switch command. Example:
+2026-11-07T00:19:54.6986882Z 
+2026-11-07T00:19:54.6987055Z   git switch -c <new-branch-name>
+2026-11-07T00:19:54.6987308Z 
+2026-11-07T00:19:54.6987471Z Or undo this operation with:
+2026-11-07T00:19:54.6987729Z 
+2026-11-07T00:19:54.6987858Z   git switch -
+2026-11-07T00:19:54.6988127Z 
+2026-11-07T00:19:54.6988459Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-07T00:19:54.6988956Z 
+2026-11-07T00:19:54.6989506Z HEAD is now at 302cc19 Merge 930faf846c6bec55e1f9b053844700e08281faf6 into 39a500425f6b74eb486b9add9e90d538fab6a914
+2026-11-07T00:19:54.7003611Z ##[endgroup]
+2026-11-07T00:19:54.7060816Z [command]/usr/bin/git log -1 --format=%H
+2026-11-07T00:19:54.7101348Z 302cc19179afd925d8c5cd21f0d9a0502befebbf
+2026-11-07T00:19:54.7362284Z ##[group]Run chown "$(id -u):$(id -g)" "$HOME"
+2026-11-07T00:19:54.7362711Z [36;1mchown "$(id -u):$(id -g)" "$HOME"[0m
+2026-11-07T00:19:54.7363124Z [36;1mgit config --global --add safe.directory "$GITHUB_WORKSPACE"[0m
+2026-11-07T00:19:54.7367962Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-11-07T00:19:54.7368298Z env:
+2026-11-07T00:19:54.7368493Z   AM_CI_ARTIFACTS: 1
+2026-11-07T00:19:54.7368716Z ##[endgroup]
+2026-11-07T00:19:54.8128994Z ##[group]Run apt-get update
+2026-11-07T00:19:54.8129487Z [36;1mapt-get update[0m
+2026-11-07T00:19:54.8129869Z [36;1mapt-get install -y --no-install-recommends fonts-dejavu-core=2.37-8[0m
+2026-11-07T00:19:54.8130467Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-11-07T00:19:54.8130766Z env:
+2026-11-07T00:19:54.8130968Z   AM_CI_ARTIFACTS: 1
+2026-11-07T00:19:54.8131197Z ##[endgroup]
+2026-11-07T00:19:55.0359161Z Get:1 https://deb.nodesource.com/node_24.x nodistro InRelease [12.1 kB]
+2026-11-07T00:19:55.1169540Z Get:2 https://deb.nodesource.com/node_24.x nodistro/main amd64 Packages [9993 B]
+2026-11-07T00:19:55.2433649Z Get:3 http://archive.ubuntu.com/ubuntu noble InRelease [256 kB]
+2026-11-07T00:19:55.2894706Z Get:4 http://security.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+2026-11-07T00:19:55.9107557Z Get:5 http://security.ubuntu.com/ubuntu noble-security/universe amd64 Packages [1557 kB]
+2026-11-07T00:19:56.1753220Z Get:6 http://archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+2026-11-07T00:19:56.4045987Z Get:7 http://archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+2026-11-07T00:19:56.5488613Z Get:8 http://security.ubuntu.com/ubuntu noble-security/restricted amd64 Packages [2132 kB]
+2026-11-07T00:19:56.6346469Z Get:9 http://archive.ubuntu.com/ubuntu noble/multiverse amd64 Packages [331 kB]
+2026-11-07T00:19:56.7027738Z Get:10 http://security.ubuntu.com/ubuntu noble-security/main amd64 Packages [1425 kB]
+2026-11-07T00:19:56.7764580Z Get:11 http://security.ubuntu.com/ubuntu noble-security/multiverse amd64 Packages [55.6 kB]
+2026-11-07T00:19:56.7991812Z Get:12 http://archive.ubuntu.com/ubuntu noble/restricted amd64 Packages [117 kB]
+2026-11-07T00:19:56.8584178Z Get:13 http://archive.ubuntu.com/ubuntu noble/universe amd64 Packages [19.3 MB]
+2026-11-07T00:19:57.7386086Z Get:14 http://archive.ubuntu.com/ubuntu noble/main amd64 Packages [1808 kB]
+2026-11-07T00:19:57.7550287Z Get:15 http://archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [2274 kB]
+2026-11-07T00:19:57.7839949Z Get:16 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1762 kB]
+2026-11-07T00:19:57.8011174Z Get:17 http://archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Packages [61.8 kB]
+2026-11-07T00:19:57.8020932Z Get:18 http://archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [2177 kB]
+2026-11-07T00:19:57.8213709Z Get:19 http://archive.ubuntu.com/ubuntu noble-backports/multiverse amd64 Packages [669 B]
+2026-11-07T00:19:57.8215173Z Get:20 http://archive.ubuntu.com/ubuntu noble-backports/universe amd64 Packages [36.0 kB]
+2026-11-07T00:19:57.8218226Z Get:21 http://archive.ubuntu.com/ubuntu noble-backports/main amd64 Packages [49.0 kB]
+2026-11-07T00:19:58.7158410Z Fetched 33.8 MB in 4s (8854 kB/s)
+2026-11-07T00:19:59.5359203Z Reading package lists...
+2026-11-07T00:20:00.3782038Z Reading package lists...
+2026-11-07T00:20:00.5871294Z Building dependency tree...
+2026-11-07T00:20:00.5872221Z Reading state information...
+2026-11-07T00:20:00.7502666Z The following additional packages will be installed:
+2026-11-07T00:20:00.7510266Z   fonts-dejavu-mono
+2026-11-07T00:20:00.7754996Z The following NEW packages will be installed:
+2026-11-07T00:20:00.7765095Z   fonts-dejavu-core fonts-dejavu-mono
+2026-11-07T00:20:01.0633377Z 0 upgraded, 2 newly installed, 0 to remove and 150 not upgraded.
+2026-11-07T00:20:01.0633807Z Need to get 1337 kB of archives.
+2026-11-07T00:20:01.0634172Z After this operation, 3659 kB of additional disk space will be used.
+2026-11-07T00:20:01.0634733Z Get:1 http://archive.ubuntu.com/ubuntu noble/main amd64 fonts-dejavu-mono all 2.37-8 [502 kB]
+2026-11-07T00:20:01.9078634Z Get:2 http://archive.ubuntu.com/ubuntu noble/main amd64 fonts-dejavu-core all 2.37-8 [835 kB]
+2026-11-07T00:20:02.2469702Z debconf: delaying package configuration, since apt-utils is not installed
+2026-11-07T00:20:02.2829671Z Fetched 1337 kB in 1s (1022 kB/s)
+2026-11-07T00:20:02.3009411Z Selecting previously unselected package fonts-dejavu-mono.
+2026-11-07T00:20:02.3090300Z (Reading database ... 
+2026-11-07T00:20:02.3090742Z (Reading database ... 5%
+2026-11-07T00:20:02.3091183Z (Reading database ... 10%
+2026-11-07T00:20:02.3091431Z (Reading database ... 15%
+2026-11-07T00:20:02.3091658Z (Reading database ... 20%
+2026-11-07T00:20:02.3091874Z (Reading database ... 25%
+2026-11-07T00:20:02.3092100Z (Reading database ... 30%
+2026-11-07T00:20:02.3092318Z (Reading database ... 35%
+2026-11-07T00:20:02.3092541Z (Reading database ... 40%
+2026-11-07T00:20:02.3092767Z (Reading database ... 45%
+2026-11-07T00:20:02.3093003Z (Reading database ... 50%
+2026-11-07T00:20:02.3109897Z (Reading database ... 55%
+2026-11-07T00:20:02.3128686Z (Reading database ... 60%
+2026-11-07T00:20:02.3171209Z (Reading database ... 65%
+2026-11-07T00:20:02.3180305Z (Reading database ... 70%
+2026-11-07T00:20:02.3189054Z (Reading database ... 75%
+2026-11-07T00:20:02.3197996Z (Reading database ... 80%
+2026-11-07T00:20:02.3207946Z (Reading database ... 85%
+2026-11-07T00:20:02.3239727Z (Reading database ... 90%
+2026-11-07T00:20:02.3255232Z (Reading database ... 95%
+2026-11-07T00:20:02.3255625Z (Reading database ... 100%
+2026-11-07T00:20:02.3256310Z (Reading database ... 35123 files and directories currently installed.)
+2026-11-07T00:20:02.3268384Z Preparing to unpack .../fonts-dejavu-mono_2.37-8_all.deb ...
+2026-11-07T00:20:02.3279053Z Unpacking fonts-dejavu-mono (2.37-8) ...
+2026-11-07T00:20:02.3546526Z Selecting previously unselected package fonts-dejavu-core.
+2026-11-07T00:20:02.3577904Z Preparing to unpack .../fonts-dejavu-core_2.37-8_all.deb ...
+2026-11-07T00:20:02.3753880Z Unpacking fonts-dejavu-core (2.37-8) ...
+2026-11-07T00:20:02.4146221Z Setting up fonts-dejavu-mono (2.37-8) ...
+2026-11-07T00:20:02.4191784Z Setting up fonts-dejavu-core (2.37-8) ...
+2026-11-07T00:20:02.4432903Z Processing triggers for fontconfig (2.15.0-1.1ubuntu2) ...
+2026-11-07T00:20:02.5068537Z ##[group]Run npm install --global bun@1.4.4
+2026-11-07T00:20:02.5069134Z [36;1mnpm install --global bun@1.4.4[0m
+2026-11-07T00:20:02.5069601Z [36;1mtest "$(bun --version)" = "1.4.4"[0m
+2026-11-07T00:20:02.5070318Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-11-07T00:20:02.5070809Z env:
+2026-11-07T00:20:02.5071107Z   AM_CI_ARTIFACTS: 1
+2026-11-07T00:20:02.5071449Z ##[endgroup]
+2026-11-07T00:20:04.6408934Z 
+2026-11-07T00:20:04.6411319Z added 2 packages in 2s
+2026-11-07T00:20:04.6741910Z ##[group]Run bun install --frozen-lockfile
+2026-11-07T00:20:04.6742268Z [36;1mbun install --frozen-lockfile[0m
+2026-11-07T00:20:04.6742714Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-11-07T00:20:04.6743008Z env:
+2026-11-07T00:20:04.6743209Z   AM_CI_ARTIFACTS: 1
+2026-11-07T00:20:04.6743421Z ##[endgroup]
+2026-11-07T00:20:04.7378326Z bun install v1.4.4 (38afee6c8)
+2026-11-07T00:20:08.9481150Z 
+2026-11-07T00:20:08.9481717Z + @arethetypeswrong/cli@0.18.5
+2026-11-07T00:20:08.9482224Z + @biomejs/biome@2.5.5
+2026-11-07T00:20:08.9482628Z + @mermaid-js/mermaid-zenuml@1.0.1
+2026-11-07T00:20:08.9483086Z + @modelcontextprotocol/sdk@1.32.1
+2026-11-07T00:20:08.9483507Z + @resvg/resvg-wasm@2.6.2
+2026-11-07T00:20:08.9483868Z + @swc/core@1.15.8
+2026-11-07T00:20:08.9484236Z + @types/bun@1.3.9
+2026-11-07T00:20:08.9484567Z + @types/d3-format@3.0.4
+2026-11-07T00:20:08.9484941Z + @types/d3-sankey@0.12.5
+2026-11-07T00:20:08.9485301Z + @types/d3-shape@1.3.12
+2026-11-07T00:20:08.9485707Z + @zenuml/core@3.47.9
+2026-11-07T00:20:08.9486220Z + beautiful-mermaid@1.1.3
+2026-11-07T00:20:08.9486586Z + brotli@1.3.3
+2026-11-07T00:20:08.9486915Z + fast-check@4.6.0
+2026-11-07T00:20:08.9487238Z + jsdom@26.1.0
+2026-11-07T00:20:08.9487535Z + mermaid@12.2.0
+2026-11-07T00:20:08.9487851Z + mermaid-ast@0.8.2
+2026-11-07T00:20:08.9488194Z + perfect-freehand@1.2.3
+2026-11-07T00:20:08.9488562Z + playwright@1.58.2
+2026-11-07T00:20:08.9488901Z + publint@0.3.24
+2026-11-07T00:20:08.9489212Z + roughjs@4.6.6
+2026-11-07T00:20:08.9489526Z + saxes@6.0.0
+2026-11-07T00:20:08.9489843Z + shiki@3.21.0
+2026-11-07T00:20:08.9490144Z + tsup@8.5.1
+2026-11-07T00:20:08.9490452Z + typescript@5.9.3
+2026-11-07T00:20:08.9490773Z + upng-js@2.1.0
+2026-11-07T00:20:08.9491080Z + vitest@4.1.11
+2026-11-07T00:20:08.9491769Z + wrangler@4.149.0
+2026-11-07T00:20:08.9492094Z + @resvg/resvg-js@2.6.2
+2026-11-07T00:20:08.9492437Z + acorn@8.16.0
+2026-11-07T00:20:08.9492735Z + d3-format@3.1.0
+2026-11-07T00:20:08.9493303Z + d3-sankey@0.12.3
+2026-11-07T00:20:08.9494194Z + d3-shape@1.3.7
+2026-11-07T00:20:08.9503990Z + elkjs@0.11.1
+2026-11-07T00:20:08.9504956Z + entities@7.0.1
+2026-11-07T00:20:08.9505450Z + yaml@2.9.0
+2026-11-07T00:20:08.9505996Z 
+2026-11-07T00:20:08.9506335Z 615 packages installed [4.21s]
+2026-11-07T00:20:08.9935754Z ##[group]Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+2026-11-07T00:20:08.9936661Z with:
+2026-11-07T00:20:08.9937017Z   name: portable-test-artifacts
+2026-11-07T00:20:08.9937445Z   path: .
+2026-11-07T00:20:08.9937842Z   merge-multiple: false
+2026-11-07T00:20:08.9938248Z   repository: adewale/agentic-mermaid
+2026-11-07T00:20:08.9938715Z   run-id: 42317300663
+2026-11-07T00:20:08.9939077Z   skip-decompress: false
+2026-11-07T00:20:08.9939452Z   digest-mismatch: error
+2026-11-07T00:20:08.9939818Z env:
+2026-11-07T00:20:08.9940110Z   AM_CI_ARTIFACTS: 1
+2026-11-07T00:20:08.9940443Z ##[endgroup]
+2026-11-07T00:20:08.9950465Z ##[command]/usr/bin/docker exec  8126525c89f0b3f6f066d0b265e64a764ec4d85999fd44aa372e95b5ccd883f4 sh -c "cat /etc/*release | grep ^ID"
+2026-11-07T00:20:09.3251044Z Downloading single artifact
+2026-11-07T00:20:09.6766227Z Preparing to download the following artifacts:
+2026-11-07T00:20:09.6767492Z - portable-test-artifacts (ID: 13550524840, Size: 22006546, Expected Digest: sha256:3ae713e42e8659b7bb222f43bbd6ca02c308a91f314c24623ed947ab9935e5f9)
+2026-11-07T00:20:10.1329542Z Redirecting to blob download url: https://productionresultssa9.blob.core.windows.net/actions-results/e23bb923-d025-88a8-8b08-773f30e3c79e/workflow-job-run-c33086a4-bdad-559f-b1dc-a9f47a6d0fb8/artifacts/7322fcbe8fab8372e42a0553d98dfdcaf0524623ddac8fbbb6cb7328ab3c73b9.zip
+2026-11-07T00:20:10.1331668Z Starting download of artifact to: /__w/agentic-mermaid/agentic-mermaid
+2026-11-07T00:20:10.4033385Z (node:462) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+2026-11-07T00:20:10.4035036Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-07T00:20:11.6062661Z SHA256 digest of downloaded artifact is 3ae713e42e8659b7bb222f43bbd6ca02c308a91f314c24623ed947ab9935e5f9
+2026-11-07T00:20:11.6063649Z Artifact download completed successfully.
+2026-11-07T00:20:11.6064137Z Total of 1 artifact(s) downloaded
+2026-11-07T00:20:11.6069170Z Download artifact has finished successfully
+2026-11-07T00:20:11.6309200Z ##[group]Run bun -e 'const {version}=require("playwright/package.json"); if(version!=="1.58.2") throw new Error(`Update the pinned Playwright CI image for package ${version}`)'
+2026-11-07T00:20:11.6311119Z [36;1mbun -e 'const {version}=require("playwright/package.json"); if(version!=="1.58.2") throw new Error(`Update the pinned Playwright CI image for package ${version}`)'[0m
+2026-11-07T00:20:11.6312247Z [36;1mbunx playwright install --list[0m
+2026-11-07T00:20:11.6313174Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-11-07T00:20:11.6313686Z env:
+2026-11-07T00:20:11.6313994Z   AM_CI_ARTIFACTS: 1
+2026-11-07T00:20:11.6314352Z ##[endgroup]
+2026-11-07T00:20:12.3914695Z ##[group]Run bun run test:browser
+2026-11-07T00:20:12.3915022Z [36;1mbun run test:browser[0m
+2026-11-07T00:20:12.3915456Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-11-07T00:20:12.3915774Z env:
+2026-11-07T00:20:12.3916242Z   AM_CI_ARTIFACTS: 1
+2026-11-07T00:20:12.3916469Z ##[endgroup]
+2026-11-07T00:20:12.4547297Z $ bun run e2e/run-browser-contracts.ts
+2026-11-07T00:20:12.4662817Z $ bun test security-csp.e2e.test.ts --timeout 600000
+2026-11-07T00:20:13.8133354Z 
+2026-11-07T00:20:13.8134469Z ##[group]security-csp.e2e.test.ts:
+2026-11-07T00:20:13.8135406Z (pass) Trusted Types + strict CSP browser verification > rejects raw Mermaid themeCSS before producing strict SVG [16.55ms]
+2026-11-07T00:20:13.8137263Z (pass) Trusted Types + strict CSP browser verification > strict SVG can be inserted with a TrustedHTML policy and makes no external requests [55.91ms]
+2026-11-07T00:20:13.8137824Z 
+2026-11-07T00:20:13.8138246Z ##[endgroup]
+2026-11-07T00:20:13.8138435Z 
+2026-11-07T00:20:13.8138608Z  2 pass
+2026-11-07T00:20:13.8138905Z  0 fail
+2026-11-07T00:20:13.8139180Z  11 expect() calls
+2026-11-07T00:20:13.8139516Z Ran 2 tests across 1 file. [1325.00ms]
+2026-11-07T00:20:13.8139805Z bun test v1.4.4 (38afee6c8)
+2026-11-07T00:20:13.8140120Z $ bun test browser.test.ts --timeout 600000
+2026-11-07T00:21:37.9449318Z 
+2026-11-07T00:21:37.9449913Z bun test v1.4.4 (38afee6c8)
+2026-11-07T00:21:37.9450454Z Browser bundle: 364.8 KB
+2026-11-07T00:21:37.9451073Z Written to /__w/agentic-mermaid/agentic-mermaid/editor.html (2016.1 KB)
+2026-11-07T00:21:37.9467542Z ##[group]browser.test.ts:
+2026-11-07T00:21:37.9468457Z (pass) shipped sketch looks paint readable label ink against an opaque halo [317.21ms]
+2026-11-07T00:21:37.9469503Z (pass) resolved circle and ellipse paths preserve the native stroke traversal for dashes [53.58ms]
+2026-11-07T00:21:37.9470409Z 398 | it('standalone editor stays within its single-renderer payload budget', async () => {
+2026-11-07T00:21:37.9471295Z 399 |   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
+2026-11-07T00:21:37.9472101Z 400 |   // Keep this campaign's original ceilings while integrating Main's delivery
+2026-11-07T00:21:37.9472826Z 401 |   // changes. One renderer serves both realms; relative growth is checked too.
+2026-11-07T00:21:37.9473510Z 402 |   expect(html.byteLength).toBeLessThanOrEqual(4_429_400)
+2026-11-07T00:21:37.9474125Z 403 |   expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_334_500)
+2026-11-07T00:21:37.9474750Z                                                         ^
+2026-11-07T00:21:37.9475268Z error: expect(received).toBeLessThanOrEqual(expected)
+2026-11-07T00:21:37.9475645Z 
+2026-11-07T00:21:37.9476268Z Expected: <= 1334500
+2026-11-07T00:21:37.9476614Z Received: 1339386
+2026-11-07T00:21:37.9476815Z 
+2026-11-07T00:21:37.9477164Z       at <anonymous> (/__w/agentic-mermaid/agentic-mermaid/e2e/browser.test.ts:403:51)
+2026-11-07T00:21:37.9477673Z 
+2026-11-07T00:21:37.9504428Z ##[error]Expected: <= 1334500
+Received: 1339386
+
+      at <anonymous> (/__w/agentic-mermaid/agentic-mermaid/e2e/browser.test.ts:403:51)
+2026-11-07T00:21:37.9515144Z (fail) standalone editor stays within its single-renderer payload budget [79.59ms]
+2026-11-07T00:21:37.9515771Z (pass) standalone editor renders and verifies with one persistent Blob worker [35424.81ms]
+2026-11-07T00:21:37.9517113Z (pass) browser: live editor integration > browser DOM retains independently authored Pie entity labels [215.70ms]
+2026-11-07T00:21:37.9518372Z (pass) browser: live editor integration > contains long regular and highlighted pie legend rows across fallback fonts [374.92ms]
+2026-11-07T00:21:37.9519634Z (pass) browser: live editor integration > pie hover emphasis remains reachable when interactive tooltips add a hit target [39.35ms]
+2026-11-07T00:21:37.9520921Z (pass) browser: live editor integration > pie hover emphasis survives styled redraws without enabling tooltips [61.76ms]
+2026-11-07T00:21:37.9522293Z (pass) browser: live editor integration > opens /editor to the default loop diagram on the Kiln Stone chrome [1037.03ms]
+2026-11-07T00:21:37.9523110Z (pass) browser: live editor integration > mobile editor uses pane tabs instead of clipping the workspace [595.51ms]
+2026-11-07T00:21:37.9523946Z (pass) browser: live editor integration > retargets preview zoom and pauses a focused toast without blocking its eventual dismissal [2034.52ms]
+2026-11-07T00:21:37.9524848Z (pass) browser: live editor integration > lets an ordinary pointer grab preview momentum and suppresses coast under reduced motion [8043.28ms]
+2026-11-07T00:21:37.9525625Z (pass) browser: live editor integration > commits button zoom immediately under reduced motion [1096.55ms]
+2026-11-07T00:21:37.9526674Z (pass) browser: live editor integration > empty-state CTA opens a persistent examples sidebar [1081.48ms]
+2026-11-07T00:21:37.9527434Z (pass) browser: live editor integration > opens /editor and renders fork-added diagram families through the bundled renderer [4594.39ms]
+2026-11-07T00:21:37.9528232Z (pass) browser: live editor integration > uses local theme registry entries in the editor theme dropdown [1306.81ms]
+2026-11-07T00:21:37.9529076Z (pass) browser: live editor integration > examples sidebar keeps the selected theme and exposes blank reset without a floating source toolbar [1732.50ms]
+2026-11-07T00:21:37.9530020Z (pass) browser: live editor integration > topbar button dimensions do not shift when toggling day/dark mode [566.75ms]
+2026-11-07T00:21:37.9531061Z (pass) browser: live editor integration > loads source/config examples without overriding the selected theme [1462.70ms]
+2026-11-07T00:21:37.9532263Z (pass) browser: live editor integration > treats shared hash configuration as untrusted and renders only inert SVG [840.33ms]
+2026-11-07T00:21:37.9533511Z (pass) browser: visual regression > architecture rounded fills match screenshot baseline without decorative rails [1322.42ms]
+2026-11-07T00:21:37.9534426Z (pass) browser: visual regression > rounded header fills and slop-free cards match screenshot baselines [6133.98ms]
+2026-11-07T00:21:37.9534861Z 
+2026-11-07T00:21:37.9535201Z ##[endgroup]
+2026-11-07T00:21:37.9535331Z 
+2026-11-07T00:21:37.9535429Z 1 tests failed:
+2026-11-07T00:21:37.9536030Z (fail) standalone editor stays within its single-renderer payload budget [79.59ms]
+2026-11-07T00:21:37.9536545Z 
+2026-11-07T00:21:37.9536633Z  21 pass
+2026-11-07T00:21:37.9536831Z  1 fail
+2026-11-07T00:21:37.9537030Z  765 expect() calls
+2026-11-07T00:21:37.9537264Z Ran 22 tests across 1 file. [84.11s]
+2026-11-07T00:21:37.9537559Z 32 |     new Response(child.stderr).text(),
+2026-11-07T00:21:37.9537849Z 33 |     child.exited,
+2026-11-07T00:21:37.9538064Z 34 |   ])
+2026-11-07T00:21:37.9538310Z 35 |   if (stdout) process.stdout.write(stdout)
+2026-11-07T00:21:37.9538633Z 36 |   if (stderr) process.stderr.write(stderr)
+2026-11-07T00:21:37.9539060Z 37 |   if (exitCode !== 0) throw new Error(`Command exited ${exitCode}: ${command.join(' ')}`)
+2026-11-07T00:21:37.9539489Z                                      ^
+2026-11-07T00:21:37.9539849Z error: Command exited 1: bun test browser.test.ts --timeout 600000
+2026-11-07T00:21:37.9540350Z       at run (/__w/agentic-mermaid/agentic-mermaid/e2e/run-browser-contracts.ts:37:33)
+2026-11-07T00:21:37.9540677Z 
+2026-11-07T00:21:37.9541809Z ##[error]
+      at run (/__w/agentic-mermaid/agentic-mermaid/e2e/run-browser-contracts.ts:37:33)
+2026-11-07T00:21:37.9542567Z 
+2026-11-07T00:21:37.9542671Z Bun v1.4.4 (Linux x64)
+2026-11-07T00:21:37.9542951Z error: script "test:browser" exited with code 1
+2026-11-07T00:21:37.9545172Z ##[error]Process completed with exit code 1.
+2026-11-07T00:21:37.9621236Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+2026-11-07T00:21:37.9621667Z with:
+2026-11-07T00:21:37.9622019Z   name: editor-community-review-930faf846c6bec55e1f9b053844700e08281faf6
+2026-11-07T00:21:37.9622438Z   path: e2e/screenshots/current-*.png
+2026-11-07T00:21:37.9622720Z   retention-days: 7
+2026-11-07T00:21:37.9622958Z   if-no-files-found: warn
+2026-11-07T00:21:37.9623217Z   compression-level: 6
+2026-11-07T00:21:37.9623536Z   overwrite: false
+2026-11-07T00:21:37.9623804Z   include-hidden-files: false
+2026-11-07T00:21:37.9624066Z   archive: true
+2026-11-07T00:21:37.9624282Z env:
+2026-11-07T00:21:37.9624483Z   AM_CI_ARTIFACTS: 1
+2026-11-07T00:21:37.9624705Z ##[endgroup]
+2026-11-07T00:21:37.9628913Z ##[command]/usr/bin/docker exec  8126525c89f0b3f6f066d0b265e64a764ec4d85999fd44aa372e95b5ccd883f4 sh -c "cat /etc/*release | grep ^ID"
+2026-11-07T00:21:38.2164765Z With the provided path, there will be 6 files uploaded
+2026-11-07T00:21:38.2172193Z Artifact name is valid!
+2026-11-07T00:21:38.2173881Z Root directory input is valid!
+2026-11-07T00:21:38.5390447Z Uploading artifact: editor-community-review-930faf846c6bec55e1f9b053844700e08281faf6.zip
+2026-11-07T00:21:38.5429121Z Beginning upload of artifact content to blob storage
+2026-11-07T00:21:38.8986427Z Uploaded bytes 86955
+2026-11-07T00:21:38.9581581Z Finished uploading artifact content to blob storage!
+2026-11-07T00:21:38.9582507Z SHA256 digest of uploaded artifact is ce5e7a469171ce9c4e576b35308312a1ae75e1eb47353f592f61e66f53b79ba6
+2026-11-07T00:21:38.9583319Z Finalizing artifact upload
+2026-11-07T00:21:39.4819815Z Artifact editor-community-review-930faf846c6bec55e1f9b053844700e08281faf6 successfully finalized. Artifact ID 13551900995
+2026-11-07T00:21:39.4821424Z Artifact editor-community-review-930faf846c6bec55e1f9b053844700e08281faf6 has been successfully uploaded! Final size is 86955 bytes. Artifact ID is 13551900995
+2026-11-07T00:21:39.4832729Z Artifact download URL: https://github.com/adewale/agentic-mermaid/actions/runs/42317300663/artifacts/13551900995
+2026-11-07T00:21:39.5031343Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+2026-11-07T00:21:39.5031808Z with:
+2026-11-07T00:21:39.5032191Z   name: standalone-editor-diagnostics-930faf846c6bec55e1f9b053844700e08281faf6
+2026-11-07T00:21:39.5032640Z   path: ci-editor-metafile.json
+2026-11-07T00:21:39.5032919Z   retention-days: 7
+2026-11-07T00:21:39.5033155Z   if-no-files-found: warn
+2026-11-07T00:21:39.5033410Z   compression-level: 6
+2026-11-07T00:21:39.5033645Z   overwrite: false
+2026-11-07T00:21:39.5033876Z   include-hidden-files: false
+2026-11-07T00:21:39.5034142Z   archive: true
+2026-11-07T00:21:39.5034353Z env:
+2026-11-07T00:21:39.5034555Z   AM_CI_ARTIFACTS: 1
+2026-11-07T00:21:39.5034789Z ##[endgroup]
+2026-11-07T00:21:39.5039328Z ##[command]/usr/bin/docker exec  8126525c89f0b3f6f066d0b265e64a764ec4d85999fd44aa372e95b5ccd883f4 sh -c "cat /etc/*release | grep ^ID"
+2026-11-07T00:21:39.7607888Z ##[warning]No files were found with the provided path: ci-editor-metafile.json. No artifacts will be uploaded.
+2026-11-07T00:21:39.7920601Z Post job cleanup.
+2026-11-07T00:21:39.7933969Z ##[command]/usr/bin/docker exec  8126525c89f0b3f6f066d0b265e64a764ec4d85999fd44aa372e95b5ccd883f4 sh -c "cat /etc/*release | grep ^ID"
+2026-11-07T00:21:39.9939562Z [command]/usr/bin/git version
+2026-11-07T00:21:39.9993212Z git version 2.43.0
+2026-11-07T00:21:40.0029621Z Copying '/github/home/.gitconfig' to '/__w/_temp/2108c636-b1a3-408b-b9fc-a531677ecfd0/.gitconfig'
+2026-11-07T00:21:40.0042945Z Temporarily overriding HOME='/__w/_temp/2108c636-b1a3-408b-b9fc-a531677ecfd0' before making global git config changes
+2026-11-07T00:21:40.0047834Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-07T00:21:40.0049216Z [command]/usr/bin/git config --global --add safe.directory /__w/agentic-mermaid/agentic-mermaid
+2026-11-07T00:21:40.0099524Z Removing SSH command configuration
+2026-11-07T00:21:40.0103431Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-07T00:21:40.0177181Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-07T00:21:40.0526382Z Removing HTTP extra header
+2026-11-07T00:21:40.0527135Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-07T00:21:40.0566972Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-07T00:21:40.0870499Z Removing includeIf entries pointing to credentials config files
+2026-11-07T00:21:40.0885735Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-07T00:21:40.0929007Z includeif.gitdir:/__w/agentic-mermaid/agentic-mermaid/.git.path
+2026-11-07T00:21:40.0930149Z includeif.gitdir:/__w/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path
+2026-11-07T00:21:40.0931608Z includeif.gitdir:/github/workspace/.git.path
+2026-11-07T00:21:40.0932775Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-07T00:21:40.0938190Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/__w/agentic-mermaid/agentic-mermaid/.git.path
+2026-11-07T00:21:40.0977505Z /__w/_temp/git-credentials-667a8f06-b13d-4088-9aeb-dd675824161e.config
+2026-11-07T00:21:40.0987762Z [command]/usr/bin/git config --local --unset includeif.gitdir:/__w/agentic-mermaid/agentic-mermaid/.git.path \/__w\/_temp\/git\-credentials\-667a8f06\-b13d\-4088\-9aeb\-dd675824161e\.config
+2026-11-07T00:21:40.1037832Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/__w/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path
+2026-11-07T00:21:40.1075291Z /__w/_temp/git-credentials-667a8f06-b13d-4088-9aeb-dd675824161e.config
+2026-11-07T00:21:40.1085615Z [command]/usr/bin/git config --local --unset includeif.gitdir:/__w/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path \/__w\/_temp\/git\-credentials\-667a8f06\-b13d\-4088\-9aeb\-dd675824161e\.config
+2026-11-07T00:21:40.1132603Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-07T00:21:40.1179262Z /github/runner_temp/git-credentials-667a8f06-b13d-4088-9aeb-dd675824161e.config
+2026-11-07T00:21:40.1187195Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-667a8f06\-b13d\-4088\-9aeb\-dd675824161e\.config
+2026-11-07T00:21:40.1236242Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-07T00:21:40.1272038Z /github/runner_temp/git-credentials-667a8f06-b13d-4088-9aeb-dd675824161e.config
+2026-11-07T00:21:40.1279878Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-667a8f06\-b13d\-4088\-9aeb\-dd675824161e\.config
+2026-11-07T00:21:40.1329245Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-07T00:21:40.1613709Z Removing credentials config '/__w/_temp/git-credentials-667a8f06-b13d-4088-9aeb-dd675824161e.config'
+2026-11-07T00:21:40.1778817Z Stop and remove container: 3ae821c028904b47a46971a8dc26134e_mcrmicrosoftcomplaywrightv1582noblesha25665cefd09a5e943921ecd3a6e5414c603db2eb161e9eb48f2e2ccc63486dc7dc0_a2cea5
+2026-11-07T00:21:40.1784201Z ##[command]/usr/bin/docker rm --force 8126525c89f0b3f6f066d0b265e64a764ec4d85999fd44aa372e95b5ccd883f4
+2026-11-07T00:21:40.3219050Z 8126525c89f0b3f6f066d0b265e64a764ec4d85999fd44aa372e95b5ccd883f4
+2026-11-07T00:21:40.3255763Z Remove container network: github_network_a66f5e608a734409900d42107cf30e53
+2026-11-07T00:21:40.3260620Z ##[command]/usr/bin/docker network rm github_network_a66f5e608a734409900d42107cf30e53
+2026-11-07T00:21:40.3970596Z github_network_a66f5e608a734409900d42107cf30e53
+2026-11-07T00:21:40.4046725Z Cleaning up orphan processes
+

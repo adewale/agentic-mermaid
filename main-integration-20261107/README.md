@@ -67,3 +67,5 @@ those logs and successful requalification remain separate. A null-binding
 summary diagnostic was corrected without repeating any public call. No new
 qualification framework or acceptance gate was added. Continuous execution
 between runs is not claimed. Deadline: 2026-11-08T23:59:59Z.
+
+Final observation: source930 CI42317300663 completed failed. Actual checkout302cc19179afd925d8c5cd21f0d9a0502befebbf has parents main39/source930 and a tree byte-exact to source930. Shards1/3, semantic, browser contracts, CLI/MCP, installed/tarball consumers and macOS/Windows isolation pass; shard2 fails only enrolled Sparse32. Standalone CI gzip1,339,386 remains4,886 over the original ceiling; lazy/demo payloads and advisory fail. Compressed current-head quality/unit logs and complete terminal job metadata accompany the checkpoint. No ready claim.

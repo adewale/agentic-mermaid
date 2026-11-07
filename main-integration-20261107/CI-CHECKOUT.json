@@ -1,0 +1,11 @@
+{
+  "ci_checkout": "302cc19179afd925d8c5cd21f0d9a0502befebbf",
+  "actual_parents": [
+    "39a500425f6b74eb486b9add9e90d538fab6a914",
+    "930faf846c6bec55e1f9b053844700e08281faf6"
+  ],
+  "tree": "c8a50f0242269223f9c85b907f0c15c20296aafc",
+  "head_tree": "c8a50f0242269223f9c85b907f0c15c20296aafc",
+  "tree_exact": true,
+  "source_head": "930faf846c6bec55e1f9b053844700e08281faf6"
+}
