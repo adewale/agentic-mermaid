@@ -5,7 +5,7 @@ import type { AgenticLayout, MeasuredGraph } from './agentic-layered.ts'
  * Keep each subtree in its own interval and reserve depth bands within each
  * root, so incomplete levels cannot interleave related branches. Disconnected
  * roots already have separate cross-axis intervals and need no shared bands. */
-export function layoutMeasuredForest(input: MeasuredGraph, packComponents = true): AgenticLayout | undefined {
+export function layoutMeasuredForest(input: MeasuredGraph, context: 'complete' | 'scope' | 'elk-projection' = 'complete'): AgenticLayout | undefined {
   const { nodes, edges, padding, nodeSpacing, layerSpacing } = input
   if (nodes.length < 2 || edges.length >= nodes.length || nodeSpacing <= 0 || layerSpacing <= 0
     || ![padding, nodeSpacing, layerSpacing].every(value => Number.isFinite(value) && value >= 0)
@@ -76,7 +76,7 @@ export function layoutMeasuredForest(input: MeasuredGraph, packComponents = true
   }
   let columns = roots.length
   let area = (crossExtent + 2 * padding) * (mainExtent + 2 * padding)
-  for (const count of packComponents ? [1, 2, Math.ceil(roots.length / 2), Math.ceil(Math.sqrt(roots.length))] : []) {
+  for (const count of context !== 'scope' ? [1, 2, Math.ceil(roots.length / 2), Math.ceil(Math.sqrt(roots.length))] : []) {
     if (count >= roots.length) continue
     let cross = 0, main = 0, rowCross = 0, rowMain = 0
     for (let ordinal = 0; ordinal < roots.length; ordinal++) {
@@ -110,7 +110,9 @@ export function layoutMeasuredForest(input: MeasuredGraph, packComponents = true
     const peers = outgoing[id]!
     const cross = padding + starts[id]! + (span[id]! - crossSize(id)) / 2
     const band = bandOffset[rootOrdinal[id]!]! + depth[id]!
-    let main = bandStart[band]! + (bands[band]! - mainSize(id)) / 2
+    // A complete leaf has no outgoing route to lengthen. Seat its incoming
+    // face toward its parent instead of centring it in a taller sibling's band.
+    let main = bandStart[band]! + (context === 'complete' && peers.length === 0 ? 0 : (bands[band]! - mainSize(id)) / 2)
     if (reverse) main = mainExtent - main - mainSize(id)
     main += padding
     positioned[id] = horizontal ? { x: main, y: cross } : { x: cross, y: main }

@@ -26,7 +26,7 @@ export function indexedForestLayout(
   const measured = layoutMeasuredForest({
     nodes: children.map(node => ({ id: node.id, width: node.width!, height: node.height! })),
     edges, direction: graph.direction, padding, nodeSpacing, layerSpacing,
-  })
+  }, 'elk-projection')
   if (!measured) return undefined
   return {
     ...input, width: measured.width, height: measured.height,

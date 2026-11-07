@@ -148,6 +148,7 @@ export function applySymmetricFanoutEmissions(
   graph: MermaidGraph,
   bundled: Set<PositionedEdge>,
   style: LabelMetricsStyle,
+  preserveMeasuredBoxes = false,
 ): void {
   const reaches = graphReachability(graph.edges)
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
@@ -165,7 +166,7 @@ export function applySymmetricFanoutEmissions(
     const targets = sorted.map(e => nodeMap.get(e.target)!)
     // Grouped rectangles and centered unequal leaf bodies keep their existing
     // placement. Only their source exits and connecting doglegs are rebuilt.
-    const routeOnly = source.shape !== 'diamond' && nodeInsideGroups(source, groups)
+    const routeOnly = preserveMeasuredBoxes || source.shape !== 'diamond' && nodeInsideGroups(source, groups)
       || keepsCenteredTerminalBodies(source, raw, targets, edges, groups, graph.direction)
     if (routeOnly) {
       // The straightener's own lanes stand when they already mirror about the

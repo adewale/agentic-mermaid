@@ -1457,9 +1457,9 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'equalizePeerNodeDimensions', doc: 'equalize peer box sizes + pack layers so symmetry is visible downstream',
     after: ['alignLayerNodes'], mutates: ['positions', 'dimensions'],
-    // This preparation pass equalizes dimensions and may move peer centers.
-    // The following alignment passes own the final barycenter contract.
-    enabled: c => Boolean(c.elkResult) || c.mergeEdges,
+    // Native forests already own measured boxes and their contact capacity.
+    // Keep ELK's peer-size preparation without enlarging those owned boxes.
+    enabled: c => Boolean(c.elkResult),
     run: c => { equalizePeerNodeDimensions(c.nodes, c.edges, c.groups, c.graph, c.style) },
   },
   {
@@ -1548,7 +1548,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     after: ['clipEdgeToShape'], mutates: ['positions', 'dimensions', 'edges'],
     mayChangeMetrics: { symErr: 'improve-only', bends: { worsenBy: 2 } },
     enabled: c => Boolean(c.elkResult) || c.mergeEdges,
-    run: c => { applySymmetricFanoutEmissions(c.nodes, c.edges, c.groups, c.graph, c.bundled, c.style) },
+    run: c => { applySymmetricFanoutEmissions(c.nodes, c.edges, c.groups, c.graph, c.bundled, c.style, !c.elkResult) },
   },
   {
     id: 'applySymmetricParallelEdgeLanes', doc: 'separate parallel edges into symmetric non-crossing lanes',
