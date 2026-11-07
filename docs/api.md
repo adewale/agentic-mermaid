@@ -55,12 +55,13 @@ each model. Class and ER style definitions are `Map` values.
 The same entry points export `parseUsecaseModel(source)` and
 `parseAgentflowModel(source)` for strict grammar inspection. UseCase returns
 declaration Maps, relationships, JSON nodes and source statements; AgentFlow
-returns its graph, metadata and source mappings, including complete container
-ranges. UseCase spans index the returned `source`; AgentFlow mappings address
+returns its graph, metadata and source mappings, including endpoint occurrences
+and complete container ranges. UseCase spans index the returned `source`; AgentFlow mappings address
 the family payload after frontmatter and init removal. Neither helper uses the
 editor's opaque fallback. Both use `MermaidSyntaxError` for authored-input
-refusals; UseCase maps known error positions against the original input.
-AgentFlow does not yet supply authored positions on all syntax failures.
+refusals and map known error positions against the original input. AgentFlow
+metadata YAML and shape failures carry authored positions, including wrappers;
+positions remain optional for other syntax failures.
 
 These models are inspection data. Continue using `parseRegisteredMermaid` and
 `as*` helpers for mutation and serialization. Class, ER and Sequence syntax failures use

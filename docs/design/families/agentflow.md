@@ -28,10 +28,13 @@ the diagram: direct changes to its mutable body do not override AgentFlow's
 canonical-source rendering authority.
 
 `parseAgentflowModel` exposes strict grammar inspection without the editor's
-opaque fallback. Authored-input refusals use `MermaidSyntaxError`; host limits
-remain distinct. Its occurrence mappings retain complete container extents
-through the closing `end`. These sparse mappings are not a complete endpoint
-occurrence AST; use the public diagram source map for edit locations. See the
+opaque fallback. Authored-input refusals use `MermaidSyntaxError`; known metadata
+error positions refer to the original input, including its wrapper. Host limits
+remain distinct. Its mappings retain individual endpoint occurrences, repeated
+references and complete container extents through the closing `end`. These are
+source ranges rather than an occurrence AST; use the public diagram source map
+for checked edit locations. Graph-only rendering omits mapping collection;
+strict inspection and editable bodies retain it. See the
 [typed parser API](../../api.md#typed-parsers) for coordinate units.
 
 ## Placement and limitations
