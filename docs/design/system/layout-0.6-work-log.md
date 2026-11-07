@@ -53,6 +53,29 @@ replace neither the dated profiler nor its missing runtime/cold/cache evidence.
 Next causal probe: whether standalone worker precompression accounts for the
 Brotli loss, preserving decoded worker bytes, ownership and browser contracts.
 
+## Native shortcut clearance — 7 November
+
+From `3234fb3183e78840321ab41fe6881b31a0f5d4b2`, case152 reproduces the actual
+0.823px rectangle/shaft overlap. Stage tracing locates its first cause before
+shared cleanup: the compact measured shortener changes a 5.125px clear route
+into that contact. Reuse preparation's existing border/shaft margin as an
+explicit measured input, so the existing geometry cache also distinguishes it.
+Veto shortcuts against expanded foreign node boxes; retain endpoint contacts,
+raw caption/header constraints, finite bounds, serialization guard and all caps.
+Unknown widths omit the added floor. It is not a full semantic/acute-shape paint
+bound or a new certificate; the final mandatory proof remains authoritative.
+
+Actual152 proof U353,905→P353,896. Eight fixed-Inter masks show selected shaft
+contribution61→183/183 pixels, hidden122→0 and attenuated183→0. Area/bends stay
+fixed; wire+11.896. One other shaft and a caption move; all155 finalSVG tags,
+authored identities/relations/text/resources and normalized CSS are compared.
+Focused owner7RED→20GREEN/328 assertions, including rounding, finite overflow,
+endpoint rays, real cache clearance toggles and a nearby still-shortened route.
+Before-profile uses the existing Node24 collector; no speed ratio follows.
+Full-corpus/payload qualification remains pending at this commit. Evidence:
+`contact-origin-3234`. Keep original152/372 counterexamples and every changed
+quality/proof outcome until actual combined qualification; no new cache/quota.
+
 ## Local circle detour — 7 November
 
 From `6aa0ee45d9b6052addcb77036c1f7ba4c13b2cb4`, Native case230 has a 0.453px

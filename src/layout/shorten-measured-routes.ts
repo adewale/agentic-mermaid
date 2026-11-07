@@ -25,6 +25,8 @@ function remainingWork(value: unknown, maximum: number): number {
 export function shortenMeasuredRoutes(input: MeasuredGraph, placed: AgenticLayout, work?: { attempts: number; comparisons: number }): AgenticLayout {
   if (placed.topology === 'forest' || placed.sharedEdges?.length || input.edges.length > 128
     || placed.edges.reduce((sum, edge) => sum + edge.points.length, 0) > 2048) return placed
+  const clearance = input.nodeClearance ?? 0
+  if (!Number.isFinite(clearance) || clearance < 0) return placed
   const boxes: MeasuredBox[] = input.nodes.map((node, index) => ({ ...placed.nodes[index]!, width: node.width, height: node.height }))
   const headers = (placed.groups ?? []).map((group, index) => ({ ...group, height: input.groups![index]!.padding.top }))
   const labels = input.edges.map((edge, index) => {
@@ -41,12 +43,27 @@ export function shortenMeasuredRoutes(input: MeasuredGraph, placed: AgenticLayou
   if (work) { attempts = remainingWork(work.attempts, 512); comparisons = remainingWork(work.comparisons, 8_000_000) }
   try {
   if (work && (attempts <= 0 || comparisons <= 0)) return placed
+  comparisons -= clearance > 0 ? 24 * boxes.length : 0
+  if (comparisons < 0) return placed
+  // A shortcut may clear logical boxes while crossing their written strokes.
+  // Reuse the producer's minimum clearance; final paint admission still owns
+  // acute corners, semantic overhangs and every other unsupported contour.
+  const foreignBoxes = clearance > 0 ? boxes.map(box => {
+    const room = clearance + (Math.abs(box.x) + Math.abs(box.y) + box.width + box.height + clearance) * 1e-10 + 1e-9
+    return { x: box.x - room, y: box.y - room, width: box.width + 2 * room, height: box.height + 2 * room }
+  }) : boxes
+  if (foreignBoxes.some(box => !Number.isFinite(box.x) || !Number.isFinite(box.y) || !Number.isFinite(box.width)
+    || !Number.isFinite(box.height) || !Number.isFinite(box.x + box.width) || !Number.isFinite(box.y + box.height))) return placed
   const chargeContact = (amount: number): boolean => (comparisons -= amount) >= 0
   for (const [index, edge] of input.edges.entries()) {
     if (placed.boundaryRoutes?.includes(index)) continue
     if (edge.source === edge.target || edge.visible === false || ink[index]!.points.length < 5) continue
     let localAttempts = 24
     const occupied = [...boxes, ...headers, ...labels.filter((box, other): box is MeasuredBox => Boolean(box) && other !== index)]
+    if (clearance > 0 && (comparisons -= occupied.length) < 0) return placed
+    // Ports deliberately contact their own bodies. Captions retain their
+    // existing seating constraints; the added clearance veto applies to shafts.
+    const routeObstacles = clearance > 0 ? occupied.map((box, node) => node < boxes.length && node !== edge.source && node !== edge.target ? foreignBoxes[node]! : box) : occupied
     const involved = new Set([index])
     let crossings: number | undefined
     for (let edit = 0; edit < 4; edit++) {
@@ -74,7 +91,7 @@ export function shortenMeasuredRoutes(input: MeasuredGraph, placed: AgenticLayou
             || ray(candidate.at(-2)!, candidate.at(-1)!) !== ray(original.at(-2)!, original.at(-1)!)) continue
           comparisons -= candidate.length * occupied.length
           if (comparisons < 0) return placed
-          if (candidate.slice(1).some((point, cursor) => occupied.some(box => segmentEntersMeasuredBox(candidate[cursor]!, point, box)))) continue
+          if (candidate.slice(1).some((point, cursor) => routeObstacles.some(box => segmentEntersMeasuredBox(candidate[cursor]!, point, box)))) continue
           comparisons -= candidate.length * ink.reduce((sum, route) => sum + route.points.length, 0)
           if (comparisons < 0) return placed
           const count = ink.reduce((sum, route) => sum + route.points.length, 0)

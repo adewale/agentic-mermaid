@@ -32,6 +32,8 @@ export interface MeasuredGraph {
   nodeSpacing: number
   layerSpacing: number
   edgeSpacing?: number
+  /** Minimum foreign-node clearance for optional shortcuts, not a paint certificate. */
+  nodeClearance?: number
   /** Actual endpoint artwork lead reserved independently of peer-obstacle clearance. */
   minimumTerminalLead?: number
   /** Actual maximum painted edge stroke, supplied by the producer. Absence keeps legacy routing. */
@@ -112,6 +114,7 @@ export function layoutLayeredGraph(
   if (input.edgeSpacing !== undefined && !finiteSize(input.edgeSpacing, true)) throw new TypeError('Measured edge spacing must be finite and positive')
   if (input.minimumTerminalLead !== undefined && !finiteSize(input.minimumTerminalLead, true)) throw new TypeError('Measured terminal lead must be finite and positive')
   if (input.maximumEdgeStrokeWidth !== undefined && !finiteSize(input.maximumEdgeStrokeWidth, true)) throw new TypeError('Measured maximum edge stroke width must be finite and positive')
+  if (input.nodeClearance !== undefined && !finiteSize(input.nodeClearance, false)) throw new TypeError('Measured node clearance must be finite and nonnegative')
   if (input.maximumEdgeBendRadius !== undefined && !finiteSize(input.maximumEdgeBendRadius,false)) throw new TypeError('Invalid measured edge bend radius')
   for (const node of input.nodes) if (node.paintStrokeWidth !== undefined && !finiteSize(node.paintStrokeWidth,true)) throw new TypeError('Invalid measured node paint stroke')
   for (const node of input.nodes) if (node.paintCornerRadius !== undefined && !finiteSize(node.paintCornerRadius,false)) throw new TypeError('Invalid measured node corner radius')
