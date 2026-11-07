@@ -1,0 +1,167 @@
+{
+  "owner": "root-payload-cause-20261107-0104",
+  "updated_at": "2026-11-07T01:43:02.573788+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-08T23:59:59Z",
+  "note": "Fresh recovery baseline, not restored November runtime. Original checkout and reconstructed patch preserved.",
+  "writers": [],
+  "head": "bbda2112af8d791d8628a3769c86084e4cb962b3",
+  "next_fix": "Profile common lazy-bundle growth against current main before another producer subtraction. Standalone budget is now green in exact-head CI. Retain main Brotli +146733 bytes and proof/RSS costs. Sparse32 remains a proof-cap failure, ER256 a shared geometry refusal. Do not repeat unchanged rendering comparisons as progress.",
+  "status": "idle",
+  "checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-0a4534ee8.bundle",
+  "evidence": "/workspace/pr449-recovery-20261103-155750/evidence-5aa10b3c0.tar.gz",
+  "execution_note": "Bounded dictionary-data cycle complete. Source bbda pushed, PR description updated, evidence 9c0e pushed. Profile: 16460/122784 dictionary bytes read; exact packed/full decoded worker retained. Complete HTML gzip 1348449 to 1310748; Brotli 1282268 to 1245137; raw +95553. Local owners 48 passed, core typing and lint pass; final build19.2s/674760KiB. Exact-head CI42324034140 terminal failed: browser-site and original standalone budget now pass; Sparse32, lazy/demo/editor payload and advisory failures remain. No speedup ratio, rendering gain or readiness claim.",
+  "evidence_verified": {
+    "files": 2632,
+    "uncompressed_bytes": 43354657,
+    "archive_bytes": 15312785,
+    "controllers": 121
+  },
+  "evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-0a4534ee8.tar.gz",
+  "evidence_delta_verified": {
+    "files": 23,
+    "uncompressed_bytes": 342648,
+    "archive_bytes": 118801
+  },
+  "previous_owner": "root-main-integration-20261107-0003",
+  "previous_checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-8f9ef3da0.bundle",
+  "previous_evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-8f9ef3da0.tar.gz",
+  "pull_request": {
+    "number": 602,
+    "url": "https://github.com/adewale/agentic-mermaid/pull/602",
+    "draft": true,
+    "head": "bbda2112af8d791d8628a3769c86084e4cb962b3",
+    "head_branch": "work/pr449-reconstruct-20261103",
+    "base": "39a500425f6b74eb486b9add9e90d538fab6a914",
+    "base_branch": "main",
+    "main_observed": "39a500425f6b74eb486b9add9e90d538fab6a914",
+    "main_integration_qualified": false,
+    "visual_evidence_commit": "bcc799ccc362f71d63384eaa31a879d412cd74a2",
+    "title": "Recover layout delivery and SVG paint; compact ER cards and forest routes",
+    "main_observed_at": "2026-11-07T00:33:54.189702+00:00",
+    "current_ci_run": 42317300663,
+    "current_ci_status": "New dictionary-specialization head pushed; exact-head CI in progress. Local original standalone budget RED\u2192GREEN, other enrolled losses remain.",
+    "description_updated_at": "2026-11-07T00:33:54.189702+00:00",
+    "current_ci_base_note": "Current main39 is merged in1693. Local bounded contracts and36full product calls qualify preservation; final930CI tests same tree against39 but remains failed on enrolled losses."
+  },
+  "pr_record_checkpoint": "/workspace/pr449-recovery-20261103-155750/pr602-preparation.tar.gz",
+  "scheduled_end": "2026-11-08T23:59:59Z",
+  "automations_disabled": {
+    "6ae0b82853508191843a984cfb468d5b": false,
+    "6ae5e528d93881918a13186253dbae8e": false
+  },
+  "maintenance": {
+    "owner": "root-pr-cleanup-20261105",
+    "scope": "Owner-authorized PR cleanup and GitHub backup; campaign remains stopped",
+    "started_at": "2026-11-05T13:24:03.573057+00:00",
+    "completed_at": "2026-11-05T13:35:34.412315+00:00",
+    "result": "Committed readable stopped-state handoff and pushed both branches atomically. PR602 description/visuals updated; remote branch SHAs and archive index verified. Runtime/tests unchanged during cleanup. Corrected unrelated upstream tracking. Campaign and deadline-report automations remain disabled."
+  },
+  "remote_checkpoint": {
+    "source_head": "bbda2112af8d791d8628a3769c86084e4cb962b3",
+    "source_branch": "work/pr449-reconstruct-20261103",
+    "evidence_head": "9c0e14b18394925a0160812f4bc85e3df07bedcc",
+    "evidence_branch": "review/pr449-evidence-20261105",
+    "restore_guide": "https://github.com/adewale/agentic-mermaid/blob/9c0e14b18394925a0160812f4bc85e3df07bedcc/decoder-dictionary-20261107/README.md",
+    "source_and_evidence_remote_refs_verified": true,
+    "new_evidence_files": 39,
+    "new_archive_bytes": 5478791,
+    "new_raw_bytes": 10200306,
+    "new_every_member_byte_verified": true,
+    "prior_current_comparison_files_byte_verified": 5122,
+    "checked_at": "2026-11-07T01:43:02.573788+00:00",
+    "handoff_contains_released_state": true
+  },
+  "resumed_at": "2026-11-05T13:48:28.000357+00:00",
+  "lease_expires_at": "2026-11-07T01:43:02.573788+00:00",
+  "authorization": "Owner: Execute that campaign. Make sure we regularly commit and push to the PR on Github.",
+  "automation_resume_note": "Owner explicitly resumed campaign. Hourly continuation resumes 2026-11-05T15:00 Europe/London through original Nov8 deadline; fresh-lease coordination required; pushes to PR602 authorized.",
+  "released_at": "2026-11-07T01:43:02.573788+00:00",
+  "stop_history": [
+    {
+      "stopped_at": "2026-11-05T13:20:32.667409+00:00",
+      "stop_reason": "Owner explicitly requested: Stop the campaign",
+      "stop_note": "Campaign and deadline-report automations disabled successfully. All five campaign agents completed; no live git/node/bun/python campaign workers found. Worktree clean at 0a4534ee814d0c380de138b845b0d8e3f5226132. All work, trial drafts and evidence preserved. No further implementation, tests, builds, publication or PR changes performed."
+    }
+  ],
+  "profile_report": "docs/design/system/layout-0.6-performance-review.md at ebf66e01c6245b24e55247f3545f4d3e390985d4; measured source99ed1d23853661966448ee9ee47c560cab910e63",
+  "payload_diagnostic": "Private exact-worker dictionary:16460/122784 bytes used. Before930 tobbda completeHTML raw+95553/gzip-37701/Brotli-37131; packed/fullworker exact. Main39Brotli still+146733. Original standalone gzip ceiling unchanged and local/exact-head CI pass. No cache, generic decoder promise, runtime speedup or cap change.",
+  "deadline_report_schedule": "2026-11-08T23:59:59 Europe/London (UTC); stop/disable and report at the original deadline",
+  "previous_ci": {
+    "head": "3b35c1b3d3387df2d61323071b3c9678b06f1445",
+    "run": 42057059999,
+    "tested_checkout": "d13c5b4f751934c13c46e5ee11fb7ba018df27ed; synthetic merge into mainf9",
+    "result": "completed failure",
+    "passing_repairs": "shards1/2, both reviewedClass/Requirementgoldens",
+    "remaining": "Sparse32 proofcap; payloadceilings; browserClassgolden nowlocallyqualified; CLI Bun download504 before tests"
+  },
+  "campaign_status": "resumed",
+  "qualification_milestones": [
+    {
+      "commit": "d4bef7245f44e01f4c6637938acc68dcc04bdc5d",
+      "change": "9 reviewed Class geometry goldens; no runtime change",
+      "verification": "322 records, owning2P; CI42055078526shard1success, overallfailure",
+      "evidence": "5de73796a993e4abee23ad6ee90f85baf4693e34"
+    },
+    {
+      "commit": "3b35c1b3d3387df2d61323071b3c9678b06f1445",
+      "change": "one reviewed Requirement PNG; no runtime change",
+      "verification": "local1RED\u219297P0F in3owningfiles; latestCIpending",
+      "adverse": "PNG+39B, priorwholecandidateproof40698\u2192204313ops",
+      "evidence": "1a8297b9d98b2d7f22e97b59746f56a01ac56668"
+    },
+    {
+      "commit": "69af97a12aefe1140095064312a7f32b3f5e5714",
+      "change": "route-only separated source docks for centered unequal terminal peers",
+      "before_after": "wire463.4375\u2192436.857166666; area165355.6575/bends8 unchanged; residualwire+10.19%ELK",
+      "verification": "4directionalRED\u219244nearby/corpusP+28ownership/CSSP, coretypes/lint; Nativefreshrepeat and ELKbyteexact",
+      "adverse": "proof+980ops, SVG+21gzip/+5Br, pairedstandalone+315gzip",
+      "evidence": "6b5ed81355e05954b11b8a47b10c13627493bd20"
+    },
+    {
+      "commit": "741b80dba91c0e1f4feba9a62695f7820bc79a23",
+      "change": "one reviewed browser Class PNG baseline",
+      "verification": "exactmain/currentDOM+independentreview; onlyClassPNGupdated; unchanged5casebrowserowner1P29assert13.99s",
+      "adverse": "no runtime change in PNGcommit; payloadceilings remain failed",
+      "evidence": "9a60e1cfdd76f635515d17e9a56ba3fd9ccb125d"
+    },
+    {
+      "commit": "970c9f807bd82b6c3e731aadef3585ee6b071523",
+      "change": "One-pass worker compression at existing build producer",
+      "before_after": "HTMLgzip1427769\u21921346874; Brotli1360667\u21921281514; raw2194300\u21922089396",
+      "verification": "Matched complete Bun1.4.4/ELK0.11.1 builds; emitted-worker browser ownerP, minifier2P, coretypesP, lint3filesP; independent scope/value review",
+      "adverse": "Peak buildRSS554312\u2192691384KiB; gzip budget still12374over; six-pass candidate timed out55s and is unshipped",
+      "evidence": "d5db3cea94a798aaa1010b14c6fbbbea597e4b28"
+    },
+    {
+      "commit": "1693c2a2b7fd93cb5da11f1a358d162180fa19cc",
+      "change": "Normal current-main integration; existing ownership/capture and original caps retained",
+      "verification": "522local owner passes, core typing/lint; independent boundary probes.36fresh calls;27returned products exact,9namedrefusals unchanged. Actualemitted workerP/budgetF. Final930CI terminalfailed withsameenrolled loss classes.",
+      "adverse": "Main39\u2192PR1693 completeHTML gzip-74739/Br+183864bytes; peakbuildRSS+252292KiB; CIgzip still4886over. No timingratio.",
+      "evidence": "5958c1c2b42e8e08d0a95d5563688c9976d459f3"
+    },
+    {
+      "commit": "bbda2112af8d791d8628a3769c86084e4cb962b3",
+      "change": "Specialize private standalone dictionary from actual consumed bytes; no renderer or cap change",
+      "before_after": "HTML gzip1348449 to1310748; Brotli1282268 to1245137; raw2091362 to2186915",
+      "verification": "Byte-identical packed/full worker; existing browser/budget2P504assert; focused46P314assert; coretypes0/lintP; exact-head CI original standalone budget and browser-siteP",
+      "adverse": "Raw+95553; main39Brotli still+146733; buildRSS674760KiB, no speed/memory ratio. CI remains failed on Sparse32/lazy/demo/advisory.",
+      "evidence": "9c0e14b18394925a0160812f4bc85e3df07bedcc"
+    }
+  ],
+  "restored_from": "dd7f8e9da:handoff-20261105-1637/handoff.tar.gz; historical lease expired and not reactivated",
+  "integration_status": "Main39 merged normally in1693; source bbda changes only private build dictionary, owner tests, notices and worklog. CI synthetic merge b64842fa has exact source tree172519b5; full readiness remains blocked.",
+  "current_ci_status": {
+    "head": "bbda2112af8d791d8628a3769c86084e4cb962b3",
+    "run": 42324034140,
+    "status": "completed",
+    "conclusion": "failure",
+    "tested_checkout": "b64842fa9d79a8d01cbef182fec6ada6363ef875",
+    "tree": "172519b567885f663c186c19ae9a4ed899afb6b9",
+    "source_tree_equal": true,
+    "remaining": "Sparse32 proof cap; lazy/demo/editor-empty payload budgets; generated-layout advisory",
+    "standalone_budget": "passed"
+  }
+}
