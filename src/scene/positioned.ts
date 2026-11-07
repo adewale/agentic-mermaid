@@ -156,13 +156,16 @@ export function positionedPaintCertification(request: ResolvedRenderRequest, lay
   const existing = native.get(layout)?.get(request)
   const drawing = existing?.drawing ?? retainedNativeDrawing(request, layout)
   if (drawing) {
-    const entry = native.get(layout)!.get(request)!
+    const requests = native.get(layout)!
+    const entry = requests.get(request)!
     observeCache('paint-certification', entry.phase === 'certified' ? 'hit' : 'miss', undefined, 'native')
     if (entry.phase === 'certified') return entry.certification
     const evidence = entry.evidence
     const certification = certifyNativePaint(evidence.header, evidence.paint, retainedFamilyProjection(layout), { outputSupported: !request.appearance.colors.shadow })
     const retained: RetainedNativeDrawing = Object.freeze({ svg: drawing.svg, preparedText: drawing.preparedText, certification })
-    native.get(layout)!.set(request, { phase: 'certified', drawing: retained, producer: entry.producer, certification })
+    if (positionedApply(positionedWeakGet, requests, [request]) === entry) {
+      requests.set(request, { phase: 'certified', drawing: retained, producer: entry.producer, certification })
+    }
     const lower = resolvedRenderExecutionPlanOf(request).family.lowerScene
     if (entry.producer === nativeDrawingOf(lower) && entry.producer === originalNativeDrawingOf(lower)) retainNativeDrawing(request, layout, retained)
     else {

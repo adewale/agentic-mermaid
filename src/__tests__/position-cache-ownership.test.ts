@@ -374,7 +374,7 @@ test('a producer changed between drawing and certification cannot publish a reta
     import { withRenderStageObserver } from './src/render-stages.ts'
     import { resolveRenderRequestForExecution } from './src/render-contract.ts'
     import { positionFamilyForNativeRender } from './src/positioning.ts'
-    import { retainedNativeDrawing } from './src/scene/positioned.ts'
+    import { retainedNativeDrawing, positionedPaintCertification } from './src/scene/positioned.ts'
     import { borrowedPositioned, cachedNativeDrawing, retainNativeDrawing, retainOwnedNativeSvgPositioned } from './src/experimental/position-cache.ts'
     const lower = getFamily('sequence').lowerScene
     const original = nativeDrawingOf(lower)
@@ -472,6 +472,25 @@ test('a producer changed between drawing and certification cannot publish a reta
     for (const key of pressureKeys.slice(3)) {
       assert.equal(pressureProbe(key).hit, undefined, 'changed-producer probes must not age drawing admission')
     }
+
+    const ownedRequest = resolveRenderRequestForExecution(source + String.fromCharCode(10) + ' ProducerB->>ProducerA: reentrant ownership', {}, 'svg')
+    const ownedLayout = positionFamilyForNativeRender(ownedRequest)
+    assert.ok(retainedNativeDrawing(ownedRequest, ownedLayout))
+    let replacement
+    globalThis[symbol] = event => {
+      if (!replacement && event.owner === 'paint-certification' && event.outcome === 'miss' && event.detail === 'native') {
+        inheritNativeDrawing(customSource, lower)
+        replacement = retainedNativeDrawing(ownedRequest, ownedLayout)
+      }
+    }
+    const beforeReentrantCalls = customCalls
+    positionedPaintCertification(ownedRequest, ownedLayout)
+    delete globalThis[symbol]
+    assert.ok(replacement)
+    assert.equal(retainedNativeDrawing(ownedRequest, ownedLayout), replacement,
+      'an earlier certification must not overwrite a newer reentrant drawing')
+    assert.equal(customCalls, beforeReentrantCalls + 1)
+    inheritNativeDrawing(originalSource, lower)
   `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
   expect(child.stderr).toBe('')
   expect(child.status).toBe(0)

@@ -1,4 +1,3 @@
-import { synchronousResult } from './shared/synchronous.ts'
 import { parseSemVer } from './capability-negotiation.ts'
 
 /** Trusted pixel metrics. Executable profiles never enter diagram/config data. */
@@ -161,9 +160,7 @@ export function withTextMeasurementExecution<T>(execution: TextMeasurementExecut
   activeExecution = execution
   activeFontFamily = execution?.fontFamily ?? fontFamily
   try {
-    // Cleared scopes invoke host measurement callbacks; their consumers own
-    // return-value validation and its diagnostics.
-    return execution ? synchronousResult(run()) : run()
+    return run()
   } finally {
     activeExecution = previous
     activeFontFamily = previousFont

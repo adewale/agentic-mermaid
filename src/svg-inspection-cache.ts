@@ -1,4 +1,3 @@
-import { synchronousResult } from './shared/synchronous.ts'
 // Inspection results live only for one synchronous graphical execution. Keys
 // are the exact immutable SVG bytes; every rewrite therefore gets new evidence.
 // Bounds also apply to hostile extension output and nested render calls.
@@ -18,7 +17,7 @@ export function withSvgInspectionCache<T>(run: () => T): T {
   active = new Map()
   retainedCharacters = 0
   entries = 0
-  try { return synchronousResult(run()) } finally {
+  try { return run() } finally {
     active = previous
     retainedCharacters = previousCharacters
     entries = previousEntries

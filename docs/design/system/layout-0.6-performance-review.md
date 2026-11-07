@@ -197,3 +197,15 @@ Case230 repeat walls 311.4/260.6 ms, edit 406.1 ms; case 372 239.5/243.4/231.4 m
 Large elapsed gaps and three windows per case preclude a CPU speedup claim.
 The earlier full cache inventory still applies; no async/SoA/packed-index change
 is supported by these observations.
+
+## Finite invariant cleanup: rejected flat storage trial — 7 November
+
+At `b9502e98793c34c82cc397409e935550eefa4e0b`, a fresh cache0 SHA201 profile
+preceded an external flat-column crossing candidate. Aggregate crossing self /
+inclusive elapsed sample weights across two repeats and one edit changed
+35.406/48.078→29.441/39.617ms; these are not exclusive CPU durations. All four
+profiled SVGs/entire receipts remain exact. Fully consumed, sampling-disabled
+ABBA processes then gave repeat medians179/322ms for controls versus440/484ms
+for candidates; edit medians203/248 versus287/343ms. Process peak RSS overlaps
+without a consistent win. Retain no flat-storage rewrite and claim no speedup.
+Raw profiles, equal products and adverse costs remain in `invariant-plan-62d`.

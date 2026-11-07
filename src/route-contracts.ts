@@ -1012,9 +1012,10 @@ export function recertifyReroutedEdge(edge: PositionedEdge, saved: RouteCertific
 }
 
 /** Commit a post-certification repair with its label seat and fresh route facts. */
-export function commitReroutedEdge(edge: PositionedEdge, candidate: Pick<PositionedEdge, 'points' | 'labelPosition'>, sourceNode?: PositionedNode, targetNode?: PositionedNode): void {
+export function commitReroutedEdge(edge: PositionedEdge, candidate: { points: Point[]; labelPosition: Point | undefined }, sourceNode?: PositionedNode, targetNode?: PositionedNode, context?: Pick<LaneContext, 'routeChannelGeometry'>): void {
   const saved = edge.routeCertificate
-  edge.points = candidate.points
+  if (context) setRoutePoints(context, edge, candidate.points)
+  else edge.points = candidate.points
   edge.labelPosition = candidate.labelPosition
   recertifyReroutedEdge(edge, saved, sourceNode, targetNode)
 }
@@ -1478,10 +1479,7 @@ function repairSharedLabelChannel(edge: PositionedEdge, positioned: { nodes: Pos
     }
   }
   if (best) {
-    const saved = edge.routeCertificate
-    edge.points = best.points
-    if (edge.label) edge.labelPosition = best.label
-    recertifyReroutedEdge(edge, saved, source, target)
+    commitReroutedEdge(edge, { points: best.points, labelPosition: edge.label ? best.label : edge.labelPosition }, source, target, ctx)
     return true
   }
   return false
@@ -1901,7 +1899,6 @@ export function separateEdgeLabelPills(
 function collapseTinyEndpointSegments(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], style: LabelMetricsStyle): void {
   const nodeMap = indexRouteNodes(nodes)
   for (const edge of edges) {
-    const saved = edge.routeCertificate
     let changed = false
     let candidate = edge.points
     for (const source of [true, false]) {
@@ -1916,8 +1913,7 @@ function collapseTinyEndpointSegments(nodes: readonly PositionedNode[], edges: r
       changed = true
     }
     if (changed && routeCandidateMarkersClear(edge, candidate, edges, style)) {
-      edge.points = candidate
-      recertifyReroutedEdge(edge, saved, nodeMap.get(edge.source), nodeMap.get(edge.target))
+      commitReroutedEdge(edge, { points: candidate, labelPosition: edge.labelPosition }, nodeMap.get(edge.source), nodeMap.get(edge.target))
     }
   }
 }
@@ -1943,8 +1939,7 @@ export function repairMarkerTerminals(positioned: { nodes: PositionedNode[]; edg
       clear = !hasDirectLaneBlocker(edge, a[axis.cross], Math.min(a[axis.main], b[axis.main]), Math.max(a[axis.main], b[axis.main]), ctx, axis)
     }
     if (!clear) continue
-    edge.points = points
-    recertifyReroutedEdge(edge, edge.routeCertificate, source, target)
+    commitReroutedEdge(edge, { points, labelPosition: edge.labelPosition }, source, target, ctx)
   }
 }
 

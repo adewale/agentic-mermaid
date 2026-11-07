@@ -23,7 +23,7 @@ import { layoutMermaidWithReceipt } from '../agent/core.ts'
 import { receiptOf, resolveRenderRequestForExecution } from '../render-contract.ts'
 import type { PositionedRadarChart } from '../radar/types.ts'
 import { pngFixture } from './helpers/png-fixture.ts'
-import { createTextMeasurementExecution, withTextMeasurementExecution, customTextMeasurementActive } from '../text-measurement-profile.ts'
+import { createTextMeasurementExecution } from '../text-measurement-profile.ts'
 import { Resvg } from '@resvg/resvg-js'
 import { join } from 'node:path'
 
@@ -405,16 +405,4 @@ describe('trusted host pixel measurement profiles', () => {
     expect(svg.receipt.sharedRequestDigest).toBe(native.receipt.sharedRequestDigest)
     expect(native.receipt.textMeasurement).toEqual({ id: 'test:font-metrics', version: '1.0.0' })
   })
-})
-
-
-test('host measurement scopes reject asynchronous escape and restore the default context', () => {
-  const execution = createTextMeasurementExecution(profile(), 'Inter')
-  for (const result of [Promise.resolve(1), { then() {} }]) {
-    expect(() => withTextMeasurementExecution(execution, () => {
-      expect(customTextMeasurementActive()).toBe(true)
-      return result
-    })).toThrow('must be synchronous')
-    expect(customTextMeasurementActive()).toBe(false)
-  }
 })
