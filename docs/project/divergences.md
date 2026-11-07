@@ -782,7 +782,7 @@ its apostrophe/backslash counterexample remains in `agent-source-map.test.ts`.
 
 These are retained only because they explain guardrails that may otherwise look excessive:
 
-- **Opaque fidelity:** opaque bodies serialize from preserved `body.source`, not normalized `canonicalSource`, so indentation/comments/source text survive parse → serialize.
+- **Opaque fidelity:** opaque bodies serialize from preserved `body.source` rather than reconstructing it from `canonicalSource`, so indentation/comments/source text survive parse → serialize.
 - **`am parse | am serialize`:** JSON payloads preserve flowchart styling maps and defensively normalize loose SDK-shaped subgraphs.
 - **Subgraph payload hardening:** `synthesizeFromGraph` tolerates missing `children`, null entries, cyclic references, non-tuple map arrays, and non-integer linkStyle keys.
 - **Timeline mutation:** timeline edits update `canonicalSource`, validate mutation text, allocate unique IDs, and fall back to opaque for header-suffix/lossy syntax.

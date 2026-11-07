@@ -362,7 +362,8 @@ Family descriptors can opt into `canonicalSource: 'preserved'` when indentation
 is part of their grammar. This keeps the authored post-wrapper body executable
 after copying, while universal init configuration remains owned by the envelope.
 Omitting the field keeps the default canonical projection; other values fail
-registration. AgentFlow and Venn use this policy.
+registration. Use this policy for grammar-owned indentation, including YAML,
+tree hierarchy and indented owned text.
 `buildSourceMap` also receives the published, unmasked bytes as
 `context.canonicalSource`; its existing source argument keeps universal
 accessibility masking for compatibility with older source-map producers.
