@@ -5,30 +5,13 @@ import { escapeAttr, escapeXml } from '../multiline-utils.ts'
 import { canvasOf, f, labelRect, retainedLabelBounds, retainedLabelGeometry } from '../positioned-views/geometry.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
-import type { MarkerDescriptor } from '../scene/ir.ts'
 import { serializeMarkerResources } from '../scene/marker-resources.ts'
-import { requirementArrow as defaultArrow, requirementMarkerTerminal } from './markers.ts'
+import { requirementArrow as defaultArrow, requirementContains as defaultContains, requirementMarkerTerminal } from './markers.ts'
 import { diagramTitleFields } from '../styles.ts'
 import { buildStyleBlock, svgOpenTag } from '../theme.ts'
 import type { RenderContext } from '../types.ts'
 import type { PositionedRequirementDiagram } from './types.ts'
 
-const defaultContains: MarkerDescriptor = {
-  id: 'requirement-contains',
-  shape: 'circle',
-  size: { width: 12, height: 12 },
-  ref: { x: 0, y: 6 },
-  orient: 'auto',
-  units: 'userSpaceOnUse',
-  geometry: {
-    kind: 'compound',
-    children: [
-      { kind: 'circle', cx: 6, cy: 6, r: 5 },
-      { kind: 'path', d: 'M2 6H10M6 2V10' },
-    ],
-  },
-  paint: { fill: 'var(--bg)', stroke: 'var(--_arrow)', strokeWidth: '1' },
-}
 export function lowerRequirementDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContext<PositionedRequirementDiagram>): DrawingDocument<T> {
   const { positioned: p, colors } = ctx,
     transparent = ctx.resolved.renderOptions.transparent ?? false,
