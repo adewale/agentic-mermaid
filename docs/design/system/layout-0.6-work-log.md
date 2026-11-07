@@ -55,29 +55,36 @@ Brotli loss, preserving decoded worker bytes, ownership and browser contracts.
 
 ## Local circle detour — 7 November
 
-From `6aa0ee45d9b6052addcb77036c1f7ba4c13b2cb4`, existing Native case230 has a
-0.453px circle/shaft contact. Profile first: the shared contact pass is about
-2.1ms inclusive per case372 call, not a dominant CPU hotspot. Staging two-point
-inputs reduces230 support constructions111→68 but leaves the product exact;
-stop it. First whole-band proposals fail caption separation with4,724 units
-remaining, so reducing construction alone does not close the loss.
+From `6aa0ee45d9b6052addcb77036c1f7ba4c13b2cb4`, Native case230 has a 0.453px
+circle/shaft contact. Profile first: contact work is about 2.1ms inclusive per
+case372 call, not a CPU hotspot. Staged two-point inputs reduce constructions
+111→68 but leave the product exact; stop that probe. The first whole-band
+proposal fails caption separation with 4,724 units remaining.
 
-Reuse existing local terminal detours before whole-band replacements only for
-painted contacts. Case230 proof U362,041→P362,293; selected actual shaft pixels
-323→364/364 contribute, hidden41→0 and attenuated85→0. Only this shaft and
-its generated scope change; all17 identities,40 relations,27 text programs,
-caption/marker/endpoint attributes and normalized CSS remain. Area and17 crossings
-stay fixed; bends104→106, wire+19.156 (+0.102%). SVG+32raw/+7gzip/Brotli unchanged.
-Full standalone adds104raw/29gzip9/141Brotli11 bytes; caps/defaults/cache unchanged.
-The new16.90s build/662,032KiB peakRSS is descriptive, not a speed/memory ratio.
+`47aed12780985e3b96e258db1485649a22bc183d` tries existing terminal repairs first:
+230 proof U362,041→P362,293; selected shaft contribution 323→364/364 pixels,
+hidden 41→0, attenuated 85→0. Only the shaft/scope change; all17 identities,
+40 relations,27 text programs, caption/marker/port attributes and CSS remain.
+Area/17 crossings stay fixed; bends104→106, wire+19.156 (+0.102%). SVG adds
+32raw/7gzip bytes; Brotli unchanged. Full CI compares1,748 records: nine SVGs
+change, no delivery/proof downgrade, no new circle contact or warning. But SHA201
+crossings8→9 despite wire−147.1; do not hide that quality cost.
 
-Owning case1RED→4GREEN (both backends/old and new witnesses); combined owners
-572P with18 missing-JSDOM loader failures, types/lintP. Named old regressions
-Native17/ELK296/362 and ELK230 stay exact P; Native33 stays P with a different
-terminal path. Cases152/372 stay exact U. Actual standalone budget/Blob-worker owners pass2P504 assertions. Full matched CI
-is still pending; do not infer preservation from helpers.
-Evidence: `contact-producer-6aa`. Next: inspect the entire existing CI differential
-for newly lost circle delivery/ink and retain all geometry/payload costs.
+Refine from47aed: keep the first geometry-clear band's successful admission;
+try the existing local terminal repair once after that band is rejected, before
+further global lanes. Fresh201 is exact to the old SVG;230 SVG/entire receipt are
+exact to47aed, retaining the actual ink repair. Later-band behavior still needs
+full CI qualification. No new cache, body domain, cap, default or version change.
+
+Owning1RED→4GREEN; four added shortest-band orientations fail at47aed and pass
+after refinement. Refined combined owners576P/18 missing-JSDOM loader failures;
+core types/lint pass.
+Full production HTML versus14bec: +332raw,−57gzip9,+183Brotli11 bytes.
+The16.08s build/722,140KiB peakRSS is descriptive, not a performance ratio.
+The refined actual standalone browser/budget owners pass2P504 assertions; new
+matched CI remains pending at this commit. Evidence: `contact-producer-6aa`. Remaining152/372 U,
+Sparse32 and ER256 refusal are separate. Next: qualify the narrowed fallback's
+whole-corpus outcomes and retain every adverse geometry/resource change.
 
 ## Painted-frame expansion reverted — 7 November
 

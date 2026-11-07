@@ -189,7 +189,8 @@ remaining, before the later exhaustion. Stop this resource-work hypothesis as a
 repair; no cache is added and no helper-only optimization is retained.
 
 The separate correctness intervention reuses existing local terminal proposals
-before whole-band replacements for painted contacts. It changes output/proof work,
+after the first geometry-clear band fails ink admission, before further global
+lanes; a successful first band stays preferred. It changes output/proof work,
 so before/after timing would not establish an equivalent-work performance ratio.
 Raw profiles, source maps, RSS/heap and stopped drafts remain in `contact-producer-6aa`.
 Case230 repeat walls 311.4/260.6 ms, edit 406.1 ms; case 372 239.5/243.4/231.4 ms.

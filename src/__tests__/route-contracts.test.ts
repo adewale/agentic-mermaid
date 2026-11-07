@@ -2913,6 +2913,29 @@ for(const [style,animate,animation,dash] of [
  if(dash){expect(edge.points).toEqual(old);expect(after.svg).toBe(before.svg)}
  else{expect(edge.points).not.toEqual(old);expect(after.points.some(([,y])=>y!>123)).toBe(true)}
 })
+for (const transpose of [false, true]) for (const reverse of [false, true]) it(`retains an admitted shortest circle-clear band: transpose=${transpose}, reverse=${reverse}`, () => {
+ const point = (x: number, y: number) => transpose ? { x: y, y: x } : { x, y }
+ const box = (id: string, x: number, y: number, width: number, height: number, shape: PositionedNode['shape'] = 'rectangle'): PositionedNode => ({ id, label: id, shape, ...point(x, y), width: transpose ? height : width, height: transpose ? width : height })
+ const nodes = [box('S', 0, 100, 40, 20), box('T', 200, 0, 40, 20), { ...box('C', 19.578, 40, 40, 40, 'circle'), inlineStyle: { fill: '#fff', stroke: '#000', 'stroke-width': '.75' } }]
+ let points = [[20,100],[20,30],[220,30],[220,20]].map(([x,y]) => point(x!,y!))
+ if (reverse) points = points.toReversed()
+ const edge: PositionedEdge = { source: reverse ? 'T' : 'S', target: reverse ? 'S' : 'T', style: 'solid', hasArrowStart: false, hasArrowEnd: true, endMarker: 'arrow', points }
+ const endpoints = [points[0]!, points.at(-1)!]
+ repair(nodes, [edge], { direction: transpose ? (reverse ? 'RL' : 'LR') : (reverse ? 'BT' : 'TB') }, undefined, [], resolveRenderStyle())
+ const tags: Array<{ name: string; attrs: Record<string,string> }> = []
+ const parser = new SaxesParser({ xmlns: true })
+ parser.on('opentag', tag => tags.push({ name: tag.local, attrs: Object.fromEntries(Object.values(tag.attributes).map(attribute => [attribute.name, attribute.value])) }))
+ parser.write(renderSvg({ positioned: { width: 340, height: 340, nodes, edges: [edge], groups: [] }, colors: { bg: '#fff', fg: '#111', embedFontImport: false }, resolved: { renderOptions: {} } })).close()
+ const shaft = tags.find(tag => tag.attrs['data-role'] === 'edge')!.attrs
+ const actual = shaft.points!.split(/\s+/).map(pair => { const [x,y] = pair.split(',').map(Number); return { x: x!, y: y! } })
+ expect([actual[0], actual.at(-1)]).toEqual(endpoints)
+ const wire = actual.slice(1).reduce((sum, p, i) => sum + Math.abs(p.x - actual[i]!.x) + Math.abs(p.y - actual[i]!.y), 0)
+ expect(wire).toBeCloseTo(Math.abs(endpoints[0]!.x - endpoints[1]!.x) + Math.abs(endpoints[0]!.y - endpoints[1]!.y), 6)
+ const circle = tags.find(tag => tag.name === 'circle')!.attrs, cx = Number(circle.cx), cy = Number(circle.cy)
+ const distance = Math.min(...actual.slice(1).map((b,i) => { const a = actual[i]!, dx = b.x-a.x, dy = b.y-a.y, t = Math.max(0, Math.min(1, ((cx-a.x)*dx+(cy-a.y)*dy)/(dx*dx+dy*dy))); return Math.hypot(a.x+t*dx-cx,a.y+t*dy-cy) }))
+ expect(distance - Number(circle.r) - Number(circle['stroke-width'])/2 - Number(shaft['stroke-width'])/2).toBeGreaterThan(0)
+ expect([shaft['data-from'],shaft['data-to']]).toEqual([edge.source,edge.target])
+})
 it.each((['elk', 'agentic'] as const).flatMap(backend => (['labelled reciprocal', 'bounded terminal'] as const).map(witness => [backend, witness] as const)))('clears the final painted circle contact in %s / %s', (backend, witness) => {
  const source = witness === 'labelled reciprocal'
   ? readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-18-cuts.mmd', import.meta.url), 'utf8')

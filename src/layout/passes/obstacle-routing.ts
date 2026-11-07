@@ -88,7 +88,7 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
   const paintWork = graphInkWork()
   const payPaint = (units: number): boolean => { chargeWork?.(units); return (paintWork.remaining -= units) >= 0 }
   const paintedContact = style && withinGraphInkBudget(nodes, edges, groups) ? circleShaftPaintContext(style, payPaint) : undefined
-  let currentEdge: PositionedEdge, paintedRepair = false
+  let currentEdge: PositionedEdge, paintedRepair = false, triedTerminals = false
   const blockedBy = (a: Point, b: Point, node: PositionedNode): boolean => segmentThroughShape(a, b, node)
     || paintedRepair && node.id !== currentEdge.source && node.id !== currentEdge.target && paintedContact!(currentEdge, [a, b], node) !== false
   const throughNode = (pts: Point[], skip: ReadonlySet<string>): boolean => {
@@ -196,7 +196,15 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     const lanes = [...new Set(laneSet)].sort((p, q) => Math.abs(p - mean) - Math.abs(q - mean))
     for (const lane of lanes) {
       const route = simplifyPolyline([start, pt(m1, start[f.cross]), pt(m1, lane), pt(m2, lane), pt(m2, end[f.cross]), end])
-      if (!throughNode(route, skip) && routeClearOfNodes(route, nodes, skip, chargeWork) && clearHeaders(route) && admitPaint(route)) return route
+      if (!throughNode(route, skip) && routeClearOfNodes(route, nodes, skip, chargeWork) && clearHeaders(route)) {
+        if (admitPaint(route)) return route
+        // Retain an admitted first band; after the first rejected painted band,
+        // try the existing local repair before spending work on further lanes.
+        if (paintedRepair && !triedTerminals) {
+          const local = detourTerminals(pts, skip)
+          if (local) return local
+        }
+      }
     }
     return null
   }
@@ -234,13 +242,14 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     return null
   }
   const detourTerminals = (pts: Point[], skip: ReadonlySet<string>): Point[] | null => {
+    triedTerminals = true
     const route = detourTerminalSegment(pts, skip)
     if (route) return route
     chargeWork?.(pts.length) // reverse-domain reference initialization
     return detourTerminalSegment(pts.toReversed(), skip)?.reverse() ?? null
   }
   for (const edge of edges) {
-    currentEdge = edge; paintedRepair = false
+    currentEdge = edge; paintedRepair = false; triedTerminals = false
     chargeWork?.(1)
     if (edge.source === edge.target || edge.points.length < 2) continue
     const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
@@ -253,12 +262,8 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     // Off-outline endpoints are reanchorOffOutlineEndpoints' job; this pass only
     // relocates the interior of an otherwise port-exact route.
     if (!onShapeOutline(source, edge.points[0]!) || !onShapeOutline(target, edge.points[edge.points.length - 1]!)) continue
-    let route = shiftInteriorSegment(edge.points, skip)
-    // A local terminal detour retains the other seated route/caption corridors;
-    // try it before spending the paint allowance on whole-band replacements.
-    if (!route && paintedRepair) route = detourTerminals(edge.points, skip)
-    route ??= bracketOverBand(edge.points, skip)
-    if (!route && !paintedRepair) route = detourTerminals(edge.points, skip)
+    let route = shiftInteriorSegment(edge.points, skip) ?? bracketOverBand(edge.points, skip)
+    if (!route && !triedTerminals) route = detourTerminals(edge.points, skip)
     if (!route) continue // never-worse: no clean detour found, leave as-is
     const savedCert = edge.routeCertificate
     edge.points = route
