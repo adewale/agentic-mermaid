@@ -1,11 +1,13 @@
 import type { AgentflowBody } from '../agentflow/types.ts'
 import type { NormalizedMermaidSource } from '../mermaid-source.ts'
+import { stripMermaidInitDirectives } from '../mermaid-source.ts'
+import type { MermaidGraph } from '../types.ts'
 import type { FamilyDescriptor } from './family-registry.ts'
 import type { ParsedDiagram } from './types.ts'
 
 interface NativeModel {
   readonly parserSource: string
-  readonly body: AgentflowBody
+  readonly graph: MermaidGraph
 }
 
 interface ParsedModel {
@@ -14,6 +16,7 @@ interface ParsedModel {
   readonly canonicalSource: string
   readonly sourceText: string
   readonly authoredBody: string
+  readonly directiveSpellings: readonly string[]
   readonly owner: FamilyDescriptor
 }
 
@@ -25,11 +28,11 @@ const publications = new WeakMap<ParsedDiagram, ParsedModel>()
 const handoffs = new WeakMap<ParsedRenderModelHandoff, { readonly parsed: ParsedModel; readonly source: string }>()
 const requestModels = new WeakMap<Readonly<NormalizedMermaidSource>, NativeModel>()
 
-/** Called only by the native parser before its mutable public body escapes.
- * The private copy is a model handoff, not rendered/layout output. Its graph
- * is copied by the presentation projection; metadata is only read there. */
-export function retainParsedAgentflowModel(body: AgentflowBody, parserSource: string): void {
-  unpublished.set(body, { parserSource, body: structuredClone(body) })
+/** Called only by the native parser with the shared projector's fresh graph
+ * before the mutable public body escapes. Retain the rendering model, not a
+ * second copy of arbitrary YAML, source mappings or layout/render output. */
+export function retainParsedAgentflowModel(body: AgentflowBody, parserSource: string, graph: MermaidGraph): void {
+  unpublished.set(body, { parserSource, graph })
 }
 
 export function publishParsedRenderModel(
@@ -48,6 +51,7 @@ export function publishParsedRenderModel(
     canonicalSource: diagram.canonicalSource,
     sourceText,
     authoredBody,
+    directiveSpellings: diagram.meta.initDirectives.map(directive => directive.raw),
     owner: family,
   })
 }
@@ -73,7 +77,14 @@ function currentModel(diagram: ParsedDiagram): ParsedModel | undefined {
 /** Preserve indentation significant to YAML instead of reconstructing its
  * body from canonicalSource's line-trimmed source-map coordinates. */
 export function ownedParsedRenderBody(diagram: ParsedDiagram): string | undefined {
-  return currentModel(diagram)?.authoredBody
+  const parsed = currentModel(diagram)
+  if (!parsed) return undefined
+  const current = diagram.meta.initDirectives
+  // Authored body layers may stay in place only while the envelope still
+  // owns those layers. Changed/removed layers are restored by wrapperPrefix
+  // from current metadata, with the same single authority as serialization.
+  return current.length === parsed.directiveSpellings.length && current.every((directive, index) => directive.raw === parsed.directiveSpellings[index])
+    ? parsed.authoredBody : stripMermaidInitDirectives(parsed.authoredBody)
 }
 
 export function prepareParsedModelHandoff(
@@ -103,8 +114,9 @@ export function admitParsedModelHandoff(
   requestModels.set(source, captured.parsed.native)
 }
 
-/** Only the native AgentFlow layout calls this. The model never crosses a
- * public rendering result or generic family context. */
-export function ownedAgentflowRenderModel(source: Readonly<NormalizedMermaidSource>): AgentflowBody | undefined {
-  return requestModels.get(source)?.body
+/** Each layout owns its draft: wrapping and layout cannot mutate the retained
+ * source-bound model. It never crosses a public result or family context. */
+export function ownedAgentflowRenderGraph(source: Readonly<NormalizedMermaidSource>): MermaidGraph | undefined {
+  const model = requestModels.get(source)
+  return model ? structuredClone(model.graph) : undefined
 }

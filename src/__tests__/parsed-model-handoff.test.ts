@@ -1,9 +1,11 @@
 import { expect, test } from 'bun:test'
 import { runInNewContext } from 'node:vm'
-import { mutateChecked, parseRegisteredMermaid, renderMermaidSVGWithReceipt, serializeMermaid, type ParsedDiagram } from '../agent/index.ts'
+import { mutateChecked, parseRegisteredMermaid, renderMermaidASCIIWithReceipt, renderMermaidPNGWithReceipt, renderMermaidSVGWithReceipt, serializeMermaid, type ParsedDiagram } from '../agent/index.ts'
 import { renderMermaidSVGWithReceipt as renderRootSVG } from '../index.ts'
+import { renderMermaidPNGInBrowserWithReceipt } from '../browser-png.ts'
 import { getFamily, replaceFamilyForTest } from '../agent/families.ts'
 import { withParserObservation } from '../shared/parser-observation.ts'
+import { pngFixture } from './helpers/png-fixture.ts'
 
 const source = `---
 title: AgentFlow ownership
@@ -63,6 +65,34 @@ test('typed edits render their newly admitted source and retain nested metadata'
   expect(renderRootSVG(diagram, options).svg).toContain('Collect')
 })
 
+test('terminal rendering consumes the same owned model while preserving its source receipt', () => {
+  const diagram = parsed()
+  let statements = 0
+  const actual = withParserObservation('agentflow', event => {
+    if (event.unit === 'statement') statements++
+  }, () => renderMermaidASCIIWithReceipt(diagram, { colorMode: 'none' }))
+  expect(statements).toBe(0)
+  expect(actual).toEqual(renderMermaidASCIIWithReceipt(source, { colorMode: 'none' }))
+})
+
+test('native and browser PNG transport the owned model with the same drawing and receipt as source', async () => {
+  const diagram = parsed()
+  const pngOptions = { ...options, onWarning: () => {} }
+  expect(renderMermaidPNGWithReceipt(diagram, pngOptions)).toEqual(renderMermaidPNGWithReceipt(source, pngOptions))
+  const browser = async (input: ParsedDiagram | string) => {
+    let projected = ''
+    const result = await renderMermaidPNGInBrowserWithReceipt(input, options, { scale: 1 }, async (svg, context) => {
+      projected = svg
+      return {
+        png: pngFixture(context.rasterDimensions.width, context.rasterDimensions.height),
+        fontSources: ['embedded-data-uri'],
+      }
+    })
+    return { projected, result }
+  }
+  expect(await browser(diagram)).toEqual(await browser(source))
+})
+
 test('only a source-bound model owned by the current producer skips parser work', () => {
   const diagram = parsed()
   const render = (value: ParsedDiagram) => {
@@ -97,6 +127,16 @@ test('wrapper edits still control configuration and source receipts', () => {
   const reloaded = renderRootSVG(expected, options)
   expect(actual.svg).toBe(reloaded.svg)
   expect(actual.receipt.appearanceDigest).toBe(reloaded.receipt.appearanceDigest)
+})
+
+test('editing the directive envelope cannot leave an older body-authored config layer active', () => {
+  const diagram = parsed('agentflow-beta LR\n%%{init: {"themeVariables":{"primaryColor":"#f0b0b0"}}}%%\nA[Collect] --> B[Publish]')
+  diagram.meta.initDirectives.length = 0
+  const body = 'agentflow-beta LR\nA[Collect] --> B[Publish]'
+  expect(renderRootSVG(diagram, options)).toEqual(renderRootSVG(body, options))
+  const directive = '%%{init: {"themeVariables":{"primaryColor":"#c0ffd0"}}}%%'
+  diagram.meta.initDirectives.push({ raw: directive, parsed: { themeVariables: { primaryColor: '#c0ffd0' } } })
+  expect(renderRootSVG(diagram, options)).toEqual(renderRootSVG(`${directive}\n${body}`, options))
 })
 
 test('unowned and cross-realm parsed objects use current source, and wrong family cannot borrow a native model', () => {

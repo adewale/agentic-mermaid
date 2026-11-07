@@ -9,13 +9,13 @@ import { checkAllGraphAuthoredStyles } from '../shared/style-props.ts'
 import { parseAgentflow } from '../agentflow/parser.ts'
 import { projectAgentflowGraph } from '../agentflow/projection.ts'
 import { frontmatterTitle } from '../mermaid-source.ts'
-import { ownedAgentflowRenderModel } from '../agent/owned-render-model.ts'
+import { ownedAgentflowRenderGraph } from '../agent/owned-render-model.ts'
 
 export const AGENTFLOW_SVG_HOOKS = {
   statementEnds: flowchartStatementEnds,
   normalizeRequest: ctx => ({ renderOptions: resolveFlowchartRenderOptions(ctx.source.frontmatter, ctx.renderOptions) }),
   layout: ctx => {
-    const graph = projectAgentflowGraph(ownedAgentflowRenderModel(ctx.source) ?? parseAgentflow(ctx.source.authoredFamilyBody ?? ctx.source.familyBody))
+    const graph = ownedAgentflowRenderGraph(ctx.source) ?? projectAgentflowGraph(parseAgentflow(ctx.source.authoredFamilyBody ?? ctx.source.familyBody))
     checkAllGraphAuthoredStyles(graph)
     applyFlowchartLabelWrapping(graph, ctx.renderOptions, ctx.styleFace)
     const positioned = layoutGraphSync(graph, { ...ctx.renderOptions, graphLayout: nativeFamilyGraphLayout(graph, ctx.renderOptions), ...(ctx.styleFace ? { styleFace: ctx.styleFace } : {}), diagramTitle: frontmatterTitle(ctx.source.frontmatter) })
