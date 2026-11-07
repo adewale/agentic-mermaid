@@ -228,7 +228,7 @@ retained obligations; there is no published candidate report to serve as a gate.
 
 ## 3. Derived oracles — differential corpora
 
-The [correctness policy](https://github.com/adewale/agentic-mermaid/blob/389854aa1d121b2262325c281198d4f8e18a05c4/docs/project/correctness-policy.md) explains how differences
+The [correctness policy](https://github.com/adewale/agentic-mermaid/blob/3937fed6cb651914a70da6c8a6ecbda6f8cf181d/docs/project/correctness-policy.md) explains how differences
 found by these oracles become product fixes or deliberate divergences. Keep
 the original comparison results visible in either case.
 
