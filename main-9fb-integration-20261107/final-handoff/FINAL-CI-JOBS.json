@@ -1,0 +1,134 @@
+[
+  {
+    "id": 128392855580,
+    "name": "Expire label approvals of earlier heads",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  {
+    "id": 128392855692,
+    "name": "Select required checks",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  {
+    "id": 128392913132,
+    "name": "Quality gates",
+    "status": "completed",
+    "conclusion": "failure"
+  },
+  {
+    "id": 128392913147,
+    "name": "Renderer isolation (windows-latest)",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  {
+    "id": 128392913149,
+    "name": "MCP conformance",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  {
+    "id": 128392913162,
+    "name": "Renderer isolation (macos-15-intel)",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  {
+    "id": 128392913177,
+    "name": "Layout backend review evidence",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  {
+    "id": 128392913202,
+    "name": "Generated layout diagnostic (advisory)",
+    "status": "completed",
+    "conclusion": "failure"
+  },
+  {
+    "id": 128392913214,
+    "name": "CLI and single-binary tests",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  {
+    "id": 128392913246,
+    "name": "Build portable test artifacts",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  {
+    "id": 128392913280,
+    "name": "Independent semantic conformance / semantic",
+    "status": "in_progress",
+    "conclusion": null
+  },
+  {
+    "id": 128392913870,
+    "name": "Documentation checks",
+    "status": "completed",
+    "conclusion": "skipped"
+  },
+  {
+    "id": 128393245028,
+    "name": "Installed-package quickstarts",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  {
+    "id": 128393245030,
+    "name": "E2E (payload)",
+    "status": "completed",
+    "conclusion": "failure"
+  },
+  {
+    "id": 128393245042,
+    "name": "E2E (browser-site)",
+    "status": "in_progress",
+    "conclusion": null
+  },
+  {
+    "id": 128393245046,
+    "name": "E2E (tarball-consumer)",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  {
+    "id": 128393245056,
+    "name": "Unit tests (3/3)",
+    "status": "in_progress",
+    "conclusion": null
+  },
+  {
+    "id": 128393245062,
+    "name": "Unit tests (2/3)",
+    "status": "in_progress",
+    "conclusion": null
+  },
+  {
+    "id": 128393245083,
+    "name": "E2E (browser)",
+    "status": "in_progress",
+    "conclusion": null
+  },
+  {
+    "id": 128393245088,
+    "name": "E2E (dist-artifact)",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  {
+    "id": 128393245089,
+    "name": "E2E (tarball-consumer-node22)",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  {
+    "id": 128393245090,
+    "name": "Unit tests (1/3)",
+    "status": "in_progress",
+    "conclusion": null
+  }
+]
