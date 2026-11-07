@@ -87,7 +87,7 @@ function runtimeSource(source: string, path: string, schemaDocumentation: boolea
 
 interface BrowserBuild {
   onLoad(options: { filter: RegExp }, callback: (args: { path: string }) => { contents: string; loader: 'ts'; resolveDir: string } | undefined): void
-  onResolve(options: { filter: RegExp }, callback: (args: { path: string; resolveDir: string }) => { path: string } | undefined): void
+  onResolve(options: { filter: RegExp }, callback: (args: { path: string; resolveDir: string; kind?: string }) => { path: string } | undefined): void
 }
 
 /** Inline only canonical declaration leaves; runtime imports or initialization
@@ -165,11 +165,11 @@ function runtimeDefaultBackendSource(source: string, path: string): string {
 /** Share canonical runtime primitives through the existing browser backend
  * chunk. Error and generated-identity leaves keep one module identity without
  * separate requests. Source and Node retain their original modules. */
-function runtimeLayoutBackendSource(source: string, path: string): string {
+function runtimeLayoutBackendSource(source: string, path: string, lazyLayoutOptimization: boolean): string {
   const errorPath = resolve(dirname(path), 'certification-error.ts')
   const errors = readFileSync(errorPath, 'utf8')
   const leaf = ts.createSourceFile(errorPath, errors, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
-  const declarations = ['LayoutCertificationAttempt', 'LayoutCertificationError', 'DeferredDependencyError', 'deferredDependency']
+  const declarations = ['LayoutCertificationAttempt', 'LayoutCertificationError', 'OptionalLayoutBudgetExceeded', 'isOptionalLayoutBudgetExceeded', 'DeferredDependencyError', 'deferredDependency']
   if (leaf.statements.length !== declarations.length || leaf.statements.some((statement, index) =>
     !(ts.isInterfaceDeclaration(statement) || ts.isClassDeclaration(statement) || ts.isFunctionDeclaration(statement))
     || statement.name?.text !== declarations[index])) throw new Error('Unsupported canonical layout error declarations')
@@ -201,7 +201,11 @@ function runtimeLayoutBackendSource(source: string, path: string): string {
   }
   const gaps = readFileSync(resolve(dirname(path), 'link-rank-gap.ts'), 'utf8')
   const seeds = runtimeDeclarations(resolve(dirname(path), '../scene/seed.ts'), ['seedFrom', 'hashId', 'makeRng', 'nodeSeed', 'nodeRng'])
-  return `${errors}\n${identities}\n${gaps}\n${seeds}\n${ts.createPrinter().printFile(ts.factory.updateSourceFile(file, statements))}`
+  const order = runtimeDeclarations(resolve(dirname(path), '../shared/deterministic-order.ts'), ['compareCodePointStrings'])
+  const plainData = runtimeDeclarations(resolve(dirname(path), '../shared/plain-data.ts'), ['isPlainRecord', 'deepFreeze'])
+  const utf8 = runtimeDeclarations(resolve(dirname(path), '../shared/utf8.ts'), ['boundedUtf8ByteLength'])
+  const optimization = lazyLayoutOptimization ? withoutRuntimeImport(readFileSync(resolve(dirname(path), 'optimization-context.lazy.ts'), 'utf8'), path, './certification-error.ts', ['DeferredDependencyError']) : ''
+  return `${errors}\n${identities}\n${gaps}\n${seeds}\n${order}\n${plainData}\n${utf8}\n${optimization}\n${ts.createPrinter().printFile(ts.factory.updateSourceFile(file, statements))}`
 }
 
 /** Pipeline prose is for Node-side inspection and generated documentation.
@@ -338,7 +342,7 @@ function runtimeMutationSchemaSource(source: string, path: string): string {
 }
 
 /** Structural plugin interface works in both esbuild and Bun builds. */
-export function runtimeRenderContractPlugin({ schemaDocumentation = true, terminalAdapter = true, conformanceObservations = true, familyEditorMetadata = true, coalesceRuntimePrimitives = false, sourceOnlySceneAdmission = false } = {}) {
+export function runtimeRenderContractPlugin({ schemaDocumentation = true, terminalAdapter = true, conformanceObservations = true, familyEditorMetadata = true, coalesceRuntimePrimitives = false, sourceOnlySceneAdmission = false, lazyParserPositions = false, lazyLayoutOptimization = false } = {}) {
   return {
     name: 'runtime-render-contract',
     setup(build: BrowserBuild) {
@@ -355,10 +359,18 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
           resolve(args.resolveDir, args.path) === admission ? { path: sourceAdmission } : undefined)
       }
       if (coalesceRuntimePrimitives) {
+        const structurePath = fileURLToPath(new URL('../../src/svg-structure.ts', import.meta.url))
+        const postprocessPath = resolve(dirname(structurePath), 'svg-postprocess.ts')
+        build.onResolve({ filter: /[\\/]svg-postprocess\.ts$/ }, args => resolve(args.resolveDir, args.path) === postprocessPath ? { path: structurePath } : undefined)
+        build.onLoad({ filter: /[\\/]src[\\/]svg-structure\.ts$/ }, ({ path }) => path !== structurePath ? undefined : ({
+          contents: `${readFileSync(path, 'utf8')}\n${withoutRuntimeImport(readFileSync(postprocessPath, 'utf8'), path, './svg-structure.ts', ['scanSvgStartTags', 'transformSvgAttributes', 'transformSvgCssValues'])}`, loader: 'ts', resolveDir: dirname(path),
+        }))
         const grammarPath = fileURLToPath(new URL('../../src/shared/grammar-text.ts', import.meta.url))
         const syntaxPath = resolve(dirname(grammarPath), 'syntax-error.ts')
         const spansPath = resolve(dirname(grammarPath), 'source-spans.ts')
         const membershipPath = resolve(dirname(grammarPath), 'subgraph-membership.ts')
+        const parserPath = resolve(dirname(grammarPath), 'parser-source.ts')
+        if (lazyParserPositions) build.onResolve({ filter: /[\\/]parser-source\.ts$/ }, args => args.kind === 'dynamic-import' ? undefined : resolve(args.resolveDir, args.path) === parserPath ? { path: resolve(dirname(grammarPath), 'parser-source.lazy.ts') } : undefined)
         build.onResolve({ filter: /[\\/]syntax-error\.ts$/ }, args => resolve(args.resolveDir, args.path) === syntaxPath ? { path: grammarPath } : undefined)
         build.onResolve({ filter: /[\\/]source-spans\.ts$/ }, args => resolve(args.resolveDir, args.path) === spansPath ? { path: grammarPath } : undefined)
         build.onResolve({ filter: /[\\/]subgraph-membership\.ts$/ }, args => resolve(args.resolveDir, args.path) === membershipPath ? { path: grammarPath } : undefined)
@@ -366,16 +378,24 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
           contents: `${readFileSync(path, 'utf8')}\n${readFileSync(syntaxPath, 'utf8')}\n${runtimeDeclarations(spansPath, ['sourceLineStarts', 'sourcePointAt', 'sourceSpan'])}\n${runtimeDeclarations(membershipPath, ['SubgraphMembers', 'resolveSubgraphMembership', 'SubgraphMembership', 'createSubgraphMembership'])}`, loader: 'ts', resolveDir: dirname(path),
         }))
         const backendPath = fileURLToPath(new URL('../../src/layout/backend.ts', import.meta.url))
+        if (lazyLayoutOptimization) build.onResolve({ filter: /[\\/]optimization-context\.ts$/ }, args =>
+          resolve(args.resolveDir, args.path) === resolve(dirname(backendPath), 'optimization-context.ts') ? { path: backendPath } : undefined)
         const errorPath = resolve(dirname(backendPath), 'certification-error.ts')
         const identityPath = resolve(dirname(backendPath), '../shared/generated-identity.ts')
         const gapPath = resolve(dirname(backendPath), 'link-rank-gap.ts')
         const seedPath = resolve(dirname(backendPath), '../scene/seed.ts')
+        const orderPath = resolve(dirname(backendPath), '../shared/deterministic-order.ts')
+        build.onResolve({ filter: /[\\/]deterministic-order\.ts$/ }, args => resolve(args.resolveDir, args.path) === orderPath ? { path: backendPath } : undefined)
+        for (const name of ['plain-data', 'utf8']) {
+          const leafPath = resolve(dirname(backendPath), '../shared/' + name + '.ts')
+          build.onResolve({ filter: new RegExp('[\\\\/]' + name + '\\.ts$') }, args => resolve(args.resolveDir, args.path) === leafPath ? { path: backendPath } : undefined)
+        }
         build.onResolve({ filter: /[\\/]link-rank-gap\.ts$/ }, args => resolve(args.resolveDir, args.path) === gapPath ? { path: backendPath } : undefined)
         build.onResolve({ filter: /[\\/]generated-identity\.ts$/ }, args => resolve(args.resolveDir, args.path) === identityPath ? { path: backendPath } : undefined)
         build.onResolve({ filter: /[\\/]certification-error\.ts$/ }, args => resolve(args.resolveDir, args.path) === errorPath ? { path: backendPath } : undefined)
         build.onResolve({ filter: /[\\/]seed\.ts$/ }, args => resolve(args.resolveDir, args.path) === seedPath ? { path: backendPath } : undefined)
         build.onLoad({ filter: /[\\/]src[\\/]layout[\\/]backend\.ts$/ }, ({ path }) => path !== backendPath ? undefined : ({
-          contents: runtimeLayoutBackendSource(readFileSync(path, 'utf8'), path), loader: 'ts', resolveDir: dirname(path),
+          contents: runtimeLayoutBackendSource(readFileSync(path, 'utf8'), path, lazyLayoutOptimization), loader: 'ts', resolveDir: dirname(path),
         }))
         const preparedTextPath = fileURLToPath(new URL('../../src/shared/prepared-text.ts', import.meta.url))
         const rowsPath = resolve(dirname(preparedTextPath), 'text-rows.ts')

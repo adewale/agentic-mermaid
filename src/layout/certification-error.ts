@@ -12,6 +12,10 @@ export class LayoutCertificationError extends Error {
   }
 }
 
+/** Optional search stops without consuming the established recovery policy. */
+export class OptionalLayoutBudgetExceeded extends Error {}
+export function isOptionalLayoutBudgetExceeded(error: unknown): boolean { return error instanceof OptionalLayoutBudgetExceeded }
+
 /** Internal control flow for an async entry's not-yet-loaded provider.
  * Synchronous entries retain their bundled provider and never throw this. */
 export class DeferredDependencyError extends Error {

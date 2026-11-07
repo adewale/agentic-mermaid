@@ -717,6 +717,64 @@ describe('async family-loaded browser renderer', () => {
     }
   })
 
+  test.each(['elk', 'agentic'] as const)('%s preserves opt-in layout evidence and font metrics across dependency replay', async backend => {
+    const page = await browser.newPage()
+    const source = 'flowchart TD\nA[One]\nB[Two]\nC[Three]\nD[Four]\nA --> D\nB --> C'
+    const options = { security: 'strict' as const, fontMetrics: 'bundled-inter' as const,
+      graphLayout: { backend, quality: 'balanced' as const, viewport: { width: 800, height: 600 } } }
+    try {
+      await page.goto(`${base}/blank.html`)
+      const actual = await page.evaluate(async ({ entry, source, options }) => {
+        const api = await import(entry)
+        const cold = await api.renderMermaidSVGWithReceiptAsync(source, options)
+        const warm = await api.renderMermaidSVGWithReceiptAsync(source, options)
+        return { cold, warm }
+      }, { entry: `${base}/dist/browser-lazy/index.js`, source, options })
+      const expected = renderMermaidSVGWithReceipt(source, options)
+      expect(expected.receipt.layoutOptimization).toBeDefined()
+      expect(actual.cold).toEqual(expected)
+      expect(actual.warm).toEqual(expected)
+    } finally { await page.close() }
+  })
+
+  test('loads authored parser positions on demand and preserves cold and warm error locations', async () => {
+    const page = await browser.newPage()
+    const requests: string[] = []
+    const source = '---\ntitle: Broken\n---\n\n%% comment\nflowchart TD\n\n  B --> [oops'
+    page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
+    try {
+      await page.goto(`${base}/blank.html`)
+      await page.evaluate(async entry => {
+        const api = await import(entry)
+        await api.renderMermaidSVGWithReceiptAsync('flowchart TD\nA --> B', { security: 'strict' })
+      }, `${base}/dist/browser-lazy/index.js`)
+      const positions = lazyImplementationChunk('src/shared/parser-source.ts')
+      expect(requests.filter(path => path === positions)).toHaveLength(0)
+      const actual = await page.evaluate(async ({ entry, source }) => {
+        const api = await import(entry)
+        const errors = []
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try { await api.renderMermaidSVGWithReceiptAsync(source, { security: 'strict' }) } catch (error) {
+            const located = error as Error & { line?: number; column?: number; diagramType?: string }
+            errors.push({ error: String(error), line: located.line, column: located.column, diagramType: located.diagramType })
+          }
+        }
+        const recovered = await api.renderMermaidSVGWithReceiptAsync('flowchart TD\nA --> B', { security: 'strict' })
+        return { errors, recovered }
+      }, { entry: `${base}/dist/browser-lazy/index.js`, source })
+      let expected
+      try { renderMermaidSVGWithReceipt(source, { security: 'strict' }) } catch (error) {
+        const located = error as Error & { line?: number; column?: number; diagramType?: string }
+        expected = { error: String(error), line: located.line, column: located.column, diagramType: located.diagramType }
+      }
+      if (!expected) throw new Error('Expected synchronous parser failure')
+      expect(expected).toMatchObject({ line: 8, column: 9, diagramType: 'flowchart' })
+      expect(actual.errors).toEqual([expected, expected])
+      expect(actual.recovered).toEqual(renderMermaidSVGWithReceipt('flowchart TD\nA --> B', { security: 'strict' }))
+      expect(requests.filter(path => path === positions)).toHaveLength(1)
+    } finally { await page.close() }
+  })
+
   for (const [syntax, source] of [
     ['init directive', '%%{init: {"theme": "base"}}%%\nsequenceDiagram\n  Alice->>Bob: Configured'],
     ['flowchart metadata', 'flowchart LR\n  A@{ shape: rect, label: "Meta &amp; data" } --> B'],

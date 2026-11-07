@@ -1,5 +1,5 @@
 import { assessLayout, hardViolations, type RubricMetrics } from '../layout-rubric.ts'
-import { isOptionalLayoutBudgetExceeded } from './optimization-budget.ts'
+import { isOptionalLayoutBudgetExceeded } from './certification-error.ts'
 import { labelRect } from '../route-contracts.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import type { MermaidGraph, MermaidSubgraph, PositionedGraph, PositionedGroup, Point } from '../types.ts'
@@ -11,7 +11,7 @@ import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { prepareDisplayText, resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 import { observeFallback } from '../performance-observations.ts'
 import { graphTextBlock } from '../graph-text.ts'
-import { retainComparisonMetrics } from './non-regressing-alternative.ts'
+import { retainComparisonMetrics } from './optimization-context.ts'
 
 export { LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
 

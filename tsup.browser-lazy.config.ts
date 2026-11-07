@@ -29,7 +29,7 @@ export default defineConfig({
   external: [],
   // ELK, YAML and the HTML5 entity table load only when a diagram needs them.
   // Build-only facade twins preserve the synchronous source/Node APIs.
-  esbuildPlugins: [runtimeRenderContractPlugin({ schemaDocumentation: false, terminalAdapter: false, conformanceObservations: false, coalesceRuntimePrimitives: true, sourceOnlySceneAdmission: true }), {
+  esbuildPlugins: [runtimeRenderContractPlugin({ schemaDocumentation: false, terminalAdapter: false, conformanceObservations: false, coalesceRuntimePrimitives: true, sourceOnlySceneAdmission: true, lazyParserPositions: true, lazyLayoutOptimization: true }), {
     name: 'lazy-browser-dependencies',
     setup(build) {
       // The lazy SVG API exposes rendering and receipts, not the Node option

@@ -61,7 +61,7 @@ import { explicitFamilyConfigDiagnostics } from './shared/family-config-diagnost
 import { deepFreeze, isPlainRecord } from './shared/plain-data.ts'
 import { graphLayoutDecisionsOf, type GraphLayoutDecision } from './layout/backend.ts'
 import { bundledInterMetrics } from './builtin-font-metrics.ts'
-import { layoutOptimizationEvidenceOf, type LayoutOptimizationEvidence } from './layout/optimization-budget.ts'
+import { layoutOptimizationEvidenceOf, type LayoutOptimizationEvidence } from './layout/optimization-context.ts'
 import { assertDiagramWorkLimit, DiagramWorkLimitError } from './shared/diagram-limits.ts'
 import {
   createTextMeasurementExecution,

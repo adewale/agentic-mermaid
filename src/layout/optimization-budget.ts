@@ -1,4 +1,7 @@
 import type { GraphLayoutOptions } from '../types.ts'
+import { OptionalLayoutBudgetExceeded } from './certification-error.ts'
+export { isOptionalLayoutBudgetExceeded } from './certification-error.ts'
+export { retainComparisonMetrics } from './non-regressing-alternative.ts'
 
 export interface LayoutOptimizationEvidence {
   readonly additionalProducerLimit: number
@@ -10,8 +13,6 @@ export interface LayoutOptimizationEvidence {
 interface Budget { extra: number; primary: number; attempts: number; optional: boolean; selected: string[] }
 let active: Budget | undefined
 const evidence = new WeakMap<object, LayoutOptimizationEvidence>()
-class OptionalLayoutBudgetExceeded extends Error {}
-export function isOptionalLayoutBudgetExceeded(error: unknown): boolean { return error instanceof OptionalLayoutBudgetExceeded }
 // Internal ablation switch, captured once before module startup. Public
 // requests still opt in through graphLayout; normal hosts enable every feature.
 const host = globalThis as { process?: { env?: Record<string, string | undefined> }; AGENTIC_MERMAID_LAYOUT_FEATURES?: string }
