@@ -77,7 +77,7 @@ export function repairClassAnnotationSeats(diagram: PositionedClassDiagram, styl
   const clearStatic = (seat: Seat, center: Point): boolean => {
     charge()
     const box = row(seat, center)
-    if (seat.role === 'caption' && changed?.has(seat.edge)) {
+    if (seat.role === 'caption') {
       const near = {x:box.x-8,y:box.y-8,width:box.width+16,height:box.height+16}
       let associated=false
       for(let i=1;i<seat.rel.points.length;i++) {
@@ -183,7 +183,7 @@ export function repairClassAnnotationSeats(diagram: PositionedClassDiagram, styl
             charge()
             if (++count > CLASS_TEXT_CANDIDATE_LIMIT) break search
             const vertical = a.x === b.x,
-              point = { x: written(a.x + (b.x - a.x) * t + (vertical ? side * (seat.block.width / 2 + RELATION_LABEL_OFFSET_Y) : 0)), y: written(a.y + (b.y - a.y) * t + (vertical ? 0 : side * RELATION_LABEL_OFFSET_Y)) }
+              point = { x: written(a.x + (b.x - a.x) * t + (vertical ? side * (seat.block.width / 2 + RELATION_LABEL_OFFSET_Y) : 0)), y: written(a.y + (b.y - a.y) * t + (vertical ? 0 : side * (seat.block.height / 2 + RELATION_LABEL_OFFSET_Y))) }
             if (trySeat(seat, point)) {
               found = true
               break search
