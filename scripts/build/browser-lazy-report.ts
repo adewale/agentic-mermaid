@@ -48,7 +48,7 @@ const MEASURE_ONLY = process.argv.includes('--measure-only')
 const META_PATH = join(ROOT, 'dist/metafile-esm.json')
 // The eight native families added in PR601 use measured full family closures
 // plus 5% rounded to the next 1,000 bytes and two requests of headroom. The
-// existing initial and 25-family limits retain their prior ceilings.
+// existing limits are reviewed independently when runtime contracts change.
 const BUDGET_PATH = join(import.meta.dir, 'browser-lazy-budgets.json')
 const metafile = JSON.parse(readFileSync(META_PATH, 'utf8')) as Metafile
 const budgets = JSON.parse(readFileSync(BUDGET_PATH, 'utf8')) as Budgets

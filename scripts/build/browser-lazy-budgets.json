@@ -69,7 +69,7 @@
     },
     "quadrant": {
       "requests": 34,
-      "raw": 622000,
+      "raw": 623000,
       "gzip": 218250,
       "brotli": 194000
     },
@@ -93,13 +93,13 @@
     },
     "radar": {
       "requests": 35,
-      "raw": 632000,
+      "raw": 633000,
       "gzip": 223000,
       "brotli": 198500
     },
     "sankey": {
       "requests": 33,
-      "raw": 624000,
+      "raw": 626000,
       "gzip": 220000,
       "brotli": 195500
     },

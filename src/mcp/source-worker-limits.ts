@@ -3,6 +3,7 @@ export const SOURCE_TOOL_HEAP_MB = 512
 export const SOURCE_TOOL_MEMORY_BYTES = 512 * 1024 * 1024
 export const SOURCE_TOOL_MEMORY_POLL_MS = 10
 export const SOURCE_TOOL_QUEUE_LIMIT = 32
+export const SOURCE_TOOL_QUEUE_BYTES = 16 * 1024 * 1024
 export const SOURCE_TOOL_REQUEST_BYTES = 4 * 1024 * 1024
 export const SOURCE_TOOL_RESULT_BYTES = 16 * 1024 * 1024
 // An additional V8 heap guard when running under Node. Bun uses the sampled

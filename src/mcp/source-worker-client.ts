@@ -1,11 +1,10 @@
+import { createSettlement } from '../shared/settlement.ts'
 import { SourceRenderProcess } from './source-render-process.ts'
-import type { SourceToolName } from './source-tools.ts'
 import { sourceToolMessage, type SourceToolReply, type SourceToolRequest } from './source-tool-message.ts'
-import {
-  SOURCE_TOOL_EXIT_LIMIT_UNAVAILABLE, SOURCE_TOOL_EXIT_MEMORY,
-  SOURCE_TOOL_QUEUE_LIMIT, SOURCE_TOOL_REQUEST_BYTES, SOURCE_TOOL_TIMEOUT_MS,
-} from './source-worker-limits.ts'
-export { SOURCE_TOOL_TIMEOUT_MS, SOURCE_TOOL_HEAP_MB } from './source-worker-limits.ts'
+import type { SourceToolName } from './source-tools.ts'
+import { SOURCE_TOOL_EXIT_LIMIT_UNAVAILABLE, SOURCE_TOOL_EXIT_MEMORY, SOURCE_TOOL_QUEUE_BYTES, SOURCE_TOOL_QUEUE_LIMIT, SOURCE_TOOL_REQUEST_BYTES, SOURCE_TOOL_TIMEOUT_MS } from './source-worker-limits.ts'
+
+export { SOURCE_TOOL_HEAP_MB,SOURCE_TOOL_TIMEOUT_MS } from './source-worker-limits.ts'
 
 type Payload = { ok: boolean } & Record<string, unknown>
 const failure = (code: string, message: string): Payload => ({ ok: false, error: { code, message } })
@@ -17,6 +16,7 @@ export interface RenderProcess {
   unref(): void
 }
 interface Job {
+  bytes: number
   id: number
   json: string
   deadline: number
@@ -25,7 +25,8 @@ interface Job {
 }
 export interface SourceToolExecutionOptions { signal?: AbortSignal; timeoutMs?: number }
 
-/** One warm renderer and at most 32 waiting calls. Deadlines include queue and
+/** One warm renderer and at most 32 waiting calls sharing 16 MiB of serialized
+ * payloads. The active call retains its own request budget. Deadlines include queue and
  * startup; a timed-out/cancelled generation remains retired until it closes. */
 export class SourceToolExecutor {
   private readonly queue: Job[] = []
@@ -33,32 +34,47 @@ export class SourceToolExecutor {
   private renderer: RenderProcess | undefined
   private retiring = false
   private nextId = 0
+  private queuedBytes = 0
   private readonly createRenderer: () => RenderProcess
 
   constructor(createRenderer: () => RenderProcess = () => new SourceRenderProcess()) { this.createRenderer = createRenderer }
 
   run(name: SourceToolName, args: Record<string, unknown>, options: SourceToolExecutionOptions = {}): Promise<Payload> {
     return new Promise(resolve => {
-      if (options.signal?.aborted) { resolve(failure('RENDER_CANCELLED', 'Operation cancelled')); return }
+      const signal = options.signal
+      if (signal?.aborted) { resolve(failure('RENDER_CANCELLED', 'Operation cancelled')); return }
       if (this.queue.length >= SOURCE_TOOL_QUEUE_LIMIT) { resolve(failure('RENDER_BUSY', 'Rendering queue is full; retry later')); return }
       let json: string
       try { json = sourceToolMessage({ name, args }, SOURCE_TOOL_REQUEST_BYTES) }
       catch { resolve(failure('RENDER_REQUEST_LIMIT', 'Rendering request exceeds the process message budget or is not JSON')); return }
+      const bytes = Buffer.byteLength(json)
       const timeoutMs = options.timeoutMs ?? SOURCE_TOOL_TIMEOUT_MS
-      let settled = false
-      const job: Job = { id: ++this.nextId, json, deadline: Date.now() + timeoutMs, timeoutMs, finish: payload => {
-        if (settled) return
-        settled = true
-        clearTimeout(timer)
-        options.signal?.removeEventListener('abort', abort)
+      // Serialization and option access may run getters/toJSON which submit or
+      // cancel other calls. Commit admission only against their resulting state.
+      const admissionFailure = (): Payload | undefined => {
+        if (signal?.aborted) return failure('RENDER_CANCELLED', 'Operation cancelled')
+        if (this.queue.length >= SOURCE_TOOL_QUEUE_LIMIT) return failure('RENDER_BUSY', 'Rendering queue is full; retry later')
+        if (this.queuedBytes + bytes > SOURCE_TOOL_QUEUE_BYTES) return failure('RENDER_BUSY', 'Rendering queue payload budget is full; retry later')
+        return undefined
+      }
+      const refused = admissionFailure()
+      if (refused) { resolve(refused); return }
+      const completion = createSettlement<Payload>(resolve)
+      const job: Job = { bytes, id: ++this.nextId, json, deadline: Date.now() + timeoutMs, timeoutMs, finish: payload => { completion.finish(payload) } }
+      completion.onCleanup(() => {
         const index = this.queue.indexOf(job)
-        if (index >= 0) this.queue.splice(index, 1)
+        if (index >= 0) { this.queue.splice(index, 1); this.queuedBytes -= job.bytes }
         if (this.active === job) { this.active = undefined; this.retire() }
-        resolve(payload)
-      } }
+      })
       const abort = () => job.finish(failure('RENDER_CANCELLED', 'Operation cancelled'))
       const timer = setTimeout(() => this.timeout(job), timeoutMs)
-      options.signal?.addEventListener('abort', abort, { once: true })
+      completion.onCleanup(() => { clearTimeout(timer); signal?.removeEventListener('abort', abort) })
+      signal?.addEventListener('abort', abort, { once: true })
+      if (!completion.pending) return
+      // A host-provided signal can also reenter while registering its listener.
+      const afterListening = admissionFailure()
+      if (afterListening) { job.finish(afterListening); return }
+      this.queuedBytes += bytes
       this.queue.push(job)
       this.pump()
     })
@@ -75,6 +91,7 @@ export class SourceToolExecutor {
   private pump(): void {
     if (this.active || this.retiring || !this.queue.length) return
     const job = this.queue.shift()!
+    this.queuedBytes -= job.bytes
     if (Date.now() >= job.deadline) { this.timeout(job); this.pump(); return }
     if (!this.renderer) {
       let child: RenderProcess

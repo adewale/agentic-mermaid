@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { basename, dirname, relative, resolve } from 'node:path'
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import type { BuildResult, Metafile, OutputFile } from 'esbuild'
 import { rollup } from 'rollup'
 import { minifyBrowserRuntime } from './runtime-minify.ts'
@@ -7,13 +8,26 @@ import { minifyBrowserRuntime } from './runtime-minify.ts'
 /** Consolidate only the intersection of complete built-in SVG closures. Initial
  * detection, family implementations and demanded providers retain lazy owners.
  * Rollup links live ESM bindings; no function or class is copied into a facade. */
-export async function consolidateBrowserRuntime(result: BuildResult, cwd: string, recipe: string): Promise<void> {
+interface BrowserRuntimeGraph {
+  entry: string
+  core: string
+  families: string
+}
+const publicSvgGraph: BrowserRuntimeGraph = {
+  entry: 'src/browser-lazy.ts', core: 'src/browser-lazy/render-core.ts', families: 'src/browser-lazy/families/',
+}
+const editorWorkerGraph: BrowserRuntimeGraph = {
+  entry: 'src/browser-preview-worker.ts', core: 'src/agent/verify.ts', families: 'src/browser-lazy/generated/verified/',
+}
+
+export async function consolidateBrowserRuntime(result: Pick<BuildResult, 'outputFiles' | 'metafile'>, cwd: string, recipe: string, graph = publicSvgGraph): Promise<void> {
   const meta = result.metafile!
   const entries = Object.entries(meta.outputs)
-  const entry = entries.find(([, output]) => output.entryPoint === 'src/browser-lazy.ts')
+  const entry = entries.find(([, output]) => output.entryPoint === graph.entry)
   if (!entry) return // The optional ZenUML build owns a different public graph.
-  const core = entries.find(([, output]) => output.entryPoint === 'src/browser-lazy/render-core.ts')!
-  const families = entries.filter(([, output]) => output.entryPoint?.startsWith('src/browser-lazy/families/'))
+  const core = entries.find(([, output]) => output.entryPoint === graph.core)!
+  const families = entries.filter(([, output]) => output.entryPoint?.startsWith(graph.families))
+  if (!core || !families.length) throw new Error('Browser consolidation requires the render core and family entrypoints')
   const closure = (roots: string[]) => {
     const seen = new Set<string>()
     const visit = (path: string) => {
@@ -35,8 +49,9 @@ export async function consolidateBrowserRuntime(result: BuildResult, cwd: string
   for (const id of [...sharedIds].sort()) digest.update(basename(id)).update(files.get(id)!.text)
   const sharedName = 'chunk-' + digest.digest('hex').slice(0, 8).toUpperCase()
   const root = dirname(resolve(cwd, entry[0]))
+  const entryName = graph === publicSvgGraph ? 'index' : basename(entry[0], '.js')
   const bundle = await rollup({
-    input: Object.fromEntries(entries.filter(([, output]) => output.entryPoint).map(([path]) => [path === entry[0] ? 'index' : basename(path, '.js'), resolve(cwd, path)])),
+    input: Object.fromEntries(entries.filter(([, output]) => output.entryPoint).map(([path]) => [path === entry[0] ? entryName : basename(path, '.js'), resolve(cwd, path)])),
     preserveEntrySignatures: 'strict', treeshake: false,
     plugins: [{ name: 'emitted-browser-modules',
       resolveId(source, importer) {
@@ -49,7 +64,7 @@ export async function consolidateBrowserRuntime(result: BuildResult, cwd: string
     onwarn(warning, warn) { if (warning.code !== 'CIRCULAR_DEPENDENCY') warn(warning) },
   })
   try {
-    const linked = await bundle.generate({ format: 'es', entryFileNames: chunk => chunk.name === 'index' ? 'index.js' : 'chunks/[name].js', chunkFileNames: 'chunks/[name].js',
+    const linked = await bundle.generate({ format: 'es', entryFileNames: chunk => chunk.name === entryName ? `${entryName}.js` : 'chunks/[name].js', chunkFileNames: 'chunks/[name].js',
       manualChunks: id => sharedIds.has(id) ? sharedName : undefined, onlyExplicitManualChunks: true,
       hoistTransitiveImports: false, generatedCode: 'es2015',
     })
@@ -70,4 +85,24 @@ export async function consolidateBrowserRuntime(result: BuildResult, cwd: string
     meta.outputs = outputs
     Object.assign(meta, { browserSharedRuntime: { modules: shared.size, owner: sharedName, policy: 'all-family static intersection, excluding initial detection and public entry facades' } })
   } finally { await bundle.close() }
+}
+
+/** Normalize Bun's outdir-relative metadata into the same emitted-module graph
+ * consumed by the public ESM linker. Only this build's files are replaced. */
+export async function consolidateEditorWorker(outputs: readonly { path: string; text(): Promise<string> }[], metafile: Pick<Bun.BuildMetafile, 'outputs'>, outdir: string, cwd: string, recipe: string): Promise<void> {
+  const modules = await Promise.all(outputs.map(async output => {
+    const code = await output.text(), contents = Buffer.from(code)
+    return { path: output.path, contents, text: code, hash: createHash('sha256').update(contents).digest('hex') }
+  }))
+  const normalized: Metafile = { inputs: {}, outputs: Object.fromEntries(Object.entries(metafile.outputs).map(([path, output]) => [resolve(outdir, path), {
+    ...output, ...(output.entryPoint ? { entryPoint: relative(cwd, resolve(cwd, output.entryPoint)) } : {}),
+    imports: output.imports.map(edge => ({ ...edge, kind: edge.kind === 'dynamic-import' ? 'dynamic-import' : 'import-statement', path: resolve(outdir, edge.path) })),
+  }])) }
+  const result = { outputFiles: modules, metafile: normalized }
+  await consolidateBrowserRuntime(result, cwd, recipe, editorWorkerGraph)
+  for (const output of outputs) rmSync(output.path)
+  for (const output of result.outputFiles!) {
+    mkdirSync(dirname(output.path), { recursive: true })
+    writeFileSync(output.path, output.contents)
+  }
 }

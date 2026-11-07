@@ -806,3 +806,261 @@ test('Architecture cached rings stay isolated from mutable public layouts across
   expect(child.stderr).toBe('')
   expect(child.status).toBe(0)
 }, 30_000)
+
+test.each([process.execPath, 'node'])('private cache copies preserve intrinsic native kinds independently of prototypes and ignore collection overrides (%s)', async runtime => {
+  const child = await runChild(runtime, ['-e', `
+    import assert from 'node:assert/strict'
+    import { clonePositioned } from './src/experimental/position-cache.ts'
+    const check = (value, inspect) => {
+      inspect(clonePositioned(value, true))
+      // Exercise a later copy after native admission, including a new child.
+      inspect(clonePositioned(value, true))
+    }
+    for (const prototype of [null, Object.prototype]) {
+      const array = [1, 2]
+      clonePositioned(array, true)
+      Object.setPrototypeOf(array, prototype)
+      check(array, copy => { assert.ok(Array.isArray(copy)); assert.deepEqual(copy, [1, 2]) })
+      const map = new Map([['key', { value: 3 }]])
+      clonePositioned(map, true)
+      Object.setPrototypeOf(map, prototype)
+      check(map, copy => { assert.ok(copy instanceof Map); assert.deepEqual(copy.get('key'), { value: 3 }) })
+      const set = new Set([1, 2])
+      Object.setPrototypeOf(set, prototype)
+      check(set, copy => { assert.ok(copy instanceof Set); assert.deepEqual([...copy], [1, 2]) })
+      const date = new Date(123456)
+      Object.setPrototypeOf(date, prototype)
+      check(date, copy => assert.equal(Date.prototype.getTime.call(copy), 123456))
+      const regexp = /owned/gi
+      Object.setPrototypeOf(regexp, prototype)
+      check(regexp, copy => { assert.ok(copy instanceof RegExp); assert.equal(copy.source, 'owned'); assert.equal(copy.flags, 'gi') })
+      const buffer = new Uint8Array([2, 4, 8]).buffer
+      Object.setPrototypeOf(buffer, prototype)
+      check(buffer, copy => assert.deepEqual([...new Uint8Array(copy)], [2, 4, 8]))
+      const typed = new Uint8Array([3, 6])
+      Object.setPrototypeOf(typed, prototype)
+      check(typed, copy => { assert.ok(copy instanceof Uint8Array); assert.deepEqual([...copy], [3, 6]) })
+      const view = new DataView(new Uint8Array([5, 10]).buffer)
+      Object.setPrototypeOf(view, prototype)
+      check(view, copy => { assert.ok(copy instanceof DataView); assert.equal(copy.getUint8(1), 10) })
+      for (const impossible of [new WeakMap(), new WeakSet(), Promise.resolve(1)]) {
+        Object.setPrototypeOf(impossible, prototype)
+        assert.throws(() => clonePositioned(impossible, true), error => error.name === 'DataCloneError')
+      }
+    }
+    for (const prototype of [Map.prototype, Set.prototype]) {
+      const fake = Object.create(prototype, { label: { value: 'ordinary data', enumerable: true } })
+      check(fake, copy => assert.deepEqual(copy, { label: 'ordinary data' }))
+    }
+    let reads = 0
+    const map = new Map([['key', 1]]), set = new Set([1])
+    for (const value of [map, set]) Object.defineProperty(value, Symbol.iterator, { get() { reads++; throw Error('caller iterator') } })
+    check(map, copy => assert.equal(copy.get('key'), 1))
+    check(set, copy => assert.ok(copy.has(1)))
+    const plain = { label: 'ordinary' }
+    Object.defineProperty(plain, Symbol.toStringTag, { get() { reads++; throw Error('caller tag') } })
+    check(plain, copy => assert.deepEqual(copy, { label: 'ordinary' }))
+    assert.equal(reads, 0)
+  `], { cwd: `${import.meta.dir}/../..` })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
+test.each([process.execPath, 'node'])('native snapshots capture getters once and reject later uncloneable values (%s)', async runtime => {
+  const child = await runChild(runtime, ['-e', `
+    import assert from 'node:assert/strict'
+    import { clonePositioned } from './src/experimental/position-cache.ts'
+    let reads = 0
+    const source = { sibling: {}, get trigger() { reads++; source.sibling = new WeakMap(); return 1 } }
+    const copy = clonePositioned(source, true)
+    assert.deepEqual(copy, { sibling: {}, trigger: 1 })
+    assert.equal(reads, 1)
+    assert.throws(() => clonePositioned(source.sibling, true), error => error.name === 'DataCloneError')
+    assert.throws(() => clonePositioned(source, true), error => error.name === 'DataCloneError')
+    assert.deepEqual(clonePositioned(copy, true), copy)
+    const { preparePixelText, isRetainedPixelText } = await import('./src/shared/prepared-text.ts')
+    const branded = preparePixelText('late replacement', { fontSize: 12, fontWeight: 400 })
+    const swapped = { sibling: { text: 'captured' }, get trigger() {
+      swapped.sibling = branded
+      Object.defineProperty(swapped, 'trigger', { value: 1, enumerable: true })
+      return 1
+    } }
+    const captured = clonePositioned(swapped, true)
+    assert.deepEqual(captured, { sibling: { text: 'captured' }, trigger: 1 })
+    assert.notEqual(captured.sibling, branded)
+    assert.equal(isRetainedPixelText(captured.sibling), false)
+    const proxy = new Proxy({}, { ownKeys() { throw Error('descriptor trap') } })
+    assert.throws(() => clonePositioned(proxy, true), error => error.name === 'DataCloneError')
+  `], { cwd: `${import.meta.dir}/../..` })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
+test.each([process.execPath, 'node'])('native admission precedes custody reflection and custody cannot coalesce captured aliases (%s)', async runtime => {
+  const child = await runChild(runtime, ['-e', `
+    import assert from 'node:assert/strict'
+    import { clonePositioned } from './src/experimental/position-cache.ts'
+    import { preparePixelText } from './src/shared/prepared-text.ts'
+    let traps = 0
+    const source = {}
+    const proxy = new Proxy({}, { ownKeys() { traps++; delete source.child; return [] } })
+    source.child = proxy
+    assert.throws(() => clonePositioned(source, true), error => error.name === 'DataCloneError')
+    assert.equal(traps, 0)
+    assert.equal(source.child, proxy)
+
+    const branded = preparePixelText('same', { fontSize: 12, fontWeight: 400 })
+    const left = structuredClone(branded), right = structuredClone(branded)
+    const aliases = { left, right, get trigger() {
+      aliases.left = branded; aliases.right = branded
+      Object.defineProperty(aliases, 'trigger', { value: 1, enumerable: true })
+      return 1
+    } }
+    const captured = clonePositioned(aliases, true)
+    assert.deepEqual(captured.left, branded)
+    assert.deepEqual(captured.right, branded)
+    assert.notEqual(captured.left, captured.right)
+    assert.notEqual(captured.left, branded)
+    assert.notEqual(captured.right, branded)
+    assert.equal(captured.trigger, 1)
+
+    const other = preparePixelText('same', { fontSize: 13, fontWeight: 400 })
+    assert.notEqual(branded.breaks, other.breaks)
+    assert.deepEqual(branded.breaks, [])
+    assert.deepEqual(other.breaks, [])
+    const shared = []
+    const split = { left: shared, right: shared, get trigger() {
+      split.left = branded.breaks; split.right = other.breaks
+      Object.defineProperty(split, 'trigger', { value: 1, enumerable: true })
+      return 1
+    } }
+    const capturedShared = clonePositioned(split, true)
+    assert.equal(capturedShared.left, capturedShared.right)
+    assert.notEqual(capturedShared.left, branded.breaks)
+    assert.notEqual(capturedShared.right, other.breaks)
+  `], { cwd: `${import.meta.dir}/../..` })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
+test.each([process.execPath, 'node'])('native snapshots retain mutable descriptors, sparse arrays and own prototype-named aliases (%s)', async runtime => {
+  const child = await runChild(runtime, ['-e', `
+    import assert from 'node:assert/strict'
+    import { clonePositioned } from './src/experimental/position-cache.ts'
+    import { preparePixelText, isRetainedPixelText } from './src/shared/prepared-text.ts'
+    const block = preparePixelText('Read', { fontSize: 12, fontWeight: 400 })
+    for (const privateMode of [false, true]) for (const text of [false, true]) {
+      const item = text ? block : Object.freeze({ label: 'ordinary frozen caller data' })
+      const sparse = new Array(5)
+      sparse[2] = item
+      const source = { item, sparse }
+      Object.defineProperty(source, '__proto__', { value: item, enumerable: true })
+      Object.defineProperty(source, 'readonly', { value: 7, enumerable: true })
+      const copy = clonePositioned(source, privateMode)
+      assert.equal(Object.getPrototypeOf(copy), Object.prototype)
+      assert.equal(Object.getOwnPropertyDescriptor(copy, '__proto__').value, copy.item)
+      assert.equal(copy.sparse[2], copy.item)
+      assert.equal(copy.sparse.length, 5)
+      assert.equal(0 in copy.sparse, false)
+      assert.equal(4 in copy.sparse, false)
+      assert.equal(copy.item === item, text && privateMode)
+      if (text) assert.equal(isRetainedPixelText(copy.item), true)
+      const descriptor = Object.getOwnPropertyDescriptor(copy, 'readonly')
+      assert.deepEqual(descriptor, { value: 7, writable: true, enumerable: true, configurable: true })
+      copy.readonly = 9
+      copy.__proto__ = 'owned data'
+      assert.equal(source.readonly, 7)
+      assert.equal(source.__proto__, item)
+      assert.equal(Object.getPrototypeOf(copy), Object.prototype)
+      if (!text || !privateMode) { copy.item.changed = true; assert.equal(item.changed, undefined) }
+    }
+  `], { cwd: `${import.meta.dir}/../..` })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
+
+test('private Pie ownership survives public mutation, replacement producers and immutable metrics', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { renderMermaidSVGWithReceipt, createMermaidRenderer } from './src/index.ts'
+    import { resolveRenderRequestForExecution } from './src/render-contract.ts'
+    import { positionResolvedFamily } from './src/positioning.ts'
+    import { getFamily } from './src/agent/families.ts'
+    import { inheritNativeDrawing, nativeDrawingOf, sceneLowering } from './src/scene/drawing.ts'
+    import { PERFORMANCE_EXPERIMENTS, withPerformanceExperiments } from './src/experimental-performance.ts'
+    const source = 'pie showData\\n title Owned chart\\n "Read" : 40\\n "Write" : 60'
+    for (const metrics of [undefined, 'bundled-inter']) {
+      const options = { embedFontImport: false, ...(metrics ? { fontMetrics: metrics } : {}) }
+      const reference = withPerformanceExperiments(PERFORMANCE_EXPERIMENTS.filter(name => name !== 'position-cache'), () => renderMermaidSVGWithReceipt(source, options))
+      assert.deepEqual(renderMermaidSVGWithReceipt(source, options), reference)
+      assert.deepEqual(renderMermaidSVGWithReceipt(source, options), reference)
+      const request = resolveRenderRequestForExecution(source, options, 'svg')
+      const publicCopy = positionResolvedFamily('pie', request).positioned
+      publicCopy.slices.length = 0
+      publicCopy.legend[0].block.lines.push('poisoned public text')
+      publicCopy.width = NaN
+      assert.deepEqual(renderMermaidSVGWithReceipt(source, options), reference)
+      const lower = getFamily('pie').lowerScene, original = nativeDrawingOf(lower)
+      let held
+      inheritNativeDrawing(sceneLowering((factory, context) => {
+        held = context.positioned
+        return original(factory, context)
+      }), lower)
+      try { assert.deepEqual(renderMermaidSVGWithReceipt(source, options), reference) }
+      finally { inheritNativeDrawing(sceneLowering(original), lower) }
+      held.legend[0].label = 'poisoned replacement text'
+      held.slices.length = 0
+      assert.deepEqual(renderMermaidSVGWithReceipt(source, options), reference)
+    }
+    let calls = 0
+    const host = createMermaidRenderer({ textMeasurement: { id: 'test:pie-host', version: '1.0.0', measure: input => { calls++; return input.text.length * 10 } } })
+    host.renderMermaidSVGWithReceipt(source, { embedFontImport: false })
+    const afterFirst = calls
+    host.renderMermaidSVGWithReceipt(source, { embedFontImport: false })
+    assert.ok(calls > afterFirst, 'host callbacks must still bypass persistent reuse')
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
+
+test.each([process.execPath, 'node'])('unrelated native and accessor siblings preserve independent prepared-text custody (%s)', async runtime => {
+  const child = await runChild(runtime, ['-e', `
+    import assert from 'node:assert/strict'
+    import { clonePositioned, retainPositioned, cachedPositioned } from './src/experimental/position-cache.ts'
+    import { preparePixelText, pixelTextLine, isRetainedPixelText } from './src/shared/prepared-text.ts'
+    const block = preparePixelText('Read', { fontSize: 12, fontWeight: 400 })
+    for (const native of [new Date(0), /native/gi, new Uint8Array([1, 2])]) {
+      for (const blockFirst of [false, true]) for (const privateMode of [false, true]) {
+        let reads = 0
+        const graph = blockFirst ? { block, native } : { native, block }
+        Object.defineProperty(graph, 'stamp', { enumerable: true, get() { reads++; return 7 } })
+        const copy = clonePositioned(graph, privateMode)
+        assert.equal(reads, 1)
+        assert.equal(copy.stamp, 7)
+        assert.deepEqual(copy.native, structuredClone(native))
+        assert.equal(isRetainedPixelText(copy.block), true)
+        assert.equal(pixelTextLine(copy.block, 0).text, 'Read')
+        assert.notEqual(copy.block, block, 'failed whole-graph proof must not substitute original text')
+        copy.block.lines.push('mutable independent copy')
+        assert.deepEqual(block.lines, ['Read'])
+      }
+      const family = {}
+      retainPositioned(family, 'mixed', { positioned: { width: 1, height: 1, native, block } })
+      for (const privateMode of [false, true]) {
+        const copy = cachedPositioned(family, 'mixed', false, privateMode)
+        assert.equal(isRetainedPixelText(copy.positioned.block), true)
+        assert.equal(pixelTextLine(copy.positioned.block, 0).text, 'Read')
+      }
+    }
+    let reads = 0
+    const graph = { block, get value() { reads++; return 'captured' } }
+    const copy = clonePositioned(graph, true)
+    assert.equal(reads, 1)
+    assert.equal(copy.value, 'captured')
+    assert.equal(pixelTextLine(copy.block, 0).text, 'Read')
+  `], { cwd: `${import.meta.dir}/../..` })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
