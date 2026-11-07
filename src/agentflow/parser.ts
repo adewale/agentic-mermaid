@@ -37,12 +37,24 @@ export function agentflowMetadata(value: unknown): Record<string, unknown> {
   return cleaned && typeof cleaned === 'object' && !Array.isArray(cleaned) ? cleaned as Record<string, unknown> : {}
 }
 
-export function agentflowRole(shape: unknown): AgentflowRole {
-  if (typeof shape === 'string' && roles.has(shape as AgentflowRole)) return shape as AgentflowRole
-  return shape === 'subroutine' || shape === 'subprocess' || shape === 'subproc' || shape === 'framed-rectangle' ? 'tool'
-    : shape === 'lean-right' || shape === 'lean-r' ? 'input' : shape === 'diamond' ? 'decision'
-      : shape === 'lin-doc' || shape === 'lined-document' ? 'refdoc' : shape === 'hexagon' || shape === 'hex' ? 'action' : 'task'
+/** Resolve only shapes that express a supported domain role. Keeping the
+ * fallback separate lets verification name a real shape substitution. */
+export function agentflowShapeRole(shape: unknown): AgentflowRole | undefined {
+  if (typeof shape !== 'string') return undefined
+  if (roles.has(shape as AgentflowRole)) return shape as AgentflowRole
+  if (shape === 'rectangle' || shape === 'rounded') return 'task'
+  switch (normalizeV11Shape(shape)?.canonical) {
+    case 'rect': case 'rounded': return 'task'
+    case 'fr-rect': return 'tool'
+    case 'lean-r': return 'input'
+    case 'diam': return 'decision'
+    case 'lin-doc': return 'refdoc'
+    case 'hex': return 'action'
+    default: return undefined
+  }
 }
+
+export function agentflowRole(shape: unknown): AgentflowRole { return agentflowShapeRole(shape) ?? 'task' }
 
 /** Locate the declaration immediately before a classified metadata block.
  * Shape payloads and earlier links come from the shared lexer, so label text
@@ -304,7 +316,7 @@ export function parseAgentflow(source: string, collectMappings = true): Agentflo
     const invalidAt = invalidShapeSources?.get(id)
     if (!connectors.has(id) && invalidAt)
       throw syntaxError(`No such shape: ${JSON.stringify(data!.shape)}. AgentFlow shapes must be known lowercase names`, invalidAt)
-    roleMap.set(id, connectors.has(id) ? 'connector' : agentflowRole(data?.shape ?? node.shape))
+    roleMap.set(id, connectors.has(id) ? 'connector' : agentflowRole(data?.shape || node.shape))
     if (data?.label !== undefined) {
       node.label = String(data.label)
       node.labelContent = { value: node.label, prepared: prepareDisplayText(node.label, data.labelType === 'markdown' ? 'formatted' : 'literal') }

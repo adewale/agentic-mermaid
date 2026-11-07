@@ -3,6 +3,8 @@ import type { AgentflowBody, AgentflowRole } from './types.ts'
 
 const shapes: Record<AgentflowRole, NodeShape> = { task: 'rounded', tool: 'subroutine', action: 'hexagon', input: 'lean-r', refdoc: 'rectangle', decision: 'diamond', connector: 'service' }
 
+export function agentflowRoleShape(role: AgentflowRole): NodeShape { return shapes[role] }
+
 /** Presentation consumes authored identities and family semantics. Collapsing
  * changes only the rendered endpoint projection, never the editable model. */
 export function projectAgentflowGraph(body: AgentflowBody): MermaidGraph {
@@ -29,7 +31,7 @@ export function projectAgentflowGraph(body: AgentflowBody): MermaidGraph {
   for (const id of hidden) graph.nodes.delete(id)
   for (const [id, node] of graph.nodes) {
     const role = body.roles.get(id)
-    if (role) node.shape = shapes[role]
+    if (role) node.shape = agentflowRoleShape(role)
     if (role === 'refdoc') { node.semanticShape = 'lin-doc'; node.authoredShape = 'lin-doc' }
     graph.classAssignments.set(id, [graph.classAssignments.get(id), `agentflow-${role ?? 'flow'}`].filter(Boolean).join(' '))
   }

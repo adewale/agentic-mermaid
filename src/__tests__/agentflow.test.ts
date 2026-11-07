@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test'
 import { decodeHTML } from 'entities'
 import { mutateAgentflow, parseAgentflowBody } from '../agent/agentflow-body.ts'
-import { parseRegisteredMermaid, renderMermaidASCII, serializeMermaid } from '../agent/core.ts'
+import { mutateChecked, parseRegisteredMermaid, renderMermaidASCII, serializeMermaid, verifyMermaid } from '../agent/core.ts'
 import { agentflowMetadata, parseAgentflow } from '../agentflow/parser.ts'
 import { projectAgentflowGraph } from '../agentflow/projection.ts'
 import { renderAgentflow } from '../agentflow/source.ts'
@@ -363,6 +363,49 @@ test('known out-of-catalogue shape metadata remains available with the domain de
   expect(body.metadata.get('A')).toEqual({ shape: 'icon', icon: 'fa:bell' })
   expect(body.roles.get('A')).toBe('task')
   expect(parseAgentflow(renderAgentflow(body)).metadata).toEqual(body.metadata)
+})
+
+test('shared shape aliases retain supported AgentFlow roles through output and checked edits', () => {
+  const source = 'agentflow-beta LR\nflow plan[Delivery]\n  collect[Collect]@{ shape: fr-rect, instruction: "Read sources" }\n  review[Review]@{ shape: question }\n  publish[Publish]@{ shape: prepare }\n  collect --> review\n  review --> publish\nend'
+  const explicit = source.replace('fr-rect', 'tool').replace('question', 'decision').replace('prepare', 'action')
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind !== 'agentflow') throw Error('Expected editable AgentFlow roles')
+  expect([...parsed.value.body.roles]).toEqual([['collect', 'tool'], ['review', 'decision'], ['publish', 'action']])
+  expect(projectAgentflowGraph(parsed.value.body).nodes.get('review')?.shape).toBe('diamond')
+  expect(renderMermaidSVG(source)).toBe(renderMermaidSVG(explicit))
+  expect(renderMermaidASCII(source, { colorMode: 'none', layoutSafety: 'strict' })).toBe(renderMermaidASCII(explicit, { colorMode: 'none', layoutSafety: 'strict' }))
+  expect(verifyMermaid(parsed.value).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+  const edited = mutateChecked(parsed.value, { kind: 'rename_node', from: 'review', to: 'decide' })
+  if (!edited.ok || edited.value.body.kind !== 'agentflow') throw Error('Expected checked role-preserving edit')
+  expect(edited.value.body.metadata.get('decide')).toEqual({ shape: 'question' })
+  const reloaded = parseAgentflow(serializeMermaid(edited.value))
+  expect([...reloaded.roles]).toEqual([['collect', 'tool'], ['decide', 'decision'], ['publish', 'action']])
+  expect(reloaded.metadata).toEqual(edited.value.body.metadata)
+})
+
+test.each([null, false, 0, ''])('an unset metadata shape %j cannot erase a declared tool role', shape => {
+  const source = `agentflow-beta\na[[Tool]]@{ shape: ${JSON.stringify(shape)} }`
+  const body = parseAgentflow(source)
+  expect(body.roles.get('a')).toBe('tool')
+  expect(body.metadata.get('a')).toEqual({ shape })
+  expect(parseAgentflow(renderAgentflow(body)).roles.get('a')).toBe('tool')
+})
+
+test('verification names actual AgentFlow shape substitutions without changing retained fields', () => {
+  const source = 'agentflow-beta\na((Circle))\nb[Beta]@{ shape: icon, icon: "fa:bell" }\nconnector api[API]@{ shape: tool }\na --> b'
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind !== 'agentflow') throw Error('Expected retained AgentFlow shapes')
+  const substitutions = (text: string) => verifyMermaid(text).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'agentflow_shape_substitution')
+  expect(substitutions(source)).toMatchObject([
+    { node: 'a', syntax: 'agentflow_shape_substitution' },
+    { node: 'b', syntax: 'agentflow_shape_substitution' },
+    { node: 'api', syntax: 'agentflow_shape_substitution' },
+  ])
+  const canonical = serializeMermaid(parsed.value)
+  expect(parseAgentflow(canonical).metadata).toEqual(parsed.value.body.metadata)
+  expect(substitutions(canonical).flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [warning.node] : []).sort()).toEqual(['a', 'api', 'b'])
+  expect(parseAgentflow(canonical).roles.get('api')).toBe('connector')
+  expect(substitutions('agentflow-beta\na\nb[Beta]\nc(Caption)\nconnector api[API]\na --> b --> c')).toEqual([])
 })
 
 test('full-line comments cannot introduce semicolon statements while quoted percent labels stay literal', () => {

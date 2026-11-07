@@ -1,13 +1,13 @@
 import { graphLabels } from './graph-labels.ts'
 import type { FamilyOperations } from './families.ts'
-import type { DiagramBody, MutationError, ParseError, Result } from './types.ts'
+import type { DiagramBody, LayoutWarning, MutationError, ParseError, Result } from './types.ts'
 import { err, ok } from './types.ts'
 import { buildFlowchartSourceMap, edgeSourceMapKey, mutateFlowchart } from './flowchart-body.ts'
-import { parseAgentflow, agentflowMetadata, agentflowRole } from '../agentflow/parser.ts'
+import { parseAgentflow, agentflowMetadata, agentflowRole, agentflowShapeRole } from '../agentflow/parser.ts'
 import { renderAgentflow } from '../agentflow/source.ts'
 import type { AgentflowBody, AgentflowMutationOp } from '../agentflow/types.ts'
 import { retainParsedAgentflowModel } from './owned-render-model.ts'
-import { projectAgentflowGraph } from '../agentflow/projection.ts'
+import { agentflowRoleShape, projectAgentflowGraph } from '../agentflow/projection.ts'
 
 export function parseAgentflowBody(source: string, opaqueSource = source): Result<AgentflowBody | Extract<DiagramBody, { kind: 'opaque' }>, ParseError[]> {
   try { const body = parseAgentflow(source); renderAgentflow(body); return ok(body) }
@@ -63,6 +63,24 @@ export function mutateAgentflow(body: AgentflowBody, op: AgentflowMutationOp): R
   } catch (error) { return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) }) }
 }
 
+function agentflowShapeWarnings(body: AgentflowBody): LayoutWarning[] {
+  const warnings: LayoutWarning[] = []
+  for (const [id, node] of body.graph.nodes) {
+    const metadataShape = body.metadata.get(id)?.shape
+    // The connector keyword owns its default silhouette independently of
+    // bracket syntax. An explicit conflicting hint still needs a diagnosis.
+    if (body.connectors.has(id) && !metadataShape) continue
+    const shape = metadataShape || node.authoredShape || node.semanticShape || node.shape
+    const role = body.roles.get(id)
+    if (!role || agentflowShapeRole(shape) === role) continue
+    warnings.push({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'agentflow_shape_substitution', node: id,
+      message: `AgentFlow node "${id}" retains shape ${JSON.stringify(shape)} but renders with the ${role} role geometry "${agentflowRoleShape(role)}".`,
+    })
+  }
+  return warnings
+}
+
 export const AGENTFLOW_SOURCE_HOOKS = {
   canonicalSource: 'preserved',
   renderSource: () => 'canonical',
@@ -76,6 +94,7 @@ export const AGENTFLOW_SOURCE_HOOKS = {
     if (body.kind !== 'agentflow') throw new Error(`AgentFlow serializer received ${body.kind}`)
     return renderAgentflow(body)
   },
+  verify: body => body.kind === 'agentflow' ? agentflowShapeWarnings(body) : [],
   sourceMapGrammar: 'flowchart',
   buildSourceMap: (body, source) => {
     const map = body.kind === 'agentflow'
@@ -87,7 +106,7 @@ export const AGENTFLOW_SOURCE_HOOKS = {
     })
     return map
   },
-} satisfies Pick<FamilyOperations, 'canonicalSource' | 'renderSource' | 'parse' | 'serialize' | 'buildSourceMap' | 'sourceMapGrammar' | 'mutate' | 'extractLabels'>
+} satisfies Pick<FamilyOperations, 'canonicalSource' | 'renderSource' | 'parse' | 'serialize' | 'verify' | 'buildSourceMap' | 'sourceMapGrammar' | 'mutate' | 'extractLabels'>
 
 export const AGENTFLOW_MUTATION_HOOKS: Pick<FamilyOperations, 'mutate'> = {
   mutate: (body, op) => body.kind === 'agentflow' ? mutateAgentflow(body, op as AgentflowMutationOp) : err({ code: 'INVALID_OP', message: 'AgentFlow source needs a supported native model for typed edits' }),
