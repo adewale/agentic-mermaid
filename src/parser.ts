@@ -1410,7 +1410,7 @@ function consumeBareNodeId(text: string): { id: string; length: number } | null 
   return length > 0 ? { id: text.slice(0, length), length } : null
 }
 
-const EDGE_ID_PREFIX_REGEX = new RegExp(String.raw`^(${FLOWCHART_EDGE_ID_SOURCE})@\s*(?=${FLOWCHART_LINK_SOURCE}|(?:-{2,}|-\.+|={2,})\s+)`, 'u')
+const EDGE_ID_PREFIX_REGEX = new RegExp(String.raw`^(${FLOWCHART_EDGE_ID_SOURCE})@\s*(?=${FLOWCHART_LINK_SOURCE}|[<xo]?(?:-{2,}|-\.+|={2,})\s+)`, 'u')
 
 /** Where a statement's parse stopped expecting a link, a link label opened
  * with an `x` or `o` start marker and closed by a link with another end

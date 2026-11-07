@@ -49,6 +49,39 @@ describe('flowchart edge IDs — parse', () => {
     expect(text.label).toBe('label')
   })
 
+  it.each([
+    ['x--', '--x', 'cross', 'solid'],
+    ['x==', '==x', 'cross', 'thick'],
+    ['x-.', '.-x', 'cross', 'dotted'],
+    ['o--', '--o', 'circle', 'solid'],
+    ['o==', '==o', 'circle', 'thick'],
+    ['o-.', '.-o', 'circle', 'dotted'],
+    ['<--', '-->', 'arrow', 'solid'],
+    ['<==', '==>', 'arrow', 'thick'],
+    ['<-.', '.->', 'arrow', 'dotted'],
+  ] as const)('keeps an explicit ID and label between %s and %s', (open, close, marker, style) => {
+    const source = `flowchart LR\n  A e1@${open} label ${close} B`
+    const diagram = parseAgent(source)
+    expect(diagram.body.kind).toBe('flowchart')
+    for (const graph of [parseGraph(source), parseGraph(serializeMermaid(diagram))]) {
+      expect([...graph.nodes.keys()]).toEqual(['A', 'B'])
+      expect(graph.edges).toHaveLength(1)
+      expect(graph.edges[0]).toMatchObject({ id: 'e1', source: 'A', target: 'B', label: 'label', style,
+        hasArrowStart: true, hasArrowEnd: true, startMarker: marker, endMarker: marker })
+    }
+  })
+
+  it.each(['agentflow-beta', 'swimlane-beta'])('%s shares explicit-ID text-arrow grammar', header => {
+    const source = `${header} LR\n  A e1@x-- shared label --x B`
+    for (const diagram of [parseAgent(source), parseAgent(serializeMermaid(parseAgent(source)))]) {
+      if (diagram.body.kind !== 'agentflow' && diagram.body.kind !== 'swimlane') throw new Error('Expected a shared graph body')
+      expect(diagram.body.graph.edges).toHaveLength(1)
+      expect(diagram.body.graph.edges[0]).toMatchObject({ id: 'e1', source: 'A', target: 'B', label: 'shared label',
+        startMarker: 'cross', endMarker: 'cross' })
+    }
+    expect(renderMermaidSVG(source)).toContain('data-id="e1"')
+  })
+
   // Upstream's LINK_ID is any run of non-space, non-`"` characters before
   // `@`; a metadata statement names it as a node id. Ours leaves out the
   // region delimiters and `@` (`e[1`, `e1@x` stay rejected).
