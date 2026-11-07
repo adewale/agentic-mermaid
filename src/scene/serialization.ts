@@ -118,22 +118,23 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
   if (!Number.isSafeInteger(maxOperations) || maxOperations < 0 || maxOperations > MAX_OCCLUSION_OPERATIONS) throw new RangeError('Invalid Scene write work allowance')
   const option = Object.getOwnPropertyDescriptor(options, 'fractionalCircleOutput')
   const fractionalCircleOutput = !!option && Object.hasOwn(option, 'value') && option.value === true
-  let operations = 0, exhausted = false, finished = false
+  let operations = 0, exhausted = false
+  let phase: 'collecting' | 'prepared' | 'emitting' | 'finished' = 'collecting'
   const paths = new Map<SceneNode, WrittenPath>()
   const pay = (count: number): boolean => {
     if (exhausted || !(actualBackendWrite ? groupSafeInteger(count) : Number.isSafeInteger(count)) || count < 0 || count > maxOperations - operations) { exhausted = true; return false }
     operations += count
     return true
   }
-  let emitting = false
   const context = createEmissionContext(pay, { pageUnderlay: actualBackendWrite && Object.getOwnPropertyDescriptor(options, 'pageUnderlay')?.value === true })
   const admissionStrings = new sceneObserverWeakMap<object, { readonly svg: string; readonly kind: string }>()
   let preparedScene: SceneDoc | undefined, preparedContext: ReturnType<typeof context.finish> | undefined
   let backendContext: object | undefined
+  let activeProof: import('./paint-certification.ts').PaintLayoutCertification | undefined
   let actualRoots = 0, actualRootCompleted = false, actualClosed = true
   const string = (node: Exclude<SceneNode, { kind: 'group' }>, svg: string): void => {
-    if (!actualBackendWrite || finished) return
-    if (!emitting) {
+    if (!actualBackendWrite || phase === 'finished') return
+    if (phase !== 'emitting') {
       if (!pay(1)) return
       const prior = sceneObserverApply(sceneObserverGet, admissionStrings, [node]) as { svg: string; kind: string } | undefined
       if (prior) { if (prior.svg !== svg || prior.kind !== node.kind) actualClosed = false; return }
@@ -164,7 +165,7 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
     return Object.preventExtensions(result)
   }
   const hint = (node: SceneNode): boolean => {
-    if (finished || !fractionalCircleOutput || actualBackendWrite && emitting) return false
+    if (phase === 'finished' || !fractionalCircleOutput || actualBackendWrite && phase === 'emitting') return false
     // No extra property access or reflection reaches an ordinary raw mark.
     if (!TRANSFERRED_WRITABLE_NODES.has(node)) { context.invalidateFractionalCircle(); return false }
     if (!pay(2)) return false
@@ -181,14 +182,14 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
   const compound = (node: ShapeMark): WrittenCompoundInput | undefined => {
     // This independent first-write receipt also serves polygon markers. The
     // circle/cross hint is not a prerequisite, and raw marks are never reflected.
-    if (finished || !fractionalCircleOutput || !TRANSFERRED_WRITABLE_NODES.has(node)) return undefined
+    if (phase === 'finished' || !fractionalCircleOutput || !TRANSFERRED_WRITABLE_NODES.has(node)) return undefined
     if (!pay(4) || Object.getPrototypeOf(node) !== null || !Object.isFrozen(node)) return undefined
     const geometry = ownValue(node, 'geometry')
     if (!geometry || typeof geometry !== 'object' || ownValue(geometry, 'kind') !== 'compound') return undefined
     return prepareWrittenCompoundShape(node, pay)
   }
   const compoundRecord = (node: ShapeMark, input: WrittenCompoundInput, svg: string): void => {
-    if (finished) return
+    if (phase === 'finished') return
     const source = ownValue(node, 'geometry')
     if (!source || typeof source !== 'object') return
     const projection = completeWrittenCompoundShape(input, source as Geometry, svg, pay)
@@ -219,7 +220,7 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
     return true
   }
   const rectangleRecord = (node: ShapeMark, source: Geometry, served: Geometry | undefined, attributes: Readonly<Record<string, string>> | undefined, svg: string): void => {
-    if (finished || !rectangles.has(node) || !pay(64) || ownValue(node, 'geometry') !== source) return
+    if (phase === 'finished' || !rectangles.has(node) || !pay(64) || ownValue(node, 'geometry') !== source) return
     let conditional = !served || served.kind !== 'rect' || source.kind !== 'rect' || !attributes
     if (served?.kind === 'rect' && (!(served.width > 0 && served.height > 0) || (served.rx ?? 0) !== 0 || (served.ry ?? 0) !== 0)) conditional = true
     let matched = 0
@@ -253,7 +254,7 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
     return Object.preventExtensions(result)
   }
   const record: SceneWriteCallback = (node, source, served, svg) => {
-    if (finished || !pay(64) || node.kind !== 'connector') return
+    if (phase === 'finished' || !pay(64) || node.kind !== 'connector') return
     const route = ownValue(node, 'route')
     if (!route || typeof route !== 'object' || ownValue(route, 'geometry') !== source) return
     let paintNode = node, conditional = !served || served.kind !== source.kind
@@ -308,7 +309,7 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
   if (actualBackendWrite) groupObserverApply(groupObserverAdd, actualSceneObservers, [observe])
   const recorder: SceneWriteRecorder = {
     string,
-    root: scene => actualBackendWrite && emitting && !finished && scene === preparedScene && pay(4) ? (actualRoots++, {
+    root: scene => actualBackendWrite && phase === 'emitting' && scene === preparedScene && pay(4) ? (actualRoots++, {
       composition: groupComposition(scene as never, pay, true),
       underlay: svg => {
         if (svg === '') return
@@ -317,28 +318,30 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
       },
       complete: sealed => { actualRootCompleted = true; if (!pay(2) || !sealed) actualClosed = false },
     }) : undefined,
-    reserve: () => !finished && !emitting && pay(192), reserveProjection: count => !finished && !emitting && pay(count),
-    document: (node, svg) => { if (!finished && !emitting) context.document(node, svg) },
-    connector: node => { if (!finished && !emitting) context.connector(node) },
+    reserve: () => phase !== 'finished' && phase !== 'emitting' && pay(192), reserveProjection: count => phase !== 'finished' && phase !== 'emitting' && pay(count),
+    document: (node, svg) => { if (phase !== 'finished' && phase !== 'emitting') context.document(node, svg) },
+    connector: node => { if (phase !== 'finished' && phase !== 'emitting') context.connector(node) },
     group: node => {
-      if (finished) return undefined
-      if (!emitting) { context.group(node); return undefined }
+      if (phase === 'finished') return undefined
+      if (phase !== 'emitting') { context.group(node); return undefined }
       const composition = groupObserverApply(groupObserverHas, TRANSFERRED_WRITABLE_NODES, [node]) && isOwnDataSceneSnapshotInert(node) ? groupComposition(node, pay) : undefined
       return { composition, complete: sealed => { if (!pay(2) || !sealed) actualClosed = false } }
     }, hint, compound, compoundRecord, rectangle, rectangleRecord,
     contextLeaf: (node, svg) => {
-      if (finished || emitting || !fractionalCircleOutput) return
+      if (phase === 'finished' || phase === 'emitting' || !fractionalCircleOutput) return
       if (!TRANSFERRED_WRITABLE_NODES.has(node)) { context.invalidateFractionalCircle(); return }
       context.leaf(node, svg)
     },
     leaf: (node, svg) => {
-      if (finished || emitting || !fractional.has(node) || node.kind !== 'text' || !pay(32)) return
+      if (phase === 'finished' || phase === 'emitting' || !fractional.has(node) || node.kind !== 'text' || !pay(32)) return
       if (paths.has(node)) { paths.delete(node); exhausted = true; return }
       paths.set(node, Object.freeze({ source: undefined, svg, served: node, conditional: false, path: false }))
     }, record }
   if (actualBackendWrite) sceneObserverApply(sceneObserverSet, sceneWriteObservers, [observe, groupFreeze(recorder)])
   else sceneWriteObservers.set(observe, recorder)
-  const detach = (): void => { if (backendContext) { sceneObserverApply(sceneObserverDelete, backendWriteObservers, [backendContext]); backendContext = undefined } }
+  const detach = (): void => { if (backendContext) { sceneObserverApply(sceneObserverDelete, backendWriteObservers, [backendContext]); backendContext = undefined }
+    activeProof = undefined
+  }
   const receipt = (scene: SceneDoc, result: ReturnType<typeof context.finish>): SceneWriteReceipt => {
     const value = new CapturedSceneWrites(scene, paths, operations, exhausted, maxOperations, result.uncertain,
       fractionalCircleOutput && result.fractionalCircleContext && !exhausted, result.uncertain ? undefined : result.resolveColor)
@@ -347,26 +350,27 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
   return {
     observe,
     prepare(scene: SceneDoc): SceneWriteReceipt | undefined {
-      if (!actualBackendWrite || preparedScene || emitting || finished) throw new Error('Invalid Scene preparation phase')
+      if (!actualBackendWrite || phase !== 'collecting') throw new Error('Invalid Scene preparation phase')
       if (!isAdmittedSceneDocument(scene)) return undefined
+      phase = 'prepared'
       preparedScene = scene
       preparedContext = context.finish(scene)
       return receipt(scene, preparedContext)
     },
     beginBackendEmission(scene: SceneDoc, contextObject: object, proof: import('./paint-certification.ts').PaintLayoutCertification): void {
-      if (!actualBackendWrite || emitting || finished || scene !== preparedScene || !preparedContext) throw new Error('Invalid Scene actual-write phase')
+      if (!actualBackendWrite || phase !== 'prepared' || scene !== preparedScene || !preparedContext) throw new Error('Invalid Scene actual-write phase')
       const completed = proof.checks.operations
       if (!groupSafeInteger(completed) || completed < 0 || completed > maxOperations) throw new Error('Invalid Scene proof continuation')
       if (completed < operations) actualClosed = false
       else pay(completed - operations)
       for (let index = 0; index < proof.issues.length; index++) if (proof.issues[index]!.code === 'CHECK_BUDGET') exhausted = true
-      emitting = true; backendContext = contextObject
+      phase = 'emitting'; backendContext = contextObject; activeProof = proof
       sceneObserverApply(sceneObserverSet, backendWriteObservers, [contextObject, observe])
     },
-    abortBackendEmission(): void { finished = true; actualClosed = false; detach() },
+    abortBackendEmission(): void { phase = 'finished'; actualClosed = false; detach() },
     finishActual(proof: import('./paint-certification.ts').PaintLayoutCertification): import('./paint-certification.ts').PaintLayoutCertification {
-      if (!actualBackendWrite || !emitting || finished || !preparedContext) throw new Error('Invalid Scene actual-write completion')
-      finished = true; detach()
+      if (!actualBackendWrite || phase !== 'emitting' || !preparedContext || proof !== activeProof) throw new Error('Invalid Scene actual-write completion')
+      phase = 'finished'; detach()
       if (actualRoots !== 1 || !actualRootCompleted) actualClosed = false
       pay(16 + proof.issues.length * 2)
       const budget = exhausted, scope = !actualClosed
@@ -385,8 +389,8 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
     },
     finish(scene: SceneDoc): SceneWriteReceipt | undefined {
       if (actualBackendWrite) throw new Error('Actual writes require preparation and same-ledger completion')
-      if (finished) throw new Error('Scene write capture already finished')
-      finished = true
+      if (phase === 'finished') throw new Error('Scene write capture already finished')
+      phase = 'finished'
       if (!isAdmittedSceneDocument(scene)) return undefined
       return receipt(scene, context.finish(scene))
     },

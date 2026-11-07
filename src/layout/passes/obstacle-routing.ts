@@ -1,6 +1,6 @@
 import type { MermaidGraph, Point, PositionedEdge, PositionedNode, PositionedGroup } from '../../types.ts'
 import { onShapeOutline, segmentThroughShape } from '../../layout-rubric.ts'
-import { recertifyReroutedEdge, shapePorts, simplifyPolyline } from '../../route-contracts.ts'
+import { commitReroutedEdge, shapePorts, simplifyPolyline } from '../../route-contracts.ts'
 import { bundleRouteBeforeRewrite, retainBundleRouteAfterRewrite } from '../bundle-routes.ts'
 import { calculatePathMidpoint, layoutFlow, nodeCrossSize, nodeCrossStart } from '../geometry.ts'
 import { doglegBetween, hookedElbow, routeClearOfNodes } from './shared.ts'
@@ -41,10 +41,7 @@ export function reanchorOffOutlineEndpoints(nodes: PositionedNode[], edges: Posi
     const elbow = hookedElbow(start[f.main], end[f.main], terminalHookLength(style, edge, 'start'), terminalHookLength(style, edge, 'end'))
     const route = doglegBetween(start, end, graph.direction, elbow)
     if (!routeClearOfNodes(route, nodes, new Set([edge.source, edge.target]))) continue
-    const savedCert = edge.routeCertificate
-    edge.points = route
-    recertifyReroutedEdge(edge, savedCert, source, target)
-    if (edge.label) edge.labelPosition = calculatePathMidpoint(route)
+    commitReroutedEdge(edge, { points: route, labelPosition: edge.label ? calculatePathMidpoint(route) : edge.labelPosition }, source, target)
   }
 }
 
@@ -265,10 +262,7 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     let route = shiftInteriorSegment(edge.points, skip) ?? bracketOverBand(edge.points, skip)
     if (!route && !triedTerminals) route = detourTerminals(edge.points, skip)
     if (!route) continue // never-worse: no clean detour found, leave as-is
-    const savedCert = edge.routeCertificate
-    edge.points = route
-    recertifyReroutedEdge(edge, savedCert, source, target)
-    if (edge.label) edge.labelPosition = calculatePathMidpoint(route)
+    commitReroutedEdge(edge, { points: route, labelPosition: edge.label ? calculatePathMidpoint(route) : edge.labelPosition }, source, target)
   }
 }
 

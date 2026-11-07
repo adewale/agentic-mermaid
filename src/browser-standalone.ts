@@ -5,7 +5,7 @@ import { PreviewWorkerClient, createPreviewWorker } from './browser-preview-clie
 import { PreviewRuntimeLoadError, PreviewSupersededError } from './browser-preview-errors.ts'
 import { standaloneWorkerPayload } from './browser-standalone-payload.ts'
 
-const payload = document.getElementById('editor-worker-payload')?.textContent ?? ''
+let payload = document.getElementById('editor-worker-payload')?.textContent ?? ''
 let epoch = 0, suspended = false
 let runtime: Blob | undefined, client: PreviewWorkerClient | undefined
 let loading: Promise<PreviewWorkerClient> | undefined
@@ -21,7 +21,11 @@ function load(): Promise<PreviewWorkerClient> {
   const pending = Promise.resolve().then(() => {
     if (cancelled()) throw new PreviewSupersededError()
     if (!runtime) {
-      try { runtime = standaloneWorkerPayload(payload, cancelled) }
+      try {
+        runtime = standaloneWorkerPayload(payload, cancelled)
+        payload = ''
+        document.getElementById('editor-worker-payload')?.remove()
+      }
       catch (error) {
         // Decoder/module initialization can have been interrupted. A reload is
         // required rather than retrying a partly initialized codec closure.

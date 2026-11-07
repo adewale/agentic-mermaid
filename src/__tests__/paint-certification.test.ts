@@ -4697,6 +4697,7 @@ test('actual composition distinguishes exhausted authority from an observed byte
   const context = { seed: 0 }
   capture.beginBackendEmission(admitted, context, exhausted)
   const svg = DefaultBackend.render(admitted, context)
+  expect(() => capture.finishActual({ ...exhausted })).toThrow('Invalid Scene actual-write completion')
   const closed = capture.finishActual(exhausted)
   expect(svg).toBe(DefaultBackend.render(admitted, { seed: 0 }))
   expect(actualCompositionMarkerPixels(svg)).toBeGreaterThan(0)

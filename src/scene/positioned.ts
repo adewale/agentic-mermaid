@@ -18,7 +18,10 @@ import { cachedNativeDrawing, retainNativeDrawing, type RetainedNativeDrawing } 
 
 interface PositionedScene { scene: SceneDoc; crossChecks: boolean; writes?: SceneWriteReceipt; pendingWrites?: ReturnType<typeof createSceneWriteCapture>; certification?: PaintLayoutCertification }
 type RenderableNativeDrawing = Pick<NativeDrawing, 'svg' | 'preparedText'>
-interface PositionedNative { drawing: RenderableNativeDrawing; producer: DrawingProducer; evidence?: NativeDrawing; certification?: PaintLayoutCertification }
+type PositionedNative = { producer: DrawingProducer } & (
+  { phase: 'captured'; drawing: NativeDrawing; evidence: NativeDrawing }
+  | { phase: 'certified'; drawing: RenderableNativeDrawing; certification: PaintLayoutCertification }
+)
 const positionedWeakGet = WeakMap.prototype.get, positionedApply = Reflect.apply
 const native = new WeakMap<FamilyLayoutResult, WeakMap<ResolvedRenderRequest, PositionedNative>>()
 const retained = new WeakMap<FamilyLayoutResult, WeakMap<ResolvedRenderRequest, PositionedScene>>()
@@ -70,15 +73,16 @@ export function beginPositionedBackendEmission(request: ResolvedRenderRequest, l
   const requests = positionedApply(positionedWeakGet, retained, [layout]) as WeakMap<ResolvedRenderRequest, PositionedScene> | undefined
   const entry = requests && positionedApply(positionedWeakGet, requests, [request]) as PositionedScene | undefined
   if (!entry?.pendingWrites) return false
+  if (proof !== entry.certification) throw new Error('Scene proof belongs to a different positioned transaction')
   entry.pendingWrites.beginBackendEmission(entry.scene, context, proof)
   return true
 }
-export function finishPositionedBackendEmission(request: ResolvedRenderRequest, layout: FamilyLayoutResult, proof: PaintLayoutCertification | undefined, abort = false): PaintLayoutCertification | undefined {
+export function finishPositionedBackendEmission(request: ResolvedRenderRequest, layout: FamilyLayoutResult, result: { kind: 'complete'; proof: PaintLayoutCertification } | { kind: 'abort' }): PaintLayoutCertification | undefined {
   const requests = positionedApply(positionedWeakGet, retained, [layout]) as WeakMap<ResolvedRenderRequest, PositionedScene> | undefined
   const entry = requests && positionedApply(positionedWeakGet, requests, [request]) as PositionedScene | undefined
   if (!entry?.pendingWrites) return undefined
-  if (abort) entry.pendingWrites.abortBackendEmission()
-  else if (proof) entry.certification = entry.pendingWrites.finishActual(proof)
+  if (result.kind === 'abort') entry.pendingWrites.abortBackendEmission()
+  else entry.certification = entry.pendingWrites.finishActual(result.proof)
   entry.pendingWrites = undefined
   return entry.certification
 }
@@ -123,7 +127,7 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
     observeCache('native-drawing', 'hit', undefined, 'positioned-owner')
     const cachedProducer = producer
     if (cachedProducer && cachedProducer === nativeDrawingOf(plan.family.lowerScene) && cachedProducer === originalNativeDrawingOf(plan.family.lowerScene)) {
-      requests.set(request, { drawing: cached, producer: cachedProducer, certification: cached.certification })
+      requests.set(request, { phase: 'certified', drawing: cached, producer: cachedProducer, certification: cached.certification })
       return cached
     }
     // An observation callback changed the producer after the lookup. Revoke
@@ -144,7 +148,7 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
   const drawing = withTextMeasurementExecution(plan.textMeasurement, () => drawNative(drawingProducer,
     { positioned: positionedForNativeProducer(layout, drawingProducer), colors, resolved: resolvedFamilyRenderContextOf(request) }, plan.family.id, request.appearance.styled ? request.appearance.style : undefined))
-  requests.set(request, { drawing, producer: drawingProducer, evidence: drawing })
+  requests.set(request, { phase: 'captured', drawing, producer: drawingProducer, evidence: drawing })
   return drawing
 }
 
@@ -153,12 +157,12 @@ export function positionedPaintCertification(request: ResolvedRenderRequest, lay
   const drawing = existing?.drawing ?? retainedNativeDrawing(request, layout)
   if (drawing) {
     const entry = native.get(layout)!.get(request)!
-    observeCache('paint-certification', entry.certification ? 'hit' : 'miss', undefined, 'native')
-    if (entry.certification) return entry.certification
-    const evidence = entry.evidence!
+    observeCache('paint-certification', entry.phase === 'certified' ? 'hit' : 'miss', undefined, 'native')
+    if (entry.phase === 'certified') return entry.certification
+    const evidence = entry.evidence
     const certification = certifyNativePaint(evidence.header, evidence.paint, retainedFamilyProjection(layout), { outputSupported: !request.appearance.colors.shadow })
-    entry.certification = certification
     const retained: RetainedNativeDrawing = Object.freeze({ svg: drawing.svg, preparedText: drawing.preparedText, certification })
+    native.get(layout)!.set(request, { phase: 'certified', drawing: retained, producer: entry.producer, certification })
     const lower = resolvedRenderExecutionPlanOf(request).family.lowerScene
     if (entry.producer === nativeDrawingOf(lower) && entry.producer === originalNativeDrawingOf(lower)) retainNativeDrawing(request, layout, retained)
     else {

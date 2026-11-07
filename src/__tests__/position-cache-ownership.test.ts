@@ -833,3 +833,30 @@ test('Architecture cached rings stay isolated from mutable public layouts across
   expect(child.stderr).toBe('')
   expect(child.status).toBe(0)
 }, 30_000)
+
+test('certified Native requests release construction paint while retaining repeatable output', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import './src/index.ts'
+    import assert from 'node:assert/strict'
+    import { setImmediate } from 'node:timers/promises'
+    import { resolveRenderRequestForExecution } from './src/render-contract.ts'
+    import { positionFamilyForNativeRender } from './src/positioning.ts'
+    import { retainedNativeDrawing, positionedPaintCertification } from './src/scene/positioned.ts'
+    const request = resolveRenderRequestForExecution('flowchart LR\\nStart --> Finish', { graphLayout: { backend: 'agentic' } }, 'svg')
+    const layout = positionFamilyForNativeRender(request)
+    let initial = retainedNativeDrawing(request, layout)
+    assert.ok(initial && initial.paint)
+    const paint = new WeakRef(initial.paint), expected = initial.svg
+    const proof = positionedPaintCertification(request, layout)
+    initial = undefined
+    const retained = retainedNativeDrawing(request, layout)
+    assert.equal(retained.svg, expected)
+    assert.equal('paint' in retained, false)
+    assert.equal(positionedPaintCertification(request, layout), proof)
+    for (let i = 0; i < 8; i++) { await setImmediate(); Bun.gc(true) }
+    assert.equal(paint.deref(), undefined, 'held request and layout must not retain completed paint evidence')
+    assert.equal(retainedNativeDrawing(request, layout).svg, expected)
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
