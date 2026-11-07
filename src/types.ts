@@ -518,9 +518,15 @@ export interface GraphLayoutOptions {
   backend: 'elk' | 'agentic'
   /** Agentic may explicitly fall back to ELK; omitted means none. */
   fallback?: 'none' | 'elk'
+  /** Bounded certified alternatives; omitted preserves existing geometry. */
+  quality?: 'balanced'
+  /** Flowchart-only target for selecting wrapping, never output stretching. */
+  viewport?: { width: number; height: number }
 }
 
 export interface RenderOptions {
+  /** Opt-in pinned Inter ASCII advance/pair metrics; other faces/scripts use the estimator. Does not load fonts. */
+  fontMetrics?: 'estimate' | 'bundled-inter'
   /** Explicit deterministic Flowchart/State placement preferences; included in render receipts. */
   layoutHints?: GraphLayoutHints
   /** Graph geometry producer; omitted preserves the existing ELK pipeline. */
