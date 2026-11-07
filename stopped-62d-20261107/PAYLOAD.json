@@ -1,0 +1,20 @@
+{
+  "runtime": "1.4.4",
+  "rows": [
+    {
+      "tag": "before",
+      "raw": 2203365,
+      "gzip9": 1323398,
+      "brotli11": 1257035,
+      "sha256": "fe61f3390a8afeeb0b477185e6e1e074135f3819450b553cd1f0bdc8e5784f43"
+    },
+    {
+      "tag": "after",
+      "raw": 2203909,
+      "gzip9": 1323609,
+      "brotli11": 1257241,
+      "sha256": "5dad1d0f1fa032a77c17df27f1c08fa1ac0accbee11ee19c81c2d9d47953c865"
+    }
+  ],
+  "comparison": "SameBun1.4.4/nodezlib constants; completeHTML780 versus joint endpoint packing candidate; notmain-relative bytes or performance ratio"
+}

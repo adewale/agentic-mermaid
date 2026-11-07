@@ -1,0 +1,32 @@
+[
+  {
+    "case": 17,
+    "exactJointSvg": true,
+    "sha256": "eccc5420c81b9517277fafa75c1261c40b4b9ee1cfa952e9910f46e5ddb50eb6"
+  },
+  {
+    "case": 159,
+    "exactJointSvg": true,
+    "sha256": "286a105bc0621186e9de2cafd02c2332ea4ab16fc173e12cd506466594cf2be3"
+  },
+  {
+    "case": 152,
+    "exactJointSvg": true,
+    "sha256": "cdf8473e783406dd17af2d3fd42504f49f186f500ed6e74d980f40164104a239"
+  },
+  {
+    "case": 230,
+    "exactJointSvg": true,
+    "sha256": "72483fe512141d7cf0fa5e7d3dc600a0f37e99b13a43687bc2f16206f0bd5a75"
+  },
+  {
+    "case": 201,
+    "exactJointSvg": true,
+    "sha256": "b459b6ac0c52a2a32bfd7e9ddf0e4522842c467007adb1ed05d0774999cce73d"
+  },
+  {
+    "case": 241,
+    "exactJointSvg": true,
+    "sha256": "90284183e6de52a52e1cdaa7cd8f28fab10f8dd45e39516596d3b5e786f08187"
+  }
+]

@@ -1,0 +1,7 @@
+{
+  "files": 395,
+  "uncompressedBytes": 333405034,
+  "archiveBytes": 63416654,
+  "archiveSha256": "f6ea47a75d7e4b6eaf6e298bc7b64eaeab6afb2d2e1ff05325bc65a9d9479590",
+  "verification": "Every archive member reread and verified against original byte length/SHA256. All failed probes retained; symlinks are not duplicated."
+}

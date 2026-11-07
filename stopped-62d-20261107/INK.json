@@ -1,0 +1,84 @@
+{
+  "font": "manifest-verified Inter; system fonts off",
+  "zoom": 3,
+  "offlineRasters": 16,
+  "scope": "Selected head contribution with/without one neighboring head; actual SVG geometry, not whole-diagram readability. Coordinates/raster phase differ between layouts.",
+  "rows": [
+    {
+      "case": 201,
+      "arm": "before",
+      "selected": "edge:n1-&gt;n7#1",
+      "peer": "edge:n3-&gt;n7#0",
+      "sha256": "f90d36cce62c67c88670b4bdd85bfd9022b80e9ab6bd6e4289d367710953cb9e",
+      "roi": {
+        "x0": 426,
+        "x1": 466,
+        "y0": 705,
+        "y1": 750
+      },
+      "exposed": 251,
+      "visible": 247,
+      "attenuated": 12,
+      "hidden": 4,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"355.948,184.397 169.569,184.397 169.569,244.7345 144.194,244.7345\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#lc9-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n1-&gt;n7#1\" data-role=\"edge\" data-from=\"n1\" data-to=\"n7\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n1 to n7\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"1109.187,172.097 1070.409,172.097 1070.409,81.997 163.569,81.997 163.569,240.122 144.194,240.122\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#lc9-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n3-&gt;n7#0\" data-role=\"edge\" data-from=\"n3\" data-to=\"n7\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n3 to n7\" />"
+    },
+    {
+      "case": 201,
+      "arm": "after",
+      "selected": "edge:n1-&gt;n7#1",
+      "peer": "edge:n3-&gt;n7#0",
+      "sha256": "b459b6ac0c52a2a32bfd7e9ddf0e4522842c467007adb1ed05d0774999cce73d",
+      "roi": {
+        "x0": 426,
+        "x1": 466,
+        "y0": 704,
+        "y1": 753
+      },
+      "exposed": 261,
+      "visible": 261,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"355.948,184.397 169.569,184.397 169.569,245.797 144.194,245.797\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#lc9-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n1-&gt;n7#1\" data-role=\"edge\" data-from=\"n1\" data-to=\"n7\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n1 to n7\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"1109.187,169.388666667 1070.409,169.388666667 1070.409,81.997 163.569,81.997 163.569,239.872 144.194,239.872\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#lc9-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n3-&gt;n7#0\" data-role=\"edge\" data-from=\"n3\" data-to=\"n7\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n3 to n7\" />"
+    },
+    {
+      "case": 241,
+      "arm": "before",
+      "selected": "edge:n13-&gt;n3#0",
+      "peer": "edge:n2-&gt;n3#0",
+      "sha256": "e708a08af4a1bf432250b5c81adc11b936d75843be067074d90ad07087e52799",
+      "roi": {
+        "x0": 426,
+        "x1": 466,
+        "y0": 815,
+        "y1": 860
+      },
+      "exposed": 256,
+      "visible": 252,
+      "attenuated": 12,
+      "hidden": 4,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"375.16,249.429 327.477,249.429 327.477,214.6 169.569,214.6 169.569,281.5665 144.194,281.5665\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#lc49-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n13-&gt;n3#0\" data-role=\"edge\" data-from=\"n13\" data-to=\"n3\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n13 to n3\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"edge 20 xxxxxx\" points=\"551.992368787,185.45 163.569,185.45 163.569,276.954 144.194,276.954\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#lc49-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n2-&gt;n3#0\" data-role=\"edge\" data-from=\"n2\" data-to=\"n3\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n2 to n3: edge 20 xxxxxx\" />"
+    },
+    {
+      "case": 241,
+      "arm": "after",
+      "selected": "edge:n13-&gt;n3#0",
+      "peer": "edge:n2-&gt;n3#0",
+      "sha256": "90284183e6de52a52e1cdaa7cd8f28fab10f8dd45e39516596d3b5e786f08187",
+      "roi": {
+        "x0": 426,
+        "x1": 466,
+        "y0": 811,
+        "y1": 865
+      },
+      "exposed": 257,
+      "visible": 257,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"375.16,249.429 327.477,249.429 327.477,214.6 169.569,214.6 169.569,283.22275 144.194,283.22275\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#lc49-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n13-&gt;n3#0\" data-role=\"edge\" data-from=\"n13\" data-to=\"n3\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n13 to n3\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"edge 20 xxxxxx\" points=\"551.992368787,185.45 163.569,185.45 163.569,275.5165 144.194,275.5165\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#lc49-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n2-&gt;n3#0\" data-role=\"edge\" data-from=\"n2\" data-to=\"n3\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n2 to n3: edge 20 xxxxxx\" />"
+    }
+  ]
+}
