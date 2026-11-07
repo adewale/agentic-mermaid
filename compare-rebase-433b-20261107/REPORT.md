@@ -103,6 +103,14 @@ solver heap. These observations establish no repeat/cache/edit ratio or leak.
 
 `COSTS.json` contains process CPU and actual gzip9/Brotli11 compressed SVG and
 full-product bytes. Refusals have no output payload. Heap is unmeasured here.
+Selected full-product compressed bytes retain small adverse changes as well:
+
+| Input | Native / ELK gzip9 bytes | Native / ELK Brotli11 bytes |
+| --- | ---: | ---: |
+| Forest | 2,685 / 2,681 | 2,271 / 2,269 |
+| Sparse256 | 14,902 / 14,477 | 7,712 / 7,744 |
+| ER208 | 41,685 / 41,770 | 26,828 / 26,856 |
+
 The existing dated performance review retains cold/cache/edit distinctions,
 self/inclusive sampled hotspots and cache inventory. Its timings are not
 silently rebound to this source. No optimizer or cache was added.

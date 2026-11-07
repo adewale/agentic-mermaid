@@ -6,8 +6,8 @@
   },
   {
     "path": "REPORT.md",
-    "bytes": 13714,
-    "sha256": "c7dde9c5a26222c94bab0ea99104ec2c6ac376edca056072b957b115a6e16e52"
+    "bytes": 14019,
+    "sha256": "7162c138ed9ee9768f4b67bfa79d38274e4e979852b8542cf31af52d8a42292c"
   },
   {
     "path": "SOURCE.txt",
@@ -508,5 +508,15 @@
     "path": "selected-output/corpus_class_2/agentic/actual.svg",
     "bytes": 5132,
     "sha256": "11e9f8e9862dcad0ed1567731e8a83aa4da62b887752b4d5a2397d67794f04c5"
+  },
+  {
+    "path": "PR-BODY.md",
+    "bytes": 6902,
+    "sha256": "95f16d0575da9692938c0d78ac5669a31b7808fc339c9967284a434a9465fb96"
+  },
+  {
+    "path": "campaign-state-final.json",
+    "bytes": 23680,
+    "sha256": "d237ea672eac4a05ceaa81da7c98733912be655b28efc9f4e9304ce75cf12eaa"
   }
 ]
