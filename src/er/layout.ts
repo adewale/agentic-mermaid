@@ -1298,7 +1298,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
       return { index, box, first: i === 0, last: i === rel.points.length - 2, line: [a, b] as const }
     })
   })
-  let failedCaptions = finalizeErRelationshipLabels(positioned, style, styleFace, work)
+  let failedCaptions = finalizeErRelationshipLabels(positioned, style, styleFace, work, 'indexed-prefix')
   let labels = retainedErRelationshipLabels(positioned) ?? separateRelationshipLabels(positioned, style, styleFace, work)
   const labelBoxes = (occupied: boolean) => relationships.flatMap((rel, index) => {
     charge()
@@ -1353,7 +1353,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     const current = horizontal ? p.y : p.x
     const corner = groupIds.has(terminal.id) ? 6 : Math.min(style.cornerRadius ?? 0, box.width / 2, box.height / 2)
     let low = (horizontal ? box.y : box.x) + corner, high = (horizontal ? box.y + box.height : box.x + box.width) - corner
-    const { currentGlyphs, glyphQuery, shaftQuery } = retained, thisGlyph = currentGlyphs.find(g => g.index === terminal.index && g.end === terminal.end)!
+    const { currentGlyphs, glyphQuery, shaftQuery } = retained, thisGlyph = currentGlyphs[terminal.index * 2 + terminal.end]!
     const laterOnFace = [...faceGroups.get(terminal.id)!.values()].flat().map(g => currentGlyphs[g.index * 2 + g.end]!).filter(glyph => {
       charge()
       if (glyph.id !== terminal.id || order.get(glyph.index * 2 + glyph.end)! <= order.get(terminal.index * 2 + terminal.end)!) return false
@@ -1395,7 +1395,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     const reservations = [...thisGlyph.pieces.map(piece => ({ piece, occupied })), { piece: leadBox, occupied: leadObstacles }]
     charge(occupied.length + leadObstacles.length + reservations.length)
     if (current >= low && current <= high && !reservations.some(({piece, occupied}) => occupied.some(other => intersects(piece, other)))) continue
-    const opposite = currentGlyphs.find(g => g.index === terminal.index && g.end !== terminal.end)!
+    const opposite = currentGlyphs[terminal.index * 2 + 1 - terminal.end]!
     const oppositeHorizontal = opposite.point.y === opposite.toward.y
     if (horizontal !== oppositeHorizontal) {
       const oppositeSign = Math.sign(oppositeHorizontal ? opposite.toward.x - opposite.point.x : opposite.toward.y - opposite.point.y)
@@ -1444,7 +1444,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     if (last === (terminal.end ? 0 : points.length - 1)) {
       const start = points[0]!, end = points.at(-1)!
       points[first]![cross] = candidate
-      const a = currentGlyphs.find(g => g.index === terminal.index && g.end === 0)!, b = currentGlyphs.find(g => g.index === terminal.index && g.end === 1)!
+      const a = currentGlyphs[terminal.index * 2]!, b = currentGlyphs[terminal.index * 2 + 1]!
       const role = erRelationshipStyle(terminal.rel, styleFace)
       const needed = (glyph: typeof a) => {
         const ray = Math.sign(horizontal ? glyph.toward.x - glyph.point.x : glyph.toward.y - glyph.point.y)
@@ -1466,7 +1466,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
   }
   if (changed) {
     repairErFrameRoutes(positioned.entities, positioned.groups, relationships, relationships.map(rel => rel.labelBlock ?? erRelationshipBlock(rel, style, styleFace)), style, styleFace, work)
-    failedCaptions = finalizeErRelationshipLabels(positioned, style, styleFace, work)
+    failedCaptions = finalizeErRelationshipLabels(positioned, style, styleFace, work, 'indexed-prefix')
     labels = retainedErRelationshipLabels(positioned) ?? separateRelationshipLabels(positioned, style, styleFace, work)
   }
   if (failedCaptions.length) {
@@ -1477,22 +1477,25 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
       { indices, admit: (index, points) => erCandidateCaptionClear(positioned, index, points, style, styleFace, work) })
     positioned.width = Math.max(positioned.width, ...relationships.flatMap(rel => rel.points.map(point => point.x + ER.padding)))
     positioned.height = Math.max(positioned.height, ...relationships.flatMap(rel => rel.points.map(point => point.y + ER.padding)))
-    finalizeErRelationshipLabels(positioned, style, styleFace, work)
+    finalizeErRelationshipLabels(positioned, style, styleFace, work, 'indexed-prefix')
     labels = retainedErRelationshipLabels(positioned) ?? separateRelationshipLabels(positioned, style, styleFace, work)
   }
   const allGlyphs = glyphs(), allShafts = shafts(), allLabels = labelBoxes(false)
   for (const rel of relationships) if (!erSimpleRoute(rel.points, work)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
   // Strict body/header interiors apply to every raw segment, including an
   // incident card revisited later in a route. Legitimate outline contacts are
-  // on the open boundary and therefore do not enter these rectangles.
+  // on the open boundary and therefore do not enter these rectangles. The
+  // painted obstacle index is conservative; keep the exact interior predicate.
   for (const rel of relationships) for (let i = 1; i < rel.points.length; i++) {
-    for (const entity of positioned.entities) {
+    const a = rel.points[i - 1]!, b = rel.points[i]!
+    charge()
+    for (const obstacle of obstacleQuery({ x0: Math.min(a.x, b.x), y0: Math.min(a.y, b.y), x1: Math.max(a.x, b.x), y1: Math.max(a.y, b.y) })) {
+      if (obstacle.border) continue
+      const box = subjects.get(obstacle.id)!
+      const height = obstacle.group ? (box as PositionedErDiagram['groups'][number]).headerHeight : box.height
+      if (obstacle.group && height <= 0) continue
       charge()
-      if (segmentThroughShape(rel.points[i - 1]!, rel.points[i]!, { ...entity, label: '', shape: 'rectangle' })) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
-    }
-    for (const group of positioned.groups) {
-      charge()
-      if (group.headerHeight > 0 && segmentThroughShape(rel.points[i - 1]!, rel.points[i]!, { ...group, height: group.headerHeight, label: '', shape: 'rectangle' })) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
+      if (segmentThroughShape(a, b, { ...box, height, label: '', shape: 'rectangle' })) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
     }
   }
   const terminalBorderContact = (shaft: typeof allShafts[number], id: string, box: { x: number; y: number; width: number; height: number }, borderHalf: number, radius: number, group: boolean): boolean => {
@@ -1513,15 +1516,13 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
   }
   for (const shaft of allShafts) {
     const rel = relationships[shaft.index]!
-    for (const entity of positioned.entities) {
-      const authored = Number.parseFloat(entity.inlineStyle?.['stroke-width'] ?? '')
-      const half = (Number.isFinite(authored) && authored > 0 ? authored : style.nodeLineWidth) / 2
-      const box = { x0: entity.x - half, y0: entity.y - half, x1: entity.x + entity.width + half, y1: entity.y + entity.height + half }
-      if (intersects(shaft.box, box) && !terminalBorderContact(shaft, entity.id, entity, half, Math.min(style.cornerRadius ?? 0, entity.width / 2, entity.height / 2), false)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
-    }
-    for (const group of positioned.groups) {
-      const header = { x0: group.x, y0: group.y, x1: group.x + group.width, y1: group.y + group.headerHeight }
-      if (group.headerHeight > 0 && intersects(shaft.box, header) && !terminalBorderContact(shaft, group.id, group, .75, 6, true)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
+    for (const obstacle of obstacleQuery(shaft.box)) {
+      if (obstacle.border) continue
+      const box = subjects.get(obstacle.id)!
+      if (obstacle.group && (box as PositionedErDiagram['groups'][number]).headerHeight <= 0) continue
+      const authored = obstacle.group ? NaN : Number.parseFloat((box as PositionedErEntity).inlineStyle?.['stroke-width'] ?? '')
+      const half = obstacle.group ? .75 : (Number.isFinite(authored) && authored > 0 ? authored : style.nodeLineWidth) / 2
+      if (intersects(shaft.box, obstacle.box) && !terminalBorderContact(shaft, box.id, box, half, obstacle.group ? 6 : Math.min(style.cornerRadius ?? 0, box.width / 2, box.height / 2), !!obstacle.group)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
     }
   }
   const glyphBounds = new Map(allGlyphs.map(glyph => {
@@ -1536,11 +1537,21 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     if (other.index * 2 + other.end <= glyph.index * 2 + glyph.end) continue
     for (const piece of glyph.pieces) if (other.pieces.some(p => intersects(piece, p))) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
   }
+  charge(allGlyphs.length)
+  const terminalShaftIndices = new Int32Array(allGlyphs.length)
+  for (let index = 0; index < allShafts.length; index++) {
+    charge()
+    const shaft = allShafts[index]!
+    if (shaft.first && terminalShaftIndices[shaft.index * 2] === 0) terminalShaftIndices[shaft.index * 2] = index + 1
+    if (shaft.last && terminalShaftIndices[shaft.index * 2 + 1] === 0) terminalShaftIndices[shaft.index * 2 + 1] = index + 1
+  }
   for (const glyph of allGlyphs) {
     const dx = glyph.toward.x - glyph.point.x, dy = glyph.toward.y - glyph.point.y
     const horizontal = dy === 0 && dx !== 0, vertical = dx === 0 && dy !== 0
     const sign = Math.sign(horizontal ? dx : dy)
-    const terminal = allShafts.find(shaft => { charge(); return shaft.index === glyph.index && (glyph.end ? shaft.last : shaft.first) })
+    charge()
+    const terminalIndex = terminalShaftIndices[glyph.index * 2 + glyph.end]!
+    const terminal = terminalIndex ? allShafts[terminalIndex - 1] : undefined
     const line = terminal?.line, far = line && (glyph.end ? line[0] : line[1]), at = line && (glyph.end ? line[1] : line[0])
     if ((!horizontal && !vertical) || !far || !at || (horizontal ? far.y !== at.y || Math.sign(far.x - at.x) !== sign : far.x !== at.x || Math.sign(far.y - at.y) !== sign)
       || sign * ((horizontal ? far.x : far.y) - (horizontal ? glyph.point.x : glyph.point.y)) < terminalDepth(glyph.pieces, glyph.point, horizontal, sign)) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
