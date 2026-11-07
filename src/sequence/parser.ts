@@ -371,7 +371,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
 
   for (const [index, entry] of source.statements.entries()) {
     const line = entry.raw.trim()
-    if (parserObservationActive('sequence')) observeParserStatement('sequence', entry.syntax?.kind ?? 'unrecognized', entry.raw, { line: entry.line + 2, column: entry.column + 1, unit: 'normalized' })
+    if (parserObservationActive('sequence')) observeParserStatement('sequence', entry.syntax?.kind ?? 'unrecognized', entry.raw, { line: entry.line + 2, column: entry.column + 1, unit: 'normalized' }, entry.syntax ?? undefined)
     if (entry.error) {
       if (!(entry.error instanceof MermaidSyntaxError)) throw entry.error
       throw locateSyntaxError(entry.error, { diagramType: 'sequence', line: lineOf(entry.line + 1), column: columnOf(entry.line + 1, entry.column) })

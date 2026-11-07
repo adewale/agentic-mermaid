@@ -112,9 +112,11 @@ function deliver(family: string, event: ParserObservation): void {
   }
 }
 
-export function observeParserStatement(family: string, kind: string, text: string, source?: ParserObservationSource): void {
+/** A parser may publish the structured value it actually consumes. Capture it
+ * only inside an active scope, before a callback can change parser-owned data. */
+export function observeParserStatement(family: string, kind: string, text: string, source?: ParserObservationSource, value?: unknown): void {
   if (!parserObservationActive(family)) return
-  deliver(family, { family, unit: 'statement', kind, text, ...(source ? { source: { ...source } } : {}) })
+  deliver(family, { family, unit: 'statement', kind, text, ...(source ? { source: { ...source } } : {}), ...(value === undefined ? {} : { value: snapshot(value) }) })
 }
 
 export function observeParserToken(family: string, kind: string, text: string, source?: ParserObservationSource): void {

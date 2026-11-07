@@ -187,6 +187,10 @@ builder writes. Each event names its native kind, family and unit
 (`statement`, `token` or `mutation`). Source coordinates explicitly distinguish
 physical input from a parser's normalized view. Mutation operands are copied at
 the call boundary, retaining identities, parent and membership fields.
+Sequence statement events also include the consumed structured syntax in
+`value`, including authored autonumber controls. These detached snapshots let
+an observer distinguish omitted fields without reparsing statement text;
+ordinary parsing without an observation scope creates no event snapshots.
 
 ```ts
 import { parseRegisteredMermaid, withParserObservation } from 'agentic-mermaid'

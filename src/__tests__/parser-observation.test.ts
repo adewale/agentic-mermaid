@@ -5,11 +5,30 @@ import { renderMermaidSVG } from '../index.ts'
 import { parseMermaid } from '../parser.ts'
 import { withPerformanceExperiments } from '../experimental-performance.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
-import { observeParserMutation, type ParserObservation, withParserObservation } from '../shared/parser-observation.ts'
+import { observeParserMutation, observeParserStatement, type ParserObservation, withParserObservation } from '../shared/parser-observation.ts'
 import { parseWardleyBody } from '../wardley/body.ts'
 import { parseCynefin } from '../cynefin/parser.ts'
 import { parseVennDiagram } from '../venn/parser.ts'
 import { parseZenUML } from '../zenuml/native-parser.ts'
+
+test('structured statement observations preserve authored controls without giving callbacks parser ownership', () => {
+  const events: ParserObservation[] = []
+  const diagram = withParserObservation('sequence', event => {
+    events.push(event)
+    if (event.unit === 'statement' && event.kind === 'message' && event.value) {
+      ;(event.value as any).message.from = 'Callback replacement'
+    }
+  }, () => parseSequenceDiagram(['sequenceDiagram', 'autonumber 10 2', 'A->>B: Original', 'autonumber off', 'B->>A: Done']))
+  expect(diagram.messages.map(message => [message.from, message.to, message.number])).toEqual([['A', 'B', 10], ['B', 'A', undefined]])
+  expect(events.filter(event => event.unit === 'statement' && event.kind === 'autonumber').map(event => event.value)).toEqual([
+    { kind: 'autonumber', numbering: { next: 10, step: 2 } },
+    { kind: 'autonumber', numbering: null },
+  ])
+  let reads = 0
+  const unobserved = { get payload() { reads++; return 'unused' } }
+  observeParserStatement('sequence', 'unused', '', undefined, unobserved)
+  expect(reads).toBe(0)
+})
 
 describe('native parser observation', () => {
   test('selective mutation observation avoids reading excluded payloads and restores the enclosing scope', () => {
