@@ -251,13 +251,13 @@ async function standaloneHarness(payload: string | null = 'MTIzNDU2Nzg5', damage
 }
 
 describe('standalone worker payload lifecycle', () => {
-  test('the actual bounded Brotli, dictionary and CRC closure returns the exact shipped worker bytes', async () => {
-    const packed = packStandaloneWorker('123456789')
+  test.each(['123456789', 'const label = "international compression dictionary 🌍"; const safe = "</script>";'])('the actual bounded Brotli, dictionary and CRC closure returns exact worker bytes for %s', async source => {
+    const packed = packStandaloneWorker(source)
     const subject = fileURLToPath(new URL('../browser-standalone-payload.ts', import.meta.url))
     const built = await Bun.build({
       entrypoints: ['standalone-payload-subject'], target: 'browser', format: 'iife', minify: true,
       define: packed.define,
-      plugins: [standaloneCodecPlugin(), { name: 'standalone-payload-subject', setup(build) {
+      plugins: [standaloneCodecPlugin(packed.dictionary), { name: 'standalone-payload-subject', setup(build) {
         build.onResolve({ filter: /^standalone-payload-subject$/ }, () => ({ path: 'subject.ts', namespace: 'standalone-payload-subject' }))
         build.onLoad({ filter: /.*/, namespace: 'standalone-payload-subject' }, () => ({ loader: 'ts',
           contents: `import {standaloneWorkerPayload} from ${JSON.stringify(subject)}; globalThis.decode = text => standaloneWorkerPayload(text, () => false);` }))
@@ -266,7 +266,7 @@ describe('standalone worker payload lifecycle', () => {
     if (!built.success) throw new AggregateError(built.logs, 'Could not build the actual standalone codec subject')
     const context = { Blob, Uint8Array, atob, performance, decode: undefined as unknown as (text: string) => Blob }
     runInNewContext(await minifyBrowserRuntime(await built.outputs[0]!.text()), context)
-    expect(await context.decode(packed.encoded).text()).toBe('123456789')
+    expect(await context.decode(packed.encoded).text()).toBe(source)
     const corrupted = (packed.encoded[0] === 'A' ? 'B' : 'A') + packed.encoded.slice(1)
     expect(() => context.decode(corrupted)).toThrow('checksum')
   })

@@ -22,7 +22,34 @@ function crc32(bytes: Uint8Array): number {
   return gzip.readUInt32LE(gzip.length - 8)
 }
 
-export function packStandaloneWorker(source: string): { encoded: string; define: Record<string, string>; workerBytes: number; packedBytes: number } {
+/** The decoder is private to one build-owned payload. Keep dictionary offsets
+ * intact while subtracting bytes that this exact stream never reads. */
+function standaloneDictionary(packed: Uint8Array, expected: Buffer): string {
+  const decode = require('brotli/decompress.js') as (input: Uint8Array, size: number) => Uint8Array
+  const table = require('brotli/dec/dictionary.js') as { dictionary: Uint8Array }
+  const full = table.dictionary
+  if (full.length !== 122_784) throw new Error('Pinned Brotli dictionary length changed')
+  const sparse = new Uint8Array(full.length)
+  try {
+    table.dictionary = new Proxy(full, {
+      get(target, key) {
+        const value = Reflect.get(target, key, target)
+        if (typeof key === 'string' && /^(0|[1-9][0-9]*)$/.test(key)) {
+          const index = Number(key)
+          if (index >= target.length) throw new Error('Brotli dictionary read exceeds its fixed length')
+          sparse[index] = value
+        }
+        return value
+      },
+    })
+    if (!Buffer.from(decode(packed, expected.length)).equals(expected)) throw new Error('Traced standalone worker differs from build source')
+    table.dictionary = sparse
+    if (!Buffer.from(decode(packed, expected.length)).equals(expected)) throw new Error('Specialized dictionary changes the standalone worker')
+    return Buffer.from(sparse).toString('base64')
+  } finally { table.dictionary = full }
+}
+
+export function packStandaloneWorker(source: string): { encoded: string; define: Record<string, string>; workerBytes: number; packedBytes: number; dictionary: string } {
   const bytes = Buffer.from(source, 'utf8')
   if (!bytes.length || bytes.length > 8 * 1024 * 1024) throw new Error('Standalone worker exceeds the 8 MiB decoded limit')
   const packed = brotliCompressSync(bytes, { params: {
@@ -33,7 +60,7 @@ export function packStandaloneWorker(source: string): { encoded: string; define:
   if (packed.length > 4 * 1024 * 1024 || !brotliDecompressSync(packed).equals(bytes)) {
     throw new Error('Standalone worker packing failed its complete byte comparison')
   }
-  return { encoded: packed.toString('base64'), workerBytes: bytes.length, packedBytes: packed.length, define: {
+  return { encoded: packed.toString('base64'), workerBytes: bytes.length, packedBytes: packed.length, dictionary: standaloneDictionary(packed, bytes), define: {
     AM_STANDALONE_PACKED_LENGTH: String(packed.length),
     AM_STANDALONE_PACKED_CRC32: String(crc32(packed)),
     AM_STANDALONE_WORKER_LENGTH: String(bytes.length),
@@ -90,7 +117,7 @@ export function boundStandaloneCodec(source: string, path: string, decoder: bool
   return result
 }
 
-export function standaloneCodecPlugin(): Bun.BunPlugin {
+export function standaloneCodecPlugin(dictionary?: string): Bun.BunPlugin {
   const brotliRoot = dirname(require.resolve('brotli/package.json'))
   const brotliRequire = createRequire(join(brotliRoot, 'package.json'))
   const base64Root = dirname(brotliRequire.resolve('base64-js/package.json'))
@@ -122,7 +149,10 @@ export function standaloneCodecPlugin(): Bun.BunPlugin {
       build.onLoad({ filter: /\.js$/ }, args => {
         const path = realpathSync(args.path)
         if (path !== crcPath && path !== base64Path && !path.startsWith(`${realpathSync(brotliRoot)}/dec/`)) return undefined
-        return { contents: boundStandaloneCodec(readFileSync(path, 'utf8'), path, path === decoderPath), loader: 'js', resolveDir: dirname(path) }
+        const source = dictionary !== undefined && path === dictionaryPath
+          ? `var base64=require('base64-js');exports.init=function(){require('am-standalone-codec-budget').limitCodecOutput(122784);return base64.toByteArray(${JSON.stringify(dictionary)});};`
+          : readFileSync(path, 'utf8')
+        return { contents: boundStandaloneCodec(source, path, path === decoderPath), loader: 'js', resolveDir: dirname(path) }
       })
     },
   }
@@ -136,7 +166,7 @@ export function standaloneCodecNotices(): string {
   const header = readFileSync(join(pako, 'lib/zlib/crc32.js'), 'utf8').match(/\/\/ \(C\) 1995[\s\S]*?\/\/ 3\.[^\n]*(?:\n|$)/)?.[0]
   if (!header) throw new Error('Pinned Pako CRC attribution missing')
   return [
-    'Agentic Mermaid modifies the bundled decoder, base64 and CRC sources by adding loop-budget, output-allocation and window guards; the compressed format is unchanged.',
+    'Agentic Mermaid modifies the bundled decoder, base64 and CRC sources by adding loop-budget, output-allocation and window guards; the compressed format is unchanged. For the private build-owned worker, unused dictionary bytes are zeroed at their original offsets and the complete decoded bytes are rechecked.',
     'Brotli.js 1.3.3 — package/README declare MIT; author Devon Govett. No upstream LICENSE file is supplied. MIT terms are reproduced below without an invented copyright year.',
     readFileSync(new URL('../../LICENSES/Brotli-MIT.txt', import.meta.url), 'utf8'),
     'Brotli decoder: Copyright 2013 Google Inc. All Rights Reserved. Licensed under Apache License, Version 2.0.',

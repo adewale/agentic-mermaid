@@ -98,7 +98,10 @@ terms are reproduced in `LICENSES/Brotli-MIT.txt` without inventing a copyright
 year. Actual decoder files retain **Copyright 2013 Google Inc. All Rights
 Reserved.** and Apache License 2.0 headers; full terms are in
 `LICENSES/Apache-2.0.txt`. The build adds loop, output-allocation and window
-limits; it does not change the compressed format or expose a decoder API.
+limits. For each private worker it also zeros unread dictionary bytes at their
+original offsets and verifies the complete decoded worker; dictionary length
+and transforms remain unchanged. It does not change the compressed format or
+expose a decoder API.
 
 The emitted HTML also includes the full MIT notice of `base64-js` 1.5.1 and
 Pako 1.0.11's MIT license and Zlib CRC header (Jean-loup Gailly, Mark Adler,

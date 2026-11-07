@@ -53,6 +53,24 @@ replace neither the dated profiler nor its missing runtime/cold/cache evidence.
 Next causal probe: whether standalone worker precompression accounts for the
 Brotli loss, preserving decoded worker bytes, ownership and browser contracts.
 
+## Private decoder data — 7 November
+
+From `930faf846c6bec55e1f9b053844700e08281faf6`, profile the exact build-owned
+worker: 26,625 dictionary reads touch16,460 of122,784 bytes. Retain the same table
+length/offsets/transforms and zero unread bytes per build; verify all decoded
+worker bytes and restore the shared build decoder on failure. This subtracts
+unused data without adding a cache or changing runtime/rendering contracts.
+Complete HTML gzip **1,348,449→1,310,748 (−37,701)**; Brotli
+**1,282,268→1,245,137 (−37,131)**. Packed and decoded worker bytes stay exact.
+The owning unchanged budget moves RED→GREEN; browser worker/budget2P, minifier/
+preview owners46P, core types and lint pass. Raw HTML grows95,553bytes; observed
+build RSS674,760KiB and19.2s remain within55s, with no speed/memory ratio claim.
+Main39 Brotli remains146,733bytes smaller. Source/Node APIs and the six-case
+geometry comparison are unchanged; no rerun is counted as a layout gain. All
+caps, Unicode, cancellation, custody and notices remain. Lazy/demo budgets,
+Sparse32 and sharedER256 refusal remain; six-pass/raw trials stay stopped.
+Next: qualify exact-head CI, then choose a distinct demonstrated residual cost.
+
 ## Main integration — 7 November
 
 Merge `1693c2a2b7fd93cb5da11f1a358d162180fa19cc` combines main
@@ -68,8 +86,8 @@ byte-exactly to retained products. This preserves known gains, not new layout wo
 Matched full production builds, main39→PR1693: gzip **1,423,188→1,348,449
 (−5.25%)**, Brotli **1,098,404→1,282,268 (+16.74%)**; raw4,742,588→2,091,362.
 Peak build RSS430,832→683,124KiB; 12.1/20.8s are single observations, not a speed
-ratio. Both finish within55s. The actual emitted-worker owner passes499assertions
-across its paired budget/worker run; the budget still fails by13,949gzip bytes in
+ratio. Both finish within55s. The emitted-worker owner passes; its paired run records499assertion calls
+with one failing budget, still13,949gzip bytes over in
 the symlink-notice environment. Prior970CI gzip1,337,753 is a separate build.
 CI1693 run42316449234 tests mergea785d98 into main39: lazy budgets fail, other
 jobs remain in progress. Sparse32, shared ER256 refusal and stopped six-pass/raw

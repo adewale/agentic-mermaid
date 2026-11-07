@@ -269,7 +269,7 @@ async function generateEditorHtml(): Promise<string> {
     workerMetafile = workerBuild.metafile
     const buildResult = await Bun.build({
       entrypoints: [fileURLToPath(new URL('../../src/browser-standalone.ts', import.meta.url))],
-      plugins: [...runtimePlugins, standaloneCodecPlugin()],
+      plugins: [...runtimePlugins, standaloneCodecPlugin(packed.dictionary)],
       define: packed.define,
       // SWC owns syntax/identifier compression once; retain Bun's whitespace pass.
       target: 'browser', format: 'esm', minify: { whitespace: true, syntax: false, identifiers: false },
