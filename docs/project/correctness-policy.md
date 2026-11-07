@@ -188,6 +188,19 @@ canonical-copy parsing, export/reload and an unrelated title edit. Their
 represented meaning survives; adding an alternate database-shaped AST would
 not repair a demonstrated product defect.
 
+The subsequent adversarial review found failures that the original suite did
+not exercise: Flowchart/Swimlane label writes exposed directive-looking text
+to preprocessing; Railroad title writes treated field text as comments or
+collapsed spaces; Wardley generated IDs overwrote authored components and
+reopening a pipeline forgot members; UseCase links stopped at caption envelopes
+instead of the painted person, and terminal layout ignored horizontal direction;
+styled Venn intersection artwork duplicated its enclosing selection identity.
+These are legitimate problems under the same rule. The owning field codecs,
+Wardley namespace allocator, UseCase terminal/glyph adapters and Venn semantic
+group now preserve those distinctions. Independent text, membership, final-ink
+and public-identity regressions fail against the earlier producers. None of
+these repairs earns a private database or exact-diagnostic compatibility claim.
+
 ## Evidence for repairs and comparisons
 
 Protect repairs with independently stated fields and relationships, portable
