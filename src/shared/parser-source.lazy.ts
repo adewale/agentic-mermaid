@@ -1,6 +1,6 @@
 import { DeferredDependencyError } from '../layout/certification-error.ts'
 import { LocatedParserError } from './syntax-error.ts'
-export { familyParserLines } from '../mermaid-source-wrapper.ts'
+export { familyParserLines } from './family-parser-lines.ts'
 
 type ParserSource = typeof import('./parser-source.ts')
 let implementation: ParserSource | undefined

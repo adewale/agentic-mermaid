@@ -4,7 +4,7 @@ import { installedFamilyStatementEnds } from '../agent/family-router.ts'
 import { scanAccessibilityDirectives } from './accessibility-directives.ts'
 import { sourceLineStarts, sourcePointAt } from './source-spans.ts'
 import { LocatedParserError, type MermaidSyntaxErrorLocation } from './syntax-error.ts'
-export { familyParserLines } from '../mermaid-source-wrapper.ts'
+export { familyParserLines } from './family-parser-lines.ts'
 
 type Source = Pick<NormalizedMermaidSource, 'familyLines' | 'originalText' | 'wrapperSource' | 'authoredWrapperLength' | 'cleanup'>
 

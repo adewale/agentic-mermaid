@@ -37,6 +37,7 @@ import { parseDirectiveYaml, parseMermaidYaml } from './shared/mermaid-yaml.ts'
 import { syntaxError } from './shared/syntax-error.ts'
 import { authoredMermaidSlice, cleanedMermaidOffset, cleanupMermaidSource, originalMermaidOffset, type MermaidCleanup, type MermaidCleanupBias } from './shared/mermaid-cleanup.ts'
 import { matchMermaidFrontmatter, mermaidFirstLine, INIT_DIRECTIVE_REGEX, stripMermaidDirectives, splitHeaderStatement, toMermaidLines } from './mermaid-source-wrapper.ts'
+import { joinStatementLines } from './shared/trailing-comment.ts'
 
 export { toMermaidLines }
 
@@ -696,7 +697,7 @@ function normalizeSource(
   const statementEnds = family?.statementEnds?.(accessibilityLines)
   const physicalStatementEnds = accessibilityLines === physicalLines ? statementEnds : family?.statementEnds?.(physicalLines)
   const canonicalLines = physicalStatementEnds?.some((end, index) => end > index)
-    ? toMermaidLines(physicalLines, physicalStatementEnds)
+    ? toMermaidLines(joinStatementLines(physicalLines, physicalStatementEnds, true))
     : processed.lines
   // A line inside a statement's quoted text is the family's, whatever it holds.
   const accessibilityScan = scanAccessibilityDirectives(
