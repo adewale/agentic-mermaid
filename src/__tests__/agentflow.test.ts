@@ -124,6 +124,30 @@ test('strict AgentFlow errors retain their class and source coordinates through 
   expect(parseAgentflow('agentflow-beta\na@{ shape: Rounded }\nconnector a[API]').roles.get('a')).toBe('connector')
 })
 
+test.each([
+  ['agentflow-beta TB\n  a["A"]@{ shape: rounded }\n\n  b["B"]@{ shape: rounded }\n\n  c["C"]"]', 6, '"]'],
+  ['agentflow-beta\n  a["A"]@{shape: tool} --> b["B"]"]', 2, '"]'],
+  ['agentflow-beta\n  connector api["API"]"]', 2, '"]'],
+  ['agentflow-beta; a[A] --> b["B"]"]', 1, '"]'],
+  ['agentflow-beta\nflow team[Team]\n  a[A] !bad\nend', 3, '!bad'],
+] as const)('delegated AgentFlow grammar errors point into the authored production: %j', (source, line, marker) => {
+  const column = source.split('\n')[line - 1]!.lastIndexOf(marker) + 1
+  for (const newline of ['\n', '\r\n']) {
+    const input = source.replaceAll('\n', newline)
+    for (const collect of [true, false]) {
+      let failure: unknown
+      try { parseAgentflow(input, collect) } catch (error) { failure = error }
+      expect(failure).toBeInstanceOf(MermaidSyntaxError)
+      expect(failure).toMatchObject({ code: 'MERMAID_SYNTAX_ERROR', diagramType: 'agentflow', line, column })
+    }
+    const wrapper = ['---', 'title: Wrapped', '---', '%%{init: {"theme":"dark"}}%%', ''].join(newline)
+    let wrapped: unknown
+    try { parseAgentflowModel(wrapper + input) } catch (error) { wrapped = error }
+    expect(wrapped).toBeInstanceOf(MermaidSyntaxError)
+    expect(wrapped).toMatchObject({ code: 'MERMAID_SYNTAX_ERROR', diagramType: 'agentflow', line: line + 4, column })
+  }
+})
+
 test('AgentFlow typed metadata and identity edits keep family-owned records and portable source in agreement', () => {
   const original = parseAgentflow(source)
   const renamed = mutateAgentflow(original, { kind: 'rename_node', from: 'write', to: 'draft' })

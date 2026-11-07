@@ -1,5 +1,5 @@
 import { containsFlowchartOpaqueSyntax } from '../agent/flowchart-unsupported.ts'
-import { coalesceFlowchartLines, type FlowchartScan, FLOWCHART_EDGE_ID_PREFIX_SOURCE, flowchartGroupPosition, flowchartNodeIdLength, flowchartStatementSpans, matchFlowchartLink, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
+import { coalesceFlowchartLines, type FlowchartLineGroup, type FlowchartScan, FLOWCHART_EDGE_ID_PREFIX_SOURCE, flowchartGroupPosition, flowchartNodeIdLength, flowchartStatementSpans, matchFlowchartLink, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import { parseMermaid } from '../parser.ts'
 import { assertMermaidGraphWork } from '../shared/diagram-limits.ts'
@@ -114,12 +114,41 @@ function mapGraphOccurrences(text: string, scan: FlowchartScan, record: (id: str
   }
 }
 
+/** Invert only the actual projection on failure. The shared lexer owns both
+ * statement boundaries and metadata ranges; successful parses retain no trace. */
+function locateTopologyError(error: MermaidSyntaxError, grammar: readonly string[], origins: readonly number[], groups: readonly FlowchartLineGroup[]): void {
+  const row = (error.line ?? 0) - 1
+  const groupIndex = origins[row * 2], start = origins[row * 2 + 1]
+  const group = groupIndex === undefined ? undefined : groups[groupIndex]
+  const statement = group && flowchartStatementSpans(group.text).find(statement => statement.start === start)
+  let point: { line: number; col: number } | undefined
+  if (statement && group) {
+    const blocks = scanFlowchart(statement.text).regions.filter(region => region.kind === 'metadata' && region.parent === -1)
+    let removed = 0
+    for (const block of blocks) removed += block.end - block.start
+    // Flow/global headers and connector declarations replace only a prefix.
+    // Metadata removes classified ranges; neither rewrite creates new syntax.
+    const prefixDelta = grammar[row]!.length - statement.text.length + removed
+    let offset = Math.max(0, (error.column ?? 1) - 1 - prefixDelta)
+    for (const block of blocks) if (block.start <= offset) offset += block.end - block.start
+    point = flowchartGroupPosition(group, start! + offset)
+  }
+  const location = { diagramType: 'agentflow', ...(point ? { line: point.line + 1, column: point.col + 1 } : {}) }
+  for (const key of ['diagramType', 'line', 'column'] as const) {
+    if (location[key] !== undefined) Object.defineProperty(error, key, { value: location[key], enumerable: true, configurable: true })
+  }
+}
+
 /** Flowchart supplies overlapping vertex/link syntax only. Container and
  * metadata records are captured before that projection is parsed. Source-only
  * render/label consumers omit occurrence publication; native/edit APIs keep it. */
 export function parseAgentflow(source: string, collectMappings = true): AgentflowBody {
   const metadata = new Map<string, Record<string, unknown>>(), connectors = new Set<string>(), globals = new Set<string>(), mappings: AgentflowMapping[] = []
   const grammar: string[] = [], frames: Array<{ global: boolean; id?: string; mapping?: number }> = []
+  // Packed group indices and statement offsets address already-produced
+  // source groups. No per-statement origin objects or public fields are added.
+  const origins: number[] = []
+  const append = (text: string, group: number, start: number): void => { grammar.push(text); origins.push(group, start) }
   const declaredParents = new Map<string, string | undefined>()
   const openScope = (id: string, global: boolean): void => {
     if (!declaredParents.has(id)) declaredParents.set(id, frames.at(-1)?.id)
@@ -139,7 +168,9 @@ export function parseAgentflow(source: string, collectMappings = true): Agentflo
     authoredIds.add(id)
     return id
   }
-  for (const group of coalesceFlowchartLines(source.split(/\r?\n/))) {
+  const groups = coalesceFlowchartLines(source.split(/\r?\n/))
+  for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
+    const group = groups[groupIndex]!
     // A full comment owns the rest of its physical line, including semicolons.
     // Coalesced quoted labels and metadata still begin with their declaration.
     if (group.text.trimStart().startsWith('%%')) continue
@@ -153,7 +184,7 @@ export function parseAgentflow(source: string, collectMappings = true): Agentflo
       if (first) {
         const header = text.match(/^agentflow-beta(?:\s+(LR|RL|TB|TD|BT))?\s*$/i)
         if (!header) throw syntaxError('Expected agentflow-beta and a supported direction')
-        grammar.push(`flowchart ${header[1] ?? 'TB'}`); first = false; continue
+        append(`flowchart ${header[1] ?? 'TB'}`, groupIndex, statement.start); first = false; continue
       }
       const map = collectMappings ? (id: string, type: AgentflowMapping['type'], start = 0, finish = statement.text.length): AgentflowMapping => {
         const at = flowchartGroupPosition(group, statement.start + start), end = flowchartGroupPosition(group, statement.start + finish)
@@ -189,11 +220,11 @@ export function parseAgentflow(source: string, collectMappings = true): Agentflo
       text = withoutMetadata + text.slice(cursor)
       if (/^flow\s*$/i.test(text)) {
         const id = anonymousFlow!
-        openScope(id, false); map?.(id, 'flow'); grammar.push(`subgraph ${id}[""]`); continue
+        openScope(id, false); map?.(id, 'flow'); append(`subgraph ${id}[""]`, groupIndex, statement.start); continue
       }
       if (/^global\s*$/i.test(text)) {
         const id = syntheticIdentity('global')
-        globalScopes.add(id); openScope(id, true); grammar.push(`subgraph ${id}`); continue
+        globalScopes.add(id); openScope(id, true); append(`subgraph ${id}`, groupIndex, statement.start); continue
       }
       if (/^end\s*$/i.test(text)) {
         const frame = frames.pop()
@@ -203,10 +234,10 @@ export function parseAgentflow(source: string, collectMappings = true): Agentflo
           mapping.endLine = end.line + 1
           mapping.endCol = end.col + 1
         }
-        grammar.push('end'); continue
+        append('end', groupIndex, statement.start); continue
       }
       const flow = text.match(/^flow\s+([\p{L}\p{N}_.:-]+)(.*)$/u)
-      if (flow) { openScope(flow[1]!, false); map?.(flow[1]!, 'flow'); grammar.push(`subgraph ${flow[1]}${flow[2]}`); continue }
+      if (flow) { openScope(flow[1]!, false); map?.(flow[1]!, 'flow'); append(`subgraph ${flow[1]}${flow[2]}`, groupIndex, statement.start); continue }
       if (/^(?:subgraph|global|flow)\b/i.test(text)) throw syntaxError('Unsupported AgentFlow container declaration')
       const connector = text.match(/^connector\s+([\p{L}\p{N}_.:-]+)(.*)$/u)
       if (connector) { connectors.add(connector[1]!); globals.add(connector[1]!); map?.(connector[1]!, 'connector'); text = `${connector[1]}${connector[2]}` }
@@ -223,14 +254,19 @@ export function parseAgentflow(source: string, collectMappings = true): Agentflo
         for (const link of syntax.links) for (let i = link.start; i < link.end; i++) masked[i] = ' '
         for (const word of masked.join('').matchAll(/[\p{L}\p{N}_.:-]+/gu)) globalMentions.add(word[0])
       }
-      grammar.push(text)
+      append(text, groupIndex, statement.start)
     }
   }
   if (frames.length) throw syntaxError('AgentFlow container is missing end')
   if (first) throw syntaxError('Empty AgentFlow diagram')
   const topology = grammar.join('\n')
   if (containsFlowchartOpaqueSyntax(topology)) throw syntaxError('AgentFlow contains source-preserved graph constructs')
-  const graph = withParserObservationGrammar('agentflow', 'flowchart', () => parseMermaid(topology))
+  let graph: ReturnType<typeof parseMermaid>
+  try { graph = withParserObservationGrammar('agentflow', 'flowchart', () => parseMermaid(topology)) }
+  catch (error) {
+    if (error instanceof MermaidSyntaxError) locateTopologyError(error, grammar, origins, groups)
+    throw error
+  }
   const allGroups = new Map<string, MermaidSubgraph>()
   const collect = (group: MermaidSubgraph): void => { allGroups.set(group.id, group); group.children.forEach(collect) }
   graph.subgraphs.forEach(collect)
