@@ -29,6 +29,7 @@ import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 import { createRequire } from 'node:module'
 import { renderSvg } from '../renderer.ts'
 import { readFileSync } from 'node:fs'
+import { SaxesParser } from 'saxes'
 
 describe('outward exact endpoint approaches', () => {
   it.each((['LR', 'RL', 'TD', 'BT'] as const).flatMap(direction => [false, true].map(labelled => [direction, labelled] as const)))('keeps feedback approaches outward through optional alignment in %s layouts (labels: %s)', (direction, labelled) => {
@@ -2912,41 +2913,106 @@ for(const [style,animate,animation,dash] of [
  if(dash){expect(edge.points).toEqual(old);expect(after.svg).toBe(before.svg)}
  else{expect(edge.points).not.toEqual(old);expect(after.points.some(([,y])=>y!>123)).toBe(true)}
 })
-it.each(['elk', 'agentic'] as const)('clears the final painted circle contact in a labelled reciprocal %s graph',backend=>{
- const { JSDOM }=createRequire(import.meta.url)('jsdom')
- const source=readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-18-cuts.mmd',import.meta.url),'utf8')
- const rendered=renderMermaidSVGWithReceipt(source,{graphLayout:{backend,fallback:'none'},embedFontImport:false})
- const dom=new JSDOM(rendered.svg,{contentType:'image/svg+xml'})
- try{
-  const document=dom.window.document as Document,circle=document.querySelector('[data-id="n1"] circle')!,shaft=document.querySelector('[data-role="edge"][data-from="n0"][data-to="n13"]')!
-  const n=(tag:Element,key:string)=>Number(tag.getAttribute(key)),cx=n(circle,'cx'),cy=n(circle,'cy'),r=n(circle,'r')
-  expect([circle.localName,n(circle,'stroke-width'),n(shaft,'stroke-width')]).toEqual(['circle',.75,1]);expect(r).toBeGreaterThan(0)
-  const points=shaft.getAttribute('points')!.split(/\s+/).map(pair=>pair.split(',').map(Number))
-  const distance=Math.min(...points.slice(1).map((b,i)=>{const a=points[i]!,dx=b[0]!-a[0]!,dy=b[1]!-a[1]!,t=Math.max(0,Math.min(1,((cx-a[0]!)*dx+(cy-a[1]!)*dy)/(dx*dx+dy*dy)));return Math.hypot(a[0]!+t*dx-cx,a[1]!+t*dy-cy)}))
-  expect(distance-r-n(circle,'stroke-width')/2-2*n(shaft,'stroke-width')).toBeGreaterThan(0)
-  const authoredPairs=[
-   ['n16','n10'],['n4','n6'],['n16','n8'],['n12','n11'],['n10','n9'],['n2','n6'],['n16','n8'],['n0','n11'],
-   ['n14','n9'],['n2','n7'],['n6','n12'],['n8','n13'],['n14','n5'],['n6','n10'],['n2','n16'],['n0','n3'],
-   ['n8','n12'],['n14','n9'],['n0','n2'],['n10','n7'],['n4','n6'],['n4','n10'],['n14','n0'],['n0','n13'],
-   ['n2','n16'],['n12','n7'],['n12','n4'],['n4','n16'],['n6','n8'],['n16','n7'],['n16','n14'],['n12','n5'],
-   ['n0','n1'],['n8','n1'],['n4','n15'],['n10','n13'],['n4','n10'],['n4','n17'],
-  ]
-  const carriers=[...document.querySelectorAll('[data-role="edge"][data-from]')]
-  expect(carriers).toHaveLength(38)
-  expect(carriers.map(edge=>`${edge.getAttribute('data-from')}->${edge.getAttribute('data-to')}`).sort()).toEqual(authoredPairs.map(([from,to])=>`${from}->${to}`).sort())
-  expect([...document.querySelectorAll('text')].map(tag=>tag.textContent).sort()).toEqual([...Array.from({length:18},(_,i)=>`Node 296-${i}`),'edge 0 xxx','edge 4 xxxxxxx','edge 8 xxxxxxxxxxx','edge 12 xxxxxxxxxxxxxxx','edge 16 xxxxxxxxxxxxxxxxxxx','edge 20 xxxxxx','edge 24 xxxxxxxxxx','edge 28 xxxxxxxxxxxxxx','edge 32 xxxxxxxxxxxxxxxxxx','edge 36 xxxxx'].sort())
-  const authoredCaptions=[
-   ['n16','n10','edge 0 xxx'],['n10','n9','edge 4 xxxxxxx'],['n14','n9','edge 8 xxxxxxxxxxx'],
-   ['n14','n5','edge 12 xxxxxxxxxxxxxxx'],['n8','n12','edge 16 xxxxxxxxxxxxxxxxxxx'],['n4','n6','edge 20 xxxxxx'],
-   ['n2','n16','edge 24 xxxxxxxxxx'],['n6','n8','edge 28 xxxxxxxxxxxxxx'],['n0','n1','edge 32 xxxxxxxxxxxxxxxxxx'],['n4','n10','edge 36 xxxxx'],
-  ]
-  const captions=[...document.querySelectorAll('g.edge-label')]
-  expect(captions.map(caption=>JSON.stringify(['data-from','data-to','data-label'].map(key=>caption.getAttribute(key)))).sort()).toEqual(authoredCaptions.map(tuple=>JSON.stringify(tuple)).sort())
-  for(const caption of captions)expect([...caption.querySelectorAll('text')].map(text=>text.textContent?.trim())).toEqual([caption.getAttribute('data-label')!])
-  const resource=shaft.getAttribute('marker-end')!.slice(5,-1)
-  expect([...document.querySelectorAll('marker')].filter(marker=>marker.id===resource)).toHaveLength(1)
-  expect(rendered.receipt.layoutCertification?.status).toBe('passed')
- }finally{dom.window.close()}
+it.each((['elk', 'agentic'] as const).flatMap(backend => (['labelled reciprocal', 'bounded terminal'] as const).map(witness => [backend, witness] as const)))('clears the final painted circle contact in %s / %s', (backend, witness) => {
+ const source = witness === 'labelled reciprocal'
+  ? readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-18-cuts.mmd', import.meta.url), 'utf8')
+  : `flowchart BT
+n0(Node 230-0)
+n1((Node 230-1))
+n2[[Node 230-2]]
+n3[(Node 230-3)]
+n4[Node 230-4]
+n5{Node 230-5}
+n6(Node 230-6)
+n7((Node 230-7))
+n8[[Node 230-8]]
+n9[(Node 230-9)]
+n10[Node 230-10]
+n11{Node 230-11}
+n12(Node 230-12)
+n13((Node 230-13))
+n14[[Node 230-14]]
+n15[(Node 230-15)]
+n16[Node 230-16]
+n13 -->|edge 0 xxx| n16
+n1 --> n14
+n14 --> n0
+n1 --> n6
+n10 -->|edge 4 xxxxxxx| n0
+n6 --> n12
+n4 --> n5
+n0 --> n6
+n15 -->|edge 8 xxxxxxxxxxx| n10
+n10 --> n16
+n7 --> n4
+n4 --> n6
+n11 -->|edge 12 xxxxxxxxxxxxxxx| n6
+n9 --> n7
+n16 --> n13
+n5 --> n15
+n8 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n14
+n5 --> n7
+n12 --> n16
+n2 --> n16
+n15 -->|edge 20 xxxxxx| n13
+n11 --> n6
+n4 --> n10
+n11 --> n3
+n1 -->|edge 24 xxxxxxxxxx| n16
+n10 --> n1
+n15 --> n10
+n4 --> n6
+n1 -->|edge 28 xxxxxxxxxxxxxx| n3
+n9 --> n16
+n2 --> n5
+n8 --> n3
+n9 -->|edge 32 xxxxxxxxxxxxxxxxxx| n10
+n3 --> n13
+n15 --> n3
+n4 --> n5
+n4 -->|edge 36 xxxxx| n8
+n9 --> n7
+n7 --> n12
+n15 --> n9`
+ const rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend, fallback: 'none' }, embedFontImport: false })
+ const tags: Array<{ name: string; attrs: Record<string, string>; text: string }> = []
+ const stack: Array<(typeof tags)[number]> = []
+ const parser = new SaxesParser({ xmlns: true })
+ parser.on('opentag', tag => {
+  const item = { name: tag.local, attrs: Object.fromEntries(Object.values(tag.attributes).map(attribute => [attribute.name, attribute.value])), text: '' }
+  tags.push(item); stack.push(item)
+ })
+ parser.on('text', text => { for (const parent of stack) parent.text += text })
+ parser.on('closetag', () => { stack.pop() })
+ parser.write(rendered.svg).close()
+ const circle = tags.find(tag => tag.name === 'circle' && tag.attrs['data-id'] === 'node-shape:n1')!
+ const [from, to] = witness === 'labelled reciprocal' ? ['n0', 'n13'] : ['n10', 'n16']
+ const shaft = tags.find(tag => tag.attrs['data-role'] === 'edge' && tag.attrs['data-from'] === from && tag.attrs['data-to'] === to)!
+ const n = (tag: (typeof tags)[number], key: string) => Number(tag.attrs[key])
+ const cx = n(circle, 'cx'), cy = n(circle, 'cy'), radius = n(circle, 'r')
+ expect([circle.name, n(circle, 'stroke-width'), n(shaft, 'stroke-width')]).toEqual(['circle', .75, 1])
+ expect(radius).toBeGreaterThan(0)
+ const points = shaft.attrs.points!.split(/\s+/).map(pair => pair.split(',').map(Number))
+ const distance = Math.min(...points.slice(1).map((b, i) => {
+  const a = points[i]!, dx = b[0]! - a[0]!, dy = b[1]! - a[1]!
+  const t = Math.max(0, Math.min(1, ((cx - a[0]!) * dx + (cy - a[1]!) * dy) / (dx * dx + dy * dy)))
+  return Math.hypot(a[0]! + t * dx - cx, a[1]! + t * dy - cy)
+ }))
+ // Independent written-circle/shaft clearance, including the conservative join extent.
+ expect(distance - radius - n(circle, 'stroke-width') / 2 - 2 * n(shaft, 'stroke-width')).toBeGreaterThan(0)
+ const authored = [...source.matchAll(/^(n\d+) -->(?:\|([^|]+)\|)? (n\d+)$/gm)]
+ const carriers = tags.filter(tag => tag.attrs['data-role'] === 'edge' && tag.attrs['data-from'])
+ expect(carriers.map(tag => `${tag.attrs['data-from']}->${tag.attrs['data-to']}`).sort()).toEqual(authored.map(match => `${match[1]}->${match[3]}`).sort())
+ const nodeCount = witness === 'labelled reciprocal' ? 18 : 17
+ expect(tags.filter(tag => tag.name === 'g' && tag.attrs['data-role'] === 'node').map(tag => tag.attrs['data-id']).sort()).toEqual(Array.from({ length: nodeCount }, (_, i) => `n${i}`).sort())
+ const authoredNames = [...source.matchAll(/Node \d+-\d+/g)].map(match => match[0])
+ expect(tags.filter(tag => tag.name === 'text').map(tag => tag.text).sort()).toEqual([...authoredNames, ...authored.filter(match => match[2]).map(match => match[2]!)].sort())
+ const captions = tags.filter(tag => tag.name === 'g' && tag.attrs.class === 'edge-label')
+ expect(captions.map(tag => JSON.stringify([tag.attrs['data-from'], tag.attrs['data-to'], tag.attrs['data-label']])).sort()).toEqual(authored.filter(match => match[2]).map(match => JSON.stringify([match[1], match[3], match[2]])).sort())
+ for (const caption of captions) expect(caption.text.trim()).toBe(caption.attrs['data-label']!)
+ const resource = shaft.attrs['marker-end']!.slice(5, -1)
+ expect(tags.filter(tag => tag.name === 'marker' && tag.attrs.id === resource)).toHaveLength(1)
+ expect(rendered.receipt.layoutCertification?.status).toBe('passed')
 })
 for (const transpose of [false, true]) for (const reverse of [false,true]) for (const name of ['stroke-only contact', 'positive stroke gap', 'empty curved corner'] as const) it(`repairs actual ${name} without moving a clear route, transpose=${transpose}, reverse=${reverse}`, () => {
  const { JSDOM } = createRequire(import.meta.url)('jsdom')

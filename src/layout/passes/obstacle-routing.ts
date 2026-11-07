@@ -233,6 +233,12 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     }
     return null
   }
+  const detourTerminals = (pts: Point[], skip: ReadonlySet<string>): Point[] | null => {
+    const route = detourTerminalSegment(pts, skip)
+    if (route) return route
+    chargeWork?.(pts.length) // reverse-domain reference initialization
+    return detourTerminalSegment(pts.toReversed(), skip)?.reverse() ?? null
+  }
   for (const edge of edges) {
     currentEdge = edge; paintedRepair = false
     chargeWork?.(1)
@@ -247,12 +253,12 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     // Off-outline endpoints are reanchorOffOutlineEndpoints' job; this pass only
     // relocates the interior of an otherwise port-exact route.
     if (!onShapeOutline(source, edge.points[0]!) || !onShapeOutline(target, edge.points[edge.points.length - 1]!)) continue
-    let route = shiftInteriorSegment(edge.points, skip) ?? bracketOverBand(edge.points, skip)
-      ?? detourTerminalSegment(edge.points, skip)
-    if (!route) {
-      chargeWork?.(edge.points.length) // reverse-domain reference initialization
-      route = detourTerminalSegment(edge.points.toReversed(), skip)?.reverse() ?? null
-    }
+    let route = shiftInteriorSegment(edge.points, skip)
+    // A local terminal detour retains the other seated route/caption corridors;
+    // try it before spending the paint allowance on whole-band replacements.
+    if (!route && paintedRepair) route = detourTerminals(edge.points, skip)
+    route ??= bracketOverBand(edge.points, skip)
+    if (!route && !paintedRepair) route = detourTerminals(edge.points, skip)
     if (!route) continue // never-worse: no clean detour found, leave as-is
     const savedCert = edge.routeCertificate
     edge.points = route

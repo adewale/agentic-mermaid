@@ -161,3 +161,38 @@ Initial gzip5,854→5,852, Brotli5,226→5,227. Other compressed deltas are reta
 for this latest source still requires measurement; the earlier dictionary sizes
 remain measurements of their own revision. Raw per-phase RSS/heap counters are
 retained; this single instrumented pair is not a memory/leak comparison.
+
+
+## Circle contact work: 7 November
+
+Before intervention at `6aa0ee45d9b6052addcb77036c1f7ba4c13b2cb4`, the existing
+Node24 source profiler consumes full SVGs and entire receipts for cases372/230.
+Each has one unprofiled warmup, two repeats and an authored-label edit, with ELK
+cache 0. These are new targeted profiles, not replays counted as renderer progress.
+
+Case230 repeat means are elapsed sample-delta weights in milliseconds:
+
+| Frame | Self / inclusive | Requested case / justified intervention | Expected speedup |
+| --- | --- | --- | --- |
+| `layoutLayeredGraph`, `layout/agentic-layered-core.ts:99` |14.514 /57.993|None/data-oriented; broad placement frame does not isolate a hot hash primitive.|Unmeasured|
+| `copyInner`, `scene/native-paint-emission.ts:105` |11.797 /15.757|None/data-oriented; mutable/getter/ownership copying remains required.|Unmeasured|
+| `countPolylineCrossings`, `shared/edge-crossings.ts:131` |8.579 /15.014|None/data-oriented; no measured flat-index or SoA benefit.|Unmeasured|
+| `collectLaneBlockers`, `layout/route-lanes.ts:215` |8.070 /10.975|None/data-oriented; collection frame alone does not justify repacking.|Unmeasured|
+| Marker `include`, `scene/bounds.ts:358` |7.205 /12.617|None/data-oriented; the previously unused hull was already removed.|Unmeasured|
+
+The contact pass is only about 2.059 ms inclusive per case 372 call. The existing
+circle Map and shaft WeakMaps in `graph-paint-support.ts:85` are call-local; fresh
+`[a,b]` input arrays repeatedly miss the shaft memo. A staged-input probe reduces
+case 230's selected support constructions 111→68 but leaves its SVG/proof exact.
+The first clear whole-band proposals fail caption separation with 4,724 units
+remaining, before the later exhaustion. Stop this resource-work hypothesis as a
+repair; no cache is added and no helper-only optimization is retained.
+
+The separate correctness intervention reuses existing local terminal proposals
+before whole-band replacements for painted contacts. It changes output/proof work,
+so before/after timing would not establish an equivalent-work performance ratio.
+Raw profiles, source maps, RSS/heap and stopped drafts remain in `contact-producer-6aa`.
+Case230 repeat walls 311.4/260.6 ms, edit 406.1 ms; case 372 239.5/243.4/231.4 ms.
+Large elapsed gaps and three windows per case preclude a CPU speedup claim.
+The earlier full cache inventory still applies; no async/SoA/packed-index change
+is supported by these observations.

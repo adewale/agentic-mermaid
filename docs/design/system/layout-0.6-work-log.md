@@ -53,6 +53,32 @@ replace neither the dated profiler nor its missing runtime/cold/cache evidence.
 Next causal probe: whether standalone worker precompression accounts for the
 Brotli loss, preserving decoded worker bytes, ownership and browser contracts.
 
+## Local circle detour — 7 November
+
+From `6aa0ee45d9b6052addcb77036c1f7ba4c13b2cb4`, existing Native case230 has a
+0.453px circle/shaft contact. Profile first: the shared contact pass is about
+2.1ms inclusive per case372 call, not a dominant CPU hotspot. Staging two-point
+inputs reduces230 support constructions111→68 but leaves the product exact;
+stop it. First whole-band proposals fail caption separation with4,724 units
+remaining, so reducing construction alone does not close the loss.
+
+Reuse existing local terminal detours before whole-band replacements only for
+painted contacts. Case230 proof U362,041→P362,293; selected actual shaft pixels
+323→364/364 contribute, hidden41→0 and attenuated85→0. Only this shaft and
+its generated scope change; all17 identities,40 relations,27 text programs,
+caption/marker/endpoint attributes and normalized CSS remain. Area and17 crossings
+stay fixed; bends104→106, wire+19.156 (+0.102%). SVG+32raw/+7gzip/Brotli unchanged.
+Full standalone adds104raw/29gzip9/141Brotli11 bytes; caps/defaults/cache unchanged.
+The new16.90s build/662,032KiB peakRSS is descriptive, not a speed/memory ratio.
+
+Owning case1RED→4GREEN (both backends/old and new witnesses); combined owners
+572P with18 missing-JSDOM loader failures, types/lintP. Named old regressions
+Native17/ELK296/362 and ELK230 stay exact P; Native33 stays P with a different
+terminal path. Cases152/372 stay exact U. Actual standalone budget/Blob-worker owners pass2P504 assertions. Full matched CI
+is still pending; do not infer preservation from helpers.
+Evidence: `contact-producer-6aa`. Next: inspect the entire existing CI differential
+for newly lost circle delivery/ink and retain all geometry/payload costs.
+
 ## Painted-frame expansion reverted — 7 November
 
 `5ac52ad3f4909d4e498a04db1b04e01bd2c027f7` repairs152's actual0.823px
