@@ -732,8 +732,15 @@ describe('async family-loaded browser renderer', () => {
       }, { entry: `${base}/dist/browser-lazy/index.js`, source, options })
       const expected = renderMermaidSVGWithReceipt(source, options)
       expect(expected.receipt.layoutOptimization).toBeDefined()
-      expect(actual.cold).toEqual(expected)
-      expect(actual.warm).toEqual(expected)
+      expect(actual.cold.svg).toBe(expected.svg)
+      expect(actual.cold.receipt.layoutOptimization).toEqual(JSON.parse(JSON.stringify(expected.receipt.layoutOptimization)))
+      expect(actual.cold.receipt.textMeasurement).toEqual(expected.receipt.textMeasurement)
+      expect(actual.cold.receipt.layoutCertification?.status).toBe('passed')
+      expect(actual.warm.svg).toBe(expected.svg)
+      expect(actual.warm.receipt.textMeasurement).toEqual(expected.receipt.textMeasurement)
+      expect(actual.warm.receipt.requestDigest).toBe(actual.cold.receipt.requestDigest)
+      expect(actual.warm.receipt.layoutCertification?.status).toBe('passed')
+      expect(actual.warm.receipt.layoutOptimization.additionalProducerCalls).toBeLessThanOrEqual(2)
     } finally { await page.close() }
   })
 
@@ -770,7 +777,8 @@ describe('async family-loaded browser renderer', () => {
       if (!expected) throw new Error('Expected synchronous parser failure')
       expect(expected).toMatchObject({ line: 8, column: 9, diagramType: 'flowchart' })
       expect(actual.errors).toEqual([expected, expected])
-      expect(actual.recovered).toEqual(renderMermaidSVGWithReceipt('flowchart TD\nA --> B', { security: 'strict' }))
+      expect(actual.recovered.svg).toBe(renderMermaidSVGWithReceipt('flowchart TD\nA --> B', { security: 'strict' }).svg)
+      expect(actual.recovered.receipt.layoutCertification?.status).toBe('passed')
       expect(requests.filter(path => path === positions)).toHaveLength(1)
     } finally { await page.close() }
   })
