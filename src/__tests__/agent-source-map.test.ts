@@ -880,8 +880,8 @@ foo[Node]`
     try {
       for (const [source, tokens, labels] of [
         ['quadrantChart\n title quadrant: [fake]\n quadrant: [0.2,0.3]', ['quadrant'], ['quadrant']],
-        ['quadrantChart\n"First\n    Second":[0.2,0.3]; Last:[0.6,0.7]', ['"First\n    Second"', 'Last'], ['First\nSecond', 'Last']],
-        ['quadrantChart\n "A&amp;amp; B\n    C":::hot:[0.2,0.3]radius:10; "Tail&amp;amp; D":[0.6,0.7]\nclassDef hot color:#112233', ['"A&amp;amp; B\n    C"', '"Tail&amp;amp; D"'], ['A&amp; B\nC', 'Tail&amp; D']],
+        ['quadrantChart\n"First\n    Second":[0.2,0.3]; Last:[0.6,0.7]', ['"First\n    Second"', 'Last'], ['First\n    Second', 'Last']],
+        ['quadrantChart\n "A&amp;amp; B\n    C":::hot:[0.2,0.3]radius:10; "Tail&amp;amp; D":[0.6,0.7]\nclassDef hot color:#112233', ['"A&amp;amp; B\n    C"', '"Tail&amp;amp; D"'], ['A&amp; B\n    C', 'Tail&amp; D']],
       ] as const) {
         const parsed = parseMermaid(source)
         expect(parsed.ok).toBe(true)
@@ -994,7 +994,7 @@ test.each([
       else if (event.kind === 'add-link') add('edges', `dependency:${link++}`)
     }, () => parseWardleyBody(text))
   })
-  expect(reads).toEqual(expectedReads === 1 ? [source] : [source, authored])
+  expect(reads).toEqual(expectedReads === 1 ? [source] : [source, authored.replaceAll('\r\n', '\n')])
   expect([...map.nodes]).toEqual([['A', { line: 4, col: 1 }], ['B', { line: 3, col: 1 }], ['A_C', { line: 6, col: 1 }]])
   expect([...map.groups]).toEqual([['pipeline:A', { line: 5, col: 1 }]])
   expect([...map.edges]).toEqual([['dependency:0', { line: 8, col: 1 }]])
@@ -1031,6 +1031,20 @@ test('observed source readers preserve native refusals in either coordinate inpu
     })).toThrow('wardley syntax error at 2:12:')
     expect(reads).toBe(expectedReads)
   }
+})
+
+test.each([
+  ['venn-beta', 'set A["First\n%%{init: {"theme":"dark"}}%%\nLast"]:10', 'A'],
+  ['railroad-beta', 'entry = terminal("First\n%%{init: {"theme":"dark"}}%%\nLast");', 'rule#0:entry'],
+] as const)('%s source maps consume admitted grammar while retaining authored directive boundaries', (header, statement, id) => {
+  const source = `---\r\ntitle: Wrapper\r\n---\r\n${header}\r\n${statement.replaceAll('\n', '\r\n')}`
+  const parsed = parseMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind === 'opaque') throw Error('Expected admitted native source')
+  const spans = parsed.value.source.spans!
+  const span = header === 'venn-beta' ? spans.nodes.get(id) : spans.groups.get(id)
+  expect(textAt(source, span)).toBe(statement.replaceAll('\n', '\r\n'))
+  expect(span?.start).toEqual({ offset: source.indexOf(statement.split('\n')[0]!), line: 5, col: 1 })
+  expect(serializeMermaid(parsed.value)).toContain('First')
 })
 
 test('Wardley observed source maps follow final component writes, pipelines and native annotation owners', () => {

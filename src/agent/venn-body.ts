@@ -9,6 +9,7 @@ import { appendNativeAccessibilityLines, accessibilityFields } from '../shared/a
 import { withParserObservation } from '../shared/parser-observation.ts'
 import { sourceLineStarts, sourceSpan } from '../family-detection.ts'
 import { recordAuthoredSourceMapSpans } from './source-map-spans.ts'
+import { preservedMermaidFamilySource } from '../mermaid-source.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import { nativeAccessibilityText } from './accessibility-envelope.ts'
@@ -164,9 +165,10 @@ export const VENN_SOURCE_HOOKS: FamilyOperations = {
     if (body.kind !== 'venn') return map
     const identities = vennRegionIdentities(body)
     const original = context?.originalText ?? source
-    const prefix = context?.authoredWrapperLength ?? context?.wrapperSource?.length ?? 0
-    const grammar = original.slice(prefix)
+    const projection = context ? preservedMermaidFamilySource(context, 'authored') : undefined
+    const grammar = projection?.text ?? source
     const grammarLines = grammar.split(/\r?\n/)
+    const statementEnds = vennStatementEnds(grammarLines)
     const originalStarts = sourceLineStarts(original),
       grammarStarts = sourceLineStarts(grammar)
     const exact = { nodes: new Map<string, SourceSpan>(), labels: new Map<string, SourceSpan>() }
@@ -175,9 +177,10 @@ export const VENN_SOURCE_HOOKS: FamilyOperations = {
       event => {
         if (event.unit !== 'mutation' || !event.source?.line) return
         const col = event.source.column ?? 1
-        const start = prefix + grammarStarts[event.source.line - 1]! + col - 1
-        const raw = grammarLines[event.source.line - 1] ?? ''
-        const span = sourceSpan(originalStarts, start, start + raw.length - col + 1)
+        const start = grammarStarts[event.source.line - 1]! + col - 1
+        const endLine = statementEnds[event.source.line - 1]!
+        const end = grammarStarts[endLine]! + grammarLines[endLine]!.length
+        const span = sourceSpan(originalStarts, projection?.sourceOffset(start) ?? start, projection?.sourceOffset(end, 'end') ?? end)
         const location = { line: event.source.line, col: 1 }
         const add = (id: string) => {
           map.nodes.set(id, location)

@@ -34,6 +34,19 @@ function parsed(text = source): ParsedDiagram {
   return result.value
 }
 
+test('Architecture canonical source preserves literal rows and declaration order through public render handoffs', () => {
+  const text = 'architecture-beta\nservice first["First  \n  \n    Last"]\njunction join\nservice second[Second]\nfirst:R -- L:second'
+  const diagram = parsed(text)
+  expect(diagram.canonicalSource).toBe(text)
+  const expectedSVG = renderRootSVG(text, options)
+  const expectedTerminal = renderMermaidASCIIWithReceipt(text, { colorMode: 'none' })
+  expect(expectedSVG.svg).toContain('    Last')
+  for (const input of [diagram, { ...diagram }, structuredClone(diagram), parsed(diagram.canonicalSource)]) {
+    expect(renderRootSVG(input, options)).toEqual(expectedSVG)
+    expect(renderMermaidASCIIWithReceipt(input, { colorMode: 'none' })).toEqual(expectedTerminal)
+  }
+})
+
 test('parsed AgentFlow retains indentation-sensitive source and the same palette, style and receipts as source rendering', () => {
   const diagram = parsed()
   const preserved = serializeMermaid(diagram, { wrapper: 'verbatim' })

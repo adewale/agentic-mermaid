@@ -6,6 +6,14 @@ import { sourceLineStarts, sourcePointAt } from './source-spans.ts'
 import { LocatedParserError, type MermaidSyntaxErrorLocation } from './syntax-error.ts'
 
 type Source = Pick<NormalizedMermaidSource, 'familyLines' | 'originalText' | 'wrapperSource' | 'authoredWrapperLength' | 'cleanup'>
+
+/** Header-relative physical rows keep whitespace inside the family's text tokens. */
+export function familyParserLines(source: { familyBody: string; familyLines: readonly string[] }): string[] {
+  const raw = source.familyBody.split(/\r?\n/)
+  const header = raw.findIndex(line => line.trim() === source.familyLines[0])
+  return [raw[header]?.trim() ?? source.familyLines[0] ?? '', ...raw.slice(header + 1)]
+}
+
 export interface GrammarRow { text: string; offset: number }
 export interface ParserGrammarTrace {
   project(text: string): { text: string; sourceOffset: (offset: number) => number }

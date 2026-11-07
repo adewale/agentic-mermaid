@@ -143,12 +143,17 @@ describe('xychart structured-or-opaque fallback', () => {
   })
 
   test('statements sharing a line and quoted text across lines stay structured through the writer', () => {
-    const d = xychart('xychart-beta\n  title "multi\nline" bar "Sales" [1, 2] line [2, 1]')
+    const label = 'First\n  Indented\n\nLast'
+    const source = `xychart-beta\n  title "${label}" x-axis ["${label}", second] bar "Sales" [1, 2] line [2, 1]`
+    expect(parseXYChart(source.split('\n')).xAxis.categories).toEqual([label, 'second'])
+    const d = xychart(source)
     expect(d.body).toMatchObject({
-      title: 'multi\nline',
+      title: label,
+      xAxis: { categories: [label, 'second'] },
       series: [{ kind: 'bar', name: 'Sales', values: [1, 2] }, { kind: 'line', values: [2, 1] }],
     })
     expect(xychart(serializeMermaid(d)).body).toEqual(d.body)
+    expect(renderMermaidSVG(source)).toContain('  Indented')
   })
 
   test('an accessibility directive after another statement on its line stays structured and joins the envelope', () => {

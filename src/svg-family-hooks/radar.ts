@@ -4,6 +4,7 @@ import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from 
 import { resolveRadarVisualConfig } from '../radar/config.ts'
 import { layoutRadarChart } from '../radar/layout.ts'
 import { parseRadarChart, radarStatementEnds } from '../radar/parser.ts'
+import { familyParserLines } from '../shared/parser-source.ts'
 import { lowerRadarScene } from '../radar/renderer.ts'
 
 /** The radar SVG hooks: one definition for the complete renderer
@@ -15,7 +16,7 @@ export const RADAR_SVG_HOOKS = {
     familyConfig: { visual: resolveRadarVisualConfig(ctx.source.frontmatter) },
   }),
   layout: ctx => layoutResult(layoutRadarChart(
-    parseRadarChart(ctx.source.lines, {
+    parseRadarChart(familyParserLines({ familyBody: ctx.source.body, familyLines: ctx.source.lines }), {
       title: typeof ctx.source.frontmatter.title === 'string' ? ctx.source.frontmatter.title : undefined,
     }),
     ctx.renderOptions,

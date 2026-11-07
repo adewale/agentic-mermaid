@@ -1,3 +1,5 @@
+import { joinStatementLines } from './shared/trailing-comment.ts'
+
 /**
  * The universal Mermaid source wrapper as text: the frontmatter block and
  * `%%{init}%%` directive spans are found and stripped here without being
@@ -94,9 +96,9 @@ export function stripMermaidDirectives(text: string, onInit?: (payload: string |
   return body.replace(MERMAID_DIRECTIVE_REGEX, '')
 }
 
-export function toMermaidLines(text: string): string[] {
-  return text
-    .split(/\r\n?|\n/)
+export function toMermaidLines(text: string | readonly string[], statementEnds?: readonly number[]): string[] {
+  const lines = typeof text === 'string' ? text.split(/\r\n?|\n/) : text
+  return (statementEnds ? joinStatementLines(lines, statementEnds, true) : lines)
     .map(line => line.trim())
     .filter(line => line && !line.startsWith('%%'))
 }

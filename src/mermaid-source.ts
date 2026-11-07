@@ -691,10 +691,15 @@ function normalizeSource(
   const accessibilityLines = sequence && /;\s*acc(?:Title|Descr)\b/i.test(processed.body)
     ? splitSequenceStatementLines(physicalLines)
     : physicalLines
+  const statementEnds = family?.statementEnds?.(accessibilityLines)
+  const physicalStatementEnds = accessibilityLines === physicalLines ? statementEnds : family?.statementEnds?.(physicalLines)
+  const canonicalLines = physicalStatementEnds?.some((end, index) => end > index)
+    ? toMermaidLines(physicalLines, physicalStatementEnds)
+    : processed.lines
   // A line inside a statement's quoted text is the family's, whatever it holds.
   const accessibilityScan = scanAccessibilityDirectives(
     accessibilityLines,
-    installedFamilyStatementEnds(decodeXML(processed.lines[0] ?? ''), accessibilityLines, family),
+    statementEnds,
     // Ordinary fields already passed global XML cleanup; native JSON fields
     // own their transport references and decode them only after classification.
     view === 'render' ? directive => (directive.form === 'native' ? readAuthoredGrammarAccessibility : readGrammarAccessibility)({ title: directive.value }).title! : undefined,
@@ -734,7 +739,9 @@ function normalizeSource(
       authoredHeader: authored.lines[0] ?? '',
       authoredWrapperLength: authored.wrapperSource?.length ?? 0,
     } : {}),
-    text: processed.lines.join('\n'),
+    // Canonical source must not dedent or filter physical rows inside a
+    // grammar-owned spanning token. The parser line views remain separate.
+    text: canonicalLines.join('\n'),
     body: processed.body,
     lines: processed.lines,
     familyBody,

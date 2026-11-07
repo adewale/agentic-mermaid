@@ -18,6 +18,18 @@ import {
 import { mermaidFirstLine } from '../mermaid-source-wrapper.ts'
 
 describe('preprocessMermaidSource', () => {
+  it('canonical source retains grammar-owned continuation whitespace while parser line views stay normalized', () => {
+    const source = '---\ntitle: Wrapper\n---\n%%{init: {theme: dark}}%%\narchitecture-beta\n  service api["First  \n  \n    Last"]'
+    const normalized = normalizeMermaidSource(source)
+    expect(normalized.text).toBe('architecture-beta\nservice api["First  \n  \n    Last"]')
+    expect(normalized.lines).toEqual(['architecture-beta', 'service api["First', 'Last"]'])
+    expect(normalized.familyLines).toEqual(['architecture-beta', 'service api["First', 'Last"]'])
+    const original = parseRegisteredMermaid(source)
+    const copied = parseRegisteredMermaid(normalized.text)
+    if (!original.ok || !copied.ok || original.value.body.kind !== 'architecture' || copied.value.body.kind !== 'architecture') throw Error('Expected executable canonical architecture')
+    expect(original.value.body.services[0]?.label).toBe('First  \n  \n    Last')
+    expect(copied.value.body.services).toEqual(original.value.body.services)
+  })
   it('observes the family descriptor even when configuration is empty', () => {
     let reads = 0
     let fail = false

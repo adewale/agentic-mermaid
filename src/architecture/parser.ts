@@ -62,12 +62,7 @@ export function architectureStatementEnds(lines: readonly string[]): number[] {
   return quotedTextEnds(lines, QUOTED_TEXT)
 }
 
-/** Keep physical STRING whitespace through normalized public entry points. */
-export function architectureSourceLines(source: { familyBody: string; familyLines: readonly string[] }): string[] {
-  const raw = source.familyBody.split(/\r?\n/)
-  const header = raw.findIndex(line => line.trim() === source.familyLines[0])
-  return [raw[header]?.trim() ?? source.familyLines[0] ?? '', ...raw.slice(header + 1)]
-}
+export { familyParserLines as architectureSourceLines } from '../shared/parser-source.ts'
 
 // Mermaid's architecture lexer terminals. An id is word characters with
 // dashes only inside (ID); an icon is word characters, `-` and `:`

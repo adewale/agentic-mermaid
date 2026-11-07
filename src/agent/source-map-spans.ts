@@ -4,6 +4,7 @@ import { INIT_DIRECTIVE_REGEX, MERMAID_DIRECTIVE_REGEX, splitHeaderStatement } f
 import type { PreservedSourceSpans, SourceLocation, SourceMap, SourceMapSpans, SourceSpan } from './types.ts'
 import type { MermaidCleanup } from '../shared/mermaid-cleanup.ts'
 import { sourceLineStarts, sourcePointAt, sourceSpan } from '../family-detection.ts'
+import { preservedMermaidFamilySource } from '../mermaid-source.ts'
 
 interface PhysicalLine {
   text: string
@@ -564,8 +565,8 @@ export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: stri
 /** Convert actual parser-owned ranges to the two established map coordinate
  * spaces. The parser callback owns grammar and identity; this helper owns only
  * coordinates, including wrappers, indentation and multiline statements. Equal
- * family bytes publish both projections in one read; normalization differences
- * still require the authored grammar's separate ranges. */
+ * family bytes publish both projections in one read. Authored reads use the
+ * same universal cleanup and directive projection as the admitted grammar. */
 export function mapObservedSource(
   source: string,
   context: FamilySourceMapContext | undefined,
@@ -576,7 +577,9 @@ export function mapObservedSource(
   const ends = { nodes: new Map<string, SourceLocation>(), edges: new Map<string, SourceLocation>(), groups: new Map<string, SourceLocation>(), labels: new Map<string, SourceLocation>() }
   const original = context?.originalText
   const prefix = context?.authoredWrapperLength ?? context?.wrapperSource?.length ?? 0
-  const authored = original?.slice(prefix)
+  const rawAuthored = original?.slice(prefix)
+  const projected = context && source !== rawAuthored ? preservedMermaidFamilySource(context, 'authored') : undefined
+  const authored = projected?.text ?? rawAuthored
   const identical = source === authored
   const authoredStarts = original === undefined ? undefined : original === source ? starts : sourceLineStarts(original)
   const exact = context ? { nodes: new Map<string, SourceSpan>(), edges: new Map<string, SourceSpan>(), groups: new Map<string, SourceSpan>(), labels: new Map<string, SourceSpan>() } : undefined
@@ -584,11 +587,11 @@ export function mapObservedSource(
     const point = sourcePointAt(starts, start), finish = sourcePointAt(starts, end)
     map[kind].set(id, { line: point.line, col: point.col })
     ends[kind].set(id, { line: finish.line, col: finish.col })
-    if (identical) exact![kind].set(id, prefix === 0 ? Object.freeze({ start: point, end: finish }) : sourceSpan(authoredStarts!, prefix + start, prefix + end))
+    if (identical && exact) exact[kind].set(id, projected ? sourceSpan(authoredStarts!, projected.sourceOffset(start), projected.sourceOffset(end, 'end')) : prefix === 0 ? Object.freeze({ start: point, end: finish }) : sourceSpan(authoredStarts!, prefix + start, prefix + end))
   })
   recordSourceMapEnds(map, ends)
   if (exact) {
-    if (!identical) read(authored!, (kind, id, start, end) => exact[kind].set(id, sourceSpan(authoredStarts!, prefix + start, prefix + end)))
+    if (!identical) read(authored!, (kind, id, start, end) => exact[kind].set(id, sourceSpan(authoredStarts!, projected!.sourceOffset(start), projected!.sourceOffset(end, 'end'))))
     recordAuthoredSourceMapSpans(map, exact)
   }
   return map

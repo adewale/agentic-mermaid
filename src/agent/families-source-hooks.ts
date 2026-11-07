@@ -46,6 +46,7 @@ import { parseQuadrantChart } from '../quadrant/parser.ts'
 import { sourceLineStarts, sourcePointAt } from '../family-detection.ts'
 import { cleanupMermaidSource, originalMermaidOffset } from '../shared/mermaid-cleanup.ts'
 import { sequenceFamilySource } from '../sequence/family-source.ts'
+import { familyParserLines } from '../shared/parser-source.ts'
 import { SequenceParticipantIdError } from '../sequence/parser.ts'
 import { splitSequenceStatementLines } from '../sequence/statements.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
@@ -1011,8 +1012,8 @@ export const XYCHART_SOURCE_HOOKS = {
   // Pass the complete family source to the shared XY grammar. Header spelling,
   // orientation, and same-line semicolon statements therefore have one parser
   // authority instead of a second regex in the agent projection.
-  parse: ({ lines, opaqueSource, meta }) => {
-    const body = parseXyChartBody(lines)
+  parse: ({ source, opaqueSource, meta }) => {
+    const body = parseXyChartBody(familyParserLines(source))
     if (!body) return ok({ kind: 'opaque', family: 'xychart', source: opaqueSource })
     // The family reads an accessibility directive written after a statement
     // on its line, which the envelope (directives that start a line) misses:
@@ -1088,7 +1089,8 @@ export const PIE_SOURCE_HOOKS = {
   // xychart) — serialize/mutate stay identical to every other structured family.
   verify: (body, opts) => (body.kind === 'pie' ? verifyPie(body, opts) : []),
   buildSourceMap: buildChartSourceMap,
-  parse: ({ lines, opaqueSource }) => {
+  parse: ({ source, opaqueSource }) => {
+    const lines = familyParserLines(source)
     const header = parsePieHeader(stripTrailingComment(lines[0]?.trim() ?? ''))
     const bodyLines = lines.slice(1).map(line => {
       const title = splitAuthoredPieTitleLine(line, 'body')
@@ -1199,7 +1201,7 @@ export const QUADRANT_SOURCE_HOOKS = {
   buildSourceMap: buildChartSourceMap,
   parse: ctx => {
     const source = normalizeMermaidSource(ctx.source.originalText, {}, 'render')
-    const body = /^quadrant(?:chart)?\s*$/i.test(stripTrailingComment(source.familyLines[0] ?? '')) ? parseQuadrantBody(source.familyLines.slice(1)) : null
+    const body = /^quadrant(?:chart)?\s*$/i.test(stripTrailingComment(source.familyLines[0] ?? '')) ? parseQuadrantBody(familyParserLines(source).slice(1)) : null
     return ok(body ?? { kind: 'opaque', family: 'quadrant', source: ctx.opaqueSource })
   },
   serialize: body => {
@@ -1365,7 +1367,8 @@ export const RADAR_SOURCE_HOOKS = {
   buildSourceMap: buildChartSourceMap,
   // The grammar reads an accessibility directive after a statement on its
   // line, which the envelope adopts, as for XYChart.
-  parse: ({ lines, opaqueSource, meta }) => {
+  parse: ({ source, opaqueSource, meta }) => {
+    const lines = familyParserLines(source)
     const parsed = /^radar-beta\s*:?\s*$/i.test(stripTrailingComment(lines[0]?.trim() ?? '')) ? parseRadarBody(lines.slice(1)) : null
     if (!parsed || !adoptStatementAccessibility(meta, parsed.accessibility)) return ok({ kind: 'opaque', family: 'radar', source: opaqueSource })
     return ok(parsed.body)
