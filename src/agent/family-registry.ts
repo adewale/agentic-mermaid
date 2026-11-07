@@ -16,6 +16,7 @@ import { STABLE_FAMILY_DESCRIPTOR_SEEDS } from './stable-family-metadata.ts'
 // ============================================================================
 
 import type { DiagramKind, DiagramBody, FamilyParsedBody, ValidDiagramMeta, ParseError, SourceMap, FamilyId, ExternalFamilyId, AnyMutationOp, MutationError, LayoutWarning, VerifyOptions, Result, RenderedLayout } from './types.ts'
+import type { SourceSpanGrammar } from './source-map-spans.ts'
 import type { ConfigDiagnostic, PositionedDiagram, RenderContext, RenderOptions, ResolvedFamilyRenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import type { InternalStyleFace, StyleSpec } from '../scene/style-registry.ts'
@@ -332,6 +333,8 @@ export interface FamilyOperations {
    * Optional source-map builder, run after a successful parse. The frozen
    * provenance context preserves authored payloads and original source spans.
    */
+  /** Grammar owned by the map producer for multiline authored statement spans. */
+  sourceMapGrammar?: SourceSpanGrammar
   buildSourceMap?: (body: DiagramBody, canonicalSource: string, source?: FamilySourceMapContext) => SourceMap
   /** Optional: family-specific serializer. Public save/edit callers pass the
    * wrapper metadata so body-owned overrides need not duplicate its fields. */
@@ -1556,6 +1559,7 @@ const FAMILY_DESCRIPTOR_FIELDS = Object.freeze([
   'statementEnds',
   'parse',
   'buildSourceMap',
+  'sourceMapGrammar',
   'serialize',
   'mutate',
   'mutateSource',
@@ -1793,6 +1797,7 @@ function validateDescriptor(descriptor: FamilyDescriptor, replacingId?: FamilyId
   if (descriptor.bodyAccessibility !== undefined && typeof descriptor.bodyAccessibility !== 'function') throw new TypeError(`Family ${descriptor.id} bodyAccessibility must be a function`)
   if (descriptor.bodyMeta !== undefined && typeof descriptor.bodyMeta !== 'function') throw new TypeError(`Family ${descriptor.id} bodyMeta must be a function`)
   if (descriptor.renderSource !== undefined && typeof descriptor.renderSource !== 'function') throw new TypeError(`Family ${descriptor.id} renderSource must be a function`)
+  if (descriptor.sourceMapGrammar !== undefined && descriptor.sourceMapGrammar !== 'generic' && descriptor.sourceMapGrammar !== 'flowchart') throw new TypeError(`Family ${descriptor.id} sourceMapGrammar must name a supported source-map grammar`)
   if (descriptor.statementEnds !== undefined && typeof descriptor.statementEnds !== 'function') throw new TypeError(`Family ${descriptor.id} statementEnds must be a function`)
   if (typeof descriptor.detect !== 'function') throw new Error(`Family "${descriptor.id}" must declare a detector`)
   if (!Number.isSafeInteger(descriptor.collisionPriority)) throw new Error(`Family "${descriptor.id}" must declare an integer collisionPriority`)

@@ -147,6 +147,7 @@ function flowchartFamilyHooks(): Pick<FamilyOperations, 'parse' | 'buildSourceMa
 }
 
 export const FLOWCHART_SOURCE_HOOKS = {
+  sourceMapGrammar: 'flowchart',
   renderSource: () => 'canonical',
   extractLabels: extractFlowchartLabels,
   .../* @__PURE__ */ flowchartFamilyHooks(),

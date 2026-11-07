@@ -2,7 +2,7 @@ import { graphLabels } from './graph-labels.ts'
 import type { FamilyOperations } from './families.ts'
 import type { DiagramBody, MutationError, ParseError, Result } from './types.ts'
 import { err, ok } from './types.ts'
-import { mutateFlowchart } from './flowchart-body.ts'
+import { buildFlowchartSourceMap, edgeSourceMapKey, mutateFlowchart } from './flowchart-body.ts'
 import { parseAgentflow, agentflowMetadata, agentflowRole } from '../agentflow/parser.ts'
 import { renderAgentflow } from '../agentflow/source.ts'
 import type { AgentflowBody, AgentflowMutationOp } from '../agentflow/types.ts'
@@ -69,16 +69,18 @@ export const AGENTFLOW_SOURCE_HOOKS = {
     if (body.kind !== 'agentflow') throw new Error(`AgentFlow serializer received ${body.kind}`)
     return renderAgentflow(body)
   },
-  buildSourceMap: body => {
-    const result = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
-    if (body.kind !== 'agentflow') return result
-    for (const mapping of body.mappings) {
-      const target = mapping.type === 'flow' ? result.groups : mapping.type === 'edge' ? result.edges : result.nodes
-      if (mapping.type !== 'attachment' && !target.has(mapping.id)) target.set(mapping.id, { line: mapping.line, col: mapping.col })
-    }
-    return result
+  sourceMapGrammar: 'flowchart',
+  buildSourceMap: (body, source) => {
+    const map = body.kind === 'agentflow'
+      ? buildFlowchartSourceMap({ kind: 'flowchart', graph: body.graph }, source, 'flow')
+      : { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
+    if (body.kind === 'agentflow') body.graph.edges.forEach((edge, index) => {
+      const location = map.edges.get(edgeSourceMapKey(index, edge))
+      if (edge.id && location) map.edges.set(edge.id, location)
+    })
+    return map
   },
-} satisfies Pick<FamilyOperations, 'renderSource' | 'parse' | 'serialize' | 'buildSourceMap' | 'mutate' | 'extractLabels'>
+} satisfies Pick<FamilyOperations, 'renderSource' | 'parse' | 'serialize' | 'buildSourceMap' | 'sourceMapGrammar' | 'mutate' | 'extractLabels'>
 
 export const AGENTFLOW_MUTATION_HOOKS: Pick<FamilyOperations, 'mutate'> = {
   mutate: (body, op) => body.kind === 'agentflow' ? mutateAgentflow(body, op as AgentflowMutationOp) : err({ code: 'INVALID_OP', message: 'AgentFlow source needs a supported native model for typed edits' }),

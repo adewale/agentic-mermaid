@@ -34,11 +34,12 @@ export const SWIMLANE_SOURCE_HOOKS = {
     if (body.kind !== 'swimlane') throw new Error(`swimlane serializer received body kind ${body.kind}`)
     return renderSwimlane(body)
   },
+  sourceMapGrammar: 'flowchart',
   buildSourceMap: (body, source) => body.kind === 'swimlane'
     ? buildFlowchartSourceMap({ kind: 'flowchart', graph: body.graph }, source)
     : { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() },
   verify: body => body.kind === 'opaque' ? flowchartUnsupportedSyntaxWarnings(swimlaneFlowchartSource(body.source)) : [],
-} satisfies Pick<FamilyOperations, 'renderSource' | 'parse' | 'serialize' | 'buildSourceMap' | 'verify' | 'mutate' | 'extractLabels'>
+} satisfies Pick<FamilyOperations, 'renderSource' | 'parse' | 'serialize' | 'buildSourceMap' | 'sourceMapGrammar' | 'verify' | 'mutate' | 'extractLabels'>
 
 export const SWIMLANE_MUTATION_HOOKS: Pick<FamilyOperations, 'mutate'> = {
   mutate: (body, op: AnyMutationOp) => body.kind === 'swimlane'

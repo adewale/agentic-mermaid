@@ -1035,3 +1035,39 @@ test.each([
   expect(textAt(saved, edited.value.source.spans?.groups.get('rule#1:entry'))).toContain('changed')
   expect(edited.value.source.groups.size).toBe(2)
 })
+
+describe('graph dialect source-map coordinate ownership', () => {
+  test.each(['\n', '\r\n'])('AgentFlow maps declarations after wrapper/blank-line normalization with %j endings', newline => {
+    const source = ['---', 'title: Workflow', '---', '%% wrapper', 'agentflow-beta TB', '', 'flow demo', '  helper["Helper"]', 'end', '', 'helper@{ instruction: "Answer precisely." }'].join(newline)
+    const result = parseMermaid(source)
+    if (!result.ok || result.value.body.kind !== 'agentflow') throw Error('Expected native AgentFlow')
+    const map = result.value.source
+    expect(map.nodes.get('helper')).toEqual({ line: 3, col: 1 })
+    expect(textAt(source, map.spans?.nodes.get('helper'))).toBe('helper["Helper"]')
+    expect(textAt(source, map.spans?.groups.get('demo'))).toBe('flow demo')
+    expect(textAt(source, map.spans?.labels.get('node:helper'))).toBe('Helper')
+    const edited = mutateChecked(result.value, { kind: 'set_label', target: 'helper', label: 'Renamed' })
+    if (!edited.ok) throw Error(JSON.stringify(edited.error))
+    const saved = serializeMermaid(edited.value)
+    expect(saved).toContain('%% wrapper')
+    const again = parseMermaid(saved)
+    if (!again.ok || again.value.body.kind !== 'agentflow') throw Error('Expected edited native AgentFlow')
+    expect(again.value.body.graph.nodes.get('helper')?.label).toBe('Renamed')
+    expect(textAt(saved, again.value.source.spans?.labels.get('node:helper'))).toBe('Renamed')
+  })
+  test.each([
+    ['agentflow-beta TB', 'flow scope[Scope]'],
+    ['swimlane-beta TB', 'subgraph scope[Scope]'],
+  ])('%s shares multiline and inline-endpoint source identities', (header, container) => {
+    const source = `${header}\n\n${container}\n  a["wide\nlabel"] handoff@--> b["Beta"]\nend`
+    const result = parseMermaid(source)
+    if (!result.ok || !['agentflow', 'swimlane'].includes(result.value.body.kind)) throw Error('Expected graph dialect')
+    const map = result.value.source
+    for (const id of ['a', 'b']) expect(textAt(source, map.spans?.nodes.get(id))).toBe('a["wide\nlabel"] handoff@--> b["Beta"]')
+    expect(textAt(source, map.spans?.labels.get('node:a'))).toBe('wide\nlabel')
+    expect(textAt(source, map.spans?.labels.get('node:b'))).toBe('Beta')
+    expect(textAt(source, map.spans?.edges.get('edge#0:a->b'))).toBe('a["wide\nlabel"] handoff@--> b["Beta"]')
+    if (header.startsWith('agentflow')) expect(map.edges.get('handoff')).toEqual(map.edges.get('edge#0:a->b'))
+    expect(textAt(source, map.spans?.groups.get('scope'))).toBe(container)
+  })
+})

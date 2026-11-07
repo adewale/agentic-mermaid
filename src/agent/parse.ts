@@ -393,7 +393,7 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
         authoredWrapperLength: authoredEnvelope.authoredWrapperLength,
         cleanup: authoredEnvelope.cleanup,
       })) ?? emptySourceMap(),
-      kind === 'flowchart' ? 'flowchart' : 'generic',
+      plugin.sourceMapGrammar ?? 'generic',
     )
     let diagram: ValidDiagram = { kind, meta, body: parsed.value, source: sourceMap, canonicalSource }
     if ([meta.accessibility.title, meta.accessibility.descr].some(text => text?.includes('%%{'))) {
