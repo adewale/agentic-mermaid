@@ -63,7 +63,8 @@ This repairs checkout history and establishes no runtime/layout improvement.
 
 The existing Sparse32 owner reproduces 2P/1F. Native emission is clean at 337,890
 operations before XML projection; its first refused charge is 7 at 399,994 inside
-`XmlLeafWrite.check`→literal validation. Geometry checks have not started. The
+`XmlLeafWrite.check`→literal validation. The later certification/occlusion pass
+has not started. The
 same 1,500-label SVG retains actual row/marker ink and direct Scene proof passes;
 Native emitted proof remains unverified at 400,000. A seven-bit fixed-attribute
 probe keeps literal checks/caps but still exhausts, so it is stopped and restored;
@@ -195,9 +196,26 @@ ranking of current `main`. Unknowns and refusals remain part of the workload.
 | --- | --- | --- |
 | Sparse256: 256 cards, one relationship | Area 3,633,619.5 vs 3,459,200: **+5.04%**. Wire 132.598 vs 214.598. | The default isolate clearance fix removed 51.22% of the previous Native area. Residual shelf packing remains; connected geometry is unchanged. |
 | Nonlinear forest | Wire **+10.19%** (was +16.89%), area **−6.43%**. | Route-only spreading of center-aligned terminal peers shortens wire 5.74% without moving bodies; residual placement/terminal cost remains. The stopped leaf-seat trial increased area 6.88%. |
-| Requirement cycle | Current TB Native area **−10.43%**, wire **−30.34%**, eight vs ten bends. | The historical TB/BT +9.53% area loss at `15972c57e` does not reproduce on PR741 TB; stop treating it as a current deficit. BT/LR/RL were not requalified in this comparison. |
+| Requirement cycle | TB/BT Native area **−10.43%**, wire **−30.34%**, eight vs ten bends. LR/RL area **−1.44%**, wire **−20.25%**, six vs eight bends. | The historical TB/BT +9.53% area loss at `15972c57e` does not reproduce on this fixture. TB was qualified on PR741; BT/LR/RL on `62af995fafa5392364ab2567678f11e59fea9ea6`. |
 | ER256 relationship chain | **Both backends refuse.** | Distinct from Sparse256 above. Guarded shortcuts did not remove enough work. |
 | Sparse32 | Delivered 1,500 text records and 32 contributing markers; proof unverified at 400,000 operations. | Proof availability, middle-glyph attribution, readability and arbitrary fonts remain separate unknowns. |
+
+At `62af995fafa5392364ab2567678f11e59fea9ea6`, six newly enrolled BT/LR/RL
+full-SVG/entire-receipt calls return with passed proof. Independent final-SVG
+inspection retains three authored cards, five ordered relations/caption owners
+and ten normal contacts per output. With manifest-verified Inter and system fonts
+off, each of 15 text programs and five arrow occurrences contributes final
+raster pixels in all six outputs. This closes directional evidence gaps, with
+no new layout fix or complete glyph/readability claim. Native proof work is
+101,657–101,806 versus ELK102,247–102,470; gzip6 is17–41B smaller and Brotli11
+23–43B smaller. LR/RL are wider/shorter:970.194×251.95 versus753.144×329.3;
+lower area does not establish readability superiority. N=1 CPU/wall/RSS
+observations stay descriptive. Evidence:
+`requirement-directions-62af`. An expanded fixed-name XML mask is stopped before
+implementation: its estimated30k subtraction is insufficient for Sparse32;
+the prior failed bitset remains reverted. Next: a capture/closure producer
+intervention large enough to address the demonstrated proof deficit, or a
+distinct measured residual; Sparse32, ER256 and payload losses stay enrolled.
 
 The original `campaign-baseline2dadf0dbc2685c8435df541de99f3edce841450d`, Trident and
 pinned Mermaid12.2/Pele1.9 were unavailable after recovery. The complete original
