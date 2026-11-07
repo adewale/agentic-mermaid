@@ -1,0 +1,63 @@
+{
+  "head": "47aed12780985e3b96e258db1485649a22bc183d",
+  "base": "6aa0ee45d9b6052addcb77036c1f7ba4c13b2cb4",
+  "main": "39a500425f6b74eb486b9add9e90d538fab6a914",
+  "beforeSvgExactCI": true,
+  "profileAndCapturePublicCalls": 18,
+  "callAccounting": [
+    [
+      "local-terminal230/RESULT.json.gz",
+      1
+    ],
+    [
+      "candidate230-fixed/RESULT.json.gz",
+      1
+    ],
+    [
+      "candidate230/RESULT.json.gz",
+      1
+    ],
+    [
+      "controls/Native372/RESULT.json.gz",
+      1
+    ],
+    [
+      "controls/Native152/RESULT.json.gz",
+      1
+    ],
+    [
+      "controls/ELK230/RESULT.json.gz",
+      1
+    ],
+    [
+      "controls/ELK362/RESULT.json.gz",
+      1
+    ],
+    [
+      "controls/ELK296/RESULT.json.gz",
+      1
+    ],
+    [
+      "controls/Native33/RESULT.json.gz",
+      1
+    ],
+    [
+      "controls/Native17/RESULT.json.gz",
+      1
+    ],
+    [
+      "profiles-before/circle230/RESULT.json.gz",
+      4
+    ],
+    [
+      "profiles-before/cyclic372/RESULT.json.gz",
+      4
+    ]
+  ],
+  "owningTestsSeparate": true,
+  "CI": {
+    "run": 42350645894,
+    "status": "in_progress",
+    "ready": false
+  }
+}

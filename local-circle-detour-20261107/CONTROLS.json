@@ -1,0 +1,72 @@
+[
+  {
+    "case": "Native17",
+    "status": "returned",
+    "proofBefore": "passed",
+    "proofAfter": "passed",
+    "SVGExact": true,
+    "issues": []
+  },
+  {
+    "case": "Native33",
+    "status": "returned",
+    "proofBefore": "passed",
+    "proofAfter": "passed",
+    "SVGExact": false,
+    "issues": []
+  },
+  {
+    "case": "ELK296",
+    "status": "returned",
+    "proofBefore": "passed",
+    "proofAfter": "passed",
+    "SVGExact": true,
+    "issues": []
+  },
+  {
+    "case": "ELK362",
+    "status": "returned",
+    "proofBefore": "passed",
+    "proofAfter": "passed",
+    "SVGExact": true,
+    "issues": []
+  },
+  {
+    "case": "ELK230",
+    "status": "returned",
+    "proofBefore": "passed",
+    "proofAfter": "passed",
+    "SVGExact": true,
+    "issues": []
+  },
+  {
+    "case": "Native152",
+    "status": "returned",
+    "proofBefore": "unverified",
+    "proofAfter": "unverified",
+    "SVGExact": true,
+    "issues": [
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n16->n12#0",
+        "by": "node-shape:n4",
+        "message": "Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified"
+      }
+    ]
+  },
+  {
+    "case": "Native372",
+    "status": "returned",
+    "proofBefore": "unverified",
+    "proofAfter": "unverified",
+    "SVGExact": true,
+    "issues": [
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n4->n11#0",
+        "by": "node-shape:n0",
+        "message": "Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified"
+      }
+    ]
+  }
+]

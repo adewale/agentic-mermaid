@@ -1,0 +1,15 @@
+{
+  "runtime": "Bun1.4.4 budget owner",
+  "arms": {
+    "before": {
+      "raw": 2186759,
+      "gzip9": 1310687,
+      "brotli11": 1244928
+    },
+    "after": {
+      "raw": 2186863,
+      "gzip9": 1310716,
+      "brotli11": 1245069
+    }
+  }
+}
