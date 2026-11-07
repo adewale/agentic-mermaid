@@ -1,5 +1,6 @@
 import type { PositionedGraph } from '../types.ts'
 import type { Actor, ClassDef, Relationship, SystemBoundary, UseCase, UsecaseJsonNode, UsecaseNote } from './grammar/types.ts'
+import type { UsecaseActorAttachment, UsecaseActorGlyph } from './actor-geometry.ts'
 export type UsecaseNode = ({ kind: 'actor' } & Actor) | ({ kind: 'usecase' } & UseCase)
 export interface UsecaseBody {
   kind: 'usecase'
@@ -29,4 +30,8 @@ export type UsecaseMutationOp =
   | { kind: 'set_accessibility_description'; description: string | null }
 export interface PositionedUsecase extends PositionedGraph {
   body: UsecaseBody
+  /** Graph nodes retain caption packing rectangles; this map owns open actor
+   * artwork and its explicit stroke ports, without an enclosing outline. */
+  actors: Map<string, UsecaseActorGlyph>
+  actorAttachments: Map<string, { start?: UsecaseActorAttachment; end?: UsecaseActorAttachment }>
 }

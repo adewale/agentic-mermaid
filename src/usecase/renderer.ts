@@ -40,17 +40,8 @@ export function lowerUsecaseDrawing<T>(marks: DrawingFactory<T>, { positioned: c
     let geometry: Geometry
     if (node?.kind === 'actor') {
       const cx = x + width / 2,
-        top = y + style.nodePaddingY,
-        r = 7,
-        shoulder = top + 24,
-        foot = top + 50
-      geometry = {
-        kind: 'compound',
-        children: [
-          { kind: 'circle', cx, cy: top + r, r },
-          { kind: 'path', d: `M${cx} ${top + r * 2}V${top + 36}M${cx - 15} ${shoulder}H${cx + 15}M${cx - 13} ${foot}L${cx} ${top + 36}L${cx + 13} ${foot}` },
-        ],
-      }
+        glyph = chart.actors.get(node.id)!
+      geometry = glyph.geometry
       inner.push(marks.shape({ id: `actor:${node.id}`, identity: false, role: 'node', owner, geometry, paint: { fill: node.type === 'hollow' ? 'var(--bg)' : fill, stroke, strokeWidth: String(style.nodeLineWidth) }, channels: { category: 'actor', ...(node.business ? { emphasis: true } : {}) } }))
       if (node.icon) {
         const icon = preparePixelText(`[${node.icon}]`, { fontSize: Math.min(10, style.nodeLabelFontSize), fontWeight: style.nodeLabelFontWeight, display: 'literal' })
@@ -109,6 +100,7 @@ export function lowerUsecaseDrawing<T>(marks: DrawingFactory<T>, { positioned: c
   for (const edge of chart.edges) {
     const relation = edgesById.get(edge.id!),
       owner = { id: edge.id!, role: 'edge' as const },
+      actorAttachments = chart.actorAttachments.get(edge.id!),
       marker = relation?.type === 'generalization' ? triangle : relation?.type === 'include' || relation?.type === 'extend' ? open : arrow
     const start = edge.hasArrowStart ? (edge.startMarker === 'circle' ? circle : edge.startMarker === 'cross' ? cross : reverse) : undefined
     const end = edge.hasArrowEnd ? (edge.endMarker === 'circle' ? circle : edge.endMarker === 'cross' ? cross : marker) : undefined
@@ -119,7 +111,12 @@ export function lowerUsecaseDrawing<T>(marks: DrawingFactory<T>, { positioned: c
         geometry: { kind: 'polyline', points: edge.points },
         lineStyle: edge.style === 'dotted' ? 'dashed' : 'solid',
         paint: { stroke: edge.inlineStyle?.stroke ?? line, strokeWidth: edge.inlineStyle?.['stroke-width'] ?? String(style.lineWidth) },
-        endpoints: { from: edge.source, to: edge.target },
+        endpoints: { from: edge.source, to: edge.target,
+          ...Object.fromEntries((['start', 'end'] as const).flatMap(end => {
+            const attachment = actorAttachments?.[end]
+            return attachment ? [[end, { owner: { id: attachment.ownerId, role: 'node' }, portId: attachment.portId, point: attachment.point }]] : []
+          })),
+        },
         relationship: { kind: relation?.type ?? 'note-attachment', direction: start ? 'reverse' : end ? 'forward' : 'undirected' },
         markers: { ...(start ? { start } : {}), ...(end ? { end } : {}) },
       }),

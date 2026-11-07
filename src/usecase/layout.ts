@@ -6,6 +6,7 @@ import { resolveRenderStyle } from '../styles.ts'
 import type { Point, RenderOptions } from '../types.ts'
 import { projectUsecaseGraph, usecaseNodeLabel } from './graph.ts'
 import type { PositionedUsecase, UsecaseBody } from './types.ts'
+import { actorEnvelopeSide, attachUsecaseActor, usecaseActorGlyph } from './actor-geometry.ts'
 
 /** Orthogonal graph placement reserves the family envelopes. The final
  * contacts below belong to the actual ellipse, rather than its bounding box. */
@@ -27,6 +28,14 @@ export function layoutUsecaseDiagram(body: UsecaseBody, options: RenderOptions =
   const { certification: _placementCertificate, ...positioned } = layoutGraphSync(graph, { ...options, styleFace, nodeSizes, graphLayout: nativeFamilyGraphLayout(graph, options), diagramTitle: body.title ?? title })
   const ellipses = new Set(body.nodes.filter(node => node.kind === 'usecase' && node.shape === 'ellipse').map(node => node.id))
   const byId = new Map(positioned.nodes.map(node => [node.id, node]))
+  const actors = new Map(body.nodes.filter(node => node.kind === 'actor').map(node => [node.id, usecaseActorGlyph(byId.get(node.id)!, style.nodePaddingY, style.nodeLineWidth)]))
+  const actorAttachments: PositionedUsecase['actorAttachments'] = new Map()
+  const actorEnds = positioned.edges.flatMap(edge => ([['start', edge.source, edge.points[0]], ['end', edge.target, edge.points.at(-1)]] as const).flatMap(([end, id, point]) => {
+    const node = byId.get(id)
+    return node && point && actors.has(id) ? [{ edge, end, node, side: actorEnvelopeSide(node, point) }] : []
+  }))
+  const totals = new Map<string, number>(), used = new Map<string, number>()
+  for (const end of actorEnds) { const key = `${end.node.id}\0${end.side}`; totals.set(key, (totals.get(key) ?? 0) + 1) }
   const contact = (id: string, endpoint: Point, adjacent: Point) => {
     const node = byId.get(id)
     if (!node || !ellipses.has(id)) return endpoint
@@ -53,5 +62,14 @@ export function layoutUsecaseDiagram(body: UsecaseBody, options: RenderOptions =
     // certify this family's final ellipse and actor silhouettes.
     delete edge.routeCertificate
   }
-  return { ...positioned, body }
+  for (const end of actorEnds) {
+    const key = `${end.node.id}\0${end.side}`, index = used.get(key) ?? 0
+    used.set(key, index + 1)
+    const attached = attachUsecaseActor(end.node, actors.get(end.node.id)!, end.edge.points, end.end === 'start', end.side, index, totals.get(key)!)
+    end.edge.points = attached.points
+    const attachments = actorAttachments.get(end.edge.id!) ?? {}
+    attachments[end.end] = attached.attachment
+    actorAttachments.set(end.edge.id!, attachments)
+  }
+  return { ...positioned, body, actors, actorAttachments }
 }

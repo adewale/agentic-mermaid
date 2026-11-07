@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="785.9" height="198.8" viewBox="0 0 785.9 198.8" style="--bg:#fbf7ea;--fg:#202a2f;--line:#38535e;--accent:#1f6f8b;--muted:#60727a;--surface:#fffaf0;--border:#38535e;--font:Share Tech Mono;background:#fbf7ea" class="am-0aocdhq1qaige3">
+<svg xmlns="http://www.w3.org/2000/svg" width="785.9" height="198.8" viewBox="0 0 785.9 198.8" style="--bg:#fbf7ea;--fg:#202a2f;--line:#38535e;--accent:#1f6f8b;--muted:#60727a;--surface:#fffaf0;--border:#38535e;--font:Share Tech Mono;background:#fbf7ea" class="am-11jl2dg1tw3r58">
 <style>
-  svg.am-0aocdhq1qaige3 { font-family: var(--font, 'Share Tech Mono'), system-ui, sans-serif; }
-  svg.am-0aocdhq1qaige3 {
+  svg.am-11jl2dg1tw3r58 { font-family: var(--font, 'Share Tech Mono'), system-ui, sans-serif; }
+  svg.am-11jl2dg1tw3r58 {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #202a2f;
     --_text-sec:      #60727a;
@@ -48,8 +48,8 @@
     <text paint-order="stroke" stroke="#fbf7ea" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="274.8" y="111" text-anchor="middle" font-family="Share Tech Mono" font-size="12" font-weight="700" fill="#202a2f" data-prepared-text="true" dy="4.2" textLength="57.6" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">CHECKOUT</text>
   </g>
 </g>
-<polyline stroke-opacity="0" points="137.6,111 211.6,111" fill="none" stroke="#202a2f" stroke-width="1.55" marker-end="url(#usecase-arrow)" data-relationship="association" data-direction="forward" data-id="edge-0" data-role="edge" data-from="Customer" data-to="Checkout" role="graphics-symbol" aria-roledescription="relation" aria-label="Customer to Checkout" />
-<path d="M137.54 110.66 C161.85 111.24, 186.34 110.87, 211.67 110.78" fill="none" stroke="#202a2f" stroke-width="2.2475" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
+<polyline stroke-opacity="0" points="91.4607932537,111 211.6,111" fill="none" stroke="#202a2f" stroke-width="1.55" marker-end="url(#usecase-arrow)" data-relationship="association" data-direction="forward" data-id="edge-0" data-role="edge" data-from="Customer" data-to="Checkout" role="graphics-symbol" aria-roledescription="relation" aria-label="Customer to Checkout" />
+<path d="M91.4 110.66 C130.92 111.26, 170.6 110.88, 211.67 110.78" fill="none" stroke="#202a2f" stroke-width="2.2475" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
 <polyline stroke-opacity="0" points="338,111 513.1,111" fill="none" stroke="#202a2f" stroke-width="1.55" stroke-dasharray="6 4" marker-end="url(#usecase-dependency)" data-relationship="include" data-direction="forward" data-id="edge-1" data-role="edge" data-from="Checkout" data-to="Browse" role="graphics-symbol" aria-roledescription="relation" aria-label="Checkout to Browse" />
 <path d="M337.99 111.27 C406.05 110.76, 473.83 110.72, 512.79 111.14" fill="none" stroke="#202a2f" stroke-width="2.2475" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" stroke-dasharray="6 4" />
 <rect class="edge-label-halo" x="378" y="92" width="95.1" height="37" rx="4" fill="#fbf7ea" stroke="none" />
