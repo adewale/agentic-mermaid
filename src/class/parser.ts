@@ -647,6 +647,9 @@ function splitClassBlockStatement(text: string, inNamespace: boolean): string[] 
 export function classStatementEnds(lines: readonly string[]): number[] {
   const ends = lines.map((_, index) => index)
   if (!parserObservationActive('class')) {
+    // Only continuesClassText can join physical rows, and it requires an
+    // open ASCII double quote. Scope-free input needs no statement tree walk.
+    if (!lines.some(line => line.includes('"'))) return ends
     try { scanClassStatements(lines, undefined, false, ends) }
     catch { for (let index = 0; index < ends.length; index++) ends[index] = index }
     return ends

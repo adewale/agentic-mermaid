@@ -20,6 +20,17 @@ function parse(text: string) {
 // ============================================================================
 
 describe('parseClassDiagram – class definitions', () => {
+  it('keeps unquoted class rows independent while retaining namespace, member and metadata meaning', () => {
+    const lines = ['classDiagram', 'namespace N {', 'class A {', 'String name', '}', 'class B', 'A --> B: calls', '}', 'accTitle: Actual']
+    expect(classStatementEnds(lines)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8])
+    const diagram = parseClassDiagram(lines)
+    expect(diagram.accessibilityTitle).toBe('Actual')
+    expect(diagram.namespaces[0]?.classIds).toEqual(['A', 'B'])
+    expect(diagram.classes[0]?.attributes[0]?.sourceText).toBe('String name')
+    expect(diagram.relationships[0]).toMatchObject({ from: 'A', to: 'B', label: 'calls' })
+    expect(() => parseClassDiagram(['classDiagram', 'class A {', 'String name'])).toThrow('Unclosed class block')
+  })
+
   it('projects physical text scopes without swallowing class members or envelope metadata', () => {
     const lines = ['classDiagram', 'namespace N {', 'class A {', 'String name', '}', 'note for A "First', 'accTitle: literal', 'Last"', '}', 'accTitle: Accessible']
     expect(classStatementEnds(lines)).toEqual([0, 1, 2, 3, 4, 7, 6, 7, 8, 9])
