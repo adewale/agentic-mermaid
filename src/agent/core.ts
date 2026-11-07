@@ -470,9 +470,7 @@ export function layoutMermaidWithReceipt(input: ParsedDiagram | string, opts: La
   const layoutOptions = { debug, regions, actions }
   const preparedInput = prepareRenderInput(input)
   const source = preparedInput.source
-  const request = _resolveRenderRequest(source, renderOptions, 'layout', layoutOptions, {
-    expectedFamilyId: preparedInput.expectedFamilyId,
-  })
+  const request = _resolveRenderRequest(source, renderOptions, 'layout', layoutOptions, preparedInput.resolutionOptions)
   emitResolvedConfigDiagnostics(request)
   let diagram: ParsedDiagram
   if (typeof input === 'string') {

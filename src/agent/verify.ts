@@ -276,7 +276,7 @@ function ordinaryRenderOutcome(d: ParsedDiagram, opts: VerifyOptions, authored?:
   try {
     const { onConfigDiagnostic: _observer, ...renderOptions } = opts.renderOptions ?? {}
     const input = prepareRenderInput(authored ?? d)
-    executeGraphicalRequest(input.source, renderOptions, 'svg', undefined, { expectedFamilyId: input.expectedFamilyId })
+    executeGraphicalRequest(input.source, renderOptions, 'svg', undefined, input.resolutionOptions)
     return 'succeeds-unchecked'
   } catch {
     return 'fails'

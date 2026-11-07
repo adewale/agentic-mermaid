@@ -32,6 +32,7 @@ import {
   sourcePointAt,
 } from '../family-detection.ts'
 import { retainBodyComments } from './body-comments.ts'
+import { publishParsedRenderModel } from './owned-render-model.ts'
 import { serializeMermaid } from './serialize.ts'
 import { AccessibilityTextError, attachAccessibilityToBody } from './accessibility-envelope.ts'
 import type {
@@ -404,6 +405,7 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
     }
     markDroppedComments(diagram, source, plugin.statementEnds)
     retainBodyComments(diagram, source)
+    publishParsedRenderModel(diagram, plugin, normalized.familyBody, opaqueSource, source)
     return ok(diagram)
   }
 

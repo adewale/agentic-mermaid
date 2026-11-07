@@ -6,6 +6,7 @@ import { buildFlowchartSourceMap, edgeSourceMapKey, mutateFlowchart } from './fl
 import { parseAgentflow, agentflowMetadata, agentflowRole } from '../agentflow/parser.ts'
 import { renderAgentflow } from '../agentflow/source.ts'
 import type { AgentflowBody, AgentflowMutationOp } from '../agentflow/types.ts'
+import { retainParsedAgentflowModel } from './owned-render-model.ts'
 
 export function parseAgentflowBody(source: string, opaqueSource = source): Result<AgentflowBody | Extract<DiagramBody, { kind: 'opaque' }>, ParseError[]> {
   try { const body = parseAgentflow(source); renderAgentflow(body); return ok(body) }
@@ -64,7 +65,11 @@ export function mutateAgentflow(body: AgentflowBody, op: AgentflowMutationOp): R
 export const AGENTFLOW_SOURCE_HOOKS = {
   renderSource: () => 'canonical',
   extractLabels: source => { try { return graphLabels(parseAgentflow(source).graph) } catch { return [] } },
-  parse: ctx => parseAgentflowBody(ctx.source.familyBody, ctx.opaqueSource),
+  parse: ctx => {
+    const result = parseAgentflowBody(ctx.source.familyBody, ctx.opaqueSource)
+    if (result.ok && result.value.kind === 'agentflow') retainParsedAgentflowModel(result.value, ctx.source.familyBody)
+    return result
+  },
   serialize: body => {
     if (body.kind !== 'agentflow') throw new Error(`AgentFlow serializer received ${body.kind}`)
     return renderAgentflow(body)

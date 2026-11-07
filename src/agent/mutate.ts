@@ -3,6 +3,7 @@ import type { AgentflowValidDiagram, AgentflowMutationOp, CynefinValidDiagram, C
 import type { EventModelingValidDiagram, EventModelingMutationOp } from './types.ts'
 import { rebaseBodyComments, restoreBodyComments, snapshotBodyCommentAnchors } from './body-comments.ts'
 import { beginMutationDraft, type MutationDraft } from './mutation-draft.ts'
+import { transferParsedRenderModel } from './owned-render-model.ts'
 import type { PacketMutationOp, PacketValidDiagram, KanbanMutationOp, KanbanValidDiagram, RequirementMutationOp, RequirementValidDiagram, TreemapMutationOp, TreemapValidDiagram, IshikawaMutationOp, IshikawaValidDiagram, BlockMutationOp, BlockValidDiagram } from './types.ts'
 import type { C4MutationOp, C4ValidDiagram } from './types.ts'
 // ============================================================================
@@ -195,7 +196,7 @@ function commitMutation(d: ParsedDiagram, body: ParsedDiagram['body']): Result<P
       message: 'Accessibility text cannot be serialized by this family without changing its value; remove directive openers or description block delimiters',
     })
   }
-  return ok({
+  const diagram = {
     ...d,
     body,
     meta: {
@@ -207,7 +208,9 @@ function commitMutation(d: ParsedDiagram, body: ParsedDiagram['body']): Result<P
     },
     canonicalSource,
     source: reparsed.value.source,
-  } as ParsedDiagram)
+  } as ParsedDiagram
+  transferParsedRenderModel(reparsed.value, diagram)
+  return ok(diagram)
 }
 
 export type MutationBatchError = MutationError & { opIndex: number }
