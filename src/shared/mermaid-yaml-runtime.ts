@@ -76,7 +76,7 @@ const MERMAID_YAML_OPTIONS: SchemaOptions = {
   ],
 }
 
-export type MermaidYamlResult = { ok: true; value: unknown } | { ok: false; message: string }
+export type MermaidYamlResult = { ok: true; value: unknown } | { ok: false; message: string; offset?: number }
 
 const COMMENT_SPACING = 'Comments must be separated from other tokens by white space characters'
 
@@ -163,7 +163,7 @@ function indentQuotedContinuations(text: string): string | undefined {
 function readYamlDocument(text: string): MermaidYamlResult {
   const parsed = parseDocument(text, { ...MERMAID_YAML_OPTIONS, logLevel: 'silent' })
   const problem = parsed.errors.find(error => !jsYamlAccepts(error, text)) ?? parsed.warnings[0]
-  if (problem) return { ok: false, message: problem.message.split('\n')[0]! }
+  if (problem) return { ok: false, message: problem.message.split('\n')[0]!, offset: problem.pos[0] }
   if (hasEmptyBlockKey(parsed, text)) return { ok: false, message: 'a block mapping entry has no key' }
   let numericTagError: string | undefined
   // js-yaml names a null key `null` (String(null)); the yaml package, ``.
