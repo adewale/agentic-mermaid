@@ -64,6 +64,7 @@ export function mutateAgentflow(body: AgentflowBody, op: AgentflowMutationOp): R
 }
 
 export const AGENTFLOW_SOURCE_HOOKS = {
+  canonicalSource: 'preserved',
   renderSource: () => 'canonical',
   extractLabels: source => { try { return graphLabels(parseAgentflow(source, false).graph) } catch { return [] } },
   parse: ctx => {
@@ -86,7 +87,7 @@ export const AGENTFLOW_SOURCE_HOOKS = {
     })
     return map
   },
-} satisfies Pick<FamilyOperations, 'renderSource' | 'parse' | 'serialize' | 'buildSourceMap' | 'sourceMapGrammar' | 'mutate' | 'extractLabels'>
+} satisfies Pick<FamilyOperations, 'canonicalSource' | 'renderSource' | 'parse' | 'serialize' | 'buildSourceMap' | 'sourceMapGrammar' | 'mutate' | 'extractLabels'>
 
 export const AGENTFLOW_MUTATION_HOOKS: Pick<FamilyOperations, 'mutate'> = {
   mutate: (body, op) => body.kind === 'agentflow' ? mutateAgentflow(body, op as AgentflowMutationOp) : err({ code: 'INVALID_OP', message: 'AgentFlow source needs a supported native model for typed edits' }),

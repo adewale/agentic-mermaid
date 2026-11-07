@@ -38,7 +38,10 @@ import { normalizeFamilyDetectionLine } from '../mermaid-source-wrapper.ts'
 export { extractLabelsGeneric } from './family-labels.ts'
 
 /** Frozen source provenance for map builders; no runtime config authority. */
-export type FamilySourceMapContext = Readonly<Pick<NormalizedMermaidSource, 'originalText' | 'wrapperSource' | 'authoredWrapperLength' | 'cleanup'>>
+export type FamilySourceMapContext = Readonly<Pick<NormalizedMermaidSource, 'originalText' | 'wrapperSource' | 'authoredWrapperLength' | 'cleanup'> & {
+  /** Published canonical bytes before the legacy universal accessibility mask. */
+  canonicalSource?: string
+}>
 
 export interface ExtractedLabel {
   /** The label text, with quotes stripped. */
@@ -294,6 +297,8 @@ export interface FamilyOperations {
   /** Parsed rendering uses the family's source authority. Omission preserves
    * legacy extension behavior; family admission still validates the result. */
   renderSource?: (body: Readonly<FamilyParsedBody>) => 'canonical' | 'serialized'
+  /** Preserve executable physical source where indentation is family grammar. */
+  canonicalSource?: 'preserved'
 
   /** Diagnose one authored or explicit config root. Common dispatch preserves
    * root boundaries, deterministic ordering and duplicate suppression. */
@@ -1551,6 +1556,7 @@ const FAMILY_DESCRIPTOR_FIELDS = Object.freeze([
   'capabilityEvidence',
   'example',
   'renderSource',
+  'canonicalSource',
   'bodyAccessibility',
   'bodyMeta',
   'normalizeRequest',
@@ -1797,6 +1803,7 @@ function validateDescriptor(descriptor: FamilyDescriptor, replacingId?: FamilyId
   if (descriptor.bodyAccessibility !== undefined && typeof descriptor.bodyAccessibility !== 'function') throw new TypeError(`Family ${descriptor.id} bodyAccessibility must be a function`)
   if (descriptor.bodyMeta !== undefined && typeof descriptor.bodyMeta !== 'function') throw new TypeError(`Family ${descriptor.id} bodyMeta must be a function`)
   if (descriptor.renderSource !== undefined && typeof descriptor.renderSource !== 'function') throw new TypeError(`Family ${descriptor.id} renderSource must be a function`)
+  if (descriptor.canonicalSource !== undefined && descriptor.canonicalSource !== 'preserved') throw new TypeError(`Family ${descriptor.id} canonicalSource must name the preserved source policy`)
   if (descriptor.sourceMapGrammar !== undefined && descriptor.sourceMapGrammar !== 'generic' && descriptor.sourceMapGrammar !== 'flowchart') throw new TypeError(`Family ${descriptor.id} sourceMapGrammar must name a supported source-map grammar`)
   if (descriptor.statementEnds !== undefined && typeof descriptor.statementEnds !== 'function') throw new TypeError(`Family ${descriptor.id} statementEnds must be a function`)
   if (typeof descriptor.detect !== 'function') throw new Error(`Family "${descriptor.id}" must declare a detector`)

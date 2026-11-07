@@ -27,6 +27,8 @@ export function sourceCleanup(sourceMap: SourceMap): MermaidCleanup | undefined 
  * entry's span runs from its location to its end, in place of the bounds
  * read from its line. */
 export interface SourceMapEnds {
+  /** Actual canonical parser positions need no authored-row reconstruction. */
+  canonicalPositions?: true
   nodes?: Map<string, SourceLocation>
   edges?: Map<string, SourceLocation>
   groups?: Map<string, SourceLocation>
@@ -543,15 +545,16 @@ export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: stri
     labels: authored?.labels ?? withEnds(labels, sourceMap.labels, ends?.labels),
   }
   if (authored) {
-    const canonicalAt = new Map([...lines].map(([line, authored]) => [authored.start, line]))
-    const authoredLines = physicalLines(authoredSource)
+    const canonicalAt = ends?.canonicalPositions ? undefined : new Map([...lines].map(([line, authored]) => [authored.start, line]))
+    const authoredLines = ends?.canonicalPositions ? undefined : physicalLines(authoredSource)
     for (const category of ['nodes', 'edges', 'groups', 'labels'] as const) {
       const exact = authored[category]
       if (!exact) continue
       spans[category] = exact
+      if (ends?.canonicalPositions) continue
       for (const [key, span] of exact) {
-        const row = authoredLines[span.start.line - 1]
-        const canonicalLine = row && canonicalAt.get(row.start)
+        const row = authoredLines![span.start.line - 1]
+        const canonicalLine = row && canonicalAt!.get(row.start)
         const canonical = canonicalLine && canonicalLines[canonicalLine - 1]
         const location = sourceMap[category].get(key)
         if (canonical && location) sourceMap[category].set(key, { line: canonicalLine, col: location.col + indentationWidth(canonical.text) })
@@ -580,7 +583,7 @@ export function mapObservedSource(
 ): SourceMap {
   const map: SourceMap = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
   const starts = sourceLineStarts(source)
-  const ends = { nodes: new Map<string, SourceLocation>(), edges: new Map<string, SourceLocation>(), groups: new Map<string, SourceLocation>(), labels: new Map<string, SourceLocation>() }
+  const ends = { canonicalPositions: true as const, nodes: new Map<string, SourceLocation>(), edges: new Map<string, SourceLocation>(), groups: new Map<string, SourceLocation>(), labels: new Map<string, SourceLocation>() }
   const original = context?.originalText
   const prefix = context?.authoredWrapperLength ?? context?.wrapperSource?.length ?? 0
   const rawAuthored = original?.slice(prefix)

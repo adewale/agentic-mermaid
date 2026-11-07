@@ -72,6 +72,9 @@ export class VennLexer {
     private readonly host: IndentHost,
   ) {}
 
+  /** Exclusive end of the current token, before any grammar lookahead. */
+  get end(): number { return this.at }
+
   private word(at: number, word: string): boolean {
     const src = this.src
     for (let k = 0; k < word.length; k++) {

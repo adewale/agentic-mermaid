@@ -7,14 +7,12 @@ import { parseVennDiagram, validateVenn, vennRegionId, vennRegionIdentities, ven
 import { writeGrammarText, readGrammarText, readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
 import { appendNativeAccessibilityLines, accessibilityFields } from '../shared/accessibility-directives.ts'
 import { withParserObservation } from '../shared/parser-observation.ts'
-import { sourceLineStarts, sourceSpan } from '../family-detection.ts'
-import { familySourceSpan, recordAuthoredSourceMapSpans } from './source-map-spans.ts'
-import { preservedMermaidFamilySource } from '../mermaid-source.ts'
+import { mapObservedSource } from './source-map-spans.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import { nativeAccessibilityText } from './accessibility-envelope.ts'
 import type { FamilyOperations } from './family-registry.ts'
-import { ok, err, type LayoutWarning, type MutationError, type Result, type VerifyOptions, type SourceMap, type SourceSpan } from './types.ts'
+import { ok, err, type LayoutWarning, type MutationError, type Result, type VerifyOptions } from './types.ts'
 export { VENN_OP_SCHEMAS, VENN_OP_KINDS } from '../venn/ops.ts'
 
 const quoted = (value: string): string => `"${writeGrammarText(value, '"[]%', undefined, '[]\r\n').replace(/\r/g, '#13;').replace(/\n/g, '#10;')}"`
@@ -130,6 +128,7 @@ export function verifyVenn(body: VennBody, options: VerifyOptions): LayoutWarnin
 }
 
 export const VENN_SOURCE_HOOKS: FamilyOperations = {
+  canonicalSource: 'preserved',
   statementEnds: vennStatementEnds,
   bodyMeta: ownExistingBodyTitle('venn'),
   bodyAccessibility: ownBodyAccessibility('venn', 'native'),
@@ -161,48 +160,23 @@ export const VENN_SOURCE_HOOKS: FamilyOperations = {
     }
   },
   buildSourceMap: (body, source, context) => {
-    const map: SourceMap = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
-    if (body.kind !== 'venn') return map
+    if (body.kind !== 'venn') return { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
     const identities = vennRegionIdentities(body)
-    const original = context?.originalText ?? source
-    const projection = context ? preservedMermaidFamilySource(context, 'authored') : undefined
-    const grammar = projection?.text ?? source
-    const grammarLines = grammar.split(/\r?\n/)
-    const statementEnds = vennStatementEnds(grammarLines)
-    const originalStarts = sourceLineStarts(original),
-      grammarStarts = sourceLineStarts(grammar)
-    const exact = { nodes: new Map<string, SourceSpan>(), labels: new Map<string, SourceSpan>() }
-    withParserObservation(
-      'venn',
-      event => {
-        if (event.unit !== 'mutation' || !event.source?.line) return
-        const col = event.source.column ?? 1
-        const start = grammarStarts[event.source.line - 1]! + col - 1
-        const endLine = statementEnds[event.source.line - 1]!
-        const end = grammarStarts[endLine]! + grammarLines[endLine]!.length
-        const span = projection ? familySourceSpan(projection, originalStarts, start, end) : sourceSpan(originalStarts, start, end)
-        const location = { line: event.source.line, col: 1 }
-        const add = (id: string) => {
-          map.nodes.set(id, location)
-          map.labels.set(`node:${id}`, location)
-          exact.nodes.set(id, span)
-          exact.labels.set(`node:${id}`, span)
-        }
-        if (event.kind === 'add-subset') {
-          const subset = event.value as unknown as VennBody['subsets'][number]
-          const sets = subset.sets.map(id => readGrammarText(id, '[]\r\n'))
-          const id = identities.get(vennRegionId(sets))!
-          add(id)
-        } else if (event.kind === 'add-text') {
-          const text = event.value as unknown as VennBody['textNodes'][number]
-          const id = readGrammarText(text.id, '[]\r\n')
-          add(id)
-        }
-      },
-      () => parseVennDiagram(grammar),
-    )
-    recordAuthoredSourceMapSpans(map, exact)
-    return map
+    // Venn owns accessibility grammar: universal space masking would change
+    // a suffix's TEXT/INDENT_TEXT token. Its preserved source policy owns bytes.
+    return mapObservedSource(context?.canonicalSource ?? source, context, (text, record) => withParserObservation('venn', event => {
+      if (event.unit !== 'mutation' || event.source?.offset === undefined || event.source.endOffset === undefined) return
+      let id: string
+      if (event.kind === 'add-subset') {
+        const subset = event.value as unknown as VennBody['subsets'][number]
+        id = identities.get(vennRegionId(subset.sets.map(value => readGrammarText(value, '[]\r\n'))))!
+      } else if (event.kind === 'add-text') {
+        const node = event.value as unknown as VennBody['textNodes'][number]
+        id = readGrammarText(node.id, '[]\r\n')
+      } else return
+      record('nodes', id, event.source.offset, event.source.endOffset)
+      record('labels', `node:${id}`, event.source.offset, event.source.endOffset)
+    }, () => parseVennDiagram(text), { mutations: ['add-subset', 'add-text'] }))
   },
 }
 

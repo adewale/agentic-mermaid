@@ -11,7 +11,7 @@ const VALUE = "'NUMERIC', 'IDENTIFIER', 'STRING', 'HEXCOLOR', 'RGBCOLOR', 'RGBAC
 // Ports Mermaid's venn grammar. A token is read only when the grammar has to look at one to
 // decide, because the lexer asks the model whether an indented `text` continues a set, and the
 // statements are what tell the model so.
-export function parseVenn(src: string, db: VennDb): void {
+export function parseVenn(src: string, db: VennDb, origins?: { starts: readonly number[]; columns?: readonly number[] }): void {
   const lexer = new VennLexer(src, db)
   let type = -1
   const observed = parserObservationActive('venn')
@@ -24,7 +24,8 @@ export function parseVenn(src: string, db: VennDb): void {
       if (lineStarts[mid]! <= offset) low = mid
       else high = mid
     }
-    return { line: low + 1, column: offset - lineStarts[low]! + 1, offset, unit: 'normalized' as const }
+    const column = offset - lineStarts[low]! + (origins?.columns?.[low] ?? 0)
+    return { line: low + 1, column: column + 1, offset: origins ? origins.starts[low]! + column : offset, unit: origins ? 'physical' as const : 'normalized' as const }
   }
 
   const peek = (): number => (type === -1 ? (type = lexer.next()) : type)
@@ -35,7 +36,10 @@ export function parseVenn(src: string, db: VennDb): void {
   }
 
   const take = (): string => {
-    if (observed) observeParserToken('venn', TOKEN_NAMES[type] ?? String(type), lexer.text, location(lexer.start))
+    if (observed) {
+      if (db.statementSource) db.statementSource.endOffset = origins ? location(lexer.end).offset : lexer.end
+      observeParserToken('venn', TOKEN_NAMES[type] ?? String(type), lexer.text, location(lexer.start))
+    }
     type = -1
     return lexer.text
   }

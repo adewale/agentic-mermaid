@@ -121,6 +121,52 @@ describe('native Venn', () => {
     expect(result.value.source.spans?.nodes.get(intersection.id)?.start.line).toBe(8)
     expect(serializeMermaid(result.value)).toContain('Membership')
   })
+  test.each(([
+    [['A', 'set A:10'], ['B', 'set B:5']],
+    [['A', 'set A["First\n    Last"]:10'], ['B', 'set B:5']],
+    [['A&amp;B', 'set "A&amp;B"["First\n    Last"]'], ['B', 'set B:5'], ['note', 'text B note["A note"]'], ['venn-region-0', 'union "A&amp;B",B:2']],
+  ] as const).map(statements => [statements] as const))('maps each consumed Venn production independently on shared physical rows: %j', statements => {
+    const payload = statements.map(([, statement]) => statement).join(' ')
+    const source = '---\r\ntitle: Membership\r\n---\r\nvenn-beta\r\n  ' + payload.replaceAll('\n', '\r\n')
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok || parsed.value.body.kind !== 'venn') throw Error('Expected editable Venn productions')
+    const canonical = parsed.value.canonicalSource.split('\n')
+    for (const [id, statement] of statements) {
+      const expected = statement.replaceAll('\n', '\r\n')
+      const span = parsed.value.source.spans!.nodes.get(id)!
+      expect(source.slice(span.start.offset, span.end.offset)).toBe(expected)
+      expect(span.start.offset).toBe(source.indexOf(expected))
+      expect(parsed.value.source.spans!.labels.get(`node:${id}`)).toEqual(span)
+      const location = parsed.value.source.nodes.get(id)!
+      expect(canonical[location.line - 1]!.slice(location.col - 1)).toStartWith(statement.split('\n')[0]!)
+    }
+  })
+  test.each(['accTitle: Membership', '%% retained outside label', 'title'])('copied canonical Venn retains indentation after %s', separator => {
+    const source = `---\r\nconfig:\r\n  theme: base\r\n---\r\nvenn-beta\r\nset A:10\r\n${separator}\r\n  text item["Note"]`
+    const original = parseRegisteredMermaid(source)
+    if (!original.ok || original.value.body.kind !== 'venn') throw Error('Expected typed indented Venn text')
+    const copied = parseRegisteredMermaid(original.value.canonicalSource)
+    if (!copied.ok) throw Error('Expected executable copied Venn source')
+    expect(copied.value.body).toEqual(original.value.body)
+    const span = original.value.source.spans!.nodes.get('item')!
+    expect(source.slice(span.start.offset, span.end.offset)).toBe('  text item["Note"]')
+    const location = original.value.source.nodes.get('item')!
+    expect(original.value.canonicalSource.split(/\r?\n/)[location.line - 1]!.slice(location.col - 1)).toBe('  text item["Note"]')
+  })
+  test('observed accessibility-block suffixes retain physical production offsets', () => {
+    const source = 'venn-beta\r\nset Prior:20\r\naccDescr {\r\nMetadata\r\n} set A:10 set B:5 text B note["Owned by B"]'
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok || parsed.value.body.kind !== 'venn') throw Error('Expected typed Venn accessibility suffix')
+    expect(parsed.value.body.accessibilityDescription).toBe('Metadata')
+    expect(parsed.value.body.textNodes).toEqual([{ sets: ['B'], id: 'note', label: 'Owned by B' }])
+    for (const [id, token] of [['A', 'set A:10'], ['B', 'set B:5'], ['note', 'text B note["Owned by B"]']] as const) {
+      const span = parsed.value.source.spans!.nodes.get(id)!
+      expect(source.slice(span.start.offset, span.end.offset)).toBe(token)
+      expect(span.start.offset).toBe(source.indexOf(token))
+      const location = parsed.value.source.nodes.get(id)!
+      expect(parsed.value.canonicalSource.split('\r\n')[location.line - 1]!.slice(location.col - 1)).toStartWith(token)
+    }
+  })
   test('public output retains region text and safe native identities through edits', async () => {
     const parsed = parseRegisteredMermaid(source)
     if (!parsed.ok || parsed.value.body.kind !== 'venn') throw Error('Expected native Venn')

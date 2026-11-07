@@ -238,11 +238,11 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
   // source with no wrapper” from synthesized payloads, which omit
   // wrapperSource and therefore request canonical wrapper synthesis.
   const meta = extractMeta(authoredEnvelope)
-  // AgentFlow's public source must remain executable after copying or
-  // transporting a diagram without private model custody. YAML indentation
-  // is grammar; the shared source-map builder uses this exact published body.
+  // Indentation-sensitive families keep executable public source after copying
+  // or transport without private model custody. The source-map builder uses
+  // this exact published body.
   // The envelope remains the single owner of init configuration layers.
-  const canonicalSource = capturedFamily?.id === 'agentflow'
+  const canonicalSource = capturedFamily?.canonicalSource === 'preserved'
     ? stripMermaidInitDirectives(familyLine.source.slice(familyLineBoundary))
     : authoredEnvelope.text
   const sourceMapCanonicalSource = maskAccessibilityDirectivesForSourceMap(canonicalSource, capturedFamily)
@@ -399,6 +399,7 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
         wrapperSource: authoredEnvelope.wrapperSource,
         authoredWrapperLength: authoredEnvelope.authoredWrapperLength,
         cleanup: authoredEnvelope.cleanup,
+        canonicalSource,
       })) ?? emptySourceMap(),
       plugin.sourceMapGrammar ?? 'generic',
     )

@@ -4,6 +4,8 @@ import { vennTextEnd } from './grammar/lexer.ts'
 import { parseAccessibilityDirective, scanAccessibilityDirectives, requireClosedAccessibility, accessibilityFields } from '../shared/accessibility-directives.ts'
 import { readGrammarText, readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
 import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
+import { parserObservationActive } from '../shared/parser-observation.ts'
+import { sourceLineStarts } from '../shared/source-spans.ts'
 import type { VennBody } from './types.ts'
 
 export const isVennHeader = (line: string): boolean => /^venn-beta\s*(?:%%.*)?$/i.test(line.trim())
@@ -61,11 +63,19 @@ export function parseVennDiagram(input: string | readonly string[]): VennBody {
   const scanned = scanAccessibilityDirectives(lines, vennStatementEnds(lines))
   requireClosedAccessibility(scanned)
   const db = new VennDb()
-  const grammarLines = lines.map(() => '')
-  scanned.familyOrigins.forEach((origin, index) => {
-    grammarLines[origin] = scanned.familyLines[index]!
+  const observed = parserObservationActive('venn')
+  let familyIndex = 0, columns: number[] | undefined
+  const grammarLines = lines.map((line, origin) => {
+    if (scanned.familyOrigins[familyIndex] !== origin) return observed ? ' '.repeat(line.length) : ''
+    const familyLine = scanned.familyLines[familyIndex++]!
+    // Keep suffix indentation semantic; translate its origin rather than
+    // padding removed metadata into an INDENT_TEXT token.
+    if (observed && familyLine !== line) (columns ??= [])[origin] = line.length - familyLine.length
+    return familyLine
   })
-  parseVenn(grammarLines.join('\n'), db)
+  const physical = observed && (columns || typeof input === 'string' && input.includes('\r\n'))
+    ? { starts: sourceLineStarts(typeof input === 'string' ? input : input.join('\n')), columns } : undefined
+  parseVenn(grammarLines.join('\n'), db, physical)
   assertDiagramWorkLimit('nodes', db.subsets.length + db.textNodes.length)
   const body: VennBody = {
     kind: 'venn',
