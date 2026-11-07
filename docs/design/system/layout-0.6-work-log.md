@@ -764,8 +764,9 @@ adapter. Leaf-only trial introduced blank-card growth in two downstream symmetry
 paths. Reuse Native's measured boxes: skip ELK size preparation and use the fan
 emitter's route-only path. Producer owners4RED→GREEN; introduced consumer growth
 3RED→GREEN. Explicit complete/scope/ELK-projection contexts keep those contracts
-separate. Named forest wire436.8572→404.2875,8bends unchanged; area165,355.6575
-unchanged. ELK wire396.4697: remaining gap+1.97%, down from+10.19%.
+separate. Named forest wire436.8572→397.7072,8bends unchanged; area165,355.6575
+unchanged. Final served SVG at13143a343 retains only+0.31% wire versusELK396.4697,
+down from+10.19%; the intermediate single-consumer probe was+1.97%.
 
 Fresh234corpus calls preserve delivery/proof, crossings, bends, label conflicts
 and overlaps; Class0 wire502→482 and tree300 wire93,477.0672→93,426.5548,
@@ -783,3 +784,16 @@ Two inspected33 marker warnings have zero lost ink, kept separate from42's real
 contact. Sparse256 row-major8-column diagnostic reaches+1.34% area versusELK,
 but height+31.04% and gzip SVG grows; it stays unshipped. Preserve the shipped
 Sparse+5.04%, existing unverified cases, ER256 refusal and original caps.
+
+Final13143a343 public forest controls: TBwire436.8572→397.7072, BT424.8125→
+424.2875, LR413.5917→368.65, RL376.0667→370.607; no crossing/bend/proof losses.
+LR/RL area also shrinks; TB/BT area unchanged. ExplicitELK and omitted-default TB
+SVGs remain reference-exact. Literal6nodes/4endpoints and displayed text bind in
+all4directions. Full standalone HTML versusce15:2,204,131→2,205,439 raw,
+1,323,981→1,324,974 gzip9 (+993),1,257,443→1,258,458 Brotli11 (+1,015), measured
+with the same Bun1.4.4 node:zlib. Node's different gzip output is retained
+separately. No E2E CPU/RSS win is established by the overlapping ABBA samples.
+Final built standalone browser2P/505assertions, including worker reuse/restart and
+payload release; original size ceilings unchanged. Initial sandbox-port and
+short-timeout harness failures are retained separately. PR remains draft; CI for
+the pushed source must complete before any readiness claim.
