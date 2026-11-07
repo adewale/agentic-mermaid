@@ -8,6 +8,7 @@ import { allocateFacePort, countFaceDemand, faceSize } from './terminal-geometry
 import { tryParseCssColor, toHex } from '../shared/color-math.ts'
 import { measuredText, type MeasuredTerminalText, type TerminalBounds, type TerminalDocument, type TerminalOwner } from './terminal-document.ts'
 import { allocateTerminalRoute, paintTerminalRoute, type TerminalRoute } from './terminal-route.ts'
+import { drawMultiBox } from './draw.ts'
 
 export type BoxSide = 'T' | 'B' | 'L' | 'R'
 /** Distance from the exterior port to the first freely routed cell. The
@@ -269,6 +270,41 @@ export function paintBoxRoute(doc: TerminalDocument, route: BoxRoute, owner: Ter
 export function paintBoxText(doc: TerminalDocument, text: BoxText | undefined, owner: TerminalOwner): void {
   owner = doc.element(owner)
   if (text) doc.textBlock(text.x, text.y, text.text, { owner, role: 'text', kind: 'text' })
+}
+
+/** Class and ER share card ink and compartment ownership after family layout. */
+export function paintClassLikeCard(
+  doc: TerminalDocument,
+  box: TerminalBox & { sections: string[][] },
+  owner: TerminalOwner,
+  family: 'class' | 'er',
+  ascii: boolean,
+  classDefs: ReadonlyMap<string, Readonly<Record<string, string>>>,
+  node: { className?: string; inlineStyle?: Readonly<Record<string, string>> },
+  generated: (name: string) => string,
+): void {
+  doc.region(owner, { x: box.x, y: box.y, width: box.width, height: box.height })
+  doc.fill(box.x, box.y, box.width, box.height, { owner, kind: 'surface' })
+  const card = drawMultiBox(box.sections, ascii, 1, { width: box.width, height: box.height })
+  if (classDefs.size || node.inlineStyle) {
+    const style = Object.assign({}, classDefs.get('default'))
+    for (const name of (node.className ?? '').split(/\s+/)) Object.assign(style, classDefs.get(name))
+    Object.assign(style, node.inlineStyle)
+    const paint = classLikePaint(doc, family, box.id, style)
+    if (paint.text || paint.stroke) for (const [, , cell] of card.entries()) {
+      const color = cell.kind === 'text' ? paint.text : paint.stroke
+      if (color) cell.color = color
+    }
+  }
+  let y = 1
+  box.sections.forEach((section, index) => {
+    const bounds = { x: 1, y, width: box.width - 2, height: Math.max(1, section.length) },
+      compartment: TerminalOwner = { id: generated(`${box.id}:compartment:${index}`), kind: 'compartment', parent: { id: box.id, kind: 'node' } }
+    card.attributeWithin(compartment, bounds)
+    card.region(compartment, bounds)
+    y += bounds.height + 1
+  })
+  doc.scope(owner, () => doc.overlay(card, box.x, box.y))
 }
 
 /** Report only authored style properties whose terminal realization is lossy. */
