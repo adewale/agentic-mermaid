@@ -29,7 +29,6 @@ import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 import { createRequire } from 'node:module'
 import { renderSvg } from '../renderer.ts'
 import { readFileSync } from 'node:fs'
-import { SaxesParser } from 'saxes'
 
 describe('outward exact endpoint approaches', () => {
   it.each((['LR', 'RL', 'TD', 'BT'] as const).flatMap(direction => [false, true].map(labelled => [direction, labelled] as const)))('keeps feedback approaches outward through optional alignment in %s layouts (labels: %s)', (direction, labelled) => {
@@ -2949,39 +2948,28 @@ it.each(['elk', 'agentic'] as const)('clears the final painted circle contact in
   expect(rendered.receipt.layoutCertification?.status).toBe('passed')
  }finally{dom.window.close()}
 })
-for (const transpose of [false, true]) for (const reverse of [false,true]) for (const obstacle of ['circle', 'rectangle', 'subroutine'] as const) for (const name of (obstacle === 'circle' ? ['stroke-only contact', 'positive stroke gap', 'empty curved corner'] : ['stroke-only contact', 'positive stroke gap']) as readonly string[]) it(`repairs actual ${name} without moving a clear route, transpose=${transpose}, reverse=${reverse}, obstacle=${obstacle}`, () => {
+for (const transpose of [false, true]) for (const reverse of [false,true]) for (const name of ['stroke-only contact', 'positive stroke gap', 'empty curved corner'] as const) it(`repairs actual ${name} without moving a clear route, transpose=${transpose}, reverse=${reverse}`, () => {
+ const { JSDOM } = createRequire(import.meta.url)('jsdom')
  const y=name==='positive stroke gap'?121.6:name==='empty curved corner'?80:121
  const p=(x:number,y:number)=>transpose?{x:y,y:x}:{x,y}
  const box=(id:string,x:number,y:number,width:number,height:number,shape:PositionedNode['shape']='rectangle'):PositionedNode=>({id,label:id,shape,...p(x,y),width:transpose?height:width,height:transpose?width:height})
- const nodes=[box('S',0,y-10,40,20),box('T',name==='empty curved corner'?260:220,(name==='empty curved corner'?40:y)-10,40,20),{...box('C',110,80,40,40,obstacle),inlineStyle:{fill:'#fff',stroke:'#000','stroke-width':'2'}}]
+ const nodes=[box('S',0,y-10,40,20),box('T',name==='empty curved corner'?260:220,(name==='empty curved corner'?40:y)-10,40,20),{...box('C',110,80,40,40,'circle'),inlineStyle:{fill:'#fff',stroke:'#000','stroke-width':'2'}}]
  const points=(name==='empty curved corner'?[[40,80],[115,80],[115,40],[260,40]]:[[40,y],[220,y]]).map(([x,y])=>p(x!,y!))
  if(reverse)points.reverse()
  const edge:PositionedEdge={source:reverse?'T':'S',target:reverse?'S':'T',style:'solid',hasArrowStart:false,hasArrowEnd:true,endMarker:'arrow',edgeIndex:0,points,inlineStyle:{stroke:'#f00','stroke-width':'1'}}
  const old=structuredClone(points)
  const observe=()=>{
-  const svg=renderSvg({positioned:{width:340,height:340,nodes,edges:[edge],groups:[]},colors:{bg:'#fff',fg:'#111',embedFontImport:false},resolved:{renderOptions:{}}})
-  const tags: Array<{ name: string; attributes: Record<string,string>; getAttribute(name:string):string|null; hasAttribute(name:string):boolean }> = []
-  const parser=new SaxesParser({xmlns:true})
-  parser.on('opentag',tag=>{
-   const attributes=Object.fromEntries(Object.values(tag.attributes).map(attribute=>[attribute.name,attribute.value]))
-   tags.push({name:tag.local,attributes,getAttribute:name=>attributes[name]??null,hasAttribute:name=>Object.hasOwn(attributes,name)})
-  })
-  parser.write(svg).close()
-  const circle=tags.find(tag=>tag.attributes['data-id']==='node-shape:C' && tag.name===(obstacle==='circle'?'circle':'rect'))!,shaft=tags.find(tag=>tag.attributes['data-role']==='edge')!
-  {
+  const dom=new JSDOM(renderSvg({positioned:{width:340,height:340,nodes,edges:[edge],groups:[]},colors:{bg:'#fff',fg:'#111',embedFontImport:false},resolved:{renderOptions:{}}}),{contentType:'image/svg+xml'})
+  try{
+   const document=dom.window.document as Document,circle=document.querySelector('[data-id="C"] circle')!,shaft=document.querySelector('[data-role="edge"]')!
    expect([shaft.getAttribute('data-from'),shaft.getAttribute('data-to')]).toEqual([edge.source,edge.target])
-   const n=(tag:typeof circle,key:string)=>Number(tag.getAttribute(key)),cx=n(circle,'cx'),cy=n(circle,'cy'),r=n(circle,'r'),width=n(shaft,'stroke-width')
-   if(obstacle==='circle')expect([cx,cy,r,n(circle,'stroke-width'),width]).toEqual(transpose?[100,130,20,2,1]:[130,100,20,2,1])
-   else expect([n(circle,'x'),n(circle,'y'),n(circle,'width'),n(circle,'height'),n(circle,'stroke-width'),width]).toEqual(transpose?[80,110,40,40,2,1]:[110,80,40,40,2,1])
+   const n=(tag:Element,key:string)=>Number(tag.getAttribute(key)),cx=n(circle,'cx'),cy=n(circle,'cy'),r=n(circle,'r'),width=n(shaft,'stroke-width')
+   expect([cx,cy,r,n(circle,'stroke-width'),width]).toEqual(transpose?[100,130,20,2,1]:[130,100,20,2,1])
    const path=shaft.getAttribute('points')!.split(/\s+/).map(pair=>pair.split(',').map(Number))
    const distance=Math.min(...path.slice(1).map((b,i)=>{const a=path[i]!,dx=b[0]!-a[0]!,dy=b[1]!-a[1]!,t=Math.max(0,Math.min(1,((cx-a[0]!)*dx+(cy-a[1]!)*dy)/(dx*dx+dy*dy)));return Math.hypot(a[0]!+t*dx-cx,a[1]!+t*dy-cy)}))
    expect(shaft.hasAttribute('marker-end')).toBe(true)
-   const bodyDistance=obstacle==='circle'?distance-r:Math.min(...path.slice(1).map((b,i)=>{
-    const a=path[i]!,x=n(circle,'x'),y=n(circle,'y'),w=n(circle,'width'),h=n(circle,'height')
-    return Math.hypot(Math.max(x-Math.max(a[0]!,b[0]!),Math.min(a[0]!,b[0]!)-x-w,0),Math.max(y-Math.max(a[1]!,b[1]!),Math.min(a[1]!,b[1]!)-y-h,0))
-   }))
-   return bodyDistance-n(circle,'stroke-width')/2-width*(path.length>2?2:.5)
-  }
+   return distance-r-n(circle,'stroke-width')/2-width*(path.length>2?2:.5)
+  }finally{dom.window.close()}
  }
  const before=observe()
  if(name==='stroke-only contact')expect(before).toBeCloseTo(-.5,8)
@@ -2991,92 +2979,6 @@ for (const transpose of [false, true]) for (const reverse of [false,true]) for (
  expect([edge.points[0],edge.points.at(-1)]).toEqual([old[0],old.at(-1)])
  if(name!=='stroke-only contact')expect(edge.points).toEqual(old)
  else expect(edge.points).not.toEqual(old)
-})
-it('clears a foreign card stroke without routing through a nearby owned caption', () => {
- const source = `flowchart TD
-n0(Node 152-0)
-n1((Node 152-1))
-n2[[Node 152-2]]
-n3[(Node 152-3)]
-n4[Node 152-4]
-n5{Node 152-5}
-n6(Node 152-6)
-n7((Node 152-7))
-n8[[Node 152-8]]
-n9[(Node 152-9)]
-n10[Node 152-10]
-n11{Node 152-11}
-n12(Node 152-12)
-n13((Node 152-13))
-n14[[Node 152-14]]
-n15[(Node 152-15)]
-n16[Node 152-16]
-n3 -->|edge 0 xxx| n16
-n4 --> n6
-n5 --> n6
-n2 --> n14
-n7 -->|edge 4 xxxxxxx| n15
-n6 --> n14
-n5 --> n13
-n15 --> n3
-n3 -->|edge 8 xxxxxxxxxxx| n8
-n10 --> n12
-n8 --> n3
-n2 --> n13
-n16 -->|edge 12 xxxxxxxxxxxxxxx| n5
-n16 --> n4
-n6 --> n14
-n10 --> n8
-n16 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n12
-n1 --> n7
-n4 --> n3
-n15 --> n11
-n2 -->|edge 20 xxxxxx| n9
-n5 --> n10
-n2 --> n13
-n7 --> n1
-n0 -->|edge 24 xxxxxxxxxx| n7
-n11 --> n15
-n7 --> n2
-n14 --> n10
-n1 -->|edge 28 xxxxxxxxxxxxxx| n7
-n6 --> n12
-n3 --> n13
-n5 --> n15
-n5 -->|edge 32 xxxxxxxxxxxxxxxxxx| n8
-n2 --> n6
-n0 --> n16
-n4 --> n10
-n14 -->|edge 36 xxxxx| n12
-n6 --> n7
-n3 --> n8`
- const product = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'none' } })
- const tags: Array<{ name: string; attrs: Record<string, string> }> = []
- const parser = new SaxesParser({ xmlns: true })
- parser.on('opentag', tag => tags.push({ name: tag.local, attrs: Object.fromEntries(Object.values(tag.attributes).map(attribute => [attribute.name, attribute.value])) }))
- parser.write(product.svg).close()
- const shaft = tags.find(tag => tag.name === 'polyline' && tag.attrs['data-from'] === 'n16' && tag.attrs['data-to'] === 'n12')!.attrs
- const card = tags.find(tag => tag.name === 'rect' && tag.attrs['data-id'] === 'node-shape:n4')!.attrs
- const points = shaft.points!.split(/\s+/).map(pair => pair.split(',').map(Number))
- const x = Number(card.x), y = Number(card.y), width = Number(card.width), height = Number(card.height)
- const half = (Number(card['stroke-width']) + Number(shaft['stroke-width'])) / 2
- // Check actual written axes and half-strokes independently of the route rubric.
- for (let i = 1; i < points.length; i++) {
-  const [ax, ay] = points[i - 1]!, [bx, by] = points[i]!
-  if (ax === bx && Math.max(ay!, by!) > y && Math.min(ay!, by!) < y + height) expect(ax! < x - half || ax! > x + width + half).toBe(true)
-  if (ay === by && Math.max(ax!, bx!) > x && Math.min(ax!, bx!) < x + width) expect(ay! < y - half || ay! > y + height + half).toBe(true)
- }
- expect(tags.filter(tag => tag.name === 'g' && tag.attrs['data-role'] === 'node').map(tag => tag.attrs['data-id']).sort()).toEqual(Array.from({ length: 17 }, (_, index) => `n${index}`).sort())
- const shafts = tags.filter(tag => tag.attrs['data-role'] === 'edge')
- const authored = [...source.matchAll(/^(n\d+) -->(?:\|[^|]+\|)? (n\d+)$/gm)].map(match => `${match[1]}->${match[2]}`).sort()
- expect(shafts.map(tag => `${tag.attrs['data-from']}->${tag.attrs['data-to']}`).sort()).toEqual(authored)
- expect(shafts.every(tag => tag.attrs['marker-end'] && tags.some(resource => resource.name === 'marker' && `url(#${resource.attrs.id})` === tag.attrs['marker-end']))).toBe(true)
- expect(tags.filter(tag => tag.attrs.class === 'edge-label').map(tag => [tag.attrs['data-from'], tag.attrs['data-to'], tag.attrs['data-label']])).toEqual([
-  ['n3','n16','edge 0 xxx'], ['n7','n15','edge 4 xxxxxxx'], ['n3','n8','edge 8 xxxxxxxxxxx'],
-  ['n16','n5','edge 12 xxxxxxxxxxxxxxx'], ['n16','n12','edge 16 xxxxxxxxxxxxxxxxxxx'], ['n2','n9','edge 20 xxxxxx'],
-  ['n0','n7','edge 24 xxxxxxxxxx'], ['n1','n7','edge 28 xxxxxxxxxxxxxx'], ['n5','n8','edge 32 xxxxxxxxxxxxxxxxxx'], ['n14','n12','edge 36 xxxxx'],
- ])
- expect(product.receipt.layoutCertification?.status).toBe('passed')
 })
 const cross=(a:any,b:any,box:any)=>a.x===b.x?a.x>box.x&&a.x<box.x+box.width&&Math.max(a.y,b.y)>box.y&&Math.min(a.y,b.y)<box.y+box.height:a.y===b.y&&a.y>box.y&&a.y<box.y+box.height&&Math.max(a.x,b.x)>box.x&&Math.min(a.x,b.x)<box.x+box.width
 const clear=(path:any[],box:any)=>path.slice(1).every((b,i)=>!cross(path[i],b,box))

@@ -5,7 +5,7 @@ import { bundleRouteBeforeRewrite, retainBundleRouteAfterRewrite } from '../bund
 import { calculatePathMidpoint, layoutFlow, nodeCrossSize, nodeCrossStart } from '../geometry.ts'
 import { doglegBetween, hookedElbow, routeClearOfNodes } from './shared.ts'
 import { terminalHookLength, simpleOrthogonal, type LabelMetricsStyle } from '../route-geometry.ts'
-import { bodyShaftPaintContext, type GraphPaintStyle } from '../graph-paint-support.ts'
+import { circleShaftPaintContext, type GraphPaintStyle } from '../graph-paint-support.ts'
 import { graphInkClear, graphInkWork, withinGraphInkBudget } from '../label-conflicts.ts'
 
 /**
@@ -74,7 +74,7 @@ export function reanchorOffOutlineEndpoints(nodes: PositionedNode[], edges: Posi
  * adopted ONLY when it clears every node and both endpoints stay on their outlines;
  * otherwise the edge is left untouched (never traded for a worse route).
  *
- * A supplied resolved style also admits actual written body/orthogonal-shaft
+ * A supplied resolved style also admits actual written circle/orthogonal-shaft
  * contacts that the rubric's intentional graze tolerance ignores. These added
  * repairs preserve painted bodies, markers, labels and headers under the same
  * bounded proposal validator as port-lane changes. Unsupported geometry keeps
@@ -87,10 +87,10 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
   const THROUGH_LANE_GAP = 10
   const paintWork = graphInkWork()
   const payPaint = (units: number): boolean => { chargeWork?.(units); return (paintWork.remaining -= units) >= 0 }
-  const paintedContact = style && withinGraphInkBudget(nodes, edges, groups) ? bodyShaftPaintContext(style, payPaint) : undefined
+  const paintedContact = style && withinGraphInkBudget(nodes, edges, groups) ? circleShaftPaintContext(style, payPaint) : undefined
   let currentEdge: PositionedEdge, paintedRepair = false
   const blockedBy = (a: Point, b: Point, node: PositionedNode): boolean => segmentThroughShape(a, b, node)
-    || paintedRepair && node.id !== currentEdge.source && node.id !== currentEdge.target && paintedContact!.contact(currentEdge, [a, b], node) !== false
+    || paintedRepair && node.id !== currentEdge.source && node.id !== currentEdge.target && paintedContact!(currentEdge, [a, b], node) !== false
   const throughNode = (pts: Point[], skip: ReadonlySet<string>): boolean => {
     for (const n of nodes) {
       chargeWork?.(1)
@@ -153,7 +153,6 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
       for (const n of nodes) {
         chargeWork?.(1)
         if (skip.has(n.id)) continue
-        if (paintedRepair) cands.push(...paintedContact!.lanes(currentEdge, n, ax))
         cands.push(n[ax] - THROUGH_LANE_GAP, n[ax] + (ax === 'x' ? n.width : n.height) + THROUGH_LANE_GAP)
       }
       cands.sort((p, q) => Math.abs(p - c) - Math.abs(q - c))
@@ -242,7 +241,7 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     if (!source || !target) continue
     const skip = new Set([edge.source, edge.target])
     if (!throughNode(edge.points, skip)) {
-      if (!paintedContact || !nodes.some(node => !skip.has(node.id) && paintedContact.contact(edge, edge.points, node) === true)) continue
+      if (!paintedContact || !nodes.some(node => !skip.has(node.id) && paintedContact(edge, edge.points, node) === true)) continue
       paintedRepair = true
     }
     // Off-outline endpoints are reanchorOffOutlineEndpoints' job; this pass only

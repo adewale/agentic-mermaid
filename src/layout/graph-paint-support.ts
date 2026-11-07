@@ -78,50 +78,31 @@ import { nodePaintBounds } from '../scene/bounds.ts'
 import { STROKE_WIDTHS } from '../styles.ts'
 import { tryParseCssColor } from '../shared/color-math.ts'
 
-/** Construction-level contact for a written body and an orthogonal shaft.
+/** Construction-level contact for a written circle and an orthogonal shaft.
  * Strip rectangles retain butt caps; right-angle joins retain their complete
  * miter square. A circle's empty bounding-box corners cannot trigger repair.
- * Filled sharp rectangles include the outer frame of canonical subroutines.
  * Curved/diagonal/dashed routes and unknown paint stay outside this domain. */
-export function bodyShaftPaintContext(style: GraphPaintStyle, pay: (units: number) => boolean) {
+export function circleShaftPaintContext(style: GraphPaintStyle, pay: (units: number) => boolean) {
   type Circle = { cx: number; cy: number; radius: number; innerRadius: number; bounds: AxisAlignedBox }
-  type Body = Circle | { rect: true; bounds: AxisAlignedBox; clearance: AxisAlignedBox }
-  const bodies = new Map<PositionedNode, Body | false | undefined>()
+  const circles = new Map<PositionedNode, Circle | false | undefined>()
   const shafts = new WeakMap<PositionedEdge, WeakMap<readonly Point[], AxisAlignedBox[] | undefined>>()
-  const bodyOf = (node: PositionedNode): Body | false | undefined => {
-    if (bodies.has(node)) return bodies.get(node)
+  const circle = (node: PositionedNode): Circle | false | undefined => {
+    if (circles.has(node)) return circles.get(node)
     if (!pay(32)) return undefined
     const width = node.inlineStyle?.['stroke-width'] ?? String(style.nodeLineWidth ?? STROKE_WIDTHS.innerBox)
     if (!pay(width.length + node.id.length + 8)) return undefined
     const piece = shapeOutline(node, { fill: node.inlineStyle?.fill ?? style.nodeFillColor ?? 'var(--_node-fill)', stroke: node.inlineStyle?.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: formatSvgNumericAttribute('stroke-width', width) }, style.cornerRadius)
-    const frame = piece.geometry.kind === 'rect' ? piece.geometry
-      : node.shape === 'subroutine' && piece.geometry.kind === 'compound' ? piece.geometry.children[0] : undefined
-    if (frame?.kind === 'rect' && !(frame.rx || frame.ry)) {
-      if (!pay(48)) return undefined
-      const geometry = writtenGeometry(frame)
-      const paint = piece.geometry.kind === 'compound' ? piece.childPaints?.[0] ?? piece.paint : piece.paint
-      const extent = paintedStrokeExtent(paint, false)
-      const filled = paint.fill !== 'none' && paint.fill !== 'transparent' && tryParseCssColor(paint.fill ?? '')?.[3] !== 0
-      // Filled right-angle frames occupy their complete written rectangle;
-      // each axis extends by half the stroke, including mitered corners.
-      const bounds = geometry.kind === 'rect' && extent !== undefined && filled
-        ? { x0: geometry.x - extent, y0: geometry.y - extent, x1: geometry.x + geometry.width + extent, y1: geometry.y + geometry.height + extent } : undefined
-      const clearance = nodePaintBounds({ kind: 'shape', id: node.id, role: 'node', geometry: writtenGeometry(piece.geometry), paint: piece.paint, ...(piece.childPaints ? { childPaints: piece.childPaints } : {}) })
-      const result: Body | undefined = finiteBox(bounds) && finiteBox(clearance) ? { rect: true, bounds, clearance } : undefined
-      bodies.set(node, result)
-      return result
-    }
-    if (piece.geometry.kind !== 'circle') { bodies.set(node, false); return false }
+    if (piece.geometry.kind !== 'circle') { circles.set(node, false); return false }
     const geometry = writtenGeometry(piece.geometry)
     if (geometry.kind !== 'circle' || !pay(32)) return undefined
     const bounds = nodePaintBounds({ kind: 'shape', id: node.id, role: 'node', geometry, paint: piece.paint })
     const extent = paintedStrokeExtent(piece.paint, false)
     const filled = piece.paint.fill !== 'none' && piece.paint.fill !== 'transparent' && tryParseCssColor(piece.paint.fill ?? '')?.[3] !== 0
-    if (!filled && extent === 0) { bodies.set(node, false); return false }
+    if (!filled && extent === 0) { circles.set(node, false); return false }
     const radius = geometry.r + (extent ?? 0)
     const result = finiteBox(bounds) && extent !== undefined && geometry.r > 0 && Number.isFinite(radius ** 2)
       ? { cx: geometry.cx, cy: geometry.cy, radius, innerRadius: filled ? 0 : Math.max(0, geometry.r - extent), bounds } : undefined
-    bodies.set(node, result)
+    circles.set(node, result)
     return result
   }
   const shaft = (edge: PositionedEdge, points: readonly Point[]): AxisAlignedBox[] | undefined => {
@@ -153,16 +134,15 @@ export function bodyShaftPaintContext(style: GraphPaintStyle, pay: (units: numbe
     routes.set(points, boxes)
     return boxes
   }
-  const contact = (edge: PositionedEdge, points: readonly Point[], node: PositionedNode): boolean | undefined => {
+  return (edge: PositionedEdge, points: readonly Point[], node: PositionedNode): boolean | undefined => {
     if (!pay(2)) return undefined
-    const body = bodyOf(node)
+    const body = circle(node)
     if (body === false) return false
     const strips = shaft(edge, points)
     if (!body || !strips) return undefined
     for (const strip of strips) {
       if (!pay(4)) return undefined
       if (!boxesMeet(body.bounds, strip)) continue
-      if ('rect' in body) return true
       const x = Math.max(strip.x0, Math.min(body.cx, strip.x1)), y = Math.max(strip.y0, Math.min(body.cy, strip.y1))
       const near = (x - body.cx) ** 2 + (y - body.cy) ** 2
       const far = Math.max(Math.abs(strip.x0 - body.cx), Math.abs(strip.x1 - body.cx)) ** 2 + Math.max(Math.abs(strip.y0 - body.cy), Math.abs(strip.y1 - body.cy)) ** 2
@@ -171,18 +151,6 @@ export function bodyShaftPaintContext(style: GraphPaintStyle, pay: (units: numbe
     }
     return false
   }
-  // Reuse the same written body and the proposal validator's conservative
-  // shaft extent. A fixed ten-pixel detour can cross an otherwise clear caption.
-  const lanes = (edge: PositionedEdge, node: PositionedNode, axis: 'x' | 'y'): readonly number[] => {
-    if (!pay(16)) return []
-    const body = bodyOf(node)
-    if (!body || !('rect' in body)) return []
-    const extent = paintedStrokeExtent(edgeShaftPaint(edge, style), true)
-    if (extent === undefined) return []
-    return axis === 'x' ? [body.clearance.x0 - extent - 1, body.clearance.x1 + extent + 1]
-      : [body.clearance.y0 - extent - 1, body.clearance.y1 + extent + 1]
-  }
-  return { contact, lanes }
 }
 
 /** One synchronous label-only proposal owns this snapshot. No route/node/style
