@@ -1,0 +1,361 @@
+﻿2026-11-07T03:10:48.7290155Z Current runner version: '2.338.2'
+2026-11-07T03:10:48.7313577Z ##[group]Runner Image Provisioner
+2026-11-07T03:10:48.7314497Z Hosted Compute Agent
+2026-11-07T03:10:48.7315132Z Version: 20261028.624
+2026-11-07T03:10:48.7315893Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-07T03:10:48.7316714Z Build Date: 2026-10-28T21:51:42Z
+2026-11-07T03:10:48.7317396Z Worker ID: {688347c2-f5a3-4a29-a90a-efee10b97dcf}
+2026-11-07T03:10:48.7318171Z Region: centralus
+2026-11-07T03:10:48.7318728Z Cloud: Azure
+2026-11-07T03:10:48.7319262Z ##[endgroup]
+2026-11-07T03:10:48.7320763Z ##[group]Operating System
+2026-11-07T03:10:48.7321499Z Ubuntu
+2026-11-07T03:10:48.7322046Z 26.04.1
+2026-11-07T03:10:48.7322678Z LTS
+2026-11-07T03:10:48.7323220Z ##[endgroup]
+2026-11-07T03:10:48.7323817Z ##[group]Runner Image
+2026-11-07T03:10:48.7324421Z Image: ubuntu-26.04
+2026-11-07T03:10:48.7325006Z Version: 20261101.186.1
+2026-11-07T03:10:48.7326722Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-07T03:10:48.7328352Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261101.186
+2026-11-07T03:10:48.7329311Z ##[endgroup]
+2026-11-07T03:10:48.7332446Z ##[group]GITHUB_TOKEN Permissions
+2026-11-07T03:10:48.7334768Z Actions: write
+2026-11-07T03:10:48.7335865Z ArtifactMetadata: write
+2026-11-07T03:10:48.7336530Z Attestations: write
+2026-11-07T03:10:48.7337131Z Checks: write
+2026-11-07T03:10:48.7337725Z CodeQuality: write
+2026-11-07T03:10:48.7338292Z Contents: write
+2026-11-07T03:10:48.7338835Z CopilotRequests: write
+2026-11-07T03:10:48.7339529Z Deployments: write
+2026-11-07T03:10:48.7340127Z Discussions: write
+2026-11-07T03:10:48.7340725Z Drives: write
+2026-11-07T03:10:48.7341272Z Issues: write
+2026-11-07T03:10:48.7341922Z Metadata: read
+2026-11-07T03:10:48.7342518Z Models: read
+2026-11-07T03:10:48.7343079Z Packages: write
+2026-11-07T03:10:48.7343659Z Pages: write
+2026-11-07T03:10:48.7344221Z PullRequests: write
+2026-11-07T03:10:48.7344800Z RepositoryProjects: write
+2026-11-07T03:10:48.7345646Z SecurityEvents: write
+2026-11-07T03:10:48.7346360Z Statuses: write
+2026-11-07T03:10:48.7346997Z VulnerabilityAlerts: read
+2026-11-07T03:10:48.7347614Z ##[endgroup]
+2026-11-07T03:10:48.7349630Z Secret source: Actions
+2026-11-07T03:10:48.7350626Z Cache mode: write
+2026-11-07T03:10:48.7351604Z Prepare workflow directory
+2026-11-07T03:10:48.7682367Z Prepare all required actions
+2026-11-07T03:10:48.7731404Z Getting action download info
+2026-11-07T03:10:49.0122842Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-11-07T03:10:49.1173940Z Download action repository 'oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6' (SHA:0c5077e51419868618aeaa5fe8019c62421857d6)
+2026-11-07T03:10:49.4731619Z Download action repository 'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9' (SHA:cf430e030ddbb5b0abf93d22962f4752f3646cd9)
+2026-11-07T03:10:49.6174383Z Complete job name: Generated layout diagnostic (advisory)
+2026-11-07T03:10:49.7140900Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-11-07T03:10:49.7142705Z with:
+2026-11-07T03:10:49.7143272Z   ref: 14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:10:49.7143902Z   repository: adewale/agentic-mermaid
+2026-11-07T03:10:49.7148235Z   token: ***
+2026-11-07T03:10:49.7148674Z   ssh-strict: true
+2026-11-07T03:10:49.7149111Z   ssh-user: git
+2026-11-07T03:10:49.7149554Z   persist-credentials: true
+2026-11-07T03:10:49.7150068Z   clean: true
+2026-11-07T03:10:49.7150515Z   sparse-checkout-cone-mode: true
+2026-11-07T03:10:49.7151041Z   fetch-depth: 1
+2026-11-07T03:10:49.7151479Z   fetch-tags: false
+2026-11-07T03:10:49.7151921Z   show-progress: true
+2026-11-07T03:10:49.7152377Z   lfs: false
+2026-11-07T03:10:49.7152799Z   submodules: false
+2026-11-07T03:10:49.7153269Z   set-safe-directory: true
+2026-11-07T03:10:49.7153790Z   allow-unsafe-pr-checkout: false
+2026-11-07T03:10:49.7154693Z ##[endgroup]
+2026-11-07T03:10:49.9516880Z Syncing repository: adewale/agentic-mermaid
+2026-11-07T03:10:49.9519755Z ##[group]Getting Git version info
+2026-11-07T03:10:49.9520900Z Working directory is '/home/runner/work/agentic-mermaid/agentic-mermaid'
+2026-11-07T03:10:49.9522487Z [command]/usr/bin/git version
+2026-11-07T03:10:49.9534038Z git version 2.56.0
+2026-11-07T03:10:49.9569472Z ##[endgroup]
+2026-11-07T03:10:49.9591211Z Temporarily overriding HOME='/home/runner/work/_temp/41acb845-74aa-4148-8803-8b1badbae762' before making global git config changes
+2026-11-07T03:10:49.9607250Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-07T03:10:49.9609815Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/agentic-mermaid/agentic-mermaid
+2026-11-07T03:10:49.9672705Z Deleting the contents of '/home/runner/work/agentic-mermaid/agentic-mermaid'
+2026-11-07T03:10:49.9681263Z ##[group]Determining repository object format
+2026-11-07T03:10:49.9683029Z ##[endgroup]
+2026-11-07T03:10:49.9684652Z ##[group]Initializing the repository
+2026-11-07T03:10:49.9686443Z [command]/usr/bin/git init /home/runner/work/agentic-mermaid/agentic-mermaid
+2026-11-07T03:10:49.9799131Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-07T03:10:49.9800463Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-07T03:10:49.9801490Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-07T03:10:49.9802302Z hint: call:
+2026-11-07T03:10:49.9802730Z hint:
+2026-11-07T03:10:49.9803277Z hint: 	git config --global init.defaultBranch <name>
+2026-11-07T03:10:49.9803939Z hint:
+2026-11-07T03:10:49.9804562Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-07T03:10:49.9806282Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-07T03:10:49.9807134Z hint:
+2026-11-07T03:10:49.9807586Z hint: 	git branch -m <name>
+2026-11-07T03:10:49.9808099Z hint:
+2026-11-07T03:10:49.9808768Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-07T03:10:49.9818208Z Initialized empty Git repository in /home/runner/work/agentic-mermaid/agentic-mermaid/.git/
+2026-11-07T03:10:49.9828692Z [command]/usr/bin/git remote add origin https://github.com/adewale/agentic-mermaid
+2026-11-07T03:10:49.9879127Z ##[endgroup]
+2026-11-07T03:10:49.9880507Z ##[group]Disabling automatic garbage collection
+2026-11-07T03:10:49.9882358Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-07T03:10:49.9917904Z ##[endgroup]
+2026-11-07T03:10:49.9919237Z ##[group]Setting up auth
+2026-11-07T03:10:49.9920255Z Removing SSH command configuration
+2026-11-07T03:10:49.9924030Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-07T03:10:49.9961339Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-07T03:10:50.0397711Z Removing HTTP extra header
+2026-11-07T03:10:50.0404865Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-07T03:10:50.0471978Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-07T03:10:50.0768175Z Removing includeIf entries pointing to credentials config files
+2026-11-07T03:10:50.0770502Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-07T03:10:50.0806538Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-07T03:10:50.1105238Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-9ae7e966-8bdd-4be8-881f-ca7943b59e1a.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-07T03:10:50.1145605Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git.path /home/runner/work/_temp/git-credentials-9ae7e966-8bdd-4be8-881f-ca7943b59e1a.config
+2026-11-07T03:10:50.1185990Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-9ae7e966-8bdd-4be8-881f-ca7943b59e1a.config
+2026-11-07T03:10:50.1216519Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-9ae7e966-8bdd-4be8-881f-ca7943b59e1a.config
+2026-11-07T03:10:50.1254803Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-9ae7e966-8bdd-4be8-881f-ca7943b59e1a.config
+2026-11-07T03:10:50.1286057Z ##[endgroup]
+2026-11-07T03:10:50.1286829Z ##[group]Fetching the repository
+2026-11-07T03:10:50.1292371Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin 14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:10:51.8957005Z From https://github.com/adewale/agentic-mermaid
+2026-11-07T03:10:51.8959187Z  * branch            14bec477578104a1eab5a279473aa77e747f8476 -> FETCH_HEAD
+2026-11-07T03:10:51.8970295Z [command]/usr/bin/git rev-parse --verify --quiet 14bec477578104a1eab5a279473aa77e747f8476^{object}
+2026-11-07T03:10:51.8998614Z 14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:10:51.9090478Z ##[endgroup]
+2026-11-07T03:10:51.9092359Z ##[group]Determining the checkout info
+2026-11-07T03:10:51.9094171Z ##[endgroup]
+2026-11-07T03:10:51.9095306Z [command]/usr/bin/git sparse-checkout disable
+2026-11-07T03:10:51.9098803Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-07T03:10:51.9109235Z ##[group]Checking out the ref
+2026-11-07T03:10:51.9111091Z [command]/usr/bin/git checkout --progress --force 14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:10:52.2620103Z Note: switching to '14bec477578104a1eab5a279473aa77e747f8476'.
+2026-11-07T03:10:52.2621205Z 
+2026-11-07T03:10:52.2621918Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-07T03:10:52.2624033Z changes and commit them, and you can discard any commits you make in this
+2026-11-07T03:10:52.2626023Z state without impacting any branches by switching back to a branch.
+2026-11-07T03:10:52.2626911Z 
+2026-11-07T03:10:52.2627576Z If you want to create a new branch to retain commits you create, you may
+2026-11-07T03:10:52.2629042Z do so (now or later) by using -c with the switch command. Example:
+2026-11-07T03:10:52.2629963Z 
+2026-11-07T03:10:52.2630430Z   git switch -c <new-branch-name>
+2026-11-07T03:10:52.2631330Z 
+2026-11-07T03:10:52.2631994Z Or undo this operation with:
+2026-11-07T03:10:52.2633090Z 
+2026-11-07T03:10:52.2636443Z   git switch -
+2026-11-07T03:10:52.2637235Z 
+2026-11-07T03:10:52.2638417Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-07T03:10:52.2640156Z 
+2026-11-07T03:10:52.2641496Z HEAD is now at 14bec47 Avoid unused original marker hull projection
+2026-11-07T03:10:52.2646759Z ##[endgroup]
+2026-11-07T03:10:52.2688701Z [command]/usr/bin/git log -1 --format=%H
+2026-11-07T03:10:52.2715692Z 14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:10:52.3088528Z ##[group]Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+2026-11-07T03:10:52.3090348Z with:
+2026-11-07T03:10:52.3091305Z   bun-version: 1.4.4
+2026-11-07T03:10:52.3092371Z   no-cache: true
+2026-11-07T03:10:52.3103659Z   token: ***
+2026-11-07T03:10:52.3104665Z ##[endgroup]
+2026-11-07T03:10:52.4825830Z Downloading a new version of Bun: https://github.com/oven-sh/bun/releases/download/bun-v1.4.4/bun-linux-x64.zip
+2026-11-07T03:10:52.8945279Z [command]/usr/bin/unzip -o -q /home/runner/work/_temp/7c1d0450-5fa7-4b57-9be0-c3c39f023b77.zip
+2026-11-07T03:10:53.7340474Z [command]/home/runner/.bun/bin/bun --revision
+2026-11-07T03:10:53.7457821Z 1.4.4+38afee6c8
+2026-11-07T03:10:53.7691224Z ##[group]Run bun install --frozen-lockfile
+2026-11-07T03:10:53.7691694Z [36;1mbun install --frozen-lockfile[0m
+2026-11-07T03:10:53.7747710Z shell: /usr/bin/bash -e {0}
+2026-11-07T03:10:53.7748023Z ##[endgroup]
+2026-11-07T03:10:53.7866481Z bun install v1.4.4 (38afee6c8)
+2026-11-07T03:10:55.9691212Z 
+2026-11-07T03:10:55.9691720Z + @arethetypeswrong/cli@0.18.5
+2026-11-07T03:10:55.9692973Z + @biomejs/biome@2.5.5
+2026-11-07T03:10:55.9693390Z + @mermaid-js/mermaid-zenuml@1.0.1
+2026-11-07T03:10:55.9693733Z + @modelcontextprotocol/sdk@1.32.1
+2026-11-07T03:10:55.9694044Z + @resvg/resvg-wasm@2.6.2
+2026-11-07T03:10:55.9694299Z + @swc/core@1.15.8
+2026-11-07T03:10:55.9694542Z + @types/bun@1.3.9
+2026-11-07T03:10:55.9694778Z + @types/d3-format@3.0.4
+2026-11-07T03:10:55.9695054Z + @types/d3-sankey@0.12.5
+2026-11-07T03:10:55.9695569Z + @types/d3-shape@1.3.12
+2026-11-07T03:10:55.9695851Z + @zenuml/core@3.47.9
+2026-11-07T03:10:55.9696104Z + beautiful-mermaid@1.1.3
+2026-11-07T03:10:55.9696422Z + brotli@1.3.3
+2026-11-07T03:10:55.9696668Z + fast-check@4.6.0
+2026-11-07T03:10:55.9696896Z + jsdom@26.1.0
+2026-11-07T03:10:55.9697112Z + mermaid@12.2.0
+2026-11-07T03:10:55.9697324Z + mermaid-ast@0.8.2
+2026-11-07T03:10:55.9697562Z + perfect-freehand@1.2.3
+2026-11-07T03:10:55.9697831Z + playwright@1.58.2
+2026-11-07T03:10:55.9698053Z + publint@0.3.24
+2026-11-07T03:10:55.9698304Z + roughjs@4.6.6
+2026-11-07T03:10:55.9698921Z + saxes@6.0.0
+2026-11-07T03:10:55.9699518Z + shiki@3.21.0
+2026-11-07T03:10:55.9700096Z + tsup@8.5.1
+2026-11-07T03:10:55.9700393Z + typescript@5.9.3
+2026-11-07T03:10:55.9700623Z + upng-js@2.1.0
+2026-11-07T03:10:55.9700941Z + vitest@4.1.11
+2026-11-07T03:10:55.9701156Z + wrangler@4.149.0
+2026-11-07T03:10:55.9701446Z + @resvg/resvg-js@2.6.2
+2026-11-07T03:10:55.9701714Z + acorn@8.16.0
+2026-11-07T03:10:55.9701934Z + d3-format@3.1.0
+2026-11-07T03:10:55.9702215Z + d3-sankey@0.12.3
+2026-11-07T03:10:55.9702452Z + d3-shape@1.3.7
+2026-11-07T03:10:55.9702717Z + elkjs@0.11.1
+2026-11-07T03:10:55.9703044Z + entities@7.0.1
+2026-11-07T03:10:55.9703444Z + yaml@2.9.0
+2026-11-07T03:10:55.9703594Z 
+2026-11-07T03:10:55.9777168Z 615 packages installed [2.18s]
+2026-11-07T03:10:55.9850806Z ##[group]Run mkdir -p "$EVIDENCE_DIR"
+2026-11-07T03:10:55.9851226Z [36;1mmkdir -p "$EVIDENCE_DIR"[0m
+2026-11-07T03:10:55.9851540Z [36;1mmkdir -p "$EVIDENCE_DIR/corpus"[0m
+2026-11-07T03:10:55.9851847Z [36;1mfor backend in elk agentic; do[0m
+2026-11-07T03:10:55.9852306Z [36;1m  bun run eval/layout-compare/run.ts snapshot --graph-layout "$backend" \[0m
+2026-11-07T03:10:55.9852981Z [36;1m    --families flowchart,state,class,er,requirement,architecture --stress --label "$backend" \[0m
+2026-11-07T03:10:55.9853541Z [36;1m    --out "$EVIDENCE_DIR/corpus/$backend.json"[0m
+2026-11-07T03:10:55.9853867Z [36;1mdone[0m
+2026-11-07T03:10:55.9854088Z [36;1mfor start in 0 256 320; do[0m
+2026-11-07T03:10:55.9854355Z [36;1m  count=256[0m
+2026-11-07T03:10:55.9854597Z [36;1m  directory="$EVIDENCE_DIR"[0m
+2026-11-07T03:10:55.9854881Z [36;1m  if [ "$start" = 256 ]; then[0m
+2026-11-07T03:10:55.9855172Z [36;1m    count=64[0m
+2026-11-07T03:10:55.9855888Z [36;1m    directory="$EVIDENCE_DIR/development-256-319"[0m
+2026-11-07T03:10:55.9856253Z [36;1m  elif [ "$start" = 320 ]; then[0m
+2026-11-07T03:10:55.9856521Z [36;1m    count=64[0m
+2026-11-07T03:10:55.9856808Z [36;1m    directory="$EVIDENCE_DIR/development-320-383"[0m
+2026-11-07T03:10:55.9857132Z [36;1m  fi[0m
+2026-11-07T03:10:55.9857350Z [36;1m  mkdir -p "$directory"[0m
+2026-11-07T03:10:55.9857630Z [36;1m  for backend in elk agentic; do[0m
+2026-11-07T03:10:55.9858058Z [36;1m    bun run eval/layout-compare/run.ts snapshot --graph-layout "$backend" \[0m
+2026-11-07T03:10:55.9858968Z [36;1m      --generated-start "$start" --generated-count "$count" --label "$backend" \[0m
+2026-11-07T03:10:55.9859458Z [36;1m      --out "$directory/$backend.json"[0m
+2026-11-07T03:10:55.9859752Z [36;1m  done[0m
+2026-11-07T03:10:55.9859953Z [36;1mdone[0m
+2026-11-07T03:10:55.9860165Z [36;1mfor start in 0 64 128 192; do[0m
+2026-11-07T03:10:55.9860642Z [36;1m  end=$((start + 63))[0m
+2026-11-07T03:10:55.9861030Z [36;1m  directory="$EVIDENCE_DIR/independent-sha256-counter-v1-$start-$end"[0m
+2026-11-07T03:10:55.9861478Z [36;1m  mkdir -p "$directory"[0m
+2026-11-07T03:10:55.9861800Z [36;1m  for backend in elk agentic; do[0m
+2026-11-07T03:10:55.9862220Z [36;1m    bun run eval/layout-compare/run.ts snapshot --graph-layout "$backend" \[0m
+2026-11-07T03:10:55.9862902Z [36;1m      --generated-kind sha256-counter-v1 --generated-start "$start" --generated-count 64 --label "$backend" \[0m
+2026-11-07T03:10:55.9863465Z [36;1m      --out "$directory/$backend.json"[0m
+2026-11-07T03:10:55.9863753Z [36;1m  done[0m
+2026-11-07T03:10:55.9863954Z [36;1mdone[0m
+2026-11-07T03:10:55.9864181Z [36;1mfor cache in off normal; do[0m
+2026-11-07T03:10:55.9864454Z [36;1m  cache_flag=0[0m
+2026-11-07T03:10:55.9864699Z [36;1m  features=text-spans[0m
+2026-11-07T03:10:55.9864967Z [36;1m  if [ "$cache" = normal ]; then[0m
+2026-11-07T03:10:55.9865253Z [36;1m    cache_flag=1[0m
+2026-11-07T03:10:55.9865831Z [36;1m    features=text-spans,position-cache[0m
+2026-11-07T03:10:55.9866144Z [36;1m  fi[0m
+2026-11-07T03:10:55.9866528Z [36;1m  AGENTIC_MERMAID_ELK_CACHE="$cache_flag" AGENTIC_MERMAID_EXPERIMENTS="$features" \[0m
+2026-11-07T03:10:55.9867158Z [36;1m    bun run eval/layout-compare/edit-run.ts --out "$EVIDENCE_DIR/edits-$cache.json"[0m
+2026-11-07T03:10:55.9867602Z [36;1mdone[0m
+2026-11-07T03:10:55.9918813Z shell: /usr/bin/bash -e {0}
+2026-11-07T03:10:55.9919084Z env:
+2026-11-07T03:10:55.9919367Z   EVIDENCE_DIR: /home/runner/work/_temp/generated-layouts
+2026-11-07T03:10:55.9919716Z ##[endgroup]
+2026-11-07T03:11:55.3783373Z wrote /home/runner/work/_temp/generated-layouts/corpus/elk.json: 234 samples (0 errored) at 14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:12:50.4524191Z wrote /home/runner/work/_temp/generated-layouts/corpus/agentic.json: 234 samples (0 errored) at 14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:13:35.3379139Z wrote /home/runner/work/_temp/generated-layouts/elk.json: 256 samples (0 errored) at 14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:14:08.6649295Z wrote /home/runner/work/_temp/generated-layouts/agentic.json: 256 samples (0 errored) at 14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:14:22.5936730Z wrote /home/runner/work/_temp/generated-layouts/development-256-319/elk.json: 64 samples (0 errored) at 14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:14:33.3805650Z wrote /home/runner/work/_temp/generated-layouts/development-256-319/agentic.json: 64 samples (0 errored) at 14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:14:48.0045739Z wrote /home/runner/work/_temp/generated-layouts/development-320-383/elk.json: 64 samples (0 errored) at 14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:14:59.2379218Z wrote /home/runner/work/_temp/generated-layouts/development-320-383/agentic.json: 64 samples (0 errored) at 14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:15:12.0363505Z wrote /home/runner/work/_temp/generated-layouts/independent-sha256-counter-v1-0-63/elk.json: 64 samples (0 errored) at 14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:15:21.7404584Z wrote /home/runner/work/_temp/generated-layouts/independent-sha256-counter-v1-0-63/agentic.json: 64 samples (0 errored) at 14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:15:34.7316697Z wrote /home/runner/work/_temp/generated-layouts/independent-sha256-counter-v1-64-127/elk.json: 64 samples (0 errored) at 14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:15:45.0179008Z wrote /home/runner/work/_temp/generated-layouts/independent-sha256-counter-v1-64-127/agentic.json: 64 samples (0 errored) at 14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:15:58.0840687Z wrote /home/runner/work/_temp/generated-layouts/independent-sha256-counter-v1-128-191/elk.json: 64 samples (0 errored) at 14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:16:08.4154892Z wrote /home/runner/work/_temp/generated-layouts/independent-sha256-counter-v1-128-191/agentic.json: 64 samples (0 errored) at 14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:16:21.2217585Z wrote /home/runner/work/_temp/generated-layouts/independent-sha256-counter-v1-192-255/elk.json: 64 samples (0 errored) at 14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:16:31.7382992Z wrote /home/runner/work/_temp/generated-layouts/independent-sha256-counter-v1-192-255/agentic.json: 64 samples (0 errored) at 14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:16:35.8618065Z {"out":"/home/runner/work/_temp/generated-layouts/edits-off.json","observations":117}
+2026-11-07T03:16:39.5097071Z {"out":"/home/runner/work/_temp/generated-layouts/edits-normal.json","observations":117}
+2026-11-07T03:16:39.5734806Z ##[group]Run failed=0
+2026-11-07T03:16:39.5735117Z [36;1mfailed=0[0m
+2026-11-07T03:16:39.5737292Z [36;1mfor directory in "$EVIDENCE_DIR/corpus" "$EVIDENCE_DIR" "$EVIDENCE_DIR/development-256-319" "$EVIDENCE_DIR/development-320-383" "$EVIDENCE_DIR/independent-sha256-counter-v1-0-63" "$EVIDENCE_DIR/independent-sha256-counter-v1-64-127" "$EVIDENCE_DIR/independent-sha256-counter-v1-128-191" "$EVIDENCE_DIR/independent-sha256-counter-v1-192-255"; do[0m
+2026-11-07T03:16:39.5738829Z [36;1m  # Both are supported first-party producers. A baseline failure must[0m
+2026-11-07T03:16:39.5739335Z [36;1m  # remain a finding even when the other backend improves support.[0m
+2026-11-07T03:16:39.5740567Z [36;1m  if ! bun -e 'let failed = false; for (const path of process.argv.slice(1)) { const snapshot = await Bun.file(path).json(); for (const sample of snapshot.samples) if (!sample.ok) { console.error(path + ": " + sample.id + ": " + sample.error); failed = true; } } if (failed) process.exit(1);' \[0m
+2026-11-07T03:16:39.5741779Z [36;1m    "$directory/elk.json" "$directory/agentic.json"; then[0m
+2026-11-07T03:16:39.5742129Z [36;1m    failed=1[0m
+2026-11-07T03:16:39.5742350Z [36;1m  fi[0m
+2026-11-07T03:16:39.5742716Z [36;1m  if ! bun run eval/layout-compare/run.ts report --before "$directory/elk.json" \[0m
+2026-11-07T03:16:39.5743377Z [36;1m    --after "$directory/agentic.json" --comparison backend --out "$directory/report.html"; then[0m
+2026-11-07T03:16:39.5743868Z [36;1m    failed=1[0m
+2026-11-07T03:16:39.5744081Z [36;1m  fi[0m
+2026-11-07T03:16:39.5744274Z [36;1mdone[0m
+2026-11-07T03:16:39.5744471Z [36;1mexit "$failed"[0m
+2026-11-07T03:16:39.5793879Z shell: /usr/bin/bash -e {0}
+2026-11-07T03:16:39.5794140Z env:
+2026-11-07T03:16:39.5794411Z   EVIDENCE_DIR: /home/runner/work/_temp/generated-layouts
+2026-11-07T03:16:39.5794747Z ##[endgroup]
+2026-11-07T03:16:40.7793968Z wrote /home/runner/work/_temp/generated-layouts/corpus/report.html (backend comparison): 0 status-changed (missing population), 0 regressions, 13 improvements, 221 changed, 0 unchanged; errored before=0 after=0 both-failed=0
+2026-11-07T03:16:42.6704587Z wrote /home/runner/work/_temp/generated-layouts/report.html (backend comparison): 0 status-changed (missing population), 0 regressions, 256 improvements, 0 changed, 0 unchanged; errored before=0 after=0 both-failed=0
+2026-11-07T03:16:43.4651750Z wrote /home/runner/work/_temp/generated-layouts/development-256-319/report.html (backend comparison): 0 status-changed (missing population), 1 regressions, 62 improvements, 1 changed, 0 unchanged; errored before=0 after=0 both-failed=0
+2026-11-07T03:16:44.2526102Z wrote /home/runner/work/_temp/generated-layouts/development-320-383/report.html (backend comparison): 0 status-changed (missing population), 0 regressions, 64 improvements, 0 changed, 0 unchanged; errored before=0 after=0 both-failed=0
+2026-11-07T03:16:45.0590659Z wrote /home/runner/work/_temp/generated-layouts/independent-sha256-counter-v1-0-63/report.html (backend comparison): 0 status-changed (missing population), 0 regressions, 63 improvements, 1 changed, 0 unchanged; errored before=0 after=0 both-failed=0
+2026-11-07T03:16:45.8366790Z wrote /home/runner/work/_temp/generated-layouts/independent-sha256-counter-v1-64-127/report.html (backend comparison): 0 status-changed (missing population), 0 regressions, 64 improvements, 0 changed, 0 unchanged; errored before=0 after=0 both-failed=0
+2026-11-07T03:16:46.5882918Z wrote /home/runner/work/_temp/generated-layouts/independent-sha256-counter-v1-128-191/report.html (backend comparison): 0 status-changed (missing population), 0 regressions, 64 improvements, 0 changed, 0 unchanged; errored before=0 after=0 both-failed=0
+2026-11-07T03:16:47.3649399Z wrote /home/runner/work/_temp/generated-layouts/independent-sha256-counter-v1-192-255/report.html (backend comparison): 0 status-changed (missing population), 0 regressions, 64 improvements, 0 changed, 0 unchanged; errored before=0 after=0 both-failed=0
+2026-11-07T03:16:47.3774880Z ##[error]Process completed with exit code 1.
+2026-11-07T03:16:47.3864516Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+2026-11-07T03:16:47.3864949Z with:
+2026-11-07T03:16:47.3865257Z   name: generated-layouts-14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:16:47.3865914Z   path: /home/runner/work/_temp/generated-layouts/
+2026-11-07T03:16:47.3866246Z   retention-days: 14
+2026-11-07T03:16:47.3866483Z   if-no-files-found: warn
+2026-11-07T03:16:47.3866722Z   compression-level: 6
+2026-11-07T03:16:47.3866945Z   overwrite: false
+2026-11-07T03:16:47.3867164Z   include-hidden-files: false
+2026-11-07T03:16:47.3867403Z   archive: true
+2026-11-07T03:16:47.3867604Z ##[endgroup]
+2026-11-07T03:16:47.5398951Z With the provided path, there will be 26 files uploaded
+2026-11-07T03:16:47.5404857Z Artifact name is valid!
+2026-11-07T03:16:47.5405646Z Root directory input is valid!
+2026-11-07T03:16:47.8101566Z Uploading artifact: generated-layouts-14bec477578104a1eab5a279473aa77e747f8476.zip
+2026-11-07T03:16:47.8140592Z Beginning upload of artifact content to blob storage
+2026-11-07T03:16:49.3161187Z Uploaded bytes 8388608
+2026-11-07T03:16:49.9963337Z Uploaded bytes 16777216
+2026-11-07T03:16:50.8149167Z Uploaded bytes 23041486
+2026-11-07T03:16:50.8533022Z Finished uploading artifact content to blob storage!
+2026-11-07T03:16:50.8537584Z SHA256 digest of uploaded artifact is 22d6a46a4a893fe22a563594f209896559b0e22c88fb47fb8a251367f708c1c7
+2026-11-07T03:16:50.8539811Z Finalizing artifact upload
+2026-11-07T03:16:51.3197537Z Artifact generated-layouts-14bec477578104a1eab5a279473aa77e747f8476 successfully finalized. Artifact ID 13558705608
+2026-11-07T03:16:51.3199072Z Artifact generated-layouts-14bec477578104a1eab5a279473aa77e747f8476 has been successfully uploaded! Final size is 23041486 bytes. Artifact ID is 13558705608
+2026-11-07T03:16:51.3202792Z Artifact download URL: https://github.com/adewale/agentic-mermaid/actions/runs/42332734235/artifacts/13558705608
+2026-11-07T03:16:51.3437329Z Post job cleanup.
+2026-11-07T03:16:51.4302618Z [command]/usr/bin/git version
+2026-11-07T03:16:51.4348905Z git version 2.56.0
+2026-11-07T03:16:51.4389428Z Temporarily overriding HOME='/home/runner/work/_temp/559f8999-f3f4-46ca-b2d1-c92036c5b7b7' before making global git config changes
+2026-11-07T03:16:51.4393151Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-07T03:16:51.4395711Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/agentic-mermaid/agentic-mermaid
+2026-11-07T03:16:51.4431196Z Removing SSH command configuration
+2026-11-07T03:16:51.4437472Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-07T03:16:51.4510744Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-07T03:16:51.4813242Z Removing HTTP extra header
+2026-11-07T03:16:51.4820603Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-07T03:16:51.4862782Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-07T03:16:51.5169783Z Removing includeIf entries pointing to credentials config files
+2026-11-07T03:16:51.5176660Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-07T03:16:51.5204974Z includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git.path
+2026-11-07T03:16:51.5206705Z includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path
+2026-11-07T03:16:51.5207651Z includeif.gitdir:/github/workspace/.git.path
+2026-11-07T03:16:51.5208338Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-07T03:16:51.5216265Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git.path
+2026-11-07T03:16:51.5241167Z /home/runner/work/_temp/git-credentials-9ae7e966-8bdd-4be8-881f-ca7943b59e1a.config
+2026-11-07T03:16:51.5261292Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-9ae7e966\-8bdd\-4be8\-881f\-ca7943b59e1a\.config
+2026-11-07T03:16:51.5300510Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path
+2026-11-07T03:16:51.5326151Z /home/runner/work/_temp/git-credentials-9ae7e966-8bdd-4be8-881f-ca7943b59e1a.config
+2026-11-07T03:16:51.5337620Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-9ae7e966\-8bdd\-4be8\-881f\-ca7943b59e1a\.config
+2026-11-07T03:16:51.5374839Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-07T03:16:51.5401294Z /github/runner_temp/git-credentials-9ae7e966-8bdd-4be8-881f-ca7943b59e1a.config
+2026-11-07T03:16:51.5412059Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-9ae7e966\-8bdd\-4be8\-881f\-ca7943b59e1a\.config
+2026-11-07T03:16:51.5447073Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-07T03:16:51.5471854Z /github/runner_temp/git-credentials-9ae7e966-8bdd-4be8-881f-ca7943b59e1a.config
+2026-11-07T03:16:51.5479799Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-9ae7e966\-8bdd\-4be8\-881f\-ca7943b59e1a\.config
+2026-11-07T03:16:51.5518557Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-07T03:16:51.5807552Z Removing credentials config '/home/runner/work/_temp/git-credentials-9ae7e966-8bdd-4be8-881f-ca7943b59e1a.config'
+2026-11-07T03:16:51.5975621Z Cleaning up orphan processes
+

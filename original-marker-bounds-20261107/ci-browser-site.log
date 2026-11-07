@@ -1,0 +1,778 @@
+﻿2026-11-07T03:12:46.1771280Z Current runner version: '2.338.2'
+2026-11-07T03:12:46.1792558Z ##[group]Runner Image Provisioner
+2026-11-07T03:12:46.1793293Z Hosted Compute Agent
+2026-11-07T03:12:46.1793773Z Version: 20261028.624
+2026-11-07T03:12:46.1794331Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-07T03:12:46.1794915Z Build Date: 2026-10-28T21:51:42Z
+2026-11-07T03:12:46.1795455Z Worker ID: {4037c971-de5e-4d19-b250-09e21dcd7215}
+2026-11-07T03:12:46.1796152Z Region: westus2
+2026-11-07T03:12:46.1796606Z Cloud: Azure
+2026-11-07T03:12:46.1797081Z ##[endgroup]
+2026-11-07T03:12:46.1798149Z ##[group]Operating System
+2026-11-07T03:12:46.1798637Z Ubuntu
+2026-11-07T03:12:46.1799166Z 26.04.1
+2026-11-07T03:12:46.1799814Z LTS
+2026-11-07T03:12:46.1800377Z ##[endgroup]
+2026-11-07T03:12:46.1800841Z ##[group]Runner Image
+2026-11-07T03:12:46.1801322Z Image: ubuntu-26.04
+2026-11-07T03:12:46.1801879Z Version: 20261101.186.1
+2026-11-07T03:12:46.1802868Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-07T03:12:46.1804129Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261101.186
+2026-11-07T03:12:46.1804882Z ##[endgroup]
+2026-11-07T03:12:46.1806062Z ##[group]GITHUB_TOKEN Permissions
+2026-11-07T03:12:46.1807586Z Actions: read
+2026-11-07T03:12:46.1808150Z Contents: read
+2026-11-07T03:12:46.1808603Z Issues: read
+2026-11-07T03:12:46.1809108Z Metadata: read
+2026-11-07T03:12:46.1809736Z PullRequests: read
+2026-11-07T03:12:46.1810207Z ##[endgroup]
+2026-11-07T03:12:46.1811906Z Secret source: Actions
+2026-11-07T03:12:46.1812669Z Cache mode: write
+2026-11-07T03:12:46.1813332Z Prepare workflow directory
+2026-11-07T03:12:46.2332062Z Prepare all required actions
+2026-11-07T03:12:46.2371216Z Getting action download info
+2026-11-07T03:12:46.5607061Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-11-07T03:12:46.6503028Z Download action repository 'oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6' (SHA:0c5077e51419868618aeaa5fe8019c62421857d6)
+2026-11-07T03:12:46.8432101Z Download action repository 'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1' (SHA:949feb2413d6458794dcd2491c4babbbce0c15c1)
+2026-11-07T03:12:46.9472080Z Download action repository 'actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333' (SHA:9000827ccba6bdab643e8b6fd33ac0654aef8333)
+2026-11-07T03:12:47.1732277Z Download action repository 'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9' (SHA:cf430e030ddbb5b0abf93d22962f4752f3646cd9)
+2026-11-07T03:12:47.3728932Z Complete job name: E2E (browser-site)
+2026-11-07T03:12:47.4285494Z ##[group]Checking docker version
+2026-11-07T03:12:47.4295555Z ##[command]/usr/bin/docker version --format '{{.Server.APIVersion}}'
+2026-11-07T03:12:47.5066398Z '1.54'
+2026-11-07T03:12:47.5078953Z Docker daemon API version: '1.54'
+2026-11-07T03:12:47.5079846Z ##[command]/usr/bin/docker version --format '{{.Client.APIVersion}}'
+2026-11-07T03:12:47.5234822Z '1.54'
+2026-11-07T03:12:47.5249000Z Docker client API version: '1.54'
+2026-11-07T03:12:47.5253629Z ##[endgroup]
+2026-11-07T03:12:47.5255616Z ##[group]Clean up resources from previous jobs
+2026-11-07T03:12:47.5260671Z ##[command]/usr/bin/docker ps --all --quiet --no-trunc --filter "label=3bc8c8"
+2026-11-07T03:12:47.5400104Z ##[command]/usr/bin/docker network prune --force --filter "label=3bc8c8"
+2026-11-07T03:12:47.5528455Z ##[endgroup]
+2026-11-07T03:12:47.5528914Z ##[group]Create local container network
+2026-11-07T03:12:47.5537367Z ##[command]/usr/bin/docker network create --label 3bc8c8 github_network_d5ca93aa4a6a45418f9f27d74da7f1e6
+2026-11-07T03:12:47.5991933Z a39315594fc5d9ef20a6e4d8fd5def8cc6fba950e465074066024254e67cfed0
+2026-11-07T03:12:47.6013718Z ##[endgroup]
+2026-11-07T03:12:47.6035611Z ##[group]Starting job container
+2026-11-07T03:12:47.6054093Z ##[command]/usr/bin/docker pull mcr.microsoft.com/playwright:v1.58.2-noble@sha256:65cefd09a5e943921ecd3a6e5414c603db2eb161e9eb48f2e2ccc63486dc7dc0
+2026-11-07T03:12:47.6900617Z mcr.microsoft.com/playwright@sha256:65cefd09a5e943921ecd3a6e5414c603db2eb161e9eb48f2e2ccc63486dc7dc0: Pulling from playwright
+2026-11-07T03:12:47.8102228Z ca6ba77a7dd1: Pulling fs layer
+2026-11-07T03:12:47.8102829Z a9f762cbf2c0: Pulling fs layer
+2026-11-07T03:12:47.8103268Z e93fce65fb9f: Pulling fs layer
+2026-11-07T03:12:47.8103671Z 2f544baf4e5f: Pulling fs layer
+2026-11-07T03:12:48.0199122Z a9f762cbf2c0: Download complete
+2026-11-07T03:12:48.2200497Z e93fce65fb9f: Download complete
+2026-11-07T03:12:48.9237053Z 2f544baf4e5f: Download complete
+2026-11-07T03:12:49.0231664Z e93fce65fb9f: Pull complete
+2026-11-07T03:12:51.9208938Z 2f544baf4e5f: Pull complete
+2026-11-07T03:12:52.6196131Z a9f762cbf2c0: Pull complete
+2026-11-07T03:12:54.2196889Z ca6ba77a7dd1: Download complete
+2026-11-07T03:13:02.9197554Z ca6ba77a7dd1: Pull complete
+2026-11-07T03:13:03.3219148Z Digest: sha256:65cefd09a5e943921ecd3a6e5414c603db2eb161e9eb48f2e2ccc63486dc7dc0
+2026-11-07T03:13:03.3220551Z Status: Downloaded newer image for mcr.microsoft.com/playwright@sha256:65cefd09a5e943921ecd3a6e5414c603db2eb161e9eb48f2e2ccc63486dc7dc0
+2026-11-07T03:13:03.4298013Z mcr.microsoft.com/playwright:v1.58.2-noble@sha256:65cefd09a5e943921ecd3a6e5414c603db2eb161e9eb48f2e2ccc63486dc7dc0
+2026-11-07T03:13:03.4381323Z ##[command]/usr/bin/docker create --name 95fcf07450ea4a26be804bf228b1af81_mcrmicrosoftcomplaywrightv1582noblesha25665cefd09a5e943921ecd3a6e5414c603db2eb161e9eb48f2e2ccc63486dc7dc0_845966 --label 3bc8c8 --workdir /__w/agentic-mermaid/agentic-mermaid --network github_network_d5ca93aa4a6a45418f9f27d74da7f1e6 --init --ipc=host -e "HOME=/github/home" -e GITHUB_ACTIONS=true -e CI=true -v "/var/run/docker.sock":"/var/run/docker.sock" -v "/home/runner/work":"/__w" -v "/home/runner/actions-runner/cached/2.338.2/externals":"/__e":ro -v "/home/runner/work/_temp":"/__w/_temp" -v "/home/runner/work/_actions":"/__w/_actions" -v "/opt/hostedtoolcache":"/__t" -v "/home/runner/work/_temp/_github_home":"/github/home" -v "/home/runner/work/_temp/_github_workflow":"/github/workflow" --entrypoint "tail" mcr.microsoft.com/playwright:v1.58.2-noble@sha256:65cefd09a5e943921ecd3a6e5414c603db2eb161e9eb48f2e2ccc63486dc7dc0 "-f" "/dev/null"
+2026-11-07T03:13:12.2270356Z 0cad09782deeec9e23f92a4b9c1bf2ec230f63252c7058b9da9624091a5222e4
+2026-11-07T03:13:12.2293601Z ##[command]/usr/bin/docker start 0cad09782deeec9e23f92a4b9c1bf2ec230f63252c7058b9da9624091a5222e4
+2026-11-07T03:13:12.4205670Z 0cad09782deeec9e23f92a4b9c1bf2ec230f63252c7058b9da9624091a5222e4
+2026-11-07T03:13:12.4225248Z ##[command]/usr/bin/docker ps --all --filter id=0cad09782deeec9e23f92a4b9c1bf2ec230f63252c7058b9da9624091a5222e4 --filter status=running --no-trunc --format "{{.ID}} {{.Status}}"
+2026-11-07T03:13:12.4368705Z 0cad09782deeec9e23f92a4b9c1bf2ec230f63252c7058b9da9624091a5222e4 Up Less than a second
+2026-11-07T03:13:12.4388387Z ##[command]/usr/bin/docker inspect --format "{{range .Config.Env}}{{println .}}{{end}}" 0cad09782deeec9e23f92a4b9c1bf2ec230f63252c7058b9da9624091a5222e4
+2026-11-07T03:13:12.4509438Z HOME=/github/home
+2026-11-07T03:13:12.4509757Z GITHUB_ACTIONS=true
+2026-11-07T03:13:12.4509941Z CI=true
+2026-11-07T03:13:12.4510177Z PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+2026-11-07T03:13:12.4510485Z LANG=C.UTF-8
+2026-11-07T03:13:12.4510667Z LC_ALL=C.UTF-8
+2026-11-07T03:13:12.4510862Z PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+2026-11-07T03:13:12.4530060Z ##[endgroup]
+2026-11-07T03:13:12.4537472Z ##[group]Waiting for all services to be ready
+2026-11-07T03:13:12.4538958Z ##[endgroup]
+2026-11-07T03:13:12.4827640Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-11-07T03:13:12.4828184Z with:
+2026-11-07T03:13:12.4828385Z   repository: adewale/agentic-mermaid
+2026-11-07T03:13:12.4830552Z   token: ***
+2026-11-07T03:13:12.4830735Z   ssh-strict: true
+2026-11-07T03:13:12.4830930Z   ssh-user: git
+2026-11-07T03:13:12.4831122Z   persist-credentials: true
+2026-11-07T03:13:12.4831369Z   clean: true
+2026-11-07T03:13:12.4831558Z   sparse-checkout-cone-mode: true
+2026-11-07T03:13:12.4831972Z   fetch-depth: 1
+2026-11-07T03:13:12.4832141Z   fetch-tags: false
+2026-11-07T03:13:12.4832312Z   show-progress: true
+2026-11-07T03:13:12.4832484Z   lfs: false
+2026-11-07T03:13:12.4832641Z   submodules: false
+2026-11-07T03:13:12.4832816Z   set-safe-directory: true
+2026-11-07T03:13:12.4833014Z   allow-unsafe-pr-checkout: false
+2026-11-07T03:13:12.4833410Z env:
+2026-11-07T03:13:12.4833570Z   AM_CI_ARTIFACTS: 1
+2026-11-07T03:13:12.4833754Z ##[endgroup]
+2026-11-07T03:13:12.4883436Z ##[command]/usr/bin/docker exec  0cad09782deeec9e23f92a4b9c1bf2ec230f63252c7058b9da9624091a5222e4 sh -c "cat /etc/*release | grep ^ID"
+2026-11-07T03:13:12.7817785Z Syncing repository: adewale/agentic-mermaid
+2026-11-07T03:13:12.7819526Z ##[group]Getting Git version info
+2026-11-07T03:13:12.7820004Z Working directory is '/__w/agentic-mermaid/agentic-mermaid'
+2026-11-07T03:13:12.7820667Z [command]/usr/bin/git version
+2026-11-07T03:13:12.7820889Z git version 2.43.0
+2026-11-07T03:13:12.7821655Z ##[endgroup]
+2026-11-07T03:13:12.7826877Z Temporarily overriding HOME='/__w/_temp/d4180f65-d8e2-40ee-9fa6-ea3389c3721c' before making global git config changes
+2026-11-07T03:13:12.7827819Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-07T03:13:12.7830204Z [command]/usr/bin/git config --global --add safe.directory /__w/agentic-mermaid/agentic-mermaid
+2026-11-07T03:13:12.7864138Z Deleting the contents of '/__w/agentic-mermaid/agentic-mermaid'
+2026-11-07T03:13:12.7869675Z ##[group]Determining repository object format
+2026-11-07T03:13:12.7873839Z ##[endgroup]
+2026-11-07T03:13:12.7874546Z ##[group]Initializing the repository
+2026-11-07T03:13:12.7875493Z [command]/usr/bin/git init /__w/agentic-mermaid/agentic-mermaid
+2026-11-07T03:13:12.7912266Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-07T03:13:12.7912916Z hint: is subject to change. To configure the initial branch name to use in all
+2026-11-07T03:13:12.7913351Z hint: of your new repositories, which will suppress this warning, call:
+2026-11-07T03:13:12.7913738Z hint: 
+2026-11-07T03:13:12.7913984Z hint: 	git config --global init.defaultBranch <name>
+2026-11-07T03:13:12.7914252Z hint: 
+2026-11-07T03:13:12.7914501Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-07T03:13:12.7914903Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-07T03:13:12.7915223Z hint: 
+2026-11-07T03:13:12.7915412Z hint: 	git branch -m <name>
+2026-11-07T03:13:12.7923708Z Initialized empty Git repository in /__w/agentic-mermaid/agentic-mermaid/.git/
+2026-11-07T03:13:12.7934173Z [command]/usr/bin/git remote add origin https://github.com/adewale/agentic-mermaid
+2026-11-07T03:13:12.7964979Z ##[endgroup]
+2026-11-07T03:13:12.7965463Z ##[group]Disabling automatic garbage collection
+2026-11-07T03:13:12.7967924Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-07T03:13:12.8030777Z ##[endgroup]
+2026-11-07T03:13:12.8031290Z ##[group]Setting up auth
+2026-11-07T03:13:12.8031663Z Removing SSH command configuration
+2026-11-07T03:13:12.8032235Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-07T03:13:12.8033605Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-07T03:13:12.8267701Z Removing HTTP extra header
+2026-11-07T03:13:12.8272612Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-07T03:13:12.8305962Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-07T03:13:12.8553089Z Removing includeIf entries pointing to credentials config files
+2026-11-07T03:13:12.8555389Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-07T03:13:12.8603145Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-07T03:13:12.8828250Z [command]/usr/bin/git config --file /__w/_temp/git-credentials-12a26534-7a41-489c-bc64-8b888c4a6950.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-07T03:13:12.8868426Z [command]/usr/bin/git config --local includeIf.gitdir:/__w/agentic-mermaid/agentic-mermaid/.git.path /__w/_temp/git-credentials-12a26534-7a41-489c-bc64-8b888c4a6950.config
+2026-11-07T03:13:12.8905237Z [command]/usr/bin/git config --local includeIf.gitdir:/__w/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path /__w/_temp/git-credentials-12a26534-7a41-489c-bc64-8b888c4a6950.config
+2026-11-07T03:13:12.8941767Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-12a26534-7a41-489c-bc64-8b888c4a6950.config
+2026-11-07T03:13:12.8976940Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-12a26534-7a41-489c-bc64-8b888c4a6950.config
+2026-11-07T03:13:12.9010858Z ##[endgroup]
+2026-11-07T03:13:12.9011203Z ##[group]Fetching the repository
+2026-11-07T03:13:12.9015908Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +379ceddc9661ecb46a8babe9ce00c850e8b3792c:refs/remotes/pull/602/merge
+2026-11-07T03:13:14.6686723Z From https://github.com/adewale/agentic-mermaid
+2026-11-07T03:13:14.6687400Z  * [new ref]         379ceddc9661ecb46a8babe9ce00c850e8b3792c -> pull/602/merge
+2026-11-07T03:13:14.6708042Z ##[endgroup]
+2026-11-07T03:13:14.6708531Z ##[group]Determining the checkout info
+2026-11-07T03:13:14.6709019Z ##[endgroup]
+2026-11-07T03:13:14.6711487Z [command]/usr/bin/git sparse-checkout disable
+2026-11-07T03:13:14.6756335Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-07T03:13:14.6792698Z ##[group]Checking out the ref
+2026-11-07T03:13:14.6796028Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/602/merge
+2026-11-07T03:13:14.9704791Z Note: switching to 'refs/remotes/pull/602/merge'.
+2026-11-07T03:13:14.9705098Z 
+2026-11-07T03:13:14.9705329Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-07T03:13:14.9705856Z changes and commit them, and you can discard any commits you make in this
+2026-11-07T03:13:14.9706406Z state without impacting any branches by switching back to a branch.
+2026-11-07T03:13:14.9706787Z 
+2026-11-07T03:13:14.9707025Z If you want to create a new branch to retain commits you create, you may
+2026-11-07T03:13:14.9707536Z do so (now or later) by using -c with the switch command. Example:
+2026-11-07T03:13:14.9707850Z 
+2026-11-07T03:13:14.9707978Z   git switch -c <new-branch-name>
+2026-11-07T03:13:14.9708196Z 
+2026-11-07T03:13:14.9708314Z Or undo this operation with:
+2026-11-07T03:13:14.9708512Z 
+2026-11-07T03:13:14.9708617Z   git switch -
+2026-11-07T03:13:14.9708816Z 
+2026-11-07T03:13:14.9709080Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-07T03:13:14.9709638Z 
+2026-11-07T03:13:14.9710077Z HEAD is now at 379cedd Merge 14bec477578104a1eab5a279473aa77e747f8476 into 39a500425f6b74eb486b9add9e90d538fab6a914
+2026-11-07T03:13:14.9720644Z ##[endgroup]
+2026-11-07T03:13:14.9769949Z [command]/usr/bin/git log -1 --format=%H
+2026-11-07T03:13:14.9802274Z 379ceddc9661ecb46a8babe9ce00c850e8b3792c
+2026-11-07T03:13:15.0008381Z ##[group]Run chown "$(id -u):$(id -g)" "$HOME"
+2026-11-07T03:13:15.0008714Z [36;1mchown "$(id -u):$(id -g)" "$HOME"[0m
+2026-11-07T03:13:15.0009034Z [36;1mgit config --global --add safe.directory "$GITHUB_WORKSPACE"[0m
+2026-11-07T03:13:15.0012269Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-11-07T03:13:15.0012529Z env:
+2026-11-07T03:13:15.0012689Z   AM_CI_ARTIFACTS: 1
+2026-11-07T03:13:15.0012867Z ##[endgroup]
+2026-11-07T03:13:15.0617994Z ##[group]Run apt-get update
+2026-11-07T03:13:15.0618412Z [36;1mapt-get update[0m
+2026-11-07T03:13:15.0618715Z [36;1mapt-get install -y --no-install-recommends fonts-dejavu-core=2.37-8[0m
+2026-11-07T03:13:15.0619184Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-11-07T03:13:15.0620235Z env:
+2026-11-07T03:13:15.0620399Z   AM_CI_ARTIFACTS: 1
+2026-11-07T03:13:15.0620581Z ##[endgroup]
+2026-11-07T03:13:15.2224547Z Get:1 https://deb.nodesource.com/node_24.x nodistro InRelease [12.1 kB]
+2026-11-07T03:13:15.2839361Z Get:2 https://deb.nodesource.com/node_24.x nodistro/main amd64 Packages [9993 B]
+2026-11-07T03:13:15.4046854Z Get:3 http://archive.ubuntu.com/ubuntu noble InRelease [256 kB]
+2026-11-07T03:13:15.4414847Z Get:4 http://security.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+2026-11-07T03:13:16.1241162Z Get:5 http://archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+2026-11-07T03:13:16.1513846Z Get:6 http://security.ubuntu.com/ubuntu noble-security/universe amd64 Packages [1557 kB]
+2026-11-07T03:13:16.3019950Z Get:7 http://archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+2026-11-07T03:13:16.4806511Z Get:8 http://archive.ubuntu.com/ubuntu noble/main amd64 Packages [1808 kB]
+2026-11-07T03:13:16.8933838Z Get:9 http://archive.ubuntu.com/ubuntu noble/restricted amd64 Packages [117 kB]
+2026-11-07T03:13:16.8993477Z Get:10 http://security.ubuntu.com/ubuntu noble-security/restricted amd64 Packages [2132 kB]
+2026-11-07T03:13:16.9039806Z Get:11 http://archive.ubuntu.com/ubuntu noble/universe amd64 Packages [19.3 MB]
+2026-11-07T03:13:17.0802933Z Get:12 http://security.ubuntu.com/ubuntu noble-security/main amd64 Packages [1425 kB]
+2026-11-07T03:13:17.1665893Z Get:13 http://security.ubuntu.com/ubuntu noble-security/multiverse amd64 Packages [55.6 kB]
+2026-11-07T03:13:17.3495870Z Get:14 http://archive.ubuntu.com/ubuntu noble/multiverse amd64 Packages [331 kB]
+2026-11-07T03:13:17.3507906Z Get:15 http://archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [2177 kB]
+2026-11-07T03:13:17.4418277Z Get:16 http://archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Packages [61.8 kB]
+2026-11-07T03:13:17.4433093Z Get:17 http://archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [2274 kB]
+2026-11-07T03:13:17.4503585Z Get:18 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1762 kB]
+2026-11-07T03:13:17.4568762Z Get:19 http://archive.ubuntu.com/ubuntu noble-backports/universe amd64 Packages [36.0 kB]
+2026-11-07T03:13:17.4572283Z Get:20 http://archive.ubuntu.com/ubuntu noble-backports/multiverse amd64 Packages [669 B]
+2026-11-07T03:13:17.4573056Z Get:21 http://archive.ubuntu.com/ubuntu noble-backports/main amd64 Packages [49.0 kB]
+2026-11-07T03:13:18.0751113Z Fetched 33.8 MB in 3s (11.5 MB/s)
+2026-11-07T03:13:18.7421997Z Reading package lists...
+2026-11-07T03:13:19.4322807Z Reading package lists...
+2026-11-07T03:13:19.6069874Z Building dependency tree...
+2026-11-07T03:13:19.6070363Z Reading state information...
+2026-11-07T03:13:19.7433449Z The following additional packages will be installed:
+2026-11-07T03:13:19.7439892Z   fonts-dejavu-mono
+2026-11-07T03:13:19.7645830Z The following NEW packages will be installed:
+2026-11-07T03:13:19.7655508Z   fonts-dejavu-core fonts-dejavu-mono
+2026-11-07T03:13:20.1887405Z 0 upgraded, 2 newly installed, 0 to remove and 150 not upgraded.
+2026-11-07T03:13:20.1887893Z Need to get 1337 kB of archives.
+2026-11-07T03:13:20.1888176Z After this operation, 3659 kB of additional disk space will be used.
+2026-11-07T03:13:20.1888629Z Get:1 http://archive.ubuntu.com/ubuntu noble/main amd64 fonts-dejavu-mono all 2.37-8 [502 kB]
+2026-11-07T03:13:21.0435595Z Get:2 http://archive.ubuntu.com/ubuntu noble/main amd64 fonts-dejavu-core all 2.37-8 [835 kB]
+2026-11-07T03:13:21.3638232Z debconf: delaying package configuration, since apt-utils is not installed
+2026-11-07T03:13:21.4055492Z Fetched 1337 kB in 1s (917 kB/s)
+2026-11-07T03:13:21.4196829Z Selecting previously unselected package fonts-dejavu-mono.
+2026-11-07T03:13:21.4261535Z (Reading database ... 
+2026-11-07T03:13:21.4261997Z (Reading database ... 5%
+2026-11-07T03:13:21.4262624Z (Reading database ... 10%
+2026-11-07T03:13:21.4262962Z (Reading database ... 15%
+2026-11-07T03:13:21.4263360Z (Reading database ... 20%
+2026-11-07T03:13:21.4263733Z (Reading database ... 25%
+2026-11-07T03:13:21.4264113Z (Reading database ... 30%
+2026-11-07T03:13:21.4264481Z (Reading database ... 35%
+2026-11-07T03:13:21.4264844Z (Reading database ... 40%
+2026-11-07T03:13:21.4265222Z (Reading database ... 45%
+2026-11-07T03:13:21.4265574Z (Reading database ... 50%
+2026-11-07T03:13:21.4285320Z (Reading database ... 55%
+2026-11-07T03:13:21.4296350Z (Reading database ... 60%
+2026-11-07T03:13:21.4319035Z (Reading database ... 65%
+2026-11-07T03:13:21.4325845Z (Reading database ... 70%
+2026-11-07T03:13:21.4332141Z (Reading database ... 75%
+2026-11-07T03:13:21.4338547Z (Reading database ... 80%
+2026-11-07T03:13:21.4358098Z (Reading database ... 85%
+2026-11-07T03:13:21.4383436Z (Reading database ... 90%
+2026-11-07T03:13:21.4393981Z (Reading database ... 95%
+2026-11-07T03:13:21.4394317Z (Reading database ... 100%
+2026-11-07T03:13:21.4394730Z (Reading database ... 35123 files and directories currently installed.)
+2026-11-07T03:13:21.4403386Z Preparing to unpack .../fonts-dejavu-mono_2.37-8_all.deb ...
+2026-11-07T03:13:21.4412056Z Unpacking fonts-dejavu-mono (2.37-8) ...
+2026-11-07T03:13:21.4628043Z Selecting previously unselected package fonts-dejavu-core.
+2026-11-07T03:13:21.4650858Z Preparing to unpack .../fonts-dejavu-core_2.37-8_all.deb ...
+2026-11-07T03:13:21.4786400Z Unpacking fonts-dejavu-core (2.37-8) ...
+2026-11-07T03:13:21.5447326Z Setting up fonts-dejavu-mono (2.37-8) ...
+2026-11-07T03:13:21.5486277Z Setting up fonts-dejavu-core (2.37-8) ...
+2026-11-07T03:13:21.6086766Z Processing triggers for fontconfig (2.15.0-1.1ubuntu2) ...
+2026-11-07T03:13:21.6608494Z ##[group]Run npm install --global bun@1.4.4
+2026-11-07T03:13:21.6608817Z [36;1mnpm install --global bun@1.4.4[0m
+2026-11-07T03:13:21.6609060Z [36;1mtest "$(bun --version)" = "1.4.4"[0m
+2026-11-07T03:13:21.6609752Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-11-07T03:13:21.6610037Z env:
+2026-11-07T03:13:21.6610201Z   AM_CI_ARTIFACTS: 1
+2026-11-07T03:13:21.6610380Z ##[endgroup]
+2026-11-07T03:13:23.8096824Z 
+2026-11-07T03:13:23.8097211Z added 2 packages in 2s
+2026-11-07T03:13:23.8361728Z ##[group]Run bun install --frozen-lockfile
+2026-11-07T03:13:23.8362014Z [36;1mbun install --frozen-lockfile[0m
+2026-11-07T03:13:23.8362373Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-11-07T03:13:23.8362605Z env:
+2026-11-07T03:13:23.8362763Z   AM_CI_ARTIFACTS: 1
+2026-11-07T03:13:23.8362942Z ##[endgroup]
+2026-11-07T03:13:23.8874512Z bun install v1.4.4 (38afee6c8)
+2026-11-07T03:13:29.0325329Z 
+2026-11-07T03:13:29.0325913Z + @arethetypeswrong/cli@0.18.5
+2026-11-07T03:13:29.0326292Z + @biomejs/biome@2.5.5
+2026-11-07T03:13:29.0326562Z + @mermaid-js/mermaid-zenuml@1.0.1
+2026-11-07T03:13:29.0326852Z + @modelcontextprotocol/sdk@1.32.1
+2026-11-07T03:13:29.0327136Z + @resvg/resvg-wasm@2.6.2
+2026-11-07T03:13:29.0327372Z + @swc/core@1.15.8
+2026-11-07T03:13:29.0327619Z + @types/bun@1.3.9
+2026-11-07T03:13:29.0327840Z + @types/d3-format@3.0.4
+2026-11-07T03:13:29.0328103Z + @types/d3-sankey@0.12.5
+2026-11-07T03:13:29.0328358Z + @types/d3-shape@1.3.12
+2026-11-07T03:13:29.0328682Z + @zenuml/core@3.47.9
+2026-11-07T03:13:29.0328930Z + beautiful-mermaid@1.1.3
+2026-11-07T03:13:29.0329182Z + brotli@1.3.3
+2026-11-07T03:13:29.0329567Z + fast-check@4.6.0
+2026-11-07T03:13:29.0329788Z + jsdom@26.1.0
+2026-11-07T03:13:29.0330015Z + mermaid@12.2.0
+2026-11-07T03:13:29.0330175Z + mermaid-ast@0.8.2
+2026-11-07T03:13:29.0330356Z + perfect-freehand@1.2.3
+2026-11-07T03:13:29.0330547Z + playwright@1.58.2
+2026-11-07T03:13:29.0330722Z + publint@0.3.24
+2026-11-07T03:13:29.0330877Z + roughjs@4.6.6
+2026-11-07T03:13:29.0331032Z + saxes@6.0.0
+2026-11-07T03:13:29.0331188Z + shiki@3.21.0
+2026-11-07T03:13:29.0331348Z + tsup@8.5.1
+2026-11-07T03:13:29.0331508Z + typescript@5.9.3
+2026-11-07T03:13:29.0331671Z + upng-js@2.1.0
+2026-11-07T03:13:29.0331825Z + vitest@4.1.11
+2026-11-07T03:13:29.0332311Z + wrangler@4.149.0
+2026-11-07T03:13:29.0332480Z + @resvg/resvg-js@2.6.2
+2026-11-07T03:13:29.0332654Z + acorn@8.16.0
+2026-11-07T03:13:29.0332809Z + d3-format@3.1.0
+2026-11-07T03:13:29.0332973Z + d3-sankey@0.12.3
+2026-11-07T03:13:29.0333144Z + d3-shape@1.3.7
+2026-11-07T03:13:29.0333305Z + elkjs@0.11.1
+2026-11-07T03:13:29.0333450Z + entities@7.0.1
+2026-11-07T03:13:29.0333636Z + yaml@2.9.0
+2026-11-07T03:13:29.0333723Z 
+2026-11-07T03:13:29.0333806Z 615 packages installed [5.15s]
+2026-11-07T03:13:29.0903273Z ##[group]Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+2026-11-07T03:13:29.0903632Z with:
+2026-11-07T03:13:29.0903820Z   name: portable-test-artifacts
+2026-11-07T03:13:29.0904020Z   path: .
+2026-11-07T03:13:29.0904189Z   merge-multiple: false
+2026-11-07T03:13:29.0904390Z   repository: adewale/agentic-mermaid
+2026-11-07T03:13:29.0904603Z   run-id: 42332734235
+2026-11-07T03:13:29.0904790Z   skip-decompress: false
+2026-11-07T03:13:29.0904984Z   digest-mismatch: error
+2026-11-07T03:13:29.0905176Z env:
+2026-11-07T03:13:29.0905333Z   AM_CI_ARTIFACTS: 1
+2026-11-07T03:13:29.0905513Z ##[endgroup]
+2026-11-07T03:13:29.0909502Z ##[command]/usr/bin/docker exec  0cad09782deeec9e23f92a4b9c1bf2ec230f63252c7058b9da9624091a5222e4 sh -c "cat /etc/*release | grep ^ID"
+2026-11-07T03:13:29.3004784Z Downloading single artifact
+2026-11-07T03:13:29.5911334Z Preparing to download the following artifacts:
+2026-11-07T03:13:29.5913990Z - portable-test-artifacts (ID: 13558570111, Size: 22006709, Expected Digest: sha256:bedd54ab98f780b1599a18c77821ca82d328c154ade4b8801ba9ebcbdf5e67b2)
+2026-11-07T03:13:30.0806854Z Redirecting to blob download url: https://productionresultssa11.blob.core.windows.net/actions-results/35cdfc58-5ee0-8ae0-b13b-c2e0fcd53cf0/workflow-job-run-b653475f-a51c-5c80-bb7d-2364cfd36fd5/artifacts/7322fcbe8fab8372e42a0553d98dfdcaf0524623ddac8fbbb6cb7328ab3c73b9.zip
+2026-11-07T03:13:30.0808465Z Starting download of artifact to: /__w/agentic-mermaid/agentic-mermaid
+2026-11-07T03:13:30.3776789Z (node:462) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+2026-11-07T03:13:30.3777532Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-07T03:13:31.8008624Z SHA256 digest of downloaded artifact is bedd54ab98f780b1599a18c77821ca82d328c154ade4b8801ba9ebcbdf5e67b2
+2026-11-07T03:13:31.8009149Z Artifact download completed successfully.
+2026-11-07T03:13:31.8009537Z Total of 1 artifact(s) downloaded
+2026-11-07T03:13:31.8011807Z Download artifact has finished successfully
+2026-11-07T03:13:31.8360904Z ##[group]Run bun -e 'const {version}=require("playwright/package.json"); if(version!=="1.58.2") throw new Error(`Update the pinned Playwright CI image for package ${version}`)'
+2026-11-07T03:13:31.8361921Z [36;1mbun -e 'const {version}=require("playwright/package.json"); if(version!=="1.58.2") throw new Error(`Update the pinned Playwright CI image for package ${version}`)'[0m
+2026-11-07T03:13:31.8362520Z [36;1mbunx playwright install --list[0m
+2026-11-07T03:13:31.8363103Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-11-07T03:13:31.8363356Z env:
+2026-11-07T03:13:31.8363518Z   AM_CI_ARTIFACTS: 1
+2026-11-07T03:13:31.8363701Z ##[endgroup]
+2026-11-07T03:13:32.5457670Z ##[group]Run bun run test:browser
+2026-11-07T03:13:32.5457953Z [36;1mbun run test:browser[0m
+2026-11-07T03:13:32.5458331Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-11-07T03:13:32.5458588Z env:
+2026-11-07T03:13:32.5458751Z   AM_CI_ARTIFACTS: 1
+2026-11-07T03:13:32.5458934Z ##[endgroup]
+2026-11-07T03:13:32.6470672Z $ bun run e2e/run-browser-contracts.ts
+2026-11-07T03:13:32.6582337Z $ bun test security-csp.e2e.test.ts --timeout 600000
+2026-11-07T03:13:33.8353061Z 
+2026-11-07T03:13:33.8353787Z bun test v1.4.4 (38afee6c8)
+2026-11-07T03:13:33.8354861Z ##[group]security-csp.e2e.test.ts:
+2026-11-07T03:13:33.8355480Z (pass) Trusted Types + strict CSP browser verification > rejects raw Mermaid themeCSS before producing strict SVG [11.27ms]
+2026-11-07T03:13:33.8356505Z (pass) Trusted Types + strict CSP browser verification > strict SVG can be inserted with a TrustedHTML policy and makes no external requests [38.11ms]
+2026-11-07T03:13:33.8356907Z 
+2026-11-07T03:13:33.8357177Z ##[endgroup]
+2026-11-07T03:13:33.8357274Z 
+2026-11-07T03:13:33.8357347Z  2 pass
+2026-11-07T03:13:33.8357504Z  0 fail
+2026-11-07T03:13:33.8357664Z  11 expect() calls
+2026-11-07T03:13:33.8357849Z Ran 2 tests across 1 file. [1160.00ms]
+2026-11-07T03:13:33.8358118Z $ bun test browser.test.ts --timeout 600000
+2026-11-07T03:14:44.5474516Z 
+2026-11-07T03:14:44.5474997Z bun test v1.4.4 (38afee6c8)
+2026-11-07T03:14:44.5475292Z Browser bundle: 457.8 KB
+2026-11-07T03:14:44.5475586Z Written to /__w/agentic-mermaid/agentic-mermaid/editor.html (2109.3 KB)
+2026-11-07T03:14:44.5475950Z $ bun test browser-bundle.e2e.test.ts --timeout 600000
+2026-11-07T03:14:44.5476924Z ##[group]browser.test.ts:
+2026-11-07T03:14:44.5479724Z (pass) shipped sketch looks paint readable label ink against an opaque halo [266.72ms]
+2026-11-07T03:14:44.5480591Z (pass) resolved circle and ellipse paths preserve the native stroke traversal for dashes [39.35ms]
+2026-11-07T03:14:44.5481368Z (pass) standalone editor stays within its single-renderer payload budget [92.46ms]
+2026-11-07T03:14:44.5482063Z (pass) standalone editor renders and verifies with one persistent Blob worker [29346.48ms]
+2026-11-07T03:14:44.5482869Z (pass) browser: live editor integration > browser DOM retains independently authored Pie entity labels [175.61ms]
+2026-11-07T03:14:44.5483842Z (pass) browser: live editor integration > contains long regular and highlighted pie legend rows across fallback fonts [295.80ms]
+2026-11-07T03:14:44.5484857Z (pass) browser: live editor integration > pie hover emphasis remains reachable when interactive tooltips add a hit target [36.41ms]
+2026-11-07T03:14:44.5485846Z (pass) browser: live editor integration > pie hover emphasis survives styled redraws without enabling tooltips [63.87ms]
+2026-11-07T03:14:44.5486795Z (pass) browser: live editor integration > opens /editor to the default loop diagram on the Kiln Stone chrome [786.69ms]
+2026-11-07T03:14:44.5487728Z (pass) browser: live editor integration > mobile editor uses pane tabs instead of clipping the workspace [449.83ms]
+2026-11-07T03:14:44.5488791Z (pass) browser: live editor integration > retargets preview zoom and pauses a focused toast without blocking its eventual dismissal [1781.22ms]
+2026-11-07T03:14:44.5490075Z (pass) browser: live editor integration > lets an ordinary pointer grab preview momentum and suppresses coast under reduced motion [6760.30ms]
+2026-11-07T03:14:44.5491061Z (pass) browser: live editor integration > commits button zoom immediately under reduced motion [878.84ms]
+2026-11-07T03:14:44.5491883Z (pass) browser: live editor integration > empty-state CTA opens a persistent examples sidebar [852.14ms]
+2026-11-07T03:14:44.5492862Z (pass) browser: live editor integration > opens /editor and renders fork-added diagram families through the bundled renderer [4307.18ms]
+2026-11-07T03:14:44.5493869Z (pass) browser: live editor integration > uses local theme registry entries in the editor theme dropdown [1123.31ms]
+2026-11-07T03:14:44.5495510Z (pass) browser: live editor integration > examples sidebar keeps the selected theme and exposes blank reset without a floating source toolbar [1637.28ms]
+2026-11-07T03:14:44.5496654Z (pass) browser: live editor integration > topbar button dimensions do not shift when toggling day/dark mode [464.93ms]
+2026-11-07T03:14:44.5497552Z (pass) browser: live editor integration > loads source/config examples without overriding the selected theme [1367.14ms]
+2026-11-07T03:14:44.5498366Z (pass) browser: live editor integration > treats shared hash configuration as untrusted and renders only inert SVG [712.64ms]
+2026-11-07T03:14:44.5499122Z (pass) browser: visual regression > architecture rounded fills match screenshot baseline without decorative rails [1057.44ms]
+2026-11-07T03:14:44.5500231Z (pass) browser: visual regression > rounded header fills and slop-free cards match screenshot baselines [5000.07ms]
+2026-11-07T03:14:44.5500951Z 
+2026-11-07T03:14:44.5501572Z ##[endgroup]
+2026-11-07T03:14:44.5501799Z 
+2026-11-07T03:14:44.5501939Z  22 pass
+2026-11-07T03:14:44.5502273Z  0 fail
+2026-11-07T03:14:44.5502516Z  770 expect() calls
+2026-11-07T03:14:44.5502798Z Ran 22 tests across 1 file. [70.69s]
+2026-11-07T03:15:09.8319803Z 
+2026-11-07T03:15:09.8320180Z bun test v1.4.4 (38afee6c8)
+2026-11-07T03:15:09.8320536Z $ bun test mcp-browser-cors.e2e.test.ts --timeout 600000
+2026-11-07T03:15:09.8321362Z ##[group]browser-bundle.e2e.test.ts:
+2026-11-07T03:15:09.8321816Z (pass) browser bundle > exposes the render surface on the global [10.56ms]
+2026-11-07T03:15:09.8322661Z (pass) browser bundle > XML DOM preserves whitespace identities and relation accessibility across SVG styles [139.60ms]
+2026-11-07T03:15:09.8323592Z (pass) browser bundle > preserves the complete public render-option schema in the IIFE [21.62ms]
+2026-11-07T03:15:09.8324450Z (pass) browser bundle > resolved-scene comparer checks painted dashes: closed path reversed [130.69ms]
+2026-11-07T03:15:09.8325292Z (pass) browser bundle > resolved-scene comparer checks painted dashes: closed path rotated [109.92ms]
+2026-11-07T03:15:09.8326125Z (pass) browser bundle > resolved-scene comparer checks painted dashes: open path reversed [35.81ms]
+2026-11-07T03:15:09.8326906Z (pass) browser bundle > resolved-scene comparer checks painted dashes: commands rewritten [450.68ms]
+2026-11-07T03:15:09.8327725Z (pass) browser bundle > resolved-scene comparer checks painted dashes: symmetric dashes reversed [22.57ms]
+2026-11-07T03:15:09.8328581Z (pass) browser bundle > resolved-scene comparer checks painted dashes: subpaths reordered [39.13ms]
+2026-11-07T03:15:09.8329909Z (pass) browser bundle > resolved-scene comparer checks painted dashes: subpath dashes reversed [26.33ms]
+2026-11-07T03:15:09.8330739Z (pass) browser bundle > resolved-scene comparer checks painted dashes: offset dashes reversed [38.61ms]
+2026-11-07T03:15:09.8331552Z (pass) browser bundle > resolved-scene comparer checks painted dashes: round caps reversed [34.64ms]
+2026-11-07T03:15:09.8332382Z (pass) browser bundle > resolved-scene comparer checks painted dashes: nonuniform transform [161.14ms]
+2026-11-07T03:15:09.8333176Z (pass) browser bundle > resolved-scene comparer checks painted dashes: solid path reversed [14.69ms]
+2026-11-07T03:15:09.8333953Z (pass) browser bundle > resolved-scene comparer checks painted dashes: zero dash array [14.40ms]
+2026-11-07T03:15:09.8334735Z (pass) browser bundle > IIFE preserves shape metadata SVG, receipt and diagnostics (elk) [483.77ms]
+2026-11-07T03:15:09.8335519Z (pass) browser bundle > IIFE preserves shape metadata SVG, receipt and diagnostics (agentic) [91.95ms]
+2026-11-07T03:15:09.8336251Z (pass) browser bundle > renders flowchart identically to the source build [79.53ms]
+2026-11-07T03:15:09.8336876Z (pass) browser bundle > renders state identically to the source build [60.78ms]
+2026-11-07T03:15:09.8337516Z (pass) browser bundle > renders sequence identically to the source build [42.32ms]
+2026-11-07T03:15:09.8338143Z (pass) browser bundle > renders timeline identically to the source build [21.35ms]
+2026-11-07T03:15:09.8339198Z (pass) browser bundle > renders class identically to the source build [83.07ms]
+2026-11-07T03:15:09.8340118Z (pass) browser bundle > renders er identically to the source build [50.93ms]
+2026-11-07T03:15:09.8340773Z (pass) browser bundle > renders journey identically to the source build [40.54ms]
+2026-11-07T03:15:09.8341463Z (pass) browser bundle > renders architecture identically to the source build [67.84ms]
+2026-11-07T03:15:09.8342115Z (pass) browser bundle > renders xychart identically to the source build [28.66ms]
+2026-11-07T03:15:09.8342716Z (pass) browser bundle > renders pie identically to the source build [20.03ms]
+2026-11-07T03:15:09.8343355Z (pass) browser bundle > renders quadrant identically to the source build [20.42ms]
+2026-11-07T03:15:09.8344242Z (pass) browser bundle > renders gantt identically to the source build [22.49ms]
+2026-11-07T03:15:09.8344843Z (pass) browser bundle > renders mindmap identically to the source build [26.80ms]
+2026-11-07T03:15:09.8345466Z (pass) browser bundle > renders gitgraph identically to the source build [28.08ms]
+2026-11-07T03:15:09.8346085Z (pass) browser bundle > renders radar identically to the source build [20.54ms]
+2026-11-07T03:15:09.8346704Z (pass) browser bundle > renders sankey identically to the source build [17.34ms]
+2026-11-07T03:15:09.8347332Z (pass) browser bundle > renders c4 identically to the source build [32.77ms]
+2026-11-07T03:15:09.8347956Z (pass) browser bundle > renders packet identically to the source build [12.28ms]
+2026-11-07T03:15:09.8348567Z (pass) browser bundle > renders kanban identically to the source build [12.11ms]
+2026-11-07T03:15:09.8349211Z (pass) browser bundle > renders requirement identically to the source build [33.50ms]
+2026-11-07T03:15:09.8349993Z (pass) browser bundle > renders treemap identically to the source build [15.06ms]
+2026-11-07T03:15:09.8350608Z (pass) browser bundle > renders ishikawa identically to the source build [15.44ms]
+2026-11-07T03:15:09.8351223Z (pass) browser bundle > renders block identically to the source build [40.39ms]
+2026-11-07T03:15:09.8351868Z (pass) browser bundle > renders eventmodeling identically to the source build [23.24ms]
+2026-11-07T03:15:09.8352510Z (pass) browser bundle > renders zenuml identically to the source build [26.30ms]
+2026-11-07T03:15:09.8353092Z (pass) browser bundle > ships no node: builtin imports [10.58ms]
+2026-11-07T03:15:09.8353901Z (pass) directly served optional ZenUML ESM > shipped native ESM renders full Looks and roles with no frame or backend URL [476.92ms]
+2026-11-07T03:15:09.8354932Z (pass) directly served optional ZenUML ESM > shipped native ESM deadlines release queued work while family modules are loading [178.35ms]
+2026-11-07T03:15:09.8356088Z (pass) directly served optional ZenUML ESM > shipped explicit upstream ESM loads palettes and its isolated session without a bundler or import map [503.50ms]
+2026-11-07T03:15:09.8357141Z (pass) current cross-engine browser support > Firefox exposes the global and renders SVG [2287.20ms]
+2026-11-07T03:15:09.8357943Z (pass) current cross-engine browser support > WebKit exposes the global and renders SVG [1052.01ms]
+2026-11-07T03:15:09.8358787Z (pass) async family-loaded browser renderer > Firefox loads the native ESM graph and renders Timeline [2439.14ms]
+2026-11-07T03:15:09.8359799Z (pass) async family-loaded browser renderer > WebKit loads the native ESM graph and renders Timeline [415.17ms]
+2026-11-07T03:15:09.8360690Z (pass) async family-loaded browser renderer > renders every family with exact strict-mode parity (%s) [1138.82ms]
+2026-11-07T03:15:09.8361639Z (pass) async family-loaded browser renderer > renders every family with exact strict-mode parity (hand-drawn) [1219.54ms]
+2026-11-07T03:15:09.8362625Z (pass) async family-loaded browser renderer > renders every family with exact strict-mode parity (watercolor) [1183.92ms]
+2026-11-07T03:15:09.8363575Z (pass) async family-loaded browser renderer > checked options retain source diagnostics in the lazy artifact [182.02ms]
+2026-11-07T03:15:09.8364942Z (pass) async family-loaded browser renderer > lazy prose stripping preserves shape metadata SVG, receipt and diagnostics (elk) [487.85ms]
+2026-11-07T03:15:09.8366067Z (pass) async family-loaded browser renderer > lazy prose stripping preserves shape metadata SVG, receipt and diagnostics (agentic) [301.16ms]
+2026-11-07T03:15:09.8367126Z (pass) async family-loaded browser renderer > the emitted Pie family decodes full named references in a real browser [149.87ms]
+2026-11-07T03:15:09.8368051Z (pass) async family-loaded browser renderer > a non-ELK family fetches no ELK code [146.61ms]
+2026-11-07T03:15:09.8368861Z (pass) async family-loaded browser renderer > elk-backed families fetch and reuse only the selected solver [951.55ms]
+2026-11-07T03:15:09.8370898Z (pass) async family-loaded browser renderer > agentic-backed families fetch and reuse only the selected solver [560.66ms]
+2026-11-07T03:15:09.8372029Z (pass) async family-loaded browser renderer > ordinary diagrams fetch no YAML and a wrapped named-reference cycle loads every demanded provider once [515.28ms]
+2026-11-07T03:15:09.8373203Z (pass) async family-loaded browser renderer > first-use init directive retains synchronous output or error after loading YAML [172.03ms]
+2026-11-07T03:15:09.8374542Z (pass) async family-loaded browser renderer > first-use flowchart metadata retains synchronous output or error after loading YAML [193.42ms]
+2026-11-07T03:15:09.8375748Z (pass) async family-loaded browser renderer > first-use sequence metadata retains synchronous output or error after loading YAML [165.34ms]
+2026-11-07T03:15:09.8376894Z (pass) async family-loaded browser renderer > first-use Kanban metadata boundaries retains synchronous output or error after loading YAML [168.74ms]
+2026-11-07T03:15:09.8378037Z (pass) async family-loaded browser renderer > first-use invalid frontmatter retains synchronous output or error after loading YAML [103.85ms]
+2026-11-07T03:15:09.8379208Z (pass) async family-loaded browser renderer > first-use invalid metadata retains synchronous output or error after loading YAML [116.56ms]
+2026-11-07T03:15:09.8380503Z (pass) async family-loaded browser renderer > native graph placement fetches ELK only for an actual fallback (native) [256.42ms]
+2026-11-07T03:15:09.8381605Z (pass) async family-loaded browser renderer > native graph placement fetches ELK only for an actual fallback (cross-scope) [264.91ms]
+2026-11-07T03:15:09.8382741Z (pass) async family-loaded browser renderer > native graph placement fetches ELK only for an actual fallback (large-cross-scope) [480.99ms]
+2026-11-07T03:15:09.8383850Z (pass) async family-loaded browser renderer > native graph placement fetches ELK only for an actual fallback (frame-endpoint) [281.96ms]
+2026-11-07T03:15:09.8384932Z (pass) async family-loaded browser renderer > native graph placement fetches ELK only for an actual fallback (compound) [271.18ms]
+2026-11-07T03:15:09.8385981Z (pass) async family-loaded browser renderer > native graph placement fetches ELK only for an actual fallback (local-limit) [475.77ms]
+2026-11-07T03:15:09.8387049Z (pass) async family-loaded browser renderer > native graph placement fetches ELK only for an actual fallback (refined-cycle) [651.72ms]
+2026-11-07T03:15:09.8388188Z (pass) async family-loaded browser renderer > a failed native chunk rejects without ELK fallback and a fresh document can recover [287.62ms]
+2026-11-07T03:15:09.8389393Z (pass) async family-loaded browser renderer > the emitted lazy artifact rejects hostile strict-mode theme CSS [90.31ms]
+2026-11-07T03:15:09.8390252Z (pass) demo page > renders the diagram from the lazy ESM graph on first paint [2.93ms]
+2026-11-07T03:15:09.8392594Z (pass) demo page > fetches Timeline but neither ELK nor the classic all-family bundle [1.83ms]
+2026-11-07T03:15:09.8393480Z (pass) demo page > the initializer renders page source strictly and inserts only one parsed SVG document [1925.44ms]
+2026-11-07T03:15:09.8394250Z (pass) demo page > re-renders when the style changes [85.31ms]
+2026-11-07T03:15:09.8394573Z 
+2026-11-07T03:15:09.8395030Z ##[endgroup]
+2026-11-07T03:15:09.8395174Z 
+2026-11-07T03:15:09.8395484Z  80 pass
+2026-11-07T03:15:09.8395703Z  0 fail
+2026-11-07T03:15:09.8395947Z  1109 expect() calls
+2026-11-07T03:15:09.8396229Z Ran 80 tests across 1 file. [25.25s]
+2026-11-07T03:15:10.5374823Z 
+2026-11-07T03:15:10.5375324Z bun test v1.4.4 (38afee6c8)
+2026-11-07T03:15:10.5376660Z {"event":"mcp_request","request_id":"2e4fd95a-63d6-4f01-a7a1-e9afa404096a","timestamp":"2026-11-07T03:15:10.427Z","method":null,"http_status":204,"outcome":"success","duration_ms":0,"deploy_version":"cors-e2e","batch_size":0,"protocol_version":null,"has_origin":true,"body_bytes":0,"items":[]}
+2026-11-07T03:15:10.5379777Z {"event":"mcp_request","request_id":"6ff529ce-fa22-4b1b-96af-6f926badda4e","timestamp":"2026-11-07T03:15:10.429Z","method":"tools/list","http_status":200,"outcome":"success","duration_ms":3,"deploy_version":"cors-e2e","batch_size":1,"protocol_version":"2026-07-28","has_origin":true,"body_bytes":170,"items":[{"tool":null,"is_error":false,"error_code":null,"cache_eligible":false,"cache_hit":false,"loader_attempts":0,"configured_cpu_limit_ms":null,"duration_ms":1}]}
+2026-11-07T03:15:10.5381914Z {"event":"mcp_request","request_id":"d626ce56-d800-45f8-b29c-80adf75c42f3","timestamp":"2026-11-07T03:15:10.500Z","method":null,"http_status":403,"outcome":"transport_error","duration_ms":1,"deploy_version":"cors-e2e","batch_size":0,"protocol_version":null,"has_origin":true,"body_bytes":0,"items":[]}
+2026-11-07T03:15:10.5383269Z ##[group]mcp-browser-cors.e2e.test.ts:
+2026-11-07T03:15:10.5383910Z (pass) hosted /mcp in a real cross-origin browser > an allowlisted origin preflights and reads a modern response [99.09ms]
+2026-11-07T03:15:10.5384793Z (pass) hosted /mcp in a real cross-origin browser > a non-allowlisted origin is stopped at the preflight, before any POST [54.39ms]
+2026-11-07T03:15:10.5385330Z 
+2026-11-07T03:15:10.5385555Z ##[endgroup]
+2026-11-07T03:15:10.5385660Z 
+2026-11-07T03:15:10.5385735Z  2 pass
+2026-11-07T03:15:10.5385895Z  0 fail
+2026-11-07T03:15:10.5386052Z  16 expect() calls
+2026-11-07T03:15:10.5386249Z Ran 2 tests across 1 file. [694.00ms]
+2026-11-07T03:15:10.5386676Z $ bun test editor-site-interactions.e2e.test.ts --timeout 600000
+2026-11-07T03:16:32.8883091Z bun test v1.4.4 (38afee6c8)
+2026-11-07T03:16:32.8883924Z 
+2026-11-07T03:16:32.8884195Z $ bun test ../src/__tests__/editor-theme-switch.test.ts --timeout 600000
+2026-11-07T03:16:32.8885245Z ##[group]editor-site-interactions.e2e.test.ts:
+2026-11-07T03:16:32.8886211Z (pass) editor and site interactions in a real browser > every built-in can be the first deferred family, retaining verified SVG and native terminal output (%s) [12740.77ms]
+2026-11-07T03:16:32.8887649Z (pass) editor and site interactions in a real browser > every built-in can be the first deferred family, retaining verified SVG and native terminal output (hand-drawn) [13045.99ms]
+2026-11-07T03:16:32.8889173Z (pass) editor and site interactions in a real browser > every built-in can be the first deferred family, retaining verified SVG and native terminal output (watercolor) [13357.63ms]
+2026-11-07T03:16:32.8890716Z (pass) editor and site interactions in a real browser > Packet comment admission > svg first, then warm, retains accepted source meaning and receipts [429.09ms]
+2026-11-07T03:16:32.8892036Z (pass) editor and site interactions in a real browser > Packet comment admission > unicode first, then warm, retains accepted source meaning and receipts [406.57ms]
+2026-11-07T03:16:32.8892975Z (pass) editor and site interactions in a real browser > Kanban comment admission > svg first, then warm, retains accepted source meaning and receipts [455.77ms]
+2026-11-07T03:16:32.8893775Z (pass) editor and site interactions in a real browser > Kanban comment admission > unicode first, then warm, retains accepted source meaning and receipts [440.06ms]
+2026-11-07T03:16:32.8894817Z (pass) editor and site interactions in a real browser > Requirement comment admission > svg first, then warm, retains accepted source meaning and receipts [616.39ms]
+2026-11-07T03:16:32.8896475Z (pass) editor and site interactions in a real browser > Requirement comment admission > unicode first, then warm, retains accepted source meaning and receipts [618.76ms]
+2026-11-07T03:16:32.8897839Z (pass) editor and site interactions in a real browser > Treemap comment admission > svg first, then warm, retains accepted source meaning and receipts [427.01ms]
+2026-11-07T03:16:32.8900215Z (pass) editor and site interactions in a real browser > Treemap comment admission > unicode first, then warm, retains accepted source meaning and receipts [605.26ms]
+2026-11-07T03:16:32.8901902Z (pass) editor and site interactions in a real browser > Block comment admission > svg first, then warm, retains accepted source meaning and receipts [468.44ms]
+2026-11-07T03:16:32.8905385Z (pass) editor and site interactions in a real browser > Block comment admission > unicode first, then warm, retains accepted source meaning and receipts [466.16ms]
+2026-11-07T03:16:32.8906723Z (pass) editor and site interactions in a real browser > Sequence entity admission > svg first, then warm, retains accepted source meaning and receipts [519.84ms]
+2026-11-07T03:16:32.8907995Z (pass) editor and site interactions in a real browser > Sequence entity admission > unicode first, then warm, retains accepted source meaning and receipts [469.13ms]
+2026-11-07T03:16:32.8909395Z (pass) editor and site interactions in a real browser > entity and comment admission > svg first, then warm, retains accepted source meaning and receipts [460.36ms]
+2026-11-07T03:16:32.8910689Z (pass) editor and site interactions in a real browser > entity and comment admission > unicode first, then warm, retains accepted source meaning and receipts [487.69ms]
+2026-11-07T03:16:32.8912051Z (pass) editor and site interactions in a real browser > BOM, CRLF, frontmatter and init admission > svg first, then warm, retains accepted source meaning and receipts [539.12ms]
+2026-11-07T03:16:32.8913424Z (pass) editor and site interactions in a real browser > BOM, CRLF, frontmatter and init admission > unicode first, then warm, retains accepted source meaning and receipts [527.49ms]
+2026-11-07T03:16:32.8914560Z (pass) editor and site interactions in a real browser > Markdown fence remains rejected cold and warm [340.86ms]
+2026-11-07T03:16:32.8915525Z (pass) editor and site interactions in a real browser > double-encoded header remains rejected cold and warm [337.98ms]
+2026-11-07T03:16:32.8916453Z (pass) editor and site interactions in a real browser > unowned header suffix remains rejected cold and warm [350.98ms]
+2026-11-07T03:16:32.8917417Z (pass) editor and site interactions in a real browser > invalid source config wins over an unavailable cold family download [375.27ms]
+2026-11-07T03:16:32.8918582Z (pass) editor and site interactions in a real browser > cached-family editing works without new modules and a failed family download retries on the next edit [1140.68ms]
+2026-11-07T03:16:32.8919856Z (pass) editor and site interactions in a real browser > a failed fitting download respects a disabled request [823.93ms]
+2026-11-07T03:16:32.8920810Z (pass) editor and site interactions in a real browser > a failed fitting download respects a replaced request [829.01ms]
+2026-11-07T03:16:32.8921906Z (pass) editor and site interactions in a real browser > reload recovery at 1280 px preserves unverified edits and settings without browser storage [939.66ms]
+2026-11-07T03:16:32.8923079Z (pass) editor and site interactions in a real browser > reload recovery at 390 px preserves unverified edits and settings without browser storage [1019.36ms]
+2026-11-07T03:16:32.8924259Z (pass) editor and site interactions in a real browser > reload recovery stays on the current diagram when state encoding is unavailable [810.21ms]
+2026-11-07T03:16:32.8925549Z (pass) editor and site interactions in a real browser > preview rendering uses one persistent worker and a late result cannot replace the newest verified source [1542.96ms]
+2026-11-07T03:16:32.8927437Z (pass) editor and site interactions in a real browser > docs replay is keyboard operable and needs no client renderer to show the verified edit [840.32ms]
+2026-11-07T03:16:32.8928673Z (pass) editor and site interactions in a real browser > "?" opens an aria-modal cheat sheet over an inert background, but is plain text in the source [1282.69ms]
+2026-11-07T03:16:32.8929956Z (pass) editor and site interactions in a real browser > Cmd/Ctrl+C in the source is the browser copy, never an app-level SVG copy [1130.93ms]
+2026-11-07T03:16:32.8931030Z (pass) editor and site interactions in a real browser > copy feedback keeps the homepage copy button width while its label changes [2499.70ms]
+2026-11-07T03:16:32.8932116Z (pass) editor and site interactions in a real browser > a wide Unicode rendering is scaled down to fit the text pane [1125.91ms]
+2026-11-07T03:16:32.8933446Z (pass) editor and site interactions in a real browser > the editor boots, edits and changes preferences when storage access is denied [2342.86ms]
+2026-11-07T03:16:32.8934644Z (pass) editor and site interactions in a real browser > the editor boots, edits and changes preferences when storage operation is denied [2368.54ms]
+2026-11-07T03:16:32.8935807Z (pass) editor and site interactions in a real browser > the preview accepts exactly one verified SVG document from the renderer [1739.96ms]
+2026-11-07T03:16:32.8937032Z (pass) editor and site interactions in a real browser > C4 boundary navigation keeps canonical exports, source identities and interaction indices intact [1553.40ms]
+2026-11-07T03:16:32.8938276Z (pass) editor and site interactions in a real browser > Packet inspection > SVG fields have one tab stop per authored field and support Enter and Space [951.61ms]
+2026-11-07T03:16:32.8939598Z (pass) editor and site interactions in a real browser > Packet inspection > dropdown selection updates field details and every row fragment [885.51ms]
+2026-11-07T03:16:32.8940791Z (pass) editor and site interactions in a real browser > Packet inspection > selection survives switching between diagram and text panes [1066.91ms]
+2026-11-07T03:16:32.8941967Z (pass) editor and site interactions in a real browser > Packet inspection > inspection leaves the canonical artifact, source and SVG export intact [1208.69ms]
+2026-11-07T03:16:32.8943286Z (pass) editor and site interactions in a real browser > Kanban preview wrapping is explicit, follows scheduled viewport changes and preserves receipt parity [1267.56ms]
+2026-11-07T03:16:32.8944478Z (pass) editor and site interactions in a real browser > export actions stay visible and keyboard reachable at 320px [1149.26ms]
+2026-11-07T03:16:32.8945442Z (pass) editor and site interactions in a real browser > export actions stay visible and keyboard reachable at 390px [1162.98ms]
+2026-11-07T03:16:32.8946405Z (pass) editor and site interactions in a real browser > export actions stay visible and keyboard reachable at 1280px [1148.21ms]
+2026-11-07T03:16:32.8947506Z (pass) editor and site interactions in a real browser > PNG export records unreachable fonts in its receipt and renders at the default scale [2483.74ms]
+2026-11-07T03:16:32.8948159Z 
+2026-11-07T03:16:32.8948692Z ##[endgroup]
+2026-11-07T03:16:32.8948838Z 
+2026-11-07T03:16:32.8948936Z  48 pass
+2026-11-07T03:16:32.8949162Z  0 fail
+2026-11-07T03:16:32.8949601Z  1194 expect() calls
+2026-11-07T03:16:32.8949852Z Ran 48 tests across 1 file. [82.31s]
+2026-11-07T03:16:37.4743994Z bun test v1.4.4 (38afee6c8)
+2026-11-07T03:16:37.4744759Z 
+2026-11-07T03:16:37.4745497Z ##[group]../src/__tests__/editor-theme-switch.test.ts:
+2026-11-07T03:16:37.4748242Z (pass) editor theme switcher re-themes the diagram, never the chrome > Paper → tokyo-night → Paper tracks in the artwork while the chrome stays Kiln [1846.29ms]
+2026-11-07T03:16:37.4749108Z (pass) editor theme switcher re-themes the diagram, never the chrome > verification is the authority gate for export, copy, and share links [1290.39ms]
+2026-11-07T03:16:37.4750197Z (pass) editor theme switcher re-themes the diagram, never the chrome > storage-denied browsers still boot and render the default diagram [1117.81ms]
+2026-11-07T03:16:37.4750598Z 
+2026-11-07T03:16:37.4751289Z ##[endgroup]
+2026-11-07T03:16:37.4751387Z 
+2026-11-07T03:16:37.4751464Z  3 pass
+2026-11-07T03:16:37.4751617Z  0 fail
+2026-11-07T03:16:37.4751782Z  16 expect() calls
+2026-11-07T03:16:37.4751988Z Ran 3 tests across 1 file. [4.58s]
+2026-11-07T03:16:37.4752328Z $ bun test ../src/__tests__/editor-style-switch.test.ts --timeout 600000
+2026-11-07T03:16:53.0162947Z 
+2026-11-07T03:16:53.0164026Z ##[group]../src/__tests__/editor-style-switch.test.ts:
+2026-11-07T03:16:53.0166669Z (pass) editor style switcher restyles the artwork, never the chrome > crisp → hand-drawn → crisp: look changes, chrome and layout ownership hold [1854.00ms]
+2026-11-07T03:16:53.0167817Z (pass) editor style switcher restyles the artwork, never the chrome > shared config style still responds to the Style dropdown [1291.74ms]
+2026-11-07T03:16:53.0169633Z (pass) editor style switcher restyles the artwork, never the chrome > shared config hydrates Settings and survives the first settings edit [999.39ms]
+2026-11-07T03:16:53.0170870Z (pass) editor style switcher restyles the artwork, never the chrome > advanced RenderOptions round-trip through the canonical schema and reject unknown fields [2236.50ms]
+2026-11-07T03:16:53.0172203Z (pass) editor style switcher restyles the artwork, never the chrome > browser PNG export passes its receipt gate, declares sRGB, and reports font failures [1729.30ms]
+2026-11-07T03:16:53.0173409Z (pass) editor style switcher restyles the artwork, never the chrome > scheduling a replacement render immediately revokes stale export authority [1163.46ms]
+2026-11-07T03:16:53.0174520Z (pass) editor style switcher restyles the artwork, never the chrome > browser and editor retain comparable SVG, Unicode, and ASCII receipts [1378.87ms]
+2026-11-07T03:16:53.0175477Z (pass) editor style switcher restyles the artwork, never the chrome > the canonical six-surface sentinel retains the complete receipt through the editor adapter [1364.56ms]
+2026-11-07T03:16:53.0176335Z (pass) editor style switcher restyles the artwork, never the chrome > newer renders win over slower in-flight renders [1487.37ms]
+2026-11-07T03:16:53.0177117Z (pass) editor style switcher restyles the artwork, never the chrome > style switch does not reflow the wrap-prone mobile topbar (portrait) [1426.15ms]
+2026-11-07T03:16:53.0177650Z 
+2026-11-07T03:16:53.0178097Z ##[endgroup]
+2026-11-07T03:16:53.0178262Z 
+2026-11-07T03:16:53.0178392Z  10 pass
+2026-11-07T03:16:53.0178578Z  0 fail
+2026-11-07T03:16:53.0178764Z  42 expect() calls
+2026-11-07T03:16:53.0178986Z Ran 10 tests across 1 file. [15.52s]
+2026-11-07T03:16:53.0179481Z bun test v1.4.4 (38afee6c8)
+2026-11-07T03:16:53.0179962Z $ bun test ../src/__tests__/website-browser-a11y.test.ts --timeout 600000
+2026-11-07T03:18:06.8913972Z 
+2026-11-07T03:18:06.8914574Z bun test v1.4.4 (38afee6c8)
+2026-11-07T03:18:06.8915848Z ##[group]../src/__tests__/website-browser-a11y.test.ts:
+2026-11-07T03:18:06.8916374Z $ bun test ../src/__tests__/zenuml-browser.test.ts --timeout 600000
+2026-11-07T03:18:06.8917273Z (pass) website browser accessibility smoke > public routes have named controls, valid ARIA references, and no mobile horizontal overflow [9455.32ms]
+2026-11-07T03:18:06.8918364Z (pass) website browser accessibility smoke > comparison lightbox switches pair, view and zoom, links the section source, and opens from the keyboard [1754.84ms]
+2026-11-07T03:18:06.8919660Z (pass) website browser accessibility smoke > mobile hamburger exposes every destination and preserves no-JS navigation [1524.42ms]
+2026-11-07T03:18:06.8920379Z (pass) website browser accessibility smoke > every distinct Examples state shape crosses the real Editor resolver with complete render parity [29125.80ms]
+2026-11-07T03:18:06.8921085Z (pass) website browser accessibility smoke > Examples starts fragment-free and explicitly loads one validated section [754.47ms]
+2026-11-07T03:18:06.8921761Z (pass) website browser accessibility smoke > Examples near-viewport intent loads at most one adjacent deferred section [737.88ms]
+2026-11-07T03:18:06.8922876Z (pass) website browser accessibility smoke > Examples resolves current and frozen numeric deep links only after loading [2689.40ms]
+2026-11-07T03:18:06.8923616Z (pass) website browser accessibility smoke > Examples fragment failures are retryable and cross-origin fragment URLs fail before fetch [4772.72ms]
+2026-11-07T03:18:06.8924376Z (pass) website browser accessibility smoke > Examples preserves ordinary navigation when interception or browser APIs are unavailable [2776.96ms]
+2026-11-07T03:18:06.8925122Z (pass) website browser accessibility smoke > design motion specimen supports keyboard and direct manipulation without reduced-motion coast [1913.50ms]
+2026-11-07T03:18:06.8925848Z (pass) website browser accessibility smoke > public typography keeps the Examples-width document column and safe code wrapping [620.37ms]
+2026-11-07T03:18:06.8927029Z (pass) website browser accessibility smoke > each Inter weight selects its covered subset and full-only TTF fallback [321.20ms]
+2026-11-07T03:18:06.8927987Z (pass) website browser accessibility smoke > covered Inter subset and full-TTF glyphs have identical same-run Chromium pixels [629.98ms]
+2026-11-07T03:18:06.8929087Z (pass) website browser accessibility smoke > editor blank-start URL opens an empty canvas instead of the default or saved draft [1655.20ms]
+2026-11-07T03:18:06.8930302Z (pass) website browser accessibility smoke > examples editor-state links survive editor initialization and load their source [715.28ms]
+2026-11-07T03:18:06.8931703Z (pass) website browser accessibility smoke > editor corrupt share hashes fail closed instead of loading plausible content [607.05ms]
+2026-11-07T03:18:06.8933267Z (pass) website browser accessibility smoke > editor aborts oversized expanded share links and reports the limit [612.85ms]
+2026-11-07T03:18:06.8934738Z (pass) website browser accessibility smoke > editor reports a missing DecompressionStream without legacy fallback [600.03ms]
+2026-11-07T03:18:06.8935803Z (pass) website browser accessibility smoke > editor rejects oversized saved drafts before parsing and clears them [1615.08ms]
+2026-11-07T03:18:06.8936823Z (pass) website browser accessibility smoke > editor autosaves drafts only within the current tab session [1908.98ms]
+2026-11-07T03:18:06.8937822Z (pass) website browser accessibility smoke > editor share config cannot weaken strict SVG insertion [786.69ms]
+2026-11-07T03:18:06.8938824Z (pass) website browser accessibility smoke > editor loads every self-hosted diagram font face it advertises [641.00ms]
+2026-11-07T03:18:06.8942186Z (pass) website browser accessibility smoke > SVG export embeds canonical full Inter TTFs and never public subsets [1438.58ms]
+2026-11-07T03:18:06.8943260Z (pass) website browser accessibility smoke > editor share links cannot inject active SVG through render config [772.08ms]
+2026-11-07T03:18:06.8944239Z (pass) website browser accessibility smoke > editor share links restore style state and styled label fonts [1154.86ms]
+2026-11-07T03:18:06.8945128Z (pass) website browser accessibility smoke > editor share links apply compact schematic label typography in the browser [1161.99ms]
+2026-11-07T03:18:06.8946090Z (pass) website browser accessibility smoke > editor mobile preview controls stay reachable at phone width [1133.51ms]
+2026-11-07T03:18:06.8947021Z (pass) website browser accessibility smoke > editor popovers are keyboard-operable, inert when closed, and restore focus [1389.69ms]
+2026-11-07T03:18:06.8947586Z 
+2026-11-07T03:18:06.8948029Z ##[endgroup]
+2026-11-07T03:18:06.8948153Z 
+2026-11-07T03:18:06.8948252Z  28 pass
+2026-11-07T03:18:06.8948473Z  0 fail
+2026-11-07T03:18:06.8948676Z  588 expect() calls
+2026-11-07T03:18:06.8948933Z Ran 28 tests across 1 file. [73.84s]
+2026-11-07T03:18:11.2225162Z bun test v1.4.4 (38afee6c8)
+2026-11-07T03:18:11.2226274Z 
+2026-11-07T03:18:11.2226752Z $ bun test ../src/__tests__/svg-style-isolation-browser.test.ts --timeout 600000
+2026-11-07T03:18:11.2228028Z ##[group]../src/__tests__/zenuml-browser.test.ts:
+2026-11-07T03:18:11.2230538Z (pass) explicit upstream ZenUML browser backend > awaited SVG, invalid-source and missing-backend outcomes leave host styles and frames unchanged [1525.43ms]
+2026-11-07T03:18:11.2232397Z (pass) explicit upstream ZenUML browser backend > complex owned calls and replies remain visible through palette changes and paint-only style composition [844.16ms]
+2026-11-07T03:18:11.2233423Z (pass) explicit upstream ZenUML browser backend > session requests preserve ordering, recover after errors and release active and queued work on disposal [1023.90ms]
+2026-11-07T03:18:11.2234215Z (pass) explicit upstream ZenUML browser backend > reentrant option getters reserve FIFO position and queue capacity before calling user code [374.12ms]
+2026-11-07T03:18:11.2235163Z (pass) explicit upstream ZenUML browser backend > disposal rejects queued work while optional palette admission is waiting for its module [82.83ms]
+2026-11-07T03:18:11.2235898Z (pass) explicit upstream ZenUML browser backend > a host Trusted Types refusal is a cleaned-up backend failure on every session request [55.10ms]
+2026-11-07T03:18:11.2236285Z 
+2026-11-07T03:18:11.2238490Z ##[endgroup]
+2026-11-07T03:18:11.2238630Z 
+2026-11-07T03:18:11.2238727Z  6 pass
+2026-11-07T03:18:11.2238919Z  0 fail
+2026-11-07T03:18:11.2239124Z  116 expect() calls
+2026-11-07T03:18:11.2239527Z Ran 6 tests across 1 file. [4.32s]
+2026-11-07T03:18:14.9544781Z bun test v1.4.4 (38afee6c8)
+2026-11-07T03:18:14.9546143Z 
+2026-11-07T03:18:14.9546481Z $ bun test ../src/__tests__/marker-raster-parity-browser.test.ts --timeout 600000
+2026-11-07T03:18:14.9548071Z ##[group]../src/__tests__/svg-style-isolation-browser.test.ts:
+2026-11-07T03:18:14.9548670Z (pass) inline SVG diagrams do not repaint each other > computed fonts agree with measured roles while root retheming preserves explicit and inherited fonts [418.75ms]
+2026-11-07T03:18:14.9550186Z (pass) inline SVG diagrams do not repaint each other > each diagram computes the same paint beside another diagram as it does alone [2720.98ms]
+2026-11-07T03:18:14.9550750Z 
+2026-11-07T03:18:14.9551076Z ##[endgroup]
+2026-11-07T03:18:14.9551207Z 
+2026-11-07T03:18:14.9551303Z  2 pass
+2026-11-07T03:18:14.9551503Z  0 fail
+2026-11-07T03:18:14.9551707Z  120 expect() calls
+2026-11-07T03:18:14.9551973Z Ran 2 tests across 1 file. [3.70s]
+2026-11-07T03:18:22.4476552Z 
+2026-11-07T03:18:22.4477520Z ##[group]../src/__tests__/marker-raster-parity-browser.test.ts:
+2026-11-07T03:18:22.4478144Z (pass) native PNG and browser marker contact > family-owned endpoint glyphs agree across faces, styles and native/browser rasterizers [6602.11ms]
+2026-11-07T03:18:22.4478848Z (pass) native PNG and browser marker contact > marker viewports clip wide tip strokes at the attachment plane [111.87ms]
+2026-11-07T03:18:22.4479733Z (pass) native PNG and browser marker contact > start reversal survives nonzero viewBoxes, marker units, clipping and carrier rotation [178.01ms]
+2026-11-07T03:18:22.4480178Z 
+2026-11-07T03:18:22.4480407Z ##[endgroup]
+2026-11-07T03:18:22.4480514Z 
+2026-11-07T03:18:22.4480582Z  3 pass
+2026-11-07T03:18:22.4480757Z  0 fail
+2026-11-07T03:18:22.4480922Z  1943 expect() calls
+2026-11-07T03:18:22.4481109Z Ran 3 tests across 1 file. [7.45s]
+2026-11-07T03:18:22.4490088Z bun test v1.4.4 (38afee6c8)
+2026-11-07T03:18:22.4616630Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+2026-11-07T03:18:22.4616976Z with:
+2026-11-07T03:18:22.4617253Z   name: editor-community-review-14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:18:22.4617605Z   path: e2e/screenshots/current-*.png
+2026-11-07T03:18:22.4617829Z   retention-days: 7
+2026-11-07T03:18:22.4618015Z   if-no-files-found: warn
+2026-11-07T03:18:22.4618210Z   compression-level: 6
+2026-11-07T03:18:22.4618401Z   overwrite: false
+2026-11-07T03:18:22.4618599Z   include-hidden-files: false
+2026-11-07T03:18:22.4618798Z   archive: true
+2026-11-07T03:18:22.4618961Z env:
+2026-11-07T03:18:22.4619126Z   AM_CI_ARTIFACTS: 1
+2026-11-07T03:18:22.4619584Z ##[endgroup]
+2026-11-07T03:18:22.4622984Z ##[command]/usr/bin/docker exec  0cad09782deeec9e23f92a4b9c1bf2ec230f63252c7058b9da9624091a5222e4 sh -c "cat /etc/*release | grep ^ID"
+2026-11-07T03:18:22.6989948Z With the provided path, there will be 14 files uploaded
+2026-11-07T03:18:22.6996161Z Artifact name is valid!
+2026-11-07T03:18:22.6996614Z Root directory input is valid!
+2026-11-07T03:18:23.0527399Z Uploading artifact: editor-community-review-14bec477578104a1eab5a279473aa77e747f8476.zip
+2026-11-07T03:18:23.0571899Z Beginning upload of artifact content to blob storage
+2026-11-07T03:18:23.7107743Z Uploaded bytes 703703
+2026-11-07T03:18:23.7842114Z Finished uploading artifact content to blob storage!
+2026-11-07T03:18:23.7842881Z SHA256 digest of uploaded artifact is 4ecc24b7a6b8c3c48f82cdc2d040097cc24a2c305e176b1ceedf2350e09dc57f
+2026-11-07T03:18:23.7844007Z Finalizing artifact upload
+2026-11-07T03:18:24.3574696Z Artifact editor-community-review-14bec477578104a1eab5a279473aa77e747f8476 successfully finalized. Artifact ID 13557994375
+2026-11-07T03:18:24.3575552Z Artifact editor-community-review-14bec477578104a1eab5a279473aa77e747f8476 has been successfully uploaded! Final size is 703703 bytes. Artifact ID is 13557994375
+2026-11-07T03:18:24.3578626Z Artifact download URL: https://github.com/adewale/agentic-mermaid/actions/runs/42332734235/artifacts/13557994375
+2026-11-07T03:18:24.3792264Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+2026-11-07T03:18:24.3792825Z with:
+2026-11-07T03:18:24.3793295Z   name: standalone-editor-diagnostics-14bec477578104a1eab5a279473aa77e747f8476
+2026-11-07T03:18:24.3793845Z   path: ci-editor-metafile.json
+2026-11-07T03:18:24.3794171Z   retention-days: 7
+2026-11-07T03:18:24.3794463Z   if-no-files-found: warn
+2026-11-07T03:18:24.3794780Z   compression-level: 6
+2026-11-07T03:18:24.3795083Z   overwrite: false
+2026-11-07T03:18:24.3795397Z   include-hidden-files: false
+2026-11-07T03:18:24.3795759Z   archive: true
+2026-11-07T03:18:24.3796053Z env:
+2026-11-07T03:18:24.3796352Z   AM_CI_ARTIFACTS: 1
+2026-11-07T03:18:24.3796703Z ##[endgroup]
+2026-11-07T03:18:24.3802146Z ##[command]/usr/bin/docker exec  0cad09782deeec9e23f92a4b9c1bf2ec230f63252c7058b9da9624091a5222e4 sh -c "cat /etc/*release | grep ^ID"
+2026-11-07T03:18:24.6025404Z ##[warning]No files were found with the provided path: ci-editor-metafile.json. No artifacts will be uploaded.
+2026-11-07T03:18:24.6334235Z Post job cleanup.
+2026-11-07T03:18:24.6343177Z ##[command]/usr/bin/docker exec  0cad09782deeec9e23f92a4b9c1bf2ec230f63252c7058b9da9624091a5222e4 sh -c "cat /etc/*release | grep ^ID"
+2026-11-07T03:18:24.8143119Z [command]/usr/bin/git version
+2026-11-07T03:18:24.8193741Z git version 2.43.0
+2026-11-07T03:18:24.8231038Z Copying '/github/home/.gitconfig' to '/__w/_temp/d5428805-b517-41ba-9357-3dfd81d9dd21/.gitconfig'
+2026-11-07T03:18:24.8243963Z Temporarily overriding HOME='/__w/_temp/d5428805-b517-41ba-9357-3dfd81d9dd21' before making global git config changes
+2026-11-07T03:18:24.8246642Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-07T03:18:24.8260020Z [command]/usr/bin/git config --global --add safe.directory /__w/agentic-mermaid/agentic-mermaid
+2026-11-07T03:18:24.8342130Z Removing SSH command configuration
+2026-11-07T03:18:24.8371213Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-07T03:18:24.8421223Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-07T03:18:24.8723303Z Removing HTTP extra header
+2026-11-07T03:18:24.8729177Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-07T03:18:24.8776910Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-07T03:18:24.9043330Z Removing includeIf entries pointing to credentials config files
+2026-11-07T03:18:24.9048802Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-07T03:18:24.9083406Z includeif.gitdir:/__w/agentic-mermaid/agentic-mermaid/.git.path
+2026-11-07T03:18:24.9084265Z includeif.gitdir:/__w/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path
+2026-11-07T03:18:24.9084979Z includeif.gitdir:/github/workspace/.git.path
+2026-11-07T03:18:24.9085480Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-07T03:18:24.9092016Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/__w/agentic-mermaid/agentic-mermaid/.git.path
+2026-11-07T03:18:24.9125563Z /__w/_temp/git-credentials-12a26534-7a41-489c-bc64-8b888c4a6950.config
+2026-11-07T03:18:24.9131726Z [command]/usr/bin/git config --local --unset includeif.gitdir:/__w/agentic-mermaid/agentic-mermaid/.git.path \/__w\/_temp\/git\-credentials\-12a26534\-7a41\-489c\-bc64\-8b888c4a6950\.config
+2026-11-07T03:18:24.9177945Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/__w/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path
+2026-11-07T03:18:24.9208510Z /__w/_temp/git-credentials-12a26534-7a41-489c-bc64-8b888c4a6950.config
+2026-11-07T03:18:24.9215761Z [command]/usr/bin/git config --local --unset includeif.gitdir:/__w/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path \/__w\/_temp\/git\-credentials\-12a26534\-7a41\-489c\-bc64\-8b888c4a6950\.config
+2026-11-07T03:18:25.0399701Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-07T03:18:25.0420602Z /github/runner_temp/git-credentials-12a26534-7a41-489c-bc64-8b888c4a6950.config
+2026-11-07T03:18:25.0427995Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-12a26534\-7a41\-489c\-bc64\-8b888c4a6950\.config
+2026-11-07T03:18:25.0484983Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-07T03:18:25.0505094Z /github/runner_temp/git-credentials-12a26534-7a41-489c-bc64-8b888c4a6950.config
+2026-11-07T03:18:25.0513247Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-12a26534\-7a41\-489c\-bc64\-8b888c4a6950\.config
+2026-11-07T03:18:25.0556184Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-07T03:18:25.0802176Z Removing credentials config '/__w/_temp/git-credentials-12a26534-7a41-489c-bc64-8b888c4a6950.config'
+2026-11-07T03:18:25.0948510Z Stop and remove container: 95fcf07450ea4a26be804bf228b1af81_mcrmicrosoftcomplaywrightv1582noblesha25665cefd09a5e943921ecd3a6e5414c603db2eb161e9eb48f2e2ccc63486dc7dc0_845966
+2026-11-07T03:18:25.0952964Z ##[command]/usr/bin/docker rm --force 0cad09782deeec9e23f92a4b9c1bf2ec230f63252c7058b9da9624091a5222e4
+2026-11-07T03:18:25.2655899Z 0cad09782deeec9e23f92a4b9c1bf2ec230f63252c7058b9da9624091a5222e4
+2026-11-07T03:18:25.2692062Z Remove container network: github_network_d5ca93aa4a6a45418f9f27d74da7f1e6
+2026-11-07T03:18:25.2695815Z ##[command]/usr/bin/docker network rm github_network_d5ca93aa4a6a45418f9f27d74da7f1e6
+2026-11-07T03:18:25.3413042Z github_network_d5ca93aa4a6a45418f9f27d74da7f1e6
+2026-11-07T03:18:25.3493155Z Cleaning up orphan processes
+

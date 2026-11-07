@@ -1,0 +1,481 @@
+﻿2026-11-07T03:10:48.7215480Z Current runner version: '2.338.2'
+2026-11-07T03:10:48.7253306Z ##[group]Runner Image Provisioner
+2026-11-07T03:10:48.7254692Z Hosted Compute Agent
+2026-11-07T03:10:48.7255716Z Version: 20261028.624
+2026-11-07T03:10:48.7256985Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-07T03:10:48.7258291Z Build Date: 2026-10-28T21:51:42Z
+2026-11-07T03:10:48.7259830Z Worker ID: {948b23ce-fa1e-4ce2-952c-8157f4d2f10b}
+2026-11-07T03:10:48.7261208Z Region: eastus2
+2026-11-07T03:10:48.7262168Z Cloud: Azure
+2026-11-07T03:10:48.7263197Z ##[endgroup]
+2026-11-07T03:10:48.7265528Z ##[group]Operating System
+2026-11-07T03:10:48.7266619Z Ubuntu
+2026-11-07T03:10:48.7267544Z 26.04.1
+2026-11-07T03:10:48.7268486Z LTS
+2026-11-07T03:10:48.7269613Z ##[endgroup]
+2026-11-07T03:10:48.7270574Z ##[group]Runner Image
+2026-11-07T03:10:48.7271529Z Image: ubuntu-26.04
+2026-11-07T03:10:48.7272664Z Version: 20261101.186.1
+2026-11-07T03:10:48.7274830Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-07T03:10:48.7277838Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261101.186
+2026-11-07T03:10:48.7279795Z ##[endgroup]
+2026-11-07T03:10:48.7285647Z ##[group]GITHUB_TOKEN Permissions
+2026-11-07T03:10:48.7289119Z Actions: write
+2026-11-07T03:10:48.7290461Z ArtifactMetadata: write
+2026-11-07T03:10:48.7291557Z Attestations: write
+2026-11-07T03:10:48.7292864Z Checks: write
+2026-11-07T03:10:48.7293854Z CodeQuality: write
+2026-11-07T03:10:48.7294843Z Contents: write
+2026-11-07T03:10:48.7296020Z CopilotRequests: write
+2026-11-07T03:10:48.7297242Z Deployments: write
+2026-11-07T03:10:48.7298391Z Discussions: write
+2026-11-07T03:10:48.7299393Z Drives: write
+2026-11-07T03:10:48.7300617Z Issues: write
+2026-11-07T03:10:48.7301847Z Metadata: read
+2026-11-07T03:10:48.7303039Z Models: read
+2026-11-07T03:10:48.7304011Z Packages: write
+2026-11-07T03:10:48.7304916Z Pages: write
+2026-11-07T03:10:48.7305847Z PullRequests: write
+2026-11-07T03:10:48.7307109Z RepositoryProjects: write
+2026-11-07T03:10:48.7308288Z SecurityEvents: write
+2026-11-07T03:10:48.7309392Z Statuses: write
+2026-11-07T03:10:48.7310444Z VulnerabilityAlerts: read
+2026-11-07T03:10:48.7311081Z ##[endgroup]
+2026-11-07T03:10:48.7313881Z Secret source: Actions
+2026-11-07T03:10:48.7314980Z Cache mode: write
+2026-11-07T03:10:48.7316033Z Prepare workflow directory
+2026-11-07T03:10:48.7659004Z Prepare all required actions
+2026-11-07T03:10:48.7736703Z Getting action download info
+2026-11-07T03:10:48.9383559Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-11-07T03:10:49.0545673Z Download action repository 'oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6' (SHA:0c5077e51419868618aeaa5fe8019c62421857d6)
+2026-11-07T03:10:49.3108684Z Complete job name: Quality gates
+2026-11-07T03:10:49.4033314Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-11-07T03:10:49.4034412Z with:
+2026-11-07T03:10:49.4034925Z   repository: adewale/agentic-mermaid
+2026-11-07T03:10:49.4038995Z   token: ***
+2026-11-07T03:10:49.4039610Z   ssh-strict: true
+2026-11-07T03:10:49.4040088Z   ssh-user: git
+2026-11-07T03:10:49.4040550Z   persist-credentials: true
+2026-11-07T03:10:49.4041066Z   clean: true
+2026-11-07T03:10:49.4041547Z   sparse-checkout-cone-mode: true
+2026-11-07T03:10:49.4042092Z   fetch-depth: 1
+2026-11-07T03:10:49.4042553Z   fetch-tags: false
+2026-11-07T03:10:49.4043016Z   show-progress: true
+2026-11-07T03:10:49.4043475Z   lfs: false
+2026-11-07T03:10:49.4043904Z   submodules: false
+2026-11-07T03:10:49.4044375Z   set-safe-directory: true
+2026-11-07T03:10:49.4044901Z   allow-unsafe-pr-checkout: false
+2026-11-07T03:10:49.4045695Z ##[endgroup]
+2026-11-07T03:10:49.6923313Z Syncing repository: adewale/agentic-mermaid
+2026-11-07T03:10:49.6926309Z ##[group]Getting Git version info
+2026-11-07T03:10:49.6927882Z Working directory is '/home/runner/work/agentic-mermaid/agentic-mermaid'
+2026-11-07T03:10:49.6930489Z [command]/usr/bin/git version
+2026-11-07T03:10:49.6978426Z git version 2.56.0
+2026-11-07T03:10:49.7001597Z ##[endgroup]
+2026-11-07T03:10:49.7016723Z Temporarily overriding HOME='/home/runner/work/_temp/ca988a11-081d-4dc7-ab40-e054b2a28f63' before making global git config changes
+2026-11-07T03:10:49.7019958Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-07T03:10:49.7022665Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/agentic-mermaid/agentic-mermaid
+2026-11-07T03:10:49.7142289Z Deleting the contents of '/home/runner/work/agentic-mermaid/agentic-mermaid'
+2026-11-07T03:10:49.7144897Z ##[group]Determining repository object format
+2026-11-07T03:10:49.7146671Z ##[endgroup]
+2026-11-07T03:10:49.7148132Z ##[group]Initializing the repository
+2026-11-07T03:10:49.7149814Z [command]/usr/bin/git init /home/runner/work/agentic-mermaid/agentic-mermaid
+2026-11-07T03:10:49.7270236Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-07T03:10:49.7272568Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-07T03:10:49.7276004Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-07T03:10:49.7277792Z hint: call:
+2026-11-07T03:10:49.7278700Z hint:
+2026-11-07T03:10:49.7280534Z hint: 	git config --global init.defaultBranch <name>
+2026-11-07T03:10:49.7282173Z hint:
+2026-11-07T03:10:49.7283532Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-07T03:10:49.7285395Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-07T03:10:49.7287134Z hint:
+2026-11-07T03:10:49.7288182Z hint: 	git branch -m <name>
+2026-11-07T03:10:49.7289272Z hint:
+2026-11-07T03:10:49.7290891Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-07T03:10:49.7294656Z Initialized empty Git repository in /home/runner/work/agentic-mermaid/agentic-mermaid/.git/
+2026-11-07T03:10:49.7300330Z [command]/usr/bin/git remote add origin https://github.com/adewale/agentic-mermaid
+2026-11-07T03:10:49.7365643Z ##[endgroup]
+2026-11-07T03:10:49.7367225Z ##[group]Disabling automatic garbage collection
+2026-11-07T03:10:49.7370596Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-07T03:10:49.7422896Z ##[endgroup]
+2026-11-07T03:10:49.7424687Z ##[group]Setting up auth
+2026-11-07T03:10:49.7425911Z Removing SSH command configuration
+2026-11-07T03:10:49.7427798Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-07T03:10:49.7484581Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-07T03:10:49.8027613Z Removing HTTP extra header
+2026-11-07T03:10:49.8034981Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-07T03:10:49.8072022Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-07T03:10:49.8353992Z Removing includeIf entries pointing to credentials config files
+2026-11-07T03:10:49.8358148Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-07T03:10:49.8394646Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-07T03:10:49.8672363Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-69ae50af-a285-4739-9264-91a381ed0054.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-07T03:10:49.8710760Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git.path /home/runner/work/_temp/git-credentials-69ae50af-a285-4739-9264-91a381ed0054.config
+2026-11-07T03:10:49.8746360Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-69ae50af-a285-4739-9264-91a381ed0054.config
+2026-11-07T03:10:49.8788193Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-69ae50af-a285-4739-9264-91a381ed0054.config
+2026-11-07T03:10:49.8828535Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-69ae50af-a285-4739-9264-91a381ed0054.config
+2026-11-07T03:10:49.8859328Z ##[endgroup]
+2026-11-07T03:10:49.8860915Z ##[group]Fetching the repository
+2026-11-07T03:10:49.8866394Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +379ceddc9661ecb46a8babe9ce00c850e8b3792c:refs/remotes/pull/602/merge
+2026-11-07T03:10:51.5256539Z From https://github.com/adewale/agentic-mermaid
+2026-11-07T03:10:51.5260656Z  * [new ref]         379ceddc9661ecb46a8babe9ce00c850e8b3792c -> pull/602/merge
+2026-11-07T03:10:51.5266918Z ##[endgroup]
+2026-11-07T03:10:51.5269859Z ##[group]Determining the checkout info
+2026-11-07T03:10:51.5272550Z ##[endgroup]
+2026-11-07T03:10:51.5274202Z [command]/usr/bin/git sparse-checkout disable
+2026-11-07T03:10:51.5322349Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-07T03:10:51.5356461Z ##[group]Checking out the ref
+2026-11-07T03:10:51.5358636Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/602/merge
+2026-11-07T03:10:51.8907757Z Note: switching to 'refs/remotes/pull/602/merge'.
+2026-11-07T03:10:51.8908411Z 
+2026-11-07T03:10:51.8908829Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-07T03:10:51.8910076Z changes and commit them, and you can discard any commits you make in this
+2026-11-07T03:10:51.8911175Z state without impacting any branches by switching back to a branch.
+2026-11-07T03:10:51.8911834Z 
+2026-11-07T03:10:51.8912254Z If you want to create a new branch to retain commits you create, you may
+2026-11-07T03:10:51.8913107Z do so (now or later) by using -c with the switch command. Example:
+2026-11-07T03:10:51.8913481Z 
+2026-11-07T03:10:51.8913649Z   git switch -c <new-branch-name>
+2026-11-07T03:10:51.8913900Z 
+2026-11-07T03:10:51.8914052Z Or undo this operation with:
+2026-11-07T03:10:51.8914272Z 
+2026-11-07T03:10:51.8914401Z   git switch -
+2026-11-07T03:10:51.8914601Z 
+2026-11-07T03:10:51.8914914Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-07T03:10:51.8915380Z 
+2026-11-07T03:10:51.8915822Z HEAD is now at 379cedd Merge 14bec477578104a1eab5a279473aa77e747f8476 into 39a500425f6b74eb486b9add9e90d538fab6a914
+2026-11-07T03:10:51.8926091Z ##[endgroup]
+2026-11-07T03:10:51.8977729Z [command]/usr/bin/git log -1 --format=%H
+2026-11-07T03:10:51.9006755Z 379ceddc9661ecb46a8babe9ce00c850e8b3792c
+2026-11-07T03:10:51.9415110Z ##[group]Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+2026-11-07T03:10:51.9415566Z with:
+2026-11-07T03:10:51.9415781Z   bun-version: 1.4.4
+2026-11-07T03:10:51.9416001Z   no-cache: true
+2026-11-07T03:10:51.9418697Z   token: ***
+2026-11-07T03:10:51.9418910Z ##[endgroup]
+2026-11-07T03:10:52.1226663Z Downloading a new version of Bun: https://github.com/oven-sh/bun/releases/download/bun-v1.4.4/bun-linux-x64.zip
+2026-11-07T03:10:52.4791556Z [command]/usr/bin/unzip -o -q /home/runner/work/_temp/ad18ae3d-52f8-4589-a502-371d59dae139.zip
+2026-11-07T03:10:53.3290408Z [command]/home/runner/.bun/bin/bun --revision
+2026-11-07T03:10:53.3339603Z 1.4.4+38afee6c8
+2026-11-07T03:10:53.3545719Z ##[group]Run bun run quality:check
+2026-11-07T03:10:53.3546145Z [36;1mbun run quality:check[0m
+2026-11-07T03:10:53.3617857Z shell: /usr/bin/bash -e {0}
+2026-11-07T03:10:53.3618129Z ##[endgroup]
+2026-11-07T03:10:53.3726943Z $ bun run scripts/ci/quality-gates.ts
+2026-11-07T03:10:53.3875972Z ##[group]Install locked dependencies
+2026-11-07T03:10:53.3914845Z bun install v1.4.4 (38afee6c8)
+2026-11-07T03:10:55.9455890Z 
+2026-11-07T03:10:55.9456483Z + @arethetypeswrong/cli@0.18.5
+2026-11-07T03:10:55.9458398Z + @biomejs/biome@2.5.5
+2026-11-07T03:10:55.9458885Z + @mermaid-js/mermaid-zenuml@1.0.1
+2026-11-07T03:10:55.9459367Z + @modelcontextprotocol/sdk@1.32.1
+2026-11-07T03:10:55.9460707Z + @resvg/resvg-wasm@2.6.2
+2026-11-07T03:10:55.9461015Z + @swc/core@1.15.8
+2026-11-07T03:10:55.9461353Z + @types/bun@1.3.9
+2026-11-07T03:10:55.9461716Z + @types/d3-format@3.0.4
+2026-11-07T03:10:55.9462085Z + @types/d3-sankey@0.12.5
+2026-11-07T03:10:55.9462324Z + @types/d3-shape@1.3.12
+2026-11-07T03:10:55.9462637Z + @zenuml/core@3.47.9
+2026-11-07T03:10:55.9462863Z + beautiful-mermaid@1.1.3
+2026-11-07T03:10:55.9463084Z + brotli@1.3.3
+2026-11-07T03:10:55.9463286Z + fast-check@4.6.0
+2026-11-07T03:10:55.9477747Z + jsdom@26.1.0
+2026-11-07T03:10:55.9478397Z + mermaid@12.2.0
+2026-11-07T03:10:55.9478792Z + mermaid-ast@0.8.2
+2026-11-07T03:10:55.9479209Z + perfect-freehand@1.2.3
+2026-11-07T03:10:55.9479851Z + playwright@1.58.2
+2026-11-07T03:10:55.9480258Z + publint@0.3.24
+2026-11-07T03:10:55.9480605Z + roughjs@4.6.6
+2026-11-07T03:10:55.9480942Z + saxes@6.0.0
+2026-11-07T03:10:55.9481272Z + shiki@3.21.0
+2026-11-07T03:10:55.9481606Z + tsup@8.5.1
+2026-11-07T03:10:55.9481939Z + typescript@5.9.3
+2026-11-07T03:10:55.9482289Z + upng-js@2.1.0
+2026-11-07T03:10:55.9482625Z + vitest@4.1.11
+2026-11-07T03:10:55.9482987Z + wrangler@4.149.0
+2026-11-07T03:10:55.9483364Z + @resvg/resvg-js@2.6.2
+2026-11-07T03:10:55.9483723Z + acorn@8.16.0
+2026-11-07T03:10:55.9484069Z + d3-format@3.1.0
+2026-11-07T03:10:55.9484390Z + d3-sankey@0.12.3
+2026-11-07T03:10:55.9484729Z + d3-shape@1.3.7
+2026-11-07T03:10:55.9485046Z + elkjs@0.11.1
+2026-11-07T03:10:55.9485369Z + entities@7.0.1
+2026-11-07T03:10:55.9485656Z + yaml@2.9.0
+2026-11-07T03:10:55.9485842Z 
+2026-11-07T03:10:55.9486004Z 615 packages installed [2.56s]
+2026-11-07T03:10:55.9524368Z ##[endgroup]
+2026-11-07T03:10:55.9525376Z ##[group]Reject high or critical dependency advisories
+2026-11-07T03:10:55.9550145Z $ bun audit --audit-level=high
+2026-11-07T03:10:55.9591851Z bun audit v1.4.4 (38afee6c8)
+2026-11-07T03:10:55.9592406Z 
+2026-11-07T03:10:56.0975316Z No vulnerabilities found (checked 688 packages, 8 below --audit-level=high) [139.00ms]
+2026-11-07T03:10:56.0991851Z ##[endgroup]
+2026-11-07T03:10:56.0992577Z ##[group]Regenerate and byte-verify canonical Inter subsets
+2026-11-07T03:10:56.2379084Z Unable to find image 'python:3.12.10-slim-bookworm@sha256:fd95fa221297a88e1cf49c55ec1828edd7c5a428187e67b5d1805692d11588db' locally
+2026-11-07T03:10:56.5366923Z docker.io/library/python@sha256:fd95fa221297a88e1cf49c55ec1828edd7c5a428187e67b5d1805692d11588db: Pulling from library/python
+2026-11-07T03:10:56.6575992Z 7a1cb8b88221: Pulling fs layer
+2026-11-07T03:10:56.6579802Z 61320b01ae5e: Pulling fs layer
+2026-11-07T03:10:56.6580298Z be1274d3cce0: Pulling fs layer
+2026-11-07T03:10:56.6580756Z 8991c9200d62: Pulling fs layer
+2026-11-07T03:10:56.7422995Z 7a1cb8b88221: Download complete
+2026-11-07T03:10:56.8407713Z be1274d3cce0: Download complete
+2026-11-07T03:10:56.8409246Z 8991c9200d62: Download complete
+2026-11-07T03:10:56.8413118Z dd7bcf489f65: Download complete
+2026-11-07T03:10:56.8414969Z f0d7729722a7: Download complete
+2026-11-07T03:10:56.9416240Z 61320b01ae5e: Download complete
+2026-11-07T03:10:57.6453514Z 61320b01ae5e: Pull complete
+2026-11-07T03:10:57.7449241Z be1274d3cce0: Pull complete
+2026-11-07T03:10:58.1220714Z 7a1cb8b88221: Pull complete
+2026-11-07T03:10:58.1228802Z 8991c9200d62: Pull complete
+2026-11-07T03:10:58.1229704Z Digest: sha256:fd95fa221297a88e1cf49c55ec1828edd7c5a428187e67b5d1805692d11588db
+2026-11-07T03:10:58.1231425Z Status: Downloaded newer image for python@sha256:fd95fa221297a88e1cf49c55ec1828edd7c5a428187e67b5d1805692d11588db
+2026-11-07T03:11:10.5685097Z Inter subset manifest and 4 canonical WOFF2 files pass
+2026-11-07T03:11:10.6227031Z ##[endgroup]
+2026-11-07T03:11:10.6227761Z ##[group]Verify the committed lazy browser family catalog
+2026-11-07T03:11:10.6260466Z $ bun run scripts/build/generate-browser-family-catalog.ts --check
+2026-11-07T03:11:11.0674625Z browser family catalog is current (25 families)
+2026-11-07T03:11:11.0746891Z ##[endgroup]
+2026-11-07T03:11:11.0747501Z ##[group]Verify website and Worker artifacts
+2026-11-07T03:11:11.0776991Z $ bun run website/build.ts --check
+2026-11-07T03:11:36.6785453Z website/build: 16/36 warning pages carry a build-time-verified firing demo
+2026-11-07T03:11:37.3527764Z website/build --check: regenerated 414 public and 13 Worker artifacts successfully.
+2026-11-07T03:11:37.4102124Z ##[endgroup]
+2026-11-07T03:11:37.4103007Z ##[group]Verify the lazy browser bundle graph and size budgets
+2026-11-07T03:11:37.4139288Z $ bun run scripts/build/browser-lazy-report.ts
+2026-11-07T03:11:43.9094777Z 298 |     checkBudget('flowchart omitted-layout forest plus YAML', { requests: forestBudget.length, ...transferSize(forestBudget) }, budgets.families.flowchart)
+2026-11-07T03:11:43.9096982Z 299 |     const fallbackBudget = staticClosure([...implicitForestFallbackFiles!, ...yamlFiles])
+2026-11-07T03:11:43.9099145Z 300 |     checkBudget('flowchart omitted-layout forest then ELK plus YAML', { requests: fallbackBudget.length, ...transferSize(fallbackBudget) }, budgets.families.flowchart)
+2026-11-07T03:11:43.9100702Z 301 |   }
+2026-11-07T03:11:43.9101067Z 302 | }
+2026-11-07T03:11:43.9101693Z 303 | if (problems.length > 0) throw new Error(`Async browser size budgets exceeded:\n${problems.join('\n')}`)
+2026-11-07T03:11:43.9102326Z                                          ^
+2026-11-07T03:11:43.9102677Z error: Async browser size budgets exceeded:
+2026-11-07T03:11:43.9103048Z flowchart raw: 2508040 > 2430000
+2026-11-07T03:11:43.9103366Z flowchart gzip: 774080 > 761500
+2026-11-07T03:11:43.9103670Z state raw: 2505070 > 2430000
+2026-11-07T03:11:43.9103958Z state gzip: 772466 > 761000
+2026-11-07T03:11:43.9104249Z sequence raw: 790653 > 667000
+2026-11-07T03:11:43.9104663Z sequence gzip: 253163 > 214000
+2026-11-07T03:11:43.9105120Z sequence brotli: 213770 > 190750
+2026-11-07T03:11:43.9105586Z timeline raw: 730086 > 617000
+2026-11-07T03:11:43.9106040Z timeline gzip: 233713 > 198000
+2026-11-07T03:11:43.9106489Z timeline brotli: 196203 > 174500
+2026-11-07T03:11:43.9106897Z er raw: 2393181 > 2311000
+2026-11-07T03:11:43.9107280Z er gzip: 734898 > 718000
+2026-11-07T03:11:43.9107689Z journey raw: 750991 > 637000
+2026-11-07T03:11:43.9108091Z journey gzip: 241046 > 204250
+2026-11-07T03:11:43.9108492Z journey brotli: 202825 > 181500
+2026-11-07T03:11:43.9108899Z architecture raw: 2485477 > 2318000
+2026-11-07T03:11:43.9109330Z architecture gzip: 763760 > 751000
+2026-11-07T03:11:43.9109942Z xychart raw: 774082 > 654000
+2026-11-07T03:11:43.9110330Z xychart gzip: 249021 > 211000
+2026-11-07T03:11:43.9110725Z xychart brotli: 209790 > 187250
+2026-11-07T03:11:43.9111110Z pie raw: 743314 > 634000
+2026-11-07T03:11:43.9111469Z pie gzip: 240775 > 208500
+2026-11-07T03:11:43.9111838Z pie brotli: 202514 > 185500
+2026-11-07T03:11:43.9112223Z quadrant raw: 738952 > 622000
+2026-11-07T03:11:43.9112613Z quadrant gzip: 237579 > 201000
+2026-11-07T03:11:43.9113016Z quadrant brotli: 199648 > 177500
+2026-11-07T03:11:43.9113413Z gantt raw: 760618 > 642000
+2026-11-07T03:11:43.9113780Z gantt gzip: 244829 > 207000
+2026-11-07T03:11:43.9114146Z gantt brotli: 206222 > 183500
+2026-11-07T03:11:43.9114385Z mindmap raw: 748043 > 621000
+2026-11-07T03:11:43.9114613Z mindmap gzip: 243082 > 203750
+2026-11-07T03:11:43.9114844Z mindmap brotli: 204621 > 186000
+2026-11-07T03:11:43.9115074Z gitgraph raw: 748381 > 629000
+2026-11-07T03:11:43.9115300Z gitgraph gzip: 241936 > 204000
+2026-11-07T03:11:43.9115533Z gitgraph brotli: 203588 > 180000
+2026-11-07T03:11:43.9116147Z radar raw: 748597 > 632000
+2026-11-07T03:11:43.9116375Z radar gzip: 241846 > 205000
+2026-11-07T03:11:43.9116596Z radar brotli: 203561 > 181750
+2026-11-07T03:11:43.9116818Z sankey raw: 749024 > 624000
+2026-11-07T03:11:43.9117044Z sankey gzip: 240796 > 203000
+2026-11-07T03:11:43.9117280Z sankey brotli: 202598 > 179250
+2026-11-07T03:11:43.9117547Z c4 raw: 945974 > 836000
+2026-11-07T03:11:43.9117751Z c4 gzip: 304950 > 276500
+2026-11-07T03:11:43.9118124Z c4 brotli: 258600 > 243500
+2026-11-07T03:11:43.9118339Z packet raw: 717896 > 586500
+2026-11-07T03:11:43.9118566Z packet gzip: 230644 > 192500
+2026-11-07T03:11:43.9118800Z packet brotli: 193524 > 171000
+2026-11-07T03:11:43.9119039Z kanban raw: 727562 > 595000
+2026-11-07T03:11:43.9119258Z kanban gzip: 234865 > 196000
+2026-11-07T03:11:43.9119719Z kanban brotli: 197232 > 174000
+2026-11-07T03:11:43.9119966Z requirement raw: 2187270 > 2150000
+2026-11-07T03:11:43.9120218Z requirement gzip: 666687 > 664000
+2026-11-07T03:11:43.9120464Z treemap raw: 736485 > 606000
+2026-11-07T03:11:43.9120692Z treemap gzip: 238419 > 200750
+2026-11-07T03:11:43.9120919Z treemap brotli: 200570 > 178250
+2026-11-07T03:11:43.9121152Z ishikawa raw: 718040 > 586500
+2026-11-07T03:11:43.9121380Z ishikawa gzip: 230378 > 192250
+2026-11-07T03:11:43.9121637Z ishikawa brotli: 193278 > 170500
+2026-11-07T03:11:43.9121952Z block raw: 888590 > 775500
+2026-11-07T03:11:43.9122193Z block gzip: 286945 > 256500
+2026-11-07T03:11:43.9122416Z block brotli: 242709 > 226500
+2026-11-07T03:11:43.9122645Z eventmodeling raw: 727322 > 600000
+2026-11-07T03:11:43.9122897Z eventmodeling gzip: 233375 > 198000
+2026-11-07T03:11:43.9123154Z eventmodeling brotli: 196015 > 176000
+2026-11-07T03:11:43.9123402Z zenuml raw: 804590 > 669750
+2026-11-07T03:11:43.9123640Z zenuml gzip: 258329 > 220000
+2026-11-07T03:11:43.9123868Z zenuml brotli: 218508 > 195750
+2026-11-07T03:11:43.9124208Z flowchart omitted-layout forest then ELK plus YAML raw: 2512324 > 2430000
+2026-11-07T03:11:43.9124704Z flowchart omitted-layout forest then ELK plus YAML gzip: 775930 > 761500
+2026-11-07T03:11:43.9125289Z       at /home/runner/work/agentic-mermaid/agentic-mermaid/scripts/build/browser-lazy-report.ts:303:36
+2026-11-07T03:11:43.9125679Z 
+2026-11-07T03:11:43.9158987Z ##[error]flowchart gzip: 774080 > 761500
+state raw: 2505070 > 2430000
+state gzip: 772466 > 761000
+sequence raw: 790653 > 667000
+sequence gzip: 253163 > 214000
+sequence brotli: 213770 > 190750
+timeline raw: 730086 > 617000
+timeline gzip: 233713 > 198000
+timeline brotli: 196203 > 174500
+er raw: 2393181 > 2311000
+er gzip: 734898 > 718000
+journey raw: 750991 > 637000
+journey gzip: 241046 > 204250
+journey brotli: 202825 > 181500
+architecture raw: 2485477 > 2318000
+architecture gzip: 763760 > 751000
+xychart raw: 774082 > 654000
+xychart gzip: 249021 > 211000
+xychart brotli: 209790 > 187250
+pie raw: 743314 > 634000
+pie gzip: 240775 > 208500
+pie brotli: 202514 > 185500
+quadrant raw: 738952 > 622000
+quadrant gzip: 237579 > 201000
+quadrant brotli: 199648 > 177500
+gantt raw: 760618 > 642000
+gantt gzip: 244829 > 207000
+gantt brotli: 206222 > 183500
+mindmap raw: 748043 > 621000
+mindmap gzip: 243082 > 203750
+mindmap brotli: 204621 > 186000
+gitgraph raw: 748381 > 629000
+gitgraph gzip: 241936 > 204000
+gitgraph brotli: 203588 > 180000
+radar raw: 748597 > 632000
+radar gzip: 241846 > 205000
+radar brotli: 203561 > 181750
+sankey raw: 749024 > 624000
+sankey gzip: 240796 > 203000
+sankey brotli: 202598 > 179250
+c4 raw: 945974 > 836000
+c4 gzip: 304950 > 276500
+c4 brotli: 258600 > 243500
+packet raw: 717896 > 586500
+packet gzip: 230644 > 192500
+packet brotli: 193524 > 171000
+kanban raw: 727562 > 595000
+kanban gzip: 234865 > 196000
+kanban brotli: 197232 > 174000
+requirement raw: 2187270 > 2150000
+requirement gzip: 666687 > 664000
+treemap raw: 736485 > 606000
+treemap gzip: 238419 > 200750
+treemap brotli: 200570 > 178250
+ishikawa raw: 718040 > 586500
+ishikawa gzip: 230378 > 192250
+ishikawa brotli: 193278 > 170500
+block raw: 888590 > 775500
+block gzip: 286945 > 256500
+block brotli: 242709 > 226500
+eventmodeling raw: 727322 > 600000
+eventmodeling gzip: 233375 > 198000
+eventmodeling brotli: 196015 > 176000
+zenuml raw: 804590 > 669750
+zenuml gzip: 258329 > 220000
+zenuml brotli: 218508 > 195750
+flowchart omitted-layout forest then ELK plus YAML raw: 2512324 > 2430000
+flowchart omitted-layout forest then ELK plus YAML gzip: 775930 > 761500
+      at /home/runner/work/agentic-mermaid/agentic-mermaid/scripts/build/browser-lazy-report.ts:303:36
+2026-11-07T03:11:43.9172531Z 
+2026-11-07T03:11:43.9172667Z Bun v1.4.4 (Linux x64)
+2026-11-07T03:11:43.9221424Z error: script "check:browser-lazy" exited with code 1
+2026-11-07T03:11:43.9227170Z ##[endgroup]
+2026-11-07T03:11:43.9227923Z ##[group]Audit rendered corpora and family structural evidence
+2026-11-07T03:11:43.9251309Z $ bun run eval/ugly-detector/audit.ts
+2026-11-07T03:12:34.2268182Z Ugly-layout audit — rendered SVG / PNG / ASCII / Unicode
+2026-11-07T03:12:34.2271091Z (SVG authoritative; PNG = SVG structure + pixel sanity; terminal projections = display-cell grids)
+2026-11-07T03:12:34.2272064Z 
+2026-11-07T03:12:34.2272641Z corpus            diagrams   hard(svg/png/ascii/unicode)   soft   render-err
+2026-11-07T03:12:34.2280296Z contact-sheet           44    0 / 0 / 0 / 0                  0          0
+2026-11-07T03:12:34.2280985Z tracker                104    0 / 0 / 0 / 0                  0          0
+2026-11-07T03:12:34.2281589Z samples                134    0 / 0 / 0 / 0                  0          0
+2026-11-07T03:12:34.2282216Z fixtures                51    0 / 0 / 0 / 0                  0          0
+2026-11-07T03:12:34.2283679Z eval-linkrank-feedback-packing         6    0 / 0 / 0 / 0                  0          0
+2026-11-07T03:12:34.2285024Z eval-mindmap-gitgraph-content-corpus        13    0 / 0 / 0 / 0                  0          0
+2026-11-07T03:12:34.2286110Z eval-section-b-brand-evidence         1    0 / 0 / 0 / 0                  0          0
+2026-11-07T03:12:34.2287496Z eval-stable-families         7    0 / 0 / 0 / 0                  0          0
+2026-11-07T03:12:34.2294778Z golden-ascii            87    0 / 0 / 0 / 0                  0          0
+2026-11-07T03:12:34.2295618Z golden-unicode          66    0 / 0 / 0 / 0                  0          0
+2026-11-07T03:12:34.2298227Z ————————————————————————————————————————————————————————————————
+2026-11-07T03:12:34.2299081Z 513 diagrams · 2052 format-audits · 0 HARD · 0 soft · 0 render-errors
+2026-11-07T03:12:34.2300039Z structural admission: 513/513 renderer layouts; 275/513 SVG markup adapters
+2026-11-07T03:12:34.2300372Z 
+2026-11-07T03:12:34.2300580Z ✓ no hard ugly-layout defects in any rendered diagram
+2026-11-07T03:12:34.5719883Z ##[endgroup]
+2026-11-07T03:12:34.5720321Z ##[group]Lint TypeScript
+2026-11-07T03:12:34.5751757Z $ biome lint .
+2026-11-07T03:12:36.2383501Z Checked 1943 files in 1615ms. No fixes applied.
+2026-11-07T03:12:36.4078965Z ##[endgroup]
+2026-11-07T03:12:36.4079847Z ##[group]Type check
+2026-11-07T03:12:36.4101073Z $ bun run typecheck:core && bun run typecheck:repo
+2026-11-07T03:12:36.4141376Z $ tsc --noEmit -p tsconfig.json
+2026-11-07T03:13:07.8018839Z $ bun eval/trident/prepare.ts && tsc --noEmit -p tsconfig.repo.json
+2026-11-07T03:13:08.1947581Z bun install v1.4.4 (38afee6c8)
+2026-11-07T03:13:08.3066907Z 
+2026-11-07T03:13:08.3067547Z + @biomejs/biome@2.5.5
+2026-11-07T03:13:08.3067979Z + @types/bun@1.3.9
+2026-11-07T03:13:08.3068291Z + typescript@5.9.3
+2026-11-07T03:13:08.3068515Z + @resvg/resvg-js@2.6.2
+2026-11-07T03:13:08.3068740Z + entities@7.0.1
+2026-11-07T03:13:08.3068975Z + esbuild@0.28.1
+2026-11-07T03:13:08.3069171Z + playwright@1.58.2
+2026-11-07T03:13:08.3069368Z + saxes@6.0.0
+2026-11-07T03:13:08.3069755Z + yaml@2.9.0
+2026-11-07T03:13:08.3069864Z 
+2026-11-07T03:13:08.3069966Z 19 packages installed [112.00ms]
+2026-11-07T03:13:08.3084221Z /home/runner/work/agentic-mermaid/agentic-mermaid/bench-report/.trident/f080278e31e4202ca89d524e4ee9e4cf3cbff038
+2026-11-07T03:13:27.7143990Z ##[endgroup]
+2026-11-07T03:13:27.7146220Z ##[error]browser-lazy (bun run check:browser-lazy)
+2026-11-07T03:13:27.7147816Z 
+2026-11-07T03:13:27.7148705Z Quality suite failed in 1 check:
+2026-11-07T03:13:27.7156322Z - Verify the lazy browser bundle graph and size budgets: bun run check:browser-lazy
+2026-11-07T03:13:27.7163719Z error: script "quality:check" exited with code 1
+2026-11-07T03:13:27.7176591Z ##[error]Process completed with exit code 1.
+2026-11-07T03:13:27.7346640Z Post job cleanup.
+2026-11-07T03:13:27.8204734Z [command]/usr/bin/git version
+2026-11-07T03:13:27.8252772Z git version 2.56.0
+2026-11-07T03:13:27.8294872Z Temporarily overriding HOME='/home/runner/work/_temp/30c4cef0-b2c1-4782-a6ab-78bc38d79c21' before making global git config changes
+2026-11-07T03:13:27.8296258Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-07T03:13:27.8300173Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/agentic-mermaid/agentic-mermaid
+2026-11-07T03:13:27.8336689Z Removing SSH command configuration
+2026-11-07T03:13:27.8343400Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-07T03:13:27.8385089Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-07T03:13:27.8695385Z Removing HTTP extra header
+2026-11-07T03:13:27.8709664Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-07T03:13:27.8772301Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-07T03:13:27.9087034Z Removing includeIf entries pointing to credentials config files
+2026-11-07T03:13:27.9093931Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-07T03:13:27.9152956Z includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git.path
+2026-11-07T03:13:27.9154186Z includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path
+2026-11-07T03:13:27.9155397Z includeif.gitdir:/github/workspace/.git.path
+2026-11-07T03:13:27.9156293Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-07T03:13:27.9164608Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git.path
+2026-11-07T03:13:27.9189327Z /home/runner/work/_temp/git-credentials-69ae50af-a285-4739-9264-91a381ed0054.config
+2026-11-07T03:13:27.9198991Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-69ae50af\-a285\-4739\-9264\-91a381ed0054\.config
+2026-11-07T03:13:27.9245229Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path
+2026-11-07T03:13:27.9269811Z /home/runner/work/_temp/git-credentials-69ae50af-a285-4739-9264-91a381ed0054.config
+2026-11-07T03:13:27.9278767Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-69ae50af\-a285\-4739\-9264\-91a381ed0054\.config
+2026-11-07T03:13:27.9311560Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-07T03:13:27.9334862Z /github/runner_temp/git-credentials-69ae50af-a285-4739-9264-91a381ed0054.config
+2026-11-07T03:13:27.9343208Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-69ae50af\-a285\-4739\-9264\-91a381ed0054\.config
+2026-11-07T03:13:27.9375794Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-07T03:13:27.9398415Z /github/runner_temp/git-credentials-69ae50af-a285-4739-9264-91a381ed0054.config
+2026-11-07T03:13:27.9407232Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-69ae50af\-a285\-4739\-9264\-91a381ed0054\.config
+2026-11-07T03:13:27.9442793Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-07T03:13:27.9720440Z Removing credentials config '/home/runner/work/_temp/git-credentials-69ae50af-a285-4739-9264-91a381ed0054.config'
+2026-11-07T03:13:27.9904524Z Cleaning up orphan processes
+

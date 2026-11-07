@@ -1,0 +1,12 @@
+{
+  "files": 101,
+  "raw_bytes": 509006,
+  "archive_bytes": 393472,
+  "every_member_byte_verified": true,
+  "actual_public_calls": 18,
+  "returned": 15,
+  "refused": 3,
+  "all_returned_svg_and_entire_receipt_exact": true,
+  "all_refusal_name_code_message_exact": true,
+  "progress": "Validation after changed runtime; no new layout gain. Unchanged main products reused."
+}

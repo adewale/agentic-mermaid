@@ -1,0 +1,199 @@
+{
+  "owner": "root-execution-cause-20261107-0256",
+  "updated_at": "2026-11-07T03:23:39.627735+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-08T23:59:59Z",
+  "note": "Fresh recovery baseline, not restored November runtime. Original checkout and reconstructed patch preserved.",
+  "writers": [],
+  "head": "14bec477578104a1eab5a279473aa77e747f8476",
+  "next_fix": "Target the reproduced Sparse32 decorative-markers definitions=true proof-cap failure at paint-certification.test.ts66: locate the first charged native emission/context stage and test producer reuse without raising400k. Preserve direct/emitted proof availability separately from actual SVG/ink and ER256 geometry refusal. Do not reopen packing, terminal-removal, marker-JSON-ID substitution or unconditional Scene-admission bypass; first Scene admission remains necessary and costly.",
+  "status": "idle",
+  "checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-0a4534ee8.bundle",
+  "evidence": "/workspace/pr449-recovery-20261103-155750/evidence-5aa10b3c0.tar.gz",
+  "execution_note": "Bounded execution cycle complete: profile first, then omit only unused original marker hull using existing bounds-only flag. Served hull/resource equality/charges/caps unchanged. All4Class phases SVG+entire receipt exact;3sequential calls before/after retained; no causal speedup ratio. Own742tests740P, Sparse32F and childstdinEPERM; permittedchildretry1P392. Coretyping/lintP, ESM+DTS0. Actualbrowser/budget2P504; HTMLgzip1310748 to1310687, Br1245137 to1244928, raw-156. LazyClassgzip+3/Flow+14/raw+10; sharedbudgetsremainF.18freshPRcalls15returns exact to1693,3sameER256refusals. CI42332734235 terminalfailed withonlySparse32/lazy+payload/advisory classes; allbrowser/semantic/package/isolation/CLI/MCP andshards1/3P. Source14bec andcoreevidence1635 pushed; finalcheckpoint/description follow. No newlayoutgain.",
+  "evidence_verified": {
+    "files": 2632,
+    "uncompressed_bytes": 43354657,
+    "archive_bytes": 15312785,
+    "controllers": 121
+  },
+  "evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-0a4534ee8.tar.gz",
+  "evidence_delta_verified": {
+    "files": 23,
+    "uncompressed_bytes": 342648,
+    "archive_bytes": 118801
+  },
+  "previous_owner": "root-lazy-payload-20261107-0156",
+  "previous_checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-8f9ef3da0.bundle",
+  "previous_evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-8f9ef3da0.tar.gz",
+  "pull_request": {
+    "number": 602,
+    "url": "https://github.com/adewale/agentic-mermaid/pull/602",
+    "draft": true,
+    "head": "14bec477578104a1eab5a279473aa77e747f8476",
+    "head_branch": "work/pr449-reconstruct-20261103",
+    "base": "39a500425f6b74eb486b9add9e90d538fab6a914",
+    "base_branch": "main",
+    "main_observed": "39a500425f6b74eb486b9add9e90d538fab6a914",
+    "main_integration_qualified": false,
+    "visual_evidence_commit": "bcc799ccc362f71d63384eaa31a879d412cd74a2",
+    "title": "Recover layout delivery and SVG paint; compact ER cards and forest routes",
+    "main_observed_at": "2026-11-07T03:23:39.627735+00:00",
+    "current_ci_run": 42332734235,
+    "current_ci_status": "Completed failure. Only Sparse32 unit failure; lazy/payload and advisory failures remain. Browser-site/standalone/browser, semantic, CLI/MCP, packages/isolation andshards1/3 pass.",
+    "description_updated_at": "2026-11-07T03:23:39.627735+00:00",
+    "current_ci_base_note": "CI synthetic379ceddc parents main39/source14bec, exact treee4b2b2cb equals source. Currentmain unchanged; no readiness claim."
+  },
+  "pr_record_checkpoint": "/workspace/pr449-recovery-20261103-155750/pr602-preparation.tar.gz",
+  "scheduled_end": "2026-11-08T23:59:59Z",
+  "automations_disabled": {
+    "6ae0b82853508191843a984cfb468d5b": false,
+    "6ae5e528d93881918a13186253dbae8e": false
+  },
+  "maintenance": {
+    "owner": "root-pr-cleanup-20261105",
+    "scope": "Owner-authorized PR cleanup and GitHub backup; campaign remains stopped",
+    "started_at": "2026-11-05T13:24:03.573057+00:00",
+    "completed_at": "2026-11-05T13:35:34.412315+00:00",
+    "result": "Committed readable stopped-state handoff and pushed both branches atomically. PR602 description/visuals updated; remote branch SHAs and archive index verified. Runtime/tests unchanged during cleanup. Corrected unrelated upstream tracking. Campaign and deadline-report automations remain disabled."
+  },
+  "remote_checkpoint": {
+    "source_head": "14bec477578104a1eab5a279473aa77e747f8476",
+    "source_branch": "work/pr449-reconstruct-20261103",
+    "evidence_head": "1635a0ae0acfe1bc9bebc57fc59feb45de5a73ac",
+    "evidence_branch": "review/pr449-evidence-20261105",
+    "restore_guide": "https://github.com/adewale/agentic-mermaid/blob/1635a0ae0acfe1bc9bebc57fc59feb45de5a73ac/original-marker-bounds-20261107/README.md",
+    "source_and_evidence_remote_refs_verified": true,
+    "new_evidence_files": 207,
+    "new_archive_bytes": 10376478,
+    "new_raw_bytes": 31027862,
+    "new_every_member_byte_verified": true,
+    "prior_current_comparison_files_byte_verified": 5122,
+    "checked_at": "2026-11-07T03:23:39.627735+00:00",
+    "handoff_contains_released_state": true,
+    "final_metadata": "Core archive207byte-verified members; late101affected-products, exact terminalCI and released state to follow in child. Currentmain39/source14bec refs verified.",
+    "affected_evidence_files": 101,
+    "affected_raw_bytes": 509006,
+    "affected_archive_bytes": 393472,
+    "affected_every_member_byte_verified": true
+  },
+  "resumed_at": "2026-11-05T13:48:28.000357+00:00",
+  "lease_expires_at": "2026-11-07T03:23:39.627735+00:00",
+  "authorization": "Owner: Execute that campaign. Make sure we regularly commit and push to the PR on Github.",
+  "automation_resume_note": "Owner explicitly resumed campaign. Hourly continuation resumes 2026-11-05T15:00 Europe/London through original Nov8 deadline; fresh-lease coordination required; pushes to PR602 authorized.",
+  "released_at": "2026-11-07T03:23:39.627735+00:00",
+  "stop_history": [
+    {
+      "stopped_at": "2026-11-05T13:20:32.667409+00:00",
+      "stop_reason": "Owner explicitly requested: Stop the campaign",
+      "stop_note": "Campaign and deadline-report automations disabled successfully. All five campaign agents completed; no live git/node/bun/python campaign workers found. Worktree clean at 0a4534ee814d0c380de138b845b0d8e3f5226132. All work, trial drafts and evidence preserved. No further implementation, tests, builds, publication or PR changes performed."
+    }
+  ],
+  "profile_report": "docs/design/system/layout-0.6-performance-review.md at14bec477; historical99edreport plus currentc9Class128 three-call beforeprofile and sequentialpair, existingcacheinventory retained; no causal speedup forecast.",
+  "payload_diagnostic": "Latest14bec full standalone HTML2186759raw/1310687gzip9/1244928Br11 (Bun1.4.4), main39Brstill146524smaller. OriginalstandalonebudgetP local+CI, actualworker2P504. Currenthullstep fullHTML-156raw/-61gzip/-209Br; lazyfamilyraw+10, Classgzip+3/Flow+14, sharedlazybudgetsstillF. No caps/cache changes.",
+  "deadline_report_schedule": "2026-11-08T23:59:59 Europe/London (UTC); stop/disable and report at the original deadline",
+  "previous_ci": {
+    "head": "3b35c1b3d3387df2d61323071b3c9678b06f1445",
+    "run": 42057059999,
+    "tested_checkout": "d13c5b4f751934c13c46e5ee11fb7ba018df27ed; synthetic merge into mainf9",
+    "result": "completed failure",
+    "passing_repairs": "shards1/2, both reviewedClass/Requirementgoldens",
+    "remaining": "Sparse32 proofcap; payloadceilings; browserClassgolden nowlocallyqualified; CLI Bun download504 before tests"
+  },
+  "campaign_status": "resumed",
+  "qualification_milestones": [
+    {
+      "commit": "d4bef7245f44e01f4c6637938acc68dcc04bdc5d",
+      "change": "9 reviewed Class geometry goldens; no runtime change",
+      "verification": "322 records, owning2P; CI42055078526shard1success, overallfailure",
+      "evidence": "5de73796a993e4abee23ad6ee90f85baf4693e34"
+    },
+    {
+      "commit": "3b35c1b3d3387df2d61323071b3c9678b06f1445",
+      "change": "one reviewed Requirement PNG; no runtime change",
+      "verification": "local1RED\u219297P0F in3owningfiles; latestCIpending",
+      "adverse": "PNG+39B, priorwholecandidateproof40698\u2192204313ops",
+      "evidence": "1a8297b9d98b2d7f22e97b59746f56a01ac56668"
+    },
+    {
+      "commit": "69af97a12aefe1140095064312a7f32b3f5e5714",
+      "change": "route-only separated source docks for centered unequal terminal peers",
+      "before_after": "wire463.4375\u2192436.857166666; area165355.6575/bends8 unchanged; residualwire+10.19%ELK",
+      "verification": "4directionalRED\u219244nearby/corpusP+28ownership/CSSP, coretypes/lint; Nativefreshrepeat and ELKbyteexact",
+      "adverse": "proof+980ops, SVG+21gzip/+5Br, pairedstandalone+315gzip",
+      "evidence": "6b5ed81355e05954b11b8a47b10c13627493bd20"
+    },
+    {
+      "commit": "741b80dba91c0e1f4feba9a62695f7820bc79a23",
+      "change": "one reviewed browser Class PNG baseline",
+      "verification": "exactmain/currentDOM+independentreview; onlyClassPNGupdated; unchanged5casebrowserowner1P29assert13.99s",
+      "adverse": "no runtime change in PNGcommit; payloadceilings remain failed",
+      "evidence": "9a60e1cfdd76f635515d17e9a56ba3fd9ccb125d"
+    },
+    {
+      "commit": "970c9f807bd82b6c3e731aadef3585ee6b071523",
+      "change": "One-pass worker compression at existing build producer",
+      "before_after": "HTMLgzip1427769\u21921346874; Brotli1360667\u21921281514; raw2194300\u21922089396",
+      "verification": "Matched complete Bun1.4.4/ELK0.11.1 builds; emitted-worker browser ownerP, minifier2P, coretypesP, lint3filesP; independent scope/value review",
+      "adverse": "Peak buildRSS554312\u2192691384KiB; gzip budget still12374over; six-pass candidate timed out55s and is unshipped",
+      "evidence": "d5db3cea94a798aaa1010b14c6fbbbea597e4b28"
+    },
+    {
+      "commit": "1693c2a2b7fd93cb5da11f1a358d162180fa19cc",
+      "change": "Normal current-main integration; existing ownership/capture and original caps retained",
+      "verification": "522local owner passes, core typing/lint; independent boundary probes.36fresh calls;27returned products exact,9namedrefusals unchanged. Actualemitted workerP/budgetF. Final930CI terminalfailed withsameenrolled loss classes.",
+      "adverse": "Main39\u2192PR1693 completeHTML gzip-74739/Br+183864bytes; peakbuildRSS+252292KiB; CIgzip still4886over. No timingratio.",
+      "evidence": "5958c1c2b42e8e08d0a95d5563688c9976d459f3"
+    },
+    {
+      "commit": "bbda2112af8d791d8628a3769c86084e4cb962b3",
+      "change": "Specialize private standalone dictionary from actual consumed bytes; no renderer or cap change",
+      "before_after": "HTML gzip1348449 to1310748; Brotli1282268 to1245137; raw2091362 to2186915",
+      "verification": "Byte-identical packed/full worker; existing browser/budget2P504assert; focused46P314assert; coretypes0/lintP; exact-head CI original standalone budget and browser-siteP",
+      "adverse": "Raw+95553; main39Brotli still+146733; buildRSS674760KiB, no speed/memory ratio. CI remains failed on Sparse32/lazy/demo/advisory.",
+      "evidence": "9c0e14b18394925a0160812f4bc85e3df07bedcc"
+    },
+    {
+      "commit": "c9dabb20c67aa18587063ea0268fa4e5ebdf7c40",
+      "change": "Document bounded causal profile and stop insufficient packing/terminal shortcuts; no runtime change",
+      "before_after": "No new shipped performance gain. Packet+YAML main196160 toPR230648gzip; matching Bun static sum164917 to199406, concat196990 saves2416 leaves32073.",
+      "verification": "Matched Node24 tsup/ESM+DTS builds; existing reporter on actual bytes; independent review; existing budget gate still fails; diff/visual-lint pass. Python predecessor retained separately.",
+      "adverse": "Common family transfer still larger, despite fewer requests. Newly profiled source contribution counts are not CPU/gzip attribution; new-head CIpending.",
+      "evidence": "8e0adbe90360b6d0bcd4cef07d8381ada6076fff"
+    },
+    {
+      "commit": "14bec477578104a1eab5a279473aa77e747f8476",
+      "change": "Omit unused original marker hull; full served hull/bounds/resource encoding/charges retained",
+      "before_after": "Marker active2ms self/incl7.697/12.499 to6.964/11.241ms; no causal endtoend speedup. AllClass products/receipts exact. ActualHTMLgzip-61/Br-209/raw-156.",
+      "verification": "Profilebeforecode;742owner cases740P pluspermittedchildretry1P, knownSparse32F. Coretypes/lintP; ESM/DTS0; actualstandalonebrowser2P504.18publicsourcecalls15exactreturns/3sameER256refusals. CIterminalfailedonlyknownclasses.",
+      "adverse": "Classlazy+3gzip/Flow+14/raw+10; initialBr+1. MainHTMLBrstill+146524; buildRSS673272KiB. Confounded earlierprofiles retained; no speed/memoryratio. Ambientcallback-count qualification explicit; no reproducedregression.",
+      "evidence": "1635a0ae0acfe1bc9bebc57fc59feb45de5a73ac"
+    }
+  ],
+  "restored_from": "dd7f8e9da:handoff-20261105-1637/handoff.tar.gz; historical lease expired and not reactivated",
+  "integration_status": "Main39 remains integrated normally through1693. Exact14bec CI source-tree binding verified; full readiness remains blocked by actual Sparse32/lazy/payload/advisory failures.",
+  "current_ci_status": {
+    "head": "14bec477578104a1eab5a279473aa77e747f8476",
+    "run": 42332734235,
+    "status": "completed",
+    "conclusion": "failure",
+    "tested_checkout": "379ceddc9661ecb46a8babe9ce00c850e8b3792c",
+    "tree": "e4b2b2cb3f4272f76d35c76e20e9b4d28ea3795c",
+    "source_tree_equal": true,
+    "remaining": "Sparse32 proof cap; lazy/demo/editor-empty payload budgets; generated-layout advisory",
+    "standalone_budget": "passed"
+  },
+  "last_completed_runtime_ci": {
+    "head": "14bec477578104a1eab5a279473aa77e747f8476",
+    "run": 42332734235,
+    "status": "completed",
+    "conclusion": "failure",
+    "tested_checkout": "379ceddc9661ecb46a8babe9ce00c850e8b3792c",
+    "tree": "e4b2b2cb3f4272f76d35c76e20e9b4d28ea3795c",
+    "source_tree_equal": true,
+    "remaining": "Sparse32 proof cap; lazy/demo/editor-empty payload budgets; generated-layout advisory",
+    "standalone_budget": "passed"
+  }
+}

@@ -1,0 +1,244 @@
+{
+  "expected": 18,
+  "completed": 18,
+  "scope": "Affected source requalification after runtime change, not new layout progress. Main products reused because source unchanged.",
+  "rows": [
+    {
+      "case": "Sparse256-default-gap",
+      "mode": "omitted",
+      "exit": 0,
+      "status": "returned",
+      "binding": {
+        "wholeSVGExact": true,
+        "entireReceiptExact": true,
+        "referenceHead": "1693c2a2b7fd93cb5da11f1a358d162180fa19cc"
+      },
+      "actualPublicCalls": 1,
+      "proof": "passed"
+    },
+    {
+      "case": "Sparse256-default-gap",
+      "mode": "agentic",
+      "exit": 0,
+      "status": "returned",
+      "binding": {
+        "wholeSVGExact": true,
+        "entireReceiptExact": true,
+        "referenceHead": "1693c2a2b7fd93cb5da11f1a358d162180fa19cc"
+      },
+      "actualPublicCalls": 1,
+      "proof": "passed"
+    },
+    {
+      "case": "Sparse256-default-gap",
+      "mode": "elk",
+      "exit": 0,
+      "status": "returned",
+      "binding": {
+        "wholeSVGExact": true,
+        "entireReceiptExact": true,
+        "referenceHead": "1693c2a2b7fd93cb5da11f1a358d162180fa19cc"
+      },
+      "actualPublicCalls": 1,
+      "proof": "passed"
+    },
+    {
+      "case": "ER208-chain",
+      "mode": "omitted",
+      "exit": 0,
+      "status": "returned",
+      "binding": {
+        "wholeSVGExact": true,
+        "entireReceiptExact": true,
+        "referenceHead": "1693c2a2b7fd93cb5da11f1a358d162180fa19cc"
+      },
+      "actualPublicCalls": 1,
+      "proof": "passed"
+    },
+    {
+      "case": "ER208-chain",
+      "mode": "agentic",
+      "exit": 0,
+      "status": "returned",
+      "binding": {
+        "wholeSVGExact": true,
+        "entireReceiptExact": true,
+        "referenceHead": "1693c2a2b7fd93cb5da11f1a358d162180fa19cc"
+      },
+      "actualPublicCalls": 1,
+      "proof": "passed"
+    },
+    {
+      "case": "ER208-chain",
+      "mode": "elk",
+      "exit": 0,
+      "status": "returned",
+      "binding": {
+        "wholeSVGExact": true,
+        "entireReceiptExact": true,
+        "referenceHead": "1693c2a2b7fd93cb5da11f1a358d162180fa19cc"
+      },
+      "actualPublicCalls": 1,
+      "proof": "passed"
+    },
+    {
+      "case": "raw-fan-circle",
+      "mode": "omitted",
+      "exit": 0,
+      "status": "returned",
+      "binding": {
+        "wholeSVGExact": true,
+        "entireReceiptExact": true,
+        "referenceHead": "1693c2a2b7fd93cb5da11f1a358d162180fa19cc"
+      },
+      "actualPublicCalls": 1,
+      "proof": "unverified"
+    },
+    {
+      "case": "raw-fan-circle",
+      "mode": "agentic",
+      "exit": 0,
+      "status": "returned",
+      "binding": {
+        "wholeSVGExact": true,
+        "entireReceiptExact": true,
+        "referenceHead": "1693c2a2b7fd93cb5da11f1a358d162180fa19cc"
+      },
+      "actualPublicCalls": 1,
+      "proof": "unverified"
+    },
+    {
+      "case": "raw-fan-circle",
+      "mode": "elk",
+      "exit": 0,
+      "status": "returned",
+      "binding": {
+        "wholeSVGExact": true,
+        "entireReceiptExact": true,
+        "referenceHead": "1693c2a2b7fd93cb5da11f1a358d162180fa19cc"
+      },
+      "actualPublicCalls": 1,
+      "proof": "unverified"
+    },
+    {
+      "case": "nonlinear-forest",
+      "mode": "omitted",
+      "exit": 0,
+      "status": "returned",
+      "binding": {
+        "wholeSVGExact": true,
+        "entireReceiptExact": true,
+        "referenceHead": "1693c2a2b7fd93cb5da11f1a358d162180fa19cc"
+      },
+      "actualPublicCalls": 1,
+      "proof": "passed"
+    },
+    {
+      "case": "nonlinear-forest",
+      "mode": "agentic",
+      "exit": 0,
+      "status": "returned",
+      "binding": {
+        "wholeSVGExact": true,
+        "entireReceiptExact": true,
+        "referenceHead": "1693c2a2b7fd93cb5da11f1a358d162180fa19cc"
+      },
+      "actualPublicCalls": 1,
+      "proof": "passed"
+    },
+    {
+      "case": "nonlinear-forest",
+      "mode": "elk",
+      "exit": 0,
+      "status": "returned",
+      "binding": {
+        "wholeSVGExact": true,
+        "entireReceiptExact": true,
+        "referenceHead": "1693c2a2b7fd93cb5da11f1a358d162180fa19cc"
+      },
+      "actualPublicCalls": 1,
+      "proof": "passed"
+    },
+    {
+      "case": "requirement-cycle-TB",
+      "mode": "omitted",
+      "exit": 0,
+      "status": "returned",
+      "binding": {
+        "wholeSVGExact": true,
+        "entireReceiptExact": true,
+        "referenceHead": "1693c2a2b7fd93cb5da11f1a358d162180fa19cc"
+      },
+      "actualPublicCalls": 1,
+      "proof": "passed"
+    },
+    {
+      "case": "requirement-cycle-TB",
+      "mode": "agentic",
+      "exit": 0,
+      "status": "returned",
+      "binding": {
+        "wholeSVGExact": true,
+        "entireReceiptExact": true,
+        "referenceHead": "1693c2a2b7fd93cb5da11f1a358d162180fa19cc"
+      },
+      "actualPublicCalls": 1,
+      "proof": "passed"
+    },
+    {
+      "case": "requirement-cycle-TB",
+      "mode": "elk",
+      "exit": 0,
+      "status": "returned",
+      "binding": {
+        "wholeSVGExact": true,
+        "entireReceiptExact": true,
+        "referenceHead": "1693c2a2b7fd93cb5da11f1a358d162180fa19cc"
+      },
+      "actualPublicCalls": 1,
+      "proof": "passed"
+    },
+    {
+      "case": "er256-chain",
+      "mode": "omitted",
+      "exit": 1,
+      "status": "refused",
+      "binding": null,
+      "actualPublicCalls": 1,
+      "proof": null,
+      "sameRefusal": {
+        "name": true,
+        "code": true,
+        "message": true
+      }
+    },
+    {
+      "case": "er256-chain",
+      "mode": "agentic",
+      "exit": 1,
+      "status": "refused",
+      "binding": null,
+      "actualPublicCalls": 1,
+      "proof": null,
+      "sameRefusal": {
+        "name": true,
+        "code": true,
+        "message": true
+      }
+    },
+    {
+      "case": "er256-chain",
+      "mode": "elk",
+      "exit": 1,
+      "status": "refused",
+      "binding": null,
+      "actualPublicCalls": 1,
+      "proof": null,
+      "sameRefusal": {
+        "name": true,
+        "code": true,
+        "message": true
+      }
+    }
+  ]
+}
