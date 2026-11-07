@@ -683,6 +683,16 @@ jobs:
           adversarial-usecase-actor-github-light adversarial-usecase-actor-hand-drawn adversarial-usecase-actor-architectural-plan
           adversarial-wardley-namespace
 
+      - name: Render ELK caption, containment and delivery witnesses
+        if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}
+        env:
+          BASE_SHA: ${{ steps.pr-revisions.outputs.base }}
+          HEAD_SHA: ${{ steps.pr-revisions.outputs.head }}
+        run: >-
+          bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASE_SHA" "$HEAD_SHA"
+          bench-report/meaning-preservation/elk
+          elk-class-caption-lr elk-class-caption-rl elk-requirement-containment elk-er256-delivery
+
       - name: Render shared capture and text preservation controls
         if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}
         env:
