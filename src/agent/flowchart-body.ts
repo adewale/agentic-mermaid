@@ -489,11 +489,12 @@ function nodeLabelColumn(segment: SourceStatementSegment, label: string, afterCo
 }
 
 function mapSubgraphSource(sg: MermaidSubgraph, lines: string[], map: SourceMap, groupKeyword: 'subgraph' | 'flow'): void {
-  const re = new RegExp(`^\\s*${groupKeyword}\\s+${escapeRegex(sg.id)}(?=\\s|\\[|$)`, 'i')
+  const re = new RegExp(`^(\\s*${groupKeyword}\\s+)${escapeRegex(sg.id)}(?=\\s|\\[|$)`, 'i')
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!
-    if (!re.test(line)) continue
-    const col = line.indexOf(sg.id)
+    const declaration = re.exec(line)
+    if (!declaration) continue
+    const col = declaration[1]!.length
     map.groups.set(sg.id, { line: i + 1, col: col + 1 })
     const labelCol = sg.label && sg.label !== sg.id ? titleColumn(line, sg.label, col + sg.id.length) : -1
     if (labelCol >= 0) map.labels.set(`group:${sg.id}`, { line: i + 1, col: labelCol + 1 })

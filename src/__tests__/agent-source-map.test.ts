@@ -1037,6 +1037,18 @@ test.each([
 })
 
 describe('graph dialect source-map coordinate ownership', () => {
+  test.each([
+    ['agentflow-beta', 'flow flow[Scope]', 'flow', 6],
+    ['flowchart TD', 'subgraph sub[Scope]', 'sub', 10],
+  ] as const)('%s group IDs resembling the grammar prefix map to the authored identity', (header, declaration, id, col) => {
+    const source = `${header}\n${declaration}\na[A]\nend`, parsed = parseMermaid(source)
+    if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
+    const location = parsed.value.source.groups.get(id)
+    expect(location).toEqual({ line: 2, col })
+    expect(declaration.slice(location!.col - 1, location!.col - 1 + id.length)).toBe(id)
+    expect(textAt(source, parsed.value.source.spans?.groups.get(id))).toBe(declaration)
+  })
+
   test.each(['\n', '\r\n'])('AgentFlow maps declarations after wrapper/blank-line normalization with %j endings', newline => {
     const source = ['---', 'title: Workflow', '---', '%% wrapper', 'agentflow-beta TB', '', 'flow demo', '  helper["Helper"]', 'end', '', 'helper@{ instruction: "Answer precisely." }'].join(newline)
     const result = parseMermaid(source)
