@@ -88,12 +88,7 @@ export function resolveNodeInlineStyle(
   nodeId: string,
   graph: MermaidGraph,
 ): Record<string, string> | undefined {
-  let result: Record<string, string> | undefined
-
-  for (const className of graphClassNames(graph.classAssignments.get(nodeId))) {
-    const classDef = checkedAuthoredStyle(graph.classDefs.get(className), `classDef ${className}`)
-    if (classDef) result = { ...result, ...classDef }
-  }
+  let result = resolveClassInlineStyle(nodeId, graph)
 
   const nodeStyle = checkedAuthoredStyle(graph.nodeStyles.get(nodeId), `style ${nodeId}`)
   if (nodeStyle) result = result ? { ...result, ...nodeStyle } : { ...nodeStyle }
@@ -106,8 +101,10 @@ export function resolveNodeInlineStyle(
  * `style` paint: what Mermaid draws on a State composite's body.
  */
 export function resolveClassInlineStyle(id: string, graph: MermaidGraph): Record<string, string> | undefined {
+  const names = graph.classAssignments.get(id)
+  if (!names) return undefined
   let result: Record<string, string> | undefined
-  for (const className of graphClassNames(graph.classAssignments.get(id))) {
+  for (const className of graphClassNames(names)) {
     const classDef = checkedAuthoredStyle(graph.classDefs.get(className), `classDef ${className}`)
     if (classDef) result = { ...result, ...classDef }
   }
@@ -122,13 +119,8 @@ export function resolveEdgeInlineStyle(
   edgeIndex: number,
   graph: MermaidGraph,
 ): Record<string, string> | undefined {
-  let result: Record<string, string> | undefined
-
   const edgeId = graph.edges[edgeIndex]?.id
-  for (const className of graphClassNames(edgeId ? graph.classAssignments.get(edgeId) : undefined)) {
-    const classDef = checkedAuthoredStyle(graph.classDefs.get(className), `classDef ${className}`)
-    if (classDef) result = { ...result, ...classDef }
-  }
+  let result = edgeId ? resolveClassInlineStyle(edgeId, graph) : undefined
 
   const defaultStyle = checkedAuthoredStyle(graph.linkStyles.get('default'), 'linkStyle default')
   if (defaultStyle) result = result ? { ...result, ...defaultStyle } : { ...defaultStyle }
