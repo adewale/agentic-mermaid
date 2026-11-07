@@ -818,3 +818,30 @@ The reversed-sort trial still refuses and is stopped. ER256 BT/RL, Sparse32,
 crossing276 and Sparse256 tradeoffs remain. Evidence: `er256-dda69`.
 Next: attribute remaining BT/RL final-ink work before another intervention;
 automated work stays disabled.
+
+
+Rebase d8c8ac879 onto current main c366de0d137e33e123acd84fc99164417c0f3917
+(#601 families and #607 shared ER/label/marker repairs), preserving the published
+head as ancestry for a normal push. Shared ink-index and ER caption planner
+already match main; retain one implementation and the PR's Native packing,
+cardinality identities and capture/ownership foundation. Do not add a solver
+framework: placement-only family geometry already has distinct owners.
+
+Requalification found an introduced proof-only loss: generated SHA256 counter
+case255 kept identical SVG but exceeded400k after merging small-list XML lookup
+into the metered path. A real Native child witness is RED before/GREEN after
+retaining the admitted metered Set plan; unmetered lookup keeps main's scratch
+plan. Proof returns at399,809, original cap unchanged. Parent Scene-assertion
+probes passed before the fix and are not claimed as discriminating evidence.
+Reconcile reviewed state14 concurrency parents with retained PR route geometry;
+retain the PR Requirement raster because its renderer/marker geometry is unchanged.
+Core types and XML/security34P; new-family/SDK233P; initial owning1340P plus
+seven sandbox-child retriesP, known Sparse32F retained. Geometry330-case gate and
+Requirement raster pass after resolving those expectation conflicts.
+
+Fresh corpus, final browser and payload evidence are in rebase-c366-reconsider-
+20261107. Rebuilt standalone initially1,386,698gzip exceeds the retained1,334,500
+ceiling; cap is not raised. Browser first lacks bundled Chromium; system154 retry
+hits60s while concurrent corpus jobs run. These are not passes or speed results.
+Automations stay disabled; final qualification and remaining losses bind to the
+published source/evidence revisions, not this intermediate log entry.

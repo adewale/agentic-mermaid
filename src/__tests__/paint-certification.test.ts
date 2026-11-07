@@ -1,3 +1,4 @@
+import { generatedFlowchartSamples } from '../../eval/layout-compare/generated.ts'
 import { expect, test } from 'bun:test'
 import { Resvg } from '@resvg/resvg-js'
 import * as marks from '../scene/marks.ts'
@@ -164,6 +165,27 @@ test.each([
   expect(proof.checks.maxOperations).toBe(400000)
   expect(proof.checks.operations).toBeLessThanOrEqual(400000)
   expect(proof).toMatchObject({ status: 'passed', issues: [] })
+})
+
+test('metered final SVG validation retains the admitted generated case 255 proof', async () => {
+  const source = generatedFlowchartSamples({ start: 255, count: 1 }, 'sha256-counter-v1')[0]!.source
+  const child = await runTextReceiverChild(process.execPath, ['--eval', String.raw`
+process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS = '0'
+const { readFileSync } = await import('node:fs')
+const { renderMermaidSVGWithReceipt } = await import('./src/index.ts')
+const { layoutMermaidWithReceipt } = await import('./src/agent/core.ts')
+const source = readFileSync(0, 'utf8')
+layoutMermaidWithReceipt(source, { graphLayout: { backend: 'agentic' }, debug: true })
+console.log(JSON.stringify(renderMermaidSVGWithReceipt(source, { idPrefix: 'lc63-', graphLayout: { backend: 'agentic' } })))
+`], { cwd: fileURLToPath(new URL('../../', import.meta.url)), input: source })
+  expect({ status: child.status, error: child.stderr }).toEqual({ status: 0, error: '' })
+  const rendered = JSON.parse(child.stdout) as ReturnType<typeof renderMermaidSVGWithReceipt>
+  const elements = rectangleEmissionElements(rendered.svg)
+  const nodes = elements.filter(element => element.name === 'g' && element.attributes.class === 'node')
+  expect(nodes.map(node => node.attributes['data-id']).sort()).toEqual(Array.from({ length: 16 }, (_, index) => `n${index}`).sort())
+  expect(elements.filter(element => element.attributes['data-role'] === 'edge')).toHaveLength(35)
+  expect(rendered.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
+  expect(rendered.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [], checks: { maxOperations: 400_000 } })
 })
 
 test('an admitted cyclic labelled multigraph retains bounded public Native paint proof', async () => {

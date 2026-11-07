@@ -389,6 +389,9 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
     }
 
     let end = nameEnd
+    // Metered paint proof retains its admitted hash-lookup work plan. The
+    // public unmetered scan can use Main's bounded small-attribute scratch.
+    const rawAttributes = work ? new Set<string>() : undefined
     let attributeCount = 0
     let usingLongAttributes = false
     const namespaceAttributes = xmlParserList<{ readonly name: string; readonly prefix?: string; readonly local?: string; readonly value: string }>()
@@ -408,7 +411,10 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       if (attributeEnd < 0) return false
       const attribute = xmlSlice(svg, end, attributeEnd, work)
       work?.(attribute.length * 3 + 2)
-      if (attributeCount < 16) {
+      if (rawAttributes) {
+        if (rawAttributes.has(attribute)) return false
+        rawAttributes.add(attribute)
+      } else if (attributeCount < 16) {
         for (let index = 0; index < attributeCount; index++) {
           work?.(1)
           if (shortAttributeNames[index] === attribute) return false
