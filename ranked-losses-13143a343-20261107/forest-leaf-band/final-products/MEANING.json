@@ -1,0 +1,22 @@
+[
+  {
+    "direction": "TB",
+    "literalNodesAndEndpoints": true,
+    "displayedTextBeforeAfterEqual": true
+  },
+  {
+    "direction": "BT",
+    "literalNodesAndEndpoints": true,
+    "displayedTextBeforeAfterEqual": true
+  },
+  {
+    "direction": "LR",
+    "literalNodesAndEndpoints": true,
+    "displayedTextBeforeAfterEqual": true
+  },
+  {
+    "direction": "RL",
+    "literalNodesAndEndpoints": true,
+    "displayedTextBeforeAfterEqual": true
+  }
+]

@@ -1,0 +1,21 @@
+{
+  "source": "13143a343e30331b97a1104ea657ed2cba7f0903",
+  "runtime": "Bun1.4.4",
+  "compression": "Bun node:zlib gzip9/Brotli11, same engine both arms; Node gzip results are retained separately and are not substituted for the original Bun budget.",
+  "rows": [
+    {
+      "tag": "before",
+      "raw": 2204131,
+      "gzip9": 1323981,
+      "brotli11": 1257443,
+      "sha256": "d4a9ff1a6be5ce67418db16bc013457359017089e87f5ffbdc4152abc914c3a4"
+    },
+    {
+      "tag": "after",
+      "raw": 2205439,
+      "gzip9": 1324974,
+      "brotli11": 1258458,
+      "sha256": "06b6e1f18e0eb25697ef3fbc36c7116e129f86dd8d856ddd50d0bed8455c0651"
+    }
+  ]
+}

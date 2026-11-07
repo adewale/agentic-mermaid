@@ -1,0 +1,202 @@
+[
+  {
+    "id": "corpus/class/0",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/1",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/2",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/3",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/4",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/5",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/6",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/7",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/8",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/9",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/10",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/11",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/12",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/13",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/14",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/15",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/16",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/17",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/18",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/19",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/20",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/21",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/22",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/23",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/24",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/25",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/26",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/27",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/28",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/29",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/30",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/31",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/32",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/33",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/34",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "corpus/class/35",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "fixture/class-backends.mmd",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "fixture/class-basic.mmd",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "fixture/class-compound-backends.mmd",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  },
+  {
+    "id": "fixture/stress/class-80-classes.mmd",
+    "textsEqual": true,
+    "actualIdentitiesEqual": true
+  }
+]

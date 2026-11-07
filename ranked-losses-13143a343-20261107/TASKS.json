@@ -1,0 +1,45 @@
+{
+  "sourceHead": "dda69ef2287da0ad569d334f0b200cc186de8c05",
+  "runtimeSource": "13143a343e30331b97a1104ea657ed2cba7f0903",
+  "tasks": [
+    {
+      "rank": 1,
+      "task": "Native Class area",
+      "status": "shipped",
+      "commit": "aa61c7c736750b85bac8ac813b902707b66a8363",
+      "result": "9areas shrink; Class losses13to11; class2 85680to65400 againstELK61400; all874 requalified, no other quality/delivery/proof regressions."
+    },
+    {
+      "rank": 2,
+      "task": "Shared ER256 delivery",
+      "status": "causal proposal falsified; task remains open",
+      "result": "Deleting both suspected scans still refuses at400k later. No omitted validation or cap changes ship."
+    },
+    {
+      "rank": 3,
+      "task": "Crossing276",
+      "status": "global candidate rejected; task remains open",
+      "result": "276 gains3crossings52bends withclear n10, but42 introduces39attenuatedpixels.123crossingwins14losses;15PtoU9UtoP. Two33warning pairs lose0pixels."
+    },
+    {
+      "rank": 4,
+      "task": "Sparse256 area",
+      "status": "external prototype only; task remains open",
+      "result": "8column row-major reaches+1.34% versusELK withheight+31.04% andlarger gzipSVG; neitherit norhistorical+.97%backfillships. Implementedgap+5.04%."
+    },
+    {
+      "rank": 5,
+      "task": "Forest wire/area tradeoff",
+      "status": "shipped",
+      "commit": "13143a343e30331b97a1104ea657ed2cba7f0903",
+      "result": "TB actualwire436.8572to397.7072; gapvsELK+10.19to+.31%;area\u22126.43% preserved;8bends0crossingsP. All4directionsimprovewire,LR/RLshrinkarea."
+    },
+    {
+      "rank": 6,
+      "task": "Measured pipeline reuse and costs",
+      "status": "producer-box reuse shipped; other proposals remain open",
+      "result": "SkipNativepeer-sizepreparation,useexistingfanroute-onlymode;complete/scope/ELKprojectioncontexts explicit. No newcache/cap/default/versionchange. HTML+993Bungzip9/+1015Br11. No CPU/RSSwin established; ELK setup restoration and broader bundle/import redesign remain unimplemented."
+    }
+  ],
+  "automation": "disabled, manual bounded run only"
+}

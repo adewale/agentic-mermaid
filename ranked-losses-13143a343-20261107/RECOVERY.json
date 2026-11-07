@@ -1,0 +1,13 @@
+{
+  "sourceCommits": [
+    "aa61c7c736750b85bac8ac813b902707b66a8363",
+    "13143a343e30331b97a1104ea657ed2cba7f0903"
+  ],
+  "archive": "ranked-losses-13143a343.tar.gz",
+  "bytes": 44986653,
+  "sha256": "96a3d523f55990bcb9d5f6e9317725edf1d7847d7041d2b261e39e8bb38fa2b6",
+  "members": 367,
+  "everyMemberVerified": true,
+  "browserFinalLog": "separate file after completion; active browser log excluded from archive",
+  "deduplication": "standard tar hard links for identical bytes; all paths retained"
+}

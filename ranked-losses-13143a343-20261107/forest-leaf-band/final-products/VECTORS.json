@@ -1,0 +1,66 @@
+[
+  {
+    "dir": "TB",
+    "arm": "before",
+    "area": 165355.65750000003,
+    "wire": 436.857166666,
+    "bends": 8,
+    "crossings": 0
+  },
+  {
+    "dir": "TB",
+    "arm": "after",
+    "area": 165355.65750000003,
+    "wire": 397.7071666659999,
+    "bends": 8,
+    "crossings": 0
+  },
+  {
+    "dir": "BT",
+    "arm": "before",
+    "area": 165355.65750000003,
+    "wire": 424.81249999999994,
+    "bends": 8,
+    "crossings": 0
+  },
+  {
+    "dir": "BT",
+    "arm": "after",
+    "area": 165355.65750000003,
+    "wire": 424.28749999999997,
+    "bends": 8,
+    "crossings": 0
+  },
+  {
+    "dir": "LR",
+    "arm": "before",
+    "area": 183037.49360000002,
+    "wire": 413.5916666662999,
+    "bends": 8,
+    "crossings": 0
+  },
+  {
+    "dir": "LR",
+    "arm": "after",
+    "area": 147535.0578,
+    "wire": 368.65,
+    "bends": 8,
+    "crossings": 0
+  },
+  {
+    "dir": "RL",
+    "arm": "before",
+    "area": 188955.84540000002,
+    "wire": 376.06666666629997,
+    "bends": 8,
+    "crossings": 0
+  },
+  {
+    "dir": "RL",
+    "arm": "after",
+    "area": 152305.47045000002,
+    "wire": 370.607,
+    "bends": 8,
+    "crossings": 0
+  }
+]

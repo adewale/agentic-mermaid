@@ -1,0 +1,26 @@
+[
+  {
+    "name": "class-before",
+    "svgSHA256": "11e9f8e9862dcad0ed1567731e8a83aa4da62b887752b4d5a2397d67794f04c5",
+    "font": "manifest-verified Inter, system fonts disabled",
+    "zoom": 2
+  },
+  {
+    "name": "class-after",
+    "svgSHA256": "9adb5e5a32f0b7ec1d24c74b43f36bd3e3ed57dafd21a35dcfc67c0390ca71de",
+    "font": "manifest-verified Inter, system fonts disabled",
+    "zoom": 2
+  },
+  {
+    "name": "forest-before",
+    "svgSHA256": "7b8bac6abe40e552f0cd8b7d7c36ab50e9ec8074492b3be571650e9c24ee3dd1",
+    "font": "manifest-verified Inter, system fonts disabled",
+    "zoom": 2
+  },
+  {
+    "name": "forest-after",
+    "svgSHA256": "0d8e952645d661a667cc789bc07d9604958c0fc7f3586f70bbc3f5bbbacae4e2",
+    "font": "manifest-verified Inter, system fonts disabled",
+    "zoom": 2
+  }
+]

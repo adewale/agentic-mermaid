@@ -1,0 +1,170 @@
+[
+  {
+    "direction": "TB",
+    "arm": "before",
+    "proof": "passed",
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "width": 516.575,
+      "height": 320.1
+    },
+    "sizes": {
+      "svgRawBytes": 8047,
+      "svgGzipBytes": 1496,
+      "svgBrotliBytes": 1238,
+      "entireReceiptRawBytes": 7914,
+      "wholeProductRawBytes": 16713
+    }
+  },
+  {
+    "direction": "TB",
+    "arm": "after",
+    "proof": "passed",
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "width": 516.575,
+      "height": 320.1
+    },
+    "sizes": {
+      "svgRawBytes": 8049,
+      "svgGzipBytes": 1492,
+      "svgBrotliBytes": 1232,
+      "entireReceiptRawBytes": 7914,
+      "wholeProductRawBytes": 16715
+    }
+  },
+  {
+    "direction": "BT",
+    "arm": "before",
+    "proof": "passed",
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "width": 516.575,
+      "height": 320.1
+    },
+    "sizes": {
+      "svgRawBytes": 8043,
+      "svgGzipBytes": 1483,
+      "svgBrotliBytes": 1221,
+      "entireReceiptRawBytes": 7914,
+      "wholeProductRawBytes": 16709
+    }
+  },
+  {
+    "direction": "BT",
+    "arm": "after",
+    "proof": "passed",
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "width": 516.575,
+      "height": 320.1
+    },
+    "sizes": {
+      "svgRawBytes": 8022,
+      "svgGzipBytes": 1467,
+      "svgBrotliBytes": 1217,
+      "entireReceiptRawBytes": 7914,
+      "wholeProductRawBytes": 16688
+    }
+  },
+  {
+    "direction": "LR",
+    "arm": "before",
+    "proof": "passed",
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "width": 305.266,
+      "height": 599.6
+    },
+    "sizes": {
+      "svgRawBytes": 8074,
+      "svgGzipBytes": 1483,
+      "svgBrotliBytes": 1222,
+      "entireReceiptRawBytes": 7914,
+      "wholeProductRawBytes": 16740
+    }
+  },
+  {
+    "direction": "LR",
+    "arm": "after",
+    "proof": "passed",
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "width": 305.266,
+      "height": 483.3
+    },
+    "sizes": {
+      "svgRawBytes": 8022,
+      "svgGzipBytes": 1470,
+      "svgBrotliBytes": 1213,
+      "entireReceiptRawBytes": 7914,
+      "wholeProductRawBytes": 16688
+    }
+  },
+  {
+    "direction": "RL",
+    "arm": "before",
+    "proof": "passed",
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "width": 315.1365,
+      "height": 599.6
+    },
+    "sizes": {
+      "svgRawBytes": 8090,
+      "svgGzipBytes": 1476,
+      "svgBrotliBytes": 1216,
+      "entireReceiptRawBytes": 7915,
+      "wholeProductRawBytes": 16757
+    }
+  },
+  {
+    "direction": "RL",
+    "arm": "after",
+    "proof": "passed",
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "width": 315.1365,
+      "height": 483.3
+    },
+    "sizes": {
+      "svgRawBytes": 8081,
+      "svgGzipBytes": 1472,
+      "svgBrotliBytes": 1204,
+      "entireReceiptRawBytes": 7915,
+      "wholeProductRawBytes": 16748
+    }
+  },
+  {
+    "direction": "TB",
+    "arm": "elk",
+    "proof": "passed",
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "width": 552.1,
+      "height": 320.1
+    },
+    "referenceSvgExact": true
+  },
+  {
+    "direction": "TB",
+    "arm": "omitted",
+    "proof": "passed",
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "width": 516.575,
+      "height": 320.1
+    },
+    "referenceSvgExact": true
+  }
+]

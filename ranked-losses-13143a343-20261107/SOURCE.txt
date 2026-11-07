@@ -1,0 +1,5 @@
+PR602 source HEAD dda69ef2287da0ad569d334f0b200cc186de8c05
+Runtime/source qualification13143a343e30331b97a1104ea657ed2cba7f0903; later commit changes the work log only.
+Class packingaa61c7c736750b85bac8ac813b902707b66a8363. Main9fb35b8bf8dc654a19612de3cc6a50144d68b0a7 already integrated.
+Core types/canonical lint pass. Final443owners:442pass,1missing-jsdom failure. Actual standalone2pass/505assertions.
+Archive recovery record is a snapshot, not a live lease; always check processes and acquire a fresh lease before writing.
