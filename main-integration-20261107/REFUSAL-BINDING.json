@@ -1,0 +1,83 @@
+[
+  {
+    "case": "ER208-chain",
+    "revision": "main",
+    "mode": "omitted",
+    "code": "ER_ROUTE_WORK_LIMIT",
+    "name": "ErRouteWorkLimitError",
+    "message": "ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships",
+    "sameNamedRefusal": true
+  },
+  {
+    "case": "ER208-chain",
+    "revision": "main",
+    "mode": "agentic",
+    "code": "ER_ROUTE_WORK_LIMIT",
+    "name": "ErRouteWorkLimitError",
+    "message": "ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships",
+    "sameNamedRefusal": true
+  },
+  {
+    "case": "ER208-chain",
+    "revision": "main",
+    "mode": "elk",
+    "code": "ER_ROUTE_WORK_LIMIT",
+    "name": "ErRouteWorkLimitError",
+    "message": "ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships",
+    "sameNamedRefusal": true
+  },
+  {
+    "case": "er256-chain",
+    "revision": "main",
+    "mode": "omitted",
+    "code": "ER_ROUTE_WORK_LIMIT",
+    "name": "ErRouteWorkLimitError",
+    "message": "ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships",
+    "sameNamedRefusal": true
+  },
+  {
+    "case": "er256-chain",
+    "revision": "main",
+    "mode": "agentic",
+    "code": "ER_ROUTE_WORK_LIMIT",
+    "name": "ErRouteWorkLimitError",
+    "message": "ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships",
+    "sameNamedRefusal": true
+  },
+  {
+    "case": "er256-chain",
+    "revision": "main",
+    "mode": "elk",
+    "code": "ER_ROUTE_WORK_LIMIT",
+    "name": "ErRouteWorkLimitError",
+    "message": "ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships",
+    "sameNamedRefusal": true
+  },
+  {
+    "case": "er256-chain",
+    "revision": "pr",
+    "mode": "omitted",
+    "code": "ER_ROUTE_WORK_LIMIT",
+    "name": "ErRouteWorkLimitError",
+    "message": "ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships",
+    "sameNamedRefusal": true
+  },
+  {
+    "case": "er256-chain",
+    "revision": "pr",
+    "mode": "agentic",
+    "code": "ER_ROUTE_WORK_LIMIT",
+    "name": "ErRouteWorkLimitError",
+    "message": "ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships",
+    "sameNamedRefusal": true
+  },
+  {
+    "case": "er256-chain",
+    "revision": "pr",
+    "mode": "elk",
+    "code": "ER_ROUTE_WORK_LIMIT",
+    "name": "ErRouteWorkLimitError",
+    "message": "ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships",
+    "sameNamedRefusal": true
+  }
+]

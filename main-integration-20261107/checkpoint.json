@@ -1,0 +1,35 @@
+{
+  "source_head": "930faf846c6bec55e1f9b053844700e08281faf6",
+  "tested_runtime": "1693c2a2b7fd93cb5da11f1a358d162180fa19cc",
+  "main": "39a500425f6b74eb486b9add9e90d538fab6a914",
+  "prior_source": "970c9f807bd82b6c3e731aadef3585ee6b071523",
+  "prior_evidence": "d48fd5fa1eedb432f0478e8829ebea5ae0cc43a7",
+  "files": 231,
+  "raw_bytes": 6983468,
+  "archive_bytes": 4883947,
+  "every_member_byte_verified": true,
+  "public_calls": 36,
+  "returned": 27,
+  "proof_passed": 21,
+  "proof_unverified": 6,
+  "refused": 9,
+  "all_returned_fullSVG_receipt_exact": true,
+  "standalone_main_pr": {
+    "gzip": [
+      1423188,
+      1348449
+    ],
+    "brotli": [
+      1098404,
+      1282268
+    ],
+    "peakBuildRssKiB": [
+      430832,
+      683124
+    ]
+  },
+  "qualification": "Local main owners273P; foundation146+103P; emitted-workerP/budgetF; core typing no diagnostics/lint52P. No overall readiness or runtime-speed claim.",
+  "additionalFiles": [
+    "REFUSAL-BINDING.json"
+  ]
+}
