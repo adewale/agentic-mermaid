@@ -738,3 +738,21 @@ prioritizes shared ER work, candidate-input preparation and measured consumer
 subtraction. Existing indexed storage and lazy receipts already cover those ideas;
 no new cache, optimizer or framework is introduced. Original limits and remaining
 Sparse32, unverified output and lazy-payload/advisory failures stay visible.
+
+Owner-ranked work from `ce15c91b929ccfdfe338e79df8b6a97aaee2e8fa`: Class area,
+sharedER256 delivery, crossing276, Sparse256 area, forest tradeoff, then causal
+pipeline costs/reliability. Profile first; Class2 has identical measured cards
+and60px wire, but disconnected-root placement wastes area. The shared forest
+producer now compares bounded whole-component shelves using its existing bands
+and subtree spans. Four directional owners fail before and pass after. First
+unrestricted trial broke two compound corridor owners; stop it and preserve the
+original layout inside local projections with external contacts.
+
+Qualified874Native outputs:9Class areas shrink,865SVGs remain exact; all wire,
+bends, crossings, label conflicts, overlaps and delivery/proof statuses unchanged.
+Class2 area85,680→65,400 (ELK61,400); Class29 87,720→78,480 (ELK67,200).
+Class area losses versusELK13→11; wins8→10. Actual text/identities preserved in
+40Class products; selected fullSVG rasters inspected. Class/forest owners176P,
+scoped forest/layered owners206P; core types/lintP. Route owners retain18 missing
+jsdom checks. Added code/payload cost is retained in evidence; no CPU speedup or
+bundle-reduction claim. Evidence: `ranked-losses-ce15`; automations stay disabled.

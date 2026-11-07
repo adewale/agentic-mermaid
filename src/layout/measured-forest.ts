@@ -5,7 +5,7 @@ import type { AgenticLayout, MeasuredGraph } from './agentic-layered.ts'
  * Keep each subtree in its own interval and reserve depth bands within each
  * root, so incomplete levels cannot interleave related branches. Disconnected
  * roots already have separate cross-axis intervals and need no shared bands. */
-export function layoutMeasuredForest(input: MeasuredGraph): AgenticLayout | undefined {
+export function layoutMeasuredForest(input: MeasuredGraph, packComponents = true): AgenticLayout | undefined {
   const { nodes, edges, padding, nodeSpacing, layerSpacing } = input
   if (nodes.length < 2 || edges.length >= nodes.length || nodeSpacing <= 0 || layerSpacing <= 0
     || ![padding, nodeSpacing, layerSpacing].every(value => Number.isFinite(value) && value >= 0)
@@ -67,6 +67,43 @@ export function layoutMeasuredForest(input: MeasuredGraph): AgenticLayout | unde
   let crossExtent = 0
   for (const root of roots) { starts[root] = crossExtent; crossExtent += span[root]! + nodeSpacing }
   crossExtent -= nodeSpacing
+  // Disconnected roots share no route. Pack their existing intervals without
+  // reordering a subtree or recomputing any of its geometry. Four linear shelf
+  // proposals include the two strips and useful near-square arrangements.
+  const rootMainSize = (ordinal: number): number => {
+    const last = bandOffset[ordinal + 1]! - 1
+    return bandStart[last]! + bands[last]!
+  }
+  let columns = roots.length
+  let area = (crossExtent + 2 * padding) * (mainExtent + 2 * padding)
+  for (const count of packComponents ? [1, 2, Math.ceil(roots.length / 2), Math.ceil(Math.sqrt(roots.length))] : []) {
+    if (count >= roots.length) continue
+    let cross = 0, main = 0, rowCross = 0, rowMain = 0
+    for (let ordinal = 0; ordinal < roots.length; ordinal++) {
+      rowCross += span[roots[ordinal]!]! + (ordinal % count ? nodeSpacing : 0)
+      rowMain = Math.max(rowMain, rootMainSize(ordinal))
+      if ((ordinal + 1) % count === 0 || ordinal + 1 === roots.length) {
+        cross = Math.max(cross, rowCross)
+        main += rowMain + (ordinal + 1 < roots.length ? nodeSpacing : 0)
+        rowCross = 0; rowMain = 0
+      }
+    }
+    const candidateArea = (cross + 2 * padding) * (main + 2 * padding)
+    if (candidateArea < area) { area = candidateArea; columns = count; crossExtent = cross; mainExtent = main }
+  }
+  if (columns !== roots.length) {
+    let cross = 0, main = 0, rowMain = 0
+    for (let ordinal = 0; ordinal < roots.length; ordinal++) {
+      const root = roots[ordinal]!, extent = rootMainSize(ordinal)
+      starts[root] = cross
+      // Reverse each component within its own band before translating it.
+      const shift = reverse ? mainExtent - extent - main : main
+      for (let band = bandOffset[ordinal]!; band < bandOffset[ordinal + 1]!; band++) bandStart[band] = bandStart[band]! + shift
+      cross += span[root]! + nodeSpacing
+      rowMain = Math.max(rowMain, extent)
+      if ((ordinal + 1) % columns === 0) { main += rowMain + nodeSpacing; cross = 0; rowMain = 0 }
+    }
+  }
   if (!Number.isFinite(mainExtent + crossExtent + 2 * padding)) return undefined
   const positioned = nodes.map(() => ({ x: 0, y: 0 }))
   for (const id of traversal) {
