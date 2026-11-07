@@ -1,4 +1,5 @@
 import { decodeXML } from 'entities'
+import { appendClassName } from '../shared/graph-classes.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { isSafeActionHref } from '../output-security.ts'
 import { parseAccessibilityDirective, requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
@@ -1085,7 +1086,7 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
             delete cls.labelContent
             Object.assign(cls, classTextLabel(declaration.label))
           }
-          if (declaration.className !== undefined) cls.className = declaration.className
+          if (declaration.className !== undefined) cls.className = appendClassName(cls.className, declaration.className)
           if (parserObservationActive('class')) observeParserMutation('class', 'declare-class', cls, { line: node.source.line, unit: 'normalized' })
           if (declaration.annotation !== undefined) {
             applyClassAnnotation(cls, declaration.annotation)
@@ -1114,7 +1115,7 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
             delete cls.labelContent
             Object.assign(cls, classTextLabel(annotation.label))
           }
-          if (annotation.className !== undefined) cls.className = annotation.className
+          if (annotation.className !== undefined) cls.className = appendClassName(cls.className, annotation.className)
           applyClassAnnotation(cls, annotation.annotation)
           if (parserObservationActive('class')) observeParserMutation('class', 'set-annotation', { id: cls.id, annotation: cls.annotation, label: cls.label })
           claim(cls.id, path)
@@ -1178,12 +1179,12 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
             // it, and declares none.
             if (value.kind === 'assignment' && value.form.startsWith('cssClass')) {
               const existing = classMap.get(reference.id)
-              if (existing) existing.className = value.name
+              if (existing) existing.className = appendClassName(existing.className, value.name)
               else laterCssClasses.push({ id: reference.id, name: value.name })
               continue
             }
             const cls = ensureClass(classMap, reference.id, reference.generic)
-            if (value.kind === 'assignment') cls.className = value.name
+            if (value.kind === 'assignment') cls.className = appendClassName(cls.className, value.name)
             else cls.inlineStyle = mergeStyleProps(cls.inlineStyle, value.props)
             if (parserObservationActive('class')) observeParserMutation('class', value.kind === 'assignment' ? 'assign-class' : 'set-style', cls)
             claim(cls.id, path)
@@ -1198,9 +1199,10 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
     if (error instanceof MermaidSyntaxError && activeStatement) throw locateSyntaxError(error, { diagramType: 'class', line: activeStatement.source.line, column: activeStatement.source.column })
     throw error
   }
-  for (const { id, name } of laterCssClasses) {
+  for (let index = laterCssClasses.length - 1; index >= 0; index--) {
+    const { id, name } = laterCssClasses[index]!
     const cls = classMap.get(id)
-    if (cls && cls.className === undefined) cls.className = name
+    if (cls) cls.className = appendClassName(name, cls.className ?? '')
   }
   diagram.classes = [...classMap.values()].filter(node => !node.isInterface).concat([...classMap.values()].filter(node => node.isInterface))
   assertClassDiagramWork(diagram)

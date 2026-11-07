@@ -32,6 +32,7 @@ import { classInterfaceSide, createClassInterfaceAllocator } from '../class/inte
 // ============================================================================
 
 import { decodeXML } from 'entities'
+import { appendClassName } from '../shared/graph-classes.ts'
 import type { ClassStatementNode } from '../class/parser.ts'
 import { classCommentRejections, classDiagramHasStatement, classStatementEnds, MERMAID_DIRECTIVE_RE, parseClassBodyAnnotationToken, parseClassDiagram, parseClassMember, parseClassRelationship, readClassStatements, readsAsClassName, supportedRelationEndpoint, withoutStyleComment } from '../class/parser.ts'
 import { classTextLabel, decodeClassText, hasClassDirectionToken, memberToString, writeClassText } from '../class/text.ts'
@@ -231,7 +232,7 @@ export function parseClassBody(lines: string[], source?: string): ClassBody | nu
         case 'class': {
           const declaration = value.declaration
           const cls = upsert(declaration.id, declaration.label, declaration.generic)
-          if (declaration.className !== undefined) cls.className = declaration.className
+          if (declaration.className !== undefined) cls.className = appendClassName(cls.className, declaration.className)
           if (declaration.annotation !== undefined && !addAnnotation(cls, declaration.annotation)) return false
           if (!claim(cls, path)) return false
           if (node.children) frames.push({ nodes: node.children, path, owner: cls, index: 0 })
@@ -249,7 +250,7 @@ export function parseClassBody(lines: string[], source?: string): ClassBody | nu
           const annotation = value.annotation
           if (annotation.placement === 'separate' && !classMap.has(annotation.id)) return false
           const cls = upsert(annotation.id, annotation.label, annotation.generic)
-          if (annotation.className !== undefined) cls.className = annotation.className
+          if (annotation.className !== undefined) cls.className = appendClassName(cls.className, annotation.className)
           if (!addAnnotation(cls, annotation.annotation)) return false
           if (!claim(cls, path)) return false
           break
@@ -314,12 +315,12 @@ export function parseClassBody(lines: string[], source?: string): ClassBody | nu
             // it, and declares none (src/class/parser.ts).
             if (value.kind === 'assignment' && value.form.startsWith('cssClass')) {
               const existing = classMap.get(reference.id)
-              if (existing) existing.className = value.name
+              if (existing) existing.className = appendClassName(existing.className, value.name)
               else laterCssClasses.push({ id: reference.id, name: value.name })
               continue
             }
             const cls = upsert(reference.id, undefined, reference.generic)
-            if (value.kind === 'assignment') cls.className = value.name
+            if (value.kind === 'assignment') cls.className = appendClassName(cls.className, value.name)
             else {
               const props = portableClassStyleProps(value.props, value.declarations)
               if (!props) return false
@@ -336,9 +337,10 @@ export function parseClassBody(lines: string[], source?: string): ClassBody | nu
     return true
   }
   if (!visit(tree.statements)) return null
-  for (const { id, name } of laterCssClasses) {
+  for (let index = laterCssClasses.length - 1; index >= 0; index--) {
+    const { id, name } = laterCssClasses[index]!
     const cls = classMap.get(id)
-    if (cls && cls.className === undefined) cls.className = name
+    if (cls) cls.className = appendClassName(name, cls.className ?? '')
   }
   if (namespaces.length > 0) body.namespaces = namespaces
   if (classBodyWriteProblem(body)) return null
